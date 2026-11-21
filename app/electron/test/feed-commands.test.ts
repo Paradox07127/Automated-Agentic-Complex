@@ -40,7 +40,6 @@ function setup(f: { helper?: Record<string, HelperReply>; sessions?: unknown[]; 
       return { status: f.sessionsStatus ?? 200, body: Buffer.from(JSON.stringify({ sessions: f.sessions ?? [] })) };
     } } as unknown as AgentdClient,
     store: null, diag: null, supervisor: null, library: null,
-    permission: () => 'undetermined',
     confirm: async (text) => { calls.push(`confirm ${text}`); return false; },
     shell: {
       openExternal: async (url) => { calls.push(`openExternal ${url}`); },

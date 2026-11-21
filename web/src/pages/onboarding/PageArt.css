@@ -1,39 +1,4 @@
-/* Guide textures on the global sprite hooks of Bits.tsx, used only once the art is in place (html[data-art]);
-   inlined into Page.module.css through PagePart1.css. */
-
-/* Guide ring (texture guide-frame-strong): its line on the target edge, the glow 43 px out; 9-slice about 104 g.
-   The sprite is white, so the light theme keeps the CSS ring. */
-:global(html[data-art][data-theme='dark']) .onb :global(.guide-ring) {
-  border: 0 solid transparent;
-  border-image: url('/art/common/guide-frame-strong.png') 103 102 106 105 / 51.5px 51px 53px 52.5px;
-}
-
-:global(html[data-art][data-theme='dark']) .onb :global(.guide-ring)::before {
-  border-color: transparent;
-  box-shadow: none;
-}
-
-/* Weak guide ring (texture guide-frame-weak), 9-slice l117 b121 r119 t117: a ring on an in-app button the
-   user grants right there (允许麦克风), not on a permission row that only System Settings can grant (mapping inferred). */
-:global(html[data-art][data-theme='dark']) .onb :not([role='listitem']) > :global(.guide-ring) {
-  border-image: url('/art/common/guide-frame-weak.png') 117 119 121 117 / 58.5px 59.5px 60.5px 58.5px;
-}
-
-/* pager-ring (recipe guide-media-arrow-ring): the soft dark ring behind the paging disc, 74 px. */
-:global(html[data-art]) .onb button:has(> :global(.pager-ring)) {
-  background: url('/art/common/guide-media-arrow-ring.png') center / 76px 76px no-repeat;
-}
-
-/* pager-chevron (recipe guide-media-arrow): the double chevron, 34 px, in the arrow colour. */
-:global(html[data-art]) .onb :global(.pager-chevron) {
-  background: currentColor;
-  -webkit-mask: url('/art/common/guide-media-arrow.png') center / 36px 36px no-repeat;
-  mask: url('/art/common/guide-media-arrow.png') center / 36px 36px no-repeat;
-}
-
-:global(html[data-art]) .onb :global(.pager-chevron) path {
-  stroke: none;
-}
+/* Guide textures, used only once the art is in place (html[data-art]); inlined into Page.module.css through PagePart1.css. */
 
 /* Media panel textures (pages/onboarding): white sprites used as masks over the theme's ink. */
 :global(html[data-art]) .ramp {

@@ -127,7 +127,7 @@ function importContext(o: { linked: boolean }) {
         return { last: JSON.stringify({ ok: true, action: { id: 'mmd_dance', title: 'dance', duration_s: 3, has_bgm: false } }), status: 0,
           stderr: '' };
       } },
-    permission: () => 'undetermined', confirm: async () => true,
+    confirm: async () => true,
     shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} }, clipboard: { writeText: () => {} },
     dialog: { pickFile: async () => null, pickFolder: async () => null, pickPackage: async () => null, saveFile: async () => true },
     app: { version: '0', os: 'test' }, loginItem: { enabled: () => null, set: () => {} }, settingsChanges: silentSource, log: () => {},

@@ -121,7 +121,7 @@ test('ptt.down → barge-in, mic.start, the partial on voice.onPushToTalk, ptt.u
     if (stream === 'voice.onPushToTalk' && kind === 'event') pushed.push(JSON.parse(payload!.data) as typeof pushed[number]);
   });
   const ctx = { surface: 'main', routes, config: { path: join(dir, 'config.json'), supportDir: dir, devResources: null }, agentd: client,
-    store: null, diag: silentSource, supervisor: null, library: null, permission: () => 'undetermined', confirm: async () => false,
+    store: null, diag: silentSource, supervisor: null, library: null, confirm: async () => false,
     shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} }, clipboard: { writeText: () => {} },
     dialog: { pickFile: async () => null, pickFolder: async () => null, pickPackage: async () => null, saveFile: async () => false },
     app: { version: '0', os: 'test' }, loginItem: { enabled: () => null, set: () => {} }, settingsChanges: silentSource, log: () => {},

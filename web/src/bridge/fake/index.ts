@@ -252,7 +252,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       request: async (kind) => permissions[kind],
       openSettings: done,
     },
-    onboarding: createFakeOnboarding(opts.surface, still),
+    onboarding: createFakeOnboarding(opts.surface),
     avatar: {
       state: async () => ({ ...avatar }),
       // `demo=suspended`: rendering is paused, so the host reports why and sends no stats.

@@ -95,7 +95,6 @@ macOS 上主窗口的角色页连渲染器的预览 XPC 服务（C3 合同的「
 
 - 系统的权限框写的是 app（helper 的责任进程），不是 helper。从终端启动 helper 时，授权算在终端上。
 - `permissions.status` 把 helper 的读数换成网页的取值（`src/main/ops/permissions.ts`）：`notApplicable` 换成 `unsupported`；屏幕录制和辅助功能没允许时一律是 `notDetermined`，因为系统分不出拒绝和没问过。通知权限 Electron 读不到，总是 `unsupported`。
-- 引导页的权限行：Windows 上的 `notApplicable` 算作已允许；自动化没决定时显示「用到时询问」。
 - `permissions.openSettings` 打开系统设置的对应页。macOS 上屏幕录制和辅助功能两页先调一次 helper 的 `permissions.request`，app 才会出现在那一页的列表里。Windows 上只有麦克风一页（`ms-settings:privacy-microphone`），其他页回 `failed`。
 
 ## 坐标系

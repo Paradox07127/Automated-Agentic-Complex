@@ -75,7 +75,7 @@ function fixture(config: Record<string, unknown>) {
     surface: 'main', routes, config: { path: configPath, supportDir: dir, devResources: null }, agentd: null, store: null, diag: null,
     avatar: linkAvatarHost(link, (hidden) => { hides.push(hidden); return true; }),
     supervisor: { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => {}, avatar: () => ({ kind: 'running' }) },
-    library: null, permission: () => 'undetermined', confirm: async () => true,
+    library: null, confirm: async () => true,
     shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} }, clipboard: { writeText: () => {} },
     dialog: { pickFile: async () => null, pickFolder: async () => null, pickPackage: async () => null, saveFile: async () => true },
     app: { version: '0', os: 'test' }, loginItem: { enabled: () => null, set: () => {} }, settingsChanges: silentSource, log: () => {},

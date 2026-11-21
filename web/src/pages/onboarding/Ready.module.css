@@ -1,4 +1,4 @@
-/* Closing screen: the character on its desk at the left, summary and 打开主窗口 at the right. */
+/* Closing screen: the character on its desk at the left, the line and 打开插件设置 at the right; a short window scrolls it. */
 .done {
   display: grid;
   grid-template-columns: minmax(0, 440px) minmax(0, 520px);
@@ -7,6 +7,7 @@
   gap: 56px;
   min-height: 0;
   padding: 0 72px;
+  overflow: hidden auto;
 }
 
 .stage {
@@ -112,29 +113,6 @@
   line-height: 1.6;
 }
 
-.sum {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 22px;
-}
-
-.vh {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.tip {
-  margin: 20px 0 0;
-  color: var(--ef-text-3);
-  font-size: var(--ef-fs-body);
-  line-height: 1.6;
-}
-
 .go {
   display: flex;
   flex-wrap: wrap;
@@ -156,8 +134,7 @@
   animation: grow 400ms var(--ef-ease-g-enter) 467ms both;
 }
 
-.lead,
-.tip {
+.lead {
   animation: flicker 117ms steps(1, end) 700ms both;
 }
 
@@ -189,14 +166,13 @@
   .h1,
   .go,
   .fig,
-  .lead,
-  .tip {
+  .lead {
     animation: none;
   }
 }
 
-:global(.still) :is(.h1, .go, .fig, .lead, .tip),
-:global([data-reduce-motion]) :is(.h1, .go, .fig, .lead, .tip) {
+:global(.still) :is(.h1, .go, .fig, .lead),
+:global([data-reduce-motion]) :is(.h1, .go, .fig, .lead) {
   animation: none;
 }
 

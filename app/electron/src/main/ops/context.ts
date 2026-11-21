@@ -2,7 +2,6 @@
 import type { ChildState } from '../../common/agentd.ts';
 import type { Handler, Surface } from '../../common/bridge.ts';
 import type { ShellPlatform } from '../../common/config.ts';
-import type { PermissionKind, PermissionState } from '../../common/onboarding.ts';
 import type { EventSource, PageSession } from '../../common/page.ts';
 import type { ImportProgress } from '../../common/import-state.ts';
 import type { MmdSync } from '../../common/mmd-sync.ts';
@@ -79,7 +78,7 @@ export interface OpsContext {
     launched: string;
     /** The configured character's name, for the onboarding guide. */
     characterName: string;
-    /** The guide's command that installs session hooks, without `--target`. */
+    /** The command that installs session hooks, without `--target`. */
     hookCommand: string;
     /** The Metal host the tools validate with; throws the reason when there is none. */
     validationHost(): string;
@@ -88,8 +87,6 @@ export interface OpsContext {
     /** The library's characters changed: reads again the roster the renderer launches from. */
     rosterChanged(): void;
   } | null;
-  /** onboarding step 1's rows as the shell reads them without the helper: the login item's, and the rest unread. */
-  permission(kind: PermissionKind): PermissionState;
   /** Asks the user natively; true to go on. */
   confirm(text: string): Promise<boolean>;
   shell: {
@@ -126,12 +123,10 @@ export interface OpsContext {
   look?: (() => Promise<LookResult>) | null;
   /** The computer control host; null or absent leaves `computerUse.*` unimplemented. */
   computerUse?: ComputerUseHost | null;
-  /** Push-to-talk's trial readouts (push-to-talk.ts `VoiceTrial`) as event `trial`; null or absent without push-to-talk. */
-  voiceTrial?: EventSource | null;
   /** Opens the first-run guide's window or brings it front; null or absent leaves `open_onboarding` unimplemented. */
   openOnboarding?: (() => void) | null;
-  /** Closes the guide's window; `home` then opens the main window at `destination`. */
-  endOnboarding?: ((home: boolean, destination: 'home' | 'chat' | 'privacy' | 'model') => void) | null;
+  /** Closes the guide's window and opens the main window at `destination`. */
+  endOnboarding?: ((destination: 'home' | 'model' | 'plugins') => void) | null;
   /** Opens the main window at a hash route without `#` and brings it front; null or absent without one.
    *  `activate: false` is the agent's entry: shown without taking the focus, and a focused main window keeps its page. */
   openMain?: ((route: string, activate?: boolean) => void) | null;

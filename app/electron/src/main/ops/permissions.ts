@@ -3,7 +3,6 @@
 // macOS has the grant, read as not determined; Windows asks for none.
 import { BridgeFailure } from '../../common/bridge.ts';
 import type { ShellPlatform } from '../../common/config.ts';
-import type { PermissionKind as GuideKind, PermissionState as GuideState } from '../../common/onboarding.ts';
 import type { Ops, OpsContext } from './context.ts';
 
 export const PERMISSION_KINDS = ['accessibility', 'screenRecording', 'microphone', 'automation', 'inputMonitoring', 'notifications'];
@@ -18,17 +17,6 @@ function webState(kind: string, reading: unknown): WebState {
   // The system cannot tell a refused screen recording or accessibility grant from one never asked.
   if (kind === 'screenRecording' || kind === 'accessibility') return reading === 'granted' ? 'granted' : 'notDetermined';
   return reading === 'granted' || reading === 'denied' || reading === 'notDetermined' ? reading : 'unsupported';
-}
-
-/** A helper reading as the guide's state. */
-export function guideState(kind: GuideKind, reading: unknown): GuideState | null {
-  // Windows has no switch for it: nothing to ask or to set.
-  if (reading === 'notApplicable') return 'granted';
-  if (reading !== 'granted' && reading !== 'denied' && reading !== 'notDetermined') return null;
-  if (reading === 'granted') return 'granted';
-  if (kind === 'screenRecording' || kind === 'accessibility') return 'undetermined';
-  if (reading === 'denied') return 'denied';
-  return kind === 'automation' ? 'askWhenUsed' : 'undetermined';
 }
 
 /** `permissions.status`' result, or null when the helper did not answer. */

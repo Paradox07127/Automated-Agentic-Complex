@@ -23,48 +23,21 @@ describe('motion metadata and onboarding', () => {
     expect(caps).toMatchObject({ pushToTalk: true, systemSettings: true, avatar: false, runInTerminal: true });
   });
 
-  it('goes back, skips, and checks permission kinds and profile fields like the native host', async () => {
+  it('runs 选角色 → 怎么陪你 → 完成, goes back, and completes only at the end with a choice like the native host', async () => {
     const onboarding = createFakeBridge({ surface: 'onboarding', still: true }).onboarding;
     await expect(onboarding.back()).rejects.toMatchObject({ code: 'invalid_state' });
     const initial = await onboarding.state();
-    expect(initial.steps.map((s) => s.title)).toEqual(['权限', '按住说话 · 称呼', '接上会话']);
-    expect(initial.permissions.find((p) => p.kind === 'accessibility')).toMatchObject({ state: 'undetermined', needsSystemSettings: true });
-    expect(initial.permissions.find((p) => p.kind === 'microphone')).toMatchObject({ state: 'undetermined', needsSystemSettings: false });
-    await expect(onboarding.requestPermission('notifications' as never)).rejects.toMatchObject({ code: 'invalid_args' });
-    expect((await onboarding.requestPermission('microphone')).permissions.find((p) => p.kind === 'microphone')?.state).toBe('granted');
-    await expect(onboarding.advance({ callName: '小林' })).rejects.toMatchObject({ code: 'invalid_state' });
-    expect(await onboarding.skip()).toMatchObject({ step: 1, done: false });
-    await onboarding.advance();
-    await expect(onboarding.advance({ callName: 3 } as never)).rejects.toMatchObject({ code: 'invalid_args' });
+    expect(initial.steps.map((s) => s.title)).toEqual(['选角色', '怎么陪你', '完成']);
+    expect(initial).toMatchObject({ step: 1, done: false, canAdvance: true });
+    await expect(onboarding.complete({ companion: 'pet' })).rejects.toMatchObject({ code: 'invalid_state' });
+    expect(await onboarding.advance()).toMatchObject({ step: 2 });
     expect(await onboarding.back()).toMatchObject({ step: 1 });
     await onboarding.advance();
-    expect(await onboarding.skip()).toMatchObject({ step: 3 });
-    expect(await onboarding.skip()).toMatchObject({ done: true });
+    expect(await onboarding.advance()).toMatchObject({ step: 3, canAdvance: false });
     await expect(onboarding.advance()).rejects.toMatchObject({ code: 'invalid_state' });
-  });
-
-  it('sends one sample voice trial on step 2 unless still', async () => {
-    const onboarding = createFakeBridge({ surface: 'onboarding', still: false }).onboarding;
-    const got: string[] = [];
-    const off = onboarding.onVoiceTrial((t) => got.push(t.transcript));
-    await Promise.resolve();
-    expect(got).toEqual([]);
-    await onboarding.advance();
-    await Promise.resolve();
-    expect(got).toEqual(['你好，我叫阿砚']);
-    expect((await onboarding.state()).trial.elapsed).toBe('00:02');
-    off();
-  });
-
-  it('runs the three steps and completes only at the end', async () => {
-    const bridge = createFakeBridge({ surface: 'onboarding', still: true });
-    const onboarding = bridge.onboarding;
-    expect(onboarding).toBeDefined();
-    expect(await onboarding.state()).toMatchObject({ step: 1, done: false, callName: '阿砚' });
-    await expect(onboarding.complete()).rejects.toMatchObject({ code: 'invalid_state' });
-    expect(await onboarding.advance()).toMatchObject({ step: 2 });
-    expect(await onboarding.advance({ callName: ' 小林 ', birthday: '10-31' })).toMatchObject({ step: 3, callName: '小林' });
-    expect(await onboarding.complete()).toMatchObject({ done: true });
+    await expect(onboarding.complete({ companion: 'ai' } as never)).rejects.toMatchObject({ code: 'invalid_args' });
+    await expect(onboarding.complete({ companion: 'pet', destination: 'model' } as never)).rejects.toMatchObject({ code: 'invalid_args' });
+    expect(await onboarding.complete({ companion: 'chat', destination: 'plugins' })).toMatchObject({ done: true });
   });
 
   it('denies onboarding operations on main and stack', async () => {

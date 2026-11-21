@@ -60,7 +60,6 @@ function setUp(dir: string, fake: Fake, surface: Surface = 'main') {
       validationHost: () => '/host', runTool: async (script, args) => { fake.tools.push([script, ...args]); return fake.tool(args); },
       rosterChanged: () => { fake.rosters += 1; },
     },
-    permission: (kind) => (kind === 'loginItem' ? 'denied' : 'granted'),
     confirm: async () => true,
     shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} },
     clipboard: { writeText: () => {} },
@@ -208,44 +207,33 @@ test('import and MMD sync states are idle and their watches subscribe', withDir(
   assert.deepEqual(await call('mmd.list'), { ok: true, value: { ok: false, reason: 'internal', detail: 'boom' } });
 }));
 
-test('onboarding walks its three steps, stores the profile facts and marks config.json done', withDir(async (dir, fake) => {
-  fake.facts = [{ fact_id: 'f1', kind: 'name', text: '阿砚', version: 3 }];
+test('onboarding walks its three steps without agentd, then stores 只陪伴 as plugins.light_ai false and restarts agentd', withDir(async (dir, fake) => {
   const call = setUp(dir, fake, 'onboarding');
   const state = async (op: string, ...args: unknown[]) => {
     const r = await call(op, ...args);
     if (!r.ok) return r.error;
     return r.value as Record<string, unknown>;
   };
-  const first = await state('onboarding.state') as Record<string, unknown>;
-  assert.equal(first.step, 1);
-  assert.equal(first.callName, '阿砚');
-  assert.equal(first.talkKey, 'right_option');
-  assert.equal(first.characterName, 'Si');
-  assert.deepEqual((first.permissions as { kind: string; needsSystemSettings: boolean }[]).at(-1),
-    { kind: 'loginItem', title: '登录时启动', purpose: '开机后角色自动出现，可在 设置 › 启动与关于 关闭', state: 'denied', needsSystemSettings: true });
-  assert.deepEqual((first.hooks as { id: string; connected: boolean; installSteps: string[] }[]).map((h) => [h.id, h.connected, h.installSteps[1]]),
-    [['claude', false, "'py' hooks.py --target claude"], ['codex', false, "'py' hooks.py --target codex"]]);
+  assert.deepEqual(await state('onboarding.state'), {
+    steps: [{ id: 1, number: '01', title: '选角色' }, { id: 2, number: '02', title: '怎么陪你' }, { id: 3, number: '03', title: '完成' }],
+    step: 1, done: false, canAdvance: true, characterName: 'Si', completionError: null,
+  });
   assert.deepEqual(await state('onboarding.back'), { code: 'invalid_state', detail: 'cannot go back' });
-  assert.deepEqual(await state('onboarding.advance', { callName: 'x' }), { code: 'invalid_state', detail: 'profile belongs to step 2' });
+  assert.deepEqual(await state('onboarding.complete', { companion: 'pet' }), { code: 'invalid_state', detail: 'complete at step 3' });
   assert.equal((await state('onboarding.advance') as Record<string, unknown>).step, 2);
-  assert.deepEqual(await state('onboarding.advance', { nick: 'x' }), { code: 'invalid_args', detail: 'callName and birthday strings' });
-  fake.writeStatus = 500;
-  const failed = await state('onboarding.advance', { callName: ' 小砚 ', birthday: '3-14' }) as Record<string, unknown>;
-  assert.equal(failed.step, 2);
-  assert.equal(failed.saveError, '称呼或生日没存上，再点一次下一步重试');
-  fake.writeStatus = 200;
-  fake.sent = [];
-  assert.equal((await state('onboarding.advance', { callName: '小砚', birthday: '3-14' }) as Record<string, unknown>).step, 3);
-  assert.deepEqual(fake.sent.filter((s) => !s.startsWith('GET')), [
-    'PATCH /memory/facts/f1 {"text":"小砚","expected_version":3}',
-    'POST /memory/facts {"text":"3-14","kind":"birthday","expected_absent":true}',
-  ]);
+  assert.equal((await state('onboarding.advance') as Record<string, unknown>).step, 3);
   assert.deepEqual(await state('onboarding.advance'), { code: 'invalid_state', detail: 'cannot advance this step' });
-  assert.deepEqual(await state('onboarding.complete', 'nowhere'), { code: 'invalid_args', detail: 'onboarding destination' });
-  const end = await state('onboarding.complete', 'chat') as Record<string, unknown>;
+  for (const bad of [undefined, 'pet', { companion: 'ai' }, { companion: 'pet', destination: 'privacy' }, { companion: 'pet', extra: 1 }, ['pet']]) {
+    assert.deepEqual(await state('onboarding.complete', bad), { code: 'invalid_args', detail: 'onboarding choice' }, JSON.stringify(bad));
+  }
+  assert.equal(fake.restarts, 0);
+  const end = await state('onboarding.complete', { companion: 'pet' }) as Record<string, unknown>;
   assert.equal(end.done, true);
   assert.equal(end.completionError, null);
-  assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).onboarding_done, true);
-  assert.deepEqual(await state('onboarding.complete'), { code: 'invalid_state', detail: 'complete at step 3' });
-  assert.deepEqual(await state('onboarding.skip'), { code: 'invalid_state', detail: 'cannot skip this step' });
+  const config = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8'));
+  assert.equal(config.onboarding_done, true);
+  assert.deepEqual(config.plugins, { light_ai: false });
+  assert.equal(fake.restarts, 1, 'agentd starts again without light AI');
+  assert.deepEqual(fake.sent, [], 'the guide asks agentd for nothing');
+  assert.deepEqual(await state('onboarding.complete', { companion: 'pet' }), { code: 'invalid_state', detail: 'complete at step 3' });
 }));

@@ -1,4 +1,4 @@
-// The first-run guide's window (src/main/onboarding/window.ts); the guide's end and voice trial (ops/onboarding.ts);
+// The first-run guide's window (src/main/onboarding/window.ts); the guide's end (ops/onboarding.ts);
 // push-to-talk's trial readout (common/push-to-talk.ts); `app.action('open_onboarding')`, `app.openQuickInput` and
 // `app.info` / 复制诊断 (ops/app.ts). Fake windows, a fake helper and temporary
 // directories: no window opens, no microphone or hot key is touched.
@@ -12,9 +12,7 @@ import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 import routes from '../../../protocol/ui-bridge/routes.json' with { type: 'json' };
 import { type Handler, handle } from '../src/common/bridge.ts';
 import { silentSource } from '../src/common/feed.ts';
-import { hookRows } from '../src/common/onboarding.ts';
-import { PageSession, type StreamEvent } from '../src/common/page.ts';
-import { PushSource } from '../src/common/push.ts';
+import { PageSession } from '../src/common/page.ts';
 import { type HelperAnswer, PushToTalk, type VoiceTrial } from '../src/common/push-to-talk.ts';
 import { ORIGIN } from '../src/common/ui.ts';
 import { onboardingWindow, type OnboardingDestination } from '../src/main/onboarding/window.ts';
@@ -53,7 +51,8 @@ function fakeWindow(id: number) {
   return { win, calls };
 }
 
-function guideSetup(o: { served?: boolean; ops?: boolean; activate?: boolean; config?: Record<string, unknown>; guard?: WebGuardPorts } = {}) {
+function guideSetup(o: { served?: boolean; ops?: boolean; activate?: boolean; config?: Record<string, unknown>; guard?: WebGuardPorts;
+  workArea?: { width: number; height: number } } = {}) {
   const dir = tempDir();
   const configPath = join(dir, 'config.json');
   if (o.config) writeFileSync(configPath, JSON.stringify(o.config));
@@ -69,6 +68,7 @@ function guideSetup(o: { served?: boolean; ops?: boolean; activate?: boolean; co
       return fake.win as unknown as BrowserWindow;
     },
     served: () => o.served ?? true,
+    workArea: () => o.workArea ?? { width: 1920, height: 1055 },
     ops: () => {
       if (o.ops === false) return null;
       guides += 1;
@@ -93,14 +93,14 @@ test('a first run is config.json without onboarding_done true (OnboardingMarker.
   }
 });
 
-test('begin opens main.html#/onboarding in a 1080×760 titled, closable, miniaturizable window on the onboarding surface', () => {
+test('begin opens main.html#/onboarding in a 1080×760 titled, resizable, closable, miniaturizable window on the onboarding surface', () => {
   const s = guideSetup();
   try {
     s.guide.begin();
     assert.equal(s.made.length, 1);
     const { options, fake } = s.made[0]!;
-    assert.deepEqual(options, { width: 1080, height: 760, useContentSize: true, title: '首次启动引导', resizable: false,
-      maximizable: false, fullscreenable: false, minimizable: true, closable: true, show: false });
+    assert.deepEqual(options, { width: 1080, height: 760, useContentSize: true, title: '首次启动引导', resizable: true, minWidth: 900,
+      minHeight: 560, maximizable: false, fullscreenable: false, minimizable: true, closable: true, show: false });
     assert.deepEqual(fake.calls, [`load ${ORIGIN}/main.html#/onboarding`, 'center']);
     assert.ok(s.registered.has(1), 'the page has the bridge');
     assert.deepEqual(s.logs, ['ONBOARDING shown']);
@@ -110,6 +110,18 @@ test('begin opens main.html#/onboarding in a 1080×760 titled, closable, miniatu
     fake.win.emit('page-title-updated', title);
     assert.ok(title.prevented, 'the window keeps its title');
   } finally {
+    rmSync(s.dir, { recursive: true, force: true });
+  }
+});
+
+test('on a 1280×800 screen the whole window, frame and title bar included, fits the work area; the page scrolls the rest', () => {
+  for (const [area, size] of [[{ width: 1280, height: 775 }, [1080, 727]], [{ width: 1280, height: 705 }, [1080, 657]],
+    [{ width: 1024, height: 640 }, [976, 592]]] as const) {
+    const s = guideSetup({ workArea: area });
+    s.guide.begin();
+    const { width, height } = s.made[0]!.options;
+    assert.deepEqual([width, height], size, JSON.stringify(area));
+    assert.ok(width! + 48 <= area.width && height! + 48 <= area.height, 'content and a frame up to 48 px fit');
     rmSync(s.dir, { recursive: true, force: true });
   }
 });
@@ -126,7 +138,7 @@ test('begin on an open guide, minimized too, only brings it front; after it clos
     assert.deepEqual(fake.calls.slice(-2), ['restore', 'show']);
     assert.equal(s.made.length, 1);
     assert.equal(s.guides(), 1);
-    s.guide.end(false, 'home');
+    s.guide.end('home');
     assert.equal(s.registered.size, 0, 'closing takes the bridge away');
     s.guide.begin();
     assert.equal(s.made.length, 2);
@@ -173,27 +185,21 @@ test('the guide\'s page has the main window\'s guards: links to the system brows
   }
 });
 
-test('end closes the guide; with home it opens the main window at the destination (MainWindowRouter.endOnboarding)', () => {
-  for (const [destination, route] of [['home', '/home'], ['chat', '/chat?focus=page'], ['privacy', '/settings?group=privacy&item=wintext'],
-    ['model', '/settings?group=model']] as const) {
+test('end closes the guide and opens the main window at the destination (MainWindowRouter.endOnboarding)', () => {
+  for (const [destination, route] of [['home', '/home'], ['model', '/settings?group=model'], ['plugins', '/settings?group=plugins']] as const) {
     const s = guideSetup();
     s.guide.begin();
-    s.guide.end(true, destination);
+    s.guide.end(destination);
     assert.equal(s.made[0]!.fake.calls.at(-1), 'close');
     assert.deepEqual(s.opened, [route]);
     rmSync(s.dir, { recursive: true, force: true });
   }
-  const s = guideSetup();
-  s.guide.begin();
-  s.guide.end(false, 'home');
-  assert.deepEqual(s.opened, []);
-  rmSync(s.dir, { recursive: true, force: true });
 });
 
 function context(dir: string, extra: Partial<OpsContext> = {}): OpsContext {
   return {
     surface: 'onboarding', routes, config: { path: join(dir, 'config.json'), supportDir: dir, devResources: null }, agentd: null,
-    store: null, diag: null, supervisor: null, library: null, permission: () => 'undetermined', confirm: async () => true,
+    store: null, diag: null, supervisor: null, library: null, confirm: async () => true,
     shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} },
     clipboard: { writeText: () => {} },
     dialog: { pickFile: async () => null, pickFolder: async () => null, pickPackage: async () => null, saveFile: async () => false },
@@ -207,67 +213,93 @@ async function call(ops: ReadonlyMap<string, Handler<PageSession>>, op: string, 
   return handle(surface, sender, { op, args }, ops, page);
 }
 
-test('「稍后」 on step 1 ends the guide without home and without writing onboarding_done', async () => {
-  const dir = tempDir();
-  try {
-    writeFileSync(join(dir, 'config.json'), JSON.stringify({ mute: false }));
-    const ends: [boolean, OnboardingDestination][] = [];
-    const ops = registry(context(dir, { endOnboarding: (home, destination) => ends.push([home, destination]) }));
-    assert.ok((await call(ops, 'onboarding.skip')).ok);
-    assert.deepEqual(ends, [[false, 'home']]);
-    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')), { mute: false });
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('「开始」 writes onboarding_done, then ends the guide at its destination', async () => {
-  const dir = tempDir();
-  try {
-    writeFileSync(join(dir, 'config.json'), JSON.stringify({ mute: false }));
-    const ends: [boolean, OnboardingDestination][] = [];
-    const ops = registry(context(dir, { endOnboarding: (home, destination) => {
+/** The guide over `config`; `complete` walks to its closing screen first, `ends` and `restarts` count what its end did. */
+function closing(dir: string, config: Record<string, unknown>) {
+  writeFileSync(join(dir, 'config.json'), JSON.stringify(config));
+  const ends: OnboardingDestination[] = [];
+  let restarts = 0;
+  const ops = registry(context(dir, {
+    endOnboarding: (destination) => {
       assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).onboarding_done, true, 'marked before it ends');
-      ends.push([home, destination]);
-    } }));
+      ends.push(destination);
+    },
+    supervisor: { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => { restarts += 1; }, avatar: () => ({ kind: 'stopped' }) },
+  }));
+  const complete = async (choice: unknown) => {
     for (const op of ['onboarding.advance', 'onboarding.advance']) assert.ok((await call(ops, op)).ok, op);
-    const reply = await call(ops, 'onboarding.complete', ['chat']);
+    return call(ops, 'onboarding.complete', [choice]);
+  };
+  return { ops, ends, complete, restarts: () => restarts, config: () => JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) };
+}
+
+test('只陪伴 writes plugins.light_ai false, restarts agentd on it and ends the guide at home, not at the AI account', async () => {
+  const dir = tempDir();
+  try {
+    const g = closing(dir, { mute: false });
+    const reply = await g.complete({ companion: 'pet' });
     assert.ok(reply.ok);
     assert.equal((reply.value as { done: boolean }).done, true);
-    assert.deepEqual(ends, [[true, 'chat']]);
+    assert.deepEqual(g.config(), { mute: false, onboarding_done: true, plugins: { light_ai: false } });
+    assert.equal(g.restarts(), 1);
+    assert.deepEqual(g.ends, ['home']);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('「改填 API Key」 ends the guide at the model settings', async () => {
+test('陪伴加对话 writes plugins.light_ai true and opens the main window at 设置 › AI 账号; agentd restarts only on a change', async () => {
   const dir = tempDir();
   try {
-    writeFileSync(join(dir, 'config.json'), JSON.stringify({ mute: false }));
-    const ends: [boolean, OnboardingDestination][] = [];
-    const ops = registry(context(dir, { endOnboarding: (home, destination) => ends.push([home, destination]) }));
-    for (const op of ['onboarding.advance', 'onboarding.advance']) assert.ok((await call(ops, op)).ok, op);
-    assert.ok((await call(ops, 'onboarding.complete', ['model'])).ok);
-    assert.deepEqual(ends, [[true, 'model']]);
+    const g = closing(dir, { mute: false, plugins: { screen_awareness: false } });
+    assert.ok((await g.complete({ companion: 'chat' })).ok);
+    assert.deepEqual(g.config(), { mute: false, onboarding_done: true, plugins: { light_ai: true, screen_awareness: false } });
+    assert.equal(g.restarts(), 0, 'light AI was on already');
+    assert.deepEqual(g.ends, ['model']);
+    const again = closing(dir, { plugins: { light_ai: false } });
+    assert.ok((await again.complete({ companion: 'chat' })).ok);
+    assert.equal(again.restarts(), 1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('「开始」 that cannot write config.json keeps the guide open with the error', { skip: POSIX_MODES }, async () => {
+test('打开插件设置 stores the choice and ends the guide at 设置 › 插件', async () => {
   const dir = tempDir();
   try {
-    const cfg = join(dir, 'config.json');
-    writeFileSync(cfg, JSON.stringify({ mute: false }));
-    const ends: unknown[] = [];
-    const ops = registry(context(dir, { endOnboarding: (...a) => ends.push(a) }));
-    for (const op of ['onboarding.advance', 'onboarding.advance']) assert.ok((await call(ops, op)).ok, op);
+    const g = closing(dir, {});
+    assert.ok((await g.complete({ companion: 'chat', destination: 'plugins' })).ok);
+    assert.deepEqual(g.config().plugins, { light_ai: true });
+    assert.deepEqual(g.ends, ['plugins']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('onboarding.complete refuses a choice other than { companion: pet | chat, destination?: plugins } and writes nothing', async () => {
+  const dir = tempDir();
+  try {
+    const g = closing(dir, { mute: false });
+    assert.deepEqual(await g.complete('chat'), { ok: false, error: { code: 'invalid_args', detail: 'onboarding choice' } });
+    for (const bad of [null, { companion: 'both' }, { companion: 'pet', destination: 'model' }, { companion: 'pet', light_ai: true }]) {
+      assert.deepEqual(await call(g.ops, 'onboarding.complete', [bad]), { ok: false, error: { code: 'invalid_args', detail: 'onboarding choice' } });
+    }
+    assert.deepEqual(g.config(), { mute: false });
+    assert.deepEqual([g.ends, g.restarts()], [[], 0]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('完成 that cannot write config.json keeps the guide open with the error', { skip: POSIX_MODES }, async () => {
+  const dir = tempDir();
+  try {
+    const g = closing(dir, { mute: false });
     chmodSync(dir, 0o500);
-    const reply = await call(ops, 'onboarding.complete');
+    const reply = await g.complete({ companion: 'pet' });
     chmodSync(dir, 0o700);
     assert.ok(reply.ok);
-    assert.equal((reply.value as { completionError: string | null }).completionError, '配置没有存上，请检查配置文件权限后再点开始重试');
-    assert.deepEqual(ends, []);
+    assert.equal((reply.value as { completionError: string | null }).completionError, '配置没有存上，请检查配置文件权限后再点完成重试');
+    assert.deepEqual([g.ends, g.restarts()], [[], 0]);
   } finally {
     chmodSync(dir, 0o700);
     rmSync(dir, { recursive: true, force: true });
@@ -313,31 +345,6 @@ test('push-to-talk hands every hint change its trial readout: the last 40 levels
   assert.equal(listening.elapsed, '01:02');
   assert.deepEqual(trials[0], { levels: [], elapsed: '00:00', transcript: '' }, 'a press starts a new try');
   assert.deepEqual(trials.at(-1), listening, 'the sent hint keeps the readout of the try');
-});
-
-test('onboarding.onVoiceTrial shows push-to-talk tries on step 2 only, and onboarding.state carries the last one', async () => {
-  const dir = tempDir();
-  try {
-    const source = new PushSource('trial', { replay: false });
-    const ops = registry(context(dir, { voiceTrial: source }));
-    const pushed: StreamEvent[] = [];
-    const page = new PageSession((_id, stream, kind, payload) => { if (stream === 'onboarding.onVoiceTrial' && kind === 'event') pushed.push(payload!); });
-    assert.deepEqual(await call(ops, 'onboarding.onVoiceTrial', [1], page), { ok: true, value: null });
-    const trial = (transcript: string) => ({ levels: [3, 20], elapsed: '00:02', transcript });
-    source.send(trial('step 1'));
-    assert.equal(pushed.length, 0);
-    assert.ok((await call(ops, 'onboarding.advance')).ok);
-    source.send(trial('step 2'));
-    assert.deepEqual(pushed.map((e) => [e.event, JSON.parse(e.data)]), [['trial', trial('step 2')]]);
-    const state = await call(ops, 'onboarding.state');
-    assert.deepEqual((state as { ok: true; value: { trial: unknown } }).value.trial, trial('step 2'));
-    assert.ok((await call(ops, 'onboarding.advance')).ok);
-    source.send(trial('step 3'));
-    assert.equal(pushed.length, 1);
-    page.end();
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
 });
 
 test('app.action open_onboarding opens the guide through its port', async () => {
@@ -399,14 +406,6 @@ test('app.info gives the hook installer\'s dry run and install steps when the sh
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test('the hook rows say where to run the install command and that hooks run in the background', () => {
-  const [claude, codex] = hookRows([], 'cmd', 'windows');
-  assert.match(claude!.installHint, /^在命令提示符（cmd）里/);
-  assert.match(codex!.installHint, /\/hooks/);
-  assert.match(hookRows([], 'cmd', 'mac')[0]!.installHint, /^在终端里.*后台运行/);
-  assert.deepEqual(codex!.installSteps, ['cmd --target codex --dry-run', 'cmd --target codex']);
 });
 
 test('app.info reads the dev deployment\'s dev-receipt.json at each call; one without its four fields is none (DevResources.receipt)', async () => {

@@ -236,19 +236,17 @@ describe('onboarding', () => {
   it('has no English step eyebrow', async () => {
     window.agenticComplex = createFakeBridge({ surface: 'onboarding', still: true });
     mount(OnboardingPage, '');
-    fireEvent.click(await screen.findByRole('button', { name: '查看可选权限' }));
-    await screen.findByRole('list', { name: '系统权限' });
+    await screen.findByRole('list', { name: '角色名册' });
     expect(screen.getByRole('dialog').textContent).not.toMatch(/STEP|PERMISSIONS/);
   });
 
-  it('keeps the page index, a greyed permission list outline and 稍后设置 when the guide cannot be read', async () => {
+  it('keeps the page index and offers 重试 when the guide cannot be read', async () => {
     const fake = createFakeBridge({ surface: 'onboarding', still: true });
     window.agenticComplex = { ...fake, onboarding: { ...fake.onboarding, state: () => Promise.reject({ code: 'offline', detail: '' }) } };
     mount(OnboardingPage, '');
     const guide = await screen.findByRole('dialog');
     await within(guide).findByText('没有连上桌面端，请重试');
-    expect(guide.querySelectorAll('[data-outline] [data-kind]').length).toBe(5);
-    expect(within(guide).getByText('01/04')).toBeTruthy();
-    expect(within(guide).getByRole('button', { name: '先使用角色' })).toBeTruthy();
+    expect(within(guide).getByText('01/03')).toBeTruthy();
+    expect(within(guide).getByRole('button', { name: '重试' })).toBeTruthy();
   });
 });

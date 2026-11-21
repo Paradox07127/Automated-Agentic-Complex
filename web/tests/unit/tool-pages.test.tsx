@@ -1,4 +1,4 @@
-// The tool pages' filter bar, the read-only process table, the trace turn table and the first-run media panel arrows.
+// The tool pages' filter bar, the read-only process table and the trace turn table.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -8,7 +8,6 @@ import { DiagPage } from '../../src/pages/diag/Page';
 import { Processes } from '../../src/pages/diag/Processes';
 import { processesOf } from '../../src/pages/diag/status';
 import { ToolBar } from '../../src/pages/diag/ToolBar';
-import { MediaArrow } from '../../src/pages/onboarding/Bits';
 import { TracePage } from '../../src/pages/trace/Page';
 
 afterEach(cleanup);
@@ -81,20 +80,5 @@ describe(' trace turn table', () => {
     fireEvent.click(last);
     await waitFor(() => expect(router.state.location.search).toMatchObject({ turn: last.getAttribute('data-row-id') }));
     await waitFor(() => expect(last.getAttribute('aria-selected')).toBe('true'));
-  });
-});
-
-describe(' first-run media panel arrows', () => {
-  it('the first page has no usable left arrow; an enabled arrow turns the page', () => {
-    const turns = { n: 0 };
-    render(
-      <>
-        <MediaArrow side="left" label="上一页" edge disabled onClick={() => (turns.n -= 1)} />
-        <MediaArrow side="right" label="下一页" disabled={false} onClick={() => (turns.n += 1)} />
-      </>,
-    );
-    expect((screen.getByRole('button', { name: '上一页' }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: '下一页' }));
-    expect(turns.n).toBe(1);
   });
 });

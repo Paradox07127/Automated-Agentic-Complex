@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getBridge, type BridgeError, type CharacterEntry, type OnboardingOps, type OnboardingState, type VoiceTrial } from '../../bridge';
+import { getBridge, type BridgeError, type CharacterEntry, type OnboardingOps, type OnboardingState } from '../../bridge';
 import { failureText } from '../../domain/errorText';
 import { useDemo } from '../../shell/demo';
-import { demoOps, demoReady } from './demo';
+import { demoOps } from './demo';
 
-export type OpName = 'advance' | 'back' | 'skip' | 'complete' | 'recheck' | 'permission';
+export type OpName = 'advance' | 'back' | 'complete';
 
 const OP_TEXT: Record<string, string> = {
   busy: '上一步还在处理，请稍候再试',
@@ -25,18 +25,14 @@ export interface Onboarding {
   characterId: string | null;
   readCharacters: () => void;
   loadError: string | null;
-  /** The op in flight; others wait for it (the native side answers `busy`). */
+  /** The op in flight; others wait for it. */
   busy: OpName | null;
   opError: string | null;
-  /** Latest push-to-talk try pushed while on step 2. */
-  trial: VoiceTrial | null;
-  ready: boolean;
-  setReady: (v: boolean) => void;
   run: (name: OpName, call: (ops: OnboardingOps) => Promise<OnboardingState>) => Promise<OnboardingState | null>;
   reload: () => void;
 }
 
-/** The guide's state over the bridge's `onboarding` ops; read again when the window comes back (System Settings). */
+/** The guide's state over the bridge's `onboarding` ops. */
 export function useOnboarding(): Onboarding {
   const flags = useDemo();
   const ops = useMemo(() => {
@@ -49,8 +45,6 @@ export function useOnboarding(): Onboarding {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<OpName | null>(null);
   const [opError, setOpError] = useState<string | null>(null);
-  const [trial, setTrial] = useState<VoiceTrial | null>(null);
-  const [ready, setReady] = useState(() => demoReady(flags.demo));
   const busyRef = useRef(false);
 
   const reload = useCallback(() => {
@@ -59,8 +53,6 @@ export function useOnboarding(): Onboarding {
   }, [ops]);
 
   useEffect(reload, [reload]);
-
-  useEffect(() => ops.onVoiceTrial(setTrial), [ops]);
 
   useEffect(() => {
     let live = true;
@@ -75,14 +67,6 @@ export function useOnboarding(): Onboarding {
     };
   }, [reads]);
   const readCharacters = useCallback(() => setReads((n) => n + 1), []);
-
-  useEffect(() => {
-    const again = () => {
-      if (!busyRef.current) ops.state().then(setS, () => {});
-    };
-    window.addEventListener('focus', again);
-    return () => window.removeEventListener('focus', again);
-  }, [ops]);
 
   const run = useCallback<Onboarding['run']>(
     async (name, call) => {
@@ -106,5 +90,5 @@ export function useOnboarding(): Onboarding {
   );
 
   const characterId = characters?.find((c) => c.active)?.id ?? null;
-  return { s, characters, characterId, readCharacters, loadError, busy, opError, trial, ready, setReady, run, reload };
+  return { s, characters, characterId, readCharacters, loadError, busy, opError, run, reload };
 }

@@ -89,7 +89,7 @@
   font-size: var(--ef-fs-meta);
 }
 
-/* Top bar: the product word mark, heavy and wide; what is set so far at the right. */
+/* Top bar: the product word mark, heavy and wide. */
 .top {
   display: flex;
   align-items: center;
@@ -105,24 +105,6 @@
   letter-spacing: 0.14em;
 }
 
-.tally {
-  display: flex;
-  gap: 12px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  color: var(--ef-text-2);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.2 var(--ef-font-sans);
-  white-space: nowrap;
-  list-style: none;
-}
-
-.tally li + li::before {
-  content: '·';
-  margin-right: 12px;
-  color: var(--ef-text-3);
-}
-
 /* The panel sits in the middle; a short window scrolls the media first, then the panel. */
 .main {
   display: flex;
@@ -135,23 +117,6 @@
   overflow: hidden auto;
 }
 
-/* Arrows centred 304.75 / 302.75 px left and right of the frame's centre (-609.5 / +605.5 g), level with the media. */
-.stage {
-  display: flex;
-  flex: 0 1 auto;
-  align-items: center;
-  max-width: 100%;
-  min-height: 0;
-}
-
-.stage > :first-child {
-  margin-right: 15.25px;
-}
-
-.stage > :last-child {
-  margin-left: 13.25px;
-}
-
 /* Deco: 505 x 295 around the 480 x 270 media; grows in from 0.9 with the media list. */
 .frame {
   position: relative;
@@ -160,6 +125,7 @@
   flex-direction: column;
   width: 505px;
   min-width: 0;
+  max-width: 100%;
   max-height: 100%;
   padding: 12.5px;
   background: var(--onb-frame);
@@ -290,21 +256,7 @@
   background: var(--onb-scroll-handle);
 }
 
-.permissionsLink {
-  flex: none;
-  min-height: 32px;
-  margin-top: 4px;
-  padding: 0;
-  border: 0;
-  color: var(--ef-text-2);
-  background: none;
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  cursor: pointer;
-}
-
-/* Bottom bar: one primary per step; skip is secondary, back is a text button. */
+/* Bottom bar: one primary per step, back is a text button. */
 .foot {
   display: flex;
   align-items: center;

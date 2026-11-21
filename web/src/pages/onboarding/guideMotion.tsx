@@ -1,4 +1,4 @@
-// Game clips of the guide media panel (guidemedia_in / _out, the arrows' Highlighted) on the onboarding guide.
+// Game clips of the guide media panel (guidemedia_in / _out) on the onboarding guide.
 import { useRef, type ReactNode, type RefObject } from 'react';
 import { gameClips, type GameClip } from '../../design/gameClips.generated';
 import { useGameClip } from '../../ui';
@@ -36,22 +36,4 @@ export function Primary({ children }: { children: ReactNode }) {
       {children}
     </span>
   );
-}
-
-/** guide_rightbutton_select Highlighted on a media arrow: forward on pointer or focus in, back on out. */
-export function useArrowHover(disabled: boolean) {
-  const ref = useRef<HTMLButtonElement>(null);
-  const clip = useGameClip(gameClips.guideArrowHover, ref);
-  const lit = useRef(false);
-  const on = () => {
-    if (disabled || lit.current) return;
-    lit.current = true;
-    void clip.play();
-  };
-  const off = () => {
-    if (!lit.current) return;
-    lit.current = false;
-    void clip.reverse();
-  };
-  return { ref, onPointerEnter: on, onPointerLeave: off, onFocus: on, onBlur: off };
 }

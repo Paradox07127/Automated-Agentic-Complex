@@ -1,57 +1,30 @@
 // `onboarding` ops of the bridge, re-exported by protocol.ts.
-import type { Unsubscribe } from './protocol';
 
-export type OnboardingPermissionKind = 'screenRecording' | 'accessibility' | 'microphone' | 'automation' | 'loginItem';
-export type OnboardingPermissionState = 'granted' | 'denied' | 'undetermined' | 'askWhenUsed';
+/** 1 选角色, 2 怎么陪你, 3 完成. */
 export type OnboardingStep = 1 | 2 | 3;
-
-export interface VoiceTrial {
-  levels: number[];
-  elapsed: string;
-  transcript: string;
-}
+/** 只陪伴 runs without light AI, 陪伴加对话 with it. */
+export type OnboardingCompanion = 'pet' | 'chat';
 
 export interface OnboardingState {
   steps: Array<{ id: OnboardingStep; number: string; title: string }>;
   step: OnboardingStep;
   done: boolean;
+  /** Steps 1 and 2 go on; step 3 only completes. */
   canAdvance: boolean;
-  canSkip: boolean;
-  permissions: Array<{
-    kind: OnboardingPermissionKind;
-    title: string;
-    purpose: string;
-    state: OnboardingPermissionState;
-    needsSystemSettings: boolean;
-  }>;
   characterName: string;
-  callName: string;
-  birthday: string;
-  talkKey: string;
-  trial: VoiceTrial;
-  hooks: Array<{ id: string; name: string; connected: boolean; lastEvent: string | null; installHint: string; installSteps: string[] }>;
-  hooksCheckedAt: string;
-  saveError: string | null;
   completionError: string | null;
 }
 
-export interface OnboardingProfile {
-  callName?: string;
-  birthday?: string;
+export interface OnboardingChoice {
+  companion: OnboardingCompanion;
+  /** 设置 › 插件 instead of the choice's own end: home for pet, 设置 › AI 账号 for chat. */
+  destination?: 'plugins';
 }
 
 export interface OnboardingOps {
-  /** Refreshes permissions, connected tools and the saved profile. */
   state(): Promise<OnboardingState>;
-  /** Step 2 saves the facts explicitly entered by the user before advancing. */
-  advance(profile?: OnboardingProfile): Promise<OnboardingState>;
+  advance(): Promise<OnboardingState>;
   back(): Promise<OnboardingState>;
-  /** Step 1 closes for later; step 3 finishes, like complete(). */
-  skip(): Promise<OnboardingState>;
-  /** Only step 3 can mark onboarding_done; failed saves leave done false. */
-  complete(destination?: 'home' | 'chat' | 'privacy' | 'model'): Promise<OnboardingState>;
-  requestPermission(kind: OnboardingPermissionKind): Promise<OnboardingState>;
-  openSettings(kind: OnboardingPermissionKind): Promise<OnboardingState>;
-  /** Try the configured talkKey; the native hotkey supplies levels, elapsed time and transcript. */
-  onVoiceTrial(cb: (trial: VoiceTrial) => void): Unsubscribe;
+  /** Only step 3: stores the choice as `plugins.light_ai` and marks onboarding_done; a failed save leaves done false. */
+  complete(choice: OnboardingChoice): Promise<OnboardingState>;
 }

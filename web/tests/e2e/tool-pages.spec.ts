@@ -59,27 +59,23 @@ test('trace turn rows are pressable: hover draws the trace bar', async ({ page }
 });
 
 for (const theme of ['dark', 'light'] as const) {
-  test(`onboarding ${theme}: media panel index and arrows, no step bar, and the wide word mark`, async ({ page }) => {
-    await page.goto(`main.html#/onboarding?demo=step3&theme=${theme}&still=1`);
+  test(`onboarding ${theme}: media panel index, no step bar or arrows, and the wide word mark`, async ({ page }) => {
+    await page.goto(`main.html#/onboarding?demo=step2&theme=${theme}&still=1`);
     const guide = page.getByRole('dialog', { name: /^首次设置/ });
-    await expect(guide.getByLabel('第 3 步，共 4 步')).toHaveText('03/04');
+    await expect(guide.getByLabel('第 2 步，共 3 步')).toHaveText('02/03');
     await expect(page.getByRole('list', { name: '首次设置步骤' })).toHaveCount(0);
-    expect(await css(guide.getByLabel('第 3 步，共 4 步'), 'font-size')).toBe('15px');
+    expect(await css(guide.getByLabel('第 2 步，共 3 步'), 'font-size')).toBe('15px');
     expect(await css(guide.getByRole('heading', { level: 1 }), 'font-size')).toBe('15px');
-    // 74 px arrows centred 304.75 / 302.75 px left and right of the frame's centre, no cut corners.
-    const frame = await guide.getByLabel('第 3 步，共 4 步').evaluate((el) => {
-      const r = el.parentElement!.querySelector(':scope > div')!.children[1]!.getBoundingClientRect();
-      return { mid: r.left + r.width / 2, width: r.width };
+    // The 505 px frame sits centred over the index; no paging arrows beside it.
+    const frame = await guide.getByLabel('第 2 步，共 3 步').evaluate((el) => {
+      const r = el.parentElement!.querySelector('.media-frame')!.getBoundingClientRect();
+      const i = el.getBoundingClientRect();
+      return { width: r.width, off: Math.abs(r.left + r.width / 2 - (i.left + i.width / 2)) };
     });
     expect(frame.width).toBe(505);
-    for (const [name, dx] of [['上一页', -304.75], ['下一页', 302.75]] as const) {
-      const arrow = guide.getByRole('button', { name });
-      const box = await arrow.boundingBox();
-      expect(box).toMatchObject({ width: 74, height: 74 });
-      expect((box?.x ?? 0) + 37 - frame.mid).toBeCloseTo(dx, 0);
-      expect(await css(arrow, 'clip-path')).toBe('none');
-    }
-    const mark = page.getByText('ENDFIELD', { exact: true });
+    expect(frame.off).toBeLessThan(1);
+    await expect(guide.getByRole('button', { name: /上一页|下一页/, includeHidden: true })).toHaveCount(0);
+    const mark = page.getByText('Agentic Complex', { exact: true });
     expect(await css(mark, 'font-weight')).toBe('800');
     expect(await css(mark, 'font-stretch')).toBe('125%');
     expect(await css(mark, 'font-family')).toContain('Saira');

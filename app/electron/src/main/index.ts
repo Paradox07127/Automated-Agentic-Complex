@@ -795,7 +795,6 @@ function opsContext(surface: Surface): OpsContext {
     preview,
     helper,
     pushToTalk: pushToTalk && pushToTalkEvents,
-    voiceTrial: pushToTalk && voiceTrials,
     // Only the main window's messages are marked.
     turnMarks: surface === 'main' ? turnMarks : null,
     library: config && {
@@ -812,11 +811,6 @@ function opsContext(surface: Surface): OpsContext {
           appendLog(config!.supportDir, 'companion', `roster not refreshed: ${e instanceof Error ? e.message : String(e)}`);
         }
       },
-    },
-    // The login item; the onboarding ops read the other grants from the platform helper and come here when it does not answer.
-    permission: (kind) => {
-      if (kind === 'loginItem') return config?.supportDir === DEFAULT_SUPPORT_DIR && app.getLoginItemSettings().openAtLogin ? 'granted' : 'undetermined';
-      return kind === 'automation' ? 'askWhenUsed' : 'undetermined';
     },
     confirm,
     shell: {
@@ -860,7 +854,7 @@ function opsContext(surface: Surface): OpsContext {
     },
     settingsChanges,
     openOnboarding: () => guide.begin(),
-    endOnboarding: (home, destination) => guide.end(home, destination),
+    endOnboarding: (destination) => guide.end(destination),
     openQuickInput: config && (() => { desktop?.openQuickInput(); }),
     openMain: openMainAt,
     unregisteredHotkeys: () => unregisteredHotkeys(hotkeys, desktop?.quickInputFailed ?? null, pushToTalk?.failedHotkey ?? null),
@@ -897,6 +891,7 @@ const guide = onboardingWindow({
   makeWindow: (options) => new BrowserWindow({ ...options,
     webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } }),
   served: () => serve !== null,
+  workArea: () => screen.getPrimaryDisplay().workAreaSize,
   ops: () => (config ? surfaceOps('onboarding') : null),
   register: (contents, page, guideOps) => pages.set(contents.id, { surface: 'onboarding', page, ops: guideOps }),
   unregister: (id) => pages.delete(id),

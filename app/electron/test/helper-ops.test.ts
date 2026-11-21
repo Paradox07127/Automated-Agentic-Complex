@@ -1,4 +1,4 @@
-// The ops that go through the platform helper (C12): `permissions.*`, `onboarding.requestPermission` and `openSettings`,
+// The ops that go through the platform helper (C12): `permissions.*`,
 // `open.jumpToSession`, `runFeedCommand` and `runInTerminal`, against a fake helper that records its requests and answers
 // from a table. Nothing here asks the real system: no prompt, no app activation, no terminal.
 import assert from 'node:assert/strict';
@@ -66,7 +66,6 @@ function setup(f: Fakes = {}) {
       return { status: f.sessionsStatus ?? 200, body: Buffer.from(JSON.stringify({ sessions: f.sessions ?? [] })) };
     } } as unknown as AgentdClient,
     store: null, diag: null, supervisor: null, library: null,
-    permission: (kind) => (kind === 'automation' ? 'askWhenUsed' : 'undetermined'),
     confirm: async (text) => { calls.push(`confirm ${text}`); return f.confirm ?? true; },
     shell: {
       openExternal: f.openExternal ?? (async (url) => { calls.push(`openExternal ${url}`); }),
@@ -93,7 +92,7 @@ function setup(f: Fakes = {}) {
   // The page's `window.onRoute` gets each pushed route.
   const ops = registry(ctx), page = new PageSession((_id, _stream, _kind, payload) => { if (payload?.event === 'route') routes_.push(payload.data); });
   page.onRoute(page.generation, 1);
-  const call = (op: string, args: unknown[] = [], surface: Surface = op.startsWith('onboarding.') ? 'onboarding' : f.surface ?? 'main') =>
+  const call = (op: string, args: unknown[] = [], surface: Surface = f.surface ?? 'main') =>
     handle(surface, { mainFrame: true, origin: ORIGIN }, { op, args }, ops, page) as Promise<Reply>;
   return { calls, lines, routes: routes_, call };
 }
@@ -178,65 +177,6 @@ test('permissions.openSettings on Windows opens the microphone page; other panes
   assert.deepEqual(failure(await win.call('permissions.openSettings', ['accessibility'])), { code: 'failed', detail: '打不开系统设置' });
   const broken = setup({ openExternal: async () => { throw new Error('no handler'); } });
   assert.deepEqual(failure(await broken.call('permissions.openSettings', ['microphone'])), { code: 'failed', detail: '打不开系统设置' });
-});
-
-const row = (state: unknown, kind: string) => (state as { permissions: { kind: string; state: string; needsSystemSettings: boolean }[] })
-  .permissions.find((p) => p.kind === kind)!;
-
-test('onboarding.requestPermission asks the helper, then shows the guide\'s states read from it', async () => {
-  const helper = new FakeHelper({ 'permissions.request': ok({ state: 'granted' }),
-    'permissions.status': ok({ accessibility: 'granted', screenRecording: 'denied', microphone: 'granted', automation: 'notDetermined',
-      inputMonitoring: 'granted' }) });
-  const { calls, call } = setup({ helper });
-  const state = value(await call('onboarding.requestPermission', ['microphone']));
-  assert.deepEqual(helper.ops(), ['permissions.request', 'permissions.status']);
-  assert.deepEqual(helper.requests[0], ['permissions.request', { kind: 'microphone' }]);
-  assert.equal(row(state, 'microphone').state, 'granted');
-  assert.equal(row(state, 'accessibility').state, 'granted');
-  // AppPermissionProbe: screen recording is granted or undetermined; automation not yet decided is asked when used.
-  assert.deepEqual(row(state, 'screenRecording'), { ...row(state, 'screenRecording'), state: 'undetermined', needsSystemSettings: true });
-  assert.equal(row(state, 'automation').state, 'askWhenUsed');
-  assert.equal(row(state, 'loginItem').state, 'undetermined');
-  value(await call('onboarding.state'));
-  assert.deepEqual(helper.ops(), ['permissions.request', 'permissions.status', 'permissions.status'], 'state never asks');
-  assert.ok(!calls.some((c) => c.startsWith('loginItem')));
-});
-
-test('onboarding.requestPermission for the login item turns it on without the helper', async () => {
-  const helper = new FakeHelper({});
-  const { calls, call } = setup({ helper, loginItem: false });
-  value(await call('onboarding.requestPermission', ['loginItem']));
-  assert.ok(calls.includes('loginItem true'));
-  assert.ok(!helper.ops().includes('permissions.request'));
-  const test = setup({ loginItem: null });
-  value(await test.call('onboarding.requestPermission', ['loginItem']));
-  assert.ok(!test.calls.some((c) => c.startsWith('loginItem')), 'a test instance leaves the login item alone');
-});
-
-test('onboarding.requestPermission with the helper failing or gone still answers the guide with the unread states', async () => {
-  for (const helper of [new FakeHelper({ 'permissions.request': err('internal'), 'permissions.status': err('internal') }), exited, null]) {
-    const state = value(await setup({ helper }).call('onboarding.requestPermission', ['accessibility']));
-    assert.equal(row(state, 'accessibility').state, 'undetermined');
-    assert.equal(row(state, 'automation').state, 'askWhenUsed');
-  }
-  assert.deepEqual(failure(await setup().call('onboarding.requestPermission', ['camera'])),
-    { code: 'invalid_args', detail: 'onboarding permission kind' });
-});
-
-test('onboarding.openSettings opens the pane and answers the guide; only screen recording and accessibility ask first', async () => {
-  const helper = new FakeHelper({ 'permissions.status': STATUS });
-  const { calls, call } = setup({ helper });
-  const state = value(await call('onboarding.openSettings', ['automation']));
-  assert.ok(calls.includes('openExternal x-apple.systempreferences:com.apple.preference.security?Privacy_Automation'));
-  assert.equal(row(state, 'automation').state, 'denied');
-  assert.ok(!helper.ops().includes('permissions.request'));
-  value(await call('onboarding.openSettings', ['loginItem']));
-  assert.ok(!helper.ops().includes('permissions.request'));
-  value(await call('onboarding.openSettings', ['accessibility']));
-  assert.deepEqual(helper.requests.filter(([op]) => op === 'permissions.request'), [['permissions.request', { kind: 'accessibility' }]]);
-  assert.ok(calls.includes('openExternal x-apple.systempreferences:com.apple.LoginItems-Settings.extension'));
-  const broken = setup({ openExternal: async () => { throw new Error('no handler'); } });
-  assert.deepEqual(failure(await broken.call('onboarding.openSettings', ['microphone'])), { code: 'failed', detail: '打不开系统设置' });
 });
 
 const session = (id: string, origin: Record<string, unknown> | null, extra: Record<string, unknown> = {}) => ({

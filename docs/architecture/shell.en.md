@@ -95,7 +95,6 @@ The main process imports each frame's IOSurface with `sharedTexture.importShared
 
 - System permission prompts name the app (the helper's responsible process), not the helper. A helper started from a terminal gets the terminal's grants.
 - `permissions.status` maps the helper's readings to the page's values (`src/main/ops/permissions.ts`): `notApplicable` becomes `unsupported`; Screen Recording and Accessibility read `notDetermined` until granted, because the system cannot tell a refusal from a grant never asked. Electron cannot read the notification grant, so it is always `unsupported`.
-- The onboarding permission rows: Windows' `notApplicable` counts as granted; Automation shows "ask when used" until decided.
 - `permissions.openSettings` opens the matching system settings page. On macOS the Screen Recording and Accessibility pages first call the helper's `permissions.request` once, so the app appears in that page's list. Windows has only the microphone page (`ms-settings:privacy-microphone`); other pages answer `failed`.
 
 ## Coordinate spaces

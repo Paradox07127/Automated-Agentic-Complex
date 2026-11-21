@@ -29,8 +29,7 @@ export const BRIDGE_OPS: readonly string[] = [
   'window.onA11y', 'window.setContentSize', 'window.releaseKey', 'window.onAnchor', 'window.logInfo', 'stack.onCards',
   'stack.decide', 'stack.later', 'stack.collapse', 'stack.complete', 'desktop.onState', 'desktop.onPresence',
   'desktop.onCommand', 'desktop.say', 'desktop.action', 'onboarding.state', 'onboarding.advance', 'onboarding.back',
-  'onboarding.skip', 'onboarding.complete', 'onboarding.requestPermission', 'onboarding.openSettings',
-  'onboarding.onVoiceTrial',
+  'onboarding.complete',
 ];
 
 /** Ops only the native shim sends; they are not bridge members. */
@@ -78,8 +77,7 @@ export const SURFACE_OPS: Readonly<Record<Surface, readonly string[]>> = {
   ],
   onboarding: [
     'agentd.request', 'character.list', 'character.importPackage', 'clipboard.writeText', 'open.runInTerminal',
-    'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.skip', 'onboarding.complete',
-    'onboarding.requestPermission', 'onboarding.openSettings', 'onboarding.onVoiceTrial', 'events.unsubscribe',
+    'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.complete', 'events.unsubscribe',
   ],
 };
 
@@ -88,7 +86,7 @@ export const WATCH_OPS: readonly string[] = [
   'app.onRuntime', 'settings.onChange', 'avatar.onState', 'avatar.onStats', 'voice.onPushToTalk', 'computerUse.onState',
   'computerUse.onPanel', 'camera.onState', 'resize.onState', 'window.onVisibility', 'window.onPointer',
   'window.onAnchorState', 'window.onA11y', 'window.onAnchor', 'stack.onCards', 'desktop.onState', 'desktop.onPresence',
-  'desktop.onCommand', 'onboarding.onVoiceTrial', 'mmd.onSync', 'character.onImport',
+  'desktop.onCommand', 'mmd.onSync', 'character.onImport',
 ];
 
 /** Void ops sent without waiting for the reply. */

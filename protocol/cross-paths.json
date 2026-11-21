@@ -55,7 +55,6 @@
   {"row": "character-library", "token": "mod-settings.json", "files": ["agent/agentd/character_library.py",
    "agent/agentd/character/mod_settings_routes.py", "characters/agentic_complex_build/outfit_compose.py", "agent/agentd/outfit_tool.py",
    "characters/agentic_complex_build/mod_settings.py"]},
-  {"row": "C9", "token": "install_hooks.py", "files": ["web/src/pages/onboarding/copy.ts"], "note": "display text"},
   {"row": "C9", "token": "agentic-complex-hook", "files": ["agent/agentd/tools/install_hooks.py"]},
   {"row": "C9", "token": "ui-runtime.json", "files": ["agent/browser/native_host.py"]},
   {"row": "C9", "token": "hook.token", "files": ["agent/browser/native_host.py"]},

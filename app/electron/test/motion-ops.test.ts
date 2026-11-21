@@ -114,7 +114,7 @@ function fixture(o: { link?: FakeLink | null; config?: Record<string, unknown>; 
         calls.push(`tool held=${switcher.held}`);
         return o.tool ? o.tool(args) : { last: '', status: 1, stderr: 'no tool' };
       } },
-    permission: () => 'undetermined', confirm: async () => true,
+    confirm: async () => true,
     shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} }, clipboard: { writeText: () => {} },
     dialog: { pickFile: async () => null, pickFolder: async () => null, pickPackage: async () => null, saveFile: async () => true },
     app: { version: '0', os: 'test' }, loginItem: { enabled: () => null, set: () => {} }, settingsChanges: silentSource,

@@ -137,7 +137,7 @@ test('hot keys convert between the page caps and config.json names', () => {
 function context(dir: string): OpsContext {
   return {
     surface: 'main', routes, config: { path: join(dir, 'config.json'), supportDir: dir, devResources: null }, agentd: null,
-    store: null, diag: null, supervisor: null, library: null, permission: () => 'undetermined', confirm: async () => true,
+    store: null, diag: null, supervisor: null, library: null, confirm: async () => true,
     shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} },
     clipboard: { writeText: () => {} },
     dialog: { pickFile: async () => '/picked/file', pickFolder: async () => '/picked', pickPackage: async () => null, saveFile: async () => true },
@@ -468,33 +468,14 @@ test('reloadAvatar takes a new hello as her return even when the old one never r
   assert.equal(await Promise.race([back, new Promise((r) => setTimeout(r, 2000, 'still waiting'))]), 'back');
 });
 
-test('the guide reads a push-to-talk key the system refused as none, so it says where to set one', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'guide-'));
-  try {
-    const talkKey = async (config: Record<string, unknown>, refused: Record<string, string>) => {
-      writeFileSync(join(dir, 'config.json'), JSON.stringify(config));
-      const ops = registry({ ...context(dir), surface: 'onboarding', unregisteredHotkeys: () => refused });
-      const r = await handle('onboarding', page0, { op: 'onboarding.state', args: [] }, ops, new PageSession(() => {}));
-      assert.ok(r.ok);
-      return (r.value as { talkKey: string }).talkKey;
-    };
-    assert.equal(await talkKey({}, { voice_hotkey: 'right_option' }), '');
-    assert.equal(await talkKey({ voice_hotkey: 'control+option+t' }, { voice_hotkey: 'control+option+t' }), '');
-    assert.equal(await talkKey({ voice_hotkey: 'control+option+t' }, { voice_hotkey: 'right_option' }), 'control+option+t');
-    assert.equal(await talkKey({}, { hotkey_look: 'right_option' }), 'right_option');
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('the guide still answers when config.json is unreadable: not done, right Option', async () => {
+test('the guide still answers when config.json is unreadable: not done, on step 1', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'guide-'));
   try {
     writeFileSync(join(dir, 'config.json'), '{ not json');
     const ops = registry({ ...context(dir), surface: 'onboarding' });
     const r = await handle('onboarding', page0, { op: 'onboarding.state', args: [] }, ops, new PageSession(() => {}));
     assert.ok(r.ok, JSON.stringify(r));
-    assert.deepEqual([(r.value as { done: boolean }).done, (r.value as { talkKey: string }).talkKey], [false, 'right_option']);
+    assert.deepEqual([(r.value as { done: boolean }).done, (r.value as { step: number }).step], [false, 1]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

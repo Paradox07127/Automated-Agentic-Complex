@@ -1,4 +1,4 @@
-/* Guide media panel: our black ground and contour lines, a bottom ramp; the media frame between two round arrows, n/N and the text node under it. Paper in light. Breakpoints are the window's (full-screen layer). */
+/* Guide media panel: our black ground and contour lines, a bottom ramp; the media frame, n/N and the text node under it. Paper in light. Breakpoints are the window's (full-screen layer). */
 @import './PagePart1.css';
 
 /* Step 1: the installed characters as head cards, the current one with a yellow bottom bar, then 导入. */
@@ -106,6 +106,55 @@
 .add:focus-visible {
   outline: 2px solid var(--ef-focus);
   outline-offset: 2px;
+}
+
+/* Step 2: two cards side by side, the chosen one with the accent bar at its foot. */
+.choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-height: 242px;
+  align-content: center;
+}
+
+.choice {
+  --bar: var(--ef-line-strong);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  min-height: 132px;
+  padding: 16px 14px 18px;
+  border: 1px solid var(--ef-line);
+  background: linear-gradient(var(--bar), var(--bar)) bottom / 100% 4px no-repeat, var(--ef-surface-2);
+  color: var(--ef-text-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.choice:hover {
+  background-color: var(--ef-surface-3);
+}
+
+.choice[aria-checked='true'] {
+  --bar: var(--ef-accent);
+
+  border-color: var(--ef-line-strong);
+}
+
+.choice:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.choiceName {
+  font: var(--ef-fw-semibold) 15px / 1.3 var(--ef-font-sans);
+}
+
+.choiceLine {
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-meta);
+  line-height: 1.6;
 }
 
 /* Narrow (< 1100): the bars keep 24 px from the window edge. */

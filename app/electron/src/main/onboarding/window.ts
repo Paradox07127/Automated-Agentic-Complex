@@ -1,7 +1,7 @@
 // The first-run guide in its own window:
 // `main.html#/onboarding` on the `onboarding` surface, opened at launch while config.json has no `"onboarding_done": true`
-// and from `app.action('open_onboarding')`. 「开始」 closes it and opens the main window at the destination; 「稍后」 and the
-// close button only close it, so it opens again next launch.
+// and from `app.action('open_onboarding')`. 「完成」 closes it and opens the main window at the destination; the close button
+// only closes it, so it opens again next launch.
 import type { BrowserWindow, BrowserWindowConstructorOptions, WebContents } from 'electron';
 import type { Handler } from '../../common/bridge.ts';
 import { PageSession } from '../../common/page.ts';
@@ -9,18 +9,26 @@ import { ORIGIN } from '../../common/ui.ts';
 import { readObject } from '../ops/settings.ts';
 import { guardWebContents, type WebGuardPorts } from '../web-guard.ts';
 
-export type OnboardingDestination = 'home' | 'chat' | 'privacy' | 'model';
+export type OnboardingDestination = 'home' | 'model' | 'plugins';
 
 /** The routes the guide's end opens. */
 export const DESTINATIONS: Record<OnboardingDestination, string> = {
-  home: '/home', chat: '/chat?focus=page', privacy: '/settings?group=privacy&item=wintext', model: '/settings?group=model',
+  home: '/home', model: '/settings?group=model', plugins: '/settings?group=plugins',
 };
 
-/** Titled, closable and miniaturizable only. */
-export const WINDOW_OPTIONS: BrowserWindowConstructorOptions = {
-  width: 1080, height: 760, useContentSize: true, title: '首次启动引导', resizable: false, maximizable: false, fullscreenable: false,
-  minimizable: true, closable: true, show: false,
-};
+/** The room a title bar and the window's borders take on either system. */
+const FRAME = 48;
+
+/** Titled, resizable, closable and miniaturizable; 1080×760 or less, so the window with its frame fits `area` (a work area), and
+ *  the page scrolls what does not fit. */
+export function windowOptions(area: { width: number; height: number }): BrowserWindowConstructorOptions {
+  const minWidth = 900, minHeight = 560;
+  return {
+    width: Math.max(minWidth, Math.min(1080, area.width - FRAME)), height: Math.max(minHeight, Math.min(760, area.height - FRAME)),
+    useContentSize: true, title: '首次启动引导', resizable: true, minWidth, minHeight, maximizable: false, fullscreenable: false,
+    minimizable: true, closable: true, show: false,
+  };
+}
 
 export interface OnboardingWindowOptions {
   /** config.json, whose `onboarding_done` says the guide was finished. */
@@ -29,6 +37,8 @@ export interface OnboardingWindowOptions {
   makeWindow(options: BrowserWindowConstructorOptions): BrowserWindow;
   /** false when the web UI is not built. */
   served(): boolean;
+  /** The work area of the display the guide opens on. */
+  workArea(): { width: number; height: number };
   /** A new guide from step 1: the onboarding surface's ops; null when config.json did not load. */
   ops(): ReadonlyMap<string, Handler<PageSession>> | null;
   /** Gives the window's page its bridge. */
@@ -48,8 +58,8 @@ export interface OnboardingWindow {
   firstRun(): boolean;
   /** At launch on a first run, or from 设置 › 关于; an open guide, minimized too, only comes to the front. */
   begin(): void;
-  /** Closes the guide; `home` then opens the main window at `destination`. */
-  end(home: boolean, destination: OnboardingDestination): void;
+  /** Closes the guide and opens the main window at `destination`. */
+  end(destination: OnboardingDestination): void;
 }
 
 export function onboardingWindow(o: OnboardingWindowOptions): OnboardingWindow {
@@ -66,7 +76,7 @@ export function onboardingWindow(o: OnboardingWindowOptions): OnboardingWindow {
       if (!o.served()) return o.log('onboarding: no built web UI');
       const ops = o.ops();
       if (!ops) return o.log('onboarding: no guide (config failed)');
-      const w = o.makeWindow(WINDOW_OPTIONS);
+      const w = o.makeWindow(windowOptions(o.workArea()));
       const contents = w.webContents, id = contents.id;
       const page = new PageSession((sub, stream, kind, payload) => {
         if (!contents.isDestroyed()) contents.send('bridge:push', sub, stream, kind, payload);
@@ -89,9 +99,9 @@ export function onboardingWindow(o: OnboardingWindowOptions): OnboardingWindow {
       win = w;
       o.log('ONBOARDING shown');
     },
-    end: (home, destination) => {
+    end: (destination) => {
       win?.close();
-      if (home) o.openMain(DESTINATIONS[destination]);
+      o.openMain(DESTINATIONS[destination]);
     },
   };
 }

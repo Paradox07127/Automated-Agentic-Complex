@@ -91,7 +91,7 @@ function fixture(o: { catalog?: boolean; link?: boolean; host?: () => string; mm
         calls.push(`tool held=${switcher.held}`);
         return f.tool(script, args, progress);
       } },
-    permission: () => 'undetermined', confirm: async () => true,
+    confirm: async () => true,
     shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} }, clipboard: { writeText: () => {} },
     dialog: { pickFile: async () => null, pickFolder: async () => null, pickPackage: async () => null, saveFile: async () => true },
     app: { version: '0', os: 'test' }, loginItem: { enabled: () => null, set: () => {} }, settingsChanges: silentSource,
