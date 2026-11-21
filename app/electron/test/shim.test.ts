@@ -26,6 +26,7 @@ test('window.agenticComplex has the protocol.ts members, frozen', () => {
   install();
   const bridge = g.window.agenticComplex;
   assert.equal(bridge.surface, 'main');
+  assert.equal(bridge.platform, 'mac');
   assert.equal(typeof bridge.capabilities.hotkeys, 'boolean');
   for (const op of boot('main').ops) {
     const parts = op.split('.');

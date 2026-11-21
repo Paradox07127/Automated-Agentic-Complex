@@ -120,11 +120,11 @@ test('permissions.status reads the helper and answers in the web page\'s values;
   assert.deepEqual(helper.requests, [['permissions.status', {}]], 'never permissions.request');
 });
 
-test('permissions.status: macOS has notifications, read as not determined; Windows asks for none', async () => {
+test('permissions.status: macOS has notifications, read as not determined; Windows has only the microphone', async () => {
   const helper = new FakeHelper({ 'permissions.status': STATUS });
   assert.equal((value(await setup({ helper }).call('permissions.status')) as Record<string, unknown>).notifications, 'notDetermined');
-  assert.equal((value(await setup({ helper, platform: 'windows' }).call('permissions.status')) as Record<string, unknown>).notifications,
-    'unsupported');
+  assert.deepEqual(value(await setup({ helper, platform: 'windows' }).call('permissions.status')), { microphone: 'notDetermined' });
+  assert.deepEqual(value(await setup({ helper: null, platform: 'windows' }).call('permissions.status')), { microphone: 'unsupported' });
 });
 
 test('permissions.status without an answer from the helper reads every helper permission as unsupported', async () => {

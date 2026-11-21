@@ -64,11 +64,14 @@ export async function openSettings(ctx: OpsContext, pane: string): Promise<void>
 }
 
 export function permissionsOps(ctx: OpsContext): Ops {
-  const notifications: WebState = (ctx.platform ?? 'mac') === 'mac' ? 'notDetermined' : 'unsupported';
+  const mac = (ctx.platform ?? 'mac') === 'mac';
+  const notifications: WebState = mac ? 'notDetermined' : 'unsupported';
+  // Windows has a grant for the microphone only (C12 §7.9), so the page lists no other.
+  const kinds = mac ? PERMISSION_KINDS : ['microphone'];
   return {
     'permissions.status': async () => {
       const status = await helperStatus(ctx);
-      return Object.fromEntries(PERMISSION_KINDS.map((k) => [k, k === 'notifications' ? notifications
+      return Object.fromEntries(kinds.map((k) => [k, k === 'notifications' ? notifications
         : status && HELPER_KINDS.includes(k) ? webState(k, status[k]) : 'unsupported']));
     },
     'permissions.request': async ([kind]) => {

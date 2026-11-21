@@ -12,7 +12,7 @@ import { useSettings } from '../ctx';
 import { daySpan, type BlockedLine, type DayEvent, type DiagView } from '../diag';
 import { REPLY_LANGUAGE } from '../fields';
 import { optionsOf } from '../native';
-import { useRowShown } from '../registry';
+import { labelOf, useRowShown } from '../registry';
 import { PauseReadout } from '../PauseReadout';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
@@ -275,7 +275,7 @@ export function SpeakGroup() {
         {NOTIFY.map(([id, label, desc]) => (
           <SetRow key={id} id={id} title={label} desc={desc} control={c.seg(id)} />
         ))}
-        <SetRow id="sysnotify" title="改用 macOS 通知" desc="角色隐藏或前台全屏时生效" control={c.toggle('sysnotify', '改用 macOS 通知')} />
+        <SetRow id="sysnotify" title={labelOf('sysnotify')} desc="角色隐藏或前台全屏时生效" control={c.toggle('sysnotify')} />
         <SetRow
           id="testcard"
           title="发送测试卡"

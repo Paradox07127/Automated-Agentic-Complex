@@ -215,7 +215,8 @@ function SettingsBody() {
   };
   const pi = model.value('kernel') === 'pi';
   const results = q.trim()
-    ? searchSettings(q).filter((r) => !(r.group === '@character' && DEV_ONLY_ROWS.has(r.id) && !devMode) && (pi || !PI_ONLY_ROWS.has(r.id)) && shownRow(r.id))
+    ? searchSettings(q).filter((r) => !(r.group === '@character' && DEV_ONLY_ROWS.has(r.id) && !devMode) && (pi || !PI_ONLY_ROWS.has(r.id)) && shownRow(r.id)
+      && (r.section !== '系统权限' || perms.some((p) => p.kind === r.id)))
     : null;
   const view = results ? 'search' : group;
 

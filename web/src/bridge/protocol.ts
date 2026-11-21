@@ -1,5 +1,5 @@
 // Bridge contract between the web UI and the shell.
-// Single source of truth for bridge types; the web layer degrades by capability bits, never by platform name.
+// Single source of truth for bridge types; the web layer degrades by capability bits, never by platform name (`platform` only words text).
 import type { AppInfo } from './appInfo';
 import type { CameraOps } from './camera';
 import type { ComputerUseOps } from './computerUse';
@@ -250,7 +250,7 @@ export interface PointerState {
 }
 
 export interface AgenticComplexBridge {
-  readonly surface: Surface;
+  readonly surface: Surface; readonly platform: 'mac' | 'windows';
   readonly capabilities: Readonly<Capabilities>;
   app: {
     info(): Promise<AppInfo>;
@@ -301,7 +301,7 @@ export interface AgenticComplexBridge {
     onChange(cb: (c: SettingsChange) => void): Unsubscribe;
   };
   permissions: {
-    status(): Promise<Record<PermissionKind, PermissionState>>;
+    /** Only the kinds the platform has a grant for. */ status(): Promise<Partial<Record<PermissionKind, PermissionState>>>;
     /** Triggers the system prompt for a permission that was never asked. */
     request(kind: PermissionKind): Promise<PermissionState>;
     /** Opens the system settings pane; requires `capabilities.systemSettings`. */

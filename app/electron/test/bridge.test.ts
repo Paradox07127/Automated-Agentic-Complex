@@ -67,6 +67,15 @@ test('boot lists every bridge member and the surface capabilities with host bits
     assert.deepEqual(Object.keys(bits), Object.keys(ops.capabilities[surface]));
     for (const [name, v] of Object.entries(ops.capabilities[surface])) assert.equal(bits[name], v === true, `${surface} ${name}`);
   }
+  assert.equal(b.platform, 'mac');
+});
+
+test('boot on Windows names the platform and has no run-in-terminal; every other bit is the table\'s', () => {
+  for (const surface of SURFACES) {
+    const b = boot(surface, 'windows');
+    assert.equal(b.platform, 'windows');
+    assert.deepEqual(b.capabilities, { ...boot(surface).capabilities, runInTerminal: false }, surface);
+  }
 });
 
 test('the not_implemented reply has the BridgeError shape the returns/ fixtures use, for every fixture op', async () => {

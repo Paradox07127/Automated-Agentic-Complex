@@ -198,6 +198,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
 
   return gate({
     surface: opts.surface,
+    platform: 'mac',
     capabilities: { ...nativeCapabilities(opts.surface), ...opts.capabilities },
     app: {
       // `source=dev`: the app runs a dirty dev deployment.

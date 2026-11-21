@@ -1,6 +1,7 @@
 // The main process side of `window.agenticComplex`: op names and surfaces from protocol/ui-bridge/ops.json.
 import ops from '../../../../protocol/ui-bridge/ops.json' with { type: 'json' };
 import onboarding from '../../../../protocol/ui-bridge/onboarding-ops.json' with { type: 'json' };
+import type { ShellPlatform } from './config.ts';
 import { ORIGIN } from './ui.ts';
 
 export type Surface = 'main' | 'stack' | 'onboarding';
@@ -12,9 +13,10 @@ export type Reply = { ok: true; value: unknown } | { ok: false; error: BridgeErr
 
 export interface Kinds { watch: string[]; sync: string[]; stream: string[] }
 
-/** What the preload hands the shim: the page's surface, its capability bits and every bridge member. */
+/** What the preload hands the shim: the page's surface, the platform, its capability bits and every bridge member. */
 export interface Boot {
   surface: Surface;
+  platform: ShellPlatform;
   capabilities: Record<string, boolean>;
   ops: string[];
   kinds: Kinds;
@@ -23,9 +25,11 @@ export interface Boot {
 /** The frame that sent a message. */
 export interface Sender { mainFrame: boolean; origin: string }
 
-export function boot(surface: Surface): Boot {
+/** On Windows `open.runInTerminal` fails: it starts Terminal through osascript. */
+export function boot(surface: Surface, platform: ShellPlatform = 'mac'): Boot {
   const bits = Object.fromEntries(Object.entries(ops.capabilities[surface]).map(([name, v]) => [name, v === true]));
-  return { surface, capabilities: bits, ops: [...ops.ops, ...onboarding.ops], kinds: ops.kinds };
+  if (platform === 'windows') bits.runInTerminal = false;
+  return { surface, platform, capabilities: bits, ops: [...ops.ops, ...onboarding.ops], kinds: ops.kinds };
 }
 
 const allowed: Record<Surface, ReadonlySet<string>> = {

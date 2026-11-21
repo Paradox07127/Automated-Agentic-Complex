@@ -80,7 +80,7 @@ export function installBridge(boot: Boot, invoke: (op: string, args: unknown[]) 
     return function (...args: unknown[]) { return call(op, args); };
   }
   type Node = { [k: string]: unknown };
-  const bridge: Node = { surface: boot.surface, capabilities: boot.capabilities };
+  const bridge: Node = { surface: boot.surface, platform: boot.platform, capabilities: boot.capabilities };
   for (const op of boot.ops) {
     const parts = op.split('.');
     let node = bridge;

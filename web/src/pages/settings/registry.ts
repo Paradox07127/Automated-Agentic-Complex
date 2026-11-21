@@ -252,8 +252,21 @@ export const REGISTRY: RegEntry[] = RAW.map(([id, group, section, label, keyword
   };
 });
 
+/** Rows that name macOS: their label and keywords on the Windows shell. */
+const WINDOWS_TEXT: Readonly<Record<string, Pick<RegEntry, 'label' | 'keywords'>>> = {
+  sysnotify: { label: '改用 Windows 通知', keywords: '系统通知 全屏' },
+  sys: { label: '系统', keywords: 'Windows 版本' },
+};
+
+// Not getBridge(): the fake bridge's demo data imports this module, so that import would be circular.
+function onShell(r: RegEntry): RegEntry {
+  const text = WINDOWS_TEXT[r.id];
+  return text && window.agenticComplex?.platform === 'windows' ? { ...r, ...text } : r;
+}
+
 export function labelOf(id: string): string {
-  return REGISTRY.find((r) => r.id === id)?.label ?? id;
+  const r = REGISTRY.find((x) => x.id === id);
+  return r ? onShell(r).label : id;
 }
 
 export function groupOf(id: string): GroupId | null {
@@ -265,7 +278,7 @@ export function groupOf(id: string): GroupId | null {
 export function searchSettings(q: string): RegEntry[] {
   const needle = q.trim().toLowerCase();
   if (!needle) return [];
-  return REGISTRY.filter((r) => `${r.label} ${r.section} ${r.keywords}`.toLowerCase().includes(needle));
+  return REGISTRY.map(onShell).filter((r) => `${r.label} ${r.section} ${r.keywords}`.toLowerCase().includes(needle));
 }
 
 /** Whether a group shows: its plug-in, when it has one, is on. */

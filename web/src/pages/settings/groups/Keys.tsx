@@ -17,7 +17,7 @@ const HOTKEYS: Array<{ id: string; label: string; desc?: string }> = [
   { id: 'hk_sel', label: '读取选中文字', desc: '没选中时读剪贴板，带进快速输入；安全输入和黑名单窗口不读' },
 ];
 
-/** ⌃Space is also macOS's「切换输入法」; the shell cannot tell, so the row says so. */
+/** ⌃Space also switches the input method on macOS and in Windows' Chinese input methods; the shell cannot tell, so the row says so. */
 const INPUT_SWITCH = '⌃Space';
 const INPUT_SWITCH_FIX = '⌃⌥Space';
 
@@ -88,7 +88,7 @@ export function KeysGroup() {
               key={h.id}
               id={h.id}
               title={h.label}
-              desc={status ?? (clash ? '与 macOS「切换输入法」冲突，建议改为 ⌃⌥Space' : h.desc)}
+              desc={status ?? (clash ? `与${bridge.platform === 'windows' ? '系统' : ' macOS'}「切换输入法」冲突，建议改为 ⌃⌥Space` : h.desc)}
               descTone={status || clash ? 'attention' : undefined}
               control={
                 <>
