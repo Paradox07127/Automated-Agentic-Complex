@@ -128,9 +128,13 @@ def stage_runtime_python(stage, *, python, site_packages, prepared_site, pins):
     runtime = stage / 'runtime.python/payload'
     python = python.resolve()
     skipped = {python / relative for relative in PYTHON_SKIPPED}
+    # __pycache__: the build host's own runs compiled it, and each .pyc names its source by the host's path.
     shutil.copytree(python, runtime, symlinks=True, ignore=lambda directory, names: [
-        name for name in names if Path(directory, name) in skipped
+        name for name in names if Path(directory, name) in skipped or name == '__pycache__'
         or name.startswith(PYTHON_SKIPPED_PREFIXES.get(Path(directory).relative_to(python).as_posix(), ()))])
+    # The installer rewrote the build prefixes to its install path; /install is the prefix python-build-standalone builds with.
+    for sysconfig in (runtime / 'lib/python3.12').glob('_sysconfigdata_*.py'):
+        sysconfig.write_text(sysconfig.read_text().replace(str(python), '/install'))
     runtime_site = runtime / 'lib/python3.12/site-packages'
     merge_python_site(site_packages, prepared_site, runtime_site, pins)
     for tests in sorted(runtime_site.rglob('tests')):

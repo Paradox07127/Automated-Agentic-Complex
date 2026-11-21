@@ -167,6 +167,19 @@ class BuildComponentsTests(unittest.TestCase):
         self.assertTrue((site / 'tested/__init__.py').is_file())
         self.assertEqual(list(site.rglob('tests')), [])
 
+    def test_runtime_python_carries_no_build_host_path(self):
+        stdlib = self.python / 'lib/python3.12'
+        (stdlib / '__pycache__').mkdir(parents=True)
+        (stdlib / '__pycache__/os.cpython-312.pyc').write_bytes(str(stdlib / 'os.py').encode())
+        (stdlib / '_sysconfigdata__darwin_darwin.py').write_text(
+            f"build_time_vars = {{'BINDIR': '{self.python.resolve()}/bin', 'CC': 'clang'}}\n")
+        build_components.stage_runtime_python(self.stage, python=self.python, site_packages=self.base,
+                                              prepared_site=self.prepared / 'python-site', pins=self.pins)
+        runtime = self.stage / 'runtime.python/payload'
+        self.assertEqual(list(runtime.rglob('*.pyc')), [])
+        self.assertEqual((runtime / 'lib/python3.12/_sysconfigdata__darwin_darwin.py').read_text(),
+                         "build_time_vars = {'BINDIR': '/install/bin', 'CC': 'clang'}\n")
+
     def test_ui_art_ships_only_the_library_characters(self):
         files = {'characters/fixture/portrait.png': b'in', 'characters/absent/portrait.png': b'out', 'common/contour.png': b'common'}
         for name, data in files.items():

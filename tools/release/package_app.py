@@ -92,6 +92,7 @@ def stage_electron_host(host, electron_app, electron_dir, helper, identity, prod
     write_json(app / 'package.json', dict(name=source['name'], productName=product_name, version=app_version,
                                           private=True, type=source['type'], main=source['main']))
     shutil.copy2(helper, host / 'MacOS/ac-helper')
+    strip_local_symbols(host / 'MacOS/ac-helper')
     shutil.copy2(ROOT / 'app/Resources/parent_watch.py', host / 'Resources/parent_watch.py')
     first = ['MacOS/AgenticComplex', 'MacOS/ac-helper']
     rest = [path.relative_to(host).as_posix() for path in host.iterdir() if path.name not in ('MacOS', 'Resources')]

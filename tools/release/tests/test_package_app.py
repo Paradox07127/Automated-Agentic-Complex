@@ -807,9 +807,10 @@ class ElectronHostStageTests(unittest.TestCase):
         stage(self.args)
         for relative in kept + ['Resources/en.lproj']: self.assertTrue((self.contents / relative / 'locale.pak').is_file(), relative)
         for relative in dropped: self.assertFalse((self.contents / relative).exists(), relative)
-        self.assertEqual(sorted(staged), ['AgenticComplexMetalAvatar', 'node'])
+        self.assertEqual(sorted(staged), ['AgenticComplexMetalAvatar', 'ac-helper', 'node'])
         preview = self.contents / 'XPCServices/local.agenticcomplex.components-test.preview.xpc/Contents/MacOS/AgenticComplexMetalPreview'
-        for binary in (self.contents / 'MacOS/AgenticComplexMetalAvatar', preview, self.components / 'harness.pi/payload/node/bin/node'):
+        for binary in (self.contents / 'MacOS/AgenticComplexMetalAvatar', preview, self.contents / 'MacOS/ac-helper',
+                       self.components / 'harness.pi/payload/node/bin/node'):
             self.assertEqual(binary.read_bytes(), b'stripped', binary)
         self.assertEqual(self.args.host.read_bytes(), b'synthetic executable')
 
