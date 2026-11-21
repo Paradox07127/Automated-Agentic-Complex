@@ -15,7 +15,7 @@ export function ActionBand({ go }: { go: Go }) {
   const ref = useInfoIn<HTMLDivElement>();
   return (
     <div ref={ref} className={styles.act} role="toolbar" aria-label="常用操作" data-g="actions">
-      <Btn variant="secondary" tail="plus" onClick={() => go({ page: 'overview', create: 'role', focus: 'task-create' })}>
+      <Btn variant="ghost" tail="plus" onClick={() => go({ page: 'overview', create: 'role', focus: 'task-create' })}>
         派发任务
       </Btn>
       <Btn variant="ghost" kbd={keys.hk_quick} disabled={!!off.quickInput} disabledReason={off.quickInput} onClick={() => void openQuickInput()}>

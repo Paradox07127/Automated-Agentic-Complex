@@ -9,7 +9,7 @@ import type { BridgeError } from '../../bridge/protocol';
 import type { Fact, MemorySource } from '../../domain';
 import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
-import { Btn, Empty, ErrBar, PageIssues, reasonOf, Region, Tabs, type RegionSource } from '../../ui';
+import { ErrBar, PageIssues, reasonOf, Region, Tabs, type RegionSource } from '../../ui';
 import { pageNow, useGo, usePageParams } from './api';
 import { Archive } from './Archive';
 import { Asks } from './Asks';
@@ -195,7 +195,6 @@ export function MemoryPage() {
     ? { status: 'success', data: [] }
     : { status: work.status, data: work.data, error: work.error && new Error(errorText(work.error)), isFetching: work.isFetching, dataUpdatedAt: work.dataUpdatedAt, refetch: work.refetch };
   const memFailed = memSrc.status === 'error' && memSrc.data === undefined;
-  const pageEmpty = memSrc.data?.facts.length === 0 && (!hasProjects || workSrc.data?.length === 0);
   const lastRun = empty ? null : runs.pending ? undefined : runs.lastAt;
   const header = (
     <Header
@@ -259,25 +258,7 @@ export function MemoryPage() {
       {tabs}
       {fb.node}
       <PageIssues>
-        {view === 'activity' ? <ActivityReview searchRef={searchRef} /> : pageEmpty ? (
-          <div className={styles.emptyPage}>
-            <Empty
-              icon="user"
-              title="还没有记忆"
-              desc="对话后，后台整理出的记忆会列在这里，每条标明来源。"
-              action={
-                <>
-                  <Btn variant="secondary" onClick={toChat}>
-                    去对话
-                  </Btn>
-                  <Btn variant="ghost" icon="plus" onClick={() => setAdding(true)}>
-                    新增记忆
-                  </Btn>
-                </>
-              }
-            />
-          </div>
-        ) : view === 'projects' ? (
+        {view === 'activity' ? <ActivityReview searchRef={searchRef} /> : view === 'projects' ? (
           <>
             <Archive tasks={workSrc.data} about={tally(true)} knowledge={tally(false)} lastRun={lastRun} onOpen={pick} leave={leave} />
             <Projects source={workSrc} now={now} q={q} onQ={setQ} searchRef={searchRef} onSession={(id) => go({ page: 'overview', sel: id })} />

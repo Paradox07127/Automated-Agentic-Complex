@@ -1,4 +1,4 @@
-// 总览：01 待处理、02 进行中、03 今日简报，读数和跳转。
+// 总览：01 待处理、02 进行中、03 工业简报，读数和跳转。
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
@@ -178,15 +178,16 @@ describe(' 02 进行中', () => {
     expect(go).not.toHaveBeenCalled();
   });
 
-  it('without coding sessions a ghost row offers 派发任务', () => {
+  it('without coding sessions a ghost row says so; 派发任务 stays in the action band only', () => {
     const go = vi.fn();
-    render(<RunningSection q={READY} rows={[]} convs={0} code={0} activeRuns={{}} now={NOW} lost={false} go={go} onJumpSession={noop} />);
-    fireEvent.click(screen.getByRole('button', { name: '派发编码任务' }));
-    expect(go).toHaveBeenLastCalledWith({ page: 'overview', create: 'code', focus: 'task-create' });
+    const { container } = render(<RunningSection q={READY} rows={[]} convs={0} code={0} activeRuns={{}} now={NOW} lost={false} go={go} onJumpSession={noop} />);
+    expect(screen.getByText('当前没有编码会话')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '派发编码任务' })).toBeNull();
+    expect(container.textContent).not.toContain('派发任务');
   });
 });
 
-describe(' 03 今日简报 and the role band', () => {
+describe(' 03 工业简报 and the role band', () => {
   it('writes one summary sentence and two number links to 管线 and 诊断', () => {
     const go = vi.fn();
     const { container } = render(<Brief q={READY} snap={snap} brief={brief} now={NOW} go={go} />);

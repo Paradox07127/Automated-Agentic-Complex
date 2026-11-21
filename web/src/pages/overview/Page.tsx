@@ -106,14 +106,12 @@ export function OverviewPage() {
     !brief.spoke?.length;
 
   const dnd: MenuItem[] = [
+    { kind: 'item', label: '30 分钟', onSelect: () => a.onPause('quiet', 30) },
+    { kind: 'item', label: '1 小时', onSelect: () => a.onPause('quiet', 60) },
+    { kind: 'item', label: '到明早 7 点', onSelect: () => a.onPause('quiet', null) },
+    { kind: 'item', label: '开会', checked: a.pause.meeting, onSelect: () => a.onPause('meeting', null) },
+    { kind: 'sep' },
     { kind: 'item', label: '暂停观察 1 小时', hint: '立即', onSelect: () => a.onPause('observe', 60) },
-    { kind: 'sep' },
-    { kind: 'head', label: '免打扰 │ 安静（提醒暂停）' },
-    { kind: 'item', label: '安静 │ 30 分钟', onSelect: () => a.onPause('quiet', 30) },
-    { kind: 'item', label: '安静 │ 1 小时', onSelect: () => a.onPause('quiet', 60) },
-    { kind: 'item', label: '安静 │ 至明早 7 点', onSelect: () => a.onPause('quiet', null) },
-    { kind: 'sep' },
-    { kind: 'item', label: '免打扰 │ 开会（提醒照常，直到关闭）', checked: a.pause.meeting, onSelect: () => a.onPause('meeting', null) },
   ];
   const paused = a.pause.paused_until != null || a.pause.quiet_until != null || a.pause.meeting;
   const code = codeCounts(snap);
@@ -169,7 +167,7 @@ export function OverviewPage() {
           {paused && (
             <div className={styles.pauses}>
               {a.pause.paused_until != null && <PauseReadout kind="观察暂停" until={a.pause.paused_until} now={now} onResume={() => a.onResume('observe')} />}
-              {a.pause.quiet_until != null && <PauseReadout kind="免打扰 │ 安静" until={a.pause.quiet_until} now={now} onResume={() => a.onResume('quiet')} />}
+              {a.pause.quiet_until != null && <PauseReadout kind="免打扰" until={a.pause.quiet_until} now={now} onResume={() => a.onResume('quiet')} />}
               {a.pause.meeting && <PauseReadout kind="免打扰 │ 开会" until={null} now={now} onResume={() => a.onResume('meeting')} />}
             </div>
           )}

@@ -5,6 +5,7 @@ import { fxCalm, Icon, Missing, OpenSec, Region, StatusTag, type IconName, type 
 import type { RunRow } from './briefModel';
 import { Selected, TrackTip, useCellIn, type MissionTone } from './MissionFx';
 import type { Go } from './nav';
+import { Pip } from './Pip';
 import shared from './Page.module.css';
 import styles from './RunningSection.module.css';
 
@@ -56,7 +57,6 @@ interface LineProps {
   cap: ReactNode;
   label: string;
   onClick: () => void;
-  ghost?: boolean;
   /** Running work has a solid ink frame, background work a dashed one, idle work a chip fill. */
   frame?: 'run' | 'bg' | 'idle';
   /** Waits on you: the selection is drawn in yellow. */
@@ -66,7 +66,7 @@ interface LineProps {
 const WAIT = new Set(['awaiting_approval', 'awaiting_input', 'waiting_user']);
 
 /** One record row: an icon slot, title and last line, state and a caption at the right; focus selects it as a mission cell. */
-function Line({ icon, title, meta, metaTitle, state, cap, label, onClick, ghost, frame, wait }: LineProps) {
+function Line({ icon, title, meta, metaTitle, state, cap, label, onClick, frame, wait }: LineProps) {
   const [sel, setSel] = useState(false);
   const [tip, setTip] = useState(false);
   const ic = useRef<HTMLSpanElement>(null);
@@ -76,7 +76,7 @@ function Line({ icon, title, meta, metaTitle, state, cap, label, onClick, ghost,
     setTip(!fxCalm());
   };
   return (
-    <button type="button" className={styles.rr} data-ghost={ghost || undefined} data-frame={frame} data-sel={sel || undefined} onClick={onClick} onFocus={select} onBlur={() => setSel(false)} aria-label={label}>
+    <button type="button" className={styles.rr} data-frame={frame} data-sel={sel || undefined} onClick={onClick} onFocus={select} onBlur={() => setSel(false)} aria-label={label}>
       {sel && <Selected tone={tone} />}
       <span ref={ic} className={styles.rrIc} aria-hidden="true" data-g="ringOuter">
         <Icon name={icon} size={16} />
@@ -217,7 +217,9 @@ export function RunningSection(p: RunningSectionProps) {
                 ))}
                 {p.code === 0 && (
                   <Cell>
-                    <Line ghost icon="plus" title="当前没有编码会话" meta="派发给 Claude Code 或 Codex" state={null} cap={<span className={shared.lnk}>派发任务 ›</span>} label="派发编码任务" onClick={() => go({ page: 'overview', create: 'code', focus: 'task-create' })} />
+                    <div className={shared.none}>
+                      <Pip tone="idle" label="当前没有编码会话" />
+                    </div>
                   </Cell>
                 )}
               </ul>

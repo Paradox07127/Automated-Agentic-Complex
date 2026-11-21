@@ -10,6 +10,7 @@ import { C1 } from '../../src/mock/fixtures/ids';
 import { resetSchedules } from '../../src/mock/schedules';
 import { RunningSection } from '../../src/pages/overview/RunningSection';
 import { SchedulesPage } from '../../src/pages/schedules/Page';
+import { HeaderSlotContext } from '../../src/shell/headerSlot';
 import { ToastHost } from '../../src/shell/toast';
 
 function install() {
@@ -35,13 +36,13 @@ afterEach(() => {
   localStorage.clear();
 });
 
-function mountSchedules(search = '') {
+function mountSchedules(search = '', bottom: HTMLElement | null = null) {
   const root = createRootRoute({
     component: () => (
-      <>
+      <HeaderSlotContext.Provider value={bottom ? { setSub: () => {}, right: null, action: null, bottom } : null}>
         <SchedulesPage />
         <ToastHost />
-      </>
+      </HeaderSlotContext.Provider>
     ),
   });
   const router = createRouter({
@@ -129,6 +130,22 @@ describe('overview RunningSection header entry', () => {
 });
 
 describe('schedules page', () => {
+  it('新建定时任务 sits once in the bottom action bar; an empty list keeps only the one in its empty state', async () => {
+    install();
+    const bottom = document.body.appendChild(document.createElement('div'));
+    mountSchedules('', bottom);
+    const region = await screen.findByRole('region', { name: '定时任务' });
+    await within(region).findByText('日报');
+    expect(screen.getAllByRole('button', { name: '新建定时任务' })).toEqual([within(bottom).getByRole('button', { name: '新建定时任务' })]);
+    cleanup();
+    bottom.replaceChildren();
+    mountSchedules('&state=empty', bottom);
+    const empty = await screen.findByRole('region', { name: '定时任务' });
+    await within(empty).findByText('还没有定时任务');
+    expect(screen.getAllByRole('button', { name: '新建定时任务' })).toEqual([within(empty).getByRole('button', { name: '新建定时任务' })]);
+    bottom.remove();
+  });
+
   it('lists user schedule and agent proposal with 「她提议」 tag and primary 「启用」 button', async () => {
     install();
     mountSchedules();

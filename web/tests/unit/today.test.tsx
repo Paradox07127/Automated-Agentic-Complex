@@ -102,8 +102,8 @@ describe('今天', () => {
     await waitFor(() => expect(document.body.textContent).toMatch(/编码会话 \d+/), { timeout: 3000 });
     expect(document.body.textContent).toMatch(/对话 \d+/);
     expect(document.body.textContent).toMatch(/提醒 \d\d:\d\d/);
-    // The sentence stays only in 今日简报, below the two columns.
-    const brief = screen.getByRole('region', { name: '今日简报' });
+    // The sentence stays only in 工业简报, below the two columns.
+    const brief = screen.getByRole('region', { name: '工业简报' });
     expect(screen.getAllByText(/^今天 \d+ 段对话/).every((el) => brief.contains(el))).toBe(true);
     const need = screen.getByRole('region', { name: '待处理' });
     const run = screen.getByRole('region', { name: '进行中' });
@@ -112,6 +112,25 @@ describe('今天', () => {
     expect(run.closest('[data-g="detail"]')).not.toBeNull();
     expect(screen.queryByRole('region', { name: '她' })).toBeNull();
     expect(screen.getByRole('toolbar', { name: '常用操作' })).toBeTruthy();
+  });
+
+  it('the page has one name, 工业简报, and one 派发任务: in the action band, drawn like the rest of its row', async () => {
+    mount('&demo=sparse');
+    await screen.findByRole('region', { name: '工业简报' }, { timeout: 3000 });
+    await screen.findByText('当前没有编码会话');
+    expect(document.body.textContent).not.toContain('今日简报');
+    const band = screen.getByRole('toolbar', { name: '常用操作' });
+    expect(new Set(within(band).getAllByRole('button').map((b) => b.getAttribute('data-variant')))).toEqual(new Set(['ghost']));
+    expect(screen.getAllByRole('button', { name: /派发/ }).map((b) => b.textContent)).toEqual(['派发任务']);
+  });
+
+  it('免打扰 has one name: its items are 30 分钟, 1 小时, 到明早 7 点 and 开会, with no 安静', async () => {
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: '免打扰' }));
+    const menu = await screen.findByRole('menu', { name: '免打扰' });
+    const items = [...menu.querySelectorAll('[role^="menuitem"]')].map((b) => b.textContent);
+    expect(items.slice(0, 4)).toEqual(['30 分钟', '1 小时', '到明早 7 点', '开会']);
+    expect(menu.textContent).not.toContain('安静');
   });
 
   it('focus=item-<id> lands on the pending item', async () => {

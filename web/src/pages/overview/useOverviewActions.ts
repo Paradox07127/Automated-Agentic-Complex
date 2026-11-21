@@ -144,12 +144,12 @@ export function useOverviewActions(snap: OverviewSnapshot | undefined, now: numb
       } else if (kind === 'quiet') {
         req = put<{ quiet_until: string | null }>('/observation/quiet', quiet(minutes == null ? nextMorning(now) : now + minutes * 60_000)).then((r) => {
           setPause((p) => ({ ...p, quiet_until: isoToMsOrNull(r.quiet_until) }));
-          toast('已进入免打扰·安静，提醒暂停');
+          toast('已进入免打扰');
         });
       } else {
         req = put<{ meeting: boolean }>('/observation/meeting', meeting(true)).then((r) => {
           setPause((p) => ({ ...p, meeting: r.meeting }));
-          toast('已进入免打扰·开会，直到关闭');
+          toast('已进入免打扰 │ 开会');
         });
       }
       req.catch(fail('暂停'));

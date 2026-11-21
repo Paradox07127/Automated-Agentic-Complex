@@ -15,7 +15,7 @@ const band = (page: Page) => page.locator('[data-band]');
 const tasks = (page: Page) => page.locator('section[aria-label="当前任务"]');
 const need = (page: Page) => page.locator('section[aria-label="待处理"]');
 const run = (page: Page) => page.locator('section[aria-label="进行中"]');
-const brief = (page: Page) => page.locator('section[aria-label="今日简报"]');
+const brief = (page: Page) => page.locator('section[aria-label="工业简报"]');
 
 test('default: no role band, 01 with one paper card and record rows, 02 of at most 3 rows beside it, 03 with a sentence, 2 numbers and 3 lanes; the day timeline is on 运行记录', async ({ page }) => {
   const errors = collectErrors(page);
@@ -81,11 +81,13 @@ test('免打扰 menu pauses observation and the page shows it with 现在恢复'
   await expect(readout.getByRole('button', { name: '现在恢复' })).toBeVisible();
 });
 
-test('sparse: nothing waiting, no coding sessions, a ghost row to dispatch one', async ({ page }) => {
+test('sparse: nothing waiting, no coding sessions; 派发任务 is only in the action band', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/overview?still=1&demo=sparse');
   await expect(need(page)).toContainText('当前没有待处理事项');
-  await expect(run(page).getByRole('button', { name: '派发编码任务' })).toBeVisible();
+  await expect(run(page)).toContainText('当前没有编码会话');
+  await expect(run(page).getByRole('button', { name: /派发/ })).toHaveCount(0);
+  await expect(page.locator('main').getByRole('button', { name: /派发/ })).toHaveCount(1);
   await expect(brief(page)).toContainText('还没有编码会话');
   expect(errors).toEqual([]);
 });
@@ -105,7 +107,7 @@ test('error: one bar says which reads failed and when the data is from; the regi
 test('loading: section titles over skeletons, one 读取中 in the command bar, no numbers', async ({ page }) => {
   await page.goto('main.html#/overview?still=1&state=loading');
   await expect(need(page).locator('[aria-busy="true"]')).toBeVisible();
-  await expect(brief(page)).toContainText('今日简报');
+  await expect(brief(page)).toContainText('工业简报');
   await expect(page.locator('main [data-shell="content"]')).not.toContainText('正在读取');
   await expect(page.getByRole('navigation', { name: '主导航' })).toContainText('读取中');
 });

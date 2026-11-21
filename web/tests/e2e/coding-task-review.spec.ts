@@ -81,7 +81,7 @@ for (const theme of THEMES) {
   test(`${theme}: overview counts today's failed task and failed turn under 出错 and dates the next reminder`, async ({ page }) => {
     const errors = collectErrors(page);
     await open(page, '/overview', theme);
-    const brief = page.getByRole('region', { name: '今日简报' });
+    const brief = page.getByRole('region', { name: '工业简报' });
     await expect(brief.getByRole('button', { name: /^出错 2，前往诊断/ })).toBeVisible();
     await expect(brief).toContainText('下一条提醒 15:00 交报销单');
     await shot(page, 'overview', theme);

@@ -300,11 +300,13 @@ describe('memory › demos', () => {
     expect(screen.queryByRole('button', { name: '展开「待确认」' })).toBeNull();
   });
 
-  it('empty: one centered empty state with 去对话, the sections hidden', async () => {
+  it('empty: the sections keep their layout, each with its own empty line; 去对话 sits in 用户档案', async () => {
     mount('?still=1&state=empty');
-    expect(await screen.findByText('还没有记忆')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /去对话/ })).toBeTruthy();
-    expect(screen.queryByRole('region', { name: '用户档案' })).toBeNull();
+    const profile = await screen.findByRole('region', { name: '用户档案' });
+    expect(within(profile).getByRole('button', { name: /去对话/ })).toBeTruthy();
+    expect(await screen.findByText('还没有记忆，对话后后台整理出的记忆会列在这里')).toBeTruthy();
+    expect(screen.getByText('没有待确认的推断')).toBeTruthy();
+    expect(screen.queryByText('还没有记忆')).toBeNull();
     expect(screen.queryByRole('region', { name: '最近变化' })).toBeNull();
     expect(screen.queryByRole('toolbar', { name: '搜索、排序、分组跳转' })).toBeNull();
     expect(document.body.textContent).not.toContain('暂无');
@@ -321,7 +323,7 @@ describe('memory › demos', () => {
 
   it('empty: 新增记忆 still opens the add dialog', async () => {
     mount('?still=1&state=empty');
-    expect(await screen.findByText('还没有记忆')).toBeTruthy();
+    expect(await screen.findByText('还没有记忆，对话后后台整理出的记忆会列在这里')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /新增记忆/ }));
     expect(await screen.findByRole('dialog', { name: '新增记忆' })).toBeTruthy();
   });

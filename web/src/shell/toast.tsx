@@ -13,14 +13,18 @@ interface Item extends ToastOptions {
 }
 
 const MAX = 3;
+const UNDO = '撤销';
 let seq = 0;
 
 const useQueue = create<{ items: Item[] }>(() => ({ items: [] }));
 
+const isUndo = (x: ToastOptions) => x.action?.label === UNDO;
+
+/** A new 撤销 toast replaces the one still showing: only the latest change can be undone from here. */
 export const toast: PushToast = (message, opts = {}) => {
   seq += 1;
   const item = { id: seq, message, ...opts };
-  useQueue.setState((s) => ({ items: [...s.items, item].slice(-MAX) }));
+  useQueue.setState((s) => ({ items: [...(isUndo(item) ? s.items.filter((x) => !isUndo(x)) : s.items), item].slice(-MAX) }));
 };
 
 function dismiss(id: number): void {

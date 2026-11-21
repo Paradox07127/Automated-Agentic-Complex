@@ -217,13 +217,6 @@
   font: var(--ef-fw-medium) 12px / 1.45 var(--ef-font-mono);
 }
 
-/* A whole empty page: one centered empty state, the sections hidden. */
-.emptyPage {
-  display: flex;
-  justify-content: center;
-  padding: 12vh 0;
-}
-
 .listAnchor {
   min-width: 0;
   scroll-margin-top: 12px;

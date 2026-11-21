@@ -129,7 +129,8 @@ test('memory sparse, error and empty demos', async ({ page }) => {
   await expect(page.locator('[data-fact]')).toHaveCount(0);
   await page.goto('about:blank');
   await page.goto('main.html#/memory?still=1&state=empty&view=about');
-  await expect(page.getByText('还没有记忆')).toBeVisible();
+  await expect(page.getByRole('region', { name: '用户档案' }).getByRole('button', { name: '去对话' })).toBeVisible();
+  await expect(page.getByText('还没有记忆，对话后后台整理出的记忆会列在这里')).toBeVisible();
   await expect(page.getByRole('region', { name: '最近变化' })).toHaveCount(0);
   expect(errors).toEqual([]);
 });

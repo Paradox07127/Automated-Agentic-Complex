@@ -45,12 +45,6 @@
   --rr-cat: var(--ef-line-strong);
 }
 
-.rr[data-ghost] {
-  --rr-cat: transparent;
-  border-style: dashed;
-  background: transparent;
-}
-
 /* Category bar, full height on the left edge; pointing adds the hover mask and steps the content in. */
 .rr::before {
   content: '';

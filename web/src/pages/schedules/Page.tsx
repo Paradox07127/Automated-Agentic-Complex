@@ -6,6 +6,7 @@ import type { ConversationsResponse } from '../../bridge/agentd-routes.generated
 import { failureText } from '../../domain/errorText';
 import { fromSchedule, scheduleItemView, type Schedule, type WireSchedule } from '../../domain/schedules';
 import { useDemo } from '../../shell/demo';
+import { PageHeaderSlot } from '../../shell/headerSlot';
 import { useToast } from '../../shell/toast';
 import { Btn, OpenSec, PageIssues, Pill, Region, Switch } from '../../ui';
 import { ToolBar } from '../diag/ToolBar';
@@ -138,13 +139,17 @@ export function SchedulesPage() {
 
   return (
     <div className={styles.page} data-page="schedules" data-nav-target="page">
-      <ToolBar
-        action={
-          <Btn variant="secondary" size="sm" icon="plus" onClick={() => setDraft(emptyDraft())}>
-            新建定时任务
-          </Btn>
+      <PageHeaderSlot
+        bottom={
+          // An empty list offers it in its empty state instead.
+          q.data?.length !== 0 ? (
+            <Btn variant="secondary" icon="plus" onClick={() => setDraft(emptyDraft())}>
+              新建定时任务
+            </Btn>
+          ) : null
         }
       />
+      <ToolBar />
       <div className={styles.body}>
         <PageIssues>
           <OpenSec

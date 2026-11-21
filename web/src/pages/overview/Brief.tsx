@@ -49,7 +49,7 @@ function Num({ k, v, of, to, target, mark, why, go }: NumProps) {
   );
 }
 
-/** 03 今日简报（板）：标题、一句话小结、2 个数字链接、3 条泳道的今日时间轴，提醒画在刻度尺上。 */
+/** 03 工业简报（板）：标题、一句话小结、2 个数字链接、3 条泳道的今日时间轴，提醒画在刻度尺上。 */
 export function Brief({ q, snap, brief, now, go }: BriefProps) {
   const shots = snap.quota?.screenshots ?? null;
   // The title stays while the brief loads or fails; the summary and numbers need the reads.
@@ -57,10 +57,10 @@ export function Brief({ q, snap, brief, now, go }: BriefProps) {
   const devMode = useDevMode();
   return (
     <div className={styles.wrap}>
-      <Plate no="03" label="今日简报">
+      <Plate no="03" label="工业简报">
         <div className={styles.bh}>
           <div className={styles.bt}>
-            <h3>今日简报</h3>
+            <h3>工业简报</h3>
           </div>
           {ready && (
             <>
@@ -76,7 +76,7 @@ export function Brief({ q, snap, brief, now, go }: BriefProps) {
         </div>
         {/* The shell lands reminders here (/overview?focus=reminders): they are the ▼ on the ruler inside. */}
         <div className={styles.reg} data-nav-target="reminders">
-          <Region q={q} what="今日简报" reserve={{ height: 120 }} skel="chart">
+          <Region q={q} what="工业简报" reserve={{ height: 120 }} skel="chart">
             {() => {
               if (!brief) return null;
               const tl = briefLanes(snap, brief, now);
