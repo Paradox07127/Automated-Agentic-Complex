@@ -101,9 +101,11 @@ test('Menu: the trigger and an item react to press', async ({ page }) => {
   await expectHoverAndPress(page, open.getByRole('menuitem').first());
 });
 
-test('CommandBar: the status lights react to press', async ({ page }) => {
+test('CommandBar: the status chip and 回主页 react to press', async ({ page }) => {
   await go(page, 'main.html#/overview?still=1');
-  await expectHoverAndPress(page, page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: /^后台：/ }));
+  const nav = page.getByRole('navigation', { name: '主导航' });
+  await expectHoverAndPress(page, nav.locator('[title^="后台："]').getByRole('button'));
+  await expectHoverAndPress(page, nav.getByRole('button', { name: '回主页' }));
 });
 
 test('approval card links: hover, press, focus ring, and a disabled link that still reads as a link', async ({ page }) => {

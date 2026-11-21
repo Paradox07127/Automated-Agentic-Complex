@@ -82,11 +82,22 @@ test('⌘1–⌘3 reach 工业简报, 对话 and 记忆', async ({ page }) => {
 
 test('900×600: the command bar does not wrap or scroll, and nothing scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
+  // The macOS shell's traffic-light inset.
+  await page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => document.documentElement.style.setProperty('--ef-chrome-left', '84px')));
   await page.goto('main.html#/overview?still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
   await expect(nav).toBeVisible();
   expect((await nav.boundingBox())?.height).toBe(50);
   expect(await nav.evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
+  // 回主页 keeps its icon, 主页 and the esc cap whole, inside the bar.
+  const homeWhole = () =>
+    nav.getByRole('button', { name: '回主页' }).evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const bar = el.closest('nav')!.getBoundingClientRect();
+      const parts = [...el.children].map((c) => c.getBoundingClientRect());
+      return el.scrollWidth <= el.clientWidth && r.left >= bar.left && parts.every((p) => p.width > 0 && p.left >= r.left && p.right <= r.right);
+    });
+  expect(await homeWhole()).toBe(true);
   const wide = () =>
     page.evaluate(() => {
       const html = document.documentElement;
@@ -98,6 +109,10 @@ test('900×600: the command bar does not wrap or scroll, and nothing scrolls sid
   await page.getByRole('menuitem', { name: /^记忆/ }).click();
   await expect(page.locator('main[data-route-id="memory"]')).toBeVisible();
   expect((await wide()).html).toBe(0);
+  await page.goto('main.html#/settings?still=1');
+  await expect(page.locator('main[data-route-id="settings"]')).toBeVisible();
+  expect(await nav.evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
+  expect(await homeWhole()).toBe(true);
 });
 
 test('1920×1080: the content area is at most 1600 wide and centred', async ({ page }) => {

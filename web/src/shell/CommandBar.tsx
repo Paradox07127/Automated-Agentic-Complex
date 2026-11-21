@@ -30,14 +30,8 @@ function reveal(on: HTMLElement | null) {
   else if (t.right > p.right - pad) plate.scrollLeft += t.right - (p.right - pad);
 }
 
-function Light({ lamp, label, state }: { lamp: Lamp; label: string; state: string }) {
-  return (
-    <span className={styles.light} title={`${label}：${state}`} aria-hidden="true">
-      <span className={styles.dot} data-lamp={lamp} />
-      <span className={styles.lightText}>{label}</span>
-    </span>
-  );
-}
+/** Which light the status chip names: the worst one, the first on a tie. */
+const RANK: Record<Lamp, number> = { ok: 0, off: 1, warn: 2, bad: 3 };
 
 export interface CommandBarProps {
   routes: PageRoute[];
@@ -52,7 +46,7 @@ export interface CommandBarProps {
   actionRef: Ref<HTMLDivElement>;
 }
 
-/** The one top bar of every page but 主页: the page's name (it lists every page), the page's own tabs between Q and E, its readouts and action, the status lights, back to 主页 (esc). */
+/** The one top bar of every page but 主页: back to 主页 (esc), the page's name (it lists every page), the page's own tabs between Q and E, its readouts and action, the status chip. */
 export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, actionRef }: CommandBarProps) {
   const status = useShellStatus();
   const devMode = useDevMode();
@@ -66,6 +60,13 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
   const user = pages.filter((r) => r.group !== 'dev' && !r.devOnly);
   const dev = devMode ? pages.filter((r) => r.group === 'dev' || r.devOnly) : [];
   const menuItems: MenuItem[] = [...user.map(toItem), ...(dev.length > 0 ? [{ kind: 'sep' as const }] : []), ...dev.map(toItem)];
+  // 后台, 内核 and 角色 in one chip: all fine it reads 后台's state, else the worst light; it opens the three.
+  const worst = status.lights.reduce((w, l) => (RANK[l.lamp] > RANK[w.lamp] ? l : w));
+  const statusItems: MenuItem[] = [
+    ...status.lights.map((l): MenuItem => ({ kind: 'item', label: `${l.label}：${l.state}` })),
+    ...(devMode ? [{ kind: 'sep' as const }, { kind: 'item' as const, label: '查看诊断', onSelect: () => navigate({ page: 'diag' }) }] : []),
+  ];
+  const home = () => navigate({ page: 'home' as PageId });
   // The bar drops in once when the window opens (sns_basic_in's tabs track), not on page switches.
   const bar = useRef<HTMLDivElement>(null);
   useGameClip(gameClips.snsBasicIn, bar, { autoplay: true });
@@ -162,7 +163,7 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
       if (document.querySelector('[role="dialog"], [aria-modal="true"], [role="menu"], [role="listbox"][data-overlay]')) return;
       if (k === 'escape') {
         e.preventDefault();
-        navigate({ page: 'home' as PageId });
+        home();
         return;
       }
       // 设置's group cells are buttons with data-tab, selected by data-on.
@@ -179,8 +180,15 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
 
   return (
     <nav ref={nav} className={styles.cmdbar} aria-label="主导航" data-theme="dark">
-      <div className={styles.tools} data-nav-target="page">
-        <Menu label={[title, tabName ?? sub].filter(Boolean).join(' / ')} items={menuItems} />
+      <div className={styles.lead}>
+        <button type="button" className={styles.back} onClick={home} aria-label="回主页" title="回主页">
+          <Icon name="chevl" size={16} />
+          <span>主页</span>
+          <Kbd>esc</Kbd>
+        </button>
+        <div className={styles.tools} data-nav-target="page">
+          <Menu label={[title, tabName ?? sub].filter(Boolean).join(' / ')} items={menuItems} />
+        </div>
       </div>
       <div ref={bar} className={styles.tabs} data-g="tabs">
         <span className={`${styles.key} ${styles.keyQ}`} aria-hidden="true">
@@ -200,23 +208,9 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
       <div className={styles.right}>
         <div className={styles.slot} ref={rightRef} data-slot="status" />
         <div className={styles.slot} ref={actionRef} data-slot="action" />
-        <button
-          type="button"
-          className={styles.status}
-          onClick={() => navigate({ page: 'diag' })}
-          title="查看诊断"
-          aria-label={status.lights.map((l) => `${l.label}：${l.state}`).join('，')}
-        >
-          {status.lights.map((l) => (
-            <Light key={l.label} lamp={l.lamp} label={l.label} state={l.state} />
-          ))}
-        </button>
-        <button type="button" className={styles.back} onClick={() => navigate({ page: 'home' as PageId })} aria-label="回主页" title="回主页">
-          <span className={styles.key} aria-hidden="true">
-            <Kbd>esc</Kbd>
-          </span>
-          <Icon name="close" size={20} />
-        </button>
+        <div className={styles.status} data-lamp={worst.lamp} title={status.lights.map((l) => `${l.label}：${l.state}`).join('，')}>
+          <Menu label={worst.lamp === 'ok' ? worst.state : `${worst.label}${worst.state}`} items={statusItems} align="right" />
+        </div>
       </div>
     </nav>
   );

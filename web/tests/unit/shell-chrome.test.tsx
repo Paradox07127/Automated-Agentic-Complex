@@ -127,7 +127,21 @@ describe('CommandBar', () => {
     expect(await within(nav).findByRole('button', { name: '设置 / 甲' })).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: '乙' }));
     expect(await within(nav).findByRole('button', { name: '设置 / 乙' })).toBeTruthy();
-    expect([...nav.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['Q', 'E', 'esc']);
+    expect([...nav.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['esc', 'Q', 'E']);
+  });
+
+  it('starts with 回主页 (⟨ 主页, esc cap always shown), goes home from it, and has no ✕', async () => {
+    const { nav } = await mountCommandBar('settings', () => <TabsPage />);
+    const first = nav.querySelector<HTMLElement>('button, a, [tabindex]:not([tabindex="-1"])');
+    const home = within(nav).getByRole('button', { name: '回主页' });
+    expect(first).toBe(home);
+    expect(home.textContent).toBe('主页esc');
+    expect(home.querySelector('[data-icon="chevl"]')).toBeTruthy();
+    expect(home.querySelector('kbd')?.closest('[aria-hidden="true"]')).toBeNull();
+    expect(within(nav).getAllByRole('button', { name: '回主页' })).toHaveLength(1);
+    expect(nav.querySelector('[data-icon="close"]')).toBeNull();
+    fireEvent.click(home);
+    expect(window.location.hash).toMatch(/^#\/home\?/);
   });
 
   it('shows the sub when no tab is selected', async () => {
@@ -135,12 +149,32 @@ describe('CommandBar', () => {
     expect(await within(nav).findByRole('button', { name: '设置 / 隐私' })).toBeTruthy();
   });
 
-  it('shows the 后台 / 内核 / 角色 lights, without 语音, and opens 诊断 from them', async () => {
+  it('shows 后台 / 内核 / 角色 as one status chip, without 语音; it lists the three and opens 诊断 only in 开发者模式', async () => {
+    const base: AvatarState = { running: true, visible: true, scale: 1, clickThroughAll: false, speaking: false, characterId: 'si', appearanceId: 'default' };
+    vi.spyOn(getBridge().avatar, 'state').mockResolvedValue(base);
+    setDevMode(false);
     const { nav } = await mountCommandBar('overview');
-    const lights = await within(nav).findByRole('button', { name: /^后台：已连接，内核：已就绪，角色：/ });
+    const chip = await within(nav).findByRole('button', { name: '已连接' });
+    expect(chip.getAttribute('aria-haspopup')).toBe('menu');
     expect(nav.textContent).not.toContain('语音');
-    fireEvent.click(lights);
+    fireEvent.click(chip);
+    const items = within(screen.getByRole('menu', { name: '已连接' })).getAllByRole('menuitem');
+    expect(items.map((i) => i.textContent)).toEqual(['后台：已连接', '内核：已就绪', '角色：在桌面']);
+    fireEvent.click(items[0]!);
+    expect(window.location.hash).toBe('');
+    cleanup();
+
+    setDevMode(true);
+    const dev = await mountCommandBar('overview');
+    fireEvent.click(await within(dev.nav).findByRole('button', { name: '已连接' }));
+    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: '查看诊断' }));
     expect(window.location.hash).toMatch(/^#\/diag\?/);
+  });
+
+  it('names the worst light on the chip when one is not fine', async () => {
+    vi.spyOn(getBridge().agentd, 'connection').mockResolvedValue('offline');
+    const { nav } = await mountCommandBar('overview');
+    expect(await within(nav).findByRole('button', { name: '后台已断开' })).toBeTruthy();
   });
 
   it('updates the 角色 light when avatar state is pushed', async () => {
@@ -152,12 +186,13 @@ describe('CommandBar', () => {
       return () => {};
     });
     const { nav } = await mountCommandBar('overview');
-    expect(await within(nav).findByRole('button', { name: /，角色：在桌面$/ })).toBeTruthy();
+    fireEvent.click(await within(nav).findByRole('button', { name: '已连接' }));
+    expect(await within(screen.getByRole('menu')).findByRole('menuitem', { name: '角色：在桌面' })).toBeTruthy();
     act(() => push({ ...base, speaking: true }));
-    expect(await within(nav).findByRole('button', { name: /，角色：说话中$/ })).toBeTruthy();
+    expect(await within(screen.getByRole('menu')).findByRole('menuitem', { name: '角色：说话中' })).toBeTruthy();
   });
 
-  it("steps through the page's own tabs on Q and E and wraps around, ignores inputs, and goes home on Esc and ✕", async () => {
+  it("steps through the page's own tabs on Q and E and wraps around, ignores inputs, and goes home on Esc and 回主页", async () => {
     await mountCommandBar('settings', () => <TabsPage />);
     const selected = () => screen.getAllByRole('tab').find((t) => t.getAttribute('aria-selected') === 'true')?.getAttribute('title');
     expect(selected()).toBe('甲');
@@ -201,6 +236,20 @@ describe('page switch', () => {
   afterEach(() => {
     delete (document as { startViewTransition?: unknown }).startViewTransition;
     window.location.hash = '';
+  });
+
+  it('goes from a page back to 主页 through 回主页, and 主页 has no 回主页', async () => {
+    stubMatchMedia();
+    window.location.hash = '#/schedules?still=1';
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={createAppRouter()} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: '回主页' }));
+    await vi.waitFor(() => expect(document.querySelector('main[data-route-id="home"]')).toBeTruthy());
+    expect(screen.queryByRole('button', { name: '回主页' })).toBeNull();
+    vi.unstubAllGlobals();
   });
 
   it('cuts straight to the next page: the app router starts no view transition', async () => {

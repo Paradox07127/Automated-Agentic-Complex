@@ -179,6 +179,13 @@
   background: url('/art/common/tab-pc-selected.png') center bottom -1px / 78px 58px no-repeat;
 }
 
+/* 回主页, then the page menu. */
+.lead {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+}
+
 .tools {
   display: inline-flex;
   flex: none;
@@ -192,59 +199,48 @@
   font-weight: var(--ef-fw-semibold);
 }
 
+/* One chip for 后台, 内核 and 角色; the named light's lamp is the dot before its text. */
 .status {
   display: inline-flex;
   flex: none;
-  align-items: center;
-  gap: var(--ef-sp-12);
-  height: var(--ef-h-md);
-  padding: 0 10px;
-  border: 0;
-  border-radius: 0;
-  background-color: transparent;
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
-  white-space: nowrap;
-  transition: background-color 120ms var(--ef-ease-mech);
 }
 
-.status:hover {
-  background-color: var(--ef-chip);
-  color: var(--ef-text-1);
-}
-
-.status:active {
-  background-color: var(--ef-surface-3);
-}
-
-.light {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ef-sp-6);
-}
-
-.dot {
+.status [data-stub='Menu'] > button::before {
   display: inline-block;
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: 0;
   background: var(--ef-text-3);
+  content: '';
 }
 
-.dot[data-lamp='ok'] {
+.status[data-lamp='ok'] [data-stub='Menu'] > button::before {
   background: var(--ef-text-1);
 }
 
-.dot[data-lamp='warn'],
-.dot[data-lamp='bad'] {
+.status[data-lamp='warn'] [data-stub='Menu'] > button::before,
+.status[data-lamp='bad'] [data-stub='Menu'] > button::before {
   border: 1px solid var(--ef-text-1);
   background: var(--ef-text-2);
 }
 
-.dot[data-lamp='off'] {
+.status[data-lamp='off'] [data-stub='Menu'] > button::before {
   border: 1px dashed var(--ef-text-3);
   background: none;
+}
+
+/* Below 1280 the chip is just its dot unless a light warns or fails; its text stays its name, the three stay in its
+   tooltip and menu. */
+@media (max-width: 1279px) {
+  .status:not([data-lamp='warn'], [data-lamp='bad']) [data-stub='Menu'] > button {
+    gap: 0;
+    padding: 0 8px;
+    font-size: 0;
+  }
+
+  .status:not([data-lamp='warn'], [data-lamp='bad']) [data-stub='Menu'] > button > svg {
+    display: none;
+  }
 }
 
 @media (max-width: 1099px) {
@@ -257,28 +253,15 @@
   }
 }
 
-/* Below 1280 the lights drop their labels. */
-@media (max-width: 1279px) {
-  .lightText {
-    display: none;
-  }
-
-  .status {
-    gap: var(--ef-sp-8);
-    padding: 0 8px;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .role,
-  .tab,
-  .status {
+  .tab {
     transition: none;
   }
 }
 
-:global([data-reduce-motion]) :is(.role, .tab, .status),
-:global(.still) :is(.role, .tab, .status) {
+:global([data-reduce-motion]) :is(.role, .tab),
+:global(.still) :is(.role, .tab) {
   transition: none;
 }
 
@@ -347,7 +330,7 @@
   display: none;
 }
 
-/* The game's ⊗ at the bar's right end: back to 主页. */
+/* ⟨ 主页 at the bar's left end, its esc cap always shown: back to 主页. */
 .back {
   display: inline-flex;
   flex: none;
@@ -358,10 +341,16 @@
   border: 0;
   background: transparent;
   color: var(--ef-text-1);
+  font-weight: var(--ef-fw-medium);
+  white-space: nowrap;
 }
 
 .back:hover {
   background-color: var(--ef-chip);
+}
+
+.back:active {
+  background-color: var(--ef-surface-3);
 }
 
 /* Key hints show only while ⌘ or Ctrl is held (Layout sets html[data-keys]). */
@@ -374,7 +363,7 @@
   visibility: hidden;
 }
 
-/* Readouts, action, lights and ✕, packed to the right end. */
+/* Readouts, action and the status chip, packed to the right end. */
 .right {
   display: flex;
   gap: var(--ef-sp-8);
@@ -384,17 +373,11 @@
   overflow: hidden;
 }
 
-/* The lights are dots; their names stay in the tooltip. */
-.lightText {
-  display: none;
-}
-
 /* A page without tabs gives the centre column's room to its readouts. */
 .cmdbar:has(.plate:empty) {
   grid-template-columns: auto 0 minmax(0, 1fr);
 }
 
-.right > .status,
-.right > .back {
+.right > .status {
   flex: none;
 }
