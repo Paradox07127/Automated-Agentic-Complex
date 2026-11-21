@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.integration import CharacterAgentController
 from character_agent.services.capabilities import describe
 from character_agent.services.settings import RuntimeSettings
+from support import enable_plugins
 
 
 SELECTED = {"authenticated": True, "entry_supported": True, "boundary_verified": False}
@@ -99,6 +100,7 @@ class SessionConfigTests(unittest.TestCase):
     """What _session_factory hands a harness: the Workspace, whether its own tools are on, the approval card."""
 
     def setUp(self):
+        enable_plugins(self, "harness_bridge")
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)

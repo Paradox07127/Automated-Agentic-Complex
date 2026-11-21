@@ -87,7 +87,8 @@ class PluginStartupTest(unittest.TestCase):
             return subprocess.run([sys.executable, "-I", str(Path(__file__).resolve()),
                                    "--port", "48810", "--state-dir", str(Path(directory) / "state"),
                                    "--no-exit-with-parent", "--mute", *flags],
-                                  env={**os.environ, "HOME": directory, **env}, capture_output=True, text=True, timeout=25)
+                                  env={**os.environ, "HOME": directory, **env}, capture_output=True, text=True,
+                                  encoding="utf-8", timeout=25)
 
     def snapshot(self, *flags, **env):
         result = self.run_main(*flags, **env)

@@ -222,6 +222,7 @@ class ReminderToolsTests(unittest.TestCase):
             self.assertIsNone(case.controller.store.get(body['run_id'])['task_id'])
         finally:
             case.tearDown()
+            case.doCleanups()
 
     def answered(self, text, answers):
         turn = ReminderTurn(self.controller, text, 'run-1', answers=answers)
@@ -381,6 +382,7 @@ class EmbodiedResponseTests(unittest.TestCase):
             self.assertFalse(case.runtime.store.get('run-1')['delivery_eligible'])
         finally:
             case.tearDown()
+            case.doCleanups()
 
     def test_actor_receipt_is_visible_to_the_next_role_turn(self):
         from test_character_agent_integration import IntegrationTests
@@ -396,6 +398,7 @@ class EmbodiedResponseTests(unittest.TestCase):
             self.assertIn('not the measured pose', prompt)
         finally:
             case.tearDown()
+            case.doCleanups()
 
     def test_turn_time_context_does_not_recreate_a_compatible_native_session(self):
         from datetime import timedelta
@@ -413,6 +416,7 @@ class EmbodiedResponseTests(unittest.TestCase):
             self.assertEqual(len(case.sessions[0].calls), 2)
         finally:
             case.tearDown()
+            case.doCleanups()
 
 
 class ProviderProfilesTests(unittest.TestCase):
@@ -450,6 +454,7 @@ class ProviderProfilesTests(unittest.TestCase):
                 case.c._credential(config)
         finally:
             case.tearDown()
+            case.doCleanups()
 
 
 if __name__ == '__main__':

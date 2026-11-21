@@ -97,6 +97,7 @@ class RunnerCleanupTests(unittest.TestCase):
         finally:
             release.set();worker.join(5)
             if hasattr(case,'c'):case.tearDown()
+            case.doCleanups()
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

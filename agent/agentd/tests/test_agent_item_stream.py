@@ -22,6 +22,7 @@ from daemon.agentd_server import AgentdServer
 from api.handler import Handler
 from infra.store import open_store
 from sessions.tasks import TaskLedger
+from support import enable_plugins
 from test_character_agent_runtime import FakeSession
 from test_run_items import item
 import test_server
@@ -38,6 +39,7 @@ def text_item(ident, text, phase='final', kind='assistant_text'):
 
 class AgentItemStreamTests(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self, "personal_agent", "harness_bridge")
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         root = Path(self.tmp.name)

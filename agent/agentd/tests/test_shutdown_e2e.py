@@ -49,7 +49,7 @@ class ShutdownEndToEndTest(unittest.TestCase):
         self.env = {**os.environ, "PATH": f"{self.root / 'bin'}:{os.environ.get('PATH', '')}",
                     "G12_PIDS": str(self.pids_file)}
         self.argv = [sys.executable, str(AGENTD), "--port", "0", "--state-dir", str(self.root / "state"),
-                     "--ledger-root", str(self.root / "ledger"), "--no-proactive"]
+                     "--ledger-root", str(self.root / "ledger"), "--no-proactive", "--plugin-on", "coding_sessions"]
         self.log = open(self.root / "agentd.log", "wb")
         self.addCleanup(self.log.close)
         self.started = []  # every pid this test may leave behind; killed in cleanup

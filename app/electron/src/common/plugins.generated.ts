@@ -68,7 +68,11 @@ export const PLUGINS = [
         "/context/image",
         "/context/items",
         "/attention",
-        "/observation",
+        "/observation/state",
+        "/observation/sources",
+        "/observation/analyze",
+        "/observation/refresh",
+        "/observation/paused",
         "/diag/observations",
         "/blacklist",
         "/task-understanding"

@@ -145,6 +145,7 @@ class RoleMemoryTests(unittest.TestCase):
                     self.assertEqual(case.db.execute('SELECT COUNT(*) FROM agent_memory_processed').fetchone()[0], 0)
                 finally:
                     case.tearDown()
+                    case.doCleanups()
 
     def test_unsuccessful_turn_keeps_committed_proposal_receipts(self):
         for state in ('cancelled', 'failed', 'interrupted', 'rejected'):

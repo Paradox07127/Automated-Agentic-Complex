@@ -12,7 +12,7 @@ import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from observation.attention import AttentionStore
 from observation.blacklist import Blacklist
-from support import add_episode, deny_blacklist
+from support import add_episode, deny_blacklist, enable_plugins
 from observation.capture import CaptureManager
 from observation.privacy import ConsentPolicy, saved_consent, saved_switch
 from daemon.agentd_server import AgentdServer
@@ -22,6 +22,7 @@ from test_server import KernelLines, Script, ScriptedMouth
 
 class PrivacyRevocationTest(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self,'screen_awareness')
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.root=Path(self.temp.name);self.config=self.root/'config.json'
         self.settings={"share_window_text":True,"share_page_text":True,"share_screenshots":True}

@@ -25,7 +25,7 @@ class NoCharacterTest(unittest.TestCase):
         ledger.mkdir()
         self.proc = subprocess.Popen([sys.executable, str(AGENTD / "server.py"), "--port", "0", "--state-dir", str(state),
                                       "--ledger-root", str(ledger), "--character-catalog", str(root / "library/current.json"),
-                                      "--no-proactive"],
+                                      "--no-proactive", "--plugin-on", "screen_reading", "--plugin-on", "motion_generation"],
                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(AGENTD))
         self.addCleanup(self.stop)
         runtime = state / "ui-runtime.json"

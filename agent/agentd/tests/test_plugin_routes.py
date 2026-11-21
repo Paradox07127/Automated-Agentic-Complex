@@ -46,6 +46,14 @@ class PluginRoutesTest(unittest.TestCase):
         server.mouth = object()
         self.assertEqual(request(server, "POST", "/interaction/tap", {}), (200, {"kind": None}))
 
+    def test_quiet_and_meeting_without_any_plugin(self):
+        server = self.server
+        with patch.dict(plugins.resolved, dict.fromkeys(plugins.resolved, False)):
+            self.assertEqual(request(server, "PUT", "/observation/quiet", {"until": server.clock() + 60})[0], 200)
+            self.assertEqual(request(server, "PUT", "/observation/meeting", {"on": True}), (200, {"meeting": True}))
+            self.assertEqual(request(server, "PUT", "/observation/paused", {"minutes": 5}),
+                             (409, {"error": "plugin_off", "plugin": "screen_awareness"}))
+
     def test_screen_selection_cannot_enter_chat_while_reading_is_off(self):
         self.assertEqual(request(self.server, "POST", "/say", {"text": "explain", "quote": {"text": "selection"}}),
                          (409, {"error": "plugin_off", "plugin": "screen_reading"}))

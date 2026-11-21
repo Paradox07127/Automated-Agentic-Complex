@@ -61,12 +61,12 @@ class DaemonBoundariesTest(unittest.TestCase):
         s.capture = CaptureManager(s.feed, blacklist, lambda: None, None, share_text=True)
         s.privacy_config = self.root / 'privacy.json'
         policy = {'share_window_text': True, 'screen_context_level': 'window', 'share_actions': True}
-        s.privacy_config.write_text(json.dumps(policy))
+        s.privacy_config.write_text(json.dumps(policy), encoding='utf-8')
         insert = s.timeline.ingest
 
         def revoke(rows, **generations):
             self.assertEqual(rows[0]['tree']['text'], 'window marker')
-            s.privacy_config.write_text(json.dumps({**policy, 'share_window_text': False}))
+            s.privacy_config.write_text(json.dumps({**policy, 'share_window_text': False}), encoding='utf-8')
             s.sync_privacy()
             return insert(rows, **generations)
 

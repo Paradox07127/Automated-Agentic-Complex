@@ -1348,6 +1348,7 @@ class TurnContextTests(unittest.TestCase):
         from test_character_agent_semantic import SemanticTests
         self.fixture = SemanticTests()
         self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
         self.addCleanup(self.fixture.tearDown)
         self.server, self.c, self.db = self.fixture.server, self.fixture.c, self.fixture.db
         self.sessions = self.fixture.sessions
@@ -1632,6 +1633,7 @@ class ScopedCancelTests(unittest.TestCase):
     def setUp(self):
         from test_character_agent_semantic import SemanticTests
         self.fixture = SemanticTests(); self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
         self.addCleanup(self.fixture.tearDown)
         self.server, self.c = self.fixture.server, self.fixture.c
         self.c.discovery = SimpleNamespace(scan=lambda refresh=False: {'runtimes': [], 'scanned_at': 0})

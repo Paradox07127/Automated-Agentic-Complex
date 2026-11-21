@@ -157,6 +157,7 @@ class ServerFixture(unittest.TestCase):
         from test_character_agent_semantic import SemanticTests
         self.fixture = SemanticTests()
         self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
         self.addCleanup(self.fixture.tearDown)
         self.server, self.c, self.db = self.fixture.server, self.fixture.c, self.fixture.db
         self.work = self.server.worklog = WorkLog(self.db, lambda: self.server.character)

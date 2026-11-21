@@ -19,6 +19,7 @@ from character_agent.harness.registry import HARNESSES
 from character_agent.integration import CharacterAgentController
 from character_agent.services.settings import RuntimeSettings
 from daemon.main import parse_args
+from support import enable_plugins
 
 PI_PACKAGE = "pi-runtime/node_modules/@earendil-works/pi-coding-agent/package.json"
 # The official Node zip keeps node.exe at its root; the macOS tarball keeps bin/node.
@@ -107,6 +108,7 @@ class HarnessSiteConfigTests(unittest.TestCase):
         return controller
 
     def test_availability_follows_the_site_and_auto_selection_keeps_pi(self):
+        enable_plugins(self, "harness_bridge")  # codex is a harness
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             codex = [{"backend": "codex", "runtime_source": "local_cli", "path": "/fixture/codex",

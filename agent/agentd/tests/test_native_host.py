@@ -18,7 +18,7 @@ from observation.attention import AttentionStore  # noqa: E402
 from observation.blacklist import Blacklist  # noqa: E402
 import native_host  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
-from support import deny_blacklist, serve_in_thread  # noqa: E402
+from support import deny_blacklist, enable_plugins, serve_in_thread  # noqa: E402
 
 HOOK, UI = "hook-token", "ui-token"
 
@@ -230,6 +230,7 @@ class StandaloneNativeHostTest(unittest.TestCase):
 
 class NativeHostTest(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self, "screen_awareness")
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.state = Path(self.tmp.name)

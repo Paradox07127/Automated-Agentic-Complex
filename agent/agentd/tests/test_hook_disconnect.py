@@ -11,11 +11,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from brain.language import ReplyLanguage
 from daemon.agentd_server import AgentdServer
 from tools import install_hooks
-from support import serve_in_thread
+from support import enable_plugins, serve_in_thread
 
 
 class HookDisconnectTest(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self, 'coding_sessions')
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.server = AgentdServer(('127.0.0.1', 0), 'hook-only', 'ui-secret')

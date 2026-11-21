@@ -15,10 +15,12 @@ from brain.egress import EgressPolicy
 from character_agent.integration import CharacterAgentController
 from character_agent.services.settings import DEFAULTS, RuntimeSettings
 from daemon.agentd_server import AgentdServer
+from support import enable_plugins
 
 
 class CharacterRuntimeAndTitleTests(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self, 'coding_sessions')
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
@@ -29,7 +31,6 @@ class CharacterRuntimeAndTitleTests(unittest.TestCase):
         self.server.mouth = object()
         self.controller = self.server.character_agent = CharacterAgentController(self.server, self.root)
         self.addCleanup(self.controller.store.close)
-        self.addCleanup(self.controller.workspace.close)
         self.addCleanup(self.server.server_close)
         self.rows = []
         self.controller.discovery = SimpleNamespace(scan=lambda refresh=False: {'runtimes': self.rows, 'scanned_at': 0})

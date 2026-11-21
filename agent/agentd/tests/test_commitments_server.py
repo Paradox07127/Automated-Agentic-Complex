@@ -14,7 +14,7 @@ from daemon.agentd_server import AgentdServer  # noqa: E402
 from infra.store import open_store  # noqa: E402
 from sessions.events import normalize_claude  # noqa: E402
 import test_server  # noqa: E402
-from support import serve_in_thread  # noqa: E402
+from support import enable_plugins, serve_in_thread  # noqa: E402
 
 HOOK, UI = "hook-token", "ui-token"
 
@@ -426,6 +426,7 @@ class CommitmentServerTest(unittest.TestCase):
         self.assertEqual(len(self.feed("announce")), 1)
 
     def test_waiting_for_claude_is_said_when_a_claude_session_is_done(self):
+        enable_plugins(self, "coding_sessions")  # the session ends through /hook
         status, body = self.request("POST", "/say", {"text": "等 claude 做完提醒我看测试结果"})
         self.assertEqual((status, body["command"]), (200, "remind"))
         [item] = self.server.commitments.list()

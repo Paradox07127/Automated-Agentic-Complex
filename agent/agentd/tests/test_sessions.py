@@ -21,7 +21,7 @@ from sessions.own import LINES_KEPT, CodexProcess, OwnSession, SessionManager, c
 from infra.store import open_store  # noqa: E402
 from sessions.tasks import TaskLedger  # noqa: E402
 import test_server  # noqa: E402
-from support import serve_in_thread  # noqa: E402
+from support import enable_plugins, serve_in_thread  # noqa: E402
 
 HOOK, UI = "hook-token", "ui-token"
 FAKES = Path(__file__).resolve().parent / "fakes"
@@ -210,6 +210,7 @@ class StartupCancellationTest(unittest.TestCase):
 
 class SessionsTest(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self, "coding_sessions")
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI)
         self.server.broker.window = 5.0
@@ -477,6 +478,7 @@ class SessionsTest(unittest.TestCase):
 
     @unittest.skipIf(sys.platform == "win32", "cause on Windows not yet found")
     def test_dispatch_card_allow_creates_an_own_session(self):
+        enable_plugins(self, "personal_agent")  # a dispatch command
         tasks = self.ledger()
         self.request("POST", "/hook/claude", {"hook_event_name": "UserPromptSubmit", "session_id": "ext",
                                               "cwd": self.tmp.name, "prompt": "hi"}, token=HOOK)
@@ -981,6 +983,7 @@ class LatestAnnouncementTest(unittest.TestCase):
     request, wait = SessionsTest.request, SessionsTest.wait
 
     def setUp(self):
+        enable_plugins(self, "coding_sessions")
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         gate = Gate(enabled=True, quiet=(0, 0), same_cooldown=0, cross_cooldown=0)
         # The ticker never runs by itself: each test runs the ticks it means.
@@ -1145,7 +1148,7 @@ class MainWiringTest(unittest.TestCase):
                                   and t.value.id == "server" and t.attr == "sessions" for t in n.targets))
         with tempfile.TemporaryDirectory() as directory:
             server = SimpleNamespace(broker=None, announce=None, server_port=1, dispatcher=SimpleNamespace(),
-                                     reply_language_code=lambda: "en")
+                                     reply_language_code=lambda: "en", computer_control=None)
             scope = {**vars(module), "server": server, "state_dir": Path(directory), "hook_token": "hook",
                      "args": SimpleNamespace(hook_timeout=5, computer_control_socket=None),
                      "open_store": lambda db: None, "db": None}

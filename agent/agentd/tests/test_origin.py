@@ -18,7 +18,7 @@ import codex_hook_forward  # noqa: E402
 from sessions.events import normalize_claude, normalize_codex  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 from infra.tokens import write_secret  # noqa: E402
-from support import serve_in_thread  # noqa: E402
+from support import enable_plugins, serve_in_thread  # noqa: E402
 
 HOOK, UI = "hook-token", "ui-token"
 EXAMPLES = Path(__file__).resolve().parents[1] / "config-examples"
@@ -140,6 +140,7 @@ class OriginTest(unittest.TestCase):
 
 class OriginServerTest(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self, "coding_sessions")
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI)

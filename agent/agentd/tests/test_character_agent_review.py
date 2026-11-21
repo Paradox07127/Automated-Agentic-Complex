@@ -209,6 +209,7 @@ class ReviewIntegrationTests(unittest.TestCase):
 
     def tearDown(self):
         self.fixture.tearDown()
+        self.fixture.doCleanups()
 
     def test_cancel_stale_task_does_not_cancel_another_runtime(self):
         f = self.fixture

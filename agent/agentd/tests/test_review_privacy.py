@@ -20,12 +20,13 @@ from character.thoughts import Thoughts  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 from observation.attention import AttentionStore  # noqa: E402
 from observation.blacklist import Blacklist  # noqa: E402
-from support import deny_blacklist  # noqa: E402
+from support import deny_blacklist, enable_plugins  # noqa: E402
 from test_thoughts import FakeSemantic, session  # noqa: E402
 
 
 class HookTitleTest(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self, 'coding_sessions')
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.addCleanup(self.tmp.cleanup)
         root = Path(self.tmp.name)
@@ -33,7 +34,7 @@ class HookTitleTest(unittest.TestCase):
             self.server = AgentdServer(('127.0.0.1', 48810), 'hook-token', 'ui-token')
         self.server.server_port = 48810
         self.addCleanup(self.server.server_close)
-        self.server.share_typed_text = True
+        self.server.share_typed_text = self.server.share_agent_sessions = True
         self.attention = self.server.attention = AttentionStore(root / 'attention.sqlite', Blacklist(deny_blacklist(root / 'blacklist.json')))
         self.addCleanup(self.attention.close)
 

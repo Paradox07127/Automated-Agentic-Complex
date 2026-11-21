@@ -20,6 +20,7 @@ from character_agent.services.capabilities import describe
 from character_agent.services.interactions import InteractionService
 from character_agent.services.settings import DEFAULTS, RuntimeSettings
 from character_agent.services.store import RunStore
+import support
 
 FAKE = Path(__file__).resolve().parent / "fixtures/fake_acp_agent.py"
 TOOLS = [{"name": "fixture_read", "description": "Read a fixture",
@@ -201,6 +202,7 @@ class AcpSemanticTest(AcpHarnessCase):
 
     def setUp(self):
         super().setUp()
+        support.enable_plugins(self, "harness_bridge")
         from brain.egress import EgressPolicy
         from brain.provider import Mouth
         from daemon.agentd_server import AgentdServer
@@ -222,7 +224,7 @@ class AcpSemanticTest(AcpHarnessCase):
         server.egress = EgressPolicy()
         server.mouth = Mouth(egress=server.egress)
         self.c = server.character_agent = CharacterAgentController(server, self.root / "state")
-        self.addCleanup(lambda: (self.c.close(), self.c.store.close(), self.c.workspace.close()))
+        self.addCleanup(lambda: (self.c.close(), self.c.store.close()))
         self.c.python = sys.executable
         self.c.settings.save({**ACP, "workspace_dir": str(self.root / "workspace")})
         self.sessions = []

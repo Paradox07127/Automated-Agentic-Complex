@@ -18,6 +18,7 @@ from character_agent.integration import CharacterAgentController
 from daemon.agentd_server import AgentdServer
 from infra.store import open_store
 from personal.history import History
+from support import enable_plugins
 from personal.memory import Memory
 from test_character_agent_runtime import FakeSession
 from test_character_agent_runtime import chat
@@ -27,6 +28,7 @@ from tool_gateway.registry import BUILTIN, REGISTRY
 
 class DispatchToolTests(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self, "personal_agent")
         self.tmp = tempfile.TemporaryDirectory(dir=Path(__file__).parent)
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)

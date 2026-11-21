@@ -153,6 +153,7 @@ class TimelineServerTest(unittest.TestCase):
     request = support.request
 
     def setUp(self):
+        support.enable_plugins(self, "screen_awareness")
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         state = Path(self.tmp.name)
         self.now = time.time()

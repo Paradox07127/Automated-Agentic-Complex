@@ -19,6 +19,7 @@ from daemon.agentd_server import AgentdServer
 from infra.store import open_store
 from personal.memory import Memory
 from personal.history import History
+from support import enable_plugins
 
 DAILY = {'kind': 'daily', 'at': '18:30', 'weekdays': [1, 2, 3, 4, 5]}
 
@@ -29,6 +30,7 @@ def local(year, month, day, hour=0, minute=0):
 
 class ScheduleTests(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self, 'personal_agent')
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.db = open_store(Path(self.tmp.name) / 'agentd.sqlite')

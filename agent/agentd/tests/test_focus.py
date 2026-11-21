@@ -82,6 +82,7 @@ class FocusTest(unittest.TestCase):
             self.assertIsNone(server.request("GET", "/focus")[1]["focus"])
         finally:
             server.tearDown()
+            server.doCleanups()
 
     def test_focus_runs_out_on_the_tick(self):
         now = [1000.0]
@@ -110,6 +111,7 @@ class FocusTest(unittest.TestCase):
             self.assertFalse(server.server.focus.running())
         finally:
             server.tearDown()
+            server.doCleanups()
 
     def test_focus_survives_restart(self):
         now = [1000.0]

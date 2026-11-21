@@ -111,6 +111,7 @@ class AuditDomainTests(unittest.TestCase):
             self.assertEqual(case.server.say('取消任务')[0], 202)
         finally:
             case.tearDown()
+            case.doCleanups()
 
     def settled_job(self, state):
         job = self.jobs.submit('报表', {'user_request':'做报表', 'instruction':'做报表'})
@@ -225,6 +226,7 @@ class AuditDomainTests(unittest.TestCase):
             self.assertEqual(row['input_sha256'], hashlib.sha256(row['detail']['request'].encode()).hexdigest())
         finally:
             case.tearDown()
+            case.doCleanups()
 
 
 class AuditProtocolTests(unittest.TestCase):

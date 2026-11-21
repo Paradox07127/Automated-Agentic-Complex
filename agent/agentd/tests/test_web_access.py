@@ -8,6 +8,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.services.capabilities import describe
 from character_agent.services.settings import RuntimeSettings
+from support import enable_plugins
 
 
 class WebSettingsTests(unittest.TestCase):
@@ -36,6 +37,7 @@ class WebSettingsTests(unittest.TestCase):
     @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_controller_passes_web_setting_to_no_kernel(self):
         from character_agent.integration import CharacterAgentController
+        enable_plugins(self, 'harness_bridge')  # the codex backend
         with tempfile.TemporaryDirectory() as directory:
             controller = SimpleNamespace(server=SimpleNamespace(models=None), session_factory_override=None, state_dir=Path(directory), python=sys.executable, harness_sites={},
                 settings=SimpleNamespace(workspace=lambda: Path(directory)), _harness_permission=None,

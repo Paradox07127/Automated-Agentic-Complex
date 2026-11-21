@@ -99,6 +99,7 @@ class CliTest(unittest.TestCase):
     """The CLI against a served agentd, reading integration-runtime.json as the MCP server does."""
 
     def setUp(self):
+        support.enable_plugins(self, "external_access")
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.addCleanup(tmp.cleanup)
         self.state = Path(tmp.name)

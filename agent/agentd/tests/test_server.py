@@ -599,10 +599,12 @@ class ServerTest(unittest.TestCase):
         response = conn.getresponse()
         self.assertEqual(response.status, 200)
         self.hook("claude", "UserPromptSubmit")
-        intents = []
+        intents, event = [], None
         while not intents:
             line = response.fp.readline().decode()
-            if line.startswith("data: "):
+            if line.startswith("event: "):
+                event = line[7:].strip()
+            elif line.startswith("data: ") and event == "intent":  # after the idle snapshot taken at connect
                 intents.append(json.loads(line[6:]))
         conn.close()
         self.assertEqual([(i["display_session"], i["state"], i["intent"]) for i in intents],
