@@ -5,7 +5,7 @@ import styles from './CommandRing.module.css';
 
 /**
  * 指令环: 8 sectors, inner radius 60, outer 144, gap 3. Clicking a sector, its
- * number 1–8, or ⏎ on the selected one runs its item; ←/→ move the selection, esc closes. Drawn as a quick menu:
+ * number, or ⏎ on the selected one runs its item; ←/→ move the selection, esc closes. Drawn as a quick menu:
  * a #000@.72 disc with thin rings, the selected sector lit by the select wedge, its inner marker and
  * the yellow arrow. With the art in place the wedge and marker are the wedge and marker sprites turned to the
  * selected sector; the SVG wedge and marker stand in without it.
@@ -56,9 +56,9 @@ export function CommandRing({ items, pending, keys = {}, onRun, onClose }: Comma
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const n = Number(e.key);
     if (e.key === 'Escape') onClose();
-    else if (n >= 1 && n <= 8) pick(n - 1);
-    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') setSel((s) => ((s ?? -1) + 1) % 8);
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') setSel((s) => ((s ?? 0) + 7) % 8);
+    else if (n >= 1 && n <= items.length) pick(n - 1);
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') setSel((s) => ((s ?? -1) + 1) % items.length);
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') setSel((s) => ((s ?? 0) + items.length - 1) % items.length);
     else if (e.key === 'Enter' && sel != null && e.target === root.current) pick(sel);
     else return;
     e.preventDefault();
@@ -137,7 +137,7 @@ export function CommandRing({ items, pending, keys = {}, onRun, onClose }: Comma
           关闭
           <Kbd hud>esc</Kbd>
         </button>
-        <p className={styles.help}>1–8 直接执行 │ esc 关闭</p>
+        <p className={styles.help}>1–{items.length} 直接执行 │ esc 关闭</p>
       </div>
     </div>
   );

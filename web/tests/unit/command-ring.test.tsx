@@ -101,6 +101,18 @@ describe('the ring', () => {
     expect(ring.textContent).toContain('1–8 直接执行 │ esc 关闭');
   });
 
+  it('with 7 items the arrows wrap over 7 and the hint says 1–7', () => {
+    const onRun = vi.fn();
+    const items = ringItems(STATE).slice(0, 7);
+    render(<CommandRing items={items} pending={0} onRun={onRun} onClose={() => {}} />);
+    const ring = screen.getByRole('menu', { name: '指令环' });
+    fireEvent.keyDown(ring, { key: 'ArrowRight' });
+    fireEvent.keyDown(ring, { key: 'ArrowLeft' });
+    fireEvent.keyDown(ring, { key: 'Enter' });
+    expect(onRun).toHaveBeenCalledWith(items[6]);
+    expect(ring.textContent).toContain('1–7 直接执行 │ esc 关闭');
+  });
+
   it('1–8 run their item directly, hover opens nothing, esc closes, and 待处理 shows its count', () => {
     const onRun = vi.fn();
     const onClose = vi.fn();
