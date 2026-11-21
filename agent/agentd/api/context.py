@@ -99,14 +99,6 @@ class ContextInputMixin:
                 row["value"] = None
         stored, _ = store.ingest_events(kept, typed_generation=generation)
         controller = self.server.character_agent
-        understanding = getattr(controller, 'task_understanding', None)
-        if understanding and stored:
-            _, epoch = self.server.sync_privacy()
-            # Consume only persisted, privacy-filtered rows. Payloads cannot supply authority.
-            understanding.ingest(store.recent_events(now - RAW_PAST, limit=200), authorized=True,
-                consent_epoch=epoch, source='activity', producer='companion',
-                conversation_id=self.server.history.conversations.active if self.server.history else None)
-            understanding.tick()
         observations=getattr(controller,'observations',None)
         if observations and stored: observations.ingest_inputs(store.recent_events(now-RAW_PAST,limit=200))
         self._json(200, {"stored": stored, "dropped": len(body["events"]) - stored})

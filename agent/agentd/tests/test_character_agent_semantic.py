@@ -95,7 +95,7 @@ class SemanticTests(unittest.TestCase):
 
     def test_json_purposes_carry_one_line_of_identity_and_no_persona(self):
         name = self.server.characters.load_card('aster')['name']
-        for purpose in ('proactive_decide', 'repeat', 'worklog_fast', 'worklog_deep', 'memory_extract', 'task_hypothesis',
+        for purpose in ('proactive_decide', 'repeat', 'worklog_fast', 'worklog_deep', 'memory_extract',
                         'observation_brief', 'observation_interpret', 'observation_vision', 'user_vision', 'review'):
             with self.subTest(purpose=purpose):
                 self.c.semantic.run(purpose, '<task>Return JSON.</task>', {})
@@ -118,7 +118,7 @@ class SemanticTests(unittest.TestCase):
             with self.subTest(purpose=purpose):
                 self.c.semantic.run(purpose, '<task>Return JSON.</task>', {})
                 self.assertEqual(self.definitions[-1], [])
-        self.c.semantic.run('task_hypothesis', '<task>Return JSON.</task>', {})
+        self.c.semantic.run('observation_brief', '<task>Return JSON.</task>', {})
         self.assertIn('knowledge_search', [tool['name'] for tool in self.definitions[-1]])
 
     def test_vision_purposes_get_only_the_screenshot_tool(self):
@@ -162,7 +162,7 @@ class SemanticTests(unittest.TestCase):
         self.assertNotIn('Japanese', self.sessions[-1].calls[0]['system_prompt'])
 
     def test_only_memory_extract_gets_the_profile_and_no_purpose_gets_goals(self):
-        for purpose, profile in (('memory_extract', True), ('task_hypothesis', False), ('thought', False)):
+        for purpose, profile in (('memory_extract', True), ('observation_brief', False), ('thought', False)):
             with self.subTest(purpose=purpose):
                 self.c.semantic.run(purpose, '<task>Return JSON.</task>', {})
                 context = json.loads(self.sessions[-1].calls[0]['prompt'])
@@ -281,9 +281,9 @@ class SemanticTests(unittest.TestCase):
         self.assertEqual(tiers['observation_interpret'], tiers['worklog_fast'])
         self.assertEqual(tiers['observation_interpret'][1], 'low')
 
-    def test_task_hypothesis_refuses_the_tool_call_past_its_limit(self):
+    def test_observation_brief_refuses_the_tool_call_past_its_limit(self):
         from character_agent.services.semantic import POLICIES
-        limit = POLICIES['task_hypothesis'][1]
+        limit = POLICIES['observation_brief'][1]
         def factory(definitions):
             def script(session, prompt, options):
                 for _ in range(limit + 1):
@@ -292,7 +292,7 @@ class SemanticTests(unittest.TestCase):
             session = FakeSession(script); self.sessions.append(session); return session
         self.c.session_factory_override = factory
         with self.assertRaisesRegex(ValueError, 'semantic_tool_limit'):
-            self.c.semantic.run('task_hypothesis', '返回JSON', {})
+            self.c.semantic.run('observation_brief', '返回JSON', {})
         results = [result for _, _, result in self.sessions[-1].responses]
         self.assertEqual(len(results), limit + 1)
         self.assertNotIn('error', results[limit - 1])
@@ -310,9 +310,9 @@ class SemanticTests(unittest.TestCase):
         self.c.session_factory_override = None
         with patch.dict('character_agent.integration.HARNESSES', {'pi': replace(HARNESSES['pi'], session=session)}), \
                 patch.object(self.c, '_credential', return_value='fixture-key'):
-            self.c.semantic.run('task_hypothesis', '返回JSON', {})
+            self.c.semantic.run('observation_brief', '返回JSON', {})
         self.assertEqual([(common['max_turns'], common['native_tools']) for common in commons],
-                         [(POLICIES['task_hypothesis'][1], False)])
+                         [(POLICIES['observation_brief'][1], False)])
 
     def test_forgetting_a_generated_fact_suppresses_existing_source_and_summary_copies(self):
         self.source();self.reply=self.findings();result=self.pipeline.run_once()

@@ -16,6 +16,7 @@ from personal.episodes import Episodes
 from personal.history import History
 from personal.memory import Memory
 from infra.store import open_store
+from support import add_episode
 import test_server
 from test_character_agent_runtime import FakeSession
 
@@ -47,9 +48,11 @@ class BriefHTTPFixture(test_server.FeedServerCase):
         system=patch.dict(os.environ,{'TZ':'America/New_York'}); system.start(); self.addCleanup(system.stop)
         self.service.clock=lambda:dt.datetime(2026,10,31,2,tzinfo=ZoneInfo('America/New_York')).timestamp()
         start=window('daily','2026-10-30','America/New_York')[1]+3600
-        body={'subject':'渲染测试失败','start':start,'end':start+120,'edits':2,'errors':1,'questions':0,
-              'source_refs':['attention:fixture'],'consent_epoch':self.server.consent.snapshot()[1]}
-        self.db.execute('INSERT INTO task_segments VALUES(?,?,?,?,?)',('seg-fixture',self.server.character,start,start+120,dump(body)));self.db.commit()
+        run='fixture-episode-run'
+        self.db.execute("INSERT INTO memory_agent_runs(run_id,backend,model,character_id,started_at,state,prompt_version,input_sha256) VALUES(?,?,?,?,?,'completed','fixture','fixture')",
+            (run,'codex','fixture',self.server.character,start))
+        self.db.commit()
+        self.episode_id=add_episode(self.server.episodes,start,start+120,'渲染测试失败','渲染测试失败，需要核验',run_id=run)
 
     def tearDown(self):
         self.release.set()
@@ -85,6 +88,6 @@ class BriefHTTPTests(BriefHTTPFixture):
     def test_source_delete_clears_persisted_report_without_any_memory_fact(self):
         self.release.set();self.service.run_once('daily','2026-10-30')
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM facts').fetchone()[0],0)
-        self.c.task_understanding.delete_sources(['attention:fixture'])
-        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM observation_briefs').fetchone()[0],0)
+        self.db.execute('DELETE FROM episodes WHERE id=?', (self.episode_id,)); self.db.commit()
         self.assertEqual(self.request('GET','/observation/briefs')[1]['reports'],[])
+        self.assertIsNone(self.db.execute('SELECT body FROM observation_briefs').fetchone()[0])

@@ -23,7 +23,6 @@ class SwitchesMixin:
         if revoked:
             if self.character_agent is not None:
                 self.character_agent.cancel("context_changed")
-                if getattr(self.character_agent, "task_understanding", None): self.character_agent.task_understanding.clear()
             if self.capture is not None:
                 self.capture.clear()
             if "page_text" in revoked and self.attention is not None:
@@ -58,9 +57,6 @@ class SwitchesMixin:
         counts = dict.fromkeys(("task_understanding", "browser_text", "typed_values", "episodes", "facts"), 0)
         if not revoked:
             return counts
-        understanding = getattr(self.character_agent, "task_understanding", None)
-        if understanding:
-            counts["task_understanding"] = sum(understanding.clear(dry=True).values())
         if "page_text" in revoked and self.attention is not None:
             counts["browser_text"] = self.attention.clear_browser_text(dry=True)
         if "typed_text" in revoked and self.attention is not None:

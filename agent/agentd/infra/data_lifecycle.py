@@ -11,7 +11,7 @@ USER_DATA = frozenset(("history_turns", "own_sessions", "trace_events", "facts",
                        "personal_goals", "personal_jobs", "personal_job_events", "personal_job_leases",
                        "agent_memory_processed", "memory_tombstones", "conversations", "conversation_turns",
                        "conversation_settings", "session_management", "personal_job_runs", "personal_deliveries",
-                       "personal_delivery_events", "task_segments", "task_hypotheses", "observation_briefs", "observation_brief_failures",
+                       "personal_delivery_events", "observation_briefs", "observation_brief_failures",
                        "observation_content", "observation_frames", "observation_analyses", "observation_work_events", "observation_processed",
                        "observation_input_identity", "observation_aliases", "session_summaries", "task_cards",
                        "day_summaries", "proactive_log"))

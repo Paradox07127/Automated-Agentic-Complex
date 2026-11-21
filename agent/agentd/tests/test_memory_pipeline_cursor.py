@@ -22,28 +22,6 @@ class MemoryCursorTests(unittest.TestCase):
     factory=semantic_fixture.SemanticTests.factory
     source=semantic_fixture.SemanticTests.source
 
-    def test_task_semantic_validity_never_reenters_nonrecursive_memory_lock(self):
-        class GuardedLock:
-            def __init__(self): self.lock=threading.Lock();self.owner=None
-            def __enter__(self):
-                if self.owner==threading.get_ident(): raise RuntimeError('reentrant_memory_lock')
-                self.lock.acquire();self.owner=threading.get_ident();return self
-            def __exit__(self,*args): self.owner=None;self.lock.release()
-        guarded=GuardedLock()
-        self.server.memory.lock=guarded
-        understanding=self.c.task_understanding
-        understanding.lock=guarded
-        self.server.share_page_text=True
-        epoch=self.server.consent.snapshot()[1];now=time.time()
-        events=[{'id':i+1,'ts':now-400+i*15,'kind':'value','doc':'预算报告.md','edits':1,'input_near':1}
-                for i in range(15)]
-        self.assertEqual(understanding.ingest(events,authorized=True,consent_epoch=epoch)['accepted'],15)
-        ident=understanding.context()['segments'][0]['id']
-        self.reply={'hypotheses':[{'task':'可能在写预算报告','goal':'核对数据','status':'working',
-            'next_step':'复核来源','confidence':.6,'evidence':[ident],'expires_in_seconds':1800}]}
-        self.assertEqual(understanding.run_once()['state'],'completed')
-        self.assertEqual(len(understanding.context()['hypotheses']),1)
-
     def test_old_history_is_paged_oldest_first_and_cursor_survives_restart(self):
         now=time.time()
         for i in range(230):
@@ -99,9 +77,9 @@ class MemoryCursorTests(unittest.TestCase):
     def test_hypotheses_are_not_memory_sources_or_readable_extraction_tools(self):
         from test_character_agent_runtime import FakeSession
         self.server.share_page_text=True
-        self.c.task_understanding=SimpleNamespace(context=lambda *_:{'available':True,'segments':[],
+        self.c.observations=SimpleNamespace(task_understanding_context=lambda *_:{'available':True,'segments':[],
             'hypotheses':[{'id':'hyp-test','task':'EPHEMERAL_HYPOTHESIS_SECRET','created_at':time.time(),
-                           'source_refs':['attention:1']}]},close=lambda:None)
+                           'source_refs':['attention:1']}]},events=lambda *a,**k:[],close=lambda:None)
         self.assertFalse(self.pipeline.sources());self.assertIsNone(self.pipeline.run_once())
         self.source();responses=[]
         def factory(definitions):

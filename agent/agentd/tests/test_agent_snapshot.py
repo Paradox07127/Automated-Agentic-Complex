@@ -68,7 +68,7 @@ class AgentSnapshotTest(unittest.TestCase):
         self.server.character_agent = SimpleNamespace(interactions=interactions,
             jobs=SimpleNamespace(store=jobs), _recover_jobs=Mock(), busy=lambda: False, close=Mock(),
             deliveries=DeliveryService(SimpleNamespace(db=self.db,lock=lock), self.runs, self.server.tasks, jobs),
-            task_understanding=SimpleNamespace(context=lambda:{"available":False,"hypotheses":[],"segments":[]}))
+            observations=SimpleNamespace(task_understanding_context=lambda:{"available":False,"hypotheses":[],"segments":[]}))
         self.server.broker.clock = lambda: 100
         self.server.broker.open("claude", "session", tool_name="Read", tool_summary="file")
 

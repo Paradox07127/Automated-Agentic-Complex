@@ -316,6 +316,39 @@ class ObservationService:
             'source_refs':[e['observation_id'] for e in task.get('evidence',[])]}
             for task in context.get('tasks',[])]}
 
+    def task_understanding_context(self, character_id=None):
+        """Wire shape for GET /task-understanding and KnowledgeService, backed directly by ObservationService."""
+        epoch = self.server.consent.snapshot()[1]
+        identity = {'character_id': self.server.character, 'consent_epoch': epoch,
+                    'version': digest([self.server.character, epoch, 'unavailable']),
+                    'reason': None, 'authority': 'inferred_hypothesis', 'not_user_authorization': True,
+                    'task_corrections': {}, 'uncertainties': []}
+        if not self.allowed() or self.memory.paused():
+            return {**identity, 'available': False, 'reason': 'observation_not_permitted', 'segments': [], 'hypotheses': []}
+        character = character_id or self.server.character
+        if character != self.server.character:
+            return {**identity, 'available': False, 'reason': 'character_changed', 'segments': [], 'hypotheses': []}
+        now = self.clock()
+        current = self.context()
+        hypotheses = []
+        for task in current.get('tasks', []):
+            created = task.get('last_observed_at') or task.get('last_interpreted_at') or current.get('interpreted_at')
+            if created is None or created + 8 * 3600 <= now:
+                continue
+            corrected = task.get('authority') == 'user_correction_of_hypothesis'
+            hypotheses.append({
+                'id': task['id'], 'revision': task['revision'], 'task': task['title'], 'goal': task['objective'],
+                'state': 'corrected' if corrected else 'active', 'created_at': created, 'expires_at': created + 8 * 3600,
+                'status': task['state'], 'next_step': '；'.join(task.get('next_steps', [])),
+                'confidence': task['confidence'], 'authority': task.get('authority', 'inferred_hypothesis'),
+                'evidence': task.get('evidence', []), 'character_id': character, 'conversation_id': None,
+                'consent_epoch': epoch, 'source': 'continuous_observation', 'producer': 'character_semantic',
+                'source_refs': [], 'semantic_run_id': None})
+        corrections, uncertainties = current.get('task_corrections', {}), current.get('uncertainties', [])
+        return {**identity, 'available': current.get('available', True), 'hypotheses': hypotheses, 'segments': [],
+                'version': digest([hypotheses, [], corrections, uncertainties]),
+                'task_corrections': corrections, 'uncertainties': uncertainties}
+
     def _permission_signature(self):
         return digest([self.server.consent.snapshot()[0],self.server.consent.level])
 
@@ -1112,6 +1145,8 @@ class ObservationService:
             for table in ('observation_frames','observation_content','observation_analyses','observation_work_events','observation_processed','observation_input_identity','observation_aliases'): self.db.execute('DELETE FROM '+table)
             self.db.commit()
         self.last_signature=None;self.phase='pending'
+        feed = getattr(self.server, 'feed', None)
+        if feed is not None: feed.publish('task_understanding', {'action': 'deleted'})
 
     def correct_task(self, ident, revision, *, action, text=None):
         if action not in ('reject','correct') or action=='correct' and (not isinstance(text,str) or not 1<=len(text.strip())<=1000): raise ValueError('invalid_task_correction')

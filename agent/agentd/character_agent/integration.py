@@ -148,8 +148,6 @@ class CharacterAgentController:
         self.reply_language = ReplyLanguage()
         self.semantic = SemanticService(self)
         self.memory_pipeline = MemoryPipeline(self) if plugins.on("light_ai") else None
-        from character_agent.services.task_understanding import TaskUnderstanding
-        self.task_understanding = TaskUnderstanding(self) if plugins.on("screen_awareness") and server.memory is not None else None
         from character_agent.services.observation_briefs import ObservationBriefs
         self.observation_briefs = ObservationBriefs(self) if plugins.on("daily_brief") and server.memory is not None else None
         from character_agent.services.observation import ObservationService
@@ -885,8 +883,8 @@ class CharacterAgentController:
                      (row is None or row.get("source") in ("asserted_by_user", "confirmed_by_user")) and not s.resetting) if temporary else self._permitted
         return KnowledgeService(s.memory, s.history, s.episodes, s.commitments,
             egress=s.egress, permitted=permitted, character_id=character_id or s.character, behavior_context=self._behavior,
-            task_understanding=(lambda: self.task_understanding.context(character_id))
-                if not temporary and getattr(self, "task_understanding", None) else None,
+            task_understanding=(lambda: self.observations.task_understanding_context(character_id))
+                if not temporary and getattr(self, "observations", None) else None,
             observation_briefs=getattr(self, 'observation_briefs', None) if not temporary else None,
             observations=getattr(self,'observations',None) if not temporary else None,
             worklog=s.worklog if not temporary else None)
@@ -1427,7 +1425,6 @@ class CharacterAgentController:
         if self.memory_journal is not None:
             self.memory_journal.clear()
         if getattr(self, "deliveries", None): self.deliveries.forget()
-        if getattr(self, "task_understanding", None): self.task_understanding.clear()
         if getattr(self, "observation_briefs", None): self.observation_briefs.clear()
         if getattr(self, "observations", None): self.observations.clear()
         if self.jobs: self.jobs.store.clear()
@@ -1476,7 +1473,6 @@ class CharacterAgentController:
         if self.worklog: self.worklog.close()
         if self.observations: self.observations.close()
         if self.observation_briefs: self.observation_briefs.close()
-        if self.task_understanding: self.task_understanding.close()
         self.cancel("shutdown")
         if self.jobs: self.jobs.close()
         if self.runtime:

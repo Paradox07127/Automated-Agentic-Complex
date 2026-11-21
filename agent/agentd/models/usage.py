@@ -14,10 +14,10 @@ PRICES = {
     "claude-haiku-5-5": {"short": (0.10, 0.125, 0.20, 0.01, 0.50), "long": (0.50, 0.625, 1.0, 0.05, 2.50)},
     "claude-sonnet-5-5": {"short": (2, 2.5, 4, 0.10, 10), "long": (2, 2.5, 4, 0.10, 10)},
 }
-BACKGROUND = ("judge", "behavior", "capture_judge", "memory_extract", "observation_interpret", "observation_vision", "proactive_decide", "review", "task_hypothesis", "facing_decide", "observation_brief", "worklog_fast", "worklog_deep", "repeat", "thought", "observation_summary")
+BACKGROUND = ("judge", "behavior", "capture_judge", "memory_extract", "observation_interpret", "observation_vision", "proactive_decide", "review", "facing_decide", "observation_brief", "worklog_fast", "worklog_deep", "repeat", "thought", "observation_summary")
 HOUR_CAP = 12
 DAY_CAP = 48
-PURPOSE_CAPS = {"proactive_decide": 10, "memory_extract": 40, "task_hypothesis": 24,
+PURPOSE_CAPS = {"proactive_decide": 10, "memory_extract": 40,
                 "observation_interpret": 240, "observation_vision": 20, "observation_brief": 3,
                 "worklog_fast": 120, "worklog_deep": 38, "repeat": 1, "thought": 120,
                 "observation_summary": 144}

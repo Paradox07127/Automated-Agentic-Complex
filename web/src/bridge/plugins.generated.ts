@@ -55,8 +55,7 @@ export const PLUGINS = [
         "continuous-observation",
         "observation-summary",
         "Proactive",
-        "CaptureManager",
-        "TaskUnderstanding"
+        "CaptureManager"
       ],
       "routes": [
         "/context/attention",

@@ -172,7 +172,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual({route: sorted(p for p, r in SEMANTIC_ROUTES.items() if r == route) for route in set(SEMANTIC_ROUTES.values())}, {
             'judge': ['facing_decide', 'proactive_decide', 'repeat', 'review', 'thought'],
             'understand': ['observation_brief', 'observation_interpret', 'observation_summary', 'observation_vision',
-                           'task_hypothesis', 'user_vision'],
+                           'user_vision'],
             'memory': ['memory_extract', 'worklog_deep', 'worklog_fast']})
         self.assertEqual(ROUTES, ('chat', 'background', 'judge', 'understand', 'memory', 'computer'))
 

@@ -176,7 +176,7 @@ class SemanticAdmissionTests(unittest.TestCase):
 
     def test_daily_purpose_caps_and_facing_hourly_count(self):
         meter = self.meter()
-        for purpose,cap in (('proactive_decide',10),('task_hypothesis',24),('observation_vision',20),('memory_extract',40)):
+        for purpose,cap in (('proactive_decide',10),('observation_vision',20),('memory_extract',40)):
             with self.subTest(purpose=purpose):
                 self.db.execute('DELETE FROM model_usage'); self.db.commit()
                 for i in range(cap):
@@ -214,7 +214,7 @@ class SemanticAdmissionTests(unittest.TestCase):
                     order.append(label)
                     scheduler.release()
             worker = threading.Thread(target=work); worker.start(); workers.append(worker)
-        for purpose,label in (('facing_decide','old'),('facing_decide','new'),('task_hypothesis','task'),
+        for purpose,label in (('facing_decide','old'),('facing_decide','new'),('observation_brief','brief'),
                               ('memory_extract','memory'),('proactive_decide','proactive'),('character_agent','visible')):
             submit(purpose,label)
             deadline = time.monotonic()+2
@@ -225,7 +225,7 @@ class SemanticAdmissionTests(unittest.TestCase):
             else: self.fail('request did not queue')
         scheduler.release()
         for worker in workers: worker.join(2); self.assertFalse(worker.is_alive())
-        self.assertEqual(order,['visible','proactive','memory','task','new'])
+        self.assertEqual(order,['visible','proactive','memory','new','brief'])
         self.assertEqual(errors,[('old','semantic_cancelled')])
 
     def test_thought_queues_with_proactive_decisions_behind_visible_work(self):

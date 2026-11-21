@@ -51,7 +51,7 @@ CLEARED = {"agentd.sqlite": ("history_turns", "own_sessions", "trace_events", "f
                             "agent_memory_processed", "memory_tombstones", "memory_agent_runs", "memory_agent_events", "personal_goals", "personal_jobs",
                             "personal_job_events", "personal_job_leases", "conversations", "conversation_turns",
                             "conversation_settings", "session_management", "personal_job_runs", "personal_deliveries",
-                            "personal_delivery_events", "task_segments", "task_hypotheses", "observation_briefs", "observation_brief_failures", "observation_content", "observation_frames", "observation_analyses", "observation_work_events", "observation_processed", "observation_input_identity", "observation_aliases"),
+                            "personal_delivery_events", "observation_briefs", "observation_brief_failures", "observation_content", "observation_frames", "observation_analyses", "observation_work_events", "observation_processed", "observation_input_identity", "observation_aliases"),
            "attention.sqlite": ("events", "context", "events_raw")}
 KEPT = ("memory_settings", "capture_budget", "model_usage", "gate_day")
 LOGS = ("capture.jsonl", "capture-judge.jsonl", "proactive-judge.jsonl", "outbound-guard.jsonl")
@@ -188,8 +188,6 @@ class ResetTest(unittest.TestCase):
         jobs.claim()
         db.execute("INSERT INTO personal_deliveries(delivery_id,canonical_task_id,run_id,character_id,generation,revision,state,outcome,verification_source,title,payload,produced_at) VALUES('delivery-reset','task:task-1','reset-run','aster',1,1,'produced','needs_review','unverified','synthetic result','{}',?)", (now,))
         db.execute("INSERT INTO personal_delivery_events VALUES('delivery-reset',1,'produced',?,'product')", (now,))
-        db.execute("INSERT INTO task_segments VALUES('seg-reset','aster',?,?,'{}')", (now,now))
-        db.execute("INSERT INTO task_hypotheses VALUES('hyp-reset','aster',1,'active',?,?,'{}')", (now,now+600))
         db.execute("INSERT INTO observation_briefs VALUES('brief-reset','aster','daily','2026-10-30','America/New_York',?,?,?,'completed',1,'{}','[]',0)", (now-86400,now,now))
         db.execute("INSERT INTO observation_brief_failures VALUES('brief-reset','invalid_brief_shape','observed_details[0].detail',?)", (now,))
         db.execute("INSERT INTO observation_content VALUES('hash-reset','complete evidence',NULL,?)",(now,))

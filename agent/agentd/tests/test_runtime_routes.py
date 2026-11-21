@@ -235,7 +235,7 @@ class SemanticRouteTests(unittest.TestCase):
         self.c.discovery = SimpleNamespace(scan=lambda refresh=False: {'runtimes': [], 'scanned_at': 0})
         configs, factory = self.recorded()
         with factory:
-            results = [self.c.semantic.run(purpose, '返回JSON', {}) for purpose in ('review', 'task_hypothesis', 'memory_extract')]
+            results = [self.c.semantic.run(purpose, '返回JSON', {}) for purpose in ('review', 'observation_interpret', 'memory_extract')]
         self.assertEqual([(r['backend'], r['value']) for r in results], [('claude', {'ok': True}), ('pi', {'ok': True}),
                                                                         ('codex', {'ok': True})])
         self.assertEqual([(c['backend'], c['runtime_source'], c['model'], c['_semantic_effort']) for c in configs],

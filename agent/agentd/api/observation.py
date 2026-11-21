@@ -82,8 +82,6 @@ class ObservationMixin:
         continuous = getattr(controller, "observations", None)
         if continuous:
             continuous.delete_since(cutoff)
-        understanding = getattr(controller, "task_understanding", None)
-        if understanding: understanding.delete_since(cutoff)
         server.forget_user_state()
         ids = server.episodes.delete_since(cutoff) if server.episodes is not None else []
         observations =server.capture.forget_since(cutoff) if server.capture is not None else 0
@@ -141,10 +139,8 @@ class ObservationMixin:
             dropped = self.server.capture.forget_hidden(hides, field, delete_existing)
         if self.server.proactive is not None and self.server.proactive.judge is not None:
             self.server.proactive.judge.forget_hidden(hides, field)
-        understanding = getattr(getattr(self.server, "character_agent", None), "task_understanding", None)
         observations=getattr(getattr(self.server,'character_agent',None),'observations',None)
         if observations: observations.clear()
-        if understanding: understanding.clear()  # Titles were intentionally not retained; conservatively remove derived context.
         return dropped
 
     def _blacklist_add(self, body):

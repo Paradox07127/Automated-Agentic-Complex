@@ -235,11 +235,15 @@ class C6FixtureTest(unittest.TestCase):
         zone = "America/New_York"  # observation_briefs DEFAULTS
         yesterday = (datetime.datetime.now(ZoneInfo(zone)).date() - datetime.timedelta(days=1)).isoformat()
         start = window("daily", yesterday, zone)[1] + 3600
-        # Two documents two hours apart, so the brief may call one problem recurring.
-        events = [{"id": n + 1, "ts": start + n * 7200, "kind": "value", "app": "Code", "doc": doc, "edits": 1}
-                  for n, doc in enumerate(("预算报告.md", "预算报告-v2.md"))]
-        self.assertEqual(controller.task_understanding.ingest(events, authorized=True,
-                                                              consent_epoch=server.consent.snapshot()[1])["accepted"], 2)
+        # Two episodes two hours apart, so the brief may call one problem recurring.
+        for n, doc in enumerate(("预算报告.md", "预算报告-v2.md")):
+            run = f"c6-brief-episode-run-{n}"
+            server.memory.db.execute(
+                "INSERT INTO memory_agent_runs(run_id,backend,model,character_id,started_at,state,prompt_version,input_sha256)"
+                " VALUES(?,?,?,?,?,'completed','fixture','fixture')",
+                (run, "codex", "fixture", server.character, start + n * 7200))
+            server.memory.db.commit()
+            add_episode(server.episodes, start + n * 7200, start + n * 7200 + 120, doc, f"{doc} 检查", run_id=run)
         self.assertEqual(controller.observation_briefs.run_once("daily", yesterday)["state"], "completed")
         controller.session_factory_override = None
 

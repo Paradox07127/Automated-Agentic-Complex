@@ -617,8 +617,6 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         deleted = self.server.attention.clear()
         if self.server.timeline is not None:
             self.server.timeline.clear()
-        understanding = getattr(getattr(self.server, "character_agent", None), "task_understanding", None)
-        if understanding: understanding.clear()
         self.server.forget_user_state()
         if self.server.episodes is not None:
             self.server.episodes.clear()

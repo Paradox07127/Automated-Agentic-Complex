@@ -155,24 +155,13 @@ class ObservationBriefs:
             text = row['title'] + '\n' + row['description'] + '\n' + dump(threads)
             units = sorted({ref for thread in threads for ref in thread.get('evidence',[]) if isinstance(ref,str)}) or [row['run_id']]
             start, end = row['start'], row['end']
-        elif kind == 'segment':
-            if not self.controller._permitted('task_context'): return None
-            with self.lock:
-                raw = self.db.execute('SELECT character_id,body FROM task_segments WHERE id=?', (ident,)).fetchone()
-            if raw is None or raw[0] != self.server.character: return None
-            row = json.loads(raw[1])
-            if row['consent_epoch'] != self.server.consent.snapshot()[1]: return None
-            text = row['subject'] + '\n' + dump({k: row[k] for k in ('edits', 'errors', 'questions')})
-            start, end, units = row['start'], row['end'], row['source_refs'][:20]
         else: return None
         return {'source_id': kind+':'+str(ident), 'kind':kind, 'id':str(ident), 'start':start, 'end':end, 'stored_hash':before,
                 'text':self.controller.knowledge().sanitize(text, part='observation_brief_source'), 'units':units}
 
     def _stored_hash(self, kind, ident):
         """Caller holds memory.lock; final comparison shares the commit fence."""
-        if kind == 'segment':
-            raw = self.db.execute('SELECT character_id,body FROM task_segments WHERE id=?',(ident,)).fetchone()
-        elif kind == 'episode':
+        if kind == 'episode':
             raw = self.db.execute('SELECT start,end,title,description,threads,version,run_id,edited FROM episodes WHERE id=?',(ident,)).fetchone()
         elif kind=='work_event':
             raw=self.db.execute('SELECT body,dependencies FROM observation_work_events WHERE id=?',(ident,)).fetchone()
@@ -188,12 +177,10 @@ class ObservationBriefs:
             if lo >= end: break
             with self.lock:
                 episodes = self.db.execute('SELECT id FROM episodes WHERE start>=? AND start<? ORDER BY start DESC,id DESC LIMIT 7', (lo,hi)).fetchall()
-                segments = self.db.execute('SELECT id FROM task_segments WHERE character_id=? AND started_at>=? AND started_at<? ORDER BY started_at DESC,id DESC LIMIT 5', (self.server.character,lo,hi)).fetchall()
-            eligible += len(episodes)+len(segments)
-            for kind, rows in (('episode',episodes[:6]), ('segment',segments[:4])):
-                for ident, in rows:
-                    source = self._source(kind, ident)
-                    if source: result.append(source)
+            eligible += len(episodes)
+            for ident, in episodes[:6]:
+                source = self._source('episode', ident)
+                if source: result.append(source)
             day += dt.timedelta(days=1)
         budget, selected = 22000 if end-start>90000 else 12000, []
         # Round-robin days avoids a busy day consuming the week's entire input.

@@ -114,7 +114,7 @@ class ObservationTests(unittest.TestCase):
         self.db.execute('UPDATE observation_analyses SET body=? WHERE at=?',(json.dumps(body),at));self.db.commit()
         self.o.worker=threading.Thread()  # selects production compatibility adapter, no daemon started
         try:
-            self.assertEqual(self.c.task_understanding.context()['hypotheses'][0]['evidence'],[])
+            self.assertEqual(self.o.task_understanding_context()['hypotheses'][0]['evidence'],[])
             self.assertEqual(self.o._task_context()['hypotheses'][0]['source_refs'],[])
         finally: self.o.worker=None
 
@@ -127,13 +127,13 @@ class ObservationTests(unittest.TestCase):
         self.during=lambda:None;self.reply=self.finding(newer[0],'Build succeeded',state='result_observed')
         self.o.run_once();self.assertEqual(len(self.o.context()['tasks']),1)
         self.o.worker=threading.Thread()  # selects production compatibility adapter, no daemon started
-        task=self.c.task_understanding.context()['hypotheses'][0]
-        self.c.task_understanding.correct(task['id'],task['revision'],action='correct',text='只在检查构建，不是在跑测试')
+        task=self.o.task_understanding_context()['hypotheses'][0]
+        self.o.correct_task(task['id'],task['revision'],action='correct',text='只在检查构建，不是在跑测试')
         self.assertIn('只在检查',self.o.context()['tasks'][0]['title'])
-        task=self.c.task_understanding.context()['hypotheses'][0]
-        self.c.task_understanding.correct(task['id'],task['revision'],action='reject')
+        task=self.o.task_understanding_context()['hypotheses'][0]
+        self.o.correct_task(task['id'],task['revision'],action='reject')
         self.assertEqual(self.o.context()['tasks'],[])
-        with self.assertRaises(ValueError):self.c.task_understanding.correct(task['id'],task['revision'],action='reject')
+        with self.assertRaises(ValueError):self.o.correct_task(task['id'],task['revision'],action='reject')
         self.o.worker=None
 
     def test_image_must_be_read_and_never_journaled_as_base64(self):

@@ -12,7 +12,7 @@ EPISODE_ID = re.compile(r"[0-9]{1,18}")
 EDIT_TITLE_MAX = 120
 EDIT_DESCRIPTION_MAX = 12000
 DAY_THREADS = 6  # threads GET /episodes?date= lists at most
-RUN_KINDS = ("memory_extract", "observation_interpret", "observation_vision", "user_vision", "proactive_decide", "facing_decide", "task_hypothesis", "observation_brief", "review", "conversation")
+RUN_KINDS = ("memory_extract", "observation_interpret", "observation_vision", "user_vision", "proactive_decide", "facing_decide", "observation_brief", "review", "conversation")
 
 
 class EpisodesMixin:

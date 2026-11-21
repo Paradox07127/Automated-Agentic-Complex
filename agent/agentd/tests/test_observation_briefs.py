@@ -103,13 +103,17 @@ class BriefTests(unittest.TestCase):
 
     def segment(self, ident='seg-one', offset=0, subject='渲染测试失败，需要核验实际帧率', *, date='2026-10-30'):
         start = window('daily',date,'America/New_York')[1]+3600+offset
-        body = {'subject':subject,'start':start,'end':start+120,'edits':3,'errors':1,'questions':0,
-                'source_refs':['attention:'+ident], 'consent_epoch':self.server.consent.snapshot()[1]}
-        self.db.execute('INSERT INTO task_segments VALUES(?,?,?,?,?)',(ident,self.server.character,start,start+120,dump(body)))
+        run = 'run-' + ident
+        self.db.execute("INSERT OR IGNORE INTO memory_agent_runs(run_id,backend,model,character_id,started_at,state,prompt_version,input_sha256) VALUES(?,?,?,?,?,'completed','fixture','fixture')",
+            (run,'codex','fixture',self.server.character,start))
         self.db.commit()
-        return 'segment:'+ident
+        ep_id = add_episode(self.server.episodes, start, start+120, subject, subject, run_id=run)
+        if not hasattr(self, '_seg_ids'): self._seg_ids = {}
+        self._seg_ids[ident] = ep_id
+        return 'episode:'+str(ep_id)
 
-    def findings(self, source='segment:seg-one'):
+    def findings(self, source=None):
+        if source is None: source = 'episode:'+str(getattr(self, '_seg_ids', {}).get('seg-one', 1))
         ref = {'source_id':source,'quote':'渲染测试失败'}
         return {'observed_details':[{'detail':'出现一次渲染测试失败线索，结果待核验','evidence':[ref]}],
                 'recurring_problems':[], 'next_steps':[{'action':'核对渲染测试与实际帧率','reason':'样本中记录了测试失败','evidence':[ref]}],
@@ -139,7 +143,7 @@ class BriefTests(unittest.TestCase):
         result = knowledge.call('knowledge_search',{'sources':['briefs'],'query':'渲染'})
         self.assertEqual(result['items'][0]['id'],report['id'])
         self.assertTrue(knowledge.valid())
-        self.db.execute("DELETE FROM task_segments WHERE id='seg-one'"); self.db.commit()
+        self.db.execute("DELETE FROM episodes WHERE id=?", (self._seg_ids['seg-one'],)); self.db.commit()
         self.assertFalse(knowledge.valid())
         self.assertIsNone(self.service.get(report['id']))
         self.assertIsNone(self.db.execute('SELECT body FROM observation_briefs').fetchone()[0])
@@ -180,8 +184,8 @@ class BriefTests(unittest.TestCase):
     def test_consent_change_or_configuration_change_in_flight_discards_result(self):
         for change in ('consent','configuration'):
             with self.subTest(change=change):
-                self.ready(); self.segment('seg-'+change)
-                self.reply=self.findings('segment:seg-'+change)
+                self.ready(); src = self.segment('seg-'+change)
+                self.reply=self.findings(src)
                 self.during=(lambda:setattr(self.server,'share_page_text',False)) if change=='consent' else lambda:self.service.configure({'enabled':False})
                 with self.assertRaises(ValueError): self.service.run_once('daily','2026-10-30')
                 self.assertEqual(self.service.list(),[])
@@ -191,7 +195,7 @@ class BriefTests(unittest.TestCase):
     def test_source_edit_after_semantic_validation_cannot_commit(self):
         self.ready(); self.segment(); self.reply=self.findings()
         def mutate():
-            self.db.execute("UPDATE task_segments SET body=replace(body,'渲染测试失败','修改过的材料')")
+            self.db.execute("UPDATE episodes SET title=replace(title,'渲染测试失败','修改过的材料'),description=replace(description,'渲染测试失败','修改过的材料')")
             self.db.commit()
         self.during=mutate
         with self.assertRaisesRegex(ValueError,'brief_sources_changed'): self.service.run_once('daily','2026-10-30')
@@ -210,7 +214,7 @@ class BriefTests(unittest.TestCase):
         self.ready(); self.segment()
         for i in range(20): self.segment('seg-'+str(i),1000+i*200,subject='渲染测试失败'+'x'*4000)
         sources,coverage=self.service.sources(*window('daily','2026-10-30','America/New_York')[1:],'America/New_York')
-        self.assertLessEqual(len(sources),4);self.assertLessEqual(len(dump(sources)),12000)
+        self.assertLessEqual(len(sources),6);self.assertLessEqual(len(dump(sources)),12000)
         self.server.memory.set_paused(True)
         self.assertEqual(self.generate()['state'],'disabled')
         self.assertFalse(self.sessions)
@@ -229,7 +233,7 @@ class BriefTests(unittest.TestCase):
         self.assertEqual(len(self.sessions),4)  # one bounded format repair per admitted run
 
     def test_quota_refusals_do_not_spend_retries_and_backlog_yields_to_current_period(self):
-        self.ready(); self.segment(); self.segment('latest', date='2026-10-31')
+        self.ready(); self.segment(); latest_src = self.segment('latest', date='2026-10-31')
         self.service.configure({'weekly': False})
         meter = self.c.semantic.usage
         meter.clock = lambda: self.now
@@ -249,7 +253,7 @@ class BriefTests(unittest.TestCase):
         self.assertTrue(self.service.status(old['id'])['automatic_retry'])
         for _ in range(2):
             meter.attempt('observation_brief', 'admitted')
-        self.reply = self.findings('segment:latest')
+        self.reply = self.findings(latest_src)
         with patch('character_agent.services.observation_briefs.threading.Thread') as thread:
             self.service.tick()
             thread.call_args.kwargs['target']()
@@ -329,7 +333,7 @@ class BriefTests(unittest.TestCase):
         # A separate purpose exercises the shared short-response ceiling.
         self.reply={'payload':'x'*17000}
         with self.assertRaisesRegex(ValueError,'semantic_output_limit'):
-            self.c.semantic.run('task_hypothesis','返回JSON',{})
+            self.c.semantic.run('proactive_decide','返回JSON',{})
 
     def test_semantic_failure_retains_safe_provider_category(self):
         from test_character_agent_runtime import FakeSession
@@ -359,7 +363,7 @@ class BriefTests(unittest.TestCase):
         original=self.service._dependencies_valid
         def change_after_validation(deps):
             result=original(deps)
-            self.db.execute("DELETE FROM task_segments WHERE id='seg-one'");self.db.commit()
+            self.db.execute("DELETE FROM episodes WHERE id=?", (self._seg_ids['seg-one'],));self.db.commit()
             return result
         with patch.object(self.service,'_dependencies_valid',side_effect=change_after_validation):
             with self.assertRaisesRegex(ValueError,'brief_sources_changed'): self.service.run_once('daily','2026-10-30')

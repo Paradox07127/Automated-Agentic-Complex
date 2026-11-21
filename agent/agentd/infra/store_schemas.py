@@ -23,20 +23,12 @@ def ensure_delivery_schema(db):
     db.execute('CREATE UNIQUE INDEX IF NOT EXISTS personal_delivery_version ON personal_deliveries(canonical_task_id,delivery_version)')
 
 
-TASK_UNDERSTANDING_SCHEMA = (
-    'CREATE TABLE IF NOT EXISTS task_segments (id TEXT PRIMARY KEY, character_id TEXT NOT NULL, started_at REAL NOT NULL, updated_at REAL NOT NULL, body TEXT NOT NULL)',
-    'CREATE INDEX IF NOT EXISTS task_segments_character ON task_segments(character_id, updated_at)',
-    'CREATE TABLE IF NOT EXISTS task_hypotheses (id TEXT PRIMARY KEY, character_id TEXT NOT NULL, revision INTEGER NOT NULL, state TEXT NOT NULL, created_at REAL NOT NULL, expires_at REAL NOT NULL, body TEXT NOT NULL)',
-    'CREATE INDEX IF NOT EXISTS task_hypotheses_character ON task_hypotheses(character_id, expires_at)',
-)
-
 OBSERVATION_BRIEF_SCHEMA = (
     'CREATE TABLE IF NOT EXISTS observation_briefs (id TEXT PRIMARY KEY, character_id TEXT NOT NULL, period TEXT NOT NULL, date TEXT NOT NULL, timezone TEXT NOT NULL, start REAL NOT NULL, end REAL NOT NULL, updated_at REAL NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL, body TEXT, dependencies TEXT, consent_epoch INTEGER NOT NULL)',
     'CREATE INDEX IF NOT EXISTS observation_briefs_character ON observation_briefs(character_id,updated_at)',
     'CREATE INDEX IF NOT EXISTS observation_briefs_expiry ON observation_briefs(updated_at)',
     'CREATE TABLE IF NOT EXISTS observation_brief_failures (brief_id TEXT PRIMARY KEY, code TEXT NOT NULL, validation_path TEXT, at REAL NOT NULL)',
     'CREATE INDEX IF NOT EXISTS episodes_brief_window ON episodes(start,id)',
-    'CREATE INDEX IF NOT EXISTS task_segments_brief_window ON task_segments(character_id,started_at,id)',
 )
 
 CONTINUOUS_OBSERVATION_SCHEMA = (

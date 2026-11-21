@@ -20,30 +20,30 @@ from character_agent.services.settings import RuntimeSettings
 from infra.platform import USER_MACHINE
 from models.usage import BACKGROUND, UsageMeter
 
-PURPOSES = frozenset(('memory_extract', 'observation_interpret', 'proactive_decide', 'observation_vision', 'user_vision', 'review', 'facing_decide', 'task_hypothesis', 'observation_brief',
+PURPOSES = frozenset(('memory_extract', 'observation_interpret', 'proactive_decide', 'observation_vision', 'user_vision', 'review', 'facing_decide', 'observation_brief',
                       'thought', 'repeat', 'worklog_fast', 'worklog_deep', 'observation_summary'))
 # SDK max_turns and Codex product-tool-call counts have different meanings.
 # Both are useful ceilings; neither is a hard token or dollar guarantee.
-POLICIES = {'observation_interpret': (120, 16), 'proactive_decide': (30, 4), 'facing_decide': (30, 4), 'task_hypothesis': (45, 4),
+POLICIES = {'observation_interpret': (120, 16), 'proactive_decide': (30, 4), 'facing_decide': (30, 4),
             'observation_brief': (120, 12), 'thought': (30, 4), 'repeat': (30, 4), 'worklog_fast': (120, 8), 'worklog_deep': (120, 8),
             'observation_summary': (120, 4)}
-EFFORT = {'proactive_decide':'low', 'facing_decide':'low', 'task_hypothesis':'low', 'observation_vision':'low', 'user_vision':'low',
+EFFORT = {'proactive_decide':'low', 'facing_decide':'low', 'observation_vision':'low', 'user_vision':'low',
           'observation_brief':'medium', 'memory_extract':'medium', 'review':'medium', 'observation_interpret':'low',
           'thought':'low', 'repeat':'low', 'worklog_fast':'low', 'worklog_deep':'medium', 'observation_summary':'low'}
 # settings.py ROUTES entry each purpose runs on.
 ROUTE = {'proactive_decide': 'judge', 'facing_decide': 'judge', 'review': 'judge', 'repeat': 'judge', 'thought': 'judge',
          'observation_interpret': 'understand', 'observation_vision': 'understand', 'user_vision': 'understand',
          'observation_brief': 'understand', 'observation_summary': 'understand',
-         'task_hypothesis': 'understand', 'memory_extract': 'memory', 'worklog_fast': 'memory', 'worklog_deep': 'memory'}
+         'memory_extract': 'memory', 'worklog_fast': 'memory', 'worklog_deep': 'memory'}
 # Purposes whose JSON only a program reads: one line of identity in place of the persona.
-ANALYSIS = frozenset(('proactive_decide', 'repeat', 'worklog_fast', 'worklog_deep', 'memory_extract', 'task_hypothesis',
+ANALYSIS = frozenset(('proactive_decide', 'repeat', 'worklog_fast', 'worklog_deep', 'memory_extract',
                       'observation_brief', 'observation_interpret', 'observation_vision', 'user_vision', 'review', 'observation_summary'))
 # The vision purposes get only observation_image, added with their image.
 NO_TOOLS = frozenset(('proactive_decide', 'thought', 'repeat', 'worklog_fast', 'worklog_deep', 'observation_vision', 'user_vision', 'observation_summary'))
 # The context beside evidence a purpose reads; the others get evidence only.
 CONTEXT = {'memory_extract': ('profile',)}
 # Purposes whose free text a person reads (bubble, feed, web pages); it is written in the reply language.
-SHOWN = frozenset(('thought', 'repeat', 'worklog_fast', 'worklog_deep', 'memory_extract', 'task_hypothesis',
+SHOWN = frozenset(('thought', 'repeat', 'worklog_fast', 'worklog_deep', 'memory_extract',
                    'observation_brief', 'observation_interpret', 'observation_vision', 'user_vision'))
 REPAIR = ('The previous output failed validation: code is the reason and path points at the error. Generate the whole '
           'object again under the full JSON Schema and keep the other items as they were: fix a wrong format; copy a '
@@ -99,7 +99,7 @@ class SemanticScheduler:
     @staticmethod
     def priority(purpose):
         if purpose not in BACKGROUND: return 0
-        return {'proactive_decide':1,'thought':1,'memory_extract':2,'task_hypothesis':3}.get(purpose,4)
+        return {'proactive_decide':1,'thought':1,'memory_extract':2}.get(purpose,4)
 
     def acquire(self, purpose, valid):
         request = object()
