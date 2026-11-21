@@ -8,6 +8,7 @@ import threading
 import time
 from types import SimpleNamespace as NS
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from observation.attention import AttentionStore
@@ -16,8 +17,39 @@ from support import add_episode, deny_blacklist, enable_plugins
 from observation.capture import CaptureManager
 from observation.privacy import ConsentPolicy, saved_consent, saved_switch
 from daemon.agentd_server import AgentdServer
+from infra.store import checkpoint, open_store
+from personal.episodes import Episodes
+from personal.memory import Memory
 from support import serve_in_thread
 from test_server import KernelLines, Script, ScriptedMouth
+
+
+def privacy_stores(case, path):
+    episodes = Episodes(open_store(path))
+    case.addCleanup(episodes.db.close)
+    memory = Memory(open_store(path))
+    case.addCleanup(memory.db.close)
+    return episodes, memory
+
+
+class PrivacyCheckpointTest(unittest.TestCase):
+    def test_episode_checkpoint_during_revoked_fact_scan(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        episodes, memory = privacy_stores(self, Path(temp.name) / 'domain.sqlite')
+        ident = memory.add('observed', 'observed_context', evidence=['episode:1@d'])
+        deleted = memory.delete_derived([1])
+        checkpoint(memory)
+        execute = memory.db.execute
+
+        def checkpoint_during_select(statement, *args):
+            cursor = execute(statement, *args)
+            if statement == 'SELECT fact_id,state,evidence FROM facts':
+                checkpoint(episodes)
+            return cursor
+
+        with patch.object(memory.db, 'execute', checkpoint_during_select):
+            self.assertEqual(memory.revoked_with(deleted), {ident})
 
 
 class PrivacyRevocationTest(unittest.TestCase):
@@ -172,13 +204,9 @@ class PrivacyRevocationTest(unittest.TestCase):
         self.assertEqual(kept(),[('value',None),('prompt',None)])
 
     def test_p0_8_dry_run_counts_equal_the_rows_the_real_sync_then_deletes(self):
-        from personal.episodes import Episodes
-        from personal.memory import Memory
-        from infra.store import open_store
         self.typed()
         self.attention.ingest_browser({"type":"page","ts":time.time(),"url_host":"example.com","text":"page secret"})
-        db=open_store(self.root/'domain.sqlite');self.addCleanup(db.close)
-        s=self.server;s.episodes=Episodes(db);s.memory=Memory(db)
+        s=self.server;s.episodes,s.memory=privacy_stores(self,self.root/'domain.sqlite')
         typed=add_episode(s.episodes,1,2,"t","d",[{"subject":"x"}],requires=["page_text","typed_text"])
         linked,kept=(add_episode(s.episodes,3,4,"t","d",[{"subject":"x"}],requires=["window_text"]) for _ in range(2))
         s.memory.add("observed one","observed_context",evidence=[f"episode:{typed}@d",f"episode:{linked}@d"])
@@ -186,8 +214,8 @@ class PrivacyRevocationTest(unittest.TestCase):
         s.memory.add("observed kept","observed_context",evidence=[f"episode:{kept}@d"])
         queries={"browser_text":(self.attention.db,"SELECT COUNT(*) FROM context"),
                  "typed_values":(self.attention.db,"SELECT COUNT(*) FROM events_raw WHERE value IS NOT NULL"),
-                 "episodes":(db,"SELECT COUNT(*) FROM episodes"),
-                 "facts":(db,"SELECT COUNT(DISTINCT fact_id) FROM facts WHERE state IN ('active','candidate')")}
+                 "episodes":(s.episodes.db,"SELECT COUNT(*) FROM episodes"),
+                 "facts":(s.memory.db,"SELECT COUNT(DISTINCT fact_id) FROM facts WHERE state IN ('active','candidate')")}
         rows=lambda:{k:conn.execute(sql).fetchone()[0] for k,(conn,sql) in queries.items()}
         thread=serve_in_thread(self.server)
         def sync(body):

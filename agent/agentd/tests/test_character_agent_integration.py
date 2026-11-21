@@ -1367,6 +1367,25 @@ class TurnContextTests(unittest.TestCase):
         self.assertIsNone(answer.error)
         return answer
 
+    def test_task_continue_returns_the_committed_job_and_run_ids(self):
+        import sqlite3
+        import uuid
+        from character_agent.services.orchestration import OrchestrationTurn
+        self.server.tasks.create('task', 'character', str(self.fixture.root), 'report', 'workspace_write')
+        self.c.store.begin('original', self.server.history.conversations.active, self.server.character, 0)
+        self.c.store.checkpoint('original', 'task', {'task_id': 'task', 'scope_id': None})
+        turn = OrchestrationTurn(self.c, 'continue', self.c.settings.snapshot(), self.server.character, None, 'current')
+        turn.open(lambda: True)
+        job, run = (uuid.UUID(hex='1234abcd12344abc8def' + letter + '13812345678') for letter in ('a', 'b'))
+        with patch('character_agent.services.jobs.uuid') as ids, patch.object(self.c.jobs, 'start'):
+            ids.uuid4.side_effect = (job, run, uuid.uuid4())
+            reply = turn.call('task_continue', {'task_id': 'task', 'instruction_quote': 'continue'})
+        reader = sqlite3.connect(self.fixture.root / 'domain.sqlite')
+        self.addCleanup(reader.close)
+        self.assertEqual(reader.execute('SELECT job_id,run_id FROM personal_jobs').fetchone(), (job.hex, 'bg-' + run.hex))
+        self.assertEqual(reply, {'job_id': job.hex, 'run_id': 'bg-' + run.hex, 'state': 'queued'})
+        self.assertEqual(self.c.jobs.store.get(reply['job_id'])['run_id'], reply['run_id'])
+
     def test_k17_turn_context_refreshes_local_date_at_midnight(self):
         from datetime import datetime, timedelta, timezone
         clock = SimpleNamespace(now=lambda: SimpleNamespace(astimezone=lambda: moments.pop(0)))

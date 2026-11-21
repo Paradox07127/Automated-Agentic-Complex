@@ -159,6 +159,9 @@ class KnowledgeService:
             identifiers={'id','source_id','observation_id','previous_id','reference','version','revision','hash','source_sha256','image_sha256','content_hash'}
             def clean(key,item):
                 # Generated opaque IDs are protocol addresses. A phone-like numeric run inside a UUID is not a phone number.
+                if part == 'orchestration' and isinstance(item, str):
+                    if key == 'job_id' and re.fullmatch(r'[a-f0-9]{32}', item): return item
+                    if key == 'run_id' and re.fullmatch(r'bg-[a-f0-9]{32}', item): return item
                 if key in identifiers and isinstance(item,str) and re.fullmatch(r'(?:[a-z_]+:)?(?:(?:obs|work|brief|analysis|semantic|seg)-)?(?:[a-f0-9]{32}|[a-f0-9]{64}|[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})',item): return item
                 return self.sanitize(item,part,depth+1,observed=observed,complete=complete)
             items=list(value.items())
