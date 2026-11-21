@@ -1,4 +1,5 @@
 // config.json decoded: the keys the main process uses, with their defaults and error texts. Reading files is the caller's: `src/main/config.ts`.
+import { DEFAULT_PLUGINS, isPluginId, type Plugins } from './plugins.ts';
 
 /** Paths under the home directory, and the default TTS address. */
 export const IDS = {
@@ -78,7 +79,8 @@ export interface Config {
   gpuHoldFiles: string[];
   supportDir: string;
   interactionPreset: string;
-  computerUseEnabled: boolean;
+  /** `plugins`, each id it leaves out at the registry's default. */
+  plugins: Plugins;
   sharePageText: boolean;
   shareWindowText: boolean;
   shareTypedText: boolean;
@@ -90,7 +92,6 @@ export interface Config {
   breakReminderMinutes: number;
   /** Active minutes before a water reminder; 0 is off. agentd's own default when config.json has no key. */
   waterReminderMinutes: number;
-  observeActivity: boolean;
   mute: boolean;
   agentdStateDir: string;
   ttsURL: string;
@@ -115,6 +116,12 @@ const strings: Check<string[]> = (v, path) => {
 const stringMap: Check<Record<string, string>> = (v, path) => {
   if (!isObject(v)) throw typeError(path);
   return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, str(x, `${path}.${k}`)]));
+};
+const plugins: Check<Plugins> = (v, path) => {
+  if (!isObject(v)) throw typeError(path);
+  const unknown = Object.keys(v).find((id) => !isPluginId(id));
+  if (unknown !== undefined) throw new ConfigError(`未知插件 ${unknown}`);
+  return { ...DEFAULT_PLUGINS, ...Object.fromEntries(Object.entries(v).map(([id, on]) => [id, bool(on, `${path}.${id}`)])) };
 };
 
 /** Absent is 缺少字段, null or another type is 类型错误. */
@@ -213,7 +220,7 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
   const gpuHoldFiles = required(o, 'gpu_hold_files', strings);
   const supportDir = optional(o, 'support_dir', str) ?? ctx.supportDir;
   const interactionPreset = oneOf(optional(o, 'interaction_preset', str) ?? 'balanced', ['quiet', 'balanced', 'active'], 'balanced');
-  const computerUseEnabled = optional(o, 'computer_use_enabled', bool) ?? false;
+  const pluginsOn = optional(o, 'plugins', plugins) ?? DEFAULT_PLUGINS;
   const sharePageText = optional(o, 'share_page_text', bool) ?? false;
   const shareWindowText = optional(o, 'share_window_text', bool) ?? false;
   const shareTypedText = optional(o, 'share_typed_text', bool) ?? false;
@@ -224,7 +231,6 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
   const proactiveSpeech = optional(o, 'proactive_speech', bool) ?? true;
   const breakReminderMinutes = optional(o, 'break_reminder_minutes', int) ?? 0;
   const waterReminderMinutes = optional(o, 'water_reminder_minutes', int) ?? 90;
-  const observeActivity = optional(o, 'observe_activity', bool) ?? true;
   const mute = optional(o, 'mute', bool) ?? false;
   const agentdStateDir = optional(o, 'agentd_state_dir', str) ?? ctx.agentdStateDir;
   let ttsURL = optional(o, 'tts_url', str) ?? IDS.ttsURL;
@@ -240,9 +246,9 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
   const devResources = optional(o, 'dev_resources', str) ?? null;
   return {
     characters, characterCatalog, character, avatarApp, avatarExecutable, agentdDir, python, agentdLauncher, harnessSites,
-    missingComponents, characterLibraryMissing, agentdPort, gpuHoldFiles, supportDir, interactionPreset, computerUseEnabled,
+    missingComponents, characterLibraryMissing, agentdPort, gpuHoldFiles, supportDir, interactionPreset, plugins: pluginsOn,
     sharePageText, shareWindowText, shareTypedText, shareActions, shareAgentSessions, shareScreenshots, redactSensitive, proactiveSpeech,
-    breakReminderMinutes, waterReminderMinutes, observeActivity, mute, agentdStateDir, ttsURL, ttsTunnelHost, ttsEnsureScript, devResources,
+    breakReminderMinutes, waterReminderMinutes, mute, agentdStateDir, ttsURL, ttsTunnelHost, ttsEnsureScript, devResources,
   };
 }
 

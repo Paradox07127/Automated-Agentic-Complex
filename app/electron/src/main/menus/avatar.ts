@@ -11,7 +11,8 @@ export function avatarMenu(s: MenuState, ports: MenuPorts): MenuItem[] {
     : s.services.find((r) => r.name === '角色')?.detail ?? '待命';
   const roles = characterEntries(s, ports);
   for (const extra of [appearanceItem(s, ports), layersItem(s, ports), mmdItem(s, ports)]) if (extra) roles.push(extra);
-  const more: MenuItem[] = [item('pending', '待处理', page(ports, MENU_ROUTES.pending)), item('tune', '镜头与动作…', ports.openTune)];
+  const more: MenuItem[] = [...(s.plan.has('approvals') ? [item('pending', '待处理', page(ports, MENU_ROUTES.pending))] : []),
+    item('tune', '镜头与动作…', ports.openTune)];
   if (s.cameraFree) more.push(item('camera', '调整镜头…', ports.beginCamera));
   const capture = ports.capture;
   more.push(item('photoMode', '拍照模式…', page(ports, MENU_ROUTES.photo)),
@@ -33,8 +34,8 @@ export function avatarMenu(s: MenuState, ports: MenuPorts): MenuItem[] {
     item('quickInput', '快速输入…', ports.quickInput, { accelerator: menuAccelerator(s.quickInputHotkey) }),
     submenu('show', '给她看', [
       item('handClipboard', '把剪贴板交给她', ports.handClipboard),
-      item('selectRegion', '框选给她看…', ports.selectRegion),
-      item('look', '屏幕识读', ports.look, { accelerator: menuAccelerator(s.lookHotkey) })]),
+      ...(s.plan.has('reading') ? [item('selectRegion', '框选给她看…', ports.selectRegion),
+        item('look', '屏幕识读', ports.look, { accelerator: menuAccelerator(s.lookHotkey) })] : [])]),
   ];
   const poses = poseItem(s, ports);
   if (poses) e.push(poses);

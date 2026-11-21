@@ -1,9 +1,41 @@
 // `settings.*` over config.json: the rows the web pages edit, by web id, with the items behind them. Reading and writing the file is
 // the caller's.
 import type { ShellPlatform } from './config.ts';
+import { PLUGINS, type PluginId } from './plugins.generated.ts';
 
 /** A config.json value a setting stores. */
 export type SettingValue = boolean | number | string;
+
+const PLUGIN_LABELS: Readonly<Record<PluginId, string>> = {
+  light_ai: '轻量 AI（对话、语音、记忆）', screen_awareness: '屏幕感知', screen_reading: '屏幕识读', daily_brief: '日报',
+  coding_sessions: '编码会话', personal_agent: '个人代理', harness_bridge: 'harness 桥接', computer_use: '电脑操作',
+  external_access: '外部接入', motion_generation: '动作生成',
+};
+
+/** config.json's top-level scalars, and each entry of its `plugins` object as `plugins.<id>`. */
+export function settingValues(raw: Record<string, unknown>): Record<string, SettingValue> {
+  const values: Record<string, SettingValue> = Object.fromEntries(Object.entries(raw)
+    .filter((e): e is [string, SettingValue] => ['boolean', 'number', 'string'].includes(typeof e[1])));
+  const plugins = raw.plugins;
+  if (typeof plugins === 'object' && plugins !== null && !Array.isArray(plugins)) {
+    for (const [id, on] of Object.entries(plugins)) if (typeof on === 'boolean') values[`plugins.${id}`] = on;
+  }
+  return values;
+}
+
+/** `object` with `values` written in: a `plugins.<id>` key into its `plugins` object. */
+export function withSettings(object: Record<string, unknown>, values: Record<string, SettingValue>): Record<string, unknown> {
+  const out = { ...object };
+  for (const [key, value] of Object.entries(values)) {
+    if (!key.startsWith('plugins.')) {
+      out[key] = value;
+      continue;
+    }
+    const plugins = typeof out.plugins === 'object' && out.plugins !== null && !Array.isArray(out.plugins) ? out.plugins : {};
+    out.plugins = { ...plugins, [key.slice('plugins.'.length)]: value };
+  }
+  return out;
+}
 
 type Restart = 'none' | 'backend' | 'avatar';
 type Control =
@@ -92,7 +124,6 @@ const ITEMS: Item[] = [
   toggle('proactive_speech', '主动说话', true, 'backend'),
   choice('break_reminder_minutes', '连续使用提醒', [['0', '关'], ['45', '45 分钟'], ['60', '60 分钟'], ['90', '90 分钟']], '0', 'backend'),
   choice('water_reminder_minutes', '喝水提醒', [['0', '关'], ['60', '60 分钟'], ['90', '90 分钟'], ['120', '120 分钟']], '90', 'backend'),
-  toggle('computer_use_enabled', '允许会话请求电脑操作', false, 'backend'),
   dropdown('screen_context_level', '屏幕理解粒度', [['status', '仅读状态'], ['focused', '焦点语义'], ['window', '窗口摘要']], 'focused', 'backend'),
   toggle('share_page_text', '读取网页正文', false, 'backend'),
   toggle('share_window_text', '读取窗口文字', false, 'backend'),
@@ -101,7 +132,6 @@ const ITEMS: Item[] = [
   toggle('share_screenshots', '屏幕识读时附上截图', false, 'backend'),
   toggle('sense_input_counts', '键鼠计数', true, 'backend'),
   toggle('sense_audio_apps', '在用麦克风的 app', true, 'backend'),
-  toggle('observe_activity', '观察电脑上的活动', true, 'backend'),
   toggle('redact_sensitive', '发出前遮蔽敏感内容', true, 'backend'),
   toggle('system_notifications', '改走 macOS 系统通知', true),
   choice('notify_done', '完成', NOTIFY, 'card'),
@@ -111,6 +141,8 @@ const ITEMS: Item[] = [
   choice('notify_reminder', '提醒', NOTIFY, 'sound'),
   choice('avatar_click', '点击角色', [['interact', '角色互动'], ['quick_input', '打开快速输入']], 'interact'),
   hotkey('hotkey_look', '屏幕识读', 'control+option+l'),
+  // config.json's `plugins` object, one `plugins.<id>` item each.
+  ...PLUGINS.map((p) => toggle(`plugins.${p.id}`, PLUGIN_LABELS[p.id], p.default, 'backend')),
 ];
 
 const REGISTRY_ROWS: [string, string, string][] = [
@@ -125,14 +157,14 @@ const REGISTRY_ROWS: [string, string, string][] = [
   ['hk_ptt', 'keys', 'voice_hotkey'], ['hk_quick', 'keys', 'hotkey_quick_input'], ['hk_look', 'keys', 'hotkey_look'],
   ['hk_hide', 'keys', 'hotkey_toggle_avatar'], ['hk_pass', 'keys', 'hotkey_click_through'],
   ['hk_wheel', 'keys', 'hotkey_radial_menu'], ['hk_sel', 'keys', 'hotkey_selection'],
-  ['observe', 'privacy', 'observe_activity'], ['wintext', 'privacy', 'share_window_text'],
+  ['wintext', 'privacy', 'share_window_text'],
   ['grain', 'privacy', 'screen_context_level'], ['web', 'privacy', 'share_page_text'], ['typing', 'privacy', 'share_typed_text'],
   ['agent_sessions', 'privacy', 'share_agent_sessions'],
   ['shot', 'privacy', 'share_screenshots'], ['keys', 'privacy', 'sense_input_counts'], ['micapp', 'privacy', 'sense_audio_apps'],
   ['mask', 'privacy', 'redact_sensitive'],
-  ['k_cu', 'perm', 'computer_use_enabled'],
   ['login', 'about', 'launch_at_login'],
   ['beh.stay', '@character', 'stay_mode'], ['beh.range', '@character', 'viewport'], ['rnd.fps', '@character', 'render_fps'],
+  ...PLUGINS.map((p): [string, string, string] => [`plugins.${p.id}`, 'plugins', `plugins.${p.id}`]),
 ];
 
 const CHARACTER_ROWS: [string, string][] = [

@@ -1,6 +1,7 @@
 // What the tray menu, the character menu and the menu bar icon are built from.
 import type { ChildState } from './agentd.ts';
 import { accelerator } from './desktop-hotkey.ts';
+import { DEFAULT_PLUGINS, shellPlan, type Subsystem } from './plugins.ts';
 
 export interface MenuOption { id: string; name: string }
 
@@ -51,16 +52,19 @@ export interface MenuState {
   playlistPlaying: boolean;
   /** The menu was opened with option held. */
   showsDiagnostics: boolean;
-  /** Config failed to load: the tray menu keeps only the error, 打开主窗口, 对话, 会话面板, 重启子进程 and 退出. */
+  /** Config failed to load: the tray menu keeps only the error, 打开主窗口, 对话, 会话面板 (with `sessions`), 重启子进程 and 退出. */
   configError: string | null;
   /** config.json hot key names; a name that is no hot key leaves its item without a shortcut. */
   quickInputHotkey: string;
   lookHotkey: string;
   clickThroughHotkey: string;
+  /** shellPlan of the plug-ins agentd runs with: an item of a plug-in that is off is left out. */
+  plan: ReadonlySet<Subsystem>;
 }
 
 /** The menu state before anything is known. */
 export const MENU_STATE_DEFAULTS: MenuState = {
+  plan: shellPlan(DEFAULT_PLUGINS),
   services: [], recent: [], quiet: false, clickThroughAll: false, freeRoam: true, avatarHidden: false,
   characters: [], currentCharacter: null, characterSwitching: false,
   appearances: [], currentAppearance: null, appearanceSwitchingTo: null, layers: [], layersSwitching: false,

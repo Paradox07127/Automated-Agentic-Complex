@@ -18,7 +18,7 @@ export interface ControlPorts {
   helper: { request(op: string, params?: Record<string, unknown>, signal?: AbortSignal): Promise<HelperAnswer> };
   /** `control.listen`'s endpoint and token file (`controlEndpoint`). */
   endpoint: { path: string; tokenFile: string };
-  /** config.json `computer_use_enabled` now; false while config.json fails to load. */
+  /** config.json's `computer_use` plug-in now; false while config.json fails to load. */
   enabled(): boolean;
   /** `<agentd_state_dir>/blacklist.json`'s rules now. */
   blacklist(): BlacklistRules;

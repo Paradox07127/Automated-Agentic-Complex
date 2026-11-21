@@ -162,8 +162,8 @@ test('defaults of Config', () => {
   assert.equal(c.agentdStateDir, '/state');
   assert.equal(c.interactionPreset, 'balanced');
   assert.equal(c.ttsURL, 'http://127.0.0.1:9888');
-  assert.deepEqual([c.shareAgentSessions, c.redactSensitive, c.proactiveSpeech, c.observeActivity], [true, true, true, true]);
-  assert.deepEqual([c.sharePageText, c.shareTypedText, c.shareActions, c.mute, c.computerUseEnabled], [false, false, false, false, false]);
+  assert.deepEqual([c.shareAgentSessions, c.redactSensitive, c.proactiveSpeech], [true, true, true]);
+  assert.deepEqual([c.sharePageText, c.shareTypedText, c.shareActions, c.mute], [false, false, false, false]);
   assert.equal(parse({ ...ASTER, share_actions: true }).shareActions, true);
   assert.equal(c.breakReminderMinutes, 0);
   // agentd's own default, so a config.json without the key keeps today's reminders.

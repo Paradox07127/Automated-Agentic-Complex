@@ -135,7 +135,7 @@ class Stack {
       python: this.python, agentd_port: this.port, gpu_hold_files: [], support_dir: this.support, agentd_state_dir: this.stateDir,
       voice_service: 'remote', tts_url: `http://127.0.0.1:${readFileSync(portFile, 'utf8').trim()}`, tts_tunnel_host: '',
       share_page_text: false, share_window_text: false, share_screenshots: false, voice_hotkey: '', hotkey_quick_input: '',
-      onboarding_done: true, viewport: 'window', observe_activity: false,
+      onboarding_done: true, viewport: 'window', plugins: { screen_awareness: false },
       ...(options.missing ? { missing_components: options.missing } : {}),
       ...(options.catalog ? { character_catalog: options.catalog } : {}),
       ...options.config,
@@ -281,7 +281,7 @@ class Stack {
 
 /** Runs `body` on a new stack and stops it after; `windows` is why it is skipped on Windows. */
 function e2e(name: string, seconds: number, body: (stack: Stack) => Promise<void>,
-  options: { missing?: Record<string, string>; library?: string; windows?: string } = {}): void {
+  options: { missing?: Record<string, string>; library?: string; windows?: string; config?: Record<string, unknown> } = {}): void {
   test(name, { skip: SKIP || (process.platform === 'win32' && options.windows) || false, timeout: seconds * 1000 }, async () => {
     const stack = new Stack();
     try {
@@ -290,7 +290,7 @@ function e2e(name: string, seconds: number, body: (stack: Stack) => Promise<void
         cpSync(join(REPO, options.library), join(stack.dir, 'library'), { recursive: true });
         catalog = join(stack.dir, 'library/current.json');
       }
-      await stack.init({ missing: options.missing, catalog });
+      await stack.init({ missing: options.missing, catalog, config: options.config });
       await body(stack);
     } finally {
       await stack.stop();
@@ -318,6 +318,7 @@ e2e('agentd starts as the configured character and answers ready; the renderer s
 
 e2e('a slow start that keeps answering starting is kept past the health timeout', 120, async (stack) => {
   const release = join(stack.dir, 'release');
+  // Held in the task recovery, which agentd runs only with the personal agent.
   stack.faults({ 1: { recovery_wait_file: release } });
   const launched = Date.now();
   stack.start();
@@ -336,7 +337,7 @@ e2e('a slow start that keeps answering starting is kept past the health timeout'
   assert.ok(await stack.waitRunning(10), `agentd not running within 10 s of the release: ${stack.states}`);
   assert.ok(Date.now() > released);
   assert.equal(stack.agentdLaunches, 1);
-});
+}, { config: { plugins: { personal_agent: true } } });
 
 e2e('backoff 1, 2, 4, 8, then failed after the fifth crash, and no sixth launch', 120, async (stack) => {
   await crashLoop(stack);
@@ -585,6 +586,7 @@ e2e('character.switchTo aster → birch goes through prepare, one set_character 
 
 e2e('a switch made while agentd starts only changes the picture; agentd follows once it is ready', 120, async (stack) => {
   const release = join(stack.dir, 'release');
+  // Held in the task recovery, which agentd runs only with the personal agent.
   stack.faults({ 1: { recovery_wait_file: release } });
   stack.start();
   await stack.superviseRenderer();
@@ -607,7 +609,7 @@ e2e('a switch made while agentd starts only changes the picture; agentd follows 
   assert.equal(stack.link!.currentCharacter, 'birch');
   assert.equal(stack.hostLaunches, 1);
   assert.equal(stack.transcripts()[0]!.filter((m) => m.dir === 'c2a' && m.msg.type === 'set_character').length, 1);
-}, { windows: MOCK_RENDERER });
+}, { windows: MOCK_RENDERER, config: { plugins: { personal_agent: true } } });
 
 // Windows only: the macOS gate (electron-e2e) takes no skipped scenario.
 if (process.platform === 'win32') test('Windows: the real efw.exe (offscreen) starts under the supervisor, says hello and pipeline over its named pipe, and exits on quit',
@@ -810,7 +812,7 @@ e2e('approval: a Claude PermissionRequest is pending in GET /approvals through t
   assert.deepEqual(await pending(), []);
   const again = await bridge('POST', `/approvals/${card.request_id as string}/decision`, { decision: 'deny', generation: card.generation });
   assert.equal((again as { value: { status: number } }).value.status, 409, JSON.stringify(again));
-});
+}, { config: { plugins: { coding_sessions: true } } });
 
 // Windows only, as above: the four processes of a Windows run (this one as the shell) in one go.
 if (process.platform === 'win32') test('Windows: agentd, the real efw.exe and the real ac-helper.exe run and connect together, and none is left after the stop',

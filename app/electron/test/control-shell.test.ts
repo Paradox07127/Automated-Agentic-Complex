@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { DEFAULT_PLUGINS } from '../src/common/plugins.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
 import { shellControl } from '../src/main/control/shell.ts';
 import { computerUseOps } from '../src/main/ops/computer-use.ts';
@@ -17,7 +18,7 @@ const settle = async () => { for (let i = 0; i < 30; i += 1) await new Promise((
 function setup(o: { argv?: string[]; config?: string } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'control-'));
   const configPath = join(dir, 'config.json');
-  writeFileSync(configPath, o.config ?? JSON.stringify({ computer_use_enabled: true }));
+  writeFileSync(configPath, o.config ?? JSON.stringify({ plugins: { computer_use: true } }));
   const requests: [string, Record<string, unknown>][] = [];
   const logs: string[] = [];
   let loads = 0;
@@ -40,9 +41,10 @@ function setup(o: { argv?: string[]; config?: string } = {}) {
     supportDir: dir, configPath, agentdStateDir: dir,
     saved: (path) => {
       loads += 1;
-      const v = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
-      if (typeof v.computer_use_enabled !== 'boolean') throw new Error('does not load');
-      return { computerUseEnabled: v.computer_use_enabled };
+      const v = JSON.parse(readFileSync(path, 'utf8')) as { plugins?: { computer_use?: unknown } };
+      const on = v.plugins?.computer_use;
+      if (typeof on !== 'boolean') throw new Error('does not load');
+      return { plugins: { ...DEFAULT_PLUGINS, computer_use: on } };
     },
     ownPids: () => [process.pid],
     log: (line) => logs.push(line),
@@ -85,7 +87,7 @@ test('each helper hello asks control.listen for <support_dir>/run/computer-contr
   } finally { h.done(); }
 });
 
-test('computer_use_enabled is read again only when config.json changes; a config.json that does not load is off', async () => {
+test('the computer_use plug-in is read again only when config.json changes; a config.json that does not load is off', async () => {
   const h = setup();
   try {
     h.control!.helper(true);
@@ -93,14 +95,14 @@ test('computer_use_enabled is read again only when config.json changes; a config
     assert.equal(await h.status(1), true);
     assert.equal(await h.status(2), true);
     assert.equal(h.loads(), 1);
-    writeFileSync(h.configPath, JSON.stringify({ computer_use_enabled: false, mute: true }));
+    writeFileSync(h.configPath, JSON.stringify({ plugins: { computer_use: false }, mute: true }));
     utimesSync(h.configPath, new Date(), new Date(Date.now() + 5000));
     assert.equal(await h.status(3), false);
     assert.equal(h.loads(), 2);
-    writeFileSync(h.configPath, JSON.stringify({ computer_use_enabled: 'yes' }));
+    writeFileSync(h.configPath, JSON.stringify({ plugins: { computer_use: 'yes' } }));
     utimesSync(h.configPath, new Date(), new Date(Date.now() + 10_000));
     assert.equal(await h.status(4), false);
-    writeFileSync(h.configPath, JSON.stringify({ computer_use_enabled: true }));
+    writeFileSync(h.configPath, JSON.stringify({ plugins: { computer_use: true } }));
     utimesSync(h.configPath, new Date(), new Date(Date.now() + 15_000));
     assert.equal(await h.status(5), true);
     rmSync(h.configPath);

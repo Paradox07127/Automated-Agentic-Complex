@@ -10,6 +10,7 @@ import {
   TIMING,
 } from '../../common/agentd.ts';
 import { type Config, launchAgentdDir } from '../../common/config.ts';
+import { type Plugins, shellPlan } from '../../common/plugins.ts';
 import { appendLog, prepareLogs } from '../log.ts';
 import { cliScript, hookScript } from '../../common/onboarding.ts';
 import { agentdStopRequest, portOwnersCommand, shellPlatform } from '../platform/index.ts';
@@ -78,6 +79,11 @@ export class AgentdSupervisor {
 
   get state(): ChildState {
     return this.current;
+  }
+
+  /** The plug-ins of the config agentd last started with (or starts with next). */
+  get plugins(): Plugins {
+    return this.config.plugins;
   }
 
   /** agentd's pid while it is running. */
@@ -188,11 +194,12 @@ export class AgentdSupervisor {
     void probe();
   }
 
-  /** onboarding.ts `hookScript` and `cliScript` in `<support>/bin`, the fixed paths users' hook and MCP settings run, for
-   *  this launch's agentd. */
+  /** onboarding.ts `hookScript` (only with `hooks` in the plan) and `cliScript` in `<support>/bin`, the fixed paths users'
+   *  hook and MCP settings run, for this launch's agentd. */
   private writeBinScripts(): void {
     const dir = join(this.config.supportDir, 'bin'), flags = this.options.pythonFlags ?? [], agentd = launchAgentdDir(this.config);
-    for (const { name, text: script } of [hookScript(this.config.python, flags, agentd, shellPlatform()),
+    const hooks = shellPlan(this.config.plugins).has('hooks') ? [hookScript(this.config.python, flags, agentd, shellPlatform())] : [];
+    for (const { name, text: script } of [...hooks,
       cliScript(this.config.python, flags, agentd, this.config.agentdStateDir, dir, shellPlatform())]) {
       const path = join(dir, name), temp = `${path}.tmp`;
       try {

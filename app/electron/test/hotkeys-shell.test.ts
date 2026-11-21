@@ -10,6 +10,7 @@ import type { AttentionSample } from '../src/common/attention.ts';
 import { computerUseState } from '../src/common/computer-control.ts';
 import type { CmdMode } from '../src/common/desktop-layout.ts';
 import { GlobalHotkeys, HOTKEY_IDS, type SelectionCommand } from '../src/common/desktop-hotkey.ts';
+import { DEFAULT_PLUGINS } from '../src/common/plugins.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
 import { StackSource } from '../src/common/stack-source.ts';
 import { lookReceipt, shellContext } from '../src/main/context/shell.ts';
@@ -318,7 +319,7 @@ test('computer control: each published state reaches the stack card and computer
   const dir = mkdtempSync(join(tmpdir(), 'control-'));
   writeFileSync(join(dir, 'blacklist.json'), JSON.stringify({ mode: 'deny' }));
   const configPath = join(dir, 'config.json');
-  writeFileSync(configPath, JSON.stringify({ computer_use_enabled: true }));
+  writeFileSync(configPath, JSON.stringify({ plugins: { computer_use: true } }));
   const stack = new StackSource({ request: async () => ({ status: 404, body: '' }), notify: () => ({ modes: {} }), avatarHidden: () => false,
     frontFullscreen: () => false, playSound: () => {} });
   const phases: [string, boolean][] = [];
@@ -339,7 +340,7 @@ test('computer control: each published state reaches the stack card and computer
         return { ok: false, error: { code: 'unsupported' } };
       },
     },
-    supportDir: dir, configPath, agentdStateDir: dir, saved: () => ({ computerUseEnabled: true }), ownPids: () => [process.pid],
+    supportDir: dir, configPath, agentdStateDir: dir, saved: () => ({ plugins: { ...DEFAULT_PLUGINS, computer_use: true } }), ownPids: () => [process.pid],
     log: () => {},
     onState: (s) => {
       stack.setComputerUse(s);

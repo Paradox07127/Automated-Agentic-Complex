@@ -1,6 +1,7 @@
 // agentd's supervision:
 // the states, the restart backoff, the health deadlines and the C9 command line. Processes and timers are src/main's.
 import { type Config, firstMissingComponent, launchAgentdDir } from './config.ts';
+import { PLUGIN_IDS } from './plugins.ts';
 
 export type ChildState =
   | { kind: 'stopped' } | { kind: 'starting' } | { kind: 'running' } | { kind: 'portInUse' }
@@ -175,7 +176,8 @@ export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
   if (config.characterCatalog !== null) args.push('--character-catalog', config.characterCatalog);
   for (const id of Object.keys(config.harnessSites).sort()) args.push('--harness-site', `${id}=${config.harnessSites[id]}`);
   if (ctx.privacyConfigPath !== undefined) args.push('--privacy-config', ctx.privacyConfigPath);
-  if (config.computerUseEnabled) {
+  for (const id of PLUGIN_IDS) args.push(config.plugins[id] ? '--plugin-on' : '--plugin-off', id);
+  if (config.plugins.computer_use) {
     args.push('--computer-control-socket', `${config.supportDir}/run/computer-control.sock`,
       '--computer-control-token-file', `${config.supportDir}/run/computer-control.token`);
   }
@@ -184,7 +186,6 @@ export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
   if (config.shareTypedText) args.push('--share-typed-text');
   if (config.shareAgentSessions) args.push('--share-agent-sessions');
   if (config.shareScreenshots) args.push('--share-screenshots');
-  if (!config.observeActivity) args.push('--observation-off');
   if (!config.redactSensitive) args.push('--no-redact');
   if (!config.proactiveSpeech) args.push('--no-proactive');
   // Always passed: agentd's own default is 50, so leaving 0 out would turn 关 into every 50 minutes.

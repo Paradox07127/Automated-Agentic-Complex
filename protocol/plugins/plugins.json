@@ -30,7 +30,9 @@
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "pushToTalk"
+      ]
     },
     "web": {
       "pages": [],
@@ -72,7 +74,13 @@
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "attention",
+        "activity",
+        "timeline",
+        "context",
+        "focusTurn"
+      ]
     },
     "web": {
       "pages": [],
@@ -96,7 +104,10 @@
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "context",
+        "reading"
+      ]
     },
     "web": {
       "pages": [],
@@ -152,7 +163,11 @@
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "hooks",
+        "sessions",
+        "approvals"
+      ]
     },
     "web": {
       "pages": [],
@@ -191,7 +206,9 @@
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "approvals"
+      ]
     },
     "web": {
       "pages": [],
@@ -236,7 +253,9 @@
       "routes": []
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "control"
+      ]
     },
     "web": {
       "pages": [],
@@ -259,7 +278,9 @@
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "approvals"
+      ]
     },
     "web": {
       "pages": [],

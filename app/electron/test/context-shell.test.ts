@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import type { AttentionSample } from '../src/common/attention.ts';
+import { DEFAULT_PLUGINS, shellPlan } from '../src/common/plugins.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
 import { shellAttention } from '../src/main/attention/shell.ts';
 import { agentdLook, anyOwnCapture, shellContext } from '../src/main/context/shell.ts';
@@ -240,6 +241,7 @@ test('the attention sampler does not count a screenshot of the context capturer 
       return op === 'presence.watch' ? { ok: true as const, result: { watching: true } } : { ok: false as const, error: { code: 'unsupported' } };
     } };
     const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), redact: true,
+      plan: () => shellPlan({ ...DEFAULT_PLUGINS, screen_awareness: true }),
       agentd: { request: async (_method, _path, json) => { posts.push(json as Record<string, unknown>); return { status: 200 }; } },
       ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, ownCaptureRecent: recent });
     sampler!.helper(true);

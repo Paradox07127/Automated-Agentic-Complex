@@ -3,6 +3,7 @@
 import { mkdirSync } from 'node:fs';
 import type { ActionRow } from '../../common/c3.ts';
 import { iconState, MENU_STATE_DEFAULTS, type MenuBarStatus, type MenuOption, type MenuState } from '../../common/menus.ts';
+import type { Subsystem } from '../../common/plugins.ts';
 import type { PushToTalk } from '../../common/push-to-talk.ts';
 import type { RecentAnnouncements } from '../../common/recent-announcements.ts';
 import { mainRoute } from '../../common/stack-cards.ts';
@@ -23,6 +24,8 @@ import type { MenuPorts } from './items.ts';
 export interface ShellMenusOptions {
   /** config.json as saved now. */
   settings(): Record<string, unknown>;
+  /** MenuState.plan. */
+  plan(): ReadonlySet<Subsystem>;
   /** The roster; null when config.json did not load. */
   characters(): MenuOption[] | null;
   /** The character the app launched with; '' for none. */
@@ -153,6 +156,7 @@ export function shellMenus(o: ShellMenusOptions): ShellMenus {
       canCapture: link?.capabilities.includes('capture') ?? false,
       quickInputHotkey: hotkey('hotkey_quick_input', 'control+option+space'), lookHotkey: hotkey('hotkey_look', 'control+option+l'),
       clickThroughHotkey: hotkey('hotkey_click_through', 'control+option+p'),
+      plan: o.plan(),
     };
   };
 

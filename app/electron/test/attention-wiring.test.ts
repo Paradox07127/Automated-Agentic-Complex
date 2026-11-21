@@ -7,6 +7,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { DEFAULT_PLUGINS, shellPlan } from '../src/common/plugins.ts';
 import { AgentdClient } from '../src/main/agentd/client.ts';
 import { shellAttention } from '../src/main/attention/shell.ts';
 import { HelperSupervisor } from '../src/main/helper/supervisor.ts';
@@ -55,10 +56,12 @@ async function until(seconds: number, ok: () => boolean): Promise<boolean> {
 }
 
 const unused = { request: async () => { throw new Error('not reached'); } };
+/** The plan with screen awareness on: the beats go to agentd. */
+const AWARE = shellPlan({ ...DEFAULT_PLUGINS, screen_awareness: true });
 
 test('--no-attention starts no sampler', () => {
   const options = { helper: { request: async () => ({ ok: false as const, error: { code: 'unused' } }) }, agentd: unused, agentdStateDir: '/nonexistent',
-    settings: () => ({}), redact: true, ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {} };
+    settings: () => ({}), redact: true, plan: () => AWARE, ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {} };
   assert.equal(shellAttention({ ...options, argv: ['electron', '.', '--config', 'c.json', '--no-push-to-talk', '--no-attention'] }), null);
   const sampler = shellAttention({ ...options, argv: ['electron', '.', '--config', 'c.json', '--no-push-to-talk'] });
   assert.notEqual(sampler, null);
@@ -88,7 +91,7 @@ test('the helper says hello and agentd runs: beats POST /context/attention, with
   const helper = new HelperSupervisor({ executable: process.execPath, prefix: [script, received], supportDir: join(dir, 's'),
     clientVersion: 'test', onStatus: (s) => sampler?.helper(s.kind === 'running'), onEvent: (e) => sampler?.event(e.event, e.data) });
   sampler = shellAttention({ argv: ['electron', '.'], helper, agentd: new AgentdClient(join(state, 'ui-runtime.json')), agentdStateDir: state,
-    settings: () => ({ sense_input_counts: false }), redact: true, ownPids: () => [process.pid], userSpeaking: () => true, log: () => {},
+    settings: () => ({ sense_input_counts: false }), redact: true, plan: () => AWARE, ownPids: () => [process.pid], userSpeaking: () => true, log: () => {},
     onSystemPaused: (p) => pauses.push(p) });
   const ops = () => readFileSync(received, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as { op: string; params: Record<string, unknown> });
   try {
@@ -124,7 +127,7 @@ test('our own screen capture is not the user recording the screen: ownCaptureRec
       }
       return op === 'presence.watch' ? { ok: true as const, result: { watching: true } } : { ok: false as const, error: { code: 'unsupported' } };
     } };
-    const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), redact: true,
+    const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), redact: true, plan: () => AWARE,
       agentd: { request: async (_method, _path, json) => { posts.push(json as Record<string, unknown>); return { status: 200 }; } },
       ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, ...(ownCaptureRecent && { ownCaptureRecent }) });
     sampler!.helper(true);
@@ -141,6 +144,27 @@ test('our own screen capture is not the user recording the screen: ownCaptureRec
   assert.equal(await beat(() => true), undefined);
 });
 
+test('without screen awareness the beats still sample for give-way and the surfaces, and none reaches agentd', async () => {
+  const posts: unknown[] = [], samples: unknown[] = [];
+  const helper = { request: async (op: string) => {
+    if (op === 'attention.sample') {
+      return { ok: true as const, result: { ts: Date.now() / 1000, idle_s: 1, locked: false, secure_input: false, front: null, mouse_window: null } };
+    }
+    return op === 'presence.watch' ? { ok: true as const, result: { watching: true } } : { ok: false as const, error: { code: 'unsupported' } };
+  } };
+  const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), redact: true,
+    plan: () => shellPlan(DEFAULT_PLUGINS), agentd: { request: async (_method, _path, json) => { posts.push(json); return { status: 200 }; } },
+    ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, onSample: (s) => samples.push(s) });
+  sampler!.helper(true);
+  sampler!.agentd(true);
+  try {
+    assert.ok(await until(5, () => samples.length >= 2));
+  } finally {
+    sampler!.agentd(false);
+  }
+  assert.deepEqual(posts, []);
+});
+
 test('the clicks near her reach the beat as `near_clicks_10s`; without the port it is left out', async () => {
   const beat = async (nearClicks?: () => number | null) => {
     const posts: Record<string, unknown>[] = [];
@@ -151,7 +175,7 @@ test('the clicks near her reach the beat as `near_clicks_10s`; without the port 
       }
       return op === 'presence.watch' ? { ok: true as const, result: { watching: true } } : { ok: false as const, error: { code: 'unsupported' } };
     } };
-    const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), redact: true,
+    const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), redact: true, plan: () => AWARE,
       agentd: { request: async (_method, _path, json) => { posts.push(json as Record<string, unknown>); return { status: 200 }; } },
       ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, ...(nearClicks && { nearClicks }) });
     sampler!.helper(true);

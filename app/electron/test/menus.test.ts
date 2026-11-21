@@ -3,15 +3,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { iconState, MENU_STATE_DEFAULTS, type MenuBarStatus, type MenuState, processStatus, quietUntil } from '../src/common/menus.ts';
+import { PLUGIN_IDS, type Plugins, shellPlan } from '../src/common/plugins.ts';
 import { appMenu } from '../src/main/menus/app.ts';
 import { avatarMenu } from '../src/main/menus/avatar.ts';
 import { iconBitmap } from '../src/main/menus/icon.ts';
 import { type MenuItem, type MenuPorts, SettingsChanges } from '../src/main/menus/items.ts';
 import { trayContextMenu, trayMenu } from '../src/main/menus/tray.ts';
 
-/** MenuBarMenuState.sample. */
+/** MenuBarMenuState.sample, every plug-in on. */
 const SAMPLE: MenuState = {
   ...MENU_STATE_DEFAULTS,
+  plan: shellPlan(Object.fromEntries(PLUGIN_IDS.map((id) => [id, true])) as Plugins),
   services: [{ name: '角色', detail: '运行中' }, { name: '后台', detail: '运行中' }, { name: '语音隧道', detail: '重连中 5 s' }],
   recent: [{ id: 'a1', text: 'claude:agentd 在等你批准', time: '14:35', unread: true },
     { id: 'a2', text: 'codex 会话没能启动', time: '14:40', unread: true },

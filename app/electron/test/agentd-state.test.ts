@@ -6,6 +6,7 @@ import {
   stateText,
 } from '../src/common/agentd.ts';
 import { parseConfig } from '../src/common/config.ts';
+import { PLUGIN_IDS } from '../src/common/plugins.ts';
 import { portOwners } from '../src/main/agentd/supervisor.ts';
 import { lsofPids, netstatListeners, portOwnersCommand, pythonFlags } from '../src/main/platform/index.ts';
 
@@ -92,21 +93,23 @@ test('the agentd command line follows C9 in a fixed order', () => {
   assert.deepEqual(agentdArguments(config(), ctx), [
     '/r/agentd_launcher.py', '--agentd-dir', '/a/agentd', '--parent-pid', '42', '--',
     '--port', '48810', '--state-dir', '/st', '--interaction-preset', 'balanced', '--character', 'aster',
-    '--privacy-config', '/s/config.json', '--share-agent-sessions', '--break-reminder-minutes', '0',
+    '--privacy-config', '/s/config.json', ...PLUGIN_IDS.flatMap((id) => [id === 'light_ai' ? '--plugin-on' : '--plugin-off', id]),
+    '--share-agent-sessions', '--break-reminder-minutes', '0',
     '--water-reminder-minutes', '90',
     '--tts-url', 'http://127.0.0.1:9888', '--tts-token-file', '/s/tts-token',
   ]);
   const all = agentdArguments(config({
-    character_catalog: null, harness_sites: { 'harness.pi': '/pi' }, computer_use_enabled: true, share_page_text: true,
-    share_window_text: true, share_typed_text: true, share_agent_sessions: false, share_screenshots: true, observe_activity: false,
+    character_catalog: null, harness_sites: { 'harness.pi': '/pi' }, plugins: { computer_use: true }, share_page_text: true,
+    share_window_text: true, share_typed_text: true, share_agent_sessions: false, share_screenshots: true,
     redact_sensitive: false, proactive_speech: false, break_reminder_minutes: -3, water_reminder_minutes: 0, mute: true, tts_url: 'http://127.0.0.1:9888',
     tts_tunnel_host: 'gpu', tts_ensure_script: '/e.sh', interaction_preset: 'quiet', dev_resources: '/dev',
   }), { ...ctx, character: '', privacyConfigPath: undefined });
   assert.deepEqual(all, [
     '/r/agentd_launcher.py', '--agentd-dir', '/dev/runtime/agentd', '--parent-pid', '42', '--',
     '--port', '48810', '--state-dir', '/st', '--interaction-preset', 'quiet', '--harness-site', 'harness.pi=/pi',
+    ...PLUGIN_IDS.flatMap((id) => [['light_ai', 'computer_use'].includes(id) ? '--plugin-on' : '--plugin-off', id]),
     '--computer-control-socket', '/s/run/computer-control.sock', '--computer-control-token-file', '/s/run/computer-control.token',
-    '--share-page-text', '--share-window-text', '--share-typed-text', '--share-screenshots', '--observation-off', '--no-redact',
+    '--share-page-text', '--share-window-text', '--share-typed-text', '--share-screenshots', '--no-redact',
     '--no-proactive', '--break-reminder-minutes', '0', '--water-reminder-minutes', '0', '--mute', '--tts-url', 'http://127.0.0.1:9888', '--tts-token-file', '/s/tts-token',
     '--tts-ensure-host', 'gpu', '--tts-ensure-script', '/e.sh',
   ]);

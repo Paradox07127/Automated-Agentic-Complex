@@ -6,12 +6,13 @@ import { appearanceItem, characterEntries, clickThroughItem, freeRoamItem, hidde
 
 export function trayMenu(s: MenuState, ports: MenuPorts): MenuItem[] {
   const quit = () => ports.quit();
+  const sessions = s.plan.has('sessions') ? [item('sessions', '会话面板', page(ports, MENU_ROUTES.sessions))] : [];
   if (s.configError !== null) {
     return [
       label('configError', `配置错误：${s.configError}`), SEPARATOR,
       item('home', '打开主窗口', page(ports, MENU_ROUTES.home), { accelerator: 'Command+0' }),
       item('conversation', '对话', page(ports, MENU_ROUTES.conversation), { accelerator: 'Command+J' }),
-      item('sessions', '会话面板', page(ports, MENU_ROUTES.sessions)),
+      ...sessions,
       SEPARATOR,
       item('restartChildren', '重启子进程', ports.restartChildren, { enabled: false }),
       item('quit', '退出', quit, { accelerator: 'Command+Q' }),
@@ -27,9 +28,9 @@ export function trayMenu(s: MenuState, ports: MenuPorts): MenuItem[] {
     ...s.services.map((r, i) => label(`service.${i}`, `${r.name} · ${r.detail}`)), SEPARATOR,
     item('home', '打开主窗口', page(ports, MENU_ROUTES.home), { accelerator: 'Command+0' }),
     item('conversation', '对话', page(ports, MENU_ROUTES.conversation), { accelerator: 'Command+J' }),
-    item('pending', '待处理', page(ports, MENU_ROUTES.pending)),
-    item('sessions', '会话面板', page(ports, MENU_ROUTES.sessions)),
-    item('look', '屏幕识读', ports.look, { accelerator: menuAccelerator(s.lookHotkey) }),
+    ...(s.plan.has('approvals') ? [item('pending', '待处理', page(ports, MENU_ROUTES.pending))] : []),
+    ...sessions,
+    ...(s.plan.has('reading') ? [item('look', '屏幕识读', ports.look, { accelerator: menuAccelerator(s.lookHotkey) })] : []),
     item('quickInput', '快速输入…', ports.quickInput, { accelerator: menuAccelerator(s.quickInputHotkey) }),
     submenu('recent', '最近播报', recent), SEPARATOR,
     item('memory', '记忆…', page(ports, MENU_ROUTES.memory)),

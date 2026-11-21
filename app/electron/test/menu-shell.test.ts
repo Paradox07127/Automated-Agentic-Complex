@@ -10,6 +10,7 @@ import type { Actions } from '../src/common/c3.ts';
 import type { Playlist } from '../src/common/character.ts';
 import type { ObservationState } from '../src/common/desktop-action.ts';
 import type { PlaylistState } from '../src/common/playlist.ts';
+import { PLUGIN_IDS, type Plugins, shellPlan } from '../src/common/plugins.ts';
 import { RecentAnnouncements } from '../src/common/recent-announcements.ts';
 import type { MenuBarIconState } from '../src/common/menus.ts';
 import { avatarMenu } from '../src/main/menus/avatar.ts';
@@ -72,7 +73,8 @@ function setup(over: Partial<ShellMenusOptions> = {}) {
     resetOffsets: () => calls.push('resetOffsets') };
   const dir = mkdtempSync(join(tmpdir(), 'menu-shell-'));
   const options: ShellMenusOptions = {
-    settings: () => ({}), characters: () => [{ id: 'aster', name: '示例甲' }, { id: 'birch', name: '示例乙' }], launched: 'aster',
+    settings: () => ({}), plan: () => shellPlan(Object.fromEntries(PLUGIN_IDS.map((id) => [id, true])) as Plugins),
+    characters: () => [{ id: 'aster', name: '示例甲' }, { id: 'birch', name: '示例乙' }], launched: 'aster',
     services: () => ['角色 · 运行中', '后台 · 运行中'],
     processes: () => ({ agentdConnected: true, childFailed: false, restarting: false }),
     link, looks, switcher, observation, camera: null, pushToTalk, context: null, interaction: null,

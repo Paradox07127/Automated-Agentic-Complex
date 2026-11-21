@@ -1,6 +1,7 @@
 // The attention sampler as index.ts starts it: its ports over agentd's client, the blacklist file and config.json.
 import { join } from 'node:path';
 import type { AttentionSample, HelperY } from '../../common/attention.ts';
+import type { Subsystem } from '../../common/plugins.ts';
 import { BlacklistFile } from './blacklist.ts';
 import { type AttentionPorts, type AttentionSampler, startAttention } from './sampler.ts';
 
@@ -15,6 +16,8 @@ export interface ShellAttentionOptions {
   settings(): Record<string, unknown>;
   /** `redact_sensitive` at launch. */
   redact: boolean;
+  /** shellPlan of the plug-ins agentd runs with: without `attention` the samples feed only this shell (give-way, surfaces). */
+  plan(): ReadonlySet<Subsystem>;
   ownPids(): readonly number[];
   userSpeaking(): boolean | null;
   log(line: string): void;
@@ -36,6 +39,7 @@ export function shellAttention(o: ShellAttentionOptions): AttentionSampler | nul
   return startAttention({
     helper: o.helper,
     post: async (body) => {
+      if (!o.plan().has('attention')) return 0;
       try {
         return (await o.agentd.request('POST', '/context/attention', body)).status;
       } catch {

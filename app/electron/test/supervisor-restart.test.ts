@@ -112,14 +112,15 @@ test('a stop while a restart is stopping agentd wins: agentd stays stopped', asy
   }
 });
 
-test('starting agentd writes <support>/bin/agentic-complex-hook (on Windows its .cmd) to run this launch\'s forwarder', async () => {
+test('starting agentd with coding sessions on writes <support>/bin/agentic-complex-hook (on Windows its .cmd) to run this launch\'s forwarder', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hook-')), support = join(dir, 's');
   mkdirSync(support);
   mkdirSync(join(dir, "it's"));
   const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
   writeFileSync(script, fakeAgentd(launches));
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: join(dir, "it's"),
-    python: process.execPath, agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+    python: process.execPath, agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state'),
+    plugins: { coding_sessions: true } }));
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
   const windows = process.platform === 'win32', hook = join(support, 'bin', windows ? 'agentic-complex-hook.cmd' : 'agentic-complex-hook');
   try {
@@ -130,6 +131,26 @@ test('starting agentd writes <support>/bin/agentic-complex-hook (on Windows its 
     if (process.platform !== 'win32') assert.equal(statSync(hook).mode & 0o777, 0o755);
     const cli = cliScript(process.execPath, [], join(dir, "it's"), join(dir, 'state'), join(support, 'bin'), windows ? 'windows' : 'mac');
     assert.equal(readFileSync(join(support, 'bin', cli.name), 'utf8'), cli.text);
+  } finally {
+    await supervisor.stop();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('starting agentd with coding sessions off writes no hook script, only the CLI\'s', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nohook-')), support = join(dir, 's');
+  mkdirSync(support);
+  const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
+  writeFileSync(script, fakeAgentd(launches));
+  writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir,
+    python: process.execPath, agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+  const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
+  const windows = process.platform === 'win32';
+  try {
+    supervisor.start();
+    assert.ok(await until(20, () => supervisor.state.kind === 'running'), JSON.stringify(supervisor.state));
+    assert.deepEqual(readdirSync(join(support, 'bin')), [windows ? 'agentic-complex.cmd' : 'agentic-complex']);
+    assert.match(lines(launches)[0]!, / --plugin-off coding_sessions /);
   } finally {
     await supervisor.stop();
     rmSync(dir, { recursive: true, force: true });

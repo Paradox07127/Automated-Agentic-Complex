@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ComputerUsePanelState } from '../../common/computer-control.ts';
+import type { Plugins } from '../../common/plugins.ts';
 import { BlacklistFile } from '../attention/blacklist.ts';
 import { controlEndpoint, ControlHost, type ControlPorts } from './host.ts';
 
@@ -15,7 +16,7 @@ export interface ShellControlOptions {
   /** `agentd_state_dir`, which holds blacklist.json. */
   agentdStateDir: string;
   /** config.json at `path` as validated now (loadConfig); throws while it does not load. */
-  saved(path: string): { computerUseEnabled: boolean };
+  saved(path: string): { plugins: Plugins };
   /** This shell's processes, never a target. */
   ownPids(): readonly number[];
   log(line: string): void;
@@ -24,7 +25,7 @@ export interface ShellControlOptions {
   onState?(state: ComputerUsePanelState, raise: boolean): void;
 }
 
-/** `computer_use_enabled`: config.json is loaded again only when its mtime, size or inode changes; false
+/** The `computer_use` plug-in: config.json is loaded again only when its mtime, size or inode changes; false
  *  while it is missing or does not load. */
 export function savedComputerUse(path: string, saved: ShellControlOptions['saved']): () => boolean {
   let stamp: string | null = null, enabled = false;
@@ -40,7 +41,7 @@ export function savedComputerUse(path: string, saved: ShellControlOptions['saved
     }
     if (now !== stamp) {
       try {
-        enabled = saved(path).computerUseEnabled;
+        enabled = saved(path).plugins.computer_use;
       } catch {
         enabled = false;
       }

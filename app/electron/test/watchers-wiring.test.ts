@@ -1,4 +1,4 @@
-// The surface source, the give-way loop and the activity recorder wired as index.ts wires them
+// The surface source, the give-way loop and the activity and timeline recorders wired as index.ts wires them
 // (src/main/attention/watchers.ts), on a fake platform helper, a fake renderer link, a fake agentd and fake timers. Nothing
 // here reads the real system's windows.
 import assert from 'node:assert/strict';
@@ -8,8 +8,10 @@ import { join } from 'node:path';
 import { after, test } from 'node:test';
 import type { AttentionSample } from '../src/common/attention.ts';
 import type { Box } from '../src/common/c3.ts';
+import { DEFAULT_PLUGINS, shellPlan, type Subsystem } from '../src/common/plugins.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
-import { helperYFor, shellWatchers, surfaceLinkOptions, type WatcherOptions } from '../src/main/attention/watchers.ts';
+import { helperYFor, type RecorderOptions, shellRecorders, shellWatchers, surfaceLinkOptions, type WatcherOptions }
+  from '../src/main/attention/watchers.ts';
 import { placementSpace } from '../src/main/platform/screens.ts';
 import type { LinkEvent } from '../src/main/renderer/link.ts';
 
@@ -46,8 +48,11 @@ after(() => rmSync(OPEN_STATE, { recursive: true, force: true }));
 /** ObservationControl.state as the tests set it. */
 interface Observed { meeting: boolean; pausedUntil: number | null }
 
+/** shellPlan with screen awareness on: the recorders and the focus turn run. */
+const AWARE = shellPlan({ ...DEFAULT_PLUGINS, screen_awareness: true });
+
 function setup(o: { argv?: string[]; saved?: Record<string, unknown> | null; platform?: 'mac' | 'windows'; frontFullscreen?: boolean;
-  observation?: Observed | null; helper?: Record<string, HelperAnswer>; focus?: boolean } = {}) {
+  observation?: Observed | null; helper?: Record<string, HelperAnswer>; focus?: boolean; plan?: ReadonlySet<Subsystem> } = {}) {
   let clock = 0;
   const answers = { ...HELPER, ...o.helper };
   let cursor = { x: 0, y: 0 };
@@ -61,7 +66,7 @@ function setup(o: { argv?: string[]; saved?: Record<string, unknown> | null; pla
   const listeners = new Set<(e: LinkEvent) => void>();
   let capabilities: string[] = [];
   let hidden = false;
-  const options: WatcherOptions = {
+  const options: WatcherOptions & RecorderOptions = {
     argv: o.argv ?? [], platform: o.platform ?? 'mac',
     helper: { request: async (op, params = {}) => { requests.push([op, params]); return answers[op] ?? { ok: false, error: { code: 'unsupported' } }; } },
     link: {
@@ -78,6 +83,7 @@ function setup(o: { argv?: string[]; saved?: Record<string, unknown> | null; pla
     agentd: { request: async (method, path, json) => { posts.push([method, path, json]); return { status: 202 }; } },
     agentdStateDir: OPEN_STATE,
     saved: () => (o.saved === undefined ? {} : o.saved),
+    plan: () => o.plan ?? AWARE,
     cursor: () => cursor,
     ownPids: () => [77],
     attention: () => ({ reflex: null, systemPaused: false, frontFullscreen: o.frontFullscreen ?? false }),
@@ -96,7 +102,7 @@ function setup(o: { argv?: string[]; saved?: Record<string, unknown> | null; pla
       every: (ms, fn) => { const t = { ms, fn, at: clock }; timers.add(t); return () => { timers.delete(t); }; },
     },
   };
-  const watchers = shellWatchers(options);
+  const watchers = shellWatchers(options), recorders = shellRecorders(options);
   /** Runs each timer as many times as `ms` lets it. */
   const step = async (ms: number) => {
     const end = clock + ms;
@@ -117,17 +123,18 @@ function setup(o: { argv?: string[]; saved?: Record<string, unknown> | null; pla
   };
   const message = (m: Record<string, unknown>) => { for (const l of listeners) l({ kind: 'message', message: { v: 1, ...m } as never }); };
   const lost = () => { for (const l of listeners) l({ kind: 'lost' } as never); };
-  return { watchers, requests, posts, sent, hides, step, hello, message, lost, timers, ops: () => requests.map(([op]) => op), answers, focusHides,
+  return { watchers, recorders, requests, posts, sent, hides, step, hello, message, lost, timers, ops: () => requests.map(([op]) => op), answers, focusHides,
     point: (p: { x: number; y: number }) => { cursor = p; }, cursorHit: (hit: boolean) => { lastCursorHit = hit; },
     setHidden: (h: boolean) => { hidden = h; } };
 }
 
 test('the helper up: the surfaces send their first snapshot, give-way its first screen targets, and the recorder watches the front app', async () => {
   const t = setup();
-  const w = t.watchers!;
+  const w = t.watchers!, rec = t.recorders!;
   w.helper(true);
+  rec.helper(true);
   t.hello();
-  w.agentd(true);
+  rec.agentd(true);
   await t.step(600);
   assert.deepEqual(t.sent.filter((m) => m.type === 'surfaces').map((m) => (m.body as { seq: number }).seq), [0]);
   const mac = placementSpace({ getAllDisplays: () => [], getPrimaryDisplay: () => ({ bounds: { height: 900 } }) as never }, 'mac');
@@ -135,33 +142,48 @@ test('the helper up: the surfaces send their first snapshot, give-way its first 
   assert.deepEqual(t.requests.find(([op]) => op === 'ax.watch')?.[1],
     { pid: 702, notifications: ['focus', 'window', 'title', 'value', 'selection'], read_selected_text: false, read_value: false, watch_id: 'activity' });
   w.stop();
+  rec.stop();
   assert.equal(t.timers.size, 0, 'nothing runs after stop');
 });
 
-test('--no-attention starts none of the three, and the link lists no surfaces or pass_through', () => {
+test('without screen awareness the surfaces and give-way still start, and the recorders do not while agentd runs', async () => {
+  const t = setup({ plan: shellPlan(DEFAULT_PLUGINS) });
+  t.watchers!.helper(true);
+  t.recorders!.helper(true);
+  t.hello();
+  t.recorders!.agentd(true);
+  await t.step(600);
+  assert.deepEqual(t.sent.filter((m) => m.type === 'surfaces').map((m) => (m.body as { seq: number }).seq), [0]);
+  assert.ok(t.ops().includes('ax.focused'), 'give-way reads the focused field');
+  assert.ok(!t.ops().includes('ax.watch'));
+  assert.deepEqual(t.posts, []);
+  t.watchers!.stop();
+  t.recorders!.stop();
+});
+
+test('--no-attention starts none of them, and the link lists no surfaces or pass_through', () => {
   const t = setup({ argv: ['--no-attention'] });
   assert.equal(t.watchers, null);
+  assert.equal(t.recorders, null);
   assert.equal(t.timers.size, 0);
   const track = () => {};
   assert.deepEqual(surfaceLinkOptions(['--no-attention'], track), {});
   assert.deepEqual(surfaceLinkOptions([], track), { onSurfaceTrack: track, offers: ['pass_through'] });
 });
 
-test('observe_activity off, or no saved settings, leaves the recorder off while agentd runs', async () => {
-  for (const saved of [{ observe_activity: false }, null]) {
-    const t = setup({ saved });
-    t.watchers!.helper(true);
-    t.watchers!.agentd(true);
-    await t.step(1000);
-    assert.ok(!t.ops().includes('ax.watch'), JSON.stringify(saved));
-    assert.ok(!t.ops().includes('attention.sample'));
-    t.watchers!.stop();
-  }
+test('screen awareness off leaves the recorders off while agentd runs; agentd stopping stops them', async () => {
+  const t = setup({ plan: shellPlan(DEFAULT_PLUGINS) });
+  t.recorders!.helper(true);
+  t.recorders!.agentd(true);
+  await t.step(1000);
+  assert.ok(!t.ops().includes('ax.watch'));
+  assert.ok(!t.ops().includes('attention.sample'));
+  t.recorders!.stop();
   const on = setup();
-  on.watchers!.helper(true);
-  on.watchers!.agentd(true);
+  on.recorders!.helper(true);
+  on.recorders!.agentd(true);
   await on.step(100);
-  on.watchers!.agentd(false);
+  on.recorders!.agentd(false);
   await on.step(100);
   assert.deepEqual(on.requests.filter(([op]) => op === 'ax.watch').at(-1)?.[1], { pid: null, notifications: [], watch_id: 'activity' },
     'agentd stopping stops the recorder');
@@ -245,12 +267,11 @@ test('without her body or without ObservationControl she does not turn; a new av
   assert.deepEqual(sides(again), []);
 });
 
-test('meeting, pause, observe_activity off, lock, sleep, secure input and an incognito front stop the turn and clear the dwell', () => {
+test('meeting, pause, screen awareness off, lock, sleep, secure input and an incognito front stop the turn and clear the dwell', () => {
   const gates: [string, Parameters<typeof setup>[0], Partial<AttentionSample>][] = [
     ['meeting', { observation: { meeting: true, pausedUntil: null } }, {}],
     ['paused', { observation: { meeting: false, pausedUntil: 2_000_000 } }, {}],
-    ['observe_activity off', { saved: { observe_activity: false } }, {}],
-    ['no saved settings', { saved: null }, {}],
+    ['screen awareness off', { plan: shellPlan(DEFAULT_PLUGINS) }, {}],
     ['locked', {}, { locked: true }],
     ['asleep', {}, { asleep: true }],
     ['secure input', {}, { secureInput: true }],
@@ -267,7 +288,7 @@ test('meeting, pause, observe_activity off, lock, sleep, secure input and an inc
     assert.deepEqual(sides(t), [], name);
   }
   // A gated sample forgets the window: after one, the dwell starts again.
-  for (const [name, , over] of gates.slice(4)) {
+  for (const [name, , over] of gates.slice(3)) {
     const t = setup();
     t.hello();
     t.message(BODY);

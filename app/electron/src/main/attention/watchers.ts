@@ -1,6 +1,6 @@
-// The surface source, the give-way loop and the activity and timeline recorders as index.ts starts them, and
-// C3 rule 39's turn toward the user's focus. The user's mouse presses (mouse-downs.ts) feed keep_clear's `control` and
-// `near_clicks` and `near_clicks_10s`, and FocusVisibility hides her in the window viewport.
+// The surface source and the give-way loop (the core's), C3 rule 39's turn toward the user's focus, and apart from them the
+// activity and timeline recorders, as index.ts starts them. The user's mouse presses (mouse-downs.ts) feed keep_clear's
+// `control` and `near_clicks` and `near_clicks_10s`, and FocusVisibility hides her in the window viewport.
 // All of them read the user's windows or input, so `--no-attention` starts none of them.
 import { join } from 'node:path';
 import { type ActivityPolicy, DEFAULT_POLICY } from '../../common/activity.ts';
@@ -11,6 +11,7 @@ import { FocusVisibility } from '../../common/focus-visibility.ts';
 import { ControlTargets, gap, KEEP_CLEAR, type KeepClearRect, NearClickCells, NearClickCount } from '../../common/keepclear.ts';
 import type { StreamEvent } from '../../common/page.ts';
 import type { Rect } from '../../common/placement.ts';
+import type { Subsystem } from '../../common/plugins.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 import { DEFAULT_TIMELINE_POLICY, type TimelinePolicy } from '../../common/timeline.ts';
 import { startActivity } from '../activity/recorder.ts';
@@ -41,9 +42,6 @@ export interface WatcherOptions {
   platform: 'mac' | 'windows';
   helper: { request(op: string, params?: Record<string, unknown>): Promise<HelperAnswer> };
   link: SurfaceLink & { sendAttentionSide(source: string, kind: string, side: string): boolean; readonly lastCursorHit: boolean };
-  agentd: { request(method: string, path: string, json?: unknown): Promise<{ status: number }> };
-  /** `agentd_state_dir`, which holds blacklist.json. */
-  agentdStateDir: string;
   /** config.json as saved now; null when it is missing or not an object. */
   saved(): Record<string, unknown> | null;
   /** The pointer in C3 global points. */
@@ -64,6 +62,8 @@ export interface WatcherOptions {
   /** The companion log and the hostlink log. */
   log(line: string): void;
   linkLog(line: string): void;
+  /** shellPlan of the plug-ins agentd runs with, read at each use: without `focusTurn` she never turns to the focus. */
+  plan(): ReadonlySet<Subsystem>;
   /** ObservationControl.state (`pausedUntil` in epoch milliseconds); without it she never turns to the focus (rule 39). */
   observation?(): { readonly meeting: boolean; readonly pausedUntil: number | null } | null;
   /** The main display's height, for the front window's bounds; without it she never turns to the focus. */
@@ -82,8 +82,6 @@ export interface ShellWatchers {
   feed(e: StreamEvent): void;
   /** Each attention sample (AttentionSampler.onSample). */
   sampled(s: AttentionSample): void;
-  /** On while agentd runs and `observe_activity` is on. */
-  agentd(running: boolean): void;
   /** LinkOptions.onSurfaceTrack. */
   track(e: SurfaceTrackEvent): void;
   /** The user's screen targets as last read, taken into the placement space by `fromC3`. */
@@ -118,13 +116,12 @@ const typingTrigger = (data: string): boolean => {
   }
 };
 
-/** The three, idle until the helper says hello; null with `--no-attention`. */
+/** The surfaces, give-way and the focus turn, idle until the helper says hello; null with `--no-attention`. */
 export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
   if (o.argv.includes('--no-attention')) return null;
   const clock = o.clock ?? { now: () => performance.now(), every };
   const y = helperYFor(o.platform);
   const stayInPlace = () => ['stay', 'bust'].includes(o.saved()?.stay_mode as string);
-  const blacklist = new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
   const seconds = () => clock.now() / 1000;
   const link = o.link;
   // HostLink.Connection's: new at each hello.
@@ -168,43 +165,6 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
     hideOnScreenCapture: () => o.platform === 'mac' && o.saved()?.hide_on_screen_capture !== false,
     // HostLink.sendSetVisible: any hide or show but FocusVisibility's own cancels its pending change.
     avatarHidden: o.avatarHidden, setHidden: (hidden, reason) => { visibility.manual(seconds()); o.setHidden(hidden, reason); }, every: clock.every, log: (line) => o.linkLog(`HOSTLINK ${line}`), helperY: y,
-  });
-  const timeline = new TimelineRecorder({
-    helper: o.helper,
-    post: async (body) => {
-      try {
-        return (await o.agentd.request('POST', '/context/timeline', body)).status;
-      } catch {
-        return 0;
-      }
-    },
-    blacklist: () => blacklist.rules(),
-    policy: (): TimelinePolicy => {
-      const s = o.saved();
-      if (s === null) return DEFAULT_TIMELINE_POLICY;
-      return { allowActions: s.observe_activity !== false && s.share_actions === true,
-        allowWindowText: s.share_window_text === true, allowTypedText: s.share_typed_text === true,
-        redact: s.redact_sensitive !== false };
-    },
-    ownPids: o.ownPids, now: Date.now, every: clock.every, log: o.log,
-  });
-  const activity = startActivity({
-    helper: o.helper,
-    post: async (body) => {
-      try {
-        return (await o.agentd.request('POST', '/context/events', body)).status;
-      } catch {
-        return 0;
-      }
-    },
-    blacklist: () => blacklist.rules(),
-    // The default policy without saved settings.
-    policy: (): ActivityPolicy => {
-      const s = o.saved();
-      if (s === null) return DEFAULT_POLICY;
-      return { allowTypedText: s.share_typed_text === true, senseCounts: s.sense_input_counts !== false, redact: s.redact_sensitive !== false };
-    },
-    ownPids: o.ownPids, now: Date.now, every: clock.every, log: o.log, timeline: (e) => timeline.mirror(e),
   });
   // HostLink.avatarBodySample's frame: the bounds of this avatar's latest `hit_capsules` in global points. `at` is when they
   // came (seconds), `focusBody` her last body in global points.
@@ -278,16 +238,11 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
     }
     if (a.frame && link.capabilities.includes('keep_clear')) controls.update(o.cursor(), passThrough, press, now);
   });
-  // False when config.json cannot be read.
-  const observeActivity = () => {
-    const saved = o.saved();
-    return saved !== null && saved.observe_activity !== false;
-  };
   const wall = o.wall ?? Date.now;
   /** The gate focusSampled and typingBehavior share. */
   const observing = () => {
     const s = o.observation?.() ?? null;
-    return s !== null && observeActivity() && !s.meeting && (s.pausedUntil === null || s.pausedUntil <= wall());
+    return s !== null && o.plan().has('focusTurn') && !s.meeting && (s.pausedUntil === null || s.pausedUntil <= wall());
   };
   const focus = new FocusSide();
   const focusSampled = (s: AttentionSample) => {
@@ -303,14 +258,11 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
     helper(running) {
       surfaces.helper(running);
       giveWay.helper(running);
-      activity.helper(running);
       mouse.helper(running);
     },
     event(name, data) {
       surfaces.event(name, data);
       giveWay.event(name, data);
-      activity.event(name, data);
-      timeline.event(name, data);
       mouse.event(name, data);
     },
     feed(e) {
@@ -321,17 +273,6 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
       giveWay.sampled(s);
       focusSampled(s);
       surfaces.sampled(s);
-      activity.update(s);
-      timeline.update(s);
-    },
-    agentd(running) {
-      if (running && observeActivity()) {
-        activity.start();
-        timeline.start();
-      } else {
-        activity.stop();
-        timeline.stop();
-      }
     },
     track: (e) => surfaces.track(e),
     // The screen targets, then the controls, then the near click cells.
@@ -349,10 +290,100 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
     stop() {
       stopTick();
       unlisten();
-      activity.stop();
-      timeline.stop();
       giveWay.stop();
       surfaces.stop();
+    },
+  };
+}
+
+export interface RecorderOptions {
+  argv: readonly string[];
+  helper: WatcherOptions['helper'];
+  agentd: { request(method: string, path: string, json?: unknown): Promise<{ status: number }> };
+  /** `agentd_state_dir`, which holds blacklist.json. */
+  agentdStateDir: string;
+  /** config.json as saved now; null when it is missing or not an object. */
+  saved(): Record<string, unknown> | null;
+  ownPids(): readonly number[];
+  /** shellPlan of the plug-ins agentd runs with, read each time agentd starts. */
+  plan(): ReadonlySet<Subsystem>;
+  log(line: string): void;
+  /** Tests drive the timers. */
+  clock?: { every(ms: number, fn: () => void): () => void };
+}
+
+export interface ShellRecorders {
+  /** The helper said hello (true) or went (false). */
+  helper(running: boolean): void;
+  event(name: string, data: Record<string, unknown>): void;
+  /** Each attention sample (AttentionSampler.onSample). */
+  sampled(s: AttentionSample): void;
+  /** Each recorder runs while agentd runs with its subsystem in `plan`. */
+  agentd(running: boolean): void;
+  stop(): void;
+}
+
+/** The activity and timeline recorders, idle until agentd runs; null with `--no-attention`. */
+export function shellRecorders(o: RecorderOptions): ShellRecorders | null {
+  if (o.argv.includes('--no-attention')) return null;
+  const clock = o.clock ?? { every };
+  const blacklist = new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
+  const timeline = new TimelineRecorder({
+    helper: o.helper,
+    post: async (body) => {
+      try {
+        return (await o.agentd.request('POST', '/context/timeline', body)).status;
+      } catch {
+        return 0;
+      }
+    },
+    blacklist: () => blacklist.rules(),
+    policy: (): TimelinePolicy => {
+      const s = o.saved();
+      if (s === null) return DEFAULT_TIMELINE_POLICY;
+      return { allowActions: s.share_actions === true, allowWindowText: s.share_window_text === true,
+        allowTypedText: s.share_typed_text === true, redact: s.redact_sensitive !== false };
+    },
+    ownPids: o.ownPids, now: Date.now, every: clock.every, log: o.log,
+  });
+  const activity = startActivity({
+    helper: o.helper,
+    post: async (body) => {
+      try {
+        return (await o.agentd.request('POST', '/context/events', body)).status;
+      } catch {
+        return 0;
+      }
+    },
+    blacklist: () => blacklist.rules(),
+    // The default policy without saved settings.
+    policy: (): ActivityPolicy => {
+      const s = o.saved();
+      if (s === null) return DEFAULT_POLICY;
+      return { allowTypedText: s.share_typed_text === true, senseCounts: s.sense_input_counts !== false, redact: s.redact_sensitive !== false };
+    },
+    ownPids: o.ownPids, now: Date.now, every: clock.every, log: o.log, timeline: (e) => timeline.mirror(e),
+  });
+  return {
+    helper: (running) => activity.helper(running),
+    event(name, data) {
+      activity.event(name, data);
+      timeline.event(name, data);
+    },
+    sampled(s) {
+      activity.update(s);
+      timeline.update(s);
+    },
+    agentd(running) {
+      const plan = o.plan();
+      if (running && plan.has('activity')) activity.start();
+      else activity.stop();
+      if (running && plan.has('timeline')) timeline.start();
+      else timeline.stop();
+    },
+    stop() {
+      activity.stop();
+      timeline.stop();
     },
   };
 }

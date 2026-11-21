@@ -31,7 +31,9 @@ export const PLUGINS = [
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "pushToTalk"
+      ]
     },
     "web": {
       "pages": [],
@@ -73,7 +75,13 @@ export const PLUGINS = [
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "attention",
+        "activity",
+        "timeline",
+        "context",
+        "focusTurn"
+      ]
     },
     "web": {
       "pages": [],
@@ -97,7 +105,10 @@ export const PLUGINS = [
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "context",
+        "reading"
+      ]
     },
     "web": {
       "pages": [],
@@ -153,7 +164,11 @@ export const PLUGINS = [
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "hooks",
+        "sessions",
+        "approvals"
+      ]
     },
     "web": {
       "pages": [],
@@ -192,7 +207,9 @@ export const PLUGINS = [
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "approvals"
+      ]
     },
     "web": {
       "pages": [],
@@ -237,7 +254,9 @@ export const PLUGINS = [
       "routes": []
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "control"
+      ]
     },
     "web": {
       "pages": [],
@@ -260,7 +279,9 @@ export const PLUGINS = [
       ]
     },
     "shell": {
-      "subsystems": []
+      "subsystems": [
+        "approvals"
+      ]
     },
     "web": {
       "pages": [],

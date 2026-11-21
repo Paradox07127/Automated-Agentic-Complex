@@ -7,7 +7,7 @@ import { storedSwitches, withSwitches } from '../../common/looks.ts';
 import { agentdError } from '../../common/routes.ts';
 import {
   allowsRightOption, behaviorSwitches, idsOfKeys, isHotkeyRow, parseChanges, planSave, Rejection, REVOKE_KINDS, rowById, schema, type SettingValue,
-  snapshot, validateHotkey, webHotkey,
+  settingValues, snapshot, validateHotkey, webHotkey, withSettings,
 } from '../../common/settings.ts';
 import { webLogsDir } from '../../common/config.ts';
 import { DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR, loadConfig } from '../config.ts';
@@ -23,10 +23,9 @@ export function readObject(path: string): Record<string, unknown> {
   return o as Record<string, unknown>;
 }
 
-/** The top-level values that read as settings. */
+/** The values that read as settings. */
 function loadSettings(path: string): Record<string, SettingValue> {
-  return Object.fromEntries(Object.entries(readObject(path))
-    .filter((e): e is [string, SettingValue] => ['boolean', 'number', 'string'].includes(typeof e[1])));
+  return settingValues(readObject(path));
 }
 
 const sortedKeys = (v: unknown): unknown => {
@@ -44,8 +43,7 @@ export function writeObject(path: string, object: Record<string, unknown>): void
 
 /** Merges `values` into the file. */
 export function saveSettings(path: string, values: Record<string, SettingValue>): void {
-  const object = existsSync(path) ? readObject(path) : {};
-  Object.assign(object, values);
+  const object = withSettings(existsSync(path) ? readObject(path) : {}, values);
   const temp = `${path}.tmp-${process.pid}`;
   writeFileSync(temp, JSON.stringify(sortedKeys(object), null, 2), { mode: 0o600 });
   renameSync(temp, path);

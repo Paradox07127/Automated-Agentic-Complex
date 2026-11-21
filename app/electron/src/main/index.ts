@@ -24,6 +24,7 @@ import { FeedSource, SharedSource } from '../common/feed.ts';
 import { processStatus } from '../common/menus.ts';
 import { hookCommand } from '../common/onboarding.ts';
 import { PageSession } from '../common/page.ts';
+import { DEFAULT_PLUGINS, shellPlan, type Subsystem } from '../common/plugins.ts';
 import { PushSource } from '../common/push.ts';
 import { desktopScreens } from '../common/desktop-screens.ts';
 import { DEV_WEB_FLAG, devWebServer } from '../common/dev-web.ts';
@@ -44,7 +45,7 @@ import { AgentdSupervisor } from './agentd/supervisor.ts';
 import type { AmbientSampler } from './ambient/sampler.ts';
 import { ambientOffers, shellAmbient } from './ambient/shell.ts';
 import { shellAttention } from './attention/shell.ts';
-import { helperYFor, shellWatchers, surfaceLinkOptions } from './attention/watchers.ts';
+import { helperYFor, shellRecorders, shellWatchers, surfaceLinkOptions } from './attention/watchers.ts';
 import { CameraOverlayWindow } from './camera/overlay.ts';
 import { CAMERA_OFFERS, shellCamera } from './camera/shell.ts';
 import { feedCommands } from './commands/feed.ts';
@@ -362,15 +363,17 @@ const supervisor = config && new AgentdSupervisor({
     }
     desktop?.agentd(state.kind === 'running');
     // No 按住说话 while the character switches.
-    pushToTalk?.agentd(state.kind === 'running' && !switcher?.busy);
+    pushToTalk?.agentd(state.kind === 'running' && !switcher?.busy && plan().has('pushToTalk'));
     attention?.agentd(state.kind === 'running');
     // The context capture after the attention sampler.
-    context?.agentd(state.kind === 'running');
-    watchers?.agentd(state.kind === 'running');
+    context?.agentd(state.kind === 'running' && plan().has('context'));
+    recorders?.agentd(state.kind === 'running');
     updateTrayMenu();
   },
   onHealth: (stage, degraded) => runtime.send({ kind: 'agentdHealth', stage, degraded }),
 });
+/** shellPlan of the plug-ins agentd runs with: a 重启后台 after a plug-in changed applies it to what starts with agentd. */
+const plan = (): ReadonlySet<Subsystem> => shellPlan(supervisor?.plugins ?? DEFAULT_PLUGINS);
 /** The macOS addon: the preview's XPC client and the desktop panels' `setPreventsActivation`. */
 const addon = config ? previewAddon(join(import.meta.dirname, 'native/preview.node')) : null;
 /** The character page's live preview; none on Windows yet or without a renderer link. */
@@ -410,7 +413,7 @@ if (switcher) {
   switcher.onChange = (view) => {
     runtime.send({ kind: 'character', view });
     void mmdSync?.sync.follow(view.current);
-    pushToTalk?.agentd(agentdState.kind === 'running' && !view.switching);
+    pushToTalk?.agentd(agentdState.kind === 'running' && !view.switching && plan().has('pushToTalk'));
     menus.refreshIcon();
     desktop?.pushState();
   };
@@ -431,6 +434,7 @@ const helper = config && new HelperSupervisor({
     pushToTalk?.helper(state.kind === 'running');
     attention?.helper(state.kind === 'running');
     watchers?.helper(state.kind === 'running');
+    recorders?.helper(state.kind === 'running');
     context?.helper(state.kind === 'running');
     control?.helper(state.kind === 'running');
     updateTrayMenu();
@@ -439,6 +443,7 @@ const helper = config && new HelperSupervisor({
     pushToTalk?.event(e.event, e.data);
     attention?.event(e.event, e.data);
     watchers?.event(e.event, e.data);
+    recorders?.event(e.event, e.data);
     ambient?.event(e.event, e.data);
     context?.event(e.event, e.data);
     control?.event(e.event, e.data);
@@ -483,7 +488,7 @@ const pushToTalk = config && helper && runtimePath !== null && !noPushToTalk ? (
 /** AttentionSampler over the helper; none with `--no-attention`. */
 const attention = config && helper && runtimePath !== null ? shellAttention({
   argv: process.argv, helper, agentd: new AgentdClient(runtimePath), agentdStateDir: config.agentdStateDir,
-  settings: () => readObject(configPath), redact: config.redactSensitive,
+  settings: () => readObject(configPath), redact: config.redactSensitive, plan,
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
   userSpeaking: () => pushToTalk?.held ?? null,
   log: (line) => appendLog(config!.supportDir, 'companion', line),
@@ -494,17 +499,17 @@ const attention = config && helper && runtimePath !== null ? shellAttention({
   },
   onSample: (s) => {
     watchers?.sampled(s);
+    recorders?.sampled(s);
     context?.sampled(s);
   },
   helperY: helperYFor(shellPlatform()),
   ownCaptureRecent: anyOwnCapture((): AmbientSampler | null => ambient, (): ShellContext | null => context),
   nearClicks: (): number | null => watchers?.nearClicks10s() ?? null,
 }) : null;
-/** The surfaces, giving way and the activity recorder over the helper (src/main/attention/watchers.ts); none with
+/** The surfaces and giving way over the helper (src/main/attention/watchers.ts), whatever the plug-ins; none with
  *  `--no-attention`. */
-const watchers = config && hostLink && helper && runtimePath !== null ? shellWatchers({
-  argv: process.argv, platform: shellPlatform(), helper, link: hostLink, agentd: new AgentdClient(runtimePath),
-  agentdStateDir: config.agentdStateDir, saved: () => readSaved(configPath),
+const watchers = config && hostLink && helper ? shellWatchers({
+  argv: process.argv, platform: shellPlatform(), helper, link: hostLink, saved: () => readSaved(configPath), plan,
   cursor: () => c3Cursor(cursorSpace ??= c3Space(screen), screen.getCursorScreenPoint()),
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
   attention: () => attention,
@@ -524,6 +529,13 @@ const watchers = config && hostLink && helper && runtimePath !== null ? shellWat
   observation: () => observation?.state ?? null,
   mainHeight: () => screen.getPrimaryDisplay().bounds.height,
 }) : null;
+/** The activity and timeline recorders (src/main/attention/watchers.ts), each running while agentd runs with its subsystem in
+ *  the plan; none with `--no-attention`. */
+const recorders = config && helper && runtimePath !== null ? shellRecorders({
+  argv: process.argv, helper, agentd: new AgentdClient(runtimePath), agentdStateDir: config.agentdStateDir,
+  saved: () => readSaved(configPath), ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]), plan,
+  log: (line) => appendLog(config!.supportDir, 'companion', line),
+}) : null;
 /** Rule 44's colours over the helper (src/main/ambient/shell.ts); none with `--no-attention`. */
 const ambient = config && hostLink && helper ? shellAmbient({
   argv: process.argv, platform: shellPlatform(), helper, link: hostLink, agentdStateDir: config.agentdStateDir,
@@ -539,7 +551,8 @@ const ambient = config && hostLink && helper ? shellAmbient({
   },
   log: (line) => appendLog(config!.supportDir, 'companion', line),
 }) : null;
-/** ContextCapturer over the helper (src/main/context/shell.ts); none with `--no-attention`. */
+/** ContextCapturer over the helper (src/main/context/shell.ts), running while agentd runs with `context` in the plan; none
+ *  with `--no-attention`. */
 const context = config && helper && runtimePath !== null ? shellContext({
   argv: process.argv, helper, agentd: new AgentdClient(runtimePath), agentdStateDir: config.agentdStateDir,
   settings: () => readObject(configPath),
@@ -551,7 +564,6 @@ const context = config && helper && runtimePath !== null ? shellContext({
 store?.subscribe((e) => context?.feed(e));
 // agentd's typing behavior may turn her.
 store?.subscribe((e) => watchers?.feed(e));
-/** The computer control host over the helper (src/main/control/shell.ts), for agentd's desktop tools; none with `--no-attention`. */
 /** 按住 Option 把她拖到窗口上 (handover/window.ts); none with `--no-attention`. */
 const windowHandover = config && helper ? shellWindowHandover({ argv: process.argv, helper, settings: () => readObject(configPath),
   helperY: helperYFor(shellPlatform()), mainHeight: () => screen.getPrimaryDisplay().bounds.height, desktop: () => desktop }) : null;
@@ -573,7 +585,9 @@ const regionWindow = new RegionSelectWindow({
   unregister: (id) => pages.delete(id),
   get baseOps() { return surfaceOps('stack'); },
 });
-const control = config && helper ? shellControl({
+/** The computer control host over the helper (src/main/control/shell.ts), for agentd's desktop tools; none without `control`
+ *  in the launch's plan or with `--no-attention`. */
+const control = config && helper && plan().has('control') ? shellControl({
   argv: process.argv, helper, supportDir: config.supportDir, configPath, agentdStateDir: config.agentdStateDir,
   saved: (path) => loadConfig(path),
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
@@ -960,7 +974,7 @@ function notifyCaptureSaved(file: string): void {
 const recent = new RecentAnnouncements();
 const menus = shellMenus({
   playlist: () => mainCtx && avatarPlaylist(mainCtx), recent,
-  settings: () => readObject(configPath),
+  settings: () => readObject(configPath), plan,
   characters: () => config && config.characters.map((c) => ({ id: c.id, name: c.name })),
   launched,
   services: () => (config ? menuLines(tunnel?.config ?? config, rendererState, agentdState, tunnelState) : []),
@@ -1133,6 +1147,7 @@ app.on('will-quit', (e) => {
   regionWindow.stop();
   placer?.stop();
   watchers?.stop();
+  recorders?.stop();
   ambient?.stop();
   context?.stop();
   void control?.stop();
@@ -1241,7 +1256,8 @@ void app.whenReady().then(async () => {
       argv: process.argv,
       shortcut: { register: (accelerator, pressed) => globalShortcut.register(accelerator, pressed),
         unregister: (accelerator) => globalShortcut.unregister(accelerator) },
-      settings: () => readObject(configPath), context,
+      // Registered once: a plug-in turned on later brings these keys at the next launch.
+      settings: () => readObject(configPath), context: plan().has('reading') ? context : null,
       avatarHidden: () => hostLink?.hidden ?? false, setHidden: (hidden, reason) => { setAvatarHidden(hidden, reason); },
       quickInput: () => desktop && ((first) => desktop!.openQuickInput(first)),
       clickThroughAll: hostLink && { on: () => hostLink.clickThroughAll, set: (on) => {
