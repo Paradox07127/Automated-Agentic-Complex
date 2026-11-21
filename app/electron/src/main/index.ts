@@ -152,7 +152,8 @@ const configPath = (() => {
   }
   return configPathFromArgs(process.argv);
 })();
-const supportDir = supportDirOf(configPath);
+// A packaged config.json sits in its support dir, also before preparePackaged first writes it.
+const supportDir = supportDirOf(configPath, explicitConfig ? DEFAULT_SUPPORT_DIR : dirname(configPath));
 /** Where the renderer writes `avatar.capture`'s files. */
 const CAPTURE_DIR = join(homedir(), 'Pictures/Agentic Complex');
 // Chromium's profile stays with the support dir, so a `--config` run touches nothing of the installed app.

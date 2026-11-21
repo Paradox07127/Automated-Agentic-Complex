@@ -86,6 +86,30 @@ test('hello: without the new callbacks it is the same line as before; with them 
   });
 });
 
+test('hello: another peer\'s hello while a renderer is connected is refused and closed; the next renderer is taken once that one is gone', { skip: UNIX_LINK }, async () => {
+  const clicks: unknown[] = [];
+  await withLink({ onClick: (c) => clicks.push(c) }, async (link, log) => {
+    const first = await attach(link, { pid: 99 });
+    const peer = new FakeAvatar(link.path);
+    let peerClosed = false;
+    peer.socket.on('close', () => { peerClosed = true; });
+    peer.send({ type: 'hello', role: 'avatar', pid: 100, protocol: 1, character: 'aster', capabilities: [] });
+    peer.send({ type: 'click', button: 'left', count: 2, x: 1, y: 1 });
+    await until(2, () => peerClosed || link.hello?.pid !== 99);
+    assert.equal(link.hello?.pid, 99, 'the connected renderer keeps the link');
+    assert.ok(await until(2, () => peerClosed), log.join('\n'));
+    assert.deepEqual(peer.got, [], 'the refused peer gets no hello');
+    first.send({ type: 'click', button: 'left', count: 2, x: 1, y: 1 });
+    assert.ok(await until(1, () => clicks.length > 0));
+    assert.deepEqual(clicks, [{ kind: 'double' }], 'only the first renderer\'s click reaches the shell');
+    first.socket.destroy();
+    assert.ok(await until(2, () => !link.connected));
+    const next = await attach(link, { pid: 101 });
+    assert.equal(link.hello?.pid, 101);
+    next.socket.destroy();
+  });
+});
+
 const INBOUND = ['click', 'speech_cancelled', 'playback', 'track_surface', 'untrack_surface', 'attach', 'drop', 'motion.stroke', 'pose_state',
   'camera_gesture'];
 

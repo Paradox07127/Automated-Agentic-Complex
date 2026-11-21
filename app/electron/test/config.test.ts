@@ -10,6 +10,7 @@ import {
   configPathFromArgs, DEFAULT_AGENTD_STATE_DIR, DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR, loadConfig, quitAfterFromArgs, supportDirOf,
 } from '../src/main/config.ts';
 import { defaultDirs } from '../src/main/platform/index.ts';
+import { hostSocketPath } from '../src/main/renderer/link.ts';
 import { rendererArguments } from '../src/main/renderer/supervisor.ts';
 
 const EMPTY_LIBRARY = fileURLToPath(new URL('../../../protocol/character-library/fixtures/empty-library/current.json', import.meta.url));
@@ -179,7 +180,7 @@ test('defaults of Config', () => {
   assert.equal(parse({ ...ASTER, voice_service: 'system', tts_url: 'http://h:1' }).ttsURL, 'http://h:1');
 });
 
-test('the config path comes from --config, else the installed support dir; support_dir falls back to its directory', () => {
+test('the config path comes from --config, else the installed support dir; support_dir falls back to the installed one or the given one', () => {
   assert.equal(configPathFromArgs(['electron', '.', '--config', '/t/config.json']), '/t/config.json');
   assert.equal(configPathFromArgs(['electron', '.']), join(DEFAULT_SUPPORT_DIR, 'config.json'));
   assert.deepEqual({ supportDir: DEFAULT_SUPPORT_DIR, agentdStateDir: DEFAULT_AGENTD_STATE_DIR, webLogsDir: DEFAULT_WEB_LOGS_DIR }, defaultDirs());
@@ -192,7 +193,25 @@ test('the config path comes from --config, else the installed support dir; suppo
     writeFileSync(path, '{"support_dir": "/elsewhere"}');
     assert.equal(supportDirOf(path), '/elsewhere');
     writeFileSync(path, 'not json');
-    assert.equal(supportDirOf(path), dir);
+    assert.equal(supportDirOf(path), DEFAULT_SUPPORT_DIR);
+    assert.equal(supportDirOf(path, dir), dir);
+  });
+});
+
+test('two configs in different directories without support_dir take the one lock of the support dir whose C3 path they share', () => {
+  withTemp((dir) => {
+    const paths = ['a', 'b'].map((name) => {
+      const path = join(dir, name, 'config.json');
+      mkdirSync(dirname(path));
+      writeFileSync(path, JSON.stringify(ASTER));
+      return path;
+    });
+    // Electron keeps its single-instance lock in userData, `<support dir>/electron`.
+    const locks = paths.map((path) => join(supportDirOf(path), 'electron'));
+    const sockets = paths.map((path) => hostSocketPath(loadConfig(path).supportDir, 501));
+    assert.equal(sockets[0], sockets[1]);
+    assert.equal(locks[0], locks[1]);
+    assert.equal(supportDirOf(paths[0]!), loadConfig(paths[0]!).supportDir);
   });
 });
 

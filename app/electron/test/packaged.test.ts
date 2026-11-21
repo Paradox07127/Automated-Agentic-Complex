@@ -2,7 +2,7 @@
 // the components, config.json in the support dir and the seed library; the character tools are a fake `run` port.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -303,6 +303,31 @@ test('a launch drops the package directories, catalogs and native bundles its ow
   assert.deepEqual(readdirSync(seeded).sort(),
     ['catalog-r1.json', 'current.json', 'distribution-seed.json', 'native-cur.json', 'outfit-imports', 'packages']);
   assert.ok(existsSync(join(seeded, 'outfit-imports/a/imports.json')));
+});
+
+test('a launch removes nothing through a linked package directory or a linked library', (t) => {
+  const root = temp(t), app = packagedApp(root), tools = fakeTools();
+  const configPath = preparePackaged(app.options, tools.ports)!.configPath;
+  const seeded = dirname(String(readJSON(configPath).character_catalog)), sha1 = '1'.repeat(64);
+  upgradedLibrary(seeded);
+  const linkedPackage = join(root, 'linked-package');
+  write(join(linkedPackage, 'photos/keep.txt'), 'mine');
+  renameSync(join(seeded, 'packages/a', sha1), join(linkedPackage, sha1));
+  rmSync(join(seeded, 'packages/a'), { recursive: true });
+  symlinkSync(linkedPackage, join(seeded, 'packages/a'), 'junction');
+  preparePackaged(app.options, tools.ports);
+  assert.deepEqual(readdirSync(linkedPackage).sort(), [sha1, 'photos'], 'the directory behind the link keeps its unrelated directory');
+  assert.deepEqual(readdirSync(join(seeded, 'packages')), ['a'], 'the rest of the library is still pruned');
+
+  const linkedLibrary = join(root, 'linked-library');
+  rmSync(join(seeded, 'packages/a'));
+  renameSync(linkedPackage, join(seeded, 'packages/a'));
+  renameSync(seeded, linkedLibrary);
+  symlinkSync(linkedLibrary, seeded, 'junction');
+  write(join(linkedLibrary, `packages/gone/${'2'.repeat(64)}/keep.txt`), 'mine');
+  preparePackaged(app.options, tools.ports);
+  assert.ok(existsSync(join(linkedLibrary, `packages/gone/${'2'.repeat(64)}/keep.txt`)), 'a linked library is not pruned');
+  assert.deepEqual(readdirSync(join(linkedLibrary, 'packages/a')).sort(), [sha1, 'photos']);
 });
 
 test('a launch leaves a user catalog outside the support dir alone', (t) => {

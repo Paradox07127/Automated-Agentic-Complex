@@ -655,8 +655,9 @@ export class HostLink {
 
   private handshake(hello: AvatarHello, c: Connection): void {
     if (this.candidate === c) {
+      // The connected renderer keeps the link until its connection closes.
+      if (this.conn) return this.close(c, 'refused: a renderer is connected');
       this.candidate = null;
-      if (this.conn) this.close(this.conn, 'replaced');
       this.conn = c;
     }
     c.hello = hello;

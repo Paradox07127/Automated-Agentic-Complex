@@ -2,8 +2,10 @@
 // the seed character library. An app without distribution.json (Electron from the repo) prepares nothing.
 import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import {
+  appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync,
+} from 'node:fs';
+import { basename, dirname, join, sep } from 'node:path';
 import { ConfigError, parseConfig, type ShellPlatform } from '../common/config.ts';
 import { type Composition, prepareComponents, setComposition, writeAtomic } from './components.ts';
 import { readCatalog } from './config.ts';
@@ -90,19 +92,28 @@ const sha256 = (data: Buffer) => createHash('sha256').update(data).digest('hex')
  * current.json does not name. Only before agentd and the renderer start, when no reader holds an older catalog.
  */
 function pruneLibrary(library: string): void {
+  // Nothing is enumerated or removed through a symlink or junction: a linked library, `packages` or package directory stays.
+  const linked = (path: string) => lstatSync(path).isSymbolicLink();
+  if (linked(library)) return;
+  const root = realpathSync(library);
+  const remove = (path: string) => {
+    if (realpathSync(path).startsWith(root + sep)) rmSync(path, { recursive: true });
+  };
   const current = JSON.parse(readFileSync(join(library, 'current.json'), 'utf8')) as
     { revision?: string; native_bundle?: { file?: string }; characters: { definition: { file: string } }[] };
   // `packages/<id>/<sha>/character.json`.
   const files = current.characters.map((c) => c.definition.file.split('/'));
   const ids = new Set(files.map((parts) => parts[1])), kept = new Set(files.map((parts) => parts.slice(0, 3).join('/')));
   const packages = join(library, 'packages');
-  for (const id of existsSync(packages) ? readdirSync(packages) : []) {
+  for (const id of existsSync(packages) && !linked(packages) ? readdirSync(packages) : []) {
+    const dir = join(packages, id);
+    if (linked(dir)) continue;
     if (!ids.has(id)) {
-      rmSync(join(packages, id), { recursive: true });
+      remove(dir);
       continue;
     }
-    for (const entry of readdirSync(join(packages, id), { withFileTypes: true })) {
-      if (entry.isDirectory() && !kept.has(`packages/${id}/${entry.name}`)) rmSync(join(packages, id, entry.name), { recursive: true });
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory() && !kept.has(`packages/${id}/${entry.name}`)) remove(join(dir, entry.name));
     }
   }
   for (const name of readdirSync(library)) {

@@ -306,7 +306,7 @@ test('a text-only character or none leaves the renderer stopped', async () => {
   }
 });
 
-test('host link: hello handshake, fps_tier, avatar ops over C3, rule 17 kill, a replacing connection and a too-long line', { skip: UNIX_LINK }, async () => {
+test('host link: hello handshake, fps_tier, avatar ops over C3, rule 17 kill, the next connection and a too-long line', { skip: UNIX_LINK }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'l-'));
   const lines: string[] = [], events: LinkEvent[] = [];
   const link = new HostLink({ path: join(dir, 'run/avatar.sock'), transport: 'unix', pid: 4242, build: { version: 't' },
@@ -372,10 +372,12 @@ test('host link: hello handshake, fps_tier, avatar ops over C3, rule 17 kill, a 
     assert.ok(await until(3, () => events.some((e) => e.kind === 'watchdog')), lines.join('\n'));
     assert.deepEqual(events.find((e) => e.kind === 'watchdog'), { kind: 'watchdog', pid: 99, reason: 'heartbeat_timeout' });
 
+    // The killed renderer's connection closes before the restarted one says hello.
+    avatar.socket.destroy();
+    assert.ok(await until(2, () => events.some((e) => e.kind === 'lost')), lines.join('\n'));
     second = new FakeAvatar(link.path, true);
     second.send({ type: 'hello', role: 'avatar', pid: 100, protocol: 1, character: 'cedar', capabilities: [] });
-    assert.ok(await until(2, () => events.some((e) => e.kind === 'lost')), lines.join('\n'));
-    assert.equal(link.hello?.pid, 100);
+    assert.ok(await until(2, () => link.hello?.pid === 100), lines.join('\n'));
     assert.equal(link.currentCharacter, 'cedar');
     assert.deepEqual(await call2(link, 'avatar.actions'), { ok: false, error: { code: 'not_implemented', detail: '这个版本的角色不支持动作设置' } });
     second.socket.write(`${'x'.repeat(70000)}\n`);
@@ -396,6 +398,8 @@ test('host link: a new connection numbers its req from 1 again and does not inhe
   await link.start();
   const avatars: FakeAvatar[] = [];
   const attach = async () => {
+    avatars.at(-1)?.socket.destroy();
+    assert.ok(await until(2, () => !link.connected));
     const a = new FakeAvatar(link.path, true);
     avatars.push(a);
     a.send({ type: 'hello', role: 'avatar', pid: 99 + avatars.length, protocol: 1, capabilities: ['ack', 'placement'] });
@@ -411,7 +415,7 @@ test('host link: a new connection numbers its req from 1 again and does not inhe
 
     const second = await attach();
     assert.equal(link.hello?.pid, 101);
-    assert.equal(link.lastPlacement, null, 'the replaced renderer\'s placement is not this one\'s');
+    assert.equal(link.lastPlacement, null, 'the closed renderer\'s placement is not this one\'s');
     assert.equal(((await call2(link, 'avatar.state')) as { value: { scale: number } }).value.scale, 1);
     assert.ok(link.sendSetPlacement({ scale: 1.25 }));
     assert.ok(await until(1, () => second.types().includes('set_placement')));
@@ -429,13 +433,15 @@ test('host link: a new connection numbers its req from 1 again and does not inhe
   }
 });
 
-test('host link: stats belong to their connection; a replacing renderer and a dropped one leave none', { skip: UNIX_LINK }, async () => {
+test('host link: stats belong to their connection; the next renderer and a dropped one leave none', { skip: UNIX_LINK }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 's-'));
   const link = new HostLink({ path: join(dir, 'run/avatar.sock'), transport: 'unix', pid: 4242, build: { version: 't' },
     fps: () => ({ idleLowFps: true, userFps: 60, batteryLow: true }), log: () => {} });
   await link.start();
   const avatars: FakeAvatar[] = [];
   const attach = async () => {
+    avatars.at(-1)?.socket.destroy();
+    assert.ok(await until(2, () => !link.connected));
     const a = new FakeAvatar(link.path, true);
     avatars.push(a);
     a.send({ type: 'hello', role: 'avatar', pid: 99 + avatars.length, protocol: 1, capabilities: [] });
@@ -447,7 +453,7 @@ test('host link: stats belong to their connection; a replacing renderer and a dr
     first.send({ type: 'stats', fps: 60, frame_ms_p95: 17.5, gpu_ms: 3 });
     assert.ok(await until(1, () => link.lastStats?.fps === 60));
     const second = await attach();
-    assert.equal(link.lastStats, null, 'the replaced renderer\'s stats are not this one\'s');
+    assert.equal(link.lastStats, null, 'the closed renderer\'s stats are not this one\'s');
     second.send({ type: 'stats', fps: 30, frame_ms_p95: null, gpu_ms: null });
     assert.ok(await until(1, () => link.lastStats?.fps === 30));
     second.socket.destroy();
@@ -695,6 +701,8 @@ test('HostLinkTests+PlacementAndHit: set_placement and move_window carry a req; 
   await link.start();
   const avatars: FakeAvatar[] = [];
   const connectV9 = async (capabilities: string[]) => {
+    avatars.at(-1)?.socket.destroy();
+    assert.ok(await until(2, () => !link.connected));
     const a = new FakeAvatar(link.path, true);
     avatars.push(a);
     a.send({ type: 'hello', role: 'avatar', pid: 99, protocol: 1, capabilities });
