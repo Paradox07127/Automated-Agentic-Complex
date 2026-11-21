@@ -19,7 +19,7 @@ export const demos: Demo[] = [
   { name: 'data', params: { group: 'data' } },
   { name: 'about', params: { group: 'about' } },
   { name: 'adv', params: { group: 'adv' } },
-  { name: 'dropdown-open', params: { group: 'speak', demo: 'dropdown-open', item: 'proactive' } }, // 下拉展开
+  { name: 'dropdown-open', params: { group: 'speak', demo: 'dropdown-open', item: 'rest' } }, // 下拉展开
   { name: 'confirm-danger', params: { group: 'privacy', demo: 'confirm-danger', item: 'pause' } }, // 关闭并删除 214 条
   { name: 'pending', params: { group: 'privacy', demo: 'pending' } }, // ⟳ 待应用
   { name: 'kernel-logged-out', params: { group: 'kernel', demo: 'logged-out' } }, // 未登录：恢复命令 + 改用 Claude Code

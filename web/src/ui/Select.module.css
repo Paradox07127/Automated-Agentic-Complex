@@ -2,8 +2,6 @@
 .drop {
   /* Pressed tint #A6A6A6 over the caption, as a black overlay. */
   --press: rgba(0, 0, 0, 0.35);
-  /* List plate: black shadow, alpha <= 0.14. */
-  --plate-shadow: rgba(0, 0, 0, 0.14);
   position: relative;
   /* Own stacking context: a later Select's caption (z dropdown + 1) must not paint over this one's open list. */
   z-index: 0;
@@ -77,7 +75,7 @@
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
 
-/* Plate behind the caption; the list continues it downward. */
+/* Plate behind the caption; the list continues it downward, or upward when it opens above. */
 .drop[data-open]::before {
   content: '';
   position: absolute;
@@ -90,12 +88,18 @@
   background: var(--ef-dropdown-list);
 }
 
+.drop[data-up]::before {
+  top: -4px;
+  border-radius: 0 0 5px 5px;
+}
+
+/* Portalled to body and placed by Select.tsx; above a Modal the control may sit in. */
 .list {
-  position: absolute;
-  top: 36px;
-  right: -4px;
-  left: -4px;
-  z-index: var(--ef-z-dropdown);
+  /* List plate: black shadow, alpha <= 0.14. */
+  --plate-shadow: rgba(0, 0, 0, 0.14);
+  position: fixed;
+  z-index: calc(var(--ef-z-modal) + 1);
+  box-sizing: border-box;
   max-height: 235px;
   margin: 0;
   padding: 0 4px 2px;
@@ -106,6 +110,11 @@
   box-shadow: 0 8px 12px -4px var(--plate-shadow);
   color: var(--ef-dropdown-opt-text);
   list-style: none;
+}
+
+.list[data-up] {
+  border-radius: 5px 5px 0 0;
+  box-shadow: 0 -8px 12px -4px var(--plate-shadow);
 }
 
 .list:focus-visible {

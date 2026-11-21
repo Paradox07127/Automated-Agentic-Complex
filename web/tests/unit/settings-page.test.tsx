@@ -98,6 +98,43 @@ describe(' 说话与通知: 今日发言闸门', () => {
     const gate = await screen.findByRole('region', { name: '今日发言闸门' });
     expect(await within(gate).findByRole('img', { name: '今日主动发言：已用 1 次，上限 12' })).toBeTruthy();
   });
+
+  it('is a developer row: absent while 开发者模式 is off', async () => {
+    localStorage.setItem('ef.devMode', '0');
+    try {
+      await mount('&group=speak');
+      expect(await screen.findByRole('radiogroup', { name: '她什么时候开口' })).toBeTruthy();
+      await waitFor(() => expect(document.querySelector('[data-row="tts"]')).not.toBeNull());
+      expect(screen.queryByRole('region', { name: '今日发言闸门' })).toBeNull();
+      expect(document.querySelector('[data-row="gate"]')).toBeNull();
+    } finally {
+      localStorage.removeItem('ef.devMode');
+    }
+  });
+});
+
+describe(' 说话与通知: a row under 主动 while 主动 is not chosen', () => {
+  it('a deep link to 主动程度 lands on 她什么时候开口, the row that brings it back', async () => {
+    const seen: Element[] = [];
+    const prev = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      seen.push(this);
+    };
+    try {
+      await mount('&group=speak&item=proactive');
+      const when = (await screen.findByRole('radiogroup', { name: '她什么时候开口' })).closest('[data-row="speakWhen"]') as HTMLElement;
+      await waitFor(() => expect(when.className).toMatch(/hl/));
+      expect(document.querySelector('[data-row="proactive"]')).toBeNull();
+      expect(seen).toContain(document.getElementById('set-speakWhen'));
+    } finally {
+      Element.prototype.scrollIntoView = prev;
+    }
+  });
+
+  it('the dropdown-open demo opens a row select that is always there', async () => {
+    await mount('&group=speak&demo=dropdown-open');
+    expect(await screen.findByRole('listbox')).toBeTruthy();
+  });
 });
 
 describe(' states and navigation', () => {

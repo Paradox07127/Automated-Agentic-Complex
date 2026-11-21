@@ -44,7 +44,7 @@ export function useControls() {
           value={String(v(id) ?? '')}
           defaultValue={d == null ? undefined : String(d)}
           options={opts(id, given).map((o) => ({ value: o.value, label: o.label, risky: risky.includes(o.value) }))}
-          open={demo === 'dropdown-open' && (item ?? 'proactive') === id}
+          open={demo === 'dropdown-open' && (item ?? 'rest') === id}
           disabled={lock(id) || dis}
           onChange={(x) => model.set(id, x)}
         />

@@ -47,6 +47,62 @@ describe('Select', () => {
     render(<Select label="主动程度" value="m" options={options} open />);
     expect(screen.getByRole('option', { name: /活跃.*有风险/ })).toBeTruthy();
   });
+
+  it('renders the list on body, outside the row, so a later row cannot paint over it', () => {
+    const onChange = vi.fn();
+    render(
+      <div data-testid="row" data-theme="light" style={{ isolation: 'isolate', overflow: 'hidden' }}>
+        <Select label="休息提醒" value="m" options={options} onChange={onChange} />
+      </div>,
+    );
+    const trigger = screen.getByRole('button', { name: '休息提醒' });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const list = screen.getByRole('listbox', { name: '休息提醒' });
+    expect(list.parentElement).toBe(document.body);
+    expect(screen.getByTestId('row').contains(list)).toBe(false);
+    expect(list.getAttribute('data-theme')).toBe('light');
+    expect(trigger.getAttribute('aria-controls')).toBe(list.id);
+    expect(document.activeElement).toBe(list);
+    fireEvent.keyDown(list, { key: 'ArrowUp' });
+    expect(list.getAttribute('aria-activedescendant')).toBe(screen.getByRole('option', { name: '安静' }).id);
+    fireEvent.keyDown(list, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('picks with the mouse inside the list and closes on a click outside', () => {
+    const onChange = vi.fn();
+    render(<Select label="主动程度" value="m" options={options} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: '主动程度' }));
+    const quiet = screen.getByRole('option', { name: '安静' });
+    fireEvent.mouseDown(quiet);
+    fireEvent.click(quiet);
+    expect(onChange).toHaveBeenCalledWith('q');
+    fireEvent.click(screen.getByRole('button', { name: '主动程度' }));
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('opens upward inside the window when there is no room below the caption', () => {
+    const tall = vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockReturnValue(100);
+    try {
+      render(<Select label="主动程度" value="m" options={options} />);
+      const drop = document.querySelector('[data-stub="Select"]') as HTMLElement;
+      const vh = window.innerHeight;
+      drop.getBoundingClientRect = () => ({ top: vh - 40, bottom: vh - 8, left: 100, right: 340, width: 240, height: 32, x: 100, y: vh - 40, toJSON: () => ({}) });
+      fireEvent.click(screen.getByRole('button', { name: '主动程度' }));
+      const list = screen.getByRole('listbox');
+      expect(list.style.top).toBe('');
+      expect(vh - parseFloat(list.style.bottom)).toBeLessThanOrEqual(vh - 40);
+      expect(parseFloat(list.style.maxHeight)).toBeLessThanOrEqual(vh - 40 - 8);
+      expect(list.style.left).toBe('96px');
+      expect(list.style.width).toBe('248px');
+      expect(drop.hasAttribute('data-up')).toBe(true);
+    } finally {
+      tall.mockRestore();
+    }
+  });
 });
 
 describe('Menu', () => {

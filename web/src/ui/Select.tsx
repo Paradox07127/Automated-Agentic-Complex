@@ -1,7 +1,12 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Icon } from './Icon';
+import { placePopup, usePopupLayer } from './popup';
 import { useControlled } from './useControlled';
 import styles from './Select.module.css';
+
+/** The plate reaches 4 px past the caption on each side; the list is as wide. */
+const PLATE_OUT = 4;
+const LIST_MAX = 235;
 
 /** 下拉：浅色胶囊，展开时灰色列表板从上方包住胶囊；默认值写「（默认）」，有风险的项加 ▲；最多显示 7 项。 */
 export interface SelectProps {
@@ -35,10 +40,23 @@ export function Select({ value, options, label, defaultValue, open: forced, disa
   const id = useId();
   const text = (v: string) => `${options.find((o) => o.value === v)?.label ?? v}${v === defaultValue ? '（默认）' : ''}`;
 
+  const place = useCallback(() => {
+    const d = root.current;
+    const l = list.current;
+    if (!d || !l) return null;
+    const r = d.getBoundingClientRect();
+    const plate = { top: r.top, bottom: r.bottom, left: r.left - PLATE_OUT, right: r.right + PLATE_OUT };
+    const width = plate.right - plate.left;
+    return { ...placePopup(plate, width, l.scrollHeight, 'left', LIST_MAX), width };
+  }, []);
+  const { inline, layer, portal } = usePopupLayer(open, root, place);
+  const up = !inline && layer?.place.bottom !== undefined;
+
   useEffect(() => {
     if (!openState || forced) return;
     const away = (e: MouseEvent) => {
-      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (root.current && !root.current.contains(t) && !list.current?.contains(t)) setOpen(false);
     };
     document.addEventListener('mousedown', away);
     return () => document.removeEventListener('mousedown', away);
@@ -89,12 +107,15 @@ export function Select({ value, options, label, defaultValue, open: forced, disa
       e.stopPropagation();
       close(true);
     } else if (e.key === 'Tab') {
-      close(false);
+      // The list sits at the end of body: Tab goes on from the trigger, Shift+Tab lands on it.
+      trigger.current?.focus();
+      if (e.shiftKey) e.preventDefault();
+      setOpen(false);
     }
   };
 
   return (
-    <div ref={root} className={styles.drop} data-stub="Select" data-open={open || undefined} style={width ? { width } : undefined}>
+    <div ref={root} className={styles.drop} data-stub="Select" data-open={open || undefined} data-up={up || undefined} style={width ? { width } : undefined}>
       <button
         ref={trigger}
         type="button"
@@ -111,13 +132,16 @@ export function Select({ value, options, label, defaultValue, open: forced, disa
         <span className={styles.value}>{text(current)}</span>
         <span className={styles.tri} aria-hidden="true" />
       </button>
-      {open && (
+      {open && inline !== undefined && portal(
         <ul
           ref={list}
           id={`${id}-list`}
           role="listbox"
           data-overlay=""
           className={styles.list}
+          data-theme={inline ? undefined : layer?.theme}
+          data-up={up || undefined}
+          style={inline ? undefined : layer?.place}
           aria-label={label}
           tabIndex={-1}
           aria-activedescendant={`${id}-o${active}`}
@@ -144,7 +168,7 @@ export function Select({ value, options, label, defaultValue, open: forced, disa
               {o.value === current && <Icon name="check" size={12} />}
             </li>
           ))}
-        </ul>
+        </ul>,
       )}
     </div>
   );

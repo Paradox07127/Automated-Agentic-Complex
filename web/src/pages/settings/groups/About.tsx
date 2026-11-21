@@ -10,7 +10,7 @@ import styles from '../groups.module.css';
 
 /** 启动与关于: login item, build from the bridge, onboarding and licences. */
 export function AboutGroup() {
-  const { model, caps, native } = useSettings();
+  const { model, native } = useSettings();
   const c = useControls();
   const devMode = useDevMode();
   const bridge = getBridge();
@@ -35,26 +35,7 @@ export function AboutGroup() {
           id="login"
           title="登录时启动"
           desc={native?.statuses.login ?? (model.value('login') === true ? '已在系统「登录项」里允许' : '关闭')}
-          control={
-            <>
-              {/* Only when the shell reports the login item did not take: then the system pane is the fix. */}
-              {native?.statuses.login && (
-                <Btn
-                  size="sm"
-                  variant="ghost"
-                  disabled={!caps.systemSettings}
-                  disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的登录项设置"
-                  onClick={() => void bridge.permissions.openSettings('loginItems').then(
-                    () => model.notify({ message: '已打开系统设置 › 登录项' }),
-                    () => model.notify({ message: '没能打开系统设置。请手动检查「登录项」。', severity: 'danger', persistent: true }),
-                  )}
-                >
-                  去系统设置
-                </Btn>
-              )}
-              {c.toggle('login')}
-            </>
-          }
+          control={c.toggle('login')}
         />
       </SetSection>
       <SetSection title="关于">
@@ -79,10 +60,15 @@ export function AboutGroup() {
           id="onb"
           title="重新运行首次设置"
           control={action('开始', () =>
-            void bridge.app.action('open_onboarding').then(
-              () => model.notify({ message: '已打开首次设置' }),
-              () => model.notify({ message: '这个外壳还不能打开首次设置', severity: 'warning' }),
-            ),
+            model.ask({
+              title: '重新运行首次设置？',
+              confirmLabel: '开始',
+              onConfirm: () =>
+                bridge.app.action('open_onboarding').then(
+                  () => model.notify({ message: '已打开首次设置' }),
+                  () => model.notify({ message: '这个外壳还不能打开首次设置', severity: 'warning' }),
+                ),
+            }),
           )}
         />
         <SetRow

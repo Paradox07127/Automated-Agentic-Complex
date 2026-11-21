@@ -9,6 +9,7 @@ import { demoNative, routes } from '../../src/mock/settings';
 import { runtimeView, SettingsCtx, useSettings, type RuntimeView, type SettingsCtxValue } from '../../src/pages/settings/ctx';
 import { diagView } from '../../src/pages/settings/diag';
 import type { Native } from '../../src/pages/settings/native';
+import { AboutGroup } from '../../src/pages/settings/groups/About';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
 import { KeysGroup } from '../../src/pages/settings/groups/Keys';
 import { PermGroup } from '../../src/pages/settings/groups/Perm';
@@ -193,6 +194,34 @@ describe('settings › 权限与授权', () => {
       </Harness>,
     );
     expect(screen.getByRole('button', { name: '去系统设置' }).getAttribute('aria-disabled')).toBe('true');
+  });
+});
+
+describe('settings › 启动与关于', () => {
+  it('gives 登录时启动 the switch only, also when the shell reports the login item did not take', () => {
+    native = { ...native, statuses: { ...native.statuses, login: '系统没有允许登录项' } };
+    const { container } = render(
+      <Harness>
+        <AboutGroup />
+      </Harness>,
+    );
+    const row = container.querySelector('[data-row="login"]') as HTMLElement;
+    expect(within(row).getByRole('switch', { name: '登录时启动' })).toBeTruthy();
+    expect(within(row).queryByRole('button', { name: '去系统设置' })).toBeNull();
+  });
+
+  it('asks before 重新运行首次设置 opens the setup window', async () => {
+    const action = vi.spyOn(window.agenticComplex!.app, 'action');
+    const { container } = render(
+      <Harness>
+        <AboutGroup />
+      </Harness>,
+    );
+    await act(async () => fireEvent.click(within(container.querySelector('[data-row="onb"]') as HTMLElement).getByRole('button', { name: '开始' })));
+    expect(action).not.toHaveBeenCalledWith('open_onboarding');
+    const dialog = screen.getByRole('dialog', { name: '重新运行首次设置？' });
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: '开始' })));
+    expect(action).toHaveBeenCalledWith('open_onboarding');
   });
 });
 

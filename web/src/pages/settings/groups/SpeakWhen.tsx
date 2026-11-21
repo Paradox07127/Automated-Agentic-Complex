@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Seg } from '../../../ui';
 import { failure } from '../api';
 import { useSettings } from '../ctx';
@@ -17,6 +17,9 @@ const SPEAK_WHEN: Array<{ value: When; label: string; mute: boolean; speakUp: bo
 
 const TITLE = '她什么时候开口';
 
+/** The rows SpeakGroup passes as `children`. */
+const UNDER_ACTIVE = ['proactive', 'quiet_hours'];
+
 /** The 主动程度 level agentd runs without proactive speech (interactions.py). */
 export const SILENT_LEVEL = 'quiet';
 
@@ -24,11 +27,16 @@ const NAME: Record<string, string> = { mute: labelOf('mute'), speakUp: '主动�
 
 /** One question over 静音, 主动发言, 主动提示 and a 主动程度 that keeps speech on; a mix that is none of the choices shows none chosen. `children` are the rows under 主动, rendered only while it is chosen. */
 export function SpeakWhenRow({ ps, disabled, children }: { ps: ProactiveState; disabled: boolean; children?: ReactNode }) {
-  const { model } = useSettings();
+  const { model, hl, agentdOff, goRow } = useSettings();
   const silent = model.value('proactive') === SILENT_LEVEL;
   const raw = { mute: model.value('mute') === true, speakUp: model.value('speakUp') === true };
   const cur = { mute: raw.mute, speakUp: raw.speakUp && !silent, companion: ps.on };
   const chosen = SPEAK_WHEN.find((w) => w.mute === cur.mute && w.speakUp === cur.speakUp && w.companion === cur.companion);
+  // Once agentd has answered (or cannot), a link to a row under 主动 that is not shown lands on this row.
+  const childrenGone = chosen?.value !== 'active' && (ps.on !== null || agentdOff);
+  useEffect(() => {
+    if (hl && UNDER_ACTIVE.includes(hl) && childrenGone) goRow('speakWhen');
+  }, [hl, childrenGone, goRow]);
 
   const pick = async (value: string) => {
     const w = SPEAK_WHEN.find((x) => x.value === value);

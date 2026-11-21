@@ -1,26 +1,7 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Icon, type IconName } from './Icon';
+import { placePopup, usePopupLayer } from './popup';
 import styles from './Menu.module.css';
-
-const EDGE = 8;
-const GAP = 4;
-const MAX_H = 320;
-
-/** Fixed-position box for a popup of `w`×`h` next to the trigger rect `r`: below unless only above has room, then flipped sideways when it overflows. */
-function placeMenu(r: DOMRect, w: number, h: number, align: 'left' | 'right'): CSSProperties {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const below = vh - r.bottom - GAP - EDGE;
-  const above = r.top - GAP - EDGE;
-  const up = Math.min(h, MAX_H) > below && above > below;
-  let left = align === 'right' ? r.right - w : r.left;
-  if (align === 'left' && left + w > vw - EDGE) left = r.right - w;
-  else if (align === 'right' && left < EDGE) left = r.left;
-  left = Math.max(EDGE, Math.min(left, vw - EDGE - w));
-  const maxHeight = Math.max(0, Math.min(MAX_H, up ? above : below));
-  return up ? { left, bottom: vh - r.top + GAP, maxHeight } : { left, top: r.bottom + GAP, maxHeight };
-}
 
 /** One menu entry. */
 export type MenuItem =
@@ -50,38 +31,15 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
   const pop = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [focusOn, setFocusOn] = useState<number | null>(null);
-  // The catalog's [data-modal-inline] figures show the popup in place; elsewhere it is portalled to document.body.
-  const [inline, setInline] = useState<boolean>();
-  const [layer, setLayer] = useState<{ theme?: string; place: CSSProperties }>();
   const id = useId();
   const actionable = items.map((it, i) => (it.kind === 'item' ? i : -1)).filter((i) => i >= 0);
 
-  useLayoutEffect(() => {
-    setInline(!!root.current?.closest('[data-modal-inline]'));
-  }, []);
-
-  // On body no ancestor's overflow, isolation or z-index clips or covers the popup; it keeps the trigger's theme and
-  // follows the trigger through scrolling and resizing.
-  useLayoutEffect(() => {
-    if (!open || inline !== false) {
-      setLayer(undefined);
-      return;
-    }
-    const theme = root.current?.closest('[data-theme]')?.getAttribute('data-theme') ?? undefined;
-    const place = () => {
-      const t = trigger.current;
-      const m = pop.current;
-      if (t && m) setLayer({ theme, place: placeMenu(t.getBoundingClientRect(), m.offsetWidth, m.scrollHeight, align) });
-    };
-    place();
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
-    return () => {
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place, true);
-    };
-  }, [open, inline, align]);
-  const ready = inline === true || layer !== undefined;
+  const place = useCallback(() => {
+    const t = trigger.current;
+    const m = pop.current;
+    return t && m ? placePopup(t.getBoundingClientRect(), m.offsetWidth, m.scrollHeight, align) : null;
+  }, [align]);
+  const { inline, layer, ready, portal } = usePopupLayer(open, root, place);
 
   useEffect(() => {
     if (!openState || forced) return;
@@ -167,8 +125,6 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
       setFocusOn(null);
     }
   };
-
-  const portal = (node: ReactNode) => (inline ? node : createPortal(node, document.body));
 
   return (
     <div ref={root} className={styles.wrap} data-stub="Menu" data-align={align} data-open={open || undefined}>

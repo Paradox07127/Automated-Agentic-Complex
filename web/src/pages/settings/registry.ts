@@ -228,7 +228,7 @@ const ROW_PLUGIN: Readonly<Record<string, PluginId>> = Object.fromEntries(
 
 /** Rows only a developer needs. */
 const DEV_ROWS: ReadonlySet<string> = new Set([
-  'ttsUrl', 'ttsTunnelHost', 'ttsEnsureScript', 'ttsToken', 'ttsTest', 'testcard',
+  'ttsUrl', 'ttsTunnelHost', 'ttsEnsureScript', 'ttsToken', 'ttsTest', 'testcard', 'gate',
   'exe', 'workspace', 'acct', 'provider', 'mainModel', 'routes', 'runsrc', 'piApproval', 'piTools', 'maxCost', 'caps',
   'load', 'agentd', 'devparams',
 ]);

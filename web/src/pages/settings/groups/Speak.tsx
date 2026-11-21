@@ -224,7 +224,7 @@ export function SpeakGroup() {
       </SetSection>
 
       <SetSection title="主动程度">
-        {diag.gate && <GatePlate gate={diag.gate} events={gateEvents ?? null} blocked={gateBlocked ?? []} cooldowns={diag.cooldowns} />}
+        {diag.gate && shown('gate') && <GatePlate gate={diag.gate} events={gateEvents ?? null} blocked={gateBlocked ?? []} cooldowns={diag.cooldowns} />}
         <SpeakWhenRow ps={ps} disabled={ro}>
           <SetRow id="proactive" title="主动程度" desc="主动发言和动作的频率" indent control={c.select('proactive', levels, ['active'])} />
           <QuietHoursRow ps={ps} disabled={ro} />
