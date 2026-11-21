@@ -166,8 +166,8 @@ describe('drop card 问', () => {
     title: '交给她 │ 2 项',
     truncated: false,
     items: [
-      { kind: 'file', path: '/Users/me/Desktop/周报.md', name: '周报.md' },
-      { kind: 'file', path: '/Users/me/notes.txt', name: 'notes.txt' },
+      { kind: 'file', path: '/Users/me/Desktop/周报.md', name: '周报.md', handle: 'H:周报.md' },
+      { kind: 'file', path: '/Users/me/notes.txt', name: 'notes.txt', handle: 'H:notes.txt' },
     ],
   };
   const SCOPE: AgentdResponse<unknown> = {
@@ -185,7 +185,7 @@ describe('drop card 问', () => {
     const action = vi.spyOn(bridge.desktop, 'action').mockResolvedValue();
     render(<StackCardView card={CARD} index={1} total={1} top now={NOW} act={() => {}} />);
     await flush(async () => fireEvent.click(screen.getByRole('button', { name: '问' })));
-    expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: CARD.items.map((i) => i.kind === 'file' && i.path) });
+    expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: CARD.items.map((i) => i.kind === 'file' && { handle: i.handle }) });
     expect(action).toHaveBeenCalledWith('quickInput', JSON.stringify({ scopeId: 's1', files: 2 }));
   });
 

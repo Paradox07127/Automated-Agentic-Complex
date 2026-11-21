@@ -15,8 +15,8 @@ interface DesktopCardBase {
   task_id?: never;
 }
 
-/** One thing dropped on her (C3 `drop`): a file's absolute path and name, a link, or a text; never a file's contents. */
-export type DropItem = { kind: 'file'; path: string; name: string } | { kind: 'url'; url: string } | { kind: 'text'; text: string };
+/** One thing dropped on her (C3 `drop`): a file's absolute path, name and the handle a scope reads it by, a link, or a text; never a file's contents. */
+export type DropItem = { kind: 'file'; path: string; name: string; handle: string } | { kind: 'url'; url: string } | { kind: 'text'; text: string };
 
 /** The notice cards native raises itself (StackSource `setComputerUse`, `setVoiceHint`, `setAvatarLoading`, `addDrop`); 屏幕识读 is the domain `look` notice. */
 export type DesktopStackCard =

@@ -28,7 +28,7 @@ async function askAbout(card: DropCard) {
   const files = card.items.filter((i): i is Extract<DropItem, { kind: 'file' }> => i.kind === 'file');
   const scope = files.length
     ? await call<{ scope_id: string; files: unknown[]; roots: unknown[]; unsupported: Array<{ path: string }> }>('POST', '/agent/scopes', {
-        files: files.map((f) => f.path),
+        files: files.map((f) => ({ handle: f.handle })),
       }).catch((e: unknown) => {
         if (e instanceof AgentdCallError && e.code === 'no_supported_files') return null;
         throw e;

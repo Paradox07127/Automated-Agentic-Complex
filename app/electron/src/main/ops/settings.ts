@@ -1,7 +1,8 @@
 // `settings.*` over config.json. A save runs the effects agentd and the login item take, and on Windows
 // restarts the renderer; not the hot keys'. Hot keys the system refused read as none.
-import { existsSync, readdirSync, readFileSync, renameSync, truncateSync, lstatSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync, truncateSync, lstatSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
+import { ttsTokenFile } from '../../common/agentd.ts';
 import { BridgeFailure } from '../../common/bridge.ts';
 import { storedSwitches, withSwitches } from '../../common/looks.ts';
 import { agentdError } from '../../common/routes.ts';
@@ -100,7 +101,7 @@ export function settingsOps(ctx: OpsContext): Ops {
         ctx.loginItem.set(effect.on);
         if (ctx.loginItem.enabled() !== effect.on) failed.push('launch_at_login');
       } else if (effect.kind === 'restartAvatar' || effect.kind === 'fps' || effect.kind === 'hotkeys' || effect.kind === 'renderLive'
-        || effect.kind === 'touch' || effect.kind === 'actionSwitch') {
+        || effect.kind === 'touch' || effect.kind === 'actionSwitch' || effect.kind === 'ttsToken') {
         continue;
       } else if (effect.kind === 'stateAffectsBehavior') {
         const s = await status('PUT', '/character/state/switch', { affects_behavior: effect.on });
@@ -163,6 +164,14 @@ export function settingsOps(ctx: OpsContext): Ops {
       && !(await ctx.confirm(`保存后，按需启动脚本 ${script} 会经 SSH 在转发主机上执行。确定保存？`))) {
       throw new BridgeFailure('declined', 'settings.save');
     }
+    const ttsTokenCleared = plan.effects.some((e) => e.kind === 'ttsToken');
+    if (ttsTokenCleared && ctx.config.supportDir !== null) {
+      try {
+        rmSync(ttsTokenFile(ctx.config.supportDir), { force: true });
+      } catch (e) {
+        return { restart: 'none', notApplied: [], error: `没能删除旧语音服务的令牌，没有保存：${e instanceof Error ? e.message : String(e)}` };
+      }
+    }
     try {
       saveSettings(path, plan.write);
     } catch (e) {
@@ -177,7 +186,7 @@ export function settingsOps(ctx: OpsContext): Ops {
       else if (effect.kind === 'actionSwitch') setSwitch(effect.id, effect.on);
     }
     const failed = plan.effects.length === 0 || !ctx.agentd ? [] : await apply(plan.effects);
-    return { restart: plan.restart, notApplied: idsOfKeys(failed) };
+    return { restart: plan.restart, notApplied: idsOfKeys(failed), ...(ttsTokenCleared && { ttsTokenCleared }) };
   };
   return {
     'settings.schema': () => schema(platform),

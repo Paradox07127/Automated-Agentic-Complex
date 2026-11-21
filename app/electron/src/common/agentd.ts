@@ -168,6 +168,9 @@ export interface LaunchContext {
   privacyConfigPath?: string;
 }
 
+/** The TTS bearer token agentd sends to `tts_url` (C10). */
+export const ttsTokenFile = (supportDir: string) => `${supportDir}/tts-token`;
+
 /** `[<python flags>] <launcher> --agentd-dir … --parent-pid … -- <agentd arguments>` (C9 「启动」). */
 export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
   const args = [...ctx.pythonFlags ?? [], ctx.launcherScript, '--agentd-dir', launchAgentdDir(config), '--parent-pid', String(ctx.parentPid), '--',
@@ -194,7 +197,7 @@ export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
   if (config.mute) args.push('--mute');
   if (config.ttsURL !== '') args.push('--tts-url', config.ttsURL);
   // Passed even when the file is missing: agentd then sends TTS requests without a token (C10).
-  args.push('--tts-token-file', `${config.supportDir}/tts-token`);
+  args.push('--tts-token-file', ttsTokenFile(config.supportDir));
   if (config.ttsTunnelHost !== '' && config.ttsURL !== '' && config.ttsEnsureScript !== '') {
     args.push('--tts-ensure-host', config.ttsTunnelHost, '--tts-ensure-script', config.ttsEnsureScript);
   }

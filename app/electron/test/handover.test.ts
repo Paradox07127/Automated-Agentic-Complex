@@ -76,9 +76,11 @@ test('drop: the rest of a drop is a 交给她 card on the desktop layer, or wait
   drops.desktopReady();
   drops.drop({ items: [{ kind: 'text', text: 'later' }], x: 0, y: 0, truncated: false });
   await settle();
+  const [handle] = [...drops.dropped.keys()];
+  assert.deepEqual([...drops.dropped], [[handle, '/tmp/a.txt']], 'a file waiting for the layer gets its handle with its card');
   assert.deepEqual(desktop.calls, [
     'drop [{"kind":"url","url":"https://a"}] truncated=true',
-    'drop [{"kind":"text","text":"hello"},{"kind":"file","path":"/tmp/a.txt"}] truncated=false',
+    `drop [{"kind":"text","text":"hello"},{"kind":"file","path":"/tmp/a.txt","handle":"${handle}"}] truncated=false`,
     'drop [{"kind":"text","text":"later"}] truncated=false',
   ]);
   assert.deepEqual(imports, []);

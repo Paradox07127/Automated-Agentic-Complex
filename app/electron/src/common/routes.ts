@@ -111,10 +111,12 @@ class HandleRequired extends Error {
   }
 }
 
-/** `body` with each picked handle in a path field swapped for its path, and the handles used; throws `HandleRequired` for
- *  a field holding anything else than an unused handle of its purpose (protocol/ui-bridge/CONTRACT.md step 7). */
+/** `body` with each picked handle in a path field, and each dropped file's handle in `POST /agent/scopes` `files`, swapped
+ *  for its path, and the picked handles used; throws `HandleRequired` for a field holding anything else than an unused
+ *  handle of its purpose (protocol/ui-bridge/CONTRACT.md step 7). */
 export function swapHandles(method: string, route: string, json: Record<string, unknown> | undefined,
-  picked: ReadonlyMap<string, { purpose: string; path: string }>): { body: Record<string, unknown> | undefined; used: Set<string> } {
+  picked: ReadonlyMap<string, { purpose: string; path: string }>, dropped: ReadonlyMap<string, string> = new Map()):
+  { body: Record<string, unknown> | undefined; used: Set<string> } {
   const used = new Set<string>();
   if (json === undefined) return { body: undefined, used };
   const body = { ...json };
@@ -135,8 +137,13 @@ export function swapHandles(method: string, route: string, json: Record<string, 
       body.roots = body.roots.map((r) => path(r, 'scope_root', 'roots'));
     }
     if (body.output_root != null) body.output_root = path(body.output_root, 'scope_output', 'output_root');
-    // A dropped file arrives as its path string (DropCard); a picked one as a scope_file handle.
-    if (Array.isArray(body.files)) body.files = body.files.map((f) => (typeof f === 'string' ? f : path(f, 'scope_file', 'files')));
+    // A dropped file's handle stays good for every scope its card makes; a picked one is used once.
+    if (Array.isArray(body.files)) {
+      body.files = body.files.map((f) => {
+        const handle = isObject(f) ? f.handle : undefined;
+        return (typeof handle === 'string' ? dropped.get(handle) : undefined) ?? path(f, 'scope_file', 'files');
+      });
+    }
   } else if (key === 'POST /sessions') {
     if (body.cwd != null) body.cwd = path(body.cwd, 'session_cwd', 'cwd');
   } else if (key === 'POST /say') {

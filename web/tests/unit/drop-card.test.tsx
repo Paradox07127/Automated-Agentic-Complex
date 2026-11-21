@@ -26,9 +26,9 @@ const FILES: DropCard = {
   title: '交给她 · 3 项',
   truncated: false,
   items: [
-    { kind: 'file', path: '/Users/me/Desktop/周报.md', name: '周报.md' },
-    { kind: 'file', path: '/Users/me/Desktop/截图.png', name: '截图.png' },
-    { kind: 'file', path: '/Users/me/notes.txt', name: 'notes.txt' },
+    { kind: 'file', path: '/Users/me/Desktop/周报.md', name: '周报.md', handle: 'H:周报.md' },
+    { kind: 'file', path: '/Users/me/Desktop/截图.png', name: '截图.png', handle: 'H:截图.png' },
+    { kind: 'file', path: '/Users/me/notes.txt', name: 'notes.txt', handle: 'H:notes.txt' },
   ],
 };
 
@@ -77,7 +77,7 @@ describe('drop card', () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  it('offers 总结 for a pdf and a folder, sends both paths, and marks the one agentd cannot read', async () => {
+  it('offers 总结 for a pdf and a folder, sends both handles, and marks the one agentd cannot read', async () => {
     const request = agentd({
       'POST /agent/scopes': {
         status: 201,
@@ -89,12 +89,12 @@ describe('drop card', () => {
       ...FILES,
       id: 'drop-pdf',
       items: [
-        { kind: 'file', path: '/Users/me/a.pdf', name: 'a.pdf' },
-        { kind: 'file', path: '/Users/me/资料', name: '资料' },
+        { kind: 'file', path: '/Users/me/a.pdf', name: 'a.pdf', handle: 'H:a.pdf' },
+        { kind: 'file', path: '/Users/me/资料', name: '资料', handle: 'H:资料' },
       ],
     });
     await flush(async () => fireEvent.click(within(el).getByRole('button', { name: '总结' })));
-    expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: ['/Users/me/a.pdf', '/Users/me/资料'] });
+    expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: [{ handle: 'H:a.pdf' }, { handle: 'H:资料' }] });
     await waitFor(() => expect(marks(el)).toEqual([true, false]));
   });
 
@@ -112,7 +112,7 @@ describe('drop card', () => {
     const say = vi.spyOn(getBridge().desktop, 'say').mockResolvedValue({ ok: true });
     const el = mount(FILES);
     await flush(async () => fireEvent.click(within(el).getByRole('button', { name: '总结' })));
-    expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: FILES.items.map((i) => i.kind === 'file' && i.path) });
+    expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: FILES.items.map((i) => i.kind === 'file' && { handle: i.handle }) });
     expect(say).toHaveBeenCalledWith({ text: '总结这些文件', attachWindow: false, noMemory: false, scopeId: 's1' });
     expect(request.mock.invocationCallOrder[0]!).toBeLessThan(say.mock.invocationCallOrder[0]!);
     expect(await within(el).findByText(/^可读这 2 个文件/)).toBeTruthy();

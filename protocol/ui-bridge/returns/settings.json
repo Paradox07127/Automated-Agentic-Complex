@@ -126,6 +126,20 @@
     }
   },
   {
+    "op": "settings.save",
+    "surface": "main",
+    "args": [
+      {
+        "ttsUrl": "http://gpu-box:19888"
+      }
+    ],
+    "value": {
+      "restart": "backend",
+      "notApplied": [],
+      "ttsTokenCleared": true
+    }
+  },
+  {
     "op": "settings.confirmDestructive",
     "surface": "main",
     "args": [

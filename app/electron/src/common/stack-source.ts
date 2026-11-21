@@ -9,8 +9,8 @@ import type { Cancel, EventSource, StreamEvent } from './page.ts';
 import type { VoiceHint } from './push-to-talk.ts';
 import { agentdError } from './routes.ts';
 import {
-  AGENT_NAMES, type CodingTask, codingCard, type Commitment, type Delivery, deliveryCard, deliveryTitle, type DropItem, dropItems,
-  type Interaction, isDecidable, isDecided, isHidden, mainRoute, ms, questionCard, questionsOf, reviewCard, type TaskRow, VOICE_HINT_ID,
+  AGENT_NAMES, type CodingTask, codingCard, type Commitment, type Delivery, deliveryCard, deliveryTitle, dropItems,
+  type HandedItem, type Interaction, isDecidable, isDecided, isHidden, mainRoute, ms, questionCard, questionsOf, reviewCard, type TaskRow, VOICE_HINT_ID,
   voiceCard,
 } from './stack-cards.ts';
 
@@ -720,7 +720,7 @@ export class StackSource implements EventSource {
   }
 
   /** 交给她: what was dropped on her, as paths, links and text; it stays until an action or 关闭. */
-  addDrop(items: DropItem[], truncated: boolean): void {
+  addDrop(items: HandedItem[], truncated: boolean): void {
     this.addNotice(`drop-${this.clock()}`, 'drop', `交给她 · ${items.length} 项`, { items: dropItems(items), truncated });
   }
 

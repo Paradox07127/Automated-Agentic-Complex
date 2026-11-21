@@ -44,7 +44,7 @@ const reminderCard = pick('delivery', (c) => c.kind === 'notice');
 const reviewCard = pick('review', (c) => c.kind === 'review');
 const loadingCard = pick('desktop-progress', (c) => c.kind === 'notice' && c.variant === 'loading');
 const notices = stackScenario('notices').cards;
-const dropCard: StackCard = { id: 'drop-1', kind: 'notice', variant: 'drop', at: NOW, title: '拖入 1 个文件', items: [{ kind: 'file', path: '/tmp/a.txt', name: 'a.txt' }], truncated: false };
+const dropCard: StackCard = { id: 'drop-1', kind: 'notice', variant: 'drop', at: NOW, title: '拖入 1 个文件', items: [{ kind: 'file', path: '/tmp/a.txt', name: 'a.txt', handle: 'H:a.txt' }], truncated: false };
 
 /** Mounts the bar with the pushes, commands and region reports under the test's control. */
 async function mount(hash = '#/hud') {

@@ -628,6 +628,22 @@ describe('外部语音服务', () => {
     expect((sent('POST', '/voice/test') as { token?: string }).token).toBe('secret');
   });
 
+  it('drops the saved token once an address for another service is saved: the row says none is set and the test sends none', async () => {
+    render(<Harness d={d}><SpeakGroup /></Harness>);
+    fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'DUMMY-first-service' } });
+    await click(screen.getByRole('button', { name: '保存' }));
+    expect(document.querySelector('[data-row="ttsToken"]')?.textContent).not.toContain('未设置');
+    const url = screen.getByRole('textbox', { name: '服务地址' });
+    fireEvent.change(url, { target: { value: 'https://other.example:8443' } });
+    await act(async () => void fireEvent.blur(url));
+    expect(document.querySelector('[data-row="ttsToken"]')?.textContent).toContain('未设置：服务地址换了，旧服务的令牌已删除');
+    await click(screen.getByRole('button', { name: '测试连接' }));
+    expect(sent('POST', '/voice/test')).toEqual({ url: 'https://other.example:8443' });
+    fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'DUMMY-second-service' } });
+    await click(screen.getByRole('button', { name: '保存' }));
+    expect(document.querySelector('[data-row="ttsToken"]')?.textContent).not.toContain('未设置');
+  });
+
   it.each([
     ['http_401', '令牌不对'],
     ['invalid_url', '地址不可用：要以 http:// 或 https:// 开头'],

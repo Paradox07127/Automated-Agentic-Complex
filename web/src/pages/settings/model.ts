@@ -91,6 +91,8 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const [restarting, setRestarting] = useState(false);
   const [pauses, setPauses] = useState<Pauses>(() => ({ quiet: null, observe: null, meeting: false, ...init.pauses }));
+  /** How many saves deleted the stored TTS token (`ttsTokenCleared`). */
+  const [ttsTokenClears, setTtsTokenClears] = useState(0);
   const timers = useRef<number[]>([]);
   const handles = useRef<Handles>({});
   const s = useRef(src);
@@ -140,6 +142,7 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
         return false;
       }
       setVals((v) => ({ ...v, ...changes }));
+      if (res.ttsTokenCleared) setTtsTokenClears((n) => n + 1);
       const rows = s.current.native?.rows ?? {};
       const restart = Object.keys(changes).filter((id) => rows[id]?.restart === 'backend');
       if (restart.length) setPending((p) => ({ ...p, ...Object.fromEntries(restart.map((id) => [id, clock()])) }));
@@ -284,6 +287,7 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     toast,
     restarting,
     pauses,
+    ttsTokenClears,
     setPause: (k: 'quiet' | 'observe', until: number | null) => setPauses((p) => ({ ...p, [k]: until })),
     setMeeting: (on: boolean) => setPauses((p) => ({ ...p, meeting: on })),
     value,

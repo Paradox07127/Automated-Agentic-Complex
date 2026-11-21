@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -9,7 +9,9 @@ import { type EventFeed, FeedSource, silentSource } from '../src/common/feed.ts'
 import { type Cancel, PageSession, type StreamEvent } from '../src/common/page.ts';
 import { checkRequest, isExportPath, RouteTable, swapHandles } from '../src/common/routes.ts';
 import { current, desktopHotkeys, hotkeyName, planSave, schema, webHotkey } from '../src/common/settings.ts';
+import type { HandedItem } from '../src/common/stack-cards.ts';
 import { ORIGIN } from '../src/common/ui.ts';
+import { DropHandover } from '../src/main/handover/drop.ts';
 import { avatarDetails, type AvatarHost } from '../src/main/ops/avatar.ts';
 import { reloadAvatar } from '../src/main/ops/holding.ts';
 import { type OpsContext, registry } from '../src/main/ops/index.ts';
@@ -246,6 +248,77 @@ test('a picked folder reaches agentd.request only as its handle, once', async ()
       { ok: false, error: { code: 'invalid_args', detail: 'purpose' } });
     page.end();
     assert.equal(page.picked.size, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a scope reads only what the shell issued: a picked handle or the handle on a native drop card, never a path from the page',
+  async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'scopes-'));
+    try {
+      const sent: unknown[] = [];
+      const agentd = {
+        request: async (_method: string, _path: string, body: unknown) => {
+          sent.push(body);
+          return { status: 201, body: Buffer.from(JSON.stringify({ scope_id: 's1', ...(body as object) })) };
+        },
+      } as unknown as OpsContext['agentd'];
+      const cards: HandedItem[][] = [];
+      const drops = new DropHandover({ desktop: () => ({ addDrop: (items) => cards.push(items), notice: () => {} }),
+        importMotion: async () => ({ ok: true, action: {} }), log: () => {} });
+      const ops = registry({ ...context(dir), agentd, dropped: drops.dropped }), page = new PageSession(() => {});
+      const scope = async (body: unknown) =>
+        (await handle('main', page0, { op: 'agentd.request', args: ['POST', '/agent/scopes', body] }, ops, page)) as
+          { ok: true; value: { status: number; error?: { code: string; detail: string } } };
+      const never = join(dir, 'never-picked');
+      mkdirSync(never);
+      assert.deepEqual((await scope({ files: [never] })).value, { status: 0, body: null, error: { code: 'handle_required', detail: 'files' } });
+      assert.deepEqual(sent, [], 'a path no picker or drop issued never reaches agentd');
+
+      drops.drop({ items: [{ kind: 'file', path: '/d/notes.md' }, { kind: 'text', text: 'hi' }], x: 0, y: 0, truncated: false });
+      const item = cards[0]![0]!;
+      assert.ok(item.kind === 'file' && typeof item.handle === 'string');
+      assert.deepEqual(cards[0]![1], { kind: 'text', text: 'hi' });
+      // Each of the card's actions may make a scope, from the stack and from the bubble.
+      assert.equal((await scope({ files: [{ handle: item.handle }] })).value.status, 201);
+      assert.equal((await scope({ files: [{ handle: item.handle }] })).value.status, 201);
+      assert.deepEqual(sent, [{ files: ['/d/notes.md'] }, { files: ['/d/notes.md'] }]);
+      assert.equal((await scope({ roots: [{ handle: item.handle }] })).value.error?.code, 'handle_required', 'a drop is no picked root');
+      assert.equal((await scope({ files: [{ handle: 'MADE-UP' }] })).value.error?.code, 'handle_required');
+
+      const picked = await handle('main', page0, { op: 'files.pickFile', args: [{ purpose: 'scope_file' }] }, ops, page);
+      assert.ok(picked.ok);
+      const h = (picked.value as { handle: string }).handle;
+      assert.equal((await scope({ files: [{ handle: h }, { handle: item.handle }] })).value.status, 201);
+      assert.deepEqual(sent.at(-1), { files: ['/picked/file', '/d/notes.md'] });
+      assert.equal((await scope({ files: [{ handle: h }] })).value.error?.code, 'handle_required', 'a picked handle is used once');
+      assert.equal(sent.length, 3);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+test('a TTS address saved with another origin deletes the token installed for the old service, and the reply says so', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'settings-'));
+  try {
+    const token = join(dir, 'tts-token');
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ tts_url: 'http://127.0.0.1:19888' }));
+    writeFileSync(token, 'DUMMY-first-service-token\n', { mode: 0o600 });
+    const ops = registry(context(dir)), page = new PageSession(() => {});
+    const save = (changes: Record<string, unknown>) => handle('main', page0, { op: 'settings.save', args: [changes] }, ops, page);
+    assert.deepEqual(await save({ ttsUrl: 'http://127.0.0.1:19888/v2' }), { ok: true, value: { restart: 'backend', notApplied: [] } });
+    assert.ok(existsSync(token), 'the same service');
+    assert.deepEqual(await save({ ttsUrl: 'http://gpu-box:19888' }),
+      { ok: true, value: { restart: 'backend', notApplied: [], ttsTokenCleared: true } });
+    assert.ok(!existsSync(token), 'the next start sends the first service\'s token to no one');
+    assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).tts_url, 'http://gpu-box:19888');
+    writeFileSync(token, 'DUMMY-second-service-token\n', { mode: 0o600 });
+    assert.deepEqual(await save({ ttsUrl: 'https://gpu-box:19888' }),
+      { ok: true, value: { restart: 'backend', notApplied: [], ttsTokenCleared: true } }, 'another scheme');
+    assert.ok(!existsSync(token));
+    assert.deepEqual(await save({ ttsUrl: 'https://gpu-box:19889' }),
+      { ok: true, value: { restart: 'backend', notApplied: [], ttsTokenCleared: true } }, 'another port, with no token left');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

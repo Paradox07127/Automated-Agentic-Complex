@@ -1,14 +1,15 @@
 // 交给她 by a drop on her: a motion among the dropped
 // files is imported straight into the current character, the rest is a drop card on the desktop layer, or waits for it.
+import { randomUUID } from 'node:crypto';
 import { DropBacklog, type DropSplit, dropEventItems, splitMotion } from '../../common/handover.ts';
 import { PageSession } from '../../common/page.ts';
-import type { DropItem } from '../../common/stack-cards.ts';
+import type { DropItem, HandedItem } from '../../common/stack-cards.ts';
 import { characterOps, type ImportPicker } from '../ops/character.ts';
 import type { OpsContext } from '../ops/context.ts';
 import type { DropEvent } from '../renderer/link.ts';
 
 /** What a drop needs of the desktop layer: `source.addDrop` and `notice`. */
-export interface DropDesktop { addDrop(items: DropItem[], truncated: boolean): void; notice(text: string): void }
+export interface DropDesktop { addDrop(items: HandedItem[], truncated: boolean): void; notice(text: string): void }
 
 export type DroppedMotion = Pick<DropSplit, 'extras' | 'bgm'> & { source: string };
 
@@ -22,6 +23,9 @@ export interface DropPorts {
 }
 
 export class DropHandover {
+  /** The path of each file handed to her this session, by the handle on its card; `POST /agent/scopes` reads only these
+   *  and picked ones (swapHandles). */
+  readonly dropped = new Map<string, string>();
   private readonly o: DropPorts;
   private readonly backlog = new DropBacklog();
 
@@ -40,7 +44,7 @@ export class DropHandover {
   add(items: DropItem[], truncated: boolean, log: (line: string) => void): void {
     const desktop = this.o.desktop();
     if (desktop) {
-      desktop.addDrop(items, truncated);
+      desktop.addDrop(this.handed(items), truncated);
     } else {
       this.backlog.add(items, truncated);
       log(`drop queued: desktop layer not ready count=${this.backlog.count}`);
@@ -51,7 +55,17 @@ export class DropHandover {
   desktopReady(): void {
     const desktop = this.o.desktop();
     if (!desktop) return;
-    for (const d of this.backlog.drain()) desktop.addDrop(d.items, d.truncated);
+    for (const d of this.backlog.drain()) desktop.addDrop(this.handed(d.items), d.truncated);
+  }
+
+  /** `items` with a handle recorded for each file. */
+  private handed(items: DropItem[]): HandedItem[] {
+    return items.map((i) => {
+      if (i.kind !== 'file') return i;
+      const handle = randomUUID().toUpperCase();
+      this.dropped.set(handle, i.path);
+      return { ...i, handle };
+    });
   }
 
   private async importMotion(files: DroppedMotion): Promise<void> {

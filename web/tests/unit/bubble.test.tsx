@@ -288,13 +288,13 @@ describe('the bubble', () => {
       title: '交给她 │ 2 项',
       truncated: false,
       items: [
-        { kind: 'file' as const, path: '/a/周报.md', name: '周报.md' },
-        { kind: 'file' as const, path: '/a/notes.txt', name: 'notes.txt' },
+        { kind: 'file' as const, path: '/a/周报.md', name: '周报.md', handle: 'H:周报.md' },
+        { kind: 'file' as const, path: '/a/notes.txt', name: 'notes.txt', handle: 'H:notes.txt' },
       ],
     };
     await b.cards([drop]);
     await flush(async () => {});
-    expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: ['/a/周报.md', '/a/notes.txt'] });
+    expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: [{ handle: 'H:周报.md' }, { handle: 'H:notes.txt' }] });
     expect(action).toHaveBeenCalledWith('quickInput', JSON.stringify({ scopeId: 's1', files: 2 }));
     within(screen.getByRole('dialog', { name: '快速输入' })).getByText('可读 2 个文件');
     // The same card pushed again does not open it a second time.
@@ -323,7 +323,7 @@ describe('the bubble', () => {
         items: [
           { kind: 'url', url: 'https://example.com/spec' },
           { kind: 'text', text: '周五前交报销单' },
-          { kind: 'file', path: '/a/合同.pdf', name: '合同.pdf' },
+          { kind: 'file', path: '/a/合同.pdf', name: '合同.pdf', handle: 'H:合同.pdf' },
         ],
       },
     ]);
@@ -374,8 +374,8 @@ describe('the bubble', () => {
     title: '交给她 │ 2 项',
     truncated: false,
     items: [
-      { kind: 'file', path: '/a/a.pdf', name: 'a.pdf' },
-      { kind: 'file', path: '/a/资料', name: '资料' },
+      { kind: 'file', path: '/a/a.pdf', name: 'a.pdf', handle: 'H:a.pdf' },
+      { kind: 'file', path: '/a/资料', name: '资料', handle: 'H:资料' },
     ],
   };
   const FOLDER_SCOPE = (unsupported: Array<{ path: string; reason: string }>): AgentdResponse<unknown> => ({
@@ -423,7 +423,7 @@ describe('the bubble', () => {
 
   it('a drop asks agentd about every dropped file, a folder or a pdf too', async () => {
     const { request } = await dropped(PDF_AND_FOLDER, FOLDER_SCOPE([{ path: '/a/a.pdf', reason: 'unsupported_type' }]));
-    expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: ['/a/a.pdf', '/a/资料'] });
+    expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: [{ handle: 'H:a.pdf' }, { handle: 'H:资料' }] });
   });
 
   it('a scope over a folder counts it, and only the paths agentd cannot read go into the message', async () => {

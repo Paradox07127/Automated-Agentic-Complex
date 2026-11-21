@@ -44,6 +44,8 @@ export interface CodingTask {
 export interface Commitment { id: string; text: string; due_at?: number | null; state: string }
 
 export type DropItem = { kind: 'file'; path: string } | { kind: 'url'; url: string } | { kind: 'text'; text: string };
+/** A drop as its card holds it: each file with the handle the shell issued for it (DropHandover.dropped). */
+export type HandedItem = Exclude<DropItem, { kind: 'file' }> | { kind: 'file'; path: string; handle: string };
 
 export const ms = (seconds: number) => Math.round(seconds * 1000);
 export const AGENT_NAMES: Record<string, string> = { claude: 'Claude Code', codex: 'Codex', agentd: 'Agentic Complex' };
@@ -162,7 +164,8 @@ export function voiceCard(hint: VoiceHint): Json {
   return card;
 }
 
-export function dropItems(items: DropItem[]): Record<string, string>[] {
-  return items.map((i): Record<string, string> => (i.kind === 'file' ? { kind: 'file', path: i.path, name: i.path.split(/[\\/]/).filter((s) => s !== '').at(-1) ?? i.path }
+export function dropItems(items: HandedItem[]): Record<string, string>[] {
+  return items.map((i): Record<string, string> => (i.kind === 'file' ? { kind: 'file', path: i.path, name: i.path.split(/[\\/]/).filter((s) => s !== '').at(-1) ?? i.path,
+    handle: i.handle }
     : i.kind === 'url' ? { kind: 'url', url: i.url } : { kind: 'text', text: i.text }));
 }

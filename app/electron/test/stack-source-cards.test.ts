@@ -863,15 +863,16 @@ test('StackSourceTests.testAVoiceResultStaysTwoAndAHalfSecondsAndMicDeniedStaysU
   assert.deepEqual(h.ids.at(-1), []);
 });
 
-test('StackSourceTests.testADropIsACardOfItsPathsNamesAndKindsOnly', () => {
+test('StackSourceTests.testADropIsACardOfItsPathsNamesHandlesAndKindsOnly', () => {
   const h = new Harness();
   h.listen();
-  h.source.addDrop([{ kind: 'file', path: '/Users/someone/Desktop/周报.md' }, { kind: 'file', path: '/Users/someone/Desktop/a.png' },
+  h.source.addDrop([{ kind: 'file', path: '/Users/someone/Desktop/周报.md', handle: 'H1' }, { kind: 'file', path: '/Users/someone/Desktop/a.png', handle: 'H2' },
     { kind: 'url', url: 'https://example.com/a' }, { kind: 'text', text: '记得带伞' }], true);
   const id = (h.pushes.at(-1)!.cards as Json[])[0]!.id as string;
   assert.equal(id, `drop-${h.now}`);
   assert.deepEqual(h.card(id), { id, kind: 'notice', variant: 'drop', title: '交给她 · 4 项', truncated: true, at: h.now, items: [
-    { kind: 'file', path: '/Users/someone/Desktop/周报.md', name: '周报.md' }, { kind: 'file', path: '/Users/someone/Desktop/a.png', name: 'a.png' },
+    { kind: 'file', path: '/Users/someone/Desktop/周报.md', name: '周报.md', handle: 'H1' },
+    { kind: 'file', path: '/Users/someone/Desktop/a.png', name: 'a.png', handle: 'H2' },
     { kind: 'url', url: 'https://example.com/a' }, { kind: 'text', text: '记得带伞' }] });
   // It waits for an action or 关闭.
   h.now += 3_600_000;
@@ -884,8 +885,8 @@ test('StackSourceTests.testADropIsACardOfItsPathsNamesAndKindsOnly', () => {
 
 test('a Windows path dropped on her is named by its last segment', () => {
   const h = new Harness();
-  h.source.addDrop([{ kind: 'file', path: 'C:\\Users\\a\\b.txt' }], false);
-  assert.deepEqual((h.cards[0]!.items as Json[])[0], { kind: 'file', path: 'C:\\Users\\a\\b.txt', name: 'b.txt' });
+  h.source.addDrop([{ kind: 'file', path: 'C:\\Users\\a\\b.txt', handle: 'H1' }], false);
+  assert.deepEqual((h.cards[0]!.items as Json[])[0], { kind: 'file', path: 'C:\\Users\\a\\b.txt', name: 'b.txt', handle: 'H1' });
 });
 
 // MARK: System pause (StackSourcePollTests)

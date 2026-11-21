@@ -71,7 +71,7 @@ export function DropCard({ card, top, highlight, act }: DropCardProps) {
   /** The scope of exactly the dropped files: the one on the card while it still holds, else a new one. */
   const current = async (): Promise<Scope> => {
     if (scope && !scope.revoked && scope.expires_at * 1000 > Date.now()) return scope;
-    const made = await call<Scope>('POST', '/agent/scopes', { files: files.map((f) => f.path) });
+    const made = await call<Scope>('POST', '/agent/scopes', { files: files.map((f) => ({ handle: f.handle })) });
     setScope({ ...made, revoked: false });
     return made;
   };

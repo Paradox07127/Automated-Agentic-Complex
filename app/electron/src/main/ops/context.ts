@@ -65,6 +65,8 @@ export interface OpsContext {
   helper?: { request(op: string, params?: Record<string, unknown>): Promise<HelperReply> } | null;
   /** Push-to-talk's protocol.ts `PushToTalkState` values (`voice.onPushToTalk`); null or absent without push-to-talk. */
   pushToTalk?: EventSource | null;
+  /** The files dropped on her by their card handles (DropHandover.dropped); null or absent for none. */
+  dropped?: ReadonlyMap<string, string> | null;
   /** The T1 marks of the main window's conversation messages; null or
    *  absent for none. */
   turnMarks?: Pick<TurnMarks, 'acceptedBody'> | null;

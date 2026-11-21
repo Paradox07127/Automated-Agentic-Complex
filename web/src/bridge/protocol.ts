@@ -122,6 +122,8 @@ export interface SettingsSaveResult {
   restart: 'none' | 'avatar' | 'backend';
   notApplied: SettingId[];
   error?: string;
+  /** 服务地址 moved to another scheme, host or port: the token saved for the old service is gone. */
+  ttsTokenCleared?: true;
 }
 
 /** `settings.onChange`: saved values changed outside the settings pages (a menu, another window). */

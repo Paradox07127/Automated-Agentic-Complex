@@ -235,7 +235,8 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       read: async () => ({ saved: { ...(await demoNative(hashQuery().get('demo'))).saved, ...plugins, ...demoPlugins(hashQuery().get('plugins')), ...saved }, statuses: {} }),
       save: async (changes) => {
         Object.assign(saved, changes);
-        return { restart: 'none', notApplied: [] };
+        // Any new address counts as another service here.
+        return { restart: 'none', notApplied: [], ...('ttsUrl' in changes && { ttsTokenCleared: true as const }) };
       },
       confirmDestructive: async () => true,
       previewDestructive: async () => ({

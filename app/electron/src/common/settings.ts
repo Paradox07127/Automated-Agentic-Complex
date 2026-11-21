@@ -451,7 +451,18 @@ export type SaveEffect =
   /** The changed ones of LIVE_RENDER_KEYS in that order, then `stay_mode` into or out of `bust`; only without `restartAvatar`. */
   | { kind: 'renderLive'; keys: string[] }
   /** `touch_regions`, `head_pat`, `cheek_pinch` or `greet_on_resume` changed. */
-  | { kind: 'touch' };
+  | { kind: 'touch' }
+  /** `tts_url` moved to another scheme, host or port: the token installed for the old service is deleted before the save. */
+  | { kind: 'ttsToken' };
+
+/** A TTS address's scheme, host and port; the address itself when it does not parse. */
+function serviceOrigin(url: SettingValue | undefined): string {
+  try {
+    return new URL(String(url)).origin;
+  } catch {
+    return String(url);
+  }
+}
 
 /** What the running renderer takes in a `set_render`. */
 const LIVE_RENDER_KEYS = ['render_outline', 'render_light_yaw', 'render_light_pitch', 'render_light_strength', 'render_camera_mode',
@@ -525,6 +536,7 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
   if ((old.stay_mode === 'bust') !== (next.stay_mode === 'bust')) live.push('stay_mode');
   if (live.length > 0 && !restartAvatar) effects.push({ kind: 'renderLive', keys: live });
   if (['touch_regions', 'head_pat', 'cheek_pinch', 'greet_on_resume'].some((k) => changed.includes(k))) effects.push({ kind: 'touch' });
+  if (changed.includes('tts_url') && serviceOrigin(old.tts_url) !== serviceOrigin(next.tts_url)) effects.push({ kind: 'ttsToken' });
   const backend = changed.some((k) => rowByKey(k)?.item.restart === 'backend');
   return { write, effects, restart: backend ? 'backend' : restartAvatar ? 'avatar' : 'none' };
 }

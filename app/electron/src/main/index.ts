@@ -795,6 +795,7 @@ function opsContext(surface: Surface): OpsContext {
     preview,
     helper,
     pushToTalk: pushToTalk && pushToTalkEvents,
+    dropped: drops && drops.dropped,
     // Only the main window's messages are marked.
     turnMarks: surface === 'main' ? turnMarks : null,
     library: config && {

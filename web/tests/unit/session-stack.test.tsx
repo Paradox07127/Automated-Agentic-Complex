@@ -47,7 +47,7 @@ const errorCard = stackScenario('task-error').cards.find((c) => c.kind === 'erro
 const lookCard = stackScenario('task-error').cards.find((c) => c.kind === 'notice')!;
 const nativeCards = [...stackScenario('desktop').cards, ...stackScenario('desktop-progress').cards];
 const computerCard = nativeCards.find((c) => c.kind === 'notice' && c.variant === 'computer')!;
-const dropCard: StackCard = { id: 'drop-1', kind: 'notice', variant: 'drop', at: NOW, title: '拖入 1 个文件', items: [{ kind: 'file', path: '/tmp/a.txt', name: 'a.txt' }], truncated: false };
+const dropCard: StackCard = { id: 'drop-1', kind: 'notice', variant: 'drop', at: NOW, title: '拖入 1 个文件', items: [{ kind: 'file', path: '/tmp/a.txt', name: 'a.txt', handle: 'H:a.txt' }], truncated: false };
 
 describe('presence session rows', () => {
   it('reads the rows in epoch ms with additional_sessions as the rest, and skips junk', () => {

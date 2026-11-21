@@ -109,6 +109,13 @@ export function SpeakGroup() {
   const [token, setToken] = useState('');
   // agentd sends its stored token only to the address it runs with; a test of a new address needs the token from here.
   const savedToken = useRef('');
+  // A save of 服务地址 for another service deleted the stored token: none is set until one is saved again.
+  const [tokenCleared, setTokenCleared] = useState(false);
+  useEffect(() => {
+    if (model.ttsTokenClears === 0) return;
+    savedToken.current = '';
+    setTokenCleared(true);
+  }, [model.ttsTokenClears]);
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const saveToken = () =>
@@ -116,6 +123,7 @@ export function SpeakGroup() {
       () => {
         savedToken.current = token.trim();
         setToken('');
+        setTokenCleared(false);
         model.notify({ message: '令牌已保存', severity: 'success' });
       },
       (e) => model.notify({ message: `没能保存令牌：${failure(e).text}`, severity: 'danger', persistent: true }),
@@ -186,6 +194,8 @@ export function SpeakGroup() {
             <SetRow
               id="ttsToken"
               title="令牌"
+              desc={tokenCleared ? '未设置：服务地址换了，旧服务的令牌已删除' : undefined}
+              descTone={tokenCleared ? 'attention' : undefined}
               indent
               control={
                 <>

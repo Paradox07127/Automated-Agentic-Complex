@@ -13,7 +13,7 @@ export function agentdOps(ctx: OpsContext): Ops {
       const route = checked.path.split('?')[0]!;
       let swapped: ReturnType<typeof swapHandles>;
       try {
-        swapped = swapHandles(checked.method, checked.route.path, checked.body, page.picked);
+        swapped = swapHandles(checked.method, checked.route.path, checked.body, page.picked, ctx.dropped ?? undefined);
       } catch (e) {
         return rejected('handle_required', e instanceof HandleRequired ? e.field : '');
       }
