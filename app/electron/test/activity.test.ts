@@ -166,6 +166,11 @@ test('captureWindow trusts the front sample only for the same pid and title', ()
   assert.equal(captureWindow(event(), null, null, false).incognito, false);
 });
 
+test('captureWindow: a Windows packaged app without a matching front sample is not known to be non-private', () => {
+  const e = event({ app: 'Browser', bundleId: 'Vendor.Browser_abc123!App', pid: 9, window: 'x' });
+  assert.equal(captureWindow(e, front(), false, false).incognito, null);
+});
+
 test('filter: a blacklisted event is dropped', () => {
   const e = event({ window: 'Payroll' });
   const rules = parseBlacklist({ mode: 'deny', title_patterns: ['Payroll'] });

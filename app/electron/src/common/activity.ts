@@ -1,7 +1,7 @@
 // The activity recorder's rules:
 // the platform helper's `ax.notification` events (CONTRACT §7.4, §8) in, the body of agentd's `POST /context/events` out.
-// The privacy rules are attention.ts's (`hides`, `redactText`, `isBrowser`); this file only applies them per event.
-import { type AttentionWindow, type BlacklistRules, isBrowser, redactText } from './attention.ts';
+// The privacy rules are attention.ts's (`hides`, `redactText`, `mayBePrivate`); this file only applies them per event.
+import { type AttentionWindow, type BlacklistRules, mayBePrivate, redactText } from './attention.ts';
 import { type CaptureWindow, captureBlockReason, isSecureNode } from './capture-rules.ts';
 
 export type ActivityKind = 'app' | 'window' | 'focus' | 'value' | 'selection';
@@ -199,7 +199,7 @@ export function captureWindow(e: ActivityEvent, front: AttentionWindow | null, f
   const same = (front?.pid ?? null) === e.pid && (e.window === null || e.window === (front?.title ?? null));
   const window: AttentionWindow = { app: e.app, bundleId: e.bundleId, pid: e.pid, windowId: null,
     title: e.window ?? (same ? front?.title ?? null : null), urlHost: same ? front?.urlHost ?? null : null };
-  return { window, incognito: same ? frontIncognito : (isBrowser(e.bundleId) ? null : false), secureInput };
+  return { window, incognito: same ? frontIncognito : (mayBePrivate(e.bundleId) ? null : false), secureInput };
 }
 
 /** ActivityRecorder.Policy: `share_typed_text`, `sense_input_counts`, `redact_sensitive`. */

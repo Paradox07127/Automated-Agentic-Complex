@@ -109,8 +109,16 @@ export class ControlPanel {
   /** The displays changed. */
   place(): void {
     if (!this.win || !(this.shown || !this.dismissed)) return;
-    const { head, visible } = headAnchor(this.o.body(), this.o.screens());
-    const frame = panelFrame(head, visible, this.fittingHeight, this.shown ? this.frame : null, this.o.mouse());
+    const screens = this.o.screens();
+    const { head, visible } = headAnchor(this.o.body(), screens);
+    // panelFrame's sizes are CSS pixels: it runs in the space scaled down by the display's placement units per DIP.
+    const on = screens.find((s) => sameRect(s.visibleFrame, visible));
+    const k = on ? on.frame.w / this.o.toDip(on.frame).width : 1;
+    const down = (r: Rect): Rect => ({ x: r.x / k, y: r.y / k, w: r.w / k, h: r.h / k });
+    const pointer = this.o.mouse();
+    const f = panelFrame(down(head), down(visible), this.fittingHeight, this.shown && this.frame ? down(this.frame) : null,
+      { x: pointer.x / k, y: pointer.y / k });
+    const frame = { x: f.x * k, y: f.y * k, w: f.w * k, h: f.h * k };
     if (sameRect(this.frame, frame)) return;
     this.frame = frame;
     this.win.setBounds(this.o.toDip(frame));

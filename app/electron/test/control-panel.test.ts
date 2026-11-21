@@ -6,8 +6,8 @@ import {
   type ComputerUsePanelState, displayState, displayText, headAnchor, initialPanelState, PANEL_WIDTH, panelFrame,
 } from '../src/common/computer-control.ts';
 import { PageSession } from '../src/common/page.ts';
-import type { ScreenInfo } from '../src/common/placement.ts';
-import { CONTROL_PANEL_WINDOW, ControlPanel } from '../src/main/control/panel.ts';
+import type { Rect, ScreenInfo } from '../src/common/placement.ts';
+import { CONTROL_PANEL_WINDOW, ControlPanel, type ControlPanelOptions } from '../src/main/control/panel.ts';
 
 const VISIBLE = { x: 0, y: 0, w: 1440, h: 875 };
 const SCREENS: ScreenInfo[] = [{ id: 1, frame: { x: 0, y: 0, w: 1440, h: 900 }, visibleFrame: VISIBLE },
@@ -59,7 +59,7 @@ function fakeWindow() {
   return { win: win as unknown as BrowserWindow, calls };
 }
 
-function panelWith(o: { webDesktop?: boolean } = {}) {
+function panelWith(o: { webDesktop?: boolean; screens?: ScreenInfo[]; toDip?: ControlPanelOptions['toDip']; body?: Rect } = {}) {
   const { win, calls } = fakeWindow();
   const clicks: string[] = [];
   let state = initialPanelState();
@@ -73,8 +73,8 @@ function panelWith(o: { webDesktop?: boolean } = {}) {
   let ops: ReadonlyMap<string, (args: unknown[], page: PageSession) => unknown> = new Map();
   const panel = new ControlPanel({
     host, url: 'agentic-complex-ui://app/stack.html#/computer', makeWindow: () => win,
-    toDip: (r) => ({ x: r.x, y: 900 - (r.y + r.h), width: r.w, height: r.h }),
-    body: () => ({ x: 600, y: 100, w: 200, h: 400 }), screens: () => SCREENS, mouse: () => ({ x: 0, y: 0 }),
+    toDip: o.toDip ?? ((r) => ({ x: r.x, y: 900 - (r.y + r.h), width: r.w, height: r.h })),
+    body: () => o.body ?? { x: 600, y: 100, w: 200, h: 400 }, screens: () => o.screens ?? SCREENS, mouse: () => ({ x: 0, y: 0 }),
     webDesktop: () => o.webDesktop ?? false,
     register: (_c, _p, m) => { ops = m; }, unregister: () => {},
     baseOps: new Map([['computerUse.stop', () => { clicks.push('stop'); return null; }]]),
@@ -102,6 +102,16 @@ test('the panel shows on a raised state over her head, updates in place without 
   assert.deepEqual(p.calls.slice(3), ['bounds 532,168 336x260']);
   p.call('computerUse.onPanel', 4);
   assert.deepEqual(p.pushed, [waiting()]);
+});
+
+test('on a 200 % display the panel window is the page\'s CSS size, placed as on a 100 % one', () => {
+  const screens: ScreenInfo[] = [{ id: 1, frame: { x: 0, y: 0, w: 2880, h: 1800 }, visibleFrame: { x: 0, y: 0, w: 2880, h: 1750 } }];
+  const p = panelWith({ screens, body: { x: 1200, y: 200, w: 400, h: 800 },
+    toDip: (r) => ({ x: r.x / 2, y: (1800 - (r.y + r.h)) / 2, width: r.w / 2, height: r.h / 2 }) });
+  p.panel.present(waiting(), true);
+  assert.deepEqual(p.calls.slice(1), ['bounds 532,168 336x220', 'showInactive']);
+  p.call('window.setContentSize', { width: 336, height: 260 });
+  assert.deepEqual(p.calls.slice(3), ['bounds 532,168 336x260']);
 });
 
 test('收起 stops the task and keeps the panel hidden until a session asks again; the page\'s buttons reach the host', () => {

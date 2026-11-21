@@ -121,6 +121,10 @@ test('BrowserWindowMemory: a browser window never seen in front is unknown, anot
   assert.deepEqual(m.lookup(9, 'com.google.Chrome'), { incognito: true, urlHost: 'example.com' });
 });
 
+test('BrowserWindowMemory: a Windows packaged app\'s window never seen in front is unknown', () => {
+  assert.deepEqual(new BrowserWindowMemory().lookup(9, 'Vendor.Browser_abc123!App'), { incognito: null, urlHost: null });
+});
+
 // ---- Windows
 
 const listed = {

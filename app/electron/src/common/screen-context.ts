@@ -1,6 +1,6 @@
 // The screen context capture's rules over the platform helper's answers (CONTRACT §7.2, §7.4–7.6, §7.10), and the bodies of agentd's `/context/text`, `/context/image` and `/look`.
 // The privacy rules are attention.ts's and capture-rules.ts's; this file only applies them.
-import { type AttentionSample, type BlacklistRules, decodeRect, isBrowser, type RawWindow, type Rect, redactText } from './attention.ts';
+import { type AttentionSample, type BlacklistRules, decodeRect, mayBePrivate, type RawWindow, type Rect, redactText } from './attention.ts';
 import { type CaptureWindow, captureBlockReason, isSecureNode } from './capture-rules.ts';
 
 type Obj = Record<string, unknown>;
@@ -155,7 +155,7 @@ export class BrowserWindowMemory {
 
   /** A browser window never seen in front reads as unknown, which blocks it. */
   lookup(windowId: number, bundleId: string | null): { incognito: boolean | null; urlHost: string | null } {
-    return this.seen.get(windowId) ?? { incognito: isBrowser(bundleId) ? null : false, urlHost: null };
+    return this.seen.get(windowId) ?? { incognito: mayBePrivate(bundleId) ? null : false, urlHost: null };
   }
 }
 
