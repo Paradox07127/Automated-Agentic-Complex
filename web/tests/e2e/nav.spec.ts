@@ -95,7 +95,7 @@ test('900×600: the command bar does not wrap or scroll, and nothing scrolls sid
     });
   expect(await wide()).toEqual({ html: 0, content: 0 });
   await nav.getByRole('button', { name: '工业简报', exact: true }).click();
-  await nav.getByRole('menuitem', { name: /^记忆/ }).click();
+  await page.getByRole('menuitem', { name: /^记忆/ }).click();
   await expect(page.locator('main[data-route-id="memory"]')).toBeVisible();
   expect((await wide()).html).toBe(0);
 });

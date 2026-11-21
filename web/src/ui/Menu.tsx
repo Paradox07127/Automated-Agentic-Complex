@@ -1,6 +1,26 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon, type IconName } from './Icon';
 import styles from './Menu.module.css';
+
+const EDGE = 8;
+const GAP = 4;
+const MAX_H = 320;
+
+/** Fixed-position box for a popup of `w`×`h` next to the trigger rect `r`: below unless only above has room, then flipped sideways when it overflows. */
+function placeMenu(r: DOMRect, w: number, h: number, align: 'left' | 'right'): CSSProperties {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const below = vh - r.bottom - GAP - EDGE;
+  const above = r.top - GAP - EDGE;
+  const up = Math.min(h, MAX_H) > below && above > below;
+  let left = align === 'right' ? r.right - w : r.left;
+  if (align === 'left' && left + w > vw - EDGE) left = r.right - w;
+  else if (align === 'right' && left < EDGE) left = r.left;
+  left = Math.max(EDGE, Math.min(left, vw - EDGE - w));
+  const maxHeight = Math.max(0, Math.min(MAX_H, up ? above : below));
+  return up ? { left, bottom: vh - r.top + GAP, maxHeight } : { left, top: r.bottom + GAP, maxHeight };
+}
 
 /** One menu entry. */
 export type MenuItem =
@@ -27,15 +47,47 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
   const open = !!forced || openState;
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [focusOn, setFocusOn] = useState<number | null>(null);
+  // The catalog's [data-modal-inline] figures show the popup in place; elsewhere it is portalled to document.body.
+  const [inline, setInline] = useState<boolean>();
+  const [layer, setLayer] = useState<{ theme?: string; place: CSSProperties }>();
   const id = useId();
   const actionable = items.map((it, i) => (it.kind === 'item' ? i : -1)).filter((i) => i >= 0);
+
+  useLayoutEffect(() => {
+    setInline(!!root.current?.closest('[data-modal-inline]'));
+  }, []);
+
+  // On body no ancestor's overflow, isolation or z-index clips or covers the popup; it keeps the trigger's theme and
+  // follows the trigger through scrolling and resizing.
+  useLayoutEffect(() => {
+    if (!open || inline !== false) {
+      setLayer(undefined);
+      return;
+    }
+    const theme = root.current?.closest('[data-theme]')?.getAttribute('data-theme') ?? undefined;
+    const place = () => {
+      const t = trigger.current;
+      const m = pop.current;
+      if (t && m) setLayer({ theme, place: placeMenu(t.getBoundingClientRect(), m.offsetWidth, m.scrollHeight, align) });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open, inline, align]);
+  const ready = inline === true || layer !== undefined;
 
   useEffect(() => {
     if (!openState || forced) return;
     const away = (e: MouseEvent) => {
-      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (root.current && !root.current.contains(t) && !pop.current?.contains(t)) setOpen(false);
     };
     // WebKit does not focus a clicked button, so Escape is heard on the document; capture keeps it from also closing a
     // Modal or Sheet around the menu.
@@ -56,8 +108,13 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
   }, [openState, forced]);
 
   useEffect(() => {
-    if (focusOn != null && open) itemRefs.current[focusOn]?.focus();
-  }, [focusOn, open]);
+    const el = focusOn != null && open && ready ? itemRefs.current[focusOn] : null;
+    const box = pop.current;
+    if (!el || !box) return;
+    el.focus({ preventScroll: true });
+    if (el.offsetTop < box.scrollTop) box.scrollTop = el.offsetTop;
+    else if (el.offsetTop + el.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = el.offsetTop + el.offsetHeight - box.clientHeight;
+  }, [focusOn, open, ready]);
 
   const show = (at: 'first' | 'last') => {
     setOpen(true);
@@ -103,10 +160,15 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
       e.stopPropagation();
       close();
     } else if (e.key === 'Tab') {
+      // The popup sits at the end of body: Tab goes on from the trigger, Shift+Tab lands on it.
+      trigger.current?.focus();
+      if (e.shiftKey) e.preventDefault();
       setOpen(false);
       setFocusOn(null);
     }
   };
+
+  const portal = (node: ReactNode) => (inline ? node : createPortal(node, document.body));
 
   return (
     <div ref={root} className={styles.wrap} data-stub="Menu" data-align={align} data-open={open || undefined}>
@@ -132,8 +194,17 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
           </>
         )}
       </button>
-      {open && (
-        <div id={`${id}-menu`} role="menu" aria-label={label} className={styles.menu} onKeyDown={onMenuKey}>
+      {open && inline !== undefined && portal(
+        <div
+          ref={pop}
+          id={`${id}-menu`}
+          role="menu"
+          aria-label={label}
+          className={styles.menu}
+          data-theme={inline ? undefined : layer?.theme}
+          style={inline ? undefined : layer?.place}
+          onKeyDown={onMenuKey}
+        >
           {items.map((it, i) => {
             if (it.kind === 'sep') return <div key={i} role="separator" className={styles.sep} />;
             if (it.kind === 'head')
@@ -169,7 +240,7 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
               </button>
             );
           })}
-        </div>
+        </div>,
       )}
     </div>
   );

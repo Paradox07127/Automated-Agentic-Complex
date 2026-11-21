@@ -51,7 +51,7 @@ describe('管线页', () => {
     mountAt(() => <CommandBar routes={pageRoutes} activeId="overview" title="工业简报" tabsRef={noop} rightRef={noop} actionRef={noop} />);
     const nav = await screen.findByRole('navigation', { name: '主导航' });
     fireEvent.click(within(nav).getByRole('button', { name: '工业简报' }));
-    expect(within(nav).queryByRole('menuitem', { name: /管线/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /管线/ })).toBeNull();
     const router = createAppRouter();
     router.history.push('/pipeline');
     await router.load();
@@ -65,6 +65,6 @@ describe('管线页', () => {
     mountAt(() => <CommandBar routes={pageRoutes} activeId="overview" title="工业简报" tabsRef={noop} rightRef={noop} actionRef={noop} />);
     const nav = await screen.findByRole('navigation', { name: '主导航' });
     fireEvent.click(within(nav).getByRole('button', { name: '工业简报' }));
-    expect(within(nav).getByRole('menuitem', { name: /管线/ })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /管线/ })).toBeTruthy();
   });
 });

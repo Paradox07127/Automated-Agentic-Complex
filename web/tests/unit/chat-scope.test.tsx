@@ -68,7 +68,7 @@ async function send(thread: HTMLElement, text: string, n: number) {
 
 async function choose(thread: HTMLElement, item: string) {
   fireEvent.click(within(thread).getByRole('button', { name: /^资料/ }));
-  fireEvent.click(within(thread).getByRole('menuitem', { name: item }));
+  fireEvent.click(screen.getByRole('menuitem', { name: item }));
 }
 
 describe('资料 on the chat composer', () => {

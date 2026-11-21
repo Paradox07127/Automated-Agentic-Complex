@@ -121,6 +121,66 @@ describe('Menu', () => {
     expect(screen.queryByRole('menu')).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
+
+  it('renders the popup outside the trigger\'s ancestors so their overflow cannot clip it', () => {
+    const { container } = render(
+      <div data-testid="clip" style={{ overflow: 'hidden', isolation: 'isolate' }}>
+        <Menu label="管理" items={items} />
+      </div>,
+    );
+    const trigger = screen.getByRole('button', { name: /管理/ });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const menu = screen.getByRole('menu', { name: '管理' });
+    expect(menu.parentElement).toBe(document.body);
+    expect(container.contains(menu)).toBe(false);
+    expect(screen.getByTestId('clip').contains(menu)).toBe(false);
+    expect(document.activeElement?.textContent).toBe('重命名');
+    expect(trigger.getAttribute('aria-controls')).toBe(menu.id);
+    fireEvent.keyDown(menu, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('carries the trigger\'s theme onto the popup', () => {
+    render(
+      <nav data-theme="dark">
+        <Menu label="管理" items={items} open />
+      </nav>,
+    );
+    expect(screen.getByRole('menu').getAttribute('data-theme')).toBe('dark');
+  });
+
+  it('closes on a click outside, but not on a click inside the popup', () => {
+    render(<Menu label="管理" items={items} />);
+    fireEvent.click(screen.getByRole('button', { name: /管理/ }));
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: /归档/ }));
+    expect(screen.getByRole('menu')).toBeTruthy();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('caps a long menu below the viewport and scrolls the focused item into view', () => {
+    const many: MenuItem[] = Array.from({ length: 24 }, (_, h) => ({ kind: 'item', label: `${String(h).padStart(2, '0')}:00` }));
+    render(<Menu label="开始" items={many} />);
+    const trigger = screen.getByRole('button', { name: /开始/ });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const menu = screen.getByRole('menu');
+    const cap = parseFloat(menu.style.maxHeight);
+    expect(cap).toBeGreaterThan(0);
+    expect(cap).toBeLessThanOrEqual(320);
+    expect(cap).toBeLessThanOrEqual(window.innerHeight - 16);
+    // jsdom does no layout: give the popup a 100 px window onto 24 rows of 32 px.
+    Object.defineProperty(menu, 'clientHeight', { configurable: true, value: 100 });
+    screen.getAllByRole('menuitem').forEach((el, i) => {
+      Object.defineProperty(el, 'offsetTop', { configurable: true, value: 4 + i * 32 });
+      Object.defineProperty(el, 'offsetHeight', { configurable: true, value: 32 });
+    });
+    fireEvent.keyDown(menu, { key: 'End' });
+    expect(document.activeElement?.textContent).toBe('23:00');
+    expect(menu.scrollTop).toBe(4 + 24 * 32 - 100);
+    fireEvent.keyDown(menu, { key: 'Home' });
+    expect(menu.scrollTop).toBe(4);
+  });
 });
 
 describe('Modal', () => {

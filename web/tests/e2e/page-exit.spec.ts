@@ -59,7 +59,7 @@ const brief = (page: Page) => page.getByRole('button', { name: /^工业简报：
 async function menu(page: Page, name: string) {
   const nav = page.getByRole('navigation', { name: '主导航' });
   await nav.getByRole('button', { name: /^工业简报/ }).click();
-  await nav.getByRole('menuitem', { name: new RegExp(`^${name}`) }).click();
+  await page.getByRole('menuitem', { name: new RegExp(`^${name}`) }).click();
 }
 
 test('leaving home leaves one inert copy that plays watchOut and is gone within 1500 ms', async ({ page }) => {

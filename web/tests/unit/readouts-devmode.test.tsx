@@ -140,16 +140,16 @@ describe(' 开发者模式 off', () => {
   it('offers diagnostics and run records while keeping developer pages out of normal navigation', async () => {
     const nav = await commandBar();
     expect(within(nav).queryAllByRole('link')).toEqual([]);
-    for (const name of ['工业简报', '对话', '记忆', '角色', '设置', '定时任务']) expect(within(nav).getByRole('menuitem', { name: new RegExp(`^${name}`) })).toBeTruthy();
-    expect(within(nav).getByRole('menuitem', { name: '诊断' })).toBeTruthy();
-    expect(within(nav).getByRole('menuitem', { name: '运行记录' })).toBeTruthy();
-    expect(within(nav).queryByRole('menuitem', { name: /设计系统/ })).toBeNull();
-    expect(within(nav).queryByRole('menuitem', { name: /管线/ })).toBeNull();
+    for (const name of ['工业简报', '对话', '记忆', '角色', '设置', '定时任务']) expect(screen.getByRole('menuitem', { name: new RegExp(`^${name}`) })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: '诊断' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: '运行记录' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: /设计系统/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /管线/ })).toBeNull();
   });
 
   it('keeps 调参 out of the command bar and opens the character page without a 行为与画面 tab', async () => {
     const nav = await commandBar();
-    expect(within(nav).queryByRole('menuitem', { name: /调参/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /调参/ })).toBeNull();
     cleanup();
     await character('');
     expect(screen.queryByRole('tab', { name: '行为与画面' })).toBeNull();
@@ -182,12 +182,12 @@ describe(' 开发者模式 on', () => {
 
   it('lists 诊断 in the command bar page menu', async () => {
     const nav = await commandBar();
-    expect(within(nav).getByRole('menuitem', { name: /诊断/ })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /诊断/ })).toBeTruthy();
   });
 
   it('lists 调参 in the command bar page menu; the character page still has no 行为与画面 tab', async () => {
     const nav = await commandBar();
-    expect(within(nav).getByRole('menuitem', { name: /调参/ })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /调参/ })).toBeTruthy();
     cleanup();
     await character('');
     expect(screen.queryByRole('tab', { name: '行为与画面' })).toBeNull();

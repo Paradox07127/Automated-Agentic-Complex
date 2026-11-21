@@ -57,23 +57,20 @@
   outline-offset: -3px;
 }
 
+/* Portalled to body and placed by Menu.tsx; above a Modal or drawer the trigger may sit in. */
 .menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: var(--ef-z-dropdown);
+  position: fixed;
+  z-index: calc(var(--ef-z-modal) + 1);
   min-width: 200px;
+  max-height: min(320px, calc(100vh - 16px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 4px 0;
   border: 1px solid var(--ef-line);
   border-radius: 0;
   background: var(--ef-raised);
   box-shadow: none;
   animation: menu-in 120ms var(--ef-ease-snap);
-}
-
-.wrap[data-align='right'] .menu {
-  right: 0;
-  left: auto;
 }
 
 @keyframes menu-in {
