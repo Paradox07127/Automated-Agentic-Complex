@@ -29,6 +29,7 @@ from daemon.constants import VIEW_FRESH, RECEIPTS_KEPT, NO_HISTORY, SEEN
 from daemon.rituals_glue import TAP_REGION_TEXT
 from sessions.events import normalize_claude, normalize_codex
 from route_registry import COMMITMENT_PATH, REGISTRY, SERVER, SESSION_PATH, TASK_PATH, routes_table
+from infra import plugins
 from infra.store import checkpoint
 from tools import install_hooks
 from api.views import _fact_text, _midnight, _iso
@@ -212,6 +213,10 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
     def _dispatch(self):
         """Hands the request to the owner of the route parse_request matched."""
         route, path = self.route, urlparse(self.path).path
+        if route.plugin and not plugins.on(route.plugin):
+            return self._json(409, {"error": "plugin_off", "plugin": route.plugin})
+        if route.shared_plugins and not any(map(plugins.on, route.shared_plugins)):
+            return self._json(409, {"error": "plugin_off", "plugin": route.shared_plugins[0]})
         if self.server.no_character and (self.command, path) in CHARACTER_ROUTES:
             return self._json(409, {"error": "no_character"})
         if route.owner != SERVER and import_module(route.owner).route(self, self.command, path):
@@ -268,7 +273,7 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         state = self.server.feed.stream_state()
         snapshot = {"stream_epoch": state["stream_epoch"], "seq": state["latest_seq"]}
         def collect(code, body):
-            snapshot[part] = None if code == 503 else body
+            snapshot[part] = None if code == 503 or code == 409 and body.get("error") == "plugin_off" else body
         # Each part runs its own route through _dispatch; reader carries only server, command, path, the route, _auth and _json, so a GET handler that needs more fails test_agent_snapshot.
         reader = Handler.__new__(Handler)
         reader.server, reader.command, reader._auth, reader._json = self.server, "GET", self._auth, collect
@@ -510,6 +515,8 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         if region is not None and not (isinstance(region, str) and region in TAP_REGION_TEXT):
             print(f"agentd: /interaction/tap region ignored: {type(region).__name__}", file=sys.stderr)
             region = None
+        if not plugins.on("light_ai"):
+            return self._json(200, {"kind": None})
         return self._json(*self.server.tap(count, region=region))
 
     def _gift(self, body):

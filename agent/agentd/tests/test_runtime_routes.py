@@ -20,7 +20,9 @@ from daemon.agentd_server import AgentdServer
 import test_character_agent_semantic as semantic_fixture
 from test_character_agent_runtime import FakeSession
 
-PORT = 48871
+from support import enable_plugins
+
+PORT = 48810
 
 
 def route(backend, model=None, effort=None, acp_agent=None):
@@ -29,6 +31,7 @@ def route(backend, model=None, effort=None, acp_agent=None):
 
 class RuntimeRouteTests(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
@@ -177,7 +180,7 @@ class RuntimeRouteTests(unittest.TestCase):
         self.put({'backend': 'codex', 'runtime_source': 'local', 'model': 'base-model',
                   'routes': {'computer': route('claude', 'sonnet')}})
         checked, ran = [], []
-        self.server.sessions = SimpleNamespace(computer_control=object())
+        self.server.computer_control = object()
         with patch.object(self.controller, '_can_run_desktop_task',
                           side_effect=lambda config, bridge: checked.append(config['backend']) or True), \
              patch.object(self.controller.tools, 'verdict'), \
@@ -189,7 +192,7 @@ class RuntimeRouteTests(unittest.TestCase):
 
     def test_computer_use_is_reported_from_the_computer_route_without_an_api_key(self):
         self.put({'routes': {'computer': route('codex')}})
-        self.server.sessions = SimpleNamespace(computer_control=object())
+        self.server.computer_control = object()
         for enabled, expected in ((True, {'implemented': True, 'via': 'kernel_sub_run'}),
                                   (False, {'implemented': False, 'reason': 'computer_route_unavailable'})):
             with self.subTest(enabled=enabled), patch('tool_gateway.desktop.status', return_value={'enabled': enabled}):

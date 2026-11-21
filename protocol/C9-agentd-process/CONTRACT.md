@@ -36,7 +36,7 @@ agentd 的参数（`--` 之后）。宿主必传的只有 `--port` 和 `--state-
 | `--privacy-config PATH` | 有 config 文件路径时；agentd 读哪些键见 C10 | 无 |
 | `--computer-control-socket PATH` 和 `--computer-control-token-file PATH` | 电脑控制开着时，两个一起传：`<support>/run/computer-control.sock`、`<support>/run/computer-control.token` | 无（只给一个是参数错误） |
 | `--share-page-text`、`--share-window-text`、`--share-typed-text`、`--share-agent-sessions`、`--share-screenshots` | 对应设置开着时 | 关 |
-| `--observation-off` | 设置「观察活动」关掉时 | 关 |
+| `--plugin-on ID`、`--plugin-off ID` | 可重复。未知 ID 为启动错误，同一 ID 同时指定时按关闭处理 | `protocol/plugins/plugins.json` 中的默认值 |
 | `--no-redact` | 设置「脱敏」关掉时 | 脱敏开 |
 | `--no-proactive` | 设置「主动说话」关掉时 | 开 |
 | `--mute` | 静音时 | 关 |

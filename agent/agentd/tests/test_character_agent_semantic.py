@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from support import enable_plugins
 from brain.egress import EgressPolicy
 from brain.provider import Mouth
 from character_agent.integration import CharacterAgentController
@@ -26,6 +27,7 @@ from test_character_agent_runtime import FakeSession
 
 class SemanticTests(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self)
         self.tmp = tempfile.TemporaryDirectory(); self.root = Path(self.tmp.name)
         self.db = open_store(self.root / 'domain.sqlite'); lock = threading.RLock()
         with patch('socketserver.TCPServer.server_bind'), patch('socketserver.TCPServer.server_activate'), patch.object(AgentdServer,'_tick_loop'):

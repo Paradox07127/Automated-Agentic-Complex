@@ -242,7 +242,8 @@ class CharacterDesktopTests(test_server.FeedServerCase):
         self.controller = s.character_agent = CharacterAgentController(s, self.root, session_factory=self.factory)
         self.controller.discovery = SimpleNamespace(scan=lambda refresh=False: {'runtimes': [], 'scanned_at': 0})
         self.controller.configure({'backend': 'pi', 'runtime_source': 'bundled'})
-        self.server.sessions = Mock(computer_control=object(), sessions={}, store=None)
+        self.server.computer_control = object()
+        self.server.sessions = Mock(sessions={}, store=None)
         # desktop_task's readiness probe uses its own session, not a run's lease.
         patcher = patch('tool_gateway.computer_toolset.available', return_value=False)
         patcher.start(); self.addCleanup(patcher.stop)

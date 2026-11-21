@@ -185,7 +185,7 @@ class CaptureManager:
             return self.share_text if kind == "window_text" else self.vision is not None
         return self.consent()[0][kind]
 
-    def text(self, body):
+    def text(self, body, *, one_shot=False):
         """One POST /context/text body (validated by the server). Returns the response body."""
         window_id = body["window_id"]
         meta = {k: body.get(k) for k in ("window_id", "app", "bundle_id", "title", "url_host")}
@@ -196,6 +196,8 @@ class CaptureManager:
             answered = self.observations.get(body.get("request_id"))
             checking = answered is not None and answered["window_id"] == window_id and answered["mode"] == "text" \
                 and answered["status"] == "pending" and answered["policy_epoch"] == self.policy_epoch
+            if one_shot and not (checking and answered.get("_look_window")):
+                return {"accepted": False, "reason": "unknown_request"}
             if body["source"] == "ocr":
                 # A rejected OCR must not create the window's state: _blocked needs its "meta".
                 known = self.windows.get(window_id, {})
@@ -220,6 +222,8 @@ class CaptureManager:
                              body["text"] if checking and answered.get("_look_window") and not blocked else None)
             if blocked:
                 return {"accepted": False, "reason": blocked}
+            if one_shot:
+                return {"accepted": True}
             content = body["text"]
             digest = hashlib.sha256(f"{body['source']}\0{content}".encode()).hexdigest()
             preserve_ocr = body["source"] == "ax" and digest == state.get("ax_hash") and state["ocr_chars"] > 0

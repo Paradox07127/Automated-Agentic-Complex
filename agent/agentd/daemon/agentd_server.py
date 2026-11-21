@@ -96,6 +96,7 @@ class StateView:
 class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, SwitchesMixin, IngestMixin,
                    CharacterSwitchMixin, RitualsGlueMixin, MemorySyncMixin, TracingMixin, DiagnosticsMixin,
                    LifecycleMixin, ThreadingHTTPServer):
+    state_dir = None
     daemon_threads = True
     no_character = False  # main(): the library has no character; api.handler.CHARACTER_ROUTES answer 409 no_character
 
@@ -183,13 +184,13 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
             "screenshots": self.capture is not None and self.capture.vision is not None,
             "typed_text": self.share_typed_text,
             "agent_sessions": self.share_agent_sessions})
+        self.computer_control = getattr(sessions, "computer_control", None)
         self.sessions = sessions  # SessionManager for own sessions; None answers /sessions with 503
         self.capture = capture  # CaptureManager; None answers /context/text, /context/image, /look with 503
         self.clock = time.time  # the pause and DELETE /observation cutoffs, the announce slots' TTL
         self.paused_until = None  # PUT /observation/paused: clock time the pause ends, or None
         self.quiet_until = None  # PUT /observation/quiet: clock time quiet ends, or None
         self._quiet_meeting = False
-        self.observation_off = False  # --observation-off: paused with no end
         self._pauses = []  # [start, end] of each pause in the last RAW_PAST seconds, for events sent after it
         self._meetings = []  # the same for the meeting switch; apart, so resuming a pause does not end a meeting
         self.correction = None  # PUT /context/activity: {"activity", "until", "focus_id"}, or None

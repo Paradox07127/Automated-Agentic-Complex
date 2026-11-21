@@ -4,7 +4,6 @@ import threading
 import time
 
 from observation.digest import digest
-from observation.privacy import saved_switch
 from observation.timeline import SEGMENT_S
 
 MIN_RECORDS = 3  # a segment with fewer records gets no summary
@@ -67,8 +66,7 @@ class Summarizer:
         if time.monotonic() - self.checked < CHECK_EVERY or self.thread is not None and self.thread.is_alive():
             return
         self.checked = time.monotonic()
-        if s.timeline is None or s.character_agent is None or s.observation_paused() or s.resetting or s.closing \
-                or s.privacy_config is not None and not saved_switch(s.privacy_config, "observe_activity", default=True):
+        if s.timeline is None or s.character_agent is None or s.observation_paused() or s.resetting or s.closing:
             return
         meter = s.usage or s.character_agent.semantic.usage  # the one semantic.run admits by
         if meter is not None and not meter.admit("observation_summary"):

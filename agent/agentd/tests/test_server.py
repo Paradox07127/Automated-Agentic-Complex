@@ -49,6 +49,7 @@ WINDOW = 0.3
 
 class ServerTest(unittest.TestCase):
     def setUp(self):
+        support.enable_plugins(self)
         broker = ApprovalBroker(hook_timeout=WINDOW + 0.5, margin=0.5)
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI, broker=broker, events_token=EVENTS)
         self.port = self.server.server_port
@@ -675,8 +676,8 @@ class ArgsTest(unittest.TestCase):
 
         for extra, minutes in (([], 50), (["--break-reminder-minutes", "60"], 60), (["--break-reminder-minutes", "-5"], 0)):
             with self.subTest(extra=extra), tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32") as tmp:
-                argv = ["agentd", "--port", "0", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent", *extra]
-                with unittest.mock.patch.object(sys, "argv", argv), \
+                argv = ["agentd", "--port", "48810", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent", "--plugin-on", "screen_awareness", *extra]
+                with unittest.mock.patch.dict("infra.plugins.resolved"), unittest.mock.patch.object(sys, "argv", argv), \
                         unittest.mock.patch.object(agentd_main, "Proactive", proactive), \
                         self.assertRaises(Built) as built:
                     agentd_main.main()
@@ -698,9 +699,9 @@ class ArgsTest(unittest.TestCase):
         self.assertEqual((args.break_reminder_minutes, args.water_reminder_minutes, args.ritual_report_time),
                          (50, 90, "17:30"))
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32") as tmp:
-            argv = ["agentd", "--port", "0", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent",
+            argv = ["agentd", "--port", "48810", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent", "--plugin-on", "screen_awareness",
                     "--water-reminder-minutes", "80", "--ritual-report-time", "18:05"]
-            with unittest.mock.patch.object(sys, "argv", argv), \
+            with unittest.mock.patch.dict("infra.plugins.resolved"), unittest.mock.patch.object(sys, "argv", argv), \
                     unittest.mock.patch.object(agentd_main, "Proactive", proactive), \
                     self.assertRaises(Built) as built:
                 agentd_main.main()
@@ -756,6 +757,7 @@ class ArgsTest(unittest.TestCase):
 
 class FeedServerCase(unittest.TestCase):
     def setUp(self):
+        support.enable_plugins(self)
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.day = Path(self.tmp.name) / "-Users-me-repo" / "2026-10-18"
         self.day.mkdir(parents=True)
@@ -1708,6 +1710,7 @@ class ReceiptStoreTest(unittest.TestCase):
     """A finished receipt answers a repeat of its Idempotency-Key after agentd restarts."""
 
     def setUp(self):
+        support.enable_plugins(self)
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.addCleanup(tmp.cleanup)
         self.db = Path(tmp.name) / "agentd.sqlite"
@@ -1887,6 +1890,7 @@ class AnnounceSlotTest(unittest.TestCase):
     request = SayTest.request
 
     def setUp(self):
+        support.enable_plugins(self)
         gate = Gate(enabled=True, quiet=(0, 0), same_cooldown=0, cross_cooldown=0)
         # The ticker never runs by itself: each test runs the ticks it means.
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI, gate=gate, tick_interval=3600)
@@ -3730,8 +3734,8 @@ class RawEventsServerTest(FeedServerCase):
         self.assertEqual(self.rows(), [])
 
     def test_observation_off_stores_nothing(self):
-        self.server.observation_off = True
-        self.assertEqual(self.post(self.event()), (200, {"paused": True}))
+        self.enterContext(unittest.mock.patch.dict("infra.plugins.resolved", screen_awareness=False))
+        self.assertEqual(self.post(self.event()), (409, {"error": "plugin_off", "plugin": "screen_awareness"}))
         self.assertEqual(self.rows(), [])
 
     def test_a_meeting_drops_events_sent_after_it_ends(self):
@@ -4196,14 +4200,12 @@ class ObservationControlTest(FeedServerCase):
 
     def test_observation_off_stores_nothing_and_shows_off_in_state(self):
         self.assertIs(self.request("GET", "/state")[1]["observation"]["off"], False)
-        self.server.observation_off = True  # as main() does for --observation-off
+        self.enterContext(unittest.mock.patch.dict("infra.plugins.resolved", screen_awareness=False))
         page = {"type": "page", "ts": self.now, "url_host": "github.com", "title": "PR", "text": "正文"}
-        self.assertEqual(self.beat(self.now, "Code", "x"), (200, {"paused": True}))
-        self.assertEqual(self.browser(page), (200, {"paused": True}))
+        self.assertEqual(self.beat(self.now, "Code", "x"), (409, {"error": "plugin_off", "plugin": "screen_awareness"}))
+        self.assertEqual(self.browser(page), (409, {"error": "plugin_off", "plugin": "screen_awareness"}))
         self.assertEqual(self.server.attention.events("window"), [])
         self.assertEqual(self.server.attention.context(), [])
-        self.now += 7 * 86400
-        self.assertTrue(self.server.observation_paused())
         self.assertEqual(self.request("GET", "/state")[1]["observation"],
                          {"paused_until": None, "quiet_until": None, "meeting": False, "off": True})
 

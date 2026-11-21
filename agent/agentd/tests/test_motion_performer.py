@@ -94,6 +94,7 @@ class FakeRetarget:
 
 class MotionCase(unittest.TestCase):
     def setUp(self):
+        support.enable_plugins(self, "motion_generation")
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.state = Path(tmp.name)

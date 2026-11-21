@@ -2,6 +2,8 @@
 import datetime
 import time
 
+from infra import plugins
+
 MISSING = object()
 
 
@@ -61,4 +63,4 @@ def collect(server):
         for kind, on in consent.snapshot()[0].items():
             items["share_" + kind] = _item("configured") if on else _item("unavailable", "off")
     at = datetime.datetime.fromtimestamp(time.time()).astimezone().isoformat(timespec="milliseconds")
-    return {"items": items, "at": at}
+    return {"items": items, "plugins": plugins.resolved.copy(), "at": at}

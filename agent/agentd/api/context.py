@@ -5,6 +5,7 @@ import datetime
 import math
 import time
 
+from infra import plugins
 from character.behavior import category
 from observation.attention import AFK_AFTER, BUCKETS
 from observation.browser_stats import valid_metrics
@@ -59,7 +60,8 @@ class ContextInputMixin:
         if edge is None and before is not None and after is not None and before[0] != after[0]:
             edge, away_s = ("afk", 0.0) if after[0] == "afk" else ("active", before[1])
         if self.server.character_agent is not None:
-            self.server.character_agent.memory_pipeline.tick(self.server.character_agent.memory_pipeline.clock())
+            pipeline = self.server.character_agent.memory_pipeline
+            if pipeline: pipeline.tick(pipeline.clock())
             understanding = getattr(self.server.character_agent, "task_understanding", None)
             if understanding: understanding.tick()
         if self.server.proactive is not None:
@@ -150,7 +152,7 @@ class ContextInputMixin:
         count,page=body.get('snapshot_pages',1),body.get('snapshot_page',0)
         if type(count) is not int or type(page) is not int or not 1<=count<=10000 or not 0<=page<count or count>1 and not isinstance(body.get('snapshot_id'),str):
             return self._json(400,{'error':'invalid_observation_pages'})
-        result=self.server.capture.text(body)
+        result = self.server.capture.text(body, one_shot=not plugins.on("screen_awareness"))
         observations=getattr(getattr(self.server,'character_agent',None),'observations',None)
         if result.get('accepted') and observations: observations.ingest_text(body)
         self._json(202,result)

@@ -162,11 +162,8 @@ class SummarizerTest(unittest.TestCase):
         self.assertEqual(set(self.server.asked), {"observation_summary"})
         self.assertNotIn(T0 - SEGMENT_S, self.timeline.summarized())  # too few records
 
-    def test_nothing_is_asked_while_activity_is_not_observed_or_observation_is_paused(self):
+    def test_nothing_is_asked_while_observation_is_paused(self):
         self.segments(T0, T0 + 15 * SEGMENT_S)
-        self.config.write_text(json.dumps({"observe_activity": False}), encoding="utf-8")
-        self.assertEqual(self.drained(), 0)
-        self.config.write_text(json.dumps({"observe_activity": True, "x": 1}), encoding="utf-8")
         self.server.paused = True
         self.assertEqual(self.drained(), 0)
         self.server.paused = False

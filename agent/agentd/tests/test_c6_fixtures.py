@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from support import enable_plugins
 from brain.egress import EgressPolicy  # noqa: E402
 from brain.provider import Mouth  # noqa: E402
 from character_agent.integration import CharacterAgentController  # noqa: E402
@@ -89,6 +90,7 @@ def mismatches(fixture, real, nullable, free_keys, path=""):
 
 class C6FixtureTest(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self)
         self.tmp = tempfile.TemporaryDirectory()
         state = Path(self.tmp.name)
         # One signed-in profile, so the array item is compared too.

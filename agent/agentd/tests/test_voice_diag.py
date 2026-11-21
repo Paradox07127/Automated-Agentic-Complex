@@ -4,7 +4,6 @@ import io
 import json
 import os
 from pathlib import Path
-import socket
 import subprocess
 import sys
 import tempfile
@@ -260,12 +259,10 @@ class VoiceStartupTest(unittest.TestCase):
         home = Path(tmp.name)
         (home / ".claude").mkdir()
         self.state = home / "state"
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", 0))
-            self.port = probe.getsockname()[1]
+        self.port = 48810
         self.process = subprocess.Popen(
             [sys.executable, "-I", "-c", MAIN, "--port", str(self.port), "--state-dir", str(self.state), "--no-proactive",
-             "--mute", "--observation-off", "--ledger-root", str(home / "no-ledger"), *extra],
+             "--mute", "--plugin-off", "screen_awareness", "--ledger-root", str(home / "no-ledger"), *extra],
             env={**os.environ, "HOME": str(home), "TEST_AGENTD": str(AGENTD),
                  "AAC_TTS_TOKEN_FILE": str(home / "no-tts.token"), **env},
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

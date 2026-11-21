@@ -255,12 +255,12 @@ class DesktopTaskTests(unittest.TestCase):
         from character_agent.services.settings import RuntimeSettings
         bridge = object()
         config = {'backend': 'codex', 'auth_source': 'existing_login', 'routes': {}}
-        controller = SimpleNamespace(server=SimpleNamespace(sessions=SimpleNamespace(computer_control=bridge)), _acp_probes={})
+        controller = SimpleNamespace(server=SimpleNamespace(computer_control=bridge), _acp_probes={})
         controller._can_run_desktop_task = lambda c, b: CharacterAgentController._can_run_desktop_task(controller, c, b)
         with patch('tool_gateway.computer_toolset.available', return_value=True) as available:
             self.assertTrue(CharacterAgentController._computer_use_ready(controller, config))
         available.assert_called_once_with(RuntimeSettings.route(config, 'computer'), bridge, None)
-        controller.server.sessions.computer_control = None
+        controller.server.computer_control = None
         self.assertFalse(CharacterAgentController._computer_use_ready(controller, config))
 
     def test_controller_runs_task_on_the_computer_route_config(self):
@@ -270,7 +270,7 @@ class DesktopTaskTests(unittest.TestCase):
         routed = RuntimeSettings.route(config, 'computer')
         tools, bridge = Mock(), object()
         controller = SimpleNamespace(settings=SimpleNamespace(snapshot=lambda: config), tools=tools,
-            server=SimpleNamespace(sessions=SimpleNamespace(computer_control=bridge)),
+            server=SimpleNamespace(computer_control=bridge),
             _acp_probes={}, _session_factory=Mock(return_value='session'))
         controller._can_run_desktop_task = lambda c, b: CharacterAgentController._can_run_desktop_task(controller, c, b)
         args = {'target': TARGET, 'goal': 'look'}

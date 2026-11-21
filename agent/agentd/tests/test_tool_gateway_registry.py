@@ -38,7 +38,8 @@ HEAD = {
 class RegistryOfferTests(integration.IntegrationFixture):
     def desktop_on(self):
         """A desktop bridge, so the desktop family is offered."""
-        self.server.sessions = Mock(computer_control=object(), sessions={}, store=None)
+        self.server.computer_control = object()
+        self.server.sessions = Mock(sessions={}, store=None)
 
     def prepare(self, line_id, source, *, side=False):
         trace = {'remember': True, 'reset': None, 'history': None}

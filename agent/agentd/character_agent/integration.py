@@ -35,6 +35,7 @@ from character_agent.services.store import RunStore
 from character_agent.harness.discovery import DiscoveryService
 from character_agent.harness.registry import DISCOVERED, HARNESSES, acp_agent, harness, pi_catalog
 from character_agent.services.workspace import WorkspaceService
+from infra import plugins
 from infra.localtime import local_time
 from infra.platform import USER_MACHINE
 from infra.store import checkpoint
@@ -105,17 +106,19 @@ class CharacterAgentController:
         runner_root = self.state_dir / 'character-agent' / 'runner'
         # Remove vendor history indexes before any runtime can use them, but
         # do not let recursive disposal of idle actors block backend readiness.
-        purge_runner_indexes(runner_root, apply=True, remove_idle=False)
-        from character_agent.harness.codex_runner import discard_log_db
-        discard_log_db(runner_root / 'codex')
+        if plugins.on("harness_bridge"):
+            purge_runner_indexes(runner_root, apply=True, remove_idle=False)
+            from character_agent.harness.codex_runner import discard_log_db
+            discard_log_db(runner_root / 'codex')
         self.settings = RuntimeSettings(state_dir)
         self.python = python or sys.executable
         self.session_factory_override, self.credential_override = session_factory, credential
         self._auto_chosen = False
-        self.workspace = WorkspaceService(self.state_dir / "character-agent" / "files", egress=server.egress)
+        self.workspace = (WorkspaceService(self.state_dir / "character-agent" / "files", egress=server.egress)
+                          if plugins.on("personal_agent") else None)
         self.runtime = None
         self.store = RunStore(ledger_path(self.state_dir), retention=self.retention)
-        self.tools = ToolGateway(self.store, computer_control=lambda: getattr(server.sessions, 'computer_control', None),
+        self.tools = ToolGateway(self.store, computer_control=lambda: server.computer_control,
                                  egress=lambda: server.egress, report=server.broker.report)
         self._presentation_lock = threading.RLock()
         self._presentation_fault = False
@@ -125,7 +128,7 @@ class CharacterAgentController:
             server.history.conversations.run_store = self.store
         self.interactions = InteractionService(self.store, self._interaction_event,
             resume=self.continue_interaction, waiting=self._waiting_interaction)
-        self.discovery = DiscoveryService(path=self.state_dir / "runtime-discovery.json")
+        self.discovery = DiscoveryService(path=self.state_dir / "runtime-discovery.json") if plugins.on("harness_bridge") else None
         self._runtime_config = None
         self._lock = threading.RLock()
         self._availability = None
@@ -144,22 +147,22 @@ class CharacterAgentController:
         from brain.language import ReplyLanguage
         self.reply_language = ReplyLanguage()
         self.semantic = SemanticService(self)
-        self.memory_pipeline = MemoryPipeline(self)
+        self.memory_pipeline = MemoryPipeline(self) if plugins.on("light_ai") else None
         from character_agent.services.task_understanding import TaskUnderstanding
-        self.task_understanding = TaskUnderstanding(self) if server.memory is not None else None
+        self.task_understanding = TaskUnderstanding(self) if plugins.on("screen_awareness") and server.memory is not None else None
         from character_agent.services.observation_briefs import ObservationBriefs
-        self.observation_briefs = ObservationBriefs(self) if server.memory is not None else None
+        self.observation_briefs = ObservationBriefs(self) if plugins.on("daily_brief") and server.memory is not None else None
         from character_agent.services.observation import ObservationService
-        self.observations = ObservationService(self) if server.memory is not None else None
+        self.observations = ObservationService(self) if plugins.on("screen_awareness") and server.memory is not None else None
         if self.observations: self.observations.restore_report_consents()
         from character_agent.services.worklog import WorkLogService
-        self.worklog = WorkLogService(self) if server.memory is not None else None
+        self.worklog = WorkLogService(self) if plugins.on("daily_brief") and server.memory is not None else None
         self._background_runtimes = {}
         self._side_runtimes = {}  # side line_id (its run_id) -> (cancel event, runtime)
         self._turn = threading.local()  # native_tools: False while this thread runs a side or unremembered role turn
         self._foreground_request = ''  # the start of the latest foreground input, for a side line's brief
         self.jobs = JobCoordinator(JobStore(server.memory), self._execute_job, self._cancel_job,
-            emit=self._job_event) if server.memory is not None else None
+            emit=self._job_event) if plugins.on("personal_agent") and server.memory is not None else None
         from character_agent.services.deliveries import DeliveryService
         self.deliveries = DeliveryService(server.memory, self.store, server.tasks, self.jobs.store,
             emit=lambda event: server.feed.publish("delivery", event), validate_scope=self.workspace.validate_scope) if self.jobs else None
@@ -171,8 +174,10 @@ class CharacterAgentController:
             try: purge_idle_runner_actors(runner_root, stopped=self._runner_cleanup_stop.is_set)
             except (OSError, ValueError) as exc:
                 print('idle runner cleanup: ' + type(exc).__name__, file=sys.stderr)
-        self._runner_cleanup = threading.Thread(target=clean_idle, name='idle-runner-cleanup', daemon=True)
-        self._runner_cleanup.start()
+        self._runner_cleanup = None
+        if plugins.on("harness_bridge"):
+            self._runner_cleanup = threading.Thread(target=clean_idle, name='idle-runner-cleanup', daemon=True)
+            self._runner_cleanup.start()
 
     def _recover_deliveries(self):
         """Reconcile a process exit between task settlement and delivery commit."""
@@ -456,6 +461,8 @@ class CharacterAgentController:
         return value["api_key"]
 
     def installed_runtimes(self, refresh=False, *, wait=True):
+        if self.discovery is None:
+            return []
         rows = (self.discovery.scan(refresh, wait=wait) if isinstance(self.discovery, DiscoveryService)
                 else self.discovery.scan(refresh))["runtimes"]
         return [{**row, "backend": backend,
@@ -507,20 +514,26 @@ class CharacterAgentController:
     def available_backends(self, *, wait=True):
         rows = self.installed_runtimes(wait=wait)
         from character_agent.harness.pi_config import resolve_pi_runtime
-        node, runtime = resolve_pi_runtime(self.harness_sites.get("harness.pi"))
-        pi = Path(node).is_file() and (Path(runtime) / "node_modules/@earendil-works/pi-coding-agent/package.json").is_file()
+        pi = False
+        if plugins.on("light_ai"):
+            node, runtime = resolve_pi_runtime(self.harness_sites.get("harness.pi"))
+            pi = Path(node).is_file() and (Path(runtime) / "node_modules/@earendil-works/pi-coding-agent/package.json").is_file()
         from character_agent.harness import acp_agents
-        path = acp_agents.search_path()
-        acp = bool(acp_agents.find_local()) or any(shutil.which(runner, path=path) for runner in ("npx", "uvx"))
-        values = [(key, h.title, any(r["entry_supported"] for r in rows if r["backend"] == key) if h.discovery_name
-                   else acp if key == "acp" else pi)
-                  for key, h in HARNESSES.items()]
-        return [{"id": key, "title": title, "available": ready or self.session_factory_override is not None,
-                 "reason": None if ready or self.session_factory_override else "runtime_missing"}
-                for key, title, ready in values]
+        acp = self.discovery is not None and (bool(acp_agents.find_local()) or any(
+            shutil.which(runner, path=acp_agents.search_path()) for runner in ("npx", "uvx")))
+        found = {row["backend"] for row in rows if row["entry_supported"]}
+        if pi: found.add("pi")
+        if acp: found.add("acp")
+        backends = []
+        for key, h in HARNESSES.items():
+            enabled = plugins.on("light_ai" if key == "pi" else "harness_bridge")
+            available = enabled and (key in found or self.session_factory_override is not None)
+            reason = None if available else "runtime_missing" if enabled else "plugin_off"
+            backends.append({"id": key, "title": h.title, "available": available, "reason": reason})
+        return backends
 
     def public(self, discover=False, *, wait=True):
-        if discover:
+        if discover and self.discovery is not None:
             self.discovery.scan(refresh=True)
             wait = True
         pending = (not wait and isinstance(self.discovery, DiscoveryService) and
@@ -565,8 +578,8 @@ class CharacterAgentController:
         if h:
             entry = next(row for row in available if row["id"] == config["backend"])
             if not entry["available"]:
-                error = 'runtime_discovery_pending' if pending else entry["reason"]
-            elif self.server.mouth is None:
+                error = 'runtime_discovery_pending' if pending and entry['reason'] != 'plugin_off' else entry["reason"]
+            elif self.server.no_character or plugins.on("light_ai") and self.server.mouth is None:
                 error = "character_context_unavailable"
             elif config["auth_source"] == "product_login":
                 error = "product_login_not_supported_use_native_login"
@@ -716,7 +729,7 @@ class CharacterAgentController:
             # The executable belongs to the kernel it was picked for, as in RuntimeSettings.route.
             carried = {"executable": None} if data.get("backend", old["backend"]) != old["backend"] else {}
             config = RuntimeSettings.validate({**old, **carried, **data})
-            if config["scope_id"]:
+            if config["scope_id"] and self.workspace is not None:
                 self.workspace.validate_scope(config["scope_id"])
             # Unchanged, or retention only (read at each cleanup): the running runtime keeps going.
             # Compared and saved under the lock, so a PUT read before another change cannot write back stale settings.
@@ -766,6 +779,8 @@ class CharacterAgentController:
             if not data['job_id'] and row['conversation_id'] != self.server.history.conversations.active:
                 raise ValueError('conversation_not_active')
             if data['character_id'] != self.server.character: raise ValueError('interaction_character_changed')
+            if (data['scope_id'] or data['job_id']) and self.workspace is None:
+                raise ValueError('plugin_off')
             if data['scope_id']: self.workspace.validate_scope(data['scope_id'])
             if self.tools.ledger.unsettled(row['run_id']): raise ValueError('effect_unknown')
             checkpoint = self.store.load_checkpoint(run_id=row['run_id'])
@@ -821,9 +836,10 @@ class CharacterAgentController:
 
     def _permitted(self, source, row=None):
         server = self.server
-        if source in ('observations','briefs','task_context') and getattr(self,'observations',None):
+        if source in ('observations','task_context') and getattr(self,'observations',None):
             return self.observations.allowed()
-        if source == 'briefs': source = 'behavior'
+        if source == 'briefs':
+            return not server.resetting and not server.observation_paused()
         if source == "task_context": source = "behavior"
         if server.resetting:
             return False
@@ -843,7 +859,9 @@ class CharacterAgentController:
             permissions = server.consent.snapshot()[0]
             if any(not permissions.get(r,False) for r in requirements): return False
             try:
-                for scope in {v for t in row.get('threads',[]) for v in t.get('scope_ids',[])}: self.workspace.validate_scope(scope)
+                scopes = {v for t in row.get('threads', []) for v in t.get('scope_ids', [])}
+                if scopes and self.workspace is None: return False
+                for scope in scopes: self.workspace.validate_scope(scope)
             except ValueError: return False
             return True
         if server.observation_paused() or not server.page_text_allowed():
@@ -874,7 +892,7 @@ class CharacterAgentController:
             worklog=s.worklog if not temporary else None)
 
     def _computer_use_ready(self, config):
-        bridge = getattr(self.server.sessions, "computer_control", None)
+        bridge = self.server.computer_control
         return bool(bridge) and self._can_run_desktop_task(RuntimeSettings.route(config, 'computer'), bridge)
 
     def _can_run_desktop_task(self, config, bridge):
@@ -913,7 +931,7 @@ class CharacterAgentController:
         if name == 'desktop_task':
             from tool_gateway.computer_toolset import run_desktop_task
             config = RuntimeSettings.route(self.settings.snapshot(), 'computer')
-            if not self._can_run_desktop_task(config, getattr(self.server.sessions, 'computer_control', None)):
+            if not self._can_run_desktop_task(config, self.server.computer_control):
                 return {'error': {'code': 'desktop_task_unavailable'}}
             actor = 'desktop-task-' + uuid.uuid4().hex
             return run_desktop_task(lambda method, params, **options: self.tools.desktop.computer_call(
@@ -1013,6 +1031,8 @@ class CharacterAgentController:
     def _session_factory(self, definitions, config, actor_id=None, native_tools=True, max_turns=None):
         """native_tools False: the harness's own tools stay off (semantic work, read-only role turns).
         max_turns: a semantic purpose's turn ceiling; None keeps the harness default."""
+        if not plugins.on("light_ai" if config["backend"] == "pi" else "harness_bridge"):
+            raise ValueError("plugin_off")
         if self.session_factory_override:
             return self.session_factory_override(definitions)
         key = self._credential(config) if config["auth_source"] == "api_key" else ""
@@ -1031,7 +1051,7 @@ class CharacterAgentController:
         with self._lock:
             snapshot = self.settings.snapshot()
             config = RuntimeSettings.route(snapshot, 'chat')
-            bridge = getattr(self.server.sessions, "computer_control", None)
+            bridge = self.server.computer_control
             desktop_task = self._computer_use_ready(snapshot)
             native = self.tools.registry.native_definitions(desktop=bool(bridge), desktop_task=desktop_task)
             if self.runtime is None or config != self._runtime_config or native != self.runtime.native_tools:
@@ -1190,9 +1210,9 @@ class CharacterAgentController:
             if self.store.get(run['run_id'])['state'] != 'waiting_user': return False
             self.store.finish(run['run_id'], 'cancelled', task_id=run['task_id'], dependencies=run['dependencies'],
                 result={'error': 'client_cancel'})
-        if run['task_id'] and self.server.tasks.get(run['task_id'])['state'] == 'waiting_user':
+        if run['task_id'] and self.server.tasks and self.server.tasks.get(run['task_id'])['state'] == 'waiting_user':
             self.server.tasks.transition(run['task_id'], 'cancelled')
-        self.workspace.cancel_run(run['run_id'])
+        if self.workspace: self.workspace.cancel_run(run['run_id'])
         self.interactions.invalidate(run_ids={run['run_id']})
         return True
 
@@ -1415,7 +1435,7 @@ class CharacterAgentController:
             self.runtime.forget()
         else:
             self.store.forget()
-        self.workspace.forget()
+        if self.workspace: self.workspace.forget()
         with self._lock:
             config = self.settings.snapshot()
             if config["scope_id"]:
@@ -1434,6 +1454,8 @@ class CharacterAgentController:
         with self.store.lock:
             for table in ("character_runs", "character_run_events", "character_effects", "character_checkpoints", "character_interactions"):
                 counts[table] = self.store.db.execute("SELECT COUNT(*) FROM " + table).fetchone()[0]
+        if self.workspace is None:
+            return counts
         with self.workspace.lock:
             for table in ("scopes", "sources", "run_sources", "expectations", "cancelled_runs", "artifacts", "effects"):
                 counts["character_workspace_" + table] = self.workspace.db.execute("SELECT COUNT(*) FROM " + table).fetchone()[0]
@@ -1448,9 +1470,10 @@ class CharacterAgentController:
 
     def close(self):
         self._runner_cleanup_stop.set()
-        self._runner_cleanup.join(timeout=1)
+        if self._runner_cleanup: self._runner_cleanup.join(timeout=1)
         self.interactions.close()
-        self.memory_pipeline.close()
+        if self.memory_pipeline: self.memory_pipeline.close()
+        if self.worklog: self.worklog.close()
         if self.observations: self.observations.close()
         if self.observation_briefs: self.observation_briefs.close()
         if self.task_understanding: self.task_understanding.close()
@@ -1641,7 +1664,7 @@ class CharacterAgentController:
         span, started = new_span_id(), time.monotonic()
         server._step(trace, "model.started", span, attrs={"model": runtime.model, "call": "character_agent"})
         # Side and unremembered runs get their own session; the harness's own file and shell tools stay off there.
-        self._turn.native_tools = not side and trace.get("remember", True)
+        self._turn.native_tools = self.jobs is not None and not side and trace.get("remember", True)
         try:
             # The native grant outlives the run by minutes and blocks the next run's session with desktop_busy.
             with self.tools.session(SessionKey("character", line_id,
@@ -1657,7 +1680,7 @@ class CharacterAgentController:
                         scope_id, line_id, utterance=text, answers=answers) if not side and self.jobs and trace.get('remember', True) else None,
                     question_session=QuestionTurn(self.interactions, self.settings.snapshot()['interactive_tools'], line_id,
                                                   server.character, egress.user_text(text), scope_id)
-                        if not side and trace.get("remember", True) else None,
+                        if self.jobs and not side and trace.get("remember", True) else None,
                     conversation_id=(server.history.conversations.active if server.history else None) if side else None,
                     on_first_token=lambda: server._step(trace, "model.first_token", span),
                     on_tool=lambda *event: server._trace_tool(trace, *event),

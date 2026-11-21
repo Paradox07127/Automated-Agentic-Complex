@@ -12,6 +12,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from support import enable_plugins
 from api.handler import ROUTES  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 import daemon.main as agentd_main  # noqa: E402
@@ -52,6 +53,7 @@ def route_path(path):
 
 class HttpGuardTest(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self)
         self.server = AgentdServer(("127.0.0.1", 0), **TOKENS)
         self.addCleanup(self.server.server_close)
         self.port = self.server.server_port
@@ -289,7 +291,7 @@ class StartupModesTest(unittest.TestCase):
             dir_link = state / "directory-link"
             dir_link.symlink_to(root, target_is_directory=True)
             links = [path.lstat().st_mode for path in (link, dir_link)]
-            args = SimpleNamespace(state_dir=str(state), interaction_preset="balanced")
+            args = SimpleNamespace(state_dir=str(state), interaction_preset="balanced", plugin_on=[], plugin_off=[])
             with mock.patch.object(agentd_main.os, "umask"), \
                     mock.patch.object(agentd_main.sys, "stderr", io.StringIO()), \
                     mock.patch.object(agentd_main, "parse_args", return_value=args), \

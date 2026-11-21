@@ -227,10 +227,33 @@ class ContextMixin:
     def _attention_context(self, said=None, look=None, refused=None, used=None, window=True):
         """window: whether the front window's text goes in (see context)."""
         self.sync_privacy()
-        # Without --share-page-text only app names and durations reach the Claude API, never titles.
-        if self.attention is None:
-            return ""
         note = used.append if used is not None else lambda _: None
+        text = self._screen_context(said, note) if self.attention is not None else ""
+        if refused is not None:
+            text += f"\nCould not see the user's window this time (reason: {refused})"
+        elif look is not None:
+            # Only this line's own observation answers it; an older view never stands in.
+            seen = self.capture.observation(look) or {"status": "unknown", "reason": None, "text": None}
+            if seen["status"] == "ready" and seen["text"]:
+                text += f"\nThe user's window, just looked at: {seen['text']}"
+                note(("view", look))
+            else:
+                why = "timeout" if seen["status"] == "pending" else seen["reason"] or seen["status"]
+                text += f"\nCould not see the user's window this time (reason: {why})"
+        else:
+            view = self.capture.view() if self.capture is not None else None
+            if view and datetime.datetime.now().timestamp() - view["ts"] <= VIEW_FRESH:
+                text += f"\nThe user's window, just looked at: {view['text']}"
+                note(("view", view["request_id"]))
+        window = self.capture.window_text() if window and self.capture is not None else None
+        if window:
+            content=window['text']
+            text += f"\nText in the user's front window ({window['app']} \"{window['title'] or ''}\"; a preview, observation_read has all of it): {content[:12000]}"
+            if len(content)>12000: text+=f"\n{len(content)} characters in all; the end: {content[-4000:]}"
+            note(("window_text", None))
+        return text
+
+    def _screen_context(self, said, note):
         scene = self.activity()
         text = f"Scene: {scene['activity']} (confidence {scene['confidence']})"
         if self.page_text_allowed():  # subject and facts carry window titles
@@ -275,26 +298,4 @@ class ContextMixin:
                 text += (f"\nWeb page the user read at {datetime.datetime.fromtimestamp(page['ts']):%H:%M} "
                          f"({page['url_host'] or 'browser'} \"{page['title'] or ''}\"): {page['text'][:1500]}")
                 note(("page", None))
-        if refused is not None:
-            text += f"\nCould not see the user's window this time (reason: {refused})"
-        elif look is not None:
-            # Only this line's own observation answers it; an older view never stands in.
-            seen = self.capture.observation(look) or {"status": "unknown", "reason": None, "text": None}
-            if seen["status"] == "ready" and seen["text"]:
-                text += f"\nThe user's window, just looked at: {seen['text']}"
-                note(("view", look))
-            else:
-                why = "timeout" if seen["status"] == "pending" else seen["reason"] or seen["status"]
-                text += f"\nCould not see the user's window this time (reason: {why})"
-        else:
-            view = self.capture.view() if self.capture is not None else None
-            if view and datetime.datetime.now().timestamp() - view["ts"] <= VIEW_FRESH:
-                text += f"\nThe user's window, just looked at: {view['text']}"
-                note(("view", view["request_id"]))
-        window = self.capture.window_text() if window and self.capture is not None else None
-        if window:
-            content=window['text']
-            text += f"\nText in the user's front window ({window['app']} \"{window['title'] or ''}\"; a preview, observation_read has all of it): {content[:12000]}"
-            if len(content)>12000: text+=f"\n{len(content)} characters in all; the end: {content[-4000:]}"
-            note(("window_text", None))
         return text

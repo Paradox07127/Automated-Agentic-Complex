@@ -156,6 +156,7 @@ class ObservationBriefs:
             units = sorted({ref for thread in threads for ref in thread.get('evidence',[]) if isinstance(ref,str)}) or [row['run_id']]
             start, end = row['start'], row['end']
         elif kind == 'segment':
+            if not self.controller._permitted('task_context'): return None
             with self.lock:
                 raw = self.db.execute('SELECT character_id,body FROM task_segments WHERE id=?', (ident,)).fetchone()
             if raw is None or raw[0] != self.server.character: return None

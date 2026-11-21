@@ -983,8 +983,10 @@ class CaptureTest(unittest.TestCase):
         self.addCleanup(store.close)
         scene = {"activity": "unknown", "confidence": 0.0, "subject": None, "facts": [], "mode": "other",
                  "state": "unknown", "thread": None, "on_mind": None, "blocker": None, "now": None}
-        return AgentdServer._attention_context(SimpleNamespace(attention=store, sync_privacy=lambda: None, page_text_allowed=lambda: True, capture=m,
-                                                               activity=lambda: scene))
+        server = AgentdServer.__new__(AgentdServer)
+        server.attention, server.capture = store, m
+        server.sync_privacy, server.page_text_allowed, server.activity = lambda: None, lambda: True, lambda: scene
+        return server._attention_context()
 
     def test_probe_view_does_not_survive_secure_input_or_a_hidden_focus(self):
         self.now = time.time()  # the mouth's 300 s freshness uses the wall clock
@@ -1044,6 +1046,8 @@ class CaptureServerTest(unittest.TestCase):
         self.fake = SimpleNamespace(text=json.dumps(answer), chunks=["[intent:explain]好。"], bodies=[])
 
     def start(self, share):
+        from support import enable_plugins
+        enable_plugins(self, "screen_awareness", "screen_reading")
         attention = AttentionStore(Path(self.tmp.name) / "attention.sqlite",
                                    Blacklist(deny_blacklist(Path(self.tmp.name) / "blacklist.json")))
         self.addCleanup(attention.close)

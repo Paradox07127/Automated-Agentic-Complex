@@ -34,7 +34,7 @@ from character.judge import Judge
 from sessions.ledger import DEFAULT_ROOT
 from personal.memory import Memory
 from personal.worklog import WorkLog
-from infra import paths
+from infra import paths, plugins
 from character.proactive import Proactive
 from character.proactive_log import ProactiveLog
 from character.routine import Routine
@@ -59,13 +59,14 @@ def build_capture(feed, attention, semantic, state_dir, share_window_text, share
     """Local capture judgment; authorized vision uses the selected role harness."""
     from character_agent.services.semantic import SemanticVision
     def focus():
-        window = attention.focus()
+        window = attention.focus() if attention is not None else None
         return None if window is None else {**window, "category": attention.app_category(window)}
-    return CaptureManager(feed, attention.blacklist, focus, Path(state_dir) / "capture.jsonl",
+    blacklist = attention.blacklist if attention is not None else Blacklist(paths.blacklist(state_dir))
+    return CaptureManager(feed, blacklist, focus, Path(state_dir) / "capture.jsonl",
                           vision=SemanticVision(semantic) if share_screenshots else None,
                           judge_log=Path(state_dir) / "capture-judge.jsonl", budget_db=budget_db,
                           spawn=lambda fn: threading.Thread(target=fn, daemon=True).start(), share_text=share_window_text,
-                          app_category=attention.app_category)
+                          app_category=attention.app_category if attention is not None else None)
 
 
 def tts_token(path):
@@ -124,8 +125,8 @@ def parse_args(argv=None):
                         help="keep AX input field text and hook prompts in events_raw; off by default")
     parser.add_argument("--share-agent-sessions", action="store_true",
                         help="keep live coding-session content; Companion enables this by default")
-    parser.add_argument("--observation-off", action="store_true",
-                        help="take no observation input, as a pause that never ends; off by default")
+    parser.add_argument("--plugin-on", action="append", choices=plugins.DEFAULTS, default=[], metavar="ID")
+    parser.add_argument("--plugin-off", action="append", choices=plugins.DEFAULTS, default=[], metavar="ID")
     parser.add_argument("--share-screenshots", action="store_true",
                         help="request budgeted window screenshots and describe them with Claude; off by default")
     parser.add_argument("--tts-token-file", help="TTS bearer token file (0600); default $AAC_TTS_TOKEN_FILE, "
@@ -180,7 +181,8 @@ def startup_privacy(server):
     with what was derived from them."""
     permissions, level = server.consent.snapshot()[0], server.consent.level
     if not permissions["typed_text"]:
-        server.attention.clear_typed_text()
+        if server.attention is not None:
+            server.attention.clear_typed_text()
         if getattr(server, "timeline", None) is not None:
             server.timeline.clear_typed_text()
     # Only the window level keeps window trees; a narrower one may have been saved while agentd was stopped.
@@ -251,6 +253,11 @@ def main():
     sys.stderr = TimestampedStderr(sys.stderr)
     parent = os.getppid()
     args = parse_args()
+    plugins.resolve(args.plugin_on, args.plugin_off)
+    light = plugins.on("light_ai")
+    awareness = plugins.on("screen_awareness")
+    needs_runtime = light or awareness or any(plugins.on(i) for i in (
+        "screen_reading", "daily_brief", "personal_agent", "harness_bridge"))
     interaction = preset(args.interaction_preset)
     state_dir = Path(args.state_dir)
     ensure_state_dir(state_dir)
@@ -261,7 +268,7 @@ def main():
     hook_token = read_token(hook_path)
     ui_token = secrets.token_urlsafe(24)
     events_token = secrets.token_urlsafe(24)
-    integration_token = secrets.token_urlsafe(24)
+    integration_token = secrets.token_urlsafe(24) if plugins.on("external_access") else None
     repository = characters.Repository(args.character_catalog)
     if args.character is not None:
         repository.load_card(args.character)
@@ -270,9 +277,8 @@ def main():
     from models.model_backends import ModelSettings
     from brain.outbound import OutboundGuard, resolve_windows
     from brain.provider import Mouth
-    models = ModelSettings(state_dir)
+    models = ModelSettings(state_dir) if needs_runtime else None
     guard = OutboundGuard(resolve_windows(state_dir), paths.outbound_guard_log(state_dir))
-    mouth_off = None
     from brain.egress import EgressPolicy
     # One policy for every model call, so the diagnostics see one set of mask counts.
     egress = EgressPolicy(guard=guard, redact=args.redact)
@@ -289,38 +295,44 @@ def main():
     factory = lambda cid: Mouth(character=cid, persona_path=repository.card_path(cid), lore_path=repository.lore_path(cid),
                                 egress=egress, motion_phrases=motion_phrases(cid))  # noqa: E731
     # No character: no mouth, and the routes in api.handler.CHARACTER_ROUTES answer 409 no_character.
-    mouth = None if args.character is None else factory(args.character)
-    if args.character is None:
-        mouth_off = "no_character"
-    attention = AttentionStore(paths.attention_db(state_dir), Blacklist(paths.blacklist(state_dir)))
+    mouth = factory(args.character) if light and args.character is not None else None
+    mouth_off = "no_character" if args.character is None else "plugin_off"
+    attention = AttentionStore(paths.attention_db(state_dir), Blacklist(paths.blacklist(state_dir))) if awareness else None
     server = AgentdServer(("127.0.0.1", args.port), hook_token, ui_token,
                           broker=ApprovalBroker(args.hook_timeout, args.margin),
                           gate=Gate(enabled=args.proactive, interaction_preset=interaction.name, state_scale=lambda: server.state_view.comment_scale(), db=open_store(db)),
                           mouth=mouth, events_token=events_token, integration_token=integration_token,
-                          attention=attention, share_page_text=args.share_page_text,
+                          attention=attention, share_page_text=awareness and args.share_page_text,
                           interaction_preset=interaction.name, repository=repository)
     # The socket is bound: /health answers from here while the rest starts; daemon, so a fatal init error still exits.
+    server.state_dir = state_dir
     server.startup_stage, server.degraded = "init", []
     serving = threading.Thread(target=server.serve_forever, daemon=True)
     serving.start()
     server.startup_stage = "storage"
-    server.timeline = Timeline(paths.timeline_db(state_dir), attention.blacklist)
-    server.character, server.mouth_factory = args.character, factory
+    if awareness:
+        server.timeline = Timeline(paths.timeline_db(state_dir), attention.blacklist)
+    server.character, server.mouth_factory = args.character, factory if light else None
     server.no_character = args.character is None
     server.models = models
     server.privacy_config = args.privacy_config
     server.muted = args.mute
-    server.history = History(open_store(db))
-    server.proactive_log = ProactiveLog(open_store(db))
-    server.proactive_log.prune()
-    server.episodes = Episodes(open_store(db))
-    server.worklog = WorkLog(open_store(db), lambda: server.character)
-    server.tasks = TaskLedger(open_store(db))
+    if light or plugins.on("personal_agent"):
+        server.history = History(open_store(db))
+    if light:
+        server.proactive_log = ProactiveLog(open_store(db))
+        server.proactive_log.prune()
+    if light or plugins.on("daily_brief"):
+        server.episodes = Episodes(open_store(db))
+    if plugins.on("daily_brief"):
+        server.worklog = WorkLog(open_store(db), lambda: server.character)
+    if plugins.on("personal_agent"):
+        server.tasks = TaskLedger(open_store(db))
     server.ledger_root = args.ledger_root
     server.memory = memory
     server.load_pause()
     server.focus = Focus(paths.focus(state_dir), clock=lambda: server.clock(),
-                         language=lambda: server.character_agent.semantic.reply())
+                         language=lambda: server.character_agent.semantic.reply() if server.character_agent else None)
     server.gate.focus = server.focus.running()
     server.load_receipts(open_store(db))
     server.trace = TraceStore(open_store(db), producer_epoch=server.registry.epoch, retention=server.history_retention)
@@ -333,7 +345,8 @@ def main():
     server.character_voice_enabled = args.character is not None and server.bindings.voice(args.character) is not None
     if server.mouth is not None:
         server.mouth.refresh_system(effective(server))  # the bindings are built after the mouth
-    server.motion.prewarm(server.motion.settings.backend if args.character is None else effective(server)["motion"]["driver"])
+    if plugins.on("motion_generation"):
+        server.motion.prewarm(server.motion.settings.backend if args.character is None else effective(server)["motion"]["driver"])
     if args.character is not None:  # without a character server.state stays None and records nothing
         server.state = CharacterState(open_store(db), lambda cid: repository.load_card(cid).get("state_profile"))
         server.state.retention = server.history_retention
@@ -346,40 +359,46 @@ def main():
     from character_agent.integration import CharacterAgentController
     from character_agent.services.semantic import SemanticJudge
     server.privacy_config = args.privacy_config
-    server.share_typed_text = args.share_typed_text
-    server.share_agent_sessions = args.share_agent_sessions
-    server.observation_off = args.observation_off
-    server.agent_meta = AgentMeta()
-    server.capture = build_capture(server.feed, attention, None, state_dir,
-                                   args.share_window_text, args.share_screenshots, budget_db=open_store(db))
+    server.share_typed_text = awareness and args.share_typed_text
+    server.share_agent_sessions = plugins.on("coding_sessions") and args.share_agent_sessions
+    if plugins.on("coding_sessions"):
+        server.agent_meta = AgentMeta()
+    if awareness or plugins.on("screen_reading"):
+        server.capture = build_capture(server.feed, attention, None, state_dir,
+                                       args.share_window_text, args.share_screenshots, budget_db=open_store(db))
     startup_privacy(server)
     server.startup_stage = "character_agent"
-    server.character_agent = CharacterAgentController(server, state_dir, harness_sites=args.harness_sites)
-    server.character_agent.discovery.warm()  # the runtime probes take seconds; the main window reads them first
-    server.activity_decisions = ActivityDecisions(server.character_agent.semantic, interaction.model_every)
-    from observation.facing_decisions import FacingDecisions
-    server.facing_decisions = FacingDecisions(server.character_agent.semantic,
-        lambda yaw,reason,hold,valid: server.spatial.request_facing(yaw,reason,hold,source='decision',valid=valid),
-        interaction.model_every)
-    if args.share_screenshots:
+    if needs_runtime:
+        server.character_agent = CharacterAgentController(server, state_dir, harness_sites=args.harness_sites)
+    if plugins.on("harness_bridge"):
+        server.character_agent.discovery.warm()  # the runtime probes take seconds; the main window reads them first
+    if awareness:
+        server.activity_decisions = ActivityDecisions(server.character_agent.semantic, interaction.model_every)
+        from observation.facing_decisions import FacingDecisions
+        server.facing_decisions = FacingDecisions(server.character_agent.semantic,
+            lambda yaw,reason,hold,valid: server.spatial.request_facing(yaw,reason,hold,source='decision',valid=valid),
+            interaction.model_every)
+    if args.share_screenshots and server.capture is not None:
         from character_agent.services.semantic import SemanticVision
         server.capture.vision=SemanticVision(server.character_agent.semantic)
     server.startup_stage = "observation"
-    if server.character_agent.observations:
+    if awareness:
         server.capture.on_image=server.character_agent.observations.ingest_image
         server.capture.budget.min_interval=5
         server.capture.budget.per_hour=120
         server.capture.budget.per_day=1500
         start_optional(server, "observations", server.character_agent.observations.start)
     server.startup_stage = "sessions"
-    server.sessions = server.dispatcher.sessions = SessionManager(
-        server.broker, server.announce, state_dir, f"http://127.0.0.1:{server.server_port}", hook_token,
-        args.hook_timeout, store=open_store(db), computer_control=ComputerControlConfig(
-            str(Path(args.computer_control_socket).expanduser().resolve()),
-            str(Path(args.computer_control_token_file).expanduser().resolve())) if args.computer_control_socket else None,
-        reply_language=server.reply_language_code)
-    server.sessions.tasks = server.dispatcher.tasks = server.tasks
-    if args.tts_url:
+    if plugins.on("computer_use") and args.computer_control_socket:
+        server.computer_control = ComputerControlConfig(str(Path(args.computer_control_socket).expanduser().resolve()),
+                                                       str(Path(args.computer_control_token_file).expanduser().resolve()))
+    if plugins.on("coding_sessions") or plugins.on("personal_agent"):
+        server.sessions = server.dispatcher.sessions = SessionManager(
+            server.broker, server.announce, state_dir, f"http://127.0.0.1:{server.server_port}", hook_token,
+            args.hook_timeout, store=open_store(db), computer_control=server.computer_control,
+            reply_language=server.reply_language_code)
+        server.sessions.tasks = server.dispatcher.tasks = server.tasks
+    if light and args.tts_url:
         server.startup_stage = "speech"
 
     def start_voice():
@@ -387,44 +406,50 @@ def main():
         server.voice = make_provider(args, server.bindings, server.registry.epoch, token)
         if server.voice.relay() is not None:
             server.voice.relay().on_event = server.on_speech_event
-    if not start_optional(server, "speech", start_voice):
+    if light and not start_optional(server, "speech", start_voice):
         server.voice = NoVoice("start_failed")  # text-only, as without --tts-url
     server.speech, server.tts_ensurer = server.voice.relay(), server.voice.ensurer
     server.tts_token_file = args.tts_token_file or os.environ.get("AAC_TTS_TOKEN_FILE")
     if isinstance(server.voice, RemoteWsVoice):
         server.voice.probe()
     server.startup_stage = "recovery"
-    start_optional(server, "recover_tasks", server.recover_tasks)  # once the voice is set up, so its announcements can be spoken
+    if server.tasks is not None:
+        start_optional(server, "recover_tasks", server.recover_tasks)  # once the voice is set up, so its announcements can be spoken
     commitments = Commitments(open_store(db))
     # server.commitments stays None on a failure, which the reminder routes and ticks answer as unavailable
     start_optional(server, "recover_commitments", lambda: server.recover_commitments(commitments))
     server.startup_stage = "memory"
-    start_optional(server, "memory_pipeline", server.character_agent.memory_pipeline.start)
-    start_optional(server, "worklog", server.character_agent.worklog.start)
+    if light:
+        start_optional(server, "memory_pipeline", server.character_agent.memory_pipeline.start)
+    if plugins.on("daily_brief"):
+        start_optional(server, "worklog", server.character_agent.worklog.start)
     server.startup_stage = "behavior"
-    server.hook_files = {"claude": Path(paths.CLAUDE_SETTINGS).expanduser(),
-                         "codex": (Path(paths.CODEX_HOME) / paths.CODEX_HOOKS).expanduser()}  # tools/install_hooks.py defaults
+    if plugins.on("coding_sessions"):
+        server.hook_files = {"claude": Path(paths.CLAUDE_SETTINGS).expanduser(),
+                             "codex": (Path(paths.CODEX_HOME) / paths.CODEX_HOOKS).expanduser()}  # tools/install_hooks.py defaults
     server.rituals = Rituals(open_store(db), report_time=args.ritual_report_time, memory=memory,
-                             summary=server.day_session_summary,
-                             arc=server.day_arc, on_change=server.ritual_check)
-    server.proactive = Proactive(attention, server.gate, server.feed.publish, server.start_line, server.busy,
-                                 judge=Judge(SemanticJudge(server.character_agent.semantic, "proactive_decide"),
-                                             paths.proactive_judge_log(state_dir)), activity=server.activity, claim=server.claim_line,
-                                 sessions=server.registry.snapshot,
-                                 break_minutes=max(0, args.break_reminder_minutes),
-                                 water_minutes=max(0, args.water_reminder_minutes), deliver="speak",
-                                 log=server.proactive_log, user=server.user_title,
-                                 language=server.character_agent.semantic.reply)
+                             summary=server.day_session_summary if plugins.on("daily_brief") else None,
+                             arc=server.day_arc if plugins.on("daily_brief") else None, on_change=server.ritual_check)
+    if awareness and light:
+        server.proactive = Proactive(attention, server.gate, server.feed.publish, server.start_line, server.busy,
+                                     judge=Judge(SemanticJudge(server.character_agent.semantic, "proactive_decide"),
+                                                 paths.proactive_judge_log(state_dir)), activity=server.activity, claim=server.claim_line,
+                                     sessions=server.registry.snapshot,
+                                     break_minutes=max(0, args.break_reminder_minutes),
+                                     water_minutes=max(0, args.water_reminder_minutes), deliver="speak",
+                                     log=server.proactive_log, user=server.user_title,
+                                     language=server.character_agent.semantic.reply)
 
     def work_signal_allowed(row):
         permissions = server.consent.snapshot()[0]
         return not server.observation_paused() and all(permissions.get(item, False) for item in row['requires'])
 
-    server.thoughts = Thoughts(server.gate, server._proactive_publish, server.character_agent.semantic,
-                               scene=server.activity, context=server._attention_context,
-                               sessions=server.registry.snapshot, consent=server.page_text_allowed,
-                               egress=egress, work=lambda cwds: thought_work(server, work_signal_allowed, cwds),
-                               log=server.proactive_log, user=server.user_title)
+    if light:
+        server.thoughts = Thoughts(server.gate, server._proactive_publish, server.character_agent.semantic,
+                                   scene=server.activity, context=server._attention_context,
+                                   sessions=server.registry.snapshot, consent=server.page_text_allowed,
+                                   egress=egress, work=(lambda cwds: thought_work(server, work_signal_allowed, cwds)) if server.worklog else None,
+                                   log=server.proactive_log, user=server.user_title)
 
     def interpreted(character, body):
         """The continuous interpreter's committed analysis of the shown character reaches her thoughts and lines."""
@@ -432,15 +457,16 @@ def main():
             server.thoughts.interpreted(body)
             server.proactive.interpreted(body)
 
-    if server.character_agent.observations:
+    if server.proactive is not None:
         server.character_agent.observations.listeners.append(interpreted)
 
-    server.signals = Signals(server.gate, server.thoughts, server.registry, sessions=server.sessions,
-                             scene=server.activity, allowed=server._signals_allowed,
-                             pending=server.broker.pending, clock=server.clock, worklog=server.worklog,
-                             semantic=server.character_agent.semantic,
-                             report_time=server.rituals.report_time, egress=egress,
-                             work_allowed=work_signal_allowed)
+    if light:
+        server.signals = Signals(server.gate, server.thoughts, server.registry, sessions=server.sessions,
+                                 scene=server.activity, allowed=server._signals_allowed,
+                                 pending=server.broker.pending, clock=server.clock, worklog=server.worklog,
+                                 semantic=server.character_agent.semantic,
+                                 report_time=server.rituals.report_time, egress=egress,
+                                 work_allowed=work_signal_allowed)
     server.spatial.routine = Routine(state=server.state_view)
     server.behavior = Behavior(server.situation, server.registry.set_activity,
                                backend=None, routine=server.spatial.routine,
@@ -448,8 +474,10 @@ def main():
                                state=server.state_view, interaction_preset=interaction.name,
                                version=lambda: (server.character, server.character_generation, server.reset_generation,
                                                 server.turn_generation, server.gate.meeting, server.gate.fullscreen))
-    server.behavior.on_decision = server.capture.judge.on_decision = server._decision
-    if server.proactive.judge is not None:
+    server.behavior.on_decision = server._decision
+    if server.capture is not None:
+        server.capture.judge.on_decision = server._decision
+    if server.proactive is not None and server.proactive.judge is not None:
         server.proactive.judge.on_decision = server._decision
     threading.Thread(target=server.behavior.run, args=(server._stopped, server.polls_paused), daemon=True).start()
     threading.Thread(target=server.spatial.run, args=(server._stopped, server.polls_paused), daemon=True).start()
@@ -468,9 +496,12 @@ def main():
     write_secret(paths.events_runtime(state_dir),
                  json.dumps({"schema": 1, "base_url": f"http://127.0.0.1:{server.server_port}",
                              "events_token": events_token}, indent=2))
-    write_secret(paths.integration_runtime(state_dir),
-                 json.dumps({"schema": 1, "base_url": f"http://127.0.0.1:{server.server_port}",
-                             "integration_token": integration_token}, indent=2))
+    if integration_token:
+        write_secret(paths.integration_runtime(state_dir),
+                     json.dumps({"schema": 1, "base_url": f"http://127.0.0.1:{server.server_port}",
+                                 "integration_token": integration_token}, indent=2))
+    else:
+        paths.integration_runtime(state_dir).unlink(missing_ok=True)
     server.startup_stage = "ready"
     print(f"agentd listening on 127.0.0.1:{server.server_port}; hook token: {hook_path.resolve()}; "
           f"ui runtime: {runtime.resolve()}; character: {args.character}; "
@@ -482,7 +513,8 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        models.auth.cancel()
+        if models is not None:
+            models.auth.cancel()
         server.shutdown_cleanly()
         server.server_close()
     print("agentd: shut down cleanly", file=sys.stderr, flush=True)

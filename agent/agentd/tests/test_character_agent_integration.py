@@ -150,7 +150,8 @@ class IntegrationTests(IntegrationFixture):
 
     def desktop_bridge(self):
         """Route desktop tools to a fake native client; returns (session_id, method, client) per call."""
-        self.server.sessions = Mock(computer_control=object(), sessions={}, store=None)
+        self.server.computer_control = object()
+        self.server.sessions = Mock(sessions={}, store=None)
         calls = []
         def make(config, session_id, **kwargs):
             client = SimpleNamespace(config=config, session_id=session_id)

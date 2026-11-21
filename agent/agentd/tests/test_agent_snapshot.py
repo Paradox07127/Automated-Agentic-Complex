@@ -20,7 +20,7 @@ from daemon.agentd_server import AgentdServer
 from infra.store import open_store
 from sessions.tasks import TaskLedger
 import test_server
-from support import serve_in_thread
+from support import enable_plugins, serve_in_thread
 
 HOOK, UI = "hook-token", "ui-token"
 PARTS = {"conversations": "/conversations", "interactions": "/agent/interactions",
@@ -33,6 +33,7 @@ class AgentSnapshotTest(unittest.TestCase):
     request = test_server.ServerTest.request
 
     def setUp(self):
+        enable_plugins(self)
         self.tmp = tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[3])
         self.addCleanup(self.tmp.cleanup)
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI, tick_interval=3600)

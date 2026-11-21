@@ -10,6 +10,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 UI = "ui-token"
 
 
+def enable_plugins(case, *ids):
+    from unittest.mock import patch
+    from infra import plugins
+    enabled = patch.dict(plugins.resolved, dict.fromkeys(ids or plugins.DEFAULTS, True))
+    enabled.start()
+    case.addCleanup(enabled.stop)
+
+
 def serve_in_thread(server):
     """Starts server.serve_forever on a daemon thread and returns the thread; the short poll lets shutdown() return at once."""
     thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)

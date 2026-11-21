@@ -2,6 +2,7 @@
 import datetime
 import time
 
+from infra import plugins
 from brain.language import SUPPORTED
 from character import dispatch_report
 from daemon.turns import TEXT_HOLD_MAX_MS, TEXT_HOLD_MS
@@ -59,7 +60,7 @@ class AnnounceMixin:
     def _tick_loop(self, interval):
         checked = ritual_checked = time.monotonic()
         presentation_checked = expired = 0.0
-        summaries = Summarizer(self)
+        summaries = Summarizer(self) if plugins.on("screen_awareness") else None
         while not self._stopped.wait(interval):
             self._quiet_due()
             self.sync_privacy()
@@ -79,7 +80,7 @@ class AnnounceMixin:
             self.registry.tick()
             if self.sessions is not None:
                 self.sessions.reap()
-            if self.capture is not None and not self.observation_paused() and not self.resetting:
+            if summaries and self.capture is not None and not self.observation_paused() and not self.resetting:
                 self.capture.tick()
             if self._diag_clients and time.monotonic() - checked >= DIAG_EVERY:
                 checked = time.monotonic()
@@ -96,7 +97,7 @@ class AnnounceMixin:
             except Exception:  # a failed reminder must not stop the registry ticks
                 pass
             try:
-                marker = self._schedules_waiting()
+                marker = self._schedules_waiting() if plugins.on("personal_agent") else None
                 if marker is not None:
                     self._schedules_due(marker)
             except Exception:
@@ -108,7 +109,7 @@ class AnnounceMixin:
                 except Exception:
                     pass  # a failed expiry must not stop registry ticks
             try:
-                summaries.tick()
+                if summaries: summaries.tick()
             except Exception:
                 pass  # a failed summary must not stop registry ticks
             self._switch_due()

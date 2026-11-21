@@ -33,6 +33,7 @@ from personal.rituals import Rituals
 from character.proactive import Proactive  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 from sessions.own import OwnSession, SessionManager  # noqa: E402
+from support import enable_plugins
 from infra.store import open_store  # noqa: E402
 from sessions.tasks import TaskLedger  # noqa: E402
 from test_sessions import fake_argv  # noqa: E402
@@ -78,6 +79,7 @@ class ScheduleResetTest(unittest.TestCase):
 
 class ResetTest(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self)
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.state = state = Path(self.tmp.name)
         self.db = state / "agentd.sqlite"

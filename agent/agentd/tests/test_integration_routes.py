@@ -36,6 +36,7 @@ class IntegrationRoutesTest(unittest.TestCase):
     request = support.request
 
     def setUp(self):
+        support.enable_plugins(self, "external_access")
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.addCleanup(tmp.cleanup)
         self.dir = Path(tmp.name)

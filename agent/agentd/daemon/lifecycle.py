@@ -1,8 +1,10 @@
 """Shutdown, chat clear, POST /reset and server close."""
+from contextlib import closing, ExitStack
 from pathlib import Path
 import threading
 import time
 
+from infra import paths
 from infra.data_lifecycle import DataLifecycle
 from infra.store import checkpoint, compact, count_rows, path_of
 from api.views import _iso
@@ -41,12 +43,29 @@ class LifecycleMixin:
         while self._live_lines and time.monotonic() < deadline:
             time.sleep(0.01)
 
+    def _forget_agent_data(self):
+        controller = self.character_agent
+        if controller is not None:
+            controller.forget()
+        if self.state_dir is None:
+            return
+        from tool_gateway.ledger import ledger_path
+        from character_agent.services.store import RunStore
+        from character_agent.services.workspace import WorkspaceService
+        ledger = ledger_path(self.state_dir)
+        if controller is None and ledger.is_file():
+            with closing(RunStore(ledger)) as store:
+                store.forget()
+        directory = self.state_dir / "character-agent" / "files"
+        if (controller is None or controller.workspace is None) and (directory / "character-workspace.sqlite").is_file():
+            with closing(WorkspaceService(directory)) as workspace:
+                workspace.forget()
+
     def clear_history(self):
         """DELETE /history and /memory?scope=history|all, in /reset's order: the live turn ends, then nothing a line
         from before stores lands, then the rows, the mouth's window and the trace go. The rows deleted."""
         self.cancel_turn("client_cancel")
-        if self.character_agent is not None:
-            self.character_agent.forget()
+        self._forget_agent_data()
         with self._write_lock:
             self.history_generation += 1
             self._line_entries.clear()
@@ -120,20 +139,38 @@ class LifecycleMixin:
             lifecycle.clear()
             if self.character_agent is not None:
                 deleted.update(self.character_agent.data_counts())
-                self.character_agent.forget()
+            self._forget_agent_data()
             deleted.update(before)
-            if self.attention is not None:
-                cleared = self.attention.clear_tables()
-                self.forget_user_state()
-                deleted.update(cleared)
-                files.update(dict.fromkeys(cleared, path_of(self.attention.db)))
-            if self.timeline is not None:
-                deleted["timeline"], files["timeline"] = self.timeline.clear(), path_of(self.timeline.db)
+            with ExitStack() as dormant:
+                attention, timeline = self.attention, self.timeline
+                if self.state_dir is not None:
+                    from observation.attention import AttentionStore
+                    from observation.blacklist import Blacklist
+                    from observation.timeline import Timeline
+                    if attention is None and paths.attention_db(self.state_dir).is_file():
+                        attention = dormant.enter_context(closing(AttentionStore(paths.attention_db(self.state_dir),
+                            Blacklist(paths.blacklist(self.state_dir)))))
+                    if timeline is None and paths.timeline_db(self.state_dir).is_file():
+                        timeline = dormant.enter_context(closing(Timeline(paths.timeline_db(self.state_dir),
+                            Blacklist(paths.blacklist(self.state_dir)))))
+                if attention is not None:
+                    cleared = attention.clear_tables()
+                    self.forget_user_state()
+                    deleted.update(cleared)
+                    files.update(dict.fromkeys(cleared, path_of(attention.db)))
+                if timeline is not None:
+                    deleted["timeline"], files["timeline"] = timeline.clear(), path_of(timeline.db)
             for path in set(files.values()) | lifecycle.paths:
                 compact(path)
             owners = (self.capture, self.capture and self.capture.judge, self.proactive and self.proactive.judge,
                       self.egress and self.egress.guard)
             logs = [Path(owner.log_path).name for owner in owners if owner is not None and owner.truncate_log()]
+            if self.state_dir is not None:
+                for name in ("capture.jsonl", "capture-judge.jsonl", "proactive-judge.jsonl"):
+                    path = self.state_dir / name
+                    if name not in logs and path.is_file():
+                        path.write_text("", encoding="utf-8")
+                        logs.append(name)
             if self.capture is not None:
                 self.capture.clear()
             if self.mouth is not None:

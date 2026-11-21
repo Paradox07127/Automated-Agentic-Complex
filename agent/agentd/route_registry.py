@@ -1,6 +1,8 @@
 """agentd's HTTP routes: one entry per route, in the order api.handler.Handler.parse_request matches them."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import re
+
+from infra.plugins_generated import PLUGINS
 
 DECISION_PATH = re.compile(r"^/approvals/([0-9a-f]{1,64})/decision$")
 SESSION_PATH = re.compile(r"^/sessions/([^/]{1,200})/(messages|interrupt)$")
@@ -50,6 +52,12 @@ BRIDGE = "protocol/ui-bridge/CONTRACT.md"
 INTEGRATION_SPEC = "protocol/C6-agentd-api/INTEGRATION.md"
 
 
+PLUGIN_PREFIXES = {}
+for entry in PLUGINS:
+    for prefix in entry["agentd"]["routes"]:
+        PLUGIN_PREFIXES.setdefault(prefix, []).append(entry["id"])
+
+
 @dataclass(frozen=True, slots=True)
 class Route:
     method: str
@@ -65,6 +73,21 @@ class Route:
     response: str | None = None
     request: str | None = None
     stream: str | None = None
+    plugin: str | None = field(init=False, default=None)
+    shared_plugins: tuple = field(init=False, default=())
+
+    def __post_init__(self):
+        # A more specific prefix owns routes such as /observation/briefs.
+        path = self.templates[0] if self.templates else self.path
+        while path:
+            if path in PLUGIN_PREFIXES:
+                owners = PLUGIN_PREFIXES[path]
+                if len(owners) == 1:
+                    object.__setattr__(self, "plugin", owners[0])
+                else:
+                    object.__setattr__(self, "shared_plugins", tuple(owners))
+                break
+            path = path.rpartition("/")[0]
 
 
 REGISTRY = (

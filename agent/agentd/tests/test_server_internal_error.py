@@ -14,6 +14,7 @@ HOOK, UI = "hook-token", "ui-token"
 
 class InternalErrorTest(unittest.TestCase):
     def setUp(self):
+        support.enable_plugins(self, "screen_awareness")
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI)
         self.thread = support.serve_in_thread(self.server)
 

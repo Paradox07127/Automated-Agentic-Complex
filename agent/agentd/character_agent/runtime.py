@@ -112,7 +112,8 @@ class PersonalAgentRuntime:
                 active["reason"] = reason
                 active["interrupted"] = interrupted
                 active["cancel"].set()
-                self.workspace.cancel_run(active["run_id"])
+                if self.workspace is not None:
+                    self.workspace.cancel_run(active["run_id"])
             # Keep the active run from handing its session to the next run before the interrupt.
             if session is not None:
                 session.interrupt()
@@ -297,8 +298,10 @@ class PersonalAgentRuntime:
             # embodied_only lets the role turn its body without file, desktop, memory or background-work mutations.
             mode = mode or ("actions" if allow_actions else "read_only")
             at = time.monotonic()
+            task_tools = ([*self.workspace.tool_definitions(sources=self.backend not in BRIDGED),
+                           TASK_TOOL, PREVIOUS_ARTIFACT_TOOL] if self.workspace is not None else [])
             offer = self.tools.registry.offer(mode, [*knowledge.tool_definitions(), *self.native_tools,
-                *self.workspace.tool_definitions(sources=self.backend not in BRIDGED), TASK_TOOL, PREVIOUS_ARTIFACT_TOOL,
+                *task_tools,
                 *(memory_session.tool_definitions() if memory_session is not None else []),
                 *(orchestration_session.tool_definitions() if orchestration_session is not None else []),
                 *(question_session.tool_definitions() if question_session is not None else [])])

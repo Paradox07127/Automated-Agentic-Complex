@@ -7,6 +7,7 @@ import threading
 import time
 
 from voice.clauses import MIN_CLAUSE, ClauseSplitter
+from infra import plugins
 from brain.language import mismatch
 from brain.markers import MarkerStream
 from character.binding import effective
@@ -66,6 +67,11 @@ class TurnsMixin:
         if self.state is not None:
             self.state.on_event("user_spoke")  # that she was spoken to, never what was said
         command = None if resume_run_id else parse_command(text, names=self.characters.names())
+        if not plugins.on("screen_reading") and (look or look_window or quote or command and command["action"] == "look"):
+            return 409, {"error": "plugin_off", "plugin": "screen_reading"}
+        if not plugins.on("personal_agent") and (scope_id or expected_outputs or resume_run_id or
+                                                  command and command["action"] == "dispatch"):
+            return 409, {"error": "plugin_off", "plugin": "personal_agent"}
         stop_task = command is not None and command['action'] == 'stop_task'
         if stop_task and self.character_agent.jobs \
                 and self.character_agent.jobs.store.list(states=('queued', 'running'), limit=None):
@@ -93,7 +99,7 @@ class TurnsMixin:
             if not status["ready"]:
                 return 503, {"error": status["error"], "runtime": status["backend"]}
             explicit_scope = scope_id is not None or resume_run_id is not None
-            scope_id = (scope_id or self.character_agent.settings.snapshot().get("scope_id")) if remember else None
+            scope_id = (scope_id or self.character_agent.settings.snapshot().get("scope_id")) if remember and plugins.on("personal_agent") else None
             if scope_id:
                 try:
                     self.character_agent.workspace.validate_scope(scope_id)
@@ -549,7 +555,7 @@ class TurnsMixin:
                             performed, motion = True, getattr(self, "motion", None)  # None: no performer, the marker is dropped
                             driver = None if motion is None else effective(self)["motion"]["driver"]
                             if driver in ("generated", "game"):
-                                play = motion.start if driver == "generated" else motion.gesture
+                                play = motion.start if driver == "generated" and plugins.on("motion_generation") else motion.gesture
                                 play(markers.motions[0]["prompt"], markers.motions[0]["seconds"], generation,
                                      trace["trace_id"], trace["remember"])
                         marks += [(sum(map(len, spoken)) + offset, intent) for offset, intent in at]

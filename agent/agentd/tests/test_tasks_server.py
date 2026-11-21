@@ -19,7 +19,7 @@ from sessions.own import SessionManager  # noqa: E402
 from infra.store import open_store  # noqa: E402
 from sessions.tasks import TaskLedger  # noqa: E402
 import test_server  # noqa: E402
-from support import serve_in_thread  # noqa: E402
+from support import enable_plugins, serve_in_thread  # noqa: E402
 
 HOOK, UI = "hook-token", "ui-token"
 
@@ -33,6 +33,7 @@ class TaskServerTest(unittest.TestCase):
     request = test_server.SayTest.request
 
     def setUp(self):
+        enable_plugins(self)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.path = Path(self.tmp.name) / "agentd.sqlite"
@@ -247,7 +248,7 @@ class TaskServerTest(unittest.TestCase):
         for observe, share in ((False, False), (False, True), (True, False), (True, True)):
             with self.subTest(observe=observe, share=share):
                 save_policy(observe, share)
-                allowed = observe and share
+                allowed = share
                 with unittest.mock.patch.object(day_summary, "_ledger_paths", wraps=day_summary._ledger_paths) as paths:
                     self.assertEqual(rows(), [("-w-alpha", ["A1"], ["own:1"]), ("-w-beta", ["B1"], [])]
                                      if allowed else [("-w-alpha", [], ["own:1"])])
@@ -260,10 +261,9 @@ class TaskServerTest(unittest.TestCase):
         self.assertEqual(rows(), [("-w-alpha", [], ["own:1"])])
         self.assertEqual(report()["sessions"], 0)
         self.server.set_paused_until(None)
-        self.server.observation_off = True
-        self.assertEqual(rows(), [("-w-alpha", [], ["own:1"])])
-        self.assertEqual(report()["sessions"], 0)
-        self.server.observation_off = False
+        with unittest.mock.patch.dict("infra.plugins.resolved", coding_sessions=False):
+            self.assertEqual(rows(), [("-w-alpha", [], ["own:1"])])
+            self.assertEqual(report()["sessions"], 0)
 
         def revoke_during_read(ledger_root, day):
             found = real_paths(ledger_root, day)

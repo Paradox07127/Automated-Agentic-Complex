@@ -3,6 +3,7 @@
 published: the line's clause_intent already drives the pack's gesture.
 
 A host's POST /motions/generate runs in a slot of its own and always answers with one C1 `motion` event."""
+from functools import cached_property
 import hashlib
 import importlib
 import json
@@ -51,7 +52,8 @@ class Performer:
         self.settings, self.publish, self.package_root, self.cache_dir = settings, publish, package_root, cache_dir
         self.trace, self.clock = trace, clock
         self.perform_budget, self.request_budget = perform_budget, request_budget
-        self.client = client or MotionClient()
+        if client is not None:
+            self.client = client
         self.store = store or MotionStore()
         self._retarget = retarget
         self._retargets = {}  # (package root, service URL) -> its LiveRetarget, fed that service's skeleton
@@ -62,6 +64,10 @@ class Performer:
         self._requesting = False  # the geometry worker thread runs
         self._lock = threading.Lock()
         self._fit_lock = threading.Lock()  # the worker and prewarm both build LiveRetargets; a fit takes ~10 s
+
+    @cached_property
+    def client(self):
+        return MotionClient()
 
     def start(self, prompt, seconds, generation, trace_id, remember=True):
         """Publishes the character's game gesture the prompt names at once; any other motion runs on the worker

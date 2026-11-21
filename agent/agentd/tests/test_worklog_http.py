@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from api.handler import Handler
 from daemon.agentd_server import AgentdServer
+from support import enable_plugins
 from infra.store import open_store
 from personal.worklog import WorkLog
 
@@ -45,6 +46,7 @@ def seed_worklog(server, db):
 
 class WorklogHTTPTest(unittest.TestCase):
     def setUp(self):
+        enable_plugins(self, "daily_brief")
         self.tmp = tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1])
         self.addCleanup(self.tmp.cleanup)
         self.db = open_store(Path(self.tmp.name) / 'agentd.sqlite')
@@ -133,7 +135,7 @@ class WorklogHTTPTest(unittest.TestCase):
         self.assertEqual(len(self.request('GET', f'/memory/days?from={DAY}&to={DAY}')[1]['days']), 1)
 
     def test_pause_hides_even_rows_without_requires(self):
-        self.server.observation_off = True
+        self.server.set_paused_until(self.server.clock() + 60)
         self.assertEqual(self.request('GET', f'/memory/sessions?day={DAY}'), (200, {'day': DAY, 'sessions': []}))
         self.assertEqual(self.request('GET', '/memory/tasks')[1]['tasks'], [])
         self.assertEqual(self.request('GET', f'/memory/days?from={DAY}&to={DAY}'), (200, {'days': []}))

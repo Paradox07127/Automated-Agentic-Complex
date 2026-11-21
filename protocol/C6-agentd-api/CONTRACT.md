@@ -220,7 +220,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 
 **`GET /capabilities`**
 - 令牌：只收 ui token。总是 200，只读 agentd 已有的状态，不发请求。
-- 200 `{"items": {名字: {"state", "reason"}}, "at"}`：`state` 为 `configured`、`ready`、`degraded`、`unavailable`、`unknown` 之一；`reason` 为原因码字符串或 null；`at` 为本地时区 ISO 8601，毫秒。
+- 200 `{"plugins": {插件 ID: bool}, "items": {名字: {"state", "reason"}}, "at"}`：`state` 为 `configured`、`ready`、`degraded`、`unavailable`、`unknown` 之一；`reason` 为原因码字符串或 null；`at` 为本地时区 ISO 8601，毫秒。
 - `items` 的名字和取值：
   - `generation`：设置读错 `degraded` / 那个码；`chatgpt` 未登录或没授权 `unavailable` / `sign_in_required` 或 `plan_usage_not_enabled`；非 `compatible` 没 key `unavailable` / `missing_api_key`；否则 `configured` / null。
   - `mouth`：有角色对话 `ready` / null，没有 `unavailable` / `no_llm`。
@@ -263,7 +263,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 <!-- gen:routes begin -->
 由 `protocol/tools/gen_routes.py` 从 `agent/agentd/route_registry.py` 生成，不要手改；改登记后在仓库根目录跑 `python3 -I protocol/tools/gen_routes.py --write`。
 
-每个请求依次过这些关（`api/handler.py` 的 `Handler.parse_request`、`_answers_500`）：Host 不是本机或端口不符 400 `invalid_host` → 带 `Origin` 或 `Sec-Fetch-Site` 不是 `none` 403 `cross_site` → `OPTIONS` 405 `method_not_allowed` → POST/PUT/PATCH 带请求体且 `Content-Type` 不是 JSON 415 `unsupported_media_type` → 方法加路径不在本表 404 `not_found` → 令牌不在「令牌」列 401 `unauthorized` → 启动未完成 503 `starting`（`GET /health` 除外）→ 处理模块 → 回状态行前未捕获的异常 500 `internal_error`。
+每个请求依次过这些关（`api/handler.py` 的 `Handler.parse_request`、`_answers_500`）：Host 不是本机或端口不符 400 `invalid_host` → 带 `Origin` 或 `Sec-Fetch-Site` 不是 `none` 403 `cross_site` → `OPTIONS` 405 `method_not_allowed` → POST/PUT/PATCH 带请求体且 `Content-Type` 不是 JSON 415 `unsupported_media_type` → 方法加路径不在本表 404 `not_found` → 令牌不在「令牌」列 401 `unauthorized` → 启动未完成 503 `starting`（`GET /health` 除外）→ 所属插件已关闭 409 `plugin_off` → 处理模块 → 回状态行前未捕获的异常 500 `internal_error`。
 
 「路径」里 `:name` 是一段路径参数；「面板」是可以发这条请求的网页面板，「—」为没有；「规格」是写这条端点字段和错误码的文档，「—」为还没有；「回包夹具」是 `fixtures/` 下的示例回包。
 
@@ -576,7 +576,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | `POST /commitments/<id>/snooze` | ui | body `{minutes: 5 \| 10 \| 15 \| 60}`，其他 400 `{"error": "invalid_payload", "field": "minutes"}`。`armed` 或 `triggered` 的提醒，以及 24 小时内转 `fulfilled` 的提醒，改到 `now + minutes` 并转 `armed`，到点再播；200 `{commitment}`，`/feed` 发 `commitment` `{action: "snoozed", commitment}`。其他状态 409 `illegal_transition`，不存在 404 `unknown_commitment`，没有提醒库 503 `no_commitments` |
 | `POST /commitments/<id>/complete` | ui | 不要 body。`armed` 或 `triggered` 的提醒转 `fulfilled`；200 `{commitment}`，`/feed` 发 `commitment` `{action: "completed", commitment}`。错误同 snooze |
 | `POST /commitments/<id>/seen` | ui | body `{}`，有别的键或不是对象 400 `{"error": "invalid_payload"}`。Companion 在提醒的卡片出现在屏上时发：没记过 `seen_at` 时记成现在，`/feed` 发 `commitment` `{action: "seen", commitment}`；已记过时不变、不发。不改 `state`、`revision`、`updated_at`，任何状态都收。200 `{commitment}`；不存在 404 `unknown_commitment`，没有提醒库 503 `no_commitments` |
-| `GET /capabilities` | ui | 能力快照（`models/capabilities.py`），只读 agentd 已有的状态，不发请求、不调付费推理：200 `{items: {name: {state, reason}}, at}`，`state` 为 `configured`、`ready`、`degraded`、`unavailable`、`unknown` 之一，`reason` 为原因码或 null；`name` 为 `generation`、`mouth`、`voice` 和各 `share_<kind>`；`at` 为 ISO 8601 |
+| `GET /capabilities` | ui | 能力快照（`models/capabilities.py`），只读 agentd 已有的状态，不发请求、不调付费推理：200 `{plugins: {id: bool}, items: {name: {state, reason}}, at}`，`state` 为 `configured`、`ready`、`degraded`、`unavailable`、`unknown` 之一，`reason` 为原因码或 null；`name` 为 `generation`、`mouth`、`voice` 和各 `share_<kind>`；`at` 为 ISO 8601 |
 | `GET /day/segments?date=YYYY-MM-DD` | ui | 一天的分项目工作段明细（`sessions.day_summary.segments`），给界面和诊断看，不进台词。`date` 省略时为本地今天，不是合法的 `YYYY-MM-DD` 时 400 `{"error": "invalid_date"}`。200 `{date, projects: [{project, name, sessions: [{session_id, started_at, ended_at, agents_done, agents_failed, last_gate, guard_blocks}], own: [{session_id, title, state, last_line, started_at, updated_at, task_id}]}]}`：`sessions` 读 `--ledger-root` 下那天的 harness 账本，`own` 是那天开始的自有会话（`last_line` 截到 200 字）；`last_gate` 为 `{at, passed}` 或 null；项目按最早开始的排前 |
 | `GET /episodes?date=YYYY-MM-DD` | ui | 那天本地 0 点到次日 0 点之间开始的十分钟活动摘要（`personal.episodes.Episodes.day`），按开始时间升序。`date` 规则同 `GET /day/segments`（400 `{"error": "invalid_date"}`）；没有情节库 503 `{"error": "no_episodes"}`；没有网页正文同意（`page_text`）时 200 `{date, enabled: false, episodes: []}`；否则 200 `{date, enabled: true, episodes: [{id, start, end, title, description, threads, open_questions, apps, hosts, created_at, titles, typed, presence, user_actions, agent_actions, version, run_id, outcome, edited}]}`，时间为带毫秒的本地 ISO 8601，不带原始事件。`presence`（`present`、`partly`、`away`、`unknown`）、`user_actions`、`agent_actions`（`[{text, evidence}]`、`[{session, text, evidence}]`，`evidence` 是事实表行号）、`version`（3）、`run_id`（写它的 `memory_agent_runs` 行）、`outcome`（那次运行的 outcome，没有为 null）、`edited`（用户改过标题或描述为 true） |
 | `DELETE /episodes/<id>` | ui | 删一段摘要（`id` 为数字，否则 404 `not_found`）：不存在 404 `{"error": "unknown_episode"}`；删掉它和以它为证据（`episode:<id>@…`）的整合事实（同 `DELETE /memory/facts/<fact_id>`，每条在 `/feed` 发 `memory` `{action: "deleted", fact_id}`），WAL 截断；200 `{"deleted": 1, "facts": n}`；重置中 503 |

@@ -6,6 +6,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from infra.plugins import DEFAULTS
 from api.handler import ROUTES  # noqa: E402
 
 ROUTE_CLASSES = Path(__file__).resolve().parents[3] / "protocol" / "ui-bridge" / "routes.json"
@@ -60,7 +61,9 @@ class UIRouteClassesTest(unittest.TestCase):
     def test_fields_and_values(self):
         for entry in self.entries:
             with self.subTest(entry=entry):
-                self.assertEqual(set(entry), {"method", "path", "class", "surfaces"})
+                if "plugin" in entry:
+                    self.assertIn(entry["plugin"], DEFAULTS)
+                self.assertEqual(set(entry) - {"plugin"}, {"method", "path", "class", "surfaces"})
                 self.assertIn(entry["class"], CLASSES)
                 self.assertIsInstance(entry["surfaces"], list)
                 self.assertLessEqual(set(entry["surfaces"]), SURFACES)

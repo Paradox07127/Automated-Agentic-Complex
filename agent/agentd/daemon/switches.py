@@ -1,7 +1,7 @@
 """Privacy, pause, quiet and meeting switches, and the observation state."""
 import math
 
-from observation.privacy import saved_switch
+from infra import plugins
 from infra.store import checkpoint
 from api.views import _iso
 
@@ -11,8 +11,7 @@ class SwitchesMixin:
         return self.consent.snapshot()[0]["page_text"]
 
     def external_session_activity_allowed(self):
-        return not self.observation_paused() and self.consent.snapshot()[0]["agent_sessions"] \
-            and (self.privacy_config is None or saved_switch(self.privacy_config, "observe_activity", default=True))
+        return plugins.on("coding_sessions") and not self.observation_paused() and self.consent.snapshot()[0]["agent_sessions"]
 
     def sync_privacy(self, revoked=()):
         """Apply saved revocations before reading context, dispatching, or accepting a late result."""
@@ -75,9 +74,9 @@ class SwitchesMixin:
         return counts
 
     def observation_paused(self):
-        """True until paused_until; the pause ends by itself. Always true with observation_off or the meeting switch."""
+        """True until paused_until; the pause ends by itself. Also paused during a manual meeting."""
         self._quiet_due()
-        if self.observation_off or self.gate.meeting_manual:
+        if self.gate.meeting_manual:
             return True
         until = self.paused_until
         return until is not None and self.clock() < until
@@ -127,9 +126,9 @@ class SwitchesMixin:
 
     def observation_state(self):
         """GET /state and /diag/state: {"paused_until", "quiet_until": ISO or None, "meeting": the manual switch,
-        "off": --observation-off}."""
+        "off": screen awareness disabled}."""
         self._quiet_due()
         until = self.paused_until
         return {"paused_until": _iso(until) if until is not None and self.clock() < until else None,
                 "quiet_until": _iso(self.quiet_until) if self.quiet_until is not None else None,
-                "meeting": self.gate.meeting_manual, "off": self.observation_off}
+                "meeting": self.gate.meeting_manual, "off": not plugins.on("screen_awareness")}
