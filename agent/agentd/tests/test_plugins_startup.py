@@ -53,6 +53,7 @@ def probe():
     def serve(server):
         while server.startup_stage != "ready":
             time.sleep(.01)
+        assert paths.ui_runtime(state).is_file()
         code, caps = request(server, "GET", "/capabilities")
         assert code == 200
         agent = server.character_agent
@@ -79,6 +80,7 @@ def probe():
             patch.object(AgentdServer, "serve_forever", serve), patch.object(AgentdServer, "shutdown"), \
             patch.object(DiscoveryService, "_local_candidates", candidates):
         main()
+    assert not paths.ui_runtime(state).exists(), "orderly shutdown left the daemon address published"
 
 
 class PluginStartupTest(unittest.TestCase):

@@ -51,20 +51,47 @@ class Blacklist:
 
 def read_token(path):
     # NONBLOCK lets the regular-file check reject a FIFO without waiting for a writer.
-    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    flags = os.O_RDONLY
+    if os.name == "posix":
+        flags |= os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+    fd = os.open(path, flags)
     try:
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
             raise ValueError(f"{path} must be a regular file with one link")
-        if info.st_uid != os.getuid():
-            raise ValueError(f"{path} must be owned by the current user")
-        if info.st_mode & 0o077:
-            raise ValueError(f"{path} must be mode 0600")
+        if os.name == "posix":
+            if info.st_uid != os.getuid():
+                raise ValueError(f"{path} must be owned by the current user")
+            if info.st_mode & 0o077:
+                raise ValueError(f"{path} must be mode 0600")
     except BaseException:
         os.close(fd)
         raise
     with os.fdopen(fd, "r", encoding="utf-8") as stream:
         return stream.read().strip()
+
+
+def live_base(runtime_path):
+    try:
+        record = json.loads(runtime_path.read_text(encoding="utf-8"))
+        base = record["base_url"]
+        if "pid" in record:
+            pid = record["pid"]
+            if type(pid) is not int or pid <= 0:
+                return None
+            if os.name == "nt":
+                import _winapi
+                process = _winapi.OpenProcess(_winapi.SYNCHRONIZE, False, pid)
+                try:
+                    if _winapi.WaitForSingleObject(process, 0) != _winapi.WAIT_TIMEOUT:
+                        return None
+                finally:
+                    _winapi.CloseHandle(process)
+            else:
+                os.kill(pid, 0)
+        return base
+    except (OSError, ValueError, KeyError, TypeError, OverflowError):
+        return None
 
 
 def read_message(stream):
@@ -98,14 +125,18 @@ def scrub(message, blacklist):
 
 def serve(state_dir, stdin, stdout, timeout=3.0):
     blacklist = Blacklist(state_dir / "blacklist.json")
+    runtime = state_dir / "ui-runtime.json"
     base = token = None
     def config():
         nonlocal base, token
         policy = {"enabled": False, "text_enabled": False}
-        try:
-            token = read_token(state_dir / "hook.token")
-            base = json.loads((state_dir / "ui-runtime.json").read_text(encoding="utf-8"))["base_url"]
-        except (OSError, ValueError, KeyError, TypeError):
+        base = live_base(runtime)
+        if base is not None:
+            try:
+                token = read_token(state_dir / "hook.token")
+            except (OSError, ValueError):
+                base = None
+        if base is None:
             print("agentd is not running", file=sys.stderr)
         else:
             try:
@@ -133,7 +164,7 @@ def serve(state_dir, stdin, stdout, timeout=3.0):
                                           and not policy.get("text_enabled")):
             continue
         message = scrub(message, blacklist) if isinstance(message, dict) else None
-        if message is None:
+        if message is None or live_base(runtime) != base:
             continue
         request = urllib.request.Request(
             base.rstrip("/") + "/context/browser", data=json.dumps(message).encode(), method="POST",
@@ -148,7 +179,12 @@ def serve(state_dir, stdin, stdout, timeout=3.0):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-dir", required=True)
-    args, _chrome_args = parser.parse_known_args()  # Chrome appends the caller origin
+    parser.add_argument("origin")
+    parser.add_argument("--parent-window")  # Chrome on Windows also supplies the window handle.
+    args = parser.parse_args()
+    origin = Path(__file__).with_name("extension-origin").read_text(encoding="utf-8").strip()
+    if args.origin != origin:
+        parser.error("unrecognized extension origin")
     serve(Path(args.state_dir), sys.stdin.buffer, sys.stdout.buffer)
 
 

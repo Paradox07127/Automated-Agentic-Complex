@@ -89,7 +89,7 @@ agentd 在 `--state-dir` 下写两个文件，告诉别的进程它的地址和�
 | `<state-dir>/ui-runtime.json` | Companion 的 C6 客户端（`app/electron/src/main/agentd/client.ts`，每个请求读一次）、浏览器 native host、`tools/qa/live_routes.py` | `ui_token`：读写 UI 路由用 |
 | `<state-dir>/events-runtime.json` | 渲染器（Companion 用 `--agentic-complex-agentd <state-dir>/events-runtime.json` 把路径交给它，C3「启动」）的 `AgentBridgeConfiguration.load` | `events_token`：只读，`GET /events` 和 `GET /state` 用 |
 
-- 写入时机：初始化全部完成后（启动阶段 `behavior` 之后、`publishing`），先写 `ui-runtime.json` 再写 `events-runtime.json`，之后 `/health` 才回 `ok`。所以文件在、`/health` 回 `ok` 时两个令牌都能用；`/health` 还是 `starting` 时文件可能还是上一次启动留下的。
+- 写入时机：初始化全部完成后（启动阶段 `behavior` 之后、`publishing`），先写 `ui-runtime.json` 再写 `events-runtime.json`，之后 `/health` 才回 `ok`。所以文件在、`/health` 回 `ok` 时两个令牌都能用；`/health` 还是 `starting` 时文件可能还是上一次启动留下的。正常退出（SIGTERM、Ctrl-C）时 agentd 先删 `ui-runtime.json` 再关监听；被强杀时文件会留下。
 - 写法：写临时文件再改名（原子替换），权限 0600；状态目录 0700。agentd 退出时不删这两个文件，里面的令牌随之作废；每次启动都换新令牌，所以读方不要缓存令牌。
 - 已有的同名文件不是普通文件、硬链接数不是 1 或不属于当前用户时，agentd 以 1 退出。
 - 内容：一个 JSON 对象，2 空格缩进，没有结尾换行。见 `examples/ui-runtime.json`、`examples/events-runtime.json`。

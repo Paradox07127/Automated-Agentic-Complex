@@ -25,11 +25,25 @@ async function activeTab() {
   return { tab, focused: win.focused && win.state !== "minimized" && !win.incognito && !tab.incognito };
 }
 function see(tab, documentId = docs[tab.id]?.document_id ?? null) {
-  const next = track(docs[tab.id], documentId, tab.url, tab.title);
-  docs[tab.id] = next;
+  const allowed = policy.enabled && !hidden(tab);
+  const next = track(docs[tab.id], documentId, allowed ? tab.url : null, allowed ? tab.title : null);
+  if (next !== docs[tab.id]) {
+    docs[tab.id] = next;
+    save();
+  }
   return next;
 }
 function save() { chrome.storage.session.set({ docs }).catch(() => {}); }
+function redactDocuments() {
+  let changed = false;
+  for (const [id, state] of Object.entries(docs)) {
+    if (state.url && (!policy.enabled || hidden(state))) {
+      docs[id] = track(state, state.document_id, null, null);
+      changed = true;
+    }
+  }
+  if (changed) save();
+}
 function requestSample() { ++sequence; send({ type: "policy" }); }
 
 async function sample() {
@@ -67,7 +81,10 @@ async function sample() {
   const captured = result.captured_at;
   if (!Number.isFinite(captured) || captured < started || captured > Date.now()) return;
   if (collectText && typeof result.text === "string") {
-    if (prior && prior.key === key && prior.text !== result.text) state = docs[tab.id] = { ...state, revision: state.revision + 1 };
+    if (prior && prior.key === key && prior.text !== result.text) {
+      state = docs[tab.id] = { ...state, revision: state.revision + 1 };
+      save();
+    }
     const nextKey = `${tab.id}:${state.document_id}:${state.revision}`;
     activeKey = nextKey;
     // Revision heartbeat must precede its text; empty revisions invalidate previous text too.
@@ -86,7 +103,6 @@ async function sample() {
       tab_count: tabs.filter(t => !t.incognito).length,
       audible_tab_count: tabs.filter(t => !t.incognito && t.audible && !hidden(t)).length,
     } });
-  save();
 }
 function connect() {
   if (port) return;
@@ -97,12 +113,16 @@ function connect() {
       domains: Array.isArray(m.domains) ? m.domains : [], allow_domains: Array.isArray(m.allow_domains) ? m.allow_domains : [],
       title_patterns: Array.isArray(m.title_patterns) ? m.title_patterns : [] };
     if (!policy.enabled || !policy.text_enabled) pages.clear();
+    ready.then(redactDocuments);
     attempt = 0;
     sample().catch(() => {});
   });
   port.onDisconnect.addListener(() => { port = null; policy.enabled = false; activeKey = null; pages.clear(); ++sequence; schedule(); });
 }
-function schedule() { chrome.alarms.create("reconnect", { delayInMinutes: backoffMinutes(attempt++) }); }
+function schedule() {
+  ready.then(redactDocuments);
+  chrome.alarms.create("reconnect", { delayInMinutes: backoffMinutes(attempt++) });
+}
 chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === "beat") requestSample(); if (alarm.name === "reconnect") connect(); });
 chrome.tabs.onActivated.addListener(requestSample);
 chrome.tabs.onUpdated.addListener((_id, change, tab) => {
@@ -117,7 +137,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     await ready;
     if (message.type === "hello") {
       const tab = await chrome.tabs.get(sender.tab.id);
-      if (tab.url === sender.url && !tab.incognito) { see(tab, sender.documentId); save(); requestSample(); }
+      if (tab.url === sender.url && !tab.incognito) { see(tab, sender.documentId); requestSample(); }
       return;
     }
     const active = await activeTab();

@@ -513,6 +513,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        runtime.unlink(missing_ok=True)
         if models is not None:
             models.auth.cancel()
         server.shutdown_cleanly()

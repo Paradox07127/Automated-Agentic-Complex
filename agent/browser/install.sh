@@ -5,7 +5,7 @@ set -eu
 STATE_DIR="${1:-$HOME/Library/Application Support/AgenticComplex/agentd}"
 HERE=$(cd "$(dirname "$0")" && pwd)
 PY="$HERE/../.venv/bin/python"
-EXT_ID=oahafcajijleoficnkbfaedkmnkhnief  # from the "key" in extension/manifest.json
+read -r EXT_ORIGIN < "$HERE/extension-origin"
 HOSTS="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts"
 WRAPPER="$STATE_DIR/native-host.sh"
 MANIFEST="$HOSTS/local.agenticcomplex.agentd.json"
@@ -21,7 +21,7 @@ cat > "$MANIFEST" <<JSON
   "description": "Agentic Complex agentd browser bridge",
   "path": "$WRAPPER",
   "type": "stdio",
-  "allowed_origins": ["chrome-extension://$EXT_ID/"]
+  "allowed_origins": ["$EXT_ORIGIN"]
 }
 JSON
 echo "wrote $WRAPPER"

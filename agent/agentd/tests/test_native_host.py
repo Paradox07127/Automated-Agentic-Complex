@@ -7,6 +7,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
@@ -21,6 +22,7 @@ from daemon.agentd_server import AgentdServer  # noqa: E402
 from support import deny_blacklist, enable_plugins, serve_in_thread  # noqa: E402
 
 HOOK, UI = "hook-token", "ui-token"
+ORIGIN = "chrome-extension://oahafcajijleoficnkbfaedkmnkhnief/"
 
 
 def frame(obj):
@@ -66,7 +68,8 @@ class StandaloneNativeHostTest(unittest.TestCase):
     def test_runs_without_agentd_code_or_process(self):
         script = self.state / "native_host.py"
         script.write_text(Path(native_host.__file__).read_text(encoding="utf-8"), encoding="utf-8")
-        result = subprocess.run([sys.executable, "-I", str(script), "--state-dir", str(self.state)],
+        (self.state / "extension-origin").write_bytes(Path(native_host.__file__).with_name("extension-origin").read_bytes())
+        result = subprocess.run([sys.executable, "-I", str(script), "--state-dir", str(self.state), ORIGIN],
                                 input=b"", capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr.decode())
         self.assertEqual(unframe(result.stdout), [{"type": "config", "enabled": False, "text_enabled": False,
@@ -74,6 +77,59 @@ class StandaloneNativeHostTest(unittest.TestCase):
                                                   "allow_domains": []}])
         self.assertEqual(result.stderr.decode().splitlines(), ["agentd is not running"])
         self.assertFalse((self.state / "blacklist.json").exists())
+
+    def test_only_registered_chrome_origin_serves(self):
+        for chrome_args, allowed in (([], False), (["chrome-extension://other/"], False),
+                                     ([ORIGIN, "--parent-window=0"], True)):
+            with self.subTest(chrome_args=chrome_args), mock.patch.object(native_host, "serve") as serve, \
+                    mock.patch.object(sys, "argv", ["native_host", "--state-dir", str(self.state), *chrome_args]):
+                if allowed:
+                    native_host.main()
+                    serve.assert_called_once()
+                else:
+                    with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                        native_host.main()
+                    serve.assert_not_called()
+
+    def test_windows_token_file_allows_host_initialization(self):
+        self.write_state(self.state)
+        (self.state / "hook.token").chmod(0o666)
+        stdout = io.BytesIO()
+        windows_os = os if os.name == "nt" else SimpleNamespace(name="nt", O_RDONLY=os.O_RDONLY, open=os.open,
+                                                                fstat=os.fstat, close=os.close, fdopen=os.fdopen)
+        with mock.patch.object(native_host, "os", windows_os):
+            native_host.serve(self.state, io.BytesIO(), stdout)
+        self.assertTrue(unframe(stdout.getvalue())[0]["enabled"])
+        self.assertEqual(self.requests[0].get_header("Authorization"), "Bearer " + HOOK)
+
+    def test_shutdown_stops_authenticated_posts_and_policy_refresh(self):
+        with subprocess.Popen([sys.executable, "-I", "-c", "pass"]) as process:
+            process.wait()
+        for missing in (False, True):
+            with self.subTest(missing=missing):
+                self.write_state(self.state)
+                record = self.state / "ui-runtime.json"
+                live = {"base_url": "http://127.0.0.1:48810", "pid": os.getpid()}
+                record.write_text(json.dumps(live), encoding="utf-8")
+                self.requests.clear()
+                stdout = io.BytesIO()
+
+                def messages():
+                    self.assertTrue(unframe(stdout.getvalue())[0]["enabled"])
+                    self.assertEqual(self.requests[0].get_header("Authorization"), "Bearer " + HOOK)
+                    if missing:
+                        record.unlink()
+                    else:
+                        record.write_text(json.dumps({**live, "pid": process.pid}), encoding="utf-8")
+                    yield self.messages[0]
+                    yield {"type": "policy"}
+                    yield self.messages[0]
+                    yield None
+
+                with mock.patch.object(native_host, "read_message", side_effect=messages()):
+                    native_host.serve(self.state, io.BytesIO(), stdout)
+                self.assertEqual([r.selector for r in self.requests], ["/context/browser/policy"])
+                self.assertFalse(unframe(stdout.getvalue())[-1]["enabled"])
 
     @unittest.skipIf(sys.platform == "win32", "POSIX mode bits, uid or FIFO; on Windows the state directory's DACL protects these files")
     def test_unavailable_discovery_files_disable_and_recover(self):

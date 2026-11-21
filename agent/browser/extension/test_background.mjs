@@ -8,7 +8,7 @@ const source = (await readFile(new URL("background.js", import.meta.url), "utf8"
 const event = () => ({ listeners: [], addListener(f) { this.listeners.push(f); }, fire(...args) { this.listeners.forEach(f => f(...args)); } });
 async function harness() {
   let now = 100000, focused = true, text = "First article", lastText = null, delayed = null, tabsDelayed = null, windowDelayed = null;
-  const out = [], requests = [];
+  const out = [], requests = [], writes = [];
   const tab = { id: 1, windowId: 1, url: "https://example.com/private-path?secret=1", title: "Article", active: true, audible: false };
   let tabs = [tab];
   let policy = { type: "config", enabled: true, text_enabled: true, mode: "deny", domains: [], allow_domains: [], title_patterns: [] };
@@ -16,7 +16,7 @@ async function harness() {
     if (m.type === "policy") queueMicrotask(() => port.onMessage.fire(policy)); else out.push(m);
   } };
   const chrome = {
-    storage: { session: { get: async () => ({}), set: async () => {} } },
+    storage: { session: { get: async () => ({}), set: async data => { writes.push(structuredClone(data)); } } },
     runtime: { connectNative: () => port, onStartup: event(), onInstalled: event(), onMessage: event() },
     alarms: { create() {}, onAlarm: event() }, windows: { get: async () => windowDelayed || ({ focused, state: "normal" }), onFocusChanged: event() },
     tabs: { onActivated: event(), onUpdated: event(), onRemoved: event(), get: async () => ({ ...tab }),
@@ -36,12 +36,33 @@ async function harness() {
   const flush = async () => { for (let i = 0; i < 20; ++i) await new Promise(setImmediate); };
   const emit = (type, extra = {}) => chrome.runtime.onMessage.fire({ type, captured_at: now, ...extra }, { tab: { ...tab }, url: tab.url, frameId: 0, documentId: "D1" });
   emit("hello"); await flush();
-  return { out, requests, chrome, tab, port, flush, emit,
+  return { out, requests, writes, chrome, tab, port, flush, emit,
     tick: async (ms = 5000) => { now += ms; emit("sample"); await flush(); },
     setText: s => { text = s; }, focus: value => { focused = value; chrome.windows.onFocusChanged.fire(value ? 1 : -1); },
     setPolicy: p => { policy = { ...policy, ...p }; }, setTabs: t => { tabs = t; },
     delay: p => { delayed = p; }, delayTabs: p => { tabsDelayed = p; }, delayWindow: p => { windowDelayed = p; },
     advance: ms => { now += ms; }, now: () => now };
+}
+
+for (const [reason, policy] of [["disabled", { enabled: false }], ["blocked domain", { domains: ["example.com"] }],
+                                 ["blocked title", { title_patterns: ["Article"] }]]) {
+  test(`session storage forgets existing URLs and titles and excludes new ones when ${reason}`, async () => {
+    const h = await harness();
+    const stored = () => JSON.stringify(h.writes.filter(w => w.docs).at(-1)?.docs ?? {});
+    assert.ok(stored().includes(h.tab.url));
+    h.tab.id = 2;
+    h.setPolicy(policy); await h.tick();
+    assert.ok(!stored().includes(h.tab.url) && !stored().includes(h.tab.title), "previous tab still retained");
+    h.tab.url += "&marker=hello";
+    h.tab.title = "Article hello marker";
+    h.writes.length = 0;
+    h.emit("hello"); await h.flush();
+    assert.ok(!JSON.stringify(h.writes).includes("marker"), "hello stored private metadata");
+    h.tab.url += "&marker=sample";
+    await h.tick();
+    h.chrome.tabs.onRemoved.fire(1); await h.flush();
+    assert.ok(!JSON.stringify(h.writes).includes("marker"), "sample stored private metadata");
+  });
 }
 
 test("dynamic text revisions and empty content replace the current page without URL/title changes", async () => {
