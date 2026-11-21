@@ -1,4 +1,5 @@
 """Process-boundary regressions; fake runner, deliberately no model claims."""
+from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import json
 import os
@@ -110,7 +111,7 @@ class ManagedTransportTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def session(self, permission_handler=None, **config):
-        cfg = CodexConfig(str(self.root / "state"), "fixture-model", "fixture-key", cli_path="/fixture/codex", **config, **WORK)
+        cfg = CodexConfig(str(self.root / "state"), "fixture-model", "fixture-key", cli_path=str(self.root / "codex"), **config, **WORK)
         session = ManagedClaudeSession(cfg, [{"name": "fixture", "description": "Test only",
                                               "input_schema": {"type": "object"}}],
                                       lambda name, args: {"answer": args["query"]}, permission_handler,
@@ -326,6 +327,32 @@ class ManagedTransportTests(unittest.TestCase):
         result = list(session.stream("hello", system_prompt="persona", cancelled=cancel))
         self.assertIsNone(session.pid)
         self.assertEqual(result[-1]["subtype"], "cancelled")
+
+    def test_blocked_query_write_does_not_hold_up_close_or_interrupt(self):
+        for action in ("close", "interrupt"):
+            with self.subTest(action=action):
+                session = self.session()
+                session.CLOSE_WAIT = 0.25
+                stream = session.stream("wait", system_prompt="persona")
+                self.assertEqual(next(stream)["type"], "ready")
+                proc = session._proc
+                writing = threading.Event()
+                def blocked_write(raw):
+                    writing.set()
+                    proc.wait(timeout=5)
+                    raise BrokenPipeError()
+                with ThreadPoolExecutor(2) as pool, patch.object(proc.stdin, "write", side_effect=blocked_write):
+                    query = pool.submit(list, stream)
+                    try:
+                        self.assertTrue(writing.wait(2))
+                        control = pool.submit(getattr(session, action))
+                        control.result(timeout=0.2)
+                        proc.wait(timeout=2)
+                    finally:
+                        if proc.poll() is None:
+                            proc.kill()
+                    with self.assertRaisesRegex(HarnessError, "runner_disconnected"):
+                        query.result(timeout=2)
 
     @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_runner_inherits_the_user_environment_but_not_endfield_tokens(self):

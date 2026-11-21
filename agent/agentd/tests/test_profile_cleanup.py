@@ -1,4 +1,5 @@
 """Runner actor lifetime and startup cleanup; no real model or profile access."""
+from contextlib import ExitStack
 import hashlib
 import os
 from pathlib import Path
@@ -8,13 +9,16 @@ import sys
 import tempfile
 import threading
 import time
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.harness.codex_transport import CodexConfig, ManagedCodexSession
 from character_agent.harness.profile_cleanup import purge_runner_indexes, purge_idle_runner_actors
 from character_agent.harness.transport import join_reapers
+from character_agent.integration import CharacterAgentController
+from support import enable_plugins
 from test_character_agent_transport import FAKE_RUNNER
 
 # Every bridged harness config names the directory its own tools work in.
@@ -35,7 +39,6 @@ def index(path, rows=1):
 class OwnedCleanupTests(unittest.TestCase):
     def setUp(self):self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name).resolve()
     def tearDown(self):self.tmp.cleanup()
-    @unittest.skipIf(sys.platform == "win32", "profile_cleanup.py locks runner actors with O_DIRECTORY and O_NOFOLLOW; no Windows port yet")
     def test_only_legacy_product_indexes_are_removed_and_purge_is_idempotent(self):
         runner=self.root/'product/character-agent/runner'
         first=runner/'codex/sqlite/state_5.sqlite';second=runner/'codex/jobs/semantic-one/sqlite/state_5.sqlite'
@@ -64,7 +67,6 @@ class OwnedCleanupTests(unittest.TestCase):
 
 
 class RunnerCleanupTests(unittest.TestCase):
-    @unittest.skipIf(sys.platform == "win32", "profile_cleanup.py locks runner actors with O_DIRECTORY and O_NOFOLLOW; no Windows port yet")
     def test_fast_privacy_pass_removes_indexes_before_deferred_actor_disposal(self):
         actor=self.runner/'codex/jobs/old'
         database=actor/'sqlite/state_5.sqlite';index(database)
@@ -115,17 +117,45 @@ class RunnerCleanupTests(unittest.TestCase):
 
     def session(self, backend, ident):
         actor = self.runner / backend / 'jobs' / ident
-        session = ManagedCodexSession(CodexConfig(actor, 'fixture-model', 'fixture-key', cli_path='/fixture/codex', **WORK),
+        session = ManagedCodexSession(CodexConfig(actor, 'fixture-model', 'fixture-key', cli_path=str(self.root / 'codex'), **WORK),
                                       runner_path=self.script)
         self.sessions.append(session)
         session.probe()
         return session, actor
 
+    def test_windows_job_actor_reaches_ready_without_inherited_descriptors(self):
+        enable_plugins(self, 'harness_bridge')
+        controller = Mock(state_dir=self.root, python=sys.executable, session_factory_override=None)
+        controller._model.return_value = 'fixture-model'
+        controller._selected_runtime.return_value = {'entry_supported': True, 'path': str(self.root / 'codex')}
+        controller.settings.workspace.return_value = self.root
+        config = {'backend': 'codex', 'runtime_source': 'local', 'auth_source': 'existing_login'}
+        session = CharacterAgentController._session_factory(controller, [], config, actor_id='semantic-one', native_tools=False)
+        actor = self.runner / 'codex/jobs/semantic-one'
+        self.assertEqual(session.config.state_dir, actor)
+        session.runner_path = self.script
+        popen = subprocess.Popen
+        def launch(*args, **kwargs):
+            self.assertNotIn('pass_fds', kwargs)
+            return popen(*args, **kwargs)
+        with ExitStack() as stack:
+            if sys.platform != 'win32':
+                windows_os = SimpleNamespace(**{**vars(os), 'O_TEMPORARY': 0})
+                del windows_os.O_DIRECTORY, windows_os.O_NOFOLLOW
+                stack.enter_context(patch('character_agent.harness.profile_cleanup.os', windows_os))
+                stack.enter_context(patch.object(sys, 'platform', 'win32'))
+            stack.enter_context(patch.object(subprocess, 'Popen', side_effect=launch))
+            try:
+                self.assertEqual(session.probe()['type'], 'ready')
+            finally:
+                session.close()
+                join_reapers()
+            self.assertFalse(actor.exists())
+
     def stale(self, path):
         stamp = time.time() - 601
         os.utime(path, (stamp, stamp))
 
-    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_ten_closed_sessions_leave_no_actor_directories(self):
         for backend in ('codex',):
             with self.subTest(backend=backend):
@@ -143,7 +173,6 @@ class RunnerCleanupTests(unittest.TestCase):
                 self.assertEqual(list((self.runner / backend / 'jobs').iterdir()), [])
                 self.assertTrue(self.runner.is_dir())
 
-    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_active_actor_survives_other_close_and_startup_sweep(self):
         for backend in ('codex',):
             with self.subTest(backend=backend):
@@ -209,7 +238,6 @@ class RunnerCleanupTests(unittest.TestCase):
                 self.assertTrue(link.is_symlink())
                 self.assertEqual(canary.read_text(encoding='utf-8'), 'keep')
 
-    @unittest.skipIf(sys.platform == "win32", "profile_cleanup.py locks runner actors with O_DIRECTORY and O_NOFOLLOW; no Windows port yet")
     def test_startup_sweep_removes_only_actors_older_than_ten_minutes(self):
         for backend in ('codex',):
             with self.subTest(backend=backend):

@@ -3,14 +3,16 @@
 Never open the user's native profile. Product Memory/History/RunStore databases,
 credentials, config, goals and task checkpoints are outside the accepted paths.
 """
+from dataclasses import dataclass
 import os
 from pathlib import Path
 import re
 import shutil
 import sqlite3
+import sys
 import time
 
-from infra.platform import lock_file
+from infra.platform import lock_file, open_private_file
 
 SQLITE_NAME = re.compile(r'state_[0-9]+\.sqlite')
 RUNNER_BACKENDS = ('codex',)
@@ -26,13 +28,31 @@ def _inside(path, root):
     return path.resolve().is_relative_to(root.resolve())
 
 
+@dataclass(frozen=True)
+class _ActorLease:
+    lock: int
+    directory: os.stat_result
+    dir_fds: tuple[int, ...] = ()
+
+
 def lock_runner_actor(actor):
-    """Return jobs, actor and lock descriptors, or None outside managed actors."""
+    """Lock a managed job directory until the runner and cleanup both finish."""
     actor = Path(actor).absolute()
     if '..' in actor.parts or actor.parent.name != 'jobs': return None
     runner = actor.parents[2]
     if runner.parts[-2:] != ('character-agent', 'runner') or actor.parent.parent.name not in RUNNER_BACKENDS:
         return None
+    if sys.platform == 'win32':
+        # A delete-on-close sibling can stay locked throughout removal of the actor.
+        lock_path = actor.with_name(f'.{actor.name}.lock')
+        if not _inside(actor, runner) or not _inside(lock_path, runner): return None
+        lock = open_private_file(lock_path, os.O_CREAT | os.O_RDWR | os.O_TEMPORARY)
+        try:
+            lock_file(lock, blocking=False)
+            return _ActorLease(lock, actor.stat())
+        except OSError:
+            os.close(lock)
+            raise
     if not _inside(actor / '.session.lock', runner): return None
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     descriptors = []
@@ -45,7 +65,7 @@ def lock_runner_actor(actor):
         lock_file(lock, blocking=False)
         os.close(descriptors.pop(0))
         os.close(descriptors.pop(0))
-        return tuple(descriptors)
+        return _ActorLease(lock, os.fstat(descriptors[1]), tuple(descriptors[:2]))
     except OSError:
         for descriptor in descriptors: os.close(descriptor)
         raise
@@ -54,16 +74,21 @@ def lock_runner_actor(actor):
 def release_runner_actor(lease):
     # Closing, rather than LOCK_UN, preserves an inherited runner's lock.
     if lease is not None:
-        for descriptor in lease: os.close(descriptor)
+        for descriptor in (*lease.dir_fds, lease.lock): os.close(descriptor)
 
 
 def remove_runner_actor(actor, lease):
     if lease is None: return
-    parent, directory, _ = lease
     try:
-        current = os.stat(Path(actor).name, dir_fd=parent, follow_symlinks=False)
-        if os.path.samestat(current, os.fstat(directory)):
-            shutil.rmtree(Path(actor).name, dir_fd=parent)
+        if lease.dir_fds:
+            parent, _ = lease.dir_fds
+            current = os.stat(Path(actor).name, dir_fd=parent, follow_symlinks=False)
+            if os.path.samestat(current, lease.directory):
+                shutil.rmtree(Path(actor).name, dir_fd=parent)
+        else:
+            actor = Path(actor).absolute()
+            if _inside(actor, actor.parents[2]) and os.path.samestat(actor.lstat(), lease.directory):
+                shutil.rmtree(actor)
     except FileNotFoundError:
         pass
 
@@ -77,7 +102,7 @@ def runner_indexes(runner):
         if not _inside(directory, runner) or not directory.is_dir(): continue
         lease = None
         try:
-            if directory.parent.parent.name == 'jobs' and (directory.parent / '.session.lock').exists():
+            if directory.parent.parent.name == 'jobs' and (sys.platform == 'win32' or (directory.parent / '.session.lock').exists()):
                 try: lease = lock_runner_actor(directory.parent)
                 except (BlockingIOError, FileNotFoundError): continue
                 if lease is None: continue
@@ -115,7 +140,7 @@ def purge_idle_runner_actors(runner, *, stopped=lambda: False):
                 lease = lock_runner_actor(actor)
             except (BlockingIOError, FileNotFoundError): continue
             try:
-                if lease is not None and os.path.samestat(original, os.fstat(lease[1])):
+                if lease is not None and os.path.samestat(original, lease.directory):
                     remove_runner_actor(actor, lease)
             finally: release_runner_actor(lease)
 

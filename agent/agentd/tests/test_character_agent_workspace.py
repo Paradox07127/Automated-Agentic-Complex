@@ -350,6 +350,17 @@ class DropScopeTests(unittest.TestCase):
         self.assertCode('unknown_source', lambda: self.call(scope, 'workspace_read', {'source_id': 'r0:sibling.md'}))
         self.assertEqual(self.service.run_files('run')[0]['path'], scope['files'][0]['path'])
 
+    def test_dropped_source_cannot_follow_a_symlink_to_its_sibling(self):
+        scope = self.drop('note.md')
+        source, = self.call(scope, 'workspace_list', {})['sources']
+        note = self.folder / 'note.md'
+        note.unlink()
+        note.symlink_to(self.folder / 'sibling.md')
+        self.assertCode('path_not_allowed', lambda: self.call(scope, 'workspace_read', {'source_id': source['source_id']}))
+        listed = self.call(scope, 'workspace_list', {})
+        self.assertEqual(listed['sources'], [])
+        self.assertEqual(listed['skipped'], [{'path': 'note.md', 'reason': 'path_not_allowed'}])
+
     def test_drop_scope_reports_unsupported_types(self):
         (self.folder / 'paper.pdf').write_bytes(b'%PDF-synthetic')
         (self.folder / 'clip.mov').write_bytes(b'moov')

@@ -83,7 +83,7 @@ def capabilities_valid(capabilities):
 
 
 class ManagedClaudeSession:
-    # Seconds a runner has to exit after its close frame before its process group is signalled.
+    # Grace period for delivering an interrupt or exiting after close.
     CLOSE_WAIT = 1
 
     def __init__(self, config, tool_definitions=None, tool_handler=None, permission_handler=None, *, runner_path):
@@ -127,6 +127,16 @@ class ManagedClaudeSession:
                 selected.stdin.flush()
             except (OSError, ValueError) as error:
                 raise HarnessError("runner_disconnected") from error
+
+    def _send_control(self, message, proc):
+        def send():
+            try:
+                self._write(message, proc)
+            except HarnessError as error:
+                logging.getLogger(__name__).debug("Runner %s frame undelivered: %s", message["type"], error.code)
+        writer = threading.Thread(target=send, name="character-runner-control", daemon=True)
+        writer.start()
+        return writer
 
     def _queue(self, event, generation):
         if generation != self._generation:
@@ -293,11 +303,13 @@ class ManagedClaudeSession:
             env = runner_environment(self.config.state_dir, auth_mode=getattr(self.config, "auth_mode", "api_key"))
             try:
                 self._runner_actor = lock_runner_actor(self.config.state_dir)
+                options = new_group_options()
+                if self._runner_actor and self._runner_actor.dir_fds:
+                    options["pass_fds"] = (self._runner_actor.lock,)
                 self._proc = subprocess.Popen([self.config.python, "-I", "-B", "-X", "utf8", str(self.runner_path)],
                                               stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                               stderr=subprocess.DEVNULL, env=env, bufsize=0,
-                                              close_fds=True, **new_group_options(),
-                                              pass_fds=(self._runner_actor[-1],) if self._runner_actor else ())
+                                              close_fds=True, **options)
                 track_group(self._proc)
             except OSError as error:
                 release_runner_actor(self._runner_actor)
@@ -402,15 +414,18 @@ class ManagedClaudeSession:
 
     def interrupt(self):
         with self._state_lock:
-            if self._active:
-                self._active["cancelled"] = True
-                run_id = self._active["id"]
-            else:
+            active, proc = self._active, self._proc
+            if not active or active["cancelled"] or proc is None:
                 return
-        try:
-            self._write({"type": "interrupt", "run_id": run_id})
-        except HarnessError:
-            pass
+            active["cancelled"] = True
+            writer = self._send_control({"type": "interrupt", "run_id": active["id"]}, proc)
+
+        def reap_if_blocked():
+            writer.join(self.CLOSE_WAIT)
+            with self._state_lock:
+                if writer.is_alive() and self._proc is proc and self._active is active:
+                    self.close()
+        threading.Thread(target=reap_if_blocked, name="character-interrupt-deadline", daemon=True).start()
 
     def invalidate(self):
         self.close()
@@ -466,10 +481,6 @@ class ManagedClaudeSession:
             self._ready = None
             self.session_id = None
             if proc is not None:
-                try:
-                    self._write({"type": "close"}, proc)
-                except HarnessError:
-                    pass
                 actor = Path(self.config.state_dir).absolute()
                 reaper = threading.Thread(target=self._reap, args=(proc, lease, actor), name="character-runner-reaper")
                 with _reaping_lock:
@@ -477,6 +488,7 @@ class ManagedClaudeSession:
                     if lease is not None:
                         _reaping[actor] = reaper
                 reaper.start()
+                self._send_control({"type": "close"}, proc)
 
     def __enter__(self):
         return self

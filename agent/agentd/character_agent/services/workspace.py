@@ -18,6 +18,7 @@ import secrets
 import sqlite3
 import threading
 import time
+from infra.platform import open_private_file
 from infra.store import IdleConnection
 from character_agent.services.extract import EXTRACTORS, extract
 
@@ -105,17 +106,20 @@ def _extracted(suffix, data, digest):
     return _EXTRACTED[key]
 
 
-def _read(root, relative, *, extract_binary=True):
+def _read(root, relative, *, selected_name=None, extract_binary=True):
     """extract_binary=False returns None as text for EXTRACTORS and image formats: hash and size only.
     Otherwise an image comes back as its raw bytes, undecoded."""
     suffix = PurePosixPath(relative).suffix.lower()
     limit = MAX_BINARY if suffix in EXTRACTORS else MAX_IMAGE if suffix in IMAGE_TYPES else MAX_BYTES
-    path = _resolve(root, relative)
+    path = Path(root) / relative if selected_name is not None else _resolve(root, relative)
     try:
         # Only regular files are opened: opening a FIFO would block.
         if not path.is_file():
             raise WorkspaceError('unsupported_file' if path.exists() else 'file_missing')
-        with open(path, 'rb') as stream:
+        with open(path, 'rb', opener=open_private_file if selected_name is not None else None) as stream:
+            if selected_name is not None and (path.resolve() != Path(root) / selected_name
+                    or not os.path.samestat(path.lstat(), os.fstat(stream.fileno()))):
+                raise WorkspaceError('path_not_allowed')
             data = stream.read(limit + 1)
     except FileNotFoundError as e:
         raise WorkspaceError('file_missing') from e
@@ -437,7 +441,7 @@ class WorkspaceService:
                     for relative in self._walk(root['path']) if root['name'] is None else [root['name']]:
                         if len(items) >= MAX_FILES:
                             truncated = True; break
-                        try: _, digest, size = _read(root['path'], relative, extract_binary=False)
+                        try: _, digest, size = _read(root['path'], relative, selected_name=root['name'], extract_binary=False)
                         except WorkspaceError as error:
                             if len(skipped) < 20: skipped.append({'path': relative, 'reason': error.code})
                             continue
@@ -458,7 +462,8 @@ class WorkspaceService:
     def _source(self, scope, source_id):
         row = self.db.execute('SELECT * FROM sources WHERE scope_id=? AND id=?', (scope['scope_id'], source_id)).fetchone()
         if not row: raise WorkspaceError('unknown_source', 'List sources before reading a source_id')
-        text, digest, size = _read(_entries(scope)[row['root']]['path'], row['path'])
+        root = _entries(scope)[row['root']]
+        text, digest, size = _read(root['path'], row['path'], selected_name=root['name'])
         return row, text, digest, size
 
     def read_source(self, scope_id, source_id, run_id, *, offset=0, limit=16000):
