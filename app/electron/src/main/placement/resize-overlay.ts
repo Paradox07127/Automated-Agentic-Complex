@@ -110,7 +110,12 @@ export class ResizeOverlayWindow {
     this.o.register(contents, page, new Map([...this.o.baseOps, ...Object.entries(this.ops())]));
     win.setFocusable(false);
     contents.on('did-start-navigation', (e) => { if (e.isMainFrame && !e.isSameDocument) page.end(); });
-    contents.on('render-process-gone', () => page.end());
+    // A page that is gone or hung can never end its drag, and the window over the whole screen would keep the pointer.
+    contents.on('render-process-gone', () => {
+      page.end();
+      this.mode?.cancel();
+    });
+    contents.on('unresponsive', () => this.mode?.cancel());
     // The panel never activates the app; a press in a region keys it so Esc and Return reach it.
     contents.on('before-mouse-event', (_e, mouse) => {
       if (mouse.type !== 'mouseDown' || !this.regions.some((r) => within(r, mouse.x, mouse.y))) return;

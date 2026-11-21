@@ -278,3 +278,25 @@ test('the pointer poll takes clicks over the handles and the bar only, and never
   o.call('resize.act', 'cancel');
   assert.equal(o.overlay.open, false);
 });
+
+for (const event of ['render-process-gone', 'unresponsive']) {
+  test(`a page that is ${event === 'unresponsive' ? 'hung' : 'gone'} mid-drag cancels the edit and lets clicks through again`, () => {
+    const o = overlayWith();
+    try {
+      o.overlay.begin();
+      o.call('window.setInteractiveRegions', [{ x: 688, y: 363, width: 24, height: 24 }]);
+      o.setCursor({ x: 700, y: 400 });
+      o.overlay.tick();
+      o.call('resize.drag', 'bottomRight', 60, 100);
+      o.emit(event);
+      o.setCursor({ x: 100, y: 400 });
+      o.overlay.tick();
+      assert.equal(o.calls.filter((c) => c.startsWith('ignore')).at(-1), 'ignore true', 'the window takes the pointer');
+      assert.equal(o.overlay.open, false);
+      assert.deepEqual(o.calls.slice(-3), ['focusable false', 'ignore true', 'hide']);
+      assert.equal(o.placed.at(-1), 'preview 1 700,300 120x200');
+    } finally {
+      o.overlay.stop();
+    }
+  });
+}

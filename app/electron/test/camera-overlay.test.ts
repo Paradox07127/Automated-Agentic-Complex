@@ -231,6 +231,28 @@ test('the pointer poll takes clicks over the area and the bar only, and never le
   assert.equal(o.overlay.open, false);
 });
 
+for (const event of ['render-process-gone', 'unresponsive']) {
+  test(`a page that is ${event === 'unresponsive' ? 'hung' : 'gone'} mid-drag cancels the edit and lets clicks through again`, () => {
+    const o = overlayWith();
+    try {
+      o.overlay.begin({ x: 100, y: 100, w: 200, h: 400 }, { yaw: 0, pitch: 0, zoom: 1 }, null);
+      o.call('window.setInteractiveRegions', [{ x: 76, y: 351, width: 248, height: 448 }]);
+      o.setCursor({ x: 100, y: 400 });
+      o.overlay.tick();
+      o.call('camera.drag', 10, 0);
+      o.emit(event);
+      o.setCursor({ x: 1000, y: 400 });
+      o.overlay.tick();
+      assert.equal(o.calls.filter((c) => c.startsWith('ignore')).at(-1), 'ignore true', 'the window takes the pointer');
+      assert.equal(o.overlay.open, false);
+      assert.deepEqual(o.calls.slice(-3), ['focusable false', 'ignore true', 'hide']);
+      assert.equal(o.camera.at(-1), 'cancelled');
+    } finally {
+      o.overlay.stop();
+    }
+  });
+}
+
 test('shellCamera gives the overlay factory the camera, and 调整镜头 opens it on her figure', () => {
   let begun: unknown[] = [];
   const shell = shellCamera({

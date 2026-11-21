@@ -9,7 +9,7 @@ import type { SelectionCommand } from './desktop-hotkey.ts';
 import type { WindowCommand } from './handover.ts';
 import {
   anchorPayload, type AnchorPayload, cardIn, type CardInsets, type CmdMode, type DockReason, EDGE, fallbackInsets, type FollowState, GAP, inset,
-  keepOut, keepOutOf, type LayoutInput, type LayoutMemory, overlaps, place, type PanelKind, type PanelPlacement, type PanelSide,
+  keepOut, keepOutOf, type LayoutInput, type LayoutMemory, layoutScreen, overlaps, place, type PanelKind, type PanelPlacement, type PanelSide,
   type UserOffset, userOffset,
 } from './desktop-layout.ts';
 import type { Rect, ScreenInfo } from './placement.ts';
@@ -84,6 +84,7 @@ const maxY = (r: Rect) => r.y + r.h;
 const midX = (r: Rect) => r.x + r.w / 2;
 const midY = (r: Rect) => r.y + r.h / 2;
 const offset = (r: Rect, dx: number, dy: number): Rect => ({ x: r.x + dx, y: r.y + dy, w: r.w, h: r.h });
+const contains = (r: Rect, x: number, y: number) => x >= r.x && x < maxX(r) && y >= r.y && y < maxY(r);
 const sameRect = (a: Rect | null, b: Rect | null) => a === b || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
 const near = (a: Rect, b: Rect) => Math.abs(a.x - b.x) < TOLERANCE && Math.abs(a.y - b.y) < TOLERANCE && Math.abs(a.w - b.w) < TOLERANCE
   && Math.abs(a.h - b.h) < TOLERANCE;
@@ -149,6 +150,9 @@ export class DesktopFollow {
   private capsules: Rect | null = null;
   private applied: Partial<Record<PanelKind, Rect>> = {};
   private placedSize: Partial<Record<PanelKind, { w: number; h: number }>> = {};
+  /** Placement units per CSS px of each panel's page, for this step. */
+  private ratios: Partial<Record<PanelKind, number>> = {};
+  private readonly pixelsPerDip: (screen: ScreenInfo) => number;
   private sides: Partial<Record<PanelKind, PanelSide>> = {};
   private movedAt: Partial<Record<PanelKind, number>> = {};
   private anchors: Partial<Record<PanelKind, AnchorPayload>> = {};
@@ -171,15 +175,17 @@ export class DesktopFollow {
   /** A present's close is done, at its stroke or `PRESENT_CLOSE_WAIT` after it: the owner hides the panel now. */
   onPresentClosed: (kind: PanelKind) => void = () => {};
 
-  /** `command` sends to every page's `desktop.onCommand` but the console's, `consoleCommand` to the console's only. */
+  /** `command` sends to every page's `desktop.onCommand` but the console's, `consoleCommand` to the console's only;
+   *  `pixelsPerDip` is a display's placement units per DIP. */
   constructor(panels: Partial<Record<PanelKind, FollowPanel>>, log: (line: string) => void = () => {},
     command: (c: DesktopCommand) => void = () => {}, consoleCommand: (c: DesktopCommand) => void = () => {},
-    offsets: OffsetStore = memoryOffsets()) {
+    offsets: OffsetStore = memoryOffsets(), pixelsPerDip: (screen: ScreenInfo) => number = () => 1) {
     this.panels = panels;
     this.log = log;
     this.command = command;
     this.consoleCommand = consoleCommand;
     this.offsets = offsets;
+    this.pixelsPerDip = pixelsPerDip;
   }
 
   /** While a panel shows, or the command layer or the console is open. */
@@ -317,6 +323,14 @@ export class DesktopFollow {
       delete this.applied[kind];
       delete this.placedSize[kind];
       delete this.sides[kind];
+    }
+    // A page's sizes go by the display its panel was placed on, else by the one the layout would pick.
+    const lastHead = this.followed && this.head(this.followed);
+    const home = layoutScreen({ body: this.followed, head: lastHead, screen: snapshot.screen?.id ?? null,
+      lastScreen: snapshot.lastScreen?.id ?? null, screens, mouse, requests: [] }, lastHead);
+    for (const kind of KINDS) {
+      const f = this.applied[kind], on = (f && screens.find((s) => contains(s.frame, midX(f), midY(f)))) || home;
+      this.ratios[kind] = on ? this.pixelsPerDip(on) : 1;
     }
 
     let next: FollowState;
@@ -611,12 +625,14 @@ export class DesktopFollow {
   }
 
   private insets(kind: PanelKind): CardInsets {
-    return this.panels[kind]?.cardInsets ?? fallbackInsets(kind);
+    const i = this.panels[kind]?.cardInsets ?? fallbackInsets(kind), r = this.ratios[kind] ?? 1;
+    return { left: i.left * r, right: i.right * r, top: i.top * r, bottom: i.bottom * r };
   }
 
-  /** `kind`'s content size; one within `SIZE_STEP` of the size it was placed for keeps that. */
+  /** `kind`'s content size in placement units; one within `SIZE_STEP` of the size it was placed for keeps that. */
   private size(kind: PanelKind): { w: number; h: number } {
-    const size = this.panels[kind]?.contentSize ?? { w: 0, h: 0 };
+    const page = this.panels[kind]?.contentSize ?? { w: 0, h: 0 }, r = this.ratios[kind] ?? 1;
+    const size = { w: page.w * r, h: page.h * r };
     const a = this.placedSize[kind];
     return a && Math.abs(a.w - size.w) < SIZE_STEP && Math.abs(a.h - size.h) < SIZE_STEP ? a : size;
   }

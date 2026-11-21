@@ -14,6 +14,7 @@ import type { BrowserWindow, Rectangle } from 'electron';
 import type { Handler } from '../src/common/bridge.ts';
 import { PageSession } from '../src/common/page.ts';
 import type { EventSource, StreamEvent } from '../src/common/page.ts';
+import type { Rect, ScreenInfo } from '../src/common/placement.ts';
 import type { Request } from '../src/common/stack-source.ts';
 import { TurnMarks } from '../src/common/turn-marks.ts';
 
@@ -51,7 +52,8 @@ function fakeWindow(id: number, shown: (route: string) => void, moved: (route: s
 
 /** An assembly on fake windows with `extra` arguments until `done`, with config.json in a temporary support dir. */
 function setup(extra: string[], o: { present?: boolean; request?: Request; marks?: TurnMarks; mouse?: () => { x: number; y: number };
-  mouseDowns?: (listener: () => void) => () => void; feed?: EventSource; noteLine?: () => void; makeWindow?: (kind: string) => void } = {}) {
+  mouseDowns?: (listener: () => void) => () => void; feed?: EventSource; noteLine?: () => void; makeWindow?: (kind: string) => void;
+  toDip?: (f: Rect) => Rectangle; screens?: () => ScreenInfo[] } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'desktop-assembly-'));
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ hotkey_quick_input: 'control+option+k' }));
   const argv = process.argv;
@@ -68,8 +70,8 @@ function setup(extra: string[], o: { present?: boolean; request?: Request; marks
       return fakeWindow(++id, (line) => calls.push(line), (route, b) => bounds.set(route, b)) as unknown as BrowserWindow;
     },
     url: (route) => `app://x/stack.html#${route}`,
-    toDip: (f) => ({ x: f.x, y: 1000 - f.y - f.h, width: f.w, height: f.h }),
-    screens: () => [{ id: 1, frame: { x: 0, y: 0, w: 1512, h: 982 }, visibleFrame: { x: 0, y: 0, w: 1512, h: 957 } }],
+    toDip: o.toDip ?? ((f) => ({ x: f.x, y: 1000 - f.y - f.h, width: f.w, height: f.h })),
+    screens: o.screens ?? (() => [{ id: 1, frame: { x: 0, y: 0, w: 1512, h: 982 }, visibleFrame: { x: 0, y: 0, w: 1512, h: 957 } }]),
     cursorDip: () => ({ x: 0, y: 0 }), mouse: o.mouse ?? (() => ({ x: 0, y: 0 })),
     ...(o.mouseDowns && { mouseDowns: o.mouseDowns }),
     ...(o.noteLine && { noteLine: o.noteLine }),
@@ -191,6 +193,21 @@ test('the chip panel loads #/chip, shows with its circle\'s region beside her he
     [{ panel: 'chip', side: 'right', docked: null }]);
   h.desktop.pushState();
   assert.deepEqual(states.at(-1), { n: 1 });
+  h.done();
+});
+
+test('on a 200 % display the page\'s reported size is the window\'s size in DIPs', () => {
+  // A placement space of physical pixels, as on Windows; a DIP is two of them.
+  const h = setup(['--no-attention'], {
+    toDip: (f) => ({ x: f.x / 2, y: (1964 - f.y - f.h) / 2, width: f.w / 2, height: f.h / 2 }),
+    screens: () => [{ id: 1, frame: { x: 0, y: 0, w: 3024, h: 1964 }, visibleFrame: { x: 0, y: 0, w: 3024, h: 1914 } }],
+  });
+  h.desktop.start();
+  h.call('/chip', 'window.setContentSize', [{ width: 400, height: 36 }]);
+  h.call('/chip', 'window.setInteractiveRegions', [[{ x: 182, y: 0, width: 36, height: 36 }]]);
+  assert.ok(h.calls.includes('show /chip'));
+  const b = h.bounds.get('/chip')!;
+  assert.deepEqual([b.width, b.height], [400, 36]);
   h.done();
 });
 
