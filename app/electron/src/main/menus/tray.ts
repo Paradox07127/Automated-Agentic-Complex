@@ -1,4 +1,5 @@
 // The menu bar icon's menu, built afresh each time it opens.
+import type { ShellPlatform } from '../../common/config.ts';
 import { ABSENT_FEATURES, MENU_ROUTES, type MenuState, menuAccelerator } from '../../common/menus.ts';
 import { appearanceItem, characterEntries, clickThroughItem, freeRoamItem, hiddenItem, item, label, type MenuItem,
   type MenuPorts, page, quietItem, SEPARATOR, submenu } from './items.ts';
@@ -53,4 +54,16 @@ export function trayMenu(s: MenuState, ports: MenuPorts): MenuItem[] {
     item('restartChildren', '重启子进程', ports.restartChildren),
     item('quit', '退出', quit, { accelerator: 'Command+Q' }));
   return e;
+}
+
+/**
+ * The tray icon's own menu, which Windows opens on a right click: `trayMenu` with the helper's row `helper` under the
+ * children's; null on the Mac, where `trayClick` pops `trayMenu` up instead. `state` is read only off the Mac: a read
+ * asks agentd and the renderer.
+ */
+export function trayContextMenu(platform: ShellPlatform, state: () => MenuState, ports: MenuPorts, helper: string): MenuItem[] | null {
+  if (platform === 'mac') return null;
+  const s = state(), menu = trayMenu(s, ports);
+  if (s.configError === null) menu.splice(s.services.length, 0, label('service.helper', helper));
+  return menu;
 }

@@ -123,19 +123,24 @@ export function c3Dip(screen: ElectronScreen): (r: Rect) => Rectangle {
   return dipRect(screen, process.platform === 'win32' ? 'windows' : 'mac');
 }
 
-/** A desktop panel's window: transparent, borderless, without a shadow; on macOS a non-activating panel. */
-export function overlayOptions(): BrowserWindowConstructorOptions {
+/**
+ * A desktop panel's window: transparent, borderless, without a shadow; on macOS a non-activating panel, on Windows
+ * unfocusable (`WS_EX_NOACTIVATE`), so a click in it activates nothing. A panel that takes typing turns focusable only
+ * while it does (DesktopPanel's `makeKey`); every overlay shows with `showInactive`.
+ */
+export function overlayOptions(platform: ShellPlatform = shellPlatform()): BrowserWindowConstructorOptions {
   return {
     show: false, frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: false, resizable: false, movable: false,
     minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, enableLargerThanScreen: true,
-    ...(mac ? { type: 'panel', roundedCorners: false } : {}),
+    ...(platform === 'mac' ? { type: 'panel', roundedCorners: false } : { focusable: false }),
   };
 }
 
 /**
  * `above` levels over the avatar window's status level, on every Space and over fullscreen apps, clicks
  * passing through until the pointer reaches an interactive region, and on macOS clicks in it never activating the app
- * (`_setPreventsActivation:`); `addon` is the macOS one, null elsewhere.
+ * (`_setPreventsActivation:`; on Windows `overlayOptions` already made it unfocusable); `addon` is the macOS one, null
+ * elsewhere.
  */
 export function makeOverlay(win: BrowserWindow, above: number, addon: Pick<PreviewAddon, 'setPreventsActivation'> | null): void {
   win.setAlwaysOnTop(true, 'status', above);

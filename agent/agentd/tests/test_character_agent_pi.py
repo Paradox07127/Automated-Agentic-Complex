@@ -15,7 +15,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.harness.pi_config import PI_VERSION, PiConfig, pi_runner_environment, resolve_pi_runtime
 from character_agent.harness.pi_transport import ManagedPiSession, list_models
-from character_agent.harness.transport import HarnessError
+from character_agent.harness.transport import HarnessError, join_reapers
 from character_agent.services.workspace import WorkspaceService
 from infra.platform import child_environment
 from support import serve_in_thread
@@ -264,6 +264,8 @@ class PiSDKTests(unittest.TestCase):
 
     def tearDown(self):
         for resource in reversed(self.resources): resource.close()
+        # A runner still open holds files in the directory, and Windows refuses to delete them.
+        join_reapers()
         self.tmp.cleanup()
 
     def model(self, *args, **kwargs):

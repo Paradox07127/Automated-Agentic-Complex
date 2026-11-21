@@ -73,7 +73,7 @@ import { SettingsChanges } from './menus/items.ts';
 import { characterMenuPopup } from './menus/popup.ts';
 import type { IconBitmap } from './menus/icon.ts';
 import { shellMenus } from './menus/shell.ts';
-import { trayMenu as trayMenuItems } from './menus/tray.ts';
+import { trayContextMenu, trayMenu as trayMenuItems } from './menus/tray.ts';
 import { SystemNotifier } from './notify/system.ts';
 import { onboardingWindow } from './onboarding/window.ts';
 import { bundleBuild } from './ops/app.ts';
@@ -918,6 +918,7 @@ function runtimeChanged(): void {
   runtime.send({ kind: 'visibility', view: { hidden: hostLink?.hidden ?? false, reason: visibility.reason,
     fullscreenHidden: watchers?.fullscreenHidden ?? false, clickThroughAll: hostLink?.clickThroughAll ?? false } });
   menus.refreshIcon();
+  updateTrayMenu();
   // The desktop state goes out with the icon.
   desktop?.pushState();
 }
@@ -1106,20 +1107,12 @@ ipcMain.handle('bridge:invoke', (e, message: unknown): Reply | Promise<Reply> =>
   return handle(entry.surface, { mainFrame: frame === e.sender.mainFrame, origin: frame.origin }, message, entry.ops ?? ops, entry.page);
 });
 
-/** On macOS the menu comes up only on a right or option click (`trayClick`), so it is not the tray's context menu. */
-let trayMenu: Menu | null = null;
-
+/** Off the Mac the tray's context menu, built again on each change it shows; on macOS the menu comes up only on a right
+ *  or option click (`trayClick`), so it is not the tray's context menu. */
 function updateTrayMenu(): void {
   if (!tray) return;
-  trayMenu = Menu.buildFromTemplate([
-    ...(config ? [...menuLines(tunnel?.config ?? config, rendererState, agentdState, tunnelState), helperMenuLine(helperState)] : ['配置错误，请查看设置'])
-      .map((label) => ({ label, enabled: false })),
-    { type: 'separator' },
-    { label: '打开主窗口', click: () => openMain() },
-    { type: 'separator' },
-    { label: '退出', click: () => app.quit() },
-  ]);
-  if (shellPlatform() !== 'mac') tray.setContextMenu(trayMenu);
+  const items = trayContextMenu(shellPlatform(), () => menus.state(), menus.ports(), helperMenuLine(helperState));
+  if (items) tray.setContextMenu(Menu.buildFromTemplate(items));
 }
 
 // The tray keeps the app running with no window open.
@@ -1287,6 +1280,9 @@ void app.whenReady().then(async () => {
     });
     tray.on('click', (e, bounds) => click(false, e.altKey === true, bounds));
     tray.on('right-click', (e, bounds) => click(true, e.altKey === true, bounds));
+  } else {
+    // A right click opens the context menu (updateTrayMenu).
+    tray.on('click', () => openMain());
   }
   updateTrayMenu();
   menus.refreshIcon();

@@ -7,7 +7,7 @@ import { appMenu } from '../src/main/menus/app.ts';
 import { avatarMenu } from '../src/main/menus/avatar.ts';
 import { iconBitmap } from '../src/main/menus/icon.ts';
 import { type MenuItem, type MenuPorts, SettingsChanges } from '../src/main/menus/items.ts';
-import { trayMenu } from '../src/main/menus/tray.ts';
+import { trayContextMenu, trayMenu } from '../src/main/menus/tray.ts';
 
 /** MenuBarMenuState.sample. */
 const SAMPLE: MenuState = {
@@ -106,6 +106,24 @@ test('menus: tray shortcuts, checks and greyed items follow the state', () => {
   assert.deepEqual(loading.map((i) => [i.label, i.enabled]), [['标准制服', false], ['外勤 · 切换中…', false], ['休息日', false]]);
   // 诊断 stays out until the app has it, option or not.
   assert.deepEqual(titles(trayMenu({ ...SAMPLE, showsDiagnostics: true }, ports().ports)).slice(-4), ['切换角色', '外观', '设置…', '重启子进程', '退出'].slice(-4));
+});
+
+test('menus: on Windows the tray icon\'s own menu is the Mac\'s popup with the helper\'s row under the children\'s; none on the Mac', () => {
+  const h = ports();
+  const menu = trayContextMenu('windows', () => SAMPLE, h.ports, '系统助手 · 运行中')!;
+  const mac = deepTitles(trayMenu(SAMPLE, h.ports));
+  assert.deepEqual(deepTitles(menu), [...mac.slice(0, 3), '系统助手 · 运行中', ...mac.slice(3)]);
+  assert.equal(menu[4]!.type, 'separator');
+  assert.ok(menu.slice(0, 4).every((i) => i.enabled === false && i.click === undefined), 'the rows are not commands');
+  for (const label of ['切换角色', '设置…', '退出']) assert.ok(titles(menu).includes(label), `no item ${label}`);
+  click(find(sub(menu, '切换角色'), '示例乙'));
+  click(find(menu, '设置…'));
+  click(find(menu, '退出'));
+  assert.deepEqual(h.calls, ['switchCharacter "birch"', 'openMain "/settings"', 'quit']);
+  const failed = { ...SAMPLE, configError: '配置错误，请查看设置' };
+  assert.deepEqual(titles(trayContextMenu('windows', () => failed, h.ports, '系统助手 · 未启动')!), titles(trayMenu(failed, h.ports)));
+  assert.equal(trayContextMenu('mac', () => assert.fail('the Mac reads no state for it'), h.ports, '系统助手 · 运行中'), null,
+    'trayClick pops the Mac\'s menu up');
 });
 
 test('menus: a config error keeps only the error, the main window, 对话, 会话面板 and a grey 重启子进程', () => {
