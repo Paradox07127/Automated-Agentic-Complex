@@ -51,7 +51,7 @@ function fakeWindow(id: number, shown: (route: string) => void, moved: (route: s
 
 /** An assembly on fake windows with `extra` arguments until `done`, with config.json in a temporary support dir. */
 function setup(extra: string[], o: { present?: boolean; request?: Request; marks?: TurnMarks; mouse?: () => { x: number; y: number };
-  mouseDowns?: (listener: () => void) => () => void; feed?: EventSource; noteLine?: () => void } = {}) {
+  mouseDowns?: (listener: () => void) => () => void; feed?: EventSource; noteLine?: () => void; makeWindow?: (kind: string) => void } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'desktop-assembly-'));
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ hotkey_quick_input: 'control+option+k' }));
   const argv = process.argv;
@@ -63,7 +63,10 @@ function setup(extra: string[], o: { present?: boolean; request?: Request; marks
   let state = 0, id = 0;
   const pages = new Map<string, { page: PageSession; ops: ReadonlyMap<string, Handler<PageSession>> }>();
   const desktop = new DesktopAssembly({
-    makeWindow: () => fakeWindow(++id, (line) => calls.push(line), (route, b) => bounds.set(route, b)) as unknown as BrowserWindow,
+    makeWindow: (kind) => {
+      o.makeWindow?.(kind);
+      return fakeWindow(++id, (line) => calls.push(line), (route, b) => bounds.set(route, b)) as unknown as BrowserWindow;
+    },
     url: (route) => `app://x/stack.html#${route}`,
     toDip: (f) => ({ x: f.x, y: 1000 - f.y - f.h, width: f.w, height: f.h }),
     screens: () => [{ id: 1, frame: { x: 0, y: 0, w: 1512, h: 982 }, visibleFrame: { x: 0, y: 0, w: 1512, h: 957 } }],
@@ -142,10 +145,23 @@ test('pushState sends desktop.onState now; notice and openStack reach desktop.on
   h.desktop.pushState();
   assert.deepEqual(states, [{ n: 1 }]);
   h.desktop.notice('她在忙，等这一轮做完');
+  // 去处理 with no card says so in the bubble; with one the stack expands.
   assert.equal(await h.call('/hud', 'desktop.action', ['openStack']), null);
-  assert.deepEqual(commands, [{ kind: 'notice', text: '她在忙，等这一轮做完' }, { kind: 'expandStack' }]);
+  h.desktop.agentd(true);
+  assert.equal(h.desktop.testCard('approval'), true);
+  assert.equal(await h.call('/hud', 'desktop.action', ['openStack']), null);
+  assert.deepEqual(commands, [{ kind: 'notice', text: '她在忙，等这一轮做完' }, { kind: 'notice', text: '现在没有要处理的' },
+    { kind: 'expandStack' }]);
   assert.equal(await h.call('/ring', 'desktop.action', ['openSessions']), null);
-  assert.deepEqual(h.calls, ['openMain /overview?focus=running']);
+  assert.ok(h.calls.includes('openMain /overview?focus=running'));
+  h.done();
+});
+
+test('each panel\'s window is made for its own overlay level', () => {
+  const kinds: string[] = [];
+  const h = setup(['--no-attention'], { makeWindow: (kind) => kinds.push(kind) });
+  h.desktop.start();
+  assert.deepEqual(kinds, ['bubble', 'hud', 'ring', 'cmd', 'console', 'chip']);
   h.done();
 });
 

@@ -41,6 +41,8 @@ const THAW_DELAY_MS = 400;
 const SIZE_STEP = 2;
 /** `releaseKey` hides these routes' panels instead of ordering them front again. */
 const COMMAND_ROUTES = new Set(['/cmd', '/console']);
+/** A hidden command panel's window size, the size it was made at. */
+const CLOSED_SIZE = 100;
 
 const within = (r: { x: number; y: number; width: number; height: number }, x: number, y: number, slop = 0) =>
   x >= r.x - slop && x < r.x + r.width + slop && y >= r.y - slop && y < r.y + r.height + slop;
@@ -390,6 +392,8 @@ export class DesktopPanel implements FollowPanel {
     if (!this.isShown) return;
     this.desk(`hidden (${reason})`);
     this.win?.hide();
+    // Its next layer is placed before it shows.
+    if (this.isCommand && this.win) this.win.setBounds({ ...this.win.getBounds(), width: CLOSED_SIZE, height: CLOSED_SIZE }, false);
     this.awaitingFrame = false;
     this.isShown = false;
     if (!this.ignoring) this.win?.setIgnoreMouseEvents(true, { forward: true });

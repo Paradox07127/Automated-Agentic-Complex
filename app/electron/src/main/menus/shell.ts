@@ -59,6 +59,8 @@ export interface ShellMenusOptions {
   log(line: string): void;
   /** Puts the icon in the menu bar; absent where there is none (off the Mac). */
   setIcon?(icon: IconBitmap): void;
+  /** Builds the tray icon's own menu again (off the Mac), with `state({ reread: false })`. */
+  trayChanged?(): void;
   /** MenuPorts.handClipboard. */
   handClipboard?: (() => void) | undefined;
   /** MenuPorts.selectRegion. */
@@ -70,11 +72,13 @@ export interface ShellMenusOptions {
 }
 
 export interface ShellMenus {
-  /** Read when a menu opens; `diagnostics` when it opened with option held (showMenu(diagnostics:)). */
-  state(o?: { diagnostics: boolean }): MenuState;
+  /** Read when a menu opens; `diagnostics` when it opened with option held (showMenu(diagnostics:)); `reread: false` for a
+   *  menu built ahead, which asks agentd nothing. */
+  state(o?: { diagnostics: boolean; reread?: boolean }): MenuState;
   /** Read when a menu opens; an absent port greys its item. */
   ports(): MenuPorts;
-  /** refreshStatusIcon: after each change of a child, her visibility, recording, quiet or a character switch. */
+  /** refreshStatusIcon: after each change of a child, her visibility, recording, quiet or a character switch; the tray
+   *  icon's own menu is built again with it. */
   refreshIcon(): void;
   /** StackSource.onCount. */
   pendingApprovalsChanged(count: number): void;
@@ -87,6 +91,7 @@ export function shellMenus(o: ShellMenusOptions): ShellMenus {
   let pending = 0;
 
   const refreshIcon = () => {
+    o.trayChanged?.();
     if (!o.setIcon) return;
     o.setIcon(iconBitmap(iconState({
       ...o.processes(),
@@ -118,14 +123,14 @@ export function shellMenus(o: ShellMenusOptions): ShellMenus {
     return { motionSlots, playingSlot: playedSlot ?? saved.items[s.index] ?? null, playlistLoop: saved.loop, playlistPlaying: true };
   };
 
-  const state = (opened: { diagnostics: boolean } = { diagnostics: false }): MenuState => {
+  const state = (opened: { diagnostics: boolean; reread?: boolean } = { diagnostics: false }): MenuState => {
     const saved = o.settings();
     const hotkey = (key: string, fallback: string) => (typeof saved[key] === 'string' ? saved[key] : fallback);
     const poses = camera ? poseMenu(camera.poses) : null;
     const characters = o.characters();
     const appearance = link?.currentAppearance ?? null, hidden = link?.hiddenLayers ?? [];
     // refreshObservationState: quiet, meeting and pause set elsewhere show in the icon once agentd answers.
-    if (observation && o.processes().agentdConnected) void observation.load().then(refreshIcon);
+    if (opened.reread !== false && observation && o.processes().agentdConnected) void observation.load().then(refreshIcon);
     return {
       ...MENU_STATE_DEFAULTS,
       ...mmd(),
@@ -135,7 +140,7 @@ export function shellMenus(o: ShellMenusOptions): ShellMenus {
         const [name = '', ...detail] = line.split(' · ');
         return { name, detail: detail.join(' · ') };
       }),
-      configError: characters ? null : '配置错误，请查看设置',
+      configError: characters ? null : '请查看设置',
       quiet: (observation?.quietUntil() ?? null) !== null,
       clickThroughAll: link?.clickThroughAll ?? false,
       freeRoam: !['stay', 'bust'].includes(saved.stay_mode as string),
@@ -169,9 +174,13 @@ export function shellMenus(o: ShellMenusOptions): ShellMenus {
       // The sessions page with the session selected; one without a session leads nowhere.
       openAnnouncement: recent ? (id) => {
         const session = recent.open(id);
+        o.trayChanged?.();
         if (session !== null) o.openMain(mainRoute('/overview', [['sel', session], ['focus', `task-${session}`]]));
       } : undefined,
-      markAllAnnouncementsRead: recent ? () => recent.markAllRead() : undefined,
+      markAllAnnouncementsRead: recent ? () => {
+        recent.markAllRead();
+        o.trayChanged?.();
+      } : undefined,
       // applyQuiet: the icon follows once agentd has it.
       setQuiet: observation ? async (until) => {
         await observation.setQuiet(until);

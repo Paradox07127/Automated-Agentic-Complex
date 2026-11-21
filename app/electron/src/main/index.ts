@@ -290,7 +290,7 @@ const camera = config && hostLink && shellCamera({ link: hostLink, configPath, a
     makeWindow: () => {
       const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
         webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-      makeOverlay(win, 1, addon);
+      makeOverlay(win, 'camera', addon);
       guardWebContents(win.webContents, 'stack', webGuard);
       return win;
     },
@@ -355,6 +355,7 @@ const supervisor = config && new AgentdSupervisor({
     runtimeChanged();
     // Before agentd first runs there is no ui-runtime.json; connecting earlier only grows the reconnect backoff.
     if (state.kind === 'running') {
+      setAppMenu();
       store?.start();
       renderer?.startIfStopped();
       // Ready once the character is read, for this run only.
@@ -574,8 +575,7 @@ const regionWindow = new RegionSelectWindow({
   makeWindow: () => {
     const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
       webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-    makeOverlay(win, 1, addon);
-    win.setAlwaysOnTop(true, 'pop-up-menu');
+    makeOverlay(win, 'region', addon);
     guardWebContents(win.webContents, 'stack', webGuard);
     return win;
   },
@@ -1001,7 +1001,10 @@ const menus = shellMenus({
   } : undefined,
   ...(shellPlatform() === 'mac' && { setIcon: (b: IconBitmap) => tray?.setImage(trayImage(nativeImage.createFromBitmap(Buffer.from(b.pixels),
     { width: b.width, height: b.height, scaleFactor: 2 }))) }),
+  trayChanged: () => updateTrayMenu(false),
 });
+// Her appearance and layer lists are in the tray icon's own menu.
+hostLink?.on((e) => { if (e.kind === 'appearance' || e.kind === 'layers') updateTrayMenu(false); });
 
 /** With the web panels: the loading card, under the character's name and the
  *  stage's title. */
@@ -1022,10 +1025,10 @@ function startDesktop(): void {
   const client = new AgentdClient(runtimePath);
   const toDip = c3Dip(screen), space = c3Space(screen);
   desktop = new DesktopAssembly({
-    makeWindow: (above) => {
+    makeWindow: (kind) => {
       const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
         webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-      makeOverlay(win, above, addon);
+      makeOverlay(win, kind, addon);
       return win;
     },
     url: (route) => `${ORIGIN}/stack.html#${route}`,
@@ -1122,12 +1125,18 @@ ipcMain.handle('bridge:invoke', (e, message: unknown): Reply | Promise<Reply> =>
   return handle(entry.surface, { mainFrame: frame === e.sender.mainFrame, origin: frame.origin }, message, entry.ops ?? ops, entry.page);
 });
 
-/** Off the Mac the tray's context menu, built again on each change it shows; on macOS the menu comes up only on a right
- *  or option click (`trayClick`), so it is not the tray's context menu. */
-function updateTrayMenu(): void {
+/** Off the Mac the tray's context menu, built again on each change it shows, `reread` asking agentd's quiet again; on macOS
+ *  the menu comes up only on a right or option click (`trayClick`), so it is not the tray's context menu. */
+function updateTrayMenu(reread = true): void {
   if (!tray) return;
-  const items = trayContextMenu(shellPlatform(), () => menus.state(), menus.ports(), helperMenuLine(helperState));
+  const items = trayContextMenu(shellPlatform(), () => menus.state({ diagnostics: false, reread }), menus.ports(), helperMenuLine(helperState));
   if (items) tray.setContextMenu(Menu.buildFromTemplate(items));
+}
+
+/** The Mac's app menu, its 前往 by the plug-ins agentd runs with; set again at each start of agentd. */
+function setAppMenu(): void {
+  if (shellPlatform() !== 'mac') return;
+  Menu.setApplicationMenu(Menu.buildFromTemplate(appMenu({ openMain: openMainAt, quit: () => app.quit() }, supervisor?.plugins ?? DEFAULT_PLUGINS)));
 }
 
 // The tray keeps the app running with no window open.
@@ -1172,7 +1181,7 @@ void app.whenReady().then(async () => {
   hideFromDock(app);
   // Electron's own handlers, installed by now, quit once and then restore the default action (quit.ts).
   quitOnSignals({ on: (signal, listener) => { process.on(signal, listener); }, quit: () => app.quit() });
-  if (shellPlatform() === 'mac') Menu.setApplicationMenu(Menu.buildFromTemplate(appMenu({ openMain: openMainAt, quit: () => app.quit() })));
+  setAppMenu();
   runtimeChanged();
   tunnel?.start();
   supervisor?.start();
@@ -1196,7 +1205,7 @@ void app.whenReady().then(async () => {
       makeWindow: () => {
         const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
           webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-        makeOverlay(win, 1, addon);
+        makeOverlay(win, 'resize', addon);
         guardWebContents(win.webContents, 'stack', webGuard);
         return win;
       },
@@ -1231,7 +1240,7 @@ void app.whenReady().then(async () => {
       makeWindow: () => {
         const win = new BrowserWindow({ ...overlayOptions(), ...CONTROL_PANEL_WINDOW,
           webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-        makeOverlay(win, 2, addon);
+        makeOverlay(win, 'control', addon);
         win.setIgnoreMouseEvents(false);
         guardWebContents(win.webContents, 'stack', webGuard);
         return win;
@@ -1284,7 +1293,10 @@ void app.whenReady().then(async () => {
   // agentd's `command` events are carried out as they come.
   store?.subscribe(feedCommands({ ctx: opsContext('main'), notice: (text) => desktop?.notice(text),
     log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line) }));
-  store?.subscribe((e) => recent.receive(e, Date.now()));
+  store?.subscribe((e) => {
+    recent.receive(e, Date.now());
+    if (e.event === 'announce') updateTrayMenu(false);
+  });
   tray = new Tray(trayImage(ringImage()));
   tray.setToolTip(statusTitle(config?.supportDir ?? supportDir, DEFAULT_SUPPORT_DIR));
   if (shellPlatform() === 'mac') {

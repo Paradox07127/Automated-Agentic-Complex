@@ -59,12 +59,15 @@ export function trayMenu(s: MenuState, ports: MenuPorts): MenuItem[] {
 
 /**
  * The tray icon's own menu, which Windows opens on a right click: `trayMenu` with the helper's row `helper` under the
- * children's; null on the Mac, where `trayClick` pops `trayMenu` up instead. `state` is read only off the Mac: a read
- * asks agentd and the renderer.
+ * children's and without the Mac's Command+ shortcuts; null on the Mac, where `trayClick` pops `trayMenu` up instead.
+ * `state` is read only off the Mac: a read asks agentd and the renderer.
  */
 export function trayContextMenu(platform: ShellPlatform, state: () => MenuState, ports: MenuPorts, helper: string): MenuItem[] | null {
   if (platform === 'mac') return null;
-  const s = state(), menu = trayMenu(s, ports);
+  const s = state(), menu = trayMenu(s, ports).map((i) => {
+    const { accelerator, ...rest } = i;
+    return accelerator?.startsWith('Command+') ? rest : i;
+  });
   if (s.configError === null) menu.splice(s.services.length, 0, label('service.helper', helper));
   return menu;
 }

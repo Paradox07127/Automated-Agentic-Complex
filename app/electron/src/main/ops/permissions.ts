@@ -1,5 +1,6 @@
 // `permissions.*`: the system grants the platform helper reads and asks for,
-// and the system settings page of each. Notifications are not the helper's (C12 §7.9), and Electron reads no grant of them.
+// and the system settings page of each. Notifications are not the helper's (C12 §7.9), and Electron reads no grant of them:
+// macOS has the grant, read as not determined; Windows asks for none.
 import { BridgeFailure } from '../../common/bridge.ts';
 import type { ShellPlatform } from '../../common/config.ts';
 import type { PermissionKind as GuideKind, PermissionState as GuideState } from '../../common/onboarding.ts';
@@ -75,14 +76,16 @@ export async function openSettings(ctx: OpsContext, pane: string): Promise<void>
 }
 
 export function permissionsOps(ctx: OpsContext): Ops {
+  const notifications: WebState = (ctx.platform ?? 'mac') === 'mac' ? 'notDetermined' : 'unsupported';
   return {
     'permissions.status': async () => {
       const status = await helperStatus(ctx);
-      return Object.fromEntries(PERMISSION_KINDS.map((k) => [k, status && HELPER_KINDS.includes(k) ? webState(k, status[k]) : 'unsupported']));
+      return Object.fromEntries(PERMISSION_KINDS.map((k) => [k, k === 'notifications' ? notifications
+        : status && HELPER_KINDS.includes(k) ? webState(k, status[k]) : 'unsupported']));
     },
     'permissions.request': async ([kind]) => {
       if (typeof kind !== 'string' || !PERMISSION_KINDS.includes(kind)) throw new BridgeFailure('invalid_args', 'permission kind');
-      if (!HELPER_KINDS.includes(kind)) return 'unsupported';
+      if (!HELPER_KINDS.includes(kind)) return notifications;
       const state = await helperRequest(ctx, kind);
       return state === null ? 'unsupported' : webState(kind, state);
     },

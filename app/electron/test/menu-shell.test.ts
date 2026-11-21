@@ -260,9 +260,38 @@ test('menuState keeps what index.ts filled: rows, roster, hot keys, and the conf
   h.done();
   const failed = setup({ characters: () => null, link: null });
   const f = failed.menus.state();
-  assert.equal(f.configError, '配置错误，请查看设置');
+  assert.equal(f.configError, '请查看设置');
+  assert.equal(trayMenu(f, failed.menus.ports())[0]!.label, '配置错误：请查看设置', 'said once');
   assert.deepEqual([f.characters, f.currentCharacter, f.appearances, f.layers], [[], 'aster', [], []]);
   failed.done();
+});
+
+test('tray: off the Mac its menu is built again when quiet is set from the menu or read from agentd, and on refreshIcon', async () => {
+  let built = 0;
+  const h = setup({ setIcon: undefined, trayChanged: () => { built += 1; } });
+  await h.menus.ports().setQuiet!(1_900_000_000);
+  assert.equal(built, 1);
+  // A quiet agentd set: the read a menu open starts builds the tray menu again.
+  h.menus.state();
+  await settle();
+  assert.deepEqual([h.loads.n, built], [1, 2]);
+  // The state a rebuild reads asks agentd nothing, so a rebuild starts no other.
+  h.menus.state({ diagnostics: false, reread: false });
+  await settle();
+  assert.deepEqual([h.loads.n, built], [1, 2]);
+  h.menus.refreshIcon();
+  assert.equal(built, 3);
+  h.done();
+});
+
+test('tray: off the Mac 最近播报 opened or all marked read builds the tray menu again', () => {
+  let built = 0;
+  const recent = new RecentAnnouncements();
+  const h = setup({ setIcon: undefined, recent, trayChanged: () => { built += 1; } });
+  h.menus.ports().openAnnouncement!('announce-1');
+  h.menus.ports().markAllAnnouncementsRead!();
+  assert.equal(built, 2);
+  h.done();
 });
 
 /** The main window's PlaylistHost as ops/avatar.ts `avatarPlaylist` hands it over; `lists` are the saved lists. */

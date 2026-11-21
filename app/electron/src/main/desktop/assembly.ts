@@ -28,8 +28,8 @@ import { OffsetFile } from './offsets.ts';
 import { DesktopPanel, type Region } from './panel.ts';
 
 export interface DesktopOptions {
-  /** A panel window `above` levels over the avatar's. */
-  makeWindow(above: number): BrowserWindow;
+  /** A panel window at `kind`'s overlay level (platform OVERLAY_LEVELS). */
+  makeWindow(kind: PanelKind): BrowserWindow;
   /** The page URL for a hash route. */
   url(route: string): string;
   toDip(r: Rect): Rectangle;
@@ -82,8 +82,6 @@ const TICK_MS = 1000 / 30;
 const PRESENCE_MS = 1000;
 /** The web keeps its last presence through a short failure, and marks it offline once failures last this long. */
 const PRESENCE_OFFLINE_MS = 3000;
-/** The command and console panels' NSPopUpMenuWindowLevel (101) over the avatar's status level (25). */
-const CMD_ABOVE = 76;
 /** A test run opens the command layer in this mode, or the console without a menu bar button, the given seconds (default 1)
  *  after its page is up, standing in for the hot key, the menus and the menu bar button. */
 const TEST_COMMAND = /^--open-desktop-command=(ring|tune|input|console)(?:@(\d+))?$/;
@@ -112,6 +110,8 @@ export class DesktopAssembly {
   private readonly hotkeyOn = !process.argv.includes('--no-attention');
   /** The stack went empty while its present closes: it hides at the close's end. */
   private stackCloses = false;
+  /** The stack page's cards at the last push. */
+  private stackCards = 0;
   private testCommand: { mode: CmdMode | 'console'; after: number } | null;
   /** The menu bar button the console last opened under (placement space). */
   private statusItem: Rect | null = null;
@@ -121,9 +121,9 @@ export class DesktopAssembly {
     this.o = options;
     this.source = new StackSource({ request: options.request, notify: options.notify, avatarHidden: options.avatarHidden,
       frontFullscreen: options.frontFullscreen, playSound: options.playSound, ...(options.notifier && { notifier: options.notifier }) });
-    const panel = (kind: PanelKind, route: string, above: number, aliveOn: 'stack.onCards' | 'window.onAnchor') => {
+    const panel = (kind: PanelKind, route: string, aliveOn: 'stack.onCards' | 'window.onAnchor') => {
       const p: DesktopPanel = new DesktopPanel({
-        kind, route, url: options.url(route), aliveOn, makeWindow: () => options.makeWindow(above), toDip: options.toDip,
+        kind, route, url: options.url(route), aliveOn, makeWindow: () => options.makeWindow(kind), toDip: options.toDip,
         cursor: options.cursorDip, mouse: options.mouse, register: (contents, page) => options.register(contents, page, this.ops(p)),
         unregister: options.unregister, guard: options.guard, log: options.log,
       });
@@ -138,9 +138,9 @@ export class DesktopAssembly {
       };
       return p;
     };
-    this.panels = { bubble: panel('bubble', '/bubble', 1, 'window.onAnchor'), hud: panel('hud', '/hud', 2, 'stack.onCards'),
-      ring: panel('ring', '/ring', 3, 'window.onAnchor'), cmd: panel('cmd', '/cmd', CMD_ABOVE, 'window.onAnchor'),
-      console: panel('console', '/console', CMD_ABOVE, 'window.onAnchor'), chip: panel('chip', '/chip', 1, 'window.onAnchor') };
+    this.panels = { bubble: panel('bubble', '/bubble', 'window.onAnchor'), hud: panel('hud', '/hud', 'stack.onCards'),
+      ring: panel('ring', '/ring', 'window.onAnchor'), cmd: panel('cmd', '/cmd', 'window.onAnchor'),
+      console: panel('console', '/console', 'window.onAnchor'), chip: panel('chip', '/chip', 'window.onAnchor') };
     this.follow = new DesktopFollow(this.panels, options.log, (c) => {
       if (!this.muted) this.command.send(c);
     }, (c) => this.consoleCommand.send(c), new OffsetFile(join(supportDirOf(configPathFromArgs(process.argv)), OFFSETS_FILE), options.log));
@@ -327,6 +327,7 @@ export class DesktopAssembly {
   /** C3 rule 39: a hidden stack that gets an approval shows with her snap; once none waits the snap ends, and a stack left
    *  with no cards goes at its stroke. */
   private pushed(ids: string[]): void {
+    this.stackCards = ids.length;
     const stack = this.panels.hud;
     const presenting = ids.some((id) => this.source.presents(id));
     if (presenting && !stack.isShown) this.follow.present('hud', randomUUID());
@@ -484,7 +485,7 @@ export class DesktopAssembly {
           this.kick();
         },
         openSessions: () => this.o.openMain(sessionsRoute()),
-        openStack: () => this.bringToFront(),
+        openStack: () => (this.stackCards === 0 ? this.notice('现在没有要处理的') : this.bringToFront()),
       })],
       ['stack.decide', ([id, decision, opts]) => {
         let d = decision;

@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { posix, win32 } from 'node:path';
 import type { App, BrowserWindow, BrowserWindowConstructorOptions, NativeImage, Rectangle } from 'electron';
 import { IDS, type ShellPlatform } from '../../common/config.ts';
+import type { PanelKind } from '../../common/desktop-layout.ts';
 import type { Rect } from '../../common/placement.ts';
 import { isLocalPath } from '../../common/routes.ts';
 import type { PreviewAddon } from '../preview/window.ts';
@@ -136,14 +137,27 @@ export function overlayOptions(platform: ShellPlatform = shellPlatform()): Brows
   };
 }
 
+/** Each overlay window: the desktop panels, 调整大小, 调整镜头, 框选给她看 and the computer control approval. */
+export type Overlay = PanelKind | 'resize' | 'camera' | 'region' | 'control';
+
 /**
- * `above` levels over the avatar window's status level, on every Space and over fullscreen apps, clicks
+ * The overlays' stacking, lowest first, as levels over the avatar window's status level (25): bubble and chip, the stack,
+ * the ring, the full-screen 调整大小 and 调整镜头 frames over those while they edit, the command layer, the console and
+ * 框选 at NSPopUpMenuWindowLevel (101), and the computer control approval over all of them. macOS keeps a higher level in
+ * front. Windows has no levels: every overlay is topmost alike and the one shown last is in front of the others.
+ */
+export const OVERLAY_LEVELS: Readonly<Record<Overlay, number>> = {
+  bubble: 1, chip: 1, hud: 2, ring: 3, resize: 4, camera: 4, cmd: 76, console: 76, region: 76, control: 77,
+};
+
+/**
+ * `overlay`'s place in OVERLAY_LEVELS, on every Space and over fullscreen apps, clicks
  * passing through until the pointer reaches an interactive region, and on macOS clicks in it never activating the app
  * (`_setPreventsActivation:`; on Windows `overlayOptions` already made it unfocusable); `addon` is the macOS one, null
  * elsewhere.
  */
-export function makeOverlay(win: BrowserWindow, above: number, addon: Pick<PreviewAddon, 'setPreventsActivation'> | null): void {
-  win.setAlwaysOnTop(true, 'status', above);
+export function makeOverlay(win: BrowserWindow, overlay: Overlay, addon: Pick<PreviewAddon, 'setPreventsActivation'> | null): void {
+  win.setAlwaysOnTop(true, 'status', OVERLAY_LEVELS[overlay]);
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
   win.setIgnoreMouseEvents(true, { forward: true });
   if (mac) win.setHiddenInMissionControl(true);

@@ -122,10 +122,23 @@ test('menus: on Windows the tray icon\'s own menu is the Mac\'s popup with the h
   click(find(menu, '设置…'));
   click(find(menu, '退出'));
   assert.deepEqual(h.calls, ['switchCharacter "birch"', 'openMain "/settings"', 'quit']);
-  const failed = { ...SAMPLE, configError: '配置错误，请查看设置' };
+  const failed = { ...SAMPLE, configError: '请查看设置' };
   assert.deepEqual(titles(trayContextMenu('windows', () => failed, h.ports, '系统助手 · 未启动')!), titles(trayMenu(failed, h.ports)));
   assert.equal(trayContextMenu('mac', () => assert.fail('the Mac reads no state for it'), h.ports, '系统助手 · 运行中'), null,
     'trayClick pops the Mac\'s menu up');
+});
+
+test('menus: off the Mac the tray icon\'s menu has no Command+ shortcut, a config error\'s included; hot keys stay', () => {
+  const deep = (menu: MenuItem[]): MenuItem[] => menu.flatMap((i) => [i, ...deep((i.submenu as MenuItem[] | undefined) ?? [])]);
+  const h = ports();
+  for (const s of [SAMPLE, { ...SAMPLE, configError: '请查看设置' }]) {
+    const menu = trayContextMenu('windows', () => s, h.ports, '系统助手 · 运行中')!;
+    assert.deepEqual(deep(menu).filter((i) => i.accelerator?.startsWith('Command+')).map((i) => i.label), []);
+  }
+  const accel = Object.fromEntries(trayContextMenu('windows', () => SAMPLE, h.ports, '系统助手 · 运行中')!
+    .filter((i) => i.accelerator).map((i) => [i.label, i.accelerator]));
+  assert.deepEqual(accel, { 屏幕识读: 'Control+Alt+L', '快速输入…': 'Control+Space', 临时全部点穿: 'Control+Alt+P' });
+  assert.equal(find(trayMenu(SAMPLE, h.ports), '退出').accelerator, 'Command+Q', 'the Mac keeps its own');
 });
 
 test('menus: a config error keeps only the error, the main window, 对话, 会话面板 and a grey 重启子进程', () => {
@@ -325,9 +338,9 @@ test('menus: 角色 › 服装分层 and MMD show only with layers and slots', (
   }
 });
 
-test('menus: the app menu has ⌘, ⌘0–⌘3, ⌘W, ⌘M, ⌘Q and the edit items', () => {
+test('menus: the app menu has ⌘, ⌘0–⌘4, ⌘W, ⌘M, ⌘Q and the edit items', () => {
   const h = ports();
-  const menu = appMenu(h.ports);
+  const menu = appMenu(h.ports, Object.fromEntries(PLUGIN_IDS.map((id) => [id, true])) as Plugins);
   assert.deepEqual(menu.map((m) => m.label), ['Agentic Complex', '文件', '编辑', '前往', '窗口']);
   const rows = (m: MenuItem) => (m.submenu as MenuItem[]).map((i) => (i.type === 'separator' ? '-' : `${i.label} ${i.accelerator}${i.role ? ` ${i.role}` : ''}`));
   assert.deepEqual(menu.map(rows), [
@@ -335,11 +348,19 @@ test('menus: the app menu has ⌘, ⌘0–⌘3, ⌘W, ⌘M, ⌘Q and the edit it
     ['关闭窗口 Command+W close'],
     ['撤销 Command+Z undo', '重做 Shift+Command+Z redo', '-', '剪切 Command+X cut', '复制 Command+C copy', '粘贴 Command+V paste',
       '全选 Command+A selectAll'],
-    ['主页 Command+0', '今天 Command+1', '对话 Command+2', '记忆 Command+3'],
+    ['主页 Command+0', '工业简报 Command+1', '对话 Command+2', '记忆 Command+3', '角色 Command+4'],
     ['最小化 Command+M minimize'],
   ]);
   for (const m of [menu[0]!, menu[3]!]) for (const i of m.submenu as MenuItem[]) if (i.click) click(i);
-  assert.deepEqual(h.calls, ['openMain "/settings"', 'quit', 'openMain "/home"', 'openMain "/overview"', 'openMain "/chat"', 'openMain "/memory"']);
+  assert.deepEqual(h.calls, ['openMain "/settings"', 'quit', 'openMain "/home"', 'openMain "/overview"', 'openMain "/chat"', 'openMain "/memory"',
+    'openMain "/character"']);
+});
+
+test('menus: 前往 leaves out the page of a plug-in that is off; 今天 is nowhere', () => {
+  const on = Object.fromEntries(PLUGIN_IDS.map((id) => [id, true])) as Plugins;
+  const go = (plugins: Plugins) => (appMenu(ports().ports, plugins)[3]!.submenu as MenuItem[]).map((i) => i.label);
+  assert.deepEqual(go({ ...on, daily_brief: false }), ['主页', '对话', '记忆', '角色']);
+  assert.ok(!deepTitles(appMenu(ports().ports, on)).includes('今天'));
 });
 
 const status = (s: Partial<MenuBarStatus> = {}): MenuBarStatus => ({ agentdConnected: true, childFailed: false, restarting: false,
