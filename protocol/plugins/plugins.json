@@ -89,7 +89,6 @@
     "web": {
       "pages": [],
       "settings": [
-        "privacy.observe",
         "privacy.pause",
         "privacy.wintext",
         "privacy.grain",
@@ -294,9 +293,7 @@
     },
     "web": {
       "pages": [],
-      "settings": [
-        "perm.k_cu"
-      ],
+      "settings": [],
       "onboarding": []
     }
   },

@@ -90,7 +90,6 @@ export const PLUGINS = [
     "web": {
       "pages": [],
       "settings": [
-        "privacy.observe",
         "privacy.pause",
         "privacy.wintext",
         "privacy.grain",
@@ -295,9 +294,7 @@ export const PLUGINS = [
     },
     "web": {
       "pages": [],
-      "settings": [
-        "perm.k_cu"
-      ],
+      "settings": [],
       "onboarding": []
     }
   },
