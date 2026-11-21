@@ -18,13 +18,17 @@ ELECTRON_TESTS = ('app', 'electron', 'test')
 EXCLUDED_PARTS = ('.build', '__pycache__', '.swiftpm', 'node_modules', 'dist', 'test-results', '.shots', 'playwright-report')
 SUFFIXES = ('.swift', '.py', '.json', '.h', '.c', '.m', '.metal', '.txt', '.md', '.mjs', '.lock',
             '.ts', '.tsx', '.css', '.html', '.plist')
-RELEASE_TOOLS = ('release.py', 'package_app.py', 'electron_runtime.py', 'notarize.py', 'flip_fuses.mjs')
+RELEASE_TOOLS = ['tools/release/' + name for name in (
+    'release.py', 'package_app.py', 'package_windows.py', 'windows_exe.py', 'build_components.py',
+    'component_manifest.py', 'electron_runtime.py', 'harness_runtime.py', 'local_paths.py', 'inventory_app.py',
+    'notarize.py', 'flip_fuses.mjs', 'gate_receipt.py', 'source_fingerprint.py')] + [
+    'tools/qa/gate.py', 'tools/qa/artifact_smoke.py', 'protocol/C11-components/validate.py',
+    'tools/platform/agentd-python.sh', 'tools/platform/gpu-lock.sh', 'tools/platform/sign_bundle.sh',
+    'app/electron/build.mjs', 'app/electron/native/mac/build.mjs', 'web/vite.config.ts',
+    'app/build_app.sh', 'app/package_release.sh', 'characters/agentic_complex_build/motion_import/native/build.sh']
 PROFILE_KEY = '@release-profile'
-# Files hashed when they exist (the renderer's package manifests are absent from a public checkout).
 EXTRA_FILES = [f'{RENDERER}/host/Package.swift', f'{RENDERER}/runtime/Package.swift', f'{RENDERER}/preview/Package.swift',
-               f'{RENDERER}/character-assets/Package.swift', 'app/build_app.sh', 'app/package_release.sh', 'tools/platform/sign_bundle.sh',
-               'characters/packaging/native_bundle.py',
-               'characters/agentic_complex_build/motion_import/native/build.sh']
+               f'{RENDERER}/character-assets/Package.swift', 'characters/packaging/native_bundle.py', *RELEASE_TOOLS]
 
 
 def digest(path):
@@ -39,7 +43,13 @@ def profile_inputs(root):
     # Imported here: release imports this module.
     from release import default_profile
     profile = default_profile(Path(root))
-    return {PROFILE_KEY: digest(profile)} if profile.is_file() else {}
+    if not profile.is_file():
+        return {}
+    data = profile.read_bytes()
+    inputs = {PROFILE_KEY: hashlib.sha256(data).hexdigest()}
+    for target, source in json.loads(data).get('content_overrides', {}).items():
+        inputs['@content-override/' + target] = digest(Path(root) / source)
+    return inputs
 
 
 def source_files(root):
@@ -56,9 +66,6 @@ def source_files(root):
                 if any(p in EXCLUDED_PARTS for p in relative.parts) or relative.parts[:3] == ELECTRON_TESTS or not path.is_file(): continue
                 if path.suffix in SUFFIXES:
                     files[relative.as_posix()] = digest(path)
-    for name in RELEASE_TOOLS:
-        path = root / 'tools/release' / name
-        if path.is_file(): files[path.relative_to(root).as_posix()] = digest(path)
     for relative in EXTRA_FILES:
         if relative.startswith(RENDERER + '/') and not (root / relative).is_file(): continue
         files[relative] = digest(root / relative)

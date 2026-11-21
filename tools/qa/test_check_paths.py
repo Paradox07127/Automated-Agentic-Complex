@@ -32,13 +32,19 @@ class Components(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
 
-    def run_check(self):
+    def run_check(self, flag='--components'):
         self.write('protocol/cross-paths.json', json.dumps(self.spec))
         subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
         subprocess.run(['git', '-C', str(self.root), 'add', '-A'], check=True)
-        p = subprocess.run([sys.executable, '-I', str(self.root / 'tools/qa/check_paths.py'), '--components'],
+        p = subprocess.run([sys.executable, '-I', str(self.root / 'tools/qa/check_paths.py'), flag],
                            capture_output=True, text=True)
         return p.returncode, p.stdout
+
+    def test_broken_markdown_link_fails(self):
+        self.write('guide.md', '[setup](setup.md)')
+        code, out = self.run_check('--links')
+        self.assertIn('guide.md: setup.md', out)
+        self.assertEqual((code, out.splitlines()[-1]), (1, 'CHECK-PATHS FAIL'))
 
     def test_registered_reference_passes(self):
         code, out = self.run_check()

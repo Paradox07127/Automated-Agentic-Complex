@@ -279,7 +279,8 @@ class GateDaemonTest(unittest.TestCase):
     def electron_pack(self):
         """A main whose sources the fingerprint reads, npm and build_app stubs, and an electron profile; (sha, profile)."""
         for relative in source_fingerprint.EXTRA_FILES:
-            self.write(relative, 'stub\n')
+            if not (self.repo / relative).exists():
+                self.write(relative, 'stub\n')
         self.write('app/electron/src/main.ts', 'main\n')
         bin_dir = self.tmp / 'bin'
         bin_dir.mkdir()
@@ -315,12 +316,13 @@ class GateDaemonTest(unittest.TestCase):
         _, profile = self.electron_pack()
         with mock.patch.dict(os.environ, AAC_RELEASE_PROFILE=str(profile)):
             fingerprint = source_fingerprint.compute(self.repo)[1]
+            runner = gate_receipt.runner_digest(self.repo)
         self.assertNotEqual(source_fingerprint.compute(self.repo)[1], fingerprint)
         receipts = gate_receipt
         receipts.write(receipts.build(
             profile='commit', result='PASS', partial=False, started_at='2026-11-20T00:00:00Z',
             source=dict(fingerprint=fingerprint, changed_during_run=False),
-            suites_sha256=receipts._sha256(self.repo, []), runner_sha256=receipts._sha256(self.repo, receipts.RUNNER)),
+            suites_sha256=receipts._sha256(self.repo, []), runner_sha256=runner),
             store=receipts.store_dir(self.repo))
         self.assertEqual(gate_daemon.pack(self.daemon, profile), 0)
         self.assertEqual(self.calls(), [])

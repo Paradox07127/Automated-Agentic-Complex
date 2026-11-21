@@ -40,8 +40,8 @@ web_stub() {
 # Builds a passing git checkout in $1; the case then breaks one suite.
 tree() {
     local r=$1 f
-    for f in $scripts $runner; do mkdir -p "$(dirname "$r/$f")"; cp "$src/$f" "$r/$f"; done
     for f in $extra; do mkdir -p "$(dirname "$r/$f")"; echo true > "$r/$f"; done
+    for f in $scripts $runner; do mkdir -p "$(dirname "$r/$f")"; cp "$src/$f" "$r/$f"; done
     for s in build_app.sh package_release.sh; do echo true > "$r/app/$s"; done
     swift_stub "$r/bin/swift" "Executed 103 tests, with 0 failures (0 unexpected)" 0
     printf '#!/bin/bash\nshift\nexec "$@"\n' > "$r/tools/platform/gpu-lock.sh"

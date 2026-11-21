@@ -7,7 +7,7 @@ import copy
 import hashlib
 import json
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import shutil
 import stat
@@ -79,7 +79,7 @@ def write_json(path, value):
 def relative(value):
     need(isinstance(value, str) and value and "\\" not in value and "\0" not in value, "invalid_path")
     path = PurePosixPath(value)
-    need(not path.is_absolute() and path.as_posix() == value and
+    need(not PureWindowsPath(value).drive and not path.is_absolute() and path.as_posix() == value and
          all(part not in ("", ".", "..") for part in value.split("/")), "escaping_path")
     need(path.suffix.lower() not in EXECUTABLES, "executable_payload")
     return value
@@ -90,26 +90,25 @@ def safe_extract_zip(source: Path, stage: Path, *, max_files: int, max_bytes: in
     with zipfile.ZipFile(source) as archive:
         infos = archive.infolist()
         need(0 < len(infos) <= max_files, "archive_file_limit")
-        names = []
+        members = []; total = 0; folded = set()
         for item in infos:
             name = item.filename
             # zipfile reads a name without the UTF-8 flag as cp437; Japanese archivers write cp932.
             if decode_cp932 and not item.flag_bits & 0x800:
                 try: name = name.encode("cp437").decode("cp932")
                 except UnicodeError: pass
-            names.append(name.rstrip("/") if item.is_dir() else name)
-        total = 0; folded = set()
-        for item, name in zip(infos, names):
-            relative(name)
+            if item.is_dir(): name = name.rstrip("/")
+            target = stage / relative(name)
+            need(stage in target.parents, "escaping_path")
             need(name.casefold() not in folded, "duplicate_archive_path"); folded.add(name.casefold())
             mode = item.external_attr >> 16
             need(not (stat.S_ISLNK(mode) or (not item.is_dir() and mode & 0o111) or item.flag_bits & 1), "archive_executable_or_link")
             need(item.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED), "unsupported_archive_compression")
             total += item.file_size; need(total <= max_bytes, "archive_byte_limit")
+            members.append((item, name, target))
         written = []
-        for item, name in zip(infos, names):
+        for item, name, target in members:
             if skip is not None and skip(name): continue
-            target = stage / name
             if item.is_dir(): target.mkdir(parents=True, exist_ok=True); continue
             target.parent.mkdir(parents=True, exist_ok=True)
             with archive.open(item) as src, target.open("xb") as dst:

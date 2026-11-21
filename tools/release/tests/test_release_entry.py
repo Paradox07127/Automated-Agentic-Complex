@@ -14,6 +14,7 @@ import unittest
 from unittest import mock
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import gate_receipt
+import harness_runtime
 import local_paths
 import notarize
 import release
@@ -77,12 +78,13 @@ class CanonicalReleaseTests(unittest.TestCase):
 
     def test_a_profile_the_fingerprint_does_not_use_is_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp);self.release_repo(root);gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))
+            root=Path(tmp);self.release_repo(root)
             doc=json.loads((root/'app/packaging/release.json').read_text());doc.update(app_version='9.9.9')
             profile=root/'electron.json';profile.write_text(json.dumps(doc))
             with self.assertRaisesRegex(ValueError,'set AAC_RELEASE_PROFILE='+re.escape(str(profile))+'$'):
                 self.build(root,self.args(profile=profile))
             with mock.patch.dict('os.environ',{'AAC_RELEASE_PROFILE':str(profile)}),self.assertRaisesRegex(AssertionError,'before the gate receipt'):
+                gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))
                 self.build(root,self.args(profile=profile))
 
     def test_staging_imports_guard_in_isolated_python_used_by_release_entry(self):
@@ -139,10 +141,9 @@ class CanonicalReleaseTests(unittest.TestCase):
         catalog=root/'library/current.json';catalog.parent.mkdir(parents=True);catalog.write_text('{}')
         profile=dict(schema='endfield-release-config/v1',character_catalog='library/current.json',
             catalog_sha256=hashlib.sha256(b'{}').hexdigest(),ui_art='.local/art',photo_looks='.local/looks',output_root='out')
-        for name,text in [('app/packaging/release.json',json.dumps(profile)),
-                ('tools/qa/gate.py','runner'),('tools/qa/suites.json','{}'),('tools/release/source_fingerprint.py','fp'),
-                ('tools/release/gate_receipt.py','receipt')]:
-            path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text)
+        for name in [*release.source_fingerprint.RELEASE_TOOLS,'tools/qa/suites.json']:
+            path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.touch()
+        path=root/'app/packaging/release.json';path.parent.mkdir(parents=True);path.write_text(json.dumps(profile))
         self.git(root,'add','.');self.git(root,'commit','-m','release fixture')
         art=root/'.local/art';(art/'brand').mkdir(parents=True);(art/'art-manifest.json').write_text('{}');(art/'brand/AppIcon.icns').write_text('icon')
         looks=root/'.local/looks';looks.mkdir();(looks/'looks.json').write_text('{}')
@@ -154,7 +155,7 @@ class CanonicalReleaseTests(unittest.TestCase):
         receipt=gate_receipt.build(profile=profile,result='PASS',partial=False,started_at='2026-11-01T01:00:00Z',
             source=dict(algorithm='endfield-release-source/v1',fingerprint='F'*64,changed_during_run=False),
             suites_sha256=sha('tools/qa/suites.json'),
-            runner_sha256=sha('tools/qa/gate.py','tools/release/source_fingerprint.py','tools/release/gate_receipt.py'))
+            runner_sha256=gate_receipt.runner_digest(root))
         receipt.update(fields);return receipt
     def args(self,**fields):
         values=dict(layout='portable',library=None,output=None,port=None,build_version='1',check=False,
@@ -194,6 +195,33 @@ class CanonicalReleaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'gate receipt'):self.build(root,self.args())
             gate_receipt.write(self.receipt(root,profile='release'),store=store)
             with self.assertRaisesRegex(AssertionError,'before the gate receipt'):self.build(root,self.args())
+    def test_full_failure_revokes_older_pass_for_these_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.release_repo(root);store=gate_receipt.store_dir(root)
+            receipt=self.receipt(root);fingerprint=receipt['source']['fingerprint']
+            path=gate_receipt.write(receipt,store=store)
+            failure=dict(receipt,result='FAIL',started_at='2026-11-01T02:00:00Z')
+            for unrelated in (dict(failure,partial=True),dict(failure,profile='release'),
+                              dict(failure,source=dict(receipt['source'],fingerprint='0'*64))):
+                gate_receipt.write(unrelated,store=store)
+            self.assertEqual(gate_receipt.require(root,fingerprint)[0],path)
+            gate_receipt.write(failure,store=store)
+            for explicit in (None,path,path.parent/gate_receipt.LATEST):
+                with self.subTest(explicit=explicit),self.assertRaisesRegex(ValueError,'gate receipt'):
+                    gate_receipt.require(root,fingerprint,explicit)
+            newer=gate_receipt.write(dict(receipt,started_at='2026-11-01T03:00:00Z'),store=store)
+            self.assertEqual(gate_receipt.require(root,fingerprint)[0],newer)
+
+    def test_full_runs_starting_in_the_same_second_follow_store_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.release_repo(root);store=gate_receipt.store_dir(root)
+            receipt=self.receipt(root);fingerprint=receipt['source']['fingerprint']
+            gate_receipt.write(receipt,store=store)
+            gate_receipt.write(dict(receipt,result='FAIL'),store=store)
+            self.assertIsNone(gate_receipt.find(store,'commit',fingerprint))
+            newer=gate_receipt.write(receipt,store=store)
+            self.assertEqual(gate_receipt.find(store,'commit',fingerprint)[0],newer)
+
     def test_gate_receipt_covers_private_suites_when_present(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root);(root/'private/suites.json').write_text('{"private":1}')
@@ -218,13 +246,23 @@ class CanonicalReleaseTests(unittest.TestCase):
     def test_check_reports_gate_receipt_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root)
-            with mock.patch('sys.stdout',new_callable=io.StringIO) as out:self.build(root,self.args(check=True))
-            report=json.loads(out.getvalue())
+            for name in [*release.source_fingerprint.EXTRA_FILES,*harness_runtime.LOCKS]:
+                path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.touch()
+            for name in ('release.py','source_fingerprint.py','gate_receipt.py','local_paths.py','harness_runtime.py'):
+                shutil.copyfile(Path(release.__file__).with_name(name),root/'tools/release'/name)
+            self.git(root,'add','.');self.git(root,'commit','-m','release check fixture')
+            command=[sys.executable,'-I',str(root/'tools/release/release.py'),'--check']
+            result=subprocess.run(command,capture_output=True,text=True)
+            report=json.loads(result.stdout)
             self.assertEqual(report['layout'],'portable')
-            self.assertEqual(report['source_fingerprint'],'F'*64);self.assertIn('gate.py --profile commit',report['gate_receipt_error'])
-            path=gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))
-            with mock.patch('sys.stdout',new_callable=io.StringIO) as out:self.build(root,self.args(check=True))
-            self.assertEqual(json.loads(out.getvalue())['gate_receipt'],str(path))
+            self.assertIn('gate.py --profile commit',report['gate_receipt_error'])
+            self.assertNotEqual(result.returncode,0)
+            receipt=self.receipt(root)
+            receipt['source']['fingerprint']=report['source_fingerprint']
+            path=gate_receipt.write(receipt,store=gate_receipt.store_dir(root))
+            result=subprocess.run(command,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(json.loads(result.stdout)['gate_receipt'],str(path.resolve()))
     def test_release_receipt_records_the_gate_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root);output=root/'out/release'
@@ -287,11 +325,11 @@ class CanonicalReleaseTests(unittest.TestCase):
     def release_command(self,root,doc):
         """Runs a full stubbed release on the profile document doc; returns the package_app.py argv."""
         output=root/'out/release';profile=root/'public.json';profile.write_text(json.dumps(doc))
-        gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))
         commands=[];package=self.packaging(output,'PASS')
         def run(argv,**k):
             commands.append(argv);return package(argv,**k)
         with mock.patch.dict(os.environ,{'AAC_RELEASE_PROFILE':str(profile)}),mock.patch('sys.stdout',new_callable=io.StringIO):
+            gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))
             self.build(root,self.args(output=output,profile=profile),run=run)
         return next(argv for argv in commands if 'package_app.py' in argv[2])
     def test_profile_with_null_ui_art_ships_without_art_or_icon(self):
@@ -350,6 +388,8 @@ class CanonicalReleaseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root)
             overrides={'agentd/agentd/brain/canon-windows.json':'local/canon-windows.json','renderer/Resources/window-envelopes.json':'local/envelopes.json'}
+            (root/'local').mkdir()
+            for source in overrides.values():(root/source).write_text('{}')
             command=self.profile_release(root,'.local/art',content_overrides=overrides)
             self.assertEqual([command[i+1] for i,x in enumerate(command) if x=='--content-override'],
                 ['agentd/agentd/brain/canon-windows.json='+str(root/'local/canon-windows.json'),
@@ -366,7 +406,6 @@ class CanonicalReleaseTests(unittest.TestCase):
         """A full stubbed release on the fixture profile plus fields, signed as identity; returns (commands, receipt)."""
         doc=json.loads((root/'app/packaging/release.json').read_text());doc.update(fields)
         output=root/'out/release';profile=root/'public.json';profile.write_text(json.dumps(doc))
-        gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))
         commands=[];package=self.packaging(output,'PASS')
         def run(argv,**k):
             commands.append((argv,k))
@@ -377,6 +416,7 @@ class CanonicalReleaseTests(unittest.TestCase):
             return dict(id='sub-1',status=status)
         with mock.patch.dict('os.environ',{'AAC_SIGN_IDENTITY':identity,'AAC_RELEASE_PROFILE':str(profile)}),\
                 mock.patch.object(notarize,'notarize',side_effect=notarized),mock.patch('sys.stdout',new_callable=io.StringIO):
+            gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))
             self.build(root,self.args(output=output,profile=profile),run=run)
         return commands,json.loads((output/'release-receipt.json').read_text())
     def test_a_release_builds_the_main_process_and_helper_and_stages_the_locked_electron(self):

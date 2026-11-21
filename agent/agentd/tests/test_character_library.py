@@ -2,14 +2,14 @@
 import hashlib
 import json
 import subprocess
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import sys
 import tempfile
 import unittest
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from character_library import Library, Package, PackageError, write_json, export_package
+from character_library import Library, Package, PackageError, write_json, export_package, relative
 
 
 def fixture(root, cid="fixture", voice=False, weapon=False, portrait=False, neutral=False, d3d11=False, pool=()):
@@ -129,6 +129,14 @@ class CharacterLibraryTests(unittest.TestCase):
         result = tool_command("character_tool.py", "--help")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("install", result.stdout)
+
+    def test_archive_members_stay_under_windows_staging(self):
+        stage = PureWindowsPath("C:/staging")
+        self.assertEqual((stage / relative("poses/idle.json")).relative_to(stage).as_posix(), "poses/idle.json")
+        for name in ("D:/poses/idle.json", "C:idle.json", "//host/share/idle.json",
+                     "/poses/idle.json", r"poses\..\idle.json"):
+            with self.subTest(name=name), self.assertRaises(PackageError):
+                stage / relative(name)
 
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_host_rejected_import_leaves_revision_entries_and_files_unchanged(self):

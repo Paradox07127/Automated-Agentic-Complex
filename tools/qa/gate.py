@@ -254,14 +254,14 @@ def _under(path, entries):
 def select(doc, changed):
     """(ids of the suites the changed files reach, with what they require, None) or (None, why the full profile runs).
 
-    A suite without paths is always reached."""
+    Whole-tree suites and suites without paths are always reached."""
     if not changed:
         return None, 'no changed files'
     for path in changed:
         if _under(path, doc.get('full_on', [])):
             return None, f'{path} changes the gate'
     suites = doc['suites']
-    picked = {sid for sid, suite in suites.items() if 'paths' not in suite}
+    picked = {sid for sid, suite in suites.items() if 'paths' not in suite or '.' in suite['paths']}
     for path in changed:
         hit = {sid for sid, suite in suites.items() if _under(path, suite.get('paths', []))}
         if not hit and not _under(path, doc.get('no_suite', [])):
@@ -558,7 +558,14 @@ def cache_keys(doc, phases, repo, ctx, tools):
               if e[0] == 'suite' and e[1].get('paths') and not e[1].get('fatal') and not e[1].get('host')]
     if not suites:
         return {}
-    files = blobs(repo, sorted({path for suite in suites for path in suite['paths']}))
+    files = blobs(repo, sorted({path for suite in suites for path in suite['paths'] if path != '.'}))
+    # "." adds the working-tree bytes of every tracked file, including paths outside any component.
+    tracked = {}
+    if any('.' in suite['paths'] for suite in suites):
+        names = subprocess.check_output(['git', '-C', str(repo), 'ls-files', '-z']).decode().split('\0')
+        for name in filter(None, names):
+            path = Path(repo, name)
+            tracked[name] = source_fingerprint.digest(path) if path.is_file() else None
     # The interpreter, not its path: each checkout's agent/.venv path differs, and a path would keep checkouts apart.
     env = dict(suite_environ(), AGENTD_PYTHON=os.path.realpath(ctx['agentd_python']))
     common = dict(gate=sorted(blobs(repo, doc.get('full_on', [])).items()), tools=tools,
@@ -566,7 +573,8 @@ def cache_keys(doc, phases, repo, ctx, tools):
                                 Path(gate_receipt.__file__)),
                   env=sorted((k, v) for k, v in env.items() if k.startswith('AAC_') or k == 'AGENTD_PYTHON'))
     return {suite['id']: hashlib.sha256(json.dumps(dict(
-                common, suite=suite, files=[[p, b] for p, b in files.items() if _under(p, suite['paths'])]),
+                common, suite=suite, tracked=tracked if '.' in suite['paths'] else None,
+                files=[[p, b] for p, b in files.items() if _under(p, suite['paths'])]),
                 sort_keys=True).encode()).hexdigest()
             for suite in suites}
 
@@ -720,7 +728,7 @@ def main(argv=None):
         shipping_sources_clean=guard['shipping_sources_clean'], dirty_shipping=guard['dirty_shipping'],
         dirty_other=sorted(changed - set(guard['dirty_shipping']))[:50],
         suites_sha256=sha256(*suites_files()),
-        runner_sha256=sha256(Path(__file__).resolve(), Path(source_fingerprint.__file__), Path(gate_receipt.__file__)),
+        runner_sha256=gate_receipt.runner_digest(RUNNER_ROOT, repo),
         host=dict(tools, macos=platform.mac_ver()[0]),
         logs_kept=keep, suites=[dataclasses.asdict(r) for r in results], skipped_suites=skipped, selection=selection,
         cache=dict(enabled=not args.no_cache, reused=[r.id for r in results if r.cached]),

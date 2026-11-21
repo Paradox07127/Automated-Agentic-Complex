@@ -179,7 +179,8 @@ def build(args,root=ROOT):
         if ready:validate_runtime(harness,root)
         print(json.dumps(dict(checked=True,**state,layout=layout,catalog=catalog and str(catalog),catalog_sha256=sha,output=str(output),
             personal_agent_runtime=str(harness),personal_agent_runtime_prepared=ready,
-            **(dict(source_fingerprint=fingerprint,gate_receipt_error=gate_error) if gate_error else gated))));return
+            **(dict(source_fingerprint=fingerprint,gate_receipt_error=gate_error) if gate_error else gated))))
+        return int(gate_error is not None)
     # Removed when build() returns or raises.
     web=tempfile.TemporaryDirectory(prefix='endfield-web-')
     ui=build_web(root,Path(web.name)/'ui')
@@ -247,5 +248,5 @@ if __name__=='__main__':
     p.add_argument('--gate-receipt',type=Path,help='Gate receipt to release on; default: the newest valid one in .local/gate-receipts')
     args=p.parse_args()
     if args.print_profile:print(args.profile.resolve() if args.profile else default_profile());raise SystemExit(0)
-    try:build(args)
+    try:sys.exit(build(args))
     except (ValueError,OSError,subprocess.CalledProcessError) as e:print('release: '+str(e),file=sys.stderr);raise SystemExit(2)

@@ -145,6 +145,7 @@ def main():
         print(f'broken md links: {len(broken)}')
         for b in broken[:60]:
             print('  ' + b)
+        bad |= bool(broken)
     if a.components:
         bad |= components()
     print('CHECK-PATHS ' + ('FAIL' if bad else 'PASS'))

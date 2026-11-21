@@ -75,8 +75,8 @@ class SourceFingerprintTests(unittest.TestCase):
             (root / 'app/packaging').mkdir()
             (root / 'app/packaging/release.json').write_text(json.dumps({'schema': 'endfield-release-config/v1'}))
             files = source_fingerprint.compute(root)[0]
-            self.assertEqual(sorted(files), sorted(['app/packaging/release.json', '@release-profile']
-                                                   + electron + source_fingerprint.EXTRA_FILES))
+            self.assertEqual(set(files), {'app/packaging/release.json', '@release-profile', *electron,
+                                          *source_fingerprint.EXTRA_FILES})
 
 
 if __name__ == '__main__':

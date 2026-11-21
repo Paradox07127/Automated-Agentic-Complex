@@ -9,13 +9,14 @@ import json
 from pathlib import Path
 import shutil
 
+import source_fingerprint
+
 SCHEMA = 'endfield-gate-receipt/v1'
 KEEP = 20
 LATEST = 'gate-receipt.json'
 RELEASE_PROFILES = ('commit', 'release')
 # gate.py hashes private/suites.json too when it exists.
 SUITES = ['tools/qa/suites.json', 'private/suites.json']
-RUNNER = ['tools/qa/gate.py', 'tools/release/source_fingerprint.py', 'tools/release/gate_receipt.py']
 
 
 def build(**fields):
@@ -50,14 +51,30 @@ def write(receipt, logs=None, store=None):
 
 def runs(folder):
     """The per-run receipts in a profile folder, oldest first (names start with the UTC time)."""
-    return sorted(p for p in Path(folder).glob('*.json') if p.name != LATEST)
+    def order(path):
+        stamp, _, run = path.stem.partition('-')
+        fingerprint, _, sequence = run.partition('-')
+        return stamp, fingerprint, int(sequence or 1)
+    return sorted((p for p in Path(folder).glob('*.json') if p.name != LATEST), key=order)
+
+
+def _full_runs(store, profile, fingerprint):
+    for path in reversed(runs(Path(store, profile))):
+        receipt = json.loads(path.read_text())
+        if receipt.get('schema') != SCHEMA or receipt.get('profile') != profile or receipt.get('partial') is not False:
+            continue
+        if fingerprint is None or receipt['source']['fingerprint'] == fingerprint:
+            yield path, receipt
 
 
 def find(store, profile, fingerprint=None):
-    """(path, receipt) of the newest receipt of profile that validate() accepts, else None."""
-    for path in reversed(runs(Path(store, profile))):
-        receipt = json.loads(path.read_text())
-        if not validate(receipt, fingerprint):
+    """(path, receipt) of the newest valid PASS with no subsequent full FAIL for its fingerprint, else None."""
+    revoked = set()
+    for path, receipt in _full_runs(store, profile, fingerprint):
+        source = receipt['source']['fingerprint']
+        if receipt['result'] == 'FAIL':
+            revoked.add(source)
+        elif source not in revoked and not validate(receipt, fingerprint):
             return path, receipt
     return None
 
@@ -86,13 +103,20 @@ def _sha256(root, names):
     return result.hexdigest()
 
 
+def runner_digest(root, checkout=None):
+    files = {name: source_fingerprint.digest(Path(root, name)) for name in source_fingerprint.RELEASE_TOOLS}
+    files.update(source_fingerprint.profile_inputs(checkout or root))
+    return source_fingerprint.fingerprint(files)
+
+
 def require(root, fingerprint, path=None):
     """(path, receipt) of a gate receipt that vouches for releasing root at fingerprint; raises ValueError otherwise.
 
     Without path, the newest valid commit receipt in the store is taken, else the newest release receipt.
     """
     run = f'run python3 -I tools/qa/gate.py --profile commit --checkout {root}'
-    if path is None:
+    explicit = path is not None
+    if not explicit:
         found = [hit for profile in RELEASE_PROFILES if (hit := find(store_dir(root), profile, fingerprint))]
         if not found:
             raise ValueError(f'No PASS gate receipt of profile commit or release for source fingerprint {fingerprint} '
@@ -106,8 +130,15 @@ def require(root, fingerprint, path=None):
     suites = [name for name in SUITES if Path(root, name).exists()]
     if receipt.get('suites_sha256') != _sha256(root, suites):
         problems.append('the suites (' + ', '.join(suites) + ') differ from the ones the gate ran')
-    if receipt.get('runner_sha256') != _sha256(root, RUNNER):
-        problems.append('the gate runner (' + ', '.join(RUNNER) + ') differs from the one that ran')
+    if receipt.get('runner_sha256') != runner_digest(root):
+        problems.append('the gate runner or release inputs differ from the ones the gate ran')
+    if explicit and not problems:
+        for _, stored in _full_runs(store_dir(root), receipt['profile'], fingerprint):
+            if stored == receipt or stored['started_at'] < receipt['started_at']:
+                break
+            if stored['result'] == 'FAIL':
+                problems.append('a newer full run failed')
+                break
     if problems:
         raise ValueError(f'gate receipt {path} cannot vouch for this release: {"; ".join(problems)}; {run}')
     return Path(path), receipt

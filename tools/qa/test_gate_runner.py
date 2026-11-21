@@ -45,11 +45,11 @@ def unit_module(tests):
 
 def tree(root):
     """A git checkout at main with the runner files, every fingerprint extra file and two passing agentd modules."""
+    for relative in source_fingerprint.EXTRA_FILES:
+        write(root / relative, 'stub\n')
     for relative in RUNNER_FILES:
         (root / relative).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPO / relative, root / relative)
-    for relative in source_fingerprint.EXTRA_FILES:
-        write(root / relative, 'stub\n')
     write(root / 'agent/agentd/tests/test_a.py', unit_module(2))
     write(root / 'agent/agentd/tests/test_b.py', unit_module(1))
     write(root / 'tools/platform/gpu-lock.sh', '#!/bin/bash\nshift\nexec "$@"\n', 0o755)
@@ -91,6 +91,33 @@ class StubTree(unittest.TestCase):
         store = gate_receipt.store_dir(self.root)
         self.assertEqual(json.loads((store / 'agentd/gate-receipt.json').read_text()), receipt)
         self.assertEqual(gate_receipt.find(store, 'agentd', receipt['source']['fingerprint'])[1], receipt)
+
+    def test_release_tools_and_profile_overrides_bind_both_receipt_digests(self):
+        inputs = ['tools/release/' + name for name in (
+            'build_components.py', 'component_manifest.py', 'electron_runtime.py', 'flip_fuses.mjs',
+            'harness_runtime.py', 'inventory_app.py', 'local_paths.py', 'notarize.py', 'package_app.py',
+            'package_windows.py', 'windows_exe.py')]
+        inputs += ['tools/qa/artifact_smoke.py', 'protocol/C11-components/validate.py',
+                   'tools/platform/sign_bundle.sh', 'tools/platform/gpu-lock.sh', 'tools/platform/agentd-python.sh',
+                   'app/build_app.sh', 'app/package_release.sh', 'characters/agentic_complex_build/motion_import/native/build.sh']
+        inputs += ['app/electron/build.mjs', 'app/electron/native/mac/build.mjs', 'web/vite.config.ts']
+        overrides = {'agentd/first': 'local/first', 'agentd/second': 'local/second'}
+        write(self.root / 'app/packaging/release.json', json.dumps(dict(content_overrides=overrides)))
+        for name in inputs + list(overrides.values()):
+            write(self.root / name, 'original')
+        result = self.gate('--profile', 'agentd')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        receipt = dict(self.receipt(), profile='commit')
+        path = gate_receipt.write(receipt, store=gate_receipt.store_dir(self.root))
+        fingerprint = receipt['source']['fingerprint']
+        self.assertEqual(gate_receipt.require(self.root, fingerprint)[0], path)
+        for name in inputs + list(overrides.values()):
+            (self.root / name).write_text('changed')
+            with self.subTest(source=name):
+                self.assertNotEqual(source_fingerprint.compute(self.root)[1], fingerprint)
+            with self.subTest(runner=name), self.assertRaisesRegex(ValueError, 'runner'):
+                gate_receipt.require(self.root, fingerprint)
+            (self.root / name).write_text('original')
 
     def test_a_suite_that_edits_a_scoped_file_fails_the_run(self):
         write(self.root / 'agent/agentd/tests/test_edit.py',
@@ -355,9 +382,31 @@ class LoadSuites(unittest.TestCase):
         missing = [(sid, path) for sid, paths in inputs.items() for path in paths if not gate._under(path, suites[sid]['paths'])]
         self.assertEqual(missing, [])
 
-    def test_top_level_notes_reach_no_suite(self):
-        doc = gate.load_suites(gate.SUITES_FILE)
-        self.assertEqual(gate.select(doc, ['AGENTS.md', 'README.en.md', 'LICENSE']), (set(), None))
+    def test_readme_selects_the_public_boundary_suite_and_changes_its_cache_key(self):
+        doc = gate.load_suites(private=gate.SUITES_FILE.with_name('absent-suites.json'))
+        suite, = [s for s in doc['suites'].values() if 'test_public_boundary.py' in s.get('modules', {}).get('patterns', [])]
+        self.assertIn(suite['id'], profile_ids(doc, 'public'))
+        with self.subTest('selection'):
+            self.assertEqual(gate.select(doc, ['README.en.md']), ({suite['id']}, None))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root / 'README.en.md', 'first')
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            subprocess.run(['git', '-C', str(root), 'add', 'README.en.md'], check=True)
+            phases = [[[('suite', suite)]]]
+            def key():
+                return gate.cache_keys(doc, phases, root, {'agentd_python': sys.executable}, {})[suite['id']]
+            before = key()
+            write(root / 'README.en.md', 'changed')
+            self.assertNotEqual(key(), before)
+
+    def test_public_profile_selects_motion_http_tests_for_motion_changes(self):
+        doc = gate.load_suites(private=gate.SUITES_FILE.with_name('absent-suites.json'))
+        selected, _ = gate.select(doc, ['motion/server.py'])
+        modules = [module for sid in profile_ids(doc, 'public') if sid in selected and 'modules' in doc['suites'][sid]
+                   for _, directory, module in gate.module_names(doc['suites'][sid], {'repo': REPO})
+                   if directory == REPO / 'motion/tests']
+        self.assertIn('test_server.py', modules)
 
     def test_win_profiles_sync_then_run_protocol_on_the_host_and_mac_profiles_run_nothing_there(self):
         doc = gate.load_suites(gate.SUITES_FILE)
