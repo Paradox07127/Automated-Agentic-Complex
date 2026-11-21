@@ -215,15 +215,19 @@ describe('agentd rows while the backend is down', () => {
     expect(screen.getByRole('button', { name: '暂停 1 小时' }).getAttribute('aria-disabled')).toBe('true');
   });
 
-  it('locks the do-not-disturb rows', () => {
+  it('locks the do-not-disturb rows', async () => {
     render(<Harness d={d} o={{ agentdOff: true }}><SpeakGroup /></Harness>);
-    expect(screen.getByRole('switch', { name: '开会模式' }).getAttribute('aria-disabled')).toBe('true');
+    await click(screen.getByRole('button', { name: '开始' }));
+    expect(screen.getAllByRole('menuitem').map((m) => m.getAttribute('aria-disabled'))).toEqual(['true', 'true', 'true', 'true']);
   });
 
-  it('shows meeting mode as 未读到 when /diag/state was not read, not as off', () => {
-    render(<Harness d={{ ...d, diag: { ...DIAG, observation: undefined } }} o={{ agentdOff: true }}><SpeakGroup /></Harness>);
-    expect(screen.queryByRole('switch', { name: '开会模式' })).toBeNull();
-    expect(document.querySelector('[data-row="dnd_meet"]')!.textContent).toContain('未读到');
+  it('shows 开会 as 未读到 when /diag/state was not read, not as off', async () => {
+    render(<Harness d={{ ...d, diag: { ...DIAG, observation: undefined } }}><SpeakGroup /></Harness>);
+    await click(screen.getByRole('button', { name: '开始' }));
+    const meet = screen.getByRole('menuitem', { name: /^开会/ });
+    expect(meet.getAttribute('aria-disabled')).toBe('true');
+    expect(meet.textContent).toContain('未读到');
+    expect(screen.getByRole('menuitem', { name: '1 小时' }).getAttribute('aria-disabled')).toBeNull();
   });
 });
 

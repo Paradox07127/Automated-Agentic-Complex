@@ -56,11 +56,14 @@ describe('settings › 声音 › muted kinds', () => {
     native = await demoNative(null);
   });
 
-  it('explains why thoughts are off once in main-window settings', async () => {
+  it('says once, under 她什么时候开口, that thoughts come with 主动', async () => {
     native = { ...native, saved: { ...native.saved, speakUp: false } };
     vi.spyOn(window.agenticComplex!.agentd, 'request').mockResolvedValue({ status: 200, body: { muted: [] } });
-    render(<Harness><SpeakGroup /></Harness>);
-    expect(await screen.findAllByText('想法需要打开「主动发言」')).toHaveLength(1);
+    const { container } = render(<Harness><SpeakGroup /></Harness>);
+    await act(async () => {});
+    expect(screen.queryByText('想法需要打开「主动发言」')).toBeNull();
+    expect(container.textContent?.match(/想法/g)).toHaveLength(1);
+    expect(container.querySelector('[data-row="speakWhen"]')?.textContent).toContain('想法');
   });
 
   it('lists each muted kind with 恢复, which puts the rest back', async () => {
@@ -79,13 +82,27 @@ describe('settings › 声音 › muted kinds', () => {
     expect(screen.queryByRole('group', { name: '久盯一个窗口时搭话' })).toBeNull();
   });
 
-  it('says how to mute a kind while none is muted', async () => {
+  it('leaves the row out while none is muted, and drops it once the last kind is restored', async () => {
     vi.spyOn(window.agenticComplex!.agentd, 'request').mockResolvedValue({ status: 200, body: { muted: [] } });
-    render(
+    const { container } = render(
       <Harness>
         <SpeakGroup />
       </Harness>,
     );
-    await screen.findByText('没有关掉的类别。在气泡的「更多操作」里点「关闭此类」可以关掉一类');
+    await act(async () => {});
+    expect(container.querySelector('[data-row="mutes"]')).toBeNull();
+    expect(screen.queryByText('已关掉的主动发言')).toBeNull();
+    cleanup();
+    vi.restoreAllMocks();
+    vi.spyOn(window.agenticComplex!.agentd, 'request').mockImplementation(async (method) => ({ status: 200, body: { muted: method === 'GET' ? ['comment'] : [] } }) as never);
+    const again = render(
+      <Harness>
+        <SpeakGroup />
+      </Harness>,
+    );
+    const comment = await screen.findByRole('group', { name: '久盯一个窗口时搭话' });
+    expect(again.container.querySelector('[data-row="mutes"]')?.textContent).toContain('在气泡的「更多操作」里点「关闭此类」可以关掉一类');
+    await act(async () => fireEvent.click(within(comment).getByRole('button', { name: '恢复' })));
+    expect(again.container.querySelector('[data-row="mutes"]')).toBeNull();
   });
 });

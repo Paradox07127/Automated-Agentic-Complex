@@ -49,8 +49,8 @@ function Harness({ children, agentdOff = false }: { children: ReactNode; agentdO
 }
 
 /** Saved config.json values and agentd's companion_mode before the page opens. */
-async function start(mute: boolean, speakUp: boolean, on: boolean, failCompanion = false) {
-  native = { ...native, saved: { ...native.saved, mute, speakUp } };
+async function start(mute: boolean, speakUp: boolean, on: boolean, failCompanion = false, proactive = 'balanced') {
+  native = { ...native, saved: { ...native.saved, mute, speakUp, proactive } };
   companion = on;
   const real = window.agenticComplex!.agentd.request.bind(window.agenticComplex!.agentd);
   request = vi.spyOn(window.agenticComplex!.agentd, 'request').mockImplementation(async (method, path, body) => {
@@ -133,13 +133,12 @@ describe('她什么时候开口', () => {
     expect(checked(seg)).toEqual([]);
   });
 
-  it('the 主动提示 switch follows the choice', async () => {
-    const seg = await start(false, false, false);
-    const sw = screen.getByRole('switch', { name: '主动提示' });
-    expect(sw.getAttribute('aria-checked')).toBe('false');
-    await click(within(seg).getByRole('radio', { name: '主动' }));
-    expect(sw.getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByRole('switch', { name: '主动发言' }).getAttribute('aria-checked')).toBe('true');
+  it('has no separate 主动发言 or 主动提示 switch; the choice is the only control over them', async () => {
+    await start(false, false, false);
+    expect(screen.queryByRole('switch', { name: '主动提示' })).toBeNull();
+    expect(screen.queryByRole('switch', { name: '主动发言' })).toBeNull();
+    expect(screen.queryByText('想法需要打开「主动发言」')).toBeNull();
+    expect(document.querySelector('[data-row="speakWhen"]')?.textContent).toContain('任务结果和你设置的提醒仍会送达');
   });
 
   it('a failed 主动提示 write is reported by name; the config.json writes stay', async () => {
@@ -161,5 +160,68 @@ describe('她什么时候开口', () => {
     );
     const seg = screen.getByRole('radiogroup', { name: '她什么时候开口' });
     expect(within(seg).getAllByRole('radio').every((r) => (r as HTMLButtonElement).disabled)).toBe(true);
+  });
+});
+
+const dependent = () => ['proactive', 'quiet_hours'].filter((id) => document.querySelector(`[data-row="${id}"]`));
+
+describe('主动 and the rows under it', () => {
+  it('shows 主动程度 and 免打扰时段 only while 主动 is chosen', async () => {
+    const seg = await start(false, true, true);
+    expect(dependent()).toEqual(['proactive', 'quiet_hours']);
+    await click(within(seg).getByRole('radio', { name: '只在我问时' }));
+    expect(dependent()).toEqual([]);
+    await click(within(seg).getByRole('radio', { name: '主动' }));
+    expect(dependent()).toEqual(['proactive', 'quiet_hours']);
+    await click(within(seg).getByRole('radio', { name: '不开口' }));
+    expect(dependent()).toEqual([]);
+  });
+
+  it('hides them while nothing is chosen', async () => {
+    await start(false, true, false);
+    expect(dependent()).toEqual([]);
+  });
+
+  it('主动程度 offers only levels that keep her speaking and writes `proactive`', async () => {
+    const save = vi.spyOn(window.agenticComplex!.settings, 'save');
+    await start(false, true, true);
+    await click(screen.getByRole('button', { name: '主动程度' }));
+    const options = screen.getAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual(['均衡（默认）', '主动▲有风险']);
+    await click(options[1]!);
+    expect(save).toHaveBeenCalledWith({ proactive: 'active' });
+  });
+
+  it('免打扰时段 writes quiet_start and quiet_end to /proactive/settings', async () => {
+    await start(false, true, true);
+    await click(within(screen.getByRole('group', { name: '免打扰时段开始' })).getByRole('button', { name: /22:00/ }));
+    await click(within(screen.getByRole('menu', { name: '22:00' })).getByRole('menuitemcheckbox', { name: '23:00' }));
+    expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { quiet_start: 23 });
+    await click(within(screen.getByRole('group', { name: '免打扰时段结束' })).getByRole('button', { name: /08:00/ }));
+    await click(within(screen.getByRole('menu', { name: '08:00' })).getByRole('menuitemcheckbox', { name: '07:00' }));
+    expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { quiet_end: 7 });
+  });
+
+  it('a level that keeps her from speaking does not read as 主动; choosing 主动 sets it back to 均衡', async () => {
+    const save = vi.spyOn(window.agenticComplex!.settings, 'save');
+    const seg = await start(false, true, true, false, 'quiet');
+    expect(checked(seg)).toEqual([]);
+    expect(dependent()).toEqual([]);
+    await click(within(seg).getByRole('radio', { name: '主动' }));
+    expect(save).toHaveBeenCalledWith({ proactive: 'balanced' });
+    expect(request).not.toHaveBeenCalledWith('PUT', '/proactive/settings', expect.anything());
+    expect(checked(seg)).toEqual(['主动']);
+    expect(dependent()).toEqual(['proactive', 'quiet_hours']);
+  });
+});
+
+describe('说话与通知 wording', () => {
+  it('never says 安静, the do-not-disturb state is 免打扰', async () => {
+    await start(false, true, true);
+    await click(screen.getByRole('button', { name: '主动程度' }));
+    await click(screen.getByRole('button', { name: '开始' }));
+    const attrs = [...document.querySelectorAll('[title], [aria-label]')].flatMap((el) => [el.getAttribute('title') ?? '', el.getAttribute('aria-label') ?? '']);
+    expect([document.body.textContent, ...attrs].filter((s) => s?.includes('安静'))).toEqual([]);
+    expect(document.querySelector('[data-row="dnd_quiet"]')?.textContent).toContain('免打扰');
   });
 });

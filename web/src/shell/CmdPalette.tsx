@@ -19,7 +19,7 @@ import styles from './CmdPalette.module.css';
 async function quiet() {
   try {
     await put('/observation/quiet', quietBody(appNow() + 30 * 60_000));
-    toast('已进入免打扰·安静 30 分钟，提醒暂停');
+    toast('已进入免打扰 30 分钟，提醒暂停');
   } catch (e) {
     toast(`免打扰失败：${errText(e)}`, { severity: 'danger' });
   }

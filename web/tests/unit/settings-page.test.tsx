@@ -89,7 +89,7 @@ describe(' 说话与通知: 今日发言闸门', () => {
     const gate = await screen.findByRole('region', { name: '今日发言闸门' });
     expect(await within(gate).findByRole('img', { name: '今日主动发言：已用 6 次，上限 12，已拦截 3 次' })).toBeTruthy();
     expect(within(gate).getByRole('list', { name: '冷却' }).textContent).toContain('主动发言冷却 3 分');
-    expect(screen.getByRole('switch', { name: '主动发言' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: '她什么时候开口' })).toBeTruthy();
     expect(screen.getByText('待批准')).toBeTruthy();
   });
 

@@ -141,7 +141,7 @@ describe('settings › 声音 › 通知方式', () => {
       </Harness>,
     );
     const row = screen.getByRole('radiogroup', { name: '提醒' });
-    const companion = screen.getByRole('switch', { name: '主动提示' }).closest('[data-row="companion_mode"]');
+    const companion = screen.getByRole('radiogroup', { name: '她什么时候开口' }).closest('[data-row="speakWhen"]');
     expect(companion?.textContent).toContain('任务结果和你设置的提醒仍会送达');
     expect(within(row).getAllByRole('radio').map((r) => r.textContent)).toEqual(['出声', '只出卡', '不提示']);
     await act(async () => fireEvent.click(within(row).getByRole('radio', { name: '只出卡' })));

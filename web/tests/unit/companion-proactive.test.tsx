@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { PERMISSIONS, WIRE_DIAG_GATE } from '../../src/mock/fixtures';
@@ -56,29 +56,31 @@ afterEach(() => {
   delete window.agenticComplex;
 });
 
-describe('主动提示 switch and developer proactive readout', () => {
-  it('shows 主动提示 off by default and sends PUT /proactive/settings {"companion_mode": true} on click', async () => {
+describe('主动提示 and developer proactive readout', () => {
+  it('reads 主动提示 off by default and sends PUT /proactive/settings {"companion_mode": true} with 主动, false with 只在我问时', async () => {
     const request = vi.spyOn(window.agenticComplex!.agentd, 'request');
     render(
       <Harness>
         <SpeakGroup />
       </Harness>,
     );
-    const toggle = await screen.findByRole('switch', { name: '主动提示' });
-    expect(toggle.getAttribute('aria-checked')).toBe('false');
-    screen.getByText('发现可以帮忙的时机时主动提示。任务结果和你设置的提醒仍会送达。');
+    const seg = await screen.findByRole('radiogroup', { name: '她什么时候开口' });
+    await act(async () => {});
+    const active = within(seg).getByRole('radio', { name: '主动' });
+    expect(active.getAttribute('aria-checked')).toBe('false');
+    screen.getByText('主动：发现可以帮忙的时机时提示，也会说出想法。任务结果和你设置的提醒仍会送达。');
 
     await act(async () => {
-      fireEvent.click(toggle);
+      fireEvent.click(active);
     });
     expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { companion_mode: true });
-    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect(active.getAttribute('aria-checked')).toBe('true');
 
     await act(async () => {
-      fireEvent.click(toggle);
+      fireEvent.click(within(seg).getByRole('radio', { name: '只在我问时' }));
     });
     expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { companion_mode: false });
-    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(active.getAttribute('aria-checked')).toBe('false');
   });
 
   it('maps session, task, and repeat mute categories in 声音 settings', async () => {

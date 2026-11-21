@@ -56,7 +56,7 @@ afterEach(() => {
 });
 
 describe('settings copy matches behavior', () => {
-  it('says a reminder due in 免打扰 │ 安静 shows a card without sound (announce.py _commitments_due)', () => {
+  it('says a reminder due in 免打扰 shows a card without sound (announce.py _commitments_due)', () => {
     const { container } = render(
       <Harness>
         <SpeakGroup />
@@ -67,7 +67,7 @@ describe('settings copy matches behavior', () => {
     expect(text).toContain('开会并暂停观察；提醒只出卡片、不出声，朝向决策关闭');
   });
 
-  it('says the same while 安静 runs', () => {
+  it('says the same while 免打扰 runs', () => {
     const { container } = render(
       <Harness pauses={{ quiet: Date.now() + 3_600_000 }}>
         <SpeakGroup />
@@ -80,12 +80,13 @@ describe('settings copy matches behavior', () => {
   });
 
   it('names the bubble button 关闭此类 under 更多操作', async () => {
+    vi.spyOn(window.agenticComplex!.agentd, 'request').mockResolvedValue({ status: 200, body: { muted: ['comment'] } });
     const { container } = render(
       <Harness>
         <SpeakGroup />
       </Harness>,
     );
-    await screen.findByText('没有关掉的类别。在气泡的「更多操作」里点「关闭此类」可以关掉一类');
+    await screen.findByText('在气泡的「更多操作」里点「关闭此类」可以关掉一类');
     expect(row(container, 'mutes')).not.toContain('长按或右键');
   });
 });

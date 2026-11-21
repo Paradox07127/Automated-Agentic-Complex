@@ -10,6 +10,7 @@ import { TraceLine } from '../../src/features/trace';
 import { DELIVERIES, NOW, pick, QUESTIONS } from '../../src/mock/fixtures';
 import { CmdPalette } from '../../src/shell/CmdPalette';
 import { paletteItems } from '../../src/shell/CmdPalette.data';
+import { ToastHost } from '../../src/shell/toast';
 import { pageRoutes } from '../../src/shell/registry';
 import { DLV_T1_V2, Q1 } from '../../src/mock/fixtures/ids';
 
@@ -47,6 +48,20 @@ describe(' ⌘K actions', () => {
     expect(until).toBeGreaterThanOrEqual(Math.floor((NOW + 30 * 60_000) / 1000));
     // Seconds, not milliseconds: an epoch-ms value would be ~1.8e12.
     expect(until).toBeLessThan(2e10);
+  });
+
+  it('calls the state 免打扰 in its toast, never 安静', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <CmdPalette routes={pageRoutes} onClose={() => {}} />
+        <ToastHost />
+      </QueryClientProvider>,
+    );
+    await act(async () => fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: /免打扰 30 分钟/ })));
+    const said = [...document.querySelectorAll('[data-kind] > *')].map((t) => t.textContent ?? '');
+    expect(said.some((t) => t.includes('免打扰'))).toBe(true);
+    expect(said.filter((t) => t.includes('安静'))).toEqual([]);
   });
 });
 

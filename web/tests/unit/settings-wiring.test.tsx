@@ -682,15 +682,31 @@ describe('喝水提醒', () => {
 });
 
 describe('免打扰', () => {
-  it('starts quiet with epoch seconds and switches meeting mode on and off', async () => {
+  it('is one 免打扰 row whose menu matches the overview: 30 分钟 / 1 小时 / 到明早 7 点 / 开会', async () => {
+    render(<Harness d={d}><SpeakGroup /></Harness>);
+    expect(document.querySelector('[data-row="dnd_meet"]')).toBeNull();
+    expect(document.querySelector('[data-row="dnd_quiet"]')?.textContent).toMatch(/^免打扰/);
+    await click(screen.getByRole('button', { name: '开始' }));
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['30 分钟', '1 小时', '到明早 7 点', '开会']);
+  });
+
+  it('starts quiet with epoch seconds, then 开会 from the same menu, and ends 开会', async () => {
     render(<Harness d={d}><SpeakGroup /></Harness>);
     await click(screen.getByRole('button', { name: '开始' }));
     await click(screen.getByRole('menuitem', { name: '1 小时' }));
     const until = (sent('PUT', '/observation/quiet') as { until: number }).until;
     expect(Number.isInteger(until)).toBe(true);
-    expect(document.querySelector('[data-row="dnd_quiet"]')?.textContent).toContain('还剩');
-    await click(screen.getByRole('switch', { name: '开会模式' }));
+    const row = () => document.querySelector('[data-row="dnd_quiet"]')!;
+    expect(row().textContent).toContain('还剩');
+    await click(within(row() as HTMLElement).getByRole('button', { name: '现在恢复' }));
+    await click(screen.getByRole('button', { name: '开始' }));
+    await click(screen.getByRole('menuitem', { name: '开会' }));
     expect(sent('PUT', '/observation/meeting')).toEqual({ on: true });
+    expect(within(row() as HTMLElement).getByRole('status').textContent).toContain('开会');
+    expect(screen.queryByRole('button', { name: '开始' })).toBeNull();
+    await click(within(row() as HTMLElement).getByRole('button', { name: '现在恢复' }));
+    expect(request.mock.calls.filter((c) => c[0] === 'PUT' && c[1] === '/observation/meeting').map((c) => c[2])).toEqual([{ on: true }, { on: false }]);
+    expect(screen.getByRole('button', { name: '开始' })).toBeTruthy();
   });
 
   it('「到明早」is the next 07:00', () => {

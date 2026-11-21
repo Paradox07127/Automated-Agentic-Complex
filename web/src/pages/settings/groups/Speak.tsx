@@ -5,7 +5,7 @@ import { CumulativeStep } from '../../../charts';
 import { formatDuration, isoToMsOrNull, type Cooldown, type VisualStateKey } from '../../../domain';
 import { voiceSource, voiceState, voiceText, type Voice, type VoiceState } from '../../../domain/voiceState';
 import { useCountdown } from '../../../features/approval/useCountdown';
-import { Btn, Menu, StatusTag, Toggle } from '../../../ui';
+import { Btn, Menu, StatusTag } from '../../../ui';
 import { clock, failure, readMutes, saveMutes, setMeeting, setQuiet } from '../api';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
@@ -18,8 +18,8 @@ import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
 import { Slab } from '../Slab';
 import { GateBlocked, MUTED_KIND } from './GateBlocked';
-import { ContextSpeechRow, useProactiveSettings } from './SpeakCompanion';
-import { SpeakWhenRow } from './SpeakWhen';
+import { QuietHoursRow, useProactiveSettings } from './SpeakCompanion';
+import { SILENT_LEVEL, SpeakWhenRow } from './SpeakWhen';
 import styles from '../groups.module.css';
 
 /** Next 07:00 local after `now` (the old QuietSpan「到明早」). */
@@ -30,11 +30,11 @@ export function tomorrowMorning(now: number): number {
   return d.getTime();
 }
 
-/** The old QuietSpan choices; agentd caps a quiet window at 1440 minutes. */
+/** The overview's 免打扰 choices; agentd caps a quiet window at 1440 minutes. */
 const QUIET: Array<[string, (now: number) => number]> = [
   ['30 分钟', (now) => now + 30 * 60_000],
   ['1 小时', (now) => now + 60 * 60_000],
-  ['到明早', tomorrowMorning],
+  ['到明早 7 点', tomorrowMorning],
 ];
 
 const NOTIFY: Array<[string, string, string?]> = [
@@ -64,7 +64,6 @@ export function SpeakGroup() {
   const ro = groupRo || agentdOff;
   const c = useControls();
   const bridge = getBridge();
-  const quietLevel = model.value('proactive') === 'quiet';
   const ps = useProactiveSettings();
 
   const startQuiet = (label: string, until: (now: number) => number) =>
@@ -83,7 +82,7 @@ export function SpeakGroup() {
   const meeting = (on: boolean) =>
     void setMeeting(on).then(
       (r) => model.setMeeting(r.meeting),
-      (e) => model.notify({ message: `没能${on ? '开始' : '结束'}开会模式：${failure(e).text}`, severity: 'danger', persistent: true }),
+      (e) => model.notify({ message: `没能${on ? '开始' : '结束'}开会：${failure(e).text}`, severity: 'danger', persistent: true }),
     );
   // A reset's state holds until the next /diag/state read replaces diag.voice.
   const [reset, setReset] = useState<{ from: Voice | null; voice: Voice; source: DiagView['voiceSource'] } | null>(null);
@@ -135,6 +134,9 @@ export function SpeakGroup() {
   };
   const ttsOpts = optionsOf(native?.rows.tts).map((o) => (o.value === 'local' ? { ...o, label: '关闭（无语音）' } : o));
   const quietUntil = model.pauses.quiet;
+  const meetingOn = diag.pauses != null && model.pauses.meeting;
+  const meetUnread = diag.pauses == null;
+  const levels = optionsOf(native?.rows.proactive).filter((o) => o.value !== SILENT_LEVEL);
   // agentd mutes live on a spoken「静音」; this row is config.json, which it reads at start.
   const muteNote = diag.muted == null || diag.muted === (model.value('mute') === true) ? null : diag.muted ? '重启后台服务后按这里的设置出声' : '后台现在仍会出声；重启后台服务后生效';
 
@@ -213,18 +215,10 @@ export function SpeakGroup() {
 
       <SetSection title="主动程度">
         {diag.gate && <GatePlate gate={diag.gate} events={gateEvents ?? null} blocked={gateBlocked ?? []} cooldowns={diag.cooldowns} />}
-        <SpeakWhenRow ps={ps} disabled={ro} />
-        <SetRow id="proactive" title="主动程度" desc="主动发言和动作的频率" control={c.select('proactive', undefined, ['active'])} />
-        <SetRow
-          id="speakUp"
-          title="主动发言"
-          desc={quietLevel ? '主动程度为「安静」时不主动发言' : '有值得提示的事项时主动发言'}
-          disabled={quietLevel}
-          disabledReason="主动程度为「安静」"
-          control={c.toggle('speakUp', '主动发言', quietLevel, '主动程度为「安静」')}
-        />
-        {(quietLevel || model.value('speakUp') === false) && <p className={styles.cap}>想法需要打开「主动发言」</p>}
-        <ContextSpeechRow ps={ps} disabled={ro} />
+        <SpeakWhenRow ps={ps} disabled={ro}>
+          <SetRow id="proactive" title="主动程度" desc="主动发言和动作的频率" indent control={c.select('proactive', levels, ['active'])} />
+          <QuietHoursRow ps={ps} disabled={ro} />
+        </SpeakWhenRow>
         <SetRow id="rest" title="休息提醒" desc="连续使用到设定时长后提醒休息" control={c.select('rest')} />
         {native?.rows.water && (
           <SetRow id="water" title="喝水提醒" desc="连续使用到设定时长后，在停顿时提醒喝水" control={c.select('water')} />
@@ -235,28 +229,33 @@ export function SpeakGroup() {
       <SetSection title="免打扰">
         <SetRow
           id="dnd_quiet"
-          title="免打扰 │ 安静"
-          desc="开会并暂停观察；提醒只出卡片、不出声，朝向决策关闭"
+          title="免打扰"
+          desc="限时：开会并暂停观察；提醒只出卡片、不出声，朝向决策关闭。开会：共享屏幕时使用，提醒照常"
           control={
-            quietUntil ? (
-              <PauseReadout kind="免打扰" until={quietUntil} note="提醒只出卡片、不出声" disabled={ro} onResume={endQuiet} />
-            ) : (
-              <Menu label="开始" align="right" items={QUIET.map(([label, until]) => ({ kind: 'item' as const, label, disabled: ro, onSelect: () => startQuiet(label, until) }))} />
-            )
-          }
-        />
-        <SetRow
-          id="dnd_meet"
-          title="免打扰 │ 会议"
-          desc="共享屏幕时使用，提醒照常"
-          control={
-            diag.pauses == null ? (
-              <span className={styles.t3} title="开会模式：还没读到后台的状态">
-                未读到
-              </span>
-            ) : (
-              <Toggle on={model.pauses.meeting} label="开会模式" size="sm" disabled={ro} onChange={meeting} />
-            )
+            <>
+              {quietUntil && <PauseReadout kind="免打扰" until={quietUntil} note="提醒只出卡片、不出声" disabled={ro} onResume={endQuiet} />}
+              {meetingOn && (
+                <span className={styles.pause} role="status">
+                  <span aria-hidden="true">⏸</span>
+                  <span>
+                    免打扰 │ 开会<span className={styles.t3}> │ 提醒照常</span>
+                  </span>
+                  <Btn size="sm" variant="ghost" disabled={ro} onClick={() => meeting(false)}>
+                    现在恢复
+                  </Btn>
+                </span>
+              )}
+              {!quietUntil && !meetingOn && (
+                <Menu
+                  label="开始"
+                  align="right"
+                  items={[
+                    ...QUIET.map(([label, until]) => ({ kind: 'item' as const, label, disabled: ro, onSelect: () => startQuiet(label, until) })),
+                    { kind: 'item' as const, label: '开会', disabled: ro || meetUnread, reason: meetUnread ? '未读到' : undefined, onSelect: () => meeting(true) },
+                  ]}
+                />
+              )}
+            </>
           }
         />
         <SetRow id="capHide" title="录屏时隐藏角色" desc="开始录屏或共享屏幕时隐藏一次，按 ⌃⌥H 显示" control={c.toggle('capHide', '录屏时隐藏角色')} />
@@ -296,7 +295,7 @@ export function SpeakGroup() {
   }
 }
 
-/** Proactive kinds turned off with the bubble's 关闭此类 (GET /proactive/mutes), each with 恢复. */
+/** Proactive kinds turned off with the bubble's 关闭此类 (GET /proactive/mutes), each with 恢复; absent while none is. */
 function MutedRow({ disabled }: { disabled: boolean }) {
   const { model } = useSettings();
   const [muted, setMuted] = useState<string[] | null>(null);
@@ -316,11 +315,12 @@ function MutedRow({ disabled }: { disabled: boolean }) {
       (e) => model.notify({ message: `没能恢复「${label}」：${failure(e).text}`, severity: 'danger', persistent: true }),
     );
   const how = '在气泡的「更多操作」里点「关闭此类」可以关掉一类';
+  if (muted?.length === 0) return null;
   return (
     <SetRow
       id="mutes"
       title="已关掉的主动发言"
-      desc={muted != null && muted.length === 0 ? `没有关掉的类别。${how}` : how}
+      desc={how}
       control={
         muted == null ? (
           <span className={styles.t3} title="已关掉的主动发言：还没读到后台的状态">
