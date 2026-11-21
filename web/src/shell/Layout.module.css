@@ -70,6 +70,11 @@
   container: page / inline-size;
 }
 
+/* 主页's watch ground is the window's background: it spans the whole width. */
+.window[data-bare] .content {
+  max-width: none;
+}
+
 /* Dark bottom action bar (44px) along the bottom of <main>, shown only when a page fills it. */
 .bottomBar {
   flex: none;

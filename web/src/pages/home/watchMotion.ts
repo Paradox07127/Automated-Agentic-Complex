@@ -21,9 +21,14 @@ export function useAttended(): boolean {
   return on;
 }
 
-/** watch_loop on the rings under root while mounted; unmounting drops it, so the face rests at the entrance's end. */
-export function Sway({ root }: { root: RefObject<HTMLElement | null> }) {
-  useGameClip(gameClips.watchLoop, root, { autoplay: true });
+/** watch_loop on the rings under root: it runs while `on` and holds where it stands otherwise, so losing focus does
+ *  not snap the rings back. */
+export function Sway({ root, on }: { root: RefObject<HTMLElement | null>; on: boolean }) {
+  const clip = useGameClip(gameClips.watchLoop, root);
+  useEffect(() => {
+    if (on) void clip.play();
+    else clip.pause();
+  }, [clip, on]);
   return null;
 }
 

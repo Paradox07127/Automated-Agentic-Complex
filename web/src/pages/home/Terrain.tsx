@@ -28,8 +28,8 @@ export function Contours() {
         <path key={c.d} d={c.d} data-major={c.major || undefined} />
       ))}
       <path className={styles.cross} d="M200 24 V376 M24 200 H376" />
-      {TICKS.map((t) => (
-        <line key={`${t.x0}`} className={styles.tick} x1={t.x0} y1={t.y0} x2={t.x1} y2={t.y1} data-long={t.long || undefined} />
+      {TICKS.map((t, i) => (
+        <line key={i} className={styles.tick} x1={t.x0} y1={t.y0} x2={t.x1} y2={t.y1} data-long={t.long || undefined} />
       ))}
     </svg>
   );

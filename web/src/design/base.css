@@ -26,6 +26,17 @@
   inherits: false;
   initial-value: 1;
 }
+/* The home watch's turn toward the pointer: not inherited, so a pointer move restyles only the tipped face. */
+@property --tilt-x {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@property --tilt-y {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
 
 *,
 *::before,

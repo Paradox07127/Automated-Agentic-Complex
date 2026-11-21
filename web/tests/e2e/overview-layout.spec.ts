@@ -68,6 +68,92 @@ test('home: on the tilted watch every key, card and slot takes the pointer at th
   expect(misses).toEqual([]);
 });
 
+test('home: a key takes the pointer near the rim of its raised face, not its neighbour', async ({ page }) => {
+  for (const [width, height] of [[1385, 770], [925, 515]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto('about:blank');
+    await page.goto('main.html#/home?plugins=all&still=1');
+    await expect(page.getByRole('button', { name: '角色', exact: true })).toBeVisible();
+    const misses = await page.locator('[data-page="home"]').evaluate((home) =>
+      [...home.querySelectorAll('[aria-label="主要页面"] button, [aria-label="工具"] button')].flatMap((b) => {
+        const svgs = b.querySelectorAll(':scope svg[width]');
+        const r = svgs[svgs.length - 1]!.getBoundingClientRect();
+        return ([[0.05, 0.5], [0.95, 0.5], [0.5, 0.05], [0.5, 0.95]] as const).flatMap(([fx, fy]) =>
+          document.elementFromPoint(r.left + r.width * fx, r.top + r.height * fy)?.closest('button') === b ? [] : [`${b.getAttribute('aria-label')} ${fx},${fy}`],
+        );
+      }),
+    );
+    expect(misses, `${width}`).toEqual([]);
+  }
+});
+
+test('home: every raised face shares the tipped watch\'s 3D space (nothing between flattens it)', async ({ page }) => {
+  await page.setViewportSize({ width: 1385, height: 770 });
+  await page.goto('main.html#/home?plugins=all&still=1');
+  await expect(page.getByRole('button', { name: '角色', exact: true })).toBeVisible();
+  // A key whose action this shell lacks is disabled; dim it as the shell would.
+  const flat = await page.locator('[data-page="home"]').evaluate((home) => {
+    home.querySelector('[aria-label="工具"] button')!.setAttribute('disabled', '');
+    return [...home.querySelectorAll('svg[class*="_top_"]')].flatMap((face) => {
+      const out: string[] = [];
+      for (let e = face.parentElement; e && !/_tilt_/.test(e.className); e = e.parentElement) {
+        const s = getComputedStyle(e);
+        const why = [s.transformStyle !== 'preserve-3d' && 'flat', +s.opacity < 1 && 'opacity', s.filter !== 'none' && 'filter', s.overflow !== 'visible' && 'overflow'].filter(Boolean);
+        if (why.length) out.push(`${e.tagName.toLowerCase()}.${String(e.className).split(' ')[0]} ${why.join(',')}`);
+      }
+      return out;
+    });
+  });
+  expect([...new Set(flat)]).toEqual([]);
+});
+
+test('home: once the watch has come in, no finished entrance animation stays held (a held opacity flattens the keys)', async ({ page }) => {
+  await page.setViewportSize({ width: 925, height: 515 });
+  await page.goto('main.html#/home?plugins=all');
+  await expect(page.getByRole('button', { name: '角色', exact: true })).toBeVisible();
+  await page.waitForTimeout(1500);
+  const held = await page.locator('[data-hud]').evaluate((hud) =>
+    hud
+      .getAnimations({ subtree: true })
+      .filter((a) => a.playState === 'finished')
+      .map((a) => ((a.effect as KeyframeEffect).target as HTMLElement).dataset.g),
+  );
+  expect(held).toEqual([]);
+});
+
+test('home: the tipped face turns to the pointer on the next frame and is not still easing after it', async ({ page }) => {
+  await page.setViewportSize({ width: 1385, height: 770 });
+  await page.goto('main.html#/home?plugins=all');
+  await expect(page.getByRole('button', { name: '角色', exact: true })).toBeVisible();
+  const tilt = page.locator('[data-page="home"] [class*="_tilt_"]');
+  const read = () => tilt.evaluate((e) => new Promise<string>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(getComputedStyle(e).transform)))));
+  const rest = await read();
+  await page.mouse.move(1300, 700);
+  const next = await read();
+  await page.waitForTimeout(500);
+  expect(next).not.toBe(rest);
+  expect(next).toBe(await read());
+});
+
+test('home: with reduced motion the tipped face stays put under the pointer', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1385, height: 770 });
+  await page.goto('main.html#/home?plugins=all');
+  await expect(page.getByRole('button', { name: '角色', exact: true })).toBeVisible();
+  const tilt = page.locator('[data-page="home"] [class*="_tilt_"]');
+  const rest = await tilt.evaluate((e) => getComputedStyle(e).transform);
+  await page.mouse.move(1300, 700);
+  await page.mouse.move(1310, 710);
+  expect(await tilt.evaluate((e) => getComputedStyle(e).transform)).toBe(rest);
+});
+
+test('home: in a window wider than the pages\' 1600 the watch ground still fills it edge to edge', async ({ page }) => {
+  await page.setViewportSize({ width: 2000, height: 900 });
+  await page.goto('main.html#/home?plugins=all&still=1');
+  const box = await page.locator('[data-page="home"]').boundingBox();
+  expect(box).toMatchObject({ x: 0, width: 2000 });
+});
+
 test('overview-decided: after a decision the next item takes the card; the view has at most one primary button', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/overview?plugins=all&demo=decided&still=1');

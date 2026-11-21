@@ -1,5 +1,6 @@
 /* A slab: a see-through plate on the watch face and the face above it, then the content. --press (set by the button
-   that holds it) scales the lift. Every layer ignores the pointer; the button's own box takes it. */
+   that holds it) scales the lift. The layers ignore the pointer but the raised face's shape: perspective draws the face
+   away from the button's own box, and near its rim the box of a neighbour lies under the pointer. */
 .slab {
   --lift: calc(var(--depth) * var(--press, 1));
   position: absolute;
@@ -53,7 +54,9 @@
 }
 
 /* --shift: where the Shadow shows past the Btn (a left key's Btn sits up-left of it, a right key's to its right). */
+/* --dim: a disabled key's alpha, set on each layer (not on the key, which would flatten the 3D). */
 .plate {
+  opacity: var(--dim, 1);
   fill: var(--plate);
   translate: var(--shift);
 }
@@ -65,7 +68,7 @@
 
 /* Btn colour: 0.906 grey at 0.863 alpha at rest; the hover clip takes it to 1. */
 .top {
-  opacity: 0.8627;
+  opacity: calc(0.8627 * var(--dim, 1));
   transform: translateZ(var(--lift));
 }
 
@@ -84,6 +87,7 @@
 /* --face-a is the hover clip's; at rest the tone's own. */
 .face {
   fill-opacity: var(--face-a, var(--face-rest));
+  pointer-events: visiblePainted;
 }
 
 .band {
@@ -127,6 +131,7 @@
   inset: 0;
   transform: translateZ(calc(var(--lift) + 0.5px));
   transform-style: preserve-3d;
+  opacity: var(--dim, 1);
   transition: transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
 }
 

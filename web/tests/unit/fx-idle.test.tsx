@@ -5,6 +5,7 @@ import { uiCatalog } from '../../src/dev/catalog';
 import { gameClips, type GameClip } from '../../src/design/gameClips.generated';
 import { useGameClip } from '../../src/ui';
 import { WatchSample } from '../../src/ui/fx/samples';
+import { Sway } from '../../src/pages/home/watchMotion';
 
 // jsdom has no Web Animations: a small stand-in records every animation the kit starts.
 class FakeAnimation {
@@ -153,6 +154,27 @@ describe('useGameClip', () => {
     expect(loops.every((a) => a.playState === 'paused')).toBe(true);
     hidden.mockReturnValue(false);
     act(() => void document.dispatchEvent(new Event('visibilitychange')));
+    expect(loops.every((a) => a.playState === 'running')).toBe(true);
+  });
+
+  it('holds the watch loop where it stands while the window is away and goes on from there', async () => {
+    function Watch({ on }: { on: boolean }) {
+      const ref = useRef<HTMLDivElement>(null);
+      return (
+        <div ref={ref}>
+          <WatchSample />
+          <Sway root={ref} on={on} />
+        </div>
+      );
+    }
+    const { rerender } = render(<Watch on />);
+    await settle();
+    const loops = [...live];
+    expect(loops.length).toBeGreaterThan(0);
+    rerender(<Watch on={false} />);
+    expect(loops.every((a) => a.playState === 'paused' && live.has(a))).toBe(true);
+    rerender(<Watch on />);
+    expect([...live]).toEqual(loops);
     expect(loops.every((a) => a.playState === 'running')).toBe(true);
   });
 

@@ -15,6 +15,11 @@ const OUT: Partial<Record<string, GameClip>> = {
 
 /** Pages without a clip, or whose clip finds none of its nodes, fade with missionOut's timing. */
 const FADE = gameClips.missionOut;
+/** SVG attributes that name another node by url(#id). */
+const URL_ATTRS = ['fill', 'stroke', 'mask', 'clip-path', 'filter'] as const;
+const URL_REFS = URL_ATTRS.map((a) => `[${a}^="url(#"]`).join(',');
+/** Copies made so far; it tells each copy's ids apart. */
+let copies = 0;
 
 export interface PageExitProps {
   /** Route id of the location; a change of search params alone keeps it. */
@@ -65,7 +70,15 @@ function copy(id: string, box: HTMLElement): Copy | null {
   const page = document.createElement('div');
   page.style.cssText = `display:flow-root;height:100%;translate:0 ${-box.scrollTop}px`;
   for (const n of nodes) page.appendChild(n.cloneNode(true));
-  for (const n of page.querySelectorAll('[id]')) n.removeAttribute('id');
+  // Ids are renamed, not dropped: the copy's SVG paints, masks and clips name theirs by url(#…), and the live page keeps
+  // the old ids until it unmounts.
+  const tag = `-exit${++copies}`;
+  for (const n of page.querySelectorAll('[id]')) n.id += tag;
+  for (const n of page.querySelectorAll(URL_REFS))
+    for (const a of URL_ATTRS) {
+      const v = n.getAttribute(a);
+      if (v?.startsWith('url(#')) n.setAttribute(a, `${v.slice(0, -1)}${tag})`);
+    }
   ghost.appendChild(page);
   return { id, box, ghost };
 }

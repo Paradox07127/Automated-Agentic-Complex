@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent, type WheelEvent } from 'react';
+import { useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from 'react';
 import type { PendingItem, Question } from '../../domain';
 import { dangerRuleText } from '../../features/approval';
 import type { Go } from '../../shell/nav';
@@ -180,6 +180,8 @@ const TAB_NAME: Record<Tab, string> = { pending: '待批准', running: '在做',
 const SWIPE = 40;
 /** One trackpad swipe sends many wheel events: after a turn, the rest within this many ms are ignored. */
 const SWIPE_MS = 450;
+/** Sideways wheel events further apart than this many ms belong to separate gestures and do not add up. */
+const GESTURE_GAP_MS = 150;
 
 /** The centre disc over the map: tabs for what waits on the user, what runs and today's counts, over today's report. */
 export function Disc({ title, urgent, report, running, today, act, go }: DiscProps) {
@@ -187,10 +189,11 @@ export function Disc({ title, urgent, report, running, today, act, go }: DiscPro
   const [picked, setPicked] = useState<Tab | null>(null);
   const tab = picked && tabs.includes(picked) ? picked : urgent.length > 0 || !running?.length ? 'pending' : 'running';
   const count: Record<Tab, number | null> = { pending: urgent.length, running: running?.length ?? null, today: null };
-  // dir: which way the last turn went, for the panel's slide; down: where a drag began; wheel: the swipe so far.
+  // dir: which way the last turn went, for the panel's slide; swiped: the last drag turned (or tried to turn) the page,
+  // so the click it ends in is not a press; wheel: the swipe so far, when it last moved and when it last turned.
   const [dir, setDir] = useState<1 | -1>(1);
-  const down = useRef<{ x: number; y: number } | null>(null);
-  const wheel = useRef({ dx: 0, at: 0 });
+  const swiped = useRef(false);
+  const wheel = useRef({ dx: 0, last: 0, at: 0 });
   const pick = (t: Tab) => {
     setDir(tabs.indexOf(t) < tabs.indexOf(tab) ? -1 : 1);
     setPicked(t);
@@ -199,22 +202,37 @@ export function Disc({ title, urgent, report, running, today, act, go }: DiscPro
     const next = tabs[tabs.indexOf(tab) + d];
     if (next) pick(next);
   };
-  const onDown = (e: PointerEvent) => void (down.current = { x: e.clientX, y: e.clientY });
-  const onUp = (e: PointerEvent) => {
-    const d = down.current;
-    down.current = null;
-    if (!d) return;
-    const [dx, dy] = [e.clientX - d.x, e.clientY - d.y];
-    if (Math.abs(dx) > SWIPE && Math.abs(dx) > Math.abs(dy)) turn(dx < 0 ? 1 : -1);
+  // The release is read on the window: a drag may end outside the panel.
+  const onDown = (e: PointerEvent) => {
+    const [x, y] = [e.clientX, e.clientY];
+    swiped.current = false;
+    const end = (u: globalThis.PointerEvent) => {
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      const [dx, dy] = [u.clientX - x, u.clientY - y];
+      if (u.type !== 'pointerup' || Math.abs(dx) <= SWIPE || Math.abs(dx) <= Math.abs(dy)) return;
+      swiped.current = true;
+      turn(dx < 0 ? 1 : -1);
+    };
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  };
+  const onClickCapture = (e: MouseEvent) => {
+    if (!swiped.current) return;
+    swiped.current = false;
+    e.preventDefault();
+    e.stopPropagation();
   };
   const onWheel = (e: WheelEvent) => {
     if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
     const w = wheel.current;
     if (e.timeStamp - w.at < SWIPE_MS) return;
+    if (e.timeStamp - w.last > GESTURE_GAP_MS) w.dx = 0;
     w.dx += e.deltaX;
+    w.last = e.timeStamp;
     if (Math.abs(w.dx) < SWIPE) return;
     turn(w.dx > 0 ? 1 : -1);
-    wheel.current = { dx: 0, at: e.timeStamp };
+    wheel.current = { dx: 0, last: e.timeStamp, at: e.timeStamp };
   };
   const [first, ...rest] = urgent;
   return (
@@ -236,7 +254,7 @@ export function Disc({ title, urgent, report, running, today, act, go }: DiscPro
         aria-label={TAB_NAME[tab]}
         data-dir={dir}
         onPointerDown={tabs.length > 1 ? onDown : undefined}
-        onPointerUp={tabs.length > 1 ? onUp : undefined}
+        onClickCapture={onClickCapture}
         onWheel={tabs.length > 1 ? onWheel : undefined}
       >
         {tab === 'running' && running ? (

@@ -1,6 +1,8 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { formatClock } from '../../domain';
+import { getBridge } from '../../bridge';
+import { formatClock, fpsReadout } from '../../domain';
 import { CharacterArt, Icon, type IconName } from '../../ui';
+import { useRenderStats } from '../diag/useDiag';
 import { Pip, type PipProps } from '../overview/Pip';
 import { BAR, BAR_SLOTS, type Box, type KeyShape } from './geometry';
 import { BANNER as BANNER_BG } from './outlines';
@@ -39,14 +41,31 @@ export function BottomBar({ left, right }: { left: BarAction; right: BarAction |
   );
 }
 
-/** The player card: her head, her name and what she is doing; it opens her page. */
-export function CharCard({ box, name, en, head, id, doing, onClick }: {
+/** Her outfit and the renderer's frame rate; on its own so the once-a-second samples redraw only this line. */
+function CharMeta({ outfit }: { outfit: string | null }) {
+  const canAvatar = getBridge().capabilities.avatar;
+  const fps = useRenderStats(canAvatar).at(-1)?.fps;
+  if (!canAvatar) return null;
+  return (
+    <span className={styles.charMeta}>
+      {outfit && <span className={styles.charOutfit}>{outfit}</span>}
+      <span className={styles.charFps}>
+        <b>{fpsReadout(fps)}</b> FPS
+      </span>
+    </span>
+  );
+}
+
+/** The player card: her head, her name, what she is doing, her outfit and frame rate; it opens her page. */
+export function CharCard({ box, name, en, head, id, doing, outfit, onClick }: {
   box: Box;
   name: string;
   en: string | null;
   head: string | null;
   id: string | null;
   doing: string;
+  /** The appearance she wears now; null while unknown. */
+  outfit: string | null;
   onClick: () => void;
 }) {
   const notch = [[0, 0], [box.width - 14, 0], [box.width, 14], [box.width, box.height], [0, box.height]] as const;
@@ -61,6 +80,7 @@ export function CharCard({ box, name, en, head, id, doing, onClick }: {
             <b className={styles.charName}>{name}</b>
             {en && <span className={styles.charEn}>{en}</span>}
             {doing && <span className={styles.charDoing} title={doing}>{doing}</span>}
+            <CharMeta outfit={outfit} />
           </span>
           <span className={styles.charGo} aria-hidden="true">
             <Icon name="chev" size={14} />

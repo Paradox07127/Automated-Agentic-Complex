@@ -10,6 +10,7 @@
   gap: var(--ef-sp-12);
   width: 400px;
   height: 400px;
+  transform-style: preserve-3d;
   padding: 40px 64px 64px;
   color: var(--ef-text-1);
   /* The square box reaches over the top-left icons: only its own controls take the pointer. */
@@ -155,6 +156,7 @@
 .panel {
   display: flex;
   flex-direction: column;
+  align-self: stretch;
   gap: var(--ef-sp-8);
   align-items: center;
   justify-content: center;

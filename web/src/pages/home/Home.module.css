@@ -55,15 +55,20 @@
 }
 
 /* The watch lies tipped back as Content does in the game (22° about x, −1° about y, −3° about z), and turns a little more
-   toward the pointer (Page sets --rx / --ry); it eases there and back. The tipped face projects high and to the right of
-   the stage box; the translate puts its keys and cards back in the middle. */
+   toward the pointer (Page sets --tilt-x / --tilt-y). The tipped face projects high and to the right of the stage box;
+   the translate puts its keys and cards back in the middle. */
 .tilt {
   position: absolute;
   inset: 0;
   translate: -16px 24px;
-  transform: rotateX(calc(22deg + var(--rx, 0deg))) rotateY(calc(-1deg + var(--ry, 0deg))) rotateZ(-3deg);
+  transform: rotateX(calc(22deg + var(--tilt-x))) rotateY(calc(-1deg + var(--tilt-y))) rotateZ(-3deg);
   transform-style: preserve-3d;
   transition: transform 240ms var(--ef-ease-g-fade);
+}
+
+/* Following the pointer: an eased transition restarts on every move and keeps the face behind the hand. */
+.tilt[data-follow] {
+  transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

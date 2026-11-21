@@ -14,6 +14,10 @@ export interface GameClipControls {
   reverse(): Promise<void>;
   /** To the first frame at once (a pressed key, which the game snaps back to Normal). */
   rest(): void;
+  /** Holds the clip where it stands; play() goes on from there. */
+  pause(): void;
+  /** Writes where the clip ended into each node's own style and drops its animations. */
+  settle(): void;
   /** The current run. */
   readonly finished: Promise<void>;
 }
@@ -63,6 +67,16 @@ export function useGameClip(clip: GameClip, rootRef: RefObject<Element | null>, 
           a.pause();
           a.currentTime = 0;
         }
+      },
+      pause: () => {
+        for (const a of anims.current) a.pause();
+      },
+      settle: () => {
+        for (const a of anims.current) {
+          a.commitStyles();
+          a.cancel();
+        }
+        anims.current = [];
       },
       get finished() {
         return done.current;

@@ -39,9 +39,10 @@
   --face-a: var(--face-rest);
 }
 
+/* Dimmed through the slab's layers (--dim): an opacity on the key itself would flatten its raised face. */
 .key:disabled {
+  --dim: 0.45;
   cursor: default;
-  opacity: 0.45;
 }
 
 .key:focus-visible {
@@ -66,19 +67,15 @@
   color: var(--ef-g-icon);
 }
 
-/* The square keys' names are 11px as the game's (26 × 0.4165), so four characters fit inside the rim. */
+/* 12px, the least for Chinese: four characters (48px) fit inside a square key's rim (52px). */
 .name {
   color: var(--ef-g-label);
-  font: var(--ef-fw-semibold) var(--ef-fs-keycap) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1 var(--ef-font-ui);
   white-space: nowrap;
 }
 
 .key[data-big] .face {
   gap: var(--ef-sp-6);
-}
-
-.key[data-big] .name {
-  font-size: var(--ef-fs-small);
 }
 
 .hot {

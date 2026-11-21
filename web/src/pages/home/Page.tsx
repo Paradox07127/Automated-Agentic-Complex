@@ -12,12 +12,13 @@ import { OPEN_PALETTE } from '../../shell/Layout';
 import { useGo, type PageId } from '../../shell/nav';
 import { usePlugins, type PluginId } from '../../shell/plugins';
 import { useVisibleRoutes } from '../../shell/registry';
-import { Stage3D, useGameClip, type IconName } from '../../ui';
+import { fxCalm, Stage3D, useGameClip, type IconName } from '../../ui';
 import { nextReminder, reminderTime, runRows } from '../overview/briefModel';
 import { useNow } from '../overview/nav';
 import { isExpired } from '../overview/pending';
 import { useOverview } from '../overview/useOverview';
 import { useOverviewActions } from '../overview/useOverviewActions';
+import { useLook } from '../character/useLook';
 import { CreateDialog } from '../tasks/CreateDialog';
 import { draftFor, type CreateDraft } from '../tasks/CreateForm';
 import { useToast } from '../../shell/toast';
@@ -79,7 +80,7 @@ const FIT_PAD = 28;
 /** A layer `px` toward the viewer: the game's node depth ×−0.5 (keys −80, top icons −114, card −86.4, bar and map −24). */
 const z = (px: number): CSSProperties => ({ transform: `translateZ(${px}px)` });
 
-/** The stage's smallest text is the square keys' 11px names; under this scale, with the tilt's foreshortening, it would render below 10px. */
+/** The fit's lower bound: at this scale the keys' 12px names, the stage's smallest text, render about 11px on the tipped face. */
 const K_MIN = 0.925;
 
 /** `/health`, which no plug-in owns, and the connection it was read at. */
@@ -142,7 +143,13 @@ export function HomePage() {
 
   useEffect(() => {
     let alive = true;
-    void watchIn.finished.then(() => alive && setEntered(true));
+    void watchIn.finished.then(() => {
+      if (!alive) return;
+      // A finished clip still holds each node's opacity, and Chromium flattens the 3D under a held opacity: the keys'
+      // raised faces would drop onto their plates.
+      watchIn.settle();
+      setEntered(true);
+    });
     return () => {
       alive = false;
     };
@@ -163,31 +170,42 @@ export function HomePage() {
   const left = pages(LEFT);
   const right = [...pages(RIGHT), ...ACTS.filter(offered).map((a) => ({ ...a, off: a.id in off ? off[a.id as keyof typeof off] : undefined, onClick: acts[a.id] })), ...pages(DEV)];
   const next = q.data ? nextReminder(snap.reminders, now) : null;
-  const delivered = q.data ? snap.deliveries.filter((d) => !d.redacted).sort((a, b) => b.produced_at - a.produced_at)[0] : undefined;
+  const t0 = new Date(now).setHours(0, 0, 0, 0);
+  const delivered = q.data ? snap.deliveries.filter((d) => !d.redacted && d.produced_at >= t0).sort((a, b) => b.produced_at - a.produced_at)[0] : undefined;
   const news: NewsItem[] = [
     ...(next ? [{ kind: '提醒', title: next.title, at: reminderTime(next.due_at, now), go: () => go({ page: 'overview', focus: 'reminders' }) }] : []),
     ...(delivered ? [{ kind: '交付', title: delivered.title, at: formatClock(delivered.produced_at), go: () => go({ page: 'overview', sel: delivered.task_id }) }] : []),
   ];
-  // The face turns up to half a degree toward the pointer, like a watch held in the hand.
+  // The face turns up to a degree toward the pointer, like a watch held in the hand.
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     const el = tilt.current;
-    if (!el || still) return;
+    if (!el || fxCalm()) return;
     const r = e.currentTarget.getBoundingClientRect();
-    el.style.setProperty('--ry', `${(((e.clientX - r.left) / r.width) * 2 - 1) * 0.5}deg`);
-    el.style.setProperty('--rx', `${(((e.clientY - r.top) / r.height) * 2 - 1) * -0.35}deg`);
+    el.dataset.follow = '';
+    el.style.setProperty('--tilt-y', `${((e.clientX - r.left) / r.width) * 2 - 1}deg`);
+    el.style.setProperty('--tilt-x', `${(((e.clientY - r.top) / r.height) * 2 - 1) * -0.7}deg`);
   };
   const onLeave = () => {
-    tilt.current?.style.setProperty('--ry', '0deg');
-    tilt.current?.style.setProperty('--rx', '0deg');
+    const el = tilt.current;
+    if (!el) return;
+    delete el.dataset.follow;
+    el.style.setProperty('--tilt-y', '0deg');
+    el.style.setProperty('--tilt-x', '0deg');
   };
   const leftKeys = leftTiles(left.length);
   const rightBoxes = rightTiles(right.length);
   const groups = Array.from({ length: Math.ceil(right.length / 2) }, (_, i) => right.slice(i * 2, i * 2 + 2));
   const character = routeOf('character');
+  const worn = useLook().id;
+  const roster = useQuery({ queryKey: ['character', 'list'], queryFn: () => getBridge().character.list(), enabled: getBridge().capabilities.avatar, retry: false });
+  const outfit = roster.data?.find((c) => c.active)?.appearances.find((a) => a.id === worn)?.name ?? null;
   const settings = routeOf('settings');
   const waiting = (counts.pending ?? 0) > 0;
   const runs = snap.day.runs;
-  const report = todayOn && q.data ? { done: runs.filter((r) => r.ended_at != null).length, total: runs.length, running: counts.running } : null;
+  // Today's runs come from the running read (个人代理's /agent/runs); without that plug-in there are none to wait for.
+  const runsRead = !plugins.personal_agent || reads.running.data != null;
+  const done = runs.filter((r) => r.ended_at != null && !FAILED.has(r.state)).length;
+  const report = todayOn && q.data && runsRead ? { done, total: runs.length, running: counts.running } : null;
   const runItems: RunItem[] | null =
     (plugins.coding_sessions || plugins.personal_agent) && reads.running.data
       ? run.rows.map((r): RunItem =>
@@ -198,11 +216,10 @@ export function HomePage() {
               : { id: r.id, kind: '编码', title: r.session.title, sub: r.session.agent, go: () => go({ page: 'overview', sel: r.session.task_id ?? r.id }) },
         )
       : null;
-  const t0 = new Date(now).setHours(0, 0, 0, 0);
   const todayCounts: Today | null =
-    todayOn && q.data
+    todayOn && q.data && runsRead
       ? {
-          done: runs.filter((r) => r.ended_at != null && !FAILED.has(r.state)).length,
+          done,
           failed: runs.filter((r) => FAILED.has(r.state)).length,
           reminders: snap.reminders.filter((r) => r.due_at >= t0 && r.due_at < t0 + 86_400_000).length,
           deliveries: snap.deliveries.filter((d) => d.produced_at >= t0).length,
@@ -272,6 +289,7 @@ export function HomePage() {
                 head={snap.character.head ?? null}
                 id={snap.character.id ?? null}
                 doing={doing}
+                outfit={outfit}
                 onClick={() => go({ page: 'character' })}
               />
               </div>
@@ -285,7 +303,7 @@ export function HomePage() {
             <Counters box={COUNTERS} now={now} conn={conn} />
             <CloseKey box={CLOSE} />
             <Status box={STATUS} />
-            {entered && attended && !still && <Sway root={hud} />}
+            {entered && !still && <Sway root={hud} on={attended} />}
           </div>
           </div>
         </Stage3D>

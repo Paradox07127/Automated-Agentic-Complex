@@ -139,6 +139,30 @@ describe('home disc', () => {
     expect(window.location.hash).toMatch(/^#\/overview\?.*focus=reminders/);
   });
 
+  it('puts only a delivery made today on the banner', async () => {
+    const bridge = getBridge();
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    let shift = 0;
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) => {
+      // A copy: the fake bridge hands out its shared fixtures.
+      const r = structuredClone(await real(method, path, body)) as { status: number; body: { deliveries?: { deliveries: Array<{ produced_at: number }> } } };
+      if (path.startsWith('/agent/snapshot')) for (const d of r.body.deliveries?.deliveries ?? []) d.produced_at -= shift;
+      return r as never;
+    });
+    mount();
+    const named = () => screen.queryAllByRole('button').some((b) => /^交付：/.test(b.getAttribute('aria-label') ?? ''));
+    await screen.findByRole('button', { name: /^提醒：/ }, { timeout: 3000 });
+    // Step the banner to its second item when it has one.
+    for (const b of screen.queryAllByRole('button', { name: '下一条' })) fireEvent.click(b);
+    expect(named()).toBe(true);
+    cleanup();
+    shift = 86_400;
+    mount();
+    await screen.findByRole('button', { name: /^提醒：/ }, { timeout: 3000 });
+    for (const b of screen.queryAllByRole('button', { name: '下一条' })) fireEvent.click(b);
+    expect(named()).toBe(false);
+  });
+
   it('turns the disc to 在做 and 今日, lists what runs and lands each count on 工业简报', async () => {
     mount();
     const tabs = await screen.findByRole('tablist', { name: '圆盘' }, { timeout: 3000 });
@@ -171,6 +195,35 @@ describe('home disc', () => {
     expect(page()).toBe('在做');
   });
 
+  it('keeps a swipe from pressing the button it starts on, turns on a release outside the panel and lets slow wheel jitter fade', async () => {
+    mount();
+    await screen.findByRole('tablist', { name: '圆盘' }, { timeout: 3000 });
+    const page = () => screen.getByRole('tabpanel').getAttribute('aria-label');
+    const more = await screen.findByRole('button', { name: /^另有 \d+ 件待处理$/ });
+    window.location.hash = '';
+    // Right from the first page: no page before it, and the click that ends the drag must not land.
+    fireEvent.pointerDown(more, { clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(more, { clientX: 200, clientY: 100 });
+    fireEvent.click(more);
+    expect(window.location.hash).toBe('');
+    expect(page()).toBe('待批准');
+    // A plain click still works.
+    fireEvent.pointerDown(more, { clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(more, { clientX: 101, clientY: 100 });
+    fireEvent.click(more);
+    expect(window.location.hash).toMatch(/^#\/overview\?/);
+    fireEvent.pointerDown(screen.getByRole('tabpanel'), { clientX: 200, clientY: 100 });
+    fireEvent.pointerUp(document.body, { clientX: 100, clientY: 100 });
+    expect(page()).toBe('在做');
+    // Two small sideways nudges far apart in time are not one swipe.
+    // jsdom stamps an event with Date.now().
+    const at = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    fireEvent.wheel(screen.getByRole('tabpanel'), { deltaX: 25, deltaY: 0 });
+    at.mockReturnValue(1_002_000);
+    fireEvent.wheel(screen.getByRole('tabpanel'), { deltaX: 25, deltaY: 0 });
+    expect(page()).toBe('在做');
+  });
+
   it('steps the banner by its arrows, names the shell components with their state and closes the window', async () => {
     const close = vi.spyOn(window, 'close').mockImplementation(() => {});
     mount();
@@ -184,6 +237,40 @@ describe('home disc', () => {
     expect(status.textContent).toMatch(/^后台.+角色.+语音/);
     fireEvent.click(screen.getByRole('button', { name: '关闭窗口' }));
     expect(close).toHaveBeenCalledOnce();
+  });
+
+  it('puts the outfit she wears and the renderer frame rate on the character card', async () => {
+    const b = getBridge();
+    vi.spyOn(b.character, 'list').mockResolvedValue([
+      { id: 'si', name: '祀', en: 'SI', active: true, appearances: [{ id: 'daily', name: '日常', desc: '' }, { id: 'uniform', name: '制服', desc: '' }] },
+    ]);
+    vi.spyOn(b.avatar, 'state').mockResolvedValue({ ...(await b.avatar.state()), appearanceId: 'uniform' });
+    vi.spyOn(b.avatar, 'onStats').mockImplementation((cb) => {
+      queueMicrotask(() => cb({ fps: 59.6, frameMs: 16.8, cpuPercent: 10 }));
+      return () => {};
+    });
+    mount();
+    const card = await screen.findByRole('button', { name: /^角色：/ });
+    await vi.waitFor(() => expect(card.textContent).toMatch(/制服.*60 FPS/));
+  });
+
+  it('counts done on the task plaque as 今日 does, and shows no plaque before the runs are read', async () => {
+    mount();
+    const plaque = await screen.findByRole('button', { name: /^今日任务 完成 \d+ \/ \d+$/ }, { timeout: 3000 });
+    fireEvent.click(screen.getByRole('tab', { name: /^今日/ }));
+    const done = screen.getByRole('button', { name: /^完成 \d+$/ }).getAttribute('aria-label')!.split(' ')[1];
+    const failed = Number(screen.getByRole('button', { name: /^出错 \d+$/ }).getAttribute('aria-label')!.split(' ')[1]);
+    expect(failed).toBeGreaterThan(0);
+    expect(plaque.getAttribute('aria-label')).toMatch(new RegExp(`^今日任务 完成 ${done} /`));
+    cleanup();
+    const bridge = getBridge();
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) =>
+      path.startsWith('/agent/runs') ? new Promise<never>(() => {}) : await real(method, path, body),
+    );
+    mount();
+    await screen.findByRole('button', { name: /^待处理 \d+$/ }, { timeout: 3000 });
+    expect(screen.queryByRole('button', { name: /^今日任务/ })).toBeNull();
   });
 
   it('shows dashes while reading and zeros on an empty day', async () => {

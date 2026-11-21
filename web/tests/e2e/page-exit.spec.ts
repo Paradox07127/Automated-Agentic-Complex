@@ -79,6 +79,34 @@ test('leaving home leaves one inert copy that plays watchOut and is gone within 
   expect((await seen(page)).length).toBe(1);
 });
 
+test('the copy of home keeps its painted faces: each url(#…) in it names a node of the copy, and no id repeats one outside it', async ({ page }) => {
+  await page.goto('main.html#/home?plugins=all');
+  await expect(page.locator('main[data-route-id="home"]')).toBeVisible();
+  await settle(page);
+  await page.evaluate(() => {
+    const w = window as unknown as { __refs: { refs: number; broken: string[]; clash: string[] } | null };
+    w.__refs = null;
+    new MutationObserver((list) => {
+      for (const m of list)
+        for (const n of m.addedNodes) {
+          if (!(n instanceof HTMLElement) || !n.matches('[data-page-exit]') || w.__refs) continue;
+          const refs = [...n.querySelectorAll('[fill^="url(#"], [stroke^="url(#"], [mask^="url(#"], [clip-path^="url(#"]')].flatMap((e) =>
+            ['fill', 'stroke', 'mask', 'clip-path'].flatMap((a) => /^url\(#(.+)\)$/.exec(e.getAttribute(a) ?? '')?.[1] ?? []),
+          );
+          const own = new Set([...n.querySelectorAll('[id]')].map((e) => e.id));
+          const outside = new Set([...document.querySelectorAll('[id]')].filter((e) => !n.contains(e)).map((e) => e.id));
+          w.__refs = { refs: refs.length, broken: refs.filter((r) => !own.has(r)), clash: [...own].filter((i) => outside.has(i)) };
+        }
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+  await brief(page).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __refs: unknown }).__refs)).not.toBeNull();
+  const r = await page.evaluate(() => (window as unknown as { __refs: { refs: number; broken: string[]; clash: string[] } }).__refs);
+  expect(r.refs).toBeGreaterThan(0);
+  expect(r.broken.slice(0, 3)).toEqual([]);
+  expect(r.clash).toEqual([]);
+});
+
 test('still=1 makes no copy when the page changes', async ({ page }) => {
   await page.goto('main.html#/home?plugins=all&still=1');
   await expect(page.locator('main[data-route-id="home"]')).toBeVisible();
