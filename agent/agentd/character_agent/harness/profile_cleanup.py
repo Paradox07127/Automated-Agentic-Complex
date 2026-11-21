@@ -46,7 +46,9 @@ def lock_runner_actor(actor):
         # A delete-on-close sibling can stay locked throughout removal of the actor.
         lock_path = actor.with_name(f'.{actor.name}.lock')
         if not _inside(actor, runner) or not _inside(lock_path, runner): return None
-        lock = open_private_file(lock_path, os.O_CREAT | os.O_RDWR | os.O_TEMPORARY)
+        # Windows refuses to open a delete-on-close file another process holds: the actor is locked.
+        try: lock = open_private_file(lock_path, os.O_CREAT | os.O_RDWR | os.O_TEMPORARY)
+        except PermissionError as error: raise BlockingIOError(error.errno, 'runner actor is locked') from error
         try:
             lock_file(lock, blocking=False)
             return _ActorLease(lock, actor.stat())
