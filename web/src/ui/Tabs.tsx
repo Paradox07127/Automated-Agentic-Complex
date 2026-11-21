@@ -8,13 +8,13 @@ import styles from './Tabs.module.css';
 
 /** 页内二级页签：未选灰字，选中项是白色点纹板加两侧光晕、深色字；计数写成「待处理 [3]」；Q / E 键帽常显在页签条两端，←→ Home End 切换。 */
 export interface TabsProps {
-  /** 页签；计数读不到时给 'error'，写成警告色的「读不到」；给了 icon 的页签只显示图标，名字在提示里 */
+  /** 页签；计数读不到时给 'error'，写成警告色的「读不到」；给了 icon 的页签图标在上、名字写在图标下 */
   tabs: Array<{
     id: string;
     label: string;
     count?: number | 'error';
     icon?: IconName;
-    /** 图标页签右上的红点和它的原因（缺权限、未就绪） */
+    /** 图标页签右上的红点和它的原因（缺权限、未就绪）；悬停图标或名字时提示原因 */
     mark?: string | undefined;
     /** 图标页签右下的草稿方块 */
     draft?: boolean;
@@ -107,52 +107,56 @@ export function Tabs({ tabs, value, label, keys = true, onChange }: TabsProps) {
           <Kbd size="lg">Q</Kbd>
         </span>
       )}
-      {tabs.map((t, i) => (
-        <button
-          key={t.id}
-          ref={(el) => {
-            refs.current[i] = el;
-          }}
-          type="button"
-          role="tab"
-          className={styles.tab}
-          aria-selected={i === sel}
-          tabIndex={i === index ? 0 : -1}
-          data-leaving={(i !== index && t.id === leaving) || undefined}
-          data-icon={t.icon ? '' : undefined}
-          data-tab={t.id}
-          data-gap={t.gap || undefined}
-          title={t.icon ? t.label : undefined}
-          onClick={() => go(i, false)}
-        >
-          {t.icon && (
-            <>
-              <span className={styles.slc} data-g={i === sel ? 'slc' : 'flash'} aria-hidden="true" />
-              <span className={styles.ic} data-g={i === sel ? 'slcIcon' : 'icon'}>
-                <Icon name={t.icon} size={24} />
-              </span>
-            </>
-          )}
-          <span className={styles.name}>
-            {t.label}
-            {t.count === 'error' ? (
-              <span className={styles.count} data-error="">
-                读不到
-              </span>
-            ) : (
-              t.count != null && (
-                <span className={styles.count}>
-                  <span aria-hidden="true">[</span>
-                  {t.count}
-                  <span aria-hidden="true">]</span>
+      {tabs.map((t, i) => {
+        // The tab's own title stays the bare name: the command bar writes it after the page's name.
+        const why = t.icon && t.mark ? `${t.label}：${t.mark}` : undefined;
+        return (
+          <button
+            key={t.id}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+            type="button"
+            role="tab"
+            className={styles.tab}
+            aria-selected={i === sel}
+            tabIndex={i === index ? 0 : -1}
+            data-leaving={(i !== index && t.id === leaving) || undefined}
+            data-icon={t.icon ? '' : undefined}
+            data-tab={t.id}
+            data-gap={t.gap || undefined}
+            title={t.icon ? t.label : undefined}
+            onClick={() => go(i, false)}
+          >
+            {t.icon && (
+              <>
+                <span className={styles.slc} data-g={i === sel ? 'slc' : 'flash'} aria-hidden="true" />
+                <span className={styles.ic} data-g={i === sel ? 'slcIcon' : 'icon'} title={why}>
+                  <Icon name={t.icon} size={20} />
                 </span>
-              )
+              </>
             )}
-          </span>
-          {t.icon && t.draft && <span className={styles.draft}>草稿</span>}
-          {t.icon && t.mark && <span className={styles.mark} title={t.mark} role="img" aria-label={t.mark} />}
-        </button>
-      ))}
+            <span className={styles.name} title={why}>
+              {t.label}
+              {t.count === 'error' ? (
+                <span className={styles.count} data-error="">
+                  读不到
+                </span>
+              ) : (
+                t.count != null && (
+                  <span className={styles.count}>
+                    <span aria-hidden="true">[</span>
+                    {t.count}
+                    <span aria-hidden="true">]</span>
+                  </span>
+                )
+              )}
+            </span>
+            {t.icon && t.draft && <span className={styles.draft}>草稿</span>}
+            {t.icon && t.mark && <span className={styles.mark} title={t.mark} role="img" aria-label={t.mark} />}
+          </button>
+        );
+      })}
       {keys && (
         <span className={styles.key} aria-hidden="true">
           <Kbd size="lg">E</Kbd>

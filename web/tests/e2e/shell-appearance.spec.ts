@@ -122,9 +122,9 @@ test("Q and E step through the page's own tabs and wrap, do nothing while typing
   await expect(input).toHaveValue('qe');
 });
 
-test('tabs that do not fit show an arrow at that end, and the arrow scrolls them into view', async ({ page }) => {
+test('tabs that do not fit show an arrow at that end, the arrow scrolls them into view, and a picked tab scrolls in', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
-  await page.goto('main.html#/settings?still=1');
+  await page.goto('main.html#/settings?group=speak&still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
   const prev = nav.getByRole('button', { name: '向左滚动页签' });
   const next = nav.getByRole('button', { name: '向右滚动页签' });
@@ -137,12 +137,23 @@ test('tabs that do not fit show an arrow at that end, and the arrow scrolls them
   await expect(next).toBeVisible();
   await expect(prev).toBeHidden();
   expect(await shown('高级')).toBe(false);
+  // Named cells run over two plate widths here: each arrow press pages one width.
+  await next.click();
+  await expect(prev).toBeVisible();
   await next.click();
   await expect.poll(() => shown('高级')).toBe(true);
   await expect(next).toBeHidden();
   await expect(prev).toBeVisible();
   await prev.click();
+  await expect(next).toBeVisible();
+  await prev.click();
   await expect.poll(() => shown('说话与通知')).toBe(true);
+  await expect(prev).toBeHidden();
+  // Q from the first group wraps to the last, which scrolls into view; its name is written in the cell.
+  await page.keyboard.press('q');
+  await expect(nav.getByRole('tab', { selected: true })).toHaveAttribute('title', '高级');
+  await expect.poll(() => shown('高级')).toBe(true);
+  await expect(nav.getByRole('tab', { selected: true })).toContainText('高级');
   await page.setViewportSize({ width: 1385, height: 770 });
   await expect(next).toBeHidden();
   await expect(prev).toBeHidden();

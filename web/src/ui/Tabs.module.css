@@ -217,16 +217,18 @@
   content: none;
 }
 
-/* Icon tabs (TabsPC): 50 px cells 1 px apart with a 1x14 separator; the selected cell drops the yellow block (recipe
-   tab-pc-selected, 76x56 from the bar top) and takes dark ink. Names stay for screen readers and in the tooltip. */
+/* Icon tabs (TabsPC): cells at least 50 px wide, 1 px apart with a 1x14 separator, the name under the icon; the
+   selected cell drops the yellow block (recipe tab-pc-selected, 13 px past each side, 56 from the bar top) and takes
+   dark ink. The 13 px side padding keeps a neighbour's name clear of that overhang. */
 .tab[data-icon],
 .tab[data-icon][aria-selected='true'] {
   --sep-gap: 1px;
-  width: 50px;
+  flex-direction: column;
+  gap: 3px;
   min-width: 50px;
   height: 50px;
   margin: 0 0 0 1px;
-  padding: 0;
+  padding: 0 13px;
   border-radius: 1.5px;
   color: var(--ef-text-1);
 }
@@ -264,10 +266,9 @@
   --size-y: 56;
   position: absolute;
   top: 0;
-  left: 50%;
-  width: 76px;
+  right: -13px;
+  left: -13px;
   height: calc(var(--size-y) * 1px);
-  margin-left: -38px;
   border-radius: 0 0 6px 6px;
   pointer-events: none;
 }
@@ -286,7 +287,7 @@
 
 :global(html[data-art]) .tab[aria-selected='true'] > .slc {
   border-radius: 0;
-  background: url('/art/common/tab-pc-selected.png') center / 78px 58px no-repeat;
+  background: url('/art/common/tab-pc-selected.png') center / calc(100% + 2px) 58px no-repeat;
 }
 
 .ic {
@@ -294,16 +295,14 @@
   display: flex;
 }
 
-.tab[aria-selected='true'] > .ic {
+.tab[aria-selected='true'] > :is(.ic, .name) {
   color: var(--ef-tabpc-sel-icon);
 }
 
 .tab[data-icon] .name {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
+  position: relative;
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1 var(--ef-font-ui);
+  letter-spacing: 0;
   white-space: nowrap;
   animation: none;
 }
