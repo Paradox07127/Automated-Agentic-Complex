@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { SETTING_GROUPS } from './groups';
+import { usePlugins } from '../../shell/plugins';
 import { SearchField, Tabs } from '../../ui';
-import { GROUP_ICON, isGroup, type GroupId } from './registry';
+import { GROUP_ICON, groupShown, isGroup, type GroupId } from './registry';
 
 /** Settings search with ⌘F; it sits in the top bar left of the tabs, or above the content on a narrow page. */
 export function SetSearch({ q, onQ }: { q: string; onQ: (q: string) => void }) {
@@ -31,10 +32,11 @@ export interface SetNavProps {
   onGroup: (g: GroupId) => void;
 }
 
-/** The settings groups as the shared icon tabs; a cluster starts after a wider gap. */
+/** The settings groups as the shared icon tabs, a plug-in's group only while it is on; a cluster starts after a wider gap. */
 export function SetNav({ group, searching, marks, drafts, onGroup }: SetNavProps) {
+  const plugins = usePlugins();
   const tabs = SETTING_GROUPS.flatMap((cl) =>
-    cl.items.filter((it) => isGroup(it.id)).map((it, i) => {
+    cl.items.filter((it) => isGroup(it.id) && groupShown(it.id, plugins)).map((it, i) => {
       const id = it.id as GroupId;
       return { id, label: it.label, icon: GROUP_ICON[id], mark: marks[id], draft: drafts.includes(id), gap: i === 0 };
     }),

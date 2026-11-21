@@ -25,7 +25,7 @@ import { CAMERA_DEMO, COMPUTER_DEMO, RESIZE_DEMO } from './overlays';
 import { mockRoutes } from '../../mock';
 import { MOTIONS } from '../../mock/character';
 import { CHARACTER_LAYERS, CHARACTER_LOOKS, CHARACTERS, NOW, PIPELINE, RENDER_STATS, SWITCH_REJECT } from '../../mock/fixtures';
-import { demoNative } from '../../mock/settings';
+import { demoNative, demoPlugins } from '../../mock/settings';
 import { stackPush } from '../../mock/stack';
 import { pinClock } from '../clock';
 import { BRIDGE_OPS, SURFACE_CAPABILITIES, SURFACE_OPS, SYNC_OPS } from '../surfaces.generated';
@@ -189,6 +189,8 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
   // The hidden outfit layers last set by `avatar.setLayers`.
   let hiddenLayers: string[] = [];
   const saved: Record<SettingId, SettingValue> = {};
+  // The plug-ins of the URL the app opened on stay on while it navigates.
+  const plugins = demoPlugins(hashQuery().get('plugins'));
   const permissions: Record<PermissionKind, PermissionState> = {
     accessibility: 'granted', screenRecording: 'granted', microphone: 'granted',
     automation: 'denied', inputMonitoring: 'notDetermined', notifications: 'granted',
@@ -228,9 +230,9 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       restart: done,
     },
     settings: {
-      // The demo copy of the native schema; `demo=configerr` rejects like an unreadable config.json, `demo=pending` reads web off.
+      // The demo copy of the native schema; `demo=configerr` rejects like an unreadable config.json, `demo=pending` reads web off, `plugins=` turns plug-ins on.
       schema: async () => Object.values((await demoNative(hashQuery().get('demo'))).rows),
-      read: async () => ({ saved: { ...(await demoNative(hashQuery().get('demo'))).saved, ...saved }, statuses: {} }),
+      read: async () => ({ saved: { ...(await demoNative(hashQuery().get('demo'))).saved, ...plugins, ...demoPlugins(hashQuery().get('plugins')), ...saved }, statuses: {} }),
       save: async (changes) => {
         Object.assign(saved, changes);
         return { restart: 'none', notApplied: [] };

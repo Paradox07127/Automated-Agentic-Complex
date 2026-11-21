@@ -7,11 +7,14 @@ import { useSettings } from '../ctx';
 import { ExcludeList } from '../ExcludeList';
 import { OutboundPlate } from '../Outbound';
 import { PauseReadout } from '../PauseReadout';
-import { labelOf } from '../registry';
+import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
 import styles from '../groups.module.css';
 import { BriefHealth, useBriefHealth } from '../../observe/BriefHealth';
+
+/** Rows of 读取范围. */
+const READS = ['wintext', 'grain', 'web', 'typing', 'agent_sessions', 'shot', 'keys', 'micapp'];
 
 /** 隐私: outbound overview plate (the group's main visual), observation, readable sources (destructive ones confirm first), redaction, exclusions. */
 export function PrivacyGroup() {
@@ -19,11 +22,14 @@ export function PrivacyGroup() {
   const shots = diag.screenshots;
   const c = useControls();
   const on = (id: string) => model.value(id) === true;
+  const shown = useRowShown();
+  const briefsOn = shown('brief_daily');
   const [briefs, setBriefs] = useState<BriefSettings | null>(null);
-  const briefHealth = useBriefHealth(!agentdOff);
+  const briefHealth = useBriefHealth(!agentdOff && briefsOn);
 
   // Read again when agentd comes back; a failed read leaves the rows at「未读到」.
   useEffect(() => {
+    if (!briefsOn) return;
     let live = true;
     readBriefSettings().then(
       (b) => live && setBriefs(b),
@@ -32,7 +38,7 @@ export function PrivacyGroup() {
     return () => {
       live = false;
     };
-  }, [agentdOff]);
+  }, [agentdOff, briefsOn]);
 
   const pause = (minutes: number) =>
     void pauseObservation(minutes).then(
@@ -67,7 +73,7 @@ export function PrivacyGroup() {
         <OutboundPlate />
       </div>
       <div className={styles.splitB}>
-        <SetSection title="观察">
+        {(shown('observe') || briefsOn) && <SetSection title="观察">
           <SetRow id="observe" title="观察屏幕活动" desc={diag.observeOff && on('observe') ? '后台仍按「关闭」运行，重启后台服务后生效' : '总开关。关闭后不再记录；已有记录保留，可在「数据」中删除'} control={c.toggle('observe')} />
           <SetRow
             id="pause"
@@ -85,10 +91,10 @@ export function PrivacyGroup() {
           />
           <SetRow id="brief_daily" title="每日简报" desc={`每天 ${at} 后根据前一天的观察写一份，在「观察」页阅读`} control={brief('daily', 'brief_daily')} />
           <SetRow id="brief_weekly" title="每周简报" desc={`每周 ${at} 后根据上一周的观察写一份`} control={brief('weekly', 'brief_weekly')} />
-        </SetSection>
+        </SetSection>}
 
-        <BriefHealth attempts={briefHealth.data?.attempts} onRetry={briefHealth.generate} />
-        <SetSection title="读取范围">
+        {briefsOn && <BriefHealth attempts={briefHealth.data?.attempts} onRetry={briefHealth.generate} />}
+        {READS.some(shown) && <SetSection title="读取范围">
           <SetRow id="wintext" title="窗口文字" desc="前台窗口中的可见文字；关闭时删除已收集的内容" control={c.toggle('wintext')} />
           <SetRow id="grain" title="屏幕理解粒度" indent disabled={!on('wintext')} disabledReason="需先打开「窗口文字」" desc={on('wintext') ? undefined : '需先打开「窗口文字」'} control={c.seg('grain', undefined, !on('wintext'))} />
           <SetRow id="web" title="网页正文" desc="关闭时立即删除已收集的摘要和由其推断的记忆" control={c.toggle('web')} />
@@ -97,7 +103,7 @@ export function PrivacyGroup() {
           <SetRow id="shot" title="屏幕识读时附上截图" desc={shots ? `今日额度 ${shots.used} / ${shots.limit}` : undefined} control={c.toggle('shot', '附上截图')} />
           <SetRow id="keys" title="键鼠计数" desc="只计次数，不记录按键内容" control={c.toggle('keys')} />
           <SetRow id="micapp" title="使用麦克风的应用" desc="用于判断是否在开会" control={c.toggle('micapp')} />
-        </SetSection>
+        </SetSection>}
 
         <SetSection title="遮蔽与排除">
           <SetRow
@@ -120,7 +126,7 @@ export function PrivacyGroup() {
             }
             control={c.toggle('mask', '遮蔽敏感内容')}
           />
-          <ExcludeList />
+          {shown('exclude') && <ExcludeList />}
         </SetSection>
 
         <SetSection title="固定规则">

@@ -64,7 +64,7 @@ export const RUNSRC: Opt[] = [
 export function acctOptions(backend: string, current?: unknown): Opt[] {
   if (backend === 'pi')
     return [
-      { value: current === 'existing_login' ? 'existing_login' : 'api_key', label: 'pi 账号与凭据' },
+      { value: current === 'existing_login' ? 'existing_login' : 'api_key', label: 'AI 账号' },
       { value: 'local_no_auth', label: '本机无需密钥' },
     ];
   return [
@@ -85,7 +85,7 @@ export interface ProviderProfile {
 export function providerOptions(backend: string, profiles: readonly ProviderProfile[] = []): Opt[] {
   if (backend === 'pi') {
     const svc = (v: string) => ({ value: v, label: SVC.find((o) => o.value === v)?.label ?? v });
-    return [{ value: '', label: 'pi 账号与凭据' }, svc('anthropic'), svc('openai'), ...profiles.map((p) => ({ value: p.id, label: p.title })), svc('compatible')];
+    return [{ value: '', label: 'AI 账号' }, svc('anthropic'), svc('openai'), ...profiles.map((p) => ({ value: p.id, label: p.title })), svc('compatible')];
   }
   const own = backend === 'claude' ? 'anthropic' : 'openai';
   return [
@@ -268,7 +268,7 @@ const ACCT = { row: 'acct', action: '去改账号来源' };
 const PROVIDER = { row: 'provider', action: '去填写服务提供方和模型' };
 const EXE = { row: 'exe', action: '去选可执行文件' };
 const RUNSRC_FIX = { row: 'runsrc', action: '去改运行来源' };
-const CONNECTION = { row: 'svc', action: '去 pi 账号与凭据' };
+const CONNECTION = { row: 'svc', action: '去 AI 账号' };
 const ACP_AGENT = { row: 'acpAgent', action: '去选 ACP agent' };
 
 /** Every code integration.py, settings.py and available_backends() send (character_agent). */
@@ -297,7 +297,7 @@ export const RUNTIME_ERROR: Readonly<Record<string, RuntimeError>> = {
   product_login_not_supported_use_native_login: { label: '产品内登录还没接通，请改用本机工具登录', fix: ACCT },
   local_node_missing: { label: '没找到本机的 Node 可执行文件', fix: EXE },
   pi_provider_model_required: { label: 'Pi 要写明服务提供方和模型', fix: PROVIDER },
-  pi_connection_missing: { label: 'Pi 没有能用的连接：写明服务提供方，或在 pi 账号与凭据 里用 ChatGPT 订阅或 API Key', fix: CONNECTION },
+  pi_connection_missing: { label: 'Pi 没有能用的连接：写明服务提供方，或在 AI 账号 里用 ChatGPT 订阅或 API Key', fix: CONNECTION },
   acp_agent_missing: { label: '没有选 ACP agent，或选的 agent 找不到了', fix: ACP_AGENT },
   acp_auth_required: { label: '这个 ACP agent 还没有登录' },
   missing_anthropic_api_key: { label: '还没有保存 Anthropic API Key', fix: API_KEY },

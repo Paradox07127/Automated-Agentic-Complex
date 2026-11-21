@@ -5,6 +5,7 @@ import type { WireDiagState, WireObservationDetail, WireSummaryRun } from '../do
 import { C1, C2, C3, CHARACTER, E1, E2, S_5E10, S_9A41, S_D0C2 } from './fixtures/ids';
 import { C1_TURNS } from './fixtures/chatDemo';
 import type { WireCapabilities, WireTraceEvent, WireTurnEvents } from '../pages/diag/wire';
+import { DEFAULT_PLUGINS } from '../shell/plugins';
 import {
   at,
   DAY,
@@ -95,6 +96,7 @@ export const DIAG_STATE: WireDiagState = {
 
 /** `GET /capabilities`: the voice is degraded (TTS unreachable); screenshots sharing is off, which is not a problem. */
 export const CAPABILITIES: WireCapabilities = {
+  plugins: DEFAULT_PLUGINS,
   items: {
     generation: { state: 'ready', reason: null },
     mouth: { state: 'ready', reason: null },

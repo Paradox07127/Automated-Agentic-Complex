@@ -1,9 +1,12 @@
 // Settings page reads and writes in agentd's shapes, plus the demo stand-in for the native settings schema.
 // `?demo=…` reaches these handlers only from the fake bridge.
+import { PLUGINS } from '../bridge/plugins.generated';
 import type { SettingValue } from '../bridge/protocol';
 import { isoWithOffset } from '../domain/units';
 import type { WireSummaryRun } from '../domain/wire';
 import type { Native, SchemaRow } from '../pages/settings/native';
+import { labelOf } from '../pages/settings/registry';
+import { pluginKey } from '../shell/plugins';
 import type { AllowField, BlacklistField, WireBlacklist, WireChatgpt, WireGateEvent, WireModelSettings, WireModelTest, WireScope } from '../pages/settings/wire';
 import { at, atS, NOW } from './fixtures';
 import { ACP_AGENTS, ACP_INSTALL } from './fixtures/acpAgents';
@@ -22,6 +25,7 @@ const DEG = (max: number): Slide => ({ min: -max, max, step: 0.5, format: 'degre
 const NOTIFY: Array<[string, string]> = [['sound', '出声'], ['card', '只出卡'], ['silent', '不提示']];
 
 const ROWS: Row[] = [
+  ...PLUGINS.filter((p) => p.tier === 'plugin').map((p): Row => [pluginKey(p.id), 'plugins', labelOf(pluginKey(p.id)), p.default, 'backend']),
   ['mute', 'speak', '只出字、不出声', false, 'backend'],
   ['tts', 'speak', '语音服务', 'remote', 'backend', [['remote', '远端'], ['local', '本机']]],
   ['asr', 'speak', '识别语言', 'auto', 'none', [['auto', '跟随系统'], ['zh-CN', '中文'], ['en-US', 'English']]],
@@ -105,6 +109,13 @@ export async function demoNative(demo: string | null): Promise<Native> {
   if (demo === 'configerr') throw { code: 'config_unreadable', detail: 'config.json' };
   const saved = { ...Object.fromEntries(DEMO_SCHEMA.map((r) => [r.id, r.default])), ...DEMO_SAVED, ...(demo === 'pending' ? { web: false } : {}) };
   return { rows: Object.fromEntries(DEMO_SCHEMA.map((r) => [r.id, r])), saved, statuses: {} };
+}
+
+/** `plugins=all` or `plugins=daily_brief,personal_agent` in the page URL: those plug-ins read as on. */
+export function demoPlugins(q: string | null): Record<string, boolean> {
+  if (!q) return {};
+  const on = q === 'all' ? PLUGINS.map((p) => p.id as string) : q.split(',');
+  return Object.fromEntries(PLUGINS.filter((p) => on.includes(p.id)).map((p) => [pluginKey(p.id), true]));
 }
 
 // ---- agentd ----

@@ -1,14 +1,19 @@
+import { useCallback } from 'react';
 import { ROUTES, routeIds } from './fields';
 import { SETTING_GROUPS } from './groups';
+import { PLUGINS } from '../../bridge/plugins.generated';
+import { useDevMode } from '../../shell/devMode';
+import { usePlugins, type PluginId, type PluginState } from '../../shell/plugins';
 import type { IconName } from '../../ui';
 
-export type GroupId = 'speak' | 'keys' | 'kernel' | 'model' | 'privacy' | 'perm' | 'data' | 'about' | 'adv';
+export type GroupId = 'plugins' | 'speak' | 'keys' | 'kernel' | 'model' | 'privacy' | 'perm' | 'data' | 'about' | 'adv';
 
-export const GROUP_IDS: GroupId[] = ['speak', 'keys', 'kernel', 'model', 'privacy', 'perm', 'data', 'about', 'adv'];
+export const GROUP_IDS: GroupId[] = ['plugins', 'speak', 'keys', 'kernel', 'model', 'privacy', 'perm', 'data', 'about', 'adv'];
 
 export const DEFAULT_GROUP: GroupId = 'privacy';
 
 export const GROUP_ICON: Record<GroupId, IconName> = {
+  plugins: 'grid',
   speak: 'voice',
   keys: 'keys',
   kernel: 'kernel',
@@ -29,7 +34,7 @@ export const PI_ONLY_ROWS: ReadonlySet<string> = new Set(['runsrc', 'piApproval'
 export const NEEDS_AGENTD: GroupId[] = ['kernel', 'model', 'perm', 'data'];
 
 /** Groups holding config.json rows; they turn read-only when the shell cannot read it. */
-export const NATIVE_GROUPS: GroupId[] = ['speak', 'keys', 'privacy', 'perm', 'about'];
+export const NATIVE_GROUPS: GroupId[] = ['plugins', 'speak', 'keys', 'privacy', 'perm', 'about'];
 
 export function isGroup(v: string | null | undefined): v is GroupId {
   return GROUP_IDS.includes(v as GroupId);
@@ -65,11 +70,24 @@ export interface RegEntry {
   keywords: string;
   effect: SettingEffect;
   deletesData: boolean;
+  /** Shown and found only while this plug-in is on (its own, or its group's). */
+  plugin?: PluginId;
+  /** Shown and found only in 开发者模式. */
+  dev?: true;
 }
 
 type Raw = [id: string, group: RegEntry['group'], section: string, label: string, keywords?: string, action?: boolean];
 
 const RAW: Raw[] = [
+  ['plugins.screen_awareness', 'plugins', '插件', '屏幕感知', '观察 屏幕 活动 窗口文字 时间线 浏览器'],
+  ['plugins.screen_reading', 'plugins', '插件', '屏幕识读', '识读 截图 框选 剪贴板 选中文字'],
+  ['plugins.daily_brief', 'plugins', '插件', '日报与简报', '工业简报 今天 日报 周报 工作记录'],
+  ['plugins.coding_sessions', 'plugins', '插件', '编码会话', 'Claude Code Codex hook 会话 审批'],
+  ['plugins.personal_agent', 'plugins', '插件', '个人代理', '派发任务 定时任务 交付 工作区'],
+  ['plugins.harness_bridge', 'plugins', '插件', 'Agent 内核桥接', 'harness Claude Code Codex ACP 内核'],
+  ['plugins.computer_use', 'plugins', '插件', '电脑操作', 'computer use 操作电脑 控制'],
+  ['plugins.external_access', 'plugins', '插件', '外部接入', 'MCP CLI 接入 外部 agent'],
+  ['plugins.motion_generation', 'plugins', '插件', '动作生成', 'Kimodo 动作 生成 GPU'],
   ['mute', 'speak', '声音', '静音（只显示文字）', '出声 语音 静音'],
   ['tts', 'speak', '声音', '语音合成来源', 'tts 远端 本机 外部 地址 令牌 测试'],
   ['ttsUrl', 'speak', '声音', '外部服务地址', 'tts 外部 地址 https ssh'],
@@ -206,15 +224,36 @@ const RAW: Raw[] = [
 
 const DELETES = new Set(['wintext', 'web', 'typing', 'agent_sessions', 'delrecent', 'delact', 'delall']);
 
-export const REGISTRY: RegEntry[] = RAW.map(([id, group, section, label, keywords = '', action]) => ({
-  id,
-  group,
-  section,
-  label,
-  keywords,
-  effect: action ? 'action' : DRAFT_SECTION[id] ? 'groupApply' : 'instant',
-  deletesData: DELETES.has(id),
-}));
+/** Rows a plug-in owns: the `<group>.<row>` entries of its `web.settings` in protocol/plugins/plugins.json. A bare group id there is that group's `plugin`. */
+const ROW_PLUGIN: Readonly<Record<string, PluginId>> = Object.fromEntries(
+  PLUGINS.flatMap((p) => (p.web.settings as readonly string[]).flatMap((s) => (s.includes('.') ? [[s.slice(s.indexOf('.') + 1), p.id]] : []))),
+);
+
+/** Rows only a developer needs. */
+const DEV_ROWS: ReadonlySet<string> = new Set([
+  'ttsUrl', 'ttsTunnelHost', 'ttsEnsureScript', 'ttsToken', 'ttsTest', 'testcard',
+  'exe', 'workspace', 'acct', 'provider', 'mainModel', 'routes', 'runsrc', 'piApproval', 'piTools', 'maxCost', 'caps',
+  'load', 'agentd', 'devparams',
+]);
+
+const GROUP_PLUGIN: Readonly<Record<string, PluginId>> = Object.fromEntries(
+  SETTING_GROUPS.flatMap((c) => c.items.flatMap((i) => (i.plugin ? [[i.id, i.plugin]] : []))),
+);
+
+export const REGISTRY: RegEntry[] = RAW.map(([id, group, section, label, keywords = '', action]) => {
+  const plugin = ROW_PLUGIN[id] ?? GROUP_PLUGIN[group];
+  return {
+    id,
+    group,
+    section,
+    label,
+    keywords,
+    effect: action ? 'action' : DRAFT_SECTION[id] ? 'groupApply' : 'instant',
+    deletesData: DELETES.has(id),
+    ...(plugin ? { plugin } : {}),
+    ...(DEV_ROWS.has(id) ? { dev: true as const } : {}),
+  };
+});
 
 export function labelOf(id: string): string {
   return REGISTRY.find((r) => r.id === id)?.label ?? id;
@@ -230,4 +269,22 @@ export function searchSettings(q: string): RegEntry[] {
   const needle = q.trim().toLowerCase();
   if (!needle) return [];
   return REGISTRY.filter((r) => `${r.label} ${r.section} ${r.keywords}`.toLowerCase().includes(needle));
+}
+
+/** Whether a group shows: its plug-in, when it has one, is on. */
+export function groupShown(id: string, plugins: PluginState): boolean {
+  const p = GROUP_PLUGIN[id];
+  return !p || plugins[p];
+}
+
+/** Whether a row shows: its plug-in (or its group's) is on, and a developer row only in 开发者模式. Ids outside the registry count too. */
+export function rowShown(id: string, plugins: PluginState, devMode: boolean): boolean {
+  const p = ROW_PLUGIN[id] ?? GROUP_PLUGIN[REGISTRY.find((r) => r.id === id)?.group ?? ''];
+  return (!p || plugins[p]) && (devMode || !DEV_ROWS.has(id));
+}
+
+export function useRowShown(): (id: string) => boolean {
+  const plugins = usePlugins();
+  const devMode = useDevMode();
+  return useCallback((id: string) => rowShown(id, plugins, devMode), [plugins, devMode]);
 }

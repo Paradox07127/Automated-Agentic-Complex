@@ -7,6 +7,7 @@ import { refreshRuntime, runtimeKey } from '../../data/runtime';
 import { SETTING_GROUPS } from './groups';
 import { useDemo } from '../../shell/demo';
 import { useDevMode } from '../../shell/devMode';
+import { usePlugins } from '../../shell/plugins';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
 import { Btn, ErrBar, Region, type RegionSource } from '../../ui';
@@ -21,13 +22,14 @@ import { KernelGroup } from './groups/Kernel';
 import { KeysGroup } from './groups/Keys';
 import { ModelGroup } from './groups/Model';
 import { PermGroup } from './groups/Perm';
+import { PluginsGroup } from './groups/Plugins';
 import { PrivacyGroup } from './groups/Privacy';
 import { SpeakGroup } from './groups/Speak';
 import { useSettingsModel } from './model';
 import type { Native } from './native';
 import { usePerms } from './perms';
 import { demoInit } from './demoInit';
-import { DEFAULT_GROUP, groupOf, isGroup, NATIVE_GROUPS, NEEDS_AGENTD, PI_ONLY_ROWS, SECTION_GROUP, searchSettings, DRAFT_SECTION, type GroupId, type RegEntry } from './registry';
+import { DEFAULT_GROUP, groupOf, groupShown, isGroup, NATIVE_GROUPS, NEEDS_AGENTD, PI_ONLY_ROWS, SECTION_GROUP, searchSettings, DRAFT_SECTION, useRowShown, type GroupId, type RegEntry } from './registry';
 import { SearchResults } from './SearchResults';
 import { SetNav, SetSearch } from './SetNav';
 import { useWidth } from '../../charts/useWidth';
@@ -37,6 +39,7 @@ import { DEV_ONLY_ROWS, tabOf } from '../character/sections';
 import styles from './Page.module.css';
 
 const GROUPS: Record<GroupId, ComponentType> = {
+  plugins: PluginsGroup,
   speak: SpeakGroup,
   keys: KeysGroup,
   kernel: KernelGroup,
@@ -63,13 +66,15 @@ const DEMO_NATIVE: Record<'loading' | 'error', RegionSource<Native>> = {
   error: { status: 'error', data: undefined, error: new Error('config.json 读不到') },
 };
 
+/** A group of a plug-in that is off reads as the default group. */
 function useSearchParams() {
   const search = useRouterState({ select: (s) => s.location.searchStr });
+  const plugins = usePlugins();
   return useMemo(() => {
     const p = new URLSearchParams(search);
     const g = p.get('group');
-    return { group: isGroup(g) ? g : DEFAULT_GROUP, item: p.get('item'), q: p.get('q') ?? '' };
-  }, [search]);
+    return { group: isGroup(g) && groupShown(g, plugins) ? g : DEFAULT_GROUP, item: p.get('item'), q: p.get('q') ?? '' };
+  }, [search, plugins]);
 }
 
 // Navigating keeps the view flags so a light-theme or still session stays in that mode.
@@ -114,6 +119,7 @@ function SettingsBody() {
   });
   const [q, setQ] = useState(urlQ);
   const devMode = useDevMode();
+  const shownRow = useRowShown();
   const [hl, setHl] = useState<string | null>(item);
   const main = useRef<HTMLDivElement>(null);
   const [pageRef, pageW] = useWidth<HTMLDivElement>(1072);
@@ -209,7 +215,7 @@ function SettingsBody() {
   };
   const pi = model.value('kernel') === 'pi';
   const results = q.trim()
-    ? searchSettings(q).filter((r) => !(r.group === '@character' && DEV_ONLY_ROWS.has(r.id) && !devMode) && (pi || !PI_ONLY_ROWS.has(r.id)))
+    ? searchSettings(q).filter((r) => !(r.group === '@character' && DEV_ONLY_ROWS.has(r.id) && !devMode) && (pi || !PI_ONLY_ROWS.has(r.id)) && shownRow(r.id))
     : null;
   const view = results ? 'search' : group;
 

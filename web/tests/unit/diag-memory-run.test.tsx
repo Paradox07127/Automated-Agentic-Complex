@@ -83,6 +83,7 @@ describe('diag › native deep links keep their target', () => {
 describe('diag › codes in Chinese', () => {
   it('maps runtime and unknown capability reasons, keeping the code aside', () => {
     const issues = issuesOf({
+      plugins: {},
       at: isoWithOffset(NOW),
       items: {
         personal_agent: { state: 'unavailable', reason: 'native_login_required' },

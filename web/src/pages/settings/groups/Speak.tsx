@@ -12,6 +12,7 @@ import { useSettings } from '../ctx';
 import { daySpan, type BlockedLine, type DayEvent, type DiagView } from '../diag';
 import { REPLY_LANGUAGE } from '../fields';
 import { optionsOf } from '../native';
+import { useRowShown } from '../registry';
 import { PauseReadout } from '../PauseReadout';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
@@ -58,6 +59,7 @@ function voiceTestFailure(reason: string | null): string {
 /** 说话与通知: voice, proactivity with today's gate, do-not-disturb, notification routing. */
 export function SpeakGroup() {
   const { model, ro: groupRo, agentdOff, diag, gateEvents, gateBlocked, native, hl } = useSettings();
+  const shown = useRowShown();
   // The do-not-disturb rows write to agentd.
   const ro = groupRo || agentdOff;
   const c = useControls();
@@ -173,7 +175,7 @@ export function SpeakGroup() {
             }
           />
         )}
-        {remote && (
+        {remote && shown('ttsUrl') && (
           <>
             <details className={styles.kernBody} open={['ttsUrl', 'ttsTunnelHost', 'ttsEnsureScript'].some((id) => id === hl)}>
               <summary>高级连接</summary>

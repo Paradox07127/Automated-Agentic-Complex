@@ -18,7 +18,7 @@ const shots = (name: string) => `.shots/${test.info().project.name}/settings-out
 for (const theme of ['dark', 'light'] as const) {
   test(`settings-default shows the flow map, with the outbound matrix as its detail (${theme})`, async ({ page }) => {
     const errors = collectErrors(page);
-    await page.goto(`main.html#/settings?still=1&theme=${theme}`);
+    await page.goto(`main.html#/settings?plugins=all&still=1&theme=${theme}`);
     await page.getByRole('button', { name: '展开' }).click();
     await expect(page.locator('svg[aria-label^="外发流向"]')).toBeVisible();
     await page.getByText('读取范围与目的地').click();
@@ -34,7 +34,7 @@ for (const theme of ['dark', 'light'] as const) {
 
 test('settings-adv sends the launch keys to the config file, no raw keys on screen', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?group=adv&still=1');
+  await page.goto('main.html#/settings?plugins=all&group=adv&still=1');
   // The row's description sits in its ⓘ tip.
   await expect(page.getByText('只能在配置文件里改')).toBeAttached();
   await expect(page.getByRole('button', { name: '打开配置文件' })).toBeEnabled();
@@ -44,7 +44,7 @@ test('settings-adv sends the launch keys to the config file, no raw keys on scre
 
 test('settings search still lands on the row', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?group=about&still=1');
+  await page.goto('main.html#/settings?plugins=all&group=about&still=1');
   await page.getByRole('textbox', { name: '搜索设置' }).fill('截图');
   await page.getByRole('button', { name: /屏幕识读时附上截图/ }).click();
   await expect(page).toHaveURL(/#\/settings\?.*group=privacy.*item=shot/);
@@ -54,7 +54,7 @@ test('settings search still lands on the row', async ({ page }) => {
 
 test('kernel drafts show one bottom bar with the only primary button', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?group=kernel&demo=draft&still=1');
+  await page.goto('main.html#/settings?plugins=all&group=kernel&demo=draft&still=1');
   const bar = page.getByRole('region', { name: '未应用的改动' });
   await expect(bar).toBeInViewport();
   await expect(bar).toContainText('未应用 2 项');

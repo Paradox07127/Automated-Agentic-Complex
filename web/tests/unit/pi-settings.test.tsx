@@ -18,6 +18,11 @@ import { ModelGroup } from '../../src/pages/settings/groups/Model';
 import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model';
 import type { Native } from '../../src/pages/settings/native';
 import type { WireModelSettings } from '../../src/pages/settings/wire';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 type Loaded = { native: Native; runtime: WireRuntimePublic; models: WireModelSettings };
 
@@ -249,17 +254,17 @@ describe('compatible API on this machine', () => {
 });
 
 describe('Pi account rows', () => {
-  it('offers only pi 账号与凭据 and 本机无需密钥 as the account source', async () => {
+  it('offers only AI 账号 and 本机无需密钥 as the account source', async () => {
     render(<Harness d={pi()}><KernelGroup /></Harness>);
-    expect(row('acct')?.textContent).toContain('pi 账号与凭据');
+    expect(row('acct')?.textContent).toContain('AI 账号');
     expect(row('acct')?.textContent).not.toContain('内核自己的登录');
-    expect(await options('账号来源')).toEqual(['pi 账号与凭据', '本机无需密钥']);
+    expect(await options('账号来源')).toEqual(['AI 账号', '本机无需密钥']);
   });
 
   it('picks the provider from provider_profiles and the account source the profile needs', async () => {
     render(<Harness d={pi()}><KernelGroup /><ApplyBar /></Harness>);
     expect(row('provider')!.querySelector('input')).toBeNull();
-    expect(await options('服务提供方')).toEqual(['pi 账号与凭据', 'Anthropic API', 'OpenAI API', 'Grok / xAI', 'DeepSeek', '兼容 API']);
+    expect(await options('服务提供方')).toEqual(['AI 账号', 'Anthropic API', 'OpenAI API', 'Grok / xAI', 'DeepSeek', '兼容 API']);
     await click(screen.getByRole('option', { name: 'DeepSeek' }));
     await click(screen.getByRole('button', { name: '应用' }));
     expect(sent('PUT', '/character/runtime')).toEqual({ provider: 'deepseek', auth_source: 'api_key' });

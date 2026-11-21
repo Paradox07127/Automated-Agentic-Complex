@@ -14,6 +14,11 @@ import { CmdPalette, stopTask } from '../../src/shell/CmdPalette';
 import { loadPaletteIndex, paletteItems } from '../../src/shell/CmdPalette.data';
 import { look as runLook, openQuickInput as runQuickInput, resetDesktopOff } from '../../src/shell/desktopOps';
 import { pageRoutes } from '../../src/shell/registry';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 

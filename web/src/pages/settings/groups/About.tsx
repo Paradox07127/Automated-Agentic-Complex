@@ -37,18 +37,21 @@ export function AboutGroup() {
           desc={native?.statuses.login ?? (model.value('login') === true ? '已在系统「登录项」里允许' : '关闭')}
           control={
             <>
-              <Btn
-                size="sm"
-                variant="ghost"
-                disabled={!caps.systemSettings}
-                disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的登录项设置"
-                onClick={() => void bridge.permissions.openSettings('loginItems').then(
-                  () => model.notify({ message: '已打开系统设置 › 登录项' }),
-                  () => model.notify({ message: '没能打开系统设置。请手动检查「登录项」。', severity: 'danger', persistent: true }),
-                )}
-              >
-                去系统设置
-              </Btn>
+              {/* Only when the shell reports the login item did not take: then the system pane is the fix. */}
+              {native?.statuses.login && (
+                <Btn
+                  size="sm"
+                  variant="ghost"
+                  disabled={!caps.systemSettings}
+                  disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的登录项设置"
+                  onClick={() => void bridge.permissions.openSettings('loginItems').then(
+                    () => model.notify({ message: '已打开系统设置 › 登录项' }),
+                    () => model.notify({ message: '没能打开系统设置。请手动检查「登录项」。', severity: 'danger', persistent: true }),
+                  )}
+                >
+                  去系统设置
+                </Btn>
+              )}
               {c.toggle('login')}
             </>
           }
@@ -69,12 +72,11 @@ export function AboutGroup() {
         <SetRow
           id="dev"
           title="开发者模式"
-          desc="显示诊断页、调参页和画面里的性能细项（2× SSAA、渲染尺寸、自阴影精度），以及轮次号、截图配额等内部数据"
+          desc="显示运行记录、诊断、管线和调参页，设置里给开发者的项，画面里的性能细项（2× SSAA、渲染尺寸、自阴影精度），以及轮次号、截图配额等内部数据"
           control={<Toggle on={devMode} label="开发者模式" onChange={setDevMode} />}
         />
         <SetRow
           id="onb"
-          opens
           title="重新运行首次设置"
           control={action('开始', () =>
             void bridge.app.action('open_onboarding').then(
@@ -85,7 +87,6 @@ export function AboutGroup() {
         />
         <SetRow
           id="fonts"
-          opens
           title="字体许可"
           desc="Noto Sans SC、Saira │ SIL OFL 1.1；Material Symbols │ Apache 2.0"
           control={action('查看许可', () =>

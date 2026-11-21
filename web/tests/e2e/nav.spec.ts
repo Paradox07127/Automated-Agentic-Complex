@@ -29,7 +29,7 @@ async function expectDetail(page: Page, hash: RegExp) {
 
 test('overview: a role task row under 进行中 opens the task detail with its run waterfall', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await page.getByRole('button', { name: /^角色任务「汇总 10 月开销表」/ }).click();
   await expectLanding(page, /#\/overview\?.*sel=(job|task)%3A[\w-]+/, 'run-waterfall');
   await expect(page.locator('[data-nav-hl]')).toHaveAttribute('data-stub', 'RunWaterfall');
@@ -38,7 +38,7 @@ test('overview: a role task row under 进行中 opens the task detail with its r
 
 test('diag 前往设置 lands on the voice source row in settings', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/diag?still=1');
+  await page.goto('main.html#/diag?plugins=all&still=1');
   await page.getByRole('status').filter({ hasText: '语音受限' }).getByRole('button', { name: '前往设置' }).click();
   await expectLanding(page, /#\/settings\?.*group=speak.*item=tts/, 'set-tts');
   expect(errors).toEqual([]);
@@ -55,7 +55,7 @@ test('the HUD error line title opens the failed task', async ({ page }) => {
 
 test('⌘K jumps to a page', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
   await page.keyboard.press('ControlOrMeta+k');
   await page.keyboard.type('诊断');
@@ -69,7 +69,7 @@ test('⌘K jumps to a page', async ({ page }) => {
 
 test('⌘1–⌘3 reach 工业简报, 对话 and 记忆', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?still=1');
+  await page.goto('main.html#/settings?plugins=all&still=1');
   await expect(page.locator('main[data-route-id="settings"]')).toBeVisible();
   const pages = ['overview', 'chat', 'memory'];
   for (const [i, id] of pages.entries()) {
@@ -84,7 +84,7 @@ test('900×600: the command bar does not wrap or scroll, and nothing scrolls sid
   await page.setViewportSize({ width: 900, height: 600 });
   // The macOS shell's traffic-light inset.
   await page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => document.documentElement.style.setProperty('--ef-chrome-left', '84px')));
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
   await expect(nav).toBeVisible();
   expect((await nav.boundingBox())?.height).toBe(50);
@@ -109,7 +109,7 @@ test('900×600: the command bar does not wrap or scroll, and nothing scrolls sid
   await page.getByRole('menuitem', { name: /^记忆/ }).click();
   await expect(page.locator('main[data-route-id="memory"]')).toBeVisible();
   expect((await wide()).html).toBe(0);
-  await page.goto('main.html#/settings?still=1');
+  await page.goto('main.html#/settings?plugins=all&still=1');
   await expect(page.locator('main[data-route-id="settings"]')).toBeVisible();
   expect(await nav.evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
   expect(await homeWhole()).toBe(true);
@@ -117,7 +117,7 @@ test('900×600: the command bar does not wrap or scroll, and nothing scrolls sid
 
 test('1920×1080: the content area is at most 1600 wide and centred', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
   await expect(nav).toBeVisible();
   const box = await page.locator('[data-shell="content"]').boundingBox();
@@ -139,7 +139,7 @@ test('switching pages cuts straight to the next page: no view transition', async
       return real(arg);
     }) as typeof document.startViewTransition;
   });
-  await page.goto('main.html#/chat');
+  await page.goto('main.html#/chat?plugins=all');
   await expect(page.locator('main[data-route-id="chat"]')).toBeVisible();
   await page.keyboard.press('ControlOrMeta+1');
   await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
@@ -154,7 +154,7 @@ test('switching pages cuts straight to the next page: no view transition', async
 
 test('settings 「用量和费用 → 诊断」 lands on the diag usage card', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?group=model&still=1');
+  await page.goto('main.html#/settings?plugins=all&group=model&still=1');
   await page.getByRole('button', { name: '用量和费用 → 诊断' }).click();
   await expectLanding(page, /#\/diag\?.*item=usage/, 'diag-usage');
   expect(errors).toEqual([]);

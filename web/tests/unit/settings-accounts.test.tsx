@@ -21,6 +21,11 @@ import type { Native } from '../../src/pages/settings/native';
 import { usePerms } from '../../src/pages/settings/perms';
 import { GROUP_LABEL } from '../../src/pages/settings/registry';
 import type { WireDiagSlice, WireModelSettings } from '../../src/pages/settings/wire';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 type Loaded = { native: Native; runtime: WireRuntimePublic; models: WireModelSettings | null; diag: WireDiagSlice };
 
@@ -98,9 +103,9 @@ afterEach(() => {
 const click = (el: Element) => act(async () => void fireEvent.click(el));
 const sent = (method: string, path: string) => request.mock.calls.filter((c) => c[0] === method && c[1] === path).map((c) => c[2]);
 
-describe('pi 账号与凭据', () => {
+describe('AI 账号', () => {
   it('names the page for pi and lists the seven providers', async () => {
-    expect(GROUP_LABEL.model).toBe('pi 账号与凭据');
+    expect(GROUP_LABEL.model).toBe('AI 账号');
     render(<Harness d={d}><ModelGroup /></Harness>);
     await click(screen.getByRole('button', { name: '模型服务' }));
     const options = within(screen.getByRole('listbox', { name: '模型服务' })).getAllByRole('option');

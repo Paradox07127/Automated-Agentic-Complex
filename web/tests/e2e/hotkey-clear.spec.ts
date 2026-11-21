@@ -9,7 +9,7 @@ for (const theme of ['dark', 'light'] as const) {
   test(`清除 leaves a hot key 未设置 (${theme})`, async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
-    await page.goto(`main.html#/settings?group=keys&still=1&theme=${theme}`);
+    await page.goto(`main.html#/settings?plugins=all&group=keys&still=1&theme=${theme}`);
     const row = page.locator('[data-row="hk_look"]');
     await row.getByRole('button', { name: '清除' }).click();
     await expect(row).toContainText('未设置');

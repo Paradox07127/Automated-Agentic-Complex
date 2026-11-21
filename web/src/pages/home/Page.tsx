@@ -5,10 +5,10 @@ import { gameClips } from '../../design/gameClips.generated';
 import { sortPending } from '../../domain';
 import { useDemo } from '../../shell/demo';
 import { look, openQuickInput, stopSpeech, useDesktopOff } from '../../shell/desktopOps';
-import { useDevMode } from '../../shell/devMode';
 import { OPEN_PALETTE } from '../../shell/Layout';
 import { useGo, type PageId } from '../../shell/nav';
-import { pageRoutes } from '../../shell/registry';
+import { usePlugins, type PluginId } from '../../shell/plugins';
+import { useVisibleRoutes } from '../../shell/registry';
 import { Icon, Stage3D, useGameClip, type IconName } from '../../ui';
 import { nextReminder, reminderTime, runRows } from '../overview/briefModel';
 import { useNow } from '../overview/nav';
@@ -25,7 +25,7 @@ import { useFit } from './useFit';
 import { Sway, useAttended } from './watchMotion';
 import styles from './Home.module.css';
 
-/** Same icons as the command bar's tabs. */
+/** Same icons as the command bar's tabs. A page key shows while its page is offered (its plug-in on, devOnly in 开发者模式). */
 const LEFT: ReadonlyArray<[string, IconName]> = [
   ['character', 'user'],
   ['chat', 'send'],
@@ -45,20 +45,42 @@ const MORE: ReadonlyArray<[string, IconName]> = [
   ['tune', 'tool'],
 ];
 
-const routeOf = (id: string) => pageRoutes.find((r) => r.id === id);
+/** An action key: shown while its plug-in is on and the page it lands on is offered. */
+interface Act<Id extends string> {
+  id: Id;
+  icon: IconName;
+  title: string;
+  hotkey?: string;
+  plugin?: PluginId;
+  page?: PageId;
+}
+const RIGHT_ACTS: ReadonlyArray<Act<'dispatch' | 'search'>> = [
+  { id: 'dispatch', icon: 'plus', title: '派发任务', hotkey: '⌘N', plugin: 'personal_agent', page: 'overview' },
+  { id: 'search', icon: 'search', title: '搜索', hotkey: '⌘K' },
+];
+const SIDE_ACTS: ReadonlyArray<Act<'look' | 'quickInput' | 'stopSpeech'>> = [
+  { id: 'look', icon: 'look', title: '屏幕识读', plugin: 'screen_reading' },
+  { id: 'quickInput', icon: 'bolt', title: '快速输入' },
+  { id: 'stopSpeech', icon: 'stop', title: '停止说话' },
+];
+
 /** The stage's smallest text is 12px; under this scale, with the tilted groups' foreshortening, it would render below 11px. */
 const K_MIN = 0.925;
-
-/** As the command bar's 工具 menu: 定时任务 is listed though it has no nav entry; devOnly pages only in 开发者模式. */
-const listed = (id: string, devMode: boolean) => {
-  const r = routeOf(id);
-  return r && (r.nav !== false || r.id === 'schedules') && (!r.devOnly || devMode) ? r : undefined;
-};
 
 export function HomePage() {
   const { state, demo, still } = useDemo();
   const go = useGo();
-  const devMode = useDevMode();
+  const plugins = usePlugins();
+  const routes = useVisibleRoutes();
+  const routeOf = (id: string) => routes.find((r) => r.id === id);
+  // As the command bar's 工具 menu: 定时任务 is listed though it has no nav entry.
+  const listed = (id: string) => {
+    const r = routeOf(id);
+    return r && (r.nav !== false || r.id === 'schedules') ? r : undefined;
+  };
+  const offered = (a: Act<string>) => (!a.plugin || plugins[a.plugin]) && (!a.page || !!listed(a.page));
+  // 待处理, 提醒, the disc's items and the bottom card all land on the today page.
+  const today = routeOf('overview');
   const [fit, k, room] = useFit<HTMLDivElement>(STAGE.w, STAGE.h, 12, K_MIN);
   // Too narrow for the face at K_MIN: the 快捷动作 column at the far right folds first.
   const narrow = room < FACE_W;
@@ -89,28 +111,21 @@ export function HomePage() {
     };
   }, [watchIn]);
 
-  const left = LEFT.flatMap(([id, icon]) => {
-    const r = listed(id, devMode);
-    return r ? [{ id, icon, title: r.title, hotkey: r.hotkey, onClick: () => go({ page: id as PageId }) }] : [];
-  });
-  const right = [
-    ...RIGHT.flatMap(([id, icon]) => {
-      const r = listed(id, devMode);
-      return r ? [{ id, icon, title: r.title, hotkey: r.hotkey, onClick: () => go({ page: id as PageId }) }] : [];
-    }),
-    { id: 'dispatch', icon: 'plus' as const, title: '派发任务', hotkey: '⌘N', onClick: () => go({ page: 'overview', create: 'role', focus: 'task-create' }) },
-    { id: 'search', icon: 'search' as const, title: '搜索', hotkey: '⌘K', onClick: () => window.dispatchEvent(new Event(OPEN_PALETTE)) },
-  ];
-  const side = [
-
-      { id: 'look', icon: 'look' as const, title: '屏幕识读', off: off.look, onClick: () => void look() },
-      { id: 'quickInput', icon: 'bolt' as const, title: '快速输入', off: off.quickInput, onClick: () => void openQuickInput() },
-      { id: 'stopSpeech', icon: 'stop' as const, title: '停止说话', off: off.stopSpeech, onClick: () => void stopSpeech() },
-    ...MORE.flatMap(([id, icon]) => {
-      const r = listed(id, devMode);
-      return r ? [{ id, icon, title: r.title, off: undefined, onClick: () => go({ page: id as PageId }) }] : [];
-    }),
-  ];
+  const pages = (keys: ReadonlyArray<[string, IconName]>) =>
+    keys.flatMap(([id, icon]) => {
+      const r = listed(id);
+      return r ? [{ id, icon, title: r.title, hotkey: r.hotkey, off: undefined, onClick: () => go({ page: id as PageId }) }] : [];
+    });
+  const acts = {
+    dispatch: () => go({ page: 'overview', create: 'role', focus: 'task-create' }),
+    search: () => window.dispatchEvent(new Event(OPEN_PALETTE)),
+    look: () => void look(),
+    quickInput: () => void openQuickInput(),
+    stopSpeech: () => void stopSpeech(),
+  };
+  const left = pages(LEFT);
+  const right = [...pages(RIGHT), ...RIGHT_ACTS.filter(offered).map((a) => ({ ...a, onClick: acts[a.id] }))];
+  const side = [...SIDE_ACTS.filter(offered).map((a) => ({ ...a, off: off[a.id], onClick: acts[a.id] })), ...pages(MORE)];
   const sideBoxes = sideIcons(side.length);
   const next = q.data ? nextReminder(snap.reminders, now) : null;
   // The face turns up to half a degree toward the pointer, like a watch held in the hand.
@@ -128,13 +143,12 @@ export function HomePage() {
   const leftBoxes = leftTiles(left.length);
   const rightBoxes = rightTiles(right.length);
   const groups = Array.from({ length: Math.ceil(right.length / 2) }, (_, i) => right.slice(i * 2, i * 2 + 2));
-  const today = routeOf('overview')?.title ?? '';
   const character = routeOf('character')?.title ?? '';
   const waiting = (counts.pending ?? 0) > 0;
 
   return (
     <div ref={fit} className={styles.page} data-page="home" onPointerMove={onMove} onPointerLeave={onLeave}>
-      {next && (
+      {next && today && (
         <button type="button" className={styles.notice} onClick={() => go({ page: 'overview', focus: 'reminders' })}>
           <Icon name="bell" size={14} />
           <span className="num">{reminderTime(next.due_at, now)}</span>
@@ -149,17 +163,21 @@ export function HomePage() {
             <div className={styles.map} data-g="map" aria-hidden="true" />
             <Rings />
             <Logo />
-            <TopIcon
-              box={TOP_ICONS[0]}
-              icon="hand"
-              label={`待处理 ${counts.pending ?? '—'}`}
-              count={counts.pending}
-              dot={waiting ? (attended ? 'live' : 'still') : undefined}
-              g="topBtn1"
-              onClick={() => go({ page: 'overview', focus: 'pending' })}
-            />
-            <TopIcon box={TOP_ICONS[1]} icon="bell" label="提醒" g="topBtn3" onClick={() => go({ page: 'overview', focus: 'reminders' })} />
-            <Disc title={character} snap={snap} urgent={q.data ? pending : []} act={act} go={go} />
+            {today && (
+              <>
+                <TopIcon
+                  box={TOP_ICONS[0]}
+                  icon="hand"
+                  label={`待处理 ${counts.pending ?? '—'}`}
+                  count={counts.pending}
+                  dot={waiting ? (attended ? 'live' : 'still') : undefined}
+                  g="topBtn1"
+                  onClick={() => go({ page: 'overview', focus: 'pending' })}
+                />
+                <TopIcon box={TOP_ICONS[1]} icon="bell" label="提醒" g="topBtn3" onClick={() => go({ page: 'overview', focus: 'reminders' })} />
+              </>
+            )}
+            <Disc title={character} snap={snap} urgent={today && q.data ? pending : []} act={act} go={go} />
             <div className={styles.layer} role="group" aria-label="主要页面">
               {left.map((t, i) => (
                 <WatchKey key={t.id} shape={(i + 1) as 1 | 2 | 3 | 4} box={leftBoxes[i]!} icon={t.icon} title={t.title} hotkey={t.hotkey} g={LEFT_G[i]} onClick={t.onClick} />
@@ -177,11 +195,14 @@ export function HomePage() {
             {!narrow && (
               <div className={styles.layer} role="group" aria-label="快捷动作">
                 {side.map((t, i) => (
-                  <TopIcon key={t.id} box={sideBoxes[i]!} icon={t.icon} label={t.title} off={t.off} g={`side${i + 1}`} onClick={t.onClick} />
+                  <TopIcon key={t.id} box={sideBoxes[i]!} icon={t.icon} label={t.title} named off={t.off} g={`side${i + 1}`} onClick={t.onClick} />
                 ))}
               </div>
             )}
-            <BottomBar label={today} counts={counts} action={{ icon: 'send', title: '打开对话', onClick: () => go({ page: 'chat' }) }} onCard={() => go({ page: 'overview' })} />
+            <BottomBar
+              card={today && { label: today.title, counts, onClick: () => go({ page: 'overview' }) }}
+              action={{ icon: 'send', title: '打开对话', onClick: () => go({ page: 'chat' }) }}
+            />
             <ClockCard box={CLOCK} now={now} conn={conn} />
             {entered && attended && !still && <Sway root={hud} />}
           </div>

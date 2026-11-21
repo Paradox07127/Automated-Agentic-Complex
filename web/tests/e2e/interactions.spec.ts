@@ -46,7 +46,7 @@ test.describe('HUD: dangerous approval never approves from the keyboard', () => 
 });
 
 async function openWintextConfirm(page: Page) {
-  await page.goto('main.html#/settings?group=privacy&still=1');
+  await page.goto('main.html#/settings?plugins=all&group=privacy&still=1');
   const sw = page.getByRole('switch', { name: '窗口文字', exact: true });
   await expect(sw).toHaveAttribute('aria-checked', 'true');
   await sw.click();

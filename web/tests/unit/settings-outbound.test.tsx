@@ -17,6 +17,11 @@ import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model
 import { searchSettings } from '../../src/pages/settings/registry';
 import { SearchResults } from '../../src/pages/settings/SearchResults';
 import { SetSection } from '../../src/pages/settings/SetSection';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 async function mockGet<T>(path: string): Promise<T> {
   const r = routes.find((x) => x.method === 'GET' && x.path === path);

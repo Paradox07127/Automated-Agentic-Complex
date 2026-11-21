@@ -268,6 +268,22 @@
   font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-num);
 }
 
+/* The 快捷动作 column: the icon over its name, as the icon tabs, without the bar. */
+.top[data-named] {
+  flex-direction: column;
+  gap: var(--ef-sp-2);
+  padding: 0;
+}
+
+.topName {
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  white-space: nowrap;
+}
+
+.top[data-named] .bar {
+  display: none;
+}
+
 .dot {
   position: absolute;
   top: var(--ef-sp-4);

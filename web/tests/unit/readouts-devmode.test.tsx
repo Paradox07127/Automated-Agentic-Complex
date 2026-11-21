@@ -137,12 +137,12 @@ const noop = () => {};
 describe(' 开发者模式 off', () => {
   beforeEach(() => setDevMode(false));
 
-  it('offers diagnostics and run records while keeping developer pages out of normal navigation', async () => {
+  it('keeps diagnostics, run records and the other developer pages out of normal navigation', async () => {
     const nav = await commandBar();
     expect(within(nav).queryAllByRole('link')).toEqual([]);
     for (const name of ['工业简报', '对话', '记忆', '角色', '设置', '定时任务']) expect(screen.getByRole('menuitem', { name: new RegExp(`^${name}`) })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: '诊断' })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: '运行记录' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: '诊断' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: '运行记录' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /设计系统/ })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /管线/ })).toBeNull();
   });

@@ -8,5 +8,6 @@ export const route: PageRoute = {
   en: 'Trace',
   order: 120,
   group: 'secondary',
+  devOnly: true,
   component: lazyRouteComponent(() => import('./Page'), 'TracePage'),
 };

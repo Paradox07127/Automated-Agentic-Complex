@@ -1,4 +1,5 @@
 import type { RouteComponent } from '@tanstack/react-router';
+import type { PluginId } from '../bridge/plugins.generated';
 
 /** A screenshot-able state of a page: name plus the hash query that opens it. */
 export interface Demo {
@@ -23,6 +24,8 @@ export interface PageRoute {
   nav?: false;
   /** Listed in the sidebar and ⌘K only in 开发者模式; its URL and hotkey still open it. */
   devOnly?: true;
+  /** The plug-in it belongs to: kept out of the menus, ⌘K and the hotkeys while that plug-in is off; its URL still opens it. */
+  plugin?: PluginId;
   /** Lazy for the pages (`lazyRouteComponent`), so each page's code loads on first visit. */
   component: RouteComponent;
   /** Pages leave this out: the registry attaches `src/pages/<id>/demos.ts` outside the shipped app. */

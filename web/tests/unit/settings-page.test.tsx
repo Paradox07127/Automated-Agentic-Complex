@@ -4,7 +4,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { oldWordHits } from '../../scripts/check-copy.mjs';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { SettingsPage } from '../../src/pages/settings/Page';
@@ -12,6 +12,11 @@ import { PAGE_KEYS } from '../../src/pages/settings/groups/Keys';
 import { quotaWord } from '../../src/pages/settings/Outbound';
 import { daySpan } from '../../src/pages/settings/diag';
 import { pageRoutes } from '../../src/shell/registry';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -132,11 +137,10 @@ describe(' states and navigation', () => {
     expect(sec.querySelector(':scope > [data-stub="SecHead"]')).toBeNull();
   });
 
-  it('marks only the rows that open a dialog or another page as pressable', async () => {
+  it('draws no › on a row whose control is a button', async () => {
     await mount('&group=data');
     await screen.findByText('清空活动记录…');
-    for (const id of ['delrecent', 'delact', 'delall']) expect(document.querySelector(`[data-row="${id}"]`)?.hasAttribute('data-opens')).toBe(true);
-    expect(document.querySelector('[data-row="archive"]')?.hasAttribute('data-opens')).toBe(false);
+    for (const id of ['delrecent', 'delact', 'delall', 'archive']) expect(document.querySelector(`[data-row="${id}"]`)?.hasAttribute('data-opens')).toBe(false);
     cleanup();
     await mount('');
     await screen.findByRole('switch', { name: '观察屏幕活动' });

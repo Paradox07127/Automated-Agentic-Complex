@@ -58,16 +58,16 @@ export function rightTiles(n: number): Box[] {
   });
 }
 
-/** Small icons right of the keys, top to bottom along the ring; 36 px apart. */
+/** Small icons with their names right of the keys, top to bottom along the ring; 52 px apart. */
 export function sideIcons(n: number): Box[] {
   return Array.from({ length: n }, (_, i) => {
-    const y = -60 + (i - (n - 1) / 2) * 36 + 60;
-    return box(404 - (y * y) / 900, y, 36, 32);
+    const y = -60 + (i - (n - 1) / 2) * 52 + 60;
+    return box(404 - (y * y) / 900, y, 52, 48);
   });
 }
 
-/** Width of the face centred on the ring: the side icons reach 422 px right of centre, the left keys 386 px left. */
-export const FACE_W = 844;
+/** Width of the face centred on the ring: the side icons reach 430 px right of centre, the left keys 386 px left. */
+export const FACE_W = 860;
 
 /** TopLeftBtn1 (mail) and TopLeftBtn3 (notice). */
 export const TOP_ICONS = [box(-248, -181, 44, 44), box(-194.5, -181, 44, 44)] as const;

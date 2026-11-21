@@ -63,7 +63,7 @@ async function menu(page: Page, name: string) {
 }
 
 test('leaving home leaves one inert copy that plays watchOut and is gone within 1500 ms', async ({ page }) => {
-  await page.goto('main.html#/home');
+  await page.goto('main.html#/home?plugins=all');
   await expect(page.locator('main[data-route-id="home"]')).toBeVisible();
   await settle(page);
   await watch(page, '[data-page-exit]');
@@ -80,7 +80,7 @@ test('leaving home leaves one inert copy that plays watchOut and is gone within 
 });
 
 test('still=1 makes no copy when the page changes', async ({ page }) => {
-  await page.goto('main.html#/home?still=1');
+  await page.goto('main.html#/home?plugins=all&still=1');
   await expect(page.locator('main[data-route-id="home"]')).toBeVisible();
   await watch(page, '[data-page-exit]');
   await brief(page).click();
@@ -93,7 +93,7 @@ test('still=1 makes no copy when the page changes', async ({ page }) => {
 });
 
 test('a search-param change on the same page makes no copy', async ({ page }) => {
-  await page.goto('main.html#/overview');
+  await page.goto('main.html#/overview?plugins=all');
   await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
   // Overview's countdown bars run every second, so there is no settled moment to wait for.
   await page.waitForTimeout(800);
@@ -106,7 +106,7 @@ test('a search-param change on the same page makes no copy', async ({ page }) =>
 });
 
 test('closing a Modal leaves a copy that plays popupOut and is gone within 1000 ms', async ({ page }) => {
-  await page.goto('main.html#/overview');
+  await page.goto('main.html#/overview?plugins=all');
   await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: '命令' });

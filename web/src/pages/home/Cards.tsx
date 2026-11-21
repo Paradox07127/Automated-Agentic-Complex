@@ -7,28 +7,19 @@ import styles from './Cards.module.css';
 
 const at = (b: Box): CSSProperties => ({ left: b.left, top: b.top, width: b.width, height: b.height });
 
+/** The today card, absent while its page is not offered. */
+export interface BarCard {
+  label: string;
+  counts: { pending: number | null; running: number | null };
+  onClick: () => void;
+}
+
 /** The bottom bar (HudBgShdow): its glow band, the briefing's counts in the left slot (the game's ReportNode) and an action in the right one. */
-export function BottomBar({ label, counts, action, onCard }: { label: string; counts: { pending: number | null; running: number | null }; action: { icon: IconName; title: string; onClick: () => void }; onCard: () => void }) {
-  const pending = `待办 ${counts.pending ?? "—"}`;
-  const running = `在做 ${counts.running ?? "—"}`;
-  const line = `${pending} │ ${running}`;
+export function BottomBar({ card, action }: { card: BarCard | undefined; action: { icon: IconName; title: string; onClick: () => void } }) {
   return (
     <div className={styles.barNode} data-g="hudBar">
       <span className={styles.band} style={at(BAR)} aria-hidden="true" />
-      <button type="button" className={`${styles.slot} ${styles.card}`} style={at(BAR_SLOTS[0])} aria-label={`${label}：${line}`} onClick={onCard}>
-        <span className={styles.face} aria-hidden="true">
-          <Icon name="clock" size={24} />
-        </span>
-        <span className={styles.who} aria-hidden="true">
-          <b>{label}</b>
-          {/* A hairline in place of the full-width │ keeps two-digit counts whole. */}
-          <span className="num">
-            {pending}
-            <i className={styles.sep} />
-            {running}
-          </span>
-        </span>
-      </button>
+      {card && <TodayCard {...card} />}
       <button type="button" className={`${styles.slot} ${styles.act}`} style={at(BAR_SLOTS[1])} aria-label={action.title} onClick={action.onClick}>
         <span className={styles.actIn} aria-hidden="true">
           <Icon name={action.icon} size={20} />
@@ -36,6 +27,28 @@ export function BottomBar({ label, counts, action, onCard }: { label: string; co
         </span>
       </button>
     </div>
+  );
+}
+
+function TodayCard({ label, counts, onClick }: BarCard) {
+  const pending = `待办 ${counts.pending ?? "—"}`;
+  const running = `在做 ${counts.running ?? "—"}`;
+  const line = `${pending} │ ${running}`;
+  return (
+    <button type="button" className={`${styles.slot} ${styles.card}`} style={at(BAR_SLOTS[0])} aria-label={`${label}：${line}`} onClick={onClick}>
+      <span className={styles.face} aria-hidden="true">
+        <Icon name="clock" size={24} />
+      </span>
+      <span className={styles.who} aria-hidden="true">
+        <b>{label}</b>
+        {/* A hairline in place of the full-width │ keeps two-digit counts whole. */}
+        <span className="num">
+          {pending}
+          <i className={styles.sep} />
+          {running}
+        </span>
+      </span>
+    </button>
   );
 }
 

@@ -10,7 +10,7 @@ function collectErrors(page: Page): string[] {
 }
 
 async function palette(page: Page, query: string) {
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: '命令' });
@@ -75,7 +75,7 @@ test('⌘K 「内核」 re-checks the kernel and lands on the settings kernel ro
 
 test('⌘1–3 switch pages and ⌘, opens settings in the web layer', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
   const pages = ['overview', 'chat', 'memory'];
   for (const [i, id] of [...pages.entries()].reverse()) {

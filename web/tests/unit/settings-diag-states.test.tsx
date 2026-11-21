@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { CharacterSettings } from '../../src/pages/character/CharacterSettings';
 import { DgFlow } from '../../src/pages/diag/DgFlow';
@@ -22,6 +22,11 @@ import { SettingsPage } from '../../src/pages/settings/Page';
 import { searchSettings } from '../../src/pages/settings/registry';
 import type { WireGateEvent } from '../../src/pages/settings/wire';
 import type { Health } from '../../src/domain';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
 

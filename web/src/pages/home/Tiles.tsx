@@ -66,17 +66,24 @@ export interface TopIconProps {
   g: string;
   /** Why it cannot run on this shell; the icon is then disabled. */
   off?: string | undefined;
+  /** Its name under the icon. */
+  named?: boolean;
   onClick: () => void;
 }
 
 /** A small top-left icon (mail / notice): the icon over its shadow and a bar underneath. */
-export function TopIcon({ box, icon, label, count, dot, g, off, onClick }: TopIconProps) {
+export function TopIcon({ box, icon, label, count, dot, g, off, named, onClick }: TopIconProps) {
   return (
     <span className={styles.slot} style={at(box)} data-g={g}>
-      <button type="button" className={styles.top} aria-label={label} title={off ?? label} disabled={!!off} onClick={onClick}>
+      <button type="button" className={styles.top} data-named={named || undefined} aria-label={label} title={off ?? label} disabled={!!off} onClick={onClick}>
         <span className={styles.topIcon} aria-hidden="true">
           <Icon name={icon} size={20} />
         </span>
+        {named && (
+          <span className={styles.topName} aria-hidden="true">
+            {label}
+          </span>
+        )}
         {count !== undefined && (
           <span className={`${styles.count} num`} aria-hidden="true">
             {count ?? '—'}

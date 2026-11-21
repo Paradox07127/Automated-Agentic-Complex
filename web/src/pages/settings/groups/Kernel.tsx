@@ -9,6 +9,7 @@ import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { failure, installAcpAgent, readAcpAgents, type AcpAgent, type AcpAgents, type AcpInstall } from '../api';
 import { acctOptions, providerOptions, RUNSRC, RUNTIME_ERROR, RUNTIME_ERROR_UNKNOWN, type ProviderProfile, type RuntimeError } from '../fields';
+import { useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
 import { Slab } from '../Slab';
@@ -75,6 +76,7 @@ function useAcpAgents(agentdOff: boolean) {
 export function KernelGroup() {
   const { model, ro, agentdOff, runtime, runtimeChecking, goRow, caps } = useSettings();
   const c = useControls();
+  const shown = useRowShown();
   const k = useKernelActions();
   const bridge = getBridge();
   const selected = String(model.value('kernel'));
@@ -358,13 +360,13 @@ export function KernelGroup() {
         </SetSection>
       )}
 
-      <SetSection title="账号">
+      {shown('mainModel') && <SetSection title="账号">
         {!ownLogin && (
           <>
             <SetRow
               id="acct"
               title="账号来源"
-              desc={selected === 'pi' ? undefined : model.value('acct') === 'api_key' ? '用 pi 账号与凭据 里保存的 API 凭据' : '用内核自己的登录'}
+              desc={selected === 'pi' ? undefined : model.value('acct') === 'api_key' ? '用 AI 账号 里保存的 API 凭据' : '用内核自己的登录'}
               control={c.select('acct', acctOptions(selected, model.value('acct')))}
             />
             <SetRow
@@ -375,20 +377,20 @@ export function KernelGroup() {
           </>
         )}
         <SetRow id="mainModel" title="主会话模型" desc="留空用内核默认模型" control={c.text('mainModel', '主会话模型', '模型 ID')} />
-      </SetSection>
+      </SetSection>}
 
-      <KernelRoutes agents={acp.list?.agents ?? []} />
+      {shown('routes') && <KernelRoutes agents={acp.list?.agents ?? []} />}
 
-      {selected === 'pi' && <KernelPi />}
+      {selected === 'pi' && shown('runsrc') && <KernelPi />}
 
-      <SetSection title="已接通能力">
+      {shown('caps') && <SetSection title="已接通能力">
         {FEATURE.filter(([key]) => features[key]?.implemented).map(([key, label]) => {
           const f = features[key] ?? {};
           const state = f.enabled === false ? '已接入 │ 未启用' : '已接通';
           return <SetRow key={key} id={`cap-${key}`} title={label} control={<StatusTag state={state === '已接通' ? 'ok' : 'todo'} label={state} />} />;
         })}
         {Object.keys(features).length === 0 && <p className={styles.note}>保存并刷新后显示这个内核接通的能力</p>}
-      </SetSection>
+      </SetSection>}
     </>
   );
 }

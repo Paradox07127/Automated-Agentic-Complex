@@ -15,7 +15,7 @@ const noOverflow = (page: Page) => page.evaluate(() => document.documentElement.
 
 test('privacy: the outbound panel shows two big figures and one fold; [展开] shows the screenshot chart, hours, flow map and detail table', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?still=1');
+  await page.goto('main.html#/settings?plugins=all&still=1');
   const plate = page.getByRole('region', { name: '外发总览' });
   await expect(plate).toBeVisible();
   await expect(plate).toContainText(/今日截图\s*37 \/ 200\s*正常\s*允许送往云端的类型\s*\d 项/);
@@ -42,7 +42,7 @@ test('privacy: the outbound panel shows two big figures and one fold; [展开] s
 });
 
 test('a flow route jumps to its setting row', async ({ page }) => {
-  await page.goto('main.html#/settings?still=1');
+  await page.goto('main.html#/settings?plugins=all&still=1');
   await page.getByRole('button', { name: '展开' }).click();
   await page.locator('svg[aria-label^="外发流向"] g[data-on]').first().click();
   await expect(page).toHaveURL(/item=shot/);
@@ -51,17 +51,17 @@ test('a flow route jumps to its setting row', async ({ page }) => {
 
 test('speak: the gate plate; sparse has one line and nothing blocked', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?group=speak&still=1');
+  await page.goto('main.html#/settings?plugins=all&group=speak&still=1');
   const gate = page.getByRole('region', { name: '今日发言闸门' });
   await expect(gate.getByRole('img', { name: '今日主动发言：已用 6 次，上限 12，已拦截 3 次' })).toBeVisible();
-  await page.goto('main.html#/settings?group=speak&demo=sparse&still=1');
+  await page.goto('main.html#/settings?plugins=all&group=speak&demo=sparse&still=1');
   await expect(page.getByRole('img', { name: '今日主动发言：已用 1 次，上限 12' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
 test('the groups are 50 px icon tabs in the command bar; the selected one drops the 76x56 yellow plate with a dark icon; a click switches group', async ({ page }) => {
   for (const theme of ['dark', 'light'] as const) {
-    await page.goto(`main.html#/settings?still=1&theme=${theme}`);
+    await page.goto(`main.html#/settings?plugins=all&still=1&theme=${theme}`);
     const on = page.getByRole('navigation', { name: '主导航' }).getByRole('tablist', { name: '设置分组' }).getByRole('tab', { selected: true });
     await expect(on).toHaveText(/隐私/);
     await expect(on).toHaveAttribute('title', '隐私');
@@ -78,26 +78,26 @@ test('the groups are 50 px icon tabs in the command bar; the selected one drops 
 });
 
 test('error demo: the config.json groups say the read failed and stay read-only, the others render', async ({ page }) => {
-  await page.goto('main.html#/settings?state=error&still=1');
+  await page.goto('main.html#/settings?plugins=all&state=error&still=1');
   // Shown once above the group; disabled switches keep it as their hidden description.
   await expect(page.getByText('读取设置失败，这一组暂不能修改').filter({ visible: true })).toHaveCount(1);
   await expect(page.getByText('不可用：')).toHaveCount(0);
   await expect(page.getByRole('region', { name: '外发总览' })).toBeVisible();
-  await page.goto('main.html#/settings?state=error&group=kernel&still=1');
+  await page.goto('main.html#/settings?plugins=all&state=error&group=kernel&still=1');
   await expect(page.getByRole('heading', { name: '选择内核' })).toBeVisible();
   await expect(page.getByText(/读取设置失败/)).toHaveCount(0);
 });
 
 test('toggles are the small switch in both themes', async ({ page }) => {
   for (const theme of ['dark', 'light']) {
-    await page.goto(`main.html#/settings?still=1&theme=${theme}`);
+    await page.goto(`main.html#/settings?plugins=all&still=1&theme=${theme}`);
     const sw = page.getByRole('switch', { name: '键鼠计数' });
     expect((await sw.boundingBox())?.width).toBeLessThanOrEqual(120);
   }
 });
 
 test('rows: the row plate with a 1px rim, name 15/500 and its description in an ⓘ beside it; the child row is indented', async ({ page }) => {
-  await page.goto('main.html#/settings?still=1&theme=dark');
+  await page.goto('main.html#/settings?plugins=all&still=1&theme=dark');
   const row = page.locator('[data-row="observe"]');
   const look = await row.evaluate((el) => {
     const s = getComputedStyle(el);
@@ -117,16 +117,14 @@ test('rows: the row plate with a 1px rim, name 15/500 and its description in an 
   expect(await sec.getByRole('heading', { name: '读取范围' }).evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el).fontSize])).toEqual(['rgb(255, 241, 0)', '13px']);
 });
 
-test('a row that opens a dialog has a suffix arrow and a trace bar on hover, no cut corner; a switch row has neither', async ({ page }) => {
-  await page.goto('main.html#/settings?group=data');
-  const opener = page.locator('[data-row="delact"]');
-  const bar = () => opener.evaluate((el) => getComputedStyle(el, '::before').transform);
-  expect(await opener.locator('[data-stub="SRow"]').evaluate((el) => getComputedStyle(el, '::after').content)).not.toBe('none');
-  expect(await opener.locator('[data-stub="SRow"]').evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none');
-  expect(await bar()).toBe('matrix(1, 0, 0, 0, 0, 0)');
-  await opener.hover({ position: { x: 80, y: 20 } });
-  await expect.poll(bar).toBe('none');
-  await page.goto('main.html#/settings?still=1');
+test('a row whose control is a button has no suffix arrow, no trace bar and no cut corner; a switch row neither', async ({ page }) => {
+  await page.goto('main.html#/settings?plugins=all&group=data');
+  const button = page.locator('[data-row="delact"]');
+  await button.hover({ position: { x: 80, y: 20 } });
+  expect(await button.locator('[data-stub="SRow"]').evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+  expect(await button.locator('[data-stub="SRow"]').evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none');
+  expect(await button.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none');
+  await page.goto('main.html#/settings?plugins=all&still=1');
   const plain = page.locator('[data-row="keys"]');
   await plain.hover({ position: { x: 80, y: 20 } });
   expect(await plain.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none');
@@ -142,14 +140,14 @@ for (const [w, h] of [
   test(`no horizontal overflow at ${w}×${h}`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     for (const q of ['', '&group=speak', '&group=kernel', '&group=keys']) {
-      await page.goto(`main.html#/settings?still=1${q}`);
+      await page.goto(`main.html#/settings?plugins=all&still=1${q}`);
       await expect(page.getByRole('tablist', { name: '设置分组' })).toBeVisible();
       expect(await noOverflow(page)).toBeLessThanOrEqual(0);
       const main = page.locator('[data-g="content"]').locator('xpath=..');
       expect(await main.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
     }
     // The search sits in the command bar's status slot at every width.
-    await page.goto('main.html#/settings?still=1');
+    await page.goto('main.html#/settings?plugins=all&still=1');
     const barSearch = page.getByRole('navigation', { name: '主导航' }).locator('[data-slot="status"]').getByRole('textbox', { name: '搜索设置' });
     await expect(barSearch).toHaveCount(1);
     await expect(page.getByRole('textbox', { name: '搜索设置' })).toBeVisible();

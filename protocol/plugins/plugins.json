@@ -84,7 +84,19 @@
     },
     "web": {
       "pages": [],
-      "settings": [],
+      "settings": [
+        "privacy.observe",
+        "privacy.pause",
+        "privacy.wintext",
+        "privacy.grain",
+        "privacy.web",
+        "privacy.typing",
+        "privacy.keys",
+        "privacy.micapp",
+        "privacy.exclude",
+        "data.delrecent",
+        "data.delact"
+      ],
       "onboarding": []
     }
   },
@@ -111,7 +123,11 @@
     },
     "web": {
       "pages": [],
-      "settings": [],
+      "settings": [
+        "keys.hk_look",
+        "keys.hk_sel",
+        "privacy.shot"
+      ],
       "onboarding": []
     }
   },
@@ -139,8 +155,14 @@
       "subsystems": []
     },
     "web": {
-      "pages": [],
-      "settings": [],
+      "pages": [
+        "overview"
+      ],
+      "settings": [
+        "privacy.brief_daily",
+        "privacy.brief_weekly",
+        "keys.hk_page_overview"
+      ],
       "onboarding": []
     }
   },
@@ -171,7 +193,10 @@
     },
     "web": {
       "pages": [],
-      "settings": [],
+      "settings": [
+        "privacy.agent_sessions",
+        "model.hooks"
+      ],
       "onboarding": []
     }
   },
@@ -211,8 +236,12 @@
       ]
     },
     "web": {
-      "pages": [],
-      "settings": [],
+      "pages": [
+        "schedules"
+      ],
+      "settings": [
+        "perm.scope"
+      ],
       "onboarding": []
     }
   },
@@ -237,7 +266,9 @@
     },
     "web": {
       "pages": [],
-      "settings": [],
+      "settings": [
+        "kernel"
+      ],
       "onboarding": []
     }
   },
@@ -259,7 +290,9 @@
     },
     "web": {
       "pages": [],
-      "settings": [],
+      "settings": [
+        "perm.k_cu"
+      ],
       "onboarding": []
     }
   },

@@ -11,6 +11,7 @@ import { Kbd } from '../ui';
 import { paletteItems, usePaletteIndex, type PaletteItem } from './CmdPalette.data';
 import { look, openQuickInput, stopSpeech, useDesktopOff } from './desktopOps';
 import { navigate } from './nav';
+import { usePlugins } from './plugins';
 import { toast } from './toast';
 import type { PageRoute } from './types';
 import styles from './CmdPalette.module.css';
@@ -65,8 +66,9 @@ export function CmdPalette({ routes, onClose }: { routes: PageRoute[]; onClose: 
   const data = usePaletteIndex();
   const off = useDesktopOff();
   const keys = useHotkeyLabels();
+  const plugins = usePlugins();
   const qc = useQueryClient();
-  const hits = paletteItems(query, routes, data.data, off, keys);
+  const hits = paletteItems(query, routes, data.data, off, keys, plugins);
   const sel = Math.min(index, Math.max(0, hits.length - 1));
   const searching = query.trim() !== '';
 

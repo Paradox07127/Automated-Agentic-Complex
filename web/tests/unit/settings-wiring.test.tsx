@@ -24,6 +24,11 @@ import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model
 import type { Native } from '../../src/pages/settings/native';
 import { searchSettings } from '../../src/pages/settings/registry';
 import type { WireBlacklist, WireDiagSlice, WireModelSettings, WireScope } from '../../src/pages/settings/wire';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 type Loaded = {
   native: Native;

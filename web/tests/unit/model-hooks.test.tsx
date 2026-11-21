@@ -8,6 +8,11 @@ import { SettingsCtx, type SettingsCtxValue } from '../../src/pages/settings/ctx
 import { diagView } from '../../src/pages/settings/diag';
 import { HooksSection } from '../../src/pages/settings/groups/ModelHooks';
 import { useSettingsModel } from '../../src/pages/settings/model';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 const HOOKS = { claude: { installed: false, last_at: null }, codex: { installed: false, last_at: null } };
 const DIAG = diagView({ gate: WIRE_DIAG_GATE, budget: WIRE_DIAG_BUDGET, hooks: HOOKS, connections: WIRE_DIAG_CONNECTIONS, observation: WIRE_OBSERVATION });

@@ -4,11 +4,16 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { demos } from '../../src/pages/home/demos';
-import { BAR_SLOTS, CLOCK, leftTiles, rightTiles, STAGE, TOP_ICONS } from '../../src/pages/home/geometry';
+import { BAR_SLOTS, CLOCK, leftTiles, rightTiles, sideIcons, STAGE, TOP_ICONS } from '../../src/pages/home/geometry';
 import { HomePage } from '../../src/pages/home/Page';
 import { setDevMode } from '../../src/shell/devMode';
 import { OPEN_PALETTE } from '../../src/shell/Layout';
 import { pageRoutes } from '../../src/shell/registry';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 beforeEach(() => {
   localStorage.clear();
@@ -61,8 +66,14 @@ describe('home tiles', () => {
     cleanup();
     setDevMode(false);
     mount();
-    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual([...['settings', 'trace'].map(title), '派发任务', '搜索']);
-    expect(names(screen.getByRole('group', { name: '快捷动作' }))).toEqual(['屏幕识读', '快速输入', '停止说话', title('diag')]);
+    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual([title('settings'), '派发任务', '搜索']);
+    expect(names(screen.getByRole('group', { name: '快捷动作' }))).toEqual(['屏幕识读', '快速输入', '停止说话']);
+  });
+
+  it('writes each 快捷动作 name under its icon', async () => {
+    mount();
+    const side = await screen.findByRole('group', { name: '快捷动作' });
+    for (const b of within(side).getAllByRole('button')) expect(b.textContent).toBe(b.getAttribute('aria-label'));
   });
 
   it('jumps to each page, dispatches a role task and opens the palette', async () => {
@@ -127,8 +138,8 @@ describe('home disc', () => {
 });
 
 describe('home geometry', () => {
-  it('keeps the keys, the top icons, the bar slots and the clock on the stage', () => {
-    for (const b of [...leftTiles(4), ...rightTiles(8), ...TOP_ICONS, ...BAR_SLOTS, CLOCK]) {
+  it('keeps the keys, the top icons, the named side icons, the bar slots and the clock on the stage', () => {
+    for (const b of [...leftTiles(4), ...rightTiles(8), ...TOP_ICONS, ...sideIcons(6), ...BAR_SLOTS, CLOCK]) {
       expect(b.left).toBeGreaterThanOrEqual(0);
       expect(b.top).toBeGreaterThanOrEqual(0);
       expect(b.left + b.width).toBeLessThanOrEqual(STAGE.w);
@@ -164,5 +175,36 @@ describe('home fit', () => {
     expect(scale() * 12).toBeGreaterThanOrEqual(11);
     expect(screen.queryByRole('group', { name: '快捷动作' })).toBeNull();
     expect(screen.getByRole('group', { name: '工具' })).toBeTruthy();
+  });
+});
+
+describe('home with the plug-ins at their defaults', () => {
+  beforeEach(() => {
+    pluginsReset();
+    setDevMode(false);
+  });
+
+  it('keeps only 角色, 对话, 记忆 and 设置 among the pages, and no 待处理, 提醒, 派发任务, 屏幕识读 or today card', async () => {
+    mount();
+    expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(['character', 'chat', 'memory'].map(title));
+    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([title('settings'), '搜索']);
+    expect(names(screen.getByRole('group', { name: '快捷动作' }))).toEqual(['快速输入', '停止说话']);
+    for (const gone of [/^待处理/, /^提醒$/, /^派发任务$/, /^屏幕识读$/, /^工业简报：/]) expect(screen.queryByRole('button', { name: gone })).toBeNull();
+    expect(screen.getByRole('button', { name: '打开对话' })).toBeTruthy();
+  });
+
+  it('adds 待处理, 提醒 and the today card once 日报与简报 is on, and 派发任务 once 个人代理 is on too', async () => {
+    pluginsOn('daily_brief');
+    mount();
+    expect(await screen.findByRole('button', { name: /^待处理 / })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '提醒' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^工业简报：/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '派发任务' })).toBeNull();
+    cleanup();
+    pluginsOn('daily_brief', 'personal_agent', 'screen_reading');
+    mount();
+    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual([title('settings'), '派发任务', '搜索']);
+    expect(names(screen.getByRole('group', { name: '主要页面' }))).toEqual(['character', 'chat', 'memory', 'schedules'].map(title));
+    expect(names(screen.getByRole('group', { name: '快捷动作' }))).toEqual(['屏幕识读', '快速输入', '停止说话']);
   });
 });

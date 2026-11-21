@@ -39,6 +39,8 @@ export interface WireTurnEvents {
 
 /** GET /capabilities (capabilities.py `collect`). */
 export interface WireCapabilities {
+  /** The plug-ins agentd started with. */
+  plugins: Record<string, boolean>;
   items: Record<string, { state: string; reason?: string | null }>;
   at: string;
 }

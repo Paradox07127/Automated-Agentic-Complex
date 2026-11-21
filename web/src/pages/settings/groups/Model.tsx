@@ -4,6 +4,7 @@ import { failure, readCatalog, saveModels, testModels } from '../api';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { COMPATIBLE_THINKING, isLoopback, keyOptions, listsOwnModels, modelCaps, modelTestText, SVC, thinkOptions, tokens } from '../fields';
+import { useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
 import { Stepper } from '../Stepper';
@@ -14,10 +15,11 @@ import styles from '../groups.module.css';
 
 const MODEL_DRAFTS = ['svc', 'apiBase', 'chatModel', 'think', 'acct'];
 
-/** pi 账号与凭据: the credentials the bundled pi kernel uses, its default provider and model, coding-tool hooks; call counts only (no tokens or cost). */
+/** AI 账号: the credentials the bundled pi kernel uses, its default provider and model, coding-tool hooks; call counts only (no tokens or cost). */
 export function ModelGroup() {
   const { model, ro, agentdOff, goPage, models, diag, runs, reload } = useSettings();
   const c = useControls();
+  const shown = useRowShown();
   const [listed, setCatalog] = useState<WireCatalog | null>(null);
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
@@ -191,7 +193,7 @@ export function ModelGroup() {
         </SetSection>
       )}
 
-      <HooksSection />
+      {shown('hooks') && <HooksSection />}
     </>
   );
 }

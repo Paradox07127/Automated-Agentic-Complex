@@ -52,7 +52,6 @@ export function DataGroup() {
     <SetSection title="数据">
       <SetRow
         id="delrecent"
-        opens
         title="删除最近观察记录"
         desc="删除所选时段的观察、摘要和由其推断的记忆"
         control={RANGES.map(([range, x]) => (
@@ -69,7 +68,6 @@ export function DataGroup() {
       />
       <SetRow
         id="delact"
-        opens
         title="清空活动记录…"
         desc="连同活动摘要和由它推出的记忆"
         control={
@@ -105,7 +103,6 @@ export function DataGroup() {
       />
       <SetRow
         id="delall"
-        opens
         title="删除所有本地数据…"
         desc="记忆、对话、任务记录、活动记录，连同 Trace 事件"
         control={

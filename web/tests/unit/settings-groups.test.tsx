@@ -15,6 +15,11 @@ import { PermGroup } from '../../src/pages/settings/groups/Perm';
 import { PrivacyGroup } from '../../src/pages/settings/groups/Privacy';
 import { SpeakGroup } from '../../src/pages/settings/groups/Speak';
 import { useSettingsModel } from '../../src/pages/settings/model';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 function install(caps: Partial<Capabilities> = {}) {
   const bridge = createFakeBridge({ surface: 'main', still: true, capabilities: caps });

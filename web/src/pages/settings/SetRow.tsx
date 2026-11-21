@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { SRow } from '../../ui';
 import { useSettings } from './ctx';
+import { useRowShown } from './registry';
 import styles from './rows.module.css';
 
 export interface SetRowProps {
@@ -19,9 +20,11 @@ export interface SetRowProps {
   children?: ReactNode;
 }
 
-/** Settings row: the shared SRow plus deep-link flash, indent, ✓ saved, the draft mark and「需重启」only while a restart is due. A read-only group's cause stays in the bar above it. */
+/** Settings row: the shared SRow plus deep-link flash, indent, ✓ saved, the draft mark and「需重启」only while a restart is due. A read-only group's cause stays in the bar above it. Absent while its plug-in is off, or outside 开发者模式 for a developer row. */
 export function SetRow({ id, title, desc, control, indent, opens, disabled, disabledReason, descTone, children }: SetRowProps) {
   const { model, ro, hl } = useSettings();
+  const shown = useRowShown();
+  if (!shown(id)) return null;
   const drafted = id in model.draft;
   const tip = typeof desc === 'string' && descTone !== 'attention' ? desc : undefined;
   const d =

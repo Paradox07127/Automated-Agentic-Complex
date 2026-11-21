@@ -20,7 +20,7 @@ const css = (el: Locator, prop: string) => el.evaluate((n, p) => getComputedStyl
 for (const from of ['chat', 'memory', 'settings', 'diag']) {
   test(`⌘N on ${from} opens the 派发任务 dialog on 今天`, async ({ page }) => {
     const errors = collectErrors(page);
-    await page.goto(`main.html#/${from}?still=1`);
+    await page.goto(`main.html#/${from}?plugins=all&still=1`);
     await expect(page.locator(`main[data-route-id="${from}"]`)).toBeVisible();
     await page.keyboard.press('ControlOrMeta+n');
     await expect(page).toHaveURL(/#\/overview\?.*create=role/);
@@ -31,7 +31,7 @@ for (const from of ['chat', 'memory', 'settings', 'diag']) {
 
 // The chat task is a right column, not a Sheet, so ⌘N still goes to 派发任务.
 test('⌘N works beside the chat task column', async ({ page }) => {
-  await page.goto('main.html#/chat?demo=plan-snapshot&still=1');
+  await page.goto('main.html#/chat?plugins=all&demo=plan-snapshot&still=1');
   await expect(page.getByRole('complementary', { name: '任务', exact: true })).toBeVisible();
   await page.keyboard.press('ControlOrMeta+n');
   await expect(page).toHaveURL(/#\/overview\?.*create=role/);
@@ -39,7 +39,7 @@ test('⌘N works beside the chat task column', async ({ page }) => {
 
 test('⌘K lists 快速输入 and 免打扰 under 动作', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/memory?still=1&demo=palette');
+  await page.goto('main.html#/memory?plugins=all&still=1&demo=palette');
   const list = page.getByRole('listbox');
   const actions = list.locator('[data-group="动作"] ~ [role="option"]');
   await expect(actions.filter({ hasText: '快速输入' })).toHaveCount(1);
@@ -51,7 +51,7 @@ test('⌘K lists 快速输入 and 免打扰 under 动作', async ({ page }) => {
 });
 
 test('page tabs sit in the command bar without caps of their own, and Q and E step them on 记忆', async ({ page }) => {
-  await page.goto('main.html#/memory?still=1');
+  await page.goto('main.html#/memory?plugins=all&still=1');
   const tabs = page.getByRole('navigation', { name: '主导航' }).getByRole('tablist', { name: '记忆视图' });
   await expect(tabs).toBeVisible();
   await expect(tabs.locator('kbd')).toHaveCount(0);
@@ -67,7 +67,7 @@ test('page tabs sit in the command bar without caps of their own, and Q and E st
 
 test('EffectTag Chinese is at least 12 px', async ({ page }) => {
   for (const d of ['backend', 'pending']) {
-    await page.goto(`main.html#/ds?c=EffectTag&d=${d}&still=1`);
+    await page.goto(`main.html#/ds?plugins=all&c=EffectTag&d=${d}&still=1`);
     const tag = page.locator('[data-stub="EffectTag"]');
     await expect(tag).toBeVisible();
     expect(parseFloat(await css(tag, 'font-size'))).toBeGreaterThanOrEqual(12);
@@ -75,7 +75,7 @@ test('EffectTag Chinese is at least 12 px', async ({ page }) => {
 });
 
 test('TraceLine sets Chinese in the sans face and only the path in mono', async ({ page }) => {
-  await page.goto('main.html#/ds?c=TraceLine&d=failed&still=1');
+  await page.goto('main.html#/ds?plugins=all&c=TraceLine&d=failed&still=1');
   const line = page.locator('[data-stub="TraceLine"]');
   await expect(line).toBeVisible();
   const desc = line.locator('[title]').filter({ hasText: '资料授权已撤销' });
@@ -94,7 +94,7 @@ test('TraceLine sets Chinese in the sans face and only the path in mono', async 
 
 test('chat task column: one task title, one set of task actions and a tool section', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/chat?demo=plan-snapshot&still=1');
+  await page.goto('main.html#/chat?plugins=all&demo=plan-snapshot&still=1');
   const sheet = page.getByRole('complementary', { name: '任务', exact: true });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole('heading', { name: '整理本周提交周报' })).toHaveCount(1);
@@ -112,7 +112,7 @@ test('chat task column: one task title, one set of task actions and a tool secti
 });
 
 test('DiffPreview +1 −1 is not on a dark chip in the light theme', async ({ page }) => {
-  await page.goto('main.html#/ds?c=ApprovalCard&d=normal&still=1&theme=light');
+  await page.goto('main.html#/ds?plugins=all&c=ApprovalCard&d=normal&still=1&theme=light');
   const num = page.locator('[data-stub="DiffPreview"] button .num');
   await expect(num).toBeVisible();
   const lum = await num.evaluate((el) => {

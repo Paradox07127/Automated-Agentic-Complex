@@ -7,6 +7,7 @@ import { settingPath } from '../pages/settings/groups';
 import type { DesktopOp } from './desktopOps';
 import { isDevMode } from './devMode';
 import type { NavTarget, PageId } from './nav';
+import { DEFAULT_PLUGINS, getPlugins, type PluginState } from './plugins';
 import type { PageRoute } from './types';
 
 /** What ⌘K searches, read through the bridge from the same endpoints the pages use. */
@@ -27,9 +28,11 @@ async function read<T>(path: string, missing: string[]): Promise<T | null> {
 
 export async function loadPaletteIndex(): Promise<PaletteIndex> {
   const missing: string[] = [];
+  // Tasks exist only with 个人代理 on.
+  const agent = getPlugins().personal_agent;
   const [role, other, memory] = await Promise.all([
-    read<{ tasks: WireTaskRow[] }>('/agent/tasks', missing),
-    read<{ tasks: WireLedgerTask[] }>('/tasks', missing),
+    agent ? read<{ tasks: WireTaskRow[] }>('/agent/tasks', missing) : null,
+    agent ? read<{ tasks: WireLedgerTask[] }>('/tasks', missing) : null,
     read<{ facts: WireFact[] }>('/memory', missing),
   ]);
   const rows = role?.tasks ?? [];
@@ -82,13 +85,14 @@ const desktop = (op: DesktopOp, hint: string, off: Partial<Record<DesktopOp, str
   return reason ? { hint: reason, run: { kind: 'off' as const, reason } } : { hint, run: { kind: 'desktop' as const, op } };
 };
 
-/** Items in display order: pages, then search hits (only with a query), then actions; `off` says which desktop ops this shell lacks, `keys` the saved hotkeys. */
+/** Items in display order: pages, then search hits (only with a query), then actions; `off` says which desktop ops this shell lacks, `keys` the saved hotkeys, `plugins` which plug-in actions to offer. */
 export function paletteItems(
   query: string,
   routes: PageRoute[],
   index: PaletteIndex | undefined,
   off: Partial<Record<DesktopOp, string>> = {},
   keys: HotkeyLabels = {},
+  plugins: PluginState = DEFAULT_PLUGINS,
 ): PaletteItem[] {
   const q = query.trim().toLowerCase();
   const has = (text: string) => !q || text.toLowerCase().includes(q);
@@ -97,9 +101,9 @@ export function paletteItems(
     .map((r) => ({ key: `page-${r.id}`, group: '跳页', label: r.title, hint: '', shortcut: r.hotkey, run: { kind: 'nav', target: { page: r.id as PageId } } }));
   const actions: PaletteItem[] = [
     { key: 'quick-input', group: '动作' as const, label: '快速输入', shortcut: keys.hk_quick, words: 'input quick 输入 桌面', ...desktop('quickInput', '桌面上的输入框', off) },
-    { key: 'look', group: '动作' as const, label: '屏幕识读', shortcut: keys.hk_look, words: 'look observe 屏幕 识读', ...desktop('look', '识读前台窗口', off) },
+    ...(plugins.screen_reading ? [{ key: 'look', group: '动作' as const, label: '屏幕识读', shortcut: keys.hk_look, words: 'look observe 屏幕 识读', ...desktop('look', '识读前台窗口', off) }] : []),
     { key: 'quiet', group: '动作' as const, label: '免打扰 30 分钟', hint: '提醒暂停，到点自动恢复', words: 'quiet dnd 安静 勿扰', run: { kind: 'quiet' as const } },
-    { key: 'recheck', group: '动作' as const, label: '重新检测内核', hint: settingPath('kernel'), words: 'kernel runtime recheck 运行时', run: { kind: 'recheck' as const } },
+    ...(plugins.harness_bridge ? [{ key: 'recheck', group: '动作' as const, label: '重新检测内核', hint: settingPath('kernel'), words: 'kernel runtime recheck 运行时', run: { kind: 'recheck' as const } }] : []),
     ...(index?.tasks ?? []).filter(stoppable).map((t) => ({
       key: `stop-${t.id}`,
       group: '动作' as const,

@@ -3,7 +3,7 @@ import { getBridge, type AppActionName, type ProcessState } from '../../../bridg
 import { Btn, StatusTag } from '../../../ui';
 import { useSettings } from '../ctx';
 import { defaultsOf } from '../native';
-import { DELETE_WHAT, labelOf } from '../registry';
+import { DELETE_WHAT, labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
 
@@ -14,6 +14,7 @@ const RESET_GROUPS = ['speak', 'keys', 'privacy', 'perm'];
 export function AdvGroup() {
   const { model, agentdOff, goPage, native } = useSettings();
   const bridge = getBridge();
+  const shown = useRowShown();
   const [agentd, setAgentd] = useState<ProcessState | null>(null);
   useEffect(() => {
     let live = true;
@@ -44,7 +45,7 @@ export function AdvGroup() {
       title: '恢复默认设置？',
       danger: true,
       warning: gone.length ? `会删除已收集的${gone.join('、')}，不能恢复` : `会改动 ${changes.length} 项设置`,
-      note: `${parts.join('；')}。不改动：角色内核、pi 账号与凭据；API Key；记忆和数据。`,
+      note: `${parts.join('；')}。不改动：角色内核、AI 账号；API Key；记忆和数据。`,
       confirmLabel: '恢复默认',
       onConfirm: async () => {
         if (await model.resetTo(defaultsOf(native, RESET_GROUPS))) model.notify({ message: '已恢复默认设置', severity: 'success' });
@@ -54,7 +55,7 @@ export function AdvGroup() {
 
   return (
     <>
-      <SetSection title="后台服务">
+      {shown('agentd') && <SetSection title="后台服务">
         <SetRow
           id="agentd"
           title="后台服务"
@@ -74,9 +75,9 @@ export function AdvGroup() {
             </>
           }
         />
-      </SetSection>
+      </SetSection>}
 
-      <SetSection title="开发者参数">
+      {shown('devparams') && <SetSection title="开发者参数">
         <SetRow
           id="devparams"
           title="启动参数"
@@ -87,7 +88,7 @@ export function AdvGroup() {
             </Btn>
           }
         />
-      </SetSection>
+      </SetSection>}
 
       <SetSection title="排障">
         <SetRow
@@ -111,7 +112,6 @@ export function AdvGroup() {
         />
         <SetRow
           id="reset"
-          opens
           title="恢复默认设置…"
           control={
             <Btn size="sm" variant="ghost" disabled={!native} disabledReason="没读到设置" onClick={reset}>

@@ -14,6 +14,7 @@ import { processesOf } from '../../src/pages/diag/status';
 import { useSessionLines } from '../../src/pages/tasks/useTasksData';
 import { paletteItems } from '../../src/shell/CmdPalette.data';
 import { pageRoutes } from '../../src/shell/registry';
+import { DEFAULT_PLUGINS } from '../../src/shell/plugins';
 import type { Health } from '../../src/domain';
 import { loadOverview } from './overviewReads';
 
@@ -83,7 +84,7 @@ describe('hotkey labels come from the saved settings', () => {
   });
 
   it('⌘K shows the saved quick-input and look keys, none when unset', () => {
-    const quick = (keys: Parameters<typeof paletteItems>[4]) => paletteItems('', pageRoutes, undefined, {}, keys).filter((i) => i.key === 'quick-input' || i.key === 'look');
+    const quick = (keys: Parameters<typeof paletteItems>[4]) => paletteItems('', pageRoutes, undefined, {}, keys, { ...DEFAULT_PLUGINS, screen_reading: true }).filter((i) => i.key === 'quick-input' || i.key === 'look');
     expect(quick({ hk_quick: '⌃Space', hk_look: '⌥L' }).map((i) => i.shortcut)).toEqual(['⌃Space', '⌥L']);
     expect(quick({}).map((i) => i.shortcut)).toEqual([undefined, undefined]);
   });

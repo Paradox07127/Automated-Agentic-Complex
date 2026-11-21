@@ -1,7 +1,10 @@
-/** Settings groups. */
-export const SETTING_GROUPS: Array<{ title: string; items: Array<{ id: string; label: string }> }> = [
+import type { PluginId } from '../../shell/plugins';
+
+/** Settings groups; a group with a `plugin` shows only while that plug-in is on. */
+export const SETTING_GROUPS: Array<{ title: string; items: Array<{ id: string; label: string; plugin?: PluginId }> }> = [
+  { title: '插件', items: [{ id: 'plugins', label: '插件' }] },
   { title: '交互', items: [{ id: 'speak', label: '说话与通知' }, { id: 'keys', label: '快捷键' }] },
-  { title: '智能体', items: [{ id: 'kernel', label: '角色内核' }, { id: 'model', label: 'pi 账号与凭据' }] },
+  { title: '智能体', items: [{ id: 'kernel', label: '角色内核', plugin: 'harness_bridge' }, { id: 'model', label: 'AI 账号' }] },
   {
     title: '隐私与安全',
     items: [

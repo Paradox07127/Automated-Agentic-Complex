@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import type { ObservationBriefsResponse } from '../../src/bridge/agentd-routes.generated';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { StreamEvent } from '../../src/bridge/protocol';
@@ -19,6 +19,11 @@ import { PrivacyGroup } from '../../src/pages/settings/groups/Privacy';
 import { useSettingsModel } from '../../src/pages/settings/model';
 import type { Native } from '../../src/pages/settings/native';
 import { ToastHost } from '../../src/shell/toast';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 function install(routes: MockRoute[] = []) {
   vi.useFakeTimers({ toFake: ['Date'] });

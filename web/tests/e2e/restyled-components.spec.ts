@@ -29,7 +29,7 @@ const token = (page: Page, name: string) =>
 async function openDemo(page: Page, c: string, d?: string, theme?: 'light') {
   const qs = new URLSearchParams({ c, ...(d ? { d } : {}), still: '1', ...(theme ? { theme } : {}) });
   await page.goto('about:blank');
-  await page.goto(`main.html#/ds?${qs.toString()}`);
+  await page.goto(`main.html#/ds?plugins=all&${qs.toString()}`);
   await expect(page.locator(`[data-component="${c}"]`)).toBeVisible();
 }
 
@@ -180,7 +180,7 @@ test('SRow: description is one line, no contour', async ({ page }) => {
 
 test('settings danger confirm is a Dialog: solid white band, centred, at most 560 wide, footer inside the panel', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?group=privacy&still=1');
+  await page.goto('main.html#/settings?plugins=all&group=privacy&still=1');
   await page.getByRole('switch', { name: '窗口文字', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();

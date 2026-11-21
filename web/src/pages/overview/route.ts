@@ -9,5 +9,6 @@ export const route: PageRoute = {
   order: 10,
   group: 'primary',
   hotkey: '⌘1',
+  plugin: 'daily_brief',
   component: lazyRouteComponent(() => import('./Page'), 'OverviewPage'),
 };

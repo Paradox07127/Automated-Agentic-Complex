@@ -13,7 +13,7 @@ function collectErrors(page: Page): string[] {
 
 test('detail-review: one 待处理 bar on the first screen, no repeated count, one yellow button', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto(`main.html#/overview?sel=${encodeURIComponent(T1)}&still=1`);
+  await page.goto(`main.html#/overview?plugins=all&sel=${encodeURIComponent(T1)}&still=1`);
   const detail = page.locator('[data-stub="TaskView"]');
   await expect(detail).toBeVisible();
   await expect(detail.locator('[data-stub="DecisionBar"]')).toHaveCount(1);
@@ -31,7 +31,7 @@ test('detail-review: one 待处理 bar on the first screen, no repeated count, o
 
 test('create-code: centred solid Dialog with the whole title; Esc closes, ⌘↵ submits', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?create=code&still=1');
+  await page.goto('main.html#/overview?plugins=all&create=code&still=1');
   const dialog = page.getByRole('dialog', { name: '新建' });
   await expect(dialog).toBeVisible();
   const bg = await dialog.evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -66,7 +66,7 @@ test('create-code: centred solid Dialog with the whole title; Esc closes, ⌘↵
 
 test('detail sheet: ↑↓ ↵ on the artifact table opens a file', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto(`main.html#/overview?sel=${encodeURIComponent(T1)}&still=1`);
+  await page.goto(`main.html#/overview?plugins=all&sel=${encodeURIComponent(T1)}&still=1`);
   await expect(page.locator('[data-stub="TaskView"]')).toBeVisible();
   const rows = page.getByRole('grid', { name: '产物' }).locator('tbody tr');
   await rows.nth(0).focus();
@@ -79,7 +79,7 @@ test('detail sheet: ↑↓ ↵ on the artifact table opens a file', async ({ pag
 
 test('approval detail: Esc on the approval card denies it and the card leaves the 待处理 band', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto(`main.html#/overview?open=${A2}&still=1`);
+  await page.goto(`main.html#/overview?plugins=all&open=${A2}&still=1`);
   const card = page.locator('[data-focus-card]');
   await card.focus();
   await page.keyboard.press('Escape');
@@ -90,7 +90,7 @@ test('approval detail: Esc on the approval card denies it and the card leaves th
 
 test('create dialog open: ⌘N keeps focus inside the dialog', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await expect(page.getByRole('button', { name: '任务记录' })).toBeVisible();
   await page.keyboard.press('ControlOrMeta+n');
   const dialog = page.getByRole('dialog', { name: '新建' });
@@ -103,7 +103,7 @@ test('create dialog open: ⌘N keeps focus inside the dialog', async ({ page }) 
 });
 
 test('a new role task has empty fields and the visible X closes it', async ({ page }) => {
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await page.getByRole('button', { name: '派发任务', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '新建' });
   await expect(dialog.getByLabel('标题')).toHaveValue('');

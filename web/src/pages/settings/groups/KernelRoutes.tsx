@@ -5,6 +5,7 @@ import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { KERNEL_LABEL, ROUTES, routeIds, RUNTIME_EFFORT, type Opt } from '../fields';
 import { SetSection } from '../SetSection';
+import styles from '../groups.module.css';
 
 const PURPOSE: Record<WireRoutePurpose, string> = {
   chat: '对话',
@@ -15,7 +16,7 @@ const PURPOSE: Record<WireRoutePurpose, string> = {
   computer: '电脑操控',
 };
 
-/** 按用途指定: each purpose's kernel, model and effort; a row on 跟随主内核 runs on the kernel picked above. */
+/** 按用途指定: each purpose's kernel, model and effort; a row on 跟随主内核 runs on the kernel picked above, with its model and effort, so it shows no controls for them. */
 export function KernelRoutes({ agents }: { agents: AcpAgent[] }) {
   const { model, runtime } = useSettings();
   const c = useControls();
@@ -45,12 +46,13 @@ export function KernelRoutes({ agents }: { agents: AcpAgent[] }) {
           {ROUTES.map((p) => {
             const id = routeIds(p);
             const kernel = String(model.value(id.kernel) ?? '');
+            const follow = <span className={styles.t3}>同主内核</span>;
             return (
               <TableRow key={p} id={p}>
                 <TableCell>{PURPOSE[p]}</TableCell>
                 <TableCell>{c.select(id.kernel, optionsFor(kernel), [], false, `${PURPOSE[p]}的内核`)}</TableCell>
-                <TableCell>{c.text(id.model, `${PURPOSE[p]}的模型`, '默认模型', !kernel)}</TableCell>
-                <TableCell>{c.select(id.effort, RUNTIME_EFFORT, [], !kernel, `${PURPOSE[p]}的强度`)}</TableCell>
+                <TableCell>{kernel ? c.text(id.model, `${PURPOSE[p]}的模型`, '默认模型') : follow}</TableCell>
+                <TableCell>{kernel ? c.select(id.effort, RUNTIME_EFFORT, [], false, `${PURPOSE[p]}的强度`) : follow}</TableCell>
               </TableRow>
             );
           })}

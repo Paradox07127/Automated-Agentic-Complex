@@ -85,7 +85,19 @@ export const PLUGINS = [
     },
     "web": {
       "pages": [],
-      "settings": [],
+      "settings": [
+        "privacy.observe",
+        "privacy.pause",
+        "privacy.wintext",
+        "privacy.grain",
+        "privacy.web",
+        "privacy.typing",
+        "privacy.keys",
+        "privacy.micapp",
+        "privacy.exclude",
+        "data.delrecent",
+        "data.delact"
+      ],
       "onboarding": []
     }
   },
@@ -112,7 +124,11 @@ export const PLUGINS = [
     },
     "web": {
       "pages": [],
-      "settings": [],
+      "settings": [
+        "keys.hk_look",
+        "keys.hk_sel",
+        "privacy.shot"
+      ],
       "onboarding": []
     }
   },
@@ -140,8 +156,14 @@ export const PLUGINS = [
       "subsystems": []
     },
     "web": {
-      "pages": [],
-      "settings": [],
+      "pages": [
+        "overview"
+      ],
+      "settings": [
+        "privacy.brief_daily",
+        "privacy.brief_weekly",
+        "keys.hk_page_overview"
+      ],
       "onboarding": []
     }
   },
@@ -172,7 +194,10 @@ export const PLUGINS = [
     },
     "web": {
       "pages": [],
-      "settings": [],
+      "settings": [
+        "privacy.agent_sessions",
+        "model.hooks"
+      ],
       "onboarding": []
     }
   },
@@ -212,8 +237,12 @@ export const PLUGINS = [
       ]
     },
     "web": {
-      "pages": [],
-      "settings": [],
+      "pages": [
+        "schedules"
+      ],
+      "settings": [
+        "perm.scope"
+      ],
       "onboarding": []
     }
   },
@@ -238,7 +267,9 @@ export const PLUGINS = [
     },
     "web": {
       "pages": [],
-      "settings": [],
+      "settings": [
+        "kernel"
+      ],
       "onboarding": []
     }
   },
@@ -260,7 +291,9 @@ export const PLUGINS = [
     },
     "web": {
       "pages": [],
-      "settings": [],
+      "settings": [
+        "perm.k_cu"
+      ],
       "onboarding": []
     }
   },

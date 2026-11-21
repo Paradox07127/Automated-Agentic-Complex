@@ -12,6 +12,11 @@ import { ROUTES, runtimeBody } from '../../src/pages/settings/fields';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
 import { useSettingsModel } from '../../src/pages/settings/model';
 import type { Native } from '../../src/pages/settings/native';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so each group shows all its rows.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 const AGENTS = {
   agents: [
@@ -82,7 +87,7 @@ afterEach(() => {
 });
 
 describe('settings › 角色内核 › 按用途指定', () => {
-  it('lists every purpose on 跟随主内核 with its model and effort locked', async () => {
+  it('lists every purpose on 跟随主内核 with its model and effort taken from the main kernel', async () => {
     render(
       <Harness view={runtime()}>
         <KernelGroup />
@@ -95,8 +100,9 @@ describe('settings › 角色内核 › 按用途指定', () => {
     for (const [i, r] of rows.entries()) {
       const name = r.querySelector('td')?.textContent;
       expect(within(r).getByRole('button', { name: `${name}的内核` }).textContent).toBe('跟随主内核');
-      expect((within(r).getByRole('textbox', { name: `${name}的模型` }) as HTMLInputElement).disabled, String(i)).toBe(true);
-      expect((within(r).getByRole('button', { name: `${name}的强度` }) as HTMLButtonElement).disabled).toBe(true);
+      expect(within(r).queryByRole('textbox', { name: `${name}的模型` }), String(i)).toBeNull();
+      expect(within(r).queryByRole('button', { name: `${name}的强度` })).toBeNull();
+      expect(within(r).getAllByText('同主内核')).toHaveLength(2);
     }
     for (const gone of ['前台对话模型', '后台任务模型', '前台推理强度', '后台推理强度']) expect(screen.queryByText(gone)).toBeNull();
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '主动判断的内核' })));

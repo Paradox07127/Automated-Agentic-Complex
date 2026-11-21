@@ -2,6 +2,7 @@ import { getBridge, type PermissionKind } from '../../../bridge';
 import { Btn, StatusTag } from '../../../ui';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
+import { useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
 import type { PermRow } from '../perms';
@@ -13,10 +14,18 @@ const STATE_LABEL: Record<PermRow['state'], string> = { granted: '已允许', de
 /** Kinds whose system prompt only shows on request; 去系统设置 stays beside 允许, since a request can come back unanswered or be ignored after a refusal. */
 const ASKABLE: ReadonlySet<PermissionKind> = new Set(['microphone', 'inputMonitoring', 'automation', 'notifications']);
 
+/** A permission's state tag; `named` puts the permission's name in front, for a row about something else. */
+export function PermTag({ p, named }: { p: PermRow; named?: boolean }) {
+  const known = p.state !== 'loading' && p.state !== 'unread';
+  const label = STATE_LABEL[p.state];
+  return <StatusTag state={p.state === 'granted' ? 'ok' : known ? 'warning' : 'todo'} label={named ? `${p.label} │ ${label}` : label} />;
+}
+
 /** 权限与授权: permission rows with the features each unlocks; fix path through the bridge plus re-check. */
 export function PermGroup() {
   const { model, caps, perms, recheckPerms } = useSettings();
   const c = useControls();
+  const shown = useRowShown();
   const bridge = getBridge();
 
   const openSettings = async (p: PermRow) => {
@@ -59,7 +68,7 @@ export function PermGroup() {
               desc={p.purpose}
               control={
                 <>
-                  <StatusTag state={ok ? 'ok' : known ? 'warning' : 'todo'} label={STATE_LABEL[p.state]} />
+                  <PermTag p={p} />
                   {askable && (
                     <Btn size="sm" variant="secondary" onClick={() => void ask(p)}>
                       允许
@@ -106,7 +115,7 @@ export function PermGroup() {
         />
       </SetSection>
 
-      <ScopeList />
+      {shown('scope') && <ScopeList />}
     </>
   );
 }

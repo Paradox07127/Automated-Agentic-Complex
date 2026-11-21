@@ -8,5 +8,6 @@ export const route: PageRoute = {
   en: 'Diagnostics',
   order: 110,
   group: 'secondary',
+  devOnly: true,
   component: lazyRouteComponent(() => import('./Page'), 'DiagPage'),
 };
