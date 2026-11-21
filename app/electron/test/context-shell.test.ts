@@ -240,7 +240,7 @@ test('the attention sampler does not count a screenshot of the context capturer 
       }
       return op === 'presence.watch' ? { ok: true as const, result: { watching: true } } : { ok: false as const, error: { code: 'unsupported' } };
     } };
-    const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), redact: true,
+    const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}),
       plan: () => shellPlan({ ...DEFAULT_PLUGINS, screen_awareness: true }),
       agentd: { request: async (_method, _path, json) => { posts.push(json as Record<string, unknown>); return { status: 200 }; } },
       ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, ownCaptureRecent: recent });

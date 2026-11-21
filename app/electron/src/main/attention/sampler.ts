@@ -85,11 +85,14 @@ export class AttentionSampler {
     return this.paused;
   }
 
-  /** The helper said hello (true) or went (false). Its counters go with it. */
+  /** The helper said hello (true) or went (false). Its counters and sleep state go with it. */
   helper(running: boolean): void {
     if (!running) return;
     // A new helper counts input from zero; the deltas start over.
     this.inputActivity = new InputActivity();
+    // A helper that says hello runs on an awake machine; a wake sent while none was running is lost. The lock has its poll.
+    const edge = this.sleepState.update({ system: false, display: false });
+    if (edge !== null) this.presence(edge);
     if (this.presenceWatched) return;
     void this.ports.helper.request('presence.watch', { enabled: true }).then((r) => {
       if (r.ok) this.presenceWatched = true;

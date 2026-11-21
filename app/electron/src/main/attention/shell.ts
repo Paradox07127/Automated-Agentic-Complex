@@ -14,8 +14,6 @@ export interface ShellAttentionOptions {
   agentdStateDir: string;
   /** config.json as saved now. */
   settings(): Record<string, unknown>;
-  /** `redact_sensitive` at launch. */
-  redact: boolean;
   /** shellPlan of the plug-ins agentd runs with: without `attention` the samples feed only this shell (give-way, surfaces). */
   plan(): ReadonlySet<Subsystem>;
   ownPids(): readonly number[];
@@ -50,7 +48,7 @@ export function shellAttention(o: ShellAttentionOptions): AttentionSampler | nul
     // Anything but a saved `false` is on.
     sensing: () => {
       const s = o.settings();
-      return { input: s.sense_input_counts !== false, audioApps: s.sense_audio_apps !== false, redact: o.redact };
+      return { input: s.sense_input_counts !== false, audioApps: s.sense_audio_apps !== false, redact: s.redact_sensitive !== false };
     },
     ownPids: o.ownPids,
     userSpeaking: o.userSpeaking,

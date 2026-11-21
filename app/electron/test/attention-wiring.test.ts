@@ -61,7 +61,7 @@ const AWARE = shellPlan({ ...DEFAULT_PLUGINS, screen_awareness: true });
 
 test('--no-attention starts no sampler', () => {
   const options = { helper: { request: async () => ({ ok: false as const, error: { code: 'unused' } }) }, agentd: unused, agentdStateDir: '/nonexistent',
-    settings: () => ({}), redact: true, plan: () => AWARE, ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {} };
+    settings: () => ({}), plan: () => AWARE, ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {} };
   assert.equal(shellAttention({ ...options, argv: ['electron', '.', '--config', 'c.json', '--no-push-to-talk', '--no-attention'] }), null);
   const sampler = shellAttention({ ...options, argv: ['electron', '.', '--config', 'c.json', '--no-push-to-talk'] });
   assert.notEqual(sampler, null);
@@ -91,7 +91,7 @@ test('the helper says hello and agentd runs: beats POST /context/attention, with
   const helper = new HelperSupervisor({ executable: process.execPath, prefix: [script, received], supportDir: join(dir, 's'),
     clientVersion: 'test', onStatus: (s) => sampler?.helper(s.kind === 'running'), onEvent: (e) => sampler?.event(e.event, e.data) });
   sampler = shellAttention({ argv: ['electron', '.'], helper, agentd: new AgentdClient(join(state, 'ui-runtime.json')), agentdStateDir: state,
-    settings: () => ({ sense_input_counts: false }), redact: true, plan: () => AWARE, ownPids: () => [process.pid], userSpeaking: () => true, log: () => {},
+    settings: () => ({ sense_input_counts: false }), plan: () => AWARE, ownPids: () => [process.pid], userSpeaking: () => true, log: () => {},
     onSystemPaused: (p) => pauses.push(p) });
   const ops = () => readFileSync(received, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as { op: string; params: Record<string, unknown> });
   try {
@@ -127,7 +127,7 @@ test('our own screen capture is not the user recording the screen: ownCaptureRec
       }
       return op === 'presence.watch' ? { ok: true as const, result: { watching: true } } : { ok: false as const, error: { code: 'unsupported' } };
     } };
-    const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), redact: true, plan: () => AWARE,
+    const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), plan: () => AWARE,
       agentd: { request: async (_method, _path, json) => { posts.push(json as Record<string, unknown>); return { status: 200 }; } },
       ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, ...(ownCaptureRecent && { ownCaptureRecent }) });
     sampler!.helper(true);
@@ -152,7 +152,7 @@ test('without screen awareness the beats still sample for give-way and the surfa
     }
     return op === 'presence.watch' ? { ok: true as const, result: { watching: true } } : { ok: false as const, error: { code: 'unsupported' } };
   } };
-  const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), redact: true,
+  const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}),
     plan: () => shellPlan(DEFAULT_PLUGINS), agentd: { request: async (_method, _path, json) => { posts.push(json); return { status: 200 }; } },
     ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, onSample: (s) => samples.push(s) });
   sampler!.helper(true);
@@ -175,7 +175,7 @@ test('the clicks near her reach the beat as `near_clicks_10s`; without the port 
       }
       return op === 'presence.watch' ? { ok: true as const, result: { watching: true } } : { ok: false as const, error: { code: 'unsupported' } };
     } };
-    const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), redact: true, plan: () => AWARE,
+    const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), plan: () => AWARE,
       agentd: { request: async (_method, _path, json) => { posts.push(json as Record<string, unknown>); return { status: 200 }; } },
       ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, ...(nearClicks && { nearClicks }) });
     sampler!.helper(true);
@@ -189,4 +189,36 @@ test('the clicks near her reach the beat as `near_clicks_10s`; without the port 
   };
   assert.equal(await beat(() => 2), 2);
   assert.equal(await beat(), undefined);
+});
+
+test('redact_sensitive is read from the saved settings at each beat, as the sensing switches are', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'att-'));
+  writeFileSync(join(dir, 'blacklist.json'), JSON.stringify({ mode: 'deny' }));
+  const posts: Record<string, unknown>[] = [];
+  const saved: Record<string, unknown> = { redact_sensitive: false };
+  const helper = { request: async (op: string) => {
+    if (op === 'attention.sample') {
+      return { ok: true as const, result: { ts: Date.now() / 1000, idle_s: 1, locked: false, secure_input: false, mouse_window: null,
+        front: { pid: 702, name: 'Mail', app_id: 'com.apple.mail',
+          window: { window_id: 5, pid: 702, bounds: { x: 0, y: 0, width: 1, height: 1 }, title: 'From a.b@example.com' } } } };
+    }
+    return op === 'presence.watch' ? { ok: true as const, result: { watching: true } } : { ok: false as const, error: { code: 'unsupported' } };
+  } };
+  const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: dir, settings: () => saved, plan: () => AWARE,
+    agentd: { request: async (_method, _path, json) => { posts.push(json as Record<string, unknown>); return { status: 200 }; } },
+    ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {} });
+  const title = () => (posts.at(-1)!.front as Record<string, unknown>).title;
+  sampler!.helper(true);
+  sampler!.agentd(true);
+  try {
+    assert.ok(await until(5, () => posts.length >= 1));
+    assert.equal(title(), 'From a.b@example.com');
+    saved.redact_sensitive = true;
+    const before = posts.length;
+    assert.ok(await until(5, () => posts.length > before));
+    assert.equal(title(), 'From [邮箱已遮蔽]');
+  } finally {
+    sampler!.agentd(false);
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

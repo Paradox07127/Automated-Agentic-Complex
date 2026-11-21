@@ -249,6 +249,36 @@ test('display sleep and wake are sent as sleep and wake with asleep set', async 
   assert.equal(t.posts.at(-1)!.asleep, false);
 });
 
+test('a helper that comes back means the machine is awake: a sleep whose wake was lost with the old helper ends', async () => {
+  const t = setup();
+  t.sampler.helper(true);
+  t.sampler.agentd(true);
+  await t.second();
+  await t.edge('display_sleep');
+  await t.edge('sleep');
+  assert.equal(t.sampler.systemPaused, true);
+  t.sampler.helper(false);
+  t.advance(3000);
+  t.sampler.helper(true);
+  await settle();
+  assert.equal(t.sampler.systemPaused, false);
+  assert.deepEqual(t.pauses, [true, false]);
+  assert.equal(t.posts.at(-1)!.edge, 'wake');
+  assert.equal(t.posts.at(-1)!.asleep, false);
+});
+
+test('a helper that comes back keeps a lock: only the poll ends it', async () => {
+  const t = setup({ helper: { 'attention.sample': () => ok(sampleResult({ locked: true })) } });
+  t.sampler.helper(true);
+  t.sampler.agentd(true);
+  await t.edge('lock');
+  t.sampler.helper(false);
+  t.sampler.helper(true);
+  await settle();
+  assert.equal(t.sampler.systemPaused, true);
+  assert.deepEqual(t.pauses, [true]);
+});
+
 test('edges while agentd is down send nothing, but the pause still applies', async () => {
   const t = setup();
   await t.edge('lock');

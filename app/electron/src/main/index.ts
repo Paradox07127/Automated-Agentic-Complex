@@ -490,7 +490,7 @@ const pushToTalk = config && helper && runtimePath !== null && !noPushToTalk ? (
 /** AttentionSampler over the helper; none with `--no-attention`. */
 const attention = config && helper && runtimePath !== null ? shellAttention({
   argv: process.argv, helper, agentd: new AgentdClient(runtimePath), agentdStateDir: config.agentdStateDir,
-  settings: () => readObject(configPath), redact: config.redactSensitive, plan,
+  settings: () => readObject(configPath), plan,
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
   userSpeaking: () => pushToTalk?.held ?? null,
   log: (line) => appendLog(config!.supportDir, 'companion', line),

@@ -71,6 +71,12 @@ export function isBrowser(bundleId: string | null | undefined): boolean {
   return bundleId != null && BROWSERS.has(bundleId);
 }
 
+/** A browser, or a Windows packaged app: its app_id is an AUMID (`PackageFamilyName!AppId`), which no executable name or
+ *  bundle id here has, and it may be a browser. Its windows are not known to be non-private unless the browser says so. */
+export function mayBePrivate(bundleId: string | null | undefined): boolean {
+  return isBrowser(bundleId) || (bundleId != null && bundleId.includes('!'));
+}
+
 /** The AX title of the focused window when it has one, else the CG window name. */
 export function chooseTitle(ax: string | null, cg: string | null): string | null {
   return ax !== null && ax !== '' ? ax : cg;
@@ -480,10 +486,11 @@ export function browserAsks(bundleId: string | null): boolean {
   return bundleId === SAFARI || bundleId === CHROME;
 }
 
-/** AttentionSampler.browserState: not a browser is known not incognito; another browser, or a tab that could not be read
- *  (no Automation grant, an error), is unknown. `reply` is the `browser.front_tab` answer, null when not asked. */
+/** AttentionSampler.browserState: an app that is not mayBePrivate is known not incognito; another browser, a packaged app,
+ *  or a tab that could not be read (no Automation grant, an error), is unknown. `reply` is the `browser.front_tab` answer,
+ *  null when not asked. */
 export function browserState(bundleId: string | null, reply: HelperAnswer | null): { host: string | null; incognito: boolean | null } {
-  if (!isBrowser(bundleId)) return { host: null, incognito: false };
+  if (!mayBePrivate(bundleId)) return { host: null, incognito: false };
   if (reply === null || !reply.ok) return { host: null, incognito: null };
   return { host: str(reply.result.url_host), incognito: bool(reply.result.incognito) };
 }
@@ -505,8 +512,8 @@ export function composeSample(raw: RawAttention, c: SampleContext): AttentionSam
   const frontBounds = f?.window?.bounds ?? null;
   const front: AttentionWindow | null = f && {
     app: f.name, bundleId: f.appId, pid: f.pid, windowId: f.window?.windowId ?? null,
-    // A browser window that may be incognito gets no title.
-    title: isBrowser(f.appId) && c.browser.incognito !== false ? null : chooseTitle(f.focusedWindowTitle, f.window?.title ?? null),
+    // A window that may be incognito gets no title.
+    title: mayBePrivate(f.appId) && c.browser.incognito !== false ? null : chooseTitle(f.focusedWindowTitle, f.window?.title ?? null),
     urlHost: c.browser.host, category: f.category,
   };
   const mouse: AttentionWindow | null = raw.mouse && {
@@ -541,7 +548,7 @@ export function attentionPayload(s: AttentionSample, rules: BlacklistRules, ownP
     front = hidden;
     hiddenFrontId = s.front.windowId;
     frontHidden = true;
-  } else if (s.front && s.frontIncognito === null && isBrowser(s.front.bundleId)) {
+  } else if (s.front && s.frontIncognito === null && mayBePrivate(s.front.bundleId)) {
     // Incognito state unknown (always for Safari): only the app, as content capture blocks it as browser_unknown.
     front = { app: s.front.app, bundle_id: s.front.bundleId };
   } else {

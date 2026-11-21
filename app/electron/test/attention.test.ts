@@ -257,6 +257,15 @@ test('Windows: a browser by its executable name is a browser of unknown incognit
   assert.deepEqual(browserState('notepad.exe', null), { host: null, incognito: false });
 });
 
+test('Windows: a packaged app is known only by its AUMID and may be a browser, so its private state is unknown and it sends no title', () => {
+  const aumid = 'Contoso.Browser_8abcdefgh1234!App';
+  assert.deepEqual(browserState(aumid, null), { host: null, incognito: null });
+  const s = sample(reply({ front: { pid: 9, name: 'Contoso Browser', app_id: aumid,
+    window: { window_id: 3, pid: 9, bounds: { x: 0, y: 25, width: 800, height: 600 }, title: 'Private tab' } } }), { browser: browserState(aumid, null) });
+  assert.equal(s.front?.title, null);
+  assert.deepEqual(payload(s).front, { app: 'Contoso Browser', bundle_id: aumid });
+});
+
 // ---- Privacy: secure input, redaction, title length
 
 test('payload: secure input leaves the title key out', () => {
