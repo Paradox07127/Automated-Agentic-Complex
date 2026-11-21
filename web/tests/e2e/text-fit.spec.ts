@@ -28,7 +28,7 @@ async function open(page: Page, w: number, h: number, url: string) {
 }
 
 test('今天 1280: the 进行中 row message shows at most 2 lines and carries its full text as a title', async ({ page }) => {
-  await open(page, 1280, 800, 'overview');
+  await open(page, 1280, 800, 'overview?plugins=all');
   const meta = page.locator('ul[aria-label="进行中"] button > span:nth-child(2) > span:nth-child(2)');
   await expect(meta.first()).toBeVisible();
   for (const f of await fits(meta)) {

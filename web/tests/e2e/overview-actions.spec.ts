@@ -11,7 +11,7 @@ function collectErrors(page: Page): string[] {
 
 test('overview action band: 快速输入 and 屏幕识读 run the desktop ops and say so', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   const band = page.getByRole('toolbar', { name: '常用操作' });
   const done = { 快速输入: '已打开快速输入', 屏幕识读: '正在识读前台窗口' };
   for (const [name, toast] of Object.entries(done)) {
@@ -26,7 +26,7 @@ test('overview action band: 快速输入 and 屏幕识读 run the desktop ops an
 test('overview: expired approvals leave the 01 count and the card moves to the next open item', async ({ page }) => {
   const errors = collectErrors(page);
   await page.clock.install();
-  await page.goto('main.html#/overview');
+  await page.goto('main.html#/overview?plugins=all');
   const sec = page.locator('section[aria-label="待处理"]');
   const head = sec.locator('[data-stub="SecHead"]');
   await expect(head).toContainText('[5]');

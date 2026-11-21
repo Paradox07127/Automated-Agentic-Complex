@@ -19,7 +19,7 @@ const brief = (page: Page) => page.locator('section[aria-label="工业简报"]')
 
 test('default: no role band, 01 with one paper card and record rows, 02 of at most 3 rows beside it, 03 with a sentence, 2 numbers and 3 lanes; the day timeline is on 运行记录', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await expect(need(page).locator('[data-stub="Paper"]')).toHaveCount(1);
   await expect(need(page).locator('[data-pending-row]')).toHaveCount(4);
   await expect(need(page)).not.toContainText('另有');
@@ -44,7 +44,7 @@ test('default: no role band, 01 with one paper card and record rows, 02 of at mo
 
 test('task records open the exact task; close and reopen works with the visible X', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?still=1&demo=absent');
+  await page.goto('main.html#/overview?plugins=all&still=1&demo=absent');
   await page.getByRole('button', { name: '任务记录' }).click();
   const records = page.getByRole('dialog', { name: '任务记录' });
   const item = records.locator('[data-task]').first();
@@ -61,19 +61,19 @@ test('task records open the exact task; close and reopen works with the visible 
 });
 
 test('the diagnostic links and command panel open their own surfaces', async ({ page }) => {
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await brief(page).getByRole('button', { name: /^截图/ }).click();
   await expect(page.locator('main[data-route-id="pipeline"]')).toBeVisible();
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await brief(page).getByRole('button', { name: /^出错/ }).click();
   await expect(page.locator('main[data-route-id="diag"]')).toBeVisible();
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await page.getByRole('button', { name: /^命令面板/ }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
 });
 
 test('免打扰 menu pauses observation and the page shows it with 现在恢复', async ({ page }) => {
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '免打扰' }).click();
   await page.getByRole('menuitem', { name: /暂停观察 1 小时/ }).click();
   const readout = page.getByRole('status').filter({ hasText: /^观察暂停/ });
@@ -83,7 +83,7 @@ test('免打扰 menu pauses observation and the page shows it with 现在恢复'
 
 test('sparse: nothing waiting, no coding sessions; 派发任务 is only in the action band', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?still=1&demo=sparse');
+  await page.goto('main.html#/overview?plugins=all&still=1&demo=sparse');
   await expect(need(page)).toContainText('当前没有待处理事项');
   await expect(run(page)).toContainText('当前没有编码会话');
   await expect(run(page).getByRole('button', { name: /派发/ })).toHaveCount(0);
@@ -93,7 +93,7 @@ test('sparse: nothing waiting, no coding sessions; 派发任务 is only in the a
 });
 
 test('error: one bar says which reads failed and when the data is from; the regions stay at full strength', async ({ page }) => {
-  await page.goto('main.html#/overview?still=1&state=error');
+  await page.goto('main.html#/overview?plugins=all&still=1&state=error');
   await expect(page.locator('[data-stub="ErrBar"]')).toHaveCount(1);
   await expect(page.locator('[data-stub="ErrBar"]')).toContainText('读取待处理');
   // The bar carries the data time once; sections read at that time do not repeat it.
@@ -105,7 +105,7 @@ test('error: one bar says which reads failed and when the data is from; the regi
 });
 
 test('loading: section titles over skeletons, one 读取中 in the command bar, no numbers', async ({ page }) => {
-  await page.goto('main.html#/overview?still=1&state=loading');
+  await page.goto('main.html#/overview?plugins=all&still=1&state=loading');
   await expect(need(page).locator('[aria-busy="true"]')).toBeVisible();
   await expect(brief(page)).toContainText('工业简报');
   await expect(page.locator('main [data-shell="content"]')).not.toContainText('正在读取');
@@ -114,7 +114,7 @@ test('loading: section titles over skeletons, one 读取中 in the command bar, 
 
 test('960×700: a compact approval card; 02 moves under 01; the actions sit in the shell bottom bar', async ({ page }) => {
   await page.setViewportSize({ width: 960, height: 700 });
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=all&still=1');
   const card = need(page).locator('[data-stub="ApprovalCard"]');
   const title = (await card.locator('header').boundingBox())!;
   const approve = (await card.getByRole('button', { name: /^批准/ }).boundingBox())!;
@@ -131,7 +131,7 @@ test('960×700: a compact approval card; 02 moves under 01; the actions sit in t
 for (const [w, h] of [[900, 600], [1280, 800], [1440, 900], [1920, 1080]] as const) {
   test(`${w}×${h}: no horizontal overflow, every region on the page`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
-    await page.goto('main.html#/overview?still=1');
+    await page.goto('main.html#/overview?plugins=all&still=1');
     await expect(brief(page)).toBeVisible();
     const over = await page.evaluate(() => {
       const c = document.querySelector('[data-shell="content"]');
