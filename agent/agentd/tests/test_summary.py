@@ -70,10 +70,15 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual([p.split("\n")[0] for p in self.asked[-1]["previous"]], ["# second", "# third"])
 
     def test_summaries_go_with_the_records_they_were_made_from(self):
-        self.summarize(T0, "notes", app="Notes")
-        self.summarize(T0 + SEGMENT_S, "code")
-        self.timeline.delete_hidden(lambda w: w["app"] == "Notes")
-        self.assertEqual([s["segment"] for s in self.timeline.search_summaries("build")], [T0 + SEGMENT_S])
+        self.summarize(T0, "calendarMarker", app="Calendar")
+        later = T0 + SEGMENT_S
+        self.timeline.ingest([rec(later + i) for i in range(summary.MIN_RECORDS)])
+        summary.summarize(self.timeline, later, lambda _, evidence: {**answer("code"), "prior": evidence["previous"][0]})
+        self.assertEqual(len(self.timeline.search_summaries("calendarMarker")), 2)
+        self.timeline.delete_hidden(lambda w: w["app"] == "Calendar")
+        self.assertEqual(self.timeline.search_summaries("calendarMarker"), [])
+        self.assertIsNotNone(summary.summarize(self.timeline, later, self.run_model("code")))
+        self.assertEqual(self.asked[-1]["previous"], [])
         self.timeline.clear(since=T0 + SEGMENT_S + 5)
         self.assertEqual(self.timeline.search_summaries("build"), [])
 

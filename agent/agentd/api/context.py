@@ -123,6 +123,7 @@ class ContextInputMixin:
             return self._json(400, {"error": "invalid_records"})
         if len(body["records"]) > RECORDS_MAX:
             return self._json(400, {"error": "too_many_records"})
+        tree_generation = timeline.tree_generation
         generation = timeline.typed_generation  # before consent, so a revocation in between drops the text
         now, typed = self.server.clock(), self.server.consent.snapshot()[0]["typed_text"]
         kept = [row for row in (_timeline_record(record, now) for record in body["records"])
@@ -137,7 +138,7 @@ class ContextInputMixin:
                 row["text"] = None
                 if row["target"] is not None:
                     row["target"]["value"] = None
-        stored = timeline.ingest(kept, typed_generation=generation)
+        stored = timeline.ingest(kept, typed_generation=generation, tree_generation=tree_generation)
         self._json(200, {"stored": stored, "dropped": len(body["records"]) - stored})
 
     def _context_text(self, body):

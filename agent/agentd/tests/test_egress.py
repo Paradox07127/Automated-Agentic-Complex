@@ -198,6 +198,15 @@ print('complete long body and email redaction verified')
 
 
 class EgressPolicyTest(unittest.TestCase):
+    def test_secret_member_masks_every_json_type(self):
+        from brain.egress import EgressPolicy
+        client = RecordingClient()
+        policy = EgressPolicy()
+        for value in (1234, True, None, ["marker"], {"nested": "marker"}, ""):
+            with self.subTest(value=value):
+                client.create(text=policy.user_text(json.dumps({"password": value, "other": 1234})))
+                self.assertEqual(json.loads(client.bodies[-1][2]["text"]), {"password": "[已遮蔽:密钥]", "other": 1234})
+
     def test_thought_evidence_is_redacted_and_original_lines_stay_blocked(self):
         from brain.egress import EgressPolicy
         from character.thoughts import Thoughts

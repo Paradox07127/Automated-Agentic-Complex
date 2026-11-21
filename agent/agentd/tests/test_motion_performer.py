@@ -383,7 +383,7 @@ class SettingsRouteTest(MotionCase):
         self.assertEqual(os.stat(self.state / "motion-service.token").st_mode & 0o777, 0o600)
         self.assertNotIn("service-secret", (self.state / "motion-settings.json").read_text(encoding="utf-8"))
         status, saved = self.request("PUT", "/motion/settings", {"backend": "game", "service_url": None})
-        self.assertEqual((status, saved["token_set"]), (200, True))  # no token key keeps the saved one
+        self.assertEqual((status, saved["token_set"]), (200, False))
         self.assertEqual(MotionSettings(self.state).backend, "game")
 
     def test_a_backend_change_rerenders_the_mouth_prompt_once(self):

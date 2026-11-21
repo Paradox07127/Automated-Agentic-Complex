@@ -3783,7 +3783,8 @@ class RawEventsServerTest(FeedServerCase):
         self.assertEqual(self.request("DELETE", "/attention")[0], 200)
         self.assertEqual(self.rows(), [])
 
-    def test_a_submitted_prompt_is_kept_only_with_typed_text(self):
+    def test_a_shared_session_prompt_is_kept_only_with_typed_text(self):
+        self.server.share_agent_sessions = True
         self.assertEqual(self.hook("claude", "UserPromptSubmit", prompt="帮我看看"), (200, {}))
         self.assertEqual(self.rows(), [("prompt", "claude", "/w", None, None, 4)])
         self.server.share_typed_text = True

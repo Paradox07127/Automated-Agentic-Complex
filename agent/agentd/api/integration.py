@@ -104,6 +104,7 @@ def _propose_reminder(h, body):
     if server.commitments is None:
         return h.json(503, {"error": "no_commitments"})
     summary = f"{time.strftime('%Y-%m-%d %H:%M', time.localtime(due_at))} {text}"
+    generation = server.reset_generation
     request = server.broker.open(body.get("source", "external"), "integration", "reminder", tool_summary=summary,
                                  window=REMINDER_WINDOW)
     proposals = server.integration_proposals
@@ -116,9 +117,13 @@ def _propose_reminder(h, body):
         decision = server.broker.wait(request.request_id)
         outcome = {"state": {"allow": "accepted", "deny": "declined"}.get(decision, "expired"), "commitment_id": None}
         if decision == "allow":
-            item = server.commitments.add(text, due_at)
-            server.feed.publish("commitment", {"action": "added", "commitment": item})
-            outcome["commitment_id"] = item["id"]
+            with server._write_lock:
+                if server.resetting or generation != server.reset_generation:
+                    outcome["state"] = "expired"
+                else:
+                    item = server.commitments.add(text, due_at)
+                    server.feed.publish("commitment", {"action": "added", "commitment": item})
+                    outcome["commitment_id"] = item["id"]
         with _lock:
             if request.request_id in proposals:
                 proposals[request.request_id] = outcome

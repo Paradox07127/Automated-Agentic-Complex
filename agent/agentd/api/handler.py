@@ -423,7 +423,7 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
 
     def _feed(self):
         feed = self.server.feed
-        return self._sse(feed.since, feed.wait, lambda: feed.seq, stream=feed)
+        return self._sse(feed.since, feed.wait, stream=feed)
 
     def _events(self):
         registry = self.server.registry
@@ -431,10 +431,16 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         intents = lambda seq: [{"seq": i["seq"], "event": i.get("event", "intent"),
                                 "data": {k: v for k, v in i.items() if k != "event"}}
                                for i in registry.intents_since(seq)]
-        current = lambda: [{**i, "turn_generation": self.server.turn_generation,
-                            "behaviors": self.server.spatial.running()}
-                           for i in [i for i in registry.intents_since(0) if "event" not in i][-1:]]
-        self._sse(intents, registry.wait_for_intent, lambda: registry.intent_seq, current)
+
+        def current():
+            # Spatial publishes under its lock and then the registry lock.
+            with self.server.spatial._lock, registry.cv:
+                behaviors = self.server.spatial.running()
+                registry.tick()
+                return {**registry.current_intent, "seq": registry.intent_seq, "turn_generation": self.server.turn_generation,
+                        "behaviors": behaviors}
+
+        self._sse(intents, registry.wait_for_intent, snapshot=current)
 
     # POST actions; all but the two below get the body _post read
 
@@ -664,7 +670,7 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         receipt["done"].wait()
         self._json(*(receipt["answer"] or (500, {"error": "internal"})))
 
-    def _sse(self, since, wait, latest, snapshot=lambda: [], stream=None):
+    def _sse(self, since, wait, snapshot=None, stream=None):
         """Stream since(seq) items as `id: seq / event: <event>`; resume via Last-Event-ID.
         stream: the buffer (/feed) whose ids are `<stream_epoch>-<seq>`, sent after a `stream` item and any
         `reset` / `gap`."""
@@ -677,17 +683,17 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         except ValueError:
             return self._json(400, {"error": "invalid_cursor"})
         # Fix the cursor before the headers go out: a client may publish as soon as it sees them.
-        current = snapshot() if seq is None else []
-        seq = latest() if seq is None else seq
+        current = snapshot() if seq is None else None
+        if current is not None:
+            seq = current["seq"]
         self.close_connection = True
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         try:
-            if current:
-                for data in current:
-                    self.wfile.write(("event: snapshot\ndata: " + json.dumps(data) + "\n\n").encode())
+            if current is not None:
+                self.wfile.write(("event: snapshot\ndata: " + json.dumps(current) + "\n\n").encode())
             if stream is not None:
                 for event, data in [("stream", state)] + ([problem] if problem else []):
                     self.wfile.write(f"event: {event}\ndata: {json.dumps(data)}\n\n".encode())

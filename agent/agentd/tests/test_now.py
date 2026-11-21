@@ -31,6 +31,12 @@ def field(value):
 
 
 class NowTest(unittest.TestCase):
+    def test_late_batch_keeps_newer_foreground(self):
+        self.timeline.ingest([rec(T0 - 100, "window", app="Mail"), rec(T0 - 1, "window", app="Mail")])
+        self.timeline.ingest([rec(T0 - 50, "window", app="Editor")])
+        self.assertEqual(self.timeline.now()["app"], "Mail")
+        self.assertEqual(len(self.timeline.records(int(T0) - 600)), 3)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.root = Path(self.tmp.name)

@@ -104,7 +104,7 @@ def redact(text, contacts=True):
         return json.dumps(masked, ensure_ascii=False)
 
     def member(name, value):
-        if isinstance(value, str) and value not in ('', '[已遮蔽:密钥]') and _SECRET_MEMBER.search(name):
+        if _SECRET_MEMBER.search(name) and value != '[已遮蔽:密钥]':
             counts['key'] += 1
             return json.dumps('[已遮蔽:密钥]', ensure_ascii=False)
         return encode(value)

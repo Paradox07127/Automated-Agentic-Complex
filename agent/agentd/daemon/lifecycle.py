@@ -65,7 +65,6 @@ class LifecycleMixin:
         """DELETE /history and /memory?scope=history|all, in /reset's order: the live turn ends, then nothing a line
         from before stores lands, then the rows, the mouth's window and the trace go. The rows deleted."""
         self.cancel_turn("client_cancel")
-        self._forget_agent_data()
         with self._write_lock:
             self.history_generation += 1
             self._line_entries.clear()

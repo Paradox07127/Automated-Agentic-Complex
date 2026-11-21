@@ -177,12 +177,12 @@ class Performer:
         """With driver (the current character's effective motion driver) generated, builds the current character's
         LiveRetarget on a thread so the first motion meets the budget. A failure here is reported by the first motion
         that hits it."""
-        url = self.settings.service_url
+        url, token = self.settings.endpoint()
         if driver != "generated" or url is None:
             return
         def run():
             try:
-                self._retarget_for(Path(self.package_root()), url, self.settings.token())
+                self._retarget_for(Path(self.package_root()), url, token)
             except Exception:
                 pass
         threading.Thread(target=run, name="motion-prewarm", daemon=True).start()
@@ -190,7 +190,7 @@ class Performer:
     def _perform(self, prompt, seconds, generation, trace_id, began, texts):
         stage = "generate"
         try:
-            url, token = self.settings.service_url, self.settings.token()
+            url, token = self.settings.endpoint()
             if url is None:
                 raise ServiceError("no_service")
             called = self.clock()
@@ -237,7 +237,7 @@ class Performer:
         stage, trace_id, checked = "retarget", request_trace(body["request_id"]), {}
         try:
             self._in_time(began, self.request_budget)
-            url, token = self.settings.service_url, self.settings.token()
+            url, token = self.settings.endpoint()
             if url is None:
                 raise ServiceError("no_service")
             retarget = self._retarget_for(Path(self.package_root()), url, token)

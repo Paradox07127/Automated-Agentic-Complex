@@ -1,4 +1,5 @@
 """Synthesize one silent test clause and check the service's C2 stream."""
+import base64
 import http.client
 import json
 import secrets
@@ -58,6 +59,9 @@ def check(url, token, character, language, timeout=30):
             elif event == "audio":
                 if type(line.get("start_sample")) is not int or line["start_sample"] != samples \
                         or type(line.get("samples")) is not int or line["samples"] < 0:
+                    raise ValueError
+                pcm = line.get("pcm_base64")
+                if not isinstance(pcm, str) or not pcm or len(base64.b64decode(pcm, validate=True)) != 2 * line["samples"]:
                     raise ValueError
                 if result["first_audio_ms"] is None:
                     result["first_audio_ms"] = int((time.monotonic() - started) * 1000)

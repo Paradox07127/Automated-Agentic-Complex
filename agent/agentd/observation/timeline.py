@@ -34,6 +34,7 @@ class Timeline:
                         " tokenize='unicode61')")
         row = self.db.execute("SELECT state FROM now").fetchone()
         self.state = json.loads(row[0]) if row else now_rules.EMPTY
+        self.tree_generation = 0
         self.typed_generation = 0  # clear_typed_text() bumps it; a batch checked before that keeps no text
         self.floor = float("-inf")  # clock time of the last clear; nothing from before it is stored
         self.revision = 0  # every drop of summaries bumps it; a summary made from records read before that is not stored
@@ -43,7 +44,7 @@ class Timeline:
         with self.lock:
             self.db.close()
 
-    def ingest(self, records, typed_generation=None):
+    def ingest(self, records, typed_generation=None, tree_generation=None):
         """Checked records (see api.views._timeline_record) in, less the blacklisted ones and those at or before the
         last clear; with a typed_generation other than the current one, text and target.value go. The stored ones
         advance the now state. Returns stored."""
@@ -51,11 +52,15 @@ class Timeline:
         with self.lock:
             kept = [r for r in kept if r["ts"] > self.floor]  # under the lock, so a clear() meanwhile counts
             stale = typed_generation is not None and typed_generation != self.typed_generation
+            stale_tree = tree_generation is not None and tree_generation != self.tree_generation
+            latest = self.db.execute("SELECT ts FROM timeline ORDER BY segment DESC, ts DESC LIMIT 1").fetchone()
             stored = []
             with self.db:  # all rows and the state or, when one fails, none
                 for r in kept:
                     target = r["target"] if r["target"] is None or not stale else {**r["target"], "value": None}
-                    tree = r["tree"] or {}
+                    if stale_tree and target and target["role"] == "AXStaticText":
+                        target = {**target, "title": None}
+                    tree = {} if stale_tree else r["tree"] or {}
                     row = (r["ts"], int(r["ts"] // SEGMENT_S) * SEGMENT_S, r["kind"], r["app"], r["bundle_id"],
                            r["pid"], r["window_id"], r["window_title"], r["url_host"],
                            None if target is None else json.dumps(target, ensure_ascii=False), r["keys"],
@@ -64,7 +69,8 @@ class Timeline:
                                             f" ({', '.join('?' * len(COLUMNS))})", row).lastrowid
                     stored.append({**r, "id": ident, "target": target})
                 if stored:
-                    self._save(now_rules.advance(self.state, stored, self.clock()))
+                    latest_ts = latest[0] if latest and self.state["start_id"] is not None else None
+                    self._save(now_rules.advance(self.state, stored, self.clock(), latest_ts))
         self.expire(self.clock())
         return len(kept)
 
@@ -148,9 +154,11 @@ class Timeline:
             gone = [(rowid, segment) for rowid, segment, *window in rows
                     if hides(_window(dict(zip(("app", "bundle_id", "url_host", "window_title"), window))))]
             self.db.executemany("DELETE FROM timeline WHERE id = ?", [(rowid,) for rowid, _ in gone])
-            ids, segments = {rowid for rowid, _ in gone}, sorted({segment for _, segment in gone})
+            ids = {rowid for rowid, _ in gone}
             self._prune(lambda rowid, _: rowid in ids)
-            self._drop_summaries(f"rowid IN ({', '.join('?' * len(segments))})", segments)
+            if gone:
+                # Each later summary can carry earlier summaries forward through its context.
+                self._drop_summaries("rowid >= ?", (min(segment for _, segment in gone),))
             self.db.commit()
         return len(gone)
 
@@ -169,6 +177,7 @@ class Timeline:
     def clear_trees(self):
         """window_text revoked or not allowed: every tree and clicked text's label goes; the rows stay."""
         with self.lock:
+            self.tree_generation += 1
             self.db.execute("UPDATE timeline SET tree_mode = NULL, tree_text = NULL, target = CASE"
                             " WHEN json_extract(target, '$.role') = 'AXStaticText' THEN json_set(target, '$.title', NULL)"
                             " ELSE target END")  # a clicked text is named by the text itself

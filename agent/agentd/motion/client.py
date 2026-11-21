@@ -3,6 +3,7 @@ import json
 import threading
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 
 GENERATE_TIMEOUT = 2.0  # s
 SKELETON_TIMEOUT = 2.0  # s
@@ -14,6 +15,20 @@ class ServiceError(Exception):
     def __init__(self, reason):
         super().__init__(reason)
         self.reason = reason
+
+
+def _origin(url):
+    parts = urlsplit(url)
+    port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
+    return parts.scheme, parts.hostname, port
+
+
+class _MotionRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if _origin(req.full_url) != _origin(newurl):
+            redirected.remove_header("Authorization")
+        return redirected
 
 
 class MotionClient:
@@ -42,7 +57,7 @@ class MotionClient:
         request = urllib.request.Request(url.rstrip("/") + path, data=data, method="GET" if data is None else "POST",
                                          headers=headers)
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            with urllib.request.build_opener(_MotionRedirect).open(request, timeout=timeout) as response:
                 return response.read()
         except urllib.error.HTTPError as error:
             raise ServiceError(f"http_{error.code}") from error

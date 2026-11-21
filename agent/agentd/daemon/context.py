@@ -182,7 +182,8 @@ class ContextMixin:
             self.correction = None
         now = inputs["now"]
         with self._state_lock:  # a forget_user_state() meanwhile would be undone by update()
-            events = self.attention.recent_events(now - user_state.ERROR_WINDOW, kinds=USER_KINDS)
+            kinds = USER_KINDS if self.external_session_activity_allowed() else RAW_KINDS
+            events = self.attention.recent_events(now - user_state.ERROR_WINDOW, kinds=kinds)
             derived = user_state.derive(events, inputs, scene, now)
             current = self.user_state.update(derived, now, at_once=scene["corrected"])
         before = current["before_away"]

@@ -32,25 +32,28 @@ def _field(a):
     return a["app"], a["kind"], a["field"]
 
 
-def advance(state, records, at):
+def advance(state, records, at, latest):
     """state after records (stored rows with their ids) at clock time at: each sets the front window, a new one with
     its time as since; each action joins the latest RECENT, a run of inputs into one field as its last one."""
     state = {**state, "actions": list(state["actions"])}
     for r in sorted(records, key=lambda r: (r["ts"], r["id"])):
-        if (r["app"], r["bundle_id"], r["window_id"]) != (state["app"], state["bundle_id"], state["window_id"]):
-            state.update(since=r["ts"], start_id=r["id"])
-        state.update(app=r["app"], bundle_id=r["bundle_id"], window=r["window_title"], window_id=r["window_id"],
-                     url_host=r["url_host"], artifact=artifact(r["window_title"], r["app"], r["url_host"]))
+        if latest is None or r["ts"] >= latest:
+            if (r["app"], r["bundle_id"], r["window_id"]) != (state["app"], state["bundle_id"], state["window_id"]):
+                state.update(since=r["ts"], start_id=r["id"])
+            state.update(app=r["app"], bundle_id=r["bundle_id"], window=r["window_title"], window_id=r["window_id"],
+                         url_host=r["url_host"], artifact=artifact(r["window_title"], r["app"], r["url_host"]))
         if r["kind"] not in ACTIONS:
             continue
         action = {"id": r["id"], "ts": r["ts"], "kind": r["kind"], "app": r["app"], "keys": r["keys"],
                   "field": target_label(r["target"], r["kind"]) if r["kind"] == "text_input" else None}
-        actions = state["actions"]
-        if r["kind"] == "text_input" and actions and _field(actions[-1]) == _field(action):
+        state["actions"].append(action)
+    actions = []
+    for action in sorted(state["actions"], key=lambda a: (a["ts"], a["id"])):
+        if action["kind"] == "text_input" and actions and _field(actions[-1]) == _field(action):
             actions[-1] = action
         else:
             actions.append(action)
-        del actions[:-RECENT]
+    state["actions"] = actions[-RECENT:]
     state["updated_at"] = at
     return state
 

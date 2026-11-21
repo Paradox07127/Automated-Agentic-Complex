@@ -78,7 +78,11 @@ class ObservationMixin:
         events, context = server.attention.delete_since(cutoff)
         if getattr(server, "timeline", None) is not None:
             server.timeline.clear(since=cutoff)
-        understanding = getattr(getattr(server, "character_agent", None), "task_understanding", None)
+        controller = server.character_agent
+        continuous = getattr(controller, "observations", None)
+        if continuous:
+            continuous.delete_since(cutoff)
+        understanding = getattr(controller, "task_understanding", None)
         if understanding: understanding.delete_since(cutoff)
         server.forget_user_state()
         ids = server.episodes.delete_since(cutoff) if server.episodes is not None else []
@@ -88,11 +92,11 @@ class ObservationMixin:
         facts = server.memory.delete_since(cutoff, OBSERVED_SOURCES) if server.memory is not None else []
         for fact_id in facts:
             server.feed.publish("memory", {"action": "deleted", "fact_id": fact_id})
-        server._memories_changed(facts, deleted=True)
-        derived = server._forget_derived(ids)
+        server._memories_changed(facts, deleted=True, reason="observations_deleted")
+        derived = server._forget_derived(ids, reason="observations_deleted")
         if server.trace is not None:  # one file with the episodes' in main()
             checkpoint(server.trace)
-        any(server._context_changed(kind) for kind in SEEN)
+        any(server._context_changed(kind, reason="observations_deleted") for kind in SEEN)
         body = {"events": events, "context": context, "observations": observations,
                 "facts": len(set(facts) | set(derived))}
         self._json(200, body if server.episodes is None else {**body, "episodes": len(ids)})

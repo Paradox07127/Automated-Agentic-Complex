@@ -55,9 +55,7 @@ class HooksMixin:
         self.server.record_agent_event(event, body)
         observe = self.headers.get("X-Agentd-Observe") == "1"
         if POLICY.hook(event.source, event.kind, observe=observe).method == 'observe_only':
-            for request_id in self._retire(event):
-                registry.approval_resolved(event.key, request_id, "retired")
-            self.server.ingest(event)
+            self.server.ingest(event, retire=self._retire)
             if event.kind == "prompt_submit" and not event.agent_id:
                 self._title(event, body)
             self.server.presence_feed.poke()
@@ -65,19 +63,22 @@ class HooksMixin:
         if self.server.closing:
             return self._json(503, {"error": "shutting_down"})
         own = self.server.sessions.native_ids().get(event.session_id) if self.server.sessions else None
-        request = broker.open(event.source, event.session_id, event.tool_name, event.agent_id,
-                              tool_fp=event.tool_fp, tool_summary=event.tool_summary,
-                              summary_truncated=event.summary_truncated, summary_length=event.summary_length,
-                              summary_sha256=event.summary_sha256, content_preview=event.content_preview,
-                              content_preview_truncated=event.content_preview_truncated,
-                              content_preview_length=event.content_preview_length,
-                              content_preview_sha256=event.content_preview_sha256,
-                              display=own.session_id if own else None,
-                              session_scope=session_scope(event.suggestions),
-                              targets=[command] if (command := command_text(body.get("tool_input"))) is not None
-                              else None, cwd=event.cwd)
-        event.request_id = request.request_id
-        registry.ingest(event)
+        with registry.cv:
+            if registry.superseded(event):
+                return self._json(200, {})
+            request = broker.open(event.source, event.session_id, event.tool_name, event.agent_id,
+                                  tool_fp=event.tool_fp, tool_summary=event.tool_summary,
+                                  summary_truncated=event.summary_truncated, summary_length=event.summary_length,
+                                  summary_sha256=event.summary_sha256, content_preview=event.content_preview,
+                                  content_preview_truncated=event.content_preview_truncated,
+                                  content_preview_length=event.content_preview_length,
+                                  content_preview_sha256=event.content_preview_sha256,
+                                  display=own.session_id if own else None,
+                                  session_scope=session_scope(event.suggestions),
+                                  targets=[command] if (command := command_text(body.get("tool_input"))) is not None
+                                  else None, cwd=event.cwd)
+            event.request_id = request.request_id
+            registry.ingest(event)
         self.server.presence_feed.poke()
         decision = broker.wait(request.request_id, abandoned=self._peer_closed)
         outcome = {"cancelled": "retired", "abandoned": "abandoned"}.get(

@@ -666,7 +666,7 @@ http 型 hook 读不到环境变量和 tty，所以来源由命令型 hook 的�
 - 转发器同时放进 `agentd_started_at`：它启动时的 Unix 时间（秒，浮点），agentd 拿它给事件排序（见 §4.6「顺序」）。
 - Claude：示例配置把 `UserPromptSubmit` 改成命令型 hook（`--endpoint /hook/claude`），其他事件仍是 http；同一事件只配一个 hook，不会重复上报。Codex 本来就全是命令型。
 - 编码会话的完整 live-hook 证据（工具输入、工具输出、结果、最后一条助手消息）由独立同意项 `agent_sessions` 控制：Companion 的 `share_agent_sessions` 默认开，启动时传 `--share-agent-sessions`；保存配置缺少此键按默认开，显式关闭则不采集。证据在本机保存 48 小时，不读取原生会话文件。人类或来源未知的 `UserPromptSubmit` 提问须同时允许 `agent_sessions` 和 `typed_text`；会话预览进入观察证据时也遵守这两个范围。撤回 `agent_sessions` 走与撤回 `typed_text` 相同的观察失效路径，删除已存 live-hook 证据和派生摘要。
-- `UserPromptSubmit` 在活动时间线里的提问预览：同意项 `typed_text` 为真时，agentd 往 `attention.sqlite` 的 `events_raw` 写一行 `kind='prompt'`（`app` 为来源 `claude`/`codex`，`doc` 为 cwd，`value` 为 `prompt` 的前 500 字，`value_len` 为全长），保留 48 小时；`prompt` 不是字符串或为空时不写。会话登记和 `/feed` 都不带正文。
+- `UserPromptSubmit` 在活动时间线里的提问预览：启用 `coding_sessions` 插件且同意项 `agent_sessions`、`typed_text` 均为真时保留正文。agentd 往 `attention.sqlite` 的 `events_raw` 写一行 `kind='prompt'`（`app` 为来源 `claude`/`codex`，`doc` 为 cwd，`value` 为获准保留的 `prompt` 前 500 字，否则为 null，`value_len` 为全长），保留 48 小时；`prompt` 不是字符串或为空时不写。会话登记和 `/feed` 都不带正文。
 - 转发器 HTTP 超时默认 3 s（`--timeout`，安装器给 0.8 s），查 tty 的 `ps` 最多等 0.2 s：agentd 没开（连接被拒）时立刻退出，卡住时整次约 1 s 内结束。任何失败（token 文件缺失或读不了、stdin 不是 JSON、回复不对）都不打印、退出 0，不挡会话。agentd 只保留形状正确的字段（`tty` 必须以 `/dev/` 开头，字符串最长 256）。
 
 ### 4.7 语音中继

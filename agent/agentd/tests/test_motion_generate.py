@@ -5,6 +5,7 @@ import json
 import math
 from pathlib import Path
 import sys
+import tempfile
 import threading
 import unittest
 from unittest import mock
@@ -252,6 +253,31 @@ class RequestsTest(unittest.TestCase):
 
 
 class ClientTest(unittest.TestCase):
+    def test_changed_service_drops_saved_token(self):
+        from motion.settings import MotionSettings
+        with tempfile.TemporaryDirectory() as directory:
+            settings = MotionSettings(directory)
+            settings.update({'backend': 'generated', 'service_url': 'https://first.example', 'token': 'sentinel'})
+            status, result = settings.update({'backend': 'generated', 'service_url': 'https://next.example'})
+            self.assertEqual((status, result['token_set'], MotionSettings(directory).token()), (200, False, None))
+
+    def test_cross_origin_redirect_has_no_token(self):
+        from urllib.response import addinfourl
+        from motion.client import MotionClient
+        sent = []
+        urls = ['http://first.example/v1/skeleton', 'http://first.example/next', 'http://other.example/']
+        def transport(handler, request):
+            sent.append((request.full_url, request.get_header('Authorization')))
+            index = len(sent)
+            status = 302 if index < len(urls) else 200
+            headers = {'location': urls[index]} if status == 302 else {}
+            response = addinfourl(io.BytesIO(b'{}'), headers, request.full_url, status)
+            response.msg = 'redirect' if status == 302 else 'OK'
+            return response
+        with mock.patch('urllib.request.HTTPHandler.http_open', transport):
+            MotionClient().skeleton('http://first.example', 'sentinel')
+        self.assertEqual(sent, list(zip(urls, ['Bearer sentinel', 'Bearer sentinel', None])))
+
     def test_generate_sends_the_constraints_only_when_given(self):
         from motion.client import MotionClient
         sent = []
@@ -267,7 +293,7 @@ class ClientTest(unittest.TestCase):
     def test_no_token_sends_no_authorization_header(self):
         from motion.client import MotionClient
         sent = []
-        with mock.patch("urllib.request.urlopen", lambda request, timeout: sent.append(dict(request.header_items())) or io.BytesIO(b"{}")):
+        with mock.patch("urllib.request.OpenerDirector.open", lambda opener, request, timeout: sent.append(dict(request.header_items())) or io.BytesIO(b"{}")):
             MotionClient().skeleton("http://127.0.0.1:48830", None)
             MotionClient().skeleton("http://127.0.0.1:48831", "t")
         self.assertNotIn("Authorization", sent[0])

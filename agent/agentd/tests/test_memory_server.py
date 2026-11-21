@@ -68,9 +68,9 @@ class LocalLogsTest(unittest.TestCase):
         self.proactive = Judge(RulesBackend(), self.root / "proactive-judge.jsonl", clock=lambda: self.now)
         self.server = SimpleNamespace(attention=self.attention, capture=self.capture,
             proactive=SimpleNamespace(judge=self.proactive), episodes=None,
-            memory=None, trace=None,
-            clock=lambda: self.now, forget_user_state=Mock(), _forget_derived=lambda ids: [],
-            _memories_changed=Mock(), _context_changed=lambda kind: False)
+            memory=None, trace=None, character_agent=None,
+            clock=lambda: self.now, forget_user_state=Mock(), _forget_derived=Mock(return_value=[]),
+            _memories_changed=Mock(), _context_changed=Mock(return_value=False))
         self.handler = Handler.__new__(Handler)
         self.handler.server = self.server
         self.handler._json = Mock()

@@ -147,6 +147,9 @@ class History:
         with self.lock:
             deleted = self.db.execute("DELETE FROM history_turns").rowcount
             self.db.execute("DELETE FROM history_fts")
+            self.db.execute("DELETE FROM memory_agent_events WHERE run_id IN"
+                            " (SELECT run_id FROM memory_agent_runs WHERE prompt_version='conversation-v2')")
+            self.db.execute("DELETE FROM memory_agent_runs WHERE prompt_version='conversation-v2'")
             self.conversations.clear()
             self.db.commit()
         return deleted

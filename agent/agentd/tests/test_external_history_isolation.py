@@ -23,6 +23,7 @@ class HookOnlyHistoryTests(unittest.TestCase):
         self.root=Path(self.tmp.name)
         test_server.ServerTest.setUp(self)
         self.server.agent_meta=AgentMeta()
+        self.server.share_agent_sessions=True
         self.server.share_typed_text=True
         self.server.attention=AttentionStore(self.root/'attention.sqlite',Blacklist(deny_blacklist(self.root/'blacklist.json')))
         self.native=self.root/'native.jsonl';self.native.write_text('NATIVE-HISTORY-CANARY', encoding='utf-8')

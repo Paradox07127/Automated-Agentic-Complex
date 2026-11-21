@@ -101,8 +101,12 @@ class ApprovalBroker:
                                       cwd, summary_truncated, summary_length, summary_sha256, content_preview,
                                       content_preview_truncated, content_preview_length, content_preview_sha256)
             self._requests[request.request_id] = request
-            while len(self._requests) > self._history:
-                self._requests.popitem(last=False)
+            if len(self._requests) > self._history:
+                for ident, old in list(self._requests.items()):
+                    if old.status not in ("pending", "decided"):
+                        del self._requests[ident]
+                        if len(self._requests) <= self._history:
+                            break
             self._report("approval.opened", request)
             return request
 

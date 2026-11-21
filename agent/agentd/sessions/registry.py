@@ -119,6 +119,7 @@ class Registry:
         self.desktop_seen = {}  # display id -> completion or failure timestamp acknowledged by the user
         self.outcomes = deque(maxlen=256)
         self.intents = deque(maxlen=256)
+        self.current_intent = None
         self.intent_seq = 0
         self.activity = self.mood = None  # behavior tick; None until it first picks
         self.role_focus = None  # Product-owned work; never masquerades as a coding session.
@@ -133,8 +134,15 @@ class Registry:
 
     # Public API; every call runs TTL expiry and focus arbitration first.
 
+    def superseded(self, event):
+        """Under cv: a later hook has already updated this session."""
+        session = self.sessions.get(event.key)
+        return session is not None and event.ts < session.last_event
+
     def ingest(self, event):
         with self.cv:
+            if self.superseded(event):
+                return
             if event.key in self._removed_sessions:
                 if event.kind != "prompt_submit":
                     return  # a retiring owned process cannot reappear as an external session
@@ -264,9 +272,6 @@ class Registry:
         if session is None:
             self.desktop_retired.pop(key, None)
             session = self.sessions[key] = Session(event.source, event.session_id, now)
-        elif now < session.last_event:
-            # Started before the last event applied (async hooks arrive in any order): already superseded.
-            return
         session.last_event = now
         session.cwd = event.cwd or session.cwd
         session.origin = event.origin or session.origin
@@ -471,4 +476,5 @@ class Registry:
             "turn_generation": self.turn_generation,
             **{key: focus[key] for key in ('run_id', 'conversation_id', 'run_generation', 'phase', 'outcome')
                if key in focus}})
+        self.current_intent = self.intents[-1]
         self.cv.notify_all()

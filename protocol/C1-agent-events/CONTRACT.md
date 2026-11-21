@@ -199,7 +199,7 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
     动作后端为 `game` 时什么也不做，提示词里也没有这条标记的说明。
   - `GET /motion/settings`（ui 令牌）回 `{backend, service_url, token_set}`，从不回令牌。`PUT /motion/settings`（ui 令牌）
     收 `{backend, service_url, token?}`：`backend` 是 `game`（默认）或 `generated`，`service_url` 是 `http://` 或 `https://`
-    地址或 null，`token` 是动作服务的 bearer 令牌（缺省不变，`""` 删掉）。键不对 400 `invalid_payload`，后端不认识 400
+    地址或 null，`token` 是动作服务的 bearer 令牌（地址不变时缺省保留，换地址时缺省删除，`""` 删掉）。键不对 400 `invalid_payload`，后端不认识 400
     `invalid_backend`，地址不对 400 `invalid_service_url`，令牌不是字符串 400 `invalid_token`；200 回存下的设置（同 GET）。
     设置存在状态目录的 `motion-settings.json`，令牌另存 `motion-service.token`（0600）。
 

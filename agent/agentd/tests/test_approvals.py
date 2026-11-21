@@ -19,6 +19,15 @@ def broker(window=0.1):
 
 
 class ApprovalBrokerTest(unittest.TestCase):
+    def test_pending_survives_history_eviction(self):
+        b = ApprovalBroker(history=2)
+        pending = b.open("claude", "first")
+        finished = b.open("claude", "second")
+        b.decide(finished.request_id, finished.generation, "allow")
+        b.wait(finished.request_id)
+        b.open("claude", "third")
+        self.assertEqual(b.decide(pending.request_id, pending.generation, "deny"), (True, None))
+
     def test_deadline_must_be_shorter_than_hook_timeout(self):
         with self.assertRaises(ValueError):
             ApprovalBroker(hook_timeout=5.0, margin=0.0)

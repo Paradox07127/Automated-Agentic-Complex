@@ -73,6 +73,7 @@ class IngestRacesTest(test_server.FeedServerCase):
         self.assertIsNone(self.server.user_state._current)
 
     def test_a_prompt_checked_before_a_revocation_keeps_no_text(self):
+        self.server.share_agent_sessions = True
         self.server.share_typed_text = True
         snapshot = self.server.consent.snapshot
 

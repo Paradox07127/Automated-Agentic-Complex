@@ -62,6 +62,17 @@ class _TTSHandler(BaseHTTPRequestHandler):
 
 
 class VoiceCheckTest(unittest.TestCase):
+    def test_audio_without_pcm_fails_before_first_audio(self):
+        for pcm in (None, "", "AA=="):
+            with self.subTest(pcm=pcm):
+                lines = stream()
+                if pcm is None:
+                    del lines[1]["pcm_base64"]
+                else:
+                    lines[1]["pcm_base64"] = pcm
+                self.assertEqual(self.check_lines(lines),
+                                 {"ok": False, "reason": "bad_stream", "first_audio_ms": None, "total_ms": None})
+
     def setUp(self):
         from voice.voice_test import check
         self.check = check

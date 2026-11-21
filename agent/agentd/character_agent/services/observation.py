@@ -1094,6 +1094,17 @@ class ObservationService:
             try: compact(path)
             except sqlite3.Error: pass  # a busy store stays as it is until the next process
 
+    def delete_since(self, cutoff):
+        with self.input_replay_lock:
+            self.input_replays.clear()
+        with self.lock, self.db:
+            self.epoch += 1
+            self.db.execute('DELETE FROM observation_processed WHERE analysis_id IN'
+                            ' (SELECT id FROM observation_analyses WHERE at>=?)', (cutoff,))
+            for table in ('observation_work_events', 'observation_analyses', 'observation_frames'):
+                self.db.execute('DELETE FROM ' + table + ' WHERE at>=?', (cutoff,))
+        self.last_signature = None
+
     def clear(self):
         self.epoch+=1
         with self.input_replay_lock:self.input_replays.clear()

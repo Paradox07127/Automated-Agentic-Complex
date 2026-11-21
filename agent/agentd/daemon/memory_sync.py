@@ -61,7 +61,7 @@ class MemorySyncMixin:
         and so does every turn whose reply said it again. deleted: the words of those rows go too."""
         self._memories_changed([fact_id], deleted)
 
-    def _forget_derived(self, episode_ids, wait=True):
+    def _forget_derived(self, episode_ids, wait=True, *, reason="memory_changed"):
         """The facts consolidated from any of episode_ids (None: from any episode) go, and the turns that said them;
         returns their fact_ids. wait False: the turns go on a thread of their own, for a caller that may hold
         _mouth_lock (sync_privacy runs inside a line), which taking them back needs."""
@@ -75,12 +75,12 @@ class MemorySyncMixin:
         if facts:
             checkpoint(self.memory)
             if wait:
-                self._memories_changed(facts, deleted=True)
+                self._memories_changed(facts, deleted=True, reason=reason)
             else:
-                threading.Thread(target=self._memories_changed, args=(facts, True), daemon=True).start()
+                threading.Thread(target=self._memories_changed, args=(facts, True), kwargs={"reason": reason}, daemon=True).start()
         return facts
 
-    def _memories_changed(self, fact_ids, deleted=False, said=None):
+    def _memories_changed(self, fact_ids, deleted=False, said=None, *, reason="memory_changed"):
         """_memory_changed for several facts at once. said: the line_ids whose reply said one of them, None to read
         them from memory (which loses them once it clears the facts)."""
         fact_ids = set(fact_ids)
@@ -95,9 +95,9 @@ class MemorySyncMixin:
                     said = list(said) + [line for fact_id in extra for line in self.memory.lines(fact_id)]
             else:
                 # A corrected fact remains valid user evidence; revoked siblings lose their text entirely.
-                self._memories_changed(extra, deleted=True)
+                self._memories_changed(extra, deleted=True, reason=reason)
         if self.character_agent is not None:
-            self.character_agent.cancel("memory_changed", fact_ids=fact_ids)
+            self.character_agent.cancel(reason, fact_ids=fact_ids)
         turn = self._turn_facts
         if turn is not None and not fact_ids & {used for used, _ in turn["facts"]}:
             turn = None
@@ -138,11 +138,11 @@ class MemorySyncMixin:
                 # Each request rebuilds the window's turn lists but keeps their messages.
                 self.mouth.history[:] = [t for t in self.mouth.history if not any(t[0] is e[0] for e in entries)]
 
-    def _context_changed(self, kind):
+    def _context_changed(self, kind, *, reason="context_changed"):
         """A cleared or corrected context item of `kind` ends the current turn whose context used it, while its
         line is live or a speech still plays, as POST /turn/cancel would. True when a line was cut."""
         if self.character_agent is not None:
-            self.character_agent.cancel("context_changed", context_kind=kind)
+            self.character_agent.cancel(reason, context_kind=kind)
         line = self._line_cancel
         live = line in self._live_lines and not line.is_set()
         line_id, kinds = self._line_context.get(line, (None, ()))

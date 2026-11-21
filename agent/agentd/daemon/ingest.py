@@ -4,6 +4,7 @@ import json
 import threading
 
 from character.thoughts import transition
+from infra import plugins
 from daemon.constants import RECEIPTS_KEPT, RAW_TEXT, RAW_PAST
 
 PROMPT_MAX = 500  # characters of a hook prompt kept in events_raw
@@ -12,13 +13,18 @@ FOCUS_ENDS = {"done": "session_done", "error": "session_error"}  # focus session
 
 
 class IngestMixin:
-    def ingest(self, event):
+    def ingest(self, event, retire=None):
         """registry.ingest of a hook event; the focus session turning done or error is an event of her state and her react;
         a session turning done or error without becoming the focus intent is a session_reaction on /events;
         any session the registry records done fires the reminders waiting for it; a session starting a turn, ending one
         or waiting on the user is a trigger of her thoughts."""
         registry = self.registry
         with registry.cv:  # the intents after seq are this event's: the focus it moved to, if it moved
+            if registry.superseded(event):
+                return
+            if retire is not None:
+                for request_id in retire(event):
+                    registry.approval_resolved(event.key, request_id, "retired")
             seq = registry.intent_seq
             last = registry.outcomes[-1] if registry.outcomes else None
             before = registry.sessions.get(event.key)
@@ -65,7 +71,7 @@ class IngestMixin:
 
     def record_agent_event(self, event, body):
         """A hook event into events_raw under its session's title:a prompt the user sent as "prompt", its text
-        only with typed_text; a prompt something else sent, a finished tool, a stop and a wait for the user as
+        only with typed_text and coding-session sharing; a prompt something else sent, a finished tool, a stop and a wait for the user as
         "agent". Other kinds, and anything while paused, store nothing."""
         signals = getattr(self, "signals", None)
         if signals is not None and self._signals_allowed(event.to_dict()):
@@ -87,15 +93,18 @@ class IngestMixin:
         generation = attention.typed_generation  # before consent, so a revocation in between drops the text
         observations=getattr(self.character_agent,'observations',None)
         if event.kind == "prompt_submit":
-            typed = self.consent.snapshot()[0]["typed_text"]
             # Markup is what Claude Code injects (task notifications, command output).
             origin = "subagent" if event.source == "codex" and isinstance(body.get("agent_id"), str) and body["agent_id"] \
                 else "system" if prompt.lstrip().startswith("<") else "unknown"
-            attention.ingest_events(
-                [{**row, "kind": "prompt", "role": origin, "value": prompt[:PROMPT_MAX] if typed else None,
-                  "value_len": len(prompt)} if origin == "unknown" else agent("notification", origin)],
-                typed_generation=generation)
-            if observations: observations.ingest_hook(event,body,origin=origin,typed_generation=generation)
+            with self.consent.lock:
+                permissions = self.consent.snapshot()[0]
+                shared = plugins.on("coding_sessions") and permissions["agent_sessions"]
+                typed = shared and permissions["typed_text"]
+                attention.ingest_events(
+                    [{**row, "kind": "prompt", "role": origin, "value": prompt[:PROMPT_MAX] if typed else None,
+                      "value_len": len(prompt)} if origin == "unknown" else agent("notification", origin)],
+                    typed_generation=generation)
+            if shared and observations: observations.ingest_hook(event,body,origin=origin,typed_generation=generation)
             return
         message = body.get("last_assistant_message")
         message = message[:AGENT_TEXT_MAX] if isinstance(message, str) and message else None
@@ -120,9 +129,11 @@ class IngestMixin:
         A request still running when agentd stopped has none, so its repeat runs again."""
         with db:
             # Rows written before requests were kept as digests hold the request text.
-            db.execute("DELETE FROM idempotency_receipts WHERE length(request) != 64 OR request GLOB '*[^0-9a-f]*'")
+            db.execute("DELETE FROM idempotency_receipts WHERE NOT (length(request) = 64 AND request NOT GLOB '*[^0-9a-f]*')"
+                       " AND NOT (key GLOB 'character-reminder:*' AND length(request) = 71 AND request GLOB 'sha256:*'"
+                       " AND substr(request, 8) NOT GLOB '*[^0-9a-f]*')")
         rows = db.execute("SELECT key, request, answer FROM (SELECT rowid AS n, * FROM idempotency_receipts"
-                          " ORDER BY n DESC LIMIT ?) ORDER BY n", (RECEIPTS_KEPT,)).fetchall()
+                          " WHERE length(request) = 64 ORDER BY n DESC LIMIT ?) ORDER BY n", (RECEIPTS_KEPT,)).fetchall()
         with self._receipts_lock:
             self.receipts_db = db
             for key, request, answer in rows:

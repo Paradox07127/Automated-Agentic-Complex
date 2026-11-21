@@ -3,7 +3,6 @@
 motion-settings.json in the state dir holds {backend, service_url}; the service token is apart, in motion-service.token
 (0600), and is never returned."""
 import json
-import os
 from pathlib import Path
 import threading
 from urllib.parse import urlsplit
@@ -44,6 +43,10 @@ class MotionSettings:
         except FileNotFoundError:
             return None
 
+    def endpoint(self):
+        with self._lock:
+            return self.service_url, self.token()
+
     def public(self):
         """GET /motion/settings: the settings without the token."""
         return {"backend": self.backend, "service_url": self.service_url, "token_set": self.token() is not None}
@@ -61,13 +64,10 @@ class MotionSettings:
         if "token" in body and (not isinstance(token, str) or len(token) > MAX_TOKEN):
             return 400, {"error": "invalid_token"}
         with self._lock:
-            if token:
-                write_secret(self.token_path, token)
-            elif token == "":
-                try:
-                    os.unlink(self.token_path)
-                except FileNotFoundError:
-                    pass
+            if body["service_url"] != self.service_url or token == "":
+                self.token_path.unlink(missing_ok=True)
             atomic_write_json(self.path, {"backend": body["backend"], "service_url": body["service_url"]})
             self.backend, self.service_url = body["backend"], body["service_url"]
+            if token:
+                write_secret(self.token_path, token)
         return 200, self.public()

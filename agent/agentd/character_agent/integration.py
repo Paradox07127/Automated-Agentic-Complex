@@ -1312,7 +1312,7 @@ class CharacterAgentController:
     def _cancel(self, reason="cancelled", *, fact_ids=None, context_kind=None):
         if reason in ('context_changed','scope_revoked','memory_changed','history_cleared') and getattr(self,'observations',None):
             self.observations.clear()
-        if reason in ('context_changed', 'scope_revoked', 'memory_changed', 'history_cleared') and getattr(self, 'observation_briefs', None):
+        if reason in ('context_changed', 'scope_revoked', 'memory_changed', 'history_cleared', 'observations_deleted') and getattr(self, 'observation_briefs', None):
             self.observation_briefs.clear()
         if fact_ids is not None or context_kind is not None:
             affected = set()
