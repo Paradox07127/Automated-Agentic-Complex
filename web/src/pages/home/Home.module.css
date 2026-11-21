@@ -1,13 +1,27 @@
 /* The watch face is drawn at 960×540 (the game's watch canvas at half size) and scaled (--k) to the content box. */
 .page {
+  /* The wall under a card that is laid out rather than drawn: stacked 1.5 px edges, then its shadow. */
+  --home-edge:
+    0 1.5px 0 color-mix(in srgb, var(--ef-raised) 70%, #000), 0 3px 0 color-mix(in srgb, var(--ef-raised) 60%, #000),
+    0 4.5px 0 color-mix(in srgb, var(--ef-raised) 50%, #000), 0 9px 10px rgb(0 0 0 / 0.35);
   position: relative;
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  /* The scene behind the game's watch is warm: a dim amber light behind each key column over the page's ground. Where
+     the window is frosted (the shell sets --ef-glass-alpha), the ground keeps only that much of its colour. */
+  background:
+    radial-gradient(ellipse 30% 55% at 18% 45%, color-mix(in srgb, var(--ef-g-yellow) 9%, transparent), transparent),
+    radial-gradient(ellipse 30% 60% at 84% 50%, color-mix(in srgb, var(--ef-g-yellow) 7%, transparent), transparent),
+    radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, color-mix(in srgb, #000 30%, transparent)),
+    color-mix(in srgb, color-mix(in srgb, var(--ef-g-yellow) 3%, var(--ef-canvas)) var(--ef-glass-alpha, 100%), transparent);
 }
 
+/* Only the keys, cards and the disc's controls take the pointer: the tilt puts the face's top half behind the page
+   plane, where any box over it would take its clicks. */
 .stage {
   position: absolute;
+  pointer-events: none;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) scale(var(--k));
@@ -22,7 +36,6 @@
 .layer {
   position: absolute;
   inset: 0;
-  pointer-events: none;
   transform-style: preserve-3d;
 }
 
@@ -41,258 +54,20 @@
   mask: radial-gradient(closest-side, #000 92.3%, transparent);
 }
 
-/* Shared press feedback of the disc's buttons, as Btn: a wash on hover, a shade while pressed, a focus ring. */
-.discHead {
-  position: relative;
-  isolation: isolate;
-  border: 0;
-  cursor: pointer;
-}
-
-.discHead::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: inherit;
-  background: var(--ef-overlay-hover);
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity var(--ef-dur-g-btn) var(--ef-ease-g-fade),
-    background-color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
-}
-
-.discHead:hover::after {
-  opacity: 1;
-  transition-duration: var(--ef-dur-g-btn-hover);
-}
-
-.discHead:active::after {
-  background: var(--ef-overlay-press);
-  opacity: 1;
-}
-
-.discHead:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
-/* The disc's content over the map: 400 across, centred on the rings. */
-.disc {
-  position: absolute;
-  top: 70px;
-  left: 280px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--ef-sp-12);
-  width: 400px;
-  height: 400px;
-  padding: 40px 64px 64px;
-  color: var(--ef-text-1);
-  /* The square box reaches over the top-left icons: only its own controls take the pointer. */
-  pointer-events: none;
-}
-
-.discHead {
-  padding: var(--ef-sp-4) var(--ef-sp-12) var(--ef-sp-6);
-  background: none;
-  color: var(--ef-text-1);
-  font: var(--ef-fw-semibold) var(--ef-fs-title-1) / 1 var(--ef-font-ui);
-  font-stretch: var(--ef-wide);
-  letter-spacing: 0.08em;
-}
-
-.discHead::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 24px;
-  height: 3px;
-  background: var(--ef-lemon);
-  transform: translateX(-50%);
-}
-
-.role {
-  display: flex;
-  gap: var(--ef-sp-8);
-  justify-content: center;
-  max-width: 270px;
-  margin: 0;
-  color: var(--ef-text-2);
-  font: var(--ef-fw-regular) var(--ef-fs-body) / 1.4 var(--ef-font-ui);
-  white-space: nowrap;
-}
-
-.role b {
-  flex: none;
-  color: var(--ef-text-1);
-  font-weight: var(--ef-fw-semibold);
-}
-
-.role span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.portrait {
-  display: grid;
-  place-items: center;
-  width: 96px;
-  height: 96px;
-  margin: 0 auto var(--ef-sp-12);
-  border: var(--ef-lw-hair) solid var(--ef-line-strong);
-  background: color-mix(in srgb, var(--ef-raised) 85%, transparent);
-  overflow: hidden;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--ef-sp-8);
-  align-items: center;
-  width: 272px;
-  padding: var(--ef-sp-6) var(--ef-sp-8);
-  border: 0;
-  border-left: 2px solid var(--ef-accent);
-  background: color-mix(in srgb, var(--ef-raised) 85%, transparent);
-  color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-small) / 1.3 var(--ef-font-ui);
-  text-align: left;
-}
-
-.row:hover {
-  background: var(--ef-surface-2);
-}
-
-.rowT {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* With something waiting, her head gives room to it. */
-.disc[data-busy] .portrait {
-  width: 56px;
-  height: 56px;
-  margin-bottom: var(--ef-sp-6);
-}
-
-.disc[data-busy] {
-  gap: var(--ef-sp-8);
-}
-
-.focus {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ef-sp-8);
-  width: 272px;
-  padding: var(--ef-sp-8) var(--ef-sp-12);
-  border-left: 3px solid var(--ef-accent);
-  background: color-mix(in srgb, var(--ef-raised) 92%, transparent);
-}
-
-.focusT {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ef-sp-2);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ef-text-1);
-  text-align: left;
-}
-
-.focusT b {
-  display: -webkit-box;
-  overflow: hidden;
-  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1.3 var(--ef-font-ui);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.focusT span {
-  overflow: hidden;
-  color: var(--ef-text-2);
-  font: var(--ef-fw-regular) var(--ef-fs-small) / 1.3 var(--ef-font-ui);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.focusActs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ef-sp-6);
-}
-
-.focusT em {
-  color: var(--ef-danger-text);
-  font: var(--ef-fw-medium) var(--ef-fs-small) / 1.3 var(--ef-font-ui);
-}
-
-/* The face turns toward the pointer (Page sets --rx / --ry); it eases there and back. The 8 px toward the viewer keeps the
-   half turned away in front of the page plane: behind it the keys there stop taking clicks. */
+/* The watch lies tipped back as Content does in the game (22° about x, −1° about y, −3° about z), and turns a little more
+   toward the pointer (Page sets --rx / --ry); it eases there and back. The tipped face projects high and to the right of
+   the stage box; the translate puts its keys and cards back in the middle. */
 .tilt {
   position: absolute;
   inset: 0;
-  transform: translateZ(8px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  translate: -16px 24px;
+  transform: rotateX(calc(22deg + var(--rx, 0deg))) rotateY(calc(-1deg + var(--ry, 0deg))) rotateZ(-3deg);
   transform-style: preserve-3d;
   transition: transform 240ms var(--ef-ease-g-fade);
 }
 
-/* The next reminder, top centre under the drag strip. */
-.notice {
-  position: absolute;
-  z-index: 2;
-  top: var(--ef-sp-8);
-  left: 50%;
-  display: inline-flex;
-  gap: var(--ef-sp-8);
-  align-items: center;
-  max-width: min(420px, 50%);
-  height: 28px;
-  padding: 0 var(--ef-sp-12);
-  border: 0;
-  border-left: 3px solid var(--ef-g-yellow);
-  background: color-mix(in srgb, var(--ef-g-watch-map) 85%, transparent);
-  color: var(--ef-g-watch-ink);
-  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1 var(--ef-font-ui);
-  translate: -50% 0;
-  cursor: pointer;
-  -webkit-app-region: no-drag;
-}
-
-.notice:hover {
-  background: var(--ef-g-btn-hover);
-  color: var(--ef-g-label);
-}
-
-.notice:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
-.noticeText {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .tilt {
-    transform: none;
+    transition: none;
   }
-}
-
-:global([data-reduce-motion]) .tilt,
-:global(.still) .tilt {
-  transform: none;
-}
-
-.disc > * {
-  pointer-events: auto;
 }

@@ -1,0 +1,53 @@
+.contours {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--ef-g-watch-ink);
+}
+
+.contours path {
+  stroke-width: 0.5;
+  opacity: 0.1;
+}
+
+.contours path[data-major] {
+  stroke-width: 0.9;
+  opacity: 0.22;
+}
+
+.contours .cross {
+  stroke-dasharray: 2 6;
+  stroke-width: 0.75;
+  opacity: 0.3;
+}
+
+.tick {
+  stroke-width: 1;
+  opacity: 0.35;
+}
+
+.tick[data-long] {
+  stroke: var(--ef-g-yellow);
+  stroke-width: 1.5;
+  opacity: 0.8;
+}
+
+/* 2400×1600 stage px, centred on the watch, 260 px behind it; the mask fades it out toward the edges. */
+.floor {
+  position: absolute;
+  top: calc(50% - 800px);
+  left: calc(50% - 1200px);
+  width: 2400px;
+  height: 1600px;
+  background:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--ef-g-watch-ink) 14%, transparent) 0 1px, transparent 1px 200px),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--ef-g-watch-ink) 14%, transparent) 0 1px, transparent 1px 200px),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--ef-g-watch-ink) 6%, transparent) 0 1px, transparent 1px 40px),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--ef-g-watch-ink) 6%, transparent) 0 1px, transparent 1px 40px);
+  -webkit-mask: radial-gradient(ellipse 50% 50% at 50% 50%, #000 30%, transparent 75%);
+  mask: radial-gradient(ellipse 50% 50% at 50% 50%, #000 30%, transparent 75%);
+  pointer-events: none;
+  transform: translateZ(-260px);
+}

@@ -6,10 +6,11 @@ import styles from './Rings.module.css';
 const at = (b: Box): CSSProperties => ({ left: b.left, top: b.top, width: b.width, height: b.height });
 const ring = (d: number, x = 0, y = 0) => at(around(x, y, d, d));
 
-/** A zero-size pivot `x`, `y` from the ring centre; the watch clips scale and turn it. */
-function Node({ g, x = 0, y = 0, children }: { g?: string; x?: number; y?: number; children: ReactNode }) {
+/** A zero-size pivot `x`, `y` from the ring centre and `z` toward the viewer (the game's depth ×−0.5); the watch clips
+ *  scale and turn it. */
+function Node({ g, x = 0, y = 0, z = 0, children }: { g?: string; x?: number; y?: number; z?: number; children: ReactNode }) {
   return (
-    <div className={styles.node} style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)` }} data-g={g}>
+    <div className={styles.node} style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)`, transform: z ? `translateZ(${z}px)` : undefined }} data-g={g}>
       {children}
     </div>
   );
@@ -28,20 +29,20 @@ export function Rings() {
           <span key={`${x}-${y}`} className={styles.dot} style={ring(7.5, x, y)} />
         ))}
       </Node>
-      <Node g="decoOut">
+      <Node g="decoOut" z={-50}>
         <span className={`${styles.frame} ${styles.frameL}`} style={at({ left: -490.5, top: -232.5, width: 174, height: 465 })} />
         <span className={styles.frame} style={at({ left: 317, top: -232.5, width: 174, height: 465 })} />
       </Node>
-      <Node g="yellowRing" y={-19.5}>
+      <Node g="yellowRing" z={-50} y={-19.5}>
         <span className={`${styles.ring} ${styles.grid}`} style={ring(452.6, 0, -0.5)} />
         <span className={styles.fill} style={ring(512)}>
-          <RadialFill amount={1} size={512} thickness={1.5} tone="ring-yellow" sprite="watch/ui-out-ring" />
+          <RadialFill amount={1} size={512} thickness={1.5} tone="ring-yellow" />
         </span>
       </Node>
-      <Node g="mesh" x={3.5} y={-25.5}>
+      <Node g="mesh" z={-61} x={3.5} y={-25.5}>
         <span className={`${styles.ring} ${styles.mesh}`} style={ring(375)} />
       </Node>
-      <Node g="triangles">
+      <Node g="triangles" z={-35}>
         {TRIANGLES.map(([x, y, a]) => (
           <span key={a} className={styles.tri} style={{ ...at(around(x, y, 34.4, 34.6)), transform: `rotate(${a}deg)` }} />
         ))}
@@ -52,14 +53,14 @@ export function Rings() {
           <span className={styles.bloom} />
         </span>
       </Node>
-      <Node g="yellowLine" y={14}>
+      <Node g="yellowLine" z={7} y={14}>
         {ARCS.map((a) => (
           <span key={a} className={styles.arc} style={{ ...ring(436.2), transform: `rotate(${a}deg)` }}>
-            <RadialFill amount={0.1} size={436.2} thickness={3} origin="right" tone="yellow" sprite="watch/ui-out1-ring" />
+            <RadialFill amount={0.1} size={436.2} thickness={3} origin="right" tone="yellow" />
           </span>
         ))}
       </Node>
-      <Node g="techlines">
+      <Node g="techlines" z={16}>
         {TECHLINES.map(([x, y, a, yellow], i) => (
           <span key={`${x}-${y}`} className={styles.tech} style={{ ...at(around(x, y, 44, 3)), transform: `rotate(${a}deg)` }} data-yellow={yellow || undefined}>
             <MaskSweep play={false} from="left" g={i < 4 ? `techline${i + 1}` : i === 4 ? 'techlineYellowL' : 'techlineYellowR'}>
@@ -68,13 +69,13 @@ export function Rings() {
           </span>
         ))}
       </Node>
-      <Node g="blueRing" y={-20}>
+      <Node g="blueRing" z={-160} y={-20}>
         <span className={`${styles.ring} ${styles.blue}`} style={ring(331.3)} data-g="blueRingImg" />
         {[45, -45, 90].map((a, i) => (
           <span key={a} className={styles.beam} style={{ ...at(around(0, 0, 1, 1200)), rotate: `${a}deg` }} data-g={`blueLine${i + 1}`} />
         ))}
       </Node>
-      <Node>
+      <Node z={25}>
         {TICKS.map((t, i) => (
           <span key={t.m} className={styles.tick} style={{ ...at(around(t.x, t.y, 126.5, 206.5)), transform: `matrix(${t.m},0,0)` }} data-g={`tick${i + 1}`}>
             <span className={styles.tickGhost} />
@@ -108,7 +109,7 @@ export function Backdrop() {
       </Node>
       {GLOWS.map((b, i) => (
         <span key={b.left} className={styles.glow} style={at(b)}>
-          <GlowLayer w={b.width} h={b.height} sprite={i === 0 ? 'watch/ui-main-menu-btn01-bloom' : 'watch/ui-main-menu-btn02-bloom'} opacity={i === 0 ? 0.6 : 0.35} g={i === 0 ? 'glowLeft' : 'glowRight'} />
+          <GlowLayer w={b.width} h={b.height} opacity={i === 0 ? 0.6 : 0.35} g={i === 0 ? 'glowLeft' : 'glowRight'} />
         </span>
       ))}
     </div>

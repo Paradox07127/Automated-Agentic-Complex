@@ -1,19 +1,25 @@
+import { useRef, useState, type PointerEvent, type WheelEvent } from 'react';
 import type { PendingItem, Question } from '../../domain';
 import { dangerRuleText } from '../../features/approval';
 import type { Go } from '../../shell/nav';
-import { Btn, CharacterArt, Icon } from '../../ui';
-import type { OverviewSnapshot } from '../overview/load';
+import { Btn, Icon } from '../../ui';
 import { KIND_LABEL } from '../overview/pending';
-import styles from './Home.module.css';
+import { Slab, unit } from './Slab';
+import styles from './Disc.module.css';
 
 type Approval = PendingItem & { kind: 'approval' };
 
 export interface DiscProps {
-  /** 角色's page name. */
+  /** The disc's accessible name. */
   title: string;
-  snap: OverviewSnapshot;
   /** What waits on the user now, most urgent first. */
   urgent: readonly PendingItem[];
+  /** Absent while 日报与简报 is off: nothing reads today's runs. */
+  report: Report | null;
+  /** What runs now; null while neither 编码会话 nor 个人代理 is on. */
+  running: readonly RunItem[] | null;
+  /** Today's counts; null while 日报与简报 is off. */
+  today: Today | null;
   act: {
     onApprove: (item: Approval, decision: 'allow' | 'deny' | 'allow_session', reason?: string) => void;
     onAnswer: (item: Question, label: '允许' | '拒绝') => void;
@@ -66,33 +72,193 @@ function Focus({ item, act, go }: { item: PendingItem; act: DiscProps['act']; go
   );
 }
 
-/** The centre disc over the map: her head, her name, what she is doing, and what waits on the user now, decided in place. */
-export function Disc({ title, snap, urgent, act, go }: DiscProps) {
-  const role = snap.role;
-  const name = snap.character.name ?? title;
-  const doing = [role?.app ? `正在看 ${role.app}` : null, role?.doing].filter(Boolean).join(' │ ');
-  const [first, ...rest] = urgent;
+/** Today's work for the disc's report: runs finished and started today, and what runs now (absent while nothing counts it). */
+export interface Report {
+  done: number;
+  total: number;
+  running?: number | null;
+}
+
+const REPORT = { w: 272, h: 58 } as const;
+/** The plaque's ends cut like the game's level plaque. */
+const REPORT_PTS = [[0.04, 0], [0.96, 0], [1, 0.5], [0.96, 1], [0.04, 1], [0, 0.5]] as const;
+
+/** The report plaque at the disc's foot, as the game's 探索等级 plaque over its stamina bar: done / total and a bar. */
+function ReportPlate({ done, total, running, onClick }: Report & { onClick: () => void }) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   return (
-    <section className={styles.disc} aria-label={title} data-g="map" data-busy={first ? '' : undefined}>
-      <button type="button" className={styles.discHead} aria-label={`${title}：${name}`} onClick={() => go({ page: 'character' })}>
-        <span className={styles.portrait} aria-hidden="true">
-          <CharacterArt src={snap.character.head ?? undefined} id={snap.character.id} art="card" kind="head" w={first ? 56 : 96} h={first ? 56 : 96} fallback={<Icon name="user" size={32} />} />
-        </span>
-        {name}
-      </button>
-      {doing && (
-        <p className={styles.role}>
-          <span title={doing}>{doing}</span>
-        </p>
-      )}
-      {first && <Focus item={first} act={act} go={go} />}
-      {rest.length > 0 && (
-        <button type="button" className={styles.row} aria-label={`另有 ${rest.length} 件待处理`} onClick={() => go({ page: 'overview', focus: 'pending' })}>
-          <Icon name="hand" size={14} />
-          <span className={styles.rowT}>另有 {rest.length} 件</span>
+    <button type="button" className={styles.report} aria-label={`今日任务 完成 ${done} / ${total}`} onClick={onClick}>
+      <Slab pts={unit(REPORT_PTS, REPORT.w, REPORT.h)} w={REPORT.w} h={REPORT.h} depth={6} tone="dark">
+      <span className={styles.repIn}>
+      <span className={styles.repHead}>
+        <span className={styles.repLabel}>今日任务</span>
+        <b className="num">{String(done).padStart(2, '0')}</b>
+        <span className={`${styles.repOf} num`}>/ {String(total).padStart(2, '0')}</span>
+        {running != null && <span className={styles.repRun}>在做 {running}</span>}
+      </span>
+      <span className={styles.repBar} aria-hidden="true">
+        <i style={{ width: `${pct}%` }} />
+      </span>
+      <span className={`${styles.repPct} num`} aria-hidden="true">{pct}%</span>
+      </span>
+      </Slab>
+    </button>
+  );
+}
+
+/** A running conversation, task or coding session on the 在做 page. */
+export interface RunItem {
+  id: string;
+  kind: '对话' | '任务' | '编码';
+  title: string;
+  /** Agent or project, when known. */
+  sub: string | null;
+  go: () => void;
+}
+
+/** Today's counts on the 今日 page; each opens 工业简报 at its place. */
+export interface Today {
+  done: number;
+  failed: number;
+  reminders: number;
+  deliveries: number;
+}
+
+type Tab = 'pending' | 'running' | 'today';
+
+/** Rows the 在做 page lists before "另有 N 个". */
+const RUN_ROWS = 3;
+
+function Running({ items, go }: { items: readonly RunItem[]; go: Go }) {
+  if (items.length === 0) return <p className={styles.calm}>没有正在做的事</p>;
+  const more = items.length - RUN_ROWS;
+  return (
+    <div className={styles.list}>
+      {items.slice(0, RUN_ROWS).map((r) => (
+        <button key={r.id} type="button" className={styles.row} aria-label={`${r.kind}：${r.title}`} onClick={r.go}>
+          <span className={styles.kind}>{r.kind}</span>
+          <span className={styles.rowT}>
+            {r.title}
+            {r.sub && <small>{r.sub}</small>}
+          </span>
+          <Icon name="chev" size={12} />
+        </button>
+      ))}
+      {more > 0 && (
+        <button type="button" className={styles.row} aria-label={`另有 ${more} 个在做`} onClick={() => go({ page: 'overview', focus: 'running' })}>
+          <Icon name="bolt" size={14} />
+          <span className={styles.rowT}>另有 {more} 个</span>
           <Icon name="chev" size={12} />
         </button>
       )}
+    </div>
+  );
+}
+
+function TodayCells({ today, go }: { today: Today; go: Go }) {
+  const cells: Array<[string, number, string]> = [
+    ['完成', today.done, 'tasks'],
+    ['出错', today.failed, 'tasks'],
+    ['提醒', today.reminders, 'reminders'],
+    ['交付', today.deliveries, 'tasks'],
+  ];
+  return (
+    <div className={styles.cells}>
+      {cells.map(([label, n, focus]) => (
+        <button key={label} type="button" className={styles.cell} data-alert={(label === '出错' && n > 0) || undefined} aria-label={`${label} ${n}`} onClick={() => go({ page: 'overview', focus })}>
+          <b className="num">{String(n).padStart(2, '0')}</b>
+          <span>{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const TAB_NAME: Record<Tab, string> = { pending: '待批准', running: '在做', today: '今日' };
+
+/** A drag or trackpad swipe this far across the panel, in stage px, turns the page. */
+const SWIPE = 40;
+/** One trackpad swipe sends many wheel events: after a turn, the rest within this many ms are ignored. */
+const SWIPE_MS = 450;
+
+/** The centre disc over the map: tabs for what waits on the user, what runs and today's counts, over today's report. */
+export function Disc({ title, urgent, report, running, today, act, go }: DiscProps) {
+  const tabs: Tab[] = ['pending', ...(running ? (['running'] as const) : []), ...(today ? (['today'] as const) : [])];
+  const [picked, setPicked] = useState<Tab | null>(null);
+  const tab = picked && tabs.includes(picked) ? picked : urgent.length > 0 || !running?.length ? 'pending' : 'running';
+  const count: Record<Tab, number | null> = { pending: urgent.length, running: running?.length ?? null, today: null };
+  // dir: which way the last turn went, for the panel's slide; down: where a drag began; wheel: the swipe so far.
+  const [dir, setDir] = useState<1 | -1>(1);
+  const down = useRef<{ x: number; y: number } | null>(null);
+  const wheel = useRef({ dx: 0, at: 0 });
+  const pick = (t: Tab) => {
+    setDir(tabs.indexOf(t) < tabs.indexOf(tab) ? -1 : 1);
+    setPicked(t);
+  };
+  const turn = (d: 1 | -1) => {
+    const next = tabs[tabs.indexOf(tab) + d];
+    if (next) pick(next);
+  };
+  const onDown = (e: PointerEvent) => void (down.current = { x: e.clientX, y: e.clientY });
+  const onUp = (e: PointerEvent) => {
+    const d = down.current;
+    down.current = null;
+    if (!d) return;
+    const [dx, dy] = [e.clientX - d.x, e.clientY - d.y];
+    if (Math.abs(dx) > SWIPE && Math.abs(dx) > Math.abs(dy)) turn(dx < 0 ? 1 : -1);
+  };
+  const onWheel = (e: WheelEvent) => {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    const w = wheel.current;
+    if (e.timeStamp - w.at < SWIPE_MS) return;
+    w.dx += e.deltaX;
+    if (Math.abs(w.dx) < SWIPE) return;
+    turn(w.dx > 0 ? 1 : -1);
+    wheel.current = { dx: 0, at: e.timeStamp };
+  };
+  const [first, ...rest] = urgent;
+  return (
+    <section className={styles.disc} aria-label={title} data-g="map" data-busy={first ? '' : undefined}>
+      {tabs.length > 1 && (
+        <div className={styles.tabs} role="tablist" aria-label="圆盘">
+          {tabs.map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={t === tab} className={styles.tab} onClick={() => pick(t)}>
+              {TAB_NAME[t]}
+              {count[t] != null && count[t] > 0 && <b className="num">{count[t]}</b>}
+            </button>
+          ))}
+        </div>
+      )}
+      <div
+        key={tab}
+        className={styles.panel}
+        role={tabs.length > 1 ? 'tabpanel' : undefined}
+        aria-label={TAB_NAME[tab]}
+        data-dir={dir}
+        onPointerDown={tabs.length > 1 ? onDown : undefined}
+        onPointerUp={tabs.length > 1 ? onUp : undefined}
+        onWheel={tabs.length > 1 ? onWheel : undefined}
+      >
+        {tab === 'running' && running ? (
+          <Running items={running} go={go} />
+        ) : tab === 'today' && today ? (
+          <TodayCells today={today} go={go} />
+        ) : first ? (
+          <>
+            <Focus item={first} act={act} go={go} />
+            {rest.length > 0 && (
+              <button type="button" className={styles.row} aria-label={`另有 ${rest.length} 件待处理`} onClick={() => go({ page: 'overview', focus: 'pending' })}>
+                <Icon name="hand" size={14} />
+                <span className={styles.rowT}>另有 {rest.length} 件</span>
+                <Icon name="chev" size={12} />
+              </button>
+            )}
+          </>
+        ) : (
+          <p className={styles.calm}>没有要你批准的事</p>
+        )}
+      </div>
+      {report && <ReportPlate {...report} onClick={() => go({ page: 'overview' })} />}
     </section>
   );
 }

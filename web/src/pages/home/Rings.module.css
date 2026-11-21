@@ -1,5 +1,4 @@
-/* Watch rings. Each layer draws a CSS stand-in; under html[data-art] its watch sprite takes over,
-   white sprites as masks filled with the layer colour, coloured sprites as they are. Alphas are the game's. */
+/* Watch rings, drawn in CSS from the game's layout; no game sprites. Alphas are the game's. */
 .rings {
   --ink: var(--ef-g-watch-ink);
   position: absolute;
@@ -12,6 +11,7 @@
   position: absolute;
   width: 0;
   height: 0;
+  transform-style: preserve-3d;
 }
 
 .ring {
@@ -204,84 +204,4 @@
   position: absolute;
   display: flex;
   opacity: 0.5;
-}
-
-/* Sprites. */
-:global(html[data-art]) :is(.out, .grid, .main, .blue, .tickGhost, .tickLine, .wordmark, .logo) {
-  border: 0;
-  border-radius: 0;
-  background: var(--c, var(--ink));
-  -webkit-mask: var(--src) center / 100% 100% no-repeat;
-  mask: var(--src) center / 100% 100% no-repeat;
-}
-
-.out {
-  --src: url('/art/watch/ui-out-ring.png');
-}
-
-.grid {
-  --src: url('/art/watch/deco-04.png');
-}
-
-.main {
-  --src: url('/art/watch/ui-main-loop-bg.png');
-}
-
-.blue {
-  --src: url('/art/watch/ui-mid-ring.png');
-}
-
-.tickGhost,
-.tickLine {
-  --src: url('/art/watch/deco-inring01-1.png');
-}
-
-:global(html[data-art]) .tickLine[data-fill='top'] {
-  -webkit-mask: var(--src) center / 100% 100% no-repeat, linear-gradient(to bottom, #000 var(--amount), transparent 0);
-  -webkit-mask-composite: source-in;
-  mask: var(--src) center / 100% 100% no-repeat, linear-gradient(to bottom, #000 var(--amount), transparent 0);
-  mask-composite: intersect;
-}
-
-:global(html[data-art]) .tickLine[data-fill='bottom'] {
-  -webkit-mask: var(--src) center / 100% 100% no-repeat, linear-gradient(to top, #000 var(--amount), transparent 0);
-  -webkit-mask-composite: source-in;
-  mask: var(--src) center / 100% 100% no-repeat, linear-gradient(to top, #000 var(--amount), transparent 0);
-  mask-composite: intersect;
-}
-
-.wordmark {
-  --src: url('/art/watch/ui-main-menu-logo-icon.png');
-}
-
-.logo {
-  --src: url('/art/watch/watch-deco-ring.png');
-}
-
-:global(html[data-art]) .bloom {
-  background: var(--ink);
-  -webkit-mask: url('/art/watch/ui-main-menu-logo-bloom.png') center / 100% 100% no-repeat;
-  mask: url('/art/watch/ui-main-menu-logo-bloom.png') center / 100% 100% no-repeat;
-}
-
-:global(html[data-art]) .tri {
-  background: url('/art/watch/ui-triangle-fx.png') center / 100% 100% no-repeat;
-  clip-path: none;
-}
-
-:global(html[data-art]) .dot {
-  border: 0;
-  background: url('/art/watch/ui-out2-ring.png') center / 100% 100% no-repeat;
-}
-
-:global(html[data-art]) .frame {
-  border: 0;
-  border-radius: 0;
-  background: var(--c);
-  -webkit-mask: url('/art/watch/ui-main-menu-bg.png') center / 100% 100% no-repeat;
-  mask: url('/art/watch/ui-main-menu-bg.png') center / 100% 100% no-repeat;
-}
-
-:global(html[data-art]) .frame::before {
-  content: none;
 }

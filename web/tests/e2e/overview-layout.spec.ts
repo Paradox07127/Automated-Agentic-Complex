@@ -40,15 +40,32 @@ test('overview: 派发任务 sits in the bottom action band with 快速输入, �
   expect(errors).toEqual([]);
 });
 
-test('home: the 工业简报 counts line shows both numbers whole at 1385 and 900 wide', async ({ page }) => {
+test('home: the 今日任务 report shows its counts whole at 1385 and 900 wide', async ({ page }) => {
   for (const [width, height] of [[1385, 770], [900, 600]] as const) {
     await page.setViewportSize({ width, height });
     await page.goto('about:blank');
     await page.goto('main.html#/home?plugins=all&still=1');
-    const line = page.getByRole('button', { name: /^工业简报：/ }).locator('.num');
-    await expect(line).toBeVisible();
-    expect(await line.evaluate((e) => e.scrollWidth - e.clientWidth), `${width}`).toBeLessThanOrEqual(0);
+    const report = page.getByRole('button', { name: /^今日任务/ });
+    await expect(report).toBeVisible();
+    // The slab's drawn layers (spans holding svg) reach past the plaque on purpose: its shadow is offset.
+    expect(await report.evaluate((e) => [...e.querySelectorAll('span')].filter((s) => !s.querySelector(':scope > svg')).every((s) => s.scrollWidth <= s.clientWidth)), `${width}`).toBe(true);
   }
+});
+
+test('home: on the tilted watch every key, card and slot takes the pointer at the middle of its drawn face', async ({ page }) => {
+  await page.setViewportSize({ width: 1385, height: 770 });
+  await page.goto('main.html#/home?plugins=all&still=1');
+  await expect(page.getByRole('button', { name: '角色', exact: true })).toBeVisible();
+  const misses = await page.locator('[data-page="home"]').evaluate((home) =>
+    [...home.querySelectorAll('button')].flatMap((b) => {
+      // The slab's top face is its last svg; buttons without a slab (the disc's own) are checked by their box.
+      const svgs = b.querySelectorAll(':scope svg[width]');
+      const r = (svgs[svgs.length - 1] ?? b).getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return hit?.closest('button') === b ? [] : [b.getAttribute('aria-label') ?? b.textContent];
+    }),
+  );
+  expect(misses).toEqual([]);
 });
 
 test('overview-decided: after a decision the next item takes the card; the view has at most one primary button', async ({ page }) => {

@@ -707,11 +707,15 @@ function openMain(activate = true): void {
   const win = new BrowserWindow({
     width: 1385, height: 770, minWidth: 900, minHeight: 600, show: false, title: 'Agentic Complex',
     // The page draws up to the window's top edge; the traffic lights sit in its command bar, which leaves --ef-chrome-left for them.
-    ...(shellPlatform() === 'mac' ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 17 } } : {}),
+    // Under-window vibrancy is the frosted ground home shows through; every other page paints over it.
+    ...(shellPlatform() === 'mac'
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 17 }, vibrancy: 'under-window' as const, visualEffectState: 'followWindow' as const, backgroundColor: '#00000000' }
+      : {}),
     webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
   const contents = win.webContents, id = contents.id;
-  if (shellPlatform() === 'mac') contents.on('dom-ready', () => void contents.insertCSS(':root { --ef-chrome-left: 84px; }'));
+  // --ef-glass-alpha: how much of the page's ground a glass page (home) keeps over the vibrancy.
+  if (shellPlatform() === 'mac') contents.on('dom-ready', () => void contents.insertCSS(':root { --ef-chrome-left: 84px; --ef-glass-alpha: 55%; }'));
   const page = new PageSession((sub, stream, kind, payload) => {
     if (!contents.isDestroyed()) contents.send('bridge:push', sub, stream, kind, payload);
   });

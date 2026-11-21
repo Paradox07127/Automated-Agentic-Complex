@@ -5,137 +5,338 @@
   pointer-events: none;
 }
 
+/* HudBgGlow: a soft yellow light under the slots. */
 .band {
   position: absolute;
-  background: var(--ef-g-yellow-glow);
-  clip-path: polygon(0 0, 100% 0, 97% 55%, 88% 100%, 12% 100%, 3% 55%);
-  transform: scale(1.04, 1.18);
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, var(--ef-g-yellow-glow), transparent 75%);
 }
 
 .slot {
   position: absolute;
-  isolation: isolate;
-  display: flex;
-  align-items: center;
   padding: 0;
   border: 0;
-  background: var(--ef-g-yellow);
+  background: none;
   color: var(--ef-on-accent);
+  cursor: pointer;
+  pointer-events: auto;
+  transform-style: preserve-3d;
+}
+
+.slot:hover {
+  --press: 1.5;
+}
+
+.slot:hover [data-tone] {
+  --face-top: color-mix(in srgb, #fff 45%, var(--ef-g-yellow));
+  --face-mid: color-mix(in srgb, #fff 25%, var(--ef-g-yellow));
+}
+
+/* Pressed snaps back to rest at once, as the game's Pressed state is its Normal one. */
+.slot:active,
+.char:active {
+  --press: 1;
+}
+
+.slot:active [data-tone] {
+  --face-top: color-mix(in srgb, #fff 22%, var(--ef-g-yellow));
+  --face-mid: var(--ef-g-yellow);
+}
+
+.slot:active [data-tone] > *,
+.char:active [data-tone] > * {
+  transition-duration: 0ms;
+}
+
+.slot:focus-visible,
+.char:focus-visible {
+  outline: none;
+}
+
+.slot:focus-visible [data-tone],
+.char:focus-visible [data-tone] {
+  --rim: var(--ef-focus);
+}
+
+/* The small dark square in the white strip, by the inner edge. */
+.mark {
+  position: absolute;
+  right: 6px;
+  bottom: 8px;
+  width: 4px;
+  height: 4px;
+  background: var(--ef-g-icon);
+}
+
+.mark[data-end] {
+  right: auto;
+  left: 6px;
+}
+
+.actIn {
+  position: absolute;
+  display: flex;
+  gap: var(--ef-sp-4);
+  align-items: center;
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  white-space: nowrap;
+  translate: -50% -50%;
+}
+
+/* Top_RightNode: stands forward of the face. Not turned to the game's -45°: Chromium's depth sort then cuts the text. */
+.counters {
+  position: absolute;
+  color: var(--ef-g-watch-ink);
+  pointer-events: auto;
+  transform: translateZ(60px);
+  transform-style: preserve-3d;
+}
+
+.countersIn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  padding: 0 var(--ef-sp-12) 0 var(--ef-sp-20);
+  white-space: nowrap;
+}
+
+/* FocusRect: a yellow slash at the strip's left end. */
+.focus {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 6px;
+  width: 6px;
+  background: var(--ef-g-yellow);
+  transform: skewX(-20deg);
+}
+
+.time {
+  font: var(--ef-fw-semibold) 18px / 1 var(--ef-font-num);
+  letter-spacing: 0.02em;
+}
+
+.date {
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  opacity: 0.7;
+}
+
+.conn {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+/* BannerNode: a dark plate, the kind and time over the title, page dots at the foot. */
+.bannerNode {
+  position: absolute;
+  pointer-events: auto;
+  transform-style: preserve-3d;
+}
+
+.bannerNode:hover {
+  --press: 1.5;
+}
+
+.bannerNode:hover [data-tone] {
+  --rim: var(--ef-g-watch-ink);
+}
+
+.bannerNode:has(.banner:active) {
+  --press: 1;
+}
+
+.banner {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-g-watch-ink);
   text-align: left;
   cursor: pointer;
   pointer-events: auto;
 }
 
-.card {
-  gap: var(--ef-sp-6);
-  padding: 0 var(--ef-sp-4) 0 var(--ef-sp-16);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 16% 100%, 0 58%);
+.banner:disabled {
+  cursor: default;
 }
 
-.act {
-  justify-content: center;
-  padding-right: var(--ef-sp-12);
-  clip-path: polygon(0 0, 100% 0, 100% 58%, 84% 100%, 0 100%);
-}
-
-.slot::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: var(--ef-g-btn-hover);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--ef-dur-g-btn) var(--ef-ease-g-fade);
-}
-
-.slot:hover::after {
-  opacity: 0.3;
-  transition-duration: 0ms;
-}
-
-.slot:active::after {
-  background: var(--ef-overlay-press);
-  opacity: 1;
-}
-
-.slot:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-text-1);
+.banner:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
   outline-offset: 2px;
 }
 
-.face {
-  display: inline-flex;
-  flex: none;
-  border: var(--ef-lw-hair) solid color-mix(in srgb, var(--ef-on-accent) 40%, transparent);
+.bannerIn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-6);
+  justify-content: center;
+  padding: var(--ef-sp-6) var(--ef-sp-16) var(--ef-sp-16) var(--ef-sp-20);
 }
 
-.who {
+/* News_Deco: a yellow block before the kind. */
+.news {
   display: flex;
-  flex: 1;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+}
+
+.news b {
+  padding: 2px var(--ef-sp-6);
+  background: var(--ef-g-yellow);
+  color: var(--ef-on-accent);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.newsTitle {
+  overflow: hidden;
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1.2 var(--ef-font-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.newsCalm {
+  font: var(--ef-fw-medium) var(--ef-fs-small) / 1.2 var(--ef-font-ui);
+  opacity: 0.7;
+}
+
+/* PageTabList with an arrow either side. */
+.pages {
+  position: absolute;
+  right: var(--ef-sp-8);
+  bottom: var(--ef-sp-4);
+  display: flex;
+  gap: var(--ef-sp-4);
+  align-items: center;
+}
+
+.pages i {
+  width: 10px;
+  height: 3px;
+  background: color-mix(in srgb, var(--ef-g-watch-ink) 30%, transparent);
+}
+
+.pages i[data-on] {
+  width: 18px;
+  background: var(--ef-g-yellow);
+}
+
+.turn {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-g-watch-ink);
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0.6;
+}
+
+.turn:first-child {
+  rotate: 180deg;
+}
+
+.turn:hover {
+  opacity: 1;
+}
+
+.turn:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+}
+
+/* The player card: a dark slab, a yellow bar on its left edge, her head in a framed square, her name large. */
+.char {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-g-watch-ink);
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+  transform-style: preserve-3d;
+}
+
+.char:hover {
+  --press: 1.5;
+}
+
+.char:hover [data-tone] {
+  --rim: var(--ef-g-watch-ink);
+}
+
+.charIn {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--ef-sp-12);
+  align-items: center;
+  padding: var(--ef-sp-8);
+}
+
+.charIn::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 3px;
+  background: var(--ef-g-yellow);
+}
+
+.charHead {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-left: var(--ef-sp-4);
+  outline: 1.5px solid var(--ef-g-watch-ink);
+  outline-offset: 2px;
+  background: color-mix(in srgb, var(--ef-g-watch-ink) 12%, transparent);
+  overflow: hidden;
+}
+
+.charText {
+  display: flex;
   flex-direction: column;
   gap: var(--ef-sp-2);
   min-width: 0;
 }
 
-.who b,
-.who span {
+.charName {
   overflow: hidden;
+  font: var(--ef-fw-semibold) 18px / 1.15 var(--ef-font-ui);
+  letter-spacing: 0.04em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.who b {
-  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1.2 var(--ef-font-ui);
+.charEn {
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-num);
+  font-stretch: var(--ef-wider);
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+  text-transform: uppercase;
 }
 
-.who span {
-  font: var(--ef-fw-regular) var(--ef-fs-small) / 1.2 var(--ef-font-ui);
-  opacity: 0.75;
-}
-
-.sep {
-  display: inline-block;
-  width: 1px;
-  height: 0.9em;
-  margin: 0 var(--ef-sp-4) 0 var(--ef-sp-6);
-  background: currentColor;
-  vertical-align: -0.1em;
-}
-
-.actIn {
-  display: inline-flex;
-  gap: var(--ef-sp-6);
-  align-items: center;
-  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-ui);
+.charDoing {
+  overflow: hidden;
+  font: var(--ef-fw-regular) var(--ef-fs-meta) / 1.3 var(--ef-font-ui);
+  opacity: 0.8;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Clock: a yellow date band, the time to the second, the connection. */
-.clock {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ef-sp-4);
-  padding: 0 var(--ef-sp-12) var(--ef-sp-6);
-  border: var(--ef-lw-hair) solid color-mix(in srgb, var(--ef-g-yellow) 60%, transparent);
-  background: color-mix(in srgb, var(--ef-canvas) 80%, transparent);
-  color: var(--ef-text-1);
-}
-
-.date {
-  margin: 0 calc(-1 * var(--ef-sp-12));
-  padding: var(--ef-sp-2) var(--ef-sp-12);
-  background: var(--ef-g-yellow);
-  color: var(--ef-on-accent);
-  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1.2 var(--ef-font-ui);
-}
-
-.time {
-  font: var(--ef-fw-semibold) 26px / 1 var(--ef-font-num);
-  letter-spacing: 0.02em;
-}
-
-.conn {
+.charGo {
   display: inline-flex;
+  align-self: end;
+  opacity: 0.6;
 }

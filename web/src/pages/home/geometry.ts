@@ -1,3 +1,6 @@
+import { KEY1, KEY2, KEY3, KEY4, SLOT_L, SLOT_R } from './outlines';
+import type { Pt } from './Slab';
+
 // Design coordinates of the watch face: the game's 1920×1080 watch canvas at half size, scaled to the page by useFit.
 // Offsets are CSS px from the ring centre, y down.
 
@@ -26,61 +29,95 @@ export function around(x: number, y: number, w: number, h: number): Box {
   return { left: r1(x - w / 2), top: r1(y - h / 2), width: r1(w), height: r1(h) };
 }
 
-/** LeftBottomNode01 (×0.876): CharInfo, Activity, Gacha, Purchase, each on its rightbutton_bg sprite. */
+export type Outline = Array<readonly [number, number]>;
+
+export interface KeyShape {
+  box: Box;
+  /** Outline in the key's own px. */
+  pts: Outline;
+  /** Where its content centres, in its own px. */
+  mid: readonly [number, number];
+}
+
+/** A shape given in ring-centre coordinates, placed in its bounding box. */
+function place(outline: Outline, mid: readonly [number, number]): KeyShape {
+  const xs = outline.map((p) => p[0]);
+  const ys = outline.map((p) => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const b = box((x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0);
+  const local = ([x, y]: readonly [number, number]) => [r1(C.x + x - b.left), r1(C.y + y - b.top)] as const;
+  return { box: b, pts: outline.map(local), mid: local(mid) };
+}
+
+/** A sprite's outline (in its unit frame) drawn `w`×`h` centred `x`, `y` from the ring centre; its content centres at
+ *  `mid` in the same unit frame. */
+function sprite(outline: readonly Pt[], x: number, y: number, w: number, h: number, mid: Pt = [0.5, 0.5]): KeyShape {
+  const ring = ([u, v]: Pt) => [x - w / 2 + u * w, y - h / 2 + v * h] as const;
+  return place(outline.map(ring), ring(mid));
+}
+
+/** LeftBtn1–4: rightbutton_bg01–04 at their game size and place (half size), raised 40 px to clear the player card. */
 const LEFT_KEYS = [
-  { x: -294.3, y: -109.2, w: 145.4, h: 81.5 },
-  { x: -322.7, y: -27.1, w: 117.4, h: 82.3 },
-  { x: -325.9, y: 56.6, w: 120, h: 84.1 },
-  { x: -305, y: 128.7, w: 131, h: 63.5 },
-] as const;
+  sprite(KEY1, -294.3, -149.2, 145.4, 81.5),
+  sprite(KEY2, -322.7, -67.1, 117.4, 82.3),
+  sprite(KEY3, -325.9, 16.6, 120, 84.1),
+  sprite(KEY4, -305, 88.7, 131, 63.5),
+];
 
 /** The large keys on the left, top to bottom; at most four. */
-export function leftTiles(n: number): Box[] {
-  return LEFT_KEYS.slice(0, n).map((k) => box(k.x, k.y, k.w, k.h));
+export function leftTiles(n: number): KeyShape[] {
+  return LEFT_KEYS.slice(0, n);
 }
 
-/** RightBotton (×0.833) Group1–5 centres: two keys per group, each group shifted along the ring. */
-const GROUPS = [
-  { x: 284.5, y: -60.2 },
-  { x: 302, y: 3 },
-  { x: 292.3, y: 66 },
-  { x: 268.7, y: 127.7 },
-  { x: 242, y: 189.3 },
+/** Row centres of the right-hand grid, two keys a row: x from Group1–5's offsets (×0.4165), so the column bows out at
+ *  the second row and draws in toward the bottom as in the game; rows 68 px apart (the game's 152 × 0.4165, scaled with
+ *  the keys). */
+const ROWS = [
+  { x: 330, y: -108 },
+  { x: 347.5, y: -40 },
+  { x: 338, y: 28 },
+  { x: 314, y: 96 },
+  { x: 287.5, y: 164 },
 ] as const;
-/** button_bg01 143 game px ×0.833. */
-export const KEY = 59.6;
+/** A right-hand key: button_bg01 at 64 px (the game's 143 × 0.4165 = 59.6, enlarged so an 11px four-character name
+ *  clears the rim), the two of a row touching as in Group1–5; the sprite's own clear margin is the gap. */
+export const KEY = { w: 64, h: 64, gap: 0 } as const;
 
-/** The square keys on the right, two per group; at most ten. */
+/** The keys on the right, two a row; at most ten. */
 export function rightTiles(n: number): Box[] {
-  return Array.from({ length: Math.min(n, GROUPS.length * 2) }, (_, i) => {
-    const g = GROUPS[Math.floor(i / 2)]!;
-    return box(g.x + (i % 2 === 0 ? -KEY / 2 : KEY / 2), g.y, KEY, KEY);
+  return Array.from({ length: Math.min(n, ROWS.length * 2) }, (_, i) => {
+    const r = ROWS[Math.floor(i / 2)]!;
+    const dx = (KEY.w + KEY.gap) / 2;
+    return box(r.x + (i % 2 === 0 ? -dx : dx), r.y, KEY.w, KEY.h);
   });
 }
 
-/** Small icons with their names right of the keys, top to bottom along the ring; 52 px apart. */
-export function sideIcons(n: number): Box[] {
-  return Array.from({ length: n }, (_, i) => {
-    const y = -60 + (i - (n - 1) / 2) * 52 + 60;
-    return box(404 - (y * y) / 900, y, 52, 48);
-  });
-}
+/** TopLeftBtn1–3: settings, reminders, pending. */
+export const TOP_ICONS = [box(-326, -222, 52, 48), box(-270, -222, 52, 48), box(-214, -222, 52, 48)] as const;
 
-/** Width of the face centred on the ring: the side icons reach 430 px right of centre, the left keys 386 px left. */
-export const FACE_W = 860;
+/** The component status row, top centre over the ring. */
+export const STATUS: Box = box(0, -256, 316, 22);
 
-/** TopLeftBtn1 (mail) and TopLeftBtn3 (notice). */
-export const TOP_ICONS = [box(-248, -181, 44, 44), box(-194.5, -181, 44, 44)] as const;
+/** Top_RightNode: the clock strip, top right, left of the close key. */
+export const COUNTERS: Box = box(286, -240, 256, 30);
 
-/** Where the wallet bar's top-right corner sits on screen. */
-export const CLOCK: Box = box(255, -212, 176, 70);
+/** CloseButtonNode: closes the window, top right. */
+export const CLOSE: Box = box(446, -240, 32, 32);
 
-/** HudBgShdow (×1.078): the glow band and its two yellow slots, TechtreeNode then ReportNode. */
-export const BAR: Box = box(0, 200, 298, 55.5);
-export const BAR_SLOTS = [box(-77.4, 201, 148.8, 55), box(75.2, 200, 148.8, 55)] as const;
+/** BannerNode: the news banner over the right-hand keys. */
+export const BANNER: Box = box(318, -182, 236, 60);
+
+/** The player card's place, bottom left under the large keys. */
+export const CARD: Box = box(-272, 180, 224, 76);
+
+/** TechtreeNode and ReportNode: watchfactory_bg and its mirror at 1.078 × half size, either side of straight down. The
+ *  content sits in the tall yellow part by the inner edge, above the white strip. */
+export const BAR_SLOTS = [sprite(SLOT_L, -77.4, 200, 148.8, 55, [0.68, 0.36]), sprite(SLOT_R, 75.2, 200, 148.8, 55, [0.32, 0.36])] as const;
+/** HudBgShdow's glow under both slots. */
+export const BAR: Box = box(0, 202, 360, 70);
 
 /** GlowLeftBtn / GlowRightBtn bloom behind the key columns. */
-export const GLOWS = [box(-333.5, 10, 203, 424), box(313, 76, 237, 458)] as const;
+export const GLOWS = [box(-333.5, -30, 203, 424), box(345, -4, 237, 458)] as const;
 
 /** MiddleRing01 tick blocks (deco_inring01_1 126.5×206.5): centre and the flattened 2D transform. */
 export const TICKS: ReadonlyArray<{ x: number; y: number; m: string; fill?: 'top' | 'bottom'; amount?: number }> = [

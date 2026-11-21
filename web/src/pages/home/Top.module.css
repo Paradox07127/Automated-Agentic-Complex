@@ -1,0 +1,81 @@
+/* The status row: each component's name and state on a dark tab. */
+.status {
+  position: absolute;
+  display: flex;
+  gap: var(--ef-sp-12);
+  align-items: center;
+  justify-content: center;
+  color: var(--ef-g-watch-ink);
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.item {
+  display: inline-flex;
+  gap: var(--ef-sp-6);
+  align-items: center;
+  padding: 3px var(--ef-sp-8);
+  border-left: 2px solid var(--ef-g-watch-ink);
+  background: color-mix(in srgb, var(--ef-g-watch-map) 75%, transparent);
+}
+
+.item[data-tone='failed'] {
+  border-left-color: var(--ef-g-yellow);
+}
+
+.item b {
+  font-weight: var(--ef-fw-semibold);
+  opacity: 0.7;
+}
+
+/* The close key: close_btn_bg (a white disc with a dark X) inside btn_number_back02 (a dark disc with a white ring),
+   forward of the face with the clock strip. */
+.closeNode {
+  position: absolute;
+  pointer-events: auto;
+  transform: translateZ(60px);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 1.5px solid var(--ef-g-watch-ink);
+  border-radius: 50%;
+  background: var(--ef-g-watch-map);
+  color: var(--ef-g-icon);
+  cursor: pointer;
+  box-shadow: 1.85px 1.2px 0 color-mix(in srgb, #000 39%, transparent);
+}
+
+.close::before {
+  content: '';
+  grid-area: 1 / 1;
+  width: 72%;
+  height: 72%;
+  border-radius: 50%;
+  background: var(--ef-g-btn-face);
+  transition: background var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.close > * {
+  grid-area: 1 / 1;
+  position: relative;
+}
+
+.close:hover::before {
+  background: var(--ef-g-btn-hover);
+}
+
+.close:active {
+  translate: 1.85px 1.2px;
+  box-shadow: none;
+}
+
+.close:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}

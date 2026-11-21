@@ -12,6 +12,8 @@ export interface GameClipControls {
   play(): Promise<void>;
   /** Backward to the first frame (hover out). */
   reverse(): Promise<void>;
+  /** To the first frame at once (a pressed key, which the game snaps back to Normal). */
+  rest(): void;
   /** The current run. */
   readonly finished: Promise<void>;
 }
@@ -56,6 +58,12 @@ export function useGameClip(clip: GameClip, rootRef: RefObject<Element | null>, 
     return {
       play: () => run(1),
       reverse: () => run(-1),
+      rest: () => {
+        for (const a of anims.current) {
+          a.pause();
+          a.currentTime = 0;
+        }
+      },
       get finished() {
         return done.current;
       },

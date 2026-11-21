@@ -94,6 +94,11 @@ html[data-surface='stack'] body {
   background: transparent;
 }
 
+/* 主页 paints its own ground, part see-through where the window has a frosted backing (--ef-glass-alpha). */
+body:has(main[data-route-id='home']) {
+  background: transparent;
+}
+
 /* The desktop panels are sized to their content, which the line box under an inline-flex root outgrows by a few px. */
 html[data-surface='stack'] {
   overflow: hidden;

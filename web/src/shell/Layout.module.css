@@ -11,6 +11,10 @@
   grid-template-rows: minmax(0, 1fr);
 }
 
+.window[data-bare] .main {
+  background: transparent;
+}
+
 /* 主页 has no bar to drag the window by: an empty strip along its top edge does it. */
 .drag {
   position: absolute;

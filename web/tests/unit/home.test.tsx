@@ -1,11 +1,11 @@
-// 主页：手表菜单的按键取自路由表，圆盘和底部槽取自工业简报的读数，每个可点元素跳到对应页面或位置。
+// 主页：手表菜单的按键取自路由表，圆盘取自工业简报的待处理和今日任务，每个可点元素跳到对应页面或位置。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { demos } from '../../src/pages/home/demos';
-import { BAR_SLOTS, CLOCK, leftTiles, rightTiles, sideIcons, STAGE, TOP_ICONS } from '../../src/pages/home/geometry';
+import { BANNER, BAR_SLOTS, CARD, COUNTERS, leftTiles, rightTiles, STAGE, TOP_ICONS, type Box } from '../../src/pages/home/geometry';
 import { HomePage } from '../../src/pages/home/Page';
 import { setDevMode } from '../../src/shell/devMode';
 import { OPEN_PALETTE } from '../../src/shell/Layout';
@@ -43,6 +43,9 @@ const title = (id: string) => pageRoutes.find((r) => r.id === id)!.title;
 /** The overview's reads the home page made for 待处理, 在做 and the today card. */
 const TODAY_READS = ['/agent/snapshot', '/sessions', '/agent/runs', '/trace/turns', '/day/segments', '/episodes', '/trace/decisions'];
 const names = (group: HTMLElement) => within(group).getAllByRole('button').map((b) => b.getAttribute('aria-label'));
+/** The left keys: 任务 is 定时任务's key. */
+const LEFT = (...ids: string[]) => ids.map((id) => (id === 'schedules' ? '任务' : title(id)));
+const ACTIONS = ['派发任务', '搜索', '屏幕识读', '快速输入', '停止说话'];
 
 describe('home route', () => {
   it('is the first page, so / lands on it, with ⌘0', () => {
@@ -61,30 +64,30 @@ describe('home tiles', () => {
   it('names the keys by the registry and lists devOnly pages only in 开发者模式', async () => {
     setDevMode(true);
     mount();
-    expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(['character', 'chat', 'memory', 'schedules'].map(title));
-    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([...['settings', 'trace'].map(title), '派发任务', '搜索']);
-    expect(names(screen.getByRole('group', { name: '快捷动作' }))).toEqual(['屏幕识读', '快速输入', '停止说话', ...['diag', 'pipeline', 'tune'].map(title)]);
+    expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory', 'schedules'));
+    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([title('trace'), ...ACTIONS, ...['diag', 'pipeline', 'tune'].map(title)]);
     // Key hints stay in the DOM; html[data-keys] only shows them.
     expect(within(screen.getByRole('group', { name: '主要页面' })).getByRole('button', { name: '对话' }).textContent).toContain('⌘2');
     cleanup();
     setDevMode(false);
     mount();
-    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual([title('settings'), '派发任务', '搜索']);
-    expect(names(screen.getByRole('group', { name: '快捷动作' }))).toEqual(['屏幕识读', '快速输入', '停止说话']);
+    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(ACTIONS);
   });
 
-  it('writes each 快捷动作 name under its icon', async () => {
+  it('writes each key name under its icon', async () => {
     mount();
-    const side = await screen.findByRole('group', { name: '快捷动作' });
-    for (const b of within(side).getAllByRole('button')) expect(b.textContent).toBe(b.getAttribute('aria-label'));
+    const keys = [...within(await screen.findByRole('group', { name: '工具' })).getAllByRole('button'), ...within(screen.getByRole('group', { name: '主要页面' })).getAllByRole('button')];
+    for (const b of keys) expect(b.textContent).toContain(b.getAttribute('aria-label'));
   });
 
   it('jumps to each page, dispatches a role task and opens the palette', async () => {
     mount();
     fireEvent.click(await screen.findByRole('button', { name: '记忆' }));
     expect(window.location.hash).toMatch(/^#\/memory\?/);
-    fireEvent.click(screen.getByRole('button', { name: '定时任务' }));
+    fireEvent.click(screen.getByRole('button', { name: '任务' }));
     expect(window.location.hash).toMatch(/^#\/schedules\?/);
+    fireEvent.click(screen.getByRole('button', { name: title('settings') }));
+    expect(window.location.hash).toMatch(/^#\/settings\?/);
     fireEvent.click(screen.getByRole('button', { name: /^角色：/ }));
     expect(window.location.hash).toMatch(/^#\/character\?/);
     fireEvent.click(screen.getByRole('button', { name: '打开对话' }));
@@ -117,36 +120,118 @@ describe('home disc', () => {
     expect(n).toBeGreaterThan(0);
     fireEvent.click(pending);
     expect(window.location.hash).toMatch(/^#\/overview\?.*focus=pending/);
-    const brief = screen.getByRole('button', { name: /^工业简报：待办 \d+ │ 在做 \d+$/ });
-    expect(brief.getAttribute('aria-label')).toContain(`待办 ${n} `);
-    window.location.hash = '';
-    fireEvent.click(brief);
-    expect(window.location.hash).toMatch(/^#\/overview\?/);
-    const first = within(screen.getByRole('region', { name: title('character') })).getByRole('group', { name: /^(审批|提问|复核)：/ });
+    for (const name of [title('overview'), /^今日任务 完成 \d+ \/ \d+$/]) {
+      window.location.hash = '';
+      fireEvent.click(screen.getByRole('button', { name }));
+      expect(window.location.hash).toMatch(/^#\/overview\?/);
+    }
+    const disc = screen.getByRole('region', { name: '待批准' });
+    expect(within(disc).getByRole('button', { name: `另有 ${n - 1} 件待处理` })).toBeTruthy();
+    const first = within(disc).getByRole('group', { name: /^(审批|提问|复核)：/ });
     fireEvent.click(within(first).getAllByRole('button')[0]!);
     expect(window.location.hash).toMatch(/^#\/overview\?sel=([^&]+)&focus=item-\1/);
+  });
+
+  it('puts the next reminder on the banner and lands it on 工业简报 at the reminders', async () => {
+    mount();
+    const banner = await screen.findByRole('button', { name: /^提醒：.+ \S+$/ }, { timeout: 3000 });
+    fireEvent.click(banner);
+    expect(window.location.hash).toMatch(/^#\/overview\?.*focus=reminders/);
+  });
+
+  it('turns the disc to 在做 and 今日, lists what runs and lands each count on 工业简报', async () => {
+    mount();
+    const tabs = await screen.findByRole('tablist', { name: '圆盘' }, { timeout: 3000 });
+    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent?.replace(/\d+/g, ''))).toEqual(['待批准', '在做', '今日']);
+    fireEvent.click(within(tabs).getByRole('tab', { name: /^在做/ }));
+    const running = screen.getByRole('tabpanel', { name: '在做' });
+    expect(within(running).getAllByRole('button', { name: /^(对话|任务|编码)：/ }).length).toBeGreaterThan(0);
+    fireEvent.click(within(tabs).getByRole('tab', { name: '今日' }));
+    const today = screen.getByRole('tabpanel', { name: '今日' });
+    expect(within(today).getAllByRole('button').map((b) => b.getAttribute('aria-label')?.split(' ')[0])).toEqual(['完成', '出错', '提醒', '交付']);
+    fireEvent.click(within(today).getByRole('button', { name: /^提醒 / }));
+    expect(window.location.hash).toMatch(/^#\/overview\?.*focus=reminders/);
+  });
+
+  it('turns the disc page by a sideways drag or trackpad swipe and ignores a vertical drag', async () => {
+    mount();
+    await screen.findByRole('tablist', { name: '圆盘' }, { timeout: 3000 });
+    const page = () => screen.getByRole('tabpanel').getAttribute('aria-label');
+    expect(page()).toBe('待批准');
+    fireEvent.pointerDown(screen.getByRole('tabpanel'), { clientX: 200, clientY: 100 });
+    fireEvent.pointerUp(screen.getByRole('tabpanel'), { clientX: 200, clientY: 20 });
+    expect(page()).toBe('待批准');
+    fireEvent.pointerDown(screen.getByRole('tabpanel'), { clientX: 200, clientY: 100 });
+    fireEvent.pointerUp(screen.getByRole('tabpanel'), { clientX: 120, clientY: 110 });
+    expect(page()).toBe('在做');
+    fireEvent.wheel(screen.getByRole('tabpanel'), { deltaX: 60, deltaY: 2 });
+    expect(page()).toBe('今日');
+    fireEvent.pointerDown(screen.getByRole('tabpanel'), { clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(screen.getByRole('tabpanel'), { clientX: 200, clientY: 100 });
+    expect(page()).toBe('在做');
+  });
+
+  it('steps the banner by its arrows, names the shell components with their state and closes the window', async () => {
+    const close = vi.spyOn(window, 'close').mockImplementation(() => {});
+    mount();
+    const first = await screen.findByRole('button', { name: /^(提醒|交付)：/ }, { timeout: 3000 });
+    const label = first.getAttribute('aria-label');
+    fireEvent.click(screen.getByRole('button', { name: '下一条' }));
+    expect(screen.getByRole('button', { name: /^(提醒|交付)：/ }).getAttribute('aria-label')).not.toBe(label);
+    fireEvent.click(screen.getByRole('button', { name: '上一条' }));
+    expect(screen.getByRole('button', { name: /^(提醒|交付)：/ }).getAttribute('aria-label')).toBe(label);
+    const status = await screen.findByRole('group', { name: '组件状态' });
+    expect(status.textContent).toMatch(/^后台.+角色.+语音/);
+    fireEvent.click(screen.getByRole('button', { name: '关闭窗口' }));
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it('shows dashes while reading and zeros on an empty day', async () => {
     mount('&state=loading');
     expect(await screen.findAllByRole('button', { name: /^待处理 —$/ })).toHaveLength(1);
-    expect(screen.getByRole('button', { name: '工业简报：待办 — │ 在做 —' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^今日任务/ })).toBeNull();
     expect(screen.getByText('读取中')).toBeTruthy();
     cleanup();
     mount('&state=empty');
     expect(await screen.findAllByRole('button', { name: '待处理 0' }, { timeout: 3000 })).toHaveLength(1);
-    expect(await screen.findByRole('button', { name: '工业简报：待办 0 │ 在做 0' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '今日任务 完成 0 / 0' })).toBeTruthy();
     expect(screen.queryAllByRole('group', { name: /^(审批|提问|复核)：/ })).toEqual([]);
+    expect(screen.getByText('没有要你批准的事')).toBeTruthy();
   });
 });
 
 describe('home geometry', () => {
-  it('keeps the keys, the top icons, the named side icons, the bar slots and the clock on the stage', () => {
-    for (const b of [...leftTiles(4), ...rightTiles(8), ...TOP_ICONS, ...sideIcons(6), ...BAR_SLOTS, CLOCK]) {
+  const boxes = (): Array<[string, Box]> => [
+    ...leftTiles(4).map((k, i): [string, Box] => [`left ${i}`, k.box]),
+    ...rightTiles(10).map((b, i): [string, Box] => [`right ${i}`, b]),
+    ...TOP_ICONS.map((b, i): [string, Box] => [`top ${i}`, b]),
+    ['card', CARD],
+    ...BAR_SLOTS.map((k, i): [string, Box] => [`slot ${i}`, k.box]),
+    ['counters', COUNTERS],
+    ['banner', BANNER],
+  ];
+
+  it('keeps the keys, the top icons, the character card, the bar slots, the clock strip and the banner on the stage', () => {
+    for (const [, b] of boxes()) {
       expect(b.left).toBeGreaterThanOrEqual(0);
       expect(b.top).toBeGreaterThanOrEqual(0);
       expect(b.left + b.width).toBeLessThanOrEqual(STAGE.w);
       expect(b.top + b.height).toBeLessThanOrEqual(STAGE.h);
+    }
+  });
+
+  it('lets no two of them overlap, and keeps the outline of each left key inside its box', () => {
+    const all = boxes().filter(([name]) => !name.startsWith('slot'));
+    const hit = (a: Box, b: Box) => a.left < b.left + b.width && b.left < a.left + a.width && a.top < b.top + b.height && b.top < a.top + a.height;
+    const overlaps = all.flatMap(([n, a], i) => all.slice(i + 1).filter(([, b]) => hit(a, b)).map(([m]) => `${n} × ${m}`));
+    expect(overlaps).toEqual([]);
+    for (const k of leftTiles(4)) {
+      for (const [x, y] of k.pts) {
+        expect(x).toBeGreaterThanOrEqual(-0.1);
+        expect(y).toBeGreaterThanOrEqual(-0.1);
+        expect(x).toBeLessThanOrEqual(k.box.width + 0.1);
+        expect(y).toBeLessThanOrEqual(k.box.height + 0.1);
+      }
     }
   });
 });
@@ -169,15 +254,6 @@ describe('home fit', () => {
     sized(876, 600);
     await screen.findByRole('group', { name: '主要页面' });
     expect(scale() * 12).toBeGreaterThanOrEqual(11);
-    expect(screen.getByRole('group', { name: '快捷动作' })).toBeTruthy();
-  });
-
-  it('folds the 快捷动作 column instead of shrinking further when the face does not fit', async () => {
-    sized(720, 600);
-    await screen.findByRole('group', { name: '主要页面' });
-    expect(scale() * 12).toBeGreaterThanOrEqual(11);
-    expect(screen.queryByRole('group', { name: '快捷动作' })).toBeNull();
-    expect(screen.getByRole('group', { name: '工具' })).toBeTruthy();
   });
 });
 
@@ -187,16 +263,16 @@ describe('home with the plug-ins at their defaults', () => {
     setDevMode(false);
   });
 
-  it('keeps only 角色, 对话, 记忆 and 设置 among the pages, and no 待处理, 提醒, 派发任务, 屏幕识读 or today card', async () => {
+  it('keeps only 角色, 对话, 记忆 and 设置 among the pages, and no 待处理, 提醒, 派发任务, 屏幕识读, 工业简报 or report', async () => {
     mount();
-    expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(['character', 'chat', 'memory'].map(title));
-    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([title('settings'), '搜索']);
-    expect(names(screen.getByRole('group', { name: '快捷动作' }))).toEqual(['快速输入', '停止说话']);
-    for (const gone of [/^待处理/, /^提醒$/, /^派发任务$/, /^屏幕识读$/, /^工业简报：/]) expect(screen.queryByRole('button', { name: gone })).toBeNull();
+    expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory'));
+    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual(['搜索', '快速输入', '停止说话']);
+    expect(screen.getByRole('button', { name: title('settings') })).toBeTruthy();
+    for (const gone of [/^待处理/, /^提醒$/, /^提醒：/, /^交付：/, '没有新消息', /^派发任务$/, /^屏幕识读$/, new RegExp(`^${title('overview')}$`), /^今日任务/]) expect(screen.queryByRole('button', { name: gone })).toBeNull();
     expect(screen.getByRole('button', { name: '打开对话' })).toBeTruthy();
-    // The bar's glow band lies under the one slot left, not under the empty card slot.
+    // The bar's glow band lies under the one slot left, not under the empty 工业简报 slot.
     const band = document.querySelector<HTMLElement>('[data-g="hudBar"] > span[aria-hidden="true"]')!;
-    expect([band.style.left, band.style.width]).toEqual([`${BAR_SLOTS[1].left}px`, `${BAR_SLOTS[1].width}px`]);
+    expect([band.style.left, band.style.width]).toEqual([`${BAR_SLOTS[0].box.left}px`, `${BAR_SLOTS[0].box.width}px`]);
   });
 
   it('sends none of the today reads with 日报与简报 off, and the clock reads /health, not them, for 已连接', async () => {
@@ -219,26 +295,26 @@ describe('home with the plug-ins at their defaults', () => {
   it('offers 派发任务 with 个人代理 on and 日报与简报 off, and opens the dispatch dialog in place', async () => {
     pluginsOn('personal_agent');
     mount();
-    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual([title('settings'), '派发任务', '搜索']);
+    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(['派发任务', '搜索', '快速输入', '停止说话']);
     fireEvent.click(screen.getByRole('button', { name: '派发任务' }));
     const dialog = await screen.findByRole('dialog', { name: '新建' });
     expect(within(dialog).getByRole('button', { name: /交派/ })).toBeTruthy();
     expect(window.location.hash).not.toMatch(/overview/);
   });
 
-  it('adds 待处理, 提醒 and the today card once 日报与简报 is on, and 派发任务 once 个人代理 is on too', async () => {
+  it('adds 待处理, 提醒, 工业简报 and the report once 日报与简报 is on, and 派发任务 once 个人代理 is on too', async () => {
     pluginsOn('daily_brief');
     mount();
     expect(await screen.findByRole('button', { name: /^待处理 / })).toBeTruthy();
     expect(screen.getByRole('button', { name: '提醒' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^工业简报：/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: title('overview') })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /^今日任务/ }, { timeout: 3000 })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '派发任务' })).toBeNull();
     cleanup();
     pluginsOn('daily_brief', 'personal_agent', 'screen_reading');
     mount();
-    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual([title('settings'), '派发任务', '搜索']);
-    expect(names(screen.getByRole('group', { name: '主要页面' }))).toEqual(['character', 'chat', 'memory', 'schedules'].map(title));
-    expect(names(screen.getByRole('group', { name: '快捷动作' }))).toEqual(['屏幕识读', '快速输入', '停止说话']);
+    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(ACTIONS);
+    expect(names(screen.getByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory', 'schedules'));
   });
 
   it('writes 待处理 with its count and 提醒 under their icons', async () => {
@@ -249,15 +325,13 @@ describe('home with the plug-ins at their defaults', () => {
     }
   });
 
-  it('the today card counts no 在做 while neither 编码会话 nor 个人代理 is on', async () => {
+  it('the report counts no 在做 while neither 编码会话 nor 个人代理 is on', async () => {
     pluginsOn('daily_brief');
     mount('&state=empty');
-    const card = await screen.findByRole('button', { name: /^工业简报：/ });
-    expect(card.getAttribute('aria-label')).toBe('工业简报：待办 0');
-    expect(card.textContent).not.toContain('在做');
+    expect((await screen.findByRole('button', { name: /^今日任务/ }, { timeout: 3000 })).textContent).not.toContain('在做');
     cleanup();
     pluginsOn('daily_brief', 'coding_sessions');
     mount('&state=empty');
-    expect(await screen.findByRole('button', { name: '工业简报：待办 0 │ 在做 0' }, { timeout: 3000 })).toBeTruthy();
+    expect((await screen.findByRole('button', { name: /^今日任务/ }, { timeout: 3000 })).textContent).toContain('在做 0');
   });
 });

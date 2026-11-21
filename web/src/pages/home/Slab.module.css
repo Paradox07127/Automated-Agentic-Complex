@@ -1,0 +1,144 @@
+/* A slab: a see-through plate on the watch face and the face above it, then the content. --press (set by the button
+   that holds it) scales the lift. Every layer ignores the pointer; the button's own box takes it. */
+.slab {
+  --lift: calc(var(--depth) * var(--press, 1));
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+/* keyboard_btn: the sprite's rim 223 grey, its gap black at 0.22, its face white at 0.7 under Btn's 0.906 grey; the
+   Shadow keeps the rim at white 0.39 over a dark film. */
+.slab[data-tone='light'] {
+  --face-top: var(--ef-g-btn-face);
+  --face-mid: var(--ef-g-btn-face);
+  --face-bot: color-mix(in srgb, var(--ef-g-btn-face) 90%, var(--ef-g-icon));
+  --face-rest: 0.7;
+  --plate: color-mix(in srgb, #000 34%, transparent);
+  --plate-rim: color-mix(in srgb, #fff 39%, transparent);
+  --rim: #dfdfdf;
+  --gap: color-mix(in srgb, #000 22%, transparent);
+}
+
+.slab[data-tone='dark'] {
+  --face-top: color-mix(in srgb, var(--ef-g-watch-ink) 12%, var(--ef-g-watch-map));
+  --face-mid: color-mix(in srgb, var(--ef-g-watch-ink) 6%, var(--ef-g-watch-map));
+  --face-bot: var(--ef-g-watch-map);
+  --face-rest: 0.92;
+  --plate: color-mix(in srgb, #000 39%, transparent);
+  --plate-rim: color-mix(in srgb, var(--ef-g-watch-ink) 18%, transparent);
+  --rim: color-mix(in srgb, var(--ef-g-watch-ink) 30%, transparent);
+  --gap: transparent;
+}
+
+/* watchfactory_bg under the #FADA27 tint, its Light copy white at 0.5 over it: a bright yellow with a white strip. */
+.slab[data-tone='yellow'] {
+  --face-top: color-mix(in srgb, #fff 18%, var(--ef-g-yellow));
+  --face-mid: var(--ef-g-yellow);
+  --face-bot: var(--ef-g-yellow);
+  --face-rest: 0.95;
+  --plate: color-mix(in srgb, var(--ef-g-yellow) 30%, color-mix(in srgb, #000 30%, transparent));
+  --plate-rim: color-mix(in srgb, var(--ef-g-yellow) 70%, transparent);
+  --rim: color-mix(in srgb, #fff 60%, var(--ef-g-yellow));
+  --gap: color-mix(in srgb, #000 22%, transparent);
+  --band: color-mix(in srgb, #fff 82%, var(--ef-g-yellow));
+}
+
+.plate,
+.top {
+  position: absolute;
+  inset: 0;
+  transition: transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+/* --shift: where the Shadow shows past the Btn (a left key's Btn sits up-left of it, a right key's to its right). */
+.plate {
+  fill: var(--plate);
+  translate: var(--shift);
+}
+
+.plateRim {
+  fill: none;
+  stroke: var(--plate-rim);
+}
+
+/* Btn colour: 0.906 grey at 0.863 alpha at rest; the hover clip takes it to 1. */
+.top {
+  opacity: 0.8627;
+  transform: translateZ(var(--lift));
+}
+
+.faceTop {
+  stop-color: var(--face-top);
+}
+
+.faceMid {
+  stop-color: var(--face-mid);
+}
+
+.faceBot {
+  stop-color: var(--face-bot);
+}
+
+/* --face-a is the hover clip's; at rest the tone's own. */
+.face {
+  fill-opacity: var(--face-a, var(--face-rest));
+}
+
+.band {
+  fill: var(--band);
+}
+
+.wash {
+  opacity: 0.35;
+}
+
+.accentOn {
+  stop-color: var(--ef-g-yellow);
+}
+
+.accentOff {
+  stop-color: var(--ef-g-yellow);
+  stop-opacity: 0;
+}
+
+.gap {
+  stroke: var(--gap);
+}
+
+.rim {
+  stroke: var(--rim);
+}
+
+.contour {
+  fill: none;
+  stroke: var(--ef-g-icon);
+  stroke-width: 0.5;
+  opacity: 0.1;
+}
+
+.contour [data-major] {
+  stroke-width: 0.9;
+}
+
+.content {
+  position: absolute;
+  inset: 0;
+  transform: translateZ(calc(var(--lift) + 0.5px));
+  transform-style: preserve-3d;
+  transition: transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+/* The light theme has a light ground: the plate is a grey film with a darker rim, the face's rim white. */
+:global([data-theme='light']) .slab[data-tone='light'] {
+  --plate: color-mix(in srgb, #000 18%, transparent);
+  --plate-rim: color-mix(in srgb, #000 30%, transparent);
+  --rim: #fff;
+  --gap: color-mix(in srgb, #000 16%, transparent);
+  --face-rest: 0.85;
+}
+
+:global([data-theme='light']) .slab[data-tone='dark'] {
+  --plate: color-mix(in srgb, #000 14%, transparent);
+}

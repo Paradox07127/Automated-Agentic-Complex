@@ -53,7 +53,7 @@ async function settle(page: Page, sel = 'body') {
 }
 
 /** 主页's 工业简报 slot at the bottom of the watch. */
-const brief = (page: Page) => page.getByRole('button', { name: /^工业简报：/ });
+const brief = (page: Page) => page.getByRole('button', { name: '工业简报', exact: true });
 
 /** Picks a page from the command bar's page menu. */
 async function menu(page: Page, name: string) {
