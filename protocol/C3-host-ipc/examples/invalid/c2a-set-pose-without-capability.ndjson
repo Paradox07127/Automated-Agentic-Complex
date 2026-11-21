@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["pointer","actions"]}
+{"v":1,"type":"set_pose","req":21,"character":"aster","id":"pose_sit_chair","lock":true}

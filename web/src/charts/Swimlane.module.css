@@ -1,0 +1,236 @@
+.root {
+  min-width: 0;
+  margin: 0;
+}
+
+.plot {
+  --lw: 56px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 14px;
+  font: var(--ef-t-meta);
+}
+
+.lane {
+  display: grid;
+  grid-template-columns: var(--lw) minmax(0, 1fr);
+  align-items: center;
+}
+
+.laneLabel {
+  overflow: hidden;
+  padding-right: var(--ef-sp-8);
+  color: var(--ef-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track {
+  position: relative;
+  height: 14px;
+  box-shadow: inset 0 -1px 0 var(--ef-chart-grid);
+}
+
+.lane[data-narrow] .track {
+  height: 8px;
+}
+
+.laneErr,
+.errText {
+  color: var(--ef-text-1);
+}
+
+.errText {
+  overflow: hidden;
+  font: var(--ef-fs-meta) / var(--ef-lh-num) var(--ef-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lane[data-error] .track {
+  box-shadow: inset 0 -1px 0 var(--ef-text-1);
+}
+
+.none {
+  color: var(--ef-text-3);
+  font: var(--ef-t-num);
+}
+
+/* Colour is the bar's state only; lanes are told apart by label and position. */
+.bar {
+  --lc: var(--ef-chart-done);
+  --on: var(--ef-on-semantic);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 0;
+  border: 0;
+  background: var(--lc);
+  cursor: pointer;
+}
+
+/* Running is the default activity and stays ink; colour is for attention, failure and emphasis. */
+.bar[data-tone='running'] {
+  --lc: var(--v3-ink-1);
+}
+
+.bar[data-tone='waiting'] {
+  --lc: var(--ef-state-waiting);
+  --on: var(--ef-on-attention);
+}
+
+.bar[data-tone='warning'] {
+  --lc: var(--ef-state-warning);
+  --on: var(--ef-on-attention);
+}
+
+/* 出错 = a white plate in an ink frame; its yellow flag is the square at the end. */
+.bar[data-tone='failed'] {
+  --lc: var(--ef-raised);
+  --on: var(--ef-text-1);
+  box-shadow: inset 0 0 0 1px var(--ef-text-1);
+}
+
+.bar[data-tone='ok'] {
+  --on: var(--ef-on-attention);
+}
+
+.bar[data-tone='cancelled'] {
+  --lc: var(--ef-state-cancelled);
+}
+
+.bar[data-tone='idle'] {
+  --lc: var(--ef-chart-cell-empty);
+  --on: var(--ef-text-1);
+}
+
+/* Secondary state inside one lane (离开): hatch on the empty cell, no now-cursor link. */
+.bar[data-hatched] {
+  background: var(--ef-hatch), var(--ef-chart-cell-empty);
+  box-shadow: inset 0 0 0 1px var(--ef-chart-axis);
+}
+
+/* Gate failed: ▼ at the bar's end, ink on a yellow block. */
+.gate {
+  position: absolute;
+  top: -12px;
+  right: -6px;
+  padding: 0 1px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font: var(--ef-fw-semibold) var(--ef-fs-num) / 1 var(--ef-font-sans);
+  pointer-events: none;
+}
+
+.gateMark {
+  padding: 0 2px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font: var(--ef-fw-semibold) var(--ef-fs-num) / 1 var(--ef-font-sans);
+}
+
+/* Still running: hatch = 未结束, over a lighter step of the bar colour so the stripes show. */
+.bar[data-open] {
+  background: var(--ef-hatch), color-mix(in srgb, var(--lc) 55%, var(--ef-base));
+}
+
+.bar[data-tone='failed']:not([data-open])::before,
+.bar[data-tone='cancelled']:not([data-open])::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -3px;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+}
+
+.bar[data-tone='failed']:not([data-open])::before {
+  background: var(--ef-state-failed);
+  box-shadow: inset 0 0 0 1px var(--ef-on-accent);
+}
+
+.bar[data-tone='cancelled']:not([data-open])::before {
+  background: var(--ef-base);
+  box-shadow: inset 0 0 0 1px var(--ef-text-3);
+}
+
+.bar[data-tone='cancelled'] {
+  opacity: 0.6;
+}
+
+.bar[data-emph] {
+  --lc: var(--v3-emph);
+  --on: var(--v3-on-emph);
+}
+
+.bar[data-selected] {
+  z-index: 2;
+  outline: 1.5px solid var(--v3-emph);
+  outline-offset: 1px;
+}
+
+.annIn,
+.annOut {
+  position: absolute;
+  top: 0;
+  font: var(--ef-t-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.annIn {
+  left: 4px;
+  color: var(--on);
+}
+
+.annOut {
+  left: calc(100% + 6px);
+  color: var(--ef-chart-value);
+}
+
+.axis {
+  position: relative;
+  height: 16px;
+  border-top: 1px solid var(--ef-chart-axis);
+}
+
+.tick {
+  position: absolute;
+  top: 4px;
+  color: var(--ef-chart-label);
+  font: var(--ef-t-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.tick::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 1px;
+  height: 4px;
+  background: var(--ef-chart-axis);
+}
+
+/* 「现在」: a plain 1 px line. */
+.now {
+  position: absolute;
+  top: 8px;
+  bottom: 16px;
+  left: calc(var(--lw) + (100% - var(--lw)) * var(--x));
+  width: 1px;
+  background: var(--v3-now);
+  pointer-events: none;
+}
+
+.note {
+  margin-top: var(--ef-sp-4);
+  color: var(--ef-text-3);
+  font: var(--ef-t-meta);
+}

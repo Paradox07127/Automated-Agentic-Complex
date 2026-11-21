@@ -1,0 +1,110 @@
+/* 简报：列表行 · 简报抽屉。 */
+.cap {
+  color: var(--ef-text-3);
+  font-size: 12px;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 4px 10px;
+  border: 0;
+  background: var(--ef-rowplate);
+  color: var(--ef-text-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--ef-rowplate-hover);
+}
+
+.row:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-accent);
+  outline-offset: 1px;
+}
+
+.rowT {
+  flex: 1;
+  min-width: 0;
+  font: 500 13px var(--ef-font-sans);
+}
+
+.sheet,
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sheet p,
+.body p {
+  margin: 0;
+}
+
+.eb {
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ef-line-subtle);
+  color: var(--ef-text-2);
+  font: 500 12px var(--ef-font-sans);
+}
+
+.items {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: 4px;
+}
+
+.text {
+  color: var(--ef-text-1);
+  font: var(--ef-t-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.sub {
+  color: var(--ef-text-2);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.ev {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 0 0 10px;
+  border-left: 2px solid var(--ef-line-subtle);
+  list-style: none;
+}
+
+.ev li {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.quote {
+  color: var(--ef-text-2);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

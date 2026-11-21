@@ -1,0 +1,60 @@
+/* Settings row: read-only, so no pointer feedback; one hairline between rows; control column 240. */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  align-items: center;
+  gap: var(--ef-sp-4) var(--ef-sp-16);
+  min-height: 56px;
+  padding: var(--ef-sp-12) var(--ef-sp-16);
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line);
+}
+
+.text {
+  min-width: 0;
+}
+
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  color: var(--ef-text-1);
+  font: var(--ef-t-row);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.desc {
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reason {
+  color: var(--ef-text-1);
+}
+
+.control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  color: var(--ef-text-2);
+}
+
+.extra {
+  grid-column: 1 / -1;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.row[aria-disabled='true'] .title {
+  color: var(--ef-text-disabled);
+}
+
+.row[aria-disabled='true'] .control {
+  opacity: 0.45;
+}

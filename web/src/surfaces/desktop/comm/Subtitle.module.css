@@ -1,0 +1,151 @@
+/* Subtitle strip: a 30 px deco column, her name between two rules, the newest three lines on a band with soft ends. */
+.bar {
+  /* Deco column line (white .15). */
+  --ink-deco: rgba(255, 255, 255, 0.15);
+  display: flex;
+  color: var(--bubble-t1);
+  text-align: left;
+}
+
+:global(html[data-theme='light']) .bar {
+  --ink-deco: rgba(0, 0, 0, 0.15);
+}
+
+/* The deco column: a 1 px line with dots at both ends; dialogsubtitle_in shows the dots at 167 ms and spreads them by 417 ms. */
+.deco {
+  flex: none;
+  align-self: stretch;
+  width: 30px;
+  background:
+    linear-gradient(var(--ink-mark), var(--ink-mark)) center top / 2px 2px no-repeat,
+    linear-gradient(var(--ink-mark), var(--ink-mark)) center bottom / 2px 2px no-repeat,
+    linear-gradient(var(--ink-deco), var(--ink-deco)) center 3px / 1px calc(100% - 6px) no-repeat;
+  animation: deco-in var(--ef-dur-g-panel-in) both;
+}
+
+@keyframes deco-in {
+  0%,
+  40% {
+    opacity: 0;
+    transform: scaleY(0.1);
+  }
+  44% {
+    opacity: 1;
+    transform: scaleY(0.1);
+    animation-timing-function: cubic-bezier(0.333, 0, 0.166, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+/* Name and link sit on the band; the lines take it with soft ends (turned dark for white desktops). */
+.name,
+.open {
+  background: var(--band);
+  text-shadow: var(--hud-text-shadow);
+}
+
+.name {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  font: var(--ef-fw-medium) 15px / 25px var(--ef-font-sans);
+}
+
+.name::before,
+.name::after {
+  content: '';
+  width: 2px;
+  height: 25px;
+  background: var(--ink-rule);
+}
+
+/* The newest three lines: what does not fit overflows at the top. */
+.text {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-self: stretch;
+  max-height: calc(22px * 3 + 4px);
+  overflow: hidden;
+}
+
+.lines {
+  margin: 0;
+  padding: 2px 12px;
+  background: linear-gradient(90deg, transparent, var(--band) 12px calc(100% - 12px), transparent);
+  color: var(--bubble-t1);
+  font: var(--ef-fw-regular) 13px / 22px var(--ef-font-sans);
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+  text-shadow: var(--hud-text-shadow);
+}
+
+.line {
+  animation: textnode-in 133ms steps(1, end) both;
+}
+
+/* dialogsubtitle_textnode_in: a 133 ms flicker on. */
+@keyframes textnode-in {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  62.5% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.open {
+  height: 24px;
+  padding: 0 12px;
+  border: 0;
+  color: var(--ef-accent-text);
+  font: var(--ef-fw-regular) 13px / 24px var(--ef-font-sans);
+  cursor: pointer;
+}
+
+.open:hover {
+  text-decoration: underline;
+}
+
+.open:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+:global(.still) .deco,
+:global(.still) .line {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deco,
+  .line {
+    animation: none;
+  }
+}

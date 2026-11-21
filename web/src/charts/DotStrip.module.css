@@ -1,0 +1,107 @@
+.root {
+  min-width: 0;
+  max-width: 1024px;
+  margin: 0;
+}
+
+.plot {
+  position: relative;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  cursor: crosshair;
+  user-select: none;
+}
+
+/* Tick numbers 11/14 tabular; Chinese labels never under 12 px. The viewBox matches the box, so these are real pixels. */
+.label {
+  fill: var(--ef-chart-label);
+  font: var(--ef-t-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.labelCn {
+  fill: var(--ef-chart-label);
+  font: var(--ef-t-meta);
+}
+
+.grid {
+  stroke: var(--ef-chart-grid);
+}
+
+.axis {
+  stroke: var(--ef-chart-axis);
+}
+
+/* Result shapes: success = 3×3 ink square, failure = yellow ■ edged in ink, interrupt = □, running = ○, skipped = dot. */
+/* Success is the default and stays ink grey; colour is left for failures and the emphasised dot. */
+.dot[data-result='ok'] {
+  fill: var(--v3-ink-2);
+}
+
+.dot[data-result='failed'] {
+  fill: var(--ef-state-failed);
+  stroke: var(--ef-on-accent);
+  stroke-width: 1;
+}
+
+.dot[data-result='interrupted'] {
+  fill: none;
+  stroke: var(--ef-text-3);
+  stroke-width: 1.2;
+}
+
+.dot[data-result='running'] {
+  fill: none;
+  stroke: var(--ef-state-running);
+  stroke-width: 1.5;
+}
+
+.dot[data-result='skipped'] {
+  fill: var(--ef-chart-cell-empty);
+}
+
+.dot.em {
+  fill: var(--v3-emph);
+}
+
+.dot.on {
+  stroke: var(--ef-text-1);
+  stroke-width: 1.5;
+}
+
+/* Failure counts per hour: yellow blocks edged in ink. */
+.failBar {
+  fill: var(--ef-state-failed);
+  stroke: var(--ef-on-accent);
+  stroke-width: 1;
+}
+
+.brush {
+  fill: var(--ef-chart-cell-empty);
+  stroke: var(--ef-text-2);
+}
+
+.lg {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+
+.brushInfo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  color: var(--ef-text-1);
+  white-space: nowrap;
+}
+
+.note {
+  margin-top: var(--ef-sp-4);
+  color: var(--ef-text-3);
+  font: var(--ef-t-meta);
+}

@@ -1,0 +1,400 @@
+@import './BubbleArt.css';
+/* The bubble's rows on BubbleRoot's band: 15 px line, 13 px 正在做, notes and text buttons. */
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-6);
+  font: var(--ef-fw-regular) var(--ef-fs-title-2) / 22px var(--ef-font-sans);
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ef-sp-8);
+}
+
+.ico {
+  display: inline-flex;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  color: var(--bubble-t2);
+}
+
+.main[data-kind='reminder'] .ico {
+  color: var(--ef-accent-text);
+}
+
+/* The thought's radio icon at half strength, in the cloud's old place. */
+.radio {
+  flex: none;
+  width: 12px;
+  height: 21px;
+  color: var(--bubble-t1);
+  opacity: 0.5;
+}
+
+/* aibark TextName: her name between two 2x25 rules. */
+.name {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 12px;
+  margin: 0;
+  color: var(--bubble-t1);
+  font: var(--ef-fw-medium) var(--ef-fs-title-2) / 25px var(--ef-font-sans);
+}
+
+.name::before,
+.name::after {
+  content: '';
+  width: 2px;
+  height: 25px;
+  background: var(--ink-rule);
+}
+
+/* Long replies, thoughts and reminders remain readable within the panel; her line shows three lines, then scrolls. */
+.text,
+.say {
+  min-width: 0;
+  max-height: 198px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+}
+
+.main[data-kind='thought'] .text {
+  color: var(--bubble-t2);
+}
+
+.say {
+  isolation: isolate;
+  max-height: 66px;
+  color: var(--bubble-t1);
+}
+
+.say :is(ul, ol) { margin: 0; padding-inline-start: 1.55em; }
+.say > :not(:first-child) { margin-top: var(--ef-sp-4); }
+.say code { font-family: var(--ef-font-mono); font-size: max(12px, 0.87em); color: inherit; }
+/* Her code scrolls sideways inside the line (with the chat's code block rules) instead of widening the panel. */
+.say pre {
+  margin: 0;
+  padding: var(--ef-sp-2) var(--ef-sp-6);
+  border: 0;
+  border-left: 2px solid var(--ink-rule);
+  background: var(--ef-overlay-hover);
+}
+
+/* aibark_in: the line flickers on over 250–417 ms. */
+.say,
+.main[data-kind='thought'] .text {
+  animation: flicker 167ms steps(1, end) 250ms both;
+}
+
+@keyframes flicker {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* The caret turned flat (40x13 at .7, soft ends), with the cursor streak ending at it. */
+.cursor {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 13px;
+  margin-left: 2px;
+  vertical-align: -0.1em;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, currentcolor 43%, transparent) 36%,
+    currentcolor 45% 55%,
+    color-mix(in srgb, currentcolor 43%, transparent) 64%,
+    transparent
+  );
+  opacity: 0.7;
+  animation: carelight 1000ms var(--ef-ease-g-fade) infinite;
+}
+
+/* The streak runs under the text, kept faint so the last words still read. */
+.cursor::before {
+  content: '';
+  position: absolute;
+  top: -0.5px;
+  right: 50%;
+  z-index: -1;
+  width: 120px;
+  height: 14px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, currentcolor 10%, transparent) 82%, color-mix(in srgb, currentcolor 25%, transparent));
+}
+
+@keyframes carelight {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.more {
+  align-self: flex-start;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-accent-text);
+  font: var(--ef-fw-regular) var(--ef-fs-body) / 20px var(--ef-font-sans);
+  text-shadow: inherit;
+  cursor: pointer;
+}
+
+.more:hover {
+  text-decoration: underline;
+}
+
+.btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8);
+  padding-left: 20px;
+}
+
+.btns > button {
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  min-height: var(--ef-h-sm);
+  padding-block: 4px;
+  line-height: 18px;
+  text-align: left;
+  white-space: normal;
+}
+
+.btns > button > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.note,
+.err {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-4) var(--ef-sp-8);
+  margin: 0;
+  color: var(--bubble-t1);
+  font: var(--ef-fw-regular) var(--ef-fs-body) / 20px var(--ef-font-sans);
+}
+
+/* #FF4145 marks the error; the text stays light so it reads on a white desktop too. */
+.err::before {
+  content: '';
+  flex: none;
+  width: 3px;
+  height: 13px;
+  background: var(--ef-danger-vivid);
+}
+
+:global(html[data-theme='light']) .err {
+  color: var(--ef-danger-text);
+}
+
+.doing {
+  margin: 0;
+  overflow: hidden;
+  color: var(--bubble-t2);
+  font: var(--ef-fw-regular) var(--ef-fs-body) / 20px var(--ef-font-sans);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.verb {
+  color: var(--bubble-t1);
+}
+
+.input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-6);
+}
+
+/* The box keeps the bubble's width and wraps its options row there. */
+.input [role='dialog'] {
+  width: auto;
+}
+
+.input [role='dialog'] > :last-child {
+  flex-wrap: wrap;
+  row-gap: var(--ef-sp-6);
+}
+
+.quote {
+  margin: 0;
+  padding-left: var(--ef-sp-6);
+  overflow: hidden;
+  border-left: 2px solid var(--ef-accent);
+  color: var(--bubble-t2);
+  font: var(--ef-fw-regular) var(--ef-fs-body) / 20px var(--ef-font-sans);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.acts,
+.moreActs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--ef-sp-8);
+}
+
+.moreActs {
+  flex-basis: 100%;
+}
+
+/* Text buttons on the band. */
+.act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ef-sp-4);
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 var(--ef-sp-4);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--bubble-t1);
+  font: var(--ef-fw-regular) var(--ef-fs-body) / 1 var(--ef-font-sans);
+  text-shadow: inherit;
+  cursor: pointer;
+}
+
+.act:focus-visible,
+.more:focus-visible,
+.say:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.act:hover {
+  color: var(--ef-accent-text);
+}
+
+.act:disabled {
+  cursor: default;
+}
+
+/* The aibark head card: dot tile under a vignette, her comm portrait, then the frame (corner dots, the deco line and tick) and the radio icon bottom right. */
+.headCard {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 70px;
+  height: 90px;
+  background:
+    radial-gradient(closest-side, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.18) 45%, transparent),
+    radial-gradient(var(--ink-tile) 0.5px, transparent 0.7px) 0 0 / 2px 2px,
+    var(--band);
+  animation: head-in 500ms var(--ef-ease-g-enter) both;
+}
+
+.headCard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(var(--ink-mark), var(--ink-mark)) left 2px top 2px / 4px 4px no-repeat,
+    linear-gradient(var(--ink-mark), var(--ink-mark)) right 2px top 2px / 4px 4px no-repeat,
+    linear-gradient(var(--ink-mark), var(--ink-mark)) left 2px bottom 2px / 4px 4px no-repeat,
+    linear-gradient(var(--ink-mark), var(--ink-mark)) right 2px bottom 2px / 4px 4px no-repeat,
+    linear-gradient(var(--ink-tick), var(--ink-tick)) left 14px bottom 8px / 1px 7px no-repeat,
+    linear-gradient(var(--ink-line), var(--ink-line)) left 0 bottom 8px / 100% 2px no-repeat;
+  pointer-events: none;
+}
+
+/* CharMask: the portrait fills the card from the top, its bottom edge fading over 25 px (RectMask2D softness). */
+.headArt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 0;
+  -webkit-mask: linear-gradient(#000 calc(100% - 25px), transparent);
+  mask: linear-gradient(#000 calc(100% - 25px), transparent);
+}
+
+/* Warning text deco 184x32 at scale .4 above the card (recipe desk-deco-warntxt). */
+:global(html[data-art]) .headCard::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 0;
+  width: 37px;
+  height: 7px;
+  background: var(--bubble-t2);
+  -webkit-mask: url('/art/common/desk-deco-warntxt.png') center / 37.6px 7.2px no-repeat;
+  mask: url('/art/common/desk-deco-warntxt.png') center / 37.6px 7.2px no-repeat;
+}
+
+@keyframes head-in {
+  from {
+    opacity: 0;
+    transform: translateX(3.25px);
+  }
+}
+
+.headRadio {
+  position: absolute;
+  right: 8px;
+  bottom: 14px;
+  width: 22px;
+  height: 21px;
+  color: var(--bubble-t2);
+}
+
+/* A new thought, line, reminder or 正在做 phrase fades in instead of swapping in place. */
+.fade {
+  animation: fade-in var(--ef-dur-g-cell-in) var(--ef-ease-g-fade);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+:global(.still) .say,
+:global(.still) .text,
+:global(.still) .cursor,
+:global(.still) .headCard {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade,
+  .say,
+  .text,
+  .cursor,
+  .headCard {
+    animation: none;
+  }
+}

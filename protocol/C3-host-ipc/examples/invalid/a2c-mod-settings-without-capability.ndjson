@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"avatar","pid":778,"protocol":1,"capabilities":["ack","actions"]}
+{"v":1,"type":"mod_settings","req":1,"character":"birch","appearance":"mod_1a2b3c4d","values":{"coat":0}}

@@ -1,0 +1,21 @@
+/* 「你：…」 in the input's place (prototype styles.css .echo). */
+.echo {
+  width: fit-content;
+  max-width: 420px;
+  margin: 0;
+  padding: 6px var(--ef-sp-12);
+  background: var(--ef-dlg-backing);
+  color: var(--ef-text-1);
+  font-size: var(--ef-fs-body);
+  animation: echo-in var(--ef-dur-hud-in) var(--ef-ease-standard);
+}
+
+.you {
+  color: var(--ef-lemon);
+}
+
+@keyframes echo-in {
+  from {
+    opacity: 0;
+  }
+}

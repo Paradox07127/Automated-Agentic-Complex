@@ -1,0 +1,4 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"birch","capabilities":["heartbeat","ack","placement","trace","playback","turn_generation","behavior_receipt","layers"],"build":{"git":"e8d17c47"},"appearance":"default","appearances":[{"id":"default","name":"默认","kind":"original"},{"id":"mod_coat","name":"导入外套","kind":"imported","desc":"示例"}],"layers":[{"id":"coat","name":"外套"},{"id":"cape","name":"披风","appearances":["default"]}],"hidden_layers":["coat"]}
+{"v":1,"type":"layers_changed","hidden":[]}
+{"v":1,"type":"layers_change_failed","hidden":["cape"],"reason":"superseded"}
+{"v":1,"type":"character_changed","id":"birch","ms":2310,"appearance":"default","appearances":[{"id":"default","name":"默认","kind":"original"},{"id":"mod_coat","name":"导入外套","kind":"imported","desc":"示例"}],"layers":[{"id":"coat","name":"外套"},{"id":"cape","name":"披风","appearances":["default"]}],"hidden_layers":["coat"]}

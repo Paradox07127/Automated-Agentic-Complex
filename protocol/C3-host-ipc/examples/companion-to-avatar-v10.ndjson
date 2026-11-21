@@ -1,0 +1,3 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["capsules_global","watchdog","trace"],"build":{"git":"e8d17c47"},"trace_epoch":1760870000000}
+{"v":1,"type":"stop_speech","reason":"barge_in","turn_generation":4}
+{"v":1,"type":"stop_speech","reason":"barge_in"}

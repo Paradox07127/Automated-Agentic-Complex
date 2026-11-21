@@ -1,0 +1,129 @@
+/* Paper card in the stack: white in both themes (data-theme="light" on the sheet), priority bar; no shadow inside the stack's card. */
+.paper {
+  --pc: var(--ef-attention);
+  --ui-btn-ring: var(--ef-paper);
+  position: relative;
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  padding: 10px var(--ef-sp-16) var(--ef-sp-16) var(--ef-sp-20);
+  background: var(--ef-paper);
+  color: var(--ef-paper-text);
+  font: var(--ef-t-meta);
+}
+
+.paper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--ef-lw-category);
+  background: var(--pc);
+}
+
+.paper[data-prio='0'] {
+  --pc: var(--ef-danger);
+}
+
+.paper:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.left {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Art slot over the tape: fixed box, no paint until art lands. */
+.art {
+  position: absolute;
+  top: -10px;
+  left: 0;
+  width: 96px;
+  height: 24px;
+  pointer-events: none;
+}
+
+.tape {
+  display: flex;
+  width: 94px;
+  height: 1.5px;
+}
+
+.tape i {
+  display: block;
+  height: 100%;
+}
+
+.tape i:nth-child(1) {
+  flex: 2;
+  background: var(--ef-tape-y);
+}
+
+.tape i:nth-child(2) {
+  flex: 1;
+  background: var(--ef-tape-c);
+}
+
+.tape i:nth-child(3) {
+  flex: 0.93;
+  background: var(--ef-tape-m);
+}
+
+.code {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  margin-top: var(--ef-sp-4);
+  color: var(--ef-paper-text-2);
+  font: var(--ef-fw-medium) var(--ef-fs-small) / 1 var(--ef-font-din);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.code::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--ef-accent);
+  box-shadow: 0 0 0 1px var(--ef-paper-text);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.sline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -10px;
+  width: 1px;
+  background: var(--ef-rule);
+}
+
+.kEsc,
+.kEnter {
+  position: absolute;
+  right: 4px;
+  display: inline-flex;
+  transform: translateY(-50%);
+}
+
+/* ⏎ level with the approval card's footer capsules (bottom padding plus half a large button), esc one step above. */
+.kEsc {
+  top: calc(100% - var(--ef-sp-16) - var(--ef-h-lg) / 2 - var(--ef-sp-24));
+}
+
+.kEnter {
+  top: calc(100% - var(--ef-sp-16) - var(--ef-h-lg) / 2);
+}

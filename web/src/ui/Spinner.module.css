@@ -1,0 +1,37 @@
+/* Unknown progress: a segmented bar of 8 chip cells with a run of two yellow cells walking across.
+   The only looping motion; it stops under reduced motion and `still`. */
+.spin {
+  display: inline-block;
+  flex: none;
+  width: 48px;
+  height: 6px;
+  background:
+    linear-gradient(var(--ef-accent), var(--ef-accent)) -12px 0 / 12px 100% no-repeat,
+    var(--ef-chip);
+  vertical-align: middle;
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 6px);
+  mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 6px);
+  animation: run 1.2s steps(10) infinite;
+}
+
+@keyframes run {
+  from {
+    background-position: -12px 0, 0 0;
+  }
+
+  to {
+    background-position: 48px 0, 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    background-position: 0 0, 0 0;
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) .spin {
+  background-position: 0 0, 0 0;
+  animation: none;
+}

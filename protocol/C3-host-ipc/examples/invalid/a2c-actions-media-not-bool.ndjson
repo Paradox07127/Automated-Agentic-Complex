@@ -1,0 +1,1 @@
+{"v":1,"type":"actions","character":"aster","actions":[{"id":"mmd_dance","name":"舞蹈","section":"react","duration":32.5,"trigger":"导入的 MMD 动作","required_reason":null,"missing":null,"media":{"bgm":"yes","face":true,"camera":false}}],"switches":{"mmd_dance":true}}

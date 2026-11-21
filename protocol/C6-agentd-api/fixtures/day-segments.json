@@ -1,0 +1,8 @@
+{
+  "date": "2026-10-31",
+  "projects": [{"project": "-Users-demo-work-orbit", "name": "orbit",
+                "sessions": [{"session_id": "s1", "started_at": 1793451600.0, "ended_at": 1793455200.0, "agents_done": 1,
+                              "agents_failed": 0, "last_gate": {"at": 1793455200.0, "passed": true}, "guard_blocks": 0}],
+                "own": [{"session_id": "own:0123456789ab", "title": "修端口", "state": "awaiting_input", "last_line": "改好了",
+                         "started_at": 1793451600.0, "updated_at": 1793455200.0, "task_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}]
+}

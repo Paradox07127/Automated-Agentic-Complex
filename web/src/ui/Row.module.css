@@ -1,0 +1,236 @@
+/* Record row = a task row: dark plate with rounded right corners and a hairline edge, the category strip down the left edge at rest; selection is the light band with a category twill, grown in from the right. */
+.row {
+  --row-cat: var(--ef-trace);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: 56px;
+  padding: var(--ef-sp-8) var(--ef-sp-12) var(--ef-sp-8) var(--ef-sp-16);
+  border: var(--ef-lw-hair) solid var(--ef-mission-row-line);
+  border-left: 0;
+  border-radius: 0 5px 5px 0;
+  background: var(--ef-mission-row);
+  color: var(--ef-text-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row[data-category='mission'] {
+  --row-cat: var(--ef-mission-accent);
+}
+
+.row[data-category='ext'] {
+  --row-cat: var(--ef-line-strong);
+}
+
+.row[data-attention] {
+  --row-cat: var(--ef-badge-dot);
+}
+
+/* Category strip (4 px, full height) on a layer that also carries the selected band. */
+.row::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(var(--row-cat), var(--row-cat)) 0 0 / var(--ef-lw-category) 100% no-repeat;
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 200ms var(--ef-ease-g-enter);
+  pointer-events: none;
+}
+
+/* Twill in the category colour at the left of the selected band, fading out to the right. */
+.row::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 93px;
+  background: repeating-linear-gradient(-45deg, var(--row-cat) 0 1.5px, transparent 1.5px 5px);
+  -webkit-mask: linear-gradient(90deg, #000, transparent);
+  mask: linear-gradient(90deg, #000, transparent);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Twill texture (recipe mission-twill, 184x104 g at the left, fading out to the right). */
+:global(html[data-art]) .row::after {
+  width: 94px;
+  background: var(--row-cat);
+  -webkit-mask: url('/art/common/mission-twill.png') left center / 94px 100% no-repeat;
+  mask: url('/art/common/mission-twill.png') left center / 94px 100% no-repeat;
+}
+
+:global([data-theme='light']) .row {
+  border-color: var(--ef-line);
+}
+
+/* External sessions run in the background: a dashed frame. */
+.row[data-category='ext'] {
+  border: var(--ef-lw-hair) dashed var(--ef-line-strong);
+}
+
+.row[data-height='compact'] {
+  min-height: var(--ef-h-xl);
+}
+
+.row:not([data-category='none'])::before,
+.row[data-attention]::before,
+.row:is(:hover, :active, :focus-visible):not([aria-disabled='true'])::before,
+.row[aria-pressed='true']::before {
+  transform: none;
+}
+
+.row:is(:hover, :active, :focus-visible):not([aria-disabled='true']):not([aria-pressed='true']) {
+  background: var(--ef-base);
+}
+
+.row:is(:hover, :active, :focus-visible):not([aria-disabled='true']) .inner {
+  transform: translateX(6px);
+}
+
+.row:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.row[aria-pressed='true']::before {
+  background-color: var(--ef-mission-row-sel);
+  animation: band-in var(--ef-dur-g-select) var(--ef-ease-g-enter);
+}
+
+.row[aria-pressed='true']::after {
+  visibility: visible;
+  opacity: 0.5;
+  animation: fade-in 83ms var(--ef-ease-g-fade) 167ms both;
+}
+
+.inner {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+  color: var(--ef-text-1);
+  transition: transform 200ms var(--ef-ease-g-enter);
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.title {
+  overflow: hidden;
+  font: var(--ef-t-row);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Needs a look: a yellow block before the title. */
+.row[data-attention] .title::before {
+  content: '';
+  display: inline-block;
+  width: var(--ef-sp-8);
+  height: var(--ef-sp-8);
+  margin-right: var(--ef-sp-8);
+  background: var(--ef-accent);
+  vertical-align: 1px;
+}
+
+.sub {
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reason {
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--ef-sp-4);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge,
+.right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+}
+
+/* White text fails on the light band over the dark base, so the selected row reads dark (tokens: mission-row-sel-text). */
+.row[aria-pressed='true'] :is(.inner, .sub, .side) {
+  color: var(--ef-mission-row-sel-text);
+}
+
+.row[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+.row[aria-disabled='true'] .title,
+.row[aria-disabled='true'] .sub {
+  color: var(--ef-text-disabled);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes band-in {
+  from {
+    clip-path: inset(0 0 0 279px);
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row::before,
+  .inner {
+    transition: none;
+  }
+
+  .row[aria-pressed='true']::before,
+  .row[aria-pressed='true']::after {
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) .row::before,
+:global([data-reduce-motion]) .inner {
+  transition: none;
+}
+
+:global([data-reduce-motion]) .row[aria-pressed='true']::before,
+:global([data-reduce-motion]) .row[aria-pressed='true']::after,
+:global(.still) .row[aria-pressed='true']::before,
+:global(.still) .row[aria-pressed='true']::after {
+  animation: none;
+}

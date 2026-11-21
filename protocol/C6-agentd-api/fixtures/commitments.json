@@ -1,0 +1,5 @@
+{
+  "commitments": [{"id": "9ce9e4d787a0", "text": "提醒喝水", "due_at": 1793507262.4, "state": "armed", "created_at": 1793503662.4,
+                   "created_line": null, "delivered_line": null, "updated_at": 1793503662.4, "revision": 1,
+                   "repeat": "daily", "trigger": null, "seen_at": null}]
+}

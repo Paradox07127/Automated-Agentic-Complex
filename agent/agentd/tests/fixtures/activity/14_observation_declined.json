@@ -1,0 +1,53 @@
+{
+  "note": "看窗口的请求被拒，标题也认不出在干什么",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:it-1",
+      "app": "iTerm2",
+      "bundle_id": "com.googlecode.iterm2",
+      "pid": 431,
+      "window_id": 31,
+      "title": "ssh build-host",
+      "url_host": null,
+      "since": 1799999950.0,
+      "secure_input": false
+    },
+    "dwell_s": 50.0,
+    "presence": {
+      "id": "afk:it-1",
+      "status": "active",
+      "seconds": 250,
+      "idle_s": 9
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [
+      {
+        "request_id": "obs-d1",
+        "mode": "image",
+        "purpose": "current",
+        "window_id": 31,
+        "app": "iTerm2",
+        "requested_at": 1799999980.0,
+        "observed_at": 1799999981.0,
+        "expires_at": 1800000040.0,
+        "policy_epoch": 0,
+        "status": "declined",
+        "reason": "permission_denied",
+        "text": null
+      }
+    ],
+    "sessions": [],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "unknown",
+    "status": "degraded",
+    "related_session_ids": [],
+    "can_interrupt": false
+  }
+}

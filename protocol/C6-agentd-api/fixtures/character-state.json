@@ -1,0 +1,10 @@
+{
+  "character_id": "voice_a",
+  "energy": 0.3,
+  "valence": 0.35,
+  "engagement": 0.0,
+  "activity": "sit",
+  "labels": {"energy": "sleepy", "mood": "steady", "engagement": "idle"},
+  "causes": [{"attr": "valence", "cause": "dispatch_done", "delta": 0.15, "at": "2026-10-23T15:20:01.123+08:00"}],
+  "affects_behavior": true
+}

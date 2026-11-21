@@ -1,0 +1,24 @@
+{
+  "backend": "codex",
+  "discovered": true,
+  "authenticated": true,
+  "entry_supported": true,
+  "boundary_verified": false,
+  "tool_inventory_verified": null,
+  "task_verified": null,
+  "features": {
+    "domain_tools": {"implemented": true, "reason": null},
+    "automatic_memory_observation_proactive": {"implemented": true, "reason": null},
+    "observation_briefs": {"implemented": true, "reason": "evidence_bound_daily_weekly_backend"},
+    "goal_and_job_interaction": {"implemented": true, "reason": null},
+    "persistent_reminder_tools": {"implemented": true, "reason": "explicit_user_instruction_and_versioned_receipts"},
+    "embodied_response": {"implemented": true, "reason": "request_and_actor_receipt_separate"},
+    "memory_write_and_journal": {"implemented": true, "reason": null},
+    "web_access": {"implemented": false, "enabled": false, "mode": "off", "reason": "unsupported_by_runtime"},
+    "native_shell": {"implemented": true, "enabled": true, "reason": "kernel_own_tools"},
+    "clarification_and_approval": {"implemented": true, "enabled": true, "reason": "product_request_inbox"},
+    "native_resume": {"implemented": false, "reason": "product_checkpoints_only"},
+    "parallel_background_tasks": {"implemented": true, "reason": null},
+    "native_computer_use": {"implemented": false, "reason": "computer_route_unavailable"}
+  }
+}

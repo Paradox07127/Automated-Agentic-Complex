@@ -1,0 +1,23 @@
+[
+  {
+    "op": "region.finish",
+    "surface": "stack",
+    "args": [
+      {
+        "x": 10,
+        "y": 20
+      },
+      {
+        "x": 110,
+        "y": 70
+      }
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "region.cancel",
+    "surface": "stack",
+    "args": [],
+    "kind": "undefined"
+  }
+]

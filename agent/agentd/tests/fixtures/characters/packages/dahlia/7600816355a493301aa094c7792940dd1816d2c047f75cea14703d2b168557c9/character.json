@@ -1,0 +1,45 @@
+{
+  "schema": "endfield-character-definition",
+  "schema_version": 1,
+  "id": "dahlia",
+  "version": "1.0.0",
+  "source_identity": {
+    "character_id": "dahlia",
+    "snapshot": "test-fixture-1"
+  },
+  "display": {
+    "name": {
+      "zh-Hans": "示例丁"
+    }
+  },
+  "aliases": [],
+  "components": {
+    "persona": {
+      "card": {
+        "file": "persona/card.json",
+        "sha256": "0f647f857d64c5728458e0fb2a50bf5e3864e0e92b7f4d001a2a74d2c4aca098",
+        "byte_count": 1821
+      },
+      "lore": {
+        "file": "persona/lore.json",
+        "sha256": "a0a46c6bff4cfce57fb1a2330101a09196c40d6183e1247391a5c29c92c8899d",
+        "byte_count": 318
+      }
+    }
+  },
+  "capabilities": [
+    "persona.dialogue"
+  ],
+  "inventory": [
+    {
+      "file": "persona/card.json",
+      "sha256": "0f647f857d64c5728458e0fb2a50bf5e3864e0e92b7f4d001a2a74d2c4aca098",
+      "byte_count": 1821
+    },
+    {
+      "file": "persona/lore.json",
+      "sha256": "a0a46c6bff4cfce57fb1a2330101a09196c40d6183e1247391a5c29c92c8899d",
+      "byte_count": 318
+    }
+  ]
+}

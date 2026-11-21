@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","actions"],"build":{"git":"4494946d","renderer":"metal"}}
+{"v":1,"type":"pose_state","character":"aster","id":"pose_sit_chair","locked":true}

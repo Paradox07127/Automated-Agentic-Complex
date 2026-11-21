@@ -1,0 +1,37 @@
+Automated Agentic Complex
+Copyright (c) 2026 Automated Agentic Complex contributors
+Licensed under the GNU Affero General Public License v3.0 (see LICENSE).
+
+This is an unofficial fan project. It is not affiliated with or endorsed by the developer or publisher of
+Arknights: Endfield. This repository contains no game assets.
+
+Third-party software in this repository
+---------------------------------------
+ufbx (c) 2020 Samuli Raivio. MIT or public domain.
+  characters/agentic_complex_build/motion_import/native/ufbx.c, ufbx.h; licence in UFBX-LICENSE beside them.
+
+Third-party software and fonts the build downloads
+--------------------------------------------------
+None of these is stored in this repository. The package managers and the release tools fetch them, and a built app
+contains them with their own licence files.
+
+Fonts (web/package.json)
+  Saira Variable, from @fontsource-variable/saira. SIL Open Font License 1.1.
+  Noto Sans SC, from @fontsource/noto-sans-sc. SIL Open Font License 1.1.
+Web interface (web/package.json)
+  react, react-dom, zustand, @tanstack/react-query, @tanstack/react-router, cytoscape, cytoscape-dagre. MIT.
+Desktop shell (app/electron/package.json, app/packaging/electron-runtime.lock.json)
+  Electron. MIT. It includes Chromium and other components under their own licences, listed in the
+  LICENSES.chromium.html file of the Electron distribution.
+Agent runtime (app/packaging/node-runtime.lock.json, agent/agentd/character_agent/pi-runtime/package.json)
+  Node.js. MIT, with bundled components under their own licences (the LICENSE file of the Node.js distribution).
+  @earendil-works/pi-coding-agent. MIT.
+Python (agent/agentd/requirements.txt, app/packaging/requirements-content.lock)
+  CPython. Python Software Foundation License 2.0.
+  PyJWT. MIT.
+  httpx. BSD 3-Clause.
+  cryptography. Apache-2.0 or BSD 3-Clause.
+  numpy. BSD 3-Clause.
+
+Build and test tools (TypeScript, esbuild, Vite, Vitest, Playwright and the other devDependencies) are not part of a
+built app. Each package's licence is in its own distribution.

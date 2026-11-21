@@ -1,0 +1,18 @@
+{
+  "title": "日报",
+  "instruction": "总结仓库变化",
+  "trigger": {
+    "kind": "daily",
+    "at": "18:30",
+    "weekdays": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "enabled": true,
+  "scope_id": null,
+  "conversation_id": null
+}

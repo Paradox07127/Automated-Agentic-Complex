@@ -1,0 +1,74 @@
+{
+  "provider": "anthropic",
+  "backends": {
+    "anthropic": {
+      "model": "claude-haiku-5-5",
+      "base_url": "https://api.anthropic.com",
+      "max_output_tokens": 4096,
+      "reasoning_effort": "",
+      "has_key": true
+    },
+    "deepseek": {
+      "model": "deepseek-flash",
+      "base_url": "https://api.deepseek.com",
+      "max_output_tokens": 4096,
+      "reasoning_effort": "",
+      "has_key": false
+    },
+    "xai": {
+      "model": "",
+      "base_url": "https://api.x.ai/v1",
+      "max_output_tokens": 4096,
+      "reasoning_effort": "",
+      "has_key": false
+    },
+    "openai": {
+      "model": "",
+      "base_url": "https://api.openai.com/v1",
+      "max_output_tokens": 4096,
+      "reasoning_effort": "",
+      "has_key": false
+    },
+    "compatible": {
+      "model": "",
+      "base_url": "http://127.0.0.1:11434/v1",
+      "max_output_tokens": 4096,
+      "reasoning_effort": "",
+      "supports_images": false,
+      "context_window": 128000,
+      "reasoning": false,
+      "has_key": false
+    },
+    "pi_catalog": {
+      "model": "",
+      "base_url": "",
+      "pi_provider": "",
+      "max_output_tokens": 4096,
+      "reasoning_effort": "",
+      "has_key": false
+    },
+    "chatgpt": {
+      "model": "",
+      "base_url": "https://api.openai.com/v1",
+      "max_output_tokens": 4096,
+      "reasoning_effort": "",
+      "has_key": false
+    }
+  },
+  "chatgpt": {
+    "active": "00000000-0000-4000-8000-000000000001",
+    "pending": false,
+    "error": null,
+    "profiles": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "label": "连接 1",
+        "email": "user@example.com",
+        "connected": true,
+        "sharing": true
+      }
+    ]
+  },
+  "error": null,
+  "mouth_ready": true
+}

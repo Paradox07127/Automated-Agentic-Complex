@@ -1,0 +1,47 @@
+{
+ "schema": "endfield-motion-import/v1",
+ "character": "aster",
+ "format": "bvh",
+ "action": {
+  "id": "bvh_0123456789abcdef",
+  "clip": "imported_bvh_0123456789abcdef",
+  "title": "walk",
+  "duration_s": 12.5,
+  "frames": 376,
+  "has_bgm": false
+ },
+ "source": {
+  "name": "walk.bvh",
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "take": 0,
+  "takes": 1,
+  "frame_rate": 120.0,
+  "frames": 1500,
+  "zip": null,
+  "expressions": []
+ },
+ "tracks": {
+  "body": {
+   "retarget": "humanoid-bone-direction",
+   "unmapped": [
+    "LHipJoint"
+   ],
+   "fingers": "rest",
+   "foot_lock": true
+  },
+  "face": null,
+  "camera": null,
+  "audio": null
+ },
+ "playback": {
+  "speeds": [
+   0.5,
+   1,
+   2
+  ],
+  "loop": false
+ },
+ "warnings": [
+  "fingers_rest"
+ ]
+}

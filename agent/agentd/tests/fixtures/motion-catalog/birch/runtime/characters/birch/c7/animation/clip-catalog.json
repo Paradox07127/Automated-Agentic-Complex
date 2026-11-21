@@ -1,0 +1,217 @@
+{
+ "schema": "endfield-clip-catalog-v1",
+ "clips": [
+  {
+   "name": "A_clip_birch_dialog_single_chesthugging3_talk",
+   "length": 2.4666667
+  },
+  {
+   "name": "A_clip_birch_dialog_single_fly",
+   "length": 7.33333349
+  },
+  {
+   "name": "A_clip_birch_dialog_single_play",
+   "length": 16.583334
+  },
+  {
+   "name": "A_clip_birch_dialog_single_tsundere",
+   "length": 3.5666666
+  },
+  {
+   "name": "A_clip_birch_dialog_single_wave",
+   "length": 4.16666651
+  },
+  {
+   "name": "A_clip_birch_dialog_state_adjust_loop",
+   "length": 6.9333334
+  },
+  {
+   "name": "A_clip_birch_dialog_state_censure_start",
+   "length": 13.333333
+  },
+  {
+   "name": "A_clip_birch_dialog_state_chesthugging1_start",
+   "length": 1.9
+  },
+  {
+   "name": "A_clip_birch_dialog_state_chesthugging3_derived_tail_start",
+   "length": 1.41666663
+  },
+  {
+   "name": "A_clip_birch_dialog_state_chesthugging3_start",
+   "length": 1.41666663
+  },
+  {
+   "name": "A_clip_birch_dialog_state_cough_start",
+   "length": 2.2
+  },
+  {
+   "name": "A_clip_birch_dialog_state_dignified_start",
+   "length": 3.33333325
+  },
+  {
+   "name": "A_clip_birch_dialog_state_flyspell_loop",
+   "length": 6.65
+  },
+  {
+   "name": "A_clip_birch_dialog_state_halfraise_start",
+   "length": 2.0
+  },
+  {
+   "name": "A_clip_birch_dialog_state_holdarm_start",
+   "length": 2.1
+  },
+  {
+   "name": "A_clip_birch_dialog_state_idle_loop",
+   "length": 2.0
+  },
+  {
+   "name": "A_clip_birch_dialog_state_muse_start",
+   "length": 3.76666665
+  },
+  {
+   "name": "A_clip_birch_dialog_state_play02_loop",
+   "length": 2.51666665
+  },
+  {
+   "name": "A_clip_birch_dialog_state_point_loop",
+   "length": 2.36666656
+  },
+  {
+   "name": "A_clip_birch_dialog_state_point_start",
+   "length": 3.13333344
+  },
+  {
+   "name": "A_clip_birch_dialog_state_sit2_start",
+   "length": 5.116667
+  },
+  {
+   "name": "A_clip_birch_dialog_state_spell_start",
+   "length": 2.16666675
+  },
+  {
+   "name": "A_clip_birch_dialog_state_surprise_start",
+   "length": 1.6
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_single_idle_nod",
+   "length": 1.33333337
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_single_idle_shake",
+   "length": 2.33333325
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_single_idle_talkhands",
+   "length": 4.58333349
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_single_idle_talklefthand1",
+   "length": 2.83333325
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_single_idle_talklefthand2",
+   "length": 5.7166667
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_single_idle_talkrighthand1",
+   "length": 2.83333325
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_single_idle_talkrighthand2",
+   "length": 5.733333
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_state_akimbo1_start",
+   "length": 1.33333337
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_state_akimboleft_start",
+   "length": 1.93333328
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_state_akimboright_start",
+   "length": 1.38333333
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_state_earphone_start",
+   "length": 1.41666663
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_state_scratchhead_start",
+   "length": 2.0666666
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_state_think1_start",
+   "length": 1.7
+  },
+  {
+   "name": "A_clip_birch_interact_call",
+   "length": 7.83333349
+  },
+  {
+   "name": "A_clip_birch_interact_camera_01",
+   "length": 5.83333349
+  },
+  {
+   "name": "A_clip_birch_interact_sit_sp",
+   "length": 16.666666
+  },
+  {
+   "name": "A_clip_birch_dialog_virtual_state_introduction_start",
+   "length": 1.36666667
+  },
+  {
+   "name": "A_clip_birch_gacha",
+   "length": 11.416667
+  },
+  {
+   "name": "A_clip_birch_ui_overview_equip_loop_01",
+   "length": 2.5
+  },
+  {
+   "name": "A_clip_birch_ui_overview_skill_loop_01",
+   "length": 2.48333335
+  },
+  {
+   "name": "A_clip_birch_ui_overview_to_equip_01",
+   "length": 3.4666667
+  },
+  {
+   "name": "A_clip_birch_ui_overview_to_skill_01",
+   "length": 4.16666651
+  },
+  {
+   "name": "A_clip_birch_ui_overview_to_upgrade_01",
+   "length": 4.383333
+  },
+  {
+   "name": "A_clip_birch_ui_overview_to_weapon_01",
+   "length": 3.83333325
+  },
+  {
+   "name": "A_clip_birch_ui_overview_upgrade_loop_01",
+   "length": 2.5
+  },
+  {
+   "name": "A_clip_birch_ui_overview_weapon_loop_01",
+   "length": 2.48333335
+  },
+  {
+   "name": "A_clip_birch_uiteam_idle_01",
+   "length": 2.48333335
+  },
+  {
+   "name": "A_clip_birch_uiteam_idle_02",
+   "length": 2.5
+  },
+  {
+   "name": "A_clip_birch_uiteam_idle_03",
+   "length": 2.5
+  },
+  {
+   "name": "A_clip_birch_uiteam_idle_04",
+   "length": 2.5
+  }
+ ]
+}

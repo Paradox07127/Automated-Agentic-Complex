@@ -1,0 +1,274 @@
+.t2 {
+  color: var(--ef-text-2);
+}
+
+.t3 {
+  color: var(--ef-text-3);
+}
+
+.okText {
+  color: var(--ef-success-text);
+}
+
+.gateRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  font-size: var(--ef-fs-caption);
+}
+
+/* A sentence with numbers in it: plain text flow, not one flex item per fragment. */
+.gateLine {
+  font-size: var(--ef-fs-caption);
+}
+
+.state {
+  min-width: 0;
+}
+
+/* Collapsed open section: the summary reads like a section head. */
+.stateSum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  min-height: 28px;
+  padding-bottom: 6px;
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  color: var(--ef-text-2);
+  list-style: none;
+}
+
+.stateSum::-webkit-details-marker {
+  display: none;
+}
+
+.stateSum:focus-visible {
+  outline: var(--ef-lw-hair) solid var(--ef-focus);
+  outline-offset: 3px;
+}
+
+.sumNo {
+  color: var(--ef-text-3);
+  font: 700 var(--ef-fs-eyebrow) / 1 var(--ef-font-din);
+}
+
+.sumTitle {
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-title-2) / var(--ef-lh-title-1) var(--ef-font-sans);
+}
+
+.sumNote {
+  color: var(--ef-text-3);
+  font-size: 12px;
+}
+
+.chev {
+  margin-left: auto;
+  color: var(--ef-text-2);
+  font-size: 12px;
+}
+
+.stateSum:hover .chev {
+  text-decoration: underline;
+}
+
+.stateGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ef-sp-12);
+  margin: var(--ef-sp-12) 0;
+}
+
+.phaseRow {
+  display: flex;
+  gap: var(--ef-sp-12);
+  align-items: center;
+  margin-top: var(--ef-sp-12);
+  font-size: 12px;
+}
+
+.lang {
+  margin-left: auto;
+}
+
+@container page (max-width: 1000px) {
+  .stateGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.f21 {
+  display: inline-grid;
+  gap: 2px;
+  width: 300px;
+}
+
+.f21Bar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+}
+
+.f21Bar i {
+  background: var(--ef-chart-done);
+}
+
+.f21Bar i[data-cur] {
+  background: var(--ef-chart-s1);
+  box-shadow: inset -2px 0 0 var(--ef-chart-cursor);
+}
+
+.f21Lab {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--ef-sp-12);
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}
+
+/* A phase wraps whole: never 40 / ms or 进 / 行中. */
+.f21Lab > span {
+  white-space: nowrap;
+}
+
+.f21Lab [data-cur] {
+  color: var(--ef-info-text);
+}
+
+.gate,
+.obs {
+  display: grid;
+  gap: var(--ef-sp-6);
+  align-content: start;
+  padding: var(--ef-sp-12);
+  background: var(--ef-surface-1);
+  font-size: var(--ef-fs-caption);
+}
+
+.panelHead {
+  color: var(--ef-text-1);
+  font-size: var(--ef-fs-small);
+  font-weight: var(--ef-fw-semibold);
+}
+
+/* Wait gauge as a load bar: a bracket frame 11 high, the fill 6.5 high inside it, tinted Low / Medium / High. */
+.obsBar {
+  --load-low: #b4d945;
+  --load-mid: #ffcc00;
+  --load-high: #ff8080;
+  --load: var(--load-low);
+  position: relative;
+  box-sizing: border-box;
+  width: 120px;
+  height: 11px;
+  padding: 2.25px 7px;
+  border-inline: var(--ef-lw-hair) solid var(--ef-text-2);
+  background:
+    linear-gradient(var(--ef-text-2), var(--ef-text-2)) left top / 4px 1px no-repeat,
+    linear-gradient(var(--ef-text-2), var(--ef-text-2)) left bottom / 4px 1px no-repeat,
+    linear-gradient(var(--ef-text-2), var(--ef-text-2)) right top / 4px 1px no-repeat,
+    linear-gradient(var(--ef-text-2), var(--ef-text-2)) right bottom / 4px 1px no-repeat,
+    linear-gradient(var(--ef-chart-track), var(--ef-chart-track)) center / calc(100% - 14px) 6.5px no-repeat;
+}
+
+/* Light theme (ours): the dark greens and yellows fall under 3:1 on paper. */
+:global([data-theme='light']) .obsBar {
+  --load-low: var(--ef-text-2);
+  --load-mid: var(--ef-attention-text);
+  --load-high: var(--ef-danger);
+}
+
+.obsBar[data-level='mid'] {
+  --load: var(--load-mid);
+}
+
+.obsBar[data-level='high'] {
+  --load: var(--load-high);
+}
+
+.obsBar i {
+  display: block;
+  height: 6.5px;
+  max-width: 100%;
+  background: var(--load);
+}
+
+/* Meter frame (recipe settings-meter-frame) 277x22 g, 9-slice l76 r76: the bracket ends, the track and its centre tick,
+   in the frame ink; the fill stays on top. */
+:global(html[data-art]) .obsBar {
+  border-inline: 0;
+  background: none;
+}
+
+:global(html[data-art]) .obsBar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--ef-text-2);
+  pointer-events: none;
+  -webkit-mask-box-image: url('/art/common/settings-meter-frame.png') 0 76 0 76 / 0 38px 0 38px stretch;
+}
+
+:global(html[data-art]) .obsBar i {
+  position: relative;
+}
+
+.obsDots {
+  display: inline-flex;
+  gap: var(--ef-sp-4);
+}
+
+.obsDots i {
+  font-style: normal;
+}
+
+.obsDots button {
+  min-width: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.obsDots button[aria-pressed='true'] {
+  box-shadow: inset 0 -2px 0 var(--ef-info-text);
+}
+
+.obsDots [data-r='ok'] {
+  color: var(--ef-state-ok);
+}
+
+.obsDots [data-r='fail'] {
+  color: var(--ef-state-failed);
+}
+
+/* Yellow on a light plate needs the ink edge the legend's failed square has. */
+:global([data-theme='light']) .obsDots [data-r='fail'] {
+  -webkit-text-stroke: var(--ef-lw-hair) var(--ef-text-1);
+}
+
+.obsDots [data-r='skip'] {
+  color: var(--ef-text-3);
+}
+
+.statTable {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-caption);
+}
+
+.statTable th,
+.statTable td {
+  padding: 2px var(--ef-sp-6) 2px 0;
+  text-align: left;
+  font-weight: 400;
+}
+
+.statTable th {
+  color: var(--ef-text-3);
+}
+

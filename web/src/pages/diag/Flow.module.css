@@ -1,0 +1,219 @@
+/* 流程图：三条泳道细线分隔，节点是板，传送带是细线加方向刻度；只有回放中的一轮（强调色）和失败节点上色；空闲节点是虚线框。 */
+.flowc {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.lane {
+  position: absolute;
+  right: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.lane + .lane {
+  border-top: var(--ef-lw-hair) solid var(--ef-line-subtle);
+}
+
+.lane span {
+  position: absolute;
+  top: 7px;
+  left: 0;
+  color: var(--ef-text-3);
+  font: 500 12px / 1 var(--ef-font-sans);
+}
+
+.belts {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+}
+
+.ln {
+  fill: none;
+  stroke: var(--ef-ink-s3);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.tk {
+  fill: none;
+  stroke: var(--ef-ink-s3);
+  stroke-width: 1;
+}
+
+.hd {
+  fill: var(--ef-ink-s2);
+}
+
+.n {
+  fill: var(--ef-text-2);
+  font: 500 12px / 1 var(--ef-font-num);
+}
+
+.dot {
+  fill: var(--ef-emph);
+}
+
+.halo {
+  fill: var(--ef-emph);
+  opacity: 0.25;
+}
+
+.belt[data-on] .ln {
+  stroke: var(--ef-emph);
+  stroke-width: 1.5;
+}
+
+.belt[data-on] .tk {
+  stroke: var(--ef-emph);
+}
+
+.belt[data-on] .hd {
+  fill: var(--ef-emph);
+}
+
+.belt[data-on] .n {
+  fill: var(--ef-text-1);
+}
+
+/* Off the replayed path: the line fades, its count stays readable in a quieter colour. */
+.belt[data-dim] .ln,
+.belt[data-dim] .tk,
+.belt[data-dim] .hd {
+  opacity: 0.35;
+}
+
+.belt[data-dim] .n {
+  fill: var(--ef-text-3);
+}
+
+/* Plate look (ui/Plate) on a button: one step lighter, inner rim, top highlight, square. */
+.node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 0 8px 7px;
+  border: 0;
+  background: var(--ef-plate-sheen), var(--ef-plate-bg);
+  box-shadow: inset 0 0 0 var(--ef-lw-hair) var(--ef-plate-rim);
+  color: var(--ef-text-1);
+  font: inherit;
+  text-align: left;
+  transition: opacity var(--ef-dur-instant);
+}
+
+.node::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 8px;
+  left: 1px;
+  height: 1px;
+  background: var(--ef-plate-top);
+  pointer-events: none;
+}
+
+.nst {
+  position: absolute;
+  top: 5px;
+  right: 11px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.nst[data-k='f'] {
+  color: var(--ef-danger);
+}
+
+.nst[data-k='a'] {
+  color: var(--ef-text-2);
+}
+
+.nst b {
+  margin-left: 2px;
+  font: 600 12px / 1 var(--ef-font-num);
+}
+
+.nl {
+  display: block;
+  overflow: hidden;
+  font: 500 13px / 1.2 var(--ef-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ns {
+  display: block;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font-size: 12px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flowc[data-tight] .node {
+  padding: 0 6px 6px;
+}
+
+.flowc[data-tight] .nl {
+  font-size: 12px;
+}
+
+.node:hover {
+  filter: brightness(1.08);
+}
+
+.node:focus-visible {
+  outline: var(--ef-lw-hair) solid var(--ef-focus);
+  outline-offset: 3px;
+}
+
+.node[data-st='idle'] {
+  border: var(--ef-lw-hair) dashed var(--ef-line-strong);
+  background: none;
+  box-shadow: none;
+}
+
+.node[data-st='idle']::before {
+  display: none;
+}
+
+.node[data-st='fail'] {
+  box-shadow: inset 0 0 0 var(--ef-lw-hair) var(--ef-plate-rim), inset 0 -2px 0 var(--ef-danger);
+}
+
+.node[data-lit] {
+  box-shadow: inset 0 0 0 1px var(--ef-emph);
+}
+
+.node[data-lit][data-st='fail'] {
+  box-shadow: inset 0 0 0 1px var(--ef-emph), inset 0 -2px 0 var(--ef-danger);
+}
+
+.node[data-on] {
+  box-shadow: inset 0 0 0 2px var(--ef-emph);
+}
+
+.node[data-dim] {
+  background: none;
+  box-shadow: inset 0 0 0 var(--ef-lw-hair) var(--ef-line);
+  color: var(--ef-text-3);
+}
+
+.node[data-dim]::before {
+  display: none;
+}
+
+.node[data-dim] .ns {
+  color: var(--ef-text-3);
+}
+
+.flowc[data-dead] .dot {
+  display: none;
+}

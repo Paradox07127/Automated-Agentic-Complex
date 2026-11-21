@@ -1,0 +1,392 @@
+[
+  {
+    "op": "onboarding.state",
+    "surface": "onboarding",
+    "nullable": [
+      "hooks[].lastEvent",
+      "saveError",
+      "completionError"
+    ],
+    "value": {
+      "steps": [
+        {
+          "id": 1,
+          "number": "01",
+          "title": "Permissions"
+        }
+      ],
+      "step": 1,
+      "done": false,
+      "canAdvance": true,
+      "canSkip": true,
+      "permissions": [
+        {
+          "kind": "screenRecording",
+          "title": "Screen",
+          "purpose": "Observe",
+          "state": "granted",
+          "needsSystemSettings": false
+        }
+      ],
+      "characterName": "Si",
+      "callName": "Name",
+      "birthday": "",
+      "talkKey": "right_option",
+      "trial": {
+        "levels": [],
+        "elapsed": "00:00",
+        "transcript": ""
+      },
+      "hooks": [
+        {
+          "id": "claude",
+          "name": "Claude",
+          "connected": true,
+          "lastEvent": "00:00",
+          "installHint": "",
+          "installSteps": []
+        }
+      ],
+      "hooksCheckedAt": "00:00",
+      "saveError": null,
+      "completionError": null
+    }
+  },
+  {
+    "op": "onboarding.advance",
+    "surface": "onboarding",
+    "nullable": [
+      "hooks[].lastEvent",
+      "saveError",
+      "completionError"
+    ],
+    "value": {
+      "steps": [
+        {
+          "id": 1,
+          "number": "01",
+          "title": "Permissions"
+        }
+      ],
+      "step": 1,
+      "done": false,
+      "canAdvance": true,
+      "canSkip": true,
+      "permissions": [
+        {
+          "kind": "screenRecording",
+          "title": "Screen",
+          "purpose": "Observe",
+          "state": "granted",
+          "needsSystemSettings": false
+        }
+      ],
+      "characterName": "Si",
+      "callName": "Name",
+      "birthday": "",
+      "talkKey": "right_option",
+      "trial": {
+        "levels": [],
+        "elapsed": "00:00",
+        "transcript": ""
+      },
+      "hooks": [
+        {
+          "id": "claude",
+          "name": "Claude",
+          "connected": true,
+          "lastEvent": "00:00",
+          "installHint": "",
+          "installSteps": []
+        }
+      ],
+      "hooksCheckedAt": "00:00",
+      "saveError": null,
+      "completionError": null
+    }
+  },
+  {
+    "op": "onboarding.back",
+    "surface": "onboarding",
+    "nullable": [
+      "hooks[].lastEvent",
+      "saveError",
+      "completionError"
+    ],
+    "before": [
+      {
+        "op": "onboarding.advance"
+      }
+    ],
+    "value": {
+      "steps": [
+        {
+          "id": 1,
+          "number": "01",
+          "title": "Permissions"
+        }
+      ],
+      "step": 1,
+      "done": false,
+      "canAdvance": true,
+      "canSkip": true,
+      "permissions": [
+        {
+          "kind": "screenRecording",
+          "title": "Screen",
+          "purpose": "Observe",
+          "state": "granted",
+          "needsSystemSettings": false
+        }
+      ],
+      "characterName": "Si",
+      "callName": "Name",
+      "birthday": "",
+      "talkKey": "right_option",
+      "trial": {
+        "levels": [],
+        "elapsed": "00:00",
+        "transcript": ""
+      },
+      "hooks": [
+        {
+          "id": "claude",
+          "name": "Claude",
+          "connected": true,
+          "lastEvent": "00:00",
+          "installHint": "",
+          "installSteps": []
+        }
+      ],
+      "hooksCheckedAt": "00:00",
+      "saveError": null,
+      "completionError": null
+    }
+  },
+  {
+    "op": "onboarding.skip",
+    "surface": "onboarding",
+    "nullable": [
+      "hooks[].lastEvent",
+      "saveError",
+      "completionError"
+    ],
+    "value": {
+      "steps": [
+        {
+          "id": 1,
+          "number": "01",
+          "title": "Permissions"
+        }
+      ],
+      "step": 1,
+      "done": false,
+      "canAdvance": true,
+      "canSkip": true,
+      "permissions": [
+        {
+          "kind": "screenRecording",
+          "title": "Screen",
+          "purpose": "Observe",
+          "state": "granted",
+          "needsSystemSettings": false
+        }
+      ],
+      "characterName": "Si",
+      "callName": "Name",
+      "birthday": "",
+      "talkKey": "right_option",
+      "trial": {
+        "levels": [],
+        "elapsed": "00:00",
+        "transcript": ""
+      },
+      "hooks": [
+        {
+          "id": "claude",
+          "name": "Claude",
+          "connected": true,
+          "lastEvent": "00:00",
+          "installHint": "",
+          "installSteps": []
+        }
+      ],
+      "hooksCheckedAt": "00:00",
+      "saveError": null,
+      "completionError": null
+    }
+  },
+  {
+    "op": "onboarding.complete",
+    "surface": "onboarding",
+    "nullable": [
+      "hooks[].lastEvent",
+      "saveError",
+      "completionError"
+    ],
+    "before": [
+      {
+        "op": "onboarding.advance"
+      },
+      {
+        "op": "onboarding.advance"
+      }
+    ],
+    "value": {
+      "steps": [
+        {
+          "id": 1,
+          "number": "01",
+          "title": "Permissions"
+        }
+      ],
+      "step": 1,
+      "done": false,
+      "canAdvance": true,
+      "canSkip": true,
+      "permissions": [
+        {
+          "kind": "screenRecording",
+          "title": "Screen",
+          "purpose": "Observe",
+          "state": "granted",
+          "needsSystemSettings": false
+        }
+      ],
+      "characterName": "Si",
+      "callName": "Name",
+      "birthday": "",
+      "talkKey": "right_option",
+      "trial": {
+        "levels": [],
+        "elapsed": "00:00",
+        "transcript": ""
+      },
+      "hooks": [
+        {
+          "id": "claude",
+          "name": "Claude",
+          "connected": true,
+          "lastEvent": "00:00",
+          "installHint": "",
+          "installSteps": []
+        }
+      ],
+      "hooksCheckedAt": "00:00",
+      "saveError": null,
+      "completionError": null
+    }
+  },
+  {
+    "op": "onboarding.requestPermission",
+    "surface": "onboarding",
+    "args": [
+      "accessibility"
+    ],
+    "nullable": [
+      "hooks[].lastEvent",
+      "saveError",
+      "completionError"
+    ],
+    "value": {
+      "steps": [
+        {
+          "id": 1,
+          "number": "01",
+          "title": "Permissions"
+        }
+      ],
+      "step": 1,
+      "done": false,
+      "canAdvance": true,
+      "canSkip": true,
+      "permissions": [
+        {
+          "kind": "screenRecording",
+          "title": "Screen",
+          "purpose": "Observe",
+          "state": "granted",
+          "needsSystemSettings": false
+        }
+      ],
+      "characterName": "Si",
+      "callName": "Name",
+      "birthday": "",
+      "talkKey": "right_option",
+      "trial": {
+        "levels": [],
+        "elapsed": "00:00",
+        "transcript": ""
+      },
+      "hooks": [
+        {
+          "id": "claude",
+          "name": "Claude",
+          "connected": true,
+          "lastEvent": "00:00",
+          "installHint": "",
+          "installSteps": []
+        }
+      ],
+      "hooksCheckedAt": "00:00",
+      "saveError": null,
+      "completionError": null
+    }
+  },
+  {
+    "op": "onboarding.openSettings",
+    "surface": "onboarding",
+    "args": [
+      "accessibility"
+    ],
+    "nullable": [
+      "hooks[].lastEvent",
+      "saveError",
+      "completionError"
+    ],
+    "value": {
+      "steps": [
+        {
+          "id": 1,
+          "number": "01",
+          "title": "Permissions"
+        }
+      ],
+      "step": 1,
+      "done": false,
+      "canAdvance": true,
+      "canSkip": true,
+      "permissions": [
+        {
+          "kind": "screenRecording",
+          "title": "Screen",
+          "purpose": "Observe",
+          "state": "granted",
+          "needsSystemSettings": false
+        }
+      ],
+      "characterName": "Si",
+      "callName": "Name",
+      "birthday": "",
+      "talkKey": "right_option",
+      "trial": {
+        "levels": [],
+        "elapsed": "00:00",
+        "transcript": ""
+      },
+      "hooks": [
+        {
+          "id": "claude",
+          "name": "Claude",
+          "connected": true,
+          "lastEvent": "00:00",
+          "installHint": "",
+          "installSteps": []
+        }
+      ],
+      "hooksCheckedAt": "00:00",
+      "saveError": null,
+      "completionError": null
+    }
+  }
+]

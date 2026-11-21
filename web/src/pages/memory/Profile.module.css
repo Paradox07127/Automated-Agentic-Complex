@@ -1,0 +1,314 @@
+/* 用户档案: group cells in a 246 px left column with a rule at its right edge, key-value rows on the right. */
+.wiki {
+  /* Group cell plate #B2B2B2@0.749; the dark theme takes the chip. */
+  --wiki-cell: var(--ef-surface-2);
+  --wiki-cell-text: var(--ef-text-1);
+  /* Right-edge line and tick #313131@0.2. */
+  --wiki-rule: color-mix(in srgb, var(--ef-text-1) 20%, transparent);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 5px 16px 5px 23px;
+  background: var(--ef-surface-1);
+}
+
+:global([data-theme='light']) .wiki {
+  --wiki-cell: rgb(178 178 178);
+  --wiki-cell-text: var(--ef-btn-light-text);
+}
+
+.grp {
+  display: grid;
+  grid-template-columns: 198.5px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 56px;
+}
+
+/* TabCell 198.5 x 50: icon centred at x 30, title at x 44, a tick at the right end. */
+.cell {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  height: 50px;
+  padding-left: 18px;
+  color: var(--wiki-cell-text);
+}
+
+/* Selected: the text turns light over the dark plate. */
+.cellSelected[data-selected] {
+  color: var(--ef-btn-dark-text);
+}
+
+.cellIc {
+  display: flex;
+  flex: none;
+}
+
+.cellT {
+  margin-left: 8px;
+  font: var(--ef-fw-medium) 15px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.cell[data-selected] .cellIc {
+  color: var(--ef-set-title-bar);
+  transform: translateX(9.25px);
+}
+
+.cell[data-selected] .cellT {
+  transform: translateX(6.5px);
+}
+
+/* The group column's right-edge line (wikiGroupIn groupsLine grows it from 0 height). */
+.groupsLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 245px;
+  width: 1px;
+  background: var(--wiki-rule);
+}
+
+/* Recipe wiki-group-line: the line fading towards the bottom, in ink. */
+:global(html[data-art]) .groupsLine {
+  left: 242px;
+  width: 8px;
+  background: var(--ef-text-1);
+  -webkit-mask: url('/art/pages/memory/wiki-group-line.png') center / 100% 100% no-repeat;
+  mask: url('/art/pages/memory/wiki-group-line.png') center / 100% 100% no-repeat;
+}
+
+.deco {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+}
+
+.deco > span {
+  position: absolute;
+}
+
+/* Grey plate #B2B2B2@0.749. */
+.normalPlate {
+  inset: 0;
+  background: var(--wiki-cell);
+  opacity: 0.749;
+}
+
+/* Tick at the right end: #313131@0.2, the selected one #EEEEEE@0.349. */
+.tick,
+.selTick {
+  right: 8px;
+  bottom: 6px;
+  width: 23px;
+  height: 3.5px;
+}
+
+.tick {
+  background: var(--ef-text-1);
+  opacity: 0.2;
+}
+
+.selTick {
+  background: var(--ef-btn-dark-text);
+  opacity: 0;
+}
+
+:global(html[data-art]) :is(.tick, .selTick) {
+  -webkit-mask: url('/art/pages/memory/wiki-side-tick.png') center / 100% 100% no-repeat;
+  mask: url('/art/pages/memory/wiki-side-tick.png') center / 100% 100% no-repeat;
+}
+
+/* Dark plate, anchored left; its anchorMax.x runs 0.3 -> 1. */
+.selPlate {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(var(--anchor-max-x) * 100%);
+  background: var(--ef-btn-dark);
+  opacity: 0;
+}
+
+/* Contour over the dark plate (recipe wiki-tab-selected with art). */
+.selFill {
+  inset: 0;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ef-btn-dark-text) 12%, transparent);
+  opacity: 0;
+}
+
+:global(html[data-art]) .selFill {
+  border: 0 solid transparent;
+  border-image: url('/art/common/wiki-tab-selected.png') 2 348 2 15 fill / 1px 174px 1px 7.5px;
+  box-shadow: none;
+}
+
+/* Yellow bar 5 wide at x 6; its length runs 10 -> 43. */
+.selBar {
+  --size-x: 43;
+  top: 50%;
+  left: 6px;
+  width: 5px;
+  height: calc(var(--size-x) * 1px);
+  background: var(--ef-set-title-bar);
+  opacity: 0;
+  transform: translateY(-50%);
+}
+
+.cell[data-selected] .normalPlate {
+  opacity: 0;
+}
+
+.cell[data-selected] :is(.selPlate, .selFill, .selBar) {
+  opacity: 1;
+}
+
+.cell[data-selected] .selTick {
+  opacity: 0.349;
+}
+
+/* WikiItemInfo key-value rows: 21.5 tall, 7.5 apart, a 4 x 4 dot mark at the left. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 7.5px;
+  min-width: 0;
+  padding: 3px 0;
+}
+
+.block {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+  min-height: 21.5px;
+  padding-left: 19px;
+}
+
+.block::before {
+  content: '';
+  position: absolute;
+  top: calc(50% - 2px);
+  left: 4px;
+  width: 4px;
+  height: 4px;
+  background: var(--ef-text-2);
+}
+
+.block[data-selected]::before {
+  background: var(--ef-text-1);
+}
+
+.block dl {
+  grid-template-columns: 5em minmax(0, 1fr);
+  gap: 0;
+}
+
+.block dt,
+.block dd {
+  padding: 0;
+  background: none;
+  font-size: var(--ef-fs-body);
+  line-height: 24px;
+}
+
+.block dt {
+  color: var(--ef-text-2);
+  font-weight: var(--ef-fw-medium);
+}
+
+.block dd {
+  color: var(--ef-text-1);
+}
+
+/* A value that opens its fact is pressable: plain text that takes the hover plate. */
+.v {
+  display: block;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 0 var(--ef-sp-6);
+  margin-left: calc(-1 * var(--ef-sp-6));
+  border: 0;
+  background: none;
+  color: var(--ef-text-1);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+/* The rest is in its title; two lines at most. */
+.v > span {
+  display: -webkit-box;
+  overflow: hidden;
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 24px var(--ef-font-sans);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.v:hover {
+  background: var(--ef-overlay-hover);
+}
+
+.v > span:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.v:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+/* The empty profile: one line with the reason and 去对话. */
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-4) var(--ef-sp-16);
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--ef-sp-6) var(--ef-sp-16);
+  background: var(--ef-surface-1);
+}
+
+.lab {
+  flex: none;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) 12px / 1.2 var(--ef-font-sans);
+}
+
+.none {
+  min-width: 0;
+  color: var(--ef-text-1);
+  font-size: 13px;
+}
+
+@container page (max-width: 600px) {
+  .wiki {
+    padding-left: 16px;
+  }
+
+  .groupsLine {
+    display: none;
+  }
+
+  .grp {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 7.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .v {
+  transition: none;
+}

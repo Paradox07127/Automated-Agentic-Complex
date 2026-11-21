@@ -1,0 +1,106 @@
+{
+ "description": "用户说话时转注意：listen 优先级 2，替换正在跑的待机",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e1-1",
+   "type": "idle",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 0,
+   "expires_at_ms": 1760900061000,
+   "intensity": 0.6,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [
+    "focus_change"
+   ],
+   "replaces": null,
+   "trace_id": "t-1"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900000040,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000050,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-e1-2",
+   "type": "listen",
+   "target": {
+    "kind": "user"
+   },
+   "trigger": {
+    "source": "user",
+    "event": "speech_start"
+   },
+   "display_session": null,
+   "turn_id": "l-7",
+   "turn_generation": 3,
+   "priority": 2,
+   "expires_at_ms": 1760900062000,
+   "intensity": 0.4,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "speech_end"
+   ],
+   "replaces": "b-e1-1",
+   "trace_id": "t-2"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "cancelled",
+   "reason": null,
+   "at_ms": 1760900000900,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900000940,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000950,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "completed",
+   "reason": null,
+   "at_ms": 1760900004000,
+   "turn_generation": 3
+  }
+ ]
+}

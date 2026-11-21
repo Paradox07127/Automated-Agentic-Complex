@@ -1,0 +1,123 @@
+/* The title bar band, command bar, 3px three-colour strip and page shell. */
+.window {
+  display: grid;
+  grid-template-rows: 50px 3px minmax(0, 1fr);
+  position: relative;
+  height: 100%;
+}
+
+/* 主页 has no command bar: the watch face takes the whole window. */
+.window[data-bare] {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+/* 主页 has no bar to drag the window by: an empty strip along its top edge does it. */
+.drag {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: var(--ef-z-sticky);
+  height: 32px;
+  -webkit-app-region: drag;
+}
+
+/* 3px strip under the command bar, with hard colour stops. */
+.tri {
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--ef-tri-a) 0 calc(100% / 3),
+    var(--ef-tri-b) calc(100% / 3) calc(200% / 3),
+    var(--ef-tri-c) calc(200% / 3) 100%
+  );
+}
+
+.shell {
+  --shell-header-h: 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+/* Short windows press the page header to 48. */
+@media (max-height: 699px) {
+  .shell {
+    --shell-header-h: 48px;
+  }
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--ef-base);
+  position: relative;
+}
+
+/* Container `page` for the pages' @container queries; at most 1600 wide, centred, never scrolling sideways. */
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: 1600px;
+  min-height: 0;
+  margin-inline: auto;
+  overflow: hidden auto;
+  container: page / inline-size;
+}
+
+/* Dark bottom action bar (44px) along the bottom of <main>, shown only when a page fills it. */
+.bottomBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ef-sp-16);
+  width: 100%;
+  height: 44px;
+  padding: 0 var(--ef-space-page);
+  border-top: 1px solid var(--ef-line-subtle);
+  background: var(--ef-canvas);
+  color: var(--ef-canvas-fg);
+}
+
+.bottomBar:empty {
+  display: none;
+}
+
+/* Full-window mount point for dialogs (ui/Modal portals here). */
+.modalRoot {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ef-z-modal);
+}
+
+.modalRoot:empty {
+  display: none;
+}
+
+/* Landing highlight after a cross-page jump (shell/nav.ts useLandingFocus): yellow frame, fades over its last 0.4 s. */
+:global([data-nav-hl]) {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: 2px;
+  animation: nav-hl 1.2s var(--ef-ease-standard) forwards;
+}
+
+@keyframes nav-hl {
+  66% {
+    outline-color: var(--ef-accent);
+  }
+
+  100% {
+    outline-color: transparent;
+  }
+}
+
+/* Still screenshots keep the frame instead of its faded end state. */
+:global(html.still [data-nav-hl]) {
+  animation-name: none !important;
+}
+
+.guide {
+  min-height: 100dvh;
+}

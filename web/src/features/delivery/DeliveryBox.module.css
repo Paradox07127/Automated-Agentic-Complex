@@ -1,0 +1,117 @@
+.box {
+  position: relative;
+  overflow: hidden;
+  padding: var(--ef-sp-16);
+  background: var(--ef-overlay-hover);
+  border-left: 2px solid var(--ef-text-2);
+  border-right: 2px solid var(--ef-rule);
+}
+
+/* Spec value, one per screen, only while a decision is pending and no other primary action is on screen. */
+.box[data-review]:not([data-quiet]) {
+  background:
+    linear-gradient(90deg, transparent 55%, color-mix(in srgb, var(--ef-accent) 35%, transparent)),
+    var(--ef-overlay-hover);
+}
+
+:global([data-theme='light']) .box[data-review]:not([data-quiet]) {
+  background:
+    linear-gradient(90deg, transparent 60%, color-mix(in srgb, var(--ef-accent) 28%, transparent)),
+    var(--ef-overlay-hover);
+}
+
+.inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-12);
+  max-width: 72%;
+}
+
+.box:not([data-review]) .inner,
+.box[data-quiet] .inner {
+  max-width: 100%;
+}
+
+.wm {
+  position: absolute;
+  left: var(--ef-sp-8);
+  bottom: var(--ef-sp-8);
+  opacity: 0.08;
+  transform: scale(2);
+  transform-origin: left bottom;
+  pointer-events: none;
+}
+
+.ok {
+  position: absolute;
+  right: var(--ef-sp-32);
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-top: -32px;
+  border: 3px solid color-mix(in srgb, var(--ef-on-accent) 25%, transparent);
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--ef-on-accent) 25%, transparent);
+  pointer-events: none;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+}
+
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+/* Version chain and delivery chain share one row. */
+.chains {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8) var(--ef-space-inline);
+  min-width: 0;
+}
+
+.chains > [data-stub='DeliveryChain'] {
+  flex: 1 1 280px;
+}
+
+.code {
+  font: var(--ef-t-row);
+  color: var(--ef-text-1);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--ef-sp-8);
+  border-radius: var(--ef-r-pill);
+  font: var(--ef-t-meta);
+  background: var(--ef-overlay);
+  color: var(--ef-overlay-fg);
+}
+
+.tag[data-state='accepted'] {
+  background: var(--ef-success);
+  color: var(--ef-on-attention);
+}
+
+.tag[data-state='rejected'] {
+  background: transparent;
+  color: var(--ef-text-3);
+  border: var(--ef-lw-hair) solid var(--ef-line-strong);
+}
+
+.prev {
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}

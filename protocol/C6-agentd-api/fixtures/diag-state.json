@@ -1,0 +1,400 @@
+{
+  "hooks": {
+    "claude": {
+      "installed": false,
+      "last_at": "2026-11-03T04:32:36.372-05:00"
+    },
+    "codex": {
+      "installed": false,
+      "last_at": "2026-11-03T04:32:36.372-05:00"
+    },
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "turn": {
+    "turn_id": "tr1",
+    "trace_id": "trace-1",
+    "source": "text",
+    "generation": 1,
+    "phase": "ended",
+    "phases_ms": {
+      "received": 100,
+      "calling_model": 0
+    },
+    "language": {
+      "lines": 1,
+      "mismatched": 0
+    },
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "mouth_voice": {
+    "mouth": "idle",
+    "voice": "idle",
+    "muted": false,
+    "avatar_visible": true,
+    "speech_failed": {
+      "speech_id": "speech-1",
+      "reason": "connection_lost",
+      "at": "2026-11-03T04:32:36.372164-05:00"
+    },
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "gate": {
+    "enabled": false,
+    "companion_mode": false,
+    "quiet_hours": [
+      22,
+      8
+    ],
+    "meeting": false,
+    "fullscreen": false,
+    "user_speaking": false,
+    "cooldown_s": {
+      "comment": 600.0
+    },
+    "cross_cooldown_s": 30.0,
+    "today": 1,
+    "daily_limit": 20,
+    "blocked_today": 0,
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "proactive": {
+    "focus": {
+      "category": "coding",
+      "dwell_s": 240.0
+    },
+    "next_judge_at": "2026-11-03T04:31:36.372-05:00",
+    "held": null,
+    "last_judge": {
+      "backend": "rules",
+      "answers": [
+        {
+          "id": "want_comment",
+          "value": false,
+          "prob": 1.0
+        }
+      ],
+      "at": "2026-11-03T04:32:36.372164-05:00"
+    },
+    "misses": 0,
+    "factor": 1,
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "observation": {
+    "policy_epoch": 0,
+    "pending": [
+      {
+        "request_id": "7a7ba77da913",
+        "window_id": 101,
+        "mode": "text",
+        "reason": null,
+        "waited_ms": 4
+      }
+    ],
+    "recent": [
+      {
+        "request_id": "1a3cde56c4a8",
+        "mode": "text",
+        "state": "failed",
+        "reason": "timeout",
+        "at": "2026-11-03T04:32:36.386-05:00"
+      }
+    ],
+    "paused_until": null,
+    "quiet_until": null,
+    "meeting": false,
+    "off": false,
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "body": {
+    "activity": "relax",
+    "mood": "neutral",
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "sessions": {
+    "sessions": [
+      {
+        "display_session": "claude:s1",
+        "effective_state": "thinking",
+        "observed_at": "2026-11-03T04:32:36.350-05:00",
+        "stale": false
+      }
+    ],
+    "updated_at": "2026-11-03T04:32:36.371-05:00"
+  },
+  "budget": {
+    "screenshots": {
+      "used": 0,
+      "reserved": 0,
+      "released": 0,
+      "limit": 200
+    },
+    "model": {
+      "calls": 3,
+      "input_tokens": 100,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 20,
+      "output_tokens": 10,
+      "cost_usd": 0.0,
+      "unpriced": 3,
+      "incomplete": 0,
+      "failed": 0,
+      "cancelled": 0,
+      "local": 0,
+      "usage_missing": 2,
+      "pricing_unverified": 0,
+      "by_call": {
+        "observation_interpret": {
+          "calls": 1,
+          "input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 0,
+          "cost_usd": 0.0,
+          "unpriced": 1,
+          "incomplete": 0,
+          "failed": 0,
+          "cancelled": 0,
+          "local": 0,
+          "usage_missing": 1,
+          "pricing_unverified": 0
+        },
+        "observation_brief": {
+          "calls": 1,
+          "input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 0,
+          "cost_usd": 0.0,
+          "unpriced": 1,
+          "incomplete": 0,
+          "failed": 0,
+          "cancelled": 0,
+          "local": 0,
+          "usage_missing": 1,
+          "pricing_unverified": 0
+        },
+        "mouth": {
+          "calls": 1,
+          "input_tokens": 100,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 20,
+          "output_tokens": 10,
+          "cost_usd": 0.0,
+          "unpriced": 1,
+          "incomplete": 0,
+          "failed": 0,
+          "cancelled": 0,
+          "local": 0,
+          "usage_missing": 0,
+          "pricing_unverified": 0
+        }
+      },
+      "by_channel": {
+        "codex_existing_login": {
+          "calls": 2,
+          "input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 0,
+          "cost_usd": 0.0,
+          "unpriced": 2,
+          "incomplete": 0,
+          "failed": 0,
+          "cancelled": 0,
+          "local": 0,
+          "usage_missing": 2,
+          "pricing_unverified": 0
+        },
+        "anthropic_api": {
+          "calls": 1,
+          "input_tokens": 100,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 20,
+          "output_tokens": 10,
+          "cost_usd": 0.0,
+          "unpriced": 1,
+          "incomplete": 0,
+          "failed": 0,
+          "cancelled": 0,
+          "local": 0,
+          "usage_missing": 0,
+          "pricing_unverified": 0
+        }
+      }
+    },
+    "redactions": {
+      "key": 0,
+      "email": 2,
+      "phone": 0
+    },
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "connections": {
+    "agentd": {
+      "started_at": "2026-11-03T04:32:36.338-05:00",
+      "epoch": 1793698356
+    },
+    "tts": {
+      "configured": true,
+      "result": null,
+      "at": null,
+      "provider": "none",
+      "state": "off",
+      "reason": "not_configured",
+      "retry_after_s": null
+    },
+    "browser": {
+      "last_message_at": "2026-11-03T04:32:36.372-05:00"
+    },
+    "avatar": {
+      "speech_readers": 0,
+      "heartbeat_at": null
+    },
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "context": {
+    "items": [
+      {
+        "type": "window_text",
+        "observation_id": null,
+        "at": "2026-11-03T04:32:36.372164-05:00",
+        "expires_at": "2026-11-03T04:37:36.372-05:00",
+        "expired": false
+      }
+    ],
+    "window": {
+      "app": "Code",
+      "title": {
+        "len": 14,
+        "head": "diagnost"
+      }
+    },
+    "page": {
+      "url_host": "github.com",
+      "title": {
+        "len": 10,
+        "head": "CI resul"
+      },
+      "text": {
+        "len": 18,
+        "head": "render_t"
+      },
+      "at": "2026-11-03T04:32:36.372-05:00",
+      "expires_at": "2026-11-03T04:42:36.372-05:00"
+    },
+    "selection": {
+      "url_host": "github.com",
+      "title": {
+        "len": 10,
+        "head": "CI resul"
+      },
+      "text": {
+        "len": 18,
+        "head": "render_t"
+      },
+      "at": "2026-11-03T04:32:36.372-05:00",
+      "expires_at": "2026-11-03T04:42:36.372-05:00"
+    },
+    "activity": {
+      "activity": "typing",
+      "confidence": 0.9,
+      "corrected": false,
+      "until": null,
+      "mode": "coding",
+      "state": "unknown",
+      "evidence": [
+        "front_coding"
+      ]
+    },
+    "rejected": {
+      "request_id": "1a3cde56c4a8",
+      "state": "failed",
+      "detail": "timeout",
+      "at": "2026-11-03T04:32:36.386-05:00",
+      "reason": "capture_failed"
+    },
+    "sources": {
+      "screenshots": "not_connected",
+      "window_text": "connected",
+      "page_text": "connected"
+    },
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "behavior": {
+    "running": [
+      {
+        "behavior_id": "b-1793698356-1",
+        "type": "sit",
+        "target": null,
+        "since": "2026-11-03T04:32:36.372-05:00"
+      }
+    ],
+    "switches": {
+      "stay_in_place": false,
+      "sit_window_top": true,
+      "hold_window_edge": true,
+      "fullscreen_give_way": true
+    },
+    "last_receipt": {
+      "behavior_id": "b-1793698356-1",
+      "phase": "running",
+      "reason": null,
+      "at": "2026-11-03T04:32:36.388-05:00"
+    },
+    "capability_character": "birch",
+    "capabilities": {
+      "climb_window_top": "motion_missing",
+      "sit": null
+    },
+    "unsupported": {
+      "climb_window_top": 1799.975487947464
+    },
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  },
+  "character_state": {
+    "character_id": "birch",
+    "energy": 0.3,
+    "valence": 0.35,
+    "engagement": 0.0,
+    "activity": null,
+    "labels": {
+      "energy": "sleepy",
+      "mood": "steady",
+      "engagement": "idle"
+    },
+    "causes": [
+      {
+        "attr": "valence",
+        "cause": "dispatch_done",
+        "delta": 0.15,
+        "at": "2026-11-03T04:32:36.350-05:00"
+      }
+    ],
+    "affects_behavior": true,
+    "updated_at": "2026-11-03T04:32:36.371-05:00"
+  },
+  "interaction": {
+    "name": "balanced",
+    "model_every": 180.0,
+    "model_refresh": 900.0,
+    "proactive_speech": true,
+    "same_cooldown": 600.0,
+    "random_tick_scale": 1.0,
+    "wander_scale": 1.0,
+    "focus_walk_probability": 0.5,
+    "updated_at": "2026-11-03T04:32:36.371-05:00"
+  },
+  "rituals": {
+    "pending": [
+      "water"
+    ],
+    "today": [
+      {
+        "kind": "morning",
+        "line_id": "line-morning",
+        "at": "2026-11-03T04:32:36.387-05:00"
+      }
+    ],
+    "updated_at": "2026-11-03T04:32:36.399-05:00"
+  }
+}

@@ -1,0 +1,183 @@
+/* Fonts are bundled from npm (SIL OFL 1.1); no CDN. */
+@import '@fontsource/noto-sans-sc/400.css';
+@import '@fontsource/noto-sans-sc/500.css';
+@import '@fontsource/noto-sans-sc/600.css';
+@import '@fontsource-variable/saira/wdth.css';
+
+/* Animatable numbers driven by game clips (gameClips.generated.ts); registered once here because @property is global.
+   Elements that rest at another value set it in their own rule. */
+@property --size-x {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@property --size-y {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@property --anchor-min-x {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@property --anchor-max-x {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 13px;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--ef-canvas);
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / var(--ef-lh-body) var(--ef-font-sans);
+}
+
+/* Native feel: no text selection, dragging or hand cursor outside fields and raw-output blocks. */
+html {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  cursor: default;
+  overscroll-behavior: none;
+}
+
+/* Overrides the components' `cursor: pointer`; disabled controls keep theirs. */
+:is(a, button, select, label, summary, [role='button'], [role='tab'], [role='switch'], [role='option'], [role^='menuitem']):not(
+    :disabled,
+    [aria-disabled='true']
+  ) {
+  cursor: default !important;
+}
+
+img,
+svg,
+a {
+  -webkit-user-drag: none;
+}
+
+input,
+textarea,
+[contenteditable]:not([contenteditable='false']),
+[data-selectable],
+[data-selectable] * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+[data-selectable] :is(button, [role='button']) {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+[contenteditable]:not([contenteditable='false']) {
+  cursor: text;
+}
+
+html[data-surface='stack'],
+html[data-surface='stack'] body {
+  background: transparent;
+}
+
+/* The desktop panels are sized to their content, which the line box under an inline-flex root outgrows by a few px. */
+html[data-surface='stack'] {
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+}
+
+/* 2% grain over the main window; the desktop stack is transparent and stays clean. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 1.6 -.3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  opacity: var(--ef-noise-a);
+  pointer-events: none;
+}
+
+html[data-surface='stack'] body::after {
+  content: none;
+}
+
+/*
+ * Content container: the shell marks the element that holds page content with
+ * `container-type: inline-size; container-name: page`, and pages lay out against its width with
+ * `@container page (max-width: 1000px) { … }` instead of viewport media queries.
+ * Section spacing between open sections uses --ef-sec-gap (18 px under 700 px high).
+ */
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+:focus {
+  outline: none;
+}
+
+/* Keyboard focus is a double line: two 1 px rules with a 1 px gap. */
+:focus-visible {
+  outline: 3px double var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.tnum,
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.num {
+  font-family: var(--ef-font-num);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ef-line);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html.still *,
+html.still *::before,
+html.still *::after {
+  animation-play-state: paused !important;
+  animation-delay: -10s !important;
+  transition: none !important;
+}

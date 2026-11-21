@@ -1,0 +1,153 @@
+/* The fixed-size panel: transparent, clicks pass through all but the icons and the card.
+   Quick menu look in both appearances; `data-theme="dark"` on the root scopes the tokens. */
+.root {
+  /* Cells on the #000@0.72 disc, cell ring #FFF@.2. */
+  --hud-cell: rgba(0, 0, 0, 0.72);
+  --hud-cell-line: rgba(255, 255, 255, 0.2);
+  /* Cell icons at .72 rather than .5, so they hold 3:1 over the cell on a white desktop. */
+  --hud-cell-icon: rgba(255, 255, 255, 0.72);
+  /* Toast plate under the tip. */
+  --hud-plate: rgba(18, 18, 18, 0.85);
+  --hud-t1: var(--ef-text-1);
+  --hud-t2: var(--ef-hud-text-2);
+  --hud-line: var(--ef-tips-rule);
+  --hud-hover: var(--ef-btn-hover);
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  color: var(--hud-t1);
+  font: 13px / 20px var(--ef-font-sans);
+}
+
+/* Folded, every icon sits shrunk on the row's middle; open, it moves out to its place in the row (cell in). */
+.icon {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--hud-cell-line);
+  border-radius: 50%;
+  background: var(--hud-cell);
+  color: var(--hud-cell-icon);
+  font: 600 13px / 1 var(--ef-font-mono);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(0, 0) scale(0.3);
+  transition:
+    transform var(--ef-dur-g-cell-in) var(--ef-ease-g-enter),
+    opacity var(--ef-dur-g-cell-in) var(--ef-ease-g-fade),
+    color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.root[data-open='true'] .icon {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(var(--dx), var(--dy)) scale(1);
+}
+
+.icon:hover {
+  color: var(--hud-t1);
+}
+
+.icon:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+/* The open cell: white icon, yellow ring (the arrow's #FFF100). */
+.icon[data-active] {
+  color: var(--hud-t1);
+  outline: 1px solid var(--ef-accent);
+  outline-offset: 3px;
+}
+
+/* With art the open cell wears the watchring: watch_ring2 (244 g at .557) still around it in the cell icon ink, and
+   watch_ring1 (277 g at .372) turning on its edge in the yellow, scaled from the 100 g watch button to the 30 px cell. */
+:global(html[data-art]) .icon[data-active] {
+  outline: none;
+}
+
+:global(html[data-art]) .icon[data-active]::before,
+:global(html[data-art]) .icon[data-active]::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+:global(html[data-art]) .icon[data-active]::before {
+  width: 42px;
+  height: 42px;
+  margin: -21px 0 0 -21px;
+  background: var(--hud-cell-icon);
+  -webkit-mask: url('/art/common/desk-watch-ring2.png') center / contain no-repeat;
+  mask: url('/art/common/desk-watch-ring2.png') center / contain no-repeat;
+}
+
+:global(html[data-art]) .icon[data-active]::after {
+  width: 32px;
+  height: 32px;
+  margin: -16px 0 0 -16px;
+  background: var(--ef-accent);
+  -webkit-mask: url('/art/common/desk-watch-ring1.png') center / contain no-repeat;
+  mask: url('/art/common/desk-watch-ring1.png') center / contain no-repeat;
+  animation: watch-turn 8000ms linear infinite;
+}
+
+@keyframes watch-turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+:global(.still) .icon[data-active]::after {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon[data-active]::after {
+    animation: none;
+  }
+}
+
+.ico {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* The number badge. */
+.badge {
+  position: absolute;
+  top: -7px;
+  right: -8px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--ef-danger-vivid);
+  color: var(--ef-on-danger-vivid);
+  font: 700 13px / 17px var(--ef-font-mono);
+  text-align: center;
+}
+
+/* One line outside a hovered icon, on a PC toast plate. */
+.tip {
+  position: absolute;
+  padding: 5px 10px;
+  overflow: hidden;
+  background: var(--hud-plate);
+  color: var(--hud-t1);
+  font: 13px / 18px var(--ef-font-sans);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}

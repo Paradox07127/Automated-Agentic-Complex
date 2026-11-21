@@ -1,0 +1,74 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-height: 28px;
+  padding: 0 var(--ef-sp-6) 0 var(--ef-sp-12);
+  background: var(--ef-hud-row);
+  color: var(--ef-text-1);
+  font-size: var(--ef-fs-caption);
+}
+
+.cells {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.cells i {
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: var(--ef-text-2);
+}
+
+.cells i.dg {
+  background: var(--ef-danger);
+}
+
+.cells i.cur {
+  background: transparent;
+  box-shadow: 0 0 0 1.5px var(--ef-text-1);
+}
+
+.cells i.cur.dg {
+  background: var(--ef-danger);
+}
+
+.text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text b {
+  font-weight: var(--ef-fw-semibold);
+}
+
+.dgt {
+  color: var(--ef-danger-text);
+}
+
+.sub {
+  color: var(--ef-text-3);
+}
+
+.sp {
+  flex: 1;
+}
+
+.btn {
+  height: 24px;
+  padding: 0 var(--ef-sp-6);
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-caption);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  color: var(--ef-text-1);
+  background: var(--ef-overlay-hover);
+}

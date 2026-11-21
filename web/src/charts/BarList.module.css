@@ -1,0 +1,88 @@
+.root {
+  --bc: var(--v3-ink-2);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 520px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.root[data-series='s1'] {
+  --bc: var(--v3-ink-1);
+}
+
+.row {
+  position: relative;
+  min-width: 0;
+}
+
+.btn {
+  display: grid;
+  grid-template-columns: 64px minmax(40px, 1fr) auto;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  width: 100%;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  text-align: left;
+}
+
+button.btn {
+  cursor: pointer;
+}
+
+button.btn:hover .label {
+  color: var(--ef-text-1);
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Bars have no grid; one 1 px baseline at zero. */
+.track {
+  position: relative;
+  height: 6px;
+  box-shadow: inset 1px 0 0 var(--ef-chart-axis);
+}
+
+.track i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--bc);
+}
+
+.row[data-emph] .track i {
+  background: var(--v3-emph);
+}
+
+.row[data-other] .track i {
+  background: var(--v3-ink-3);
+}
+
+.row[aria-current='true'] .label {
+  color: var(--ef-text-1);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.row[data-dim] .track i {
+  opacity: 0.45;
+}
+
+.value {
+  color: var(--ef-chart-value);
+  font-family: var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}

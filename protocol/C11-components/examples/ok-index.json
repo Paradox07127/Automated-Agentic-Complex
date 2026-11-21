@@ -1,0 +1,10 @@
+{
+  "schema": "endfield-components-index/v1",
+  "components": [
+    {"id": "agentd", "version": "1.0.0", "tree_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "dir": "agentd"},
+    {"id": "browser", "version": "1.0.0", "tree_sha256": "4444444444444444444444444444444444444444444444444444444444444444", "dir": "browser"},
+    {"id": "characters.aster", "version": "1.0.0", "tree_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "dir": "characters.aster"},
+    {"id": "harness.pi", "version": "1.4.0", "tree_sha256": "3333333333333333333333333333333333333333333333333333333333333333", "dir": "harness.pi"},
+    {"id": "runtime.python", "version": "3.13.9", "tree_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "dir": "runtime.python"}
+  ]
+}

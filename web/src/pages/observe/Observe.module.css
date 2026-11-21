@@ -1,0 +1,196 @@
+/* 05 观察：页面骨架、页头状态胶囊、「现在」横带、观察关闭。 */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-20);
+  min-width: 0;
+  padding: var(--ef-sp-16) var(--ef-page-pad) var(--ef-sp-32);
+}
+
+.t2 {
+  color: var(--ef-text-2);
+}
+
+.t3 {
+  color: var(--ef-text-3);
+}
+
+.cap {
+  color: var(--ef-text-3);
+  font-size: 12px;
+}
+
+/* 页头状态胶囊 */
+.capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  box-shadow: inset 0 0 0 1px var(--ef-line);
+  color: var(--ef-text-1);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.capsule[data-tone='paused'] {
+  box-shadow: inset 0 0 0 1px var(--ef-line-strong);
+}
+
+.capsule[data-tone='off'] {
+  color: var(--ef-text-2);
+}
+
+.capsule b {
+  font-weight: 600;
+}
+
+.capsule [role='progressbar'] {
+  width: 12px;
+  height: 12px;
+}
+
+.x {
+  display: contents;
+}
+
+.pip {
+  width: 8px;
+  height: 8px;
+  background: var(--ef-success);
+  flex: none;
+}
+
+.pip[data-s='paused'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--ef-text-2);
+}
+
+.pip[data-s='off'] {
+  background: var(--ef-text-3);
+}
+
+.pip[data-s='failed'] {
+  border-radius: 0;
+  background: var(--ef-state-failed);
+}
+
+.headActs {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+/* 现在：横带，上下细线 */
+.now {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 0;
+  min-height: 44px;
+  padding: 4px 0;
+  border-top: 1px solid var(--ef-line);
+  border-bottom: 1px solid var(--ef-line-subtle);
+  font-size: 13px;
+}
+
+.now[data-paused] {
+  background: var(--ef-chart-hatch);
+}
+
+.nowL {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+  min-width: 60px;
+  padding: 0 14px 0 0;
+  font: 500 13px/1.1 var(--ef-font-sans);
+}
+
+.it {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 16px;
+  white-space: nowrap;
+  box-shadow: inset 1px 0 0 var(--ef-line-subtle);
+}
+
+.it b {
+  font-weight: 600;
+}
+
+.k {
+  color: var(--ef-text-3);
+  font-size: 12px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  background: var(--ef-surface-3);
+  box-shadow: inset 0 0 0 1px var(--ef-line);
+  color: var(--ef-text-1);
+  font-size: 12px;
+}
+
+/* 观察已关闭：整页一句话 */
+.off {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 360px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.off p {
+  margin: 0;
+  color: var(--ef-text-1);
+  font: 500 15px/1.5 var(--ef-font-sans);
+}
+
+.ebox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  box-shadow: inset 0 0 0 1px var(--ef-line);
+  color: var(--ef-text-3);
+}
+
+/* 内容区窄于 1000 px：页头胶囊只留状态 */
+@container page (max-width: 1000px) {
+  .x {
+    display: none;
+  }
+}
+
+/* Contour lines down the page's right margin, clear of the content; only the app ships the art. */
+:global(html[data-art]) .page {
+  position: relative;
+  isolation: isolate;
+}
+
+:global(html[data-art]) .page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  width: var(--ef-page-pad);
+  background: var(--ef-text-1);
+  opacity: 0.2;
+  pointer-events: none;
+  -webkit-mask: url('/art/common/contour.png') right top / 236px auto repeat-y;
+  mask: url('/art/common/contour.png') right top / 236px auto repeat-y;
+}

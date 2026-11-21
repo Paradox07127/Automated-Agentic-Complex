@@ -1,0 +1,19 @@
+/* A field: wide tabular figures, the total smaller and grey. */
+.frac {
+  display: inline-block;
+  color: var(--ef-chart-value);
+  font: var(--ef-fw-medium) var(--ef-fs-title-2) / 1 var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.frac[data-unknown] {
+  color: var(--ef-text-2);
+}
+
+.den {
+  margin-left: 1px;
+  color: var(--ef-text-2);
+  font-size: max(var(--ef-fs-num), 0.6em);
+}

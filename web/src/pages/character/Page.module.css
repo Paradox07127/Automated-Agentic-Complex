@@ -1,0 +1,57 @@
+/* The page fills the content area; the operator view scrolls its own columns. */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* The one 读取中 of the page, in the header while the catalog loads. */
+.loading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+.bars {
+  display: grid;
+  flex: none;
+  gap: var(--ef-sp-8);
+  padding: var(--ef-sp-12) var(--ef-space-page) 0;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sw {
+  height: 100%;
+}
+
+/* A library without characters: the import button alone, in the middle of the page. */
+.empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+}
+
+.body > [data-stub='Skel'],
+.body > [data-stub='ErrBar'] {
+  margin: var(--ef-sp-16) var(--ef-space-page);
+}
+
+/* Under 760 px of content the operator view is one column and the page scrolls. */
+@container page (max-width: 760px) {
+  .body {
+    overflow: hidden auto;
+  }
+
+  .sw {
+    height: auto;
+  }
+}

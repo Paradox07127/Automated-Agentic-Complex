@@ -1,0 +1,40 @@
+{"v":1,"id":1,"op":"hello","params":{"protocol":1,"client":"electron","client_version":"0.1.0"}}
+{"v":1,"id":1,"ok":true,"result":{"protocol":1,"platform":"macos","helper_version":"0.1.0","os_version":"macOS 26.1","arch":"arm64","pid":4242,"ops":["hello","cancel","shutdown","screens.list","windows.list","windows.at_point","workspace.watch","attention.sample","presence.watch","browser.front_tab","input.modifiers","input.watch","ax.focused","ax.dialog_buttons","ax.overlays","ax.hit_chain","ax.window_text","ax.selected_text","ax.video_rect","ax.watch","capture.window","capture.ambient","ocr.languages","ocr.recognize","speech.locales","mic.start","mic.stop","ptt.register","ptt.unregister","control.observe","control.act","control.read","control.listen","control.respond","permissions.status","permissions.request","clipboard.read","apps.running","apps.installed","apps.activate","terminal.focus","process.usage"],"events":["workspace.changed","presence.edge","input.activity","ax.notification","mic.level","speech.partial","ptt.down","ptt.up","control.request"]}}
+{"v":1,"id":2,"op":"ax.focused","params":{}}
+{"v":1,"id":2,"ok":true,"result":{"focus":{"pid":702,"role":"AXTextArea","native_role":"AXTextArea","subrole":null,"frame":{"x":220,"y":180,"width":860,"height":520},"caret":{"x":240,"y":200,"width":1,"height":16},"editable":true,"element_key":"a81f3c"}}}
+{"v":1,"id":3,"op":"ax.focused","params":{"pid":611}}
+{"v":1,"id":3,"ok":false,"error":{"code":"ax_timeout","message":"the app did not answer within 50 ms","retryable":true}}
+{"v":1,"id":4,"op":"ax.dialog_buttons","params":{"pid":702}}
+{"v":1,"id":4,"ok":true,"result":{"buttons":[{"x":980,"y":640,"width":80,"height":28},{"x":890,"y":640,"width":80,"height":28}]}}
+{"v":1,"id":5,"op":"ax.overlays","params":{}}
+{"v":1,"id":5,"ok":true,"result":{"banners":[{"x":1080,"y":40,"width":344,"height":72}],"ime":[]}}
+{"v":1,"id":6,"op":"ax.hit_chain","params":{"point":{"x":500,"y":300},"exclude_pids":[4100]}}
+{"v":1,"id":6,"ok":true,"result":{"pid":611,"chain":[{"role":"AXStaticText","native_role":"AXStaticText","subrole":null,"frame":{"x":480,"y":290,"width":200,"height":18}},{"role":"AXGroup","native_role":"AXGroup","subrole":null,"frame":{"x":0,"y":100,"width":1440,"height":800}},{"role":"AXWebArea","native_role":"AXWebArea","subrole":null,"frame":null}]}}
+{"v":1,"id":7,"op":"ax.window_text","params":{"pid":702,"level":"window","window_bounds":{"x":200,"y":120,"width":900,"height":600},"max_nodes":2048,"max_scalars":6000}}
+{"v":1,"id":7,"ok":true,"result":{"snapshot_id":"s-7","matched":true,"text":"Shopping list\nmilk\neggs","nodes":[{"id":0,"parent":-1,"role":"AXWindow","native_role":"AXWindow","label":"notes.txt","bounds":{"x":200,"y":120,"width":900,"height":600}},{"id":1,"parent":0,"role":"AXTextArea","native_role":"AXTextArea","value":"Shopping list\nmilk\neggs","selection":null,"bounds":{"x":220,"y":180,"width":860,"height":520}}],"coverage":{"status":"complete","scope":"window","reasons":[],"captured_nodes":2,"captured_chars":23}}}
+{"v":1,"id":8,"op":"ax.window_text","params":{"pid":611,"level":"focused","cursor":"c-41"}}
+{"v":1,"id":8,"ok":true,"result":{"snapshot_id":"s-8","matched":true,"text":"","nodes":[],"coverage":{"status":"partial","scope":"focused","reasons":["node_budget"],"captured_nodes":0,"captured_chars":0,"next_cursor":"c-42"}}}
+{"v":1,"id":9,"op":"ax.selected_text","params":{"pid":702}}
+{"v":1,"id":9,"ok":true,"result":{"text":"milk"}}
+{"v":1,"id":10,"op":"ax.video_rect","params":{"pid":611}}
+{"v":1,"id":10,"ok":true,"result":{"rect":{"x":120,"y":160,"width":1200,"height":675}}}
+{"v":1,"id":11,"op":"ax.watch","params":{"pid":702,"notifications":["focus","value","selection"],"read_selected_text":false}}
+{"v":1,"id":11,"ok":true,"result":{"watching":true,"pid":702}}
+{"v":1,"event":"ax.notification","seq":1,"data":{"pid":702,"notification":"focus","element":{"role":"AXTextArea","native_role":"AXTextArea","subrole":null,"label":null,"value_length":23,"window_title":"notes.txt","doc":"/Users/me/notes.txt","element_key":"a81f3c"},"source_key":"a81f3c"}}
+{"v":1,"event":"ax.notification","seq":2,"data":{"pid":702,"notification":"value","element":null}}
+{"v":1,"id":12,"op":"ax.watch","params":{"pid":null,"notifications":[]}}
+{"v":1,"id":12,"ok":true,"result":{"watching":false,"pid":null}}
+{"v":1,"id":13,"op":"ax.focused","params":{}}
+{"v":1,"id":13,"ok":true,"result":{"focus":null,"app_pid":702}}
+{"v":1,"id":14,"op":"ax.watch","params":{"pid":702,"notifications":["focus","window","title","value","selection"],"read_selected_text":false,"read_value":true,"manual_accessibility":true,"watch_id":"activity"}}
+{"v":1,"id":14,"ok":true,"result":{"watching":true,"pid":702,"watch_id":"activity","element":{"role":"AXTextArea","native_role":"AXTextArea","subrole":null,"label":null,"value_length":23,"window_title":"notes.txt","doc":"/Users/me/notes.txt","element_key":"a81f3c","value":"Shopping list\nmilk\neggs"},"window":{"title":"notes.txt","doc":"/Users/me/notes.txt"},"manual_accessibility":false}}
+{"v":1,"id":15,"op":"ax.watch","params":{"pid":702,"notifications":["focus","value","title"],"watch_id":"context"}}
+{"v":1,"id":15,"ok":true,"result":{"watching":true,"pid":702,"watch_id":"context","element":{"role":"AXTextArea","native_role":"AXTextArea","subrole":null,"label":null,"value_length":23,"window_title":"notes.txt","doc":"/Users/me/notes.txt","element_key":"a81f3c"},"window":{"title":"notes.txt","doc":"/Users/me/notes.txt"}}}
+{"v":1,"event":"ax.notification","seq":3,"data":{"pid":702,"notification":"value","element":{"role":"AXTextArea","native_role":"AXTextArea","subrole":null,"label":null,"value_length":29,"window_title":"notes.txt","doc":"/Users/me/notes.txt","element_key":"a81f3c","value":"Shopping list\nmilk\neggs\nbread"},"source_key":"a81f3c","watch_id":"activity"}}
+{"v":1,"event":"ax.notification","seq":4,"data":{"pid":702,"notification":"value","element":{"role":"AXTextArea","native_role":"AXTextArea","subrole":null,"label":null,"value_length":29,"window_title":"notes.txt","doc":"/Users/me/notes.txt","element_key":"a81f3c"},"source_key":"a81f3c","watch_id":"context"}}
+{"v":1,"event":"ax.notification","seq":5,"data":{"pid":702,"notification":"value","element":{"role":"AXTextArea","native_role":"AXTextArea","subrole":null,"label":null,"value_length":29,"window_title":"notes.txt","doc":"/Users/me/notes.txt","element_key":"a81f3c","value":"Shopping list\nmilk\neggs\nbread"},"source_key":"5d02e1","watch_id":"activity"}}
+{"v":1,"event":"ax.notification","seq":6,"data":{"pid":702,"notification":"title","element":null,"window":{"title":"notes.txt — Edited","doc":"/Users/me/notes.txt"},"watch_id":"activity"}}
+{"v":1,"id":16,"op":"ax.watch","params":{"pid":null,"notifications":[],"watch_id":"context"}}
+{"v":1,"id":16,"ok":true,"result":{"watching":false,"pid":null,"watch_id":"context"}}
+{"v":1,"id":17,"op":"ax.watch","params":{"pid":null,"notifications":[],"watch_id":"activity"}}
+{"v":1,"id":17,"ok":true,"result":{"watching":false,"pid":null,"watch_id":"activity"}}

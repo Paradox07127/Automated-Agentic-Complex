@@ -1,0 +1,719 @@
+[
+  {
+    "op": "avatar.state",
+    "surface": "main",
+    "nullable": [
+      "characterId",
+      "appearanceId"
+    ],
+    "value": {
+      "running": true,
+      "visible": true,
+      "scale": 1,
+      "clickThroughAll": false,
+      "speaking": false,
+      "characterId": "si",
+      "appearanceId": "default"
+    }
+  },
+  {
+    "op": "avatar.details",
+    "surface": "main",
+    "nullable": [
+      "renderer",
+      "build",
+      "pipeline",
+      "placement",
+      "pipeline.fallbackRequested",
+      "pipeline.suspended",
+      "pipeline.clip",
+      "pipeline.error"
+    ],
+    "value": {
+      "renderer": "metal",
+      "build": "abc",
+      "pipeline": {
+        "character": "si",
+        "appearance": "default",
+        "fallbackRequested": null,
+        "ssaa": 2,
+        "shadowResolution": 1024,
+        "outline": "on",
+        "displayResolution": false,
+        "unsupported": [],
+        "fpsRequested": 60,
+        "fpsTarget": 60,
+        "suspended": null,
+        "gpuAllocatedMB": 1,
+        "framesSubmitted": 1,
+        "clip": "idle",
+        "error": null
+      },
+      "placement": {
+        "x": 0,
+        "y": 0,
+        "scale": 1
+      },
+      "photo": false,
+      "capture": false,
+      "filters": true
+    }
+  },
+  {
+    "op": "avatar.actions",
+    "surface": "main",
+    "nullable": [
+      "[].durationS",
+      "[].trigger",
+      "[].missingReason"
+    ],
+    "value": [
+      {
+        "id": "talk",
+        "label": "Talk",
+        "enabled": true,
+        "section": "talk",
+        "requiredReason": "Required",
+        "trigger": "speech",
+        "durationS": 1,
+        "isNew": false,
+        "missingReason": null,
+        "playable": true,
+        "defaultEnabled": true
+      }
+    ]
+  },
+  {
+    "op": "avatar.setActionSwitches",
+    "surface": "main",
+    "args": [
+      {
+        "talk": true
+      }
+    ],
+    "free_keys": [
+      "switches"
+    ],
+    "value": {
+      "switches": {
+        "talk": true
+      },
+      "adjusted": []
+    }
+  },
+  {
+    "op": "avatar.presentation.get",
+    "surface": "stack",
+    "value": null
+  },
+  {
+    "op": "avatar.preview.show",
+    "surface": "main",
+    "args": [
+      {
+        "x": 0,
+        "y": 0,
+        "w": 100,
+        "h": 100
+      }
+    ],
+    "value": false
+  },
+  {
+    "op": "character.list",
+    "surface": "main",
+    "value": [
+      {
+        "id": "si",
+        "name": "Si",
+        "en": "SI",
+        "active": true,
+        "appearances": [
+          {
+            "id": "default",
+            "name": "Default",
+            "desc": "Default appearance",
+            "kind": "original"
+          }
+        ],
+        "layers": [
+          {
+            "id": "coat",
+            "name": "外套",
+            "visible": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "op": "character.switchTo",
+    "surface": "main",
+    "args": [
+      "voice_a"
+    ],
+    "value": {
+      "ok": true
+    }
+  },
+  {
+    "op": "character.switchTo",
+    "surface": "main",
+    "args": [
+      "cedar"
+    ],
+    "value": {
+      "ok": false,
+      "stage": "avatar",
+      "reason": "Missing resource"
+    }
+  },
+  {
+    "op": "character.importPackage",
+    "surface": "main",
+    "value": {
+      "ok": false,
+      "reason": "fake bridge"
+    }
+  },
+  {
+    "op": "character.importMotion",
+    "surface": "main",
+    "value": {
+      "ok": true,
+      "action": {
+        "id": "mmd_sample_1",
+        "title": "示例舞蹈",
+        "durationS": 12.5,
+        "hasBgm": true,
+        "format": "vmd",
+        "warnings": []
+      }
+    }
+  },
+  {
+    "op": "character.importOutfit",
+    "surface": "main",
+    "value": {
+      "ok": true,
+      "appearance": {
+        "id": "mod_1a2b3c4d",
+        "name": "示例外观"
+      },
+      "warnings": []
+    }
+  },
+  {
+    "op": "character.removeOutfit",
+    "surface": "main",
+    "before": [
+      {
+        "op": "character.importOutfit"
+      }
+    ],
+    "args": [
+      "mod_1a2b3c4d"
+    ],
+    "value": {
+      "ok": true,
+      "appearance": {
+        "id": "mod_1a2b3c4d"
+      }
+    }
+  },
+  {
+    "op": "character.listImportedMotions",
+    "surface": "main",
+    "nullable": [
+      "motions[].createdAt"
+    ],
+    "value": {
+      "ok": true,
+      "motions": [
+        {
+          "id": "mmd_sample_1",
+          "clip": "imported_vmd_sample_1",
+          "title": "示例舞蹈",
+          "format": "vmd",
+          "durationS": 12.5,
+          "hasBgm": true,
+          "createdAt": null,
+          "warnings": []
+        }
+      ]
+    }
+  },
+  {
+    "op": "character.listImportedMotions",
+    "surface": "main",
+    "before": [
+      {
+        "op": "character.switchTo",
+        "args": [
+          "voice_a"
+        ]
+      }
+    ],
+    "value": {
+      "ok": false,
+      "reason": "internal",
+      "detail": "unknown_character: voice_a"
+    }
+  },
+  {
+    "op": "character.renameMotion",
+    "surface": "main",
+    "before": [
+      {
+        "op": "character.importMotion"
+      }
+    ],
+    "args": [
+      "mmd_sample_1",
+      "慢舞"
+    ],
+    "value": {
+      "ok": true,
+      "id": "mmd_sample_1",
+      "title": "慢舞"
+    }
+  },
+  {
+    "op": "character.removeMotion",
+    "surface": "main",
+    "before": [
+      {
+        "op": "character.importMotion"
+      }
+    ],
+    "args": [
+      "mmd_sample_1"
+    ],
+    "value": {
+      "ok": true,
+      "id": "mmd_sample_1"
+    }
+  },
+  {
+    "op": "character.getPlaylist",
+    "surface": "main",
+    "value": {
+      "items": [
+        "mmd_0123456789abcdef"
+      ],
+      "loop": "off",
+      "speed": 1
+    }
+  },
+  {
+    "op": "character.setPlaylist",
+    "surface": "main",
+    "args": [
+      {
+        "items": [
+          "mmd_0123456789abcdef"
+        ],
+        "loop": "all",
+        "speed": 2
+      }
+    ],
+    "value": {
+      "ok": true
+    }
+  },
+  {
+    "op": "avatar.playPlaylist",
+    "surface": "main",
+    "before": [
+      {
+        "op": "character.setPlaylist",
+        "args": [
+          {
+            "items": [
+              "mmd_0123456789abcdef"
+            ],
+            "loop": "off",
+            "speed": 1
+          }
+        ]
+      }
+    ],
+    "args": [
+      {
+        "start": 0
+      }
+    ],
+    "value": {
+      "ok": true
+    }
+  },
+  {
+    "op": "avatar.playPlaylist",
+    "surface": "main",
+    "value": {
+      "ok": false,
+      "reason": "empty"
+    }
+  },
+  {
+    "op": "avatar.stopPlaylist",
+    "surface": "main",
+    "value": {
+      "ok": true
+    }
+  },
+  {
+    "op": "avatar.playlistState",
+    "surface": "main",
+    "before": [
+      {
+        "op": "character.setPlaylist",
+        "args": [
+          {
+            "items": [
+              "mmd_0123456789abcdef"
+            ],
+            "loop": "off",
+            "speed": 1
+          }
+        ]
+      },
+      {
+        "op": "avatar.playPlaylist"
+      }
+    ],
+    "nullable": [
+      "index",
+      "id"
+    ],
+    "value": {
+      "playing": true,
+      "index": 0,
+      "id": "mmd_0123456789abcdef"
+    }
+  },
+  {
+    "op": "mmd.list",
+    "surface": "main",
+    "nullable": [
+      "entries[].characters[].reason"
+    ],
+    "value": {
+      "ok": true,
+      "entries": [
+        {
+          "id": "mmd_sample_1",
+          "title": "示例舞蹈",
+          "durationS": 12.5,
+          "hasBgm": true,
+          "hasCamera": false,
+          "createdAt": "2026-11-17T10:00:00+00:00",
+          "characters": [
+            {
+              "id": "si",
+              "state": "baked",
+              "reason": null
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "op": "mmd.import",
+    "surface": "main",
+    "value": {
+      "ok": true,
+      "action": {
+        "id": "mmd_sample_1",
+        "title": "示例舞蹈",
+        "durationS": 12.5,
+        "hasBgm": true,
+        "format": "vmd",
+        "warnings": []
+      }
+    }
+  },
+  {
+    "op": "mmd.syncState",
+    "surface": "main",
+    "nullable": [
+      "character",
+      "stage"
+    ],
+    "value": {
+      "running": false,
+      "character": null,
+      "total": 0,
+      "done": 0,
+      "failed": 0,
+      "stage": null,
+      "fraction": 0
+    }
+  },
+  {
+    "op": "avatar.capture",
+    "surface": "main",
+    "args": [
+      {
+        "background": "transparent"
+      }
+    ],
+    "value": {
+      "file": "Endfield-si-20261116-120000.png"
+    }
+  },
+  {
+    "op": "avatar.motionOverrides.get",
+    "surface": "main",
+    "before": [
+      {
+        "op": "avatar.motionOverrides.set",
+        "args": [
+          {
+            "chains": {
+              "A_clip_birch_customized_state_chesthugging3_start": false
+            },
+            "pools": {
+              "session.thinking": [
+                {
+                  "clip": "A_clip_birch_customized_state_think_start",
+                  "weight": 2
+                }
+              ]
+            },
+            "blend_in": {
+              "A_clip_birch_customized_state_think_start": 0.3
+            },
+            "notes": {
+              "A_clip_birch_customized_state_chesthugging3_start": "应该放在日常或者思考"
+            }
+          }
+        ]
+      }
+    ],
+    "value": {
+      "chains": {
+        "A_clip_birch_customized_state_chesthugging3_start": false
+      },
+      "pools": {
+        "session.thinking": [
+          {
+            "clip": "A_clip_birch_customized_state_think_start",
+            "weight": 2
+          }
+        ]
+      },
+      "blend_in": {
+        "A_clip_birch_customized_state_think_start": 0.3
+      },
+      "notes": {
+        "A_clip_birch_customized_state_chesthugging3_start": "应该放在日常或者思考"
+      }
+    },
+    "free_keys": [
+      "chains",
+      "pools",
+      "blend_in",
+      "notes"
+    ]
+  },
+  {
+    "op": "avatar.motionOverrides.set",
+    "surface": "main",
+    "args": [
+      {
+        "chains": {
+          "A_clip_birch_customized_state_chesthugging3_start": false
+        },
+        "pools": {
+          "session.thinking": [
+            {
+              "clip": "A_clip_birch_customized_state_think_start",
+              "weight": 2
+            }
+          ]
+        },
+        "blend_in": {
+          "A_clip_birch_customized_state_think_start": 0.3
+        }
+      }
+    ],
+    "value": {
+      "applied": {
+        "chains": 1,
+        "pools": 1,
+        "blend_in": 1
+      },
+      "adjusted": [
+        {
+          "kind": "pool",
+          "key": "session.thinking",
+          "reason": "stance_mismatch"
+        }
+      ]
+    }
+  },
+  {
+    "op": "avatar.preview.sequence",
+    "surface": "main",
+    "args": [
+      {
+        "clips": [
+          "A_clip_birch_customized_state_think_start",
+          "A_clip_birch_idle_loop"
+        ],
+        "blend_s": [
+          0.25
+        ]
+      }
+    ],
+    "value": true
+  },
+  {
+    "op": "avatar.motionChain.check",
+    "surface": "main",
+    "args": [
+      {
+        "schema": "endfield-motion-chain-proposal/v1",
+        "character": "si",
+        "package_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "edits": [
+          {
+            "op": "set",
+            "clip": "A_clip_birch_dialog_state_think_loop",
+            "hold": 3
+          },
+          {
+            "op": "insert",
+            "chain": "A_clip_birch_dialog_state_think_start",
+            "index": 1,
+            "clip": "A_clip_birch_dialog_single_nod"
+          }
+        ]
+      }
+    ],
+    "value": {
+      "ok": false,
+      "problems": [
+        {
+          "edit": 1,
+          "reason": "unknown_clip:A_clip_birch_dialog_single_nod"
+        }
+      ],
+      "graph_changes": {
+        "chains_added": [],
+        "chains_removed": [],
+        "chains_changed": []
+      }
+    },
+    "nullable": [
+      "problems[].edit"
+    ]
+  },
+  {
+    "op": "avatar.motionChain.apply",
+    "surface": "main",
+    "args": [
+      {
+        "schema": "endfield-motion-chain-proposal/v1",
+        "character": "si",
+        "package_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "edits": [
+          {
+            "op": "insert",
+            "chain": "A_clip_birch_dialog_state_think_start",
+            "index": 1,
+            "clip": "A_clip_birch_idle_fidget_01"
+          }
+        ]
+      }
+    ],
+    "value": {
+      "ok": true,
+      "character": "si",
+      "version": "1.2.43"
+    }
+  },
+  {
+    "op": "avatar.modSettings.get",
+    "surface": "main",
+    "before": [
+      {
+        "op": "avatar.modSettings.set",
+        "args": [
+          {
+            "character": "si",
+            "appearance": "imported_summer",
+            "values": {
+              "skirt": 1,
+              "color": 2
+            }
+          }
+        ]
+      }
+    ],
+    "args": [
+      {
+        "character": "si"
+      }
+    ],
+    "value": {
+      "appearances": {
+        "imported_summer": {
+          "skirt": 1,
+          "color": 2
+        }
+      }
+    },
+    "free_keys": [
+      "appearances",
+      "appearances.imported_summer"
+    ]
+  },
+  {
+    "op": "avatar.modSettings.set",
+    "surface": "main",
+    "args": [
+      {
+        "character": "si",
+        "appearance": "imported_summer",
+        "values": {
+          "skirt": 9,
+          "color": 1
+        }
+      }
+    ],
+    "value": {
+      "values": {
+        "skirt": 0,
+        "color": 1
+      },
+      "adjusted": [
+        {
+          "id": "skirt",
+          "reason": "defaulted"
+        }
+      ]
+    },
+    "free_keys": [
+      "values"
+    ]
+  },
+  {
+    "op": "character.importState",
+    "surface": "main",
+    "nullable": [
+      "kind",
+      "title",
+      "stage"
+    ],
+    "value": {
+      "running": false,
+      "kind": null,
+      "title": null,
+      "stage": null,
+      "fraction": 0
+    }
+  }
+]

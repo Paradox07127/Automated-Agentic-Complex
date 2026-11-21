@@ -1,0 +1,61 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  vertical-align: middle;
+}
+
+.svg {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+
+.line {
+  fill: none;
+  stroke: var(--v3-ink-1);
+  stroke-width: 1.5;
+  stroke-linejoin: miter;
+  stroke-linecap: square;
+}
+
+/* Below the baseline (e.g. negative mood) in s2 grey, not a warning colour. */
+.lineBelow {
+  fill: none;
+  stroke: var(--v3-ink-3);
+  stroke-width: 1.5;
+  stroke-linejoin: miter;
+  stroke-linecap: square;
+}
+
+.dot {
+  fill: var(--v3-ink-1);
+}
+
+.dotBelow {
+  fill: var(--v3-ink-3);
+}
+
+.base {
+  stroke: var(--ef-chart-axis);
+}
+
+.value {
+  color: var(--ef-chart-value);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.root[data-emph] .line {
+  stroke: var(--v3-emph);
+  stroke-width: 2;
+}
+
+.root[data-emph] .dot {
+  fill: var(--v3-emph);
+}
+
+.none {
+  color: var(--ef-text-3);
+}

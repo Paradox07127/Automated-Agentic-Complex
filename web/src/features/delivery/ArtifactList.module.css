@@ -1,0 +1,105 @@
+.root {
+  display: grid;
+  gap: var(--ef-sp-4);
+  min-width: 0;
+}
+
+.count {
+  margin: 0;
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}
+
+.count[data-unopened] {
+  color: var(--ef-attention-text);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font: var(--ef-t-table);
+}
+
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.colSeen {
+  width: 4em;
+}
+
+.colMore {
+  width: var(--ef-h-md);
+}
+
+.head th {
+  height: 0;
+  padding: 0;
+}
+
+.table tbody tr {
+  height: var(--ef-h-md);
+  border-top: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  cursor: pointer;
+}
+
+.table tbody tr:last-child {
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line-subtle);
+}
+
+.root[data-layout='rows'] .table tbody tr {
+  height: var(--ef-h-sm);
+}
+
+.table tbody tr:hover {
+  background: var(--ef-overlay-hover);
+}
+
+.table tbody tr:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.table td {
+  padding: 0 var(--ef-sp-8) 0 0;
+  vertical-align: middle;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.icon {
+  display: inline-grid;
+  flex: none;
+  color: var(--ef-text-2);
+}
+
+.text {
+  min-width: 0;
+  overflow: hidden;
+  font: var(--ef-t-mono);
+  color: var(--ef-text-1);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.seen {
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+  white-space: nowrap;
+}
+
+.table td.more {
+  padding: 0;
+  text-align: right;
+}

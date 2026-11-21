@@ -1,0 +1,14 @@
+{"v":1,"id":1,"op":"hello","params":{"protocol":1,"client":"electron","client_version":"0.1.0"}}
+{"v":1,"id":1,"ok":true,"result":{"protocol":1,"platform":"macos","helper_version":"0.1.0","os_version":"macOS 26.1","arch":"arm64","pid":4242,"ops":["hello","cancel","shutdown","screens.list","windows.list","windows.at_point","workspace.watch","attention.sample","presence.watch","browser.front_tab","input.modifiers","input.watch","ax.focused","ax.dialog_buttons","ax.overlays","ax.hit_chain","ax.window_text","ax.selected_text","ax.video_rect","ax.watch","capture.window","capture.ambient","ocr.languages","ocr.recognize","speech.locales","mic.start","mic.stop","ptt.register","ptt.unregister","control.observe","control.act","control.read","control.listen","control.respond","permissions.status","permissions.request","clipboard.read","apps.running","apps.installed","apps.activate","terminal.focus","process.usage"],"events":["workspace.changed","presence.edge","input.activity","ax.notification","mic.level","speech.partial","ptt.down","ptt.up","control.request"]}}
+{"v":1,"id":2,"op":"screens.list","params":{}}
+{"v":1,"id":2,"ok":true,"result":{"screens":[{"display_id":1,"frame":{"x":0,"y":0,"width":1440,"height":900},"visible":{"x":0,"y":25,"width":1440,"height":875},"scale":2.0,"primary":true}]}}
+{"v":1,"id":3,"op":"windows.list","params":{"layer0_only":true,"include_titles":false}}
+{"v":1,"id":3,"ok":true,"result":{"windows":[{"window_id":812,"pid":611,"bounds":{"x":0,"y":25,"width":1440,"height":875},"layer":0,"alpha":1.0},{"window_id":640,"pid":702,"bounds":{"x":200,"y":120,"width":900,"height":600},"layer":0,"alpha":1.0}]}}
+{"v":1,"id":4,"op":"windows.at_point","params":{"point":{"x":500,"y":300},"exclude_pids":[4100],"include_titles":true}}
+{"v":1,"id":4,"ok":true,"result":{"window":{"window_id":812,"pid":611,"bounds":{"x":0,"y":25,"width":1440,"height":875},"layer":0,"alpha":1.0,"title":"Release notes","app_name":"Safari","app_id":"com.apple.Safari"}}}
+{"v":1,"id":5,"op":"windows.at_point","params":{"point":{"x":5000,"y":5000}}}
+{"v":1,"id":5,"ok":true,"result":{"window":null}}
+{"v":1,"id":6,"op":"workspace.watch","params":{"enabled":true}}
+{"v":1,"id":6,"ok":true,"result":{"watching":true,"front_pid":702}}
+{"v":1,"event":"workspace.changed","seq":1,"data":{"reason":"front_app","front_pid":702}}
+{"v":1,"event":"workspace.changed","seq":2,"data":{"reason":"screens","front_pid":702}}

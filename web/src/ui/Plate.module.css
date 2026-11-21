@@ -1,0 +1,38 @@
+/* Panel: raised plate, 1px line, square, a heavy ink tab along the left of the top edge; the number tag sits under the tab. */
+.plate {
+  position: relative;
+  padding: var(--ef-sp-16);
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  background: var(--ef-raised);
+  color: var(--ef-text-1);
+}
+
+.plate[data-numbered] {
+  padding-top: 36px;
+}
+
+.plate::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 14%;
+  height: 5px;
+  background: var(--ef-text-1);
+  pointer-events: none;
+}
+
+.no {
+  position: absolute;
+  top: var(--ef-sp-12);
+  left: var(--ef-sp-16);
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--ef-sp-8);
+  background: var(--ef-tag-bg);
+  color: var(--ef-tag-fg);
+  font: var(--ef-fw-semibold) var(--ef-fs-eyebrow) / 1 var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+}

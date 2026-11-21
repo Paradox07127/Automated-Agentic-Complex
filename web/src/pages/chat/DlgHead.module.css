@@ -1,0 +1,56 @@
+/* DialogDetails header: 43 px, top radius 10, a dark line at its foot, two FriendLine bars at the left; the tri-colour line under its right end. */
+.dlgHead {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  height: 43px;
+  padding: 0 24px 0 38px;
+  border-bottom: 3.5px solid var(--sns-head-line);
+  border-radius: 9px 9px 0 0;
+  background:
+    linear-gradient(var(--sns-head-line), var(--sns-head-line)) 3px 50% / 5.5px 30px no-repeat,
+    linear-gradient(var(--sns-head-line), var(--sns-head-line)) 12px 50% / 5.5px 30px no-repeat,
+    var(--sns-head);
+  white-space: nowrap;
+}
+
+.dlgName {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sns-head-text);
+  font: 500 15px/20px var(--ef-font-sans);
+  text-overflow: ellipsis;
+}
+
+.dlgSub {
+  flex: none;
+  color: var(--sns-head-sub);
+  font: 400 13px/20px var(--ef-font-sans);
+}
+
+.tri {
+  position: absolute;
+  right: 40px;
+  bottom: -7px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.tri > i {
+  width: 45px;
+  height: 3px;
+  background: var(--sns-tri-m);
+}
+
+.tri > i:nth-child(2) {
+  width: 47px;
+  height: 2px;
+  background: var(--sns-tri-y);
+}
+
+.tri > i:nth-child(3) {
+  background: var(--sns-tri-c);
+}

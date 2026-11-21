@@ -1,0 +1,300 @@
+"""Stage component payloads before signing, then write their C11 manifests."""
+import copy
+import hashlib
+from importlib import metadata
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import shutil
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'agent/agentd'))
+from character_library import Library, Package, digest, json_bytes
+import component_manifest
+import pool_codec
+from harness_runtime import LAYOUT, merge_python_site, normalized, python_pins, validate_runtime
+from release import CONTENT_PACKAGES, CONTENT_SOURCES
+
+CANON_RELATIVE = Path('brain/canon-windows.json')
+UFBX_LICENSE = ROOT / 'characters/agentic_complex_build/motion_import/native/UFBX-LICENSE'
+# native_bundle.py's own repo-root import path; the staged copy imports resource_store from agentd.
+NATIVE_BUNDLE_ROOT = "sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[2]/'agent/agentd'))\n"
+# Distributions a development site-packages may carry that agentd does not import; runtime.python never ships them.
+RETIRED_DISTRIBUTIONS = ('claude-agent-sdk', 'openai-codex', 'openai-codex-cli-bin', 'anthropic', 'jiter', 'docstring-parser')
+# Parts of the standalone CPython prefix agentd never loads: bin/python3.12 links no libpython, and nothing imports Tk.
+PYTHON_SKIPPED = ('include', 'share', 'lib/pkgconfig', 'lib/libpython3.12.dylib', 'bin/python3-config', 'bin/python3.12-config',
+                  *('lib/python3.12/' + name for name in ('site-packages', 'test', 'tkinter', 'idlelib', 'turtledemo', 'ensurepip',
+                    'lib2to3', 'pydoc_data', 'config-3.12-darwin', 'lib-dynload/_tkinter.cpython-312-darwin.so')))
+# Tcl/Tk libraries in lib/ and the launchers in bin/ of the modules left out; their names carry versions.
+PYTHON_SKIPPED_PREFIXES = {'lib': ('tcl', 'tk', 'itcl', 'thread', 'libtcl'), 'bin': ('2to3', 'idle3', 'pip')}
+
+
+def validate_canon_windows(path):
+    """Require the hash-only outbound guard that clean installations depend on."""
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise ValueError(f'Invalid bundled outbound guard: {path}') from exc
+    if (not isinstance(data, dict) or type(data.get('n')) is not int or data['n'] != 7
+            or not isinstance(data.get('hashes'), list) or not data['hashes']
+            or any(not isinstance(value, str) or re.fullmatch(r'[0-9a-f]{16}', value) is None
+                   for value in data['hashes'])):
+        raise ValueError(f'Invalid bundled outbound guard: {path}')
+
+
+def copy_ui_art(source, target, characters=None):
+    """Copy the files art-manifest.json lists after checking each SHA-256; web pages load them from ui/art/.
+    Of characters/<id>/, only the ids in characters are copied; None copies every character."""
+    manifest_path = source / 'art-manifest.json'
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    files = [entry['file'] for entry in manifest['files']
+             if characters is None or not entry['file'].startswith('characters/') or entry['file'].split('/')[1] in characters]
+    for entry in manifest['files']:
+        if digest(source / entry['file']) != entry['sha256']: raise ValueError('UI art hash mismatch: ' + entry['file'])
+    for file in files:
+        (target / file).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source / file, target / file)
+    return dict(files=len(files), manifest_sha256=digest(manifest_path))
+
+
+def stage_ui(web_dist, ui_art, target, characters=None):
+    """Copy ui/ and ui-bridge/ into target; return the UI art receipt."""
+    ui = target / 'ui'
+    shutil.copytree(web_dist, ui)
+    ui_art_receipt = copy_ui_art(ui_art, ui / 'art', characters) if ui_art else None
+    (target / 'ui-bridge').mkdir()
+    shutil.copy2(ROOT / 'protocol/ui-bridge/routes.json', target / 'ui-bridge/routes.json')
+    return ui_art_receipt
+
+
+def stage_agentd(service):
+    """Copy agent/agentd's shipped files (no tests or caches) into service and check its outbound guard."""
+    service.mkdir(parents=True)
+    for path in sorted((ROOT / 'agent/agentd').rglob('*')):
+        relative = path.relative_to(ROOT / 'agent/agentd')
+        if any(p in ('tests', '__pycache__') for p in relative.parts) or not path.is_file(): continue
+        if path.suffix not in ('.py', '.json', '.txt', '.md', '.mjs', '.lock'): continue
+        target = service / relative; target.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(path, target)
+    validate_canon_windows(service / CANON_RELATIVE)
+    return service
+
+
+def stage_content(content):
+    """Copy the motion importers into content; its caller supplies the import roots."""
+    content.mkdir(parents=True)
+    (content / '__init__.py').write_text('"""VMD importer shipped in the app; the caller provides its import roots."""\n')
+    for relative in CONTENT_SOURCES:
+        text = (ROOT / relative).read_text(encoding='utf-8')
+        if Path(relative).name == 'native_bundle.py':
+            if text.count(NATIVE_BUNDLE_ROOT) != 1: raise ValueError('native_bundle.py no longer has its repo-root import line')
+            text = text.replace(NATIVE_BUNDLE_ROOT, '')
+        (content / Path(relative).name).write_text(text, encoding='utf-8')
+    for package in CONTENT_PACKAGES:
+        target = content / Path(package).name; target.mkdir(parents=True)
+        for path in sorted((ROOT / package).iterdir()):
+            if path.is_file() and path.suffix in ('.py', '.json'): shutil.copy2(path, target / path.name)
+    return content
+
+
+def apply_content_overrides(payloads, overrides):
+    """Copy each {'<component id>/<path in its payload>': source} over payloads ({component id: payload directory});
+    return the (component id, path) pairs in order."""
+    applied = []
+    for relative, source in overrides.items():
+        component, _, inner = relative.partition('/')
+        payload = Path(payloads[component]).resolve() if component in payloads else None
+        target = (payload / inner).resolve() if payload is not None else None
+        if target is None or target == payload or not target.is_relative_to(payload):
+            raise ValueError('content_override_outside_component: ' + relative)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        applied.append((component, target.relative_to(payload).as_posix()))
+    return applied
+
+
+def python_version(executable):
+    return subprocess.check_output([str(executable), '-I', '-B', '-c', 'import platform; print(platform.python_version())'],
+                                   text=True).strip()
+
+
+def stage_runtime_python(stage, *, python, site_packages, prepared_site, pins):
+    """Stage only runtime.python, excluding retired harness SDKs."""
+    stage, python, site_packages, prepared_site = map(Path, (stage, python, site_packages, prepared_site))
+    site_packages = site_packages.resolve(); prepared_site = prepared_site.resolve()
+    version = python_version(python.resolve() / 'bin/python3')
+    runtime = stage / 'runtime.python/payload'
+    python = python.resolve()
+    skipped = {python / relative for relative in PYTHON_SKIPPED}
+    shutil.copytree(python, runtime, symlinks=True, ignore=lambda directory, names: [
+        name for name in names if Path(directory, name) in skipped
+        or name.startswith(PYTHON_SKIPPED_PREFIXES.get(Path(directory).relative_to(python).as_posix(), ()))])
+    runtime_site = runtime / 'lib/python3.12/site-packages'
+    merge_python_site(site_packages, prepared_site, runtime_site, pins)
+    for tests in sorted(runtime_site.rglob('tests')):
+        if tests.is_dir(): shutil.rmtree(tests)
+    wrapper = runtime / 'bin/agentic-complex-python'
+    wrapper.write_text('#!/bin/sh\nexec "$(dirname "$0")/python3" -I -B "$@"\n'); wrapper.chmod(0o755)
+    shutil.copytree(prepared_site / ('numpy-' + pins['numpy'] + '.dist-info/licenses'), runtime / 'licenses/numpy')
+    drop_retired(site_packages, runtime_site)
+    return dict(id='runtime.python', version=version, entrypoints={'python': 'bin/agentic-complex-python'},
+                provides={}, requires={})
+
+
+# Base prefix parts a relocated python.exe does not run from; Scripts' launchers name the build host's python.exe by path.
+WINDOWS_PYTHON_SKIPPED = ('Doc', 'include', 'libs', 'Scripts', 'Tools', 'Lib/site-packages', 'Lib/test')
+
+
+def stage_runtime_python_windows(stage, *, python, site_packages, prepared_site, pins):
+    """runtime.python from a Windows CPython base prefix: python.exe at the payload root and the merged site in
+    Lib/site-packages, where site reads pywin32.pth; no wrapper, the shell passes -I -B itself."""
+    stage, python, site_packages, prepared_site = map(Path, (stage, python, site_packages, prepared_site))
+    python = python.resolve(); site_packages = site_packages.resolve(); prepared_site = prepared_site.resolve()
+    version = python_version(python / 'python.exe')
+    skipped = {python / relative for relative in WINDOWS_PYTHON_SKIPPED}
+    runtime = stage / 'runtime.python/payload'
+    shutil.copytree(python, runtime, ignore=lambda directory, names: [
+        name for name in names if name == '__pycache__' or name.endswith('.pyc') or Path(directory, name) in skipped])
+    runtime_site = runtime / 'Lib/site-packages'
+    merge_python_site(site_packages, prepared_site, runtime_site, pins)
+    shutil.copytree(prepared_site / ('numpy-' + pins['numpy'] + '.dist-info/licenses'), runtime / 'licenses/numpy')
+    drop_retired(site_packages, runtime_site)
+    return dict(id='runtime.python', version=version, entrypoints={'python': 'python.exe'}, provides={}, requires={})
+
+
+def drop_retired(site_packages, runtime_site):
+    """Remove the files of RETIRED_DISTRIBUTIONS that site_packages carried from runtime_site."""
+    for distribution in metadata.distributions(path=[str(site_packages)]):
+        if normalized(distribution.metadata['Name']) not in RETIRED_DISTRIBUTIONS: continue
+        if not distribution.files: raise ValueError('python_distribution_record_missing')
+        for record in distribution.files:
+            source = Path(os.path.abspath(distribution.locate_file(record)))
+            if not source.is_relative_to(site_packages): continue  # bin scripts are not site-packages
+            relative = source.relative_to(site_packages)
+            if '__pycache__' in relative.parts or source.suffix == '.pyc': continue
+            removed = runtime_site / relative; removed.unlink()
+            parent = removed.parent
+            while parent != runtime_site and not any(parent.iterdir()):
+                parent.rmdir(); parent = parent.parent
+
+
+def stage_character(package, target, platform):
+    """Copy package to target. A macOS payload leaves out the D3D11 frame table and its blobs, which only the Windows
+    renderer reads, stores its pool files compressed where that is smaller, and is sealed again: its character.json and
+    native bundle differ from the library's."""
+    shutil.copytree(package.root, target, symlinks=True)
+    if platform != 'macos-arm64' or not package.render_enabled: return
+    if 'd3d11_frame' in package.native_entry:
+        prefix = PurePosixPath(package.native_ref['file']).parent
+        folder = PurePosixPath(package.native_entry['d3d11_frame']['file']).parent
+        dropped = {ref['file'] for ref in package.native['files'] if PurePosixPath(ref['file']).is_relative_to(folder)}
+        native = dict(package.native, files=[ref for ref in package.native['files'] if ref['file'] not in dropped],
+                      characters=[{key: value for key, value in package.native_entry.items() if key != 'd3d11_frame'}])
+        shutil.rmtree(target / prefix / folder)
+        seal(package, target, native, {}, {str(prefix / file) for file in dropped})
+    compress_pool(target)
+
+
+def seal(package, target, native, stored, dropped=()):
+    """Write native as target's bundle.json, then target's character.json from package's: the new bundle.json, the files
+    of stored ({path in the package: {sha256, byte_count}}) as they are now stored, and no inventory entry for dropped."""
+    bundle = package.native_ref['file']
+    data = json_bytes(native)
+    (target / bundle).write_bytes(data)
+    sealed = dict(file=bundle, sha256=hashlib.sha256(data).hexdigest(), byte_count=len(data))
+    document = copy.deepcopy(package.document)
+    document['components']['render']['native_bundle'] = sealed
+    document['inventory'] = [sealed if ref['file'] == bundle else dict(ref, **stored.get(ref['file'], {}))
+                             for ref in document['inventory'] if ref['file'] not in dropped]
+    (target / 'character.json').write_bytes(json_bytes(document))
+
+
+def compress_pool(target):
+    """Replace each pool file bundle.json lists in the package at target (Files/ beside its source manifest) by its
+    pool_codec container where that is smaller, seal the package again and check it; return the files replaced."""
+    package = Package(target, deep=False)
+    prefix = PurePosixPath(package.native_ref['file']).parent
+    pool = PurePosixPath(package.native_entry['source']['file']).parent / 'Files'
+    stored = {}
+    for ref in package.native['files']:
+        if PurePosixPath(ref['file']).parent != pool: continue
+        path = target / prefix / ref['file']
+        container = pool_codec.encode(path.read_bytes())
+        if container is None: continue
+        path.write_bytes(container)
+        stored[ref['file']] = dict(sha256=hashlib.sha256(container).hexdigest(), byte_count=len(container))
+    if stored:
+        native = dict(package.native, files=[dict(ref, **stored.get(ref['file'], {})) for ref in package.native['files']])
+        seal(package, target, native, {str(prefix / file): identity for file, identity in stored.items()})
+    Package(target)
+    return len(stored)
+
+
+def stage_fbx_tool(fbx_tool, service, name='fbx-motion'):
+    """Copy the fbx-motion executable to service/tools/<name> and ufbx's license to service/licenses/ufbx."""
+    (service / 'tools').mkdir(); shutil.copy2(fbx_tool, service / 'tools' / name)
+    (service / 'licenses').mkdir(); shutil.copy2(UFBX_LICENSE, service / 'licenses/ufbx')
+
+
+# Per C11 platform: the harness runtime's platform, runtime.python's staging and the fbx-motion file name.
+PLATFORMS = {'macos-arm64': ('darwin-arm64', stage_runtime_python, 'fbx-motion'),
+             'windows-x64': ('win32-x64', stage_runtime_python_windows, 'fbx-motion.exe')}
+
+
+def stage_components(stage, *, python, site_packages, harness_runtime, web_dist, ui_art, library,
+                     build_version, fbx_tool, platform='macos-arm64'):
+    """Fill a new empty stage with payloads and return the arguments for write_component."""
+    stage, python, prepared, library = map(Path, (stage, python, harness_runtime, library))
+    prepared = prepared.resolve(); library = library.resolve()
+    harness_platform, stage_python, fbx_name = PLATFORMS[platform]
+    manifest = validate_runtime(prepared, platform=harness_platform)
+    pins = python_pins()
+    catalog = Library(library).snapshot()
+    packages = [Package((library / row['definition']['file']).parent) for row in catalog['characters']]
+    prepared_site = prepared / 'python-site'
+    component = stage_python(stage, python=python, site_packages=site_packages, prepared_site=prepared_site, pins=pins)
+    python_version = component['version']
+    components = [component]
+    pi = stage / 'harness.pi/payload'
+    node = LAYOUT[harness_platform]['node']
+    (pi / node).parent.mkdir(parents=True); (pi / 'licenses').mkdir()
+    shutil.copy2(prepared / node, pi / node)
+    shutil.copy2(prepared / 'node/LICENSE', pi / 'licenses/Node-LICENSE')
+    shutil.copytree(prepared / 'pi-runtime', pi / 'pi-runtime', symlinks=True)
+    components.append(dict(id='harness.pi', version=manifest['pi_version'], entrypoints={'node': node},
+                           provides={}, requires={}))
+    service = stage / 'agentd/payload'
+    stage_agentd(service / 'agentd')
+    stage_content(service / 'content')
+    stage_fbx_tool(fbx_tool, service, fbx_name)
+    shutil.copy2(ROOT / 'app/Resources/agentd_launcher.py', service / 'agentd_launcher.py')
+    components.append(dict(id='agentd', version=build_version,
+        entrypoints={'launcher': 'agentd_launcher.py', 'hook_forwarder': 'agentd/codex_hook_forward.py',
+                     'character_tool': 'agentd/character_tool.py', 'motion_tool': 'agentd/motion_tool.py',
+                     'install_hooks': 'agentd/tools/install_hooks.py', 'distribution_seed': 'agentd/distribution_seed.py',
+                     'fbx_tool': 'tools/' + fbx_name},
+        provides={'C6': '1', 'C9': '1'}, requires={'runtime.python': python_version}))
+    stage_ui(web_dist, ui_art, stage / 'web-ui/payload', {package.id for package in packages})
+    components.append(dict(id='web-ui', version=build_version, entrypoints={'index': 'ui/main.html'},
+                           provides={}, requires={}))
+    for package in packages:
+        id = 'characters.' + package.id
+        stage_character(package, stage / id / 'payload', platform)
+        components.append(dict(id=id, version=package.version, entrypoints={}, provides={}, requires={}))
+    return components
+
+
+def write_manifests(stage, components, platform='macos-arm64'):
+    """Check entrypoints and hash the current payload bytes after signing."""
+    references = []
+    for component in components:
+        payload = (Path(stage) / component['id'] / 'payload').resolve()
+        for relative in component['entrypoints'].values():
+            path = (payload / relative).resolve()
+            if not path.is_relative_to(payload) or not path.is_file():
+                raise ValueError('component_entry_missing_or_escaping: ' + component['id'] + ': ' + relative)
+        manifest = component_manifest.write_component(payload, **component, platform=platform)
+        references.append({key: manifest[key] for key in ('id', 'version', 'tree_sha256')})
+    return references

@@ -1,0 +1,142 @@
+{
+ "description": "开关关掉时撤销；更旧 turn_generation 的行为被丢弃；全屏让开；被丢弃的行为的回执带它自己的 turn_generation（2）",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e1-1",
+   "type": "sit",
+   "target": {
+    "kind": "window",
+    "window_id": 101,
+    "side": null
+   },
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 0,
+   "expires_at_ms": 1760900601000,
+   "intensity": 0.6,
+   "channels": [
+    "full_body",
+    "contact"
+   ],
+   "exit": [
+    "target_gone",
+    "user_drag"
+   ],
+   "replaces": null,
+   "trace_id": "t-1"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900000890,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000900,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior_cancel",
+   "seq": 2,
+   "behavior_id": "b-e1-1",
+   "reason": "switch_off",
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "cancelled",
+   "reason": null,
+   "at_ms": 1760900002000,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 3,
+   "behavior_id": "b-e1-2",
+   "type": "think",
+   "target": null,
+   "trigger": {
+    "source": "speech",
+    "event": "turn_start"
+   },
+   "display_session": null,
+   "turn_id": "l-3",
+   "turn_generation": 2,
+   "priority": 2,
+   "expires_at_ms": 1760900063000,
+   "intensity": 0.4,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "speech_start"
+   ],
+   "replaces": null,
+   "trace_id": "t-2"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "rejected",
+   "reason": "stale",
+   "at_ms": 1760900002100,
+   "turn_generation": 2
+  },
+  {
+   "event": "behavior",
+   "seq": 4,
+   "behavior_id": "b-e1-3",
+   "type": "idle",
+   "target": null,
+   "trigger": {
+    "source": "session",
+    "event": "fullscreen"
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 3,
+   "expires_at_ms": 1760900064000,
+   "intensity": 0.6,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [
+    "focus_change"
+   ],
+   "replaces": null,
+   "trace_id": "t-3"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-3",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900002490,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-3",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900002500,
+   "turn_generation": 3
+  }
+ ]
+}

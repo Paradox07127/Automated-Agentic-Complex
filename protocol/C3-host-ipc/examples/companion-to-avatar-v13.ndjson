@@ -1,0 +1,6 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["capsules_global","watchdog","behavior_receipt","actions"],"build":{"git":"6b4838bc"}}
+{"v":1,"type":"get_actions"}
+{"v":1,"type":"set_action_switches","character":"aster","switches":{"talk_nod":false,"idle_breathe":false,"react_wave":true,"move_sit":false}}
+{"v":1,"type":"play_action","play_id":"p-1","character":"aster","id":"idle_breathe","speed":1}
+{"v":1,"type":"play_action","play_id":"p-2","character":"aster","id":"move_sit","speed":0.5}
+{"v":1,"type":"play_action","play_id":"p-4","character":"aster","id":"talk_nod","speed":2}

@@ -1,0 +1,129 @@
+/* Toggle: grey pill track, dark knob over the active half of 「开 | 关」;
+   on = knob on 开 (left), off = knob on 关 (right). */
+.tgl {
+  /* commontoggle_btn Highlighted: the selected light fades to white@0.25; pressed tint #FFFFFF@0.196. */
+  --light-hover: rgba(255, 255, 255, 0.25);
+  --light-press: rgba(255, 255, 255, 0.058);
+  --w: 92px;
+  --knob-w: 50px;
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--w);
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: var(--ef-toggle-track);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1 var(--ef-font-ui);
+  cursor: pointer;
+}
+
+.tgl[data-size='sm'] {
+  --w: 72px;
+  --knob-w: 40px;
+  font-size: var(--ef-fs-small);
+}
+
+.tgl:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 3px;
+}
+
+.light {
+  position: absolute;
+  inset: -2px;
+  border-radius: 12px;
+  background-color: transparent;
+  transition: background-color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.tgl:hover:not([aria-disabled='true']) .light {
+  background-color: var(--light-hover);
+}
+
+.tgl:active:not([aria-disabled='true']) .light {
+  background-color: var(--light-press);
+}
+
+/* Selected plate: starts 2px outside the track, ring inset 3.5 x 4.5, a 15x2 underline at the bottom. */
+.knob {
+  position: absolute;
+  top: 0;
+  left: -2px;
+  width: var(--knob-w);
+  height: 20px;
+  border-radius: 10px;
+  background: var(--ef-toggle-knob);
+  --anchor-min-x: 1;
+  transform: translateX(calc(var(--anchor-min-x) * (var(--w) - var(--knob-w) + 4px)));
+}
+
+.knob::before {
+  content: '';
+  position: absolute;
+  inset: 3.5px 4.5px;
+  border: 1.5px solid var(--ef-toggle-knob-ring);
+  border-radius: 999px;
+}
+
+.knob::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: calc(50% - 7.5px);
+  width: 15px;
+  height: 2px;
+  background: var(--ef-toggle-knob-line);
+}
+
+.tgl[aria-checked='true'] .knob {
+  --anchor-min-x: 0;
+}
+
+.labels {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+/* The side away from the knob rests dimmed, lighter than the clips' 0.698 so it still reads as body text on the track;
+   it fades over the clips' text span (0-0.417 of 200 ms). */
+.side {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  color: var(--ef-toggle-off-text);
+  opacity: 0.9;
+  transition:
+    color var(--ef-dur-g-btn) var(--ef-ease-g-fade),
+    opacity var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.side::before {
+  content: attr(data-t);
+}
+
+.tgl[aria-checked='false'] .side:last-child,
+.tgl[aria-checked='true'] .side:first-child {
+  color: var(--ef-toggle-on-text);
+  opacity: 1;
+}
+
+.tgl[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .light,
+  .side {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .light,
+:global([data-reduce-motion]) .side {
+  transition: none;
+}

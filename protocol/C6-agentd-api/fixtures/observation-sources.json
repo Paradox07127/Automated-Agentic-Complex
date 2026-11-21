@@ -1,0 +1,9 @@
+{
+  "items": [{"id": "obs-89abcdef0123456789abcdef01234567",
+             "revision": "5906d43b36160f8bf10b6c3624595752e31c79f42c4718c37278539942b507b4", "origin": "browser",
+             "at": 1793503663.0,
+             "metadata": {},
+             "total_chars": 6, "excerpt": "本地重跑通过"}],
+  "next_cursor": "WzE3OTM1MDM2NjMuMCwgIm9icy04OWFiIiwgIjAwIl0=",
+  "coverage": "retained_authorized_observations_and_work_events"
+}

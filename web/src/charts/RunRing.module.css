@@ -1,0 +1,51 @@
+.root {
+  --cc: var(--ef-state-running);
+  --d: 22px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--d);
+  height: var(--d);
+  color: var(--cc);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  vertical-align: middle;
+}
+
+.root[data-size='desk'] {
+  --d: 20px;
+}
+
+/* Needs a look: a yellow block with ink text. */
+.root[data-tone='waiting'] {
+  background: var(--ef-state-waiting);
+  color: var(--ef-on-accent);
+}
+
+/* Running: a solid ink frame. */
+.ring {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 1px var(--cc);
+}
+
+/* A small ink ◆ in the yellow block's corner for "等你", clear of the phase glyph. */
+.diamond {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 4px;
+  height: 4px;
+  background: var(--ef-on-accent);
+  transform: rotate(45deg);
+}
+
+.small {
+  display: inline-flex;
+}
+
+.glyph {
+  position: relative;
+  font-weight: var(--ef-fw-medium);
+}

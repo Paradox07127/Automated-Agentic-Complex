@@ -1,0 +1,136 @@
+.root {
+  --fc: var(--ef-state-ok);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  vertical-align: middle;
+  color: var(--ef-text-1);
+}
+
+.root[data-level='high'] {
+  --fc: var(--ef-state-warning);
+}
+
+.root[data-level='over'] {
+  --fc: var(--ef-state-failed);
+}
+
+.root[data-level='level'] {
+  --fc: var(--ef-chart-s1);
+}
+
+.root[data-level='negative'] {
+  --fc: var(--ef-chart-s2);
+}
+
+.root[aria-disabled='true'] {
+  --fc: var(--ef-text-disabled);
+}
+
+.bk {
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  opacity: 0.5;
+}
+
+.track {
+  position: relative;
+  display: block;
+  width: var(--w);
+  height: 6px;
+  background: var(--ef-chart-track);
+}
+
+/* 1×6 tick every 20 %, cut into the track with the page colour. */
+.track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(20% - 1px), var(--ef-base) calc(20% - 1px) 20%);
+  pointer-events: none;
+}
+
+.root[aria-disabled='true'] .track {
+  background: var(--ef-chart-cell-empty);
+}
+
+.fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--fc);
+}
+
+/* A yellow fill keeps an ink edge so it reads on paper. */
+.root[data-level='high'] .fill,
+.root[data-level='over'] .fill {
+  box-shadow: inset 0 0 0 1px var(--ef-on-accent);
+}
+
+/* Diverging baseline: a full-height tick at the track midpoint. */
+.center {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  z-index: 2;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ef-text-1);
+}
+
+.under {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 3px;
+  background: var(--fc);
+}
+
+.reserved {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background-image: var(--ef-hatch);
+  box-shadow: inset 0 0 0 1px var(--ef-text-1);
+}
+
+.notch {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  z-index: 2;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--ef-text-2);
+}
+
+.shape {
+  display: inline-flex;
+  margin-left: 2px;
+}
+
+.readout {
+  margin-left: var(--ef-sp-6);
+  color: var(--ef-chart-value);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.root[data-level='high'] .readout,
+.root[data-level='over'] .readout {
+  color: var(--ef-text-1);
+}
+
+.root[aria-disabled='true'] .readout {
+  color: var(--ef-text-3);
+  font-family: var(--ef-font-sans);
+}
+
+.levelText {
+  color: var(--ef-text-2);
+  font-family: var(--ef-font-sans);
+}

@@ -1,0 +1,65 @@
+.sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+}
+
+.cap {
+  font-size: var(--ef-fs-caption);
+  color: var(--ef-text-3);
+}
+
+.log {
+  margin: 0;
+  padding: var(--ef-sp-12);
+  background: var(--ef-step-bg);
+  border-radius: var(--ef-r-3);
+  font: var(--ef-fs-code) / var(--ef-lh-code) var(--ef-font-mono);
+  color: var(--ef-text-2);
+  white-space: pre-wrap;
+}
+
+.send {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+.input {
+  flex: 1 1 200px;
+  height: var(--ef-h-md);
+  padding: 0 var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  border-radius: var(--ef-r-2);
+  background: var(--ef-step-bg);
+  color: var(--ef-text-1);
+}
+
+.input::placeholder {
+  color: var(--ef-text-3);
+}
+
+.dl {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ef-sp-8) var(--ef-sp-12);
+  margin: 0;
+  font-size: var(--ef-fs-body);
+}
+
+.dl dt {
+  color: var(--ef-text-3);
+}
+
+.dl dd {
+  margin: 0;
+  color: var(--ef-text-2);
+}
+
+.mono {
+  font-family: var(--ef-font-mono);
+  font-size: var(--ef-fs-code);
+}

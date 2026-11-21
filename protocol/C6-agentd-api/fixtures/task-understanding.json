@@ -1,0 +1,35 @@
+{
+  "available": true,
+  "reason": null,
+  "character_id": "aster",
+  "consent_epoch": 1,
+  "version": "fixture",
+  "hypotheses": [
+    {
+      "id": "hyp-fixture",
+      "revision": 1,
+      "state": "active",
+      "created_at": 1793500000.0,
+      "expires_at": 1793501800.0,
+      "task": "核对预算",
+      "goal": "核对数据",
+      "status": "working",
+      "next_step": "核对来源",
+      "confidence": 0.6,
+      "evidence": [],
+      "authority": "inferred_hypothesis",
+      "character_id": "aster",
+      "conversation_id": "0123456789abcdef0123456789abcdef",
+      "consent_epoch": 1,
+      "source": "activity_summary",
+      "producer": "character_semantic",
+      "source_refs": [],
+      "semantic_run_id": "semantic-fixture"
+    }
+  ],
+  "segments": [],
+  "authority": "inferred_hypothesis",
+  "not_user_authorization": true,
+  "task_corrections": {},
+  "uncertainties": []
+}

@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "id": "task-hostlink",
+      "project": "Endfield",
+      "title": "修复 HostLink 断线重连",
+      "goal": "断线后自动恢复会话",
+      "goal_authority": "user_said",
+      "status": "active",
+      "progress": "已定位心跳超时，重连检查通过",
+      "next_step": "补充跨进程验证",
+      "blockers": [
+        "等待主窗口联调"
+      ],
+      "first_at": 1793804400.0,
+      "last_at": 1793805000.0,
+      "sessions": 1,
+      "revision": 1,
+      "edited": false
+    }
+  ],
+  "counts": {
+    "active": 1,
+    "done": 0,
+    "parked": 0,
+    "uncertain": 0
+  }
+}

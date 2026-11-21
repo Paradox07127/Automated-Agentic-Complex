@@ -1,0 +1,68 @@
+.dm {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: var(--lw) auto minmax(40px, 1fr);
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.label {
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.em .label {
+  color: var(--ef-text-1);
+}
+
+.cells {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  gap: 2px;
+}
+
+.cells i {
+  width: var(--cell);
+  height: var(--cell);
+  background: var(--ef-chart-cell-empty);
+}
+
+.cells i:hover {
+  outline: 1px solid var(--ef-text-1);
+}
+
+.cells i.z.ec {
+  box-shadow: inset 0 0 0 1px var(--v3-emph);
+}
+
+.cells i.fu {
+  background: var(--ef-hatch);
+}
+
+.cells b {
+  width: var(--cell);
+  overflow: visible;
+  color: var(--ef-chart-label);
+  font: var(--ef-fw-medium) var(--ef-fs-num) / 1 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cells b.ec {
+  color: var(--v3-emph);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.v {
+  color: var(--ef-chart-value);
+  font-size: var(--ef-fs-meta);
+}

@@ -1,0 +1,1606 @@
+"""Spatial behavior on the agentd side: behavior events, behavior switches and execution receipts (C1 v2 §1–3)."""
+import hashlib
+import http.client
+import json
+from pathlib import Path
+import random
+import tempfile
+import threading
+import time
+import unittest
+import unittest.mock
+
+import support
+
+import c1  # noqa: E402
+from character.character_state import CharacterState  # noqa: E402
+from sessions.registry import Registry  # noqa: E402
+from daemon.agentd_server import AgentdServer  # noqa: E402
+from observation import spatial  # noqa: E402
+from observation.spatial import Spatial  # noqa: E402
+from infra.store import open_store  # noqa: E402
+from test_server import EVENTS, HOOK, UI  # noqa: E402
+
+T0 = 1760900000.0
+COMPLETED_BY = ("speech_end", "session_state", "focus_change")  # C1 §1: these exits complete; the rest cancel
+SWITCHES = {"stay_in_place": False, "sit_window_top": True, "hold_window_edge": True, "fullscreen_give_way": True}
+
+
+def situation(**over):
+    return {"fullscreen": False, "user_speaking": False, "speaking": False, "voicing": False, "line_id": None,
+            "typing": False, "session": None, "state": "idle", "related": [], "window_id": 101, **over}
+
+
+class Prefer:
+    """A scripted RNG: choice() takes the first of `order` among the options (a "window" entry matches any
+    window target), else the first option; uniform() returns the point `fraction` of the way from a to b and
+    random() returns `fraction`."""
+
+    def __init__(self, *order, fraction=0.5):
+        self.order, self.fraction = list(order), fraction
+
+    def choice(self, options):
+        for wanted in self.order:
+            for option in options:
+                if option == wanted or wanted == "window" and isinstance(option, dict) \
+                        and option.get("kind") == "window":
+                    return option
+        return options[0]
+
+    def uniform(self, a, b):
+        return a + (b - a) * self.fraction
+
+    def random(self):
+        return self.fraction
+
+
+class SpatialCase(unittest.TestCase):
+    """Drives a Spatial with an injected clock and RNG; a fake renderer answers each behavior with prepared and
+    running, cancels what a newer one replaces or a behavior_cancel names, and expires what runs out."""
+
+    def setUp(self):
+        self.now, self.s, self.generation = T0, situation(), 3
+        self.registry = Registry(epoch=7)
+        self.rng = random.Random(1)
+        self.spatial = Spatial(lambda: dict(self.s), self.registry.publish_event, lambda: self.generation, 7,
+                               clock=lambda: self.now, rng=self.rng, session_settle=0, session_min_hold=0, recovery_delay=0)
+        self.log, self.seen, self.unity, self.sent = [], 0, {}, []
+        self.unsupported = set()  # types (or "type@target kind") the fake renderer answers with rejected / unsupported
+
+    def use(self, rng):
+        self.spatial.rng = self.rng = rng
+
+    def flush(self):
+        while True:
+            items = self.registry.intents_since(self.seen)
+            if not items:
+                return
+            message = items[0]
+            self.seen = message["seq"]
+            self.log.append(message)
+            if message["event"] == "behavior":
+                self.sent.append(message)
+                old = self.unity.get(message["replaces"])
+                if old is not None and old["priority"] > message["priority"]:  # C1 §2 priority
+                    self.receipt(message["behavior_id"], "rejected", "busy")
+                    continue
+                on = message["target"] and f"{message['type']}@{message['target']['kind']}"
+                if message["type"] in self.unsupported or on in self.unsupported:
+                    self.receipt(message["behavior_id"], "rejected", "unsupported")
+                    continue
+                renewal = old is not None and (old["type"], old["target"]) == (message["type"], message["target"])
+                if old is not None:
+                    self.receipt(message["replaces"], "cancelled")
+                self.unity[message["behavior_id"]] = message
+                if not renewal:  # a renewal has no entry motion (C1 §1.3)
+                    self.receipt(message["behavior_id"], "prepared")
+                if (message["target"] or {}).get("kind") == "session" and message["target"]["window_id"] is None:
+                    self.receipt(message["behavior_id"], "blocked", "target_gone")  # nowhere to look (C1 §1.2)
+                else:
+                    self.receipt(message["behavior_id"], "running")
+            elif message["event"] == "behavior_cancel" and message["behavior_id"] in self.unity:
+                done = message["reason"] == "exit" and message["condition"] in COMPLETED_BY
+                self.receipt(message["behavior_id"], "completed" if done else "cancelled")
+
+    def receipt(self, behavior_id, phase, reason=None, generation=None):
+        own = next((m["turn_generation"] for m in self.sent if m["behavior_id"] == behavior_id), self.generation)
+        body = {"behavior_id": behavior_id, "phase": phase, "reason": reason, "at_ms": int(self.now * 1000),
+                "turn_generation": own if generation is None else generation}
+        self.log.append({"event": "receipt", **body})
+        if phase in c1.ENDED:
+            self.unity.pop(behavior_id, None)
+        answer = self.spatial.receipt(body)
+        self.flush()  # a blocked receipt retargets at once
+        return answer
+
+    def step(self, seconds=1.0, **over):
+        self.now += seconds
+        self.s.update(over)
+        for behavior_id, message in list(self.unity.items()):
+            if message["expires_at_ms"] <= self.now * 1000:
+                self.receipt(behavior_id, "expired")
+        self.spatial.poll()
+        self.flush()
+
+    def shape(self, messages=None):
+        return [(m["type"], m["target"], (m["trigger"]["source"], m["trigger"]["event"]), m["replaces"])
+                for m in (self.sent if messages is None else messages)]
+
+    def ids(self):
+        return [m["behavior_id"] for m in self.sent]
+
+    def cancels(self):
+        return [(m["behavior_id"], m["reason"], m.get("condition")) for m in self.log
+                if m["event"] == "behavior_cancel"]
+
+    def receipts(self, behavior_id):
+        return [(m["phase"], m["reason"]) for m in self.log if m["event"] == "receipt"
+                and m["behavior_id"] == behavior_id]
+
+    def assertValid(self):
+        self.flush()
+        self.assertEqual(c1.check_file({"description": self.id(), "messages": self.log}), [])
+
+
+def window(window_id, side=None):
+    return {"kind": "window", "window_id": window_id, "side": side}
+
+
+class StableInteractionTest(SpatialCase):
+    """Production timing, fake clock: rapid hooks cannot restart poses; direct input stays immediate."""
+
+    def setUp(self):
+        super().setUp()
+        self.spatial = Spatial(lambda: dict(self.s), self.registry.publish_event, lambda: self.generation, 7,
+                               clock=lambda: self.now, rng=self.rng)
+        self.spatial._next_tick = T0 + 10_000
+
+    def test_rapid_session_flapping_emits_only_the_final_stable_pose(self):
+        self.step(.1, session="codex:A", state="thinking")
+        self.step(.3, state="error", related=["codex:A"])
+        self.step(.3, state="running_tool")
+        self.step(.3, state="awaiting_approval")
+        self.assertEqual(self.sent, [])
+        self.step(spatial.SESSION_SETTLE)
+        self.assertEqual([b["type"] for b in self.sent], ["attend_session"])
+        self.step(.1)
+        self.assertEqual(len(self.sent), 1)
+        self.assertValid()
+
+    def test_tool_hook_chatter_keeps_the_same_accompany_pose(self):
+        self.step(.1, session="codex:A", state="thinking")
+        self.step(spatial.SESSION_SETTLE)
+        first = self.ids()[0]
+        for state in ("running_tool", "compacting", "subagent", "thinking"):
+            self.step(.2, state=state)
+        self.assertEqual(self.ids(), [first])
+        self.assertEqual(self.cancels(), [])
+        self.assertEqual(self.spatial.running()[0]["behavior_id"], first)
+
+    def test_inferred_pose_has_minimum_hold_but_idle_stops_immediately(self):
+        self.step(.1, session="codex:A", state="thinking")
+        self.step(spatial.SESSION_SETTLE)
+        first = self.ids()[0]
+        self.step(.1, state="error", related=["codex:A"])
+        self.step(spatial.SESSION_SETTLE)
+        self.assertEqual(self.ids(), [first], "settled but the previous pose still has its minimum hold")
+        self.step(spatial.SESSION_MIN_HOLD)
+        self.assertEqual([b["type"] for b in self.sent], ["accompany", "attend_session"])
+        self.step(0, state="idle")
+        self.assertEqual(self.spatial.running(), [], "a task stop never waits for minimum hold")
+
+    def test_new_focus_session_drops_old_pose_and_does_not_reuse_pending_time(self):
+        self.step(.1, session="codex:A", state="thinking")
+        self.step(spatial.SESSION_SETTLE)
+        self.step(.1, session="codex:B", state="thinking")
+        self.assertEqual(self.spatial.running(), [])
+        self.step(spatial.SESSION_SETTLE - .1)
+        self.assertEqual(len(self.sent), 1)
+        self.step(.2)
+        self.assertEqual(self.sent[-1]["display_session"], "codex:B")
+
+    def test_user_listen_typing_and_fullscreen_are_not_debounced(self):
+        self.step(.1, session="codex:A", state="thinking", user_speaking=True)
+        self.assertEqual(self.sent[-1]["type"], "listen")
+        self.step(.1, user_speaking=False, typing=True)
+        self.assertEqual(self.sent[-1]["trigger"]["event"], "typing")
+        self.step(.1, fullscreen=True)
+        self.assertEqual(self.sent[-1]["trigger"]["event"], "fullscreen")
+        self.spatial.cancel_all("character_switch")
+        self.assertEqual(self.spatial.running(), [])
+        self.assertIsNone(self.spatial._pending_session)
+
+    def test_terminal_body_receipt_cools_random_body_recovery_not_listen(self):
+        self.use(Prefer("idle"))
+        self.spatial._next_tick = None
+        self.step(.1)
+        first = self.ids()[0]
+        self.receipt(first, "blocked", "no_room")
+        self.assertEqual([b["type"] for b in self.sent], ["idle", "observe"],
+                         "a blocked body may look, but must not chain another body action")
+        before = len(self.sent)
+        self.assertEqual(self.spatial.receipt({"behavior_id": first, "phase": "blocked", "reason": "no_room",
+                                               "at_ms": int(self.now * 1000), "turn_generation": self.generation}),
+                         (False, "after_terminal"))
+        self.assertEqual(len(self.sent), before)
+        self.spatial._next_tick = None
+        self.step(spatial.RECOVERY_DELAY - .1)
+        self.assertEqual(len(self.sent), before)
+        self.spatial._next_tick = None
+        self.step(.2)
+        self.assertIn("full_body", self.sent[-1]["channels"], "recovery permits a new body action after the delay")
+        self.step(0, user_speaking=True)
+        self.assertEqual(self.sent[-1]["type"], "listen", "safety/direct input bypass recovery")
+        self.assertValid()
+
+
+class ScenarioTest(SpatialCase):
+    def test_01_idle_tick_then_observe_then_short_walk(self):
+        self.use(Prefer("idle"))
+        self.step()
+        self.use(Prefer("observe"))
+        self.step(spatial.TICK[1])  # idle ran out; the next tick
+        self.receipt(self.ids()[-1], "completed")
+        self.use(Prefer("short_walk"))
+        self.step(spatial.TICK[1])
+        self.assertEqual(self.shape(), [("idle", None, ("tick", None), None),
+                                        ("observe", window(101), ("tick", None), None),
+                                        ("short_walk", None, ("tick", None), None)])
+        self.assertEqual(self.ids(), ["b-7-1", "b-7-2", "b-7-3"])
+        self.assertTrue(all(0 <= m["priority"] == 0 and 0.4 <= m["intensity"] <= 0.7 for m in self.sent))
+        self.assertTrue(all(m["turn_generation"] == 3 for m in self.sent))
+        self.assertEqual(len({m["trace_id"] for m in self.sent}), 3)
+        self.assertValid()
+
+    def test_the_first_random_tick_waits_60_to_120_s(self):
+        self.spatial.begin()
+        for _ in range(59):
+            self.step()
+        self.assertEqual(self.sent, [])
+        for _ in range(61):
+            self.step()
+        self.assertEqual([m["trigger"]["source"] for m in self.sent], ["tick"])
+        self.assertValid()
+
+    def test_walk_gaps_are_random_between_3_and_10_minutes(self):
+        rng = Prefer("short_walk")
+        rng.uniform = random.Random(2).uniform
+        self.use(rng)
+        starts = []
+        while len(starts) < 6:
+            self.spatial._next_tick = None  # a tick at every poll: a walk goes as soon as it may
+            self.step()
+            if self.sent[-1]["type"] == "short_walk" and self.sent[-1]["behavior_id"] in self.unity:
+                starts.append(self.now)
+                self.receipt(self.ids()[-1], "completed")
+        gaps = [b - a for a, b in zip(starts, starts[1:])]
+        self.assertTrue(all(180.0 <= gap <= 600.0 for gap in gaps), gaps)
+        self.assertGreater(len(set(gaps)), 1)
+        self.assertValid()
+
+    def test_02_user_speaks_listen(self):
+        self.use(Prefer("idle"))
+        self.step()
+        self.step(user_speaking=True)
+        self.step()  # still speaking: not sent again
+        # listen takes eyes and head only, so it does not replace the idle's full body (C1 §1, fixture 06);
+        # the idle ends on its own exit, speech_start
+        self.assertEqual(self.shape(), [("idle", None, ("tick", None), None),
+                                        ("listen", {"kind": "user"}, ("user", "speech_start"), None)])
+        idle, listen = self.sent
+        self.assertEqual(self.cancels(), [(idle["behavior_id"], "exit", "speech_start")])
+        self.assertEqual([b["behavior_id"] for b in self.spatial.running()], [listen["behavior_id"]])
+        self.assertEqual((listen["priority"], listen["channels"], listen["exit"], listen["intensity"]),
+                         (2, ["eyes", "head"], ["speech_end"], 0.4))
+        self.assertEqual(listen["expires_at_ms"], int((self.now - 1 + 120) * 1000))
+        self.assertValid()
+
+    def test_03_session_thinking_accompany_renewed_before_it_expires(self):
+        self.use(Prefer("idle", fraction=1.0))
+        self.s.update(window_id=None, session="claude:A", state="thinking")
+        self.spatial._next_tick = T0 + 10_000  # no random tick in this scenario
+        self.spatial.set_capabilities("aster", {"sit": "no seat"})  # no long-work sit beside the accompany
+        self.step()
+        first = self.sent[0]
+        self.step()
+        self.step(state="thinking")  # the same session event again: merged
+        self.assertEqual(len(self.sent), 1)
+        self.step(first["expires_at_ms"] / 1000 - self.now - spatial.RENEW - 1)
+        self.assertEqual(len(self.sent), 1)
+        self.step(2)
+        self.assertEqual(self.shape(), [("accompany", None, ("session", "session_state:thinking"), None),
+                                        ("accompany", None, ("session", "session_state:thinking"), first["behavior_id"])])
+        renewed = self.sent[1]
+        self.assertEqual((renewed["display_session"], renewed["priority"], renewed["intensity"], renewed["exit"]),
+                         ("claude:A", 1, 0.2, ["session_state"]))
+        self.assertEqual(renewed["expires_at_ms"], int((self.now + 600) * 1000))
+        self.step(spatial.RENEW + 5)  # the old one's expiry passes: nothing more
+        self.assertEqual(len(self.sent), 2)
+        self.assertValid()
+
+    def test_her_own_background_run_gets_the_thinking_accompany(self):
+        thinking = self.spatial._event(situation(session="role:run-1", state="thinking"))
+        background = self.spatial._event(situation(session="role:run-1", state="background"))
+        self.assertIsNotNone(background)
+        self.assertEqual((background["type"], background["channels"], background["priority"], background["exit"]),
+                         (thinking["type"], thinking["channels"], thinking["priority"], thinking["exit"]))
+        self.assertEqual((background["trigger"]["event"], background["display_session"]),
+                         ("session_state:background", "role:run-1"))
+
+    def test_04_session_states_attend_the_right_session(self):
+        self.spatial._next_tick = T0 + 10_000
+        self.step(session="codex:B", state="awaiting_approval", related=["codex:B"], window_id=3101)
+        self.step(session="claude:A", state="error", related=["claude:A"], window_id=3202)
+        self.step(state="error")
+        self.step(state="done")
+        b1, b2 = self.ids()
+        self.assertEqual(self.shape(), [
+            ("attend_session", {"kind": "session", "display_session": "codex:B", "window_id": 3101},
+             ("session", "session_state:awaiting_approval"), None),
+            ("attend_session", {"kind": "session", "display_session": "claude:A", "window_id": 3202},
+             ("session", "session_state:error"), b1)])
+        self.assertEqual(self.ids(), [b1, b2], "error and done keep the same attend pose")
+        self.assertEqual([(m["display_session"], m["priority"], m["intensity"]) for m in self.sent],
+                         [("codex:B", 1, 0.5), ("claude:A", 1, 0.5)])
+        self.assertValid()
+
+    def test_04_a_session_without_a_window_is_blocked_and_left(self):
+        self.spatial._next_tick = T0 + 10_000
+        self.step(session="codex:C", state="done", related=[], window_id=None)
+        attend = self.sent[0]
+        self.assertEqual(attend["target"], {"kind": "session", "display_session": "codex:C", "window_id": None})
+        retarget = self.sent[1]  # C1 §3: blocked, so agentd switches type at once
+        self.assertEqual((retarget["trigger"], retarget["replaces"]),
+                         ({"source": "receipt", "event": "blocked:target_gone"}, None))
+        self.assertNotEqual(retarget["type"], "attend_session")
+        self.assertValid()
+
+    def test_05_blocked_target_is_not_chosen_again_for_60_s(self):
+        self.use(Prefer("hold_window_edge", "left", "idle", fraction=0.0))  # a tick every 60 s
+        self.step()
+        hold = self.sent[0]
+        self.step(7)
+        self.assertEqual(self.receipt(hold["behavior_id"], "blocked", "target_gone"), (True, None))
+        # at once, from the receipt, and not window 101 although it is still the focus
+        self.assertEqual(self.shape()[1], ("idle", None, ("receipt", "blocked:target_gone"), None))
+        self.use(Prefer("hold_window_edge", "right", "idle", fraction=0.0))
+        self.step(53, window_id=202)  # T0 + 61: the next tick
+        self.assertEqual(self.shape()[2][:3], ("hold_window_edge", window(202, "right"), ("tick", None)))
+        self.step(1, window_id=101)
+        self.receipt(self.ids()[-1], "blocked", "target_gone")  # T0 + 62: 101 is still blocked
+        self.assertEqual(self.shape()[3][:3], ("idle", None, ("receipt", "blocked:target_gone")))
+        self.step(59)  # T0 + 121: the next tick, after the block on 101 is over
+        self.assertEqual(self.shape()[4][:3], ("hold_window_edge", window(101, "right"), ("tick", None)))
+        self.assertEqual(hold["channels"], ["full_body", "left_hand", "contact"])
+        self.assertEqual(self.sent[2]["channels"], ["full_body", "right_hand", "contact"])
+        self.assertValid()
+
+    def test_07_typing_lowers_and_replaces_the_walk(self):
+        self.use(Prefer("short_walk"))
+        self.step()
+        walk = self.sent[0]
+        self.step(typing=True)
+        self.assertEqual(self.shape(), [("short_walk", None, ("tick", None), None),
+                                        ("accompany", None, ("user", "typing"), walk["behavior_id"])])
+        accompany = self.sent[1]
+        self.assertEqual((accompany["priority"], accompany["intensity"], accompany["channels"]),
+                         (2, 0.2, ["eyes", "head"]))
+        self.assertIn("user_typing", walk["exit"])
+        self.assertValid()
+
+    def test_a_behavior_that_ends_two_running_ones_ends_both(self):
+        self.use(Prefer("observe"))
+        self.step()
+        self.use(Prefer("short_walk"))
+        self.spatial._next_tick = self.now + 1  # the next tick while the observe still runs
+        self.step()
+        observe, walk = self.sent
+        self.assertEqual([b["behavior_id"] for b in self.spatial.running()],
+                         [observe["behavior_id"], walk["behavior_id"]])
+        # the typing accompany takes the observe's eyes and head, and the walk gives way on user_typing
+        self.step(typing=True)
+        accompany = self.sent[-1]
+        self.assertEqual(accompany["type"], "accompany")
+        ended = {accompany["replaces"]} | {b for b, reason, _ in self.cancels() if reason == "replaced"}
+        self.assertEqual(ended, {observe["behavior_id"], walk["behavior_id"]})
+        self.assertEqual([b["behavior_id"] for b in self.spatial.running()], [accompany["behavior_id"]])
+        self.assertEqual(list(self.unity), [accompany["behavior_id"]])
+        self.assertValid()
+
+    def test_a_lower_priority_row_ends_the_higher_one_it_follows(self):
+        self.spatial._next_tick = T0 + 10_000
+        self.s.update(session="claude:A", state="thinking")
+        self.step(typing=True)
+        typing = self.sent[-1]
+        self.step(typing=False)  # typing stops; the session still thinks
+        session = self.sent[-1]
+        self.assertEqual((typing["priority"], session["priority"]), (2, 1))
+        # The renderer would answer a priority-1 behavior that names the priority-2 one rejected / busy
+        self.assertIsNone(session["replaces"])
+        self.assertIn((typing["behavior_id"], "replaced", None), self.cancels())
+        self.assertEqual(self.receipts(session["behavior_id"]), [("prepared", None), ("running", None)])
+        self.assertEqual(list(self.unity), [session["behavior_id"]])
+        self.assertValid()
+
+    def test_08_switch_off_cancels_and_fullscreen_gives_way(self):
+        self.use(Prefer("sit", "window"))
+        self.step()
+        sit = self.sent[0]
+        self.assertEqual(sit["target"], window(101))
+        self.assertEqual(sit["expires_at_ms"], int((self.now + 600) * 1000))
+        self.spatial.set_switches({**SWITCHES, "sit_window_top": False})
+        self.flush()
+        cancel = [m for m in self.log if m["event"] == "behavior_cancel"]
+        self.assertEqual([(m["behavior_id"], m["reason"], m["turn_generation"]) for m in cancel],
+                         [(sit["behavior_id"], "switch_off", 3)])
+        self.step(fullscreen=True)
+        self.step(spatial.TICK[1])  # no random tick while giving way
+        self.assertEqual(self.shape()[1:], [("idle", None, ("session", "fullscreen"), None)])
+        idle = self.sent[1]
+        self.assertEqual((idle["priority"], idle["channels"], idle["exit"]), (3, ["full_body"], ["focus_change"]))
+        self.assertValid()
+
+    def test_fullscreen_without_give_way_keeps_ticking(self):
+        self.spatial.set_switches({**SWITCHES, "fullscreen_give_way": False})
+        self.use(Prefer("idle"))
+        self.step(fullscreen=True)
+        self.assertEqual(self.shape(), [("idle", None, ("tick", None), None)])
+
+
+class TypingTest(SpatialCase):
+    def test_five_minutes_of_typing_never_walks_or_climbs(self):
+        for seed in range(5):
+            with self.subTest(seed=seed):
+                self.setUp()
+                self.use(random.Random(seed))
+                self.s["typing"] = True
+                for _ in range(300):
+                    self.step(1.0)
+                types = [m["type"] for m in self.sent]
+                self.assertGreater(len(types), 3)  # control: ticks did happen
+                self.assertFalse(set(types) & set(c1.MOVING))
+                self.assertTrue(all(m["intensity"] <= c1.TYPING_MAX for m in self.sent))
+                self.assertValid()
+
+
+class ExitTest(SpatialCase):
+    """agentd judges five exit conditions on every poll and ends the behavior with behavior_cancel / exit."""
+
+    def setUp(self):
+        super().setUp()
+        self.spatial._next_tick = T0 + 10_000  # no random tick unless a test asks for one
+
+    def test_listen_ends_one_poll_after_the_user_stops_speaking(self):
+        self.step(user_speaking=True)
+        [listen] = self.ids()
+        self.step()
+        self.assertEqual(self.cancels(), [])
+        self.step(spatial.POLL, user_speaking=False)  # the condition holds at this poll: the cancel goes now
+        [cancel] = [m for m in self.log if m["event"] == "behavior_cancel"]
+        self.assertEqual({k: v for k, v in cancel.items() if k != "event"},
+                         {"seq": cancel["seq"], "behavior_id": listen, "reason": "exit", "condition": "speech_end",
+                          "turn_generation": 3})
+        self.assertEqual(self.receipts(listen)[-1], ("completed", None))
+        self.assertEqual(self.spatial.running(), [])
+        self.assertEqual((self.spatial.records[listen]["ended"], self.spatial.records[listen]["outcome"]),
+                         ("exit", "done"))
+        self.step()
+        self.step(30)
+        self.assertEqual(len(self.cancels()), 1)  # a behavior ends once
+        self.assertEqual(self.ids(), [listen])  # and nothing replaces it
+        self.assertValid()
+
+    def test_the_characters_voice_starts_speech_too(self):
+        self.use(Prefer("idle"))
+        self.spatial._next_tick = None
+        self.step()
+        [idle] = self.ids()
+        self.step(speaking=True, voicing=True, line_id="l-1")  # think takes eyes and head beside the idle
+        think = self.ids()[-1]
+        self.assertEqual(self.sent[-1]["replaces"], None)
+        self.assertEqual(self.cancels(), [(idle, "exit", "speech_start")])
+        self.step(speaking=False, voicing=False)
+        self.assertEqual(self.cancels(), [(idle, "exit", "speech_start"), (think, "exit", "session_state")])
+        self.assertEqual(self.spatial.running(), [])
+        self.assertValid()
+
+    def test_accompany_ends_when_the_focus_session_goes_idle(self):
+        self.step(window_id=None, session="claude:A", state="thinking")
+        [accompany] = self.ids()
+        self.step()
+        self.step(state="idle")
+        self.assertEqual(self.cancels(), [(accompany, "exit", "session_state")])
+        self.assertEqual(self.receipts(accompany)[-1], ("completed", None))
+        self.assertEqual(self.spatial.running(), [])
+        self.assertValid()
+
+    def test_accompany_ends_when_the_focus_moves_to_a_session_without_a_row(self):
+        self.step(window_id=None, session="claude:A", state="thinking")
+        [accompany] = self.ids()
+        self.step(session="codex:B", state="idle")
+        self.assertEqual(self.cancels(), [(accompany, "exit", "session_state")])
+        self.assertValid()
+
+    def test_a_walk_ends_when_the_user_types(self):
+        self.use(Prefer("short_walk"))
+        self.step(typing=True)
+        self.step(typing=False)  # the typing accompany keeps running: it ends on focus_change only
+        self.spatial._next_tick = self.now + 1
+        self.step()
+        accompany, walk = self.ids()
+        self.assertEqual(self.shape(), [("accompany", None, ("user", "typing"), None),
+                                        ("short_walk", None, ("tick", None), None)])
+        self.step(typing=True)  # the typing row's behavior already runs: nothing new replaces the walk
+        self.assertEqual(self.ids(), [accompany, walk])
+        self.assertEqual(self.cancels(), [(walk, "exit", "user_typing")])
+        self.assertEqual(self.receipts(walk)[-1], ("cancelled", None))
+        self.assertEqual([b["behavior_id"] for b in self.spatial.running()], [accompany])
+        self.assertValid()
+
+    def test_observe_ends_when_the_focus_window_changes(self):
+        self.use(Prefer("observe"))
+        self.spatial._next_tick = None
+        self.step()
+        [observe] = self.ids()
+        self.assertEqual(self.sent[0]["target"], window(101))
+        self.step()
+        self.assertEqual(self.cancels(), [])
+        self.step(window_id=202)
+        self.assertEqual(self.cancels(), [(observe, "exit", "focus_change")])
+        self.assertEqual(self.receipts(observe)[-1], ("completed", None))
+        self.assertValid()
+
+    def test_the_fullscreen_idle_ends_when_fullscreen_is_off(self):
+        self.step(fullscreen=True)
+        [idle] = self.ids()
+        self.step()
+        self.step(fullscreen=False)
+        self.assertEqual(self.cancels(), [(idle, "exit", "focus_change")])
+        self.assertValid()
+
+    def test_think_ends_when_the_voice_starts(self):
+        self.step(speaking=True, line_id="l-1")
+        [think] = self.ids()
+        self.assertEqual(self.sent[0]["exit"], ["speech_start", "session_state"])
+        self.step()
+        self.step(voicing=True)
+        self.assertEqual(self.cancels(), [(think, "exit", "speech_start")])
+        self.assertEqual(self.receipts(think)[-1], ("cancelled", None))
+        self.step()  # the think row still holds: not sent again, not cancelled again
+        self.assertEqual((self.ids(), len(self.cancels())), ([think], 1))
+        self.assertValid()
+
+    def test_text_turn_finishes_its_motion_and_a_new_turn_has_its_own_trace(self):
+        first_trace, second_trace = (self.spatial.trace_id() for _ in range(2))
+        self.step(speaking=True, line_id="line-first", turn_trace=(first_trace, "line-first", (0, 1, 2)))
+        [first] = self.ids()
+        self.assertEqual(self.spatial.receipt_trace(first), (first_trace, "line-first", "think", (0, 1, 2)))
+        self.step()
+        self.assertEqual(self.ids(), [first])
+        self.step(line_id="line-second", turn_trace=(second_trace, "line-second", (0, 1, 2)))
+        _, second = self.ids()
+        self.assertEqual(self.sent[1]["replaces"], first)
+        self.assertEqual(self.spatial.receipt_trace(second), (second_trace, "line-second", "think", (0, 1, 2)))
+        self.step(speaking=False, turn_trace=None)
+        self.assertEqual(self.spatial.running(), [])
+        self.assertEqual(self.cancels(), [(second, "exit", "session_state")])
+        self.assertEqual(self.receipts(second)[-1], ("completed", None))
+        self.assertValid()
+
+    def test_a_replaced_behavior_gets_no_exit_cancel(self):
+        self.step(window_id=None, session="claude:A", state="thinking")
+        [accompany] = self.ids()
+        self.step(state="awaiting_approval", related=["claude:A"], window_id=3101)  # session_state holds too
+        self.assertEqual(self.sent[-1]["replaces"], accompany)
+        self.assertEqual(self.cancels(), [])
+        self.assertValid()
+
+    def test_a_behavior_unity_ended_gets_no_exit_cancel(self):
+        self.use(Prefer("observe"))
+        self.spatial._next_tick = None
+        self.step()
+        [observe] = self.ids()
+        self.receipt(observe, "cancelled", "user_drag")
+        self.step(window_id=202)
+        self.assertEqual(self.cancels(), [])
+        self.assertValid()
+
+    def test_the_first_listed_condition_is_named(self):
+        for exits, named in ((("focus_change", "speech_start"), "focus_change"),
+                             (("user_drag", "speech_start", "focus_change"), "speech_start")):
+            with self.subTest(exits=exits):
+                self.setUp()
+                spec = spatial._spec("idle", None, "tick", None, 0, ("full_body",), exits, 0.5, 120.0)
+                self.spatial._send(spec, situation(), self.now)
+                self.flush()
+                [idle] = self.ids()
+                self.step(window_id=202, user_speaking=True)
+                self.assertEqual(self.cancels(), [(idle, "exit", named)])
+                self.assertValid()
+
+
+class SwitchTest(SpatialCase):
+    def ticks(self, switches, count=200, seed=0):
+        self.setUp()
+        self.use(random.Random(seed))
+        self.spatial.set_switches(switches)
+        for _ in range(count):
+            self.step(spatial.TICK[1])
+        self.assertValid()
+        return self.sent
+
+    def test_every_tick_type_shows_up_with_the_defaults(self):
+        sent = self.ticks(SWITCHES)
+        self.assertEqual({m["type"] for m in sent}, set(spatial.TICK_TYPES))
+        self.assertTrue(any(m["type"] == "sit" and m["target"] for m in sent))
+
+    def test_stay_in_place_never_walks_or_climbs(self):
+        sent = self.ticks({**SWITCHES, "stay_in_place": True})
+        self.assertGreater(len(sent), 100)
+        self.assertFalse({m["type"] for m in sent} & set(c1.MOVING))
+
+    def test_bust_framing_never_walks_climbs_sits_or_holds(self):
+        sent = self.ticks({**SWITCHES, "bust_framing": True})
+        self.assertGreater(len(sent), 100)
+        self.assertFalse({m["type"] for m in sent} & set(c1.MOVING + c1.BUST_HELD))
+        self.assertTrue(self.spatial._forbidden("face", None, False))
+
+    def test_turning_bust_framing_on_cancels_a_running_hold(self):
+        self.use(Prefer("hold_window_edge", "left"))
+        self.step()
+        self.spatial.set_switches({**SWITCHES, "bust_framing": True})
+        self.flush()
+        self.assertEqual([m["reason"] for m in self.log if m["event"] == "behavior_cancel"], ["switch_off"])
+        self.assertEqual(self.spatial.running(), [])
+        self.assertValid()
+
+    def test_each_switch_off_rules_out_its_type(self):
+        sent = self.ticks({**SWITCHES, "sit_window_top": False})
+        self.assertFalse([m for m in sent if m["type"] == "climb_window_top" or m["type"] == "sit" and m["target"]])
+        self.assertTrue(any(m["type"] == "sit" for m in sent))  # a sit on the ground stays
+        sent = self.ticks({**SWITCHES, "hold_window_edge": False})
+        self.assertNotIn("hold_window_edge", {m["type"] for m in sent})
+
+    def test_turning_stay_in_place_on_cancels_a_running_walk(self):
+        self.use(Prefer("short_walk"))
+        self.step()
+        self.spatial.set_switches({**SWITCHES, "stay_in_place": True})
+        self.flush()
+        self.assertEqual([(m["event"], m["reason"]) for m in self.log if m["event"] == "behavior_cancel"],
+                         [("behavior_cancel", "switch_off")])
+        self.assertEqual(self.spatial.running(), [])
+        self.assertValid()
+
+    def test_a_character_switch_cancels_every_running_behavior(self):
+        self.use(Prefer("hold_window_edge", "left"))
+        self.step()
+        self.step(user_speaking=True)  # listen runs beside the hold: no shared channel
+        running = [b["behavior_id"] for b in self.spatial.running()]
+        self.assertEqual(len(running), 2)
+        self.generation = 4
+        self.spatial.cancel_all("character_switch")
+        self.flush()
+        self.assertEqual([(m["behavior_id"], m["reason"], m["turn_generation"]) for m in self.log
+                          if m["event"] == "behavior_cancel"], [(b, "character_switch", 4) for b in running])
+        self.assertEqual(self.spatial.running(), [])
+        self.step()  # the user still speaks: listen is sent again for the new character
+        self.assertEqual(self.sent[-1]["type"], "listen")
+        self.assertValid()
+
+    def test_a_blocked_receipt_after_a_character_switch_picks_nothing_new(self):
+        # control, a blocked receipt of a behavior still running: test_05 (it retargets at once)
+        self.use(Prefer("hold_window_edge", "left", "idle", fraction=0.0))
+        self.step()
+        [hold] = self.sent
+        self.spatial.cancel_all("character_switch")
+        self.assertEqual(self.receipt(hold["behavior_id"], "blocked", "target_gone"), (True, None))
+        self.assertEqual(self.sent, [hold])
+        self.assertEqual(self.spatial.running(), [])
+        self.assertEqual(self.spatial.records[hold["behavior_id"]]["phase"], "blocked")
+
+
+class UnsupportedTest(SpatialCase):
+    def tick(self, **over):
+        self.spatial._next_tick = None  # a tick at this poll
+        self.step(**over)
+
+    def types(self):
+        return [m["type"] for m in self.sent]
+
+    def test_an_unsupported_tick_type_is_not_chosen_until_its_time_is_over(self):
+        self.unsupported = {"short_walk"}
+        self.use(Prefer("short_walk", "idle"))
+        self.tick()
+        self.assertEqual(self.receipts(self.ids()[0]), [("rejected", "unsupported")])
+        for _ in range(50):
+            self.tick()
+        self.assertEqual(len(self.sent), 51)
+        self.assertNotIn("short_walk", self.types()[1:])
+        self.assertEqual(self.spatial.diag()["unsupported"], {"short_walk": spatial.UNSUPPORTED_FOR - 50})
+        self.now += spatial.UNSUPPORTED_FOR
+        self.tick()
+        self.assertEqual(self.types()[-1], "short_walk")
+        self.assertValid()
+
+    def test_a_lost_connection_ends_the_unsupported_period(self):
+        self.unsupported = {"short_walk"}
+        self.use(Prefer("short_walk", "idle"))
+        self.tick()
+        self.tick()
+        self.assertEqual(self.types(), ["short_walk", "idle"])
+        self.unsupported = set()  # another Avatar
+        self.receipt(self.ids()[-1], "cancelled", "connection_lost")
+        self.now += spatial.WANDER[1]  # past the rejected walk's cooldown, well within UNSUPPORTED_FOR
+        self.tick()
+        self.assertEqual(self.types()[-1], "short_walk")
+        self.assertEqual(self.spatial.diag()["unsupported"], {})
+        self.assertValid()
+
+    def test_a_character_switch_ends_the_unsupported_period(self):
+        self.unsupported = {"short_walk"}
+        self.use(Prefer("short_walk", "idle"))
+        self.tick()
+        self.tick()
+        self.assertEqual(self.types(), ["short_walk", "idle"])
+        self.unsupported = set()
+        self.spatial.cancel_all("character_switch")
+        self.now += spatial.WANDER[1]  # past the rejected walk's cooldown, well within UNSUPPORTED_FOR
+        self.tick()
+        self.assertEqual(self.types()[-1], "short_walk")
+        self.assertValid()
+
+    def test_a_rejected_window_sit_keeps_floor_sits(self):
+        self.unsupported = {"sit@window"}
+        self.use(Prefer("sit", "window"))
+        self.tick()
+        self.assertEqual(self.shape(), [("sit", window(101), ("tick", None), None)])
+        self.assertEqual(self.receipts(self.ids()[0]), [("rejected", "unsupported")])
+        for _ in range(50):
+            self.tick()
+        sits = [m["target"] for m in self.sent[1:] if m["type"] == "sit"]
+        self.assertIn(None, sits)
+        self.assertEqual(set(map(json.dumps, sits)), {"null"})
+        self.assertEqual(self.spatial.diag()["unsupported"], {"sit@window": spatial.UNSUPPORTED_FOR - 50})
+        self.now += spatial.UNSUPPORTED_FOR
+        self.tick()
+        self.tick()
+        self.assertIn(("sit", window(101)), [(m["type"], m["target"]) for m in self.sent[-2:]])
+        self.assertValid()
+
+    def test_an_unsupported_variant_leaves_other_variants(self):
+        publish, variants = self.spatial.publish, ["read", "still"]
+
+        def with_variant(event, data):  # agentd picks no variant yet; here the sits take these in turn
+            if event == "behavior" and data["type"] == "sit" and variants:
+                data["variant"] = variants.pop(0)
+            return publish(event, data)
+        self.spatial.publish = with_variant
+        self.unsupported = {"sit"}  # the fake renderer has no reading sit
+        self.use(Prefer("sit", None))
+        self.tick()
+        self.assertEqual(self.receipts(self.ids()[0]), [("rejected", "unsupported")])
+        self.unsupported = set()
+        self.tick()
+        self.assertEqual([(m["type"], m["target"], m.get("variant")) for m in self.sent],
+                         [("sit", None, "read"), ("sit", None, "still")])
+        self.assertEqual(self.receipts(self.ids()[1]), [("prepared", None), ("running", None)])
+        self.assertEqual(self.spatial.diag()["unsupported"], {"sit/read": spatial.UNSUPPORTED_FOR - 1})
+        self.assertValid()
+
+    def test_an_unsupported_event_type_is_not_sent_for_the_next_events(self):
+        self.unsupported = {"attend_session"}
+        self.spatial._next_tick = T0 + 10_000
+        self.step(session="codex:B", state="awaiting_approval", related=["codex:B"], window_id=3101)
+        self.step(state="error")
+        self.step(session="claude:A", state="done", related=["claude:A"], window_id=3202)
+        self.assertEqual(self.types(), ["attend_session"])
+        self.step(typing=True)  # another event type is still sent
+        self.assertEqual(self.types(), ["attend_session", "accompany"])
+        self.assertValid()
+
+    def test_busy_and_stale_rejections_leave_the_type_choosable(self):
+        self.use(Prefer("short_walk"))
+        self.tick()
+        self.receipt(self.ids()[-1], "rejected", "busy")
+        self.now += spatial.WANDER[1]  # past each rejected walk's cooldown
+        self.tick()
+        self.receipt(self.ids()[-1], "rejected", "stale")
+        self.now += spatial.WANDER[1]
+        self.tick()
+        self.assertEqual(self.types(), ["short_walk"] * 3)
+
+
+class FocusWalkTest(SpatialCase):
+    """C1 v2.1: a focus that moves to another window and stays FOCUS_SETTLE draws one walk toward it."""
+
+    def setUp(self):
+        super().setUp()
+        self.spatial._next_tick = T0 + 10_000  # no random tick
+        self.use(Prefer("idle", fraction=0.0))  # every draw wins
+        self.stay(15, window_id=101)  # the first window agentd sees is no change
+
+    def stay(self, seconds, **over):
+        self.step(**over)
+        for _ in range(seconds - 1):
+            self.step()
+
+    def walks(self):
+        return [m for m in self.sent if m["type"] == "short_walk"]
+
+    def test_a_settled_focus_change_sends_a_walk_toward_that_window(self):
+        self.assertEqual(self.sent, [])
+        self.stay(10, window_id=202)
+        self.assertEqual(self.sent, [])  # 9 s on 202
+        self.step()
+        self.assertEqual(self.shape(), [("short_walk", window(202), ("user", "focus_change"), None)])
+        walk = self.sent[0]
+        self.assertEqual((walk["priority"], walk["channels"], walk["exit"]), (0, ["full_body"],
+                                                                             ["user_typing", "user_drag"]))
+        self.assertValid()
+
+    def test_a_lost_draw_sends_none(self):
+        self.use(Prefer("idle", fraction=spatial.FOCUS_WALK_P))
+        self.stay(30, window_id=202)
+        self.assertEqual(self.sent, [])
+
+    def test_a_focus_that_flips_back_within_10_s_sends_none(self):
+        self.stay(5, window_id=202)
+        self.stay(30, window_id=101)
+        self.assertEqual(self.sent, [])
+
+    def test_one_focus_walk_per_focus_run(self):
+        self.stay(11, window_id=202)
+        [walk] = self.walks()
+        self.receipt(walk["behavior_id"], "completed")
+        self.stay(120)
+        self.assertEqual(self.walks(), [walk])
+        self.use(Prefer("idle", fraction=0.9))  # the next run's draw is lost ...
+        self.stay(11, window_id=303)
+        self.use(Prefer("idle", fraction=0.0))  # ... and not drawn again
+        self.stay(120)
+        self.assertEqual(self.walks(), [walk])
+        self.stay(11, window_id=202)
+        self.assertEqual([m["target"] for m in self.walks()], [window(202), window(202)])
+        self.assertValid()
+
+    def test_a_focus_walk_waits_60_s_after_the_last_walk(self):
+        self.stay(11, window_id=202)
+        walked = self.now
+        self.stay(15, window_id=303)
+        self.stay(int(walked + spatial.FOCUS_WALK_GAP - self.now) - 1)
+        self.assertEqual(len(self.walks()), 1)
+        self.step()
+        self.assertEqual([m["target"] for m in self.walks()], [window(202), window(303)])
+        self.assertValid()
+
+    def test_no_focus_walk_while_hidden_fullscreen_typing_or_busy(self):
+        for over in ({"window_id": None}, {"window_id": 202, "fullscreen": True}, {"window_id": 202, "typing": True},
+                     *({"window_id": 202, "activity": a} for a in ("meeting", "gaming", "switching"))):
+            with self.subTest(over=over):
+                self.setUp()
+                self.stay(30, **over)
+                self.assertEqual(self.walks(), [])
+
+
+class WalkBiasTest(SpatialCase):
+    """The read model's walk_bias hint keeps random walks off or scales the gap after one."""
+
+    def bias(self, hint):
+        def walk_bias():
+            if isinstance(hint, Exception):
+                raise hint
+            return hint
+        self.spatial.walk_bias = walk_bias
+
+    def gap(self):
+        """Seconds from one untargeted walk to the next one sent with a tick at every poll."""
+        self.use(Prefer("short_walk"))  # WANDER draws its midpoint
+        starts = []
+        while len(starts) < 2 and self.now < T0 + 3600:
+            self.spatial._next_tick = None
+            self.step()
+            if self.sent and self.sent[-1]["type"] == "short_walk" and self.sent[-1]["behavior_id"] in self.unity:
+                starts.append(self.now)
+                self.receipt(self.ids()[-1], "completed")
+        self.assertEqual(len(starts), 2)
+        return starts[1] - starts[0]
+
+    def test_a_stay_hint_keeps_random_walks_off(self):
+        self.bias("stay")
+        self.use(Prefer("short_walk"))
+        for _ in range(600):
+            self.spatial._next_tick = None
+            self.step()
+        self.assertTrue(self.sent)
+        self.assertEqual([m for m in self.sent if m["type"] == "short_walk"], [])
+        self.setUp()  # nor a walk toward a settled focus
+        self.bias("stay")
+        self.spatial._next_tick = T0 + 10_000
+        self.use(Prefer("idle", fraction=0.0))
+        for window_id in (101, 202):
+            self.step(window_id=window_id)
+            for _ in range(29):
+                self.step()
+        self.assertEqual(self.sent, [])
+
+    def test_more_and_less_scale_the_walk_gap(self):
+        middle = sum(spatial.WANDER) / 2
+        for hint, gap in (("more", middle * 0.5), ("less", middle * 2), ("normal", middle), (None, middle)):
+            with self.subTest(hint=hint):
+                self.setUp()
+                self.bias(hint)
+                self.assertEqual(self.gap(), gap)
+
+    def test_an_unknown_hint_is_normal(self):
+        middle = sum(spatial.WANDER) / 2
+        for hint in ("sprint", 2, RuntimeError("read model gone")):
+            with self.subTest(hint=hint):
+                self.setUp()
+                self.bias(hint)
+                self.assertEqual(self.gap(), middle)
+
+
+def local(hour):
+    return time.mktime((2026, 10, 19, hour, 0, 0, 0, 0, -1))
+
+
+class StateTest(SpatialCase):
+    """Her own state scales the random tick's gap, weights, intensity and walk gap, inside the rules."""
+
+    def with_state(self, hour, profile=None):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        db = open_store(Path(tmp.name) / "agentd.sqlite")
+        self.addCleanup(db.close)
+        self.now = local(hour)
+        state = CharacterState(db, {"aster": profile}.get, clock=lambda: self.now)
+        state.use("aster")
+        self.spatial = Spatial(lambda: dict(self.s), self.registry.publish_event, lambda: self.generation, 7,
+                               clock=lambda: self.now, rng=self.rng, state=state)
+        return state
+
+    def test_without_state_the_picks_are_unchanged(self):
+        self.spatial = Spatial(lambda: dict(self.s), self.registry.publish_event, lambda: self.generation, 7,
+                               clock=lambda: self.now, state=None, recovery_delay=0)
+        self.use(random.Random(5))
+        for i in range(1500):
+            self.step(7.0, window_id=(101, 202, None)[i // 200 % 3], typing=600 <= i < 700)
+        keys = ("type", "target", "trigger", "priority", "intensity", "expires_at_ms", "replaces", "channels", "exit")
+        rows = [[m.get(k) for k in keys] for m in self.sent] + self.cancels()
+        # the same run before Spatial took a state, except no tick starts a sit while she types and each
+        # sit draws its variant from the same RNG
+        self.assertEqual(hashlib.sha256(json.dumps(rows).encode()).hexdigest()[:16], "6419c53f4fc338d9")
+        self.assertValid()
+
+    def walks(self, hour, seed):
+        """(random walks, polls she was tired) in an hour; the card's energy_offset -0.3 keeps a night tired while
+        sit and idle give energy back."""
+        self.setUp()
+        state = self.with_state(hour, {"energy_offset": -0.3})
+        self.use(random.Random(seed))
+        tired = 0
+        for _ in range(360):
+            self.step(10.0)
+            tired += state.labels()["energy"] in ("sleepy", "very_sleepy")
+        self.assertValid()
+        return sum(m["type"] == "short_walk" and m["trigger"]["source"] == "tick" for m in self.sent), tired
+
+    def test_a_tired_night_walks_at_most_half_as_often(self):
+        night = [self.walks(2, seed) for seed in range(6)]
+        day = [self.walks(14, seed) for seed in range(6)]
+        self.assertGreater(sum(t for _, t in night), 0.8 * 6 * 360)  # control: the night is a tired one
+        self.assertEqual(sum(t for _, t in day), 0)
+        self.assertGreater(sum(w for w, _ in day), 0)
+        self.assertLessEqual(sum(w for w, _ in night), sum(w for w, _ in day) / 2)
+
+    def test_an_engaged_tick_behavior_is_not_switched(self):
+        # lively at noon: idle 1, observe 1.3, short_walk 1.3, sit 1, hold_window_edge 1, climb_window_top 1
+        self.with_state(12)
+        self.use(Prefer(fraction=0.6))  # 3.96 of 6.6: sit, on the floor; the next tick 96 s away
+        self.step()
+        [sit] = self.sent
+        self.assertEqual((sit["type"], sit["target"]), ("sit", None))
+        self.use(Prefer(fraction=0.25))  # 1.65 of 6.6: observe
+        self.step(96.0)  # the next tick; 96 s of sitting took engagement from 0.5 past 0.6
+        self.assertEqual(self.sent, [sit])
+        self.receipt(sit["behavior_id"], "cancelled")  # interrupted: engagement drops to 0.2
+        self.spatial._next_tick = None
+        self.step()
+        self.assertEqual([m["type"] for m in self.sent], ["sit", "observe"])
+        self.assertValid()
+
+    def test_sit_renewals_preserve_engagement_until_the_current_sit_ends(self):
+        state = self.with_state(12)
+        self.use(Prefer(fraction=0.6))
+        self.step()
+        self.use(Prefer(fraction=0.25))
+        for _ in range(2):
+            sit = self.sent[-1]
+            self.spatial._next_tick = self.now + 10_000
+            self.step(sit["expires_at_ms"] / 1000 - self.now - spatial.RENEW + 1)
+            self.assertGreaterEqual(state.snapshot()["engagement"], spatial.ENGAGED)
+            self.assertEqual(self.sent[-1]["replaces"], sit["behavior_id"])
+            self.spatial._next_tick = None
+            self.step()
+            self.assertTrue(all(m["type"] == "sit" for m in self.sent))
+        self.assertEqual(len(self.sent), 3)
+        self.receipt(self.sent[-1]["behavior_id"], "cancelled")
+        self.assertEqual(state.snapshot()["engagement"], 0.2)
+        self.assertIsNone(state.snapshot()["activity"])
+        self.spatial._next_tick = None
+        self.step()
+        self.assertEqual(self.sent[-1]["type"], "observe")
+        self.assertValid()
+
+    def test_the_typing_cap_wins_over_a_lively_state(self):
+        for seed in range(5):
+            with self.subTest(seed=seed):
+                self.setUp()
+                state = self.with_state(12)
+                self.assertEqual(state.labels()["energy"], "lively")
+                self.use(random.Random(seed))
+                self.s["typing"] = True
+                for _ in range(300):
+                    self.step(1.0)
+                types = [m["type"] for m in self.sent]
+                self.assertTrue(any(m["trigger"]["source"] == "tick" for m in self.sent))  # control: ticks did happen
+                self.assertFalse(set(types) & set(c1.MOVING))
+                self.assertTrue(all(m["intensity"] <= c1.TYPING_MAX for m in self.sent))
+                self.assertValid()
+
+
+class ActivityTest(SpatialCase):
+    """The random tick follows the ActivityContext activity."""
+
+    with_state = StateTest.with_state
+
+    def test_switching_suppresses_tick(self):
+        self.s["activity"] = "switching"
+        self.step()
+        self.assertEqual(self.sent, [])
+        self.step(spatial.TICK[1], activity=None)  # the next round ticks as usual
+        self.assertEqual([m["trigger"]["source"] for m in self.sent], ["tick"])
+        self.assertValid()
+
+    def test_meeting_suppresses_tick(self):
+        self.s["activity"] = "meeting"
+        self.step()
+        self.assertEqual(self.sent, [])
+        self.step(spatial.TICK[1], activity=None)
+        self.assertEqual([m["trigger"]["source"] for m in self.sent], ["tick"])
+        self.assertValid()
+
+    def test_reading_prefers_observe_window(self):
+        self.use(Prefer("idle"))
+        self.step(activity="reading")
+        self.assertEqual(self.shape(), [("observe", window(101), ("tick", None), None)])
+        self.assertValid()
+        self.setUp()
+        self.with_state(12)
+        self.use(Prefer(fraction=0.0))  # the state's weights would draw idle
+        self.step(activity="reading")
+        self.assertEqual(self.shape(), [("observe", window(101), ("tick", None), None)])
+        self.assertValid()
+
+    def test_reading_without_a_focus_window_picks_as_before(self):
+        runs = []
+        for activity in (None, "reading"):
+            self.setUp()
+            self.use(random.Random(3))
+            for _ in range(100):
+                self.step(spatial.TICK[1], window_id=None, activity=activity)
+            self.assertValid()
+            runs.append(self.shape())
+        self.assertGreater(len(runs[0]), 50)
+        self.assertEqual(runs[1], runs[0])
+
+
+class UserActivityTest(SpatialCase):
+    """Her body answers what the user does once it held USER_SETTLE: once per run, with what the character has."""
+
+    CAPS = {"sit": None, "observe": None}
+
+    def setUp(self):
+        super().setUp()
+        self.spatial._next_tick = T0 + 10_000  # no random tick unless a test asks for one
+        self.spatial.set_capabilities("birch", dict(self.CAPS))
+
+    def reactions(self):
+        return [(m["type"], m["target"], m.get("variant"), m["priority"]) for m in self.sent
+                if (m["trigger"]["event"] or "").startswith("activity:")]
+
+    def hold(self, activity, seconds, **over):
+        self.step(0, activity=activity, **over)
+        for _ in range(int(seconds)):
+            self.step(1)
+
+    def test_each_activity_gets_its_body_once_after_5_s(self):
+        for activity, body in (("reading", ("sit", None, "read", 1)), ("watching_video", ("sit", None, "tea", 1)),
+                               ("editing_code", ("observe", window(101), None, 1)), ("meeting", ("idle", None, None, 1))):
+            with self.subTest(activity=activity):
+                self.setUp()
+                self.hold(activity, spatial.USER_SETTLE - 1)
+                self.assertEqual(self.reactions(), [], "not before USER_SETTLE")
+                self.step(1)
+                self.assertEqual(self.reactions(), [body])
+                self.assertEqual(self.sent[-1]["trigger"], {"source": "user", "event": "activity:" + activity})
+                self.hold(activity, 120)
+                self.assertEqual(self.reactions(), [body], "one body change per activity run")
+                self.assertValid()
+
+    def test_a_flicker_under_5_s_moves_nothing(self):
+        for activity in ("reading", "editing_code", "reading", "watching_video") * 3:
+            self.hold(activity, spatial.USER_SETTLE - 2)
+        self.assertEqual(self.reactions(), [])
+
+    def test_unmapped_activities_and_a_legacy_host_get_nothing_new(self):
+        for activity in (None, "unknown", "switching", "typing", "gaming", "comparing_sources"):
+            self.hold(activity, 30)
+        self.assertEqual(self.reactions(), [])
+        self.setUp()
+        self.spatial.capabilities = None  # a host that reports none: legacy behavior
+        self.hold("reading", 30)
+        self.assertEqual(self.reactions(), [])
+
+    def test_a_pack_without_the_variant_or_seat_observes_the_window_instead(self):
+        self.unsupported = {"sit"}  # the fake renderer rejects the reading sit as unsupported
+        self.hold("reading", spatial.USER_SETTLE + 2)
+        self.assertEqual(self.reactions(), [("sit", None, "read", 1), ("observe", window(101), None, 1)])
+        self.assertValid()
+        self.setUp()
+        self.spatial.set_capabilities("aster", {"sit": "no seat", "observe": None})
+        self.hold("watching_video", spatial.USER_SETTLE + 2)
+        self.assertEqual(self.reactions(), [("observe", window(101), None, 1)])
+        self.assertValid()
+
+    def test_a_variant_the_host_reports_missing_is_skipped_up_front(self):
+        self.spatial.set_capabilities("aster", {"sit": None, "sit/read": "no read variant", "observe": None})
+        self.hold("reading", spatial.USER_SETTLE + 2)
+        self.assertEqual(self.reactions(), [("observe", window(101), None, 1)])
+        self.assertValid()
+        self.setUp()
+        self.spatial.set_capabilities("aster", {"sit": None, "sit/tea": None, "observe": None})
+        self.hold("watching_video", spatial.USER_SETTLE + 2)
+        self.assertEqual(self.reactions(), [("sit", None, "tea", 1)])
+        self.assertValid()
+
+    def test_a_new_activity_replaces_the_last_answer(self):
+        self.hold("reading", spatial.USER_SETTLE)
+        [read] = self.sent
+        self.hold("watching_video", spatial.USER_SETTLE)
+        self.assertEqual([(m["variant"], m["replaces"]) for m in self.sent], [("read", None), ("tea", read["behavior_id"])])
+        self.hold("meeting", spatial.USER_SETTLE)
+        self.assertEqual((self.sent[-1]["type"], self.sent[-1]["replaces"]), ("idle", self.sent[1]["behavior_id"]))
+        self.assertValid()
+
+    def test_speech_and_a_session_that_needs_the_user_keep_priority(self):
+        for over in ({"speaking": True, "line_id": "l-1"}, {"user_speaking": True},
+                     {"session": "codex:A", "state": "awaiting_approval", "related": ["codex:A"]}):
+            with self.subTest(over=over):
+                self.setUp()
+                self.hold("reading", 20, **over)
+                self.assertEqual(self.reactions(), [])
+                self.step(1, speaking=False, user_speaking=False, session=None, state="idle")
+                self.assertEqual(self.reactions(), [("sit", None, "read", 1)], "the same run answers once free")
+                self.assertValid()
+
+    def test_she_sits_to_read_beside_a_working_session_and_long_work_takes_over(self):
+        self.hold("reading", spatial.USER_SETTLE, session="codex:A", state="thinking", related=["codex:A"])
+        self.assertEqual(self.reactions(), [("sit", None, "read", 1)])
+        read = self.sent[-1]
+        self.hold("reading", spatial.LONG_WORK)
+        posture = [m for m in self.sent if m["trigger"]["source"] == "session" and m["type"] == "sit"]
+        self.assertEqual([m["replaces"] for m in posture], [read["behavior_id"]])
+        self.assertValid()
+
+    def test_no_reading_sit_while_the_user_types(self):
+        self.hold("editing_code", 1)
+        self.hold("reading", 20, typing=True)
+        self.assertEqual(self.reactions(), [])
+        self.assertValid()
+
+
+class VariantTest(SpatialCase):
+    """A random tick's sit takes its variant from the activity; typing starts no sit."""
+
+    def tick(self, **over):
+        self.spatial._next_tick = None  # a tick at this poll
+        self.step(**over)
+
+    def test_reading_user_gets_a_reading_sit(self):
+        self.use(Prefer("sit", None))
+        self.tick(activity="reading", window_id=None)  # no window: observe is not there to prefer
+        self.assertEqual([(m["type"], m["target"], m.get("variant")) for m in self.sent], [("sit", None, "read")])
+        self.assertValid()
+
+    def test_unsupported_read_falls_back_to_plain_sit(self):
+        self.unsupported = {"sit"}  # the fake renderer has no reading sit
+        self.use(Prefer("sit", None))
+        self.tick(activity="reading", window_id=None)
+        self.assertEqual(self.receipts(self.ids()[0]), [("rejected", "unsupported")])
+        self.unsupported = set()
+        self.tick()
+        self.assertEqual([(m["type"], m.get("variant", "absent")) for m in self.sent],
+                         [("sit", "read"), ("sit", "absent")])
+        self.assertValid()
+
+    def test_typing_starts_no_sit(self):
+        self.use(Prefer("sit", None))
+        for _ in range(20):
+            self.tick(typing=True, activity="reading", window_id=None)
+        self.assertTrue(any(m["trigger"]["source"] == "tick" for m in self.sent))  # control: ticks did happen
+        self.assertNotIn("sit", [m["type"] for m in self.sent])
+        self.assertValid()
+
+    def test_renewal_keeps_the_variant(self):
+        self.use(Prefer("sit", None))
+        self.tick(activity="reading", window_id=None)
+        [sit] = self.sent
+        self.spatial._next_tick = T0 + 10_000  # no other tick while she sits
+        self.step(sit["expires_at_ms"] / 1000 - self.now - spatial.RENEW + 1, activity="editing_code")
+        self.assertEqual([(m["type"], m.get("variant"), m["replaces"]) for m in self.sent],
+                         [("sit", "read", None), ("sit", "read", sit["behavior_id"])])
+        self.assertValid()
+
+
+class PostureTest(SpatialCase):
+    """Long work sits her down, a session that needs the user ends it, a quiet desk lets her rest."""
+
+    def setUp(self):
+        super().setUp()
+        self.spatial._next_tick = T0 + 10_000  # no random tick unless a test asks for one
+
+    def sits(self):
+        return [m for m in self.sent if m["type"] == "sit"]
+
+    def work(self):
+        """A session that has thought for LONG_WORK seconds; returns her long-work sit."""
+        self.step(0, session="codex:A", state="thinking", related=["codex:A"])
+        self.step(spatial.LONG_WORK - 1, state="running_tool")
+        self.assertEqual(self.sits(), [], "not before LONG_WORK")
+        self.step(1, activity="reading")
+        [sit] = self.sits()
+        return sit
+
+    def test_long_work_sits_after_180_s_and_not_before(self):
+        sit = self.work()
+        self.assertEqual((sit["target"], sit["trigger"], sit["display_session"], sit["priority"], sit["channels"],
+                          sit["exit"], sit.get("variant")),
+                         (None, {"source": "session", "event": "session_state:thinking"}, "codex:A", 1,
+                          ["full_body", "contact"], ["session_state", "user_drag"], "read"))
+        self.step(sit["expires_at_ms"] / 1000 - self.now - spatial.RENEW + 1)
+        self.assertEqual([(m["replaces"], m.get("variant")) for m in self.sits()],
+                         [(None, "read"), (sit["behavior_id"], "read")], "renewed like other sits")
+        self.assertValid()
+
+    def test_long_work_sit_ends_when_the_session_needs_the_user(self):
+        sit = self.work()
+        self.step(1, state="awaiting_approval")
+        self.assertIn((sit["behavior_id"], "exit", "session_state"), self.cancels())
+        self.assertEqual(self.sent[-1]["type"], "attend_session")
+        self.step(spatial.LONG_WORK)
+        self.assertEqual(self.sits(), [sit])
+        self.assertNotIn("sit", [b["type"] for b in self.spatial.running()])
+        self.assertValid()
+
+    def test_long_work_sit_holds_through_a_state_flip_until_seated_sit_min_hold(self):
+        sit = self.work()
+        self.step(5, state="done")
+        self.assertNotIn(sit["behavior_id"], [c[0] for c in self.cancels()], "not right after she sat down")
+        self.step(spatial.SIT_MIN_HOLD - 6, session=None, state="idle")
+        self.assertNotIn(sit["behavior_id"], [c[0] for c in self.cancels()])
+        self.step(1)
+        self.assertIn((sit["behavior_id"], "exit", "session_state"), self.cancels())
+        self.assertValid()
+
+    def test_no_long_work_sit_while_typing(self):
+        self.step(0, session="codex:A", state="thinking", typing=True)
+        for _ in range(30):
+            self.step(10)
+        self.assertEqual(self.sits(), [])
+        self.step(1, typing=False)
+        self.assertEqual([m["trigger"]["source"] for m in self.sits()], ["session"])
+        self.assertValid()
+
+    def test_ticks_do_not_walk_during_long_work_sit(self):
+        sit = self.work()
+        self.use(Prefer("short_walk", "climb_window_top", "window"))
+        for _ in range(40):
+            self.spatial._next_tick = None  # a tick at every poll
+            self.step(5)
+        self.assertFalse({m["type"] for m in self.sent} & {"short_walk", "climb_window_top"})
+        self.assertIn(sit["behavior_id"], [b["behavior_id"] for b in self.spatial.running()])
+        self.assertValid()
+
+    def test_rest_after_away_10_min(self):
+        self.step(0, activity="away")
+        self.step(spatial.AWAY_REST - 1)
+        self.assertEqual(self.sits(), [])
+        self.step(1)
+        [rest] = self.sits()
+        self.assertEqual((rest["target"], rest["trigger"], rest["priority"], rest["channels"], "variant" in rest),
+                         (None, {"source": "user", "event": "rest"}, 1, ["full_body", "contact"], False))
+        self.assertValid()
+
+    def test_rest_at_2330_after_5_min_quiet(self):
+        for hour, rests in ((23, True), (14, False)):
+            with self.subTest(hour=hour):
+                self.setUp()
+                self.now = local(hour) + 1800
+                self.spatial._next_tick = self.now + 10_000
+                self.step(0, idle_s=0.0)
+                self.step(spatial.QUIET - 1, idle_s=spatial.QUIET - 1)
+                self.assertEqual(self.sits(), [])
+                self.step(1, idle_s=spatial.QUIET)
+                self.assertEqual([m["trigger"]["event"] for m in self.sits()], ["rest"] if rests else [])
+                if rests:  # the checker wants at least one message
+                    self.assertValid()
+
+    def test_rest_ends_on_input_speech_or_session(self):
+        # condition None: the typing accompany replaces it (it ends on user_typing)
+        for wake, condition in (({"idle_s": 0.4}, "user_typing"), ({"activity": "editing_code"}, "user_typing"),
+                                ({"typing": True}, None), ({"user_speaking": True}, "speech_start"),
+                                ({"session": "codex:A", "state": "thinking"}, "session_state")):
+            with self.subTest(wake=wake):
+                self.setUp()
+                self.now = local(14)
+                self.spatial._next_tick = self.now + 10_000
+                self.step(0, activity="away", idle_s=0.0)
+                self.step(spatial.AWAY_REST, idle_s=spatial.AWAY_REST)
+                [rest] = self.sits()
+                self.step(1, **wake)
+                if condition is None:
+                    self.assertEqual(self.sent[-1]["replaces"], rest["behavior_id"])
+                else:
+                    self.assertIn((rest["behavior_id"], "exit", condition), self.cancels())
+                self.step(1)
+                self.assertEqual(self.sits(), [rest])
+                self.assertNotIn(rest["behavior_id"], [b["behavior_id"] for b in self.spatial.running()])
+                self.assertValid()
+
+    def test_rest_variant_only_when_the_host_says_so(self):
+        for caps, variant in ((None, None), ({"sit": None, "sit/rest": "no rest pool"}, None),
+                              ({"sit": None, "sit/rest": None}, "rest")):
+            with self.subTest(caps=caps):
+                self.setUp()
+                if caps is not None:
+                    self.spatial.set_capabilities("aster", caps)
+                self.step(0, activity="away")
+                self.step(spatial.AWAY_REST)
+                self.assertEqual([m.get("variant") for m in self.sits()], [variant])
+
+
+class RunTest(SpatialCase):
+    """run() polls every POLL, and at once after wake()."""
+
+    def start(self, poll):
+        polled, stop = threading.Event(), threading.Event()
+        self.spatial.poll = polled.set
+        patcher = unittest.mock.patch.object(spatial, "POLL", poll)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        loop = threading.Thread(target=self.spatial.run, args=(stop,), daemon=True)
+        loop.start()
+        self.addCleanup(loop.join, 1)
+        self.addCleanup(self.spatial.wake)
+        self.addCleanup(stop.set)
+        return polled
+
+    def test_wake_polls_long_before_poll_and_only_once(self):
+        polled = self.start(30.0)
+        time.sleep(0.05)  # the loop waits
+        self.spatial.wake()
+        self.assertTrue(polled.wait(0.2))
+        polled.clear()
+        self.assertFalse(polled.wait(0.2))
+
+    def test_without_wake_it_polls_every_poll(self):
+        polled = self.start(0.05)
+        for _ in range(3):
+            self.assertTrue(polled.wait(1))
+            polled.clear()
+
+
+class ReceiptTest(SpatialCase):
+    def test_unknown_after_terminal_and_stale(self):
+        self.use(Prefer("idle"))
+        self.step()
+        behavior_id = self.ids()[0]
+        self.assertEqual(self.spatial.receipt({"behavior_id": "b-7-99", "phase": "running", "reason": None,
+                                               "at_ms": 1, "turn_generation": 3}), (False, "unknown_behavior"))
+        self.assertEqual(self.receipt(behavior_id, "completed"), (True, None))
+        self.assertEqual(self.spatial.records[behavior_id]["outcome"], "done")
+        self.assertEqual(self.spatial.running(), [])
+        self.assertEqual(self.spatial.receipt({"behavior_id": behavior_id, "phase": "running", "reason": None,
+                                               "at_ms": 2, "turn_generation": 3}), (False, "after_terminal"))
+        self.step(spatial.TICK[1])
+        later = self.ids()[-1]
+        self.assertEqual(self.spatial.records[later]["behavior"]["turn_generation"], 3)
+        self.generation = 4  # a new turn: the behavior lives on and its receipts carry its own generation (C1 §3)
+        self.assertEqual(self.spatial.receipt({"behavior_id": later, "phase": "running", "reason": None,
+                                               "at_ms": 3, "turn_generation": 2}), (False, "stale"))
+        self.assertNotEqual(self.spatial.running(), [])
+        self.assertEqual(self.spatial.receipt({"behavior_id": later, "phase": "completed", "reason": None,
+                                               "at_ms": 4, "turn_generation": 3}), (True, None))
+        self.assertEqual(self.spatial.records[later]["outcome"], "done")
+
+    def test_connection_lost_is_lost_neither_done_nor_interrupted(self):
+        self.use(Prefer("hold_window_edge", "left"))
+        self.step()
+        lost = self.ids()[0]
+        self.assertEqual(self.receipt(lost, "cancelled", "connection_lost"), (True, None))
+        self.assertEqual(self.spatial.records[lost]["outcome"], "lost")
+        self.assertEqual(self.spatial.running(), [])  # a reconnect's snapshot does not resume it (fixture 10)
+        self.step(spatial.TICK[1])
+        cut = self.ids()[-1]
+        self.receipt(cut, "cancelled")
+        self.assertEqual(self.spatial.records[cut]["outcome"], "interrupted")
+        self.assertEqual(self.spatial.last_receipt["phase"], "cancelled")
+        self.assertValid()
+
+    def test_only_the_last_64_behaviors_are_kept(self):
+        self.use(Prefer("idle"))
+        for _ in range(70):
+            self.step(spatial.TICK[1])
+        self.assertEqual(len(self.spatial.records), spatial.KEPT)
+        self.assertEqual(self.spatial.receipt({"behavior_id": "b-7-1", "phase": "running", "reason": None,
+                                               "at_ms": 1, "turn_generation": 3}), (False, "unknown_behavior"))
+
+
+class ServerCase(unittest.TestCase):
+    def setUp(self):
+        self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI, events_token=EVENTS)
+        self.port = self.server.server_port
+        self.thread = support.serve_in_thread(self.server)
+        self.server.spatial.observe = lambda: situation()
+        self.server.spatial.rng = Prefer("idle")
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(2)
+
+    request = support.request
+
+    def snapshot(self):
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", "/events", headers={"Authorization": f"Bearer {EVENTS}"})
+        response = conn.getresponse()
+        self.assertEqual(response.fp.readline().decode(), "event: snapshot\n")
+        data = json.loads(response.fp.readline().decode()[len("data: "):])
+        conn.close()
+        return data
+
+
+class SituationServerTest(ServerCase):
+    def test_voicing_is_the_relay_with_audio_in_flight(self):
+        class Relay:
+            playing = False
+
+            def busy(self):
+                return self.playing
+        self.assertFalse(self.server.spatial_situation()["voicing"])  # no --tts-url
+        self.server.speech = relay = Relay()
+        self.assertFalse(self.server.spatial_situation()["voicing"])
+        relay.playing = True
+        self.assertTrue(self.server.spatial_situation()["voicing"])
+
+
+class SwitchServerTest(ServerCase):
+    def test_put_switches_stores_and_echoes(self):
+        changed = {**SWITCHES, "stay_in_place": True}
+        self.assertEqual(self.request("PUT", "/behavior/switches", changed), (200, changed))
+        self.assertEqual(self.server.spatial.switches, changed)
+        self.assertEqual(self.request("GET", "/diag/state")[1]["behavior"]["switches"], changed)
+
+    def test_bad_bodies_are_400_and_no_token_401(self):
+        bad = [{k: v for k, v in SWITCHES.items() if k != "stay_in_place"}, {**SWITCHES, "extra": True},
+               {**SWITCHES, "stay_in_place": 1}, [True], None]
+        for body in bad:
+            with self.subTest(body=body):
+                self.assertEqual(self.request("PUT", "/behavior/switches", body), (400, {"error": "invalid_switches"}))
+        self.assertEqual(self.request("PUT", "/behavior/switches", SWITCHES, token=None)[0], 401)
+        self.assertEqual(self.request("PUT", "/behavior/switches", SWITCHES, token=EVENTS)[0], 401)
+        self.assertEqual(self.server.spatial.switches, SWITCHES)  # the defaults stand
+
+
+class ReceiptServerTest(ServerCase):
+    def test_receipts_answer_and_the_snapshot_carries_the_running_behavior(self):
+        self.server.registry.tick()  # the first intent, which the snapshot is made of
+        self.server.turn_generation = 3
+        self.server.spatial.poll()
+        snapshot = self.snapshot()
+        [behavior] = snapshot["behaviors"]
+        self.assertEqual((behavior["type"], behavior["turn_generation"]), ("idle", 3))
+        self.assertEqual(c1.check_message({**snapshot, "event": "snapshot"}), [])
+        body = {"behavior_id": behavior["behavior_id"], "phase": "running", "reason": None, "at_ms": 1,
+                "turn_generation": 3}
+        self.assertEqual(self.request("POST", "/behavior/receipts", body), (200, {"applied": True, "why": None}))
+        state = self.request("GET", "/diag/state")[1]["behavior"]
+        [running] = state["running"]  # every running behavior, as the snapshot's behaviors
+        self.assertEqual((running["behavior_id"], running["type"]), (behavior["behavior_id"], "idle"))
+        self.assertEqual(self.request("POST", "/behavior/receipts", {**body, "phase": "completed"}),
+                         (200, {"applied": True, "why": None}))
+        self.assertEqual(self.snapshot()["behaviors"], [])
+        state = self.request("GET", "/diag/state")[1]["behavior"]
+        self.assertEqual(state["running"], [])
+        self.assertEqual((state["last_receipt"]["behavior_id"], state["last_receipt"]["phase"]),
+                         (behavior["behavior_id"], "completed"))
+        self.assertEqual(self.request("POST", "/behavior/receipts", body),
+                         (200, {"applied": False, "why": "after_terminal"}))
+        self.assertEqual(self.request("POST", "/behavior/receipts", {**body, "behavior_id": "b-0-0"}),
+                         (200, {"applied": False, "why": "unknown_behavior"}))
+        published = [i for i in self.server.registry.intents_since(0) if i.get("event") == "behavior"]
+        self.assertEqual([i["behavior_id"] for i in published], [behavior["behavior_id"]])
+
+    def test_bad_receipts_are_400_and_no_token_401(self):
+        good = {"behavior_id": "b-1-1", "phase": "running", "reason": None, "at_ms": 1, "turn_generation": 0}
+        for body in ({**good, "phase": "walking"}, {**good, "phase": "blocked", "reason": None},
+                     {**good, "phase": "running", "reason": "connection_lost"}, {**good, "at_ms": "1"}, [good]):
+            with self.subTest(body=body):
+                self.assertEqual(self.request("POST", "/behavior/receipts", body), (400, {"error": "invalid_receipt"}))
+        self.assertEqual(self.request("POST", "/behavior/receipts", good, token=None)[0], 401)
+
+    def test_diag_behavior_block_before_anything_runs(self):
+        state = self.request("GET", "/diag/state")[1]["behavior"]
+        self.assertEqual({k: state[k] for k in ("running", "switches", "last_receipt")},
+                         {"running": [], "switches": SWITCHES, "last_receipt": None})
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+class HostCapabilityTest(SpatialCase):
+    def test_unavailable_behaviors_are_filtered_without_rejection_cooldown(self):
+        self.spatial.set_capabilities('aster', {'sit@window': 'no window_top', 'climb_window_top': 'no climb',
+                                                'short_walk': None})
+        self.assertFalse(self.spatial._free(self.s, self.now, 'sit', window(101)))
+        self.assertTrue(self.spatial._free(self.s, self.now, 'sit', None))
+        self.assertTrue(self.spatial._free(self.s, self.now, 'short_walk', None))
+        self.assertFalse(self.spatial._free(self.s, self.now, 'climb_window_top', window(101)))
+        self.assertEqual(self.spatial.diag()['capability_character'], 'aster')
+
+    def test_character_switch_and_positive_report_clear_stale_unsupported(self):
+        self.spatial._unsupported['short_walk'] = self.now + 1800
+        self.spatial.set_capabilities('aster', {'short_walk': None})
+        self.assertEqual(self.spatial.diag()['unsupported'], {})
+        self.spatial._unsupported['sit/read'] = self.now + 1800
+        self.spatial.set_capabilities('aster', {'short_walk': None})
+        self.assertIn('sit/read', self.spatial.diag()['unsupported'])
+        self.spatial.set_capabilities('birch', {'short_walk': 'no gait'})
+        self.assertFalse(self.spatial._free(self.s, self.now, 'short_walk', None))
+        self.spatial.cancel_all('character_switch')
+        self.assertIsNone(self.spatial.diag()['capabilities'])
+        self.spatial.set_capabilities('aster', {'short_walk': None})
+        self.assertTrue(self.spatial._free(self.s, self.now, 'short_walk', None))
+
+    def test_session_event_path_obeys_capability_report(self):
+        self.spatial.set_capabilities('birch', {'attend_session': 'no turn roots'})
+        self.spatial._next_tick = self.now + 10000
+        self.step(session='codex:B', state='awaiting_approval', related=['codex:B'], window_id=3101)
+        self.assertNotIn('attend_session', [m['type'] for m in self.sent])
+        self.spatial.set_capabilities('aster', {'attend_session': None})
+        self.step()
+        self.assertIn('attend_session', [m['type'] for m in self.sent])
+
+class CapabilityServerTest(ServerCase):
+    def test_loaded_character_report_auth_validation_and_scope(self):
+        path = '/behavior/capabilities'
+        body = {'character_id': self.server.character, 'capabilities': {'short_walk': None, 'sit@window': 'no window_top'}}
+        self.assertEqual(self.request('PUT', path, body, token=HOOK)[0], 401)
+        self.assertEqual(self.request('PUT', path, body)[0], 200)
+        self.assertEqual(self.server.spatial.diag()['capabilities'], body['capabilities'])
+        status, state = self.request('GET', '/diag/state')
+        self.assertEqual(status, 200)
+        self.assertEqual(state['behavior']['capabilities'], body['capabilities'])
+        self.assertEqual(state['behavior']['capability_character'], self.server.character)
+        self.assertEqual(self.request('PUT', path, {**body, 'character_id': 'old-character'})[0], 409)
+        for caps in ({'short_walk': False}, {'unknown': None}, {'short_walk': ''}, {'short_walk': 'a' * 513}):
+            self.assertEqual(self.request('PUT', path, {**body, 'capabilities': caps})[0], 400)
+
+    def test_the_hosts_gaze_and_rest_keys_are_accepted(self):
+        # ActorControls reports attend_session@user and sit/rest.
+        body = {'character_id': self.server.character,
+                'capabilities': {'attend_session@user': None, 'sit/rest': None, 'sit': None}}
+        self.assertEqual(self.request('PUT', '/behavior/capabilities', body)[0], 200)
+        self.assertEqual(self.server.spatial.diag()['capabilities'], body['capabilities'])

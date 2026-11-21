@@ -1,0 +1,31 @@
+/* Chart colours: series in an ink ramp (ink, secondary ink, chip, hatch); one emphasis and the now line in trace. */
+.palette {
+  --v3-ink-1: var(--ef-text-1);
+  --v3-ink-2: var(--ef-text-2);
+  /* Lines and small marks can't be chip or hatch: the third ink stays visible on the plot. */
+  --v3-ink-3: var(--ef-line-strong);
+  --v3-chip: var(--ef-chip);
+  --v3-hatch: var(--ef-hatch);
+  --v3-cat-1: var(--v3-ink-1);
+  --v3-cat-2: var(--v3-ink-2);
+  --v3-cat-3: var(--v3-chip);
+  --v3-cat-other: var(--v3-hatch);
+  --v3-emph: var(--ef-trace);
+  --v3-sel: var(--ef-trace);
+  --v3-sel-fill: color-mix(in srgb, var(--ef-trace) 14%, transparent);
+  --v3-sel-edge: var(--ef-trace);
+  --v3-on-emph: var(--ef-on-emph);
+  --v3-now: var(--ef-trace);
+  --v3-bg: var(--ef-base);
+  --v3-belt: #5c5d59;
+  --v3-belt-edge: rgba(0, 0, 0, 0.55);
+  --v3-belt-chev: rgba(0, 0, 0, 0.5);
+  --v3-win: rgba(255, 255, 255, 0.07);
+}
+
+:global([data-theme='light']) .palette {
+  --v3-belt: #bdbcb7;
+  --v3-belt-edge: rgba(0, 0, 0, 0.22);
+  --v3-belt-chev: rgba(0, 0, 0, 0.4);
+  --v3-win: rgba(0, 0, 0, 0.05);
+}

@@ -1,0 +1,62 @@
+/* One row: the delivery chain takes the free width, verification and self-check sit at its end. */
+.root {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8) var(--ef-space-inline);
+  min-width: 0;
+}
+
+.root > :first-child {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-space-inline);
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}
+
+.verify {
+  white-space: nowrap;
+}
+
+.verify[data-tone='ok'] {
+  color: var(--ef-success-text);
+}
+
+.verify[data-tone='warning'] {
+  color: var(--ef-attention-text);
+}
+
+.selfcheck {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--ef-sp-4);
+  white-space: nowrap;
+}
+
+.cells {
+  display: inline-flex;
+  gap: var(--ef-sp-2);
+  align-self: center;
+}
+
+.cells i {
+  width: 6px;
+  height: 6px;
+  background: var(--ef-chart-cell-empty);
+}
+
+.cells i[data-on] {
+  background: var(--ef-text-1);
+}
+
+.den {
+  font: var(--ef-t-num);
+  color: var(--ef-text-2);
+}

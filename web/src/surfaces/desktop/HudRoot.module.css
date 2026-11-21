@@ -1,0 +1,234 @@
+/* Shrink-wrapped: the panel takes this box's size; the right padding holds the band's fade. */
+.root {
+  /* Shared components inside read at 13 px with text-2 as the faintest text, as in the comm window. */
+  --ef-fs-small: var(--ef-fs-body);
+  --ef-fs-caption: var(--ef-fs-body);
+  --ef-fs-meta: var(--ef-fs-body);
+  --ef-fs-keycap: var(--ef-fs-body);
+  --ef-fs-code: var(--ef-fs-body);
+  --ef-fs-mono: var(--ef-fs-body);
+  /* The composite tokens resolve their size on :root, so they are restated here to pick up the 13 px. */
+  --ef-t-meta: var(--ef-fw-regular) var(--ef-fs-body) / var(--ef-lh-meta) var(--ef-font-sans);
+  --ef-t-mono: var(--ef-fw-regular) var(--ef-fs-body) / var(--ef-lh-mono) var(--ef-font-mono);
+  --ef-text-3: var(--ef-text-2);
+  /* Band over --ef-hud-band; the desktop alpha keeps #FEFF86 text at 4.5:1 on a white desktop. */
+  --band-a: 70%;
+  /* Desktop text shadow. */
+  --hud-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.5);
+  /* Distance readout. */
+  --hud-readout: #feff86;
+  /* Objective rail. */
+  --hud-rail: rgba(255, 255, 255, 0.3);
+  --hud-t1: var(--ef-text-1);
+  --hud-done: var(--ef-complete);
+  --band: color-mix(in srgb, var(--ef-hud-band) var(--band-a), transparent);
+  --band-fade: linear-gradient(
+    90deg,
+    var(--band),
+    color-mix(in srgb, var(--ef-hud-band) calc(var(--band-a) * 0.91), transparent) 11px,
+    color-mix(in srgb, var(--ef-hud-band) calc(var(--band-a) * 0.71), transparent) 22px,
+    color-mix(in srgb, var(--ef-hud-band) calc(var(--band-a) * 0.44), transparent) 34px,
+    color-mix(in srgb, var(--ef-hud-band) calc(var(--band-a) * 0.22), transparent) 45px,
+    color-mix(in srgb, var(--ef-hud-band) calc(var(--band-a) * 0.09), transparent) 56px,
+    transparent 67px
+  );
+  --room-l: 24px;
+  --room-r: 72px;
+  --room-top: 24px;
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ef-sp-4);
+  padding: var(--room-top) var(--room-r) 28px var(--room-l);
+  background: transparent;
+  color: var(--hud-t1);
+  font: 13px / 20px var(--ef-font-sans);
+}
+
+/* Light: the band turns white under dark text. */
+:global(html[data-theme='light']) .root {
+  --band-a: 88%;
+  --hud-text-shadow: none;
+  --hud-readout: var(--ef-accent-text);
+  --hud-rail: rgba(0, 0, 0, 0.3);
+  --hud-done: var(--ef-accent-text);
+}
+
+/* Reduced transparency and increased contrast: the band turns solid and loses its fade. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .root {
+    --band: var(--ef-hud-solid);
+    --band-fade: none;
+  }
+}
+
+/* agentd unreachable: the last lines stay, all in the disabled grey. Set on the children so no theme rule outranks it. */
+.root[data-offline] > * {
+  --hud-readout: var(--ef-text-disabled);
+  --hud-done: var(--ef-text-disabled);
+  --hud-t1: var(--ef-text-disabled);
+  --ef-mission-accent: var(--ef-text-disabled);
+  --ef-danger-vivid: var(--ef-text-disabled);
+  --ef-badge-dot: var(--ef-text-disabled);
+  --ef-text-1: var(--ef-text-disabled);
+  --ef-text-2: var(--ef-text-disabled);
+  --ef-text-3: var(--ef-text-disabled);
+  --ef-accent: var(--ef-text-disabled);
+  --ef-accent-text: var(--ef-text-disabled);
+  --ef-attention-text: var(--ef-text-disabled);
+  --ef-danger-text: var(--ef-text-disabled);
+}
+
+/* The task-track band: no card, the band behind the rows, its fade outside the box on the right. */
+.band {
+  position: relative;
+  width: 359px;
+  background: var(--band);
+  color: var(--hud-t1);
+  text-shadow: var(--hud-text-shadow);
+  animation: hud-in var(--ef-dur-g-panel-in) var(--ef-ease-g-enter) both;
+}
+
+.band::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 67px;
+  background: var(--band-fade);
+  pointer-events: none;
+}
+
+/* commontasktrackhud_in without its fade: the lines show from the first frame. */
+@keyframes hud-in {
+  from {
+    transform: translateX(-20px);
+  }
+}
+
+:global(.still) .band {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .band {
+    animation: none;
+  }
+}
+
+/* Folded: the top line, rails for up to two more under it. */
+.bar {
+  cursor: pointer;
+}
+
+.bar:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.row {
+  position: relative;
+}
+
+.edge {
+  position: absolute;
+  bottom: calc(var(--i) * 4px - 3px);
+  left: 36px;
+  right: 8px;
+  height: 2px;
+  background: var(--hud-rail);
+}
+
+/* Expanded: every line on one band; the list scrolls inside its share of the room. */
+.block {
+  padding: var(--ef-sp-4) 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+}
+
+.list > .row {
+  flex: none;
+}
+
+/* The in-card buttons or one-line input, under the title. */
+.attached {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ef-sp-8);
+  padding: 0 8px 10px 36px;
+  text-shadow: none;
+}
+
+.attached [data-card-id] {
+  width: auto;
+  margin-left: 0;
+}
+
+.attached [data-card-id] > span[aria-hidden='true'] {
+  display: none;
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  width: 359px;
+}
+
+/* Fold button: a text button on the band with the frame line on its left. */
+.fold {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-left: 1px solid var(--hud-rail);
+  border-radius: 0;
+  background: var(--band);
+  color: var(--hud-t1);
+  font: 13px / 24px var(--ef-font-sans);
+  text-shadow: var(--hud-text-shadow);
+  cursor: pointer;
+}
+
+.fold:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+.toast {
+  width: 359px;
+}
+
+/* 关闭 on hover, a text button over the band's top right corner. */
+.close {
+  position: absolute;
+  top: calc(var(--room-top) - 20px);
+  right: var(--room-r);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--band);
+  color: var(--hud-t1);
+  font: 13px / 1 var(--ef-font-sans);
+  text-shadow: var(--hud-text-shadow);
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--hud-readout);
+}
+
+.close:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}

@@ -1,0 +1,2 @@
+{"v": 1, "type": "init", "config": {"state_dir": "/tmp/state", "model": "haiku"}, "system_prompt": "p", "tools": []}
+{"v": 1, "seq": 1, "type": "ready", "session_id": null, "model": "haiku", "tool_names": [], "tool_inventory_verified": false, "capabilities": {"cancel": "sigterm", "tool_injection": "in_process", "builtin_tools": "unverified", "system_prompt": "native", "usage": "usd", "event_scope": "session", "native_questions": false}}

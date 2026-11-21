@@ -1,0 +1,4 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","actions","poses"],"build":{"git":"4494946d","renderer":"metal"}}
+{"v":1,"type":"actions","character":"aster","actions":[{"id":"pose_akimbo","name":"叉腰","section":"idle","duration":null,"trigger":"用户在右键菜单里选姿态","required_reason":null,"missing":null,"pose":"akimbo"},{"id":"pose_sit_chair","name":"坐下","section":"idle","duration":null,"trigger":"用户在右键菜单里选姿态","required_reason":null,"missing":null,"pose":"sit"},{"id":"talk_nod","name":"说话点头","section":"talk","duration":1.2,"trigger":"说话时每句开头","required_reason":"说话时没有别的动作","missing":null}],"switches":{"pose_akimbo":true,"pose_sit_chair":true,"talk_nod":true}}
+{"v":1,"type":"ack","req":21,"ok":true}
+{"v":1,"type":"pose_state","character":"aster","id":"pose_sit_chair","locked":true}

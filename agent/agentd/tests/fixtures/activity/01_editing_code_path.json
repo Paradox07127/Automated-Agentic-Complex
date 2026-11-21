@@ -1,0 +1,67 @@
+{
+  "note": "编辑器标题里的项目名对上一个会话的 cwd 末段",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:edit-1",
+      "app": "Code",
+      "bundle_id": "com.microsoft.VSCode",
+      "pid": 441,
+      "window_id": 41,
+      "title": "ledger.py — orbit-ledger",
+      "url_host": null,
+      "since": 1799999880.0,
+      "secure_input": false
+    },
+    "dwell_s": 120.0,
+    "presence": {
+      "id": "afk:edit-1",
+      "status": "active",
+      "seconds": 600,
+      "idle_s": 12
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [
+      {
+        "display_session": "claude:s-orbit",
+        "source": "claude",
+        "session_id": "s-orbit",
+        "cwd": "/Users/demo/work/orbit-ledger",
+        "state": "idle",
+        "effective_state": "idle",
+        "tool_name": null,
+        "tool_category": null,
+        "origin": null,
+        "since": 1799999970.0,
+        "observed_at": 1799999970.0
+      },
+      {
+        "display_session": "codex:s-kestrel",
+        "source": "codex",
+        "session_id": "s-kestrel",
+        "cwd": "/Users/demo/work/kestrel",
+        "state": "thinking",
+        "effective_state": "thinking",
+        "tool_name": null,
+        "tool_category": null,
+        "origin": null,
+        "since": 1799999970.0,
+        "observed_at": 1799999970.0
+      }
+    ],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "editing_code",
+    "status": "ok",
+    "related_session_ids": [
+      "claude:s-orbit"
+    ],
+    "can_interrupt": true
+  }
+}

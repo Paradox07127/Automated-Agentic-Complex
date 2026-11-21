@@ -1,0 +1,389 @@
+@import './MessagesArt.css';
+.msg,
+.note,
+.endline {
+  /* Bubble plates: other mean #3A3A3A with white text, self #F0F0F0 with black text. */
+  --sns-other: #3a3a3a;
+  --sns-other-text: #ffffff;
+  --sns-self: #f0f0f0;
+  --sns-self-text: #000000;
+  /* Name #A7A7A7; group owner tag #3D88CD@0.8. */
+  --sns-name: #a7a7a7;
+  --sns-tag: rgba(61, 136, 205, 0.8);
+  /* Head ring and halftone disc. */
+  --sns-ring: rgba(255, 255, 255, 0.7);
+  --sns-halftone: rgba(255, 255, 255, 0.16);
+  /* Task plate #2A2A2A, frame @0.6, title #FFFFFF@0.8, sub #707070 -> #A7A7A7 for contrast. */
+  --sns-card: #2a2a2a;
+  --sns-card-line: rgba(255, 255, 255, 0.6);
+  --sns-task-title: rgba(255, 255, 255, 0.8);
+  --sns-task-sub: #a7a7a7;
+  --sns-task-ico: rgba(255, 255, 255, 0.2);
+  --sns-stripes: rgba(0, 0, 0, 0.2);
+  --sns-go: #eeeeee;
+  --sns-go-arrow: #444444;
+  /* Category bar: needs user #FFF100, running #8DDCFF, side / scheduled #C7FF00. */
+  --sns-cat-user: var(--ef-accent);
+  --sns-cat-run: var(--ef-mission-accent);
+  --sns-cat-side: #c7ff00;
+  /* Long-reply code blocks on #1C1C1C. */
+  --sns-code: #1c1c1c;
+  /* System band: text #FFFFFF@0.5, lines @0.502; end line @0.6, short line @0.2, ticks @0.298. */
+  --sns-sys-text: rgba(255, 255, 255, 0.5);
+  --sns-sys-line: rgba(255, 255, 255, 0.502);
+  --sns-end-line: rgba(255, 255, 255, 0.6);
+  --sns-end-ticks: rgba(255, 255, 255, 0.298);
+}
+
+/* Light theme: the same parts on our light tokens. */
+:global([data-theme='light']) :is(.msg, .note, .endline) {
+  --sns-other: var(--ef-raised);
+  --sns-other-text: var(--ef-text-1);
+  --sns-self: #3a3a3a;
+  --sns-self-text: #ffffff;
+  --sns-name: var(--ef-text-2);
+  --sns-tag: #2b6ca8;
+  --sns-ring: var(--ef-line-strong);
+  --sns-halftone: rgba(0, 0, 0, 0.12);
+  --sns-card: var(--ef-raised);
+  --sns-card-line: var(--ef-rule);
+  --sns-task-title: var(--ef-text-1);
+  --sns-task-sub: var(--ef-text-2);
+  --sns-task-ico: rgba(0, 0, 0, 0.25);
+  --sns-stripes: rgba(0, 0, 0, 0.06);
+  --sns-go: #3a3a3a;
+  --sns-go-arrow: #ffffff;
+  --sns-cat-user: var(--ef-accent-text);
+  --sns-cat-side: #4f6600;
+  --sns-code: var(--ef-bg-canvas);
+  --sns-sys-text: var(--ef-text-2);
+  --sns-sys-line: var(--ef-rule);
+  --sns-end-line: var(--ef-line-strong);
+  --sns-end-ticks: var(--ef-rule);
+}
+
+/* Message row: content column 64 px in from the row edge (other: left, self: right); the first of a run drops 13 px (IsFirstPlaceholder). */
+.msg {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 3px 10px 3px 64px;
+}
+
+.msg[data-first] {
+  padding-top: 16px;
+}
+
+.msg[data-kind='me'] {
+  align-items: flex-end;
+  padding-right: 64px;
+  padding-left: 10px;
+}
+
+/* The turn open in 轮次详情: the row's light plate. */
+.msg[data-sel] {
+  background: var(--ef-overlay-hover);
+}
+
+/* Name row: NameTxt fs 26 g -> 13 px, then the time; reversed on the self side. */
+.who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 20px;
+  margin-bottom: 2px;
+  font: 400 13px/20px var(--ef-font-sans);
+  color: var(--sns-name);
+  overflow-wrap: anywhere;
+}
+
+.msg[data-kind='me'] > .who {
+  flex-direction: row-reverse;
+}
+
+/* Later rows of a run keep the name and time for screen readers only. */
+.who[data-cont],
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.name {
+  color: var(--sns-name);
+}
+
+.tm {
+  font: 500 12px/20px var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  color: var(--sns-name);
+}
+
+/* GroupOwnerNode tag: blue plate; text #D3D3D3 -> white and fs 18 g -> 12 px for contrast and the Chinese floor. */
+.tag {
+  padding: 0 4px 1px;
+  border-radius: 3px;
+  background: var(--sns-tag);
+  color: #ffffff;
+  font: 500 12px/18px var(--ef-font-sans);
+}
+
+/* Head: 50 px box, centre 41 px from the row edge and 20 px below the content top; 38.5 px face circle, 44.5 px broken ring, halftone behind. */
+.ava {
+  position: absolute;
+  top: 33px;
+  left: 16px;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  pointer-events: none;
+}
+
+.msg[data-kind='me'] .ava {
+  right: 16px;
+  left: auto;
+}
+
+.ava::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--sns-halftone) 0.9px, transparent 1.2px) 0 0 / 4px 4px;
+  -webkit-mask: radial-gradient(closest-side, transparent 60%, #000 75%, transparent 100%);
+  mask: radial-gradient(closest-side, transparent 60%, #000 75%, transparent 100%);
+}
+
+.ava::after {
+  content: '';
+  position: absolute;
+  inset: 2.75px;
+  border: 1.5px solid var(--sns-ring);
+  border-radius: 50%;
+  -webkit-mask: conic-gradient(#000 0 40deg, transparent 40deg 52deg, #000 52deg 200deg, transparent 200deg 214deg, #000 214deg);
+  mask: conic-gradient(#000 0 40deg, transparent 40deg 52deg, #000 52deg 200deg, transparent 200deg 214deg, #000 214deg);
+}
+
+.ava img,
+.generic {
+  position: relative;
+  width: 38.5px;
+  height: 38.5px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--ef-surface-2);
+}
+
+.ava img {
+  transform: scale(1.33);
+  clip-path: circle(14.5px);
+}
+
+/* Generic avatar stand-in: a dark figure on a light disc. */
+.generic {
+  display: block;
+  background:
+    radial-gradient(circle at 50% 37%, #333333 0 20%, transparent 21%),
+    radial-gradient(ellipse 34% 30% at 50% 92%, #333333 0 96%, transparent 100%),
+    #d6d6d6;
+}
+
+/* Text bubble (snscontenttext): 381 px text width, 15 px sides; the corner by the head is square with a small tail. */
+.bubble {
+  position: relative;
+  max-width: min(100%, 411px);
+  min-height: 37px;
+  padding: 9px 15px;
+  border-radius: 2px 7px 7px;
+  background: var(--sns-other);
+  color: var(--sns-other-text);
+  transform-origin: left center;
+  animation:
+    bubble-in 167ms var(--ef-ease-g-exit) both,
+    sns-fade 167ms var(--ef-ease-g-fade) both;
+}
+
+.bubble::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 6px;
+  height: 9px;
+  background: inherit;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.bubble > .body {
+  animation: sns-fade 200ms var(--ef-ease-g-fade) 133ms both;
+}
+
+.msg[data-kind='me'] > .bubble {
+  border-radius: 7px 2px 7px 7px;
+  background: var(--sns-self);
+  color: var(--sns-self-text);
+  animation:
+    self-wipe 250ms var(--ef-ease-g-exit) both,
+    sns-fade 167ms var(--ef-ease-g-fade) both;
+}
+
+.msg[data-kind='me'] > .bubble::before {
+  right: -5px;
+  left: auto;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.msg[data-kind='me'] > .bubble > .body {
+  animation: sns-fade 417ms var(--ef-ease-g-fade) 200ms both;
+}
+
+:global([data-theme='light']) .msg:not([data-kind='me']) > .bubble {
+  outline: 1px solid var(--ef-line);
+  outline-offset: -1px;
+}
+
+/* ContentTxt fs 26 g -> 13 px, line spacing +0.26 em. */
+.body {
+  min-width: 0;
+  font: 400 13px/1.5 var(--ef-font-sans);
+  color: inherit;
+}
+
+/* Long-reply card: the task card frame stretched to its content, full width, 13.5 px sides; the name row sits above beside the head. */
+.msg[data-shape='card'] {
+  align-items: stretch;
+  padding-right: 13.5px;
+  padding-left: 13.5px;
+}
+
+.msg[data-shape='card'][data-first] > .who {
+  min-height: 50px;
+  margin-left: 58.5px;
+}
+
+.msg[data-shape='card'] .ava {
+  top: 16px;
+}
+
+.card {
+  position: relative;
+  min-width: 0;
+  padding: 12px 13.5px 13px;
+  border: 1px solid var(--sns-card-line);
+  border-radius: 5px;
+  background: var(--sns-card);
+  color: var(--sns-other-text);
+  animation:
+    card-wipe 200ms var(--ef-ease-g-exit) both,
+    sns-fade 50ms linear both;
+}
+
+.card > .body {
+  animation: card-text-in 284ms var(--ef-ease-g-enter) 133ms both;
+}
+
+.card .messageCode {
+  border: 0;
+  background: var(--sns-code);
+}
+
+:global([data-theme='light']) .card .messageCode {
+  border: 1px solid var(--ef-line);
+}
+
+.text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.text > * + * { margin-top: 5px; }
+.text ul, .text ol { margin-block: 5px; padding-inline-start: 1.55em; }
+.messageHeading { display: block; color: var(--ef-text-1); }
+.card .messageHeading { color: inherit; font-size: 15px; }
+.messageTable { max-width: 100%; overflow-x: auto; }
+.messageTable table { border-collapse: collapse; width: 100%; white-space: normal; }
+.messageTable :is(th, td) { padding: 4px 8px; border-bottom: 1px solid var(--ef-line); text-align: start; }
+.messageTable th { color: var(--ef-text-1); background: var(--ef-bg-canvas); }
+.card .messageTable :is(th, td) { border-bottom-color: var(--sns-task-ico); }
+.card .messageTable th { color: inherit; background: var(--sns-code); }
+.messageCode {
+  max-width: 100%;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--ef-line);
+  background: var(--ef-bg-canvas);
+  white-space: pre;
+}
+
+.kw {
+  font-family: var(--ef-font-mono);
+  font-size: max(12px, 0.87em);
+  color: var(--ef-text-1);
+}
+
+.bubble .kw,
+.card .kw {
+  color: inherit;
+}
+
+.cursor {
+  display: inline-block;
+  width: 6px;
+  height: 1em;
+  margin-left: var(--ef-sp-2);
+  vertical-align: -2px;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.ended {
+  margin-top: var(--ef-sp-4);
+  font: var(--ef-t-meta);
+  opacity: 0.8;
+}
+
+/* 回复下的轮次字段行：「第 n 轮 │ 4.2 s │ 新增记忆 1 条 │ 引用记忆 2 条」 */
+.mtags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.tt,
+.mt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ef-text-2);
+  font: 500 12px/1 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+/* Fields after the first: a hairline │ before each. */
+.mtags > * + * {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid var(--ef-rule);
+}
+
+.tt :global(.num),
+.mt :global(.num) {
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-text-1);
+}

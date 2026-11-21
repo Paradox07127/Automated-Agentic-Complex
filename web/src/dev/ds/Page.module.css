@@ -1,0 +1,9 @@
+.page {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  align-items: start;
+}
+
+.main {
+  min-width: 0;
+}

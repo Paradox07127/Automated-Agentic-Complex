@@ -1,0 +1,227 @@
+/* Shared chart pieces: state glyph, tooltip, table view. */
+
+.glyph {
+  display: block;
+  flex: none;
+}
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  white-space: nowrap;
+}
+
+.num {
+  font-family: var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Header line above an axis chart: summary on the left, table switch on the right. */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+  margin-bottom: var(--ef-sp-8);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.headText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.tableToggle {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.tableToggle:hover {
+  color: var(--ef-text-1);
+}
+
+/* A small icon button in the chart's top-right corner; pressable, so its bottom-right corner is cut. */
+.tableIcon {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ef-text-3);
+  opacity: 0.5;
+}
+
+:hover > .tableIcon,
+.tableIcon:focus-visible,
+.tableIcon[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.tableIcon:hover {
+  background: linear-gradient(-45deg, transparent calc(var(--ef-cut) - 0.5px), var(--ef-chip) var(--ef-cut));
+  color: var(--ef-text-1);
+}
+
+.tableIcon[aria-pressed='true'] {
+  color: var(--ef-text-1);
+}
+
+.tableWrap {
+  max-height: 220px;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 2px;
+  font: var(--ef-t-table);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th {
+  padding: var(--ef-sp-4) var(--ef-sp-8);
+  background: var(--ef-chip);
+  color: var(--ef-text-2);
+  font-weight: var(--ef-fw-medium);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--ef-sp-4) var(--ef-sp-8);
+  background: var(--ef-raised);
+  color: var(--ef-raised-fg);
+  white-space: nowrap;
+}
+
+.table tr[aria-selected='true'] td {
+  background: var(--ef-row-sel-bg);
+  color: var(--ef-row-sel-fg);
+}
+
+.table .right {
+  text-align: right;
+}
+
+.clickRow {
+  cursor: pointer;
+}
+
+/* A pressable row: pointing drops a trace bar down its left edge. */
+.clickRow:hover td:first-child {
+  box-shadow: inset var(--ef-lw-category) 0 0 var(--ef-trace);
+}
+
+/* Legend row under the chart: 12 px Chinese labels, counts in tabular figures. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-4) var(--ef-sp-12);
+  align-items: center;
+  margin: var(--ef-sp-8) 0 0;
+  padding: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  list-style: none;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  white-space: nowrap;
+}
+
+.legendItem .num {
+  color: var(--ef-text-1);
+}
+
+.legendItem[data-zero],
+.legendItem[data-zero] .num {
+  color: var(--ef-text-3);
+}
+
+/* A failure count is a yellow block with ink figures. */
+.legendItem[data-key$='failed']:not([data-zero]) .num {
+  padding: 0 var(--ef-sp-4);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+/* Empty chart: one line of text instead of axes. */
+.emptyLine {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  margin: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+/* CSS tooltip for HTML marks: `data-tip` text, shown on hover and keyboard focus; the host must be positioned. */
+.tip[data-tip]:hover::after,
+.tip[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: var(--ef-z-tooltip);
+  padding: var(--ef-sp-4) var(--ef-sp-8);
+  border: 1px solid var(--ef-rule);
+  background: var(--ef-overlay);
+  color: var(--ef-overlay-fg);
+  font: var(--ef-t-meta);
+  text-align: left;
+  white-space: pre;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.svgTip {
+  position: absolute;
+  z-index: var(--ef-z-tooltip);
+  padding: var(--ef-sp-4) var(--ef-sp-8);
+  border: 1px solid var(--ef-rule);
+  background: var(--ef-overlay);
+  color: var(--ef-overlay-fg);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 8px));
+  pointer-events: none;
+}
+
+.svgTip[data-align='right'] {
+  transform: translate(calc(-100% - 8px), -50%);
+}

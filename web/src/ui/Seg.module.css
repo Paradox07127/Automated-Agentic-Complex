@@ -1,0 +1,80 @@
+/* The second-level tab look at segment scale; grey bold options, the current one a white dotted plate. */
+.seg {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  flex: none;
+  align-items: stretch;
+  height: 28px;
+  border-bottom: 1px solid var(--ef-rule);
+  border-radius: 0;
+}
+
+.opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ef-tab2-text);
+  font-family: var(--ef-font-ui);
+  font-size: var(--ef-fs-small);
+  font-weight: var(--ef-fw-semibold);
+  letter-spacing: -0.055em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade),
+    color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.opt:hover:not(:disabled):not([aria-checked='true']) {
+  background: var(--ef-chip);
+  color: var(--ef-text-1);
+}
+
+.opt:active:not(:disabled):not([aria-checked='true']) {
+  background: var(--ef-surface-3);
+}
+
+.opt:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: -3px;
+}
+
+.opt[aria-checked='true'] {
+  background-color: var(--ef-tab2-sel-bg);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--ef-tab2-sel-text) 9%, transparent) 0.6px, transparent 0.8px);
+  background-size: 3px 3px;
+  color: var(--ef-tab2-sel-text);
+  letter-spacing: 0.03em;
+}
+
+.opt[aria-checked='true']:focus-visible {
+  outline-color: var(--ef-tab2-sel-text);
+}
+
+.opt:disabled {
+  color: var(--ef-text-disabled);
+  cursor: not-allowed;
+}
+
+.seg[data-size='sm'] {
+  height: 24px;
+}
+
+.seg[data-size='sm'] .opt {
+  padding: 0 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opt {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .opt {
+  transition: none;
+}

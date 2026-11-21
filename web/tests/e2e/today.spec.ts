@@ -1,0 +1,87 @@
+import { expect, test, type Page } from '@playwright/test';
+import { A1, T5 } from '../../src/mock/fixtures/ids';
+
+// 今天: what the removed 任务 and 观察 pages checked, on the page that took them over (old links, details, activity, sizes).
+
+function collectErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(`console: ${m.text()}`);
+  });
+  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+  return errors;
+}
+
+// The task detail has a 待处理 section of its own.
+const need = (page: Page) => page.locator('section[aria-label="待处理"][data-stub="OpenSec"]');
+
+test('今天 has the 待处理 card; approving it moves the card on', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('main.html#/overview?still=1');
+  await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
+  const card = need(page).locator(`[data-item="${A1}"]`);
+  await expect(card).toContainText('rm -rf build/');
+  await card.getByRole('button', { name: /^批准/ }).click();
+  await expect(card).toHaveCount(0);
+  await expect(need(page).locator('[data-item]')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test('a task selection opens the task detail on 今天; Esc closes it', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto(`main.html#/overview?sel=${encodeURIComponent(T5)}&demo=full&still=1`);
+  const sheet = page.getByRole('dialog', { name: '详情：Endfield' });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText('状态时段')).toBeVisible();
+  await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('an episode link opens that episode on 今天, with 删除片段 and 排除 its app', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('main.html#/overview?ep=1203&still=1');
+  const sheet = page.getByRole('dialog', { name: '活动片段' });
+  await expect(sheet).toContainText('排查 HostLink 断线');
+  await expect(sheet.getByRole('button', { name: '删除片段' })).toBeVisible();
+  await expect(sheet.getByRole('button', { name: /排除 Terminal/ })).toBeVisible();
+  // The day timeline is on 运行记录 now.
+  await expect(page.locator('section[aria-label="今日时间线"]')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('the activity line on 运行记录 › 今日时间线 opens today’s foreground time and sites', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('main.html#/trace?still=1');
+  await page.getByRole('tab', { name: '今日时间线' }).click();
+  await page.getByRole('button', { name: /^前台 / }).click();
+  const sheet = page.getByRole('dialog', { name: '今天的前台与网站' });
+  await expect(sheet.getByRole('region', { name: '前台时长' })).toContainText('Terminal');
+  await expect(sheet.getByRole('region', { name: '浏览器与网站' })).toContainText('developer.apple.com');
+  expect(errors).toEqual([]);
+});
+
+for (const [w, h] of [
+  [1024, 700],
+  [1280, 800],
+] as const) {
+  test(`${w}×${h} full: no horizontal overflow with a detail open, and the 待处理 card keeps its buttons inside`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.goto(`main.html#/overview?demo=full&sel=${encodeURIComponent(T5)}&still=1`);
+    await expect(page.getByRole('dialog', { name: /^详情：/ })).toBeVisible();
+    const over = await page.evaluate(() => {
+      const c = document.querySelector('[data-shell="content"]');
+      return [document.documentElement.scrollWidth - document.documentElement.clientWidth, c ? c.scrollWidth - c.clientWidth : 0];
+    });
+    expect(over).toEqual([0, 0]);
+    const cut = await need(page).evaluate((sec) => {
+      const box = sec.getBoundingClientRect();
+      return [...sec.querySelectorAll('button')].filter((b) => {
+        const r = b.getBoundingClientRect();
+        return r.width > 0 && (r.left < box.left - 1 || r.right > box.right + 1);
+      }).length;
+    });
+    expect(cut).toBe(0);
+  });
+}

@@ -1,0 +1,343 @@
+# C1 agentd → 角色进程事件 v2.6：语义行为字段、分句级意图、只出字的台词和生成动作
+
+> 角色进程指 `private/renderer/host`（私有组件，不在公开仓库） 的 `metal-avatar-host`。
+
+状态：已批，2026-10-19，定稿 2b67b239（agent 起草）。interaction（6 条补充）、host（3 条）、animation（5 条）都已同意，补充都已并入；
+§3 按 C3 v11 改稿 1a63d7a4 改了两处（协调会话 2026-10-19 11:38 定）。
+共用夹具：`protocol/C1-agent-events/fixtures/`（每个文件一条消息或一串消息）；校验器 `agent/agentd/c1.py`
+（`python3 -I agent/agentd/c1.py protocol/C1-agent-events/fixtures` 全部通过才算夹具有效）。夹具 01–08 各对应一条用例或
+一条规则，09 是分句级意图，10、11 是断线和重连，12 是 agentd 判断的结束条件，13 是只出字的台词，14 是生成动作 `perform`（§1.4），15 是宿主请求的生成动作 `motion`（§1.5）；接收端的测试读同一批文件。
+`fixtures/invalid/` 下是校验器必须报错的样例，不在上面的命令里。
+
+## 0. 不变的部分
+
+### 2026-10-29 角色自身执行状态与表现
+
+角色自己的运行、问题与审批投影为 `display_session = role:<run_id>`，不写入外部编码会话列表。
+`intent` 可增加 `run_id`、`conversation_id`、`run_generation`、`phase`、`outcome`，只含有界元数据。
+`run_generation` 是该运行的版本，不能与全局 `turn_generation` 混用；所有 intent 带全局 generation。
+问题与审批优先，角色工作优先于外部同类工作；完成反应不抢占新工作。
+维护性的记忆提炼与截图理解不投影为用户任务。前台/后台的执行归属由 C6 的 `work_kind` 表示。
+
+`completed` 只表示模型轮结束；`outcome` 区分普通回答 `answered`、核验通过 `succeeded`、
+待复核 `needs_review`、核验失败 `failed`、后台仍工作 `background_pending`。
+只有 `succeeded` 选择庆祝，普通回答用确认，待复核用不确定，失败用歉意。
+终态反应保留 8 秒；这不是用户已查看/接受的回执，交付账本仍应独立保存未处理结果。
+问题的实际状态与到期控制等待表现；回答、撤销、角色切换、重置后最多 0.5 秒重新对账。
+同一运行的并行工具按 `tool_call_id` 匹配结束事件，最后一个工具结束之前仍显示执行中。
+
+可选 `quiet: bool` 为 true 时宿主保留脸部表现，抑制任务状态触发的全身动作；不取消用户主动语音、拖动或姿势所有权。
+宿主在每帧检查 intent 的绝对到期时间，新 generation 退休旧表现，持续等待状态退出后不得补演。
+说话中被推迟的一次性 session 反应最多等待 60 秒；不推迟用户拖动等直接输入。
+角色自身等待使用 `listen target=user` 的 eyes/head 通道，跳过外部 hook 的防抖，忙标志与打字不能将它改成思考。
+`listen` 与 `attend_session` 和 `accompany` 一样可按相同状态续期，不能等待 5 分钟后无声失效。
+
+无窗口 `attend_session` 仅 eyes/head 可原地看向用户。新能力 `attend_session@user` 单独说明是否有角色包里的 gaze 控件；
+有窗口的 `attend_session` 仍要求原有空间执行能力。
+这些状态投影本身不新增视觉完成回执；C3 behavior/action 的 completed 也不能证明用户看见或接受结果。
+
+### 2026-10-28：角色自主朝向扩展
+
+新增 `behavior.type = "face"`，`target = null`、`channels = ["full_body"]`，必填 `facing_yaw` 为有限的 -180…180 度；其余行为不得带该字段。
+`trigger.source` 新增 `agent` / `decision`。`decision_reason` 为产品记录的决定依据，不是用户授权。
+只在角色能力报告明确提供 `face: null` 时发送。
+
+角度来自角色 agent 的 `avatar_face` 工具或 agentd 的规则策略；执行器不得按专注时长、说话或空闲状态自行挑选角度。
+没有有效指令、模型失败或结果过期时保持当前朝向。手动朝向设置优先，动作仍服从资源检查、身体仲裁与用户拖动。
+工具返回 accepted/requested 只代表请求已发出；实际转身回执依次 prepared、running、completed，完成前不得宣称已完成。
+同角度的续期沿用执行器，新角度替换必须重新准备和执行。取消/到期释放执行器，不隐含回正指令。
+
+- `GET /events` 的 SSE、`seq`、游标、`event: snapshot`、`event: intent`、`event: speech_cancelled` 都不变。
+- 旧消费者不认识新事件名时跳过即可。v2 只加不改。
+- 角色进程可按 intent 事件的 `state`（`agent/agentd/sessions/registry.py` 的 `STATES`）选身体动作，`intent` 是兜底；
+  换工具时 agentd 重发同一个 `state` 和 `intent`（`test_registry.UnityIntentFieldsTest` 钉住）。
+- `state` 为 `background` 时角色只有后台任务在跑（`intent` 为 `think`）；前台工作、等待和刚完成都排在它前面。
+- 新事件和 `intent` 共用 `seq`。
+- `event: snapshot` 加 `behaviors`：在跑的全部 §1 对象的数组（没有时为 `[]`；通道不重叠的行为可以并行，例如扶窗和听，
+  夹具 06）。bridge 不带游标连 `/events`、在 `/speech` reset 后重连，断线期间发的 `behavior`、`behavior_cancel` 靠它补上
+  （夹具 11）。host 的 adapter 把它放在 LastState 顶层，之后的 `behavior` 加进去或按 `replaces` 替换，同 id 的
+  `behavior_cancel` 把它移出；`behavior`、`behavior_cancel`、`clause_intent`、`text_line`
+  按 speech.cancelled 的封装原样转，丢掉 `seq` ≤ 游标的和第一条 snapshot 之前的。
+
+## 1. `event: behavior`（agentd 选的一个持续活动）
+
+agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进程维持它（`private/renderer/runtime` 的
+`AgentBehaviorScheduler`），按 `channels` 分配身体占用。新 behavior 替换旧的（`replaces`），承重骨链先安全释放再切，
+旧的不延迟复活。`replaces` 为 null 且 `channels` 和正在跑的行为不重叠时，两个一起跑
+（扶窗中用眼、头、嘴回应说话，夹具 06）；重叠时按 `priority` 替换。
+- `replaces` 指向的行为已经结束时，忽略 `replaces`，照常按 `channels` 和 `priority` 定。
+- 用户拖动、拎起是角色进程本地的，算 `priority` 2：和它重叠的行为以 `user_drag` 结束（回执 `cancelled`）；拖动中要
+  `full_body` 或 `contact` 的新行为回执 `rejected` / `busy`。
+- agentd 发出的新行为和在跑的行为通道重叠时，必须声明被取代的那个：`replaces` 填旧 id，或先发 `behavior_cancel` /
+  `replaced`。否则旧的会一直留在各消费端的 `behaviors` 里。校验器按这条查。
+- 到期是本地的：到期的行为不发 `behavior_cancel`；消费端按墙钟把 `expires_at_ms` 已过的项从 `behaviors` 里去掉。
+  agentd 发 `behavior_cancel` / `expired` 也可以，没有副作用。
+- 重连对账（角色进程）：
+  - 先接手 snapshot `behaviors` 里的新 id，再结束不在数组里的本地行为。C3 断线后本地行为已记成失联，agentd 会用新 id
+    续上同 `type`、同 `target`；先结束再接手的话新 id 接不上，入场动作会重放。
+  - 不在数组里、也没失联的本地行为（只有 agentd 的 SSE 重连，角色进程一直连着）：安全释放，回执 `cancelled`、reason
+    null，保证每个行为都有一条终态回执。失联的不发回执（C3 v11 规则 25）。
+  - 数组里不会有 Companion 已补发过 `connection_lost` 的 id（§3），所以「数组里有的就保留」只用于 SSE 重连这种情况。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `behavior_id` | string | `b-<agentd epoch>-<n>`，≤ 64 字节，本进程内唯一；回执、`motion.started`（C3 v10 规则 22）用它 |
+| `type` | enum | 见 §1.1 |
+| `variant` | string 或 null，可缺省 | v2.2，只用于 `sit`：`still`、`read`、`tea`、`ground`、`rest`；缺省或 null 是原来的坐。角色没有这个 variant 时角色进程回执 `rejected` / `unsupported`。`rest` 是原来的坐再打盹：角色有坐姿的 `rest.sleep` 动作池（按坐循环的姿态取 `rest.sleep@sit` 或 `rest.sleep@floor`）就在坐循环的边界播它，没有就一直坐着；只在宿主的 C3 `behavior_capabilities` 报 `sit/rest` 为 null 时发 |
+| `target` | object 或 null | 见 §1.2 |
+| `trigger` | object | `{source, event}`；`source` ∈ `tick`（随机 tick）、`session`（会话状态变化）、`user`（用户输入、说话、打字）、`speech`（嘴在说）、`receipt`（上一个行为受阻后换目标）；`event` 是具体原因字符串，例如 `session_state:awaiting_approval`、`typing`，可为 null |
+| `display_session` | string 或 null | 和这个行为有关的会话（`attend_session` 必填） |
+| `turn_id` | string 或 null | 由某一轮对话引起时填（`listen`、`think`） |
+| `turn_generation` | int | 发出时的 `turn_generation`；角色进程收到比当前小的直接丢弃并回执 `rejected` / `stale` |
+| `priority` | int 0–3 | 0 随机 tick；1 会话事件；2 用户交互（说话、打字、点击后的转注意）；3 安全退出（目标窗口没了、全屏让开）。角色进程只让同级或更高的替换正在跑的行为；低的回执 `rejected` / `busy` |
+| `expires_at_ms` | int | 墙钟毫秒（跨进程期限用墙钟）；到期角色进程结束行为并回执 `expired` |
+| `intensity` | number 0.0–1.0 | 动作幅度和走动意愿；用户打字时 ≤ 0.3，且 `type` 不会是 `short_walk`、`climb_window_top` |
+| `channels` | string[] | 允许占用的身体通道，取自 `voice`、`mouth`、`eyes`、`head`、`left_hand`、`right_hand`、`full_body`、`contact`；不列出的通道不能占（例如扶窗中回应说话，用 `eyes`、`head`、`mouth`）。`full_body` 只指承重链（骨盆、腿、脊柱），不含眼、头、嘴和两只手 |
+| `exit` | string[] | 结束条件，取自 `focus_change`、`session_state`、`speech_start`、`speech_end`、`user_typing`、`target_gone`、`user_drag`；任一发生角色进程结束行为并回执 `completed`（条件达成）或 `cancelled`（被打断） |
+| `replaces` | string 或 null | 被这条替换的 `behavior_id` |
+| `trace_id` | string | T1 trace（C6 `T1-TRACE.md`） |
+
+`exit` 条件达成时的回执：
+
+| `exit` | 回执 |
+|---|---|
+| `speech_end`、`session_state`、`focus_change` | `completed` |
+| `speech_start`、`user_typing`、`user_drag` | `cancelled` |
+| `target_gone` | `blocked` / `target_gone` |
+
+谁判断：角色进程看不到说话、会话状态、焦点和打字，所以 `speech_start`、`speech_end`、`session_state`、`focus_change`、
+`user_typing` 由 agentd 判断，成立时发 `behavior_cancel` / `exit`，`condition` 是成立的那个（§2），角色进程安全释放后按上表
+回执；`user_drag`、`target_gone` 和到期只由角色进程判断，agentd 不发。agentd 每 1 s 查一次，从发生到发出 cancel：
+会话状态和角色的语音 ≤ 1 s，用户说话、焦点窗口和打字 ≤ 2 s（Companion 每 1 s 一条心跳），但打字要先连续活跃 60 s
+才算（细节见 `protocol/C6-agentd-api/CONTRACT.md` §4.8）。
+
+### 1.1 `type`
+
+`idle`（待机）、`observe`（观察屏幕上的东西）、`short_walk`（沿屏幕底边短走）、`sit`（坐，地面或窗口顶）、
+`hold_window_edge`（扶窗沿）、`climb_window_top`（上窗口顶）、`attend_session`（看向、关注某个会话）、
+`accompany`（安静陪伴）、`listen`（在听）、`think`（在想）。
+
+允许长时间停留的：`sit`、`accompany`（30 分钟回放验收用）。
+
+### 1.2 `target`
+
+| `kind` | 其他字段 | 用于 |
+|---|---|---|
+| `window` | `window_id`（int，系统窗口号）、`side`（`left` / `right` / null） | `hold_window_edge`（`side` 必填，决定手：left → `Bip001_L`）；`sit`（窗口顶）、`climb_window_top`、`observe`、`short_walk` 的 `side` 可为 null；`short_walk` 走到窗口下方离她近的一侧，到了朝向窗口 |
+| `session` | `display_session`、`window_id`（int 或 null：agentd 的 ActivityContext 里这个会话所在的窗口） | `attend_session`；无窗口且仅 eyes/head 时，可按 `attend_session@user` 能力原地看向用户；其余无窗口目标回执 `blocked` / `target_gone` |
+| `point` | `x`、`y`（全局点）、`display_id` | `short_walk` 的终点、`observe` |
+| `user` | 无 | `listen` |
+| `object` | `object_id`（string 或 null：由角色进程选物体） | v2.2，`sit`（坐在场景物体上）；agentd 现在不发这种目标 |
+
+`target` 为 null：`sit` 是在屏幕底边当前位置坐下；`idle`、`accompany`、`think` 没有目标；`short_walk` 由角色进程选终点。
+
+窗口几何以系统 API 为准，agentd 只给窗口号，不给坐标、窗口代际或 display_id；角色进程用
+`HostSurfaceLink` 按 `window_id` 取几何，取不到就回执 `blocked` / `target_gone`。
+原生宿主在目标可用时把 `observe` 或带窗口的 `attend_session` 送给头眼控制，目标随窗口移动更新；
+窗口消失后停止注视并回执 `blocked` / `target_gone`。从未找到的目标没有 `running` 回执。
+
+### 1.3 agentd 只给当前能做的
+
+- 开关关掉的类型不发：`stay_in_place` 开时不发 `short_walk`、`climb_window_top`；
+  `sit_window_top` 关时不发窗口顶的 `sit`、`climb_window_top`；`hold_window_edge` 关时不发 `hold_window_edge`；
+  `bust_framing` 开时不发走动类、`sit`、`hold_window_edge`、`face`，agent 的转身请求回 `facing_unavailable`；
+  `fullscreen_give_way` 开且前台全屏时只发 `idle`（`priority` 3，`trigger.event` = `fullscreen`）。
+- 开关由 Companion 写入 `PUT /behavior/switches`（C6，ui token）。body 每次是完整对象
+  `{stay_in_place, sit_window_top, hold_window_edge, fullscreen_give_way}`，都是布尔，可选再带 `bust_framing`（半身固定，缺省 false）；缺键、多键、非布尔回 400
+  `invalid_switches`；200 回存下的值。agentd 只存在内存里；Companion 在 agentd 每次变健康时和每次改动时重新 PUT。
+  没写过时按默认：`stay_in_place` false，其余 true。前台全屏仍取 attention 心跳的 `fullscreen`。
+- 续期（夹具 03）：和正在跑的行为同类型、同目标的不重发（重复的会话事件合并）。`accompany`、`sit` 快到
+  `expires_at_ms` 时，agentd 发一条同类型、同目标、`replaces` = 旧 id 的；角色进程当作续期，不重做入场动作，旧的回执
+  `cancelled`。校验器按这条检查夹具。
+- 事件触发优先于随机 tick：会话状态变化、用户说话或打字，在下一次 tick 之前立刻发。
+- 用户打字（ActivityContext `typing`）时：不发 `short_walk`、`climb_window_top`，`intensity` ≤ 0.3，
+  `exit` 含 `user_typing` 的行为立刻结束。
+
+### 1.4 生成动作：`type: "perform"`（v2.4）
+
+动作后端为 `generated` 时，agentd 把台词里的 `[motion:<英文描述>|<秒数>]` 交给动作服务生成，重定向到当前角色，作为一条普通
+`behavior` 发出。只多一个类型和一个字段：
+
+- `type: "perform"`，`target: null`，`channels: ["full_body"]`。其余字段和别的行为一样（behavior_id、trigger、turn_generation、
+  priority、expires_at_ms、intensity、exit、trace_id、replaces）。agentd 发的 `trigger.source` 是 `agent`。
+- `motion` 或 `action`（v2.6）：`perform` 带且只带其中一个，别的类型两个都不能带。`motion` 是生成片段：
+  - `id`：`"gm-"` 加 16 个小写十六进制字符；
+  - `meta_sha256`、`keys_sha256`：64 个小写十六进制字符；
+  - `rig_sha256`：64 个小写十六进制字符，是宿主 `ActorArchive.rigSHA256` 里那份角色 rig 文档的 sha256；
+  - `length_s`：数，0.2–10。
+- `action`（v2.6）是当前角色包里的角色包动作：
+  - `id`：角色包 `animation/actions.json` 里一条动作的 `id`，1–64 字节的字符串；
+  - `length_s`：数，0.2–10，是该动作片段的原长（actions.json 的 `duration`，没有时为各 clip 长度之和）。
+  - agentd 只在 `[motion:]` 的文字配到当前角色的角色包动作时发它（`agent/agentd/motion/catalog.py` 和 `phrases.json`）：
+    section 为 talk / react / touch / idle、没有 `command` 和 `unavailable_reason`、clip 都在 clip-catalog、原长 ≤ 8 s 的
+    动作才进匹配目录。`behavior_id` 是 `"b-ga-"` 加 16 个小写十六进制字符，`expires_at_ms` 是发出时刻加 `length_s` 再加 6 s，
+    其余字段同 `motion`。不调动作服务，不取文件。
+  - 宿主按 `id` 取该动作的片段，当身体片段按原长播（不拉伸、不截短，和标记里的秒数无关），进出都用默认交叉淡化，
+    播完回到待机底层，发 `completed`；片段第一次参与提交的帧时发 `running`。角色没有这条动作或片段不可播时发 `rejected`，
+    reason `unsupported`。
+- 下面取文件、校验的规则只对 `motion`。宿主用 AgentBridgeTransport 发 GET 时已用的基址和令牌取两个文件（C6，ui 或 events 令牌）：
+  - `GET /motions/<id>/meta` 回一份 `metal-actor-clip-v1` JSON：`{schema, name, length, frame_rate, loop:false, curves,
+    keys:{file, sha256, byte_count}}`，和 `characters/agentic_complex_build/import_vmd.py:append_clip` 写的一样；`name` 等于 `<id>`。
+  - `GET /motions/<id>/keys` 回 EFKEY001 字节；它的 sha256 等于 `keys_sha256` 和 meta 的 `keys.sha256`。
+  - 不认识的 id 两个都回 404 `{"error":"unknown_motion"}`。agentd 在内存里留最近 16 个动作。
+- 宿主：
+  - 收到 `prepared` 时取到并校验两个文件：sha256、rig、schema、长度和 `length_s` 相差不超过 0.05 s。
+  - 以 `<id>` 为名注册这个片段，当身体片段播，进用默认交叉淡化，出按片尾与待机基座的姿势距离取 0.25–0.9 s。
+  - 播完回到待机底层，发 `completed`。
+  - 取文件或校验失败发 `rejected`，reason `unsupported`。
+  - 收到行为后最多等文件 5 s，过了发 `rejected` / `unsupported`。
+  - `behavior_cancel` 或更高优先级的行为照别的行为一样结束它。
+- 回执就是 §3 的回执。片段第一次参与提交的帧时发 `running`。
+- agentd 一侧：
+  - 从标记解析到发出整条链（生成 → 重定向 → 存 → 发）超过 4 s 或任何一步失败，就什么也不发，只在这一轮的 trace 记一步
+    `motion.fallback`（带 `reason`）；这句台词的 `clause_intent` 照常驱动角色包手势。重定向后的质量检查不过（hips 首末水平
+    净位移超过 0.25 m，或源动作脚尖低于地面 3 cm 以上）也按失败处理，reason `quality`，`checks` 列出 `travel` / `floor`。成功时记 `motion.published`，带
+    `generate_ms`、`retarget_ms`、`total_ms`。一次只跑一个动作，更新的替换还在等的那个。
+  - 生成之前先匹配（v2.6）：配到角色包动作就立刻发带 `action` 的 `perform`，记 `motion.matched`，不进生成队列；配不到才
+    照上面生成。宁可漏配不误配。
+  - 标记的文字是可打印 ASCII，3–160 个字符；秒数是 1–6 的数；整个标记最长 200 个字符。标记总是从说出的文字里去掉；
+    动作后端为 `game` 时什么也不做，提示词里也没有这条标记的说明。
+  - `GET /motion/settings`（ui 令牌）回 `{backend, service_url, token_set}`，从不回令牌。`PUT /motion/settings`（ui 令牌）
+    收 `{backend, service_url, token?}`：`backend` 是 `game`（默认）或 `generated`，`service_url` 是 `http://` 或 `https://`
+    地址或 null，`token` 是动作服务的 bearer 令牌（缺省不变，`""` 删掉）。键不对 400 `invalid_payload`，后端不认识 400
+    `invalid_backend`，地址不对 400 `invalid_service_url`，令牌不是字符串 400 `invalid_token`；200 回存下的设置（同 GET）。
+    设置存在状态目录的 `motion-settings.json`，令牌另存 `motion-service.token`（0600）。
+
+### 1.5 宿主请求的生成动作：`event: motion`（v2.5）
+
+宿主经 C3 v23 `motion_request`（规则 40）→ Companion → agentd `POST /motions/generate` 请求一段按它的几何生成的片段，agentd
+生成、重定向、存好后在 `/events` 上发一条 `motion`。它和 `intent`、`behavior` 共用 `seq`。
+
+- 成功：`{seq, request_id, behavior_id, ok: true, motion}`。
+  - `request_id`、`behavior_id` 照抄请求。
+  - `motion` 是 `{id, meta_sha256, keys_sha256, rig_sha256, length_s, tracks_sha256}`；前五个同 §1.4，`tracks_sha256` 是
+    64 个小写十六进制字符，等于 `GET /motions/<id>/tracks` 回的字节的 sha256。
+- 失败：`{seq, request_id, behavior_id, ok: false, reason}`，不带 `motion`；`reason` ∈ `timeout`（从收到请求到发出超过
+  2.5 s）、`no_service`、`busy`、`failed`、`game_backend`。
+- 动作后端为 `game` 或没有动作服务时，`POST /motions/generate` 回 409（`motion_backend_game` / `no_service`），并立即发一条
+  `ok: false` 的 `motion`（`reason` 为 `game_backend` / `no_service`），宿主不必等满 2.5 s 就用角色包动作片段。
+- 宿主：
+  - 按 `request_id` 对上自己在等的请求；不认识的、已经回退了的丢掉。
+  - 用 events 令牌取 `/meta`、`/keys`、`/tracks`，按 §1.4 校验（sha256、rig、schema、长度和 `length_s` 相差不超过 0.05 s），
+    再校验 `tracks` 的 sha256 和下面的规则，然后以 `<id>` 为名注册片段、按 tracks 播。
+  - `ok` 为 false、请求后 2.5 s（宿主的动作时钟）没收到、或校验不过，就用角色包动作片段。
+- agentd 一侧：几何请求单独一个槽，同一个 `behavior_id` 更新的请求替换还在等的那个；`perform`（§1.4）不替换它。
+
+`GET /motions/<id>/tracks`（events 或 ui 令牌）回 `endfield-generated-tracks/v1` JSON：
+
+```json
+{"schema":"endfield-generated-tracks/v1","id":"gm-…","kind":"walk","rate_hz":30,"loop":false,
+ "stance_start":"stand","stance_end":"stand",
+ "contacts":{"L":[[t0,t1],…],"R":[…]},
+ "travel":[0.0,…],"direction":[x,z],
+ "yaw":[0.0,…],
+ "seat_centre":[[x,y,z],…],"pelvis":[y,…]}
+```
+
+| 键 | 内容 |
+|---|---|
+| `schema` | `"endfield-generated-tracks/v1"` |
+| `id` | 同 `motion.id` |
+| `kind` | 同请求的 `kind` |
+| `rate_hz` | 30；下面每帧一个值的数组都按它采样 |
+| `loop` | 布尔，`window_loop`、`sit_loop` 为 true，其余 false |
+| `stance_start`、`stance_end` | `"stand"` / `"sit"` |
+| `contacts` | `{L, R}`：脚跟着地的区间 `[t0, t1]`（秒，t0 < t1，从小到大），来自 npz 的 `foot_contacts` |
+| `travel`、`direction` | 只有 `walk`：`travel` 是沿 `direction` 的米数，每帧一个，从 0 开始、不减；`direction` 是 rig root x/z 里的单位向量。片段里只留绕平滑 root 的胯部摆动 |
+| `yaw` | 只有 `turn`：每帧累计的度数，正值转向 +x，从 0 开始。片段里去掉了朝向 |
+| `seat_centre`、`pelvis` | 只有 `window_loop`、`sit_*`：每帧的座位中心 `[x, y, z]` 和胯高 `y`，rig root 米 |
+
+- 坐标同 C3 规则 40：rig root 系，左手系，米，+z 前，+x 她的右手。
+- 别的 `kind` 不带用不上的键。`perform` 的动作没有 tracks，`/tracks` 回 404 `{"error":"unknown_tracks"}`；不认识的 id 回 404
+  `{"error":"unknown_motion"}`。
+
+## 2. `event: behavior_cancel`
+
+`{seq, behavior_id, reason, turn_generation}`；`reason` ∈ `replaced`、`switch_off`、`fullscreen`、`turn_cancelled`、`expired`、`exit`（agentd 判断的结束条件成立，§1）、`character_switch`（换角色时 `POST /character/prepare` 结束在跑的全部行为）。
+`reason` 为 `exit` 时另带 `condition`：`speech_start`、`speech_end`、`session_state`、`focus_change`、`user_typing` 之一，
+且在这个行为的 `exit` 里；别的 `reason` 不带 `condition`。
+角色进程安全释放后回执 `cancelled`；`exit` 按 §1 的表回执（`speech_end`、`session_state`、`focus_change` → `completed`，
+`speech_start`、`user_typing` → `cancelled`、reason null）。校验器按这条查。
+
+## 3. 执行回执（角色进程 → Companion → agentd）
+
+角色进程经 C3（规则 25，和 `playback` 一样）交给 Companion，Companion 原样 `POST /behavior/receipts`
+（C6，ui token）给 agentd。agentd 只在收到 `completed` 后才把「走到了」「已松手」当成事实。
+
+| 字段 | 说明 |
+|---|---|
+| `behavior_id` | 来自 `event: behavior` |
+| `phase` | `prepared`、`rejected`、`running`、`completed`、`blocked`、`cancelled`、`expired`（Proposed→Rejected/Prepared→Running→Cancelling→Cancelled/Completed/Failed；`blocked` 和 `expired` 是 Failed 的两种） |
+| `reason` | `rejected`：`stale`、`busy`、`unsupported`、`switch_off`；`blocked`：`target_gone`、`no_room`、`path_blocked`；`cancelled` 可带 `connection_lost`（角色进程断线，Companion 对没到终态的每个行为补发，C3 v11 规则 25）、`user_drag`、`replaced`、`character_switch`（换角色前释放）；其余可为 null |
+| `at_ms` | 墙钟毫秒 |
+| `turn_generation` | 回执对应行为的 `turn_generation` |
+
+每个行为的第一条回执是 `prepared`、`running`（目标就在原地时角色进程同一帧开始跑）或 `rejected`；`rejected`、
+`completed`、`blocked`、`cancelled`、`expired` 是终态，之后同一个 `behavior_id` 不再有回执（C3 v11 规则 25；校验器按这条
+查夹具）。C3 v11 的限流只丢多余的非终态回执，不丢终态。
+
+Companion 给某个行为补发 `cancelled` / `connection_lost` 之后，角色进程不再为它发回执；重连后 snapshot 的 `behaviors`
+里没有这个 id。要接着做，agentd 按 §1.3 的续期规则发一条同 `type`、同 `target` 的新行为（新 `behavior_id`）。`cancelled` / `connection_lost` 记成失联：不当作完成，
+也不当作被打断（同 C2 的 `connection_lost`）。
+
+`blocked` 时 agentd 换目标或换类型重发（`trigger.source` = `receipt`），同一目标 60 s 内不再选。
+
+## 4. 分句级意图：`event: clause_intent`
+
+嘴的台词里 `[intent:x]` 标记按 C2 v2 分句对齐，animation 用它把手势对到分句开始。
+
+`{seq, line_id, utterance_id, clause_id, spoken_text_revision, intent, turn_generation, trace_id}`；`intent` 取 C1 的
+12 值；`clause_id` 是 C2 v2 `clause` 的 id（标记在哪个分句里出现就是哪个）；`spoken_text_revision` 是 C2 的同名字段
+（整数 ≥ 1）。只出字不出声时 `utterance_id`、`clause_id`、`spoken_text_revision` 都为 null。
+
+- 匹配：角色进程按 (`utterance_id`, `clause_id`, `spoken_text_revision`) 对到分句。改写后重合成的台词 `clause_id` 不变、
+  revision 加 1，所以旧意图不会挂到新分句上（夹具 09）。
+- 每个 (`utterance_id`, `clause_id`, `spoken_text_revision`) 最多一条；agentd 多发时，后一条替换前一条。
+- 时机：分句 `playback.started` 时做手势。`/events` 和 `/speech` 是两条流，`clause_intent` 可能在分句开始后才到：
+  分句还在播就立刻做，已经播完就丢弃。
+- `clause_id` 为 null（只出字）：收到就用，同 `event: intent`。
+- 手势占 `full_body`（provider 只有一层片段，每段都动全身）。正在跑的行为占着 `full_body` 或 `contact` 时角色进程跳过
+  这个手势。
+- `turn_generation` 小于当前的丢弃。
+- 词级的手势落点（±150 ms）留到 v2.3，不在本版（v2.1 是 2026-10-21 的短走窗口目标）。
+
+### 4.1 只出字的台词：`event: text_line`（v2.3）
+
+没有语音的台词（没开 TTS、静音、这句没送合成）只显示文字，宿主照样让她「说着」，身体按说话时的规则动。
+
+`{seq, line_id, turn_generation, trace_id, state, hold_ms}`；`state` 为 `started` 或 `ended`。
+
+- `started`：这句台词第一个可见的字显示时发，只发给不出声的台词（出声的台词从不发 `text_line`）。宿主收到就进入说话状态，
+  选说话时的动作池和手势，会话事件和说话时一样等到说完再播。
+- `ended`：这句台词结束时发（完成、被打断、取消或出错），只跟在发过 `started` 的台词后面；`hold_ms` 只在 `ended` 上，
+  是文字结束后宿主再保持说话状态的毫秒数：完成时为 `min(3000, 60 × 显示的字数)`，取消或出错时为 0。
+- 这句台词的 `clause_intent`（三个 id 为 null，每句最多一条）在显示的字里解析出第一个标记时发，紧跟在 `started` 之后，
+  手势和字一起出来，不等台词结束。
+- 轮次过期（`turn_generation` 变大）后不再发新的 `started` 或 `clause_intent`，已发过 `started` 的台词照常发 `ended`。
+- `turn_generation` 小于当前的丢弃；宿主收到更新的 `turn_generation`、会话重置或角色切换时立刻结束说话状态。
+
+## 4.2 非焦点会话的一次性反应：`event: session_reaction`
+
+某个会话进入 `done` 或 `error`，而这次 hook 没让它以这个状态成为焦点 intent 时（例如另一个会话在等确认、焦点会话结束时
+别的会话还在忙），agentd 发一条。成为焦点 intent 的结束不发，所以同一次结束不会反应两遍。intent 的 `quiet` 为 true 时不发。
+
+`{seq, display_session, state, turn_generation}`；`display_session` 同 intent 的会话 id，`state` 为 `done` 或 `error`，
+`turn_generation` 是发出时的值。
+
+- 宿主当一次性反应播，不改焦点。
+- 焦点 intent 是 `awaiting_approval` 或 `awaiting_input` 时丢弃。
+- 宿主坐着或躺着、当前姿势没有这个池时不播，不为它起身。
+
+## 5. 版本记录
+
+2026-10-19：结束条件由 agentd 判断（§1 表下、§2 `exit` 和 `condition`，夹具 12）。
+2026-10-19 换角色流程批准：§2 `behavior_cancel`、§3 回执 `cancelled` 的 reason 加 `character_switch`（C3 换角色草案第 5 节，已并入 C3 正文）。
+2026-10-21 C1 v2.1：`short_walk` 的 `target` 可以是 `window`（§1.2）。agentd 在焦点换到另一个窗口并停 ≥ 10 s 后，按 0.5 概率发一次（`trigger` = `user` / `focus_change`，`priority` 0）；黑名单隐藏的窗口、全屏、打字、开会、游戏、切换中不发，一段焦点只发一次。
+2026-10-21 C1 v2.2（只加不改）：`sit` 可带 `variant`（`still` / `read` / `tea` / `ground` / null，缺省或 null 就是原来的坐；别的类型不带）。§1.2 加 target kind `object`：字段 `object_id`（string 或 null，null 时由角色进程选物体），只用于 `sit`。角色没有这个 variant 时角色进程回执 `rejected` / `unsupported`；agentd 按 (`type`, target kind, `variant`) 记不可用，别的 variant 照常可选。
+2026-11-02 C1 v2.2 补充（只加不改）：`sit` 的 `variant` 加 `rest`（坐下打盹）。宿主在 C3 `actions.behavior_capabilities` 报 `sit/rest`：有坐姿执行器就是 null；agentd 只在它为 null 时发。坐着时会话事件有该坐姿的动作池就在坐循环边界插播一段再回到坐循环；`session.approval` / `session.input` / `session.error` 在坐姿没有池时让她经坐姿的起身片段站起，宿主以 `completed` 结束占着座位的 `sit`。
+
+2026-11-17 补充（只加不改）：宿主在 C3 `actions.behavior_capabilities` 另报 `sit/read`、`sit/tea`：坐姿里有这个 variant 就是 null，否则是不可用原因；agentd 对用户活动的坐姿回应只在它为 null 时发该 variant，否则改发 `observe`。
+2026-11-03 C1 v2.3（只加不改）：§4.1 新事件 `text_line`（`started` / `ended` + `hold_ms`），只出字的台词显示时宿主保持说话状态；只出字的 `clause_intent` 改为在显示的字里解析出第一个标记时发（原为台词结束时），每句仍最多一条。夹具 13。
+2026-11-04 C1 v2.4（只加不改）：§1.4 新类型 `perform` 和它的 `motion` 字段（生成动作），宿主经 `GET /motions/<id>/meta`、`/keys` 取片段；agentd 的 `GET` / `PUT /motion/settings` 切换 `game` / `generated` 动作后端。夹具 14，不合法样例 `fixtures/invalid/14-perform-bad-motion.json`。
+2026-11-04 C1 v2.5（只加不改）：§1.5 新事件 `motion`（宿主经 C3 v23 `motion_request` 请求的生成片段，成功带 `motion` 和 `tracks_sha256`，失败带 `reason`），新文件 `GET /motions/<id>/tracks`（`endfield-generated-tracks/v1`）。夹具 15；`agent/agentd/c1.py` 认识 `motion` 之前，这个夹具还过不了校验器。
+2026-11-06 C1 v2.6（只加不改）：§1.4 `perform` 带 `motion` 或 `action` 二选一；`action: {id, length_s}` 是当前角色包的角色包动作，`[motion:]` 的文字配到它时 agentd 不生成，宿主按 id 播原片。夹具 14b，不合法样例 `fixtures/invalid/14b-perform-motion-and-action.json`。

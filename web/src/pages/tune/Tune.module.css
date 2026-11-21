@@ -1,0 +1,52 @@
+/* 调参（开发者）：上面行为 │ 画面，下面状态曲线 │ 完整动作表；整页滚动。 */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.loading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+.bars {
+  display: grid;
+  gap: var(--ef-sp-8);
+  padding: var(--ef-sp-12) 24px 0;
+}
+
+.lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(420px, 40%, 560px);
+  align-items: start;
+  gap: 32px;
+  padding: 0 24px 32px;
+}
+
+/* The table scrolls inside a fixed height so its group heads stay on top. */
+.motions {
+  display: flex;
+  flex-direction: column;
+  height: 560px;
+  min-width: 0;
+}
+
+.motions > [data-motions] {
+  flex: 1;
+}
+
+@container page (max-width: 1000px) {
+  .lower {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The motion table's list stops scrolling here (MotionTable.module.css); the page scrolls instead. */
+  .motions {
+    height: auto;
+  }
+}

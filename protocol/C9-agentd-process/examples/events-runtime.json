@@ -1,0 +1,5 @@
+{
+  "schema": 1,
+  "base_url": "http://127.0.0.1:48800",
+  "events_token": "EXAMPLE-events-token-not-a-secret"
+}

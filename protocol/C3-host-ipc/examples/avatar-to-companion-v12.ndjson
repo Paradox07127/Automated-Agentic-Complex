@@ -1,0 +1,6 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","placement","trace","playback","turn_generation","behavior_receipt"],"build":{"git":"e8d17c47"}}
+{"v":1,"type":"hit_capsules","frame":120,"space":"global","pose_revision":118,"submitted_frame":120,"capsules":[{"a":[1180.0,60.0],"b":[1180.0,250.0],"r":38.0}]}
+{"v":1,"type":"hit_capsules","frame":150,"space":"global","pose_revision":148,"submitted_frame":150,"capsules":[{"a":[1180.0,62.0],"b":[1180.0,250.0],"r":38.0}]}
+{"v":1,"type":"hit_capsules","frame":151,"space":"global","pose_revision":148,"submitted_frame":151,"capsules":[]}
+{"v":1,"type":"character_changed","id":"birch","ms":2310,"appearance":"default","appearances":[{"id":"default","name":"默认"}]}
+{"v":1,"type":"character_change_failed","id":"aster","reason":"load_failed"}

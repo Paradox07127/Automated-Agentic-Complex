@@ -1,0 +1,145 @@
+// 今天 view types, the work-memory (L1 / L2 / L3) views, and the fallbacks built from today's existing reads.
+import type { MemoryDaysResponse, MemorySessionsResponse } from '../../bridge/agentd-routes.generated';
+import { formatDuration, secToMs, unhidden, type AppTime, type AttentionSummary, type Session } from '../../domain';
+import { uuidOf } from '../tasks/board';
+import { parseTasksParams, type TasksParams } from '../tasks/params';
+import { codeCounts, nextReminder, reminderTime } from './briefModel';
+import type { OverviewSnapshot } from './load';
+import type { DayConv, DayEpisode, OverviewBrief } from './loadBrief';
+import type { WireDaySegments } from './wire';
+
+export type TodaySource = 'claude' | 'codex' | 'role' | 'own' | 'app' | 'web' | 'chat';
+
+export interface TimelineEntry {
+  id: string;
+  /** ms */
+  t0: number;
+  t1: number;
+  /** At most 24 characters. */
+  title: string;
+  source: TodaySource;
+  taskId: string | null;
+  open: { sel?: string; ep?: string; conv?: string; summary?: string };
+  origin: 'l1' | 'episode' | 'segment' | 'conv';
+}
+
+export interface DayLine {
+  text: string;
+  origin: 'l3' | 'local';
+  at: number | null;
+}
+
+export interface ActivitySummary {
+  activeS: number | null;
+  topApp: string | null;
+  topAppS: number | null;
+  webMin: number | null;
+}
+
+export interface TodayParams extends Pick<TasksParams, 'sel' | 'open' | 'create'> {
+  ep: string | null;
+  day: string | null;
+}
+
+export function parseTodayParams(search: string): TodayParams {
+  const { sel, open, create } = parseTasksParams(search);
+  const q = new URLSearchParams(search);
+  return { sel, open, create, ep: q.get('ep'), day: q.get('day') };
+}
+
+/** 今天 6 段对话，7 个编码会话（进行中 3，待批准 2，已完成 1）；下一条提醒 15:20 组会带周报。 */
+export function summaryText(snap: OverviewSnapshot, brief: OverviewBrief, now: number): string {
+  const code = codeCounts(snap);
+  const parts = ([[code.running, '进行中'], [code.waiting, '待批准'], [code.done, '已完成']] as const).filter((x) => x[0] > 0);
+  const next = nextReminder(snap.reminders, now);
+  const conv = brief.convs ? `${brief.convs.length} 段对话，` : '';
+  const work = code.total ? `${code.total} 个编码会话（${parts.map(([v, k]) => `${k} ${v}`).join('，')}）` : '还没有编码会话';
+  return `今天 ${conv}${work}${next ? `；下一条提醒 ${reminderTime(next.due_at, now)} ${next.title}` : ''}。`;
+}
+
+export type WireSessionSummary = MemorySessionsResponse['sessions'][number];
+export type WireDaySummary = MemoryDaysResponse['days'][number];
+
+/** Rows the timeline shows before 展开全部. */
+export const TIMELINE_CAP = 30;
+
+const TITLE_MAX = 24;
+const short = (t: string) => (t.length > TITLE_MAX ? `${t.slice(0, TITLE_MAX - 1)}…` : t);
+
+const byNewest = (a: TimelineEntry, b: TimelineEntry) => b.t0 - a.t0;
+
+/** L1 session summaries (`/memory/sessions?day=`), newest first. */
+export function timelineFromL1(rows: readonly WireSessionSummary[]): TimelineEntry[] {
+  return rows
+    .map((s): TimelineEntry => ({
+      id: s.id,
+      t0: secToMs(s.start),
+      t1: secToMs(s.end),
+      title: short(s.title),
+      source: s.agent === 'codex' ? 'codex' : s.agent === 'claude' ? 'claude' : 'app',
+      taskId: s.task_id,
+      open: { summary: s.id },
+      origin: 'l1',
+    }))
+    .sort(byNewest);
+}
+
+/** The L3 headline of `day`; null when there is none. */
+export function dayLineFromL3(days: readonly WireDaySummary[], day: string): DayLine | null {
+  const d = days.find((x) => x.date === day && x.period === 'day' && x.headline);
+  return d ? { text: d.headline, origin: 'l3', at: secToMs(d.generated_at) } : null;
+}
+
+/**
+ * The fallback timeline, newest first: episodes with same-app neighbours merged, the day's coding sessions
+ * (`/day/segments`, titled from the session registry) and the conversations touched that day.
+ */
+export function timelineFromDay(episodes: readonly DayEpisode[], segments: WireDaySegments | null, convs: readonly DayConv[], sessions: readonly Session[], now: number): TimelineEntry[] {
+  const out: TimelineEntry[] = [];
+  let prev: { app: string; e: TimelineEntry } | null = null;
+  for (const ep of [...episodes].sort((a, b) => a.t0 - b.t0)) {
+    if (prev && prev.app === ep.app) {
+      prev.e.t1 = Math.max(prev.e.t1, ep.t1);
+      continue;
+    }
+    const e: TimelineEntry = { id: `ep:${ep.id}`, t0: ep.t0, t1: ep.t1, title: short(unhidden(ep.title)), source: 'app', taskId: null, open: { ep: ep.id }, origin: 'episode' };
+    out.push(e);
+    prev = { app: ep.app, e };
+  }
+  for (const p of segments?.projects ?? []) {
+    for (const s of p.sessions) {
+      if (s.started_at == null) continue;
+      const reg = sessions.find((x) => !x.own && x.id.endsWith(`:${s.session_id}`));
+      const sel = reg?.task_id ?? `ses:${uuidOf(s.session_id) ?? s.session_id}`;
+      const t1 = s.ended_at == null ? now : secToMs(s.ended_at);
+      const source = reg?.target === 'codex' || reg?.id.startsWith('codex:') ? 'codex' : 'claude';
+      out.push({ id: `seg:${s.session_id}`, t0: secToMs(s.started_at), t1, title: short(reg?.title ?? `${p.name} 会话`), source, taskId: reg?.task_id ?? null, open: { sel }, origin: 'segment' });
+    }
+    for (const o of p.own) {
+      const reg = sessions.find((x) => x.id === o.session_id);
+      out.push({ id: `own:${o.session_id}`, t0: secToMs(o.started_at), t1: secToMs(o.updated_at), title: short(o.title ?? reg?.title ?? '编码会话'), source: 'own', taskId: reg?.task_id ?? null, open: { sel: reg?.task_id ?? o.session_id }, origin: 'segment' });
+    }
+  }
+  for (const c of convs) {
+    const t0 = c.turns.length ? Math.min(...c.turns.map((t) => t.t0)) : c.updated_at;
+    const t1 = c.turns.length ? Math.max(...c.turns.map((t) => t.t1)) : c.updated_at;
+    out.push({ id: `conv:${c.id}`, t0, t1, title: short(c.title), source: 'chat', taskId: null, open: { conv: c.id }, origin: 'conv' });
+  }
+  return out.sort(byNewest);
+}
+
+/** The server's own rest bucket in `/attention/summary`. */
+const REST = '其他';
+
+export function activityOf(att: { summary: AttentionSummary; apps: readonly AppTime[]; hosts: readonly AppTime[] }): ActivitySummary {
+  const top = att.apps.filter((a) => a.app !== REST).sort((a, b) => b.seconds - a.seconds)[0];
+  const web = att.hosts.reduce((n, h) => n + h.seconds, 0);
+  return { activeS: att.summary.active_s, topApp: top ? unhidden(top.app) : null, topAppS: top?.seconds ?? null, webMin: att.hosts.length ? Math.round(web / 60) : null };
+}
+
+/** 前台 4 小时 27 分 · 最多 Terminal · 网站 48 分; an unread part reads —. */
+export function activityText(a: ActivitySummary | null): string {
+  const fg = a?.activeS != null ? formatDuration(a.activeS * 1000) : '—';
+  const web = a?.webMin != null ? formatDuration(a.webMin * 60_000) : '—';
+  return `前台 ${fg} │ 最多 ${a?.topApp ?? '—'} │ 网站 ${web}`;
+}

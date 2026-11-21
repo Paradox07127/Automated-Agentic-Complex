@@ -1,0 +1,414 @@
+{
+  "contract": "C12",
+  "protocol": 1,
+  "max_line_bytes": 16777216,
+  "platforms": ["macos", "windows"],
+  "common_errors": ["bad_request", "unknown_op", "unsupported", "not_ready", "cancelled", "timeout", "internal"],
+  "groups": {
+    "session": "会话",
+    "windows": "前台窗口和屏幕",
+    "attention": "注意力",
+    "ax": "读屏（AX / UIA）",
+    "capture": "截图",
+    "ocr": "OCR",
+    "voice": "按住说话和麦克风",
+    "control": "电脑控制",
+    "permissions": "权限",
+    "clipboard": "剪贴板",
+    "apps": "应用和进程"
+  },
+  "types": {
+    "rect": {"fields": {"x": "num", "y": "num", "width": "num", "height": "num"}},
+    "point": {"fields": {"x": "num", "y": "num"}},
+    "screen": {"fields": {"display_id": "uint", "frame": "rect", "visible": "rect", "scale": "num", "primary": "bool"}},
+    "window": {
+      "fields": {"window_id": "int+", "pid": "int+", "bounds": "rect"},
+      "optional": {"layer": "int", "alpha": "num", "title": "str?", "app_name": "str?", "app_id": "str?"}
+    },
+    "front": {
+      "fields": {"pid": "int+", "name": "str?", "app_id": "str?", "window": "window?"},
+      "optional": {"category": "str?", "focused_window_title": "str?"}
+    },
+    "app": {
+      "fields": {"pid": "int+", "name": "str?", "app_id": "str?"},
+      "optional": {"path": "str?", "launched_at": "num?", "regular": "bool"}
+    },
+    "installed_app": {"fields": {"path": "str+", "name": "str"}},
+    "audio_client": {
+      "fields": {"pid": "int+", "app_id": "str?", "name": "str?", "running_input": "bool", "running_output": "bool?"}
+    },
+    "input_counters": {"fields": {"keys": "uint", "left_clicks": "uint", "right_clicks": "uint", "scrolls": "uint", "moves": "uint"}},
+    "input_idles": {"fields": {"key": "num", "pointer": "num", "scroll": "num", "click": "num"}},
+    "focus": {
+      "fields": {"pid": "int+", "role": "str?", "native_role": "str?", "subrole": "str?", "frame": "rect", "caret": "rect?",
+                 "editable": "bool"},
+      "optional": {"element_key": "str?"}
+    },
+    "ax_hit": {"fields": {"role": "str?", "native_role": "str?", "subrole": "str?", "frame": "rect?"}},
+    "ax_node": {
+      "fields": {"id": "uint", "parent": "int", "role": "str", "native_role": "str"},
+      "optional": {"label": "str?", "value": "str?", "selection": "str?", "bounds": "rect?"}
+    },
+    "coverage": {
+      "fields": {"status": "enum(complete|partial|empty)", "scope": "str", "reasons": "arr<str>",
+                 "captured_nodes": "uint", "captured_chars": "uint"},
+      "optional": {"next_cursor": "str?"}
+    },
+    "ax_element": {
+      "fields": {"role": "str?", "native_role": "str?", "subrole": "str?", "label": "str?", "value_length": "uint?",
+                 "window_title": "str?"},
+      "optional": {"doc": "str?", "selected_text": "str?", "element_key": "str", "value": "str?"}
+    },
+    "ax_window": {"fields": {"title": "str?", "doc": "str?"}},
+    "image": {"fields": {"format": "enum(png|jpeg)", "width": "int+", "height": "int+", "data": "b64"}},
+    "ocr_line": {"fields": {"text": "str", "bounds": "rect"}, "optional": {"confidence": "num?"}},
+    "control_target": {
+      "fields": {"pid": "int+", "app_id": "str", "window_id": "int+", "bounds": "rect", "launched_at": "num"}
+    },
+    "control_element": {
+      "fields": {"element_id": "str+", "role": "str", "native_role": "str", "enabled": "bool", "actions": "arr<str>"},
+      "optional": {"title": "str", "value": "str", "bounds": "rect"}
+    },
+    "clip_item": {"fields": {"types": "arr<str>"}, "optional": {"file": "str", "url": "str", "text": "str"}},
+    "process_usage": {"fields": {"pid": "int+", "cpu_time_ns": "uint", "resident_bytes": "uint"}}
+  },
+  "ops": {
+    "hello": {
+      "group": "session", "platforms": ["macos", "windows"], "timeout_ms": 5000,
+      "params": {"protocol": "int+", "client": "str+"},
+      "params_optional": {"client_version": "str"},
+      "result": {"protocol": "int+", "platform": "enum(macos|windows)", "helper_version": "str", "os_version": "str",
+                 "arch": "str", "pid": "int+", "ops": "arr<str>", "events": "arr<str>"},
+      "errors": ["protocol_mismatch"]
+    },
+    "cancel": {
+      "group": "session", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {"target": "int+"},
+      "result": {"cancelled": "bool"},
+      "errors": []
+    },
+    "shutdown": {
+      "group": "session", "platforms": ["macos", "windows"], "timeout_ms": 3000,
+      "params": {},
+      "result": {},
+      "errors": []
+    },
+    "screens.list": {
+      "group": "windows", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {},
+      "result": {"screens": "arr<screen>"},
+      "errors": []
+    },
+    "windows.list": {
+      "group": "windows", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {},
+      "params_optional": {"pid": "int+", "layer0_only": "bool", "include_titles": "bool", "limit": "int+"},
+      "result": {"windows": "arr<window>"},
+      "errors": []
+    },
+    "windows.at_point": {
+      "group": "windows", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {"point": "point"},
+      "params_optional": {"exclude_pids": "arr<int+>", "layer0_only": "bool", "include_titles": "bool"},
+      "result": {"window": "window?"},
+      "errors": []
+    },
+    "workspace.watch": {
+      "group": "windows", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {"enabled": "bool"},
+      "result": {"watching": "bool"},
+      "result_optional": {"front_pid": "int+?"},
+      "errors": [],
+      "events": ["workspace.changed"]
+    },
+    "attention.sample": {
+      "group": "attention", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {},
+      "params_optional": {"include_titles": "bool", "include_input": "bool", "include_audio": "bool"},
+      "result": {"ts": "num", "front": "front?", "mouse_window": "window?", "idle_s": "num", "locked": "bool",
+                 "secure_input": "bool", "focus_role": "str?", "focus_native_role": "str?", "focus_window_role": "str?",
+                 "focus_window_native_role": "str?", "focus_window_subrole": "str?",
+                 "camera_active": "bool?", "mic_active": "bool?", "audio_clients": "arr<audio_client>?",
+                 "input_counters": "input_counters?", "input_idles": "input_idles?", "video_pids": "arr<int+>?",
+                 "front_gpu_busy": "num?", "capture_indicator": "bool?"},
+      "errors": []
+    },
+    "presence.watch": {
+      "group": "attention", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {"enabled": "bool"},
+      "result": {"watching": "bool"},
+      "errors": [],
+      "events": ["presence.edge"]
+    },
+    "browser.front_tab": {
+      "group": "attention", "platforms": ["macos"], "timeout_ms": 2000,
+      "params": {"app_id": "str+"},
+      "result": {"url_host": "str?", "incognito": "bool?"},
+      "errors": ["automation_denied", "process_gone"]
+    },
+    "input.modifiers": {
+      "group": "attention", "platforms": ["macos", "windows"], "timeout_ms": 1000,
+      "params": {},
+      "result": {"alt": "bool", "shift": "bool", "control": "bool", "meta": "bool"},
+      "errors": []
+    },
+    "input.watch": {
+      "group": "attention", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {"enabled": "bool"},
+      "result": {"watching": "bool"},
+      "errors": ["permission_denied"],
+      "events": ["input.activity"]
+    },
+    "input.actions": {
+      "group": "attention", "platforms": ["macos"], "timeout_ms": 2000,
+      "params": {"enabled": "bool"},
+      "result": {"watching": "bool"},
+      "errors": ["permission_denied"],
+      "events": ["input.action"]
+    },
+    "ax.focused": {
+      "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 1000,
+      "params": {},
+      "params_optional": {"pid": "int+"},
+      "result": {"focus": "focus?"},
+      "result_optional": {"app_pid": "int+?"},
+      "errors": ["permission_denied", "ax_timeout"]
+    },
+    "ax.dialog_buttons": {
+      "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 1000,
+      "params": {"pid": "int+"},
+      "result": {"buttons": "arr<rect>"},
+      "errors": ["permission_denied", "ax_timeout", "process_gone"]
+    },
+    "ax.overlays": {
+      "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 1000,
+      "params": {},
+      "result": {"banners": "arr<rect>", "ime": "arr<rect>"},
+      "errors": ["permission_denied", "ax_timeout"]
+    },
+    "ax.hit_chain": {
+      "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 1000,
+      "params": {"point": "point"},
+      "params_optional": {"exclude_pids": "arr<int+>"},
+      "result": {"pid": "int+?", "chain": "arr<ax_hit>"},
+      "errors": ["permission_denied", "ax_timeout"]
+    },
+    "ax.window_text": {
+      "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 3000,
+      "params": {"pid": "int+", "level": "enum(focused|window)"},
+      "params_optional": {"window_bounds": "rect", "clip": "rect", "cursor": "str", "max_nodes": "int+", "max_scalars": "int+"},
+      "result": {"snapshot_id": "str+", "matched": "bool", "text": "str", "nodes": "arr<ax_node>", "coverage": "coverage"},
+      "errors": ["permission_denied", "ax_timeout", "ax_unavailable", "process_gone"]
+    },
+    "ax.window_tree": {
+      "group": "ax", "platforms": ["macos"], "timeout_ms": 2000,
+      "params": {"pid": "int+"},
+      "params_optional": {"window_bounds": "rect", "previous": "str+", "max_lines": "int+", "max_scalars": "int+"},
+      "result": {"matched": "bool", "tree_id": "str+", "mode": "enum(full|diff|no_change)", "text": "str", "lines": "uint",
+                 "truncated": "bool", "secure": "bool"},
+      "errors": ["permission_denied", "ax_timeout", "ax_unavailable", "process_gone"]
+    },
+    "ax.selected_text": {
+      "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 1000,
+      "params": {"pid": "int+"},
+      "result": {"text": "str?"},
+      "errors": ["permission_denied", "ax_timeout"]
+    },
+    "ax.video_rect": {
+      "group": "ax", "platforms": ["macos"], "timeout_ms": 1000,
+      "params": {"pid": "int+"},
+      "result": {"rect": "rect?"},
+      "errors": ["permission_denied", "ax_timeout", "process_gone"]
+    },
+    "ax.watch": {
+      "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {"pid": "int+?", "notifications": "arr<enum(focus|window|title|value|selection)>"},
+      "params_optional": {"read_selected_text": "bool", "read_value": "bool", "manual_accessibility": "bool", "watch_id": "str+"},
+      "result": {"watching": "bool", "pid": "int+?"},
+      "result_optional": {"watch_id": "str+", "element": "ax_element?", "window": "ax_window?", "manual_accessibility": "bool"},
+      "errors": ["permission_denied", "process_gone"],
+      "events": ["ax.notification"]
+    },
+    "capture.window": {
+      "group": "capture", "platforms": ["macos", "windows"], "timeout_ms": 5000,
+      "params": {"window_id": "int+"},
+      "params_optional": {"format": "enum(png|jpeg)", "max_long_side": "int+", "max_bytes": "int+"},
+      "result": {"image": "image", "scale": "num"},
+      "errors": ["permission_denied", "window_gone", "capture_failed", "too_large"]
+    },
+    "capture.ambient": {
+      "group": "capture", "platforms": ["macos", "windows"], "timeout_ms": 5000,
+      "params": {"source": "enum(screen|wallpaper)", "side": "int+"},
+      "params_optional": {"rect": "rect", "exclude_pids": "arr<int+>", "display_id": "uint"},
+      "result": {"width": "int+", "height": "int+", "rgba": "b64"},
+      "errors": ["permission_denied", "capture_failed"]
+    },
+    "ocr.languages": {
+      "group": "ocr", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {},
+      "result": {"languages": "arr<str>"},
+      "errors": ["ocr_unavailable"]
+    },
+    "ocr.recognize": {
+      "group": "ocr", "platforms": ["macos", "windows"], "timeout_ms": 10000,
+      "params": {},
+      "params_optional": {"window_id": "int+", "image": "image", "languages": "arr<str>"},
+      "params_one_of": ["window_id", "image"],
+      "result": {"text": "str", "lines": "arr<ocr_line>", "languages": "arr<str>"},
+      "errors": ["permission_denied", "window_gone", "capture_failed", "ocr_unavailable"]
+    },
+    "speech.locales": {
+      "group": "voice", "platforms": ["macos", "windows"], "timeout_ms": 5000,
+      "params": {},
+      "result": {"engine": "str", "locales": "arr<str>"},
+      "errors": ["asr_unavailable"]
+    },
+    "mic.start": {
+      "group": "voice", "platforms": ["macos", "windows"], "timeout_ms": 120000,
+      "params": {"session": "str+", "locale": "str+"},
+      "params_optional": {"transcribe": "bool", "level_events": "bool"},
+      "result": {"session": "str+", "locale": "str", "sample_rate": "int+"},
+      "errors": ["permission_denied", "mic_busy", "no_audio_device", "locale_unsupported", "asr_unavailable"],
+      "events": ["mic.level", "speech.partial", "speech.download"]
+    },
+    "mic.stop": {
+      "group": "voice", "platforms": ["macos", "windows"], "timeout_ms": 10000,
+      "params": {"session": "str+"},
+      "params_optional": {"discard": "bool"},
+      "result": {"session": "str+", "text": "str", "duration_ms": "uint"},
+      "errors": ["not_recording"]
+    },
+    "ptt.register": {
+      "group": "voice", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {"combo": "str+"},
+      "result": {"registered": "bool"},
+      "errors": ["bad_hotkey", "hotkey_taken", "permission_denied"],
+      "events": ["ptt.down", "ptt.up", "ptt.typed"]
+    },
+    "ptt.unregister": {
+      "group": "voice", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {},
+      "result": {"unregistered": "bool"},
+      "errors": []
+    },
+    "control.observe": {
+      "group": "control", "platforms": ["macos", "windows"], "timeout_ms": 5000,
+      "params": {"pid": "int+", "window_id": "int+"},
+      "params_optional": {"include_text": "bool", "include_image": "bool", "max_elements": "int+", "max_text_scalars": "int+"},
+      "result": {"snapshot_id": "str+", "target": "control_target", "elements": "arr<control_element>", "truncated": "bool",
+                 "text_truncated": "bool"},
+      "result_optional": {"image": "image"},
+      "errors": ["permission_denied", "window_gone", "ax_timeout", "too_large", "secure_input"]
+    },
+    "control.act": {
+      "group": "control", "platforms": ["macos", "windows"], "timeout_ms": 3000,
+      "params": {"snapshot_id": "str+", "action": "enum(press|set_value|type|click|scroll)"},
+      "params_optional": {"element_id": "str+", "text": "str", "x": "num", "y": "num", "delta_y": "int"},
+      "result": {"effect": "enum(confirmed|unverifiable)"},
+      "errors": ["permission_denied", "stale_snapshot", "element_required", "element_gone", "target_changed", "secure_element",
+                 "secure_input", "action_refused", "unsupported_action", "invalid_text", "invalid_point", "invalid_scroll",
+                 "foreground_required", "occluded_target"]
+    },
+    "control.read": {
+      "group": "control", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {"snapshot_id": "str+", "element_id": "str+"},
+      "result": {"value": "str?", "title": "str?"},
+      "errors": ["stale_snapshot", "element_gone", "target_changed", "secure_element", "secure_input"]
+    },
+    "control.listen": {
+      "group": "control", "platforms": ["macos", "windows"], "timeout_ms": 3000,
+      "params": {"endpoint": "str+", "token_file": "str+"},
+      "result": {"endpoint": "str+"},
+      "errors": ["already_running", "endpoint_unavailable"],
+      "events": ["control.request"]
+    },
+    "control.respond": {
+      "group": "control", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {"conn": "int+", "response": "obj"},
+      "result": {"sent": "bool"},
+      "errors": ["conn_gone"]
+    },
+    "permissions.status": {
+      "group": "permissions", "platforms": ["macos", "windows"], "timeout_ms": 5000,
+      "params": {},
+      "result": {"accessibility": "enum(granted|denied|notDetermined|notApplicable)",
+                 "screenRecording": "enum(granted|denied|notDetermined|notApplicable)",
+                 "microphone": "enum(granted|denied|notDetermined|notApplicable)",
+                 "automation": "enum(granted|denied|notDetermined|notApplicable)",
+                 "inputMonitoring": "enum(granted|denied|notDetermined|notApplicable)"},
+      "result_optional": {"speech": "enum(granted|denied|notDetermined|notApplicable)"},
+      "errors": []
+    },
+    "permissions.request": {
+      "group": "permissions", "platforms": ["macos", "windows"], "timeout_ms": 120000,
+      "params": {"kind": "enum(accessibility|screenRecording|microphone|automation|inputMonitoring)"},
+      "result": {"state": "enum(granted|denied|notDetermined|notApplicable)"},
+      "errors": []
+    },
+    "clipboard.read": {
+      "group": "clipboard", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {},
+      "params_optional": {"first_only": "bool", "max_items": "int+", "max_text_bytes": "int+"},
+      "result": {"items": "arr<clip_item>", "concealed": "bool", "truncated": "bool"},
+      "errors": []
+    },
+    "apps.running": {
+      "group": "apps", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {},
+      "params_optional": {"regular_only": "bool"},
+      "result": {"apps": "arr<app>"},
+      "errors": []
+    },
+    "apps.installed": {
+      "group": "apps", "platforms": ["macos", "windows"], "timeout_ms": 5000,
+      "params": {},
+      "result": {"apps": "arr<installed_app>"},
+      "errors": []
+    },
+    "apps.activate": {
+      "group": "apps", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {},
+      "params_optional": {"pid": "int+", "app_id": "str+", "ancestors": "bool"},
+      "params_one_of": ["pid", "app_id"],
+      "result": {"activated": "bool", "pid": "int+?"},
+      "errors": ["process_gone"]
+    },
+    "terminal.focus": {
+      "group": "apps", "platforms": ["macos"], "timeout_ms": 30000,
+      "params": {"app": "enum(terminal|iterm|ghostty)"},
+      "params_optional": {"tty": "str+", "cwd": "str+"},
+      "params_one_of": ["tty", "cwd"],
+      "result": {"focused": "bool"},
+      "errors": ["automation_denied", "not_found", "script_failed"]
+    },
+    "process.usage": {
+      "group": "apps", "platforms": ["macos", "windows"], "timeout_ms": 2000,
+      "params": {"pids": "arr<int+>"},
+      "result": {"usage": "arr<process_usage>"},
+      "errors": []
+    }
+  },
+  "events": {
+    "workspace.changed": {"after": ["workspace.watch"], "data": {"reason": "enum(front_app|space|screens)", "front_pid": "int+?"}},
+    "presence.edge": {"after": ["presence.watch"], "data": {"edge": "enum(lock|unlock|sleep|wake|display_sleep|display_wake)"}},
+    "input.activity": {"after": ["input.watch"], "data": {"kind": "enum(key|mouse_down|mouse_up|scroll)"}},
+    "input.action": {
+      "after": ["input.actions"],
+      "data": {"kind": "enum(click|context_menu|shortcut|submit)", "pid": "int+", "target": "ax_element?"},
+      "data_optional": {"keys": "str+"}
+    },
+    "ax.notification": {
+      "after": ["ax.watch"],
+      "data": {"pid": "int+", "notification": "enum(focus|window|title|value|selection)", "element": "ax_element?"},
+      "data_optional": {"source_key": "str", "window": "ax_window?", "watch_id": "str+"}
+    },
+    "mic.level": {"after": ["mic.start"], "data": {"session": "str+", "rms": "num"}},
+    "speech.partial": {"after": ["mic.start"], "data": {"session": "str+", "text": "str"}},
+    "ptt.down": {"after": ["ptt.register"], "data": {}},
+    "ptt.up": {"after": ["ptt.register"], "data": {}},
+    "ptt.typed": {"after": ["ptt.register"], "data": {}},
+    "speech.download": {"after": [], "during": ["mic.start"],
+                        "data": {"session": "str+", "fraction": "num", "completed": "uint", "total": "uint"}},
+    "control.request": {"after": ["control.listen"], "data": {"conn": "int+", "request": "obj"}}
+  }
+}

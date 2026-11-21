@@ -1,0 +1,49 @@
+{
+ "description": "分句级意图：两个分句各带一个意图；只出字时 utterance_id、clause_id、spoken_text_revision 为 null，渲染器收到就用；改写后重合成的分句 clause_id 不变、revision 加 1，带新的意图",
+ "messages": [
+  {
+   "event": "clause_intent",
+   "seq": 1,
+   "line_id": "l-12",
+   "utterance_id": "u-4",
+   "clause_id": "c-4-1",
+   "spoken_text_revision": 1,
+   "intent": "greet",
+   "turn_generation": 3,
+   "trace_id": "t-12"
+  },
+  {
+   "event": "clause_intent",
+   "seq": 2,
+   "line_id": "l-12",
+   "utterance_id": "u-4",
+   "clause_id": "c-4-2",
+   "spoken_text_revision": 1,
+   "intent": "explain",
+   "turn_generation": 3,
+   "trace_id": "t-12"
+  },
+  {
+   "event": "clause_intent",
+   "seq": 3,
+   "line_id": "l-13",
+   "utterance_id": null,
+   "clause_id": null,
+   "spoken_text_revision": null,
+   "intent": "acknowledge",
+   "turn_generation": 3,
+   "trace_id": "t-13"
+  },
+  {
+   "event": "clause_intent",
+   "seq": 4,
+   "line_id": "l-12",
+   "utterance_id": "u-4",
+   "clause_id": "c-4-2",
+   "spoken_text_revision": 2,
+   "intent": "acknowledge",
+   "turn_generation": 3,
+   "trace_id": "t-12"
+  }
+ ]
+}

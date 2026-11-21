@@ -1,0 +1,69 @@
+.root {
+  display: grid;
+  justify-items: start;
+  gap: var(--ef-sp-4);
+  min-width: 0;
+}
+
+/* Two lines until opened; open, it scrolls past 12 lines. */
+.code {
+  width: 100%;
+  max-height: calc(2 * var(--ef-lh-mono) + 2 * var(--ef-sp-8));
+  overflow: hidden;
+  margin: 0;
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  border-radius: var(--ef-r-panel);
+  background: var(--ef-base);
+  color: var(--ef-base-fg);
+  font: var(--ef-t-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.code code {
+  font: inherit;
+}
+
+.code[data-full] {
+  max-height: calc(12 * var(--ef-lh-mono) + 2 * var(--ef-sp-8));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.code:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.root[data-paper] .code {
+  border: 0;
+  background: var(--ef-paper-text);
+  color: var(--ef-paper);
+}
+
+.trunc {
+  margin: 0;
+  color: var(--ef-attention-text);
+  font: var(--ef-fw-regular) var(--ef-fs-body) / var(--ef-lh-meta) var(--ef-font-sans);
+}
+
+.more {
+  height: var(--ef-h-sm);
+  padding: 0 var(--ef-sp-8);
+  border: var(--ef-lw-hair) solid var(--ef-line-strong);
+  border-radius: var(--ef-r-btn);
+  background: none;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1 var(--ef-font-sans);
+  cursor: pointer;
+}
+
+.more:hover {
+  background: var(--ef-glass-hover);
+}
+
+.more:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}

@@ -1,0 +1,7 @@
+{
+  "turns": [{"trace_id": "5b0f3c1e-8a2d-4f6b-9c7e-1d2a3b4c5d6e", "turn_id": "tr41", "source": "text", "head": "帮我整理这周的提",
+             "len": 12, "producers": ["agentd", "avatar"], "started_at": "2026-10-31T09:00:00.000-04:00", "result": "completed",
+             "duration_ms": 1800, "provider": "codex_login", "account_label": "codex_login", "model": "gpt-5.4", "error_code": null,
+             "turn_state": "completed", "turn_outcome": null,
+             "conversation_id": "c-0a1b2c3d"}]
+}

@@ -1,0 +1,17 @@
+.line {
+  position: relative;
+  height: 2px;
+  margin-top: var(--ef-sp-8);
+  background: var(--ef-line-subtle);
+}
+
+.line i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ef-text-2);
+  transition: width 200ms linear;
+}
+
+.line[data-paused] i {
+  background: var(--ef-text-1);
+}

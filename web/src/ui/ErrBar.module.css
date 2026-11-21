@@ -1,0 +1,43 @@
+/* Notice: panel background, 1px ink border, a small yellow flag (■ failed, ▲ warning in ink) before the words. Never red. */
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  min-height: var(--ef-h-xl);
+  padding: var(--ef-sp-4) var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-text-1);
+  background: var(--ef-raised);
+  color: var(--ef-text-1);
+  font: var(--ef-t-text);
+}
+
+.glyph {
+  flex: none;
+  box-sizing: content-box;
+  padding: 5px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.msg {
+  min-width: 0;
+}
+
+.stale {
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+.sp {
+  flex: 1;
+}
+
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

@@ -1,0 +1,190 @@
+/* 03 任务: 待处理带, 今日会话 plate (folded to one line by default), the task list; the detail is a sheet over the content. */
+.root {
+  position: relative;
+  min-width: 0;
+  padding: 0 var(--ef-page-pad) var(--ef-sp-24);
+}
+
+.banner {
+  padding-top: var(--ef-sp-12);
+}
+
+.pend {
+  margin-top: 14px;
+}
+
+.plate {
+  margin-top: 14px;
+}
+
+.plate > section {
+  padding: 22px var(--ef-sp-16) var(--ef-sp-12);
+}
+
+.plate[data-fold] > section {
+  padding: var(--ef-sp-8) var(--ef-sp-16);
+}
+
+.plate[data-fold] .plateHead {
+  margin-bottom: 0;
+}
+
+.fold {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  height: 24px;
+  padding: 0 var(--ef-sp-6);
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.fold:hover {
+  color: var(--ef-text-1);
+}
+
+.fold:focus-visible {
+  outline: var(--ef-lw-hair) solid var(--ef-focus);
+}
+
+.fold[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.plateHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: var(--ef-sp-8);
+}
+
+.plateHead h3 {
+  margin: 0;
+  color: var(--ef-text-1);
+  font: 500 var(--ef-fs-title-2, 15px) / 1.3 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.t3 {
+  color: var(--ef-text-3);
+  font-size: 12px;
+}
+
+.sp {
+  flex: 1;
+}
+
+.hint {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-3);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cards {
+  margin-top: 22px;
+}
+
+.secRight {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+}
+
+.roleWarn {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  margin: 0 0 var(--ef-sp-8);
+  padding: var(--ef-sp-6) var(--ef-sp-12);
+  border-left: 3px solid var(--ef-state-warning);
+  color: var(--ef-text-1);
+  font-size: 13px;
+}
+
+.roleWarn svg {
+  flex: none;
+  color: var(--ef-state-warning);
+}
+
+.demo {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  margin-bottom: var(--ef-sp-12);
+  color: var(--ef-text-3);
+  font-size: 12px;
+}
+
+.dispatch {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--ef-z-dropdown);
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: var(--ef-sp-4);
+  border: 1px solid var(--ef-line);
+  background: var(--ef-overlay);
+  color: var(--ef-overlay-fg);
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 var(--ef-sp-12);
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+}
+
+.menuItem:hover,
+.menuItem:focus-visible {
+  outline: none;
+  background: var(--ef-overlay-hover);
+}
+
+@container page (max-width: 1000px) {
+  .hint {
+    display: none;
+  }
+}
+
+/* Contour lines down the page's right margin, clear of the content; only the app ships the art. */
+:global(html[data-art]) .root {
+  position: relative;
+  isolation: isolate;
+}
+
+:global(html[data-art]) .root::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  width: var(--ef-page-pad);
+  background: var(--ef-text-1);
+  opacity: 0.2;
+  pointer-events: none;
+  -webkit-mask: url('/art/common/contour.png') right top / 236px auto repeat-y;
+  mask: url('/art/common/contour.png') right top / 236px auto repeat-y;
+}

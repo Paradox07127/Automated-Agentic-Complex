@@ -1,0 +1,30 @@
+{
+  "schedules": [
+    {
+      "schedule_id": "schedule-1",
+      "title": "日报",
+      "instruction": "总结仓库变化",
+      "trigger": {
+        "kind": "daily",
+        "at": "18:30",
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "enabled": true,
+      "created_from": "user",
+      "conversation_id": "conversation-1",
+      "scope_id": null,
+      "next_run_at": 1793835000.0,
+      "last_run_at": 1793811600.0,
+      "last_job_id": "job-1",
+      "last_error": null,
+      "created_at": 1793811600.0,
+      "updated_at": 1793811600.0
+    }
+  ]
+}

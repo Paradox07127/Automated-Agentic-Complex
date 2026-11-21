@@ -1,0 +1,128 @@
+/* The entrance only slides: a card that fades in from 0 is blank in a shot taken right after mount. The stack's card casts the one shadow. */
+.frame {
+  position: relative;
+  width: 336px;
+  margin-left: var(--ef-sp-12);
+  animation: hud-in var(--ef-dur-hud-in) var(--ef-ease-standard);
+}
+
+/* The desk approval card is 360 px on its own; in the stack it takes the frame's width. */
+.frame > div[data-surface='desk'] {
+  width: auto;
+}
+
+.frame[data-highlight] {
+  animation: hl 1.6s linear;
+}
+
+/* Decision row: a popup's white band at card width, feathered 12 px top and bottom, with the
+   tick strip (91x3) and the logo watermark (98x85 at .06). The sheets inside go transparent over it;
+   6 px of padding keeps their first and last lines off the feather. */
+.frame[data-popup] {
+  padding-block: 6px;
+}
+
+.frame[data-popup] > span[aria-hidden='true'] {
+  inset-block: 6px;
+}
+
+.frame[data-popup]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(90deg, var(--ef-paper-text-2) 0 2px, transparent 2px 3px, var(--ef-paper-text-2) 3px 7px, transparent 7px 10px) right 16px top 4px / 91px 3px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 98 85' fill='none' stroke='%23000' stroke-opacity='.06'%3E%3Cpath d='M1 2h96L49 84z' stroke-width='2'/%3E%3Cpath d='M11 7h76L49 72z' stroke-width='4'/%3E%3Cpath d='M14 38h70' stroke-width='6'/%3E%3C/svg%3E") right 16px center / 98px 85px no-repeat,
+    var(--ef-popup-band);
+  mask: linear-gradient(180deg, transparent, #000 12px calc(100% - 12px), transparent);
+  transform-origin: 50% 50%;
+  animation: band-open var(--ef-dur-g-cell-in) var(--ef-ease-g-exit) both;
+}
+
+/* With art: the real tick strip (recipe popup-ticks) and logo (recipe popup-logo) at a quarter of their source size, baked greys. */
+:global(html[data-art]) .frame[data-popup]::before {
+  background:
+    url('/art/common/popup-ticks.png') right 15.5px top 3.5px / 92px 4px no-repeat,
+    url('/art/common/popup-logo.png') right 15.5px center / 99px 86px no-repeat,
+    var(--ef-popup-band);
+}
+
+.frame[data-popup] > section[data-theme='light'],
+.frame[data-popup] [data-stub='ApprovalCard'] {
+  --ef-tape-y: var(--ef-tri-yellow);
+  --ef-tape-c: var(--ef-tri-cyan);
+  --ef-tape-m: var(--ef-tri-magenta);
+  background: transparent;
+}
+
+.frame[data-popup] :is([data-stub='SessionApproval'], [data-stub='QuestionBox'][data-session]) {
+  border-top-color: transparent;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  background: transparent;
+}
+
+.frame[data-popup] :is([data-stub='SessionApproval'], [data-stub='QuestionBox'][data-session]):not([data-dangerous]) {
+  border-left-color: transparent;
+}
+
+/* commonpopuo_in: band opens 0–200 ms, the content nudges in from +5 px over 200–417 ms and its text flickers on at 233 ms. */
+.frame[data-popup] > * {
+  animation:
+    popup-nudge 217ms var(--ef-ease-g-enter) var(--ef-dur-g-cell-in) both,
+    popup-flicker calc(var(--ef-dur-g-flicker-step) * 3) linear 233ms both;
+}
+
+@keyframes hud-in {
+  from {
+    transform: translateX(-6px);
+  }
+}
+
+@keyframes hl {
+  0%,
+  60% {
+    box-shadow: 0 0 0 2px var(--ef-attention);
+  }
+}
+
+@keyframes band-open {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+}
+
+@keyframes popup-nudge {
+  from {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes popup-flicker {
+  0%,
+  32% {
+    opacity: 0;
+  }
+
+  33%,
+  65% {
+    opacity: 1;
+  }
+
+  66%,
+  99% {
+    opacity: 0;
+  }
+}
+
+:global(html[data-reduce-motion]) .frame,
+:global(html[data-reduce-motion]) .frame[data-popup] > * {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame[data-popup] > * {
+    animation: none;
+  }
+}

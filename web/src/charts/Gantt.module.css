@@ -1,0 +1,97 @@
+.gantt {
+  gap: 2px;
+}
+
+.name {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 10px 0 6px;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: none;
+  text-align: left;
+}
+
+.t {
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.3 var(--ef-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.s {
+  overflow: hidden;
+  color: var(--ef-text-3);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.25 var(--ef-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.name:hover .t,
+.on .t,
+.em .t {
+  color: var(--ef-text-1);
+}
+
+.on .name,
+.em .name {
+  border-left-color: var(--v3-emph);
+}
+
+.track {
+  position: relative;
+  height: var(--rh, 18px);
+  background: linear-gradient(var(--ef-chart-grid), var(--ef-chart-grid)) 0 50% / 100% 1px no-repeat;
+}
+
+.seg {
+  position: absolute;
+  top: 50%;
+  height: 8px;
+  margin-top: -4px;
+  box-shadow: inset -2px 0 0 var(--v3-bg);
+}
+
+.seg.live {
+  background-image: var(--ef-hatch) !important;
+  box-shadow: inset -2px 0 0 var(--ef-text-1);
+}
+
+.mk {
+  position: absolute;
+  top: 50%;
+  padding: 0 2px;
+  font: var(--ef-fw-semibold) var(--ef-fs-num) / 1 var(--ef-font-ui);
+  transform: translate(-50%, -50%);
+}
+
+/* A failure or a wait: ink on a yellow block. */
+.look {
+  padding: 0 2px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.ink {
+  color: var(--ef-text-1);
+}
+
+.dim {
+  color: var(--ef-text-2);
+}
+
+.mk.ink,
+.mk.dim {
+  background: var(--v3-bg);
+}
+
+.more {
+  min-height: 20px;
+}
+
+.more button {
+  justify-self: start;
+}

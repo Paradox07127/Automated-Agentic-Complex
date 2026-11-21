@@ -1,0 +1,221 @@
+/* 行为 → 动作: the view switch, counts, search and filter chips, one section per group with a sticky head, rows on white attribute cells, the save line. */
+.ms {
+  --ms-rule: rgb(72 72 72 / 23.5%);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.missing,
+.none {
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+}
+
+.missing {
+  padding: var(--ef-sp-8) 0;
+  font-size: var(--ef-fs-body);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ef-sp-4) var(--ef-sp-12);
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+}
+
+.counts b {
+  font-size: var(--ef-fs-body);
+  color: var(--ef-text-1);
+}
+
+.num {
+  font-family: var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+.q {
+  flex: none;
+  width: 160px;
+}
+
+.group {
+  min-width: 0;
+}
+
+/* Group head: bold title, a short tick before it, a low band under it, as the motion table's. */
+.gh {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: var(--ef-sp-8);
+  padding: var(--ef-sp-12) 2px var(--ef-sp-4);
+  background:
+    linear-gradient(to top, color-mix(in srgb, var(--ef-text-1) 10%, transparent) 0 11px, transparent 11px),
+    var(--ef-bg-base);
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+}
+
+.gh::before {
+  content: '';
+  align-self: center;
+  width: 23px;
+  height: 2px;
+  background: color-mix(in srgb, var(--ef-text-1) 40%, transparent);
+}
+
+.gh b {
+  font: 700 var(--ef-fs-body-lg) / 1 var(--ef-font-sans);
+  color: var(--ef-text-1);
+}
+
+.acts {
+  display: flex;
+  gap: var(--ef-sp-4);
+  margin-left: auto;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Name and facts │ clips │ play and switch; the avatar's reason on a line of its own. */
+.row {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) minmax(0, 1fr) auto;
+  grid-template-areas:
+    'nm clips ctl'
+    'meta clips ctl'
+    'why why why'
+    'note note note';
+  align-items: center;
+  gap: 2px var(--ef-sp-8);
+  padding: var(--ef-sp-6) var(--ef-sp-8);
+  border-bottom: 2px solid var(--ms-rule);
+  background: var(--ef-paper);
+  color: var(--ef-paper-text);
+  font-size: var(--ef-fs-body);
+}
+
+.nm {
+  grid-area: nm;
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.nm b {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--ef-sp-8);
+  font-size: var(--ef-fs-small);
+  color: var(--ef-paper-text-2);
+}
+
+.clips {
+  grid-area: clips;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--ef-fs-small) / 1.4 var(--ef-font-mono);
+  color: var(--ef-paper-text-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ctl {
+  grid-area: ctl;
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+}
+
+.why {
+  grid-area: why;
+  font-size: var(--ef-fs-small);
+  color: var(--ef-paper-text-2);
+}
+
+.why[data-adjusted] {
+  color: var(--ef-danger-text);
+}
+
+.note {
+  grid-area: note;
+  overflow: hidden;
+  font-size: var(--ef-fs-small);
+  color: var(--ef-paper-text-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tag {
+  flex: none;
+  font-size: var(--ef-fs-small);
+  font-weight: 600;
+  color: var(--ef-paper-text);
+}
+
+/* Unsaved: a small yellow square. */
+.chg {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-left: var(--ef-sp-4);
+  background: var(--ef-accent);
+  outline: 1px solid var(--ef-paper-text);
+}
+
+.row[data-off] .nm {
+  color: var(--ef-paper-text-2);
+}
+
+.save {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  min-height: 52px;
+  padding: var(--ef-sp-8) 0 var(--ef-sp-8) 2px;
+  border-top: 1px solid var(--ef-line);
+  background: var(--ef-bg-base);
+  font-size: var(--ef-fs-body);
+}
+
+.sp {
+  flex: 1;
+}

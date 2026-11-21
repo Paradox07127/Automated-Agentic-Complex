@@ -1,0 +1,39 @@
+{
+  "note": "播放器窗口里看视频，没全屏",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:iina-1",
+      "app": "IINA",
+      "bundle_id": "com.colliderli.iina",
+      "pid": 490,
+      "window_id": 90,
+      "title": "harbor-lights.mkv",
+      "url_host": null,
+      "since": 1799999700.0,
+      "secure_input": false,
+      "fullscreen": false
+    },
+    "dwell_s": 300.0,
+    "presence": {
+      "id": "afk:iina-1",
+      "status": "active",
+      "seconds": 300,
+      "idle_s": 60
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "watching_video",
+    "status": "ok",
+    "related_session_ids": [],
+    "can_interrupt": true
+  }
+}

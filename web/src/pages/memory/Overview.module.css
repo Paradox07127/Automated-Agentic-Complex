@@ -1,0 +1,255 @@
+/* 记忆概况：一条开放窄带，上下细线；比例条按来源用分类色（推断是斜纹），选中段加描边。 */
+.band {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.7fr) minmax(220px, 1fr);
+  align-items: start;
+  gap: 12px 32px;
+  padding: 12px 2px;
+  border-top: 1px solid var(--ef-line-subtle);
+  border-bottom: 1px solid var(--ef-line-subtle);
+}
+
+.total {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 2px 6px;
+  padding-right: 8px;
+}
+
+.lab {
+  grid-column: 1 / -1;
+  color: var(--ef-text-2);
+  font-size: 12px;
+}
+
+.big {
+  color: var(--ef-text-1);
+  font: 600 28px / 1 var(--ef-font-num);
+}
+
+.unit {
+  color: var(--ef-text-3);
+  font-size: 12px;
+}
+
+.col {
+  min-width: 0;
+}
+
+.hd {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 18px;
+  margin-bottom: 6px;
+  color: var(--ef-text-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.today {
+  color: var(--ef-text-1);
+}
+
+.ratio {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+}
+
+.ratio > button {
+  position: relative;
+  min-width: 4px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: var(--ef-cat-2);
+  cursor: pointer;
+  transition: opacity var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+/* A 24 px hit area around the 12 px bar. */
+.ratio > button::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
+
+.ratio > [data-src='asserted'] {
+  background: var(--ef-cat-1);
+}
+
+.ratio > [data-src='confirmed'] {
+  background: var(--ef-cat-3);
+}
+
+.ratio > [data-src='inferred'] {
+  border: 1px solid var(--ef-cat-other);
+  background: repeating-linear-gradient(45deg, var(--ef-cat-other) 0 1.5px, transparent 1.5px 4px);
+}
+
+/* The bar is a filter: no line says so, the pointed segment does. */
+.ratio > button:hover {
+  outline: 1px solid var(--ef-text-2);
+  outline-offset: 1px;
+  filter: brightness(1.15);
+}
+
+.ratio > button[data-state='on'] {
+  outline: 2px solid var(--ef-text-1);
+  outline-offset: 1px;
+}
+
+.ratio > button[data-state='dim'] {
+  opacity: 0.35;
+}
+
+.ratio > button:focus-visible {
+  outline: 1px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.ratio[data-none] {
+  border: 1px solid var(--ef-line-subtle);
+  background: var(--ef-chart-hatch);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  margin-top: 4px;
+}
+
+.lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) 12px var(--ef-font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lgN {
+  color: var(--ef-text-1);
+}
+
+.lg:hover:not(:disabled) > span:nth-of-type(1) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lg[data-state='on'] {
+  background: linear-gradient(var(--ef-emph), var(--ef-emph)) 0 100% / 100% 2px no-repeat;
+  color: var(--ef-text-1);
+}
+
+.lg[data-state='dim'] {
+  opacity: 0.45;
+}
+
+.lg:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.trend {
+  position: relative;
+  padding-bottom: 14px;
+}
+
+/* Room above the line for the peak label, clear of the header (this margin collapses with the header's). */
+.trend:not([data-none]) {
+  margin-top: 14px;
+  /* Room for the half of the now mark that hangs past the line's end. */
+  padding-right: 4px;
+}
+
+.trend svg {
+  display: block;
+  width: 100%;
+  height: 28px;
+  overflow: visible;
+}
+
+.line {
+  fill: none;
+  stroke: var(--ef-ink-s1);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.area {
+  fill: var(--ef-ink-s3);
+  opacity: 0.18;
+}
+
+.base {
+  stroke: var(--ef-chart-axis);
+  stroke-width: 1;
+}
+
+.now {
+  position: absolute;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px -3.5px 0 0;
+  outline: 2px solid var(--ef-base);
+  background: var(--ef-emph);
+}
+
+.peak {
+  position: absolute;
+  transform: translate(-50%, -15px);
+  color: var(--ef-text-3);
+  font: var(--ef-fw-medium) 11px / 1 var(--ef-font-num);
+}
+
+.axis {
+  position: absolute;
+  right: 4px;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  justify-content: space-between;
+  color: var(--ef-chart-label);
+  font: var(--ef-fw-medium) 11px / 1 var(--ef-font-num);
+}
+
+.axis > span:last-child {
+  font-size: 12px;
+}
+
+.trend[data-none] {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--ef-line-subtle);
+  background: var(--ef-chart-hatch);
+  color: var(--ef-text-3);
+  font-size: 12px;
+}
+
+@container page (max-width: 860px) {
+  .band {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .band > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@container page (max-width: 520px) {
+  .band {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

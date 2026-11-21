@@ -1,0 +1,71 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sec-gap);
+  min-width: 0;
+  padding: 14px 24px 32px;
+}
+
+.sec {
+  min-width: 0;
+}
+
+.t2 {
+  color: var(--ef-text-2);
+  font-size: 12px;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* Log list: turns on the left in a terminal frame (a grey vertical
+   ramp, 2 g = 1 px hairline #4A4A4A@0.2), the selected turn's lines on the right behind a rule. */
+.list {
+  --term-hair: rgb(74 74 74 / 0.2);
+  --ui-table-bg: var(--ef-chip);
+  min-width: 0;
+  border: var(--ef-lw-hair) solid var(--term-hair);
+  background: linear-gradient(var(--ef-raised), var(--ef-base));
+}
+
+:global([data-theme='light']) .list {
+  --term-hair: var(--ef-line);
+}
+
+.detail {
+  min-width: 0;
+  padding-left: 16px;
+  border-left: var(--ef-lw-hair) solid var(--ef-line-subtle);
+}
+
+@media (max-width: 1100px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .list { --trace-list-max: 232px; }
+  .detail { padding-left: 0; border-left: 0; }
+}
+
+/* The turn's opening words under its source, one line. */
+.head {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.usage {
+  display: flex;
+  flex-direction: column;
+  padding: 0 3px;
+}

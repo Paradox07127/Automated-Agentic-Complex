@@ -1,0 +1,238 @@
+.root {
+  min-width: 0;
+  margin: 0;
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: var(--ef-t-meta);
+  outline-offset: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) 64px;
+  column-gap: 10px;
+  align-items: center;
+}
+
+.rowLabel {
+  overflow: hidden;
+  color: var(--ef-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowValue {
+  color: var(--ef-chart-value);
+  font-family: var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.track {
+  position: relative;
+  height: 20px;
+  background: var(--ef-chart-bg);
+}
+
+.track[data-tools] {
+  height: 28px;
+}
+
+.seg {
+  position: absolute;
+  top: 5px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  background: var(--ef-chart-done);
+  cursor: pointer;
+}
+
+.track[data-tools] .seg {
+  top: 4px;
+}
+
+/* Ink greys by default: finished stages s2, the current one s1 with a 2 px bright end. */
+.seg[data-status='done'] {
+  background: var(--v3-ink-2);
+}
+
+.seg[data-status='current'] {
+  background: var(--v3-ink-1);
+  box-shadow: inset -2px 0 0 var(--ef-chart-cursor);
+}
+
+.row[data-emph] .seg {
+  background: var(--v3-emph);
+}
+
+.seg[data-status='interrupted'] {
+  opacity: 0.75;
+}
+
+.seg[data-status='failed']::before,
+.seg[data-status='interrupted']::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: -3px;
+  width: 6px;
+  height: 6px;
+}
+
+.seg[data-status='failed']::before {
+  background: var(--ef-state-failed);
+  box-shadow: inset 0 0 0 1px var(--ef-on-accent);
+}
+
+.seg[data-status='interrupted']::before {
+  background: var(--ef-chart-bg);
+  box-shadow: inset 0 0 0 1.2px var(--ef-text-3);
+}
+
+/* Selected stage: a trace outline means selection, not data. */
+.seg[data-selected] {
+  z-index: 2;
+  outline: 1.5px solid var(--v3-emph);
+  outline-offset: 1px;
+}
+
+.tool {
+  position: absolute;
+  top: 17px;
+  height: 8px;
+  background: var(--v3-ink-3);
+}
+
+.tool[data-hl='on'] {
+  z-index: 1;
+  background: var(--v3-ink-1);
+}
+
+.tool[data-hl='off'] {
+  opacity: 0.35;
+}
+
+.markLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--ef-chart-cursor);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.marks {
+  position: relative;
+  height: 18px;
+}
+
+/* Mark labels mix Chinese and numbers: 12 px, tabular figures. */
+.markLabel {
+  position: absolute;
+  top: 0;
+  color: var(--ef-chart-label);
+  font: var(--ef-t-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.markLabel[data-edge='end'] {
+  transform: translateX(-100%);
+}
+
+/* Terminal node: final success = ✓ in a square ink frame, final failure = ✕ in ink on a yellow block. */
+.terminal {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font: var(--ef-fw-semibold) var(--ef-fs-num) / 1 var(--ef-font-sans);
+  transform: translate(-50%, -50%);
+}
+
+.terminal[data-terminal='ok'] {
+  background: var(--ef-chart-bg);
+  box-shadow: inset 0 0 0 1px var(--ef-state-ok);
+  color: var(--ef-text-1);
+}
+
+.terminal[data-terminal='failed'] {
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.axis {
+  position: relative;
+  height: 16px;
+  border-top: 1px solid var(--ef-chart-axis);
+}
+
+.tick {
+  position: absolute;
+  top: 4px;
+  color: var(--ef-chart-label);
+  font: var(--ef-t-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.tick::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 1px;
+  height: 4px;
+  background: var(--ef-chart-axis);
+}
+
+.selLine {
+  margin-top: var(--ef-sp-4);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+/* Legend swatches drawn like the stages they name. */
+.sw {
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 8px;
+  background: var(--ef-chart-done);
+}
+
+.sw[data-status='done'] {
+  background: var(--v3-ink-2);
+}
+
+.sw[data-status='current'] {
+  background: var(--v3-ink-1);
+}
+
+.sw[data-status='failed'] {
+  background: var(--ef-state-failed);
+  box-shadow: inset 0 0 0 1px var(--ef-on-accent);
+}
+
+.sw[data-status='interrupted'] {
+  background: none;
+  outline: 1.2px solid var(--ef-text-3);
+  outline-offset: -1.2px;
+}
+
+.selLine b {
+  color: var(--ef-text-1);
+  font-weight: var(--ef-fw-medium);
+}

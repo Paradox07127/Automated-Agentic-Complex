@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"avatar","pid":778,"protocol":1,"capabilities":["ack","actions","motion_overrides","play_chain"]}
+{"v":1,"type":"motion_overrides","character":"birch","applied":{"chains":0,"pools":0,"blend_in":0},"adjusted":[]}

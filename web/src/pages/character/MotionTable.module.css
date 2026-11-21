@@ -1,0 +1,399 @@
+/* Motion table: one continuous list, section tabs that jump, sticky attribute-title group heads, rows on white attribute cells. */
+.mt {
+  /* Attribute row divider #484848@0.235. */
+  --mt-rule: rgb(72 72 72 / 23.5%);
+
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-bottom: var(--ef-sp-16);
+}
+
+.bar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  padding: 0 0 var(--ef-sp-8);
+}
+
+.q {
+  flex: none;
+  width: 132px;
+}
+
+/* Filter chip: a TagNode cell, rounded 5 px, yellow while pointed at or on. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  height: 26px;
+  padding: 0 var(--ef-sp-8);
+  border: 0;
+  border-radius: 5px;
+  background: var(--ef-chip);
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip:hover,
+.chip[aria-pressed='true'] {
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.chip:active {
+  background: var(--ef-accent-press);
+  transform: translateY(1px);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.sp {
+  flex: 1;
+}
+
+/* Section tabs on a row of their own; the current one has a trace underline. They wrap when the column is narrower than all of them. */
+.jump {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-4) var(--ef-sp-2);
+  min-width: 0;
+  border-bottom: 1px solid var(--ef-line);
+}
+
+.jump button {
+  flex: none;
+  height: 28px;
+  margin-bottom: -1px;
+  padding: 0 var(--ef-sp-8);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.jump button:hover {
+  color: var(--ef-text-1);
+}
+
+.jump button:active {
+  background: var(--ef-chip);
+}
+
+.jump button[aria-current] {
+  border-bottom-color: var(--ef-trace);
+  color: var(--ef-text-1);
+  font-weight: 600;
+}
+
+.jump button:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.cols,
+.row {
+  display: grid;
+  /* The name keeps room for six characters (坐在窗口顶上); the trigger gives way first. */
+  grid-template-columns: 26px minmax(84px, 1fr) minmax(0, 0.6fr) 46px var(--ct-w, 32px) 40px 72px;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  padding: 0 var(--ef-sp-8);
+}
+
+.mt[data-nocount] {
+  --ct-w: 0;
+}
+
+.mt[data-compact] .cols,
+.mt[data-compact] .row {
+  grid-template-columns: 26px minmax(84px, 1fr) 40px 72px;
+}
+
+.cols {
+  flex: none;
+  height: 24px;
+  border-bottom: 1px solid var(--ef-line);
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+}
+
+.list {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: var(--ef-sp-6);
+}
+
+/* CharinfoAttributeTittleCell: bold title, a short tick before it, a low band under it. */
+.gh {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: var(--ef-sp-8);
+  height: 32px;
+  padding: var(--ef-sp-12) 2px 0;
+  background:
+    linear-gradient(to top, color-mix(in srgb, var(--ef-text-1) 10%, transparent) 0 11px, transparent 11px),
+    var(--ef-bg-base);
+  font-size: var(--ef-fs-body);
+}
+
+.gh::before {
+  content: '';
+  align-self: center;
+  width: 23px;
+  height: 2px;
+  background: color-mix(in srgb, var(--ef-text-1) 40%, transparent);
+}
+
+.gh b {
+  font: 700 var(--ef-fs-body-lg) / 1 var(--ef-font-sans);
+}
+
+.den,
+.den small {
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+}
+
+/* Plays only from a behavior: a struck-through play mark. */
+.noPlay {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  margin-left: var(--ef-sp-4);
+  color: var(--ef-paper-text-2);
+}
+
+.noPlay::after {
+  content: '';
+  position: absolute;
+  top: calc(50% - 1px);
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+}
+
+/* Record row: a white attribute cell, a divider under it; pressed, a 4px ink bar drops down the left and the row steps in. */
+.row {
+  position: relative;
+  min-height: 36px;
+  border-bottom: 2px solid var(--mt-rule);
+  background: var(--ef-paper);
+  color: var(--ef-paper-text);
+  font-size: var(--ef-fs-body);
+  cursor: pointer;
+}
+
+.row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--ef-paper-text);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 200ms var(--ef-ease-snap);
+}
+
+.row > * {
+  transition: transform 200ms var(--ef-ease-snap);
+}
+
+.row:hover {
+  background: color-mix(in srgb, var(--ef-paper) 92%, var(--ef-paper-text));
+}
+
+/* Not while the row's own switch is pressed. */
+.row:active:not(:has(.tg:active))::before {
+  transform: none;
+}
+
+.row:active:not(:has(.tg:active)) > * {
+  transform: translateX(6px);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--ef-paper-text);
+  outline-offset: -2px;
+}
+
+/* Two-digit index; the current motion's is the yellow block. */
+.no {
+  position: relative;
+  justify-self: start;
+  padding: 3px var(--ef-sp-4);
+  font: 600 var(--ef-fs-eyebrow) / 1 var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-paper-text-2);
+}
+
+.row[aria-selected='true'] .no {
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.row[aria-selected='true'] .nm {
+  font-weight: 700;
+}
+
+.nm {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Unsaved: a small yellow square. */
+.chg {
+  flex: none;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: var(--ef-sp-6);
+  background: var(--ef-accent);
+  outline: 1px solid var(--ef-paper-text);
+}
+
+.new,
+.fmt {
+  flex: none;
+  margin-left: var(--ef-sp-4);
+  font-size: var(--ef-fs-small);
+  font-weight: 600;
+  color: var(--ef-paper-text);
+}
+
+.lb,
+.tr {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tr {
+  font-size: var(--ef-fs-small);
+  color: var(--ef-paper-text-2);
+  white-space: nowrap;
+}
+
+.du,
+.ct {
+  font-family: var(--ef-font-ui);
+  font-size: var(--ef-fs-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-paper-text-2);
+  text-align: right;
+}
+
+.ct:not([data-zero]) {
+  overflow: hidden;
+  color: var(--ef-paper-text);
+}
+
+/* The row is paper in both themes: the switch takes the paper set (a dark knob) so its knob stands off the row. */
+.tg {
+  --ef-toggle-track: var(--ef-paper-toggle-track);
+  --ef-toggle-knob: var(--ef-paper-toggle-knob);
+  --ef-toggle-knob-ring: var(--ef-paper-toggle-knob-ring);
+  --ef-toggle-on-text: var(--ef-paper-toggle-on-text);
+  --ef-toggle-off-text: var(--ef-paper-toggle-off-text);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.row:is([data-off], [data-miss]) :is(.nm, .tr),
+.row[data-miss] .du {
+  color: var(--ef-paper-text-2);
+}
+
+.row[data-miss] {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--ef-paper-text) 12%, var(--ef-paper)) 0 1px, var(--ef-paper) 1px 6px);
+}
+
+/* 必需: a solid ink frame. */
+.req {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--ef-sp-6);
+  border: 1px solid var(--ef-paper-text-2);
+  font-size: var(--ef-fs-small);
+  line-height: 1;
+  color: var(--ef-paper-text-2);
+  white-space: nowrap;
+}
+
+.none {
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+}
+
+.save {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  min-height: 52px;
+  padding: var(--ef-sp-8) 0 var(--ef-sp-8) 2px;
+  border-top: 1px solid var(--ef-line);
+  background: var(--ef-bg-base);
+  font-size: var(--ef-fs-body);
+}
+
+.num {
+  font-family: var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row::before,
+  .row > * {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .row::before,
+:global([data-reduce-motion]) .row > *,
+:global(.still) .row::before,
+:global(.still) .row > * {
+  transition: none;
+}
+
+@container page (max-width: 760px) {
+  .list {
+    flex: none;
+    overflow: visible;
+  }
+
+  .save {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+  }
+}

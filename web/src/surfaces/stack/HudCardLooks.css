@@ -1,0 +1,266 @@
+/* HudCard's looks, inlined into HudCard.module.css by @import so they share its class scope. */
+/* Looks, dark in both themes: the backdrop is ::before so it can animate apart from the text. */
+.card[data-look] {
+  /* The 10-29 HUD text shadow; the token set has none. */
+  --hud-shadow: 0 1px 2px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.5);
+  /* Hairline, #FFF@.78. */
+  --b6: rgba(255, 255, 255, 0.78);
+  /* Wipe at .85 / .7 rather than .5, so text holds 4.5:1 on a white desktop. */
+  --b7-top: rgba(0, 0, 0, 0.85);
+  --b7-low: rgba(0, 0, 0, 0.7);
+  /* Reward band. */
+  --b8: rgba(12, 12, 12, 0.8);
+  /* Toast at the desktop's .85, corner dots #EAEAEA@.88. */
+  --b9: rgba(18, 18, 18, 0.85);
+  --b9-dot: rgba(234, 234, 234, 0.88);
+  --ef-text-2: var(--ef-hud-text-2);
+  isolation: isolate;
+}
+
+.card[data-look]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.card[data-look] .pbar,
+.card[data-look] .eyebrow {
+  display: none;
+}
+
+.card[data-look] .hd,
+.card[data-look] .bd {
+  background: none;
+  box-shadow: none;
+}
+
+.card[data-look] .tt {
+  text-shadow: var(--hud-shadow);
+}
+
+/* Delivery: mission-complete yellow centre bar (18 px, dark title, no shadow) over the important-reward band. */
+.card[data-look='mission'] {
+  padding: 6px 0;
+}
+
+.card[data-look='mission']::before {
+  background: linear-gradient(180deg, transparent, var(--b8) 9px calc(100% - 9px), transparent);
+  animation: look-fade var(--ef-dur-g-panel-in) var(--ef-ease-g-fade) both;
+}
+
+.card[data-look='mission'] .hd {
+  justify-content: center;
+}
+
+.card[data-look='mission'] .hd::before {
+  content: '';
+  position: absolute;
+  inset: 5px 0;
+  background: linear-gradient(90deg, transparent, var(--ef-accent) 45% 55%, transparent);
+  animation: bar-open var(--ef-dur-g-select) var(--ef-ease-g-enter) both;
+}
+
+.card[data-look='mission'] .tt {
+  position: relative;
+  flex: none;
+  color: var(--ef-on-accent);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-sans);
+  text-shadow: none;
+}
+
+.card[data-look='mission'] .x,
+.card[data-look='fail'] .x {
+  position: absolute;
+  right: var(--ef-sp-6);
+}
+
+.card[data-look='mission'] .tt,
+.card[data-look='mission'] .bd {
+  animation: flicker calc(var(--ef-dur-g-flicker-step) * 6) linear 250ms both;
+}
+
+/* Error: fail toast. Wipe dark at the top fading down, 2 px danger rail, centred 18 px title with three danger
+   triangles, a hairline under it. Motion from toast_taskfailtoast_in. */
+.card[data-look='fail']::before {
+  background: linear-gradient(180deg, var(--b7-top) 0 37%, var(--b7-low) calc(100% - 12px), transparent);
+  animation: look-fade 583ms var(--ef-ease-g-fade) 167ms both;
+}
+
+.card[data-look='fail'] .pbar {
+  display: block;
+  width: 2px;
+  background: var(--ef-danger-vivid);
+}
+
+.card[data-look='fail'] .hd {
+  justify-content: center;
+  height: 36px;
+}
+
+.card[data-look='fail'] .hd::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--b6) 50%, transparent);
+  animation: bar-open var(--ef-dur-g-select) var(--ef-ease-g-enter) 417ms both;
+}
+
+.card[data-look='fail'] .tt {
+  flex: none;
+  font-size: 18px;
+  animation: title-in 750ms var(--ef-ease-g-enter) 500ms both;
+}
+
+.card[data-look='fail'] .bd {
+  animation: flicker calc(var(--ef-dur-g-flicker-step) * 6) linear 1033ms both;
+}
+
+.tri {
+  display: flex;
+  flex: none;
+  gap: 3px;
+  animation: look-fade 333ms var(--ef-ease-g-fade) 500ms both;
+}
+
+.tri i {
+  width: 5px;
+  height: 5px;
+  background: var(--ef-danger-vivid);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+/* Notices: PC toast cell with its four corner dots; scaleX in, text flickers on (commontoastnew_in). */
+.card:is([data-look='toast'], [data-look='finish'])::before {
+  background:
+    linear-gradient(var(--b9-dot), var(--b9-dot)) left 14px top 3px / 1.5px 1.5px no-repeat,
+    linear-gradient(var(--b9-dot), var(--b9-dot)) right 14px top 3px / 1.5px 1.5px no-repeat,
+    linear-gradient(var(--b9-dot), var(--b9-dot)) left 14px bottom 3px / 1.5px 1.5px no-repeat,
+    linear-gradient(var(--b9-dot), var(--b9-dot)) right 14px bottom 3px / 1.5px 1.5px no-repeat,
+    var(--b9);
+  animation: toast-in var(--ef-dur-g-toast-in) var(--ef-ease-g-toast) both;
+}
+
+.card:is([data-look='toast'], [data-look='finish'], [data-look='tips']) .hd {
+  height: 36px;
+  padding-left: var(--ef-sp-20);
+}
+
+.card:is([data-look='toast'], [data-look='finish'], [data-look='tips']) .bd {
+  padding-left: var(--ef-sp-20);
+}
+
+.card:is([data-look='toast'], [data-look='finish'], [data-look='tips']) .tt {
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1 var(--ef-font-sans);
+}
+
+.card:is([data-look='toast'], [data-look='finish']) :is(.hd, .bd) {
+  animation: flicker calc(var(--ef-dur-g-flicker-step) * 6) linear 183ms both;
+}
+
+/* Done: the finish toast's yellow accents, a corner wedge and the hairline in yellow. */
+.card[data-look='finish']::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  background: var(--ef-complete);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  pointer-events: none;
+}
+
+.card[data-look='finish'] .hd::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--ef-complete) 50%, transparent);
+}
+
+/* Reminder: common tips card, a yellow triangle top left and a 1 px rule under the head. */
+.card[data-look='tips']::before {
+  background: var(--ef-tips-bg);
+  animation: look-fade var(--ef-dur-g-cell-in) var(--ef-ease-g-fade) both;
+}
+
+.card[data-look='tips'] .hd {
+  box-shadow: inset 0 -1px 0 var(--ef-tips-rule);
+}
+
+.card[data-look='tips'] .hd::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: var(--ef-sp-8);
+  width: 7px;
+  height: 5px;
+  background: var(--ef-accent);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+@keyframes look-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes bar-open {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes title-in {
+  from {
+    opacity: 0;
+    transform: translateY(11px);
+  }
+}
+
+/* Three on/off toggles at the flicker step. */
+@keyframes flicker {
+  0%,
+  32% {
+    opacity: 0;
+  }
+
+  33%,
+  65% {
+    opacity: 1;
+  }
+
+  66%,
+  99% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card[data-look] *,
+  .card[data-look] *::before,
+  .card[data-look] *::after,
+  .card[data-look]::before {
+    animation: none;
+  }
+}
+
+:global(html[data-reduce-motion]) .card[data-look] *,
+:global(html[data-reduce-motion]) .card[data-look] *::before,
+:global(html[data-reduce-motion]) .card[data-look] *::after,
+:global(html[data-reduce-motion]) .card[data-look]::before {
+  animation: none;
+}

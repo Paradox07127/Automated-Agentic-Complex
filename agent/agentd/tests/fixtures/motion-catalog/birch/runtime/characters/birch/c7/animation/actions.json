@@ -1,0 +1,959 @@
+{
+ "schema": "endfield-character-actions-v1",
+ "actions": [
+  {
+   "id": "talk_default",
+   "section": "talk",
+   "clips": [
+    "SourceUI_A_clip_birch_ui_relax_loop"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_talkhands",
+   "section": "talk",
+   "clips": [
+    "A_clip_birch_dialog_virtual_single_idle_talkhands"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_talklefthand1",
+   "section": "talk",
+   "clips": [
+    "A_clip_birch_dialog_virtual_single_idle_talklefthand1"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_talklefthand2",
+   "section": "talk",
+   "clips": [
+    "A_clip_birch_dialog_virtual_single_idle_talklefthand2"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_talkrighthand1",
+   "section": "talk",
+   "clips": [
+    "A_clip_birch_dialog_virtual_single_idle_talkrighthand1"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_talkrighthand2",
+   "section": "talk",
+   "clips": [
+    "A_clip_birch_dialog_virtual_single_idle_talkrighthand2"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_single_chesthugging3_talk",
+   "section": "talk",
+   "clips": [
+    "A_clip_birch_dialog_single_chesthugging3_talk"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_think1_start",
+   "section": "talk",
+   "clips": [
+    "A_clip_birch_dialog_virtual_state_think1_start"
+   ],
+   "gestures": [
+    "think"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_scratchhead_start",
+   "section": "talk",
+   "clips": [
+    "A_clip_birch_dialog_virtual_state_scratchhead_start"
+   ],
+   "gestures": [
+    "scratch_head"
+   ]
+  },
+  {
+   "id": "dialog_state_point_start",
+   "section": "talk",
+   "clips": [
+    "A_clip_birch_dialog_state_point_start"
+   ],
+   "gestures": [
+    "point_forward"
+   ]
+  },
+  {
+   "id": "dialog_state_point_loop",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_state_point_loop"
+   ]
+  },
+  {
+   "id": "dialog_state_cough_start",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_state_cough_start"
+   ],
+   "gestures": [
+    "cough"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_shake",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_virtual_single_idle_shake"
+   ],
+   "gestures": [
+    "shake_head"
+   ]
+  },
+  {
+   "id": "dialog_state_dignified_start",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_state_dignified_start"
+   ],
+   "gestures": [
+    "dignified"
+   ]
+  },
+  {
+   "id": "dialog_state_halfraise_start",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_state_halfraise_start"
+   ],
+   "gestures": [
+    "raise_hand"
+   ]
+  },
+  {
+   "id": "dialog_state_censure_start",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_state_censure_start"
+   ]
+  },
+  {
+   "id": "dialog_state_surprise_start",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_state_surprise_start"
+   ],
+   "gestures": [
+    "surprise"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_introduction_start",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_virtual_state_introduction_start"
+   ],
+   "gestures": [
+    "introduce"
+   ]
+  },
+  {
+   "id": "gacha",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_gacha"
+   ]
+  },
+  {
+   "id": "idle_stand",
+   "section": "idle",
+   "clips": [
+    "SourceUI_A_clip_birch_ui_overview_loop_01"
+   ]
+  },
+  {
+   "id": "dialog_state_adjust_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_adjust_loop"
+   ],
+   "gestures": [
+    "adjust_clothes"
+   ]
+  },
+  {
+   "id": "dialog_state_play02_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_play02_loop"
+   ],
+   "gestures": [
+    "fiddle"
+   ]
+  },
+  {
+   "id": "dialog_state_muse_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_muse_start"
+   ],
+   "gestures": [
+    "think",
+    "tilt_head"
+   ]
+  },
+  {
+   "id": "ui_overview_to_equip_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_ui_overview_to_equip_01"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "ui_overview_to_skill_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_ui_overview_to_skill_01"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "ui_overview_to_upgrade_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_ui_overview_to_upgrade_01"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "ui_overview_to_weapon_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_ui_overview_to_weapon_01"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "uiteam_idle_03",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_uiteam_idle_03"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "dialog_state_chesthugging3_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_chesthugging3_start"
+   ],
+   "gestures": [
+    "think",
+    "arms_crossed"
+   ]
+  },
+  {
+   "id": "dialog_state_chesthugging1_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_chesthugging1_start"
+   ],
+   "gestures": [
+    "arms_crossed"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_akimbo1_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_virtual_state_akimbo1_start"
+   ],
+   "gestures": [
+    "hands_on_hips"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_akimboleft_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_virtual_state_akimboleft_start"
+   ],
+   "gestures": [
+    "hands_on_hips"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_akimboright_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_virtual_state_akimboright_start"
+   ],
+   "gestures": [
+    "hands_on_hips"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_earphone_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_virtual_state_earphone_start"
+   ],
+   "gestures": [
+    "listen_earphone"
+   ]
+  },
+  {
+   "id": "dialog_state_holdarm_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_holdarm_start"
+   ],
+   "gestures": [
+    "hold_arm"
+   ]
+  },
+  {
+   "id": "interact_call",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_interact_call"
+   ],
+   "gestures": [
+    "answer_call"
+   ]
+  },
+  {
+   "id": "ui_relax_sp_01",
+   "section": "idle",
+   "clips": [
+    "SourceUI_A_clip_birch_ui_relax_sp_01"
+   ]
+  },
+  {
+   "id": "ui_relax_sp_02",
+   "section": "idle",
+   "clips": [
+    "SourceUI_A_clip_birch_ui_relax_sp_02"
+   ]
+  },
+  {
+   "id": "ui_relax_react",
+   "section": "idle",
+   "clips": [
+    "SourceUI_A_clip_birch_ui_relax_react"
+   ]
+  },
+  {
+   "id": "dialog_single_wave",
+   "section": "touch",
+   "clips": [
+    "A_clip_birch_dialog_single_wave"
+   ],
+   "gestures": [
+    "wave"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_nod",
+   "section": "touch",
+   "clips": [
+    "A_clip_birch_dialog_virtual_single_idle_nod"
+   ],
+   "gestures": [
+    "nod"
+   ]
+  },
+  {
+   "id": "dialog_single_tsundere",
+   "section": "touch",
+   "clips": [
+    "A_clip_birch_dialog_single_tsundere"
+   ],
+   "gestures": [
+    "arms_crossed",
+    "tsundere"
+   ]
+  },
+  {
+   "id": "look_cursor",
+   "section": "touch",
+   "clips": null
+  },
+  {
+   "id": "drag_sway",
+   "section": "touch",
+   "clips": null
+  },
+  {
+   "id": "library_dialog_single_fly",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_single_fly"
+   ],
+   "gestures": [
+    "levitate"
+   ]
+  },
+  {
+   "id": "library_dialog_single_play",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_single_play"
+   ]
+  },
+  {
+   "id": "library_dialog_state_chesthugging3_derived_tail_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_chesthugging3_derived_tail_start"
+   ]
+  },
+  {
+   "id": "library_dialog_state_flyspell_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_flyspell_loop"
+   ],
+   "gestures": [
+    "cast_spell",
+    "levitate"
+   ]
+  },
+  {
+   "id": "library_dialog_state_idle_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_idle_loop"
+   ]
+  },
+  {
+   "id": "library_dialog_state_spell_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_spell_start"
+   ],
+   "gestures": [
+    "cast_spell"
+   ]
+  },
+  {
+   "id": "library_ui_overview_equip_loop_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_ui_overview_equip_loop_01"
+   ]
+  },
+  {
+   "id": "library_ui_overview_skill_loop_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_ui_overview_skill_loop_01"
+   ]
+  },
+  {
+   "id": "library_ui_overview_upgrade_loop_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_ui_overview_upgrade_loop_01"
+   ]
+  },
+  {
+   "id": "library_ui_overview_weapon_loop_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_ui_overview_weapon_loop_01"
+   ]
+  },
+  {
+   "id": "library_uiteam_idle_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_uiteam_idle_01"
+   ]
+  },
+  {
+   "id": "library_uiteam_idle_02",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_uiteam_idle_02"
+   ]
+  },
+  {
+   "id": "library_uiteam_idle_04",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_uiteam_idle_04"
+   ],
+   "unavailable_reason": "超出桌面角色窗口，不在桌面播放"
+  },
+  {
+   "id": "seat_plain",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_read",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_still",
+   "section": "idle",
+   "clips": null,
+   "duration": 45,
+   "command": "seat"
+  },
+  {
+   "id": "seat_gesture",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "prop_teapot",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_interact_sit_sp"
+   ],
+   "duration": 28,
+   "command": "seat"
+  },
+  {
+   "id": "prop_scroll",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_dialog_state_sit2_start"
+   ],
+   "gestures": [
+    "scroll"
+   ]
+  },
+  {
+   "id": "camera_left",
+   "section": "touch",
+   "clips": null,
+   "duration": 0.4,
+   "command": "camera"
+  },
+  {
+   "id": "camera_right",
+   "section": "touch",
+   "clips": null,
+   "duration": 0.4,
+   "command": "camera"
+  },
+  {
+   "id": "camera_back",
+   "section": "touch",
+   "clips": null,
+   "duration": 0.4,
+   "command": "camera"
+  },
+  {
+   "id": "camera_front",
+   "section": "touch",
+   "clips": null,
+   "duration": 0.4,
+   "command": "camera"
+  },
+  {
+   "id": "receive_gift",
+   "section": "touch",
+   "clips": [
+    "A_clip_birch_interact_receive_gift"
+   ],
+   "duration": 7.6666669845581055
+  },
+  {
+   "id": "npc_serving03",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_single_serving03"
+   ],
+   "unavailable_reason": "原始道具或交互场景尚待挂接验收"
+  },
+  {
+   "id": "npc_idle_turn_l_180",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_single_idle_turn_l_180"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_idle_turn_l_90",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_single_idle_turn_l_90"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_idle_turn_r_180",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_single_idle_turn_r_180"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_walk_stop_r",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_single_walk_stop_r"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_walk_start_l_0_r",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_single_walk_start_l_0_r"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_receivemoney01",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_single_receivemoney01"
+   ],
+   "unavailable_reason": "原始道具或交互场景尚待挂接验收"
+  },
+  {
+   "id": "npc_angry02_start",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_state_angry02_start",
+    "A_clip_birch_dialog_state_angry02_loop",
+    "A_clip_birch_dialog_state_angry02_end"
+   ]
+  },
+  {
+   "id": "npc_set",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_single_set"
+   ]
+  },
+  {
+   "id": "npc_walkandtalk_start",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_state_walkandtalk_start",
+    "A_clip_birch_dialog_state_walkandtalk_loop",
+    "A_clip_birch_dialog_state_walkandtalk_end"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_walk_stop_l",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_single_walk_stop_l"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_virtual_single_walk_m",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_virtual_single_walk_m"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_serving02",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_single_serving02"
+   ],
+   "unavailable_reason": "原始道具或交互场景尚待挂接验收"
+  },
+  {
+   "id": "npc_virtual_single_walk_s",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_virtual_single_walk_s"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_idle_turn_r_90",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_single_idle_turn_r_90"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_singles_back",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_singles_back"
+   ],
+   "unavailable_reason": "超出桌面角色窗口，不在桌面播放"
+  },
+  {
+   "id": "npc_receivemoney02",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_single_receivemoney02"
+   ],
+   "unavailable_reason": "原始道具或交互场景尚待挂接验收"
+  },
+  {
+   "id": "npc_virtual_single_walk_l",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_dialog_virtual_single_walk_l"
+   ],
+   "unavailable_reason": "已解码；原始位移轨迹尚待接入移动执行器"
+  },
+  {
+   "id": "npc_serving01",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_dialog_single_serving01"
+   ],
+   "unavailable_reason": "原始道具或交互场景尚待挂接验收"
+  },
+  {
+   "id": "npc_A_clip_girl_interact_cooking",
+   "section": "react",
+   "clips": [
+    "A_clip_girl_interact_cooking"
+   ],
+   "unavailable_reason": "原始道具或交互场景尚待挂接验收"
+  },
+  {
+   "id": "Psi_recovery_attack04",
+   "section": "idle",
+   "clips": [
+    "Psi_recovery_attack04"
+   ]
+  },
+  {
+   "id": "Psi_recovery_attack02",
+   "section": "idle",
+   "clips": [
+    "Psi_recovery_attack02"
+   ]
+  },
+  {
+   "id": "boss_taunt1",
+   "section": "idle",
+   "clips": [
+    "A_monster_birch_taunt1"
+   ],
+   "unavailable_reason": "待角色骨架适配画面审查"
+  },
+  {
+   "id": "boss_taunt1_loop",
+   "section": "idle",
+   "clips": [
+    "A_monster_birch_taunt1_loop"
+   ],
+   "unavailable_reason": "待角色骨架适配画面审查"
+  },
+  {
+   "id": "boss_taunt2",
+   "section": "idle",
+   "clips": [
+    "A_monster_birch_taunt2"
+   ],
+   "unavailable_reason": "待角色骨架适配画面审查"
+  },
+  {
+   "id": "boss_taunt3",
+   "section": "idle",
+   "clips": [
+    "A_monster_birch_taunt3"
+   ],
+   "unavailable_reason": "完整动作含约4.84米跃起，超过当前桌面场景预算；可预览落地片段"
+  },
+  {
+   "id": "Boss_recovery_taunt3",
+   "section": "idle",
+   "clips": [
+    "Boss_recovery_taunt3"
+   ]
+  },
+  {
+   "id": "ride_inkbiter_l",
+   "section": "touch",
+   "clips": [
+    "A_clip_birch_sprint_dash_sp_l"
+   ],
+   "unavailable_reason": "超出桌面角色窗口，不在桌面播放"
+  },
+  {
+   "id": "ride_inkbiter_r",
+   "section": "touch",
+   "clips": [
+    "A_clip_birch_sprint_dash_sp_r"
+   ],
+   "unavailable_reason": "超出桌面角色窗口，不在桌面播放"
+  },
+  {
+   "id": "ink_camera",
+   "section": "touch",
+   "clips": [
+    "A_clip_birch_interact_camera_01"
+   ],
+   "unavailable_reason": "超出桌面角色窗口，不在桌面播放"
+  },
+  {
+   "id": "original_idle_to_relax",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_idle_to_relax"
+   ]
+  },
+  {
+   "id": "original_relax_sp_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_relax_sp_01"
+   ]
+  },
+  {
+   "id": "original_relax_sp_02",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_relax_sp_02"
+   ]
+  },
+  {
+   "id": "original_relax_react",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_relax_react"
+   ]
+  },
+  {
+   "id": "npc.relax",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_customized_single_idle_to_relax"
+   ]
+  },
+  {
+   "id": "npc.think",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_customized_state_think_start"
+   ]
+  },
+  {
+   "id": "npc.chesthugging3",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_customized_state_chesthugging3_start"
+   ]
+  },
+  {
+   "id": "npc.dignified",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_customized_state_dignified_start"
+   ]
+  },
+  {
+   "id": "npc.halfraise",
+   "section": "react",
+   "clips": [
+    "A_clip_birch_customized_state_halfraise_start"
+   ]
+  },
+  {
+   "id": "npc.sit2",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_customized_state_sit2_start"
+   ]
+  },
+  {
+   "id": "npc.sit3",
+   "section": "idle",
+   "clips": [
+    "A_clip_birch_customized_state_sit3_start"
+   ]
+  },
+  {
+   "id": "social.A_monster_birch_idle",
+   "section": "idle",
+   "clips": [
+    "A_monster_birch_idle"
+   ]
+  },
+  {
+   "id": "social.A_monster_birch_idle_to_fightidle",
+   "section": "idle",
+   "clips": [
+    "A_monster_birch_idle_to_fightidle"
+   ]
+  },
+  {
+   "id": "Boss_social_taunt2_gesture",
+   "section": "react",
+   "clips": [
+    "Boss_social_taunt2_gesture"
+   ]
+  },
+  {
+   "id": "Boss_social_taunt2_tail",
+   "section": "react",
+   "clips": [
+    "Boss_social_taunt2_tail"
+   ]
+  },
+  {
+   "id": "source.walk.special.377900",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_walk_loop_sp_01"
+   ],
+   "unavailable_reason": "超出桌面角色窗口，不在桌面播放"
+  },
+  {
+   "id": "source.walk.special.15668856",
+   "section": "move",
+   "clips": [
+    "A_clip_birch_customized_state_walk_loop_sp_01"
+   ],
+   "unavailable_reason": "超出桌面角色窗口，不在桌面播放"
+  }
+ ]
+}

@@ -1,0 +1,316 @@
+/* 会话列表：搜索 + 分组小标题 + SNS 联系人格（头像、名称、时间、轮数与 24 小时折线；当前会话白框加四角黄括号） */
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  padding: var(--ef-sp-12) var(--ef-sp-12) var(--ef-sp-4);
+}
+
+.top > [data-stub='SearchField'] {
+  flex: 1;
+  width: auto;
+}
+
+.scroll {
+  flex: 1 1 auto;
+  min-height: 96px;
+  overflow-y: auto;
+}
+
+.fail {
+  padding: 8px 4px;
+  font: var(--ef-t-meta);
+  color: var(--ef-text-1);
+}
+
+.retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-1);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.retry:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.grp {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 16px 11px 8px 6px;
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--ef-rule);
+  font: 600 12px/1.2 var(--ef-font-sans);
+  color: var(--ef-text-2);
+}
+
+.group:first-child .grp {
+  margin-top: 8px;
+}
+
+.num {
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+}
+
+.grp .num {
+  font-size: 12px;
+  color: var(--ef-text-2);
+}
+
+/* Contact cell: 288 x 60.5 plate #404040@0.8 r2.5 with a white@0.5 inner frame; 50 px head; name 15 px. */
+.item {
+  /* Plate, frame, head ring #5B5B5C, press flash. */
+  --cell-plate: rgba(64, 64, 64, 0.8);
+  --cell-hover: rgba(80, 80, 80, 0.8);
+  --cell-frame: rgba(255, 255, 255, 0.502);
+  --cell-ring: #5b5b5c;
+  --cell-press: rgba(255, 255, 255, 0.12);
+  /* Selected (screenshots 0128/071, 013): white 2 px frame, yellow corner brackets outside. */
+  --cell-sel: #ffffff;
+  --cell-bracket: var(--ef-accent-text);
+  position: relative;
+  margin: 0 11px 6px 6px;
+}
+
+:global([data-theme='light']) .item {
+  --cell-plate: var(--ef-raised);
+  --cell-hover: var(--ef-rowplate);
+  --cell-frame: var(--ef-line);
+  --cell-ring: var(--ef-line-strong);
+  --cell-press: rgba(0, 0, 0, 0.06);
+  --cell-sel: var(--ef-text-1);
+}
+
+.cv {
+  position: relative;
+  display: grid;
+  grid-template-columns: 50px auto auto minmax(0, 1fr);
+  grid-template-areas:
+    'head title title title'
+    'head when cnt spark';
+  align-items: center;
+  gap: 0 8px;
+  width: 100%;
+  min-height: 60.5px;
+  padding: 5px 12px 5px 6px;
+  border: 0;
+  border-radius: 2.5px;
+  background: var(--cell-plate);
+  outline: 1px solid var(--cell-frame);
+  outline-offset: -2px;
+  color: var(--ef-text-1);
+  text-align: left;
+  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+:global([data-theme='dark']) .cv {
+  color: #ffffff;
+}
+
+.cv:hover {
+  background: var(--cell-hover);
+}
+
+.cv:active {
+  background-image: linear-gradient(var(--cell-press), var(--cell-press));
+}
+
+.cv[data-on] {
+  outline-color: transparent;
+}
+
+/* Selected frame (itembig_selectedbg): SelectedBG `sel` = white 2 px frame, `selLine` = four corner brackets 4 px outside. */
+.sel {
+  position: absolute;
+  inset: -5px;
+  pointer-events: none;
+}
+
+.selBg,
+.selLine {
+  position: absolute;
+}
+
+.selBg {
+  inset: 5px;
+  border: 2px solid var(--cell-sel);
+  border-radius: 2.5px;
+}
+
+.selLine {
+  inset: 0;
+  --b: linear-gradient(var(--cell-bracket), var(--cell-bracket));
+  background:
+    var(--b) 0 0 / 8px 2px no-repeat,
+    var(--b) 0 0 / 2px 8px no-repeat,
+    var(--b) 100% 0 / 8px 2px no-repeat,
+    var(--b) 100% 0 / 2px 8px no-repeat,
+    var(--b) 0 100% / 8px 2px no-repeat,
+    var(--b) 0 100% / 2px 8px no-repeat,
+    var(--b) 100% 100% / 8px 2px no-repeat,
+    var(--b) 100% 100% / 2px 8px no-repeat;
+}
+
+/* Corner frame sprite (recipe sns-sel-frame) tinted #FFF@0.788; SelectedBG keeps the white frame, its plate tint is not in the data. */
+:global(html[data-art][data-theme='dark']) .selLine {
+  inset: -3px;
+  background: var(--ef-g-sns-sel-frame);
+  -webkit-mask-box-image: url('/art/pages/chat/sns-sel-frame.png') 40 / 20px;
+  mask-border: url('/art/pages/chat/sns-sel-frame.png') 40 / 20px;
+}
+
+.cv:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+/* IconBg 50 px, rounded-square mask r2.5, ring #5B5B5C; the round icon at 0.75 cropped to the box. */
+.head {
+  grid-area: head;
+  position: relative;
+  display: block;
+  width: 50px;
+  height: 50px;
+  overflow: hidden;
+  border-radius: 2.5px;
+  outline: 1px solid var(--cell-ring);
+  background: var(--ef-surface-2);
+}
+
+.head img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.15);
+}
+
+/* Generic avatar stand-in. */
+.generic {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 37%, #333333 0 20%, transparent 21%),
+    radial-gradient(ellipse 34% 30% at 50% 92%, #333333 0 96%, transparent 100%),
+    #d6d6d6;
+}
+
+.cvT {
+  grid-area: title;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Name fs 30 g -> 15 px. */
+.title {
+  min-width: 0;
+  overflow: hidden;
+  font: 500 15px/22px var(--ef-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run {
+  font-size: 11px;
+  color: var(--ef-accent-text);
+}
+
+/* The status line under the name: time, then the turn count, on a dim pill like the friend cells' state. */
+.when,
+.cnt {
+  align-self: start;
+  font: 500 12px/20px var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-text-2);
+  white-space: nowrap;
+}
+
+:global([data-theme='dark']) :is(.when, .cnt, .spark) {
+  color: #b7b7b7;
+}
+
+.when {
+  grid-area: when;
+  padding-left: 6px;
+  border-left: 2px solid var(--cell-ring);
+}
+
+.cnt {
+  grid-area: cnt;
+}
+
+/* 24 h turns, 120 x 14 on the status line; it narrows with the column. */
+.spark {
+  grid-area: spark;
+  align-self: start;
+  display: block;
+  width: 100%;
+  max-width: 120px;
+  height: 14px;
+  margin-top: 3px;
+  overflow: visible;
+  color: var(--ef-text-2);
+}
+
+.cv[data-on] .spark {
+  color: inherit;
+}
+
+.sparkL {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.sparkD {
+  fill: currentColor;
+}
+
+.ctx {
+  position: absolute;
+  top: 100%;
+  left: var(--ef-sp-24);
+  z-index: var(--ef-z-dropdown);
+}
+
+.foot {
+  padding: var(--ef-sp-8) var(--ef-sp-12) var(--ef-sp-12);
+  border-top: 1px solid var(--ef-line-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .cv {
+  transition: none;
+}

@@ -1,0 +1,10 @@
+{
+  "focus": {
+    "display_session": null,
+    "state": "idle",
+    "priority": 9,
+    "tool_name": null,
+    "tool_category": null,
+    "expires_at": null
+  }
+}

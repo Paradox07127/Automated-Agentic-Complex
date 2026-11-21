@@ -1,0 +1,1 @@
+{"fields": [{"key": "faction", "label": "阵营", "source": "fixture-table/row", "value": null}], "id": "fixture", "name": "fixture", "source_character_id": "chr_9999_fixture"}

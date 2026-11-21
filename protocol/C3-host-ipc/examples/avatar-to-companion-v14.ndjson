@@ -1,0 +1,4 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","placement","viewport_fullscreen","actions","surfaces"],"build":{"git":"52f9054a"}}
+{"v":1,"type":"track_surface","track_id":"s-1","window_id":3990}
+{"v":1,"type":"track_surface","track_id":"s-2","window_id":3990,"generation":2}
+{"v":1,"type":"untrack_surface","track_id":"s-1"}

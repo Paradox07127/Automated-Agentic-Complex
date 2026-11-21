@@ -1,0 +1,204 @@
+/* Select = dropdown: light pill caption; open, a grey plate encloses the caption and the list below it. */
+.drop {
+  /* Pressed tint #A6A6A6 over the caption, as a black overlay. */
+  --press: rgba(0, 0, 0, 0.35);
+  /* List plate: black shadow, alpha <= 0.14. */
+  --plate-shadow: rgba(0, 0, 0, 0.14);
+  position: relative;
+  /* Own stacking context: a later Select's caption (z dropdown + 1) must not paint over this one's open list. */
+  z-index: 0;
+  flex: none;
+  width: 240px;
+  max-width: 100%;
+}
+
+.drop[data-open] {
+  z-index: var(--ef-z-dropdown);
+}
+
+/* Caption: visible pill 27 tall inside the 32 row. */
+.head {
+  position: relative;
+  z-index: calc(var(--ef-z-dropdown) + 1);
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  width: 100%;
+  height: 28px;
+  margin: 2px 0;
+  padding: 0 12px 0 17px;
+  border: 0;
+  border-radius: 14px;
+  background-color: var(--ef-dropdown-field);
+  color: var(--ef-dropdown-text);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1 var(--ef-font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.head:hover:not(:disabled) {
+  background-color: var(--ef-field-hover);
+  transition-duration: var(--ef-dur-g-btn-hover);
+}
+
+.head:active:not(:disabled) {
+  background-image: linear-gradient(var(--press), var(--press));
+}
+
+.head:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.head:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Arrow 13x6, #444444@0.643. */
+.tri {
+  flex: none;
+  width: 13px;
+  height: 6px;
+  background: color-mix(in srgb, var(--ef-dropdown-opt-text) 64.3%, transparent);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.drop[data-open] .tri {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+/* Plate behind the caption; the list continues it downward. */
+.drop[data-open]::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  left: -4px;
+  z-index: var(--ef-z-dropdown);
+  height: 38px;
+  border-radius: 5px 5px 0 0;
+  background: var(--ef-dropdown-list);
+}
+
+.list {
+  position: absolute;
+  top: 36px;
+  right: -4px;
+  left: -4px;
+  z-index: var(--ef-z-dropdown);
+  max-height: 235px;
+  margin: 0;
+  padding: 0 4px 2px;
+  overflow: auto;
+  border: 0;
+  border-radius: 0 0 5px 5px;
+  background: var(--ef-dropdown-list);
+  box-shadow: 0 8px 12px -4px var(--plate-shadow);
+  color: var(--ef-dropdown-opt-text);
+  list-style: none;
+}
+
+.list:focus-visible {
+  outline: none;
+}
+
+/* Option: 33 tall, 1px #444444@0.098 separator on top. */
+.opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  height: 33px;
+  padding: 0 12px 0 16px;
+  border-top: 1px solid color-mix(in srgb, var(--ef-dropdown-opt-text) 9.8%, transparent);
+  color: var(--ef-dropdown-opt-text);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1 var(--ef-font-sans);
+  cursor: pointer;
+}
+
+.opt:first-child {
+  border-top-color: transparent;
+}
+
+.opt[data-active] {
+  background: var(--ef-dropdown-field);
+}
+
+.list:focus-visible .opt[data-active] {
+  outline: 2px solid var(--ef-dropdown-opt-text);
+  outline-offset: -2px;
+}
+
+/* Selected option: #444444@0.8 plate, 2x15 bar at x 8, check and text #EEEEEE. */
+.opt[aria-selected='true'] {
+  background: var(--ef-dropdown-sel);
+  color: var(--ef-dropdown-sel-text);
+}
+
+.opt[aria-selected='true']::before {
+  content: '';
+  position: absolute;
+  top: calc(50% - 7.5px);
+  left: 8px;
+  width: 2px;
+  height: 15px;
+  background: var(--ef-dropdown-sel-text);
+}
+
+.list:focus-visible .opt[aria-selected='true'][data-active] {
+  outline-color: var(--ef-dropdown-sel-text);
+}
+
+.optLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opt > svg {
+  margin-left: auto;
+  color: currentColor;
+}
+
+.risk {
+  padding: 0 4px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font: var(--ef-t-num);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.riskText {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+:global([data-demo]) .drop[data-open] .list {
+  position: relative;
+  inset: auto;
+  margin: 4px -4px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .head {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .head {
+  transition: none;
+}

@@ -1,0 +1,37 @@
+/* 管线（开发者）：筛选条下，开放区按节间距排。 */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px var(--ef-page-pad) 32px;
+}
+
+.body > * + * {
+  margin-top: var(--ef-sec-gap);
+}
+
+.runs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.run {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ef-sp-12);
+}
+
+.cap {
+  color: var(--ef-text-3);
+  font-size: 12px;
+}

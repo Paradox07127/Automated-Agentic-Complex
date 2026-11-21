@@ -1,0 +1,175 @@
+/* 瀑布：顶部刻度尺 │ 名称 │ 轨道 │ 耗时；子 span 缩进加折角；单色，最长环节用强调色 */
+.wf {
+  --lw: 68px;
+  --vw: 52px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.r {
+  display: grid;
+  grid-template-columns: var(--lw) minmax(0, 1fr) var(--vw);
+  align-items: center;
+  height: 19px;
+}
+
+.wf[data-wide] .r:not([data-ax]) {
+  height: 22px;
+}
+
+.r:not([data-ax]):hover {
+  background: var(--ef-overlay-hover);
+}
+
+.l {
+  position: relative;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--ef-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.r[data-kid] .l {
+  padding-left: 12px;
+  color: var(--ef-text-3);
+}
+
+.r[data-em] .l {
+  font-weight: 600;
+  color: var(--ef-text-1);
+}
+
+.br {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  width: 6px;
+  height: 7px;
+  border-bottom: 1px solid var(--ef-line-strong);
+  border-left: 1px solid var(--ef-line-strong);
+}
+
+.t {
+  position: relative;
+  height: 100%;
+}
+
+.g {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ef-chart-grid);
+}
+
+.b {
+  position: absolute;
+  top: 5px;
+  height: 9px;
+  background: var(--ef-ink-s2);
+}
+
+.r[data-kid] .b {
+  top: 6px;
+  height: 7px;
+  background: var(--ef-ink-s3);
+}
+
+.r[data-em] .b {
+  background: var(--ef-emph);
+}
+
+.r[data-st='fail'] .b {
+  background: repeating-linear-gradient(135deg, var(--ef-danger) 0 1px, transparent 1px 4px);
+  box-shadow: inset 0 0 0 1px var(--ef-danger);
+}
+
+.r[data-st='cut'] .b {
+  box-shadow: inset -2px 0 0 var(--ef-attention);
+}
+
+.b:hover {
+  outline: 1px solid var(--ef-text-1);
+}
+
+.tt {
+  position: absolute;
+  top: 5px;
+  width: 0;
+  height: 9px;
+}
+
+.tt b {
+  position: absolute;
+  top: 1px;
+  left: -4px;
+  width: 7px;
+  height: 7px;
+  background: var(--ef-text-1);
+  box-shadow: 0 0 0 1px var(--ef-bg-base);
+  transform: rotate(45deg);
+}
+
+.ttline {
+  position: absolute;
+  top: 20px;
+  bottom: 0;
+  left: calc(var(--lw) + (100% - var(--lw) - var(--vw)) * var(--x));
+  width: 0;
+  border-left: 1px solid var(--ef-text-2);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.v {
+  font: 400 12px/1 var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-text-1);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.v[data-fail] {
+  color: var(--ef-danger-text);
+}
+
+.r[data-ax] {
+  height: 20px;
+  margin-bottom: 2px;
+}
+
+.r[data-ax] .t {
+  container-type: inline-size;
+  border-bottom: 1px solid var(--ef-chart-axis);
+}
+
+.rk {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 5px;
+  background: var(--ef-text-3);
+}
+
+.tl {
+  position: absolute;
+  top: 2px;
+  margin-left: 3px;
+  font: 500 var(--ef-fs-keycap)/1 var(--ef-font-num);
+  color: var(--ef-chart-label);
+  white-space: nowrap;
+}
+
+.tl:last-child {
+  margin-left: 0;
+  transform: translateX(calc(-100% - 3px));
+}
+
+/* A narrow track keeps every other label; up to four gaps of a 6-character label would collide. */
+@container (max-width: 340px) {
+  .tl:nth-of-type(even) {
+    display: none;
+  }
+}

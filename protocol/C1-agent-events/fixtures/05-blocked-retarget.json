@@ -1,0 +1,109 @@
+{
+ "description": "受阻时换目标：扶的窗口没了，换另一个窗口，同一目标 60 s 内不再选",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e1-1",
+   "type": "hold_window_edge",
+   "target": {
+    "kind": "window",
+    "window_id": 101,
+    "side": "left"
+   },
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 0,
+   "expires_at_ms": 1760900061000,
+   "intensity": 0.6,
+   "channels": [
+    "full_body",
+    "left_hand",
+    "contact"
+   ],
+   "exit": [
+    "target_gone",
+    "user_drag"
+   ],
+   "replaces": null,
+   "trace_id": "t-1"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900000490,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000500,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "blocked",
+   "reason": "target_gone",
+   "at_ms": 1760900008000,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-e1-2",
+   "type": "hold_window_edge",
+   "target": {
+    "kind": "window",
+    "window_id": 202,
+    "side": "right"
+   },
+   "trigger": {
+    "source": "receipt",
+    "event": "blocked:target_gone"
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 0,
+   "expires_at_ms": 1760900062000,
+   "intensity": 0.6,
+   "channels": [
+    "full_body",
+    "right_hand",
+    "contact"
+   ],
+   "exit": [
+    "target_gone",
+    "user_drag"
+   ],
+   "replaces": null,
+   "trace_id": "t-2"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900008590,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900008600,
+   "turn_generation": 3
+  }
+ ]
+}

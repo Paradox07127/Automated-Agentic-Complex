@@ -1,0 +1,71 @@
+{
+  "note": "自有会话的命令失败后焦点切到编辑器，只有同任务事件能关联",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:xc-1",
+      "app": "Xcode",
+      "bundle_id": "com.apple.dt.Xcode",
+      "pid": 460,
+      "window_id": 60,
+      "title": "Untitled.swift",
+      "url_host": null,
+      "since": 1799999970.0,
+      "secure_input": false
+    },
+    "dwell_s": 30.0,
+    "presence": {
+      "id": "afk:xc-1",
+      "status": "active",
+      "seconds": 300,
+      "idle_s": 5
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [
+      {
+        "display_session": "claude:s-orbit",
+        "source": "claude",
+        "session_id": "s-orbit",
+        "cwd": "/Users/demo/work/orbit-ledger",
+        "state": "idle",
+        "effective_state": "idle",
+        "tool_name": null,
+        "tool_category": null,
+        "origin": null,
+        "since": 1799999970.0,
+        "observed_at": 1799999970.0
+      }
+    ],
+    "own_sessions": [
+      {
+        "session_id": "own:5e1f",
+        "target": "codex",
+        "cwd": "/Users/demo/lab/fern",
+        "state": "error",
+        "title": "run the fern build"
+      }
+    ],
+    "events": [
+      {
+        "id": "ev:f-1",
+        "session": "own:5e1f",
+        "kind": "tool_failure",
+        "tool": "command",
+        "tool_category": "command",
+        "ts": 1799999950.0
+      }
+    ]
+  },
+  "expect": {
+    "activity": "build_failed",
+    "status": "ok",
+    "related_session_ids": [
+      "own:5e1f"
+    ],
+    "can_interrupt": true
+  }
+}

@@ -1,0 +1,38 @@
+/* One row per dropped item: its kind, its name (a file's path is the row's tooltip), and why she cannot read it. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list > li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  font: var(--ef-t-text);
+}
+
+.kind {
+  flex: none;
+  color: var(--ef-text-3);
+  font: var(--ef-t-meta);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-1);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.off {
+  flex: none;
+  color: var(--ef-attention-text);
+  font: var(--ef-t-meta);
+}

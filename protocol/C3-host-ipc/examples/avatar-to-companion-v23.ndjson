@@ -1,0 +1,5 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"birch","capabilities":["heartbeat","ack","behavior_receipt","motion_requests"],"build":{"git":"9e3c2555","renderer":"metal"}}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1762250000-7","phase":"prepared","reason":null,"at_ms":1762250000100,"turn_generation":5}
+{"v":1,"type":"motion_request","request_id":"mr-0123456789abcdef","behavior_id":"b-1762250000-7","kind":"walk","seconds":3.0,"geometry":{"to":[-1.2,0.0],"end_yaw":0}}
+{"v":1,"type":"motion_request","request_id":"mr-fedcba9876543210","behavior_id":"b-1762250000-8","kind":"turn","seconds":1.5,"geometry":{"yaw":30}}
+{"v":1,"type":"motion_request","request_id":"mr-00112233445566aa","behavior_id":"b-1762250000-9","kind":"lean","seconds":3,"geometry":{"hand":"right","grip":[-0.45,1.25,0.15]}}

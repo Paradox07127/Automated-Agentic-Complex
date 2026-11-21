@@ -1,0 +1,400 @@
+/* Top dark command bar: character button, the top tabs (Q + 5 icon cells + E) centred, 工具 menu, status lights. */
+.cmdbar {
+  /* Pressed tint #FFFFFF@0.2 on the #FFFFFF@0.2 cell background. */
+  --tab-press: rgba(255, 255, 255, 0.04);
+  position: relative;
+  z-index: calc(var(--ef-z-sticky) + 1);
+  /* The page's tabs sit at the bar's centre while both sides fit; the sides never go under their controls, the tabs scroll first. */
+  display: grid;
+  grid-template-columns: minmax(min-content, 1fr) auto minmax(min-content, 1fr);
+  align-items: center;
+  gap: var(--ef-sp-12);
+  height: 50px;
+  /* --ef-chrome-left: the width the shell's window buttons take at the top left (macOS traffic lights); the shell sets it. */
+  padding: 0 var(--ef-space-page) 0 max(var(--ef-space-page), var(--ef-chrome-left, 0px));
+  background: var(--ef-canvas);
+  -webkit-app-region: drag;
+  color: var(--ef-canvas-fg);
+  white-space: nowrap;
+}
+
+.role {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  height: var(--ef-h-md);
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-sans);
+  white-space: nowrap;
+  transition: background-color 120ms var(--ef-ease-mech);
+}
+
+.role:hover {
+  background-color: var(--ef-chip);
+}
+
+.role:active {
+  background-color: var(--ef-surface-3);
+}
+
+.roleName {
+  line-height: 1;
+}
+
+/* Between the page menu and the lights, centred in what is left; the key hints sit either side of the plate. */
+.tabs {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
+}
+
+/* TabsPC: 504 wide, the cells centred with 1 px gaps. Cells that do not fit scroll sideways; the box runs 6 px below
+   the bar so the scroller does not clip the hanging selected block. */
+.plate {
+  display: flex;
+  align-self: flex-start;
+  align-items: flex-start;
+  justify-content: safe center;
+  gap: 1px;
+  min-width: 160px;
+  height: calc(100% + 6px);
+  padding: 0 var(--ef-sp-24, 24px);
+  overflow: auto hidden;
+  scrollbar-width: none;
+  /* Same TabsPC band as the settings page's tab bar: a flat #FAF9F9@.5 fill leaves the white icons under 3:1. */
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ef-tabpc-bar) 30%, transparent) 0 1px, transparent 1px 5px) top / 100% calc(100% - 6px) no-repeat;
+  /* The fade stays in the padding outside the selected block's 13 px overhang. */
+  -webkit-mask: linear-gradient(90deg, transparent, #000 11px, #000 calc(100% - 11px), transparent);
+  mask: linear-gradient(90deg, transparent, #000 11px, #000 calc(100% - 11px), transparent);
+}
+
+/* KeyHintLeft / KeyHintRight: centred 23.5 px outside the plate. */
+.key {
+  display: inline-flex;
+  flex: none;
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--ef-canvas-fg);
+  text-decoration: none;
+  /* UIToggle colour fade, 0.1 s. */
+  transition:
+    background-color var(--ef-dur-g-btn) var(--ef-ease-g-fade),
+    color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+/* Split line at the cell's left edge, 1.5 px above centre. */
+.tab + .tab::before {
+  position: absolute;
+  top: calc(50% - 8.5px);
+  left: -1px;
+  width: 1px;
+  height: 14px;
+  background: var(--ef-tabpc-cell);
+  content: '';
+}
+
+/* The icon turns dark on the lit cell: white on it falls under 3:1. */
+.tab:hover:not(.on) {
+  background-color: var(--ef-tabpc-cell);
+  color: var(--ef-tabpc-sel-icon);
+}
+
+.tab:active:not(.on) {
+  background-color: var(--tab-press);
+  color: var(--ef-tabpc-sel-icon);
+}
+
+.icon {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+}
+
+/* Pending count on the 记忆 cell, at its top right above the selected block. */
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  z-index: 3;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  background-color: var(--ef-on-accent);
+  color: var(--ef-accent);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 16px var(--ef-font-num);
+  text-align: center;
+  pointer-events: none;
+}
+
+.on {
+  color: var(--ef-tabpc-sel-icon);
+}
+
+.on:focus-visible {
+  outline-color: var(--ef-text-1);
+}
+
+/* Selected block (recipe tab-pc-selected): 76 wide from the top, hanging 6 px below the bar; flat accent without art.
+   --size-y is the block's height in game terms: tabSelectIn grows it 0 to 56 (rest), tabSelectOut folds it to -18.5. */
+.slc {
+  --size-y: 56;
+  position: absolute;
+  top: 0;
+  right: -13px;
+  left: -13px;
+  z-index: 1;
+  height: calc(100% + 6px + (var(--size-y) - 56) * 1px);
+  border-radius: 0 0 3px 3px;
+  background-color: var(--ef-accent);
+}
+
+/* The folding copy rests hidden; tabSelectOut flashes it in for 17-100 ms. */
+.fold {
+  --size-y: -18.537;
+  opacity: 0;
+}
+
+:global(html[data-art]) .slc {
+  border-radius: 0;
+  /* Pinned to the bottom so the block unrolls from the top as it grows; at rest it sits as centred. */
+  background: url('/art/common/tab-pc-selected.png') center bottom -1px / 78px 58px no-repeat;
+}
+
+.tools {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.tools[data-active='true'] [data-stub='Menu'] > button {
+  --bg: var(--ef-accent);
+  background-color: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  height: var(--ef-h-md);
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+  white-space: nowrap;
+  transition: background-color 120ms var(--ef-ease-mech);
+}
+
+.status:hover {
+  background-color: var(--ef-chip);
+  color: var(--ef-text-1);
+}
+
+.status:active {
+  background-color: var(--ef-surface-3);
+}
+
+.light {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+}
+
+.dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 0;
+  background: var(--ef-text-3);
+}
+
+.dot[data-lamp='ok'] {
+  background: var(--ef-text-1);
+}
+
+.dot[data-lamp='warn'],
+.dot[data-lamp='bad'] {
+  border: 1px solid var(--ef-text-1);
+  background: var(--ef-text-2);
+}
+
+.dot[data-lamp='off'] {
+  border: 1px dashed var(--ef-text-3);
+  background: none;
+}
+
+@media (max-width: 1099px) {
+  .roleName {
+    display: none;
+  }
+
+  .role {
+    padding: 0 8px;
+  }
+}
+
+/* Below 1280 the lights drop their labels. */
+@media (max-width: 1279px) {
+  .lightText {
+    display: none;
+  }
+
+  .status {
+    gap: var(--ef-sp-8);
+    padding: 0 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role,
+  .tab,
+  .status {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) :is(.role, .tab, .status),
+:global(.still) :is(.role, .tab, .status) {
+  transition: none;
+}
+
+/* The bar drags the window; its controls stay clickable. */
+.cmdbar button,
+.cmdbar a,
+.cmdbar [role='tablist'] {
+  -webkit-app-region: no-drag;
+}
+
+/* The open page's readouts and its action, in the bar. */
+.slot {
+  display: flex;
+  flex: none;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+
+/* The readouts take what the tabs and the action leave; too narrow, CommandBar folds their fields or cuts them (data-cut).
+   A search field keeps room for its placeholder. */
+.slot[data-slot='status'] {
+  position: relative;
+  flex: 1 1 0;
+  justify-content: safe flex-end;
+  overflow: hidden;
+  contain: inline-size;
+  -webkit-app-region: drag;
+}
+
+.slot[data-slot='status'] > * {
+  -webkit-app-region: no-drag;
+}
+
+/* Folded readouts stay for screen readers. */
+.slot[data-cut='fold'] > * {
+  opacity: 0;
+}
+
+.slot[data-slot='status']:has(input) {
+  min-width: 160px;
+}
+
+/* A placeholder too long for the field ends in …; the field's label reads it in full. */
+.slot[data-slot='status'] input,
+.slot[data-slot='status'] input::placeholder {
+  text-overflow: ellipsis;
+}
+
+.slot[data-cut='end']::after {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+  align-items: center;
+  /* The ramp is a glyph wide, so a half-cut glyph under it fades out. */
+  padding-left: 1.5em;
+  background: linear-gradient(90deg, transparent, var(--ef-canvas) 1em);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  content: '…';
+  pointer-events: none;
+}
+
+.slot:empty,
+.slot [data-folded] {
+  display: none;
+}
+
+/* The game's ⊗ at the bar's right end: back to 主页. */
+.back {
+  display: inline-flex;
+  flex: none;
+  gap: var(--ef-sp-6);
+  align-items: center;
+  height: var(--ef-h-md);
+  padding: 0 var(--ef-sp-8);
+  border: 0;
+  background: transparent;
+  color: var(--ef-text-1);
+}
+
+.back:hover {
+  background-color: var(--ef-chip);
+}
+
+/* Key hints show only while ⌘ or Ctrl is held (Layout sets html[data-keys]). */
+:global(html:not([data-keys])) .key {
+  visibility: hidden;
+}
+
+/* A page without tabs of its own keeps the centre column, empty. */
+.tabs:has(.plate:empty) {
+  visibility: hidden;
+}
+
+/* Readouts, action, lights and ✕, packed to the right end. */
+.right {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* The lights are dots; their names stay in the tooltip. */
+.lightText {
+  display: none;
+}
+
+/* A page without tabs gives the centre column's room to its readouts. */
+.cmdbar:has(.plate:empty) {
+  grid-template-columns: auto 0 minmax(0, 1fr);
+}
+
+.right > .status,
+.right > .back {
+  flex: none;
+}

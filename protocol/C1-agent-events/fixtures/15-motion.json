@@ -1,0 +1,28 @@
+{
+ "description": "宿主请求的生成动作（v2.5）：第一条 motion 成功，带 motion 和 tracks_sha256，宿主取 meta、keys、tracks 校验后播；第二条失败，reason timeout，不带 motion，宿主用游戏片段",
+ "messages": [
+  {
+   "event": "motion",
+   "seq": 1,
+   "request_id": "mr-0123456789abcdef",
+   "behavior_id": "b-1762250000-7",
+   "ok": true,
+   "motion": {
+    "id": "gm-3f9a0c41d27e65b8",
+    "meta_sha256": "5b1e0f6d3c2a49875b1e0f6d3c2a49875b1e0f6d3c2a49875b1e0f6d3c2a4987",
+    "keys_sha256": "c7d2a9e4f1b03856c7d2a9e4f1b03856c7d2a9e4f1b03856c7d2a9e4f1b03856",
+    "rig_sha256": "9e8f7a6b5c4d3e2f9e8f7a6b5c4d3e2f9e8f7a6b5c4d3e2f9e8f7a6b5c4d3e2f",
+    "length_s": 3.0,
+    "tracks_sha256": "a4b3c2d1e0f98765a4b3c2d1e0f98765a4b3c2d1e0f98765a4b3c2d1e0f98765"
+   }
+  },
+  {
+   "event": "motion",
+   "seq": 2,
+   "request_id": "mr-fedcba9876543210",
+   "behavior_id": "b-1762250000-8",
+   "ok": false,
+   "reason": "timeout"
+  }
+ ]
+}

@@ -1,0 +1,83 @@
+/* Rows 36 high on 13/20 text; the header sticks to the nearest scroll container. */
+/* Header fill defaults to the page; a surface around the table can set --ui-table-bg. */
+.wrap {
+  min-width: 0;
+}
+
+.wrap[data-scroll] {
+  overflow-y: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--ef-text-1);
+  font: var(--ef-t-table);
+}
+
+.cell {
+  padding: var(--ef-sp-8) var(--ef-space-inline);
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+/* Small wide labels over an ink line; Chinese labels keep zero tracking. */
+th.cell {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ui-table-bg, var(--ef-base));
+  color: var(--ef-text-2);
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / var(--ef-lh-meta) var(--ef-font-ui);
+  font-stretch: var(--ef-wider);
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom-color: var(--ef-text-1);
+}
+
+.cell[data-num] {
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cell[data-mono] {
+  font: var(--ef-t-mono);
+}
+
+.menu {
+  width: 40px;
+  padding: 0 var(--ef-sp-4);
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line);
+  text-align: right;
+}
+
+th.menu {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ui-table-bg, var(--ef-base));
+  border-bottom-color: var(--ef-text-1);
+}
+
+.row {
+  cursor: default;
+}
+
+.row:is(:hover, [aria-selected='true']) {
+  background: var(--ef-base);
+}
+
+/* 4px trace bar inset on the row's left edge, painted as a background. */
+.row:is(:hover, [aria-selected='true']) > :first-child {
+  background: linear-gradient(var(--ef-trace), var(--ef-trace)) left / var(--ef-lw-category) 100% no-repeat;
+}
+
+.row:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: calc(-1 * var(--ef-lw-focus));
+}

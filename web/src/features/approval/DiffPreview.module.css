@@ -1,0 +1,62 @@
+.root {
+  margin: 0 0 var(--ef-sp-8);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: var(--ef-t-meta);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.toggle :global(.num) {
+  padding: 0 var(--ef-sp-4);
+  background: var(--ef-base);
+}
+
+.addN {
+  color: var(--ef-success-text);
+}
+
+.delN {
+  color: var(--ef-danger-text);
+}
+
+.root[data-bare] {
+  margin: 0;
+}
+
+.diff {
+  margin: var(--ef-sp-8) 0 0;
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  max-height: 160px;
+  overflow: auto;
+  border: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  background: var(--ef-base);
+  color: var(--ef-base-fg);
+  font: var(--ef-t-mono);
+  white-space: pre;
+}
+
+.root[data-bare] .diff {
+  margin: 0;
+}
+
+.add {
+  color: var(--ef-success-text);
+}
+
+.del {
+  color: var(--ef-danger-text);
+}
+
+.hunk {
+  color: var(--ef-text-3);
+}

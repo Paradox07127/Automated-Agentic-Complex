@@ -1,0 +1,45 @@
+{
+  "schema": "endfield-character-definition",
+  "schema_version": 1,
+  "id": "cedar",
+  "version": "1.0.0",
+  "source_identity": {
+    "character_id": "cedar",
+    "snapshot": "test-fixture-1"
+  },
+  "display": {
+    "name": {
+      "zh-Hans": "示例丙"
+    }
+  },
+  "aliases": [],
+  "components": {
+    "persona": {
+      "card": {
+        "file": "persona/card.json",
+        "sha256": "a9c8d5d85bbcb2ccfb54f8332b35b9b6c302bdac5e36ac614f38aab89ca4c494",
+        "byte_count": 1820
+      },
+      "lore": {
+        "file": "persona/lore.json",
+        "sha256": "ddf0552b10d4d5693542e9c52f7498bb27b44928f2837d7e13c9249f6daece6e",
+        "byte_count": 318
+      }
+    }
+  },
+  "capabilities": [
+    "persona.dialogue"
+  ],
+  "inventory": [
+    {
+      "file": "persona/card.json",
+      "sha256": "a9c8d5d85bbcb2ccfb54f8332b35b9b6c302bdac5e36ac614f38aab89ca4c494",
+      "byte_count": 1820
+    },
+    {
+      "file": "persona/lore.json",
+      "sha256": "ddf0552b10d4d5693542e9c52f7498bb27b44928f2837d7e13c9249f6daece6e",
+      "byte_count": 318
+    }
+  ]
+}

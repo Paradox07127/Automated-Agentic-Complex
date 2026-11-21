@@ -1,0 +1,49 @@
+{
+  "schema": "endfield-character-definition",
+  "schema_version": 1,
+  "id": "aster",
+  "version": "1.0.0",
+  "source_identity": {
+    "character_id": "aster",
+    "snapshot": "test-fixture-1"
+  },
+  "display": {
+    "name": {
+      "zh-Hans": "示例甲"
+    }
+  },
+  "aliases": [],
+  "components": {
+    "persona": {
+      "card": {
+        "file": "persona/card.json",
+        "sha256": "55668474454cef09fed3da47144cdda56f47030793d70d9053f06c3edc94e120",
+        "byte_count": 1885
+      },
+      "lore": {
+        "file": "persona/lore.json",
+        "sha256": "2a94e7e1c636ce141bead4006cabd53a35707112e95ce530df44ac06821b2a9a",
+        "byte_count": 318
+      }
+    },
+    "voice": {
+      "character": "voice_a",
+      "language": "zh"
+    }
+  },
+  "capabilities": [
+    "persona.dialogue"
+  ],
+  "inventory": [
+    {
+      "file": "persona/card.json",
+      "sha256": "55668474454cef09fed3da47144cdda56f47030793d70d9053f06c3edc94e120",
+      "byte_count": 1885
+    },
+    {
+      "file": "persona/lore.json",
+      "sha256": "2a94e7e1c636ce141bead4006cabd53a35707112e95ce530df44ac06821b2a9a",
+      "byte_count": 318
+    }
+  ]
+}

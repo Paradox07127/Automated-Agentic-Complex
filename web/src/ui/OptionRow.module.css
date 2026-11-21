@@ -1,0 +1,164 @@
+/* A choice as a task row: dark plate with rounded right corners and a hairline edge; pointing drops the strip on the left, the chosen one gets the light band and twill. */
+.opt {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  width: 100%;
+  max-width: 380px;
+  height: var(--ef-h-lg);
+  padding: 0 var(--ef-sp-12) 0 40px;
+  border: 1px solid var(--ef-mission-row-line);
+  border-left: 0;
+  border-radius: 0 5px 5px 0;
+  background: var(--ef-mission-row);
+  color: var(--ef-mission-row-text);
+  font-weight: var(--ef-fw-medium);
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+:global([data-theme='light']) .opt {
+  border-color: var(--ef-line);
+}
+
+/* Strip on the left plus, when chosen, the light band. */
+.opt::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -1px 0;
+  border-radius: inherit;
+  background: linear-gradient(var(--ef-trace), var(--ef-trace)) 0 0 / var(--ef-lw-category) 100% no-repeat;
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 200ms var(--ef-ease-g-enter);
+  pointer-events: none;
+}
+
+.opt::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 93px;
+  background: repeating-linear-gradient(-45deg, var(--ef-trace) 0 1.5px, transparent 1.5px 5px);
+  -webkit-mask: linear-gradient(90deg, #000, transparent);
+  mask: linear-gradient(90deg, #000, transparent);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Twill texture (recipe mission-twill, 184x104 g at the left, fading out to the right). */
+:global(html[data-art]) .opt::after {
+  width: 94px;
+  background: var(--ef-trace);
+  -webkit-mask: url('/art/common/mission-twill.png') left center / 94px 100% no-repeat;
+  mask: url('/art/common/mission-twill.png') left center / 94px 100% no-repeat;
+}
+
+.opt:is(:hover, :active, :focus-visible)::before,
+.opt[aria-selected='true']::before {
+  transform: none;
+}
+
+.opt:hover:not([aria-selected='true']) {
+  background: var(--ef-base);
+}
+
+.opt:active:not([aria-selected='true']) {
+  background: var(--ef-surface-3);
+}
+
+.opt:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+/* White text fails on the light band over the dark base, so the chosen row reads dark (tokens: mission-row-sel-text). */
+.opt[aria-selected='true'] {
+  color: var(--ef-mission-row-sel-text);
+}
+
+.opt[aria-selected='true']::before {
+  background-color: var(--ef-mission-row-sel);
+  animation: band-in var(--ef-dur-g-select) var(--ef-ease-g-enter);
+}
+
+.opt[aria-selected='true']::after {
+  visibility: visible;
+  opacity: 0.5;
+  animation: fade-in 83ms var(--ef-ease-g-fade) 167ms both;
+}
+
+.icon {
+  position: absolute;
+  left: 12px;
+  display: inline-flex;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kbd {
+  display: inline-flex;
+}
+
+.opt[data-size='desk'] {
+  height: 26px;
+  padding-left: 34px;
+  font-size: var(--ef-fs-small);
+}
+
+.opt[data-size='desk'] .icon {
+  left: 10px;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes band-in {
+  from {
+    clip-path: inset(0 0 0 min(279px, 50%));
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opt,
+  .opt::before {
+    transition: none;
+  }
+
+  .opt[aria-selected='true']::before,
+  .opt[aria-selected='true']::after {
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) .opt,
+:global([data-reduce-motion]) .opt::before {
+  transition: none;
+}
+
+:global([data-reduce-motion]) .opt[aria-selected='true']::before,
+:global([data-reduce-motion]) .opt[aria-selected='true']::after,
+:global(.still) .opt[aria-selected='true']::before,
+:global(.still) .opt[aria-selected='true']::after {
+  animation: none;
+}

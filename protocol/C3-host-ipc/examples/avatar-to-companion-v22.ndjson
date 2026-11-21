@@ -1,0 +1,5 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack"],"build":{"git":"89f61ffe","renderer":"metal"}}
+{"v":1,"type":"window_frame","frame":{"x":0.0,"y":0.0,"w":1512.0,"h":949.0},"scale":2.0,"window_number":4711,"viewport":"fullscreen","display_id":1}
+{"v":1,"type":"hit_capsules","frame":120,"capsules":[{"a":[1180.0,60.0],"b":[1180.0,250.0],"r":38.0}],"space":"global","visual":[1102.50,22.00,171.25,268.75],"pose_revision":120,"submitted_frame":120}
+{"v":1,"type":"hit_capsules","frame":121,"capsules":[{"a":[1180.0,60.0],"b":[1180.0,250.0],"r":38.0}],"space":"global","pose_revision":121,"submitted_frame":121}
+{"v":1,"type":"hit_capsules","frame":122,"capsules":[],"space":"global","pose_revision":122,"submitted_frame":122}

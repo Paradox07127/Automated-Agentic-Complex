@@ -1,0 +1,61 @@
+/* Plain chip blocks, no shimmer; fills the height its region reserves and follows the section's shape: rows, cards, a chart frame or one block. */
+.skel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  padding: var(--ef-sp-8) 0;
+}
+
+.label {
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+}
+
+.bar,
+.card,
+.chart,
+.block {
+  display: block;
+}
+
+.bar,
+.block {
+  background: var(--ef-chip);
+}
+
+.bar {
+  height: 14px;
+}
+
+.block {
+  flex: 1;
+  min-height: 14px;
+}
+
+.cards {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8);
+}
+
+/* A card outline with a title bar and two text lines. */
+.card {
+  flex: 1 1 180px;
+  min-height: 64px;
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  background:
+    linear-gradient(var(--ef-chip), var(--ef-chip)) 12px 12px / 40% 12px no-repeat,
+    linear-gradient(var(--ef-chip), var(--ef-chip)) 12px 34px / 70% 10px no-repeat,
+    linear-gradient(var(--ef-chip), var(--ef-chip)) 12px 52px / 55% 10px no-repeat;
+}
+
+/* Grid lines over a baseline, where the plot goes. */
+.chart {
+  flex: 1;
+  min-height: 48px;
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line-strong);
+  background: repeating-linear-gradient(to top, transparent 0 15px, var(--ef-line) 15px 16px);
+}

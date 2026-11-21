@@ -1,0 +1,72 @@
+/* 设定: the board, then the vertical menu on the right edge (43.5 px cells, 5 px apart). */
+.set {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 43.5px;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.note {
+  margin: 4px 0 6px;
+  font-size: 12px;
+  color: var(--ef-text-3);
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tip {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--ef-text-3);
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tab {
+  width: 43.5px;
+  min-height: 43.5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font: 500 13px / 1.2 var(--ef-font-sans);
+}
+
+.tab[aria-selected='true'] {
+  box-shadow: inset -2px 0 0 var(--ef-emph);
+  color: var(--ef-text-1);
+}
+
+.tab:focus-visible {
+  outline: 1px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.none {
+  font-size: 13px;
+  color: var(--ef-text-3);
+}

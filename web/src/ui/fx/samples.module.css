@@ -1,0 +1,223 @@
+/* Stand-in layouts for the GameClip demos; every animated node is centred with inset + margin so clips own translate, scale and rotate. */
+.watch,
+.wheel {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.center,
+.ring,
+.dots,
+.tris,
+.decoOut,
+.logo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: auto;
+  transform-style: preserve-3d;
+}
+
+.ring {
+  border-radius: 50%;
+}
+
+.out {
+  width: 300px;
+  height: 300px;
+  border: 1px solid var(--ef-g-ring-1);
+}
+
+.main {
+  width: 240px;
+  height: 240px;
+  border: 2px solid var(--ef-g-ring-3);
+}
+
+.blue {
+  width: 122px;
+  height: 122px;
+  background: var(--ef-g-cyan);
+  box-shadow: inset 0 0 0 1px var(--ef-g-ring-2);
+}
+
+.dots {
+  width: 360px;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--ef-g-ring-2) 0 2px, transparent 2px 10px);
+}
+
+.tris {
+  width: 188px;
+  height: 188px;
+}
+
+.tris > i {
+  position: absolute;
+  inset: 0;
+}
+
+.tris > i::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: calc(50% - 5px);
+  border: 5px solid transparent;
+  border-top: 7px solid var(--ef-g-btn-hover);
+}
+
+.decoOut {
+  width: 260px;
+  height: 170px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.decoOut > i {
+  width: 34px;
+  height: 100%;
+  border: 1px solid var(--ef-g-ring-2);
+  border-inline-width: 2px 0;
+}
+
+.decoOut > i:last-child {
+  border-inline-width: 0 2px;
+}
+
+.logo {
+  width: 34px;
+  height: 34px;
+  background: var(--ef-g-yellow);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.groups {
+  position: absolute;
+  top: 70px;
+  right: 6px;
+  display: grid;
+  gap: 8px;
+  transform-style: preserve-3d;
+}
+
+.key {
+  width: 39px;
+  height: 36px;
+  /* The game key's shadow plate sits 3 px to the right of its face. */
+  background: linear-gradient(var(--ef-g-btn), var(--ef-g-btn)) 0 0 / 36px 100% no-repeat, var(--ef-g-btn-shadow);
+}
+
+.key:nth-child(even) {
+  margin-left: 14px;
+}
+
+.side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 8px;
+  width: 64px;
+  height: 64px;
+  margin: auto 0;
+  border-radius: 50%;
+  background: var(--ef-g-wheel-bg);
+  box-shadow: inset 0 0 0 1px var(--ef-g-ring-2);
+}
+
+.sideR {
+  right: 8px;
+  left: auto;
+}
+
+.center {
+  width: 220px;
+  height: 220px;
+}
+
+.center .center {
+  width: 128px;
+  height: 128px;
+}
+
+.roundBg {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--ef-g-wheel-bg);
+}
+
+.cycle1 {
+  width: 120px;
+  height: 120px;
+  border: 1px solid var(--ef-g-cycle-yellow);
+}
+
+.cycle2 {
+  width: 156px;
+  height: 156px;
+  border: 1px solid var(--ef-g-ring-1);
+}
+
+.cycle3 {
+  width: 214px;
+  height: 214px;
+  border: 1px dashed var(--ef-g-ring-1);
+}
+
+.spoke {
+  position: absolute;
+  top: 6px;
+  left: calc(50% - 1px);
+  width: 2px;
+  height: 58px;
+  background: var(--ef-accent);
+  transform-origin: 50% 100%;
+}
+
+.btn {
+  position: absolute;
+  inset: 0;
+  width: 72px;
+  height: 72px;
+  margin: auto;
+  transform-style: preserve-3d;
+}
+
+.btnShadow,
+.face {
+  position: absolute;
+  inset: 0;
+}
+
+.btnShadow {
+  translate: 3px 0;
+  background: var(--ef-g-btn-shadow);
+}
+
+/* Highlighted starts the face at 0.863 and ends it opaque white. */
+.face {
+  background: var(--ef-g-btn-hover);
+  opacity: 0.863;
+}
+
+.icon {
+  position: absolute;
+  top: 14px;
+  left: calc(50% - 10px);
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--ef-g-icon);
+  border-radius: 50%;
+}
+
+.label {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  color: var(--ef-g-label);
+  font: var(--ef-t-meta);
+  text-align: center;
+}

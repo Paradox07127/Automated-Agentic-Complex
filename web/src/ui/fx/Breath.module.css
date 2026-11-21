@@ -1,0 +1,59 @@
+/* Breathing dot: the loop is attached only while the dot is on screen (data-live). */
+.dot {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--dot-size);
+  height: var(--dot-size);
+  border-radius: 50%;
+  background: var(--dot-c);
+}
+
+.dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--dot-c);
+  opacity: 0;
+  mix-blend-mode: plus-lighter;
+}
+
+.dot[data-live] {
+  animation: breath var(--ef-dur-g-spin) var(--ef-ease-g-fade) infinite alternate;
+}
+
+.dot[data-live]::after {
+  animation: halo var(--ef-dur-g-spin) var(--ef-ease-g-fade) infinite alternate;
+}
+
+@keyframes breath {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@keyframes halo {
+  from {
+    opacity: 0.5;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 2.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot[data-live],
+  .dot[data-live]::after {
+    animation: none;
+  }
+}
+
+:global(.still) .dot[data-live],
+:global(.still) .dot[data-live]::after,
+:global([data-reduce-motion]) .dot[data-live],
+:global([data-reduce-motion]) .dot[data-live]::after {
+  animation: none;
+}

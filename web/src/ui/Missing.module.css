@@ -1,0 +1,16 @@
+.missing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  vertical-align: middle;
+}
+
+.dash {
+  color: var(--ef-text-2);
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+}
+
+.word {
+  color: var(--ef-text-2);
+}

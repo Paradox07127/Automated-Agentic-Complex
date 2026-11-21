@@ -1,0 +1,145 @@
+/* 今天: the 日报 field in the page header, the activity line in the timeline head, the day's timeline rows, and their detail sheets.
+   The rows borrow the objective bands of the task detail. */
+.day,
+.act,
+.entry {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-1);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.day:focus-visible,
+.act:focus-visible,
+.entry:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+/* Full-width rows sit flush with the page column, which would clip an outer ring. */
+.entry:focus-visible {
+  outline-offset: -2px;
+}
+
+.day {
+  gap: var(--ef-sp-4);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.act {
+  color: var(--ef-text-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.day:hover .go,
+.act:hover,
+.act:hover .go,
+.entry:hover .go {
+  color: var(--ef-text-1);
+}
+
+.go {
+  flex: none;
+  color: var(--ef-text-3);
+}
+
+.tag {
+  flex: none;
+  color: var(--ef-text-3);
+  font-size: 12px;
+}
+
+.list {
+  --tl-label: #CCCDCF;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:global([data-theme='light']) .list {
+  --tl-label: var(--ef-text-2);
+}
+
+/* Objective band: #000@0.3 (step-bg), body 14 c. */
+.entry {
+  width: 100%;
+  min-height: 34px;
+  padding: 4px 8px;
+  background: var(--ef-step-bg);
+  font-size: 14px;
+  scroll-margin: var(--ef-sp-16);
+  transition: background var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.entry:hover {
+  background: var(--ef-rowplate-hover);
+}
+
+.time {
+  flex: none;
+  width: 100px;
+  color: var(--tl-label);
+  font-family: var(--ef-font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.src {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+  align-items: center;
+  width: 120px;
+  color: var(--tl-label);
+  font-size: 13px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.more {
+  margin-top: var(--ef-sp-8);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eb {
+  margin-bottom: 4px;
+  color: var(--ef-text-2);
+  font-size: 12px;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 0 16px;
+  font-size: 13px;
+}
+
+.cap {
+  color: var(--ef-text-2);
+  font-size: 12px;
+}

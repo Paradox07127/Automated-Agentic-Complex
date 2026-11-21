@@ -1,0 +1,49 @@
+{
+  "schema": "endfield-character-definition",
+  "schema_version": 1,
+  "id": "birch",
+  "version": "1.0.0",
+  "source_identity": {
+    "character_id": "birch",
+    "snapshot": "test-fixture-1"
+  },
+  "display": {
+    "name": {
+      "zh-Hans": "示例乙"
+    }
+  },
+  "aliases": [],
+  "components": {
+    "persona": {
+      "card": {
+        "file": "persona/card.json",
+        "sha256": "6f6cd8011033d64f51871b757a29090bbec125dac7da08cea1db180344a65fe0",
+        "byte_count": 1880
+      },
+      "lore": {
+        "file": "persona/lore.json",
+        "sha256": "f3891c2f60437d4e04b5b9b8d0105f0869f28775a4533cb1c09fe1f8b48a8fe7",
+        "byte_count": 318
+      }
+    },
+    "voice": {
+      "character": "si",
+      "language": "zh"
+    }
+  },
+  "capabilities": [
+    "persona.dialogue"
+  ],
+  "inventory": [
+    {
+      "file": "persona/card.json",
+      "sha256": "6f6cd8011033d64f51871b757a29090bbec125dac7da08cea1db180344a65fe0",
+      "byte_count": 1880
+    },
+    {
+      "file": "persona/lore.json",
+      "sha256": "f3891c2f60437d4e04b5b9b8d0105f0869f28775a4533cb1c09fe1f8b48a8fe7",
+      "byte_count": 318
+    }
+  ]
+}

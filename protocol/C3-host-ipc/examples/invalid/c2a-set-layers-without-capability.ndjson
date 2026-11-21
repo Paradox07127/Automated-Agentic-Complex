@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":4243,"protocol":1,"capabilities":["capsules_global","watchdog","pointer","pass_through","keep_clear"],"build":{"git":"9e3c2555"}}
+{"v":1,"type":"set_layers","hidden":["coat"]}

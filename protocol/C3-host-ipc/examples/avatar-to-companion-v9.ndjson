@@ -1,0 +1,15 @@
+{"v":1,"type":"hello","role":"avatar","pid":51234,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","drag_motion","placement","viewport_fullscreen"],"build":{"git":"9aa40677","plugin":"3f2a91c0d4e7"}}
+{"v":1,"type":"window_frame","frame":{"x":0.0,"y":0.0,"w":1512.0,"h":949.0},"scale":2.0,"window_number":4711,"viewport":"fullscreen","display_id":1}
+{"v":1,"type":"placement","x":1180.0,"y":0.0,"scale":1.0,"display_id":1,"reason":"start"}
+{"v":1,"type":"heartbeat","seq":0,"click_through":true}
+{"v":1,"type":"hit_capsules","frame":120,"space":"global","pose_revision":118,"submitted_frame":120,"capsules":[{"a":[1180.0,60.0],"b":[1180.0,250.0],"r":38.0}]}
+{"v":1,"type":"heartbeat","seq":1,"click_through":false}
+{"v":1,"type":"drag","phase":"begin","x":1185.0,"y":200.0,"grab":{"x":5.0,"y":200.0},"vx":0.0,"vy":0.0}
+{"v":1,"type":"drag","phase":"move","x":1100.0,"y":260.0,"grab":{"x":5.0,"y":200.0},"vx":-850.5,"vy":600.0}
+{"v":1,"type":"drag","phase":"end","x":1050.0,"y":300.0,"grab":{"x":5.0,"y":200.0},"vx":-120.0,"vy":40.0}
+{"v":1,"type":"placement","x":1045.0,"y":100.0,"scale":1.0,"display_id":1,"reason":"drag"}
+{"v":1,"type":"ack","req":7,"ok":true}
+{"v":1,"type":"placement","x":1045.0,"y":100.0,"scale":1.25,"display_id":1,"reason":"set_placement"}
+{"v":1,"type":"ack","req":8,"ok":false,"error":"unsupported"}
+{"v":1,"type":"ack","req":9,"ok":true}
+{"v":1,"type":"drag","phase":"end"}

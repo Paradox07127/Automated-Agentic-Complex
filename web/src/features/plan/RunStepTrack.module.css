@@ -1,0 +1,74 @@
+.root {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-auto-columns: auto;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  min-height: 56px;
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  background: var(--ef-step-bg);
+  border-radius: var(--ef-r-3);
+  cursor: pointer;
+}
+
+.root:hover {
+  background: var(--ef-overlay-hover);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-4);
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--ef-fs-body);
+  color: var(--ef-text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.lost {
+  font-size: var(--ef-fs-caption);
+  color: var(--ef-attention-text);
+}
+
+.read {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--ef-sp-2);
+  font-size: var(--ef-fs-caption);
+  white-space: nowrap;
+}
+
+.tail {
+  color: var(--ef-text-2);
+}
+
+.tail[data-waiting] {
+  color: var(--ef-attention-text);
+}
+
+.elapsed {
+  color: var(--ef-base-fg);
+}
+
+.waitTag {
+  padding: 1px var(--ef-sp-6);
+  box-shadow: inset 0 0 0 1px var(--ef-state-waiting);
+  color: var(--ef-attention-text);
+  font-size: var(--ef-fs-caption);
+  font-weight: var(--ef-fw-semibold);
+  white-space: nowrap;
+}

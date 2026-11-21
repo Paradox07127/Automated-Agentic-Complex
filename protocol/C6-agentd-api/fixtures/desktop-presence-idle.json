@@ -1,0 +1,12 @@
+{
+  "role": {
+    "state": "idle",
+    "activity": "空闲",
+    "doing": "空闲",
+    "intention": null,
+    "backend": null,
+    "mood": "steady",
+    "background_runs": 0,
+    "background": []
+  }
+}

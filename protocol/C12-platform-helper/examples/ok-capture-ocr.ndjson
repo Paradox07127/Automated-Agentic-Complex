@@ -1,0 +1,18 @@
+{"v":1,"id":1,"op":"hello","params":{"protocol":1,"client":"electron","client_version":"0.1.0"}}
+{"v":1,"id":1,"ok":true,"result":{"protocol":1,"platform":"macos","helper_version":"0.1.0","os_version":"macOS 26.1","arch":"arm64","pid":4242,"ops":["hello","cancel","shutdown","screens.list","windows.list","windows.at_point","workspace.watch","attention.sample","presence.watch","browser.front_tab","input.modifiers","input.watch","ax.focused","ax.dialog_buttons","ax.overlays","ax.hit_chain","ax.window_text","ax.selected_text","ax.video_rect","ax.watch","capture.window","capture.ambient","ocr.languages","ocr.recognize","speech.locales","mic.start","mic.stop","ptt.register","ptt.unregister","control.observe","control.act","control.read","control.listen","control.respond","permissions.status","permissions.request","clipboard.read","apps.running","apps.installed","apps.activate","terminal.focus","process.usage"],"events":["workspace.changed","presence.edge","input.activity","ax.notification","mic.level","speech.partial","ptt.down","ptt.up","control.request"]}}
+{"v":1,"id":2,"op":"capture.window","params":{"window_id":640,"format":"jpeg","max_long_side":1280}}
+{"v":1,"id":2,"ok":true,"result":{"image":{"format":"jpeg","width":1280,"height":853,"data":"/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA=="},"scale":2.0}}
+{"v":1,"id":3,"op":"capture.window","params":{"window_id":999}}
+{"v":1,"id":3,"ok":false,"error":{"code":"window_gone","message":"window 999 is not on screen","retryable":false}}
+{"v":1,"id":4,"op":"capture.ambient","params":{"source":"screen","side":2,"rect":{"x":1200,"y":600,"width":240,"height":300},"exclude_pids":[4100]}}
+{"v":1,"id":4,"ok":true,"result":{"width":2,"height":2,"rgba":"AAAAAAAAAAAAAAAAAAAAAA=="}}
+{"v":1,"id":5,"op":"capture.ambient","params":{"source":"wallpaper","side":2,"display_id":1}}
+{"v":1,"id":5,"ok":true,"result":{"width":2,"height":2,"rgba":"AAAAAAAAAAAAAAAAAAAAAA=="}}
+{"v":1,"id":6,"op":"ocr.languages","params":{}}
+{"v":1,"id":6,"ok":true,"result":{"languages":["zh-Hans","en-US"]}}
+{"v":1,"id":7,"op":"ocr.recognize","params":{"window_id":640,"languages":["zh-Hans","en-US"]}}
+{"v":1,"id":7,"ok":true,"result":{"text":"购物清单\nmilk","languages":["zh-Hans","en-US"],"lines":[{"text":"购物清单","bounds":{"x":0.05,"y":0.04,"width":0.2,"height":0.03},"confidence":0.98},{"text":"milk","bounds":{"x":0.05,"y":0.09,"width":0.08,"height":0.03},"confidence":null}]}}
+{"v":1,"id":8,"op":"ocr.recognize","params":{"image":{"format":"png","width":1,"height":1,"data":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="}}}
+{"v":1,"id":8,"ok":true,"result":{"text":"","lines":[],"languages":["zh-Hans","en-US"]}}
+{"v":1,"id":9,"op":"capture.window","params":{"window_id":812}}
+{"v":1,"id":9,"ok":false,"error":{"code":"permission_denied","message":"Screen Recording is not allowed","retryable":false}}

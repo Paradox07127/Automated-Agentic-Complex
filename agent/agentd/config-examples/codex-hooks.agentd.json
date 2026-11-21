@@ -1,0 +1,115 @@
+{
+  "description": "agentd one-off test hooks; delete after testing",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

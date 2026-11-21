@@ -1,0 +1,12 @@
+{
+  "ops": [
+    "onboarding.state",
+    "onboarding.advance",
+    "onboarding.back",
+    "onboarding.skip",
+    "onboarding.complete",
+    "onboarding.requestPermission",
+    "onboarding.openSettings",
+    "onboarding.onVoiceTrial"
+  ]
+}

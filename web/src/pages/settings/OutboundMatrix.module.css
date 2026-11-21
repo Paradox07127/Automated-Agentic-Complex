@@ -1,0 +1,24 @@
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-1);
+  font: inherit;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.on {
+  color: var(--ef-text-1);
+}
+
+.off {
+  color: var(--ef-text-2);
+}
+
+.att {
+  color: var(--ef-attention-text);
+}

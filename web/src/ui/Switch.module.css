@@ -1,0 +1,129 @@
+/* Switch: inner-shadow pill track, knob with an underline below it;
+   on = knob on 开 (left), off = knob on 关 (right). Colours are the toggle tokens. */
+.sw {
+  /* commontoggle_btn Highlighted: the selected light fades to white@0.25; pressed tint #C8C8C8. */
+  --light-hover: rgba(255, 255, 255, 0.25);
+  --light-press: rgba(200, 200, 200, 0.298);
+  /* Inner shadow: darkens to 0.83 at the edge. */
+  --inner: rgba(0, 0, 0, 0.17);
+  --w: 108px;
+  --knob-w: 58px;
+  position: relative;
+  flex: none;
+  width: var(--w);
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1 var(--ef-font-ui);
+  cursor: pointer;
+}
+
+.sw:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 3px;
+}
+
+.track,
+.light {
+  position: absolute;
+  inset: 0 0 4px;
+  border-radius: 10px;
+}
+
+.track {
+  background: var(--ef-toggle-track);
+  box-shadow: inset 0 0 3px 1px var(--inner);
+}
+
+.light {
+  background-color: transparent;
+  transition: background-color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.sw:hover:not([aria-disabled]) .light {
+  background-color: var(--light-hover);
+}
+
+.sw:active:not([aria-disabled]) .light {
+  background-color: var(--light-press);
+}
+
+/* On state: knob over one half, a 25x2 underline just below it (light when on, grey when off). */
+.knob {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--knob-w);
+  height: 20px;
+  border-radius: 10px;
+  background: var(--ef-toggle-knob);
+  --anchor-min-x: 1;
+  transform: translateX(calc(var(--anchor-min-x) * (var(--w) - var(--knob-w))));
+}
+
+.knob::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: calc(50% - 12.5px);
+  width: 25px;
+  height: 2px;
+  background: var(--ef-toggle-knob-line);
+}
+
+.sw[aria-checked='true'] .knob {
+  --anchor-min-x: 0;
+}
+
+.sw[aria-checked='true'] .knob::after {
+  background: var(--ef-btn-dark-text);
+}
+
+.labels {
+  position: absolute;
+  inset: 0 0 4px;
+  display: flex;
+}
+
+/* The side away from the knob rests dimmed, lighter than the clips' 0.698 so it still reads as body text on the track;
+   it fades over the clips' text span (0-0.417 of 200 ms). */
+.side {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  color: var(--ef-toggle-off-text);
+  opacity: 0.9;
+  transition:
+    color var(--ef-dur-g-btn) var(--ef-ease-g-fade),
+    opacity var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.side::before {
+  content: attr(data-t);
+}
+
+.sw[aria-checked='false'] .side:last-child,
+.sw[aria-checked='true'] .side:first-child {
+  color: var(--ef-toggle-on-text);
+  opacity: 1;
+}
+
+.sw[aria-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .light,
+  .side {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .light,
+:global([data-reduce-motion]) .side {
+  transition: none;
+}

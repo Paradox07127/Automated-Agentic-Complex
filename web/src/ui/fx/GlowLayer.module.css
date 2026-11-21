@@ -1,0 +1,27 @@
+/* Additive light over the content: the game's bloom sprites and add materials. */
+.root {
+  position: relative;
+  display: inline-block;
+}
+
+.glow {
+  position: absolute;
+  inset: var(--glow-spread);
+  pointer-events: none;
+  mix-blend-mode: plus-lighter;
+  background: radial-gradient(closest-side, var(--glow-c), transparent);
+}
+
+/* With the art in place the sprite shapes the light. */
+:global(html[data-art]) .glow[data-sprite] {
+  background: var(--glow-c);
+  -webkit-mask: var(--glow-src) center / 100% 100% no-repeat;
+  mask: var(--glow-src) center / 100% 100% no-repeat;
+}
+
+.demoPlate {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--ef-g-ring-3);
+  background: var(--ef-g-icon);
+}

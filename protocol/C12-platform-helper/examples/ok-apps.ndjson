@@ -1,0 +1,20 @@
+{"v":1,"id":1,"op":"hello","params":{"protocol":1,"client":"electron","client_version":"0.1.0"}}
+{"v":1,"id":1,"ok":true,"result":{"protocol":1,"platform":"macos","helper_version":"0.1.0","os_version":"macOS 26.1","arch":"arm64","pid":4242,"ops":["hello","cancel","shutdown","screens.list","windows.list","windows.at_point","workspace.watch","attention.sample","presence.watch","browser.front_tab","input.modifiers","input.watch","ax.focused","ax.dialog_buttons","ax.overlays","ax.hit_chain","ax.window_text","ax.selected_text","ax.video_rect","ax.watch","capture.window","capture.ambient","ocr.languages","ocr.recognize","speech.locales","mic.start","mic.stop","ptt.register","ptt.unregister","control.observe","control.act","control.read","control.listen","control.respond","permissions.status","permissions.request","clipboard.read","apps.running","apps.installed","apps.activate","terminal.focus","process.usage"],"events":["workspace.changed","presence.edge","input.activity","ax.notification","mic.level","speech.partial","ptt.down","ptt.up","control.request"]}}
+{"v":1,"id":2,"op":"clipboard.read","params":{"max_items":16,"max_text_bytes":16384}}
+{"v":1,"id":2,"ok":true,"result":{"items":[{"types":["public.file-url","public.utf8-plain-text"],"file":"/Users/me/Desktop/plan.pdf"},{"types":["public.utf8-plain-text"],"text":"hello"}],"concealed":false,"truncated":false}}
+{"v":1,"id":3,"op":"clipboard.read","params":{"first_only":true}}
+{"v":1,"id":3,"ok":true,"result":{"items":[],"concealed":true,"truncated":false}}
+{"v":1,"id":4,"op":"apps.running","params":{"regular_only":true}}
+{"v":1,"id":4,"ok":true,"result":{"apps":[{"pid":611,"name":"Safari","app_id":"com.apple.Safari","path":"/Applications/Safari.app","launched_at":1763520000.0,"regular":true},{"pid":702,"name":"TextEdit","app_id":"com.apple.TextEdit","path":"/System/Applications/TextEdit.app","launched_at":null,"regular":true}]}}
+{"v":1,"id":5,"op":"apps.installed","params":{}}
+{"v":1,"id":5,"ok":true,"result":{"apps":[{"path":"/Applications/Safari.app","name":"Safari"},{"path":"/System/Applications/TextEdit.app","name":"TextEdit"}]}}
+{"v":1,"id":6,"op":"apps.activate","params":{"pid":88123,"ancestors":true}}
+{"v":1,"id":6,"ok":true,"result":{"activated":true,"pid":901}}
+{"v":1,"id":7,"op":"apps.activate","params":{"app_id":"com.github.wez.wezterm"}}
+{"v":1,"id":7,"ok":true,"result":{"activated":false,"pid":null}}
+{"v":1,"id":8,"op":"terminal.focus","params":{"app":"terminal","tty":"/dev/ttys004"}}
+{"v":1,"id":8,"ok":true,"result":{"focused":true}}
+{"v":1,"id":9,"op":"terminal.focus","params":{"app":"ghostty","cwd":"/Users/me/src/project"}}
+{"v":1,"id":9,"ok":false,"error":{"code":"automation_denied","message":"Automation for Ghostty is not allowed","retryable":false}}
+{"v":1,"id":10,"op":"process.usage","params":{"pids":[4100,4200]}}
+{"v":1,"id":10,"ok":true,"result":{"usage":[{"pid":4100,"cpu_time_ns":81234000000,"resident_bytes":412000000},{"pid":4200,"cpu_time_ns":9120000000,"resident_bytes":96000000}]}}

@@ -1,0 +1,5 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["capsules_global","watchdog","actions","action_loop"],"build":{"git":"4494946d"}}
+{"v":1,"type":"get_actions"}
+{"v":1,"type":"play_action","play_id":"p-1","character":"aster","id":"mmd_dance","speed":2,"loop":true}
+{"v":1,"type":"play_action","play_id":"p-2","character":"aster","id":"talk_nod","speed":1,"loop":false}
+{"v":1,"type":"stop_action","play_id":"p-1"}

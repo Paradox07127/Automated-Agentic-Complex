@@ -1,0 +1,80 @@
+{
+  "records": [
+    {
+      "ts": 1795000000.0,
+      "kind": "window",
+      "app": "Visual Studio Code",
+      "bundle_id": "com.microsoft.VSCode",
+      "pid": 4242,
+      "window_id": 7301,
+      "window_title": "server.py — agentd",
+      "url_host": null,
+      "target": null,
+      "keys": null,
+      "text": null,
+      "tree": {
+        "mode": "full",
+        "text": "AXWindow \"server.py — agentd\"\n  AXTextArea \"编辑器\""
+      }
+    },
+    {
+      "ts": 1795000001.5,
+      "kind": "text_input",
+      "app": "Visual Studio Code",
+      "bundle_id": "com.microsoft.VSCode",
+      "pid": 4242,
+      "window_id": 7301,
+      "window_title": "server.py — agentd",
+      "url_host": null,
+      "target": {
+        "role": "AXTextArea",
+        "subrole": null,
+        "title": "编辑器",
+        "description": null,
+        "identifier": "editor",
+        "value": "def main():"
+      },
+      "keys": null,
+      "text": "def main():",
+      "tree": null
+    },
+    {
+      "ts": 1795000002.0,
+      "kind": "shortcut",
+      "app": "Visual Studio Code",
+      "bundle_id": "com.microsoft.VSCode",
+      "pid": 4242,
+      "window_id": 7301,
+      "window_title": "server.py — agentd",
+      "url_host": null,
+      "target": null,
+      "keys": "cmd+s",
+      "text": null,
+      "tree": {
+        "mode": "diff",
+        "text": "~ AXWindow \"server.py — agentd\""
+      }
+    },
+    {
+      "ts": 1795000004.0,
+      "kind": "click",
+      "app": "Google Chrome",
+      "bundle_id": "com.google.Chrome",
+      "pid": 5151,
+      "window_id": 8802,
+      "window_title": "Pull request #12",
+      "url_host": "github.com",
+      "target": {
+        "role": "AXButton",
+        "subrole": null,
+        "title": "Merge",
+        "description": null,
+        "identifier": null,
+        "value": null
+      },
+      "keys": null,
+      "text": null,
+      "tree": null
+    }
+  ]
+}

@@ -1,0 +1,327 @@
+// The desktop panels' assembly (src/main/desktop/assembly.ts) with a stand-in `electron` module, fake windows and a fake
+// agentd: the 快速输入 hot key is not registered with `--no-attention` (as hotkeys/shell.ts); `pushState` sends
+// `desktop.onState` at once; `desktop.action`'s openSessions and openStack; the bubble's notice; C3 rule 39's present of
+// the stack for an approval; a mouse down outside closes ring, tune and the console; her lines' `noteLine` and the
+// `typing` the frame rate reads.
+import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { registerHooks } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, test } from 'node:test';
+import type { BrowserWindow, Rectangle } from 'electron';
+import type { Handler } from '../src/common/bridge.ts';
+import { PageSession } from '../src/common/page.ts';
+import type { EventSource, StreamEvent } from '../src/common/page.ts';
+import type { Request } from '../src/common/stack-source.ts';
+import { TurnMarks } from '../src/common/turn-marks.ts';
+
+/** The tokens of the presents sent. */
+const presented: string[] = [];
+/** globalShortcut: records each call; nothing reaches the system. */
+const shortcuts: string[] = [];
+(globalThis as Record<string, unknown>).__desktopAssemblyElectron = {
+  globalShortcut: { register: (accel: string) => { shortcuts.push(`register ${accel}`); return true; },
+    unregister: (accel: string) => { shortcuts.push(`unregister ${accel}`); } },
+  Notification: class { show() {} },
+};
+const STUB = 'const e = globalThis.__desktopAssemblyElectron; export const globalShortcut = e.globalShortcut; export const Notification = e.Notification;';
+registerHooks({
+  resolve: (specifier, context, next) => (specifier === 'electron'
+    ? { url: `data:text/javascript,${encodeURIComponent(STUB)}`, shortCircuit: true } : next(specifier, context)),
+});
+const { DesktopAssembly } = await import('../src/main/desktop/assembly.ts');
+/** The panels' routes in the order the assembly makes their windows. */
+const ROUTES = ['/bubble', '/hud', '/ring', '/cmd', '/console', '/chip'];
+/** The URLs the fake windows loaded. */
+const loaded: string[] = [];
+
+/** `shown` gets `show <route>` at each showInactive and `hide <route>` at each hide, `moved` each setBounds. */
+function fakeWindow(id: number, shown: (route: string) => void, moved: (route: string, b: Rectangle) => void) {
+  const contents = Object.assign(new EventEmitter(), { id, send() {}, isDestroyed: () => false });
+  let bounds = { x: 0, y: 0, width: 100, height: 100 };
+  return Object.assign(new EventEmitter(), {
+    webContents: contents, setFocusable() {}, loadURL: async (url: string) => { loaded.push(url); }, getBounds: () => bounds, isDestroyed: () => false,
+    isFocused: () => false, showInactive() { shown(`show ${ROUTES[id - 1]!}`); }, hide() { shown(`hide ${ROUTES[id - 1]!}`); }, setIgnoreMouseEvents() {}, setOpacity() {}, focus() {},
+    destroy() {},
+    setBounds(b: typeof bounds) { bounds = b; moved(ROUTES[id - 1]!, b); },
+  });
+}
+
+/** An assembly on fake windows with `extra` arguments until `done`, with config.json in a temporary support dir. */
+function setup(extra: string[], o: { present?: boolean; request?: Request; marks?: TurnMarks; mouse?: () => { x: number; y: number };
+  mouseDowns?: (listener: () => void) => () => void; feed?: EventSource; noteLine?: () => void } = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'desktop-assembly-'));
+  writeFileSync(join(dir, 'config.json'), JSON.stringify({ hotkey_quick_input: 'control+option+k' }));
+  const argv = process.argv;
+  process.argv = [...argv, '--config', join(dir, 'config.json'), ...extra];
+  shortcuts.length = 0;
+  const calls: string[] = [];
+  /** Each panel's last bounds, in the fake DIP space. */
+  const bounds = new Map<string, Rectangle>();
+  let state = 0, id = 0;
+  const pages = new Map<string, { page: PageSession; ops: ReadonlyMap<string, Handler<PageSession>> }>();
+  const desktop = new DesktopAssembly({
+    makeWindow: () => fakeWindow(++id, (line) => calls.push(line), (route, b) => bounds.set(route, b)) as unknown as BrowserWindow,
+    url: (route) => `app://x/stack.html#${route}`,
+    toDip: (f) => ({ x: f.x, y: 1000 - f.y - f.h, width: f.w, height: f.h }),
+    screens: () => [{ id: 1, frame: { x: 0, y: 0, w: 1512, h: 982 }, visibleFrame: { x: 0, y: 0, w: 1512, h: 957 } }],
+    cursorDip: () => ({ x: 0, y: 0 }), mouse: o.mouse ?? (() => ({ x: 0, y: 0 })),
+    ...(o.mouseDowns && { mouseDowns: o.mouseDowns }),
+    ...(o.noteLine && { noteLine: o.noteLine }),
+    register: (contents, page, ops) => {
+      pages.set(ROUTES[contents.id - 1]!, { page, ops });
+    },
+    unregister: () => {},
+    baseOps: new Map(),
+    request: o.request ?? (async () => ({ status: 503, body: '{}' })),
+    ...(o.marks && { marks: o.marks }),
+    feed: o.feed ?? null,
+    notify: () => ({ modes: { done: 'card', waiting: 'card', error: 'card', brief: 'card', reminder: 'card' }, systemNotifications: false }),
+    sample: () => ({ now: performance.now() / 1000, body: { x: 600, y: 100, w: 200, h: 400 }, bodyAt: performance.now() / 1000, visual: null,
+      placement: null, dragging: false }),
+    avatarHidden: () => false, frontFullscreen: () => false, figure: () => 'si/default',
+    hover: () => ({ present: false, hovered: false, hints: true }),
+    state: () => ({ n: ++state }),
+    actions: { look() {}, setHidden() {}, setQuiet: async () => {}, switchCharacter() {}, placeOnScreen() {}, resetPosition() {}, restartAll() {},
+      quit() {} },
+    ...(o.present === false ? {} : { present: (token: string, side: string, phase: string) => {
+      presented.push(token);
+      calls.push(`present ${token} ${side} ${phase}`);
+      return true;
+    } }),
+    playSound() {}, confirm: async () => true,
+    openMain: (route) => calls.push(`openMain ${route}`),
+    log: () => {},
+  });
+  /** What `route`'s page got on `op` (subscribed now), as the parsed `data` of each push. */
+  const watch = (route: string, op: string) => {
+    const got: unknown[] = [];
+    const entry = pages.get(route)!;
+    const page = new PageSession((_sub, _stream, _kind, payload) => { if (payload) got.push(JSON.parse(payload.data)); });
+    entry.ops.get(op)!([7], page);
+    return got;
+  };
+  const call = (route: string, op: string, args: unknown[]) => pages.get(route)!.ops.get(op)!(args, new PageSession(() => {}));
+  const done = () => {
+    if (!open.delete(done)) return;
+    desktop.stop();
+    process.argv = argv;
+    rmSync(dir, { recursive: true, force: true });
+  };
+  open.add(done);
+  return { desktop, calls, bounds, watch, call, done, dir };
+}
+
+/** The assemblies a failed test left running: their timers would keep the test process alive. */
+const open = new Set<() => void>();
+afterEach(() => {
+  for (const done of [...open]) done();
+});
+
+test('--no-attention registers no 快速输入 hot key, at start or when it is saved; without it both register', () => {
+  const quiet = setup(['--no-attention']);
+  quiet.desktop.start();
+  quiet.desktop.hotkeySaved('hotkey_quick_input', 'control+option+j');
+  assert.deepEqual(shortcuts, []);
+  quiet.done();
+  const live = setup([]);
+  live.desktop.start();
+  live.desktop.hotkeySaved('hotkey_quick_input', 'control+option+j');
+  assert.deepEqual(shortcuts, ['register Control+Alt+K', 'unregister Control+Alt+K', 'register Control+Alt+J']);
+  live.done();
+  assert.deepEqual(shortcuts.slice(3), ['unregister Control+Alt+J']);
+});
+
+test('pushState sends desktop.onState now; notice and openStack reach desktop.onCommand; openSessions opens the sessions page', async () => {
+  const h = setup(['--no-attention']);
+  h.desktop.start();
+  const states = h.watch('/hud', 'desktop.onState');
+  const commands = h.watch('/bubble', 'desktop.onCommand');
+  h.desktop.pushState();
+  assert.deepEqual(states, [{ n: 1 }]);
+  h.desktop.notice('她在忙，等这一轮做完');
+  assert.equal(await h.call('/hud', 'desktop.action', ['openStack']), null);
+  assert.deepEqual(commands, [{ kind: 'notice', text: '她在忙，等这一轮做完' }, { kind: 'expandStack' }]);
+  assert.equal(await h.call('/ring', 'desktop.action', ['openSessions']), null);
+  assert.deepEqual(h.calls, ['openMain /overview?focus=running']);
+  h.done();
+});
+
+test('resetOffsets (复位浮窗 in the menus) clears every panel\'s user offset, as desktop.action resetBoxes does', () => {
+  const h = setup(['--no-attention']);
+  const file = join(h.dir, 'desktop-offsets.json');
+  const saved = { side: 'left', gap: 12, along: 0.5 };
+  writeFileSync(file, JSON.stringify({ 'desktopPanelOffset.v3.hud': saved, 'desktopPanelOffset.v3.bubble': saved, other: 1 }));
+  h.desktop.resetOffsets();
+  assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { other: 1 });
+  h.done();
+});
+
+test('the chip panel loads #/chip, shows with its circle\'s region beside her head and gets her anchor and desktop.onState', () => {
+  const h = setup(['--no-attention']);
+  loaded.length = 0;
+  h.desktop.start();
+  assert.equal(loaded.at(-1), 'app://x/stack.html#/chip');
+  const anchors = h.watch('/chip', 'window.onAnchor');
+  const states = h.watch('/chip', 'desktop.onState');
+  h.call('/chip', 'window.setContentSize', [{ width: 528, height: 36 }]);
+  h.call('/chip', 'window.setInteractiveRegions', [[{ x: 246, y: 0, width: 36, height: 36 }]]);
+  assert.ok(h.calls.includes('show /chip'));
+  // Her head top (700, 500): the circle's top there, its left 8 out from her face's right edge at 760.
+  assert.deepEqual(h.bounds.get('/chip'), { x: 522, y: 500, width: 528, height: 36 });
+  assert.deepEqual(anchors.map((a) => { const { panel, side, docked } = a as Record<string, unknown>; return { panel, side, docked }; }),
+    [{ panel: 'chip', side: 'right', docked: null }]);
+  h.desktop.pushState();
+  assert.deepEqual(states.at(-1), { n: 1 });
+  h.done();
+});
+
+test('rule 39: a hidden stack that gets an approval presents first and shows at her stroke', async () => {
+  const h = setup(['--no-attention']);
+  h.desktop.start();
+  h.desktop.agentd(true);
+  h.call('/hud', 'window.setContentSize', [{ width: 352, height: 80 }]);
+  assert.equal(h.desktop.testCard('approval'), true);
+  const token = presented.at(-1)!;
+  assert.deepEqual(h.calls, [`present ${token} right open`]);
+  h.desktop.stroke('another');
+  assert.deepEqual(h.calls, [`present ${token} right open`]);
+  h.desktop.stroke(token);
+  assert.deepEqual(h.calls, [`present ${token} right open`, 'show /hud']);
+  h.done();
+  // Without the link's present the stack shows as before.
+  const bare = setup(['--no-attention'], { present: false });
+  bare.desktop.start();
+  bare.desktop.agentd(true);
+  bare.call('/hud', 'window.setContentSize', [{ width: 352, height: 80 }]);
+  assert.equal(bare.desktop.testCard('approval'), true);
+  assert.deepEqual(bare.calls, ['show /hud']);
+  bare.done();
+});
+
+test('rule 39: a stack left with no cards closes her snap first and hides at its stroke, not at the push', async () => {
+  const h = setup(['--no-attention']);
+  h.desktop.start();
+  h.desktop.agentd(true);
+  h.call('/hud', 'window.setContentSize', [{ width: 352, height: 80 }]);
+  assert.equal(h.desktop.testCard('approval'), true);
+  const token = presented.at(-1)!;
+  h.desktop.stroke(token);
+  h.calls.length = 0;
+  h.desktop.source.onPush!([]);
+  assert.deepEqual(h.calls, [`present ${token} right close`]);
+  // Longer than the panel's own hide delay for a stack without cards.
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  assert.deepEqual(h.calls, [`present ${token} right close`]);
+  h.desktop.stroke(token);
+  assert.deepEqual(h.calls, [`present ${token} right close`, 'hide /hud']);
+  h.done();
+});
+
+test('desktop.say goes out with an Idempotency-Key and marks the line agentd took', async () => {
+  const sent: Record<string, string>[] = [], marks: string[] = [];
+  const h = setup(['--no-attention'], {
+    request: async (_method, _path, _json, headers) => {
+      sent.push(headers ?? {});
+      return { status: 202, body: JSON.stringify({ line_id: 'l1', trace_id: 't1', generation: 1 }) };
+    },
+    marks: new TurnMarks((kind) => { marks.push(kind); }),
+  });
+  h.desktop.start();
+  assert.deepEqual(await h.call('/cmd', 'desktop.say', [{ text: '你好', attachWindow: false, noMemory: false }]), { ok: true });
+  assert.match(sent[0]!['Idempotency-Key']!, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(marks, ['ui.submitted', 'ui.ack']);
+  h.done();
+});
+
+/** A setup whose mouse downs `press` at `at` (placement space), with `route`'s centre given as a point there. */
+function pressing() {
+  let listener: (() => void) | null = null, at = { x: -500, y: -500 };
+  const h = setup(['--no-attention'], { mouse: () => at, mouseDowns: (l) => {
+    listener = l;
+    return () => { listener = null; };
+  } });
+  const press = (p: { x: number; y: number }) => {
+    at = p;
+    listener?.();
+  };
+  const centre = (route: string) => {
+    const b = h.bounds.get(route)!;
+    return { x: b.x + b.width / 2, y: 1000 - b.y - b.height / 2 };
+  };
+  return { ...h, press, centre, listening: () => listener !== null };
+}
+
+/** The command layer opened in `mode` and its page's regions in, so its panel shows and is placed. */
+function openCmd(h: ReturnType<typeof pressing>, mode: 'ring' | 'tune' | 'input') {
+  h.call('/cmd', 'window.setContentSize', [{ width: 300, height: 300 }]);
+  h.desktop.open(mode);
+  h.call('/cmd', 'window.setInteractiveRegions', [[{ x: 0, y: 0, width: 300, height: 300 }]]);
+}
+
+test('a mouse down outside the ring or tune closes it, one in its panel does not; input stays (DesktopCoordinator.mouseDown)', () => {
+  const h = pressing();
+  h.desktop.start();
+  assert.equal(h.listening(), true);
+  openCmd(h, 'ring');
+  assert.ok(h.calls.includes('show /cmd'));
+  h.press(h.centre('/cmd'));
+  assert.equal(h.desktop.cmdMode, 'ring');
+  h.press({ x: -500, y: -500 });
+  assert.equal(h.desktop.cmdMode, null);
+  openCmd(h, 'tune');
+  h.press({ x: -500, y: -500 });
+  assert.equal(h.desktop.cmdMode, null);
+  openCmd(h, 'input');
+  h.press({ x: -500, y: -500 });
+  assert.equal(h.desktop.cmdMode, 'input');
+  h.done();
+  assert.equal(h.listening(), false);
+});
+
+test('a mouse down outside the console closes it; one in it, or on the menu bar button its click toggles, does not', () => {
+  const h = pressing();
+  h.desktop.start();
+  const statusItem = { x: 900, y: 960, w: 30, h: 22 };
+  // The console's first open waits for a content size its page did not have before.
+  h.desktop.openConsole(statusItem);
+  h.call('/console', 'window.setContentSize', [{ width: 360, height: 400 }]);
+  h.call('/console', 'window.setInteractiveRegions', [[{ x: 0, y: 0, width: 360, height: 400 }]]);
+  assert.ok(h.calls.includes('show /console'));
+  h.press(h.centre('/console'));
+  // On the button and above the console's panel, whose top is at y 972 here.
+  h.press({ x: 910, y: 978 });
+  assert.equal(h.desktop.consoleOpen, true);
+  h.press({ x: -500, y: -500 });
+  assert.equal(h.desktop.consoleOpen, false);
+  h.done();
+});
+
+test('fps tier: each `line` of the feed is a noteLine; `typing` is the desktop\'s typing', () => {
+  let feedListener: ((e: StreamEvent) => void) | null = null;
+  const feed: EventSource = { subscribe: (_after, onEvent) => {
+    feedListener = onEvent;
+    return () => { feedListener = null; };
+  } };
+  let lines = 0;
+  const h = setup(['--no-attention'], { feed, noteLine: () => { lines += 1; } });
+  h.desktop.start();
+  feedListener!({ event: 'line', id: null, data: '{"line_id":"l1","text_delta":"你"}' });
+  feedListener!({ event: 'announce', id: null, data: '{}' });
+  assert.equal(lines, 1);
+  assert.equal(h.desktop.typing, false);
+  h.desktop.open('ring');
+  assert.equal(h.desktop.typing, true);
+  h.desktop.close();
+  h.desktop.openConsole(null);
+  assert.equal(h.desktop.typing, true);
+  h.desktop.closeConsole();
+  h.desktop.openQuickInput();
+  assert.equal(h.desktop.typing, true);
+  h.desktop.closeQuickInput();
+  assert.equal(h.desktop.typing, false);
+  h.done();
+  assert.equal(feedListener, null);
+});

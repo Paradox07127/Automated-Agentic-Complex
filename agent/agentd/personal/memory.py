@@ -1,0 +1,563 @@
+"""User fact memory:small, editable, versioned facts in the shared store, split by trust for injection."""
+import datetime
+import hashlib
+import json
+import re
+import threading
+import time
+import unicodedata
+import uuid
+
+SOURCES = ("asserted_by_user", "observed_context", "inferred_hypothesis", "confirmed_by_user")
+TRUSTED = ("asserted_by_user", "confirmed_by_user")
+KINDS = ("fact", "preference", "experience", "agreement", "name", "birthday")
+STATES = ("active", "candidate", "corrected", "deleted", "rejected")  # candidates are reviewable, never injected
+OBSERVED = ("observed_context", "inferred_hypothesis")
+CONSOLIDATED = "state IN ('active', 'candidate') AND source IN ('observed_context', 'inferred_hypothesis')"
+COLUMNS = ("fact_id", "version", "kind", "text", "source", "evidence", "occurred_at", "recorded_at", "last_used_at",
+           "reinforcement", "reinforced_at")
+STALE_AFTER = 30 * 86400  # seconds since last use (or recording) after which a fact is stale
+# N.E.K.O. memory/evidence.py (Apache-2.0) EVIDENCE_REIN_HALF_LIFE_DAYS = 30; there is no disputation signal here.
+REINFORCE_HALF_LIFE = 30 * 86400
+RESIDENT_KINDS = ("name", "agreement")  # trusted facts of these kinds go into every turn, query or not
+RESIDENTS = 3
+SELECT_CHARS = 200  # characters of fact text one turn may carry, residents included
+CUT_MARK, CUT_LEAST = "…（完整见记忆页）", 20  # ends a fact cut to the room left; least characters kept before it
+RELEVANT = 0.15  # least score a fact needs: one bigram shared with a fact of up to six bigrams
+LOW_TRUST_RELEVANT = 0.5  # least bigram overlap for an unconfirmed fact, whatever its score
+INJECTED_WITHIN, INJECTED_WEIGHT = 6 * 3600, 0.5  # seconds; a fact the last few turns carried steps back
+MENTIONED_WITHIN, MENTIONED_WEIGHT = 3 * 86400, 0.3  # seconds; one she said lately steps back further
+MENTION_RUN, MENTION_OVERLAP = 4, 0.3  # characters in a row, or bigram overlap, for a reply to mention a fact
+RECENT_USES = 5
+CLEARS = {"facts": " WHERE kind NOT IN ('name', 'birthday')", "all": ""}  # scope -> the facts clear(scope) deletes
+
+
+class VersionConflict(ValueError):
+    def __init__(self, current_version):
+        super().__init__("version_conflict")
+        self.current_version = current_version
+
+
+def bigrams(text):
+    """Character bigrams of each run of word characters; a one-character run stands for itself."""
+    return {run[i:i + 2] for run in re.findall(r"\w+", text.lower()) for i in range(max(len(run) - 1, 1))}
+
+
+def normalized_text(text):
+    return ' '.join(unicodedata.normalize('NFKC', text).casefold().split())
+
+
+def overlap(a, b):
+    """Shared bigrams over the bigrams of the shorter text: a short query or fact can match in full."""
+    x, y = bigrams(a), bigrams(b)
+    return len(x & y) / min(len(x), len(y)) if x and y else 0.0
+
+
+def mentions(reply, text):
+    """Whether a reply says a fact again: MENTION_RUN characters of it in a row, or MENTION_OVERLAP of its bigrams."""
+    return any(text[i:i + MENTION_RUN] in reply for i in range(len(text) - MENTION_RUN + 1)) \
+        or overlap(reply, text) >= MENTION_OVERLAP
+
+
+def _episode(item):
+    """Whether an evidence item names an episode: "episode:<id>@<YYYY-MM-DD>"."""
+    return isinstance(item, str) and item.startswith("episode:")
+
+
+def evidence_score(reinforcement, reinforced_at, now):
+    """N.E.K.O. effective_reinforcement: the summed signals halve every REINFORCE_HALF_LIFE after the last one.
+    It is shown, never used to confirm a fact."""
+    if not reinforcement or reinforced_at is None or now <= reinforced_at:
+        return float(reinforcement)
+    return reinforcement * 0.5 ** ((now - reinforced_at) / REINFORCE_HALF_LIFE)
+
+
+class Memory:
+    def __init__(self, db, lock=None, clock=time.time):
+        self.db, self.clock = db, clock
+        self.lock = threading.Lock() if lock is None else lock
+        self.revision = 0  # bumped on every write; callers compare it before committing a reply
+        self.content_epoch = 0  # revokes in-flight diagnostic content on pause/correction/deletion
+
+    def _redact_agent_journal(self):
+        """Under lock: conservative erasure of diagnostic copies, including other runs' context."""
+        self.content_epoch += 1
+        self.db.execute("UPDATE memory_agent_runs SET detail=NULL,redacted_reason='memory_changed'")
+
+    def _tombstone(self, fact_id):
+        """Suppress existing sources as well as the exact deleted words.
+
+        Automatic extraction must not replay the source into a fresh diagnostic
+        log after the user erased a memory. All writes stay in the caller's transaction.
+        """
+        by_episode = {}
+        for ident, evidence in self.db.execute("SELECT fact_id,evidence FROM facts WHERE state IN ('active','candidate')"):
+            for ref in json.loads(evidence):
+                if _episode(ref): by_episode.setdefault(ref.split('@', 1)[0], set()).add(ident)
+        pending, affected, removed_episodes = [fact_id], set(), set()
+        while pending:
+            current = pending.pop()
+            if current in affected: continue
+            affected.add(current)
+            for text,evidence in self.db.execute('SELECT text,evidence FROM facts WHERE fact_id=? AND text IS NOT NULL',(current,)).fetchall():
+                self.db.execute('INSERT OR REPLACE INTO memory_tombstones VALUES(?,?)',
+                    (hashlib.sha256(text.strip().encode()).hexdigest(), self.clock()))
+                sources = {'history:'+str(turn or ident) for ident,turn in self.db.execute(
+                    'SELECT id,turn_id FROM history_turns WHERE instr(user_text,?)>0 OR instr(reply,?)>0',(text,text))}
+                for ref in json.loads(evidence):
+                    if ref.startswith('role_run:'): sources.add('history:'+ref[len('role_run:'):])
+                    elif _episode(ref):
+                        ident=ref.split(':',1)[1].split('@',1)[0]
+                        row=self.db.execute('SELECT threads FROM episodes WHERE id=? AND version=3',(ident,)).fetchone()
+                        if row:
+                            sources.update(v for t in json.loads(row[0]) for v in t.get('evidence',[]) if isinstance(v,str))
+                            removed_episodes.add(ident)
+                            pending.extend(by_episode.get('episode:' + ident, set()) - affected)
+                self.db.executemany('INSERT OR REPLACE INTO agent_memory_processed VALUES(?,?)',[(v,'forgotten') for v in sources])
+        # A v3 summary is shared by a batch. Retiring it must retire every dependent
+        # fact, including confirmed versions, rather than leave claims without evidence.
+        # The requested fact is handled by the caller (which may replace it with a correction).
+        self.db.executemany('DELETE FROM fact_sightings WHERE fact_id=?', [(ident,) for ident in affected])
+        self.db.executemany("UPDATE facts SET text=NULL,state='deleted' WHERE fact_id=?",
+                            [(ident,) for ident in affected - {fact_id}])
+        for table,key in (('episodes_fts','rowid'),('summary_corrections','episode_id'),('episodes','id')):
+            self.db.executemany(f'DELETE FROM {table} WHERE {key}=?',[(v,) for v in removed_episodes])
+        return affected
+
+    def revoked_with(self, fact_ids):
+        """Content-free closure of retired facts sharing the requested facts' evidence.
+
+        Keep these links after erasure so the delivery layer can retract dependent
+        speech/history too. A replacement active version is never reported as deleted.
+        """
+        with self.lock:
+            refs, live = {}, set()
+            for ident, state, evidence in self.db.execute('SELECT fact_id,state,evidence FROM facts'):
+                refs.setdefault(ident, set()).update(ref.split('@', 1)[0] for ref in json.loads(evidence) if _episode(ref))
+                if state in ('active', 'candidate'): live.add(ident)
+            pending, visited = list(fact_ids), set()
+            while pending:
+                ident = pending.pop()
+                if ident in visited: continue
+                visited.add(ident)
+                pending.extend(other for other in refs.keys() - live - visited if refs.get(ident, set()) & refs[other])
+            return (visited & refs.keys()) - live
+
+    def add(self, text, source, kind="fact", evidence=(), occurred_at=None, manual=False, state="active", expected_absent=False):
+        if not text or not text.strip():
+            raise ValueError("blank text")
+        if source not in SOURCES:
+            raise ValueError(f"unknown source {source!r}")
+        if kind not in KINDS:
+            raise ValueError(f"unknown kind {kind!r}")
+        if kind in ("name", "birthday") and source != "confirmed_by_user":
+            raise ValueError(f"{kind} must be confirmed_by_user")
+        if kind == "preference" and source == "observed_context" and state != "candidate":
+            raise ValueError("an observed opinion is not a user preference")
+        if state not in ("active", "candidate"):
+            raise ValueError(f"unknown state {state!r}")
+        if state == "candidate" and source not in OBSERVED:
+            raise ValueError("only an observed or inferred fact can be a candidate")
+        fact_id = str(uuid.uuid4())
+        with self.lock:
+            if self._paused() and not manual:
+                return None
+            if expected_absent:
+                old = self.db.execute("SELECT version FROM facts WHERE kind=? AND state IN ('active','candidate')", (kind,)).fetchone()
+                if old: raise VersionConflict(old[0])
+            self._insert(fact_id, 1, kind, text, source, json.dumps(list(evidence)), occurred_at, state=state)
+            self.db.commit()
+            self.revision += 1
+        return fact_id
+
+    def reinforce(self, text, kind="fact", source="asserted_by_user", manual=False):
+        """The user said an active fact again: +1 to its score; returns its fact_id, or None (no such fact, or paused).
+        Not a write the revision counts: the score is not in the facts a reply is made from."""
+        with self.lock:
+            if self._paused() and not manual:
+                return None
+            row = self.db.execute("SELECT id, fact_id FROM facts WHERE state = 'active' AND kind = ? AND text = ?"
+                                  " AND source = ? ORDER BY id DESC", (kind, text, source)).fetchone()
+            if row is None:
+                return None
+            self.db.execute("UPDATE facts SET reinforcement = reinforcement + 1, reinforced_at = ? WHERE id = ?",
+                            (self.clock(), row[0]))
+            self.db.commit()
+        return row[1]
+
+    def correct(self, fact_id, text, *, expected_version=None):
+        return self._revise(fact_id, text, expected_version=expected_version)
+
+    def confirm(self, fact_id, *, expected_version=None):
+        return self._revise(fact_id, None, expected_version=expected_version)
+
+    def reject(self, fact_id, *, expected_version):
+        """Reject only a candidate, retaining a content-free suppression key."""
+        with self.lock:
+            row = self.db.execute("SELECT version,text FROM facts WHERE fact_id=? AND state='candidate'", (fact_id,)).fetchone()
+            if row is None: raise KeyError(fact_id)
+            if row[0] != expected_version: raise VersionConflict(row[0])
+            self.db.execute('INSERT OR REPLACE INTO memory_tombstones VALUES(?,?)',
+                            (hashlib.sha256(normalized_text(row[1]).encode()).hexdigest(), self.clock()))
+            self.db.execute("UPDATE facts SET state='rejected',text=NULL WHERE fact_id=?", (fact_id,))
+            self.db.execute('DELETE FROM fact_sightings WHERE fact_id=?', (fact_id,))
+            self._redact_agent_journal()
+            self.db.commit()
+            self.revision += 1
+
+    def _suppressed(self, text):
+        """Under lock: include old exact-text tombstones as well as normalized decisions."""
+        keys = [hashlib.sha256(value.encode()).hexdigest() for value in (text.strip(), normalized_text(text))]
+        return self.db.execute('SELECT 1 FROM memory_tombstones WHERE digest IN (?,?)', keys).fetchone() is not None
+
+    def _sight(self, fact_id, sources, confidence):
+        """Under the extraction transaction: independent evidence, never user-confirmation provenance."""
+        self.db.executemany('INSERT OR IGNORE INTO fact_sightings VALUES(?,?,?,?)',
+                            [(fact_id, s['source_id'], time.strftime('%Y-%m-%d', time.localtime(s['at'])), confidence)
+                             for s in sources])
+        days = self.db.execute('SELECT COUNT(DISTINCT day) FROM fact_sightings WHERE fact_id=? AND confidence>=0.8',
+                               (fact_id,)).fetchone()[0]
+        if days >= 3:
+            self.db.execute("UPDATE facts SET state='active' WHERE fact_id=? AND state='candidate'", (fact_id,))
+
+    def delete(self, fact_id, *, expected_version=None):
+        with self.lock:
+            if expected_version is not None:
+                row = self.db.execute("SELECT version FROM facts WHERE fact_id=? AND state IN ('active','candidate')", (fact_id,)).fetchone()
+                if row is None: raise KeyError(fact_id)
+                if row[0] != expected_version: raise VersionConflict(row[0])
+            self._tombstone(fact_id)
+            changed = self.db.execute("UPDATE facts SET state = 'deleted', text = NULL WHERE fact_id = ?",
+                                      (fact_id,)).rowcount
+            if not changed:
+                raise KeyError(fact_id)
+            self._redact_agent_journal()
+            self.db.commit()
+            self.revision += 1
+
+    def delete_since(self, cutoff, sources):
+        """Deletes the facts whose active or candidate version came from `sources` and was recorded at or after
+        cutoff; returns their fact_ids."""
+        with self.lock:
+            fact_ids = [row[0] for row in self.db.execute(
+                f"SELECT fact_id FROM facts WHERE state IN ('active', 'candidate') AND recorded_at >= ?"
+                f" AND source IN ({', '.join('?' * len(sources))})", (cutoff, *sources))]
+            if fact_ids:
+                affected = set(fact_ids)
+                for fact_id in fact_ids: affected.update(self._tombstone(fact_id))
+                fact_ids += sorted(affected - set(fact_ids))
+                self._redact_agent_journal()
+                self.db.executemany("UPDATE facts SET state = 'deleted', text = NULL WHERE fact_id = ?",
+                                    [(fact_id,) for fact_id in fact_ids])
+                self.db.commit()
+                self.revision += 1
+        return fact_ids
+
+    def support(self, fact_id, evidence):
+        """A consolidation found an observed fact again: its evidence gains the new items and its score +1; the text
+        stays. False when memory is paused or there is no such active or candidate observed fact."""
+        with self.lock:
+            if self._paused():
+                return False
+            row = self.db.execute(f"SELECT id, evidence FROM facts WHERE fact_id = ? AND {CONSOLIDATED}",
+                                  (fact_id,)).fetchone()
+            if row is None:
+                return False
+            merged = list(dict.fromkeys(json.loads(row[1]) + list(evidence)))
+            self.db.execute("UPDATE facts SET evidence = ?, reinforcement = reinforcement + 1, reinforced_at = ?"
+                            " WHERE id = ?", (json.dumps(merged), self.clock(), row[0]))
+            self.db.commit()
+            self.revision += 1
+        return True
+
+    def promote(self, fact_id):
+        """A candidate becomes active; False when fact_id is not a candidate."""
+        with self.lock:
+            changed = self.db.execute("UPDATE facts SET state = 'active' WHERE fact_id = ? AND state = 'candidate'",
+                                      (fact_id,)).rowcount
+            if changed:
+                self.db.commit()
+                self.revision += 1
+        return bool(changed)
+
+    def consolidated(self):
+        """The active and candidate observed facts with an "episode:" evidence item, with their state."""
+        with self.lock:
+            rows = self.db.execute(f"SELECT {', '.join(COLUMNS)}, state FROM facts WHERE {CONSOLIDATED}"
+                                   " ORDER BY recorded_at, id").fetchall()
+        facts = [dict(zip((*COLUMNS, "state"), row)) for row in rows]
+        for fact in facts:
+            fact["evidence"] = json.loads(fact["evidence"])
+        return [fact for fact in facts if any(_episode(item) for item in fact["evidence"])]
+
+    def delete_derived(self, episode_ids=None):
+        """Deletes the active and candidate observed facts with evidence from any of episode_ids (None: from any
+        episode), every version as delete() does; returns their fact_ids."""
+        with self.lock:
+            fact_ids = self._derived(episode_ids)
+            if fact_ids:
+                affected = set(fact_ids)
+                for fact_id in fact_ids: affected.update(self._tombstone(fact_id))
+                fact_ids += sorted(affected - set(fact_ids))
+                self._redact_agent_journal()
+                self.db.executemany("UPDATE facts SET state = 'deleted', text = NULL WHERE fact_id = ?",
+                                    [(fact_id,) for fact_id in fact_ids])
+                self.db.commit()
+                self.revision += 1
+        return fact_ids
+
+    def _derived(self, episode_ids):
+        """Under the lock: the active and candidate observed facts with evidence from any of episode_ids (None: any)."""
+        prefixes = None if episode_ids is None else tuple(f"episode:{row_id}@" for row_id in episode_ids)
+        rows = self.db.execute(f"SELECT fact_id, evidence FROM facts WHERE {CONSOLIDATED}").fetchall()
+        return [fact_id for fact_id, evidence in rows
+                if any(_episode(item) and (prefixes is None or item.startswith(prefixes)) for item in json.loads(evidence))]
+
+    def derived_preview(self, episode_ids, gone=()):
+        """(fact_ids, episode ids) that delete_derived(episode_ids) would retire once the episodes in gone are
+        deleted, following v3 episodes as _tombstone does; deletes nothing."""
+        gone = {str(ident) for ident in gone}
+        with self.lock:
+            pending = self._derived(episode_ids)
+            by_episode = {}
+            for ident, evidence in self.db.execute("SELECT fact_id,evidence FROM facts WHERE state IN ('active','candidate')"):
+                for ref in json.loads(evidence):
+                    if _episode(ref): by_episode.setdefault(ref.split('@', 1)[0], set()).add(ident)
+            affected, episodes = set(), set()
+            while pending:
+                current = pending.pop()
+                if current in affected: continue
+                affected.add(current)
+                for (evidence,) in self.db.execute('SELECT evidence FROM facts WHERE fact_id=? AND text IS NOT NULL',
+                                                   (current,)).fetchall():
+                    for ref in json.loads(evidence):
+                        if not _episode(ref): continue
+                        ident = ref.split(':', 1)[1].split('@', 1)[0]
+                        if ident not in gone and self.db.execute('SELECT 1 FROM episodes WHERE id=? AND version=3',
+                                                                 (ident,)).fetchone():
+                            episodes.add(ident)
+                            pending.extend(by_episode.get('episode:' + ident, set()) - affected)
+        return affected, episodes
+
+    def active(self, sources=None):
+        return self._records('active',sources)
+
+    def candidates(self):
+        return [{**row,'state':'candidate'} for row in self._records('candidate')]
+
+    def similar(self, text, kind, k=5):
+        with self.lock:
+            rows = self.db.execute("SELECT fact_id,text FROM facts WHERE kind=? AND state IN ('active','candidate')"
+                                   " ORDER BY recorded_at DESC,id DESC", (kind,)).fetchall()
+        facts = [dict(zip(('fact_id','text'), row)) for row in rows]
+        return sorted(facts, key=lambda fact: overlap(text, fact['text']), reverse=True)[:k]
+
+    def _records(self, state, sources=None):
+        where, args = "", ()
+        if sources is not None:
+            where, args = f" AND source IN ({', '.join('?' * len(sources))})", tuple(sources)
+        with self.lock:
+            rows = self.db.execute(f"SELECT {', '.join(COLUMNS)} FROM facts WHERE state = ?{where}"
+                                   " ORDER BY recorded_at, id", (state,*args)).fetchall()
+        facts = [dict(zip(COLUMNS, row)) for row in rows]
+        now = self.clock()
+        for fact in facts:
+            fact["evidence"] = json.loads(fact["evidence"])
+            fact["stale"] = (fact["last_used_at"] or fact["recorded_at"]) < now - STALE_AFTER
+            fact["score"] = evidence_score(fact.pop("reinforcement"), fact.pop("reinforced_at"), now)
+        return facts
+
+    def touch(self, fact_ids):
+        """Mark the active versions as used now; not a write the revision counts."""
+        fact_ids = list(fact_ids)
+        with self.lock:
+            self.db.execute(f"UPDATE facts SET last_used_at = ? WHERE state = 'active'"
+                            f" AND fact_id IN ({', '.join('?' * len(fact_ids))})", (self.clock(), *fact_ids))
+            self.db.commit()
+
+    def text(self, fact_id):
+        """The active version's text; None once the fact is deleted."""
+        with self.lock:
+            row = self.db.execute("SELECT text FROM facts WHERE fact_id = ? AND state = 'active'",
+                                  (fact_id,)).fetchone()
+        return None if row is None else row[0]
+
+    def injectable(self):
+        return {"trusted": self.active(TRUSTED), "low_trust": self.active([s for s in SOURCES if s not in TRUSTED])}
+
+    def select(self, query, k=2, now=None, derived=False):
+        """The facts one turn carries, split as injectable() splits them: up to RESIDENTS trusted name and agreement
+        facts, then up to k more by bigram overlap with query times 1 + evidence score, none under RELEVANT;
+        SELECT_CHARS of text in all. Without derived, no OBSERVED fact: the consolidator writes them from episodes."""
+        now = self.clock() if now is None else now
+        facts = self.active() if derived else [f for f in self.active() if f["source"] not in OBSERVED]
+        with self.lock:
+            last = {(fact_id, mode): at for fact_id, mode, at in self.db.execute(
+                "SELECT fact_id, mode, MAX(used_at) FROM fact_uses GROUP BY fact_id, mode")}
+
+        def score(fact):
+            related = overlap(query, fact["text"])
+            if fact["source"] not in TRUSTED and related < LOW_TRUST_RELEVANT:
+                return 0.0
+            weight = 1 + fact["score"]  # a fact never said again has evidence score 0
+            for mode, within, factor in (("injected", INJECTED_WITHIN, INJECTED_WEIGHT),
+                                         ("mentioned", MENTIONED_WITHIN, MENTIONED_WEIGHT)):
+                at = last.get((fact["fact_id"], mode))
+                if at is not None and now - at < within:
+                    weight *= factor
+            return related * weight
+
+        residents = sorted((f for f in facts if f["kind"] in RESIDENT_KINDS and f["source"] in TRUSTED),
+                           key=lambda f: (f["kind"] != "name", -f["recorded_at"]))
+        chosen, chars = [], 0
+        for fact in residents:
+            if len(chosen) < RESIDENTS and chars + len(fact["text"]) <= SELECT_CHARS:
+                chosen.append(fact)
+                chars += len(fact["text"])
+        taken = {f["fact_id"] for f in chosen}
+        ranked = sorted(((score(f), f) for f in facts if f["fact_id"] not in taken),
+                        key=lambda pair: (-pair[0], -pair[1]["recorded_at"]))
+        relevant = 0
+        for value, fact in ranked:
+            if relevant == k or value < RELEVANT:
+                break
+            room = SELECT_CHARS - chars
+            if len(fact["text"]) > room >= len(CUT_MARK) + CUT_LEAST:
+                fact = {**fact, "text": fact["text"][:room - len(CUT_MARK)] + CUT_MARK}
+            if chars + len(fact["text"]) <= SELECT_CHARS:
+                chosen.append(fact)
+                chars += len(fact["text"])
+                relevant += 1
+        return {"trusted": [f for f in chosen if f["source"] in TRUSTED],
+                "low_trust": [f for f in chosen if f["source"] not in TRUSTED]}
+
+    def record_uses(self, uses, line_id, mode):
+        """uses: (fact_id, version) pairs line_id carried ("injected") or said again ("mentioned")."""
+        at = self.clock()
+        with self.lock:
+            self.db.executemany("INSERT INTO fact_uses (fact_id, version, line_id, used_at, mode)"
+                                " SELECT ?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM fact_uses"
+                                " WHERE fact_id=? AND version=? AND line_id=? AND mode=?)",
+                                [(fact_id, version, line_id, at, mode, fact_id, version, line_id, mode)
+                                 for fact_id, version in uses])
+            self.db.commit()
+
+    def lines(self, fact_id):
+        """The line_ids whose reply said the fact again, oldest first."""
+        with self.lock:
+            rows = self.db.execute("SELECT line_id FROM fact_uses WHERE fact_id = ? AND mode = 'mentioned'"
+                                   " ORDER BY rowid", (fact_id,)).fetchall()
+        return list(dict.fromkeys(line_id for line_id, in rows))
+
+    def uses(self, now=None):
+        """fact_id -> uses_today (lines since local midnight), last_injected_at, last_mentioned_at and its
+        RECENT_USES latest {line_id, at, mode}, for every fact with a use."""
+        now = self.clock() if now is None else now
+        midnight = datetime.datetime.fromtimestamp(now).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        with self.lock:
+            rows = self.db.execute("SELECT fact_id, line_id, used_at, mode FROM fact_uses"
+                                   " ORDER BY used_at DESC, rowid DESC").fetchall()
+        found = {}
+        for fact_id, line_id, at, mode in rows:
+            entry = found.setdefault(fact_id, {"uses_today": set(), "last_injected_at": None,
+                                               "last_mentioned_at": None, "recent_uses": []})
+            if at >= midnight:
+                entry["uses_today"].add(line_id)
+            if entry[f"last_{mode}_at"] is None:
+                entry[f"last_{mode}_at"] = at
+            if len(entry["recent_uses"]) < RECENT_USES:
+                entry["recent_uses"].append({"line_id": line_id, "at": at, "mode": mode})
+        for entry in found.values():
+            entry["uses_today"] = len(entry["uses_today"])
+        return found
+
+    def paused(self):
+        with self.lock:
+            return self._paused()
+
+    def set_paused(self, on):
+        with self.lock:
+            if self._paused() and not on:
+                self.db.execute("INSERT OR REPLACE INTO memory_settings VALUES('agent_memory_since',?)",(str(self.clock()),))
+            self.content_epoch += 1
+            self.db.execute("INSERT OR REPLACE INTO memory_settings (key, value) VALUES ('paused', ?)",
+                            ("1" if on else "0",))
+            self.db.commit()
+
+    def setting(self, key):
+        """A value saved in memory_settings by set_setting, or None."""
+        with self.lock:
+            row = self.db.execute("SELECT value FROM memory_settings WHERE key = ?", (key,)).fetchone()
+        return None if row is None else row[0]
+
+    def set_setting(self, key, value):
+        """value None removes the key."""
+        with self.lock:
+            if value is None:
+                self.db.execute("DELETE FROM memory_settings WHERE key = ?", (key,))
+            else:
+                self.db.execute("INSERT OR REPLACE INTO memory_settings (key, value) VALUES (?, ?)", (key, value))
+            self.db.commit()
+
+    def cleared(self, scope="facts"):
+        """The fact_ids clear(scope) would delete."""
+        with self.lock:
+            rows = self.db.execute(f"SELECT DISTINCT fact_id FROM facts{CLEARS[scope]}").fetchall()
+        return [fact_id for fact_id, in rows]
+
+    def clear(self, scope="facts"):
+        """scope "facts" keeps the user's name and birthday; "all" deletes every row."""
+        where = CLEARS[scope]
+        with self.lock:
+            for fact_id, in self.db.execute(f"SELECT DISTINCT fact_id FROM facts{where}").fetchall(): self._tombstone(fact_id)
+            self._redact_agent_journal()
+            self.db.execute("DELETE FROM fact_uses" + (" WHERE fact_id IN (SELECT fact_id FROM facts" + where + ")"
+                                                       if scope != "all" else ""))
+            deleted = self.db.execute(f"DELETE FROM facts{where}").rowcount
+            self.db.commit()
+            self.revision += 1
+        return deleted
+
+    def export(self):
+        return self.active()
+
+    def _paused(self):
+        row = self.db.execute("SELECT value FROM memory_settings WHERE key = 'paused'").fetchone()
+        return row is not None and row[0] == "1"
+
+    def _insert(self, fact_id, version, kind, text, source, evidence, occurred_at, reinforcement=0, reinforced_at=None,
+                state="active"):
+        self.db.execute("INSERT INTO facts (fact_id, version, kind, text, source, evidence, occurred_at, recorded_at,"
+                        " state, reinforcement, reinforced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (fact_id, version, kind, text, source, evidence, occurred_at, self.clock(), state,
+                         reinforcement, reinforced_at))
+
+    def _revise(self, fact_id, text, *, expected_version=None):
+        """Supersede the active version with one the user has touched; text None keeps the old text."""
+        if text is not None and not text.strip():
+            raise ValueError("blank text")
+        with self.lock:
+            row = self.db.execute("SELECT id, version, kind, text, source, evidence, occurred_at, reinforcement,"
+                                  " reinforced_at FROM facts WHERE fact_id = ? AND state IN ('active','candidate')",
+                                  (fact_id,)).fetchone()
+            if row is None:
+                raise KeyError(fact_id)
+            row_id, version, kind, old_text, source, evidence, occurred_at, reinforcement, reinforced_at = row
+            if expected_version is not None and version != expected_version:
+                raise VersionConflict(version)
+            if source in ("inferred_hypothesis", "observed_context") or text is None:
+                source = "confirmed_by_user"
+            if text is not None:
+                self._tombstone(fact_id)
+                # The user's replacement claim cannot cite a summary just erased.
+                evidence = json.dumps([ref for ref in json.loads(evidence) if not _episode(ref) or
+                    self.db.execute('SELECT 1 FROM episodes WHERE id=?', (ref.split(':', 1)[1].split('@', 1)[0],)).fetchone()])
+            self.db.execute("UPDATE facts SET state = 'corrected' WHERE id = ?", (row_id,))
+            if text is not None: self._redact_agent_journal()
+            # A corrected text is a new claim; confirming keeps the signals the same words already had.
+            kept = (reinforcement, reinforced_at) if text is None else ()
+            self._insert(fact_id, version + 1, kind, old_text if text is None else text, source, evidence,
+                         occurred_at, *kept)
+            self.db.commit()
+            self.revision += 1
+        return version + 1

@@ -1,0 +1,50 @@
+/* 角色页「mod 设置」: a title, then per category its title and one switch per row, the adjusted note under its control, the rollback error last. */
+.mods {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.group {
+  display: flex;
+  align-self: stretch;
+  max-width: 420px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ef-sp-6);
+  min-width: 0;
+}
+
+.group + .group {
+  padding-top: var(--ef-sp-8);
+  border-top: 1px solid var(--ef-line-subtle);
+}
+
+.head,
+.k {
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+  white-space: nowrap;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.note {
+  flex-basis: 100%;
+  color: var(--ef-text-3);
+  font-size: var(--ef-fs-small);
+}
+
+.err {
+  margin: 0;
+  color: var(--ef-danger-text);
+  font-size: var(--ef-fs-small);
+}

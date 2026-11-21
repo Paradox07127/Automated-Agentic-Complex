@@ -1,0 +1,37 @@
+import { createHashHistory, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router';
+import { getBridge } from '../bridge';
+import { ErrorPage, errorText } from './ErrorPage';
+import { Layout } from './Layout';
+import { setNavRouter } from './nav';
+import { NotFound } from './Placeholder';
+import { pageRoutes } from './registry';
+
+export function createAppRouter() {
+  const root = createRootRoute({ component: Layout, notFoundComponent: NotFound });
+  const home = pageRoutes[0]?.path ?? '/';
+  const index = createRoute({
+    getParentRoute: () => root,
+    path: '/',
+    beforeLoad: () => {
+      throw redirect({ to: home });
+    },
+  });
+  const pages = pageRoutes.map((r) =>
+    createRoute({
+      getParentRoute: () => root,
+      path: r.path,
+      component: r.component,
+    }),
+  );
+  const router = createRouter({
+    routeTree: root.addChildren([index, ...pages]),
+    history: createHashHistory(),
+    defaultErrorComponent: ErrorPage,
+    // The shell forwards console.error to its web log; the hash is the route.
+    defaultOnCatch: (error, info) => console.error(`page ${window.location.hash.slice(1)} failed: ${errorText(error)}`, info.componentStack ?? ''),
+  });
+  setNavRouter(router);
+  // The native main window sends later entry points here; the first one arrives as the URL fragment.
+  getBridge().window.onRoute((route) => void router.history.push(route));
+  return router;
+}

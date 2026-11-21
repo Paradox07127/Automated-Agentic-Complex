@@ -1,0 +1,95 @@
+{
+ "description": "重连：bridge 不带游标连 /events，第一条 snapshot 的 behaviors 带断线期间发出、还在跑的全部行为（扶窗和听并行，同夹具 06），渲染器照它们开始并回执",
+ "messages": [
+  {
+   "event": "snapshot",
+   "seq": 2,
+   "turn_generation": 3,
+   "behaviors": [
+    {
+     "seq": 1,
+     "behavior_id": "b-e1-5",
+     "type": "hold_window_edge",
+     "target": {
+      "kind": "window",
+      "window_id": 101,
+      "side": "left"
+     },
+     "trigger": {
+      "source": "tick",
+      "event": null
+     },
+     "display_session": null,
+     "turn_id": null,
+     "turn_generation": 3,
+     "priority": 0,
+     "expires_at_ms": 1760900061000,
+     "intensity": 0.6,
+     "channels": [
+      "full_body",
+      "left_hand",
+      "contact"
+     ],
+     "exit": [
+      "target_gone",
+      "user_drag"
+     ],
+     "replaces": null,
+     "trace_id": "t-5"
+    },
+    {
+     "seq": 1,
+     "behavior_id": "b-e1-6",
+     "type": "listen",
+     "target": {
+      "kind": "user"
+     },
+     "trigger": {
+      "source": "user",
+      "event": "speech_start"
+     },
+     "display_session": null,
+     "turn_id": "l-9",
+     "turn_generation": 3,
+     "priority": 2,
+     "expires_at_ms": 1760900061000,
+     "intensity": 0.3,
+     "channels": [
+      "eyes",
+      "head",
+      "mouth"
+     ],
+     "exit": [
+      "speech_end"
+     ],
+     "replaces": null,
+     "trace_id": "t-6"
+    }
+   ]
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-5",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900001000,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-5",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900001200,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-6",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900001300,
+   "turn_generation": 3
+  }
+ ]
+}

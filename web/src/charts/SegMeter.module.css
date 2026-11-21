@@ -1,0 +1,123 @@
+.root {
+  --cell: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  flex: none;
+  vertical-align: middle;
+}
+
+.root[data-size='mini'] {
+  --cell: 4px;
+  gap: var(--ef-sp-6);
+}
+
+.cells {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-top: 2px;
+}
+
+.cell {
+  position: relative;
+  display: block;
+  width: var(--cell);
+  height: var(--cell);
+  background: var(--ef-chart-cell-empty);
+}
+
+.cell[data-kind='completed'] {
+  background: var(--ef-text-1);
+}
+
+/* In progress: a solid ink frame. */
+.cell[data-kind='in_progress'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--ef-state-running);
+}
+
+/* Needs a look: a yellow block, ◆ above it in ink. */
+.cell[data-kind='waiting'] {
+  background: var(--ef-state-waiting);
+}
+
+.cell[data-kind='waiting']::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--cell) * -1 - 2px);
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  background: var(--ef-text-1);
+  transform: rotate(45deg);
+}
+
+/* Failed: the yellow block in an ink frame. */
+.cell[data-kind='failed'] {
+  background: var(--ef-state-failed);
+  box-shadow: inset 0 0 0 1px var(--ef-on-accent);
+}
+
+.bar {
+  position: relative;
+  display: block;
+  width: 160px;
+  height: 6px;
+  background: var(--ef-chart-cell-empty);
+}
+
+.barFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--ef-text-1);
+}
+
+.barTick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ef-base);
+}
+
+.frac {
+  min-width: 58px;
+  color: var(--ef-chart-value);
+  font: var(--ef-fw-medium) var(--ef-fs-h2) / 1 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.frac small {
+  color: var(--ef-text-3);
+  font-size: max(0.8em, var(--ef-fs-num));
+}
+
+.root[data-size='mini'] .frac,
+.root[data-size='desk'] .frac {
+  min-width: 0;
+  font-size: var(--ef-fs-num);
+}
+
+.waitText,
+.failText,
+.note {
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+/* Needs a look: a yellow block with ink text. */
+.waitText,
+.failText {
+  padding: 0 var(--ef-sp-4);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.note {
+  color: var(--ef-text-3);
+}

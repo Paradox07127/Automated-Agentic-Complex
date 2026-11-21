@@ -1,0 +1,1075 @@
+{
+ "schema": "endfield-character-actions-v1",
+ "actions": [
+  {
+   "id": "talk_default",
+   "section": "talk",
+   "clips": [
+    "SourceUI_A_clip_aster_ui_relax_loop"
+   ]
+  },
+  {
+   "id": "dialog_single_idle_spreadhands",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_single_idle_spreadhands"
+   ],
+   "gestures": [
+    "spread_hands"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_talkhands",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_virtual_single_idle_talkhands"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_single_idletalk1",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_single_idletalk1"
+   ],
+   "gestures": [
+    "talk_softly"
+   ]
+  },
+  {
+   "id": "dialog_single_idletalk2",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_single_idletalk2"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_talklefthand1",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_virtual_single_idle_talklefthand1"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_talklefthand2",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_virtual_single_idle_talklefthand2"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_talkrighthand1",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_virtual_single_idle_talkrighthand1"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_talkrighthand2",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_virtual_single_idle_talkrighthand2"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_single_idle_talklefthand3",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_single_idle_talklefthand3"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_single_idle_talklefthand4",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_single_idle_talklefthand4"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_single_idle_talklefthand5",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_single_idle_talklefthand5"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_single_idle_talkrighthand3",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_single_idle_talkrighthand3"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_single_idle_talkrighthand4",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_single_idle_talkrighthand4"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_single_idle_talkrighthand5",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_single_idle_talkrighthand5"
+   ],
+   "gestures": [
+    "explain_hands"
+   ]
+  },
+  {
+   "id": "dialog_state_think2_start",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_state_think2_start"
+   ],
+   "gestures": [
+    "think"
+   ]
+  },
+  {
+   "id": "dialog_state_padlook_start",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_state_padlook_start"
+   ],
+   "gestures": [
+    "explain_hands",
+    "tablet"
+   ]
+  },
+  {
+   "id": "dialog_state_thumb_start",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_state_thumb_start"
+   ],
+   "gestures": [
+    "thumbs_up"
+   ]
+  },
+  {
+   "id": "dialog_state_sorryfinger_start",
+   "section": "talk",
+   "clips": [
+    "A_clip_aster_dialog_state_sorryfinger_start"
+   ],
+   "gestures": [
+    "apologize"
+   ]
+  },
+  {
+   "id": "dialog_state_alert_look_loop",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_state_alert_look_loop"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_shake",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_virtual_single_idle_shake"
+   ],
+   "gestures": [
+    "shake_head"
+   ]
+  },
+  {
+   "id": "dialog_state_idea_start",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_state_idea_start"
+   ],
+   "gestures": [
+    "idea"
+   ]
+  },
+  {
+   "id": "dialog_state_titter_start",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_state_titter_start"
+   ],
+   "gestures": [
+    "giggle",
+    "laugh"
+   ]
+  },
+  {
+   "id": "dialog_state_akimbolaugh_start",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_state_akimbolaugh_start"
+   ],
+   "gestures": [
+    "laugh"
+   ]
+  },
+  {
+   "id": "dialog_single_sigh",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_single_sigh"
+   ],
+   "gestures": [
+    "sigh"
+   ]
+  },
+  {
+   "id": "dialog_state_lose_start",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_state_lose_start"
+   ],
+   "gestures": [
+    "dejected"
+   ]
+  },
+  {
+   "id": "dialog_state_surprise_start",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_state_surprise_start"
+   ],
+   "gestures": [
+    "surprise"
+   ]
+  },
+  {
+   "id": "dialog_state_fear_start",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_state_fear_start"
+   ],
+   "gestures": [
+    "fear"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_scratchhead_start",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_virtual_state_scratchhead_start"
+   ],
+   "gestures": [
+    "scratch_head"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_introduction_start",
+   "section": "react",
+   "clips": [
+    "A_clip_aster_dialog_virtual_state_introduction_start"
+   ],
+   "gestures": [
+    "introduce"
+   ]
+  },
+  {
+   "id": "idle_stand",
+   "section": "idle",
+   "clips": [
+    "SourceUI_A_clip_aster_ui_overview_loop"
+   ]
+  },
+  {
+   "id": "dialog_single_idle_wipe",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_single_idle_wipe"
+   ],
+   "gestures": [
+    "wipe_brow"
+   ]
+  },
+  {
+   "id": "dialog_single_akimboleft_look",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_single_akimboleft_look"
+   ],
+   "gestures": [
+    "look_distance"
+   ]
+  },
+  {
+   "id": "dialog_state_earring_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_earring_start"
+   ],
+   "gestures": [
+    "touch_ear"
+   ]
+  },
+  {
+   "id": "dialog_state_lookhand_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_lookhand_start"
+   ],
+   "gestures": [
+    "look_palm"
+   ]
+  },
+  {
+   "id": "dialog_state_scratchface_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_scratchface_start"
+   ],
+   "gestures": [
+    "touch_face"
+   ]
+  },
+  {
+   "id": "dialog_state_touchbrow_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_touchbrow_start"
+   ],
+   "gestures": [
+    "touch_face"
+   ]
+  },
+  {
+   "id": "dialog_state_spidle1_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_spidle1_loop"
+   ]
+  },
+  {
+   "id": "dialog_state_spidle2_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_spidle2_loop"
+   ]
+  },
+  {
+   "id": "ui_relax_sp_01",
+   "section": "idle",
+   "clips": [
+    "SourceUI_A_clip_aster_ui_relax_sp_01"
+   ]
+  },
+  {
+   "id": "ui_relax_sp_02",
+   "section": "idle",
+   "clips": [
+    "SourceUI_A_clip_aster_ui_relax_sp_02"
+   ]
+  },
+  {
+   "id": "ui_relax_react",
+   "section": "idle",
+   "clips": [
+    "SourceUI_A_clip_aster_ui_relax_react"
+   ]
+  },
+  {
+   "id": "dialog_state_bread_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_bread_loop"
+   ],
+   "gestures": [
+    "food_drink"
+   ]
+  },
+  {
+   "id": "dialog_state_tea_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_tea_loop"
+   ],
+   "gestures": [
+    "food_drink"
+   ]
+  },
+  {
+   "id": "ui_overview_to_equip",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_ui_overview_to_equip"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "ui_overview_to_skill",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_ui_overview_to_skill"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "ui_overview_to_upgrade",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_ui_overview_to_upgrade"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "uiteam_idle_01",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_uiteam_idle_01"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "uiteam_idle_02",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_uiteam_idle_02"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "uiteam_idle_03",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_uiteam_idle_03"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "uiteam_idle_04",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_uiteam_idle_04"
+   ],
+   "gestures": [
+    "pose"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_think1_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_virtual_state_think1_start"
+   ],
+   "gestures": [
+    "think"
+   ]
+  },
+  {
+   "id": "dialog_state_think3_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_think3_start"
+   ],
+   "gestures": [
+    "think"
+   ]
+  },
+  {
+   "id": "dialog_state_think4_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_think4_start"
+   ],
+   "gestures": [
+    "think",
+    "arms_crossed"
+   ]
+  },
+  {
+   "id": "dialog_state_thinkakimbo1_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_thinkakimbo1_start"
+   ],
+   "gestures": [
+    "think"
+   ]
+  },
+  {
+   "id": "dialog_state_padthink_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_padthink_start"
+   ],
+   "gestures": [
+    "think",
+    "tablet"
+   ]
+  },
+  {
+   "id": "dialog_state_chesthugging1_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_chesthugging1_start"
+   ],
+   "gestures": [
+    "arms_crossed"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_akimbo1_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_virtual_state_akimbo1_start"
+   ],
+   "gestures": [
+    "hands_on_hips"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_akimboleft_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_virtual_state_akimboleft_start"
+   ],
+   "gestures": [
+    "hands_on_hips"
+   ]
+  },
+  {
+   "id": "dialog_virtual_state_earphone_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_virtual_state_earphone_start"
+   ],
+   "gestures": [
+    "listen_earphone"
+   ]
+  },
+  {
+   "id": "interact_watch_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_interact_watch_start"
+   ],
+   "gestures": [
+    "peek"
+   ]
+  },
+  {
+   "id": "dialog_single_callup",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_single_callup"
+   ],
+   "gestures": [
+    "beckon"
+   ]
+  },
+  {
+   "id": "dialog_state_pad_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_pad_start"
+   ],
+   "gestures": [
+    "tablet"
+   ]
+  },
+  {
+   "id": "dialog_state_supervise_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_supervise_loop"
+   ]
+  },
+  {
+   "id": "dialog_single_yawn",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_single_yawn"
+   ],
+   "gestures": [
+    "yawn"
+   ]
+  },
+  {
+   "id": "dialog_single_wave1",
+   "section": "touch",
+   "clips": [
+    "A_clip_aster_dialog_single_wave1"
+   ],
+   "gestures": [
+    "wave"
+   ]
+  },
+  {
+   "id": "dialog_virtual_single_idle_nod",
+   "section": "touch",
+   "clips": [
+    "A_clip_aster_dialog_virtual_single_idle_nod"
+   ],
+   "gestures": [
+    "nod"
+   ]
+  },
+  {
+   "id": "dialog_single_thumbself",
+   "section": "touch",
+   "clips": [
+    "A_clip_aster_dialog_single_thumbself"
+   ],
+   "gestures": [
+    "point_self"
+   ]
+  },
+  {
+   "id": "dialog_single_sighrelief",
+   "section": "touch",
+   "clips": [
+    "A_clip_aster_dialog_single_sighrelief"
+   ],
+   "gestures": [
+    "sigh",
+    "relief"
+   ]
+  },
+  {
+   "id": "dialog_single_wave2",
+   "section": "touch",
+   "clips": [
+    "A_clip_aster_dialog_single_wave2"
+   ],
+   "gestures": [
+    "wave"
+   ]
+  },
+  {
+   "id": "dialog_single_bow",
+   "section": "touch",
+   "clips": [
+    "A_clip_aster_dialog_single_bow"
+   ],
+   "gestures": [
+    "bow"
+   ]
+  },
+  {
+   "id": "look_cursor",
+   "section": "touch",
+   "clips": null
+  },
+  {
+   "id": "drag_sway",
+   "section": "touch",
+   "clips": null
+  },
+  {
+   "id": "library_dialog_state_alert_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_alert_start"
+   ],
+   "gestures": [
+    "alert"
+   ]
+  },
+  {
+   "id": "library_dialog_state_blame_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_blame_start"
+   ],
+   "gestures": [
+    "blame"
+   ]
+  },
+  {
+   "id": "library_dialog_state_clasp_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_clasp_start"
+   ],
+   "gestures": [
+    "clasp_hands"
+   ]
+  },
+  {
+   "id": "library_dialog_state_clench_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_clench_start"
+   ],
+   "gestures": [
+    "clench_fists"
+   ]
+  },
+  {
+   "id": "library_dialog_state_cofidence_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_cofidence_start"
+   ],
+   "gestures": [
+    "confident_chest"
+   ]
+  },
+  {
+   "id": "library_dialog_state_fistdouble_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_fistdouble_start"
+   ],
+   "gestures": [
+    "cheer_fists"
+   ]
+  },
+  {
+   "id": "library_dialog_state_introduction2_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_introduction2_start"
+   ],
+   "gestures": [
+    "introduce"
+   ]
+  },
+  {
+   "id": "library_dialog_state_listen1_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_listen1_start"
+   ],
+   "gestures": [
+    "listen"
+   ]
+  },
+  {
+   "id": "library_dialog_state_listen2_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_listen2_start"
+   ],
+   "gestures": [
+    "listen"
+   ]
+  },
+  {
+   "id": "library_dialog_state_rest_anteversion_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_rest_anteversion_start"
+   ],
+   "gestures": [
+    "lean_forward"
+   ]
+  },
+  {
+   "id": "library_dialog_state_rest_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_rest_start"
+   ],
+   "gestures": [
+    "hands_behind_back"
+   ]
+  },
+  {
+   "id": "library_dialog_state_shy_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_shy_start"
+   ],
+   "gestures": [
+    "shy"
+   ]
+  },
+  {
+   "id": "library_dialog_state_stop_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_stop_start"
+   ],
+   "gestures": [
+    "stop_palm"
+   ]
+  },
+  {
+   "id": "library_dialog_state_strive_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_strive_start"
+   ],
+   "gestures": [
+    "confident_chest"
+   ]
+  },
+  {
+   "id": "library_dialog_state_surrender_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_surrender_start"
+   ],
+   "gestures": [
+    "surrender"
+   ]
+  },
+  {
+   "id": "library_dialog_state_think3_idea_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_think3_idea_start"
+   ],
+   "gestures": [
+    "idea"
+   ]
+  },
+  {
+   "id": "library_dialog_state_tired_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_tired_start"
+   ],
+   "gestures": [
+    "tired"
+   ]
+  },
+  {
+   "id": "library_dialog_state_type2_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_dialog_state_type2_loop"
+   ],
+   "gestures": [
+    "typing"
+   ]
+  },
+  {
+   "id": "library_idle_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_idle_loop"
+   ]
+  },
+  {
+   "id": "library_interact_operate_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_interact_operate_start"
+   ],
+   "gestures": [
+    "typing"
+   ]
+  },
+  {
+   "id": "library_interact_thinkship_start",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_interact_thinkship_start"
+   ],
+   "gestures": [
+    "think"
+   ]
+  },
+  {
+   "id": "library_ui_overview_equip_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_ui_overview_equip_loop"
+   ]
+  },
+  {
+   "id": "library_ui_overview_skill_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_ui_overview_skill_loop"
+   ]
+  },
+  {
+   "id": "library_ui_upgrade_loop",
+   "section": "idle",
+   "clips": [
+    "A_clip_aster_ui_upgrade_loop"
+   ]
+  },
+  {
+   "id": "seat_plain",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_mild",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_quiet",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_gesture",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "camera_left",
+   "section": "touch",
+   "clips": null,
+   "duration": 0.4,
+   "command": "camera"
+  },
+  {
+   "id": "camera_right",
+   "section": "touch",
+   "clips": null,
+   "duration": 0.4,
+   "command": "camera"
+  },
+  {
+   "id": "camera_back",
+   "section": "touch",
+   "clips": null,
+   "duration": 0.4,
+   "command": "camera"
+  },
+  {
+   "id": "camera_front",
+   "section": "touch",
+   "clips": null,
+   "duration": 0.4,
+   "command": "camera"
+  },
+  {
+   "id": "seat_sit_shakehead",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_sit_shakehead02",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_sit_talkrighthand",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_sit2",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat",
+   "unavailable_reason": "超出桌面角色窗口，不在桌面播放"
+  },
+  {
+   "id": "seat_sit3",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_sit_introduction",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_sit_stretchhandf",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_sit_stretchhandflean",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_sit_stretchhandm",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "seat_sit_stretchhandmlean",
+   "section": "idle",
+   "clips": null,
+   "duration": 12,
+   "command": "seat"
+  },
+  {
+   "id": "floor_tired1",
+   "section": "idle",
+   "clips": null,
+   "unavailable_reason": "原动作已恢复；尚缺站姿与地坐之间的进出衔接"
+  },
+  {
+   "id": "floor_tired2",
+   "section": "idle",
+   "clips": null,
+   "unavailable_reason": "原动作已恢复；尚缺站姿与地坐之间的进出衔接"
+  },
+  {
+   "id": "receive_gift",
+   "section": "touch",
+   "clips": [
+    "A_clip_aster_interact_receive_gift"
+   ],
+   "duration": 5.333333492279053
+  }
+ ]
+}

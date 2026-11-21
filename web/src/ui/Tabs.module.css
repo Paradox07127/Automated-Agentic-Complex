@@ -1,0 +1,342 @@
+/* Second-level tabs: grey bold names; the current tab is a white dotted plate with a soft glow spilling out at its sides. */
+.tabs {
+  display: inline-flex;
+  align-items: center;
+  isolation: isolate;
+}
+
+.key {
+  display: inline-flex;
+  margin: 0 6px;
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ef-sp-6);
+  min-width: 99px;
+  height: 34px;
+  padding: 0 var(--ef-sp-16);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ef-tab2-text);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-ui);
+  letter-spacing: -0.055em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--ef-dur-g-btn) var(--ef-ease-g-fade),
+    background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.tab:hover:not([aria-selected='true']) {
+  background: var(--ef-chip);
+  color: var(--ef-text-1);
+}
+
+.tab:active:not([aria-selected='true']) {
+  background: var(--ef-surface-3);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+/* The plate is 113.5 wide on a 99 pitch, so it overhangs both neighbours without moving them. */
+.tab[aria-selected='true'] {
+  min-width: 113.5px;
+  margin: 0 -7.25px;
+  padding: 0 calc(var(--ef-sp-16) + 7.25px);
+  color: var(--ef-tab2-sel-text);
+  font-size: var(--ef-fs-title-2);
+  letter-spacing: 0.03em;
+}
+
+.name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+}
+
+/* The plate; the tab just left keeps it while it folds away. */
+.tab:is([aria-selected='true'], [data-leaving])::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-color: var(--ef-tab2-sel-bg);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--ef-tab2-sel-text) 9%, transparent) 0.6px, transparent 0.8px);
+  background-size: 3px 3px;
+  transform-origin: top;
+  pointer-events: none;
+}
+
+/* Selected tab with art (recipe tab2-selected): the white plate with its baked dots; the light theme's dark plate keeps the CSS dots. */
+:global(html[data-art][data-theme='dark']) .tab:is([aria-selected='true'], [data-leaving])::before {
+  background-image: url('/art/common/tab2-selected.png');
+  background-position: center;
+  background-size: calc(100% + 2.5px) 36px;
+  background-repeat: no-repeat;
+}
+
+.tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  z-index: -2;
+  top: 0;
+  left: 50%;
+  width: calc(100% + 103.5px);
+  height: 29px;
+  background: radial-gradient(ellipse 50% 100% at 50% 0, color-mix(in srgb, var(--ef-tab2-sel-bg) 78%, transparent), transparent);
+  transform: translateX(-50%);
+  transform-origin: top;
+  pointer-events: none;
+}
+
+/* Timing of valuabledepot_tab_select_in / _out (the game's icon tabs; the shapes here differ): the plate drops open
+   in 100 ms and the name fades in from 5 px above; the tab left flashes its plate while folding it up in 100 ms,
+   and its name rises 5 px into place. */
+.tab[aria-selected='true']::before,
+.tab[aria-selected='true']::after {
+  animation: plate-open 100ms cubic-bezier(0.29, 0, 0, 1) both;
+}
+
+.tab[aria-selected='true'] .name {
+  animation:
+    name-fade 167ms var(--ef-ease-g-fade) both,
+    name-down 333ms var(--ef-ease-g-enter) both;
+}
+
+.tab[data-leaving]::before {
+  animation:
+    plate-fold 100ms var(--ef-ease-g-enter) both,
+    plate-flash 100ms var(--ef-ease-g-fade) both;
+}
+
+.tab[data-leaving] .name {
+  animation:
+    name-fade 167ms var(--ef-ease-g-fade) both,
+    name-up 333ms var(--ef-ease-g-enter) both;
+}
+
+.count {
+  color: inherit;
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-weight: var(--ef-fw-regular);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.count > [aria-hidden] {
+  opacity: 0.45;
+}
+
+.count[data-error] {
+  padding: 0 4px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font-weight: var(--ef-fw-semibold);
+}
+
+@keyframes plate-open {
+  from {
+    scale: 1 0;
+  }
+}
+
+@keyframes plate-fold {
+  to {
+    scale: 1 0;
+  }
+}
+
+@keyframes plate-flash {
+  0% {
+    opacity: 0;
+  }
+
+  17%,
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes name-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes name-down {
+  from {
+    translate: 0 -5px;
+  }
+}
+
+@keyframes name-up {
+  from {
+    translate: 0 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab,
+  .tab::before,
+  .tab::after,
+  .name {
+    transition: none;
+    animation: none;
+  }
+
+  .tab[data-leaving]::before {
+    content: none;
+  }
+}
+
+:global([data-reduce-motion]) :is(.tab, .name),
+:global([data-reduce-motion]) .tab::before,
+:global([data-reduce-motion]) .tab::after,
+:global(.still) .name,
+:global(.still) .tab::before,
+:global(.still) .tab::after {
+  transition: none;
+  animation: none;
+}
+
+:global([data-reduce-motion]) .tab[data-leaving]::before,
+:global(.still) .tab[data-leaving]::before {
+  content: none;
+}
+
+/* Icon tabs (TabsPC): 50 px cells 1 px apart with a 1x14 separator; the selected cell drops the yellow block (recipe
+   tab-pc-selected, 76x56 from the bar top) and takes dark ink. Names stay for screen readers and in the tooltip. */
+.tab[data-icon],
+.tab[data-icon][aria-selected='true'] {
+  --sep-gap: 1px;
+  width: 50px;
+  min-width: 50px;
+  height: 50px;
+  margin: 0 0 0 1px;
+  padding: 0;
+  border-radius: 1.5px;
+  color: var(--ef-text-1);
+}
+
+.tab[data-icon][data-gap] {
+  --sep-gap: 9px;
+  margin-left: 9px;
+}
+
+.tab[data-icon]::before,
+.tab[data-icon]::after {
+  content: none !important;
+}
+
+.tab[data-icon] ~ .tab[data-icon] > .slc::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  left: calc(13px - var(--sep-gap) / 2 - 0.5px);
+  width: 1px;
+  height: 14px;
+  background: var(--ef-tabpc-cell);
+}
+
+.tab[data-icon]:hover:not([aria-selected='true']) {
+  background: var(--ef-tabpc-cell);
+}
+
+.tab[data-icon][aria-selected='true'] {
+  z-index: 1;
+  cursor: default;
+}
+
+.slc {
+  --size-y: 56;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 76px;
+  height: calc(var(--size-y) * 1px);
+  margin-left: -38px;
+  border-radius: 0 0 6px 6px;
+  pointer-events: none;
+}
+
+.tab[aria-selected='true'] > .slc {
+  background: var(--ef-accent);
+}
+
+.tab[aria-selected='true'] > .slc::before {
+  content: none !important;
+}
+
+:global([data-theme='light']) .tab[aria-selected='true'] > .slc {
+  box-shadow: inset 0 0 0 1px var(--ef-accent-text);
+}
+
+:global(html[data-art]) .tab[aria-selected='true'] > .slc {
+  border-radius: 0;
+  background: url('/art/common/tab-pc-selected.png') center / 78px 58px no-repeat;
+}
+
+.ic {
+  position: relative;
+  display: flex;
+}
+
+.tab[aria-selected='true'] > .ic {
+  color: var(--ef-tabpc-sel-icon);
+}
+
+.tab[data-icon] .name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  animation: none;
+}
+
+/* Red dot: needs attention; it moves out with the selected block. */
+.mark {
+  position: absolute;
+  z-index: 2;
+  top: 5.75px;
+  right: 7.25px;
+  width: 8px;
+  height: 8px;
+  border-radius: 1.5px;
+  background: var(--ef-badge-dot);
+  transform: rotate(45deg);
+}
+
+.tab[aria-selected='true'] > .mark {
+  right: -2.5px;
+}
+
+/* Unapplied drafts: a small square, its word kept for screen readers. */
+.draft {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 6px;
+  height: 6px;
+  overflow: hidden;
+  font-size: 0;
+  background: var(--ef-attention);
+}
+
+.tab[aria-selected='true'] > .draft {
+  background: var(--ef-tabpc-sel-icon);
+}

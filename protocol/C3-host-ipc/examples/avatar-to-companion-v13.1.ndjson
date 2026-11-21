@@ -1,0 +1,7 @@
+{"v":1,"type":"hello","role":"avatar","pid":51234,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","drag_motion","placement","viewport_fullscreen"],"build":{"git":"9aa40677","plugin":"3f2a91c0d4e7"}}
+{"v":1,"type":"window_frame","frame":{"x":930.0,"y":24.0,"w":540.0,"h":780.0},"scale":2.0,"window_number":4711,"viewport":"window","display_id":1}
+{"v":1,"type":"placement","x":1200.0,"y":40.0,"scale":1.0,"display_id":1,"reason":"start"}
+{"v":1,"type":"window_frame","frame":{"x":862.0,"y":24.0,"w":675.0,"h":975.0},"scale":2.0,"window_number":4711,"viewport":"window","display_id":1}
+{"v":1,"type":"ack","req":6,"ok":true}
+{"v":1,"type":"ack","req":7,"ok":false,"error":"unsupported"}
+{"v":1,"type":"placement","x":1200.0,"y":44.0,"scale":1.25,"display_id":1,"reason":"set_placement"}

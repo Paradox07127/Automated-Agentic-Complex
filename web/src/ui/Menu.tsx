@@ -1,0 +1,191 @@
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { Icon, type IconName } from './Icon';
+import styles from './Menu.module.css';
+
+/** One menu entry. */
+export type MenuItem =
+  | { kind: 'item'; label: string; hint?: string; danger?: boolean; checked?: boolean; disabled?: boolean; reason?: string; onSelect?: () => void }
+  | { kind: 'sep' }
+  | { kind: 'head'; label: string };
+
+/** 菜单（右键菜单和「管理 ▾」共用）：项可带快捷提示、危险色、勾选、禁用原因。 */
+export interface MenuProps {
+  /** 触发按钮文字或读屏名称 */
+  label: string;
+  /** 菜单项 */
+  items: MenuItem[];
+  /** 用图标按钮触发 */
+  icon?: IconName;
+  /** 强制展开（演示、截图） */
+  open?: boolean;
+  /** 对齐，默认 left */
+  align?: 'left' | 'right';
+}
+
+export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuProps) {
+  const [openState, setOpen] = useState(false);
+  const open = !!forced || openState;
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [focusOn, setFocusOn] = useState<number | null>(null);
+  const id = useId();
+  const actionable = items.map((it, i) => (it.kind === 'item' ? i : -1)).filter((i) => i >= 0);
+
+  useEffect(() => {
+    if (!openState || forced) return;
+    const away = (e: MouseEvent) => {
+      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+    };
+    // WebKit does not focus a clicked button, so Escape is heard on the document; capture keeps it from also closing a
+    // Modal or Sheet around the menu.
+    const esc = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+      setFocusOn(null);
+      trigger.current?.focus();
+    };
+    document.addEventListener('mousedown', away);
+    document.addEventListener('keydown', esc, true);
+    return () => {
+      document.removeEventListener('mousedown', away);
+      document.removeEventListener('keydown', esc, true);
+    };
+  }, [openState, forced]);
+
+  useEffect(() => {
+    if (focusOn != null && open) itemRefs.current[focusOn]?.focus();
+  }, [focusOn, open]);
+
+  const show = (at: 'first' | 'last') => {
+    setOpen(true);
+    setFocusOn((at === 'first' ? actionable[0] : actionable[actionable.length - 1]) ?? null);
+  };
+  const close = () => {
+    setOpen(false);
+    setFocusOn(null);
+    trigger.current?.focus();
+  };
+
+  const select = (i: number) => {
+    const it = items[i];
+    if (!it || it.kind !== 'item' || it.disabled) return;
+    it.onSelect?.();
+    if (it.checked === undefined) close();
+  };
+
+  const onTriggerKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      show('first');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      show('last');
+    }
+  };
+
+  const onMenuKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const cur = actionable.indexOf(focusOn ?? -1);
+    const n = actionable.length;
+    const to: Record<string, number | undefined> = {
+      ArrowDown: actionable[(cur + 1) % n],
+      ArrowUp: actionable[(cur - 1 + n) % n],
+      Home: actionable[0],
+      End: actionable[n - 1],
+    };
+    if (e.key in to) {
+      e.preventDefault();
+      setFocusOn(to[e.key] ?? null);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    } else if (e.key === 'Tab') {
+      setOpen(false);
+      setFocusOn(null);
+    }
+  };
+
+  return (
+    <div ref={root} className={styles.wrap} data-stub="Menu" data-align={align} data-open={open || undefined}>
+      <button
+        ref={trigger}
+        type="button"
+        className={icon ? styles.iconTrigger : styles.trigger}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? `${id}-menu` : undefined}
+        aria-label={icon ? label : undefined}
+        title={icon ? label : undefined}
+        data-icon={icon}
+        onClick={() => (openState ? close() : (setOpen(true), setFocusOn(null)))}
+        onKeyDown={onTriggerKey}
+      >
+        {icon ? (
+          <Icon name={icon} size={16} />
+        ) : (
+          <>
+            {label}
+            <Icon name="chevd" size={14} />
+          </>
+        )}
+      </button>
+      {open && (
+        <div id={`${id}-menu`} role="menu" aria-label={label} className={styles.menu} onKeyDown={onMenuKey}>
+          {items.map((it, i) => {
+            if (it.kind === 'sep') return <div key={i} role="separator" className={styles.sep} />;
+            if (it.kind === 'head')
+              return (
+                <div key={i} role="presentation" className={styles.head}>
+                  {it.label}
+                </div>
+              );
+            return (
+              <button
+                key={i}
+                ref={(el) => {
+                  itemRefs.current[i] = el;
+                }}
+                type="button"
+                role={it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+                aria-checked={it.checked}
+                aria-disabled={it.disabled || undefined}
+                tabIndex={focusOn === i ? 0 : -1}
+                className={styles.item}
+                data-danger={it.danger || undefined}
+                data-check={it.checked === undefined ? undefined : String(it.checked)}
+                title={it.disabled ? it.reason : undefined}
+                onClick={() => select(i)}
+                onMouseEnter={() => setFocusOn(i)}
+              >
+                {it.checked !== undefined && <span className={styles.box} aria-hidden="true" />}
+                <span className={styles.text}>
+                  {it.label}
+                  {it.disabled && it.reason && <span className={styles.reason}>{it.reason}</span>}
+                </span>
+                {it.hint && <kbd className={styles.hint}>{it.hint}</kbd>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const MANAGE: MenuItem[] = [
+  { kind: 'head', label: '这个任务' },
+  { kind: 'item', label: '重命名', hint: 'F2' },
+  { kind: 'item', label: '置顶', checked: true },
+  { kind: 'item', label: '归档', disabled: true, reason: '还在进行中，先停止任务' },
+  { kind: 'sep' },
+  { kind: 'item', label: '删除…', danger: true, hint: '⌘⌫' },
+];
+
+export const MenuDemos: Array<{ name: string; props: MenuProps }> = [
+  { name: 'closed', props: { label: '管理', items: MANAGE } },
+  { name: 'open', props: { label: '管理', open: true, items: MANAGE } },
+  { name: 'icon', props: { label: '更多操作', icon: 'more', align: 'right', open: true, items: [{ kind: 'item', label: '复制路径' }, { kind: 'item', label: '在 Finder 中显示' }] } },
+];

@@ -1,0 +1,94 @@
+/* Prototype `.stk` (styles.css:1003-1012) with borrowed parts: 1 px structure line, the interaction
+   menu's dark 28 px head (both appearances), themed body. */
+.card {
+  /* 31-hud-notify interaction menu head, rgba(26,28,26,.88) without the blur. */
+  --head: rgba(26, 28, 26, 0.88);
+  /* HUD text shadow. */
+  --hud-shadow: 0 1px 2px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.5);
+  position: relative;
+  display: grid;
+  width: 360px;
+  min-width: 0;
+  box-shadow: var(--ef-shadow-hud);
+  color: var(--ef-text-1);
+  font: var(--ef-fs-body) / var(--ef-lh-body) var(--ef-font-sans);
+}
+
+.pbar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -10px;
+  z-index: 1;
+  width: 1px;
+  background: var(--ef-text-1);
+}
+
+.hd {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--ef-sp-6) 0 var(--ef-sp-12);
+  background: var(--head);
+}
+
+/* Task head tag 72x12 → 36x6: a dark tag with three light pips. */
+.deco {
+  flex: none;
+  width: 36px;
+  height: 6px;
+  background:
+    radial-gradient(circle, var(--ef-text-1) 0.75px, transparent 1px) 4px 50% / 4px 6px repeat-x,
+    var(--ef-line);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+}
+
+/* With art: the sprite itself (recipe desk-deco-mission-hud-title), baked tag and pips. */
+:global(html[data-art]) .deco {
+  background: url('/art/common/desk-deco-mission-hud-title.png') center / 38px 8px no-repeat;
+  clip-path: none;
+}
+
+/* Art slot: fixed box at the head's left end, no paint until art lands. */
+.art {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  pointer-events: none;
+}
+
+.eyebrow {
+  flex: none;
+  color: var(--ef-text-2);
+  text-shadow: var(--hud-shadow);
+  font: var(--ef-fw-medium) var(--ef-fs-eyebrow) / 1 var(--ef-font-sans);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.tt {
+  flex: none;
+  margin: 0;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-small) / 1 var(--ef-font-sans);
+  text-shadow: var(--hud-shadow);
+  white-space: nowrap;
+}
+
+.sp {
+  flex: 1;
+}
+
+.bd {
+  display: grid;
+  gap: var(--ef-sp-6);
+  min-width: 0;
+  padding: 10px var(--ef-sp-12) var(--ef-sp-12);
+  background: var(--ef-hud-row);
+  color: var(--ef-text-1);
+}

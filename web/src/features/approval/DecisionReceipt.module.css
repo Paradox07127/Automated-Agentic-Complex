@@ -1,0 +1,76 @@
+.root {
+  display: grid;
+  gap: var(--ef-sp-4);
+  margin-top: var(--ef-sp-4);
+  animation: receipt-in var(--ef-dur-retrigger) linear;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.mark {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  background: var(--ef-text-3);
+}
+
+.root[data-kind='approved'] .mark,
+.root[data-kind='elsewhere'] .mark {
+  border-radius: 50%;
+  background: var(--ef-state-ok);
+  box-shadow: 0 0 0 1px var(--ef-paper-text);
+}
+
+.root[data-kind='denied'] .mark {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--ef-text-3);
+}
+
+.root[data-kind='failed'] .line {
+  padding: var(--ef-sp-4) var(--ef-sp-8);
+  background: var(--ef-danger-strong);
+  color: var(--ef-on-danger-strong);
+}
+
+.root[data-kind='failed'] .mark {
+  background: var(--ef-on-danger-strong);
+}
+
+.note {
+  font-size: var(--ef-fs-caption);
+  font-weight: var(--ef-fw-regular);
+  opacity: 0.8;
+}
+
+.unverified {
+  color: var(--ef-attention-text);
+  white-space: nowrap;
+}
+
+.link {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: var(--ef-fs-caption);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes receipt-in {
+  from {
+    opacity: 0.2;
+  }
+}

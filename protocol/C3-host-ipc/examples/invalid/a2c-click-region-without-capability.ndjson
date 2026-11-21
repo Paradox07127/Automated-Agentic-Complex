@@ -1,0 +1,3 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"capabilities":["heartbeat"]}
+{"v":1,"type":"window_frame","frame":{"x":0,"y":0,"w":540,"h":780},"scale":2,"window_number":1}
+{"v":1,"type":"click","button":"left","count":1,"x":212,"y":540,"region":"cheek_l"}

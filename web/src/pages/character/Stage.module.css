@@ -1,0 +1,298 @@
+/* Character stage: no frame; the name plate and the motion's attribute cells under it. */
+.frame {
+  /* Bottom cover #000, faded to 0.706 by charinfo_in; 250 c tall. */
+  --st-mask: #000;
+  /* Name plate tinted #1D1E27. */
+  --st-plate: #1d1e27;
+  /* Name shadow text #000@0.298, 5.5 g lower. */
+  --st-name-drop: rgb(0 0 0 / 29.8%);
+  /* Profession icon frame #222222@0.298. */
+  --st-prof-line: rgb(34 34 34 / 29.8%);
+  /* Attribute row divider #484848@0.235. */
+  --st-cell-rule: rgb(72 72 72 / 23.5%);
+  /* Key-value tag key cell: black with #F2F2F2 text. */
+  --st-key: #000;
+  --st-key-text: #f2f2f2;
+
+  display: grid;
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.stage {
+  position: relative;
+  height: clamp(250px, calc(100vh - 400px), 410px);
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 65%, var(--ef-surface-3), transparent 72%);
+  color: var(--ef-text-1);
+}
+
+/* Bottom cover: the vertical black ramp over the bottom of the stage. */
+.mask {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  height: 250px;
+  opacity: 0.706;
+  background: linear-gradient(to top, var(--st-mask), transparent);
+  pointer-events: none;
+}
+
+:global(html[data-art]) .mask {
+  background: var(--st-mask);
+  -webkit-mask: url('/art/pages/character/char-bottom-cover.png') 0 0 / 100% 100% no-repeat;
+  mask: url('/art/pages/character/char-bottom-cover.png') 0 0 / 100% 100% no-repeat;
+}
+
+.info {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0.18;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.info img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+:global([data-theme='light']) .info {
+  mix-blend-mode: multiply;
+}
+
+:global([data-theme='light']) .info img {
+  filter: invert(1);
+}
+
+.fig {
+  position: absolute;
+  inset: 5% auto 3% 50%;
+  transform-origin: 50% 100%;
+}
+
+/* The character stands on the stage without a frame. */
+.fig :global([data-stub='CharacterArt'])::before,
+.fig :global([data-stub='CharacterArt'])::after {
+  display: none;
+}
+
+.fig :global([data-stub='CharacterArt']) img {
+  clip-path: none;
+}
+
+.stage[data-live] .fig {
+  visibility: hidden;
+}
+
+.fig svg,
+.fig img {
+  display: block;
+  width: auto;
+  height: 100%;
+}
+
+.details {
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  padding: 0 0 var(--ef-sp-12);
+}
+
+.ovlRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+/* Name plate: the dark plate with the profession icon and the name, then a black/white label pair. */
+.nm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.plate {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 58.5px;
+  padding: 0 var(--ef-sp-12) 0 var(--ef-sp-8);
+  border-top: 2px solid var(--ef-char-tint);
+  background: var(--st-plate);
+  color: var(--ef-toast-text);
+}
+
+.emblem {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--st-prof-line);
+}
+
+.emblem img {
+  width: 28px;
+  height: auto;
+  filter: brightness(0) invert(1);
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  font: 700 var(--ef-fs-display) / 1.1 var(--ef-font-sans);
+  letter-spacing: -0.01em;
+  text-shadow: 0 2.75px 0 var(--st-name-drop);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* kv pair: a black key cell straight into a white value cell, no gap. */
+.nmF {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding-right: var(--ef-sp-8);
+  background: var(--ef-surface-inverse);
+  color: var(--ef-paper-text);
+  font: 500 var(--ef-fs-small) / 20px var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.nmF::before {
+  content: 'Now' / '';
+  height: 100%;
+  margin-right: var(--ef-sp-8);
+  padding: 0 var(--ef-sp-8);
+  background: var(--st-key);
+  color: var(--st-key-text);
+  font: 600 var(--ef-fs-eyebrow) / 20px var(--ef-font-ui);
+  letter-spacing: 0.06em;
+}
+
+/* Attribute title: the motion in bold over a low band. */
+.motion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ef-sp-4) var(--ef-sp-8);
+  min-width: 0;
+  padding: var(--ef-sp-4) 0 var(--ef-sp-2);
+  background: linear-gradient(to top, color-mix(in srgb, var(--ef-text-1) 10%, transparent) 0 11px, transparent 11px);
+  font-size: var(--ef-fs-body);
+}
+
+.motion b {
+  font: 700 var(--ef-fs-body-lg) / 1.3 var(--ef-font-sans);
+  overflow-wrap: anywhere;
+}
+
+.cap {
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+}
+
+/* Secondary attribute cells: white paper, key │ value. */
+.spec {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 0;
+  font-size: var(--ef-fs-small);
+}
+
+.spec > div {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  min-width: 73px;
+  min-height: 20px;
+  padding: 2px var(--ef-sp-6);
+  background: var(--ef-paper);
+  color: var(--ef-paper-text);
+}
+
+:global([data-theme='light']) .spec > div {
+  outline: 1px solid var(--ef-line);
+  outline-offset: -1px;
+}
+
+.specK {
+  flex: none;
+  padding-right: var(--ef-sp-6);
+  border-right: 1.5px solid var(--st-cell-rule);
+  color: var(--ef-paper-text-2);
+}
+
+.spec dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.playing {
+  display: grid;
+  gap: var(--ef-sp-4);
+}
+
+.plT {
+  font-size: var(--ef-fs-small);
+}
+
+.plL {
+  display: block;
+  height: 2px;
+  background: var(--ef-line);
+}
+
+.plL i {
+  display: block;
+  height: 100%;
+  background: var(--ef-trace);
+}
+
+.ovl {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ef-sp-8);
+  padding: var(--ef-sp-12);
+  background: rgb(22 22 22 / 88%);
+  color: var(--ef-text-1);
+}
+
+.fail {
+  color: var(--ef-danger-text);
+  font-size: var(--ef-fs-small);
+  font-weight: 600;
+}
+
+.chain {
+  width: 100%;
+}
+
+.stage[data-off] .fig {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+@container page (max-width: 760px) {
+  .stage {
+    height: 250px;
+  }
+}

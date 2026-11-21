@@ -1,0 +1,21 @@
+.box {
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  border-left: 2px solid var(--ef-line);
+  background: var(--ef-surface-2);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ef-sp-8);
+}
+
+.title {
+  color: var(--ef-text-1);
+  font-size: var(--ef-fs-small);
+  font-weight: var(--ef-fw-semibold);
+}

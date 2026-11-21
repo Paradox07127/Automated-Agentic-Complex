@@ -1,0 +1,162 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-16);
+  min-width: 0;
+  max-width: 760px;
+}
+
+.root:focus {
+  outline: none;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: var(--ef-t-h2);
+  color: var(--ef-text-1);
+}
+
+.meta {
+  margin: calc(var(--ef-sp-12) * -1) 0 0;
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}
+
+.summary {
+  margin: 0;
+  font: var(--ef-t-text);
+  color: var(--ef-text-1);
+  overflow-wrap: anywhere;
+}
+
+.note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ef-sp-8) var(--ef-sp-12);
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}
+
+.inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+/* 等你决定: a bare DecisionBar, or a box holding extra lines above an inset bar. */
+.needs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-12);
+}
+
+.needs[data-boxed] {
+  padding: var(--ef-sp-12) var(--ef-sp-16);
+  border: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  border-left: var(--ef-lw-focus) solid var(--ef-state-waiting);
+  background: var(--ef-raised);
+  color: var(--ef-raised-fg);
+}
+
+.needLine {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+}
+
+.needText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--ef-t-row);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.needMeta {
+  flex: none;
+  font: var(--ef-t-meta);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-text-2);
+}
+
+.sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+}
+
+/* RawFold with no summary lines: drop the empty list so it takes no gap. */
+.fold :global([data-summary]:empty) {
+  display: none;
+}
+
+.chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8) var(--ef-sp-12);
+  margin: 0;
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}
+
+.link {
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.send {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+.input {
+  flex: 1 1 200px;
+  min-width: 0;
+  height: var(--ef-h-md);
+  padding: 0 var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  background: var(--ef-surface-2);
+  color: var(--ef-text-1);
+  font: var(--ef-t-text);
+}
+
+.input::placeholder {
+  color: var(--ef-text-3);
+}
+
+.input:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}

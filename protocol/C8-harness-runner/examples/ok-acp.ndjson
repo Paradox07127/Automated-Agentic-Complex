@@ -1,0 +1,14 @@
+{"v": 1, "type": "init", "config": {"agent_command": ["/opt/acp/bin/agent", "--acp"], "agent_env": {}, "state_dir": "/tmp/state", "model": "fake-large", "session_meta": {"endfield": {"character": "test"}}, "tool_timeout": 10, "workspace_dir": "/tmp/workspace", "native_tools": true}, "system_prompt": "Synthetic personal assistant.", "tools": [{"name": "fixture_read", "description": "Read a fixture", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}}}]}
+{"v": 1, "seq": 1, "type": "ready", "session_id": "sess_fake", "model": "fake-large", "tool_names": ["fixture_read"], "tool_inventory_verified": false, "capabilities": {"cancel": "native", "tool_injection": "mcp_stdio", "builtin_tools": "unverified", "system_prompt": "native", "usage": "none", "event_scope": "session", "native_questions": false}, "agent_info": {"name": "fake-acp", "title": "Fake ACP", "version": "0.1.0"}, "auth_methods": [{"id": "fake-login", "name": "Fake login"}], "protocol": "acp-stdio", "agent_pid": 4343, "model_applied": true}
+{"v": 1, "type": "query", "run_id": "run-1", "prompt": "Read my notes", "history": null}
+{"v": 1, "seq": 2, "type": "text_delta", "run_id": "run-1", "text": "Hello ", "item_id": "msg_1"}
+{"v": 1, "seq": 3, "type": "item", "run_id": "run-1", "item_id": "call_1", "kind": "tool_call", "status": "started", "name": "fixture_read", "summary": "Reading the fixture"}
+{"v": 1, "seq": 4, "type": "tool_request", "run_id": "run-1", "tool_call_id": "3d5d5fef80b9bfb6005aa1a3", "name": "fixture_read", "args": {"path": "notes.txt"}, "item_id": "3d5d5fef80b9bfb6005aa1a3", "kind": "tool_call", "status": "started"}
+{"v": 1, "type": "tool_result", "tool_call_id": "3d5d5fef80b9bfb6005aa1a3", "run_id": "run-1", "result": {"content": [{"type": "text", "text": "notes body"}, {"type": "resource", "uri": "x"}]}, "is_error": false}
+{"v": 1, "seq": 5, "type": "item", "run_id": "run-1", "item_id": "call_1", "kind": "tool_result", "status": "completed", "summary": "Tool completed"}
+{"v": 1, "seq": 6, "type": "item", "run_id": "run-1", "item_id": "call_2", "kind": "tool_call", "status": "started", "summary": "rm -rf build"}
+{"v": 1, "seq": 7, "type": "item", "run_id": "run-1", "item_id": "call_2", "kind": "tool_result", "status": "completed", "summary": "Tool failed"}
+{"v": 1, "seq": 8, "type": "plan", "run_id": "run-1", "title": null, "source": "acp", "steps": [{"text": "Read the notes", "status": "completed"}, {"text": "Answer", "status": "in_progress"}]}
+{"v": 1, "seq": 9, "type": "text_delta", "run_id": "run-1", "text": "world", "item_id": "msg_1"}
+{"v": 1, "seq": 10, "type": "result", "run_id": "run-1", "session_id": "sess_fake", "model": "fake-large", "success": true, "subtype": "success", "text": "Hello world", "final_text": "Hello world", "usage": null, "total_cost_usd": null, "cost_usd": null, "failure": null, "error": null}
+{"v": 1, "type": "close"}

@@ -1,0 +1,259 @@
+[
+  {
+    "op": "app.action",
+    "surface": "main",
+    "args": [
+      "open_config"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "app.openQuickInput",
+    "surface": "main",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "supervisor.restart",
+    "surface": "main",
+    "args": [
+      "agentd"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "settings.wipeLocalData",
+    "surface": "main",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "permissions.openSettings",
+    "surface": "main",
+    "args": [
+      "accessibility"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.setVisible",
+    "surface": "main",
+    "args": [
+      true
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.setScale",
+    "surface": "main",
+    "args": [
+      1
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.keepClearOfMain",
+    "surface": "main",
+    "args": [
+      true
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.resetPosition",
+    "surface": "main",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.toggleClickThroughAll",
+    "surface": "main",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.stopSpeech",
+    "surface": "main",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.playAction",
+    "surface": "main",
+    "args": [
+      "talk",
+      1
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.stopAction",
+    "surface": "main",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.setAppearance",
+    "surface": "main",
+    "args": [
+      "default"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.setLayers",
+    "surface": "main",
+    "args": [
+      [
+        "coat"
+      ]
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.presentation.set",
+    "surface": "stack",
+    "args": [
+      null
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.preview.hide",
+    "surface": "main",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "open.url",
+    "surface": "main",
+    "args": [
+      "https://example.com"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "open.artifact",
+    "surface": "main",
+    "args": [
+      "/tmp/artifact"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "open.revealInFinder",
+    "surface": "main",
+    "args": [
+      "/tmp"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "open.jumpToSession",
+    "surface": "main",
+    "args": [
+      "session"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "open.runFeedCommand",
+    "surface": "main",
+    "args": [
+      {
+        "action": "open",
+        "target": "session"
+      }
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "open.runInTerminal",
+    "surface": "main",
+    "args": [
+      "true"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "clipboard.writeText",
+    "surface": "main",
+    "args": [
+      "text"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "computerUse.stop",
+    "surface": "main",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "stack.decide",
+    "surface": "stack",
+    "args": [
+      "card",
+      {
+        "kind": "cancel-question",
+        "expected_version": 1
+      }
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "stack.later",
+    "surface": "stack",
+    "args": [
+      "card"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "stack.collapse",
+    "surface": "stack",
+    "args": [
+      "card"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "stack.complete",
+    "surface": "stack",
+    "args": [
+      "card"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "desktop.action",
+    "surface": "stack",
+    "args": [
+      "show"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.photo.set",
+    "surface": "main",
+    "args": [
+      {
+        "active": true,
+        "aperture": 32,
+        "focus": "auto"
+      }
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "avatar.playChain",
+    "surface": "main",
+    "args": [
+      {
+        "start": "A_clip_birch_customized_state_think_start",
+        "speed": 1
+      }
+    ],
+    "kind": "undefined"
+  }
+]

@@ -1,0 +1,2 @@
+# VMD importer; the release app embeds the same numpy from app/packaging/requirements-content.lock.
+numpy==2.5.4

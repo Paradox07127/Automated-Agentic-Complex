@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","drag_motion","placement","viewport_fullscreen","trace","playback","turn_generation","behavior_receipt","actions","surfaces","opacity","layering","pointer","pipeline","drop","motion_requests","layers"],"build":{"git":"test"}}
+{"v":1,"type":"layers_change_failed","hidden":["coat"],"reason":"nope"}

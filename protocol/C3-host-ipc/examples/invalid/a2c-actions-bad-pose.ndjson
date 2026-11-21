@@ -1,0 +1,1 @@
+{"v":1,"type":"actions","character":"aster","actions":[{"id":"pose_dance","name":"跳舞","section":"idle","duration":null,"trigger":"用户在右键菜单里选姿态","required_reason":null,"missing":null,"pose":"dance"}],"switches":{"pose_dance":true}}

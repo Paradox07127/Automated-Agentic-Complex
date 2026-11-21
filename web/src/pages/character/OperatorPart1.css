@@ -1,0 +1,389 @@
+.op {
+  /* Main attribute icon plate #FFD800. */
+  --op-attr-icon: #ffd800;
+  /* Main attribute divider #484848@0.235. */
+  --op-cell-rule: rgb(72 72 72 / 23.5%);
+  /* Attribute names solid #5A5A5A on white (@0.706 would be under 4.5:1). */
+  --op-attr-name: #5a5a5a;
+
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: clamp(246px, 27%, 330px) minmax(0, 1fr);
+  gap: var(--ef-sp-12) var(--ef-sp-24);
+  height: 100%;
+  padding: var(--ef-sp-16) var(--ef-space-page) 0;
+}
+
+.mid {
+  position: relative;
+  grid-area: 1 / 1 / 2 / 2;
+}
+
+.panes,
+.settings {
+  grid-area: 1 / 2 / 2 / 3;
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.settings > * {
+  flex: 1;
+}
+
+/* Wide: a wider stage column. */
+@container page (min-width: 1100px) {
+  .op {
+    grid-template-columns: clamp(300px, 30%, 420px) minmax(0, 1fr);
+  }
+}
+
+/* Character cards (charformation): portrait, ghost index, name, and the bar along the bottom, yellow on the current one. */
+.roster {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* CharListNode/BG/Blur: the frosted band under the cards. */
+.rosterBg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.rosterBg > * {
+  height: 100%;
+}
+
+.rc {
+  --fill: var(--ef-surface-2);
+  --bar: var(--ef-line-strong);
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 60px;
+  height: 86.5px;
+  overflow: hidden;
+  padding: 0 0 4px;
+  border: 0;
+  background: linear-gradient(var(--bar), var(--bar)) bottom / 100% 4px no-repeat, var(--fill);
+  color: var(--ef-text-1);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.rc:hover:not([disabled], [aria-current]) {
+  --fill: var(--ef-surface-3);
+}
+
+.rc:active:not([disabled], [aria-current]) {
+  transform: translateY(1px);
+}
+
+.rc[disabled] {
+  color: var(--ef-text-disabled);
+  cursor: default;
+}
+
+/* Target of a switch in progress: running, a solid ink frame. */
+.rc[data-target] {
+  outline: 1px solid var(--ef-text-1);
+  outline-offset: -1px;
+}
+
+.rc:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+/* Head art fills the card; the plate colour ramps up under the name. */
+.rcArt {
+  position: absolute;
+  inset: 0 0 4px;
+  z-index: 0;
+  display: flex;
+}
+
+.rcArt :global([data-stub='CharacterArt']) {
+  width: 100%;
+  height: 100%;
+}
+
+.rcArt :global([data-stub='CharacterArt'])::before,
+.rcArt :global([data-stub='CharacterArt'])::after {
+  display: none;
+}
+
+.rcArt img {
+  clip-path: none;
+}
+
+.rc[disabled] .rcArt {
+  opacity: 0.5;
+}
+
+.rc::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 4px;
+  z-index: 1;
+  height: 40px;
+  background: linear-gradient(to top, var(--fill) 45%, transparent);
+  pointer-events: none;
+}
+
+/* Ghost index: a big outlined number, decoration only. */
+.rcNo {
+  position: absolute;
+  z-index: 2;
+  top: 2px;
+  right: 3px;
+  font: 800 34px / 1 var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--ef-text-1) 28%, transparent);
+}
+
+.rcName {
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  padding: 0 5px 5px;
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1.2 var(--ef-font-sans);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.add {
+  align-items: center;
+  justify-content: center;
+  gap: var(--ef-sp-6);
+  color: var(--ef-text-2);
+}
+
+/* The stage column does not scroll: a scroll box around the stage would cut the shell's live preview. */
+.mid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+  min-height: 0;
+  padding-bottom: var(--ef-sp-16);
+  container-type: inline-size;
+}
+
+/* The tab strip stays; the pane under it scrolls. */
+.panes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+  min-height: 0;
+}
+
+.menu {
+  flex: none;
+  align-self: flex-start;
+}
+
+/* The side padding, taken back by the margin, keeps focus rings at the edges inside the scroll box. */
+.pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--ef-sp-16);
+  min-width: 0;
+  min-height: 0;
+  margin: 0 -5px;
+  overflow: hidden auto;
+  padding: 0 5px var(--ef-sp-16);
+}
+
+.pane > * {
+  flex: none;
+}
+
+/* The motion list fills the pane and scrolls inside it. */
+.pane > .motions {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.motions > [data-motions] {
+  flex: 1;
+  min-height: 0;
+  margin-bottom: 0;
+}
+
+.mid > section {
+  flex: none;
+}
+
+/* Today's plays: 24 hour cells, then the readout in white attribute cells. */
+.pb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ef-sp-12) var(--ef-sp-24);
+}
+
+.hd {
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: 640px;
+}
+
+.hdCells {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  gap: 2px;
+}
+
+/* An ink ramp by count; no plays is the idle chip, later hours hatched, the current hour yellow. */
+.hdCells i {
+  height: 14px;
+  background: color-mix(in srgb, var(--ef-ink-s1) calc(var(--a, 1) * 100%), transparent);
+}
+
+.hdCells i[data-z] {
+  background: var(--ef-chip);
+}
+
+.hdCells i[data-fut] {
+  background: var(--ef-chart-hatch);
+}
+
+.hdCells i[data-now] {
+  background: var(--ef-accent);
+}
+
+.hd[data-dim] .hdCells i:not([data-z], [data-fut], [data-now]) {
+  background: var(--ef-line);
+}
+
+.hdAx {
+  position: relative;
+  height: 16px;
+  margin-top: var(--ef-sp-4);
+  font: 500 11px / 16px var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-text-2);
+}
+
+.hdAx span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.hdAx span[data-now] {
+  color: var(--ef-text-1);
+  font-weight: 700;
+}
+
+.read {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+/* The head key on the stage's corner opens the roster as a panel over the stage. */
+.switcher {
+  position: absolute;
+  z-index: 3;
+  top: var(--ef-sp-8);
+  left: var(--ef-sp-8);
+}
+
+.swBtn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--ef-line-strong);
+  background: var(--ef-surface-2);
+  color: var(--ef-text-1);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.swBtn:is(:hover, [aria-expanded='true']) {
+  border-color: var(--ef-accent);
+}
+
+.swBtn:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.swMark {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.swPop {
+  position: absolute;
+  top: calc(100% + var(--ef-sp-6));
+  left: 0;
+  width: max-content;
+  max-width: min(520px, 60vw);
+  border: 1px solid var(--ef-line-strong);
+  background: var(--ef-surface-1);
+  box-shadow: 0 8px 24px var(--ef-scrim-popup);
+}
+
+/* 外观: numbered sections of option plates. */
+.look {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-20);
+  min-width: 0;
+}
+
+.look[data-ro] {
+  opacity: 0.5;
+}
+
+.plates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--ef-sp-6);
+  margin-top: var(--ef-sp-8);
+}
+
+.size .plates {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.size {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(160px, 1fr);
+  gap: var(--ef-sp-16);
+  align-items: center;
+}

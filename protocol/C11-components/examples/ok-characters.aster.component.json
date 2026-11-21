@@ -1,0 +1,12 @@
+{
+  "schema": "endfield-component/v1",
+  "id": "characters.aster",
+  "version": "1.0.0",
+  "tree_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "files": 2,
+  "bytes": 2048,
+  "entrypoints": {},
+  "provides": {},
+  "requires": {"agentd": "1.0.0"},
+  "platform": "macos-arm64"
+}

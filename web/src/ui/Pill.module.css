@@ -1,0 +1,67 @@
+/* State label, square: idle is chip, live is a solid ink frame, done is an ink block,
+   needs-a-look is a yellow block, failed adds a leading ! flag, inferred is a dashed frame. */
+.pill {
+  --pill-bg: var(--ef-chip);
+  --pill-fg: var(--ef-text-1);
+  --pill-line: transparent;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  height: 20px;
+  padding: 0 var(--ef-sp-8);
+  border: var(--ef-lw-hair) solid var(--pill-line);
+  background: var(--pill-bg);
+  color: var(--pill-fg);
+  font-family: var(--ef-font-ui);
+  font-size: var(--ef-fs-small);
+  font-stretch: var(--ef-wide);
+  font-weight: var(--ef-fw-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pill[data-tone='mission'],
+.pill[data-tone='info'] {
+  --pill-bg: transparent;
+  --pill-line: var(--ef-text-1);
+}
+
+.pill[data-tone='success'] {
+  --pill-bg: var(--ef-text-1);
+  --pill-fg: var(--ef-canvas);
+  --pill-line: var(--ef-text-1);
+}
+
+.pill[data-tone='attention'],
+.pill[data-tone='danger'] {
+  --pill-bg: var(--ef-accent);
+  --pill-fg: var(--ef-on-accent);
+  --pill-line: var(--ef-accent);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.pill[data-tone='danger'] {
+  padding-left: 0;
+}
+
+.pill[data-tone='danger']::before {
+  content: '!';
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  margin: -1px 0 -1px -1px;
+  padding: 0 5px;
+  background: var(--ef-text-1);
+  color: var(--ef-canvas);
+  font-weight: 800;
+}
+
+.pill[data-dashed] {
+  --pill-bg: transparent;
+  --pill-fg: var(--ef-text-2);
+  --pill-line: var(--ef-text-2);
+  border-style: dashed;
+  font-weight: var(--ef-fw-medium);
+}

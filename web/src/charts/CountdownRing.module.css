@@ -1,0 +1,72 @@
+.root {
+  --rc: var(--ef-text-1);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.root[data-paper] {
+  --rc: var(--ef-paper-text);
+  color: var(--ef-paper-text-2);
+}
+
+/* Almost out: the ring turns trace (ink on paper, yellow in dark), never red. */
+.root[data-urgent] {
+  --rc: var(--ef-trace);
+}
+
+.ring {
+  display: block;
+  flex: none;
+}
+
+.track {
+  fill: none;
+  stroke: var(--ef-chart-cell-empty);
+}
+
+.root[data-paper] .track {
+  stroke: var(--ef-line);
+}
+
+.left {
+  fill: none;
+  stroke: var(--rc);
+  stroke-linecap: square;
+  transition: stroke-dasharray var(--ef-dur-base) var(--ef-ease-mech);
+}
+
+.text {
+  font-family: var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.root[data-size='md'] .text {
+  color: var(--ef-text-1);
+}
+
+.root[data-paper] .text {
+  color: var(--ef-paper-text);
+}
+
+.root[data-paper][data-urgent] {
+  --rc: var(--ef-paper-text);
+}
+
+/* 即将超时 needs a look: a yellow block with ink text. */
+.urgent {
+  padding: 0 var(--ef-sp-4);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font-weight: var(--ef-fw-semibold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .left {
+    transition: none;
+  }
+}

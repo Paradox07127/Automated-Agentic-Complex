@@ -1,0 +1,63 @@
+{
+  "note": "会话等审批，用户在看别的窗口",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:saf-1",
+      "app": "Safari",
+      "bundle_id": "com.apple.Safari",
+      "pid": 500,
+      "window_id": 100,
+      "title": "Morning briefing",
+      "url_host": null,
+      "since": 1799999910.0,
+      "secure_input": false
+    },
+    "dwell_s": 90.0,
+    "presence": {
+      "id": "afk:saf-1",
+      "status": "active",
+      "seconds": 300,
+      "idle_s": 3
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [
+      {
+        "display_session": "claude:s-orbit",
+        "source": "claude",
+        "session_id": "s-orbit",
+        "cwd": "/Users/demo/work/orbit-ledger",
+        "state": "awaiting_approval",
+        "effective_state": "awaiting_approval",
+        "tool_name": "Bash",
+        "tool_category": "command",
+        "origin": null,
+        "since": 1799999980.0,
+        "observed_at": 1799999980.0
+      }
+    ],
+    "own_sessions": [],
+    "events": [
+      {
+        "id": "ev:o-perm",
+        "session": "claude:s-orbit",
+        "kind": "permission_request",
+        "tool": "Bash",
+        "tool_category": "command",
+        "ts": 1799999980.0
+      }
+    ]
+  },
+  "expect": {
+    "activity": "waiting_approval",
+    "status": "ok",
+    "related_session_ids": [
+      "claude:s-orbit"
+    ],
+    "can_interrupt": false
+  }
+}

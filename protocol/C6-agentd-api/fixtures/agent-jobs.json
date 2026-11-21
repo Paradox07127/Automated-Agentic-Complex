@@ -1,0 +1,6 @@
+{
+  "jobs": [{"job_id": "0123456789abcdef0123456789abcdef", "goal_id": "fedcba9876543210fedcba9876543210", "title": "整理本周提交",
+            "state": "queued", "run_id": "bg-00112233445566778899aabbccddeeff", "previous_run_id": "bg-ffeeddccbbaa99887766554433221100",
+            "result": null, "created_at": 1793503600.2, "updated_at": 1793503662.4,
+            "conversation_id": "0123456789abcdef0123456789abcdef", "source_turn_id": "tr41", "generation": 0}]
+}

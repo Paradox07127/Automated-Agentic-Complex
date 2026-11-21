@@ -1,0 +1,33 @@
+{
+  "note": "前台窗口在黑名单里",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:hid-1",
+      "app": "<hidden>",
+      "since": 1799999940.0,
+      "secure_input": false
+    },
+    "dwell_s": 60.0,
+    "presence": {
+      "id": "afk:hid-1",
+      "status": "active",
+      "seconds": 300,
+      "idle_s": 2
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "unreadable",
+    "status": "degraded",
+    "related_session_ids": [],
+    "can_interrupt": false
+  }
+}

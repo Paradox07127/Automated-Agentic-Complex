@@ -1,0 +1,67 @@
+{
+  "note": "会话的构建命令失败后，用户看着这个会话的终端",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:term-1",
+      "app": "Terminal",
+      "bundle_id": "com.apple.Terminal",
+      "pid": 452,
+      "window_id": 52,
+      "title": "kestrel — zsh — 120×40",
+      "url_host": null,
+      "since": 1799999960.0,
+      "secure_input": false
+    },
+    "dwell_s": 40.0,
+    "presence": {
+      "id": "afk:term-1",
+      "status": "active",
+      "seconds": 900,
+      "idle_s": 8
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [
+      {
+        "display_session": "claude:s-kestrel",
+        "source": "claude",
+        "session_id": "s-kestrel",
+        "cwd": "/Users/demo/work/kestrel",
+        "state": "thinking",
+        "effective_state": "thinking",
+        "tool_name": null,
+        "tool_category": null,
+        "origin": {
+          "kind": "terminal",
+          "term_program": "Apple_Terminal",
+          "bundle_id": null
+        },
+        "since": 1799999970.0,
+        "observed_at": 1799999970.0
+      }
+    ],
+    "own_sessions": [],
+    "events": [
+      {
+        "id": "ev:k-1",
+        "session": "claude:s-kestrel",
+        "kind": "tool_failure",
+        "tool": "Bash",
+        "tool_category": "command",
+        "ts": 1799999930.0
+      }
+    ]
+  },
+  "expect": {
+    "activity": "build_failed",
+    "status": "ok",
+    "related_session_ids": [
+      "claude:s-kestrel"
+    ],
+    "can_interrupt": true
+  }
+}

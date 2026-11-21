@@ -1,0 +1,84 @@
+/* Region placeholders: a skeleton (Skel shapes) at the reserved height, one left-aligned line for empty and failed, a time tag over stale data. */
+.region {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.num {
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+}
+
+.head,
+.tag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ef-sp-8);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.why {
+  color: var(--ef-text-1);
+}
+
+.empty,
+.fail {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-height: 28px;
+  color: var(--ef-text-2);
+  font: var(--ef-t-text);
+}
+
+.empty > svg {
+  flex: none;
+}
+
+.fail {
+  color: var(--ef-text-1);
+}
+
+.sq {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--ef-state-failed);
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-1);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+/* Header slot: the refresh bar sits in the top-right corner and takes no room. */
+.spin {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: var(--ef-text-3);
+}
+
+.demoList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--ef-t-row);
+}

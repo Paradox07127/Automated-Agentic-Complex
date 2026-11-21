@@ -1,0 +1,6 @@
+{
+  "schema": "endfield-components-index/v1",
+  "components": [
+    {"id": "agentd", "version": "1.0.0", "tree_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "dir": "../agentd"}
+  ]
+}

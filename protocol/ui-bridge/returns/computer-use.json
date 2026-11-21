@@ -1,0 +1,36 @@
+[
+  {
+    "op": "computerUse.grant",
+    "surface": "stack",
+    "args": [
+      [
+        "observation"
+      ],
+      "c-1"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "computerUse.revoke",
+    "surface": "stack",
+    "args": [
+      [
+        "observation"
+      ],
+      "c-1"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "computerUse.resume",
+    "surface": "stack",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "computerUse.dismiss",
+    "surface": "stack",
+    "args": [],
+    "kind": "undefined"
+  }
+]

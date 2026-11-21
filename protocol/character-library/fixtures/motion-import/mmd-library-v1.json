@@ -1,0 +1,31 @@
+{
+ "schema": "endfield-mmd-library/v1",
+ "entries": [
+  {
+   "id": "mmd_0123456789abcdef",
+   "title": "舞蹈",
+   "duration_s": 93.6,
+   "created_at": "2026-11-17T10:00:00+00:00",
+   "removed_at": null,
+   "source": {
+    "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.vmd",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "name": "dance.vmd"
+   },
+   "camera": null,
+   "bgm": {
+    "file": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wav",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "offset_s": 0.0
+   },
+   "zip": null,
+   "failures": {
+    "aster": {
+     "reason": "missing_bones",
+     "detail": "aster's rig cannot take MMD motion",
+     "package_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   }
+  }
+ ]
+}

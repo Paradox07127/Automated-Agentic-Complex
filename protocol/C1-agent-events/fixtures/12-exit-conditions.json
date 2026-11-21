@@ -1,0 +1,181 @@
+{
+ "description": "结束条件由 agentd 判断（behavior_cancel / exit）：用户说完 → listen 以 speech_end 结束，回执 completed；焦点会话回到 idle → accompany 以 session_state 结束，回执 completed；用户开始打字 → short_walk 以 user_typing 结束，回执 cancelled",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e1-1",
+   "type": "listen",
+   "target": {
+    "kind": "user"
+   },
+   "trigger": {
+    "source": "user",
+    "event": "speech_start"
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 2,
+   "expires_at_ms": 1760900121000,
+   "intensity": 0.4,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "speech_end"
+   ],
+   "replaces": null,
+   "trace_id": "t-1"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900001030,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900001040,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior_cancel",
+   "seq": 2,
+   "behavior_id": "b-e1-1",
+   "reason": "exit",
+   "condition": "speech_end",
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "completed",
+   "reason": null,
+   "at_ms": 1760900004050,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 3,
+   "behavior_id": "b-e1-2",
+   "type": "accompany",
+   "target": null,
+   "trigger": {
+    "source": "session",
+    "event": "session_state:thinking"
+   },
+   "display_session": "claude:A",
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 1,
+   "expires_at_ms": 1760900606000,
+   "intensity": 0.2,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "session_state"
+   ],
+   "replaces": null,
+   "trace_id": "t-2"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900006030,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900006040,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior_cancel",
+   "seq": 4,
+   "behavior_id": "b-e1-2",
+   "reason": "exit",
+   "condition": "session_state",
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "completed",
+   "reason": null,
+   "at_ms": 1760900040050,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 5,
+   "behavior_id": "b-e1-3",
+   "type": "short_walk",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 0,
+   "expires_at_ms": 1760900170000,
+   "intensity": 0.5,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [
+    "user_typing",
+    "user_drag"
+   ],
+   "replaces": null,
+   "trace_id": "t-3"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-3",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900050030,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-3",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900050040,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior_cancel",
+   "seq": 6,
+   "behavior_id": "b-e1-3",
+   "reason": "exit",
+   "condition": "user_typing",
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-3",
+   "phase": "cancelled",
+   "reason": null,
+   "at_ms": 1760900070050,
+   "turn_generation": 3
+  }
+ ]
+}

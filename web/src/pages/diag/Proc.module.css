@@ -1,0 +1,207 @@
+/* 进程表：健康条的一部分；只读数据表。 */
+.sec {
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.head b {
+  font-weight: 600;
+}
+
+.t2 {
+  color: var(--ef-text-2);
+  font-size: 12px;
+}
+
+.fold {
+  min-height: 24px;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font: inherit;
+  font-size: 12px;
+}
+
+.fold:hover {
+  color: var(--ef-text-1);
+  text-decoration: underline;
+}
+
+/* Read-only data table: chip head row, hairline rows, figures right-aligned; no hover step, no cut. */
+.procs {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  color: var(--ef-text-1);
+  font: var(--ef-t-table);
+}
+
+.procs th,
+.procs td {
+  padding: var(--ef-sp-8) var(--ef-space-inline);
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.procs th {
+  padding-top: var(--ef-sp-4);
+  padding-bottom: var(--ef-sp-4);
+  border-bottom-color: var(--ef-text-1);
+  background: var(--ef-chip);
+  color: var(--ef-text-2);
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / var(--ef-lh-meta) var(--ef-font-ui);
+  font-stretch: var(--ef-wider);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.procs th.up,
+.procs th.mem,
+.procs th.spk {
+  text-align: right;
+}
+
+.procs td {
+  height: 38px;
+}
+
+.procs th.up {
+  width: 200px;
+}
+
+.procs th.mem {
+  width: 96px;
+}
+
+.procs th.spk {
+  width: 140px;
+}
+
+.procs th.pa {
+  width: 176px;
+}
+
+/* The row a jump lands on: a 4 px trace bar at its left edge. */
+.row[data-hl] > td:first-child {
+  background: linear-gradient(var(--ef-trace), var(--ef-trace)) left / var(--ef-lw-category) 100% no-repeat;
+}
+
+/* agentd is gone: the whole row reads as last-known data. */
+.row[data-stale],
+.row[data-stale] .two > span,
+.row[data-stale] .t2 {
+  color: var(--ef-text-3);
+}
+
+.stamp {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  height: 22px;
+  margin-left: auto;
+  padding: 0 10px;
+  border: var(--ef-lw-hair) solid var(--ef-line-strong);
+  background: var(--ef-surface-2);
+  color: var(--ef-text-1);
+  font-size: 12px;
+}
+
+.two {
+  min-width: 0;
+}
+
+.two b {
+  display: block;
+  font: 500 13px / 1.3 var(--ef-font-sans);
+}
+
+.two > span {
+  display: block;
+  overflow: hidden;
+  color: var(--ef-text-3);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.in {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.st .in {
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.up .in,
+.spk .in {
+  justify-content: flex-end;
+}
+
+.ub {
+  position: relative;
+  flex: 1;
+  max-width: 72px;
+  height: 4px;
+  background: var(--ef-line-subtle);
+}
+
+.ub i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--ef-ink-s3);
+}
+
+.ub i[data-up] {
+  background: var(--ef-ink-s1);
+}
+
+.procs td.mem {
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.spk .in {
+  gap: 6px;
+}
+
+/* Two fixed slots: 查看日志, then 重启 or 前往设置, so 查看日志 sits in the same place on every row. */
+.pa .in {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  justify-items: start;
+}
+
+.two > .meta {
+  display: none;
+}
+
+/* Narrow: uptime and CPU move to a line under the name; memory keeps its column. */
+@container page (max-width: 1000px) {
+  .procs .up,
+  .procs .spk {
+    display: none;
+  }
+
+  .two > .meta {
+    display: block;
+  }
+}

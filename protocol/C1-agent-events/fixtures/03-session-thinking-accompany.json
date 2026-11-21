@@ -1,0 +1,97 @@
+{
+ "description": "会话思考中安静陪伴；重复的 thinking 事件合并，不重发；到期前 30 s 用同类型同目标续期（replaces 指向旧的）：续期没有入场动作，第一条回执就是 running，旧的回执 cancelled",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e1-1",
+   "type": "accompany",
+   "target": null,
+   "trigger": {
+    "source": "session",
+    "event": "session_state:thinking"
+   },
+   "display_session": "claude:A",
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 1,
+   "expires_at_ms": 1760900601000,
+   "intensity": 0.2,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "session_state"
+   ],
+   "replaces": null,
+   "trace_id": "t-1"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900000050,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000060,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-e1-2",
+   "type": "accompany",
+   "target": null,
+   "trigger": {
+    "source": "session",
+    "event": "session_state:thinking"
+   },
+   "display_session": "claude:A",
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 1,
+   "expires_at_ms": 1760901171000,
+   "intensity": 0.2,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "session_state"
+   ],
+   "replaces": "b-e1-1",
+   "trace_id": "t-2"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "cancelled",
+   "reason": null,
+   "at_ms": 1760900571100,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900571100,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "completed",
+   "reason": null,
+   "at_ms": 1760900721000,
+   "turn_generation": 3
+  }
+ ]
+}

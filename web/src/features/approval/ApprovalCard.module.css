@@ -1,0 +1,343 @@
+.wrap {
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.wrap[data-surface='desk'] {
+  width: 360px;
+}
+
+/* Square panel: 1px subtle edge, no shadow; the danger rule shows as a red left edge. */
+.card {
+  position: relative;
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  padding: var(--ef-space-block);
+  border: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  border-radius: var(--ef-r-panel);
+  background: var(--ef-raised);
+  color: var(--ef-raised-fg);
+  font: var(--ef-t-meta);
+}
+
+.card[data-dangerous] {
+  border-left: var(--ef-lw-focus) solid var(--ef-state-failed);
+}
+
+.card:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.card[data-outcome='expired'] {
+  opacity: 0.6;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: var(--ef-t-row);
+  font-weight: var(--ef-fw-semibold);
+  color: var(--ef-raised-fg);
+  overflow-wrap: anywhere;
+}
+
+.count {
+  flex: none;
+  font: var(--ef-t-num);
+  color: var(--ef-text-2);
+}
+
+.dsq {
+  color: var(--ef-danger-text);
+}
+
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.src {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  margin: 0;
+  color: var(--ef-text-2);
+}
+
+.src code {
+  flex: none;
+  font: var(--ef-t-mono);
+  color: var(--ef-text-1);
+}
+
+.source {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rule {
+  margin: 0;
+  color: var(--ef-danger-text);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-4) var(--ef-sp-12);
+  min-width: 0;
+  margin: 0;
+  color: var(--ef-text-2);
+}
+
+.meta code {
+  font: var(--ef-t-mono);
+  color: var(--ef-text-1);
+  word-break: break-all;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-1);
+  font: var(--ef-t-meta);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link:hover:not([aria-disabled]) {
+  background: var(--ef-overlay-hover);
+  text-decoration-thickness: 2px;
+}
+
+.link:active:not([aria-disabled]) {
+  background: var(--ef-overlay-press);
+}
+
+.link:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+/* A dotted underline keeps it reading as a link that is off, not as plain text. */
+.link[aria-disabled] {
+  color: var(--ef-text-3);
+  text-decoration: underline dotted;
+  cursor: not-allowed;
+}
+
+.chk {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  color: var(--ef-text-1);
+  cursor: pointer;
+}
+
+.chk input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--ef-text-1);
+}
+
+/* Desk paper variant (stack): white paper in both themes, tape eyebrow, capsules in a footer row inside the paper. */
+.paper {
+  --pc: var(--ef-attention);
+  --ui-btn-ring: var(--ef-paper);
+  position: relative;
+  display: grid;
+  gap: var(--ef-sp-6);
+  min-width: 0;
+  padding: 10px var(--ef-sp-16) var(--ef-sp-16) var(--ef-sp-20);
+  background: var(--ef-paper);
+  color: var(--ef-paper-text);
+  font: var(--ef-t-meta);
+}
+
+.paper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--ef-lw-category);
+  background: var(--pc);
+}
+
+.paper[data-dangerous] {
+  --pc: var(--ef-danger);
+}
+
+.paper:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.paper[data-outcome] {
+  padding-bottom: var(--ef-sp-12);
+}
+
+.paper[data-outcome='expired'] {
+  opacity: 0.6;
+}
+
+.pHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  margin-bottom: var(--ef-sp-4);
+}
+
+.pLeft {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Art slot over the tape: fixed box, no paint until art lands. */
+.pArt {
+  position: absolute;
+  top: -10px;
+  left: 0;
+  width: 96px;
+  height: 24px;
+  pointer-events: none;
+}
+
+.tape {
+  display: flex;
+  width: 94px;
+  height: 2px;
+}
+
+.tape i {
+  display: block;
+  height: 100%;
+}
+
+.tape i:nth-child(1) {
+  flex: 2;
+  background: var(--ef-tape-y);
+}
+
+.tape i:nth-child(2) {
+  flex: 1;
+  background: var(--ef-tape-c);
+}
+
+.tape i:nth-child(3) {
+  flex: 0.93;
+  background: var(--ef-tape-m);
+}
+
+.pCount {
+  flex: none;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 9px;
+  background: var(--ef-paper-text);
+  color: var(--ef-paper);
+  font: var(--ef-fw-semibold) var(--ef-fs-num) / 18px var(--ef-font-num);
+}
+
+.pSrc {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  margin: 0;
+  color: var(--ef-paper-text-2);
+}
+
+.kv {
+  display: inline-flex;
+  flex: none;
+  height: 20px;
+}
+
+.kv b {
+  padding: 0 6px;
+  background: var(--ef-paper-text);
+  color: var(--ef-paper);
+  font: var(--ef-fw-medium) 11px / 20px var(--ef-font-sans);
+  text-transform: uppercase;
+}
+
+.kv code {
+  padding: 0 7px;
+  color: var(--ef-paper-text);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 20px var(--ef-font-sans);
+}
+
+.pTitle {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ef-paper-text);
+  font: var(--ef-fw-semibold) var(--ef-fs-title-2) / 1.4 var(--ef-font-sans);
+}
+
+.pHint {
+  margin: 0;
+  color: var(--ef-danger-text);
+  font-weight: var(--ef-fw-semibold);
+}
+
+/* The glass rim is under 3:1 on paper, so the secondary capsules take the strong line. */
+.pFoot {
+  --ef-glass-rim: var(--ef-line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ef-sp-12);
+  margin-top: var(--ef-sp-6);
+}
+
+.approve {
+  display: inline-flex;
+}
+
+.paper > [data-stub='CountdownLine'] {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: var(--ef-lw-category);
+}
+
+/* The exact call a role wants to make, as agentd previews it. */
+.preview {
+  max-height: calc(6 * var(--ef-lh-mono) + 2 * var(--ef-sp-8));
+  overflow: auto;
+  margin: 0;
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  border-radius: var(--ef-r-panel);
+  background: var(--ef-base);
+  color: var(--ef-base-fg);
+  font: var(--ef-t-mono);
+  white-space: pre-wrap;
+  word-break: break-all;
+}

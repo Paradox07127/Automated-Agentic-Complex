@@ -1,0 +1,67 @@
+{
+ "description": "断线和重连：Avatar 断线时 Companion 对没到终态的行为补发 cancelled / connection_lost；重连后 snapshot 的 behaviors 带在跑的全部行为（这里已结束，为 []）。另见 11：断线期间发出的行为由 snapshot 补上",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e1-1",
+   "type": "hold_window_edge",
+   "target": {
+    "kind": "window",
+    "window_id": 101,
+    "side": "left"
+   },
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 0,
+   "expires_at_ms": 1760900061000,
+   "intensity": 0.6,
+   "channels": [
+    "full_body",
+    "left_hand",
+    "contact"
+   ],
+   "exit": [
+    "target_gone",
+    "user_drag"
+   ],
+   "replaces": null,
+   "trace_id": "t-1"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900000490,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000500,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "cancelled",
+   "reason": "connection_lost",
+   "at_ms": 1760900009000,
+   "turn_generation": 3
+  },
+  {
+   "event": "snapshot",
+   "seq": 2,
+   "turn_generation": 3,
+   "behaviors": []
+  }
+ ]
+}

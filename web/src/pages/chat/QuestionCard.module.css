@@ -1,0 +1,127 @@
+/* Question card as a vote cell: the dark bubble plate, title row with the blue vote mark; options are the shared option rows, one per line. */
+.qcard {
+  /* Vote title icon #26BBFD; picked option lemon #FDF684. */
+  --vote-mark: #26bbfd;
+  --vote-picked: #fdf684;
+  position: relative;
+  width: min(100%, 460px);
+  margin: 0 0 4px;
+  padding: 11px 21px 12px;
+  border-radius: 7px;
+  background: var(--sns-other);
+  color: var(--sns-other-text);
+  transform-origin: left center;
+  animation:
+    vote-in 167ms var(--ef-ease-g-exit) both,
+    sns-fade 167ms var(--ef-ease-g-fade) both;
+}
+
+:global([data-theme='light']) .qcard {
+  --vote-mark: #0076aa;
+  --vote-picked: var(--ef-accent-text);
+  border: 1px solid var(--ef-line);
+}
+
+@keyframes vote-in {
+  from {
+    transform: scaleX(0.3);
+  }
+}
+
+@keyframes sns-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes vote-title-in {
+  from {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+}
+
+@keyframes options-in {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+}
+
+.qhead {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  margin-bottom: 13px;
+  animation: vote-title-in 216ms var(--ef-ease-g-enter) 117ms both;
+}
+
+/* sns_vote_decorate 34 g: a 17 px mark in vote blue. */
+.qicon {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  background:
+    linear-gradient(var(--vote-mark), var(--vote-mark)) 0 100% / 4px 9px no-repeat,
+    linear-gradient(var(--vote-mark), var(--vote-mark)) 6px 100% / 4px 17px no-repeat,
+    linear-gradient(var(--vote-mark), var(--vote-mark)) 12px 100% / 4px 13px no-repeat;
+}
+
+/* Title fs 30 g -> 15 px white. */
+.qkind {
+  font: 600 15px/20px var(--ef-font-sans);
+  color: var(--sns-other-text);
+}
+
+.qhead > [data-stub='Pill']:last-child {
+  margin-left: auto;
+}
+
+/* Options rise in from below (snsdialogoptions_in). */
+.qcard [role='listbox'] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: none;
+  animation: options-in 333ms var(--ef-ease-g-enter) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qcard,
+  .qhead,
+  .qcard [role='listbox'] {
+    animation-name: sns-fade;
+  }
+}
+
+:global([data-reduce-motion]) .qcard,
+:global([data-reduce-motion]) .qhead,
+:global([data-reduce-motion]) .qcard [role='listbox'] {
+  animation-name: sns-fade;
+}
+
+/* Result rows: text fs 26 g, #707070 -> #A7A7A7 for contrast. */
+.qtitle {
+  margin-bottom: 8px;
+  font: 400 13px/1.5 var(--ef-font-sans);
+  color: var(--sns-other-text);
+}
+
+.okline {
+  font: 500 13px/20px var(--ef-font-sans);
+  color: var(--vote-picked);
+}
+
+.undo {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+.preview {
+  margin-bottom: var(--ef-sp-8);
+}
+
+.aopts {
+  margin-bottom: var(--ef-sp-8);
+}

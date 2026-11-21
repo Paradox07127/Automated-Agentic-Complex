@@ -1,0 +1,90 @@
+"""Real HTTP routing, UI-token boundary and asynchronous report generation."""
+import datetime as dt
+import json
+import os
+from pathlib import Path
+import sys
+import threading
+from unittest.mock import patch
+from zoneinfo import ZoneInfo
+
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from brain.egress import EgressPolicy
+from character_agent.integration import CharacterAgentController
+from character_agent.services.observation_briefs import dump, window
+from personal.episodes import Episodes
+from personal.history import History
+from personal.memory import Memory
+from infra.store import open_store
+import test_server
+from test_character_agent_runtime import FakeSession
+
+
+class BriefHTTPFixture(test_server.FeedServerCase):
+    request = test_server.ServerTest.request
+
+    def setUp(self):
+        super().setUp()
+        self.port=self.server.server_port
+        self.root=Path(self.tmp.name)/'briefs'; self.root.mkdir()
+        self.db=open_store(self.root/'domain.sqlite'); lock=threading.RLock()
+        self.server.memory=Memory(self.db,lock=lock); self.server.history=History(self.db,lock=lock)
+        self.server.episodes=Episodes(self.db,lock=lock); self.server.egress=EgressPolicy()
+        self.server.share_page_text=True; self.server.share_typed_text=True
+        self.started=threading.Event(); self.release=threading.Event()
+        def factory(definitions):
+            def script(session,prompt,options):
+                source=json.loads(prompt)['evidence']['sources'][0]
+                self.started.set(); self.release.wait(3)
+                value={'observed_details':[{'detail':'出现测试失败线索','evidence':[{'source_id':source['source_id'],'quote':'渲染测试失败'}]}],
+                       'recurring_problems':[],'next_steps':[],'unknowns':['结果待核验']}
+                yield {'type':'result','success':True,'final_text':dump(value),'model':'fixture'}
+            return FakeSession(script)
+        self.c=self.server.character_agent=CharacterAgentController(self.server,self.root,session_factory=factory)
+        self.c.settings.save({'backend':'codex','runtime_source':'local'})
+        self.service=self.c.observation_briefs
+        # The fixture's dates are New York's, and the brief's default timezone is the system's.
+        system=patch.dict(os.environ,{'TZ':'America/New_York'}); system.start(); self.addCleanup(system.stop)
+        self.service.clock=lambda:dt.datetime(2026,10,31,2,tzinfo=ZoneInfo('America/New_York')).timestamp()
+        start=window('daily','2026-10-30','America/New_York')[1]+3600
+        body={'subject':'渲染测试失败','start':start,'end':start+120,'edits':2,'errors':1,'questions':0,
+              'source_refs':['attention:fixture'],'consent_epoch':self.server.consent.snapshot()[1]}
+        self.db.execute('INSERT INTO task_segments VALUES(?,?,?,?,?)',('seg-fixture',self.server.character,start,start+120,dump(body)));self.db.commit()
+
+    def tearDown(self):
+        self.release.set()
+        self.service.worker_lock.acquire(timeout=5); self.service.worker_lock.release()
+        super().tearDown()
+        self.c.store.close();self.c.workspace.close();self.db.close()
+
+
+class BriefHTTPTests(BriefHTTPFixture):
+    def test_generate_responds_before_inference_and_can_be_polled_and_dismissed(self):
+        code,queued=self.request('POST','/observation/briefs',{'period':'daily','date':'2026-10-30'})
+        self.assertEqual(code,202,queued); self.assertTrue(self.started.wait(2))
+        path='/observation/briefs/'+queued['id']
+        self.assertEqual(self.request('GET',path)[1]['state'],'running')
+        self.assertEqual(self.request('POST','/observation/briefs',{'date':'2026-10-30'})[0],409)
+        self.release.set(); self.assertTrue(self.service.worker_lock.acquire(timeout=3)); self.service.worker_lock.release()
+        self.assertEqual(self.request('GET',path)[1]['state'],'completed')
+        self.assertEqual(len(self.request('GET','/observation/briefs')[1]['reports']),1)
+        self.assertEqual(self.request('DELETE',path)[0],200)
+        self.assertEqual(self.request('GET',path)[1]['state'],'dismissed')
+
+    def test_ui_token_only_and_payload_settings_validation(self):
+        for token in (test_server.HOOK,test_server.EVENTS,None):
+            self.assertEqual(self.request('GET','/observation/briefs',token=token)[0],401)
+            self.assertEqual(self.request('POST','/observation/briefs',{},token=token)[0],401)
+        for body in ([],{'period':[]},{'period':'other'},{'date':3},{'date':'2026-11-01'}):
+            self.assertEqual(self.request('POST','/observation/briefs',body)[0],400)
+        self.assertEqual(self.request('POST','/observation/briefs/settings',{'enabled':False})[1]['enabled'],False)
+        self.assertEqual(self.request('POST','/observation/briefs',{})[0],400)
+        self.assertEqual(self.request('POST','/observation/briefs/settings',{'hour':True})[0],400)
+        self.assertEqual(self.request('PUT','/observation/briefs',{})[0],404)  # undeclared method rejected by HTTP guard
+
+    def test_source_delete_clears_persisted_report_without_any_memory_fact(self):
+        self.release.set();self.service.run_once('daily','2026-10-30')
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM facts').fetchone()[0],0)
+        self.c.task_understanding.delete_sources(['attention:fixture'])
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM observation_briefs').fetchone()[0],0)
+        self.assertEqual(self.request('GET','/observation/briefs')[1]['reports'],[])

@@ -1,0 +1,68 @@
+/* .ef-search: panel background, 1px rule border, square; focus = 2px --ef-trace bottom line. */
+.field {
+  display: flex;
+  flex: none;
+  align-items: center;
+  width: 100%;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  height: var(--ef-h-md);
+  padding: 0 var(--ef-sp-4) 0 var(--ef-sp-12);
+  border: 1px solid var(--ef-rule);
+  border-radius: 0;
+  background: var(--ef-raised);
+  color: var(--ef-text-2);
+}
+
+.field:hover {
+  border-color: var(--ef-line-strong);
+}
+
+.field:focus-within {
+  padding-top: 1px;
+  border-color: var(--ef-rule);
+  border-bottom: 2px solid var(--ef-trace);
+  outline: none;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--ef-text-1);
+  font: var(--ef-t-row);
+  font-weight: var(--ef-fw-regular);
+}
+
+.input::placeholder {
+  color: var(--ef-text-3);
+}
+
+.clear {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--ef-h-sm);
+  height: var(--ef-h-sm);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ef-text-2);
+  cursor: pointer;
+}
+
+.clear:hover {
+  background: var(--ef-chip);
+  color: var(--ef-text-1);
+}
+
+.clear:focus-visible {
+  outline: 2px solid var(--ef-trace);
+  outline-offset: -2px;
+}

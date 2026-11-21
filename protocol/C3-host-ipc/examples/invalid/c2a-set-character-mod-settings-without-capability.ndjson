@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["actions"]}
+{"v":1,"type":"set_character","id":"aster","mod_settings":{"default":{}}}

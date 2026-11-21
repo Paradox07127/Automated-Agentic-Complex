@@ -1,0 +1,251 @@
+@import './HudLineArt.css';
+/* One 36 px objective line on HudRoot's band; the colours come from HudRoot's --hud-* variables. */
+.line {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 8px 0 0;
+  color: var(--hud-t1);
+  font: 13px / 20px var(--ef-font-sans);
+}
+
+.icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+}
+
+.glyph {
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.glyph[data-glyph='running'],
+.glyph[data-glyph='waiting'] {
+  color: var(--ef-mission-accent);
+}
+
+.glyph[data-glyph='error'] {
+  color: var(--ef-danger-vivid);
+  stroke-width: 2;
+}
+
+.glyph[data-glyph='done'] {
+  color: var(--hud-done);
+}
+
+/* mission_incomplete_icon at .6. */
+.glyph[data-glyph='stale'] {
+  color: var(--hud-t1);
+  opacity: 0.6;
+}
+
+.dot {
+  fill: currentcolor;
+  stroke: none;
+}
+
+.badgeDot {
+  fill: var(--ef-badge-dot);
+  stroke: none;
+}
+
+/* tasktrackhud_cellfinish / cellfail: the icon flickers on over 83–250 ms. */
+.glyph[data-glyph='done'],
+.glyph[data-glyph='error'] {
+  animation: flick 167ms steps(1, end) 83ms both;
+}
+
+@keyframes flick {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* The finish sweep (#FFD200 on the complete token) and its red fail twin: widens to 152 px, flashes .9, fades by 1 s. */
+.line::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: 152px;
+  background: linear-gradient(90deg, var(--sweep) 0 18%, transparent);
+  opacity: 0;
+  transform-origin: left;
+  pointer-events: none;
+}
+
+[data-status='done'] > .line::before {
+  --sweep: var(--hud-done);
+  animation:
+    sweep-w 1000ms cubic-bezier(0.333, 0, 0.102, 1) both,
+    sweep-a 1000ms var(--ef-ease-g-fade) both;
+}
+
+[data-status='error'] > .line::before {
+  --sweep: var(--ef-danger-vivid);
+  animation:
+    sweep-w 1000ms cubic-bezier(0.333, 0, 0.102, 1) both,
+    sweep-a 1000ms var(--ef-ease-g-fade) both;
+}
+
+@keyframes sweep-w {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes sweep-a {
+  0%,
+  13.3% {
+    opacity: 0;
+  }
+  16.7% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+:global(.still) .glyph,
+:global(.still) .line::before {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glyph,
+  .line::before {
+    animation: none;
+  }
+}
+
+/* Desc: the title shrinks first, down to 4 characters; the action keeps its status word and stops at 40 %; the readout keeps whole. */
+.title {
+  flex: 1 1000 auto;
+  min-width: 4em;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--hud-t1);
+  font: 500 14px / 20px var(--ef-font-sans);
+  text-align: left;
+  text-shadow: inherit;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+button.title {
+  cursor: pointer;
+}
+
+button.title:hover {
+  text-decoration: underline;
+}
+
+button.title:focus-visible,
+.handle:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+/* Distance slot: the readout colour. */
+.actBox {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 6em;
+  max-width: 40%;
+}
+
+.act {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--hud-readout);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Needs you: the new-task bar in mission blue, dark text, no shadow; its fade sits outside the text box. */
+[data-status='waiting'] > .line .actBox {
+  min-width: calc(6em + 30px);
+  padding-right: 24px;
+  background: linear-gradient(
+    270deg,
+    transparent 0 6px,
+    color-mix(in srgb, var(--ef-mission-accent) 21%, transparent) 9.6px,
+    color-mix(in srgb, var(--ef-mission-accent) 34%, transparent) 12.6px,
+    color-mix(in srgb, var(--ef-mission-accent) 60%, transparent) 16px,
+    color-mix(in srgb, var(--ef-mission-accent) 86%, transparent) 19px,
+    color-mix(in srgb, var(--ef-mission-accent) 94%, transparent) 22px,
+    var(--ef-mission-accent) 24px
+  );
+}
+
+[data-status='waiting'] > .line .act {
+  padding-left: 6px;
+  color: var(--ef-on-mission-accent);
+  text-shadow: none;
+}
+
+/* Capped so title, action and readout fit the band at their minimums; past it the readout ellipsizes. */
+.meta {
+  flex: none;
+  max-width: 36%;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--hud-readout);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The track button: a dark capsule. */
+.handle {
+  flex: none;
+  height: 22px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--ef-btn-dark);
+  color: var(--ef-btn-dark-text);
+  font: 500 13px / 22px var(--ef-font-sans);
+  text-shadow: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Progress slot. */
+.count {
+  flex: none;
+  min-width: 28px;
+  color: var(--hud-t1);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: right;
+}

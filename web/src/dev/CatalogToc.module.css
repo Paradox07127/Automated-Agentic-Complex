@@ -1,0 +1,55 @@
+.toc {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: grid;
+  gap: var(--ef-sp-16);
+  max-height: calc(100vh - var(--ef-page-header));
+  padding: var(--ef-sp-24) var(--ef-sp-12) var(--ef-sp-24) var(--ef-page-pad);
+  overflow: auto;
+  border-right: var(--ef-lw-hair) solid var(--ef-line-subtle);
+}
+
+.group {
+  display: grid;
+  gap: var(--ef-sp-4);
+}
+
+.head {
+  margin: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-h3);
+}
+
+.count {
+  font: var(--ef-t-num);
+}
+
+.list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: var(--ef-sp-2) var(--ef-sp-8);
+  border: 0;
+  background: none;
+  color: var(--ef-text-1);
+  font: var(--ef-t-meta);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: var(--ef-overlay-hover);
+}
+
+.item:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -2px;
+}

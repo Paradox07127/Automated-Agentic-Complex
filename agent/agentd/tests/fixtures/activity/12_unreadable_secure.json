@@ -1,0 +1,43 @@
+{
+  "note": "终端里在输密码（secure_input），窗口文字不得读",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:sec-1",
+      "app": "Terminal",
+      "bundle_id": "com.apple.Terminal",
+      "pid": 530,
+      "window_id": 130,
+      "title": null,
+      "url_host": null,
+      "since": 1799999985.0,
+      "secure_input": true
+    },
+    "dwell_s": 15.0,
+    "presence": {
+      "id": "afk:sec-1",
+      "status": "active",
+      "seconds": 200,
+      "idle_s": 1
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": {
+      "id": "wt:sec-1",
+      "app": "Terminal",
+      "title": null,
+      "text": "Password:"
+    },
+    "observations": [],
+    "sessions": [],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "unreadable",
+    "status": "degraded",
+    "related_session_ids": [],
+    "can_interrupt": false
+  }
+}

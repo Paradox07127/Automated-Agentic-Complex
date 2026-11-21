@@ -1,0 +1,181 @@
+.root {
+  --cc: var(--ef-state-running);
+  --dot: 8px;
+  min-width: 0;
+}
+
+.root[data-size='desk'] {
+  --dot: 6px;
+}
+
+.chain {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex: 1 1 0;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.item:first-child {
+  flex: none;
+}
+
+.link {
+  display: flex;
+  flex: 1 1 24px;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  min-width: 24px;
+  padding: 0 var(--ef-sp-4);
+}
+
+.root[data-size='desk'] .link {
+  min-width: 18px;
+}
+
+.link i {
+  display: block;
+  align-self: stretch;
+  height: 1px;
+  margin-top: calc(var(--dot) / 2 - 0.5px);
+  background: var(--ef-chart-axis);
+}
+
+.link[data-dash] i {
+  background: repeating-linear-gradient(90deg, var(--ef-chart-axis) 0 3px, transparent 3px 6px);
+}
+
+/* Open span (still waiting): hatch = 未结束. */
+.link[data-open] i {
+  height: 5px;
+  margin-top: calc(var(--dot) / 2 - 2.5px);
+  background: var(--ef-hatch);
+  box-shadow: inset 0 0 0 1px var(--ef-chart-axis);
+}
+
+/* Span labels can be Chinese (等待 2 m): 12 px with tabular figures. */
+.segLabel {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--ef-chart-label);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.2 var(--ef-font-sans);
+  text-align: center;
+}
+
+.dot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dot);
+  height: var(--dot);
+  flex: none;
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+}
+
+.item[data-state='done'] .dot {
+  background: var(--ef-text-1);
+}
+
+.item[data-state='ok'] .dot {
+  color: var(--ef-success-text);
+}
+
+/* A break needs a look: ✕ in ink on a yellow block, drawn around the dot's box. */
+.item[data-state='broken'] .dot {
+  width: calc(var(--dot) + 6px);
+  height: calc(var(--dot) + 6px);
+  margin: -3px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font-size: var(--ef-fs-num);
+}
+
+/* Current: a solid ink frame. */
+.item[data-state='current'] .dot {
+  box-shadow: inset 0 0 0 1px var(--cc);
+}
+
+.item[data-state='unreachable'] .dot {
+  box-shadow: inset 0 0 0 1px var(--ef-text-3);
+}
+
+.item[data-state='todo'] .dot {
+  background: var(--ef-chart-cell-empty);
+}
+
+/* "等你" overlays any node: a yellow ◆ edged in ink. */
+.item[data-waiting] .dot {
+  background: var(--ef-state-waiting);
+  box-shadow: inset 0 0 0 1px var(--ef-on-accent);
+  transform: rotate(45deg) scale(0.9);
+}
+
+.label {
+  white-space: nowrap;
+}
+
+/* 待处理 under a waiting node: a yellow block with ink text. */
+.item[data-waiting] .sub {
+  padding: 0 var(--ef-sp-4);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.item[data-state='unreachable'] .label,
+.item[data-state='todo'] .label {
+  color: var(--ef-text-3);
+}
+
+.sub {
+  color: var(--ef-chart-label);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.2 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.segLine {
+  margin-top: var(--ef-sp-4);
+  color: var(--ef-chart-label);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.3 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.recovery {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  margin-top: var(--ef-sp-8);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.recoveryMark {
+  padding: 0 var(--ef-sp-4);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font-weight: var(--ef-fw-semibold);
+}

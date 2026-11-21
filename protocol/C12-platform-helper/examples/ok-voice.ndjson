@@ -1,0 +1,26 @@
+{"v":1,"id":1,"op":"hello","params":{"protocol":1,"client":"electron","client_version":"0.1.0"}}
+{"v":1,"id":1,"ok":true,"result":{"protocol":1,"platform":"macos","helper_version":"0.1.0","os_version":"macOS 26.1","arch":"arm64","pid":4242,"ops":["hello","cancel","shutdown","screens.list","windows.list","windows.at_point","workspace.watch","attention.sample","presence.watch","browser.front_tab","input.modifiers","input.watch","ax.focused","ax.dialog_buttons","ax.overlays","ax.hit_chain","ax.window_text","ax.selected_text","ax.video_rect","ax.watch","capture.window","capture.ambient","ocr.languages","ocr.recognize","speech.locales","mic.start","mic.stop","ptt.register","ptt.unregister","control.observe","control.act","control.read","control.listen","control.respond","permissions.status","permissions.request","clipboard.read","apps.running","apps.installed","apps.activate","terminal.focus","process.usage"],"events":["workspace.changed","presence.edge","input.activity","ax.notification","mic.level","speech.partial","ptt.down","ptt.up","control.request","ptt.typed","speech.download"]}}
+{"v":1,"id":2,"op":"speech.locales","params":{}}
+{"v":1,"id":2,"ok":true,"result":{"engine":"SpeechTranscriber","locales":["zh-CN","en-US","ja-JP"]}}
+{"v":1,"id":3,"op":"ptt.register","params":{"combo":"control+option+space"}}
+{"v":1,"id":3,"ok":false,"error":{"code":"hotkey_taken","message":"another app holds control+option+space","retryable":false}}
+{"v":1,"id":4,"op":"ptt.register","params":{"combo":"right_option"}}
+{"v":1,"id":4,"ok":true,"result":{"registered":true}}
+{"v":1,"id":5,"op":"ptt.register","params":{"combo":"control+f99"}}
+{"v":1,"id":5,"ok":false,"error":{"code":"bad_hotkey","message":"unknown key f99","retryable":false}}
+{"v":1,"event":"ptt.down","seq":1,"data":{}}
+{"v":1,"id":6,"op":"mic.start","params":{"session":"v-1","locale":"zh-CN","level_events":true}}
+{"v":1,"event":"speech.download","seq":2,"data":{"session":"v-1","fraction":0.25,"completed":52428800,"total":209715200}}
+{"v":1,"id":6,"ok":true,"result":{"session":"v-1","locale":"zh-CN","sample_rate":16000}}
+{"v":1,"event":"mic.level","seq":3,"data":{"session":"v-1","rms":0.12}}
+{"v":1,"event":"speech.partial","seq":4,"data":{"session":"v-1","text":"帮我看"}}
+{"v":1,"event":"ptt.up","seq":5,"data":{}}
+{"v":1,"id":7,"op":"mic.stop","params":{"session":"v-1"}}
+{"v":1,"id":7,"ok":true,"result":{"session":"v-1","text":"帮我看一下这个窗口","duration_ms":2310}}
+{"v":1,"id":8,"op":"mic.stop","params":{"session":"v-1"}}
+{"v":1,"id":8,"ok":false,"error":{"code":"not_recording","message":"session v-1 already stopped","retryable":false}}
+{"v":1,"event":"ptt.down","seq":6,"data":{}}
+{"v":1,"event":"ptt.typed","seq":7,"data":{}}
+{"v":1,"event":"ptt.up","seq":8,"data":{}}
+{"v":1,"id":9,"op":"ptt.unregister","params":{}}
+{"v":1,"id":9,"ok":true,"result":{"unregistered":true}}

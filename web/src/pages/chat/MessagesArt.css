@@ -1,0 +1,87 @@
+/* Textures of the chat rows, used only once the art is in place (html[data-art]); inlined into Messages.module.css through MessagesPart1.css. */
+
+/* Bubble plates (recipe sns-bubble-other / sns-bubble-self): the 9-sliced sprites carry the tail corner and the baked dots; the light theme keeps the flat plates. */
+:global(html[data-art][data-theme='dark']) .bubble {
+  border: 0 solid transparent;
+  border-image: url('/art/common/sns-bubble-other.png') 36 45 33 43 fill / 18px 22.5px 16.5px 21.5px / 1px;
+  background: none;
+}
+
+:global(html[data-art][data-theme='dark']) .msg[data-kind='me'] > .bubble {
+  border-image-source: url('/art/common/sns-bubble-self.png');
+  background: none;
+}
+
+:global(html[data-art][data-theme='dark']) .bubble::before {
+  display: none;
+}
+
+/* Head: a halftone disc 125x124 g and a broken ring 89 g (recipe sns-avatar-halftone / sns-avatar-ring). */
+:global(html[data-art]) .ava::before {
+  inset: -7px;
+  border-radius: 0;
+  background: var(--sns-halftone);
+  -webkit-mask: url('/art/common/sns-avatar-halftone.png') center / 64px 64px no-repeat;
+  mask: url('/art/common/sns-avatar-halftone.png') center / 64px 64px no-repeat;
+}
+
+:global(html[data-art]) .ava::after {
+  inset: 2px;
+  border: 0;
+  border-radius: 0;
+  background: var(--sns-ring);
+  -webkit-mask: url('/art/common/sns-avatar-ring.png') center / 46px 46px no-repeat;
+  mask: url('/art/common/sns-avatar-ring.png') center / 46px 46px no-repeat;
+}
+
+/* Task card: the barcode stripes 339x99 g behind the go button, in the stripe ink (#000@0.2). */
+:global(html[data-art]) .tcard {
+  isolation: isolate;
+  background: var(--sns-card);
+}
+
+:global(html[data-art]) .tcard::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  right: 0;
+  z-index: -1;
+  width: 172px;
+  height: 52px;
+  background: var(--sns-stripes);
+  pointer-events: none;
+  -webkit-mask: url('/art/common/sns-task-stripes.png') center / 172px 52px no-repeat;
+  mask: url('/art/common/sns-task-stripes.png') center / 172px 52px no-repeat;
+}
+
+/* Content card deco 181x133 g at @0.122, at the right of the long-reply card; its greys are baked. */
+:global(html[data-art]) .card {
+  isolation: isolate;
+}
+
+:global(html[data-art]) .card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: -1;
+  width: 92px;
+  height: 68px;
+  background: url('/art/common/sns-card-deco.png') center / 92px 68px no-repeat;
+  opacity: 0.122;
+  pointer-events: none;
+}
+
+/* End line ticks 179x12 g at @0.298, in place of the CSS ticks. */
+:global(html[data-art]) .endDeco {
+  width: 92px;
+  height: 8px;
+  background: var(--sns-end-ticks);
+  -webkit-mask: url('/art/common/sns-endline-deco.png') center / 92px 8px no-repeat;
+  mask: url('/art/common/sns-endline-deco.png') center / 92px 8px no-repeat;
+}
+
+/* Generic avatar (recipe sns-avatar-generic) for the user or an unknown speaker. */
+:global(html[data-art]) .generic {
+  background: url('/art/common/sns-avatar-generic.png') center / cover no-repeat;
+}

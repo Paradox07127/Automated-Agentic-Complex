@@ -1,0 +1,85 @@
+/* Disclosure row with hairlines; the chevron rotates with mech; no plate. */
+.fold {
+  display: grid;
+  min-width: 0;
+  border-top: 1px solid var(--ef-line);
+  border-bottom: 1px solid var(--ef-line);
+  background: none;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--ef-sp-4);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.head:hover {
+  color: var(--ef-text-1);
+}
+
+.head:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.chev {
+  flex: none;
+  color: var(--ef-text-2);
+  transition: transform 160ms var(--ef-ease-mech);
+}
+
+.fold[data-open] .chev {
+  color: var(--ef-text-1);
+  transform: rotate(90deg);
+}
+
+.label {
+  flex: none;
+}
+
+.count {
+  flex: none;
+  color: var(--ef-text-3);
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-3);
+  font-weight: var(--ef-fw-regular);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.body {
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  padding: var(--ef-sp-8) 0 var(--ef-sp-8) var(--ef-sp-16);
+  border-top: 1px solid var(--ef-rule);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chev {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .chev,
+:global(.still) .chev {
+  transition: none;
+}

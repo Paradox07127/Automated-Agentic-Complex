@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["actions","motion_overrides"]}
+{"v":1,"type":"play_chain","req":6,"play_id":"pc-1","character":"birch","start":"A_clip_birch_customized_state_think_start"}

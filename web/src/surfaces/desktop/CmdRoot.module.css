@@ -1,0 +1,13 @@
+/* Shrink-wrapped: the panel takes this box's size; empty while no layer is open. DesktopLayout.consoleInset is the top
+   and side padding; the bottom holds the card's whole shadow. */
+.root {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: transparent;
+}
+
+.root:not(:empty) {
+  padding: var(--ef-sp-16) var(--ef-sp-16) 28px;
+}

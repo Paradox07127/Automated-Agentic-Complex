@@ -1,0 +1,5 @@
+{
+  "tasks": [{"task_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "target": "character", "cwd": "/Users/me/Documents", "title": "整理周报",
+             "mode": "workspace_write", "state": "needs_review", "verify_cmd": "make check", "session_id": "own:0123456789ab",
+             "created_at": 1793503600.2, "updated_at": 1793503662.4, "result": null, "requested_by": null}]
+}

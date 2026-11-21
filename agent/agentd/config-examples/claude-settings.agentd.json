@@ -1,0 +1,203 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /ABSOLUTE/PATH/agent/agentd/codex_hook_forward.py --endpoint /hook/claude --url http://127.0.0.1:48800 --token-file /ABSOLUTE/PATH/agentd-state/hook.token --timeout 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 3,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 3,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 3,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 60,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt|idle_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 3,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 3,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 3,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 3,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 3,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 3,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:48800/hook/claude",
+            "timeout": 3,
+            "headers": {
+              "Authorization": "Bearer $AGENTD_HOOK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "AGENTD_HOOK_TOKEN"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

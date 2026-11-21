@@ -1,0 +1,3 @@
+{"v":1,"type":"hello","role":"companion","pid":4243,"protocol":1,"capabilities":["render_live","camera_free","camera_bust"]}
+{"v":1,"type":"set_render","req":5,"camera":{"framing":"bust"}}
+{"v":1,"type":"set_render","req":6,"camera":{"framing":"full"}}

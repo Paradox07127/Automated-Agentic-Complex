@@ -1,0 +1,19 @@
+.glitch {
+  display: inline-block;
+}
+
+.demoTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  padding: var(--ef-sp-8) var(--ef-sp-16);
+  background: var(--ef-g-wheel-bg);
+  color: var(--ef-g-btn-hover);
+  font: var(--ef-t-h2);
+}
+
+.demoBar {
+  width: 4px;
+  height: 18px;
+  background: var(--ef-accent);
+}

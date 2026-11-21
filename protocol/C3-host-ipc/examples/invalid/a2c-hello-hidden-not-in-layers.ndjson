@@ -1,0 +1,1 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"birch","capabilities":["heartbeat","ack","layers"],"build":{"git":"test"},"layers":[{"id":"coat","name":"外套"}],"hidden_layers":["cape"]}

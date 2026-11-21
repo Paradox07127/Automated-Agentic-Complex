@@ -1,0 +1,26 @@
+[
+  {
+    "op": "resize.drag",
+    "surface": "stack",
+    "args": [
+      "bottomRight",
+      60,
+      100
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "resize.endDrag",
+    "surface": "stack",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "resize.act",
+    "surface": "stack",
+    "args": [
+      "done"
+    ],
+    "kind": "undefined"
+  }
+]

@@ -1,0 +1,17 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+}
+
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+}
+
+.reject {
+  padding: var(--ef-sp-12);
+  border-left: var(--ef-lw-category) solid var(--ef-attention);
+  background: var(--ef-step-bg);
+}

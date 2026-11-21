@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "POST /agent/interactions/:interaction_id/answer for an approval",
+  "description": "Question interactions keep their free-text answer schema. For approvals, allow_session is accepted only when data.approval_answers offers it and no danger rule matched.",
+  "type": "object",
+  "required": ["expected_version", "answers"],
+  "additionalProperties": false,
+  "properties": {
+    "expected_version": {"type": "integer"},
+    "answers": {
+      "type": "object", "required": ["decision"], "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "type": "array", "minItems": 1, "maxItems": 1,
+          "items": {"type": "string", "enum": ["allow", "allow_session", "deny", "允许", "拒绝"]}
+        }
+      }
+    }
+  }
+}

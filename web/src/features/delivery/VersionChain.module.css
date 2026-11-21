@@ -1,0 +1,58 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+}
+
+.link {
+  width: 16px;
+  height: var(--ef-lw-hair);
+  background: var(--ef-chart-axis);
+}
+
+.node {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--ef-fs-caption);
+  color: var(--ef-text-1);
+}
+
+.node b {
+  font-weight: var(--ef-fw-semibold);
+}
+
+button.node {
+  cursor: pointer;
+}
+
+.node[aria-pressed='true'] {
+  padding: 0 var(--ef-sp-2);
+  background: var(--ef-row-sel-bg);
+  color: var(--ef-row-sel-fg);
+}
+
+.node[data-state='rejected'] {
+  color: var(--ef-text-3);
+}
+
+.node[data-state='rejected'] b {
+  color: var(--ef-text-3);
+}
+
+.node[data-state='accepted'] b {
+  color: var(--ef-success-text);
+}
+
+.node[data-state='produced'] b,
+.node[data-state='presented'] b,
+.node[data-state='viewed'] b {
+  color: var(--ef-attention-text);
+}
+
+.node[aria-pressed='true'] b {
+  color: inherit;
+}

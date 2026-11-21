@@ -1,0 +1,39 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-caption);
+  white-space: nowrap;
+}
+
+.root[data-paper] {
+  color: var(--ef-paper-text-2);
+}
+
+.cells {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.cells i {
+  display: block;
+  width: 6px;
+  height: 6px;
+  background: var(--ef-chart-cell-empty);
+}
+
+.root[data-paper] .cells i {
+  background: var(--ef-line-strong);
+  opacity: 0.35;
+}
+
+.cells i.on,
+.root[data-paper] .cells i.on {
+  background: var(--ef-attention);
+  opacity: 1;
+}
+
+.text {
+  font-variant-numeric: tabular-nums;
+}

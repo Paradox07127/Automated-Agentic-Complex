@@ -1,0 +1,106 @@
+{
+ "description": "扶窗中先用空闲通道回应：listen 不替换扶窗（replaces 为 null），只占眼、头、嘴",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e1-1",
+   "type": "hold_window_edge",
+   "target": {
+    "kind": "window",
+    "window_id": 101,
+    "side": "left"
+   },
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 0,
+   "expires_at_ms": 1760900061000,
+   "intensity": 0.6,
+   "channels": [
+    "full_body",
+    "left_hand",
+    "contact"
+   ],
+   "exit": [
+    "target_gone",
+    "user_drag"
+   ],
+   "replaces": null,
+   "trace_id": "t-1"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900000490,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000500,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-e1-2",
+   "type": "listen",
+   "target": {
+    "kind": "user"
+   },
+   "trigger": {
+    "source": "user",
+    "event": "speech_start"
+   },
+   "display_session": null,
+   "turn_id": "l-9",
+   "turn_generation": 3,
+   "priority": 2,
+   "expires_at_ms": 1760900062000,
+   "intensity": 0.3,
+   "channels": [
+    "eyes",
+    "head",
+    "mouth"
+   ],
+   "exit": [
+    "speech_end"
+   ],
+   "replaces": null,
+   "trace_id": "t-2"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900002040,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900002050,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "completed",
+   "reason": null,
+   "at_ms": 1760900006000,
+   "turn_generation": 3
+  }
+ ]
+}

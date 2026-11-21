@@ -1,0 +1,128 @@
+/* 拍照: the filter grid (4 columns) and its info area above, aperture, focus and the shutter below. */
+.photo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-16);
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.filters,
+.camera {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-12);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--ef-sp-8);
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  padding: var(--ef-sp-6);
+  border: 0;
+  background: var(--ef-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ef-line);
+  color: var(--ef-text-2);
+  font: 12px / 1.2 var(--ef-font-sans);
+  cursor: pointer;
+}
+
+.cell[data-selected] {
+  box-shadow: inset 0 0 0 2px var(--ef-emph);
+  color: var(--ef-text-1);
+}
+
+.cell:focus-visible {
+  outline: 1px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.icon {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: var(--ef-surface-1);
+}
+
+.name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.use {
+  position: absolute;
+  top: var(--ef-sp-6);
+  left: var(--ef-sp-6);
+  padding: 0 var(--ef-sp-4);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.info {
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  background: var(--ef-surface-1);
+  box-shadow: inset 2px 0 0 var(--ef-emph);
+}
+
+.infoName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ef-text-1);
+}
+
+.infoDesc {
+  margin-top: var(--ef-sp-2);
+  font-size: 12px;
+  color: var(--ef-text-3);
+}
+
+.note {
+  font-size: 12px;
+  color: var(--ef-text-3);
+}
+
+.ctl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8) var(--ef-sp-12);
+}
+
+.k {
+  min-width: 96px;
+  font-size: 13px;
+  color: var(--ef-text-2);
+}
+
+.num {
+  font-family: var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-text-1);
+}
+
+.shutter {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+}
+
+.saved {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  color: var(--ef-text-2);
+}

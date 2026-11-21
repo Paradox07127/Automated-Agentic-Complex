@@ -1,0 +1,224 @@
+/* Task detail column: title, a yellow location line over a rule, objective bands, the timer band, the rewards strip. */
+.root {
+  --drawer-rule: rgba(255, 255, 255, 0.2); /* separator #FFFFFF@0.2 */
+  --drawer-timer: rgba(255, 241, 0, 0.2); /* timer band #FFF100@0.2 */
+  --drawer-bar-l: #B7B7B7; /* rewards row left bar */
+  --drawer-bar-r: rgba(255, 255, 255, 0.502); /* rewards row right bar */
+  --drawer-label: #CCCDCF; /* rewards row label */
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-16);
+  min-width: 0;
+  padding: var(--ef-sp-12) var(--ef-sp-16) var(--ef-sp-16);
+}
+
+:global([data-theme='light']) .root {
+  --drawer-rule: var(--ef-line);
+  --drawer-bar-l: var(--ef-text-3);
+  --drawer-bar-r: var(--ef-line-strong);
+  --drawer-label: var(--ef-text-2);
+}
+
+/* The Sheet body already pads its content. */
+.root[data-in-sheet] {
+  padding: 0;
+}
+
+/* missionnode_in: each detail row slides in from the right, 33 ms apart. */
+.root > * {
+  animation:
+    drawer-fade 333ms var(--ef-ease-g-fade) backwards,
+    drawer-node-in 500ms var(--ef-ease-g-enter) backwards;
+}
+
+.root > :nth-child(2) {
+  animation-delay: 33ms;
+}
+
+.root > :nth-child(3) {
+  animation-delay: 67ms;
+}
+
+.root > :nth-child(4) {
+  animation-delay: 100ms;
+}
+
+.root > :nth-child(n + 5) {
+  animation-delay: 133ms;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+/* Task name fs 34.45 g. */
+.title {
+  flex: 1;
+  min-width: 0;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) 17px / 1.35 var(--ef-font-sans);
+}
+
+/* Location row: pin and name in accent, a 1 px rule under it. */
+.sub {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  margin-top: calc(var(--ef-sp-8) * -1);
+  padding-bottom: var(--ef-sp-8);
+  border-bottom: var(--ef-lw-hair) solid var(--drawer-rule);
+  color: var(--ef-accent-text);
+  font-size: var(--ef-fs-caption);
+}
+
+.sub:first-child {
+  margin-top: 0;
+}
+
+.loc {
+  display: inline-flex;
+  color: var(--ef-accent-text);
+}
+
+.dl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  margin: 0;
+}
+
+.dl dt {
+  font-size: var(--ef-fs-caption);
+}
+
+.dl dd {
+  margin: 0;
+  min-width: 0;
+}
+
+/* Objective band (QuestCell): #000@0.3 from 32.5 c, a hollow square in the gutter, text 45.5 c in. */
+.obj {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: var(--ef-sp-12);
+  align-items: start;
+  min-height: 34px;
+  padding: 8px var(--ef-sp-12) 8px 45.5px;
+  isolation: isolate;
+}
+
+.obj::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 0 32.5px;
+  background: var(--ef-step-bg);
+}
+
+.obj::after {
+  content: '';
+  position: absolute;
+  top: 13px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--ef-text-2);
+}
+
+.obj dt {
+  padding-top: 2px;
+  color: var(--drawer-label);
+}
+
+/* Rewards strip: label above, a grey bar left and a light bar right; the plate keeps the page fill so the chains' small text reads. */
+.reward {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-6);
+  min-width: 0;
+}
+
+.reward + .reward {
+  margin-top: var(--ef-sp-4);
+}
+
+.reward dt {
+  color: var(--drawer-label);
+  font-size: 13px;
+}
+
+.reward dd {
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  border-right: 2px solid var(--drawer-bar-r);
+  border-left: 2px solid var(--drawer-bar-l);
+}
+
+.ver {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8) var(--ef-space-inline);
+}
+
+.ver > [data-stub='DeliveryChain'] {
+  flex: 1 1 240px;
+}
+
+/* Timer / lock band (TimerNode): accent@0.2, an accent icon, text 12 c. */
+.stopped,
+.timer {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  min-height: 24px;
+  margin: 0;
+  padding: var(--ef-sp-4) var(--ef-sp-12);
+  background: var(--drawer-timer);
+  color: var(--ef-text-1);
+  font-size: var(--ef-fs-caption);
+}
+
+.timerIc {
+  display: inline-flex;
+  flex: none;
+  color: var(--ef-accent-text);
+}
+
+.done {
+  font-size: var(--ef-fs-body);
+  color: var(--ef-success-text);
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@keyframes drawer-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-node-in {
+  from {
+    transform: translateX(50px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root > * {
+    animation: drawer-fade var(--ef-dur-g-panel-in) var(--ef-ease-g-fade) backwards;
+  }
+}
+
+:global([data-reduce-motion]) .root > * {
+  animation: drawer-fade var(--ef-dur-g-panel-in) var(--ef-ease-g-fade) backwards;
+}
+
+:global(.still) .root > * {
+  animation: none;
+}

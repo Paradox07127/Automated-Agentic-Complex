@@ -1,0 +1,5 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["capsules_global","watchdog","pointer"],"build":{"git":"4b96faff"}}
+{"v":1,"type":"pointer","speed":0,"hover_ms":0,"near":true,"shake":false}
+{"v":1,"type":"pointer","speed":0,"hover_ms":100,"near":true,"shake":false}
+{"v":1,"type":"pointer","speed":842.5,"hover_ms":0,"near":true,"shake":true}
+{"v":1,"type":"pointer","speed":0,"hover_ms":0,"near":false,"shake":false}

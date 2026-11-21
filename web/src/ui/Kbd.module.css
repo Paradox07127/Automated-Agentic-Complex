@@ -1,0 +1,39 @@
+.kbd {
+  --bg: var(--ef-chip);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--ef-text-2);
+  font: var(--ef-fw-semibold) var(--ef-fs-keycap) / 1 var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Chinese key names take the 12px floor for Chinese text. */
+.kbd[data-cjk] {
+  font-size: var(--ef-fs-meta);
+}
+
+.kbd[data-hud] {
+  --bg: var(--ef-hud-row);
+  color: var(--ef-text-1);
+}
+
+.kbd[data-size='lg'] {
+  min-width: 20px;
+  height: 20px;
+}
+
+/* Inside a disabled control: text-3, still at least 3:1; no opacity. */
+:global([aria-disabled='true']) .kbd,
+:global(:disabled) .kbd {
+  color: var(--ef-text-3);
+}

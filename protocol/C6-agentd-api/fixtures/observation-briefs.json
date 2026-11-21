@@ -1,0 +1,21 @@
+{
+  "settings": {"enabled": true, "daily": true, "weekly": true, "hour": 9, "timezone": "America/New_York"},
+  "reports": [{"id": "brief-060021117a99a52a5f7164e80ab20970", "state": "completed", "period": "daily", "date": "2026-10-30",
+               "timezone": "America/New_York", "start": 1793332800.0, "end": 1793419200.0, "character_id": "aster",
+               "generated_at": 1793503662.4, "run_id": "semantic-acc0d51512d4474db9a487ae24726a9f", "backend": "codex",
+               "model": "gpt-5-mini", "authority": "observed_analysis", "next_steps_are_suggestions": true,
+               "coverage": {"sampled": true, "source_count": 2, "candidate_rows_examined": 2,
+                            "work_event_index": [{"source_id": "work_event:work-ae9109e959a7970e963fef22e6a176e1",
+                                                  "observation_id": "work-ae9109e959a7970e963fef22e6a176e1",
+                                                  "at": 1793350000.5, "read_tool": "observation_read"}],
+                            "input_char_limit": 12000,
+                            "scope": "retained authorized Agentic Complex summaries and activity keywords; not complete computer history"},
+               "observed_details": [{"detail": "在改预算报告", "evidence": [{"source_id": "segment:seg-6827678e364146ce9b68762eb7ca8352",
+                                                                        "quote": "预算报告"}]}],
+               "recurring_problems": [{"problem": "预算报告反复返工", "optimization": "先定模板",
+                                       "evidence": [{"source_id": "segment:seg-6827678e364146ce9b68762eb7ca8352", "quote": "预算报告"}]}],
+               "next_steps": [{"action": "核对来源", "reason": "数据待核验",
+                               "evidence": [{"source_id": "segment:seg-6827678e364146ce9b68762eb7ca8352", "quote": "预算报告"}]}],
+               "unknowns": ["覆盖不全"]}],
+  "attempts": [{"id": "brief-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "state": "failed", "period": "daily", "date": "2026-10-30", "timezone": "America/New_York", "start": 1793332800, "end": 1793419200, "updated_at": 1793440800, "attempts": 1, "error_code": "invalid_brief_shape", "validation_path": "observed_details[0].detail", "retry_at": 1793444400, "automatic_retry": true, "can_retry": true}]
+}

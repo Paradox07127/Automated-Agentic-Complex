@@ -1,0 +1,525 @@
+import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { test } from 'node:test';
+import routes from '../../../protocol/ui-bridge/routes.json' with { type: 'json' };
+import { handle } from '../src/common/bridge.ts';
+import { type EventFeed, FeedSource, silentSource } from '../src/common/feed.ts';
+import { type Cancel, PageSession, type StreamEvent } from '../src/common/page.ts';
+import { checkRequest, isExportPath, RouteTable, swapHandles } from '../src/common/routes.ts';
+import { current, desktopHotkeys, hotkeyName, planSave, schema, webHotkey } from '../src/common/settings.ts';
+import { ORIGIN } from '../src/common/ui.ts';
+import { avatarDetails, type AvatarHost } from '../src/main/ops/avatar.ts';
+import { reloadAvatar } from '../src/main/ops/holding.ts';
+import { type OpsContext, registry } from '../src/main/ops/index.ts';
+import { localPath } from '../src/main/platform/index.ts';
+
+const page0 = { mainFrame: true, origin: ORIGIN };
+
+/** An AgentStore stand-in the test drives. */
+class FakeFeed implements EventFeed {
+  events = new Set<(e: StreamEvent) => void>();
+  reloads = new Set<() => void>();
+  subscribe(onEvent: (e: StreamEvent) => void): Cancel {
+    this.events.add(onEvent);
+    return () => this.events.delete(onEvent);
+  }
+  onReload(onReload: () => void): Cancel {
+    this.reloads.add(onReload);
+    return () => this.reloads.delete(onReload);
+  }
+  send(e: StreamEvent): void {
+    for (const h of [...this.events]) h(e);
+    if (e.event === 'gap' || e.event === 'reset') for (const h of [...this.reloads]) h();
+  }
+}
+
+const ev = (id: string | null, event = 'feed', data = '{}'): StreamEvent => ({ event, id, data });
+
+test('feed replays buffered events after afterSeq, and asks a page that missed events to reload', () => {
+  const feed = new FakeFeed(), source = new FeedSource(feed);
+  feed.send(ev('e1-1'));
+  feed.send(ev('e1-2'));
+  feed.send(ev('e1-3'));
+  const got: string[] = [];
+  let reloads = 0;
+  const cancel = source.subscribe('e1-1', (e) => got.push(e.id!), () => { reloads += 1; });
+  assert.deepEqual(got, ['e1-2', 'e1-3']);
+  feed.send(ev('e1-4'));
+  assert.deepEqual(got, ['e1-2', 'e1-3', 'e1-4']);
+  assert.equal(reloads, 0);
+  cancel();
+  feed.send(ev('e1-5'));
+  assert.equal(got.length, 3);
+  source.subscribe('e0-9', () => {}, () => { reloads += 1; });
+  assert.equal(reloads, 1, 'another epoch');
+  feed.send(ev(null, 'gap'));
+  let late = 0;
+  source.subscribe('e1-5', () => {}, () => { late += 1; });
+  assert.equal(late, 1, 'at the gap');
+  assert.equal(reloads, 2, 'the gap reloads the live subscriber');
+});
+
+test('a page session drops pushes of an ended document and cancels its subscriptions', () => {
+  const pushed: unknown[] = [];
+  const page = new PageSession((...a) => pushed.push(a));
+  const feed = new FakeFeed(), source = new FeedSource(feed);
+  page.subscribe(page.generation, 'feed', 1, source, null);
+  feed.send(ev('e-1'));
+  assert.deepEqual(pushed, [[1, 'feed', 'event', ev('e-1')]]);
+  page.end();
+  feed.send(ev('e-2'));
+  assert.equal(pushed.length, 1);
+  assert.equal(feed.events.size, 1, 'only the source buffer is left');
+  page.subscribe(0, 'feed', 2, source, null);
+  assert.equal(feed.events.size, 1, 'an old generation subscribes nothing');
+  page.pushRoute('settings');
+  page.onRoute(page.generation, 3);
+  assert.deepEqual(pushed.at(-1), [3, 'route', 'event', { event: 'route', id: null, data: 'settings' }]);
+});
+
+test('agentd.request refuses before sending', () => {
+  const table = new RouteTable(routes);
+  const code = (method: unknown, path: unknown, body: unknown = null) => {
+    const r = checkRequest(table, 'main', method, path, body);
+    return r.ok ? 'ok' : r.reply.error.code;
+  };
+  assert.equal(code('GET', '/health'), 'ok');
+  assert.equal(code('get', '/health'), 'invalid_method');
+  assert.equal(code('GET', '/a/../health'), 'invalid_path');
+  assert.equal(code('GET', '//health'), 'invalid_path');
+  assert.equal(code('GET', '/nope'), 'unclassified_route');
+  assert.equal(code('GET', '/feed'), 'route_class');
+  assert.equal(code('GET', '/characters/si/motion-graph?x=1'), 'ok');
+  assert.equal(code('GET', '/characters/SI/motion-graph'), 'unclassified_route');
+  assert.equal(code('POST', '/sessions', [1]), 'invalid_body');
+  assert.equal(checkRequest(table, 'stack', 'GET', '/health', null).ok, false);
+  const picked = new Map([['h1', { purpose: 'session_cwd', path: '/work' }]]);
+  assert.deepEqual(swapHandles('POST', '/sessions', { cwd: { handle: 'h1' } }, picked).body, { cwd: '/work' });
+  assert.throws(() => swapHandles('POST', '/sessions', { cwd: '/work' }, picked));
+  assert.deepEqual(swapHandles('PUT', '/character/runtime', { workspace_dir: { handle: 'h1' } }, picked).body,
+    { workspace_dir: '/work' });
+  assert.throws(() => swapHandles('PUT', '/character/runtime', { workspace_dir: '/work' }, picked));
+  assert.throws(() => swapHandles('POST', '/say', { cwd: null }, picked));
+});
+
+test('agentd.request and an export check the path the client sends: one that URL parsing changes is refused', () => {
+  const table = new RouteTable(routes);
+  const code = (method: string, path: string, body: unknown = null) => {
+    const r = checkRequest(table, 'main', method, path, body);
+    return r.ok ? 'ok' : r.reply.error.code;
+  };
+  // `new URL` reads `%2e%2e` as `..` and `\` as `/`: these would reach PUT /character/runtime and PUT /behavior/switches.
+  assert.equal(code('PUT', '/schedules/%2e%2e\\character\\runtime', { executable: '/tmp/evil' }), 'invalid_path');
+  assert.equal(code('PUT', '/schedules/%2e%2e\\behavior\\switches', {}), 'invalid_path');
+  assert.equal(code('PUT', '/schedules/%2E%2E%2Fcharacter%2Fruntime', {}), 'ok', 'an encoded slash stays in the segment');
+  assert.equal(code('GET', '/trace/turns/.'), 'invalid_path');
+  assert.equal(code('GET', '/trace/turns?since=2026-11-20T10%3A00%3A00%2B08%3A00&limit=200'), 'ok');
+  assert.equal(code('DELETE', '/memory/facts/own:f%201%2F2?expected_version=3'), 'ok');
+  assert.equal(code('GET', `/observation/sources?${new URLSearchParams({ kind: 'work_events', query: '会议 纪要' })}`), 'ok');
+  assert.equal(isExportPath('/trace/turns/t-1?with_text=1'), true);
+  assert.equal(isExportPath('/trace/turns/%2e%2e\\%2e%2e\\memory'), false, 'would GET /memory');
+});
+
+test('hot keys convert between the page caps and config.json names', () => {
+  assert.equal(hotkeyName('⌃⌥H', false), 'control+option+h');
+  assert.equal(hotkeyName('⌃Space', false), 'control+space');
+  assert.equal(hotkeyName('F5', false), 'f5');
+  assert.equal(hotkeyName('⇧A', false), null);
+  assert.equal(hotkeyName('⌃⌃A', false), null);
+  assert.equal(hotkeyName('右⌥', false), null);
+  assert.equal(hotkeyName('右⌥', true), 'right_option');
+  assert.equal(webHotkey('ctrl+alt+space'), '⌃⌥Space');
+  assert.equal(webHotkey('control+nope'), null);
+});
+
+function context(dir: string): OpsContext {
+  return {
+    surface: 'main', routes, config: { path: join(dir, 'config.json'), supportDir: dir, devResources: null }, agentd: null,
+    store: null, diag: null, supervisor: null, library: null, permission: () => 'undetermined', confirm: async () => true,
+    shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} },
+    clipboard: { writeText: () => {} },
+    dialog: { pickFile: async () => '/picked/file', pickFolder: async () => '/picked', pickPackage: async () => null, saveFile: async () => true },
+    app: { version: '0', os: 'test' }, loginItem: { enabled: () => null, set: () => {} }, settingsChanges: silentSource, log: () => {},
+  };
+}
+
+test('settings.save writes the changed keys and refuses launch keys and bad values', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'settings-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ python: '/usr/bin/python3', render_camera_yaw: 15, hotkey_look: 'bogus+' }));
+    const ops = registry(context(dir)), page = new PageSession(() => {});
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
+    const read = await call('settings.read');
+    assert.ok(read.ok);
+    const snap = read.value as { saved: Record<string, unknown>; statuses: Record<string, string> };
+    assert.equal(snap.saved['rnd.yaw'], 15);
+    assert.equal(snap.saved.hk_look, '⌃⌥L');
+    assert.match(snap.statuses.hk_look!, /bogus\+/);
+    assert.deepEqual(await call('settings.save', { mute: true, 'rnd.yaw': 30, water: '60' }),
+      { ok: true, value: { restart: 'backend', notApplied: [] } });
+    const file = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) as Record<string, unknown>;
+    assert.equal(file.mute, true);
+    assert.equal(file.render_camera_yaw, 30);
+    assert.equal(file.water_reminder_minutes, 60);
+    assert.equal(file.python, '/usr/bin/python3');
+    const refused = await call('settings.save', { python: '/x' });
+    assert.ok(refused.ok);
+    assert.match((refused.value as { error: string }).error, /启动参数/);
+    const bad = await call('settings.save', { tts: 'nope' });
+    assert.ok(bad.ok);
+    assert.match((bad.value as { error: string }).error, /可选 remote（远端）/);
+    assert.deepEqual(await call('settings.save', { hk_quick: '⌃⌥H' }),
+      { ok: true, value: { restart: 'none', notApplied: [], error: '⌃⌥H 已被「显示 / 隐藏角色」占用' } });
+    assert.deepEqual(await call('settings.validateHotkey', 'hk_quick', '⌘K'), { ok: true, value: { ok: false, conflictWith: '命令面板' } });
+    assert.deepEqual(await call('settings.validateHotkey', 'mute', '⌃A'), { ok: false, error: { code: 'unknown_setting', detail: 'mute' } });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('settings.save refuses an SSH 转发主机 that ssh would read as an option, or with a space or control character', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'settings-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), '{}');
+    const ops = registry(context(dir)), page = new PageSession(() => {});
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
+    for (const host of ['-oProxyCommand=touch x', 'gpu box', 'gpu\tbox', 'gpu\u0000box']) {
+      const reply = await call('settings.save', { ttsTunnelHost: host });
+      assert.ok(reply.ok);
+      assert.match((reply.value as { error?: string }).error ?? '', /SSH 转发主机/, JSON.stringify(host));
+    }
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')), {});
+    assert.deepEqual(await call('settings.save', { ttsTunnelHost: 'me@gpu-box' }), { ok: true, value: { restart: 'backend', notApplied: [] } });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('录屏时隐藏角色 is on by default on macOS and off on Windows, where saving a change restarts the renderer', async () => {
+  assert.equal(current({}, null, 'mac').values.hide_on_screen_capture, true);
+  assert.equal(current({}, null, 'windows').values.hide_on_screen_capture, false);
+  assert.equal(current({ hide_on_screen_capture: true }, null, 'windows').values.hide_on_screen_capture, true);
+  assert.equal(schema('mac').find((r) => r.id === 'capHide')?.default, true);
+  assert.equal(schema('windows').find((r) => r.id === 'capHide')?.default, false);
+  assert.deepEqual(planSave({}, null, { hide_on_screen_capture: false }, 'mac'),
+    { write: { hide_on_screen_capture: false }, effects: [], restart: 'none' });
+  assert.deepEqual(planSave({}, null, { hide_on_screen_capture: false }, 'windows'), { write: {}, effects: [], restart: 'none' });
+  assert.deepEqual(planSave({}, null, { hide_on_screen_capture: true }, 'windows'),
+    { write: { hide_on_screen_capture: true }, effects: [{ kind: 'restartAvatar' }], restart: 'avatar' });
+  // With a backend restart in the same save the renderer still restarts.
+  assert.deepEqual(planSave({}, null, { hide_on_screen_capture: true, mute: true }, 'windows').effects, [{ kind: 'restartAvatar' }]);
+  const dir = mkdtempSync(join(tmpdir(), 'settings-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), '{}');
+    let restarts = 0;
+    const supervisor = { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => {}, avatar: () => ({ kind: 'running' }),
+      restartAvatar: () => { restarts += 1; } } as OpsContext['supervisor'];
+    const page = new PageSession(() => {});
+    const call = (ops: ReturnType<typeof registry>, op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
+    const windows = registry({ ...context(dir), supervisor, platform: 'windows' });
+    const read = await call(windows, 'settings.read');
+    assert.ok(read.ok);
+    assert.equal((read.value as { saved: Record<string, unknown> }).saved.capHide, false);
+    assert.deepEqual(await call(windows, 'settings.save', { capHide: true }), { ok: true, value: { restart: 'avatar', notApplied: [] } });
+    assert.equal(restarts, 1);
+    assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).hide_on_screen_capture, true);
+    const mac = registry({ ...context(dir), supervisor });
+    assert.deepEqual(await call(mac, 'settings.save', { capHide: false }), { ok: true, value: { restart: 'none', notApplied: [] } });
+    assert.equal(restarts, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a picked folder reaches agentd.request only as its handle, once', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'files-'));
+  try {
+    const ops = registry(context(dir)), page = new PageSession(() => {});
+    const picked = await handle('main', page0, { op: 'files.pickFolder', args: [{ purpose: 'session_cwd' }] }, ops, page);
+    assert.ok(picked.ok);
+    const { handle: h, displayName } = picked.value as { handle: string; displayName: string };
+    assert.equal(displayName, 'picked');
+    assert.deepEqual(page.picked.get(h), { purpose: 'session_cwd', path: '/picked' });
+    assert.deepEqual(await handle('main', page0, { op: 'files.pickFolder', args: [{ purpose: 'scope_file' }] }, ops, page),
+      { ok: false, error: { code: 'invalid_args', detail: 'purpose' } });
+    page.end();
+    assert.equal(page.picked.size, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a main-window message agentd took gets its T1 marks from the reply, timed from before it was sent', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'marks-'));
+  try {
+    const id = 'a'.repeat(32), sent: number[] = [];
+    const marks: [number, Record<string, unknown> | null, number][] = [];
+    const agentd = {
+      request: async (_method: string, path: string) => {
+        sent.push(performance.now());
+        const body = path.endsWith('/messages') ? { line_id: 'l1', trace_id: 't1', generation: 3 } : { ok: true };
+        return { status: path.endsWith('/messages') ? 202 : 200, body: Buffer.from(JSON.stringify(body)) };
+      },
+    } as unknown as OpsContext['agentd'];
+    const ctx: OpsContext = { ...context(dir), agentd,
+      turnMarks: { acceptedBody: (status, body, at) => { marks.push([status, body, at.monoMs]); } } };
+    const ops = registry(ctx), page = new PageSession(() => {});
+    const request = (method: string, path: string, body?: unknown) =>
+      handle('main', page0, { op: 'agentd.request', args: [method, path, body] }, ops, page);
+    assert.ok((await request('POST', `/conversations/${id}/messages`, { text: 'hi' })).ok);
+    assert.equal(marks.length, 1);
+    assert.deepEqual(marks[0]!.slice(0, 2), [202, { line_id: 'l1', trace_id: 't1', generation: 3 }]);
+    assert.ok(marks[0]![2] <= sent[0]!, 'submitted before the request went out');
+    assert.ok((await request('POST', `/conversations/${id}/activate`)).ok);
+    assert.equal(marks.length, 1, 'only a message');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('open.* takes a POSIX absolute path on macOS and a drive-absolute one on Windows', () => {
+  assert.ok(localPath('/Users/a/out.md', 'darwin'));
+  assert.ok(!localPath('C:\\Users\\a\\out.md', 'darwin'));
+  assert.ok(localPath('C:\\Users\\a\\out.md', 'win32'));
+  assert.ok(localPath('d:\\x', 'win32'));
+  for (const bad of ['/tmp/a.md', '\\\\server\\share\\a.md', 'C:a.md', 'a.md', 'C:\\a\\..\\b.md', 'C:\\a/../b.md', 'C:\\a\u0007.md',
+    `C:\\${'x'.repeat(4094)}`]) {
+    assert.ok(!localPath(bad, 'win32'), bad);
+  }
+});
+
+test('a save that needs a new renderer restarts it on macOS too; frame-rate caps and hot keys reach the running shell', async () => {
+  assert.deepEqual(planSave({}, null, { render_ssaa: false }, 'mac'),
+    { write: { render_ssaa: false }, effects: [{ kind: 'restartAvatar' }], restart: 'avatar' });
+  assert.deepEqual(planSave({}, null, { render_fps: '30' }, 'mac').effects, [{ kind: 'fps' }]);
+  assert.deepEqual(planSave({}, null, { hotkey_quick_input: 'control+option+k' }, 'mac').effects,
+    [{ kind: 'hotkeys', saved: [['hotkey_quick_input', 'control+option+k']] }]);
+  // A key that moves to another changed one's old key registers again after the rest.
+  assert.deepEqual(planSave({}, null, { hotkey_look: 'control+option+space', hotkey_quick_input: 'control+option+k' }, 'mac').effects,
+    [{ kind: 'hotkeys', saved: [['hotkey_look', 'control+option+space'], ['hotkey_quick_input', 'control+option+k'],
+      ['hotkey_look', 'control+option+space']] }]);
+  const dir = mkdtempSync(join(tmpdir(), 'settings-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), '{}');
+    const calls: string[] = [];
+    const supervisor = { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => {}, avatar: () => ({ kind: 'running' }),
+      restartAvatar: () => { calls.push('restart'); } } as OpsContext['supervisor'];
+    const saved = { fps: () => { calls.push('fps'); }, hotkey: (key: string, name: string) => { calls.push(`${key}=${name}`); } };
+    const ops = registry({ ...context(dir), supervisor, saved }), page = new PageSession(() => {});
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
+    assert.deepEqual(await call('settings.save', { 'rnd.aa': false }), { ok: true, value: { restart: 'avatar', notApplied: [] } });
+    assert.deepEqual(await call('settings.save', { 'rnd.fps': '45', hk_quick: '⌃⌥K' }), { ok: true, value: { restart: 'none', notApplied: [] } });
+    assert.deepEqual(calls, ['restart', 'fps', 'hotkey_quick_input=control+option+k']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a save of the touch switches or of live render settings reaches the running shell', async () => {
+  for (const key of ['touch_regions', 'head_pat', 'cheek_pinch', 'greet_on_resume']) {
+    // 捏脸 is off by default, the others on.
+    assert.deepEqual(planSave({}, null, { [key]: key === 'cheek_pinch' }, 'mac').effects, [{ kind: 'touch' }], key);
+  }
+  assert.deepEqual(planSave({}, null, { render_outline: 'subtle', render_filter: 'filter_2', render_camera_yaw: 15 }, 'mac').effects,
+    [{ kind: 'renderLive', keys: ['render_outline', 'render_camera_yaw', 'render_filter'] }]);
+  // Into or out of 半身固定 changes the framing; a restart reads the new values itself.
+  assert.deepEqual(planSave({}, null, { stay_mode: 'bust' }, 'mac').effects,
+    [{ kind: 'behaviorSwitches', keys: ['stay_mode'] }, { kind: 'renderLive', keys: ['stay_mode'] }]);
+  assert.deepEqual(planSave({ stay_mode: 'bust' }, null, { stay_mode: 'stay' }, 'mac').effects,
+    [{ kind: 'behaviorSwitches', keys: ['stay_mode'] }, { kind: 'renderLive', keys: ['stay_mode'] }]);
+  assert.deepEqual(planSave({}, null, { stay_mode: 'stay' }, 'mac').effects, [{ kind: 'behaviorSwitches', keys: ['stay_mode'] }]);
+  assert.deepEqual(planSave({}, null, { render_outline: 'subtle', render_ssaa: false }, 'mac').effects, [{ kind: 'restartAvatar' }]);
+  assert.deepEqual(planSave({}, null, { render_dof: 'closeup', cheek_pinch: true, greet_on_resume: false }, 'mac').effects,
+    [{ kind: 'renderLive', keys: ['render_dof'] }, { kind: 'touch' }]);
+  const dir = mkdtempSync(join(tmpdir(), 'settings-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), '{}');
+    const calls: string[] = [];
+    const saved = { fps: () => { calls.push('fps'); }, hotkey: () => {}, touch: () => { calls.push('touch'); },
+      renderLive: (keys: string[]) => { calls.push(`renderLive=${keys.join(',')}`); } };
+    const ops = registry({ ...context(dir), saved }), page = new PageSession(() => {});
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
+    assert.deepEqual(await call('settings.save', { 'beh.pat': false, 'rnd.outline': 'subtle' }), { ok: true, value: { restart: 'none', notApplied: [] } });
+    assert.deepEqual(calls, ['renderLive=render_outline', 'touch']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a save of 看向鼠标 or 拖动惯性 sets that action switch: sent to the current character, stored for the others', async () => {
+  assert.deepEqual(planSave({}, null, { look_at_cursor: false, drag_inertia: false }, 'mac').effects,
+    [{ kind: 'actionSwitch', id: 'drag_sway', on: false }, { kind: 'actionSwitch', id: 'look_cursor', on: false }]);
+  const dir = mkdtempSync(join(tmpdir(), 'switches-'));
+  try {
+    const character = (id: string) => ({ id, name: id, avatar_app: join(dir, 'Avatar.app') });
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ agentd_dir: dir, python: process.execPath, agentd_port: 48810, gpu_hold_files: [],
+      support_dir: dir, agentd_state_dir: join(dir, 'state'), characters: [character('si'), character('cedar'), character('ember'), character('lifeng')],
+      action_switches: { si: { look_cursor: true, wave: true }, cedar: { wave: false }, lifeng: { drag_sway: true } } }));
+    const sent: [string, Record<string, boolean>][] = [];
+    const looks = { saveSwitches: async (c: string, switches: Record<string, boolean>) => {
+      sent.push([c, switches]);
+      return { character: c, switches, adjusted: [] };
+    } } as unknown as OpsContext['looks'];
+    const avatar = { currentCharacter: 'si' } as unknown as AvatarHost;
+    const ops = registry({ ...context(dir), looks, avatar }), page = new PageSession(() => {});
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
+    assert.deepEqual(await call('settings.save', { 'beh.inertia': false }), { ok: true, value: { restart: 'none', notApplied: [] } });
+    assert.deepEqual(sent, [['si', { look_cursor: true, wave: true, drag_sway: false }]]);
+    const file = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) as Record<string, unknown>;
+    assert.equal(file.drag_inertia, false);
+    assert.deepEqual(file.action_switches, { si: { look_cursor: true, wave: true }, cedar: { wave: false, drag_sway: false },
+      ember: { drag_sway: false }, lifeng: { drag_sway: false } });
+    // Turning one on writes no table for a character without one: si's went only to the fake renderer.
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ ...file, action_switches: {} }));
+    assert.deepEqual(await call('settings.save', { 'beh.mouse': false }), { ok: true, value: { restart: 'none', notApplied: [] } });
+    assert.deepEqual(await call('settings.save', { 'beh.mouse': true }), { ok: true, value: { restart: 'none', notApplied: [] } });
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).action_switches,
+      { cedar: { look_cursor: true }, ember: { look_cursor: true }, lifeng: { look_cursor: true } });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('settings.read offers 半身固定 when the connected renderer lists camera_bust', async () => {
+  const statuses = async (avatar: AvatarHost | null) => {
+    const read = await handle('main', page0, { op: 'settings.read', args: [] }, registry({ ...context(tmpdir()), avatar }), new PageSession(() => {}));
+    assert.ok(read.ok);
+    return (read.value as { statuses: Record<string, string> }).statuses;
+  };
+  const renderer = (capabilities: string[]) => ({ hello: { v: 1, type: 'hello', role: 'avatar', pid: 1, protocol: 1, capabilities } }) as unknown as AvatarHost;
+  assert.equal((await statuses(renderer(['actions', 'camera_bust'])))['beh.stay'], undefined);
+  assert.equal((await statuses(renderer(['actions'])))['beh.stay'], '这个版本的角色还不支持半身固定');
+  assert.equal((await statuses(null))['beh.stay'], '这个版本的角色还不支持半身固定');
+});
+
+test('settings.wipeLocalData asks with the dialog\'s words, and a no deletes nothing', async () => {
+  const asked: string[] = [];
+  const ctx = { ...context(tmpdir()), confirm: async (text: string) => { asked.push(text); return false; } };
+  assert.deepEqual(await handle('main', page0, { op: 'settings.wipeLocalData', args: [] }, registry(ctx), new PageSession(() => {})),
+    { ok: false, error: { code: 'declined', detail: 'settings.wipeLocalData' } });
+  assert.deepEqual(asked, ['删除所有本地数据？记忆、对话、任务记录、活动记录、Trace 事件和后台日志都会删除；设置和 API Key 保留。此操作不能撤销。']);
+});
+
+test('settings.wipeLocalData empties the web log and keeps config.json', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'wipe-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), '{"mute":true}');
+    mkdirSync(join(dir, 'logs'));
+    writeFileSync(join(dir, 'logs', 'ui.log'), 'error\n');
+    writeFileSync(join(dir, 'logs', 'ui.log.1'), 'older\n');
+    const agentd = { request: async () => ({ status: 200, body: Buffer.from('{"deleted":{}}') }) } as unknown as OpsContext['agentd'];
+    const r = await handle('main', page0, { op: 'settings.wipeLocalData', args: [] }, registry({ ...context(dir), agentd }), new PageSession(() => {}));
+    assert.deepEqual(r, { ok: true, value: null });
+    assert.deepEqual([readFileSync(join(dir, 'logs', 'ui.log'), 'utf8'), readFileSync(join(dir, 'logs', 'ui.log.1'), 'utf8')], ['', '']);
+    assert.equal(readFileSync(join(dir, 'config.json'), 'utf8'), '{"mute":true}');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('settings.save asks before a new 按需启动脚本, and a no writes nothing; an unchanged or cleared script is not asked', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ensure-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), '{}');
+    const asked: string[] = [];
+    let answer = false;
+    const ops = registry({ ...context(dir), confirm: async (text: string) => { asked.push(text); return answer; } });
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, new PageSession(() => {}));
+    assert.deepEqual(await call('settings.save', { ttsEnsureScript: '/opt/tts/ensure.sh', mute: true }),
+      { ok: false, error: { code: 'declined', detail: 'settings.save' } });
+    assert.equal(asked.length, 1);
+    assert.match(asked[0]!, /\/opt\/tts\/ensure\.sh/);
+    assert.equal(readFileSync(join(dir, 'config.json'), 'utf8'), '{}');
+    answer = true;
+    assert.equal((await call('settings.save', { ttsEnsureScript: '/opt/tts/ensure.sh' })).ok, true);
+    assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).tts_ensure_script, '/opt/tts/ensure.sh');
+    asked.length = 0;
+    assert.equal((await call('settings.save', { ttsEnsureScript: '/opt/tts/ensure.sh', mute: true })).ok, true);
+    assert.equal((await call('settings.save', { ttsEnsureScript: '' })).ok, true);
+    assert.deepEqual(asked, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a save whose effect throws fails alone: the next save still writes', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'queue-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), '{}');
+    const saved = { fps: () => {}, hotkey: () => {}, touch: () => { throw new Error('touch port broke'); } };
+    const ops = registry({ ...context(dir), saved }), page = new PageSession(() => {});
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
+    assert.equal((await call('settings.save', { 'beh.pat': false })).ok, false);
+    assert.deepEqual(await call('settings.save', { mute: true }), { ok: true, value: { restart: 'backend', notApplied: [] } });
+    assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).mute, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('reloadAvatar takes a new hello as her return even when the old one never read as gone', async () => {
+  const hello = () => ({ v: 1, type: 'hello', role: 'avatar', pid: 1, protocol: 1, capabilities: ['actions'] });
+  const link: { hello: unknown } = { hello: hello() };
+  // The new renderer's connection replaces the old one within one poll.
+  const supervisor = { restartAvatar: () => { setTimeout(() => { link.hello = hello(); }, 10); } };
+  const back = reloadAvatar({ supervisor, log: () => {} }, link as unknown as AvatarHost).then(() => 'back');
+  assert.equal(await Promise.race([back, new Promise((r) => setTimeout(r, 2000, 'still waiting'))]), 'back');
+});
+
+test('the guide reads a push-to-talk key the system refused as none, so it says where to set one', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'guide-'));
+  try {
+    const talkKey = async (config: Record<string, unknown>, refused: Record<string, string>) => {
+      writeFileSync(join(dir, 'config.json'), JSON.stringify(config));
+      const ops = registry({ ...context(dir), surface: 'onboarding', unregisteredHotkeys: () => refused });
+      const r = await handle('onboarding', page0, { op: 'onboarding.state', args: [] }, ops, new PageSession(() => {}));
+      assert.ok(r.ok);
+      return (r.value as { talkKey: string }).talkKey;
+    };
+    assert.equal(await talkKey({}, { voice_hotkey: 'right_option' }), '');
+    assert.equal(await talkKey({ voice_hotkey: 'control+option+t' }, { voice_hotkey: 'control+option+t' }), '');
+    assert.equal(await talkKey({ voice_hotkey: 'control+option+t' }, { voice_hotkey: 'right_option' }), 'control+option+t');
+    assert.equal(await talkKey({}, { hotkey_look: 'right_option' }), 'right_option');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the guide still answers when config.json is unreadable: not done, right Option', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'guide-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), '{ not json');
+    const ops = registry({ ...context(dir), surface: 'onboarding' });
+    const r = await handle('onboarding', page0, { op: 'onboarding.state', args: [] }, ops, new PageSession(() => {}));
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.deepEqual([(r.value as { done: boolean }).done, (r.value as { talkKey: string }).talkKey], [false, 'right_option']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('desktop.onState hotkeys: each hot key row by web id as the page shows it, defaults included, a broken name left out', () => {
+  assert.deepEqual(desktopHotkeys({ hotkey_quick_input: 'ctrl+alt+k', hotkey_look: 'bogus+' }),
+    { hk_ptt: '右⌥', hk_quick: '⌃⌥K', hk_hide: '⌃⌥H', hk_pass: '⌃⌥P', hk_wheel: '⌃⌥R' });
+});
+
+test('avatar.details: photo, capture and filters count when she and the link both list them (WebAvatarWatch.details)', () => {
+  const host = { hello: { v: 1, type: 'hello', role: 'avatar', pid: 1, protocol: 1, capabilities: ['photo', 'capture', 'filters'] },
+    companionCapabilities: ['capture', 'filters'], lastPipeline: null, lastPlacement: null } as unknown as AvatarHost;
+  const details = avatarDetails(host);
+  assert.deepEqual([details.photo, details.capture, details.filters], [false, true, true]);
+});
+
+test('app.look answers; without a look, offline 屏幕识读不可用（配置出错）', async () => {
+  const look = async (surface: 'main' | 'stack', result: OpsContext['look']) => handle(surface, page0, { op: 'app.look', args: [] },
+    registry({ ...context(tmpdir()), surface, look: result }), new PageSession(() => {}));
+  assert.deepEqual(await look('stack', async () => ({ kind: 'requested', requestId: 'look-1' })), { ok: true, value: { requestId: 'look-1' } });
+  assert.deepEqual(await look('main', async () => ({ kind: 'requested', requestId: 'look-2' })), { ok: true, value: { requestId: 'look-2' } });
+  assert.deepEqual(await look('stack', async () => ({ kind: 'blocked', reason: 'paused' })), { ok: false, error: { code: 'blocked', detail: 'paused' } });
+  assert.deepEqual(await look('stack', async () => ({ kind: 'rejected', status: 503, error: 'busy' })),
+    { ok: false, error: { code: 'failed', detail: 'POST /look status 503 busy' } });
+  assert.deepEqual(await look('stack', async () => ({ kind: 'failed' })), { ok: false, error: { code: 'offline', detail: '' } });
+  assert.deepEqual(await look('stack', null), { ok: false, error: { code: 'offline', detail: '屏幕识读不可用（配置出错）' } });
+});

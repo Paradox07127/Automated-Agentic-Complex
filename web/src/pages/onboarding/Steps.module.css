@@ -1,0 +1,329 @@
+.cap {
+  color: var(--ef-text-3);
+  font-size: var(--ef-fs-meta);
+  line-height: 1.5;
+}
+
+.t3 {
+  color: var(--ef-text-3);
+}
+
+.num {
+  font-family: var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp {
+  flex: 1;
+}
+
+/* Permission rows: read-only, divided by hairlines. */
+.perms {
+  display: flex;
+  flex-direction: column;
+}
+
+.permList {
+  display: flex;
+  flex-direction: column;
+  border-top: var(--ef-lw-hair) solid var(--ef-line);
+}
+
+.perm {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 6px 0 6px 4px;
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line);
+}
+
+.permList[data-outline] {
+  margin-top: 12px;
+}
+
+.permList[data-outline] .permIc {
+  color: var(--ef-text-disabled);
+}
+
+.outlineBar {
+  grid-column: 2 / -1;
+  width: 40%;
+  height: 10px;
+  background: var(--ef-line-subtle);
+}
+
+.permIc {
+  display: flex;
+  color: var(--ef-text-2);
+}
+
+.permText {
+  min-width: 0;
+}
+
+.permTitle {
+  font-size: var(--ef-fs-body-lg);
+  font-weight: var(--ef-fw-medium);
+}
+
+.permAct {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 14px;
+}
+
+/* Voice */
+.voice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The highlight ring's box around 允许麦克风. */
+.target {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.trial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 2px 0;
+}
+
+.trialHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--ef-fs-title-2);
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--ef-line);
+  border-radius: var(--ef-r-3);
+  background: var(--ef-step-bg);
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) var(--ef-fs-body-lg) / 1 var(--ef-font-sans);
+}
+
+.rec {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.recTag {
+  color: var(--ef-text-1);
+  font: 600 var(--ef-fs-eyebrow) / 1 var(--ef-font-wide);
+  letter-spacing: 0.1em;
+}
+
+.wave {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 22px;
+}
+
+.wave i {
+  flex: 1;
+  min-width: 2px;
+  background: var(--ef-ink-s2);
+}
+
+.said {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: 2px;
+  padding: 8px 12px;
+  background: var(--ef-surface-2);
+  font-size: var(--ef-fs-title-2);
+}
+
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 16px;
+  background: var(--ef-text-1);
+}
+
+/* A framed notice with a yellow flag at its left edge. */
+.micNo {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  padding: 0 16px 0 0;
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  background: var(--ef-raised);
+}
+
+.micNo > div {
+  padding: 12px 0;
+}
+
+.micX {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font-size: 22px;
+}
+
+.subHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 6px;
+  font-size: var(--ef-fs-body-lg);
+  font-weight: var(--ef-fw-medium);
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 220px);
+  align-items: center;
+  gap: 12px;
+  font-size: var(--ef-fs-body-lg);
+}
+
+.field small {
+  font-size: var(--ef-fs-meta);
+}
+
+/* Paper fields in both themes. */
+.input {
+  height: 30px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid #bfbfbb;
+  border-radius: 0;
+  background: var(--ef-paper);
+  color: var(--ef-paper-text);
+  font: var(--ef-fw-regular) var(--ef-fs-body-lg) / 1 var(--ef-font-sans);
+  outline: none;
+}
+
+.input::placeholder {
+  color: #6b6a6a;
+}
+
+/* Focus: a 2 px trace line along the bottom. */
+.input:focus-visible {
+  border-bottom: var(--ef-lw-focus) solid var(--ef-trace);
+}
+
+/* Sessions: one plate per coding tool. */
+.hooks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hook {
+  min-width: 0;
+}
+
+/* 角色内核 sits above the hook plates, at their gap. */
+.kernel {
+  margin-bottom: 8px;
+}
+
+.hookHead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  margin-bottom: 4px;
+}
+
+.hookName {
+  min-width: 96px;
+  font-size: var(--ef-fs-body-lg);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.hookChain {
+  width: 220px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cmds {
+  display: flex;
+  flex-direction: column;
+  margin: 8px 0 0;
+  padding: 0;
+  border-top: var(--ef-lw-hair) solid var(--ef-line);
+  list-style: none;
+}
+
+.cmds li {
+  display: grid;
+  grid-template-columns: 24px 136px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 0 0 4px;
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line);
+}
+
+.cmdNo {
+  color: var(--ef-text-3);
+  font-size: var(--ef-fs-meta);
+}
+
+.cmdLabel {
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-meta);
+}
+
+.code {
+  overflow: hidden;
+  font: var(--ef-fw-regular) var(--ef-fs-code) / 1.4 var(--ef-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recheck {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 4px;
+}
+
+@media (max-width: 1099px) {
+  .perm {
+    min-height: 50px;
+  }
+
+  .hookChain {
+    width: 180px;
+  }
+}

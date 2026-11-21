@@ -1,0 +1,117 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  min-width: 0;
+}
+
+.sp {
+  flex: 1;
+}
+
+.note,
+.status {
+  margin: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.status {
+  color: var(--ef-text-1);
+}
+
+/* Motion service address and token: the settings page's text field. */
+.input {
+  flex: 1;
+  min-width: 0;
+  height: var(--ef-h-sm);
+  padding: 0 var(--ef-sp-8);
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  border-radius: var(--ef-r-4);
+  background: var(--ef-surface-2);
+  color: var(--ef-text-1);
+  font: var(--ef-t-mono);
+}
+
+.err {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  padding-left: var(--ef-sp-8);
+  border-left: var(--ef-lw-category) solid var(--ef-danger);
+  font: var(--ef-t-meta);
+}
+
+/* One row per action; a missing one stays selectable so its reason can be read, but greys out. */
+.list {
+  display: grid;
+  max-height: 168px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.opt {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  height: 26px;
+  padding: 0 var(--ef-sp-8);
+  border-left: 2px solid transparent;
+  color: var(--ef-text-1);
+  font: var(--ef-t-meta);
+  cursor: pointer;
+}
+
+.opt:hover {
+  background: var(--ef-line-subtle);
+}
+
+.opt[aria-selected='true'] {
+  border-left-color: var(--ef-accent);
+  background: var(--ef-fold);
+}
+
+.opt[data-missing] {
+  color: var(--ef-text-disabled);
+}
+
+.optName {
+  flex: none;
+}
+
+.lack {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--ef-text-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.more {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--ef-sp-4);
+}
+
+.lnk {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-info-text);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.4 var(--ef-font-sans);
+  cursor: pointer;
+}
+
+.lnk:hover {
+  text-decoration: underline;
+}
+
+.lnk:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}

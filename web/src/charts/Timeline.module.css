@@ -1,0 +1,286 @@
+/* Timeline lanes: thin rails, square outlined spans, 4 px app strip, ticks and diamonds that merge into cut count chips. */
+.body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lane {
+  --rh: var(--th, 16px);
+}
+
+.ll {
+  overflow: hidden;
+  padding-right: 8px;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lt {
+  position: relative;
+  display: block;
+  height: var(--th, 16px);
+  overflow: hidden;
+  background: linear-gradient(var(--ef-chart-grid), var(--ef-chart-grid)) 0 50% / 100% 1px no-repeat;
+}
+
+.lane[data-kind='blocks'] .lt,
+.lane[data-kind='spans'] .lt {
+  background-position: 0 calc(100% - 5px);
+}
+
+.lane[data-kind='markers'] .lt,
+.lane[data-kind='dots'] .lt,
+.lane[data-kind='ticks'] .lt {
+  overflow: visible;
+}
+
+.tb,
+.tsp {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+}
+
+.tb::before {
+  content: '';
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  left: 0;
+  height: 8px;
+  background: var(--c, var(--v3-ink-2));
+}
+
+.tsp::before {
+  content: '';
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  left: 0;
+  height: 10px;
+  box-shadow: inset 0 0 0 1px var(--c, var(--v3-ink-2));
+}
+
+.tb span,
+.tsp span {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  left: 0;
+  overflow: hidden;
+  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-sans);
+  line-height: 13px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tb:hover,
+.tsp:hover,
+.tb.on,
+.tb.em,
+.tsp.on,
+.tsp.em {
+  color: var(--ef-text-1);
+}
+
+.tb.on::before {
+  outline: 1.5px solid var(--v3-sel-edge);
+  outline-offset: 1px;
+}
+
+.tsp.em::before {
+  background: color-mix(in srgb, var(--v3-emph) 14%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--v3-emph);
+}
+
+.tsp.on::before {
+  background: var(--v3-sel-fill);
+  box-shadow: inset 0 0 0 1.5px var(--v3-sel-edge);
+}
+
+.tsr.on {
+  box-shadow: 0 0 0 1px var(--v3-sel-edge);
+}
+
+.tsr {
+  position: absolute;
+  top: 2px;
+  height: 4px;
+  padding: 0;
+  border: 0;
+  border-right: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.tt {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  margin-left: -1px;
+  padding: 0;
+  border: 0;
+  background: var(--v3-ink-1);
+}
+
+.td {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  padding: 0;
+  border: 0;
+  background: var(--v3-ink-1);
+  transform: rotate(45deg);
+}
+
+/* A failed capture: a yellow square edged in ink. */
+.td.fail {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  background: var(--ef-state-failed);
+  box-shadow: inset 0 0 0 1px var(--ef-on-accent);
+  transform: none;
+}
+
+.tm {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--v3-ink-1);
+  white-space: nowrap;
+  transform: translate(-5px, -50%);
+}
+
+.tm b {
+  font: var(--ef-fw-semibold) var(--ef-fs-num) / 1 var(--ef-font-ui);
+}
+
+.tm span {
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.tt.on,
+.td.on {
+  z-index: 1;
+  outline: 1.5px solid var(--v3-sel-edge);
+  outline-offset: 1px;
+}
+
+.tm.on b {
+  outline: 1.5px solid var(--v3-sel-edge);
+  outline-offset: 2px;
+}
+
+/* Count chips are pressable: a square chip with the bottom-right corner cut, the figure kept clear of it. */
+.cnt {
+  --fill: var(--ef-tag-bg);
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  min-width: 16px;
+  height: 14px;
+  padding: 0 calc(3px + var(--ef-cut)) 0 4px;
+  border: 0;
+  background: linear-gradient(-45deg, transparent calc(var(--ef-cut) - 0.5px), var(--fill) var(--ef-cut));
+  color: var(--ef-tag-fg);
+  font: var(--ef-fw-semibold) var(--ef-fs-num) var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  line-height: 14px;
+  transform: translate(-50%, -50%);
+}
+
+.cnt:hover {
+  --fill: var(--ef-trace);
+  color: var(--v3-on-emph);
+}
+
+.cnt.on {
+  outline: 1.5px solid var(--v3-sel-edge);
+  outline-offset: 1px;
+}
+
+/* ▼ on the ruler (axisMarks), drawn as a CSS triangle. */
+.axm {
+  position: absolute;
+  bottom: 1px;
+  z-index: 2;
+  width: 0;
+  height: 0;
+  border-top: 6px solid var(--ef-text-1);
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  transform: translateX(-50%);
+}
+
+.axm.done {
+  border-top-color: var(--ef-text-3);
+}
+
+.axm.emph {
+  border-top-color: var(--v3-emph);
+}
+
+.pz {
+  position: absolute;
+  top: 22px;
+  bottom: 0;
+  z-index: 1;
+  background: var(--ef-hatch);
+  box-shadow:
+    inset 1px 0 0 var(--ef-chart-axis),
+    inset -1px 0 0 var(--ef-chart-axis);
+  pointer-events: none;
+}
+
+.pz b {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  padding: 0 4px;
+  background: var(--v3-bg);
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-sans);
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.hair {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 1px;
+  background: var(--ef-text-2);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.rd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: pre;
+}
+
+.rd > b {
+  color: var(--ef-text-3);
+  font: var(--ef-fw-semibold) var(--ef-fs-num) / 1.3 var(--ef-font-ui);
+}

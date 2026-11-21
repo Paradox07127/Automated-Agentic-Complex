@@ -1,0 +1,48 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-6);
+  min-width: 0;
+}
+
+.field {
+  font-size: var(--ef-fs-caption);
+  color: var(--ef-text-2);
+}
+
+.input {
+  width: 100%;
+  min-height: 56px;
+  padding: var(--ef-sp-8);
+  resize: vertical;
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  border-radius: var(--ef-r-2);
+  background: var(--ef-step-bg);
+  color: var(--ef-text-1);
+  line-height: var(--ef-lh-body);
+}
+
+.input:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 0;
+}
+
+.input::placeholder {
+  color: var(--ef-text-3);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+.kernel {
+  font-size: var(--ef-fs-caption);
+  color: var(--ef-text-2);
+}
+
+.sp {
+  flex: 1;
+}

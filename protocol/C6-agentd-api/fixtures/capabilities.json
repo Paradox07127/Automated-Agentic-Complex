@@ -1,0 +1,11 @@
+{"items": {
+  "generation": {"state": "unavailable", "reason": "missing_api_key"},
+  "mouth": {"state": "ready", "reason": null},
+  "voice": {"state": "degraded", "reason": "tts_unavailable"},
+  "personal_agent": {"state": "configured", "reason": null},
+  "share_window_text": {"state": "unavailable", "reason": "off"},
+  "share_page_text": {"state": "unavailable", "reason": "off"},
+  "share_screenshots": {"state": "unavailable", "reason": "off"},
+  "share_typed_text": {"state": "unavailable", "reason": "off"},
+  "share_agent_sessions": {"state": "unavailable", "reason": "off"}
+ }, "at": "2026-10-23T15:20:01.123+08:00"}

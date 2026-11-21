@@ -1,0 +1,68 @@
+{
+  "note": "浏览器页面是会话所用服务的网页",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:chr-4",
+      "app": "Google Chrome",
+      "bundle_id": "com.google.Chrome",
+      "pid": 483,
+      "window_id": 83,
+      "title": "Usage — Claude",
+      "url_host": null,
+      "since": 1799999910.0,
+      "secure_input": false
+    },
+    "dwell_s": 90.0,
+    "presence": {
+      "id": "afk:chr-4",
+      "status": "active",
+      "seconds": 300,
+      "idle_s": 25
+    },
+    "page": {
+      "id": "page:cl-1",
+      "url_host": "claude.ai",
+      "title": "Usage — Claude",
+      "audible": false,
+      "text": null
+    },
+    "recent_pages": [
+      {
+        "id": "page:cl-1",
+        "url_host": "claude.ai",
+        "title": "Usage — Claude",
+        "start": 1799999910.0,
+        "duration": 90
+      }
+    ],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [
+      {
+        "display_session": "claude:s-orbit",
+        "source": "claude",
+        "session_id": "s-orbit",
+        "cwd": "/Users/demo/work/orbit-ledger",
+        "state": "running_tool",
+        "effective_state": "running_tool",
+        "tool_name": "Bash",
+        "tool_category": "command",
+        "origin": null,
+        "since": 1799999970.0,
+        "observed_at": 1799999970.0
+      }
+    ],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "reading",
+    "status": "ok",
+    "related_session_ids": [
+      "claude:s-orbit"
+    ],
+    "can_interrupt": true
+  }
+}

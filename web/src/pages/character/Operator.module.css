@@ -1,0 +1,193 @@
+/* 角色与动作: character cards across the top; stage, name plate and today's plays │ the 动作 / 外观 / 导入 panes. */
+@import './OperatorPart1.css';
+
+/* The stage gives up height so 今日播放 stays in the column; the frame never gets shorter than its content, so it never cuts the stage. */
+.mid > [data-stage] {
+  flex: 1 1 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.mid [data-preview-stage] {
+  height: auto;
+  min-height: 220px;
+  max-height: 410px;
+}
+
+/* FirstClassAttributeCell: white paper, the icon plate, the value, the name. */
+.attr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  box-sizing: border-box;
+  width: 55px;
+  height: 75px;
+  padding: 0 2px 6px;
+  background: var(--ef-paper);
+  color: var(--ef-paper-text);
+}
+
+.attr + .attr {
+  box-shadow: inset 2px 0 0 var(--op-cell-rule);
+}
+
+:global([data-theme='light']) .attr {
+  outline: 1px solid var(--ef-line);
+  outline-offset: -1px;
+}
+
+.attrIc {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  margin-bottom: 2px;
+  background: var(--op-attr-icon);
+  color: var(--ef-on-accent);
+}
+
+.attrV {
+  font: 700 15px / 1 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.attrN {
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--op-attr-name);
+  white-space: nowrap;
+}
+
+/* State / behavior decision tabs. */
+.ptH {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--ef-line-subtle);
+}
+
+.ptNo {
+  font: 700 11px / 1 var(--ef-font-din);
+  color: var(--ef-text-3);
+}
+
+.ptCap {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--ef-text-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ptabs {
+  display: flex;
+  gap: 18px;
+}
+
+.ptab {
+  position: relative;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-3);
+  font: 500 var(--ef-fs-title-2) / 1 var(--ef-font-sans);
+}
+
+.ptab:hover,
+.ptab[aria-selected='true'] {
+  color: var(--ef-text-1);
+}
+
+.ptab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--ef-text-1);
+}
+
+.ptab:focus-visible {
+  outline: 1px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.beatF {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.beatF b {
+  font-weight: 600;
+}
+
+.beatD {
+  padding: 0 8px;
+  border-right: 1px solid var(--ef-line);
+  border-left: 1px solid var(--ef-line);
+  color: var(--ef-text-2);
+}
+
+.num {
+  font-family: var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+@container page (max-width: 760px) {
+  .op {
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    padding: var(--ef-sp-12) var(--ef-sp-16) 0;
+  }
+
+  .op > * {
+    grid-area: auto;
+  }
+
+  .pane {
+    overflow: visible;
+  }
+
+  .mid > [data-stage] {
+    flex: none;
+  }
+
+  .mid [data-preview-stage] {
+    min-height: 320px;
+  }
+}
+
+/* Reduced motion: the panels fade in without sliding. */
+@media (prefers-reduced-motion: reduce) {
+  .rc {
+    transition: none;
+  }
+
+  .mid,
+  .panes,
+  .roster {
+    animation: op-fade-in var(--ef-dur-g-panel-in) var(--ef-ease-g-fade) both;
+  }
+}
+
+:global([data-reduce-motion]) .rc,
+:global(.still) .rc {
+  transition: none;
+}
+
+:global([data-reduce-motion]) :is(.mid, .panes, .roster) {
+  animation: op-fade-in var(--ef-dur-g-panel-in) var(--ef-ease-g-fade) both;
+}

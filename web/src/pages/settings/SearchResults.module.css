@@ -1,0 +1,92 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: var(--ef-sp-16) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.count {
+  padding-bottom: var(--ef-sp-6);
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line);
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-caption);
+}
+
+/* A result opens its row: the settings row plate; pointing at it drops the trace bar and brightens the rim. */
+.row {
+  /* Plate rim: #B9B9B9 tinted white@0.4. */
+  --plate-rim: rgb(185 185 185 / 0.4);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  width: 100%;
+  min-height: 48px;
+  margin-top: 5px;
+  padding: var(--ef-sp-6) 30px var(--ef-sp-6) 34px;
+  border: 1px solid var(--plate-rim);
+  border-radius: 2px;
+  background: var(--ef-set-row-plate);
+  color: var(--ef-text-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+:global([data-theme='light']) .row {
+  background: var(--ef-rowplate);
+}
+
+.row::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--ef-lw-category);
+  background: var(--ef-trace);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--ef-dur-g-cell-in) var(--ef-ease-g-enter);
+}
+
+.row:is(:hover, :focus-visible) {
+  border-color: var(--ef-line-strong);
+}
+
+.row:is(:hover, :focus-visible)::before {
+  transform: none;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  font: var(--ef-fw-medium) var(--ef-fs-title-2) / var(--ef-lh-h2) var(--ef-font-sans);
+}
+
+.crumb {
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-caption);
+}
+
+.danger {
+  color: var(--ef-danger-text);
+  font-size: var(--ef-fs-caption);
+}
+
+.empty {
+  margin-top: var(--ef-sp-32);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row::before {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .row::before {
+  transition: none;
+}

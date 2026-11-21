@@ -1,0 +1,38 @@
+{
+  "note": "写作应用里持续输入",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:pages-1",
+      "app": "Pages",
+      "bundle_id": "com.apple.iWork.Pages",
+      "pid": 520,
+      "window_id": 120,
+      "title": "Field notes draft",
+      "url_host": null,
+      "since": 1799999600.0,
+      "secure_input": false
+    },
+    "dwell_s": 400.0,
+    "presence": {
+      "id": "afk:pages-1",
+      "status": "active",
+      "seconds": 420,
+      "idle_s": 0.4
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "typing",
+    "status": "ok",
+    "related_session_ids": [],
+    "can_interrupt": false
+  }
+}

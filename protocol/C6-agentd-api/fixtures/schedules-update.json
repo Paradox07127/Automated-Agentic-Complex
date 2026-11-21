@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "trigger": {
+    "kind": "weekly",
+    "weekday": 5,
+    "at": "17:00"
+  },
+  "instruction": "总结本周提交",
+  "scope_id": null,
+  "conversation_id": null
+}

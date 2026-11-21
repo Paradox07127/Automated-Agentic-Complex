@@ -1,0 +1,5 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"birch","capabilities":["heartbeat","ack","pipeline","render_live","ambient","touch"],"build":{"git":"51beebe7","renderer":"metal"}}
+{"v":1,"type":"window_frame","frame":{"x":0,"y":0,"w":540,"h":780},"scale":2,"window_number":1}
+{"v":1,"type":"click","button":"left","count":1,"x":212,"y":540,"region":"cheek_l"}
+{"v":1,"type":"click","button":"left","count":1,"x":240,"y":310}
+{"v":1,"type":"click","button":"right","count":1,"x":240,"y":310}

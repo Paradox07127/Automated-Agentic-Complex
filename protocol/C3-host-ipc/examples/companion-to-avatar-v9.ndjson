@@ -1,0 +1,8 @@
+{"v":1,"type":"hello","role":"companion","pid":40001,"protocol":1,"capabilities":["capsules_global","watchdog"],"build":{"git":"9aa40677","version":"0.9"}}
+{"v":1,"type":"fps_tier","tier":"interactive","fps":60}
+{"v":1,"type":"cursor","x":1185.0,"y":200.0,"inside":true,"hit":true}
+{"v":1,"type":"set_placement","scale":1.25,"req":7}
+{"v":1,"type":"move_window","x":10.0,"y":20.0,"req":8}
+{"v":1,"type":"set_visible","visible":false,"req":9}
+{"v":1,"type":"set_placement","x":1180.0,"y":0.0}
+{"v":1,"type":"fps_tier","tier":"idle","fps":15,"req":10}

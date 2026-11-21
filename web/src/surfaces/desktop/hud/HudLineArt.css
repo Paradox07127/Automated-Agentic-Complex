@@ -1,0 +1,83 @@
+/* Task HUD textures, used only once the art is in place (html[data-art]); inlined into HudLine.module.css.
+   The mission icons are pale sprites with baked glows, so the light theme's white band keeps the SVG glyphs. */
+
+/* Icons: running 68 g, waiting 86 g (the red-dot diamond stays),
+   done 51x50 g, stale 48x47 g at .6. */
+:global(html[data-art][data-theme='dark']) .icon:has(> [data-glyph='running']) {
+  background: url('/art/common/desk-icon-mission-blue.png') center / 36px 36px no-repeat;
+}
+
+:global(html[data-art][data-theme='dark']) .icon:has(> [data-glyph='waiting']) {
+  background: url('/art/common/desk-icon-mission-hud-normal.png') center / 44px 44px no-repeat;
+}
+
+:global(html[data-art][data-theme='dark']) .icon:has(> [data-glyph='done']) {
+  background: url('/art/common/desk-icon-mission-complet.png') center / 28px 26px no-repeat;
+  animation: flick 167ms steps(1, end) 83ms both;
+}
+
+:global(html[data-art][data-theme='dark']) .icon:has(> [data-glyph='stale']) {
+  background: url('/art/common/desk-mission-incomplete-icon.png') center / 28px 26px no-repeat;
+  opacity: 0.6;
+}
+
+:global(html[data-art][data-theme='dark']) .glyph:is([data-glyph='running'], [data-glyph='done'], [data-glyph='stale']) > *,
+:global(html[data-art][data-theme='dark']) .glyph[data-glyph='waiting'] > :not(.badgeDot) {
+  display: none;
+}
+
+/* The folded bar is the task head: the head tag 72x12 g over the title, the go arrow 36x24 g at .5 by the icon. */
+:global(html[data-art]) [data-hud-bar] .line::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 42px;
+  width: 38px;
+  height: 8px;
+  background: url('/art/common/desk-deco-mission-hud-title.png') center / 38px 8px no-repeat;
+  pointer-events: none;
+}
+
+:global(html[data-art]) [data-hud-bar] .icon::before {
+  content: '';
+  position: absolute;
+  bottom: 1px;
+  left: 24px;
+  width: 20px;
+  height: 14px;
+  background: var(--hud-t1);
+  opacity: 0.5;
+  pointer-events: none;
+  -webkit-mask: url('/art/common/desk-deco-mission-hud-go.png') center / 20px 14px no-repeat;
+  mask: url('/art/common/desk-deco-mission-hud-go.png') center / 20px 14px no-repeat;
+}
+
+/* Finish glow 400x132 g in mission blue, flashed with the finish sweep. */
+:global(html[data-art]) [data-status='done'] > .line .icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: -1;
+  width: 202px;
+  height: 68px;
+  margin-top: -34px;
+  background: var(--ef-mission-accent);
+  opacity: 0;
+  pointer-events: none;
+  -webkit-mask: url('/art/common/desk-deco-mission-hud-complete.png') center / 202px 68px no-repeat;
+  mask: url('/art/common/desk-deco-mission-hud-complete.png') center / 202px 68px no-repeat;
+  animation: sweep-a 1000ms var(--ef-ease-g-fade) both;
+}
+
+:global(.still) .icon,
+:global(.still) .icon::after {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon,
+  .icon::after {
+    animation: none;
+  }
+}

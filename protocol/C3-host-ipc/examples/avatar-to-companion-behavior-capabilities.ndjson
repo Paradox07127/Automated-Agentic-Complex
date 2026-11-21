@@ -1,0 +1,2 @@
+{"v": 1, "type": "hello", "role": "avatar", "pid": 4242, "protocol": 1, "character": "aster", "capabilities": ["actions"], "build": {"git": "test"}}
+{"v": 1, "type": "actions", "character": "aster", "actions": [], "switches": {}, "behavior_capabilities": {"short_walk": null, "sit@window": "当前角色未配置 window_top 坐姿与接触点"}}

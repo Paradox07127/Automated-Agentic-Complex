@@ -1,0 +1,41 @@
+[
+  {
+    "op": "camera.drag",
+    "surface": "stack",
+    "args": [
+      10,
+      5
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "camera.endDrag",
+    "surface": "stack",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
+    "op": "camera.scroll",
+    "surface": "stack",
+    "args": [
+      20
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "camera.magnify",
+    "surface": "stack",
+    "args": [
+      0.1
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "camera.act",
+    "surface": "stack",
+    "args": [
+      "commit"
+    ],
+    "kind": "undefined"
+  }
+]

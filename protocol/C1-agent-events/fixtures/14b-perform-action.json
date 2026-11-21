@@ -1,0 +1,83 @@
+{
+ "description": "游戏原片动作（v2.6）：[motion:] 的文字配到当前角色的游戏动作时，perform 带 action（不带 motion），宿主按 id 播该动作的片段，播完回 completed；第二条角色没有这个动作，回 rejected / unsupported",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-ga-7d41c09e2b5a83f6",
+   "type": "perform",
+   "target": null,
+   "trigger": {
+    "source": "agent",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 1,
+   "expires_at_ms": 1762250009333,
+   "intensity": 1.0,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "0d6c2b7e-6a1f-4f0e-9a51-2f4b8f1c9e30",
+   "action": {
+    "id": "dialog_single_wave1",
+    "length_s": 3.333
+   }
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-ga-7d41c09e2b5a83f6",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1762250000100,
+   "turn_generation": 5
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-ga-7d41c09e2b5a83f6",
+   "phase": "completed",
+   "reason": null,
+   "at_ms": 1762250003500,
+   "turn_generation": 5
+  },
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-ga-e5f60718a1b2c3d4",
+   "type": "perform",
+   "target": null,
+   "trigger": {
+    "source": "agent",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 1,
+   "expires_at_ms": 1762250014230,
+   "intensity": 1.0,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "4c1d9a3e-8b2f-4d6a-b7e1-5a9c3f2d1e08",
+   "action": {
+    "id": "dialog_single_bow",
+    "length_s": 4.233
+   }
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-ga-e5f60718a1b2c3d4",
+   "phase": "rejected",
+   "reason": "unsupported",
+   "at_ms": 1762250004000,
+   "turn_generation": 5
+  }
+ ]
+}

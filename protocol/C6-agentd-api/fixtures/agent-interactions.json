@@ -1,0 +1,72 @@
+{
+  "requests": [
+    {
+      "request_id": "0123456789abcdef0123456789abcdef",
+      "run_id": "run-8d03",
+      "kind": "question",
+      "state": "pending",
+      "revision": 1,
+      "data": {
+        "character_id": "voice_a",
+        "job_id": "fedcba9876543210fedcba9876543210",
+        "preview": null,
+        "questions": [{"id": "scope", "options": [{"label": "包含"}], "question": "包含外部会话吗？"}],
+        "scope_id": "scope-1",
+        "user_text": "整理本周提交"
+      },
+      "answer": null,
+      "created_at": 1793503662.4,
+      "expires_at": 0.0,
+      "conversation_id": "0123456789abcdef0123456789abcdef",
+      "generation": 0
+    },
+    {
+      "request_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "run_id": "run-8d03",
+      "kind": "approval",
+      "state": "pending",
+      "revision": 1,
+      "data": {
+        "questions": [{"id": "decision", "question": "是否允许这一次操作？", "options": [{"label": "允许"}, {"label": "本对话都允许"}, {"label": "拒绝"}]}],
+        "preview": {"server": "remote", "tool": "run", "catalog_sha256": "catalog-a", "arguments": {"command": "ls"}},
+        "preview_text": "{ \"server\": \"remote\", \"tool\": \"run\" }",
+        "dangerous": false,
+        "danger_rule": null,
+        "approval_answers": ["allow", "allow_session", "deny"],
+        "character_id": "voice_a",
+        "scope_id": null,
+        "user_text": "核查工具结果",
+        "job_id": null
+      },
+      "answer": null,
+      "created_at": 1793503662.4,
+      "expires_at": 1793503842.4,
+      "conversation_id": "0123456789abcdef0123456789abcdef",
+      "generation": 0
+    },
+    {
+      "request_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "run_id": "run-8d03",
+      "kind": "approval",
+      "state": "pending",
+      "revision": 1,
+      "data": {
+        "questions": [{"id": "decision", "question": "是否允许这一次操作？", "options": [{"label": "允许"}, {"label": "拒绝"}]}],
+        "preview": {"server": "remote", "tool": "run", "catalog_sha256": "catalog-a", "arguments": {"command": "rm -rf out"}},
+        "preview_text": "{ \"server\": \"remote\", \"tool\": \"run\" }",
+        "dangerous": true,
+        "danger_rule": "rm_recursive",
+        "approval_answers": ["allow", "deny"],
+        "character_id": "voice_a",
+        "scope_id": null,
+        "user_text": "核查工具结果",
+        "job_id": null
+      },
+      "answer": null,
+      "created_at": 1793503662.4,
+      "expires_at": 1793503842.4,
+      "conversation_id": "0123456789abcdef0123456789abcdef",
+      "generation": 0
+    }
+  ]
+}

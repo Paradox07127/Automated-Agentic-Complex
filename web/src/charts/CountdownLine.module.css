@@ -1,0 +1,27 @@
+.root {
+  position: relative;
+  width: 100%;
+  min-width: 120px;
+  height: 2px;
+  background: var(--ef-chart-cell-empty);
+}
+
+/* The time left is secondary ink; almost out it turns trace (ink on paper, yellow in dark). */
+.fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--ef-text-2);
+  transition: width 250ms var(--ef-ease-mech);
+}
+
+.root[data-urgent] .fill {
+  background: var(--ef-trace);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+}

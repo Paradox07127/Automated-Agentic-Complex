@@ -1,0 +1,25 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  padding: var(--ef-page-pad);
+}
+
+.fold {
+  color: var(--ef-text-3);
+  font: var(--ef-t-text);
+}
+
+.fold > summary {
+  width: max-content;
+}
+
+.raw {
+  margin: var(--ef-sp-8) 0 0;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: var(--ef-t-mono);
+  color: var(--ef-text-2);
+}

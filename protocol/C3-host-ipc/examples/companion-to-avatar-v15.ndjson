@@ -1,0 +1,7 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["capsules_global","watchdog","surfaces","opacity","layering"],"build":{"git":"16ba94ed"}}
+{"v":1,"type":"surface","track_id":"s-1","state":"tracking","window":{"window_id":3990,"generation":2,"display_id":1,"frame":{"x":300,"y":200,"w":800,"h":600},"order":1,"edges":[{"side":"top","segments":[[500,1100]]}],"above":[{"x":100,"y":400,"w":400,"h":500}]}}
+{"v":1,"type":"surface","track_id":"s-1","state":"tracking","window":{"window_id":3990,"generation":2,"display_id":1,"frame":{"x":300,"y":200,"w":800,"h":600},"order":0,"edges":[{"side":"top","segments":[[300,1100]]}],"above":[]}}
+{"v":1,"type":"set_opacity","opacity":0.35,"duration_ms":333}
+{"v":1,"type":"covered","window_id":4021,"generation":1,"frame":{"x":100,"y":400,"w":400,"h":500}}
+{"v":1,"type":"set_opacity","opacity":1,"duration_ms":167}
+{"v":1,"type":"covered","window_id":null}

@@ -1,0 +1,365 @@
+{
+ "schema": "endfield-clip-catalog-v1",
+ "clips": [
+  {
+   "name": "A_clip_aster_dialog_single_akimboleft_look",
+   "length": 7.8166666
+  },
+  {
+   "name": "A_clip_aster_dialog_single_bow",
+   "length": 4.233333
+  },
+  {
+   "name": "A_clip_aster_dialog_single_callup",
+   "length": 2.85
+  },
+  {
+   "name": "A_clip_aster_dialog_single_idle_spreadhands",
+   "length": 3.0
+  },
+  {
+   "name": "A_clip_aster_dialog_single_idle_talklefthand3",
+   "length": 3.15
+  },
+  {
+   "name": "A_clip_aster_dialog_single_idle_talklefthand4",
+   "length": 2.98333335
+  },
+  {
+   "name": "A_clip_aster_dialog_single_idle_talklefthand5",
+   "length": 4.2
+  },
+  {
+   "name": "A_clip_aster_dialog_single_idle_talkrighthand3",
+   "length": 3.15
+  },
+  {
+   "name": "A_clip_aster_dialog_single_idle_talkrighthand4",
+   "length": 2.98333335
+  },
+  {
+   "name": "A_clip_aster_dialog_single_idle_talkrighthand5",
+   "length": 4.2
+  },
+  {
+   "name": "A_clip_aster_dialog_single_idle_wipe",
+   "length": 2.3166666
+  },
+  {
+   "name": "A_clip_aster_dialog_single_idletalk1",
+   "length": 6.91666651
+  },
+  {
+   "name": "A_clip_aster_dialog_single_idletalk2",
+   "length": 8.333333
+  },
+  {
+   "name": "A_clip_aster_dialog_single_sigh",
+   "length": 3.66666675
+  },
+  {
+   "name": "A_clip_aster_dialog_single_sighrelief",
+   "length": 3.16666675
+  },
+  {
+   "name": "A_clip_aster_dialog_single_thumbself",
+   "length": 3.5
+  },
+  {
+   "name": "A_clip_aster_dialog_single_wave1",
+   "length": 3.33333325
+  },
+  {
+   "name": "A_clip_aster_dialog_single_wave2",
+   "length": 1.81666672
+  },
+  {
+   "name": "A_clip_aster_dialog_single_yawn",
+   "length": 4.25
+  },
+  {
+   "name": "A_clip_aster_dialog_state_akimbolaugh_start",
+   "length": 1.33333337
+  },
+  {
+   "name": "A_clip_aster_dialog_state_alert_look_loop",
+   "length": 15.333333
+  },
+  {
+   "name": "A_clip_aster_dialog_state_alert_start",
+   "length": 1.58333337
+  },
+  {
+   "name": "A_clip_aster_dialog_state_blame_start",
+   "length": 1.33333337
+  },
+  {
+   "name": "A_clip_aster_dialog_state_bread_loop",
+   "length": 2.55
+  },
+  {
+   "name": "A_clip_aster_dialog_state_chesthugging1_start",
+   "length": 1.9
+  },
+  {
+   "name": "A_clip_aster_dialog_state_clasp_start",
+   "length": 1.5
+  },
+  {
+   "name": "A_clip_aster_dialog_state_clench_start",
+   "length": 3.16666675
+  },
+  {
+   "name": "A_clip_aster_dialog_state_cofidence_start",
+   "length": 1.15
+  },
+  {
+   "name": "A_clip_aster_dialog_state_earring_start",
+   "length": 4.33333349
+  },
+  {
+   "name": "A_clip_aster_dialog_state_fear_start",
+   "length": 1.1
+  },
+  {
+   "name": "A_clip_aster_dialog_state_fistdouble_start",
+   "length": 1.9666667
+  },
+  {
+   "name": "A_clip_aster_dialog_state_idea_start",
+   "length": 1.83333337
+  },
+  {
+   "name": "A_clip_aster_dialog_state_introduction2_start",
+   "length": 1.6
+  },
+  {
+   "name": "A_clip_aster_dialog_state_listen1_start",
+   "length": 5.33333349
+  },
+  {
+   "name": "A_clip_aster_dialog_state_listen2_start",
+   "length": 6.0
+  },
+  {
+   "name": "A_clip_aster_dialog_state_lookhand_start",
+   "length": 1.83333337
+  },
+  {
+   "name": "A_clip_aster_dialog_state_lose_start",
+   "length": 3.58333325
+  },
+  {
+   "name": "A_clip_aster_dialog_state_pad_start",
+   "length": 2.7166667
+  },
+  {
+   "name": "A_clip_aster_dialog_state_padlook_start",
+   "length": 2.33333325
+  },
+  {
+   "name": "A_clip_aster_dialog_state_padthink_start",
+   "length": 1.91666663
+  },
+  {
+   "name": "A_clip_aster_dialog_state_rest_anteversion_start",
+   "length": 2.85
+  },
+  {
+   "name": "A_clip_aster_dialog_state_rest_start",
+   "length": 1.91666663
+  },
+  {
+   "name": "A_clip_aster_dialog_state_scratchface_start",
+   "length": 2.25
+  },
+  {
+   "name": "A_clip_aster_dialog_state_shy_start",
+   "length": 1.66666663
+  },
+  {
+   "name": "A_clip_aster_dialog_state_sorryfinger_start",
+   "length": 2.16666675
+  },
+  {
+   "name": "A_clip_aster_dialog_state_spidle1_loop",
+   "length": 19.0166664
+  },
+  {
+   "name": "A_clip_aster_dialog_state_spidle2_loop",
+   "length": 22.166666
+  },
+  {
+   "name": "A_clip_aster_dialog_state_stop_start",
+   "length": 1.33333337
+  },
+  {
+   "name": "A_clip_aster_dialog_state_strive_start",
+   "length": 0.766666651
+  },
+  {
+   "name": "A_clip_aster_dialog_state_supervise_loop",
+   "length": 12.7
+  },
+  {
+   "name": "A_clip_aster_dialog_state_surprise_start",
+   "length": 1.6
+  },
+  {
+   "name": "A_clip_aster_dialog_state_surrender_start",
+   "length": 1.9666667
+  },
+  {
+   "name": "A_clip_aster_dialog_state_tea_loop",
+   "length": 6.5
+  },
+  {
+   "name": "A_clip_aster_dialog_state_think2_start",
+   "length": 2.33333325
+  },
+  {
+   "name": "A_clip_aster_dialog_state_think3_idea_start",
+   "length": 1.16666663
+  },
+  {
+   "name": "A_clip_aster_dialog_state_think3_start",
+   "length": 2.25
+  },
+  {
+   "name": "A_clip_aster_dialog_state_think4_start",
+   "length": 2.33333325
+  },
+  {
+   "name": "A_clip_aster_dialog_state_thinkakimbo1_start",
+   "length": 2.0
+  },
+  {
+   "name": "A_clip_aster_dialog_state_thumb_start",
+   "length": 1.83333337
+  },
+  {
+   "name": "A_clip_aster_dialog_state_tired_start",
+   "length": 2.4
+  },
+  {
+   "name": "A_clip_aster_dialog_state_titter_start",
+   "length": 1.66666663
+  },
+  {
+   "name": "A_clip_aster_dialog_state_touchbrow_start",
+   "length": 2.4333334
+  },
+  {
+   "name": "A_clip_aster_dialog_state_type2_loop",
+   "length": 3.13333344
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_single_idle_nod",
+   "length": 1.31666672
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_single_idle_shake",
+   "length": 2.33333325
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_single_idle_talkhands",
+   "length": 4.5666666
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_single_idle_talklefthand1",
+   "length": 2.83333325
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_single_idle_talklefthand2",
+   "length": 5.733333
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_single_idle_talkrighthand1",
+   "length": 2.83333325
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_single_idle_talkrighthand2",
+   "length": 5.733333
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_state_akimbo1_start",
+   "length": 1.33333337
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_state_akimboleft_start",
+   "length": 1.93333328
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_state_earphone_start",
+   "length": 1.41666663
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_state_introduction_start",
+   "length": 1.36666667
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_state_scratchhead_start",
+   "length": 2.0666666
+  },
+  {
+   "name": "A_clip_aster_dialog_virtual_state_think1_start",
+   "length": 1.7
+  },
+  {
+   "name": "A_clip_aster_idle_loop",
+   "length": 2.0
+  },
+  {
+   "name": "A_clip_aster_interact_operate_start",
+   "length": 1.5
+  },
+  {
+   "name": "A_clip_aster_interact_thinkship_start",
+   "length": 2.33333325
+  },
+  {
+   "name": "A_clip_aster_interact_watch_start",
+   "length": 0.75
+  },
+  {
+   "name": "A_clip_aster_ui_overview_equip_loop",
+   "length": 2.5
+  },
+  {
+   "name": "A_clip_aster_ui_overview_skill_loop",
+   "length": 2.5
+  },
+  {
+   "name": "A_clip_aster_ui_overview_to_equip",
+   "length": 1.63333333
+  },
+  {
+   "name": "A_clip_aster_ui_overview_to_skill",
+   "length": 1.5
+  },
+  {
+   "name": "A_clip_aster_ui_overview_to_upgrade",
+   "length": 1.25
+  },
+  {
+   "name": "A_clip_aster_ui_upgrade_loop",
+   "length": 2.4
+  },
+  {
+   "name": "A_clip_aster_uiteam_idle_01",
+   "length": 2.5
+  },
+  {
+   "name": "A_clip_aster_uiteam_idle_02",
+   "length": 2.5
+  },
+  {
+   "name": "A_clip_aster_uiteam_idle_03",
+   "length": 2.5
+  },
+  {
+   "name": "A_clip_aster_uiteam_idle_04",
+   "length": 2.5
+  }
+ ]
+}

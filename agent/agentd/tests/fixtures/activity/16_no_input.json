@@ -1,0 +1,23 @@
+{
+  "note": "没有任何输入",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": null,
+    "dwell_s": null,
+    "presence": null,
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "unknown",
+    "status": "unknown",
+    "related_session_ids": [],
+    "can_interrupt": false
+  }
+}

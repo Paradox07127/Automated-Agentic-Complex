@@ -1,0 +1,132 @@
+/* Icon button: a dark pill, 50x27 at md; the close action is the bare X in a round hit area. */
+.btn {
+  /* Pressed shade #000@0.357, shared with Btn. */
+  --press: rgba(0, 0, 0, 0.357);
+  /* Not --fill: RadialFill registers --fill globally as a <number>, which voids a colour. */
+  --plate: var(--ef-btn-dark);
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ef-btn-dark-text);
+  cursor: pointer;
+  transition: color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.btn[data-size='sm'] {
+  width: 44px;
+  height: 28px;
+}
+
+.btn::before,
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 2.5px 0;
+  z-index: -1;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.btn[data-size='sm']::before,
+.btn[data-size='sm']::after {
+  inset: 2px 0;
+}
+
+.btn::before {
+  background-color: var(--plate);
+  transition: background-color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.btn::after {
+  background-color: var(--ef-btn-hover);
+  opacity: 0;
+  transition:
+    opacity var(--ef-dur-g-btn) var(--ef-ease-g-fade),
+    background-color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+/* Close button: no plate; the X sits in a round hit area. */
+.btn[data-icon='close'] {
+  --plate: transparent;
+  width: 32px;
+  color: var(--ef-text-2);
+}
+
+.btn[data-icon='close'][data-size='sm'] {
+  width: 28px;
+}
+
+.btn[data-icon='close']::before,
+.btn[data-icon='close']::after {
+  inset: 0;
+  border-radius: 50%;
+}
+
+.btn[data-icon='close']::after {
+  background-color: var(--ef-overlay-hover);
+}
+
+.btn[aria-pressed='true'] {
+  --plate: var(--ef-btn-light);
+  color: var(--ef-btn-light-text);
+}
+
+.btn:hover:not(:disabled)::after {
+  opacity: 1;
+  transition-duration: var(--ef-dur-g-btn-hover);
+}
+
+.btn[data-icon='close']:hover:not(:disabled) {
+  color: var(--ef-text-1);
+}
+
+.btn:active:not(:disabled)::after {
+  background-color: var(--press);
+  opacity: 1;
+}
+
+.btn[data-icon='close']:active:not(:disabled)::after {
+  background-color: var(--ef-overlay-press);
+}
+
+.btn:focus-visible {
+  outline: none;
+}
+
+.btn:focus-visible::before {
+  box-shadow: 0 0 0 2px var(--ef-focus);
+}
+
+.btn:disabled {
+  --plate: var(--ef-btn-disabled);
+  color: var(--ef-btn-light-text);
+  cursor: not-allowed;
+}
+
+.btn[data-icon='close']:disabled {
+  --plate: transparent;
+  color: var(--ef-text-disabled);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn::before,
+  .btn::after {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .btn,
+:global([data-reduce-motion]) .btn::before,
+:global([data-reduce-motion]) .btn::after {
+  transition: none;
+}

@@ -1,0 +1,194 @@
+/* 进行中 as task rows: a dark plate, a 1 px edge, the 4 px category bar in mission blue. Running work has a solid edge, background work a dashed one, idle work a grey bar. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4.5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rows > li {
+  min-width: 0;
+}
+
+.rr {
+  --rr-cat: var(--ef-mission-accent);
+  --rr-edge: var(--ef-mission-row-line);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  gap: var(--ef-sp-12);
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 6px var(--ef-sp-12) 6px var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--rr-edge);
+  background: var(--ef-mission-row);
+  color: var(--ef-mission-row-text);
+  text-align: left;
+}
+
+:global([data-theme='light']) .rr {
+  --rr-edge: var(--ef-line);
+}
+
+:global([data-theme='light']) .rr::after {
+  background: var(--ef-chip);
+}
+
+.rr[data-frame='bg'] {
+  border-style: dashed;
+}
+
+.rr[data-frame='idle'] {
+  --rr-cat: var(--ef-line-strong);
+}
+
+.rr[data-ghost] {
+  --rr-cat: transparent;
+  border-style: dashed;
+  background: transparent;
+}
+
+/* Category bar, full height on the left edge; pointing adds the hover mask and steps the content in. */
+.rr::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -1px;
+  bottom: -1px;
+  left: -1px;
+  width: var(--ef-lw-category);
+  background: var(--rr-cat);
+}
+
+.rr::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: var(--ef-btn-hover);
+  opacity: 0;
+  transition: opacity var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+  pointer-events: none;
+}
+
+.rr > :not([data-tone]) {
+  transition: transform 200ms var(--ef-ease-g-enter);
+}
+
+.rr:is(:hover, :active, :focus-visible)::after {
+  opacity: 1;
+}
+
+.rr:is(:hover, :active, :focus-visible) > :not([data-tone]) {
+  transform: translateX(6px);
+}
+
+/* Icon slot with the 1 px divider after it (missioncellnew icon + divider). */
+.rrIc {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-right: var(--ef-sp-4);
+  background: var(--ef-chip);
+  color: var(--ef-text-2);
+}
+
+.rrIc::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: calc(-1 * var(--ef-sp-8));
+  width: var(--ef-lw-hair);
+  height: 20px;
+  background: var(--rr-edge);
+}
+
+.rrB {
+  flex: 1;
+  min-width: 0;
+}
+
+.rrT {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: 700 14px/1.35 var(--ef-font-sans);
+}
+
+.rrM {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ef-text-2);
+}
+
+.rrA {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+.cap {
+  font-size: 12px;
+  color: var(--ef-text-2);
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: var(--ef-font-mono);
+}
+
+/* The head's breakdown gives way first when the right column is narrow. */
+.headCap {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--ef-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container page (min-width: 1100px) and (max-width: 1439px) {
+  .headCap {
+    display: none;
+  }
+}
+
+.rr:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rr::after,
+  .rr > * {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .rr::after,
+:global([data-reduce-motion]) .rr > *,
+:global(.still) .rr::after,
+:global(.still) .rr > * {
+  transition: none;
+}
+
+@media (min-height: 1000px) {
+  .rr {
+    min-height: 64px;
+  }
+}

@@ -1,0 +1,14 @@
+.cell text.label {
+  fill: var(--ef-text-1);
+}
+
+.cell text.value {
+  fill: var(--ef-text-1);
+  opacity: 0.85;
+  font-size: var(--ef-fs-meta);
+}
+
+.cell:hover rect:first-child {
+  stroke: var(--ef-trace);
+  stroke-width: 1;
+}

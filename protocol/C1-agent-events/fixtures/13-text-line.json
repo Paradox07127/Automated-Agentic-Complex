@@ -1,0 +1,50 @@
+{
+ "description": "只出字的台词：第一个字显示时 text_line started，显示的字里第一个意图随即作为 clause_intent（三个 id 为 null）发出，台词结束时 text_line ended 带 hold_ms（显示的字数 × 60 ms，最多 3000）；被取消的台词 hold_ms 为 0",
+ "messages": [
+  {
+   "event": "text_line",
+   "seq": 1,
+   "line_id": "l-20",
+   "turn_generation": 5,
+   "trace_id": "t-20",
+   "state": "started"
+  },
+  {
+   "event": "clause_intent",
+   "seq": 2,
+   "line_id": "l-20",
+   "utterance_id": null,
+   "clause_id": null,
+   "spoken_text_revision": null,
+   "intent": "greet",
+   "turn_generation": 5,
+   "trace_id": "t-20"
+  },
+  {
+   "event": "text_line",
+   "seq": 3,
+   "line_id": "l-20",
+   "turn_generation": 5,
+   "trace_id": "t-20",
+   "state": "ended",
+   "hold_ms": 840
+  },
+  {
+   "event": "text_line",
+   "seq": 4,
+   "line_id": "l-21",
+   "turn_generation": 6,
+   "trace_id": "t-21",
+   "state": "started"
+  },
+  {
+   "event": "text_line",
+   "seq": 5,
+   "line_id": "l-21",
+   "turn_generation": 6,
+   "trace_id": "t-21",
+   "state": "ended",
+   "hold_ms": 0
+  }
+ ]
+}

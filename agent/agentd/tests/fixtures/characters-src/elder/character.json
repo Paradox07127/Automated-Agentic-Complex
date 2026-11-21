@@ -1,0 +1,45 @@
+{
+  "schema": "endfield-character-definition",
+  "schema_version": 1,
+  "id": "elder",
+  "version": "1.0.0",
+  "source_identity": {
+    "character_id": "elder",
+    "snapshot": "test-fixture-1"
+  },
+  "display": {
+    "name": {
+      "zh-Hans": "示例戊"
+    }
+  },
+  "aliases": [],
+  "components": {
+    "persona": {
+      "card": {
+        "file": "persona/card.json",
+        "sha256": "885bf0ed91ccd7861b20b5f8d668a9cef181da99c0770cb0d29373b6c26caff4",
+        "byte_count": 1820
+      },
+      "lore": {
+        "file": "persona/lore.json",
+        "sha256": "947eac123b28802385c2ac06f7c3726a597165184996095fdba2e011a1c76c7c",
+        "byte_count": 318
+      }
+    }
+  },
+  "capabilities": [
+    "persona.dialogue"
+  ],
+  "inventory": [
+    {
+      "file": "persona/card.json",
+      "sha256": "885bf0ed91ccd7861b20b5f8d668a9cef181da99c0770cb0d29373b6c26caff4",
+      "byte_count": 1820
+    },
+    {
+      "file": "persona/lore.json",
+      "sha256": "947eac123b28802385c2ac06f7c3726a597165184996095fdba2e011a1c76c7c",
+      "byte_count": 318
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["capsules_global","watchdog","actions"]}
+{"v":1,"type":"stop_action","play_id":"p-1"}

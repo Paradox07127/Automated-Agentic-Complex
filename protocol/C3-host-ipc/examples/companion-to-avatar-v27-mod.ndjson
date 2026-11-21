@@ -1,0 +1,7 @@
+{"v":1,"type":"hello","role":"companion","pid":4243,"protocol":1,"capabilities":["capsules_global","watchdog","actions","mod_settings"],"build":{"git":"9e3c2555"}}
+{"v":1,"type":"get_actions"}
+{"v":1,"type":"set_mod_settings","req":1,"character":"birch","appearance":"mod_1a2b3c4d","values":{"coat":1,"color":2}}
+{"v":1,"type":"set_mod_settings","req":2,"character":"birch","appearance":"mod_5e6f7a8b","values":{"hood":1}}
+{"v":1,"type":"set_mod_settings","req":3,"character":"birch","appearance":"mod_1a2b3c4d","values":{}}
+{"v":1,"type":"set_character","id":"aster","appearance":"mod_9c0d1e2f","mod_settings":{"mod_9c0d1e2f":{"skirt_long":1},"mod_3a4b5c6d":{"color":255}}}
+{"v":1,"type":"quit","reason":"companion_exit"}

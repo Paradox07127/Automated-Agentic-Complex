@@ -1,0 +1,87 @@
+{
+  "stream_epoch": "378abfa5",
+  "seq": 18422,
+  "conversations": {
+    "conversations": [{"id": "0123456789abcdef0123456789abcdef", "title": "周报", "pinned": false, "archived": false, "revision": 2,
+                       "created_at": 1793500000.5, "updated_at": 1793503662.4, "turn_count": 4, "active": true}],
+    "busy": false
+  },
+  "interactions": {
+    "requests": [{
+      "request_id": "0123456789abcdef0123456789abcdef", "run_id": "run-8d03", "kind": "question", "state": "pending", "revision": 1,
+      "data": {"character_id": "voice_a", "job_id": "fedcba9876543210fedcba9876543210", "preview": null,
+               "questions": [{"id": "scope", "options": [{"label": "包含"}], "question": "包含外部会话吗？"}],
+               "scope_id": "scope-1", "user_text": "整理本周提交"},
+      "answer": null, "created_at": 1793503662.4, "expires_at": 0.0,
+      "conversation_id": "0123456789abcdef0123456789abcdef", "generation": 0
+    }]
+  },
+  "jobs": {
+    "jobs": [{"job_id": "0123456789abcdef0123456789abcdef", "goal_id": "fedcba9876543210fedcba9876543210", "title": "整理本周提交",
+              "state": "queued", "run_id": "bg-00112233445566778899aabbccddeeff", "previous_run_id": "bg-ffeeddccbbaa99887766554433221100",
+              "result": null, "created_at": 1793503600.2, "updated_at": 1793503662.4,
+              "conversation_id": "0123456789abcdef0123456789abcdef", "source_turn_id": "tr41", "generation": 0}]
+  },
+  "tasks": {
+    "tasks": [{"task_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "target": "character", "cwd": "/Users/me/Documents", "title": "整理周报",
+               "mode": "workspace_write", "state": "needs_review", "verify_cmd": "make check", "session_id": "own:0123456789ab",
+               "created_at": 1793503600.2, "updated_at": 1793503662.4, "result": null, "requested_by": null}]
+  },
+  "personal_tasks": {
+    "tasks": [{
+      "canonical_task_id": "task:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "task_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "job_id": "0123456789abcdef0123456789abcdef", "goal_id": "fedcba9876543210fedcba9876543210", "run_id": "run-8d03",
+      "source_run_id": "run-7c02", "parent_run_id": "run-7c01", "conversation_id": "0123456789abcdef0123456789abcdef",
+      "character_id": "voice_a", "generation": 1, "run_count": 1, "title": "整理周报", "state": "needs_review",
+      "created_at": 1793503600.2, "updated_at": 1793503662.4,
+      "delivery": {
+        "delivery_version": 1, "delivery_id": "delivery-0123456789abcdef0123456789abcdef", "canonical_task_id": "task:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_id": "run-8d03", "task_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "job_id": "0123456789abcdef0123456789abcdef",
+        "goal_id": "fedcba9876543210fedcba9876543210", "conversation_id": "0123456789abcdef0123456789abcdef",
+        "character_id": "voice_a", "source_run_id": "run-7c02", "parent_run_id": "run-7c01", "scope_id": "scope-1",
+        "generation": 1, "revision": 2, "state": "presented", "outcome": "needs_review", "verification_source": "unverified",
+        "decision_source": "user", "title": "整理周报", "produced_at": 1793503662.4, "presented_at": 1793503663.0,
+        "viewed_at": 1793503664.0, "decided_at": 1793503665.0, "redacted": false, "schema_version": 1, "summary": "按项目整理了本周提交。",
+        "artifacts": [{"artifact_id": "art-1", "path": "周报.md", "absolute_path": "/Users/me/Documents/周报.md", "version": 1,
+                       "self_checked": true, "sha256": "0000000000000000000000000000000000000000000000000000000000000001"}],
+        "kind": "task_notice", "material_is_instruction": false
+      },
+      "revision": 2, "verification_source": "unverified", "redacted": false
+    }],
+    "next_cursor": "eyJvZmZzZXQiOiA1MH0"
+  },
+  "deliveries": {
+    "deliveries": [{
+      "delivery_version": 1, "delivery_id": "delivery-0123456789abcdef0123456789abcdef", "canonical_task_id": "task:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "run_id": "run-8d03", "task_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "job_id": "0123456789abcdef0123456789abcdef",
+      "goal_id": "fedcba9876543210fedcba9876543210", "conversation_id": "0123456789abcdef0123456789abcdef",
+      "character_id": "voice_a", "source_run_id": "run-7c02", "parent_run_id": "run-7c01", "scope_id": "scope-1",
+      "generation": 1, "revision": 2, "state": "presented", "outcome": "needs_review", "verification_source": "unverified",
+      "decision_source": "user", "title": "整理周报", "produced_at": 1793503662.4, "presented_at": 1793503663.0,
+      "viewed_at": 1793503664.0, "decided_at": 1793503665.0, "redacted": false, "schema_version": 1, "summary": "按项目整理了本周提交。",
+      "artifacts": [{"artifact_id": "art-1", "path": "周报.md", "absolute_path": "/Users/me/Documents/周报.md", "version": 1,
+                     "self_checked": true, "sha256": "0000000000000000000000000000000000000000000000000000000000000001"}],
+      "kind": "task_notice", "material_is_instruction": false
+    }],
+    "next_cursor": "eyJvZmZzZXQiOiA1MH0"
+  },
+  "task_understanding": null,
+  "commitments": {
+    "commitments": [{"id": "9ce9e4d787a0", "text": "提醒喝水", "due_at": 1793507262.4, "state": "armed", "created_at": 1793503662.4,
+                     "created_line": null, "delivered_line": null, "updated_at": 1793503662.4, "revision": 1,
+                     "repeat": "daily", "trigger": null, "seen_at": null}]
+  },
+  "approvals": {
+    "approvals": [{
+      "request_id": "7efc71b83fa92692", "generation": 1, "display_session": "claude:session", "source": "claude",
+      "session_id": "session", "agent_id": "agent-1", "tool_name": "Read", "tool_summary": "README.md", "kind": "tool",
+      "dispatch": null, "summary_truncated": false, "summary_length": 9,
+      "summary_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+      "content_preview": "# Endfield", "content_preview_truncated": false, "content_preview_length": 10,
+      "content_preview_sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+      "cwd": "/Users/me/Endfield", "dangerous": false, "danger_rule": "rm_recursive", "options": ["allow", "deny"],
+      "session_scope": {"kind": "tool", "detail": "Read"}, "status": "pending", "created_at": 1793503662.4,
+      "window_s": 55.0, "seconds_left": 54.9
+    }]
+  }
+}

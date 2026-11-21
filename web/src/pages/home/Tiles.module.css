@@ -1,0 +1,298 @@
+/* Watch keys: <name>Shadow (#FFF 0.392) under Btn (#E7E7E7, offset), icon over name in dark ink.
+   Without art the plates are clip-path stand-ins of the sprites; under html[data-art] the sprites draw them. */
+.slot {
+  position: absolute;
+  transform-style: preserve-3d;
+}
+
+.group {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+/* The layers and groups around the slots let the pointer through; the slots take it back. */
+.slot {
+  pointer-events: auto;
+}
+
+.key {
+  --shape: inset(5% 4% 4% 3% round 4px);
+  --art: url('/art/watch/button-bg01.png');
+  --dx: 2.5px;
+  --dy: -0.25px;
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transform-style: preserve-3d;
+}
+
+.key[data-shape='1'] {
+  --shape: polygon(25% 3%, 97% 3%, 72% 97%, 2% 97%);
+  --art: url('/art/watch/rightbutton-bg01.png');
+}
+
+.key[data-shape='2'] {
+  --shape: polygon(12% 4%, 97% 5%, 94% 30%, 91% 50%, 89% 70%, 88% 90%, 84% 97%, 5% 97%, 2% 90%, 2% 70%, 3% 50%, 6% 30%, 10% 10%);
+  --art: url('/art/watch/rightbutton-bg02.png');
+}
+
+.key[data-shape='3'] {
+  --shape: polygon(2% 4%, 87% 4%, 88% 30%, 90% 50%, 93% 70%, 98% 90%, 94% 96%, 15% 96%, 9% 90%, 6% 70%, 3% 50%, 2% 30%);
+  --art: url('/art/watch/rightbutton-bg03.png');
+}
+
+.key[data-shape='4'] {
+  --shape: polygon(2% 4%, 80% 4%, 85% 30%, 89% 50%, 94% 70%, 96% 90%, 92% 96%, 20% 96%, 15% 90%, 11% 70%, 7% 50%, 4% 30%);
+  --art: url('/art/watch/rightbutton-bg04.png');
+}
+
+.key:not([data-shape='sq']) {
+  --dx: -1.6px;
+  --dy: -1.05px;
+}
+
+.shadow,
+.face,
+.fill {
+  position: absolute;
+  inset: 0;
+}
+
+.shadow::before,
+.fill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: var(--shape);
+}
+
+.shadow::before {
+  background: var(--ef-g-btn-shadow);
+}
+
+/* The light theme has no dark ground under the plates: give them the page's edge. */
+:global([data-theme='light']) .key :is(.shadow, .fill) {
+  filter: drop-shadow(0 0 1px var(--ef-line-strong));
+}
+
+.face {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-2);
+  align-items: center;
+  justify-content: center;
+  translate: var(--dx) var(--dy);
+  opacity: 0.8627;
+  transform-style: preserve-3d;
+}
+
+.fill::before {
+  background-color: var(--ef-g-btn-face);
+  box-shadow: inset 0 0 0 1.5px var(--ef-g-btn-hover);
+  transition: background-color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+/* Depth: the face casts a soft shadow, catches light along its top edge and darkens toward the bottom. */
+.fill {
+  filter: drop-shadow(0 2.5px 3px var(--ef-g-wheel-bg));
+  transition: filter var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ef-g-btn-hover) 50%, transparent) 0,
+    transparent 30%,
+    transparent 68%,
+    color-mix(in srgb, var(--ef-g-icon) 24%, transparent) 100%
+  );
+  clip-path: var(--shape);
+  pointer-events: none;
+}
+
+/* Pressed: the face sinks onto its shadow plate. */
+.key:active {
+  --dx: 0px;
+  --dy: 0px;
+}
+
+.key:active .fill {
+  filter: none;
+}
+
+/* Highlighted: white at once; back to normal over 100 ms; pressed looks normal. */
+.key:hover .fill::before,
+.key:focus-visible .fill::before {
+  background-color: var(--ef-g-btn-hover);
+  transition-duration: 0ms;
+}
+
+.key:active .fill::before {
+  background-color: var(--ef-g-btn-face);
+}
+
+.key:focus-visible {
+  outline: none;
+}
+
+.key:focus-visible .face {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.icon {
+  position: relative;
+  display: inline-flex;
+  color: var(--ef-g-icon);
+}
+
+.name {
+  position: relative;
+  color: var(--ef-g-label);
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1 var(--ef-font-ui);
+  white-space: nowrap;
+}
+
+.key:not([data-shape='sq']) .face {
+  gap: var(--ef-sp-6);
+}
+
+.key:not([data-shape='sq']) .name {
+  font-size: var(--ef-fs-small);
+}
+
+/* The left keys lean right; their content sits on the plate's middle. */
+.key[data-shape='1'] :is(.icon, .name) {
+  left: -4%;
+}
+
+.key[data-shape='4'] :is(.icon, .name) {
+  left: 4%;
+}
+
+.hot {
+  position: absolute;
+  top: var(--ef-sp-2);
+  right: var(--ef-sp-2);
+  display: inline-flex;
+}
+
+/* 12px on the stage so the hint still reads at 11px at the smallest fit. */
+.hot kbd {
+  font-size: var(--ef-fs-meta);
+}
+
+.key:not([data-shape='sq']) .hot {
+  top: var(--ef-sp-8);
+  right: 16%;
+}
+
+/* A square key is too small for icon and hint side by side: the hint takes the icon's place. */
+.key[data-shape='sq'] .hot {
+  top: calc(50% - 7px);
+  right: auto;
+  left: 50%;
+  translate: -50% -50%;
+}
+
+:global(html[data-keys]) .key[data-shape='sq'] .face:has(.hot) .icon {
+  visibility: hidden;
+}
+
+:global(html[data-art]) .shadow::before {
+  clip-path: none;
+  -webkit-mask: var(--art) center / 100% 100% no-repeat;
+  mask: var(--art) center / 100% 100% no-repeat;
+}
+
+:global(html[data-art]) .fill::after {
+  clip-path: none;
+  -webkit-mask: var(--art) center / 100% 100% no-repeat;
+  mask: var(--art) center / 100% 100% no-repeat;
+}
+
+:global(html[data-art]) .fill::before {
+  box-shadow: none;
+  clip-path: none;
+  background-image: var(--art);
+  background-size: 100% 100%;
+  background-blend-mode: multiply;
+  -webkit-mask: var(--art) center / 100% 100% no-repeat;
+  mask: var(--art) center / 100% 100% no-repeat;
+}
+
+/* Top-left icons: the icon over its 0.2 shadow, the count, the red dot and a grey bar. */
+.top {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: var(--ef-sp-4);
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 var(--ef-sp-6);
+  border: 0;
+  background: none;
+  color: var(--ef-g-watch-ink);
+  cursor: pointer;
+}
+
+.top:hover .topIcon {
+  filter: drop-shadow(0 0 4px var(--ef-g-watch-ink));
+}
+
+.top:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.top:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.topIcon {
+  display: inline-flex;
+  filter: drop-shadow(1px 1px 0 color-mix(in srgb, var(--ef-g-watch-ink) 20%, transparent));
+  transition: filter var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.count {
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-num);
+}
+
+.dot {
+  position: absolute;
+  top: var(--ef-sp-4);
+  right: var(--ef-sp-2);
+  display: inline-flex;
+}
+
+.still {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ef-g-reddot);
+}
+
+.bar {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 37.5px;
+  height: 3px;
+  background: var(--ef-line-strong);
+  transform: translateX(-50%);
+}
+
+/* Key hints show only while ⌘ or Ctrl is held (Layout sets html[data-keys]). */
+:global(html:not([data-keys])) .hot {
+  visibility: hidden;
+}

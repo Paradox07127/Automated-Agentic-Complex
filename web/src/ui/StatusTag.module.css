@@ -1,0 +1,72 @@
+/* State, square: running is a solid ink frame, waiting / warning a yellow block, failed a yellow block
+   with a leading ! flag, done an ink block, idle chip. Icon-only is the same block at 10 px. */
+.tag {
+  --tag-bg: var(--ef-chip);
+  --tag-fg: var(--ef-text-1);
+  --tag-line: var(--ef-chip);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  height: 20px;
+  padding: 0 var(--ef-sp-8);
+  border: var(--ef-lw-hair) solid var(--tag-line);
+  background: var(--tag-bg);
+  color: var(--tag-fg);
+  font-family: var(--ef-font-ui);
+  font-size: var(--ef-fs-small);
+  font-stretch: var(--ef-wide);
+  font-weight: var(--ef-fw-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tag[data-tone='running'] {
+  --tag-bg: transparent;
+  --tag-line: var(--ef-text-1);
+}
+
+.tag[data-tone='ok'] {
+  --tag-bg: var(--ef-text-1);
+  --tag-fg: var(--ef-canvas);
+  --tag-line: var(--ef-text-1);
+}
+
+.tag:is([data-tone='waiting'], [data-tone='warning'], [data-tone='failed']) {
+  --tag-bg: var(--ef-accent);
+  --tag-fg: var(--ef-on-accent);
+  --tag-line: var(--ef-accent);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.tag[data-tone='cancelled'] {
+  --tag-fg: var(--ef-text-2);
+}
+
+.tag[data-tone='failed']:not([data-icon-only]) {
+  padding-left: 0;
+}
+
+.tag[data-tone='failed']:not([data-icon-only])::before {
+  content: '!';
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  margin: -1px 0 -1px -1px;
+  padding: 0 5px;
+  background: var(--ef-text-1);
+  color: var(--ef-canvas);
+  font-weight: 800;
+}
+
+.tag[data-icon-only] {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

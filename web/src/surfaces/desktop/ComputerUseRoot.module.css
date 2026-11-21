@@ -1,0 +1,130 @@
+/* The opaque card fills the native panel (336 pt wide); native sizes the panel's height to this box. */
+.root {
+  box-sizing: border-box;
+  width: 336px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: rgb(19 20 22);
+  border: 1px solid var(--ef-line);
+  border-radius: var(--ef-r-2);
+  color: var(--ef-text-1);
+  font: var(--ef-t-text);
+}
+
+.root:empty {
+  display: none;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ef-text-1);
+}
+
+.dot[data-phase='disabled'],
+.dot[data-phase='paused'] {
+  background: var(--ef-text-2);
+}
+
+.dot[data-phase='waitingPermission'],
+.dot[data-phase='failed'] {
+  background: var(--ef-state-warning);
+}
+
+.dot[data-phase='completed'],
+.dot[data-phase='ready'] {
+  background: var(--ef-success);
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font: var(--ef-t-h3);
+}
+
+.app {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.chips {
+  display: flex;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.chips li {
+  padding: 3px 7px;
+  border-radius: var(--ef-r-pill);
+  background: var(--ef-surface-2);
+  white-space: nowrap;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  align-items: center;
+}
+
+.choiceState {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  height: 26px;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+.choiceState[data-allowed] {
+  color: var(--ef-text-1);
+}
+
+.note {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

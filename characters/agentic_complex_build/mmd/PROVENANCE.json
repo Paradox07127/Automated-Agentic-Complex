@@ -1,0 +1,10 @@
+{
+  "source": "repository w4 research; product copy has no runtime research imports",
+  "source_sha256": {
+    "mmd_io.py": "fff16309e8770313f206d40d1574e8d44160a715d62fb1eeaf1556600481142d",
+    "mmd_skeleton.py": "27e0eb4943b775e94c59a6ae6d469c87497f3e0e111b6acd4231cd600681d382",
+    "vmd_to_voice_a.py": "5d10f48eac26c45e09d057d34dd114e5a36b8ad3a60ab8c9253f33cc6b79fc1e",
+    "research/desktop-character-system/voice_a_motion_core.py": "aacb2da4f95e407a3f2900fda65f009d43a55716bdaf8c1ee27b0f83cb5be4c6",
+    "make_synthetic_mmd.py": "cccfcf28fc4d093e00ca5f9c8d728a552a186fe14165d4901dd874c2ff8cc410"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "character": {
+    "agentd": null,
+    "current": null,
+    "failure": null,
+    "pending": null,
+    "shown": null,
+    "switching": false
+  },
+  "config_error": null,
+  "degraded": [],
+  "phase": "starting",
+  "processes": {
+    "agentd": {
+      "backoff": null,
+      "pid": null,
+      "reason": null,
+      "stage": null,
+      "state": "stopped"
+    },
+    "avatar": {
+      "backoff": null,
+      "pid": null,
+      "reason": null,
+      "stage": null,
+      "state": "stopped"
+    },
+    "tunnel": {
+      "backoff": null,
+      "pid": null,
+      "reason": null,
+      "stage": null,
+      "state": "stopped"
+    }
+  },
+  "revision": 0,
+  "tts": {
+    "muted": false,
+    "provider": "none",
+    "reason": null,
+    "retry_after_s": null,
+    "state": "unknown",
+    "tunnel": null
+  },
+  "visibility": {
+    "click_through_all": false,
+    "fullscreen_hidden": false,
+    "hidden": false,
+    "reason": null
+  },
+  "voice_input": "off"
+}

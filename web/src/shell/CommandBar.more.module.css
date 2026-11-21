@@ -1,0 +1,39 @@
+/* Cells hidden past an end of the command bar's tab plate: an arrow over that end's padding, laid on the plate
+   (a negative margin of its width plus the bar's gap) so the plate keeps its place. */
+.more {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--ef-sp-24, 24px);
+  height: 100%;
+  margin-right: calc(-1 * var(--ef-sp-24, 24px) - var(--ef-sp-8));
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: var(--ef-canvas);
+  color: var(--ef-canvas-fg);
+  cursor: pointer;
+}
+
+.more[data-dir='next'] {
+  margin-right: 0;
+  margin-left: calc(-1 * var(--ef-sp-24, 24px) - var(--ef-sp-8));
+}
+
+.more[hidden] {
+  display: none;
+}
+
+/* As on a tab cell: the glyph turns dark on the lit cell. */
+.more:hover {
+  background-color: var(--ef-tabpc-cell);
+  color: var(--ef-tabpc-sel-icon);
+}
+
+.more:active {
+  background-color: var(--tab-press);
+  color: var(--ef-tabpc-sel-icon);
+}

@@ -1,0 +1,80 @@
+.dv {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: var(--lw) 1fr 1fr 76px;
+  align-items: center;
+  height: 16px;
+  font: var(--ef-t-meta);
+}
+
+.row:hover {
+  background: var(--ef-overlay-hover);
+}
+
+/* Paths keep their tail: right-to-left ellipsis cuts the head. */
+.label {
+  overflow: hidden;
+  padding-right: 8px;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-regular) var(--ef-fs-meta) / 1 var(--ef-font-mono);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.half {
+  position: relative;
+  display: flex;
+  height: 6px;
+}
+
+.half i {
+  display: block;
+  height: 100%;
+}
+
+.neg {
+  justify-content: flex-end;
+  padding-right: 2px;
+  border-right: 1px solid var(--ef-chart-axis);
+}
+
+.pos {
+  padding-left: 2px;
+}
+
+.neg i {
+  background: var(--v3-ink-3);
+}
+
+.pos i {
+  background: var(--v3-ink-1);
+}
+
+.em .half i {
+  background: var(--v3-emph);
+}
+
+.em .label {
+  color: var(--ef-text-1);
+}
+
+.v {
+  color: var(--ef-text-2);
+  text-align: right;
+}
+
+/* Removed and added lines are data, not delete or success: secondary ink and ink. */
+.dan {
+  color: var(--ef-text-2);
+}
+
+.suc {
+  color: var(--ef-text-1);
+}

@@ -1,0 +1,361 @@
+/* Chat page: contact list column, then the dialog plate. */
+.root {
+  --msg-pad: 24px;
+  /* LeftArea 600 g scaled into the window: 260-300 px. */
+  --list-width: clamp(260px, 22vw, 300px);
+  /* Dialog plate #343434@0.4 with a 1 px #CACACA frame; header #3A3A3A, its bottom line #1C1C1C. */
+  --sns-plate: rgba(52, 52, 52, 0.4);
+  --sns-frame: #cacaca;
+  --sns-head: #3a3a3a;
+  --sns-head-line: #1c1c1c;
+  --sns-head-text: #ffffff;
+  --sns-head-sub: #a7a7a7;
+  /* Tri-colour line (not the popup colours). */
+  --sns-tri-m: #ff01ff;
+  --sns-tri-y: #ffff00;
+  --sns-tri-c: #01ffff;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--list-width) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+:global([data-theme='light']) .root {
+  --sns-plate: var(--ef-raised);
+  --sns-frame: var(--ef-rule);
+  --sns-head: var(--ef-surface-2);
+  --sns-head-line: var(--ef-rule);
+  --sns-head-text: var(--ef-text-1);
+  --sns-head-sub: var(--ef-text-2);
+}
+
+.root[data-rp] {
+  grid-template-columns: var(--list-width) minmax(0, 1fr) 400px;
+}
+
+/* sns_friend_in (motion.tsx) slides the list in from the left, the dialog from the right. */
+.list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Dialog plate: inset 5 / 30 / 1 / 38 in RightArea, top corners r10 from the header sprite. */
+.thread {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  margin: 1px 30px 38px 5px;
+  border: 1px solid var(--sns-frame);
+  border-radius: 10px 10px 0 0;
+  background: var(--sns-plate);
+}
+
+.banner {
+  padding: var(--ef-sp-8) var(--ef-sp-16) 0;
+}
+
+/* 页头状态 */
+.head {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.run {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--ef-t-meta);
+  color: var(--ef-text-1);
+  white-space: nowrap;
+}
+
+.run small {
+  font-size: 11px;
+  color: var(--ef-text-3);
+}
+
+.idle {
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+  white-space: nowrap;
+}
+
+/* 双轨窄带：一行 28 px，有运行或旁路回答时才出现；上面两条细轨（前台、旁路），下面分钟刻度 */
+.track {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16px;
+  height: 28px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--ef-line-subtle);
+  white-space: nowrap;
+}
+
+.trackTl {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+}
+
+.lanes {
+  position: relative;
+  height: 12px;
+  margin-top: 1px;
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ef-line-subtle);
+}
+
+.blk {
+  position: absolute;
+  min-width: 3px;
+  height: 5px;
+  padding: 0;
+  border: 0;
+  background: var(--ef-ink-s1);
+  cursor: pointer;
+}
+
+.blk[data-lane='f'] {
+  top: 0;
+}
+
+.blk[data-lane='s'] {
+  bottom: 0;
+  background: var(--ef-ink-s3);
+}
+
+/* A 20 px hit area around the 5 px bar. */
+.blk::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
+
+.blk:hover {
+  background: var(--ef-text-1);
+}
+
+.blk:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.nowLine {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ef-now-line);
+}
+
+.ticks {
+  position: relative;
+  height: 12px;
+  margin-top: 1px;
+  color: var(--ef-text-3);
+  font: 400 11px / 12px var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.ticks > span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.trackR {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.trackFront {
+  font: var(--ef-t-meta);
+  color: var(--ef-text-1);
+}
+
+.cap {
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}
+
+.num {
+  font-family: var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp {
+  flex: 1;
+}
+
+.msgs {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Page.tsx pins the stream to the bottom itself; anchoring's own scroll would unpin it. */
+  overflow-anchor: none;
+  padding: 8px 8px 24px;
+}
+
+.col {
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
+/* Time label between runs: centred grey text, no lines. */
+.older {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 0;
+  font: 500 12px/18px var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-text-2);
+}
+
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 24px 0 0;
+}
+
+/* FriendDialogueSendArea: the send band at the plate's foot. */
+.compose {
+  flex: none;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--sns-frame);
+}
+
+.compose > * {
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
+/* No conversation at all: one centered empty state over NotSelected's backdrop mask. */
+.empty {
+  position: relative;
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  padding: 18vh var(--msg-pad) 24px;
+}
+
+.tips {
+  position: relative;
+}
+
+/* Tinted #373737; the clip fades it to 0.698. */
+.emptyMask {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(200deg, #373737 25%, transparent 65%);
+  opacity: 0.698;
+  pointer-events: none;
+}
+
+:global(html[data-art]) .emptyMask {
+  background: #373737;
+  -webkit-mask: url('/art/pages/chat/sns-empty-mask.png') 0 0 / 100% 100% no-repeat;
+  mask: url('/art/pages/chat/sns-empty-mask.png') 0 0 / 100% 100% no-repeat;
+}
+
+:global([data-theme='light']) .emptyMask {
+  display: none;
+}
+
+/* 右栏 */
+.rp {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-left: 1px solid var(--ef-line);
+  background: var(--ef-bg-base);
+  animation: rp-in var(--ef-dur-panel-in) var(--ef-ease-snap);
+}
+
+@keyframes rp-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.rpH {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 48px;
+  padding: 0 8px 0 4px;
+  border-bottom: 1px solid var(--ef-line-subtle);
+}
+
+.rpB {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 16px 20px;
+}
+
+/* The column body pads the drawer already. */
+.rpB > [data-stub='TaskDrawer'] {
+  padding: 12px 0 0;
+}
+
+.scrim {
+  display: none;
+}
+
+@media (max-width: 1099px) {
+  .root[data-rp] {
+    grid-template-columns: var(--list-width) minmax(0, 1fr);
+  }
+
+  .rp {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    width: min(420px, calc(100% - 56px));
+  }
+
+  .scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 19;
+    display: block;
+    padding: 0;
+    border: 0;
+    background: var(--ef-scrim);
+    cursor: default;
+  }
+
+  .track {
+    padding: 0 16px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .root[data-rp] {
+    grid-template-columns: var(--list-width) minmax(0, 1fr) 440px;
+  }
+}

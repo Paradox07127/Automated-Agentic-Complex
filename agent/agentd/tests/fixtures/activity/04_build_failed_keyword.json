@@ -1,0 +1,43 @@
+{
+  "note": "终端文字里有编译错误，没有会话可关联",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:wez-1",
+      "app": "WezTerm",
+      "bundle_id": "com.github.wez.wezterm",
+      "pid": 470,
+      "window_id": 70,
+      "title": "cargo build",
+      "url_host": null,
+      "since": 1799999975.0,
+      "secure_input": false
+    },
+    "dwell_s": 25.0,
+    "presence": {
+      "id": "afk:wez-1",
+      "status": "active",
+      "seconds": 200,
+      "idle_s": 6
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": {
+      "id": "wt:wez-1",
+      "app": "WezTerm",
+      "title": "cargo build",
+      "text": "Compiling quill v0.3.1\nerror[E0425]: cannot find value `spool` in this scope\nerror: could not compile `quill`"
+    },
+    "observations": [],
+    "sessions": [],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "build_failed",
+    "status": "ok",
+    "related_session_ids": [],
+    "can_interrupt": true
+  }
+}

@@ -1,0 +1,156 @@
+/* Toast: a dark translucent plate with white corner dots; the system toast adds a thin frame and an icon column.
+   toastIn / toastOut / systemToastIn drive the [data-g] parts; the rest state is the entrance's last frame. */
+.toast {
+  /* Plate #121212, darkened from 0.40 to 0.85 so white text stays legible over light content. */
+  --toast-plate: rgb(18 18 18 / 0.85);
+  /* Frame, icon-column divider and dots. */
+  --toast-frame: rgb(255 255 255 / 0.298);
+  --toast-rule: rgb(255 255 255 / 0.2);
+  --toast-dot: rgb(255 255 255 / 0.6);
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3.5px;
+  min-width: 180px;
+  max-width: 100%;
+  min-height: 18.5px;
+  padding: 2px 43px 1px 39px;
+  background:
+    linear-gradient(var(--ef-toast-text), var(--ef-toast-text)) left 8px top 3px / 2px 2px no-repeat,
+    linear-gradient(var(--ef-toast-text), var(--ef-toast-text)) right 8px top 3px / 2px 2px no-repeat,
+    linear-gradient(var(--ef-toast-text), var(--ef-toast-text)) left 8px bottom 3px / 2px 2px no-repeat,
+    linear-gradient(var(--ef-toast-text), var(--ef-toast-text)) right 8px bottom 3px / 2px 2px no-repeat,
+    var(--toast-plate);
+  color: var(--ef-toast-text);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1.4 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+/* Recipe toast-plate, sliced 47 / 16 at half scale, over the darkened plate; it brings its own dots. */
+:global(html[data-art]) .toast:not([data-kind='system']) {
+  background: var(--toast-plate);
+}
+
+:global(html[data-art]) .toast:not([data-kind='system'])::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-image: url('/art/pages/common/toast-plate.png') 17 48 17 49 fill / 8.5px 24px 8.5px 24.5px;
+}
+
+.toast[data-leaving] {
+  pointer-events: none;
+}
+
+.glyph {
+  flex: none;
+}
+
+.toast[data-severity='danger'] .glyph,
+.toast[data-severity='warning'] .glyph {
+  color: var(--ef-accent);
+}
+
+.toast[data-severity='success'] .glyph,
+.toast[data-severity='info'] .glyph {
+  color: var(--ef-toast-text);
+}
+
+.msg {
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action button {
+  color: var(--ef-toast-text);
+}
+
+.toast[data-kind='system'] {
+  gap: 36px;
+  min-width: 300px;
+  min-height: 67px;
+  padding: 0 18.5px 0 20px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--ef-toast-sys-text);
+  font-size: var(--ef-fs-title-2);
+}
+
+.toast[data-kind='system'] .msg {
+  flex: 1;
+}
+
+/* Plate and frame on their own layer: systemToastIn breathes it between 1 and 0.5 while the toast holds. */
+.sysBg {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border: 1px solid var(--toast-frame);
+  background: var(--toast-plate);
+}
+
+.sysIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 50px;
+  margin-right: -36px;
+  color: var(--ef-toast-sys-text);
+}
+
+.sysIcon > * {
+  opacity: 0.502;
+}
+
+.toast[data-severity='danger'] .sysIcon {
+  color: var(--ef-accent);
+}
+
+.toast[data-severity='danger'] .sysIcon > * {
+  opacity: 1;
+}
+
+/* Without an icon the column shows toast_mail_icon02 (recipe toast-sys-icon) at #DBDDDD@0.502. */
+:global(html[data-art]) .toast[data-kind='system']:not([data-icon]) .sysIcon::before {
+  content: '';
+  width: 32px;
+  height: 28px;
+  background-color: currentColor;
+  opacity: 0.502;
+  -webkit-mask: url('/art/pages/common/toast-sys-icon.png') center / contain no-repeat;
+  mask: url('/art/pages/common/toast-sys-icon.png') center / contain no-repeat;
+}
+
+.sysRule {
+  position: relative;
+  flex: none;
+  width: 1.5px;
+  height: 32px;
+  background: var(--toast-rule);
+}
+
+.sysRule::before,
+.sysRule::after {
+  content: '';
+  position: absolute;
+  left: -0.75px;
+  width: 3px;
+  height: 3px;
+  background: var(--toast-dot);
+}
+
+.sysRule::before {
+  top: -4.5px;
+}
+
+.sysRule::after {
+  bottom: -4.5px;
+}

@@ -1,0 +1,27 @@
+/* Radial fill: an arc of --fill x 360deg from --fill-from, cut out of a ring (or the ring sprite). */
+@property --fill {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+.fill {
+  --fill-arc: conic-gradient(from var(--fill-from), #000 calc(var(--fill) * 360deg), transparent 0);
+  --fill-shape: radial-gradient(closest-side, transparent calc(100% - var(--fill-thick) - 0.5px), #000 calc(100% - var(--fill-thick)));
+  display: inline-block;
+  flex: none;
+  border-radius: 50%;
+  background: var(--fill-c);
+  -webkit-mask: var(--fill-arc), var(--fill-shape);
+  -webkit-mask-composite: source-in;
+  mask: var(--fill-arc), var(--fill-shape);
+  mask-composite: intersect;
+}
+
+.ccw {
+  --fill-arc: conic-gradient(from var(--fill-from), transparent calc((1 - var(--fill)) * 360deg), #000 0);
+}
+
+:global(html[data-art]) .fill[data-sprite] {
+  --fill-shape: var(--fill-src) center / 100% 100% no-repeat;
+}

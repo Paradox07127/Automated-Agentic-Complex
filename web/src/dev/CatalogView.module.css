@@ -1,0 +1,48 @@
+.root {
+  display: grid;
+  gap: var(--ef-sp-24);
+  padding: var(--ef-sp-24) var(--ef-page-pad);
+  overflow: auto;
+}
+
+.entry {
+  display: grid;
+  gap: var(--ef-sp-8);
+}
+
+.name {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: baseline;
+  margin: 0;
+  color: var(--ef-text-1);
+  font-size: var(--ef-fs-title-2);
+}
+
+.group {
+  color: var(--ef-text-3);
+  font-size: var(--ef-fs-caption);
+}
+
+.demo {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: var(--ef-sp-12);
+  margin: 0;
+}
+
+.caption {
+  color: var(--ef-text-3);
+  font-size: var(--ef-fs-caption);
+}
+
+.stage {
+  position: relative;
+  color: var(--ef-text-1);
+  font-size: var(--ef-fs-body);
+}
+
+.missing {
+  padding: var(--ef-sp-24);
+  color: var(--ef-text-2);
+}

@@ -1,0 +1,47 @@
+/* Charinfo selection marks driven by game clips (charMotion.tsx); the end frame is the resting state. */
+
+/* smallcharhead_in: under the head art of the current card. */
+.pick {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* bg: the yellow bar along the card's bottom, spread from the centre. */
+.pickBar {
+  position: absolute;
+  inset: auto 0 0;
+  height: 4px;
+  background: var(--ef-accent);
+}
+
+/* sel: the #FFF100 selection glow behind the head (texture char-head-selected-side), rising from the bottom. */
+.pickSel {
+  position: absolute;
+  inset: 0 0 4px;
+  background: linear-gradient(to top, color-mix(in srgb, var(--ef-accent) 45%, transparent), transparent 75%);
+  transform-origin: 50% 100%;
+}
+
+:global(html[data-art]) .pickSel {
+  background: var(--ef-accent);
+  -webkit-mask: url('/art/pages/character/char-head-selected-side.png') center / 100% 100% no-repeat;
+  mask: url('/art/pages/character/char-head-selected-side.png') center / 100% 100% no-repeat;
+}
+
+/* attributecell_selected: a frame around the selected motion's index (texture char-skill-select). */
+.mark {
+  position: absolute;
+  inset: -3px;
+  border: 1px solid var(--ef-paper-text);
+  pointer-events: none;
+}
+
+:global(html[data-art]) .mark {
+  inset: -7px -3px;
+  border: 0;
+  background: var(--ef-paper-text);
+  -webkit-mask: url('/art/pages/character/char-skill-select.png') center / contain no-repeat;
+  mask: url('/art/pages/character/char-skill-select.png') center / contain no-repeat;
+}

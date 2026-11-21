@@ -1,0 +1,209 @@
+[
+  {
+    "op": "agentd.connection",
+    "surface": "main",
+    "value": "connected"
+  },
+  {
+    "op": "agentd.request",
+    "surface": "main",
+    "args": [
+      "GET",
+      "/health"
+    ],
+    "value": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "degraded": [],
+        "c6_contract": "v1"
+      }
+    }
+  },
+  {
+    "op": "agentd.request",
+    "surface": "main",
+    "args": [
+      "GET",
+      "/cx-b-unknown"
+    ],
+    "value": {
+      "status": 404,
+      "body": {
+        "error": "not_found"
+      },
+      "error": {
+        "code": "not_found"
+      }
+    }
+  },
+  {
+    "op": "agentd.request",
+    "surface": "main",
+    "args": [
+      "GET",
+      "/agent/runs/cx-b-unknown"
+    ],
+    "value": {
+      "status": 404,
+      "body": null,
+      "error": {
+        "code": "run_not_found"
+      }
+    }
+  },
+  {
+    "op": "agentd.request",
+    "surface": "main",
+    "args": [
+      "GET",
+      "/characters/si/motion-graph"
+    ],
+    "value": {
+      "status": 200,
+      "body": {
+        "schema": "endfield-motion-graph/v1",
+        "character": "si",
+        "package_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "crossfade_s": 0.25,
+        "runtime": {
+          "excluded_families": {
+            "value": [],
+            "source": "ActorMotionPolicy.excludedFamilies"
+          }
+        },
+        "groups": [
+          {
+            "id": "base",
+            "title": "基础站姿与桥接",
+            "parent": null
+          },
+          {
+            "id": "session.thinking",
+            "title": "思考",
+            "parent": "session"
+          }
+        ],
+        "clips": [
+          {
+            "name": "A_clip_birch_idle_loop",
+            "group": "base",
+            "length_s": 4,
+            "loop": true,
+            "origin": "game",
+            "stance": {
+              "start": "stand",
+              "end": "stand"
+            },
+            "uses": [
+              {
+                "type": "base",
+                "key": "dialog",
+                "group": "base",
+                "active": true,
+                "hub": true
+              }
+            ],
+            "chains": []
+          },
+          {
+            "name": "A_clip_birch_customized_state_think_start",
+            "group": "session.thinking",
+            "length_s": 1.2,
+            "loop": false,
+            "next": "A_clip_birch_idle_loop",
+            "origin": "game",
+            "stance": {
+              "start": "stand",
+              "end": "stand"
+            },
+            "uses": [
+              {
+                "type": "event",
+                "key": "session.thinking",
+                "group": "session.thinking",
+                "via": "events",
+                "weight": 1,
+                "active": true
+              }
+            ],
+            "chains": [
+              "A_clip_birch_customized_state_think_start"
+            ]
+          }
+        ],
+        "edges": [
+          {
+            "id": "edge:A_clip_birch_customized_state_think_start>A_clip_birch_idle_loop",
+            "from": "A_clip_birch_customized_state_think_start",
+            "to": "A_clip_birch_idle_loop",
+            "kind": "next",
+            "gap": 1.8,
+            "blend_s": 0.25
+          }
+        ],
+        "chains": {
+          "A_clip_birch_customized_state_think_start": [
+            {
+              "clip": "A_clip_birch_customized_state_think_start",
+              "length_s": 1.2,
+              "loop": false
+            },
+            {
+              "clip": "A_clip_birch_idle_loop",
+              "length_s": 4,
+              "loop": true,
+              "blend_in_s": 0.25
+            }
+          ]
+        },
+        "counts": {
+          "clips": 2,
+          "edges": 1,
+          "chains": 1
+        }
+      }
+    },
+    "nullable": [
+      "body.groups[].parent"
+    ],
+    "free_keys": [
+      "body.chains",
+      "body.runtime"
+    ]
+  },
+  {
+    "op": "agentd.request",
+    "surface": "main",
+    "args": [
+      "GET",
+      "/characters/nobody/motion-graph"
+    ],
+    "value": {
+      "status": 404,
+      "body": {
+        "error": "unknown_character"
+      },
+      "error": {
+        "code": "unknown_character"
+      }
+    }
+  },
+  {
+    "op": "agentd.request",
+    "surface": "main",
+    "args": [
+      "GET",
+      "/characters/voice_a/motion-graph"
+    ],
+    "value": {
+      "status": 404,
+      "body": {
+        "error": "motion_graph_missing"
+      },
+      "error": {
+        "code": "motion_graph_missing"
+      }
+    }
+  }
+]

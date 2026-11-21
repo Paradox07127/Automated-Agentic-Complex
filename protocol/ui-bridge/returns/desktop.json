@@ -1,0 +1,31 @@
+[
+  {
+    "op": "desktop.say",
+    "surface": "stack",
+    "args": [
+      {
+        "text": "Hello",
+        "attachWindow": false,
+        "noMemory": true
+      }
+    ],
+    "value": {
+      "ok": true
+    }
+  },
+  {
+    "op": "desktop.say",
+    "surface": "stack",
+    "args": [
+      {
+        "text": "",
+        "attachWindow": false,
+        "noMemory": true
+      }
+    ],
+    "value": {
+      "ok": false,
+      "reason": "rejected"
+    }
+  }
+]

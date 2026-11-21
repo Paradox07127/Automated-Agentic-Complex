@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","actions"]}
+{"v":1,"type":"actions","character":"aster","actions":[{"id":"mmd_dance","name":"舞蹈","section":"react","duration":32.5,"trigger":"导入的 MMD 动作","required_reason":null,"missing":null,"media":{"bgm":true,"face":true,"camera":false}}],"switches":{"mmd_dance":true}}

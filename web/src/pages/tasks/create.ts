@@ -1,0 +1,52 @@
+// 新建 requests: a role task is a background job, a coding task an own session, a goal a goal row.
+import { post } from '../../bridge/agentd';
+import type { CreateDraft } from './CreateForm';
+
+/** workspace.py ARTIFACT_SUFFIXES: a relative path, no `..`. */
+const ARTIFACT = /^(?![/~])(?!.*(?:^|\/)\.\.(?:\/|$)).+\.(md|txt|csv|json)$/i;
+
+const sectionsOf = (s: string) => s.split(/[、,，;；\n]+/).map((x) => x.trim()).filter(Boolean);
+
+/** Why the draft cannot be sent yet; null when it can. */
+export function draftProblem(d: CreateDraft, canPick: boolean): string | null {
+  if (d.kind === 'goal') {
+    if (!d.title.trim()) return '先写目标';
+    return d.objective.trim() ? null : '先写目标说明';
+  }
+  if (d.kind === 'code') {
+    if (!canPick) return '这台电脑的外壳不支持原生目录选择';
+    if (!d.cwd) return '先选目录';
+    return d.brief.trim() ? null : '先写要求';
+  }
+  if (!d.title.trim()) return '先写标题';
+  if (!d.brief.trim()) return '先写要求';
+  const artifact = d.artifact.trim();
+  if (artifact && !ARTIFACT.test(artifact)) return '预期产物写相对路径，后缀 md、txt、csv 或 json';
+  if (!artifact && sectionsOf(d.sections).length > 0) return '先填写预期产物';
+  return null;
+}
+
+/** Sends the draft; `select` is the new task row's id when agentd lists one, `label` names it in the toast. */
+export async function submitDraft(d: CreateDraft): Promise<{ select: string | null; label: string }> {
+  if (d.kind === 'goal') {
+    const title = d.title.trim();
+    await post('/agent/goals', { title, objective: d.objective.trim() });
+    return { select: null, label: title };
+  }
+  if (d.kind === 'code') {
+    const prompt = d.brief.trim();
+    await post('/sessions', { target: d.agent, cwd: d.cwd, prompt, mode: d.mode });
+    const line = prompt.split('\n')[0] ?? '';
+    return { select: null, label: line.length > 24 ? `${line.slice(0, 24)}…` : line };
+  }
+  const title = d.title.trim();
+  const artifact = d.artifact.trim();
+  const sections = sectionsOf(d.sections);
+  const job = await post<{ job_id: string }>('/agent/jobs', {
+    title,
+    text: d.brief.trim(),
+    ...(d.goalId ? { goal_id: d.goalId } : {}),
+    ...(artifact ? { expected_outputs: { artifacts: [{ path: artifact, ...(sections.length > 0 ? { checks: { required_sections: sections } } : {}) }] } } : {}),
+  });
+  return { select: `job:${job.job_id}`, label: title };
+}

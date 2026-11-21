@@ -1,0 +1,17 @@
+{
+  "schema": "endfield-component/v1",
+  "id": "renderer",
+  "version": "1.0.0",
+  "tree_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "files": 3,
+  "bytes": 2048,
+  "entrypoints": {"executable": "MacOS/AgenticComplexMetalAvatar"},
+  "placed": {
+    "MacOS/AgenticComplexMetalAvatar": "MacOS/AgenticComplexMetalAvatar",
+    "XPCServices/local.agenticcomplex.companion.preview.xpc": "XPCServices/local.agenticcomplex.companion.preview.xpc",
+    "Resources/window-envelopes.json": "Resources/window-envelopes.json"
+  },
+  "provides": {},
+  "requires": {},
+  "platform": "macos-arm64"
+}

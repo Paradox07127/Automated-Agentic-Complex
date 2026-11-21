@@ -1,0 +1,73 @@
+/* Section title, 33 high: a 4 px bar 6.5 px left of the 13 px title, a 1 px rule under the head to the ornament; it starts 15 px left of the row plates. */
+.sec {
+  margin-top: var(--ef-sp-12);
+}
+
+.head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-height: 33px;
+  margin: 0 0 var(--ef-sp-6) -15px;
+  padding: 0 54px 0 10.5px;
+  break-after: avoid;
+}
+
+.head::before {
+  content: '';
+  position: absolute;
+  top: calc(50% - 7.5px);
+  left: 0;
+  width: 4px;
+  height: 15px;
+  background: var(--ef-set-title-bar);
+}
+
+/* Light theme (ours): the yellow bar fails 3:1 on the light ground, so it takes the title ink. */
+:global([data-theme='light']) .head::before {
+  background: var(--ef-set-title);
+}
+
+/* Rule 2 g white@0.4 under the title, up to the ornament. */
+.head::after {
+  content: '';
+  position: absolute;
+  right: 51px;
+  bottom: 2px;
+  left: 10.5px;
+  height: 1px;
+  background: var(--ef-set-rule);
+}
+
+.title {
+  margin: 0;
+  color: var(--ef-set-title);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / var(--ef-lh-h3) var(--ef-font-sans);
+}
+
+.right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  margin-left: auto;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+/* Ornament, mirrored, 46x5 at the right end: slashes, a dash and a hollow pip. */
+.decoHub {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 46px;
+  height: 5px;
+  color: var(--ef-set-rule);
+  background:
+    linear-gradient(currentColor, currentColor) 9px 2px / 22px 1px no-repeat,
+    repeating-linear-gradient(60deg, transparent 0 2px, currentColor 2px 3px) 0 0 / 7px 5px no-repeat,
+    linear-gradient(currentColor, currentColor) 35px 0 / 1px 5px no-repeat,
+    linear-gradient(currentColor, currentColor) 45px 0 / 1px 5px no-repeat,
+    linear-gradient(currentColor, currentColor) 35px 0 / 11px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) 35px 4px / 11px 1px no-repeat;
+}

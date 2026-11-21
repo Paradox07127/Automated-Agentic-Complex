@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "bundle_ids": [
+    "com.apple.keychainaccess",
+    "com.tencent.xinWeChat"
+  ],
+  "app_names": [
+    "Arknights: Endfield"
+  ],
+  "domains": [
+    "icbc.com.cn"
+  ],
+  "title_patterns": [
+    "工资"
+  ],
+  "incognito": true,
+  "mode": "allow",
+  "allow": {
+    "bundle_ids": [
+      "com.microsoft.VSCode"
+    ],
+    "app_names": [
+      "Terminal"
+    ],
+    "domains": [
+      "github.com"
+    ]
+  }
+}

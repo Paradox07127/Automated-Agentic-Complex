@@ -1,0 +1,3 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["capsules_global","watchdog","trace","behavior_receipt"],"build":{"git":"e8d17c47"},"trace_epoch":1760870000000}
+{"v":1,"type":"set_character","id":"birch"}
+{"v":1,"type":"set_character","id":"aster"}

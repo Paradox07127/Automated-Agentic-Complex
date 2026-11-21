@@ -1,0 +1,352 @@
+/* 动作 → 图: crumbs, the canvas with its card overlay and the palette beside it, the node detail and the joints under it. */
+.graph {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-4) var(--ef-sp-8);
+  font-size: var(--ef-fs-body);
+  color: var(--ef-text-1);
+}
+
+.crumbs button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ef-accent-text);
+  cursor: pointer;
+}
+
+.crumbs [aria-current] {
+  font-weight: var(--ef-fw-semibold);
+}
+
+.crumbs i {
+  font-style: normal;
+  color: var(--ef-text-3);
+}
+
+.ghostSw,
+.only {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  margin-left: auto;
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+}
+
+.only {
+  margin-left: 0;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ef-sp-12);
+  min-width: 0;
+}
+
+.body[data-palette] {
+  grid-template-columns: minmax(0, 1fr) 264px;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.canvas {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  background: var(--ef-surface-1);
+}
+
+.cy {
+  position: absolute;
+  inset: 0;
+}
+
+/* Cards let taps through to the canvas, which drags and taps nodes; only 「+」 takes the pointer. */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
+  padding: var(--ef-sp-4) var(--ef-sp-8);
+  border: 1px solid var(--ef-line-strong);
+  border-radius: var(--ef-r-4);
+  background: var(--ef-surface-2);
+  color: var(--ef-text-1);
+  font: var(--ef-fs-small) / 1.25 var(--ef-font-ui);
+  text-align: left;
+  pointer-events: none;
+}
+
+.card:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.card[data-kind='seg'] {
+  border: 2px solid var(--ef-accent);
+}
+
+.card[data-kind='base'] {
+  border-color: var(--ef-accent);
+  background: var(--ef-surface-3);
+}
+
+.card[data-kind='group'] {
+  border: 2px solid var(--ef-text-1);
+}
+
+.card[data-kind='ghost'],
+.card[data-kind='more'] {
+  border-style: dashed;
+  background: var(--ef-surface-1);
+}
+
+.card[data-changed] {
+  border: 3px solid var(--ef-attention);
+}
+
+.card[data-hot] {
+  outline: 3px solid var(--ef-attention);
+}
+
+.card[data-off] {
+  opacity: 0.55;
+}
+
+.ct,
+.cs {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ct {
+  font-family: var(--ef-font-mono);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.card[data-kind='base'] .ct,
+.card[data-kind='group'] .ct {
+  font-family: var(--ef-font-ui);
+}
+
+.cs {
+  color: var(--ef-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.plus {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--ef-line-strong);
+  border-radius: var(--ef-r-pill);
+  background: var(--ef-surface-1);
+  color: var(--ef-text-1);
+  font: 600 14px / 1 var(--ef-font-ui);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.plus[aria-disabled] {
+  color: var(--ef-text-3);
+  cursor: default;
+}
+
+.plus[data-hot] {
+  border-color: var(--ef-attention);
+  background: var(--ef-attention);
+  color: var(--ef-on-attention);
+}
+
+.detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-4) var(--ef-sp-12);
+  font-size: var(--ef-fs-small);
+}
+
+.full {
+  font-family: var(--ef-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.acts {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+.names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-4) var(--ef-sp-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--ef-font-mono);
+}
+
+.joints {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto minmax(0, auto);
+  gap: var(--ef-sp-4) var(--ef-sp-16);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--ef-fs-small) / 1.3 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.joints li {
+  display: contents;
+}
+
+.who {
+  display: flex;
+  gap: var(--ef-sp-6);
+  min-width: 0;
+  font-family: var(--ef-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.who i {
+  font-style: normal;
+  color: var(--ef-text-3);
+}
+
+.cm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  color: var(--ef-text-1);
+}
+
+/* The gap bands as 链详情 colours them. */
+.cm i {
+  width: 16px;
+  height: 6px;
+  background: var(--ef-line-strong);
+}
+
+.cm[data-band='0'] i {
+  background: var(--ef-hatch), var(--ef-text-3);
+}
+
+.cm[data-band='2'] i {
+  background: var(--ef-accent);
+}
+
+.cm[data-band='3'] i {
+  background: var(--ef-danger);
+}
+
+.cm[data-band='4'] i {
+  background: var(--ef-danger-vivid);
+}
+
+.s {
+  color: var(--ef-text-2);
+}
+
+.flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-4);
+}
+
+.flags b {
+  font-weight: var(--ef-fw-semibold);
+  color: var(--ef-danger-text);
+}
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ef-sp-6);
+}
+
+.clips {
+  display: flex;
+  flex-direction: column;
+  max-height: 520px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.clip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--ef-sp-4) var(--ef-sp-8);
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  font-size: var(--ef-fs-small);
+  cursor: grab;
+}
+
+.clip[aria-pressed='true'] {
+  background: var(--ef-row-sel-bg);
+  color: var(--ef-row-sel-fg);
+}
+
+.clip:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.nm {
+  font-family: var(--ef-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.sub {
+  color: var(--ef-text-2);
+}
+
+.clip[aria-pressed='true'] .sub {
+  color: inherit;
+}
+
+@media (max-width: 760px) {
+  .body[data-palette] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,60 @@
+/* Notice: panel background, 1px ink border, a small yellow flag (the severity icon) before the words. Never red. */
+.banner {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  height: var(--ef-banner);
+  padding: 0 var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-text-1);
+  background: var(--ef-raised);
+  color: var(--ef-text-1);
+  font: var(--ef-t-text);
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.title {
+  font-weight: var(--ef-fw-semibold);
+  white-space: nowrap;
+}
+
+.timer {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  color: var(--ef-text-1);
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-weight: var(--ef-fw-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.desc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  margin-left: auto;
+}

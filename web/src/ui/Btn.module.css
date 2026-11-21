@@ -1,0 +1,387 @@
+/* .ef-btn: capsule button. ::before = fill + 1.5px ring in the fill colour + outline in the gap + soft shadow;
+   .contour = texture layer; ::after = hover wash / pressed shade. lg = long capsule, md = short, sm = smallest. */
+.btn {
+  /* Shadow: black, alpha peaks 0.42 under the capsule. */
+  --btn-shadow: rgba(0, 0, 0, 0.42);
+  /* Pressed mask #000@0.357, shown while pressed. */
+  --btn-press: rgba(0, 0, 0, 0.357);
+  --btn-fill: var(--ef-btn-light);
+  --btn-fg: var(--ef-btn-light-text);
+  --btn-ring: var(--btn-fill);
+  --btn-edge: var(--ef-btn-outline);
+  --btn-wash: var(--ef-btn-hover);
+  /* Contour ink #121212 on light fills (dark fills take #EEEEEE), 0.6 on long capsules, 0.2 on short ones. */
+  --btn-contour-ink: #121212;
+  --btn-contour-alpha: 20%;
+  /* white_btn01 text when pressed or disabled. */
+  --btn-light-ink: #4a4a4a;
+  /* Colour transition time, inherited by the parts: 100 ms back to Normal and into Pressed, 83 ms into Highlighted, 0 into Disabled. */
+  --btn-dur: var(--ef-dur-g-btn);
+  /* Fill rect inside the box: outer ring box inset 2 / 3 / 4 / 3, ring 1.5 + gap 1. */
+  --fill-inset: 4.5px 5.5px 6.5px;
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: var(--ef-h-md);
+  padding: 0 18px 2px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--btn-fg);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1 var(--ef-font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--btn-dur) var(--ef-ease-g-fade),
+    transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.btn::before,
+.btn::after,
+.contour {
+  content: '';
+  position: absolute;
+  inset: var(--fill-inset);
+  z-index: -1;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.btn::before {
+  outline: 1.5px solid var(--btn-ring);
+  outline-offset: 1px;
+  background-color: var(--btn-fill);
+  box-shadow:
+    0 0 0 3.5px var(--btn-edge),
+    0 5px 6px -1px var(--btn-shadow);
+  transition:
+    background-color var(--btn-dur) var(--ef-ease-g-fade),
+    outline-color var(--btn-dur) var(--ef-ease-g-fade),
+    box-shadow var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+/* Contour texture (recipe btn-contour; short capsules btn-contour-short), anchored right in the fill; the smallest and function pills have none. */
+.contour {
+  display: block;
+  opacity: var(--btn-deco, 1);
+  transition:
+    background-color var(--btn-dur) var(--ef-ease-g-fade),
+    opacity var(--btn-dur) var(--ef-ease-g-fade);
+}
+
+:global(html[data-art]) .btn:not(.sm, .ring) .contour {
+  background-color: color-mix(in srgb, var(--btn-contour-ink) var(--btn-contour-alpha), transparent);
+  -webkit-mask: url('/art/common/btn-contour-short.png') right 6px center / auto 100% no-repeat;
+  mask: url('/art/common/btn-contour-short.png') right 6px center / auto 100% no-repeat;
+}
+
+:global(html[data-art]) .lg:not(.sm, .ring) .contour {
+  -webkit-mask: url('/art/common/btn-contour.png') right 12px center / auto 100% no-repeat;
+  mask: url('/art/common/btn-contour.png') right 12px center / auto 100% no-repeat;
+}
+
+.btn::after {
+  background-color: var(--btn-wash);
+  opacity: 0;
+  transition:
+    opacity var(--ef-dur-g-btn) var(--ef-ease-g-fade),
+    background-color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.lg {
+  --btn-contour-alpha: 60%;
+  --fill-inset: 4.5px 5.5px 6.5px;
+  gap: 12px;
+  height: var(--ef-h-lg);
+  padding: 0 19px 2px;
+  font-size: var(--ef-fs-title-2);
+}
+
+/* Smallest: plain pill, no ring, edge drawn by the outline token. */
+.sm {
+  --fill-inset: 0;
+  gap: 6px;
+  height: var(--ef-h-sm);
+  padding: 0 12px;
+  font-size: var(--ef-fs-small);
+}
+
+.sm::before {
+  outline: 0;
+  box-shadow:
+    0 0 0 1px var(--btn-edge),
+    0 2px 4px -1px var(--btn-shadow);
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+}
+
+/* Ornament line: a 1px line with a node at each end, text colour at half alpha; takes the spare width on the left. */
+.dash {
+  order: -1;
+  flex: 1 1 auto;
+  min-width: 15px;
+  height: 4px;
+  background:
+    radial-gradient(circle, currentColor 1.5px, transparent 1.6px) left center / 4px 4px no-repeat,
+    radial-gradient(circle, currentColor 1.5px, transparent 1.6px) right center / 4px 4px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat;
+  opacity: calc(var(--btn-dash-alpha, 0.5) * var(--btn-deco, 1));
+  transition: opacity var(--btn-dur) var(--ef-ease-g-fade);
+}
+
+/* Icon: a disc in the text colour with the glyph cut out (drawn in the fill colour). */
+.sfx {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: -9px;
+  border-radius: 50%;
+  background: var(--btn-fg);
+  color: var(--btn-fill);
+  transition:
+    background-color var(--btn-dur) var(--ef-ease-g-fade),
+    color var(--btn-dur) var(--ef-ease-g-fade);
+}
+
+.lg .sfx {
+  width: 20px;
+  height: 20px;
+  margin-right: -8px;
+}
+
+.sm .sfx {
+  width: auto;
+  height: auto;
+  margin-right: -2px;
+  background: none;
+  color: inherit;
+}
+
+.kbd {
+  display: inline-flex;
+}
+
+.kbd > kbd {
+  border-color: currentColor;
+  background: transparent;
+  color: inherit;
+}
+
+/* Variants: primary yellow, ghost light, secondary dark grey, danger red, ring the function pill. */
+.primary {
+  --btn-fill: var(--ef-accent);
+  --btn-fg: var(--ef-btn-accent-text);
+}
+
+.secondary {
+  --btn-fill: var(--ef-btn-dark);
+  --btn-fg: var(--ef-btn-dark-text);
+  --btn-contour-ink: var(--ef-btn-dark-text);
+}
+
+.danger {
+  --btn-fill: var(--ef-danger-vivid);
+  --btn-fg: var(--ef-on-danger-vivid);
+}
+
+/* Function button: pill with a thin white ring directly on the fill, no gap. */
+.ring {
+  --btn-ring: var(--ef-popup-band);
+  --fill-inset: 3px 3px 4px;
+}
+
+.ring::before {
+  outline-width: 1px;
+  outline-offset: 0;
+  box-shadow:
+    0 0 0 2px var(--btn-edge),
+    0 3px 6px -1px var(--btn-shadow);
+}
+
+.ring.sm {
+  --fill-inset: 0;
+}
+
+/* Text only, no capsule. */
+.text {
+  --btn-fill: transparent;
+  --btn-ring: transparent;
+  --btn-edge: transparent;
+  --btn-shadow: transparent;
+  --btn-fg: var(--ef-text-2);
+  --btn-wash: var(--ef-overlay-hover);
+}
+
+.text .contour,
+.text .dash {
+  display: none;
+}
+
+/* The game's button controllers swap colours instead of washing: ghost = white_btn01, primary = yellow_btn, secondary = gray_btn_01. */
+:is(.ghost, .primary, .secondary)::after {
+  display: none;
+}
+
+:is(.ghost, .primary, .secondary):hover:not([aria-disabled='true'], [aria-busy='true']),
+:global([data-force='hover']) > :is(.ghost, .primary, .secondary) {
+  --btn-dur: var(--ef-dur-g-btn-hover);
+}
+
+/* White: contour #121212@0.2 to #FFFFFF@0.4, ornament line to full alpha. */
+.ghost:hover:not([aria-disabled='true'], [aria-busy='true']),
+:global([data-force='hover']) > .ghost {
+  --btn-fill: var(--ef-g-btn-light-hover);
+  --btn-fg: var(--ef-g-btn-hover);
+  --btn-contour-ink: var(--ef-g-btn-hover);
+  --btn-contour-alpha: 40%;
+  --btn-dash-alpha: 1;
+}
+
+/* Yellow: both ornament layers drop to 0.275 on hover, 0.2 when pressed. */
+.primary:hover:not([aria-disabled='true'], [aria-busy='true']),
+:global([data-force='hover']) > .primary {
+  --btn-fill: var(--ef-g-btn-accent-hover);
+  --btn-fg: var(--ef-g-btn-accent-hover-text);
+  --btn-deco: 0.275;
+}
+
+.secondary:hover:not([aria-disabled='true'], [aria-busy='true']),
+:global([data-force='hover']) > .secondary {
+  --btn-fill: var(--ef-g-btn-dark-hover);
+}
+
+:is(.ghost, .primary, .secondary):active:not([aria-disabled='true'], [aria-busy='true']),
+:global([data-force='press']) > :is(.ghost, .primary, .secondary) {
+  --btn-dur: var(--ef-dur-g-btn);
+}
+
+.ghost:active:not([aria-disabled='true'], [aria-busy='true']),
+:global([data-force='press']) > .ghost {
+  --btn-fill: var(--ef-g-btn-light-press);
+  --btn-fg: var(--btn-light-ink);
+}
+
+.primary:active:not([aria-disabled='true'], [aria-busy='true']),
+:global([data-force='press']) > .primary {
+  --btn-fill: var(--ef-g-btn-accent-press);
+  --btn-fg: var(--ef-g-btn-accent-press-text);
+  --btn-deco: 0.2;
+}
+
+.secondary:active:not([aria-disabled='true'], [aria-busy='true']),
+:global([data-force='press']) > .secondary {
+  --btn-fill: var(--ef-g-btn-dark-press);
+}
+
+/* Hover: the hover mask fades in over 83 ms; normal and pressed take 100 ms. */
+.btn:hover:not([aria-disabled='true']):not([aria-busy='true'])::after,
+:global([data-force='hover']) > .btn::after {
+  opacity: 1;
+  transition-duration: var(--ef-dur-g-btn-hover);
+}
+
+.text:hover:not([aria-disabled='true']):not([aria-busy='true']),
+:global([data-force='hover']) > .text {
+  color: var(--ef-text-1);
+}
+
+.btn:active:not([aria-disabled='true']):not([aria-busy='true'])::after,
+:global([data-force='press']) > .btn::after {
+  background-color: var(--btn-press);
+  opacity: 1;
+}
+
+.text:active:not([aria-disabled='true']):not([aria-busy='true'])::after,
+:global([data-force='press']) > .text::after {
+  background-color: var(--ef-overlay-press);
+}
+
+/* Pressed moves the root down 5 g. */
+.danger:active:not([aria-disabled='true']):not([aria-busy='true']),
+:global([data-force='press']) > .danger {
+  transform: translateY(2.5px);
+}
+
+.btn:focus-visible,
+:global([data-force='focus']) > .btn {
+  outline: none;
+}
+
+.btn:focus-visible::before,
+:global([data-force='focus']) > .btn::before {
+  box-shadow:
+    0 0 0 3.5px var(--btn-edge),
+    0 0 0 5.5px var(--ef-focus),
+    0 5px 6px -1px var(--btn-shadow);
+}
+
+.sm:focus-visible::before,
+:global([data-force='focus']) > .sm::before {
+  box-shadow:
+    0 0 0 1px var(--btn-edge),
+    0 0 0 3px var(--ef-focus);
+}
+
+.text:focus-visible::before,
+:global([data-force='focus']) > .text::before {
+  box-shadow: 0 0 0 2px var(--ef-focus);
+}
+
+.btn[aria-busy='true'] {
+  cursor: progress;
+}
+
+.btn[aria-busy='true']::before {
+  background-image: var(--ef-hatch);
+}
+
+/* Disabled: contour hidden, #121212 ring, #444444 text, #BFBFBB fill. */
+.btn[aria-disabled='true'] {
+  --btn-fill: var(--ef-btn-disabled);
+  --btn-ring: var(--ef-on-accent);
+  --btn-fg: var(--ef-btn-light-text);
+  --btn-dur: 0ms;
+  cursor: not-allowed;
+}
+
+.btn[aria-disabled='true'] .contour {
+  display: none;
+}
+
+.ghost[aria-disabled='true'] {
+  --btn-fill: var(--ef-g-btn-light-off);
+  --btn-fg: var(--btn-light-ink);
+}
+
+.text[aria-disabled='true'] {
+  --btn-fill: transparent;
+  --btn-ring: transparent;
+  --btn-fg: var(--ef-text-disabled);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn::before,
+  .btn::after,
+  .btn :is(.contour, .dash, .sfx) {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .btn,
+:global([data-reduce-motion]) .btn::before,
+:global([data-reduce-motion]) .btn::after,
+:global([data-reduce-motion]) .btn :is(.contour, .dash, .sfx) {
+  transition: none;
+}

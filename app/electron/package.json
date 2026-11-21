@@ -1,0 +1,23 @@
+{
+  "name": "agentic-complex-electron",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.mjs",
+  "engines": {
+    "node": ">=24.22.1"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "tsc --noEmit && node build.mjs",
+    "test": "node --test 'test/**/*.test.ts'",
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "@electron/fuses": "2.1.3",
+    "@types/node": "26.6.6",
+    "electron": "45.4.1",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}

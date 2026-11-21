@@ -1,0 +1,33 @@
+/* Grows on short groups so the bar sits at the window bottom; at least the usual gap above the bar. */
+.fill {
+  flex: 1 0 var(--ef-sp-32);
+}
+
+/* Bottom bar, pinned to the bottom of the scrolling list; the negative margin takes back .inner's bottom padding. */
+.bar {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--ef-z-sticky);
+  display: flex;
+  flex-direction: column;
+  margin-bottom: calc(-1 * var(--list-pad-b, 0px));
+  padding: 0 0 var(--ef-sp-4);
+  border-top: var(--ef-lw-hair) solid var(--ef-set-rule);
+  background: var(--ef-base);
+  color: var(--ef-text-1);
+}
+
+/* One 45 high line: the tip text 15 px at the left, the capsules at the right 3.75 apart. */
+.line {
+  display: flex;
+  align-items: center;
+  gap: 3.75px;
+  min-height: 45px;
+}
+
+.tip {
+  margin-right: auto;
+  padding-left: 7.5px;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-title-2) / var(--ef-lh-h2) var(--ef-font-sans);
+}

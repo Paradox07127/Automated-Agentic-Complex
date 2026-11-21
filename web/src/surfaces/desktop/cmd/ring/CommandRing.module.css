@@ -1,0 +1,333 @@
+/* The quick menu in both appearances: `data-theme="dark"` scopes the dark tokens. */
+.ring {
+  /* Disc #000@0.72 (no blur), rings #FFF@.10 / @.07, cycle ring #FFD800@.2. */
+  --disc: rgba(0, 0, 0, 0.72);
+  --rim: rgba(255, 255, 255, 0.1);
+  --guide: rgba(255, 255, 255, 0.07);
+  --cycle: rgba(255, 216, 0, 0.2);
+  /* the wedge sprite at .6 over its own 0→.58 ramp, plus its glow sprite at .1. */
+  --lit-in: rgba(255, 255, 255, 0.4);
+  --lit-mid: rgba(255, 255, 255, 0.16);
+  --lit-out: rgba(255, 255, 255, 0.04);
+  /* Cell names at .72 rather than .5, so they hold 4.5:1 over the disc on a white desktop. */
+  --name: rgba(255, 255, 255, 0.72);
+  /* Plate under the help line. */
+  --plate: rgba(18, 18, 18, 0.85);
+  display: flex;
+  background: transparent;
+  color: var(--ef-text-1);
+  animation: ring-open var(--ef-dur-g-panel-in) var(--ef-ease-g-enter);
+}
+
+.ring:focus-visible {
+  outline: none;
+}
+
+.wheel {
+  position: relative;
+  flex: none;
+  width: 304px;
+  height: 312px;
+}
+
+.svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+
+.disc {
+  fill: var(--disc);
+}
+
+.rim,
+.guide,
+.cycle {
+  fill: none;
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.rim {
+  stroke: var(--rim);
+}
+
+.guide {
+  stroke: var(--guide);
+}
+
+/* Cycle ring: a thin yellow circle. */
+.cycle {
+  stroke: var(--cycle);
+}
+
+/* With art the yellow ring is the texture itself (recipe desk-deco-quickmenu-cycle01), 244 across, drawn over the disc. */
+:global(html[data-art]) .cycle {
+  stroke: none;
+}
+
+:global(html[data-art]) .wheel::after {
+  content: '';
+  position: absolute;
+  left: 30px;
+  top: 30px;
+  width: 244px;
+  height: 244px;
+  background: var(--cycle);
+  pointer-events: none;
+  -webkit-mask: url('/art/common/desk-deco-quickmenu-cycle01.png') center / contain no-repeat;
+  mask: url('/art/common/desk-deco-quickmenu-cycle01.png') center / contain no-repeat;
+}
+
+.cycle + .guide {
+  stroke-dasharray: 3 4;
+}
+
+.hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.wedge {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.sector[data-on] .wedge {
+  opacity: 1;
+  transition-duration: var(--ef-dur-g-select);
+  transition-timing-function: var(--ef-ease-g-enter);
+}
+
+.litIn {
+  stop-color: var(--lit-in);
+}
+
+.litMid {
+  stop-color: var(--lit-mid);
+}
+
+.litOut {
+  stop-color: var(--lit-out);
+}
+
+.marker {
+  fill: none;
+  stroke: var(--ef-text-1);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+/* Selected mark with art: the fan wedge (at .6) fitted to the sector box and the white marker at its inner edge,
+   turned to the selected sector and clipped to the sector path; the SVG wedge and marker stand in without art. */
+.select {
+  display: none;
+}
+
+:global(html[data-art]) .select {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 304px;
+  height: 304px;
+  pointer-events: none;
+  animation: select-in var(--ef-dur-g-select) var(--ef-ease-g-enter) both;
+}
+
+:global(html[data-art]) .select::before,
+:global(html[data-art]) .select::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+:global(html[data-art]) .select::before {
+  background: url('/art/common/desk-bg-select01.png') left 92px top -13.2px / 120.8px 112.3px no-repeat;
+  opacity: 0.6;
+}
+
+:global(html[data-art]) .select::after {
+  background: url('/art/common/desk-bg-select02.png') left 130px top 84.5px / 44px 9.8px no-repeat;
+}
+
+:global(html[data-art]) .wedge,
+:global(html[data-art]) .marker {
+  display: none;
+}
+
+@keyframes select-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(html[data-art]) .select {
+    animation: none;
+  }
+}
+
+/* Logo deco 104x20 g at .10 on the disc's bottom, under the last label. */
+:global(html[data-art]) .wheel::before {
+  content: '';
+  position: absolute;
+  left: 125px;
+  top: 282px;
+  width: 54px;
+  height: 12px;
+  background: var(--ef-text-1);
+  opacity: 0.1;
+  pointer-events: none;
+  -webkit-mask: url('/art/common/desk-deco-endfield.png') center / 54px 12px no-repeat;
+  mask: url('/art/common/desk-deco-endfield.png') center / 54px 12px no-repeat;
+}
+
+/* Arrow 28x24 #FFF100, pointing out at the selected cell. */
+.arrow {
+  fill: var(--ef-accent);
+  pointer-events: none;
+}
+
+.label {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 64px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--name);
+  font: var(--ef-fw-medium) var(--ef-fs-small) / 1 var(--ef-font-sans);
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.label[data-on] {
+  color: var(--ef-text-1);
+  text-shadow: 0 0 1px var(--disc);
+}
+
+.label:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 4px;
+}
+
+.meta {
+  display: flex;
+  gap: var(--ef-sp-4);
+  align-items: baseline;
+}
+
+.no {
+  font: var(--ef-fw-semibold) 11px / 1 var(--ef-font-din);
+}
+
+.key {
+  font: var(--ef-fw-semibold) var(--ef-fs-keycap) / 1 var(--ef-font-din);
+}
+
+/* red_dot #FF7600 with its inner diamond; the count stays upright inside. */
+.badge {
+  position: absolute;
+  top: -6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+}
+
+.badge::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: var(--ef-badge-dot);
+  transform: rotate(45deg);
+}
+
+.badge > span {
+  position: relative;
+  color: var(--ef-on-danger-vivid);
+  font: var(--ef-fw-semibold) 11px / 1 var(--ef-font-num);
+}
+
+/* Fixed-size art slot inside the inner circle; empty until the art line fills it. */
+.art {
+  position: absolute;
+  left: 104px;
+  top: 104px;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Blurred logo 338x295 at .10, behind the close button (recipe desk-deco-blurlogo; an SVG outline without art). */
+.logo {
+  position: absolute;
+  left: 118px;
+  top: 122px;
+  width: 68px;
+  height: 59px;
+  background: var(--ef-text-1);
+  opacity: 0.1;
+  pointer-events: none;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 98 85'%3E%3Cpath d='M1 2h96L49 84z' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cpath d='M11 7h76L49 72z' fill='none' stroke='%23000' stroke-width='4'/%3E%3Cpath d='M14 38h70' stroke='%23000' stroke-width='6'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+:global(html[data-art]) .logo {
+  -webkit-mask: url('/art/common/desk-deco-blurlogo.png') center / contain no-repeat;
+  mask: url('/art/common/desk-deco-blurlogo.png') center / contain no-repeat;
+}
+
+.center {
+  position: absolute;
+  left: 152px;
+  top: 152px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 6px 0 12px;
+  border: 0;
+  border-radius: 15px;
+  background: var(--ef-btn-dark);
+  color: var(--ef-btn-dark-text);
+  font: var(--ef-fw-medium) var(--ef-fs-small) / 1 var(--ef-font-sans);
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  transition: background var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.center:is(:hover, :focus-visible) {
+  outline: 1px solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+.help {
+  position: absolute;
+  left: 50%;
+  top: 298px;
+  margin: 0;
+  padding: 2px 8px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  /* Dark like the disc in both themes, so it reads on any wallpaper. */
+  background: var(--plate);
+  color: var(--ef-text-1);
+  font-size: var(--ef-fs-small);
+}
+
+@keyframes ring-open {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}

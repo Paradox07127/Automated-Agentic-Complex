@@ -1,0 +1,163 @@
+[
+  {
+    "op": "settings.schema",
+    "surface": "main",
+    "value": [
+      {
+        "id": "mute",
+        "group": "speak",
+        "label": "Mute",
+        "kind": "toggle",
+        "default": false,
+        "restart": "backend"
+      }
+    ]
+  },
+  {
+    "op": "settings.read",
+    "surface": "main",
+    "free_keys": [
+      "statuses"
+    ],
+    "value": {
+      "saved": {
+        "mute": false,
+        "speakUp": false,
+        "sysnotify": false,
+        "capHide": true,
+        "observe": false,
+        "wintext": false,
+        "web": false,
+        "typing": false,
+        "agent_sessions": true,
+        "shot": false,
+        "keys": false,
+        "micapp": false,
+        "mask": false,
+        "k_cu": false,
+        "login": false,
+        "beh.sit": false,
+        "beh.lean": false,
+        "beh.mouse": false,
+        "beh.touch": false,
+        "beh.pat": false,
+        "beh.pinch": false,
+        "beh.greet": false,
+        "beh.inertia": false,
+        "beh.mood": false,
+        "beh.face": false,
+        "beh.rail": false,
+        "beh.hint": false,
+        "rnd.aa": false,
+        "rnd.idle": false,
+        "rnd.batt": false,
+        "beh.physics": false,
+        "rnd.wrap": false,
+        "scn.parallax": false,
+        "rnd.sway": false,
+        "tts": "value",
+        "asr": "value",
+        "ttsUrl": "value",
+        "ttsTunnelHost": "value",
+        "ttsEnsureScript": "value",
+        "proactive": "value",
+        "rest": "value",
+        "water": "value",
+        "n_done": "value",
+        "n_appr": "value",
+        "n_err": "value",
+        "n_brief": "value",
+        "n_remind": "value",
+        "avatar_click": "interact",
+        "hk_ptt": "value",
+        "hk_quick": "value",
+        "hk_look": "value",
+        "hk_hide": "value",
+        "hk_pass": "value",
+        "hk_wheel": "value",
+        "hk_sel": "value",
+        "grain": "value",
+        "beh.stay": "value",
+        "beh.range": "value",
+        "rnd.fps": "value",
+        "beh.watch": "value",
+        "rnd.cam": "value",
+        "rnd.yaw": 0,
+        "rnd.pitch": 0,
+        "rnd.size": "value",
+        "rnd.shadow": "value",
+        "rnd.outline": "value",
+        "rnd.lightYaw": "value",
+        "rnd.lightPitch": "value",
+        "rnd.lightStrength": "value",
+        "rnd.ground": "value",
+        "rnd.ambient": "value",
+        "scn.mode": "value",
+        "rnd.zoom": 1,
+        "rnd.closeup": "off",
+        "rnd.track": "stage",
+        "rnd.filter": "none",
+        "rnd.dof": "off"
+      },
+      "statuses": {
+        "setting": "pending"
+      }
+    }
+  },
+  {
+    "op": "settings.save",
+    "surface": "main",
+    "args": [
+      {
+        "mute": true
+      }
+    ],
+    "value": {
+      "restart": "none",
+      "notApplied": []
+    }
+  },
+  {
+    "op": "settings.confirmDestructive",
+    "surface": "main",
+    "args": [
+      "web"
+    ],
+    "value": true
+  },
+  {
+    "op": "settings.previewDestructive",
+    "surface": "main",
+    "args": [
+      "web"
+    ],
+    "free_keys": [
+      "counts"
+    ],
+    "value": {
+      "total": 1,
+      "counts": {
+        "episodes": 1
+      }
+    }
+  },
+  {
+    "op": "settings.validateHotkey",
+    "surface": "main",
+    "args": [
+      "hk_quick",
+      "⌃Space"
+    ],
+    "value": {
+      "ok": true
+    }
+  },
+  {
+    "op": "settings.recordHotkey",
+    "surface": "main",
+    "args": [
+      "hk_quick"
+    ],
+    "value": null
+  }
+]

@@ -1,0 +1,488 @@
+"""The agentd bootstrap: arguments, tokens, optional services and the serve loop."""
+import argparse
+import datetime
+import json
+import os
+from pathlib import Path
+import secrets
+import signal
+import sys
+import threading
+import traceback
+
+from api.handler import C6_CONTRACT
+from character_agent.harness.transport import PROTOCOL_VERSION as C8_PROTOCOL
+from sessions.agent_meta import AgentMeta
+from sessions.approvals import ApprovalBroker
+from observation.attention import AttentionStore
+from observation.timeline import Timeline
+from character.behavior import Behavior
+from character.binding import Bindings, effective
+from observation.blacklist import Blacklist
+from brain import characters
+from observation.capture import CaptureManager
+from character.character_state import CharacterState
+from personal.commitments import Commitments
+from tool_gateway.computer_use import ComputerControlConfig
+from daemon.agentd_server import AgentdServer
+from personal.episodes import Episodes
+from character.focus import Focus
+from character.gate import Gate
+from personal.history import History
+from character.interactions import PRESETS, preset
+from character.judge import Judge
+from sessions.ledger import DEFAULT_ROOT
+from personal.memory import Memory
+from personal.worklog import WorkLog
+from infra import paths
+from character.proactive import Proactive
+from character.proactive_log import ProactiveLog
+from character.routine import Routine
+from character.signals import Signals
+from character_agent.services.worklog_digest import project
+from character.thoughts import Thoughts
+from personal.rituals import Rituals
+from sessions.own import SessionManager
+from infra.platform import make_private_tree
+from infra.store import checkpoint, open_store
+from sessions.tasks import TaskLedger
+from infra.tokens import ensure_state_dir, read_token, write_secret
+from traces.trace_store import TraceStore
+from voice.voice_provider import NoVoice, RemoteWsVoice, make_provider
+
+# C9 `--describe`: the contract versions this agentd implements.
+DESCRIBE = {"component": "agentd", "c1_contract": "v2.6", "c6_contract": C6_CONTRACT, "c8_protocol": C8_PROTOCOL,
+            "c9_contract": "v1"}
+
+
+def build_capture(feed, attention, semantic, state_dir, share_window_text, share_screenshots, *, budget_db=None):
+    """Local capture judgment; authorized vision uses the selected role harness."""
+    from character_agent.services.semantic import SemanticVision
+    def focus():
+        window = attention.focus()
+        return None if window is None else {**window, "category": attention.app_category(window)}
+    return CaptureManager(feed, attention.blacklist, focus, Path(state_dir) / "capture.jsonl",
+                          vision=SemanticVision(semantic) if share_screenshots else None,
+                          judge_log=Path(state_dir) / "capture-judge.jsonl", budget_db=budget_db,
+                          spawn=lambda fn: threading.Thread(target=fn, daemon=True).start(), share_text=share_window_text,
+                          app_category=attention.app_category)
+
+
+def tts_token(path):
+    """The TTS bearer token from path, else $AAC_TTS_TOKEN_FILE; None when neither is set or the file is missing
+    (the TTS then answers 401 and the speech ends)."""
+    path = path or os.environ.get("AAC_TTS_TOKEN_FILE")
+    if not path:
+        print("agentd: no TTS token: neither --tts-token-file nor $AAC_TTS_TOKEN_FILE is set", file=sys.stderr)
+        return None
+    path = Path(path)
+    if not path.exists():
+        print(f"agentd: no TTS token at {path}; run tools/tts_token.py ensure", file=sys.stderr)
+        return None
+    return read_token(path)
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--port", type=int, default=paths.AGENTD_PORT)
+    parser.add_argument("--state-dir", default=paths.STATE_DIR_DEFAULT,
+                        help="holds hook.token and ui-runtime.json (both 0600)")
+    parser.add_argument("--computer-control-socket", help="Companion native desktop JSONL socket; omitted disables MCP bridge")
+    parser.add_argument("--computer-control-token-file", help="0600 credential for the native desktop socket")
+    parser.add_argument("--privacy-config", help="Native config.json; re-read text consent before each decision dispatch")
+    parser.add_argument("--hook-timeout", type=float, default=60.0,
+                        help="PermissionRequest hook timeout configured in Claude/Codex")
+    parser.add_argument("--margin", type=float, default=5.0,
+                        help="approval deadline = hook timeout - margin")
+    parser.add_argument("--proactive", action=argparse.BooleanOptionalAction, default=True,
+                        help="proactive speech (gate master switch); on by default")
+    parser.add_argument("--interaction-preset", choices=tuple(PRESETS), default="balanced",
+                        help="background interaction cadence: quiet, balanced (default), active")
+    parser.add_argument("--break-reminder-minutes", type=int, default=50,
+                        help="offer a break reminder after this many active minutes; 0 is off")
+    parser.add_argument("--water-reminder-minutes", type=int, default=90,
+                        help="offer a water reminder at a pause after this many active minutes; 0 is off")
+    parser.add_argument("--ritual-report-time", default="17:30",
+                        help="local HH:MM from which a tap says the day's report; the morning greeting ends then")
+    parser.add_argument("--character-catalog", type=Path,
+                        help="verified CharacterLibrary/current.json; AGENTD_DEV_CATALOG or characters/sample-library/current.json when absent")
+    parser.add_argument("--character",
+                        help="character id: card, lore, TTS voice; default: the catalog's default_character, "
+                        "none for a library without characters")
+    parser.add_argument("--harness-site", dest="harness_sites", action="append", default=[], metavar="ID=DIR",
+                        help="component site directory for harness.pi (node/bin/node and pi-runtime/)")
+    parser.add_argument("--tts-url", help="remote TTS service base URL, e.g. http://127.0.0.1:9888 over ssh -L")
+    parser.add_argument("--tts-ensure-host",
+                        help="ssh host that runs --tts-ensure-script to start the remote TTS host's service on demand")
+    parser.add_argument("--tts-ensure-script", default=None,
+                        help="script on the remote TTS host whose `ensure` starts the TTS and answers ready or fail")
+    parser.add_argument("--share-page-text", action="store_true",
+                        help="collect browser page/selection text and allow it in model context; off by default")
+    parser.add_argument("--share-window-text", action="store_true",
+                        help="let window text (AX / OCR) reach the selected agent harness; off by default")
+    parser.add_argument("--share-typed-text", action="store_true",
+                        help="keep AX input field text and hook prompts in events_raw; off by default")
+    parser.add_argument("--share-agent-sessions", action="store_true",
+                        help="keep live coding-session content; Companion enables this by default")
+    parser.add_argument("--observation-off", action="store_true",
+                        help="take no observation input, as a pause that never ends; off by default")
+    parser.add_argument("--share-screenshots", action="store_true",
+                        help="request budgeted window screenshots and describe them with Claude; off by default")
+    parser.add_argument("--tts-token-file", help="TTS bearer token file (0600); default $AAC_TTS_TOKEN_FILE, "
+                        "else requests go out without a token")
+    parser.add_argument("--redact", action=argparse.BooleanOptionalAction, default=True,
+                        help="mask API keys, tokens, emails and phone numbers before any model call; on by default")
+    parser.add_argument("--mute", action=argparse.BooleanOptionalAction, default=False,
+                        help="lines are shown as text only, as after the spoken 静音; off by default")
+    parser.add_argument("--ledger-root", default=DEFAULT_ROOT,
+                        help="harness event ledger the day summaries read (read only)")
+    parser.add_argument("--exit-with-parent", action=argparse.BooleanOptionalAction, default=True,
+                        help="shut down cleanly when the process that started agentd exits; on by default")
+    parser.add_argument("--describe", action="store_true",
+                        help="print one JSON line with the contract versions and exit, touching no port or state dir")
+    args = parser.parse_args(argv)
+    harness_sites = {}
+    for pair in args.harness_sites:
+        component, separator, directory = pair.partition("=")
+        if not separator:
+            parser.error("--harness-site: expected ID=DIR")
+        if component != "harness.pi":
+            parser.error(f"--harness-site: unknown harness component {component}")
+        if component in harness_sites:
+            parser.error(f"--harness-site: duplicate harness component {component}")
+        if not Path(directory).is_absolute():
+            parser.error("--harness-site: DIR must be an absolute directory")
+        if not Path(directory).is_dir():
+            parser.error(f"--harness-site: directory does not exist: {directory}")
+        harness_sites[component] = directory
+    args.harness_sites = harness_sites
+    if args.describe:
+        print(json.dumps(DESCRIBE, sort_keys=True, separators=(",", ":")))
+        sys.exit(0)
+    if bool(args.computer_control_socket) != bool(args.computer_control_token_file):
+        parser.error("--computer-control-socket and --computer-control-token-file must be given together")
+    if args.character is None:
+        args.character = characters.Repository(args.character_catalog).default()
+    return args
+
+
+def watch_parent(server, parent, interval=1.0):
+    """Shut down once agentd is re-parented: the process that started it has exited."""
+    while not server._stopped.wait(interval):
+        if os.getppid() != parent:
+            server.shutdown_cleanly()
+            return
+
+
+def startup_privacy(server):
+    """What a switch that is off covers goes at startup: turning it off restarts agentd, and agentd may have been
+    stopped then, so the first snapshot never sees the revocation. Only summaries that depend on a switch now off go,
+    with what was derived from them."""
+    permissions, level = server.consent.snapshot()[0], server.consent.level
+    if not permissions["typed_text"]:
+        server.attention.clear_typed_text()
+        if getattr(server, "timeline", None) is not None:
+            server.timeline.clear_typed_text()
+    # Only the window level keeps window trees; a narrower one may have been saved while agentd was stopped.
+    if (not permissions["window_text"] or level != "window") and getattr(server, "timeline", None) is not None:
+        server.timeline.clear_trees()
+    off = {k for k in ("page_text", "typed_text", "agent_sessions") if not permissions.get(k, True)}
+    if off and server.worklog is not None:
+        server.worklog.delete_permissions(off)
+    if server.episodes is None:
+        return
+    if not off:
+        return
+    deleted = server.episodes.delete_permissions(off)
+    server._forget_derived(deleted)
+    if deleted:
+        checkpoint(server.episodes)
+
+
+def start_optional(server, name, start):
+    """Run an optional subsystem's startup step; a failure goes to stderr and into server.degraded instead of ending
+    agentd. Whether it started."""
+    try:
+        start()
+    except Exception:
+        print(f"agentd: {name} failed to start; running without it", file=sys.stderr)
+        traceback.print_exc()
+        server.degraded.append(name)
+        return False
+    return True
+
+
+def thought_work(server, allowed, cwds):
+    """Up to 2 active cards of the cwds' projects with their next steps, and today's headline; allowed(row): the
+    row's consents hold."""
+    projects = {project(cwd) for cwd in cwds} - {None}
+    cards = [c for c in server.worklog.tasks(("active",)) if c["project"] in projects and allowed(c)][:2]
+    lines = [f"- Active task: {c['title']}" + (f"; next step: {c['next_step']}" if c["next_step"] else "") for c in cards]
+    today = server.worklog.day(datetime.date.fromtimestamp(server.clock()).isoformat())
+    if today is not None and today["headline"] and allowed(today):
+        lines.append(f"Today so far: {today['headline']}")
+    return "\n".join(lines)[:400]
+
+
+def main():
+    os.umask(0o077)
+    class TimestampedStderr:
+        def __init__(self, stream):
+            self.stream, self.start = stream, True
+            self.lock = threading.Lock()
+
+        def write(self, text):
+            with self.lock:
+                for part in text.splitlines(keepends=True):
+                    if self.start:
+                        stamp = datetime.datetime.now().astimezone().isoformat(timespec="milliseconds")
+                        self.stream.write(f"{stamp} pid={os.getpid()} ")
+                    self.stream.write(part)
+                    self.start = part.endswith("\n")
+            return len(text)
+
+        def flush(self):
+            with self.lock:
+                self.stream.flush()
+
+        def __getattr__(self, name):
+            return getattr(self.stream, name)
+
+    sys.stderr = TimestampedStderr(sys.stderr)
+    parent = os.getppid()
+    args = parse_args()
+    interaction = preset(args.interaction_preset)
+    state_dir = Path(args.state_dir)
+    ensure_state_dir(state_dir)
+    make_private_tree(state_dir)
+    hook_path = paths.hook_token(state_dir)
+    if not hook_path.exists():
+        write_secret(hook_path, secrets.token_urlsafe(24) + "\n")
+    hook_token = read_token(hook_path)
+    ui_token = secrets.token_urlsafe(24)
+    events_token = secrets.token_urlsafe(24)
+    integration_token = secrets.token_urlsafe(24)
+    repository = characters.Repository(args.character_catalog)
+    if args.character is not None:
+        repository.load_card(args.character)
+    db = paths.agentd_db(state_dir)
+    memory = Memory(open_store(db))
+    from models.model_backends import ModelSettings
+    from brain.outbound import OutboundGuard, resolve_windows
+    from brain.provider import Mouth
+    models = ModelSettings(state_dir)
+    guard = OutboundGuard(resolve_windows(state_dir), paths.outbound_guard_log(state_dir))
+    mouth_off = None
+    from brain.egress import EgressPolicy
+    # One policy for every model call, so the diagnostics see one set of mask counts.
+    egress = EgressPolicy(guard=guard, redact=args.redact)
+    from models.usage import UsageMeter
+    usage = UsageMeter(open_store(db))
+    def motion_phrases(cid):
+        """The phrases of cid's game gestures for the [motion:] rule; none for the development sources."""
+        from motion import catalog
+        try:
+            root = repository.package(cid).root
+        except ValueError:
+            return []
+        return catalog.phrases(catalog.load(root))
+    factory = lambda cid: Mouth(character=cid, persona_path=repository.card_path(cid), lore_path=repository.lore_path(cid),
+                                egress=egress, motion_phrases=motion_phrases(cid))  # noqa: E731
+    # No character: no mouth, and the routes in api.handler.CHARACTER_ROUTES answer 409 no_character.
+    mouth = None if args.character is None else factory(args.character)
+    if args.character is None:
+        mouth_off = "no_character"
+    attention = AttentionStore(paths.attention_db(state_dir), Blacklist(paths.blacklist(state_dir)))
+    server = AgentdServer(("127.0.0.1", args.port), hook_token, ui_token,
+                          broker=ApprovalBroker(args.hook_timeout, args.margin),
+                          gate=Gate(enabled=args.proactive, interaction_preset=interaction.name, state_scale=lambda: server.state_view.comment_scale(), db=open_store(db)),
+                          mouth=mouth, events_token=events_token, integration_token=integration_token,
+                          attention=attention, share_page_text=args.share_page_text,
+                          interaction_preset=interaction.name, repository=repository)
+    # The socket is bound: /health answers from here while the rest starts; daemon, so a fatal init error still exits.
+    server.startup_stage, server.degraded = "init", []
+    serving = threading.Thread(target=server.serve_forever, daemon=True)
+    serving.start()
+    server.startup_stage = "storage"
+    server.timeline = Timeline(paths.timeline_db(state_dir), attention.blacklist)
+    server.character, server.mouth_factory = args.character, factory
+    server.no_character = args.character is None
+    server.models = models
+    server.privacy_config = args.privacy_config
+    server.muted = args.mute
+    server.history = History(open_store(db))
+    server.proactive_log = ProactiveLog(open_store(db))
+    server.proactive_log.prune()
+    server.episodes = Episodes(open_store(db))
+    server.worklog = WorkLog(open_store(db), lambda: server.character)
+    server.tasks = TaskLedger(open_store(db))
+    server.ledger_root = args.ledger_root
+    server.memory = memory
+    server.load_pause()
+    server.focus = Focus(paths.focus(state_dir), clock=lambda: server.clock(),
+                         language=lambda: server.character_agent.semantic.reply())
+    server.gate.focus = server.focus.running()
+    server.load_receipts(open_store(db))
+    server.trace = TraceStore(open_store(db), producer_epoch=server.registry.epoch, retention=server.history_retention)
+    from motion.performer import Performer
+    from motion.settings import MotionSettings
+    server.motion = Performer(MotionSettings(state_dir), server.registry.publish_event,
+                              lambda: server.characters.package(server.character).root, state_dir / "motion-cache",
+                              trace=server._trace)
+    server.bindings = Bindings(state_dir, repository, lambda: server.motion.settings.backend)
+    server.character_voice_enabled = args.character is not None and server.bindings.voice(args.character) is not None
+    if server.mouth is not None:
+        server.mouth.refresh_system(effective(server))  # the bindings are built after the mouth
+    server.motion.prewarm(server.motion.settings.backend if args.character is None else effective(server)["motion"]["driver"])
+    if args.character is not None:  # without a character server.state stays None and records nothing
+        server.state = CharacterState(open_store(db), lambda cid: repository.load_card(cid).get("state_profile"))
+        server.state.retention = server.history_retention
+        server.state.use(args.character)
+    server.spatial.state = server.state_view
+    if mouth is not None:
+        server.load_window()
+    server.egress, server.usage = egress, usage
+    from observation.activity_decisions import ActivityDecisions
+    from character_agent.integration import CharacterAgentController
+    from character_agent.services.semantic import SemanticJudge
+    server.privacy_config = args.privacy_config
+    server.share_typed_text = args.share_typed_text
+    server.share_agent_sessions = args.share_agent_sessions
+    server.observation_off = args.observation_off
+    server.agent_meta = AgentMeta()
+    server.capture = build_capture(server.feed, attention, None, state_dir,
+                                   args.share_window_text, args.share_screenshots, budget_db=open_store(db))
+    startup_privacy(server)
+    server.startup_stage = "character_agent"
+    server.character_agent = CharacterAgentController(server, state_dir, harness_sites=args.harness_sites)
+    server.character_agent.discovery.warm()  # the runtime probes take seconds; the main window reads them first
+    server.activity_decisions = ActivityDecisions(server.character_agent.semantic, interaction.model_every)
+    from observation.facing_decisions import FacingDecisions
+    server.facing_decisions = FacingDecisions(server.character_agent.semantic,
+        lambda yaw,reason,hold,valid: server.spatial.request_facing(yaw,reason,hold,source='decision',valid=valid),
+        interaction.model_every)
+    if args.share_screenshots:
+        from character_agent.services.semantic import SemanticVision
+        server.capture.vision=SemanticVision(server.character_agent.semantic)
+    server.startup_stage = "observation"
+    if server.character_agent.observations:
+        server.capture.on_image=server.character_agent.observations.ingest_image
+        server.capture.budget.min_interval=5
+        server.capture.budget.per_hour=120
+        server.capture.budget.per_day=1500
+        start_optional(server, "observations", server.character_agent.observations.start)
+    server.startup_stage = "sessions"
+    server.sessions = server.dispatcher.sessions = SessionManager(
+        server.broker, server.announce, state_dir, f"http://127.0.0.1:{server.server_port}", hook_token,
+        args.hook_timeout, store=open_store(db), computer_control=ComputerControlConfig(
+            str(Path(args.computer_control_socket).expanduser().resolve()),
+            str(Path(args.computer_control_token_file).expanduser().resolve())) if args.computer_control_socket else None,
+        reply_language=server.reply_language_code)
+    server.sessions.tasks = server.dispatcher.tasks = server.tasks
+    if args.tts_url:
+        server.startup_stage = "speech"
+
+    def start_voice():
+        token = tts_token(args.tts_token_file) if args.tts_url else None
+        server.voice = make_provider(args, server.bindings, server.registry.epoch, token)
+        if server.voice.relay() is not None:
+            server.voice.relay().on_event = server.on_speech_event
+    if not start_optional(server, "speech", start_voice):
+        server.voice = NoVoice("start_failed")  # text-only, as without --tts-url
+    server.speech, server.tts_ensurer = server.voice.relay(), server.voice.ensurer
+    server.tts_token_file = args.tts_token_file or os.environ.get("AAC_TTS_TOKEN_FILE")
+    if isinstance(server.voice, RemoteWsVoice):
+        server.voice.probe()
+    server.startup_stage = "recovery"
+    start_optional(server, "recover_tasks", server.recover_tasks)  # once the voice is set up, so its announcements can be spoken
+    commitments = Commitments(open_store(db))
+    # server.commitments stays None on a failure, which the reminder routes and ticks answer as unavailable
+    start_optional(server, "recover_commitments", lambda: server.recover_commitments(commitments))
+    server.startup_stage = "memory"
+    start_optional(server, "memory_pipeline", server.character_agent.memory_pipeline.start)
+    start_optional(server, "worklog", server.character_agent.worklog.start)
+    server.startup_stage = "behavior"
+    server.hook_files = {"claude": Path(paths.CLAUDE_SETTINGS).expanduser(),
+                         "codex": (Path(paths.CODEX_HOME) / paths.CODEX_HOOKS).expanduser()}  # tools/install_hooks.py defaults
+    server.rituals = Rituals(open_store(db), report_time=args.ritual_report_time, memory=memory,
+                             summary=server.day_session_summary,
+                             arc=server.day_arc, on_change=server.ritual_check)
+    server.proactive = Proactive(attention, server.gate, server.feed.publish, server.start_line, server.busy,
+                                 judge=Judge(SemanticJudge(server.character_agent.semantic, "proactive_decide"),
+                                             paths.proactive_judge_log(state_dir)), activity=server.activity, claim=server.claim_line,
+                                 sessions=server.registry.snapshot,
+                                 break_minutes=max(0, args.break_reminder_minutes),
+                                 water_minutes=max(0, args.water_reminder_minutes), deliver="speak",
+                                 log=server.proactive_log, user=server.user_title,
+                                 language=server.character_agent.semantic.reply)
+
+    def work_signal_allowed(row):
+        permissions = server.consent.snapshot()[0]
+        return not server.observation_paused() and all(permissions.get(item, False) for item in row['requires'])
+
+    server.thoughts = Thoughts(server.gate, server._proactive_publish, server.character_agent.semantic,
+                               scene=server.activity, context=server._attention_context,
+                               sessions=server.registry.snapshot, consent=server.page_text_allowed,
+                               egress=egress, work=lambda cwds: thought_work(server, work_signal_allowed, cwds),
+                               log=server.proactive_log, user=server.user_title)
+
+    def interpreted(character, body):
+        """The continuous interpreter's committed analysis of the shown character reaches her thoughts and lines."""
+        if character == server.character:
+            server.thoughts.interpreted(body)
+            server.proactive.interpreted(body)
+
+    if server.character_agent.observations:
+        server.character_agent.observations.listeners.append(interpreted)
+
+    server.signals = Signals(server.gate, server.thoughts, server.registry, sessions=server.sessions,
+                             scene=server.activity, allowed=server._signals_allowed,
+                             pending=server.broker.pending, clock=server.clock, worklog=server.worklog,
+                             semantic=server.character_agent.semantic,
+                             report_time=server.rituals.report_time, egress=egress,
+                             work_allowed=work_signal_allowed)
+    server.spatial.routine = Routine(state=server.state_view)
+    server.behavior = Behavior(server.situation, server.registry.set_activity,
+                               backend=None, routine=server.spatial.routine,
+                               speaking=lambda: server.speech is not None and server.speech.busy(),
+                               state=server.state_view, interaction_preset=interaction.name,
+                               version=lambda: (server.character, server.character_generation, server.reset_generation,
+                                                server.turn_generation, server.gate.meeting, server.gate.fullscreen))
+    server.behavior.on_decision = server.capture.judge.on_decision = server._decision
+    if server.proactive.judge is not None:
+        server.proactive.judge.on_decision = server._decision
+    threading.Thread(target=server.behavior.run, args=(server._stopped, server.polls_paused), daemon=True).start()
+    threading.Thread(target=server.spatial.run, args=(server._stopped, server.polls_paused), daemon=True).start()
+    threading.Thread(target=server.presence_feed.run, args=(server._stopped,), daemon=True).start()
+    # shutdown_cleanly waits for serve_forever to return, so it cannot run inside the handler.
+    stop = lambda *_: threading.Thread(target=server.shutdown_cleanly).start()  # noqa: E731
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    if args.exit_with_parent:
+        threading.Thread(target=watch_parent, args=(server, parent), daemon=True).start()
+    server.startup_stage = "publishing"
+    # Written once every route answers: tools wait for these files before their first request.
+    runtime = paths.ui_runtime(state_dir)
+    write_secret(runtime, json.dumps({"schema": 1, "base_url": f"http://127.0.0.1:{server.server_port}",
+                                      "ui_token": ui_token}, indent=2))
+    write_secret(paths.events_runtime(state_dir),
+                 json.dumps({"schema": 1, "base_url": f"http://127.0.0.1:{server.server_port}",
+                             "events_token": events_token}, indent=2))
+    write_secret(paths.integration_runtime(state_dir),
+                 json.dumps({"schema": 1, "base_url": f"http://127.0.0.1:{server.server_port}",
+                             "integration_token": integration_token}, indent=2))
+    server.startup_stage = "ready"
+    print(f"agentd listening on 127.0.0.1:{server.server_port}; hook token: {hook_path.resolve()}; "
+          f"ui runtime: {runtime.resolve()}; character: {args.character}; "
+          f"mouth: {'on' if mouth else f'off ({mouth_off})'}",
+          flush=True)
+    try:
+        while serving.is_alive():  # a timed join lets the main thread take signals
+            serving.join(0.5)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        models.auth.cancel()
+        server.shutdown_cleanly()
+        server.server_close()
+    print("agentd: shut down cleanly", file=sys.stderr, flush=True)

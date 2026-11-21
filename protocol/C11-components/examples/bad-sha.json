@@ -1,0 +1,12 @@
+{
+  "schema": "endfield-component/v1",
+  "id": "agentd",
+  "version": "1.0.0",
+  "tree_sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "files": 1,
+  "bytes": 10,
+  "entrypoints": {},
+  "provides": {},
+  "requires": {},
+  "platform": "macos-arm64"
+}

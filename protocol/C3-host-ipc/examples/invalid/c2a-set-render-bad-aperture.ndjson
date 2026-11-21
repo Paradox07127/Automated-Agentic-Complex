@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["render_live","photo"]}
+{"v":1,"type":"set_render","req":9,"photo":{"active":true,"aperture":1.2,"focus":1.5}}

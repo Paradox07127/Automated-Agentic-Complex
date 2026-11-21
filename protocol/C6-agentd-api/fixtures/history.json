@@ -1,0 +1,7 @@
+{
+  "turns": [{"id": 41, "event_id": "8a6f3c2e-1d4b-4e8a-9c7d-2b5e6f8a9c0d", "turn_id": "tr41", "source": "text",
+             "character_id": "voice_a", "persona_revision": "3", "user_text": "你好", "reply": "在呢",
+             "state": "completed", "started_at": 1793503660.1, "ended_at": 1793503662.4, "raw_reply": "在呢",
+             "conversation_id": "0123456789abcdef0123456789abcdef"}],
+  "next": 40
+}

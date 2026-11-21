@@ -1,0 +1,205 @@
+{
+ "description": "等待、出错、完成时看向正确的会话：target.window_id 给出看向哪个窗口；出错转完成时同一会话同一目标，按续期处理（第一条回执 running）；会话没有窗口时 window_id 为 null，渲染器回 blocked / target_gone",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e1-1",
+   "type": "attend_session",
+   "target": {
+    "kind": "session",
+    "display_session": "codex:B",
+    "window_id": 3101
+   },
+   "trigger": {
+    "source": "session",
+    "event": "session_state:awaiting_approval"
+   },
+   "display_session": "codex:B",
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 1,
+   "expires_at_ms": 1760900301000,
+   "intensity": 0.6,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "session_state"
+   ],
+   "replaces": null,
+   "trace_id": "t-1"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900000030,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000040,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-e1-2",
+   "type": "attend_session",
+   "target": {
+    "kind": "session",
+    "display_session": "claude:A",
+    "window_id": 3202
+   },
+   "trigger": {
+    "source": "session",
+    "event": "session_state:error"
+   },
+   "display_session": "claude:A",
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 1,
+   "expires_at_ms": 1760900303000,
+   "intensity": 0.6,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "session_state"
+   ],
+   "replaces": "b-e1-1",
+   "trace_id": "t-2"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "cancelled",
+   "reason": null,
+   "at_ms": 1760900003000,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900003040,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900003050,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 3,
+   "behavior_id": "b-e1-3",
+   "type": "attend_session",
+   "target": {
+    "kind": "session",
+    "display_session": "claude:A",
+    "window_id": 3202
+   },
+   "trigger": {
+    "source": "session",
+    "event": "session_state:done"
+   },
+   "display_session": "claude:A",
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 1,
+   "expires_at_ms": 1760900309000,
+   "intensity": 0.6,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "session_state"
+   ],
+   "replaces": "b-e1-2",
+   "trace_id": "t-3"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "cancelled",
+   "reason": null,
+   "at_ms": 1760900009000,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-3",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900009000,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-3",
+   "phase": "completed",
+   "reason": null,
+   "at_ms": 1760900012000,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 4,
+   "behavior_id": "b-e1-4",
+   "type": "attend_session",
+   "target": {
+    "kind": "session",
+    "display_session": "codex:C",
+    "window_id": null
+   },
+   "trigger": {
+    "source": "session",
+    "event": "session_state:awaiting_input"
+   },
+   "display_session": "codex:C",
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 1,
+   "expires_at_ms": 1760900313000,
+   "intensity": 0.6,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "session_state"
+   ],
+   "replaces": null,
+   "trace_id": "t-4"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-4",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900013010,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-4",
+   "phase": "blocked",
+   "reason": "target_gone",
+   "at_ms": 1760900013020,
+   "turn_generation": 3
+  }
+ ]
+}

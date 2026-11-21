@@ -1,0 +1,1 @@
+# Production modules that still import demo code (scripts/check-boundary.mjs). Each card deletes its lines when it moves the demo code out.

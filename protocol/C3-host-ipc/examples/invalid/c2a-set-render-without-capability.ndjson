@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["ambient"]}
+{"v":1,"type":"set_render","req":6,"camera":{"mode":"show"}}

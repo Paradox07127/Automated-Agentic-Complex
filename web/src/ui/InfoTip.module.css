@@ -1,0 +1,94 @@
+/* Square trigger; the tip is a tips panel: near-black rounded plate, white justified text. */
+.wrap {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.btn {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--ef-line);
+  border-radius: 0;
+  background: var(--ef-chip);
+  color: var(--ef-text-2);
+  cursor: help;
+}
+
+.btn:hover {
+  border-color: var(--ef-line-strong);
+  color: var(--ef-text-1);
+}
+
+.btn:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+.tip {
+  /* Black shadow up to 0.14 over about 4.5 px. */
+  --tip-shadow: rgb(0 0 0 / 0.14);
+  position: fixed;
+  z-index: var(--ef-z-tooltip);
+  width: max-content;
+  max-width: 275px;
+  padding: 10px 14.5px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--ef-tips-bg);
+  box-shadow: 0 0 4.5px var(--tip-shadow);
+  color: var(--ef-text-1);
+  font: var(--ef-fw-regular) var(--ef-fs-body) / 1.5 var(--ef-font-sans);
+  text-align: justify;
+  white-space: normal;
+  /* commontips_in: the plate fades in 83-283 ms, the text flickers 0-1-0-1 at 183-283 ms. */
+  animation:
+    tip-in 200ms var(--ef-ease-g-fade) 83ms both,
+    tip-text 100ms steps(1, end) 183ms both;
+}
+
+.tip[hidden] {
+  display: none;
+}
+
+:global([data-demo='InfoTip-open']) .wrap {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ef-sp-4);
+}
+
+:global([data-demo='InfoTip-open']) .tip {
+  position: static;
+}
+
+@keyframes tip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes tip-text {
+  0%,
+  66% {
+    color: transparent;
+  }
+
+  33%,
+  100% {
+    color: var(--ef-text-1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tip {
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) .tip,
+:global(.still) .tip {
+  animation: none;
+}

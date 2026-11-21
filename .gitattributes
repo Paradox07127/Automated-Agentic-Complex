@@ -1,0 +1,40 @@
+# Same bytes on Mac and Windows checkouts (core.autocrlf=true): text is LF.
+* text=auto eol=lf
+
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.webp binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.flac binary
+*.mp4 binary
+*.bin binary
+*.dylib binary
+*.a binary
+*.o binary
+*.so binary
+*.dll binary
+*.exe binary
+*.metallib binary
+*.onnx binary
+*.safetensors binary
+*.pt binary
+*.pth binary
+*.npy binary
+*.npz binary
+*.zip binary
+*.gz binary
+*.pdf binary

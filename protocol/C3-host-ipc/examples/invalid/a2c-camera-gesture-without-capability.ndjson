@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","render_live","camera_free"],"build":{"git":"4494946d","renderer":"metal"}}
+{"v":1,"type":"camera_gesture","phase":"changed","dx":12,"dy":-3,"zoom":1}

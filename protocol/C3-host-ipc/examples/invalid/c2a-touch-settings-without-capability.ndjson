@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["pointer"]}
+{"v":1,"type":"touch_settings","regions":true,"pat":false,"pinch":false,"greet":false}

@@ -1,0 +1,11 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"birch","appearance":"mod_1a2b3c4d","appearances":[{"id":"default","name":"默认"},{"id":"mod_1a2b3c4d","name":"夏装","kind":"imported"},{"id":"mod_5e6f7a8b","name":"雨衣","kind":"imported"}],"capabilities":["heartbeat","ack","actions","mod_settings"],"build":{"git":"9e3c2555","renderer":"metal"}}
+{"v":1,"type":"mod_settings","req":null,"character":"birch","appearance":"mod_1a2b3c4d","values":{"coat":0,"color":0}}
+{"v":1,"type":"ack","req":1,"ok":true}
+{"v":1,"type":"mod_settings","req":1,"character":"birch","appearance":"mod_1a2b3c4d","values":{"coat":1,"color":2}}
+{"v":1,"type":"ack","req":2,"ok":true}
+{"v":1,"type":"mod_settings","req":2,"character":"birch","appearance":"mod_5e6f7a8b","values":{"hood":1,"pattern":0},"adjusted":[{"id":"pattern","reason":"defaulted"}]}
+{"v":1,"type":"ack","req":3,"ok":true}
+{"v":1,"type":"mod_settings","req":3,"character":"birch","appearance":"mod_1a2b3c4d","values":{"coat":0,"color":0},"adjusted":[{"id":"coat","reason":"defaulted"},{"id":"color","reason":"defaulted"}]}
+{"v":1,"type":"ack","req":4,"ok":false,"error":"busy"}
+{"v":1,"type":"character_changed","id":"aster","ms":812,"appearance":"mod_9c0d1e2f","appearances":[{"id":"default","name":"默认"},{"id":"mod_9c0d1e2f","name":"长裙","kind":"imported"}]}
+{"v":1,"type":"mod_settings","req":null,"character":"aster","appearance":"mod_9c0d1e2f","values":{"skirt_long":1}}

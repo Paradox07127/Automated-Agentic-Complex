@@ -1,0 +1,65 @@
+{
+ "description": "不合法（校验器要报错）：motion.id 有大写、length_s 超过 10；idle 带了 motion",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-gm-3f9a0c41d27e65b8",
+   "type": "perform",
+   "target": null,
+   "trigger": {
+    "source": "agent",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 1,
+   "expires_at_ms": 1762250013000,
+   "intensity": 1.0,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "0d6c2b7e-6a1f-4f0e-9a51-2f4b8f1c9e30",
+   "motion": {
+    "id": "gm-3F9A0C41D27E65B8",
+    "meta_sha256": "5b1e0f6d3c2a49875b1e0f6d3c2a49875b1e0f6d3c2a49875b1e0f6d3c2a4987",
+    "keys_sha256": "c7d2a9e4f1b03856c7d2a9e4f1b03856c7d2a9e4f1b03856c7d2a9e4f1b03856",
+    "rig_sha256": "9e8f7a6b5c4d3e2f9e8f7a6b5c4d3e2f9e8f7a6b5c4d3e2f9e8f7a6b5c4d3e2f",
+    "length_s": 12
+   }
+  },
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-e1-2",
+   "type": "idle",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 0,
+   "expires_at_ms": 1762250060000,
+   "intensity": 0.6,
+   "channels": [
+    "eyes"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "t-2",
+   "motion": {
+    "id": "gm-3f9a0c41d27e65b8",
+    "meta_sha256": "5b1e0f6d3c2a49875b1e0f6d3c2a49875b1e0f6d3c2a49875b1e0f6d3c2a4987",
+    "keys_sha256": "c7d2a9e4f1b03856c7d2a9e4f1b03856c7d2a9e4f1b03856c7d2a9e4f1b03856",
+    "rig_sha256": "9e8f7a6b5c4d3e2f9e8f7a6b5c4d3e2f9e8f7a6b5c4d3e2f9e8f7a6b5c4d3e2f",
+    "length_s": 3.0
+   }
+  }
+ ]
+}

@@ -1,0 +1,40 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-4);
+  min-width: 0;
+}
+
+.root[data-size='row'] {
+  flex-direction: row;
+  align-items: center;
+}
+
+.line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.note {
+  font-size: var(--ef-fs-caption);
+  color: var(--ef-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: var(--ef-fs-caption);
+  color: var(--ef-info-text);
+}
+
+.link:hover {
+  text-decoration: underline;
+}

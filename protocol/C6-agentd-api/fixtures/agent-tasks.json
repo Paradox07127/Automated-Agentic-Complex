@@ -1,0 +1,23 @@
+{
+  "tasks": [{
+    "run_count": 1, "canonical_task_id": "task:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "task_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "job_id": "0123456789abcdef0123456789abcdef", "goal_id": "fedcba9876543210fedcba9876543210", "run_id": "run-8d03",
+    "source_run_id": "run-7c02", "parent_run_id": "run-7c01", "conversation_id": "0123456789abcdef0123456789abcdef",
+    "character_id": "voice_a", "generation": 1, "title": "整理周报", "state": "needs_review",
+    "created_at": 1793503600.2, "updated_at": 1793503662.4,
+    "delivery": {
+      "delivery_version": 1, "delivery_id": "delivery-0123456789abcdef0123456789abcdef", "canonical_task_id": "task:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "run_id": "run-8d03", "task_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "job_id": "0123456789abcdef0123456789abcdef",
+      "goal_id": "fedcba9876543210fedcba9876543210", "conversation_id": "0123456789abcdef0123456789abcdef",
+      "character_id": "voice_a", "source_run_id": "run-7c02", "parent_run_id": "run-7c01", "scope_id": "scope-1",
+      "generation": 1, "revision": 2, "state": "presented", "outcome": "needs_review", "verification_source": "unverified",
+      "decision_source": "user", "title": "整理周报", "produced_at": 1793503662.4, "presented_at": 1793503663.0,
+      "viewed_at": 1793503664.0, "decided_at": 1793503665.0, "redacted": false, "schema_version": 1, "summary": "按项目整理了本周提交。",
+      "artifacts": [{"artifact_id": "art-1", "path": "周报.md", "absolute_path": "/Users/me/Documents/周报.md", "version": 1,
+                     "self_checked": true, "sha256": "0000000000000000000000000000000000000000000000000000000000000001"}],
+      "kind": "task_notice", "material_is_instruction": false
+    },
+    "revision": 2, "verification_source": "unverified", "redacted": false
+  }],
+  "next_cursor": "eyJvZmZzZXQiOiA1MH0"
+}

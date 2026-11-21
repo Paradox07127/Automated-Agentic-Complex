@@ -1,0 +1,163 @@
+{
+ "description": "无事件：随机 tick 依次给待机、观察、短走；待机到期（expired 不早于 expires_at_ms），观察和短走在到期前完成",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e1-1",
+   "type": "idle",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 0,
+   "expires_at_ms": 1760900061000,
+   "intensity": 0.6,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [
+    "speech_start"
+   ],
+   "replaces": null,
+   "trace_id": "t-1"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900000040,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000080,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-1",
+   "phase": "expired",
+   "reason": null,
+   "at_ms": 1760900061000,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-e1-2",
+   "type": "observe",
+   "target": {
+    "kind": "window",
+    "window_id": 101,
+    "side": null
+   },
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 0,
+   "expires_at_ms": 1760900121500,
+   "intensity": 0.4,
+   "channels": [
+    "eyes",
+    "head"
+   ],
+   "exit": [
+    "focus_change",
+    "target_gone"
+   ],
+   "replaces": null,
+   "trace_id": "t-2"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900061400,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900061500,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-2",
+   "phase": "completed",
+   "reason": null,
+   "at_ms": 1760900070000,
+   "turn_generation": 3
+  },
+  {
+   "event": "behavior",
+   "seq": 3,
+   "behavior_id": "b-e1-3",
+   "type": "short_walk",
+   "target": {
+    "kind": "point",
+    "x": 900,
+    "y": 1080,
+    "display_id": 1
+   },
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 3,
+   "priority": 0,
+   "expires_at_ms": 1760900131000,
+   "intensity": 0.5,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [
+    "user_drag"
+   ],
+   "replaces": null,
+   "trace_id": "t-3"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-3",
+   "phase": "prepared",
+   "reason": null,
+   "at_ms": 1760900070900,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-3",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900071000,
+   "turn_generation": 3
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e1-3",
+   "phase": "completed",
+   "reason": null,
+   "at_ms": 1760900076000,
+   "turn_generation": 3
+  }
+ ]
+}

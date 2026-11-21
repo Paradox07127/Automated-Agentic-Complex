@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Endfield Dev Console</title>
+<style>
+  :root { color-scheme: light dark; --line: #8884; --muted: #888; --run: #2a9d5c; --bad: #d1495b; --wait: #d9a32a; }
+  body { font: 14px/1.4 -apple-system, "PingFang SC", sans-serif; margin: 16px; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: middle; }
+  select { max-width: 32em; }
+  input[type=text] { width: 24em; }
+  .phase { font-weight: 600; }
+  .running { color: var(--run); } .failed { color: var(--bad); } .preparing, .gpuHold { color: var(--wait); }
+  .muted { color: var(--muted); }
+  pre { background: #8881; padding: 8px; height: 45vh; overflow: auto; white-space: pre-wrap; font-size: 12px; }
+  header { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  button[aria-pressed="true"] { font-weight: 700; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Endfield Dev Console</h1>
+  <span id="config" class="muted"></span>
+  <span id="lock" class="muted"></span>
+</header>
+<table>
+  <thead><tr><th>组件</th><th>工作树</th><th>状态</th><th>pid</th><th></th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<p>日志：<span id="logs"></span></p>
+<pre id="log" aria-label="log"></pre>
+<script>
+// web and shell are processes; agentd and renderer run inside the shell, so choosing their checkout restarts it.
+const COMPONENTS = ['web', 'shell'], PARTS = ['agentd', 'renderer'], LOGS = ['shell', 'companion', 'agentd', 'renderer', 'helper', 'web'];
+let shown = 'shell', trees = [];
+
+async function post(path, body) {
+  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) alert(await res.text());
+}
+
+function row(name) {
+  const tr = document.createElement('tr'), part = PARTS.includes(name);
+  tr.innerHTML = `<td>${name}${part ? ' <span class="muted">（外壳里）</span>' : ''}</td>
+    <td><select aria-label="${name} checkout"></select>${name === 'shell' ? ' <input type="text" aria-label="外壳参数" placeholder="外壳参数">' : ''}</td>
+    <td class="phase"></td><td class="pid muted"></td>
+    <td>${part ? '<button data-start>应用并重启外壳</button>' : '<button data-start>启动 / 重启</button> <button data-stop>停止</button>'}</td>`;
+  tr.querySelector('[data-start]').onclick = () => {
+    const input = tr.querySelector('input');
+    post('/api/start', { component: name, checkout: tr.querySelector('select').value,
+      ...(input && { args: input.value.split(/\s+/).filter(Boolean) }) });
+  };
+  tr.querySelector('[data-stop]')?.addEventListener('click', () => post('/api/stop', { component: name }));
+  document.getElementById('rows').append(tr);
+  return tr;
+}
+const rows = Object.fromEntries([...COMPONENTS, ...PARTS].map((n) => [n, row(n)]));
+
+for (const name of LOGS) {
+  const b = document.createElement('button');
+  b.textContent = name;
+  b.onclick = () => { shown = name; refreshLog(); };
+  document.getElementById('logs').append(b, ' ');
+}
+
+async function refresh() {
+  const s = await (await fetch('/api/state')).json();
+  document.getElementById('config').textContent = s.config;
+  document.getElementById('lock').textContent = s.gpu_lock ? `gpu 锁：${s.gpu_lock}` : '';
+  const key = s.worktrees.map((t) => t.path).join('|');
+  for (const [name, tr] of Object.entries(rows)) {
+    const c = s.components[name], select = tr.querySelector('select');
+    if (key !== trees.join('|')) {
+      const keep = select.value;
+      select.replaceChildren(...s.worktrees.map((t) => new Option(`${t.branch} · ${t.head} · ${t.path.split('/').pop()}`, t.path)));
+      select.value = (c ? c.checkout : s.parts[name]) ?? keep ?? '';
+      const input = tr.querySelector('input');
+      if (input && c) input.value = c.args.join(' ');
+    }
+    if (!c) continue;
+    const phase = tr.querySelector('.phase');
+    phase.textContent = c.phase;
+    phase.className = 'phase ' + c.phase.replace(/\(.*/, '');
+    tr.querySelector('.pid').textContent = c.pid ?? '';
+  }
+  for (const b of document.querySelectorAll('#logs button')) b.setAttribute('aria-pressed', String(b.textContent === shown));
+  trees = s.worktrees.map((t) => t.path);
+}
+
+async function refreshLog() {
+  const pre = document.getElementById('log');
+  const atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
+  pre.textContent = await (await fetch('/api/log?component=' + shown)).text();
+  if (atEnd) pre.scrollTop = pre.scrollHeight;
+}
+
+setInterval(() => { refresh(); refreshLog(); }, 1000);
+refresh(); refreshLog();
+</script>
+</body>
+</html>

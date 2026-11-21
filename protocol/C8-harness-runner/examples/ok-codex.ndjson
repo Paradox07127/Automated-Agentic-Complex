@@ -1,0 +1,12 @@
+{"v": 1, "type": "init", "config": {"state_dir": "/tmp/state", "model": "gpt-6.1-sol"}, "system_prompt": "Synthetic personal assistant.", "tools": [{"name": "fixture_read", "description": "Read a fixture", "input_schema": {"type": "object"}}]}
+{"v": 1, "seq": 1, "type": "ready", "session_id": "thread-1", "cli_pid": 4343, "sdk_version": null, "cli_version": "0.166.0", "protocol": "app-server-stdio", "experimental": true, "model": "gpt-6.1-sol", "tool_names": ["fixture_read"], "tool_inventory_verified": true, "additional_tools": ["request_user_input"], "capabilities": {"cancel": "native", "tool_injection": "dynamic_tools", "builtin_tools": "disabled_verified", "system_prompt": "native", "usage": "tokens", "event_scope": "global", "native_questions": false}}
+{"v": 1, "type": "query", "run_id": "run-1", "prompt": "Use the fixture tool.", "history": null}
+{"v": 1, "seq": 2, "type": "plan", "run_id": "run-1", "title": null, "steps": [{"text": "Read the fixture", "status": "in_progress"}], "source": "codex"}
+{"v": 1, "seq": 3, "type": "item", "run_id": "run-1", "item_id": "item_fixture", "kind": "tool_call", "name": "fixture_read", "status": "started"}
+{"v": 1, "seq": 4, "type": "tool_request", "run_id": "run-1", "tool_call_id": "call_fixture", "name": "fixture_read", "args": {}, "item_id": "item_fixture", "kind": "tool_call", "status": "started"}
+{"v": 1, "type": "tool_result", "tool_call_id": "call_fixture", "run_id": "run-1", "result": {"checked": true}, "is_error": false}
+{"v": 1, "seq": 5, "type": "item", "run_id": "run-1", "item_id": "item_fixture", "kind": "tool_call", "name": "fixture_read", "summary": "fixture_read; completed", "status": "completed"}
+{"v": 1, "seq": 6, "type": "text_delta", "run_id": "run-1", "item_id": "msg_fixture", "kind": "assistant_text", "phase": "final", "status": "delta", "text": "Synthetic result verified."}
+{"v": 1, "seq": 7, "type": "item", "run_id": "run-1", "item_id": "msg_fixture", "kind": "assistant_text", "phase": "final", "status": "completed"}
+{"v": 1, "seq": 8, "type": "result", "run_id": "run-1", "session_id": "thread-1", "model": "gpt-6.1-sol", "success": true, "subtype": "success", "text": "Synthetic result verified.", "final_text": "Synthetic result verified.", "usage": {"input_tokens": 2, "output_tokens": 3}, "total_cost_usd": null, "cost_usd": null, "model_usage": {}, "failure": null, "error": null}
+{"v": 1, "type": "close"}

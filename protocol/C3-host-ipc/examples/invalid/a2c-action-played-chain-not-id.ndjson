@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"avatar","pid":778,"protocol":1,"capabilities":["ack","actions","motion_overrides","play_chain"]}
+{"v":1,"type":"action_played","play_id":"pc-1","id":"talk_nod","chain":"A_clip_birch_customized_state_think_start","phase":"started","reason":null}

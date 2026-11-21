@@ -1,0 +1,10 @@
+{
+  "observe_activity" : true,
+  "render_facing_mode" : "auto",
+  "screen_context_level" : "window",
+  "share_agent_sessions" : true,
+  "share_page_text" : true,
+  "share_screenshots" : false,
+  "share_typed_text" : false,
+  "share_window_text" : true
+}

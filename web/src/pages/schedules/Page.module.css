@@ -1,0 +1,196 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--ef-sp-20);
+  min-width: 0;
+  padding: 12px 24px 24px;
+}
+
+/* Inside the edge: the cut clips anything outside it. */
+.dayBtn:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: calc(-1 * var(--ef-lw-focus));
+}
+
+.cap {
+  font-size: 12px;
+  color: var(--ef-text-3);
+  white-space: nowrap;
+}
+
+/* Read-only rows divided by hairlines: no plate, no cut, no hover step. */
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border-top: var(--ef-lw-hair) solid var(--ef-line);
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: var(--ef-lw-hair) solid var(--ef-line);
+  color: var(--ef-text-1);
+}
+
+/* The section's own rule closes the list. */
+.row:last-child {
+  border-bottom: 0;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 240px;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.title {
+  font: 600 14px/1.35 var(--ef-font-sans);
+  color: var(--ef-text-1);
+}
+
+.trigger {
+  font-size: 12px;
+  color: var(--ef-text-2);
+}
+
+.instruction {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ef-text-2);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ef-text-3);
+}
+
+/* The switch or 启用 gets a fixed first slot as wide as the Switch, so the three buttons line up from row to row. */
+.actions {
+  display: grid;
+  grid-template-columns: 108px repeat(3, auto);
+  gap: 8px;
+  align-items: center;
+  justify-items: center;
+}
+
+/* The row's title, read out with each button but not shown. */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-4);
+  font-size: 12px;
+  color: var(--ef-text-2);
+}
+
+.contextFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.contextFields select {
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  min-height: var(--ef-h-md);
+  padding: var(--ef-sp-6) var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  background: var(--ef-surface-2);
+  color: var(--ef-text-1);
+  font-size: 13px;
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.when {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+
+.timeInput {
+  width: 108px;
+  font-family: var(--ef-font-mono);
+}
+
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dayBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 30px;
+  padding: 0 8px;
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  background: var(--ef-surface-2);
+  color: var(--ef-text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.dayBtn[aria-pressed='true'] {
+  border-color: var(--ef-text-1);
+  background: var(--ef-text-1);
+  color: var(--ef-bg-base);
+  font-weight: 600;
+}

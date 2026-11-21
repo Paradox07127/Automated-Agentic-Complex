@@ -1,0 +1,141 @@
+/* The bottom bar (glow #FFE800 0.298, two #FADA27 slots) and the clock in the wallet bar's place. */
+.barNode {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.band {
+  position: absolute;
+  background: var(--ef-g-yellow-glow);
+  clip-path: polygon(0 0, 100% 0, 97% 55%, 88% 100%, 12% 100%, 3% 55%);
+  transform: scale(1.04, 1.18);
+}
+
+.slot {
+  position: absolute;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: var(--ef-g-yellow);
+  color: var(--ef-on-accent);
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.card {
+  gap: var(--ef-sp-6);
+  padding: 0 var(--ef-sp-4) 0 var(--ef-sp-16);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 16% 100%, 0 58%);
+}
+
+.act {
+  justify-content: center;
+  padding-right: var(--ef-sp-12);
+  clip-path: polygon(0 0, 100% 0, 100% 58%, 84% 100%, 0 100%);
+}
+
+.slot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--ef-g-btn-hover);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.slot:hover::after {
+  opacity: 0.3;
+  transition-duration: 0ms;
+}
+
+.slot:active::after {
+  background: var(--ef-overlay-press);
+  opacity: 1;
+}
+
+.slot:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-text-1);
+  outline-offset: 2px;
+}
+
+.face {
+  display: inline-flex;
+  flex: none;
+  border: var(--ef-lw-hair) solid color-mix(in srgb, var(--ef-on-accent) 40%, transparent);
+}
+
+.who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--ef-sp-2);
+  min-width: 0;
+}
+
+.who b,
+.who span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who b {
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1.2 var(--ef-font-ui);
+}
+
+.who span {
+  font: var(--ef-fw-regular) var(--ef-fs-small) / 1.2 var(--ef-font-ui);
+  opacity: 0.75;
+}
+
+.sep {
+  display: inline-block;
+  width: 1px;
+  height: 0.9em;
+  margin: 0 var(--ef-sp-4) 0 var(--ef-sp-6);
+  background: currentColor;
+  vertical-align: -0.1em;
+}
+
+.actIn {
+  display: inline-flex;
+  gap: var(--ef-sp-6);
+  align-items: center;
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-ui);
+  white-space: nowrap;
+}
+
+/* Clock: a yellow date band, the time to the second, the connection. */
+.clock {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-4);
+  padding: 0 var(--ef-sp-12) var(--ef-sp-6);
+  border: var(--ef-lw-hair) solid color-mix(in srgb, var(--ef-g-yellow) 60%, transparent);
+  background: color-mix(in srgb, var(--ef-canvas) 80%, transparent);
+  color: var(--ef-text-1);
+}
+
+.date {
+  margin: 0 calc(-1 * var(--ef-sp-12));
+  padding: var(--ef-sp-2) var(--ef-sp-12);
+  background: var(--ef-g-yellow);
+  color: var(--ef-on-accent);
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1.2 var(--ef-font-ui);
+}
+
+.time {
+  font: var(--ef-fw-semibold) 26px / 1 var(--ef-font-num);
+  letter-spacing: 0.02em;
+}
+
+.conn {
+  display: inline-flex;
+}

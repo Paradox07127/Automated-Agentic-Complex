@@ -1,0 +1,38 @@
+/* Mouse-only buttons: the wrapper and the hint shown when a key tries to press them. */
+.wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.hint {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: var(--ef-z-tooltip);
+  padding: var(--ef-sp-4) var(--ef-sp-8);
+  border: 1px solid var(--ef-rule);
+  border-radius: 0;
+  background: var(--ef-overlay);
+  color: var(--ef-overlay-fg);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  animation: hint-in 160ms var(--ef-ease-snap);
+}
+
+@keyframes hint-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hint {
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) .hint {
+  animation: none;
+}

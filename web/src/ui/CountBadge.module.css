@@ -1,0 +1,64 @@
+/* Badge family: a red number pill, a bare orange rounded diamond with a glow, a yellow NEW tag pointed at the left. */
+.badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 12px;
+  height: 15px;
+  padding: 0 5px;
+  border-radius: 7.5px;
+  background: var(--ef-danger-vivid);
+  color: var(--ef-on-danger-vivid);
+  font: var(--ef-fw-semibold) var(--ef-fs-eyebrow) / 1 var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The left point is drawn twice so the light theme can show a 1 px edge around the whole shape. */
+.badge[data-kind='new'] {
+  --new-edge: var(--ef-accent);
+  --new-shape: polygon(6px 0, 100% 0, 100% 100%, 6px 100%, 0 50%);
+  position: relative;
+  isolation: isolate;
+  height: 12px;
+  padding: 0 5px 0 8px;
+  border-radius: 0;
+  background: var(--new-edge);
+  color: var(--ef-newtag-text);
+  clip-path: var(--new-shape);
+}
+
+.badge[data-kind='new']::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 1px 1px 1px 1.5px;
+  background: var(--ef-accent);
+  clip-path: var(--new-shape);
+}
+
+:global([data-theme='light']) .badge[data-kind='new'] {
+  --new-edge: var(--ef-line-strong);
+}
+
+.dot {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 19px;
+  height: 19px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--ef-badge-dot) 45%, transparent), transparent);
+}
+
+.dot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7.8px;
+  height: 7.8px;
+  border-radius: 1.5px;
+  background: var(--ef-badge-dot);
+  transform: translate(-50%, -50%) rotate(45deg);
+}

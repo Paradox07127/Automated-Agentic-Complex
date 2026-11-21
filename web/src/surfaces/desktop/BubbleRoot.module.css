@@ -1,0 +1,285 @@
+/* The native panel follows the size of this root. Its padding leaves room for the tail. */
+.root {
+  /* On the desktop, shared components inside the panel read at 13 px with text-2 as the faintest text. */
+  --ef-fs-small: var(--ef-fs-body);
+  --ef-fs-caption: var(--ef-fs-body);
+  --ef-fs-meta: var(--ef-fs-body);
+  --ef-fs-keycap: var(--ef-fs-body);
+  --ef-t-meta: var(--ef-fw-regular) var(--ef-fs-body) / var(--ef-lh-meta) var(--ef-font-sans);
+  --ef-text-3: var(--ef-text-2);
+  /* Band over --ef-hud-band; the desktop alpha keeps the dialog text at 4.5:1 on a white desktop. */
+  --band-a: 70%;
+  /* Desktop text shadow. */
+  --hud-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.5);
+  /* Name rules and head-card layers (white .2 rules, .3 dot tile, .5 deco line, .8 tick). */
+  --ink-rule: rgba(255, 255, 255, 0.2);
+  --ink-tile: rgba(255, 255, 255, 0.3);
+  --ink-line: rgba(255, 255, 255, 0.5);
+  --ink-tick: rgba(255, 255, 255, 0.8);
+  --ink-mark: var(--ef-text-1);
+  --bubble-t1: var(--ef-text-1);
+  --bubble-t2: var(--ef-track-text);
+  --band: color-mix(in srgb, var(--ef-hud-band) var(--band-a), transparent);
+  --band-fade: linear-gradient(
+    90deg,
+    var(--band),
+    color-mix(in srgb, var(--ef-hud-band) calc(var(--band-a) * 0.91), transparent) 16%,
+    color-mix(in srgb, var(--ef-hud-band) calc(var(--band-a) * 0.71), transparent) 33%,
+    color-mix(in srgb, var(--ef-hud-band) calc(var(--band-a) * 0.44), transparent) 51%,
+    color-mix(in srgb, var(--ef-hud-band) calc(var(--band-a) * 0.22), transparent) 67%,
+    color-mix(in srgb, var(--ef-hud-band) calc(var(--band-a) * 0.09), transparent) 84%,
+    transparent
+  );
+  --bubble-w: 364px;
+  --fade-w: 40px;
+  --pad-x: 20px;
+  --pad-bottom: 24px;
+  --pad-top: 14px;
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ef-sp-8);
+  padding: var(--pad-top) var(--pad-x) var(--pad-bottom);
+  background: transparent;
+}
+
+/* Light: the band turns white under dark text. */
+:global(html[data-theme='light']) .root {
+  --band-a: 88%;
+  --hud-text-shadow: none;
+  --ink-rule: rgba(0, 0, 0, 0.2);
+  --ink-tile: rgba(0, 0, 0, 0.3);
+  --ink-line: rgba(0, 0, 0, 0.5);
+  --ink-tick: rgba(0, 0, 0, 0.8);
+  --bubble-t2: var(--ef-text-2);
+}
+
+/* Reduced transparency and increased contrast: the band turns solid and loses its fade. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .root {
+    --band: var(--ef-hud-solid);
+    --band-fade: none;
+  }
+}
+
+.root:empty,
+.root[data-collapsed] {
+  padding: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+/* The panel's drag handle at the strip's left end: a bare grip on the band. */
+.grip {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  flex: none;
+  width: 24px;
+  height: 32px;
+  color: var(--bubble-t1);
+  cursor: grab;
+}
+
+.grip svg {
+  width: 10px;
+  height: 14px;
+  fill: currentcolor;
+}
+
+/* No card: the head card on her side, the band beside it fading away from her. */
+.card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  box-sizing: border-box;
+  width: var(--bubble-w);
+  min-width: 0;
+  color: var(--bubble-t1);
+}
+
+.card[data-tail='right'] {
+  flex-direction: row-reverse;
+  --bark-from: -25.4px;
+}
+
+/* aibark_in: the band slides in from beyond her side. */
+@keyframes bark-in {
+  from {
+    transform: translateX(var(--bark-from, 25.4px));
+  }
+}
+
+.band {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  box-sizing: border-box;
+  min-width: 0;
+  margin-right: var(--fade-w);
+  padding: 8px 12px;
+  background: var(--band);
+  text-shadow: var(--hud-text-shadow);
+  animation: bark-in 500ms var(--ef-ease-g-enter) both;
+}
+
+.band::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: var(--fade-w);
+  background: var(--band-fade);
+  pointer-events: none;
+}
+
+.card[data-tail='right'] .band {
+  margin-right: 0;
+  margin-left: var(--fade-w);
+}
+
+.card[data-tail='right'] .band::after {
+  right: 100%;
+  left: auto;
+  transform: scaleX(-1);
+}
+
+/* A stack card (voice hint, avatar loading) takes the band's width instead of the stack's. */
+.band > [data-card-id] {
+  width: auto;
+}
+
+.band > [data-slot='input'] {
+  padding-top: var(--ef-sp-8);
+  border-top: var(--ef-lw-hair) solid var(--ef-line);
+  text-shadow: none;
+}
+
+/* The docked subtitle draws its own bands per line. */
+.sub {
+  width: var(--bubble-w);
+}
+
+/* The tail uses the head coordinates relative to the panel center. */
+.tail {
+  position: absolute;
+  background: var(--band);
+  pointer-events: none;
+  --head-y: calc(50% + var(--to-y, 0px) - (var(--pad-top) - var(--pad-bottom)) / 2);
+  --head-x: calc(50% + var(--to-x, 0px));
+}
+
+.card[data-tail='right'] .tail,
+.card[data-tail='left'] .tail {
+  top: clamp(16px, var(--head-y), calc(100% - 16px));
+  width: 9px;
+  height: 16px;
+  margin-top: -8px;
+}
+
+.card[data-tail='right'] .tail {
+  left: 100%;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.card[data-tail='left'] .tail {
+  right: 100%;
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
+}
+
+.card[data-tail='bottom'] .tail,
+.card[data-tail='top'] .tail {
+  left: clamp(16px, var(--head-x), calc(100% - 16px));
+  width: 16px;
+  height: 9px;
+  margin-left: -8px;
+}
+
+.card[data-tail='bottom'] .tail {
+  top: 100%;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.card[data-tail='top'] .tail {
+  bottom: 100%;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+@keyframes timer-out {
+  from {
+    transform: scaleX(var(--timer-from, 1));
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.timer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--ink-line);
+  transform-origin: left center;
+  pointer-events: none;
+  animation: timer-out var(--timer-ms, 4000ms) linear both;
+}
+
+.timer[data-paused] {
+  animation-play-state: paused;
+}
+
+.collapsed {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--ink-rule);
+  border-radius: 50%;
+  background: var(--band);
+  color: var(--bubble-t1);
+  cursor: pointer;
+}
+
+.collapsed:hover {
+  color: var(--ef-accent-text);
+}
+
+.collapsed:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.collapsedRadio {
+  width: 12px;
+  height: 21px;
+}
+
+.collapsedGlyph {
+  width: 16px;
+  height: 16px;
+}
+
+:global(.still) .band,
+:global(.still) .timer {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .band,
+  .timer {
+    animation: none;
+  }
+}

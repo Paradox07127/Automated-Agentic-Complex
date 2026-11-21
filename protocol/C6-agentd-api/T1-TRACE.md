@@ -1,0 +1,95 @@
+# T1 Trace 事件格式 v1（C6 的一部分）
+
+> 正文里的「Avatar」「player」指角色进程，现由渲染器 `private/renderer/host`（私有组件，不在公开仓库）实现。
+
+「日志与 Trace」窗口和调试读同一份事件，不解析日志。校验脚本：`agent/agentd/traces/trace_format.py <file.ndjson>`；样例：`agent/agentd/tests/trace-sample.ndjson`（打字一轮，从输入到渲染器播放结束，含一个被闸门拦下的主动触发）。
+
+**事件**：一个 JSON 对象。agentd 存进本机 SQLite 表 `trace_events`；转发和导出用 NDJSON，一行一个。
+
+| 字段 | 类型 | 含义 |
+|---|---|---|
+| `v` | 整数 | 1 |
+| `event_id` | UUID 字符串 | 产生方生成，全局唯一 |
+| `trace_id` | UUID 字符串 | 一次根输入（打字、语音、主动触发、播报事件）一个；它派生的观察、模型调用、语音、播放都带同一个 |
+| `turn_id` | 字符串或 null | 对话轮次；没有轮次的事件为 null |
+| `turn_generation` | 整数 ≥ 0 或 null | 与 `turn_id` 同时为 null 或同时有值 |
+| `span_id` | 16 位小写十六进制 | 本事件所属的段；段开始和段结束事件用同一个 |
+| `parent_span_id` | 同上或 null | 瀑布图的上一层 |
+| `causation_id` | UUID 或 null | 直接引起它的那条事件的 `event_id`；根输入为 null |
+| `producer` | 枚举 | `agentd`、`companion`、`avatar`、`tts`。日志窗口的「组件」筛选取这四个值。v1 里 `tts` 段由 agentd 的转发器按 C2 行代写，`producer` 仍填 `tts` |
+| `producer_epoch` | 整数 ≥ 1 | 产生方进程每启动一次加 1（agentd 用 registry epoch） |
+| `seq` | 整数 ≥ 1 | 同一 `producer`+`producer_epoch` 内严格递增，不重复 |
+| `kind` | 字符串 | 见下表 |
+| `t_wall` | 字符串 | 墙钟，ISO 8601，毫秒，带时区：`2026-10-19T09:12:03.418-04:00` |
+| `t_mono_ms` | 整数 ≥ 0 | 产生方自己的单调钟 |
+| `t_recv_wall` | 字符串或缺省 | 只由 agentd 在收到远端事件（`POST /trace/events`）时加，格式同 `t_wall`；产生方不填 |
+| `duration_ms` | 整数 ≥ 0 | 只在段结束事件上出现，且必须有（段结束事件见下表「结束」列） |
+| `status` | 枚举 | `ok`、`blocked`、`failed`、`cancelled`、`expired`、`unknown` |
+| `attrs` | 对象 | 按 `kind` 定；必有的键见下表，可多带。文本值一律写成 `{"len": 字数, "head": 前 8 个字}` |
+| `text` | 对象或缺省 | 只在本机存储和 `with_text=1` 的回包里出现：`{"attrs 里文本值的键": 全文}` |
+
+**kind 与必有 attrs**（「结束」= 段结束事件，带 `duration_ms`）：
+
+| kind | 必有 attrs | 结束 |
+|---|---|---|
+| `input.received` | `source`：text / voice / proactive / announce / ritual / gift / tap / background；`text`（文本值，可为 null）。后台运行使用自己的 run ID，无任务正文 | |
+| `context.assembled` | `items`：列表，每项 `{type, observation_id, at}`，`type` 取 window_text / page / selection / view / sessions / memory / lore / approvals / activity；`lore` 项的 `observation_id` 是条目 id，另带 `reason`：`key:<触发词>`、`alias:<别名>` 或 `sticky` | |
+| `observation.requested` | `request_id`、`mode`：text / ocr / image、`purpose`：current / recall、`window_id` | |
+| `observation.settled` | `request_id`、`state`：ready / declined / unavailable / expired / cancelled / failed | 是 |
+| `egress.checked` | `result`：pass / blocked、`category`（拦下的文本类别，通过时 null）、`redactions`（整数） | |
+| `model.started` | `model`、`call`：judge / behavior / vision / capture_judge / eval / character_agent | |
+| `model.first_token` | — | |
+| `model.finished` | `model`、`input_tokens`、`output_tokens`、`stop_reason`；可选 `cached_tokens`、`reasoning_tokens`（整数，harness 报了这个数才带，没报不带） | 是 |
+| `tool.started` | `tool`（工具名）、`call_id`（本轮不透明标识）。仅 agentd 发出 | |
+| `tool.settled` | `tool`、`call_id`、`outcome`：completed / failed / waiting_user，`error_code`（可为 null）。参数、结果正文不进入 trace。仅 agentd 发出 | 是 |
+| `turn.settled` | `state`：completed / failed / cancelled / interrupted / waiting_user，`error_code` 和 `outcome`（均可为 null）。这是本轮处理终态，播放是否完成仍由宿主回执决定。仅 agentd 发出 | 是 |
+| `line.parsed` | `line_id`、`intents`（列表）、`target`（null 可）、`first_sentence_only`（布尔）、`text`（文本值） | |
+| `motion.published` | `motion_id`、`behavior_id`、`total_ms`（从动作标记到发出 `perform` 的毫秒数；另有 `generate_ms`、`retarget_ms`）；由 `[motion:]` 标记来的另带 `prompt`（文本值，标记里的英文文字；「这一轮不记」时不带） | |
+| `motion.fallback` | `reason`：no_service / timeout / replaced / 服务的错误名 / `<阶段>_failed`；生成后端没发出 `perform`，这句台词只用角色包动作；由 `[motion:]` 标记来的另带 `prompt`（文本值，同上）；几何请求（`POST /motions/generate`）的步骤用由 request_id 派生的 UUID 作 trace_id，没有 `prompt`，失败时另发 `ok:false` 的 `event: motion` | |
+| `motion.matched` | `action_id`（配到的角色包动作 id）、`group`（短语表的组名）、`length_s`（动作原长，秒）、`seconds`（标记里的秒数）、`prompt`（文本值，同上）；`[motion:]` 的文字配到当前角色的角色包动作，发了带 `action` 的 `perform`（C1 v2.6），没调动作服务 | |
+| `speech.requested` | `speech_id`、`line_id`、`clause_id`（null 可）、`text`（文本值） | |
+| `speech.first_audio` | `speech_id`、`clause_id` | |
+| `speech.finished` | `speech_id`、`clause_id`、`total_samples` | 是 |
+| `playback.started` | `speech_id`、`clause_id` | |
+| `playback.ended`、`playback.interrupted` | `speech_id`、`clause_id`；interrupted 另有 `reason`、`planned_ms`（这一段按计划要播的毫秒数，不知道写 null）。播放失败记 `playback.ended`、`status=failed`；`playback.interrupted` 只用于被打断（C3 playback 回执的 `state=failed` 不受影响） | 是 |
+| `playback.buffering`、`playback.resumed` | `speech_id`、`clause_id`（渲染器缓冲不足停住、再接着播；成对，可以多次） | |
+| `playback.degraded` | `speech_id`、`clause_id`、`reason`（例如 PCM 长度和 `total_samples` 不符；不结束这段语音） | |
+| `motion.started` | `behavior_id`（渲染器本地触发的动作写 null）、`clip` | |
+| `motion.ended` | `behavior_id`（同上）、`clip` | 是 |
+| `cancel.requested` | `by`：ptt / text / stop_command / supersede / character_switch / system；`target`：turn / speech / observation / dispatch | |
+| `cancel.acked` | `target` | 是 |
+| `gate.decided` | `kind`、`level`、`speak`（布尔）、`reason` | |
+| `judge.decided` | `backend`：rules / character_agent，`answers`（列表 `{id, value, prob}`）；判断失败时 `answers` 为空并带 `failure_reason`（安全原因代码） | `status=ok` 表示判断已产生；`status=failed` 表示判断失败，这次主动决策跳过，不用规则补答。 |
+| `behavior.ticked` | `options`（列表）、`chosen`、`reason` | |
+| `behavior.dispatched` | `behavior_id`、`behavior_type`（动作指令发出）。角色工具发出的动作与发起轮次使用同一个 trace ID | |
+| `behavior.receipt` | `behavior_id`、`behavior_type`、`phase`、`reason`（可为 null）。只记录 agentd 接受的 C1 宿主回执，不推断上屏画面 | |
+| `proactive.feedback` | `line_id`、`value`：useful / dont_disturb（`POST /feedback`） | |
+| `dispatch.proposed`、`dispatch.decided`、`dispatch.failed`、`dispatch.finished` | `request_id`；decided 另有 `decision`；failed 另有 `error`（异常类名，派活没能开始，不结束）；finished 结束 | finished |
+| `approval.opened`、`approval.decided`、`approval.retired` | `request_id`、`tool`；decided 另有 `decision`、`by`：card / native；retired 另有 `reason` | decided、retired |
+| `trace.dropped` | `count`、`since`（ISO 8601）：超出每日上限后丢掉的事件数 | |
+| `ui.submitted` | —（`producer`=companion；用户按下发送） | |
+| `ui.ack` | —（`producer`=companion；本地可见反馈出现） | |
+| `ui.first_text` | —（`producer`=companion；第一条带文字的 `line` 到达 Companion，气泡和字幕条从这里开始显示；对话页按 `assistant_text` 增量显示，比它早） | |
+
+不在表里的 kind 校验报错；加 kind 时同时改本表和 `agent/agentd/traces/trace_format.py`。
+
+**时间**：先后以 `causation_id` 和同一产生方内的 `seq` 为准；同一产生方内用 `t_mono_ms` 算间隔。跨产生方摆位置时，agentd 用每批的 `t_recv_wall − t_wall` 估各产生方的时钟偏差，修正后排，瀑布图标出误差范围。不把接收顺序当执行顺序（Companion 按批转发）。
+
+**存储与上限**（agentd 定）：
+- `text` 列不加密。它和 `attention.sqlite` 里的选区、网页正文同级：只在本机，库文件 0600、state dir 0700，保留 7 天，和注意力记录一起清空。理由：密钥只能放在同一个 state dir，挡不住能读这个目录的进程；整盘加密交给 FileVault。
+- 单条事件的每个全文值截到 4000 字。
+- 每个本地自然日到达 50,000 条后，仍保留每轮输入、决策和终态（`input.received`、`gate.decided`、`judge.decided`、`behavior.ticked`、`dispatch.*`、`approval.*`、`egress.checked`、`cancel.*`、所有「结束」事件，以及 `status` 不是 `ok` 的事件）。其余丢掉，每满 1,000 条或跨日时写一条 `trace.dropped`。
+
+**隐私**：
+- 端点默认只回 `{len, head}`。短于 8 个字的文本，`head` 就是全文；它只出现在本机端点（ui token），导出时照样删掉。带 `with_text=1` 且用 ui token 才回 `text`。`events_token` 不能读 `/trace/*` 和 `/diag/*`。
+- 导出默认去掉 `text`，并把 `attrs` 里所有 `{len, head}` 的 `head` 递归删掉，只留 `len`。带文本导出要用户在界面上二次确认。
+
+**端点**（ui token）：
+- `GET /trace/turns?since=&limit=&source=&result=&turn_id=&trace_id=`：每轮一行。后两项按标识精确查询。每行带 `conversation_id`：留存的对话记录里拥有这一轮的对话，无记录时为 null。每行包含 `turn_state` 和 `turn_outcome`，尚无 `turn.settled` 时均为 null。
+- `GET /trace/turns/{trace_id}`：这一轮全部事件，按上面的时间规则排好。
+- `GET /trace/decisions?kind=&since=`
+- `GET /diag/state`：诊断页的九个区块（这一轮、嘴和声音、闸门、主动说话、观察、身体、会话、预算、连接），每块带 `updated_at`。
+- `GET /diag/stream`：SSE，推快照变化和新事件；按 `Last-Event-ID` 续，cursor 过期回 `event: reset`。
+- `POST /trace/events`：body `{"events": [...]}`，每批 ≤ 200 条，`producer` 只能是 `companion` 或 `avatar`。回 200 `{"accepted": n, "rejected": [{"index", "error"}]}`；超 200 条 413。
+
+---

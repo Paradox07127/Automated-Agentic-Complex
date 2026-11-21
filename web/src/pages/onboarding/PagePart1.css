@@ -1,0 +1,360 @@
+@import './PageArt.css';
+.onb {
+  /* Bottom shade: #000, faded to 0.5 by guidemedia_in; 204 px tall at the bottom. */
+  --onb-ramp: #000;
+  /* Medium blur tint: the ground here; the game's #EEEEEE multiplies the blurred scene, which an alpha tint cannot. */
+  --onb-blur: #0a0a0a;
+  /* Frame plate #171717@0.502; its drop shadow alpha is inferred. */
+  --onb-frame: rgb(23 23 23 / 0.502);
+  --onb-frame-shadow: rgb(0 0 0 / 0.35);
+  /* Side bars #FFFFFF, faded to 0.1 by guidemedia_in; the line accent on them (alpha inferred). */
+  --onb-bar: #fff;
+  --onb-bar-accent: rgb(255 255 255 / 0.5);
+  /* Body scrollbar: track @0.2, handle @0.8. */
+  --onb-scroll: rgb(255 255 255 / 0.2);
+  --onb-scroll-handle: rgb(255 255 255 / 0.8);
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--ef-z-modal) + 50);
+  display: grid;
+  grid-template-rows: 60px minmax(0, 1fr) 72px;
+  overflow: hidden;
+  background: #0a0a0a;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1.55 var(--ef-font-sans);
+}
+
+/* Light values are ours. */
+:global([data-theme='light']) .onb {
+  --onb-ramp: rgb(0 0 0 / 0.12);
+  --onb-blur: var(--ef-g-guide-blur);
+  --onb-frame: rgb(255 255 255 / 0.6);
+  --onb-frame-shadow: rgb(0 0 0 / 0.12);
+  --onb-bar: #000;
+  --onb-bar-accent: rgb(0 0 0 / 0.4);
+  --onb-scroll: rgb(0 0 0 / 0.2);
+  --onb-scroll-handle: rgb(0 0 0 / 0.6);
+  background: #f2f1ef;
+}
+
+.onb > * {
+  position: relative;
+  z-index: 1;
+}
+
+.onb > :is(.ctr, .blur, .ramp) {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.ctr {
+  top: 0;
+  right: 0;
+  width: 60%;
+  height: 100%;
+  opacity: 0.05;
+  background: var(--onb-contour) 0 0 / 640px auto;
+}
+
+:global([data-theme='light']) .ctr {
+  filter: invert(1);
+}
+
+/* FullScreenBlurUI (M_fx_common_blur_03, medium): blurs the contour behind the panel. */
+.blur {
+  inset: 0;
+}
+
+.blur > * {
+  --ef-g-frost: var(--onb-blur);
+  height: 100%;
+}
+
+.ramp {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 204px;
+  opacity: 0.5;
+  background: linear-gradient(transparent, var(--onb-ramp));
+}
+
+.sp {
+  flex: 1;
+}
+
+.cap {
+  color: var(--ef-text-3);
+  font-size: var(--ef-fs-meta);
+}
+
+/* Top bar: the product word mark, heavy and wide; what is set so far at the right. */
+.top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 0 40px;
+  border-bottom: 1px solid var(--ef-line-subtle);
+}
+
+.mark {
+  font: 800 18px / 1 var(--ef-font-ui);
+  font-stretch: var(--ef-wider);
+  letter-spacing: 0.14em;
+}
+
+.tally {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.2 var(--ef-font-sans);
+  white-space: nowrap;
+  list-style: none;
+}
+
+.tally li + li::before {
+  content: '·';
+  margin-right: 12px;
+  color: var(--ef-text-3);
+}
+
+/* The panel sits in the middle; a short window scrolls the media first, then the panel. */
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  justify-content: safe center;
+  min-height: 0;
+  padding: 16px 24px;
+  overflow: hidden auto;
+}
+
+/* Arrows centred 304.75 / 302.75 px left and right of the frame's centre (-609.5 / +605.5 g), level with the media. */
+.stage {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  max-width: 100%;
+  min-height: 0;
+}
+
+.stage > :first-child {
+  margin-right: 15.25px;
+}
+
+.stage > :last-child {
+  margin-left: 13.25px;
+}
+
+/* Deco: 505 x 295 around the 480 x 270 media; grows in from 0.9 with the media list. */
+.frame {
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  width: 505px;
+  min-width: 0;
+  max-height: 100%;
+  padding: 12.5px;
+  background: var(--onb-frame);
+  box-shadow: 0 4px 16px var(--onb-frame-shadow);
+}
+
+/* Deco01 / Deco02: 3.5 px bars on the frame's sides, the media's height at --size-y 270; guidemedia_in grows them from 41. */
+.bar {
+  position: absolute;
+  --size-y: 270;
+  top: 50%;
+  width: 3.5px;
+  height: calc((100% - 25px) * var(--size-y) / 270);
+  background: var(--onb-bar);
+  opacity: 0.1;
+  transform: translateY(-50%);
+}
+
+/* Line accents at the top of the bars (texture guide-side-tick); they flash in at 600-700 ms. */
+.tick {
+  position: absolute;
+  top: 12.5px;
+  width: 3.5px;
+  height: 30px;
+  background: var(--onb-bar-accent);
+}
+
+.bar[data-side='left'],
+.tick[data-side='left'] {
+  left: -2.75px;
+}
+
+.bar[data-side='right'],
+.tick[data-side='right'] {
+  right: -2.75px;
+}
+
+/* Tick marks @0.275 at the frame's top left; they flicker in at 483-917 ms. */
+.pic02 {
+  position: absolute;
+  top: 1px;
+  left: 10.5px;
+  width: 51px;
+  height: 5px;
+  background: repeating-linear-gradient(90deg, var(--ef-text-1) 0 2px, transparent 2px 4px);
+  opacity: 0.275;
+}
+
+/* MediaList: one 480 x 270 cell with its media-edge edge; our step bodies are taller than 16:9, so it grows with them. */
+.media {
+  flex: 0 1 auto;
+  min-height: 270px;
+  padding: 14px 16px;
+  overflow: hidden auto;
+  outline: 1px solid var(--ef-line);
+}
+
+/* IndexTxt: 15 px n/N right under the frame; flickers in at 333-483 ms. */
+.index {
+  flex: none;
+  margin-top: -2.5px;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) 15px / 15px var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Text block: 482 px wide, 7 px under the index; centred 15 px title, a rule, the 13 px body in a scroll three lines high. */
+.text {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  width: 482px;
+  max-width: 100%;
+  margin-top: 7px;
+}
+
+.h1 {
+  margin: 0;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) 15px / 1.4 var(--ef-font-sans);
+  text-align: center;
+}
+
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 6px;
+  margin-top: 5px;
+}
+
+.pic05 {
+  width: 10px;
+  height: 4px;
+  border-inline: 2px solid var(--ef-text-1);
+  background: linear-gradient(var(--ef-text-1), var(--ef-text-1)) center / 100% 1px no-repeat;
+}
+
+.pic03 {
+  width: 45.5px;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, var(--ef-text-3) 0 3px, transparent 3px 5px);
+}
+
+/* ContentTxt: fades in with the text node. */
+.lead {
+  align-self: stretch;
+  max-height: calc(3lh + 17px);
+  margin: 0;
+  padding: 11px 0 6px 4.5px;
+  overflow: hidden auto;
+  color: var(--ef-text-2);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.lead::-webkit-scrollbar {
+  width: 2px;
+}
+
+.lead::-webkit-scrollbar-track {
+  background: var(--onb-scroll);
+}
+
+.lead::-webkit-scrollbar-thumb {
+  background: var(--onb-scroll-handle);
+}
+
+.permissionsLink {
+  flex: none;
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  color: var(--ef-text-2);
+  background: none;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+/* Bottom bar: one primary per step; skip is secondary, back is a text button. */
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 40px;
+  border-top: 1px solid var(--ef-line-subtle);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+:global([data-theme='light']) .foot {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.foot > * {
+  flex: none;
+}
+
+.foot > .hint {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-3);
+  font-size: var(--ef-fs-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.foot > .sp {
+  flex: 1;
+}
+
+/* Needs a look: ink text after a yellow ! flag. */
+.hint[data-danger] {
+  color: var(--ef-text-1);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.hint[data-danger]::before {
+  content: '!';
+  display: inline-block;
+  width: 18px;
+  margin-right: var(--ef-sp-8);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font: 800 12px / 18px var(--ef-font-ui);
+  text-align: center;
+}
+
+.primary > button {
+  min-width: 160px;
+}
+

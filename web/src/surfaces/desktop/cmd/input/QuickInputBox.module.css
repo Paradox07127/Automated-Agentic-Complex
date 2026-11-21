@@ -1,0 +1,268 @@
+/* Borrowed parts; `data-theme="dark"` keeps the HUD dark in both appearances. */
+.box {
+  /* 31-hud-notify interaction menu head, rgba(26,28,26,.88) without the blur. */
+  --head: rgba(26, 28, 26, 0.88);
+  /* Toast cell at the desktop's .85, corner dots #EAEAEA@.88. */
+  --field: rgba(18, 18, 18, 0.85);
+  --dot: rgba(234, 234, 234, 0.88);
+  /* HUD text shadow. */
+  --hud-shadow: 0 1px 2px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.5);
+  position: relative;
+  width: 420px;
+  animation: hud-in var(--ef-dur-g-panel-in) var(--ef-ease-g-enter);
+}
+
+/* The 1 px structure line on the left, keycaps hanging on it. */
+.sline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -12px;
+  width: 1px;
+  background: var(--ef-text-1);
+}
+
+.cap {
+  position: absolute;
+  left: 0;
+  min-width: 20px;
+  padding: 1px 4px;
+  border: var(--ef-lw-hair) solid var(--ef-line-strong);
+  background: var(--field);
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) var(--ef-fs-keycap) / 14px var(--ef-font-din);
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.cap:first-child {
+  top: 14px;
+}
+
+.cap:last-child {
+  top: calc(100% - 22px);
+}
+
+.box[data-err] .body {
+  box-shadow: inset 2px 0 var(--ef-danger-vivid);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-height: 28px;
+  padding: 0 var(--ef-sp-4) 0 var(--ef-sp-12);
+  background: var(--head);
+  color: var(--ef-text-2);
+}
+
+/* Task head tag 72x12 → 36x6: a dark tag with three light pips. */
+.deco {
+  flex: none;
+  width: 36px;
+  height: 6px;
+  background:
+    radial-gradient(circle, var(--ef-text-1) 0.75px, transparent 1px) 4px 50% / 4px 6px repeat-x,
+    var(--ef-line);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+}
+
+/* With art: the sprite itself (recipe desk-deco-mission-hud-title), baked tag and pips. */
+:global(html[data-art]) .deco {
+  background: url('/art/common/desk-deco-mission-hud-title.png') center / 38px 8px no-repeat;
+  clip-path: none;
+}
+
+.title {
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-small) / 1.4 var(--ef-font-sans);
+  text-shadow: var(--hud-shadow);
+}
+
+.esc {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ef-text-2);
+  cursor: pointer;
+}
+
+/* The PC toast cell: plate, four 1.5 px dots 14 px in from the sides and 3 px from top and bottom. */
+.body {
+  background:
+    linear-gradient(var(--dot), var(--dot)) left 14px top 3px / 1.5px 1.5px no-repeat,
+    linear-gradient(var(--dot), var(--dot)) right 14px top 3px / 1.5px 1.5px no-repeat,
+    linear-gradient(var(--dot), var(--dot)) left 14px bottom 3px / 1.5px 1.5px no-repeat,
+    linear-gradient(var(--dot), var(--dot)) right 14px bottom 3px / 1.5px 1.5px no-repeat,
+    var(--field);
+}
+
+.ta {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  border: 0;
+  background: transparent;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-body-lg) / 1.5 var(--ef-font-sans);
+  resize: none;
+  caret-color: var(--ef-text-1);
+}
+
+.ta::placeholder {
+  color: var(--ef-text-3);
+}
+
+.ta:focus-visible {
+  outline: 1px solid var(--ef-focus);
+  outline-offset: -1px;
+}
+
+/* Errors as the common tips card: dark plate, yellow triangle, danger text. */
+.err,
+.core {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-height: 28px;
+  padding: 0 var(--ef-sp-8) 0 var(--ef-sp-20);
+  background: var(--ef-tips-bg);
+  box-shadow: inset 0 1px 0 var(--ef-tips-rule);
+  font-size: var(--ef-fs-caption);
+}
+
+.err::before,
+.core::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: var(--ef-sp-8);
+  width: 7px;
+  height: 5px;
+  background: var(--ef-accent);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.err {
+  color: var(--ef-danger-vivid);
+}
+
+.core {
+  color: var(--ef-text-1);
+}
+
+.msg {
+  min-width: 0;
+  flex: 1 1 160px;
+}
+
+.err > :last-child,
+.core > :last-child {
+  margin-left: auto;
+}
+
+/* The <CORE OFFLINE> status frame. */
+.coretag {
+  flex: none;
+  padding: 2px 6px;
+  border: var(--ef-lw-hair) solid var(--ef-danger-vivid);
+  color: var(--ef-danger-vivid);
+  font: var(--ef-fw-semibold) 11px / 1.2 var(--ef-font-din);
+  letter-spacing: 0.06em;
+}
+
+.coretag::before {
+  content: '<';
+}
+
+.coretag::after {
+  content: '>';
+}
+
+.opts {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  padding-top: var(--ef-sp-8);
+}
+
+/* Selected-row capsule: round on the left, a 1.5 px white ring when on. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  min-height: 34px;
+  padding: 0 var(--ef-sp-12) 0 var(--ef-sp-12);
+  border: 0;
+  border-radius: 17px 0 0 17px;
+  background: var(--field);
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-caption);
+  cursor: pointer;
+  transition: color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.chip[aria-pressed='true'] {
+  color: var(--ef-text-1);
+  box-shadow: inset 0 0 0 1.5px var(--ef-text-1);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ef-sp-6);
+  padding-top: var(--ef-sp-6);
+}
+
+.aux {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  min-height: 32px;
+  padding: 0 var(--ef-sp-6);
+  border: 0;
+  border-radius: 16px;
+  background: var(--field);
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-caption);
+  text-shadow: var(--hud-shadow);
+  cursor: pointer;
+}
+
+.talk {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  margin-right: var(--ef-sp-8);
+  padding: 0 var(--ef-sp-6);
+  background: var(--field);
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-caption);
+  text-shadow: var(--hud-shadow);
+}
+
+.esc:hover,
+.aux:hover,
+.chip:hover:not(:disabled) {
+  background: var(--ef-fold);
+  color: var(--ef-text-1);
+}
+
+@keyframes hud-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+}

@@ -1,0 +1,126 @@
+/* The confirm popup shared with Modal, plus a title row with a close button and a body that scrolls while the footer stays put. */
+.scrim {
+  composes: scrim from './Modal.module.css';
+}
+
+.panel {
+  composes: panel from './Modal.module.css';
+  --ui-table-bg: var(--ef-popup-band);
+  font: var(--ef-t-text);
+}
+
+.band {
+  composes: band from './Modal.module.css';
+}
+
+.tri {
+  composes: tri from './Modal.module.css';
+}
+
+.head {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 calc(var(--ef-sp-24) + var(--ef-h-sm));
+  animation: flicker 50ms steps(1, end) 233ms both;
+}
+
+.title {
+  margin: 0;
+  color: var(--ef-popup-text);
+  font: var(--ef-fw-medium) var(--ef-fs-title-1) / 1.4 var(--ef-font-sans);
+  text-align: center;
+}
+
+.close {
+  position: absolute;
+  top: 50%;
+  right: var(--ef-sp-16);
+  display: inline-flex;
+  transform: translateY(-50%);
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 var(--ef-space-page);
+  overflow-y: auto;
+  color: var(--ef-text-1);
+  animation: flicker 50ms steps(1, end) 233ms both;
+}
+
+.body > :first-child {
+  margin-top: 0;
+}
+
+.body > :last-child {
+  margin-bottom: 0;
+}
+
+.foot {
+  composes: foot from './Modal.module.css';
+}
+
+.demoField {
+  display: grid;
+  gap: var(--ef-sp-4);
+  margin-bottom: var(--ef-space-block);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.demoField input {
+  height: var(--ef-h-md);
+  padding: 0 var(--ef-sp-8);
+  border: 1px solid var(--ef-line-strong);
+  border-radius: 0;
+  background: var(--ef-base);
+  color: var(--ef-text-1);
+  font: var(--ef-t-text);
+}
+
+.demoField input:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+/* Entrance text flicker: 0→1→0→1 in equal steps. */
+@keyframes flicker {
+  0% {
+    opacity: 0;
+  }
+
+  33% {
+    opacity: 1;
+  }
+
+  66% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+:global([data-demo]) .scrim {
+  height: 440px;
+}
+
+:global([data-demo]) :is(.head, .body),
+:global(.still) :is(.head, .body) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .head,
+  .body {
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) :is(.head, .body) {
+  animation: none;
+}

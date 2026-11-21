@@ -1,0 +1,141 @@
+/* 336 px like the other stack cards; a 4 px bar on the left in the status colour. No entrance or exit motion, so a row
+   presence drops after acknowledgement or 30 minutes just leaves. */
+.card {
+  --sc: var(--ef-line-strong);
+  position: relative;
+  width: 336px;
+  margin-left: var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  background: var(--ef-hud-row);
+  color: var(--ef-text-1);
+}
+
+/* Over the border, so the bar runs the card's full height. */
+.card::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--ef-lw-hair));
+  bottom: calc(-1 * var(--ef-lw-hair));
+  left: calc(-1 * var(--ef-lw-hair));
+  z-index: 1;
+  width: var(--ef-lw-category);
+  background: var(--sc);
+}
+
+.card[data-status='needs_you'] {
+  --sc: var(--ef-attention);
+}
+
+.card[data-status='error'] {
+  --sc: var(--ef-danger);
+}
+
+.card[data-status='done'] {
+  --sc: var(--ef-success);
+}
+
+/* Two lines: status, title, backend, age; then the tool or last step. */
+.head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--ef-sp-4) var(--ef-sp-8);
+  width: 100%;
+  padding: var(--ef-sp-8) var(--ef-sp-8) var(--ef-sp-8) var(--ef-sp-12);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: var(--ef-fs-body) / var(--ef-lh-body) var(--ef-font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.head:hover {
+  background: var(--ef-slab-hover);
+}
+
+.head:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.chip {
+  height: 20px;
+  padding: 0 var(--ef-sp-6);
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  border-radius: 10px;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 18px var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.card[data-status='needs_you'] .chip {
+  border-color: transparent;
+  background: var(--ef-attention);
+  color: var(--ef-on-attention);
+}
+
+.card[data-status='error'] .chip {
+  border-color: transparent;
+  background: var(--ef-danger);
+  color: var(--ef-on-danger);
+}
+
+.card[data-status='done'] .chip {
+  border-color: var(--ef-success);
+  color: var(--ef-success-text);
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: var(--ef-fw-semibold);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.backend,
+.age,
+.line {
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+.age {
+  font-variant-numeric: tabular-nums;
+}
+
+.line {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.line[data-live='true'] {
+  color: var(--ef-text-1);
+}
+
+/* The last tool, between tools, or the activity before any. */
+.line[data-live='false'] {
+  color: var(--ef-text-3);
+}
+
+.attached {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ef-sp-8);
+  padding: 0 var(--ef-sp-8) var(--ef-sp-8) var(--ef-sp-12);
+}
+
+/* An approval or question here takes the session card's inner width instead of its own 336 px. */
+.attached [data-card-id] {
+  width: auto;
+  margin-left: 0;
+}
+
+/* The compact blocks carry no paper structure line. */
+.attached [data-card-id] > span[aria-hidden='true'] {
+  display: none;
+}

@@ -1,0 +1,13 @@
+{
+  "schema": "endfield-component/v1",
+  "id": "host",
+  "version": "1.0.0",
+  "tree_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "files": 1,
+  "bytes": 10,
+  "entrypoints": {},
+  "placed": [],
+  "provides": {},
+  "requires": {},
+  "platform": "macos-arm64"
+}

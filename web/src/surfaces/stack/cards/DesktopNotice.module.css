@@ -1,0 +1,106 @@
+/* stk progress line under the summary: 4 px track, filled share or a scanning block. */
+.prog {
+  position: relative;
+  height: 4px;
+  margin: var(--ef-sp-4) 0;
+  overflow: hidden;
+  background: var(--ef-line-subtle);
+}
+
+.prog > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--ef-text-1);
+}
+
+.prog[data-ind] > i {
+  width: 25%;
+  animation: scan 1.2s var(--ef-ease-standard) infinite;
+}
+
+@keyframes scan {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(400%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prog[data-ind] > i {
+    animation: none;
+  }
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  min-height: 54px;
+}
+
+.loadingText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* loadingwidget: 27x27 white, loadingicon_loop one clockwise turn per 1000 ms, linear. */
+.spinner {
+  flex: none;
+  width: 27px;
+  height: 27px;
+  border: 2px solid var(--ef-line);
+  border-top-color: var(--ef-text-1);
+  border-right-color: var(--ef-text-1);
+  border-radius: 50%;
+  animation: loading-spin var(--ef-dur-g-spin) linear infinite;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) .spinner,
+:global(.still) .spinner {
+  animation: none;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chips > li {
+  padding: 2px var(--ef-sp-8);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  border: 1px solid var(--ef-line-subtle);
+}
+
+.meta {
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.err {
+  margin: 0;
+  color: var(--ef-danger-text);
+  font: var(--ef-t-meta);
+}

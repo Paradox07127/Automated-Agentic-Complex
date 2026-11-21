@@ -1,0 +1,78 @@
+/* Shared track look of Gantt and Timeline: ruler on top, 1 px base lines, thin bars, now line with a time flag. */
+.trk {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: var(--lw) minmax(0, 1fr);
+  align-items: center;
+  min-height: var(--rh, 18px);
+}
+
+.row.ax {
+  min-height: 22px;
+  align-items: stretch;
+}
+
+.rul {
+  position: relative;
+  display: block;
+  height: 22px;
+  border-bottom: 1px solid var(--ef-chart-axis);
+}
+
+.rul i {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 4px;
+  background: var(--ef-chart-axis);
+}
+
+.rul i.l {
+  height: 8px;
+  background: var(--ef-text-3);
+}
+
+.rul b {
+  position: absolute;
+  top: 1px;
+  margin-left: 3px;
+  color: var(--ef-chart-label);
+  font: var(--ef-fw-medium) var(--ef-fs-num) / 1 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nowl {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 1px;
+  background: var(--v3-now);
+  pointer-events: none;
+}
+
+/* The now flag is trace: a yellow block in dark, an ink block on paper. */
+.flag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 14px;
+  padding: 0 4px;
+  background: var(--v3-now);
+  color: var(--v3-on-emph);
+  font: var(--ef-fw-semibold) var(--ef-fs-num) var(--ef-font-ui);
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.flag.right {
+  right: 0;
+  left: auto;
+}

@@ -1,0 +1,29 @@
+/* Stack card textures, used only once the art is in place (html[data-art]); inlined into HudCard.module.css.
+   The looks are dark in both themes, so these hold in light too. */
+
+/* Delivery: the important-reward band, its baked feather top and bottom stretched to the card;
+   one tile spans the 336 px card, as a seam shows where it repeats. */
+:global(html[data-art]) .card[data-look='mission']::before {
+  background: url('/art/common/desk-bg-important-reward-3.png') center top / 424px 100% no-repeat;
+}
+
+/* Error / done: challenge_icon 208 g (the fail and finish toasts' emblem) behind the head, a quarter size, in the toast's accent. */
+:global(html[data-art]) .card:is([data-look='fail'], [data-look='finish']) .hd::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  width: 53px;
+  height: 53px;
+  margin: -26.5px 0 0 -26.5px;
+  background: var(--ef-danger-vivid);
+  opacity: 0.35;
+  pointer-events: none;
+  -webkit-mask: url('/art/common/desk-challenge-icon.png') center / 53px 53px no-repeat;
+  mask: url('/art/common/desk-challenge-icon.png') center / 53px 53px no-repeat;
+}
+
+:global(html[data-art]) .card[data-look='finish'] .hd::before {
+  background: var(--ef-complete);
+}

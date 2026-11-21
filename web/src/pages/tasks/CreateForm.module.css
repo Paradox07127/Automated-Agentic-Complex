@@ -1,0 +1,79 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-16);
+  text-align: left;
+  color: inherit;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-4);
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+}
+
+.input {
+  width: 100%;
+  min-height: var(--ef-h-md);
+  padding: var(--ef-sp-6) var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-line);
+  background: var(--ef-surface-2);
+  color: var(--ef-text-1);
+  font: var(--ef-t-text);
+  resize: vertical;
+}
+
+.input:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.mono {
+  font-family: var(--ef-font-mono);
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+.line > :last-child {
+  flex: none;
+  white-space: nowrap;
+}
+
+.acc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  padding-top: var(--ef-sp-8);
+  border-top: var(--ef-lw-hair) solid var(--ef-line-subtle);
+}
+
+.fold {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: var(--ef-t-h3);
+  color: inherit;
+  cursor: pointer;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  margin: 0;
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}

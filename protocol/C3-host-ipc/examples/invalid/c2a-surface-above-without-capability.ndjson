@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["surfaces","opacity"]}
+{"v":1,"type":"surface","track_id":"s-1","state":"tracking","window":{"window_id":3990,"generation":2,"display_id":1,"frame":{"x":300,"y":200,"w":800,"h":600},"order":1,"edges":[],"above":[]}}

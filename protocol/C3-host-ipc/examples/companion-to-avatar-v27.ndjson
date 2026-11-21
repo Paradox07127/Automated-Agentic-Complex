@@ -1,0 +1,11 @@
+{"v":1,"type":"hello","role":"companion","pid":4243,"protocol":1,"capabilities":["capsules_global","watchdog","pointer","pass_through","keep_clear","render_live","ambient","motion_overrides","play_chain","photo"],"build":{"git":"9e3c2555"}}
+{"v":1,"type":"set_render","req":1,"camera":{"mode":"overview","yaw":45,"pitch":-10}}
+{"v":1,"type":"set_render","req":2,"light":{"yaw":15,"pitch":-10,"strength":1.25},"outline":"subtle"}
+{"v":1,"type":"set_render","req":3,"grounding":{"mode":"contact"},"ambient":{"mode":"screen","light_wrap":true}}
+{"v":1,"type":"ambient_sample","source":"screen","colors":{"mean":[0.42,0.4,0.38],"top":[0.5,0.5,0.52],"bottom":[0.3,0.3,0.3],"left":[0.4,0.4,0.4],"right":[0.45,0.44,0.4]}}
+{"v":1,"type":"set_motion_overrides","req":4,"character":"birch","chains":{"A_clip_birch_customized_state_chesthugging3_start":false,"A_clip_birch_customized_single_relax_react":true},"pools":{"session.thinking":[{"clip":"A_clip_birch_customized_state_think_start","weight":2},{"clip":"A_clip_birch_customized_state_think3_start","weight":1}],"rest.sleep@sit":[{"clip":"A_clip_birch_customized_single_sit_derived_think","weight":1}]},"blend_in":{"A_clip_birch_customized_state_think3_start":0.4,"A_clip_birch_customized_single_relax_react":0}}
+{"v":1,"type":"set_motion_overrides","req":5,"character":"birch","chains":{},"pools":{},"blend_in":{}}
+{"v":1,"type":"play_chain","req":6,"play_id":"pc-1","character":"birch","start":"A_clip_birch_customized_state_think_start"}
+{"v":1,"type":"play_chain","req":7,"play_id":"pc-2","character":"birch","start":"A_clip_birch_customized_single_relax_react","speed":0.5}
+{"v":1,"type":"set_render","req":8,"dof":{"mode":"closeup"}}
+{"v":1,"type":"set_render","req":9,"photo":{"active":true,"aperture":2.8,"focus":"auto"}}

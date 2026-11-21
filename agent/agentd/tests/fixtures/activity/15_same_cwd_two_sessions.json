@@ -1,0 +1,68 @@
+{
+  "note": "两个会话在同一 cwd，编辑器标题对上这个项目",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:vs-2",
+      "app": "Code",
+      "bundle_id": "com.microsoft.VSCode",
+      "pid": 442,
+      "window_id": 42,
+      "title": "atlas.ts — orbit-ledger",
+      "url_host": null,
+      "since": 1799999800.0,
+      "secure_input": false
+    },
+    "dwell_s": 200.0,
+    "presence": {
+      "id": "afk:vs-2",
+      "status": "active",
+      "seconds": 500,
+      "idle_s": 15
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [
+      {
+        "display_session": "claude:s-a",
+        "source": "claude",
+        "session_id": "s-a",
+        "cwd": "/Users/demo/work/orbit-ledger",
+        "state": "thinking",
+        "effective_state": "thinking",
+        "tool_name": null,
+        "tool_category": null,
+        "origin": null,
+        "since": 1799999970.0,
+        "observed_at": 1799999970.0
+      },
+      {
+        "display_session": "codex:s-b",
+        "source": "codex",
+        "session_id": "s-b",
+        "cwd": "/Users/demo/work/orbit-ledger",
+        "state": "running_tool",
+        "effective_state": "running_tool",
+        "tool_name": "shell",
+        "tool_category": "command",
+        "origin": null,
+        "since": 1799999970.0,
+        "observed_at": 1799999970.0
+      }
+    ],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "editing_code",
+    "status": "ok",
+    "related_session_ids": [
+      "claude:s-a",
+      "codex:s-b"
+    ],
+    "can_interrupt": true
+  }
+}

@@ -1,0 +1,11 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","placement","behavior_receipt","actions"],"build":{"git":"6b4838bc"}}
+{"v":1,"type":"actions","character":"aster","actions":[],"switches":{},"error":"not_ready"}
+{"v":1,"type":"actions","character":"aster","actions":[{"id":"talk_nod","name":"说话点头","section":"talk","duration":1.2,"trigger":"说话时每句开头","required_reason":"说话时没有别的动作","missing":null},{"id":"idle_breathe","name":"呼吸","section":"idle","duration":null,"trigger":"空闲时一直播","required_reason":null,"missing":null},{"id":"react_wave","name":"挥手","section":"react","duration":2.0,"trigger":"你回来时","required_reason":null,"missing":"clip wave_01"},{"id":"move_sit","name":"坐下","section":"move","duration":null,"trigger":"窗口顶边停够 3 s","required_reason":null,"missing":null}],"switches":{"talk_nod":true,"idle_breathe":true,"react_wave":false,"move_sit":true}}
+{"v":1,"type":"action_switches","character":"aster","switches":{"talk_nod":true,"idle_breathe":true,"react_wave":false,"move_sit":false},"adjusted":[{"id":"talk_nod","reason":"required"},{"id":"idle_breathe","reason":"last_in_section"},{"id":"react_wave","reason":"missing"}]}
+{"v":1,"type":"action_switches","character":"birch","switches":{"talk_nod":true,"idle_breathe":true,"react_wave":false,"move_sit":false},"adjusted":[],"error":"wrong_character"}
+{"v":1,"type":"action_played","play_id":"p-1","id":"idle_breathe","phase":"started","reason":null}
+{"v":1,"type":"action_played","play_id":"p-1","id":"idle_breathe","phase":"completed","reason":null}
+{"v":1,"type":"action_played","play_id":"p-2","id":"move_sit","phase":"rejected","reason":"not_playable"}
+{"v":1,"type":"action_played","play_id":"p-3","id":"talk_nod","phase":"rejected","reason":"busy"}
+{"v":1,"type":"action_played","play_id":"p-4","id":"talk_nod","phase":"started","reason":null}
+{"v":1,"type":"action_played","play_id":"p-4","id":"talk_nod","phase":"interrupted","reason":"drag"}

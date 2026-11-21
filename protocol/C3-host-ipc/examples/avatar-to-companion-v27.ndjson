@@ -1,0 +1,15 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"birch","capabilities":["heartbeat","ack","pipeline","render_live","ambient","capture","camera_free","camera_gesture","actions","motion_overrides","play_chain"],"build":{"git":"51beebe7","renderer":"metal"}}
+{"v":1,"type":"pipeline","renderer":"metal","bundle_sha256":null,"character":"birch","appearance":"default","appearance_fallback":null,"render":{"ssaa":2,"shadow_resolution":1024,"outline":"original","display_resolution":false,"unsupported":[],"camera":{"mode":"show","yaw":0,"pitch":0},"light":{"yaw":0,"pitch":0,"strength":1},"facing":"auto","grounding":{"mode":"contact"},"ambient":{"mode":"screen","light_wrap":true}},"fps":{"requested":60,"target":60},"suspended":null,"gpu":{"allocated_mb":812.4},"frames":{"submitted":1,"completed":0},"clip":"idle_loop","error":null}
+{"v":1,"type":"ack","req":12,"ok":true}
+{"v":1,"type":"captured","req":12,"file":"Endfield-birch-20261116-143005.png","width":1080,"height":1920}
+{"v":1,"type":"camera_gesture","phase":"began","dx":0,"dy":0,"zoom":1}
+{"v":1,"type":"camera_gesture","phase":"changed","dx":12.5,"dy":-3,"zoom":1.0513}
+{"v":1,"type":"camera_gesture","phase":"ended","dx":0,"dy":0,"zoom":1}
+{"v":1,"type":"ack","req":4,"ok":true}
+{"v":1,"type":"motion_overrides","req":4,"character":"birch","applied":{"chains":2,"pools":1,"blend_in":2},"adjusted":[{"kind":"pool","key":"rest.sleep@sit","reason":"stance_mismatch"}]}
+{"v":1,"type":"ack","req":5,"ok":true}
+{"v":1,"type":"motion_overrides","req":5,"character":"birch","applied":{"chains":0,"pools":0,"blend_in":0},"adjusted":[]}
+{"v":1,"type":"ack","req":6,"ok":true}
+{"v":1,"type":"action_played","play_id":"pc-1","id":"A_clip_birch_customized_state_think_start","chain":"A_clip_birch_customized_state_think_start","phase":"started","reason":null}
+{"v":1,"type":"action_played","play_id":"pc-1","id":"A_clip_birch_customized_state_think_start","chain":"A_clip_birch_customized_state_think_start","phase":"completed","reason":null}
+{"v":1,"type":"motion_overrides","req":8,"character":"birch","applied":{"chains":0,"pools":0,"blend_in":0},"adjusted":[{"kind":"chain","key":"A_clip_birch_no_such_clip_0001","reason":"unknown_chain"},{"kind":"chain","key":"A_clip_birch_no_such_clip_0002","reason":"unknown_chain"}],"truncated":true}

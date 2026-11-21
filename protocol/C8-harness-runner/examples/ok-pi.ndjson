@@ -1,0 +1,10 @@
+{"v": 1, "type": "init", "config": {"state_dir": "/tmp/state", "model": "fixture"}, "system_prompt": "You are Mira.", "tools": [{"name": "receipt_check", "description": "Check a receipt", "input_schema": {"type": "object"}}]}
+{"v": 1, "seq": 1, "type": "ready", "backend": "pi", "sdk_version": "0.9.0", "node_version": "22.19.0", "session_id": "pi-session-1", "tool_names": ["receipt_check"], "tool_inventory_verified": true, "provider": "endfield-fixture", "model": "fixture", "persist_session": false, "modalities": ["text"], "auth_source": "none", "authenticated": true, "cost_tracking": "unpriced_custom_endpoint", "capabilities": {"cancel": "native", "tool_injection": "in_process", "builtin_tools": "disabled_verified", "system_prompt": "native", "usage": "tokens", "event_scope": "session", "native_questions": false}}
+{"v": 1, "type": "query", "run_id": "run-1", "prompt": "Check the receipt.", "history": null}
+{"v": 1, "seq": 2, "type": "tool_request", "run_id": "run-1", "tool_call_id": "call-0", "name": "receipt_check", "args": {"id": "e1"}}
+{"v": 1, "type": "tool_result", "tool_call_id": "call-0", "run_id": "run-1", "result": {"content": [{"type": "text", "text": "Readback confirmed."}]}, "is_error": false}
+{"v": 1, "seq": 3, "type": "item", "run_id": "run-1", "item_id": "run-1:m2", "kind": "assistant_text", "phase": "final", "status": "started"}
+{"v": 1, "seq": 4, "type": "text_delta", "run_id": "run-1", "item_id": "run-1:m2", "kind": "assistant_text", "phase": "final", "status": "delta", "text": "Checked."}
+{"v": 1, "seq": 5, "type": "item", "run_id": "run-1", "item_id": "run-1:m2", "kind": "assistant_text", "phase": "final", "status": "completed"}
+{"v": 1, "seq": 6, "type": "result", "run_id": "run-1", "session_id": "pi-session-1", "success": true, "subtype": "success", "text": "Checked.", "final_text": "Checked.", "usage": {"input_tokens": 20, "output_tokens": 10, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}, "model": "fixture", "provider": "endfield-fixture", "total_cost_usd": null, "cost_usd": null, "cost_source": null, "cost_tracking": "unpriced_custom_endpoint", "num_turns": 2}
+{"v": 1, "type": "close"}

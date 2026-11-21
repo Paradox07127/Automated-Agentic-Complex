@@ -1,0 +1,31 @@
+{
+  "schema": "endfield-character-library-contract/v1",
+  "id_pattern": "^[a-z0-9_]+$",
+  "version_pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+  "sha256_pattern": "^[0-9a-f]{64}$",
+  "base_capabilities": ["motion.idle", "motion.preview", "persona.dialogue", "render.default"],
+  "text_only_base_capabilities": ["persona.dialogue"],
+  "executable_suffixes": ["command", "dll", "dylib", "exe", "py", "pyc", "sh", "so"],
+  "native_fields": {
+    "required": ["c7", "actor_archive", "source", "library", "graph", "lighting", "coverage"],
+    "optional": ["library_ssaa1"]
+  },
+  "neutral_fields": {
+    "optional": ["neutral_scene", "neutral_build_record", "metal_product"]
+  },
+  "d3d11_fields": {
+    "optional": ["d3d11_frame"]
+  },
+  "schemas": {
+    "catalog": "endfield-character-library/v1",
+    "definition": {"schema": "endfield-character-definition", "schema_version": 1},
+    "native_bundle": "metal-native-character-bundle/v1",
+    "pack": "endfield-character-pack/v1",
+    "stage": "endfield-character-stage/v1",
+    "mod_settings": "endfield-mod-settings/v1",
+    "distribution": "endfield-distribution/v2",
+    "neutral_scene": "endfield-neutral-scene/v1",
+    "neutral_build_record": "endfield-neutral-build-record/v1",
+    "metal_product": "endfield-metal-product/v1"
+  }
+}

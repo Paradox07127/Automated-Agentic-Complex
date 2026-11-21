@@ -1,0 +1,63 @@
+/* Reveal mask three times the box; --mask-y 0 shows its hidden third, 1 its shown third, between them the edge. */
+@property --mask-y {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+.sweep {
+  --sweep-img: linear-gradient(var(--sweep-dir), #000 0 44%, transparent 56%);
+  -webkit-mask: var(--sweep-img) var(--sweep-pos) / var(--sweep-size) no-repeat;
+  mask: var(--sweep-img) var(--sweep-pos) / var(--sweep-size) no-repeat;
+}
+
+.dissolve {
+  --sweep-img: linear-gradient(
+    var(--sweep-dir),
+    #000 0 42%,
+    transparent 0 44%,
+    #000 0 46%,
+    transparent 0 49%,
+    #000 0 51%,
+    transparent 0 55%,
+    #000 0 56%,
+    transparent 0
+  );
+}
+
+.top {
+  --sweep-dir: to bottom;
+  --sweep-size: 100% 300%;
+  --sweep-pos: 0 calc((1 - var(--mask-y)) * 100%);
+}
+
+.bottom {
+  --sweep-dir: to top;
+  --sweep-size: 100% 300%;
+  --sweep-pos: 0 calc(var(--mask-y) * 100%);
+}
+
+.left {
+  --sweep-dir: to right;
+  --sweep-size: 300% 100%;
+  --sweep-pos: calc((1 - var(--mask-y)) * 100%) 0;
+}
+
+.right {
+  --sweep-dir: to left;
+  --sweep-size: 300% 100%;
+  --sweep-pos: calc(var(--mask-y) * 100%) 0;
+}
+
+.demoPlate {
+  width: 240px;
+  height: 120px;
+  border: 1px solid var(--ef-g-ring-3);
+  background: var(--ef-g-icon);
+}
+
+.demoLines {
+  width: 240px;
+  height: 120px;
+  background: repeating-linear-gradient(90deg, var(--ef-g-techline) 0 1px, transparent 1px 12px);
+}

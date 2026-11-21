@@ -1,0 +1,13 @@
+{
+  "schema": "endfield-component/v1",
+  "id": "renderer",
+  "version": "1.0.0",
+  "tree_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "files": 1,
+  "bytes": 10,
+  "entrypoints": {},
+  "placed": {"MacOS/AgenticComplexMetalAvatar": "../MacOS/AgenticComplexMetalAvatar"},
+  "provides": {},
+  "requires": {},
+  "platform": "macos-arm64"
+}

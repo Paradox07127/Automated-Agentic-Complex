@@ -1,0 +1,20 @@
+{
+  "schema": "endfield-component/v1",
+  "id": "host",
+  "version": "1.0.0",
+  "tree_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "files": 6,
+  "bytes": 4096,
+  "entrypoints": {"executable": "MacOS/AgenticComplex"},
+  "placed": {
+    "MacOS/AgenticComplex": "MacOS/AgenticComplex",
+    "Resources/AgenticComplexCompanion_CompanionUI.bundle": "Resources/AgenticComplexCompanion_CompanionUI.bundle",
+    "Resources/parent_watch.py": "Resources/parent_watch.py",
+    "Resources/AppIcon.icns": "Resources/AppIcon.icns",
+    "Info.plist": "Info.plist",
+    "Resources/distribution.json": "Resources/distribution.json"
+  },
+  "provides": {},
+  "requires": {},
+  "platform": "macos-arm64"
+}

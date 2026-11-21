@@ -1,0 +1,120 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  margin-bottom: var(--ef-sp-8);
+  font-size: var(--ef-fs-caption);
+}
+
+.sum {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+}
+
+.op {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  font-size: var(--ef-fs-meta);
+  font-weight: var(--ef-fw-semibold);
+  border: var(--ef-lw-hair) solid var(--ef-line-strong);
+  color: var(--ef-text-2);
+}
+
+.op[data-op='write'] {
+  background: var(--ef-text-1);
+  border-color: var(--ef-text-1);
+  color: var(--ef-base);
+}
+
+.op[data-op='modify'] {
+  border-color: var(--ef-info);
+  color: var(--ef-info-text);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-2);
+  margin-bottom: var(--ef-sp-8);
+}
+
+.dir {
+  font: var(--ef-fs-caption) var(--ef-font-mono);
+  color: var(--ef-text-3);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-height: 24px;
+  padding: 0 var(--ef-sp-8) 0 var(--ef-sp-4);
+  background: var(--ef-step-bg);
+  border-radius: var(--ef-r-3);
+}
+
+.name {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: var(--ef-fs-code) var(--ef-font-mono);
+  color: var(--ef-text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.name:hover {
+  text-decoration: underline;
+}
+
+.ro {
+  grid-column: 3 / 5;
+  justify-self: end;
+  font-size: var(--ef-fs-caption);
+  color: var(--ef-text-3);
+}
+
+.bar {
+  display: inline-flex;
+  width: 80px;
+  height: 6px;
+  gap: 1px;
+}
+
+.add {
+  background: var(--ef-success);
+}
+
+.del {
+  background: var(--ef-danger);
+}
+
+.diff {
+  min-width: 64px;
+  text-align: right;
+  font: var(--ef-fs-caption) var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.plus {
+  color: var(--ef-success-text);
+}
+
+.minus {
+  color: var(--ef-danger-text);
+}

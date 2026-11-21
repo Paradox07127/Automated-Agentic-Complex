@@ -1,0 +1,231 @@
+/* Watch panel: square edges, entry squares for the shortcuts. */
+.card {
+  /* Entry square: shadow plate #FFF@.39 behind the button, offset 3 px. */
+  --tile-shadow: rgba(255, 255, 255, 0.39);
+  position: relative;
+  width: 332px;
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--ef-line);
+  border-radius: 0;
+  background: var(--ef-bg-base);
+  box-shadow: var(--ef-shadow-hud);
+  color: var(--ef-text-1);
+  font: var(--ef-fs-body) / var(--ef-lh-body) var(--ef-font-sans);
+  animation: console-in var(--ef-dur-g-panel-in) var(--ef-ease-g-enter);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 10px 16px;
+}
+
+.name {
+  flex: 1;
+  font: var(--ef-fw-semibold) 17px / 1.3 var(--ef-font-ui);
+  letter-spacing: .035em;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.body {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 10px;
+}
+
+.close,
+.primary,
+.shortcut,
+.pending,
+.options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ef-text-1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.close {
+  justify-content: center;
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--ef-text-2);
+}
+
+.primary {
+  min-height: 51px;
+  padding: 0 13px 0 10px;
+  border-color: var(--ef-line);
+  border-inline-start: 3px solid var(--ef-accent);
+  background: var(--ef-fold);
+  font-size: 15px;
+  font-weight: var(--ef-fw-semibold);
+}
+
+.primary:hover {
+  border-color: var(--ef-accent);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.primary > span,
+.shortcut > span,
+.pending > span,
+.options > span {
+  flex: 1;
+}
+
+/* Entry squares: icon over name, the hotkey under it; the white button plate with its shadow plate behind. */
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ef-sp-12);
+  padding: var(--ef-sp-8) 3px var(--ef-sp-8) 0;
+}
+
+.shortcuts .shortcut {
+  position: relative;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--ef-sp-4);
+  min-height: 76px;
+  padding: var(--ef-sp-8) var(--ef-sp-4);
+  border-color: var(--ef-btn-outline);
+  background: var(--ef-btn-light);
+  box-shadow: -3px 0 0 var(--tile-shadow);
+  color: var(--ef-btn-light-text);
+  text-align: center;
+  transition: background var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.shortcuts .shortcut > span {
+  flex: none;
+  font-weight: var(--ef-fw-medium);
+}
+
+.pending {
+  border-color: var(--ef-line-subtle);
+  background: var(--ef-fold);
+  font-weight: var(--ef-fw-medium);
+}
+
+.pending > svg:first-child {
+  color: var(--ef-badge-dot);
+}
+
+.shortcut kbd {
+  padding: 2px 5px;
+  border: 1px solid var(--ef-btn-outline);
+  border-radius: 4px;
+  color: var(--ef-btn-light-text);
+  font: var(--ef-fs-meta) / 1 var(--ef-font-mono);
+  white-space: nowrap;
+}
+
+.shortcuts .shortcut:disabled {
+  background: var(--ef-btn-disabled);
+  color: var(--ef-btn-light-text);
+  cursor: default;
+  opacity: 0.5;
+}
+
+.options {
+  min-height: 36px;
+  color: var(--ef-text-2);
+}
+
+.options:hover,
+.close:hover,
+.pending:hover {
+  border-color: var(--ef-line-strong);
+  background: var(--ef-fold);
+  color: var(--ef-text-1);
+}
+
+.shortcuts .shortcut:not(:disabled):hover {
+  border-color: var(--ef-accent);
+  background: var(--ef-accent);
+  color: var(--ef-btn-accent-text);
+}
+
+.card button:active:not(:disabled) {
+  translate: 0 1px;
+}
+
+.recovery {
+  display: grid;
+  gap: 7px;
+  padding: 8px 10px;
+  border-left: var(--ef-lw-category) solid var(--ef-danger);
+  background: var(--ef-fold);
+}
+
+.recovery > span,
+.recovery > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.states {
+  display: grid;
+  padding: 1px 10px;
+  border-radius: 0;
+  background: var(--ef-fold);
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.state + .state {
+  border-top: 1px solid var(--ef-line-subtle);
+}
+
+.state small {
+  margin-inline-start: 8px;
+  color: var(--ef-text-2);
+}
+
+.note {
+  margin: 0 10px 4px;
+  color: var(--ef-text-2);
+}
+
+.card :focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+@keyframes console-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "schema": "endfield-character-definition",
+  "schema_version": 1,
+  "id": "aide",
+  "version": "1.0.0",
+  "source_identity": {
+    "character_id": "aide",
+    "snapshot": "handwritten-1"
+  },
+  "display": {
+    "name": {
+      "zh-Hans": "助手",
+      "en": "Aide"
+    }
+  },
+  "aliases": [],
+  "components": {
+    "persona": {
+      "card": {
+        "file": "persona/card.json",
+        "sha256": "94c0c989d306c33dea8f4f2732be0c322f03ffe9498341446bdb71d5c15ac8d2",
+        "byte_count": 3257
+      },
+      "lore": {
+        "file": "persona/lore.json",
+        "sha256": "7129578a795cd51eef9989ab0f73df4ee3447de10f6f414fc6926d33f73874c2",
+        "byte_count": 1471
+      }
+    }
+  },
+  "capabilities": [
+    "persona.dialogue"
+  ],
+  "inventory": [
+    {
+      "file": "persona/card.json",
+      "sha256": "94c0c989d306c33dea8f4f2732be0c322f03ffe9498341446bdb71d5c15ac8d2",
+      "byte_count": 3257
+    },
+    {
+      "file": "persona/lore.json",
+      "sha256": "7129578a795cd51eef9989ab0f73df4ee3447de10f6f414fc6926d33f73874c2",
+      "byte_count": 1471
+    }
+  ]
+}

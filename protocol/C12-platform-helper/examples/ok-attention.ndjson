@@ -1,0 +1,25 @@
+{"v":1,"id":1,"op":"hello","params":{"protocol":1,"client":"electron","client_version":"0.1.0"}}
+{"v":1,"id":1,"ok":true,"result":{"protocol":1,"platform":"macos","helper_version":"0.1.0","os_version":"macOS 26.1","arch":"arm64","pid":4242,"ops":["hello","cancel","shutdown","screens.list","windows.list","windows.at_point","workspace.watch","attention.sample","presence.watch","browser.front_tab","input.modifiers","input.watch","ax.focused","ax.dialog_buttons","ax.overlays","ax.hit_chain","ax.window_text","ax.selected_text","ax.video_rect","ax.watch","capture.window","capture.ambient","ocr.languages","ocr.recognize","speech.locales","mic.start","mic.stop","ptt.register","ptt.unregister","control.observe","control.act","control.read","control.listen","control.respond","permissions.status","permissions.request","clipboard.read","apps.running","apps.installed","apps.activate","terminal.focus","process.usage"],"events":["workspace.changed","presence.edge","input.activity","ax.notification","mic.level","speech.partial","ptt.down","ptt.up","control.request"]}}
+{"v":1,"id":2,"op":"attention.sample","params":{"include_titles":true,"include_input":true,"include_audio":true}}
+{"v":1,"id":2,"ok":true,"result":{"ts":1763539200.25,"front":{"pid":611,"name":"Safari","app_id":"com.apple.Safari","window":{"window_id":812,"pid":611,"bounds":{"x":0,"y":25,"width":1440,"height":875},"layer":0,"alpha":1.0,"title":"Release notes","app_name":"Safari","app_id":"com.apple.Safari"},"category":"public.app-category.productivity","focused_window_title":"Release notes — WebKit"},"mouse_window":{"window_id":640,"pid":702,"bounds":{"x":200,"y":120,"width":900,"height":600},"title":"notes.txt","app_name":"TextEdit","app_id":"com.apple.TextEdit"},"idle_s":1.4,"locked":false,"secure_input":false,"focus_role":"AXTextArea","focus_native_role":"AXTextArea","focus_window_role":"AXWindow","focus_window_native_role":"AXWindow","focus_window_subrole":"AXStandardWindow","camera_active":false,"mic_active":null,"audio_clients":[{"pid":611,"app_id":"com.apple.Safari","name":"Safari","running_input":false,"running_output":true}],"input_counters":{"keys":120345,"left_clicks":8812,"right_clicks":301,"scrolls":44120,"moves":991203},"input_idles":{"key":1.4,"pointer":0.2,"scroll":12.0,"click":3.5},"video_pids":[611],"front_gpu_busy":null,"capture_indicator":false}}
+{"v":1,"id":3,"op":"attention.sample","params":{}}
+{"v":1,"id":3,"ok":true,"result":{"ts":1763539201.25,"front":null,"mouse_window":null,"idle_s":2.4,"locked":true,"secure_input":false,"focus_role":null,"focus_native_role":null,"focus_window_role":null,"focus_window_native_role":null,"focus_window_subrole":null,"camera_active":null,"mic_active":null,"audio_clients":null,"input_counters":null,"input_idles":null,"video_pids":null,"front_gpu_busy":null,"capture_indicator":null}}
+{"v":1,"id":4,"op":"presence.watch","params":{"enabled":true}}
+{"v":1,"id":4,"ok":true,"result":{"watching":true}}
+{"v":1,"event":"presence.edge","seq":1,"data":{"edge":"lock"}}
+{"v":1,"event":"presence.edge","seq":2,"data":{"edge":"unlock"}}
+{"v":1,"event":"presence.edge","seq":3,"data":{"edge":"display_sleep"}}
+{"v":1,"event":"presence.edge","seq":4,"data":{"edge":"display_wake"}}
+{"v":1,"id":5,"op":"browser.front_tab","params":{"app_id":"com.google.Chrome"}}
+{"v":1,"id":5,"ok":true,"result":{"url_host":"github.com","incognito":false}}
+{"v":1,"id":6,"op":"browser.front_tab","params":{"app_id":"com.apple.Safari"}}
+{"v":1,"id":6,"ok":false,"error":{"code":"automation_denied","message":"Automation for Safari is not allowed","retryable":false}}
+{"v":1,"id":7,"op":"input.modifiers","params":{}}
+{"v":1,"id":7,"ok":true,"result":{"alt":true,"shift":false,"control":false,"meta":false}}
+{"v":1,"id":8,"op":"input.watch","params":{"enabled":true}}
+{"v":1,"id":8,"ok":true,"result":{"watching":true}}
+{"v":1,"event":"input.activity","seq":5,"data":{"kind":"mouse_down"}}
+{"v":1,"event":"input.activity","seq":6,"data":{"kind":"mouse_up"}}
+{"v":1,"event":"input.activity","seq":7,"data":{"kind":"key"}}
+{"v":1,"id":9,"op":"input.watch","params":{"enabled":false}}
+{"v":1,"id":9,"ok":true,"result":{"watching":false}}

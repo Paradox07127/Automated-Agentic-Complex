@@ -1,0 +1,121 @@
+// 今天：页内任务详情、当前任务（回退：按目标或项目分组）、开发者模式关闭时不露内部读数、待处理落点。
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TASKS } from '../../src/mock/fixtures';
+import { A1, T1 } from '../../src/mock/fixtures/ids';
+import { OverviewPage } from '../../src/pages/overview/Page';
+import { setDevMode } from '../../src/shell/devMode';
+import { useLandingFocus } from '../../src/shell/nav';
+import { ToastHost } from '../../src/shell/toast';
+
+beforeEach(() => {
+  localStorage.clear();
+  Element.prototype.scrollIntoView = vi.fn();
+});
+
+afterEach(() => {
+  cleanup();
+  delete window.agenticComplex;
+  vi.restoreAllMocks();
+  localStorage.clear();
+});
+
+function Landing({ focus }: { focus: string | null }) {
+  useLandingFocus(focus, '', true);
+  return null;
+}
+
+function mount(search = '') {
+  const focus = new URLSearchParams(search).get('focus');
+  const root = createRootRoute({
+    component: () => (
+      <>
+        <OverviewPage />
+        <Landing focus={focus} />
+        <ToastHost />
+      </>
+    ),
+  });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  return router;
+}
+
+const title = (id: string) => TASKS.find((t) => t.id === id)!.title;
+
+describe('今天', () => {
+  it('sel opens the task detail sheet on the page', async () => {
+    mount(`&sel=${T1}`);
+    const sheet = await screen.findByRole('dialog', { name: `详情：${title(T1)}` }, { timeout: 3000 });
+    expect(sheet.textContent).toContain(title(T1));
+  });
+
+  it('a jump to another page does not open its sel here while this page is still shown', async () => {
+    const router = mount();
+    await screen.findByRole('region', { name: '待处理' }, { timeout: 3000 });
+    await act(() => router.history.push(`/tasks?still=1&tab=all&sel=${encodeURIComponent(T1)}`));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('shows no inferred task grid; the records control opens and closes an actual task', async () => {
+    mount('&demo=absent');
+    await screen.findByRole('region', { name: '待处理' });
+    expect(screen.queryByRole('region', { name: '当前任务' })).toBeNull();
+    const open = screen.getByRole('button', { name: '任务记录' });
+    fireEvent.click(open);
+    const records = await screen.findByRole('dialog', { name: '任务记录' });
+    fireEvent.click(await within(records).findByRole('button', { name: new RegExp(title(T1)) }));
+    const task = await screen.findByRole('dialog', { name: `详情：${title(T1)}` });
+    expect(screen.queryByRole('dialog', { name: '任务记录' })).toBeNull();
+    fireEvent.click(within(task).getByRole('button', { name: '关闭详情' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(open);
+    await screen.findByRole('dialog', { name: '任务记录' });
+  });
+
+  it('with 开发者模式 off there is no role band and no screenshot readout', async () => {
+    setDevMode(false);
+    mount();
+    await screen.findAllByText(/个编码会话/, undefined, { timeout: 3000 });
+    expect(document.querySelector('[data-band]')).toBeNull();
+    expect(screen.queryByRole('link', { name: /前往角色页/ })).toBeNull();
+    expect(document.body.textContent).not.toContain('截图');
+  });
+
+  it('without the role band, a paused observation still says so with 现在恢复', async () => {
+    mount('&demo=pause');
+    await waitFor(() => expect(screen.getAllByRole('status').some((s) => s.textContent?.startsWith('观察暂停'))).toBe(true), { timeout: 3000 });
+    const pause = screen.getAllByRole('status').find((s) => s.textContent?.startsWith('观察暂停'))!;
+    expect(within(pause).getByRole('button', { name: '现在恢复' })).toBeTruthy();
+  });
+
+  it('counts once: no summary sentence on the page, its counts are header fields; 待处理 is the list column, 进行中 follows it in the detail column', async () => {
+    mount();
+    await waitFor(() => expect(document.body.textContent).toMatch(/编码会话 \d+/), { timeout: 3000 });
+    expect(document.body.textContent).toMatch(/对话 \d+/);
+    expect(document.body.textContent).toMatch(/提醒 \d\d:\d\d/);
+    // The sentence stays only in 今日简报, below the two columns.
+    const brief = screen.getByRole('region', { name: '今日简报' });
+    expect(screen.getAllByText(/^今天 \d+ 段对话/).every((el) => brief.contains(el))).toBe(true);
+    const need = screen.getByRole('region', { name: '待处理' });
+    const run = screen.getByRole('region', { name: '进行中' });
+    expect(need.compareDocumentPosition(run) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(need.closest('[data-g="list"]')).not.toBeNull();
+    expect(run.closest('[data-g="detail"]')).not.toBeNull();
+    expect(screen.queryByRole('region', { name: '她' })).toBeNull();
+    expect(screen.getByRole('toolbar', { name: '常用操作' })).toBeTruthy();
+  });
+
+  it('focus=item-<id> lands on the pending item', async () => {
+    mount(`&focus=item-${A1}`);
+    await waitFor(() => expect(document.querySelector(`[data-nav-target="item-${A1}"]`)?.hasAttribute('data-nav-hl')).toBe(true), { timeout: 3000 });
+  });
+});

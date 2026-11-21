@@ -1,0 +1,57 @@
+/* 今天（任务面板）：左列待处理与进行中，右列她的名片与时间线，下方是简报。 */
+@import './PagePart1.css';
+
+@media (min-height: 1000px) {
+  .ov {
+    gap: 40px;
+    padding-top: 28px;
+  }
+}
+
+/* Twill (recipe mission-bg-twill) at @0.2 in the backdrop's bottom left, 287 px wide on its
+   9-slice (l101 r331), in the text ink. */
+:global(html[data-art]) .page {
+  position: relative;
+  isolation: isolate;
+}
+
+:global(html[data-art]) .page::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: -1;
+  width: 287px;
+  height: 200px;
+  background: var(--ef-text-1);
+  opacity: 0.2;
+  pointer-events: none;
+  -webkit-mask-box-image: url('/art/common/mission-bg-twill.png') 0 331 0 101 / 0 165.5px 0 50.5px stretch;
+}
+
+/* Motion: the receipt's entrance; the panel and its cells play game clips (MissionFx). */
+@keyframes ov-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ov-line-in {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receipt,
+  .receipt::after {
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) .receipt,
+:global([data-reduce-motion]) .receipt::after,
+:global(.still) .receipt,
+:global(.still) .receipt::after {
+  animation: none;
+}

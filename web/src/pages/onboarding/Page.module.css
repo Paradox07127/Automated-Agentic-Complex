@@ -1,0 +1,133 @@
+/* Guide media panel: our black ground and contour lines, a bottom ramp; the media frame between two round arrows, n/N and the text node under it. Paper in light. Breakpoints are the window's (full-screen layer). */
+@import './PagePart1.css';
+
+/* Step 1: the installed characters as head cards, the current one with a yellow bottom bar, then 导入. */
+.welcomeRole {
+  display: flex;
+  flex-wrap: wrap;
+  min-height: 242px;
+  align-content: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.roster {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rc {
+  --fill: var(--ef-surface-2);
+  --bar: var(--ef-line-strong);
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 60px;
+  height: 86.5px;
+  overflow: hidden;
+  padding: 0 0 4px;
+  border: 0;
+  background: linear-gradient(var(--bar), var(--bar)) bottom / 100% 4px no-repeat, var(--fill);
+  color: var(--ef-text-1);
+  text-align: left;
+}
+
+.rc[aria-current] {
+  --bar: var(--ef-accent);
+}
+
+.rc::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 4px;
+  z-index: 1;
+  height: 40px;
+  background: linear-gradient(to top, var(--fill) 45%, transparent);
+  pointer-events: none;
+}
+
+.rcArt {
+  position: absolute;
+  inset: 0 0 4px;
+  z-index: 0;
+  display: flex;
+}
+
+.rcArt :global([data-stub='CharacterArt']) {
+  width: 100%;
+  height: 100%;
+}
+
+.rcArt :global([data-stub='CharacterArt'])::before,
+.rcArt :global([data-stub='CharacterArt'])::after {
+  display: none;
+}
+
+.rcArt img {
+  clip-path: none;
+}
+
+.rcName {
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  padding: 0 5px 5px;
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1.2 var(--ef-font-sans);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.add {
+  align-items: center;
+  justify-content: center;
+  gap: var(--ef-sp-6);
+  color: var(--ef-text-2);
+  cursor: pointer;
+  transition: transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.add:hover {
+  --fill: var(--ef-surface-3);
+}
+
+.add:active {
+  transform: translateY(1px);
+}
+
+.add:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+/* Narrow (< 1100): the bars keep 24 px from the window edge. */
+@media (max-width: 1099px) {
+  .top,
+  .foot {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .primary > button {
+    min-width: 128px;
+  }
+}
+
+/* Short windows (< 700): top and bottom bars shrink. */
+@media (max-height: 699px) {
+  .onb {
+    grid-template-rows: 48px minmax(0, 1fr) 60px;
+  }
+
+  .main {
+    padding-block: 8px;
+  }
+}

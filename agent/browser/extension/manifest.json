@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Agentic Complex",
+  "version": "0.2.0",
+  "description": "为本机 Companion 提供网站时长、滚动和播放状态；网页文字按分享开关读取，不在无痕窗口运行。",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv0JqCbDQ+WInVfL3NUi1lWQ/XKFuq3EIZwfNVGRPCKXZeBIPCfBREZrgV22xUcE+Y0IUppKujU4eIvkh8P1Z4NBuH9gD7ESSJx9iVfkl/qXYpT1Vi+kz1Eva3F5gbnTWDT3lIUyLuuRy5g7EM+Hq5CtwEebJ747mXkl9xoyE0Noom7Q/2y26kiXXryI78JTeNuDYcX3gqXvpgMq4Y1NtHIdLUJCY2mrA042GPQbwXL7DyjIyaMBcitmDj6UzyIJOuFcounu+/IHT2SnZqWSakxQ4+M0Y8LerJh6viPkBj+D3lGoLX+WQ0x6+nT33N21YwEHTTtbQ78IXfHWJW+WNuwIDAQAB",
+  "incognito": "not_allowed",
+  "permissions": [
+    "tabs",
+    "alarms",
+    "nativeMessaging",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+/* The page's line in the shell's dark bottom bar: draft state left, then why, desktop preview and speed, then undo and save. */
+.bar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+  font: var(--ef-t-table);
+}
+
+.note {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.why {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+  text-align: right;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sep {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  background: var(--ef-rule);
+}
+
+.cap {
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+}
+
+.num {
+  font-family: var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+}

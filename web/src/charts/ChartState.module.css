@@ -1,0 +1,65 @@
+.root {
+  min-width: 0;
+}
+
+.num {
+  font-family: var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Skeleton: a still chip plate, no shimmer. */
+.skel {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--ef-sp-12);
+  background: var(--ef-chip);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-height: 28px;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.error,
+.offline {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  margin-bottom: var(--ef-sp-8);
+  font: var(--ef-t-meta);
+}
+
+/* The failure flag is the yellow ✕ glyph; the text stays ink. */
+.error {
+  color: var(--ef-text-1);
+}
+
+.offline {
+  color: var(--ef-text-2);
+}
+
+.retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-1);
+  font: var(--ef-t-meta);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.missing {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  min-height: 28px;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}

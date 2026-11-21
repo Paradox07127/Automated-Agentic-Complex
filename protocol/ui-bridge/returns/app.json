@@ -1,0 +1,199 @@
+[
+  {
+    "op": "app.info",
+    "surface": "main",
+    "value": {
+      "version": "0",
+      "buildGit": "abc",
+      "os": "macOS",
+      "loadAverage": 1,
+      "cores": 1,
+      "source": "bundle",
+      "devCommit": "",
+      "devDirty": false,
+      "devUiHash": "",
+      "devAgentdHash": "",
+      "hookInstallSteps": [
+        {
+          "label": "先看会改什么",
+          "command": "'/path/to/python3' '/path/to/install_hooks.py' --hook-script '/path/to/bin/agentic-complex-hook' --dry-run",
+          "terminal": true
+        }
+      ]
+    }
+  },
+  {
+    "op": "app.look",
+    "surface": "main",
+    "value": {
+      "requestId": "request"
+    }
+  },
+  {
+    "op": "app.runtime",
+    "surface": "main",
+    "nullable": [
+      "config_error",
+      "processes.*.pid",
+      "processes.*.backoff",
+      "processes.*.reason",
+      "processes.*.stage",
+      "character.current",
+      "character.shown",
+      "character.agentd",
+      "character.pending",
+      "character.failure",
+      "visibility.reason",
+      "tts.reason",
+      "tts.retry_after_s",
+      "tts.tunnel"
+    ],
+    "value": {
+      "revision": 1,
+      "phase": "interactive",
+      "config_error": null,
+      "processes": {
+        "agentd": {
+          "state": "running",
+          "pid": 1,
+          "backoff": null,
+          "reason": null,
+          "stage": null
+        },
+        "avatar": {
+          "state": "running",
+          "pid": 1,
+          "backoff": null,
+          "reason": null,
+          "stage": null
+        },
+        "tunnel": {
+          "state": "running",
+          "pid": 1,
+          "backoff": null,
+          "reason": null,
+          "stage": null
+        }
+      },
+      "character": {
+        "current": "si",
+        "shown": "si",
+        "agentd": "si",
+        "pending": null,
+        "switching": false,
+        "failure": null
+      },
+      "visibility": {
+        "hidden": false,
+        "reason": null,
+        "fullscreen_hidden": false,
+        "click_through_all": false
+      },
+      "tts": {
+        "provider": "none",
+        "state": "off",
+        "reason": "not_configured",
+        "retry_after_s": null,
+        "muted": false,
+        "tunnel": null
+      },
+      "voice_input": "off",
+      "degraded": []
+    }
+  },
+  {
+    "op": "supervisor.state",
+    "surface": "main",
+    "nullable": [
+      "*.pid",
+      "*.backoff",
+      "*.cpuPercent",
+      "*.memoryMB"
+    ],
+    "value": {
+      "agentd": {
+        "state": "running",
+        "pid": 1,
+        "backoff": null,
+        "cpuPercent": 1,
+        "memoryMB": 1
+      },
+      "avatar": {
+        "state": "running",
+        "pid": 1,
+        "backoff": null,
+        "cpuPercent": 1,
+        "memoryMB": 1
+      }
+    }
+  },
+  {
+    "op": "permissions.status",
+    "surface": "main",
+    "value": {
+      "accessibility": "granted",
+      "screenRecording": "granted",
+      "microphone": "granted",
+      "automation": "granted",
+      "inputMonitoring": "granted",
+      "notifications": "granted"
+    }
+  },
+  {
+    "op": "permissions.request",
+    "surface": "main",
+    "args": [
+      "accessibility"
+    ],
+    "value": "granted"
+  },
+  {
+    "op": "computerUse.state",
+    "surface": "main",
+    "value": {
+      "granted": [
+        "observation"
+      ],
+      "active": false
+    }
+  },
+  {
+    "op": "files.pickFile",
+    "surface": "main",
+    "args": [
+      {
+        "purpose": "runtime_executable"
+      }
+    ],
+    "value": null
+  },
+  {
+    "op": "files.pickFolder",
+    "surface": "main",
+    "args": [
+      {
+        "purpose": "scope_root"
+      }
+    ],
+    "value": null
+  },
+  {
+    "op": "files.saveAgentdExport",
+    "surface": "main",
+    "args": [
+      {
+        "path": "/history/export",
+        "suggestedName": "history.json"
+      }
+    ],
+    "value": false
+  },
+  {
+    "op": "window.contentRect",
+    "surface": "stack",
+    "value": {
+      "width": 800,
+      "height": 600
+    }
+  }
+]

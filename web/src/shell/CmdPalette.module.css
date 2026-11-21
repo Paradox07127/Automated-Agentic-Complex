@@ -1,0 +1,112 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ef-z-modal);
+  background: var(--ef-scrim);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 96px;
+}
+
+.panel {
+  width: 560px;
+  background: var(--ef-surface-2);
+  box-shadow: var(--ef-shadow-float);
+  border-radius: var(--ef-r-6);
+  overflow: hidden;
+}
+
+.input {
+  display: block;
+  width: calc(100% - 20px);
+  height: var(--ef-h-md);
+  margin: 10px;
+  padding: 0 var(--ef-sp-12);
+  border: var(--ef-lw-hair) solid var(--ef-field-border);
+  border-radius: var(--ef-r-pill);
+  background: var(--ef-field);
+  color: var(--ef-field-text);
+}
+
+.list {
+  max-height: 360px;
+  overflow: auto;
+  padding: 0 0 var(--ef-sp-6);
+}
+
+.group {
+  padding: var(--ef-space-inline) var(--ef-space-inline) var(--ef-sp-4);
+  font: var(--ef-t-h3);
+  color: var(--ef-text-2);
+}
+
+.count {
+  margin-left: var(--ef-sp-4);
+  font: var(--ef-t-num);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-space-control);
+  width: 100%;
+  min-height: var(--ef-h-md);
+  padding: 0 var(--ef-space-inline);
+  border: 0;
+  background: none;
+  color: var(--ef-text-1);
+  font: var(--ef-t-row);
+  text-align: left;
+  cursor: pointer;
+}
+
+.option[aria-disabled='true'] {
+  color: var(--ef-text-3);
+  cursor: default;
+}
+
+.on {
+  background: var(--ef-row-sel-bg);
+  color: var(--ef-row-sel-fg);
+}
+
+.on :global(kbd) {
+  color: inherit;
+  border-color: currentColor;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hint {
+  font: var(--ef-t-meta);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* Fixed column so key caps line up whether or not an item has one. */
+.keys {
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+  width: var(--ef-h-md);
+}
+
+.empty {
+  padding: 10px 14px;
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-3);
+}
+
+.foot {
+  padding: var(--ef-sp-8) 14px;
+  border-top: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  font-size: var(--ef-fs-caption);
+  color: var(--ef-text-3);
+}

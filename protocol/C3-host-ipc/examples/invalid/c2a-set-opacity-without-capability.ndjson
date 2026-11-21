@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["surfaces"]}
+{"v":1,"type":"set_opacity","opacity":0.35,"duration_ms":333}

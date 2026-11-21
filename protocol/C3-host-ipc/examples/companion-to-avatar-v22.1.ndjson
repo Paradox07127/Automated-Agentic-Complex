@@ -1,0 +1,9 @@
+{"v":1,"type":"hello","role":"companion","pid":4243,"protocol":1,"capabilities":["capsules_global","watchdog","pointer","pass_through","keep_clear"],"build":{"git":"9e3c2555"}}
+{"v":1,"type":"attention_side","source":"panel","kind":"comm","side":"right","generation":1}
+{"v":1,"type":"present","token":"present-7f3a","side":"right","phase":"open"}
+{"v":1,"type":"present","token":"present-7f3a","side":"right","phase":"close"}
+{"v":1,"type":"attention_side","source":"focus","kind":"window","side":"left","generation":2}
+{"v":1,"type":"pass_through","rects":[{"x":1060,"y":180,"w":240,"h":40}]}
+{"v":1,"type":"keep_clear","id":"kc-7f3a01","kind":"text_input","rects":[{"x":1060,"y":180,"w":240,"h":40},{"x":1182,"y":186,"w":2,"h":28}]}
+{"v":1,"type":"keep_clear","id":"kc-7f3a02","kind":"video","rects":[{"x":0,"y":70,"w":1920,"h":980}]}
+{"v":1,"type":"keep_clear","id":null}

@@ -1,0 +1,45 @@
+{
+  "note": "全屏看有声视频",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:yt-1",
+      "app": "Google Chrome",
+      "bundle_id": "com.google.Chrome",
+      "pid": 481,
+      "window_id": 81,
+      "title": "Night train timelapse - YouTube",
+      "url_host": null,
+      "since": 1799999600.0,
+      "secure_input": false,
+      "fullscreen": true
+    },
+    "dwell_s": 400.0,
+    "presence": {
+      "id": "afk:yt-1",
+      "status": "active",
+      "seconds": 1200,
+      "idle_s": 90
+    },
+    "page": {
+      "id": "page:yt-1",
+      "url_host": "www.youtube.com",
+      "title": "Night train timelapse - YouTube",
+      "audible": true,
+      "text": null
+    },
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "watching_video",
+    "status": "ok",
+    "related_session_ids": [],
+    "can_interrupt": false
+  }
+}

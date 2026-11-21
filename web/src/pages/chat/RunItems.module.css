@@ -1,0 +1,55 @@
+.root {
+  margin-block: 16px;
+  padding: 12px;
+  border: 1px solid var(--ef-line);
+  background: var(--ef-bg-canvas);
+  color: var(--ef-text-2);
+  font: 400 13px/1.55 var(--ef-font-sans);
+}
+
+.root header,
+.receipt button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.root header h3 {
+  flex: 1;
+  margin: 0 0 4px;
+  color: var(--ef-text-1);
+  font-size: 14px;
+}
+
+.root p { margin: 8px 0; }
+
+.receipt { border-top: 1px solid var(--ef-line); }
+
+.receipt button {
+  width: 100%;
+  min-height: 38px;
+  padding-block: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.receipt button::after { content: '+'; }
+.receipt button[aria-expanded='true']::after { content: '−'; }
+.receipt button b { flex: 1; color: var(--ef-text-1); }
+.status { flex: none; font: var(--ef-t-meta); }
+.status[data-failed] { color: var(--ef-danger); }
+
+.details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  padding-bottom: 8px;
+  margin: 0 0 0 24px;
+  overflow-wrap: anywhere;
+}
+
+.details dd { margin: 0; white-space: pre-wrap; }

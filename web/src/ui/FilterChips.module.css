@@ -1,0 +1,50 @@
+/* .ef-chip: small chip-filled block with the bottom-right corner cut and a count; selected = yellow fill. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-space-control);
+}
+
+.chip {
+  --fill: var(--ef-chip);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  height: 28px;
+  padding: 0 calc(var(--ef-sp-8) + var(--ef-cut)) 0 var(--ef-sp-12);
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(-45deg, transparent calc(var(--ef-cut) - 0.5px), var(--fill) var(--ef-cut));
+  color: var(--ef-text-1);
+  font-family: var(--ef-font-ui);
+  font-size: var(--ef-fs-meta);
+  font-stretch: var(--ef-wide);
+  font-weight: var(--ef-fw-medium);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip:hover,
+.chip[aria-pressed='true'] {
+  --fill: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--ef-trace);
+  outline-offset: 2px;
+}
+
+.count {
+  color: var(--ef-text-2);
+  font-family: var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip:hover .count,
+.chip[aria-pressed='true'] .count {
+  color: var(--ef-on-accent);
+}

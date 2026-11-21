@@ -1,0 +1,42 @@
+{
+  "note": "用户离开 15 分钟，一个无关会话在跑",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": null,
+    "dwell_s": null,
+    "presence": {
+      "id": "afk:away-1",
+      "status": "afk",
+      "seconds": 900,
+      "idle_s": 900
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [
+      {
+        "display_session": "codex:s-kestrel",
+        "source": "codex",
+        "session_id": "s-kestrel",
+        "cwd": "/Users/demo/work/kestrel",
+        "state": "running_tool",
+        "effective_state": "running_tool",
+        "tool_name": "shell",
+        "tool_category": "command",
+        "origin": null,
+        "since": 1799999970.0,
+        "observed_at": 1799999970.0
+      }
+    ],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "away",
+    "status": "ok",
+    "related_session_ids": [],
+    "can_interrupt": false
+  }
+}

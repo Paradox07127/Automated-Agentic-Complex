@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"capabilities":["heartbeat"]}
+{"v":1,"type":"drop","items":[{"kind":"file","path":"/Users/someone/Desktop/a.txt"}],"x":10,"y":10}

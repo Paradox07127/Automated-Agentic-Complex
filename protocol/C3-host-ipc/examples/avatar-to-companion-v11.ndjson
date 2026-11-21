@@ -1,0 +1,7 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","placement","trace","playback","turn_generation","behavior_receipt"],"build":{"git":"e8d17c47"}}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1760870000-1","phase":"prepared","reason":null,"at_ms":1760870001000,"turn_generation":3}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1760870000-1","phase":"running","reason":null,"at_ms":1760870001400,"turn_generation":3}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1760870000-1","phase":"blocked","reason":"target_gone","at_ms":1760870004100,"turn_generation":3}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1760870000-2","phase":"rejected","reason":"busy","at_ms":1760870004200,"turn_generation":3}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1760870000-3","phase":"running","reason":null,"at_ms":1760870005000,"turn_generation":4}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1760870000-3","phase":"completed","reason":null,"at_ms":1760870035000,"turn_generation":4}

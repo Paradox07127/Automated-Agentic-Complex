@@ -1,0 +1,132 @@
+"""Pi's Node SDK behind Endfield's existing private stream/tool IPC contract."""
+import json
+from pathlib import Path
+import queue
+import re
+import subprocess
+import threading
+import time
+
+from infra.platform import new_group_options, track_group
+
+from .codex_runner import classify_failure
+from .pi_config import PiConfig, pi_runner_environment
+from .transport import HarnessError, ManagedClaudeSession
+
+RUNNER = Path(__file__).with_name("pi_runner.mjs")
+
+
+def list_models(node, runtime_dir, state_dir, provider, timeout=30.0):
+    """Pi's offline catalog from a runner of its own: {providers, models of `provider`}; no key, no network.
+    `provider` None lists only the providers."""
+    env = pi_runner_environment(state_dir)
+    try:
+        proc = subprocess.Popen([node, str(RUNNER)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, cwd=str(Path(state_dir).resolve() / "workspace"), env=env,
+            bufsize=0, close_fds=True, **new_group_options())
+        track_group(proc)
+    except OSError as error:
+        raise ValueError("pi_runtime_unavailable") from error
+    lines = queue.Queue()
+    threading.Thread(target=lambda: lines.put(proc.stdout.readline()), name="pi-catalog-reader", daemon=True).start()
+    try:
+        # stdin stays open until the answer: the runner exits when it closes.
+        proc.stdin.write((json.dumps({"v": 1, "type": "list_models", "runtime_dir": runtime_dir,
+                                      "provider": provider}) + "\n").encode())
+        proc.stdin.flush()
+        raw = lines.get(timeout=timeout)
+    except OSError:
+        raw = b""
+    except queue.Empty:
+        raise ValueError("sdk_startup_timeout") from None
+    finally:
+        try:
+            proc.stdin.close()
+            proc.wait(timeout=2)
+        except (OSError, subprocess.TimeoutExpired):
+            proc.kill()
+            proc.wait()
+        proc.stdout.close()
+    frame = json.loads(raw) if raw else {"code": "pi_runtime_unavailable"}
+    if frame.get("type") != "models":
+        raise ValueError(frame.get("code") or "pi_runner_error")
+    return {"providers": frame["providers"], "models": frame["models"]}
+
+
+class ManagedPiSession(ManagedClaudeSession):
+    """Share process lifecycle/IPC, but never create a Claude session or loop."""
+    def __init__(self, config: PiConfig, tool_definitions=None, tool_handler=None, permission_handler=None, *,
+                 runner_path=None, credential=None, on_ready=None):
+        super().__init__(config, tool_definitions, tool_handler, permission_handler,
+                         runner_path=runner_path or RUNNER)
+        # () -> the connection's current key, sent with every query.
+        self.credential = credential
+        # (ready frame) -> None, each time a runner starts.
+        self.on_ready = on_ready
+
+    def _queue(self, event, generation):
+        # The model's own error text is classified here and goes no further: it may quote request content.
+        if event.get("type") == "result" and "error_message" in event:
+            event = dict(event)
+            text = event.pop("error_message")
+            if event.get("stop_reason") == "length":
+                # A retry hits the same output limit.
+                event.update(error="output_truncated", failure={"code": "output_truncated", "retryable": False})
+            elif event.get("subtype") != "cancelled":
+                # pi-ai writes an HTTP failure as "<status>: <body>".
+                status = re.match(r"(\d{3}):", text)
+                event.update(error=event.get("subtype"), failure=classify_failure(
+                    event.get("subtype"), errors=[text], status=int(status.group(1)) if status else None))
+        super()._queue(event, generation)
+
+    def _write(self, message, proc=None):
+        if message["type"] == "query" and self.credential is not None:
+            try:
+                message = {**message, "api_key": self.credential()}
+            except ValueError as error:
+                raise HarnessError(str(error)) from None
+        super()._write(message, proc)
+
+    def _ensure(self, system_prompt):
+        self.config.validate(require_key=False)
+        if self._proc is not None and self._proc.poll() is None and self._system_prompt == system_prompt:
+            return self._ready
+        self.close()
+        with self._state_lock:
+            self._generation += 1
+            generation = self._generation
+            self._events = queue.Queue(maxsize=512)
+            self._seen_tools = set()
+            try:
+                env = pi_runner_environment(self.config.state_dir)
+                self._proc = subprocess.Popen([self.config.node, str(self.runner_path)],
+                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                    cwd=str(Path(self.config.state_dir).resolve() / "workspace"), env=env,
+                    bufsize=0, close_fds=True, **new_group_options())
+                track_group(self._proc)
+            except OSError as error:
+                raise HarnessError("pi_runtime_unavailable") from error
+            proc = self._proc
+            self._system_prompt = system_prompt
+            self._first_query = True
+            threading.Thread(target=self._read, args=(proc, generation), name="pi-runner-reader", daemon=True).start()
+        self._write({"type": "init", "config": self.config.wire(), "system_prompt": system_prompt,
+                     "tools": self.tool_definitions})
+        deadline = time.monotonic() + self.config.startup_timeout
+        while time.monotonic() < deadline:
+            try:
+                event = self._events.get(timeout=min(.1, max(.001, deadline-time.monotonic())))
+            except queue.Empty:
+                continue
+            if event["type"] == "ready":
+                self._ready = event
+                self.session_id = event.get("session_id")
+                self.capabilities = event["capabilities"]
+                if self.on_ready is not None:
+                    self.on_ready(event)
+                return event
+            if event["type"] in ("error", "eof"):
+                self.close()
+                raise HarnessError(event.get("code", "pi_runtime_unavailable"))
+        self.close()
+        raise HarnessError("sdk_startup_timeout")

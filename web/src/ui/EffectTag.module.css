@@ -1,0 +1,25 @@
+/* Square state label: at rest an idle chip; saved but not applied needs a look, so a yellow block. */
+.tag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--ef-chip);
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-meta);
+  font-weight: var(--ef-fw-medium);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tag[data-pending] {
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.pending {
+  margin-left: 2px;
+}

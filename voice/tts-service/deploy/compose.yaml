@@ -1,0 +1,27 @@
+services:
+  tts:
+    build:
+      context: ../../..
+      dockerfile: voice/tts-service/deploy/Dockerfile
+    user: "${AAC_TTS_UID:?Run deploy.sh}:${AAC_TTS_GID:?Run deploy.sh}"
+    environment:
+      AAC_TTS_TOKEN_FILE: /srv/tts/state/tts-token
+      AAC_VOICE_ROOT: /srv/tts
+      AAC_GPT_SOVITS: /opt/GPT-SoVITS
+      AAC_TTS_REMOTE: "${AAC_TTS_REMOTE:?Run deploy.sh}"
+    volumes:
+      - type: bind
+        source: ${AAC_TTS_ROOT:?Run deploy.sh}/weights
+        target: /srv/tts
+      - type: bind
+        source: ${AAC_TTS_ROOT:?Run deploy.sh}/state
+        target: /srv/tts/state
+    ports:
+      - "${AAC_TTS_BIND:?Run deploy.sh}:${AAC_TTS_PORT:?Run deploy.sh}:9888"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

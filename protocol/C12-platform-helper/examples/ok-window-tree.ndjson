@@ -1,0 +1,24 @@
+{"v":1,"id":1,"op":"hello","params":{"protocol":1,"client":"electron","client_version":"0.1.0"}}
+{"v":1,"id":1,"ok":true,"result":{"protocol":1,"platform":"macos","helper_version":"0.1.0","os_version":"macOS 26.1","arch":"arm64","pid":4242,"ops":["hello","cancel","shutdown","input.watch","input.actions","ax.window_text","ax.window_tree"],"events":["input.activity","input.action"]}}
+{"v":1,"id":2,"op":"ax.window_tree","params":{"pid":702}}
+{"v":1,"id":2,"ok":true,"result":{"matched":true,"tree_id":"t-1","mode":"full","text":"0 window notes.txt\n\t1 toolbar\n\t\t2 button Save\n\t\t3 button Share (disabled)\n\t4 text area editor, Value: Shopping list\\nmilk\n\t5 text field Password","lines":6,"truncated":false,"secure":true}}
+{"v":1,"id":3,"op":"ax.window_tree","params":{"pid":702,"previous":"t-1"}}
+{"v":1,"id":3,"ok":true,"result":{"matched":true,"tree_id":"t-2","mode":"diff","text":"~\t4 text area editor, Value: Shopping list\\nmilk\\neggs","lines":6,"truncated":false,"secure":true}}
+{"v":1,"id":4,"op":"ax.window_tree","params":{"pid":702,"previous":"t-2","window_bounds":{"x":200,"y":120,"width":900,"height":600},"max_lines":800,"max_scalars":32000}}
+{"v":1,"id":4,"ok":true,"result":{"matched":true,"tree_id":"t-3","mode":"no_change","text":"","lines":6,"truncated":false,"secure":true}}
+{"v":1,"id":5,"op":"ax.window_tree","params":{"pid":611,"previous":"t-3","max_lines":2}}
+{"v":1,"id":5,"ok":true,"result":{"matched":true,"tree_id":"t-4","mode":"full","text":"0 window Inbox\n\t1 list (showing 1-40 of 1200 items)","lines":2,"truncated":true,"secure":false}}
+{"v":1,"id":6,"op":"ax.window_tree","params":{"pid":611,"window_bounds":{"x":0,"y":0,"width":10,"height":10}}}
+{"v":1,"id":6,"ok":true,"result":{"matched":false,"tree_id":"t-5","mode":"full","text":"","lines":0,"truncated":false,"secure":false}}
+{"v":1,"id":7,"op":"ax.window_tree","params":{"pid":611}}
+{"v":1,"id":7,"ok":false,"error":{"code":"ax_timeout","message":"the app did not answer within 250 ms","retryable":true}}
+{"v":1,"id":8,"op":"input.actions","params":{"enabled":true}}
+{"v":1,"id":8,"ok":true,"result":{"watching":true}}
+{"v":1,"event":"input.action","seq":1,"data":{"kind":"click","pid":702,"target":{"role":"AXButton","native_role":"AXButton","subrole":null,"label":"Save","value_length":null,"window_title":"notes.txt","doc":"/Users/me/notes.txt","element_key":"5d02e1"}}}
+{"v":1,"event":"input.action","seq":2,"data":{"kind":"shortcut","pid":702,"keys":"shift+cmd+p","target":{"role":"AXTextArea","native_role":"AXTextArea","subrole":null,"label":"editor","value_length":29,"window_title":"notes.txt","doc":"/Users/me/notes.txt","element_key":"a81f3c"}}}
+{"v":1,"event":"input.action","seq":3,"data":{"kind":"submit","pid":702,"keys":"return","target":null}}
+{"v":1,"event":"input.action","seq":4,"data":{"kind":"context_menu","pid":611,"target":{"role":"AXRow","native_role":"AXRow","subrole":"AXOutlineRow","label":null,"value_length":null,"window_title":"Inbox","doc":null,"element_key":"77b0aa"}}}
+{"v":1,"id":9,"op":"input.actions","params":{"enabled":false}}
+{"v":1,"id":9,"ok":true,"result":{"watching":false}}
+{"v":1,"id":10,"op":"shutdown","params":{}}
+{"v":1,"id":10,"ok":true,"result":{}}

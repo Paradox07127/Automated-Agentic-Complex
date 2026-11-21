@@ -1,0 +1,195 @@
+:is(.sel, .tip)[data-tone='yellow'] {
+  --mf-c: var(--ef-accent);
+}
+
+:is(.sel, .tip)[data-tone='blue'] {
+  --mf-c: var(--ef-mission-accent);
+}
+
+:is(.sel, .tip)[data-tone='green'] {
+  --mf-c: var(--ef-g-mission-green);
+}
+
+/* The rule after the list's group head; mission_in grows it from the left. */
+.grpLine {
+  flex: 1;
+  height: var(--ef-lw-hair);
+  background: var(--ef-line);
+  transform-origin: left;
+}
+
+/* Selected cell (missioncell_selecting_in), under the content of an isolated cell and over its edge. */
+.sel {
+  position: absolute;
+  z-index: -1;
+  inset: -1px;
+  pointer-events: none;
+}
+
+/* SelectedBG: pivot at the right, 279 px narrower than the cell at the clip's first frame. */
+.band {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: calc(100% + var(--size-x) * 1px);
+  overflow: hidden;
+}
+
+/* BgTwillImage: the plate (recipe mission-sel-plate), a fine texture brightening toward the right. */
+.plate {
+  --mf-plate: var(--ef-mission-row-text);
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--mf-plate) 27%, transparent));
+  opacity: 0.502;
+}
+
+:global([data-theme='light']) .plate {
+  --mf-plate: var(--ef-mission-row-sel);
+}
+
+:global(html[data-art]) .plate {
+  background: var(--mf-plate);
+  -webkit-mask: url('/art/pages/overview/mission-sel-plate.png') center / 100% 100% no-repeat;
+  mask: url('/art/pages/overview/mission-sel-plate.png') center / 100% 100% no-repeat;
+}
+
+/* BgMaskImage: the category twill (recipe mission-twill, 184x104 g) at the band's left, fading out to the right. */
+.twill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 92px;
+  background: repeating-linear-gradient(-45deg, var(--mf-c) 0 1.5px, transparent 1.5px 5px);
+  -webkit-mask: linear-gradient(90deg, #000, transparent);
+  mask: linear-gradient(90deg, #000, transparent);
+}
+
+:global(html[data-art]) .twill {
+  background: var(--mf-c);
+  -webkit-mask: url('/art/common/mission-twill.png') left center / 92px 100% no-repeat;
+  mask: url('/art/common/mission-twill.png') left center / 92px 100% no-repeat;
+}
+
+/* DecoLeftImage: the glow bar (48x144 g) standing out of the cell's left edge. */
+.bar {
+  position: absolute;
+  top: 50%;
+  left: -12px;
+  width: 24px;
+  height: 72px;
+  margin-top: -36px;
+  background: radial-gradient(3px 34px at center, var(--mf-c), transparent);
+}
+
+:global(html[data-art]) [data-tone='yellow'] > .bar {
+  background: url('/art/pages/overview/mission-sel-glow-yellow.png') center / 100% 100% no-repeat;
+}
+
+:global(html[data-art]) [data-tone='blue'] > .bar {
+  background: url('/art/pages/overview/mission-sel-glow-blue.png') center / 100% 100% no-repeat;
+}
+
+:global(html[data-art]) [data-tone='green'] > .bar {
+  background: url('/art/pages/overview/mission-sel-glow-green.png') center / 100% 100% no-repeat;
+}
+
+/* The white frame that flickers on. */
+.line {
+  position: absolute;
+  inset: 0;
+  border: var(--ef-lw-hair) solid var(--ef-mission-row-text);
+}
+
+/* Tracking rings (icon_mission_ring, 116 g) centred on the icon slot; hidden outside their one cycle. */
+.tip {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 58px;
+  height: 58px;
+  margin: -29px 0 0 -29px;
+  border: 1.5px solid var(--mf-c);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+:global(html[data-art]) .ring {
+  border: 0;
+  border-radius: 0;
+}
+
+:global(html[data-art]) [data-tone='yellow'] > .ring {
+  background: url('/art/pages/overview/mission-track-ring-yellow.png') center / 100% 100% no-repeat;
+}
+
+:global(html[data-art]) [data-tone='blue'] > .ring {
+  background: url('/art/pages/overview/mission-track-ring-blue.png') center / 100% 100% no-repeat;
+}
+
+:global(html[data-art]) [data-tone='green'] > .ring {
+  background: url('/art/pages/overview/mission-track-ring-green.png') center / 100% 100% no-repeat;
+}
+
+/* Task complete light layers behind the receipt's text, clipped to its band; all end at 0. */
+.complete {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* bandBg (recipe complete-band-bg, 302x69 g) in the accent over the whole band. */
+.bandBg {
+  position: absolute;
+  inset: 0;
+  background: var(--ef-accent);
+  opacity: 0;
+}
+
+:global(html[data-art]) .bandBg {
+  -webkit-mask: url('/art/pages/overview/complete-band-bg.png') center / 100% 100% no-repeat;
+  mask: url('/art/pages/overview/complete-band-bg.png') center / 100% 100% no-repeat;
+}
+
+/* light2 (recipe complete-light, 322x277 g) rising behind the check mark. */
+.light {
+  position: absolute;
+  top: 50%;
+  left: -64px;
+  width: 161px;
+  height: 138.5px;
+  margin-top: -69.25px;
+  background: radial-gradient(closest-side, var(--ef-mission-row-text), transparent);
+  opacity: 0;
+}
+
+:global(html[data-art]) .light {
+  background: var(--ef-mission-row-text);
+  -webkit-mask: url('/art/pages/overview/complete-light.png') center / 100% 100% no-repeat;
+  mask: url('/art/pages/overview/complete-light.png') center / 100% 100% no-repeat;
+}
+
+/* Halo (additive) centred on the check mark. */
+.halo {
+  position: absolute;
+  top: 50%;
+  left: 18px;
+  width: 0;
+  height: 0;
+}
+
+.halo > * {
+  position: absolute;
+  top: -80.75px;
+  left: -80.75px;
+}

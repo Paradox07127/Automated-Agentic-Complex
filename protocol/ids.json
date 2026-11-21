@@ -1,0 +1,35 @@
+{
+  "schema": "endfield-ids/v1",
+  "bundle": {
+    "companion": "local.agenticcomplex.companion"
+  },
+  "preview_xpc_suffix": ".preview",
+  "dirs": {
+    "companion_support": "Library/Application Support/local.agenticcomplex.companion",
+    "agentd_state": "Library/Application Support/AgenticComplex/agentd",
+    "web_logs": "Library/Logs/AgenticComplex"
+  },
+  "ports": {
+    "agentd": 48800,
+    "test": {"render_progress": 48810},
+    "dev": {"console": 48780, "agentd": 48790, "web": 5190}
+  },
+  "urls": {
+    "tts": "http://127.0.0.1:9888"
+  },
+  "copies": {
+    "bundle.companion": ["agent/agentd/infra/paths.py",
+      "tools/release/package_app.py", "app/electron/src/common/attention.ts", "app/electron/src/main/preview/window.ts"],
+    "preview_xpc_suffix": ["app/electron/src/main/preview/window.ts"],
+    "dirs.companion_support": ["app/electron/src/common/config.ts"],
+    "dirs.agentd_state": ["agent/agentd/infra/paths.py",
+      "tools/qa/live_routes.py", "agent/browser/install.sh", "app/electron/src/common/config.ts"],
+    "dirs.web_logs": ["app/electron/src/common/config.ts"],
+    "ports.agentd": ["agent/agentd/infra/paths.py", "agent/agentd/codex_hook_forward.py", "tools/qa/gate.py",
+      "tools/qa/artifact_smoke.py"],
+    "urls.tts": ["app/electron/src/common/config.ts"],
+    "ports.dev.console": ["tools/dev/dev_console.py", "docs/development.md"],
+    "ports.dev.agentd": ["tools/dev/dev_console.py"],
+    "ports.dev.web": ["tools/dev/dev_console.py"]
+  }
+}

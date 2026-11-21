@@ -1,0 +1,387 @@
+{
+  "codex_version": "0.163.0",
+  "fields": {
+    "client_notification initialized method": {
+      "enum": [
+        "initialized"
+      ],
+      "type": [
+        "string"
+      ]
+    },
+    "client_request initialize params.clientInfo.name": {
+      "type": [
+        "string"
+      ]
+    },
+    "client_request initialize params.clientInfo.version": {
+      "type": [
+        "string"
+      ]
+    },
+    "client_request thread/resume params.approvalPolicy": {
+      "enum": [
+        "never",
+        "on-request",
+        "untrusted"
+      ],
+      "type": [
+        "null",
+        "object",
+        "string"
+      ]
+    },
+    "client_request thread/resume params.approvalsReviewer": {
+      "enum": [
+        "auto_review",
+        "guardian_subagent",
+        "user"
+      ],
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "client_request thread/resume params.sandbox": {
+      "enum": [
+        "danger-full-access",
+        "read-only",
+        "workspace-write"
+      ],
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "client_request thread/resume params.threadId": {
+      "type": [
+        "string"
+      ]
+    },
+    "client_request thread/start params.approvalPolicy": {
+      "enum": [
+        "never",
+        "on-request",
+        "untrusted"
+      ],
+      "type": [
+        "null",
+        "object",
+        "string"
+      ]
+    },
+    "client_request thread/start params.approvalsReviewer": {
+      "enum": [
+        "auto_review",
+        "guardian_subagent",
+        "user"
+      ],
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "client_request thread/start params.cwd": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "client_request thread/start params.sandbox": {
+      "enum": [
+        "danger-full-access",
+        "read-only",
+        "workspace-write"
+      ],
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "client_request turn/interrupt params.threadId": {
+      "type": [
+        "string"
+      ]
+    },
+    "client_request turn/interrupt params.turnId": {
+      "type": [
+        "string"
+      ]
+    },
+    "client_request turn/start params.input": {
+      "type": [
+        "array"
+      ]
+    },
+    "client_request turn/start params.input[].text": {
+      "type": [
+        "string"
+      ]
+    },
+    "client_request turn/start params.input[].type": {
+      "enum": [
+        "audio",
+        "image",
+        "localAudio",
+        "localImage",
+        "mention",
+        "skill",
+        "text"
+      ],
+      "type": [
+        "string"
+      ]
+    },
+    "client_request turn/start params.threadId": {
+      "type": [
+        "string"
+      ]
+    },
+    "response * error.code": {
+      "type": [
+        "integer"
+      ]
+    },
+    "response * error.message": {
+      "type": [
+        "string"
+      ]
+    },
+    "response item/commandExecution/requestApproval result.decision": {
+      "enum": [
+        "accept",
+        "acceptForSession",
+        "cancel",
+        "decline"
+      ],
+      "type": [
+        "object",
+        "string"
+      ]
+    },
+    "response item/fileChange/requestApproval result.decision": {
+      "enum": [
+        "accept",
+        "acceptForSession",
+        "cancel",
+        "decline"
+      ],
+      "type": [
+        "string"
+      ]
+    },
+    "response mcpServer/elicitation/request result.action": {
+      "enum": [
+        "accept",
+        "cancel",
+        "decline"
+      ],
+      "type": [
+        "string"
+      ]
+    },
+    "response mcpServer/elicitation/request result.content": {
+      "type": [
+        "any"
+      ]
+    },
+    "response thread/resume result.thread.id": {
+      "type": [
+        "string"
+      ]
+    },
+    "response thread/start result.thread.id": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/agentMessage/delta params.delta": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/completed params.item.text": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/completed params.item.type": {
+      "enum": [
+        "agentMessage",
+        "collabAgentToolCall",
+        "commandExecution",
+        "contextCompaction",
+        "dynamicToolCall",
+        "enteredReviewMode",
+        "exitedReviewMode",
+        "fileChange",
+        "functionCallOutput",
+        "hookPrompt",
+        "imageGeneration",
+        "imageView",
+        "mcpToolCall",
+        "plan",
+        "reasoning",
+        "sleep",
+        "subAgentActivity",
+        "userMessage",
+        "webSearch"
+      ],
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/started params.item.changes": {
+      "type": [
+        "array"
+      ]
+    },
+    "server_notification item/started params.item.changes[].diff": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/started params.item.changes[].kind.type": {
+      "enum": [
+        "add",
+        "delete",
+        "update"
+      ],
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/started params.item.changes[].path": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/started params.item.command": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/started params.item.id": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/started params.item.server": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/started params.item.tool": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification item/started params.item.type": {
+      "enum": [
+        "agentMessage",
+        "collabAgentToolCall",
+        "commandExecution",
+        "contextCompaction",
+        "dynamicToolCall",
+        "enteredReviewMode",
+        "exitedReviewMode",
+        "fileChange",
+        "functionCallOutput",
+        "hookPrompt",
+        "imageGeneration",
+        "imageView",
+        "mcpToolCall",
+        "plan",
+        "reasoning",
+        "sleep",
+        "subAgentActivity",
+        "userMessage",
+        "webSearch"
+      ],
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification turn/completed params.turn.id": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification turn/completed params.turn.status": {
+      "enum": [
+        "completed",
+        "failed",
+        "inProgress",
+        "interrupted"
+      ],
+      "type": [
+        "string"
+      ]
+    },
+    "server_notification turn/started params.turn.id": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_request item/commandExecution/requestApproval params.command": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "server_request item/commandExecution/requestApproval params.reason": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "server_request item/fileChange/requestApproval params.itemId": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_request item/fileChange/requestApproval params.reason": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "server_request mcpServer/elicitation/request params._meta": {
+      "type": [
+        "any"
+      ]
+    },
+    "server_request mcpServer/elicitation/request params.message": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_request mcpServer/elicitation/request params.mode": {
+      "enum": [
+        "form",
+        "openai/form",
+        "openaiForm",
+        "url"
+      ],
+      "type": [
+        "string"
+      ]
+    },
+    "server_request mcpServer/elicitation/request params.requestedSchema": {
+      "type": [
+        "any",
+        "object"
+      ]
+    },
+    "server_request mcpServer/elicitation/request params.serverName": {
+      "type": [
+        "string"
+      ]
+    },
+    "server_request mcpServer/elicitation/request params.threadId": {
+      "type": [
+        "string"
+      ]
+    }
+  }
+}

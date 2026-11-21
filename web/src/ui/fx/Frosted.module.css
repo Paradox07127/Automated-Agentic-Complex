@@ -1,0 +1,39 @@
+/* Frosted backing: blurred scene plus the game's #4C4C4C tint. */
+.frost {
+  position: relative;
+  background: color-mix(in srgb, var(--ef-g-frost) var(--frost-tint), transparent);
+}
+
+/* Only a real blur makes a backdrop root; WebKit leaves a nested one unblurred. */
+.frost[data-blur] {
+  -webkit-backdrop-filter: blur(var(--frost-blur));
+  backdrop-filter: blur(var(--frost-blur));
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .frost,
+  .frost[data-blur] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--ef-g-frost);
+  }
+}
+
+:global([data-reduce-transparency]) .frost,
+:global([data-reduce-transparency]) .frost[data-blur] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--ef-g-frost);
+}
+
+.demoBack {
+  position: relative;
+  width: 280px;
+  height: 160px;
+  background: repeating-linear-gradient(-45deg, var(--ef-g-yellow) 0 6px, var(--ef-g-icon) 6px 14px);
+}
+
+.demoPanel {
+  position: absolute;
+  inset: 25px 40px;
+}

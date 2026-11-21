@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-31",
+  "enabled": true,
+  "episodes": [{"id": 1, "start": "2026-10-31T09:00:00.000-04:00", "end": "2026-10-31T09:10:00.000-04:00", "title": "写周报",
+                "description": "你在「周报」里发了消息。",
+                "threads": [{"session": "周报", "status": "needs_you", "progress": "待确认分组", "evidence": [3], "topic": "周报",
+                             "blocked": true, "source_ids": ["source-one"], "subject": "周报", "goal": "核对分组", "constraints": ["按项目"],
+                             "decisions": [{"decision": "按项目分组", "reason": "便于核对"}], "outcome": "待确认", "unresolved": ["分组"], "next_steps": ["核对来源"], "requires": ["page_text"], "scope_ids": ["scope-one"]}],
+                "open_questions": [], "apps": ["Code"], "hosts": ["github.com"], "created_at": "2026-10-31T09:10:02.000-04:00",
+                "presence": "present", "user_actions": [{"text": "发出消息", "evidence": [1]}],
+                "agent_actions": [{"session": "周报", "text": "整理了提交", "evidence": [2]}], "version": 3,
+                "run_id": "native-extract", "edited": false, "outcome": "committed", "titles": ["周报.md"], "typed": false}],
+  "threads": [{"session": "周报", "yours_minutes": 10, "agent_minutes": 10, "status": "needs_you", "progress": "待确认分组"}]
+}

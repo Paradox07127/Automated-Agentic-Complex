@@ -1,0 +1,23 @@
+{"v":1,"id":1,"op":"hello","params":{"protocol":1,"client":"electron","client_version":"0.1.0"}}
+{"v":1,"id":1,"ok":true,"result":{"protocol":1,"platform":"macos","helper_version":"0.1.0","os_version":"macOS 26.1","arch":"arm64","pid":4242,"ops":["hello","cancel","shutdown","screens.list","windows.list","windows.at_point","workspace.watch","attention.sample","presence.watch","browser.front_tab","input.modifiers","input.watch","ax.focused","ax.dialog_buttons","ax.overlays","ax.hit_chain","ax.window_text","ax.selected_text","ax.video_rect","ax.watch","capture.window","capture.ambient","ocr.languages","ocr.recognize","speech.locales","mic.start","mic.stop","ptt.register","ptt.unregister","control.observe","control.act","control.read","control.listen","control.respond","permissions.status","permissions.request","clipboard.read","apps.running","apps.installed","apps.activate","terminal.focus","process.usage"],"events":["workspace.changed","presence.edge","input.activity","ax.notification","mic.level","speech.partial","ptt.down","ptt.up","control.request"]}}
+{"v":1,"id":2,"op":"control.listen","params":{"endpoint":"/Users/me/Library/Application Support/AgenticComplex/run/computer-control.sock","token_file":"/Users/me/Library/Application Support/AgenticComplex/run/computer-control.token"}}
+{"v":1,"id":2,"ok":true,"result":{"endpoint":"/Users/me/Library/Application Support/AgenticComplex/run/computer-control.sock"}}
+{"v":1,"event":"control.request","seq":1,"data":{"conn":1,"request":{"id":"r1","session_id":"codex-7","method":"desktop_observe","params":{"target":{"pid":702,"window_id":640},"include_text":true}}}}
+{"v":1,"id":3,"op":"control.observe","params":{"pid":702,"window_id":640,"include_text":true,"include_image":false,"max_elements":80,"max_text_scalars":4000}}
+{"v":1,"id":3,"ok":true,"result":{"snapshot_id":"o-3","target":{"pid":702,"app_id":"com.apple.TextEdit","window_id":640,"bounds":{"x":200,"y":120,"width":900,"height":600},"launched_at":1763530000.0},"truncated":false,"text_truncated":false,"elements":[{"element_id":"e0","role":"AXWindow","native_role":"AXWindow","enabled":true,"actions":[],"title":"notes.txt","bounds":{"x":0,"y":0,"width":900,"height":600}},{"element_id":"e1","role":"AXTextArea","native_role":"AXTextArea","enabled":true,"actions":[],"title":"","value":"Shopping list","bounds":{"x":20,"y":60,"width":860,"height":520}},{"element_id":"e2","role":"AXButton","native_role":"AXButton","enabled":true,"actions":["AXPress"],"title":"Save","bounds":{"x":780,"y":20,"width":80,"height":28}}]}}
+{"v":1,"id":4,"op":"control.respond","params":{"conn":1,"response":{"id":"r1","result":{"snapshot_id":"o-3"}}}}
+{"v":1,"id":4,"ok":true,"result":{"sent":true}}
+{"v":1,"id":5,"op":"control.act","params":{"snapshot_id":"o-3","action":"set_value","element_id":"e1","text":"Shopping list\nbread"}}
+{"v":1,"id":5,"ok":true,"result":{"effect":"confirmed"}}
+{"v":1,"id":6,"op":"control.read","params":{"snapshot_id":"o-3","element_id":"e1"}}
+{"v":1,"id":6,"ok":false,"error":{"code":"stale_snapshot","message":"an action invalidated snapshot o-3","retryable":false}}
+{"v":1,"id":7,"op":"control.observe","params":{"pid":702,"window_id":640,"include_text":true,"include_image":true}}
+{"v":1,"id":7,"ok":true,"result":{"snapshot_id":"o-7","target":{"pid":702,"app_id":"com.apple.TextEdit","window_id":640,"bounds":{"x":200,"y":120,"width":900,"height":600},"launched_at":1763530000.0},"truncated":false,"text_truncated":false,"elements":[{"element_id":"e0","role":"AXTextArea","native_role":"AXTextArea","enabled":true,"actions":[],"title":"","value":"Shopping list\nbread"}],"image":{"format":"png","width":1,"height":1,"data":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="}}}
+{"v":1,"id":8,"op":"control.read","params":{"snapshot_id":"o-7","element_id":"e0"}}
+{"v":1,"id":8,"ok":true,"result":{"value":"Shopping list\nbread","title":null}}
+{"v":1,"id":9,"op":"control.act","params":{"snapshot_id":"o-7","action":"click","x":820,"y":34}}
+{"v":1,"id":9,"ok":false,"error":{"code":"foreground_required","message":"TextEdit is not the front app","retryable":false}}
+{"v":1,"id":10,"op":"control.act","params":{"snapshot_id":"o-7","action":"press"}}
+{"v":1,"id":10,"ok":false,"error":{"code":"element_required","message":"press needs an element_id from the snapshot","retryable":false}}
+{"v":1,"id":11,"op":"control.respond","params":{"conn":1,"response":{"id":"r1","result":{}}}}
+{"v":1,"id":11,"ok":false,"error":{"code":"conn_gone","message":"connection 1 already answered","retryable":false}}

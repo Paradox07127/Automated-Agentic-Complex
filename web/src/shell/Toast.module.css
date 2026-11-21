@@ -1,0 +1,22 @@
+/* Toast lists: normal toasts stack from 30 px below the top centre, system toasts sit lower at 212.5 / 1080 of the height. */
+.host {
+  position: fixed;
+  top: 30px;
+  left: 50%;
+  z-index: var(--ef-z-toast);
+  display: grid;
+  gap: 15px;
+  justify-items: center;
+  width: min(500px, calc(100vw - 2 * var(--ef-sp-24)));
+  padding: 0 12.5px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.host[data-kind='system'] {
+  top: 19.7%;
+}
+
+.host > * {
+  pointer-events: auto;
+}

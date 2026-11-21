@@ -1,0 +1,121 @@
+/* MMD list under the motion table: the table's group head, then rows on the same white attribute cells. */
+.pl {
+  /* Attribute row divider #484848@0.235, as in the motion table. */
+  --pl-rule: rgb(72 72 72 / 23.5%);
+
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-width: 0;
+  margin-bottom: var(--ef-sp-16);
+}
+
+/* CharinfoAttributeTittleCell, as the motion table's group heads. */
+.gh {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ef-sp-8);
+  height: 32px;
+  margin: 0;
+  padding: var(--ef-sp-12) 2px 0;
+  background: linear-gradient(to top, color-mix(in srgb, var(--ef-text-1) 10%, transparent) 0 11px, transparent 11px);
+  font: 700 var(--ef-fs-body-lg) / 1 var(--ef-font-sans);
+}
+
+.gh::before {
+  content: '';
+  align-self: center;
+  width: 23px;
+  height: 2px;
+  background: color-mix(in srgb, var(--ef-text-1) 40%, transparent);
+}
+
+.den,
+.den small {
+  font-size: var(--ef-fs-small);
+  font-weight: 400;
+  color: var(--ef-text-2);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  padding: var(--ef-sp-8) 0;
+}
+
+.sp {
+  flex: 1;
+}
+
+.list {
+  max-height: 216px;
+  overflow: auto;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 26px minmax(84px, 1fr) 26px auto;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  min-height: 36px;
+  padding: 0 var(--ef-sp-8);
+  border-bottom: 2px solid var(--pl-rule);
+  background: var(--ef-paper);
+  color: var(--ef-paper-text);
+  font-size: var(--ef-fs-body);
+}
+
+/* Playing now: the 4px ink bar the motion table draws on a pressed row. */
+.row[aria-current='true']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--ef-paper-text);
+}
+
+.no {
+  justify-self: start;
+  padding: 3px var(--ef-sp-4);
+  font: 600 var(--ef-fs-eyebrow) / 1 var(--ef-font-ui);
+  font-stretch: var(--ef-wide);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-paper-text-2);
+}
+
+.row[aria-current='true'] .no {
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.nm {
+  overflow: hidden;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.row[aria-current='true'] .nm {
+  font-weight: 700;
+}
+
+.row[data-out] .nm {
+  color: var(--ef-paper-text-2);
+}
+
+.at {
+  font-size: var(--ef-fs-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--ef-paper-text-2);
+}
+
+.ops {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ef-sp-4);
+}

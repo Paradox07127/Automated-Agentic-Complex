@@ -1,0 +1,259 @@
+/* 活动回顾: a gallery list; the header carries the card bar, time slices are tag strips, rows slide in from the right. */
+.review {
+  display: grid;
+  gap: 16px;
+  max-inline-size: 1120px;
+  margin-inline: auto;
+  inline-size: 100%;
+}
+
+.header,
+.tools,
+.search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.header {
+  justify-content: space-between;
+  padding-left: var(--ef-sp-12);
+  border-left: 5px solid var(--ef-text-1);
+  animation:
+    galleryDrop var(--ef-dur-g-panel-in) var(--ef-ease-g-enter) both,
+    galleryFade var(--ef-dur-g-panel-in) var(--ef-ease-g-fade) both;
+}
+
+.header h2,
+.header p {
+  margin: 0;
+}
+
+.header h2 {
+  color: var(--ef-text-1);
+  font-size: 20px;
+}
+
+.header p {
+  margin-top: 5px;
+  color: var(--ef-text-2);
+  font-size: 13px;
+}
+
+.search {
+  flex: 1 1 240px;
+}
+
+.search [data-stub='SearchField'] {
+  flex: 1 1 140px;
+  min-inline-size: 100px;
+}
+
+.searchSubmit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-block-size: 34px;
+  padding-inline: 10px;
+  border: 1px solid var(--ef-line-strong);
+  background: var(--ef-surface-2);
+  color: var(--ef-text-1);
+  font: inherit;
+  cursor: pointer;
+}
+
+.list,
+.evidence {
+  display: grid;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+/* Time slice: a tag strip like the PRTS 00.101 tag. */
+.day {
+  justify-self: start;
+  margin: 14px 0 7px;
+  padding: 0 var(--ef-sp-8);
+  background: color-mix(in srgb, var(--ef-text-1) 8%, transparent);
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) 13px / 22px var(--ef-font-sans);
+}
+
+.list li:first-child .day {
+  margin-top: 0;
+}
+
+.list {
+  animation: galleryFade 417ms var(--ef-ease-g-fade) 83ms both;
+}
+
+.list li {
+  display: grid;
+}
+
+/* Gallery cell: slides in from the right; under the pointer its plate fades up and the ink bar shows at the left. */
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto 18px;
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px;
+  border: 0;
+  border-block-end: 1px solid var(--ef-line-soft);
+  background: transparent;
+  color: var(--ef-text-1);
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+  animation:
+    cellIn 500ms var(--ef-ease-g-enter) both,
+    galleryFade 333ms var(--ef-ease-g-fade) both;
+}
+
+.row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 5px;
+  background: var(--ef-text-1);
+  transform: scaleY(0);
+  transition: transform 200ms var(--ef-ease-g-enter);
+}
+
+.row:is(:hover, :focus-visible) {
+  background: var(--ef-surface-2);
+}
+
+.row:is(:hover, :focus-visible)::before {
+  transform: none;
+}
+
+.row time,
+.source {
+  color: var(--ef-text-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.row time {
+  font-variant-numeric: tabular-nums;
+}
+
+.record {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.record strong {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.record p {
+  display: -webkit-box;
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.detail {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail p,
+.detail h3,
+.detail blockquote {
+  margin: 0;
+}
+
+.detail h3 {
+  font-size: 14px;
+}
+
+.evidence {
+  gap: 8px;
+}
+
+.evidence li {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 9px 0;
+  border-block-end: 1px solid var(--ef-line-soft);
+}
+
+.raw {
+  max-height: min(42vh, 440px);
+  padding: 12px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--ef-surface-2);
+  color: var(--ef-text-1);
+}
+
+.image {
+  max-width: 100%;
+  max-height: 50vh;
+  object-fit: contain;
+}
+
+@keyframes galleryFade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes galleryDrop {
+  from {
+    transform: translateY(-25px);
+  }
+}
+
+@keyframes cellIn {
+  from {
+    transform: translateX(45.75px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header,
+  .list,
+  .row {
+    animation: galleryFade var(--ef-dur-g-cell-in) var(--ef-ease-g-fade) both;
+  }
+
+  .row,
+  .row::before {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .header,
+:global([data-reduce-motion]) .list,
+:global([data-reduce-motion]) .row {
+  animation: galleryFade var(--ef-dur-g-cell-in) var(--ef-ease-g-fade) both;
+}
+
+@media (max-width: 940px) {
+  .row {
+    grid-template-columns: 45px minmax(0, 1fr) auto 16px;
+    gap: 8px;
+  }
+}

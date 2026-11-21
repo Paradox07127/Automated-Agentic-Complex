@@ -1,0 +1,807 @@
+{
+ "approved": "user 2026-10-18",
+ "gpt_sovits_commit": "1b47ca07",
+ "phones": {
+  "E1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "E2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "E3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "E4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "E5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "En1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "En2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "En3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "En4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "En5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "a": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "a1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "a2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "a3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "a4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "a5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ai1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ai2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ai3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ai4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ai5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "an1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "an2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "an3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "an4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "an5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ang1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ang2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ang3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ang4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ang5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ao1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ao2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ao3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ao4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ao5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "e": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "e1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "e2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "e3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "e4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "e5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ei1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ei2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ei3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ei4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ei5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "en1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "en2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "en3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "en4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "en5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "eng1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "eng2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "eng3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "eng4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "eng5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "er1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "er2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "er3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "er4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "er5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "i": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "i01": {
+   "vowel": "i",
+   "weight": 0.5
+  },
+  "i02": {
+   "vowel": "i",
+   "weight": 0.5
+  },
+  "i03": {
+   "vowel": "i",
+   "weight": 0.5
+  },
+  "i04": {
+   "vowel": "i",
+   "weight": 0.5
+  },
+  "i05": {
+   "vowel": "i",
+   "weight": 0.5
+  },
+  "i1": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "i2": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "i3": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "i4": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "i5": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "ia1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ia2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ia3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ia4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ia5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ian1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ian2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ian3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ian4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ian5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "iang1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "iang2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "iang3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "iang4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "iang5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "iao1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "iao2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "iao3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "iao4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "iao5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ie1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ie2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ie3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ie4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ie5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "in1": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "in2": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "in3": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "in4": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "in5": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "ing1": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "ing2": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "ing3": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "ing4": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "ing5": {
+   "vowel": "i",
+   "weight": 1.0
+  },
+  "iong1": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "iong2": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "iong3": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "iong4": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "iong5": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "ir1": {
+   "vowel": "e",
+   "weight": 0.5
+  },
+  "ir2": {
+   "vowel": "e",
+   "weight": 0.5
+  },
+  "ir3": {
+   "vowel": "e",
+   "weight": 0.5
+  },
+  "ir4": {
+   "vowel": "e",
+   "weight": 0.5
+  },
+  "ir5": {
+   "vowel": "e",
+   "weight": 0.5
+  },
+  "iu1": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "iu2": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "iu3": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "iu4": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "iu5": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "o": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "o1": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "o2": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "o3": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "o4": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "o5": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "ong1": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "ong2": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "ong3": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "ong4": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "ong5": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "ou1": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "ou2": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "ou3": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "ou4": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "ou5": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "u": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "u1": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "u2": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "u3": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "u4": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "u5": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "ua1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ua2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ua3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ua4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ua5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uai1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uai2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uai3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uai4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uai5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uan1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uan2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uan3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uan4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uan5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uang1": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uang2": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uang3": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uang4": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "uang5": {
+   "vowel": "a",
+   "weight": 1.0
+  },
+  "ui1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ui2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ui3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ui4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ui5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "un1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "un2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "un3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "un4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "un5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "uo1": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "uo2": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "uo3": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "uo4": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "uo5": {
+   "vowel": "o",
+   "weight": 1.0
+  },
+  "v1": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "v2": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "v3": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "v4": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "v5": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "van1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "van2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "van3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "van4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "van5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ve1": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ve2": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ve3": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ve4": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "ve5": {
+   "vowel": "e",
+   "weight": 1.0
+  },
+  "vn1": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "vn2": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "vn3": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "vn4": {
+   "vowel": "u",
+   "weight": 1.0
+  },
+  "vn5": {
+   "vowel": "u",
+   "weight": 1.0
+  }
+ },
+ "schema": "endfield-phone-vowel-map-v1"
+}

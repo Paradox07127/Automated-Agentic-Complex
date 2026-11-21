@@ -1,0 +1,373 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* The columns slide in from the sides; clipping here keeps the content from scrolling sideways meanwhile. */
+.ov {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--ef-sp-24);
+  min-width: 0;
+  padding: var(--ef-sp-12) var(--ef-sp-24) var(--ef-sp-24);
+  overflow-x: clip;
+}
+
+/* Header fields, divided by hairlines. */
+.facts {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) 13px / 1.4 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.facts > * {
+  padding: 0 var(--ef-sp-12);
+  border-left: var(--ef-lw-hair) solid var(--ef-rule);
+}
+
+.facts > :first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.facts :global(.num) {
+  font-stretch: var(--ef-wide);
+}
+
+.conn {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Task panel: the 711 g list column (355.5 c) beside the flexible detail column, 72 g apart. */
+.row {
+  --ov-deco-line: rgba(255, 255, 255, 0.502);
+  display: grid;
+  grid-template-columns: minmax(300px, 355.5px) minmax(0, 1fr);
+  gap: 36px;
+  align-items: start;
+  min-width: 0;
+}
+
+:global([data-theme='light']) .row {
+  --ov-deco-line: var(--ef-rule);
+}
+
+/* mission_in fades the list in and slides its body from the left (MissionFx Panel). */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-24);
+  min-width: 0;
+}
+
+/* Task info block: mission_in slides it in from the right and grows the line along its top. */
+.detail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-24);
+  min-width: 0;
+  padding-top: var(--ef-sp-12);
+  border-top: var(--ef-lw-hair) solid transparent;
+}
+
+.detailLine {
+  position: absolute;
+  top: calc(-1 * var(--ef-lw-hair));
+  right: 0;
+  left: 0;
+  height: var(--ef-lw-hair);
+  background: var(--ov-deco-line);
+  transform-origin: left;
+}
+
+.need,
+.run {
+  min-width: 0;
+}
+
+/* Urgent group header: a yellow "!!!" square, 紧要, a rule to the right. */
+.grp {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  min-height: 25px;
+  margin-bottom: var(--ef-sp-8);
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) 13px / 1 var(--ef-font-sans);
+}
+
+.grpIc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+  font: 800 12px / 1 var(--ef-font-ui);
+  letter-spacing: -1px;
+}
+
+.focus {
+  margin-bottom: var(--ef-sp-8);
+}
+
+.focus [data-stub='ApprovalCard'] {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+/* In the narrow list column the decision buttons wrap instead of running past the card. */
+.focus [data-stub='DecisionBar'] > div:nth-child(2) {
+  flex-wrap: wrap;
+  flex-shrink: 1;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+.cardH {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.tag {
+  padding: 2px 6px;
+  background: var(--ef-tag-bg);
+  color: var(--ef-tag-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.src {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--ef-paper-text-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cardT {
+  margin: 0 0 10px;
+  font: 600 15px/1.4 var(--ef-font-sans);
+}
+
+.none {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  min-height: 36px;
+  font-size: 13px;
+  color: var(--ef-text-2);
+}
+
+.none [data-tone] {
+  font-weight: 400;
+  color: var(--ef-text-2);
+}
+
+/* 展开 / 另有 N 个: a text control. */
+.more {
+  display: inline-flex;
+  gap: var(--ef-sp-4);
+  align-items: center;
+  min-height: 24px;
+  padding: 0 var(--ef-sp-8);
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  transition: background var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.more:hover {
+  background: var(--ef-chip);
+}
+
+.more:active {
+  background: var(--ef-accent);
+}
+
+.more:active,
+.more:active .lnk {
+  color: var(--ef-on-accent);
+}
+
+.more[data-block] {
+  display: flex;
+  width: 100%;
+  height: 32px;
+  margin-top: var(--ef-sp-4);
+  font-size: 13px;
+}
+
+.lnk {
+  color: var(--ef-text-1);
+}
+
+.more:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+/* The decision receipt plays missioncomplete_in's entrance and holds it: the black band fades in at 250-517 ms,
+   the #FFD800 line grows over 250-2083 ms; MissionFx CompleteFx plays the light layers behind the text. */
+.receipt {
+  --ov-complete-band: #000000; /* completion band */
+  --ov-complete-line: #FFD800; /* completion band line */
+  position: relative;
+  isolation: isolate;
+  margin: 0 0 var(--ef-sp-8);
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  background: var(--ov-complete-band);
+  color: var(--ef-toast-text);
+  font-size: 12px;
+  animation: ov-fade 267ms var(--ef-ease-g-fade) 250ms backwards;
+}
+
+.receipt::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1.5px;
+  background: var(--ov-complete-line);
+  transform-origin: left;
+  animation: ov-line-in 1833ms cubic-bezier(0.141, 0, 0, 1) 250ms backwards;
+}
+
+.receipt .okText {
+  color: var(--ov-complete-line);
+}
+
+.t2 {
+  font-size: 12px;
+  color: var(--ef-text-2);
+}
+
+.t3 {
+  color: var(--ef-text-3);
+}
+
+/* Common actions in the shell's dark bottom bar, at its right end. */
+.act {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  margin-left: auto;
+}
+
+.act > * {
+  flex: none;
+}
+
+/* The whole page has nothing yet. */
+.quiet {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+}
+
+/* Pause readouts (PauseReadout). */
+.pauses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8) var(--ef-sp-24);
+}
+
+.pause {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  padding-left: var(--ef-sp-12);
+  border-left: var(--ef-lw-focus) solid var(--ef-trace);
+  font: var(--ef-t-meta);
+  color: var(--ef-text-1);
+}
+
+.okText {
+  color: var(--ef-success-text);
+}
+
+.warnText {
+  margin: 0 0 var(--ef-sp-8);
+  color: var(--ef-attention-text);
+}
+
+.btnRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8);
+  align-items: center;
+}
+
+/* Under 1100 the detail column moves under the list; the list's own rule closes it, so the detail drops its deco line. */
+@container page (max-width: 1099px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .detailLine {
+    display: none;
+  }
+}
+
+@container page (max-width: 1000px) {
+  .ov {
+    gap: var(--ef-sp-24);
+    padding: var(--ef-sp-12) var(--ef-sp-16) var(--ef-sp-24);
+  }
+
+  /* Compact approval card: title and buttons on one row, the command on one line. */
+  .focus [data-stub='ApprovalCard'] {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .focus [data-stub='ApprovalCard'] > * {
+    grid-column: 1 / -1;
+  }
+
+  .focus [data-stub='ApprovalCard'] > header {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .focus [data-stub='ApprovalCard'] > [data-stub='DecisionBar'] {
+    grid-row: 1;
+    grid-column: 2;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .focus [data-stub='DecisionBar'] > :first-child {
+    flex: none;
+  }
+
+  .focus [data-stub='ApprovalCard'] > button[aria-expanded='false'] {
+    max-height: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}

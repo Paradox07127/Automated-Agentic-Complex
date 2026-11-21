@@ -1,0 +1,73 @@
+{
+  "note": "两个文档页面在几分钟里来回切",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:chr-1",
+      "app": "Google Chrome",
+      "bundle_id": "com.google.Chrome",
+      "pid": 480,
+      "window_id": 80,
+      "title": "Storage limits — Example B Wiki",
+      "url_host": null,
+      "since": 1799999960.0,
+      "secure_input": false
+    },
+    "dwell_s": 40.0,
+    "presence": {
+      "id": "afk:chr-1",
+      "status": "active",
+      "seconds": 400,
+      "idle_s": 4
+    },
+    "page": {
+      "id": "page:b2",
+      "url_host": "wiki.example-b.org",
+      "title": "Storage limits — Example B Wiki",
+      "audible": false,
+      "text": null
+    },
+    "recent_pages": [
+      {
+        "id": "page:a1",
+        "url_host": "docs.example-a.dev",
+        "title": "Cache API — Example A Docs",
+        "start": 1799999780.0,
+        "duration": 50
+      },
+      {
+        "id": "page:b1",
+        "url_host": "wiki.example-b.org",
+        "title": "Storage limits — Example B Wiki",
+        "start": 1799999830.0,
+        "duration": 60
+      },
+      {
+        "id": "page:a2",
+        "url_host": "docs.example-a.dev",
+        "title": "Cache API — Example A Docs",
+        "start": 1799999890.0,
+        "duration": 70
+      },
+      {
+        "id": "page:b2",
+        "url_host": "wiki.example-b.org",
+        "title": "Storage limits — Example B Wiki",
+        "start": 1799999960.0,
+        "duration": 40
+      }
+    ],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "comparing_sources",
+    "status": "ok",
+    "related_session_ids": [],
+    "can_interrupt": true
+  }
+}

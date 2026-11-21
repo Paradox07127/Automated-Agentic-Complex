@@ -1,0 +1,17 @@
+{
+  "budget_tokens": 500,
+  "entries": [
+    {
+      "id": "placeholder",
+      "kind": "self",
+      "keys": [
+        "占位设定"
+      ],
+      "priority": 1,
+      "tier": "official",
+      "source_ref": "product",
+      "game_version": null,
+      "text": "示例乙是测试用的占位角色。"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "note": "有可读的终端文字，但没有规则能判断活动",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:ghost-1",
+      "app": "Ghostty",
+      "bundle_id": "com.mitchellh.ghostty",
+      "pid": 540,
+      "window_id": 140,
+      "title": "tail -f worker.log",
+      "url_host": null,
+      "since": 1799999940.0,
+      "secure_input": false
+    },
+    "dwell_s": 60.0,
+    "presence": {
+      "id": "afk:ghost-1",
+      "status": "active",
+      "seconds": 300,
+      "idle_s": 30
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": {
+      "id": "wt:ghost-1",
+      "app": "Ghostty",
+      "title": "tail -f worker.log",
+      "text": "12:01:07 worker-3 picked job 8812\n12:01:09 worker-3 finished job 8812 in 2.1s"
+    },
+    "observations": [],
+    "sessions": [],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "unknown",
+    "status": "unknown",
+    "related_session_ids": [],
+    "can_interrupt": false
+  }
+}

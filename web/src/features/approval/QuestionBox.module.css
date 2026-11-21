@@ -1,0 +1,193 @@
+.root {
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  max-width: 480px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ef-sp-4) var(--ef-sp-12);
+}
+
+.title {
+  min-width: 0;
+  font: var(--ef-fw-semibold) var(--ef-fs-title-2) / var(--ef-lh-title-2) var(--ef-font-sans);
+}
+
+.time {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  margin-left: auto;
+  font-size: var(--ef-fs-caption);
+  white-space: nowrap;
+}
+
+.source {
+  font-size: var(--ef-fs-caption);
+  opacity: 0.75;
+}
+
+.item {
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.options {
+  display: grid;
+  gap: 2px;
+  max-width: 380px;
+}
+
+.input {
+  width: 100%;
+  min-height: 32px;
+  padding: var(--ef-sp-6) var(--ef-sp-8);
+  border: 1px solid var(--ef-line-strong);
+  border-radius: var(--ef-r-2);
+  background: transparent;
+  color: inherit;
+  font-size: var(--ef-fs-body);
+  line-height: var(--ef-lh-body);
+  resize: vertical;
+}
+
+.input::placeholder {
+  color: inherit;
+  opacity: 0.55;
+}
+
+.input:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+.done {
+  color: var(--ef-success-text);
+  font-size: var(--ef-fs-caption);
+}
+
+.root[data-compact] .done {
+  color: inherit;
+  font-weight: var(--ef-fw-semibold);
+}
+
+/* In a session card: the question, small option buttons, one input row; the deadline as a line on the top edge. */
+.session {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  padding: var(--ef-sp-8);
+  border: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  background: var(--ef-slab);
+  color: var(--ef-text-1);
+  font: var(--ef-t-meta);
+}
+
+.sTop {
+  position: absolute;
+  top: calc(-1 * var(--ef-lw-hair));
+  right: calc(-1 * var(--ef-lw-hair));
+  left: calc(-1 * var(--ef-lw-hair));
+}
+
+.sItem {
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.sAsk {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  margin: 0;
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / var(--ef-lh-row) var(--ef-font-sans);
+}
+
+.sAsk > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.sTime {
+  flex: none;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / var(--ef-lh-meta) var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.sOpts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8);
+}
+
+.sOpt {
+  height: var(--ef-h-sm);
+  padding: 0 var(--ef-sp-8);
+  border: var(--ef-lw-hair) solid var(--ef-line-strong);
+  border-radius: var(--ef-r-btn);
+  background: none;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1 var(--ef-font-sans);
+  cursor: pointer;
+}
+
+.sOpt:hover {
+  background: var(--ef-slab-hover);
+}
+
+.sOpt[aria-pressed='true'] {
+  border-color: var(--ef-text-1);
+  background: var(--ef-slab-hover);
+}
+
+.sOpt:focus-visible,
+.sInput:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+.sInput {
+  flex: 1;
+  min-width: 0;
+  height: var(--ef-h-sm);
+  padding: 0 var(--ef-sp-8);
+  border: var(--ef-lw-hair) solid var(--ef-line-strong);
+  border-radius: var(--ef-r-2);
+  background: transparent;
+  color: inherit;
+  font: var(--ef-fs-caption) / 1 var(--ef-font-sans);
+}
+
+.sInput::placeholder {
+  color: var(--ef-text-3);
+}
+
+.sFoot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.sDone {
+  margin: 0;
+  color: var(--ef-success-text);
+}
