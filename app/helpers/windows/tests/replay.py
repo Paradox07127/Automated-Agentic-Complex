@@ -8,6 +8,10 @@ Usage: python -I app/helpers/windows/tests/replay.py [--exe PATH]   (after build
 - bad-*.ndjson the helper can trigger (request before hello, unknown op, missing param, one-of, wrong v): the
   helper's error code or exit code; plus an overlong line, a line of exactly max_line_bytes, a non-JSON line and a
   protocol mismatch, which have no fixture.
+- session rules with no fixture: a repeated or lower request id and a final line without a newline exit 2; an answer
+  over max_line_bytes (a capture.ambient wallpaper of a large side) becomes a short internal error; an enum value
+  joined from two choices is bad_request; a request cancelled in the same write as itself never runs its handler
+  (the helper's CPU time stays flat).
 - every op of ops.json sent with empty params: never unknown_op, bad_request exactly when the op has required params.
 - permissions.request of the four kinds without a Windows switch answers notApplicable.
 Requests that would act on or read other programs' windows are aimed at a window this script opens itself. A
@@ -748,6 +752,82 @@ def edge_cases(exe, checks):
                   'hello with another protocol answers protocol_mismatch and exits 3', f'answer {got!r:.200}, exit {exit_code}')
 
 
+def session_rules(exe, checks):
+    for label, ids in [('a repeated request id', (2, 2)), ('a request id below an earlier one', (3, 2))]:
+        helper = Helper(exe)
+        helper.request(HELLO)
+        first = helper.request({'v': 1, 'id': ids[0], 'op': 'screens.list', 'params': {}})
+        got = helper.request({'v': 1, 'id': ids[1], 'op': 'screens.list', 'params': {}}, timeout=5)
+        exit_code = helper.exit_code()
+        checks.expect(first and first.get('ok') is True and got is None and exit_code == 2 and helper.stderr,
+                      f'{label} exits 2', f'first {first!r:.200}, then {got!r:.200}, exit {exit_code}')
+
+    for label, tail, code in [('a final line without a newline', b'{"v":1,"id":2,"op":"screens.list","params":{}}', 2),
+                              ('final blanks without a newline', b' \t\r', 0)]:
+        helper = Helper(exe)
+        helper.request(HELLO)
+        helper.send(tail)
+        got = helper.next_line(2)
+        exit_code = helper.exit_code()
+        checks.expect(got is None and exit_code == code and bool(helper.stderr) == (code == 2),
+                      f'{label} at EOF exits {code}', f'answer {got!r:.200}, exit {exit_code}, stderr {helper.stderr}')
+
+    helper = Helper(exe)
+    helper.request(HELLO)
+    got = helper.request({'v': 1, 'id': 2, 'op': 'capture.ambient', 'params': {'source': 'screen|wallpaper', 'side': 2}})
+    checks.expect(got and got.get('error', {}).get('code') == 'bad_request',
+                  'capture.ambient source screen|wallpaper is bad_request', f'answer {got!r:.200}')
+    checks.expect(helper.exit_code() == 0, 'bad source session exit', '')
+
+    helper = Helper(exe)
+    helper.request(HELLO)
+    # 2100 x 2100 RGBA is over 16 MiB once base64 encoded.
+    got = helper.request({'v': 1, 'id': 3, 'op': 'capture.ambient', 'params': {'source': 'wallpaper', 'side': 2100}},
+                         timeout=30)
+    size = len(helper.transcript[-1].encode('utf-8')) if got else None
+    checks.expect(got and got.get('error', {}).get('code') == 'internal' and size < 4096,
+                  'an answer over max_line_bytes is a short internal error',
+                  f'{size} bytes, error {(got or {}).get("error")!r:.200}')
+    got = helper.request({'v': 1, 'id': 4, 'op': 'screens.list', 'params': {}})
+    checks.expect(got and got.get('ok') is True, 'the session goes on after an answer over max_line_bytes',
+                  f'answer {got!r:.200}')
+    checks.expect(helper.exit_code() == 0, 'max_line_bytes session exit', '')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, 'max_line_bytes session validate.check', problem)
+
+    helper = Helper(exe)
+    helper.request(HELLO)
+
+    def cpu_ns(n):
+        got = helper.request({'v': 1, 'id': n, 'op': 'process.usage', 'params': {'pids': [helper.proc.pid]}}) or {}
+        return next((u['cpu_time_ns'] for u in got.get('result', {}).get('usage', [])), None)
+
+    before = cpu_ns(2)
+    # A wallpaper of 4000 x 4000 costs the handler far more CPU than the session layer spends on four requests.
+    lines = [json.dumps(m, separators=(',', ':')) + '\n' for m in (
+        {'v': 1, 'id': 3, 'op': 'capture.ambient', 'params': {'source': 'wallpaper', 'side': 4000}},
+        {'v': 1, 'id': 4, 'op': 'cancel', 'params': {'target': 3}})]
+    helper.transcript.extend(lines)
+    helper.send(''.join(lines).encode('utf-8'))
+    answers = {}
+    for _ in range(2):
+        got = helper.next_line(10)
+        message = json.loads(got) if got else {}
+        answers[message.get('id')] = message
+    time.sleep(3)  # long enough for a handler that did start to finish
+    after = cpu_ns(5)
+    spent = (after - before) / 1e6 if before is not None and after is not None else None
+    print(f'note: the helper spent {spent} ms of CPU across a request cancelled in its own write', flush=True)
+    checks.expect(answers.get(3, {}).get('error', {}).get('code') == 'cancelled'
+                  and answers.get(4, {}).get('result') == {'cancelled': True},
+                  'a request cancelled in its own write answers cancelled', f'answers {answers!r:.300}')
+    checks.expect(spent is not None and spent < 50, 'a request cancelled before it started never runs',
+                  f'{spent} ms of CPU')
+    checks.expect(helper.exit_code() == 0, 'cancel session exit', '')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, 'cancel session validate.check', problem)
+
+
 def sweep(exe, checks):
     """Every op of ops.json with params {}: the helper's own op table must agree with ops.json."""
     helper = Helper(exe)
@@ -781,6 +861,7 @@ def main(argv=None):
         permission_requests(args.exe, checks)
         replay_bad(args.exe, checks)
         edge_cases(args.exe, checks)
+        session_rules(args.exe, checks)
         sweep(args.exe, checks)
     finally:
         window.close()

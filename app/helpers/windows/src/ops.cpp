@@ -144,8 +144,13 @@ std::string type_error(const json::Value& value, std::string kind, const std::st
     else if (kind == "b64") ok = value.type == json::Type::Str && is_base64(value.s);
     else if (kind.compare(0, 5, "enum(") == 0 && kind.back() == ')') {
         if (value.type == json::Type::Str) {
-            std::string choices = "|" + kind.substr(5, kind.size() - 6) + "|";
-            ok = choices.find("|" + value.s + "|") != std::string::npos;
+            std::string choices = kind.substr(5, kind.size() - 6);
+            for (size_t start = 0; !ok && start <= choices.size();) {
+                size_t end = choices.find('|', start);
+                if (end == std::string::npos) end = choices.size();
+                ok = choices.compare(start, end - start, value.s) == 0;
+                start = end + 1;
+            }
         }
     } else if (kind.compare(0, 4, "arr<") == 0 && kind.back() == '>') {
         if (value.type != json::Type::Arr) return path + " not " + kind;

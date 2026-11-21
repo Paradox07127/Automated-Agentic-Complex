@@ -29,23 +29,27 @@ std::mutex g_lock;
 std::map<int64_t, std::string> g_running;  // id -> op of each request whose handler has not answered yet
 bool g_ready = false;                      // hello answered
 int64_t g_seq = 0;                         // the last event's seq
+int64_t g_last_id = 0;                     // the highest request id read so far; only the stdin loop uses it
 
 bool is_session_op(const char* name) {
     return std::strcmp(name, "hello") == 0 || std::strcmp(name, "cancel") == 0 || std::strcmp(name, "shutdown") == 0;
 }
 
-void write_message(const json::Value& message) {
+// False when the line would be longer than max_line_bytes; then nothing is written.
+bool write_message(const json::Value& message) {
     std::string line = json::dump(message);
     line += '\n';
+    if (line.size() > kMaxLineBytes) return false;
     const char* data = line.data();
     size_t left = line.size();
     while (left > 0) {
         DWORD wrote = 0;
         DWORD chunk = static_cast<DWORD>(left < (1u << 30) ? left : (1u << 30));
-        if (!WriteFile(g_stdout, data, chunk, &wrote, nullptr)) return;  // the main process is gone
+        if (!WriteFile(g_stdout, data, chunk, &wrote, nullptr)) return true;  // the main process is gone
         data += wrote;
         left -= wrote;
     }
+    return true;
 }
 
 void answer(int64_t id, const Outcome& out) {
@@ -62,7 +66,7 @@ void answer(int64_t id, const Outcome& out) {
         if (out.retryable) error.set("retryable", json::boolean(true));
         message.set("error", std::move(error));
     }
-    write_message(message);
+    if (!write_message(message)) answer(id, failure("internal", "the answer is longer than max_line_bytes"));
 }
 
 // Exit code 2 after one line on stderr (CONTRACT §6.2).
@@ -141,6 +145,10 @@ void cancel(int64_t id, int64_t target) {
 }
 
 void run(int64_t id, Handler handler, json::Value params) {
+    {
+        std::lock_guard<std::mutex> hold(g_lock);
+        if (!g_running.count(id)) return;  // cancelled before it started
+    }
     Outcome out;
     try {
         out = handler(params);
@@ -189,6 +197,8 @@ void handle_line(const std::string& line) {
     }
     const json::Value* id = message.get("id");
     if (!id || id->type != json::Type::Int || id->i <= 0) protocol_error("a request id is not a positive integer");
+    if (id->i <= g_last_id) protocol_error("a request id is not above every earlier one");
+    g_last_id = id->i;
     dispatch(id->i, op->s, message.get("params"));
 }
 
@@ -202,7 +212,11 @@ void send_event(const char* name, json::Value data, const std::atomic<bool>& liv
     message.set("event", json::str(name));
     message.set("seq", json::integer(++g_seq));
     message.set("data", std::move(data));
-    write_message(message);
+    if (!write_message(message)) {
+        --g_seq;
+        std::fprintf(stderr, "ac-helper: dropped a %s event that is longer than max_line_bytes\n", name);
+        std::fflush(stderr);
+    }
 }
 
 int main() {
@@ -230,6 +244,7 @@ int main() {
         scanned = 0;
         handle_line(line);
     }
+    if (pending.find_first_not_of(" \t\r") != std::string::npos) protocol_error("the last line has no newline");
     // stdin closed: a shutdown without an answer (CONTRACT §6.1).
     std::lock_guard<std::mutex> hold(g_lock);
     ExitProcess(0);
