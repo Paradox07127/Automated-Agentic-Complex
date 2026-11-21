@@ -64,7 +64,8 @@ const item = (id: CmdItem['id'], s: DesktopState | null = STATE): CmdItem => {
 
 describe('the action table', () => {
   it('has the 8 direct items in key order', () => {
-    expect(ringItems(STATE).map((i) => i.label)).toEqual(['快速输入', '屏幕识读', '待处理', '打开对话', '免打扰 30 分', '临时点穿', '隐藏 30 分', '送礼物']);
+    expect(ringItems(STATE).map((i) => i.label)).toEqual(['快速输入', '屏幕识读', '待处理', '打开对话', '免打扰 30 分', '让鼠标穿过她', '隐藏 30 分', '送礼物']);
+    expect(ringItems(STATE).map((i) => i.sub ?? null)).toEqual([null, null, null, null, null, null, null, '看她收礼']);
     expect(ringItems(STATE).map((i) => i.id)).toEqual(['input', 'look', 'openStack', 'goChat', 'quiet', 'pass', 'hide', 'gift']);
   });
 
@@ -94,6 +95,7 @@ describe('the ring', () => {
     const ring = screen.getByRole('menu', { name: '指令环' });
     expect(within(ring).getAllByRole('menuitem')).toHaveLength(8);
     expect(within(ring).getByRole('menuitem', { name: /^隐藏 30 分/ }).textContent).toContain('⌃H');
+    expect(within(ring).getByRole('menuitem', { name: /^送礼物/ }).textContent).toContain('看她收礼');
     expect(ring.textContent).not.toMatch(/⌃⌥|默认/);
     expect(ring.textContent).toContain('1–8 直接执行 │ esc 关闭');
   });

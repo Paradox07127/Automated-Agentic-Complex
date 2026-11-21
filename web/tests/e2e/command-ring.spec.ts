@@ -73,7 +73,7 @@ test('ring: the center close control removes the layer with one click', async ({
 test('ring: toggle labels follow the desktop state', async ({ page }) => {
   await open(page, { mode: 'ring', demo: 'hidden' });
   await expect(page.getByRole('menuitem', { name: /^显示角色/ })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /^临时点穿/ })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /^让鼠标穿过她/ })).toBeVisible();
   await open(page, { mode: 'ring', demo: 'passthrough' });
   await expect(page.getByRole('menuitem', { name: /^结束点穿/ })).toBeVisible();
   await expect(page.getByRole('menuitem', { name: /^隐藏 30 分/ })).toBeVisible();

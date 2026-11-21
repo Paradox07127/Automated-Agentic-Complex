@@ -219,6 +219,10 @@
   outline-offset: 4px;
 }
 
+.sub {
+  font-weight: var(--ef-fw-regular);
+}
+
 .meta {
   display: flex;
   gap: var(--ef-sp-4);

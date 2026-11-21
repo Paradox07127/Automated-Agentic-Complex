@@ -7,7 +7,7 @@ import { ResizeRoot } from '../../src/surfaces/desktop/ResizeRoot';
 import { percentText, resizeLayout, rulerPosition } from '../../src/surfaces/desktop/resizeLayout';
 
 // `stack.html#/resize`: the brackets, the four handles on her
-// corners, the percentage chip, the 恢复默认 / 完成 bar and where the bar and the chip go.
+// corners, the percentage chip, the 恢复默认 / 取消 / 完成 bar and where the bar and the chip go.
 
 afterEach(() => {
   cleanup();
@@ -81,7 +81,7 @@ function mount() {
 }
 
 describe('the resize overlay page', () => {
-  it('shows nothing before the state, then a handle on each of her corners, the chip and the two buttons', () => {
+  it('shows nothing before the state, then a handle on each of her corners, the chip and the three buttons', () => {
     const { show } = mount();
     expect(screen.queryAllByRole('button')).toEqual([]);
     show(STATE);
@@ -90,7 +90,7 @@ describe('the resize overlay page', () => {
       ['808px', '563px']]);
     expect(handles[0]!.getAttribute('aria-valuetext')).toBe('100 %');
     expect(screen.getByRole('group', { name: '大小' }).textContent).toBe('100 %');
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['恢复默认', '完成']);
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['恢复默认', '取消esc', '完成']);
     show({ ...STATE, frame: { x: 700, y: 375, width: 240, height: 400 }, scale: 2, limit: 'max' });
     expect(screen.getByRole('group', { name: '大小' }).textContent).toBe('200 %最大');
     expect(handles.every((h) => h.dataset.limit === 'max')).toBe(true);
@@ -117,5 +117,14 @@ describe('the resize overlay page', () => {
     fireEvent.click(screen.getByRole('button', { name: '恢复默认' }));
     fireEvent.click(screen.getByRole('button', { name: '完成' }));
     expect(calls.act.mock.calls).toEqual([['restoreDefault'], ['done']]);
+  });
+
+  it('Esc and 取消 leave without saving, back to the size before this session', () => {
+    const { calls, show } = mount();
+    show(STATE);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    fireEvent.keyDown(window, { key: 'a' });
+    expect(calls.act.mock.calls).toEqual([['cancel'], ['cancel']]);
   });
 });

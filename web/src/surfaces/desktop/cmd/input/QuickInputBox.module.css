@@ -1,4 +1,4 @@
-/* Borrowed parts; `data-theme="dark"` keeps the HUD dark in both appearances. */
+/* Borrowed parts in the page's appearance; the tips-card errors carry `data-theme="dark"`. */
 .box {
   /* 31-hud-notify interaction menu head, rgba(26,28,26,.88) without the blur. */
   --head: rgba(26, 28, 26, 0.88);
@@ -7,9 +7,20 @@
   --dot: rgba(234, 234, 234, 0.88);
   /* HUD text shadow. */
   --hud-shadow: 0 1px 2px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.5);
+  /* The strip left of the parts that holds the structure line and its keycaps. */
+  --rail: 32px;
   position: relative;
   width: 420px;
+  padding-left: var(--rail);
   animation: hud-in var(--ef-dur-g-panel-in) var(--ef-ease-g-enter);
+}
+
+/* Light: the same parts on the light HUD rows and field, under dark text. */
+:global(html[data-theme='light']) .box {
+  --head: var(--ef-hud-row-head);
+  --field: var(--ef-field);
+  --dot: var(--ef-line-strong);
+  --hud-shadow: none;
 }
 
 /* The 1 px structure line on the left, keycaps hanging on it. */
@@ -17,7 +28,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -12px;
+  left: calc(var(--rail) / 2);
   width: 1px;
   background: var(--ef-text-1);
 }
@@ -241,13 +252,12 @@
   cursor: pointer;
 }
 
+/* A plain hint, no plate: it is not a control. */
 .talk {
   display: inline-flex;
   align-items: center;
   gap: var(--ef-sp-4);
   margin-right: var(--ef-sp-8);
-  padding: 0 var(--ef-sp-6);
-  background: var(--field);
   color: var(--ef-text-2);
   font-size: var(--ef-fs-caption);
   text-shadow: var(--hud-shadow);

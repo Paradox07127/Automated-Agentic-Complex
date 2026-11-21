@@ -20,13 +20,24 @@ function barPosition(area: CameraOverlayState['area'], w: number, h: number) {
 }
 
 /** `stack.html#/camera`: 调整镜头 (AvatarCameraOverlayView). Native covers her screen with the page and owns the camera; the
- *  page draws the receiving area and the bar and sends the pointer and the buttons. */
+ *  page draws the receiving area and the bar and sends the pointer and the buttons. Esc is 取消: the camera goes back to
+ *  what it was before this session. */
 export function CameraRoot() {
   const ref = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<CameraOverlayState | null>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   useEffect(() => getBridge().camera.onState(setState), []);
+  // The shell takes Esc itself once the panel has the keyboard; this covers the page when the key reaches it.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      void getBridge().camera.act('cancel');
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   useRegions(ref);
   useLayoutEffect(() => {
     const el = bar.current;
@@ -76,6 +87,9 @@ export function CameraRoot() {
         {button('全身', 'fullBody', editing)}
         {button('近景', 'closeup', closeup)}
         {button('复位', 'reset', editing)}
+        <Btn size="sm" variant="secondary" kbd="esc" onClick={() => void camera.act('cancel')}>
+          取消
+        </Btn>
         {button('完成', 'commit', editing, true)}
       </div>
     </div>

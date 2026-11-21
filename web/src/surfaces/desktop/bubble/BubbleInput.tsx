@@ -26,7 +26,7 @@ export function BubbleInput({ open, state, attachment, onDrop, onClose }: Bubble
         key={open.n}
         role={state?.character?.name ?? '角色'}
         prefill={open.prefill}
-        talkKey={state?.hotkeys.hk_ptt}
+        talkKey={state?.pips.voice === 'on' ? state.hotkeys.hk_ptt : undefined}
         autoFocus={q.get('still') !== '1'}
         initial={open.n === 1 ? preset : undefined}
         attachment={attachment}

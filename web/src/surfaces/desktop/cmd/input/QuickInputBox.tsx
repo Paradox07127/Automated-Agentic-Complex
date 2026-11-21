@@ -8,8 +8,8 @@ export type SayFailure = Extract<SayResult, { ok: false }>;
 /**
  * 快速输入: 420 wide, 1–4 rows; ⏎ sends, ⇧⏎ breaks the line, esc closes, ⌘J opens
  * 对话. ⏎ while an input method is composing only picks the candidate. A failed send keeps the text and turns the line red.
- * Borrowed parts, dark in both appearances: interaction-menu head and structure line, toast field,
- * selected-row capsule chips, tips-card errors.
+ * Borrowed parts in the page's appearance: interaction-menu head and structure line, toast field,
+ * selected-row capsule chips; the tips-card errors stay dark in both.
  */
 export interface QuickInputBoxProps {
   /** Character name for the head. */
@@ -77,7 +77,7 @@ export function QuickInputBox(p: QuickInputBoxProps) {
 
   const err = p.error;
   return (
-    <div className={styles.box} role="dialog" aria-label="快速输入" data-err={err ? err.reason : undefined} data-region="" data-theme="dark">
+    <div className={styles.box} role="dialog" aria-label="快速输入" data-err={err ? err.reason : undefined} data-region="">
       <span className={styles.sline} aria-hidden="true">
         <span className={styles.cap}>esc</span>
         <span className={styles.cap}>⏎</span>
@@ -111,7 +111,7 @@ export function QuickInputBox(p: QuickInputBoxProps) {
         />
       </div>
       {err?.reason === 'agentd' && (
-        <div className={styles.err} role="alert">
+        <div className={styles.err} role="alert" data-theme="dark">
           <Icon name="warn" size={14} />
           <span>后台服务没有运行 │ 原文已保留</span>
           <Btn variant="quiet" size="sm" onClick={p.onRestartBackend}>
@@ -120,7 +120,7 @@ export function QuickInputBox(p: QuickInputBoxProps) {
         </div>
       )}
       {err?.reason === 'kernel' && (
-        <div className={styles.core} role="alert">
+        <div className={styles.core} role="alert" data-theme="dark">
           <span className={styles.coretag} aria-hidden="true">
             Core Offline
           </span>
@@ -131,7 +131,7 @@ export function QuickInputBox(p: QuickInputBoxProps) {
         </div>
       )}
       {err?.reason === 'rejected' && (
-        <div className={styles.err} role="alert">
+        <div className={styles.err} role="alert" data-theme="dark">
           <Icon name="warn" size={14} />
           <span className={styles.msg}>{`没有发出去：${err.detail ?? '后台不接受这条'} │ 原文已保留`}</span>
         </div>

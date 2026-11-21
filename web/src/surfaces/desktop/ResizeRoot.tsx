@@ -20,7 +20,8 @@ function bracketStyle(c: ResizeCorner, f: Region) {
 }
 
 /** `stack.html#/resize`: 调整大小 (AvatarResizeOverlayView). Native covers her screen with the page and owns her size; the page
- *  draws the brackets, the four handles, the percentage chip and the 恢复默认 / 完成 bar, and sends the drags and the buttons. */
+ *  draws the brackets, the four handles, the percentage chip and the 恢复默认 / 取消 / 完成 bar, and sends the drags and the buttons.
+ *  Esc is 取消: her size goes back to what it was before this session. */
 export function ResizeRoot() {
   const ref = useRef<HTMLDivElement>(null);
   const chip = useRef<HTMLDivElement>(null);
@@ -28,6 +29,16 @@ export function ResizeRoot() {
   const [state, setState] = useState<ResizeOverlayState | null>(null);
   const [sizes, setSizes] = useState({ chip: { width: 0, height: 0 }, bar: { width: 0, height: 0 } });
   useEffect(() => getBridge().resize.onState(setState), []);
+  // The shell takes Esc itself once the panel has the keyboard; this covers the page when the key reaches it.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      void getBridge().resize.act('cancel');
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   useRegions(ref);
   useLayoutEffect(() => {
     const c = chip.current, b = bar.current;
@@ -97,6 +108,9 @@ export function ResizeRoot() {
       <div ref={bar} role="toolbar" className={styles.bar} data-region style={{ left: layout.bar.x, top: layout.bar.y }}>
         <Btn size="sm" variant="secondary" onClick={() => void resize.act('restoreDefault')}>
           恢复默认
+        </Btn>
+        <Btn size="sm" variant="secondary" kbd="esc" onClick={() => void resize.act('cancel')}>
+          取消
         </Btn>
         <Btn size="sm" variant="primary" onClick={() => void resize.act('done')}>
           完成

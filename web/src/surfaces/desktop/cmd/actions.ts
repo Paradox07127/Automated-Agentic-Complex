@@ -12,6 +12,8 @@ export type CmdActionId = 'input' | 'look' | 'openStack' | 'goChat' | 'quiet' | 
 export interface CmdItem {
   id: CmdActionId;
   label: string;
+  /** A line under the label, for an item whose name alone does not say what it does. */
+  sub?: string;
   icon: IconName;
   via: CmdVia;
   /** The main window page `window.openMain` opens. */
@@ -33,11 +35,11 @@ export function ringItems(s: DesktopState | null, now = Date.now()): CmdItem[] {
     quiet
       ? { id: 'quietEnd', label: '结束免打扰', icon: 'moonz', via: 'desktop.action' }
       : { id: 'quiet', label: '免打扰 30 分', icon: 'moonz', via: 'desktop.action' },
-    { id: 'pass', label: s?.clickThroughAll ? '结束点穿' : '临时点穿', icon: 'hand', via: 'desktop.action', hotkey: 'hk_pass' },
+    { id: 'pass', label: s?.clickThroughAll ? '结束点穿' : '让鼠标穿过她', icon: 'hand', via: 'desktop.action', hotkey: 'hk_pass' },
     s?.hidden
       ? { id: 'show', label: '显示角色', icon: 'eye', via: 'desktop.action', hotkey: 'hk_hide' }
       : { id: 'hide', label: '隐藏 30 分', icon: 'eye', via: 'desktop.action', hotkey: 'hk_hide' },
-    { id: 'gift', label: '送礼物', icon: 'redeem', via: 'desktop.action' },
+    { id: 'gift', label: '送礼物', sub: '看她收礼', icon: 'redeem', via: 'desktop.action' },
   ];
 }
 

@@ -75,6 +75,22 @@ for (const theme of ['dark', 'light'] as const) {
   }
 }
 
+for (const [theme, text] of [['dark', 'rgb(237, 237, 237)'], ['light', 'rgb(22, 22, 22)']] as const) {
+  test(`${theme} 快速输入: the input takes the bubble's theme and its keycaps stay inside the band`, async ({ page }) => {
+    await open(page, { mode: 'input', theme });
+    const dialog = page.locator('[data-bubble]').getByRole('dialog', { name: '快速输入' });
+    await expect(dialog).toBeVisible();
+    expect(await dialog.getByRole('textbox').evaluate((el) => getComputedStyle(el).color)).toBe(text);
+    const out = await dialog.evaluate((box) => {
+      const band = box.closest('[data-bubble]')?.querySelector<HTMLElement>(':scope > div')?.getBoundingClientRect();
+      const caps = [...box.querySelectorAll<HTMLElement>(':scope > [aria-hidden="true"] > span')].map((c) => c.getBoundingClientRect());
+      if (!band || caps.length !== 2) return ['no band or caps'];
+      return caps.filter((c) => c.left < band.left - 0.5 || c.right > band.right + 0.5).map((c) => `${c.left}..${c.right} outside ${band.left}..${band.right}`);
+    });
+    expect(out).toEqual([]);
+  });
+}
+
 test('reply and disclosure are available without hover; reply quotes the thought', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page, {});

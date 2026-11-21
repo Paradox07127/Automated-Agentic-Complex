@@ -4,7 +4,7 @@ import type { CameraOverlayState } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { CameraRoot } from '../../src/surfaces/desktop/CameraRoot';
 
-// `stack.html#/camera`: the dashed area over her, the 全身 / 近景 / 复位 / 完成 bar
+// `stack.html#/camera`: the dashed area over her, the 全身 / 近景 / 复位 / 取消 / 完成 bar
 // under it, and what a drag, a wheel, a pinch and each button ask native for.
 
 afterEach(() => {
@@ -36,13 +36,13 @@ function mount() {
 }
 
 describe('the camera overlay page', () => {
-  it('shows nothing before the state, then the area over her and the four buttons in order', () => {
+  it('shows nothing before the state, then the area over her and the five buttons in order', () => {
     const { show } = mount();
     expect(screen.queryAllByRole('button')).toEqual([]);
     show(STATE);
     const area = screen.getByRole('application', { name: '镜头' });
     expect([area.style.left, area.style.top, area.style.width, area.style.height]).toEqual(['76px', '351px', '248px', '448px']);
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['全身', '近景', '复位', '完成']);
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['全身', '近景', '复位', '取消esc', '完成']);
     const closeup = () => screen.getByRole('button', { name: '近景' }).getAttribute('aria-disabled') === 'true';
     expect(closeup()).toBe(true);
     show({ ...STATE, closeup: true });
@@ -54,6 +54,15 @@ describe('the camera overlay page', () => {
     show({ ...STATE, closeup: true });
     for (const name of ['全身', '近景', '复位', '完成']) fireEvent.click(screen.getByRole('button', { name }));
     expect(calls.act.mock.calls).toEqual([['fullBody'], ['closeup'], ['reset'], ['commit']]);
+  });
+
+  it('Esc and 取消 leave without saving, also before any edit', () => {
+    const { calls, show } = mount();
+    show({ ...STATE, editing: false });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    fireEvent.keyDown(window, { key: 'a' });
+    expect(calls.act.mock.calls).toEqual([['cancel'], ['cancel']]);
   });
 
   it('a drag on the area sends its travel, a wheel zooms, a pinch magnifies', () => {

@@ -116,6 +116,7 @@ export function CommandRing({ items, pending, keys = {}, onRun, onClose }: Comma
             >
               <Icon name={item.icon} size={20} />
               <span>{item.label}</span>
+              {item.sub && <span className={styles.sub}>{item.sub}</span>}
               <span className={styles.meta}>
                 <span className={styles.no} aria-hidden="true">
                   {String(i + 1).padStart(2, '0')}
