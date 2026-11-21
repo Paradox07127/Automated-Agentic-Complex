@@ -148,6 +148,7 @@ const RAW: Raw[] = [
   ['grain', 'privacy', '读取范围', '屏幕理解粒度', '粒度'],
   ['web', 'privacy', '读取范围', '网页正文', '浏览器 网页'],
   ['typing', 'privacy', '读取范围', '输入的文字', '键盘 打字'],
+  ['actions', 'privacy', '读取范围', '操作时间线', '时间线 操作 点击 窗口'],
   ['agent_sessions', 'privacy', '读取范围', '读取编码会话', 'Claude Code Codex 工具 输入 输出 结果'],
   ['shot', 'privacy', '读取范围', '屏幕识读时附上截图', '截图 识读'],
   ['keys', 'privacy', '读取范围', '键鼠计数', '键盘 鼠标'],

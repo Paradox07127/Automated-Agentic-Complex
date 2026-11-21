@@ -213,6 +213,37 @@ class Timeline:
                                    (segment, segment - 3600, count)).fetchall()
         return [text for text, in reversed(rows)]
 
+    def summary(self, segment):
+        """{segment, text} of one stored summary, or None."""
+        with self.lock:
+            row = self.db.execute("SELECT rowid, text FROM summaries WHERE rowid = ?", (segment,)).fetchone()
+        return {"segment": row[0], "text": row[1]} if row is not None else None
+
+    def summaries_in(self, start, end, limit=None):
+        """[{segment, text}] of the summaries overlapping [start, end), newest first."""
+        sql = "SELECT rowid, text FROM summaries WHERE rowid + ? > ? AND rowid < ? ORDER BY rowid DESC"
+        args = (SEGMENT_S, start, end)
+        if limit is not None:
+            sql, args = sql + " LIMIT ?", (*args, limit)
+        with self.lock:
+            rows = self.db.execute(sql, args).fetchall()
+        return [{"segment": segment, "text": text} for segment, text in rows]
+
+    def summaries(self, since=None, before=None, limit=50):
+        """[{segment, text}] of stored summaries, newest first."""
+        clauses, args = [], []
+        if since is not None:
+            clauses.append("rowid >= ?")
+            args.append(since)
+        if before is not None:
+            clauses.append("rowid < ?")
+            args.append(before)
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        with self.lock:
+            rows = self.db.execute(f"SELECT rowid, text FROM summaries{where} ORDER BY rowid DESC LIMIT ?",
+                                   (*args, limit)).fetchall()
+        return [{"segment": segment, "text": text} for segment, text in rows]
+
     def search_summaries(self, query, limit=10):
         """[{segment, text}] of the summaries holding every word of query, best match first."""
         words = " ".join('"' + w.replace('"', '""') + '"' for w in query.split())

@@ -33,6 +33,7 @@ SAMPLES = {  # one value per template parameter that every pattern using that na
     "commitment_id": "c-1",
     "schedule_id": "schedule-1",
     "episode_id": "42",
+    "segment": "1700000400",
     "card_id": "01234567-89ab-cdef-0123-456789abcdef",
     "entry_id": HEX32,
     "conversation_id": HEX32,

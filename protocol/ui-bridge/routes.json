@@ -114,6 +114,8 @@
   {"method": "POST", "path": "/context/attention", "class": "host_only", "surfaces": [], "plugin": "screen_awareness"},
   {"method": "POST", "path": "/context/events", "class": "host_only", "surfaces": [], "plugin": "screen_awareness"},
   {"method": "POST", "path": "/context/timeline", "class": "host_only", "surfaces": [], "plugin": "screen_awareness"},
+  {"method": "GET", "path": "/context/timeline/summaries", "class": "read", "surfaces": ["main"], "plugin": "screen_awareness"},
+  {"method": "DELETE", "path": "^/context/timeline/summaries/(\\d{1,18})$", "class": "write", "surfaces": ["main"], "plugin": "screen_awareness"},
   {"method": "POST", "path": "/sessions", "class": "write", "surfaces": ["main"], "plugin": "coding_sessions"},
   {"method": "POST", "path": "/context/text", "class": "host_only", "surfaces": []},
   {"method": "POST", "path": "/context/image", "class": "host_only", "surfaces": []},

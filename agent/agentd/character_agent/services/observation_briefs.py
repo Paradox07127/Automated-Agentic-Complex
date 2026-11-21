@@ -14,6 +14,7 @@ import time
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from infra.store_schemas import OBSERVATION_BRIEF_SCHEMA as SCHEMA
+from observation.timeline import SEGMENT_S
 
 # timezone None: the system's, resolved on every read so it follows a change of system timezone.
 DEFAULTS = {'enabled': True, 'daily': True, 'weekly': True, 'hour': 9, 'timezone': None}
@@ -155,6 +156,14 @@ class ObservationBriefs:
             text = row['title'] + '\n' + row['description'] + '\n' + dump(threads)
             units = sorted({ref for thread in threads for ref in thread.get('evidence',[]) if isinstance(ref,str)}) or [row['run_id']]
             start, end = row['start'], row['end']
+        elif kind == 'timeline_summary':
+            timeline = getattr(self.server, 'timeline', None)
+            if timeline is None or not self.controller._permitted('briefs'): return None
+            try: seg = int(ident)
+            except (TypeError, ValueError): return None
+            row = timeline.summary(seg)
+            if row is None: return None
+            text, start, end, units = row['text'], float(seg), float(seg + SEGMENT_S), [f'timeline:{seg}']
         else: return None
         return {'source_id': kind+':'+str(ident), 'kind':kind, 'id':str(ident), 'start':start, 'end':end, 'stored_hash':before,
                 'text':self.controller.knowledge().sanitize(text, part='observation_brief_source'), 'units':units}
@@ -165,21 +174,32 @@ class ObservationBriefs:
             raw = self.db.execute('SELECT start,end,title,description,threads,version,run_id,edited FROM episodes WHERE id=?',(ident,)).fetchone()
         elif kind=='work_event':
             raw=self.db.execute('SELECT body,dependencies FROM observation_work_events WHERE id=?',(ident,)).fetchone()
+        elif kind == 'timeline_summary':
+            timeline = getattr(self.server, 'timeline', None)
+            if timeline is None: return None
+            try: row = timeline.summary(int(ident))
+            except (TypeError, ValueError): return None
+            raw = (row['segment'], row['text']) if row is not None else None
         else: return None
         return digest(raw) if raw is not None else None
 
     def sources(self, start, end, timezone):
         """Bound SQL rows, source text, and model input; spread sampling over days."""
         result, eligible = [], 0
+        timeline = getattr(self.server, 'timeline', None)
         day = dt.datetime.fromtimestamp(start, ZoneInfo(timezone)).date()
         while True:
             _, lo, hi = window('daily', day.isoformat(), timezone)
             if lo >= end: break
             with self.lock:
                 episodes = self.db.execute('SELECT id FROM episodes WHERE start>=? AND start<? ORDER BY start DESC,id DESC LIMIT 7', (lo,hi)).fetchall()
-            eligible += len(episodes)
+            summaries = timeline.summaries_in(lo, hi, limit=6) if timeline is not None else []
+            eligible += len(episodes) + len(summaries)
             for ident, in episodes[:6]:
                 source = self._source('episode', ident)
+                if source: result.append(source)
+            for row in summaries:
+                source = self._source('timeline_summary', row['segment'])
                 if source: result.append(source)
             day += dt.timedelta(days=1)
         budget, selected = 22000 if end-start>90000 else 12000, []

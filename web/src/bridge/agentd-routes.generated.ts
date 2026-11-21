@@ -134,6 +134,8 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'POST', path: '/context/attention', templates: ['/context/attention'], class: 'host_only', surfaces: [], plugin: 'screen_awareness' },
   { method: 'POST', path: '/context/events', templates: ['/context/events'], class: 'host_only', surfaces: [], plugin: 'screen_awareness' },
   { method: 'POST', path: '/context/timeline', templates: ['/context/timeline'], class: 'host_only', surfaces: [], plugin: 'screen_awareness' },
+  { method: 'GET', path: '/context/timeline/summaries', templates: ['/context/timeline/summaries'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness' },
+  { method: 'DELETE', path: '^/context/timeline/summaries/(\\d{1,18})$', templates: ['/context/timeline/summaries/:segment'], class: 'write', surfaces: ['main'], plugin: 'screen_awareness' },
   { method: 'POST', path: '/sessions', templates: ['/sessions'], class: 'write', surfaces: ['main'], plugin: 'coding_sessions' },
   { method: 'POST', path: '/context/text', templates: ['/context/text'], class: 'host_only', surfaces: [] },
   { method: 'POST', path: '/context/image', templates: ['/context/image'], class: 'host_only', surfaces: [] },
@@ -246,7 +248,8 @@ export type AgentdRouteKey =
   | 'POST /integration/memory' | 'GET /integration/timeline' | 'POST /integrations/hooks/disconnect'
   | 'POST /context/privacy/sync' | 'POST /say' | 'POST /speech/cancel' | 'POST /speech/playback' | 'POST /voice/reset'
   | 'POST /voice/test' | 'POST /voice/token' | 'POST /turn/cancel' | 'POST /character' | 'POST /context/attention'
-  | 'POST /context/events' | 'POST /context/timeline' | 'POST /sessions' | 'POST /context/text' | 'POST /context/image'
+  | 'POST /context/events' | 'POST /context/timeline' | 'GET /context/timeline/summaries'
+  | `DELETE /context/timeline/summaries/${string}` | 'POST /sessions' | 'POST /context/text' | 'POST /context/image'
   | 'POST /look' | 'POST /trace/events' | 'POST /memory/facts' | 'POST /feedback' | 'POST /blacklist'
   | 'POST /blacklist/defaults' | 'POST /blacklist/mode' | 'POST /reset' | 'POST /behavior/receipts'
   | 'POST /motions/generate' | 'POST /focus' | 'POST /interaction/tap' | 'POST /interaction/gift'

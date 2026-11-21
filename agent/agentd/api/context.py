@@ -4,6 +4,7 @@ import binascii
 import datetime
 import math
 import time
+from urllib.parse import parse_qs, urlparse
 
 from infra import plugins
 from character.behavior import category
@@ -62,8 +63,6 @@ class ContextInputMixin:
         if self.server.character_agent is not None:
             pipeline = self.server.character_agent.memory_pipeline
             if pipeline: pipeline.tick(pipeline.clock())
-            understanding = getattr(self.server.character_agent, "task_understanding", None)
-            if understanding: understanding.tick()
         if self.server.proactive is not None:
             self.server.proactive.beat(body)
         # Each beat sets the gate's context; a missing field is false. Stale flags hold until the next beat.
@@ -109,7 +108,7 @@ class ContextInputMixin:
         if timeline is None:
             return self._json(503, {"error": "no_timeline"})
         config = self.server.privacy_config  # None: no saved settings, the startup flags alone decide
-        if config is not None and not saved_switch(config, "share_actions"):
+        if self.server.observation_paused() or (config is not None and not saved_switch(config, "share_actions")):
             return self._json(200, {"paused": True})
         if not isinstance(body, dict) or not isinstance(body.get("records"), list) or not body["records"]:
             return self._json(400, {"error": "invalid_records"})
@@ -132,6 +131,47 @@ class ContextInputMixin:
                     row["target"]["value"] = None
         stored = timeline.ingest(kept, typed_generation=generation, tree_generation=tree_generation)
         self._json(200, {"stored": stored, "dropped": len(body["records"]) - stored})
+
+    def _timeline_summaries_get(self):
+        """GET /context/timeline/summaries: stored 10-minute timeline summaries, or FTS matches for ?q=."""
+        timeline = self.server.timeline
+        if timeline is None:
+            return self._json(503, {"error": "no_timeline"})
+        params = parse_qs(urlparse(self.path).query)
+        raw_limit = (params.get("limit") or ["50"])[0]
+        try:
+            limit = int(raw_limit)
+        except ValueError:
+            return self._json(400, {"error": "invalid_limit"})
+        if not 1 <= limit <= 100:
+            return self._json(400, {"error": "invalid_limit"})
+        query = (params.get("q") or [""])[0].strip()
+        if query:
+            items = timeline.search_summaries(query, limit=limit)
+        else:
+            raw_since = (params.get("since") or [None])[0]
+            since = None
+            if raw_since is not None:
+                try:
+                    since = float(raw_since)
+                except ValueError:
+                    return self._json(400, {"error": "invalid_since"})
+                if not math.isfinite(since):
+                    return self._json(400, {"error": "invalid_since"})
+            items = timeline.summaries(since=since, limit=limit)
+        self._json(200, {"summaries": items})
+
+    def _timeline_summary_delete(self, raw_segment):
+        """DELETE /context/timeline/summaries/<segment>: delete one 10-minute timeline summary."""
+        timeline = self.server.timeline
+        if timeline is None:
+            return self._json(503, {"error": "no_timeline"})
+        try:
+            segment = int(raw_segment)
+        except ValueError:
+            return self._json(400, {"error": "invalid_segment"})
+        deleted = timeline.delete_summary(segment)
+        self._json(200, {"deleted": deleted, "segment": segment})
 
     def _context_text(self, body):
         optional_str = lambda v: v is None or isinstance(v, str)

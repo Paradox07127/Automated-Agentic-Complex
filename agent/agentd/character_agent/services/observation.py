@@ -623,6 +623,23 @@ class ObservationService:
         return ident
 
     def get(self, ident, *, include_image=False):
+        if isinstance(ident, str) and ident.startswith('tl-'):
+            timeline = getattr(self.server, 'timeline', None)
+            if timeline is None or not self.allowed() or self.character != self.server.character:
+                return None
+            try:
+                seg = int(ident[3:])
+            except ValueError:
+                return None
+            row = timeline.summary(seg)
+            if row is None:
+                return None
+            text = row['text']
+            return {'id': ident, 'character_id': self.character, 'at': float(seg), 'origin': 'timeline_summary',
+                    'source_key': ident, 'revision': digest(text), 'consent_epoch': self.server.consent.snapshot()[1],
+                    'requires': [], 'metadata': {'authority': 'observed_analysis',
+                        'coverage': {'status': 'complete', 'scope': 'timeline_summary'}, 'segment': seg},
+                    'content_hash': digest(text), 'previous_id': None, 'text': text}
         if isinstance(ident,str) and ident.startswith('work-'):
             with self.lock:
                 event=self.db.execute('SELECT character_id,at,body,dependencies FROM observation_work_events WHERE id=?',(ident,)).fetchone()
@@ -683,7 +700,7 @@ class ObservationService:
                 'source_sha256':row['content_hash'],'coverage':row['metadata'].get('coverage',{'status':'partial','reasons':['producer_coverage_unknown']})}
 
     def search(self, query='', since=None, limit=12, cursor=None, kind='all'):
-        if not isinstance(query,str) or len(query)>2000 or type(limit) is not int or not 1<=limit<=30 or kind not in ('all','raw','work_events'): raise ValueError('invalid_observation_query')
+        if not isinstance(query,str) or len(query)>2000 or type(limit) is not int or not 1<=limit<=30 or kind not in ('all','raw','work_events','summaries'): raise ValueError('invalid_observation_query')
         if since is not None and (type(since) not in (int,float) or not float('-inf')<since<float('inf')): raise ValueError('invalid_observation_query')
         signature = digest([query, since, kind])
         before, ident = float('inf'), '~'
@@ -703,10 +720,11 @@ class ObservationService:
         now, character = self.clock(), self.character
         batch_size = 64
         results = []
+        timeline = getattr(self.server, 'timeline', None) if character == self.server.character else None
         while len(results) <= limit:
             candidates = []
             with self.lock:
-                if kind != 'work_events':
+                if kind in ('all', 'raw'):
                     candidates.extend(self.db.execute(
                         "SELECT f.id,f.at FROM observation_frames f JOIN observation_content c ON f.content_hash=c.hash "
                         "WHERE f.character_id=? AND f.at>=? AND (f.at,f.id)<(?,?) "
@@ -715,12 +733,19 @@ class ObservationService:
                         "OR instr(lower(json_extract(f.metadata,'$.title')),lower(?))>0) "
                         "ORDER BY f.at DESC,f.id DESC LIMIT ?",
                         (character, max(now-TEXT_KEEP_S, since or 0), before, ident, query, query, query, batch_size)))
-                if kind != 'raw':
+                if kind in ('all', 'work_events'):
                     candidates.extend(self.db.execute(
                         "SELECT id,at FROM observation_work_events WHERE character_id=? AND at>=? AND (at,id)<(?,?) "
                         "AND (?='' OR instr(lower(body),lower(?))>0 OR instr(lower(title),lower(?))>0) "
                         "ORDER BY at DESC,id DESC LIMIT ?",
                         (character, max(now-EVENT_KEEP, since or 0), before, ident, query, query, query, batch_size)))
+            if timeline is not None and kind in ('all', 'summaries'):
+                rows = timeline.search_summaries(query, limit=batch_size) if query.strip() else timeline.summaries(
+                    since=since, before=None if before == float('inf') else before + 1, limit=batch_size)
+                for row in rows:
+                    seg_at, seg_id = float(row['segment']), f"tl-{row['segment']}"
+                    if (since is None or seg_at >= since) and (seg_at, seg_id) < (before, ident):
+                        candidates.append((seg_id, seg_at))
             candidates.sort(key=lambda row: (row[1], row[0]), reverse=True)
             scanned = candidates[:batch_size]
             for ident, at in scanned:
@@ -777,11 +802,11 @@ class ObservationService:
                 'Use it first to orient yourself before reading a source. '
                 'Previews hold at most the first 4000 characters (preview_complete tells whether that is all); read full text with observation_read. No arguments.'),
             tool('observation_search','Search retained authorized observations by case-insensitive substring over their captured text and window titles, '
-                'plus interpreted work events, newest first; each result carries a 1200-character excerpt around the first match. '
+                'plus interpreted work events and 10-minute timeline summaries, newest first; each result carries a 1200-character excerpt around the first match. '
                 'Use it to find earlier evidence the current batch lacks, such as the first occurrence of an error; for a known id use observation_read. '
-                'query is a literal substring (empty matches all), since a Unix-seconds lower bound, kind all, raw (captured frames) or work_events '
-                '(interpreted events), limit 1-30, and cursor the next_cursor of the previous page with the same query, since and kind.',
-                 {'query':{'type':'string'},'since':{'type':'number'},'cursor':{'type':'string'},'kind':{'type':'string','enum':['all','raw','work_events']},'limit':{'type':'integer','minimum':1,'maximum':30}}),
+                'query is a literal substring (empty matches all), since a Unix-seconds lower bound, kind all, raw (captured frames), work_events '
+                '(interpreted events) or summaries (10-minute timeline summaries), limit 1-30, and cursor the next_cursor of the previous page with the same query, since and kind.',
+                 {'query':{'type':'string'},'since':{'type':'number'},'cursor':{'type':'string'},'kind':{'type':'string','enum':['all','raw','work_events','summaries']},'limit':{'type':'integer','minimum':1,'maximum':30}}),
             tool('observation_read','Read the original captured content of one observation by character range or by locating a query. '
                 'Use it when a preview is truncated, marked [Middle available via observation_read] or points to body_ref, or before quoting text you have not seen in full. '
                 'offset and max_chars (256-64000, default 16000) select the range; query jumps to about 500 characters before its first case-insensitive match '

@@ -56,9 +56,12 @@ class RitualsGlueMixin:
                 picked = self.rituals.pick() if self.rituals is not None else None
                 if picked:
                     event = "greeting_morning" if picked[0] == "morning" else picked[0]
+                    scripted = self._scripted_line(event)
+                elif region in ("cheek_l", "cheek_r"):
+                    scripted = self._scripted_line("cheek_pinch") or self._scripted_line("tap")
                 else:
                     event = "head_pat" if region in ("head", "head_top", "hair") else "tap"
-                scripted = self._scripted_line(event)
+                    scripted = self._scripted_line(event)
                 if scripted is None:
                     return (503, {"error": "no_llm"}) if self.mouth is None else (200, {"kind": None})
             if self.resetting or self.busy() or self._live_lines:
@@ -124,6 +127,10 @@ class RitualsGlueMixin:
                     if self.mouth is None or lane is None:
                         scripted = self._scripted_line("gift")
                         if scripted is None:
+                            gift = self._gift_pending
+                            self._gift_pending = None
+                            self.feed.publish("gift", {"gift_id": gift["gift_id"], "state": "failed",
+                                                       "count": gift["count"], "line_id": None, "reason": "no_llm"})
                             return
                     gift = self._gift_pending
                     one, many = GIFT_TEXT.get(self.reply_language_code(), GIFT_TEXT["zh-Hans"])

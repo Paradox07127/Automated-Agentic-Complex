@@ -196,5 +196,51 @@ class SummarizerTest(unittest.TestCase):
         summary.check(answer("x"))  # control
 
 
+class SummaryDownstreamWiringTest(unittest.TestCase):
+    def test_observation_search_read_and_briefs_consume_timeline_summaries(self):
+        import datetime as dt
+        import os
+        from zoneinfo import ZoneInfo
+        import test_character_agent_semantic as semantic_fixture
+        from character_agent.services.observation_briefs import window
+
+        fixture = semantic_fixture.SemanticTests("setUp")
+        fixture.setUp()
+        self.addCleanup(fixture.tearDown)
+        system = mock.patch.dict(os.environ, {"TZ": "America/New_York"})
+        system.start()
+        self.addCleanup(system.stop)
+        fixture.now = dt.datetime(2026, 10, 31, 14, tzinfo=ZoneInfo("America/New_York")).timestamp()
+        bl = Blacklist(deny_blacklist(fixture.root / "blacklist.json"))
+        tl = Timeline(fixture.root / "timeline.sqlite", bl, clock=lambda: fixture.now)
+        self.addCleanup(tl.close)
+        fixture.server.timeline = tl
+        fixture.server.share_page_text = True
+        fixture.server.share_typed_text = True
+        fixture.c.observation_briefs.clock = lambda: fixture.now
+        seg = int((window("daily", "2026-10-30", "America/New_York")[1] + 3600) // SEGMENT_S) * SEGMENT_S
+        summary_text = "# Shader Fix\nYou fixed the metal shader build.\nApps: Code\n## Summary\n渲染测试失败已定位并修复。"
+        self.assertTrue(tl.add_summary(seg, summary_text, tl.revision))
+
+        obs = fixture.c.observations
+        found = obs.search(query="metal", kind="summaries")
+        self.assertEqual([item["id"] for item in found["items"]], [f"tl-{seg}"])
+        self.assertEqual(found["items"][0]["origin"], "timeline_summary")
+        read = obs.read(f"tl-{seg}")
+        self.assertIn("metal shader build", read["text"])
+
+        sources, _ = fixture.c.observation_briefs.sources(
+            *window("daily", "2026-10-30", "America/New_York")[1:], "America/New_York")
+        self.assertEqual([s["source_id"] for s in sources], [f"timeline_summary:{seg}"])
+        ref = {"source_id": f"timeline_summary:{seg}", "quote": "渲染测试失败已定位并修复"}
+        fixture.reply = {"observed_details": [{"detail": "已定位并修复渲染测试失败", "evidence": [ref]}],
+                         "recurring_problems": [], "next_steps": [], "unknowns": []}
+        report = fixture.c.observation_briefs.run_once("daily", "2026-10-30")
+        self.assertEqual(report["state"], "completed")
+        self.assertIsNotNone(fixture.c.observation_briefs.get(report["id"]))
+        self.assertTrue(tl.delete_summary(seg))
+        self.assertIsNone(fixture.c.observation_briefs.get(report["id"]))
+
+
 if __name__ == "__main__":
     unittest.main()

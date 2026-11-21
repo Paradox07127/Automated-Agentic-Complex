@@ -132,3 +132,17 @@ class ScriptedLinesTest(unittest.TestCase):
         self.server.mouth = None
         self.assertEqual(self.request("POST", "/interaction/tap", {}), (503, {"error": "no_llm"}))
         self.assertFalse(any(i["event"] == "line" for i in self.server.feed.since(0)))
+
+    def test_cheek_pinch_uses_its_own_lines_and_falls_back_to_tap(self):
+        self.card = {**self.card, "lines": {**self.card["lines"], "cheek_pinch": [{"en": "Hey, my cheek!"}]}}
+        self.assertEqual(self.tap(region="cheek_l"), "Hey, my cheek!")
+        self.card = {"lines": {"tap": [{"en": "Hello."}]}}
+        self.assertEqual(self.tap(region="cheek_r"), "Hello.")
+
+    def test_offline_gift_without_scripted_line_fails_instead_of_staying_queued(self):
+        self.card = {}
+        status, gift = self.request("POST", "/interaction/gift", {})
+        self.assertEqual(status, 202)
+        states = [i["data"] for i in self.server.feed.since(0) if i["event"] == "gift"]
+        self.assertEqual([(g["state"], g.get("reason")) for g in states], [("queued", None), ("failed", "no_llm")])
+        self.assertIsNone(self.server._gift_pending)

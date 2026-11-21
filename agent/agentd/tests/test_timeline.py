@@ -373,6 +373,23 @@ class TimelineServerTest(unittest.TestCase):
                                                              "delete_existing": True})[0], 200)
         self.assertEqual([r["app"] for r in self.stored()], ["Code"])
 
+    def test_summaries_routes_list_search_and_delete(self):
+        seg1 = int(self.now // SEGMENT_S) * SEGMENT_S
+        seg2 = seg1 - SEGMENT_S
+        self.assertTrue(self.server.timeline.add_summary(seg2, "# Older\nFixed shader compile", self.server.timeline.revision))
+        self.assertTrue(self.server.timeline.add_summary(seg1, "# Latest\nDeployed timeline", self.server.timeline.revision))
+        code, body = self.request("GET", "/context/timeline/summaries")
+        self.assertEqual(code, 200)
+        self.assertEqual([s["segment"] for s in body["summaries"]], [seg1, seg2])
+        code, found = self.request("GET", "/context/timeline/summaries?q=shader")
+        self.assertEqual(code, 200)
+        self.assertEqual([s["segment"] for s in found["summaries"]], [seg2])
+        code, gone = self.request("DELETE", f"/context/timeline/summaries/{seg2}")
+        self.assertEqual((code, gone), (200, {"deleted": True, "segment": seg2}))
+        code, after = self.request("GET", "/context/timeline/summaries?q=shader")
+        self.assertEqual((code, after["summaries"]), (200, []))
+        self.assertEqual(self.request("GET", "/context/timeline/summaries?limit=0")[0], 400)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -14,6 +14,7 @@ CONTEXT_ITEM_PATH = re.compile(r"^/context/items/([^/]{1,64})$")
 TASK_PATH = re.compile(r"^/tasks/([^/]{1,64})/(accept|reject)$")
 COMMITMENT_PATH = re.compile(r"^/commitments/([^/]{1,64})/(cancel|snooze|complete)$")
 EPISODE_PATH = re.compile(r"^/episodes/(\d{1,18})$")
+TIMELINE_SUMMARY_PATH = re.compile(r"^/context/timeline/summaries/(\d{1,18})$")
 EPISODE_EDIT_PATH = re.compile(r"^/episodes/([^/]{1,64})$")
 EVIDENCE_PATH = re.compile(r"^/episodes/([^/]{1,64})/evidence$")
 MOTION_FILE_PATH = re.compile(r"^/motions/(gm-[0-9a-f]{16})/(meta|keys)$")
@@ -358,6 +359,10 @@ REGISTRY = (
     Route("POST", "/context/timeline", UI, "host_only", (),
           owner=SERVER, action="_timeline_post", summary="Timeline record batch", spec=C6,
           request="context-timeline.json"),
+    Route("GET", "/context/timeline/summaries", UI, "read", ("main",),
+          owner=SERVER, action="_timeline_summaries_get", summary="List or search 10-minute timeline summaries", spec=C6),
+    Route("DELETE", TIMELINE_SUMMARY_PATH, UI, "write", ("main",), templates=("/context/timeline/summaries/:segment",),
+          owner=SERVER, action="_timeline_summary_delete", summary="Delete one 10-minute timeline summary", spec=C6),
     Route("POST", "/sessions", UI, "write", ("main",),
           owner=SERVER, action="_session_post", summary="Start a harness session", spec=C6),
     Route("POST", "/context/text", UI, "host_only", (),

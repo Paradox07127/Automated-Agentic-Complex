@@ -14,7 +14,7 @@ import styles from '../groups.module.css';
 import { BriefHealth, useBriefHealth } from '../../observe/BriefHealth';
 
 /** Rows of 读取范围. */
-const READS = ['wintext', 'grain', 'web', 'typing', 'agent_sessions', 'shot', 'keys', 'micapp'];
+const READS = ['wintext', 'grain', 'web', 'typing', 'actions', 'agent_sessions', 'shot', 'keys', 'micapp'];
 
 /** 隐私: outbound overview plate (the group's main visual), observation, readable sources (destructive ones confirm first), redaction, exclusions. */
 export function PrivacyGroup() {
@@ -98,6 +98,7 @@ export function PrivacyGroup() {
           <SetRow id="grain" title="屏幕理解粒度" indent disabled={!on('wintext')} disabledReason="需先打开「窗口文字」" desc={on('wintext') ? undefined : '需先打开「窗口文字」'} control={c.seg('grain', undefined, !on('wintext'))} />
           <SetRow id="web" title="网页正文" desc="关闭时立即删除已收集的摘要和由其推断的记忆" control={c.toggle('web')} />
           <SetRow id="typing" title="输入的文字" desc="关闭时仍记录发送时间和字数" control={c.toggle('typing')} />
+          <SetRow id="actions" title="操作时间线" desc="按 10 分钟分段记录前台操作与摘要，用于回看手头工作" control={c.toggle('actions')} />
           <SetRow id="agent_sessions" title="读取编码会话" desc="Claude Code / Codex 会话里的工具输入输出和结果；本机保存 48 小时，用来理解你手头的工作。关掉会删掉已存的会话内容" control={c.toggle('agent_sessions')} />
           <SetRow id="shot" title="屏幕识读时附上截图" desc={shots ? `今日额度 ${shots.used} / ${shots.limit}` : undefined} control={c.toggle('shot', '附上截图')} />
           <SetRow id="keys" title="键鼠计数" desc="只计次数，不记录按键内容" control={c.toggle('keys')} />

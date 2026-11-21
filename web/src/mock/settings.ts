@@ -55,6 +55,7 @@ const ROWS: Row[] = [
   ['grain', 'privacy', '屏幕理解粒度', 'focused', 'backend', [['status', '仅读状态'], ['focused', '焦点语义'], ['window', '窗口摘要']]],
   ['web', 'privacy', '读取网页正文', false, 'backend'],
   ['typing', 'privacy', '读取输入的文字', false, 'backend'],
+  ['actions', 'privacy', '记录操作时间线', false, 'none'],
   ['agent_sessions', 'privacy', '读取编码会话', true, 'backend'],
   ['shot', 'privacy', '屏幕识读时附上截图', false, 'backend'],
   ['keys', 'privacy', '键鼠计数', true, 'backend'],

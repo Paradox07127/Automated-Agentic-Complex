@@ -94,6 +94,7 @@ export const PLUGINS = [
         "privacy.grain",
         "privacy.web",
         "privacy.typing",
+        "privacy.actions",
         "privacy.keys",
         "privacy.micapp",
         "privacy.exclude",

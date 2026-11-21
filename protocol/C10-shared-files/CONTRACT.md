@@ -53,7 +53,7 @@
 | 读者 | agentd：`observation/privacy.py`（`saved_consent`、`saved_switch`）、`daemon/context.py`（`render_facing_mode`） |
 | 写入时机 | 用户保存设置时，整份文件原子替换 |
 | 权限 | Companion 按进程的 umask 写，本合同不要求 |
-| 版本字段 | 没有。`config.json` 没有版本键，C10 也不往里加；整份配置的键归 Companion 的 `ConfigSchema` 管，本节只管 agentd 读的 7 个键 |
+| 版本字段 | 没有。`config.json` 没有版本键，C10 也不往里加；整份配置的键归 Companion 的 `ConfigSchema` 管，本节只管 agentd 读的 8 个键 |
 | agentd 何时读 | 不缓存：每次取权限快照（采集、缓存上下文、决定外发前）、每次组朝向决定的情境时各读一次 |
 
 | 键 | 类型 | 缺省时 agentd 当作 | 含义 |
@@ -62,6 +62,7 @@
 | `screen_context_level` | 字符串 `status` / `focused` / `window` | `focused` | 屏幕上下文的粒度 |
 | `share_page_text` | 布尔 | 假 | 网页正文和选区 |
 | `share_typed_text` | 布尔 | 假 | 输入的文字 |
+| `share_actions` | 布尔 | 假 | 桌面操作时间线记录（`POST /context/timeline`） |
 | `share_agent_sessions` | 布尔 | 真 | 保留编码会话的内容 |
 | `share_screenshots` | 布尔 | 假 | 窗口截图 |
 | `render_facing_mode` | 字符串 `auto` / `front` / `side` / `back` | `auto` | 只有 `auto` 时 agentd 才做朝向决定 |

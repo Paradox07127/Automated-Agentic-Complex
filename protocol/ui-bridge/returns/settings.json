@@ -28,6 +28,7 @@
         "wintext": false,
         "web": false,
         "typing": false,
+        "actions": false,
         "agent_sessions": true,
         "shot": false,
         "keys": false,
