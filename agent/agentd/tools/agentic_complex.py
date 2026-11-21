@@ -92,7 +92,8 @@ def _timestamp(value):
 
 
 def _local(seconds):
-    return datetime.datetime.fromtimestamp(seconds).astimezone().isoformat(timespec="seconds")
+    # From UTC: Windows cannot place a naive time within a day of the epoch in the local zone.
+    return datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc).astimezone().isoformat(timespec="seconds")
 
 
 def invoke(client, name, args, source):

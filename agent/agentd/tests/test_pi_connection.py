@@ -10,6 +10,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.harness.pi_config import PiConfig
 from character_agent.harness.registry import HARNESSES, pi_catalog
+from character_agent.harness.transport import join_reapers
 from character_agent.integration import CharacterAgentController
 from character_agent.services.settings import DEFAULTS, RuntimeSettings
 from models.model_auth import ModelError
@@ -83,6 +84,8 @@ class PiConnectionCase(unittest.TestCase):
         c.discovery = SimpleNamespace(scan=lambda refresh=False: {"runtimes": self.rows, "scanned_at": 0})
 
     def tearDown(self):
+        # A runner still open holds files in the directory, and Windows refuses to delete them.
+        join_reapers()
         self.tmp.cleanup()
 
     def use(self, provider, **backend):

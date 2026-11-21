@@ -194,6 +194,14 @@ class TurnTest(test_server.FeedServerCase):
                                               "cancelled": {"line": False, "speech": False, "observation": False}}))
         self.assertEqual(self.server.turn_generation, said["generation"] + 1)
 
+    def test_a_character_line_stays_live_until_its_turn_settles(self):
+        settled, live = self.server._turn_settled, []
+        self.server._turn_settled = lambda *args, **kwargs: (live.append(bool(self.server._live_lines)),
+                                                             settled(*args, **kwargs))
+        self.say("你好")
+        self.assertTrue(wait_for(lambda: not self.server._live_lines))
+        self.assertEqual(live, [True])
+
     def test_late_observation_is_refused_and_the_line_calls_no_model(self):
         self.server.capture = CaptureManager(self.server.feed, Blacklist(deny_blacklist(Path(self.tmp.name) / "blacklist.json")),
                                              lambda: test_capture.CODE, None, vision=test_capture.FakeVision())

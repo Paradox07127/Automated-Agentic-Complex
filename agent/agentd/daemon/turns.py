@@ -669,7 +669,8 @@ class TurnsMixin:
                 except Exception as e:  # a failed ritual_log write must not leave this line live, which blocks every later line
                     print(f"agentd: ritual settle failed: {type(e).__name__}", file=sys.stderr)
             trace["done"] = True
-            self._live_lines.discard(cancel)
+            if not trace.get("agent_line"):  # _run_character_line ends a character line's liveness once its turn settles
+                self._live_lines.discard(cancel)
             self._line_consent.pop(cancel, None)
             self._line_material.pop(cancel, None)  # a line that ended before its context was assembled
             self._context_cut.discard(cancel)

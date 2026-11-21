@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from character_library import Library, Package, PackageError, write_json
 from test_character_library import fixture
+from test_pool_codec import header_only
 import pool_codec
 
 MESH = "outfit:mod_a/S_actor_x_cloth_01_lod0"
@@ -113,9 +114,10 @@ class CharacterLibraryModSettingsTests(unittest.TestCase):
                 Package(src)
 
     def test_a_variant_stored_as_a_pool_container_installs(self):
-        src = self.root / "container"; modded(src, store=pool_codec.encode)
+        # Install reads a container's header only, as on Windows, where agentd has no LZFSE codec.
+        src = self.root / "container"; modded(src, store=header_only)
         Package(src)
-        other = lambda raw: (lambda c: c[:20] + hashlib.sha256(b"other").digest() + c[pool_codec.HEADER.size:])(pool_codec.encode(raw))
+        other = lambda raw: (lambda c: c[:20] + hashlib.sha256(b"other").digest() + c[pool_codec.HEADER.size:])(header_only(raw))
         self.rejected("container_of_other_bytes", "shape", store=other)
 
     def test_shape(self):

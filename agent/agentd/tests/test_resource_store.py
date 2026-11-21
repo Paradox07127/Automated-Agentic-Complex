@@ -49,12 +49,13 @@ class ResourceStoreTests(unittest.TestCase):
     def test_link_or_copy_off_windows_is_clone_or_copy(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);source=root/'one';source.write_bytes(b'data')
-            self.assertIn(link_or_copy(source,root/'two'),['cloned','copied'])
-            self.assertEqual((root/'two').read_bytes(),b'data')
-            self.assertNotEqual(source.stat().st_ino,(root/'two').stat().st_ino)
-            (root/'link').symlink_to(source)
-            with self.assertRaisesRegex(ValueError,'not_regular'):link_or_copy(root/'link',root/'three')
-            with self.assertRaisesRegex(ValueError,'destination_exists'):link_or_copy(source,root/'two')
+            with patch('resource_store.sys.platform','linux'):
+                self.assertIn(link_or_copy(source,root/'two'),['cloned','copied'])
+                self.assertEqual((root/'two').read_bytes(),b'data')
+                self.assertNotEqual(source.stat().st_ino,(root/'two').stat().st_ino)
+                (root/'link').symlink_to(source)
+                with self.assertRaisesRegex(ValueError,'not_regular'):link_or_copy(root/'link',root/'three')
+                with self.assertRaisesRegex(ValueError,'destination_exists'):link_or_copy(source,root/'two')
 
     def test_link_or_copy_on_windows_links_and_falls_back_to_a_copy(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -518,7 +518,8 @@ class PiSDKTests(unittest.TestCase):
         self.assertEqual((request['title'], request['kind'], request['locations'], request['raw_input']),
                          ('mcp__echo__echo', 'other', None, {'text': 'hi'}))
         self.assertIn('mcp__echo__echo', [t['function']['name'] for t in model.requests[0]['tools']])
-        self.assertIn(str(skill / 'SKILL.md'), json.dumps(model.requests[0]['messages']))
+        # As JSON escapes it: a Windows path's backslashes are doubled.
+        self.assertIn(json.dumps(str(skill / 'SKILL.md'))[1:-1], json.dumps(model.requests[0]['messages']))
         self.assertIn('echo: hi', json.dumps(model.requests[1]['messages']))
 
     def test_a_refused_card_keeps_a_codemode_mcp_call_from_reaching_the_server(self):
