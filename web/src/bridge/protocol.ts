@@ -122,8 +122,7 @@ export interface SettingsSaveResult {
   restart: 'none' | 'avatar' | 'backend';
   notApplied: SettingId[];
   error?: string;
-  /** 服务地址 moved to another scheme, host or port: the token saved for the old service is gone. */
-  ttsTokenCleared?: true;
+  ttsTokenCleared?: true; // 服务地址 moved to another scheme, host or port: the old service's token is gone.
 }
 
 /** `settings.onChange`: saved values changed outside the settings pages (a menu, another window). */
@@ -289,9 +288,8 @@ export interface AgenticComplexBridge {
     read(): Promise<SettingsSnapshot>;
     save(changes: Record<SettingId, SettingValue>): Promise<SettingsSaveResult>;
     /**
-     * Records that the user confirmed a data-deleting change. The web layer has already shown its own
-     * danger confirmation, so the native side only logs the consent and must not ask again; `false`
-     * means the shell refused (e.g. policy), and the change is not written.
+     * Records that the user confirmed a data-deleting change. The web layer has already shown its own danger confirmation,
+     * so the native side only logs the consent and must not ask again; `false`: the shell refused, the change is not written.
      */
     confirmDestructive(id: SettingId): Promise<boolean>;
     /** Counts for the danger dialog of a destructive setting; deletes nothing. */
