@@ -139,8 +139,11 @@ def merge_python_site(base, overlay, destination, pins):
                     metadata_directories.add(destination / part)
         for directory in metadata_directories:
             if directory.is_dir(): shutil.rmtree(directory)
+    # pip --target puts console-script launchers in <overlay>/bin; they name the build host's python by absolute path
+    # and nothing in the runtime runs them.
     shutil.copytree(overlay, destination, dirs_exist_ok=True, symlinks=True,
-                    ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+                    ignore=lambda directory, names: [name for name in names if name == '__pycache__' or name.endswith('.pyc')
+                                                     or Path(directory) == overlay and name == 'bin'])
     verify_python_site(destination, pins)
 
 

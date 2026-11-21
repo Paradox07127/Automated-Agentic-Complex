@@ -113,6 +113,16 @@ class HarnessPackagingTests(unittest.TestCase):
             self.assertFalse((target / 'pydantic-1.0.dist-info').exists())
             self.assertFalse((target / 'inherited-unselected.py').exists())
 
+    def test_overlay_console_script_launchers_stay_out(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); base = root / 'base'; overlay = root / 'overlay'; target = root / 'out'
+            distribution(base, 'unrelated-package', '9.0', {'unrelated.py': 'keep'})
+            distribution(overlay, 'pydantic', '2.14.1', {'pydantic/__init__.py': 'new'})
+            (overlay / 'bin').mkdir(); (overlay / 'bin/uvicorn.exe').write_text('#!D:\\build\\host\\python.exe')
+            merge_python_site(base, overlay, target, {'pydantic': '2.14.1'})
+            self.assertFalse((target / 'bin').exists())
+            self.assertEqual((target / 'pydantic/__init__.py').read_text(), 'new')
+
     def test_overlay_refuses_source_overlap(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
