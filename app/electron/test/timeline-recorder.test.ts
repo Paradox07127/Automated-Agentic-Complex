@@ -267,6 +267,36 @@ test('a tree answer that comes after the window changed is dropped; its click go
     ['window', 'Notes', 'notes tree']]);
 });
 
+test('allowWindowText off: the window and the click are recorded and no tree is read', async () => {
+  const t = setup({ policy: { ...ON, allowWindowText: false } });
+  await t.start();
+  t.act('click');
+  t.recorder.update(sample({ front: NOTES }));
+  await t.run(5000);
+  assert.deepEqual(t.ops('ax.window_tree'), []);
+  assert.deepEqual(t.ops('input.actions'), [{ enabled: true }]);
+  assert.deepEqual(t.records().map((r) => [r.kind, r.app, r.tree]), [['window', 'TextEdit', null], ['click', 'TextEdit', null],
+    ['window', 'Notes', null]]);
+});
+
+test('a tree read that returns after a switch to a blocked tab in the same window is not posted under the allowed tab', async () => {
+  const SAFARI = { app: 'Safari', bundleId: 'com.apple.Safari', pid: 702, windowId: 640, title: 'Docs', urlHost: 'docs.example' };
+  const pending = later<HelperAnswer>();
+  const answers: (HelperAnswer | Promise<HelperAnswer>)[] = [tree('full', 't1', FULL), pending.promise];
+  const t = setup({ helper: { 'ax.window_tree': () => answers.shift()! },
+    blacklist: parseBlacklist({ mode: 'deny', domains: ['bank.example'] }) });
+  await t.start(sample({ front: SAFARI }));
+  t.act('click');
+  await t.run(300);
+  assert.equal(t.ops('ax.window_tree').length, 2);
+  t.recorder.update(sample({ front: { ...SAFARI, title: 'Account', urlHost: 'bank.example' } }));
+  pending.resolve(tree('diff', 't2', 'MARKER balance'));
+  await t.run(5000);
+  assert.deepEqual(t.records().filter((r) => r.tree?.text.includes('MARKER')).map((r) => r.url_host), []);
+  assert.deepEqual(t.records().map((r) => [r.kind, r.url_host, r.tree?.mode ?? null]), [['window', 'docs.example', 'full'],
+    ['click', 'docs.example', null]]);
+});
+
 test('our own process, another app\'s pid and a blacklisted window are not recorded or read', async () => {
   const own = setup();
   await own.start(sample({ front: { ...NOTES, pid: 4000 } }));

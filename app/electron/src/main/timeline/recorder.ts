@@ -177,6 +177,13 @@ export class TimelineRecorder {
     return { window: f, incognito: s.frontIncognito, secureInput: s.secureInput };
   }
 
+  /** The latest sample's front is `w`, down to the title and URL host its record is filtered on. */
+  private inFront(w: CaptureWindow): boolean {
+    const s = this.latestSample, f = s?.front;
+    return s !== null && !!f && f.pid === w.window.pid && f.windowId === w.window.windowId && f.title === w.window.title
+      && f.urlHost === w.window.urlHost && s.frontIncognito === w.incognito;
+  }
+
   private setActions(on: boolean): void {
     this.actions = on;
     if (!on) {
@@ -220,33 +227,41 @@ export class TimelineRecorder {
     const batch = windowRead ? [windowRead] : this.waiting.splice(0);
     if (batch.length === 0) return;
     this.windowPending = null;
-    this.reading = true;
-    this.inflight = batch;
-    const generation = this.generation;
-    const params = windowRead || this.treeId === null ? { pid: shown.pid } : { pid: shown.pid, previous: this.treeId };
-    const reply = await this.ports.helper.request('ax.window_tree', params);
-    this.reading = false;
+    const window = batch.at(-1)!.window;
+    // A tab switch keeps the pid and window id, so the front is compared with the batch's window before and after the read.
+    const reads = () => this.ports.policy().allowWindowText && this.inFront(window);
     let retry = false;
-    if (generation === this.generation) {
-      this.inflight = [];
-      retry = this.carry(batch, reply, windowRead !== null);
+    if (!reads()) {
+      this.carry(batch, null, windowRead !== null);
+    } else {
+      this.reading = true;
+      this.inflight = batch;
+      const generation = this.generation;
+      const params = windowRead || this.treeId === null ? { pid: shown.pid } : { pid: shown.pid, previous: this.treeId };
+      const reply = await this.ports.helper.request('ax.window_tree', params);
+      this.reading = false;
+      if (generation === this.generation) {
+        this.inflight = [];
+        retry = this.carry(batch, reads() ? reply : null, windowRead !== null);
+      }
     }
     if (this.windowPending) void this.read();
     else if (this.waiting.length > 0) this.scheduleRead(retry ? RETRY_DELAY_MS : READ_DELAY_MS);
   }
 
   /** The tree goes on the last record of the batch; the helper diffs against it next only when agentd gets it. An
-   *  action batch's first no_change puts it back to wait for one more read instead; true then. */
-  private carry(batch: Pending[], reply: HelperAnswer, windowRead: boolean): boolean {
-    if (reply.ok && reply.result.mode === 'no_change' && !windowRead && batch.some((p) => !p.retried)) {
+   *  action batch's first no_change puts it back to wait for one more read instead; true then. A null `reply`, no tree
+   *  read for the batch's window, sends the batch without one. */
+  private carry(batch: Pending[], reply: HelperAnswer | null, windowRead: boolean): boolean {
+    if (reply?.ok && reply.result.mode === 'no_change' && !windowRead && batch.some((p) => !p.retried)) {
       this.waiting.unshift(...batch.map((p) => ({ ...p, retried: true })));
       return true;
     }
     let tree: TimelineTree | null = null;
-    if (!reply.ok) {
+    if (reply !== null && !reply.ok) {
       if (reply.error.code !== this.loggedFailure) this.ports.log(`TIMELINE ax.window_tree failed code=${reply.error.code}`);
       this.loggedFailure = reply.error.code;
-    } else {
+    } else if (reply?.ok) {
       this.loggedFailure = null;
       const r = reply.result, mode = r.mode;
       if (r.matched === true && r.secure !== true && typeof r.text === 'string' && (mode === 'full' || (mode === 'diff' && !windowRead))) {
@@ -259,7 +274,7 @@ export class TimelineRecorder {
     if (tree && kept?.tree) {
       // Until agentd takes this tree, a diff would have no base there.
       this.treeId = null;
-      this.unsent = reply.ok && typeof reply.result.tree_id === 'string' ? { record: kept, treeId: reply.result.tree_id } : null;
+      this.unsent = reply?.ok && typeof reply.result.tree_id === 'string' ? { record: kept, treeId: reply.result.tree_id } : null;
     }
     return false;
   }
