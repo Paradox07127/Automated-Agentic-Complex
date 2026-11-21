@@ -112,7 +112,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 ## 语音
 
 - 启动时给 `--tts-url` 才有语音。例如 TTS 在远端主机时用 `ssh -N -L 19888:127.0.0.1:9888 <主机>`，再给 `--tts-url http://127.0.0.1:19888`。
-- 请求带 `Authorization: Bearer <令牌>`。令牌文件取 `--tts-token-file`，没给时取 `$AAC_TTS_TOKEN_FILE`（C10）；文件必须是 0600。在仓库根目录运行 `agent/.venv/bin/python agent/agentd/tools/tts_token.py push` 生成令牌并复制到 TTS 主机，随后重启 TTS 和 agentd。
+- 请求带 `Authorization: Bearer <令牌>`。令牌文件取 `--tts-token-file`，没给时取 `$AAC_TTS_TOKEN_FILE`（C10）；文件必须是 0600。在仓库根目录运行 `agent/.venv/bin/python agent/agentd/tools/tts_token.py push --ssh user@host --remote /srv/agentic-complex-tts/state/tts-token` 生成令牌并复制到 TTS 主机。将示例里的账户、主机和部署根目录换成实际值，随后重启 TTS 和 agentd。
 - TTS 地址收 `http` 和 `https`。HTTPS 默认 443 端口，初次连接和重连都校验证书和主机名；URL 里的用户信息和其他协议拒收。明文 HTTP 对任何主机都收，令牌和文本不加密。
 - 转发规则（`/speech` 中继、截断补 `cancelled`、失败时 `speech_failed`）见 C6 §4.7。
 

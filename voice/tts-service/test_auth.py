@@ -32,6 +32,87 @@ class TokenAuthTest(unittest.TestCase):
         self.assertEqual(headers[b'content-type'],b'application/json')
         self.assertEqual(headers[b'www-authenticate'],b'Bearer')
         self.assertEqual(sent[1]['body'],b'{"detail":"Unauthorized"}')
+    def test_declared_oversize_is_refused_before_receiving_the_body(self):
+        scope=http('POST','/synthesize',f'Bearer {TOKEN}')
+        scope['headers'].append((b'content-length',b'65537'))
+        inner,sent,status=drive(scope)
+        self.assertEqual(status,413)
+        self.assertFalse(inner.called)
+
+    def test_chunked_post_is_limited_before_the_application_reads_it(self):
+        async def run():
+            sent=[]
+            async def send(message):sent.append(message)
+            for chunks,status in [([b'x'*32768,b'y'*32768],200),([b'x'*32768,b'y'*32769],413)]:
+                messages=iter([{'type':'http.request','body':chunk,'more_body':i==0} for i,chunk in enumerate(chunks)])
+                async def receive():return next(messages)
+                async def inner(scope,receive,send):
+                    body=bytearray()
+                    while True:
+                        event=await receive()
+                        body.extend(event['body'])
+                        if not event.get('more_body'):break
+                    self.assertEqual(body,b''.join(chunks))
+                    await send({'type':'http.response.start','status':200})
+                await TokenAuth(inner,TOKEN)(http('POST','/speech_stream',f'Bearer {TOKEN}'),receive,send)
+                self.assertEqual(next(m['status'] for m in sent if m['type']=='http.response.start'),status)
+                sent.clear()
+        asyncio.run(run())
+
+    def test_busy_synthesis_is_rejected_before_body_read_and_capacity_returns(self):
+        async def run():
+            gate=asyncio.Event()
+            entered=[]
+            async def inner(scope,receive,send):
+                entered.append(scope)
+                await gate.wait()
+            app=TokenAuth(inner,TOKEN)
+            sent=[]
+            async def send(message):sent.append(message)
+            async def receive():return {'type':'http.request','body':b'{}'}
+            scope=http('POST','/speech_stream',f'Bearer {TOKEN}')
+            running=[asyncio.create_task(app(scope,receive,send)) for _ in range(2)]
+            await asyncio.sleep(0)
+            try:
+                self.assertEqual(len(entered),2)
+                await asyncio.wait_for(app(scope,mock.AsyncMock(side_effect=AssertionError('read busy request')),send),.5)
+                self.assertEqual(sent[0]['status'],503)
+            finally:
+                gate.set()
+                await asyncio.gather(*running)
+            await app(scope,receive,send)
+            self.assertEqual(len(entered),3)
+        asyncio.run(run())
+
+    def test_disconnected_stream_holds_its_slot_until_the_worker_exits(self):
+        import ast,importlib.util,pathlib,queue,threading
+        if not importlib.util.find_spec('starlette'):self.skipTest('requires the ASGI streaming response')
+        import anyio
+        from starlette.responses import StreamingResponse
+        path=pathlib.Path(__file__).with_name('serve_tts.py')
+        node=next(n for n in ast.parse(path.read_text()).body if isinstance(n,ast.FunctionDef) and n.name=='ndjson')
+        namespace=dict(asyncio=asyncio,threading=threading,json=json,queue=queue,anyio=anyio,StreamingResponse=StreamingResponse)
+        exec(compile(ast.Module([node],[]),str(path),'exec'),namespace)
+        async def run():
+            started,release,cancelled=threading.Event(),threading.Event(),threading.Event()
+            def worker():
+                started.set()
+                release.wait(3)
+            async def receive():
+                await asyncio.to_thread(started.wait,2)
+                return {'type':'http.disconnect'}
+            async def send(message):pass
+            response=namespace['ndjson'](worker,queue.Queue(),cancelled)
+            task=asyncio.create_task(response({'type':'http','asgi':{'spec_version':'2.3'}},receive,send))
+            try:
+                self.assertTrue(await asyncio.to_thread(cancelled.wait,2))
+                with self.assertRaises(TimeoutError,msg='stream released admission while synthesis was still running'):
+                    await asyncio.wait_for(asyncio.shield(task),.1)
+            finally:
+                release.set()
+                await asyncio.wait_for(task,2)
+        asyncio.run(run())
+
     def test_missing_token(self):self.assert_rejected(http('POST','/speech_stream'))
     def test_wrong_token(self):self.assert_rejected(http('POST','/speech_stream','Bearer wrong'))
     def test_wrong_scheme(self):self.assert_rejected(http('POST','/speech_stream',f'Basic {TOKEN}'))

@@ -13,7 +13,7 @@ import build_components
 import component_manifest
 import package_windows
 import windows_exe
-from test_harness_runtime import distribution, prepared_fixture
+from test_harness_runtime import prepared_fixture
 
 ROOT = Path(__file__).resolve().parents[3]
 LIBRARY = ROOT / 'protocol/character-library/fixtures/library'
@@ -33,9 +33,6 @@ class PackageWindowsTests(unittest.TestCase):
                          'Doc/python.chm', 'Tools/i18n/msgfmt.py', 'LICENSE.txt'):
             (python / relative).parent.mkdir(parents=True, exist_ok=True); (python / relative).write_text('python ' + relative)
         self.python = python
-        self.site = self.root / 'site-packages'
-        distribution(self.site, 'base-only', '1.0', {'base_only.py': 'keep'})
-        distribution(self.site, 'pip', '25.0.1', {'pip/__init__.py': 'pip'})
         self.prepared = prepared_fixture(self.root / 'harness', platform='win32-x64')
         self.web = self.root / 'web'; self.web.mkdir()
         for name in ('main.html', 'stack.html'): (self.web / name).write_text('web ' + name)
@@ -56,7 +53,7 @@ class PackageWindowsTests(unittest.TestCase):
         self.output = self.root / 'pack out'
 
     def stage(self, **changes):
-        args = dict(library=LIBRARY, python=self.python, site_packages=self.site, harness_runtime=self.prepared,
+        args = dict(library=LIBRARY, python=self.python, harness_runtime=self.prepared,
                     web_dist=self.web, electron_runtime=self.electron_runtime, electron_dir=self.electron_dir,
                     helper=self.helper, renderer=self.renderer, fbx_tool=self.fbx_tool, output=self.output,
                     build_version='20261121.1', port=None, id=None, product_name=None, app_version=None)
@@ -89,7 +86,7 @@ class PackageWindowsTests(unittest.TestCase):
     def test_the_portable_directory_has_the_shell_helper_renderer_and_components_in_place(self):
         receipt, version, fuses, check = self.stage()
         package = self.output / 'Agentic Complex'
-        self.assertEqual(receipt['package'], str(package))
+        self.assertEqual(receipt['package'], package.name)
         files = self.files(package)
         self.assertEqual(receipt['files'], len(files))
         self.assertEqual(receipt['bytes'], sum((package / f).stat().st_size for f in files))
@@ -116,12 +113,12 @@ class PackageWindowsTests(unittest.TestCase):
         check.assert_called_once_with(python)
         self.assertIn(' ', str(python))
 
-    def test_runtime_python_is_the_base_prefix_without_build_parts_and_the_merged_site(self):
+    def test_runtime_python_is_the_base_prefix_without_build_parts_and_the_locked_site(self):
         self.stage()
         runtime = self.output / 'Agentic Complex/resources/components/runtime.python/payload'
         files = self.files(runtime)
         for relative in ('python.exe', 'pythonw.exe', 'python312.dll', 'vcruntime140.dll', 'DLLs/_ssl.pyd', 'DLLs/libssl-3.dll',
-                         'Lib/os.py', 'Lib/encodings/__init__.py', 'LICENSE.txt', 'Lib/site-packages/base_only.py',
+                         'Lib/os.py', 'Lib/encodings/__init__.py', 'LICENSE.txt',
                          'licenses/numpy/LICENSE.txt'):
             self.assertIn(relative, files)
         for relative in ('Lib/__pycache__/os.cpython-312.pyc', 'Lib/test/test_os.py', 'Lib/site-packages/host_only.py',

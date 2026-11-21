@@ -17,7 +17,7 @@
 | `segment_meta.py` | 片段元数据记录（`SegmentRecorder`，含 MRTE 注意力抓取）和 C2 事件生成（`C2Stream`） |
 | `cues.py` | `cues` 事件：MRTE Viterbi（revision 1）、phone→元音映射、MFA 子进程客户端（`MfaClient`）和每条流的 cue 收发（`CueStream`）。只依赖标准库和 numpy |
 | `mfa_worker.py` | MFA 子进程（kalpy 进程内对齐，CPU，beam 10），stdin/stdout 一行一个 JSON |
-| `requirements-mfa.lock` | MFA 子进程环境的锁定清单：`conda list --explicit --md5`，注释行之后是 `pip freeze` |
+| `requirements-mfa.lock` | MFA 子进程环境的 Linux Conda 显式工件 URL 和 MD5 清单 |
 | `test_*.py` | 单测，用假引擎和假 MFA 子进程 |
 | `deploy/` | Docker 部署：`Dockerfile`、`compose.yaml`、`deploy.sh` |
 

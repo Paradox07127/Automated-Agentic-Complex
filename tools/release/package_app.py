@@ -120,9 +120,6 @@ def stage(args):
     harness_receipt['prepared_manifest_sha256'] = digest(args.harness_runtime / 'manifest.json')
     library = Library(args.library.resolve())
     catalog = library.snapshot()
-    # Resolve exact definitions from the published catalog; inventory validation
-    # includes every native blob and prevents silently packaging partial assets.
-    packages = [Package((args.library.resolve() / row['definition']['file']).parent) for row in catalog['characters']]
     out.mkdir(parents=True)
     identity = args.id or 'local.agenticcomplex.companion'
     port = args.port or 48800
@@ -134,7 +131,7 @@ def stage(args):
     with tempfile.TemporaryDirectory(prefix='.components-', dir=out) as temporary:
         component_stage = Path(temporary)
         components = build_components.stage_components(component_stage, python=args.python,
-            site_packages=args.site_packages, harness_runtime=args.harness_runtime, web_dist=args.web_dist,
+            harness_runtime=args.harness_runtime, web_dist=args.web_dist,
             ui_art=getattr(args, 'ui_art', None), library=args.library, build_version=args.build_version,
             fbx_tool=args.fbx_tool)
         strip_local_symbols(component_stage / 'harness.pi/payload' / LAYOUT['darwin-arm64']['node'])
@@ -226,7 +223,9 @@ def stage(args):
             component_manifest.write_lock(resources / 'composition.lock.json', layout, host_ref, refs)
         else:
             write_json(out / 'components/index.json', dict(schema='endfield-components-index/v1',
-                components=[dict(ref, dir=ref['id']) for ref in references if ref['id'] not in bundled]))
+                components=[dict(ref, dir=ref['id'], manifest_sha256=digest(out / 'components' / ref['id'] / 'component.json'))
+                            for ref in references if ref['id'] not in bundled]))
+            shutil.copy2(out / 'components/index.json', resources / 'components-index.json')
         write_json(out / 'staging-manifest.json', dict(schema='endfield-character-distribution-stage/v1',
             baseline=baseline, app=app.name, distribution_id=identity, layout=layout, port=port, single_app=True,
             characters=[dict(id=p.id, version=p.document['version'], definition_sha256=p.sha256,
@@ -240,7 +239,7 @@ def stage(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    for key in ['library', 'python', 'site-packages', 'harness-runtime', 'web-dist', 'output', 'fbx-tool']:
+    for key in ['library', 'python', 'harness-runtime', 'web-dist', 'output', 'fbx-tool']:
         parser.add_argument('--' + key, type=Path, required=True)
     parser.add_argument('--host', type=Path, help='The built metal-avatar-host; without it the app has no renderer component')
     parser.add_argument('--electron-app', type=Path, required=True, help='The locked Electron.app')

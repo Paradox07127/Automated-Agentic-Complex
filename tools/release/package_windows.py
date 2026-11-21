@@ -2,8 +2,8 @@
 """Stage the Windows portable directory `Agentic Complex\\` (C11 windows-x64, portable only) from build outputs.
 
 Takes the official Electron win32-x64 root, app/electron after `npm run build`, ac-helper.exe, private\\renderer\\windows\\build
-(efw.exe and its product .dxbc), fbx-motion.exe, the web build, the prepared harness runtime, a CPython 3.12 base prefix
-with its site-packages, a character library and, optionally, the UI art (as release.py's ui_art: the pages' art and the
+(efw.exe and its product .dxbc), fbx-motion.exe, the web build, the prepared harness runtime, a CPython 3.12 base prefix,
+a character library and, optionally, the UI art (as release.py's ui_art: the pages' art and the
 exe's icon). No installer and no signing; prints one JSON line, the receipt, also written to <output>/pack-receipt.json.
 """
 import argparse
@@ -138,7 +138,7 @@ def check_runtime_python(python):
     if outside: raise ValueError('runtime_python_path_outside: ' + ', '.join(outside))
 
 
-def stage(*, library, python, site_packages, harness_runtime, web_dist, electron_runtime, electron_dir, helper, renderer,
+def stage(*, library, python, harness_runtime, web_dist, electron_runtime, electron_dir, helper, renderer,
           fbx_tool, output, build_version, port=None, id=None, product_name=None, app_version=None, ui_art=None):
     """Write output/Agentic Complex/ and return the receipt: its path, file count, bytes, the fuses and the exe's resources
     read back, the UI art shipped and contents()."""
@@ -152,7 +152,7 @@ def stage(*, library, python, site_packages, harness_runtime, web_dist, electron
     # Not mkdtemp: on Windows that directory admits only the building user, and the trees moved out of it keep its ACL.
     component_stage = output / '.components'; component_stage.mkdir()
     try:
-        components = build_components.stage_components(component_stage, python=python, site_packages=site_packages,
+        components = build_components.stage_components(component_stage, python=python,
             harness_runtime=harness_runtime, web_dist=web_dist, ui_art=ui_art, library=library, build_version=build_version,
             fbx_tool=fbx_tool, platform=PLATFORM)
         host = component_stage / 'host/payload'
@@ -198,7 +198,7 @@ def stage(*, library, python, site_packages, harness_runtime, web_dist, electron
     files = [path for path in package.rglob('*') if path.is_file()]
     # Of the manifest's characters/ the package carries only the library's.
     shipped = resources / 'components/web-ui/payload/ui/art'
-    receipt = dict(package=str(package), files=len(files), bytes=sum(path.stat().st_size for path in files), fuses=fuses,
+    receipt = dict(package=package.name, files=len(files), bytes=sum(path.stat().st_size for path in files), fuses=fuses,
                    branding=branding, contents=contents(package),
                    ui_art=ui_art and dict(files=sum(path.is_file() for path in shipped.rglob('*')),
                                           manifest_sha256=digest(Path(ui_art) / 'art-manifest.json')))
@@ -210,7 +210,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     for key, help in [('library', 'The character library (its current.json)'),
                       ('python', 'The CPython 3.12 base prefix, the directory of python.exe'),
-                      ('site-packages', "That Python's site-packages, merged under the harness runtime's locked one"),
                       ('harness-runtime', 'harness_runtime.py --output'), ('web-dist', 'The vite build of web/'),
                       ('electron-runtime', 'electron_runtime.py: the unpacked root holding electron.exe'),
                       ('electron-dir', 'app/electron after npm run build'), ('helper', 'ac-helper.exe'),

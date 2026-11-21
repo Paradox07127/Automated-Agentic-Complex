@@ -1,9 +1,7 @@
 """Stage component payloads before signing, then write their C11 manifests."""
 import copy
 import hashlib
-from importlib import metadata
 import json
-import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
@@ -15,15 +13,13 @@ sys.path.insert(0, str(ROOT / 'agent/agentd'))
 from character_library import Library, Package, digest, json_bytes
 import component_manifest
 import pool_codec
-from harness_runtime import LAYOUT, merge_python_site, normalized, python_pins, validate_runtime
+from harness_runtime import LAYOUT, copy_python_site, python_pins, validate_runtime
 from release import CONTENT_PACKAGES, CONTENT_SOURCES
 
 CANON_RELATIVE = Path('brain/canon-windows.json')
 UFBX_LICENSE = ROOT / 'characters/agentic_complex_build/motion_import/native/UFBX-LICENSE'
 # native_bundle.py's own repo-root import path; the staged copy imports resource_store from agentd.
 NATIVE_BUNDLE_ROOT = "sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[2]/'agent/agentd'))\n"
-# Distributions a development site-packages may carry that agentd does not import; runtime.python never ships them.
-RETIRED_DISTRIBUTIONS = ('claude-agent-sdk', 'openai-codex', 'openai-codex-cli-bin', 'anthropic', 'jiter', 'docstring-parser')
 # Parts of the standalone CPython prefix agentd never loads: bin/python3.12 links no libpython, and nothing imports Tk.
 PYTHON_SKIPPED = ('include', 'share', 'lib/pkgconfig', 'lib/libpython3.12.dylib', 'bin/python3-config', 'bin/python3.12-config',
                   *('lib/python3.12/' + name for name in ('site-packages', 'test', 'tkinter', 'idlelib', 'turtledemo', 'ensurepip',
@@ -120,10 +116,10 @@ def python_version(executable):
                                    text=True).strip()
 
 
-def stage_runtime_python(stage, *, python, site_packages, prepared_site, pins):
-    """Stage only runtime.python, excluding retired harness SDKs."""
-    stage, python, site_packages, prepared_site = map(Path, (stage, python, site_packages, prepared_site))
-    site_packages = site_packages.resolve(); prepared_site = prepared_site.resolve()
+def stage_runtime_python(stage, *, python, prepared_site, pins):
+    """Stage the stripped CPython prefix and locked site-packages."""
+    stage, python, prepared_site = map(Path, (stage, python, prepared_site))
+    prepared_site = prepared_site.resolve()
     version = python_version(python.resolve() / 'bin/python3')
     runtime = stage / 'runtime.python/payload'
     python = python.resolve()
@@ -136,13 +132,12 @@ def stage_runtime_python(stage, *, python, site_packages, prepared_site, pins):
     for sysconfig in (runtime / 'lib/python3.12').glob('_sysconfigdata_*.py'):
         sysconfig.write_text(sysconfig.read_text().replace(str(python), '/install'))
     runtime_site = runtime / 'lib/python3.12/site-packages'
-    merge_python_site(site_packages, prepared_site, runtime_site, pins)
+    copy_python_site(prepared_site, runtime_site)
     for tests in sorted(runtime_site.rglob('tests')):
         if tests.is_dir(): shutil.rmtree(tests)
     wrapper = runtime / 'bin/agentic-complex-python'
     wrapper.write_text('#!/bin/sh\nexec "$(dirname "$0")/python3" -I -B "$@"\n'); wrapper.chmod(0o755)
     shutil.copytree(prepared_site / ('numpy-' + pins['numpy'] + '.dist-info/licenses'), runtime / 'licenses/numpy')
-    drop_retired(site_packages, runtime_site)
     return dict(id='runtime.python', version=version, entrypoints={'python': 'bin/agentic-complex-python'},
                 provides={}, requires={})
 
@@ -151,44 +146,33 @@ def stage_runtime_python(stage, *, python, site_packages, prepared_site, pins):
 WINDOWS_PYTHON_SKIPPED = ('Doc', 'include', 'libs', 'Scripts', 'Tools', 'Lib/site-packages', 'Lib/test')
 
 
-def stage_runtime_python_windows(stage, *, python, site_packages, prepared_site, pins):
-    """runtime.python from a Windows CPython base prefix: python.exe at the payload root and the merged site in
+def stage_runtime_python_windows(stage, *, python, prepared_site, pins):
+    """runtime.python from a Windows CPython base prefix: python.exe at the payload root and the locked site in
     Lib/site-packages, where site reads pywin32.pth; no wrapper, the shell passes -I -B itself."""
-    stage, python, site_packages, prepared_site = map(Path, (stage, python, site_packages, prepared_site))
-    python = python.resolve(); site_packages = site_packages.resolve(); prepared_site = prepared_site.resolve()
+    stage, python, prepared_site = map(Path, (stage, python, prepared_site))
+    python = python.resolve(); prepared_site = prepared_site.resolve()
     version = python_version(python / 'python.exe')
     skipped = {python / relative for relative in WINDOWS_PYTHON_SKIPPED}
     runtime = stage / 'runtime.python/payload'
     shutil.copytree(python, runtime, ignore=lambda directory, names: [
         name for name in names if name == '__pycache__' or name.endswith('.pyc') or Path(directory, name) in skipped])
     runtime_site = runtime / 'Lib/site-packages'
-    merge_python_site(site_packages, prepared_site, runtime_site, pins)
+    copy_python_site(prepared_site, runtime_site)
     shutil.copytree(prepared_site / ('numpy-' + pins['numpy'] + '.dist-info/licenses'), runtime / 'licenses/numpy')
-    drop_retired(site_packages, runtime_site)
     return dict(id='runtime.python', version=version, entrypoints={'python': 'python.exe'}, provides={}, requires={})
-
-
-def drop_retired(site_packages, runtime_site):
-    """Remove the files of RETIRED_DISTRIBUTIONS that site_packages carried from runtime_site."""
-    for distribution in metadata.distributions(path=[str(site_packages)]):
-        if normalized(distribution.metadata['Name']) not in RETIRED_DISTRIBUTIONS: continue
-        if not distribution.files: raise ValueError('python_distribution_record_missing')
-        for record in distribution.files:
-            source = Path(os.path.abspath(distribution.locate_file(record)))
-            if not source.is_relative_to(site_packages): continue  # bin scripts are not site-packages
-            relative = source.relative_to(site_packages)
-            if '__pycache__' in relative.parts or source.suffix == '.pyc': continue
-            removed = runtime_site / relative; removed.unlink()
-            parent = removed.parent
-            while parent != runtime_site and not any(parent.iterdir()):
-                parent.rmdir(); parent = parent.parent
 
 
 def stage_character(package, target, platform):
     """Copy package to target. A macOS payload leaves out the D3D11 frame table and its blobs, which only the Windows
     renderer reads, stores its pool files compressed where that is smaller, and is sealed again: its character.json and
     native bundle differ from the library's."""
-    shutil.copytree(package.root, target, symlinks=True)
+    for name in ('character.json', *package.inventory):
+        destination = target / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(package.root / name, destination)
+    expected = package.sha256
+    package = Package(target)
+    if package.sha256 != expected: raise ValueError('definition_sha_mismatch')
     if platform != 'macos-arm64' or not package.render_enabled: return
     if 'd3d11_frame' in package.native_entry:
         prefix = PurePosixPath(package.native_ref['file']).parent
@@ -247,7 +231,7 @@ PLATFORMS = {'macos-arm64': ('darwin-arm64', stage_runtime_python, 'fbx-motion')
              'windows-x64': ('win32-x64', stage_runtime_python_windows, 'fbx-motion.exe')}
 
 
-def stage_components(stage, *, python, site_packages, harness_runtime, web_dist, ui_art, library,
+def stage_components(stage, *, python, harness_runtime, web_dist, ui_art, library,
                      build_version, fbx_tool, platform='macos-arm64'):
     """Fill a new empty stage with payloads and return the arguments for write_component."""
     stage, python, prepared, library = map(Path, (stage, python, harness_runtime, library))
@@ -255,10 +239,9 @@ def stage_components(stage, *, python, site_packages, harness_runtime, web_dist,
     harness_platform, stage_python, fbx_name = PLATFORMS[platform]
     manifest = validate_runtime(prepared, platform=harness_platform)
     pins = python_pins()
-    catalog = Library(library).snapshot()
-    packages = [Package((library / row['definition']['file']).parent) for row in catalog['characters']]
+    packages = Library(library).packages()
     prepared_site = prepared / 'python-site'
-    component = stage_python(stage, python=python, site_packages=site_packages, prepared_site=prepared_site, pins=pins)
+    component = stage_python(stage, python=python, prepared_site=prepared_site, pins=pins)
     python_version = component['version']
     components = [component]
     pi = stage / 'harness.pi/payload'
@@ -266,7 +249,7 @@ def stage_components(stage, *, python, site_packages, harness_runtime, web_dist,
     (pi / node).parent.mkdir(parents=True); (pi / 'licenses').mkdir()
     shutil.copy2(prepared / node, pi / node)
     shutil.copy2(prepared / 'node/LICENSE', pi / 'licenses/Node-LICENSE')
-    shutil.copytree(prepared / 'pi-runtime', pi / 'pi-runtime', symlinks=True)
+    shutil.copytree(prepared / 'pi-runtime', pi / 'pi-runtime', symlinks=True, ignore=shutil.ignore_patterns('__pycache__'))
     components.append(dict(id='harness.pi', version=manifest['pi_version'], entrypoints={'node': node},
                            provides={}, requires={}))
     service = stage / 'agentd/payload'

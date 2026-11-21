@@ -7,7 +7,7 @@ import {
 } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 import {
-  BUNDLED, ComponentFailure, type ComponentPlatform, componentPlatform, dropUnmet, ImportFailure, type LockEntry, type Manifest, parseIndex,
+  BUNDLED, ComponentFailure, type ComponentPlatform, componentPlatform, dropUnmet, ImportFailure, type Lock, type LockEntry, type Manifest, parseIndex,
   parseLock, parseManifest, type Reason,
 } from '../common/components.ts';
 import { ConfigError, type ShellPlatform } from '../common/config.ts';
@@ -16,11 +16,13 @@ import { appendLog } from './log.ts';
 export interface Tree { sha256: string; files: number; bytes: number }
 
 /** C11 §4 tree hash of a payload, with the manifest's `files` and `bytes` for the same entries. */
-export function treeHash(root: string): Tree {
+export function treeHash(root: string, externalID?: string): Tree {
   const entries: { path: string; link: boolean; exec: boolean; size: number }[] = [], pending = [''];
   while (pending.length > 0) {
     const dir = pending.pop()!;
     for (const name of readdirSync(join(root, dir))) {
+      // Python can execute cached bytecode even with -B, and C11 excludes it from the digest.
+      if (name === '__pycache__' && externalID !== undefined) throw new ImportFailure(externalID, 'treeMismatch');
       if (name === '.DS_Store' || name === '__pycache__' || (dir === '' && name === 'component.json')) continue;
       const path = dir === '' ? name : `${dir}/${name}`, info = lstatSync(join(root, path));
       if (info.isDirectory()) pending.push(path);
@@ -76,18 +78,19 @@ export function resolveComponents(lockPath: string, bundle: string, support: str
   { components: Component[]; failures: ComponentFailure[] } {
   const text = readText(lockPath);
   if (text === null) throw new ComponentFailure(null, 'lockInvalid');
-  const lock = parseLock(text, platform);
+  return resolveLock(parseLock(text, platform), bundle, support, platform);
+}
+
+function resolveLock(lock: Lock, bundle: string, support: string, platform: ComponentPlatform, verified?: Map<string, Manifest>) {
   const contents = dirname(dirname(bundle));
   const load = (entry: LockEntry): { manifest: Manifest; component: Component } => {
     const fixed = entry.id === 'host' || entry.id === 'renderer';
     const dir = entry.placement === 'bundle' ? join(bundle, entry.id) : join(support, entry.id, `${entry.version}-${entry.sha256.slice(0, 8)}`);
     const payload = fixed ? contents : join(dir, 'payload');
-    const data = readText(join(dir, 'component.json'));
-    if (data === null || !(fixed || (existsSync(payload) && statSync(payload).isDirectory()))) {
+    const manifest = verified ? verified.get(entry.id) : manifestAt(join(dir, 'component.json'), entry.id, platform);
+    if (!manifest || !(fixed || (existsSync(payload) && statSync(payload).isDirectory()))) {
       throw new ComponentFailure(entry.id, 'componentMissing');
     }
-    const manifest = parseManifest(data, platform);
-    if (manifest === null) throw new ComponentFailure(entry.id, 'manifestInvalid');
     if (manifest.id !== entry.id || manifest.version !== entry.version || manifest.sha256 !== entry.sha256
       || manifest.platform !== lock.platform) throw new ComponentFailure(entry.id, 'manifestMismatch');
     const root = real(payload);
@@ -140,17 +143,21 @@ export function writeAtomic(path: string, text: string, mode?: number): void {
 /**
  * Installs a split app's external components (C11 §7) from `source` (the `components/` beside the app) into
  * `<support>/components/` and writes the split lock there. Each new copy is checked in full before it is renamed into
- * place; installed directories are trusted. Returns the components skipped (id → reason); an unreadable host throws.
+ * place. Every launch checks installed copies against the index sealed in the app.
  */
-export function installComponents(source: string, bundle: string, support: string, platform: ComponentPlatform): Record<string, string> {
+export function installComponents(source: string, bundle: string, support: string, platform: ComponentPlatform) {
   const components = join(support, 'components');
   const host = manifestAt(join(bundle, 'host/component.json'), 'host', platform);
-  const entries = parseIndex(readText(join(source, 'index.json')) ?? '');
+  const signed = readFileSync(join(dirname(bundle), 'components-index.json'));
+  const index = join(source, 'index.json');
+  const hasSource = existsSync(index);
+  if (hasSource && !signed.equals(readFileSync(index))) throw new ImportFailure(null, 'indexInvalid');
+  const entries = parseIndex(signed.toString('utf8'));
   const failed: Record<string, string> = {};
-  const manifests: Manifest[] = [];
+  const verified = new Map([[host.id, host]]);
   for (const id of BUNDLED.slice(1)) {
     try {
-      manifests.push(manifestAt(join(bundle, id, 'component.json'), id, platform));
+      verified.set(id, manifestAt(join(bundle, id, 'component.json'), id, platform));
     } catch (e) {
       failed[id] = e instanceof ComponentFailure ? e.reason : 'ioError';
     }
@@ -161,6 +168,7 @@ export function installComponents(source: string, bundle: string, support: strin
     let dir = target;
     try {
       if (copy) {
+        if (!hasSource) throw new ComponentFailure(entry.id, 'componentMissing');
         const from = join(source, entry.dir);
         // Types without following links: a copied link would keep pointing outside the installed tree.
         const type = (name: string) => { try { return lstatSync(join(from, name)); } catch { return null; } };
@@ -171,14 +179,15 @@ export function installComponents(source: string, bundle: string, support: strin
           cpSync(join(from, name), join(dir, name), { recursive: true, verbatimSymlinks: true, mode: constants.COPYFILE_FICLONE });
         }
       }
-      const manifest = manifestAt(join(dir, 'component.json'), entry.id, platform);
-      if (manifest.version !== entry.version || manifest.sha256 !== entry.sha256) throw new ComponentFailure(entry.id, 'manifestMismatch');
+      const data = readFileSync(join(dir, 'component.json'));
+      if (createHash('sha256').update(data).digest('hex') !== entry.manifestSHA256) throw new ComponentFailure(entry.id, 'manifestMismatch');
+      const manifest = parseManifest(data.toString('utf8'), platform);
+      if (manifest === null) throw new ComponentFailure(entry.id, 'manifestInvalid');
+      if (manifest.id !== entry.id || manifest.version !== entry.version || manifest.sha256 !== entry.sha256) throw new ComponentFailure(entry.id, 'manifestMismatch');
       const payload = join(dir, 'payload');
-      if (copy) {
-        const tree = treeHash(payload);
-        if (tree.sha256 !== manifest.sha256 || tree.files !== manifest.files || tree.bytes !== manifest.bytes) {
-          throw new ImportFailure(entry.id, 'treeMismatch');
-        }
+      const tree = treeHash(payload, entry.id);
+      if (tree.sha256 !== manifest.sha256 || tree.files !== manifest.files || tree.bytes !== manifest.bytes) {
+        throw new ImportFailure(entry.id, 'treeMismatch');
       }
       const root = real(payload);
       for (const path of Object.values(manifest.entrypoints)) {
@@ -189,6 +198,7 @@ export function installComponents(source: string, bundle: string, support: strin
         renameSync(dir, target);
         dir = target;
       }
+      verified.set(entry.id, manifest);
     } catch (e) {
       failed[entry.id] = e instanceof ComponentFailure || e instanceof ImportFailure ? e.reason : 'ioError';
     } finally {
@@ -200,13 +210,17 @@ export function installComponents(source: string, bundle: string, support: strin
     created_at: new Date().toISOString().replace(/\.[0-9]{3}Z$/, 'Z'),
     host: { id: host.id, version: host.version, tree_sha256: host.sha256 },
     components: [
-      ...manifests.map((m) => ({ id: m.id, version: m.version, tree_sha256: m.sha256, placement: 'bundle' })),
+      ...BUNDLED.slice(1).filter((id) => verified.has(id)).map((id) => {
+        const m = verified.get(id)!;
+        return { id, version: m.version, tree_sha256: m.sha256, placement: 'bundle' };
+      }),
       ...entries.map((e) => ({ id: e.id, version: e.version, tree_sha256: e.sha256, placement: 'support' })),
     ],
   };
   mkdirSync(components, { recursive: true });
-  writeAtomic(join(components, 'composition.lock.json'), JSON.stringify(lock, null, 2));
-  return failed;
+  const text = JSON.stringify(lock, null, 2);
+  writeAtomic(join(components, 'composition.lock.json'), text);
+  return { lock: parseLock(text, platform), verified, failed };
 }
 
 /** What the lock resolved to; a path is null when its component is in `missing`. */
@@ -221,8 +235,7 @@ export interface Composition {
 }
 
 /**
- * A packaged launch's components: a split app first imports `components/` beside the app when its `index.json` is
- * there, then the lock is resolved. Throws ConfigError when the lock or the host is unusable or the import fails;
+ * A packaged launch's components. A split app verifies its support components before resolving them. Throws ConfigError when the lock or the host is unusable or the import fails;
  * nothing starts then.
  */
 export function prepareComponents(options: { resources: string; support: string; layout: 'portable' | 'split'; platform: ShellPlatform }):
@@ -232,22 +245,21 @@ export function prepareComponents(options: { resources: string; support: string;
   if (options.layout === 'split' && options.platform === 'windows') throw new ConfigError('无效的发行配置');
   const bundle = join(resources, 'components');
   mkdirSync(support, { recursive: true, mode: 0o700 });
-  let lock = join(resources, 'composition.lock.json');
-  if (options.layout === 'split') {
-    const source = join(resources, '../../../components');
-    lock = join(support, 'components/composition.lock.json');
-    if (existsSync(join(source, 'index.json'))) {
+  let resolved: { components: Component[]; failures: ComponentFailure[] };
+  try {
+    if (options.layout === 'split') {
+      const source = join(resources, '../../../components');
+      let imported;
       try {
-        const failed = installComponents(source, bundle, support, platform);
-        for (const id of Object.keys(failed).sort()) appendLog(support, 'supervisor', `component import failed: ${id} ${failed[id]}`);
+        imported = installComponents(source, bundle, support, platform);
       } catch (e) {
         throw new ConfigError(`组件导入失败：${e instanceof Error ? e.message : String(e)}`);
       }
+      for (const [id, reason] of Object.entries(imported.failed)) appendLog(support, 'supervisor', `component import failed: ${id} ${reason}`);
+      resolved = resolveLock(imported.lock, bundle, join(support, 'components'), platform, imported.verified);
+    } else {
+      resolved = resolveComponents(join(resources, 'composition.lock.json'), bundle, join(support, 'components'), platform);
     }
-  }
-  let resolved: { components: Component[]; failures: ComponentFailure[] };
-  try {
-    resolved = resolveComponents(lock, bundle, join(support, 'components'), platform);
   } catch (e) {
     if (!(e instanceof ComponentFailure)) throw e;
     throw new ConfigError(`组件无法使用：${e.component ?? 'composition.lock.json'} ${e.reason}`);

@@ -46,10 +46,9 @@ class DevDeployTests(unittest.TestCase):
         (binaries / 'metal-avatar-host').write_bytes(b'synthetic executable')
         python = self.root / 'python'; (python / 'bin').mkdir(parents=True)
         (python / 'bin/python3').write_text('#!/bin/sh\nprintf "3.12.99\\n"\n'); (python / 'bin/python3').chmod(0o755)
-        site = self.root / 'site'; site.mkdir()
         fbx_tool = self.root / 'fbx-motion'; fbx_tool.write_text('#!/bin/sh\n'); fbx_tool.chmod(0o755)
         args = SimpleNamespace(output=self.root / 'out', library=Path(__file__).resolve().parents[3] / 'protocol/character-library/fixtures/library',
-            id=None, port=None, python=python, site_packages=site, **electron_fields(self, binaries),
+            id=None, port=None, python=python, **electron_fields(self, binaries),
             harness_runtime=prepared_fixture(self.root / 'harness'),
             host=binaries / 'metal-avatar-host', build_version='1', web_dist=self.web, ui_art=self.art, fbx_tool=fbx_tool,
             content_override=[relative + '=' + str(package_app.ROOT / source) for relative, source in

@@ -66,6 +66,8 @@ def verify_python_site(site, pins):
         actual[name] = distribution.version
     for name, version in pins.items():
         if actual.get(name) != version: raise ValueError('python_dependency_mismatch: ' + name)
+    extra = actual.keys() - pins.keys()
+    if extra: raise ValueError('unlocked_python_distributions: ' + ', '.join(sorted(extra)))
     return actual
 
 
@@ -113,38 +115,13 @@ def validate_runtime(directory, root=ROOT, *, execute=False, platform=HOST):
     return manifest
 
 
-def merge_python_site(base, overlay, destination, pins):
-    """Remove old matching distributions by RECORD before copying locked versions."""
-    base, overlay, destination = Path(base).resolve(), Path(overlay).resolve(), Path(destination).resolve()
-    if any(destination.is_relative_to(source) or source.is_relative_to(destination) for source in (base, overlay)):
-        raise ValueError('cannot_mutate_source_site')
-    # The copied standalone interpreter can already contain site packages.
-    # The selected base+lock must be the complete source of bundled packages.
-    if destination.exists(): shutil.rmtree(destination)
-    # pip is the build host's installer (a Windows base prefix carries it); the runtime never runs it.
-    shutil.copytree(base, destination, dirs_exist_ok=True, symlinks=True,
-                    ignore=lambda directory, names: [name for name in names if name == '__pycache__' or name.endswith('.pyc')
-                                                     or Path(directory) == base and (name == 'pip' or re.fullmatch(r'pip-[^-]+\.dist-info', name))])
-    for distribution in metadata.distributions(path=[str(base)]):
-        if normalized(distribution.metadata['Name']) not in pins: continue
-        if not distribution.files: raise ValueError('python_distribution_record_missing')
-        metadata_directories = set()
-        for record in distribution.files:
-            source = Path(distribution.locate_file(record)).resolve()
-            if not source.is_relative_to(base): continue  # bin scripts are not site-packages
-            target = destination / source.relative_to(base)
-            if target.is_file() or target.is_symlink(): target.unlink()
-            for part in source.relative_to(base).parts:
-                if part.endswith(('.dist-info', '.egg-info')):
-                    metadata_directories.add(destination / part)
-        for directory in metadata_directories:
-            if directory.is_dir(): shutil.rmtree(directory)
+def copy_python_site(overlay, destination):
+    """Copy the site prepared from the hash-locked wheels to the fresh runtime prefix."""
     # pip --target puts console-script launchers in <overlay>/bin; they name the build host's python by absolute path
     # and nothing in the runtime runs them.
-    shutil.copytree(overlay, destination, dirs_exist_ok=True, symlinks=True,
+    shutil.copytree(overlay, destination, symlinks=True,
                     ignore=lambda directory, names: [name for name in names if name == '__pycache__' or name.endswith('.pyc')
                                                      or Path(directory) == overlay and name == 'bin'])
-    verify_python_site(destination, pins)
 
 
 def prepare(destination, python, root=ROOT):

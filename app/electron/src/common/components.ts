@@ -40,7 +40,7 @@ export interface Manifest {
   entrypoints: Record<string, string>; provides: Record<string, string>; requires: Record<string, string>;
   placed: Record<string, string>;
 }
-export interface IndexEntry { id: string; version: string; sha256: string; dir: string }
+export interface IndexEntry { id: string; version: string; sha256: string; manifestSHA256: string; dir: string }
 
 /** C11 `platform`: a lock or manifest for another one than the running OS's does not load. */
 export type ComponentPlatform = 'macos-arm64' | 'windows-x64';
@@ -148,11 +148,11 @@ export function parseIndex(text: string): IndexEntry[] {
   return (doc.components as unknown[]).map((item) => {
     const o = isObject(item) ? item : {};
     if (!isID(o.id) || !isVersion(o.version) || !isSHA256(o.tree_sha256) || typeof o.dir !== 'string' || !isRelative(o.dir)
-      || ids.has(o.id)) {
+      || !isSHA256(o.manifest_sha256) || ids.has(o.id)) {
       throw new ImportFailure(typeof o.id === 'string' ? o.id : null, 'indexInvalid');
     }
     ids.add(o.id);
-    return { id: o.id, version: o.version, sha256: o.tree_sha256, dir: o.dir };
+    return { id: o.id, version: o.version, sha256: o.tree_sha256, manifestSHA256: o.manifest_sha256, dir: o.dir };
   });
 }
 

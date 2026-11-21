@@ -53,7 +53,7 @@ bash app/build_app.sh --check            # 只检查前提，不构建
 | `source-manifest.json` | 打包的源码文件和源码指纹 | 同左 |
 | `bundle-manifest.json` | 签名后 app 的文件清单 | 同左 |
 | `artifact-smoke.json` | 产物冒烟的结果 | 同左 |
-| `gate-receipt.json` | 这次用到的门禁回执的副本 | 同左 |
+| `gate-receipt.json` | 构建所用的门禁结果和源码指纹 | 同左 |
 
 组件里的 Mach-O 在组件构建时签一次，两种版本拷同一份字节。app 签名跳过 `Contents/Resources/components/`。
 
@@ -89,13 +89,13 @@ python3 -I tools/release/compare_layouts.py --portable "$portable_dir" --split "
 ### 拆分版
 
 1. 把 `Agentic Complex.app` 和 `components/` 放在同一个目录里。
-2. 启动 app。宿主读 `components/index.json`，把还没装的组件逐个复制到 `<支持目录>/components/<ID>/<版本>-<树哈希前 8 位>/`。每个复制品都重算树哈希、核对入口，通过后才改名就位。然后宿主写 `<支持目录>/components/composition.lock.json`。
+2. 启动 app。宿主将外置索引与签名覆盖的 `Contents/Resources/components-index.json` 逐字节核对，把还没装的组件逐个复制到 `<支持目录>/components/<ID>/<版本>-<树哈希前 8 位>/`。每个复制品都重算树哈希、核对入口，通过后才改名就位。然后宿主写 `<支持目录>/components/composition.lock.json`。
 3. 一个组件没通过时，`<支持目录>/logs/companion.log` 记一行 `component import failed: <ID> <原因>`。这个组件记为缺，其余组件照常导入。
-4. 之后每次启动，只要 `components/index.json` 在，宿主就按它重写组合锁。已装的版本目录不再复制。
-5. `components/` 不在时，宿主用上次写的组合锁。
+4. 每次启动都校验已装组件的清单 SHA-256、载荷树哈希、文件数、字节数和入口。
+5. 移走外置目录后，宿主仍按 app 内的签名索引校验已装的组件。
 6. `index.json` 本身坏了时报「组件导入失败」，所有子进程都不起。
 
-升级时先退出 app，再用同一次构建的 `Agentic Complex.app` 和 `components/` 一起替换旧的，再启动。新版本装进新的版本目录，旧版本目录不会自动删除。不要只换 `components/`：角色库的 SHA 记在 app 的 `distribution.json` 里，只换 `components/` 时新的角色包导入了也用不上；还没有角色库时，合成会因 SHA 不符而失败。
+升级时先退出 app，再用同一次构建的 `Agentic Complex.app` 和 `components/` 一起替换旧的，再启动。新版本装进新的版本目录，旧版本目录不会自动删除。外置索引必须与 app 内的索引一致。
 
 ## 5. 缺组件时
 
@@ -240,7 +240,7 @@ osx-sign 的文件取自提交 `ca7726ffb7da556a20ba95ab9c013049afdda6fb`（[ent
 - Python 依赖按 `agent/agentd/requirements-character-agent.lock` 和 `app/packaging/requirements-content.lock`（给 VMD 导入用的 numpy）安装，必须带 wheel 哈希。每个平台 wheel 另带第二个 `--hash`（`win_amd64` 的 cp312 wheel）；`pywin32`（Windows 上 `mcp` 的依赖）带 `; sys_platform == "win32"`，macOS 上跳过。
 - 准备时总是装 Pi 锁定的 npm 依赖树（不跑生命周期脚本）和官方的独立 Node 二进制。Node 的版本和 SHA256 锁在 `app/packaging/node-runtime.lock.json`：顶层字段是 `darwin-arm64` 的 tarball，`platforms.win32-x64` 给出官方 `node-v<版本>-win-x64.zip` 的 `archive`、`url`、`sha256`。macOS 上检查版本和 Mach-O 依赖库，拒收 Homebrew 的启动器；Windows 上只查版本。
 - `npm ci` 之后删掉 `@earendil-works/*` 包和 `@aws-sdk`、`@smithy`、`@google` 这些服务商 SDK 里的 `docs/`、`examples/` 和 `CHANGELOG.md`。
-- 准备工具用一个临时的安装用 venv，不往开发用的解释器里装 pip 或包。缓存的载荷记录源锁的哈希和每个文件、链接的哈希；缺文件、权限被改、外部链接、过期的锁、包版本不对、缺 Node 或 Pi 树都校验失败。打包时先从所选的基础 site-packages 里删掉锁定依赖的旧版本，再合入锁定的覆盖层；开发 venv 和已安装的 app 不变。
+- 准备工具用一个临时的安装用 venv，不往开发用的解释器里装 pip 或包。缓存的载荷记录源锁的哈希和每个文件、链接的哈希；缺文件、权限被改、外部链接、过期的锁、包版本不对、缺 Node 或 Pi 树都校验失败。打包时只复制由哈希锁定的 wheel 安装生成的站点包。
 - 依赖原有的许可声明留在各自的包里；numpy 的另抄到 `runtime.python/payload/licenses/numpy`。`staging-manifest.json` 记录运行时的来源和全部组件引用，`release-receipt.json` 抄下这些引用并记录 layout。
 - 载荷路径：Node 是 `harness.pi/payload/node/bin/node`，Pi 是 `harness.pi/payload/pi-runtime`，Node 的许可是 `harness.pi/payload/licenses/Node-LICENSE`。Windows 上准备好的运行时保留 zip 的布局（`node/node.exe` 和 `node/node_modules/npm`），安装用 venv 的解释器是 `Scripts\python.exe`。
 - 发行入口的 `--check` 只读：报告 layout 和当前依赖缓存是否已准备好。正常构建在需要时准备缓存。显式的 `--harness-runtime <绝对路径>` 必须已经能通过校验。单独准备的命令见[开发与发行 · 准备内核运行时](development.md#准备内核运行时)。
@@ -250,5 +250,5 @@ osx-sign 的文件取自提交 `ca7726ffb7da556a20ba95ab9c013049afdda6fb`（[ent
 Windows 只有 portable：`tools/release/package_windows.py` 把构建产物装成一个目录 `Agentic Complex\`，不做安装器和签名。
 
 - 根目录：`Agentic Complex.exe`（改名的 `electron.exe`，删掉 `resources\default_app.asar`，`flip_fuses.mjs` 直接翻 exe 里的熔丝）、Electron 的 DLL 和资源、`ac-helper.exe`、`efw.exe` 和它旁边读的 `*.dxbc`。`resources\` 下是 `app\`、`parent_watch.py`、`distribution.json`、`composition.lock.json` 和 `components\<id>\`。清单和组合锁的平台是 `windows-x64`。
-- `runtime.python`：构建机上 CPython 3.12 的基础前缀（不含 `Scripts`、`Doc`、`include`、`libs`、`Tools`、`Lib\test` 和原来的 `Lib\site-packages`）。开发站点包合并锁定站点包后放进 `Lib\site-packages`，`pywin32.pth` 因此生效。入口是 `python.exe`，没有 shell 包装，`-I -B` 由外壳传。打包最后在成品目录里只带 `SYSTEMROOT` 运行它，导入失败或前缀、`sys.path` 落在目录外都报错。
+- `runtime.python`：构建机上 CPython 3.12 的基础前缀（不含 `Scripts`、`Doc`、`include`、`libs`、`Tools`、`Lib\test` 和原来的 `Lib\site-packages`）。准备好的锁定站点包放进 `Lib\site-packages`，`pywin32.pth` 因此生效。入口是 `python.exe`，没有 shell 包装，`-I -B` 由外壳传。打包最后在成品目录里只带 `SYSTEMROOT` 运行它，导入失败或前缀、`sys.path` 落在目录外都报错。
 - `harness.pi` 的入口是 `node\node.exe`；agentd 组件的 `fbx_tool` 是 `tools\fbx-motion.exe`。

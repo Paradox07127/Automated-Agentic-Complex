@@ -19,17 +19,17 @@ You supply the weights, reference audio, registry and base models yourself. Neit
     runs/<run>/                 # selected weights plus the training config and validation records the runtime reads
     data/adaptation-v1/         # reference audio bank, needed when reference_id is used
     models/nltk_data/
-    tools/frontend_lexicon.py
+    tools/frontend_lexicon.py  # only for voices with game_lexicon enabled
   state/
     tts-registry.json
     tts-token                   # created by deploy.sh when missing
 ```
 
-In the container, `weights/` is `/srv/tts` and `state/` is `/srv/tts/state`. Absolute paths in the training config, validation records and reference audio list must also point at these container paths, including `output_dir` and `train.half_weights_save_dir` in `s1.yaml` and the reference audio's `wav`. Copy only the files the runtime needs; do not copy training sets or other evaluation models as deployment dependencies. The weights volume must be writable, because the runtime writes inference configs and checkpoint verification records into `runs/<run>/`.
+In the container, `weights/` is `/srv/tts` and `state/` is `/srv/tts/state`. Absolute paths in the training config, validation records and reference audio list must also point at these container paths, including `output_dir` and `train.half_weights_save_dir` in `s1.yaml` and the reference audio's `wav`. Copy only the files the runtime needs; do not copy training sets or other evaluation models as deployment dependencies. The container mounts weights and state read-only. It writes inference configs, verification records and generated audio to `<root>/output/<run>/`.
 
 ## Starting
 
-The service machine needs an NVIDIA GPU, a driver that supports CUDA 12.8, Docker Engine, the Compose v2 plugin, the NVIDIA Container Toolkit, and Python 3 to create the token. The `Dockerfile` pins the GPT-SoVITS commit, the torch/torchaudio cu128 versions and the Python requirement lists.
+The service machine needs an NVIDIA GPU, a driver that supports CUDA 12.8, Docker Engine, the Compose v2 plugin, the NVIDIA Container Toolkit, and Python 3 to create the token. The `Dockerfile` pins the GPT-SoVITS commit, the CUDA image digest, an Ubuntu apt snapshot and the torch/torchaudio cu128 versions. The Python dependency installation still resolves upstream requirements at build time.
 
 Run from the repository root (or from another directory with the script's full path):
 
@@ -37,7 +37,7 @@ Run from the repository root (or from another directory with the script's full p
 bash voice/tts-service/deploy/deploy.sh --root /srv/agentic-complex-tts --port 9888
 ```
 
-`--root` must be a data directory the current user can write; `--port` is the host port. The script creates `weights/` and `state/`, then builds the image and starts the Compose service. The container runs with the UID/GID of the user who ran the script, so the token file stays owned by the service process user.
+`--root` must be a data directory the current user can write; `--port` is the host port. Run it as the non-root service account. The script creates `weights/`, `state/` and `output/`, then builds the image and starts the Compose service. The container runs with the UID/GID of the user who ran the script, so the token file stays owned by the service process user.
 
 When no token exists, the script creates `<root>/state/tts-token` with `secrets.token_urlsafe(32)` and mode 0600; an existing file is left unchanged. The output shows only the file location, not the token. Open the file on that machine and enter the token in Agentic Complex. Keep this `state` directory, and restarting the service needs no new token. At startup the service refuses a token file that is missing, blank, too permissive, owned by another user, or a symlink.
 
@@ -75,7 +75,7 @@ Without Docker, put the code of `voice/tts-service/` on the TTS host and run `py
   python3 -c "import secrets;print(secrets.token_urlsafe(32))" > <TTS root>/state/tts-token && chmod 600 <TTS root>/state/tts-token
   ```
 
-- `AAC_VOICE_ROOT`: the TTS root, default `/srv/tts`, laid out like `weights/` above. `frontend_lexicon.py` is imported from `<TTS root>/tools/`.
+- `AAC_VOICE_ROOT`: the TTS root, default `/srv/tts`, laid out like `weights/` above. Voices with `game_lexicon` enabled import `frontend_lexicon.py` from `<TTS root>/tools/`.
 - `AAC_GPT_SOVITS`: the GPT-SoVITS code directory, default `<TTS root>/GPT-SoVITS`.
 
 Copy `protocol/C2-speech-stream/phone-vowel-map.json` flat into the directory of `serve_tts.py`; the service reads the mapping table from there.
@@ -88,7 +88,7 @@ The acoustic models default to `<TTS root>/models/mfa_root`; `MFA_ROOT_DIR` chan
 
 ## Debugging
 
-With `AAC_TTS_KEEP_FILES=1`, the streaming endpoints write a WAV, `.timing.json` and `.metrics.json` per request into `runs/<run>/inference/`. By default they write nothing; `/synthesize` always writes.
+With `AAC_TTS_KEEP_FILES=1`, the streaming endpoints write a WAV, `.timing.json` and `.metrics.json` per request into `output/<run>/`. By default they write nothing; `/synthesize` always writes.
 
 ## Limits
 

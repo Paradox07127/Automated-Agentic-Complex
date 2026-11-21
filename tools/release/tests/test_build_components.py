@@ -3,6 +3,7 @@ import hashlib
 from importlib import metadata
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -14,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import build_components
 import component_manifest
 from harness_runtime import inventory_tree, normalized, python_pins
-from test_harness_runtime import distribution, prepared_fixture
+from test_harness_runtime import prepared_fixture
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'agent/agentd/tests'))
@@ -22,7 +23,6 @@ from test_character_library import fixture as character_fixture
 from character_library import Package
 import pool_codec
 LIBRARY = ROOT / 'protocol/character-library/fixtures/library'
-RETIRED_NAMES = set(build_components.RETIRED_DISTRIBUTIONS)
 
 
 class BuildComponentsTests(unittest.TestCase):
@@ -37,12 +37,6 @@ class BuildComponentsTests(unittest.TestCase):
         (self.python / 'bin/python3').symlink_to('python3.12')
         inherited = self.python / 'lib/python3.12/site-packages'; inherited.mkdir(parents=True)
         (inherited / 'inherited.py').write_text('must be replaced')
-        self.base = self.root / 'base'
-        distribution(self.base, 'base-only', '1.0', {'base_only.py': 'keep'})
-        distribution(self.base, 'pydantic', '0.0', {'pydantic/obsolete.py': 'old'})
-        # A development site-packages still carrying the retired harness SDKs.
-        for name in RETIRED_NAMES:
-            distribution(self.base, name, '0.0', {name.replace('-', '_') + '/__init__.py': 'retired'})
         self.prepared = prepared_fixture(self.root / 'prepared')
         self.pins = python_pins()
         site = self.prepared / 'python-site'
@@ -73,16 +67,42 @@ class BuildComponentsTests(unittest.TestCase):
         manifest['files'] = inventory_tree(self.prepared)
         path.write_text(json.dumps(manifest))
 
-    def stage_components(self):
-        return build_components.stage_components(self.stage, python=self.python, site_packages=self.base,
-            harness_runtime=self.prepared, web_dist=self.web, ui_art=self.art, library=LIBRARY,
+    def stage_components(self, library=LIBRARY):
+        return build_components.stage_components(self.stage, python=self.python,
+            harness_runtime=self.prepared, web_dist=self.web, ui_art=self.art, library=library,
             build_version='20261106.1', fbx_tool=self.fbx_tool)
 
     def files(self, root):
         return {path.relative_to(root).as_posix(): path.read_bytes()
                 for path in root.rglob('*') if path.is_file()}
 
-    def test_payload_layout_and_retired_sdks_stay_out_of_runtime_python(self):
+    def test_catalog_definition_is_checked_before_character_staging(self):
+        library = self.root / 'library'
+        shutil.copytree(LIBRARY, library)
+        definition = library / json.loads((library / 'current.json').read_text())['characters'][0]['definition']['file']
+        definition.write_bytes(definition.read_bytes() + b' ')
+        with self.assertRaisesRegex(ValueError, 'definition_sha_mismatch'):
+            self.stage_components(library)
+
+    def test_staged_definition_matches_the_verified_catalog_bytes(self):
+        library = self.root / 'library'
+        shutil.copytree(ROOT / 'characters/sample-library', library)
+        package = build_components.Library(library).packages()[0]
+        definition = package.root / 'character.json'
+        definition.write_bytes(definition.read_bytes() + b' ')
+        with self.assertRaisesRegex(ValueError, 'definition_sha_mismatch'):
+            build_components.stage_character(package, self.root / 'character', 'macos-arm64')
+
+    def test_character_payload_contains_only_the_definition_and_inventory(self):
+        library = self.root / 'library'
+        shutil.copytree(ROOT / 'characters/sample-library', library)
+        package = build_components.Library(library).packages()[0]
+        (package.root / 'release-note.txt').write_text('unlisted')
+        target = self.root / 'character'
+        build_components.stage_character(package, target, 'macos-arm64')
+        self.assertEqual(set(self.files(target)), {'character.json', *package.inventory})
+
+    def test_payload_layout_and_runtime_python_distribution_inventory(self):
         with patch.object(component_manifest, '_tree', side_effect=AssertionError('stage computed a tree hash')), \
                 patch.object(component_manifest, 'write_component', side_effect=AssertionError('stage wrote a manifest')):
             components = self.stage_components()
@@ -115,16 +135,12 @@ class BuildComponentsTests(unittest.TestCase):
         self.assertTrue(wrapper.stat().st_mode & 0o111)
         self.assertEqual((runtime / 'licenses/numpy/LICENSE.txt').read_text(), 'synthetic numpy notice')
         runtime_site = runtime / 'lib/python3.12/site-packages'
-        self.assertEqual((runtime_site / 'base_only.py').read_text(), 'keep')
         self.assertEqual((runtime_site / 'pydantic/__init__.py').read_text(), 'locked pydantic')
         self.assertEqual((runtime_site / 'shared/dependency.py').read_text(), 'shared dependency')
         self.assertFalse((runtime_site / 'inherited.py').exists())
         self.assertEqual(list(runtime_site.rglob('obsolete.py')), [])
         actual = {normalized(dist.metadata['Name']): dist.version for dist in metadata.distributions(path=[str(runtime_site)])}
-        self.assertEqual(actual, {**self.pins, 'base-only': '1.0'})
-        for name in RETIRED_NAMES:
-            self.assertFalse((runtime_site / name.replace('-', '_')).exists(), name)
-            self.assertEqual((self.base / name.replace('-', '_') / '__init__.py').read_text(), 'retired')
+        self.assertEqual(actual, self.pins)
         pi = self.stage / 'harness.pi/payload'
         self.assertEqual((pi / 'node/bin/node').read_bytes(), (self.prepared / 'node/bin/node').read_bytes())
         self.assertEqual((pi / 'licenses/Node-LICENSE').read_bytes(), (self.prepared / 'node/LICENSE').read_bytes())
@@ -155,9 +171,9 @@ class BuildComponentsTests(unittest.TestCase):
         kept = ['lib/python3.12/os.py', 'lib/python3.12/lib-dynload/_ssl.cpython-312-darwin.so', 'lib/python3.12/threading.py']
         for relative in dropped + kept:
             (self.python / relative).parent.mkdir(parents=True, exist_ok=True); (self.python / relative).write_text(relative)
-        distribution(self.base, 'tested', '1.0', {'tested/__init__.py': 'keep', 'tested/tests/test_x.py': 'drop',
+        self.add_files(self.prepared / 'python-site', 'pydantic', {'tested/__init__.py': 'keep', 'tested/tests/test_x.py': 'drop',
                                                   'tested/sub/tests/data/x.txt': 'drop'})
-        build_components.stage_runtime_python(self.stage, python=self.python, site_packages=self.base,
+        build_components.stage_runtime_python(self.stage, python=self.python,
                                               prepared_site=self.prepared / 'python-site', pins=self.pins)
         runtime = self.stage / 'runtime.python/payload'
         for relative in dropped: self.assertFalse((runtime / relative).exists(), relative)
@@ -173,7 +189,7 @@ class BuildComponentsTests(unittest.TestCase):
         (stdlib / '__pycache__/os.cpython-312.pyc').write_bytes(str(stdlib / 'os.py').encode())
         (stdlib / '_sysconfigdata__darwin_darwin.py').write_text(
             f"build_time_vars = {{'BINDIR': '{self.python.resolve()}/bin', 'CC': 'clang'}}\n")
-        build_components.stage_runtime_python(self.stage, python=self.python, site_packages=self.base,
+        build_components.stage_runtime_python(self.stage, python=self.python,
                                               prepared_site=self.prepared / 'python-site', pins=self.pins)
         runtime = self.stage / 'runtime.python/payload'
         self.assertEqual(list(runtime.rglob('*.pyc')), [])

@@ -141,6 +141,9 @@ def check_index(doc):
         if (not isinstance(path, str) or "\\" in path or "\0" in path
                 or any(part in ("", ".", "..") for part in path.split("/"))):
             return f"{label}.dir must be a relative POSIX path without . or .."
+        digest = component.get("manifest_sha256")
+        if not isinstance(digest, str) or not SHA256.fullmatch(digest):
+            return f"{label}.manifest_sha256 must be 64 lowercase hex"
     return None
 
 

@@ -13,9 +13,14 @@ services:
       - type: bind
         source: ${AAC_TTS_ROOT:?Run deploy.sh}/weights
         target: /srv/tts
+        read_only: true
       - type: bind
         source: ${AAC_TTS_ROOT:?Run deploy.sh}/state
         target: /srv/tts/state
+        read_only: true
+      - type: bind
+        source: ${AAC_TTS_ROOT:?Run deploy.sh}/output
+        target: /srv/tts/output
     ports:
       - "${AAC_TTS_BIND:?Run deploy.sh}:${AAC_TTS_PORT:?Run deploy.sh}:9888"
     deploy:

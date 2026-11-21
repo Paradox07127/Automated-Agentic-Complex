@@ -28,6 +28,8 @@ sys.path.insert(0, str(package_app.ROOT / 'agent/agentd/tests'))
 from test_character_library import fixture as character_fixture
 import character_library
 
+NODE = shutil.which('node')
+
 
 def synthetic_fbx_tool(directory):
     tool = Path(directory) / 'fbx-motion'
@@ -65,7 +67,6 @@ class SingleAppStageTests(unittest.TestCase):
             runtime = root / 'python'; (runtime / 'bin').mkdir(parents=True)
             (runtime / 'bin/python3').write_text('#!/bin/sh\nprintf "3.12.99\\n"\n')
             (runtime / 'bin/python3').chmod(0o755)
-            site = root / 'site'; site.mkdir()
             web = root / 'web-dist'; (web / 'assets').mkdir(parents=True)
             for name in ['main.html', 'stack.html', 'assets/main.js']:
                 (web / name).write_text('synthetic ' + name)
@@ -73,7 +74,7 @@ class SingleAppStageTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 out = root / 'out'
                 args = SimpleNamespace(output=out, library=library, id=None,
-                    port=None, python=runtime, site_packages=site,
+                    port=None, python=runtime,
                     harness_runtime=harness,
                     host=binaries / 'metal-avatar-host', build_version='1', web_dist=web, fbx_tool=fbx_tool,
                     **electron_fields(self, binaries))
@@ -167,7 +168,6 @@ class SingleAppStageTests(unittest.TestCase):
             runtime = root / 'python'; (runtime / 'bin').mkdir(parents=True)
             (runtime / 'bin/python3').write_text('#!/bin/sh\nprintf "3.12.99\\n"\n')
             (runtime / 'bin/python3').chmod(0o755)
-            site = root / 'site'; site.mkdir()
             web = root / 'web-dist'; web.mkdir()
             for name in ['main.html', 'stack.html']:
                 (web / name).write_text('synthetic ' + name)
@@ -179,7 +179,7 @@ class SingleAppStageTests(unittest.TestCase):
                                                                for name in files])
             (art / 'art-manifest.json').write_text(json.dumps(manifest))
             args = SimpleNamespace(output=root / 'out', library=library, id=None,
-                port=None, python=runtime, site_packages=site,
+                port=None, python=runtime,
                 harness_runtime=prepared_fixture(root / 'harness'),
                 host=binaries / 'metal-avatar-host', build_version='1', web_dist=web, ui_art=art, fbx_tool=fbx_tool,
                 **electron_fields(self, binaries))
@@ -373,7 +373,6 @@ class PortableComponentStageTests(unittest.TestCase):
         (python / 'bin/python3.12').write_text('#!/bin/sh\nprintf "3.12.99\\n"\n')
         (python / 'bin/python3.12').chmod(0o751)
         (python / 'bin/python3').symlink_to('python3.12')
-        site = self.root / 'site'; site.mkdir()
         web = self.root / 'web'; web.mkdir(); (web / 'main.html').write_text('synthetic web')
         art = self.root / 'art'; (art / 'brand').mkdir(parents=True)
         (art / 'brand/AppIcon.icns').write_bytes(b'icon')
@@ -389,7 +388,7 @@ class PortableComponentStageTests(unittest.TestCase):
         self.args = SimpleNamespace(output=self.root / 'out',
             library=library,
             id='local.agenticcomplex.components-test', port=19123,
-            python=python, site_packages=site, harness_runtime=prepared_fixture(self.root / 'harness'),
+            python=python, harness_runtime=prepared_fixture(self.root / 'harness'),
             host=binaries / 'metal-avatar-host', build_version='20261106.5', web_dist=web, ui_art=art,
             fbx_tool=synthetic_fbx_tool(binaries), **electron_fields(self, binaries))
         self.contents = self.args.output / 'Agentic Complex.app/Contents'
@@ -397,6 +396,15 @@ class PortableComponentStageTests(unittest.TestCase):
         self.components = self.resources / 'components'
         self.character_ids = {'characters.' + row['id'] for row in self.catalog['characters']}
         self.payload_ids = {'runtime.python', 'agentd', 'web-ui', 'harness.pi'} | self.character_ids
+
+    def test_stage_ignores_developer_site_packages(self):
+        site = self.root / 'developer-site'
+        site.mkdir()
+        (site / 'local-startup.pth').write_text('# developer environment')
+        self.args.site_packages = site
+        stage(self.args)
+        runtime = self.components / 'runtime.python/payload/lib/python3.12/site-packages'
+        self.assertFalse((runtime / 'local-startup.pth').exists(), 'staged developer startup file')
 
     def test_portable_embeds_every_character_component_in_the_lock(self):
         stage(self.args)
@@ -462,6 +470,55 @@ class PortableComponentStageTests(unittest.TestCase):
         for row in snapshot['characters']:
             self.assertTrue((composed / 'packages' / row['id'] / row['definition']['sha256'] / 'character.json').is_file())
 
+    def test_split_host_refuses_substituted_and_damaged_runtimes(self):
+        self.args.layout = 'split'
+        stage(self.args)
+        external = self.args.output / 'components'
+        index = external / 'index.json'
+        original = index.read_bytes()
+        def launch(support=self.root / 'support'):
+            script = """import {prepareComponents} from './app/electron/src/main/components.ts';
+const [resources, support] = process.argv.slice(1);
+console.log(JSON.stringify(prepareComponents({resources, support, layout:'split', platform:'mac'})));"""
+            return subprocess.run([NODE, '--input-type=module', '-e', script, str(self.resources), str(support)],
+                                  cwd=package_app.ROOT, capture_output=True, text=True)
+        good = launch()
+        self.assertEqual(good.returncode, 0, good.stderr)
+        python = Path(json.loads(good.stdout)['python'])
+        doc = json.loads(original)
+        ref = next(ref for ref in doc['components'] if ref['id'] == 'runtime.python')
+        source = external / ref['dir']
+        (source / 'payload/bin/agentic-complex-python').write_text('replacement')
+        manifest = json.loads((source / 'component.json').read_text())
+        ref['tree_sha256'], manifest['files'], manifest['bytes'] = component_manifest._tree(source / 'payload')
+        manifest['tree_sha256'] = ref['tree_sha256']
+        (source / 'component.json').write_text(json.dumps(manifest))
+        ref['manifest_sha256'] = package_app.digest(source / 'component.json')
+        index.write_text(json.dumps(doc))
+        with self.subTest('substitution'):
+            self.assertNotEqual(launch(self.root / 'fresh-support').returncode, 0, 'host accepted a replacement distribution')
+        shutil.rmtree(external)
+        cache = python.parent / '__pycache__'
+        cache.mkdir()
+        (cache / 'unsealed.pyc').write_bytes(b'cache')
+        with self.subTest('unsealed bytecode'):
+            self.assertIsNone(json.loads(launch().stdout)['python'], 'accepted a bytecode cache outside the signed tree')
+        shutil.rmtree(cache)
+        python.write_text('damaged')
+        offline = launch()
+        self.assertEqual(offline.returncode, 0, offline.stderr)
+        self.assertIsNone(json.loads(offline.stdout)['python'], 'host accepted a damaged installed runtime')
+
+    def test_split_app_seals_the_external_index(self):
+        self.args.layout = 'split'
+        stage(self.args)
+        signed = self.resources / 'components-index.json'
+        self.assertTrue(signed.is_file(), 'split app has no sealed component identities')
+        self.assertEqual(signed.read_bytes(), (self.args.output / 'components/index.json').read_bytes())
+        for ref in json.loads(signed.read_bytes())['components']:
+            manifest = self.args.output / 'components' / ref['dir'] / 'component.json'
+            self.assertEqual(ref['manifest_sha256'], package_app.digest(manifest))
+
     def test_split_keeps_only_fixed_components_and_web_ui_and_writes_valid_index(self):
         self.args.layout = 'split'
         stage(self.args)
@@ -481,7 +538,8 @@ class PortableComponentStageTests(unittest.TestCase):
             directory = external / ref['dir']
             self.assertEqual({p.name for p in directory.iterdir()}, {'component.json', 'payload'})
             manifest = json.loads((directory / 'component.json').read_text())
-            self.assertEqual(ref, dict({key: manifest[key] for key in ('id', 'version', 'tree_sha256')}, dir=manifest['id']))
+            self.assertEqual(ref, dict({key: manifest[key] for key in ('id', 'version', 'tree_sha256')}, dir=manifest['id'],
+                manifest_sha256=package_app.digest(directory / 'component.json')))
             self.assertEqual(component_manifest.tree_sha256(directory / 'payload'), ref['tree_sha256'])
         receipt = json.loads((self.args.output / 'staging-manifest.json').read_text())
         self.assertEqual(receipt['layout'], 'split')

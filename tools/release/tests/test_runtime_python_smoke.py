@@ -43,10 +43,9 @@ class RuntimePythonSmokeTests(unittest.TestCase):
             self.skipTest('No agent/.venv in ' + str(main))
         if not (main / '.local').is_dir():
             self.skipTest('No .local release inputs in ' + str(main))
-        site = main / 'agent/.venv/lib/python3.12/site-packages'
         key = hashlib.sha256(json.dumps(lock_hashes(), sort_keys=True).encode()).hexdigest()[:16]
         prepared = main / '.local/cache/personal-agent-runtime' / key
-        for path in (python, site, prepared / 'manifest.json', prepared / 'python-site'):
+        for path in (python, prepared / 'manifest.json', prepared / 'python-site'):
             self.assertTrue(path.exists(), 'Missing release input: ' + str(path))
         runtime = Path(subprocess.check_output([str(python), '-I', '-B', '-c',
             'import sys; print(sys.base_prefix)'], text=True).strip())
@@ -54,13 +53,10 @@ class RuntimePythonSmokeTests(unittest.TestCase):
         validate_runtime(prepared)
         pins = python_pins()
         distributions = {normalized(dist.metadata['Name']): dist
-                         for source in (site, prepared / 'python-site')
-                         for dist in metadata.distributions(path=[str(source)])}
-        excluded = set(build_components.RETIRED_DISTRIBUTIONS)
+                         for dist in metadata.distributions(path=[str(prepared / 'python-site')])}
         modules = set()
-        # Read the selected base + locked overlay RECORDs, never the staged copy being tested.
+        # Read the locked wheel RECORDs, never the staged copy being tested.
         for name, dist in sorted(distributions.items()):
-            if name in excluded: continue
             self.assertTrue(dist.files, 'Missing release input RECORD: ' + name)
             names = {p.parts[0].split('.')[0] for p in dist.files if p.suffix in ('.py', '.so')}
             names = {name for name in names if name.isidentifier()}
@@ -68,7 +64,7 @@ class RuntimePythonSmokeTests(unittest.TestCase):
             modules.update(names)
         with tempfile.TemporaryDirectory(prefix='runtime-python-smoke-') as temporary:
             stage = Path(temporary)
-            component = build_components.stage_runtime_python(stage, python=runtime, site_packages=site,
+            component = build_components.stage_runtime_python(stage, python=runtime,
                 prepared_site=prepared / 'python-site', pins=pins)
             self.assertEqual({p.name for p in stage.iterdir()}, {'runtime.python'})
             payload = stage / component['id'] / 'payload'

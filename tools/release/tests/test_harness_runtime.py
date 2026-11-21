@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from harness_runtime import (HOST, LAYOUT, ROOT, inventory_tree, lock_hashes, locked, merge_python_site, python_pins,
+from harness_runtime import (HOST, LAYOUT, ROOT, inventory_tree, lock_hashes, locked, copy_python_site, python_pins,
                              validate_runtime, verify_node)
 
 
@@ -57,6 +57,17 @@ class HarnessPackagingTests(unittest.TestCase):
             (directory / LAYOUT[HOST]['node']).unlink()
             with self.assertRaisesRegex(ValueError, 'integrity_mismatch'): validate_runtime(directory)
 
+    def test_prepared_site_rejects_unlocked_distributions(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = prepared_fixture(Path(temporary) / 'runtime')
+            distribution(directory / 'python-site', 'unrelated-package', '1.0')
+            write_manifest(directory)
+            with self.assertRaisesRegex(ValueError, 'unrelated-package'):
+                validate_runtime(directory)
+
+    def test_agentd_http_client_and_transport_are_in_the_release_lock(self):
+        self.assertLessEqual({'httpx', 'httpcore', 'certifi'}, python_pins().keys())
+
     def test_source_lock_change_invalidates_cached_runtime(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = prepared_fixture(Path(temporary) / 'runtime')
@@ -98,36 +109,14 @@ class HarnessPackagingTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'harness_runtime_incomplete'):
                 validate_runtime(directory, platform='darwin-arm64')
 
-    def test_locked_overlay_replaces_old_metadata_without_mutating_input(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary); base = root / 'base'; overlay = root / 'overlay'; target = root / 'out'
-            distribution(base, 'pydantic', '1.0', {'pydantic/obsolete.py': 'old', 'pydantic/__init__.py': 'old'})
-            distribution(base, 'unrelated-package', '9.0', {'unrelated.py': 'keep'})
-            distribution(overlay, 'pydantic', '2.14.1', {'pydantic/__init__.py': 'new'})
-            target.mkdir(); (target / 'inherited-unselected.py').write_text('must not survive')
-            merge_python_site(base, overlay, target, {'pydantic': '2.14.1'})
-            self.assertEqual((base / 'pydantic/__init__.py').read_text(), 'old')
-            self.assertEqual((target / 'pydantic/__init__.py').read_text(), 'new')
-            self.assertFalse((target / 'pydantic/obsolete.py').exists())
-            self.assertEqual((target / 'unrelated.py').read_text(), 'keep')
-            self.assertFalse((target / 'pydantic-1.0.dist-info').exists())
-            self.assertFalse((target / 'inherited-unselected.py').exists())
-
     def test_overlay_console_script_launchers_stay_out(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary); base = root / 'base'; overlay = root / 'overlay'; target = root / 'out'
-            distribution(base, 'unrelated-package', '9.0', {'unrelated.py': 'keep'})
+            root = Path(temporary); overlay = root / 'overlay'; target = root / 'out'
             distribution(overlay, 'pydantic', '2.14.1', {'pydantic/__init__.py': 'new'})
             (overlay / 'bin').mkdir(); (overlay / 'bin/uvicorn.exe').write_text('#!D:\\build\\host\\python.exe')
-            merge_python_site(base, overlay, target, {'pydantic': '2.14.1'})
+            copy_python_site(overlay, target)
             self.assertFalse((target / 'bin').exists())
             self.assertEqual((target / 'pydantic/__init__.py').read_text(), 'new')
-
-    def test_overlay_refuses_source_overlap(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            with self.assertRaisesRegex(ValueError, 'cannot_mutate_source_site'):
-                merge_python_site(root / 'base', root / 'overlay', root, {})
 
     def test_node_lock_is_official_archive_with_exact_integrity(self):
         lock = json.loads((ROOT / 'app/packaging/node-runtime.lock.json').read_text())

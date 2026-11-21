@@ -18,7 +18,7 @@ class Runtime:
         self.run=ROOT/'runs'/run_name;assert self.run.parent==ROOT/'runs'
         self.manifest=json.loads((self.run/'manifest.json').read_text());self.base=base;self.variant=variant
         pre=REPO/'GPT_SoVITS/pretrained_models'
-        self.output=self.run/'inference';self.output.mkdir(exist_ok=True)
+        self.output=ROOT/'output'/run_name;self.output.mkdir(parents=True,exist_ok=True)
         if base:
             s1=pre/'s1v3.ckpt';s2=pre/f'gsv-v5-pretrained/s2G{variant}.pth'
         else:
@@ -35,7 +35,7 @@ class Runtime:
         assert s1.exists() and s2.exists()
         s1sha=hashlib.sha256(s1.read_bytes()).hexdigest();s2sha=hashlib.sha256(s2.read_bytes()).hexdigest()
         if not base:
-            proofpath=self.run/'selected-checkpoint-verification.json'
+            proofpath=self.output/'selected-checkpoint-verification.json'
             proof=json.loads(proofpath.read_text()) if proofpath.exists() else {}
             if proof.get('gpt_sha256')!=s1sha or proof.get('sovits_sha256')!=s2sha:
                 original=torch.load(pre/'s1v3.ckpt',map_location='cpu',weights_only=False)['weight']
@@ -67,8 +67,11 @@ class Runtime:
         cfg={'custom':{'device':'cuda','is_half':True,'version':variant,'t2s_weights_path':str(s1),'vits_weights_path':str(s2),'cnhuhbert_base_path':str(pre/'chinese-hubert-base'),'bert_base_path':str(pre/'chinese-roberta-wwm-ext-large')}}
         configpath=self.output/('runtime-'+('base-'+variant if base else 'trained')+'.yaml');configpath.write_text(yaml.safe_dump(cfg))
         self.identity={'run':run_name,'mode':'untrained_base_reference' if base else 'fine_tuned_pilot','variant':variant,'gpt_checkpoint':str(s1),'gpt_checkpoint_sha256':s1sha,'sovits_checkpoint':str(s2),'sovits_checkpoint_sha256':s2sha,'reference':self.reference['wav'],'reference_sha256':self.reference['wav_sha256'],'quality_acceptance':'pending'}
-        import frontend_lexicon
-        self.identity['frontend_lexicon_sha256']=(frontend_lexicon.LEXICON_SHA256 if frontend_lexicon.installed else None) if self.lang=='zh' else (frontend_lexicon.JA_LEXICON_SHA256 if frontend_lexicon.ja_installed else None)
+        lexicon=sys.modules.get('frontend_lexicon')
+        self.identity['frontend_lexicon_sha256']=None
+        if lexicon is not None:
+            if self.lang=='zh' and lexicon.installed:self.identity['frontend_lexicon_sha256']=lexicon.LEXICON_SHA256
+            if self.lang=='ja' and lexicon.ja_installed:self.identity['frontend_lexicon_sha256']=lexicon.JA_LEXICON_SHA256
         start=time.perf_counter();self.engine=TTS(TTS_Config(str(configpath)));torch.cuda.synchronize();self.load_seconds=time.perf_counter()-start
         from text import symbols2
         self.segments=SegmentRecorder(self.engine,symbols2.symbols,attention_module=lambda:self.engine.vits_model.enc_p.mrte.cross_attention)

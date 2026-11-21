@@ -19,17 +19,17 @@ GPT-SoVITS 语音服务是独立于 Agentic Complex.app 的可选服务。应用
     runs/<run>/                 # 已选权重及运行时读取的训练配置和验证记录
     data/adaptation-v1/         # 使用 reference_id 时需要的参考音库
     models/nltk_data/
-    tools/frontend_lexicon.py
+    tools/frontend_lexicon.py  # 仅启用 game_lexicon 的声音需要
   state/
     tts-registry.json
     tts-token                   # deploy.sh 在缺失时创建
 ```
 
-容器内 `weights/` 对应 `/srv/tts`，`state/` 对应 `/srv/tts/state`。训练配置、验证记录和参考音清单里的绝对路径也必须对应这些容器路径，包括 `s1.yaml` 的 `output_dir`、`train.half_weights_save_dir` 和参考音的 `wav`。只放运行时需要的文件，不要把训练集或其他评测模型当作部署依赖复制进去。权重卷要可写，因为运行时会在 `runs/<run>/` 里写推理配置和 checkpoint 验证记录。
+容器内 `weights/` 对应 `/srv/tts`，`state/` 对应 `/srv/tts/state`。训练配置、验证记录和参考音清单里的绝对路径也必须对应这些容器路径，包括 `s1.yaml` 的 `output_dir`、`train.half_weights_save_dir` 和参考音的 `wav`。只放运行时需要的文件，不要把训练集或其他评测模型当作部署依赖复制进去。容器只读挂载权重和状态目录，推理配置、checkpoint 验证记录和音频写入 `<root>/output/<run>/`。
 
 ## 启动
 
-服务机器需要 NVIDIA GPU、支持 CUDA 12.8 的驱动、Docker Engine、Compose v2 插件、NVIDIA Container Toolkit，以及用于创建令牌的 Python 3。镜像在 `Dockerfile` 里固定 GPT-SoVITS 提交、torch/torchaudio cu128 版本和 Python 依赖清单。
+服务机器需要 NVIDIA GPU、支持 CUDA 12.8 的驱动、Docker Engine、Compose v2 插件、NVIDIA Container Toolkit，以及用于创建令牌的 Python 3。镜像在 `Dockerfile` 里固定 GPT-SoVITS 提交、CUDA 镜像摘要、Ubuntu apt 快照和 torch/torchaudio cu128 版本。Python 依赖仍在构建时按上游清单解析。
 
 在仓库根目录运行（也可从其他目录用脚本的完整路径运行）：
 
@@ -37,7 +37,7 @@ GPT-SoVITS 语音服务是独立于 Agentic Complex.app 的可选服务。应用
 bash voice/tts-service/deploy/deploy.sh --root /srv/agentic-complex-tts --port 9888
 ```
 
-`--root` 必须是当前用户可写的数据目录；`--port` 是主机端口。脚本创建 `weights/`、`state/`，随后构建镜像并启动 Compose 服务。容器使用运行脚本的 UID/GID，令牌文件因此仍属于服务进程用户。
+`--root` 必须是当前用户可写的数据目录；`--port` 是主机端口。用非 root 服务账户执行。脚本创建 `weights/`、`state/` 和 `output/`，随后构建镜像并启动 Compose 服务。容器使用运行脚本的 UID/GID，令牌文件因此仍属于服务进程用户。
 
 令牌不存在时，脚本用 `secrets.token_urlsafe(32)` 创建 `<root>/state/tts-token`，权限为 0600；已有文件保持不变。输出只显示文件位置，不显示令牌内容。你在本机打开这个文件，把令牌填进 Agentic Complex。保留这个 `state` 目录，重启服务就不需要更换令牌。服务启动时拒绝缺失、空白、权限过宽、所有者不符或是符号链接的令牌文件。
 
@@ -75,7 +75,7 @@ bash voice/tts-service/deploy/deploy.sh --root /srv/agentic-complex-tts --port 9
   python3 -c "import secrets;print(secrets.token_urlsafe(32))" > <TTS 根目录>/state/tts-token && chmod 600 <TTS 根目录>/state/tts-token
   ```
 
-- `AAC_VOICE_ROOT`：TTS 根目录，默认 `/srv/tts`，布局同上面的 `weights/`。`frontend_lexicon.py` 从 `<TTS 根目录>/tools/` 引用。
+- `AAC_VOICE_ROOT`：TTS 根目录，默认 `/srv/tts`，布局同上面的 `weights/`。仅启用 `game_lexicon` 时才从 `<TTS 根目录>/tools/` 导入 `frontend_lexicon.py`。
 - `AAC_GPT_SOVITS`：GPT-SoVITS 代码目录，默认 `<TTS 根目录>/GPT-SoVITS`。
 
 把 `protocol/C2-speech-stream/phone-vowel-map.json` 平铺拷到 `serve_tts.py` 所在目录；服务从那里读映射表。
@@ -88,7 +88,7 @@ bash voice/tts-service/deploy/deploy.sh --root /srv/agentic-complex-tts --port 9
 
 ## 调试
 
-设 `AAC_TTS_KEEP_FILES=1` 时，流式端点每个请求在 `runs/<run>/inference/` 写 WAV、`.timing.json` 和 `.metrics.json`。默认不写；`/synthesize` 总是写。
+设 `AAC_TTS_KEEP_FILES=1` 时，流式端点每个请求在 `output/<run>/` 写 WAV、`.timing.json` 和 `.metrics.json`。默认不写；`/synthesize` 总是写。
 
 ## 限制
 

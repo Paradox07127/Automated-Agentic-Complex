@@ -122,8 +122,10 @@ def stub_app(root, fingerprint=F, hello=True, reap=True, layout='portable', sock
         for ref in refs:
             if ref['id'] in ('renderer', 'web-ui'): continue
             shutil.move(components / ref['id'], external / ref['id'])
-            index.append({key: ref[key] for key in ('id', 'version', 'tree_sha256')} | {'dir': ref['id']})
+            index.append({key: ref[key] for key in ('id', 'version', 'tree_sha256')} | {'dir': ref['id'],
+                'manifest_sha256': hashlib.sha256((external / ref['id'] / 'component.json').read_bytes()).hexdigest()})
         write(external / 'index.json', json.dumps(dict(schema='endfield-components-index/v1', components=index)))
+        shutil.copy2(external / 'index.json', resources / 'components-index.json')
     subprocess.run(['codesign', '--force', '--deep', '-s', '-', str(app)], check=True, capture_output=True)
     return app
 
@@ -275,8 +277,9 @@ class ArtifactSmokeTests(unittest.TestCase):
                     result = self.smoke(app, port=artifact_smoke.PORT)
                 self.assertEqual(result['result'], 'FAIL')
                 self.assertEqual(result['layout'], 'split')
-                self.assertIn('harness.pi', result['error'])
-                self.assertIn('tree_sha256', result['error'])
+                expected = {'payload': 'component harness.pi tree_sha256 mismatch',
+                            'manifest': 'component manifest mismatch: harness.pi', 'index': 'external component index mismatch'}
+                self.assertIn(expected[damage], result['error'])
 
     def test_composed_catalog_hash_mismatch_fails_before_launch(self):
         for layout in ('portable', 'split'):

@@ -51,7 +51,7 @@ The output directory contains the following.
 | `source-manifest.json` | Packaged source files and source fingerprint | Same |
 | `bundle-manifest.json` | Files in the signed app | Same |
 | `artifact-smoke.json` | Artifact smoke-test results | Same |
-| `gate-receipt.json` | Copy of the gate receipt used for the build | Same |
+| `gate-receipt.json` | Gate results and source fingerprint for the build | Same |
 
 Mach-O files in component payloads are signed once during component assembly and copied byte-for-byte into both layouts. App signing skips `Contents/Resources/components/`.
 
@@ -87,19 +87,19 @@ Quit Agentic Complex, replace the old `Agentic Complex.app` with the new one, an
 ### Split
 
 1. Place `Agentic Complex.app` and `components/` in the same directory.
-2. Launch the app. The host reads `components/index.json` and copies missing components to `<support-dir>/components/<ID>/<version>-<first-eight-tree-hash-characters>/`. It recomputes the tree hash and checks entrypoints before renaming each verified copy into place. It then writes `<support-dir>/components/composition.lock.json`.
+2. Launch the app. The host checks the sibling index against the sealed `Contents/Resources/components-index.json` and copies missing components to `<support-dir>/components/<ID>/<version>-<first-eight-tree-hash-characters>/`. It recomputes the tree hash and checks entrypoints before renaming each verified copy into place. It then writes `<support-dir>/components/composition.lock.json`.
 3. If a component fails verification, the host records `component import failed: <ID> <reason>` in `<support-dir>/logs/companion.log`, marks the component as missing, and continues importing the others.
-4. On each subsequent launch with `components/index.json` present, the host rebuilds the composition lock from the index and reuses installed version directories.
-5. If `components/` is absent, the host uses the last composition lock.
+4. On every launch the host verifies the manifest SHA-256, payload tree hash, file count, byte count and entrypoints of installed components before using them.
+5. If the sibling directory is absent, the app still verifies installed components against its sealed index.
 6. If `index.json` is invalid, the app reports a component import failure and skips starting subprocesses.
 
-To upgrade, quit the app, replace `Agentic Complex.app` and `components/` together with the pair from one build, and launch it. New component versions install in new directories. Older versions remain on disk. The app's `distribution.json` pins the character catalog SHA. Replacing only `components/` can import new character packages without selecting them. If no character library exists yet, a SHA mismatch prevents composition.
+To upgrade, quit the app, replace `Agentic Complex.app` and `components/` together with the pair from one build, and launch it. New component versions install in new directories. Older versions remain on disk. The app's `distribution.json` pins the character catalog SHA. The sibling index must match the build.
 
 ## 5. Missing components
 
 On launch, the host reads the composition lock and checks every component's manifest, entrypoints, and dependencies. It records failed components in the `missing_components` map (ID to reason) in `<support-dir>/config.json`. Their subprocesses stay stopped.
 
-Reasons include `componentMissing`, `manifestInvalid`, `manifestMismatch`, `entrypointMissing`, and `requirementUnmet`. An unmet dependency also marks a component as missing. For example, missing `runtime.python` marks `agentd` with `requirementUnmet`. In the split layout, a failed import logs the import reason, such as `treeMismatch`. Since the component was never installed in the support directory, `missing_components` records it as `componentMissing`.
+Reasons include `componentMissing`, `manifestInvalid`, `manifestMismatch`, `entrypointMissing`, and `requirementUnmet`. An unmet dependency also marks a component as missing. For example, missing `runtime.python` marks `agentd` with `requirementUnmet`. In the split layout, a failed import logs the import reason, such as `treeMismatch`. For a rejected external component, `missing_components` records it as `componentMissing`.
 
 The menu bar shows one row per subprocess. The renderer is labeled 「角色」, agentd is labeled 「后台」, and 「语音隧道」 appears when a TTS tunnel is configured.
 
@@ -238,7 +238,7 @@ A release ships one harness: Pi, in the `harness.pi` component. No Claude Agent 
 - The Python packages are installed from `agent/agentd/requirements-character-agent.lock` and `app/packaging/requirements-content.lock` (numpy for the VMD importer) with mandatory wheel hashes. Every platform wheel carries a second `--hash` (the `win_amd64` cp312 wheel); `pywin32` (an `mcp` dependency on Windows) is pinned with `; sys_platform == "win32"` and skipped on macOS.
 - Preparation always installs Pi's locked npm tree (without lifecycle scripts) and the official standalone Node binary. Node's version and SHA256 are pinned in `app/packaging/node-runtime.lock.json`: its top-level fields are the `darwin-arm64` tarball, and `platforms.win32-x64` gives `archive`, `url` and `sha256` of the official `node-v<version>-win-x64.zip`. On macOS the version and Mach-O library checks reject a Homebrew launcher; on Windows only the version is checked.
 - After `npm ci` the installer drops `docs/`, `examples/` and `CHANGELOG.md` from the `@earendil-works/*` packages and the `@aws-sdk`, `@smithy` and `@google` provider SDKs.
-- The preparation tool uses a temporary installer venv and adds neither pip nor packages to the developer interpreter. Cached payloads record the source-lock hashes and every file and link hash; missing files, altered permissions, external links, stale locks, wrong package versions and a missing Node or Pi tree fail validation. Packaging first removes old versions of the locked dependencies from the chosen base site-packages, then combines them with the locked overlay; developer venvs and installed apps are not changed.
+- The preparation tool uses a temporary installer venv and adds neither pip nor packages to the developer interpreter. Cached payloads record the source-lock hashes and every file and link hash; missing files, altered permissions, external links, stale locks, wrong package versions and a missing Node or Pi tree fail validation. Packaging copies site-packages exclusively from the prepared, hash-locked wheel installation.
 - Original dependency licence notices stay inside their packages; numpy's are also copied to `runtime.python/payload/licenses/numpy`. `staging-manifest.json` records the runtime's provenance and every component reference; `release-receipt.json` copies the references and records the layout.
 - Payload paths: Node is `harness.pi/payload/node/bin/node`, Pi is `harness.pi/payload/pi-runtime`, and Node's licence is `harness.pi/payload/licenses/Node-LICENSE`. A prepared Windows runtime keeps the zip layout (`node/node.exe` and `node/node_modules/npm`), and the installer venv's interpreter is `Scripts\python.exe`.
 - `--check` on the release entry is read-only: it reports the layout and whether the dependency cache is prepared. A normal build prepares the cache when needed. An explicit `--harness-runtime <absolute path>` must already validate. The stand-alone commands are in [development and releases · preparing the harness runtime](development.en.md#preparing-the-harness-runtime).
@@ -248,5 +248,5 @@ A release ships one harness: Pi, in the `harness.pi` component. No Claude Agent 
 Windows has only the portable layout: `tools/release/package_windows.py` assembles the build outputs into one directory `Agentic Complex\`, with no installer and no signing.
 
 - Root: `Agentic Complex.exe` (the renamed `electron.exe` without `resources\default_app.asar`; `flip_fuses.mjs` flips the fuses in the exe itself), Electron's DLLs and resources, `ac-helper.exe`, and `efw.exe` with the `*.dxbc` files it reads from its own directory. `resources\` holds `app\`, `parent_watch.py`, `distribution.json`, `composition.lock.json` and `components\<id>\`. Manifests and the composition lock use platform `windows-x64`.
-- `runtime.python`: the build host's CPython 3.12 base prefix (without `Scripts`, `Doc`, `include`, `libs`, `Tools`, `Lib\test` and the original `Lib\site-packages`). The development site-packages merged with the locked ones go into `Lib\site-packages`, so `pywin32.pth` takes effect. The entry point is `python.exe` with no shell wrapper; the shell passes `-I -B`. Packaging finally runs it in the finished directory with only `SYSTEMROOT` set, and an import failure or a prefix or `sys.path` outside the directory is an error.
+- `runtime.python`: the build host's CPython 3.12 base prefix (without `Scripts`, `Doc`, `include`, `libs`, `Tools`, `Lib\test` and the original `Lib\site-packages`). The prepared locked packages go into `Lib\site-packages`, so `pywin32.pth` takes effect. The entry point is `python.exe` with no shell wrapper; the shell passes `-I -B`. Packaging finally runs it in the finished directory with only `SYSTEMROOT` set, and an import failure or a prefix or `sys.path` outside the directory is an error.
 - The `harness.pi` entry point is `node\node.exe`; the agentd component's `fbx_tool` is `tools\fbx-motion.exe`.

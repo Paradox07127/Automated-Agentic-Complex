@@ -299,7 +299,7 @@ class ValidationTest(unittest.TestCase):
             ({"components": [{"id": "agentd"}]}, "index.components[0]: missing field version"),
             ({"components": [{"id": "agentd", "version": "1.0.0", "tree_sha256": "a" * 64}]},
              "index.components[0]: missing field dir"),
-            ({"components": [dict(id="agentd", version="1.0.0", tree_sha256="a" * 64, dir="agentd")] * 2},
+            ({"components": [dict(id="agentd", version="1.0.0", tree_sha256="a" * 64, manifest_sha256="b" * 64, dir="agentd")] * 2},
              "index: duplicate id agentd"),
         )
         for edit, error in cases:

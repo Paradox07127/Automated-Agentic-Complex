@@ -85,11 +85,15 @@ def build_config(app, support, port=PORT):
         directories = {ref['id']: resources / 'components' / ref['id'] for ref in references}
     elif manifest['layout'] == 'split':
         external = app.parent / 'components'
-        references = json.loads((external / 'index.json').read_text())['components']
-        directories = {id: resources / 'components' / id for id in ('host', 'renderer', 'web-ui')}
+        signed = (resources / 'components-index.json').read_bytes()
+        if (external / 'index.json').read_bytes() != signed: raise SmokeFailure('external component index mismatch')
+        references = json.loads(signed)['components']
+        directories = {path.name: path for path in (resources / 'components').iterdir() if path.is_dir()}
         for ref in references:
             destination = support / 'components' / ref['id'] / (ref['version'] + '-' + ref['tree_sha256'][:8])
             shutil.copytree(external / ref['dir'], destination, symlinks=True)
+            if hashlib.sha256((destination / 'component.json').read_bytes()).hexdigest() != ref['manifest_sha256']:
+                raise SmokeFailure('component manifest mismatch: ' + ref['id'])
             directories[ref['id']] = destination
     else:
         raise SmokeFailure('distribution.json layout must be portable or split')
@@ -98,6 +102,7 @@ def build_config(app, support, port=PORT):
     if manifest['layout'] == 'split':
         for ref in references:
             id = ref['id']
+            if any(payloads[id].rglob('__pycache__')): raise SmokeFailure('unsealed bytecode cache: ' + id)
             digest = component_manifest.tree_sha256(payloads[id])
             if digest != ref['tree_sha256'] or digest != components[id]['tree_sha256']:
                 raise SmokeFailure('component %s tree_sha256 mismatch: copied %s, index %s, manifest %s' % (

@@ -159,7 +159,7 @@ class CanonicalReleaseTests(unittest.TestCase):
         receipt.update(fields);return receipt
     def args(self,**fields):
         values=dict(layout='portable',library=None,output=None,port=None,build_version='1',check=False,
-            harness_runtime=None,python_runtime=Path('/runtime'),site_packages=Path('/site'),gate_receipt=None)
+            harness_runtime=None,python_runtime=Path('/runtime'),gate_receipt=None)
         values.update(fields);return argparse.Namespace(**values)
     def build(self,root,args,run=None):
         runtime=types.ModuleType('harness_runtime')
@@ -269,11 +269,27 @@ class CanonicalReleaseTests(unittest.TestCase):
             path=gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))
             with mock.patch('sys.stdout',new_callable=io.StringIO) as out:self.build(root,self.args(output=output),run=self.packaging(output,'PASS'))
             receipt=json.loads((output/'release-receipt.json').read_text())
-            self.assertEqual((receipt['gate_receipt'],receipt['source_fingerprint'],receipt['gate_profile'],receipt['gate_result']),(str(path),'F'*64,'commit','PASS'))
+            self.assertEqual((receipt['gate_receipt'],receipt['source_fingerprint'],receipt['gate_profile'],receipt['gate_result']),(gate_receipt.LATEST,'F'*64,'commit','PASS'))
             self.assertEqual((output/'gate-receipt.json').read_text(),path.read_text())
-            self.assertEqual(receipt['artifact_smoke'],dict(result='PASS',error=None))
+            self.assertEqual(receipt['artifact_smoke'],dict(result='PASS',error=None,app='Agentic Complex.app'))
             self.assertEqual((receipt['layout'],receipt['distribution']),('portable','portable'))
             self.assertIn('release_ready',out.getvalue())
+    def test_shipped_receipts_omit_builder_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.release_repo(root);output=root/'out/release'
+            suite=dict(id='release',status='PASS',log=str(root/'log'),lines=[str(root/'suite')],
+                       cached=dict(from_checkout=str(root/'other'),key='abc'))
+            gate_receipt.write(self.receipt(root,checkout=str(root),suites=[suite]),store=gate_receipt.store_dir(root))
+            package=self.packaging(output,'PASS')
+            def run(argv,**kwargs):
+                result=package(argv,**kwargs)
+                if 'artifact_smoke.py' in argv[2]:
+                    Path(argv[8]).write_text(json.dumps(dict(result='PASS',app=argv[4],support_dir=str(root/'temp'))))
+                return result
+            self.build(root,self.args(output=output),run=run)
+            for name in ('release-receipt.json','gate-receipt.json','artifact-smoke.json'):
+                self.assertNotIn(str(root),(output/name).read_text(),name)
+
     def test_split_layout_reaches_packager_check_and_release_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root);output=root/'out/split'

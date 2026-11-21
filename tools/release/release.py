@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -189,7 +188,6 @@ def build(args,root=ROOT):
     library=Path(web.name)/'library' if catalog is None else catalog.parent
     if catalog is None:library.mkdir()
     runtime=args.python_runtime or Path(subprocess.check_output([str(python),'-I','-c','import sys;print(sys.base_prefix)'],text=True).strip())
-    site=args.site_packages or Path(subprocess.check_output([str(python),'-I','-c','import sysconfig;print(sysconfig.get_path("purelib"))'],text=True).strip())
     if getattr(args,'harness_runtime',None):validate_runtime(harness,root,execute=True)
     else:prepare(harness,python,root)
     helper=root/'app/helpers/mac'
@@ -210,7 +208,7 @@ def build(args,root=ROOT):
     command=[str(python),'-I',str(root/'tools/release/package_app.py'),
         '--library',str(library),'--output',str(output),*shell,
         *(['--host',str(binary_path(renderer)/'metal-avatar-host')] if renderer.is_dir() else []),
-        '--python',str(runtime),'--site-packages',str(site),'--harness-runtime',str(harness),'--web-dist',str(ui),'--fbx-tool',str(fbx_tool),*(['--ui-art',str(art)] if art else []),*(['--photo-looks',str(looks)] if looks else []),*overrides,'--layout',layout,
+        '--python',str(runtime),'--harness-runtime',str(harness),'--web-dist',str(ui),'--fbx-tool',str(fbx_tool),*(['--ui-art',str(art)] if art else []),*(['--photo-looks',str(looks)] if looks else []),*overrides,'--layout',layout,
         '--build-version',args.build_version or datetime.datetime.now().strftime('%Y%m%d.%H%M%S')]
     if args.port is not None:command+=['--port',str(args.port)]
     subprocess.run(command,check=True)
@@ -224,11 +222,20 @@ def build(args,root=ROOT):
         try:notarization=notarize.notarize(app,profile['notary_keychain_profile'])
         except notarize.NotarizationError as e:raise ValueError(str(e)) from e
     subprocess.run([str(python),'-I',str(root/'tools/release/inventory_app.py'),'--app',str(app),'--output',str(output/'bundle-manifest.json')],check=True)
-    smoke_path=output/'artifact-smoke.json'
+    smoke_path=Path(web.name)/'artifact-smoke.json'
     subprocess.run([str(python),'-I',str(root/'tools/qa/artifact_smoke.py'),'--app',str(app),'--fingerprint',fingerprint,'--output',str(smoke_path)])
     smoke=json.loads(smoke_path.read_text()) if smoke_path.is_file() else {}
     if smoke.get('result')!='PASS':raise ValueError('Artifact smoke failed: '+str(smoke.get('error') or 'no result in '+str(smoke_path)))
-    if gate:shutil.copyfile(gate[0],output/gate_receipt.LATEST)
+    smoke.pop('support_dir',None)
+    smoke['app']=app.name
+    (output/'artifact-smoke.json').write_text(json.dumps(smoke,indent=2)+'\n')
+    _,receipt=gate
+    public={k:v for k,v in receipt.items() if k!='checkout'}
+    for suite in public.get('suites',[]):
+        for key in ('log','lines'):suite.pop(key,None)
+        if suite.get('cached'):suite['cached'].pop('from_checkout',None)
+    (output/gate_receipt.LATEST).write_text(json.dumps(public,indent=1)+'\n')
+    gated['gate_receipt']=gate_receipt.LATEST
     if sources_moved(state,source_state(root)):raise ValueError('Sources changed while building')
     (output/'release-receipt.json').write_text(json.dumps(dict(schema='endfield-canonical-release/v1',**state,
         layout=layout,catalog_sha256=sha,app=app.name,distribution=layout,
@@ -239,7 +246,7 @@ def build(args,root=ROOT):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
-    for name in ['library','output','python-runtime','site-packages','harness-runtime']:p.add_argument('--'+name,type=Path)
+    for name in ['library','output','python-runtime','harness-runtime']:p.add_argument('--'+name,type=Path)
     p.add_argument('--profile',type=Path,help='Release config; default: the local profile when present, else app/packaging/release.json')
     p.add_argument('--print-profile',action='store_true',help='Print the path of the profile in use and exit')
     p.add_argument('--port',type=int)

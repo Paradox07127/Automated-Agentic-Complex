@@ -17,7 +17,7 @@
 | `segment_meta.py` | Segment metadata recording (`SegmentRecorder`, including MRTE attention capture) and C2 event generation (`C2Stream`) |
 | `cues.py` | `cues` events: MRTE Viterbi (revision 1), phone→vowel mapping, the MFA subprocess client (`MfaClient`) and per-stream cue handling (`CueStream`). Standard library and numpy only |
 | `mfa_worker.py` | MFA subprocess (kalpy in-process alignment, CPU, beam 10); one JSON object per line on stdin/stdout |
-| `requirements-mfa.lock` | Locked package list of the MFA subprocess environment: `conda list --explicit --md5`, then `pip freeze` after the comment lines |
+| `requirements-mfa.lock` | Explicit Linux Conda artifact URLs and MD5 hashes for the MFA subprocess environment |
 | `test_*.py` | Unit tests with a fake engine and a fake MFA subprocess |
 | `deploy/` | Docker deployment: `Dockerfile`, `compose.yaml`, `deploy.sh` |
 

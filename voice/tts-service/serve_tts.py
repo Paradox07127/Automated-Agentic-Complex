@@ -8,6 +8,7 @@ def parse_args(argv=None):
 if __name__=='__main__':args=parse_args()
 TOKEN_FILE=os.environ.get('AAC_TTS_TOKEN_FILE')
 if not TOKEN_FILE:raise SystemExit('Set AAC_TTS_TOKEN_FILE to the TTS token file (mode 0600)')
+import anyio
 from fastapi import FastAPI,HTTPException
 from fastapi.responses import FileResponse,StreamingResponse
 from pydantic import BaseModel,Field
@@ -25,7 +26,7 @@ def gpt_sovits_commit(source):
 GPT_SOVITS_COMMIT=gpt_sovits_commit(REPO)
 # Deployed flat next to this file, copied from protocol/C2-speech-stream/.
 VOWEL_MAP=load_vowel_map(HERE/'phone-vowel-map.json')
-# Streams already carry the PCM; per-request WAV/timing/metrics files under runs/<run>/inference/ are written only with AAC_TTS_KEEP_FILES=1 (debugging).
+# Streams already carry the PCM; per-request WAV/timing/metrics files under output/<run>/ are written only with AAC_TTS_KEEP_FILES=1 (debugging).
 KEEP_FILES=os.environ.get('AAC_TTS_KEEP_FILES')=='1'
 MFA=MfaClient([os.environ['AAC_MFA_PYTHON'],str(HERE/'mfa_worker.py')]) if os.environ.get('AAC_MFA_PYTHON') else None
 app=FastAPI(title='Endfield local character TTS',version='0.2-pilot')
@@ -104,11 +105,17 @@ def ndjson(worker,messages,cancelled):
             try:return messages.get(timeout=.2)
             except queue.Empty:pass
     async def events():
-        threading.Thread(target=worker,daemon=True).start()
-        try:
-            while (value:=await asyncio.to_thread(take)) is not None:yield json.dumps(value,ensure_ascii=False)+'\n'
-        finally:cancelled.set()
-    return StreamingResponse(events(),media_type='application/x-ndjson',headers={'Cache-Control':'no-store','X-Accel-Buffering':'no'})
+        while (value:=await asyncio.to_thread(take)) is not None:yield json.dumps(value,ensure_ascii=False)+'\n'
+    class Stream(StreamingResponse):
+        async def __call__(self,scope,receive,send):
+            thread=threading.Thread(target=worker,daemon=True)
+            thread.start()
+            try:await super().__call__(scope,receive,send)
+            finally:
+                cancelled.set()
+                # Hold the request slot until synthesis has actually stopped.
+                with anyio.CancelScope(shield=True):await anyio.to_thread.run_sync(thread.join)
+    return Stream(events(),media_type='application/x-ndjson',headers={'Cache-Control':'no-store','X-Accel-Buffering':'no'})
 def parameters(entry):
     values=entry.get('inference_parameters',{})
     assert set(values)<=set(['temperature','top_k','text_split_method','cfg_rate','sample_steps'])

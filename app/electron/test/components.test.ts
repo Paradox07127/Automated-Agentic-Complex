@@ -1,6 +1,7 @@
 // C11 resolution, import and tree hash, the
 // config.json fields a packaged launch writes, the renderer's failure states and the tray's child rows (docs/components.md §5).
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -218,7 +219,7 @@ test('prepare writes missing_components and empty paths into config.json, and th
 test('a split import installs checked copies, logs the ones that fail and writes the lock', (t) => {
   const root = temp(t), source = join(root, 'components'), support = join(root, 'support');
   const app = portableApp(root);
-  const entries: { id: string; version: string; tree_sha256: string; dir: string }[] = [];
+  const entries: { id: string; version: string; tree_sha256: string; manifest_sha256: string; dir: string }[] = [];
   const external = (id: string, version: string, files: Record<string, string>, spec: Spec, tamper = false) => {
     const payload = join(source, id, 'payload');
     for (const [path, text] of Object.entries(files)) write(join(payload, path), text, path.startsWith('bin/') ? 0o755 : 0o644);
@@ -226,7 +227,7 @@ test('a split import installs checked copies, logs the ones that fail and writes
       bytes: Object.values(files).reduce((n, s) => n + Buffer.byteLength(s), 0) };
     write(join(source, id, 'component.json'), manifest(id, { ...spec, version }, tree));
     if (tamper) write(join(payload, Object.keys(files)[0]!), 'changed after the build');
-    entries.push({ id, version, tree_sha256: tree.sha256, dir: id });
+    entries.push({ id, version, tree_sha256: tree.sha256, manifest_sha256: createHash('sha256').update(readFileSync(join(source, id, 'component.json'))).digest('hex'), dir: id });
   };
   external('runtime.python', '3.13.9', { 'bin/agentic-complex-python': '#!/bin/sh\n' }, { entrypoints: { python: 'bin/agentic-complex-python' } });
   external('agentd', '1.0.0', { 'agentd_launcher.py': 'x', 'agentd/server.py': 'y' },
@@ -234,7 +235,8 @@ test('a split import installs checked copies, logs the ones that fail and writes
   write(join(source, 'index.json'), JSON.stringify({ schema: 'endfield-components-index/v1', components: entries }));
   for (const id of ['runtime.python', 'agentd']) rmSync(join(app.bundle, id), { recursive: true });
 
-  assert.deepEqual(installComponents(source, app.bundle, support, 'macos-arm64'), { agentd: 'treeMismatch' });
+  write(join(app.resources, 'components-index.json'), readFileSync(join(source, 'index.json'), 'utf8'));
+  assert.deepEqual(installComponents(source, app.bundle, support, 'macos-arm64').failed, { agentd: 'treeMismatch' });
   const python = entries[0]!;
   const installed = join(support, 'components/runtime.python', `3.13.9-${python.tree_sha256.slice(0, 8)}`);
   assert.equal(treeHash(join(installed, 'payload')).sha256, python.tree_sha256);
@@ -271,7 +273,8 @@ test('the lock and manifests are the running platform\'s: windows-x64 on Windows
   assert.throws(() => resolveComponents(app.lock, app.bundle, join(support, 'components'), 'macos-arm64'), lockInvalid);
   const source = join(root, 'components');
   write(join(source, 'index.json'), JSON.stringify({ schema: 'endfield-components-index/v1', components: [] }));
-  assert.deepEqual(installComponents(source, app.bundle, support, 'windows-x64'), {});
+  write(join(app.resources, 'components-index.json'), readFileSync(join(source, 'index.json'), 'utf8'));
+  assert.deepEqual(installComponents(source, app.bundle, support, 'windows-x64').failed, {});
   assert.equal(JSON.parse(readFileSync(join(support, 'components/composition.lock.json'), 'utf8')).platform, 'windows-x64');
   // The split layout's components beside the app are a macOS bundle's.
   assert.throws(() => prepareComponents({ resources: app.resources, support, layout: 'split', platform: 'windows' }),

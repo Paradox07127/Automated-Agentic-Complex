@@ -131,11 +131,18 @@ class Worker:
     def busy(self):
         return self.inflight > 0
 
-    def submit(self, request):
+    def reserve(self):
         with self.lock:
             if self.inflight >= CAPACITY:
-                return None
+                return False
             self.inflight += 1
+            return True
+
+    def release(self):
+        with self.lock:
+            self.inflight -= 1
+
+    def submit(self, request):
         job = Job(request)
         self.jobs.put(job)
         return job
@@ -151,8 +158,7 @@ class Worker:
                 if not isinstance(e, ValueError):
                     traceback.print_exc()
             finally:
-                with self.lock:
-                    self.inflight -= 1
+                self.release()
                 job.done.set()
 
 
@@ -193,26 +199,38 @@ def make_handler(worker, token, timeout=TIMEOUT_S, default_steps=DEFAULT_STEPS):
                 self._json(404, {'error': 'not found'})
 
         def do_POST(self):
-            started = time.monotonic()
+            deadline = time.monotonic() + timeout
+            if not self._authorized():
+                return
+            if urlsplit(self.path).path != '/v1/generate':
+                return self._json(404, {'error': 'not found'})
             try:
                 length = int(self.headers.get('Content-Length', ''))
             except ValueError:
                 return self._json(400, {'error': 'Content-Length required'})
             if not 0 <= length <= MAX_BODY:
                 return self._json(413, {'error': f'body larger than {MAX_BODY} bytes'})
-            raw = self.rfile.read(length)  # read before replying so the client never sees a reset
-            if not self._authorized():
-                return
-            if urlsplit(self.path).path != '/v1/generate':
-                return self._json(404, {'error': 'not found'})
-            try:
-                request = parse_generate(json.loads(raw), default_steps)
-            except ValueError as e:  # BadRequest, JSONDecodeError, UnicodeDecodeError
-                return self._json(400, {'error': str(e)})
-            job = worker.submit(request)
-            if job is None:
+            if not worker.reserve():
                 return self._json(503, {'error': 'busy'})
-            if not job.done.wait(max(0.0, timeout-(time.monotonic()-started))):
+            job = None
+            try:
+                raw = bytearray()
+                while len(raw) < length:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0: raise TimeoutError
+                    self.connection.settimeout(remaining)
+                    chunk = self.rfile.read1(length - len(raw))
+                    if not chunk: return self._json(400, {'error': 'incomplete body'})
+                    raw.extend(chunk)
+                request = parse_generate(json.loads(raw), default_steps)
+                job = worker.submit(request)
+            except TimeoutError:
+                return self._json(408, {'error': 'body read timed out'})
+            except ValueError as e:
+                return self._json(400, {'error': str(e)})
+            finally:
+                if job is None: worker.release()
+            if not job.done.wait(max(0.0, deadline-time.monotonic())):
                 job.cancelled = True
                 return self._json(504, {'error': 'timeout'})
             if job.error is not None:
@@ -225,6 +243,7 @@ def make_handler(worker, token, timeout=TIMEOUT_S, default_steps=DEFAULT_STEPS):
             self._send(200, buf.getvalue(), 'application/octet-stream',
                        [('X-Generate-Ms', f'{generate_ms:.1f}'), ('X-Encode-Ms', f'{encode_ms:.1f}'), ('X-Seed', str(request['seed']))])
 
+    Handler.timeout = timeout
     return Handler
 
 

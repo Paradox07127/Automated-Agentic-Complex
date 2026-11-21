@@ -19,7 +19,12 @@ octet='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
 port=$((10#$port))
 ((port >= 1 && port <= 65535)) || usage
 
-mkdir -p -- "$root/weights" "$root/state"
+uid=$(id -u)
+if [ "$uid" -eq 0 ]; then
+    echo 'Run deploy.sh as the non-root service account.' >&2
+    exit 1
+fi
+mkdir -p -- "$root/weights/state" "$root/weights/output" "$root/state" "$root/output"
 root=$(cd -- "$root" && pwd -P)
 python3 - "$root/state/tts-token" <<'PY'
 import os,secrets,sys
@@ -34,7 +39,7 @@ print(f'Token file: {path}')
 PY
 
 export AAC_TTS_ROOT="$root" AAC_TTS_PORT="$port"
-export AAC_TTS_UID="$(id -u)" AAC_TTS_GID="$(id -g)"
+export AAC_TTS_UID="$uid" AAC_TTS_GID="$(id -g)"
 export AAC_TTS_BIND="$bind" AAC_TTS_REMOTE="$([ "$bind" = 127.0.0.1 ] && echo 0 || echo 1)"
 deploy_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 docker compose --file "$deploy_dir/compose.yaml" up --build -d

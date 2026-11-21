@@ -92,10 +92,11 @@ function packagedApp(root: string, layout: 'portable' | 'split' = 'portable', os
       ...(part.placed ? { placed: part.placed } : {}),
     }));
     if (part.placed) rmSync(payload, { recursive: true });
-    if (part.id !== 'host') refs.push({ id: part.id, version: '1', tree_sha256: tree.sha256, ...(beside ? { dir: part.id } : { placement: 'bundle' }) });
+    if (part.id !== 'host') refs.push({ id: part.id, version: '1', tree_sha256: tree.sha256, ...(beside ? { dir: part.id, manifest_sha256: sha256(readFileSync(join(dir, 'component.json'))) } : { placement: 'bundle' }) });
   }
   if (layout === 'split') {
     write(join(root, 'components/index.json'), JSON.stringify({ schema: 'endfield-components-index/v1', components: refs.filter((r) => 'dir' in r) }));
+    write(join(resources, 'components-index.json'), readFileSync(join(root, 'components/index.json'), 'utf8'));
   } else {
     write(join(resources, 'composition.lock.json'), JSON.stringify({ schema: 'endfield-composition/v1', edition: 'portable',
       platform, created_at: '2026-11-20T00:00:00Z', host: { id: 'host', version: '1', tree_sha256: ZERO }, components: refs }));

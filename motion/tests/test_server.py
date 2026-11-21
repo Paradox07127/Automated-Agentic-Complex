@@ -67,6 +67,24 @@ class ServerTest(unittest.TestCase):
             with e:
                 return e.code, dict(e.headers), e.read()
 
+    def test_post_authentication_and_body_deadline_precede_generation(self):
+        handler = object.__new__(server.make_handler(mock.Mock(), TOKEN, timeout=.1))
+        handler.path = '/v1/generate'
+        handler.headers = {'Content-Length': '1'}
+        handler.rfile = mock.Mock()
+        handler.rfile.read.side_effect = AssertionError('read before authentication')
+        handler._json = mock.Mock()
+        handler.do_POST()
+        self.assertEqual(handler._json.call_args.args[0], 401)
+        handler.headers['Authorization'] = 'Bearer ' + TOKEN
+        handler.connection = mock.Mock()
+        handler.rfile.read1.side_effect = TimeoutError
+        handler.rfile.read.side_effect = TimeoutError
+        handler.do_POST()
+        self.assertEqual(handler._json.call_args.args[0], 408)
+        self.assertGreater(handler.connection.settimeout.call_args.args[0], 0)
+        self.assertLessEqual(handler.connection.settimeout.call_args.args[0], .1)
+
     def test_health_and_skeleton(self):
         self.start(FakeBackend())
         status, _, body = self.call('/v1/health')

@@ -138,8 +138,10 @@ mtime、所有者、扩展属性、非执行权限、目录权限、文件创建
 | 字段 | 类型与取值 | 含义 |
 |---|---|---|
 | `schema` | 字符串，固定 `endfield-components-index/v1` | 格式版本 |
-| `components` | 数组，每项必填 `id`、`version`、`tree_sha256`、`dir` | 要装进支持目录的组件 |
+| `components` | 数组，每项必填 `id`、`version`、`tree_sha256`、`manifest_sha256`、`dir` | 要装进支持目录的组件 |
 
 `id`、`version`、`tree_sha256` 与组件清单同类型、同格式。`dir` 是相对 `components/` 的目录，遵循第 2 节的入口路径规则。ID 不得重复，也不得是留在 app 内的 `host`、`renderer`、`web-ui`。
 
-宿主在拆分版每次启动时，只要 app 旁有 `components/index.json` 就导入。导入方读 app 内 `Contents/Resources/components/` 下 `host`、`renderer`、`web-ui` 的清单和索引中每个组件的清单，逐个组件按第 5 节校验：索引项与清单的 `id`、`version`、`tree_sha256` 相同；未装的组件先拷进 `<支持目录>/components/.staging-<随机>/`，在拷贝上重算树哈希、`files`、`bytes` 并核对入口，通过后把暂存目录改名为 `<id>/<version>-<sha8>/`。目标目录已存在的组件不重拷，只核对清单和入口。一个组件没通过时删掉它的暂存目录，在宿主日志里记 `component import failed: <id> <原因>`，其余组件照常导入。最后写拆分版的组合锁 `<支持目录>/components/composition.lock.json`：列出 app 内清单读得了的 `renderer`、`web-ui` 和索引里的全部组件；没通过的组件由宿主按第 5 节第 7 条判为缺。`host` 的清单读不了时导入失败。`index.json` 整个读不了或格式不对时不写锁，导入失败。导入失败时宿主报配置错误，不启动任何子进程。app 旁没有 `components/index.json` 时不导入，宿主用已有的锁。
+打包时把索引写入签名覆盖的 `Contents/Resources/components-index.json`。每项的 `manifest_sha256` 是外置组件 `component.json` 文件的 SHA-256。启动时若 app 旁有索引，其字节必须与 app 内的索引完全相同。
+
+外置载荷不能带有树哈希排除的 Python 字节码缓存目录 `__pycache__`。宿主以 app 内的索引校验每个外置组件的清单、载荷树哈希、文件数、字节数和入口。未安装的组件先复制到支持目录内的暂存目录，通过校验后改名为 `<id>/<version>-<sha8>/`。每次启动都重新校验已安装的组件，包括移走外置目录后的启动。失败的组件记为缺，原因写入宿主日志，其余组件照常解析。宿主把本次组合写入 `<支持目录>/components/composition.lock.json`。宿主清单或签名索引不可读、索引无效或内外索引不一致时，启动报配置错误。

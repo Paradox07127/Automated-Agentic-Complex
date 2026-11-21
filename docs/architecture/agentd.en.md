@@ -112,7 +112,7 @@ The amounts estimate what agentd can verify; they are not provider bills. Extern
 ## Voice
 
 - Voice is on only when agentd starts with `--tts-url`. For TTS on a remote host, for example, run `ssh -N -L 19888:127.0.0.1:9888 <host>` and pass `--tts-url http://127.0.0.1:19888`.
-- Requests carry `Authorization: Bearer <token>`. The token file is `--tts-token-file`, else `$AAC_TTS_TOKEN_FILE` (C10); the file must be 0600. From the repository root, `agent/.venv/bin/python agent/agentd/tools/tts_token.py push` creates the token and copies it to the TTS host; then restart TTS and agentd.
+- Requests carry `Authorization: Bearer <token>`. The token file is `--tts-token-file`, else `$AAC_TTS_TOKEN_FILE` (C10); the file must be 0600. From the repository root, `agent/.venv/bin/python agent/agentd/tools/tts_token.py push --ssh user@host --remote /srv/agentic-complex-tts/state/tts-token` creates the token and copies it to the TTS host. Substitute the service account, host and deployment root, then restart TTS and agentd.
 - TTS URLs may be `http` or `https`. HTTPS uses port 443 by default and verifies the certificate and host name on the first connection and on reconnects; user information in the URL and other schemes are rejected. Plain HTTP is accepted for any host and sends the token and text unencrypted.
 - The relay rules (the `/speech` relay, the `cancelled` line on truncation, `speech_failed` on failure) are in C6 §4.7.
 
