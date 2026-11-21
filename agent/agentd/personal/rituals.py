@@ -2,6 +2,7 @@
 line completed, a break or water reminder once per time it fell due; ritual_log keeps both across restarts."""
 import datetime
 import json
+import random
 import re
 import threading
 import time
@@ -55,6 +56,13 @@ TAPS = ("(Situation, not words from {user_title}: {user_title} touched you {coun
         "bounds. If the earlier topic is not finished, pick it up. "
         "What you say is only your reaction; do not state the count, do not describe what they just did.)")
 COUNTS = ("sessions", "agents_done", "agents_failed", "gates_green", "gates_red", "guard_blocks", "own_sessions")
+
+
+def pick_line(card, event, language, previous):
+    choices = [entry[language] for entry in card.get("lines", {}).get(event, []) if language in entry]
+    if not choices:
+        return None
+    return random.choice([text for text in choices if text != previous] or choices)
 
 
 def _month_day(text):

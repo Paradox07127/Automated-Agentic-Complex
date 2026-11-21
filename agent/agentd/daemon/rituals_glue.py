@@ -3,8 +3,9 @@ import datetime
 import secrets
 
 from brain.outbound import OutboundBlocked
+from brain.persona import BASE_LANGUAGE
 from daemon.constants import FEEDBACK
-from personal.rituals import TAP, TAPS, TEMPLATES
+from personal.rituals import TAP, TAPS, TEMPLATES, pick_line
 from sessions import day_summary, threads
 from api.views import _iso
 
@@ -33,26 +34,43 @@ GIFT_TEXT = {"zh-Hans": ("（送了你一份礼物）", "（送了你 {count} �
 
 
 class RitualsGlueMixin:
+    def _scripted_line(self, event):
+        """(event, text) for start_line, or None when this card has no matching translation."""
+        if self.character is None:
+            return None
+        card = self.characters.load_card(self.character)
+        agent = self.character_agent
+        language = agent.reply_language.current(agent.settings.snapshot()["reply_language"]) if agent else None
+        text = pick_line(card, event, language or BASE_LANGUAGE, self._last_scripted.get((self.character, event)))
+        return (event, text) if text is not None else None
+
     def tap(self, count=1, region=None):
         """POST /interaction/tap:the highest pending ritual, or else a tap line for count clicks, on an idle
         mouth. (status, body)."""
         lane = self._line_lane()
-        with self._slot_lock:  # claim_line's step: nothing starts between the check and this line
+        with self._slot_lock, self._switch_lock:
             if self.switch is not None:
                 return 409, {"error": "switching"}
-            if self.mouth is None:
-                return 503, {"error": "no_llm"}
-            if lane is None:
-                return 200, {"kind": None}
+            picked = scripted = None
+            if self.mouth is None or lane is None:
+                picked = self.rituals.pick() if self.rituals is not None else None
+                if picked:
+                    event = "greeting_morning" if picked[0] == "morning" else picked[0]
+                else:
+                    event = "head_pat" if region in ("head", "head_top", "hair") else "tap"
+                scripted = self._scripted_line(event)
+                if scripted is None:
+                    return (503, {"error": "no_llm"}) if self.mouth is None else (200, {"kind": None})
             if self.resetting or self.busy() or self._live_lines:
                 speaking = self._mouth_lock.locked() or (self.speech is not None and self.speech.busy())
                 working = not speaking and (bool(self._live_lines) or
                                             self.character_agent is not None and self.character_agent.busy())
                 return 409, {"error": "busy", "while": "working" if working else "speaking"}
-            picked = self.rituals.pick() if self.rituals is not None else None
+            if scripted is None and self.rituals is not None:
+                picked = self.rituals.pick()
             if picked is None:
                 template = TAP if count == 1 else TAPS
-                if self.egress is not None:
+                if scripted is None and self.egress is not None:
                     try:
                         self.egress.authored("tap", template)
                     except OutboundBlocked:
@@ -60,10 +78,10 @@ class RitualsGlueMixin:
                 line_id = secrets.token_hex(6)
                 self.start_line(line_id, template.format(count=count, user_title=self.user_title()),
                                 reason={"code": "tap"}, source="tap",
-                                material=TAP_REGION_TEXT[region] if region is not None else None)
+                                material=TAP_REGION_TEXT[region] if region is not None else None, scripted=scripted)
                 return 202, {"line_id": line_id, "kind": "tap"}
             kind, data = picked
-            if self.egress is not None:
+            if scripted is None and self.egress is not None:
                 try:
                     self.egress.authored("ritual", TEMPLATES[kind])
                 except OutboundBlocked:  # not said; the guard logged the hit
@@ -71,7 +89,8 @@ class RitualsGlueMixin:
             line_id = secrets.token_hex(6)
             self.rituals.begin(kind, line_id)  # before the line: it may settle before start_line returns
             self.start_line(line_id, TEMPLATES[kind].format(**data, user_title=self.user_title()),
-                            reason={"code": "ritual", "kind": kind}, source="ritual", material=f"Today so far: {data['arc']}" if kind == "report" else None)
+                            reason={"code": "ritual", "kind": kind}, source="ritual", scripted=scripted,
+                            material=f"Today so far: {data['arc']}" if kind == "report" else None)
         return 202, {"line_id": line_id, "kind": kind}
 
     def gift(self, body):
@@ -99,12 +118,17 @@ class RitualsGlueMixin:
             with self._switch_lock:
                 with self._turn_lock:
                     if self._gift_pending is None or self.resetting or self.closing or self.switch is not None \
-                            or self.mouth is None or self.busy() or self._live_lines or lane is None:
+                            or self.busy() or self._live_lines:
                         return
+                    scripted = None
+                    if self.mouth is None or lane is None:
+                        scripted = self._scripted_line("gift")
+                        if scripted is None:
+                            return
                     gift = self._gift_pending
                     one, many = GIFT_TEXT.get(self.reply_language_code(), GIFT_TEXT["zh-Hans"])
                     text = one if gift["count"] == 1 else many.format(count=gift["count"])
-                    if self.start_line(secrets.token_hex(6), text, source="gift", gift=gift) is not False:
+                    if self.start_line(secrets.token_hex(6), text, source="gift", gift=gift, scripted=scripted) is not False:
                         self._gift_pending = None
 
     def ritual_check(self):

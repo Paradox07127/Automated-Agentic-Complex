@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 
+from brain.language import SUPPORTED
 from infra.platform import long_path
 
 HERE = Path(__file__).resolve().parent
@@ -112,7 +113,18 @@ class Repository:
         cached = self._cards.get(path)
         if cached is None or cached[0] != stamp:
             package.resolve(package.card_ref)
-            cached = self._cards[path] = (stamp, json.loads(path.read_text(encoding="utf-8")))
+            card = json.loads(path.read_text(encoding="utf-8"))
+            lines = card.get("lines", {})
+            if not isinstance(lines, dict):
+                raise ValueError("persona card lines must be an object mapping events to lists")
+            for event, entries in lines.items():
+                if not isinstance(entries, list):
+                    raise ValueError(f"persona card lines.{event} must be a list")
+                for index, entry in enumerate(entries):
+                    if not isinstance(entry, dict) or not entry or not all(
+                            code in SUPPORTED and isinstance(text, str) and text.strip() for code, text in entry.items()):
+                        raise ValueError(f"persona card lines.{event}[{index}] must map reply languages to non-empty text")
+            cached = self._cards[path] = (stamp, card)
         return copy.deepcopy(cached[1])
     def names(self): return [self.load_card(cid)["name"] for cid in self.ids()]
     def revision(self, cid): return hashlib.sha256(self.card_path(cid).read_bytes()).hexdigest()[:12]

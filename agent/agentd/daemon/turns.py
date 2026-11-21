@@ -238,7 +238,7 @@ class TurnsMixin:
         return status, looked
 
     def start_line(self, line_id, text, recheck=None, reason=None, source="proactive", material=None, gift=None,
-                   conversation_id=None, resume_run_id=None):
+                   conversation_id=None, resume_run_id=None, scripted=None):
         """A proactive line; unlike /say it cuts nothing, so callers check busy() first (see claim_line).
         It continues the trace its gate and judge decisions opened under line_id, if there is one.
         recheck: () -> bool, asked once before the first clause is voiced; False cancels the line.
@@ -246,7 +246,8 @@ class TurnsMixin:
         which neither the gate nor /feedback counts. material: observed text for this line's live context only, never
         its text, which history, the mouth's turns and the trace keep.
         conversation_id: the conversation its row and /feed items go to, not the active one.
-        resume_run_id: the run its row follows; the UI then shows the row without its text (History.record)."""
+        resume_run_id: the run its row follows; the UI then shows the row without its text (History.record).
+        scripted: (card event, localized text) to deliver directly."""
         with self._switch_lock:
             if self.closing or self.resetting:
                 return False
@@ -264,6 +265,13 @@ class TurnsMixin:
             if resume_run_id is not None:
                 trace["resume_run_id"] = resume_run_id
             self._live_lines.add(cancel)  # live from now, not from when its thread first runs (see claim_line)
+            if scripted is not None:
+                event, reply = scripted
+                self._last_scripted[self.character, event] = reply
+                threading.Thread(target=self._run_line, args=(line_id, text, cancel, generation),
+                                 kwargs=dict(source=source, trace=trace, recheck=recheck, reason=reason, scripted=reply),
+                                 daemon=True).start()
+                return
         if material:
             self._line_material[cancel] = material
         if source in ("ritual", "tap") and self.tts_ensurer is not None and not self._text_only(source):
@@ -276,13 +284,17 @@ class TurnsMixin:
                    resume_run_id=None):
         """start_line on an idle mouth as one step: False when a line or speech is in progress."""
         lane = self._line_lane()
-        with self._slot_lock:
+        with self._slot_lock, self._switch_lock:
             if self.resetting or self.switch is not None or self.busy() or self._live_lines:
                 return False
+            scripted = None
             if lane is None:
-                return False
+                if reason and reason.get("code") == "back":
+                    scripted = self._scripted_line("greeting_back")
+                if scripted is None:
+                    return False
             return self.start_line(line_id, text, recheck, reason, material=material, conversation_id=conversation_id,
-                                   resume_run_id=resume_run_id) is not False
+                                   resume_run_id=resume_run_id, scripted=scripted) is not False
 
     def _run_character_line(self, line_id, text, cancel, generation, wait=None, refused=None, source="text", trace=None,
                             remember=True, voice_timing=None, scope_id=None, expected_outputs=None, resume_run_id=None,
@@ -404,12 +416,12 @@ class TurnsMixin:
         self._step(trace, "context.assembled", new_span_id(), attrs={"items": items})
 
     def _run_line(self, line_id, text, cancel, generation, refused=None, source="text", trace=None,
-                  recheck=None, reason=None, remember=True, voice_timing=None, prepared=None):
+                  recheck=None, reason=None, remember=True, voice_timing=None, prepared=None, scripted=None):
         """refused: why the line's look was refused.
         A newer turn_generation cancels the line as its cancel event does. source: the history row's source.
         trace: this turn's trace from _open_trace; None opens one here. recheck, reason: see start_line.
-        remember False, voice_timing: see _open_trace. prepared: the character agent's reply the line streams; None
-        only while closing, which cancels the line before it is read."""
+        remember False, voice_timing: see _open_trace. prepared: the character agent's reply the line streams.
+        scripted: plain text from the card, ready to deliver without agent context or a model."""
         self._live_lines.add(cancel)
         started_at = time.time()
         started = time.monotonic()
@@ -421,6 +433,8 @@ class TurnsMixin:
         try:
             with self._mouth_lock:
                 self._apply_window_ops()
+                if scripted is not None and recheck is not None and not recheck():
+                    cancel.set()
                 if self._stale(cancel, generation):  # stopped while waiting: no paid model call
                     state = "cancelled"
                     self._record(trace, source, text, "", state, started_at)
@@ -502,11 +516,12 @@ class TurnsMixin:
                 mouth = prepared
                 _, consent_epoch = self.sync_privacy()
                 self._line_consent[cancel] = consent_epoch
-                context = self.context(text, None, refused, used)
-                material = self._line_material.pop(cancel, None)
-                context += f"{material}。" if material else ""
-                if hasattr(mouth, "dispatch_allowed"):
-                    mouth.dispatch_allowed = lambda: not self._stale(cancel, generation)
+                if scripted is None:
+                    context = self.context(text, None, refused, used)
+                    material = self._line_material.pop(cancel, None)
+                    context += f"{material}。" if material else ""
+                    if hasattr(mouth, "dispatch_allowed"):
+                        mouth.dispatch_allowed = lambda: not self._stale(cancel, generation)
                 if cancel not in self._side_lines:  # a main line's context replaces the last main line's
                     for key in [key for key in tuple(self._line_context) if key not in self._side_lines]:
                         self._line_context.pop(key, None)
@@ -516,8 +531,11 @@ class TurnsMixin:
                 earlier = [turn[0] for turn in past]
                 if self.tts_ensurer is not None and not self._text_only(source):
                     self.tts_ensurer.request()  # a cold TTS starts while the model writes the line
-                self._use_facts(trace, cancel, mouth, self._fact_query(text, source, reason), source)
-                stream = mouth.stream(text, context)
+                if scripted is None:
+                    self._use_facts(trace, cancel, mouth, self._fact_query(text, source, reason), source)
+                    stream = mouth.stream(text, context)
+                else:
+                    stream = (scripted,)
                 try:
                     if self._stale(cancel, generation):
                         cancel.set()
@@ -526,7 +544,7 @@ class TurnsMixin:
                         if self._stale(cancel, generation):
                             break
                         raw.append(delta)
-                        piece, at = _marked(markers, delta)
+                        piece, at = _marked(markers, delta) if scripted is None else ((delta, [], []), [])
                         if markers.motions and not performed:
                             performed, motion = True, getattr(self, "motion", None)  # None: no performer, the marker is dropped
                             driver = None if motion is None else effective(self)["motion"]["driver"]

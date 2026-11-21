@@ -247,6 +247,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self._ritual_since = None  # self.clock() when that item was published
         self._ritual_lock = threading.Lock()
         self._gift_pending = None
+        self._last_scripted = {}  # (character, event) -> last authored line started
         self.history = None  # History; None keeps lines off disk and answers /history with 503
         self.tasks = None  # TaskLedger; main shares it with the dispatcher and sessions; None answers /tasks 503
         self.commitments = None  # Commitments; None answers 「提醒我…」 with 503
