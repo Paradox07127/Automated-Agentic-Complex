@@ -4,6 +4,7 @@ import { getBridge, type StreamEvent } from '../../bridge';
 import { useRuntimePublic } from '../../data/runtime';
 import type { ActiveRun, ErrorEntry, Plan, StepStatus } from '../../domain';
 import type { DemoState } from '../../shell/demo';
+import { usePlugins } from '../../shell/plugins';
 import { errText } from './errors';
 import { runtimeOf, withRuntime } from './kernel';
 import { clock, emptyWork, overviewOf, readDay, readFailedTurns, readRole, readRunning, readSnapshot, sparseWork, type RoleRead, type RunningRead, type SnapshotRead } from './load';
@@ -113,7 +114,7 @@ const runtimeDemo = (demo: string | null) => (demo === 'kernel-off' ? 'logged-ou
  * The overview's section reads (load.ts) plus the feed. Each section has its own query and shows as soon as it answers;
  * 待处理 reads `/agent/snapshot` alone. `state=loading` never reads (skeletons); `state=error` lets the first snapshot read
  * land and fails the refresh after it, so 待处理 shows its last data as stale, as a real failed refresh does.
- * `today` false (日报与简报 off) reads only the role band's core routes.
+ * `today` false (日报与简报 off) reads only the role band's core routes; 进行中 reads only what 编码会话 and 个人代理 have on.
  */
 export function useOverview(demo: string | null, state: DemoState | null, today = true) {
   const client = useQueryClient();
@@ -124,7 +125,14 @@ export function useOverview(demo: string | null, state: DemoState | null, today 
   const all = useMemo(() => ['overview', demo], [demo]);
   const work = useMemo(() => ['overview', demo, 'work'], [demo]);
   const q = useQuery<SnapshotRead, Error>({ queryKey: [...work, 'snapshot'], queryFn: said(() => readSnapshot(demo, demo === 'fail' || failRefresh.current)), ...once });
-  const running = useQuery<RunningRead, Error>({ queryKey: [...work, 'running'], queryFn: said(readRunning), ...once });
+  const plugins = usePlugins();
+  const runOn = { sessions: plugins.coding_sessions, runs: plugins.personal_agent };
+  const running = useQuery<RunningRead, Error>({
+    queryKey: [...work, 'running', runOn.sessions, runOn.runs],
+    queryFn: said(() => readRunning(runOn)),
+    ...once,
+    enabled: once.enabled && (runOn.sessions || runOn.runs),
+  });
   const turns = useQuery<ErrorEntry[], Error>({ queryKey: [...work, 'turns'], queryFn: said(() => readFailedTurns(clock())), ...once });
   const role = useQuery<RoleRead, Error>({ queryKey: ['overview', demo, 'role'], queryFn: said(() => readRole(demo)), ...core });
   const day = useQuery<WireDaySegments, Error>({ queryKey: ['overview', demo, 'day'], queryFn: said(() => readDay(demo, clock())), ...once, refetchInterval: REFRESH_MS });

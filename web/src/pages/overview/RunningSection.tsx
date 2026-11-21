@@ -14,14 +14,15 @@ export interface RunningSectionProps {
   q: RegionSource<unknown>;
   rows: RunRow[];
   convs: number;
-  code: number;
+  /** Coding sessions in the rows; undefined with 编码会话 off. */
+  code?: number | undefined;
   activeRuns: Record<string, ActiveRun>;
   now: number;
   /** Plans were lost on a feed reset: step counts wait for the next plan event. */
   lost: boolean;
   go: Go;
   onJumpSession: (session: Session) => void;
-  /** Count of enabled schedules (`enabled === true`). */
+  /** Count of enabled schedules (`enabled === true`); undefined with 个人代理 off, which leaves out the 定时任务 link. */
   schedules?: number | undefined;
 }
 
@@ -188,20 +189,27 @@ export function RunningSection(p: RunningSectionProps) {
           <>
             {loaded && (
               <span className={styles.headCap}>
-                对话 <span className="num">{p.convs}</span> │ 编码 <span className="num">{p.code}</span>
-              </span>
-            )}
-            <button type="button" className={shared.more} onClick={() => go({ page: 'schedules' })}>
-              <span className={shared.lnk}>
-                {p.schedules && p.schedules > 0 ? (
+                对话 <span className="num">{p.convs}</span>
+                {p.code !== undefined && (
                   <>
-                    定时任务 │ <span className="num">{p.schedules}</span> 个开着
+                    {' '}│ 编码 <span className="num">{p.code}</span>
                   </>
-                ) : (
-                  '定时任务'
                 )}
               </span>
-            </button>
+            )}
+            {p.schedules !== undefined && (
+              <button type="button" className={shared.more} onClick={() => go({ page: 'schedules' })}>
+                <span className={shared.lnk}>
+                  {p.schedules > 0 ? (
+                    <>
+                      定时任务 │ <span className="num">{p.schedules}</span> 个开着
+                    </>
+                  ) : (
+                    '定时任务'
+                  )}
+                </span>
+              </button>
+            )}
           </>
         }
       >

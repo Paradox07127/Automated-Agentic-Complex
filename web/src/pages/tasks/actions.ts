@@ -21,6 +21,7 @@ import {
 } from '../../domain';
 import { DECIDE_FAIL, notStopped, type DecideFailCode, type TaskAction } from '../../features/task';
 import { codeText, failureText } from '../../domain/errorText';
+import { isPluginOff } from '../../shell/plugins';
 import type { PushToast } from '../../shell/toast';
 import { nextAfter, type TasksLocal, type TasksView } from './model';
 import { navigate, type TasksTab } from './params';
@@ -85,10 +86,11 @@ const REASON: Readonly<Record<string, string>> = {
   not_found: '找不到这一项',
 };
 
-/** Toast text for a failed write: offline, someone else's change, or a short reason. */
-export function failMessage(e: unknown): string {
+/** Toast text for a failed write: offline, someone else's change, or a short reason; null when its plug-in is off. */
+export function failMessage(e: unknown): string | null {
   if (e instanceof RangeError) return '每道题都要选一个回答';
   if (!(e instanceof AgentdCallError)) return e instanceof Error && e.message ? `没有完成：${e.message}` : '没有完成';
+  if (isPluginOff(e)) return null;
   if (e.code === 'offline') return '后台已断开';
   if (e.code === 'switching') return codeText(e.code)!;
   if (CONFLICT_CODES.has(e.code) || (e.status === 409 && !REASON[e.code])) return '已在别处更新';
@@ -101,7 +103,7 @@ function unmappedCode(e: unknown): string | null {
   return failureText(e).code;
 }
 
-const isConflict = (e: unknown) => e instanceof AgentdCallError && (e.status === 409 || CONFLICT_CODES.has(e.code));
+const isConflict = (e: unknown) => e instanceof AgentdCallError && !isPluginOff(e) && (e.status === 409 || CONFLICT_CODES.has(e.code));
 
 /** POST /agent/deliveries/{id}/(presented|viewed); resolves with the reply's delivery (its revision is one higher). */
 export async function sendReceipt(d: Delivery, kind: 'presented' | 'viewed'): Promise<Delivery> {
@@ -149,7 +151,9 @@ export function createTasksActions(d: ActionDeps) {
   const resolve = (ids: string[]) => d.setLocal((l) => ({ ...l, resolved: { ...l.resolved, ...Object.fromEntries(ids.map((i) => [i, true as const])) } }));
   const copyCode = (code: string | null) => (code ? { action: { label: '复制错误码', onClick: () => void getBridge().clipboard.writeText(code) } } : {});
   const fail = (e: unknown) => {
-    d.push(failMessage(e), { severity: 'danger', ...copyCode(unmappedCode(e)) });
+    const text = failMessage(e);
+    if (text === null) return;
+    d.push(text, { severity: 'danger', ...copyCode(unmappedCode(e)) });
     if (isConflict(e)) d.reload();
   };
   /** Native ops reject when the shell lacks them (not_implemented, op_not_allowed); then the entry goes off. */
@@ -220,7 +224,8 @@ export function createTasksActions(d: ActionDeps) {
         if (a.note) await sendNote(task, a.note, a.useCurrentKernel);
         d.push(a.note ? `已退回 v${delivery.version}，角色按补充要求继续` : `已退回 v${delivery.version}`);
       } catch (e) {
-        d.push(`已退回 v${delivery.version}；补充要求没送到：${failMessage(e)}`, { severity: 'danger' });
+        const text = failMessage(e);
+        if (text !== null) d.push(`已退回 v${delivery.version}；补充要求没送到：${text}`, { severity: 'danger' });
       }
     }
     d.reload();

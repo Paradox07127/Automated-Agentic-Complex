@@ -9,10 +9,13 @@ import { OverviewPage } from '../../src/pages/overview/Page';
 import { setDevMode } from '../../src/shell/devMode';
 import { useLandingFocus } from '../../src/shell/nav';
 import { ToastHost } from '../../src/shell/toast';
+import { pluginsOn, pluginsReset } from './plugins';
 
 beforeEach(() => {
   localStorage.clear();
   Element.prototype.scrollIntoView = vi.fn();
+  // 进行中 and 派发任务 need 编码会话 and 个人代理.
+  pluginsOn();
 });
 
 afterEach(() => {
@@ -20,6 +23,7 @@ afterEach(() => {
   delete window.agenticComplex;
   vi.restoreAllMocks();
   localStorage.clear();
+  pluginsReset();
 });
 
 function Landing({ focus }: { focus: string | null }) {

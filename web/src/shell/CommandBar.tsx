@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Ref } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type Ref } from 'react';
 import { gameClips } from '../design/gameClips.generated';
 import { fxCalm, Icon, Kbd, Menu, useGameClip, type MenuItem } from '../ui';
 import { useDevMode } from './devMode';
@@ -75,10 +75,22 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
   const [tabName, setTabName] = useState<string | null>(null);
   // Tabs hidden past either end of the plate: that end shows an arrow that scrolls a plate's width.
   const [hidden, setHidden] = useState({ prev: false, next: false });
+  // Tabs that do not fit fold the status chip to its dot (1), then the page menu to the page's name (2); a resize or new
+  // tabs start again from 0, all before paint.
+  const [squeeze, setSqueeze] = useState(0);
+  const [refits, setRefits] = useState(0);
+  useLayoutEffect(() => {
+    const plate = bar.current?.querySelector<HTMLElement>('[data-slot="tabs"]');
+    if (squeeze < 2 && plate && plate.scrollWidth > plate.clientWidth + 1) setSqueeze(squeeze + 1);
+  }, [squeeze, refits]);
   useEffect(() => {
     const host = bar.current;
     if (!host) return;
     const plate = host.querySelector<HTMLElement>('[data-slot="tabs"]');
+    const refit = () => {
+      setSqueeze(0);
+      setRefits((n) => n + 1);
+    };
     const ends = () => {
       if (!plate) return;
       const prev = plate.scrollLeft > 1;
@@ -88,6 +100,7 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
     const read = () => {
       const on = host.querySelector<HTMLElement>('[role="tab"][aria-selected="true"], [data-tab][data-on]');
       setTabName(on?.title || null);
+      refit();
       reveal(on);
       ends();
     };
@@ -96,6 +109,8 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
     mo.observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-selected', 'data-on'] });
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(read);
     ro?.observe(host);
+    // A wider window may leave the tabs as they are and still have room to unfold the chip and the menu.
+    if (host.parentElement) ro?.observe(host.parentElement);
     // A mouse wheel scrolls tabs that do not fit sideways; a native listener, as the tabs are portalled in from the page.
     const onWheel = (e: WheelEvent) => {
       if (plate && e.deltaX === 0 && plate.scrollWidth > plate.clientWidth) plate.scrollLeft += e.deltaY;
@@ -179,7 +194,7 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
   }, [activeId]);
 
   return (
-    <nav ref={nav} className={styles.cmdbar} aria-label="主导航" data-theme="dark">
+    <nav ref={nav} className={`${styles.cmdbar} ${more.squeeze}`} aria-label="主导航" data-theme="dark" data-squeeze={squeeze || undefined}>
       <div className={styles.lead}>
         <button type="button" className={styles.back} onClick={home} aria-label="回主页" title="回主页">
           <Icon name="chevl" size={16} />
@@ -187,7 +202,7 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
           <Kbd>esc</Kbd>
         </button>
         <div className={styles.tools} data-nav-target="page">
-          <Menu label={[title, tabName ?? sub].filter(Boolean).join(' / ')} items={menuItems} />
+          <Menu label={squeeze >= 2 ? title : [title, tabName ?? sub].filter(Boolean).join(' / ')} items={menuItems} />
         </div>
       </div>
       <div ref={bar} className={styles.tabs} data-g="tabs">

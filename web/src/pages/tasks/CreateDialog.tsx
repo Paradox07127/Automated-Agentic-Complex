@@ -52,7 +52,8 @@ export function CreateDialog({ draft, setDraft, goals, push, onCreated }: Create
       push(draft.kind === 'goal' ? `已新建目标：${r.label}` : `已交派：${r.label}`);
       onCreated(r.select);
     } catch (e) {
-      push(`${draft.kind === 'goal' ? '新建' : '交派'}失败：${failMessage(e)}`, { severity: 'danger' });
+      const text = failMessage(e);
+      if (text !== null) push(`${draft.kind === 'goal' ? '新建' : '交派'}失败：${text}`, { severity: 'danger' });
     } finally {
       setBusy(false);
     }

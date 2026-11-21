@@ -68,12 +68,14 @@ test("command bar draws the page's tabs: a centred plate of 50 wide icon cells, 
   expect(block.width).toBe(76);
   expect(block.x).toBe(cell.x - 13);
   expect(block.y + block.height).toBe(bar.y + bar.height + 6);
-  // Key hints are hidden until ⌘ or Ctrl is held; they keep their place.
+  // Key hints are hidden until ⌘ or Ctrl is held; they lie over the plate's 24 px padded ends and take no room from the tabs.
   const caps = await nav.locator('[data-g="tabs"] > span kbd').evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); return r.x + r.width / 2; }));
   expect(caps).toHaveLength(2);
   expect(Math.abs(caps[0]! + caps[1]! - 1280)).toBeLessThanOrEqual(1);
-  expect(caps[0]!).toBeLessThan(plate.x);
-  expect(caps[1]!).toBeGreaterThan(plate.x + plate.width);
+  expect(caps[0]! - plate.x).toBeGreaterThan(0);
+  expect(caps[0]! - plate.x).toBeLessThan(24);
+  expect(plate.x + plate.width - caps[1]!).toBeGreaterThan(0);
+  expect(plate.x + plate.width - caps[1]!).toBeLessThan(24);
   await expect(nav).not.toContainText('// CHARACTER');
 });
 

@@ -52,3 +52,8 @@ function subscribe(fn: () => void): () => void {
 export function usePlugins(): PluginState {
   return useSyncExternalStore(subscribe, getPlugins);
 }
+
+/** agentd's `409 {"error":"plugin_off"}` (an AgentdCallError) for a route whose plug-in it does not run, or an Error wrapping it as its cause. */
+export function isPluginOff(e: unknown): boolean {
+  return e instanceof Error && ((e as { code?: unknown }).code === 'plugin_off' || isPluginOff(e.cause));
+}

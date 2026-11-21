@@ -8,6 +8,7 @@ import type { WireSchedule } from '../../domain/schedules';
 import { Empty, ErrBar, Menu, Btn, PageIssues, type MenuItem } from '../../ui';
 import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
+import { usePlugins } from '../../shell/plugins';
 import { useToast } from '../../shell/toast';
 import { draftFor } from '../tasks/CreateForm';
 import { TaskDetailHost, useTaskDesk } from '../tasks/TaskDetailHost';
@@ -82,19 +83,22 @@ export function OverviewPage() {
     setLast(r);
   }, [demo, q.data, snap, setDecided, setLast]);
   const run = useMemo(() => runRows(snap, brief?.convs ?? []), [snap, brief]);
+  const plugins = usePlugins();
+  // 进行中 lists 个人代理's role tasks and 编码会话's sessions; with both off it is not drawn.
+  const runningOn = plugins.personal_agent || plugins.coding_sessions;
   const schedQ = useQuery({
     queryKey: ['overview', demo, 'schedules'],
     queryFn: () => get<{ schedules: WireSchedule[] }>('/schedules'),
-    enabled: state !== 'loading',
+    enabled: state !== 'loading' && plugins.personal_agent,
     retry: false,
     staleTime: 30_000,
   });
   const schedulesCount = state === 'empty' ? 0 : (schedQ.data?.schedules ?? []).filter((s) => s.enabled).length;
-  const briefQ = joined([reads.brief, q], [reads.day, reads.running, reads.turns, reads.role]);
+  const briefQ = joined([reads.brief, q], [reads.day, ...(runningOn ? [reads.running] : []), reads.turns, reads.role]);
   // Nothing waiting, running or recorded today: one centred line instead of three empty sections.
   const quietDay =
     !!q.data &&
-    !!reads.running.data &&
+    (!runningOn || !!reads.running.data) &&
     !!brief &&
     pending.length === 0 &&
     run.rows.length === 0 &&
@@ -193,12 +197,25 @@ export function OverviewPage() {
                     onJumpSession={a.onJumpSession}
                   />
                 </div>
-                <div className={styles.detail} data-g="detail">
-                  <span className={styles.detailLine} data-g="detailLine" aria-hidden="true" />
-                  <div data-nav-target="running" data-g="body">
-                    <RunningSection q={reads.running} rows={run.rows} convs={run.convs} code={run.code} activeRuns={activeRuns} now={now} lost={lost} go={go} schedules={schedulesCount} onJumpSession={a.onJumpSession} />
+                {runningOn && (
+                  <div className={styles.detail} data-g="detail">
+                    <span className={styles.detailLine} data-g="detailLine" aria-hidden="true" />
+                    <div data-nav-target="running" data-g="body">
+                      <RunningSection
+                        q={reads.running}
+                        rows={run.rows}
+                        convs={run.convs}
+                        code={plugins.coding_sessions ? run.code : undefined}
+                        activeRuns={activeRuns}
+                        now={now}
+                        lost={lost}
+                        go={go}
+                        schedules={plugins.personal_agent ? schedulesCount : undefined}
+                        onJumpSession={a.onJumpSession}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </Panel>
               <Brief q={briefQ} snap={snap} brief={brief} now={now} go={go} />
             </>

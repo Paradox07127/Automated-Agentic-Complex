@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AgentdCallError, CONFLICT_CODES, del, get, put, seg } from '../../bridge/agentd';
 import type { WireSession } from '../../domain';
+import { isPluginOff } from '../../shell/plugins';
 import { useToast } from '../../shell/toast';
 import { Btn, Dialog, Menu } from '../../ui';
 import { failMessage } from './actions';
@@ -10,14 +11,14 @@ import form from './CreateForm.module.css';
 /** own.py TITLE_MAX. */
 const TITLE_MAX = 80;
 
-/** Why a session write failed; `busy` (a turn is running) is not someone else's change. */
-function whyNot(e: unknown): string {
+/** Why a session write failed; `busy` (a turn is running) is not someone else's change; null when its plug-in is off. */
+function whyNot(e: unknown): string | null {
   if (e instanceof AgentdCallError && e.code === 'busy') return '会话正在执行这一轮，先停下再归档或删除';
   if (e instanceof AgentdCallError && e.code === 'invalid_title') return `标题要 1–${TITLE_MAX} 个字`;
   return failMessage(e);
 }
 
-const conflict = (e: unknown) => e instanceof AgentdCallError && e.code !== 'busy' && (e.status === 409 || CONFLICT_CODES.has(e.code));
+const conflict = (e: unknown) => e instanceof AgentdCallError && e.code !== 'busy' && !isPluginOff(e) && (e.status === 409 || CONFLICT_CODES.has(e.code));
 
 /** ⋯ of an own coding session: rename, archive or unarchive, delete (asks first). PUT/DELETE /sessions/{own id} carry the revision read from GET /sessions. */
 export function SessionMenu({ sessionId }: { sessionId: string }) {
@@ -41,7 +42,8 @@ export function SessionMenu({ sessionId }: { sessionId: string }) {
       await send(s.revision);
       toast(done);
     } catch (e) {
-      toast(whyNot(e));
+      const text = whyNot(e);
+      if (text !== null) toast(text);
       if (!conflict(e)) return;
     }
     void qc.invalidateQueries({ queryKey: ['tasks-page'] });

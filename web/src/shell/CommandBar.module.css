@@ -48,6 +48,7 @@
 
 /* Between the page menu and the lights, centred in what is left; the key hints sit either side of the plate. */
 .tabs {
+  position: relative;
   display: flex;
   gap: var(--ef-sp-8);
   align-items: center;
@@ -76,10 +77,21 @@
   mask: linear-gradient(90deg, transparent, #000 11px, #000 calc(100% - 11px), transparent);
 }
 
-/* KeyHintLeft / KeyHintRight: centred 23.5 px outside the plate. */
+/* KeyHintLeft / KeyHintRight: laid over the plate's padded ends, so they take no room from the tabs. */
 .key {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
   display: inline-flex;
-  flex: none;
+  translate: 0 -50%;
+}
+
+.keyQ {
+  left: 3px;
+}
+
+.keyE {
+  right: 3px;
 }
 
 .tab {

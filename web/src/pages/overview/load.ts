@@ -43,7 +43,7 @@ import {
   type WireTraceTurn,
 } from '../../domain';
 import { verifyText } from '../../domain/errorText';
-import { errText } from './errors';
+import { errText, orNone } from './errors';
 import { roleOf, type RoleNow } from './role';
 import type { WireAgentSnapshot, WireCommitment, WireDaySegments, WireState } from './wire';
 
@@ -239,9 +239,12 @@ export interface RunningRead {
   runs: WireRun[];
 }
 
-/** 进行中: `/sessions` and `/agent/runs`. */
-export async function readRunning(): Promise<RunningRead> {
-  const [s, r] = await Promise.all([get<{ sessions: WireSession[] }>('/sessions'), get<{ runs: WireRun[] }>('/agent/runs')]);
+/** 进行中: `/sessions` with 编码会话 on and `/agent/runs` with 个人代理 on; one that is off reads empty. */
+export async function readRunning(on: { sessions: boolean; runs: boolean }): Promise<RunningRead> {
+  const [s, r] = await Promise.all([
+    on.sessions ? orNone(get<{ sessions: WireSession[] }>('/sessions'), { sessions: [] }) : { sessions: [] },
+    on.runs ? orNone(get<{ runs: WireRun[] }>('/agent/runs'), { runs: [] }) : { runs: [] },
+  ]);
   return { sessions: s.sessions.map(fromSession), runs: r.runs };
 }
 

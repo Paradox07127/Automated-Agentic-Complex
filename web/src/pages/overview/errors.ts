@@ -1,8 +1,16 @@
 import { AgentdCallError, BRIDGE_REFUSED, CONFLICT_CODES } from '../../bridge/agentd';
 import { codeText, serverFaultText } from '../../domain/errorText';
+import { isPluginOff } from '../../shell/plugins';
 
 /** Someone else settled the row first: say so and read again. */
-export const isConflict = (e: unknown): boolean => e instanceof AgentdCallError && (e.status === 409 || CONFLICT_CODES.has(e.code));
+export const isConflict = (e: unknown): boolean => e instanceof AgentdCallError && !isPluginOff(e) && (e.status === 409 || CONFLICT_CODES.has(e.code));
+
+/** A read of a route whose plug-in agentd does not run (yet) answers `none`: the page shows nothing for it. */
+export const orNone = <T>(read: Promise<T>, none: T): Promise<T> =>
+  read.catch((e: unknown) => {
+    if (isPluginOff(e)) return none;
+    throw e;
+  });
 
 /** Short Chinese reason for a failed call; never the raw reply. */
 export function errText(e: unknown): string {

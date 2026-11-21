@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge, type StreamEvent } from '../../src/bridge';
 import { AgentdCallError } from '../../src/bridge/agentd';
 import { createDispatcher } from '../../src/bridge/fake/agentd';
@@ -18,6 +18,7 @@ import { readDay, readFailedTurns, readRole, readRunning, readSnapshot, type Ove
 import { useOverview } from '../../src/pages/overview/useOverview';
 import { nextMorning, useOverviewActions } from '../../src/pages/overview/useOverviewActions';
 import { loadOverview } from './overviewReads';
+import { pluginsOn, pluginsReset } from './plugins';
 
 /** The other pages' routes for these reads, answered here in agentd's shapes. */
 const WIRE_SIDE: MockRoute[] = [
@@ -44,9 +45,13 @@ function gate() {
   return { wait, open: () => act(() => open()) };
 }
 
+// 进行中 reads only with 编码会话 and 个人代理 on.
+beforeEach(() => pluginsOn());
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  pluginsReset();
 });
 
 describe('overview reads', () => {
@@ -59,7 +64,8 @@ describe('overview reads', () => {
       return spy.mock.calls.map(([m, p]) => `${m} ${p}`).sort();
     };
     expect(await calls(() => readSnapshot(null, false))).toEqual(['GET /agent/snapshot?demo=']);
-    expect(await calls(readRunning)).toEqual(['GET /agent/runs', 'GET /sessions']);
+    expect(await calls(() => readRunning({ sessions: true, runs: true }))).toEqual(['GET /agent/runs', 'GET /sessions']);
+    expect(await calls(() => readRunning({ sessions: false, runs: true }))).toEqual(['GET /agent/runs']);
     expect(await calls(() => readFailedTurns(NOW))).toEqual([TURNS_READ]);
     expect(await calls(() => readRole(null))).toEqual(['GET /character/state', 'GET /diag/state', 'GET /state']);
     expect(await calls(() => readDay(null, NOW))).toEqual(['GET /day/segments?date=2026-10-29']);
