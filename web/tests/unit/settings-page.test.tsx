@@ -189,7 +189,7 @@ describe(' 快捷键', () => {
   it('lists the main-window page keys exactly as the sidebar routes', () => {
     const keyed = pageRoutes.filter((r) => /^⌘(\d|,)$/.test(r.hotkey ?? ''));
     expect(PAGE_KEYS.map(([id, title, key]) => [id, title, key])).toEqual(keyed.map((r) => [r.id, r.title, r.hotkey]));
-    expect(PAGE_KEYS.map(([, , k]) => k)).toEqual(['⌘0', '⌘1', '⌘2', '⌘3', '⌘,']);
+    expect(PAGE_KEYS.map(([, , k]) => k)).toEqual(['⌘0', '⌘1', '⌘2', '⌘3', '⌘4', '⌘,']);
   });
 
   it('uses the current action names', async () => {

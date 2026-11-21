@@ -16,6 +16,7 @@ const STATE = {
   hotkeys: { hk_quick: '⌃Space', hk_wheel: '⌃⌥R' },
   pips: { agentd: 'running', avatar: 'running', voice: 'on' },
   computerUseActive: false,
+  plugins: ['light_ai'],
 };
 
 const NO_PENDING = { questions: [], questions_more: 0, approvals: [], approvals_more: 0, results: [], results_more: 0, tasks: [], tasks_more: 0, reminders: [], reminders_more: 0 };

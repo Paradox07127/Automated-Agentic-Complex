@@ -24,7 +24,7 @@ import { FeedSource, SharedSource } from '../common/feed.ts';
 import { processStatus } from '../common/menus.ts';
 import { hookCommand } from '../common/onboarding.ts';
 import { PageSession } from '../common/page.ts';
-import { DEFAULT_PLUGINS, shellPlan, type Subsystem } from '../common/plugins.ts';
+import { DEFAULT_PLUGINS, enabledPlugins, shellPlan, type Subsystem } from '../common/plugins.ts';
 import { PushSource } from '../common/push.ts';
 import { desktopScreens } from '../common/desktop-screens.ts';
 import { DEV_WEB_FLAG, devWebServer } from '../common/dev-web.ts';
@@ -917,6 +917,7 @@ function desktopState(): Record<string, unknown> {
     pips: { agentd: processState(agentdState, supervisor?.pid), avatar: processState(rendererState, renderer?.pid),
       voice: pushToTalk?.voice ?? 'off' },
     computerUseActive: control ? computerUseState(control.state).active : false,
+    plugins: enabledPlugins(supervisor?.plugins ?? DEFAULT_PLUGINS),
   };
 }
 

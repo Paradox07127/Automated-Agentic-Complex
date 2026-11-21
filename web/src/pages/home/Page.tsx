@@ -129,7 +129,8 @@ export function HomePage() {
   );
   const run = useMemo(() => runRows(snap, brief?.convs ?? []), [snap, brief]);
   const conn = todayOn ? connOf(q.data && snap.connection, q.isError) : connOf(health.data, health.isError);
-  const counts = { pending: q.data ? pending.length : null, running: reads.running.data ? run.rows.length : null };
+  // 在做 counts 编码会话's sessions and 个人代理's runs.
+  const counts = { pending: q.data ? pending.length : null, ...((plugins.coding_sessions || plugins.personal_agent) && { running: reads.running.data ? run.rows.length : null }) };
 
   useEffect(() => {
     let alive = true;
@@ -197,12 +198,12 @@ export function HomePage() {
                   box={TOP_ICONS[0]}
                   icon="hand"
                   label={`待处理 ${counts.pending ?? '—'}`}
-                  count={counts.pending}
+                  named
                   dot={waiting ? (attended ? 'live' : 'still') : undefined}
                   g="topBtn1"
                   onClick={() => go({ page: 'overview', focus: 'pending' })}
                 />
-                <TopIcon box={TOP_ICONS[1]} icon="bell" label="提醒" g="topBtn3" onClick={() => go({ page: 'overview', focus: 'reminders' })} />
+                <TopIcon box={TOP_ICONS[1]} icon="bell" label="提醒" named g="topBtn3" onClick={() => go({ page: 'overview', focus: 'reminders' })} />
               </>
             )}
             <Disc title={character} snap={snap} urgent={today && q.data ? pending : []} act={act} go={go} />

@@ -63,6 +63,7 @@ const baseState = (extra: Partial<DesktopState> = {}): DesktopState => ({
   hotkeys: {},
   pips: { agentd: { state: 'running', pid: 1, backoff: null }, avatar: { state: 'running', pid: 2, backoff: null }, voice: 'on' },
   computerUseActive: false,
+  plugins: ['light_ai'],
   ...extra,
 });
 

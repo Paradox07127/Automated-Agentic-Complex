@@ -132,9 +132,11 @@ export function OverviewPage() {
                   <span>
                     对话 <span className="num">{brief.convs?.length ?? 0}</span>
                   </span>
-                  <span>
-                    编码会话 <span className="num">{code.total}</span>
-                  </span>
+                  {plugins.coding_sessions && (
+                    <span>
+                      编码会话 <span className="num">{code.total}</span>
+                    </span>
+                  )}
                   {next && (
                     <span>
                       提醒 <span className="num">{reminderTime(next.due_at, now)}</span>
@@ -144,7 +146,8 @@ export function OverviewPage() {
               )}
               <DayLine line={today.dayLine} day={today.daySummary} />
             </span>
-            <span className={styles.conn}>{loading ? <Pip tone="idle" label="读取中" /> : offline ? <Pip tone="failed" label={lostText} /> : stale ? <Pip tone="failed" label="刷新失败" /> : <Pip tone="ok" label="已连接" />}</span>
+            {/* The top bar says 已连接. */}
+            {(loading || stale) && <span className={styles.conn}>{loading ? <Pip tone="idle" label="读取中" /> : offline ? <Pip tone="failed" label={lostText} /> : <Pip tone="failed" label="刷新失败" />}</span>}
             <span data-nav-target="tasks"><Btn size="sm" onClick={() => setShowRecords(true)}>任务记录</Btn></span>
             <Menu label="免打扰" align="right" items={dnd} />
           </>

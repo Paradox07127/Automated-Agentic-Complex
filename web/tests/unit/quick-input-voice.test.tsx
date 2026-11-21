@@ -29,6 +29,7 @@ const STATE: DesktopState = {
   hotkeys: {},
   pips: { agentd: { state: 'running', pid: 1 }, avatar: { state: 'running', pid: 2 }, voice: 'on' },
   computerUseActive: false,
+  plugins: ['light_ai'],
 };
 
 async function mount(hotkeys: Record<string, string>, voice: DesktopState['pips']['voice'] = 'on') {

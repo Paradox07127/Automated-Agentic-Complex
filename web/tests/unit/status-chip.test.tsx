@@ -168,7 +168,7 @@ describe('the bubble opens only for something to read or answer', () => {
 
 const state = (extra: Partial<DesktopState> = {}): DesktopState => ({
   hidden: false, clickThroughAll: false, freeRoam: false, quietUntil: null, avatarHovered: false, character: null, characters: [], screens: [], hotkeys: {},
-  pips: { agentd: { state: 'running', pid: 1, backoff: null }, avatar: { state: 'running', pid: 2, backoff: null }, voice: 'on' }, computerUseActive: false, ...extra,
+  pips: { agentd: { state: 'running', pid: 1, backoff: null }, avatar: { state: 'running', pid: 2, backoff: null }, voice: 'on' }, computerUseActive: false, plugins: ['light_ai'], ...extra,
 });
 const ANCHOR: DesktopAnchor = { panel: 'hud', state: 'settled', side: 'right', docked: null, far: false, toHead: { dx: -40, dy: 0 }, room: { width: 400, height: 400 } };
 

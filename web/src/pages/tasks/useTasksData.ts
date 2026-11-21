@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
 import { get, seg } from '../../bridge/agentd';
 import { useRuntimePublic } from '../../data/runtime';
 import { loadRestOfList, loadTasksList, type TasksListPage } from '../../data/tasksBase';
+import { usePlugins } from '../../shell/plugins';
 import {
   fromRun,
   fromRuntimePublic,
@@ -26,11 +27,13 @@ import {
 
 export { classify, failText, loadTasksBase, TasksLoadError, type Got, type LoadFail, type TasksBase } from '../../data/tasksBase';
 
-/** The first page of tasks and deliveries, then every other page in the background; `data` is the newer of the two reads. */
+/** The first page of tasks and deliveries, then every other page in the background; `data` is the newer of the two reads, `key` the first's query key. */
 export function useTasksList(roleFail: boolean, enabled = true, demo: string | null = null) {
   const qc = useQueryClient();
-  const key = ['tasks-page', roleFail, demo];
-  const first = useQuery({ queryKey: key, queryFn: () => loadTasksList(roleFail, demo), enabled, retry: false, staleTime: Number.POSITIVE_INFINITY });
+  const plugins = usePlugins();
+  const on = { sessions: plugins.coding_sessions, agent: plugins.personal_agent };
+  const key = useMemo(() => ['tasks-page', roleFail, demo, on.sessions, on.agent], [roleFail, demo, on.sessions, on.agent]);
+  const first = useQuery({ queryKey: key, queryFn: () => loadTasksList(roleFail, on, demo), enabled, retry: false, staleTime: Number.POSITIVE_INFINITY });
   const more = first.data != null && (first.data.next.tasks != null || first.data.next.deliveries != null);
   const rest = useQuery({
     queryKey: [...key, 'rest'],
@@ -43,7 +46,7 @@ export function useTasksList(roleFail: boolean, enabled = true, demo: string | n
     staleTime: Number.POSITIVE_INFINITY,
   });
   const data = more && rest.data && rest.dataUpdatedAt >= first.dataUpdatedAt ? rest.data : first.data;
-  return { first, rest: more ? rest : null, data };
+  return { key, first, rest: more ? rest : null, data };
 }
 
 /** workspace.py run_files row plus its run; GET /agent/tasks/{id}/files → {files} (a later run's row wins per path). */

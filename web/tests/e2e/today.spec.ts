@@ -29,7 +29,7 @@ test('今天 has the 待处理 card; approving it moves the card on', async ({ p
 
 test('a task selection opens the task detail on 今天; Esc closes it', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto(`main.html#/overview?sel=${encodeURIComponent(T5)}&demo=full&still=1`);
+  await page.goto(`main.html#/overview?sel=${encodeURIComponent(T5)}&demo=full&plugins=all&still=1`);
   const sheet = page.getByRole('dialog', { name: '详情：Endfield' });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByText('状态时段')).toBeVisible();
@@ -68,7 +68,7 @@ for (const [w, h] of [
 ] as const) {
   test(`${w}×${h} full: no horizontal overflow with a detail open, and the 待处理 card keeps its buttons inside`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
-    await page.goto(`main.html#/overview?demo=full&sel=${encodeURIComponent(T5)}&still=1`);
+    await page.goto(`main.html#/overview?demo=full&sel=${encodeURIComponent(T5)}&plugins=all&still=1`);
     await expect(page.getByRole('dialog', { name: /^详情：/ })).toBeVisible();
     const over = await page.evaluate(() => {
       const c = document.querySelector('[data-shell="content"]');

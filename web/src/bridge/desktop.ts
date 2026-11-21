@@ -1,4 +1,5 @@
 // Desktop panel types and the `desktop` ops of the bridge, re-exported by protocol.ts.
+import type { PluginId } from './plugins.generated';
 import type { AnchorState, ProcessState, Rect, Unsubscribe } from './protocol';
 
 export type DesktopPanel = 'cmd' | 'console' | 'bubble' | 'hud' | 'ring';
@@ -85,6 +86,8 @@ export interface DesktopState {
   hotkeys: Record<string, string>;
   pips: { agentd: ProcessState; avatar: ProcessState; voice: 'on' | 'off' | 'denied' };
   computerUseActive: boolean;
+  /** The plug-ins agentd runs with, in the registry's order. */
+  plugins: PluginId[];
 }
 
 /** The entry a `/say` was typed in (agentd api/speech.py `SURFACES`). */

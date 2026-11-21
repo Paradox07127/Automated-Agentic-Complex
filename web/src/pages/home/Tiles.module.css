@@ -264,10 +264,6 @@
   transition: filter var(--ef-dur-g-btn) var(--ef-ease-g-fade);
 }
 
-.count {
-  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-num);
-}
-
 /* The 快捷动作 column: the icon over its name, as the icon tabs, without the bar. */
 .top[data-named] {
   flex-direction: column;

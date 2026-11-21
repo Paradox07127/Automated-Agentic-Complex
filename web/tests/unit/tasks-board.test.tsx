@@ -16,7 +16,7 @@ const uuid = (s: string) => s.slice(s.indexOf(':') + 1);
 
 describe('tasks: board model', () => {
   it('one card per task of today plus ledger sessions no task covers; waiting and failed first', async () => {
-    const [base, board] = await Promise.all([loadTasksBase(false), loadBoard(NOW)]);
+    const [base, board] = await Promise.all([loadTasksBase(false, { sessions: true, agent: true }), loadBoard(NOW)]);
     const list = sortCards(buildCards(deriveView(base, emptyLocal()), board, NOW));
     const ids = list.map((c) => c.id);
     expect(ids).toContain(`ses:${uuid(S_41B0)}`);
@@ -31,7 +31,7 @@ describe('tasks: board model', () => {
   });
 
   it('gate marks stay off the main chart; the detail keeps a failed gate and blocks, never a passed gate', async () => {
-    const [base, board] = await Promise.all([loadTasksBase(false), loadBoard(NOW)]);
+    const [base, board] = await Promise.all([loadTasksBase(false, { sessions: true, agent: true }), loadBoard(NOW)]);
     const ses = buildCards(deriveView(base, emptyLocal()), board, NOW).find((c) => c.id === `ses:${uuid(S_41B0)}`)!;
     expect(ganttRow(ses, undefined, true).marks).toEqual([]);
     expect(ganttRow(ses, undefined, false).marks?.map((m) => m.kind)).toEqual(['gate-fail']);
@@ -42,7 +42,7 @@ describe('tasks: board model', () => {
   });
 
   it('without the history agentd does not send yet a live card is one bar until its wait, which starts with ◆', async () => {
-    const [base, board] = await Promise.all([loadTasksBase(false), loadBoard(NOW)]);
+    const [base, board] = await Promise.all([loadTasksBase(false, { sessions: true, agent: true }), loadBoard(NOW)]);
     const t1 = buildCards(deriveView(base, emptyLocal()), board, NOW).find((c) => c.id === T1)!;
     const row = ganttRow(t1, undefined, true);
     expect(row.segs.map((s) => s.state)).toEqual(['live', 'review']);

@@ -26,6 +26,7 @@ const STATE: DesktopState = {
   hotkeys: { hk_quick: '⌃Space' },
   pips: { agentd: { state: 'running', pid: 1, backoff: null }, avatar: { state: 'running', pid: 2, backoff: null }, voice: 'denied' },
   computerUseActive: false,
+  plugins: ['light_ai'],
 };
 
 const proc = (state: RuntimeProcess['state'], extra: Partial<RuntimeProcess> = {}): RuntimeProcess => ({

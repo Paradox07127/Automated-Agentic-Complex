@@ -28,6 +28,7 @@ export function BubbleInput({ open, state, attachment, onDrop, onClose }: Bubble
         prefill={open.prefill}
         talkKey={state?.pips.voice === 'on' ? state.hotkeys.hk_ptt : undefined}
         autoFocus={q.get('still') !== '1'}
+        look={state?.plugins.includes('screen_reading') ?? false}
         initial={open.n === 1 ? preset : undefined}
         attachment={attachment}
         surface={open.quote ? 'bubble_reply' : 'quick_input'}

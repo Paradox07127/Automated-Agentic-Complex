@@ -10,7 +10,8 @@ const at = (b: Box): CSSProperties => ({ left: b.left, top: b.top, width: b.widt
 /** The today card, absent while its page is not offered. */
 export interface BarCard {
   label: string;
-  counts: { pending: number | null; running: number | null };
+  /** `running` is absent while nothing it counts is on. */
+  counts: { pending: number | null; running?: number | null };
   onClick: () => void;
 }
 
@@ -32,8 +33,8 @@ export function BottomBar({ card, action }: { card: BarCard | undefined; action:
 
 function TodayCard({ label, counts, onClick }: BarCard) {
   const pending = `待办 ${counts.pending ?? "—"}`;
-  const running = `在做 ${counts.running ?? "—"}`;
-  const line = `${pending} │ ${running}`;
+  const running = counts.running === undefined ? null : `在做 ${counts.running ?? "—"}`;
+  const line = running ? `${pending} │ ${running}` : pending;
   return (
     <button type="button" className={`${styles.slot} ${styles.card}`} style={at(BAR_SLOTS[0])} aria-label={`${label}：${line}`} onClick={onClick}>
       <span className={styles.face} aria-hidden="true">
@@ -44,8 +45,12 @@ function TodayCard({ label, counts, onClick }: BarCard) {
         {/* A hairline in place of the full-width │ keeps two-digit counts whole. */}
         <span className="num">
           {pending}
-          <i className={styles.sep} />
-          {running}
+          {running && (
+            <>
+              <i className={styles.sep} />
+              {running}
+            </>
+          )}
         </span>
       </span>
     </button>

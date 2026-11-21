@@ -42,7 +42,7 @@ describe('task page load errors', () => {
 
   it('404 on /agent/tasks only hides role tasks', async () => {
     install('connected', (path) => (path.startsWith('/agent/tasks?') ? { status: 404, body: null, error: { code: 'not_found' } } : null));
-    const base = await loadTasksBase(false);
+    const base = await loadTasksBase(false, { sessions: true, agent: true });
     expect(base.roleMissing).toBe(true);
     expect(base.offline).toBe(false);
     expect(base.tasks.length).toBeGreaterThan(0);
@@ -50,12 +50,12 @@ describe('task page load errors', () => {
 
   it('a failed request while agentd is offline is a disconnect, not an empty list', async () => {
     install('offline', () => ({ status: 0, body: null, error: { code: 'offline' } }));
-    expect((await failure(loadTasksBase(false))).kind).toBe('disconnected');
+    expect((await failure(loadTasksBase(false, { sessions: true, agent: true }))).kind).toBe('disconnected');
   });
 
   it('other failures surface with their status instead of an empty list', async () => {
     install('connected', (path) => (path === '/sessions' ? { status: 500, body: null, error: { code: 'internal', detail: 'boom' } } : null));
-    const e = await failure(loadTasksBase(false));
+    const e = await failure(loadTasksBase(false, { sessions: true, agent: true }));
     expect(e.kind).toBe('other');
     expect(e.message).toBe('读取任务失败：后台出错了');
     expect(e.code).toBe('internal');
@@ -63,7 +63,7 @@ describe('task page load errors', () => {
 
   it('data the bridge still serves while offline is kept and marked offline', async () => {
     install('offline');
-    const base = await loadTasksBase(false);
+    const base = await loadTasksBase(false, { sessions: true, agent: true });
     expect(base.offline).toBe(true);
     expect(base.tasks.length).toBeGreaterThan(0);
   });
@@ -100,7 +100,7 @@ describe('task page reads split', () => {
       if (path === '/agent/deliveries?limit=100&cursor=d2') return { status: 200, body: { deliveries: ds, next_cursor: null } };
       return null;
     });
-    const first = await loadTasksList(false);
+    const first = await loadTasksList(false, { sessions: true, agent: true });
     expect(first.next).toEqual({ tasks: 'p2', deliveries: 'd2' });
     expect(first.tasks.some((t) => t.id === T6)).toBe(false);
     expect(paths.some((p) => p.includes('cursor='))).toBe(false);

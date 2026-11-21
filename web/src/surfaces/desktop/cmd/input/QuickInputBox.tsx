@@ -28,7 +28,8 @@ export interface QuickInputBoxProps {
   /** 附上当前窗口 can't be turned on, as when a window is attached already. */
   attachDisabled?: boolean;
   noMemory: boolean;
-  onAttach: (on: boolean) => void;
+  /** Absent, 附上当前窗口 does not show. */
+  onAttach?: (on: boolean) => void;
   onNoMemory: (on: boolean) => void;
   error: SayFailure | null;
   sending: boolean;
@@ -137,9 +138,11 @@ export function QuickInputBox(p: QuickInputBoxProps) {
         </div>
       )}
       <div className={styles.opts}>
-        <button type="button" className={styles.chip} aria-pressed={p.attach} disabled={p.attachDisabled} onClick={() => p.onAttach(!p.attach)}>
-          {p.attach && <Icon name="check" size={14} />}附上当前窗口
-        </button>
+        {p.onAttach && (
+          <button type="button" className={styles.chip} aria-pressed={p.attach} disabled={p.attachDisabled} onClick={() => p.onAttach?.(!p.attach)}>
+            {p.attach && <Icon name="check" size={14} />}附上当前窗口
+          </button>
+        )}
         <button type="button" className={styles.chip} aria-pressed={p.noMemory} onClick={() => p.onNoMemory(!p.noMemory)}>
           {p.noMemory && <Icon name="check" size={14} />}这一轮不记
         </button>

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { agentdArguments } from '../src/common/agentd.ts';
 import { ConfigError, parseConfig } from '../src/common/config.ts';
 import { MENU_STATE_DEFAULTS } from '../src/common/menus.ts';
-import { DEFAULT_PLUGINS, PLUGIN_IDS, type Plugins, shellPlan } from '../src/common/plugins.ts';
+import { DEFAULT_PLUGINS, enabledPlugins, PLUGIN_IDS, type Plugins, shellPlan } from '../src/common/plugins.ts';
 import { current, parseChanges, planSave, schema, settingValues, withSettings } from '../src/common/settings.ts';
 import { avatarMenu } from '../src/main/menus/avatar.ts';
 import type { MenuItem, MenuPorts } from '../src/main/menus/items.ts';
@@ -97,4 +97,9 @@ test('menus: with coding sessions off neither the tray nor her menu has the sess
   assert.ok(deepIds(trayMenu(on, PORTS)).includes('sessions') && deepIds(trayMenu(on, PORTS)).includes('pending'));
   assert.ok(deepIds(avatarMenu(on, PORTS)).includes('pending'));
   assert.ok(deepIds(trayMenu({ ...on, configError: '配置错误' }, PORTS)).includes('sessions'));
+});
+
+test('enabledPlugins: the desktop pages get the ids of the plug-ins that are on, in the registry\'s order', () => {
+  assert.deepEqual(enabledPlugins(DEFAULT_PLUGINS), ['light_ai']);
+  assert.deepEqual(enabledPlugins({ ...DEFAULT_PLUGINS, personal_agent: true, screen_reading: true }), ['light_ai', 'screen_reading', 'personal_agent']);
 });

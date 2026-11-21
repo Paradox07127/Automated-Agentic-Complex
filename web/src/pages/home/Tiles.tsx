@@ -59,8 +59,6 @@ export interface TopIconProps {
   box: Box;
   icon: IconName;
   label: string;
-  /** Count shown beside the icon; null while reading. */
-  count?: number | null;
   /** The red dot; it breathes only while the window has focus. */
   dot?: 'live' | 'still';
   g: string;
@@ -72,7 +70,7 @@ export interface TopIconProps {
 }
 
 /** A small top-left icon (mail / notice): the icon over its shadow and a bar underneath. */
-export function TopIcon({ box, icon, label, count, dot, g, off, named, onClick }: TopIconProps) {
+export function TopIcon({ box, icon, label, dot, g, off, named, onClick }: TopIconProps) {
   return (
     <span className={styles.slot} style={at(box)} data-g={g}>
       <button type="button" className={styles.top} data-named={named || undefined} aria-label={label} title={off ?? label} disabled={!!off} onClick={onClick}>
@@ -82,11 +80,6 @@ export function TopIcon({ box, icon, label, count, dot, g, off, named, onClick }
         {named && (
           <span className={styles.topName} aria-hidden="true">
             {label}
-          </span>
-        )}
-        {count !== undefined && (
-          <span className={`${styles.count} num`} aria-hidden="true">
-            {count ?? '—'}
           </span>
         )}
         {dot && <span className={styles.dot}>{dot === 'live' ? <Breath size={6} /> : <span className={styles.still} />}</span>}

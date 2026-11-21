@@ -8,5 +8,6 @@ export const route: PageRoute = {
   en: 'Character',
   order: 60,
   group: 'secondary',
+  hotkey: '⌘4',
   component: lazyRouteComponent(() => import('./Page'), 'CharacterPage'),
 };

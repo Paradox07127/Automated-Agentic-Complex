@@ -2,9 +2,12 @@ import type { PendingItem } from '../../domain';
 import type { DesktopPresenceResponse } from '../agentd-routes.generated';
 import type { CmdMode, DesktopAnchor, DesktopCommand, DesktopPanel, DesktopState, DockReason, AgenticComplexBridge, ProcessState, Unsubscribe } from '../protocol';
 import { CHARACTERS, PAUSE, PENDING, PRESENCE_ROLE, SESSIONS, WIRE_TASK_ROWS } from '../../mock/fixtures';
+import { demoPlugins } from '../../mock/settings';
 import { stackSessions } from '../../mock/stack';
 import { NOW } from '../../mock/fixtures/clock';
 import { C1 } from '../../mock/fixtures/ids';
+import { pluginState } from '../../shell/plugins';
+import { PLUGINS } from '../plugins.generated';
 
 const HASH_PANELS: Record<string, DesktopPanel> = { '/cmd': 'cmd', '/console': 'console', '/bubble': 'bubble', '/hud': 'hud', '/ring': 'ring' };
 
@@ -53,7 +56,8 @@ export function fakeAnchor(panel: DesktopPanel, demo: string | null): DesktopAnc
 /**
  * `window.onAnchor` and `desktop.*` over demo data; `mode=` picks what the cmd page opens, and the console page opens
  * itself. Besides the anchor demos,
- * `demo=hidden` and `demo=passthrough` set the desktop state, `demo=empty` leaves presence with no sessions or pending items.
+ * `demo=hidden` and `demo=passthrough` set the desktop state, `plugins=` its plug-ins as for settings, `demo=empty` leaves
+ * presence with no sessions or pending items.
  */
 export function createFakeDesktop(
   query: () => URLSearchParams,
@@ -75,6 +79,7 @@ export function createFakeDesktop(
       hotkeys: { hk_quick: '⌃Space', hk_look: '⌃⌥L', hk_hide: '⌃⌥H', hk_pass: '⌃⌥P', hk_wheel: '⌃⌥R' },
       pips: { ...pips, voice: 'on' },
       computerUseActive: computerUseActive(),
+      plugins: PLUGINS.filter((p) => pluginState(demoPlugins(query().get('plugins')))[p.id]).map((p) => p.id),
     };
   };
   // The shape of agentd's `/desktop/presence` (desktop_presence.py `snapshot`): epoch seconds, at most 3 rows per list.

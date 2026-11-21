@@ -110,7 +110,7 @@ describe('error codes in banners and toasts', () => {
   it('a bridge refusal reads as a sentence, the code kept apart', async () => {
     expect(failText({ status: 0, body: null, error: { code: 'route_class' } })).not.toContain('route_class');
     install((path) => (path === '/sessions' ? { status: 400, body: null, error: { code: 'weird_code' } } : null));
-    const e = await loadTasksBase(false).then(
+    const e = await loadTasksBase(false, { sessions: true, agent: true }).then(
       () => null,
       (x: unknown) => x,
     );
@@ -185,7 +185,7 @@ describe('task reads follow next_cursor', () => {
       if (path === '/agent/deliveries?limit=100&cursor=d2') return { status: 200, body: { deliveries: [v1], next_cursor: null } };
       return null;
     });
-    const base = await loadTasksBase(false);
+    const base = await loadTasksBase(false, { sessions: true, agent: true });
     expect(base.tasks.some((t) => t.id === T6)).toBe(true);
     expect(base.deliveries.filter((d) => d.task_id === T1).map((d) => d.id).sort()).toEqual([DLV_T1_V1, DLV_T1_V2].sort());
     expect(calls.some((c) => c.path === '/agent/deliveries?limit=100&cursor=d2')).toBe(true);

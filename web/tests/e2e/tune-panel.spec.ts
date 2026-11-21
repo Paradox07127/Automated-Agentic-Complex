@@ -79,6 +79,7 @@ function desktopState(o: { hidden?: boolean; agentd?: string } = {}) {
     hotkeys: { hk_quick: '⌃Space', hk_look: '⌃⌥L', hk_hide: '⌃⌥H' },
     pips: { agentd: proc(o.agentd ?? 'running'), avatar: proc('running'), voice: 'on' },
     computerUseActive: false,
+    plugins: ['light_ai'],
   };
 }
 

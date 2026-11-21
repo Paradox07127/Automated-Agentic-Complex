@@ -240,4 +240,24 @@ describe('home with the plug-ins at their defaults', () => {
     expect(names(screen.getByRole('group', { name: '主要页面' }))).toEqual(['character', 'chat', 'memory', 'schedules'].map(title));
     expect(names(screen.getByRole('group', { name: '快捷动作' }))).toEqual(['屏幕识读', '快速输入', '停止说话']);
   });
+
+  it('writes 待处理 with its count and 提醒 under their icons', async () => {
+    pluginsOn('daily_brief');
+    mount('&state=empty');
+    for (const b of [await screen.findByRole('button', { name: '待处理 0' }, { timeout: 3000 }), screen.getByRole('button', { name: '提醒' })]) {
+      expect(b.textContent).toBe(b.getAttribute('aria-label'));
+    }
+  });
+
+  it('the today card counts no 在做 while neither 编码会话 nor 个人代理 is on', async () => {
+    pluginsOn('daily_brief');
+    mount('&state=empty');
+    const card = await screen.findByRole('button', { name: /^工业简报：/ });
+    expect(card.getAttribute('aria-label')).toBe('工业简报：待办 0');
+    expect(card.textContent).not.toContain('在做');
+    cleanup();
+    pluginsOn('daily_brief', 'coding_sessions');
+    mount('&state=empty');
+    expect(await screen.findByRole('button', { name: '工业简报：待办 0 │ 在做 0' }, { timeout: 3000 })).toBeTruthy();
+  });
 });

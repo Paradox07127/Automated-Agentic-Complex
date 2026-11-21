@@ -38,8 +38,8 @@ export function useTaskDesk(state: DemoState | null, demo: string | null, tools:
   const board = useBoard(now, live);
   const kernel = useKernelName();
   // The rest of the pages are read after the first, from the first's cursors.
+  const { key } = list;
   const reload = useCallback(() => {
-    const key = ['tasks-page', roleFail, demo];
     return Promise.all([
       queryClient.refetchQueries({ queryKey: key, exact: true }).then(() => queryClient.refetchQueries({ queryKey: [...key, 'rest'], exact: true })),
       queryClient.refetchQueries({ queryKey: PENDING_KEY }),
@@ -47,13 +47,13 @@ export function useTaskDesk(state: DemoState | null, demo: string | null, tools:
       queryClient.invalidateQueries({ queryKey: ['session-lines'] }),
       queryClient.invalidateQueries({ queryKey: ['tasks-board'] }),
     ]);
-  }, [queryClient, roleFail, demo]);
+  }, [queryClient, key]);
   const selectedRun = useRef<(runId: string) => boolean>(() => false);
   const plans = useTasksFeed((what) => (what === 'base' ? reload() : queryClient.invalidateQueries({ queryKey: ['task-extras'] })), (runId) => selectedRun.current(runId));
   useEffect(() => {
     // Task events can arrive while another page owns the window. Read again after reconnecting the feed.
-    if (live && queryClient.getQueryData(['tasks-page', roleFail, demo])) void reload();
-  }, [demo, live, queryClient, reload, roleFail]);
+    if (live && queryClient.getQueryData(key)) void reload();
+  }, [key, live, queryClient, reload]);
   const listData = loading ? undefined : state === 'empty' ? EMPTY_LIST : list.data;
   const pendData = loading ? undefined : state === 'empty' ? NO_PENDING : pend.data;
   const listReady = listData != null;

@@ -30,6 +30,7 @@ export const PAGE_KEYS: Array<[id: string, title: string, key: string]> = [
   ['overview', '工业简报', '⌘1'],
   ['chat', '对话', '⌘2'],
   ['memory', '记忆', '⌘3'],
+  ['character', '角色', '⌘4'],
   ['settings', '设置', '⌘,'],
 ];
 

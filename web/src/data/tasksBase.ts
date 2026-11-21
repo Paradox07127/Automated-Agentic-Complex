@@ -189,17 +189,26 @@ const roleQuery = (roleFail: boolean, demo: string | null) => (window.agenticCom
 const readRoles = (roleFail: boolean, demo: string | null) => (q: string) => get<{ tasks: WireTaskRow[]; next_cursor: string | null }>(`/agent/tasks?${roleQuery(roleFail, demo)}${q}`);
 const readVersions = (q: string) => get<{ deliveries: WireDelivery[]; next_cursor: string | null }>(`/agent/deliveries?${q}`);
 
-/** The task list's reads: `/agent/tasks` (current deliveries inline) and `/agent/deliveries` (the first page, or every page with `all`), `/tasks`, `/sessions`, `/agent/goals`, `/agent/runs`. */
-export async function loadTasksList(roleFail: boolean, demo: string | null = null, all = false): Promise<TasksListPage> {
+/** The plug-ins the task list reads for: `sessions` 编码会话's `/sessions`, `agent` 个人代理's `/tasks`, `/agent/goals` and `/agent/runs`. */
+export interface ListReads {
+  sessions: boolean;
+  agent: boolean;
+}
+
+/** A read whose plug-in is off: not sent, read as empty. */
+const off = <T>(body: T): Promise<Got<T>> => Promise.resolve({ status: 200, body });
+
+/** The task list's reads: `/agent/tasks` (current deliveries inline) and `/agent/deliveries` (the first page, or every page with `all`), and of `on`'s plug-ins `/tasks`, `/sessions`, `/agent/goals`, `/agent/runs`. */
+export async function loadTasksList(roleFail: boolean, on: ListReads, demo: string | null = null, all = false): Promise<TasksListPage> {
   const demoCode = demo === 'code-review' && !window.agenticComplex;
   const [conn, role, versions, ledger, sessions, goals, runs] = await Promise.all([
     getBridge().agentd.connection(),
     pages('tasks', readRoles(roleFail, demo), all),
     pages('deliveries', readVersions, all),
-    get<{ tasks: WireLedgerTask[] }>(`/tasks${demoCode ? '?demo=code-review' : ''}`),
-    get<{ sessions: WireSession[] }>('/sessions'),
-    get<{ goals: WireGoal[] }>('/agent/goals'),
-    get<{ runs: WireRun[] }>('/agent/runs'),
+    on.agent ? get<{ tasks: WireLedgerTask[] }>(`/tasks${demoCode ? '?demo=code-review' : ''}`) : off({ tasks: [] }),
+    on.sessions ? get<{ sessions: WireSession[] }>('/sessions') : off({ sessions: [] }),
+    on.agent ? get<{ goals: WireGoal[] }>('/agent/goals') : off({ goals: [] }),
+    on.agent ? get<{ runs: WireRun[] }>('/agent/runs') : off({ runs: [] }),
   ]);
   const kinds = check([role, versions, ledger, sessions, goals, runs], conn, '任务');
   const wire: ListWire = {
@@ -234,8 +243,8 @@ export function joinTasks(list: TasksList, pending: PendingBase): TasksBase {
 }
 
 /** Everything the task page lists, every page of it, in one read. */
-export async function loadTasksBase(roleFail: boolean, demo: string | null = null): Promise<TasksBase> {
-  const [list, pending] = await Promise.all([loadTasksList(roleFail, demo, true), loadPending()]);
+export async function loadTasksBase(roleFail: boolean, on: ListReads, demo: string | null = null): Promise<TasksBase> {
+  const [list, pending] = await Promise.all([loadTasksList(roleFail, on, demo, true), loadPending()]);
   return joinTasks(list, pending);
 }
 

@@ -101,6 +101,28 @@ describe('工业简报 with 编码会话 off', () => {
     expect(document.body.textContent).not.toContain('已在别处更新');
   });
 
+  it('reads neither 编码会话 nor 个人代理 for the task desk and counts no 编码会话 in the header while both are off', async () => {
+    pluginsOn('daily_brief');
+    const paths = asAgentd();
+    mount(OverviewPage);
+    await screen.findByRole('region', { name: '待处理' }, { timeout: 3000 });
+    await settle();
+    for (const p of ['/sessions', '/agent/runs', '/tasks', '/agent/goals']) expect(paths).not.toContain(p);
+    expect(document.body.textContent).toMatch(/对话 \d/);
+    expect(document.body.textContent).not.toMatch(/编码会话 \d/);
+  });
+
+  it('reads the task desk again once 个人代理 and 编码会话 turn on after the page read', async () => {
+    pluginsOn('daily_brief');
+    const paths = asAgentd(['daily_brief', 'personal_agent', 'coding_sessions']);
+    mount(OverviewPage);
+    await screen.findByRole('region', { name: '待处理' }, { timeout: 3000 });
+    await settle();
+    act(() => pluginsOn('daily_brief', 'personal_agent', 'coding_sessions'));
+    await settle();
+    for (const p of ['/sessions', '/agent/runs', '/tasks', '/agent/goals']) expect(paths).toContain(p);
+  });
+
   it('offers 派发任务 and 屏幕识读 in the action band once 个人代理 and 屏幕识读 are on', async () => {
     pluginsOn('daily_brief', 'personal_agent', 'screen_reading');
     asAgentd();

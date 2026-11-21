@@ -73,7 +73,7 @@ describe('window attachment', () => {
   it('快速输入 with a window and nothing typed sends 看看这个窗口 with lookWindow, and 附上当前窗口 is off', async () => {
     const { bridge } = withCommands();
     const say = vi.spyOn(bridge.desktop, 'say');
-    render(<QuickInput role="她" autoFocus={false} attachment={WINDOW} surface="quick_input" onClose={() => {}} />);
+    render(<QuickInput role="她" autoFocus={false} look attachment={WINDOW} surface="quick_input" onClose={() => {}} />);
     const toggle = screen.getByRole('button', { name: '附上当前窗口' });
     expect(toggle).toHaveProperty('disabled', true);
     await flush(async () => fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' }));

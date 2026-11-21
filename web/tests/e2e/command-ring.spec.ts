@@ -43,9 +43,9 @@ for (const theme of ['dark', 'light'] as const) {
   }
 }
 
-test('ring: 8 direct items, no sub-arc; 3 opens the stack and closes the panel', async ({ page }) => {
+test('ring: 8 direct items with 屏幕识读 on, no sub-arc; 3 opens the stack and closes the panel', async ({ page }) => {
   const errors = collectErrors(page);
-  await open(page, { mode: 'ring' });
+  await open(page, { mode: 'ring', plugins: 'screen_reading' });
   const ring = page.getByRole('menu', { name: '指令环' });
   await expect(ring).toBeVisible();
   await expect(ring.getByRole('menuitem')).toHaveCount(8);
@@ -88,7 +88,7 @@ test('ring: 送礼物 answers in the panel; 打开对话 opens the chat page', a
   await expect(page).toHaveURL(/stack\.html#\/cmd/);
 
   await open(page, { mode: 'ring' });
-  await page.getByRole('menu', { name: '指令环' }).press('4');
+  await page.getByRole('menu', { name: '指令环' }).press('3');
   await expect(page).toHaveURL(/main\.html#\/chat/);
   expect(errors).toEqual([]);
 });

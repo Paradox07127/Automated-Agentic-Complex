@@ -20,6 +20,8 @@ export interface QuickInputProps {
   /** The push-to-talk key's label; none hides 按住…说话. */
   talkKey?: string;
   autoFocus: boolean;
+  /** 屏幕识读 is on: 附上当前窗口 shows. */
+  look: boolean;
   /** Preview preset: the text and error a demo starts with. */
   initial?: { text: string; error: SayFailure };
   /** What it opened with; a scope goes with every line sent from it. */
@@ -35,7 +37,7 @@ export interface QuickInputProps {
 }
 
 /** 快速输入 through `desktop.say`: a sent line echoes in place for 2 s; a failed one stays with its reason and a fix. */
-export function QuickInput({ role, prefill, talkKey, autoFocus, initial, attachment, surface, replyTo, onDrop, onClose }: QuickInputProps) {
+export function QuickInput({ role, prefill, talkKey, autoFocus, look, initial, attachment, surface, replyTo, onDrop, onClose }: QuickInputProps) {
   const bridge = getBridge();
   const [text, setText] = useState(initial?.text ?? prefill ?? draft);
   const [attach, setAttach] = useState(false);
@@ -109,7 +111,7 @@ export function QuickInput({ role, prefill, talkKey, autoFocus, initial, attachm
       attach={attach}
       attachDisabled={attachment?.kind === 'window'}
       noMemory={noMemory}
-      onAttach={setAttach}
+      onAttach={look ? setAttach : undefined}
       onNoMemory={setNoMemory}
       error={error}
       sending={sending}

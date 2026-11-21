@@ -15,6 +15,9 @@ export const DEFAULT_PLUGINS: Plugins = Object.fromEntries(PLUGINS.map((p) => [p
 
 export const isPluginId = (id: string): id is PluginId => (PLUGIN_IDS as readonly string[]).includes(id);
 
+/** The ids of those that are on, in the registry's order: `desktop.onState`'s `plugins`. */
+export const enabledPlugins = (plugins: Plugins): PluginId[] => PLUGIN_IDS.filter((id) => plugins[id]);
+
 /**
  * What this shell starts. The core's `surfaces` (sitting on and leaning on windows) and `giveWay` always start; the rest
  * are the registry's `shell.subsystems` of the plug-ins that are on:

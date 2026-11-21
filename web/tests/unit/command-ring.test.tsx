@@ -54,6 +54,7 @@ const STATE: DesktopState = {
   hotkeys: {},
   pips: { agentd: { state: 'running', pid: 1 }, avatar: { state: 'running', pid: 2 }, voice: 'on' },
   computerUseActive: false,
+  plugins: ['light_ai', 'screen_reading'],
 };
 
 const item = (id: CmdItem['id'], s: DesktopState | null = STATE): CmdItem => {
@@ -136,7 +137,7 @@ describe('the ring', () => {
     const bridge = stackBridge();
     const action = vi.spyOn(bridge.desktop, 'action');
     const close = vi.spyOn(bridge.window, 'close');
-    mount('#/cmd?still=1');
+    mount('#/cmd?still=1&plugins=screen_reading');
     await screen.findByRole('menu', { name: '指令环' });
     await flush(async () => {});
     await flush(async () => fireEvent.keyDown(screen.getByRole('menu', { name: '指令环' }), { key: '3' }));

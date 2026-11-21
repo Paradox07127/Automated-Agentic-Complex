@@ -19,7 +19,7 @@ const shot = (page: Page, name: string, theme: string) => saveShot(page, { path:
 for (const theme of THEMES) {
   test(`${theme}: a coding task waiting for 验收 settles in the detail`, async ({ page }) => {
     const errors = collectErrors(page);
-    await open(page, `/overview?sel=${encodeURIComponent(CODE_REVIEW)}&demo=code-review`, theme);
+    await open(page, `/overview?sel=${encodeURIComponent(CODE_REVIEW)}&demo=code-review&plugins=all`, theme);
     const detail = page.locator('[data-stub="TaskView"]');
     const bar = detail.getByRole('region', { name: '待处理' });
     await expect(bar).toContainText('没有设置检查命令');
@@ -35,7 +35,7 @@ for (const theme of THEMES) {
 
   test(`${theme}: a failed check shows its exit code and folds the output`, async ({ page }) => {
     const errors = collectErrors(page);
-    await open(page, `/overview?sel=${encodeURIComponent(CODE_FAILED)}&demo=code-review`, theme);
+    await open(page, `/overview?sel=${encodeURIComponent(CODE_FAILED)}&demo=code-review&plugins=all`, theme);
     const check = page.locator('[data-stub="TaskView"] section[aria-label="检查"]');
     await expect(check).toContainText('检查没通过');
     await expect(check).toContainText('退出码 1');

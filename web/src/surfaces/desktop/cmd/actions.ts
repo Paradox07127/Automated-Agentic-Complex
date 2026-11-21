@@ -1,4 +1,4 @@
-// The command ring's action table: 8 direct actions, one step each, no sub-menus.
+// The command ring's action table: up to 8 direct actions, one step each, no sub-menus.
 import type { DesktopState } from '../../../bridge';
 import type { HotkeyId } from '../../../domain/hotkeys';
 import type { NavTarget } from '../../../shell/nav';
@@ -24,12 +24,12 @@ export interface CmdItem {
   pending?: boolean;
 }
 
-/** The 8 ring items in key order 1–8; toggle labels follow the desktop state. */
+/** The ring items in key order, 屏幕识读 only while its plug-in is on; toggle labels follow the desktop state. */
 export function ringItems(s: DesktopState | null, now = Date.now()): CmdItem[] {
   const quiet = s?.quietUntil != null && s.quietUntil > now;
   return [
     { id: 'input', label: '快速输入', icon: 'send', via: 'desktop.action', hotkey: 'hk_quick' },
-    { id: 'look', label: '屏幕识读', icon: 'look', via: 'app.look', hotkey: 'hk_look' },
+    ...(s?.plugins.includes('screen_reading') ? [{ id: 'look', label: '屏幕识读', icon: 'look', via: 'app.look', hotkey: 'hk_look' } as const] : []),
     { id: 'openStack', label: '待处理', icon: 'bell', via: 'desktop.action', pending: true },
     { id: 'goChat', label: '打开对话', icon: 'ext', via: 'window.openMain', to: { page: 'chat' } },
     quiet
