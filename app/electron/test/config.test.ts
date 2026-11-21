@@ -191,9 +191,9 @@ test('the config path comes from --config, else the installed support dir; suppo
   withTemp((dir) => {
     const path = join(dir, 'config.json');
     writeFileSync(path, '{"support_dir": "/elsewhere"}');
-    assert.equal(supportDirOf(path), '/elsewhere');
+    assert.equal(supportDirOf(path, DEFAULT_SUPPORT_DIR), '/elsewhere');
     writeFileSync(path, 'not json');
-    assert.equal(supportDirOf(path), DEFAULT_SUPPORT_DIR);
+    assert.equal(supportDirOf(path, DEFAULT_SUPPORT_DIR), DEFAULT_SUPPORT_DIR);
     assert.equal(supportDirOf(path, dir), dir);
   });
 });
@@ -207,11 +207,11 @@ test('two configs in different directories without support_dir take the one lock
       return path;
     });
     // Electron keeps its single-instance lock in userData, `<support dir>/electron`.
-    const locks = paths.map((path) => join(supportDirOf(path), 'electron'));
+    const locks = paths.map((path) => join(supportDirOf(path, DEFAULT_SUPPORT_DIR), 'electron'));
     const sockets = paths.map((path) => hostSocketPath(loadConfig(path).supportDir, 501));
     assert.equal(sockets[0], sockets[1]);
     assert.equal(locks[0], locks[1]);
-    assert.equal(supportDirOf(paths[0]!), loadConfig(paths[0]!).supportDir);
+    assert.equal(supportDirOf(paths[0]!, DEFAULT_SUPPORT_DIR), loadConfig(paths[0]!).supportDir);
   });
 });
 

@@ -29,7 +29,7 @@ export function quitAfterFromArgs(argv: readonly string[]): number | null {
  * The support dir the config.json at `configPath` runs with, for the instance lock and the runtime config alike: its
  * `support_dir`, also when it does not load; without one, `fallback`.
  */
-export function supportDirOf(configPath: string, fallback = DEFAULT_SUPPORT_DIR): string {
+export function supportDirOf(configPath: string, fallback: string): string {
   try {
     const raw: unknown = JSON.parse(readFileSync(configPath, 'utf8'));
     const value = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>).support_dir : undefined;
@@ -77,7 +77,7 @@ export function loadConfig(path: string, platform: ShellPlatform = shellPlatform
     throw new ConfigError(`找不到配置文件 ${path}`);
   }
   try {
-    return parseConfig(text, { supportDir: supportDirOf(path), agentdStateDir: DEFAULT_AGENTD_STATE_DIR,
+    return parseConfig(text, { supportDir: supportDirOf(path, DEFAULT_SUPPORT_DIR), agentdStateDir: DEFAULT_AGENTD_STATE_DIR,
       catalog: (p) => readCatalog(p, platform), platform });
   } catch (e) {
     // A library file that cannot be read.

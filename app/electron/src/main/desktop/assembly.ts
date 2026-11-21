@@ -5,7 +5,7 @@
 // lines' `noteLine` (`lineWatch`), and the follower that moves the panels after her.
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { type BrowserWindow, globalShortcut, Notification, type Rectangle, type WebContents } from 'electron';
 import { BridgeFailure, type Handler } from '../../common/bridge.ts';
 import { desktopAction, type DesktopActionPorts } from '../../common/desktop-action.ts';
@@ -143,7 +143,7 @@ export class DesktopAssembly {
       console: panel('console', '/console', 'window.onAnchor'), chip: panel('chip', '/chip', 'window.onAnchor') };
     this.follow = new DesktopFollow(this.panels, options.log, (c) => {
       if (!this.muted) this.command.send(c);
-    }, (c) => this.consoleCommand.send(c), new OffsetFile(join(supportDirOf(configPathFromArgs(process.argv)), OFFSETS_FILE), options.log));
+    }, (c) => this.consoleCommand.send(c), new OffsetFile(join(supportDirOf(configPathFromArgs(process.argv), dirname(configPathFromArgs(process.argv))), OFFSETS_FILE), options.log));
     // Without the helper's mouse presses (no 输入监控 grant, `--no-attention`) ring, tune and the console still close when
     // their panel loses the keyboard. The console keeps open while the command layer it opened has the keyboard.
     this.panels.cmd.onBlur = () => {

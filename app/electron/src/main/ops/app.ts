@@ -1,7 +1,7 @@
 // `app.info`, `app.action`, `app.look`, `app.openQuickInput`, `app.runtime` and `app.onRuntime`.
 import { readFileSync } from 'node:fs';
 import { availableParallelism, loadavg } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { stateText } from '../../common/agentd.ts';
 import { BridgeFailure } from '../../common/bridge.ts';
 import type { ShellPlatform } from '../../common/config.ts';
@@ -102,7 +102,7 @@ export function appOps(ctx: OpsContext): Ops {
           return null;
         case 'copy_diagnostics': {
           // Also while config.json does not load: the logs its error went to.
-          const logs = join(ctx.config.supportDir ?? supportDirOf(ctx.config.path), 'logs');
+          const logs = join(ctx.config.supportDir ?? supportDirOf(ctx.config.path, dirname(ctx.config.path)), 'logs');
           const agentd = stateText(ctx.supervisor?.state() ?? { kind: 'stopped' });
           const avatar = stateText(ctx.supervisor?.avatar() ?? { kind: 'stopped' });
           const tunnel = slotText(ctx.supervisor?.tunnel?.() ?? { kind: 'stopped' });
