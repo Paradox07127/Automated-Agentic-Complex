@@ -38,6 +38,8 @@ using Microsoft::WRL::Wrappers::HStringReference;
 namespace wgc = ABI::Windows::Graphics::Capture;
 
 constexpr ULONGLONG kFrameWaitMs = 2000;  // inside capture.window's timeout_ms of 5000
+// capture.window's max_bytes when the request gives none: base64 of it leaves 64 KiB of max_line_bytes for the rest.
+constexpr int64_t kDefaultMaxBytes = (16777216 - 65536) / 4 * 3;
 constexpr const wchar_t* kHostClass = L"ACHelperMagnifierHost";
 
 // COM for one op thread, joined to the multithreaded apartment; declare it before the objects it outlives.
@@ -289,8 +291,9 @@ Outcome capture_window(const json::Value& params) {
         return failure("capture_failed", "the frame could not be scaled or encoded");
     }
     const json::Value* max_bytes = params.get("max_bytes");
-    if (max_bytes && static_cast<int64_t>(bytes.size()) > max_bytes->i) {
-        return failure("too_large", "the encoded image has " + std::to_string(bytes.size()) + " bytes, over max_bytes");
+    if (static_cast<int64_t>(bytes.size()) > (max_bytes ? max_bytes->i : kDefaultMaxBytes)) {
+        return failure("too_large", "the encoded image has " + std::to_string(bytes.size()) + " bytes, over " +
+                                        (max_bytes ? "max_bytes" : "the default max_bytes"));
     }
     json::Value image = json::object();
     image.set("format", json::str(jpeg ? "jpeg" : "png"));

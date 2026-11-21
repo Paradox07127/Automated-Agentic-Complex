@@ -193,7 +193,7 @@
 | `capture.window` | 两者 | `window_id`；选填 `format`（`png`/`jpeg`，默认 png）、`max_long_side`、`max_bytes` | `image`、`scale` | `permission_denied`、`window_gone`、`capture_failed`、`too_large` |
 | `capture.ambient` | 两者 | `source`（`screen`/`wallpaper`）、`side`；选填 `rect`、`exclude_pids`、`display_id` | `width`、`height`、`rgba` | `permission_denied`、`capture_failed` |
 
-- `capture.window` 截一个窗口，按它的像素尺寸，不带鼠标指针。给了 `max_long_side` 就把长边缩到它；`jpeg` 质量 0.8，透明处铺白（沿用 `uploadJPEG`）。编码后超过 `max_bytes` 回 `too_large`。没有录屏权限时不弹窗，回 `permission_denied`（无人值守的请求不能弹系统框）。Windows 用 `CreateForWindow`，保留黄色边框；设了 `WDA_EXCLUDEFROMCAPTURE` 的窗口可能拿到黑帧或拿不到帧，等不到帧时回 `capture_failed`。
+- `capture.window` 截一个窗口，按它的像素尺寸，不带鼠标指针。给了 `max_long_side` 就把长边缩到它；`jpeg` 质量 0.8，透明处铺白（沿用 `uploadJPEG`）。编码后超过 `max_bytes` 回 `too_large`；不给 `max_bytes` 时 Windows 按 12533760 字节算，macOS 不设上限、超长的回包由写出端换成 `internal`（base64 后给回包的其余部分留 64 KiB，整行不超过 `max_line_bytes`）。没有录屏权限时不弹窗，回 `permission_denied`（无人值守的请求不能弹系统框）。Windows 用 `CreateForWindow`，保留黄色边框；设了 `WDA_EXCLUDEFROMCAPTURE` 的窗口可能拿到黑帧或拿不到帧，等不到帧时回 `capture_failed`。
 - `capture.ambient` 只回一张 `side`×`side` 的小图（RGBA，每像素 4 字节），供主进程算环境色，不留原图。`screen` 截 `rect` 那块屏幕并排除 `exclude_pids` 的窗口（她自己）；`wallpaper` 读 `display_id` 那块屏的壁纸（Windows `SPI_GETDESKWALLPAPER`）。
 
 ### 7.6 OCR

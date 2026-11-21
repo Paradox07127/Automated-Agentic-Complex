@@ -28,10 +28,11 @@ async function until(seconds: number, ok: () => boolean): Promise<boolean> {
   return ok();
 }
 
-/** A helper with every grant whose user holds the key 0.4 s once it is registered and says 明天 下午三点 meanwhile. */
+/** A helper with every grant whose user holds the key 0.4 s once it is registered and says 明天 下午三点 meanwhile;
+ *  its hello.ops are the JSON array of its second argument when there is one. */
 const FAKE = String.raw`
 const fs = require('node:fs');
-const [received] = process.argv.slice(2);
+const [received, advertised] = process.argv.slice(2);
 const send = (m) => process.stdout.write(JSON.stringify({ v: 1, ...m }) + '\n');
 let seq = 0;
 const event = (name, data) => send({ event: name, seq: ++seq, data });
@@ -45,7 +46,8 @@ process.stdin.on('data', (chunk) => {
     const { id, op, params } = JSON.parse(line);
     if (op === 'hello') {
       send({ id, ok: true, result: { protocol: 1, platform: 'macos', helper_version: 'fake', os_version: 'x', arch: 'arm64', pid: process.pid,
-        ops: ['hello', 'cancel', 'shutdown', 'ptt.register', 'ptt.unregister', 'permissions.status', 'mic.start', 'mic.stop'],
+        ops: advertised ? JSON.parse(advertised)
+          : ['hello', 'cancel', 'shutdown', 'ptt.register', 'ptt.unregister', 'permissions.status', 'mic.start', 'mic.stop'],
         events: ['ptt.down', 'ptt.up', 'mic.level', 'speech.partial'] } });
     } else if (op === 'ptt.register') {
       send({ id, ok: true, result: { registered: true } });
@@ -155,6 +157,38 @@ test('ptt.down → barge-in, mic.start, the partial on voice.onPushToTalk, ptt.u
     await helper.stop();
     server.closeAllConnections();
     server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a helper whose hello.ops has no ptt.register or mic.start is asked for neither, and voice is off', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ptt-'));
+  const script = join(dir, 'fake.cjs'), received = join(dir, 'received');
+  writeFileSync(script, FAKE);
+  const ops = ['hello', 'cancel', 'shutdown', 'screens.list', 'permissions.status', 'permissions.request', 'capture.window'];
+  let ptt: PushToTalk | null = null;
+  const helper = new HelperSupervisor({ executable: process.execPath, prefix: [script, received, JSON.stringify(ops)],
+    supportDir: join(dir, 's'), clientVersion: 'test', onStatus: (s) => ptt?.helper(s.kind === 'running'),
+    onEvent: (e) => ptt?.event(e.event, e.data) });
+  ptt = new PushToTalk('right_option', {
+    helper, agentd: async () => ({ status: 202, body: '{}' }), stopSpeech: () => {}, onHint: () => {}, locale: () => 'zh-CN',
+    now: Date.now, after: (ms, fn) => {
+      const t = setTimeout(fn, ms);
+      return () => clearTimeout(t);
+    },
+    log: () => {},
+  });
+  try {
+    ptt.agentd(true);
+    helper.start();
+    assert.ok(await until(10, () => helper.state.kind === 'running'));
+    await sleep(200);
+    const sent = readFileSync(received, 'utf8').split('\n').filter(Boolean).map((l) => (JSON.parse(l) as { op: string }).op);
+    assert.deepEqual(sent, ['hello']);
+    assert.equal(ptt.voice, 'off');
+    assert.equal(ptt.failedHotkey, null);
+  } finally {
+    await helper.stop();
     rmSync(dir, { recursive: true, force: true });
   }
 });

@@ -314,7 +314,8 @@ async function trialRun(levels: number[], ms: number, text: string) {
   const answers: Record<string, HelperAnswer> = { 'ptt.register': ok({}), 'permissions.status': ok({ microphone: 'granted' }),
     'mic.start': ok({}), 'mic.stop': ok({ text }) };
   const ptt = new PushToTalk('control+option+space', {
-    helper: { request: async (op) => answers[op] ?? { ok: false, error: { code: 'unsupported' } } },
+    helper: { hello: { ops: ['ptt.register', 'ptt.unregister', 'permissions.status', 'mic.start', 'mic.stop'] },
+      request: async (op) => answers[op] ?? { ok: false, error: { code: 'unsupported' } } },
     agentd: async () => ({ status: 202, body: JSON.stringify({ line_id: 'l1' }) }),
     stopSpeech: () => {}, onHint: () => {}, onTrial: (t) => trials.push(t), locale: () => 'zh-CN', now: () => clock,
     after: () => () => {}, log: () => {},

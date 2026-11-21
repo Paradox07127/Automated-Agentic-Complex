@@ -22,7 +22,8 @@ decode to the size they claim; without a desktop they may fail with one of their
 the fields Windows always answers the same way: from ssh the helper runs in session 0, with no desktop and no input.
 With a desktop (winhost.py test helper-win --interactive) one more session checks real readings: the test window has
 a solid COLOUR, capture.window's PNG and JPEG decode (GDI+, in memory) to it at their centre, max_long_side and
-max_bytes hold, a closed window answers window_gone; capture.ambient screen over the window averages to COLOUR and,
+max_bytes hold, a window of random pixels too big for one line answers a short too_large without max_bytes, a closed
+window answers window_gone; capture.ambient screen over the window averages to COLOUR and,
 with the replay's pid excluded, does not; a second test window taking the foreground gives workspace.changed;
 attention.sample's front is that window. presence.edge and input.activity need a session lock or real input, which the
 replay never makes: only their watches are checked.
@@ -70,6 +71,8 @@ COLOUR = (208, 48, 144)  # the test windows' background, R G B
 SECOND_TITLE = 'C12 replay second window'
 SECOND_RECT = {'x': 700, 'y': 160, 'width': 320, 'height': 240}  # shown only to take the foreground
 GONE_WINDOW_ID = 999  # ok-capture-ocr.ndjson's window that is not on screen
+# The noise window's physical size: about 3 bytes a pixel as PNG, over 16 MiB once base64 encoded.
+NOISE_SIZE = (2600, 1900)
 ABSENT_APP = 'c12-replay-absent.exe'
 
 
@@ -296,6 +299,109 @@ class TestWindow:
     def close(self):
         if self.second:
             self.close_second()
+        if self.hwnd:
+            from ctypes import wintypes
+            post = ctypes.WinDLL('user32').PostMessageW
+            post.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+            post(self.hwnd, 0x0010, 0, 0)  # WM_CLOSE
+        self.thread.join(5)
+
+
+class NoiseWindow:
+    """A borderless per-monitor-aware window of this process, NOISE_SIZE physical pixels of random colour: its PNG is
+    too big for one answer line once base64 encoded. Shown without activation until close."""
+
+    def __init__(self):
+        self.hwnd = None
+        self.ready = threading.Event()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+        self.ready.wait(10)
+
+    def _run(self):
+        from ctypes import wintypes
+        user32 = ctypes.WinDLL('user32', use_last_error=True)
+        kernel32, gdi32 = ctypes.WinDLL('kernel32'), ctypes.WinDLL('gdi32')
+        user32.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+        user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))  # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+        width, height = NOISE_SIZE
+        pixels = os.urandom(width * height * 4)
+
+        class BITMAPINFOHEADER(ctypes.Structure):
+            _fields_ = [('biSize', wintypes.DWORD), ('biWidth', ctypes.c_long), ('biHeight', ctypes.c_long),
+                        ('biPlanes', wintypes.WORD), ('biBitCount', wintypes.WORD), ('biCompression', wintypes.DWORD),
+                        ('biSizeImage', wintypes.DWORD), ('biXPelsPerMeter', ctypes.c_long),
+                        ('biYPelsPerMeter', ctypes.c_long), ('biClrUsed', wintypes.DWORD),
+                        ('biClrImportant', wintypes.DWORD)]
+
+        class PAINTSTRUCT(ctypes.Structure):
+            _fields_ = [('hdc', wintypes.HDC), ('fErase', wintypes.BOOL), ('rcPaint', wintypes.RECT),
+                        ('fRestore', wintypes.BOOL), ('fIncUpdate', wintypes.BOOL), ('rgbReserved', ctypes.c_byte * 32)]
+
+        class MINMAXINFO(ctypes.Structure):
+            _fields_ = [('ptReserved', wintypes.POINT), ('ptMaxSize', wintypes.POINT),
+                        ('ptMaxPosition', wintypes.POINT), ('ptMinTrackSize', wintypes.POINT),
+                        ('ptMaxTrackSize', wintypes.POINT)]
+
+        header = BITMAPINFOHEADER(biSize=ctypes.sizeof(BITMAPINFOHEADER), biWidth=width, biHeight=-height, biPlanes=1,
+                                  biBitCount=32)  # top-down BI_RGB
+        lresult = ctypes.c_ssize_t
+        wndproc = ctypes.WINFUNCTYPE(lresult, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+        user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+        user32.DefWindowProcW.restype = lresult
+        user32.BeginPaint.argtypes = user32.EndPaint.argtypes = [wintypes.HWND, ctypes.POINTER(PAINTSTRUCT)]
+        user32.BeginPaint.restype = wintypes.HDC
+        gdi32.SetDIBitsToDevice.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int, wintypes.DWORD, wintypes.DWORD,
+                                            ctypes.c_int, ctypes.c_int, wintypes.UINT, wintypes.UINT, ctypes.c_char_p,
+                                            ctypes.c_void_p, wintypes.UINT]
+
+        def proc(hwnd, msg, wparam, lparam):
+            if msg == 0x0024:  # WM_GETMINMAXINFO: no clamp to the screen's size
+                info = ctypes.cast(lparam, ctypes.POINTER(MINMAXINFO)).contents
+                info.ptMaxSize.x = info.ptMaxTrackSize.x = width
+                info.ptMaxSize.y = info.ptMaxTrackSize.y = height
+                return 0
+            if msg == 0x000F:  # WM_PAINT
+                paint = PAINTSTRUCT()
+                dc = user32.BeginPaint(hwnd, ctypes.byref(paint))
+                gdi32.SetDIBitsToDevice(dc, 0, 0, width, height, 0, 0, 0, height, pixels, ctypes.byref(header), 0)
+                user32.EndPaint(hwnd, ctypes.byref(paint))
+                return 0
+            if msg == 0x0002:  # WM_DESTROY
+                user32.PostQuitMessage(0)
+                return 0
+            return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
+
+        self._proc = wndproc(proc)
+
+        class WNDCLASSW(ctypes.Structure):
+            _fields_ = [('style', wintypes.UINT), ('lpfnWndProc', wndproc), ('cbClsExtra', ctypes.c_int),
+                        ('cbWndExtra', ctypes.c_int), ('hInstance', wintypes.HINSTANCE), ('hIcon', wintypes.HICON),
+                        ('hCursor', wintypes.HANDLE), ('hbrBackground', wintypes.HBRUSH),
+                        ('lpszMenuName', wintypes.LPCWSTR), ('lpszClassName', wintypes.LPCWSTR)]
+
+        kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+        instance = kernel32.GetModuleHandleW(None)
+        user32.RegisterClassW(ctypes.byref(WNDCLASSW(lpfnWndProc=self._proc, hInstance=instance,
+                                                     lpszClassName='C12ReplayNoise')))
+        user32.CreateWindowExW.restype = wintypes.HWND
+        user32.CreateWindowExW.argtypes = [wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
+                                           ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.HWND,
+                                           wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]
+        user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                        ctypes.c_int, wintypes.UINT]
+        # WS_EX_NOACTIVATE; WS_POPUP
+        self.hwnd = user32.CreateWindowExW(0x08000000, 'C12ReplayNoise', 'C12 replay noise window',
+                                           0x80000000, 0, 0, width, height, None, None, instance, None)
+        # SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE | SWP_NOMOVE, as TestWindow shows its window.
+        user32.SetWindowPos(self.hwnd, None, 0, 0, 0, 0, 0x0040 | 0x0010 | 0x0004 | 0x0001 | 0x0002)
+        self.ready.set()
+        msg = wintypes.MSG()
+        while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
+            user32.TranslateMessage(ctypes.byref(msg))
+            user32.DispatchMessageW(ctypes.byref(msg))
+
+    def close(self):
         if self.hwnd:
             from ctypes import wintypes
             post = ctypes.WinDLL('user32').PostMessageW
@@ -654,6 +760,19 @@ def desktop(exe, checks, window, target):
     checks.expect(got.get('ok') is True and result.get('width') == result.get('height') == 2
                   and len(base64.b64decode(result.get('rgba', ''))) == 16, 'desktop capture.ambient wallpaper is 2 x 2 RGBA',
                   f'answer {got!r:.300}')
+
+    # After the screen readings, which it would cover.
+    noise = NoiseWindow()
+    try:
+        time.sleep(0.5)  # painted and composed
+        got = ask('capture.window', window_id=noise.hwnd)
+    finally:
+        noise.close()
+    size = len(helper.transcript[-1].encode('utf-8'))
+    print(f'note: capture.window of the noise window answers {size} bytes: {got.get("error")!r:.200}', flush=True)
+    checks.expect(got.get('error', {}).get('code') == 'too_large' and size < 4096,
+                  'desktop capture.window without max_bytes of an image too big for one line is a short too_large',
+                  f'{size} bytes, answer {got!r:.300}')
 
     checks.expect(window.close_second(), 'desktop: the second test window closes', '')
     got = ask('capture.window', window_id=window.second)

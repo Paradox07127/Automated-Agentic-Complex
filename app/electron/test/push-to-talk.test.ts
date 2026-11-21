@@ -21,7 +21,8 @@ function later<T>() {
   return { promise, resolve };
 }
 
-function setup(o: { name?: string; helper?: Record<string, Answer>; agentd?: Record<string, AgentdAnswer>; marks?: TurnMarks } = {}) {
+function setup(o: { name?: string; helper?: Record<string, Answer>; ops?: string[]; agentd?: Record<string, AgentdAnswer>;
+  marks?: TurnMarks } = {}) {
   let clock = 1_800_000_000_000;
   const timers: { at: number; fn: () => void; live: boolean }[] = [];
   const requests: [string, Record<string, unknown>][] = [];
@@ -38,6 +39,8 @@ function setup(o: { name?: string; helper?: Record<string, Answer>; agentd?: Rec
     'mic.stop': (p) => ok({ session: p.session, text: '  明天 下午\n三点 开会 ', duration_ms: 900 }),
     ...o.helper,
   };
+  /** `hello.ops`: every op the fake answers, unless the test names fewer. */
+  const advertised = o.ops ?? ['hello', 'cancel', 'shutdown', ...Object.keys(helper)];
   const agentd: Record<string, AgentdAnswer> = {
     'POST /turn/cancel': { status: 202, body: { generation: 7 } },
     'POST /say': { status: 202, body: { line_id: 'l1', trace_id: 't1', generation: 8 } },
@@ -45,10 +48,11 @@ function setup(o: { name?: string; helper?: Record<string, Answer>; agentd?: Rec
   };
   const ptt = new PushToTalk(o.name ?? 'control+option+space', {
     helper: {
+      hello: { ops: advertised },
       request: async (op, params = {}) => {
         requests.push([op, params]);
         const a = helper[op];
-        if (a === undefined) return err('unsupported');
+        if (a === undefined || !advertised.includes(op)) return err('unsupported');
         return typeof a === 'function' ? a(params) : a;
       },
     },
@@ -150,6 +154,28 @@ test('the hot key registers once agentd and the helper run, again after each hel
   s.ptt.agentd(false);
   await s.settle();
   assert.deepEqual(s.ops().filter((op) => op.startsWith('ptt.')), ['ptt.register', 'ptt.register', 'ptt.unregister']);
+});
+
+test('a helper whose hello.ops lacks the hot key or recording ops gets no registration, and voice is off', async () => {
+  const windows = ['hello', 'cancel', 'shutdown', 'permissions.status', 'permissions.request', 'capture.window'];
+  for (const ops of [windows, [...windows, 'ptt.register', 'ptt.unregister'], [...windows, 'mic.start', 'mic.stop']]) {
+    const s = setup({ ops });
+    await s.up();
+    assert.deepEqual(s.ops(), [], `requests with ops ${ops.join(' ')}`);
+    assert.equal(s.ptt.voice, 'off', `voice with ops ${ops.join(' ')}`);
+    assert.equal(s.ptt.failedHotkey, null);
+  }
+});
+
+test('voice is off while no helper runs', async () => {
+  const s = setup();
+  s.ptt.agentd(true);
+  await s.settle();
+  assert.equal(s.ptt.voice, 'off');
+  await s.up();
+  assert.equal(s.ptt.voice, 'on');
+  s.ptt.helper(false);
+  assert.equal(s.ptt.voice, 'off');
 });
 
 test('a hot key the helper refuses is the failed one and is logged', async () => {

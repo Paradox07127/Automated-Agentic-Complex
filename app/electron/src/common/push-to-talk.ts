@@ -39,8 +39,12 @@ const HINT_BARS = 12;
 const TRIAL_BARS = 40;
 const TRIAL_BAR_HEIGHT = 20;
 
+/** The ops push-to-talk calls on the hot key and the microphone; a helper whose `hello.ops` lacks one has no push-to-talk. */
+const NEEDED_OPS = ['ptt.register', 'ptt.unregister', 'mic.start', 'mic.stop'];
+
 export interface PushToTalkPorts {
-  helper: { request(op: string, params?: Record<string, unknown>): Promise<HelperAnswer> };
+  /** `hello` is the running helper's last hello answer, null while none runs. */
+  helper: { request(op: string, params?: Record<string, unknown>): Promise<HelperAnswer>; readonly hello: Record<string, unknown> | null };
   /** agentd's API; throws when agentd cannot be reached. */
   agentd: HeaderRequest;
   /** The T1 marks of the line `/say` took. */
@@ -210,7 +214,8 @@ export class PushToTalk {
   /** The hot key's config.json name; null is push-to-talk off. */
   private name: string | null;
   private agentdRunning = false;
-  private helperRunning = false;
+  /** A helper runs and its `hello.ops` holds every op of NEEDED_OPS (CONTRACT §4.4). */
+  private helperCapable = false;
   /** Bumped when the helper goes, which drops its registration. */
   private helperEpoch = 0;
   /** The name the helper has registered now. */
@@ -244,7 +249,7 @@ export class PushToTalk {
 
   /** `desktop.onState`'s `pips.voice`. */
   get voice(): 'off' | 'on' | 'denied' {
-    if (this.name === null) return 'off';
+    if (this.name === null || !this.helperCapable) return 'off';
     return this.mic === 'denied' ? 'denied' : 'on';
   }
 
@@ -253,7 +258,8 @@ export class PushToTalk {
 
   /** The helper said hello (true) or went (false); its registration goes with it (CONTRACT §6.4). */
   helper(running: boolean): void {
-    this.helperRunning = running;
+    const ops = this.ports.helper.hello?.ops;
+    this.helperCapable = running && Array.isArray(ops) && NEEDED_OPS.every((op) => ops.includes(op));
     if (!running) {
       this.helperEpoch += 1;
       if (this.registered !== null) {
@@ -310,7 +316,7 @@ export class PushToTalk {
 
   /** The helper holds the wanted name, or none. */
   private async register(): Promise<void> {
-    const wanted = this.name !== null && this.agentdRunning && this.helperRunning ? this.name : null;
+    const wanted = this.name !== null && this.agentdRunning && this.helperCapable ? this.name : null;
     if (this.registered !== null && this.registered !== wanted) {
       this.registered = null;
       // The release event can no longer arrive.
