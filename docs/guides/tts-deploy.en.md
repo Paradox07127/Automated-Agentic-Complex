@@ -29,7 +29,7 @@ In the container, `weights/` is `/srv/tts` and `state/` is `/srv/tts/state`. Abs
 
 ## Starting
 
-The service machine needs an NVIDIA GPU, a driver that supports CUDA 12.8, Docker Engine, the Compose v2 plugin, the NVIDIA Container Toolkit, and Python 3 to create the token. The `Dockerfile` pins the GPT-SoVITS commit, the CUDA image digest, an Ubuntu apt snapshot and the torch/torchaudio cu128 versions. The Python dependency installation still resolves upstream requirements at build time.
+The service machine needs an NVIDIA GPU, a driver that supports CUDA 12.8, Docker Engine, the Compose v2 plugin, the NVIDIA Container Toolkit, and Python 3 to create the token. The `Dockerfile` pins the GPT-SoVITS commit, the CUDA image digest, an Ubuntu apt snapshot and the torch/torchaudio cu128 versions. Python packages install only from `voice/tts-service/requirements-tts.lock`, every file hash-checked; the source-only ones are compiled in the image.
 
 Run from the repository root (or from another directory with the script's full path):
 

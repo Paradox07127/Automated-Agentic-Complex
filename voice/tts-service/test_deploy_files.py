@@ -50,6 +50,15 @@ class DeployFilesTest(unittest.TestCase):
             self.assertNotEqual(run.returncode,0)
             self.assertFalse((path/'data').exists())
 
+    def test_image_installs_python_packages_only_from_the_hash_lock(self):
+        installs=[line for line in (HERE/'deploy/Dockerfile').read_text().splitlines() if 'pip install' in line]
+        self.assertEqual(len(installs),1,installs)
+        self.assertIn('--require-hashes',installs[0])
+        self.assertIn('-r /tmp/requirements-tts.lock',installs[0])
+        pins=[line for line in (HERE/'requirements-tts.lock').read_text().splitlines() if line[:1].isalnum()]
+        self.assertIn('torch==2.8.0+cu128 \\',pins)
+        self.assertTrue(all('==' in line for line in pins))
+
     def test_mfa_lock_is_a_single_explicit_conda_spec(self):
         lines=[line for line in (HERE/'requirements-mfa.lock').read_text().splitlines() if line and not line.startswith('#')]
         self.assertEqual(lines.pop(0),'@EXPLICIT')

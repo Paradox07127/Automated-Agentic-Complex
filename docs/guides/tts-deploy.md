@@ -29,7 +29,7 @@ GPT-SoVITS 语音服务是独立于 Agentic Complex.app 的可选服务。应用
 
 ## 启动
 
-服务机器需要 NVIDIA GPU、支持 CUDA 12.8 的驱动、Docker Engine、Compose v2 插件、NVIDIA Container Toolkit，以及用于创建令牌的 Python 3。镜像在 `Dockerfile` 里固定 GPT-SoVITS 提交、CUDA 镜像摘要、Ubuntu apt 快照和 torch/torchaudio cu128 版本。Python 依赖仍在构建时按上游清单解析。
+服务机器需要 NVIDIA GPU、支持 CUDA 12.8 的驱动、Docker Engine、Compose v2 插件、NVIDIA Container Toolkit，以及用于创建令牌的 Python 3。镜像在 `Dockerfile` 里固定 GPT-SoVITS 提交、CUDA 镜像摘要、Ubuntu apt 快照和 torch/torchaudio cu128 版本。Python 依赖只按 `voice/tts-service/requirements-tts.lock` 安装，每个文件带哈希；其中只有源码包的依赖在镜像里编译。
 
 在仓库根目录运行（也可从其他目录用脚本的完整路径运行）：
 

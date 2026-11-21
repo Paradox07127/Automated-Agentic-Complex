@@ -12,9 +12,8 @@ ENV PATH="/opt/venv/bin:${PATH}" PYTHONUNBUFFERED=1
 
 RUN git clone https://github.com/RVC-Boss/GPT-SoVITS.git /opt/GPT-SoVITS \
     && git -C /opt/GPT-SoVITS checkout --detach 1b47ca07ef43a284e0b8bd7f29d3e1e3ff76082a
-RUN python -m pip install --no-cache-dir torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128 \
-    && python -m pip install --no-cache-dir -r /opt/GPT-SoVITS/requirements.txt -r /opt/GPT-SoVITS/extra-req.txt \
-    && python -m pip install --no-cache-dir resampy==0.4.3
+COPY voice/tts-service/requirements-tts.lock /tmp/requirements-tts.lock
+RUN python -m pip install --no-cache-dir --require-hashes --no-deps --no-binary=opencc --extra-index-url https://download.pytorch.org/whl/cu128 -r /tmp/requirements-tts.lock
 
 RUN rm -rf /opt/GPT-SoVITS/GPT_SoVITS/pretrained_models \
     && ln -s /srv/tts/pretrained_models /opt/GPT-SoVITS/GPT_SoVITS/pretrained_models
