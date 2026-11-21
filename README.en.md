@@ -210,6 +210,12 @@ These services run separately and are deployed by the user; the app stores only 
 - **Speech synthesis service**: HTTP service based on GPT-SoVITS providing character voices. See [deploying the voice service](docs/guides/tts-deploy.en.md) and the [TTS engine interface](protocol/C2-speech-stream/ENGINE.md).
 - **Motion generation service**: HTTP service in `motion/` generating motion clips from text prompts (currently backed by NVIDIA Kimodo). Configure via right-click character menu › 镜头与动作… › switch 动作来源 to 模型生成 and supply the service URL (no full deployment guide yet).
 
+## Community
+
+Join the QQ group "终末地集成智能体系统" to discuss usage and development or report issues: group number **1079677371**, or scan the code:
+
+<img src="docs/assets/qq-group.jpg" alt="QR code of the QQ group 终末地集成智能体系统, number 1079677371" width="240">
+
 ## Unofficial fan project notice
 
 This is an unofficial, experimental fan project created for development and learning. It is not affiliated with or endorsed by the developer or publisher of *Arknights: Endfield*. All game names, characters, and related assets belong to their respective owners. Release character assets and libraries are not included in this repository; only the text-only sample character `aide` is included in public source.
