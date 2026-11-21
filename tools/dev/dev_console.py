@@ -60,8 +60,8 @@ CREATE_NEW_PROCESS_GROUP = 0x200
 HOSTS = {f'{h}:{PORT}' for h in ('127.0.0.1', 'localhost')}
 ORIGINS = {'http://' + h for h in HOSTS}
 # What a new config.json starts with: packaged.ts's defaults for what the shell may sense and share.
-DEFAULTS = {'observe_activity': False, 'sense_input_counts': False, 'sense_audio_apps': False, 'share_page_text': False,
-            'share_window_text': False, 'share_typed_text': False, 'share_screenshots': False, 'computer_use_enabled': False,
+DEFAULTS = {'plugins': {'screen_awareness': False, 'computer_use': False}, 'sense_input_counts': False, 'sense_audio_apps': False,
+            'share_page_text': False, 'share_window_text': False, 'share_typed_text': False, 'share_screenshots': False,
             'proactive_speech': False, 'system_notifications': False}
 # The checkouts of the parts the shell runs; changing one restarts the shell.
 PARTS = {'agentd': str(ROOT), 'renderer': str(ROOT)}

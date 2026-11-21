@@ -38,13 +38,15 @@ test('a coding tool that is not hooked up shows its install steps', async ({ pag
   expect(errors).toEqual([]);
 });
 
-test('permission rows include Input Monitoring with 允许, and 操作电脑 can be switched', async ({ page }) => {
+test('permission rows include Input Monitoring with 允许, and 电脑操作 is switched among the plug-ins', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/settings?plugins=all&group=perm&still=1');
   const row = page.locator('[data-row="inputMonitoring"]');
   await expect(row).toContainText('输入监控');
   await expect(row.getByRole('button', { name: '允许' })).toBeVisible();
-  await expect(page.getByRole('switch', { name: '操作电脑' })).toBeEnabled();
+  await expect(page.getByRole('switch', { name: '操作电脑' })).toHaveCount(0);
+  await page.goto('main.html#/settings?plugins=all&group=plugins&still=1');
+  await expect(page.getByRole('switch', { name: '电脑操作' })).toBeEnabled();
   expect(errors).toEqual([]);
 });
 

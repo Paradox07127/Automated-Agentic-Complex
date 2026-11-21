@@ -73,8 +73,7 @@ export function PrivacyGroup() {
         <OutboundPlate />
       </div>
       <div className={styles.splitB}>
-        {(shown('observe') || briefsOn) && <SetSection title="观察">
-          <SetRow id="observe" title="观察屏幕活动" desc={diag.observeOff && on('observe') ? '后台仍按「关闭」运行，重启后台服务后生效' : '总开关。关闭后不再记录；已有记录保留，可在「数据」中删除'} control={c.toggle('observe')} />
+        {(shown('pause') || briefsOn) && <SetSection title="观察">
           <SetRow
             id="pause"
             title="暂停观察"
@@ -83,7 +82,7 @@ export function PrivacyGroup() {
               model.pauses.observe ? (
                 <PauseReadout kind="观察暂停" until={model.pauses.observe} disabled={ro || agentdOff} onResume={() => pause(0)} />
               ) : (
-                <Btn size="sm" variant="ghost" disabled={ro || agentdOff || !on('observe')} disabledReason={agentdOff ? '后台服务没有运行' : '观察已关闭'} onClick={() => pause(60)}>
+                <Btn size="sm" variant="ghost" disabled={ro || agentdOff} disabledReason={agentdOff ? '后台服务没有运行' : undefined} onClick={() => pause(60)}>
                   暂停 1 小时
                 </Btn>
               )

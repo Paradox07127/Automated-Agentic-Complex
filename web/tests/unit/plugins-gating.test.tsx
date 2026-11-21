@@ -5,6 +5,9 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { PLUGINS } from '../../src/bridge/plugins.generated';
+import { readRunningTasks } from '../../src/pages/character/api';
+import { ChatPage } from '../../src/pages/chat/Page';
+import { MemoryPage } from '../../src/pages/memory/Page';
 import { SETTING_GROUPS } from '../../src/pages/settings/groups';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { REGISTRY } from '../../src/pages/settings/registry';
@@ -103,7 +106,8 @@ describe('settings rows of a plug-in', () => {
   it('leave 隐私 with the outbound plate and the redaction switch, and hide the 角色内核 group', async () => {
     await mount('&group=privacy');
     expect(await screen.findByRole('switch', { name: '遮蔽敏感内容' })).toBeTruthy();
-    for (const gone of ['观察屏幕活动', '窗口文字', '读取编码会话', '附上截图']) expect(screen.queryByRole('switch', { name: gone })).toBeNull();
+    for (const gone of ['窗口文字', '读取编码会话', '附上截图']) expect(screen.queryByRole('switch', { name: gone })).toBeNull();
+    expect(screen.queryByRole('button', { name: '暂停 1 小时' })).toBeNull();
     expect(screen.queryByRole('region', { name: '读取范围' })).toBeNull();
     const nav = screen.getByRole('tablist', { name: '设置分组' });
     expect(within(nav).queryByRole('tab', { name: /角色内核/ })).toBeNull();
@@ -120,6 +124,49 @@ describe('settings rows of a plug-in', () => {
     expect(await screen.findByRole('region', { name: '关于' })).toBeTruthy();
     expect(document.querySelector('[data-row="load"]')).toBeNull();
     expect(document.querySelector('[data-row="dev"]')).not.toBeNull();
+  });
+});
+
+describe('core pages with the plug-ins at their defaults', () => {
+  function spyPaths() {
+    const bridge = getBridge();
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    const paths: string[] = [];
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) => {
+      paths.push(path.split('?')[0]!);
+      return (await real(method, path, body)) as never;
+    });
+    return paths;
+  }
+  const OFF_READS = /^\/(agent\/(tasks|runs|interactions)|tasks|schedules|observation|memory\/tasks)(\/|$)/;
+
+  it('read nothing of 个人代理, 屏幕感知 or 日报与简报 on 对话 and 记忆, and 记忆 opens on 用户档案 without 活动回顾', async () => {
+    const paths = spyPaths();
+    for (const Page of [ChatPage, MemoryPage]) {
+      const root = createRootRoute({ component: Page });
+      const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>,
+      );
+      if (Page === MemoryPage) {
+        expect((await screen.findByRole('tab', { name: /用户档案/ }, { timeout: 3000 })).getAttribute('aria-selected')).toBe('true');
+        expect(screen.queryByRole('tab', { name: /活动回顾/ })).toBeNull();
+        expect(screen.queryByRole('tab', { name: /项目/ })).toBeNull();
+      } else await screen.findByRole('region', { name: '消息' }, { timeout: 3000 });
+      // The reads a page starts on mount have gone out.
+      await act(async () => new Promise((r) => setTimeout(r, 300)));
+      cleanup();
+    }
+    expect(paths.length).toBeGreaterThan(0);
+    expect(paths.filter((p) => OFF_READS.test(p))).toEqual([]);
+  });
+
+  it('switch characters without asking 个人代理 for running tasks', async () => {
+    const paths = spyPaths();
+    expect(await readRunningTasks()).toEqual([]);
+    expect(paths).toEqual([]);
   });
 });
 

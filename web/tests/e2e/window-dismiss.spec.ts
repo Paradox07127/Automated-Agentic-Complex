@@ -29,8 +29,8 @@ test('the reminders popover closes independently of its hover ring', async ({ pa
 test('schedule and memory dialogs close with the header X at the minimum window size', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
   for (const [path, trigger] of [
-    ['/schedules?still=1', '新建定时任务'],
-    ['/memory?still=1', '查看 核对渲染测试结果'],
+    ['/schedules?plugins=all&still=1', '新建定时任务'],
+    ['/memory?plugins=all&still=1', '查看 核对渲染测试结果'],
   ] as const) {
     await page.goto(`main.html#${path}`);
     const opener = page.getByRole('button', { name: trigger, exact: true });
@@ -44,7 +44,7 @@ test('schedule and memory dialogs close with the header X at the minimum window 
 
 test('the chat history dialog and the project detail sheet release their click targets when dismissed', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
-  await page.goto('main.html#/chat?still=1');
+  await page.goto('main.html#/chat?plugins=all&still=1');
   const history = page.getByRole('button', { name: '历史记录', exact: true });
   await history.click();
   const dialog = page.getByRole('dialog', { name: '历史记录' });
@@ -55,7 +55,7 @@ test('the chat history dialog and the project detail sheet release their click t
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 
-  await page.goto('main.html#/memory?still=1&view=projects');
+  await page.goto('main.html#/memory?plugins=all&still=1&view=projects');
   const project = page.locator('[data-project]').first().getByRole('button');
   await project.click();
   const sheet = page.getByRole('dialog');

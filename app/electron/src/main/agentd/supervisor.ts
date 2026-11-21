@@ -194,13 +194,13 @@ export class AgentdSupervisor {
     void probe();
   }
 
-  /** onboarding.ts `hookScript` (only with `hooks` in the plan) and `cliScript` in `<support>/bin`, the fixed paths users'
-   *  hook and MCP settings run, for this launch's agentd. */
+  /** onboarding.ts `hookScript` (only with `hooks` in the plan) and `cliScript` (only with 外部接入 on) in `<support>/bin`,
+   *  the fixed paths users' hook and MCP settings run, for this launch's agentd. */
   private writeBinScripts(): void {
     const dir = join(this.config.supportDir, 'bin'), flags = this.options.pythonFlags ?? [], agentd = launchAgentdDir(this.config);
     const hooks = shellPlan(this.config.plugins).has('hooks') ? [hookScript(this.config.python, flags, agentd, shellPlatform())] : [];
-    for (const { name, text: script } of [...hooks,
-      cliScript(this.config.python, flags, agentd, this.config.agentdStateDir, dir, shellPlatform())]) {
+    const cli = this.config.plugins.external_access ? [cliScript(this.config.python, flags, agentd, this.config.agentdStateDir, dir, shellPlatform())] : [];
+    for (const { name, text: script } of [...hooks, ...cli]) {
       const path = join(dir, name), temp = `${path}.tmp`;
       try {
         if (existsSync(path) && readFileSync(path, 'utf8') === script) continue;

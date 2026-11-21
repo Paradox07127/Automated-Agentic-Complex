@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
+import { PLUGINS } from '../../src/bridge/plugins.generated';
 import type { WireRuntimePublic } from '../../src/domain/wire';
 import { PERMISSIONS } from '../../src/mock/fixtures';
 import { demoNative, routes } from '../../src/mock/settings';
@@ -117,9 +118,9 @@ describe(' 隐私: outbound matrix', () => {
   // observation_interpret sends the collected text to the role kernel, a cloud model for Claude and Codex.
   const cloudCell = (name: RegExp) => within(screen.getByRole('grid', { name: '外发' })).getByRole('row', { name }).querySelectorAll('td')[2]?.textContent;
 
-  it('marks 窗口文字 as going to the cloud when its switch, observation and a cloud kernel are on', () => {
+  it('marks 窗口文字 as going to the cloud when its switch, 屏幕感知 and a cloud kernel are on', () => {
     render(
-      <Harness init={{ draft: { wintext: true, observe: true } }}>
+      <Harness init={{ draft: { wintext: true } }}>
         <PrivacyGroup />
       </Harness>,
     );
@@ -127,9 +128,9 @@ describe(' 隐私: outbound matrix', () => {
     expect(cloudCell(/窗口文字/)).toBe('开');
   });
 
-  it('marks the cloud route off when the type switch or observation is off', () => {
+  it('marks the cloud route off when the type switch or the plug-in owning it is off', () => {
     render(
-      <Harness init={{ draft: { wintext: false, typing: true, observe: true } }}>
+      <Harness init={{ draft: { wintext: false, typing: true } }}>
         <PrivacyGroup />
       </Harness>,
     );
@@ -137,13 +138,15 @@ describe(' 隐私: outbound matrix', () => {
     expect(cloudCell(/窗口文字/)).toBe('关');
     expect(cloudCell(/输入的文字/)).toBe('开');
     cleanup();
+    pluginsOn(...PLUGINS.map((p) => p.id).filter((id) => id !== 'screen_awareness'));
     render(
-      <Harness init={{ draft: { wintext: true, observe: false } }}>
+      <Harness init={{ draft: { wintext: true, shot: true } }}>
         <PrivacyGroup />
       </Harness>,
     );
     unfold();
     expect(cloudCell(/窗口文字/)).toBe('关');
+    expect(cloudCell(/截图/)).toBe('开');
   });
 
   // privacy.py saved_consent: at focused only the focused element's text leaves, at window the whole window's.

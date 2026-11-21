@@ -27,7 +27,7 @@ for (const theme of THEMES) {
 
   test(`${theme}: 附加窗口 is off while screenshot sharing is off`, async ({ page }) => {
     const errors = collectErrors(page);
-    await page.goto(`main.html#/chat?${suffix(theme)}`);
+    await page.goto(`main.html#/chat?plugins=all&${suffix(theme)}`);
     const look = page.getByRole('button', { name: '附加窗口' });
     await expect(look).toHaveAttribute('aria-disabled', 'true');
     await expect(look).toHaveAttribute('title', /附加截图/);

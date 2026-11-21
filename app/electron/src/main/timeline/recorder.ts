@@ -1,6 +1,6 @@
 // The timeline recorder over the platform helper (`input.actions`, `ax.window_tree`): each front window and each click,
 // context menu, shortcut and submit of the user's becomes a `POST /context/timeline` record, the window with its whole
-// tree and the actions with what changed in it, while agentd runs and observe_activity and share_actions are on.
+// tree and the actions with what changed in it, while agentd runs and plugins.screen_awareness and share_actions are on.
 import { type ActivityEvent, captureWindow } from '../../common/activity.ts';
 import type { AttentionSample, AttentionWindow, BlacklistRules } from '../../common/attention.ts';
 import { type CaptureWindow, captureBlockReason } from '../../common/capture-rules.ts';
@@ -82,7 +82,7 @@ export class TimelineRecorder {
     return this.cancelTick !== null;
   }
 
-  /** agentd is up and observe_activity is on. */
+  /** agentd is up and plugins.screen_awareness is on. */
   start(): void {
     if (this.running) return;
     this.lastPost = this.seconds();

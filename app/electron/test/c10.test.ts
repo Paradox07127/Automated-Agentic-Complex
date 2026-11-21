@@ -41,8 +41,7 @@ test('the blacklist.json example in deny mode: incognito on, and its bundle, app
 
 test('each privacy-config.json key is a settings row storing the example\'s type', () => {
   const example = JSON.parse(readFileSync(resolve(EXAMPLES, 'privacy-config.json'), 'utf8')) as Record<string, unknown>;
-  // C10 still lists observe_activity; this shell has it as the screen_awareness plug-in (`plugins.screen_awareness`).
-  const keys = Object.keys(example).filter((k) => k !== 'observe_activity');
+  const keys = Object.keys(example);
   assert.equal(keys.length, 7);
   for (const key of keys) {
     const row = ROWS.find((r) => r.item.key === key);

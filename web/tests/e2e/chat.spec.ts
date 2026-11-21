@@ -24,7 +24,7 @@ const sideways = (page: Page) =>
 
 test('ok: list rows, on-demand history, conversation management, the track, turn tags and the composer', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/chat?still=1');
+  await page.goto('main.html#/chat?plugins=all&still=1');
   const nav = page.getByRole('navigation', { name: '对话列表' });
   await expect(nav.getByRole('button', { name: /周报整理/ })).toBeVisible();
   await expect(nav.getByRole('button', { name: /周报整理/ })).toContainText(/\d+ 轮$/);
@@ -56,7 +56,7 @@ test('ok: list rows, on-demand history, conversation management, the track, turn
 
 test('turn tag opens 轮次详情; 更多 unfolds 观察, 动作 and the events; the 任务 tab switches', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/chat?still=1&demo=full');
+  await page.goto('main.html#/chat?plugins=all&still=1&demo=full');
   const tag = page.getByRole('button', { name: '第 12 轮，成功，打开轮次详情' });
   await tag.click();
   const col = page.getByRole('complementary', { name: '轮次详情' });
@@ -79,7 +79,7 @@ test('turn tag opens 轮次详情; 更多 unfolds 观察, 动作 and the events;
 for (const [width, height] of [[1440, 900], [900, 600]] as const) {
   test(`历史记录 at ${width}: searching a reply opens the exact turn`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await page.goto('main.html#/chat?still=1&demo=full');
+    await page.goto('main.html#/chat?plugins=all&still=1&demo=full');
     await page.getByRole('button', { name: '历史记录', exact: true }).click();
     const history = page.getByRole('dialog', { name: '历史记录' });
     await history.getByRole('textbox').fill('改好了：Companion');
@@ -91,7 +91,7 @@ for (const [width, height] of [[1440, 900], [900, 600]] as const) {
 
 test('sparse: one conversation, four turns, both lanes idle so no track', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/chat?still=1&demo=sparse');
+  await page.goto('main.html#/chat?plugins=all&still=1&demo=sparse');
   await expect(page.getByRole('navigation', { name: '对话列表' }).getByRole('button', { name: /HostLink 早上/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /打开轮次详情$/ })).toHaveCount(4);
   await expect(page.getByRole('group', { name: /^最近 10 分钟前台与旁路/ })).toHaveCount(0);
@@ -100,7 +100,7 @@ test('sparse: one conversation, four turns, both lanes idle so no track', async 
 });
 
 test('error: the failure shows once, in the message area, and the input box stays', async ({ page }) => {
-  await page.goto('main.html#/chat?still=1&state=error');
+  await page.goto('main.html#/chat?plugins=all&still=1&state=error');
   const thread = page.getByRole('region', { name: '消息' });
   await expect(thread.getByText(/读取对话失败/)).toBeVisible();
   await expect(thread.getByRole('button', { name: /重试/ })).toBeVisible();
@@ -119,7 +119,7 @@ for (const [w, h] of [
     const errors = collectErrors(page);
     await page.setViewportSize({ width: w, height: h });
     for (const q of ['still=1', 'still=1&demo=full&turn=tr7', 'still=1&demo=sparse']) {
-      await page.goto(`main.html#/chat?${q}`);
+      await page.goto(`main.html#/chat?plugins=all&${q}`);
       await expect(page.getByRole('region', { name: '消息' })).toBeVisible();
       await page.waitForTimeout(300);
       expect(await sideways(page), q).toEqual({ doc: false, els: [] });
@@ -137,7 +137,7 @@ for (const [w, h] of [
 for (const w of [1280, 1024]) {
   test(`${w}: an open question opens the stream at its card; its question line is on the first screen`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: w === 1280 ? 800 : 700 });
-    await page.goto('main.html#/chat?still=1');
+    await page.goto('main.html#/chat?plugins=all&still=1');
     const card = page.locator('[data-pending]').first();
     await expect(card).toBeVisible();
     await page.waitForTimeout(1500);
@@ -154,7 +154,7 @@ for (const w of [1280, 1024]) {
 }
 
 test('without an open question the stream stays at the bottom after late content (turn tags, cards) settles', async ({ page }) => {
-  await page.goto('main.html#/chat?still=1&demo=sparse');
+  await page.goto('main.html#/chat?plugins=all&still=1&demo=sparse');
   const last = page.locator('[data-kind="ai"]').last();
   await expect(last).toBeVisible();
   await expect(page.locator('[data-pending]')).toHaveCount(0);

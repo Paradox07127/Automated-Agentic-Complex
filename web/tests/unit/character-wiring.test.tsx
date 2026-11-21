@@ -12,6 +12,11 @@ import { Stage, type StageProps } from '../../src/pages/character/Stage';
 import { causeMarks } from '../../src/pages/character/StatePanel';
 import { useSwitch } from '../../src/pages/character/useSwitch';
 import type { CharacterState } from '../../src/domain';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so the page reads and shows what its plug-ins add.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 const noop = () => {};
 const NOW_S = Math.floor(NOW / 1000);

@@ -11,7 +11,7 @@ function collectErrors(page: Page): string[] {
 
 test('chat: disconnected keeps the last messages with their time, 查看诊断 and 重试', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/chat?demo=disconnected&still=1');
+  await page.goto('main.html#/chat?plugins=all&demo=disconnected&still=1');
   const bar = page.getByRole('alert').filter({ hasText: '后台服务已断开' });
   await expect(bar).toBeVisible();
   await expect(bar).toContainText(/下面是 \d\d:\d\d 的数据/);
@@ -26,7 +26,7 @@ test('chat: disconnected keeps the last messages with their time, 查看诊断 a
 // A reply's turn tag ⌁n opens 轮次详情 beside the stream; the turn row comes from /trace/turns by turn_id.
 test('chat: the turn tag opens 轮次详情 for that turn', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/chat?still=1');
+  await page.goto('main.html#/chat?plugins=all&still=1');
   await page.getByRole('button', { name: /^第 10 轮，成功/ }).click();
   const col = page.getByRole('complementary', { name: '轮次详情' });
   await expect(col.getByText('第 10 轮')).toBeAttached();
@@ -36,7 +36,7 @@ test('chat: the turn tag opens 轮次详情 for that turn', async ({ page }) => 
 
 // The user's SNS self bubble must stand out from the dialog plate and the page, and its text must read on it.
 test('chat light: the user line box reads against the stream', async ({ page }) => {
-  await page.goto('main.html#/chat?still=1&theme=light');
+  await page.goto('main.html#/chat?plugins=all&still=1&theme=light');
   const line = page.locator('[data-kind="me"] .sns-bubble-self').last();
   await line.scrollIntoViewIfNeeded();
   const s = await line.evaluate((el) => {

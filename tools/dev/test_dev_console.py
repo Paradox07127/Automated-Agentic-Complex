@@ -57,12 +57,14 @@ class ShellConfigTest(Paths):
         self.assertEqual(config['support_dir'], str(dc.SUPPORT_DIR))
         self.assertEqual(config['agentd_state_dir'], str(dc.STATE_DIR))
         self.assertEqual(config['character_catalog'], str(dc.release_catalog()))
-        self.assertIs(config['observe_activity'], False)
+        self.assertEqual(config['plugins'], {'screen_awareness': False, 'computer_use': False})
+        self.assertNotIn('observe_activity', config)
+        self.assertNotIn('computer_use_enabled', config)
 
     def test_keeps_settings_and_recomputes_the_managed_keys(self):
-        old = {'render_fps': 45, 'observe_activity': True, 'agentd_dir': '/old', 'agentd_port': 1, 'support_dir': '/old'}
+        old = {'render_fps': 45, 'plugins': {'screen_awareness': True}, 'agentd_dir': '/old', 'agentd_port': 1, 'support_dir': '/old'}
         config = dc.shell_config(old, Path('/w/a'), Path('/w/r'))
-        self.assertEqual((config['render_fps'], config['observe_activity']), (45, True))
+        self.assertEqual((config['render_fps'], config['plugins']), (45, {'screen_awareness': True}))
         self.assertEqual((config['agentd_dir'], config['agentd_port'], config['support_dir']),
                          ('/w/a/agent/agentd', 48790, str(dc.SUPPORT_DIR)))
 

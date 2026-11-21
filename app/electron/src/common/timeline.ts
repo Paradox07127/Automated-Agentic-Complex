@@ -45,7 +45,7 @@ export function toTarget(raw: unknown): TimelineTarget | null {
     identifier: str(o.identifier), value: str(o.value) };
 }
 
-/** `allowActions` is observe_activity and share_actions; `allowTypedText` share_typed_text; `redact` redact_sensitive. */
+/** `allowActions` is share_actions (the recorder runs only with plugins.screen_awareness on);`allowTypedText` share_typed_text; `redact` redact_sensitive. */
 export interface TimelinePolicy { allowActions: boolean; allowWindowText: boolean; allowTypedText: boolean; redact: boolean }
 
 /** The policy when no settings are saved. */

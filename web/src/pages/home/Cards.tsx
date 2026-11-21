@@ -14,11 +14,11 @@ export interface BarCard {
   onClick: () => void;
 }
 
-/** The bottom bar (HudBgShdow): its glow band, the briefing's counts in the left slot (the game's ReportNode) and an action in the right one. */
+/** The bottom bar (HudBgShdow): its glow band, the briefing's counts in the left slot (the game's ReportNode) and an action in the right one. Without the card the band lies under the action alone. */
 export function BottomBar({ card, action }: { card: BarCard | undefined; action: { icon: IconName; title: string; onClick: () => void } }) {
   return (
     <div className={styles.barNode} data-g="hudBar">
-      <span className={styles.band} style={at(BAR)} aria-hidden="true" />
+      <span className={styles.band} style={at(card ? BAR : BAR_SLOTS[1])} aria-hidden="true" />
       {card && <TodayCard {...card} />}
       <button type="button" className={`${styles.slot} ${styles.act}`} style={at(BAR_SLOTS[1])} aria-label={action.title} onClick={action.onClick}>
         <span className={styles.actIn} aria-hidden="true">

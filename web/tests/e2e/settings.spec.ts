@@ -30,12 +30,12 @@ test('privacy: the outbound panel shows two big figures and one fold; [展开] s
     expect(f.nums).toContain('tabular-nums');
   }
   await expect(plate.getByRole('button')).toHaveCount(1);
-  await expect(page.locator('[data-row="observe"]')).toBeInViewport();
+  await expect(page.locator('[data-row="pause"]')).toBeInViewport();
   await plate.getByRole('button', { name: '展开' }).click();
   await expect(plate.getByRole('img', { name: '今日截图：已用 37 张，上限 200，预留 1，已拦截 3 次' })).toBeVisible();
   await expect(plate.getByRole('img', { name: '今天每小时截图次数，本小时 17 张' })).toBeVisible();
   await expect(plate.locator('svg[aria-label^="外发流向"]')).toBeVisible();
-  await expect(page.getByRole('switch', { name: '观察屏幕活动' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '暂停 1 小时' })).toBeVisible();
   await plate.getByText('读取范围与目的地').click();
   await expect(plate.getByRole('grid', { name: '外发' })).toBeVisible();
   expect(errors).toEqual([]);
@@ -98,7 +98,7 @@ test('toggles are the small switch in both themes', async ({ page }) => {
 
 test('rows: the row plate with a 1px rim, name 15/500 and its description in an ⓘ beside it; the child row is indented', async ({ page }) => {
   await page.goto('main.html#/settings?plugins=all&still=1&theme=dark');
-  const row = page.locator('[data-row="observe"]');
+  const row = page.locator('[data-row="pause"]');
   const look = await row.evaluate((el) => {
     const s = getComputedStyle(el);
     const t = getComputedStyle(el.querySelector('[id$="-title"]')!);

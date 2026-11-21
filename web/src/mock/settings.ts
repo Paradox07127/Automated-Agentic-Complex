@@ -25,7 +25,8 @@ const DEG = (max: number): Slide => ({ min: -max, max, step: 0.5, format: 'degre
 const NOTIFY: Array<[string, string]> = [['sound', '出声'], ['card', '只出卡'], ['silent', '不提示']];
 
 const ROWS: Row[] = [
-  ...PLUGINS.filter((p) => p.tier === 'plugin').map((p): Row => [pluginKey(p.id), 'plugins', labelOf(pluginKey(p.id)), p.default, 'backend']),
+  // 轻量 AI has a row but no registry entry: the 插件 group shows no switch for it.
+  ...PLUGINS.map((p): Row => [pluginKey(p.id), 'plugins', p.id === 'light_ai' ? '轻量 AI' : labelOf(pluginKey(p.id)), p.default, 'backend']),
   ['mute', 'speak', '只出字、不出声', false, 'backend'],
   ['tts', 'speak', '语音服务', 'remote', 'backend', [['remote', '远端'], ['local', '本机']]],
   ['asr', 'speak', '识别语言', 'auto', 'none', [['auto', '跟随系统'], ['zh-CN', '中文'], ['en-US', 'English']]],
@@ -50,7 +51,6 @@ const ROWS: Row[] = [
   ['hk_pass', 'keys', '临时全部点穿', '⌃⌥P', 'none'],
   ['hk_wheel', 'keys', '角色快捷轮盘', '⌃⌥R', 'none'],
   ['hk_sel', 'keys', '读取选中文字', '⌃⌥S', 'none'],
-  ['observe', 'privacy', '观察电脑上的活动', true, 'backend'],
   ['wintext', 'privacy', '读取窗口文字', false, 'backend'],
   ['grain', 'privacy', '屏幕理解粒度', 'focused', 'backend', [['status', '仅读状态'], ['focused', '焦点语义'], ['window', '窗口摘要']]],
   ['web', 'privacy', '读取网页正文', false, 'backend'],
@@ -60,7 +60,6 @@ const ROWS: Row[] = [
   ['keys', 'privacy', '键鼠计数', true, 'backend'],
   ['micapp', 'privacy', '在用麦克风的 app', true, 'backend'],
   ['mask', 'privacy', '发出前遮蔽敏感内容', true, 'backend'],
-  ['k_cu', 'perm', '允许会话请求电脑操作', false, 'backend'],
   ['login', 'about', '登录时启动', true, 'none'],
   ['beh.stay', '@character', '待在原地 / 自由活动', 'roam', 'none', [['stay', '待在原地'], ['roam', '自由活动'], ['bust', '半身固定']]],
   ['beh.range', '@character', '活动范围', 'default', 'avatar', [['default', '默认'], ['window', '小窗口'], ['fullscreen', '整块屏']]],

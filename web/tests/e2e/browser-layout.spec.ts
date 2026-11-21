@@ -28,7 +28,7 @@ async function expectCapsule(field: Locator, fill: string) {
 
 test('memory and settings search boxes share the raised search field', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/memory?still=1');
+  await page.goto('main.html#/memory?plugins=all&still=1');
   const fill = await page.evaluate(() => {
     const probe = document.createElement('span');
     probe.style.backgroundColor = 'var(--ef-raised)';

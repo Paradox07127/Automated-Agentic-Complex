@@ -35,7 +35,6 @@ export const SETTINGS: Record<string, string | number | boolean> = {
   n_brief: '只出卡',
   n_remind: '出声',
   sysnotify: true,
-  observe: true,
   wintext: true,
   grain: 'focused',
   web: true,
@@ -47,7 +46,6 @@ export const SETTINGS: Record<string, string | number | boolean> = {
   mask: true,
   login: true,
   k_ask: true,
-  k_cu: false,
   kernel: SELECTED_RUNTIME,
   runsrc: '本机 CLI',
   exe: '/opt/homebrew/bin/codex',
@@ -63,10 +61,10 @@ export const SETTINGS: Record<string, string | number | boolean> = {
 };
 
 /** Settings that need a backend restart to apply (⟳). */
-export const RESTART_REQUIRED = ['observe', 'wintext', 'web', 'typing', 'agent_sessions'];
+export const RESTART_REQUIRED = ['wintext', 'web', 'typing', 'agent_sessions'];
 
 /** Rows that delete collected data when switched off, with how much. */
-export const DESTRUCTIVE_COUNTS: Record<string, number> = { wintext: 214, web: 37, typing: 0, agent_sessions: 0, observe: 1180 };
+export const DESTRUCTIVE_COUNTS: Record<string, number> = { wintext: 214, web: 37, typing: 0, agent_sessions: 0 };
 
 
 /** Redaction counts since this launch. */

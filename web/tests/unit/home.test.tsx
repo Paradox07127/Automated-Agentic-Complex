@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getBridge } from '../../src/bridge';
 import { demos } from '../../src/pages/home/demos';
 import { BAR_SLOTS, CLOCK, leftTiles, rightTiles, sideIcons, STAGE, TOP_ICONS } from '../../src/pages/home/geometry';
 import { HomePage } from '../../src/pages/home/Page';
@@ -39,6 +40,8 @@ function mount(search = '') {
 }
 
 const title = (id: string) => pageRoutes.find((r) => r.id === id)!.title;
+/** The overview's reads the home page made for 待处理, 在做 and the today card. */
+const TODAY_READS = ['/agent/snapshot', '/sessions', '/agent/runs', '/trace/turns', '/day/segments', '/episodes', '/trace/decisions'];
 const names = (group: HTMLElement) => within(group).getAllByRole('button').map((b) => b.getAttribute('aria-label'));
 
 describe('home route', () => {
@@ -91,7 +94,7 @@ describe('home tiles', () => {
     fireEvent.click(screen.getByRole('button', { name: title('diag') }));
     expect(window.location.hash).toMatch(/^#\/diag\?/);
     fireEvent.click(screen.getByRole('button', { name: '派发任务' }));
-    expect(window.location.hash).toMatch(/^#\/overview\?.*create=role/);
+    fireEvent.click(within(await screen.findByRole('dialog', { name: '新建' })).getByRole('button', { name: /取消/ }));
     const open = vi.fn();
     window.addEventListener(OPEN_PALETTE, open);
     fireEvent.click(screen.getByRole('button', { name: '搜索' }));
@@ -191,6 +194,36 @@ describe('home with the plug-ins at their defaults', () => {
     expect(names(screen.getByRole('group', { name: '快捷动作' }))).toEqual(['快速输入', '停止说话']);
     for (const gone of [/^待处理/, /^提醒$/, /^派发任务$/, /^屏幕识读$/, /^工业简报：/]) expect(screen.queryByRole('button', { name: gone })).toBeNull();
     expect(screen.getByRole('button', { name: '打开对话' })).toBeTruthy();
+    // The bar's glow band lies under the one slot left, not under the empty card slot.
+    const band = document.querySelector<HTMLElement>('[data-g="hudBar"] > span[aria-hidden="true"]')!;
+    expect([band.style.left, band.style.width]).toEqual([`${BAR_SLOTS[1].left}px`, `${BAR_SLOTS[1].width}px`]);
+  });
+
+  it('sends none of the today reads with 日报与简报 off, and the clock reads /health, not them, for 已连接', async () => {
+    const bridge = getBridge();
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    const paths: string[] = [];
+    // As agentd: a plug-in's routes answer 409 plugin_off while it is off; /agent/snapshot stands for the overview's reads.
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) => {
+      paths.push(path.split('?')[0]!);
+      return (TODAY_READS.includes(path.split('?')[0]!) ? { status: 409, body: { error: 'plugin_off' } } : await real(method, path, body)) as never;
+    });
+    mount();
+    const clock = await screen.findByRole('group', { name: '时钟' });
+    expect(await within(clock).findByText('已连接')).toBeTruthy();
+    expect(paths).toContain('/health');
+    expect(paths.filter((p) => TODAY_READS.includes(p))).toEqual([]);
+    expect(within(clock).queryByText('读取失败')).toBeNull();
+  });
+
+  it('offers 派发任务 with 个人代理 on and 日报与简报 off, and opens the dispatch dialog in place', async () => {
+    pluginsOn('personal_agent');
+    mount();
+    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual([title('settings'), '派发任务', '搜索']);
+    fireEvent.click(screen.getByRole('button', { name: '派发任务' }));
+    const dialog = await screen.findByRole('dialog', { name: '新建' });
+    expect(within(dialog).getByRole('button', { name: /交派/ })).toBeTruthy();
+    expect(window.location.hash).not.toMatch(/overview/);
   });
 
   it('adds 待处理, 提醒 and the today card once 日报与简报 is on, and 派发任务 once 个人代理 is on too', async () => {

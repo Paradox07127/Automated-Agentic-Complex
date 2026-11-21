@@ -52,7 +52,6 @@ class PrivacyReaderTest(unittest.TestCase):
                          ({"window_text": True, "page_text": True, "screenshots": False, "typed_text": False,
                            "agent_sessions": True}, "window"))
         self.assertIs(saved_switch(path, "share_page_text"), True)
-        self.assertIs(saved_switch(path, "observe_activity"), True)
 
 
 class TtsTokenReaderTest(unittest.TestCase):

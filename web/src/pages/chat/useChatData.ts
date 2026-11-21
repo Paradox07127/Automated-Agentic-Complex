@@ -4,6 +4,7 @@ import { AgentdCallError, get, seg } from '../../bridge/agentd';
 import { appNow } from '../../bridge/clock';
 import { refreshRuntime } from '../../data/runtime';
 import { TasksLoadError, type TasksBase } from '../../data/tasksBase';
+import { usePlugins } from '../../shell/plugins';
 import {
   fromConversation,
   fromDelivery,
@@ -126,9 +127,13 @@ async function conversationTasks(conv: string): Promise<WireTaskRow[]> {
 export const frontRunning = (runs: ReadonlyArray<{ run_id: string; state: string }>): boolean =>
   runs.some((r) => r.state === 'running' && !r.run_id.startsWith('bg-') && !r.run_id.startsWith('semantic-'));
 
-/** The three reads behind the inline task, its panel and the conversation's requests (`/agent/runs` gives the live run). */
+/**
+ * The three reads behind the inline task, its panel and the conversation's requests (`/agent/runs` gives the live run).
+ * They are 个人代理's: with it off nothing is read, `refetch` included (a query's own refetch reads even while disabled).
+ */
 export function useChatTasks(conv: string | null, enabled: boolean) {
-  return useQuery({
+  const agent = usePlugins().personal_agent;
+  const query = useQuery({
     queryKey: ['chat-tasks', conv],
     queryFn: async (): Promise<ChatTasks> => {
       const conn = await getBridge().agentd.connection();
@@ -160,12 +165,13 @@ export function useChatTasks(conv: string | null, enabled: boolean) {
         ...(activeTurn ? { activeTurn } : {}),
       };
     },
-    enabled: enabled && conv != null,
+    enabled: enabled && agent && conv != null,
     retry: false,
     staleTime: 5_000,
     refetchOnMount: 'always',
     refetchInterval: (query) => query.state.data?.frontRunning || Object.keys(query.state.data?.base.activeRuns ?? {}).length > 0 ? 3_000 : false,
   });
+  return { query, refetch: () => void (agent && query.refetch()) };
 }
 
 /** Plan steps as agentd stores and sends them (runtime.py plan(): `{text, status}`, at most 32). */

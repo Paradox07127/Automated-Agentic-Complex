@@ -18,6 +18,7 @@ import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
 import { KeysGroup } from '../../src/pages/settings/groups/Keys';
 import { ModelGroup } from '../../src/pages/settings/groups/Model';
 import { PermGroup } from '../../src/pages/settings/groups/Perm';
+import { PluginsGroup } from '../../src/pages/settings/groups/Plugins';
 import { PrivacyGroup } from '../../src/pages/settings/groups/Privacy';
 import { SpeakGroup, tomorrowMorning } from '../../src/pages/settings/groups/Speak';
 import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model';
@@ -192,12 +193,13 @@ describe('native rows (settings.schema / read / save)', () => {
     expect(save).toHaveBeenCalledWith({ wintext: false });
   });
 
-  it('turns observation off without a confirm (records stay)', async () => {
+  it('turns 屏幕感知 on and off without a confirm (records stay)', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
-    render(<Harness d={d}><PrivacyGroup /></Harness>);
-    await click(screen.getByRole('switch', { name: '观察屏幕活动' }));
+    render(<Harness d={d}><PluginsGroup /></Harness>);
+    await click(screen.getByRole('switch', { name: '屏幕感知' }));
+    await click(screen.getByRole('switch', { name: '屏幕感知' }));
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(save).toHaveBeenCalledWith({ observe: false });
+    expect(save).toHaveBeenLastCalledWith({ 'plugins.screen_awareness': false });
   });
 
   it('恢复默认 saves the schema defaults: every read switch ends up off', async () => {

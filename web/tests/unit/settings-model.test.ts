@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { kernelBreak, kernelNodes } from '../../src/features/kernel';
 import { fromRuntimePublic } from '../../src/domain';
 import { pick, RUNTIMES, SETTING_GROUPS, WIRE_RUNTIME } from '../../src/mock/fixtures';
+import { PLUGINS } from '../../src/bridge/plugins.generated';
 import { DEMO_SCHEMA } from '../../src/mock/settings';
 import { ARCHIVE, KERNEL_LABEL, RUNTIME_ERROR, runtimeBody } from '../../src/pages/settings/fields';
 import { deleteConfirm } from '../../src/pages/settings/model';
@@ -10,9 +11,8 @@ import { GROUP_IDS, REGISTRY, searchSettings } from '../../src/pages/settings/re
 const destructive = DEMO_SCHEMA.filter((r) => r.destructive).map((r) => r.id);
 
 describe('settings: deleting switches', () => {
-  it('confirms only the rows the schema marks destructive; observation keeps its records', () => {
+  it('confirms only the rows the schema marks destructive', () => {
     expect(destructive).toEqual(['wintext', 'web', 'typing', 'agent_sessions']);
-    expect(DEMO_SCHEMA.find((r) => r.id === 'observe')?.destructive).toBeUndefined();
   });
 
   it('uses one wording for every「关闭并删除」', () => {
@@ -30,12 +30,19 @@ describe('settings: registry and search', () => {
     expect(SETTING_GROUPS.flatMap((c) => c.items.map((i) => i.id))).toEqual(GROUP_IDS);
     for (const g of GROUP_IDS) expect(REGISTRY.some((r) => r.group === g), g).toBe(true);
     for (const id of destructive) expect(REGISTRY.find((r) => r.id === id)?.deletesData, id).toBe(true);
-    expect(REGISTRY.find((r) => r.id === 'observe')?.deletesData).toBe(false);
     expect(REGISTRY.filter((r) => r.effect === 'restartBackend')).toEqual([]);
     expect(DEMO_SCHEMA.filter((r) => r.restart === 'backend').map((r) => r.id)).toEqual(
-      expect.arrayContaining(['mute', 'tts', 'observe', 'wintext', 'web', 'typing', 'mask', 'k_cu']),
+      expect.arrayContaining(['mute', 'tts', 'wintext', 'web', 'typing', 'mask', ...PLUGINS.map((p) => `plugins.${p.id}`)]),
     );
     expect(REGISTRY.find((r) => r.id === 'hk_focus')).toBeUndefined();
+  });
+
+  it('has no 观察 or 操作电脑 row of its own: the 屏幕感知 and 电脑操作 plug-in switches are those', () => {
+    for (const id of ['observe', 'k_cu']) {
+      expect(DEMO_SCHEMA.find((r) => r.id === id), id).toBeUndefined();
+      expect(REGISTRY.find((r) => r.id === id), id).toBeUndefined();
+    }
+    expect(DEMO_SCHEMA.find((r) => r.id === 'plugins.light_ai')?.default).toBe(true);
   });
 
   it('has the history-archive row, defaulting to keep everything', () => {

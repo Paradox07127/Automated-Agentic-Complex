@@ -1,8 +1,11 @@
 // 主页：手表菜单（watchpanel_pc）。中间是地图位置上的今天读数，左边四个大键是主要页面，右边斜排的方键是工具页和两个动作，
 // 左上是待处理和提醒，右上时钟，底部条是角色卡和打开对话。
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getBridge, type AgentdConnection } from '../../bridge';
+import { get } from '../../bridge/agentd';
 import { gameClips } from '../../design/gameClips.generated';
-import { sortPending } from '../../domain';
+import { fromGoal, sortPending, type WireGoal } from '../../domain';
 import { useDemo } from '../../shell/demo';
 import { look, openQuickInput, stopSpeech, useDesktopOff } from '../../shell/desktopOps';
 import { OPEN_PALETTE } from '../../shell/Layout';
@@ -15,6 +18,8 @@ import { useNow } from '../overview/nav';
 import { isExpired } from '../overview/pending';
 import { useOverview } from '../overview/useOverview';
 import { useOverviewActions } from '../overview/useOverviewActions';
+import { CreateDialog } from '../tasks/CreateDialog';
+import { draftFor, type CreateDraft } from '../tasks/CreateForm';
 import { useToast } from '../../shell/toast';
 import { BottomBar, ClockCard, type Conn } from './Cards';
 import { Disc } from './Disc';
@@ -55,7 +60,7 @@ interface Act<Id extends string> {
   page?: PageId;
 }
 const RIGHT_ACTS: ReadonlyArray<Act<'dispatch' | 'search'>> = [
-  { id: 'dispatch', icon: 'plus', title: '派发任务', hotkey: '⌘N', plugin: 'personal_agent', page: 'overview' },
+  { id: 'dispatch', icon: 'plus', title: '派发任务', hotkey: '⌘N', plugin: 'personal_agent' },
   { id: 'search', icon: 'search', title: '搜索', hotkey: '⌘K' },
 ];
 const SIDE_ACTS: ReadonlyArray<Act<'look' | 'quickInput' | 'stopSpeech'>> = [
@@ -66,6 +71,20 @@ const SIDE_ACTS: ReadonlyArray<Act<'look' | 'quickInput' | 'stopSpeech'>> = [
 
 /** The stage's smallest text is 12px; under this scale, with the tilted groups' foreshortening, it would render below 11px. */
 const K_MIN = 0.925;
+
+/** `/health`, which no plug-in owns, and the connection it was read at. */
+async function readHealth(): Promise<AgentdConnection> {
+  const connection = await getBridge().agentd.connection();
+  await get('/health');
+  return connection;
+}
+
+/** The clock's status line from a read and the connection it carries. */
+function connOf(connection: AgentdConnection | undefined, isError: boolean): Conn {
+  if (!connection) return isError ? 'failed' : 'loading';
+  if (connection !== 'connected') return connection === 'unauthorized' ? 'refused' : 'lost';
+  return isError ? 'stale' : 'ok';
+}
 
 export function HomePage() {
   const { state, demo, still } = useDemo();
@@ -90,17 +109,26 @@ export function HomePage() {
   const attended = useAttended();
   const tilt = useRef<HTMLDivElement>(null);
   const off = useDesktopOff();
-  const { q, reads, data: snap, brief } = useOverview(demo, state);
+  // 待处理, 在做 and the today card are 日报与简报's; without it the clock reads /health.
+  const todayOn = plugins.daily_brief;
+  const { q, reads, data: snap, brief } = useOverview(demo, state, todayOn);
+  const health = useQuery({ queryKey: ['home', 'health'], queryFn: readHealth, enabled: !todayOn && state !== 'loading', retry: false, refetchInterval: 60_000 });
   const now = useNow(snap.now, still);
   const toast = useToast();
   const act = useOverviewActions(snap, now, go, toast, () => void q.refetch());
+  const [draft, setDraft] = useState<CreateDraft | null>(null);
+  const goals = useQuery({
+    queryKey: ['home', 'goals'],
+    queryFn: async () => (await get<{ goals: WireGoal[] }>('/agent/goals')).goals.map((g) => fromGoal(g, [])),
+    enabled: draft != null,
+    retry: false,
+  });
   const pending = useMemo(
     () => sortPending(snap.pending.filter((p) => !p.resolved && !act.decided[p.id])).filter((p) => !isExpired(p, now, snap.now)),
     [snap, now, act.decided],
   );
   const run = useMemo(() => runRows(snap, brief?.convs ?? []), [snap, brief]);
-  const offline = !!q.data && snap.connection !== 'connected';
-  const conn: Conn = !q.data ? (q.isError ? 'failed' : 'loading') : offline ? (snap.connection === 'unauthorized' ? 'refused' : 'lost') : q.isError ? 'stale' : 'ok';
+  const conn = todayOn ? connOf(q.data && snap.connection, q.isError) : connOf(health.data, health.isError);
   const counts = { pending: q.data ? pending.length : null, running: reads.running.data ? run.rows.length : null };
 
   useEffect(() => {
@@ -117,7 +145,7 @@ export function HomePage() {
       return r ? [{ id, icon, title: r.title, hotkey: r.hotkey, off: undefined, onClick: () => go({ page: id as PageId }) }] : [];
     });
   const acts = {
-    dispatch: () => go({ page: 'overview', create: 'role', focus: 'task-create' }),
+    dispatch: () => setDraft(draftFor('role')),
     search: () => window.dispatchEvent(new Event(OPEN_PALETTE)),
     look: () => void look(),
     quickInput: () => void openQuickInput(),
@@ -209,6 +237,7 @@ export function HomePage() {
           </div>
         </Stage3D>
       </div>
+      <CreateDialog draft={draft} setDraft={setDraft} goals={goals.data ?? []} push={toast} onCreated={() => {}} />
     </div>
   );
 }

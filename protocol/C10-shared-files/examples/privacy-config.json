@@ -1,5 +1,4 @@
 {
-  "observe_activity" : true,
   "render_facing_mode" : "auto",
   "screen_context_level" : "window",
   "share_agent_sessions" : true,

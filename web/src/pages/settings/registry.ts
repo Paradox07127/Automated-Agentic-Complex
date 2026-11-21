@@ -51,7 +51,7 @@ export const DRAFT_SECTION: Record<string, string> = {
 /** Which group a draft section belongs to (nav「草稿」mark). */
 export const SECTION_GROUP: Record<string, GroupId> = { kernel: 'kernel', m_acct: 'model', m_chat: 'model' };
 
-/** What a destructive switch removes, for the confirm text. Switching observation off keeps its records. */
+/** What a destructive switch removes, for the confirm text. */
 export const DELETE_WHAT: Record<string, string> = {
   wintext: '窗口文字',
   web: '网页正文摘要，以及由它推出的记忆',
@@ -79,7 +79,7 @@ export interface RegEntry {
 type Raw = [id: string, group: RegEntry['group'], section: string, label: string, keywords?: string, action?: boolean];
 
 const RAW: Raw[] = [
-  ['plugins.screen_awareness', 'plugins', '插件', '屏幕感知', '观察 屏幕 活动 窗口文字 时间线 浏览器'],
+  ['plugins.screen_awareness', 'plugins', '插件', '屏幕感知', '观察 屏幕 活动 注意力 窗口文字 时间线 浏览器'],
   ['plugins.screen_reading', 'plugins', '插件', '屏幕识读', '识读 截图 框选 剪贴板 选中文字'],
   ['plugins.daily_brief', 'plugins', '插件', '日报与简报', '工业简报 今天 日报 周报 工作记录'],
   ['plugins.coding_sessions', 'plugins', '插件', '编码会话', 'Claude Code Codex hook 会话 审批'],
@@ -142,7 +142,6 @@ const RAW: Raw[] = [
   ['reasoning', 'model', '模型能力', '思考', 'pi 兼容 推理 reasoning'],
   ['hooks', 'model', '编码工具接入', 'Claude Code / Codex 接入', 'hooks 绑定'],
   ['out', 'privacy', '外发总览', '外发总览', '外发 云端 截图额度 流向'],
-  ['observe', 'privacy', '观察', '观察屏幕活动', '注意力 观察'],
   ['pause', 'privacy', '观察', '暂停观察', '暂停', true],
   ['brief_daily', 'privacy', '观察', '每日简报', '简报 日报'],
   ['brief_weekly', 'privacy', '观察', '每周简报', '简报 周报'],
@@ -163,7 +162,6 @@ const RAW: Raw[] = [
   ['automation', 'perm', '系统权限', '自动化', 'TCC 浏览器 终端'],
   ['notifications', 'perm', '系统权限', '通知权限', 'TCC 系统通知'],
   ['k_ask', 'perm', '角色能力', '提问与审批', '确认 批准 授权'],
-  ['k_cu', 'perm', '角色能力', '操作电脑', 'computer use'],
   ['scope', 'perm', '资料范围', '可读取的文件夹 │ 撤销授权', '文件夹 授权'],
   ['delrecent', 'data', '数据', '删除最近观察记录', '删除 最近', true],
   ['delact', 'data', '数据', '清空活动记录…', '删除 清空', true],

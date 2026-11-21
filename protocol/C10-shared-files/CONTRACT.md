@@ -50,15 +50,14 @@
 |---|---|
 | 路径 | Companion 的 `config.json`，默认 `~/Library/Application Support/local.agenticcomplex.companion/config.json`。Companion 用 `--privacy-config <路径>` 交给 agentd（C9「启动」）；agentd 不认默认路径 |
 | 所有者 | Companion：设置页保存（`SettingsStore.save`）、首次运行（`PackagedDistribution`）。agentd 只读，不写 |
-| 读者 | agentd：`observation/privacy.py`（`saved_consent`、`saved_switch`）、`daemon/switches.py`（`observe_activity`）、`daemon/context.py`（`render_facing_mode`） |
+| 读者 | agentd：`observation/privacy.py`（`saved_consent`、`saved_switch`）、`daemon/context.py`（`render_facing_mode`） |
 | 写入时机 | 用户保存设置时，整份文件原子替换 |
 | 权限 | Companion 按进程的 umask 写，本合同不要求 |
-| 版本字段 | 没有。`config.json` 没有版本键，C10 也不往里加；整份配置的键归 Companion 的 `ConfigSchema` 管，本节只管 agentd 读的 8 个键 |
+| 版本字段 | 没有。`config.json` 没有版本键，C10 也不往里加；整份配置的键归 Companion 的 `ConfigSchema` 管，本节只管 agentd 读的 7 个键 |
 | agentd 何时读 | 不缓存：每次取权限快照（采集、缓存上下文、决定外发前）、每次组朝向决定的情境时各读一次 |
 
 | 键 | 类型 | 缺省时 agentd 当作 | 含义 |
 |---|---|---|---|
-| `observe_activity` | 布尔 | 真 | 观察电脑上的活动；关时 agentd 不收外部编码会话的活动 |
 | `share_window_text` | 布尔 | 假 | 窗口文字；还要 `screen_context_level` 是 `focused` 或 `window` |
 | `screen_context_level` | 字符串 `status` / `focused` / `window` | `focused` | 屏幕上下文的粒度 |
 | `share_page_text` | 布尔 | 假 | 网页正文和选区 |
@@ -69,7 +68,8 @@
 
 - 布尔键只有 JSON `true` 算开；`"yes"`、`1` 都算关。
 - 这些键只能收窄启动时的能力，不能放开：`share_*` 要启动时带了对应的 `--share-*`，存的值才有用。
-- 文件读不了、不是 JSON 对象、读的时候被替换：五个分享权限和 `observe_activity` 全关，粒度当作 `status`；`render_facing_mode` 读不了时朝向决定关。
+- 文件读不了、不是 JSON 对象、读的时候被替换：五个分享权限全关，粒度当作 `status`；`render_facing_mode` 读不了时朝向决定关。
+- 观察电脑上的活动不在这些键里：它是插件 `screen_awareness`，Companion 读 `config.json` 的 `plugins.screen_awareness`，用 `--plugin-on` / `--plugin-off screen_awareness` 交给 agentd（C9「启动」）；agentd 不从这份文件读它。
 - 没有 `--privacy-config`：权限按启动参数，粒度 `focused`，朝向 `auto`。
 
 ## TTS 令牌 `tts-token`
@@ -93,7 +93,7 @@
 
 ## 样例与校验
 
-- `examples/blacklist.json`、`examples/privacy-config.json`（只含 agentd 读的 8 个键）、`examples/tts-token`（假令牌）。git 不保存 0600，用令牌样例的测试先把它拷成 0600 的临时文件。
+- `examples/blacklist.json`、`examples/privacy-config.json`（只含 agentd 读的 7 个键）、`examples/tts-token`（假令牌）。git 不保存 0600，用令牌样例的测试先把它拷成 0600 的临时文件。
 - `test_examples.py`：只用标准库，查三份样例的键和类型。
 - `agent/agentd/tests/test_c10_shared_files.py`：agentd 新建和重写的 `blacklist.json` 与样例键、类型一致，`schema` 为 1；`saved_consent`、`saved_switch` 读 `examples/privacy-config.json`；`--tts-token-file` 指向样例令牌时取到的令牌等于样例内容。
 - `agent/agentd/tests/test_server.py` `test_tts_token_file_comes_from_the_flag_else_the_environment`：先 `--tts-token-file`，再 `$AAC_TTS_TOKEN_FILE`，都没有时没有令牌。

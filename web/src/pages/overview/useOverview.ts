@@ -113,18 +113,20 @@ const runtimeDemo = (demo: string | null) => (demo === 'kernel-off' ? 'logged-ou
  * The overview's section reads (load.ts) plus the feed. Each section has its own query and shows as soon as it answers;
  * 待处理 reads `/agent/snapshot` alone. `state=loading` never reads (skeletons); `state=error` lets the first snapshot read
  * land and fails the refresh after it, so 待处理 shows its last data as stale, as a real failed refresh does.
+ * `today` false (日报与简报 off) reads only the role band's core routes.
  */
-export function useOverview(demo: string | null, state: DemoState | null) {
+export function useOverview(demo: string | null, state: DemoState | null, today = true) {
   const client = useQueryClient();
   const failRefresh = useRef(false);
-  const once = { enabled: state !== 'loading', retry: false, staleTime: Number.POSITIVE_INFINITY } as const;
+  const core = { enabled: state !== 'loading', retry: false, staleTime: Number.POSITIVE_INFINITY } as const;
+  const once = { ...core, enabled: core.enabled && today };
   // The reads a feed event changes share this key prefix; a feed reset re-reads all overview queries.
   const all = useMemo(() => ['overview', demo], [demo]);
   const work = useMemo(() => ['overview', demo, 'work'], [demo]);
   const q = useQuery<SnapshotRead, Error>({ queryKey: [...work, 'snapshot'], queryFn: said(() => readSnapshot(demo, demo === 'fail' || failRefresh.current)), ...once });
   const running = useQuery<RunningRead, Error>({ queryKey: [...work, 'running'], queryFn: said(readRunning), ...once });
   const turns = useQuery<ErrorEntry[], Error>({ queryKey: [...work, 'turns'], queryFn: said(() => readFailedTurns(clock())), ...once });
-  const role = useQuery<RoleRead, Error>({ queryKey: ['overview', demo, 'role'], queryFn: said(() => readRole(demo)), ...once });
+  const role = useQuery<RoleRead, Error>({ queryKey: ['overview', demo, 'role'], queryFn: said(() => readRole(demo)), ...core });
   const day = useQuery<WireDaySegments, Error>({ queryKey: ['overview', demo, 'day'], queryFn: said(() => readDay(demo, clock())), ...once, refetchInterval: REFRESH_MS });
   const bq = useQuery<OverviewBrief, Error>({ queryKey: ['overview', demo, 'brief'], queryFn: said(() => loadBrief(clock())), ...once, refetchInterval: REFRESH_MS });
   const mood = useQuery<MoodPoint[], Error>({ queryKey: ['overview', demo, 'mood'], queryFn: said(() => readMood(clock())), ...once });

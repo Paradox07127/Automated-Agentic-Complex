@@ -3,13 +3,19 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { useState } from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SetNav } from '../../src/pages/settings/SetNav';
 import { SETTING_GROUPS } from '../../src/pages/settings/groups';
 import { isGroup, type GroupId } from '../../src/pages/settings/registry';
 import { Tabs } from '../../src/ui';
+import { pluginsOn, pluginsReset } from './plugins';
 
-afterEach(cleanup);
+// Every plug-in on, so every group has its tab.
+beforeEach(() => pluginsOn());
+afterEach(() => {
+  cleanup();
+  pluginsReset();
+});
 
 const src = resolve(dirname(fileURLToPath(import.meta.url)), '../../src');
 const css = readFileSync(resolve(src, 'ui/Tabs.module.css'), 'utf8');

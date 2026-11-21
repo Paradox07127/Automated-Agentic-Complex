@@ -33,8 +33,6 @@ export interface DiagView {
   /** agentd was started without a TTS (provider none, reason not_configured). */
   voiceNone: boolean;
   pauses: Pauses | null;
-  /** agentd already runs with observation off. */
-  observeOff: boolean;
   /** agentd's live mute (config.json, or a spoken「静音」since it started); null when not reported. */
   muted: boolean | null;
   /** When the running agentd started, epoch ms. */
@@ -68,7 +66,6 @@ export function diagView(d: WireDiagSlice | null): DiagView {
     voiceSource: tts?.provider ? { provider: tts.provider, reason: tts.reason ?? null } : null,
     voiceNone: tts?.provider === 'none' && tts.reason === 'not_configured',
     pauses: obs && 'paused_until' in obs ? { quiet: isoToMsOrNull(obs.quiet_until), observe: isoToMsOrNull(obs.paused_until), meeting: obs.meeting } : null,
-    observeOff: obs?.off === true,
     muted: typeof d?.mouth_voice?.muted === 'boolean' ? d.mouth_voice.muted : null,
     agentdStartedAt: typeof d?.connections?.agentd?.started_at === 'string' ? isoToMsOrNull(d.connections.agentd.started_at) : null,
   };

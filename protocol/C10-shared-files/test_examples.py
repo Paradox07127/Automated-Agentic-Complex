@@ -7,7 +7,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # key -> JSON type, as CONTRACT.md lists them
 BLACKLIST = {"schema": int, "bundle_ids": list, "app_names": list, "domains": list,
              "title_patterns": list, "incognito": bool, "mode": str, "allow": dict}
-PRIVACY = {"observe_activity": bool, "share_window_text": bool, "screen_context_level": str, "share_page_text": bool, "share_typed_text": bool,
+PRIVACY = {"share_window_text": bool, "screen_context_level": str, "share_page_text": bool, "share_typed_text": bool,
            "share_agent_sessions": bool, "share_screenshots": bool, "render_facing_mode": str}
 
 

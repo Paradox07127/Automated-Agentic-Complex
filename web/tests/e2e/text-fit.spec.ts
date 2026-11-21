@@ -84,7 +84,7 @@ test('对话 1440 and 1920: history speakers fit and long previews retain their 
 });
 
 test('对话 900×700: the composer status hint is shown whole; at 900×600 it may end in … and carries its full text as a title', async ({ page }) => {
-  await open(page, 900, 700, 'chat');
+  await open(page, 900, 700, 'chat?plugins=all');
   const hint = page.getByText('前台执行中，新消息由只读旁路回答');
   await expect(hint).toBeVisible();
   const f = (await fits(hint))[0]!;

@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 for (const theme of ['dark', 'light'] as const) {
   test(`${theme} 1440: SNS contact cells, the current one in a 2px frame with corner brackets, not a yellow block`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`main.html#/chat?still=1&theme=${theme}`);
+    await page.goto(`main.html#/chat?plugins=all&still=1&theme=${theme}`);
     const nav = page.getByRole('navigation', { name: '对话列表' });
     // LeftArea 600 g = 300 px at this width.
     expect((await nav.locator('xpath=..').boundingBox())!.width).toBe(300);
@@ -34,7 +34,7 @@ for (const theme of ['dark', 'light'] as const) {
 
 test('1440: history opens on demand and the centered composer stays at the bottom', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('main.html#/chat?still=1');
+  await page.goto('main.html#/chat?plugins=all&still=1');
   const thread = page.getByRole('region', { name: '消息' });
   const history = page.getByRole('dialog', { name: '历史记录' });
   await expect(history).toHaveCount(0);
@@ -52,7 +52,7 @@ test('1440: history opens on demand and the centered composer stays at the botto
 });
 
 test('1280: the question is an SNS vote cell, one uncut option row per line; the free answer and 取消请求 / 提交回答 stay', async ({ page }) => {
-  await page.goto('main.html#/chat?still=1');
+  await page.goto('main.html#/chat?plugins=all&still=1');
   const card = page.locator('[data-kind="question"][data-pending]').first();
   await expect(card).toBeVisible();
   const opts = card.getByRole('option');

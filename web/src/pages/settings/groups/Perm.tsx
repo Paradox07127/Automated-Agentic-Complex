@@ -107,12 +107,6 @@ export function PermGroup() {
 
       <SetSection title="角色能力">
         <SetRow id="k_ask" title="提问与审批" desc="允许角色提出问题和需确认的操作。已授权资料范围内的文件操作按该范围执行。" control={c.toggle('k_ask', '提问与审批')} />
-        <SetRow
-          id="k_cu"
-          title="操作电脑"
-          desc="需要辅助功能和可用的输入接管监听。角色请求操作时，先为指定窗口授权。"
-          control={c.toggle('k_cu', '操作电脑')}
-        />
       </SetSection>
 
       {shown('scope') && <ScopeList />}

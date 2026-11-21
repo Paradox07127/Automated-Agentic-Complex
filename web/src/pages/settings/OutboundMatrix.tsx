@@ -1,6 +1,8 @@
 import { Missing, Table, TableCell, TableHead, TableRow } from '../../ui';
+import { usePlugins } from '../../shell/plugins';
 import { useSettings } from './ctx';
 import { KERNEL_LABEL } from './fields';
+import { REGISTRY } from './registry';
 import styles from './OutboundMatrix.module.css';
 
 export type Dest = 'local' | 'cloud';
@@ -37,6 +39,7 @@ function allowed(...states: Array<boolean | null>): boolean | null {
 /** Data type × destination with on/off, from the switches on this page. Every type here is observation evidence the role kernel interprets. */
 export function useOutboundRows(): MatrixRow[] {
   const { model, perms } = useSettings();
+  const plugins = usePlugins();
   const on = (id: string) => {
     const value = model.value(id);
     return typeof value === 'boolean' ? value : null;
@@ -45,9 +48,13 @@ export function useOutboundRows(): MatrixRow[] {
   const cloud = kernelCloud(model.value('kernel'), model.value('acct'));
   const grain = model.value('grain');
   const windowText = typeof grain === 'string' ? grain !== 'status' : null;
-  const active = on('observe');
-  const local = (id: string, permitted: boolean | null = true): Route => ({ on: allowed(active, on(id), permitted), row: id });
-  const toCloud = (id: string, permitted: boolean | null = true): Route => ({ on: allowed(active, on(id), permitted, cloud), row: id });
+  // A row's data is collected only while the plug-in owning the row is on.
+  const active = (id: string) => {
+    const p = REGISTRY.find((r) => r.id === id)?.plugin;
+    return !p || plugins[p];
+  };
+  const local = (id: string, permitted: boolean | null = true): Route => ({ on: allowed(active(id), on(id), permitted), row: id });
+  const toCloud = (id: string, permitted: boolean | null = true): Route => ({ on: allowed(active(id), on(id), permitted, cloud), row: id });
   return [
     { key: 'shot', label: '截图', row: 'shot', to: { cloud: toCloud('shot', shot ? shot === 'granted' : null) } },
     // At `status` saved_consent turns window text off whatever its own switch says.

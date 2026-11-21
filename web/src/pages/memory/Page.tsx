@@ -9,6 +9,7 @@ import type { BridgeError } from '../../bridge/protocol';
 import type { Fact, MemorySource } from '../../domain';
 import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
+import { usePlugins } from '../../shell/plugins';
 import { ErrBar, PageIssues, reasonOf, Region, Tabs, type RegionSource } from '../../ui';
 import { pageNow, useGo, usePageParams } from './api';
 import { Archive } from './Archive';
@@ -62,13 +63,16 @@ export function MemoryPage() {
   const empty = state === 'empty';
   // `?demo=absent` reaches the fake bridge only: an agentd without /memory/tasks.
   const fake = !window.agenticComplex && demo ? `&demo=${encodeURIComponent(demo)}` : '';
+  const plugins = usePlugins();
   const work = useQuery({
     queryKey: ['memory', 'tasks', fake],
     queryFn: async () => (await get<MemoryTasksResponse>(`/memory/tasks?status=active,parked,done,uncertain${fake}`)).tasks,
-    enabled: state !== 'loading' && !empty,
+    enabled: state !== 'loading' && !empty && plugins.daily_brief,
     retry: false,
   });
-  const hasProjects = !noRoute(work.error);
+  const hasProjects = plugins.daily_brief && !noRoute(work.error);
+  // 活动回顾 reads 屏幕感知's records.
+  const hasActivity = plugins.screen_awareness;
   const facts = useMemo(() => (empty ? [] : (mem.data?.facts ?? [])), [empty, mem.data]);
   const model = useFacts(facts);
   const [pausedDemo, setPausedDemo] = useState(demo === 'paused');
@@ -85,9 +89,7 @@ export function MemoryPage() {
   const [never, setNever] = useState<ReadonlySet<string>>(new Set());
   const [restored, setRestored] = useState<Record<string, Version[]>>({});
   const searchRef = useRef<HTMLInputElement>(null);
-  // With observation off there is no activity to review, so the page opens on the profile.
-  const observeOff = useQuery({ queryKey: ['memory', 'observe-setting'], queryFn: async () => (await getBridge().settings.read()).saved.observe === false, retry: false }).data === true;
-  const view: View = picked === 'projects' && !hasProjects ? 'about' : (picked ?? (observeOff ? 'about' : 'activity'));
+  const view: View = (picked === 'projects' && !hasProjects) || (picked === 'activity' && !hasActivity) ? 'about' : (picked ?? (hasActivity ? 'activity' : 'about'));
   const { slot: leave, pick } = useLeave(view, setPicked);
 
   useEffect(() => {
@@ -217,7 +219,7 @@ export function MemoryPage() {
           keys={false}
           value={view}
           onChange={(id) => pick(id as View)}
-          tabs={[{ id: 'activity', label: '活动回顾', icon: 'history' as const }, ...(hasProjects ? [{ id: 'projects', label: '项目', icon: 'folder' as const }] : []), { id: 'about', label: '用户档案', icon: 'user' as const }, { id: 'knowledge', label: '其他事实与线索', icon: 'data' as const }]}
+          tabs={[...(hasActivity ? [{ id: 'activity', label: '活动回顾', icon: 'history' as const }] : []), ...(hasProjects ? [{ id: 'projects', label: '项目', icon: 'folder' as const }] : []), { id: 'about', label: '用户档案', icon: 'user' as const }, { id: 'knowledge', label: '其他事实与线索', icon: 'data' as const }]}
         />
       }
     />

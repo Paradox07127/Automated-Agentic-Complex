@@ -17,9 +17,11 @@ import { pageRoutes } from '../../src/shell/registry';
 import { DEFAULT_PLUGINS } from '../../src/shell/plugins';
 import type { Health } from '../../src/domain';
 import { loadOverview } from './overviewReads';
+import { pluginsOn, pluginsReset } from './plugins';
 
 afterEach(() => {
   cleanup();
+  pluginsReset();
   vi.useRealTimers();
   vi.restoreAllMocks();
   delete window.agenticComplex;
@@ -98,9 +100,10 @@ describe('chat reads every page of the conversation’s tasks', () => {
       return path.includes('cursor=') ? { status: 200, body: { tasks: [b], next_cursor: null } } : { status: 200, body: { tasks: [a], next_cursor: 'p2' } };
     });
     const client = new QueryClient();
+    pluginsOn('personal_agent');
     const { result } = renderHook(() => useChatTasks('conv-1', true), { wrapper: wrapperOf(client) });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.base.tasks).toHaveLength(2);
+    await waitFor(() => expect(result.current.query.isSuccess).toBe(true));
+    expect(result.current.query.data?.base.tasks).toHaveLength(2);
     const reads = calls.filter((p) => p.startsWith('/agent/tasks?'));
     expect(reads).toHaveLength(2);
     expect(reads.every((p) => p.includes('conversation_id=conv-1'))).toBe(true);

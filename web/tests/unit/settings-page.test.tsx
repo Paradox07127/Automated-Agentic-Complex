@@ -43,7 +43,7 @@ describe(' 隐私: 外发总览 plate', () => {
     expect(plate.textContent).toMatch(/今日截图 37 \/ 200 正常允许送往云端的类型 \d 项展开/);
     expect(within(plate).getAllByRole('button')).toHaveLength(1);
     expect(within(plate).queryByRole('img')).toBeNull();
-    expect(screen.getByRole('switch', { name: '观察屏幕活动' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '暂停 1 小时' })).toBeTruthy();
   });
 
   it('draws today\'s screenshots, the hours, the flow map and the route table under [展开]', async () => {
@@ -143,7 +143,7 @@ describe(' states and navigation', () => {
     for (const id of ['delrecent', 'delact', 'delall', 'archive']) expect(document.querySelector(`[data-row="${id}"]`)?.hasAttribute('data-opens')).toBe(false);
     cleanup();
     await mount('');
-    await screen.findByRole('switch', { name: '观察屏幕活动' });
+    await screen.findByRole('button', { name: '暂停 1 小时' });
     expect(document.querySelectorAll('[data-opens]')).toHaveLength(0);
   });
 });

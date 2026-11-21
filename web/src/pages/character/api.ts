@@ -1,6 +1,7 @@
 // Character page agentd reads and writes: wire shapes in, domain objects out.
 import { AgentdCallError, CONFLICT_CODES, del, get } from '../../bridge/agentd';
 import { serverFaultText } from '../../domain/errorText';
+import { getPlugins } from '../../shell/plugins';
 import {
   characterStateReset,
   fromCharacterState,
@@ -95,8 +96,9 @@ export function readScales(): StateScales | null {
   return mockOnly() ? demo.stateScales! : null;
 }
 
-/** Character tasks running now among the newest 100 (`/agent/tasks`, agentd's page maximum); a switch pauses their input for a moment. */
+/** Character tasks running now among the newest 100 (`/agent/tasks`, agentd's page maximum); a switch pauses their input for a moment. None without 个人代理. */
 export async function readRunningTasks(): Promise<Array<{ title: string }>> {
+  if (!getPlugins().personal_agent) return [];
   const r = await get<{ tasks: WireTaskRow[] }>('/agent/tasks?limit=100');
   return r.tasks.map((row) => fromTaskRow(row)).filter((t) => t.status === 'running');
 }

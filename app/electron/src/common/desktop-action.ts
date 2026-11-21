@@ -67,7 +67,7 @@ export interface ObservationState {
   /** null when observation is not paused. */
   pausedUntil: number | null;
   meeting: boolean;
-  /** agentd runs with `--observation-off`: paused with no end. */
+  /** The 屏幕感知 plug-in (`plugins.screen_awareness`) is off: paused with no end. */
   off: boolean;
   /** null when quiet is off; agentd turns meeting and pause on while quiet and ends all three at this time. */
   quietUntil: number | null;

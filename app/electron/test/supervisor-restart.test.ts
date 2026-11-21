@@ -112,7 +112,7 @@ test('a stop while a restart is stopping agentd wins: agentd stays stopped', asy
   }
 });
 
-test('starting agentd with coding sessions on writes <support>/bin/agentic-complex-hook (on Windows its .cmd) to run this launch\'s forwarder', async () => {
+test('starting agentd with coding sessions and external access on writes <support>/bin/agentic-complex-hook (on Windows its .cmd) to run this launch\'s forwarder, and the CLI', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hook-')), support = join(dir, 's');
   mkdirSync(support);
   mkdirSync(join(dir, "it's"));
@@ -120,7 +120,7 @@ test('starting agentd with coding sessions on writes <support>/bin/agentic-compl
   writeFileSync(script, fakeAgentd(launches));
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: join(dir, "it's"),
     python: process.execPath, agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state'),
-    plugins: { coding_sessions: true } }));
+    plugins: { coding_sessions: true, external_access: true } }));
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
   const windows = process.platform === 'win32', hook = join(support, 'bin', windows ? 'agentic-complex-hook.cmd' : 'agentic-complex-hook');
   try {
@@ -137,13 +137,14 @@ test('starting agentd with coding sessions on writes <support>/bin/agentic-compl
   }
 });
 
-test('starting agentd with coding sessions off writes no hook script, only the CLI\'s', async () => {
+test('starting agentd with coding sessions off and external access on writes no hook script, only the CLI\'s', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'nohook-')), support = join(dir, 's');
   mkdirSync(support);
   const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
   writeFileSync(script, fakeAgentd(launches));
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir,
-    python: process.execPath, agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+    python: process.execPath, agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state'),
+    plugins: { external_access: true } }));
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
   const windows = process.platform === 'win32';
   try {
@@ -151,6 +152,25 @@ test('starting agentd with coding sessions off writes no hook script, only the C
     assert.ok(await until(20, () => supervisor.state.kind === 'running'), JSON.stringify(supervisor.state));
     assert.deepEqual(readdirSync(join(support, 'bin')), [windows ? 'agentic-complex.cmd' : 'agentic-complex']);
     assert.match(lines(launches)[0]!, / --plugin-off coding_sessions /);
+  } finally {
+    await supervisor.stop();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('starting agentd with coding sessions and external access off writes neither the hook script nor the CLI\'s', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nocli-')), support = join(dir, 's');
+  mkdirSync(support);
+  const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
+  writeFileSync(script, fakeAgentd(launches));
+  writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir,
+    python: process.execPath, agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+  const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
+  try {
+    supervisor.start();
+    assert.ok(await until(20, () => supervisor.state.kind === 'running'), JSON.stringify(supervisor.state));
+    assert.equal(existsSync(join(support, 'bin')), false);
+    assert.match(lines(launches)[0]!, / --plugin-off external_access /);
   } finally {
     await supervisor.stop();
     rmSync(dir, { recursive: true, force: true });

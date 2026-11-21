@@ -14,6 +14,11 @@ import { demos } from '../../src/pages/memory/demos';
 import { readMemory } from '../../src/pages/memory/useFacts';
 import { NOW } from '../../src/mock/fixtures';
 import { ToastHost } from '../../src/shell/toast';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so the page reads and shows what its plug-ins add.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 type Call = [string, string, unknown?];
 

@@ -14,6 +14,7 @@ import { AdvGroup } from '../../src/pages/settings/groups/Adv';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
 import { ModelGroup } from '../../src/pages/settings/groups/Model';
 import { PermGroup } from '../../src/pages/settings/groups/Perm';
+import { PluginsGroup } from '../../src/pages/settings/groups/Plugins';
 import { PrivacyGroup } from '../../src/pages/settings/groups/Privacy';
 import { SpeakGroup } from '../../src/pages/settings/groups/Speak';
 import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model';
@@ -256,11 +257,11 @@ describe('restart notice', () => {
 
 describe('恢复默认 wording', () => {
   it('names the switches the reset turns on', async () => {
-    const off = { ...d, native: { ...d.native, saved: { ...d.native.saved, keys: false, observe: false } } };
+    const off = { ...d, native: { ...d.native, saved: { ...d.native.saved, keys: false, micapp: false } } };
     render(<Harness d={off}><AdvGroup /></Harness>);
     await click(screen.getByRole('button', { name: '恢复默认…' }));
     const text = screen.getByRole('dialog').textContent ?? '';
-    expect(text).toContain('会打开：观察屏幕活动、键鼠计数');
+    expect(text).toContain('会打开：键鼠计数、使用麦克风的应用');
     expect(text).not.toContain('读取类的开关都会关掉');
   });
 });
@@ -347,13 +348,16 @@ describe('permission rows', () => {
     expect(screen.getByTestId('toast').textContent).toContain('请先打开「终端」');
   });
 
-  it('the 操作电脑 switch can be turned on in the native main window', async () => {
+  it('the 电脑操作 plug-in switch can be turned on in the native main window, and 角色能力 has no switch of its own for it', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     expect(window.agenticComplex!.capabilities.computerUse).toBe(false);
     render(<Harness d={d}><PermGroup /></Harness>);
-    expect(document.querySelector('[data-row="k_cu"]')!.textContent).not.toContain('不支持');
-    await click(screen.getByRole('switch', { name: '操作电脑' }));
-    expect(save).toHaveBeenCalledWith({ k_cu: true });
+    expect(screen.queryByRole('switch', { name: '操作电脑' })).toBeNull();
+    cleanup();
+    render(<Harness d={d}><PluginsGroup /></Harness>);
+    expect(document.querySelector('[data-row="plugins.computer_use"]')!.textContent).not.toContain('不支持');
+    await click(screen.getByRole('switch', { name: '电脑操作' }));
+    expect(save).toHaveBeenCalledWith({ 'plugins.computer_use': true });
   });
 });
 

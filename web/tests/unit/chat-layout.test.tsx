@@ -1,7 +1,7 @@
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { MockRoute } from '../../src/mock';
 import { MESSAGES, NOW, WIRE_CONVERSATIONS, WIRE_RUNTIME } from '../../src/mock/fixtures';
@@ -9,6 +9,11 @@ import { MessageList } from '../../src/pages/chat/MessageList';
 import { ChatPage } from '../../src/pages/chat/Page';
 import { ToastHost } from '../../src/shell/toast';
 import { C1, C2, C6 } from '../../src/mock/fixtures/ids';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so the page reads and shows what its plug-ins add.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 // The foreground/side lanes are back as a two-lane track, the task opens in the right column (not a
 // Sheet), tool rows and the inline task are the prototype's own rows, and an empty page offers 新建对话.

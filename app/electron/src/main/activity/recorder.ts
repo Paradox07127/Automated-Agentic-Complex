@@ -1,6 +1,6 @@
 // The activity recorder over the platform helper (CONTRACT §7.2 `workspace.watch`, §7.4 `ax.watch`): the front app's
 // focus, value, selection and window changes become `POST /context/events` batches while agentd runs and
-// `observe_activity` is on.
+// `plugins.screen_awareness` is on.
 import {
   ActivityCoalescer, type ActivityElement, type ActivityEvent, ActivityEventQueue, type ActivityPolicy, appElement, captureWindow, decodeElement,
   eventsBody, filterEvent,
@@ -79,7 +79,7 @@ export class ActivityRecorder {
     this.latestSample = sample;
   }
 
-  /** agentd is up and `observe_activity` is on. */
+  /** agentd is up and `plugins.screen_awareness` is on. */
   start(): void {
     if (this.running) return;
     this.lastPost = this.seconds();

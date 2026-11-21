@@ -11,7 +11,7 @@ function collectErrors(page: Page): string[] {
 
 test('chat default: the command bar is visible, no right column, and the reading column is centered and up to 48rem wide', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/chat?still=1');
+  await page.goto('main.html#/chat?plugins=all&still=1');
   const thread = page.getByRole('region', { name: '消息' });
   await expect(thread.getByText('按项目分组，不要按日期。')).toBeVisible();
   await expect(page.getByRole('navigation', { name: '主导航' })).toBeVisible();
@@ -29,7 +29,7 @@ test('chat default: the command bar is visible, no right column, and the reading
 });
 
 test('chat default: the inline task opens the 任务 tab in the right column, 收起右栏 closes it', async ({ page }) => {
-  await page.goto('main.html#/chat?still=1');
+  await page.goto('main.html#/chat?plugins=all&still=1');
   await page.getByRole('button', { name: /^任务 整理本周提交周报/ }).click();
   const col = page.getByRole('complementary', { name: '任务', exact: true });
   await expect(col).toBeVisible();
@@ -40,7 +40,7 @@ test('chat default: the inline task opens the 任务 tab in the right column, �
 
 test('chat empty: 还没有对话 once, offering 新建对话 as the one primary button', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/chat?state=empty&still=1');
+  await page.goto('main.html#/chat?plugins=all&state=empty&still=1');
   await expect(page.getByText('还没有对话')).toBeVisible();
   await expect(page.getByText('暂无对话')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /新建对话/ }).last()).toBeVisible();
@@ -50,7 +50,7 @@ test('chat empty: 还没有对话 once, offering 新建对话 as the one primary
 
 test('chat 900×600: the composer keeps a one-line field and folds the hint into the tool row, so the thread keeps the height', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
-  await page.goto('main.html#/chat?still=1');
+  await page.goto('main.html#/chat?plugins=all&still=1');
   const field = page.getByRole('textbox', { name: '消息' });
   const hint = page.getByText('前台执行中，新消息由只读旁路回答');
   await expect(hint).toBeVisible();

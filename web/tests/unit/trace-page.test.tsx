@@ -2,11 +2,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ChatPage } from '../../src/pages/chat/Page';
 import { DiagPage } from '../../src/pages/diag/Page';
 import { TracePage } from '../../src/pages/trace/Page';
 import { setDevMode } from '../../src/shell/devMode';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so the page reads and shows what its plug-ins add.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 afterEach(() => {
   cleanup();

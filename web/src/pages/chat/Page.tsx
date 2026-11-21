@@ -51,7 +51,7 @@ export function ChatPage() {
   const conv = current?.id ?? null;
   const history = current != null && !current.active;
   const turns = useTurns(live ? conv : null);
-  const tasksQ = useChatTasks(conv, live);
+  const { query: tasksQ, refetch: refetchTasks } = useChatTasks(conv, live);
   const { query: runtime, recheck: recheckRuntime } = useRuntime(demo === 'kernel', live);
   const lookOff = useLookOff(live);
   const traceRows = useTraceRows(live, src);
@@ -81,11 +81,11 @@ export function ChatPage() {
       void convs.refetch();
       if (historyOpen) void hist.refetch();
     },
-    tasks: () => void tasksQ.refetch(),
+    tasks: () => refetchTasks(),
     reload: () => {
       void convs.refetch();
       void turns.query.refetch();
-      void tasksQ.refetch();
+      refetchTasks();
       void traceRows.refetch();
       if (historyOpen) void hist.refetch();
     },
@@ -115,7 +115,7 @@ export function ChatPage() {
   const activeTurn = tasksQ.data?.activeTurn;
   const stopTarget = activeTurn ?? headerRun;
   const stopTask = stopTarget?.run_id === headerRun?.run_id ? defaultTask : null;
-  const receipt = useChatReceipts(tasksQ.data, conv, () => void tasksQ.refetch());
+  const receipt = useChatReceipts(tasksQ.data, conv, () => refetchTasks());
   const topBusy = convs.data?.busy ?? false;
   const owner = tasksQ.data?.runConversation ?? {};
   const requests: Question[] = (tasksQ.data?.base.questions ?? []).filter((r) => (r.conversation_id ?? owner[r.run_id ?? '']) === conv);
@@ -164,7 +164,7 @@ export function ChatPage() {
     reload: {
       list: () => void convs.refetch(),
       turns: () => void turns.query.refetch(),
-      tasks: () => void tasksQ.refetch(),
+      tasks: () => refetchTasks(),
       runtime: async (refresh?: boolean) => (refresh ? recheckRuntime() : (await runtime.refetch()).data),
     },
     push,
@@ -187,7 +187,7 @@ export function ChatPage() {
   const retryLoad = () => {
     void convs.refetch();
     void turns.query.refetch();
-    void tasksQ.refetch();
+    refetchTasks();
   };
   const modelError = failed?.code ?? replies.at(-1)?.error ?? rowOf(wire.at(-1)?.turn_id)?.error_code ?? (selected?.id === 'pi' && runtime.data?.info.error === 'pi_connection_missing' ? 'pi_connection_missing' : null);
 

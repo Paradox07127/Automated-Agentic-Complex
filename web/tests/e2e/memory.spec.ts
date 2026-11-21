@@ -44,7 +44,7 @@ async function overflow(page: Page): Promise<number[]> {
 test('activity review opens the original evidence, searches, and switches source views', async ({ page }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 900, height: 600 });
-  await page.goto('main.html#/memory?still=1');
+  await page.goto('main.html#/memory?plugins=all&still=1');
   const activity = page.getByRole('region', { name: '活动回顾' });
   const row = activity.getByRole('button', { name: '查看 核对渲染测试结果' });
   await row.click();
@@ -73,7 +73,7 @@ test('activity review opens the original evidence, searches, and switches source
 
 test('memory-about: the wiki profile leads (group cells left, key-value rows right), then two open asks and the list', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/memory?still=1&view=about');
+  await page.goto('main.html#/memory?plugins=all&still=1&view=about');
   const plate = page.getByRole('region', { name: '用户档案' });
   await expect(plate.getByText('小林')).toBeVisible();
   const tabs = await page.getByRole('tablist', { name: '记忆视图' }).boundingBox();
@@ -92,7 +92,7 @@ test('memory-about: the wiki profile leads (group cells left, key-value rows rig
 
 test('memory: ?src= filters the list; a row opens the sheet, Esc closes it and focus returns', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/memory?still=1&src=observed');
+  await page.goto('main.html#/memory?plugins=all&still=1&src=observed');
   await expect(page.locator('[data-fact]')).toHaveCount(1);
   await page.getByRole('button', { name: /清除筛选/ }).click();
   await expect(page.locator('[data-fact]')).toHaveCount(11);
@@ -109,7 +109,7 @@ test('memory: ?src= filters the list; a row opens the sheet, Esc closes it and f
 
 test('memory: 确认 on an ask writes it and says so', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/memory?still=1&view=about');
+  await page.goto('main.html#/memory?plugins=all&still=1&view=about');
   const card = page.getByRole('region', { name: '待确认：写代码时减少主动发言' });
   await card.getByRole('button', { name: '记住' }).click();
   await expect(page.getByText('已确认：写代码时减少主动发言')).toBeVisible();
@@ -119,16 +119,16 @@ test('memory: 确认 on an ask writes it and says so', async ({ page }) => {
 
 test('memory sparse, error and empty demos', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/memory?still=1&demo=sparse&view=about');
+  await page.goto('main.html#/memory?plugins=all&still=1&demo=sparse&view=about');
   await expect(page.locator('[data-fact]')).toHaveCount(4);
   await expect(page.getByText('没有待确认的推断')).toBeVisible();
   await page.goto('about:blank');
-  await page.goto('main.html#/memory?still=1&state=error&view=about');
+  await page.goto('main.html#/memory?plugins=all&still=1&state=error&view=about');
   await expect(page.locator('[data-stub="ErrBar"]').getByText(/没有读到记忆：记忆库正在被另一个进程写入/)).toBeVisible();
   await expect(page.locator('[data-stub="ErrBar"]').getByRole('button', { name: '重试' })).toBeVisible();
   await expect(page.locator('[data-fact]')).toHaveCount(0);
   await page.goto('about:blank');
-  await page.goto('main.html#/memory?still=1&state=empty&view=about');
+  await page.goto('main.html#/memory?plugins=all&still=1&state=empty&view=about');
   await expect(page.getByRole('region', { name: '用户档案' }).getByRole('button', { name: '去对话' })).toBeVisible();
   await expect(page.getByText('还没有记忆，对话后后台整理出的记忆会列在这里')).toBeVisible();
   await expect(page.getByRole('region', { name: '最近变化' })).toHaveCount(0);
@@ -137,7 +137,7 @@ test('memory sparse, error and empty demos', async ({ page }) => {
 
 test('memory: pressable profile values are plain wiki text, no cut corner; fact rows step in under the pointer, ask rows stay put', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/memory?still=1&view=about');
+  await page.goto('main.html#/memory?plugins=all&still=1&view=about');
   const value = page.getByRole('button', { name: '称呼：小林，查看出处' });
   expect(await value.evaluate((e) => [getComputedStyle(e).backgroundImage, getComputedStyle(e).clipPath])).toEqual(['none', 'none']);
   const ask = page.getByRole('region', { name: '待确认：周报按项目分组，不按日期' });
@@ -164,13 +164,13 @@ for (const [w, h] of [
   test(`memory ${w}×${h}: no sideways scroll in the projects, 用户档案, full and sheet views`, async ({ page }) => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width: w, height: h });
-    await page.goto('main.html#/memory?still=1&view=projects');
+    await page.goto('main.html#/memory?plugins=all&still=1&view=projects');
     await expect(page.locator('[data-project]').first()).toBeVisible();
     expect(await overflow(page), 'projects').toEqual([0, 0]);
     expect(await smallChinese(page), 'projects').toEqual([]);
     for (const q of ['&view=about', '&demo=full&view=about', `&sel=${A3}`, '&theme=light&view=about']) {
       await page.goto('about:blank');
-      await page.goto(`main.html#/memory?still=1${q}`);
+      await page.goto(`main.html#/memory?plugins=all&still=1${q}`);
       await expect(page.getByRole('region', { name: '用户档案' }).getByText('小林')).toBeVisible();
       expect(await overflow(page), q).toEqual([0, 0]);
       expect(await smallChinese(page), q).toEqual([]);

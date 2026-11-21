@@ -85,7 +85,7 @@ test('pipeline: the source bar carries no how-to line; memory-empty: 活动回�
   await expect(page.getByRole('region', { name: '记忆概况' })).toBeVisible();
   await expect(page.locator('main')).not.toContainText('点击一段筛选列表');
   await page.goto('about:blank');
-  await page.goto('main.html#/memory?still=1&state=empty');
+  await page.goto('main.html#/memory?plugins=all&still=1&state=empty');
   const activity = page.getByRole('region', { name: '活动回顾' });
   await expect(activity).toContainText('还没有整理出的工作片段');
   await expect(activity.getByRole('button', { name: /^查看 / })).toHaveCount(0);

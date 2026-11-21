@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgenticComplexBridge, StreamEvent } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { WireRunItem, WireTurn } from '../../src/domain';
@@ -13,6 +13,11 @@ import { ChatPage } from '../../src/pages/chat/Page';
 import { chatStream } from '../../src/pages/chat/stream';
 import { ToastHost } from '../../src/shell/toast';
 import { AgentdCallError, get } from '../../src/bridge/agentd';
+import { pluginsOn, pluginsReset } from './plugins';
+
+// Every plug-in on, so the page reads and shows what its plug-ins add.
+beforeEach(() => pluginsOn());
+afterEach(() => pluginsReset());
 
 afterEach(() => {
   cleanup();
