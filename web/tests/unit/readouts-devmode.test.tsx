@@ -121,6 +121,7 @@ async function character(search: string) {
 const fact: Fact = {
   id: 'f1',
   version: 1,
+  owner: null,
   kind: 'preference',
   text: '喜欢黑咖啡',
   source: 'asserted_by_user',

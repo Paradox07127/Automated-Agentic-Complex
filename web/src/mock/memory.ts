@@ -130,9 +130,9 @@ const store: Record<SetKey, WireFact[]> = {
 const facts = () => store[setKey()];
 const setFacts = (next: WireFact[]) => void (store[setKey()] = next);
 /** server.py `_memory_read`: active facts, then candidates, with state on every row. */
-const wireFacts = (): WireFact[] => [
-  ...facts().filter((f) => f.state !== 'candidate'),
-  ...facts().filter((f) => f.state === 'candidate'),
+const wireFacts = (rows: WireFact[]): WireFact[] => [
+  ...rows.filter((f) => f.state !== 'candidate'),
+  ...rows.filter((f) => f.state === 'candidate'),
 ];
 export let paused = WIRE_MEMORY_PAUSED;
 let historyCleared = false;
@@ -161,9 +161,12 @@ const hypotheses = [
   },
 ];
 
-const counts = () => {
+/** memory.py `_records`: no owner reads every fact, `shared` the ones private to nobody, a character id hers. */
+const ownedBy = (owner: string | null) => facts().filter((f) => owner === null || f.owner === (owner === 'shared' ? null : owner));
+
+const counts = (rows: WireFact[]) => {
   const out: Record<string, number> = { asserted_by_user: 0, confirmed_by_user: 0, observed_context: 0, inferred_hypothesis: 0 };
-  for (const f of facts()) out[f.source] = (out[f.source] ?? 0) + 1;
+  for (const f of rows) out[f.source] = (out[f.source] ?? 0) + 1;
   return out;
 };
 
@@ -180,7 +183,14 @@ function revise(id: string | undefined, body: unknown, newText?: string): MockRe
 }
 
 export const routes: MockRoute[] = [
-  { method: 'GET', path: '/memory', handler: () => ok({ paused, facts: wireFacts(), counts: counts() }) },
+  {
+    method: 'GET',
+    path: '/memory',
+    handler: ({ query }) => {
+      const rows = ownedBy(query.get('owner'));
+      return ok({ paused, facts: wireFacts(rows), counts: counts(rows) });
+    },
+  },
   {
     method: 'PUT',
     path: '/memory/paused',

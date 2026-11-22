@@ -17,6 +17,8 @@ export interface Fact {
   id: string;
   /** Send back as expected_version. */
   version: number;
+  /** The character it is private to; null: shared by all. */
+  owner: string | null;
   kind: FactKind;
   text: string;
   source: MemorySource;

@@ -5,6 +5,8 @@ export interface ScriptedEvent {
   delay: number;
   event: string;
   data: unknown;
+  /** Sent instead of this event when the script is stopped before it. */
+  cut?: unknown;
 }
 
 export const feedScript: ScriptedEvent[] = [
@@ -34,20 +36,35 @@ export function scriptedStream(script: ScriptedEvent[], still: boolean, onEvent:
 
 const REPLIES: Record<string, string> = { si: '嗯，收到啦。我记下了，等会儿就去办，办好了再来叫你。' };
 
+/** What a character answers to any line. */
+export const replyText = (character_id: string): string => REPLIES[character_id] ?? '好，我记下了。';
+
 /** Her reply to a line the fake agentd took: `line` frames of a few deltas, then the final one (turns.py line event). */
 export function replyScript({ character_id, ...line }: { line_id: string; conversation_id: string; character_id: string }): ScriptedEvent[] {
-  const text = REPLIES[character_id] ?? '好，我记下了。';
+  const text = replyText(character_id);
   const parts = text.match(/[^，。！？]+[，。！？]?/g) ?? [text];
-  const frame = (text_delta: string, final: boolean) => ({ ...line, run_id: line.line_id, text_delta, final, intents: [], cancelled: false, error: null, lane: 'character' });
-  return [...parts.map((p) => ({ delay: 400, event: 'line', data: frame(p, false) })), { delay: 300, event: 'line', data: frame('', true) }];
+  const frame = (text_delta: string, final: boolean, cancelled = false) => ({ ...line, run_id: line.line_id, text_delta, final, intents: [], cancelled, error: null, lane: 'character' });
+  return [...parts.map((p) => ({ delay: 400, event: 'line', data: frame(p, false) })), { delay: 300, event: 'line', data: frame('', true), cut: frame('', true, true) }];
 }
 
-/** Plays the script once; `still` plays nothing. */
-export function playOnce(script: ScriptedEvent[], still: boolean, onEvent: (e: StreamEvent) => void): void {
-  if (still) return;
+/** Plays the script once; `still` plays nothing. The returned stop cancels what has not played and reports whether it cut the script short. */
+export function playOnce(script: ScriptedEvent[], still: boolean, onEvent: (e: StreamEvent) => void): () => boolean {
+  if (still) return () => false;
   let wait = 0;
-  script.forEach((item, i) => {
+  let played = 0;
+  const timers = script.map((item, i) => {
     wait += item.delay;
-    setTimeout(() => onEvent({ event: item.event, id: `reply-${i}`, data: JSON.stringify(item.data) }), wait);
+    return setTimeout(() => {
+      played = i + 1;
+      onEvent({ event: item.event, id: `reply-${i}`, data: JSON.stringify(item.data) });
+    }, wait);
   });
+  return () => {
+    if (played === script.length) return false;
+    timers.forEach(clearTimeout);
+    const cut = script.slice(played).find((item) => item.cut !== undefined);
+    if (cut) onEvent({ event: cut.event, id: 'reply-cut', data: JSON.stringify(cut.cut) });
+    played = script.length;
+    return true;
+  };
 }

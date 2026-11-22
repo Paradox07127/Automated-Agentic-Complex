@@ -20,7 +20,7 @@ import { ClearCard } from './Papers';
 import { VARS } from './parts';
 import { Projects } from './Projects';
 import { Review } from './Review';
-import { FACTS_KEY, readMemory, useFacts, type MemoryView, type WriteResult } from './useFacts';
+import { FACTS_KEY, factsKey, readMemory, useFacts, type MemoryView, type WriteResult } from './useFacts';
 import styles from './Page.module.css';
 
 type View = 'about' | 'projects' | 'activity';
@@ -48,7 +48,9 @@ export function MemoryPage() {
   const qc = useQueryClient();
   const now = pageNow();
 
-  const mem = useQuery({ queryKey: FACTS_KEY, queryFn: () => readMemory(pageNow()), enabled: state !== 'loading' && state !== 'error' });
+  const owner = params.get('owner');
+  const mem = useQuery({ queryKey: factsKey(owner), queryFn: () => readMemory(pageNow(), owner), enabled: state !== 'loading' && state !== 'error' });
+  const roster = useQuery({ queryKey: ['character', 'list'], queryFn: () => getBridge().character.list(), enabled: owner != null });
   const runs = useBatches(state == null || state === 'error');
   const empty = state === 'empty';
   // `?demo=absent` reaches the fake bridge only: an agentd without /memory/tasks.
@@ -63,7 +65,7 @@ export function MemoryPage() {
   const hasProjects = plugins.daily_brief && !noRoute(work.error);
   const hasReview = plugins.screen_awareness;
   const facts = useMemo(() => (empty ? [] : mem.data?.facts), [empty, mem.data]);
-  const model = useFacts(facts ?? []);
+  const model = useFacts(facts ?? [], owner);
   const [pausedDemo, setPausedDemo] = useState(demo === 'paused');
   const recording = !pausedDemo && (mem.data?.recording ?? true);
 
@@ -130,7 +132,7 @@ export function MemoryPage() {
     try {
       const r = await put<{ paused: boolean }>('/memory/paused', { paused: !on });
       setPausedDemo(false);
-      qc.setQueryData<MemoryView>(FACTS_KEY, (d) => d && { ...d, recording: !r.paused });
+      qc.setQueryData<MemoryView>(factsKey(owner), (d) => d && { ...d, recording: !r.paused });
       toast(r.paused ? '暂停记忆：不记新的事，已记住的照常用' : '已恢复记忆');
     } catch (e) {
       toast(`没有切换：${errorText(e)}`);
@@ -176,6 +178,7 @@ export function MemoryPage() {
   return (
     <div className={`${styles.page} ${VARS}`} data-page="memory">
       <PageHeaderSlot
+        sub={roster.data?.find((c) => c.id === owner)?.name}
         tabs={<Tabs label="记忆视图" keys={false} value={view} onChange={(id) => setPicked(id as View)} tabs={tabs} />}
         right={
           <span className={styles.rec} role="status" data-off={!recording || undefined}>

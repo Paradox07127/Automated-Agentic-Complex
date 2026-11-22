@@ -2,7 +2,7 @@
 // the memory page's own demos, so the page can be compared with the prototype side by side; no routes of its own.
 import type { WireFact } from '../domain/wire';
 import { at, DAY, NOW } from './fixtures/clock';
-import { E1, E2, E3, v31Id } from './fixtures/ids';
+import { CHARACTER, E1, E2, E3, v31Id } from './fixtures/ids';
 
 type Kind = WireFact['kind'];
 type Source = WireFact['source'];
@@ -23,6 +23,8 @@ interface Seed {
   idle: number;
   origin: Origin;
   candidate?: boolean;
+  /** The character it is private to; absent: shared. */
+  owner?: string;
 }
 
 const TODAY = '2026-10-29';
@@ -79,7 +81,7 @@ function wire(s: Seed): WireFact {
   return {
     fact_id: v31Id(s.key),
     version: s.upd === 0 && s.key === 'a3' ? 2 : 1,
-    owner: null,
+    owner: s.owner ?? null,
     kind: s.kind,
     text: s.text,
     source: s.src,
@@ -118,6 +120,8 @@ const SEEDS: Seed[] = [
   { key: 'x2', kind: 'experience', text: '近期在调 Metal 角色渲染的帧率', src: 'inferred_hypothesis', upd: 0, uses: 1, n14: 1, idle: 0, origin: chat(10, 29, 10, 7, '帧率掉到 40 了，帮我看看 P95。') },
   { key: 'x3', kind: 'experience', text: '周报 v1 按日期分组，曾被要求重写', src: 'confirmed_by_user', upd: 6, uses: 2, n14: 2, idle: 6, origin: chat(10, 23, 17, 45, '按日期分不好看，重写。') },
   { key: 'x4', kind: 'experience', text: '10 月中旬搬家', src: 'asserted_by_user', upd: 32, uses: 2, n14: 0, idle: 32, origin: chat(10, 15, 22, 20, '下周搬家，帮我列个清单。') },
+  { key: 'o1', kind: 'preference', text: '她提醒我时只说一句，不展开', src: 'asserted_by_user', upd: 4, uses: 2, n14: 2, idle: 1, origin: chat(10, 25, 9, 20, '你提醒我的时候一句话就行。'), owner: CHARACTER },
+  { key: 'o2', kind: 'agreement', text: '和她约好：周五下班前一起收个尾', src: 'confirmed_by_user', upd: 3, uses: 1, n14: 1, idle: 2, origin: chat(10, 26, 18, 5, '周五下班前我们一起收个尾。'), owner: CHARACTER },
   { key: 'c1', kind: 'agreement', text: '周报按项目分组，不按日期', src: 'inferred_hypothesis', upd: 0, uses: 0, n14: 0, idle: 0, origin: chat(10, 29, 14, 22, '按项目分组，不要按日期。'), candidate: true },
   { key: 'c2', kind: 'preference', text: '写代码时减少主动发言', src: 'inferred_hypothesis', upd: 0, uses: 0, n14: 0, idle: 0, origin: { ep: E3 }, candidate: true },
   { key: 'c3', kind: 'fact', text: '构建习惯用 swift build -c release', src: 'observed_context', upd: 0, uses: 0, n14: 0, idle: 0, origin: { ep: E3 }, candidate: true },

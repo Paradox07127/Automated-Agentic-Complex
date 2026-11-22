@@ -150,6 +150,7 @@ export function fromFact(w: WireFact, nowMs: number): Fact {
   return {
     id: w.fact_id,
     version: w.version,
+    owner: w.owner,
     kind: w.kind as FactKind,
     text: w.text,
     source: w.source,

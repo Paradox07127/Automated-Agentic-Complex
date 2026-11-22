@@ -12,8 +12,12 @@ export interface MemoryView {
   counts: FactCounts;
 }
 
-export async function readMemory(now: number): Promise<MemoryView> {
-  const w = await get<{ paused: boolean; facts: WireFact[]; counts: FactCounts }>('/memory');
+/** The read of one character's own facts is cached apart from the whole memory. */
+export const factsKey = (owner: string | null) => (owner ? [...FACTS_KEY, owner] : FACTS_KEY);
+
+/** `owner`: a character id, to read only the facts private to her. */
+export async function readMemory(now: number, owner: string | null = null): Promise<MemoryView> {
+  const w = await get<{ paused: boolean; facts: WireFact[]; counts: FactCounts }>(owner ? `/memory?owner=${encodeURIComponent(owner)}` : '/memory');
   return { recording: !w.paused, facts: w.facts.map((f) => fromFact(f, now)), counts: w.counts };
 }
 
@@ -30,11 +34,11 @@ export interface FactsModel {
 }
 
 /** Writes to `/memory/facts…` with the row's version; the cached row takes the reply, then `GET /memory` is read again. */
-export function useFacts(facts: Fact[]): FactsModel {
+export function useFacts(facts: Fact[], owner: string | null = null): FactsModel {
   const qc = useQueryClient();
   const reread = () => void qc.invalidateQueries({ queryKey: FACTS_KEY });
   const setRow = (id: string, next: (f: Fact) => Fact | null) =>
-    qc.setQueryData<MemoryView>(FACTS_KEY, (d) => {
+    qc.setQueryData<MemoryView>(factsKey(owner), (d) => {
       if (!d) return d;
       const rows = d.facts.flatMap((f) => (f.id === id ? (next(f) ?? []) : [f]));
       const counts: FactCounts = { asserted_by_user: 0, confirmed_by_user: 0, observed_context: 0, inferred_hypothesis: 0 };
