@@ -1,11 +1,12 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { getBridge } from '../../bridge';
-import { AgentdCallError, CONFLICT_CODES, del, post, put, seg } from '../../bridge/agentd';
+import { AgentdCallError, CONFLICT_CODES, del, get, post, put, seg } from '../../bridge/agentd';
 import { revealText } from '../../bridge/platformText';
 import { serverFaultText } from '../../domain/errorText';
 import { formatScheduleTime } from '../../domain/schedules';
 import {
   conversationCancel,
+  conversationCreate,
   conversationDelete,
   conversationPatch,
   deliveryDecision,
@@ -65,6 +66,12 @@ let localIds = 0;
 
 export interface ChatDeps {
   conv: Conversation | null;
+  /** The selected tab's character, whose conversations the page shows; null before the character list is read. */
+  character: string | null;
+  /** `/state` character, the one on the desktop; null before it is read. */
+  present: string | null;
+  /** Shows the swap card for a line to a character not on the desktop; true once the user asks to bring her out. */
+  askSwap: (text: string) => Promise<boolean>;
   task: Task | null;
   run: ActiveRun | null;
   view: TasksView | null;
@@ -79,11 +86,13 @@ export interface ChatDeps {
   setBusyDecide: (b: boolean) => void;
   setNotice: (n: string | null) => void;
   select: (id: string | null) => void;
+  /** Opens the row's title box. */
+  editTitle: (id: string) => void;
   addReply: (r: Omit<LiveReply, 'text' | 'items' | 'final' | 'error' | 'cancelled'>) => void;
   /** Puts the 202's fields on the entry added under a local id; `null` takes it back out. */
   settleReply: (id: string, r: Partial<LiveReply> | null) => void;
   /** `runtime(true)`: 重新检测, the rescanning read. */
-  reload: { list: () => void; turns: () => void; tasks: () => void; runtime: (refresh?: boolean) => Promise<ChatRuntime | undefined> };
+  reload: { list: () => void; turns: () => void; tasks: () => void; present: () => void; runtime: (refresh?: boolean) => Promise<ChatRuntime | undefined> };
   push: PushToast;
   /** Demo `sendfail`: sends fail. */
   failSend: boolean;
@@ -119,6 +128,9 @@ const REASONS: Record<string, string> = {
   scope_expired: '工作目录授权已过期',
   unknown_scope: '工作目录授权不存在',
   idempotency_conflict: '同一请求已用不同内容发过',
+  character_not_present: '她不在桌面上',
+  switch_refused: '没能换她出来',
+  switch_timeout: '换角色超时，她还没出来',
 };
 
 /** 409 codes that say what the request lacked, not that something changed elsewhere: no conflict text, no reload. */
@@ -137,6 +149,22 @@ export function reasonOf(e: unknown): string {
   if (e.status === 503 && (e.body as { runtime?: unknown } | null)?.runtime != null) return '角色内核未就绪';
   if (e.code !== 'busy' && conflict(e)) return '已在别处更新';
   return REASONS[e.code] ?? '后台拒绝了这次操作';
+}
+
+/** How long a swap may take before the line gives up, and how often /state is read meanwhile, in ms. */
+const SWAP_WAIT_MS = 10_000;
+const SWAP_POLL_MS = 250;
+
+/** character.switchTo, then /state until it names her: agentd answers only the character on the desktop. */
+async function bringOut(id: string) {
+  const r = await getBridge().character.switchTo(id);
+  if (!r.ok) throw { code: 'switch_refused' };
+  // performance.now: the page's tests freeze Date.
+  const end = performance.now() + SWAP_WAIT_MS;
+  while ((await get<{ character: string }>('/state')).character !== id) {
+    if (performance.now() >= end) throw { code: 'switch_timeout' };
+    await new Promise((done) => setTimeout(done, SWAP_POLL_MS));
+  }
 }
 
 const clip = (text: string, n: number) => (text.length > n ? `${text.slice(0, n)}…` : text);
@@ -164,14 +192,20 @@ export function createChatActions(d: ChatDeps) {
     else if (task.task_id) await post(`/tasks/${seg(task.task_id)}/continue`, { text: note });
   };
 
-  const deliver = async (text: string, options: Partial<SendOptions>, fail: boolean) => {
+  /** `swap`: her character is not on the desktop, so the swap card asks first. */
+  const deliver = async (text: string, options: Partial<SendOptions>, fail: boolean, swap = d.character != null && d.present != null && d.character !== d.present): Promise<void> => {
+    if (swap && !(await d.askSwap(text))) return;
     d.setSending(true);
     const local = `local-${++localIds}`;
     const sent = { look: !!options.look, no_memory: !!options.no_memory, ...(options.scope_id ? { scope_id: options.scope_id } : {}) };
     d.addReply({ line_id: local, conversation_id: d.conv?.id ?? null, run_id: null, generation: 0, said: text, options: sent, at: clock(), side: d.busy });
     try {
-      // With no conversation yet, the first line opens one (POST /conversations makes it the active one).
-      const conv = d.conv ?? fromConversation(await post<WireConversation>('/conversations', {}), clock());
+      if (swap && d.character) {
+        await bringOut(d.character);
+        d.reload.present();
+      }
+      // With no conversation yet, the first line opens one (POST /conversations makes it her active one).
+      const conv = d.conv ?? fromConversation(await post<WireConversation>('/conversations', d.character ? conversationCreate(d.character) : {}), clock());
       if (!d.conv) {
         d.settleReply(local, { conversation_id: conv.id });
         d.select(conv.id);
@@ -186,6 +220,7 @@ export function createChatActions(d: ChatDeps) {
       d.setNotice(r.scope_warning ? '工作目录已不可用，这次没有带上' : r.runtime_reason === 'temporary_read_only' ? '这次只读，不记入历史' : null);
     } catch (e) {
       d.settleReply(local, null);
+      if (e instanceof AgentdCallError && e.code === 'character_not_present') return deliver(text, options, fail, true);
       d.setFailed({ text, reason: reasonOf(e), ...(e instanceof AgentdCallError ? { code: e.code } : {}), options: sent });
       if (e instanceof AgentdCallError && e.status === 503) void d.reload.runtime();
       if (e instanceof AgentdCallError && e.status === 409 && conflict(e)) d.reload.list();
@@ -235,10 +270,10 @@ export function createChatActions(d: ChatDeps) {
 
     newConversation: () =>
       attempt('没有新建', async () => {
-        const row = await post<WireConversation>('/conversations', {});
+        const row = await post<WireConversation>('/conversations', d.character ? conversationCreate(d.character) : {});
         d.select(row.id);
+        d.editTitle(row.id);
         d.reload.list();
-        d.push('已新建对话');
       }),
 
     pin: (c: Conversation) =>
@@ -264,6 +299,7 @@ export function createChatActions(d: ChatDeps) {
     archive: (c: Conversation) =>
       attempt('没有归档', async () => {
         const row = await put<WireConversation>(`/conversations/${seg(c.id)}`, conversationPatch(c, { archived: true }));
+        if (d.conv?.id === c.id) d.select(null);
         d.reload.list();
         const undo = () =>
           void attempt('没有撤销', async () => {
@@ -281,7 +317,15 @@ export function createChatActions(d: ChatDeps) {
         d.push(`已删除「${c.title}」`);
       }),
 
-    /** 继续此对话: make a history conversation the active one. */
+    /** 换她出来 from her tab. */
+    swap: (id: string, name: string) =>
+      attempt('没有换出来', async () => {
+        await bringOut(id);
+        d.reload.present();
+        d.push(`已换${name}出来`);
+      }),
+
+    /** Opening a topic or 继续此对话: make it its character's active one. */
     activate: (c: Conversation) =>
       attempt('没有切换', async () => {
         await post(`/conversations/${seg(c.id)}/activate`, conversationDelete(c));

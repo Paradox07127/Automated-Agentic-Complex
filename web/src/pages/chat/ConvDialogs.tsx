@@ -1,79 +1,86 @@
-import { useState } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 import type { Conversation } from '../../domain';
-import { Btn, Dialog } from '../../ui';
-import styles from './Chat.module.css';
+import { Btn, Icon, useOverlayFocus } from '../../ui';
+import { Face } from './CharTabs';
+import type { ChatCharacter } from './useChatData';
+import styles from './ConvDialogs.module.css';
 
-/** agentd takes a title of 1–80 characters (conversations.py title()). */
-const MAX_TITLE = 80;
-
-export function RenameDialog({ conv, onClose, onRename }: { conv: Conversation | null; onClose: () => void; onRename: (c: Conversation, title: string) => void }) {
-  const [title, setTitle] = useState('');
-  const [from, setFrom] = useState<string | null>(null);
-  if ((conv?.id ?? null) !== from) {
-    setFrom(conv?.id ?? null);
-    setTitle(conv?.title ?? '');
-  }
-  const t = title.trim();
-  const ok = conv != null && t.length > 0 && t.length <= MAX_TITLE && t !== conv.title;
-  const submit = () => {
-    if (!ok || !conv) return;
-    onRename(conv, t);
-    onClose();
-  };
+/** The white paper card over the page (prototype .swap): Esc or a click beside it closes it. */
+function PaperCard({ title, warn, onClose, children }: { title: string; warn?: boolean; onClose: () => void; children: ReactNode }) {
+  const panel = useRef<HTMLDivElement>(null);
+  const trap = useOverlayFocus(panel, onClose);
+  const head = useId();
   return (
-    <Dialog
-      open={conv != null}
-      title="重命名对话"
-      onClose={onClose}
-      footer={
-        <>
-          <Btn variant="ghost" onClick={onClose}>
-            取消
-          </Btn>
-          <Btn variant="secondary" disabled={!ok} disabledReason={t.length > MAX_TITLE ? '标题最多 80 个字' : '先写新标题'} onClick={submit}>
-            改名
-          </Btn>
-        </>
-      }
-    >
-      <input
-        className={styles.field}
-        aria-label="对话标题"
-        value={title}
-        maxLength={MAX_TITLE}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.nativeEvent.isComposing) submit();
-        }}
-      />
-    </Dialog>
+    <div className={styles.back} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={panel} className={styles.card} data-warn={warn || undefined} data-theme="light" role="dialog" aria-modal="true" aria-labelledby={head} tabIndex={-1} onKeyDown={trap}>
+        <h4 id={head} className={styles.h}>
+          {title}
+        </h4>
+        {children}
+      </div>
+    </div>
   );
 }
 
-export function DeleteDialog({ conv, onClose, onDelete }: { conv: Conversation | null; onClose: () => void; onDelete: (c: Conversation) => void }) {
+export function DeleteCard({ conv, onClose, onArchive, onDelete }: { conv: Conversation | null; onClose: () => void; onArchive: (c: Conversation) => void; onDelete: (c: Conversation) => void }) {
+  if (!conv) return null;
+  const pick = (f: (c: Conversation) => void) => () => {
+    onClose();
+    f(conv);
+  };
   return (
-    <Dialog
-      open={conv != null}
-      title={`删除对话「${conv?.title ?? ''}」？`}
-      onClose={onClose}
-      footer={
-        <>
-          <Btn variant="ghost" onClick={onClose}>
-            不删除
+    <PaperCard title={`删除「${conv.title}」？`} warn onClose={onClose}>
+      <p className={styles.p}>{`这个话题里的 ${conv.turn_count} 轮对话一起删除，删除后找不回。${conv.archived ? '' : '只是不想看到，可以归档。'}`}</p>
+      <div className={styles.row}>
+        <Btn size="sm" variant="secondary" onClick={onClose}>
+          先不删
+        </Btn>
+        {!conv.archived && (
+          <Btn size="sm" variant="ghost" onClick={pick(onArchive)}>
+            改成归档
           </Btn>
-          <Btn
-            variant="danger"
-            onClick={() => {
-              if (conv) onDelete(conv);
-              onClose();
-            }}
-          >
-            删除
-          </Btn>
-        </>
-      }
-    >
-      <p>消息会一起删除，不能恢复；已交派的任务和产物不受影响。</p>
-    </Dialog>
+        )}
+        <Btn size="sm" variant="danger" icon="g-delete" onClick={pick(onDelete)}>
+          删除
+        </Btn>
+      </div>
+    </PaperCard>
+  );
+}
+
+export interface SwapAsk {
+  who: ChatCharacter;
+  /** The character on the desktop now, when known. */
+  from: ChatCharacter | null;
+  /** The line waiting to go to her; empty from her tab's menu. */
+  text: string;
+}
+
+/** 换她出来: she is not on the desktop; yes brings her out (and then sends the line). */
+export function SwapCard({ ask, onPick }: { ask: SwapAsk | null; onPick: (yes: boolean) => void }) {
+  if (!ask) return null;
+  const { who, from, text } = ask;
+  return (
+    <PaperCard title={`换${who.name}出来回你？`} onClose={() => onPick(false)}>
+      <div className={styles.who2} aria-hidden="true">
+        {from && (
+          <>
+            <Face c={from} />
+            <Icon name="g-send" size={16} />
+          </>
+        )}
+        <Face c={who} />
+      </div>
+      {text && <q className={styles.q}>{text}</q>}
+      <p className={styles.p}>{`${who.name}现在不在桌面上。${from ? `${from.name}会回到列表里。` : ''}${text ? `换好后这句话发给${who.name}。` : ''}`}</p>
+      <div className={styles.row}>
+        <Btn size="sm" variant="secondary" onClick={() => onPick(false)}>
+          先不换
+        </Btn>
+        <Btn size="sm" variant="primary" icon="g-switch" onClick={() => onPick(true)}>
+          {text ? '换出来并发送' : '换出来'}
+        </Btn>
+      </div>
+    </PaperCard>
   );
 }

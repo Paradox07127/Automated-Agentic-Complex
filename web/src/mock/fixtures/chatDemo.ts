@@ -40,7 +40,7 @@ export const C1_TURNS: WireTurn[] = [
   turn(C1, 404, 'tr3', 'text', '顺便查下 HostLink 断线是哪次提交引入的？', '初步看是 10-27 那组改 HostLink 心跳超时的提交。现在前台在跑周报任务，我只读看了提交记录；要细查的话，等周报结束后可以开一个任务。', atS(14, 29, 40), atS(14, 29, 46)),
 ];
 
-export const SPARSE_CONV: WireConversation = { id: S1, title: 'HostLink 早上', pinned: false, archived: false, revision: 1, created_at: atS(10, 2), updated_at: atS(11, 6), turn_count: 4, active: true };
+export const SPARSE_CONV: WireConversation = { id: S1, character_id: CHARACTER, title: 'HostLink 早上', pinned: false, archived: false, revision: 1, created_at: atS(10, 2), updated_at: atS(11, 6), turn_count: 4, active: true, preview: '嗯，记下了：重连超时先保持 1.5 秒。' };
 
 export const SPARSE_TURNS: WireTurn[] = [
   turn(S1, 501, 'turn-s1-1', 'text', '早，今天先排查 HostLink 的断线。', '早。昨晚 23:40 之后断过两次，日志我留着，要看的时候叫我。', atS(10, 2, 15), atS(10, 2, 18)),
@@ -193,3 +193,50 @@ export const CHAT_DEMO: Record<'full' | 'sparse', ChatDemoSource> = {
     side: [],
   },
 };
+
+/** The chat v2 prototype's topic 「应龙特勤队见面会」 (proto.js t2): bold, a list, inline code, a drawn picture and a link. */
+export const MEETUP = 'ca0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d';
+
+/** A training-ground sketch drawn for the demo; `(` `)` are escaped so the markdown link target stays whole. */
+const SCENE = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 400"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fb9c9"/><stop offset=".6" stop-color="#d9d2bd"/><stop offset="1" stop-color="#b9a884"/></linearGradient><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6b6a5c"/><stop offset="1" stop-color="#3c3b34"/></linearGradient></defs><rect width="680" height="400" fill="url(#s)"/><path d="M0 230l90-60 70 40 110-90 120 100 80-50 210 70v160H0z" fill="#7c8a8c" opacity=".6"/><path d="M0 270l140-40 160 30 180-50 200 40v150H0z" fill="url(#g)"/><g fill="#2c2d2a"><rect x="410" y="170" width="120" height="100"/><rect x="420" y="140" width="24" height="30"/><rect x="540" y="200" width="60" height="70"/></g><rect x="410" y="250" width="120" height="8" fill="#fff100"/><g fill="#161616"><circle cx="300" cy="300" r="7"/><rect x="295" y="306" width="10" height="22"/><circle cx="326" cy="304" r="6"/><rect x="321" y="309" width="10" height="19"/><circle cx="350" cy="302" r="6.5"/><rect x="345" y="308" width="10" height="20"/></g></svg>',
+).replace(/\(/g, '%28').replace(/\)/g, '%29')}`;
+
+const HANDBOOK = 'https://yinglong.example.org/handbook/new-members?season=2026-winter';
+
+export const MEETUP_TURNS: WireTurn[] = [
+  turn(MEETUP, 601, 'turn-meet-1', 'proactive', '', '咳咳，你在吗？', atS(13, 58), atS(13, 58, 3)),
+  turn(MEETUP, 602, 'turn-meet-2', 'text', '嗯，我看到消息了。怎么了吗？', '应龙特勤队最近又有一批新队员来报到了，谈老让我抽个空去和他们见个面。\n\n特勤队刚成立时我答应过谈老，尽量对那些小辈们好一点。这回再逃，该挨她训了。\n\n你有空的话，陪我走一趟吧。', atS(13, 59), atS(13, 59, 6)),
+  turn(MEETUP, 603, 'turn-meet-3', 'text', '可以啊，最近刚好没那么忙。', `真的？还算你有良心！\n\n我把场地和安排发你看看：\n- **时间**：周三下午三点\n- **地点**：三号训练场，见下图\n- 带上 \`新队员名单\`，到了先点名\n\n![三号训练场](${SCENE})\n\n入队须知在 [这里](${HANDBOOK})。`, atS(14, 0), atS(14, 0, 9)),
+  turn(MEETUP, 604, 'turn-meet-4', 'proactive', '', '去了可不能白去啊，你得给我出点主意，该说点什么做点什么来鼓励鼓励那些年轻人。', atS(14, 2), atS(14, 2, 4)),
+];
+
+export const MEETUP_CONV: WireConversation = { id: MEETUP, character_id: CHARACTER, title: '应龙特勤队见面会', pinned: false, archived: false, revision: 1, created_at: atS(13, 58), updated_at: atS(14, 2, 4), turn_count: 4, active: false, preview: '' };
+
+/** 示例甲 (`voice_a`), not on the desktop: her topics and their turns. */
+export const OTHER = 'voice_a';
+export const HANDOVER = 'da1e2f3a4b5c6d7e8f9a0b1c2d3e4f51';
+const SHIFT = 'da2e3f4a5b6c7d8e9f0a1b2c3d4e5f62';
+const OLD_PROTOCOL = 'da3e4f5a6b7c8d9e0f1a2b3c4d5e6f73';
+
+const hers = (conversation_id: string, n: number, user_text: string, reply: string, started_at: number): WireTurn => ({
+  ...turn(conversation_id, n, `turn-va-${n}`, user_text ? 'text' : 'proactive', user_text, reply, started_at, started_at + 4),
+  character_id: OTHER,
+});
+
+export const OTHER_TURNS: Record<string, WireTurn[]> = {
+  [HANDOVER]: [hers(HANDOVER, 701, '', '交接清单我放在共享目录了，你有空过一眼。', atS(9, 40) - 10 * DAY / 1000), hers(HANDOVER, 702, '收到，晚点看。', '不急。看完告诉我一声就行。', atS(9, 46) - 10 * DAY / 1000)],
+  [SHIFT]: [hers(SHIFT, 711, '', '早。今天九点有站会，别忘了。', atS(7, 10) - 12 * DAY / 1000)],
+  [OLD_PROTOCOL]: [hers(OLD_PROTOCOL, 721, '', '旧版那个问题已经不影响了。', atS(16, 40) - 29 * DAY / 1000)],
+};
+
+const herConv = (id: string, title: string, days: number, o: Partial<WireConversation> = {}): WireConversation => {
+  const t = OTHER_TURNS[id] ?? [];
+  return { id, character_id: OTHER, title, pinned: false, archived: false, revision: 1, created_at: (t[0]?.started_at ?? atS(9, 0)) - 60, updated_at: t.at(-1)?.ended_at ?? atS(9, 0) - days * DAY / 1000, turn_count: t.length, active: false, preview: '', ...o };
+};
+
+export const OTHER_CONVS: WireConversation[] = [
+  herConv(HANDOVER, '协议核心的交接', 10, { active: true }),
+  herConv(SHIFT, '早班的提醒', 12),
+  herConv(OLD_PROTOCOL, '旧版协议的问题', 29, { archived: true }),
+];

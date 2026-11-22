@@ -1,8 +1,10 @@
 // agentd wire shapes for conversations, history and memory (see index.ts).
 
-/** conversations.py:12,53,56; GET /conversations → {conversations, busy}. */
+/** conversations.py:12,53,56; GET /conversations?character= → {conversations, busy, character}. */
 export interface WireConversation {
   id: string;
+  /** The character the conversation belongs to. */
+  character_id: string;
   title: string;
   pinned: boolean;
   archived: boolean;
@@ -10,7 +12,10 @@ export interface WireConversation {
   created_at: number;
   updated_at: number;
   turn_count: number;
+  /** That character's active conversation. */
   active: boolean;
+  /** The latest turn's reply, else its user text, cut at 60 characters; "" without turns. */
+  preview: string;
 }
 
 /** history.py:9-10 COLUMNS; conversation turns (conversations.py:68) and /history rows. */

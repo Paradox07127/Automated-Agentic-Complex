@@ -1,316 +1,313 @@
-/* 会话列表：搜索 + 分组小标题 + SNS 联系人格（头像、名称、时间、轮数与 24 小时折线；当前会话白框加四角黄括号） */
+/* Topic column (prototype .clist / .topic): head with fold, search and new; two-line plates, the selected one a yellow block. */
 .root {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
   height: 100%;
   min-height: 0;
   min-width: 0;
+  padding: 8px 10px 18px 16px;
+  color: var(--b-t1);
 }
 
-.top {
+.head {
   display: flex;
   align-items: center;
-  gap: var(--ef-sp-8);
-  padding: var(--ef-sp-12) var(--ef-sp-12) var(--ef-sp-4);
+  gap: 8px;
+  min-width: 0;
 }
 
-.top > [data-stub='SearchField'] {
-  flex: 1;
-  width: auto;
-}
-
-.scroll {
-  flex: 1 1 auto;
-  min-height: 96px;
-  overflow-y: auto;
-}
-
-.fail {
-  padding: 8px 4px;
-  font: var(--ef-t-meta);
-  color: var(--ef-text-1);
-}
-
-.retry {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ef-text-1);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.retry:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 1px;
-}
-
-.group {
-  display: flex;
+.root[data-fold] .head {
   flex-direction: column;
 }
 
-.grp {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 16px 11px 8px 6px;
-  padding: 0 0 6px;
-  border-bottom: 1px solid var(--ef-rule);
-  font: 600 12px/1.2 var(--ef-font-sans);
-  color: var(--ef-text-2);
+/* The search field as the prototype's white pill. */
+.head > [data-stub='SearchField'] {
+  flex: 1;
+  width: auto;
+  height: 34px;
+  padding: 0 6px 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff, var(--b-field));
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.18),
+    0 0 0 1px rgba(0, 0, 0, 0.25),
+    0 3px 6px -2px var(--b-shadow);
+  color: #3a3a3a;
 }
 
-.group:first-child .grp {
-  margin-top: 8px;
+.head > [data-stub='SearchField']:focus-within {
+  padding-top: 0;
+  border: 0;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.18),
+    0 0 0 2px var(--b-sel),
+    0 3px 6px -2px var(--b-shadow);
 }
 
-.num {
-  font-family: var(--ef-font-ui);
-  font-stretch: var(--ef-wide);
-  font-variant-numeric: tabular-nums;
+.head > [data-stub='SearchField'] input {
+  color: #1f1f1f;
 }
 
-.grp .num {
-  font-size: 12px;
-  color: var(--ef-text-2);
+/* Round plate button: white ring, dark seam, plate face. */
+.orb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, var(--b-plate-hi), var(--b-plate-lo));
+  box-shadow:
+    0 0 0 1.5px var(--b-t1),
+    0 0 0 3px var(--b-edge-lo),
+    0 4px 8px -2px var(--b-shadow);
+  color: var(--b-t1);
+  cursor: pointer;
+  transition: transform 0.1s var(--g-fade);
 }
 
-/* Contact cell: 288 x 60.5 plate #404040@0.8 r2.5 with a white@0.5 inner frame; 50 px head; name 15 px. */
-.item {
-  /* Plate, frame, head ring #5B5B5C, press flash. */
-  --cell-plate: rgba(64, 64, 64, 0.8);
-  --cell-hover: rgba(80, 80, 80, 0.8);
-  --cell-frame: rgba(255, 255, 255, 0.502);
-  --cell-ring: #5b5b5c;
-  --cell-press: rgba(255, 255, 255, 0.12);
-  /* Selected (screenshots 0128/071, 013): white 2 px frame, yellow corner brackets outside. */
-  --cell-sel: #ffffff;
-  --cell-bracket: var(--ef-accent-text);
-  position: relative;
-  margin: 0 11px 6px 6px;
+.orb:active {
+  transform: scale(0.94);
 }
 
-:global([data-theme='light']) .item {
-  --cell-plate: var(--ef-raised);
-  --cell-hover: var(--ef-rowplate);
-  --cell-frame: var(--ef-line);
-  --cell-ring: var(--ef-line-strong);
-  --cell-press: rgba(0, 0, 0, 0.06);
-  --cell-sel: var(--ef-text-1);
+.orb:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
-.cv {
+.orb:focus-visible,
+.row:focus-visible {
+  outline: 2px solid var(--b-sel);
+  outline-offset: 2px;
+}
+
+.root[data-fold] .orb[aria-expanded] {
+  transform: scaleX(-1);
+}
+
+.scroll {
+  display: grid;
+  align-content: start;
+  min-height: 0;
+  padding: 2px 6px 8px 2px;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--b-t3) transparent;
+  scrollbar-width: thin;
+}
+
+.topics {
+  display: grid;
+  gap: 5px;
+}
+
+.row {
   position: relative;
   display: grid;
-  grid-template-columns: 50px auto auto minmax(0, 1fr);
-  grid-template-areas:
-    'head title title title'
-    'head when cnt spark';
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: center;
-  gap: 0 8px;
-  width: 100%;
-  min-height: 60.5px;
-  padding: 5px 12px 5px 6px;
-  border: 0;
-  border-radius: 2.5px;
-  background: var(--cell-plate);
-  outline: 1px solid var(--cell-frame);
-  outline-offset: -2px;
-  color: var(--ef-text-1);
-  text-align: left;
-  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
-}
-
-:global([data-theme='dark']) .cv {
-  color: #ffffff;
-}
-
-.cv:hover {
-  background: var(--cell-hover);
-}
-
-.cv:active {
-  background-image: linear-gradient(var(--cell-press), var(--cell-press));
-}
-
-.cv[data-on] {
-  outline-color: transparent;
-}
-
-/* Selected frame (itembig_selectedbg): SelectedBG `sel` = white 2 px frame, `selLine` = four corner brackets 4 px outside. */
-.sel {
-  position: absolute;
-  inset: -5px;
-  pointer-events: none;
-}
-
-.selBg,
-.selLine {
-  position: absolute;
-}
-
-.selBg {
-  inset: 5px;
-  border: 2px solid var(--cell-sel);
-  border-radius: 2.5px;
-}
-
-.selLine {
-  inset: 0;
-  --b: linear-gradient(var(--cell-bracket), var(--cell-bracket));
-  background:
-    var(--b) 0 0 / 8px 2px no-repeat,
-    var(--b) 0 0 / 2px 8px no-repeat,
-    var(--b) 100% 0 / 8px 2px no-repeat,
-    var(--b) 100% 0 / 2px 8px no-repeat,
-    var(--b) 0 100% / 8px 2px no-repeat,
-    var(--b) 0 100% / 2px 8px no-repeat,
-    var(--b) 100% 100% / 8px 2px no-repeat,
-    var(--b) 100% 100% / 2px 8px no-repeat;
-}
-
-/* Corner frame sprite (recipe sns-sel-frame) tinted #FFF@0.788; SelectedBG keeps the white frame, its plate tint is not in the data. */
-:global(html[data-art][data-theme='dark']) .selLine {
-  inset: -3px;
-  background: var(--ef-g-sns-sel-frame);
-  -webkit-mask-box-image: url('/art/pages/chat/sns-sel-frame.png') 40 / 20px;
-  mask-border: url('/art/pages/chat/sns-sel-frame.png') 40 / 20px;
-}
-
-.cv:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 1px;
-}
-
-/* IconBg 50 px, rounded-square mask r2.5, ring #5B5B5C; the round icon at 0.75 cropped to the box. */
-.head {
-  grid-area: head;
-  position: relative;
-  display: block;
-  width: 50px;
-  height: 50px;
+  min-height: clamp(52px, 6.6vh, 62px);
+  padding: 8px 12px 8px 10px;
   overflow: hidden;
-  border-radius: 2.5px;
-  outline: 1px solid var(--cell-ring);
-  background: var(--ef-surface-2);
+  border: 0;
+  background: linear-gradient(180deg, var(--b-plate), var(--b-plate-lo));
+  box-shadow:
+    inset 0 1px 0 var(--b-edge),
+    0 0 0 1px rgba(0, 0, 0, 0.3),
+    0 3px 6px -3px var(--b-shadow);
+  color: var(--b-t1);
+  font: 500 14px/20px var(--ef-font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: filter 0.083s var(--g-fade);
 }
 
-.head img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scale(1.15);
+.row:hover {
+  filter: brightness(1.15);
 }
 
-/* Generic avatar stand-in. */
-.generic {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background:
-    radial-gradient(circle at 50% 37%, #333333 0 20%, transparent 21%),
-    radial-gradient(ellipse 34% 30% at 50% 92%, #333333 0 96%, transparent 100%),
-    #d6d6d6;
+.row > svg {
+  justify-self: center;
+  color: var(--b-t2);
 }
 
-.cvT {
-  grid-area: title;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+.col {
+  display: grid;
+  gap: 1px;
   min-width: 0;
 }
 
-/* Name fs 30 g -> 15 px. */
 .title {
   min-width: 0;
   overflow: hidden;
-  font: 500 15px/22px var(--ef-font-sans);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.run {
-  font-size: 11px;
-  color: var(--ef-accent-text);
-}
-
-/* The status line under the name: time, then the turn count, on a dim pill like the friend cells' state. */
-.when,
-.cnt {
-  align-self: start;
-  font: 500 12px/20px var(--ef-font-ui);
-  font-stretch: var(--ef-wide);
-  font-variant-numeric: tabular-nums;
-  color: var(--ef-text-2);
+.pv {
+  overflow: hidden;
+  color: var(--b-t2);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 17px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-:global([data-theme='dark']) :is(.when, .cnt, .spark) {
-  color: #b7b7b7;
+.pv:empty {
+  display: none;
 }
 
 .when {
-  grid-area: when;
-  padding-left: 6px;
-  border-left: 2px solid var(--cell-ring);
-}
-
-.cnt {
-  grid-area: cnt;
-}
-
-/* 24 h turns, 120 x 14 on the status line; it narrows with the column. */
-.spark {
-  grid-area: spark;
+  display: flex;
+  align-items: center;
   align-self: start;
-  display: block;
-  width: 100%;
-  max-width: 120px;
-  height: 14px;
-  margin-top: 3px;
-  overflow: visible;
-  color: var(--ef-text-2);
+  padding-top: 2px;
+  color: var(--b-t2);
+  font: 12px var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
 }
 
-.cv[data-on] .spark {
-  color: inherit;
+.pin {
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  font-size: 11px;
+  line-height: 16px;
 }
 
-.sparkL {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.25;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
+/* Selected: the yellow block with moving stripes and a dark edge at the left. */
+.row[aria-current='true'] {
+  background: linear-gradient(180deg, #fff65a, var(--b-sel) 30%, var(--b-sel-2));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 0 0 1px rgba(0, 0, 0, 0.25),
+    0 4px 10px -3px rgba(0, 0, 0, 0.5);
+  color: var(--b-ink);
 }
 
-.sparkD {
-  fill: currentColor;
+.row[aria-current='true'] > svg,
+.row[aria-current='true'] .when {
+  color: var(--b-ink);
 }
 
-.ctx {
+.row[aria-current='true'] .pv {
+  color: rgba(22, 22, 22, 0.7);
+}
+
+.row[aria-current='true']::before {
+  content: '';
   position: absolute;
-  top: 100%;
-  left: var(--ef-sp-24);
-  z-index: var(--ef-z-dropdown);
+  inset: 0 auto 0 0;
+  width: 150px;
+  background: repeating-linear-gradient(115deg, rgba(0, 0, 0, 0.09) 0 3px, transparent 3px 9px);
+  -webkit-mask: linear-gradient(90deg, #000 20%, transparent);
+  mask: linear-gradient(90deg, #000 20%, transparent);
+  animation: stripe 1.6s linear infinite;
+  pointer-events: none;
 }
 
-.foot {
-  padding: var(--ef-sp-8) var(--ef-sp-12) var(--ef-sp-12);
-  border-top: 1px solid var(--ef-line-subtle);
+.row[aria-current='true']::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--b-ink);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .cv {
-    transition: none;
+@keyframes stripe {
+  to {
+    background-position: 22px 0;
   }
 }
 
-:global([data-reduce-motion]) .cv {
+.row[data-archived] {
+  min-height: 42px;
+  opacity: 0.7;
+}
+
+.add {
+  grid-template-columns: 30px minmax(0, 1fr);
+  min-height: 40px;
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--b-t3);
+  color: var(--b-t2);
+  opacity: 0.85;
+}
+
+.add:hover {
+  color: var(--b-t1);
+  opacity: 1;
+}
+
+.archRow {
+  grid-template-columns: 30px minmax(0, 1fr);
+  min-height: 36px;
+  background: none;
+  box-shadow: none;
+  color: var(--b-t2);
+  font-size: 13px;
+}
+
+.archRow:hover {
+  color: var(--b-t1);
+}
+
+.chev {
+  justify-self: center;
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.2s;
+}
+
+.archRow[aria-expanded='true'] .chev {
+  transform: rotate(45deg);
+}
+
+.add:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* The title box in a row. */
+.ren {
+  min-width: 0;
+  padding: 2px 8px;
+  border: 0;
+  outline: none;
+  background: var(--b-field);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.25),
+    0 0 0 2px var(--b-sel);
+  color: #1f1f1f;
+  font: inherit;
+}
+
+.none {
+  margin: 0;
+  padding: 8px;
+  color: var(--b-t2);
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .row::before {
+    transition: none;
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) :is(.row, .row::before) {
   transition: none;
+  animation: none;
 }

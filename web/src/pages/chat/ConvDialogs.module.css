@@ -1,0 +1,107 @@
+/* The chat page's white paper cards (prototype .swap-back / .swap): a striped top edge, red stripes for a deletion. */
+.back {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: fade 0.2s var(--g-fade) both;
+}
+
+.card {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  width: min(400px, calc(100% - 32px));
+  padding: 22px 22px 18px;
+  --ui-btn-ring: var(--ef-raised);
+  background: var(--ef-raised);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+  color: var(--ef-raised-fg);
+  animation: pop 0.3s var(--g-enter) both;
+}
+
+.card:focus {
+  outline: none;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 4px;
+  background: repeating-linear-gradient(115deg, var(--b-ink) 0 6px, var(--b-sel) 6px 12px);
+}
+
+.card[data-warn]::before {
+  background: repeating-linear-gradient(115deg, var(--b-ink) 0 6px, var(--ef-danger) 6px 12px);
+}
+
+.h {
+  margin: 0;
+  font: 600 17px/24px var(--ef-font-sans);
+}
+
+.p {
+  margin: 0;
+  color: var(--ef-text-2);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.q {
+  display: block;
+  padding: 9px 12px;
+  border-left: 3px solid var(--b-ink);
+  background: rgba(0, 0, 0, 0.05);
+  font-size: 14px;
+  quotes: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.who2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ef-text-2);
+}
+
+.who2 > span {
+  width: 46px;
+  height: 46px;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back,
+  .card {
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) :is(.back, .card) {
+  animation: none;
+}

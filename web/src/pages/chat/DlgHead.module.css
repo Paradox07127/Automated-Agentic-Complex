@@ -1,56 +1,90 @@
-/* DialogDetails header: 43 px, top radius 10, a dark line at its foot, two FriendLine bars at the left; the tri-colour line under its right end. */
-.dlgHead {
+/* The dialog's title strip (prototype .hd): plate face, theme bars at the left, the topic's name, the colour band at the right. */
+.hd {
   position: relative;
   display: flex;
   flex: none;
   align-items: center;
-  gap: 10px;
-  height: 43px;
-  padding: 0 24px 0 38px;
-  border-bottom: 3.5px solid var(--sns-head-line);
-  border-radius: 9px 9px 0 0;
-  background:
-    linear-gradient(var(--sns-head-line), var(--sns-head-line)) 3px 50% / 5.5px 30px no-repeat,
-    linear-gradient(var(--sns-head-line), var(--sns-head-line)) 12px 50% / 5.5px 30px no-repeat,
-    var(--sns-head);
+  height: clamp(50px, 6.4vh, 62px);
+  overflow: hidden;
+  border-radius: 7px 7px 0 0;
+  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
+  box-shadow:
+    inset 0 1px 0 var(--b-edge),
+    0 1.5px 0 var(--b-frame);
+}
+
+.bars {
+  display: flex;
+  gap: 3px;
+  height: 100%;
+}
+
+.bars > i {
+  display: block;
+  width: 7px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--theme) 100%, #fff 30%), var(--theme));
+}
+
+.bars > i + i {
+  width: 3px;
+}
+
+.who {
+  min-width: 0;
+  padding-left: 18px;
+  overflow: hidden;
+  color: var(--b-t1);
+  font: 600 21px/1.2 var(--ef-font-sans);
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 0 var(--b-edge-lo);
   white-space: nowrap;
 }
 
-.dlgName {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--sns-head-text);
-  font: 500 15px/20px var(--ef-font-sans);
-  text-overflow: ellipsis;
-}
-
-.dlgSub {
+.band {
+  position: relative;
   flex: none;
-  color: var(--sns-head-sub);
-  font: 400 13px/20px var(--ef-font-sans);
+  width: min(50%, 420px);
+  height: 100%;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--theme);
 }
 
-.tri {
+.band svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* A sheen runs across the band every 5 s. */
+.band::after {
+  content: '';
   position: absolute;
-  right: 40px;
-  bottom: -7px;
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  inset: 0 20% 0 0;
+  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.35) 48%, transparent 60%);
+  mix-blend-mode: overlay;
+  transform: translateX(-110%);
+  animation: band 5s var(--g-fade) 1s infinite;
 }
 
-.tri > i {
-  width: 45px;
-  height: 3px;
-  background: var(--sns-tri-m);
+@keyframes band {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  30%,
+  100% {
+    transform: translateX(260%);
+  }
 }
 
-.tri > i:nth-child(2) {
-  width: 47px;
-  height: 2px;
-  background: var(--sns-tri-y);
+@media (prefers-reduced-motion: reduce) {
+  .band::after {
+    animation: none;
+  }
 }
 
-.tri > i:nth-child(3) {
-  background: var(--sns-tri-c);
+:global([data-reduce-motion]) .band::after,
+:global(.still) .band::after {
+  animation: none;
 }

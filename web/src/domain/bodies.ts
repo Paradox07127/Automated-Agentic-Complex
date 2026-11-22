@@ -40,6 +40,9 @@ export const conversationPatch = (c: Conversation, patch: { archived?: boolean; 
   ...patch,
 });
 
+/** POST /conversations: a new conversation of that character, made her active one. */
+export const conversationCreate = (character_id: string) => ({ character_id });
+
 /** DELETE /conversations/{id} and POST …/activate (DELETE needs this JSON body too). */
 export const conversationDelete = (c: Conversation) => ({ expected_version: c.revision });
 

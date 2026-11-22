@@ -78,6 +78,7 @@ export function fromConversation(w: WireConversation, nowMs: number): Conversati
   const updated = secToMs(w.updated_at);
   return {
     id: w.id,
+    character_id: w.character_id,
     title: w.title,
     group: w.pinned ? '置顶' : sameLocalDay(updated, nowMs) ? '今天' : '更早',
     updated_at: updated,
@@ -86,6 +87,7 @@ export function fromConversation(w: WireConversation, nowMs: number): Conversati
     pinned: w.pinned,
     active: w.active,
     turn_count: w.turn_count,
+    preview: w.preview,
     archived: w.archived,
   };
 }

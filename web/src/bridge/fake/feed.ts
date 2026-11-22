@@ -31,3 +31,20 @@ export function scriptedStream(script: ScriptedEvent[], still: boolean, onEvent:
   next();
   return () => clearTimeout(timer);
 }
+
+/** Her reply to a line the fake agentd took: `line` frames of a few deltas, then the final one (turns.py line event). */
+export function replyScript(line: { line_id: string; conversation_id: string }, text: string): ScriptedEvent[] {
+  const parts = text.match(/[^，。！？]+[，。！？]?/g) ?? [text];
+  const frame = (text_delta: string, final: boolean) => ({ ...line, run_id: line.line_id, text_delta, final, intents: [], cancelled: false, error: null, lane: 'character' });
+  return [...parts.map((p) => ({ delay: 400, event: 'line', data: frame(p, false) })), { delay: 300, event: 'line', data: frame('', true) }];
+}
+
+/** Plays the script once; `still` plays nothing. */
+export function playOnce(script: ScriptedEvent[], still: boolean, onEvent: (e: StreamEvent) => void): void {
+  if (still) return;
+  let wait = 0;
+  script.forEach((item, i) => {
+    wait += item.delay;
+    setTimeout(() => onEvent({ event: item.event, id: `reply-${i}`, data: JSON.stringify(item.data) }), wait);
+  });
+}

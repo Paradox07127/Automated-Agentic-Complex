@@ -51,13 +51,13 @@ export interface ConvIndex {
   offline: boolean;
 }
 
-/** `demo`: a fake-bridge query for a demo list (`?demo=sparse`), empty otherwise. */
-export function useConversations(fail: boolean, enabled: boolean, demo = '') {
+/** `GET /conversations?character=`: her conversations; `demo` is a fake-bridge query for a demo list (`&demo=sparse`), empty otherwise. */
+export function useConversations(character: string | null, fail: boolean, enabled: boolean, demo = '') {
   return useQuery({
-    queryKey: ['chat-convs', fail, demo],
+    queryKey: ['chat-convs', character, fail, demo],
     queryFn: async (): Promise<ConvIndex> => {
       const conn = await getBridge().agentd.connection();
-      const body = await get<{ conversations: WireConversation[]; busy: boolean }>(`/conversations${demoQuery(fail, '?fail=1') || demo}`).catch((e: unknown) => {
+      const body = await get<{ conversations: WireConversation[]; busy: boolean }>(`/conversations?character=${encodeURIComponent(character ?? '')}${demoQuery(fail, '&fail=1') || demo}`).catch((e: unknown) => {
         throw loadError(e, conn, '读取对话失败');
       });
       const now = clock();
@@ -69,7 +69,7 @@ export function useConversations(fail: boolean, enabled: boolean, demo = '') {
         offline: conn === 'offline',
       };
     },
-    enabled,
+    enabled: enabled && character != null,
     retry: false,
     staleTime: 5_000,
     refetchOnMount: 'always',
@@ -258,16 +258,36 @@ export function useLookOff(enabled: boolean) {
   });
 }
 
-/** The active character from the shell: its display name and id (replies by another character are signed with theirs). */
-export function useRole() {
+export interface ChatCharacter {
+  id: string;
+  name: string;
+  /** Head art URL; absent when her package has none. */
+  head?: string;
+}
+
+/** The shell's characters, one tab each; `shown` is the one the shell runs (replies by another are signed with theirs). */
+export function useCharacters() {
   return useQuery({
-    queryKey: ['chat-role'],
+    queryKey: ['chat-characters'],
     queryFn: async () => {
       const list = await getBridge().character.list();
-      const active = list.find((c) => c.active);
-      return { id: active?.id ?? null, name: active?.name ?? '角色', names: Object.fromEntries(list.map((c) => [c.id, c.name])) as Record<string, string> };
+      return {
+        list: list.map((c): ChatCharacter => ({ id: c.id, name: c.name, ...(c.head ? { head: c.head } : {}) })),
+        shown: list.find((c) => c.active)?.id ?? null,
+        names: Object.fromEntries(list.map((c) => [c.id, c.name])) as Record<string, string>,
+      };
     },
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+/** `/state` character: the one on the desktop, whom agentd answers as. */
+export function usePresent() {
+  return useQuery({
+    queryKey: ['chat-present'],
+    queryFn: async () => (await get<{ character: string }>('/state')).character,
+    retry: false,
+    staleTime: 5_000,
   });
 }

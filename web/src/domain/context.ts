@@ -86,6 +86,7 @@ export interface AppTime {
 
 export interface Conversation {
   id: string;
+  character_id: string;
   title: string;
   /** Derived from pinned and updated_at against the adapter's clock. */
   group: '置顶' | '今天' | '更早';
@@ -94,8 +95,10 @@ export interface Conversation {
   /** Send back as expected_version; goes up by one on every PUT. */
   revision: number;
   pinned: boolean;
+  /** Its character's active conversation. */
   active: boolean;
   turn_count: number;
+  preview: string;
   /** Set by the page from the list's top-level `busy`. */
   busy?: boolean;
   archived: boolean;

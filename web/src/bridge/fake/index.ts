@@ -1,5 +1,6 @@
 import type {
   A11yState,
+  AgentdResponse,
   AvatarDetails,
   AvatarState,
   AvatarStats,
@@ -16,11 +17,13 @@ import type {
   SettingId,
   SettingValue,
   StackPayload,
+  StreamEvent,
   SupervisorTarget,
   Surface,
   Unsubscribe,
 } from '../protocol';
 import type { MockRoute } from '../../mock/types';
+import { chatRoutes } from '../../mock/chat';
 import { CAMERA_DEMO, COMPUTER_DEMO, RESIZE_DEMO } from './overlays';
 import { mockRoutes } from '../../mock';
 import { MOTIONS } from '../../mock/character';
@@ -32,7 +35,7 @@ import { BRIDGE_OPS, SURFACE_CAPABILITIES, SURFACE_OPS, SYNC_OPS } from '../surf
 import { createDispatcher } from './agentd';
 import { createFakeDesktop } from './desktop';
 import { exampleRoutes } from './endpoints';
-import { feedScript, scriptedStream } from './feed';
+import { feedScript, playOnce, replyScript, scriptedStream } from './feed';
 import { fakeImports } from './imports';
 import { fakeLogs } from './logs';
 import { fakeMotion, fakePreviewSequence } from './motion';
@@ -166,9 +169,22 @@ function readA11y(): A11yState {
   };
 }
 
+/** Her reply on the fake feed, by character. */
+const REPLIES: Record<string, string> = { si: '嗯，收到啦。我记下了，等会儿就去办，办好了再来叫你。' };
+
 export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge {
   const still = opts.still ?? hashQuery().get('still') === '1';
-  const request = createDispatcher([...exampleRoutes, ...mockRoutes, ...(opts.routes ?? [])]);
+  const listeners = new Set<(e: StreamEvent) => void>();
+  const chat = chatRoutes({
+    present: () => character,
+    said: (line) => playOnce(replyScript(line, REPLIES[line.character_id] ?? '好，我记下了。'), still, (e) => listeners.forEach((l) => l(e))),
+  });
+  const routed = createDispatcher([...exampleRoutes, ...mockRoutes, ...chat, ...(opts.routes ?? [])]);
+  // agentd's /state names the character the fake host last switched to.
+  const request = async <T,>(method: Parameters<typeof routed>[0], path: string, body?: unknown): Promise<AgentdResponse<T>> => {
+    const res = await routed<T>(method, path, body);
+    return method === 'GET' && path.split('?')[0] === '/state' && res.body ? { ...res, body: { ...res.body, character } } : res;
+  };
   const avatar: AvatarState = {
     running: true, visible: true, scale: 1, clickThroughAll: false, speaking: false,
     characterId: 'voice_a', appearanceId: 'default',
@@ -222,7 +238,14 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       connection: async () => (['disconnected', 'agentdoff'].includes(hashQuery().get('demo') ?? '') ? 'offline' : 'connected'),
     },
     feed: {
-      subscribe: (onEvent) => scriptedStream(feedScript, still, onEvent),
+      subscribe: (onEvent) => {
+        listeners.add(onEvent);
+        const stop = scriptedStream(feedScript, still, onEvent);
+        return () => {
+          listeners.delete(onEvent);
+          stop();
+        };
+      },
     },
     diag: {
       subscribe: () => none,

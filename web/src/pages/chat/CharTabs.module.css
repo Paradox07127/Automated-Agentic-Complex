@@ -1,0 +1,146 @@
+/* Character tabs in the header (dark in both themes): head + name; the selected one a yellow block (prototype .ctab). */
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 50px;
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 14px 0 4px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ef-canvas-fg);
+  opacity: 0.72;
+  font: 600 14px/1 var(--ef-font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--g-fade),
+    color 0.15s var(--g-fade),
+    opacity 0.15s var(--g-fade);
+}
+
+.tab:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  opacity: 1;
+}
+
+.tab[aria-selected='true'] {
+  background: linear-gradient(180deg, #fff65a, var(--b-sel) 35%, var(--b-sel-2));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 6px -2px rgba(0, 0, 0, 0.5);
+  color: var(--b-ink);
+  opacity: 1;
+}
+
+.tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -3px;
+  left: 0;
+  height: 2px;
+  background: var(--b-sel);
+  animation: tab-in 0.25s var(--g-fade);
+}
+
+@keyframes tab-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--b-sel);
+  outline-offset: 2px;
+}
+
+.ava {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+}
+
+/* Broken thin ring around the face. */
+.ava::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  -webkit-mask: conic-gradient(from 20deg, #000 0 100deg, transparent 100deg 118deg, #000 118deg 250deg, transparent 250deg 268deg, #000 268deg);
+  mask: conic-gradient(from 20deg, #000 0 100deg, transparent 100deg 118deg, #000 118deg 250deg, transparent 250deg 268deg, #000 268deg);
+  opacity: 0.7;
+}
+
+.face {
+  position: relative;
+  display: block;
+  width: 26px;
+  height: 26px;
+  overflow: hidden;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1.5px rgba(0, 0, 0, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Head and shoulders, drawn. */
+.generic {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 40%, #20242a 0 22%, transparent 23%),
+    radial-gradient(ellipse 38% 30% at 50% 100%, #20242a 0 96%, transparent 100%),
+    radial-gradient(circle at 50% 30%, #8a8f96, #3b3f45 80%);
+}
+
+.desk {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ef-success);
+  box-shadow:
+    0 0 0 2px var(--ef-canvas),
+    0 0 6px var(--ef-success);
+}
+
+.name {
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab,
+  .tab[aria-selected='true']::after {
+    transition: none;
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) :is(.tab, .tab::after) {
+  transition: none;
+  animation: none;
+}
