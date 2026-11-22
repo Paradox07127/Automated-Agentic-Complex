@@ -28,7 +28,7 @@ export interface MotionGroups {
   /** `reason` is the exclusion rule's, e.g. `battle`. */
   excluded: MotionGroupRefusal[];
   unclassified: string[];
-  counts: { clips: number; pooled: number; proposed: number; rejected: number; excluded: number; unclassified: number };
+  counts: { clips: number; pooled: number; proposed: number; rejected: number; excluded: number; unclassified: number; proposals: number };
 }
 
 /** Another character than the current one answers 409 `not_current`. */

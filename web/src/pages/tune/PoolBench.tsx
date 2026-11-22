@@ -216,7 +216,7 @@ export function PoolBench({ offline, toast }: PoolBenchProps) {
       <OpenSec
         title="动作池"
         {...(groups.data ? { count: Object.keys(groups.data.pools).length } : {})}
-        right={c && <span className={styles.counts}>{`片段 ${c.clips} │ 池内 ${c.pooled} │ 建议 ${c.proposed} │ 不收 ${c.rejected} │ 排除 ${c.excluded} │ 未分类 ${c.unclassified}`}</span>}
+        right={c && <span className={styles.counts}>{`片段 ${c.clips} │ 池内 ${c.pooled} │ 建议 ${c.proposals} │ 不收 ${c.rejected} │ 排除 ${c.excluded} │ 未分类 ${c.unclassified}`}</span>}
       >
         {body()}
       </OpenSec>

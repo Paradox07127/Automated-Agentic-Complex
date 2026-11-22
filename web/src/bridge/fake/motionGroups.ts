@@ -49,6 +49,7 @@ export const MOTION_GROUPS: MotionGroups = {
     rejected: pools.reduce((n, p) => n + p.rejected.length, 0),
     excluded: EXCLUDED.length,
     unclassified: UNCLASSIFIED.length,
+    proposals: pools.reduce((n, p) => n + p.proposal.length, 0),
   },
 };
 
