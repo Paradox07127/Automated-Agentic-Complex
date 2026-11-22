@@ -11,8 +11,10 @@ def _id64(value):
 def _motion_state_ok(body):
     """C3 rule 54's motion_state without v and type."""
     return isinstance(body, dict) and set(body) == c1.MOTION_STATE_KEYS | {"clip"} and body["origin"] in c1.ORIGINS \
-        and (_id64(body["behavior_id"]) or body["behavior_id"] is None and body["origin"] == "local") \
-        and body["phase"] in c1.MOTION_STATE_PHASES and isinstance(body["resting"], bool) \
+        and (_id64(body["behavior_id"]) and body["origin"] != "user"
+             or body["behavior_id"] is None and body["origin"] != "agent") \
+        and body["phase"] in (c1.USER_PHASES if body["origin"] == "user" else c1.MOTION_STATE_PHASES) \
+        and isinstance(body["resting"], bool) \
         and isinstance(body["busy"], bool) and _id64(body["clip"])
 
 

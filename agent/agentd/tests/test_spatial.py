@@ -1850,14 +1850,19 @@ class MotionStateServerTest(ServerCase):
 
     def test_a_motion_state_reaches_spatial_with_its_fields(self):
         local = {**self.GOOD, "behavior_id": None, "origin": "local", "phase": "ended"}
+        user = {**local, "origin": "user", "phase": "started"}
         with unittest.mock.patch.object(self.server.spatial, "motion_state") as motion_state:
             self.assertEqual(self.request("POST", "/behavior/motion_state", self.GOOD), (204, None))
             self.assertEqual(self.request("POST", "/behavior/motion_state", local), (204, None))
-        self.assertEqual(motion_state.call_args_list, [unittest.mock.call(self.GOOD), unittest.mock.call(local)])
+            self.assertEqual(self.request("POST", "/behavior/motion_state", user), (204, None))
+        self.assertEqual(motion_state.call_args_list,
+                         [unittest.mock.call(self.GOOD), unittest.mock.call(local), unittest.mock.call(user)])
 
     def test_bad_bodies_are_400_and_other_tokens_401_and_reach_nothing(self):
         good = self.GOOD
+        user = {**good, "behavior_id": None, "origin": "user", "phase": "started"}
         bad = [{**good, "phase": "running"}, {**good, "origin": "user"}, {**good, "behavior_id": None},
+               {**user, "phase": "cycle_end"}, {**user, "behavior_id": "b-1-1"}, {**good, "origin": "remote"},
                {**good, "behavior_id": ""}, {**good, "behavior_id": "b" * 65}, {**good, "resting": 1},
                {**good, "busy": None}, {**good, "clip": ""}, {k: v for k, v in good.items() if k != "clip"},
                {**good, "extra": 1}, [good], "b-1-1"]
@@ -2147,6 +2152,78 @@ class ChooserTest(SpatialCase):
             report.assert_not_called()
             self.spatial.motion_state(state)
         report.assert_called_once_with("base_loop", 4.0)
+
+    USER = {"behavior_id": None, "origin": "user", "resting": False, "busy": True, "clip": "wave"}
+
+    def user_play(self, phase):
+        self.spatial.motion_state({**self.USER, "phase": phase})
+
+    def base_performs(self):
+        return [m for m in self.performs() if m["layer"] == "base"]
+
+    def test_a_user_play_holds_her_base_clips_and_she_goes_on_from_her_rest_loop_after_it(self):
+        self.run_clock(1)
+        [loop] = self.performs()
+        for end in ("ended", "expired", "rejected"):
+            with self.subTest(end):
+                self.receipt(self.base_performs()[-1]["behavior_id"], "cancelled", "user_play")
+                self.user_play("started")
+                self.sent.clear()
+                self.run_clock(60)
+                self.assertEqual(self.base_performs(), [])  # neither her loop again nor an idle tier
+                self.spatial.motion({"kind": "voice", "on": True})
+                self.spatial.motion({"kind": "clause", "intent": "explain"})
+                self.spatial.motion({"kind": "voice", "on": False})
+                self.flush()
+                self.assertTrue(self.performs())
+                self.assertEqual({m["layer"] for m in self.performs()}, {"overlay"})
+                for m in self.performs():
+                    self.receipt(m["behavior_id"], "completed")
+                self.sent.clear()
+                self.user_play(end)
+                self.run_clock(spatial.MOTION_WAKE)
+                self.assertEqual([m["clip"] for m in self.base_performs()], [{"id": "base_loop"}])
+        self.assertValid()
+
+    def test_a_base_clip_the_user_play_ended_is_not_tried_again_before_her_play_starts(self):
+        self.run_clock(1)
+        [loop] = self.performs()
+        self.receipt(loop["behavior_id"], "cancelled", "user_play")
+        self.run_clock(10)
+        self.assertEqual(self.performs(), [loop])
+        self.assertNotIn(loop["behavior_id"], self.spatial.active)
+        self.user_play("started")
+        self.run_clock(10)
+        self.user_play("ended")
+        self.run_clock(spatial.MOTION_WAKE)
+        self.assertEqual([m["clip"] for m in self.performs()], [{"id": "base_loop"}] * 2)
+        self.assertValid()
+
+    def test_a_lost_renderer_ends_the_hold(self):
+        self.run_clock(1)
+        [loop] = self.performs()
+        self.receipt(loop["behavior_id"], "cancelled", "user_play")
+        self.user_play("started")
+        with self.spatial._lock:
+            self.assertTrue(self.spatial._send(spatial._spec("observe", None, "tick", None, 0, spatial.EYES, (), 0.5,
+                                                             600.0), self.s, self.now)[0])
+        self.flush()
+        observe = self.sent[-1]["behavior_id"]
+        self.run_clock(10)
+        self.assertEqual(self.performs(), [loop])
+        self.receipt(observe, "cancelled", "connection_lost")
+        self.run_clock(spatial.MOTION_WAKE)
+        self.assertEqual([m["clip"] for m in self.performs()], [{"id": "base_loop"}] * 2)
+        self.assertValid()
+
+    def test_a_character_switch_ends_the_hold(self):
+        self.run_clock(1)
+        [loop] = self.performs()
+        self.receipt(loop["behavior_id"], "cancelled", "user_play")
+        self.user_play("started")
+        self.spatial.use_motion(MotionChooser(PACK))
+        self.run_clock(1)
+        self.assertEqual(len(self.performs()), 2)  # the new character's base loop goes out
 
     def test_her_sit_owns_the_body_and_the_chooser_stands_again_after_it(self):
         self.run_clock(1)

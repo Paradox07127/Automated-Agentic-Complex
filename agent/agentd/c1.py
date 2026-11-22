@@ -77,7 +77,8 @@ STAGE_LEVELS = ("offstage", "quiet", "normal", "engaged")
 CONSUMED_MAX = 64
 OCCURRENCE_ID_MAX = 64  # bytes
 MOTION_STATE_PHASES = ("started", "cycle_end", "ended", "expired", "rejected")
-ORIGINS = ("agent", "local")
+ORIGINS = ("agent", "local", "user")
+USER_PHASES = ("started", "ended", "expired", "rejected")  # a user play or pose scene sends no cycle_end
 MOTION_STATE_KEYS = {"behavior_id", "origin", "phase", "resting", "busy"}  # C3 motion_state without its clip
 PLAYER_KEYS = {"name", "character", "steps", "expect"}  # and the optional poses
 
@@ -333,8 +334,9 @@ def _receipt(m):
         problems.append(f"{phase} reason must be one of {PHASE_REASONS[phase]}")
     if phase not in PHASE_REASONS and not _str_or_none(m.get("reason")):
         problems.append("reason is a string or null")
-    if m.get("reason") == "connection_lost" and phase != "cancelled":
-        problems.append("connection_lost is a reason of cancelled only")
+    for reason in ("connection_lost", "user_play"):
+        if m.get("reason") == reason and phase != "cancelled":
+            problems.append(f"{reason} is a reason of cancelled only")
     if not _int(m.get("at_ms")) or not _int(m.get("turn_generation")):
         problems.append("at_ms and turn_generation")
     return problems
@@ -541,12 +543,14 @@ def _expected_state(state, sent):
     problems = []
     if state["origin"] not in ORIGINS:
         problems.append(f"origin is one of {ORIGINS}")
-    if state["behavior_id"] is None and state["origin"] != "local":
-        problems.append("a null behavior_id is a local reaction's")
+    if state["behavior_id"] is None and state["origin"] == "agent":
+        problems.append("a null behavior_id is a local reaction's or a user play's")
+    elif state["behavior_id"] is not None and state["origin"] == "user":
+        problems.append("a user play's behavior_id is null")
     elif state["behavior_id"] is not None and state["behavior_id"] not in sent:
         problems.append(f"behavior_id {state['behavior_id']!r} was not sent in a step")
-    if state["phase"] not in MOTION_STATE_PHASES:
-        problems.append(f"phase is one of {MOTION_STATE_PHASES}")
+    if state["phase"] not in (USER_PHASES if state["origin"] == "user" else MOTION_STATE_PHASES):
+        problems.append(f"phase is one of {MOTION_STATE_PHASES}, a user play's one of {USER_PHASES}")
     if not isinstance(state["resting"], bool) or not isinstance(state["busy"], bool):
         problems.append("resting and busy are true or false")
     return problems

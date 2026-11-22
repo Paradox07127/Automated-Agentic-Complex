@@ -288,6 +288,7 @@ class Spatial:
         self._staged = None  # a clause's gesture the chooser staged behind its start family's base
         self._hold_at = 0.0  # clock time the chooser's loop that does not run may be proposed again
         self._held = False  # whether the current chooser has had a base loop sent
+        self._user_play = False  # the user's own play or pose scene holds the base layer: no base clip goes out
         # whether the current chooser's entrance waits for a stage she shows on and for her to stand; a return
         # performance that plays meanwhile has greeted the user in its place
         self._enter = False
@@ -524,8 +525,11 @@ class Spatial:
                 behavior = record["behavior"]
                 self._unsupported[_unsupported_key(behavior["type"], behavior["target"], behavior.get("variant"))] = \
                     now + UNSUPPORTED_FOR
+            if phase == "cancelled" and body.get("reason") == "user_play":
+                self._user_play = True  # its started may come after this receipt
             if body.get("reason") == "connection_lost":
                 self._unsupported.clear()  # the next Avatar may run other types
+                self._user_play_over()
             if phase == "blocked":
                 behavior = record["behavior"]
                 self._blocked[_target_key(behavior["type"], behavior["target"])] = now + BLOCKED_FOR
@@ -646,7 +650,7 @@ class Spatial:
             self._overlay = self._staged = self._return = None
             self._returned = []
             self._hold_at, self._seated, self._voice, self._held = 0.0, False, False, False
-            self._enter, self._within, self._variant = chooser is not None, None, None
+            self._enter, self._within, self._variant, self._user_play = chooser is not None, None, None, False
             self._intents.clear()
             self._clauses.clear()
             if chooser is not None:
@@ -850,8 +854,14 @@ class Spatial:
 
     def motion_state(self, body):
         """A C3 motion_state (rule 54): at a cycle end or the end of a clip the chooser chose, the chooser's playhead
-        goes where the renderer's is."""
+        goes where the renderer's is. The user's own play holds the chooser's base clips from its start to its end."""
         with self._lock:
+            if body["origin"] == "user":
+                if body["phase"] == "started":
+                    self._user_play = True
+                else:
+                    self._user_play_over()
+                return
             record = self.records.get(body["behavior_id"])
             if self.chooser is None or record is None or not record["spec"].get("chosen") \
                     or body["phase"] not in ("cycle_end", "ended"):
@@ -863,6 +873,13 @@ class Spatial:
             length = self.chooser.pack.lengths[clip]
             self.chooser.report_playhead(clip, max(1, round(time_s / length)) * length
                                          if body["phase"] == "cycle_end" else length)
+
+    def _user_play_over(self):
+        """The user's play gave the body back: the chooser goes on from what the base layer plays, her rest loop."""
+        if self._user_play:
+            self._user_play = False
+            if self.chooser is not None:
+                self.chooser.report_playhead(*self._played())
 
     def motion_step(self):
         """One wake of the motion clock: the chooser's frames up to now with the registry's intents at their times,
@@ -975,7 +992,8 @@ class Spatial:
         left = self._return_left(base) if not overlay and why.startswith("exit of ") else 0.0
         if left > 0:  # the renderer plays the return's clip out first (C1 §1.4), and the chooser's clock waits with it
             spec.update(start="after_exit", lifetime=spec["lifetime"] + left)
-        admitted, refused = self._send(spec, s, now, self._lapsed())
+        admitted, refused = (False, "user_play") if self._user_play and not overlay \
+            else self._send(spec, s, now, self._lapsed())
         if ret is not None and admitted:
             self._returned.append(next(reversed(self.active)))
             if ret["part"] not in self.last_return["played"]:
@@ -1000,7 +1018,7 @@ class Spatial:
         loop fades out; any other clip is a base perform within the sit. Before the chooser sits on the seat's loop its
         clips are the standing ones it plays out and the enter, and after the sit ended there is nothing to play within."""
         sit = next((r for r in self.active.values() if r["behavior"]["type"] in SEATED), None)
-        if sit is None or not self.chooser.seated:
+        if sit is None or not self.chooser.seated or self._user_play:
             return
         within = self.active.get(self._within)
         if why.startswith(SEAT_MOVES):
@@ -1035,6 +1053,8 @@ class Spatial:
     def _hold(self, s, now):
         """Renews the chosen base loop before its ttl_s runs out, and proposes the chooser's loop when the base layer
         does not play it (at the start, after another owner or the stage took the body)."""
+        if self._user_play:
+            return
         base = self.active.get(self._base_id)
         if base is not None and base["spec"].get("loop") and base["behavior"]["expires_at_ms"] <= (now + LOOP_RENEW) * 1000:
             # a return loop the chooser still plays after the return is renewed as her own

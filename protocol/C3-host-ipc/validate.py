@@ -21,7 +21,8 @@ PLACEMENT_REASONS = {"start", "drag", "behavior", "set_placement"}
 PLAYBACK_STATES = {"started", "buffering", "resumed", "ended", "interrupted", "failed", "degraded"}
 BEHAVIOR_PHASES = {"prepared", "rejected", "running", "completed", "blocked", "cancelled", "expired"}
 MOTION_STATE_PHASES = {"started", "cycle_end", "ended", "expired", "rejected"}
-MOTION_STATE_ORIGINS = {"agent", "local"}
+MOTION_STATE_ORIGINS = {"agent", "local", "user"}
+USER_MOTION_PHASES = MOTION_STATE_PHASES - {"cycle_end"}
 MAX_TRACE_EVENTS = 50
 MAX_ACTIONS = 128
 ACTION_SECTIONS = {"talk", "react", "idle", "move", "touch", "battle"}
@@ -481,10 +482,13 @@ def check_motion_state(m, _):
     errors = []
     if m.get("origin") not in MOTION_STATE_ORIGINS:
         errors.append(f"motion_state.origin must be one of {sorted(MOTION_STATE_ORIGINS)}")
-    if "behavior_id" not in m or not (is_str(m["behavior_id"]) or m["behavior_id"] is None and m.get("origin") == "local"):
-        errors.append("motion_state.behavior_id must be a non-empty string, or null with origin local")
-    if m.get("phase") not in MOTION_STATE_PHASES:
-        errors.append(f"motion_state.phase must be one of {sorted(MOTION_STATE_PHASES)}")
+    if "behavior_id" not in m or not (is_str(m["behavior_id"]) and m.get("origin") != "user"
+                                      or m["behavior_id"] is None and m.get("origin") in ("local", "user")):
+        errors.append("motion_state.behavior_id must be a non-empty string, or null with origin local; "
+                      "null with origin user")
+    if m.get("phase") not in (USER_MOTION_PHASES if m.get("origin") == "user" else MOTION_STATE_PHASES):
+        errors.append(f"motion_state.phase must be one of {sorted(MOTION_STATE_PHASES)}, "
+                      f"with origin user one of {sorted(USER_MOTION_PHASES)}")
     if not (isinstance(m.get("resting"), bool) and isinstance(m.get("busy"), bool)):
         errors.append("motion_state.resting and busy must be booleans")
     if not (is_str(m.get("clip")) and len(m["clip"].encode("utf-8")) <= MAX_ID):

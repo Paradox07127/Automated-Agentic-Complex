@@ -1,0 +1,50 @@
+{
+ "description": "不合法（校验器要报错）：user_play 只是 cancelled 的 reason，用户的播放不会让 agentd 的片段 completed",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e9-1",
+   "type": "perform",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": "hold"
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 0,
+   "expires_at_ms": 4102444800000,
+   "intensity": 0.5,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "t-1",
+   "clip": {
+    "id": "base_loop"
+   },
+   "layer": "base",
+   "loop": true,
+   "ttl_s": 30
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e9-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000000,
+   "turn_generation": 5
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e9-1",
+   "phase": "completed",
+   "reason": "user_play",
+   "at_ms": 1760900001500,
+   "turn_generation": 5
+  }
+ ]
+}

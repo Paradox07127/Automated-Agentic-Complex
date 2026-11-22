@@ -176,6 +176,14 @@ class MessageTest(unittest.TestCase):
         self.assertEqual(c1.check_message(lost), [])
         self.assertTrue(self.broken(lambda m: m.update(reason="connection_lost", phase="completed"), lost))
 
+    def test_a_user_play_ends_a_behavior_as_cancelled_only(self):
+        played = {"event": "receipt", "behavior_id": "b-e1-1", "phase": "cancelled", "reason": "user_play",
+                  "at_ms": 1760900000500, "turn_generation": 3}
+        self.assertEqual(c1.check_message(played), [])
+        for phase in ("completed", "expired", "rejected"):
+            with self.subTest(phase):
+                self.assertTrue(self.broken(lambda m: m.update(phase=phase), played))
+
     def test_switches_are_the_full_object_of_booleans(self):
         good = {"stay_in_place": False, "sit_window_top": True, "hold_window_edge": True,
                 "fullscreen_give_way": True}
@@ -637,6 +645,9 @@ class PlayerFixtureTest(unittest.TestCase):
         self.assertEqual(c1.check_player_fixture(self.BASIC), [])
         self.assertEqual(c1.check_player_fixture({**self.BASIC, "poses": []}), [])
         self.assertEqual(c1.check_player_fixture({**self.BASIC, "character": "aster"}), [])
+        user = copy.deepcopy(self.BASIC)
+        user["expect"][1]["motion_state"]["origin"] = "user"  # a user play: null behavior_id, no cycle_end
+        self.assertEqual(c1.check_player_fixture(user), [])
 
     def test_the_fixture_shape(self):
         for change in (lambda f: f.pop("name"), lambda f: f.update(name=""), lambda f: f.pop("character"),
@@ -662,7 +673,9 @@ class PlayerFixtureTest(unittest.TestCase):
         for change in (lambda f: f["expect"][0]["motion_state"].update(clip="idle_stand_a"),
                        lambda f: f["expect"][0]["motion_state"].pop("busy"),
                        lambda f: f["expect"][0]["motion_state"].update(phase="running"),
-                       lambda f: f["expect"][0]["motion_state"].update(origin="user"),
+                       lambda f: f["expect"][0]["motion_state"].update(origin="user"),  # with a behavior_id
+                       lambda f: f["expect"][1]["motion_state"].update(origin="user", phase="cycle_end"),
+                       lambda f: f["expect"][0]["motion_state"].update(origin="remote"),
                        lambda f: f["expect"][0]["motion_state"].update(resting=1),
                        lambda f: f["expect"][0]["motion_state"].update(behavior_id=None),  # agent needs its behavior
                        lambda f: f["expect"][0]["motion_state"].update(behavior_id="b-e7-9"),  # never sent
@@ -687,7 +700,8 @@ class InvalidFixtureTest(unittest.TestCase):
                  "snapshot-hold-on-click": "hold", "snapshot-hold-not-in-list": "hold",
                  "snapshot-stroke-off-present": "stroke_s", "perform-within-on-overlay": "within",
                  "perform-within-no-sit": "within", "snapshot-hold-s-not-in-list": "hold_s",
-                 "snapshot-hold-s-on-the-hold": "hold_s", "snapshot-hold-s-not-positive": "hold_s"}
+                 "snapshot-hold-s-on-the-hold": "hold_s", "snapshot-hold-s-not-positive": "hold_s",
+                 "receipt-user-play-not-cancelled": "user_play"}
         for name, word in words.items():
             with self.subTest(name):
                 problems = c1.check_file(json.loads((INVALID / f"{name}.json").read_text(encoding="utf-8")))

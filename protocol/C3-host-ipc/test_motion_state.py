@@ -14,7 +14,8 @@ class MotionStateContractTests(unittest.TestCase):
                  busy=False, clip='idle_stand_a')
 
     def test_valid_sessions_pass(self):
-        for name in ['avatar-to-companion-motion-state', 'avatar-to-companion-cancel-reasons']:
+        for name in ['avatar-to-companion-motion-state', 'avatar-to-companion-cancel-reasons',
+                     'avatar-to-companion-motion-state-user']:
             with self.subTest(name):
                 self.assertEqual(errors_of(PENDING / f'{name}.ndjson', True), [])
 
@@ -22,9 +23,13 @@ class MotionStateContractTests(unittest.TestCase):
         text = (PENDING / 'avatar-to-companion-cancel-reasons.ndjson').read_text(encoding='utf-8')
         self.assertIn('"reason":"user_click"', text)
         self.assertIn('"reason":"give_way"', text)
+        text = (PENDING / 'avatar-to-companion-motion-state-user.ndjson').read_text(encoding='utf-8')
+        self.assertIn('"reason":"user_play"', text)
+        self.assertIn('"origin":"user"', text)
 
     def test_invalid_examples_fail_on_their_rule(self):
-        cases = {'a2c-motion-state-bad-phase': 'phase', 'a2c-motion-state-agent-without-behavior': 'behavior_id'}
+        cases = {'a2c-motion-state-bad-phase': 'phase', 'a2c-motion-state-agent-without-behavior': 'behavior_id',
+                 'a2c-motion-state-user-with-behavior': 'behavior_id'}
         for name, word in cases.items():
             with self.subTest(name):
                 errors = errors_of(PENDING / 'invalid' / f'{name}.ndjson', False)
@@ -36,9 +41,13 @@ class MotionStateContractTests(unittest.TestCase):
             self.assertEqual(validate.check_message(dict(self.STATE, phase=phase), 'a2c'), [], phase)
         self.assertEqual(validate.check_message(dict(self.STATE, behavior_id=None, origin='local'), 'a2c'), [])
         self.assertEqual(validate.check_message(dict(self.STATE, origin='local'), 'a2c'), [])
+        for phase in ('started', 'ended', 'expired', 'rejected'):
+            user = dict(self.STATE, behavior_id=None, origin='user', phase=phase)
+            self.assertEqual(validate.check_message(user, 'a2c'), [], phase)
+        self.assertTrue(validate.check_message(dict(user, phase='cycle_end'), 'a2c'))
         self.assertEqual(validate.check_message(dict(self.STATE, clip='a' * 64), 'a2c'), [])
         for patch in [dict(behavior_id=None), dict(behavior_id=''), dict(behavior_id='a' * 65), dict(behavior_id=3),
-                      dict(origin='user'), dict(origin=None), dict(phase='running'), dict(phase=None),
+                      dict(origin='user'), dict(origin='remote'), dict(origin=None), dict(phase='running'), dict(phase=None),
                       dict(resting=1), dict(resting=None), dict(busy='no'), dict(clip=''), dict(clip='a' * 65),
                       dict(clip=None)]:
             with self.subTest(patch=patch):

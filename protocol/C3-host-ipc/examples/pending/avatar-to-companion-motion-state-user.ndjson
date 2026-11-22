@@ -1,0 +1,10 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","placement","trace","playback","turn_generation","behavior_receipt"],"build":{"git":"e8d17c47"}}
+{"v":1,"type":"motion_state","behavior_id":"b-1763700000-1","origin":"agent","phase":"started","resting":true,"busy":false,"clip":"idle_stand_a"}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1763700000-1","phase":"running","reason":null,"at_ms":1763700001000,"turn_generation":5}
+{"v":1,"type":"motion_state","behavior_id":"b-1763700000-1","origin":"agent","phase":"ended","resting":false,"busy":true,"clip":"idle_stand_a"}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1763700000-1","phase":"cancelled","reason":"user_play","at_ms":1763700004000,"turn_generation":5}
+{"v":1,"type":"motion_state","behavior_id":null,"origin":"user","phase":"started","resting":false,"busy":true,"clip":"skill_wave"}
+{"v":1,"type":"motion_state","behavior_id":null,"origin":"user","phase":"ended","resting":false,"busy":true,"clip":"skill_wave"}
+{"v":1,"type":"motion_state","behavior_id":null,"origin":"user","phase":"started","resting":false,"busy":true,"clip":"skill_wave_end"}
+{"v":1,"type":"motion_state","behavior_id":null,"origin":"user","phase":"ended","resting":true,"busy":false,"clip":"skill_wave_end"}
+{"v":1,"type":"motion_state","behavior_id":null,"origin":"user","phase":"rejected","resting":true,"busy":false,"clip":"pose_unknown"}
