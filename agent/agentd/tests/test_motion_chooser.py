@@ -267,5 +267,39 @@ class MotionSettingsTest(unittest.TestCase):
         self.assertNotEqual(chooser.playhead()[0], "think_loop")
 
 
+class EventKeysTest(unittest.TestCase):
+    """agentd owns the event keys and their play rules; a pack only fills their pools."""
+
+    def test_an_override_fills_a_key_the_pack_lacks_with_the_key_s_rules(self):
+        chooser = MotionChooser(PACK)
+        self.assertEqual(chooser.pool("click.repeat"), [])
+        self.assertEqual(chooser.set_motion_overrides({}, {"click.repeat": [{"clip": "tap", "weight": 2}]}, {}), [])
+        self.assertEqual(chooser.pool("click.repeat"), [("tap", 2)])
+        self.assertEqual(chooser.pack.events["click.repeat"].cooldown_s, 10)
+        self.assertEqual(chooser.send({"kind": "event", "key": "click.repeat"})[0]["clip"], "tap")
+        # A later set without it leaves the key empty again.
+        chooser.set_motion_overrides({}, {}, {})
+        self.assertEqual(chooser.pool("click.repeat"), [])
+
+    def test_the_reaction_table_gains_the_filled_trigger(self):
+        from observation.spatial import _reactions
+        chooser = MotionChooser(PACK)
+        self.assertNotIn("pinch_annoyed", _reactions(chooser))
+        chooser.set_motion_overrides({}, {"pinch.annoyed": [{"clip": "tap", "weight": 1}]}, {})
+        self.assertEqual(_reactions(chooser)["pinch_annoyed"], [{"clip": "tap", "weight": 1, "layer": "overlay"}])
+
+    def test_a_pack_event_key_agentd_does_not_know_fails_the_load(self):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        pack = root / "demo"
+        shutil.copytree(PACK, pack)
+        path = pack / "c7" / "animation" / "intent-motion-map.json"
+        m = json.loads(path.read_text(encoding="utf-8"))
+        m["events"]["user.nope"] = {"pool": [{"clip": "tap"}], "interrupt": "user"}
+        path.write_text(json.dumps(m), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "user.nope"):
+            MotionChooser(pack)
+
+
 if __name__ == "__main__":
     unittest.main()

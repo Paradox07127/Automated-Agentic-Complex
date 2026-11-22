@@ -41,6 +41,29 @@ ONE_SHOT_ACTIVITIES = ("idle", "relax", "fidget", "think", "wait", "react", "wel
 ACTIVITY_STAND_INS = {"fly": "think", "guard": "relax"}
 REGION_KEYS = {"cheek_l": ["click.cheek", "click.face"], "cheek_r": ["click.cheek", "click.face"],
                "head_top": ["click.head"], "hand_l": ["click.hand"], "hand_r": ["click.hand"]}
+# Every event key agentd knows -> its play rules, as a pack row without its pool; a pack row keeps its own.
+EVENT_RULES = {
+    "character.enter": {"interrupt": "mid"}, "user.greet": {"interrupt": "mid"},
+    "user.hover": {"interrupt": "low", "cooldown_s": 60},
+    "look.left": {"interrupt": "mid", "cooldown_s": 45}, "look.right": {"interrupt": "mid", "cooldown_s": 45},
+    "present.snap": {"interrupt": "user"},
+    "click.single": {"interrupt": "user"}, "click.repeat": {"interrupt": "user", "cooldown_s": 10},
+    "click.head": {"interrupt": "user"}, "click.face": {"interrupt": "user"}, "click.cheek": {"interrupt": "user"},
+    "click.chest": {"interrupt": "user"}, "click.waist": {"interrupt": "user"}, "click.hand": {"interrupt": "user"},
+    "pat.head": {"interrupt": "user"}, "pinch.cheek": {"interrupt": "user"}, "pinch.annoyed": {"interrupt": "user"},
+    "drag.lift": {"interrupt": "user"}, "drag.land": {"interrupt": "user"},
+    "session.thinking": {"interrupt": "mid", "no_repeat": 3, "repick_gap_s": [20, 40]},
+    "session.tool": {"interrupt": "mid", "cooldown_s": 45, "no_repeat": 3, "repick_gap_s": [30, 60]},
+    "session.subagent": {"interrupt": "mid", "cooldown_s": 30, "repick_gap_s": [30, 60]},
+    "session.approval": {"interrupt": "mid", "cooldown_s": 60},
+    "session.input": {"interrupt": "mid", "cooldown_s": 10, "repick_gap_s": [10, 20]},
+    "session.done": {"interrupt": "high", "cooldown_s": 20}, "session.error": {"interrupt": "high", "cooldown_s": 30},
+    "session.stale": {"interrupt": "low", "cooldown_s": 120, "repick_gap_s": [60, 120]},
+    "session.background": {"interrupt": "mid", "repick_gap_s": [20, 40]},
+    "session.thinking@sit": {"interrupt": "mid", "repick_gap_s": [30, 60]},
+    "session.tool@sit": {"interrupt": "mid", "cooldown_s": 45, "repick_gap_s": [30, 60]},
+    "session.subagent@sit": {"interrupt": "mid", "repick_gap_s": [30, 60]},
+    "session.done@sit": {"interrupt": "mid", "cooldown_s": 20}, "rest.sleep@sit": {"interrupt": "low"}}
 DEFAULT_BUDGET = {"idle_per_min": 2, "idle_gap_s": 15, "busy_per_min": 4, "seated_per_min": 1}
 # Blend seconds over a pose gap in centimetres: linear between the points, flat outside.
 BLEND_CURVE = [(f32(cm), f32(s)) for cm, s in [(8, 0.25), (25, 0.6), (40, 0.9), (55, 0.9), (75, 1.2)]]
@@ -235,9 +258,17 @@ class Pack:
                     self.contexts.setdefault(context, []).append(clip)
         pool = lambda rows: [(r["clip"], 1 if r.get("weight") is None else r["weight"])  # noqa: E731
                              for r in rows if keep(r["clip"])]
-        self.events = {k: Event(pool(e["pool"]), e["interrupt"], f32(e.get("cooldown_s") or 0), e.get("no_repeat"),
-                                _floats(e.get("repick_gap_s"))) for k, e in (m.get("events") or {}).items()}
-        self.event_names = {k.split("@", 1)[0] for k in self.events}
+        events = m.get("events") or {}
+        unknown = sorted(set(events) - set(EVENT_RULES))
+        if unknown:
+            raise ValueError("motion: %s: intent-motion-map.json events agentd does not know: %s"
+                             % (self.id, ", ".join(unknown)))
+        event = lambda e, rows: Event(pool(rows), e["interrupt"], f32(e.get("cooldown_s") or 0),  # noqa: E731
+                                      e.get("no_repeat"), _floats(e.get("repick_gap_s")))
+        self.pack_events = {k: event(e, e["pool"]) for k, e in events.items()}
+        # A known key the pack lacks: its rules with an empty pool, which an override may fill.
+        self.empty_events = {k: event(e, []) for k, e in EVENT_RULES.items() if k not in events}
+        self.fill_events(())
         self.tiers = None if m.get("idle_tiers") is None else [
             Tier(pool(t["pool"]), _floats(t["after_s"]), _floats(t.get("interval_s")),
                  {c: f32(s) for c, s in (t.get("min_gap_s") or {}).items()}, t.get("no_repeat"), t.get("stance"))
@@ -263,6 +294,11 @@ class Pack:
             if "motion-graph.json" in animation else None
         self.tier_postures = [t.stance or self._held_posture(t) for t in self.tiers or []]
         self.c7 = c7
+
+    def fill_events(self, keys):
+        """The event pools the chooser draws from: the pack's, and those of the empty keys among `keys`."""
+        self.events = {**self.pack_events, **{k: self.empty_events[k] for k in keys if k in self.empty_events}}
+        self.event_names = {k.split("@", 1)[0] for k in self.events}
 
     def tier_chain_clips(self, overrides):
         """The clips of every chain an idle tier draws, its pool override's too, and of each held loop's exit chain."""
@@ -544,6 +580,7 @@ class MotionChooser:
             else:
                 blends[clip] = f32(seconds)
         p.blend_in = {**p.pack_blend_in, **blends}
+        p.fill_events(self.pool_overrides)
         self._rebuild_disabled()
         self.tier_clips = p.tier_chain_clips(self.pool_overrides)
         return adjusted
@@ -567,9 +604,9 @@ class MotionChooser:
         self._recheck = True
 
     def _pool_posture(self, key):
-        """The posture of the `events` or idle tier pool `key`; None for neither."""
+        """The posture of the event pool `key` agentd knows or of the idle tier pool `key`; None for neither."""
         p = self.pack
-        if key in p.events:
+        if key in EVENT_RULES:
             return key.split("@", 1)[1] if "@" in key else "stand"
         return next((posture for i, posture in enumerate(p.tier_postures) if "idle.t%d" % (i + 1) == key), None)
 
@@ -650,7 +687,7 @@ class MotionChooser:
 
     def pool(self, event):
         """The clips and weights a standing `event` draws from, weight > 0 only, as play_event and, for
-        `click.single`, play_click_reaction draw them; [] when the pack has no pool for it."""
+        `click.single`, play_click_reaction draw them; [] when neither the pack nor an override fills it."""
         p = self.pack
         key = p.event_key(event, "stand")
         if event == "click.single":
