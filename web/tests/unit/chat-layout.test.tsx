@@ -145,7 +145,7 @@ describe('chat: empty state', () => {
 });
 
 describe('chat: kernel not ready', () => {
-  it('names the kernel with its settings link and keeps the input off', async () => {
+  it('names the kernel with its settings link and leaves the input on: agentd picks the route', async () => {
     const codex = WIRE_RUNTIME.installed_runtimes.find((r) => r.backend === 'codex')!;
     const loggedOut = { ...codex, authenticated: false };
     bridgeWith([
@@ -158,12 +158,12 @@ describe('chat: kernel not ready', () => {
     const thread = await mountChat('&demo=kernel');
     const title = await within(thread).findByText('角色内核未就绪');
     const block = title.closest<HTMLElement>('[role="alert"]')!;
-    expect(block.textContent).toContain('Codex 未就绪，就绪后可发送');
+    expect(block.textContent).toContain('Codex 未就绪');
     expect(within(block).getByRole('link', { name: '设置 › 角色内核' }).getAttribute('href')).toBe('#/settings?group=kernel');
-    expect((within(thread).getByRole('textbox', { name: '消息' }) as HTMLTextAreaElement).disabled).toBe(true);
+    expect((within(thread).getByRole('textbox', { name: '消息' }) as HTMLTextAreaElement).disabled).toBe(false);
   });
 
-  it('after a native_login_required send, 重新检测 in the no-model notice rereads with refresh=1 and turns the input back on', async () => {
+  it('after a native_login_required send, 重新检测 in the no-model notice rereads with refresh=1', async () => {
     const codex = WIRE_RUNTIME.installed_runtimes.find((r) => r.backend === 'codex')!;
     const loggedOut = { ...codex, authenticated: false };
     let loggedIn = true;
@@ -183,11 +183,10 @@ describe('chat: kernel not ready', () => {
     fireEvent.change(input, { target: { value: '在吗' } });
     fireEvent.click(within(thread).getByRole('button', { name: /发送/ }));
     const notice = (await within(thread).findByText(/没有可用的模型/)).closest<HTMLElement>('[role="alert"]')!;
-    await waitFor(() => expect(input.disabled).toBe(true));
+    expect(input.disabled).toBe(false);
     loggedIn = true;
     fireEvent.click(within(notice).getByRole('button', { name: '重新检测' }));
     await waitFor(() => expect(spy.mock.calls.some(([m, p]) => m === 'GET' && p === '/character/runtime?refresh=1')).toBe(true));
-    await waitFor(() => expect(input.disabled).toBe(false));
   });
 
   it('rereads an unready runtime when the window regains focus', async () => {
@@ -203,28 +202,26 @@ describe('chat: kernel not ready', () => {
       },
     ]);
     const thread = await mountDefault();
-    const input = within(thread).getByRole('textbox', { name: '消息' }) as HTMLTextAreaElement;
-    await waitFor(() => expect(input.disabled).toBe(true));
+    await within(thread).findByText('角色内核未就绪');
     loggedIn = true;
     act(() => {
       focusManager.setFocused(false);
       focusManager.setFocused(true);
     });
-    await waitFor(() => expect(input.disabled).toBe(false));
+    await waitFor(() => expect(within(thread).queryByText('角色内核未就绪')).toBeNull());
     focusManager.setFocused(undefined);
   });
 
-  it('rereads an unready runtime on its own, so a kernel that was still starting turns the input on', async () => {
+  it('rereads an unready runtime on its own, so a kernel that was still starting clears its notice', async () => {
     let started = false;
     bridgeWith([
       idle,
       { method: 'GET', path: '/character/runtime', handler: () => ({ status: 200, body: started ? WIRE_RUNTIME : { ...WIRE_RUNTIME, ready: false } }) },
     ]);
     const thread = await mountDefault();
-    const input = within(thread).getByRole('textbox', { name: '消息' }) as HTMLTextAreaElement;
-    await waitFor(() => expect(input.disabled).toBe(true));
+    await within(thread).findByText('角色内核未就绪');
     started = true;
-    await waitFor(() => expect(input.disabled).toBe(false), { timeout: 5000 });
+    await waitFor(() => expect(within(thread).queryByText('角色内核未就绪')).toBeNull(), { timeout: 5000 });
   }, 8000);
 
   const piRuntime = (error: string | null) => ({ ...WIRE_RUNTIME, backend: 'pi' as const, ready: false, error, selected_runtime: null });
@@ -234,13 +231,13 @@ describe('chat: kernel not ready', () => {
     const thread = await mountDefault();
     const notice = (await within(thread).findByText(/没有可用的模型/)).closest<HTMLElement>('[role="alert"]')!;
     expect(within(notice).getByRole('link', { name: '设置 › pi 账号与凭据' }).getAttribute('href')).toBe('#/settings?group=model');
-    expect(within(thread).queryByText('Pi 未就绪，就绪后可发送')).toBeNull();
+    expect(within(thread).queryByText('Pi 未就绪')).toBeNull();
   });
 
   it('Pi not ready for another reason keeps the kernel block, without the no-model notice', async () => {
     bridgeWith([idle, { method: 'GET', path: '/character/runtime', handler: () => ({ status: 200, body: piRuntime(null) }) }]);
     const thread = await mountDefault();
-    expect(await within(thread).findByText('Pi 未就绪，就绪后可发送')).toBeTruthy();
+    expect(await within(thread).findByText('Pi 未就绪')).toBeTruthy();
     expect(within(thread).queryByText(/没有可用的模型/)).toBeNull();
   });
 });

@@ -26,7 +26,25 @@ function timeLine(at: number, now: number) {
 
 const EXAMPLES = ['你能帮我做些什么？', '帮我回顾一下今天做了什么', '记住：我喜欢简短的回答'];
 
-export interface MessageListProps extends MessageMenuProps {
+/** Keys by turn, task or request id; the user's lines and side replies have none, so time and text, told apart by their order. */
+function keysOf(messages: Message[]): string[] {
+  const seen = new Map<string, number>();
+  return messages.map((m) => {
+    const base = m.kind === 'ai' && m.turn_id ? `ai:${m.turn_id}` : m.kind === 'task' ? `task:${m.task_id}` : m.kind === 'question' ? `q:${m.question_id}` : `${m.kind}:${'at' in m ? m.at : ''}:${'text' in m ? m.text : m.kind === 'tool' ? m.label : ''}`;
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return n === 0 ? base : `${base}#${n}`;
+  });
+}
+
+/** Where a quoted line sits in the stream; `turn_id` is her reply's turn, absent on the user's line. */
+export interface QuoteFrom {
+  kind: 'me' | 'ai';
+  at: number;
+  turn_id?: string;
+}
+
+export interface MessageListProps extends Omit<MessageMenuProps, 'onQuote'> {
   messages: Message[];
   view: TasksView | null;
   /** The foreground run with its plan (live or saved); its inline task shows the steps from it. */
@@ -50,6 +68,10 @@ export interface MessageListProps extends MessageMenuProps {
   memsOf: (turnId: string | undefined) => { mems: TiMem[]; learned: TiMem[] };
   /** The task whose drawer is open. */
   openTaskId?: string | null;
+  /** 引用回复 on the user's line or her reply; absent offers none. */
+  onQuote?: (text: string, from: QuoteFrom) => void;
+  /** The turn a link points at: its reply is marked. */
+  selectedTurn?: string | null;
   onOpenDrawer: (taskId?: string) => void;
   onAnswer: (questionId: string, answers: Record<string, string[]>) => void;
   onCancelQuestion: (questionId: string) => void;
@@ -62,7 +84,8 @@ export interface MessageListProps extends MessageMenuProps {
 /** The conversation stream; every entry kind of `Message` maps to one component, with a time line after a long quiet. */
 export function MessageList(p: MessageListProps) {
   const { messages, view, frontRun = null, roleName, requests = [], roleId, names = {}, headUrl, now, onQuote, onReplay, onOpenTrace } = p;
-  const menu = { onQuote, onReplay, onOpenTrace };
+  const menu = { onReplay, onOpenTrace };
+  const quoting = (from: QuoteFrom) => (onQuote ? { onQuote: (text: string) => onQuote(text, from) } : {});
   const lastReply = messages.reduce((acc, m, i) => (m.kind === 'ai' || m.kind === 'side' ? i : acc), -1);
   const toolMax = Math.max(1, ...messages.map((m) => (m.kind === 'tool' ? m.ms : 0)));
   let prevAt: number | null = null;
@@ -98,7 +121,7 @@ export function MessageList(p: MessageListProps) {
   const row = (m: Message, i: number) => {
     switch (m.kind) {
       case 'me':
-        return <TextMessage mine at={m.at} text={m.text} roleName={roleName} first={first[i]} {...menu} />;
+        return <TextMessage mine at={m.at} text={m.text} roleName={roleName} first={first[i]} {...menu} {...quoting({ kind: 'me', at: m.at })} />;
       case 'ai': {
         const other = m.character_id != null && roleId != null && m.character_id !== roleId;
         const { mems, learned } = p.memsOf(m.turn_id);
@@ -117,7 +140,9 @@ export function MessageList(p: MessageListProps) {
             learned={learned}
             lineId={m.turn_id}
             turnId={m.turn_id}
+            selected={m.turn_id != null && m.turn_id === p.selectedTurn}
             {...menu}
+            {...quoting({ kind: 'ai', at: m.at, ...(m.turn_id ? { turn_id: m.turn_id } : {}) })}
           />
         );
       }
@@ -178,10 +203,11 @@ export function MessageList(p: MessageListProps) {
       }
     }
   };
+  const keys = keysOf(messages);
   return (
     <>
       {messages.map((m, i) => (
-        <Fragment key={i}>
+        <Fragment key={keys[i]}>
           {gap[i] != null && <p className={ms.day}>{timeLine(gap[i], now)}</p>}
           {row(m, i)}
         </Fragment>

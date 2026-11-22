@@ -7,6 +7,6 @@ export type DroppedHandle = PickedHandle & { readonly size: number };
 export interface FileAdopt {
   /** Files dropped on the page as `scope_file` handles; files that are not a scope type are left out. */
   adoptDropped?(files: File[]): Promise<DroppedHandle[]>;
-  /** Pasted png, jpeg, gif or webp images (≤ 20 MB each), saved by the shell and held as `scope_file` handles. */
+  /** Pasted png, jpeg, gif or webp images (≤ 5 MiB each), saved by the shell and held as `scope_file` handles. */
   adoptPasted?(items: Array<{ type: string; data: ArrayBuffer }>): Promise<DroppedHandle[]>;
 }

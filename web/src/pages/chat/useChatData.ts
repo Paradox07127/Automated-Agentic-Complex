@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type AgentdConnection } from '../../bridge';
 import { AgentdCallError, get, seg } from '../../bridge/agentd';
@@ -264,28 +265,52 @@ export interface ChatCharacter {
   head?: string;
 }
 
-/** The shell's characters, one tab each; `shown` is the one the shell runs (replies by another are signed with theirs). */
+/** The shell's characters, one tab each; `shown` is the one the shell runs (replies by another are signed with theirs). The character page reads the same entry, so an import shows up here. */
 export function useCharacters() {
   return useQuery({
-    queryKey: ['chat-characters'],
-    queryFn: async () => {
-      const list = await getBridge().character.list();
-      return {
-        list: list.map((c): ChatCharacter => ({ id: c.id, name: c.name, ...(c.head ? { head: c.head } : {}) })),
-        shown: list.find((c) => c.active)?.id ?? null,
-        names: Object.fromEntries(list.map((c) => [c.id, c.name])) as Record<string, string>,
-      };
-    },
+    queryKey: ['character', 'list'],
+    queryFn: () => getBridge().character.list(),
+    select: (list) => ({
+      list: list.map((c): ChatCharacter => ({ id: c.id, name: c.name, ...(c.head ? { head: c.head } : {}) })),
+      shown: list.find((c) => c.active)?.id ?? null,
+      names: Object.fromEntries(list.map((c) => [c.id, c.name])) as Record<string, string>,
+    }),
     retry: false,
-    staleTime: Number.POSITIVE_INFINITY,
   });
 }
 
-/** `/state` character: the one on the desktop, whom agentd answers as. */
+/** `/state` character: the one on the desktop, whom agentd answers as; the avatar's pushed state keeps it current. */
 export function usePresent() {
+  const qc = useQueryClient();
+  useEffect(
+    () =>
+      getBridge().avatar.onState((s) => {
+        if (s.characterId == null || qc.getQueryData(['chat-present']) === s.characterId) return;
+        qc.setQueryData(['chat-present'], s.characterId);
+        void qc.invalidateQueries({ queryKey: ['chat-convs'] });
+      }),
+    [qc],
+  );
   return useQuery({
     queryKey: ['chat-present'],
     queryFn: async () => (await get<{ character: string }>('/state')).character,
+    retry: false,
+    staleTime: 5_000,
+  });
+}
+
+/** The character whose topics hold `conv`, read from the lists of `others`; null when none does. */
+export function useConvOwner(conv: string | null, others: string[], enabled: boolean) {
+  return useQuery({
+    queryKey: ['chat-conv-owner', conv, others],
+    queryFn: async () => {
+      for (const id of others) {
+        const body = await get<{ conversations: WireConversation[] }>(`/conversations?character=${encodeURIComponent(id)}`);
+        if (body.conversations.some((c) => c.id === conv)) return id;
+      }
+      return null;
+    },
+    enabled: enabled && conv != null && others.length > 0,
     retry: false,
     staleTime: 5_000,
   });

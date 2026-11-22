@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouterState } from '@tanstack/react-router';
-import { getBridge } from '../../bridge';
 import type { ActiveRun, Conversation, Question, Task, WireTurn } from '../../domain';
-import { resumeOf, StopConfirm, TaskDrawer } from '../../features/task';
+import { resumeOf, StopConfirm } from '../../features/task';
 import { useToast } from '../../shell/toast';
 import { useDemo } from '../../shell/demo';
-import { Btn, Empty, ErrBar, Skel, type MenuItem } from '../../ui';
+import { Btn, Empty, ErrBar, Skel } from '../../ui';
 import { emptyLocal, type TasksLocal } from '../tasks/model';
 import { navigate } from '../../shell/nav';
 import { createChatActions } from './actions';
 import { CharTabs } from './CharTabs';
 import { ChatBar } from './ChatBar';
 import { ChatReadBanner } from './ChatReadBanner';
-import { Composer, type SendOptions } from './Composer';
+import { Composer } from './Composer';
 import { DeleteCard, SwapCard } from './ConvDialogs';
 import { ConvList, whenOf } from './ConvList';
 import { DlgHead } from './DlgHead';
@@ -21,16 +20,20 @@ import { LiveTail } from './LiveTail';
 import { manageItems } from './manage';
 import { MessageList } from './MessageList';
 import { ChatEmpty, useChatMotion } from './motion';
-import { initialRp, RightPanel, type Rp } from './RightPanel';
-import { RunItems } from './RunItems';
+import { initialRp, type Rp } from './RightPanel';
+import { RosterEnd } from './RosterEnd';
 import { chatStream, runEndLabel } from './stream';
-import { clock, demoQuery, kernelState, useCharacters, useChatTasks, useConversations, useLookOff, usePresent, useRuntime, useTurns, type ChatCharacter } from './useChatData';
+import { tabMenu } from './tabMenu';
+import { TaskColumn } from './TaskColumn';
+import { clock, demoQuery, kernelState, useCharacters, useChatTasks, useConversations, useConvOwner, useLookOff, usePresent, useRuntime, useTurns, type ChatCharacter } from './useChatData';
 import { useChatFeed } from './useChatFeed';
 import { useChatReceipts, useChatTaskView } from './useChatTaskView';
 import { demoSource, learnedOf, useTraceRows, useTurnFacts } from './useTurnData';
 import styles from './Chat.module.css';
-import { useBottomPin } from './useBottomPin';
 import { useFold, useSwapAsk } from './useFrame';
+import { useSendState } from './useSendState';
+import { useStreamScroll } from './useStreamScroll';
+import { useTopicOpen } from './useTopicOpen';
 
 export function ChatPage() {
   const { state, demo, still } = useDemo();
@@ -50,11 +53,21 @@ export function ChatPage() {
   const who = charList.find((c) => c.id === character);
   const convs = useConversations(character, state === 'error', !off, demoQuery(demo === 'sparse', '&demo=sparse'));
   const [picked, setPicked] = useState<string | null>(q.get('conv'));
+  // The turn a link points at: it is marked and scrolled to.
+  const [aim, setAim] = useState<string | null>(q.get('turn'));
   const list = state === 'empty' ? [] : (convs.data?.conversations ?? []);
   const archived = convs.data?.archived ?? [];
-  const current = (picked ? [...list, ...archived].find((c) => c.id === picked) : undefined) ?? list.find((c) => c.active) ?? list[0] ?? null;
+  const found = picked ? [...list, ...archived].find((c) => c.id === picked) : undefined;
+  const current = found ?? list.find((c) => c.active) ?? list[0] ?? null;
   const conv = current?.id ?? null;
   const history = current != null && !current.active;
+  // A link names a topic of another character: her tab opens.
+  const holder = useConvOwner(picked, charList.map((c) => c.id).filter((id) => id !== character), picked != null && convs.data != null && found == null);
+  useEffect(() => {
+    if (holder.data && holder.data !== character) setPickedChar(holder.data);
+  }, [holder.data]);
+  const convRef = useRef(conv);
+  convRef.current = conv;
   const turns = useTurns(live ? conv : null);
   const { query: tasksQ, refetch: refetchTasks } = useChatTasks(conv, live);
   const { query: runtime, recheck: recheckRuntime } = useRuntime(demo === 'kernel', live);
@@ -64,19 +77,13 @@ export function ChatPage() {
   const [local, setLocal] = useState<TasksLocal>(emptyLocal);
   const [answered, setAnswered] = useState<Record<string, string>>({});
   const [cancelled, setCancelled] = useState<Record<string, boolean>>({});
-  const [failed, setFailed] = useState<{ text: string; reason: string; code?: string; options?: SendOptions } | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
   const [busyDecide, setBusyDecide] = useState(false);
   const [rp, setRp] = useState<Rp>(() => initialRp(demo));
   const [stopAsk, setStopAsk] = useState<{ run: Pick<ActiveRun, 'run_id' | 'generation'>; task: Task | null; title: string } | null>(null);
   const [deleting, setDeleting] = useState<Conversation | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ text: string } | null>(null);
-  const [quote, setQuote] = useState<string | null>(null);
-  const [dropped, setDropped] = useState<{ files: File[] } | null>(null);
-  const { folded, toggle } = useFold();
-  const { swapAsk, ask, answer } = useSwapAsk(charList, present, (text) => setDraft({ text }));
+  const { folded, toggle, open } = useFold();
+  const { swapAsk, ask, answer } = useSwapAsk(charList, present);
   const push = useToast();
   const scroller = useRef<HTMLDivElement>(null);
   const motion = useChatMotion(conv, still);
@@ -98,24 +105,13 @@ export function ChatPage() {
 
   useEffect(() => {
     setPicked(q.get('conv'));
+    setAim(q.get('turn'));
     setLocal(emptyLocal());
-    setFailed(demo === 'sendfail' ? { text: 'HostLink 断线那次提交，能把 diff 发我看看吗？', reason: '后台服务无响应' } : null);
     setAnswered({});
     setCancelled({});
     setStopAsk(null);
     setRp(initialRp(demo));
   }, [q, demo]);
-
-  // A failed line, the notice and the quote belong to the conversation they were made in; null → id is the first line opening one.
-  const shownConv = useRef(conv);
-  useEffect(() => {
-    if (shownConv.current != null && shownConv.current !== conv) {
-      setFailed(null);
-      setNotice(null);
-      setQuote(null);
-    }
-    shownConv.current = conv;
-  }, [conv]);
 
   const { view, convTasks, task, run, livePlan, headerRun, defaultTask } = useChatTaskView(tasksQ.data, local, conv, feed.plans, rp?.taskId ?? null);
   const activeTurn = tasksQ.data?.activeTurn;
@@ -134,10 +130,12 @@ export function ChatPage() {
   const rowOf = (turnId: string | null | undefined) => (turnId ? (traceRows.data?.get(turnId) ?? null) : null);
   const memsOf = (turnId: string | undefined) => ({ mems: (turnId && facts.data?.get(turnId)) || [], learned: turnId ? learnedOf(src, turnId) : [] });
 
-  useBottomPin(scroller, true, [conv]);
+  const { failed, setFailed, notice, setNotice, sending, setSending, draft, setDraft, quote, setQuote, dropped, setDropped, quoteLine, quoteLive } = useSendState(q, demo, conv, character, wire, replies);
+  useStreamScroll(scroller, aim, wire, conv);
 
   const actions = createChatActions({
     conv: current,
+    shown: () => convRef.current,
     character,
     present,
     askSwap: (text) => (who ? ask(who, text) : Promise.resolve(false)),
@@ -148,12 +146,15 @@ export function ChatPage() {
     setLocal,
     setAnswered,
     setCancelled,
-    setFailed,
+    setFailed: (f, c) => setFailed((cur) => (f ?? (c !== undefined && cur != null && cur.conv !== c ? cur : null))),
     setSending,
     setBusyDecide,
     setNotice,
     select: setPicked,
-    editTitle: setRenaming,
+    editTitle: (id) => {
+      open();
+      setRenaming(id);
+    },
     addReply: feed.add,
     settleReply: feed.settle,
     reload: {
@@ -173,27 +174,21 @@ export function ChatPage() {
   const pickChar = (id: string) => {
     setPickedChar(id);
     setPicked(null);
+    setAim(null);
     setRp(null);
     setRenaming(null);
   };
-  const tabMenu = (c: ChatCharacter): MenuItem[] => [
-    {
-      kind: 'item',
-      label: '新话题',
-      onSelect: () => {
-        pickChar(c.id);
-        void actions.newConversation(c.id);
-      },
-    },
-    { kind: 'item', label: `换${c.name}出来`, disabled: c.id === present, reason: `${c.name}已在桌面`, onSelect: () => void ask(c, '').then((yes) => { if (yes) void actions.swap(c.id, c.name); }) },
-    { kind: 'item', label: '她的专属记忆', onSelect: () => navigate({ page: 'memory', view: 'about' }) },
-  ];
-  const openTopic = (c: Conversation) => {
+  const working = topBusy || (tasksQ.data?.frontRunning ?? false);
+  const tabMenuFor = (c: ChatCharacter) =>
+    tabMenu(c, present, working, () => {
+      pickChar(c.id);
+      void actions.newConversation(c.id);
+    }, () => void ask(c, '').then((yes) => { if (yes) void actions.swap(c.id, c.name); }));
+  const openTopic = useTopicOpen(topBusy, actions.activate, (c) => {
     setPicked(c.id);
+    setAim(null);
     setRp(null);
-    // While she works agentd refuses it; the row opens read-only with 继续此对话 waiting for her.
-    if (!c.active && !c.archived && !topBusy) void actions.activate(c);
-  };
+  });
 
   const deliveries = task && view ? view.deliveries.filter((d) => d.task_id === task.id) : [];
   const delivery = [...deliveries].sort((a, b) => b.version - a.version)[0] ?? null;
@@ -209,7 +204,9 @@ export function ChatPage() {
     void turns.query.refetch();
     refetchTasks();
   };
-  const modelError = failed?.code ?? replies.at(-1)?.error ?? rowOf(wire.at(-1)?.turn_id)?.error_code ?? (selected?.id === 'pi' && runtime.data?.info.error === 'pi_connection_missing' ? 'pi_connection_missing' : null);
+  // A failed line shows in the topic it was for only.
+  const failedHere = failed != null && failed.conv === conv ? failed : null;
+  const modelError = failedHere?.code ?? replies.at(-1)?.error ?? rowOf(wire.at(-1)?.turn_id)?.error_code ?? (selected?.id === 'pi' && runtime.data?.info.error === 'pi_connection_missing' ? 'pi_connection_missing' : null);
 
   const roleName = who?.name ?? '角色';
   const headUrl = who?.head ? { headUrl: who.head } : {};
@@ -217,8 +214,20 @@ export function ChatPage() {
   const first = messages.find((m) => 'at' in m);
   const firstAt = first && 'at' in first ? first.at : null;
   const listFailed = convs.isError && !convs.data;
+  // No character to read topics of, though both reads are done: an end state with its way out, not a skeleton.
+  const noChar = character == null && !chars.isPending && !presentQ.isPending;
   let body;
-  if (state === 'loading' || (convs.isPending && !off) || (live && conv != null && turns.query.isPending)) body = <Skel rows={6} />;
+  if (state === 'loading' || (!noChar && ((convs.isPending && !off) || (live && conv != null && turns.query.isPending)))) body = <Skel rows={6} />;
+  else if (noChar)
+    body = (
+      <RosterEnd
+        failed={chars.isError}
+        onRetry={() => {
+          void chars.refetch();
+          void presentQ.refetch();
+        }}
+      />
+    );
   else if (listFailed) body = <ErrBar message="读取对话失败：后台服务没有响应" onRetry={() => void convs.refetch()} />;
   else if (empty) body = null;
   else
@@ -260,48 +269,38 @@ export function ChatPage() {
             if (r) void actions.dismiss(r);
           }}
           onQueueSide={(t) => void actions.queueSide(t)}
-          onQuote={setQuote}
+          selectedTurn={aim}
+          {...(history ? {} : { onQuote: quoteLine })}
           onOpenTrace={(turn) => navigate({ page: 'trace', turn })}
-          {...(!history && state == null && replies.length === 0 ? { onExample: (text: string) => setDraft({ text }) } : {})}
+          {...(!history && state == null && replies.length === 0 ? { onExample: (text: string) => setDraft({ text, topic: conv }) } : {})}
         />
-        <LiveTail replies={replies} roleName={roleName} {...headUrl} roleId={character} frontTitle={headerRun ? (defaultTask?.title ?? null) : null} incomplete={feed.incomplete && replies.some((r) => !r.final)} runEnd={runEnd} onFront={openTask} onQueue={(t) => void actions.queueSide(t)} onRetry={(r) => void actions.resend(r.said, r.options)} onQuote={setQuote} onOpenTrace={(turn) => navigate({ page: 'trace', turn })} />
+        <LiveTail replies={replies} roleName={roleName} {...headUrl} roleId={character} frontTitle={headerRun ? (defaultTask?.title ?? null) : null} incomplete={feed.incomplete && replies.some((r) => !r.final)} runEnd={runEnd} onFront={openTask} onQueue={(t) => void actions.queueSide(t)} onRetry={(r) => void actions.resend(r.said, r.options)} {...(history ? {} : { onQuote: quoteLive })} onOpenTrace={(turn) => navigate({ page: 'trace', turn })} />
       </>
     );
 
   const right =
     rp && current && !empty && canTask && task && view ? (
-      <RightPanel onClose={() => setRp(null)}>
-        <TaskDrawer
-          key={`${task.id}-${demo ?? ''}`}
-          task={task}
-          effective={view.effective[task.id] ?? 'running'}
-          now={now}
-          delivery={delivery}
-          deliveries={deliveries}
-          activeRun={run}
-          pending={view.pending.filter((p) => p.task_id === task.id)}
-          planSource={livePlan ? 'live' : 'snapshot'}
-          rejecting={demo === 'reject'}
-          canReveal={getBridge().capabilities.revealInFinder}
-          kernelName={selected?.name}
-          busy={busyDecide}
-          onOpenTask={() => navigate({ page: 'overview', sel: task.id })}
-          onAction={(a) => void actions.onDrawer(a)}
-          onReceipt={receipt}
-        />
-        {task.run_id && (
-          <>
-            <RunItems key={task.run_id} runId={task.run_id} running={run != null} />
-            <Btn size="sm" variant="text" onClick={() => task.run_id && navigate({ page: 'trace', turn: task.run_id })}>完整运行记录 ↗</Btn>
-          </>
-        )}
-      </RightPanel>
+      <TaskColumn
+        task={task}
+        view={view}
+        now={now}
+        delivery={delivery}
+        deliveries={deliveries}
+        activeRun={run}
+        livePlan={livePlan != null}
+        demo={demo}
+        kernelName={selected?.name}
+        busy={busyDecide}
+        onClose={() => setRp(null)}
+        onAction={(a) => void actions.onDrawer(a)}
+        onReceipt={receipt}
+      />
     ) : null;
 
   return (
     <div ref={motion.ref} className={styles.root} data-page="chat" data-state={state ?? 'ok'} data-demo={demo ?? undefined} data-rp={right ? '' : undefined} data-fold={folded || undefined}>
       <ChatBar
-        tabs={<CharTabs chars={charList} selected={character} present={present} onPick={pickChar} menuFor={tabMenu} />}
+        tabs={<CharTabs chars={charList} selected={character} present={present} onPick={pickChar} menuFor={tabMenuFor} />}
         status={current != null && !empty && state == null}
         elsewhere={topBusy && !stopTarget}
         run={empty ? null : headerRun}
@@ -316,7 +315,7 @@ export function ChatPage() {
         {/* A failed list read shows once, in the message area. */}
         {state === 'loading' ? (
           <Skel rows={5} />
-        ) : listFailed ? null : (
+        ) : listFailed || noChar ? null : (
           <ConvList
             who={roleName}
             conversations={list}
@@ -337,7 +336,12 @@ export function ChatPage() {
         )}
       </aside>
       <section className={styles.thread} aria-label="消息" data-g="dialog" onDragOver={(e) => e.dataTransfer.types.includes('Files') && e.preventDefault()}
-        onDrop={(e) => e.dataTransfer.files.length > 0 && (e.preventDefault(), setDropped({ files: [...e.dataTransfer.files] }))}>{motion.node}
+        onDrop={(e) => {
+          if (e.dataTransfer.files.length === 0) return;
+          e.preventDefault();
+          // Only a thread that shows a writable input takes files.
+          if (current != null && state == null && !empty && !history) setDropped({ files: [...e.dataTransfer.files], topic: current.id });
+        }}>{motion.node}
         {current && !empty && state == null && <DlgHead title={current.title} />}
         {convs.data && state !== 'empty' && <ChatReadBanner errors={[convs.error, turns.query.error, tasksQ.error]} disconnected={convs.data.offline} readAt={convs.dataUpdatedAt} onRetry={retryLoad} />}
         {empty ? (
@@ -359,21 +363,20 @@ export function ChatPage() {
               sideHint={(tasksQ.data?.frontRunning ?? false) && !right}
               quietSend={right != null}
               kernel={kernel}
-              failed={failed}
-              sending={sending}
-              notice={notice}
+              failed={failedHere} sending={sending} notice={notice}
               lookOff={lookOff.data ?? null}
               topicId={current?.id}
-              quote={quote}
-              onClearQuote={() => setQuote(null)}
-              onSend={(t, o) => void actions.send(t, o)}
-              onResend={() => failed && void actions.resend(failed.text, failed.options)}
+              quote={quote} onClearQuote={() => setQuote(null)}
+              onSend={(t, o) => actions.send(t, o)}
+              onResend={() => failedHere && void actions.resend(failedHere.text, failedHere.options, { conv: failedHere.conv, character: failedHere.character })}
               onDiscardFailed={() => setFailed(null)}
               onContinue={() => current && void actions.activate(current)}
               onRestore={() => current && void actions.restore(current)}
               onRecheck={() => void actions.recheck()}
               draft={draft}
+              onDraftUsed={() => setDraft(null)}
               dropped={dropped}
+              onDroppedUsed={() => setDropped(null)}
             />
           </div>
         )}

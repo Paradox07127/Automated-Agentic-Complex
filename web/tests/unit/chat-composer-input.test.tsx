@@ -1,11 +1,15 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PickedHandle } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { MockResponse, MockRoute } from '../../src/mock';
 import { Composer, type ComposerProps } from '../../src/pages/chat/Composer';
+import { pluginsOn, pluginsReset } from './plugins';
+
+beforeEach(() => pluginsOn());
 
 afterEach(() => {
+  pluginsReset();
   cleanup();
   delete window.agenticComplex;
 });
@@ -17,7 +21,7 @@ const props = (over: Partial<ComposerProps> = {}): ComposerProps => ({
   kernel: null,
   failed: null,
   sending: false,
-  onSend: () => {},
+  onSend: async () => 'sent' as const,
   onResend: () => {},
   onDiscardFailed: () => {},
   onContinue: () => {},
@@ -46,18 +50,18 @@ async function attach() {
 }
 
 describe('chat composer keys', () => {
-  it('Enter sends, and the placeholder speaks to her', () => {
-    const onSend = vi.fn();
+  it('Enter sends, and the placeholder speaks to her', async () => {
+    const onSend = vi.fn(async () => 'sent' as const);
     render(<Composer {...props({ onSend })} />);
     expect(box().placeholder).toBe('对陈千语说…');
     type('在吗');
     fireEvent.keyDown(box(), { key: 'Enter' });
     expect(onSend).toHaveBeenLastCalledWith('在吗', { look: false, no_memory: false });
-    expect(box().value).toBe('');
+    await waitFor(() => expect(box().value).toBe(''));
   });
 
   it('Shift+Enter does not send', () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn(async () => 'sent' as const);
     render(<Composer {...props({ onSend })} />);
     type('第一行');
     fireEvent.keyDown(box(), { key: 'Enter', shiftKey: true });
@@ -65,7 +69,7 @@ describe('chat composer keys', () => {
   });
 
   it('Enter while the input method composes does not send', () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn(async () => 'sent' as const);
     render(<Composer {...props({ onSend })} />);
     type('zai');
     fireEvent.keyDown(box(), { key: 'Enter', isComposing: true });
@@ -74,9 +78,9 @@ describe('chat composer keys', () => {
 });
 
 describe('chat composer tray', () => {
-  it('a picked file sits in the tray and goes out as one scope', async () => {
+  it('a picked file sits in the tray and goes out with the line; the page makes the scope', async () => {
     const b = bridge([{ handle: 'h-1', displayName: '销量.csv' }, { handle: 'h-2', displayName: '场地.png' }]);
-    const onSend = vi.fn();
+    const onSend = vi.fn(async () => 'sent' as const);
     render(<Composer {...props({ onSend })} />);
     await attach();
     expect(await screen.findByText('销量.csv')).toBeTruthy();
@@ -86,14 +90,14 @@ describe('chat composer tray', () => {
     type('汇总一下');
     fireEvent.click(screen.getByRole('button', { name: '发送' }));
     await waitFor(() => expect(onSend).toHaveBeenCalled());
-    expect(b.made).toEqual([{ files: [{ handle: 'h-1', displayName: '销量.csv' }, { handle: 'h-2', displayName: '场地.png' }] }]);
-    expect(onSend).toHaveBeenLastCalledWith('汇总一下', { look: false, no_memory: false, scope_id: 'scope-1' });
-    expect(screen.queryByText('销量.csv')).toBeNull();
+    expect(b.made).toEqual([]);
+    expect(onSend).toHaveBeenLastCalledWith('汇总一下', { look: false, no_memory: false, files: [{ handle: 'h-1', displayName: '销量.csv' }, { handle: 'h-2', displayName: '场地.png' }] });
+    await waitFor(() => expect(screen.queryByText('销量.csv')).toBeNull());
   });
 
   it('移除 takes a file out of the tray and out of the send', async () => {
     const b = bridge([{ handle: 'h-1', displayName: '销量.csv' }]);
-    const onSend = vi.fn();
+    const onSend = vi.fn(async () => 'sent' as const);
     render(<Composer {...props({ onSend })} />);
     await attach();
     fireEvent.click(await screen.findByRole('button', { name: '移除 销量.csv' }));
@@ -105,7 +109,7 @@ describe('chat composer tray', () => {
   });
 
   it('看一眼屏幕 and 这句不记 show in the tray and go out with the text', () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn(async () => 'sent' as const);
     render(<Composer {...props({ onSend })} />);
     fireEvent.click(screen.getByRole('button', { name: '附加' }));
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '让她看一眼屏幕' }));
@@ -119,20 +123,20 @@ describe('chat composer tray', () => {
 });
 
 describe('chat composer quote', () => {
-  it('shows the quote, sends it as a > line before the text, and clears it', () => {
-    const onSend = vi.fn();
+  it('shows the quote, sends it as quote_turn with the plain text, and clears it', async () => {
+    const onSend = vi.fn(async () => 'sent' as const);
     const onClearQuote = vi.fn();
-    render(<Composer {...props({ onSend, onClearQuote, quote: '周三下午三点\n三号训练场' })} />);
+    render(<Composer {...props({ onSend, onClearQuote, quote: { text: '周三下午三点\n三号训练场', turn_id: 'tr7', part: 'reply' } })} />);
     expect(screen.getByText(/周三下午三点/)).toBeTruthy();
     type('好的');
     fireEvent.keyDown(box(), { key: 'Enter' });
-    expect(onSend).toHaveBeenLastCalledWith('> 周三下午三点\n> 三号训练场\n\n好的', { look: false, no_memory: false });
-    expect(onClearQuote).toHaveBeenCalled();
+    expect(onSend).toHaveBeenLastCalledWith('好的', { look: false, no_memory: false, quote_turn: { turn_id: 'tr7', part: 'reply' } });
+    await waitFor(() => expect(onClearQuote).toHaveBeenCalled());
   });
 
   it('× removes the quote', () => {
     const onClearQuote = vi.fn();
-    render(<Composer {...props({ onClearQuote, quote: '周三下午三点' })} />);
+    render(<Composer {...props({ onClearQuote, quote: { text: '周三下午三点', turn_id: 'tr7', part: 'user' } })} />);
     fireEvent.click(screen.getByRole('button', { name: '不引用' }));
     expect(onClearQuote).toHaveBeenCalled();
   });
@@ -153,14 +157,14 @@ describe('chat composer drafts', () => {
 });
 
 describe('chat composer kernel', () => {
-  it('a kernel that is not ready offers settings, not a switch', async () => {
+  it('a kernel that is not ready offers settings, not a switch, and leaves the input usable', async () => {
     render(<Composer {...props({ kernel: { id: 'codex', name: 'Codex', available: false, reason: null } as ComposerProps['kernel'] })} />);
     await act(async () => {});
     const alert = screen.getByRole('alert');
     expect(alert.querySelector('[data-stub="KernelChain"]')).toBeNull();
     expect(screen.queryByRole('button', { name: /切换|改用/ })).toBeNull();
     expect(screen.getByRole('link', { name: '设置 › 角色内核' }).getAttribute('href')).toBe('#/settings?group=kernel');
-    expect(box().disabled).toBe(true);
+    expect(box().disabled).toBe(false);
   });
 });
 
@@ -187,7 +191,7 @@ describe('chat composer: pasted and dropped files', () => {
   it('files dropped on the page land in the tray through adoptDropped', async () => {
     const { adoptDropped } = adopting();
     const doc = new File(['x'], '名单.xlsx');
-    render(<Composer {...props({ dropped: { files: [doc] } })} />);
+    render(<Composer {...props({ dropped: { files: [doc], topic: null } })} />);
     await waitFor(() => expect(screen.getByText('名单.xlsx')).toBeTruthy());
     expect(adoptDropped).toHaveBeenCalledWith([doc]);
   });
@@ -195,7 +199,7 @@ describe('chat composer: pasted and dropped files', () => {
   it('a drop the shell takes none of says how many were left out', async () => {
     const base = createFakeBridge({ surface: 'main', still: true });
     window.agenticComplex = { ...base, files: { ...base.files, adoptDropped: async () => [] } };
-    render(<Composer {...props({ dropped: { files: [new File(['x'], 'a.exe')] } })} />);
+    render(<Composer {...props({ dropped: { files: [new File(['x'], 'a.exe')], topic: null } })} />);
     await waitFor(() => expect(screen.getByText('1 个文件没带上')).toBeTruthy());
   });
 });

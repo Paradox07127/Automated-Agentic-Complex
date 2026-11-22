@@ -4,7 +4,7 @@ import { getBridge } from '../../src/bridge';
 import { AgentdCallError } from '../../src/bridge/agentd';
 import { codeText, failureText } from '../../src/domain/errorText';
 import { failure as characterFailure } from '../../src/pages/character/api';
-import { reasonOf as chatReason } from '../../src/pages/chat/actions';
+import { reasonOf as chatReason } from '../../src/pages/chat/reasons';
 import { reasonOf as diagReason } from '../../src/pages/diag/Page';
 import { errorText as memoryText } from '../../src/pages/memory/errors';
 import { errorText as observeText } from '../../src/pages/observe/data';

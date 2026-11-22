@@ -71,6 +71,27 @@ test('the topic column starts folded at 925 px and unfolds on demand', async ({ 
   expect((await nav.locator('xpath=..').boundingBox())!.width).toBeGreaterThan(200);
 });
 
+test('the swap card covers the whole window and keeps its buttons in view with a long line', async ({ page }) => {
+  await page.setViewportSize({ width: 925, height: 515 });
+  await page.goto('main.html#/chat?plugins=all&still=1');
+  await page.getByRole('tab', { name: '示例甲' }).click();
+  const thread = page.getByRole('region', { name: '消息' });
+  await expect(thread.getByText('不急。看完告诉我一声就行。')).toBeVisible();
+  await page.getByRole('textbox', { name: '消息' }).fill(Array.from({ length: 30 }, (_, i) => `第${i}段 ${'很长的话'.repeat(8)}${'x'.repeat(80)}`).join('\n'));
+  await page.getByRole('button', { name: '发送' }).click();
+  const card = page.getByRole('dialog', { name: /出来回你/ });
+  await expect(card).toBeVisible();
+  const box = (await card.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(515);
+  await expect(card.getByRole('button', { name: '先不换' })).toBeInViewport();
+  await expect(card.getByRole('button', { name: '换出来并发送' })).toBeInViewport();
+  // The command bar at the top is under the scrim, not beside the card.
+  const covered = await page.evaluate(() => document.getElementById('ef-modal-root')?.contains(document.elementFromPoint(300, 20)) ?? false);
+  expect(covered).toBe(true);
+  expect((await sideways(page)).doc).toBe(false);
+});
+
 test('sparse: one conversation, four replies, idle', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/chat?plugins=all&still=1&demo=sparse');

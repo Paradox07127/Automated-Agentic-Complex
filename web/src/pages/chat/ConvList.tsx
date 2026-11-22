@@ -36,17 +36,18 @@ export function whenOf(at: number, now: number): string {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-/** The row's title box: Enter or leaving it saves, Esc keeps the title. */
-function TitleBox({ c, onDone }: { c: Conversation; onDone: (title: string | null) => void }) {
+/** The row's title box: Enter or leaving it saves, Esc keeps the title. `onDone` also gets the row as it was when the box opened: the save carries that revision. */
+function TitleBox({ c, onDone }: { c: Conversation; onDone: (title: string | null, opened: Conversation) => void }) {
   const done = useRef(false);
+  const opened = useRef(c);
   const finish = (title: string | null) => {
     if (done.current) return;
     done.current = true;
-    onDone(title);
+    onDone(title, opened.current);
   };
   const save = (v: string) => {
     const t = v.trim();
-    finish(t && t !== c.title ? t : null);
+    finish(t && t !== opened.current.title ? t : null);
   };
   return (
     <input
@@ -78,7 +79,7 @@ function TitleBox({ c, onDone }: { c: Conversation; onDone: (title: string | nul
 /** One topic: icon, title over her last line, time (or 置顶). */
 function Row({ c, on, now, icon, editing, onOpen, onMenu, onKey, onDone }: {
   c: Conversation; on: boolean; now: number; icon: IconName; editing: boolean;
-  onOpen: () => void; onMenu: (at: { x: number; y: number }) => void; onKey: (e: KeyboardEvent) => void; onDone: (title: string | null) => void;
+  onOpen: () => void; onMenu: (at: { x: number; y: number }) => void; onKey: (e: KeyboardEvent) => void; onDone: (title: string | null, opened: Conversation) => void;
 }) {
   const body = (
     <>
@@ -126,6 +127,9 @@ export function ConvList(p: ConvListProps) {
   const arch = archived.filter(hit);
   const all = [...conversations, ...archived];
   const menuRow = all.find((c) => c.id === ctx?.id);
+  // The row whose title box opens must be on screen: a search that hides it is cleared.
+  const editing = all.find((c) => c.id === p.renaming);
+  if (editing && q !== '' && !hit(editing)) setQ('');
   const newLabel = busy ? '角色执行中，结束后可新建' : '新话题';
   const row = (c: Conversation) => (
     <Row
@@ -149,9 +153,9 @@ export function ConvList(p: ConvListProps) {
           p.onDelete(c);
         }
       }}
-      onDone={(title) => {
+      onDone={(title, opened) => {
         p.onRenaming(null);
-        if (title) p.onRename(c, title);
+        if (title) p.onRename(opened, title);
       }}
     />
   );
@@ -177,13 +181,14 @@ export function ConvList(p: ConvListProps) {
                   <span className={styles.title}>新话题</span>
                 </button>
               )}
-              {arch.length > 0 && (
+              {arch.length > 0 && needle !== '' && arch.map(row)}
+              {arch.length > 0 && needle === '' && (
                 <>
-                  <button type="button" className={`${styles.row} ${styles.archRow}`} aria-expanded={openArch || needle !== ''} onClick={() => setOpenArch(!openArch)}>
+                  <button type="button" className={`${styles.row} ${styles.archRow}`} aria-expanded={openArch} onClick={() => setOpenArch(!openArch)}>
                     <span className={styles.chev} aria-hidden="true" />
                     <span className={styles.title}>{`已归档 ${arch.length}`}</span>
                   </button>
-                  {(openArch || needle !== '') && arch.map(row)}
+                  {openArch && arch.map(row)}
                 </>
               )}
             </div>

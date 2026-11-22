@@ -1,12 +1,20 @@
 import { useId, useRef, type ReactNode } from 'react';
 import type { Conversation } from '../../domain';
-import { Btn, Icon, useOverlayFocus } from '../../ui';
+import { Btn, Icon, OverlayPortal, useOverlayFocus } from '../../ui';
 import { Face } from './CharTabs';
 import type { ChatCharacter } from './useChatData';
 import styles from './ConvDialogs.module.css';
 
-/** The white paper card over the page (prototype .swap): Esc or a click beside it closes it. */
-function PaperCard({ title, warn, onClose, children }: { title: string; warn?: boolean; onClose: () => void; children: ReactNode }) {
+/** The white paper card over the whole window (prototype .swap): Esc or a click beside it closes it. */
+function PaperCard(p: { title: string; warn?: boolean; onClose: () => void; children: ReactNode }) {
+  return (
+    <OverlayPortal>
+      <PaperBody {...p} />
+    </OverlayPortal>
+  );
+}
+
+function PaperBody({ title, warn, onClose, children }: { title: string; warn?: boolean; onClose: () => void; children: ReactNode }) {
   const panel = useRef<HTMLDivElement>(null);
   const trap = useOverlayFocus(panel, onClose);
   const head = useId();

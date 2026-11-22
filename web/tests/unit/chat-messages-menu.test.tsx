@@ -55,7 +55,7 @@ describe('chat message menu', () => {
 
     open();
     fireEvent.click(screen.getByRole('menuitem', { name: '引用回复' }));
-    expect(onQuote).toHaveBeenCalledWith('在呢。');
+    expect(onQuote).toHaveBeenCalledWith('在呢。', { kind: 'ai', at: T + 1, turn_id: 'line-7' });
     expect(screen.queryByRole('menu')).toBeNull();
 
     open();
@@ -81,6 +81,22 @@ describe('chat message menu', () => {
       expect(screen.queryByRole('menu')).toBeNull();
       expect(document.activeElement).toBe(bubble);
     }
+  });
+
+  it('a menu stays on its own message when older ones are put in front', () => {
+    const write = vi.spyOn(bridge.clipboard, 'writeText');
+    const older: Message[] = [{ kind: 'me', at: T - 10, text: '更早的话' }, { kind: 'ai', at: T - 9, text: '更早的回复', turn_ms: 1, turn_id: 'line-6' }];
+    const { rerender } = render(<MessageList {...base} />);
+    fireEvent.contextMenu(screen.getByText('在呢。'), { clientX: 40, clientY: 50 });
+    rerender(<MessageList {...base} messages={[...older, ...MESSAGES]} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: '复制' }));
+    expect(write).toHaveBeenCalledWith('在呢。');
+  });
+
+  it('marks the reply of the selected turn', () => {
+    const { container } = render(<MessageList {...base} selectedTurn="line-7" />);
+    expect(container.querySelector('[data-kind="ai"]')?.hasAttribute('data-sel')).toBe(true);
+    expect(container.querySelector('[data-kind="me"]')?.hasAttribute('data-sel')).toBe(false);
   });
 
   it('does not offer to replay the user line', () => {

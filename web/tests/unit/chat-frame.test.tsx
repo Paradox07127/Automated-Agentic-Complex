@@ -310,15 +310,15 @@ describe('chat v2: no trace on the chat page', () => {
 });
 
 describe('chat v2: quoting a message', () => {
-  it('引用回复 puts the line above the input, and the sent line shows it as a quote block', async () => {
-    const b = bridge();
+  it('引用回复 puts the line above the input, and the sent line carries its turn instead of > lines', async () => {
+    const accept: MockRoute = { method: 'POST', path: '/conversations/:id/messages', handler: () => ({ status: 202, body: { line_id: 'line-1', generation: 1, run_id: 'run-1' } }) };
+    const b = bridge([accept]);
     const thread = await mount();
     fireEvent.contextMenu(within(thread).getByText('按项目分组，不要按日期。'), { clientX: 10, clientY: 10 });
     fireEvent.click(menuItem('引用回复'));
     expect(within(thread).getByRole('button', { name: '不引用' })).toBeTruthy();
     send(thread, '好');
-    await waitFor(() => expect(b.of('POST', `/conversations/${C1}/messages`).map((c) => c.body)).toEqual([{ text: '> 按项目分组，不要按日期。\n\n好' }]));
-    expect(within(thread).queryByRole('button', { name: '不引用' })).toBeNull();
-    await waitFor(() => expect(thread.querySelector('[data-live] blockquote')?.textContent).toBe('按项目分组，不要按日期。'));
+    await waitFor(() => expect(b.of('POST', `/conversations/${C1}/messages`).map((c) => c.body)).toEqual([{ text: '好', quote_turn: { turn_id: 'tr7', part: 'user' } }]));
+    await waitFor(() => expect(within(thread).queryByRole('button', { name: '不引用' })).toBeNull());
   });
 });

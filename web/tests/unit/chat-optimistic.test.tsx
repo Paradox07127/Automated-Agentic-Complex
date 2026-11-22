@@ -124,6 +124,7 @@ describe('a chat line shows the moment it is sent', () => {
       character: 'si',
       present: 'si',
       askSwap: async () => true,
+      shown: () => null,
       task: null,
       run: null,
       view: null,

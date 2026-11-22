@@ -1,15 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PickedHandle, StreamEvent } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { MockResponse, MockRoute } from '../../src/mock';
 import { NOW } from '../../src/mock/fixtures';
 import { C1 } from '../../src/mock/fixtures/ids';
 import { ChatPage } from '../../src/pages/chat/Page';
+import { pluginsOn, pluginsReset } from './plugins';
 
+beforeEach(() => pluginsOn());
 afterEach(() => {
+  pluginsReset();
   cleanup();
   vi.useRealTimers();
   delete window.agenticComplex;

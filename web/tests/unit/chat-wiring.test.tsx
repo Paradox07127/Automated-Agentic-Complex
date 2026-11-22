@@ -8,7 +8,8 @@ import type { WireRunItem, WireTurn } from '../../src/domain';
 import type { MockRoute } from '../../src/mock';
 import { NOW, WIRE_CONVERSATIONS, WIRE_INTERACTION_APPROVAL, WIRE_INTERACTIONS, WIRE_TASK_ROWS, WIRE_TURNS } from '../../src/mock/fixtures';
 import { C1, C2, Q1, Q_APPROVAL, T1 } from '../../src/mock/fixtures/ids';
-import { createChatActions, reasonOf, type ChatDeps } from '../../src/pages/chat/actions';
+import { createChatActions, type ChatDeps } from '../../src/pages/chat/actions';
+import { reasonOf } from '../../src/pages/chat/reasons';
 import { ChatPage } from '../../src/pages/chat/Page';
 import { chatStream } from '../../src/pages/chat/stream';
 import { ToastHost } from '../../src/shell/toast';
@@ -275,15 +276,16 @@ describe('chat review fixes', () => {
     await waitFor(() => expect(within(thread).queryByText(/实时输出有中断/)).toBeNull());
   });
 
-  it('a failed line and its 重发 do not follow to another conversation', async () => {
+  it('a failed line and its 重发 do not follow to another conversation, and wait in their own', async () => {
     bridge();
     const thread = await mount('&demo=sendfail');
     expect(await within(thread).findByText(/发送失败/)).toBeTruthy();
     pick('HostLink 断线排查');
     await within(thread).findByText(/超时阈值是 1.5 s/);
+    expect(within(thread).queryByText(/发送失败/)).toBeNull();
     pick('周报整理');
     await within(thread).findByText('按项目分组，不要按日期。');
-    expect(within(thread).queryByText(/发送失败/)).toBeNull();
+    expect(within(thread).getByText(/发送失败/)).toBeTruthy();
   });
 });
 
@@ -465,6 +467,7 @@ describe('chat actions', () => {
       character: 'si',
       present: 'si',
       askSwap: async () => true,
+      shown: () => null,
       task,
       run: null,
       view: { tasks: [task], deliveries: [delivery], pending: [], activeRuns: {}, sessions: [], ctx: { activeRuns: {}, sessions: [], pending: [] }, effective: {}, waiting: { tasks: 0, items: 0 }, goals: [] },

@@ -138,7 +138,7 @@ describe('看一眼屏幕 needs screenshot sharing', () => {
     kernel: null,
     failed: null,
     sending: false,
-    onSend: () => {},
+    onSend: async () => 'sent' as const,
     onResend: () => {},
     onDiscardFailed: () => {},
     onContinue: () => {},

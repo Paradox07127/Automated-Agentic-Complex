@@ -18,11 +18,11 @@ export function useFold() {
   // null: follows the window width.
   const [fold, setFold] = useState<boolean | null>(null);
   const folded = fold ?? narrow;
-  return { folded, toggle: () => setFold(!folded) };
+  return { folded, toggle: () => setFold(!folded), open: () => setFold(false) };
 }
 
-/** The swap card: `ask` shows it for `who` and settles with the user's answer; on no, `onDecline` gets the line that waited. */
-export function useSwapAsk(chars: ChatCharacter[], present: string | null, onDecline: (text: string) => void) {
+/** The swap card: `ask` shows it for `who` and settles with the user's answer. */
+export function useSwapAsk(chars: ChatCharacter[], present: string | null) {
   const [swapAsk, setSwapAsk] = useState<SwapAsk | null>(null);
   const settle = useRef<((yes: boolean) => void) | null>(null);
   const ask = (who: ChatCharacter, text: string) =>
@@ -31,7 +31,6 @@ export function useSwapAsk(chars: ChatCharacter[], present: string | null, onDec
       setSwapAsk({ who, from: chars.find((c) => c.id === present) ?? null, text });
     });
   const answer = (yes: boolean) => {
-    if (!yes && swapAsk?.text) onDecline(swapAsk.text);
     settle.current?.(yes);
     settle.current = null;
     setSwapAsk(null);
