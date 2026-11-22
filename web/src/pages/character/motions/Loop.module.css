@@ -100,7 +100,7 @@
 .axis {
   position: absolute;
   top: 0;
-  right: 52px;
+  right: 58px;
   left: 70px;
   height: 16px;
   color: rgb(38 38 38 / 62%);
@@ -201,9 +201,18 @@
   white-space: nowrap;
 }
 
+/* Over the track's right end, so every track spans the axis. */
+.tags {
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translateY(-50%);
+}
+
 .warn {
-  flex: none;
-  margin-right: 4px;
   padding: 2px 5px;
   background: var(--ef-danger-vivid);
   color: #fff;
@@ -272,7 +281,6 @@
 
 /* agentd's pending proposals for the tier. */
 .pr {
-  flex: none;
   padding: 2px 4px;
   background: var(--ef-g-reddot);
   color: #fff;
@@ -325,7 +333,7 @@
   }
 
   .axis {
-    right: 30px;
+    right: 38px;
     left: 40px;
     font-size: 9px;
   }

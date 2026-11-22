@@ -189,13 +189,18 @@
     padding: 8px 8px 8px 12px;
   }
 
-  .blend,
   .hint,
-  .lbl,
-  .acts > :nth-child(2),
-  .acts > :nth-child(4),
-  .acts > :nth-child(5) {
+  .lbl {
     display: none;
+  }
+
+  .blend {
+    gap: 8px;
+    padding: 4px 6px;
+  }
+
+  .acts {
+    gap: 6px;
   }
 }
 

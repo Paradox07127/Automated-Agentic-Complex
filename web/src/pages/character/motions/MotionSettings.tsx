@@ -57,10 +57,16 @@ const BANDS: GapBand[] = [1, 2, 3, 4, 0];
 const NO_JOINTS: Junction[] = [];
 const tierNo = (p: Pool) => Number(/\d+$/.exec(p.key)?.[0] ?? 0);
 
-export function MotionSettings({ offline, toast }: MotionSettingsProps) {
-  const qc = useQueryClient();
+export function MotionSettings(p: MotionSettingsProps) {
   const list = useQuery({ queryKey: ['character', 'list'], queryFn: () => getBridge().character.list() });
+  if (list.isError) return <ErrBar message={`读取角色目录失败：${hostText(list.error)}`} onRetry={() => void list.refetch()} />;
   const id = list.data?.find((c) => c.active)?.id ?? '';
+  // Another character starts over: the draft, the open chain and the structure edits belong to the one left.
+  return <Settings key={id} id={id} {...p} />;
+}
+
+function Settings({ id, offline, toast }: MotionSettingsProps & { id: string }) {
+  const qc = useQueryClient();
   const graph = useQuery({ queryKey: ['character', 'motion-graph', id], queryFn: () => readGraph(id), enabled: id !== '' });
   const ovKey = ['avatar', 'motion-overrides', id];
   const ov = useQuery({ queryKey: ovKey, queryFn: () => getBridge().avatar.motionOverrides.get(), enabled: id !== '' });
@@ -84,7 +90,6 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
   const pools = useMemo(() => (g ? poolsOf(g).filter((p) => !p.locked) : []), [g]);
   const joints = useMemo(() => new Map(g && ix ? Object.keys(g.chains).map((k) => [k, junctions(g, ix, k, [])]) : []), [g, ix]);
 
-  if (list.isError) return <ErrBar message={`读取角色目录失败：${hostText(list.error)}`} onRetry={() => void list.refetch()} />;
   if (graph.isError) return <ErrBar message={`读取动作图失败：${failure(graph.error).text}`} onRetry={() => void graph.refetch()} />;
   if (g === null)
     return (
@@ -102,6 +107,8 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
   const note = (k: string) => d.draft.notes[k] ?? stored.notes?.[k] ?? '';
   const blendIn = (clip: string) => (clip in d.draft.blend ? d.draft.blend[clip] : stored.blend_in[clip]) ?? undefined;
   const lock = offline ? '角色未运行' : null;
+  // The draft is cleared when the save lands, so it takes no edits until then.
+  const draftLock = lock ?? (saving ? '正在保存' : null);
   const labelOf = (clip: string) => byKey.get(clip)?.label ?? shortName(clip);
   const groupTitle = (x: string) => g.groups.find((y) => y.id === x)?.title ?? x;
   const jointsOf = (k: string) => joints.get(k) ?? NO_JOINTS;
@@ -117,7 +124,7 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
   };
   const tiers = pools.filter((p) => p.kind === 'tier').sort((a, b) => tierNo(a) - tierNo(b));
   const events = pools.filter((p) => p.kind === 'event');
-  const m: Mode = mode ?? (tiers.length > 0 || events.length === 0 ? 'idle' : 'event');
+  const m: Mode = mode != null && (mode === 'event' ? events : tiers).length > 0 ? mode : tiers.length > 0 || events.length === 0 ? 'idle' : 'event';
   const shown = m === 'idle' ? tiers : events;
   const pool = shown.find((p) => p.key === pick) ?? shown[0];
   const choose = (key: string | null, next: Mode = m) => {
@@ -200,8 +207,10 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
     const clips = segs.map((s) => s.clip);
     const path = chainPath(ce.editing ? withJoints(g, ix, clips) : ix, key, segs);
     const shipped = new Set(g.chains[key]!.map((s) => s.clip));
-    const at = segPick != null && segPick > 0 && segPick < path.segs.length ? segPick : path.segs.length > 1 ? 1 : null;
-    const clip = at != null ? clips[at]! : null;
+    // `at` past the last segment is the slot after it: only the ghosts can go there.
+    const n = path.segs.length;
+    const at = segPick != null && segPick > 0 && segPick <= n ? segPick : n > 1 ? 1 : n;
+    const clip = at < n ? clips[at]! : null;
     const hold = clip ? holdOf(ce.edits, clip) : undefined;
     inspector = (
       <ChainDetail
@@ -214,10 +223,10 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
         joints={ce.editing ? junctions(g, ix, key, ce.edits) : jointsOf(key)}
         note={note(key)}
         on={value(key)}
-        lock={lock}
+        lock={draftLock}
         previewBlock={previewBlock}
         playBlock={offline ? '角色未运行' : noPlay ? NO_PLAY : null}
-        removeBlock={lock ?? (entries.length <= 1 ? '池子里至少要有一条' : null)}
+        removeBlock={draftLock ?? (entries.length <= 1 ? '池子里至少要有一条' : null)}
         previewing={previewing}
         onBlend={d.setBlend}
         onNote={(t) => d.setNote(key, t)}
@@ -237,13 +246,13 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
               index={at}
               clip={clip}
               loop={clip ? !!ix.clips.get(clip)?.loop : false}
-              hold={hold !== undefined ? hold : clip ? (ix.clips.get(clip)?.hold_s ?? segs[at!]?.hold_range_s?.[1] ?? null) : null}
-              options={at != null ? candidates(g, ix, clips, at) : []}
-              ghosts={ce.editing ? ghosts(g, ix, clips) : []}
+              hold={hold !== undefined ? hold : clip ? (ix.clips.get(clip)?.hold_s ?? segs[at]?.hold_range_s?.[1] ?? null) : null}
+              options={clip ? candidates(g, ix, clips, at) : []}
+              ghosts={ce.editing ? ghosts(g, ix, path.segs.map((s) => s.seg.clip)) : []}
               clipOf={(c) => ix.clips.get(c)}
               lock={lock}
-              onReplace={(c) => at != null && ce.add({ op: 'replace', chain: key, index: at, clip: c })}
-              onInsert={(c) => at != null && ce.add({ op: 'insert', chain: key, index: at, clip: c })}
+              onReplace={(c) => clip && ce.add({ op: 'replace', chain: key, index: at, clip: c })}
+              onInsert={(c) => clip && ce.add({ op: 'insert', chain: key, index: at, clip: c })}
               onInsertAt={(index, c) => ce.add({ op: 'insert', chain: key, index, clip: c })}
               onHold={(s) => clip && ce.add({ op: 'set', clip, hold: s })}
             />
@@ -326,7 +335,7 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
             setOpen(k);
             setSegPick(null);
           }}
-          lock={lock}
+          lock={draftLock}
           onPreview={previewRow}
           onPool={(e) => d.setPool(pool.key, e)}
           inspector={inspector}
@@ -337,7 +346,7 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
               <PoolProposals
                 group={mg.pools[pool.key]!}
                 pending={pendingOf(pool)}
-                acceptBlock={lock ?? (entries.length >= MAX_ENTRIES ? `一个池子最多 ${MAX_ENTRIES} 条` : null)}
+                acceptBlock={draftLock ?? (entries.length >= MAX_ENTRIES ? `一个池子最多 ${MAX_ENTRIES} 条` : null)}
                 onPreview={previewClip}
                 onAccept={(x) => d.setPool(pool.key, [...entries, { clip: x.clip, weight: asWeight(x.weight) }])}
                 onDrop={(clip) => setDropped((s) => new Set(s).add(`${id}\n${pool.key}\n${clip}`))}

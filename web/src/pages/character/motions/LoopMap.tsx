@@ -157,13 +157,17 @@ export function LoopMap({ ix, lanes, sel, onSel }: LoopMapProps) {
                   <span className={styles.tx} style={1 - b >= a ? { left: `${b * 100 + 1.5}%` } : { right: `${100 - a * 100 + 1.5}%` }}>
                     {text ?? '包里没有写抽取时间'}
                   </span>
+                  {(l.hard > 0 || l.proposed > 0) && (
+                    <span className={styles.tags}>
+                      {l.hard > 0 && <span className={styles.warn}>{l.hard} 硬切</span>}
+                      {l.proposed > 0 && (
+                        <span className={styles.pr} data-proposed="">
+                          {l.proposed}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </span>
-                {l.hard > 0 && <span className={styles.warn}>{l.hard} 硬切</span>}
-                {l.proposed > 0 && (
-                  <span className={styles.pr} data-proposed="">
-                    {l.proposed}
-                  </span>
-                )}
                 <span className={styles.n}>
                   {l.n}
                   <small> 条</small>

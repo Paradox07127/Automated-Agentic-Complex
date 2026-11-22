@@ -9,7 +9,8 @@ export const BLEND_MAX = 2;
 const STEP = 0.05;
 const PX_PER_S = 100;
 
-export const fixBlend = (s: number) => Math.round(Math.min(BLEND_MAX, Math.max(0, s)) / STEP) * STEP;
+// Dividing the step count lands on the literal's double (0.3); multiplying by STEP drifts off it, and a draft stays dirty.
+export const fixBlend = (s: number) => Math.round(Math.min(BLEND_MAX, Math.max(0, s)) / STEP) / (1 / STEP);
 const num = (x: number, d: number) => String(Math.round(x * 10 ** d) / 10 ** d);
 const cmText = (gap: number | null) => (gap == null ? '未测' : `${num(gap, 1)} cm`);
 const sText = (s: number | null) => (s == null ? '—' : `${s.toFixed(2)} s`);
@@ -42,7 +43,7 @@ function segName(clip: string): string {
 
 /** A joint into segment `i`: blend above, an arrow wedge coloured by the gap, the gap below; ←→ ±0.05 s, Shift ±0.25, Delete back to the pack, drag sideways. */
 function Wedge({ p, i, joint, into }: { p: ChainStripProps; i: number; joint: Joint; into: string }) {
-  const drag = useRef<{ x: number; s: number } | null>(null);
+  const drag = useRef<{ x: number; s: number; moved: boolean } | null>(null);
   const s = p.blendOf(i);
   const off = p.lock != null;
   const label = `进入「${shortName(into)}」的衔接：${cmText(joint.gap)}，混合 ${sText(s)}`;
@@ -59,12 +60,14 @@ function Wedge({ p, i, joint, into }: { p: ChainStripProps; i: number; joint: Jo
   };
   const down = (e: PointerEvent<HTMLButtonElement>) => {
     if (off) return;
-    drag.current = { x: e.clientX, s };
+    drag.current = { x: e.clientX, s, moved: false };
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
   const move = (e: PointerEvent) => {
     const d = drag.current;
-    if (!d || Math.abs(e.clientX - d.x) < 3) return;
+    // The 3 px dead zone only guards the start, so the drag can come back to where it began.
+    if (!d || (!d.moved && Math.abs(e.clientX - d.x) < 3)) return;
+    d.moved = true;
     const next = fixBlend(d.s + (e.clientX - d.x) / PX_PER_S);
     if (next !== s) p.onBlend(i, next);
   };
@@ -95,7 +98,7 @@ function Wedge({ p, i, joint, into }: { p: ChainStripProps; i: number; joint: Jo
   );
 }
 
-/** 链条带：入口站姿 → 每个衔接一个楔块 → 段（宽按时长，起 / 循环 ⟲ 保持 / 收）→ 回到的站姿；改结构时段间出橙色 +，点段选要换的段。 */
+/** 链条带：入口站姿 → 每个衔接一个楔块 → 段（宽按时长，起 / 循环 ⟲ 保持 / 收）→ 回到的站姿；改结构时段间和末尾出橙色 +，点段选要换的段。 */
 export function ChainStrip(p: ChainStripProps) {
   const { path } = p;
   const entry = path.entry[0];
@@ -107,7 +110,7 @@ export function ChainStrip(p: ChainStripProps) {
     return at;
   });
   return (
-    <div className={styles.strip} role="group" aria-label="链条">
+    <div className={styles.strip} role="group" aria-label="链条" data-hscroll="">
       <div className={styles.bn} data-side="entry">
         <span className={styles.d}>
           <i aria-hidden="true" />
@@ -179,6 +182,17 @@ export function ChainStrip(p: ChainStripProps) {
           </Fragment>
         );
       })}
+      {p.edit && (
+        <button
+          type="button"
+          className={styles.plus}
+          aria-pressed={p.edit.pick === path.segs.length}
+          aria-label={`在「${shortName(path.segs[path.segs.length - 1]!.seg.clip)}」后插入`}
+          onClick={() => p.edit!.onPick(path.segs.length)}
+        >
+          <span aria-hidden="true">+</span>
+        </button>
+      )}
       {back && (
         <span className={styles.jt} data-joint="" data-band={gapBand(back.joint.gap)} title={`回到站姿：${cmText(back.joint.gap)}`}>
           <span className={styles.s}>{sText(back.joint.blend)}</span>

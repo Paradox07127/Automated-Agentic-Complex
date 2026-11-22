@@ -73,6 +73,8 @@ export function ChainEditBar(p: ChainEditBarProps) {
             </Btn>
             <Btn
               variant="primary"
+              disabled={off}
+              {...(reason ? { disabledReason: reason } : {})}
               onClick={() => {
                 setAsking(false);
                 p.onApply();
