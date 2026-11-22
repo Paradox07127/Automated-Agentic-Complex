@@ -7,7 +7,7 @@ import { WIRE_RUNTIME } from '../../src/mock/fixtures/wire/system';
 import { runtimeBody } from '../../src/pages/settings/fields';
 import { deriveView, emptyLocal } from '../../src/pages/tasks/model';
 import { TaskDrawer } from '../../src/features/task/TaskDrawer';
-import { isProfileFact, profileOf } from '../../src/pages/memory/model';
+import { catOf, plateOf } from '../../src/pages/memory/model';
 import { useDeliveryVisibility } from '../../src/features/delivery';
 import { useReceipts } from '../../src/pages/tasks/live';
 import { sendReceipt } from '../../src/pages/tasks/actions';
@@ -46,10 +46,10 @@ describe('product review regressions', () => {
   });
 
   it('keeps project facts outside personal profile without discarding their evidence', () => {
-    expect(isProfileFact({kind:'fact',text:'测试：通过'})).toBe(false);
-    expect(isProfileFact({kind:'fact',text:'时区：上海'})).toBe(true);
-    expect(isProfileFact({kind:'experience',text:'改过 HostLink 后断线'})).toBe(false);
-    expect(profileOf([]).cells).toEqual([]);
+    expect(catOf({kind:'fact',text:'测试：通过'})).toBe('other');
+    expect(catOf({kind:'fact',text:'时区：上海'})).toBe('about');
+    expect(catOf({kind:'experience',text:'改过 HostLink 后断线'})).toBe('exp');
+    expect(plateOf([])).toEqual({ name: null, birthday: null, place: null, about: 0 });
   });
 
   it('shows a hidden character before asking its host to play and does not claim play if showing fails', async () => {

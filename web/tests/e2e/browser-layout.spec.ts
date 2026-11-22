@@ -26,9 +26,9 @@ async function expectCapsule(field: Locator, fill: string) {
   expect(await style(field, 'background-color')).toBe(fill);
 }
 
-test('memory and settings search boxes share the raised search field', async ({ page }) => {
+test('the settings search box is the raised search field', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/memory?plugins=all&still=1');
+  await page.goto('main.html#/settings?still=1');
   const fill = await page.evaluate(() => {
     const probe = document.createElement('span');
     probe.style.backgroundColor = 'var(--ef-raised)';
@@ -37,8 +37,6 @@ test('memory and settings search boxes share the raised search field', async ({ 
     probe.remove();
     return c;
   });
-  await expectCapsule(page.locator('[data-stub="SearchField"]', { has: page.getByRole('textbox', { name: '搜索活动' }) }), fill);
-  await page.goto('main.html#/settings?still=1');
   await expectCapsule(page.locator('[data-stub="SearchField"]', { has: page.getByRole('textbox', { name: '搜索设置' }) }), fill);
   expect(errors).toEqual([]);
 });

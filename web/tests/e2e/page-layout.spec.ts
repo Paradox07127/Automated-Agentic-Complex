@@ -79,25 +79,24 @@ test('focus rings on the roster and 桌面预览 are not clipped', async ({ page
   expect(await ringCuts(page, '[data-view="operator"] button[data-stub="Btn"]')).toEqual([]);
 });
 
-test('用户档案 values wrap to two lines and carry the full text as a title', async ({ page }) => {
-  for (const demo of ['about', 'full']) {
-    await open(page, `/memory?${demo === 'about' ? 'view=about' : 'demo=full&view=about'}`);
-    const bad = await page.locator('section[aria-label="用户档案"] button[aria-label$="查看出处"] > span:last-child').evaluateAll((els) =>
-      els
-        .filter((v) => v.getAttribute('title') !== v.textContent || v.getBoundingClientRect().height > 2 * parseFloat(getComputedStyle(v).lineHeight) + 1)
-        .map((v) => v.textContent),
-    );
-    expect(bad, demo).toEqual([]);
+test('the 用户档案 nameplate shows its whole field line', async ({ page }) => {
+  for (const q of ['', '&theme=light']) {
+    await open(page, `/memory?plugins=all${q}`);
+    const plate = page.getByRole('button', { name: '用户档案：小林' });
+    await expect(plate).toBeVisible();
+    const cut = await plate.locator('span').evaluateAll((els) => els.filter((v) => v.scrollWidth > v.clientWidth + 1).map((v) => v.textContent));
+    expect(cut, q || 'dark').toEqual([]);
   }
 });
 
-test('evidence meta lines wrap instead of cutting the place', async ({ page }) => {
-  await open(page, '/memory?view=about');
-  await page.getByRole('button', { name: /查看出处/ }).nth(1).click();
-  const metas = page.locator('[data-k] > div > div:first-child');
-  await expect(metas.first()).toBeVisible();
-  const cut = await metas.evaluateAll((els) => els.filter((m) => m.scrollWidth > m.clientWidth + 1).map((m) => m.textContent));
-  expect(cut).toEqual([]);
+test('evidence lines in the detail column wrap instead of cutting the place', async ({ page }) => {
+  for (const id of ['g2', 'a3']) {
+    await open(page, `/memory?sel=${`f31${id}`.padEnd(32, '0')}`);
+    const source = page.getByRole('complementary', { name: '这条记忆' }).getByRole('region', { name: '出处' });
+    await expect(source.locator('button').first()).toBeVisible();
+    const cut = await source.locator('div, span').evaluateAll((els) => els.filter((m) => m.scrollWidth > m.clientWidth + 1).map((m) => m.textContent));
+    expect(cut, id).toEqual([]);
+  }
 });
 
 test('定时任务 rows use the shared pill button, 删除 reads as danger at rest, and the actions line up', async ({ page }) => {

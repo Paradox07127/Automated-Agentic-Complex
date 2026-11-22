@@ -143,7 +143,7 @@ describe('core pages with the plug-ins at their defaults', () => {
   }
   const OFF_READS = /^\/(agent\/(tasks|runs|interactions)|tasks|schedules|observation|memory\/tasks)(\/|$)/;
 
-  it('read nothing of 个人代理, 屏幕感知 or 日报与简报 on 对话 and 记忆, and 记忆 opens on 用户档案 without 活动回顾', async () => {
+  it('read nothing of 个人代理, 屏幕感知 or 日报与简报 on 对话 and 记忆, and 记忆 opens on 档案 without 回顾', async () => {
     const paths = spyPaths();
     for (const Page of [ChatPage, MemoryPage]) {
       const root = createRootRoute({ component: Page });
@@ -154,8 +154,8 @@ describe('core pages with the plug-ins at their defaults', () => {
         </QueryClientProvider>,
       );
       if (Page === MemoryPage) {
-        expect((await screen.findByRole('tab', { name: /用户档案/ }, { timeout: 3000 })).getAttribute('aria-selected')).toBe('true');
-        expect(screen.queryByRole('tab', { name: /活动回顾/ })).toBeNull();
+        expect((await screen.findByRole('tab', { name: /档案/ }, { timeout: 3000 })).getAttribute('aria-selected')).toBe('true');
+        expect(screen.queryByRole('tab', { name: /回顾/ })).toBeNull();
         expect(screen.queryByRole('tab', { name: /项目/ })).toBeNull();
       } else await screen.findByRole('region', { name: '消息' }, { timeout: 3000 });
       // The reads a page starts on mount have gone out.

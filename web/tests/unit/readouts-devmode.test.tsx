@@ -8,7 +8,7 @@ import { fpsReadout, msReadout, type Fact, type RenderSample } from '../../src/d
 import { TextMessage } from '../../src/pages/chat/TextMessage';
 import { CharacterPage } from '../../src/pages/character/Page';
 import { Resources } from '../../src/pages/diag/Resources';
-import { FactList } from '../../src/pages/memory/FactList';
+import { Archive } from '../../src/pages/memory/Archive';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { CommandBar } from '../../src/shell/CommandBar';
 import { setDevMode, useDevMode } from '../../src/shell/devMode';
@@ -133,6 +133,7 @@ const fact: Fact = {
   episode_refs: [],
 };
 const noop = () => {};
+const ok = async () => true;
 
 describe(' 开发者模式 off', () => {
   beforeEach(() => setDevMode(false));
@@ -170,7 +171,9 @@ describe(' 开发者模式 off', () => {
 
   it('drops the reference count from a memory row', () => {
     const { container } = render(
-      <FactList facts={[fact]} now={2_000} src={null} onSrc={noop} q="" onQ={noop} searchRef={createRef()} selected={null} onSelect={noop} fresh={new Set()} onSave={async () => true} onDelete={noop} onAdd={noop} />,
+      <QueryClientProvider client={client()}>
+        <Archive facts={[fact]} error={null} onRetry={noop} now={2_000} still fresh={new Set()} initial={{ sel: null, q: '' }} searchRef={createRef()} write={{ confirm: ok, correct: ok, reject: ok, forget: ok, add: ok }} onJump={noop} onChat={noop} actions={null} />
+      </QueryClientProvider>,
     );
     expect(container.textContent).toContain('喜欢黑咖啡');
     expect(container.textContent).not.toContain('引用');

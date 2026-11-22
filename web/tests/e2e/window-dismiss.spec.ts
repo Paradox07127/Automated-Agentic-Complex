@@ -30,7 +30,7 @@ test('schedule and memory dialogs close with the header X at the minimum window 
   await page.setViewportSize({ width: 900, height: 600 });
   for (const [path, trigger] of [
     ['/schedules?plugins=all&still=1', '新建定时任务'],
-    ['/memory?plugins=all&still=1', '查看 核对渲染测试结果'],
+    ['/memory?plugins=all&still=1&view=activity', '查看 核对渲染测试结果'],
   ] as const) {
     await page.goto(`main.html#${path}`);
     const opener = page.getByRole('button', { name: trigger, exact: true });

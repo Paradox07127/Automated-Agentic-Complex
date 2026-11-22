@@ -80,7 +80,9 @@ export function useBatches(enabled: boolean) {
 export interface Evidence {
   k: 'chat' | 'obs';
   when: string;
-  where: string;
+  /** The episode's title; null for a chat line or an episode no longer listed. */
+  title: string | null;
+  /** The line she read it from, or the episode's apps; null once the run's detail is gone (48 h). */
   quote: string | null;
 }
 
@@ -102,7 +104,7 @@ export function useEvidence(f: Fact, now: number): { ev: Evidence | null; pendin
   if (run != null) {
     const d = runQ.data;
     const said = d?.detail?.proposals.find((p) => p.receipt.fact_id === f.id)?.proposal.evidence_quote || d?.detail?.user_input || null;
-    return { ev: { k: 'chat', when: stamp(d ? d.started_at * 1000 : f.recorded_at, now), where: '对话', quote: said }, pending: runQ.isPending };
+    return { ev: { k: 'chat', when: stamp(d ? d.started_at * 1000 : f.recorded_at, now), title: null, quote: said }, pending: runQ.isPending };
   }
   if (ep) {
     const w = epQ.data?.episodes.find((e) => String(e.id) === ep[1]);
@@ -111,7 +113,7 @@ export function useEvidence(f: Fact, now: number): { ev: Evidence | null; pendin
     const day = e ? stamp(e.start, now).split(' ')[0] : `${m}月${d}日`;
     const span = e ? `${hm(e.start)}${e.end != null ? `–${hm(e.end)}` : ''}` : '';
     return {
-      ev: { k: 'obs', when: `${day}${span ? ` ${span}` : ''}`, where: e ? `观察 │ ${e.title}` : '观察', quote: e?.apps.length ? e.apps.join(' │ ') : null },
+      ev: { k: 'obs', when: `${day}${span ? ` ${span}` : ''}`, title: e?.title ?? null, quote: e?.apps.length ? e.apps.join(' │ ') : null },
       pending: epQ.isPending,
     };
   }

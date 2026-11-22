@@ -1,0 +1,60 @@
+/* 记忆页：底是游戏百科的浅灰（深色主题同构）、28 px 点阵和两道斜切面；内容是左中右三栏，页面本身不滚动。 */
+.page {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  isolation: isolate;
+  color: var(--m-t1);
+  font: 14px / 22px var(--ef-font-sans);
+  background:
+    linear-gradient(118deg, transparent 0 30%, var(--m-facet) 30% 31%, transparent 31% 100%),
+    linear-gradient(62deg, transparent 0 62%, var(--m-facet) 62% 63%, transparent 63% 100%),
+    radial-gradient(circle, var(--m-grid) 1.2px, transparent 1.4px) 0 0 / 28px 28px,
+    radial-gradient(120% 90% at 50% 20%, var(--m-bg1), var(--m-bg0) 80%);
+}
+
+.page::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px 3px);
+}
+
+/* Command bar status: green square 记录中, or two bars 已暂停记忆; then 上次整理 hh:mm. */
+.rec {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  white-space: nowrap;
+  color: var(--ef-text-1);
+}
+
+.rec i {
+  width: 8px;
+  height: 8px;
+  background: #3ccf6e;
+}
+
+.rec[data-off] i {
+  width: 9px;
+  height: 10px;
+  border-right: 3px solid var(--ef-text-2);
+  border-left: 3px solid var(--ef-text-2);
+  background: none;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+.rec small {
+  font: 500 12px var(--ef-font-num);
+  color: var(--ef-text-2);
+}
+
+@media (max-width: 1199px) {
+  .rec small {
+    display: none;
+  }
+}

@@ -1,4 +1,4 @@
-// 记忆页只剩「项目」和「用户档案」（原名「关于你」）两个视图，共用一个搜索；来源占比和整理批次去了管线。
+// 记忆页的三个页签：档案（默认）、项目、回顾（屏幕感知开着才有）；来源占比和整理批次去了管线。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -37,82 +37,76 @@ function mount(search = '') {
   );
 }
 
-const facts = () => document.querySelectorAll('[data-fact]').length;
 const projects = () => [...document.querySelectorAll('[data-project]')].map((r) => r.getAttribute('data-project'));
-const tab = (name: string) => screen.findByRole('tab', { name }, { timeout: 3000 });
+const tab = (name: string) => screen.findByRole('tab', { name: new RegExp(`^${name}`) }, { timeout: 3000 });
 
 describe('记忆页', () => {
   it('has neither the source ratio nor the consolidation batches', async () => {
-    mount('&view=about');
-    await waitFor(() => expect(facts()).toBeGreaterThan(0), { timeout: 3000 });
+    mount();
+    await screen.findAllByRole('region', { name: /^待确认：/ }, { timeout: 3000 });
     expect(screen.queryByRole('region', { name: '记忆概况' })).toBeNull();
     expect(screen.queryByText(/来源占比/)).toBeNull();
     expect(screen.queryByRole('region', { name: '最近变化' })).toBeNull();
     expect(screen.queryByText(/整理批次/)).toBeNull();
   });
 
-  it('用户档案 holds the asks and the fact list', async () => {
-    mount('&view=about');
-    expect((await tab('用户档案')).getAttribute('aria-selected')).toBe('true');
+  it('opens on 档案; the tabs are 档案, 项目 and 回顾', async () => {
+    mount();
+    expect((await tab('档案')).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['档案', '项目', '回顾']);
     expect((await screen.findAllByRole('region', { name: /^待确认：/ }, { timeout: 3000 })).length).toBeGreaterThan(0);
-    expect(screen.getByRole('region', { name: '记忆' })).toBeTruthy();
-    expect(facts()).toBeGreaterThan(0);
   });
 
-  it('opens on 活动回顾 and on 用户档案 for a fact', async () => {
-    mount();
-    expect((await tab('活动回顾')).getAttribute('aria-selected')).toBe('true');
+  it('回顾 lists the records; a record opens in the detail column and its evidence opens in place', async () => {
+    mount('&view=activity');
+    expect((await tab('回顾')).getAttribute('aria-selected')).toBe('true');
     fireEvent.click(await screen.findByRole('button', { name: '查看 核对渲染测试结果' }));
-    const detail = await screen.findByRole('dialog', { name: '核对渲染测试结果' });
-    fireEvent.click(await within(detail).findByRole('button', { name: '查看证据 1' }));
+    const detail = await screen.findByRole('complementary', { name: '这段记录' });
+    fireEvent.click(await within(detail).findByRole('button', { name: /^查看证据 1/ }));
     expect((await within(detail).findByText('本地重跑通过')).tagName).toBe('PRE');
     fireEvent.click(within(detail).getByRole('button', { name: '返回片段' }));
     await within(detail).findByRole('heading', { name: '原始证据' });
-    fireEvent.click(within(detail).getAllByRole('button', { name: '关闭' }).at(-1)!);
     fireEvent.click(await tab('项目'));
     expect((await tab('项目')).getAttribute('aria-selected')).toBe('true');
     await waitFor(() => expect(projects()).toEqual(['task-hostlink']), { timeout: 3000 });
-    cleanup();
-    mount('&sel=x');
-    expect((await tab('用户档案')).getAttribute('aria-selected')).toBe('true');
-  });
-
-  it('one search filters the facts and the projects', async () => {
-    mount('&q=HostLink');
-    await waitFor(() => expect(projects()).toEqual(['task-hostlink']), { timeout: 3000 });
-    fireEvent.click(await tab('其他事实与线索'));
-    await waitFor(() => expect(facts()).toBeGreaterThan(0));
-    fireEvent.change(screen.getByRole('textbox', { name: '搜索记忆' }), { target: { value: '周报' } });
-    await waitFor(() => expect(facts()).toBe(1));
-    fireEvent.click(await tab('项目'));
-    await waitFor(() => expect(projects()).toEqual([]));
-    expect(screen.getByText('没有符合条件的项目')).toBeTruthy();
-    expect((screen.getByRole('textbox', { name: '搜索记忆' }) as HTMLInputElement).value).toBe('周报');
   });
 
   it('a project opens its goal, progress and sessions; a session opens on 今天', async () => {
     mount('&view=projects');
     await waitFor(() => expect(projects()).toEqual(['task-hostlink']), { timeout: 3000 });
-    fireEvent.click(within(document.querySelector('[data-project="task-hostlink"]')!).getByRole('button'));
-    const sheet = await screen.findByRole('dialog', { name: '修复 HostLink 断线重连' });
-    expect(sheet.textContent).toContain('断线后自动恢复会话');
-    expect(sheet.textContent).toContain('已定位心跳超时');
-    fireEvent.click(await within(sheet).findByRole('button', { name: /验证断线恢复/ }));
+    const detail = await screen.findByRole('complementary', { name: '这个项目' });
+    expect(within(detail).getByText('修复 HostLink 断线重连')).toBeTruthy();
+    expect(detail.textContent).toContain('断线后自动恢复会话');
+    expect(detail.textContent).toContain('已定位心跳超时');
+    expect(await within(detail).findByText(/验证断线恢复/)).toBeTruthy();
+    fireEvent.click(within(detail).getByRole('button', { name: /在简报里看/ }));
     expect(window.location.hash).toContain('/overview?sel=ses-');
   });
 
-  it('a project row has a decorative index, its project, date and session count; a lone project gets a sentence under it', async () => {
+  it('改目标 patches the goal with the task revision', async () => {
+    const bridge = getBridge();
+    const read = bridge.agentd.request.bind(bridge.agentd);
+    const spy = vi.spyOn(bridge.agentd, 'request').mockImplementation((async (method: string, path: string, body?: unknown) =>
+      method === 'PATCH' ? { status: 200, body: {} } : read(method as 'GET', path, body)) as typeof bridge.agentd.request);
+    mount('&view=projects');
+    const detail = await screen.findByRole('complementary', { name: '这个项目' }, { timeout: 3000 });
+    fireEvent.click(within(detail).getByRole('button', { name: /^改目标/ }));
+    fireEvent.change(within(detail).getByRole('textbox', { name: '目标' }), { target: { value: '断线 3 秒内恢复会话' } });
+    fireEvent.click(within(detail).getByRole('button', { name: /^保存/ }));
+    await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', '/memory/tasks/task-hostlink', { expected_revision: expect.any(Number), goal: '断线 3 秒内恢复会话' }]]));
+  });
+
+  it('a project row has a decorative index, its project, date and session count; the status cells count the tasks', async () => {
     mount('&view=projects');
     await waitFor(() => expect(projects()).toEqual(['task-hostlink']), { timeout: 3000 });
     const row = document.querySelector('[data-project="task-hostlink"]') as HTMLElement;
-    expect(row.querySelector('[aria-hidden="true"]')?.textContent).toBe('00.101');
-    expect(row.textContent).toMatch(/修复 HostLink 断线重连Endfield\d{4}\.\d{2}\.\d{2}│会话 \d+$/);
-    expect(within(row).getByRole('button').getAttribute('aria-pressed')).toBe('false');
-    expect(screen.getByRole('group', { name: '进行中' })).toBeTruthy();
-    expect(screen.getByText('后台整理新的编码会话后，其他项目会按状态列在这里')).toBeTruthy();
+    expect(row.querySelector('[aria-hidden="true"]:not(svg)')?.textContent).toBe('00.101');
+    expect(row.textContent).toMatch(/修复 HostLink 断线重连Endfield\d{4}\.\d{2}\.\d{2}会话 \d+/);
+    expect(screen.getByRole('button', { name: /^进行中/ }).textContent).toBe('进行中1');
+    expect(screen.getByRole('button', { name: /^搁置/ }).textContent).toBe('搁置0');
   });
 
-  it('numbers project rows across the groups and drops the sentence once there are two', async () => {
+  it('numbers project rows across the statuses; 搁置 lists its own', async () => {
     const bridge = getBridge();
     const read = bridge.agentd.request.bind(bridge.agentd);
     vi.spyOn(bridge.agentd, 'request').mockImplementation((async (method: 'GET', path: string, body?: unknown) => {
@@ -122,17 +116,23 @@ describe('记忆页', () => {
       return { ...r, body: { ...(r.body as object), tasks: [...tasks, { ...tasks[0]!, id: 'task-parked', title: '整理周报模板', status: 'parked' }] } };
     }) as typeof bridge.agentd.request);
     mount('&view=projects');
-    await waitFor(() => expect(projects()).toEqual(['task-hostlink', 'task-parked']), { timeout: 3000 });
-    const nos = projects().map((id) => document.querySelector(`[data-project="${id}"] [aria-hidden="true"]`)?.textContent);
-    expect(nos).toEqual(['00.101', '00.102']);
-    expect(screen.getByRole('group', { name: '搁置' })).toBeTruthy();
-    expect(screen.queryByText('后台整理新的编码会话后，其他项目会按状态列在这里')).toBeNull();
+    await waitFor(() => expect(projects()).toEqual(['task-hostlink']), { timeout: 3000 });
+    fireEvent.click(screen.getByRole('button', { name: /^搁置/ }));
+    await waitFor(() => expect(projects()).toEqual(['task-parked']));
+    expect(document.querySelector('[data-project="task-parked"] [aria-hidden="true"]:not(svg)')?.textContent).toBe('00.102');
+  });
+
+  it('a search on 项目 filters the projects', async () => {
+    mount('&view=projects&q=周报');
+    expect(await screen.findByText('没有符合条件的项目', {}, { timeout: 3000 })).toBeTruthy();
+    expect(projects()).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: '清除搜索' }));
+    await waitFor(() => expect(projects()).toEqual(['task-hostlink']));
   });
 
   it('hides 项目 when /memory/tasks is not there', async () => {
     mount('&view=projects&demo=absent');
-    await waitFor(async () => expect((await tab('用户档案')).getAttribute('aria-selected')).toBe('true'), { timeout: 3000 });
-    await waitFor(() => expect(facts()).toBeGreaterThan(0), { timeout: 3000 });
+    await waitFor(async () => expect((await tab('档案')).getAttribute('aria-selected')).toBe('true'), { timeout: 3000 });
     expect(screen.queryByRole('tab', { name: '项目' })).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import type { Fact, FactKind, MemorySource } from '../../domain';
 
-/** Source words: short tag and full name; the page draws every source with the same grey square (inferred hatched). */
+/** Source words: short tag and full name; the key is `?src=`'s short form. */
 export const SRC: Record<MemorySource, { short: string; full: string; key: string }> = {
   asserted_by_user: { short: '陈述', full: '用户陈述', key: 'asserted' },
   observed_context: { short: '观察', full: '观察所得', key: 'observed' },
@@ -9,31 +9,38 @@ export const SRC: Record<MemorySource, { short: string; full: string; key: strin
 };
 export const SRC_ORDER: MemorySource[] = ['asserted_by_user', 'observed_context', 'confirmed_by_user', 'inferred_hypothesis'];
 
-/** List groups over agentd's kinds (memory.py KINDS). */
-export type Group = 'about' | 'pref' | 'deal' | 'exp' | 'knowledge';
-export const GROUPS: Array<{ id: Group; label: string }> = [
-  { id: 'about', label: '基本信息' },
-  { id: 'pref', label: '偏好' },
-  { id: 'deal', label: '约定' },
-  { id: 'exp', label: '经历' },
-  { id: 'knowledge', label: '其他事实与线索' },
-];
-const GROUP_OF: Record<FactKind, Group> = { name: 'about', birthday: 'about', fact: 'knowledge', preference: 'pref', agreement: 'deal', experience: 'exp' };
-/** Unclassified facts retain their evidence; they are not silently promoted to personal profile fields. */
-export const isProfileFact = (f: Pick<Fact, 'kind' | 'text'>) => f.kind === 'fact' ? FIELD.test(f.text) : f.kind !== 'experience';
-export const groupOf = (f: Pick<Fact, 'kind'> & Partial<Pick<Fact, 'text'>>) => f.kind === 'fact' && FIELD.test(f.text ?? '') ? 'about' : GROUP_OF[f.kind];
-export const groupLabel = (f: Pick<Fact, 'kind'> & Partial<Pick<Fact, 'text'>>) => GROUPS.find((g) => g.id === groupOf(f))?.label ?? '';
+/** The line under 来源 in the detail; a confirmed fact read from an episode was seen before it was confirmed. */
+export function howText(f: Pick<Fact, 'source' | 'evidence'>): string {
+  if (f.source === 'asserted_by_user') return '你在对话里亲口说的';
+  if (f.source === 'observed_context') return '她从屏幕上看到的，还没问过你';
+  if (f.source === 'inferred_hypothesis') return '她猜的';
+  return f.evidence.some((r) => r.startsWith('episode:')) ? '她看到后，你点了「记住」' : '她猜的，你点了「记住」';
+}
 
-/** Kinds 新增记忆 may take; name and birthday stay with onboarding. */
-export const ADD_KINDS: Array<{ kind: FactKind; label: string }> = [
-  { kind: 'fact', label: '其他事实' },
+/** The archive's categories over agentd's kinds (memory.py KINDS); 用户档案 is the nameplate, not a cell. */
+export type Cat = 'about' | 'pref' | 'deal' | 'exp' | 'other';
+export const CATS: Array<{ id: Cat; label: string; en: string }> = [
+  { id: 'about', label: '用户档案', en: 'Profile' },
+  { id: 'pref', label: '偏好', en: 'Preference' },
+  { id: 'deal', label: '约定', en: 'Agreement' },
+  { id: 'exp', label: '经历', en: 'Experience' },
+  { id: 'other', label: '其他线索', en: 'Clue' },
+];
+const CAT_OF: Record<FactKind, Cat> = { name: 'about', birthday: 'about', fact: 'other', preference: 'pref', agreement: 'deal', experience: 'exp' };
+/** A `fact` that reads as a field (时区：上海) is about the user; other facts are clues, kept with their evidence. */
+export const catOf = (f: Pick<Fact, 'kind' | 'text'>): Cat => (f.kind === 'fact' && FIELD.test(f.text) ? 'about' : CAT_OF[f.kind]);
+export const catLabel = (f: Pick<Fact, 'kind' | 'text'>) => CATS.find((c) => c.id === catOf(f))?.label ?? '';
+
+/** Categories 新增 may take, with the kind each writes; name and birthday stay with onboarding. */
+export const ADD_CATS: Array<{ kind: FactKind; label: string }> = [
   { kind: 'preference', label: '偏好' },
   { kind: 'agreement', label: '约定' },
   { kind: 'experience', label: '经历' },
+  { kind: 'fact', label: '其他线索' },
 ];
 
 /** The line a fact shows: name and birthday carry their label, everything else is the text itself. */
-export const factText = (f: Pick<Fact, 'kind' | 'text'>) => (f.kind === 'name' ? `称呼：${f.text}` : f.kind === 'birthday' ? `生日 ${f.text}` : f.text);
+export const factText = (f: Pick<Fact, 'kind' | 'text'>) => (f.kind === 'name' ? `称呼：${f.text}` : f.kind === 'birthday' ? `生日：${f.text}` : f.text);
 
 export const isCandidate = (f: Fact) => f.state === 'candidate';
 /** memory.py STALE_AFTER: unused for 30 days. */
@@ -58,10 +65,6 @@ export const ymd = (t: number) => {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 };
 
-/** 「今天」「昨天」「3 天前」. */
-export const agoText = (d: number) => (d <= 0 ? '今天' : d === 1 ? '昨天' : `${d} 天前`);
-/** 「今天更新」…「3 周前更新」. */
-export const updText = (d: number) => (d <= 0 ? '今天更新' : d === 1 ? '昨天更新' : d < 14 ? `${d} 天前更新` : `${Math.floor(d / 7)} 周前更新`);
 /** 「今天 14:22」「昨天 21:30」「10月8日 20:14」. */
 export function stamp(t: number, now: number): string {
   const d = daysAgo(t, now);
@@ -82,6 +85,11 @@ export function useSpark(f: Fact, now: number): number[] {
 /** agentd keeps the latest RECENT_USES (5) uses per fact; a full list means 5 or more. */
 export const RECENT_CAP = 5;
 export const useCount = (f: Fact) => (f.uses.length >= RECENT_CAP ? `${RECENT_CAP}+` : String(f.uses.length));
+/** 「近 14 天用到 N 次」's N: uses of the last 14 days, 5+ once the kept list is full; null when there are none. */
+export function recentText(f: Fact, now: number): string | null {
+  const n = sum(useSpark(f, now));
+  return n === 0 ? null : f.uses.length >= RECENT_CAP && n === f.uses.length ? `${RECENT_CAP}+` : String(n);
+}
 
 /** Facts recorded per day over the last 14 days (candidates are not memory yet). */
 export function added14(facts: readonly Fact[], now: number): number[] {
@@ -98,9 +106,9 @@ export const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
 
 export type Sort = 'new' | 'used' | 'idle';
 export const SORTS: Array<{ value: Sort; label: string }> = [
-  { value: 'new', label: '最新' },
-  { value: 'used', label: '最常用' },
-  { value: 'idle', label: '最久未用' },
+  { value: 'new', label: '最新记下' },
+  { value: 'used', label: '最常用到' },
+  { value: 'idle', label: '最久没用' },
 ];
 const lastUse = (f: Fact) => f.last_used_at ?? f.recorded_at;
 export const SORTERS: Record<Sort, (a: Fact, b: Fact) => number> = {
@@ -109,44 +117,32 @@ export const SORTERS: Record<Sort, (a: Fact, b: Fact) => number> = {
   idle: (a, b) => lastUse(a) - lastUse(b),
 };
 
-/** Search over the shown text, the source words and the group name. */
+/** Search over the shown text, the source words and the category name. */
 export function matches(f: Fact, q: string): boolean {
   const s = q.trim().toLowerCase();
-  return !s || `${factText(f)} ${SRC[f.source].short}${SRC[f.source].full} ${groupLabel(f)}`.toLowerCase().includes(s);
+  return !s || `${factText(f)} ${SRC[f.source].short}${SRC[f.source].full} ${catLabel(f)}`.toLowerCase().includes(s);
 }
 
 /** A short `标签：值` fact of the about group (时区：上海) reads as a field of the nameplate. */
 export const FIELD = /^(时区|城市|所在城市|所在地|职业|语言|timezone|city|language)[：:]\s*(.{1,40})$/i;
+const PLACE = /^(城市|所在城市|所在地|时区|city|timezone)$/i;
 
-export interface Profile {
-  name: Fact | null;
-  fields: Array<{ key: string; value: string; fact: Fact }>;
-  /** 当前工作 / 偏好 / 约定: the most used active fact of each. */
-  cells: Array<{ label: string; fact: Fact }>;
+/** The nameplate: what she calls the user, the birthday, where they are, and how many facts are about them. */
+export interface Plate {
+  name: string | null;
+  birthday: string | null;
+  place: string | null;
+  about: number;
 }
 
-const mostUsed = (xs: Fact[]) => [...xs].sort(SORTERS.used)[0];
-
-export function profileOf(facts: readonly Fact[]): Profile {
+export function plateOf(facts: readonly Fact[]): Plate {
   const active = facts.filter((f) => !isCandidate(f));
-  const birthday = active.find((f) => f.kind === 'birthday');
-  const fieldFacts = active.filter((f) => f.kind === 'fact' && FIELD.test(f.text)).slice(0, 1);
-  const fields = [
-    ...(birthday ? [{ key: '生日', value: birthday.text, fact: birthday }] : []),
-    ...fieldFacts.map((f) => {
-      const m = FIELD.exec(f.text);
-      return { key: m?.[1] ?? '', value: m?.[2] ?? '', fact: f };
-    }),
-  ];
-  const pref = mostUsed(active.filter((f) => f.kind === 'preference'));
-  const deal = mostUsed(active.filter((f) => f.kind === 'agreement'));
+  const place = active.map((f) => (f.kind === 'fact' ? FIELD.exec(f.text) : null)).find((m) => m != null && PLACE.test(m[1] ?? ''));
   return {
-    name: active.find((f) => f.kind === 'name') ?? null,
-    fields,
-    cells: [
-      ...(pref ? [{ label: '偏好', fact: pref }] : []),
-      ...(deal ? [{ label: '约定', fact: deal }] : []),
-    ],
+    name: active.find((f) => f.kind === 'name')?.text ?? null,
+    birthday: active.find((f) => f.kind === 'birthday')?.text ?? null,
+    place: place?.[2] ?? null,
+    about: active.filter((f) => catOf(f) === 'about').length,
   };
 }
 

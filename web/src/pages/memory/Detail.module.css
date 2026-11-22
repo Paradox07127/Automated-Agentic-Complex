@@ -1,0 +1,218 @@
+/* 右侧详情的正文、14 天刻度尺和底栏；标题条、键值行、引文在 Side.module.css。项目和回顾的详情共用这里的骨架。 */
+.det {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+}
+
+.body {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 14px 16px 12px;
+  overflow: hidden auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--m-pn-t3) transparent;
+  animation: fade-in 0.25s var(--m-fade) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.big {
+  margin: 0;
+  font: 500 19px / 29px var(--ef-font-sans);
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.edit {
+  width: 100%;
+  min-height: 84px;
+  padding: 8px 10px;
+  border: 0;
+  font: 500 16px / 26px var(--ef-font-sans);
+  color: #1f1f1f;
+  resize: vertical;
+  background: #f2f1ef;
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.3), 0 0 0 2px var(--ef-accent);
+  box-sizing: border-box;
+}
+
+.edit:focus {
+  outline: none;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kv {
+  display: grid;
+  gap: 6px;
+}
+
+.text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+
+.raw {
+  max-height: 260px;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  font: 12px / 19px var(--ef-font-mono);
+  white-space: pre-wrap;
+  color: var(--m-pn-t1);
+  background: var(--m-pn-lo);
+}
+
+.image {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--m-pn-line);
+}
+
+.apps {
+  display: block;
+  font: 12px / 18px var(--ef-font-mono);
+  color: var(--m-pn-t2);
+}
+
+.ax {
+  position: relative;
+  height: 46px;
+}
+
+.trk {
+  position: absolute;
+  top: 4px;
+  right: 0;
+  left: 0;
+  height: 22px;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 calc(100% / 14 - 1px), transparent calc(100% / 14 - 1px) calc(100% / 14));
+}
+
+.tick {
+  position: absolute;
+  top: 4px;
+  width: 3px;
+  height: 22px;
+  background: var(--m-pn-t1);
+  transform: translateX(-50%);
+}
+
+.tick b {
+  position: absolute;
+  top: -2px;
+  left: 5px;
+  font: 600 11px var(--ef-font-num);
+  color: var(--m-pn-t1);
+}
+
+.now {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 30px;
+  background: var(--ef-accent);
+  transform: translateX(-50%);
+}
+
+.rl {
+  position: absolute;
+  top: 30px;
+  right: 0;
+  left: 0;
+  height: 16px;
+  border-top: 1px solid var(--m-pn-line);
+  font: 500 12px var(--ef-font-num);
+  color: var(--m-pn-t2);
+}
+
+.rl span {
+  position: absolute;
+  top: 1px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.rl span:last-child {
+  transform: translateX(-80%);
+}
+
+.uses {
+  display: grid;
+  gap: 3px;
+}
+
+.use {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 20px;
+  background: var(--m-pn-lo);
+}
+
+.use > :first-child {
+  color: var(--m-pn-t2);
+}
+
+/* Decorative record number in front of a project's title. */
+.code {
+  margin-right: 8px;
+  font: 600 12px var(--ef-font-num);
+  color: var(--m-pn-t2);
+}
+
+.note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--m-pn-t2);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--m-pn-line);
+}
+
+.sp {
+  flex: 1;
+}
+
+.danger {
+  all: unset;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ef-danger-text);
+  cursor: pointer;
+}
+
+.danger:hover {
+  background: rgba(255, 65, 69, 0.12);
+}
+
+.danger:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}

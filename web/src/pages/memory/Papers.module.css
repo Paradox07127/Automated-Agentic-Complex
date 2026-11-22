@@ -1,0 +1,170 @@
+/* 删除 / 清空用白纸危险卡（顶边红黑斜纹、红三角）；新增用游戏深色弹层，白细框描边。 */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ef-z-modal);
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  animation: fade 0.2s var(--m-fade) both;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.paper {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  width: min(440px, calc(100% - 32px));
+  padding: 24px 22px 18px;
+  color: #1f1f1f;
+  outline: none;
+  background: linear-gradient(180deg, #faf9f7, #f2f1ef);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+  box-sizing: border-box;
+  animation: pop-up 0.3s var(--m-enter) both;
+}
+
+.paper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 5px;
+  background: repeating-linear-gradient(115deg, #161616 0 6px, var(--ef-accent) 6px 12px);
+}
+
+.warn::before {
+  background: repeating-linear-gradient(115deg, #161616 0 6px, #ff4145 6px 12px);
+}
+
+@keyframes pop-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+.paper h4 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  font-size: 18px;
+  line-height: 26px;
+}
+
+.wi {
+  display: grid;
+  place-items: end center;
+  width: 22px;
+  height: 20px;
+  font: 700 13px / 18px var(--ef-font-num);
+  color: #161616;
+  background: #ff4145;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.paper p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 21px;
+  color: #5f5e5c;
+}
+
+.paper ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 21px;
+  color: #3a3a38;
+}
+
+.paper q {
+  display: block;
+  padding: 9px 12px;
+  border-left: 3px solid #161616;
+  font-size: 14px;
+  color: #1f1f1f;
+  quotes: none;
+  background: rgba(0, 0, 0, 0.05);
+  overflow-wrap: anywhere;
+}
+
+.paper input {
+  all: unset;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 14px;
+  color: #1f1f1f;
+  background: #fff;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+.paper input:focus {
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25), 0 0 0 2px #161616;
+}
+
+.btns {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.pop {
+  position: relative;
+  display: grid;
+  width: min(520px, calc(100% - 32px));
+  color: var(--m-pn-t1);
+  outline: none;
+  background: linear-gradient(180deg, var(--m-pn-hi), var(--m-pn));
+  box-shadow: 0 0 0 1.5px rgba(236, 236, 234, 0.7), 0 24px 48px -12px rgba(0, 0, 0, 0.65);
+  animation: pop-up 0.3s var(--m-enter) both;
+}
+
+.pb {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.pb textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px 10px;
+  border: 0;
+  font: 500 15px / 24px var(--ef-font-sans);
+  color: #1f1f1f;
+  resize: vertical;
+  background: #f2f1ef;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+
+.pb textarea:focus {
+  outline: none;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--ef-accent);
+}
+
+.pb p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--m-pn-t2);
+}
+
+.pf {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  padding: 8px 14px 14px;
+  border-top: 1px solid var(--m-pn-line);
+}

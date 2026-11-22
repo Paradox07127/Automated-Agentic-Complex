@@ -1,43 +1,4 @@
-/* 记忆页：开放区按节间距排；来源全页用同一种墨色小方块，推断是 45° 斜纹；小标记直角细框。 */
-.page {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 20px var(--ef-page-pad) 32px;
-}
-
-.page > * + * {
-  margin-top: var(--ef-sec-gap);
-}
-
-.viewTabs {
-  display: flex;
-  max-width: 1120px;
-  width: 100%;
-  margin-inline: auto;
-}
-
-/* The dot band (recipe wiki-topbar-dots) tiled along the title bar at #000@0.298, right of the tabs. */
-:global(html[data-art]) .viewTabs {
-  position: relative;
-  isolation: isolate;
-}
-
-:global(html[data-art]) .viewTabs::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: -1;
-  width: min(310px, 36%);
-  background: var(--ef-text-1);
-  opacity: 0.298;
-  pointer-events: none;
-  -webkit-mask: url('/art/common/wiki-topbar-dots.png') right center / 62px 54px repeat-x;
-  mask: url('/art/common/wiki-topbar-dots.png') right center / 62px 54px repeat-x;
-}
-
+/* 管线页的记忆概况和最近变化借用的小件：来源方块（推断是 45° 斜纹）、文字链接、说明字、新增签。 */
 .sp {
   flex: 1;
 }
@@ -63,16 +24,6 @@
   background: repeating-linear-gradient(45deg, var(--ef-cat-other) 0 1px, transparent 1px 3px);
 }
 
-.srcTag {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 5px;
-  color: var(--ef-text-2);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 /* Text link: no frame, underline on hover. */
 .lnk {
   min-height: 24px;
@@ -96,21 +47,6 @@
   cursor: default;
 }
 
-.none {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 10px;
-  min-height: 44px;
-  padding: 8px 2px;
-  color: var(--ef-text-1);
-  font-size: 13px;
-}
-
-.none[data-size='sm'] {
-  min-height: 36px;
-}
-
 .cap {
   color: var(--ef-text-3);
   font-size: 12px;
@@ -121,103 +57,16 @@
   font-weight: 600;
 }
 
-.just,
-.lock,
-.quiet {
+.just {
   display: inline-flex;
   flex: none;
   align-items: center;
   gap: 3px;
   height: 18px;
   padding: 0 5px;
-  border: 1px solid var(--ef-line-strong);
-  color: var(--ef-text-2);
+  border: 1px solid var(--ef-text-1);
+  color: var(--ef-text-1);
   font-size: 12px;
+  font-weight: 600;
   white-space: nowrap;
-}
-
-.just {
-  border-color: var(--ef-text-1);
-  color: var(--ef-text-1);
-  font-weight: 600;
-}
-
-.quiet {
-  border-style: dashed;
-}
-
-/* Evidence: a chat line in quotes or an activity episode with a thumbnail stand-in. */
-.ev {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  min-width: 0;
-  padding: 6px 8px;
-  border-left: 2px solid var(--ef-line-strong);
-  background: var(--ef-overlay-hover);
-}
-
-.thumb {
-  position: relative;
-  flex: none;
-  width: 44px;
-  height: 30px;
-  margin-top: 2px;
-  border: 1px solid var(--ef-line);
-  background: var(--ef-chart-hatch), var(--ef-surface-2);
-}
-
-.thumb::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 5px;
-  background: var(--ef-line-strong);
-  opacity: 0.6;
-}
-
-.evBody {
-  flex: 1;
-  min-width: 0;
-}
-
-.evMeta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 6px;
-  color: var(--ef-text-3);
-  font-size: 12px;
-}
-
-.evQuote {
-  display: -webkit-box;
-  margin-top: 2px;
-  overflow: hidden;
-  color: var(--ef-text-1);
-  font-size: 13px;
-  line-height: 1.45;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.who {
-  display: inline-block;
-  margin-right: 4px;
-  padding: 0 4px;
-  border: 1px solid var(--ef-line-strong);
-  color: var(--ef-text-2);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-}
-
-.mono {
-  font: var(--ef-fw-medium) 12px / 1.45 var(--ef-font-mono);
-}
-
-.listAnchor {
-  min-width: 0;
-  scroll-margin-top: 12px;
 }

@@ -1,0 +1,248 @@
+/* 左栏分类格（游戏百科 TabCell）、分隔标签和白胶囊搜索框。贴图全是 CSS 自绘。 */
+
+/* `INDEX ──── ⁄⁄⁄⁄`: label, a rule and a short hatch at its end. */
+.sep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px;
+  font: 600 10px var(--ef-font-num);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--m-t2);
+}
+
+.sep::after {
+  content: '';
+  flex: 1;
+  height: 5px;
+  border-top: 1px solid var(--m-t3);
+  background: repeating-linear-gradient(-60deg, var(--m-t3) 0 1px, transparent 1px 5px) right 0 top 1px / 44px 4px no-repeat;
+  opacity: 0.6;
+}
+
+/* wiki TabCell: rest = light plate (178,178,178,.75) with a hatch (deco_character_bg03) and ticks (deco_bg_side02). */
+.cell {
+  all: unset;
+  position: relative;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  height: 46px;
+  padding: 0 12px 0 16px;
+  overflow: hidden;
+  border-radius: 3px;
+  color: var(--m-cell-t);
+  cursor: pointer;
+  background: linear-gradient(180deg, var(--m-cell-hi), var(--m-cell));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  animation: cell-in 0.333s var(--m-enter) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+  transition: filter 0.083s var(--m-fade);
+}
+
+.cell::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 30px;
+  width: 16px;
+  height: 30px;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, transparent 45%, var(--m-cell-deco) 45% 55%, transparent 55%) 0 0 / 16px 15px,
+    linear-gradient(135deg, transparent 45%, var(--m-cell-deco) 45% 55%, transparent 55%) 0 15px / 16px 15px no-repeat;
+}
+
+.cell::after {
+  content: '';
+  position: absolute;
+  bottom: 7px;
+  left: 52px;
+  width: 24px;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, var(--m-cell-deco) 0 2px, transparent 2px 4px);
+}
+
+.cell:hover {
+  filter: brightness(1.06);
+}
+
+.cell:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.cell svg {
+  color: var(--m-cell-t2);
+  transition: transform 0.25s var(--m-enter);
+}
+
+.ct {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: transform 0.25s var(--m-enter);
+}
+
+.n {
+  font: 600 13px var(--ef-font-num);
+  color: var(--m-cell-t2);
+}
+
+/* Picked: (63,63,63) plate with contour rings (bg_wiki_equip_btn_select), a 4 px yellow bar, a #FDFD18 icon. */
+.cell[aria-pressed='true'] {
+  --m-cell-deco: rgba(238, 238, 238, 0.25);
+
+  color: #fff;
+  background:
+    repeating-radial-gradient(ellipse at 85% 140%, transparent 0 7px, rgba(255, 255, 255, 0.05) 7px 8px),
+    repeating-radial-gradient(ellipse at 10% -40%, transparent 0 11px, rgba(255, 255, 255, 0.035) 11px 12px),
+    linear-gradient(180deg, #46464a, #3f3f3f);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.4), 0 4px 10px -4px rgba(0, 0, 0, 0.5);
+}
+
+.cell[aria-pressed='true'] svg {
+  color: #fdfd18;
+  transform: translateX(4px);
+}
+
+.cell[aria-pressed='true'] .ct {
+  transform: translateX(3px);
+}
+
+.cell[aria-pressed='true'] .n {
+  color: #d8d8d6;
+}
+
+.yb {
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  width: 4px;
+  height: 0;
+  background: var(--ef-accent);
+  transform: translateY(-50%);
+  transition: height 0.4s cubic-bezier(0.333, 0, 0.2, 1);
+}
+
+.cell[aria-pressed='true'] .yb {
+  height: 22px;
+}
+
+/* red_dot: an orange diamond at the top right. */
+.rd {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  background: var(--ef-g-reddot);
+  transform: rotate(45deg);
+  box-shadow: 0 0 6px var(--ef-g-reddot);
+}
+
+.cell[data-pend] .n {
+  font-weight: 700;
+  color: var(--m-cell-t);
+}
+
+:global([data-theme='dark']) .cell[data-pend]:not([aria-pressed='true']) .n {
+  color: var(--ef-g-reddot);
+}
+
+.cell[data-pend][aria-pressed='true'] .n {
+  color: #ffb06b;
+}
+
+.cell[data-zero] .n {
+  opacity: 0.7;
+}
+
+@keyframes cell-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+}
+
+/* ---------- 搜索框：白胶囊 ---------- */
+.field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+  max-width: 420px;
+  height: 34px;
+  margin: 0;
+  padding: 0 6px 0 14px;
+  border-radius: 999px;
+  color: #1f1f1f;
+  background: linear-gradient(180deg, #fff, #efeeec);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.28), 0 0 0 3px rgba(0, 0, 0, 0.12);
+}
+
+.field:focus-within {
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.18), 0 0 0 2px var(--ef-accent);
+}
+
+.field input {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: #1f1f1f;
+}
+
+.field input::placeholder {
+  color: #666;
+}
+
+.field svg {
+  color: #3a3a3a;
+}
+
+/* ⌘F cap: shown only while ⌘ / Ctrl is held. */
+.key {
+  display: none;
+  margin-right: 4px;
+  padding: 0 4px;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  font: 11px var(--ef-font-num);
+  color: #555;
+}
+
+:global(html[data-keys]) .key {
+  display: inline;
+}
+
+.clear {
+  all: unset;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #3a3a3a;
+  cursor: pointer;
+}
+
+.clear:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+
+@media (max-height: 620px) {
+  .cell {
+    height: 38px;
+  }
+
+  .cell::before {
+    top: 4px;
+  }
+}

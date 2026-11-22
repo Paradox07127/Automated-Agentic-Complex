@@ -1,0 +1,112 @@
+/* 三栏：左分类 252 │ 中条目 │ 右详情 clamp(340, 28vw, 430)；1200 以下左栏 214、详情收成抽屉。项目和回顾用同一骨架。 */
+.body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 252px minmax(0, 1fr) clamp(340px, 28vw, 430px);
+  height: 100%;
+  min-height: 0;
+}
+
+.body[data-wide] {
+  grid-template-columns: 252px minmax(0, 1fr);
+}
+
+.ccol {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 14px 14px 10px 10px;
+}
+
+.crow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.sp {
+  flex: 1;
+}
+
+.grp {
+  display: grid;
+  gap: 4px;
+}
+
+/* 回顾's ten-minute slot heading: date │ time range, then a rule. */
+.slot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 4px;
+  font: 500 12px var(--ef-font-num);
+  color: var(--m-pn-t2);
+}
+
+.slot::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--m-pn-line);
+}
+
+.sum {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.more {
+  justify-self: start;
+  margin-top: 8px;
+}
+
+/* Sort: a paper capsule around a native select. */
+.sel {
+  display: inline-flex;
+  flex: none;
+  gap: 8px;
+  align-items: center;
+  height: 32px;
+  padding: 0 8px 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+  color: #1f1f1f;
+  background: #f2f1ef;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.sel span {
+  color: #5f5e5c;
+}
+
+.sel select {
+  all: unset;
+  padding-right: 18px;
+  font: 500 13px var(--ef-font-sans);
+  color: #1f1f1f;
+  cursor: pointer;
+  background:
+    linear-gradient(45deg, transparent 50%, #555 50%) right 6px center / 6px 6px no-repeat,
+    linear-gradient(-45deg, transparent 50%, #555 50%) right 0 center / 6px 6px no-repeat;
+}
+
+.sel:focus-within {
+  box-shadow: 0 0 0 2px var(--ef-focus);
+}
+
+@media (max-width: 1199px) {
+  .body,
+  .body[data-wide] {
+    grid-template-columns: 214px minmax(0, 1fr);
+  }
+}
+
+@media (max-height: 620px) {
+  .ccol {
+    padding-top: 10px;
+  }
+}

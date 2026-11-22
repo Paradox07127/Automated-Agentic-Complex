@@ -1,135 +1,294 @@
-import { useRef, type ReactNode } from 'react';
-import { gameClips } from '../../design/gameClips.generated';
-import { Breath, CountBadge } from '../../ui';
-import { hm } from './model';
-import { useEntrance, useExit, useHoverClip, type LeaveSlot } from './motion';
-import type { WorkTask } from './Projects';
-import styles from './Archive.module.css';
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
+import type { Fact, FactKind } from '../../domain';
+import { BottomBarSlot } from '../../shell/headerSlot';
+import { Btn, ErrBar } from '../../ui';
+import { Detail } from './Detail';
+import { Keys } from './Keys';
+import { LeftCol, Plate } from './Index';
+import { catOf, CATS, factText, isCandidate, isDormant, matches, plateOf, recentText, SORTERS, SORTS, SRC, ymd, type Cat, type Sort } from './model';
+import { AddPop, DeleteCard } from './Papers';
+import { Cell, DetailCol, Empty, GroupHead, List, Lnk, Panel, Row, SearchBox, Sep, Skeleton, SrcMark, Tag, useNarrow, type GlyphName } from './parts';
+import { Votes } from './Votes';
+import styles from './Cols.module.css';
 
-/** The views a small archive card opens. */
-export type ArchiveView = 'activity' | 'about' | 'knowledge';
+type Pick = 'pending' | 'all' | Cat;
+const ICON: Record<Exclude<Cat, 'about'>, GlyphName> = { pref: 'pref', deal: 'deal', exp: 'flag', other: 'dots' };
 
 export interface ArchiveProps {
-  /** The work-memory tasks; undefined while still reading. */
-  tasks: WorkTask[] | undefined;
-  /** Active facts and open asks of 用户档案 and of 其他事实与线索. */
-  about: { count: number; asks: number };
-  knowledge: { count: number; asks: number };
-  /** Finish time of the last consolidation run; null when there is none, undefined while still reading. */
-  lastRun: number | null | undefined;
-  onOpen: (v: ArchiveView) => void;
-  /** Takes the panel's out clip while it is shown. */
-  leave?: LeaveSlot;
+  /** Every row of GET /memory, candidates included; undefined while it loads. */
+  facts: Fact[] | undefined;
+  /** Why GET /memory failed; null when it did not. */
+  error: string | null;
+  onRetry: () => void;
+  now: number;
+  still: boolean;
+  fresh: ReadonlySet<string>;
+  /** `?sel=` and `?q=` on arrival. */
+  initial: { sel: string | null; q: string };
+  searchRef: Ref<HTMLInputElement>;
+  /** Writes; each resolves true when agentd took it, after saying so. */
+  write: {
+    confirm: (f: Fact) => Promise<boolean>;
+    correct: (f: Fact, text: string) => Promise<boolean>;
+    reject: (f: Fact) => Promise<boolean>;
+    forget: (f: Fact) => Promise<boolean>;
+    add: (text: string, kind: FactKind) => Promise<boolean>;
+  };
+  onJump: (k: 'chat' | 'obs') => void;
+  onChat: () => void;
+  /** 整理记录 › 导出 清空记忆… at the right of the bottom bar. */
+  actions: ReactNode;
 }
 
-/** The game's prtsIn keys of the three small cards. */
-const CARD_G = { text: 'card1', media: 'card2', doc: 'card3' } as const;
+/** 档案：左栏名牌和分类格，中栏搜索、排序、新增和记录行，右栏这条记忆（窄窗是抽屉）；有待确认时先停在「待确认」的投票卡。 */
+export function Archive({ facts, error, onRetry, now, still, fresh, initial, searchRef, write, onJump, onChat, actions }: ArchiveProps) {
+  const narrow = useNarrow();
+  const all = facts ?? [];
+  const asks = all.filter(isCandidate);
+  const active = all.filter((f) => !isCandidate(f));
+  const initialFact = initial.sel ? all.find((f) => f.id === initial.sel) : undefined;
+  const [picked, setPicked] = useState<Pick | null>(null);
+  const [q, setQ] = useState(initial.q);
+  const [sort, setSort] = useState<Sort>('new');
+  const [sel, setSel] = useState<string | null>(initial.sel);
+  const [drawer, setDrawer] = useState(initial.sel != null);
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState<Fact | null>(null);
+  const [adding, setAdding] = useState(false);
 
-/** Hover frame and light of a card: the frame sits outside the card's clip, in the same grid area. */
-function Hover({ area, big, children }: { area: string; big?: boolean; children: (on: () => void, off: () => void) => ReactNode }) {
-  const { ref, on, off } = useHoverClip<HTMLDivElement>(big ? gameClips.prtsBigCardHover : gameClips.prtsCardHover);
-  return (
-    <div ref={ref} className={styles.hoverCell}>
-      {children(on, off)}
-      <span className={styles.frame} data-area={area} data-g="frame" aria-hidden="true" />
-    </div>
-  );
-}
+  // A selected candidate opens 待确认; any other selection opens 全部.
+  const auto: Pick = initialFact ? (isCandidate(initialFact) ? 'pending' : 'all') : asks.length > 0 ? 'pending' : 'all';
+  const cat: Pick = picked === 'pending' && asks.length === 0 ? 'all' : (picked ?? auto);
+  const loaded = facts != null && error == null;
+  const count = (c: Pick) => (!loaded ? null : c === 'all' ? active.length : c === 'pending' ? asks.length : active.filter((f) => catOf(f) === c).length);
+  const shown = active.filter((f) => (cat === 'all' || catOf(f) === cat) && matches(f, q)).sort(SORTERS[sort]);
+  const grouped = cat === 'all' && sort === 'new' && !q.trim();
+  const order = grouped ? CATS.flatMap((c) => shown.filter((f) => catOf(f) === c.id)) : shown;
+  const open = active.find((f) => f.id === sel) ?? (narrow ? undefined : order[0]);
+  const listing = cat !== 'pending' && loaded && all.length > 0;
 
-/** Small card: title bottom-left, label and count bottom-right, NEW tag at the top-right corner. */
-function Entry({ area, title, label, value, fresh, onOpen }: { area: keyof typeof CARD_G; title: string; label: string; value: string; fresh: number; onOpen: () => void }) {
-  return (
-    <Hover area={area}>
-      {(on, off) => (
-        <button
-          type="button"
-          className={`${styles.card} ${styles.small} ${styles.entranceCard}`}
-          data-area={area}
-          data-g={CARD_G[area]}
-          onClick={onOpen}
-          onPointerEnter={on}
-          onPointerLeave={off}
-          onFocus={on}
-          onBlur={off}
-        >
-          <span className={styles.bar} aria-hidden="true" />
-          <span className={styles.device} data-g="art" aria-hidden="true" />
-          <span className={styles.dots} data-g="icon" aria-hidden="true" />
-          <span className={styles.light} data-g="light" aria-hidden="true" />
-          <span className={styles.name}>{title}</span>
-          <span className={styles.tally}>
-            <span className={styles.lab}>{label}</span>
-            <span className={`${styles.n} num`}>{value}</span>
-          </span>
-          {fresh > 0 && (
-            <span className={styles.newTag}>
-              <Breath size={8} />
-              <CountBadge kind="new" count={fresh} label="有待确认" />
-            </span>
-          )}
-        </button>
-      )}
-    </Hover>
-  );
-}
+  const pick = (c: Pick) => {
+    setPicked(c);
+    setEditing(false);
+    setDrawer(false);
+    setSel(null);
+  };
+  const select = (f: Fact) => {
+    setSel(f.id);
+    setEditing(false);
+    setDrawer(narrow);
+  };
 
-/** 项目页顶部的情报档案（PRTS 主面板）：左边大卡是项目（进行中 / 已归档计数），右边三张小卡打开 其他事实与线索、活动回顾、用户档案，上下两条框线。 */
-export function Archive({ tasks, about, knowledge, lastRun, onOpen, leave }: ArchiveProps) {
-  const root = useRef<HTMLElement>(null);
-  const entrance = useEntrance(root, gameClips.prtsIn, gameClips.prtsInSettle);
-  useExit(root, gameClips.prtsOut, leave);
-  const active = tasks?.filter((t) => t.status === 'active').length ?? 0;
-  const done = tasks?.filter((t) => t.status === 'done').length ?? 0;
-  const ongoing = active > 0 || done === 0;
-  return (
-    <section ref={root} className={styles.prts} aria-label="情报档案">
-      {entrance}
-      <div className={`${styles.rule} ${styles.frameRule}`} data-edge="top" data-g="ruleTop" aria-hidden="true">
-        <span className={styles.ruleLabel}>
-          <span className={styles.ruleDeco} data-g="ruleTopDeco" />
-          {'// 记忆档案'}
-        </span>
-        <span className={`${styles.micro} ${styles.microText}`} />
-      </div>
-      <div className={styles.grid}>
-        <Hover area="big" big>
-          {(on, off) => (
-            <div
-              className={`${styles.card} ${styles.big}`}
-              role="group"
-              aria-label={`项目，${ongoing ? '进行中' : '已归档'} ${tasks ? (ongoing ? active : done) : '—'}`}
-              data-g="bigCard"
-              onPointerEnter={on}
-              onPointerLeave={off}
-            >
-              <span className={styles.artBox} data-g="bigCardArt" aria-hidden="true">
-                <span className={styles.scan} data-g="art" />
-              </span>
-              <span className={styles.light} data-g="light" aria-hidden="true" />
-              <span className={styles.bar} aria-hidden="true" />
-              <span className={`${styles.tag} ${styles.tagArrow}`} aria-hidden="true">
-                <span>00.101</span>
-              </span>
-              <span className={styles.title}>项目</span>
-              <span className={styles.status}>
-                <span className={styles.statusLab}>{ongoing ? '进行中' : '已归档'}</span>
-                <span className={`${styles.bigN} num`} data-state={ongoing ? 'ongoing' : 'archived'}>
-                  {tasks ? (ongoing ? active : done) : '—'}
+  // ↑ ↓ move the selection, Enter edits it, Delete asks to delete it; not while typing or over a dialog.
+  const keys = useRef({ order, open, listing, narrow });
+  keys.current = { order, open, listing, narrow };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+      const el = e.target instanceof Element ? e.target : null;
+      if (el?.closest('input, textarea, select, [contenteditable], [role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+      const { order: rows, open: cur, listing: on, narrow: drawn } = keys.current;
+      if (!on) return;
+      // Enter and Delete belong to a focused control, unless it is a row of the list.
+      const onRow = !el?.closest('button, a, [role="radio"]') || el.closest('[data-fact]') != null;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const i = rows.findIndex((f) => f.id === cur?.id);
+        const next = rows[Math.max(0, Math.min(rows.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+        if (!next) return;
+        setSel(next.id);
+        setEditing(false);
+        document.querySelector<HTMLElement>(`[data-fact="${next.id}"] button`)?.focus({ preventScroll: false });
+      } else if (e.key === 'Enter' && cur && onRow) {
+        e.preventDefault();
+        setSel(cur.id);
+        setEditing(true);
+        setDrawer(drawn);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && cur && onRow) {
+        e.preventDefault();
+        setDeleting(cur);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const row = (f: Fact, i: number) => {
+    const uses = recentText(f, now);
+    return (
+      <div key={f.id} data-fact={f.id}>
+        <Row
+          i={i}
+          selected={open?.id === f.id}
+          fresh={fresh.has(f.id)}
+          lead={<SrcMark src={f.source} />}
+          title={factText(f)}
+          sub={
+            <>
+              <span>{SRC[f.source].full}</span>
+              <span className="num">{ymd(f.recorded_at)}</span>
+              {uses && (
+                <span>
+                  近 14 天用到 <span className="num">{uses}</span> 次
                 </span>
-              </span>
-            </div>
-          )}
-        </Hover>
-        <div className={styles.slot} data-g="slot" aria-hidden="true">
-          <span className={`${styles.tag} ${styles.tagArrow}`} data-dir="out">
-            <span>00.102</span>
-          </span>
-        </div>
-        <Entry area="text" title="其他事实与线索" label="已记住" value={String(knowledge.count)} fresh={knowledge.asks} onOpen={() => onOpen('knowledge')} />
-        <Entry area="media" title="活动回顾" label="上次整理" value={lastRun ? hm(lastRun) : '—'} fresh={0} onOpen={() => onOpen('activity')} />
-        <Entry area="doc" title="用户档案" label="已记住" value={String(about.count)} fresh={about.asks} onOpen={() => onOpen('about')} />
+              )}
+            </>
+          }
+          end={isDormant(f) && <Tag dashed>30 天没用到</Tag>}
+          onClick={() => select(f)}
+        />
       </div>
-      <div className={`${styles.rule} ${styles.frameRule}`} data-edge="bottom" data-g="ruleBottom" aria-hidden="true" />
-    </section>
+    );
+  };
+
+  let list: ReactNode;
+  if (error != null) list = <List>{<ErrBar message={`没有读到记忆：${error}`} onRetry={onRetry} />}</List>;
+  else if (facts == null) list = <Skeleton />;
+  else if (all.length === 0)
+    list = (
+      <List>
+        <Empty
+          mark
+          title="她还没记住你的事"
+          text="你在对话里说过的偏好、约定和经历，她会记在这里；你说「记住……」她会马上记。"
+          action={
+            <Btn icon="send" onClick={onChat}>
+              去对话
+            </Btn>
+          }
+        />
+      </List>
+    );
+  else if (shown.length === 0)
+    list = (
+      <List>
+        <Empty title="没有符合条件的记忆" action={<Lnk onClick={() => setQ('')}>清除条件</Lnk>} />
+      </List>
+    );
+  else if (grouped) {
+    let i = 0;
+    list = (
+      <List label="记住的事">
+        {CATS.map((c) => {
+          const rows = shown.filter((f) => catOf(f) === c.id);
+          return rows.length === 0 ? null : (
+            <div key={c.id} role="group" aria-label={c.label} className={styles.grp}>
+              <GroupHead label={c.label} count={rows.length} en={c.en} />
+              {rows.map((f) => row(f, i++))}
+            </div>
+          );
+        })}
+      </List>
+    );
+  } else {
+    const c = CATS.find((x) => x.id === cat);
+    list = (
+      <List label="记住的事">
+        <GroupHead label={c?.label ?? '全部'} count={shown.length} {...(c ? { en: c.en } : {})} />
+        {shown.map(row)}
+      </List>
+    );
+  }
+
+  const cells: Array<{ id: Pick; label: string; icon: GlyphName }> = [
+    ...(asks.length > 0 ? [{ id: 'pending' as const, label: '待确认', icon: 'vote' as const }] : []),
+    { id: 'all', label: '全部', icon: 'grid' },
+    ...CATS.filter((c) => c.id !== 'about').map((c) => ({ id: c.id, label: c.label, icon: ICON[c.id as Exclude<Cat, 'about'>] })),
+  ];
+  const wide = cat === 'pending' || !listing;
+
+  return (
+    <div className={styles.body} data-wide={wide || undefined}>
+      <LeftCol label="分类">
+        <Plate plate={loaded ? plateOf(all) : null} selected={cat === 'about'} onClick={() => pick('about')} />
+        <Sep en="Index" />
+        {cells.map((c, i) => (
+          <Cell key={c.id} i={i} icon={c.icon} label={c.label} count={count(c.id)} selected={cat === c.id} pending={c.id === 'pending'} onClick={() => pick(c.id)} />
+        ))}
+      </LeftCol>
+      {cat === 'pending' ? (
+        <Votes asks={asks} now={now} still={still} onConfirm={write.confirm} onFix={write.correct} onDeny={write.reject} onJump={onJump} />
+      ) : (
+        <section className={styles.ccol} aria-label="记忆">
+          <div className={styles.crow}>
+            <SearchBox inputRef={searchRef} value={q} label="搜索记忆" placeholder="搜索记住的事" onChange={setQ} />
+            <span className={styles.sp} />
+            <label className={styles.sel}>
+              <span>排序</span>
+              <select value={sort} aria-label="排序" onChange={(e) => setSort(e.currentTarget.value as Sort)}>
+                {SORTS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Btn icon="plus" onClick={() => setAdding(true)}>
+              新增
+            </Btn>
+          </div>
+          <Panel>{list}</Panel>
+        </section>
+      )}
+      {!wide && open && (
+        <DetailCol narrow={narrow} open={drawer} label="这条记忆" onClose={() => (setDrawer(false), setEditing(false))}>
+          <Detail
+            key={open.id}
+            fact={open}
+            now={now}
+            editing={editing}
+            onEdit={setEditing}
+            onSave={(text) => write.correct(open, text)}
+            onDelete={() => setDeleting(open)}
+            onJump={onJump}
+            {...(narrow ? { onClose: () => (setDrawer(false), setEditing(false)) } : {})}
+          />
+        </DetailCol>
+      )}
+      {deleting && (
+        <DeleteCard
+          fact={deleting}
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => {
+            const f = deleting;
+            setDeleting(null);
+            void write.forget(f).then((ok) => {
+              if (ok && sel === f.id) setSel(null);
+              if (ok) setDrawer(false);
+            });
+          }}
+        />
+      )}
+      {adding && (
+        <AddPop
+          onCancel={() => setAdding(false)}
+          onSave={async (text, kind) => {
+            const ok = await write.add(text, kind);
+            if (ok) setAdding(false);
+            return ok;
+          }}
+        />
+      )}
+      <BottomBarSlot>
+        <Keys
+          keys={
+            cat === 'pending'
+              ? [
+                  [['1', '2', '3'], '记住 / 改 / 不是这样'],
+                  [['Q', 'E'], '切页签'],
+                  [['Esc'], '回主页'],
+                ]
+              : [
+                  [['↑', '↓'], '选择'],
+                  [['Enter'], '修改'],
+                  [['Del'], '删除'],
+                  [['Q', 'E'], '切页签'],
+                  [['Esc'], '回主页'],
+                ]
+          }
+        />
+        {actions}
+      </BottomBarSlot>
+    </div>
   );
 }
