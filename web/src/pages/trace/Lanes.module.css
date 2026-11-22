@@ -1,0 +1,395 @@
+/* 动作线: the lane board (a name column, tracks on one time axis, marks) beside the picked event's card. */
+.view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 26vw, 380px);
+  gap: 16px;
+  height: 100%;
+  padding: 12px 16px;
+  animation: view-in 0.417s var(--ease-enter) both;
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.board,
+.detail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.detail {
+  grid-template-rows: minmax(0, 1fr);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--b-plate-lo) 90%, transparent), color-mix(in srgb, var(--ef-base) 84%, transparent));
+  box-shadow: 0 0 0 1.5px var(--b-frame);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 2px 4px 0 2px;
+}
+
+.count {
+  color: var(--b-t2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.count b {
+  margin-right: 3px;
+  color: var(--b-t1);
+  font-size: 14px;
+}
+
+.sp {
+  flex: 1;
+}
+
+.scroll {
+  --name: 76px;
+
+  display: grid;
+  grid-template-rows: 22px auto;
+  align-content: start;
+  min-height: 0;
+  padding: 0 6px 8px 2px;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--b-t3) transparent;
+}
+
+.axis {
+  position: relative;
+  margin: 0 8px 0 var(--name);
+  color: var(--b-t3);
+  font: 500 11px / 22px var(--ef-font-num);
+}
+
+.axis span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.axis span:first-child {
+  transform: none;
+}
+
+.axis span:last-child {
+  transform: translateX(-100%);
+}
+
+.lanes {
+  position: relative;
+  display: grid;
+  align-content: start;
+}
+
+.rules {
+  position: absolute;
+  inset: 0 8px 0 var(--name);
+  pointer-events: none;
+}
+
+.rules i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--grid);
+}
+
+.rules svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.rules line {
+  stroke: var(--b-t1);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+
+/* A lane: its name on a plate, a track with a hairline; input lanes share one accent bar. */
+.lane {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--name) minmax(0, 1fr);
+  border-bottom: 1px solid var(--grid);
+}
+
+.lane::before {
+  content: '';
+  position: absolute;
+  inset: 3px auto 3px 0;
+  width: 3px;
+  background: var(--cat, var(--b-t3));
+}
+
+.lane[data-g='in'] {
+  --cat: var(--ef-accent);
+}
+
+.lane[data-g='stage'] {
+  --cat: var(--mission);
+}
+
+.lane[data-g='body'] {
+  --cat: var(--b-t1);
+}
+
+.name {
+  align-self: center;
+  padding: 0 8px 0 10px;
+  overflow: hidden;
+  color: var(--b-t2);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track {
+  position: relative;
+  margin-right: 8px;
+}
+
+.track::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--pn-line);
+}
+
+.mark {
+  position: absolute;
+  width: 10px;
+  height: 14px;
+  margin: 2px 0 0 -5px;
+  padding: 0;
+  border: 0;
+  border-radius: 1px;
+  background: var(--b-t2);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 45%);
+  cursor: pointer;
+  transition: opacity 0.12s, transform 0.12s;
+}
+
+.mark[data-tone='bad'] {
+  background: var(--danger);
+}
+
+.mark[data-tone='user'] {
+  background: var(--badge);
+}
+
+.lane[data-g='in'] .mark[data-tone='ok'] {
+  background: var(--ef-accent);
+}
+
+.lane[data-g='stage'] .mark[data-tone='ok'] {
+  background: var(--mission);
+}
+
+.mark:hover {
+  transform: scaleY(1.2);
+}
+
+.mark:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: 2px;
+}
+
+.lanes[data-picked] .mark:not([data-rel]) {
+  opacity: 0.25;
+}
+
+.mark[data-rel='sel'] {
+  box-shadow: 0 0 0 2px var(--b-plate-lo), 0 0 0 4px var(--b-t1);
+}
+
+.mark[data-rel='cause'] {
+  box-shadow: 0 0 0 2px var(--b-plate-lo), 0 0 0 3.5px var(--ef-accent);
+}
+
+.mark[data-rel='effect'] {
+  box-shadow: 0 0 0 2px var(--b-plate-lo), 0 0 0 3.5px var(--mission);
+}
+
+/* The picked event. */
+.dscroll {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  padding: 14px 16px 18px;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--b-t3) transparent;
+}
+
+.dh {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tag {
+  padding: 0 10px;
+  background: #141414;
+  color: #f2f2f0;
+  font: 600 12px / 24px var(--ef-font-sans);
+  white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+.when {
+  color: var(--b-t2);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.title {
+  overflow-wrap: anywhere;
+  font: 500 17px / 24px var(--ef-font-sans);
+}
+
+.title[data-tone='bad'] {
+  color: var(--danger-t);
+}
+
+.title[data-tone='user'] {
+  color: var(--badge);
+}
+
+.meta {
+  color: var(--b-t2);
+  font-size: 12px;
+}
+
+.attrs {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  background: var(--pn-line);
+  box-shadow: 0 0 0 1px var(--pn-line);
+}
+
+.attrs div {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) minmax(0, 1fr);
+  gap: 10px;
+  padding: 3px 10px;
+  background: var(--pn);
+}
+
+.attrs dt {
+  color: var(--b-t2);
+}
+
+.attrs dd {
+  margin: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  font: 600 13px / 20px var(--ef-font-sans);
+}
+
+.sh::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--c);
+}
+
+.sh[data-rel='cause'] {
+  --c: var(--ef-accent);
+}
+
+.sh[data-rel='effect'] {
+  --c: var(--mission);
+}
+
+.sh span {
+  color: var(--b-t2);
+  font-weight: 500;
+}
+
+.refs {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ref {
+  display: grid;
+  grid-template-columns: 92px 52px minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+  padding: 2px 8px;
+  border: 0;
+  background: var(--pn-lo);
+  color: var(--b-t1);
+  font: 12px / 20px var(--ef-font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ref:hover {
+  background: var(--pn-hi);
+}
+
+.ref > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ref > span:nth-child(2) {
+  color: var(--b-t2);
+}
+
+.ref[data-tone='bad'] > span:last-child {
+  color: var(--danger-t);
+}
+
+.none {
+  color: var(--b-t3);
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .view {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 12px;
+    padding: 10px 12px;
+  }
+}

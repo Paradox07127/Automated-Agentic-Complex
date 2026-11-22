@@ -18,6 +18,8 @@ import { useDiagStream } from '../diag/useDiag';
 import type { WireDiagItem } from '../diag/wire';
 import { useParam } from '../overview/nav';
 import { dayOf, type ResFilter, shapeOf, type SrcGroup, useConvTitles, useTurnEvents, useTurnItems } from './data';
+import { LaneView } from './LaneView';
+import { lanesDemo } from './lanesDemo';
 import { DEFAULT_LEVELS, filledSources, type LogFilters, LogView, shownLines } from './LogView';
 import { buildTurn } from './steps';
 import { TurnDetail } from './TurnDetail';
@@ -51,7 +53,8 @@ export function TracePage() {
   const convs = useConvTitles(live && src == null);
   const all = useMemo(() => (state === 'empty' ? [] : [...(rows.data?.values() ?? [])].sort(newestFirst)), [rows.data, state]);
   const noOf = useMemo(() => new Map(all.map((r, i) => [r.turn_id, all.length - i])), [all]);
-  const tab = useParam('tab') === 'logs' ? 'logs' : 'turns';
+  const tabParam = useParam('tab');
+  const tab = tabParam === 'logs' || tabParam === 'lanes' ? tabParam : 'turns';
   const turnParam = useParam('turn');
   const srcParam = useParam('src');
   const put = useCallback((patch: Record<string, string | undefined>) => void navigate({ to: '/trace', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }), replace: true }), [navigate]);
@@ -99,6 +102,8 @@ export function TracePage() {
   const [sel, setSel] = useState<ReadonlySet<string>>(new Set());
   const anchor = useRef<string | null>(null);
   const now = appNow();
+  // agentd has no read of all events by time yet; the fake bridge draws the demo stretch.
+  const laneEvents = useMemo(() => (state === 'empty' ? [] : window.agenticComplex ? null : lanesDemo(now)), [state, now]);
 
   const copy = useCallback((text: string, done: string) => {
     getBridge().clipboard.writeText(text).then(() => toast(done)).catch(() => toast('没有复制成功', { severity: 'danger' }));
@@ -195,6 +200,7 @@ export function TracePage() {
   const today = logs.lines.filter((l) => onIds.has(l.source) && l.at != null && dayOf(l.at) === dayOf(now));
   const lamp = tab === 'logs'
     ? logs.status === 'missing' || logs.status === 'error' ? ['off', '读不到'] : !f.follow ? ['pause', '已暂停'] : ['on', '实时']
+    : tab === 'lanes' && laneEvents == null ? ['off', '读不到']
     : listSt === 'error' ? ['off', '后台已断开'] : ['on', '实时'];
   const conv = selRow?.conversation_id ?? null;
 
@@ -202,7 +208,7 @@ export function TracePage() {
     <div className={t.page} data-page="trace" data-state={state ?? 'ok'}>
       <span className={t.wm} aria-hidden="true">{tab === 'logs' ? 'LOG' : 'TRACE'}</span>
       <PageHeaderSlot
-        tabs={<Tabs label="运行记录页签" keys={false} value={tab} tabs={[{ id: 'turns', label: '轮次', icon: 'history' }, { id: 'logs', label: '日志', icon: 'file' }]} onChange={(id) => put({ tab: id === 'logs' ? 'logs' : undefined })} />}
+        tabs={<Tabs label="运行记录页签" keys={false} value={tab} tabs={[{ id: 'turns', label: '轮次', icon: 'history' }, { id: 'lanes', label: '动作线', icon: 'hub' }, { id: 'logs', label: '日志', icon: 'file' }]} onChange={(id) => put({ tab: id === 'turns' ? undefined : id })} />}
         right={
           <span className={bs.reads}>
             {tab === 'turns' && listSt === 'ok' && all.length > 0 && (
@@ -230,7 +236,9 @@ export function TracePage() {
           <div className={bs.bar}>
             <span className={bs.keys} aria-hidden="true">
               {key(['Q', 'E'], '切页签')}
-              {tab === 'turns' ? (
+              {tab === 'lanes' ? (
+                key(['←', '→'], '换一个事件')
+              ) : tab === 'turns' ? (
                 <>
                   {key(['↑', '↓'], '换一轮')}
                   <span className={bs.opt}>{key(['↵'], '展开一步')}</span>
@@ -247,7 +255,7 @@ export function TracePage() {
               {key(['esc'], '主页')}
             </span>
             <span className={bs.acts}>
-              {tab === 'turns' ? (
+              {tab === 'lanes' ? null : tab === 'turns' ? (
                 selRow && (
                   <>
                     <span className={bs.note}>第 {no} 轮的日志</span>
@@ -264,7 +272,9 @@ export function TracePage() {
           </div>
         }
       />
-      {tab === 'turns' ? (
+      {tab === 'lanes' ? (
+        <LaneView events={laneEvents} st={state === 'loading' ? 'loading' : state === 'error' ? 'error' : 'ok'} now={now} />
+      ) : tab === 'turns' ? (
         <div className={t.turns}>
           <TurnList
             rows={all}

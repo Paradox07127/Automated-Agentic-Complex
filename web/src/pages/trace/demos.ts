@@ -7,6 +7,7 @@ export const demos: Demo[] = [
   { name: 'full-turn', params: { demo: 'full', turn: 'tr7' } }, // 打开指定一轮：/trace?turn=<id>
   { name: 'sparse', params: { demo: 'sparse' } }, // 数据少：四轮
   { name: 'light', params: { theme: 'light' } }, // 亮色主题
+  { name: 'lanes', params: { tab: 'lanes' } }, // 动作线：每种动作线事件、一次拒绝、你自己的播放、渲染器断线
   { name: 'logs', params: { tab: 'logs' } }, // 日志页签
   { name: 'logs-agentd', params: { tab: 'logs', src: 'agentd' } }, // 从诊断页进程行进来：只看后台服务
   { name: 'loading', params: { state: 'loading' } }, // 加载
