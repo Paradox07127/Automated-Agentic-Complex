@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from brain.parser import parse_command
 from character_agent.services.settings import RuntimeSettings
+from infra.secrets import MemorySecrets
 from models.model_backends import ModelSettings
 from traces.trace_store import TraceStore
 from test_character_agent_pi import HAS_SDK
@@ -110,7 +111,7 @@ class QuickTests(unittest.TestCase):
 
     @unittest.skipUnless(HAS_SDK, 'Pinned Pi SDK unavailable')
     def test_warm_pi_provider_requests(self):
-        models = self.server.models = ModelSettings(self.root / 'models')
+        models = self.server.models = ModelSettings(self.root / 'models', MemorySecrets())
         models.save({'provider': 'compatible', 'base_url': 'https://fixture.invalid/v1',
                      'api_key': 'fixture', 'model': 'fixture', 'reasoning': True, 'reasoning_effort': 'high'})
         self.c.settings.save({'backend': 'codex', 'runtime_source': 'local', 'model': 'chat-only'})
@@ -299,7 +300,7 @@ class QuickTests(unittest.TestCase):
         self.assertGreater(s.closed, 0)
 
     def test_quick_model_uses_resolved_provider(self):
-        self.server.models = ModelSettings(self.root / 'models')
+        self.server.models = ModelSettings(self.root / 'models', MemorySecrets())
         self.server.models.save({'provider': 'compatible', 'base_url': 'https://fixture.invalid/v1',
                                  'api_key': 'fixture', 'model': 'account'})
         for provider, expected in [('deepseek', 'account'), ('compatible', 'chat-model')]:
