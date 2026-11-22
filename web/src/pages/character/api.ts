@@ -16,7 +16,7 @@ import {
   type WireStatePoint,
   type WireTaskRow,
 } from '../../domain';
-import { demo, type StateScales } from './demoSlot';
+import { demo } from './demoSlot';
 
 export type StateRange = '24h' | '7d';
 
@@ -80,20 +80,6 @@ export async function readBeats(since: number): Promise<Beat[]> {
     .filter((e) => e.kind === 'behavior.ticked' && typeof e.attrs.chosen === 'string')
     .map((e) => ({ id: e.event_id, at: isoToMs(e.t_wall), chosen: e.attrs.chosen as string, source: SOURCE[String(e.attrs.reason)] ?? 'rules' }))
     .sort((a, b) => a.at - b.at);
-}
-
-/** No native bridge: the fake bridge's mocks may stand in for data agentd does not serve yet. */
-export const mockOnly = (): boolean => typeof window !== 'undefined' && window.agenticComplex == null;
-
-/** Today's plays per motion id by hour; null where agentd does not serve trace `motion.started`. */
-export function readMotionHours(sparse: boolean): Record<string, number[]> | null {
-  if (!mockOnly()) return null;
-  return sparse ? demo.motionHoursSparse! : demo.motionHours!;
-}
-
-/** Mood baseline and behavior multipliers; null where agentd does not send them. */
-export function readScales(): StateScales | null {
-  return mockOnly() ? demo.stateScales! : null;
 }
 
 /** Character tasks running now among the newest 100 (`/agent/tasks`, agentd's page maximum); a switch pauses their input for a moment. None without 个人代理. */

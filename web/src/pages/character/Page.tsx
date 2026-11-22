@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type CharacterEntry } from '../../bridge';
 import { useDemo } from '../../shell/demo';
-import { useDevMode } from '../../shell/devMode';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
 import { artSrc, Btn, ErrBar, Menu, Spinner } from '../../ui';
 import { TrainingRoom } from '../../ui/game';
 import { useMmdSection } from '../mmd/Section';
-import { failure, readRunningTasks, readState, resetState } from './api';
+import { failure, readRunningTasks, readState } from './api';
 import { CharacterSettings } from './CharacterSettings';
 import { demo as slot } from './demoSlot';
 import { pageNow, useFeedback, usePageParams } from './feedback';
@@ -127,26 +126,9 @@ export function CharacterPage() {
         },
         (e: unknown) => fb.toast(`导入没有完成：${codeOf(e) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' }),
       );
-  const reset = () => {
-    const s = cs.data;
-    if (!s) return;
-    resetState(s).then(
-      (fresh) => {
-        qc.setQueryData(['character', 'state'], fresh);
-        void qc.invalidateQueries({ queryKey: ['character', 'history'] });
-        fb.toast('已重置状态');
-      },
-      (e: unknown) => {
-        const f = failure(e);
-        if (f.kind === 'conflict') void cs.refetch();
-        fb.toast(f.kind === 'other' ? `重置没有完成：${f.text}` : f.text, { severity: 'danger' });
-      },
-    );
-  };
   // 设定's tab bar has the tabs CharacterSettings draws rows for, and lights the one it falls back to.
-  const dev = useDevMode();
   const setN = useCharSettings(isCharTab(tab)).q.data;
-  const setTabs = setN ? presentTabs(setN, dev) : CHAR_TABS.map((t) => t.id);
+  const setTabs = setN ? presentTabs(setN) : CHAR_TABS.map((t) => t.id);
   const motionsError = !canAvatar ? '桌面角色没有接入' : motions.isError ? (codeOf(motions.error) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应') : null;
 
   let body;
@@ -210,41 +192,23 @@ export function CharacterPage() {
                 读取中
               </span>
             )}
-            <Menu
-              label="更多"
-              icon="more"
-              align="right"
-              items={[
-                ...(noCatalog
-                  ? []
-                  : [
-                      {
-                        kind: 'item' as const,
-                        label: '重新读取角色目录',
-                        onSelect: () => void list.refetch().then((r) => {
-                          if (r.isError) fb.toast('角色目录没有刷新，请重试', { severity: 'danger' });
-                          else fb.toast(`已重新读取 │ ${r.data?.length ?? 0} 个角色`);
-                        }),
-                      },
-                      { kind: 'sep' as const },
-                    ]),
-                {
-                  kind: 'item',
-                  label: '重置角色状态…',
-                  danger: true,
-                  disabled: !cs.data || none,
-                  reason: '还没有状态可以重置',
-                  onSelect: () =>
-                    fb.ask({
-                      title: `重置${name || '角色'}的状态？`,
-                      note: '精神和心情回到默认值，变化原因和状态历史都会删除。记忆不受影响。',
-                      danger: true,
-                      confirmLabel: '重置',
-                      onConfirm: reset,
+            {!noCatalog && (
+              <Menu
+                label="更多"
+                icon="more"
+                align="right"
+                items={[
+                  {
+                    kind: 'item',
+                    label: '重新读取角色目录',
+                    onSelect: () => void list.refetch().then((r) => {
+                      if (r.isError) fb.toast('角色目录没有刷新，请重试', { severity: 'danger' });
+                      else fb.toast(`已重新读取 │ ${r.data?.length ?? 0} 个角色`);
                     }),
-                },
-              ]}
-            />
+                  },
+                ]}
+              />
+            )}
           </>
         }
       />

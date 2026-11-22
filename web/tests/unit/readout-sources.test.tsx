@@ -152,7 +152,7 @@ describe('settings titles and the character page', () => {
 
   // SRow has no contour any more and the hero is gone, so neither rule is left in the page CSS.
   it('character page has no SRow contour override and no hero', () => {
-    for (const f of ['Page', 'Operator', 'Stage', 'MotionTable', 'Tune']) {
+    for (const f of ['Page', 'Operator', 'Stage', 'MotionTable']) {
       const css = src(`pages/character/${f}.module.css`);
       expect(css).not.toContain("[data-stub='SRow']::before");
       expect(css).not.toMatch(/(^|\n)\.hero\s*\{/);

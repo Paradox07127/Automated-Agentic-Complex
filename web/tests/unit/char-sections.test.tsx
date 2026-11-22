@@ -4,15 +4,15 @@ import { resolve } from 'node:path';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEMO_SCHEMA, demoNative } from '../../src/mock/settings';
-import { CHAR_SECTIONS, isCharTab, PHOTO_ONLY_ROWS, placedTab, tabOf } from '../../src/pages/character/sections';
+import { CHAR_SECTIONS, isCharTab, PHOTO_ONLY_ROWS, TUNE_ONLY_ROWS, placedTab, tabOf } from '../../src/pages/character/sections';
 import { presentTabs, SettingRows } from '../../src/pages/character/SettingRows';
 import type { CharTab } from '../../src/pages/character/sections';
 import type { Native } from '../../src/pages/settings/native';
 
 afterEach(cleanup);
 
-const draw = (n: Native, tab: CharTab, dev = true, over: Partial<Parameters<typeof SettingRows>[0]> = {}) =>
-  render(<SettingRows n={n} tab={tab} dev={dev} set={vi.fn()} setMany={vi.fn()} pending={new Set()} failed={{}} offline={false} {...over} />);
+const draw = (n: Native, tab: CharTab, over: Partial<Parameters<typeof SettingRows>[0]> = {}) =>
+  render(<SettingRows n={n} tab={tab} set={vi.fn()} setMany={vi.fn()} pending={new Set()} failed={{}} offline={false} {...over} />);
 
 /** Web ids of the settings the preview takes: supervisor.ts lookArguments' config keys through settings.ts's id table. */
 function previewIds(): Set<string> {
@@ -32,8 +32,8 @@ describe('sections', () => {
     expect(new Set(CHAR_SECTIONS.map((s) => s.id)).size).toBe(CHAR_SECTIONS.length);
   });
 
-  it('places every @character row of the demo schema on a 设定 page or in 拍照', () => {
-    for (const r of DEMO_SCHEMA.filter((r) => r.group === '@character')) expect(placedTab(r.id) !== null || PHOTO_ONLY_ROWS.has(r.id), r.id).toBe(true);
+  it('places every @character row of the demo schema on a 设定 page, in 拍照 or on 调参 › 画面', () => {
+    for (const r of DEMO_SCHEMA.filter((r) => r.group === '@character')) expect(placedTab(r.id) !== null || PHOTO_ONLY_ROWS.has(r.id) || TUNE_ONLY_ROWS.has(r.id), r.id).toBe(true);
   });
 
   it('marks 仅桌面 exactly the 画面 sections the preview does not take (rnd.closeup goes to the desktop by host link)', () => {
@@ -67,7 +67,7 @@ describe('SettingRows', () => {
   it('draws 主光水平 and 主光俯仰 as one 3×3 pad that saves both values in one go, the default cell hollow', async () => {
     const n = await demoNative(null);
     const setMany = vi.fn();
-    draw(n, 'render', true, { setMany });
+    draw(n, 'render', { setMany });
     expect(shown('主光水平微调')).toBe(false);
     const pad = screen.getByRole('radiogroup', { name: '主光方向' });
     const cells = within(pad).getAllByRole('radio');
@@ -88,7 +88,7 @@ describe('SettingRows', () => {
   it('marks a changed row: ↺ puts that row back, the second line names the default; an unchanged row keeps its description', async () => {
     const n = await demoNative(null);
     const set = vi.fn();
-    draw({ ...n, saved: { ...n.saved, 'rnd.lightStrength': '1.25', 'rnd.lightPitch': '10' } }, 'render', true, { set });
+    draw({ ...n, saved: { ...n.saved, 'rnd.lightStrength': '1.25', 'rnd.lightPitch': '10' } }, 'render', { set });
     const strength = document.getElementById('set-rnd.lightStrength')!;
     expect(strength.hasAttribute('data-changed')).toBe(true);
     expect(within(strength).getByText('默认：原作 · 100 %')).toBeTruthy();
@@ -104,22 +104,17 @@ describe('SettingRows', () => {
 
   it('tags a row that brings her back with ⟳ 角色, and writes a failed save on its row', async () => {
     const n = await demoNative(null);
-    draw(n, 'behavior', true, { pending: new Set(['beh.face']), failed: { 'beh.sit': '没有保存「坐在窗口顶上」：原生设置服务没有响应' } });
+    draw(n, 'behavior', { pending: new Set(['beh.face']), failed: { 'beh.sit': '没有保存「坐在窗口顶上」：原生设置服务没有响应' } });
     expect(within(document.getElementById('set-beh.physics')!).getByText('角色')).toBeTruthy();
     expect(within(document.getElementById('set-beh.face')!).getByText('│ 重启后生效')).toBeTruthy();
     expect(within(document.getElementById('set-beh.sit')!).getByText('没有保存「坐在窗口顶上」：原生设置服务没有响应')).toBeTruthy();
   });
 
-  it('shows developer-only rows only in developer mode', async () => {
-    const n = await demoNative(null);
-    draw(n, 'render', true);
+  it('leaves the 调参 › 画面 rows to the tune page', async () => {
+    draw(await demoNative(null), 'render');
     expect(shown('原作镜头预设')).toBe(true);
     expect(shown('角色边界')).toBe(true);
-    expect(shown('2× SSAA')).toBe(true);
-    cleanup();
-    draw(n, 'render', false);
-    expect(shown('角色边界')).toBe(true);
-    expect(shown('2× SSAA')).toBe(false);
+    for (const label of ['2× SSAA', '渲染尺寸', '自阴影精度']) expect(shown(label)).toBe(false);
   });
 
   it('draws no row the schema lacks', async () => {
@@ -148,7 +143,7 @@ describe('SettingRows', () => {
     const set = vi.fn();
     vi.useFakeTimers();
     try {
-      render(<SettingRows n={n} tab="render" dev set={set} setMany={vi.fn()} pending={new Set()} failed={{}} offline={false} />);
+      render(<SettingRows n={n} tab="render" set={set} setMany={vi.fn()} pending={new Set()} failed={{}} offline={false} />);
       const yaw = screen.getByRole('slider', { name: '水平朝向' }) as HTMLInputElement;
       expect([yaw.min, yaw.max, yaw.step, yaw.value]).toEqual(['-180', '180', '0.5', '0']);
       for (const v of ['10', '20', '30.5']) fireEvent.change(yaw, { target: { value: v } });
@@ -167,6 +162,6 @@ describe('SettingRows', () => {
   });
 
   it('lists the pages that have a row', async () => {
-    expect(presentTabs(await demoNative(null), true)).toEqual(['behavior', 'render', 'scene']);
+    expect(presentTabs(await demoNative(null))).toEqual(['behavior', 'render', 'scene']);
   });
 });

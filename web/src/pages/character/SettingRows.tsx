@@ -4,7 +4,7 @@ import type { SettingValue } from '../../bridge';
 import { EffectTag } from '../../ui';
 import { DarkRow, MicroLabel } from '../../ui/game';
 import type { Native } from '../settings/native';
-import { CHAR_SECTIONS, CHAR_TABS, DEV_ONLY_ROWS, LIGHT_PAD, OTHER_TITLE, PHOTO_ONLY_ROWS, placedTab, ROW_DESC, SEG_LABELS, tabOf, type CharTab } from './sections';
+import { CHAR_SECTIONS, CHAR_TABS, LIGHT_PAD, OTHER_TITLE, PHOTO_ONLY_ROWS, placedTab, ROW_DESC, SEG_LABELS, tabOf, TUNE_ONLY_ROWS, type CharTab } from './sections';
 import { useCompact } from './compact';
 import { gameControl, valueText } from './settings';
 import styles from './SettingRows.module.css';
@@ -12,7 +12,6 @@ import styles from './SettingRows.module.css';
 export interface SettingRowsProps {
   n: Native;
   tab: CharTab;
-  dev: boolean;
   set: (id: string, v: SettingValue, quiet?: boolean) => void;
   /** Several rows in one save (主光方向's two values). */
   setMany: (changes: Record<string, SettingValue>) => void;
@@ -22,23 +21,23 @@ export interface SettingRowsProps {
   offline: boolean;
 }
 
-const visible = (n: Native, dev: boolean, id: string) => n.rows[id]?.group === '@character' && !PHOTO_ONLY_ROWS.has(id) && (dev || !DEV_ONLY_ROWS.has(id));
+const visible = (n: Native, id: string) => n.rows[id]?.group === '@character' && !PHOTO_ONLY_ROWS.has(id) && !TUNE_ONLY_ROWS.has(id);
 
-const others = (n: Native, dev: boolean, tab: CharTab) =>
+const others = (n: Native, tab: CharTab) =>
   Object.values(n.rows)
     .map((r) => r.id)
-    .filter((id) => visible(n, dev, id) && placedTab(id) === null && tabOf(id) === tab);
+    .filter((id) => visible(n, id) && placedTab(id) === null && tabOf(id) === tab);
 
 /** Every row SettingRows draws on this page. */
-export function tabRows(n: Native, dev: boolean, tab: CharTab): string[] {
-  return [...CHAR_SECTIONS.filter((s) => s.tab === tab).flatMap((s) => s.rows.filter((id) => visible(n, dev, id))), ...others(n, dev, tab)];
+export function tabRows(n: Native, tab: CharTab): string[] {
+  return [...CHAR_SECTIONS.filter((s) => s.tab === tab).flatMap((s) => s.rows.filter((id) => visible(n, id))), ...others(n, tab)];
 }
 
 export const isChanged = (n: Native, id: string) => n.saved[id] !== n.rows[id]?.default;
 
 /** Pages with at least one visible row, in CHAR_TABS order. */
-export function presentTabs(n: Native, dev: boolean): CharTab[] {
-  return CHAR_TABS.map((t) => t.id).filter((tab) => tabRows(n, dev, tab).length > 0);
+export function presentTabs(n: Native): CharTab[] {
+  return CHAR_TABS.map((t) => t.id).filter((tab) => tabRows(n, tab).length > 0);
 }
 
 /** Section head on the training room (app-memory's yellow square and \\──□ rule); 「仅桌面」 where the preview does not follow. */
@@ -128,7 +127,7 @@ function LightPad({ n, disabled, setMany }: { n: Native; disabled: boolean; setM
 /** A changed row's lead: a click puts it back to its default. */
 const resetLead = (label: string, disabled: boolean, onPress: () => void) => ({ label: `恢复「${label}」的默认`, title: '恢复这一行的默认', disabled, onPress });
 
-export function SettingRows({ n, tab, dev, set, setMany, pending, failed, offline }: SettingRowsProps) {
+export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: SettingRowsProps) {
   const compact = useCompact();
   const row = (id: string) => {
     const r = n.rows[id]!;
@@ -191,11 +190,11 @@ export function SettingRows({ n, tab, dev, set, setMany, pending, failed, offlin
           s.id,
           s.title,
           s.en,
-          s.rows.filter((id) => visible(n, dev, id)),
+          s.rows.filter((id) => visible(n, id)),
           s.desktopOnly,
         ),
       )}
-      {section('other', OTHER_TITLE, 'Other', others(n, dev, tab))}
+      {section('other', OTHER_TITLE, 'Other', others(n, tab))}
     </>
   );
 }

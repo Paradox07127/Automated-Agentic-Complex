@@ -201,7 +201,7 @@ describe('编排', () => {
 describe('设定 → 行为', () => {
   it('has no 动作 section: the chains live on the character page\'s 动作 pane', async () => {
     expect(CHAR_SECTIONS.some((s) => s.title === '动作')).toBe(false);
-    render(<SettingRows n={await demoNative(null)} tab="behavior" dev set={vi.fn()} setMany={vi.fn()} pending={new Set()} failed={{}} offline={false} />);
+    render(<SettingRows n={await demoNative(null)} tab="behavior" set={vi.fn()} setMany={vi.fn()} pending={new Set()} failed={{}} offline={false} />);
     expect(screen.queryByRole('region', { name: '动作' })).toBeNull();
   });
 });

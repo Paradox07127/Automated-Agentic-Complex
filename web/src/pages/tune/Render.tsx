@@ -10,8 +10,7 @@ import { navigate } from '../../shell/nav';
 import { Btn, ErrBar, IconBtn, SecHead, Skel, SRow } from '../../ui';
 import { GameSeg, ReadoutPlate, type ReadoutCell } from '../../ui/game';
 import type { Toast } from '../character/feedback';
-import { saveSettings, useCharSettings, valueText } from '../character/settings';
-import { readFail } from '../character/Tune';
+import { readFail, saveSettings, useCharSettings, valueText } from '../character/settings';
 import styles from './Tune.module.css';
 
 export interface RenderProps {

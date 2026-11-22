@@ -57,7 +57,6 @@ describe('CharacterSettings', () => {
     expect(secs).toEqual([
       ['主光与轮廓', false],
       ['落地与景深', false],
-      ['画质', false],
       ['环境光', true],
       ['镜头', true],
       ['性能', true],
@@ -96,13 +95,11 @@ describe('CharacterSettings', () => {
     expect(onTab).toHaveBeenCalledWith('render');
   });
 
-  it('shows the performance details only in developer mode', async () => {
-    setDevMode(false);
+  it('leaves the 调参 › 画面 rows to the tune page, in developer mode too', async () => {
+    setDevMode(true);
     view('render');
     await screen.findByRole('tablist', { name: '设定' });
-    expect(screen.queryAllByText('2× SSAA')).toHaveLength(0);
-    act(() => setDevMode(true));
-    expect(screen.getAllByText('2× SSAA').length).toBeGreaterThan(0);
+    for (const label of ['2× SSAA', '渲染尺寸', '自阴影精度']) expect(screen.queryAllByText(label)).toHaveLength(0);
   });
 
   it('saves a dragged slider without toasts and toasts once for the value it is released at', async () => {

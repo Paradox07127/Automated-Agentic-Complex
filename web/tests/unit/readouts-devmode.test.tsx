@@ -197,9 +197,10 @@ describe(' 开发者模式 on', () => {
     expect(screen.queryByRole('tab', { name: '行为与画面' })).toBeNull();
   });
 
-  it('opens /character?tab=render with the 2× SSAA row', async () => {
+  it('opens /character?tab=render without the 2× SSAA row, which 调参 › 画面 draws', async () => {
     await character('&tab=render');
-    expect((await screen.findAllByText('2× SSAA')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('角色边界')).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('2× SSAA')).toHaveLength(0);
   });
 });
 

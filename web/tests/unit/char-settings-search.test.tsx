@@ -1,7 +1,7 @@
 // Settings search over 角色 › 设定 rows: a result lands on its own tab and row; developer-only rows stay out of a normal search.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { setDevMode } from '../../src/shell/devMode';
@@ -53,23 +53,11 @@ describe('settings search · 角色 rows', () => {
     expect(hashQuery().get('tab')).toBeNull();
   });
 
-  it('lists 抗锯齿 only in developer mode', async () => {
-    setDevMode(false);
+  it('does not list the 调参 › 画面 rows, in developer mode too', async () => {
+    setDevMode(true);
     await search('抗锯齿');
     expect(await screen.findByText(/^没有找到「抗锯齿」，/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /2× SSAA/ })).toBeNull();
-    cleanup();
-    setDevMode(true);
-    await search('抗锯齿');
-    expect(await screen.findByRole('button', { name: /2× SSAA/ })).toBeTruthy();
-  });
-
-  it('updates open results when developer mode turns on', async () => {
-    setDevMode(false);
-    await search('抗锯齿');
-    expect(await screen.findByText(/^没有找到「抗锯齿」，/)).toBeTruthy();
-    act(() => setDevMode(true));
-    expect(await screen.findByRole('button', { name: /2× SSAA/ })).toBeTruthy();
   });
 });
 

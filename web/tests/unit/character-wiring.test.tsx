@@ -9,7 +9,6 @@ import { MOTIONS, routes, STATE_WITH_CAUSES, WIRE_STATE_WITH_CAUSES } from '../.
 import { failure, HISTORY_LIMIT, readHistory, readRunningTasks, readState, resetState } from '../../src/pages/character/api';
 import { Operator, type OperatorProps } from '../../src/pages/character/Operator';
 import { Stage, type StageProps } from '../../src/pages/character/Stage';
-import { causeMarks } from '../../src/pages/character/StatePanel';
 import { useSwitch } from '../../src/pages/character/useSwitch';
 import type { CharacterState } from '../../src/domain';
 import { pluginsOn, pluginsReset } from './plugins';
@@ -112,16 +111,6 @@ describe('mock routes in agentd shapes', () => {
     const r = (await get(`since=${NOW_S - 86400}&limit=5000`)) as { body: { items: Array<{ at: number }> } };
     expect(r.body.items.every((p) => p.at > 1e9 && p.at < 2e10)).toBe(true);
     expect(await get('limit=0')).toEqual({ status: 400, body: { error: 'invalid_limit' } });
-  });
-});
-
-describe('state curve marks', () => {
-  it('marks the two largest causes in range, one per half hour, in short words', () => {
-    const marks = causeMarks(STATE_WITH_CAUSES.causes, NOW - 86400_000, NOW);
-    expect(marks).toHaveLength(2);
-    expect(marks.map((m) => m.label)).toContain('会话出错');
-    expect(marks[0]!.t).toBeLessThan(marks[1]!.t);
-    expect(Math.abs(marks[1]!.t - marks[0]!.t)).toBeGreaterThanOrEqual(30 * 60_000);
   });
 });
 

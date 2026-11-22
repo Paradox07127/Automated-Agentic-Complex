@@ -6,8 +6,7 @@ import { ErrBar, Skel, Slider } from '../../ui';
 import { GameSeg, MicroLabel } from '../../ui/game';
 import type { Toast } from './feedback';
 import { SecHead } from './SettingRows';
-import { saveSettings, useCharSettings } from './settings';
-import { readFail } from './Tune';
+import { readFail, saveSettings, useCharSettings } from './settings';
 import styles from './PhotoMode.module.css';
 import shutter from './PhotoShutter.module.css';
 

@@ -67,28 +67,6 @@ export const MOTIONS: AvatarAction[] = [
   act('touch', 'hand', '递东西', false, meta('任务交付', 2.2)),
 ];
 
-const hours = (o: Record<number, number>) => Array.from({ length: 24 }, (_, h) => o[h] ?? 0);
-
-/** Today's plays per motion by hour; agentd does not serve trace `motion.started` yet, so only the fake bridge has them. */
-export const MOTION_HOURS: Record<string, number[]> = {
-  talk: hours({ 9: 3, 10: 5, 11: 4, 12: 1, 13: 2, 14: 4 }),
-  nod: hours({ 9: 2, 10: 3, 11: 2, 13: 2, 14: 3 }),
-  whisper: hours({ 10: 1 }),
-  click: hours({ 9: 1, 11: 2, 14: 1 }),
-  drag: hours({ 11: 1, 14: 1 }),
-  idle: hours({ 8: 4, 9: 6, 10: 5, 11: 6, 12: 3, 13: 5, 14: 3 }),
-  stretch: hours({ 10: 1, 13: 1 }),
-  walk: hours({ 9: 3, 10: 2, 12: 4, 13: 3, 14: 2 }),
-  sit: hours({ 9: 1, 11: 2, 13: 1, 14: 1 }),
-  wave: hours({ 13: 1 }),
-};
-
-/** The `sparse` demo: a few plays since 13:20. */
-export const MOTION_HOURS_SPARSE: Record<string, number[]> = { talk: hours({ 14: 1 }), nod: hours({ 14: 1 }), idle: hours({ 13: 2, 14: 3 }) };
-
-/** Mood baseline and behavior multipliers agentd does not send yet: only the fake bridge shows them. */
-export const STATE_SCALES = { baseline: 0.2, walk_scale: 2, comment_scale: 1.5 };
-
 const ok = (body: unknown) => ({ status: 200, body });
 const hashDemo = (name: string) => new RegExp(`[?&]demo=${name}(&|$)`).test(globalThis.location?.hash ?? '');
 /** `?demo=state-none`: agentd runs without a character state. */

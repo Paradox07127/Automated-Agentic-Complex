@@ -30,7 +30,7 @@ describe('fake bridge', () => {
 describe('demo settings', () => {
   it('lists scn.mode and scn.parallax on the 场景 tab', async () => {
     expect(DEMO_SCHEMA.map((r) => r.id)).toEqual(expect.arrayContaining(['scn.mode', 'scn.parallax']));
-    render(createElement(SettingRows, { n: await demoNative(null), tab: 'scene', dev: false, set: vi.fn(), setMany: vi.fn(), pending: new Set<string>(), failed: {}, offline: false }));
+    render(createElement(SettingRows, { n: await demoNative(null), tab: 'scene', set: vi.fn(), setMany: vi.fn(), pending: new Set<string>(), failed: {}, offline: false }));
     expect(screen.queryAllByText('舞台盒').length).toBeGreaterThan(0);
     expect(screen.queryAllByText('背景视差').length).toBeGreaterThan(0);
   });

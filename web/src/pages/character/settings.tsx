@@ -3,11 +3,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { getBridge, type SettingValue } from '../../bridge';
 import type { ToastOptions } from '../../shell/toast';
-import { Select, Seg, Slider, Switch } from '../../ui';
+import { Slider } from '../../ui';
 import { GameSeg, Stepper } from '../../ui/game';
 import { loadNative, type Native, type SchemaRow } from '../settings/native';
 
 const KEY = ['character', 'settings'];
+
+/** Why settings.read failed, for the 读取设置失败 bars. */
+export const readFail = (e: unknown): string => {
+  const code = (e as { code?: string } | null)?.code;
+  return code === 'config_unreadable' ? '读不了 config.json' : code === 'not_implemented' ? '这个版本还不支持' : '原生设置服务没有响应';
+};
 
 export function useCharSettings(enabled = true) {
   const qc = useQueryClient();
@@ -166,13 +172,4 @@ export function valueText(row: SchemaRow, v: SettingValue | undefined): string {
   if (row.kind === 'toggle') return v === true ? '开' : '关';
   if (row.kind === 'slider') return `${Number((Number(v) * (row.format === 'percent' ? 100 : 1)).toFixed(6))}${UNIT[row.format ?? ''] ?? ''}`;
   return row.options?.find((o) => o.value === String(v))?.label ?? String(v);
-}
-
-/** Switch for a toggle row; a slider for a slider row; segments for up to three options, else a menu. Sends the option value, never the label. */
-export function control(row: SchemaRow, value: SettingValue | undefined, disabled: boolean, onChange: (v: SettingValue, quiet?: boolean) => void): ReactNode {
-  if (row.kind === 'toggle') return <Switch label={row.label} checked={value === true} disabled={disabled} onChange={onChange} />;
-  if (row.kind === 'slider') return <SettingSlider row={row} value={value} disabled={disabled} onChange={onChange} />;
-  const options = row.options ?? [];
-  if (options.length <= 3) return <Seg label={row.label} value={String(value)} onChange={onChange} options={options.map((o) => ({ ...o, disabled }))} />;
-  return <Select label={row.label} value={String(value)} defaultValue={String(row.default)} disabled={disabled} onChange={onChange} options={options} />;
 }

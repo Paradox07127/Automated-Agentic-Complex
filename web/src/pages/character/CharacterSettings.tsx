@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { getBridge, type SettingValue } from '../../bridge';
-import { useDevMode } from '../../shell/devMode';
 import { ErrBar, Skel, type IconName } from '../../ui';
 import { GameTabs, MicroLabel, WhiteCapsule, type GameTab } from '../../ui/game';
 import type { Native } from '../settings/native';
@@ -8,8 +7,7 @@ import type { Toast } from './feedback';
 import { Panel } from './Panel';
 import { CHAR_TABS, LIGHT_PAD, type CharTab } from './sections';
 import { isChanged, presentTabs, SettingRows, tabRows } from './SettingRows';
-import { saveSettings, useCharSettings } from './settings';
-import { readFail } from './Tune';
+import { readFail, saveSettings, useCharSettings } from './settings';
 import styles from './CharacterSettings.module.css';
 
 export interface CharacterSettingsProps {
@@ -28,13 +26,13 @@ export interface CharacterSettingsProps {
 const SET_ICON: Record<CharTab, IconName> = { behavior: 'hand', render: 'sun', scene: 'loc' };
 
 /** The 设定 tab bar's cells, an orange dot on each page with a row off its default. */
-function tabItems(ids: readonly CharTab[], n: Native | undefined, dev: boolean): GameTab[] {
+function tabItems(ids: readonly CharTab[], n: Native | undefined): GameTab[] {
   return CHAR_TABS.filter((t) => ids.includes(t.id)).map((t) => ({
     id: t.id,
     label: t.title,
     icon: SET_ICON[t.id],
     micro: t.en,
-    changed: n != null && tabRows(n, dev, t.id).some((id) => isChanged(n, id)),
+    changed: n != null && tabRows(n, t.id).some((id) => isChanged(n, id)),
   }));
 }
 
@@ -49,9 +47,8 @@ export interface SetPanelProps {
 /** 设定 in the detail panel: its pages as tabs, an orange dot on each page with a row off its default. */
 export function SetPanel(p: SetPanelProps) {
   const n = useCharSettings().q.data;
-  const dev = useDevMode();
   return (
-    <Panel tabs={tabItems(p.tabs, n, dev)} value={p.tab} tail="Character Settings" onTab={(id) => p.onTab(id as CharTab)}>
+    <Panel tabs={tabItems(p.tabs, n)} value={p.tab} tail="Character Settings" onTab={(id) => p.onTab(id as CharTab)}>
       {p.children}
     </Panel>
   );
@@ -62,9 +59,8 @@ export function CharacterSettings(p: CharacterSettingsProps) {
   const { q, merge } = useCharSettings();
   const [pending, setPending] = useState<Set<string>>(() => new Set());
   const [failed, setFailed] = useState<Record<string, string>>({});
-  const dev = useDevMode();
   const n = q.data;
-  const tabs = n ? presentTabs(n, dev) : [];
+  const tabs = n ? presentTabs(n) : [];
   const tab = tabs.includes(p.tab) ? p.tab : tabs[0];
 
   const loaded = n != null;
@@ -97,14 +93,14 @@ export function CharacterSettings(p: CharacterSettingsProps) {
     });
   };
   const set = (id: string, v: SettingValue, quiet?: boolean) => save({ [id]: v }, `没有保存「${n.rows[id]?.label ?? id}」`, quiet);
-  const ids = tabRows(n, dev, tab);
+  const ids = tabRows(n, tab);
   const changed = ids.filter((id) => isChanged(n, id));
   const reset = () => save(Object.fromEntries(changed.map((id) => [id, n.rows[id]!.default])), '没有恢复默认');
   const look = tab === 'render';
 
   return (
     <div className={styles.set}>
-      {p.menu !== false && <GameTabs label="设定" tabs={tabItems(tabs, n, dev)} value={tab} onChange={(id) => p.onTab(id as CharTab)} />}
+      {p.menu !== false && <GameTabs label="设定" tabs={tabItems(tabs, n)} value={tab} onChange={(id) => p.onTab(id as CharTab)} />}
       {p.offline && (
         <div className={styles.ro} role="status">
           角色未运行 │ 设定暂为只读
@@ -130,7 +126,6 @@ export function CharacterSettings(p: CharacterSettingsProps) {
         <SettingRows
           n={n}
           tab={tab}
-          dev={dev}
           set={set}
           setMany={(changes) => save(changes, '没有保存「主光方向」')}
           pending={pending}
