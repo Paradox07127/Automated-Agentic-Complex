@@ -55,7 +55,7 @@ python3 -I tools/dev/dev_console.py --release-renderer
 
 Ctrl-C 先停外壳（外壳按顺序停渲染器、agentd 和 helper），再停 vite。
 
-config.json 在主检出的 `.local/cache/dev-console/support/`（外壳的支持目录，跨次保留）。每次启动重算 `agentd_dir`、`python`（主检出的 `agent/.venv`）、`agentd_port`（`48790`）、`support_dir`、`agentd_state_dir`（`.local/cache/dev-console/agentd-state`）、`character_catalog`（开发面板自己的角色库副本，见下）、`avatar_app` 和 `avatar_executable`，别的设置保留。新建时感知和分享类开关全关，和打包 app 的默认值一样。端口是已装 app 的 `48800`、目录落在已装 app 的数据目录里，或外壳参数里有 `--config` 时，面板报错退出。
+config.json 在主检出的 `.local/cache/dev-console/support/`（外壳的支持目录，跨次保留）。每次启动重算 `agentd_dir`、`python`（主检出的 `agent/.venv`）、`agentd_port`（`48790`）、`support_dir`、`agentd_state_dir`（`.local/cache/dev-console/agentd-state`）、`character_catalog`（开发面板自己的角色库副本，见下）、`avatar_app` 和 `avatar_executable`，别的设置保留。没写的感知和分享类开关按关补上，语音服务按「关闭（无语音）」补上（`voice_service: local`、`tts_url` 为空），和打包 app 的默认值一样；要用远端语音，在「设置」里改成远端并填服务地址，之后保留。端口是已装 app 的 `48800`、目录落在已装 app 的数据目录里，或外壳参数里有 `--config` 时，面板报错退出。
 
 日志在主检出的 `.local/cache/dev-console/`：`web.log`、`shell.log`（构建步骤和 Electron 的输出），以及外壳支持目录下的 `support/logs/companion.log`（页面来源记作 `DEV_WEB …`）、`agentd.log`、`avatar.log`（渲染器）和 `helper.log`。面板里都能看。
 

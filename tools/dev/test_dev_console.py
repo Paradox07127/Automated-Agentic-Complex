@@ -71,6 +71,12 @@ class ShellConfigTest(Paths):
         self.assertEqual((config['agentd_dir'], config['agentd_port'], config['support_dir']),
                          ('/w/a/agent/agentd', 48790, str(dc.SUPPORT_DIR)))
 
+    def test_voice_is_off_unless_the_config_chose_a_service(self):
+        config = dc.shell_config({'render_fps': 45}, Path('/w/a'), Path('/w/r'))
+        self.assertEqual((config['voice_service'], config['tts_url'], config['tts_tunnel_host']), ('local', '', ''))
+        chosen = {'voice_service': 'remote', 'tts_url': 'http://127.0.0.1:9999', 'tts_tunnel_host': 'ws'}
+        self.assertLessEqual(chosen.items(), dc.shell_config(chosen, Path('/w/a'), Path('/w/r')).items())
+
     def test_written_owner_only_and_kept_across_runs(self):
         path = dc.write_config(Path('/w/a'), Path('/w/r'))
         self.assertEqual(path, dc.CONFIG)
