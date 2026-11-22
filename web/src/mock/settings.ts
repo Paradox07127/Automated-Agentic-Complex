@@ -59,7 +59,6 @@ const ROWS: Row[] = [
   ['agent_sessions', 'privacy', '读取编码会话', true, 'backend'],
   ['shot', 'privacy', '屏幕识读时附上截图', false, 'backend'],
   ['keys', 'privacy', '键鼠计数', true, 'backend'],
-  ['micapp', 'privacy', '在用麦克风的 app', true, 'backend'],
   ['mask', 'privacy', '发出前遮蔽敏感内容', true, 'backend'],
   ['login', 'about', '登录时启动', true, 'none'],
   ['beh.stay', '@character', '待在原地 / 自由活动', 'roam', 'none', [['stay', '待在原地'], ['roam', '自由活动'], ['bust', '半身固定']]],

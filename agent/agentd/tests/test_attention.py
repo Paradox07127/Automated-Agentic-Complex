@@ -546,21 +546,20 @@ class InputRingTest(unittest.TestCase):
         self.now = ts
         self.store.ingest(beat(ts, {**CODE, "category": "public.app-category.developer-tools"},
                                input={"keys_10s": 31, "key_idle_s": 0.4, "moves_10s": 7},
-                               mic_apps=["us.zoom.xos"], front_audio_out=True))
+                               front_audio_out=True))
 
     def test_input_never_reaches_sqlite(self):
         for i in range(3):
             self.sensed(T0 + i)
         self.assertEqual(self.store.inputs(300)[-1],
                          {"ts": T0 + 2, "input": {"keys_10s": 31, "key_idle_s": 0.4, "moves_10s": 7},
-                          "mic_apps": ["us.zoom.xos"], "front_audio_out": True,
+                          "front_audio_out": True,
                           "category": "public.app-category.developer-tools"})
         self.store.close()
         db = sqlite3.connect(str(self.path))
         self.addCleanup(db.close)
         stored = json.dumps([db.execute(f"SELECT * FROM {t}").fetchall() for t in ("events", "context")])
-        for word in ("keys_10s", "key_idle_s", "moves_10s", "input", "mic_apps", "us.zoom.xos", "front_audio_out",
-                     "category", "developer-tools"):
+        for word in ("keys_10s", "key_idle_s", "moves_10s", "input", "front_audio_out", "category", "developer-tools"):
             self.assertNotIn(word, stored)
         self.assertIn("server.py", stored)
         self.store = AttentionStore(self.path, Blacklist(deny_blacklist(Path(self.tmp.name) / "blacklist.json")))

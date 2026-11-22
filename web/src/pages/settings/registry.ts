@@ -153,7 +153,6 @@ const RAW: Raw[] = [
   ['agent_sessions', 'privacy', '读取范围', '读取编码会话', 'Claude Code Codex 工具 输入 输出 结果'],
   ['shot', 'privacy', '读取范围', '屏幕识读时附上截图', '截图 识读'],
   ['keys', 'privacy', '读取范围', '键鼠计数', '键盘 鼠标'],
-  ['micapp', 'privacy', '读取范围', '使用麦克风的应用', '麦克风 开会 app'],
   ['mask', 'privacy', '遮蔽与排除', '外发前遮蔽敏感内容', '遮蔽 密钥 邮箱'],
   ['exclude', 'privacy', '遮蔽与排除', '排除的应用和网站', '黑名单 排除 不看 白名单'],
   ['screenRecording', 'perm', '系统权限', '屏幕录制', 'TCC 截图'],

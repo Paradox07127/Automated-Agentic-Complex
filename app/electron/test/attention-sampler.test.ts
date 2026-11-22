@@ -48,7 +48,7 @@ const LOCKED = { presence: 'locked', stage: 'offstage', doing: 'idle', absence: 
 
 /** `postCoarse` gives the status, `answer` the body of a 200 (LOCKED when absent). */
 function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number>; postCoarse?: () => Promise<number>; answer?: () => unknown;
-  aware?: boolean; sensing?: { input: boolean; audioApps: boolean; redact: boolean }; blacklist?: BlacklistRules } = {}) {
+  aware?: boolean; sensing?: { input: boolean; redact: boolean }; blacklist?: BlacklistRules } = {}) {
   let clock = 1_763_539_200_000;
   let fire: (() => void) | null = null;
   let interval = 0;
@@ -79,7 +79,7 @@ function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number
     },
     aware: () => o.aware ?? true,
     blacklist: () => o.blacklist ?? NO_RULES,
-    sensing: () => o.sensing ?? { input: true, audioApps: true, redact: true },
+    sensing: () => o.sensing ?? { input: true, redact: true },
     ownPids: () => [4000],
     now: () => clock,
     every: (ms, fn) => { interval = ms; fire = fn; return () => { fire = null; }; },
@@ -131,12 +131,11 @@ test('the sample asks for titles and audio always, input counts only while sense
   on.sampler.agentd(true);
   await on.second();
   assert.deepEqual(on.requests.find(([op]) => op === 'attention.sample')![1], { include_titles: true, include_input: true, include_audio: true });
-  const off = setup({ sensing: { input: false, audioApps: false, redact: true },
+  const off = setup({ sensing: { input: false, redact: true },
     helper: { 'attention.sample': ok(sampleResult({ audio_clients: [{ pid: 9, app_id: 'us.zoom.xos', name: 'zoom', running_input: true, running_output: null }] })) } });
   off.sampler.agentd(true);
   await off.second();
   assert.deepEqual(off.requests.find(([op]) => op === 'attention.sample')![1], { include_titles: true, include_input: false, include_audio: true });
-  assert.equal('mic_apps' in off.posts[0]!, false);
   assert.equal('input' in off.posts[0]!, false);
 });
 
@@ -402,7 +401,6 @@ test('screen awareness off: no titles, no browser tab, no audio app ids, and eac
   assert.equal(t.posts.length, 0);
   assert.equal(t.coarse.length, 2);
   assert.equal(t.coarse[0]!.mic_active, true);
-  assert.equal(t.samples[0]!.micApps, null);
 });
 
 test('an edge stays pending until a coarse POST that carried it succeeded', async () => {

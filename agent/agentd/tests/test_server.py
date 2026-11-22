@@ -83,11 +83,11 @@ class UserRoutesTest(unittest.TestCase):
     def test_coarse_rejects_content_keys(self):
         with tempfile.TemporaryDirectory() as directory:
             policy = Path(directory) / "privacy.json"
-            policy.write_text('{"sense_input_counts": true, "sense_audio_apps": true}', encoding="utf-8")
+            policy.write_text('{"sense_input_counts": true}', encoding="utf-8")
             self.server.privacy_config = policy
             beat = {"ts": time.time(), "idle_s": 0}
             for field, value in (("front", {"app": "Code"}), ("title", "notes.txt"), ("app", "Code"),
-                                 ("mic_apps", ["us.zoom.xos"]), ("url_host", "example.com"), ("text", "hi")):
+                                 ("url_host", "example.com"), ("text", "hi")):
                 with self.subTest(field=field):
                     self.assertEqual(self.request("POST", "/user/coarse", {**beat, field: value}),
                                      (400, {"error": "invalid_coarse"}))
@@ -3534,7 +3534,6 @@ class SpeechStreamTest(FeedServerCase):
 RAW_SENSING = {"input": {"key_idle_s": 7193.5, "pointer_idle_s": 6271.25, "scroll_idle_s": 5839.75,
                          "click_idle_s": 4651.5, "keys_10s": 3917, "keys_60s": 9137, "clicks_10s": 2843,
                          "scrolls_30s": 1759, "moves_10s": 8461, "switches_60s": 6529, "near_clicks_10s": 5381},
-               "mic_apps": ["com.example.SECRETMIC"],
                "mouse": {"app": "Finder", "bundle_id": "x.Finder", "pid": 2, "window_id": 5, "x": 4723, "y": 3187}}
 RAW_SENSING_VALUES = [str(int(v)) for v in RAW_SENSING["input"].values()] + ["4723", "3187", "SECRETMIC"]
 
@@ -3593,7 +3592,7 @@ class AttentionServerTest(FeedServerCase):
     def test_user_nows_meeting_is_the_scenes(self):
         now = time.time()
         for i in range(3):
-            self.assertEqual(self.beat(now - 2 + i, "Code", "x", camera_active=True, mic_apps=["x.Other"],
+            self.assertEqual(self.beat(now - 2 + i, "Code", "x", camera_active=True,
                                        input={"keys_10s": 0}), (200, {}))
         self.assertNotEqual(self.server.activity()["activity"], "meeting")
         self.assertEqual(self.coarse(now, camera_active=True)[0], 200)
@@ -3725,12 +3724,12 @@ class AttentionServerTest(FeedServerCase):
         good = {"input": {"key_idle_s": 0.5, "pointer_idle_s": 0, "scroll_idle_s": 3.2, "click_idle_s": 9,
                           "keys_10s": 12, "keys_60s": 40, "clicks_10s": 1, "scrolls_30s": 0, "moves_10s": 30,
                           "switches_60s": 2, "near_clicks_10s": 0},
-                "mic_apps": ["us.zoom.xos", "<hidden>"], "front_audio_out": False, "edge": "unlock"}
+                "front_audio_out": False, "edge": "unlock"}
         self.assertEqual(self.beat(now, "Code", "x", **good), (200, {}))
         self.assertEqual(self.beat(now + 1, "Code", "x", edge=None, front_audio_out=None, input={}), (200, {}))
         for extra in ({"input": {"keys_10s": -1}}, {"input": {"keys_10s": True}}, {"input": {"keys_10s": "3"}},
-                      {"input": [1]}, {"input": None}, {"mic_apps": "us.zoom.xos"}, {"mic_apps": [1]},
-                      {"mic_apps": ["a"] * 17}, {"mic_apps": None}, {"front_audio_out": 1}, {"edge": "logout"},
+                      {"input": [1]}, {"input": None},
+                      {"front_audio_out": 1}, {"edge": "logout"},
                       {"edge": 1}):
             with self.subTest(extra=extra):
                 self.assertEqual(self.beat(now + 2, "Code", "x", **extra), (400, {"error": "invalid_attention"}))
@@ -3802,7 +3801,7 @@ class AttentionServerTest(FeedServerCase):
                 self.assertIn(("activity", None), used)
                 (self.assertIn if share else self.assertNotIn)("某个私密标题", context)
 
-    def test_attention_context_has_no_raw_input_or_mic_apps(self):
+    def test_attention_context_has_no_raw_input(self):
         self.server.mouth = FakeMouth(["好。"])
         self.server.share_page_text = True
         now = time.time()

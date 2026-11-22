@@ -21,7 +21,7 @@ TEXT_MAX = 2000
 SELECTION_FRESH = 600.0  # seconds a selection may reach the mouth
 PAGE_FRESH = 600.0  # seconds the current page's text may reach the mouth
 RING_S = 300.0  # seconds the heartbeat's sensed fields stay in memory
-SENSED = ("input", "mic_apps", "front_audio_out", "front_video", "front_gpu", "screen_captured")  # C6 fields kept only in that ring, never in SQLite
+SENSED = ("input", "front_audio_out", "front_video", "front_gpu", "screen_captured")  # C6 fields kept only in that ring, never in SQLite
 BUCKETS = {"app": "window", "title": "window", "domain": "window"}
 KEYS = {"app": "app", "title": "title", "domain": "url_host"}
 # Extension identity of a browser message; a context row matches the current heartbeat on each both have.

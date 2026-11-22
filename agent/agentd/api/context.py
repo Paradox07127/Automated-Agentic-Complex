@@ -70,7 +70,6 @@ class ContextInputMixin:
         input_keys = {"key_idle_s", "pointer_idle_s", "scroll_idle_s", "click_idle_s", "keys_10s", "keys_60s",
                       "clicks_10s", "scrolls_30s", "moves_10s", "switches_60s", "near_clicks_10s"}
         counts = lambda v: isinstance(v, dict) and all(k in input_keys and number(n) and n >= 0 for k, n in v.items())
-        apps = lambda v: isinstance(v, list) and len(v) <= 16 and all(isinstance(a, str) for a in v)
         if not (isinstance(body, dict) and number(body.get("ts")) and number(body.get("idle_s"))
                 and body["idle_s"] >= 0 and isinstance(body.get("front"), dict)
                 and isinstance(body.get("mouse"), (dict, type(None)))
@@ -78,7 +77,6 @@ class ContextInputMixin:
                 and all(isinstance(body.get(k, False), bool) for k in GATE_FLAGS)
                 and isinstance(body["front"].get("category"), (str, type(None)))
                 and ("input" not in body or counts(body["input"]))
-                and ("mic_apps" not in body or apps(body["mic_apps"]))
                 and isinstance(body.get("front_audio_out"), (bool, type(None)))
                 and isinstance(body.get("front_video"), (bool, type(None)))
                 and (body.get("front_gpu") is None or number(body["front_gpu"]) and 0 <= body["front_gpu"] <= 1)

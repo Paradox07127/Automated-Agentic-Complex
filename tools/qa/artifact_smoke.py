@@ -130,7 +130,7 @@ def build_config(app, support, port=PORT):
         support_dir=str(support), agentd_state_dir=str(support / 'agentd'),
         gpu_hold_files=[], characters=[], voice_hotkey='', hotkey_quick_input='', hotkey_look='',
         hotkey_toggle_avatar='', hotkey_click_through='', hotkey_radial_menu='', hotkey_selection='', viewport='fullscreen',
-        plugins=dict(screen_awareness=False, computer_use=False), sense_input_counts=False, sense_audio_apps=False,
+        plugins=dict(screen_awareness=False, computer_use=False), sense_input_counts=False,
         share_page_text=False, share_window_text=False, share_typed_text=False, share_screenshots=False,
         proactive_speech=False, mute=True, tts_url='', tts_tunnel_host='',
         system_notifications=False)

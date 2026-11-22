@@ -3,7 +3,7 @@
 // with screen awareness on, one `POST /context/attention`; `presence.watch` edges pause the beats while the screen is locked
 // or the system or display sleeps.
 import {
-  AttentionBeats, attentionPayload, type AttentionSample, AttentionSleepState, audioApps, type BlacklistRules, browserAsks,
+  AttentionBeats, attentionPayload, type AttentionSample, AttentionSleepState, type BlacklistRules, browserAsks,
   browserState, CaptureTracker, coarseBeat, type CoarseContext, composeSample, decodeAttention, decodeRect, focusLine, frontAudioOut,
   gateLine, helperEdge, InputActivity, type HelperY, type PresenceEdge, PresenceEdges, type RawAttention, type Rect, Reflex,
   type ReflexState, sensedFields,
@@ -45,8 +45,8 @@ export interface AttentionPorts {
   aware(): boolean;
   /** `<agentd_state_dir>/blacklist.json`'s rules now. */
   blacklist(): BlacklistRules;
-  /** Read at each beat: `sense_input_counts`, `sense_audio_apps`, `redact_sensitive`. */
-  sensing(): { input: boolean; audioApps: boolean; redact: boolean };
+  /** Read at each beat: `sense_input_counts`, `redact_sensitive`. */
+  sensing(): { input: boolean; redact: boolean };
   /** This shell's processes (main and helper), never reported. */
   ownPids(): readonly number[];
   /** Whether the push-to-talk key is held; null without push-to-talk. */
@@ -293,10 +293,8 @@ export class AttentionSampler {
     const main = frames.find((s) => s?.primary === true);
     const mainHeight = decodeRect(main?.frame)?.height ?? null;
     const ownPids = this.ports.ownPids();
-    const rules = this.ports.blacklist();
-    const audio = raw.audioClients && (aware ? audioApps(raw.audioClients, ownPids, front?.pid ?? null, rules)
-      : { mic: [], frontOut: frontAudioOut(raw.audioClients, front?.pid ?? null) });
-    const sensed = sensedFields(sensing.input, aware && sensing.audioApps, audio, () => {
+    const frontOut = raw.audioClients && frontAudioOut(raw.audioClients, front?.pid ?? null);
+    const sensed = sensedFields(sensing.input, frontOut, () => {
       if (raw.inputCounters === null || raw.inputIdles === null) return null;
       const input = this.inputActivity.record(raw.ts, raw.inputCounters, bundleId, raw.inputIdles);
       input.nearClicks10s = this.ports.nearClicks?.() ?? null;

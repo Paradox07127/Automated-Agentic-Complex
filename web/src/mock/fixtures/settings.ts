@@ -42,7 +42,6 @@ export const SETTINGS: Record<string, string | number | boolean> = {
   agent_sessions: true,
   shot: true,
   keys: true,
-  micapp: true,
   mask: true,
   login: true,
   k_ask: true,

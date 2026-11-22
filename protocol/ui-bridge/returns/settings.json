@@ -32,7 +32,6 @@
         "agent_sessions": true,
         "shot": false,
         "keys": false,
-        "micapp": false,
         "mask": false,
         "login": false,
         "plugins.light_ai": true,

@@ -261,11 +261,11 @@ describe('restart notice', () => {
 
 describe('恢复默认 wording', () => {
   it('names the switches the reset turns on', async () => {
-    const off = { ...d, native: { ...d.native, saved: { ...d.native.saved, keys: false, micapp: false } } };
+    const off = { ...d, native: { ...d.native, saved: { ...d.native.saved, keys: false } } };
     render(<Harness d={off}><AdvGroup /></Harness>);
     await click(screen.getByRole('button', { name: '恢复默认…' }));
     const text = screen.getByRole('dialog').textContent ?? '';
-    expect(text).toContain('会打开：键鼠计数、使用麦克风的应用');
+    expect(text).toContain('会打开：键鼠计数');
     expect(text).not.toContain('读取类的开关都会关掉');
   });
 });

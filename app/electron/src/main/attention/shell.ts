@@ -46,7 +46,7 @@ export function shellAttention(o: ShellAttentionOptions): AttentionSampler | nul
     // Anything but a saved `false` is on.
     sensing: () => {
       const s = o.settings();
-      return { input: s.sense_input_counts !== false, audioApps: s.sense_audio_apps !== false, redact: s.redact_sensitive !== false };
+      return { input: s.sense_input_counts !== false, redact: s.redact_sensitive !== false };
     },
     ownPids: o.ownPids,
     userSpeaking: o.userSpeaking,

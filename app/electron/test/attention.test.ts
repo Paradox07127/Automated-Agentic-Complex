@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  AttentionBeats, AttentionSleepState, type AttentionSample, attentionPayload, audioApps, type BlacklistRules, browserAsks,
+  AttentionBeats, AttentionSleepState, type AttentionSample, attentionPayload, type BlacklistRules, browserAsks,
   browserState, CaptureTracker, chooseTitle, coarseBeat, composeSample, coversDisplay, decodeAttention, EMPTY_BLACKLIST, focusLine, frontAudioOut,
   gateLine, isBrowser, helperEdge, hides, InputActivity, type InputSnapshot, parseBlacklist, PresenceEdges, redactText, Reflex, sensedFields, appKitY,
   helperY,
@@ -42,7 +42,7 @@ const textEdit = (over: Record<string, unknown> = {}) => reply({
 
 const ctx = (o: Partial<Parameters<typeof composeSample>[1]> = {}): Parameters<typeof composeSample>[1] => ({
   browser: { host: null, incognito: false }, displays: [{ x: 0, y: 0, width: 1440, height: 900 }], asleep: false,
-  userSpeaking: null, sensed: { input: null, micApps: null, frontAudioOut: null }, screenCaptured: null, ...o,
+  userSpeaking: null, sensed: { input: null, frontAudioOut: null }, screenCaptured: null, ...o,
 });
 
 const sample = (r: Record<string, unknown>, o: Partial<Parameters<typeof composeSample>[1]> = {}) =>
@@ -343,7 +343,7 @@ test('payload: no front app is sent as a front object with every field null', ()
 
 test('payload: the fields, with the optional flags left out while unknown', () => {
   const s = sample(textEdit({ camera_active: null, mic_active: true, front_gpu_busy: 0.5, video_pids: [] }),
-    { userSpeaking: null, sensed: { input: null, micApps: ['us.zoom.xos'], frontAudioOut: false }, screenCaptured: false });
+    { userSpeaking: null, sensed: { input: null, frontAudioOut: false }, screenCaptured: false });
   s.edge = 'unlock';
   const p = payload(s);
   assert.deepEqual(p, {
@@ -351,16 +351,16 @@ test('payload: the fields, with the optional flags left out while unknown', () =
     front: { app: 'TextEdit', bundle_id: 'com.apple.TextEdit', pid: 702, window_id: 640, title: 'notes.txt', url_host: null, category: 'public.app-category.productivity' },
     mouse: { app: 'TextEdit', bundle_id: 'com.apple.TextEdit', pid: 702, window_id: 640 },
     idle_s: 1.4, locked: false, asleep: false, focus_role: 'AXTextArea', secure_input: false, fullscreen: false,
-    mic_active: true, mic_apps: ['us.zoom.xos'], front_audio_out: false, front_video: false, front_gpu: 0.5,
+    mic_active: true, front_audio_out: false, front_video: false, front_gpu: 0.5,
     screen_captured: false, edge: 'unlock', focus_window: { role: 'AXWindow', subrole: 'AXStandardWindow' },
   });
 });
 
 test('payload: input carries only counts and idle seconds; near_clicks_10s only when known', () => {
   const input = { idles: { key: 1, pointer: 2, scroll: 3, click: 4 }, keys10s: 5, keys60s: 6, clicks10s: 7, scrolls30s: 8, moves10s: 9, switches60s: 1, nearClicks10s: null };
-  const p = payload(sample(textEdit(), { sensed: { input, micApps: null, frontAudioOut: null } }));
+  const p = payload(sample(textEdit(), { sensed: { input, frontAudioOut: null } }));
   assert.deepEqual(p.input, { key_idle_s: 1, pointer_idle_s: 2, scroll_idle_s: 3, click_idle_s: 4, keys_10s: 5, keys_60s: 6, clicks_10s: 7, scrolls_30s: 8, moves_10s: 9, switches_60s: 1 });
-  const q = payload(sample(textEdit(), { sensed: { input: { ...input, nearClicks10s: 2 }, micApps: null, frontAudioOut: null } }));
+  const q = payload(sample(textEdit(), { sensed: { input: { ...input, nearClicks10s: 2 }, frontAudioOut: null } }));
   assert.equal((q.input as Record<string, unknown>).near_clicks_10s, 2);
 });
 
@@ -433,40 +433,20 @@ test('Reflex: game after 3 beats in a row fullscreen at a GPU share of at least 
 
 // ---- Microphone, audio apps, screen capture
 
-test('audioApps: recording bundle ids, without our own, blacklisted as <hidden>, deduplicated, at most 16', () => {
-  const c = (pid: number, id: string | null, input = true, output: boolean | null = false) =>
-    ({ pid, bundleId: id, app: id, runningInput: input, runningOutput: output });
-  const clients = [c(4000, 'own'), c(1, 'us.zoom.xos'), c(2, 'us.zoom.xos'), c(3, null), c(4, 'secret.app'), c(5, 'player', false, true),
-    ...Array.from({ length: 20 }, (_, i) => c(100 + i, `app${i}`))];
-  const out = audioApps(clients, OWN, 5, rules({ bundle_ids: ['secret.app'] }));
-  assert.deepEqual(out.mic.slice(0, 3), ['us.zoom.xos', '<hidden>', 'app0']);
-  assert.equal(out.mic.length, 16);
-  assert.equal(out.frontOut, true);
-});
-
-test('audioApps: front audio out is unknown when one of its clients cannot be read, nil without a front pid', () => {
-  const c = (output: boolean | null) => ({ pid: 5, bundleId: 'p', app: 'p', runningInput: false, runningOutput: output });
-  assert.equal(audioApps([c(false), c(null)], OWN, 5, rules({})).frontOut, null);
-  assert.equal(audioApps([c(false)], OWN, 5, rules({})).frontOut, false);
-  assert.equal(audioApps([c(true), c(null)], OWN, 5, rules({})).frontOut, true);
-  assert.equal(audioApps([c(true)], OWN, null, rules({})).frontOut, null);
-});
-
-test('frontAudioOut: the front pid\'s clients as audioApps reads them, without the bundle ids', () => {
+test('frontAudioOut: the front pid\'s clients, unknown when one cannot be read, nil without a front pid', () => {
   const c = (output: boolean | null) => ({ pid: 5, bundleId: 'p', app: 'p', runningInput: false, runningOutput: output });
   assert.equal(frontAudioOut([c(false), c(null)], 5), null);
   assert.equal(frontAudioOut([c(true), c(null)], 5), true);
   assert.equal(frontAudioOut([c(true)], null), null);
 });
 
-test('sensedFields: an off switch leaves its field out, and the input reader is not called', () => {
+test('sensedFields: an off input switch leaves input out and the input reader is not called', () => {
   let called = 0;
   const input = () => { called += 1; return null; };
-  assert.deepEqual(sensedFields(false, false, { mic: ['a'], frontOut: true }, input), { input: null, micApps: null, frontAudioOut: true });
+  assert.deepEqual(sensedFields(false, true, input), { input: null, frontAudioOut: true });
   assert.equal(called, 0);
-  sensedFields(true, true, null, input);
+  sensedFields(true, null, input);
   assert.equal(called, 1);
-  assert.deepEqual(sensedFields(true, true, { mic: ['a'], frontOut: null }, () => null), { input: null, micApps: ['a'], frontAudioOut: null });
 });
 
 test('CaptureTracker: screen capture is the indicator with no mic or camera in use, unknown within 3 s of their use', () => {

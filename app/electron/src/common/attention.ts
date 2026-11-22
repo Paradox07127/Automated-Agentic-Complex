@@ -52,7 +52,6 @@ export interface AttentionSample {
   userSpeaking: boolean | null;
   focusWindow: FocusWindow | null;
   input: InputSnapshot | null;
-  micApps: string[] | null;
   frontAudioOut: boolean | null;
   frontVideo: boolean | null;
   frontGpu: number | null;
@@ -229,32 +228,15 @@ function anyActive(states: readonly (boolean | null)[]): boolean | null {
 /** CONTRACT §7.12 `audio_client`; `app` is its app name, for the blacklist. */
 export interface AudioClient { pid: number; bundleId: string | null; app: string | null; runningInput: boolean; runningOutput: boolean | null }
 
-const MIC_APPS_MAX = 16;
-
-/** Bundle ids recording now, without our own processes, blacklisted ones as `<hidden>`, at most 16; a client with no
- *  bundle id is left out. `frontOut`: whether the front process plays audio, null when unknown. */
-export function audioApps(clients: readonly AudioClient[], ownPids: readonly number[], frontPid: number | null,
-  rules: BlacklistRules): { mic: string[]; frontOut: boolean | null } {
-  const mic: string[] = [];
-  for (const c of clients) {
-    if (!c.runningInput || ownPids.includes(c.pid) || c.bundleId === null) continue;
-    const w = { app: c.app, bundleId: c.bundleId, pid: c.pid, windowId: null, title: null, urlHost: null };
-    const name = hides(rules, w, ownPids) ? '<hidden>' : c.bundleId;
-    if (!mic.includes(name)) mic.push(name);
-  }
-  return { mic: mic.slice(0, MIC_APPS_MAX), frontOut: frontAudioOut(clients, frontPid) };
-}
-
 /** Whether the front process plays audio, null when unknown. */
 export function frontAudioOut(clients: readonly AudioClient[], frontPid: number | null): boolean | null {
   return frontPid === null ? null : anyActive(clients.filter((c) => c.pid === frontPid).map((c) => c.runningOutput));
 }
 
-/** The Settings switches `sense_input_counts` and `sense_audio_apps`: an off switch leaves its field out, and `input` is
- *  not called at all. */
-export function sensedFields(senseInput: boolean, senseAudioApps: boolean, audio: { mic: string[]; frontOut: boolean | null } | null,
-  input: () => InputSnapshot | null): { input: InputSnapshot | null; micApps: string[] | null; frontAudioOut: boolean | null } {
-  return { input: senseInput ? input() : null, micApps: senseAudioApps ? audio?.mic ?? null : null, frontAudioOut: audio?.frontOut ?? null };
+/** The Settings switch `sense_input_counts`: off leaves `input` out and does not call it. */
+export function sensedFields(senseInput: boolean, frontOut: boolean | null,
+  input: () => InputSnapshot | null): { input: InputSnapshot | null; frontAudioOut: boolean | null } {
+  return { input: senseInput ? input() : null, frontAudioOut: frontOut };
 }
 
 /** The indicator stays up this long (s) after the mic or camera stops. */
@@ -506,7 +488,7 @@ export interface SampleContext {
   displays: readonly Rect[];
   asleep: boolean;
   userSpeaking: boolean | null;
-  sensed: { input: InputSnapshot | null; micApps: string[] | null; frontAudioOut: boolean | null };
+  sensed: { input: InputSnapshot | null; frontAudioOut: boolean | null };
   screenCaptured: boolean | null;
 }
 
@@ -530,7 +512,7 @@ export function composeSample(raw: RawAttention, c: SampleContext): AttentionSam
     asleep: c.asleep, focusRole: raw.focusRole, secureInput: raw.secureInput,
     fullscreen: frontBounds !== null && coversDisplay(frontBounds, c.displays),
     cameraActive: raw.cameraActive, micActive: raw.micActive, userSpeaking: c.userSpeaking, focusWindow,
-    input: c.sensed.input, micApps: c.sensed.micApps, frontAudioOut: c.sensed.frontAudioOut,
+    input: c.sensed.input, frontAudioOut: c.sensed.frontAudioOut,
     frontVideo: f && raw.videoPids ? raw.videoPids.includes(f.pid) : null,
     frontGpu: f ? raw.frontGpuBusy : null,
     screenCaptured: c.screenCaptured, edge: null, frontBounds,
@@ -574,7 +556,7 @@ export function attentionPayload(s: AttentionSample, rules: BlacklistRules, ownP
   };
   const optional: [string, unknown][] = [
     ['fullscreen', s.fullscreen], ['camera_active', s.cameraActive], ['mic_active', s.micActive], ['user_speaking', s.userSpeaking],
-    ['mic_apps', s.micApps], ['front_audio_out', s.frontAudioOut], ['front_video', s.frontVideo], ['front_gpu', s.frontGpu],
+    ['front_audio_out', s.frontAudioOut], ['front_video', s.frontVideo], ['front_gpu', s.frontGpu],
     ['screen_captured', s.screenCaptured], ['edge', s.edge],
   ];
   for (const [key, value] of optional) if (value !== null) payload[key] = value;

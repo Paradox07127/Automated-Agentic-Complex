@@ -25,7 +25,7 @@ function sample(over: Partial<AttentionSample> = {}): AttentionSample {
   return {
     ts: 0, front: win(), frontIncognito: false, mouse: null, idleSeconds: 0, locked: false, asleep: false, focusRole: null,
     secureInput: false, fullscreen: false, cameraActive: null, micActive: null, userSpeaking: null, focusWindow: null, input: null,
-    micApps: null, frontAudioOut: null, frontVideo: null, frontGpu: null, screenCaptured: null, edge: null, frontBounds: null, ...over,
+    frontAudioOut: null, frontVideo: null, frontGpu: null, screenCaptured: null, edge: null, frontBounds: null, ...over,
   };
 }
 

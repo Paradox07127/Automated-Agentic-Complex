@@ -95,7 +95,7 @@ test('a screen capture counts only while hide_on_screen_capture is on', () => {
 const sample = (over: Partial<AttentionSample> = {}): AttentionSample => ({
   ts: 0, front: { app: 'X', bundleId: 'x', pid: 702, windowId: 1, title: null, urlHost: null }, frontIncognito: false, mouse: null,
   idleSeconds: 0, locked: false, asleep: false, focusRole: null, secureInput: false, fullscreen: false, cameraActive: false, micActive: false,
-  userSpeaking: null, focusWindow: null, input: null, micApps: null, frontAudioOut: null, frontVideo: null, frontGpu: null, screenCaptured: false,
+  userSpeaking: null, focusWindow: null, input: null, frontAudioOut: null, frontVideo: null, frontGpu: null, screenCaptured: false,
   edge: null, frontBounds: null, ...over,
 });
 

@@ -14,7 +14,7 @@ import styles from '../groups.module.css';
 import { BriefHealth, useBriefHealth } from '../../observe/BriefHealth';
 
 /** Rows of 读取范围. */
-const READS = ['wintext', 'grain', 'web', 'typing', 'actions', 'agent_sessions', 'shot', 'keys', 'micapp'];
+const READS = ['wintext', 'grain', 'web', 'typing', 'actions', 'agent_sessions', 'shot', 'keys'];
 
 /** 隐私: outbound overview plate (the group's main visual), observation, readable sources (destructive ones confirm first), redaction, exclusions. */
 export function PrivacyGroup() {
@@ -102,7 +102,6 @@ export function PrivacyGroup() {
           <SetRow id="agent_sessions" title="读取编码会话" desc="Claude Code / Codex 会话里的工具输入输出和结果；本机保存 48 小时，用来理解你手头的工作。关掉会删掉已存的会话内容" control={c.toggle('agent_sessions')} />
           <SetRow id="shot" title="屏幕识读时附上截图" desc={shots ? `今日额度 ${shots.used} / ${shots.limit}` : undefined} control={c.toggle('shot', '附上截图')} />
           <SetRow id="keys" title="键鼠计数" desc="只计次数，不记录按键内容" control={c.toggle('keys')} />
-          <SetRow id="micapp" title="使用麦克风的应用" desc="用于判断是否在开会" control={c.toggle('micapp')} />
         </SetSection>}
 
         <SetSection title="遮蔽与排除">

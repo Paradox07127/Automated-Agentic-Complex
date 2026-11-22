@@ -23,7 +23,7 @@ function sample(): AttentionSample {
   return {
     ts: 0, front: { app: 'TextEdit', bundleId: 'com.apple.TextEdit', pid: 702, windowId: 640, title: 'notes.txt', urlHost: null },
     frontIncognito: false, mouse: null, idleSeconds: 0, locked: false, asleep: false, focusRole: null, secureInput: false, fullscreen: false,
-    cameraActive: null, micActive: null, userSpeaking: null, focusWindow: null, input: null, micApps: null, frontAudioOut: null,
+    cameraActive: null, micActive: null, userSpeaking: null, focusWindow: null, input: null, frontAudioOut: null,
     frontVideo: null, frontGpu: null, screenCaptured: null, edge: null, frontBounds: null,
   };
 }

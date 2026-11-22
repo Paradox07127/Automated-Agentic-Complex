@@ -177,7 +177,7 @@ export function preparePackaged(options: { resources: string; supportBase: strin
       voice_hotkey: 'right_option', hotkey_quick_input: 'control+option+space', hotkey_look: 'control+option+l',
       hotkey_toggle_avatar: 'control+option+h', hotkey_click_through: 'control+option+p', hotkey_radial_menu: '',
       hotkey_selection: 'control+option+s', viewport: 'fullscreen',
-      sense_input_counts: false, sense_audio_apps: false,
+      sense_input_counts: false,
       share_page_text: false, share_window_text: false, share_typed_text: false, share_actions: false, share_agent_sessions: true,
       share_screenshots: false,
       proactive_speech: false, mute: false, voice_service: 'local', tts_url: '', tts_tunnel_host: '',
