@@ -1,93 +1,11 @@
-/* 角色页「导入」: one group per kind (角色, 外观与 mod, 动作), its import button, then what it imported, one row each. */
+/* 角色页 动作 →「导入」. */
+@import './ImportPane.library.css';
+@import './ImportPane.motion.css';
+
 .imp {
   display: flex;
   flex-direction: column;
   gap: var(--ef-sp-24);
   min-width: 0;
   padding-bottom: var(--ef-sp-16);
-}
-
-.grp {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--ef-sp-8);
-  min-width: 0;
-}
-
-.grp h3 {
-  align-self: stretch;
-  margin: 0;
-  padding-bottom: var(--ef-sp-6);
-  border-bottom: 1px solid var(--ef-line-subtle);
-  font: var(--ef-fw-semibold) var(--ef-fs-body-lg) / 1.25 var(--ef-font-sans);
-}
-
-.list {
-  display: flex;
-  flex-direction: column;
-  align-self: stretch;
-  max-width: 560px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ef-sp-8);
-  min-width: 0;
-  min-height: 36px;
-  padding: var(--ef-sp-4) 0;
-  border-bottom: 1px solid var(--ef-line-subtle);
-}
-
-.nm {
-  flex: 1 1 0;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.fmt {
-  flex: none;
-  font-size: var(--ef-fs-small);
-  font-weight: 600;
-  color: var(--ef-text-2);
-}
-
-/* The last import's warnings under its appearance, until closed. */
-.warn {
-  display: flex;
-  flex-basis: 100%;
-  align-items: flex-start;
-  gap: var(--ef-sp-8);
-  min-width: 0;
-  padding: var(--ef-sp-6) var(--ef-sp-8);
-  border-left: 2px solid var(--ef-state-warning);
-  background: var(--ef-chip);
-}
-
-.warn ul {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  padding: 0 0 0 1.2em;
-  font-size: var(--ef-fs-small);
-  color: var(--ef-text-1);
-  overflow-wrap: anywhere;
-}
-
-.note {
-  min-width: 0;
-  font-size: var(--ef-fs-small);
-  color: var(--ef-text-2);
-  overflow-wrap: anywhere;
-}
-
-.note[data-tone='danger'] {
-  color: var(--ef-danger-text);
 }

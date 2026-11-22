@@ -148,6 +148,11 @@ describe('detail pages', () => {
 
   it('keep the not-running overlay on the stage', () => {
     render(<Operator {...props} pane="motion" offline />);
-    expect(stageRect().contains(screen.getByRole('status'))).toBe(true);
+    const [overlay, slot] = screen.getAllByRole('status');
+    expect(stageRect().contains(overlay!)).toBe(true);
+    expect(overlay!.textContent).toContain('重启角色');
+    // The slot under the stage says why 桌面预览 is off, outside the rect the live preview covers.
+    expect(stageRect().contains(slot!)).toBe(false);
+    expect(slot!.textContent).toBe('角色未运行');
   });
 });

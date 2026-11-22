@@ -58,23 +58,27 @@ describe('Progress', () => {
 });
 
 describe('导入 pane', () => {
-  it('shows the bar while an import runs, with its stage and percent, and drops it when idle', async () => {
+  it('shows the stage chain while a motion import runs, with its stage and percent, and drops it when idle', async () => {
     const sink = pushes();
-    await mount('&pane=import');
-    const motion = await screen.findByRole('button', { name: '导入动作' });
-    expect(screen.queryByRole('progressbar', { name: '重定向骨骼' })).toBeNull();
+    await mount('&pane=motion');
+    await act(async () => void fireEvent.click(screen.getByRole('tab', { name: '导入' })));
+    const motion = (await screen.findByRole('button', { name: /^导入动作…/ })) as HTMLButtonElement;
+    const run = () => screen.queryByRole('status', { name: '导入进度' });
+    expect(run()).toBeNull();
     await act(async () => sink.push(RUNNING));
-    const bar = screen.getByRole('progressbar', { name: '重定向骨骼' });
-    expect(bar.getAttribute('aria-valuenow')).toBe('43');
-    expect(bar.textContent).toBe('重定向骨骼43%');
-    expect(bar.closest('section')?.getAttribute('aria-label')).toBe('动作');
-    expect(motion.getAttribute('aria-disabled')).toBe('true');
-    expect(screen.getByRole('button', { name: '导入外观…' }).getAttribute('aria-disabled')).toBe('true');
+    expect(run()?.textContent).toContain('Dance');
+    expect(run()?.textContent).toContain('导入动作 │ 重定向骨骼');
+    expect(run()?.textContent).toContain('43%');
+    // Read is done, 重定向骨骼 is the current cell, the rest are still to come.
+    expect([...run()!.querySelectorAll('li')].map((li) => li.getAttribute('data-s'))).toEqual(['done', 'now', null, null, null, null]);
+    expect(motion.disabled).toBe(true);
+    await act(async () => sink.push({ ...RUNNING, stage: 'sample', fraction: 0.1 }));
+    expect(run()?.querySelectorAll('li')).toHaveLength(7);
     await act(async () => sink.push({ ...RUNNING, stage: null, fraction: 0 }));
-    expect(screen.getByRole('progressbar', { name: '准备中' }).getAttribute('aria-valuenow')).toBe('0');
+    expect(run()?.textContent).toContain('准备中');
     await act(async () => sink.push(IDLE));
-    expect(screen.queryByRole('progressbar', { name: '准备中' })).toBeNull();
-    expect(motion.getAttribute('aria-disabled')).not.toBe('true');
+    expect(run()).toBeNull();
+    expect(motion.disabled).toBe(false);
   });
 
   it('puts an outfit import on the progress card of the 外观 导入 tab', async () => {

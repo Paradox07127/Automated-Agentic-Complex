@@ -3,6 +3,7 @@ import { getBridge, type ActionSpeed, type AvatarAction } from '../../bridge';
 import type { Toast } from './feedback';
 import { ADJUSTED, NO_REASON, PLAY_REFUSED, playRefusedSeverity, SECTIONS } from './labels';
 import type { MotionGroup } from './MotionTable';
+import type { StageStatus } from './Stage';
 
 const ORDER = Object.keys(SECTIONS);
 const SAVE_REFUSED: Record<string, string> = {
@@ -34,6 +35,15 @@ export function blockedReason(a: AvatarAction | undefined, offline: boolean, swi
   if (a.missing) return `${a.missingReason ?? '缺少资源'} │ 不支持预览`;
   if (a.playable === false) return '由行为触发 │ 不支持单独预览';
   return null;
+}
+
+/** The line under the stage beside 桌面预览: why it cannot play (a `warn`), else what holds it or what the desktop plays, else that BGM keeps it at 1×. */
+export function deckLine(why: string | null, blocked: string | null, play: ReturnType<typeof useMotions>['play'], oneSpeed: boolean): StageStatus | null {
+  if (why) return { text: why, tone: 'warn' };
+  if (blocked) return { text: blocked };
+  if (play?.loop) return { text: `循环中 │ ${play.label}` };
+  if (play) return { text: `桌面播放中 │ ${play.label}${play.progress != null && play.durationS != null ? ` ${(play.progress * play.durationS).toFixed(1)} / ${play.durationS.toFixed(1)} s` : ''}` };
+  return oneSpeed ? { text: '带背景音乐 │ 只能 1× 播放' } : null;
 }
 
 export interface Play {
@@ -140,6 +150,6 @@ export function useMotions(o: { character?: string; actions: AvatarAction[]; toa
     preview,
     previewing,
     stop,
-    play: play && playing ? { label: playing.label, speed: play.speed, progress: o.playing ? 0.42 : progress, id: playing.id, loop: play.loop } : null,
+    play: play && playing ? { label: playing.label, speed: play.speed, progress: o.playing ? 0.42 : progress, id: playing.id, loop: play.loop, durationS: playing.durationS ?? null } : null,
   };
 }

@@ -74,8 +74,9 @@ afterEach(() => {
 describe('motion library', () => {
   it('tags an imported row and filters to it; renames and removes it on the 导入 pane', async () => {
     const rename = bvhLibrary();
-    await mount('&pane=import');
-    await click(await screen.findByRole('button', { name: '导入动作' }));
+    await mount('&pane=motion');
+    await click(await screen.findByRole('tab', { name: '导入' }));
+    await click(await screen.findByRole('button', { name: /^导入动作…/ }));
     await waitFor(() => expect(itemOf()).not.toBeNull());
     expect(within(itemOf()!).getByText('BVH')).toBeTruthy();
 
@@ -87,7 +88,7 @@ describe('motion library', () => {
     await click(only);
     expect(only.getAttribute('aria-pressed')).toBe('true');
     expect(Array.from(document.querySelectorAll('[data-motion]')).map((r) => r.getAttribute('data-motion'))).toEqual([ID]);
-    await click(rowOf()!);
+    await click(within(rowOf()!).getByRole('button', { pressed: false }));
     expect(screen.queryByRole('button', { name: '改名' })).toBeNull();
 
     await click(screen.getByRole('tab', { name: '导入' }));
@@ -132,15 +133,14 @@ describe('motion library', () => {
     const entry = BVH;
     render(
       <ImportPane
-        outfit={{ state: 'idle', run: () => {}, remove: () => {}, removing: false, landed: null, warned: null, dismiss: () => {} }}
-        looks={[]}
         motionImport={{ running: false, note: null, run: () => {} }}
         library={{ byId: { [ID]: entry }, rename: () => {}, remove: () => {}, busy: false, refetch: () => {} }}
         offline
         lock={false}
       />,
     );
-    expect(screen.getByRole('button', { name: '改名' }).getAttribute('aria-disabled')).toBe('true');
-    expect(screen.getByRole('button', { name: '删除' }).getAttribute('aria-disabled')).toBe('true');
+    expect((screen.getByRole('button', { name: '改名' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: '改名' }).title).toBe('角色未运行');
+    expect((screen.getByRole('button', { name: '删除' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

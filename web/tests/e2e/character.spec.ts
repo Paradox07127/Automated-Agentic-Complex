@@ -35,12 +35,12 @@ test('ok: roster, stage and the motion table with two unsaved switches; no state
   await roster(page);
   await page.goto('main.html#/character?still=1&demo=ok&pane=motion');
   await expect(page.getByRole('button', { name: /^切换角色/ })).toHaveCount(0);
-  const stage = page.locator('[data-stage]');
-  await expect(stage).toContainText('点头附和');
+  // The selected motion is its row; the stage has no 当前动作 band.
+  await expect(page.locator('[data-motion="nod"]')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('grid', { name: '全部动作' })).toContainText('移动与姿态');
   await expect(page.getByRole('region', { name: '状态与行为决策' })).toHaveCount(0);
   await expect(page.getByText(/已修改\s*2\s*项/)).toBeVisible();
-  await expect(page.getByRole('button', { name: /保存/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: '保存', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -49,7 +49,7 @@ test('stage labels are Chinese; the jump row names each section in full', async 
   await expect(page.locator('[data-stage] [data-nameplate]')).toHaveText('示例乙在桌面SIsiZH在做坐着');
   await page.goto('main.html#/character?still=1&pane=motion');
   const stage = page.locator('[data-stage]');
-  await expect(stage).toContainText('触发');
+  await expect(page.locator('[data-motion="nod"]')).toContainText('批准之后');
   await expect(stage.locator('[data-nameplate]')).toHaveCount(0);
   await expect(stage).not.toContainText(/TRIGGER|TIME|TODAY|NOW|DESKTOP PARTNER|MOTION/i);
   const jump = page.getByRole('group', { name: '跳转到分区' });
@@ -96,8 +96,8 @@ test('interactions: pick a motion, preview on the desktop', async ({ page }) => 
   const errors = collectErrors(page);
   await page.goto('main.html#/character?still=1&pane=motion');
   const stage = page.locator('[data-stage]');
-  await page.locator('[data-motion="wave"]').click();
-  await expect(stage).toContainText('挥手');
+  await page.locator('[data-motion="wave"]').getByRole('button', { pressed: false }).click();
+  await expect(page.locator('[data-motion="wave"]')).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('button', { name: /桌面预览/ }).click();
   await expect(stage.getByRole('status')).toContainText('挥手');
   expect(errors).toEqual([]);
@@ -146,8 +146,10 @@ test('error: says the state read failed and keeps the page', async ({ page }) =>
 test('offline: the stage says the character is not running and the table is read-only', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/character?still=1&demo=offline&pane=motion');
-  await expect(page.locator('[data-stage]').getByRole('status')).toContainText('角色未运行');
-  await expect(page.getByRole('switch', { name: '挥手' })).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('[data-preview-stage]').getByRole('status')).toContainText('角色未运行');
+  // The slot under the stage says why 桌面预览 is off.
+  await expect(page.locator('[data-stage] > [data-g="info"]').getByRole('status')).toHaveText('角色未运行');
+  await expect(page.getByRole('radiogroup', { name: '挥手' })).toHaveAttribute('aria-disabled', 'true');
   expect(errors).toEqual([]);
 });
 
@@ -175,21 +177,20 @@ for (const theme of ['dark', 'light'] as const) {
 }
 
 const ACCENT = 'rgb(255, 241, 0)';
-// The character page's dark rows mark the selected one with this yellow left edge.
-const ROW_MARK = 'rgb(255, 230, 0)';
 
 for (const theme of ['dark', 'light'] as const) {
-  test(`yellow marks (${theme}): the current character and the current motion's row edge; the commit line sits in the bottom bar`, async ({ page }) => {
+  test(`yellow marks (${theme}): the current character and the current motion's row edge; the commit line sits in the page's action bar`, async ({ page }) => {
     await page.goto(`main.html#/character?still=1&demo=ok&theme=${theme}`);
     const fill = (l: ReturnType<Page['locator']>) => l.evaluate((e) => getComputedStyle(e).backgroundImage + getComputedStyle(e).backgroundColor);
     const nav = await roster(page);
     await expect(nav.locator('button[aria-current]')).toHaveCount(1);
     expect(await fill(nav.locator('button[aria-current] [data-g="bg"]'))).toContain(ACCENT);
     await page.goto(`main.html#/character?still=1&demo=ok&pane=motion&theme=${theme}`);
-    const edge = (l: ReturnType<Page['locator']>) => l.evaluate((e) => getComputedStyle(e).borderLeftColor);
-    expect(await edge(page.locator('[data-motion="nod"]'))).toBe(ROW_MARK);
-    expect(await edge(page.locator('[data-motion="talk"]'))).not.toBe(ROW_MARK);
-    const bar = page.locator('[data-slot="bottom"]');
+    // The selected dark row's 4 px left edge.
+    const edge = (l: ReturnType<Page['locator']>) => l.locator('[data-stub="DarkRow"]').evaluate((e) => getComputedStyle(e, '::before').backgroundColor);
+    expect(await edge(page.locator('[data-motion="nod"]'))).toBe(ACCENT);
+    expect(await edge(page.locator('[data-motion="talk"]'))).not.toBe(ACCENT);
+    const bar = page.locator('[data-commit]');
     await expect(bar.getByRole('button', { name: /桌面预览/ })).toBeVisible();
     await expect(bar.getByRole('button', { name: '保存' })).toBeVisible();
     await expect(bar).toContainText(/已修改\s*2\s*项/);

@@ -44,7 +44,7 @@ function Op() {
 }
 
 const mode = (name: string) => within(screen.getByRole('radiogroup', { name: '播放方式' })).getByRole('radio', { name }) as HTMLButtonElement;
-const pickNod = () => act(async () => void fireEvent.click(screen.getByRole('grid', { name: '全部动作' }).querySelector('[data-motion="nod"]')!));
+const pickNod = () => act(async () => void fireEvent.click(screen.getByRole('grid', { name: '全部动作' }).querySelector('[data-motion="nod"] button')!));
 
 afterEach(() => {
   cleanup();
@@ -56,7 +56,7 @@ describe('播放方式', () => {
   it('plays once by default, on the desktop and on the stage', async () => {
     const { play, show } = install();
     render(<Op />);
-    expect(mode('播放一次').getAttribute('aria-checked')).toBe('true');
+    expect(mode('一次').getAttribute('aria-checked')).toBe('true');
     await pickNod();
     await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'nod' })));
     expect(show.mock.calls.every(([at]) => !('loop' in at))).toBe(true);
@@ -76,7 +76,7 @@ describe('播放方式', () => {
     expect(play).toHaveBeenCalledWith('nod', 1, { loop: true });
     const stage = document.querySelector('[data-stage]') as HTMLElement;
     await act(async () => void (await new Promise((resolve) => setTimeout(resolve, 1500))));
-    expect(within(stage).getByRole('status').textContent).toContain('桌面播放中');
+    expect(within(stage).getByRole('status').textContent).toContain('循环中 │ 点头附和');
     await act(async () => void fireEvent.click(screen.getByRole('button', { name: '停止' })));
     expect(stop).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(screen.getByRole('button', { name: /桌面预览/ })).toBeTruthy());
@@ -88,7 +88,7 @@ describe('播放方式', () => {
     render(<Op />);
     const loop = mode('循环');
     expect(loop.disabled).toBe(true);
-    expect(loop.title).toBe('这个版本的角色还不支持循环');
-    expect(mode('播放一次').disabled).toBe(false);
+    expect(loop.closest('[title]')?.getAttribute('title')).toBe('这个版本的角色还不支持循环');
+    expect(mode('一次').disabled).toBe(false);
   });
 });

@@ -149,9 +149,9 @@ describe('speed lock reads media', () => {
     expect(mmd.textContent).toContain('BGM');
     expect(mmd.textContent).toContain('表情');
     expect(mmd.textContent).not.toContain('相机');
-    await click(mmd);
+    await click(within(mmd as HTMLElement).getByRole('button', { pressed: false }));
     expect(speeds().find((r) => r.textContent === '2×')!.disabled).toBe(false);
-    await click(document.querySelector('[data-motion="vmd_old"]')!);
+    await click(document.querySelector('[data-motion="vmd_old"] button')!);
     await waitFor(() => expect(speeds().every((r) => r.disabled)).toBe(true));
     expect(speeds().find((r) => r.textContent === '1×')!.getAttribute('aria-checked')).toBe('true');
   });

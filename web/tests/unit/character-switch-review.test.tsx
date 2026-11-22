@@ -82,7 +82,7 @@ describe('a switch on the character page', () => {
   it('drops the unsaved switches of the character before', async () => {
     await mount('&pane=motion');
     await waitFor(() => expect(row('nod')).not.toBeNull());
-    await click(within(row('nod')!).getByRole('switch'));
+    await click(within(row('nod')!).getByRole('radio', { name: '关' }));
     expect(within(row('nod')!).queryByLabelText('未保存')).not.toBeNull();
     await switchTo('示例甲');
     await waitFor(() => expect(row('b_only')).not.toBeNull());
@@ -109,7 +109,7 @@ describe('the rail’s MMD item with unsaved switches', () => {
   it('asks before it leaves them; 留下 keeps the page and the drafts, 放弃 opens MMD', async () => {
     const router = await mount('&pane=motion');
     await waitFor(() => expect(row('nod')).not.toBeNull());
-    await click(within(row('nod')!).getByRole('switch'));
+    await click(within(row('nod')!).getByRole('radio', { name: '关' }));
     const mmd = within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name: 'MMD' });
     await click(mmd);
     const dialog = await screen.findByRole('dialog');
@@ -157,7 +157,7 @@ describe('隐藏界面', () => {
     onRetryMotions: () => {},
     charState: null,
     toast: () => {},
-    // 隐藏界面 is on 总览 only; an unsaved switch keeps the bottom bar there.
+    // 隐藏界面 is on 总览 only.
     pane: 'overview',
     seed: { stretch: false },
   };
@@ -174,13 +174,14 @@ describe('隐藏界面', () => {
     return { bottom, ui, rerender: (q: OperatorProps) => ui.rerender(node(q)) };
   }
 
-  it('takes the bottom bar away and brings it back', async () => {
-    const { bottom } = inShell(props);
-    expect(within(bottom).getByRole('button', { name: /桌面预览/ })).toBeTruthy();
+  it('has no action bar on 总览; an unsaved switch waits for it on the detail pages', async () => {
+    const { bottom, ui, rerender } = inShell(props);
+    expect(ui.container.querySelector('[data-commit]')).toBeNull();
     await click(screen.getByRole('button', { name: '隐藏界面' }));
-    expect(bottom.childElementCount).toBe(0);
     await click(screen.getByRole('button', { name: '隐藏界面', pressed: true }));
-    expect(within(bottom).getByRole('button', { name: /桌面预览/ })).toBeTruthy();
+    rerender({ ...props, pane: 'look' });
+    expect(within(ui.container.querySelector('[data-commit]') as HTMLElement).getByText(/已修改/).textContent).toContain('1');
+    expect(bottom.childElementCount).toBe(0);
     bottom.remove();
   });
 
@@ -215,7 +216,7 @@ describe('调参 motion table', () => {
       </QueryClientProvider>,
     );
     await waitFor(() => expect(row('nod')).not.toBeNull());
-    const sw = within(row('nod')!).getByRole('switch');
+    const sw = within(row('nod')!).getByRole('radiogroup', { name: '点头附和' });
     expect(sw.closest('[data-theme]')?.getAttribute('data-theme')).toBe('dark');
     window.location.hash = '';
   });

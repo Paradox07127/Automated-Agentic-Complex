@@ -40,6 +40,12 @@ const tune = () => mount('', TunePage);
 
 const gets = (): string[] => request.mock.calls.filter(([m]) => m === 'GET').map(([, p]) => p);
 const click = (el: Element) => act(async () => void fireEvent.click(el));
+/** 导入 opened from 动作 imports motions only. */
+const motionImport = async () => {
+  await mount('&pane=motion');
+  await click(await screen.findByRole('tab', { name: '导入' }));
+};
+const importKey = () => screen.getByRole('button', { name: /^导入(动作|中)…/ }) as HTMLButtonElement;
 
 beforeEach(() => {
   vi.mocked(pushToast).mockClear();
@@ -220,13 +226,14 @@ describe('motion import', () => {
     let finish: (r: Awaited<ReturnType<AgenticComplexBridge['character']['importMotion']>>) => void = () => {};
     vi.spyOn(bridge.character, 'importMotion').mockImplementationOnce(() => new Promise((r) => (finish = r)));
     const actions = vi.spyOn(bridge.avatar, 'actions');
-    await mount('&pane=import');
+    await motionImport();
     await waitFor(() => expect(actions).toHaveBeenCalled());
     const reads = actions.mock.calls.length;
-    await click(screen.getByRole('button', { name: '导入动作' }));
-    expect(screen.getByRole('button', { name: '导入中…' }).getAttribute('aria-disabled')).toBe('true');
+    await click(importKey());
+    expect(importKey().textContent).toContain('导入中…');
+    expect(importKey().disabled).toBe(true);
     await act(async () => finish({ ok: true, action: { id: 'vmd_dance', title: '极乐净土', durationS: 12.5, hasBgm: false, format: 'vmd', warnings: [] } }));
-    expect(screen.getByRole('button', { name: '导入动作' }).getAttribute('aria-disabled')).toBeNull();
+    expect(importKey().disabled).toBe(false);
     expect(line()).toBe('已导入「极乐净土」（VMD）');
     await waitFor(() => expect(actions.mock.calls.length).toBeGreaterThan(reads));
   });
@@ -235,28 +242,41 @@ describe('motion import', () => {
     vi.spyOn(bridge.character, 'importMotion')
       .mockResolvedValueOnce({ ok: false, reason: 'too_many_actions', detail: 'si already has 128 action rows' })
       .mockResolvedValueOnce({ ok: false, reason: 'internal', detail: 'unknown_character: cedar' });
-    await mount('&pane=import');
-    await click(await screen.findByRole('button', { name: '导入动作' }));
-    expect(line()).toBe('导入没有完成：动作已满 128 条');
-    await click(screen.getByRole('button', { name: '导入动作' }));
-    expect(line()).toBe('导入没有完成：unknown_character: cedar');
+    await motionImport();
+    await click(await screen.findByRole('button', { name: /^导入动作…/ }));
+    expect(line()).toBe('导入没有完成动作已满 128 条too_many_actions');
+    await click(importKey());
+    expect(line()).toBe('导入没有完成unknown_character: cedarinternal');
   });
 
   it('names the format and counts the warnings of a non-VMD import', async () => {
     vi.spyOn(bridge.character, 'importMotion').mockResolvedValueOnce({ ok: true, action: { id: 'bvh_walk', title: 'walk', durationS: 3, hasBgm: false, format: 'bvh', warnings: ['fingers_rest'] } });
-    await mount('&pane=import');
-    await click(await screen.findByRole('button', { name: '导入动作' }));
+    await motionImport();
+    await click(await screen.findByRole('button', { name: /^导入动作…/ }));
     expect(line()).toContain('（BVH）');
     expect(line()).toContain('有 1 条提示');
   });
 
   it('a cancelled pick says nothing', async () => {
     vi.spyOn(bridge.character, 'importMotion').mockResolvedValueOnce({ ok: true, action: { id: 'vmd_dance', title: '极乐净土', durationS: 12.5, hasBgm: false, format: 'vmd', warnings: [] } }).mockResolvedValueOnce({ ok: false, reason: 'cancelled' });
-    await mount('&pane=import');
-    await click(await screen.findByRole('button', { name: '导入动作' }));
-    await click(screen.getByRole('button', { name: '导入动作' }));
+    await motionImport();
+    await click(await screen.findByRole('button', { name: /^导入动作…/ }));
+    await click(importKey());
     expect(document.querySelector('[data-motion-import]')).toBeNull();
     expect(toasts()).toEqual([]);
+  });
+
+  it('drops the last result as soon as the next import starts', async () => {
+    let finish: (r: Awaited<ReturnType<AgenticComplexBridge['character']['importMotion']>>) => void = () => {};
+    vi.spyOn(bridge.character, 'importMotion')
+      .mockResolvedValueOnce({ ok: false, reason: 'too_many_actions', detail: '' })
+      .mockImplementationOnce(() => new Promise((r) => (finish = r)));
+    await motionImport();
+    await click(importKey());
+    expect(line()).toContain('导入没有完成');
+    await click(importKey());
+    expect(document.querySelector('[data-motion-import]')).toBeNull();
+    await act(async () => finish({ ok: false, reason: 'cancelled' }));
   });
 
   it('plays an imported action with BGM at 1× only', async () => {
@@ -267,11 +287,11 @@ describe('motion import', () => {
       ok: true,
       motions: [{ id: 'vmd_dance', clip: 'imported_vmd_dance', title: '极乐净土', format: 'vmd', durationS: 12.5, hasBgm: true, createdAt: null, warnings: [] }],
     });
-    await mount('&pane=import');
-    await click(await screen.findByRole('button', { name: '导入动作' }));
+    await motionImport();
+    await click(await screen.findByRole('button', { name: /^导入动作…/ }));
     await click(screen.getByRole('tab', { name: '动作表' }));
     await waitFor(() => expect(document.querySelector('[data-motion="vmd_dance"]')).not.toBeNull());
-    await click(document.querySelector('[data-motion="vmd_dance"]')!);
+    await click(document.querySelector('[data-motion="vmd_dance"] button')!);
     const speed = screen.getByRole('radiogroup', { name: '播放速度' });
     expect(within(speed).getByRole('radio', { name: '1×' }).getAttribute('aria-checked')).toBe('true');
     expect(within(speed).getAllByRole('radio').every((r) => (r as HTMLButtonElement).disabled)).toBe(true);

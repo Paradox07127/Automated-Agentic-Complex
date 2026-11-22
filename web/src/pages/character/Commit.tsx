@@ -1,5 +1,6 @@
-import { BottomBarSlot } from '../../shell/headerSlot';
-import { Btn, Seg, StatusTag } from '../../ui';
+import { Fragment } from 'react';
+import { Icon, StatusTag } from '../../ui';
+import { ActionBar, Barcode, Diamond, GameSeg, MicroLabel, WhiteCapsule, YellowKey } from '../../ui/game';
 import styles from './Commit.module.css';
 
 export interface SaveNoteProps {
@@ -29,7 +30,10 @@ export function SaveNote({ offline, n, sparse }: SaveNoteProps) {
   return sparse ? <span className={styles.cap}>今日播放较少</span> : null;
 }
 
-export interface CommitProps extends Omit<SaveNoteProps, 'sparse'> {
+export interface CommitProps {
+  offline: boolean;
+  /** The unsaved switches in table order: the name and the value it goes to. */
+  changes: Array<{ label: string; on: boolean }>;
   saving: boolean;
   onUndo: () => void;
   onSave: () => void;
@@ -39,7 +43,6 @@ export interface CommitProps extends Omit<SaveNoteProps, 'sparse'> {
   oneSpeed: boolean;
   /** Why the preview cannot run; null when it can. */
   blocked: string | null;
-  playing: boolean;
   hidden?: boolean;
   onPlay: () => void;
   /** 播放方式: true loops the desktop preview and the stage's live preview. */
@@ -50,52 +53,98 @@ export interface CommitProps extends Omit<SaveNoteProps, 'sparse'> {
   /** The desktop loops a motion now: 停止 takes the place of 桌面预览. */
   looping: boolean;
   onStop: () => void;
+  /** 0–1 of the desktop play, the yellow line on the bar's top edge; null draws none. */
+  progress: number | null;
 }
 
-const SPEEDS = ['0.5', '1', '2'];
+const SPEEDS = ['0.5', '1', '2'].map((s) => ({ value: s, label: `${s}×` }));
+const NO_LOOP = '这个版本的角色还不支持循环';
 
-/** 底部操作条：改动状态 │ 为什么、桌面预览、速度和播放方式 │ 撤销、保存。 */
+/** 动作页底部动作条：左边桌面预览（黄键，循环时白色停止）、速度和播放方式；右边改了哪些、撤销、保存。 */
 export function Commit(p: CommitProps) {
-  const why = p.blocked ?? (p.playing ? '桌面正在播放此动作' : p.oneSpeed ? '带背景音乐 │ 只能 1× 播放' : null);
-  return (
-    <BottomBarSlot>
-      <div className={styles.bar} data-commit="">
-        <span className={styles.note}>
-          <SaveNote offline={p.offline} n={p.n} sparse={false} />
+  const n = p.changes.length;
+  const off = p.blocked != null;
+  const right = p.offline ? (
+    <span className={styles.ro} data-theme="dark">
+      <SaveNote offline n={n} sparse={false} />
+    </span>
+  ) : n > 0 ? (
+    <>
+      <span className={styles.st}>
+        <span className={styles.h}>
+          <Diamond tone="yellow" size={7} />
+          <span>
+            已修改 <b className={styles.n}>{n}</b> 项
+          </span>
+          <MicroLabel>Unsaved</MicroLabel>
         </span>
-        <span className={styles.why}>{why}</span>
-        {p.looping ? (
-          <Btn variant="secondary" tail="stop" onClick={p.onStop}>
-            停止
-          </Btn>
-        ) : (
-          <Btn variant="secondary" tail="play" disabled={p.blocked != null} disabledReason={p.blocked ?? undefined} onClick={p.onPlay}>
-            {p.hidden ? '显示角色并预览' : '桌面预览'}
-          </Btn>
-        )}
-        <Seg size="sm" label="播放速度" value={p.speed} onChange={p.onSpeed} options={SPEEDS.map((s) => ({ value: s, label: `${s}×`, disabled: p.blocked != null || p.oneSpeed }))} />
-        <Seg
-          size="sm"
-          label="播放方式"
-          value={p.loop ? 'loop' : 'once'}
-          onChange={(v) => p.onLoop(v === 'loop')}
-          options={[
-            { value: 'once', label: '播放一次' },
-            { value: 'loop', label: '循环', disabled: !p.canLoop, disabledReason: p.canLoop ? undefined : '这个版本的角色还不支持循环' },
-          ]}
+        <span className={styles.l}>
+          {p.changes.map((c, i) => (
+            <Fragment key={c.label + i}>
+              {i > 0 && ' │ '}
+              <b>{c.label}</b> {c.on ? '关→开' : '开→关'}
+            </Fragment>
+          ))}
+        </span>
+      </span>
+      <WhiteCapsule label="撤销" icon="refresh" onClick={p.onUndo} />
+      <span className={styles.save} data-busy={p.saving || undefined} aria-busy={p.saving || undefined}>
+        <YellowKey
+          label="保存"
+          icon="check"
+          micro="Commit"
+          onClick={() => {
+            if (!p.saving) p.onSave();
+          }}
         />
-        {!p.offline && p.n > 0 && (
-          <>
-            <i className={styles.sep} aria-hidden="true" />
-            <Btn variant="quiet" onClick={p.onUndo}>
-              撤销
-            </Btn>
-            <Btn variant="primary" loading={p.saving} onClick={p.onSave}>
-              保存
-            </Btn>
-          </>
-        )}
-      </div>
-    </BottomBarSlot>
+      </span>
+    </>
+  ) : undefined;
+  return (
+    <div className={styles.deck} data-commit="">
+      <ActionBar
+        label="桌面预览"
+        {...(p.progress != null ? { progress: p.progress } : {})}
+        left={
+          <span className={styles.left}>
+            <span className={styles.ttl} aria-hidden="true">
+              <b>PLAY</b>
+              <MicroLabel>Desktop / Ctrl</MicroLabel>
+              <Barcode width={54} height={6} />
+            </span>
+            {p.looping ? (
+              <button type="button" className={styles.stop} onClick={p.onStop}>
+                <span className={styles.stopFace}>
+                  <span className={styles.stopKi}>
+                    <Icon name="stop" size={16} />
+                  </span>
+                  <span className={styles.stopTx}>
+                    <MicroLabel>Desktop</MicroLabel>
+                    <span>停止</span>
+                  </span>
+                </span>
+              </button>
+            ) : (
+              <YellowKey label={p.hidden ? '显示角色并预览' : '桌面预览'} micro="Desktop" disabled={off} {...(p.blocked ? { disabledReason: p.blocked } : {})} onClick={p.onPlay} />
+            )}
+            <GameSeg label="播放速度" caption="速度" micro="Speed" value={p.speed} onChange={p.onSpeed} disabled={off || p.oneSpeed} options={SPEEDS} />
+            <span title={p.canLoop ? undefined : NO_LOOP}>
+              <GameSeg
+                label="播放方式"
+                caption="播放方式"
+                micro="Mode"
+                value={p.loop ? 'loop' : 'once'}
+                onChange={(v) => p.onLoop(v === 'loop')}
+                options={[
+                  { value: 'once', label: '一次' },
+                  { value: 'loop', label: '循环', disabled: !p.canLoop },
+                ]}
+              />
+            </span>
+          </span>
+        }
+        {...(right ? { right: <span className={styles.right}>{right}</span> } : {})}
+      />
+    </div>
   );
 }

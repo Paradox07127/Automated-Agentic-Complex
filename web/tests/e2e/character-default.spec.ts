@@ -70,10 +70,11 @@ test('character motions: group heads stay inside the table, a behavior-only row 
   });
   expect(outside).toEqual([]);
   await expect(grid).not.toContainText('不支持单独预览');
-  await expect(grid.locator('[data-motion="walk"]').getByRole('img', { name: '由行为触发 │ 不支持单独预览' })).toBeVisible();
-  await expect(grid.locator('[data-motion="nod"]').getByRole('img', { name: /不支持单独预览/ })).toHaveCount(0);
-  // A row is the play-mark cell, then name, trigger, duration, ….
-  for (const id of ['drag', 'idle', 'walk']) await expect(grid.locator(`[data-motion="${id}"] > :nth-child(2) > :nth-child(3)`)).toHaveText('—');
+  // A behavior-only row has the AUTO lead and says why on hover.
+  await expect(grid.locator('[data-motion="walk"]')).toHaveAttribute('title', '由行为触发 │ 不支持单独预览');
+  await expect(grid.locator('[data-motion="walk"] [data-mark="auto"]')).toBeVisible();
+  await expect(grid.locator('[data-motion="nod"]')).not.toHaveAttribute('title', /不支持单独预览/);
+  for (const id of ['drag', 'idle', 'walk']) await expect(grid.locator(`[data-motion="${id}"]`)).toContainText('—');
 });
 
 test('tune: plate numbers are Title Case and no SVG text is under 11 px', async ({ page }) => {

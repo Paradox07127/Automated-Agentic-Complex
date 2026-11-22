@@ -4,8 +4,8 @@ import { motionFormatLabel, motionImportReason } from './labels';
 
 export interface MotionImport {
   running: boolean;
-  /** The last result line; null before the first import and after a cancelled one. */
-  note: { ok: boolean; text: string } | null;
+  /** The last result line, gone once the next import starts; null before the first import and after a cancelled one. A failure also carries the reason in words and the tool's code. */
+  note: { ok: boolean; text: string; reason?: string; code?: string } | null;
   run: () => void;
 }
 
@@ -15,6 +15,7 @@ export function useMotionImport(call: () => Promise<MotionImportResult>, onImpor
   const [note, setNote] = useState<MotionImport['note']>(null);
   const run = () => {
     setRunning(true);
+    setNote(null);
     call()
       .then(
         (r) => {
@@ -23,11 +24,16 @@ export function useMotionImport(call: () => Promise<MotionImportResult>, onImpor
             const n = r.action.warnings.length;
             setNote({ ok: true, text: `已导入「${r.action.title}」（${motionFormatLabel(r.action.format)}）${n ? `，有 ${n} 条提示` : ''}` });
             onImported();
-          } else setNote(r.reason === 'cancelled' ? null : { ok: false, text: `导入没有完成：${motionImportReason(r.reason, r.detail)}` });
+          } else if (r.reason === 'cancelled') setNote(null);
+          else {
+            const reason = motionImportReason(r.reason, r.detail);
+            setNote({ ok: false, text: `导入没有完成：${reason}`, reason, code: r.reason });
+          }
         },
         (e: unknown) => {
           setRunning(false);
-          setNote({ ok: false, text: `导入没有完成：${(e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}` });
+          const reason = (e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应';
+          setNote({ ok: false, text: `导入没有完成：${reason}`, reason });
         },
       );
   };

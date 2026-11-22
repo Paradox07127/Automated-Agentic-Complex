@@ -1,9 +1,8 @@
 /* The stage on the training room floor, as large as the layout leaves; the name block on the scene beside or over it. */
 .frame {
-  /* Attribute row divider #484848@0.235. */
-  --st-cell-rule: rgb(72 72 72 / 23.5%);
-  /* Detail pages: the band under the stage that holds the name block, clear of the live preview drawn over the stage. */
-  --det-h: 112px;
+  /* Detail pages: the status slot under the stage, clear of the live preview drawn over the stage, and the page's action bar under it (Commit.module.css). */
+  --slot-h: 26px;
+  --deck-h: 0px;
 
   position: absolute;
   inset: 0;
@@ -36,10 +35,14 @@
   transition: none;
 }
 
-/* Detail pages: the left part, next to the panel, above the name band. */
+.frame[data-deck] {
+  --deck-h: 60px;
+}
+
+/* Detail pages: the left part, next to the panel, above the status slot and the action bar. */
 .frame[data-mode='detail'] .stage {
   right: calc(var(--rail) + var(--gap) + var(--panel-w) + 12px);
-  bottom: var(--det-h);
+  bottom: calc(var(--deck-h) + var(--slot-h));
   left: calc(var(--strip) + 8px);
 }
 
@@ -131,7 +134,7 @@
   height: 100%;
 }
 
-/* Name block: the left column on 总览, the band under the stage on a detail page. */
+/* Name block: the left column on 总览, low beside the 拍照 panel. */
 .details {
   position: absolute;
   top: 28px;
@@ -164,27 +167,60 @@
   width: min(340px, 30cqw);
 }
 
-/* Detail pages: the name block left in the band under the stage, the selected motion and the preview state right of it. */
-.frame[data-mode='detail'] .details {
-  top: auto;
+/* Detail pages: one line under the stage, left over the action bar's key: a dark tag cut on its right, a diamond (orange for a reason it cannot play), the words. */
+.slot {
+  position: absolute;
   right: calc(var(--rail) + var(--gap) + var(--panel-w) + 12px);
-  bottom: 0;
-  left: calc(var(--strip) + 20px);
-  grid-template-columns: auto minmax(0, 1fr);
-  align-content: center;
-  gap: 4px 20px;
-  width: auto;
-  height: var(--det-h);
+  bottom: var(--deck-h);
+  left: calc(var(--strip) + 8px);
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  height: var(--slot-h);
+  padding-left: 100px;
+  pointer-events: none;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 18px 0 10px;
+  background: rgb(22 22 22 / 90%);
+  color: rgb(255 255 255 / 85%);
+  font: 500 12px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 100%, 0 100%);
+  pointer-events: auto;
+}
+
+.tagT {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.frame[data-mode='detail'] .details > :not([data-nameplate]) {
-  grid-column: 2;
+.retry {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 
-.frame[data-mode='detail'] .details > [data-nameplate] {
-  grid-row: 1 / span 4;
-  align-self: center;
+.retry:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: 2px;
 }
 
 .frame[data-mode='photo'] .details {
@@ -199,81 +235,9 @@
   min-width: 0;
 }
 
-/* The selected motion: bold over a low band. */
-.motion {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--ef-sp-4) var(--ef-sp-8);
-  min-width: 0;
-  padding: var(--ef-sp-4) 0 var(--ef-sp-2);
-  background: linear-gradient(to top, color-mix(in srgb, var(--ef-text-1) 10%, transparent) 0 11px, transparent 11px);
-  font-size: var(--ef-fs-body);
-}
-
-.motion b {
-  font: 700 var(--ef-fs-body-lg) / 1.3 var(--ef-font-sans);
-  overflow-wrap: anywhere;
-}
-
 .cap {
   font-size: var(--ef-fs-small);
   color: var(--ef-text-2);
-}
-
-/* Secondary attribute cells: white paper, key │ value. */
-.spec {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  margin: 0;
-  font-size: var(--ef-fs-small);
-}
-
-.spec > div {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: center;
-  gap: var(--ef-sp-6);
-  min-width: 73px;
-  min-height: 20px;
-  padding: 2px var(--ef-sp-6);
-  background: rgb(255 255 255 / 82%);
-  color: #262626;
-}
-
-.specK {
-  flex: none;
-  padding-right: var(--ef-sp-6);
-  border-right: 1.5px solid var(--st-cell-rule);
-  color: rgb(38 38 38 / 62%);
-}
-
-.spec dd {
-  margin: 0;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.playing {
-  display: grid;
-  gap: var(--ef-sp-4);
-}
-
-.plT {
-  font-size: var(--ef-fs-small);
-}
-
-.plL {
-  display: block;
-  height: 2px;
-  background: var(--ef-line);
-}
-
-.plL i {
-  display: block;
-  height: 100%;
-  background: var(--ef-trace);
 }
 
 .ovl {
@@ -306,10 +270,22 @@
   filter: grayscale(1);
 }
 
-/* Compact: the narrower band and stage, the left column closer to the strip. */
+/* Compact: a lower slot and action bar, a narrower stage, the left column closer to the strip. */
 @container op (max-width: 1100px) {
   .frame {
-    --det-h: 84px;
+    --slot-h: 22px;
+  }
+
+  .frame[data-deck] {
+    --deck-h: 48px;
+  }
+
+  .slot {
+    padding-left: 10px;
+  }
+
+  .tag {
+    height: 18px;
   }
 
   .stage {
@@ -329,7 +305,19 @@
 
 @container op (max-height: 560px) {
   .frame {
-    --det-h: 84px;
+    --slot-h: 22px;
+  }
+
+  .frame[data-deck] {
+    --deck-h: 48px;
+  }
+
+  .slot {
+    padding-left: 10px;
+  }
+
+  .tag {
+    height: 18px;
   }
 
   .stage {

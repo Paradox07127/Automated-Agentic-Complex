@@ -1,0 +1,322 @@
+/* 动作 → 导入: title bar, the import key, the running import, the last result, the imported motions. */
+.mgrp {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fm {
+  font: 600 12px / 1 var(--ef-font-num);
+  letter-spacing: 0.08em;
+  color: rgb(255 255 255 / 75%);
+  white-space: nowrap;
+}
+
+/* The import key (档案键 recipe, larger): a light chamfered board, a dark icon cell, an orange diamond top right. */
+.ikey {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 76px;
+  padding: 0;
+  border: 0;
+  background: linear-gradient(90deg, rgb(255 255 255 / 90%), rgb(240 240 240 / 78%));
+  color: #262626;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+}
+
+.ikey:hover:not(:disabled) {
+  background: #fff;
+}
+
+.ikey:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -4px;
+}
+
+.ikey:disabled {
+  cursor: default;
+}
+
+.ikey[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.ikIc {
+  display: grid;
+  flex: none;
+  place-items: center;
+  align-self: stretch;
+  width: 76px;
+  background: #2e2e2e;
+  color: #fff;
+}
+
+.ikey[aria-busy='true'] .ikIc {
+  background: #4a4a4a;
+}
+
+.ikTx {
+  display: grid;
+  gap: 6px;
+  padding: 0 18px;
+}
+
+.ikTx b {
+  font-size: 18px;
+}
+
+.ikTx span,
+.ikHint {
+  font-size: 12px;
+  color: rgb(38 38 38 / 62%);
+}
+
+/* Low on the right, under the micro label and the diamond. */
+.ikHint {
+  align-self: flex-end;
+  max-width: 220px;
+  margin: 0 22px 9px auto;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.ikMicro {
+  position: absolute;
+  top: 7px;
+  right: 40px;
+}
+
+.ikDia {
+  position: absolute;
+  top: 6px;
+  right: 20px;
+  display: flex;
+}
+
+/* The running import: file name, stage, percent; a chain of arrow cells; a ten-tick bar. */
+.run {
+  padding: 12px 16px 14px;
+  background: rgb(46 46 46 / 90%);
+  color: #fff;
+  backdrop-filter: blur(8px);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+
+.runTop {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.runTop b {
+  overflow: hidden;
+  font-size: 15px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.runK {
+  font-size: 12px;
+  color: rgb(255 255 255 / 55%);
+  white-space: nowrap;
+}
+
+.pct {
+  margin-left: auto;
+  font: 700 30px / 1 var(--ef-font-num);
+  color: var(--ef-accent);
+}
+
+.pct small {
+  font-size: 14px;
+}
+
+.chain {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chain li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 30px;
+  padding-left: 14px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 8%);
+  color: rgb(255 255 255 / 45%);
+  font-size: 12px;
+  white-space: nowrap;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%);
+}
+
+.chain li:first-child {
+  padding-left: 10px;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%);
+}
+
+.chain li[data-s='done'] {
+  background: rgb(255 255 255 / 82%);
+  color: #1a1a1a;
+}
+
+.chain li[data-s='now'] {
+  background: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(0 0 0 / 14%) 4px 5.5px), var(--ef-accent);
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+.chNo {
+  font: 600 11px / 1 var(--ef-font-num);
+  opacity: 0.7;
+}
+
+.chT {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pbar {
+  position: relative;
+  display: block;
+  height: 6px;
+  margin-top: 12px;
+  background: rgb(255 255 255 / 12%);
+}
+
+.pbar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ef-accent);
+}
+
+.pbar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgb(0 0 0 / 50%) calc(10% - 1px) 10%);
+}
+
+/* The last result: a dark row, yellow edge and ✓ on success, orange edge and ✕ on failure with the tool's code. */
+.note {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  min-height: 56px;
+  background: rgb(70 70 70 / 88%);
+  color: #fff;
+  box-shadow: inset 4px 0 0 var(--ef-accent);
+}
+
+.noteLead {
+  display: grid;
+  place-items: center;
+  background: rgb(46 46 46 / 94%);
+  color: var(--ef-accent);
+}
+
+.note[data-tone='danger'] {
+  box-shadow: inset 4px 0 0 #ff8a7a;
+}
+
+.note[data-tone='danger'] .noteLead {
+  background: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 138 122 / 28%) 4px 5.5px), rgb(46 46 46 / 94%);
+  color: #ff8a7a;
+}
+
+.noteTx {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 9px 14px;
+  overflow-wrap: anywhere;
+}
+
+.noteTx b {
+  font-size: 14px;
+}
+
+.note[data-tone='danger'] .noteTx b {
+  color: #ff8a7a;
+}
+
+.noteTx span {
+  font-size: 12px;
+  color: rgb(255 255 255 / 62%);
+}
+
+.noteCode {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+}
+
+/* Compact: a lower key without the hints, the stage chain names only the current stage, no import time. */
+@container op (max-width: 1100px) {
+  .ikey {
+    height: 58px;
+  }
+
+  .ikIc {
+    width: 54px;
+  }
+
+  .ikTx {
+    gap: 3px;
+    padding: 0 12px;
+  }
+
+  .ikTx b {
+    font-size: 15px;
+  }
+
+  .ikHint,
+  .ikMicro,
+  .irAt,
+  .chNo,
+  .media,
+  .mgrp [data-stub='TitleBar'] > [data-stub='MicroLabel'] {
+    display: none;
+  }
+
+  .fm {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+
+  .run {
+    padding: 8px 12px 10px;
+  }
+
+  .pct {
+    font-size: 22px;
+  }
+
+  .chain li {
+    height: 24px;
+  }
+
+  .chain li:not([data-s='now']) .chT {
+    display: none;
+  }
+
+  .irow {
+    grid-template-columns: 40px minmax(0, 1fr) 48px 44px auto;
+    min-height: 40px;
+  }
+
+  .irNm b {
+    font-size: 13px;
+  }
+}

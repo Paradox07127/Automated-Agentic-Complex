@@ -49,12 +49,16 @@ describe('character · 角色与动作', () => {
     cleanup();
     // The detail pages have no head strip and no roster key.
     await mount('&demo=ok&pane=motion');
-    await waitFor(() => expect(stage().textContent).toContain('点头附和'));
+    const grid = await screen.findByRole('grid', { name: '全部动作' });
+    // The selected motion is its row alone: the stage has no 当前动作 band repeating it.
+    await waitFor(() => expect(grid.querySelector('[data-motion="nod"]')?.getAttribute('aria-selected')).toBe('true'));
     expect(screen.queryByRole('button', { name: /^切换角色/ })).toBeNull();
-    expect(stage().textContent).toContain('批准之后');
-    const grid = screen.getByRole('grid', { name: '全部动作' });
+    expect(grid.querySelector('[data-motion="nod"]')?.textContent).toContain('批准之后');
+    expect(stage().textContent).not.toContain('批准之后');
     expect(['说话', '反应', '待机', '移动与姿态', '互动'].every((s) => grid.textContent?.includes(s))).toBe(true);
-    expect(within(grid.querySelector<HTMLElement>('[data-motion="walk"]')!).getByRole('img', { name: '由行为触发 │ 不支持单独预览' })).toBeTruthy();
+    const walk = grid.querySelector<HTMLElement>('[data-motion="walk"]')!;
+    expect(walk.querySelector('[data-mark="auto"]')).not.toBeNull();
+    expect(walk.title).toBe('由行为触发 │ 不支持单独预览');
     expect(grid.textContent).not.toContain('不支持单独预览');
     expect(grid.querySelector('[data-motion="idle"]')?.textContent).toContain('—');
     expect(grid.querySelector('[data-motion="whisper"]')?.textContent).toContain('新');
@@ -64,12 +68,13 @@ describe('character · 角色与动作', () => {
   it('selects a motion from the table and says why a missing one cannot preview', async () => {
     await mount('&pane=motion');
     const grid = await screen.findByRole('grid', { name: '全部动作' });
-    await act(async () => void fireEvent.click(grid.querySelector('[data-motion="think"]')!));
-    expect(stage().textContent).toContain('思考');
-    expect(screen.getAllByText('缺少 think_02 │ 不支持预览').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /桌面预览/ }).getAttribute('aria-disabled')).toBe('true');
-    await act(async () => void fireEvent.click(grid.querySelector('[data-motion="walk"]')!));
-    expect(screen.getAllByText('由行为触发 │ 不支持单独预览').length).toBeGreaterThan(1);
+    await act(async () => void fireEvent.click(grid.querySelector('[data-motion="think"] button')!));
+    expect(grid.querySelector('[data-motion="think"]')?.getAttribute('aria-selected')).toBe('true');
+    // The slot under the stage says why 桌面预览 is off.
+    expect(within(stage()).getByRole('status').textContent).toContain('缺少 think_02 │ 不支持预览');
+    expect((screen.getByRole('button', { name: /桌面预览/ }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => void fireEvent.click(grid.querySelector('[data-motion="walk"] button')!));
+    expect(within(stage()).getByRole('status').textContent).toContain('由行为触发 │ 不支持单独预览');
   });
 
   it('plays on the desktop and shows the progress on the stage', async () => {
@@ -102,7 +107,7 @@ describe('character · 角色与动作', () => {
   it('has no plays-today display on 动作, even on the mock bridge that counts them for 调参', async () => {
     await mount('&pane=motion');
     const grid = await screen.findByRole('grid', { name: '全部动作' });
-    await waitFor(() => expect(stage().textContent).toContain('点头附和'));
+    await waitFor(() => expect(document.querySelector('[data-motion="nod"]')?.getAttribute('aria-selected')).toBe('true'));
     expect(screen.queryByText('今日播放')).toBeNull();
     expect(screen.queryByRole('img', { name: /今日按小时播放/ })).toBeNull();
     expect(document.querySelector('[data-motions]')?.textContent).not.toContain('今日');
@@ -129,7 +134,7 @@ describe('角色 page layout', () => {
     expect(stage().querySelector('[data-nameplate]')?.textContent).toContain('示例乙');
     cleanup();
     await mount('&pane=motion');
-    await waitFor(() => expect(stage().textContent).toContain('点头附和'));
+    await waitFor(() => expect(document.querySelector('[data-motion="nod"]')?.getAttribute('aria-selected')).toBe('true'));
     expect(stage().querySelector('[data-nameplate]')).toBeNull();
     expect(stage().textContent).not.toContain('坐着');
   });
@@ -143,11 +148,11 @@ describe('角色 page layout', () => {
     expect(current()).toEqual(['说话']);
     fireEvent.click(within(tabs).getByRole('button', { name: '跳转到 互动' }));
     expect(current()).toEqual(['互动']);
-    await act(async () => void fireEvent.click(grid.querySelector('[data-motion="click"]')!));
+    await act(async () => void fireEvent.click(grid.querySelector('[data-motion="click"] button')!));
     expect(current()).toEqual(['反应']);
   });
 
-  it('puts the draft state, 桌面预览 and 保存 in the shell’s bottom bar, and leaves it empty without the operator view', async () => {
+  it('draws the draft state, 桌面预览 and 保存 in its own action bar and leaves the shell’s bottom bar empty', async () => {
     const bottom = document.createElement('div');
     document.body.append(bottom);
     const slot = { setSub: () => {}, right: null, action: null, bottom };
@@ -170,12 +175,13 @@ describe('角色 page layout', () => {
       </HeaderSlotContext.Provider>,
     );
     const view = ui.container.querySelector('[data-view="operator"]') as HTMLElement;
-    expect(within(bottom).getByText(/已修改/).textContent).toContain('1');
-    expect(within(bottom).getByRole('button', { name: /桌面预览/ })).toBeTruthy();
-    expect(within(bottom).getByRole('button', { name: '保存' })).toBeTruthy();
-    expect(within(view).queryByRole('button', { name: /桌面预览|保存/ })).toBeNull();
-    ui.unmount();
+    const bar = view.querySelector('[data-commit]') as HTMLElement;
+    expect(within(bar).getByText(/已修改/).textContent).toContain('1');
+    expect(bar.textContent).toContain('伸懒腰 开→关');
+    expect(within(bar).getByRole('button', { name: /桌面预览/ })).toBeTruthy();
+    expect(within(bar).getByRole('button', { name: '保存' })).toBeTruthy();
     expect(bottom.childElementCount).toBe(0);
+    ui.unmount();
     bottom.remove();
   });
 });
@@ -196,7 +202,7 @@ describe('character · real data', () => {
   it('leaves out the blocks agentd and the host do not serve yet', async () => {
     window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
     await mount('&pane=motion');
-    await waitFor(() => expect(stage().textContent).toContain('点头附和'));
+    await waitFor(() => expect(document.querySelector('[data-motion="nod"]')?.getAttribute('aria-selected')).toBe('true'));
     expect(screen.queryByText('今日播放')).toBeNull();
     expect(stage().textContent).not.toContain('今日');
     expect(screen.queryByRole('switch', { name: '显示武器' })).toBeNull();

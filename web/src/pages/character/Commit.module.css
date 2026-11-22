@@ -1,39 +1,161 @@
-/* The page's line in the shell's dark bottom bar: draft state left, then why, desktop preview and speed, then undo and save. */
-.bar {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: var(--ef-sp-12);
-  min-width: 0;
-  font: var(--ef-t-table);
+/* 动作页底部动作条: across the bottom of the scene; the left part as wide as the stage above it, the right part under the panel. */
+.deck {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
 }
 
-.note {
+/* The ActionBar's own gaps (edge, slot, split) take about 57 px before the split, which then falls in the 12 px between stage and panel. */
+.left {
   display: flex;
-  flex: 0 1 auto;
+  flex: none;
   align-items: center;
-  gap: var(--ef-sp-8);
+  gap: 14px;
+  width: calc(100cqw - var(--rail) - var(--gap) - var(--panel-w) - 57px);
   min-width: 0;
-  overflow: hidden;
+}
+
+.right {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 14px;
+  width: var(--panel-w);
+  min-width: 0;
+}
+
+/* PLAY, its micro label and a barcode: the left end's title, wide windows only. */
+.ttl {
+  display: grid;
+  flex: none;
+  gap: 4px;
+}
+
+.ttl b {
+  font: 700 13px / 1 var(--ef-font-num);
+  letter-spacing: 0.1em;
+}
+
+.ttl svg {
+  fill: rgb(255 255 255 / 35%);
+}
+
+/* 停止 while the desktop loops: the yellow key's shape in white. */
+.stop {
+  display: inline-flex;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #1a1a1a;
+  cursor: pointer;
+  filter: drop-shadow(0 0 10px rgb(255 255 255 / 25%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
+}
+
+.stopFace {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 42px;
+  padding: 0 24px 0 5px;
+  background: linear-gradient(180deg, #fff, #e4e4e4);
+  font: 600 15px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+
+.stopKi {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: #1a1a1a;
+  color: #fff;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+.stopTx {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stop:active .stopFace {
+  translate: 0 1px;
+}
+
+.stop:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* What the save writes: n changed, then which ones and how. */
+.st {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 700 14px / 1 var(--ef-font-sans);
   white-space: nowrap;
 }
 
-.why {
-  flex: 1 1 0;
-  min-width: 0;
+.n {
+  font: 700 18px / 1 var(--ef-font-num);
+  color: var(--ef-accent);
+}
+
+.l {
   overflow: hidden;
-  font-size: var(--ef-fs-small);
-  color: var(--ef-text-2);
-  text-align: right;
+  font-size: 12px;
+  color: rgb(255 255 255 / 62%);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.sep {
+.l b {
+  font-weight: 500;
+  color: #fff;
+}
+
+.ro {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+/* Saving: a hatch runs over the save key's face. */
+.save {
+  position: relative;
+  display: inline-flex;
   flex: none;
-  width: 1px;
-  height: 20px;
-  background: var(--ef-rule);
+}
+
+.save[data-busy]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(0 0 0 / 22%) 4px 6px);
+  background-size: 8.5px 8.5px;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  pointer-events: none;
+  animation: run 600ms linear infinite;
+}
+
+@keyframes run {
+  to {
+    background-position: 8.5px 0;
+  }
 }
 
 .cap {
@@ -44,4 +166,54 @@
 .num {
   font-family: var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .save[data-busy]::after {
+    animation: none;
+  }
+}
+
+@container op (max-width: 1279px) {
+  .ttl {
+    display: none;
+  }
+}
+
+/* Compact: a lower bar, no captions over the switches, no list of changes. */
+@container op (max-width: 1100px) {
+  .deck > [data-stub='ActionBar'] {
+    height: 48px;
+  }
+
+  .left,
+  .right {
+    gap: 8px;
+  }
+
+  .left [data-stub='GameSeg'] > [aria-hidden='true'],
+  .l,
+  .h > [data-stub='MicroLabel'] {
+    display: none;
+  }
+
+  .left [data-stub='GameSeg'] button {
+    min-width: 32px;
+    padding: 0 5px;
+  }
+
+  .h {
+    font-size: 12px;
+  }
+}
+
+@container op (max-height: 560px) {
+  .deck > [data-stub='ActionBar'] {
+    height: 48px;
+  }
+
+  .left [data-stub='GameSeg'] > [aria-hidden='true'],
+  .l {
+    display: none;
+  }
 }

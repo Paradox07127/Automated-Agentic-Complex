@@ -113,9 +113,9 @@ describe(' 角色 page after 调参 moved out', () => {
     mount(CharacterPage, '&pane=motion');
     const grid = await screen.findByRole('grid', { name: '全部动作' });
     const nod = await waitFor(() => grid.querySelector('[data-motion="nod"]') as HTMLElement);
-    expect(within(nod).getByRole('switch', { name: '点头附和' })).toBeTruthy();
+    expect(within(nod).getByRole('radiogroup', { name: '点头附和' })).toBeTruthy();
     expect(nod.textContent).toContain('批准之后');
-    expect(nod.textContent).toMatch(/\d\.\d s/);
+    expect(nod.textContent).toMatch(/\d\.\ds/);
     expect(screen.queryByRole('region', { name: '状态与行为决策' })).toBeNull();
     expect(screen.queryByRole('img', { name: /^精神和心情/ })).toBeNull();
     expect(screen.queryByRole('tablist', { name: '角色视图' })).toBeNull();

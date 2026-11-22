@@ -1,135 +1,65 @@
-/* Motion table: one continuous list, section tabs that jump, sticky group header rows, the shared dark rows. */
+/* Motion table on the training room: search and filters, the section jump row, column titles, then dark rows under sticky group title bars. */
+@import './MotionTable.tools.css';
+
 .mt {
+  /* Row columns inside the dark row's body: name, trigger, duration, today's plays where counted. */
+  --cells: minmax(84px, 1.4fr) minmax(0, 1fr) 56px;
+  /* The dark row after its body: body padding 12, end padding 4, 必需 56, gap 10, switch 88, barcode 90. */
+  --row-end: 260px;
+  --row-lead: 68px;
+
   display: flex;
   flex-direction: column;
   min-height: 0;
-  margin-bottom: var(--ef-sp-16);
-}
-
-.bar {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ef-sp-8);
-  padding: 0 0 var(--ef-sp-8);
-}
-
-.q {
-  flex: none;
-  width: 132px;
-}
-
-/* Filter chip: a TagNode cell, rounded 5 px, yellow while pointed at or on. */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ef-sp-4);
-  height: 26px;
-  padding: 0 var(--ef-sp-8);
-  border: 0;
-  border-radius: 5px;
-  background: var(--ef-chip);
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.chip:hover,
-.chip[aria-pressed='true'] {
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
-}
-
-.chip:active {
-  background: var(--ef-accent-press);
-  transform: translateY(1px);
-}
-
-.chip:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
-.sp {
-  flex: 1;
-}
-
-/* Section tabs on a row of their own; the current one has a trace underline. They wrap when the column is narrower than all of them. */
-.jump {
-  display: flex;
-  flex: 1 1 100%;
-  flex-wrap: wrap;
-  gap: var(--ef-sp-4) var(--ef-sp-2);
-  min-width: 0;
-  border-bottom: 1px solid var(--ef-line);
-}
-
-.jump button {
-  flex: none;
-  height: 28px;
-  margin-bottom: -1px;
-  padding: 0 var(--ef-sp-8);
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.jump button:hover {
   color: var(--ef-text-1);
 }
 
-.jump button:active {
-  background: var(--ef-chip);
+.mt[data-count] {
+  --cells: minmax(84px, 1.4fr) minmax(0, 1fr) 56px 32px;
 }
 
-.jump button[aria-current] {
-  border-bottom-color: var(--ef-trace);
-  color: var(--ef-text-1);
-  font-weight: 600;
-}
-
-.jump button:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: -2px;
-}
-
-/* The columns after the row's left cell: name, trigger, duration, today's plays where counted, 必需, the switch. */
-.cells {
-  display: grid;
-  flex: 1;
-  /* The name keeps room for six characters (坐在窗口顶上); the trigger gives way first. */
-  grid-template-columns: minmax(84px, 1fr) minmax(0, 0.6fr) 46px 32px 44px 72px;
-  align-items: center;
-  gap: var(--ef-sp-6);
-  min-width: 0;
-  padding: 0 var(--ef-sp-8) 0 var(--ef-sp-12);
-}
-
-.mt[data-nocount] .cells {
-  grid-template-columns: minmax(84px, 1fr) minmax(0, 0.6fr) 46px 44px 72px;
-}
-
-.mt[data-compact] .cells {
-  grid-template-columns: minmax(84px, 1fr) 44px 72px;
-}
-
-/* Column titles over the rows, past the 4 px edge and the left cell. */
+/* Column titles over the rows, past the row's lead cell. */
 .cols {
   display: flex;
   flex: none;
   align-items: center;
   height: 24px;
-  padding-left: calc(4px + 44px);
-  font-size: var(--ef-fs-small);
+  padding-left: var(--row-lead);
+  font-size: 12px;
   color: var(--ef-text-2);
+}
+
+.cols > .cells {
+  padding-right: 12px;
+}
+
+.cols span {
+  white-space: nowrap;
+}
+
+.cols [data-stub='MicroLabel'] {
+  margin-left: 4px;
+}
+
+.colsEnd {
+  flex: none;
+  width: var(--row-end);
+  padding-left: 82px;
+}
+
+.duH,
+.ctH {
+  text-align: right;
+}
+
+/* Name, trigger, duration (and today's plays) inside the dark row's body. */
+.cells {
+  display: grid;
+  flex: 1;
+  grid-template-columns: var(--cells);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .list {
@@ -137,10 +67,19 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
   min-height: 0;
   overflow: auto;
-  padding-bottom: var(--ef-sp-6);
+  padding: 0 6px 6px 0;
+}
+
+.grp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.grp + .grp {
+  margin-top: 8px;
 }
 
 .gh {
@@ -149,103 +88,142 @@
   z-index: 2;
 }
 
-.list .row {
-  min-height: 40px;
+.gm {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  white-space: nowrap;
 }
 
-.list > [role='rowgroup'] + [role='rowgroup'] {
-  margin-top: 10px;
+.gn {
+  font: 600 13px / 1 var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
 }
 
-/* The play mark; behavior-only motions strike it through; the selected motion's is framed in yellow. */
-.mk {
-  --ef-paper-text: #ffe600;
-
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
+.gn em {
+  font-style: normal;
+  opacity: 0.55;
 }
 
-.noPlay {
-  position: relative;
-  display: inline-flex;
-  color: rgb(255 255 255 / 55%);
+.gd {
+  font-size: 12px;
+  opacity: 0.72;
 }
 
-.noPlay::after {
-  content: '';
-  position: absolute;
-  top: calc(50% - 1px);
-  right: 0;
-  left: 0;
-  height: 2px;
-  background: currentColor;
-  transform: rotate(-45deg);
+.r[data-off] :is(.lb, .tr, .du) {
+  opacity: 0.42;
 }
 
 .nm {
   display: flex;
   align-items: center;
-  gap: 2px;
-  overflow: hidden;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.nm > i {
-  margin-left: var(--ef-sp-6);
-}
-
-.new,
-.fmt {
-  flex: none;
-  margin-left: var(--ef-sp-4);
-  font-size: var(--ef-fs-small);
-  font-weight: 600;
-  color: rgb(255 255 255 / 85%);
-}
-
-.lb,
-.tr {
+  gap: 8px;
   min-width: 0;
   overflow: hidden;
+}
+
+/* The name keeps its width before the tags after it; they are cut first. */
+.lb {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 500;
   text-overflow: ellipsis;
 }
 
+.new {
+  flex: none;
+  padding: 1px 7px 1px 4px;
+  background: var(--ef-accent);
+  color: #1a1a1a;
+  font: 700 12px / 1.2 var(--ef-font-sans);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+}
+
+.fmt {
+  flex: none;
+  padding: 2px 5px;
+  border: 1px solid rgb(255 255 255 / 45%);
+  color: rgb(255 255 255 / 85%);
+  font: 600 11px / 1 var(--ef-font-num);
+  letter-spacing: 0.08em;
+}
+
+.media {
+  flex: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(255 255 255 / 70%);
+}
+
+.chg {
+  display: inline-flex;
+  flex: none;
+  filter: drop-shadow(0 0 4px rgb(255 241 0 / 70%));
+}
+
 .tr {
-  font-size: var(--ef-fs-small);
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 400;
   color: rgb(255 255 255 / 72%);
-  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.r[data-miss] .tr {
+  color: var(--dr-miss, #ff8a7a);
 }
 
 .du,
 .ct {
-  font-family: var(--ef-font-ui);
-  font-size: var(--ef-fs-small);
+  font: 600 15px / 1 var(--ef-font-num);
   font-variant-numeric: tabular-nums;
-  color: rgb(255 255 255 / 72%);
   text-align: right;
 }
 
-.ct:not([data-zero]) {
-  overflow: hidden;
-  color: #fff;
+.du small {
+  margin-left: 1px;
+  font-size: 12px;
+  opacity: 0.6;
 }
 
-.tg {
+.ct {
+  font-size: 13px;
+}
+
+.ct[data-zero] {
+  opacity: 0.5;
+}
+
+/* After the body: 必需 in a fixed slot, then the switch, so every row's columns line up. */
+.end {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
 }
 
-.row:is([data-off], [data-miss]) :is(.nm, .tr, .du) {
-  color: rgb(255 255 255 / 55%);
+.req {
+  display: flex;
+  flex: none;
+  width: 56px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px 0 5px;
+  border: 1px solid rgb(255 255 255 / 55%);
+  background: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 8%) 4px 5px);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .none {
-  padding: var(--ef-sp-8) var(--ef-sp-12);
-  font-size: var(--ef-fs-small);
+  padding: 8px 12px;
+  font-size: 12px;
   color: var(--ef-text-2);
 }
 
@@ -261,9 +239,8 @@
   font-size: var(--ef-fs-body);
 }
 
-.num {
-  font-family: var(--ef-font-ui);
-  font-variant-numeric: tabular-nums;
+.sp {
+  flex: 1;
 }
 
 @container page (max-width: 760px) {
@@ -276,5 +253,69 @@
     position: sticky;
     bottom: 0;
     z-index: 3;
+  }
+}
+
+/* Compact: no column titles, trigger, barcode or section note; 必需 is its lock only. */
+@container op (max-width: 1100px) {
+  .mt {
+    --cells: minmax(0, 1fr) 44px;
+    --row-end: 170px;
+  }
+
+  .bar {
+    gap: 6px;
+  }
+
+  .q {
+    flex-basis: 130px;
+    height: 28px;
+  }
+
+  .qm,
+  .long,
+  .cols,
+  .tr,
+  .gd,
+  .fmt,
+  .media,
+  .r [data-stub='DarkRow'] > [aria-hidden='true']:last-child {
+    display: none;
+  }
+
+  .chip {
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .jump {
+    height: 26px;
+    margin-top: 4px;
+  }
+
+  .jump button {
+    padding: 0 7px;
+    font-size: 12px;
+  }
+
+  .du {
+    font-size: 13px;
+  }
+
+  .r [data-stub='DarkRow'] {
+    min-height: 40px;
+  }
+
+  .req {
+    width: 22px;
+  }
+
+  .tag {
+    padding: 0 3px;
+  }
+
+  .tagT {
+    display: none;
   }
 }

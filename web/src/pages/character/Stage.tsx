@@ -1,24 +1,21 @@
-import { useState } from 'react';
-import type { AvatarAction } from '../../bridge';
+import { useState, type ReactNode } from 'react';
 import { NodeChain, type ChainNode } from '../../charts';
 import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
 import { Btn, CharacterArt, Spinner, StatusTag } from '../../ui';
+import { Diamond } from '../../ui/game';
 import { Silhouette } from './Figure';
 import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';
 import { useLivePreview } from './usePreview';
 import type { SwitchState } from './useSwitch';
 import styles from './Stage.module.css';
 
-export interface StagePlay {
-  label: string;
-  speed: number;
-  /** 0–1; null when the motion has no duration. */
-  progress: number | null;
+/** One line for the slot under a detail stage; `warn` is a reason the desktop preview cannot run. */
+export interface StageStatus {
+  text: ReactNode;
+  tone?: 'warn';
 }
 
 export interface StageProps {
-  motion: AvatarAction | undefined;
-  section: string;
   /** Empty draws no name block. */
   name: string;
   /** Latin name under the name. */
@@ -43,7 +40,10 @@ export interface StageProps {
   currentName: string;
   onRetry: () => void;
   onDismiss: () => void;
-  play: StagePlay | null;
+  /** Detail pages: the page's line for the slot under the stage; a `warn` line goes before the live preview's loading or failure, any other after its failure. */
+  status?: StageStatus | null | undefined;
+  /** Detail pages: the page's action bar stands under the slot, so the stage ends above both. */
+  deck?: boolean;
   /** Character id for the shell's live preview, which covers the art while it draws; absent keeps the art. */
   characterId?: string;
   /** Action the user picked to preview live; absent plays the idle. */
@@ -56,8 +56,6 @@ export interface StageProps {
 
 export type StageMode = 'overview' | 'detail' | 'photo';
 
-const secs = (d: number) => `${d.toFixed(1)} s`;
-
 /** 目录读到之前的空舞台：同样的画框和影子。 */
 export function StageSkel() {
   return (
@@ -67,12 +65,8 @@ export function StageSkel() {
   );
 }
 
-/** The live preview stage on the training room floor, and the name block: her name, what she is doing, the selected motion and playback feedback. On 总览 the state rows (not running, a switch) stand under the name block, outside the stage the live preview covers. */
+/** The live preview stage on the training room floor. On 总览 the name block and the state rows (not running, a switch) stand beside it; on a detail page one status line stands in the slot under it, outside the rect the live preview covers. */
 export function Stage(p: StageProps) {
-  const m = p.motion;
-  const spec: Array<[k: string, v: string]> = [];
-  if (m?.trigger) spec.push(['触发', m.trigger]);
-  const meta = [p.section, m?.requiredReason ? '必需' : null, m?.missing ? '⊘ 缺资源' : null].filter(Boolean).join(' │ ');
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const preview = useLivePreview(p.characterId ? el : null, {
     character: p.characterId ?? '',
@@ -93,8 +87,24 @@ export function Stage(p: StageProps) {
       </div>}
     </>
   );
+  const warn = p.status?.tone === 'warn' ? p.status : null;
+  const line: StageStatus | null =
+    warn ??
+    (preview.phase === 'failed'
+      ? {
+          text: (
+            <>
+              {preview.message}
+              <button type="button" className={styles.retry} onClick={preview.retry}>
+                重试预览
+              </button>
+            </>
+          ),
+          tone: 'warn',
+        }
+      : (p.status ?? (preview.phase === 'loading' ? { text: '正在载入预览' } : null)));
   return (
-    <div className={styles.frame} data-stage="" data-mode={mode}>
+    <div className={styles.frame} data-stage="" data-mode={mode} data-deck={(mode === 'detail' && p.deck) || undefined}>
       <div ref={setEl} className={styles.stage} data-off={p.offline || undefined} data-preview-stage="" data-live={preview.phase === 'live' || undefined}>
         <svg className={styles.rings} viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">
           <ellipse cx={50} cy={10} rx={49} ry={9} />
@@ -117,40 +127,24 @@ export function Stage(p: StageProps) {
         )}
         {!overview && p.sw.phase !== 'idle' && <SwitchOverlay sw={p.sw} currentName={p.currentName} onRetry={p.onRetry} onDismiss={p.onDismiss} />}
       </div>
-      <div className={styles.details} data-g="info">
-        {/* The state row takes the place of 在做 while she is not running or a switch is on. */}
-        {p.name && <NameBlock name={p.name} en={p.en} active={p.active} voice={p.voice} activity={overview && p.sw.phase !== 'idle' ? null : p.activity} offline={p.offline} />}
-        {overview && p.offline && <OfflineRow backoff={p.backoff} onRestart={p.onRestart} />}
-        {overview && p.sw.phase !== 'idle' && <SwitchRow sw={p.sw} currentName={p.currentName} onRetry={p.onRetry} onDismiss={p.onDismiss} />}
-        {m && <div className={styles.motion} data-g="tags">
-          <b>{m.label}</b>
-          {m.durationS != null && <span className="num">{secs(m.durationS)}</span>}
-          {meta && <span className={styles.cap}>{meta}</span>}
-        </div>}
-        {spec.length > 0 && (
-          <dl className={styles.spec} data-g="attrs">
-            {spec.map(([k, v]) => (
-              <div key={k}>
-                <dt className={styles.specK}>{k}</dt>
-                <dd>{v}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-        {!overview && previewNote}
-        {p.play && (
-          <div className={styles.playing} role="status">
-            <span className={styles.plT}>
-              {p.play.progress != null && p.play.progress >= 1 ? '播放完成' : '桌面播放中'} │ {p.play.label} <span className="num">{p.play.speed}×</span>
+      {mode === 'detail' ? (
+        <div className={styles.slot} data-g="info">
+          {line && (
+            <span className={styles.tag} role="status" data-tone={line.tone}>
+              <Diamond tone={line.tone === 'warn' ? 'orange' : 'yellow'} size={6} />
+              <span className={styles.tagT}>{line.text}</span>
             </span>
-            {p.play.progress != null && (
-              <span className={styles.plL}>
-                <i style={{ width: `${p.play.progress * 100}%` }} />
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      ) : (
+        <div className={styles.details} data-g="info">
+          {/* The state row takes the place of 在做 while she is not running or a switch is on. */}
+          {p.name && <NameBlock name={p.name} en={p.en} active={p.active} voice={p.voice} activity={overview && p.sw.phase !== 'idle' ? null : p.activity} offline={p.offline} />}
+          {overview && p.offline && <OfflineRow backoff={p.backoff} onRestart={p.onRestart} />}
+          {overview && p.sw.phase !== 'idle' && <SwitchRow sw={p.sw} currentName={p.currentName} onRetry={p.onRetry} onDismiss={p.onDismiss} />}
+          {!overview && previewNote}
+        </div>
+      )}
       {overview && <div className={styles.pv}>{previewNote}</div>}
     </div>
   );

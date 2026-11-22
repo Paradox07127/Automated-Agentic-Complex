@@ -171,6 +171,11 @@ describe('operator view', () => {
   });
 });
 
+/** A motion row's 开｜关 (GameSeg), named by the motion. */
+const toggle = (name: string) => screen.getByRole('radiogroup', { name });
+const isOn = (g: HTMLElement) => within(g).getByRole('radio', { name: '开' }).getAttribute('aria-checked') === 'true';
+const flip = (g: HTMLElement) => fireEvent.click(within(g).getAllByRole('radio').find((r) => r.getAttribute('aria-checked') !== 'true')!);
+
 describe('motions (avatar.actions shape)', () => {
   it('lists every section in words in one table, locks required ones and marks missing assets', () => {
     const { container } = render(<Op />);
@@ -178,7 +183,7 @@ describe('motions (avatar.actions shape)', () => {
     expect(grid.textContent).toContain('说话');
     expect(grid.textContent).toContain('移动与姿态');
     expect(grid.textContent).not.toContain('talk');
-    expect(screen.getByRole('switch', { name: '开口说话' }).getAttribute('aria-disabled')).toBe('true');
+    expect(toggle('开口说话').getAttribute('aria-disabled')).toBe('true');
     expect(container.textContent).toContain('必需');
     // The compact table keeps no trigger column; the missing reason shows on the stage and the full table on 调参.
     expect(grid.querySelector('[data-motion="think"]')?.hasAttribute('data-miss')).toBe(true);
@@ -188,24 +193,23 @@ describe('motions (avatar.actions shape)', () => {
     const toast = vi.fn();
     const set = vi.spyOn(bridge.avatar, 'setActionSwitches').mockResolvedValue({ switches: { nod: true }, adjusted: [{ id: 'nod', reason: 'last_in_section' }] });
     render(<Op toast={toast} />);
-    fireEvent.click(screen.getByRole('switch', { name: '点头附和' }));
+    flip(toggle('点头附和'));
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() => expect(set).toHaveBeenCalledWith({ nod: false }));
     await waitFor(() => expect(toast).toHaveBeenCalled());
     expect(String(toast.mock.calls[0]?.[0])).toContain('分区里至少留一个');
-    expect(screen.getByRole('switch', { name: '点头附和' }).getAttribute('aria-checked')).toBe('true');
+    expect(isOn(toggle('点头附和'))).toBe(true);
   });
 
   it('shows a default-off action off and writes true when the user first turns it on', async () => {
     const attack = { id: 'attack', label: '攻击', enabled: false, defaultEnabled: false, section: 'react', trigger: '手动', durationS: 1.5, isNew: false, missingReason: null, playable: true };
     const set = vi.spyOn(bridge.avatar, 'setActionSwitches').mockResolvedValue({ switches: { attack: true }, adjusted: [] });
     render(<Op actions={[...MOTIONS, attack]} />);
-    const sw = screen.getByRole('switch', { name: '攻击' });
-    expect(sw.getAttribute('aria-checked')).toBe('false');
-    fireEvent.click(sw);
+    expect(isOn(toggle('攻击'))).toBe(false);
+    flip(toggle('攻击'));
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() => expect(set).toHaveBeenCalledWith({ attack: true }));
-    await waitFor(() => expect(screen.getByRole('switch', { name: '攻击' }).getAttribute('aria-checked')).toBe('true'));
+    await waitFor(() => expect(isOn(toggle('攻击'))).toBe(true));
   });
 
   it('names why the host refused to play', async () => {
@@ -224,7 +228,7 @@ describe('motions (avatar.actions shape)', () => {
     render(<Op toast={toast} />);
     fireEvent.click(screen.getByRole('button', { name: /桌面预览/ }));
     await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getAllByRole('switch').find((s) => s.getAttribute('aria-disabled') !== 'true')!);
+    flip(within(screen.getByRole('grid', { name: '全部动作' })).getAllByRole('radiogroup').find((g) => g.getAttribute('aria-disabled') !== 'true')!);
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() => expect(toast).toHaveBeenCalledTimes(2));
     const said = toast.mock.calls.map((c) => String(c[0]));
@@ -235,8 +239,6 @@ describe('motions (avatar.actions shape)', () => {
 });
 
 const stageProps: StageProps = {
-  motion: MOTIONS[1],
-  section: '说话',
   name: '示例乙',
   activity: '坐着',
   scale: 100,
@@ -247,7 +249,6 @@ const stageProps: StageProps = {
   currentName: '示例乙',
   onRetry: noop,
   onDismiss: noop,
-  play: null,
 };
 
 const CEDAR = { id: 'cedar', name: '示例丙', en: 'CEDAR', active: false };

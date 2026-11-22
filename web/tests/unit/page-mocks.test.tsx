@@ -2,7 +2,7 @@
 // kernel-off demo and the motions save reason.
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
@@ -137,7 +137,7 @@ describe('small fixes', () => {
     const toast = vi.fn();
     vi.spyOn(bridge.avatar, 'setActionSwitches').mockResolvedValue({ switches: { nod: true }, adjusted: [{ id: 'nod', reason: 'host_policy_x' }] });
     render(<Motions toast={toast} />);
-    fireEvent.click(screen.getByRole('switch', { name: '点头附和' }));
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: '点头附和' })).getByRole('radio', { name: '关' }));
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() => expect(toast).toHaveBeenCalled());
     expect(String(toast.mock.calls[0]?.[0])).toContain(NO_REASON);

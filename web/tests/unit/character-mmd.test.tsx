@@ -80,7 +80,8 @@ describe('motion tabs without MMD dances', () => {
         { id: 'bvh_walk', clip: 'imported_bvh_walk', title: 'walk', format: 'bvh', durationS: 3, hasBgm: false, createdAt: null, warnings: [] },
       ],
     });
-    await mount('&pane=import');
+    await mount('&pane=motion');
+    await click(await screen.findByRole('tab', { name: '导入' }));
     const list = await screen.findByRole('list', { name: '导入的动作' });
     expect(Array.from(list.querySelectorAll('[data-imported-motion]')).map((e) => e.getAttribute('data-imported-motion'))).toEqual(['bvh_walk']);
   });

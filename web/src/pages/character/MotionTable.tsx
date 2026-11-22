@@ -1,10 +1,9 @@
 import { useRef, useState } from 'react';
 import type { AvatarAction, ImportedMotionEntry } from '../../bridge';
-import { Btn, Icon, SearchField, Toggle } from '../../ui';
-import { SelMark } from './charMotion';
+import { Btn, Icon } from '../../ui';
+import { DarkRow, Diamond, GameSeg, MicroLabel, TitleBar, type DarkRowMark } from '../../ui/game';
 import { SaveNote } from './Commit';
-import { motionFormatLabel } from './labels';
-import dark from './Rows.module.css';
+import { motionFormatLabel, SECTIONS } from './labels';
 import styles from './MotionTable.module.css';
 
 export interface MotionRow {
@@ -36,8 +35,6 @@ export interface MotionTableProps {
   saving: boolean;
   onUndo: () => void;
   onSave: () => void;
-  /** Name, 必需 and the switch only; trigger, duration and today's plays stay on the 调参 page; the save line is the page's bottom bar. */
-  compact?: boolean;
   /** The page already has a fixed save bar. */
   externalCommit?: boolean;
   /** Imported motions by action id: their rows carry the format tag. */
@@ -46,10 +43,22 @@ export interface MotionTableProps {
 
 const NO_IMPORTS: Record<string, ImportedMotionEntry> = {};
 const sum = (v: number[] | undefined) => (v ?? []).reduce((a, b) => a + b, 0);
-const secs = (d: number) => `${d.toFixed(1)} s`;
 const NO_PLAY = '由行为触发 │ 不支持单独预览';
+const ON_OFF = [
+  { value: 'on', label: '开' },
+  { value: 'off', label: '关' },
+];
 
-/** 动作表：一个连续列表，分区是吸顶组头和一排页签（点了跳过去）；行：播放标记、名称、触发、时长、今日（有计数时）、必需、开关；底栏整组提交。 */
+function Lock() {
+  return (
+    <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+      <rect x="3" y="7" width="10" height="7" fill="currentColor" />
+      <path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+/** 动作表：搜索和两个筛选、分区跳转条、列头，然后按分区的深色行（吸顶组头带已开 / 总数和分区说明）；点行在舞台上预览，开关整组提交。 */
 export function MotionTable(p: MotionTableProps) {
   const [q, setQ] = useState('');
   const [onlyMiss, setOnlyMiss] = useState(false);
@@ -85,124 +94,164 @@ export function MotionTable(p: MotionTableProps) {
     const count = sum(p.hours?.[a.id]);
     const imp = imported[a.id];
     const lockReason = p.offline ? '角色未运行' : p.lock ? '切换中 │ 输入暂停' : a.missing ? '缺资源' : a.requiredReason;
+    const mark: DarkRowMark = a.missing ? 'missing' : a.playable === false ? 'auto' : 'play';
     return (
       <div
         key={a.id}
-        className={`${dark.row} ${styles.row}`}
-        // Dark in either theme (the 调参 page has no dark panel around it): its switch takes the dark tokens.
+        className={styles.r}
+        // Dark in either theme (the 调参 page has no dark panel around it).
         data-theme="dark"
         role="row"
         aria-selected={on}
-        tabIndex={0}
         data-motion={a.id}
         data-miss={a.missing || undefined}
         data-off={(!v && !a.missing) || undefined}
-        onClick={() => pick(a.id)}
-        onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
-            e.preventDefault();
-            pick(a.id);
-          }
-        }}
+        title={mark === 'auto' ? NO_PLAY : undefined}
       >
-        <span className={dark.lead}>
-          <span className={styles.mk}>
-            {a.playable === false && !a.missing ? (
-              <span className={styles.noPlay} title={NO_PLAY}>
-                <Icon name="play" size={14} label={NO_PLAY} />
-              </span>
-            ) : (
-              !a.missing && <Icon name="play" size={14} />
-            )}
-            {on && <SelMark />}
-          </span>
-        </span>
-        <span className={styles.cells}>
-          <span className={styles.nm}>
-            <span className={styles.lb} title={a.label}>
-              {a.label}
-            </span>
-            {a.isNew && <span className={styles.new}>新</span>}
-            {imp && <span className={styles.fmt}>{motionFormatLabel(imp.format)}</span>}
-            {a.media?.bgm && <span className={styles.fmt}>BGM</span>}
-            {a.media?.face && <span className={styles.fmt}>表情</span>}
-            {a.media?.camera && <span className={styles.fmt}>相机</span>}
-            {a.id in p.changed && <i className={dark.chg} title="未保存" aria-label="未保存" />}
-          </span>
-          {!p.compact && (
-            <>
-              <span className={styles.tr} title={a.missing ? (a.missingReason ?? '缺资源') : (a.trigger ?? undefined)}>
-                {a.missing ? `⊘ ${(a.missingReason ?? '缺资源').replace(/^缺少\s*/, '缺 ')}` : (a.trigger ?? '')}
-              </span>
-              <span className={styles.du}>{a.durationS != null ? secs(a.durationS) : '—'}</span>
-              {p.hours && (
-                <span className={styles.ct} title="今日播放次数" data-zero={count === 0 || undefined}>
-                  {a.missing ? '' : count}
+        <div role="gridcell">
+          <DarkRow
+            mark={mark}
+            selected={on}
+            micro={on ? 'Preview' : 'Agentic'}
+            onPress={() => pick(a.id)}
+            title={
+              <span className={styles.cells}>
+                <span className={styles.nm}>
+                  <span className={styles.lb} title={a.label}>
+                    {a.label}
+                  </span>
+                  {a.isNew && <span className={styles.new}>新</span>}
+                  {imp && <span className={styles.fmt}>{motionFormatLabel(imp.format)}</span>}
+                  {a.media?.bgm && <span className={styles.media}>BGM</span>}
+                  {a.media?.face && <span className={styles.media}>表情</span>}
+                  {a.media?.camera && <span className={styles.media}>相机</span>}
+                  {a.id in p.changed && (
+                    <span className={styles.chg} role="img" title="未保存" aria-label="未保存">
+                      <Diamond tone="yellow" size={8} />
+                    </span>
+                  )}
                 </span>
-              )}
-            </>
-          )}
-          <span>
-            {a.requiredReason && (
-              <span className={dark.tag} title={a.requiredReason}>
-                必需
+                <span className={styles.tr} title={a.missing ? (a.missingReason ?? '缺资源') : (a.trigger ?? undefined)}>
+                  {a.missing ? `⊘ ${(a.missingReason ?? '缺资源').replace(/^缺少\s*/, '缺 ')}` : (a.trigger ?? '')}
+                </span>
+                <span className={styles.du}>
+                  {a.durationS != null ? (
+                    <>
+                      {a.durationS.toFixed(1)}
+                      <small>s</small>
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </span>
+                {p.hours && (
+                  <span className={styles.ct} title="今日播放次数" data-zero={count === 0 || undefined}>
+                    {a.missing ? '' : count}
+                  </span>
+                )}
               </span>
-            )}
-          </span>
-          <span className={styles.tg} onClick={(e) => e.stopPropagation()}>
-            <Toggle size="sm" on={v} label={a.label} disabled={lockReason != null} disabledReason={lockReason ?? ''} onChange={(x) => p.onToggle(a, x)} />
-          </span>
-        </span>
+            }
+            end={
+              <span className={styles.end}>
+                <span className={styles.req}>
+                  {a.requiredReason && (
+                    <span className={styles.tag} title={a.requiredReason}>
+                      <Lock />
+                      <span className={styles.tagT}>必需</span>
+                    </span>
+                  )}
+                </span>
+                <span title={lockReason ?? undefined}>
+                  <GameSeg variant="onoff" label={a.label} value={v ? 'on' : 'off'} options={ON_OFF} disabled={lockReason != null} onChange={(x) => p.onToggle(a, x === 'on')} />
+                </span>
+              </span>
+            }
+          />
+        </div>
       </div>
     );
   };
 
   return (
-    <div className={styles.mt} data-nocount={!p.hours || undefined} data-compact={p.compact || undefined} data-motions="">
+    <div className={styles.mt} data-count={p.hours ? '' : undefined} data-motions="">
       <div className={styles.bar}>
         <span className={styles.q}>
-          <SearchField value={q} label="搜索动作" placeholder="搜索动作" onChange={setQ} />
+          <span className={styles.qi} aria-hidden="true">
+            <Icon name="search" size={14} />
+          </span>
+          <input
+            className={styles.qin}
+            value={q}
+            placeholder="搜索动作"
+            aria-label="搜索动作"
+            onChange={(e) => setQ(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && q) setQ('');
+            }}
+          />
+          {q ? (
+            <button type="button" className={styles.qx} aria-label="清除搜索" title="清除搜索" onClick={() => setQ('')}>
+              <Icon name="close" size={12} />
+            </button>
+          ) : (
+            <span className={styles.qm}>
+              <MicroLabel>Search</MicroLabel>
+            </span>
+          )}
         </span>
-        <button type="button" className={styles.chip} aria-pressed={onlyMiss} onClick={() => setOnlyMiss((x) => !x)}>
-          ⊘ 仅显示缺资源 <span className={styles.num}>{missN}</span>
+        <button type="button" className={styles.chip} aria-label={`仅显示缺资源 ${missN}`} aria-pressed={onlyMiss} onClick={() => setOnlyMiss((x) => !x)}>
+          <i className={styles.box} aria-hidden="true" />
+          <span className={styles.miss}>⊘</span>
+          <span className={styles.long}>仅显示</span>缺资源 <span className={styles.cn}>{missN}</span>
         </button>
         {impN > 0 && (
-          <button type="button" className={styles.chip} aria-pressed={onlyImp} onClick={() => setOnlyImp(!onlyImp)}>
-            只看导入 <span className={styles.num}>{impN}</span>
+          <button type="button" className={styles.chip} aria-label={`只看导入 ${impN}`} aria-pressed={onlyImp} onClick={() => setOnlyImp(!onlyImp)}>
+            <i className={styles.box} aria-hidden="true" />
+            <span className={styles.long}>只看</span>导入 <span className={styles.cn}>{impN}</span>
           </button>
         )}
-        <span className={styles.jump} role="group" aria-label="跳转到分区" data-hscroll="">
-          {p.groups.map((g) => (
-            <button key={g.key} type="button" aria-label={`跳转到 ${g.name}`} aria-current={g.key === here || undefined} onClick={() => jump(g.key)}>
-              {g.name}
-            </button>
-          ))}
-        </span>
       </div>
+      <span className={styles.jump} role="group" aria-label="跳转到分区" data-hscroll="">
+        {p.groups.map((g) => (
+          <button key={g.key} type="button" aria-label={`跳转到 ${g.name}`} aria-current={g.key === here || undefined} onClick={() => jump(g.key)}>
+            {g.name}
+          </button>
+        ))}
+      </span>
       <div className={styles.cols} aria-hidden="true">
         <span className={styles.cells}>
-          <span>名称</span>
-          {!p.compact && (
-            <>
-              <span>触发</span>
-              <span>时长</span>
-              {p.hours && <span>今日</span>}
-            </>
-          )}
-          <span />
-          <span />
+          <span>
+            名称 <MicroLabel>Name</MicroLabel>
+          </span>
+          <span className={styles.trH}>
+            触发 <MicroLabel>Trigger</MicroLabel>
+          </span>
+          <span className={styles.duH}>时长</span>
+          {p.hours && <span className={styles.ctH}>今日</span>}
+        </span>
+        <span className={styles.colsEnd}>
+          开关 <MicroLabel>On/Off</MicroLabel>
         </span>
       </div>
       <div className={styles.list} ref={listRef} role="grid" aria-label="全部动作">
         {p.groups.map((g) => {
           const shown = g.rows.filter((x) => (!onlyMiss || x.a.missing) && (!onlyImp || x.a.id in imported) && (!qq || `${x.a.label}${x.a.trigger ?? ''}`.includes(qq)));
           return (
-            <div key={g.key} className={dark.list} data-group={g.key} role="rowgroup">
-              <div className={`${dark.head} ${styles.gh}`}>
-                <span>{g.name}</span>
-                <span className={`${dark.meta} ${styles.num}`}>
-                  {g.rows.filter((x) => p.value(x.a)).length}/{g.rows.length}
-                </span>
+            <div key={g.key} className={styles.grp} data-group={g.key} role="rowgroup">
+              <div className={styles.gh}>
+                <TitleBar
+                  title={g.name}
+                  micro={`Sec / ${(g.key || 'etc').toUpperCase()}`}
+                  actions={
+                    <span className={styles.gm}>
+                      <span className={styles.gn}>
+                        {g.rows.filter((x) => p.value(x.a)).length}
+                        <em>/{g.rows.length}</em>
+                      </span>
+                      {SECTIONS[g.key] && <span className={styles.gd}>{SECTIONS[g.key]?.note}</span>}
+                    </span>
+                  }
+                />
               </div>
               {shown.map(row)}
               {shown.length === 0 && <div className={styles.none}>{onlyMiss ? '本组无缺资源动作' : onlyImp ? '本组无导入动作' : '无匹配动作'}</div>}
@@ -210,7 +259,7 @@ export function MotionTable(p: MotionTableProps) {
           );
         })}
       </div>
-      {!p.compact && !p.externalCommit && (
+      {!p.externalCommit && (
         <div className={styles.save}>
           <SaveNote offline={p.offline} n={n} sparse={p.sparse} />
           {!p.offline && n > 0 && (

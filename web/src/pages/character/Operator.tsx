@@ -10,7 +10,7 @@ import { Commit } from './Commit';
 import type { Toast } from './feedback';
 import { HeadStrip } from './HeadStrip';
 import { ImportPane } from './ImportPane';
-import { doing, SECTIONS } from './labels';
+import { doing } from './labels';
 import { LookPane, useModTable, type LookTab } from './LookPane';
 import { MotionTable } from './MotionTable';
 import { useVoiceBinding } from './NameBlock';
@@ -18,7 +18,7 @@ import { Panel, type PanelTab } from './Panel';
 import { Rail, type RailItem } from './Rail';
 import type { CharTab } from './sections';
 import { Stage, StageSkel, type StageMode } from './Stage';
-import { blockedReason, groupMotions, useMotions } from './useMotions';
+import { blockedReason, deckLine, groupMotions, useMotions } from './useMotions';
 import type { MotionImport } from './useMotionImport';
 import type { MotionLibrary } from './useMotionLibrary';
 import { useImportState } from './useImportState';
@@ -182,7 +182,8 @@ export function Operator(p: OperatorProps) {
   const motion = pick?.a;
   const switching = p.sw.state.phase === 'running';
   const importing = importState.running || p.motionImport?.running === true || outfit.state === 'busy';
-  const blocked = blockedReason(motion, p.offline, switching) ?? (importing ? '导入中' : m.previewing ? '正在请求桌面预览' : null);
+  const why = blockedReason(motion, p.offline, switching);
+  const blocked = why ?? (importing ? '导入中' : m.previewing ? '正在请求桌面预览' : null);
   // A renderer that sends `media` retimes the BGM; without it BGM plays at 1× only.
   const oneSpeed = motion != null && motion.media == null && (p.library?.byId[motion.id]?.hasBgm ?? false);
   const appearances = ch?.appearances ?? [];
@@ -198,6 +199,10 @@ export function Operator(p: OperatorProps) {
   const voice = useVoiceBinding(p.current, overview);
   const mods = Object.hasOwn(modTable.looks, lookId) ? modTable.looks[lookId] : undefined;
   const lt = (lookTab === 'mod' && !mods) || (lookTab === 'show' && layers.length === 0) ? 'look' : lookTab;
+  const changes = rows.filter((r) => Object.hasOwn(m.changed, r.a.id)).map((r) => ({ label: r.a.label, on: m.changed[r.a.id] === true }));
+  // 动作 always has its action bar; another detail page only while switches wait to be saved (总览 has no room for it).
+  const deck = !side && mode === 'detail' && (pane === 'motion' || changes.length > 0);
+  const play = m.play;
 
   const tabs: PanelTab[] =
     at === 'look'
@@ -271,7 +276,7 @@ export function Operator(p: OperatorProps) {
     );
 
   return (
-    <div ref={opRef} className={styles.op} data-view="operator" data-mode={mode} data-panel={panel} data-bare={isBare || undefined} data-theme="light">
+    <div ref={opRef} className={styles.op} data-view="operator" data-mode={mode} data-panel={panel} data-bare={isBare || undefined} data-deck={deck || undefined} data-theme="light">
       {overview && (
         <HeadStrip
           roster={p.roster}
@@ -289,8 +294,8 @@ export function Operator(p: OperatorProps) {
       <div ref={midRef} className={styles.mid} data-character-preview="">
         <Stage
           mode={mode}
-          motion={mode === 'detail' && !side && pane === 'motion' ? motion : undefined}
-          section={motion ? (SECTIONS[motion.section ?? '']?.name ?? '') : ''}
+          status={deck ? deckLine(why, blocked, play, oneSpeed) : null}
+          deck={deck}
           name={overview ? (ch?.name ?? '') : ''}
           en={ch?.en}
           active={ch?.active}
@@ -306,7 +311,6 @@ export function Operator(p: OperatorProps) {
           currentName={ch?.name ?? ''}
           onRetry={p.sw.retry}
           onDismiss={p.sw.dismiss}
-          play={m.play}
           characterId={p.current}
           previewAction={previewAction?.character === p.current ? previewAction.id : undefined}
           previewRequest={previewAction?.character === p.current ? previewAction.request : undefined}
@@ -328,9 +332,7 @@ export function Operator(p: OperatorProps) {
               {table}
             </section>
           ) : pane === 'chain' ? (
-            <section className={styles.motions} aria-label="编排">
-              {p.chains}
-            </section>
+            <section className={styles.motions} aria-label="编排">{p.chains}</section>
           ) : pane === 'look' || (pane === 'import' && importOf === 'look') ? (
             <LookPane
               tab={pane === 'import' ? 'import' : lt}
@@ -351,11 +353,9 @@ export function Operator(p: OperatorProps) {
             />
           ) : (
             <ImportPane
-              outfit={outfit}
-              looks={appearances.filter((l) => l.kind === 'imported')}
+              {...(p.onImportPackage ? { onImportPackage: p.onImportPackage } : {})}
               offline={p.offline}
               lock={switching}
-              {...(p.onImportPackage ? { onImportPackage: p.onImportPackage } : {})}
               {...(p.motionImport ? { motionImport: p.motionImport } : {})}
               {...(p.library ? { library: p.library } : {})}
             />
@@ -363,10 +363,10 @@ export function Operator(p: OperatorProps) {
         </Panel>
       )}
       <Rail value={at} avatar={canAvatar} onGo={(item) => (item === 'mmd' ? p.onMmd?.(Object.keys(m.changed).length) : GO[item]())} />
-      {!isBare && !side && (pane === 'motion' || Object.keys(m.changed).length > 0) && (
+      {deck && (
         <Commit
           offline={p.offline}
-          n={Object.keys(m.changed).length}
+          changes={changes}
           saving={m.saving}
           onUndo={m.undo}
           onSave={m.save}
@@ -374,7 +374,6 @@ export function Operator(p: OperatorProps) {
           onSpeed={setSpeed}
           oneSpeed={oneSpeed}
           blocked={blocked}
-          playing={m.play?.id === motion?.id}
           hidden={look.visible === false}
           onPlay={() => motion && void m.preview(motion, (oneSpeed ? 1 : Number(speed)) as ActionSpeed, loop)}
           loop={loop}
@@ -382,6 +381,7 @@ export function Operator(p: OperatorProps) {
           canLoop={canLoop}
           looping={m.play?.loop === true}
           onStop={() => void m.stop()}
+          progress={play && !play.loop ? play.progress : null}
         />
       )}
     </div>
