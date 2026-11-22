@@ -47,6 +47,12 @@ describe('brief her tab', () => {
     const side = screen.getByRole('region', { name: '她这一天' });
     expect(side.textContent).toContain('出声');
   });
+
+  it('names why she spoke by the gate kind when agentd labels it with its key', async () => {
+    const day = await read();
+    draw(<HerTab {...props({ ...day, her: { ...day.her, why: [{ key: 'break', label: 'break', count: 2 }, { key: 'new_kind', label: 'new_kind', count: 1 }] } })} />);
+    expect(screen.getByRole('img', { name: /^她为什么开口：/ }).getAttribute('aria-label')).toBe('她为什么开口：休息提示 2 次，new_kind 1 次');
+  });
 });
 
 describe('brief time tab', () => {

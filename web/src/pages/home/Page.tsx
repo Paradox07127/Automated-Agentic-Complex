@@ -1,5 +1,5 @@
 // 主页：手表菜单（watchpanel_pc）。中间是地图位置上要你批准的事和今日进度，左边四个大键是主要页面，右边两列方键是其余页面和动作，
-// 左上是设置、提醒和待处理，右上时钟条和消息横幅，左下角色卡，底部两个黄槽是打开对话和工业简报。
+// 左上是设置、提醒和待处理，右上时钟条和消息横幅，左下角色卡，底部两个黄槽是打开对话和每日简报。
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getBridge, type AgentdConnection } from '../../bridge';

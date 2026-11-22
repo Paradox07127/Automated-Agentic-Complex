@@ -101,28 +101,24 @@ describe('今天', () => {
     expect(within(pause).getByRole('button', { name: '现在恢复' })).toBeTruthy();
   });
 
-  it('counts once: no summary sentence on the page, its counts are header fields; 待处理 is the list column, 进行中 follows it in the detail column', async () => {
+  it('heads the day with 今日一句 and the readouts; 待处理 leads the left column, 进行中 the right', async () => {
     mount();
-    await waitFor(() => expect(document.body.textContent).toMatch(/编码会话 \d+/), { timeout: 3000 });
-    expect(document.body.textContent).toMatch(/对话 \d+/);
-    expect(document.body.textContent).toMatch(/提醒 \d\d:\d\d/);
-    // The sentence stays only in 工业简报, below the two columns.
-    const brief = screen.getByRole('region', { name: '工业简报' });
-    expect(screen.getAllByText(/^今天 \d+ 段对话/).every((el) => brief.contains(el))).toBe(true);
+    const line = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
+    await waitFor(() => expect(line.textContent).toMatch(/^今日一句今天 \d+ 段对话/), { timeout: 3000 });
+    expect(within(screen.getByRole('list', { name: '读数' })).getAllByRole('listitem').length).toBeGreaterThan(0);
     const need = screen.getByRole('region', { name: '待处理' });
     const run = screen.getByRole('region', { name: '进行中' });
     expect(need.compareDocumentPosition(run) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(need.closest('[data-g="list"]')).not.toBeNull();
-    expect(run.closest('[data-g="detail"]')).not.toBeNull();
-    expect(screen.queryByRole('region', { name: '她' })).toBeNull();
+    expect(need.parentElement?.parentElement).not.toBe(run.parentElement?.parentElement);
     expect(screen.getByRole('toolbar', { name: '常用操作' })).toBeTruthy();
   });
 
-  it('the page has one name, 工业简报, and one 派发任务: in the action band, drawn like the rest of its row', async () => {
+  it('the page has one name, 每日简报, and one 派发任务: in the action band, drawn like the rest of its row', async () => {
     mount('&demo=sparse');
-    await screen.findByRole('region', { name: '工业简报' }, { timeout: 3000 });
+    await screen.findByRole('tablist', { name: '简报页签' }, { timeout: 3000 });
     await screen.findByText('当前没有编码会话');
     expect(document.body.textContent).not.toContain('今日简报');
+    expect(document.body.textContent).not.toContain('工业简报');
     const band = screen.getByRole('toolbar', { name: '常用操作' });
     expect(new Set(within(band).getAllByRole('button').map((b) => b.getAttribute('data-variant')))).toEqual(new Set(['ghost']));
     expect(screen.getAllByRole('button', { name: /派发/ }).map((b) => b.textContent)).toEqual(['派发任务']);

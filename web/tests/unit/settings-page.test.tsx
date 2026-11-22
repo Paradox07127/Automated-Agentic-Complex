@@ -44,12 +44,12 @@ describe(' 隐私: 外发总览 plate', () => {
     expect(screen.getByRole('button', { name: '暂停 1 小时' })).toBeTruthy();
   });
 
-  it('counts no screenshots of its own: its button lands on 每日简报', async () => {
+  it('counts no screenshots of its own: its button lands on 每日简报 › 时间', async () => {
     await mount('');
     const plate = await screen.findByRole('region', { name: '外发总览' });
     window.location.hash = '';
     fireEvent.click(within(plate).getByRole('button', { name: '在每日简报看今天的截图' }));
-    expect(window.location.hash).toMatch(/^#\/overview\?/);
+    expect(window.location.hash).toMatch(/^#\/overview\?tab=tm&/);
   });
 
   it('draws the flow map and the route table under [展开], and no screenshot chart', async () => {
@@ -194,7 +194,7 @@ describe(' 快捷键', () => {
     await mount('&group=keys');
     expect(await screen.findByText('屏幕识读')).toBeTruthy();
     expect(screen.getByText('快速输入')).toBeTruthy();
-    expect(screen.getByText('切换到「工业简报」')).toBeTruthy();
+    expect(screen.getByText('切换到「每日简报」')).toBeTruthy();
     expect(document.querySelector('#set-hk_page_memory')?.textContent).toContain('⌘3');
   });
 

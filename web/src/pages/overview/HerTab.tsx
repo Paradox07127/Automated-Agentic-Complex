@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { appNow } from '../../bridge/clock';
 import { HourArea } from '../../charts';
 import { formatClock } from '../../domain';
+import { GATE_KIND } from '../settings/groups/GateBlocked';
 import type { BriefCount, BriefDay } from './briefDay';
 import type { BriefTabProps } from './briefTabs';
 import { useGo } from './nav';
@@ -48,7 +49,7 @@ export function Big({ v, k, lead }: { v: ReactNode; k: string; lead?: boolean })
   );
 }
 
-/** Ranked bars with the whole label: BarList's 64 px label column cuts reasons like「做完一件事告诉你」to「做完…诉你」. */
+/** Ranked bars with the whole label: BarList's 64 px label column cuts reasons like「卡住时问要不要帮忙」. */
 export function Bars({ rows, label, yellow }: { rows: Array<{ key: string; label: string; value: number; readout: string }>; label: string; yellow?: boolean }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
@@ -181,7 +182,7 @@ export function HerTab({ day }: BriefTabProps) {
             </ul>
           </Panel>
           <Panel tag="她为什么开口" sub={`共 ${why} 次 │ 你回了 ${her.said.replied} 次`}>
-            <Bars label="她为什么开口" rows={counted(her.why, '次')} />
+            <Bars label="她为什么开口" rows={counted(her.why.map((c) => ({ ...c, label: GATE_KIND[c.key] ?? c.label })), '次')} />
           </Panel>
         </div>
       </div>

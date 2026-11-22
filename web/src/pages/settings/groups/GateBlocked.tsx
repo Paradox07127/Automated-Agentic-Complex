@@ -17,7 +17,7 @@ export const MUTED_KIND: Record<string, string> = {
 };
 
 /** Gate categories: the mutable kinds plus the announcements that pass the gate below P0. */
-const KIND: Record<string, string> = {
+export const GATE_KIND: Record<string, string> = {
   ...MUTED_KIND,
   dispatch_closed: '派的活过期了，没有开始',
   dispatch_failed: '派的任务没做成',
@@ -62,7 +62,7 @@ export function GateBlocked({ lines }: { lines: BlockedLine[] }) {
           {lines.map((l, i) => (
             <span key={`${l.t}-${i}`} role="listitem" className={styles.blockedRow}>
               <span className="num">{formatClock(l.t)}</span>
-              <span>{KIND[l.kind] ?? l.kind}</span>
+              <span>{GATE_KIND[l.kind] ?? l.kind}</span>
               <span className={styles.t3}>{REASON[l.reason] ?? l.reason}</span>
             </span>
           ))}

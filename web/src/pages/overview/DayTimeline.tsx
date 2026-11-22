@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { formatClock, secToMs } from '../../domain';
 import { useDemo } from '../../shell/demo';
 import { useDevMode } from '../../shell/devMode';
@@ -34,8 +34,6 @@ export interface DayTimelineProps {
   title?: string;
   /** Entries other than a session summary, which opens here. */
   onOpen: (e: TimelineEntry) => void;
-  /** Section head, right end. */
-  right?: ReactNode;
 }
 
 function Entry({ e, now, onOpen }: { e: TimelineEntry; now: number; onOpen: () => void }) {
@@ -110,13 +108,13 @@ function SummarySheet({ row, onClose }: { row: WireSessionSummary; onClose: () =
 }
 
 /** 今日时间线: short rows (time, source icon, title), newest first, the first 30 until 展开全部; a row opens its detail. */
-export function DayTimeline({ q, summaries, now, title = '今日时间线', onOpen, right }: DayTimelineProps) {
+export function DayTimeline({ q, summaries, now, title = '今日时间线', onOpen }: DayTimelineProps) {
   const [all, setAll] = useState(false);
   const [sum, setSum] = useState<string | null>(null);
   const open = summaries.find((r) => r.id === sum) ?? null;
   return (
     <div data-nav-target="timeline" data-g="rewards">
-      <OpenSec title={title} count={q.data?.length} right={right}>
+      <OpenSec title={title} count={q.data?.length}>
         <Region q={q} what="时间线" reserve={{ rows: 6 }} empty={{ text: '这一天还没有活动' }}>
           {(entries) => (
             <>

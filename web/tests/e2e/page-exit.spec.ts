@@ -52,13 +52,13 @@ async function settle(page: Page, sel = 'body') {
   await expect.poll(running, { timeout: 5000 }).toBe(0);
 }
 
-/** 主页's 工业简报 slot at the bottom of the watch. */
-const brief = (page: Page) => page.getByRole('button', { name: '工业简报', exact: true });
+/** 主页's 每日简报 slot at the bottom of the watch. */
+const brief = (page: Page) => page.getByRole('button', { name: '每日简报', exact: true });
 
 /** Picks a page from the command bar's page menu. */
 async function menu(page: Page, name: string) {
   const nav = page.getByRole('navigation', { name: '主导航' });
-  await nav.getByRole('button', { name: /^工业简报/ }).click();
+  await nav.getByRole('button', { name: /^每日简报/ }).click();
   await page.getByRole('menuitem', { name: new RegExp(`^${name}`) }).click();
 }
 

@@ -347,7 +347,7 @@ test('menus: the app menu has ⌘, ⌘0–⌘4, ⌘W, ⌘M, ⌘Q and the edit it
     ['关闭窗口 Command+W close'],
     ['撤销 Command+Z undo', '重做 Shift+Command+Z redo', '-', '剪切 Command+X cut', '复制 Command+C copy', '粘贴 Command+V paste',
       '全选 Command+A selectAll'],
-    ['主页 Command+0', '工业简报 Command+1', '对话 Command+2', '记忆 Command+3', '角色 Command+4'],
+    ['主页 Command+0', '每日简报 Command+1', '对话 Command+2', '记忆 Command+3', '角色 Command+4'],
     ['最小化 Command+M minimize'],
   ]);
   for (const m of [menu[0]!, menu[3]!]) for (const i of m.submenu as MenuItem[]) if (i.click) click(i);

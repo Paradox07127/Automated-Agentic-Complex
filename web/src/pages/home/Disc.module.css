@@ -202,45 +202,6 @@
   font-size: var(--ef-fs-meta);
 }
 
-/* 今日: four count cells, two by two, with the stacked edge of the disc's cards. */
-.cells {
-  display: grid;
-  grid-template-columns: repeat(2, 132px);
-  gap: var(--ef-sp-8);
-}
-
-.cell {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ef-sp-4);
-  align-items: flex-start;
-  padding: var(--ef-sp-8) var(--ef-sp-12);
-  border: 0;
-  border-left: 3px solid var(--ef-g-watch-ink);
-  background: color-mix(in srgb, var(--ef-raised) 88%, transparent);
-  color: var(--ef-text-1);
-  box-shadow: var(--home-edge);
-  cursor: pointer;
-}
-
-.cell[data-alert] {
-  border-left-color: var(--ef-g-yellow);
-}
-
-.cell:hover {
-  background: var(--ef-surface-2);
-}
-
-.cell b {
-  font: var(--ef-fw-semibold) 22px / 1 var(--ef-font-num);
-  font-style: italic;
-}
-
-.cell span {
-  color: var(--ef-text-2);
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
-}
-
 .calm {
   margin: 0;
   color: var(--ef-text-2);

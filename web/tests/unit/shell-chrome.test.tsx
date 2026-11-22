@@ -85,10 +85,10 @@ describe('CommandBar', () => {
     setDevMode(false);
     const { nav } = await mountCommandBar('overview');
     expect(within(nav).queryAllByRole('link')).toEqual([]);
-    const trigger = within(nav).getByRole('button', { name: '工业简报' });
+    const trigger = within(nav).getByRole('button', { name: '每日简报' });
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
     fireEvent.click(trigger);
-    const items = within(screen.getByRole('menu', { name: '工业简报' })).getAllByRole('menuitem');
+    const items = within(screen.getByRole('menu', { name: '每日简报' })).getAllByRole('menuitem');
     const user = pageRoutes.filter((r) => r.id !== 'home' && r.id !== 'onboarding' && (r.nav !== false || r.id === 'schedules') && r.group !== 'dev' && !r.devOnly);
     expect(items.map((i) => i.querySelector('span')?.textContent)).toEqual(user.map((r) => r.title));
     expect(items.map((i) => i.textContent)).not.toContain('首次设置');
@@ -270,7 +270,7 @@ describe('page switch', () => {
 describe('CmdPalette', () => {
   it('gives page items their shortcut and no English hint', () => {
     const pages = paletteItems('', pageRoutes, undefined).filter((i) => i.group === '跳页');
-    expect(pages.find((i) => i.label === '工业简报')?.shortcut).toBe('⌘1');
+    expect(pages.find((i) => i.label === '每日简报')?.shortcut).toBe('⌘1');
     expect(pages.find((i) => i.label === '设置')?.shortcut).toBe('⌘,');
     expect(pages.map((i) => i.label)).not.toContain('首次设置');
     for (const p of pages) expect(pageRoutes.map((r) => r.en)).not.toContain(p.hint);
@@ -287,7 +287,7 @@ describe('CmdPalette', () => {
     const heads = [...list.querySelectorAll('[data-group]')].map((h) => h.textContent);
     expect(heads[0]).toBe(`跳页[${pageRoutes.filter((r) => r.nav !== false).length}]`);
     expect(heads.at(-1)).toMatch(/^动作\[\d+\]$/);
-    const overview = within(list).getByRole('option', { name: /工业简报/ });
+    const overview = within(list).getByRole('option', { name: /每日简报/ });
     expect(overview.querySelector('kbd')?.textContent).toBe('⌘1');
     expect(list.textContent).not.toContain('Today');
   });

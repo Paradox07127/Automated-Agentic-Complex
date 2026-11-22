@@ -40,8 +40,8 @@ test('no page header: the 50 high command bar names the current page in its page
   expect((await nav.boundingBox())?.height).toBe(50);
   await expect(page.locator('main header[data-nav-target="page"]')).toHaveCount(0);
   await expect(nav.getByRole('link')).toHaveCount(0);
-  await expect(nav.getByRole('button', { name: '工业简报', exact: true })).toBeVisible();
-  await nav.getByRole('button', { name: '工业简报', exact: true }).click();
+  await expect(nav.getByRole('button', { name: '每日简报 / 总览', exact: true })).toBeVisible();
+  await nav.getByRole('button', { name: '每日简报 / 总览', exact: true }).click();
   await expect(page.getByRole('menu').getByRole('menuitem', { name: /^记忆/ })).toBeVisible();
   await page.goto('main.html#/home?still=1');
   await expect(page.locator('main[data-route-id="home"]')).toBeVisible();

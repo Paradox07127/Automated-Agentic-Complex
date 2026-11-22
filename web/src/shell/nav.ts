@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { AnyRouter } from '@tanstack/react-router';
+import type { BriefTab } from '../pages/overview/briefTabs';
 
 /**
  * Where a jump lands: page, then the page's own selection / tab, then `focus`, the landing's `data-nav-target`
@@ -9,6 +10,7 @@ import type { AnyRouter } from '@tanstack/react-router';
 export type NavTarget =
   | {
       page: 'overview';
+      tab?: BriefTab;
       /** Task, `job:` or session id opens its detail; a pending item id flashes its decision row. */
       sel?: string;
       open?: string;

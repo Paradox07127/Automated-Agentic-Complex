@@ -1,7 +1,5 @@
-/* 今天: the 日报 field in the page header, the activity line in the timeline head, the day's timeline rows, and their detail sheets.
+/* 今天: the day's timeline rows and their detail sheets.
    The rows borrow the objective bands of the task detail. */
-.day,
-.act,
 .entry {
   display: flex;
   gap: var(--ef-sp-8);
@@ -16,8 +14,6 @@
   cursor: pointer;
 }
 
-.day:focus-visible,
-.act:focus-visible,
 .entry:focus-visible {
   outline: var(--ef-lw-focus) solid var(--ef-focus);
   outline-offset: 2px;
@@ -28,21 +24,6 @@
   outline-offset: -2px;
 }
 
-.day {
-  gap: var(--ef-sp-4);
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.act {
-  color: var(--ef-text-2);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.day:hover .go,
-.act:hover,
-.act:hover .go,
 .entry:hover .go {
   color: var(--ef-text-1);
 }

@@ -1,4 +1,4 @@
-// 主页：手表菜单的按键取自路由表，圆盘取自工业简报的待处理和今日任务，每个可点元素跳到对应页面或位置。
+// 主页：手表菜单的按键取自路由表，圆盘取自每日简报的待处理和今日任务，每个可点元素跳到对应页面或位置。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -127,7 +127,7 @@ describe('home tiles', () => {
 });
 
 describe('home disc', () => {
-  it('counts 待处理 and 在做, lands them on 工业简报 and puts the first waiting item on the disc', async () => {
+  it('counts 待处理 and 在做, lands them on 每日简报 and puts the first waiting item on the disc', async () => {
     mount();
     const pending = await screen.findByRole('button', { name: /^待处理 \d+$/ }, { timeout: 3000 });
     const n = Number(pending.getAttribute('aria-label')!.split(' ')[1]);
@@ -146,7 +146,7 @@ describe('home disc', () => {
     expect(window.location.hash).toMatch(/^#\/overview\?sel=([^&]+)&focus=item-\1/);
   });
 
-  it('puts the next reminder on the banner and lands it on 工业简报 at the reminders', async () => {
+  it('puts the next reminder on the banner and lands it on 每日简报 at the reminders', async () => {
     mount();
     const banner = await screen.findByRole('button', { name: /^提醒：.+ \S+$/ }, { timeout: 3000 });
     fireEvent.click(banner);
@@ -366,14 +366,14 @@ describe('home with the plug-ins at their defaults', () => {
     setDevMode(false);
   });
 
-  it('keeps only 角色, 对话, 记忆 and 设置 among the pages, and no 待处理, 提醒, 派发任务, 屏幕识读, 工业简报 or report', async () => {
+  it('keeps only 角色, 对话, 记忆 and 设置 among the pages, and no 待处理, 提醒, 派发任务, 屏幕识读, 每日简报 or report', async () => {
     mount();
     expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory'));
     expect(names(screen.getByRole('group', { name: '工具' }))).toEqual(['搜索', '快速输入', '停止说话']);
     expect(screen.getByRole('button', { name: title('settings') })).toBeTruthy();
     for (const gone of [/^待处理/, /^提醒$/, /^提醒：/, /^交付：/, '没有新消息', /^派发任务$/, /^屏幕识读$/, new RegExp(`^${title('overview')}$`), /^今日任务/]) expect(screen.queryByRole('button', { name: gone })).toBeNull();
     expect(screen.getByRole('button', { name: '打开对话' })).toBeTruthy();
-    // The bar's glow band lies under the one slot left, not under the empty 工业简报 slot.
+    // The bar's glow band lies under the one slot left, not under the empty 每日简报 slot.
     const band = document.querySelector<HTMLElement>('[data-g="hudBar"] > span[aria-hidden="true"]')!;
     expect([band.style.left, band.style.width]).toEqual([`${BAR_SLOTS[0].box.left}px`, `${BAR_SLOTS[0].box.width}px`]);
   });
@@ -405,7 +405,7 @@ describe('home with the plug-ins at their defaults', () => {
     expect(window.location.hash).not.toMatch(/overview/);
   });
 
-  it('adds 待处理, 提醒, 工业简报 and the report once 日报与简报 is on, and 派发任务 once 个人代理 is on too', async () => {
+  it('adds 待处理, 提醒, 每日简报 and the report once 日报与简报 is on, and 派发任务 once 个人代理 is on too', async () => {
     pluginsOn('daily_brief');
     mount();
     expect(await screen.findByRole('button', { name: /^待处理 / })).toBeTruthy();

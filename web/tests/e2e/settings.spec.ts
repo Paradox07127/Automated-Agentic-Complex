@@ -71,7 +71,7 @@ test('the groups are 50 px icon tabs in the command bar; the selected one drops 
   }
   const nav = page.getByRole('tablist', { name: '设置分组' });
   await nav.getByRole('tab', { name: /快捷键/ }).click();
-  await expect(page.getByText('切换到「工业简报」')).toBeVisible();
+  await expect(page.getByText('切换到「每日简报」')).toBeVisible();
   await expect(page.locator('#set-hk_page_memory')).toContainText('⌘3');
 });
 

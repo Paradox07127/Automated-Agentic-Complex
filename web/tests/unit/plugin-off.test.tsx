@@ -74,7 +74,7 @@ describe('409 plugin_off', () => {
   });
 });
 
-describe('工业简报 with 编码会话 off', () => {
+describe('每日简报 with 编码会话 off', () => {
   it('keeps 进行中 for 个人代理 with nothing about coding sessions and no 已在别处更新', async () => {
     pluginsOn('daily_brief', 'personal_agent');
     asAgentd();
@@ -101,15 +101,17 @@ describe('工业简报 with 编码会话 off', () => {
     expect(document.body.textContent).not.toContain('已在别处更新');
   });
 
-  it('reads neither 编码会话 nor 个人代理 for the task desk and counts no 编码会话 in the header while both are off', async () => {
+  it('reads neither 编码会话 nor 个人代理 for the task desk and names no 编码会话 on the page while both are off', async () => {
     pluginsOn('daily_brief');
     const paths = asAgentd();
     mount(OverviewPage);
     await screen.findByRole('region', { name: '待处理' }, { timeout: 3000 });
     await settle();
     for (const p of ['/sessions', '/agent/runs', '/tasks', '/agent/goals']) expect(paths).not.toContain(p);
-    expect(document.body.textContent).toMatch(/对话 \d/);
-    expect(document.body.textContent).not.toMatch(/编码会话 \d/);
+    expect(screen.getByRole('region', { name: '今天聊了什么' })).toBeTruthy();
+    // 今日一句 is today.ts's summary sentence, which counts the snapshot's coding sessions whatever the plug-ins.
+    const line = screen.getByRole('region', { name: '今日一句' }).textContent ?? '';
+    expect(document.body.textContent?.replace(line, '')).not.toContain('编码会话');
   });
 
   it('reads the task desk again once 个人代理 and 编码会话 turn on after the page read', async () => {

@@ -1,4 +1,4 @@
-/* 活动回顾: a gallery list; the header carries the card bar, time slices are tag strips, rows slide in from the right. */
+/* 活动回顾: a gallery list; time slices are tag strips, rows slide in from the right. */
 .review {
   display: grid;
   gap: 16px;
@@ -7,38 +7,12 @@
   inline-size: 100%;
 }
 
-.header,
 .tools,
 .search {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-}
-
-.header {
-  justify-content: space-between;
-  padding-left: var(--ef-sp-12);
-  border-left: 5px solid var(--ef-text-1);
-  animation:
-    galleryDrop var(--ef-dur-g-panel-in) var(--ef-ease-g-enter) both,
-    galleryFade var(--ef-dur-g-panel-in) var(--ef-ease-g-fade) both;
-}
-
-.header h2,
-.header p {
-  margin: 0;
-}
-
-.header h2 {
-  color: var(--ef-text-1);
-  font-size: 20px;
-}
-
-.header p {
-  margin-top: 5px;
-  color: var(--ef-text-2);
-  font-size: 13px;
 }
 
 .search {
@@ -220,12 +194,6 @@
   }
 }
 
-@keyframes galleryDrop {
-  from {
-    transform: translateY(-25px);
-  }
-}
-
 @keyframes cellIn {
   from {
     transform: translateX(45.75px);
@@ -233,7 +201,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .header,
   .list,
   .row {
     animation: galleryFade var(--ef-dur-g-cell-in) var(--ef-ease-g-fade) both;
@@ -245,7 +212,6 @@
   }
 }
 
-:global([data-reduce-motion]) .header,
 :global([data-reduce-motion]) .list,
 :global([data-reduce-motion]) .row {
   animation: galleryFade var(--ef-dur-g-cell-in) var(--ef-ease-g-fade) both;

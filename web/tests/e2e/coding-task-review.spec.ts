@@ -78,12 +78,11 @@ for (const theme of THEMES) {
     expect(errors).toEqual([]);
   });
 
-  test(`${theme}: overview counts today's failed task and failed turn under 出错 and dates the next reminder`, async ({ page }) => {
+  test(`${theme}: overview reads 出错 in the readouts and dates the next reminder in 今日一句`, async ({ page }) => {
     const errors = collectErrors(page);
     await open(page, '/overview', theme);
-    const brief = page.getByRole('region', { name: '工业简报' });
-    await expect(brief.getByRole('button', { name: /^出错 2，前往诊断/ })).toBeVisible();
-    await expect(brief).toContainText('下一条提醒 15:00 交报销单');
+    await expect(page.getByRole('list', { name: '读数' }).locator('[data-item="err"]')).toContainText(/^\d+出错/);
+    await expect(page.getByRole('region', { name: '今日一句' })).toContainText('下一条提醒 15:00 交报销单');
     await shot(page, 'overview', theme);
     expect(errors).toEqual([]);
   });

@@ -1,4 +1,4 @@
-// 今天：今日时间线（合并、上限、来源图标、页内片段详情，在运行记录页）、活动汇总行、一句话日报，以及工作记忆（L1 / L3）优先、读不到时回退。
+// 今天：今日时间线（合并、上限、来源图标、页内片段详情，在运行记录页）、今日一句，以及工作记忆（L1 / L3）优先、读不到时回退。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -10,6 +10,7 @@ import { WIRE_EPISODES } from '../../src/mock/fixtures/wire/memory';
 import memoryDays from '../../../protocol/C6-agentd-api/fixtures/memory-days.json';
 import memorySessions from '../../../protocol/C6-agentd-api/fixtures/memory-sessions.json';
 import { DayTimeline } from '../../src/pages/overview/DayTimeline';
+import { clock, dayOf } from '../../src/pages/overview/load';
 import { OverviewPage } from '../../src/pages/overview/Page';
 import { TracePage } from '../../src/pages/trace/Page';
 import { timelineFromDay } from '../../src/pages/overview/today';
@@ -125,21 +126,20 @@ describe('今天: timeline', () => {
   });
 });
 
-describe('今天: activity line and day line', () => {
-  it('the activity line beside the timeline reads 前台 … · 最多 …', async () => {
-    await timeline();
-    const line = await screen.findByRole('button', { name: /^前台 / }, { timeout: 3000 });
-    await waitFor(() => expect(line.textContent).toMatch(/^前台 \d+ 小时 \d+ 分 │ 最多 \S+/), { timeout: 3000 });
-  });
-
-  it('without a day summary the 日报 field carries today’s counts; with one it carries its headline', async () => {
+describe('今天: 今日一句', () => {
+  it('without a day summary 今日一句 carries today’s counts; with one it carries its headline', async () => {
     mount();
-    const local = await screen.findByRole('button', { name: /^一句话日报/ }, { timeout: 3000 });
-    await waitFor(() => expect(local.getAttribute('title')).toMatch(/个编码会话/), { timeout: 3000 });
+    const local = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
+    await waitFor(() => expect(local.textContent).toMatch(/个编码会话/), { timeout: 3000 });
     cleanup();
-    mount(`&day=${L3.date}`);
-    const l3 = await screen.findByRole('button', { name: /^一句话日报/ }, { timeout: 3000 });
-    await waitFor(() => expect(l3.getAttribute('title')).toBe(L3.headline), { timeout: 3000 });
+    const request = getBridge().agentd.request.bind(getBridge().agentd);
+    vi.spyOn(getBridge().agentd, 'request').mockImplementation(((method: string, path: string, body?: unknown) =>
+      method === 'GET' && path.startsWith('/memory/days?')
+        ? Promise.resolve({ status: 200, body: { days: [{ ...L3, date: dayOf(clock()) }] } })
+        : request(method as never, path, body)) as typeof request);
+    mount();
+    const l3 = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
+    await waitFor(() => expect(l3.textContent).toBe(`今日一句${L3.headline}`), { timeout: 3000 });
   });
 });
 
@@ -147,7 +147,8 @@ describe('今天: work memory first, today’s reads when it is absent', () => {
   it('keeps project inferences out of Today without requesting the project list', async () => {
     const request = vi.spyOn(getBridge().agentd, 'request');
     mount();
-    await screen.findByRole('button', { name: /^一句话日报/ }, { timeout: 3000 });
+    const line = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
+    await waitFor(() => expect(line.textContent).toMatch(/个编码会话/), { timeout: 3000 });
     expect(screen.queryByRole('region', { name: '当前任务' })).toBeNull();
     expect(request.mock.calls.some(([, path]) => path.startsWith('/memory/tasks'))).toBe(false);
   });

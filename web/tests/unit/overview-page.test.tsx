@@ -1,5 +1,5 @@
-// 总览：01 待处理、02 进行中、03 工业简报，读数和跳转。
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+// 总览：01 待处理、02 进行中，读数和跳转。
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { createDispatcher } from '../../src/bridge/fake/agentd';
@@ -7,10 +7,9 @@ import { exampleRoutes } from '../../src/bridge/fake/endpoints';
 import { sortPending } from '../../src/domain';
 import { mockRoutes } from '../../src/mock';
 import { at, DAY, NOW } from '../../src/mock/fixtures';
-import { Brief } from '../../src/pages/overview/Brief';
-import { briefLanes, briefWindow, codeCounts, nextReminder, reminderTime, runRows, workSpans, type RunRow } from '../../src/pages/overview/briefModel';
-import { sparseWork, type OverviewSnapshot } from '../../src/pages/overview/load';
-import { loadBrief, readMood, type DayConv, type MoodPoint, type OverviewBrief } from '../../src/pages/overview/loadBrief';
+import { codeCounts, nextReminder, reminderTime, runRows, type RunRow } from '../../src/pages/overview/briefModel';
+import type { OverviewSnapshot } from '../../src/pages/overview/load';
+import { loadBrief, readMood, type MoodPoint, type OverviewBrief } from '../../src/pages/overview/loadBrief';
 import { PendingSection } from '../../src/pages/overview/PendingSection';
 import { demos } from '../../src/pages/overview/demos';
 import { RunningSection } from '../../src/pages/overview/RunningSection';
@@ -76,35 +75,6 @@ describe(' brief reads', () => {
 });
 
 describe(' brief model', () => {
-  it('the window runs from the first item, at least 5½ h back, to the hour after now', () => {
-    expect(briefWindow(NOW, at(9, 2))).toEqual([at(9, 0), at(16, 0)]);
-    expect(briefWindow(NOW, at(13, 10))).toEqual([at(9, 0), at(16, 0)]);
-    expect(briefWindow(NOW, at(7, 40))).toEqual([at(7, 0), at(16, 0)]);
-  });
-
-  it('merges overlapping chat turns and coding sessions into one block and counts them', () => {
-    const c: DayConv = { id: 'c', title: '闲聊', busy: false, updated_at: at(10, 5), turn_count: 2, turns: [{ t0: at(10, 0), t1: at(10, 0) }, { t0: at(10, 2), t1: at(10, 3) }], last: '好' };
-    const empty = { ...snap, day: { runs: [], segments: [], lane_errors: {} }, sessions: [] };
-    const spans = workSpans(empty, [c], NOW);
-    expect(spans).toHaveLength(1);
-    expect(spans[0]).toMatchObject({ t0: at(10, 0), t1: at(10, 6), who: ['对话 │ 闲聊'], to: { page: 'chat', conv: 'c' } });
-  });
-
-  it('three lanes: 用户活动, 对话与任务, 主动发言; reminders become ▼ on the ruler, past ones greyed', () => {
-    const tl = briefLanes(snap, brief, NOW);
-    expect(tl.lanes.map((l) => l.label)).toEqual(['用户活动', '对话与任务', '主动发言']);
-    expect(tl.marks.find((m) => m.label.startsWith('提醒 │ 站会'))?.kind).toBe('done');
-    expect(tl.marks.find((m) => m.label === '提醒 │ 交报销单')?.kind).toBeUndefined();
-  });
-
-  it('a reminder whose card was on screen says when it was shown', () => {
-    const labels = briefLanes(snap, brief, NOW).marks.map((m) => m.label);
-    expect(labels).toContain('提醒 │ 站会，已提醒，已显示');
-    expect(labels).toContain('提醒 │ 午餐，已提醒');
-    const later = { ...snap, reminders: snap.reminders.map((r) => (r.title === '站会' ? { ...r, seen_at: at(10, 42) } : r)) };
-    expect(briefLanes(later, brief, NOW).marks.map((m) => m.label)).toContain('提醒 │ 站会，已提醒，已显示 10:42');
-  });
-
   it('the summary parts: coding sessions by state and the next armed reminder', () => {
     const n = codeCounts(snap);
     expect(n.running + n.waiting + n.done).toBe(n.total);
@@ -184,32 +154,6 @@ describe(' 02 进行中', () => {
     expect(screen.getByText('当前没有编码会话')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '派发编码任务' })).toBeNull();
     expect(container.textContent).not.toContain('派发任务');
-  });
-});
-
-describe(' 03 工业简报 and the role band', () => {
-  it('writes one summary sentence and two number links to 管线 and 诊断', () => {
-    const go = vi.fn();
-    const { container } = render(<Brief q={READY} snap={snap} brief={brief} now={NOW} go={go} />);
-    expect(container.textContent).toMatch(/今天 \d+ 段对话，\d+ 个编码会话（/);
-    expect(container.textContent).toContain('下一条提醒');
-    fireEvent.click(screen.getByRole('button', { name: /^截图 37 \/ 200/ }));
-    expect(go).toHaveBeenLastCalledWith({ page: 'pipeline' });
-    fireEvent.click(screen.getByRole('button', { name: /^出错/ }));
-    expect(go).toHaveBeenLastCalledWith({ page: 'diag' });
-    expect(screen.queryByRole('button', { name: /^新增记忆/ })).toBeNull();
-    expect(within(container).getByRole('group', { name: /^今日时间轴：用户活动 \d+ 项，对话与任务 \d+ 项，主动发言 \d+ 项/ })).toBeTruthy();
-  });
-
-  it('sparse: no coding sessions reads 还没有编码会话', () => {
-    const { container } = render(<Brief q={READY} snap={sparseWork(snap)} brief={brief} now={NOW} go={noop} />);
-    expect(container.textContent).toContain('还没有编码会话');
-  });
-
-  it('a screenshot count that could not be read says why, not 后台暂不提供', () => {
-    const { container } = render(<Brief q={READY} snap={{ ...snap, quota: null, diag_error: '后台出错（500）' }} brief={brief} now={NOW} go={noop} />);
-    expect(screen.getByRole('button', { name: '截图计数没读到的原因' }).parentElement?.closest('button')).toBeNull();
-    expect(container.textContent).toContain('没读到：后台出错（500）');
   });
 });
 

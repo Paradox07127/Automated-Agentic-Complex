@@ -67,7 +67,7 @@ test('⌘K jumps to a page', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('⌘1–⌘3 reach 工业简报, 对话 and 记忆', async ({ page }) => {
+test('⌘1–⌘3 reach 每日简报, 对话 and 记忆', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/settings?plugins=all&still=1');
   await expect(page.locator('main[data-route-id="settings"]')).toBeVisible();
@@ -105,7 +105,7 @@ test('900×600: the command bar does not wrap or scroll, and nothing scrolls sid
       return { html: html.scrollWidth - html.clientWidth, content: content.scrollWidth - content.clientWidth };
     });
   expect(await wide()).toEqual({ html: 0, content: 0 });
-  await nav.getByRole('button', { name: '工业简报', exact: true }).click();
+  await nav.getByRole('button', { name: /^每日简报/ }).click();
   await page.getByRole('menuitem', { name: /^记忆/ }).click();
   await expect(page.locator('main[data-route-id="memory"]')).toBeVisible();
   expect((await wide()).html).toBe(0);

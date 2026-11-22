@@ -33,7 +33,7 @@ export function OutboundPlate() {
       <div className={styles.figs}>
         {diag.screenshots && (
           <div className={styles.fig}>
-            <Btn size="sm" variant="secondary" onClick={() => goPage({ page: 'overview' })}>在每日简报看今天的截图</Btn>
+            <Btn size="sm" variant="secondary" onClick={() => goPage({ page: 'overview', tab: 'tm' })}>在每日简报看今天的截图</Btn>
           </div>
         )}
         <div className={styles.fig}>

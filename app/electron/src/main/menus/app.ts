@@ -8,7 +8,7 @@ import { type MenuItem, type MenuPorts, SEPARATOR } from './items.ts';
 
 /** 设置 and 前往's pages by each page's route.ts `hotkey` (角色's ⌘4 is the menu's own): id, label, the key after Command+,
  *  route. */
-const PAGES = [['settings', '设置…', ',', '/settings'], ['go.home', '主页', '0', '/home'], ['go.overview', '工业简报', '1', '/overview'],
+const PAGES = [['settings', '设置…', ',', '/settings'], ['go.home', '主页', '0', '/home'], ['go.overview', '每日简报', '1', '/overview'],
   ['go.chat', '对话', '2', '/chat'], ['go.memory', '记忆', '3', '/memory'], ['go.character', '角色', '4', '/character']] as const;
 
 /** PAGES without the pages of the plug-ins that are off in `plugins`. */
