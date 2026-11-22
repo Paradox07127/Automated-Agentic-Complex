@@ -74,3 +74,4 @@ export function fakeMotion(character: () => string): Omit<MotionAvatarOps, 'prev
     modSettings: fakeModSettings(),
   };
 }
+export { motionGroupRoutes } from './motionGroups';

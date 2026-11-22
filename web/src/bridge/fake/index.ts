@@ -37,8 +37,7 @@ import { exampleRoutes } from './endpoints';
 import { feedScript, playOnce, replyScript, scriptedStream } from './feed';
 import { fakeImports } from './imports';
 import { fakeLogs } from './logs';
-import { fakeMotion, fakePreviewSequence, fakePreviewView } from './motion';
-import { motionGroupRoutes } from './motionGroups';
+import { fakeMotion, fakePreviewSequence, fakePreviewView, motionGroupRoutes } from './motion';
 import { createFakeOnboarding } from './onboarding';
 import { fakeOutfit } from './outfit';
 
