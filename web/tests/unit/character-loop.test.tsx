@@ -16,7 +16,7 @@ function install(over: Partial<Parameters<typeof createFakeBridge>[0]> = {}) {
   const bridge: AgenticComplexBridge = createFakeBridge({ surface: 'main', still: true, ...over });
   window.agenticComplex = bridge;
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    return 'previewStage' in this.dataset ? RECT : EMPTY;
+    return 'previewStage' in this.dataset || 'previewLayer' in this.dataset ? RECT : EMPTY;
   });
   return {
     play: vi.spyOn(bridge.avatar, 'playAction').mockResolvedValue(),

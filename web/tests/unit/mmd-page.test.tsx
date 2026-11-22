@@ -266,7 +266,7 @@ describe('MMD library', () => {
 describe('MMD stage preview', () => {
   function stage() {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      return 'previewStage' in this.dataset ? RECT : EMPTY;
+      return 'previewStage' in this.dataset || 'previewLayer' in this.dataset ? RECT : EMPTY;
     });
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
     return vi.spyOn(bridge.avatar.preview, 'show').mockImplementation(async (_at: PreviewPlacement) => true);
@@ -314,7 +314,7 @@ describe('MMD stage preview', () => {
     await mount();
     await waitFor(() => expect(item('mmd_a')).not.toBeNull());
     const st = document.querySelector('[data-preview-stage]')!;
-    expect(st.querySelectorAll('button, [role="radio"], input, a').length).toBe(0);
+    expect(st.querySelectorAll(':is(button, [role="radio"], input, a):not([hidden])').length).toBe(0);
   });
 });
 
@@ -420,7 +420,7 @@ describe('MMD section · minor review findings', () => {
 
   it('does not bring back an old stage preview when she comes back after a switch', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      return 'previewStage' in this.dataset ? RECT : EMPTY;
+      return 'previewStage' in this.dataset || 'previewLayer' in this.dataset ? RECT : EMPTY;
     });
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
     const show = vi.spyOn(bridge.avatar.preview, 'show').mockImplementation(async (_at: PreviewPlacement) => true);
@@ -449,7 +449,7 @@ describe('MMD section · minor review findings', () => {
 describe('MMD section · 播放方式', () => {
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      return 'previewStage' in this.dataset ? RECT : EMPTY;
+      return 'previewStage' in this.dataset || 'previewLayer' in this.dataset ? RECT : EMPTY;
     });
   });
 

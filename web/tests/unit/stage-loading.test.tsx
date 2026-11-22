@@ -85,7 +85,7 @@ for (const [page, props] of [['character', stageProps], ['MMD', mmdProps]] as co
       delete window.agenticComplex;
       render(view());
       expect(portrait()).toBeNull();
-      expect(document.querySelector('[data-preview-stage] svg')).toBeNull();
+      expect(document.querySelector('[data-preview-stage] :not([hidden]) > svg, [data-preview-stage] > svg')).toBeNull();
       expect(bar()).toBeNull();
     });
   });
