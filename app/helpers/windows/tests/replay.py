@@ -23,14 +23,20 @@ apps.installed is checked for shape only and reported as a count. capture.window
 the test window (the screen rect, excluding the helper's pid) and the primary display's wallpaper; their images must
 decode to the size they claim; without a desktop they may fail with one of their op's codes. The attention ops are checked for shape and for
 the fields Windows always answers the same way: from ssh the helper runs in session 0, with no desktop and no input.
+The ax.* requests are aimed at the replay's pid and the test window; each must succeed or fail with one of its op's
+codes, ax.watch answers only watching, pid and watch_id, ax.focused has no app_pid, and an unknown cursor resets.
 With a desktop (winhost.py test helper-win --interactive) one more session checks real readings: the test window has
 a solid COLOUR, capture.window's PNG and JPEG decode (GDI+, in memory) to it at their centre, max_long_side and
 max_bytes hold, a window of random pixels too big for one line answers a short too_large without max_bytes, a closed
 window answers window_gone; capture.ambient screen over the window averages to COLOUR and,
 with the replay's pid excluded, does not; a second test window taking the foreground gives workspace.changed;
 attention.sample's front is that window; with one English and one Chinese line painted in the test window,
-ocr.recognize by its window_id and by its capture.window PNG as image reads both lines, in that order. presence.edge and input.activity need a session lock or real input, which the
-replay never makes: only their watches are checked.
+ocr.recognize by its window_id and by its capture.window PNG as image reads both lines, in that order. presence.edge and
+input.activity need a session lock or real input, which the replay never makes: only their watches are checked. With the
+test window in front and its edit focused, ax.focused is
+an AXTextField with a caret inside the window, ax.selected_text is the edit's selection, ax.window_text holds its text,
+ax.hit_chain at its centre starts with it, ax.dialog_buttons is empty; ax.watch sends a focus ax.notification when the
+focus moves to the password edit and back, and no line of that session holds the password edit's text.
 Events the helper sends between answers go into the session that validate.check reads.
 Prints a line for each failed check and ends with `HELPER-WIN: <n> checks, <m> failed`; exits 1 when one failed.
 """
@@ -53,14 +59,16 @@ REPO = HERE.parents[3]
 C12 = REPO / 'protocol/C12-platform-helper'
 EXE = REPO / '.local/build/helper-windows/ac-helper.exe'
 SESSION = {'hello', 'cancel', 'shutdown'}
+AX = {'ax.focused', 'ax.dialog_buttons', 'ax.overlays', 'ax.hit_chain', 'ax.window_text', 'ax.selected_text',
+      'ax.watch'}
 IMPLEMENTED = {'screens.list', 'windows.list', 'windows.at_point', 'clipboard.read', 'apps.running', 'apps.activate',
                'process.usage', 'permissions.status', 'permissions.request', 'apps.installed', 'workspace.watch',
                'attention.sample', 'presence.watch', 'input.modifiers', 'input.watch', 'capture.window',
-               'capture.ambient', 'ocr.languages', 'ocr.recognize'}
+               'capture.ambient', 'ocr.languages', 'ocr.recognize'} | AX
 # Without a desktop (session 0) these may fail, with one of their op's own codes.
 CAPTURES = {'capture.window', 'capture.ambient'}
 OCRS = {'ocr.languages', 'ocr.recognize'}
-EVENTS = {'workspace.changed', 'presence.edge', 'input.activity'}
+EVENTS = {'workspace.changed', 'presence.edge', 'input.activity', 'ax.notification'}
 WATCHES = {'workspace.watch', 'presence.watch', 'input.watch'}
 # attention.sample fields the Windows helper always answers null (CONTRACT §7.3; no UI Automation yet).
 NULL_ON_WINDOWS = ('focus_role', 'focus_native_role', 'focus_window_role', 'focus_window_native_role',
@@ -80,6 +88,12 @@ GONE_WINDOW_ID = 999  # ok-capture-ocr.ndjson's window that is not on screen
 NOISE_SIZE = (2600, 1900)
 ABSENT_APP = 'c12-replay-absent.exe'
 OCR_LINES = ('Replay text', '屏幕文字测试')  # painted top to bottom in the test window for ocr.recognize
+# The test window's two edits, along its top edge, clear of the middle the capture checks read.
+EDIT_TEXT = 'C12 replay edit: milk and eggs'
+SELECTED = 'milk'
+PASSWORD_TEXT = 'c12-replay-secret-7Qx'
+EDIT_ID, PASSWORD_ID = 101, 102
+WM_FOCUS_CONTROL = 0x8000  # WM_APP; wParam is EDIT_ID or PASSWORD_ID
 
 
 def load_validate():
@@ -192,7 +206,23 @@ def user32():
     user.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
     user.IsWindow.argtypes = [wintypes.HWND]
     user.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    user.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    user.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    user.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+    user.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
     return user
+
+
+def physical_rect(hwnd):
+    """hwnd's rect in physical pixels, the helper's coordinates, read per-monitor aware: the replay itself is not."""
+    from ctypes import wintypes
+    user, r = user32(), wintypes.RECT()
+    old = user.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))  # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+    try:
+        user.GetWindowRect(hwnd, ctypes.byref(r))
+    finally:
+        user.SetThreadDpiAwarenessContext(old)
+    return {'x': r.left, 'y': r.top, 'width': r.right - r.left, 'height': r.bottom - r.top}
 
 
 def foreground_pid():
@@ -206,10 +236,11 @@ def foreground_pid():
 
 class TestWindow:
     """Plain top-level windows of this process, painted COLOUR: the only windows the replay lets the helper read,
-    capture or activate. second stays hidden until focus_second."""
+    capture or activate. second stays hidden until focus_second. The first holds two edits: edit with EDIT_TEXT and
+    SELECTED selected, and password (ES_PASSWORD) with PASSWORD_TEXT."""
 
     def __init__(self):
-        self.hwnd = self.second = None
+        self.hwnd = self.second = self.edit = self.password = None
         self.gone = None  # the id of a window created and destroyed at once
         self.text = None  # lines label paints over the first window, black on white
         self.ready = threading.Event()
@@ -225,6 +256,8 @@ class TestWindow:
         wndproc = ctypes.WINFUNCTYPE(lresult, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
         user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
         user32.DefWindowProcW.restype = lresult
+        user32.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+        user32.SetFocus.argtypes = [wintypes.HWND]
 
         class PAINTSTRUCT(ctypes.Structure):
             _fields_ = [('hdc', wintypes.HDC), ('fErase', wintypes.BOOL), ('rcPaint', wintypes.RECT),
@@ -250,6 +283,13 @@ class TestWindow:
                     gdi32.TextOutW(dc, 24, 32 + n * 96, line, len(line))
                 gdi32.SelectObject(dc, previous)
                 user32.EndPaint(hwnd, ctypes.byref(paint))
+                return 0
+            if msg == WM_FOCUS_CONTROL and hwnd == self.hwnd:
+                # SetFocus works on this thread's windows only. EM_SETSEL: SELECTED in the edit, all of the password.
+                target = self.edit if wparam == EDIT_ID else self.password
+                user32.SetFocus(target)
+                start = EDIT_TEXT.index(SELECTED)
+                user32.SendMessageW(target, 0x00B1, *((start, start + len(SELECTED)) if wparam == EDIT_ID else (0, -1)))
                 return 0
             return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
@@ -289,6 +329,12 @@ class TestWindow:
         r = WINDOW_RECT
         self.hwnd = user32.CreateWindowExW(0, 'C12ReplayWindow', WINDOW_TITLE, 0x00CF0000, r['x'], r['y'], r['width'],
                                            r['height'], None, None, instance, None)  # WS_OVERLAPPEDWINDOW
+        # WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_AUTOHSCROLL, and ES_PASSWORD for the second.
+        style = 0x40000000 | 0x10000000 | 0x00800000 | 0x00010000 | 0x0080
+        self.edit = user32.CreateWindowExW(0, 'EDIT', EDIT_TEXT, style, 8, 8, 220, 24, self.hwnd, EDIT_ID, instance,
+                                           None)
+        self.password = user32.CreateWindowExW(0, 'EDIT', PASSWORD_TEXT, style | 0x0020, 236, 8, 160, 24, self.hwnd,
+                                               PASSWORD_ID, instance, None)
         # Not ShowWindow: its first call in a process takes the launcher's STARTUPINFO, which ssh sets to hidden.
         # SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE | SWP_NOMOVE: shown, foreground untouched.
         user32.SetWindowPos(self.hwnd, None, 0, 0, 0, 0, 0x0040 | 0x0010 | 0x0004 | 0x0001 | 0x0002)
@@ -311,6 +357,19 @@ class TestWindow:
         while user.GetForegroundWindow() != self.second and time.monotonic() < deadline:
             time.sleep(0.05)
         return user.GetForegroundWindow() == self.second
+
+    def focus_first(self):
+        """Gives the first window the foreground; whether it has it within 2 s."""
+        user = user32()
+        user.SetForegroundWindow(self.hwnd)
+        deadline = time.monotonic() + 2
+        while user.GetForegroundWindow() != self.hwnd and time.monotonic() < deadline:
+            time.sleep(0.05)
+        return user.GetForegroundWindow() == self.hwnd
+
+    def focus_control(self, control):
+        """Moves the keyboard focus to the edit (EDIT_ID) or the password edit (PASSWORD_ID) and sets its selection."""
+        user32().SendMessageW(self.hwnd, WM_FOCUS_CONTROL, control, 0)
 
     def close_second(self):
         """Closes the second window; whether it is gone within 5 s."""
@@ -530,6 +589,16 @@ def aim(request, helper, target, window):
                            if bounds else {'x': -100000, 'y': -100000})
     elif op == 'process.usage':
         params['pids'] = [helper.proc.pid, os.getpid()]
+    elif op in AX:
+        if params.get('pid') is not None:
+            params['pid'] = os.getpid()
+        if 'window_bounds' in params:
+            params['window_bounds'] = (target or {}).get('bounds', WINDOW_RECT)
+        if op == 'ax.hit_chain':
+            bounds = (target or {}).get('bounds')
+            params['point'] = ({'x': bounds['x'] + bounds['width'] // 2, 'y': bounds['y'] + bounds['height'] // 2}
+                               if bounds else {'x': -100000, 'y': -100000})
+            params['exclude_pids'] = [helper.proc.pid]
     return dict(request, params=params)
 
 
@@ -627,6 +696,8 @@ def check_answer(checks, name, request, got, hello, helper, target, window):
         return check_capture(checks, name, request, got, target, window)
     if op in OCRS:
         return check_ocr(checks, name, request, got, target)
+    if op in AX:
+        return check_ax(checks, name, request, got)
     if op in SESSION or op in IMPLEMENTED:
         if not checks.expect(got.get('ok') is True, f'{name} succeeds', f'answer {got!r:.300}'):
             return
@@ -673,6 +744,27 @@ def check_answer(checks, name, request, got, hello, helper, target, window):
         print(f'note: {name} lists {len(apps)} shortcuts', flush=True)
         checks.expect(bool(apps) and len(shaped) == len(apps), f'{name} lists Start menu shortcuts and names',
                       f'{len(apps)} apps, {len(apps) - len(shaped)} of another shape')
+
+
+def check_ax(checks, name, request, got):
+    """Success, or one of the op's own codes (validate.check has checked the types); and what Windows leaves out."""
+    op, params = request['op'], request['params']
+    code = got.get('error', {}).get('code')
+    if not got.get('ok'):
+        print(f'note: {name} answers {code} ({got.get("error", {}).get("message")})', flush=True)
+        checks.expect(code in SPEC['ops'][op]['errors'], f'{name} succeeds or fails with a code of its op',
+                      f'answer {got!r:.300}')
+        return
+    result = got['result']
+    if op == 'ax.watch':
+        pid, watch_id = params['pid'], params.get('watch_id')
+        want = dict({'watching': pid is not None, 'pid': pid}, **({'watch_id': watch_id} if watch_id else {}))
+        checks.expect(result == want, f'{name} answers watching, pid and watch_id only', f'result {result}')
+    elif op == 'ax.focused':
+        checks.expect('app_pid' not in result, f'{name} has no app_pid on Windows', f'result {result!r:.300}')
+    elif op == 'ax.window_text' and 'cursor' in params:
+        checks.expect('cursor_reset' in result['coverage']['reasons'], f'{name} of a cursor it never gave resets it',
+                      f'coverage {result["coverage"]}')
 
 
 def check_sample(checks, name, params, result):
@@ -881,6 +973,8 @@ def desktop(exe, checks, window, target):
                   'desktop capture.window without max_bytes of an image too big for one line is a short too_large',
                   f'{size} bytes, answer {got!r:.300}')
 
+    # While the replay still has the foreground, which the first window then takes from the second.
+    desktop_ax(exe, checks, window, target)
     checks.expect(window.close_second(), 'desktop: the second test window closes', '')
     got = ask('capture.window', window_id=window.second)
     checks.expect(got.get('error', {}).get('code') == 'window_gone', 'desktop capture.window of a closed window is window_gone',
@@ -890,6 +984,88 @@ def desktop(exe, checks, window, target):
     checks.expect(helper.exit_code() == 0, 'desktop session exit', '')
     problem = validate.check(helper.transcript, SPEC)
     checks.expect(problem is None, 'desktop session validate.check', problem)
+
+
+def inside(rect, bounds):
+    return (isinstance(rect, dict) and rect['x'] >= bounds['x'] and rect['y'] >= bounds['y']
+            and rect['x'] + rect['width'] <= bounds['x'] + bounds['width']
+            and rect['y'] + rect['height'] <= bounds['y'] + bounds['height'])
+
+
+def desktop_ax(exe, checks, window, target):
+    """UI Automation readings of the test window's edits, in one session (see the module docstring)."""
+    helper = Helper(exe)
+    ids = iter(range(2, 1000))
+    me, bounds = os.getpid(), target['bounds']
+
+    def ask(op, **params):
+        return helper.request({'v': 1, 'id': next(ids), 'op': op, 'params': params}) or {}
+
+    def focus_event(subrole):
+        return helper.wait_event(lambda e: e['event'] == 'ax.notification' and e['data'].get('notification') == 'focus'
+                                 and (e['data'].get('element') or {}).get('subrole', 'absent') == subrole, 5)
+
+    helper.request(HELLO)
+    took = window.focus_first()
+    window.focus_control(EDIT_ID)
+    time.sleep(0.3)
+    checks.expect(took, 'desktop ax: the test window takes the foreground', '')
+    started = time.monotonic()
+    got = ask('ax.focused')  # the session's first UIA call
+    print(f'note: the first ax.focused took {(time.monotonic() - started) * 1000:.0f} ms', flush=True)
+    focus = (got.get('result') or {}).get('focus') or {}
+    checks.expect(focus.get('pid') == me and focus.get('role') == 'AXTextField' and focus.get('native_role') == 'Edit'
+                  and focus.get('subrole', 'absent') is None and focus.get('editable') is True,
+                  'desktop ax.focused reports the edit as AXTextField', f'answer {got!r:.300}')
+    checks.expect(inside(focus.get('caret'), bounds), 'desktop ax.focused has a caret inside the test window',
+                  f'caret {focus.get("caret")}, bounds {bounds}')
+    got = ask('ax.selected_text', pid=me)
+    checks.expect(got.get('result') == {'text': SELECTED}, 'desktop ax.selected_text reads the edit\'s selection',
+                  f'answer {got!r:.300}')
+    got = ask('ax.window_text', pid=me, level='window', window_bounds=bounds)
+    result = got.get('result', {})
+    edits = [n for n in result.get('nodes', []) if n.get('role') == 'AXTextField']
+    checks.expect(result.get('matched') is True and EDIT_TEXT in result.get('text', '')
+                  and any(n.get('value') == EDIT_TEXT for n in edits), 'desktop ax.window_text reads the edit\'s text',
+                  f'answer {got!r:.400}')
+    edit = physical_rect(window.edit)
+    centre = {'x': edit['x'] + edit['width'] // 2, 'y': edit['y'] + edit['height'] // 2}
+    got = ask('ax.hit_chain', point=centre, exclude_pids=[helper.proc.pid])
+    chain = got.get('result', {}).get('chain') or [{}]
+    checks.expect(got.get('result', {}).get('pid') == me and chain[0].get('role') == 'AXTextField',
+                  'desktop ax.hit_chain at the edit\'s centre starts with AXTextField', f'answer {got!r:.300}')
+    got = ask('ax.dialog_buttons', pid=me)
+    checks.expect(got.get('result') == {'buttons': []}, 'desktop ax.dialog_buttons of a window that is no dialog',
+                  f'answer {got!r:.300}')
+
+    got = ask('ax.watch', pid=me, notifications=['focus', 'value', 'selection'], read_selected_text=True,
+              watch_id='replay')
+    checks.expect(got.get('result') == {'watching': True, 'pid': me, 'watch_id': 'replay'}, 'desktop ax.watch starts',
+                  f'answer {got!r:.300}')
+    window.focus_control(PASSWORD_ID)
+    event = focus_event('AXSecureTextField')
+    checks.expect(event is not None and event['data'].get('pid') == me and event['data'].get('watch_id') == 'replay',
+                  'desktop ax.watch sends a focus ax.notification for the password edit', f'events {helper.events!r:.400}')
+    got = ask('ax.focused', pid=me)
+    focus = (got.get('result') or {}).get('focus') or {}
+    checks.expect(focus.get('subrole') == 'AXSecureTextField' and focus.get('caret', 'absent') is None,
+                  'desktop ax.focused of the password edit has no caret', f'answer {got!r:.300}')
+    got = ask('ax.selected_text', pid=me)
+    checks.expect(got.get('result') == {'text': None}, 'desktop ax.selected_text of the password edit is null',
+                  f'answer {got!r:.300}')
+    ask('ax.window_text', pid=me, level='window', window_bounds=bounds)
+    window.focus_control(EDIT_ID)
+    checks.expect(focus_event(None) is not None, 'desktop ax.watch sends a focus ax.notification back on the edit',
+                  f'events {helper.events!r:.400}')
+    got = ask('ax.watch', pid=None, notifications=[], watch_id='replay')
+    checks.expect(got.get('result') == {'watching': False, 'pid': None, 'watch_id': 'replay'}, 'desktop ax.watch stops',
+                  f'answer {got!r:.300}')
+    checks.expect(helper.exit_code() == 0, 'desktop ax session exit', '')
+    leaked = [line for line in helper.transcript if PASSWORD_TEXT in line]
+    checks.expect(not leaked, 'desktop: no answer or event of the ax session holds the password edit\'s text',
+                  f'{len(leaked)} lines')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, 'desktop ax session validate.check', problem)
 
 
 def permission_requests(exe, checks):

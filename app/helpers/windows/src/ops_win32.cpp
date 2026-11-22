@@ -25,6 +25,7 @@
 
 #include "json.h"
 #include "ops.h"
+#include "uia.h"
 #include "win32.h"
 
 namespace {
@@ -528,12 +529,20 @@ Handler find_handler(const std::string& name) {
         {"capture.ambient", capture_ambient},
         {"ocr.languages", ocr_languages},
         {"ocr.recognize", ocr_recognize},
+        {"ax.focused", ax_focused},
+        {"ax.dialog_buttons", ax_dialog_buttons},
+        {"ax.overlays", ax_overlays},
+        {"ax.hit_chain", ax_hit_chain},
+        {"ax.window_text", ax_window_text},
+        {"ax.selected_text", ax_selected_text},
+        {"ax.watch", ax_watch},
     };
     auto found = handlers.find(name);
     return found == handlers.end() ? nullptr : found->second;
 }
 
 const std::vector<const char*>& event_names() {
-    static const std::vector<const char*> names = {"workspace.changed", "presence.edge", "input.activity"};
+    static const std::vector<const char*> names = {"workspace.changed", "presence.edge", "input.activity",
+                                                   "ax.notification"};
     return names;
 }
