@@ -158,7 +158,7 @@ class GuardTest(unittest.TestCase):
         self.assertIsNone(r.doing(self.now))
 
     def test_no_new_guard_in_the_no_interrupt_zone(self):
-        for over in ({"meeting": True}, {"fullscreen": True}, {"continuous_input": True},
+        for over in ({"meeting": True}, {"fullscreen": True}, {"typing": True},
                      {"presence": "afk", "presence_s": 60.0}):
             with self.subTest(over=over):
                 self.emitted = []

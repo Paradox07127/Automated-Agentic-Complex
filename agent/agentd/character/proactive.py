@@ -44,7 +44,6 @@ BREAK_INPUT = 20  # keys_60s + 6 x clicks_10s a beat needs for a break line
 BEFORE_AWAY = 600  # away seconds after which a back line may name only what came before
 BEFORE_FRESH = 600  # seconds before leaving that before_away may have been last in effect
 STUCK_FOR = 120  # seconds the scene must stay stuck before the user is asked
-STUCK_PAUSE = 10  # seconds since the last key that count as a pause
 STUCK_MEMORY = 20  # blockers that are not asked about again
 STUCK_RETRY = 60  # seconds after a refused stuck line before the next try
 # A task the interpreter reported blocked counts as stuck once WORK_RUNS analyses (the reporting one included) found
@@ -253,7 +252,7 @@ class Proactive:
         self._alert(body)
         self._break(body)
         self._water(body)
-        self._stuck(body)
+        self._stuck()
         if self.judge is not None:
             self._dwell(body)
 
@@ -425,7 +424,7 @@ class Proactive:
         if self._offer_rest(now, text, {"code": "water", "kind": "water", "text": self._reason("water")}):
             self._water_s = 0.0
 
-    def _stuck(self, body):
+    def _stuck(self):
         """One line asking whether to help, once per blocker, at a pause after the scene has been stuck for
         STUCK_FOR seconds; while the scene is not stuck, once per task the interpreter keeps finding blocked
         (_work_stuck), its work event the line's material. Such a task may also be asked about at an app the
@@ -449,8 +448,8 @@ class Proactive:
             if work is None:
                 return
             asked, since = ("work", work["task_key"]), work["since"]
-        if (body.get("input") or {}).get("key_idle_s", body["idle_s"]) < STUCK_PAUSE \
-                or asked in self._stuck_asked or self._stuck_retry_at is not None and now < self._stuck_retry_at:
+        if self.gate.typing or asked in self._stuck_asked \
+                or self._stuck_retry_at is not None and now < self._stuck_retry_at:
             return
         key = secrets.token_hex(6)
         # thread and blocker reach the model through the scene in the line's live context, as consent allows.

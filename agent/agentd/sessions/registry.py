@@ -229,11 +229,16 @@ class Registry:
                 self.activity, self.mood = activity, mood
                 self._emit(self._focus_dict())
 
-    def set_role_focus(self, focus, *, generation, quiet=False):
+    def set_role_focus(self, focus, *, generation):
         """Replace the derived role view atomically; no prompt or tool body is accepted here."""
         with self.cv:
             self.role_focus = dict(focus) if focus else None
             self.turn_generation = generation
+            self._refocus(self.clock())
+
+    def set_quiet(self, quiet):
+        """The intent's quiet; only the server's refresh_quiet sets it."""
+        with self.cv:
             self.quiet = bool(quiet)
             self._refocus(self.clock())
 

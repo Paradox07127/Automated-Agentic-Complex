@@ -1312,8 +1312,15 @@ class PostureTest(SpatialCase):
         self.assertIn(sit["behavior_id"], [b["behavior_id"] for b in self.spatial.running()])
         self.assertValid()
 
+    def away(self):
+        """user_now's absence, begun now."""
+        return {"absence": {"id": "1-1", "since": self.now}}
+
     def test_rest_after_away_10_min(self):
         self.step(0, activity="away")
+        self.step(spatial.AWAY_REST)
+        self.assertEqual(self.sits(), [])  # the scene's away is not user_now's absence
+        self.step(0, **self.away())
         self.step(spatial.AWAY_REST - 1)
         self.assertEqual(self.sits(), [])
         self.step(1)
@@ -1338,14 +1345,14 @@ class PostureTest(SpatialCase):
 
     def test_rest_ends_on_input_speech_or_session(self):
         # condition None: the typing accompany replaces it (it ends on user_typing)
-        for wake, condition in (({"idle_s": 0.4}, "user_typing"), ({"activity": "editing_code"}, "user_typing"),
+        for wake, condition in (({"idle_s": 0.4}, "user_typing"), ({"absence": None}, "user_typing"),
                                 ({"typing": True}, None), ({"user_speaking": True}, "speech_start"),
                                 ({"session": "codex:A", "state": "thinking"}, "session_state")):
             with self.subTest(wake=wake):
                 self.setUp()
                 self.now = local(14)
                 self.spatial._next_tick = self.now + 10_000
-                self.step(0, activity="away", idle_s=0.0)
+                self.step(0, idle_s=0.0, **self.away())
                 self.step(spatial.AWAY_REST, idle_s=spatial.AWAY_REST)
                 [rest] = self.sits()
                 self.step(1, **wake)
@@ -1365,7 +1372,7 @@ class PostureTest(SpatialCase):
                 self.setUp()
                 if caps is not None:
                     self.spatial.set_capabilities("aster", caps)
-                self.step(0, activity="away")
+                self.step(0, **self.away())
                 self.step(spatial.AWAY_REST)
                 self.assertEqual([m.get("variant") for m in self.sits()], [variant])
 

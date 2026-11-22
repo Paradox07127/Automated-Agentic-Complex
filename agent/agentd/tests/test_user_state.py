@@ -318,8 +318,8 @@ class UserStateTest(unittest.TestCase):
         self.logged = []
         self.state = UserState(lambda *row: self.logged.append(row))
 
-    def update(self, at, mode, state="unknown", **extra):
-        return self.state.update(derived(mode, state, **extra), T0 + at)
+    def update(self, at, mode, state="unknown", absence=None, **extra):
+        return self.state.update(derived(mode, state, **extra), T0 + at, absence=absence)
 
     def test_the_first_result_takes_effect_at_once(self):
         self.assertEqual(self.update(0, "coding")["mode"], "coding")
@@ -350,15 +350,26 @@ class UserStateTest(unittest.TestCase):
         self.assertEqual(self.update(4, "reading")["mode"], "reading")
         self.assertEqual([row[1] for row in self.logged], ["coding", "away", "coding", "meeting", "reading"])
 
-    def test_before_away_is_the_last_result_in_effect_before_leaving(self):
+    def test_before_away_is_the_last_result_in_effect_before_user_nows_absence(self):
+        absence = {"id": "1-1", "since": T0 + 15}
         self.assertIsNone(self.update(0, "coding", "stuck", thread="Endfield", blocker="error: x")["before_away"])
         self.update(10, "coding", "stuck", thread="Endfield", blocker="error: x")
-        away = self.update(20, "away")
+        self.assertIsNone(self.update(15, "away")["before_away"])  # the scene's away alone is no absence
+        away = self.update(20, "away", absence=absence)
         self.assertEqual(away["before_away"], {**derived("coding", "stuck", thread="Endfield", blocker="error: x"),
                                                "ts": T0 + 10})
+        self.setUp()
+        self.update(10, "coding", "stuck", thread="Endfield", blocker="error: x")
+        away = self.update(20, "coding", "stuck", absence=absence)
+        self.assertEqual(away["before_away"], {**derived("coding", "stuck", thread="Endfield", blocker="error: x"),
+                                               "ts": T0 + 10})
+        self.update(500, "away", absence=absence)
         back = self.update(1000, "reading")
         self.assertEqual((back["mode"], back["before_away"]["mode"], back["before_away"]["ts"]),
                          ("reading", "coding", T0 + 10))
+        self.update(1100, "reading", absence={"id": "1-2", "since": T0 + 1050})
+        self.assertEqual(self.update(1200, "away", absence={"id": "1-2", "since": T0 + 1050})["before_away"]["ts"],
+                         T0 + 1000)
 
     def test_a_correction_takes_effect_at_once(self):
         self.update(0, "coding")
@@ -366,7 +377,7 @@ class UserStateTest(unittest.TestCase):
 
     def test_clear_forgets_every_result(self):
         self.update(0, "coding", "stuck", blocker="error: x")
-        self.assertIsNotNone(self.update(20, "away")["before_away"])
+        self.assertIsNotNone(self.update(20, "away", absence={"id": "1-1", "since": T0 + 10})["before_away"])
         self.state.clear()
         result = self.update(21, "reading")
         self.assertEqual((result["mode"], result["before_away"]), ("reading", None))

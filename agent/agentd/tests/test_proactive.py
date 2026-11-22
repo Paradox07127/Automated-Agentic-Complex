@@ -680,8 +680,7 @@ class ProactiveTest(unittest.TestCase):
         self.assertEqual(len(self.claims), 1)
         self.returning(60)
         scene = self.p.activity
-        self.p.activity = lambda: {**scene(), "activity": "typing", "can_interrupt": False,
-                                   "holds": ["continuous_input"]}
+        self.p.activity = lambda: {**scene(), "activity": "typing", "can_interrupt": False, "holds": []}
         self.p.back(1200.0)
         self.assertEqual(self.claims, [])
         self.assertEqual(self.nudges("back")[-1]["gate"], "cannot_interrupt")
@@ -696,8 +695,7 @@ class ProactiveTest(unittest.TestCase):
         self.p.back(500.0)
         self.returning(60)
         scene = self.p.activity
-        self.p.activity = lambda: {**scene(), "activity": "typing", "can_interrupt": False,
-                                   "holds": ["continuous_input"]}
+        self.p.activity = lambda: {**scene(), "activity": "typing", "can_interrupt": False, "holds": []}
         self.p.back(1200.0)
         self.returning(60)
         self.p.back(1200.0)
@@ -883,7 +881,7 @@ class StuckTest(unittest.TestCase):
     def test_companion_off_stuck_sends_no_nudge_or_retry(self):
         self.gate = self.p.gate = Gate(enabled=True, quiet=(0, 0))
         self.gate.set_companion(False)
-        self.beats(200, key_idle=30.0)
+        self.beats(200, typing=False)
         self.assertEqual(self.claims, [])
         self.assertEqual(self.nudges(), [])
         self.assertIsNone(self.p._stuck_retry_at)
@@ -907,21 +905,22 @@ class StuckTest(unittest.TestCase):
                            self.claims.append((line_id, text, reason)) or self.materials.append(material) or True)
         self.materials = []
 
-    def beats(self, seconds, key_idle):
-        """A heartbeat every 10 s for `seconds` seconds, keys last pressed key_idle seconds before each."""
+    def beats(self, seconds, typing):
+        """A heartbeat every 10 s for `seconds` seconds, user_now's typing as given (through the gate)."""
+        self.gate.typing = typing
         for _ in range(round(seconds / 10)):
             self.now += 10.0
-            self.p.beat(beat(self.now, CODE, input={"key_idle_s": key_idle}))
+            self.p.beat(beat(self.now, CODE))
 
     def nudges(self):
         return [data for event, data in self.published if event == "nudge" and data["kind"] == "stuck"]
 
     def test_asks_once_stuck_for_two_minutes_at_a_pause(self):
-        self.beats(110, key_idle=30.0)  # the clock starts at the first beat: 100 s so far
+        self.beats(110, typing=False)  # the clock starts at the first beat: 100 s so far
         self.assertEqual((self.claims, self.nudges()), ([], []))
-        self.beats(30, key_idle=9.0)  # long enough, still typing
+        self.beats(30, typing=True)  # long enough, still typing
         self.assertEqual((self.claims, self.nudges()), ([], []))
-        self.beats(10, key_idle=10.0)
+        self.beats(10, typing=False)
         [(line_id, text, reason)] = self.claims
         [nudge] = self.nudges()
         self.assertEqual({k: nudge[k] for k in ("level", "line_id", "speak", "gate")},
@@ -940,15 +939,15 @@ class StuckTest(unittest.TestCase):
         self.assertEqual(len(self.claims), 1)
 
     def test_one_blocker_is_asked_once_and_another_again(self):
-        self.beats(130, key_idle=30.0)
-        self.beats(300, key_idle=0.0)
+        self.beats(130, typing=False)
+        self.beats(300, typing=True)
         self.scene["blocker"] = "error: line 57 failed"  # the same line, other numbers
-        self.beats(30, key_idle=30.0)
+        self.beats(30, typing=False)
         self.assertEqual(len(self.claims), 1)
         self.scene["blocker"] = "TypeError: x is undefined"  # a new blocker restarts the clock
-        self.beats(120, key_idle=30.0)
+        self.beats(120, typing=False)
         self.assertEqual(len(self.claims), 1)
-        self.beats(10, key_idle=30.0)
+        self.beats(10, typing=False)
         self.assertEqual(len(self.claims), 2)
         self.assertNotIn("TypeError", self.claims[1][1])
 
@@ -956,48 +955,48 @@ class StuckTest(unittest.TestCase):
         for other in ({**self.scene, "state": "flowing"}, None):
             with self.subTest(other=other):
                 stuck, self.claims = self.scene, []
-                self.beats(100, key_idle=0.0)
+                self.beats(100, typing=True)
                 self.scene = other
-                self.beats(10, key_idle=30.0)
+                self.beats(10, typing=False)
                 self.scene = stuck
-                self.beats(110, key_idle=30.0)
+                self.beats(110, typing=False)
                 self.assertEqual(self.claims, [])
-                self.beats(20, key_idle=30.0)
+                self.beats(20, typing=False)
                 self.assertEqual(len(self.claims), 1)
                 self.scene["blocker"] = f"blocker of {other}"
 
     def test_without_a_blocker_names_the_same_problem(self):
         self.scene.update(blocker=None, thread=None)
-        self.beats(130, key_idle=30.0)
+        self.beats(130, typing=False)
         [(_, text, _)] = self.claims
         self.assertIn(f"{PROMPT_USER} seems to have been stuck on a problem for a while", text)
         self.assertNotIn("None", text)
 
     def test_cannot_interrupt_keeps_silent_and_the_blocker_unasked(self):
         self.scene["can_interrupt"] = False
-        self.beats(140, key_idle=30.0)
+        self.beats(140, typing=False)
         self.assertEqual(self.claims, [])
         [nudge] = self.nudges()  # a refused try waits STUCK_RETRY before the next
         self.assertEqual({k: nudge[k] for k in ("line_id", "speak", "gate")},
                          {"line_id": None, "speak": False, "gate": "cannot_interrupt"})
         self.scene["can_interrupt"] = True
-        self.beats(40, key_idle=30.0)
+        self.beats(40, typing=False)
         self.assertEqual(self.claims, [])
-        self.beats(10, key_idle=30.0)
+        self.beats(10, typing=False)
         self.assertEqual(len(self.claims), 1)
 
     def test_a_gate_refusal_keeps_silent_and_the_blocker_unasked(self):
         self.gate.quiet = (0, 24)
-        self.beats(180, key_idle=30.0)
+        self.beats(180, typing=False)
         self.assertEqual(self.claims, [])
         self.assertEqual([n["gate"] for n in self.nudges()], ["quiet_hours"])
         self.assertNotIn("stuck", self.gate._last)
         self.gate.quiet = (0, 0)
-        self.beats(10, key_idle=30.0)
+        self.beats(10, typing=False)
         self.assertEqual(len(self.claims), 1)
 
     def test_voiced_stuck_commits_stuck(self):
-        self.beats(130, key_idle=30.0)
+        self.beats(130, typing=False)
         [(line_id, _, _)] = self.claims
         self.assertNotIn("stuck", self.gate._last)
         self.assertTrue(self.p.voiced(line_id))
@@ -1032,10 +1031,10 @@ class WorkStuckTest(unittest.TestCase):
     def test_blocked_across_two_runs_asks_with_the_event_as_material(self):
         self.unstuck()
         self.report([work_event("render", "blocked")])
-        self.beats(60, key_idle=30.0)
+        self.beats(60, typing=False)
         self.assertEqual(self.claims, [])
         self.report()  # the next run still finds the task blocked
-        self.beats(10, key_idle=30.0)
+        self.beats(10, typing=False)
         [(_, text, reason)] = self.claims
         self.assertIn("ask whether they want you to help take a look", text)
         self.assertNotIn("RenderTarget", text)
@@ -1043,37 +1042,37 @@ class WorkStuckTest(unittest.TestCase):
         [material] = self.materials
         self.assertIn("检查编译结果", material)
         self.assertIn("缺少 RenderTarget 声明", material)
-        self.beats(300, key_idle=30.0)  # asked once per task
+        self.beats(300, typing=False)  # asked once per task
         self.report()
-        self.beats(10, key_idle=30.0)
+        self.beats(10, typing=False)
         self.assertEqual(len(self.claims), 1)
 
     def test_blocked_for_three_minutes_without_another_run_asks(self):
         self.unstuck()
         self.report([work_event("render", "blocked")])
-        self.beats(170, key_idle=30.0)
+        self.beats(170, typing=False)
         self.assertEqual(self.claims, [])
-        self.beats(10, key_idle=30.0)
+        self.beats(10, typing=False)
         self.assertEqual(len(self.claims), 1)
 
     def test_a_task_no_longer_blocked_or_a_backlog_batch_asks_nothing(self):
         self.unstuck()
         self.report([work_event("render", "blocked")])
         self.report([work_event("render", "working")], tasks=(("render", "working"),))
-        self.beats(200, key_idle=30.0)
+        self.beats(200, typing=False)
         self.report([work_event("late", "blocked")], tasks=(("late", "blocked"),), newest_age=600.0)
         self.report(tasks=(("late", "blocked"),), newest_age=600.0)
-        self.beats(200, key_idle=30.0)
+        self.beats(200, typing=False)
         self.assertEqual((self.claims, self.nudges()), ([], []))
 
     def test_still_typing_or_cannot_interrupt_keeps_silent(self):
         self.unstuck()
         self.report([work_event("render", "blocked")])
         self.report()
-        self.beats(30, key_idle=0.0)
+        self.beats(30, typing=True)
         self.assertEqual(self.claims, [])
         self.scene["can_interrupt"] = False
-        self.beats(10, key_idle=30.0)
+        self.beats(10, typing=False)
         self.assertEqual(self.claims, [])
         self.assertEqual([n["gate"] for n in self.nudges()], ["cannot_interrupt"])
 
@@ -1082,7 +1081,7 @@ class WorkStuckTest(unittest.TestCase):
         self.gate.set_companion(False)
         self.report([work_event("render", "blocked")])
         self.report()
-        self.beats(200, key_idle=30.0)
+        self.beats(200, typing=False)
         self.assertEqual((self.claims, self.nudges()), ([], []))
 
 

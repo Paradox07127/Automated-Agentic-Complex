@@ -56,17 +56,13 @@ class BehaviorTest(unittest.TestCase):
                 self.step(b, **over)
                 self.assertEqual(self.emitted[-1][0], expected)
 
-    def test_react_welcome_back_and_fidget(self):
+    def test_react_and_fidget(self):
         b = self.make()
         self.step(b)
         b.event("dispatch_failed")
         self.step(b, 5)
         self.assertEqual(self.emitted[-1], ("react", "sad"))
-        b.edge("afk")
-        self.step(b, presence="afk", presence_s=behavior.WELCOME_AFTER)
-        b.edge("active", behavior.WELCOME_AFTER)
-        self.step(b)
-        self.assertEqual(self.emitted[-1], ("welcome_back", "happy"))
+        self.step(b, presence="afk", presence_s=600.0)
         self.step(b)
         self.assertEqual(self.emitted[-1][0], "relax")
         self.step(b, behavior.FIDGET_AFTER)
@@ -238,7 +234,7 @@ class BehaviorTest(unittest.TestCase):
         self.assertEqual(self.emitted[-1][0], "relax")
 
     def test_no_fly_in_the_no_interrupt_zone_or_away(self):
-        for over in ({"meeting": True}, {"fullscreen": True}, {"continuous_input": True},
+        for over in ({"meeting": True}, {"fullscreen": True}, {"typing": True},
                      {"presence": "afk", "presence_s": 60.0}):
             with self.subTest(over=over):
                 self.emitted = []
@@ -269,7 +265,7 @@ class BehaviorTest(unittest.TestCase):
         fly, gap = behavior.FLY_AFTER, behavior.FLY_GAP
         steps = ((5, {}, "think"), (fly + 5, {}, "fly"), (fly + 10, {"fullscreen": True}, "think"),
                  (fly + 15, {}, "think"), (fly + 10 + gap, {}, "fly"),
-                 (fly + 15 + gap, {"continuous_input": True}, "think"))
+                 (fly + 15 + gap, {"typing": True}, "think"))
         for seconds, over, expected in steps:
             with self.subTest(seconds=seconds):
                 self.now = T0 + seconds
@@ -430,55 +426,13 @@ class BehaviorTest(unittest.TestCase):
         self.step(b)
         self.assertEqual(self.emitted, [("relax", "normal")])
 
-    def test_unlock_after_20min_welcomes_once(self):
-        b = self.make()
+    def test_a_return_is_no_activity(self):
+        self.assertNotIn("welcome_back", behavior.ACTIVITIES)
+        self.assertNotIn("welcome_small", behavior.ACTIVITIES)
+        model = FakeModel({"activity": "welcome_back", "mood": "happy"})
+        b = self.make(model)
         self.step(b)
-        b.edge("lock")
-        self.step(b, 1200, presence="afk", presence_s=1200.0)
-        self.assertEqual(self.emitted[-1][0], "sleep")
-        self.assertTrue(b.edge("unlock", 1200.0))
-        self.step(b, 5)
-        self.assertEqual(self.emitted[-1], ("welcome_back", "happy"))
-        self.assertFalse(b.edge("unlock", 1205.0))  # the same return again
-        for _ in range(3):
-            self.step(b, 5)
-        self.assertEqual([a for a, _ in self.emitted].count("welcome_back"), 1)
-
-    def back_after(self, away_s):
-        """The activities after a lock, `away_s` away and an unlock, then three more ticks."""
-        b = self.make()
-        self.step(b)
-        b.edge("lock")
-        self.step(b, away_s, presence="afk", presence_s=away_s)
-        self.step(b, 5)  # active again; the unlock edge may come a beat later
-        start = len(self.emitted)
-        self.assertTrue(b.edge("unlock", away_s))
-        for _ in range(4):
-            self.step(b, 5)
-        return [a for a, _ in self.emitted[start:]]
-
-    def test_unlock_after_5min_welcomes_small_once(self):
-        self.assertEqual(self.back_after(300.0), ["welcome_small", "relax"])
-        self.assertEqual(self.emitted[-2], ("welcome_small", "happy"))
-
-    def test_unlock_after_90s_no_welcome(self):
-        self.assertEqual(self.back_after(90.0), [])
-
-    def test_unlock_after_700s_welcomes_back_not_small(self):
-        self.assertEqual(self.back_after(700.0), ["welcome_back", "relax"])
-
-    def test_no_welcome_small_while_speaking(self):
-        b = self.make()
-        self.step(b)
-        b.edge("lock")
-        self.step(b, 300, presence="afk", presence_s=300.0)
-        b.edge("unlock", 300.0)
-        self.speaking = True
-        self.step(b, 5)
-        self.assertNotIn("welcome_small", [a for a, _ in self.emitted])
-        self.speaking = False
-        self.step(b, 5)
-        self.assertEqual(self.emitted[-1], ("welcome_small", "happy"))
+        self.assertEqual(self.emitted[-1][0], "relax")
 
 
 class StateTest(unittest.TestCase):

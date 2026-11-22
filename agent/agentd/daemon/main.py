@@ -467,7 +467,8 @@ def main():
                                  pending=server.broker.pending, clock=server.clock, worklog=server.worklog,
                                  semantic=server.character_agent.semantic,
                                  report_time=server.rituals.report_time, egress=egress,
-                                 work_allowed=work_signal_allowed)
+                                 work_allowed=work_signal_allowed,
+                                 absent=lambda: server.user_now.snapshot()["absence"] is not None)
     server.spatial.routine = Routine(state=server.state_view)
     server.behavior = Behavior(server.situation, server.registry.set_activity,
                                backend=None, routine=server.spatial.routine,

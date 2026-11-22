@@ -131,7 +131,7 @@ class PluginStartupTest(unittest.TestCase):
 
     def test_coarse_with_awareness_off_creates_no_attention_database(self):
         state = self.snapshot("--plugin-off", "screen_awareness", TEST_USER_COARSE="1")
-        self.assertEqual(state["coarse"], [200, {}])
+        self.assertEqual(state["coarse"], [200, {"presence": "present", "stage": "quiet", "absence": None, "revision": 1}])
         status, body = state["user_now"]
         self.assertEqual(status, 200)
         self.assertEqual(body["snapshot"]["doing"], "meeting")

@@ -11,6 +11,7 @@ from brain.outbound import OutboundBlocked
 from infra.localtime import local_time
 from daemon.constants import VIEW_FRESH, RAW_KINDS
 from observation import user_state
+from observation.user_now import typing
 from api.views import _window_id, _midnight
 
 RECALL = re.compile(r"刚才(那|的)?(个)?(网)?页|上一页|之前(那|的)(个)?(网)?页")  # asks about an earlier page
@@ -42,7 +43,7 @@ class ContextMixin:
             window = {**window, "category": declared}
         state = self.registry.snapshot()["focus"]["state"]
         self._busy_since = (self._busy_since or self.clock()) if state in BUSY else None
-        scene = self._scene
+        scene, user = self._scene, self.user_now.snapshot()
         holds = scene["holds"] if scene is not None else []
         jobs = getattr(getattr(self, "character_agent", None), "jobs", None)  # none without a character agent or its jobs
         return {"hour": datetime.datetime.now().hour, "focus_state": state,
@@ -50,8 +51,8 @@ class ContextMixin:
                 "presence_s": presence[1] if presence else 0.0, "category": category(window),
                 "focus": self.focus.running(), "busy_since": self._busy_since,
                 "own_job": bool(jobs and jobs.store.list(states=("queued", "running"), limit=1)),
-                "scene": scene and scene["activity"], "meeting": scene is not None and scene["activity"] == "meeting",
-                "fullscreen": "fullscreen" in holds, "continuous_input": "continuous_input" in holds}
+                "scene": scene and scene["activity"], "meeting": user["doing"] in ("meeting", "sharing"),
+                "fullscreen": "fullscreen" in holds, "typing": typing(user)}
 
     def spatial_situation(self):
         """For the spatial behaviors:see Spatial's observe(). Its scene goes to the thoughts too."""
@@ -61,11 +62,12 @@ class ContextMixin:
         run = self.attention.dwell() if self.attention is not None else None
         window_id = run[2].get("window_id") if run is not None else None
         focus = self.registry.snapshot()["focus"]
-        trace = self._turn_trace
+        trace, user = self._turn_trace, self.user_now.snapshot()
         situation = {"fullscreen": self.gate.fullscreen, "user_speaking": self.gate.user_speaking,
                 "speaking": self.busy() or bool(self._live_lines),
                 "voicing": self.speech is not None and self.speech.busy(), "line_id": trace and trace["turn_id"],
-                "typing": scene is not None and scene["activity"] == "typing", "session": focus["display_session"],
+                "typing": typing(user), "absence": user["absence"] and dict(user["absence"]),
+                "session": focus["display_session"],
                 "state": focus["state"], "related": scene["related_session_ids"] if scene is not None else [],
                 "window_id": window_id if _window_id(window_id) else None, "activity": scene and scene["activity"],
                 "idle_s": self.attention.idle_s() if self.attention is not None else None}
@@ -86,8 +88,7 @@ class ContextMixin:
                 and self.character == cid and self.turn_generation == generation \
                 and self.consent.snapshot()[1] == consent and controller._permitted('behavior')
             context = {k:situation[k] for k in ('activity','state','typing','user_speaking','speaking','voicing','session','window_id')}
-            presence = self.attention.presence() if self.attention is not None else None
-            context.update(presence=presence[0] if presence else None,meeting=self.gate.meeting,
+            context.update(presence=user["presence"],doing=user["doing"],
                            giving_way=situation['fullscreen'] and self.spatial.switches['fullscreen_give_way'],
                            attending=any(b['type'] in ('listen','attend_session') for b in self.spatial.running()),
                            character_id=cid,turn_generation=generation,focus_seconds=run[1] if run else 0,
@@ -173,7 +174,7 @@ class ContextMixin:
             return None
         correction = self.correction
         inputs = activity.snapshot(self.attention, self.registry, self.capture, self.sessions,
-                                   self.gate.fullscreen, self.camera_active)
+                                   self.user_now.snapshot(), self.gate.fullscreen)
         inputs["interpreted"] = self._interpreted(inputs["now"])
         scene = activity.assemble(inputs, correction=correction)
         if self.activity_decisions is not None:
@@ -185,7 +186,8 @@ class ContextMixin:
             kinds = USER_KINDS if self.external_session_activity_allowed() else RAW_KINDS
             events = self.attention.recent_events(now - user_state.ERROR_WINDOW, kinds=kinds)
             derived = user_state.derive(events, inputs, scene, now)
-            current = self.user_state.update(derived, now, at_once=scene["corrected"])
+            current = self.user_state.update(derived, now, at_once=scene["corrected"],
+                                             absence=self.user_now.snapshot()["absence"])
         before = current["before_away"]
         return {**scene, **self._consented_state(current),
                 "before_away": before and {**self._consented_state(before), "ts": before["ts"]}, "now": self._now()}

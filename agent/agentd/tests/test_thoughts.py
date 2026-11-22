@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from brain.persona import PROMPT_USER  # noqa: E402
 from character.gate import Gate  # noqa: E402
 from character.proactive import MUTABLE  # noqa: E402
-from character.thoughts import DAILY_CAP, FRESH, GAP, KEPT, LOOKBACK, MAX_GAP, Thoughts, parse  # noqa: E402
+from character.thoughts import DAILY_CAP, FRESH, GAP, KEPT, LOOKBACK, MAX_GAP, REASONS, Thoughts, parse  # noqa: E402
 from character import thoughts as thoughts_module  # noqa: E402
 from observation.activity import INTERPRETED_FRESH  # noqa: E402
 from sessions.events import normalize_claude  # noqa: E402
@@ -129,39 +129,17 @@ class ThoughtsTest(unittest.TestCase):
                 self.client.replies = [json.dumps({"thought": "x" * length, "offer": None, "reply": None})]
                 self.assertEqual(self.notice(0), shown)
 
-    def test_present_after_away_or_idle_triggers_returned_once(self):
-        for absent in ({"activity": "away"}, {"mode": "away"}, {"state": "idle"}):
-            with self.subTest(absent=absent):
-                self.setUp()
-                present = dict(self.scene)
-                self.scene = {**present, **absent}
-                self.t.observe(self.scene)
-                self.assertEqual(self.client.calls, [])
-                self.now += 15 * 60
-                self.scene = present
-                self.t.observe(self.scene)
-                self.now += GAP
-                self.t.observe(self.scene)
-                self.assertEqual([d["reason"] for d in self.thoughts()], ["returned"])
-                self.assertEqual(len(self.client.calls), 1)
-                self.assertIn(f"{PROMPT_USER} is back", json.dumps(self.client.calls[0]["evidence"], ensure_ascii=False))
-
-    def test_returned_requires_at_least_ten_minutes_away(self):
-        for duration, returned in ((4 * 60, False), (599, False), (600, True), (15 * 60, True)):
-            with self.subTest(duration=duration):
-                self.setUp()
-                present = dict(self.scene)
-                self.scene = {**present, "activity": "away"}
-                self.t.observe(self.scene)
-                self.now += duration / 2
-                self.t.observe(self.scene)
-                self.now += duration / 2
-                self.scene = present
-                self.t.observe(self.scene)
-                self.now += GAP
-                self.t.observe(self.scene)
-                self.assertEqual([d["reason"] for d in self.thoughts() if d["reason"] == "returned"],
-                                 ["returned"] if returned else [])
+    def test_coming_back_is_no_thought(self):
+        present = dict(self.scene)
+        self.scene = {**present, "activity": "away"}
+        self.t.observe(self.scene)
+        self.now += 15 * 60
+        self.scene = present
+        self.t.observe(self.scene)
+        self.now += GAP
+        self.t.observe(self.scene)
+        self.assertNotIn("returned", REASONS)
+        self.assertEqual(self.thoughts(), [])
 
     def during_model(self, reasons):
         create = self.client.run
@@ -332,31 +310,31 @@ class ThoughtsTest(unittest.TestCase):
     def type_until(self, until):
         """The user types each second from now until T0 + until."""
         while self.now < T0 + until:
-            self.gate.last_key = self.now
+            self.gate.typing = True
             self.t.observe(None)
             self.now += 1
 
     def test_a_trigger_while_typing_waits_for_the_pause(self):
-        self.gate.last_key = T0
+        self.gate.typing = True
         self.assertFalse(self.notice(0))
         self.type_until(30)
         self.assertEqual(self.client.calls, [])
-        self.now = self.gate.last_key + 10
+        self.gate.typing = False
         self.t.observe(None)
         self.assertEqual(len(self.client.calls), 1)
         self.assertEqual([d["reason"] for d in self.thoughts()], ["started"])
 
     def test_a_trigger_typed_through_for_120_seconds_is_dropped(self):
-        self.gate.last_key = T0
+        self.gate.typing = True
         self.assertFalse(self.notice(0))
         self.type_until(125)
-        self.now = self.gate.last_key + 10
+        self.gate.typing = False
         self.t.observe(None)
         self.assertEqual(self.client.calls, [])
         self.assertEqual(self.thoughts(), [])
 
     def test_observe_while_typing_never_asks(self):
-        self.gate.last_key = T0
+        self.gate.typing = True
         self.notice(0)
         for _ in range(100):
             self.t.observe(None)
@@ -366,7 +344,7 @@ class ThoughtsTest(unittest.TestCase):
         create = self.client.run
 
         def making(*args, **options):
-            self.gate.last_key = self.now
+            self.gate.typing = True
             return create(*args, **options)
 
         self.client.run = making
@@ -375,6 +353,7 @@ class ThoughtsTest(unittest.TestCase):
         self.t.observe(None)
         self.assertEqual(self.thoughts(), [])
         self.now += 5
+        self.gate.typing = False
         self.t.observe(None)
         self.assertEqual([d["reason"] for d in self.thoughts()], ["started"])
         self.assertEqual(len(self.client.calls), 1)
@@ -383,13 +362,14 @@ class ThoughtsTest(unittest.TestCase):
         create = self.client.run
 
         def making(*args, **options):
-            self.gate.last_key = self.now
+            self.gate.typing = True
             return create(*args, **options)
 
         self.client.run = making
         self.notice(0)
         self.gate.meeting = True
         self.now += 10
+        self.gate.typing = False
         self.t.observe(None)
         self.assertEqual(self.thoughts(), [])
 
@@ -397,21 +377,20 @@ class ThoughtsTest(unittest.TestCase):
         create = self.client.run
 
         def making(*args, **options):
-            self.gate.last_key = self.now
+            self.gate.typing = True
             return create(*args, **options)
 
         self.client.run = making
         self.notice(0)
         self.type_until(125)
-        self.now = self.gate.last_key + 10
+        self.gate.typing = False
         self.t.observe(None)
         self.assertEqual(self.thoughts(), [])
         self.assertEqual(len(self.client.calls), 1)
 
-    def test_without_key_counts_or_after_a_pause_a_thought_is_immediate(self):
-        self.gate.last_key = None
+    def test_while_the_user_does_not_type_a_thought_is_immediate(self):
+        self.assertFalse(self.gate.typing)
         self.assertTrue(self.notice(0))
-        self.gate.last_key = T0 + GAP - 10
         self.assertTrue(self.notice(GAP, "done", "finished"))
 
     def test_observe_runs_a_pending_trigger_before_any_thought(self):

@@ -37,6 +37,7 @@ from character import character_state  # noqa: E402
 import codex_hook_forward  # noqa: E402
 from personal.episodes import Episodes  # noqa: E402
 from daemon.constants import RECEIPTS_KEPT  # noqa: E402
+from observation.user_now import UserNow  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 from daemon.main import parse_args  # noqa: E402
 from infra.tokens import read_token, write_secret  # noqa: E402
@@ -71,7 +72,7 @@ class UserRoutesTest(unittest.TestCase):
     def test_coarse_with_screen_awareness_off_changes_the_snapshot(self):
         with unittest.mock.patch.dict("infra.plugins.resolved", screen_awareness=False):
             self.assertEqual(self.request("POST", "/user/coarse", {"ts": time.time(), "idle_s": 0, "mic_active": True}),
-                             (200, {}))
+                             (200, {"presence": "present", "stage": "quiet", "absence": None, "revision": 1}))
             body = self.now()
         self.assertEqual((body["snapshot"]["revision"], body["snapshot"]["presence"], body["snapshot"]["doing"]),
                          (1, "present", "meeting"))
@@ -105,8 +106,8 @@ class UserRoutesTest(unittest.TestCase):
                 with self.subTest(fields=fields):
                     self.assertEqual(self.request("POST", "/user/coarse", {**base, **fields}),
                                      (400, {"error": "invalid_coarse"}))
-            self.assertEqual(self.request("POST", "/user/coarse", {**base, "input": {"keys_10s": 12, "key_idle_s": 0}}),
-                             (200, {}))
+            self.assertEqual(self.request("POST", "/user/coarse", {**base, "input": {"keys_10s": 12, "key_idle_s": 0}})[0],
+                             200)
             self.assertTrue(self.now()["snapshot"]["typing"])
             policy.write_text('{"sense_input_counts": false}', encoding="utf-8")
             self.assertEqual(self.request("POST", "/user/coarse", {**base, "input": {}}),
@@ -132,10 +133,126 @@ class UserRoutesTest(unittest.TestCase):
         self.assertEqual(self.request("PUT", "/observation/paused", {"minutes": 5})[0], 200)
         frozen = self.now()["snapshot"]
         self.assertTrue(frozen["paused"])
-        self.assertEqual(beat(edge="unlock"), (200, {}))
+        self.assertEqual(beat(edge="unlock"), (200, {k: frozen[k] for k in ("presence", "stage", "absence", "revision")}))
         self.assertEqual(self.now()["snapshot"], frozen)
         self.request("PUT", "/observation/paused", {"minutes": 0})
         self.assertFalse(self.now()["snapshot"]["paused"])
+
+
+class UserNowReadersTest(unittest.TestCase):
+    """Each reader of presence, return, meeting, typing, fullscreen and stage takes user_now's judgment; screen awareness
+    is off unless a test turns it on."""
+    request = test_route_registry.ProactiveRoutesTest.request
+
+    def setUp(self):
+        with unittest.mock.patch.object(AgentdServer, "server_bind"), \
+                unittest.mock.patch.object(AgentdServer, "server_activate"):
+            self.server = AgentdServer(("127.0.0.1", 48810), HOOK, UI, events_token=EVENTS, gate=Gate(enabled=True))
+        self.server.server_port = 48810
+        self.addCleanup(self.server.server_close)
+        patcher = unittest.mock.patch.dict("infra.plugins.resolved", screen_awareness=False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.ts = time.time()
+        self.server.clock = lambda: self.ts
+
+    def beat(self, step=1, idle_s=0, **fields):
+        self.ts += step
+        return self.request("POST", "/user/coarse", {"ts": self.ts, "idle_s": idle_s, **fields})
+
+    def counts(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        policy = Path(tmp.name) / "privacy.json"
+        policy.write_text('{"sense_input_counts": true}', encoding="utf-8")
+        self.server.privacy_config = policy
+
+    def test_the_answer_is_the_snapshots_presence_stage_absence_and_revision(self):
+        self.assertEqual(self.beat(), (200, {"presence": "present", "stage": "normal", "absence": None, "revision": 1}))
+        status, body = self.beat(edge="lock")
+        self.assertEqual((status, body["presence"], body["stage"], body["revision"]), (200, "locked", "offstage", 2))
+        self.assertEqual(set(body["absence"]), {"id", "since"})
+
+    def test_the_gate_takes_meeting_fullscreen_speaking_and_typing_from_user_now(self):
+        self.counts()
+        gate, noon = self.server.gate, datetime.datetime(2026, 10, 18, 12, 0)
+        for fields, flag, reason in (({"mic_active": True}, "meeting", "meeting"),
+                                     ({"camera_active": True}, "meeting", "meeting"),
+                                     ({"screen_captured": True}, "meeting", "meeting"),
+                                     ({"fullscreen": True}, "fullscreen", "fullscreen"),
+                                     ({"user_speaking": True}, "user_speaking", "user_speaking"),
+                                     ({"input": {"keys_10s": 12, "key_idle_s": 0}}, "typing", "quiet")):
+            with self.subTest(fields=fields):
+                self.setUp()
+                self.counts()
+                gate, noon = self.server.gate, datetime.datetime(2026, 10, 18, 12, 0)
+                self.assertEqual(self.beat(**fields)[0], 200)
+                self.assertTrue(getattr(gate, flag))
+                self.assertEqual(gate._reason("announce", noon), reason)
+        self.beat(idle_s=3)
+        self.beat(idle_s=4)
+        self.assertEqual((gate.typing, gate.stage, gate._reason("announce", noon)), (False, "normal", None))
+
+    def test_typing_without_key_counts_is_input_active(self):
+        self.beat(idle_s=1)
+        self.assertTrue(self.server.gate.typing)
+        self.beat(idle_s=3)
+        self.assertFalse(self.server.gate.typing)
+
+    def test_one_return_reaches_the_spoken_report_and_the_held_signals_once(self):
+        backs, returns = [], []
+        self.server.proactive = SimpleNamespace(back=backs.append)
+        self.server.signals = SimpleNamespace(returned=lambda: returns.append(True))
+        start = self.ts
+        self.beat(0)
+        self.beat(idle_s=1, edge="lock")  # the absence began at the last input, the beat before
+        self.beat(300, edge="sleep")
+        self.beat(1, edge="wake")
+        self.assertEqual(backs, [])
+        self.beat(1, edge="unlock")
+        self.beat(1)
+        self.assertEqual((backs, returns), ([self.ts - 1 - start], [True]))
+        self.assertEqual(self.server.gate.stage, "engaged")
+
+    def test_the_attention_beat_edge_no_longer_welcomes(self):
+        backs = []
+        self.server.proactive = SimpleNamespace(back=backs.append, beat=lambda body: None)
+        self.server.behavior = SimpleNamespace(edge=lambda kind, away_s: True)
+        self.server.attention = SimpleNamespace(presence=lambda: ("active", 0.0), events=lambda kind: [],
+                                                ingest=lambda body: None,
+                                                blacklist=SimpleNamespace(scrub=lambda front: front))
+        support.enable_plugins(self, "screen_awareness")
+        body = {"ts": self.ts, "front": {"app": "Code"}, "mouse": None, "idle_s": 0.0, "edge": "unlock"}
+        self.assertEqual(self.request("POST", "/context/attention", body), (200, {}))
+        self.assertEqual(backs, [])
+
+    def test_registry_quiet_is_the_stage_or_dnd(self):
+        registry = self.server.registry
+        self.beat()
+        self.assertFalse(registry.quiet)
+        self.beat(mic_active=True)
+        self.assertTrue(registry.quiet)
+        self.beat()
+        self.assertFalse(registry.quiet)
+        self.beat(edge="lock")
+        self.assertTrue(registry.quiet)
+        self.beat(edge="unlock")
+        self.assertFalse(registry.quiet)
+        self.assertEqual(self.request("PUT", "/observation/quiet", {"until": self.ts + 600})[0], 200)
+        self.assertTrue(registry.quiet)
+        self.request("PUT", "/observation/quiet", {"until": None})
+        self.assertFalse(registry.quiet)
+
+    def test_spatial_and_behavior_read_typing_meeting_and_the_absence(self):
+        self.beat(idle_s=1)
+        situation = self.server.spatial_situation()
+        self.assertEqual((situation["typing"], situation["absence"]), (True, None))
+        self.server.focus = SimpleNamespace(running=lambda: False)
+        self.assertEqual({k: self.server.situation()[k] for k in ("meeting", "typing")}, {"meeting": False, "typing": True})
+        self.beat(idle_s=3, camera_active=True)
+        self.assertEqual({k: self.server.situation()[k] for k in ("meeting", "typing")}, {"meeting": True, "typing": False})
+        self.beat(edge="lock")
+        self.assertEqual(self.server.spatial_situation()["absence"], self.server.user_now.snapshot()["absence"])
 
 
 class ServerTest(unittest.TestCase):
@@ -3395,6 +3512,7 @@ class SituationCategoryTest(unittest.TestCase):
             server.registry = SimpleNamespace(snapshot=lambda: {"focus": {"state": "idle"}})
             server.broker = SimpleNamespace(pending=lambda: [])
             server.focus = Focus()
+            server.user_now = UserNow()
             now = time.time()
             front = {"app": "Arena", "bundle_id": "x.Arena", "window_id": 4,
                      "category": "public.app-category.action-games"}
@@ -3421,38 +3539,29 @@ class AttentionServerTest(FeedServerCase):
                 "secure_input": False, **extra}
         return self.request("POST", "/context/attention", body)
 
-    def test_heartbeat_sets_the_gate_context(self):
+    def test_heartbeat_flags_leave_the_gate_alone(self):
         self.server.gate = Gate(enabled=True)
         noon = datetime.datetime(2026, 10, 18, 12, 0)
-        reason = lambda: self.server.gate._reason("announce", noon)
         now = time.time()
-        for extra, expected in (({"fullscreen": True}, "fullscreen"), ({"camera_active": True}, "meeting"),
-                                ({"mic_active": True}, "meeting"), ({"screen_captured": True}, "meeting"),
-                                ({"user_speaking": True}, "user_speaking"),
-                                ({}, None)):
+        for extra in ({"fullscreen": True}, {"camera_active": True}, {"mic_active": True}, {"screen_captured": True},
+                      {"user_speaking": True}):
             with self.subTest(extra=extra):
                 self.assertEqual(self.beat(now, "Code", "x", **extra), (200, {}))
-                self.assertEqual(reason(), expected)
+                self.assertIsNone(self.server.gate._reason("announce", noon))
         self.assertEqual(self.beat(now, "Code", "x", fullscreen="yes"), (400, {"error": "invalid_attention"}))
 
-    def test_heartbeat_sets_the_gate_last_key(self):
-        self.server.gate = Gate(enabled=True)
-        now = time.time()
-        self.assertEqual(self.beat(now, "Code", "x", input={"key_idle_s": 3.5, "keys_10s": 4}), (200, {}))
-        self.assertEqual(self.server.gate.last_key, now - 3.5)
-        self.assertEqual(self.beat(now + 1, "Code", "x", input={"keys_10s": 0}), (200, {}))
-        self.assertIsNone(self.server.gate.last_key)
-        self.beat(now + 2, "Code", "x", input={"key_idle_s": 1})
-        self.assertEqual(self.beat(now + 3, "Code", "x"), (200, {}))
-        self.assertIsNone(self.server.gate.last_key)
+    def coarse(self, ts, **fields):
+        return self.request("POST", "/user/coarse", {"ts": ts, "idle_s": 3, **fields})
 
-    def test_heartbeat_camera_makes_another_apps_mic_a_meeting(self):
+    def test_user_nows_meeting_is_the_scenes(self):
         now = time.time()
         for i in range(3):
             self.assertEqual(self.beat(now - 2 + i, "Code", "x", camera_active=True, mic_apps=["x.Other"],
                                        input={"keys_10s": 0}), (200, {}))
+        self.assertNotEqual(self.server.activity()["activity"], "meeting")
+        self.assertEqual(self.coarse(now, camera_active=True)[0], 200)
         scene = self.server.activity()
-        self.assertEqual((scene["activity"], scene["confidence"]), ("meeting", 0.9))
+        self.assertEqual((scene["activity"], scene["confidence"], scene["can_interrupt"]), ("meeting", 0.9, False))
 
     def test_heartbeat_games_category_is_gaming(self):
         now = time.time()
@@ -3467,7 +3576,8 @@ class AttentionServerTest(FeedServerCase):
     def test_spatial_sees_a_meeting(self):
         now = time.time()
         for i in range(3):
-            self.beat(now - 2 + i, "Code", "x", camera_active=True, mic_apps=["x.Other"], input={"keys_10s": 0})
+            self.beat(now - 2 + i, "Code", "x", input={"keys_10s": 0})
+        self.coarse(now, mic_active=True)
         self.assertEqual(self.server.spatial_situation()["activity"], "meeting")
 
     def test_the_behavior_tick_gets_the_declared_games_category(self):
@@ -3504,8 +3614,8 @@ class AttentionServerTest(FeedServerCase):
         self.assertIsNone(self.server.situation()["scene"])  # spatial has read no scene yet
         self.server.spatial_situation()
         situation = self.server.situation()
-        self.assertEqual({k: situation[k] for k in ("scene", "meeting", "fullscreen", "continuous_input", "busy_since")},
-                         {"scene": "gaming", "meeting": False, "fullscreen": False, "continuous_input": False,
+        self.assertEqual({k: situation[k] for k in ("scene", "meeting", "fullscreen", "typing", "busy_since")},
+                         {"scene": "gaming", "meeting": False, "fullscreen": False, "typing": False,
                           "busy_since": None})
         self.server.registry.ingest(claude("UserPromptSubmit", now))
         since = self.server.situation()["busy_since"]
@@ -3533,21 +3643,6 @@ class AttentionServerTest(FeedServerCase):
         self.server.proactive = P()
         self.server._proactive_voiced("p-back")
         self.assertEqual((gate._count, "comment" in gate._last, "back" in gate._last), (1, False, True))
-
-    def test_a_repeated_edge_counts_once(self):
-        backs = []
-        self.server.behavior = Behavior(lambda: {}, lambda a, m: None)
-        self.server.proactive = type("P", (), {"beat": lambda _self, body: None,
-                                               "back": lambda _self, away_s: backs.append(away_s)})()
-        now = time.time()
-        self.assertEqual(self.beat(now - 1200, "Code", "x", locked=True, edge="lock"), (200, {}))
-        self.beat(now - 1199, "Code", "x", locked=True)
-        # The unlock beat still says locked; the next one does not, and a duplicate unlock follows.
-        self.beat(now - 2, "Code", "x", locked=True, edge="unlock")
-        self.beat(now - 1, "Code", "x")
-        self.beat(now, "Code", "x", edge="unlock")
-        self.assertEqual([round(a) for a in backs], [1198])
-        self.assertEqual(self.server.behavior._away, True)  # a welcome back is due
 
     def test_heartbeats_feed_the_summary(self):
         now = time.time()
@@ -4070,7 +4165,8 @@ class UserStateForgetTest(FeedServerCase):
         state = {"mode": "coding", "state": "stuck", "evidence": [], "thread": "repo", "on_mind": None,
                  "blocker": "error: x"}
         self.server.user_state.update(state, self.now - 2)
-        return self.server.user_state.update({**state, "mode": "away", "blocker": None}, self.now - 1)["before_away"]
+        return self.server.user_state.update({**state, "mode": "away", "blocker": None}, self.now - 1,
+                                             absence={"id": "1-1", "since": self.now - 1})["before_away"]
 
     def test_each_way_of_forgetting_drops_the_held_state(self):
         forget = {"observation": lambda: self.request("DELETE", "/observation?range=15m"),
@@ -4240,6 +4336,7 @@ class ObservationControlTest(FeedServerCase):
         self.server.proactive = SimpleNamespace(beat=beats.append)
         self.server.gate = Gate(enabled=True)
         self.assertEqual(self.beat(self.now, "Code", "x", camera_active=True), (200, {}))
+        self.assertEqual(self.request("POST", "/user/coarse", {"ts": self.now, "idle_s": 0, "camera_active": True})[0], 200)
         status, body = self.request("PUT", "/observation/paused", {"minutes": 60})
         self.assertEqual(status, 200)
         self.assertAlmostEqual(datetime.datetime.fromisoformat(body["paused_until"]).timestamp(), self.now + 3600,
@@ -4258,12 +4355,14 @@ class ObservationControlTest(FeedServerCase):
         self.assertEqual(len(self.server.attention.events("window")), stored)
         self.assertEqual(self.server.attention.context(), [])
         self.assertEqual(len(beats), 1)  # proactive saw only the beat before the pause
-        self.assertTrue(self.server.gate.meeting)  # the paused beat's flags were not applied
+        self.assertEqual(self.request("POST", "/user/coarse", {"ts": self.now, "idle_s": 0})[0], 200)
+        self.assertTrue(self.server.gate.meeting)  # the paused coarse beat's flags were not applied
         self.assertEqual(self.request("POST", "/look", {}),
                          (409, {"error": "paused", "reason": "paused", "status": "unavailable"}))
         self.assertEqual(self.server.capture.observations, {})
         self.now += 3600
         self.assertEqual(self.beat(self.now, "Safari", "新闻"), (200, {}))
+        self.assertEqual(self.request("POST", "/user/coarse", {"ts": self.now, "idle_s": 0})[0], 200)
         self.assertEqual(self.browser({**page, "ts": self.now}), (200, {}))
         self.assertEqual(len(self.server.attention.events("window")), stored + 1)
         self.assertEqual(len(self.server.attention.context()), 1)

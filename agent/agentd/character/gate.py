@@ -22,11 +22,12 @@ class Gate:
         self.same_cooldown = self.interaction.same_cooldown if same_cooldown is None else same_cooldown
         self.cross_cooldown = cross_cooldown
         self.daily_limit = daily_limit
-        self.user_speaking = self.fullscreen = self.meeting = False
-        self.meeting_manual = False  # PUT /observation/meeting; heartbeats set only meeting
+        # user_now's meeting (or sharing), fullscreen, user_speaking and typing as of the latest coarse beat
+        self.user_speaking = self.fullscreen = self.meeting = self.typing = False
+        self.meeting_manual = False  # PUT /observation/meeting; coarse beats set only meeting
+        self.stage = "normal"  # user_now's stage; offstage and quiet hold every non-P0 line
         self.focus = False  # a focus session runs: only P0 and P1 pass
         self.muted = frozenset()  # categories the user turned off; their P0 and P1 lines still pass
-        self.last_key = None  # the latest heartbeat's time of the last key, or None without key counts; no rule reads it
         self._last = {}
         self._last_any = None
         self._day, self._count = None, 0
@@ -154,6 +155,8 @@ class Gate:
             return "muted"
         if self.meeting or self.meeting_manual:
             return "meeting"
+        if self.stage in ("offstage", "quiet"):
+            return self.stage
         if self.focus and level != "P1":
             return "focus"
         if self.user_speaking:

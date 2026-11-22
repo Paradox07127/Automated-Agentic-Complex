@@ -4,6 +4,7 @@ import threading
 import time
 
 from observation.spatial import ATTEND
+from observation.user_now import ABSENT
 
 
 FACING_TOOL = {'name':'avatar_face','description':
@@ -49,9 +50,9 @@ class FacingDecisions:
 
     def apply(self,context,*,allowed,valid=lambda:True):
         with self.lock:
-            if not allowed or not valid() or context.get('activity') in ('away','meeting') \
-                    or context.get('presence') == 'afk' or context.get('locked') \
-                    or context.get('meeting') or context.get('giving_way'):
+            # presence and doing are user_now's
+            if not allowed or not valid() or context.get('presence') in ABSENT \
+                    or context.get('doing') in ('meeting','sharing') or context.get('giving_way'):
                 self.epoch+=1
                 return
             attend=context.get('state') in ('listen','attend','attend_session') \

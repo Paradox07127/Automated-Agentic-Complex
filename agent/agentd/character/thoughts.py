@@ -7,7 +7,6 @@ import time
 
 from brain.persona import PROMPT_USER, USER_SLOT
 from character_agent.services.semantic import room
-from character.proactive import STUCK_PAUSE
 from observation.activity import CONFIDENCE, INTERPRETED_FRESH
 
 CATEGORY = "thought"  # gate category; mutable through PUT /proactive/mutes
@@ -17,7 +16,6 @@ MAX_GAP = 900.0  # the gap doubles up to this while triggers bring no new facts
 DAILY_CAP = 120  # thoughts per local day
 KEPT = 20  # thoughts latest() looks back over
 FRESH = 600.0  # seconds a thought stays the latest
-RETURNED_AFTER = 600.0  # Like spatial.AWAY_REST, a shorter absence is only a coffee break.
 LOOKBACK, UNHEARD = 5, 3  # UNHEARD of a reason's LOOKBACK newest thoughts ignored or dismissed double its gap
 REST = 7200.0  # seconds a reason rests once its LOOKBACK newest thoughts all went unheard; then one probe
 ENGAGED = ("accepted", "replied", "useful")  # outcomes that end a reason's rest
@@ -30,7 +28,7 @@ MIN_CONFIDENCE = min(value for kind, value in CONFIDENCE.items() if kind != "non
 OWN_BUDGET = (None, "daily_limit", "same_cooldown", "cross_cooldown")
 REASONS = {"started": "a session started working", "finished": "a session just finished",
            "needs_input": "a session stopped to wait for {user_title}'s reply or approval", "error": "a session stopped on an error",
-           "activity": "{user_title} moved on to something else", "returned": "{user_title} is back",
+           "activity": "{user_title} moved on to something else",
            "blocked": "{user_title} looks stuck on something", "result": "something {user_title} was waiting on has a result",
            "studying": "{user_title} has been comparing or tracking down something for a while"}
 STUDYING = ("comparing", "investigating")  # interpreter task states of looking into something
@@ -83,8 +81,8 @@ def _idle(scene):
                                   or scene.get("state") == "idle")
 
 
-def _typing(gate, now):
-    return gate.last_key is not None and now - gate.last_key < STUCK_PAUSE
+def _typing(gate):
+    return gate.typing
 
 
 def _heard(log, reason, now):
@@ -150,7 +148,6 @@ class Thoughts:
         self._gap = GAP
         self._day, self._count = None, 0
         self._seen = None  # the activity observe() last saw
-        self._away = None  # clock time the current absence began
         self._rest = {}  # reason -> clock time its rest, or the one probe's wait, ends
         self._kept = collections.deque(maxlen=KEPT)  # (clock time, feed data), oldest first
         self._generation = 0  # each reset() adds 1, so a thought asked for before it is dropped
@@ -158,24 +155,18 @@ class Thoughts:
         self._studying = {}  # task_key -> (state, clock time it began, noticed) of a fresh STUDYING task
 
     def observe(self, scene):
-        """An assembled scene: returning or a new activity with enough confidence is a trigger."""
+        """An assembled scene: a new activity with enough confidence is a trigger, but not the first one after away:
+        coming back is user_now's return."""
         if scene is not None:
-            now, away = self.clock(), self._away
-            idle = _idle(scene)
-            returned = away is not None and not idle
-            changed = scene["activity"] != self._seen
-            self._away = (now if away is None else away) if idle else None
-            self._seen = scene["activity"]
-            if idle:
+            was, self._seen = self._seen, scene["activity"]
+            if _idle(scene):
                 return
-            if returned:
-                if now - away >= RETURNED_AFTER:
-                    self.notice("returned")
-            elif changed and scene["confidence"] >= MIN_CONFIDENCE and scene["activity"] not in ("away", "unknown"):
+            if scene["activity"] != was and was != "away" and scene["confidence"] >= MIN_CONFIDENCE \
+                    and scene["activity"] not in ("away", "unknown"):
                 self.notice("activity", {"activity": scene["activity"], "confidence": scene["confidence"]})
         with self._lock:
             now = self.clock()
-            typing = _typing(self.gate, now)
+            typing = _typing(self.gate)
             if self._unsent is not None and (not typing or now - self._unsent[0] >= HOLD):
                 (at, data), self._unsent = self._unsent, None
                 if now - at < HOLD and not self._signal_fresh() \
@@ -290,7 +281,7 @@ class Thoughts:
                 return
             if self.gate.check(CATEGORY, datetime.datetime.fromtimestamp(now), LEVEL) not in OWN_BUDGET:
                 return
-            if _typing(self.gate, now):
+            if _typing(self.gate):
                 with self._lock:
                     self._deferred = (reason, detail, now)
                 return
@@ -309,7 +300,7 @@ class Thoughts:
                 if generation != self._generation or self._signal_fresh():
                     return
                 later = self.clock()
-                if _typing(self.gate, later):
+                if _typing(self.gate):
                     self._unsent = (later, data)
                     return
                 self._show(now, data)

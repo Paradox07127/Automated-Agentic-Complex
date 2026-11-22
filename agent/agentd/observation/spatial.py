@@ -124,11 +124,12 @@ class Spatial:
                  walk_bias=lambda: None, state=None, session_settle=SESSION_SETTLE,
                  session_min_hold=SESSION_MIN_HOLD, recovery_delay=RECOVERY_DELAY, interaction_preset="balanced",
                  trace_epoch=lambda: None, routine=None):
-        """observe() -> {fullscreen, user_speaking, speaking, voicing, line_id, typing, session, state, related,
+        """observe() -> {fullscreen, user_speaking, speaking, voicing, line_id, typing, absence, session, state, related,
         window_id, activity, idle_s}: the gate flags, whether the mouth generates or speaks (and its line), whether the
-        relay has audio in flight, ActivityContext typing, the focus session and its state, the ActivityContext
-        related_session_ids, the focus window id (or None, also when blacklisted), the ActivityContext activity
-        (may be absent) and the seconds since the last key or mouse input (absent or None when unknown).
+        relay has audio in flight, user_now's typing and absence ({id, since} or None; may be absent), the focus
+        session and its state, the ActivityContext related_session_ids, the focus window id (or None, also when
+        blacklisted), the ActivityContext activity (may be absent) and the seconds since the last key or mouse input
+        (absent or None when unknown).
         publish(event, data) -> seq; generation() -> the current turn_generation; epoch names the behavior ids.
         state: her CharacterState, told what she does and scaling the random tick; None leaves it out.
         routine: her Routine, which then picks the random tick's behavior and how long it lasts, and long work no
@@ -160,7 +161,6 @@ class Spatial:
         self._focus = None  # {window_id, since, moved}: the focus run; moved None until it stays FOCUS_SETTLE
         self._settled = None  # window id of the last focus run that stayed FOCUS_SETTLE
         self._work = None  # {session, since}: the stabilized focus session's run in ACCOMPANY
-        self._away_since = None  # clock time the activity became `away`; None while it is not
         self._posture_key = None  # key of the long-work sit or rest that holds now, once sent; None when none holds
         self._activity_run = None  # {activity, since, sent, tries}: the activity's run and the last answer sent to it
         self._lock = threading.RLock()
@@ -419,16 +419,12 @@ class Spatial:
         return {**s, "state": stable["state"] if stable is not None else "idle"}
 
     def _track(self, s, now):
-        """How long the stabilized focus session has been at work and the user away."""
+        """How long the stabilized focus session has been at work."""
         session = s["session"] if s["state"] in ACCOMPANY else None
         if session is None:
             self._work = None
         elif self._work is None or self._work["session"] != session:
             self._work = {"session": session, "since": now}
-        if s.get("activity") != "away":
-            self._away_since = None
-        elif self._away_since is None:
-            self._away_since = now
         if self._activity_run is None or self._activity_run["activity"] != s.get("activity"):
             self._activity_run = {"activity": s.get("activity"), "since": now, "sent": None, "tries": 0}
 
@@ -454,13 +450,13 @@ class Spatial:
         return None
 
     def _resting(self, s, now):
-        """No session at work or waiting, no speech or typing, no input for QUIET, and the user away for AWAY_REST
-        or a NIGHT hour."""
-        idle = s.get("idle_s")
+        """No session at work or waiting, no speech or typing, no input for QUIET, and user_now's absence AWAY_REST
+        old or a NIGHT hour."""
+        idle, absence = s.get("idle_s"), s.get("absence")
         if s["session"] is not None and s["state"] in ACCOMPANY + ATTEND or _speech(s) or s["typing"] \
                 or idle is not None and idle < QUIET:
             return False
-        if self._away_since is not None and now - self._away_since >= AWAY_REST:
+        if absence is not None and now - absence["since"] >= AWAY_REST:
             return True
         hour = time.localtime(now).tm_hour
         return idle is not None and (hour >= NIGHT[0] or hour < NIGHT[1])

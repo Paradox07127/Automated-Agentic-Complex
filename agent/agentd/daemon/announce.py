@@ -74,8 +74,7 @@ class AnnounceMixin:
                         try: briefs.tick()
                         except Exception: pass  # reporting must never stop registry/interaction ticks
                 else:
-                    self.registry.set_role_focus(None, generation=self.turn_generation,
-                                                 quiet=self.quiet_until is not None)
+                    self.registry.set_role_focus(None, generation=self.turn_generation)
             self._signals_due()
             self.registry.tick()
             if self.sessions is not None:

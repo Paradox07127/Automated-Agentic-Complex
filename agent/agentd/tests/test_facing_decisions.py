@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from observation.facing_decisions import FacingDecisions, validate
 from observation.spatial import Spatial
+from observation.user_now import UserNow
 import c1
 
 
@@ -28,7 +29,7 @@ class RuleFacingTests(unittest.TestCase):
                 busy=lambda:False,_live_lines=[],speech=None,facing_decisions=service,thoughts=None,
                 character_agent=SimpleNamespace(_permitted=lambda _:True),character='test',turn_generation=0,
                 consent=SimpleNamespace(snapshot=lambda:({},0)),closing=False,resetting=False,quiet_until=None,
-                privacy_config=path,character_state=lambda:{},
+                privacy_config=path,character_state=lambda:{},user_now=UserNow(),
                 spatial=SimpleNamespace(switches={'fullscreen_give_way':True},running=lambda:[],
                     facing_status=lambda:{},facing_available=lambda:True))
             for mode in ('front','side','back'):
@@ -43,8 +44,10 @@ class RuleFacingTests(unittest.TestCase):
     def test_speech_and_attend_face_user_idle_keeps_and_unsafe_scenes_skip(self):
         for extra, yaw in (({'user_speaking':True},0), ({'speaking':True},0), ({'voicing':True},0),
                            ({'state':'awaiting_approval','session':'s'},0), ({'state':'listen'},0),
-                           ({},None), ({'activity':'away','speaking':True},None),
-                           ({'locked':True,'speaking':True},None), ({'meeting':True,'speaking':True},None),
+                           ({},None), ({'presence':'away','speaking':True},None),
+                           ({'presence':'locked','speaking':True},None), ({'presence':'asleep','speaking':True},None),
+                           ({'doing':'meeting','speaking':True},None), ({'doing':'sharing','speaking':True},None),
+                           ({'presence':'present','doing':'idle','speaking':True},0),
                            ({'giving_way':True,'speaking':True},None)):
             with self.subTest(extra=extra):
                 semantic=Semantic();sent=[]

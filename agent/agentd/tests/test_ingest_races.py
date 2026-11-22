@@ -118,7 +118,7 @@ class SessionReactionTest(test_server.FeedServerCase):
 
     def test_quiet_mode_sends_no_reaction(self):
         registry = self.server.registry
-        registry.set_role_focus(None, generation=registry.turn_generation, quiet=True)
+        registry.set_quiet(True)
         self.hook("PermissionRequest", 0.0, "A", tool_name="Bash")
         self.hook("UserPromptSubmit", 0.1, "B")
         self.hook("StopFailure", 0.2, "B", error="api")

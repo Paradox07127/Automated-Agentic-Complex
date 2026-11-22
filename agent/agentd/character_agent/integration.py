@@ -1147,8 +1147,7 @@ class CharacterAgentController:
                 focus = None if any(before[2:]) else project(self.store, before[0])
                 if before != identity():
                     return  # A changed character/turn will publish its own authoritative view.
-                self.server.registry.set_role_focus(focus, generation=before[1],
-                                                   quiet=self.server.quiet_until is not None)
+                self.server.registry.set_role_focus(focus, generation=before[1])
                 self._presentation_fault = False
             except Exception:
                 # Presentation is a read model: its failure cannot fail a tool, a turn, or the server ticker.
@@ -1156,8 +1155,7 @@ class CharacterAgentController:
                 if not self._presentation_fault:
                     logging.getLogger(__name__).warning('role_presentation_unavailable')
                 self._presentation_fault = True
-                self.server.registry.set_role_focus(None, generation=self.server.turn_generation,
-                                                   quiet=self.server.quiet_until is not None)
+                self.server.registry.set_role_focus(None, generation=self.server.turn_generation)
 
     def cancel_conversation(self, conversation_id, run_id, generation):
         with self.server._turn_lock:

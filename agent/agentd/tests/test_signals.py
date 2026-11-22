@@ -23,10 +23,19 @@ class SignalsTest(unittest.TestCase):
         self.registry = Registry(clock=lambda: self.now, coalesce=0)
         self.scene, self.allowed, self.pending = {}, True, []
         self.own = NS(own_id=lambda sid: 'own:A' if sid == 'owned' else sid)
+        self.away = False
         self.signals = Signals(self.gate, NS(post=lambda data: self.posts.append(data), log=None), self.registry,
                                sessions=self.own, scene=lambda: self.scene,
                                allowed=lambda row: self.allowed, pending=lambda: self.pending,
-                               clock=lambda: self.now)
+                               clock=lambda: self.now, absent=lambda: self.away)
+
+    def leave(self):
+        self.away, self.scene = True, {'activity': 'away'}
+
+    def back(self):
+        """user_now's return."""
+        self.away, self.scene = False, {}
+        self.signals.returned()
 
     def logged(self, reason, *outcomes):
         """A ProactiveLog under the signals whose `signal.<reason>` thoughts had outcomes, oldest first."""
@@ -170,18 +179,18 @@ class SignalsTest(unittest.TestCase):
         self.assertEqual(len(self.posts), 1)
 
     def test_away_approval_is_dropped_if_stale_on_return(self):
-        self.scene = {'activity': 'away'}
+        self.leave()
         self.hook('UserPromptSubmit')
         self.hook('PermissionRequest', tool_name='Bash', tool_input={'command': 'ls'})
         self.now += 90
         self.signals.tick(self.now)
-        self.scene = {}
         self.now += 30
+        self.back()
         self.signals.tick(self.now)
         self.assertEqual(self.posts, [])
 
     def test_away_keeps_newer_event_over_repeated_quiet_checks(self):
-        self.scene = {'activity': 'away'}
+        self.leave()
         self.hook('UserPromptSubmit')
         self.now += 900
         self.signals.tick(self.now)
@@ -189,35 +198,36 @@ class SignalsTest(unittest.TestCase):
         self.failed('B')
         self.now += 5
         self.signals.tick(self.now)
-        self.scene = {}
         self.now += 5
+        self.back()
         self.signals.tick(self.now)
         self.assertEqual([p['session_id'] for p in self.posts], ['claude:B'])
 
     def test_signal_while_typing_waits_for_the_pause(self):
-        self.gate.last_key = self.now
+        self.gate.typing = True
         self.assertTrue(self.failed())
         self.assertEqual(self.posts, [])
         self.now += 5
         self.signals.tick(self.now)
         self.assertEqual(self.posts, [])
-        self.now = self.gate.last_key + 10
+        self.now += 5
+        self.gate.typing = False
         self.signals.tick(self.now)
         self.assertEqual([p['reason'] for p in self.posts], ['signal.check_failed'])
 
     def test_signal_typed_through_for_120_seconds_is_dropped(self):
-        self.gate.last_key = self.now
+        self.gate.typing = True
         self.failed()
         for _ in range(25):
             self.now += 5
-            self.gate.last_key = self.now
             self.signals.tick(self.now)
         self.now += 10
+        self.gate.typing = False
         self.signals.tick(self.now)
         self.assertEqual(self.posts, [])
 
-    def test_signal_without_key_counts_is_immediate(self):
-        self.gate.last_key = None
+    def test_signal_while_not_typing_is_immediate(self):
+        self.assertFalse(self.gate.typing)
         self.failed()
         self.assertEqual(len(self.posts), 1)
 
@@ -228,22 +238,22 @@ class SignalsTest(unittest.TestCase):
         self.assertEqual(self.posts, [])
 
     def test_away_holds_only_newest_and_rechecks_consent(self):
-        self.scene = {'activity': 'away'}
+        self.leave()
         self.failed('A')
         self.now += 5
         self.failed('B')
         self.assertEqual(self.posts, [])
-        self.scene = {'activity': 'editing_code'}
+        self.back()
         self.signals.tick(self.now)
         self.assertEqual([p['session_id'] for p in self.posts], ['claude:B'])
         self.now += 5
         self.signals.tick(self.now)
         self.assertEqual(len(self.posts), 1)
-        self.scene = {'activity': 'away'}
+        self.leave()
         self.failed('C')
         self.allowed = False
-        self.scene = {}
         self.now += 5
+        self.back()
         self.signals.tick(self.now)
         self.assertEqual(len(self.posts), 1)
 
@@ -367,9 +377,13 @@ class WorkSignalsTest(unittest.TestCase):
                           generation=0, character=lambda: 'test')
         self.gate = Gate(enabled=True, quiet=(0, 0))
         self.client = FakeSemantic()
+        self.away = False
         self.signals = Signals(self.gate, NS(post=self.posts.append, log=None), NS(snapshot=lambda now: {'sessions': self.rows}),
                                worklog=self.worklog, semantic=self.client, scene=lambda: self.scene,
-                               allowed=lambda row: self.allowed, clock=lambda: self.now, spawn=lambda fn: fn())
+                               allowed=lambda row: self.allowed, clock=lambda: self.now, spawn=lambda fn: fn(),
+                               absent=lambda: self.away)
+
+    leave, back = SignalsTest.leave, SignalsTest.back
 
     def tick(self, seconds=0):
         self.now += seconds
@@ -455,20 +469,20 @@ class WorkSignalsTest(unittest.TestCase):
 
     def test_due_away_keeps_only_latest_and_discards_finished_task(self):
         self.cards[0]['next_due_at'] = T0
-        self.scene = {'activity': 'away'}
+        self.leave()
         self.tick()
         self.cards.append(dict(self.cards[0], id='task-B', title='新任务', next_due_at=T0 + 60))
         self.tick(60)
         self.assertEqual(self.posts, [])
-        self.scene = {}
+        self.back()
         self.tick(5)
         self.assertIn('新任务', self.posts[0]['text'])
         self.setUp()
         self.cards[0]['next_due_at'] = T0
-        self.scene = {'activity': 'away'}
+        self.leave()
         self.tick()
         self.cards[0]['status'] = 'done'
-        self.scene = {}
+        self.back()
         self.tick(5)
         self.assertEqual(self.posts, [])
 
@@ -550,11 +564,11 @@ class WorkSignalsTest(unittest.TestCase):
 
     def test_repeat_away_buffer_rechecks_permission_and_generation(self):
         self.repeat_data()
-        self.scene = {'activity': 'away'}
+        self.leave()
         self.tick(6 * 3600)
         self.assertEqual(self.posts, [])
         self.allowed = False
-        self.scene = {}
+        self.back()
         self.tick(5)
         self.assertEqual(self.posts, [])
         self.setUp()
@@ -562,9 +576,9 @@ class WorkSignalsTest(unittest.TestCase):
         due_card = self.cards[0]
         self.repeat_data()
         self.cards = [due_card]
-        self.scene = {'activity': 'away'}
+        self.leave()
         self.tick(6 * 3600)
-        self.scene = {}
+        self.back()
         self.tick(60)
         self.assertEqual([p['reason'] for p in self.posts], ['signal.repeat'])
 

@@ -13,7 +13,7 @@ from observation.attention import AFK_AFTER, BUCKETS
 from observation.browser_stats import valid_metrics
 from observation.capture import TEXT_FAILURES, image_size
 from observation.privacy import saved_switch
-from observation.user_now import CONTENT_KINDS
+from observation.user_now import CONTENT_KINDS, typing
 from daemon.constants import RAW_PAST
 from api.views import _url_host, _window_id, _focus_window, _raw_event, _timeline_record, _midnight
 
@@ -46,8 +46,13 @@ class ContextInputMixin:
                      and all(number(v) and v >= 0 for v in body["input"].values())
                      and saved_switch(self.server.privacy_config, "sense_input_counts"))):
             return self._json(400, {"error": "invalid_coarse"})
-        self.server.user_now.coarse(body)
-        self._json(200, {})
+        user_now = self.server.user_now
+        user_now.coarse(body)
+        now, gate = user_now.snapshot(), self.server.gate
+        gate.fullscreen, gate.user_speaking = now["flags"]["fullscreen"], now["flags"]["user_speaking"]
+        gate.meeting, gate.typing = now["doing"] in ("meeting", "sharing"), typing(now)
+        self._json(200, {"presence": now["presence"], "stage": now["stage"],
+                         "absence": now["absence"] and dict(now["absence"]), "revision": now["revision"]})
 
     def _user_now(self):
         user_now = self.server.user_now
@@ -79,36 +84,16 @@ class ContextInputMixin:
                 and isinstance(body.get("screen_captured"), (bool, type(None)))
                 and body.get("edge") in (None, "lock", "unlock", "sleep", "wake")):
             return self._json(400, {"error": "invalid_attention"})
-        edge, away_s, before = body.get("edge"), 0.0, store.presence()
-        if edge in ("unlock", "wake"):  # away since the last AFK run began, or since the beats stopped
-            last = (store.events("afk") or [None])[-1]
-            if last is not None:
-                begun = last["start"] if last["data"]["status"] == "afk" else last["start"] + last["duration"]
-                away_s = max(0.0, body["ts"] - begun)
         store.ingest(body)
         self.server.focus.beat(category(body["front"]), body["ts"], body["idle_s"] < AFK_AFTER
                                and not body.get("locked") and not body.get("asleep"))
-        after = store.presence()
-        if edge is None and before is not None and after is not None and before[0] != after[0]:
-            edge, away_s = ("afk", 0.0) if after[0] == "afk" else ("active", before[1])
         if self.server.character_agent is not None:
             pipeline = self.server.character_agent.memory_pipeline
             if pipeline: pipeline.tick(pipeline.clock())
         if self.server.proactive is not None:
             self.server.proactive.beat(body)
-        # Each beat sets the gate's context; a missing field is false. Stale flags hold until the next beat.
-        gate, flag = self.server.gate, lambda k: body.get(k) is True
-        gate.fullscreen, gate.user_speaking = flag("fullscreen"), flag("user_speaking")
-        gate.meeting = flag("camera_active") or flag("mic_active") or flag("screen_captured")
-        keys = body.get("input") or {}
-        gate.last_key = body["ts"] - keys["key_idle_s"] if "key_idle_s" in keys else None
-        self.server.camera_active = flag("camera_active")
         if self.server.capture is not None:
             self.server.capture.secure_input(body.get("secure_input") is True)
-        # The edge field wins over locked; Behavior.edge counts one return per leave.
-        if edge is not None and self.server.behavior is not None and self.server.behavior.edge(edge, away_s) \
-                and self.server.proactive is not None:
-            self.server.proactive.back(away_s)
         kind = category(store.blacklist.scrub(body["front"]))
         self.server.user_now.content(body["ts"], kind if kind in CONTENT_KINDS else None)
         self._json(200, {})

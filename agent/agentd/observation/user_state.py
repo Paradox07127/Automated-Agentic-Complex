@@ -2,7 +2,7 @@
 
 derive() is pure: the events of recent_events(now - 600), activity.snapshot's inputs and activity.assemble's scene
 in, {"mode", "state", "thread", "on_mind", "blocker", "evidence"} out. UserState holds a change back until it has
-lasted HOLD seconds and keeps what was in effect before the user left. No model is asked here; apply_judgment()
+lasted HOLD seconds and keeps what was in effect when user_now's absence began. No model is asked here; apply_judgment()
 lays the on-device model's judgment, which the server asks for, over what the rules could not tell."""
 import itertools
 import os
@@ -332,17 +332,18 @@ class UserState:
         self._lock = threading.Lock()
         self._current = None  # the derivation in effect
         self._pending = None  # ((mode, state), since) of a different derivation not yet in effect
-        self._present = None  # the last derivation in effect that was not away, with "ts" it was last seen
-        self._before = None  # _present as it stood when away took effect
+        self._present = None  # the last derivation in effect that was not away, with no absence open, and "ts" it was seen
+        self._before = None  # _present as it stood when the absence began
+        self._absence = None  # id of the absence _before was taken for
 
     def clear(self):
         """Forget every result: observations were deleted or consent revoked, and results may quote their text."""
         with self._lock:
-            self._current = self._pending = self._present = self._before = None
+            self._current = self._pending = self._present = self._before = self._absence = None
 
-    def update(self, derived, now, at_once=False):
+    def update(self, derived, now, at_once=False, absence=None):
         """The derivation in effect with derived's thread and on_mind, and "before_away". at_once: the user
-        corrected the activity, so no hold."""
+        corrected the activity, so no hold. absence: user_now's ({id, since}) or None."""
         key = (derived["mode"], derived["state"])
         with self._lock:
             current = self._current
@@ -353,11 +354,11 @@ class UserState:
                 if not immediate and (self._pending is None or self._pending[0] != key):
                     self._pending = (key, now)
                 if immediate or now - self._pending[1] >= HOLD:
-                    if current is not None and current["mode"] != "away" and derived["mode"] == "away":
-                        self._before = self._present
                     self._pending, self._current = None, dict(derived)
                     self.log(now, derived["mode"], derived["state"], derived["evidence"])
-            if self._current["mode"] != "away":
+            if absence is not None and absence["id"] != self._absence:
+                self._before, self._absence = self._present, absence["id"]
+            elif absence is None and self._current["mode"] != "away":
                 self._present = {**self._current, "ts": now}
             return {**self._current, "thread": derived["thread"], "on_mind": derived["on_mind"],
                     "before_away": self._before}

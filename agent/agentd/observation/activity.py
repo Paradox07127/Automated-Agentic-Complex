@@ -12,6 +12,7 @@ import re
 from observation.attention import WEB_PULSE
 from character.behavior import category
 from observation.blacklist import HIDDEN
+from observation.user_now import typing
 from infra.paths import COMPANION_BUNDLE
 
 ACTIVITIES = ("editing_code", "build_failed", "comparing_sources", "watching_video", "waiting_approval", "typing",
@@ -19,20 +20,18 @@ ACTIVITIES = ("editing_code", "build_failed", "comparing_sources", "watching_vid
 # Fixed confidence per kind of evidence that decided the activity.
 CONFIDENCE = {
     "policy": 0.95,  # secure input or blacklist: the collector itself withholds the window
-    "presence": 0.9,  # AFK and input rhythm come straight from HID idle time
+    "presence": 0.9,  # AFK comes straight from HID idle time
+    "user": 0.9,  # user_now's meeting or sharing, and its typing
     "state": 0.9,  # a session's own awaiting_approval state
-    "mic_app": 0.9,  # another app at the mic, backed by the camera, a meeting app or a meeting page
     "event": 0.85,  # a failed command of a session the focus window is tied to
     "player": 0.8,  # the focus app is a video player
     "assertion": 0.8,  # the front app holds a video playback power assertion
-    "capture": 0.8,  # the screen-capture indicator is on without mic or camera: sharing or recording
     "path": 0.8,  # the focus window names a session's project
     "game": 0.8,  # the focus app declares itself a game (LSApplicationCategoryType)
     "page": 0.75,  # browser heartbeats: an audible video host, back-and-forth page switches
     "gpu": 0.7,  # a fullscreen front window keeps the GPU busy
     "keyword": 0.6,  # a failure keyword in readable window text
     "interpreted": 0.6,  # the continuous interpreter's task for this window, grounded in quotes of its content
-    "mic": 0.6,  # only that another app is at the mic
     "category": 0.5,  # only the focus app's category
     "switches": 0.5,  # front app switches the Companion counted
     "none": 0.0,
@@ -58,13 +57,6 @@ VIDEO_HOSTS = ("youtube.com", "bilibili.com", "vimeo.com", "twitch.tv", "netflix
 VIDEO_BUNDLES = {"com.colliderli.iina", "org.videolan.vlc", "com.apple.QuickTimePlayerX", "com.apple.TV"}
 COMPARE_WINDOW = 300.0  # seconds of page history that may show a comparison
 COMPARE_SWITCHES = 2  # A -> B -> A at least
-TYPING_IDLE = 2.0  # input this recent, after TYPING_MIN active seconds, is continuous input
-TYPING_MIN = 60.0
-# With the C6 `input` counts: TYPING_KEYS keyDowns in 10 s and the keyboard idle at most TYPING_IDLE start
-# typing; the keyboard idle TYPING_REST seconds ends it. Beats without `input` keep the rule above.
-TYPING_KEYS = 8
-TYPING_REST = 5.0
-MEETING_HOSTS = ("meet.google.com", "zoom.us", "teams.microsoft.com")
 # Gaming without a declared category: front_gpu at least GPU_BUSY in GPU_MIN of the last GPU_BEATS beats, fullscreen.
 GPU_BUSY = 0.2  # a saturating Metal loop reads about 0.4
 GPU_MIN = 3
@@ -102,8 +94,8 @@ CAN_INTERRUPT = {
     "gaming": False,  # hands and eyes are on the game
     "switching": False,  # she keeps still and says nothing about it
 }
-# Scene conditions that hold any activity's interruption.
-INTERRUPT_HOLDS = ("continuous_input", "fullscreen", "approval_elsewhere")
+# Scene conditions that hold any activity's interruption; so does user_now's stage offstage or quiet.
+INTERRUPT_HOLDS = ("fullscreen", "approval_elsewhere")
 # Activity -> what ends this conclusion.
 EXPIRES = {
     "editing_code": ["focus_change", "ttl:300"], "build_failed": ["focus_change", "session_state", "ttl:300"],
@@ -114,7 +106,7 @@ EXPIRES = {
     "meeting": ["presence_change", "ttl:30"], "gaming": ["focus_change", "ttl:300"], "switching": ["ttl:30"],
 }
 # Evidence source -> what ends a conclusion that cites it.
-SOURCE_EXPIRES = {"focus": "focus_change", "presence": "presence_change", "page": "page_revision",
+SOURCE_EXPIRES = {"focus": "focus_change", "presence": "presence_change", "user": "presence_change", "page": "page_revision",
                   "selection": "page_revision", "session": "session_state", "event": "session_state",
                   "observation": "policy_epoch", "window_text": "policy_epoch",
                   "interpreted": f"ttl:{round(INTERPRETED_FRESH)}"}
@@ -126,9 +118,9 @@ def stable_id(kind, record):
     return f"{kind}:{hashlib.sha256(raw.encode()).hexdigest()[:12]}"
 
 
-def snapshot(attention, registry, capture, own, fullscreen=False, camera=False):
+def snapshot(attention, registry, capture, own, user=None, fullscreen=False):
     """Plain inputs for assemble() from the live stores; ids that the stores lack come from stable_id().
-    fullscreen: the latest heartbeat's flag, which the gate keeps; camera: the latest heartbeat's camera_active."""
+    user: user_now's snapshot, whose meeting, typing and stage the scene takes; fullscreen: the flag the gate keeps."""
     now = attention.clock()
     focus, dwell_s = None, None
     run = attention.dwell()
@@ -144,10 +136,6 @@ def snapshot(attention, registry, capture, own, fullscreen=False, camera=False):
     if status is not None:
         last = attention.events("afk")[-1]
         sensed = attention.inputs()
-        for e in sensed:
-            if "mic_apps" in e:  # the Companion hides only what its own copy of the blacklist names
-                e["mic_apps"] = [HIDDEN["app"] if attention.blacklist.hides({"bundle_id": a}) else a
-                                 for a in e["mic_apps"] if a != COMPANION_BUNDLE]  # the avatar process is ours
         counts = [e["input"] for e in sensed if "input" in e]
         apps = None
         if counts and counts[-1].get("switches_60s", 0) >= SWITCHES:  # the window history only when it can decide
@@ -183,7 +171,10 @@ def snapshot(attention, registry, capture, own, fullscreen=False, camera=False):
     own_sessions = [] if own is None else [
         {k: d[k] for k in ("session_id", "target", "cwd", "state", "title")}
         for d in (s.to_dict() for s in list(own.sessions.values()))]
-    return {"now": now, "focus": focus, "dwell_s": dwell_s, "presence": presence, "camera_active": camera, "page": page,
+    if user is not None:
+        user = {"id": f"user:{user['revision']}",
+                **{k: user[k] for k in ("doing", "typing", "input_active", "stage")}}
+    return {"now": now, "focus": focus, "dwell_s": dwell_s, "presence": presence, "user": user, "page": page,
             "recent_pages": spans, "selection": selection, "window_text": window_text,
             "observations": [o for o in observations if o is not None], "sessions": state["sessions"],
             "own_sessions": own_sessions, "events": events}
@@ -234,6 +225,7 @@ class _Scene:
         self.kind = None if self.focus is None or self.hidden else _category(self.focus)
         self.dwell = inputs.get("dwell_s") or 0.0
         self.presence = inputs.get("presence")
+        self.user = inputs.get("user")  # user_now's, or None
         self.sensed = (self.presence or {}).get("inputs") or []  # ring entries, oldest first
         self.counts = [e["input"] for e in self.sensed if "input" in e]
         self.page = inputs.get("page")
@@ -310,15 +302,6 @@ def _base_facts(scene):
             idle = "" if presence.get("idle_s") is None else \
                 f", {round(presence['idle_s'], 1)} s since the last keyboard or mouse input"
             scene.fact(f"The user is at the computer{idle}", evidence)
-        if scene.counts:
-            typing = False
-            for c in scene.counts:
-                idle = c.get("key_idle_s", TYPING_REST)
-                typing = idle < TYPING_REST and (typing or c.get("keys_10s", 0) >= TYPING_KEYS and idle <= TYPING_IDLE)
-            scene.flags["continuous_input"] = presence["status"] == "active" and typing
-        else:
-            scene.flags["continuous_input"] = presence["status"] == "active" and presence.get("idle_s") is not None \
-                and presence["idle_s"] <= TYPING_IDLE and presence["seconds"] >= TYPING_MIN
     if focus is not None and not scene.hidden:
         scene.flags["fullscreen"] = bool(focus.get("fullscreen"))
     if scene.observation and scene.observation["status"] in OBSERVATION_DEGRADED:
@@ -407,29 +390,12 @@ def _unreadable(scene):
 
 
 def _meeting(scene):
-    # Facts name no app at the mic (privacy boundary: that list never reaches a prompt).
-    apps = scene.sensed[-1].get("mic_apps") if scene.sensed else None
-    if not apps:
-        return _screen_captured(scene)
-    evidence, page = ("presence", scene.presence["id"]), scene.page
-    if scene.inputs.get("camera_active"):
-        facts = [("The camera is in use too", evidence)]
-    elif any(category({"bundle_id": a}) == "meeting" for a in apps):
-        facts = [("The app at the microphone is a meeting app", evidence)]
-    elif page and _host_in(page.get("url_host"), MEETING_HOSTS):
-        facts = [(f"The browser page {page['url_host']} is an online meeting", ("page", page["id"]))]
-    else:
-        return _screen_captured(scene)  # the mic alone is dictation or a recorder as often as a meeting
-    for text, ref in [("Another app is using the microphone", evidence), *facts]:
-        scene.fact(text, ref)
-    return {"confidence": "mic_app", "subject": None}
-
-
-def _screen_captured(scene):
-    if not (scene.sensed and scene.sensed[-1].get("screen_captured") is True):
+    user = scene.user
+    if user is None or user["doing"] not in ("meeting", "sharing"):
         return None
-    scene.fact("The screen is being shared or recorded", ("presence", scene.presence["id"]))
-    return {"confidence": "capture", "subject": None}
+    scene.fact("The screen is being shared or recorded" if user["doing"] == "sharing" else
+               "The user is in a meeting or a call", ("user", user["id"]))
+    return {"confidence": "user", "subject": None}
 
 
 def _gaming(scene):
@@ -525,12 +491,11 @@ def _editing_code(scene):
 
 
 def _typing(scene):
-    if not scene.flags["continuous_input"]:
+    user = scene.user
+    if user is None or not typing(user):
         return None
-    p = scene.presence
-    scene.fact(f"{'Keyboard' if scene.counts else 'Keyboard and mouse'} input keeps going (active for {round(p['seconds'])} s)",
-               ("presence", p["id"]))
-    return {"confidence": "presence", "subject": None if scene.focus is None else scene.focus.get("app")}
+    scene.fact(f"{'Keyboard and mouse' if user['typing'] is None else 'Keyboard'} input keeps going", ("user", user["id"]))
+    return {"confidence": "user", "subject": None if scene.focus is None else scene.focus.get("app")}
 
 
 def _switching(scene):
@@ -555,7 +520,7 @@ def _reading(scene):
 
 # First match wins: withheld windows before anything is read, a meeting or a game before what the screen shows,
 # sound before AFK (a video plays without input), a session's request before the user's own work, typing and
-# switching before the editor they happen in (spatial reads typing).
+# switching before the editor they happen in.
 RULES = (("unreadable", _unreadable), ("meeting", _meeting), ("gaming", _gaming),
          ("watching_video", _watching_video), ("away", _away), ("waiting_approval", _waiting_approval),
          ("build_failed", _build_failed), ("comparing_sources", _comparing_sources), ("typing", _typing),
@@ -600,7 +565,8 @@ def assemble(inputs, judge=None, correction=None):
         result["confidence"] = min(max(float(answer.get("confidence") or 0.0), 0.0), JUDGE_MAX)
         if answer.get("activity") in JUDGE_ACTIVITIES:
             result["activity"] = activity = answer["activity"]
-    result["can_interrupt"] = CAN_INTERRUPT[activity] and not any(scene.flags[h] for h in INTERRUPT_HOLDS)
+    result["can_interrupt"] = CAN_INTERRUPT[activity] and not any(scene.flags[h] for h in INTERRUPT_HOLDS) \
+        and (scene.user is None or scene.user["stage"] not in ("offstage", "quiet"))
     result["holds"] = [h for h in INTERRUPT_HOLDS if scene.flags[h]]
     ends = ["focus_change", f"ttl:{math.ceil(correction['until'] - scene.now)}"] if corrected \
         else [SOURCE_EXPIRES[s] for s in scene.used]

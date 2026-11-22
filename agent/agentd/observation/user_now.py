@@ -28,6 +28,11 @@ TICK = 1.0
 KEEP = object()
 
 
+def typing(snapshot):
+    """Whether the user types: typing, or input_active while there are no key counts (typing null)."""
+    return snapshot["input_active"] if snapshot["typing"] is None else snapshot["typing"]
+
+
 def _freeze(state):
     return MappingProxyType({k: MappingProxyType(dict(v)) if isinstance(v, dict) else v for k, v in state.items()})
 

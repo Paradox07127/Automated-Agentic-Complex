@@ -204,7 +204,6 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self._state_lock = threading.Lock()  # activity() read to update vs forget_user_state(); taken before _judge_lock
         self.episodes = None  # Episodes; None keeps no episodes
         self.worklog = None  # WorkLog; None keeps no work memory
-        self.camera_active = False  # the last heartbeat's camera_active, apart from gate.meeting
         self.avatar ={"visible": True, "reason": None, "since": _iso(self.clock())}  # PUT /avatar/visibility
         self.dispatcher = Dispatcher(self.broker, sessions)
         self._decision_traces = OrderedDict()  # decision key -> {"trace_id", "last", "at"} (see _decision)
@@ -242,6 +241,8 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self.proactive = None  # Proactive; sees every stored heartbeat
         self.proactive_log = None
         self.thoughts = None  # Thoughts: session transitions and the spatial poll's scene reach it; None thinks nothing
+        self.signals = None  # Signals: session and work signals as thoughts; a return releases the ones it held
+        self.user_now.subscribe(self.user_event)
         self._feedback_lock = threading.Lock()
         self._feedback_seen = set()
         self._proactive_lines = deque(maxlen=PROACTIVE_LINES)  # line_ids of the proactive lines started

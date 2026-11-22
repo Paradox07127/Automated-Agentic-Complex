@@ -107,16 +107,35 @@ class SwitchesMixin:
             self.quiet_until = until
             self.set_meeting(True)
             self.set_paused_until(until)
+            self.refresh_quiet()
         elif self.quiet_until is not None:
             self.quiet_until = None
             self.set_meeting(self._quiet_meeting)
             self.set_paused_until(None)
+            self.refresh_quiet()
 
     def _quiet_due(self):
         if self.quiet_until is not None and self.clock() >= self.quiet_until:
             self.quiet_until = None
             self.set_meeting(self._quiet_meeting)
             self.set_paused_until(None)
+            self.refresh_quiet()
+
+    def refresh_quiet(self):
+        """Registry.quiet's only writer: the stage is offstage or quiet, or quiet (DND) holds."""
+        self.registry.set_quiet(self.user_now.snapshot()["stage"] in ("offstage", "quiet") or self.quiet_until is not None)
+
+    def user_event(self, event):
+        """Each user_now event: the gate follows the stage, each stage change sets Registry.quiet, and a return goes to
+        the spoken report and releases the signals held for the absence."""
+        self.gate.stage = self.user_now.snapshot()["stage"]
+        if event["name"].startswith("stage."):
+            self.refresh_quiet()
+        elif event["name"] == "user.return":
+            if self.proactive is not None:
+                self.proactive.back(event["data"]["away_s"])
+            if self.signals is not None:
+                self.signals.returned()
 
     def load_pause(self):
         """At start: a saved pause that has not ended yet holds again."""

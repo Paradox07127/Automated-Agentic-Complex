@@ -175,11 +175,12 @@ class EmbodimentTests(unittest.TestCase):
         focus = project(self.store, 'aster')
         self.registry.set_role_focus(focus, generation=12)
         seq = self.registry.intent_seq
-        self.registry.set_role_focus(focus, generation=12, quiet=True)
+        self.registry.set_quiet(True)
         self.assertEqual(self.registry.intent_seq, seq + 1)
         self.assertTrue(self.registry.intents[-1]['quiet'])
-        self.registry.set_role_focus(focus, generation=13, quiet=True)
+        self.registry.set_role_focus(focus, generation=13)
         self.assertEqual(self.registry.intents[-1]['turn_generation'], 13)
+        self.assertTrue(self.registry.intents[-1]['quiet'])  # a role refresh keeps the quiet it did not set
         self.assertEqual(self.registry.intents[-1]['state'], 'thinking')
 
 

@@ -97,9 +97,11 @@ class Signals:
     def __init__(self, gate, thoughts, registry, *, sessions=None, scene=lambda: None,
                  allowed=lambda row: True, pending=lambda: [], clock=time.time, worklog=None,
                  semantic=None, report_time=(17, 30), egress=None, spawn=_thread,
-                 work_allowed=lambda row: True):
+                 work_allowed=lambda row: True, absent=lambda: False):
+        """absent() -> user_now has an absence open; a signal that comes then waits for returned()."""
         self.gate, self.thoughts, self.registry = gate, thoughts, registry
         self.sessions, self.scene, self.allowed, self.pending, self.clock = sessions, scene, allowed, pending, clock
+        self.absent = absent
         self._lock = threading.RLock()
         self._turns = {}
         self._seen = collections.OrderedDict()
@@ -207,27 +209,8 @@ class Signals:
             pending = {r['request_id'] for r in self.pending()}
             if self._held_at is not None and now - self._held_at >= HOLD:
                 self._held = self._held_at = None
-            if self._held is not None and not _idle(self.scene()) and not _typing(self.gate, now):
-                args = self._held
-                self._held = None
-                reason, held_row = args[:2]
-                key = (held_row['source'], held_row['session_id'])
-                turn = self._turns.get(key)
-                if turn is not None:
-                    turn['sent'].discard(reason)
-                current = live.get(key)
-                valid = reason not in ('approval_wait', 'run_quiet')
-                if reason == 'approval_wait':
-                    valid = current is not None and current['effective_state'] == 'awaiting_approval' \
-                        and 90 <= now - current['since'] < 120 \
-                        and not pending.intersection(current['pending_approvals'])
-                elif reason == 'run_quiet':
-                    valid = current is not None and current['effective_state'] == 'stale' \
-                        and current['observed_at'] == held_row['observed_at']
-                if valid:
-                    if reason == 'task_due':
-                        self._seen.pop((reason, args[5]), None)
-                    self._emit(*args, now=now)
+            if self._held is not None and self._held_at is not None and not _typing(self.gate) and not self.absent():
+                self._release(now, live, pending)
             held_key = None if self._held is None else (self._held[1]['source'], self._held[1]['session_id'])
             self._turns = {key: turn for key, turn in self._turns.items() if key in live or key == held_key}
             lines = LINES.get(self._language(), LINES['zh-Hans'])
@@ -256,6 +239,41 @@ class Signals:
                     self._task_at = now
                     self._tasks(now, rows)
                 self._repeat(now)
+
+    def returned(self):
+        """user_now's return: the signal held for the absence goes out, or waits for the user to stop typing."""
+        with self._lock:
+            if self._held is None or self._held_at is not None:
+                return
+            now = self.clock()
+            if _typing(self.gate):
+                self._held_at = now
+                return
+            rows = self.registry.snapshot(now)['sessions']
+            self._release(now, {(r['source'], r['session_id']): r for r in rows}, {r['request_id'] for r in self.pending()})
+
+    def _release(self, now, live, pending):
+        """The held signal goes out if it still holds; the caller holds the lock."""
+        args = self._held
+        self._held = self._held_at = None
+        reason, held_row = args[:2]
+        key = (held_row['source'], held_row['session_id'])
+        turn = self._turns.get(key)
+        if turn is not None:
+            turn['sent'].discard(reason)
+        current = live.get(key)
+        valid = reason not in ('approval_wait', 'run_quiet')
+        if reason == 'approval_wait':
+            valid = current is not None and current['effective_state'] == 'awaiting_approval' \
+                and 90 <= now - current['since'] < 120 \
+                and not pending.intersection(current['pending_approvals'])
+        elif reason == 'run_quiet':
+            valid = current is not None and current['effective_state'] == 'stale' \
+                and current['observed_at'] == held_row['observed_at']
+        if valid:
+            if reason == 'task_due':
+                self._seen.pop((reason, args[5]), None)
+            self._emit(*args, now=now)
 
     def _language(self):
         return None if self.semantic is None else self.semantic.reply()
@@ -384,8 +402,8 @@ class Signals:
             # A reason without a cooldown, mostly unheard, shows once a day.
             if not cooldown and unheard >= UNHEARD and self._category_days.get(reason) == moment.date():
                 return False
-        idle = _idle(self.scene())
-        if idle or _typing(self.gate, now):
+        away = self.absent()
+        if away or _typing(self.gate):
             if turn is not None:
                 turn['sent'].add(reason)
             # A replaced due signal must not be rediscovered on return.
@@ -395,7 +413,7 @@ class Signals:
                     self._seen.popitem(last=False)
             if self._held is None or row['observed_at'] >= self._held[1]['observed_at']:
                 self._held = (reason, row, text, offer, reply, subject, cooldown)
-                self._held_at = None if idle else now
+                self._held_at = None if away else now
             return True
         most = 60 if self.semantic is None else room(60, self.semantic.reply())
         self.thoughts.post({'text': _short(text, most), 'offer': offer, 'reply': reply,

@@ -14,6 +14,7 @@ from observation.attention import AttentionStore  # noqa: E402
 from observation.blacklist import Blacklist  # noqa: E402
 from support import deny_blacklist  # noqa: E402
 from observation.capture import CaptureManager  # noqa: E402
+from observation.user_now import UserNow  # noqa: E402
 from sessions.events import normalize_claude  # noqa: E402
 from character.feed import Feed  # noqa: E402
 from sessions.registry import Registry  # noqa: E402
@@ -30,7 +31,7 @@ def load(path):
 
 def input_ids(inputs):
     """Every id an input record carries; facts may cite only these."""
-    ids = {inputs[k]["id"] for k in ("focus", "presence", "page", "selection", "window_text") if inputs.get(k)}
+    ids = {inputs[k]["id"] for k in ("focus", "presence", "user", "page", "selection", "window_text") if inputs.get(k)}
     ids |= {p["id"] for p in inputs["recent_pages"]}
     ids |= {o["request_id"] for o in inputs["observations"]}
     ids |= {s["display_session"] for s in inputs["sessions"]}
@@ -256,13 +257,17 @@ class SnapshotTest(unittest.TestCase):
         for fact in result["facts"]:
             self.assertLessEqual(set(fact["evidence_ids"]), ids)
 
-    def test_continuous_input_in_an_editor_is_typing(self):
-        # Spatial's typing is activity == "typing" (server.spatial_situation).
-        for step in range(62):
+    def test_user_nows_typing_in_an_editor_is_typing(self):
+        user = UserNow(clock=lambda: self.now)
+        for step in range(3):
             self.now = T0 + step
             self.attention.ingest({"ts": self.now, "front": self.editor, "mouse": None, "idle_s": 1.0,
                                    "locked": False, "asleep": False, "secure_input": False})
-        self.assertEqual(assemble(snapshot(self.attention, self.registry, self.capture, None))["activity"], "typing")
+            user.coarse({"ts": self.now, "idle_s": 1.0})
+        inputs = snapshot(self.attention, self.registry, self.capture, None, user.snapshot())
+        json.dumps(inputs)
+        self.assertEqual(assemble(inputs)["activity"], "typing")
+        self.assertEqual(assemble(snapshot(self.attention, self.registry, self.capture, None))["activity"], "editing_code")
 
     def test_snapshot_reads_only_public_methods_and_fills_idle_and_fullscreen(self):
         for step in range(3):
@@ -294,7 +299,7 @@ class SnapshotTest(unittest.TestCase):
 
 
 class TypingFromKeysTest(unittest.TestCase):
-    """Typing, meeting and switching from the heartbeat's counts (C6 `input`, `mic_apps`)."""
+    """Typing and meeting from user_now, switching from the heartbeat's counts (C6 `input`)."""
 
     QUIET = {"key_idle_s": 40.0, "pointer_idle_s": 40.0, "scroll_idle_s": 40.0, "click_idle_s": 40.0, "keys_10s": 0,
              "keys_60s": 0, "clicks_10s": 0, "scrolls_30s": 0, "moves_10s": 0, "switches_60s": 0}
@@ -310,85 +315,72 @@ class TypingFromKeysTest(unittest.TestCase):
         self.registry = Registry(epoch=1, clock=lambda: self.now)
         self.editor = {"app": "Code", "bundle_id": "com.microsoft.VSCode", "pid": 11, "window_id": 2,
                        "title": "ledger.py — orbit-ledger"}
+        self.user = UserNow(clock=lambda: self.now)
 
-    def beats(self, count, front=None, **sensed):
-        """count beats one second apart; `input` overrides QUIET, other keyword arguments ride as they are."""
+    COARSE = ("mic_active", "camera_active", "screen_captured", "front_video", "fullscreen", "front_gpu")
+
+    def beats(self, count, front=None, idle_s=3.0, **sensed):
+        """count beats one second apart, to attention and to user_now; `input` overrides QUIET, other keyword
+        arguments ride as they are."""
         fronts = front if isinstance(front, list) else [front or self.editor]
         for step in range(count):
             self.now += 1
-            beat = {"ts": self.now, "front": fronts[step % len(fronts)], "mouse": None, "idle_s": 1.0,
+            beat = {"ts": self.now, "front": fronts[step % len(fronts)], "mouse": None, "idle_s": idle_s,
                     "locked": False, "asleep": False, "secure_input": False}
+            coarse = {"ts": self.now, "idle_s": idle_s, **{k: v for k, v in sensed.items() if k in self.COARSE}}
             if "input" in sensed:
                 beat["input"] = {**self.QUIET, **sensed["input"]}
+                coarse["input"] = {k: v for k, v in beat["input"].items()
+                                   if k in ("key_idle_s", "pointer_idle_s", "keys_10s", "keys_60s", "switches_60s")}
             beat.update({k: v for k, v in sensed.items() if k != "input"})
             self.attention.ingest(beat)
+            self.user.coarse(coarse)
 
     def scene(self, **kwargs):
-        return assemble(snapshot(PublicOnly(self.attention), self.registry, None, None, **kwargs))
+        return assemble(snapshot(PublicOnly(self.attention), self.registry, None, None, self.user.snapshot(), **kwargs))
 
     def test_mouse_only_input_is_not_typing(self):
         self.beats(62, input={"pointer_idle_s": 0.2, "scroll_idle_s": 1.0, "moves_10s": 30, "scrolls_30s": 12})
         self.assertEqual(self.scene()["activity"], "editing_code")
 
-    def test_keys_make_typing(self):
+    def test_user_nows_typing_is_typing(self):
         self.beats(3, input={"keys_10s": 12, "keys_60s": 12, "key_idle_s": 0.3})
         result = self.scene()
-        self.assertEqual(result["activity"], "typing")
+        self.assertEqual((result["activity"], result["confidence"], result["can_interrupt"]), ("typing", 0.9, False))
+        self.assertIn("Keyboard input keeps going", [f["text"] for f in result["facts"]])
         self.assertFalse(any("12" in f["text"] for f in result["facts"]))  # counts stay out of facts
-        # Slower keys stay typing until the keyboard rests 5 s.
-        self.beats(2, input={"keys_10s": 3, "keys_60s": 15, "key_idle_s": 3.0})
-        self.assertEqual(self.scene()["activity"], "typing")
         self.beats(1, input={"keys_10s": 3, "keys_60s": 15, "key_idle_s": 5.0})
         self.assertEqual(self.scene()["activity"], "editing_code")
-        # Keys this sparse never start it.
-        self.beats(3, input={"keys_10s": 7, "keys_60s": 20, "key_idle_s": 0.3})
-        self.assertEqual(self.scene()["activity"], "editing_code")
 
-    def test_beats_without_input_keep_old_rule(self):
-        self.beats(30)
-        self.assertEqual(self.scene()["activity"], "editing_code")
-        self.beats(32)
-        self.assertEqual(self.scene()["activity"], "typing")
-
-    def test_disabling_input_counts_immediately_restores_idle_rule(self):
-        self.beats(3, input={"keys_10s": 12, "key_idle_s": 0.3})
-        self.assertEqual(self.scene()["activity"], "typing")
-        self.beats(1)
-        self.assertEqual(self.scene()["activity"], "editing_code")
-        self.beats(58)
-        self.assertEqual(self.scene()["activity"], "typing")
-        self.beats(1, input={})
-        self.assertEqual(self.scene()["activity"], "editing_code")
-
-    def test_other_app_mic_with_camera_is_meeting(self):
-        self.beats(3, input={}, mic_apps=["com.example.recorder"])
-        result = self.scene(camera=True)
-        self.assertEqual((result["activity"], result["confidence"], result["can_interrupt"]), ("meeting", 0.9, False))
-        # The mic alone (dictation, a recorder) is no meeting, and leaves no mic fact behind.
+    def test_without_key_counts_input_active_is_typing(self):
+        self.beats(1, idle_s=1.0)
         result = self.scene()
-        self.assertEqual(result["activity"], "editing_code")
-        self.assertFalse(any("microphone" in f["text"] for f in result["facts"]))
-        self.beats(1, input={}, mic_apps=["us.zoom.xos"])
-        self.assertEqual((self.scene()["activity"], self.scene()["confidence"]), ("meeting", 0.9))
-        # A blacklisted app counts as some app at the mic, never as the meeting app it is.
-        self.blacklist.add("bundle_ids", "us.zoom.xos")
-        result = self.scene()
-        self.assertEqual(result["activity"], "editing_code")
-        self.assertFalse(any("zoom" in f["text"] for f in result["facts"]))
-        self.assertEqual(self.scene(camera=True)["activity"], "meeting")
-        # No other app at the mic, or a beat that could not read it: no meeting.
-        self.beats(1, input={}, mic_apps=[])
-        self.assertEqual(self.scene(camera=True)["activity"], "editing_code")
-        self.beats(1, input={})
-        self.assertEqual(self.scene(camera=True)["activity"], "editing_code")
+        self.assertEqual(result["activity"], "typing")
+        self.assertIn("Keyboard and mouse input keeps going", [f["text"] for f in result["facts"]])
+        self.beats(1, idle_s=3.0)
+        self.assertEqual(self.scene()["activity"], "editing_code")
 
-    def test_companion_at_the_mic_is_not_another_app(self):
-        self.beats(3, input={}, mic_apps=["local.agenticcomplex.companion"])
-        result = self.scene(camera=True)
-        self.assertEqual(result["activity"], "editing_code")
-        self.assertFalse(any("microphone" in f["text"] for f in result["facts"]))
-        self.beats(1, input={}, mic_apps=["local.agenticcomplex.companion", "us.zoom.xos"])
-        self.assertEqual((self.scene()["activity"], self.scene()["confidence"]), ("meeting", 0.9))
+    def test_user_nows_meeting_is_meeting(self):
+        for fields in ({"mic_active": True}, {"camera_active": True}):
+            with self.subTest(fields=fields):
+                self.setUp()
+                self.beats(3, input={}, **fields)
+                result = self.scene()
+                self.assertEqual((result["activity"], result["confidence"], result["can_interrupt"]),
+                                 ("meeting", 0.9, False))
+                self.assertIn("The user is in a meeting or a call", [f["text"] for f in result["facts"]])
+                self.beats(1, input={})
+                self.assertEqual(self.scene()["activity"], "editing_code")
+        self.user.set_overrides(meeting_manual=True)
+        self.assertEqual(self.scene()["activity"], "meeting")
+
+    def test_a_quiet_stage_holds_the_interruption(self):
+        self.beats(1, input={})
+        self.assertTrue(self.scene()["can_interrupt"])
+        self.user.set_overrides(dnd_until=self.now + 600)
+        self.assertEqual((self.scene()["activity"], self.scene()["can_interrupt"]), ("editing_code", False))
+        self.user.set_overrides(dnd_until=None)
+        self.assertTrue(self.scene()["can_interrupt"])
 
     def test_games_category_is_gaming_and_cannot_interrupt(self):
         inputs = {"now": T0, "focus": {"id": "focus:g", "app": "Arena", "bundle_id": "com.example.arena",
@@ -432,8 +424,8 @@ class TypingFromKeysTest(unittest.TestCase):
         keys = {"keys_10s": 12, "keys_60s": 12, "key_idle_s": 0.3}
         self.beats(3, input=keys, front_video=True, screen_captured=True)
         result = self.scene()
-        self.assertEqual((result["activity"], result["confidence"], result["can_interrupt"]), ("meeting", 0.8, False))
-        self.assertFalse(any("microphone" in f["text"] for f in result["facts"]))
+        self.assertEqual((result["activity"], result["confidence"], result["can_interrupt"]), ("meeting", 0.9, False))
+        self.assertIn("The screen is being shared or recorded", [f["text"] for f in result["facts"]])
         for value in (False, None):
             with self.subTest(screen_captured=value):
                 self.beats(1, input=keys, screen_captured=value)

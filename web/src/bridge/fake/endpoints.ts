@@ -25,6 +25,11 @@ export const exampleRoutes: MockRoute[] = [
       },
     }),
   },
+  {
+    method: 'POST',
+    path: '/user/coarse',
+    handler: () => ({ status: 200, body: { presence: 'present', stage: 'normal', absence: null, revision: 1 } }),
+  },
   { method: 'GET', path: '/health', handler: () => ({ status: 200, body: { status: 'ok', degraded: [], c6_contract: 'v1' } }) },
   {
     method: 'GET',
