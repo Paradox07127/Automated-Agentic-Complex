@@ -76,6 +76,8 @@ export interface MessageListProps extends Omit<MessageMenuProps, 'onQuote'> {
   onAnswer: (questionId: string, answers: Record<string, string[]>) => void;
   onCancelQuestion: (questionId: string) => void;
   onQueueSide: (text: string) => void;
+  /** Why 派发任务 is off, else null. */
+  queueOff?: string | null;
   onReceipt?: OnDeliveryReceipt;
   /** An empty conversation offers example questions; a click puts one in the composer. Absent offers none. */
   onExample?: (text: string) => void;
@@ -158,6 +160,7 @@ export function MessageList(p: MessageListProps) {
             frontTitle={p.frontTitle}
             onFront={p.onOpenDrawer}
             onQueue={() => p.onQueueSide(m.text)}
+            queueOff={p.queueOff}
             {...menu}
           />
         );

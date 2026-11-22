@@ -51,6 +51,7 @@ export function ChatPage() {
   const charList = chars.data?.list ?? [];
   const character = pickedChar ?? present ?? chars.data?.shown ?? charList[0]?.id ?? null;
   const who = charList.find((c) => c.id === character);
+  const queueOff = character != null && present != null && character !== present ? '她不在桌面上' : null;
   const convs = useConversations(character, state === 'error', !off, demoQuery(demo === 'sparse', '&demo=sparse'));
   const [picked, setPicked] = useState<string | null>(q.get('conv'));
   // The turn a link points at: it is marked and scrolled to.
@@ -268,13 +269,13 @@ export function ChatPage() {
             const r = findRequest(id);
             if (r) void actions.dismiss(r);
           }}
-          onQueueSide={(t) => void actions.queueSide(t)}
+          onQueueSide={(t) => void actions.queueSide(t)} queueOff={queueOff}
           selectedTurn={aim}
           {...(history ? {} : { onQuote: quoteLine })}
           onOpenTrace={(turn) => navigate({ page: 'trace', turn })}
           {...(!history && state == null && replies.length === 0 ? { onExample: (text: string) => setDraft({ text, topic: conv }) } : {})}
         />
-        <LiveTail replies={replies} roleName={roleName} {...headUrl} roleId={character} frontTitle={headerRun ? (defaultTask?.title ?? null) : null} incomplete={feed.incomplete && replies.some((r) => !r.final)} runEnd={runEnd} onFront={openTask} onQueue={(t) => void actions.queueSide(t)} onRetry={(r) => void actions.resend(r.said, r.options)} {...(history ? {} : { onQuote: quoteLive })} onOpenTrace={(turn) => navigate({ page: 'trace', turn })} />
+        <LiveTail replies={replies} roleName={roleName} {...headUrl} roleId={character} frontTitle={headerRun ? (defaultTask?.title ?? null) : null} incomplete={feed.incomplete && replies.some((r) => !r.final)} runEnd={runEnd} onFront={openTask} onQueue={(t) => void actions.queueSide(t)} queueOff={queueOff} onRetry={(r) => void actions.resend(r.said, r.options)} {...(history ? {} : { onQuote: quoteLive })} onOpenTrace={(turn) => navigate({ page: 'trace', turn })} />
       </>
     );
 

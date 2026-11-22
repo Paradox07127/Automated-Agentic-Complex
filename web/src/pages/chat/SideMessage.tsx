@@ -13,6 +13,8 @@ export interface SideMessageProps extends MessageMenuProps {
   frontTitle: string | null;
   onFront: () => void;
   onQueue: () => void;
+  /** Why 派发任务 is off (her character is not on the desktop), else null. */
+  queueOff?: string | null;
   /** Her head picture; without it the first character of `roleName`. */
   headUrl?: string | undefined;
   /** First of consecutive messages by this speaker. */
@@ -24,7 +26,7 @@ export interface SideMessageProps extends MessageMenuProps {
 }
 
 /** Side answer while the foreground runs: her bubble under the 「旁路」 tag and 只读, a link up to the task, 「派发任务」. */
-export function SideMessage({ at, text, streaming, roleName, frontTitle, onFront, onQueue, headUrl, first = true, fresh, lineId, ...menuProps }: SideMessageProps) {
+export function SideMessage({ at, text, streaming, roleName, frontTitle, onFront, onQueue, queueOff, headUrl, first = true, fresh, lineId, ...menuProps }: SideMessageProps) {
   const { onContextMenu, onKeyDown, menu } = useMessageMenu(text, { line: lineId }, menuProps);
   return (
     <div className={styles.msg} data-kind="side" data-first={first || undefined} data-new={fresh || undefined} aria-label="旁路对话回答">
@@ -44,7 +46,7 @@ export function SideMessage({ at, text, streaming, roleName, frontTitle, onFront
           <MessageText text={text} streaming={streaming} />
         </div>
         <div className={styles.actions}>
-          <Btn size="sm" variant="ghost" icon="plus" onClick={onQueue}>
+          <Btn size="sm" variant="ghost" icon="plus" disabled={queueOff != null} disabledReason={queueOff ?? undefined} onClick={onQueue}>
             派发任务
           </Btn>
           <span className={styles.cap}>旁路只读，不修改文件</span>
