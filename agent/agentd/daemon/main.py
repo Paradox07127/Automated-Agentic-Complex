@@ -334,6 +334,7 @@ def main():
     server.focus = Focus(paths.focus(state_dir), clock=lambda: server.clock(),
                          language=lambda: server.character_agent.semantic.reply() if server.character_agent else None)
     server.gate.focus = server.focus.running()
+    server.user_now.set_overrides(focus_timer=server.gate.focus)
     server.load_receipts(open_store(db))
     server.trace = TraceStore(open_store(db), producer_epoch=server.registry.epoch, retention=server.history_retention)
     from motion.performer import Performer
@@ -482,6 +483,7 @@ def main():
     threading.Thread(target=server.behavior.run, args=(server._stopped, server.polls_paused), daemon=True).start()
     threading.Thread(target=server.spatial.run, args=(server._stopped, server.polls_paused), daemon=True).start()
     threading.Thread(target=server.presence_feed.run, args=(server._stopped,), daemon=True).start()
+    threading.Thread(target=server.user_now.run, args=(server._stopped,), daemon=True).start()
     # shutdown_cleanly waits for serve_forever to return, so it cannot run inside the handler.
     stop = lambda *_: threading.Thread(target=server.shutdown_cleanly).start()  # noqa: E731
     signal.signal(signal.SIGTERM, stop)

@@ -576,6 +576,7 @@ class AnnounceMixin:
         """POST /focus: the session's public(); ValueError as Focus.start."""
         started = self.focus.start(minutes)
         self.gate.focus = True
+        self.user_now.set_overrides(focus_timer=True)
         return started
 
     def focus_stop(self):
@@ -592,6 +593,7 @@ class AnnounceMixin:
 
     def _focus_ended(self, session):
         self.gate.focus = False
+        self.user_now.set_overrides(focus_timer=False)
         self.announce({"ts": time.time(), "level": "P1", "kind": "focus_done", "headline": self.focus.recap(session),
                        "project": None, "session_id": None, "detail": None, "origin": None})
 

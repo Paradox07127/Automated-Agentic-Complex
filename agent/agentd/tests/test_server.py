@@ -16,6 +16,7 @@ import unittest
 import unittest.mock
 
 import support
+import test_route_registry
 
 from sessions.agent_meta import AgentMeta  # noqa: E402
 from sessions.approvals import ApprovalBroker  # noqa: E402
@@ -45,6 +46,96 @@ from observation import user_state  # noqa: E402
 
 HOOK, UI, EVENTS = "hook-token", "ui-token", "events-token"
 WINDOW = 0.3
+
+
+class UserRoutesTest(unittest.TestCase):
+    request = test_route_registry.ProactiveRoutesTest.request
+
+    def setUp(self):
+        with unittest.mock.patch.object(AgentdServer, "server_bind"), \
+                unittest.mock.patch.object(AgentdServer, "server_activate"):
+            self.server = AgentdServer(("127.0.0.1", 48810), HOOK, UI, events_token=EVENTS)
+        self.server.server_port = 48810
+        self.addCleanup(self.server.server_close)
+
+    def test_coarse_routes_require_the_host_token(self):
+        for token in (HOOK, EVENTS, None):
+            self.assertEqual(self.request("POST", "/user/coarse", {"ts": time.time(), "idle_s": 0}, token=token)[0], 401)
+            self.assertEqual(self.request("GET", "/user/now", token=token)[0], 401)
+
+    def now(self):
+        status, body = self.request("GET", "/user/now")
+        self.assertEqual(status, 200)
+        return body
+
+    def test_coarse_with_screen_awareness_off_changes_the_snapshot(self):
+        with unittest.mock.patch.dict("infra.plugins.resolved", screen_awareness=False):
+            self.assertEqual(self.request("POST", "/user/coarse", {"ts": time.time(), "idle_s": 0, "mic_active": True}),
+                             (200, {}))
+            body = self.now()
+        self.assertEqual((body["snapshot"]["revision"], body["snapshot"]["presence"], body["snapshot"]["doing"]),
+                         (1, "present", "meeting"))
+        self.assertIn("user.enter.meeting", [e["name"] for e in body["events"]])
+        self.assertIsNone(self.server.attention)
+
+    def test_coarse_rejects_content_keys(self):
+        with tempfile.TemporaryDirectory() as directory:
+            policy = Path(directory) / "privacy.json"
+            policy.write_text('{"sense_input_counts": true, "sense_audio_apps": true}', encoding="utf-8")
+            self.server.privacy_config = policy
+            beat = {"ts": time.time(), "idle_s": 0}
+            for field, value in (("front", {"app": "Code"}), ("title", "notes.txt"), ("app", "Code"),
+                                 ("mic_apps", ["us.zoom.xos"]), ("url_host", "example.com"), ("text", "hi")):
+                with self.subTest(field=field):
+                    self.assertEqual(self.request("POST", "/user/coarse", {**beat, field: value}),
+                                     (400, {"error": "invalid_coarse"}))
+            self.assertEqual(self.request("POST", "/user/coarse", {**beat, "input": {"keys_10s": 3, "app": "Code"}}),
+                             (400, {"error": "invalid_coarse"}))
+            self.assertEqual(self.now()["snapshot"]["revision"], 0)
+
+    def test_coarse_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            policy = Path(directory) / "privacy.json"
+            self.server.privacy_config = policy
+            policy.write_text('{"sense_input_counts": true}', encoding="utf-8")
+            base = {"ts": time.time(), "idle_s": 0}
+            for fields in ({"ts": True}, {"idle_s": -1}, {"locked": None}, {"edge": "open"}, {"asleep": 1},
+                           {"front_gpu": 1.1}, {"front_audio_out": 0}, {"input": {"keys_60s": -1}},
+                           {"input": {"keys_10s": True}}, {"input": {"clicks_10s": 1}}, {"input": []}):
+                with self.subTest(fields=fields):
+                    self.assertEqual(self.request("POST", "/user/coarse", {**base, **fields}),
+                                     (400, {"error": "invalid_coarse"}))
+            self.assertEqual(self.request("POST", "/user/coarse", {**base, "input": {"keys_10s": 12, "key_idle_s": 0}}),
+                             (200, {}))
+            self.assertTrue(self.now()["snapshot"]["typing"])
+            policy.write_text('{"sense_input_counts": false}', encoding="utf-8")
+            self.assertEqual(self.request("POST", "/user/coarse", {**base, "input": {}}),
+                             (400, {"error": "invalid_coarse"}))
+
+    def test_only_the_observation_pause_freezes_it(self):
+        support.enable_plugins(self, "screen_awareness")
+        beat = lambda **fields: self.request("POST", "/user/coarse", {"ts": time.time(), "idle_s": 0, **fields})  # noqa: E731
+        beat()
+        self.assertEqual(self.request("PUT", "/observation/meeting", {"on": True}), (200, {"meeting": True}))
+        snapshot = self.now()["snapshot"]
+        self.assertEqual((snapshot["paused"], snapshot["doing"], snapshot["stage"],
+                          snapshot["overrides"]["meeting_manual"]), (False, "meeting", "quiet", True))
+        self.request("PUT", "/observation/meeting", {"on": False})
+        until = time.time() + 600
+        self.assertEqual(self.request("PUT", "/observation/quiet", {"until": until})[0], 200)
+        beat(edge="lock")
+        snapshot = self.now()["snapshot"]
+        self.assertEqual((snapshot["paused"], snapshot["presence"], snapshot["overrides"]),
+                         (False, "locked", {"meeting_manual": False, "dnd_until": until, "focus_timer": False}))
+        self.request("PUT", "/observation/quiet", {"until": None})
+        self.assertIsNone(self.now()["snapshot"]["overrides"]["dnd_until"])
+        self.assertEqual(self.request("PUT", "/observation/paused", {"minutes": 5})[0], 200)
+        frozen = self.now()["snapshot"]
+        self.assertTrue(frozen["paused"])
+        self.assertEqual(beat(edge="unlock"), (200, {}))
+        self.assertEqual(self.now()["snapshot"], frozen)
+        self.request("PUT", "/observation/paused", {"minutes": 0})
+        self.assertFalse(self.now()["snapshot"]["paused"])
 
 
 class ServerTest(unittest.TestCase):

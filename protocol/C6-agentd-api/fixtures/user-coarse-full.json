@@ -1,0 +1,22 @@
+{
+  "ts": 1795280402,
+  "idle_s": 2,
+  "locked": true,
+  "asleep": false,
+  "edge": "lock",
+  "fullscreen": true,
+  "front_video": false,
+  "front_audio_out": null,
+  "front_gpu": 0.75,
+  "camera_active": false,
+  "mic_active": true,
+  "screen_captured": true,
+  "user_speaking": false,
+  "input": {
+    "key_idle_s": 1,
+    "pointer_idle_s": 7,
+    "keys_10s": 12,
+    "keys_60s": 50,
+    "switches_60s": 1
+  }
+}

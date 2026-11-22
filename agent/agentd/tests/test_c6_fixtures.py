@@ -42,6 +42,8 @@ from daemon.agentd_server import AgentdServer  # noqa: E402
 from infra.store import open_store  # noqa: E402
 from sessions.tasks import TaskLedger  # noqa: E402
 from test_character_agent_runtime import FakeSession  # noqa: E402
+from observation.user_now import UserNow  # noqa: E402
+from test_plugin_routes import request
 from test_worklog_http import seed_worklog
 from traces.trace_store import TraceStore  # noqa: E402
 from voice.speech import SpeechRelay  # noqa: E402
@@ -384,6 +386,24 @@ class C6FixtureTest(unittest.TestCase):
                 self.assertIn("held", real["proactive"])
                 self.assertEqual(mismatches(fixture, real, loose["nullable"]["diag-state.json"],
                                             loose["free_keys"]["diag-state.json"]), [])
+
+    def test_user_coarse_fixtures(self):
+        policy = Path(self.tmp.name) / "privacy.json"
+        policy.write_text('{"sense_input_counts": true}', encoding="utf-8")
+        self.server.privacy_config = policy
+        beat = json.loads((FIXTURES / "user-coarse-minimal.json").read_text(encoding="utf-8"))
+        self.server.clock = lambda: beat["ts"]
+        self.server.user_now = UserNow(clock=self.server.clock)  # the fixture's absence id comes from this start
+        for name, expected in (("minimal", (200, {})), ("full", (200, {})),
+                               ("invalid", (400, {"error": "invalid_coarse"}))):
+            with self.subTest(name=name):
+                beat = json.loads((FIXTURES / f"user-coarse-{name}.json").read_text(encoding="utf-8"))
+                self.assertEqual(request(self.server, "POST", "/user/coarse", beat), expected)
+        reply = json.loads((FIXTURES / "user-now.json").read_text(encoding="utf-8"))
+        status, real = self.get("/user/now", UI)
+        self.assertIsInstance(real["snapshot"]["flags"].pop("late_night"), bool)  # the local hour of the fixture ts
+        reply["snapshot"]["flags"].pop("late_night")
+        self.assertEqual((status, real), (200, reply))
 
     def test_get_bodies_match_fixtures(self):
         loose = json.loads((FIXTURES / "loose-fields.json").read_text(encoding="utf-8"))

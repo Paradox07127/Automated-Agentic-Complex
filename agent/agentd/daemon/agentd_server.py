@@ -34,6 +34,7 @@ from observation.privacy import ConsentPolicy
 from sessions.registry import Registry
 from sessions.dispatch import Dispatcher
 from observation.spatial import Spatial
+from observation.user_now import UserNow
 from observation.user_state import UserState
 from api.views import _iso
 from voice.voice_provider import NoVoice
@@ -188,6 +189,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self.sessions = sessions  # SessionManager for own sessions; None answers /sessions with 503
         self.capture = capture  # CaptureManager; None answers /context/text, /context/image, /look with 503
         self.clock = time.time  # the pause and DELETE /observation cutoffs, the announce slots' TTL
+        self.user_now = UserNow(clock=lambda: self.clock())  # with or without plug-ins; main runs its tick loop
         self.paused_until = None  # PUT /observation/paused: clock time the pause ends, or None
         self.quiet_until = None  # PUT /observation/quiet: clock time quiet ends, or None
         self._quiet_meeting = False

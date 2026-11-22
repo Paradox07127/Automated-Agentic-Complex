@@ -1,5 +1,6 @@
 {
   "nullable": {
+    "user-now.json": ["snapshot.typing", "snapshot.flags.focused", "snapshot.overrides.dnd_until", "snapshot.absence"],
     "diag-state.json": [
       "hooks.*.installed", "hooks.*.last_at", "turn.turn_id", "turn.trace_id", "turn.source", "turn.generation",
       "turn.phase", "mouth_voice.voice", "mouth_voice.speech_failed", "mouth_voice.speech_failed.reason",
@@ -106,6 +107,7 @@
     "trace-turns.json": ["turns[].turn_id", "turns[].head", "turns[].len", "turns[].provider", "turns[].account_label", "turns[].model", "turns[].error_code", "turns[].turn_state", "turns[].turn_outcome", "turns[].conversation_id"]
   },
   "free_keys": {
+    "user-now.json": ["events[].data"],
     "task-understanding.json": ["task_corrections"],
     "diag-state.json": [
       "turn.phases_ms", "gate.cooldown_s", "budget.model.by_call", "budget.model.by_channel",

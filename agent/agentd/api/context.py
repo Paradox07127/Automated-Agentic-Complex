@@ -4,6 +4,7 @@ import binascii
 import datetime
 import math
 import time
+from types import MappingProxyType
 from urllib.parse import parse_qs, urlparse
 
 from infra import plugins
@@ -12,6 +13,7 @@ from observation.attention import AFK_AFTER, BUCKETS
 from observation.browser_stats import valid_metrics
 from observation.capture import TEXT_FAILURES, image_size
 from observation.privacy import saved_switch
+from observation.user_now import CONTENT_KINDS
 from daemon.constants import RAW_PAST
 from api.views import _url_host, _window_id, _focus_window, _raw_event, _timeline_record, _midnight
 
@@ -22,8 +24,37 @@ GATE_FLAGS = ("fullscreen", "camera_active", "mic_active", "user_speaking")  # o
 EVENTS_MAX = 200
 RECORDS_MAX = 200  # POST /context/timeline batch size
 
+# POST /user/coarse: the whole allowlist; any other key, at either level, is a 400.
+COARSE_BOOLS = {"locked", "asleep", "fullscreen"}
+COARSE_NULLABLE = {"front_video", "front_audio_out", "camera_active", "mic_active", "screen_captured", "user_speaking"}
+COARSE_KEYS = COARSE_BOOLS | COARSE_NULLABLE | {"ts", "idle_s", "edge", "front_gpu", "input"}
+COARSE_COUNTS = {"key_idle_s", "pointer_idle_s", "keys_10s", "keys_60s", "switches_60s"}
+
 
 class ContextInputMixin:
+    def _user_coarse(self, body):
+        def number(value):
+            return type(value) is int or type(value) is float and math.isfinite(value)
+
+        if not (isinstance(body, dict) and body.keys() <= COARSE_KEYS
+                and number(body.get("ts")) and number(body.get("idle_s")) and body["idle_s"] >= 0
+                and all(type(body[k]) is bool for k in COARSE_BOOLS & body.keys())
+                and all(body[k] is None or type(body[k]) is bool for k in COARSE_NULLABLE & body.keys())
+                and body.get("edge") in (None, "lock", "unlock", "sleep", "wake")
+                and (body.get("front_gpu") is None or number(body["front_gpu"]) and 0 <= body["front_gpu"] <= 1)
+                and ("input" not in body or isinstance(body["input"], dict) and body["input"].keys() <= COARSE_COUNTS
+                     and all(number(v) and v >= 0 for v in body["input"].values())
+                     and saved_switch(self.server.privacy_config, "sense_input_counts"))):
+            return self._json(400, {"error": "invalid_coarse"})
+        self.server.user_now.coarse(body)
+        self._json(200, {})
+
+    def _user_now(self):
+        user_now = self.server.user_now
+        events = user_now.events()  # before the snapshot, so no event is newer than it
+        snapshot = {k: dict(v) if isinstance(v, MappingProxyType) else v for k, v in user_now.snapshot().items()}
+        self._json(200, {"snapshot": snapshot, "events": events})
+
     def _attention_beat(self, body):
         store = self.server.attention
         if store is None:
@@ -78,6 +109,8 @@ class ContextInputMixin:
         if edge is not None and self.server.behavior is not None and self.server.behavior.edge(edge, away_s) \
                 and self.server.proactive is not None:
             self.server.proactive.back(away_s)
+        kind = category(store.blacklist.scrub(body["front"]))
+        self.server.user_now.content(body["ts"], kind if kind in CONTENT_KINDS else None)
         self._json(200, {})
 
     def _attention_events(self, body):

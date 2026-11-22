@@ -1,0 +1,23 @@
+{
+  "snapshot": {
+    "revision": 2,
+    "presence": "locked",
+    "doing": "sharing",
+    "input_active": false,
+    "typing": false,
+    "flags": {"fullscreen": true, "music": false, "late_night": false, "user_speaking": false, "focused": false},
+    "overrides": {"meeting_manual": false, "dnd_until": null, "focus_timer": false},
+    "stage": "offstage",
+    "absence": {"id": "1795280400000-1", "since": 1795280400},
+    "paused": false
+  },
+  "events": [
+    {"revision": 1, "ts": 1795280400, "name": "user.leave.unknown", "data": {}},
+    {"revision": 1, "ts": 1795280400, "name": "user.enter.present", "data": {}},
+    {"revision": 2, "ts": 1795280402, "name": "user.leave.present", "data": {}},
+    {"revision": 2, "ts": 1795280402, "name": "user.enter.locked", "data": {}},
+    {"revision": 2, "ts": 1795280402, "name": "user.leave.idle", "data": {}},
+    {"revision": 2, "ts": 1795280402, "name": "user.enter.sharing", "data": {}},
+    {"revision": 2, "ts": 1795280402, "name": "stage.offstage", "data": {}}
+  ]
+}

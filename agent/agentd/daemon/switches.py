@@ -86,11 +86,16 @@ class SwitchesMixin:
         until = self.quiet_until if self.quiet_until is not None and not self._quiet_meeting else math.inf
         self._meetings = self._spans(self._meetings, until if on else None)
         self.gate.meeting_manual = on
+        # Quiet turns meeting mode on for the gate; user_now keeps the user's own switch and shows quiet as dnd_until.
+        self.user_now.set_overrides(meeting_manual=self._quiet_meeting if self.quiet_until is not None else on,
+                                    dnd_until=self.quiet_until)
 
     def set_paused_until(self, until):
         """PUT /observation/paused: the end is saved too, so a restart keeps the pause (see load_pause)."""
         self._pauses = self._spans(self._pauses, until)
         self.paused_until = until
+        # Quiet pauses observation through here too; only the user's own pause freezes user_now.
+        self.user_now.pause(None if until is not None and until == self.quiet_until else until)
         if self.memory is not None:
             self.memory.set_setting("observation_paused_until", None if until is None else repr(until))
 
@@ -119,6 +124,7 @@ class SwitchesMixin:
         if saved is not None and self.clock() < float(saved):
             self.paused_until = float(saved)
             self._pauses.append([self.clock(), self.paused_until])
+            self.user_now.pause(self.paused_until)
 
     def observation_state(self):
         """GET /state and /diag/state: {"paused_until", "quiet_until": ISO or None, "meeting": the manual switch,

@@ -49,6 +49,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'GET', path: '/diag/stream', templates: ['/diag/stream'], class: 'stream', surfaces: [] },
   { method: 'GET', path: '/blacklist', templates: ['/blacklist'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness' },
   { method: 'GET', path: '/desktop/presence', templates: ['/desktop/presence'], class: 'host_only', surfaces: [], response: 'desktop-presence.json' },
+  { method: 'GET', path: '/user/now', templates: ['/user/now'], class: 'host_only', surfaces: [], response: 'user-now.json' },
   { method: 'POST', path: '/desktop/sessions/seen', templates: ['/desktop/sessions/seen'], class: 'write', surfaces: ['main', 'stack'], plugin: 'coding_sessions' },
   { method: 'GET', path: '/model/settings', templates: ['/model/settings'], class: 'read', surfaces: ['main'], plugin: 'light_ai', response: 'model-settings.json' },
   { method: 'GET', path: '/motion/settings', templates: ['/motion/settings'], class: 'read', surfaces: ['main', 'stack'], plugin: 'motion_generation' },
@@ -131,6 +132,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'POST', path: '/voice/token', templates: ['/voice/token'], class: 'write', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'POST', path: '/turn/cancel', templates: ['/turn/cancel'], class: 'write', surfaces: ['main', 'stack'], plugin: 'light_ai' },
   { method: 'POST', path: '/character', templates: ['/character'], class: 'host_only', surfaces: [] },
+  { method: 'POST', path: '/user/coarse', templates: ['/user/coarse'], class: 'host_only', surfaces: [] },
   { method: 'POST', path: '/context/attention', templates: ['/context/attention'], class: 'host_only', surfaces: [], plugin: 'screen_awareness' },
   { method: 'POST', path: '/context/events', templates: ['/context/events'], class: 'host_only', surfaces: [], plugin: 'screen_awareness' },
   { method: 'POST', path: '/context/timeline', templates: ['/context/timeline'], class: 'host_only', surfaces: [], plugin: 'screen_awareness' },
@@ -222,20 +224,21 @@ export type AgentdRouteKey =
   | 'GET /agent/snapshot' | 'GET /attention/summary' | 'GET /attention/browser' | 'GET /sessions' | 'GET /history'
   | 'GET /history/export' | 'GET /memory' | 'GET /memory/sessions' | 'GET /memory/tasks' | `GET /memory/tasks/${string}`
   | `PATCH /memory/tasks/${string}` | 'GET /memory/days' | `GET /memory/days/${string}` | 'GET /memory/export'
-  | 'GET /diag/state' | 'GET /diag/stream' | 'GET /blacklist' | 'GET /desktop/presence' | 'POST /desktop/sessions/seen'
-  | 'GET /model/settings' | 'GET /motion/settings' | `GET /motions/${string}/meta` | `GET /motions/${string}/keys`
-  | `GET /motions/${string}/tracks` | 'GET /tasks' | 'GET /capabilities' | 'GET /day/segments' | 'GET /episodes'
-  | 'GET /commitments' | 'GET /schedules' | 'POST /schedules' | `PUT /schedules/${string}`
-  | `DELETE /schedules/${string}` | `POST /schedules/${string}/run` | 'GET /focus' | 'GET /proactive/mutes'
-  | 'GET /proactive/settings' | 'GET /proactive/stats' | 'GET /summary/runs' | 'GET /trace/turns'
-  | 'GET /trace/decisions' | 'GET /trace/export' | `GET /sessions/${string}/lines` | `GET /trace/turns/${string}`
-  | `GET /episodes/${string}/evidence` | `GET /diag/observations/${string}` | 'GET /conversations'
-  | `GET /conversations/${string}/turns` | 'GET /character/runtime' | 'GET /character/capabilities'
-  | 'GET /character/acp/agents' | 'GET /agent/scopes' | 'GET /agent/runs' | `GET /agent/runs/${string}/items`
-  | `GET /agent/runs/${string}/files` | 'GET /memory/runs' | `GET /memory/runs/${string}` | 'GET /agent/goals'
-  | `GET /agent/goals/${string}` | 'GET /agent/jobs' | 'GET /agent/tasks' | `GET /agent/tasks/${string}`
-  | `GET /agent/tasks/${string}/steps` | `GET /agent/tasks/${string}/files` | 'GET /agent/deliveries'
-  | `GET /agent/deliveries/${string}` | `POST /agent/tasks/${string}/accept` | `POST /agent/tasks/${string}/reject`
+  | 'GET /diag/state' | 'GET /diag/stream' | 'GET /blacklist' | 'GET /desktop/presence' | 'GET /user/now'
+  | 'POST /desktop/sessions/seen' | 'GET /model/settings' | 'GET /motion/settings' | `GET /motions/${string}/meta`
+  | `GET /motions/${string}/keys` | `GET /motions/${string}/tracks` | 'GET /tasks' | 'GET /capabilities'
+  | 'GET /day/segments' | 'GET /episodes' | 'GET /commitments' | 'GET /schedules' | 'POST /schedules'
+  | `PUT /schedules/${string}` | `DELETE /schedules/${string}` | `POST /schedules/${string}/run` | 'GET /focus'
+  | 'GET /proactive/mutes' | 'GET /proactive/settings' | 'GET /proactive/stats' | 'GET /summary/runs'
+  | 'GET /trace/turns' | 'GET /trace/decisions' | 'GET /trace/export' | `GET /sessions/${string}/lines`
+  | `GET /trace/turns/${string}` | `GET /episodes/${string}/evidence` | `GET /diag/observations/${string}`
+  | 'GET /conversations' | `GET /conversations/${string}/turns` | 'GET /character/runtime'
+  | 'GET /character/capabilities' | 'GET /character/acp/agents' | 'GET /agent/scopes' | 'GET /agent/runs'
+  | `GET /agent/runs/${string}/items` | `GET /agent/runs/${string}/files` | 'GET /memory/runs'
+  | `GET /memory/runs/${string}` | 'GET /agent/goals' | `GET /agent/goals/${string}` | 'GET /agent/jobs'
+  | 'GET /agent/tasks' | `GET /agent/tasks/${string}` | `GET /agent/tasks/${string}/steps`
+  | `GET /agent/tasks/${string}/files` | 'GET /agent/deliveries' | `GET /agent/deliveries/${string}`
+  | `POST /agent/tasks/${string}/accept` | `POST /agent/tasks/${string}/reject`
   | `POST /agent/deliveries/${string}/presented` | `POST /agent/deliveries/${string}/viewed` | 'GET /task-understanding'
   | 'GET /observation/state' | 'GET /observation/sources' | `GET /observation/sources/${string}`
   | `GET /observation/sources/${string}/changes` | `GET /observation/sources/${string}/image`
@@ -247,8 +250,8 @@ export type AgentdRouteKey =
   | 'POST /integration/reminders' | `GET /integration/reminders/${string}` | 'GET /integration/memory'
   | 'POST /integration/memory' | 'GET /integration/timeline' | 'POST /integrations/hooks/disconnect'
   | 'POST /context/privacy/sync' | 'POST /say' | 'POST /speech/cancel' | 'POST /speech/playback' | 'POST /voice/reset'
-  | 'POST /voice/test' | 'POST /voice/token' | 'POST /turn/cancel' | 'POST /character' | 'POST /context/attention'
-  | 'POST /context/events' | 'POST /context/timeline' | 'GET /context/timeline/summaries'
+  | 'POST /voice/test' | 'POST /voice/token' | 'POST /turn/cancel' | 'POST /character' | 'POST /user/coarse'
+  | 'POST /context/attention' | 'POST /context/events' | 'POST /context/timeline' | 'GET /context/timeline/summaries'
   | `DELETE /context/timeline/summaries/${string}` | 'POST /sessions' | 'POST /context/text' | 'POST /context/image'
   | 'POST /look' | 'POST /trace/events' | 'POST /memory/facts' | 'POST /feedback' | 'POST /blacklist'
   | 'POST /blacklist/defaults' | 'POST /blacklist/mode' | 'POST /reset' | 'POST /behavior/receipts'
@@ -787,6 +790,29 @@ export interface DesktopPresenceResponse {
   } | null;
   voice: { state: string; muted: boolean };
   observation: { paused: boolean };
+}
+
+/** protocol/C6-agentd-api/fixtures/user-now.json */
+export interface UserNowResponse {
+  snapshot: {
+    revision: number;
+    presence: string;
+    doing: string;
+    input_active: boolean;
+    typing: boolean | null;
+    flags: {
+      fullscreen: boolean;
+      music: boolean;
+      late_night: boolean;
+      user_speaking: boolean;
+      focused: boolean | null;
+    };
+    overrides: { meeting_manual: boolean; dnd_until: unknown; focus_timer: boolean };
+    stage: string;
+    absence: { id: string; since: number } | null;
+    paused: boolean;
+  };
+  events: Array<{ revision: number; ts: number; name: string; data: Record<string, unknown> }>;
 }
 
 /** protocol/C6-agentd-api/fixtures/model-settings.json */
@@ -1545,6 +1571,7 @@ export interface AgentdResponses {
   'GET /memory/tasks/:task_id': MemoryTaskResponse;
   'GET /memory/days': MemoryDaysResponse;
   'GET /desktop/presence': DesktopPresenceResponse;
+  'GET /user/now': UserNowResponse;
   'GET /model/settings': ModelSettingsResponse;
   'GET /tasks': TasksResponse;
   'GET /capabilities': CapabilitiesResponse;

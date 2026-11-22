@@ -212,6 +212,13 @@
     ]
   ],
   [
+    "GET",
+    "/user/now",
+    [
+      "ui_token"
+    ]
+  ],
+  [
     "POST",
     "/desktop/sessions/seen",
     [
@@ -783,6 +790,13 @@
   [
     "POST",
     "/character",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "POST",
+    "/user/coarse",
     [
       "ui_token"
     ]

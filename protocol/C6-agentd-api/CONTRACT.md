@@ -124,6 +124,13 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 
 `input`、`mic_apps`、`front_audio_out`、`front_video`、`front_gpu`、`screen_captured` 只进 agentd 内存里保留 300 s 的环（`AttentionStore.inputs(window_s)`），不写 SQLite，重启即丢。这些字段只在本机使用，不进任何提示文本、judge 的 state 和 trace 文本；Companion 设置 `sense_input_counts`、`sense_audio_apps` 关掉时不发。`events_raw.input_near` 是 agentd 由内存环推出的 0/1/空标记（事件前后 2 秒内有没有按键、点击或滚动），不存计数。
 
+**本机用户状态**（`observation/user_now.py`）。两个核心端点使用外壳的 ui 令牌，不属于任何插件，关闭屏幕感知时照常可用。粗信号、快照和事件只在内存里，重启即丢：不写 SQLite（屏幕感知关时不建 `attention.sqlite`）、文件或日志（日志只可记事件名，不记粗信号的值），不进提示文本、judge 的 state 和 trace。
+
+- `POST /user/coarse` 成功 200 `{}`。字段白名单：必填数值 `ts`（Unix 秒）和非负数值 `idle_s`（HID 空闲秒数）；可选布尔 `locked`、`asleep`、`fullscreen`；`edge` 为 `lock`、`unlock`、`sleep`、`wake` 或 null；可选的布尔或 null：`front_video`、`front_audio_out`、`camera_active`、`mic_active`（只算别的 app 占用麦克风，不含本 app）、`screen_captured`、`user_speaking`；`front_gpu` 为 0–1 的数或 null；可选对象 `input` 只收非负数值 `key_idle_s`、`pointer_idle_s`、`keys_10s`、`keys_60s`、`switches_60s`。保存的 `sense_input_counts` 没开时带 `input` 就拒收。任一层出现白名单外的键（如 `front`、`title`、`app`、`mic_apps`），或类型、取值不对，整条 400 `{"error": "invalid_coarse"}`。请求样例：`fixtures/user-coarse-full.json`（全部字段）、`fixtures/user-coarse-minimal.json`（只有 `ts`、`idle_s`）、`fixtures/user-coarse-invalid.json`（带 `front`，400）。
+- 暂停：只有 `PUT /observation/paused` 冻结它。暂停期间仍校验请求、合法的回 200 `{}` 但不收，观察到的维度停在上一个值，快照 `paused: true`；暂停结束后下一次判定按样本缺失处理。手动开会和安静（`PUT /observation/meeting`、`/observation/quiet`）不冻结它，只是覆盖项：手动开会让 `doing` 为 `meeting`，期间不收屏幕感知的内容提示（同观察暂停）；安静让 `stage` 为 `quiet`。
+- `GET /user/now` 200 `{snapshot, events}`，读取不触发判定；agentd 收到样本、内容提示、开关变化时判定一次，另每秒按时钟判定一次（样本间隔、迟滞到点、到期）。`snapshot`：`revision`（每次变化 +1）、`presence`（`asleep` > `locked` > `away` > `present` > `unknown`）、`doing`（`sharing` > `meeting` > `gaming` > `watching` > `reading` > `browsing` > `idle`）、`input_active`（在场且 HID 空闲 ≤ 2 s）、`typing`（没有键鼠计数时 null；10 s 内 ≥ 8 次按键且键盘空闲 ≤ 2 s 开始，键盘空闲 5 s 结束）、`flags` `{fullscreen, music, late_night, user_speaking, focused}`（`focused` 没有 `switches_60s` 时 null）、`overrides` `{meeting_manual, dnd_until, focus_timer}`、`stage`（`offstage`、`quiet`、`normal`、`engaged`）、`absence`（`{id, since}` 或 null；`id` 是跨重启唯一的字符串）、`paused`。`events` 是最近 20 条，先旧后新，每条 `{revision, ts, name, data}`；`name` 为 `user.enter.<值>`、`user.leave.<值>`（`presence` 和 `doing` 的值）、`user.return`（`data` `{absence_id, away_s}`）或 `stage.<等级>`，其余 `data` 为 `{}`。回包样例：`fixtures/user-now.json`。
+- 规则：HID 空闲 180 s 为 `away`；`away`、`locked`、`asleep` 连成一段离开，开始时间回溯到最后一次输入（进入时的 `ts - idle_s`），回到 `present` 时这段结束并只发一次 `user.return`，`away_s` 从回溯的开始算。样本间隔超过 5 s 为 `unknown`（不算离开），之前来过 `lock` 或 `sleep` 边沿时保持锁屏或睡眠。`meeting`：手动开会，或摄像头开，或麦克风被别的 app 占用；`sharing`：`screen_captured`；`gaming`：全屏且最近 5 拍里至少 3 拍 `front_gpu` ≥ 0.5，或内容提示为游戏；`watching`：`front_video`；`reading`、`browsing` 只来自内容提示。迟滞：默认进 3 s、出 5 s，`sharing`、`meeting`、`locked`、`asleep` 立即，`focused` 进 600 s（同一 `doing`、`switches_60s` 为 0）出 60 s。`stage` 按序取第一条成立的：1 `sharing` → `offstage`；2 `locked`、`asleep`、`away` → `offstage`；3 全屏的 `gaming` 或 `watching` → `offstage`；4 `meeting`（含手动）或安静未到期 → `quiet`；5 `focused`、`typing`（没有计数时为在场满 60 s 且 `input_active`）或非全屏 `watching` → `quiet`；6 回来、说过话或点过她 60 s 内 → `engaged`；7 `unknown` → `normal`；8 其余 → `normal`。
+
 **C6 角色状态端点**（消费方是角色页和 Trace）。字段和规则见 §4.2：
 - `GET /character/state`（ui 或 events token）：当前角色的 `{character_id, energy, valence, engagement, activity, labels, causes, affects_behavior}`，值是真实记录的，和开关无关。精力的钟点目标：9–18 点 0.8，19–22 点 0.6，6–8 点 0.5，23–5 点 0.3；坐、待着、睡只把精力补回到钟点目标为止。
 - `DELETE /character/state {character_id}`（ui）：服务端在角色切换锁内核对预期角色、清空并返回新状态。缺少身份回 400；角色已变回 409 `character_changed`，切换事务中回 409 `switching`；这些失败均不清空任何角色。只删指定的当前角色，从钟点目标和心情基线重新开始。
@@ -299,6 +306,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | GET | `/diag/stream` | ui | `stream` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/blacklist` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/desktop/presence` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `desktop-presence.json` |
+| GET | `/user/now` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `user-now.json` |
 | POST | `/desktop/sessions/seen` | ui | `write` | main、stack | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/model/settings` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `model-settings.json` |
 | GET | `/motion/settings` | ui | `read` | main、stack | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
@@ -381,6 +389,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | POST | `/voice/token` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/turn/cancel` | ui | `write` | main、stack | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/character` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/user/coarse` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/context/attention` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/context/events` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/context/timeline` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |

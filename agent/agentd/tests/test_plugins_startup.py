@@ -61,6 +61,11 @@ def probe():
                     ("workspace", "discovery", "jobs", "observations", "observation_briefs", "worklog", "memory_pipeline")}
         snapshot = {"services": services, "workers": [t.name for t in threading.enumerate()], "caps": caps,
                     "integration": (state / "integration-runtime.json").is_file(), "degraded": server.degraded}
+        if os.environ.get("TEST_USER_COARSE"):
+            snapshot["coarse"] = request(server, "POST", "/user/coarse", {"ts": time.time(), "idle_s": 0,
+                                                                          "mic_active": True})
+            snapshot["user_now"] = request(server, "GET", "/user/now")
+            snapshot["attention_db"] = paths.attention_db(state).exists()
         if os.environ.get("TEST_PLUGIN_RESET"):
             status, answer = server.reset()
             assert status == 200, answer
@@ -123,6 +128,14 @@ class PluginStartupTest(unittest.TestCase):
     def test_reset_clears_data_from_disabled_plugins(self):
         state = self.snapshot("--plugin-off", "light_ai", TEST_PLUGIN_RESET="1")
         self.assertEqual(state["remaining"], [0, 0])
+
+    def test_coarse_with_awareness_off_creates_no_attention_database(self):
+        state = self.snapshot("--plugin-off", "screen_awareness", TEST_USER_COARSE="1")
+        self.assertEqual(state["coarse"], [200, {}])
+        status, body = state["user_now"]
+        self.assertEqual(status, 200)
+        self.assertEqual(body["snapshot"]["doing"], "meeting")
+        self.assertFalse(state["attention_db"])
 
     def test_brief_with_no_sources_is_empty(self):
         state = self.snapshot("--plugin-on", "daily_brief", TEST_PLUGIN_BRIEF="1")
