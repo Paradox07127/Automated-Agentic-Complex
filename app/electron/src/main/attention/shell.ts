@@ -14,7 +14,8 @@ export interface ShellAttentionOptions {
   agentdStateDir: string;
   /** config.json as saved now. */
   settings(): Record<string, unknown>;
-  /** shellPlan of the plug-ins agentd runs with: without `attention` the samples feed only this shell (give-way, surfaces). */
+  /** shellPlan of the plug-ins agentd runs with: without `attention` the samples feed only this shell (give-way, surfaces)
+   *  and agentd's `/user/coarse`. */
   plan(): ReadonlySet<Subsystem>;
   ownPids(): readonly number[];
   userSpeaking(): boolean | null;
@@ -34,16 +35,18 @@ export interface ShellAttentionOptions {
 export function shellAttention(o: ShellAttentionOptions): AttentionSampler | null {
   if (o.argv.includes('--no-attention')) return null;
   const blacklist = new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
+  const post = (path: string) => async (body: Record<string, unknown>) => {
+    try {
+      return (await o.agentd.request('POST', path, body)).status;
+    } catch {
+      return 0;
+    }
+  };
   return startAttention({
     helper: o.helper,
-    post: async (body) => {
-      if (!o.plan().has('attention')) return 0;
-      try {
-        return (await o.agentd.request('POST', '/context/attention', body)).status;
-      } catch {
-        return 0;
-      }
-    },
+    post: post('/context/attention'),
+    postCoarse: post('/user/coarse'),
+    aware: () => o.plan().has('attention'),
     blacklist: () => blacklist.rules(),
     // Anything but a saved `false` is on.
     sensing: () => {

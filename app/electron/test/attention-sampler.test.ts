@@ -43,13 +43,14 @@ function later<T>() {
 
 const settle = async () => { for (let i = 0; i < 20; i += 1) await new Promise((r) => setImmediate(r)); };
 
-function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number>; sensing?: { input: boolean; audioApps: boolean; redact: boolean };
-  blacklist?: BlacklistRules } = {}) {
+function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number>; postCoarse?: () => Promise<number>; aware?: boolean;
+  sensing?: { input: boolean; audioApps: boolean; redact: boolean }; blacklist?: BlacklistRules } = {}) {
   let clock = 1_763_539_200_000;
   let fire: (() => void) | null = null;
   let interval = 0;
   const requests: [string, Record<string, unknown>][] = [];
   const posts: Record<string, unknown>[] = [];
+  const coarse: Record<string, unknown>[] = [];
   const logs: string[] = [];
   const samples: AttentionSample[] = [];
   const pauses: boolean[] = [];
@@ -67,6 +68,8 @@ function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number
       },
     },
     post: async (body) => { posts.push(body); return o.post ? o.post() : 200; },
+    postCoarse: async (body) => { coarse.push(body); return o.postCoarse ? o.postCoarse() : 200; },
+    aware: () => o.aware ?? true,
     blacklist: () => o.blacklist ?? NO_RULES,
     sensing: () => o.sensing ?? { input: true, audioApps: true, redact: true },
     ownPids: () => [4000],
@@ -78,7 +81,7 @@ function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number
   };
   const sampler = startAttention(ports);
   return {
-    sampler, helper, requests, posts, logs, samples, pauses,
+    sampler, helper, requests, posts, coarse, logs, samples, pauses,
     get interval() { return interval; },
     get running() { return fire !== null; },
     async second() { clock += 1000; fire?.(); await settle(); },
@@ -313,6 +316,7 @@ test('stopping drops the edges not yet sent', async () => {
   first.resolve(200);
   await settle();
   assert.equal(t.posts.length, 1);
+  assert.equal(t.coarse.length, 1);
 });
 
 test('Safari and Chrome are asked for their tab; another app is not', async () => {
@@ -363,6 +367,62 @@ test('the gate and focus window lines are logged when they change', async () => 
     'ATTENTION gate fullscreen=false camera=false mic=false speaking=nil', 'ATTENTION focus_window nil',
     'ATTENTION gate fullscreen=false camera=true mic=false speaking=nil',
   ]);
+});
+
+test('screen awareness on: each beat goes to both /context/attention and /user/coarse', async () => {
+  const t = setup();
+  t.sampler.agentd(true);
+  await t.second();
+  await t.second();
+  assert.equal(t.posts.length, 2);
+  assert.equal(t.coarse.length, 2);
+  assert.equal('front' in t.coarse[0]!, false);
+  assert.equal(t.coarse[0]!.locked, false);
+});
+
+test('screen awareness off: no titles, no browser tab, no audio app ids, and each beat goes to /user/coarse only', async () => {
+  const chrome = sampleResult({ mic_active: true,
+    front: { pid: 9, name: 'Google Chrome', app_id: 'com.google.Chrome', window: { window_id: 3, pid: 9, bounds: { x: 0, y: 25, width: 800, height: 600 } } },
+    audio_clients: [{ pid: 8, app_id: 'us.zoom.xos', name: 'zoom.us', running_input: true, running_output: null }] });
+  const t = setup({ aware: false, helper: { 'attention.sample': ok(chrome), 'browser.front_tab': ok({ url_host: 'bank.example', incognito: false }) } });
+  t.sampler.agentd(true);
+  await t.second();
+  await t.second();
+  assert.deepEqual(t.requests.filter(([op]) => op === 'attention.sample').map(([, p]) => p),
+    [{ include_titles: false, include_input: true, include_audio: true }, { include_titles: false, include_input: true, include_audio: true }]);
+  assert.equal(t.ops().includes('browser.front_tab'), false);
+  assert.equal(t.posts.length, 0);
+  assert.equal(t.coarse.length, 2);
+  assert.equal(t.coarse[0]!.mic_active, true);
+  assert.equal(t.samples[0]!.micApps, null);
+});
+
+test('an edge stays pending until a coarse POST that carried it succeeded', async () => {
+  let fail = false;
+  const t = setup({ postCoarse: async () => (fail ? 0 : 200) });
+  t.sampler.agentd(true);
+  await t.second();
+  fail = true;
+  await t.edge('display_sleep');
+  fail = false;
+  t.advance(3000);
+  await t.edge('display_wake');
+  assert.deepEqual(t.coarse.map((b) => b.edge), [null, 'sleep', 'sleep', 'wake']);
+  assert.deepEqual(t.posts.slice(0, 3).map((p) => p.edge), [undefined, 'sleep', 'wake']);
+});
+
+test('screen awareness off: the log gets no coarse values, only a failed coarse beat\'s code', async () => {
+  const full = sampleResult({ camera_active: true, mic_active: true, focus_window_role: 'AXWindow', focus_window_subrole: 'AXStandardWindow',
+    front: { pid: 7, name: 'Keynote', app_id: 'com.apple.iWork.Keynote', window: { window_id: 3, pid: 7, bounds: { x: 0, y: 0, width: 1440, height: 900 } } } });
+  let status = 200;
+  const t = setup({ aware: false, helper: { 'attention.sample': ok(full) }, postCoarse: async () => status });
+  t.sampler.agentd(true);
+  await t.second();
+  status = 503;
+  await t.second();
+  await t.second();
+  assert.deepEqual(t.logs, ['ATTENTION coarse failed code=503']);
+  assert.ok(t.logs.every((l) => !/fullscreen|camera|mic|speaking/.test(l)));
 });
 
 test('BlacklistFile: none is the empty allow list; reread when the mtime changes; a half-written file keeps the last rules', () => {

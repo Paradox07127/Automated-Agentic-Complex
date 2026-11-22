@@ -1,10 +1,12 @@
 // The attention sampler over the platform helper (CONTRACT §7.3): each second while agentd runs, `attention.sample` (with
-// `browser.front_tab`, `screens.list` and `ax.video_rect` as the reading needs them) becomes one `POST /context/attention`;
-// `presence.watch` edges pause the beats while the screen is locked or the system or display sleeps.
+// `browser.front_tab`, `screens.list` and `ax.video_rect` as the reading needs them) becomes one `POST /user/coarse` and,
+// with screen awareness on, one `POST /context/attention`; `presence.watch` edges pause the beats while the screen is locked
+// or the system or display sleeps.
 import {
   AttentionBeats, attentionPayload, type AttentionSample, AttentionSleepState, audioApps, type BlacklistRules, browserAsks,
-  browserState, CaptureTracker, composeSample, decodeAttention, decodeRect, focusLine, gateLine, helperEdge, InputActivity,
-  type HelperY, type PresenceEdge, PresenceEdges, type Rect, Reflex, type ReflexState, sensedFields,
+  browserState, CaptureTracker, coarseBeat, type CoarseContext, composeSample, decodeAttention, decodeRect, focusLine, frontAudioOut,
+  gateLine, helperEdge, InputActivity, type HelperY, type PresenceEdge, PresenceEdges, type RawAttention, type Rect, Reflex,
+  type ReflexState, sensedFields,
 } from '../../common/attention.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 
@@ -12,6 +14,10 @@ export interface AttentionPorts {
   helper: { request(op: string, params?: Record<string, unknown>): Promise<HelperAnswer> };
   /** `POST /context/attention`; the HTTP status, 0 when agentd could not be reached. */
   post(body: Record<string, unknown>): Promise<number>;
+  /** `POST /user/coarse`; the HTTP status, 0 when agentd could not be reached. */
+  postCoarse(body: Record<string, unknown>): Promise<number>;
+  /** Read at each beat: screen awareness is on, so the sample reads titles, the browser tab and the audio apps, and goes to `post`. */
+  aware(): boolean;
   /** `<agentd_state_dir>/blacklist.json`'s rules now. */
   blacklist(): BlacklistRules;
   /** Read at each beat: `sense_input_counts`, `sense_audio_apps`, `redact_sensitive`. */
@@ -46,6 +52,8 @@ export class AttentionSampler {
   private readonly capture = new CaptureTracker();
   private readonly reflexes: Reflex;
   private pendingEdges: PresenceEdge[] = [];
+  /** Kept until a coarse POST that carried the first one succeeded. */
+  private coarseEdges: PresenceEdge[] = [];
   private polledLocked: boolean | null = null;
   private locked = false;
   private paused = false;
@@ -56,6 +64,7 @@ export class AttentionSampler {
   private loggedGate: string | null = null;
   private loggedFocus: string | null = null;
   private loggedFailure: string | null = null;
+  private loggedCoarse: number | null = null;
   /** `presence.watch` answered; after a restart the supervisor asks for it again (CONTRACT §6.4). */
   private presenceWatched = false;
 
@@ -107,6 +116,7 @@ export class AttentionSampler {
     } else {
       this.beats.stop();
       this.pendingEdges = [];
+      this.coarseEdges = [];
       this.polledLocked = null;
     }
   }
@@ -128,7 +138,10 @@ export class AttentionSampler {
    *  the beats still goes out. */
   private presence(edge: PresenceEdge): void {
     const observed = this.beats.running ? this.edges.observe(edge, this.ports.now() / 1000) : null;
-    if (observed !== null) this.pendingEdges.push(observed);
+    if (observed !== null) {
+      this.pendingEdges.push(observed);
+      this.coarseEdges.push(observed);
+    }
     this.pauseRendering(edge);
     if (observed !== null) this.tick();
   }
@@ -169,45 +182,65 @@ export class AttentionSampler {
 
   private async beat(): Promise<void> {
     let posted = false;
+    let coarseSent = false;
     try {
-      const sampled = await this.sample();
+      const aware = this.ports.aware();
+      const sampled = await this.sample(aware);
       if (sampled === null) return;
-      const { sample: current, mainHeight, videoRect } = sampled;
+      const { sample: current, raw, coarse, mainHeight, videoRect } = sampled;
       if (this.polledLocked !== null && this.polledLocked !== current.locked) {
         const edge = current.locked ? 'lock' : 'unlock';
         this.pauseRendering(edge);
         const observed = this.edges.observe(edge, current.ts);
-        if (observed !== null) this.pendingEdges.push(observed);
+        if (observed !== null) {
+          this.pendingEdges.push(observed);
+          this.coarseEdges.push(observed);
+        }
       }
       this.polledLocked = current.locked;
       current.edge = this.pendingEdges.shift() ?? null;
+      coarse.edge = this.coarseEdges[0] ?? null;
       this.last = current;
       this.reflexValue = this.reflexes.update(current, mainHeight, videoRect);
       this.ports.onSample?.(current);
-      const gate = gateLine(current);
-      if (gate !== this.loggedGate) {
-        this.loggedGate = gate;
-        this.ports.log(gate);
+      if (aware) {
+        const gate = gateLine(current);
+        if (gate !== this.loggedGate) {
+          this.loggedGate = gate;
+          this.ports.log(gate);
+        }
+        const focus = focusLine(current);
+        if (focus !== this.loggedFocus) {
+          this.loggedFocus = focus;
+          this.ports.log(focus);
+        }
       }
-      const focus = focusLine(current);
-      if (focus !== this.loggedFocus) {
-        this.loggedFocus = focus;
-        this.ports.log(focus);
-      }
-      const body = attentionPayload(current, this.ports.blacklist(), this.ports.ownPids(), this.ports.sensing().redact);
+      const coarseBody = coarseBeat(raw, coarse, sampled.sensing);
+      const body = aware ? attentionPayload(current, this.ports.blacklist(), this.ports.ownPids(), this.ports.sensing().redact) : null;
       posted = true;
-      await this.ports.post(body);
+      const [status] = await Promise.all([this.ports.postCoarse(coarseBody), body && this.ports.post(body)]);
+      if (status >= 200 && status < 300) {
+        if (coarse.edge !== null) this.coarseEdges.shift();
+        coarseSent = true;
+        this.loggedCoarse = null;
+      } else {
+        if (status !== this.loggedCoarse) this.ports.log(`ATTENTION coarse failed code=${status}`);
+        this.loggedCoarse = status;
+      }
     } finally {
       this.sending = false;
-      if (posted && this.pendingEdges.length > 0) this.tick();
+      // A failed coarse POST keeps its edge for the next beat rather than retrying at once.
+      if (posted && (this.pendingEdges.length > 0 || (coarseSent && this.coarseEdges.length > 0))) this.tick();
     }
   }
 
-  /** AttentionSampler.sample over the helper; null when the helper did not answer `attention.sample`. */
-  private async sample(): Promise<{ sample: AttentionSample; mainHeight: number | null; videoRect: Rect | null } | null> {
+  /** AttentionSampler.sample over the helper; null when the helper did not answer `attention.sample`. Without screen
+   *  awareness no title, browser tab or audio app is read. */
+  private async sample(aware: boolean): Promise<{ sample: AttentionSample; raw: RawAttention; coarse: CoarseContext;
+    sensing: { input: boolean }; mainHeight: number | null; videoRect: Rect | null } | null> {
     const sensing = this.ports.sensing();
     const reply = await this.ports.helper.request('attention.sample',
-      { include_titles: true, include_input: sensing.input, include_audio: true });
+      { include_titles: aware, include_input: sensing.input, include_audio: true });
     if (!reply.ok) {
       if (reply.error.code !== this.loggedFailure) this.ports.log(`ATTENTION sample failed code=${reply.error.code}`);
       this.loggedFailure = reply.error.code;
@@ -218,7 +251,7 @@ export class AttentionSampler {
     const front = raw.front;
     const bundleId = front?.appId ?? null;
     const [tab, screens] = await Promise.all([
-      browserAsks(bundleId) ? this.ports.helper.request('browser.front_tab', { app_id: bundleId }) : Promise.resolve(null),
+      aware && browserAsks(bundleId) ? this.ports.helper.request('browser.front_tab', { app_id: bundleId }) : Promise.resolve(null),
       front?.window ? this.ports.helper.request('screens.list') : Promise.resolve(null),
     ]);
     const frames = screens?.ok && Array.isArray(screens.result.screens) ? screens.result.screens as Record<string, unknown>[] : [];
@@ -227,8 +260,9 @@ export class AttentionSampler {
     const mainHeight = decodeRect(main?.frame)?.height ?? null;
     const ownPids = this.ports.ownPids();
     const rules = this.ports.blacklist();
-    const audio = raw.audioClients && audioApps(raw.audioClients, ownPids, front?.pid ?? null, rules);
-    const sensed = sensedFields(sensing.input, sensing.audioApps, audio, () => {
+    const audio = raw.audioClients && (aware ? audioApps(raw.audioClients, ownPids, front?.pid ?? null, rules)
+      : { mic: [], frontOut: frontAudioOut(raw.audioClients, front?.pid ?? null) });
+    const sensed = sensedFields(sensing.input, aware && sensing.audioApps, audio, () => {
       if (raw.inputCounters === null || raw.inputIdles === null) return null;
       const input = this.inputActivity.record(raw.ts, raw.inputCounters, bundleId, raw.inputIdles);
       input.nearClicks10s = this.ports.nearClicks?.() ?? null;
@@ -236,16 +270,18 @@ export class AttentionSampler {
     });
     const screenCaptured = this.capture.update(raw.ts, raw.captureIndicator, raw.micActive, raw.cameraActive,
       this.ports.ownCaptureRecent?.() ?? false);
+    const userSpeaking = this.ports.userSpeaking?.() ?? null;
+    const asleep = this.sleepState.asleep;
     const sample = composeSample(raw, {
-      browser: browserState(bundleId, tab), displays, asleep: this.sleepState.asleep,
-      userSpeaking: this.ports.userSpeaking?.() ?? null, sensed, screenCaptured,
+      browser: browserState(bundleId, tab), displays, asleep, userSpeaking, sensed, screenCaptured,
     });
+    const coarse: CoarseContext = { displays, asleep, edge: null, userSpeaking, screenCaptured, ownPids, input: sensed.input };
     let videoRect: Rect | null = null;
     if (sample.frontVideo === true && front) {
       const video = await this.ports.helper.request('ax.video_rect', { pid: front.pid });
       videoRect = video.ok ? decodeRect(video.result.rect) : null;
     }
-    return { sample, mainHeight, videoRect };
+    return { sample, raw, coarse, sensing, mainHeight, videoRect };
   }
 }
 

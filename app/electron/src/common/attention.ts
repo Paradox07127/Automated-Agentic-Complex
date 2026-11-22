@@ -1,4 +1,4 @@
-// The attention heartbeat's rules: the platform helper's `attention.sample` reading (CONTRACT §7.3) in, the body of agentd's `POST /context/attention` and the derived scene state out.
+// The attention heartbeat's rules: the platform helper's `attention.sample` reading (CONTRACT §7.3) in, the bodies of agentd's `POST /context/attention` and `POST /user/coarse` and the derived scene state out.
 import type { HelperAnswer } from './push-to-talk.ts';
 
 export interface Rect { x: number; y: number; width: number; height: number }
@@ -242,8 +242,12 @@ export function audioApps(clients: readonly AudioClient[], ownPids: readonly num
     const name = hides(rules, w, ownPids) ? '<hidden>' : c.bundleId;
     if (!mic.includes(name)) mic.push(name);
   }
-  const frontOut = frontPid === null ? null : anyActive(clients.filter((c) => c.pid === frontPid).map((c) => c.runningOutput));
-  return { mic: mic.slice(0, MIC_APPS_MAX), frontOut };
+  return { mic: mic.slice(0, MIC_APPS_MAX), frontOut: frontAudioOut(clients, frontPid) };
+}
+
+/** Whether the front process plays audio, null when unknown. */
+export function frontAudioOut(clients: readonly AudioClient[], frontPid: number | null): boolean | null {
+  return frontPid === null ? null : anyActive(clients.filter((c) => c.pid === frontPid).map((c) => c.runningOutput));
 }
 
 /** The Settings switches `sense_input_counts` and `sense_audio_apps`: an off switch leaves its field out, and `input` is
@@ -586,6 +590,43 @@ export function attentionPayload(s: AttentionSample, rules: BlacklistRules, ownP
     payload.input = input;
   }
   return payload;
+}
+
+/** What the coarse beat needs besides the helper's reading. */
+export interface CoarseContext {
+  /** `screens.list` frames, in helper coordinates. */
+  displays: readonly Rect[];
+  asleep: boolean;
+  edge: PresenceEdge | null;
+  userSpeaking: boolean | null;
+  screenCaptured: boolean | null;
+  /** This shell's processes: a mic only they record with is not in use. */
+  ownPids: readonly number[];
+  input: InputSnapshot | null;
+}
+
+/** Body of `POST /user/coarse`, sent whether or not screen awareness is on: each key named here, so no app, window, title
+ *  or text can get in. `input` only while `sense_input_counts` is on. */
+export function coarseBeat(raw: RawAttention, c: CoarseContext, sensing: { input: boolean }): Record<string, unknown> {
+  const f = raw.front;
+  const bounds = f?.window?.bounds ?? null;
+  const recording = raw.audioClients?.filter((a) => a.runningInput) ?? [];
+  const onlyOwnMic = recording.length > 0 && recording.every((a) => c.ownPids.includes(a.pid));
+  const body: Record<string, unknown> = {
+    ts: raw.ts, idle_s: raw.idleSeconds, locked: raw.locked, asleep: c.asleep, edge: c.edge,
+    fullscreen: bounds !== null && coversDisplay(bounds, c.displays),
+    front_video: f && raw.videoPids ? raw.videoPids.includes(f.pid) : null,
+    front_audio_out: raw.audioClients && frontAudioOut(raw.audioClients, f?.pid ?? null),
+    front_gpu: f ? raw.frontGpuBusy : null,
+    camera_active: raw.cameraActive,
+    mic_active: onlyOwnMic ? false : raw.micActive,
+    screen_captured: c.screenCaptured, user_speaking: c.userSpeaking,
+  };
+  if (sensing.input && c.input) {
+    const i = c.input;
+    body.input = { key_idle_s: i.idles.key, pointer_idle_s: i.idles.pointer, keys_10s: i.keys10s, keys_60s: i.keys60s, switches_60s: i.switches60s };
+  }
+  return body;
 }
 
 // ---- Reflex and log lines

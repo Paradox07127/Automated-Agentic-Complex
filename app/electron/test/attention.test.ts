@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   AttentionBeats, AttentionSleepState, type AttentionSample, attentionPayload, audioApps, type BlacklistRules, browserAsks,
-  browserState, CaptureTracker, chooseTitle, composeSample, coversDisplay, decodeAttention, EMPTY_BLACKLIST, focusLine, gateLine, isBrowser,
-  helperEdge, hides, InputActivity, parseBlacklist, PresenceEdges, redactText, Reflex, sensedFields, appKitY, helperY,
+  browserState, CaptureTracker, chooseTitle, coarseBeat, composeSample, coversDisplay, decodeAttention, EMPTY_BLACKLIST, focusLine, frontAudioOut,
+  gateLine, isBrowser, helperEdge, hides, InputActivity, type InputSnapshot, parseBlacklist, PresenceEdges, redactText, Reflex, sensedFields, appKitY,
+  helperY,
 } from '../src/common/attention.ts';
 
 const OWN = [4000];
@@ -449,6 +450,13 @@ test('audioApps: front audio out is unknown when one of its clients cannot be re
   assert.equal(audioApps([c(true)], OWN, null, rules({})).frontOut, null);
 });
 
+test('frontAudioOut: the front pid\'s clients as audioApps reads them, without the bundle ids', () => {
+  const c = (output: boolean | null) => ({ pid: 5, bundleId: 'p', app: 'p', runningInput: false, runningOutput: output });
+  assert.equal(frontAudioOut([c(false), c(null)], 5), null);
+  assert.equal(frontAudioOut([c(true), c(null)], 5), true);
+  assert.equal(frontAudioOut([c(true)], null), null);
+});
+
 test('sensedFields: an off switch leaves its field out, and the input reader is not called', () => {
   let called = 0;
   const input = () => { called += 1; return null; };
@@ -559,6 +567,54 @@ test('AttentionBeats: a beat each second while running, a poll while paused, a b
   beats.setPaused(true);
   beats.setPaused(false);
   assert.deepEqual(calls, ['beat', 'poll', 'beat']);
+});
+
+// ---- The coarse beat
+
+const COARSE_KEYS = ['ts', 'idle_s', 'locked', 'asleep', 'edge', 'fullscreen', 'front_video', 'front_audio_out', 'front_gpu', 'camera_active',
+  'mic_active', 'screen_captured', 'user_speaking', 'input'];
+const SNAPSHOT: InputSnapshot = { idles: { key: 1.4, pointer: 0.2, scroll: 12, click: 3.5 }, keys10s: 3, keys60s: 9, clicks10s: 2, scrolls30s: 1,
+  moves10s: 5, switches60s: 1, nearClicks10s: 4 };
+
+const coarse = (r: Record<string, unknown>, o: Partial<Parameters<typeof coarseBeat>[1]> = {}, input = true) => coarseBeat(decodeAttention(r), {
+  displays: [{ x: 0, y: 0, width: 1440, height: 900 }], asleep: false, edge: null, userSpeaking: null, screenCaptured: null, ownPids: OWN,
+  input: null, ...o,
+}, { input });
+
+test('coarseBeat: only the coarse keys whatever the reading holds; input only while sense_input_counts is on', () => {
+  const r = reply({
+    front: { pid: 611, name: 'Safari', app_id: 'com.apple.Safari', category: 'public.app-category.productivity', focused_window_title: 'Bank — Statement',
+      window: { window_id: 812, pid: 611, bounds: { x: 0, y: 0, width: 1440, height: 900 }, title: 'Release notes', app_name: 'Safari', app_id: 'com.apple.Safari' } },
+    mic_active: true, front_gpu_busy: 0.3,
+    audio_clients: [{ pid: 611, app_id: 'com.apple.Safari', name: 'Safari', running_input: false, running_output: true },
+      { pid: 9, app_id: 'us.zoom.xos', name: 'zoom.us', running_input: true, running_output: null }],
+  });
+  const on = coarse(r, { input: SNAPSHOT, edge: 'lock', asleep: true, userSpeaking: true, screenCaptured: false });
+  assert.ok(Object.keys(on).every((k) => COARSE_KEYS.includes(k)), Object.keys(on).join(' '));
+  assert.deepEqual(on, {
+    ts: 1763539200.25, idle_s: 1.4, locked: false, asleep: true, edge: 'lock', fullscreen: true, front_video: true, front_audio_out: true,
+    front_gpu: 0.3, camera_active: false, mic_active: true, screen_captured: false, user_speaking: true,
+    input: { key_idle_s: 1.4, pointer_idle_s: 0.2, keys_10s: 3, keys_60s: 9, switches_60s: 1 },
+  });
+  for (const s of ['Safari', 'Release notes', 'Bank', 'zoom', '812', '611', 'productivity']) assert.ok(!JSON.stringify(on).includes(s), s);
+  const off = coarse(r, { input: SNAPSHOT }, false);
+  assert.equal('input' in off, false);
+  assert.ok(Object.keys(off).every((k) => COARSE_KEYS.includes(k)));
+});
+
+test('coarseBeat: unknown fields are null; no front app has no video, GPU or audio out, and is not fullscreen', () => {
+  assert.deepEqual(coarse(reply({ front: null, camera_active: null, mic_active: null, audio_clients: null, video_pids: null })), {
+    ts: 1763539200.25, idle_s: 1.4, locked: false, asleep: false, edge: null, fullscreen: false, front_video: null, front_audio_out: null,
+    front_gpu: null, camera_active: null, mic_active: null, screen_captured: null, user_speaking: null,
+  });
+});
+
+test('coarseBeat: the mic is not in use when only this shell records with it', () => {
+  const client = (pid: number, input: boolean) => ({ pid, app_id: `app${pid}`, name: `app${pid}`, running_input: input, running_output: false });
+  assert.equal(coarse(textEdit({ mic_active: true, audio_clients: [client(4000, true), client(9, false)] })).mic_active, false);
+  assert.equal(coarse(textEdit({ mic_active: true, audio_clients: [client(4000, true), client(9, true)] })).mic_active, true);
+  assert.equal(coarse(textEdit({ mic_active: true, audio_clients: [] })).mic_active, true);
+  assert.equal(coarse(textEdit({ mic_active: false, audio_clients: [client(9, false)] })).mic_active, false);
 });
 
 // ---- Log lines

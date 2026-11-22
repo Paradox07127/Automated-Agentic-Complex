@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { agentdArguments } from '../src/common/agentd.ts';
 import { ConfigError, parseConfig } from '../src/common/config.ts';
 import { MENU_STATE_DEFAULTS } from '../src/common/menus.ts';
+import { PLUGINS } from '../src/common/plugins.generated.ts';
 import { DEFAULT_PLUGINS, enabledPlugins, PLUGIN_IDS, type Plugins, shellPlan } from '../src/common/plugins.ts';
 import { current, parseChanges, planSave, schema, settingValues, withSettings } from '../src/common/settings.ts';
 import { avatarMenu } from '../src/main/menus/avatar.ts';
@@ -97,6 +98,12 @@ test('menus: with coding sessions off neither the tray nor her menu has the sess
   assert.ok(deepIds(trayMenu(on, PORTS)).includes('sessions') && deepIds(trayMenu(on, PORTS)).includes('pending'));
   assert.ok(deepIds(avatarMenu(on, PORTS)).includes('pending'));
   assert.ok(deepIds(trayMenu({ ...on, configError: '配置错误' }, PORTS)).includes('sessions'));
+});
+
+test('the 键鼠计数 row belongs to no plug-in: the coarse beat reads it with screen awareness off too', () => {
+  for (const row of ['privacy.keys']) {
+    assert.ok(!PLUGINS.some((p) => (p.web.settings as readonly string[]).includes(row)), row);
+  }
 });
 
 test('enabledPlugins: the desktop pages get the ids of the plug-ins that are on, in the registry\'s order', () => {
