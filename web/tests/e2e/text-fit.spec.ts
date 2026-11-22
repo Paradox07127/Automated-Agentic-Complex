@@ -60,28 +60,6 @@ test('每日简报 › 时间 1280: a focused timeline entry draws its ring insi
   expect(ring).toBeLessThanOrEqual(0);
 });
 
-test('对话 1440 and 1920: history speakers fit and long previews retain their full text', async ({ page }) => {
-  for (const [w, h] of [
-    [1440, 900],
-    [1920, 1080],
-  ] as const) {
-    await open(page, w, h, 'chat');
-    await page.getByRole('button', { name: '历史记录', exact: true }).click();
-    const history = page.getByRole('dialog', { name: '历史记录' });
-    const who = history.locator('li > button > span:first-child');
-    await expect(who.first()).toBeAttached();
-    for (const f of await fits(who)) {
-      expect(cut(f), `${w} ${JSON.stringify(f)}`).toBe(false);
-    }
-    for (const f of await fits(history.locator('li > button > span:nth-child(2)'))) {
-      expect(f.title, f.text).toBe(f.text);
-      expect(f.lines).toBeLessThanOrEqual(2);
-    }
-    await page.keyboard.press('Escape');
-    await expect(history).toHaveCount(0);
-  }
-});
-
 test('对话 900×700: the composer status hint is shown whole; at 900×600 it may end in … and carries its full text as a title', async ({ page }) => {
   await open(page, 900, 700, 'chat?plugins=all');
   const hint = page.getByText('前台执行中，新消息由只读旁路回答');

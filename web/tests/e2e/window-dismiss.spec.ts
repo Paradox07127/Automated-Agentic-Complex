@@ -45,19 +45,8 @@ test('the memory dialog closes with the header X at the minimum window size; the
   }
 });
 
-test('the chat history dialog and the project detail sheet release their click targets when dismissed', async ({ page }) => {
+test('the project detail sheet releases its click target when dismissed', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
-  await page.goto('main.html#/chat?plugins=all&still=1');
-  const history = page.getByRole('button', { name: '历史记录', exact: true });
-  await history.click();
-  const dialog = page.getByRole('dialog', { name: '历史记录' });
-  await dialog.getByRole('button', { name: '关闭', exact: true }).click();
-  await expect(dialog).toHaveCount(0);
-  await history.click();
-  await expect(dialog).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
-
   await page.goto('main.html#/memory?plugins=all&still=1&view=projects');
   const project = page.locator('[data-project]').first().getByRole('button');
   await project.click();

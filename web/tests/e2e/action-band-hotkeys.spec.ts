@@ -25,13 +25,14 @@ for (const theme of THEMES) {
     expect(errors).toEqual([]);
   });
 
-  test(`${theme}: 附加窗口 is off while screenshot sharing is off`, async ({ page }) => {
+  test(`${theme}: 让她看一眼屏幕 is off while screenshot sharing is off`, async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto(`main.html#/chat?plugins=all&${suffix(theme)}`);
-    const look = page.getByRole('button', { name: '附加窗口' });
+    await page.getByRole('button', { name: '附加' }).click();
+    const look = page.getByRole('menuitemcheckbox', { name: /让她看一眼屏幕/ });
     await expect(look).toHaveAttribute('aria-disabled', 'true');
-    await expect(look).toHaveAttribute('title', /附加截图/);
-    await expect(page.getByRole('button', { name: '本轮不记录' })).toBeVisible();
+    await expect(look).toHaveAttribute('title', /截图/);
+    await expect(page.getByRole('menuitemcheckbox', { name: /这句不记/ })).toBeVisible();
     await shot(page, 'composer-look-off', theme);
     expect(errors).toEqual([]);
   });
