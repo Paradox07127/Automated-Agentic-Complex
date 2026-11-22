@@ -74,7 +74,7 @@ export function CharacterSettings(p: CharacterSettingsProps) {
           </div>
         )}
         <div className={styles.rows}>
-          {tab === 'render' && <div className={styles.note}>画面设置作用在桌面上的她；左边的预览台暂不跟随</div>}
+          {tab === 'render' && <div className={styles.note}>镜头、帧率、环境光和光线包裹只作用在桌面上的她，预览不跟随</div>}
           <SettingRows n={n} tab={tab} dev={dev} set={set} pending={pending} offline={p.offline} />
         </div>
         <div className={styles.foot}>

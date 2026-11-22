@@ -55,7 +55,7 @@ describe('CharacterSettings', () => {
     expect(within(menu).getByRole('tab', { name: '画面' }).getAttribute('aria-selected')).toBe('true');
     expect(within(menu).getByRole('tab', { name: '场景' })).toBeTruthy();
     expect(screen.getAllByText('原作镜头预设').length).toBeGreaterThan(0);
-    expect(screen.getByText('画面设置作用在桌面上的她；左边的预览台暂不跟随')).toBeTruthy();
+    expect(screen.getByText('镜头、帧率、环境光和光线包裹只作用在桌面上的她，预览不跟随')).toBeTruthy();
   });
 
   it('draws the behavior rows and asks for another page through onTab', async () => {
