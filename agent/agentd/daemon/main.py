@@ -22,6 +22,7 @@ from observation.blacklist import Blacklist
 from brain import characters
 from observation.capture import CaptureManager
 from character.character_state import CharacterState
+from character.desk_log import DeskLog
 from personal.commitments import Commitments
 from tool_gateway.computer_use import ComputerControlConfig, endpoint_path
 from daemon.agentd_server import AgentdServer
@@ -337,6 +338,8 @@ def main():
     server.user_now.set_overrides(focus_timer=server.gate.focus)
     server.load_receipts(open_store(db))
     server.trace = TraceStore(open_store(db), producer_epoch=server.registry.epoch, retention=server.history_retention)
+    server.desk = DeskLog(open_store(db), retention=server.history_retention)
+    server.spatial.parked = lambda on: server.desk.span("edge", on)
     from motion.performer import Performer
     from motion.settings import MotionSettings
     server.motion = Performer(MotionSettings(state_dir), server.registry.publish_event,

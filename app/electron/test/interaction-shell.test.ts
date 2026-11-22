@@ -119,13 +119,25 @@ test('avatar_click quick_input opens 快速输入 at the settled click, unless i
 });
 
 test('a double click opens the sessions page and takes back its first half; the right button opens the character menu', async () => {
-  const h = harness({ settings: { avatar_click: 'quick_input' } });
+  const h = harness({ settings: { avatar_click: 'quick_input' }, status: 204 });
   h.shell.click({ kind: 'left', at: { x: 5, y: 6 }, region: null });
   h.shell.click({ kind: 'double' });
   await h.advance(1);
   assert.equal(h.requests.length, 0);
   h.shell.click({ kind: 'right', at: { x: 300, y: 400 } });
   assert.deepEqual(h.calls, ['sessions', 'menu 300,400']);
+  // Each right click is one wheel record for the daily brief.
+  await settle();
+  assert.deepEqual(h.requests, [{ method: 'POST', path: '/interaction/record', json: { kind: 'wheel' } }]);
+  assert.deepEqual(h.lines, []);
+  h.done();
+});
+
+test('a wheel record agentd does not take is logged', async () => {
+  const h = harness({ offline: true });
+  h.shell.click({ kind: 'right', at: { x: 1, y: 2 } });
+  await settle();
+  assert.deepEqual(h.lines, ['RECORD kind=wheel status=0']);
   h.done();
 });
 

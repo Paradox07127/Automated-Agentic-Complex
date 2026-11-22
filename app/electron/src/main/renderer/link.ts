@@ -11,7 +11,7 @@ import {
   cameraGestureProblem, capturedProblem, type Capsule, capsuleHit, capsulesBox, clickProblem, COMPANION_CAPABILITIES, companionHello, CURSOR,
   CursorKinematics, decodeLine, dropProblem, encodeLine, motionRequestProblem, motionStateProblem, motionStrokeProblem, type MotionOverridesReceipt,
   outboundProblem, playbackProblem, type PointerState, poseStateProblem, presentationInputProblem, presentationStateProblem, readCapsules,
-  readMotionOverrides,
+  reactionProblem, type ReactionTrigger, readMotionOverrides,
   SPEECH_CANCEL_REASONS, speechCancelledProblem, surfaceTrackProblem, TERMINAL_BEHAVIOR_PHASES, traceEventProblem,
   fpsTier, type FpsTier, fpsTierFor, type Heartbeat, LineFramer, MAX_LINE, type Stats, Watchdog,
 } from '../../common/c3.ts';
@@ -162,8 +162,12 @@ export interface LinkOptions {
   onPlayback?(body: Record<string, unknown>): void;
   onSurfaceTrack?(e: SurfaceTrackEvent): void;
   onDrop?(d: DropEvent): void;
+  /** A drag of hers began (each `drag` `begin`). */
+  onDragBegin?(): void;
   /** A drag of hers ended at `at`, in global points; `excludedPids` are her renderer's and this shell's. */
   onDragRelease?(at: { x: number; y: number }, excludedPids: readonly number[]): void;
+  /** Rule 55: each valid `reaction`'s trigger; lists `reactions`. */
+  onReaction?(trigger: ReactionTrigger): void;
   onMotionStroke?(token: string, clip: string): void;
   onPoseState?(s: PoseState): void;
   onCameraGesture?(g: CameraGesture): void;
@@ -315,9 +319,9 @@ export class HostLink {
    *  order, the ones of the other receivers, `touchSettings` and `offers`. */
   get companionCapabilities(): string[] {
     const o = this.options, offers: readonly string[] = o.offers ?? [];
-    const given: Record<string, unknown> = { presentation: o.onPresentationState, drop: o.onDrop, touch: o.touchSettings, poses: o.onPoseState,
-      camera_gesture: o.onCameraGesture, surfaces: o.onSurfaceTrack, opacity: o.onSurfaceTrack, layering: o.onSurfaceTrack };
-    const later = ['presentation', 'drop', 'pass_through', 'render_live', 'ambient', 'touch', 'poses', 'camera_free', 'camera_track',
+    const given: Record<string, unknown> = { presentation: o.onPresentationState, drop: o.onDrop, reactions: o.onReaction, touch: o.touchSettings,
+      poses: o.onPoseState, camera_gesture: o.onCameraGesture, surfaces: o.onSurfaceTrack, opacity: o.onSurfaceTrack, layering: o.onSurfaceTrack };
+    const later = ['presentation', 'drop', 'reactions', 'pass_through', 'render_live', 'ambient', 'touch', 'poses', 'camera_free', 'camera_track',
       'camera_gesture', 'filters', 'capture', 'motion_overrides', 'play_chain', 'photo', 'camera_bust', 'surfaces', 'opacity', 'layering'];
     return [...COMPANION_CAPABILITIES, ...(o.onTrace ? ['trace'] : []), ...(o.onBehaviorReceipt ? ['behavior_receipt'] : []),
       ...(o.cursor ? ['pointer'] : []), ...(o.onMotionRequest ? ['motion_requests'] : []),
@@ -485,7 +489,10 @@ export class HostLink {
         c.capsulesAt = now();
         break;
       case 'drag':
-        if (m.phase === 'begin') c.dragging = true;
+        if (m.phase === 'begin') {
+          c.dragging = true;
+          this.options.onDragBegin?.();
+        }
         if (m.phase === 'end') {
           c.dragging = false;
           if (typeof m.x === 'number' && typeof m.y === 'number') {
@@ -518,6 +525,7 @@ export class HostLink {
       case 'motion_overrides': if (!this.handleMotionOverrides(m, c)) return; break;
       case 'track_surface': case 'untrack_surface': case 'attach': if (!this.handleSurfaceTrack(m, c)) return; break;
       case 'drop': if (!this.handleDrop(m, c)) return; break;
+      case 'reaction': if (!this.handleReaction(m)) return; break;
       case 'motion.stroke': if (!this.handleMotionStroke(m)) return; break;
       case 'pose_state': if (!this.handlePoseState(m, c)) return; break;
       case 'captured': if (!this.handleCaptured(m, c)) return; break;
@@ -613,6 +621,13 @@ export class HostLink {
     if (!this.options.onDrop) return true;
     if (!this.accepted(m, this.both(c, 'drop') ? dropProblem(m) : 'capability')) return false;
     this.options.onDrop!({ items: m.items as Record<string, string>[], x: m.x as number, y: m.y as number, truncated: m.truncated === true });
+    return true;
+  }
+
+  /** Rule 55: only this link lists `reactions`. */
+  private handleReaction(m: C3Message): boolean {
+    if (!this.accepted(m, this.companionCapabilities.includes('reactions') ? reactionProblem(m) : 'capability')) return false;
+    this.options.onReaction!(m.trigger as ReactionTrigger);
     return true;
   }
 

@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 import support
 from api.handler import Handler
+from daemon.character_switch import CharacterSwitchMixin
+from character.desk_log import DeskLog
 from character.proactive_log import ProactiveLog
 from infra import plugins
 from infra.store import open_store
@@ -44,12 +46,17 @@ class BriefDayTest(unittest.TestCase):
         self.history = History(self.db, clock=lambda: self.at)
         self.log = ProactiveLog(self.db)
         self.trace = TraceStore(self.db, 1, clock=lambda: self.at, retention=lambda: None)
+        self.desk = self.server.desk = DeskLog(self.db, clock=lambda: self.at)
         self.attention = AttentionStore(root / 'attention.sqlite', Blacklist(support.deny_blacklist(root / 'blacklist.json')))
         self.addCleanup(self.attention.close)
         self.server.attention = self.attention
         self.handler = Handler.__new__(Handler)
         self.handler.server = self.server
         self.handler._json = lambda code, body: (code, body)
+        self.sent = []
+        self.handler.send_response = self.sent.append
+        self.handler.send_header = lambda *_: None
+        self.handler.end_headers = lambda: None
 
     def request(self, query):
         self.handler.path = '/brief/day?' + query
@@ -58,6 +65,13 @@ class BriefDayTest(unittest.TestCase):
     def brief(self):
         from personal.brief_day import brief_day
         return brief_day(self.server, self.day, self.now)
+
+    def record(self, at, kind):
+        self.at = at
+        return self.handler._record({'kind': kind})
+
+    def clock(self, hours, day=0):
+        return self.start + day * 86400 + hours * 3600
 
     def turn(self, at, source='text', reply='Hello'):
         self.at = at
@@ -239,3 +253,64 @@ class BriefDayTest(unittest.TestCase):
         self.assertEqual(previous['her']['desk'], [
             {'key': 'window_top', 'label': '坐窗顶', 'count': 1, 'minutes': 1}])
         self.assertEqual(her['mood'], [[self.start + i, 0.8, 0.5] for i in (4, 6)])
+
+    def test_forwarded_touches_and_greetings_count_on_their_day_and_hour(self):
+        for kind in ('pat', 'pat', 'pinch', 'drag', 'wheel', 'greet'):
+            self.assertIsNone(self.record(self.clock(9.5), kind))
+        for kind in ('pat', 'greet'):
+            self.record(self.clock(20, day=-1), kind)
+        self.record(self.clock(1, day=1), 'wheel')
+        self.assertEqual(self.sent, [204] * 9)
+        body = self.brief()
+        self.assertEqual(body['her']['touch'], {'pat': 2, 'pinch': 1, 'drag': 1, 'wheel': 1})
+        touch = body['items']['touch']
+        self.assertEqual((touch['today'], touch['hours'][9], sum(touch['hours'])), (5, 5, 5))
+        self.assertEqual((touch['yesterday'], touch['avg7']), (1, 1 / 7))
+        self.assertEqual(body['her']['desk'], [{'key': 'greet', 'label': '迎接', 'count': 1, 'minutes': None}])
+        _, previous = self.request('date=' + str(self.day - timedelta(days=1)))
+        self.assertEqual(previous['her']['touch'], {'pat': 1, 'pinch': 0, 'drag': 0, 'wheel': 0})
+        self.assertEqual(previous['items']['touch']['hours'][20], 1)
+        self.assertEqual(previous['her']['desk'], [{'key': 'greet', 'label': '迎接', 'count': 1, 'minutes': None}])
+
+    def test_a_bad_record_body_is_400_and_records_nothing(self):
+        for body in (None, [], {}, {'kind': 'poke'}, {'kind': 'pat', 'at': 1}, {'kind': ['pat']}):
+            with self.subTest(body=body):
+                self.assertEqual(self.handler._record(body), (400, {'error': 'invalid_payload'}))
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM desk_log').fetchone()[0], 0)
+        self.server.desk = None
+        self.assertEqual(self.handler._record({'kind': 'pat'}), (503, {'error': 'no_desk_log'}))
+
+    def test_on_desk_minutes_are_the_visible_minutes_of_the_day(self):
+        self.assertIsNone(self.brief()['her']['on_desk_min'])
+        shell = SimpleNamespace(avatar={'visible': True, 'reason': None, 'since': ''}, clock=lambda: self.at, _voiced=None,
+                                desk=self.desk)
+        for hours, visible in ((-2, True), (-1, False), (9, True), (10, True), (11.5, False), (11.75, False)):
+            self.at = self.clock(hours)
+            CharacterSwitchMixin.set_avatar(shell, visible, 'user')
+        self.at = self.now
+        self.assertEqual(self.brief()['her']['on_desk_min'], 150)
+        _, previous = self.request('date=' + str(self.day - timedelta(days=1)))
+        self.assertEqual(previous['her']['on_desk_min'], 60)
+
+    def test_a_running_span_counts_to_now(self):
+        self.at = self.clock(11)
+        self.desk.span('visible', True)
+        self.at = self.now
+        self.assertEqual(self.brief()['her']['on_desk_min'], 60)
+
+    def test_an_edge_parking_is_an_edge_row(self):
+        for hours, on in ((10, True), (10 + 1 / 3, False)):
+            self.at = self.clock(hours)
+            self.desk.span('edge', on)
+        self.at = self.now
+        self.assertEqual(self.brief()['her']['desk'], [{'key': 'edge', 'label': '屏幕边缘陪你', 'count': 1, 'minutes': 20}])
+
+    def test_a_drag_that_cancels_a_behavior_counts_once(self):
+        self.record(self.clock(9), 'drag')
+        self.trace.emit('behavior.receipt', new_trace_id(), attrs={'behavior_id': 'walk', 'behavior_type': 'short_walk',
+                                                                   'phase': 'cancelled', 'reason': 'user_drag'})
+        self.trace.emit('input.received', new_trace_id(), attrs={'source': 'tap'}, texts={'text': 'hi'})
+        body = self.brief()
+        self.assertEqual(body['her']['touch']['drag'], 1)
+        self.assertEqual(body['items']['touch']['today'], 1)
+

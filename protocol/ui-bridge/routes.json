@@ -136,6 +136,7 @@
   {"method": "POST", "path": "/focus", "class": "write", "surfaces": ["main", "stack"]},
   {"method": "POST", "path": "/interaction/tap", "class": "host_only", "surfaces": []},
   {"method": "POST", "path": "/interaction/gift", "class": "host_only", "surfaces": []},
+  {"method": "POST", "path": "/interaction/record", "class": "host_only", "surfaces": []},
   {"method": "POST", "path": "/model/settings", "class": "write", "surfaces": ["main"], "plugin": "light_ai"},
   {"method": "POST", "path": "/model/catalog", "class": "write", "surfaces": ["main"], "plugin": "light_ai"},
   {"method": "POST", "path": "/model/test", "class": "write", "surfaces": ["main"], "plugin": "light_ai"},

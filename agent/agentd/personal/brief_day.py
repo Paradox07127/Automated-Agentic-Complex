@@ -198,10 +198,10 @@ def _coding_sessions(server, rows, since, stop, add):
 
 
 def _traces(rows, switches, spatial, since, start, stop, now, add):
-    motions, touch = Counter(), dict.fromkeys(('pat', 'pinch', 'drag', 'wheel'), 0)
+    motions = Counter()
     seated, seat_spans = {}, []
     seats = give_way = 0
-    kinds = ['motion.started', 'behavior.receipt', 'input.received']
+    kinds = ['motion.started', 'behavior.receipt']
     if switches['voice']:
         kinds.append('speech.finished')
     if switches['scr'] or switches['shot']:
@@ -211,7 +211,6 @@ def _traces(rows, switches, spatial, since, start, stop, now, add):
             " AND julianday(t_wall) BETWEEN julianday(?,'unixepoch') AND julianday(?,'unixepoch')"
             " AND (julianday(t_wall)<=julianday(?,'unixepoch') OR"
             "      (kind='behavior.receipt' AND json_extract(event,'$.attrs.behavior_type')='climb_window_top'))"
-            " AND (kind!='input.received' OR json_extract(event,'$.attrs.source') IN ('tap','ritual'))"
             " ORDER BY julianday(t_wall),id", (*kinds, since, now, stop)):
         at = datetime.fromisoformat(wall).timestamp()
         attrs = json.loads(raw)
@@ -234,28 +233,48 @@ def _traces(rows, switches, spatial, since, start, stop, now, add):
             add('voice', at, attrs['total_samples'] / SAMPLE_RATE)
         elif kind == 'egress.checked':
             add('mask', at, attrs['redactions'])
-        elif kind == 'input.received':
-            add('touch', at)
-        else:
-            phase = attrs['phase']
-            if phase == 'cancelled' and attrs['reason'] == 'user_drag':
-                add('touch', at)
-                if at >= start:
-                    touch['drag'] += 1
-            if phase == 'cancelled' and attrs['reason'] == 'give_way' and at >= start:
-                give_way += 1
+        elif attrs['phase'] == 'cancelled' and attrs['reason'] == 'give_way' and at >= start:
+            give_way += 1
     if seated:
         for behavior in spatial.running():
             began = seated.get(behavior['behavior_id'])
             if began is not None:
                 seat_spans.append((max(began, start), min(now, stop)))
-    desk = []
+    desk = {}
     if seats or seat_spans:
-        desk.append({'key': 'window_top', 'label': '坐窗顶', 'count': seats,
-                     'minutes': sum(b - a for a, b in _union(seat_spans)) / 60})
+        desk['window_top'] = {'key': 'window_top', 'label': '坐窗顶', 'count': seats,
+                              'minutes': sum(b - a for a, b in _union(seat_spans)) / 60}
     if give_way:
-        desk.append({'key': 'give_way', 'label': '给窗口让路', 'count': give_way, 'minutes': None})
-    return _counts(motions, 6), touch, desk
+        desk['give_way'] = {'key': 'give_way', 'label': '给窗口让路', 'count': give_way, 'minutes': None}
+    return _counts(motions, 6), desk
+
+
+def _desk_log(rows, running, since, start, stop, end, add):
+    """character.desk_log's rows: her.touch, the edge and greet rows of her.desk, and on_desk_min."""
+    touch, spans = dict.fromkeys(('pat', 'pinch', 'drag', 'wheel'), 0), {'visible': [], 'edge': []}
+    greets = edges = 0
+    for row, kind, at, until in rows('SELECT id,kind,at,until FROM desk_log WHERE at<? AND COALESCE(until,at)>=?'
+                                     ' ORDER BY at,id', (stop, since)):
+        if kind == 'greet':
+            greets += at >= start
+        elif kind in touch:
+            add('touch', at)
+            if at >= start:
+                touch[kind] += 1
+        else:
+            a, b = max(at, start), min(end if row in running else until, end)
+            if b > a:
+                spans[kind].append((a, b))
+            if kind == 'edge':
+                edges += at >= start
+    desk = {}
+    if edges or spans['edge']:
+        desk['edge'] = {'key': 'edge', 'label': '屏幕边缘陪你', 'count': edges,
+                        'minutes': sum(b - a for a, b in _union(spans['edge'])) / 60}
+    if greets:
+        desk['greet'] = {'key': 'greet', 'label': '迎接', 'count': greets, 'minutes': None}
+    on_desk = sum(b - a for a, b in _union(spans['visible'])) / 60 if spans['visible'] else None
+    return touch, desk, on_desk
 
 
 def brief_day(server, day: date, now: float):
@@ -328,7 +347,10 @@ def brief_day(server, day: date, now: float):
     if switches['code']:
         _coding_sessions(server, rows, since, stop, add)
     focus = _focus(server, switches['scr'], switches['read'] and consent['page_text'], since, start, end, add)
-    motions, touch, desk = _traces(rows, switches, server.spatial, since, start, stop, now, add)
+    motions, desk = _traces(rows, switches, server.spatial, since, start, stop, now, add)
+    touch, logged, on_desk = _desk_log(rows, server.desk.running() if server.desk is not None else set(),
+                                       since, start, stop, end, add)
+    desk.update(logged)
     mood = rows('SELECT at,energy,valence FROM character_state_log WHERE character_id=? AND at>=? AND at<? ORDER BY at,id',
                 (server.character, start, stop))
     for key, totals in previous.items():
@@ -337,7 +359,8 @@ def brief_day(server, day: date, now: float):
             items[key]['yesterday'] = totals.get(day - timedelta(days=1))
     her = {'said': {'total': items['line']['today'], 'self': items['say']['today'], 'replied': replied},
            'lines': [lines[k] for k in ('self', 'reply', 'miss') if k in lines], 'touch': touch,
-           'why': _counts(reasons), 'motions': motions, 'desk': desk, 'tools': tools,
-           'mood': [list(row) for row in mood], 'on_desk_min': None}
+           'why': _counts(reasons), 'motions': motions,
+           'desk': [desk[key] for key in ('window_top', 'edge', 'give_way', 'greet') if key in desk], 'tools': tools,
+           'mood': [list(row) for row in mood], 'on_desk_min': on_desk}
     return {'date': day.isoformat(), 'partial': day == date.fromtimestamp(now), 'switches': switches,
             'items': items, 'focus': focus, 'her': her}

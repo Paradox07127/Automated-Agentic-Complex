@@ -45,6 +45,7 @@ from support import serve_in_thread  # noqa: E402
 HOOK, UI = "hook-token", "ui-token"
 CONFIRM = {"confirm": "delete all local data"}
 CLEARED = {"agentd.sqlite": ("history_turns", "own_sessions", "trace_events", "facts", "fact_uses", "fact_sightings", "ritual_log", "character_state", "character_state_log",
+                            "desk_log",
                             "tasks", "task_events", "commitments", "schedules", "schedule_runs", "ritual_pending", "own_session_lines",
                             "idempotency_receipts", "episodes",
                             "summary_corrections", "session_summaries", "task_cards", "day_summaries", "proactive_log",
@@ -199,6 +200,7 @@ class ResetTest(unittest.TestCase):
         db.execute("INSERT INTO observation_work_events VALUES('work-reset','aster',?,'task','{}','[]','analysis-reset')",(now,))
         db.execute("INSERT INTO agent_memory_processed VALUES('synthetic-source','digest')")
         db.execute("INSERT INTO memory_tombstones VALUES('digest',?)",(now,))
+        db.execute("INSERT INTO desk_log (kind, at) VALUES ('pat', ?)", (now,))
         db.execute("INSERT INTO memory_agent_runs VALUES('memory-run','codex','native','aster',?,NULL,'running','v1','digest','{}',NULL)", (now,))
         db.execute("INSERT INTO memory_agent_events VALUES('memory-run',1,?,'proposal','{}')", (now,))
         db.execute("INSERT INTO model_usage (day, model, call, calls, input_tokens, cache_creation_input_tokens,"

@@ -97,6 +97,7 @@ MOD_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
 MAX_MOD_VALUE = 255
 MAX_MOD_SETTINGS = 64
 MOD_ADJUSTED_REASONS = {"defaulted", "unsupported"}
+REACTION_TRIGGERS = ("pat", "pinch", "greet")
 
 
 def is_num(x):
@@ -1049,6 +1050,14 @@ def check_drop(m, _):
     return errors
 
 
+def check_reaction(m, _):
+    """Rule 55 (v27). The Companion's hello lists `reactions`; an a2c session holds only the renderer's hello, so the
+    capability is not checked here."""
+    if set(m) != {"v", "type", "trigger"}:
+        return ["reaction has exactly v, type and trigger"]
+    return [] if m["trigger"] in REACTION_TRIGGERS else [f"reaction.trigger must be one of {list(REACTION_TRIGGERS)}"]
+
+
 def check_attention_side(m, _):
     """Rule 39 (v22.1)."""
     errors = [] if m.get("source") in ATTENTION_SOURCES else [f"attention_side.source must be one of {sorted(ATTENTION_SOURCES)}"]
@@ -1307,7 +1316,7 @@ CHECKS = {
             "motion.stroke": check_motion_stroke, "motion_request": check_motion_request,
             "layers_changed": check_layers_changed, "layers_change_failed": check_layers_change_failed,
             "pose_state": check_pose_state, "captured": check_captured, "camera_gesture": check_camera_gesture,
-            "motion_overrides": check_motion_overrides, "mod_settings": check_mod_settings},
+            "motion_overrides": check_motion_overrides, "mod_settings": check_mod_settings, "reaction": check_reaction},
     "c2a": {"hello": check_hello, "cursor": check_cursor, "fps_tier": check_fps_tier, "quit": check_quit,
             "stop_speech": check_stop_speech, "point_at": check_point_at,
             "move_window": check_move_window, "set_visible": check_set_visible,

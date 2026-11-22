@@ -156,6 +156,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'POST', path: '/focus', templates: ['/focus'], class: 'write', surfaces: ['main', 'stack'] },
   { method: 'POST', path: '/interaction/tap', templates: ['/interaction/tap'], class: 'host_only', surfaces: [] },
   { method: 'POST', path: '/interaction/gift', templates: ['/interaction/gift'], class: 'host_only', surfaces: [] },
+  { method: 'POST', path: '/interaction/record', templates: ['/interaction/record'], class: 'host_only', surfaces: [] },
   { method: 'POST', path: '/model/settings', templates: ['/model/settings'], class: 'write', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'POST', path: '/model/catalog', templates: ['/model/catalog'], class: 'write', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'POST', path: '/model/test', templates: ['/model/test'], class: 'write', surfaces: ['main'], plugin: 'light_ai' },
@@ -258,8 +259,8 @@ export type AgentdRouteKey =
   | 'POST /look' | 'POST /trace/events' | 'POST /memory/facts' | 'POST /feedback' | 'POST /blacklist'
   | 'POST /blacklist/defaults' | 'POST /blacklist/mode' | 'POST /reset' | 'POST /behavior/receipts'
   | 'POST /behavior/motion_state' | 'POST /motions/generate' | 'POST /focus' | 'POST /interaction/tap'
-  | 'POST /interaction/gift' | 'POST /model/settings' | 'POST /model/catalog' | 'POST /model/test'
-  | 'POST /model/chatgpt/start' | 'POST /model/chatgpt/cancel' | 'POST /model/chatgpt/select'
+  | 'POST /interaction/gift' | 'POST /interaction/record' | 'POST /model/settings' | 'POST /model/catalog'
+  | 'POST /model/test' | 'POST /model/chatgpt/start' | 'POST /model/chatgpt/cancel' | 'POST /model/chatgpt/select'
   | 'POST /model/chatgpt/logout' | 'POST /character/prepare' | 'POST /character/commit' | 'POST /character/abort'
   | `POST /approvals/${string}/decision` | `POST /sessions/${string}/messages` | `POST /sessions/${string}/interrupt`
   | `POST /memory/facts/${string}/confirm` | `POST /memory/facts/${string}/reject` | `POST /tasks/${string}/accept`

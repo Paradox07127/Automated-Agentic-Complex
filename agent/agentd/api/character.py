@@ -1,6 +1,7 @@
-"""POST /character and the switch, GET /character/state/history, PUT /avatar/visibility and /character/state/switch, POST /behavior/receipts and /behavior/motion_state."""
+"""POST /character and the switch, GET /character/state/history, PUT /avatar/visibility and /character/state/switch, POST /behavior/receipts, /behavior/motion_state and /interaction/record."""
 from brain.outbound import OutboundBlocked
 import c1
+from character.desk_log import COUNTED
 
 
 def _id64(value):
@@ -103,6 +104,17 @@ class CharacterMixin:
         if not _motion_state_ok(body):
             return self._json(400, {"error": "invalid_motion_state"})
         self.server.spatial.motion_state(body)
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _record(self, body):
+        """POST /interaction/record {kind}: one touch of hers or greeting for the daily brief, forwarded by the Companion."""
+        if not isinstance(body, dict) or set(body) != {"kind"} or body["kind"] not in COUNTED:
+            return self._json(400, {"error": "invalid_payload"})
+        if self.server.desk is None:
+            return self._json(503, {"error": "no_desk_log"})
+        self.server.desk.count(body["kind"])
         self.send_response(204)
         self.send_header("Content-Length", "0")
         self.end_headers()

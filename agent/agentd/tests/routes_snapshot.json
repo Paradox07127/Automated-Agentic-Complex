@@ -964,6 +964,13 @@
   ],
   [
     "POST",
+    "/interaction/record",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "POST",
     "/model/settings",
     [
       "ui_token"

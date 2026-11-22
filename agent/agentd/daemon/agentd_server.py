@@ -279,6 +279,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self.egress = None  # the EgressPolicy every model call shares; its redactions feed the diagnostics
         self.usage = None  # UsageMeter every model call records into; None shows null in /diag/state
         self.trace = None  # TraceStore (T1); None emits nothing and answers /trace/* with 503
+        self.desk = None  # DeskLog; None records no touches or desk spans and answers /interaction/record with 503
         self.trace_errors = 0  # events the store refused; a line never stops for its trace
         self._turn_trace = None  # the current turn's trace (see _open_trace); a cancel lands in it
         self._speech_traces = OrderedDict()  # speech_id -> the trace of the line it voices

@@ -466,6 +466,15 @@ export function dropProblem(m: Fields): string | null {
   return m.truncated === undefined || typeof m.truncated === 'boolean' ? null : 'truncated';
 }
 
+export const REACTION_TRIGGERS = ['pat', 'pinch', 'greet'] as const;
+export type ReactionTrigger = typeof REACTION_TRIGGERS[number];
+
+/** Rule 55's `reaction`: `v`, `type` and `trigger` only. */
+export function reactionProblem(m: Fields): string | null {
+  if (!only(m, ['v', 'type', 'trigger'])) return 'keys';
+  return (REACTION_TRIGGERS as readonly unknown[]).includes(m.trigger) ? null : 'trigger';
+}
+
 /** Rule 39's `motion.stroke`. */
 export const motionStrokeProblem = (m: Fields): string | null => (!id64(m.token) ? 'token' : text(m.clip, 256) ? null : 'clip');
 

@@ -1,7 +1,8 @@
 // What the renderer link hands agentd: `trace` events batched for `POST /trace/events`, behavior receipts to
 // `POST /behavior/receipts` and motion states to `POST /behavior/motion_state` in the order she sent them, motion
-// requests to `POST /motions/generate`.
+// requests to `POST /motions/generate`, her reactions and drags to `POST /interaction/record`.
 import { randomBytes, randomUUID } from 'node:crypto';
+import type { ReactionTrigger } from '../../common/c3.ts';
 import type { Mark } from '../../common/turn-marks.ts';
 
 /** Seconds for `flushAfter` and `tick`. */
@@ -117,7 +118,7 @@ export interface ForwardPorts {
   log(line: string): void;
 }
 
-/** HostLink's `onTrace`, `onBehaviorReceipt`, `onMotionState` and `onMotionRequest`. */
+/** HostLink's `onTrace`, `onBehaviorReceipt`, `onMotionState`, `onMotionRequest`, `onReaction` and `onDragBegin`. */
 export function agentdForwarding(o: ForwardPorts) {
   const trace = new TraceForwarder(o.epoch, async (events) => {
     const { status, body } = await o.post('/trace/events', { events });
@@ -129,6 +130,11 @@ export function agentdForwarding(o: ForwardPorts) {
     return status;
   });
   let tail: Promise<void> = Promise.resolve();
+  const record = (kind: ReactionTrigger | 'drag') => {
+    void o.post('/interaction/record', { kind }).then(({ status }) => {
+      if (status !== 204) o.log(`record forward kind=${kind} status=${status}`);
+    });
+  };
   return {
     onTrace: (events: Event[]) => trace.add(events),
     /** TurnMarks' emit: a `ui.*` mark of a line the shell handed to agentd. */
@@ -150,6 +156,9 @@ export function agentdForwarding(o: ForwardPorts) {
         if (status !== 202) o.log(`motion request forward request_id=${String(body.request_id ?? '')} status=${status}`);
       });
     },
+    /** C3 rule 55. */
+    onReaction: record,
+    onDragBegin: () => record('drag'),
     stop: () => trace.stop(),
   };
 }

@@ -1,6 +1,6 @@
 // Clicks on her and the desktop actions that act on her, as index.ts wires them: a single click claims a ritual and, with
-// `avatar_click` `quick_input`, opens 快速输入; a double click opens the sessions page;
-// the right button goes to the character menu; 送礼物, 自由活动 and 临时全部点穿 from the desktop.
+// `avatar_click` `quick_input`, opens 快速输入; a double click opens the sessions page; the right button goes to the
+// character menu and is recorded for the daily brief; 送礼物, 自由活动 and 临时全部点穿 from the desktop.
 import { type DesktopActionPorts, giftAction, localIso, opensQuickInput, RitualTap, RITUAL, ritualFailure } from '../../common/desktop-action.ts';
 import type { Actions } from '../../common/c3.ts';
 import { behaviorSwitches } from '../../common/settings.ts';
@@ -84,7 +84,13 @@ export function interactionShell(o: InteractionOptions): Interaction {
       else if (e.kind === 'double') {
         tap.doubleClick();
         o.openSessions();
-      } else o.onContextMenu(e.at);
+      } else {
+        // C3 rule 55: each right click on her is one `wheel`.
+        void o.request('POST', '/interaction/record', { kind: 'wheel' }).then((r) => r.status, () => 0).then((status) => {
+          if (status !== 204) o.log(`RECORD kind=wheel status=${status}`);
+        });
+        o.onContextMenu(e.at);
+      }
     },
     actions: {
       claimRitual: () => claimRitual(null, null),

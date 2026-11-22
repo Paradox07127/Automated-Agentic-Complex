@@ -404,6 +404,8 @@ REGISTRY = (
           owner=SERVER, action="_tap", summary="User tapped the character", spec=C6),
     Route("POST", "/interaction/gift", UI, "host_only", (),
           owner=SERVER, action="_gift", summary="User gave the character a gift", spec=C6),
+    Route("POST", "/interaction/record", UI, "host_only", (),
+          owner=SERVER, action="_record", summary="A touch of the character or her greeting, for the daily brief", spec=C6),
     Route("POST", "/model/settings", UI, "write", ("main",),
           owner=SERVER, action="_model_post", summary="Change pi credentials and default connection", spec=C6),
     Route("POST", "/model/catalog", UI, "write", ("main",),

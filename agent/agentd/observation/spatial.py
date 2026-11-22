@@ -234,6 +234,7 @@ class Spatial:
         self._activity_run = None  # {activity, since, sent, tries}: the activity's run and the last answer sent to it
         self.consumed = Consumed(lambda: self.stage())
         self._edge = None  # from quiet entry until it ends: {pending, walk: the edge walk's id or None, parked}
+        self.parked = lambda on: None  # told True when she becomes parked at an edge, False when that ends
         self._typing_off = -math.inf  # clock time typing was last seen off after being on
         self.chooser = None  # the current character's MotionChooser; None chooses no clips
         self._motion_at = None  # clock time the chooser's frames have reached; None starts them at the next step
@@ -458,6 +459,7 @@ class Spatial:
                                         type=record["behavior"]["type"], outcome=record["outcome"])
                 if self._edge is not None and self._edge["walk"] == body["behavior_id"]:
                     self._edge["parked"] = True
+                    self.parked(True)
             if phase == "rejected" and body.get("reason") == "unsupported":
                 behavior = record["behavior"]
                 self._unsupported[_unsupported_key(behavior["type"], behavior["target"], behavior.get("variant"))] = \
@@ -545,6 +547,8 @@ class Spatial:
         the parking and leaves an edge walk in flight to finish. The quiet stage also clears the chooser's intent
         presentation."""
         with self._lock:
+            if self._edge is not None and self._edge["parked"]:
+                self.parked(False)
             self._edge = {"pending": True, "walk": None, "parked": False} if name == "stage.quiet" else None
             if name == "stage.quiet":
                 self.motion({"kind": "quiet"})
@@ -766,6 +770,7 @@ class Spatial:
                 or not self._capable("short_walk", EDGE) or self._forbidden("short_walk", EDGE, False) \
                 or self._unsupported.get(_unsupported_key("short_walk", EDGE), 0) > now:
             edge.update(pending=False, parked=True)
+            self.parked(True)
             return
         spec = _spec("short_walk", dict(EDGE), "decision", "stage_quiet", 0, ("full_body",), ("user_drag",), 0.5,
                      60.0)

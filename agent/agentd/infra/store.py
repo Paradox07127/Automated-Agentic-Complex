@@ -77,6 +77,10 @@ SCHEMA = (
     "CREATE TABLE IF NOT EXISTS character_state_log (id INTEGER PRIMARY KEY, character_id TEXT NOT NULL,"
     " at REAL NOT NULL, energy REAL NOT NULL, valence REAL NOT NULL, cause TEXT)",
     "CREATE INDEX IF NOT EXISTS character_state_log_at ON character_state_log (character_id, at)",
+    # character.desk_log: kind pat, pinch, greet, drag or wheel is one row per time, until NULL; kind visible or edge is
+    # one row per span, until its end, or while it runs the last time it was seen to hold; at, until: epoch seconds
+    "CREATE TABLE IF NOT EXISTS desk_log (id INTEGER PRIMARY KEY, kind TEXT NOT NULL, at REAL NOT NULL, until REAL)",
+    "CREATE INDEX IF NOT EXISTS desk_log_at ON desk_log (at)",
     "CREATE TABLE IF NOT EXISTS ritual_log (day TEXT NOT NULL, kind TEXT NOT NULL, line_id TEXT NOT NULL,"
     " state TEXT NOT NULL, at REAL NOT NULL)",
     # data: the reminder's template fields as JSON; at: the clock time it fell due

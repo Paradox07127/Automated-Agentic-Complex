@@ -1,0 +1,5 @@
+{"v":1,"type":"hello","role":"avatar","pid":4711,"protocol":1,"character":"aster","capabilities":["touch"]}
+{"v":1,"type":"reaction","trigger":"pat"}
+{"v":1,"type":"reaction","trigger":"pat"}
+{"v":1,"type":"reaction","trigger":"pinch"}
+{"v":1,"type":"reaction","trigger":"greet"}

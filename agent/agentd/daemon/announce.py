@@ -111,6 +111,11 @@ class AnnounceMixin:
                 if summaries: summaries.tick()
             except Exception:
                 pass  # a failed summary must not stop registry ticks
+            try:
+                if self.desk is not None:
+                    self.desk.tick()
+            except Exception:
+                pass  # a failed write must not stop registry ticks
             self._switch_due()
             self._gift_due()
             self._focus_due()

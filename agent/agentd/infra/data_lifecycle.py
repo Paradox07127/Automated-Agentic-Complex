@@ -6,7 +6,7 @@ from infra.store import path_of
 
 USER_DATA = frozenset(("history_turns", "own_sessions", "trace_events", "facts", "fact_uses", "fact_sightings",
                        "character_state", "character_state_log", "ritual_log", "ritual_pending", "own_session_lines", "tasks",
-                       "task_events", "commitments", "schedules", "schedule_runs", "idempotency_receipts",
+                       "task_events", "commitments", "schedules", "schedule_runs", "idempotency_receipts", "desk_log",
                        "episodes", "summary_corrections", "memory_agent_runs", "memory_agent_events",
                        "personal_goals", "personal_jobs", "personal_job_events", "personal_job_leases",
                        "agent_memory_processed", "memory_tombstones", "conversations", "conversation_turns",
