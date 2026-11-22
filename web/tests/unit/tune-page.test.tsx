@@ -110,7 +110,7 @@ describe(' 调参 落地与环境', () => {
 describe(' 角色 page after 调参 moved out', () => {
   it('has no state curves and no view tabs, and its motion table shows timing and trigger beside the switches', async () => {
     window.location.hash = '#/character?still=1';
-    mount(CharacterPage);
+    mount(CharacterPage, '&pane=motion');
     const grid = await screen.findByRole('grid', { name: '全部动作' });
     const nod = await waitFor(() => grid.querySelector('[data-motion="nod"]') as HTMLElement);
     expect(within(nod).getByRole('switch', { name: '点头附和' })).toBeTruthy();
