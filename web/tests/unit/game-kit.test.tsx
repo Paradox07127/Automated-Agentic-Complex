@@ -261,17 +261,17 @@ describe('keys, capsule, rail cell, action bar, marks, room', () => {
     expect(container.querySelector('img')?.getAttribute('src')).toBe('art/characters/cedar/charinfo-bg.png');
   });
 
-  it('two rooms on one page keep their own gradient ids', () => {
+  it('the room draws the game lattice from both cameras and floor contours, and no ids two rooms could share', () => {
     const { container } = render(
       <>
         <TrainingRoom />
         <TrainingRoom />
       </>,
     );
-    const ids = [...container.querySelectorAll('linearGradient, radialGradient')].map((g) => g.id);
-    expect(ids).toHaveLength(4);
-    expect(new Set(ids).size).toBe(4);
-    for (const g of container.querySelectorAll('[fill^="url(#"]')) expect(ids).toContain(g.getAttribute('fill')?.slice(5, -1));
+    const room = container.querySelector('[data-training-room]') as HTMLElement;
+    expect([...room.querySelectorAll('svg g')].map((g) => g.querySelectorAll('line').length)).toEqual([23, 26]);
+    expect(room.querySelectorAll('svg path').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('[id]')).toHaveLength(0);
   });
 });
 

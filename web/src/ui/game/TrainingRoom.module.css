@@ -1,11 +1,52 @@
-/* Training room: fixed light colours in both themes, under everything on the page. */
+/* Training room after the game's CharInfo scene: fixed colours in both themes, under everything on the page. */
 .room {
+  /* Screen values of the game's room with its floor line at 76.9 %; each stop keeps its distance from the floor line. */
+  --room-c-wall-0: #8a8a88;
+  --room-c-wall-1: #969694;
+  --room-c-wall-2: #a4a4a2;
+  --room-c-wall-3: #b3b3b1;
+  --room-c-wall-4: #bdbdbc;
+  --room-c-wall-5: #c4c4c3;
+  --room-c-wall-6: #c8c8c7;
+  --room-c-wall-7: #cdcdcc;
+  --room-c-wall-8: #cecdcc;
+  --room-c-edge: #bcbcb9;
+  --room-c-floor-0: #a3a3a1;
+  --room-c-floor-1: #90908f;
+  --room-c-floor-2: #747473;
+  --room-c-floor-3: #616161;
+  --room-c-floor-4: #4f4f4f;
+  --room-c-line: rgb(0 0 0 / 12.5%);
+  --room-c-contour: rgb(255 255 255 / 7%);
+  --room-c-disk: #b2b2b2;
+  --room-c-vignette: rgb(17 17 19 / 5%);
+  --f: var(--room-floor-y, 76.9%);
+  --close: var(--room-close, 0);
+  /* The close camera is 1.34 times nearer: the floor's shading spreads by that much below its line. */
+  --fz: calc(1 + 0.34 * var(--close));
+
   position: absolute;
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  container: room / size;
-  background: linear-gradient(180deg, #e7e7e6 0%, #dbdbda 40%, #d0d1d0 62%, #c9cac9 80%, #bdbebd 100%);
+  background: linear-gradient(
+    180deg,
+    var(--room-c-wall-0) calc(var(--f) - 88%),
+    var(--room-c-wall-1) calc(var(--f) - 76.4%),
+    var(--room-c-wall-2) calc(var(--f) - 66.9%),
+    var(--room-c-wall-3) calc(var(--f) - 56.9%),
+    var(--room-c-wall-4) calc(var(--f) - 46.9%),
+    var(--room-c-wall-5) calc(var(--f) - 36.9%),
+    var(--room-c-wall-6) calc(var(--f) - 26.9%),
+    var(--room-c-wall-7) calc(var(--f) - 16.9%),
+    var(--room-c-wall-8) calc(var(--f) - 8.9%),
+    var(--room-c-edge) calc(var(--f) - 1.4%),
+    var(--room-c-floor-0) calc(var(--f) + 1.1% * var(--fz)),
+    var(--room-c-floor-1) calc(var(--f) + 3.1% * var(--fz)),
+    var(--room-c-floor-2) calc(var(--f) + 10.1% * var(--fz)),
+    var(--room-c-floor-3) calc(var(--f) + 15.1% * var(--fz)),
+    var(--room-c-floor-4) calc(var(--f) + 23.1% * var(--fz))
+  );
   pointer-events: none;
 }
 
@@ -15,53 +56,58 @@
   height: 260px;
 }
 
-.lines,
-.persp {
+/* The floor's contour curves, from the floor line down; the close camera sees them panned left. */
+.floor {
   position: absolute;
-  top: 0;
+  top: var(--f);
+  bottom: 0;
+  left: calc(var(--close) * -29%);
+  width: 130%;
+  height: auto;
+}
+
+.floor path {
+  fill: none;
+  stroke: var(--room-c-contour);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.lattice {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
 }
 
-.lines {
-  left: 0;
-  width: 100%;
-}
-
-/* The floor lines meet at the stage's middle, so their box is the stage's span and they run out past it. */
-.persp {
-  left: var(--room-stage-l, 28%);
-  width: calc(100% - var(--room-stage-l, 28%) - var(--room-stage-r, 28%));
-  overflow: visible;
-}
-
-.lines line,
-.persp line {
-  stroke: rgb(255 255 255 / 75%);
+.lattice line {
+  stroke: var(--room-c-line);
   stroke-width: 1.2px;
   vector-effect: non-scaling-stroke;
 }
 
-.lines .dim {
-  stroke: rgb(0 0 0 / 5.5%);
-  stroke-width: 1px;
+.overview {
+  opacity: calc(1 - var(--close));
 }
 
-.persp line {
-  stroke: rgb(255 255 255 / 55%);
-  stroke-width: 1px;
+.close {
+  opacity: var(--close);
 }
 
-.lines .floorh {
-  stroke: rgb(255 255 255 / 30%);
-  stroke-width: 1px;
+/* Her faint grey art on the 总览 camera, left of her: its right edge at the stage's middle. */
+.wm {
+  position: absolute;
+  top: 3%;
+  right: calc(50% + (var(--room-stage-r, 28%) - var(--room-stage-l, 28%)) / 2);
+  height: 70%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  opacity: calc(0.15 * (1 - var(--close)));
+  filter: grayscale(1);
+  mix-blend-mode: multiply;
 }
 
-.lines .horizon {
-  stroke: rgb(255 255 255 / 95%);
-  stroke-width: 2px;
-}
-
-/* The stage's span: what is drawn around her. */
+/* The stage's span: her shadow under it. */
 .scene {
   position: absolute;
   top: 0;
@@ -71,96 +117,21 @@
   container-type: size;
 }
 
-.wm {
+/* The scene's shadow catcher: a soft grey disk, solid to 1.26 m and gone 2.14 m further, centred on the stage's bottom. */
+.disk {
   position: absolute;
-  top: -3%;
+  bottom: 0;
   left: 50%;
-  height: 98%;
-  aspect-ratio: 1;
-  object-fit: contain;
-  translate: -50% 0;
-  opacity: 0.16;
-  filter: grayscale(1);
+  width: 140cqh;
+  height: 16cqh;
+  translate: -50% 50%;
+  background: radial-gradient(closest-side, var(--room-c-disk) 37%, transparent);
   mix-blend-mode: multiply;
+  opacity: var(--close);
 }
 
-.dots {
-  position: absolute;
-  top: 49%;
-  left: 4.6%;
-  display: grid;
-  grid-template-columns: repeat(3, 52px);
-  grid-auto-rows: 52px;
-  color: rgb(0 0 0 / 20%);
-  font: 300 15px / 1 var(--ef-font-num);
-}
-
-.dots i {
-  font-style: normal;
-}
-
-.reticle {
-  position: absolute;
-  top: 12%;
-  left: 77%;
-  width: 300px;
-  height: 300px;
-  overflow: visible;
-}
-
-.reticle :is(circle, path, rect) {
-  fill: none;
-  stroke: rgb(0 0 0 / 10%);
-}
-
-.reticle circle {
-  stroke: rgb(0 0 0 / 9%);
-}
-
-/* Two glowing rings under her feet; their width follows the stage's height, as she does. */
-.rings {
-  position: absolute;
-  bottom: 3%;
-  left: 50%;
-  width: min(76cqh, 100%);
-  aspect-ratio: 100 / 17;
-  overflow: visible;
-  translate: -50% 0;
-}
-
-.rings ellipse {
-  fill: none;
-  stroke: rgb(255 255 255 / 80%);
-  stroke-width: 1.5px;
-  vector-effect: non-scaling-stroke;
-  filter: drop-shadow(0 0 4px rgb(255 255 255 / 90%));
-}
-
-.rings .pool {
-  stroke: none;
-  filter: none;
-}
-
-/* Darker floor toward the bottom edge, then the four corners. */
 .shade {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(0deg, rgb(0 0 0 / 12%), transparent 26%),
-    radial-gradient(ellipse 55% 50% at 0 0, rgb(0 0 0 / 8%), transparent 70%),
-    radial-gradient(ellipse 55% 50% at 100% 0, rgb(0 0 0 / 6%), transparent 70%),
-    radial-gradient(ellipse 55% 50% at 0 100%, rgb(0 0 0 / 10%), transparent 70%),
-    radial-gradient(ellipse 55% 50% at 100% 100%, rgb(0 0 0 / 10%), transparent 70%);
-}
-
-@container room (max-width: 1100px) {
-  .dots {
-    display: none;
-  }
-
-  .reticle {
-    top: 8%;
-    width: 170px;
-    height: 170px;
-  }
+  background: radial-gradient(farthest-corner, transparent 45%, var(--room-c-vignette));
 }

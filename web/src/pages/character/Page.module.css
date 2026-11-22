@@ -7,9 +7,11 @@
   min-height: 0;
 }
 
-/* The room draws her floor, rings and watermark around the stage's span (Stage.module.css): on a detail page between the
+/* The room draws her shadow and watermark around the stage's span (Stage.module.css): on a detail page between the
    left edge and the panel (rail 64, gaps 12, the panel's tier from OperatorPart1.css) above the status slot and the action bar
-   (MMD: her setlist, `band`). */
+   (MMD: her setlist, `band`). 总览 keeps the room's own camera, the game's 总览 one (floor line at 76.9 %). Every other
+   section stands her left of a panel as the game's 档案 does, so it takes that closer camera: the floor line at 87.6 %,
+   raised by what lifts her off the bottom. */
 .page[data-stage-span] > [data-training-room] {
   --room-rail: 64px;
   --room-deck: 0px;
@@ -17,6 +19,8 @@
   --room-stage-l: 8px;
   --room-stage-r: calc(var(--room-rail) + 24px + var(--room-panel));
   --room-stage-b: calc(var(--room-deck) + var(--room-slot));
+  --room-floor-y: calc(87.6% - var(--room-deck));
+  --room-close: 1;
 }
 
 .page[data-stage-span='deck'] > [data-training-room] {
