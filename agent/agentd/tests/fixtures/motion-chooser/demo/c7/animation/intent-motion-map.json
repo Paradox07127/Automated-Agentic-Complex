@@ -1,0 +1,25 @@
+{
+  "schema": "endfield-intent-motion-map-v1",
+  "crossfade_seconds": 0.25,
+  "clips": {
+    "base_loop": {"interruptible": true},
+    "relax_loop": {"interruptible": true},
+    "to_relax": {"next": "relax_loop", "interruptible": true},
+    "nod": {"interruptible": true},
+    "shrug": {"interruptible": true},
+    "stretch": {"interruptible": true},
+    "wave": {"interruptible": true},
+    "tap": {"interruptible": true},
+    "ghost": {"interruptible": true}
+  },
+  "idle_fidget": {"clips": ["nod"], "interval_seconds": [180, 360]},
+  "events": {
+    "user.greet": {"pool": [{"clip": "wave"}], "interrupt": "mid", "cooldown_s": 30},
+    "click.single": {"pool": [{"clip": "tap"}, {"clip": "nod"}], "interrupt": "user"}
+  },
+  "idle_tiers": [
+    {"after_s": [5, 10], "interval_s": [5, 10], "no_repeat": 2,
+     "pool": [{"clip": "nod"}, {"clip": "shrug"}, {"clip": "stretch"}, {"clip": "ghost", "weight": 5}]}
+  ],
+  "motion_budget": {"idle_per_min": 2, "idle_gap_s": 0}
+}

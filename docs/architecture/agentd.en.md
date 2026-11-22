@@ -25,7 +25,7 @@ A new module goes into the domain package it belongs to; the root holds only fil
 | `character/` | Her own state (`character_state`), the behavior tick (`behavior`), the proactive speech gate and judges (`gate`, `judge`, `proactive`), thoughts (`thoughts`), interaction presets (`interactions`), numbered events for the shell (`feed`), character bindings, the motion graph, and mod-settings routes |
 | `voice/` | C2 speech relay (`speech`), clause splitting (`clauses`), on-demand TTS start (`tts_ensure`), voice source, voice test |
 | `models/` | ChatGPT sign-in (`model_auth`), model settings (`model_backends`), usage and cost (`usage`), the capability snapshot (`capabilities`) |
-| `motion/` | Motion catalog, generation and import (including ZIP import), motion settings, and the `/motion*` routes |
+| `motion/` | Motion catalog, generation and import (including ZIP import), motion settings, the `/motion*` routes, and the clip chooser (`chooser.py`) |
 | `traces/` | T1 trace format checks (`trace_format`) and storage (`trace_store`) |
 | `tool_gateway/` | The tool gateway; see the [tool gateway](tool-gateway.en.md) |
 | `brain/` | The "mouth": character cards, lore and the default character by id (`characters`), card rendering (`persona`), keyword lore (`lorebook`), handing lines to the character kernel (`provider`), inline markers, deterministic commands (`parser`), the outbound guard and outbound checks (`outbound`, `egress`) |

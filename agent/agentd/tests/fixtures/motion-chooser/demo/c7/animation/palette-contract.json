@@ -1,0 +1,13 @@
+{
+  "schema": "endfield-runtime-original-palette-v1",
+  "clips": [
+    {"name": "base_loop", "loop": true},
+    {"name": "relax_loop", "loop": true},
+    {"name": "to_relax", "loop": false},
+    {"name": "nod", "loop": false},
+    {"name": "shrug", "loop": false},
+    {"name": "stretch", "loop": false},
+    {"name": "wave", "loop": false},
+    {"name": "tap", "loop": false}
+  ]
+}

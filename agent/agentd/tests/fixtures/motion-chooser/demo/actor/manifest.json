@@ -1,0 +1,13 @@
+{
+  "schema": "metal-actor-source-export-v1",
+  "clips": [
+    {"name": "base_loop", "length": 4.0, "loop": true},
+    {"name": "relax_loop", "length": 4.0, "loop": true},
+    {"name": "to_relax", "length": 1.0, "loop": false},
+    {"name": "nod", "length": 1.0, "loop": false},
+    {"name": "shrug", "length": 1.5, "loop": false},
+    {"name": "stretch", "length": 2.0, "loop": false},
+    {"name": "wave", "length": 2.0, "loop": false},
+    {"name": "tap", "length": 1.0, "loop": false}
+  ]
+}

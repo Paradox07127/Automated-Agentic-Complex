@@ -1,0 +1,13 @@
+{
+  "schema": "endfield-motion-metadata-v1",
+  "clips": {
+    "base_loop": {"stance_start": "stand", "stance_end": "stand"},
+    "relax_loop": {"stance_start": "stand", "stance_end": "stand"},
+    "to_relax": {"stance_start": "stand", "stance_end": "stand"},
+    "nod": {"stance_start": "stand", "stance_end": "stand"},
+    "shrug": {"stance_start": "stand", "stance_end": "stand"},
+    "stretch": {"stance_start": "stand", "stance_end": "stand"},
+    "wave": {"stance_start": "stand", "stance_end": "stand"},
+    "tap": {"stance_start": "stand", "stance_end": "stand"}
+  }
+}

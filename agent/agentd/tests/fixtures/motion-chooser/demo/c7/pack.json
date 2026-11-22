@@ -1,0 +1,11 @@
+{
+  "schema": "endfield-character-pack/v1",
+  "id": "demo",
+  "animation": {
+    "palette_contract": {"file": "palette-contract.json"},
+    "data": [{"file": "intent-motion-map.json"}, {"file": "motion-bindings.json"}, {"file": "actions.json"}]
+  },
+  "interaction": {
+    "data": [{"file": "motion-metadata.json"}, {"file": "blend-times.json"}, {"file": "actions.json"}]
+  }
+}

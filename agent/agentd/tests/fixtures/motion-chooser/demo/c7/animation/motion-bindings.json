@@ -1,0 +1,7 @@
+{
+  "schema": "endfield-motion-bindings/v1",
+  "overview": "base_loop",
+  "relax": "relax_loop",
+  "from_overview": "to_relax",
+  "idle_bases": ["base_loop", "relax_loop"]
+}
