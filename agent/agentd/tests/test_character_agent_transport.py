@@ -355,6 +355,45 @@ class ManagedTransportTests(unittest.TestCase):
                         query.result(timeout=2)
 
     @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
+    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
+    def test_frame_log_records_both_directions_with_credentials_redacted(self):
+        log = self.root / "frames.jsonl"
+        with patch("character_agent.harness.transport.FRAME_LOG", str(log)):
+            events = list(self.session().stream("hello", system_prompt="persona", history=[["user", "answer"]]))
+        text = log.read_text(encoding="utf-8")
+        records = [json.loads(line) for line in text.splitlines()]
+        out = [r["frame"] for r in records if r["dir"] == "out"]
+        self.assertEqual([f["type"] for f in out], ["init", "query"])
+        self.assertEqual((out[0]["system_prompt"], out[0]["config"]["api_key"]), ("persona", "[redacted]"))
+        self.assertEqual((out[1]["prompt"], out[1]["history"]), ("hello", [["user", "answer"]]))
+        self.assertNotIn("fixture-key", text)
+        received = [r["frame"] for r in records if r["dir"] == "in"]
+        self.assertEqual([f["type"] for f in received], [e["type"] for e in events])
+        self.assertEqual({(r["backend"], r["pid"]) for r in records}, {("Claude", self.sessions[0].pid)})
+
+    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
+    def test_a_full_frame_log_rotates_to_one_older_file(self):
+        log = self.root / "frames.jsonl"
+        log.write_text("old\n", encoding="utf-8")
+        Path(f"{log}.1").write_text("oldest\n", encoding="utf-8")
+        with patch("character_agent.harness.transport.FRAME_LOG", str(log)), \
+                patch("character_agent.harness.transport.FRAME_LOG_BYTES", 3):
+            list(self.session().stream("hello", system_prompt="persona"))
+        self.assertTrue(Path(f"{log}.1").exists())
+        self.assertFalse(Path(f"{log}.2").exists())
+        self.assertNotIn("oldest", Path(f"{log}.1").read_text(encoding="utf-8"))
+        # Every frame is more than 3 bytes, so the current file holds the last one only.
+        self.assertEqual([json.loads(line)["frame"]["type"] for line in log.read_text(encoding="utf-8").splitlines()], ["result"])
+
+    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
+    def test_an_unwritable_frame_log_leaves_the_turn_alone(self):
+        expected = [e["type"] for e in self.session().stream("hello", system_prompt="persona")]
+        with patch("character_agent.harness.transport.FRAME_LOG", str(self.root / "missing/frames.jsonl")), \
+                self.assertLogs("character_agent.harness.transport", "WARNING") as logs:
+            events = [e["type"] for e in self.session().stream("hello", system_prompt="persona")]
+        self.assertEqual(events, expected)
+        self.assertEqual(len(logs.output), 1)
+
     def test_runner_inherits_the_user_environment_but_not_endfield_tokens(self):
         config = CodexConfig(self.root, "model", "fixture-API-KEY", cli_path="/fixture/codex", **WORK)
         self.assertNotIn("fixture-API-KEY", repr(config))

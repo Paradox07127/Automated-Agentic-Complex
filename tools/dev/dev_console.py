@@ -12,6 +12,8 @@ Arguments are passed on to the shell after the default ones (SHELL_ARGS), except
   --help, -h          prints this and exits
 A start that fails before the shell runs and agentd answers (a step, or a config error in the shell's log) prints one
 line and exits 1."""
+from contextlib import closing
+from datetime import datetime
 import http.client
 import http.server
 import json
@@ -22,6 +24,7 @@ import plistlib
 import shutil
 import signal
 import socket
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -35,6 +38,12 @@ MAIN = Path(subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', '--pat
                                     text=True, encoding='utf-8').strip()).parent
 RUN = MAIN / '.local/cache/dev-console'
 PORT, AGENTD_PORT, WEB_PORT = 48780, 48790, 5190
+# Bytes of a log the console page reads.
+LOG_TAIL = 262144
+# Rows of agentd's records (RECORDS) the console page reads.
+RECORD_ROWS = 1000
+# A value in a record line is cut to this many characters.
+FIELD_CHARS = 400
 # The installed app's agentd (protocol/ids.json `ports.agentd`).
 INSTALLED_AGENTD_PORT = 48800
 STATE_DIR = RUN / 'agentd-state'
@@ -48,6 +57,11 @@ SHELL_ARGS = ['--no-push-to-talk', '--no-attention']
 RENDERER_BUILD = 'debug'
 # The renderer's sources, under each renderer checkout; a public checkout has none and runs text-only characters.
 RENDERER = 'private/renderer'
+
+
+def frame_log():
+    """The JSONL file agentd records its runners' frames in (AGENTD_FRAME_LOG, character_agent/harness/transport.py)."""
+    return STATE_DIR / 'harness-frames.jsonl'
 
 
 def renderer_sources(checkout):
@@ -223,6 +237,10 @@ class Component:
         self.checkout = self.proc = None
         self.args = list(SHELL_ARGS)
         self.phase, self.started, self.generation = 'stopped', None, 0
+        # {component or part: the checkout's HEAD} at the last start; the shell's includes the parts it was built with.
+        self.built = None
+        # companion.log's size at the shell's last start: renderer_link reads only what this run logged.
+        self.mark = 0
         self.lock = threading.Lock()
 
     def snapshot(self):
@@ -231,13 +249,19 @@ class Component:
             if self.name == 'shell' and phase == 'preparing' and GPU_OWNER.exists() and 'devconsole:' not in GPU_OWNER.read_text(encoding='utf-8'):
                 phase = 'gpuHold'
             return {'name': self.name, 'phase': phase, 'checkout': self.checkout, 'started': self.started, 'args': self.args,
-                    'pid': self.proc.pid if self.proc and self.proc.poll() is None else None}
+                    'built': self.built, 'pid': self.proc.pid if self.proc and self.proc.poll() is None else None}
 
     def start(self, checkout, args=None):
         self.stop()
+        heads = {t['path']: t['head'] for t in worktrees()}
+        companion = SUPPORT_DIR / 'logs/companion.log'
         with self.lock:
             self.generation += 1
             self.checkout, self.phase, self.started = checkout, 'preparing', time.time()
+            self.built = {self.name: heads.get(checkout)}
+            if self.name == 'shell':
+                self.built.update({part: heads.get(path) for part, path in PARTS.items()})
+                self.mark = companion.stat().st_size if companion.exists() else 0
             if args is not None:
                 self.args = list(args)
             generation = self.generation
@@ -312,20 +336,20 @@ class Component:
                 (['swift', 'build', *(['-c', 'release'] if RENDERER_BUILD == 'release' else []),
                   '--package-path', renderer / RENDERER / 'host', '--product', 'metal-avatar-host'], {}, 'wait'),
             ]
-        preview, run = [], {}
+        preview, env = [], {**os.environ, 'AGENTD_FRAME_LOG': str(frame_log())}
         if not renderer_sources(renderer):
             builds = builds[:1]
         elif platform != 'win32':
             host = renderer / RENDERER / 'host/.build' / RENDERER_BUILD / 'metal-avatar-host'
             preview = [(lambda: preview_electron(electron, host), {}, 'call')]
-            run = {'env': {**os.environ, 'ELECTRON_OVERRIDE_DIST_PATH': str(RUN / 'electron-dist')}}
+            env['ELECTRON_OVERRIDE_DIST_PATH'] = str(RUN / 'electron-dist')
         return steps + [
             ([npm, 'run', 'build'], {'cwd': electron}, 'wait'),
             *builds,
             *preview,
             (lambda: write_config(agentd, renderer, platform), {}, 'call'),
             (wait_for_web, {}, 'call'),
-            (shell_command(checkout, self.args, platform), run, 'run'),
+            (shell_command(checkout, self.args, platform), {'env': env}, 'run'),
         ]
 
     def stop(self, platform=sys.platform):
@@ -363,6 +387,106 @@ class Component:
 COMPONENTS = {name: Component(name) for name in ('web', 'shell')}
 LOGS = {'web': RUN / 'web.log', 'shell': RUN / 'shell.log', 'companion': SUPPORT_DIR / 'logs/companion.log',
         'agentd': SUPPORT_DIR / 'logs/agentd.log', 'renderer': SUPPORT_DIR / 'logs/avatar.log', 'helper': SUPPORT_DIR / 'logs/helper.log'}
+
+
+def read_only(path):
+    """A connection that cannot write: agentd keeps its databases in WAL mode, where a reader blocks no writer."""
+    return sqlite3.connect(f'file:{path}?mode=ro', uri=True, timeout=1)
+
+
+def fields(values):
+    """`k=v …` of a dict, nested values as compact JSON, whitespace collapsed, each value cut to FIELD_CHARS."""
+    out = []
+    for key, value in values.items():
+        text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+        text = ' '.join(text.split())
+        out.append(f'{key}={text[:FIELD_CHARS] + "…" if len(text) > FIELD_CHARS else text}')
+    return ' '.join(out)
+
+
+def trace_lines():
+    """agentd's trace events (agentd.sqlite `trace_events`), oldest first, one line each: time, kind, status unless ok,
+    trace id prefix, turn id (a character run's `run_id`), then the event's attrs, duration and text. The behavior tick, logged every few seconds, is left out."""
+    path = STATE_DIR / 'agentd.sqlite'
+    if not path.exists():
+        return []
+    with closing(read_only(path)) as db:
+        rows = db.execute("SELECT t_wall, kind, status, trace_id, turn_id, event, text FROM trace_events WHERE kind != 'behavior.ticked' "
+                          "ORDER BY id DESC LIMIT ?", (RECORD_ROWS,)).fetchall()
+    lines = []
+    for at, kind, status, trace, turn, event, text in reversed(rows):
+        event = json.loads(event)
+        extra = {**event.get('attrs', {}), **({'duration_ms': event['duration_ms']} if 'duration_ms' in event else {}),
+                 **(json.loads(text) if text else {})}
+        lines.append(' '.join(filter(None, [at, kind, status if status != 'ok' else '', f'trace={trace[:8]}', turn and f'turn={turn}', fields(extra)])))
+    return lines
+
+
+def run_lines():
+    """The character runs (character-agent/runs.sqlite): each run's events (backend, model, timings, outcome) and items
+    (assistant text, tool calls), oldest first."""
+    path = STATE_DIR / 'character-agent/runs.sqlite'
+    if not path.exists():
+        return []
+    with closing(read_only(path)) as db:
+        events = db.execute('SELECT at, run_id, kind, metadata FROM character_run_events ORDER BY at DESC LIMIT ?',
+                            (RECORD_ROWS,)).fetchall()
+        items = db.execute('SELECT updated_at, run_id, kind, status, name, summary, text FROM character_run_items '
+                           'ORDER BY updated_at DESC LIMIT ?', (RECORD_ROWS,)).fetchall()
+    rows = [(at, f'run={run} {kind} {fields(json.loads(metadata))}') for at, run, kind, metadata in events]
+    rows += [(at, ' '.join(filter(None, [f'run={run}', f'item.{kind}', status, name, fields({'text': summary or text})])))
+             for at, run, kind, status, name, summary, text in items]
+    rows.sort(key=lambda row: row[0])
+    return [f'{datetime.fromtimestamp(at).astimezone().isoformat(timespec="milliseconds")} {line}'
+            for at, line in rows[-RECORD_ROWS:]]
+
+
+# A frame value longer than this, or on more than one line, is shown as an indented block of at most FRAME_BLOCK_LINES.
+FRAME_INLINE_CHARS, FRAME_BLOCK_LINES = 160, 200
+# Bytes at the end of the frame log the page reads: an init frame with its tool definitions runs to 100 KB.
+FRAME_TAIL = 4 * 1024 * 1024
+
+
+def frame_lines():
+    """The runners' frames agentd recorded (frame_log()), oldest first: a line with the time, → for agentd to the runner
+    or ← back, the harness, runner pid, frame type and short values; then each long value as an indented block."""
+    path = frame_log()
+    if not path.exists():
+        return []
+    with path.open('rb') as f:
+        size = f.seek(0, os.SEEK_END)
+        f.seek(max(0, size - FRAME_TAIL))
+        data = f.read()
+    if size > FRAME_TAIL:
+        data = data.partition(b'\n')[2]
+    # agentd may be appending the last line.
+    data = data[:data.rfind(b'\n') + 1]
+    lines = []
+    for raw in data.decode('utf-8', errors='replace').splitlines()[-RECORD_ROWS:]:
+        record = json.loads(raw)
+        frame = {k: v for k, v in record['frame'].items() if k not in ('v', 'seq')}
+        head = [record['at'], '→' if record['dir'] == 'out' else '←', record['backend'], f'pid={record["pid"]}',
+                str(frame.pop('type', '?')), *([f'run={frame.pop("run_id")}'] if 'run_id' in frame else [])]
+        blocks = {}
+        for key, value in frame.items():
+            text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+            if len(text) > FRAME_INLINE_CHARS or '\n' in text:
+                blocks[key] = (text if isinstance(value, str) else json.dumps(value, ensure_ascii=False, indent=1)).splitlines()
+            else:
+                head.append(f'{key}={text}')
+        lines.append(' '.join(head))
+        for key, block in blocks.items():
+            lines.append(f'    {key}:')
+            lines += [f'    │ {line}' for line in block[:FRAME_BLOCK_LINES]]
+            if len(block) > FRAME_BLOCK_LINES:
+                lines.append(f'    │ … {len(block) - FRAME_BLOCK_LINES} more lines in {path}')
+    return lines
+
+
+# agentd's records the console page shows beside the logs: {name: (lines function, the file it reads)}.
+RECORDS = {'trace': (trace_lines, lambda: STATE_DIR / 'agentd.sqlite'),
+           'runs': (run_lines, lambda: STATE_DIR / 'character-agent/runs.sqlite'),
+           'frames': (frame_lines, frame_log)}
 
 
 def stop_all():
@@ -410,11 +534,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(data)
         elif path == '/api/state':
             owner = GPU_OWNER.read_text().strip() if GPU_OWNER.exists() else None
-            self._json(200, {'worktrees': worktrees(), 'components': {n: c.snapshot() for n, c in COMPONENTS.items()},
-                             'parts': PARTS, 'gpu_lock': owner, 'config': str(CONFIG)})
-        elif path == '/api/log' and query.removeprefix('component=') in LOGS:
-            log = LOGS[query.removeprefix('component=')]
-            data = log.read_bytes()[-65536:] if log.exists() else b''
+            components = {n: c.snapshot() for n, c in COMPONENTS.items()}
+            running, renderer = components['shell']['phase'] == 'running', renderer_sources(Path(PARTS['renderer']))
+            self._json(200, {'worktrees': worktrees(), 'components': components, 'parts': PARTS, 'gpu_lock': owner,
+                             'config': str(CONFIG), 'catalog': CATALOG or release_catalog(), 'renderer_build': RENDERER_BUILD,
+                             'ports': {'console': PORT, 'web': WEB_PORT, 'agentd': AGENTD_PORT},
+                             'logs': {**{n: str(p) for n, p in LOGS.items()}, **{n: str(f()) for n, (_, f) in RECORDS.items()}},
+                             'has_renderer': renderer,
+                             'agentd': agentd_health() if running else None,
+                             'renderer': renderer_link(COMPONENTS['shell'].mark) if running and renderer else None})
+        elif path == '/api/log' and (name := query.removeprefix('component=')) in {**LOGS, **RECORDS}:
+            if name in RECORDS:
+                try:
+                    data = '\n'.join(RECORDS[name][0]()).encode()
+                except sqlite3.Error as e:
+                    data = f'cannot read {RECORDS[name][1]()}: {e}'.encode()
+            else:
+                log = LOGS[name]
+                data = log.read_bytes() if log.exists() else b''
+                if len(data) > LOG_TAIL:
+                    # From the first whole line.
+                    data = data[-LOG_TAIL:].partition(b'\n')[2]
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain; charset=utf-8')
             self.send_header('Content-Length', str(len(data)))
@@ -468,16 +608,41 @@ def shell_running():
     return COMPONENTS['shell'].snapshot()['phase'] == 'running'
 
 
-def agentd_ready():
+def agentd_health():
+    """agentd's /health object ({status, degraded, …}); None when it does not answer with one."""
     # http.client, not urllib: no system proxy between here and 127.0.0.1.
     connection = http.client.HTTPConnection('127.0.0.1', AGENTD_PORT, timeout=2)
     try:
         connection.request('GET', '/health')
-        return json.loads(connection.getresponse().read()).get('status') == 'ok'
-    except (OSError, ValueError, AttributeError):
-        return False
+        value = json.loads(connection.getresponse().read())
+        return value if isinstance(value, dict) else None
+    except (OSError, ValueError):
+        return None
     finally:
         connection.close()
+
+
+def agentd_ready():
+    return (agentd_health() or {}).get('status') == 'ok'
+
+
+def renderer_link(start):
+    """{'state': 'connected' | 'connecting' | 'disconnected' | 'waiting', 'character': id or None} from the last HOSTLINK
+    hello, connect or disconnect line companion.log has past byte `start` (within its last LOG_TAIL bytes)."""
+    log = SUPPORT_DIR / 'logs/companion.log'
+    lines = []
+    if log.exists():
+        with log.open('rb') as f:
+            f.seek(max(start, log.stat().st_size - LOG_TAIL))
+            lines = f.read().decode('utf-8', errors='replace').splitlines()
+    for line in reversed(lines):
+        if 'HOSTLINK hello character=' in line:
+            return {'state': 'connected', 'character': line.split('character=', 1)[1].split()[0]}
+        if 'HOSTLINK avatar disconnected' in line:
+            return {'state': 'disconnected', 'character': None}
+        if 'HOSTLINK avatar connected' in line:
+            return {'state': 'connecting', 'character': None}
+    return {'state': 'waiting', 'character': None}
 
 
 def renderer_hello():

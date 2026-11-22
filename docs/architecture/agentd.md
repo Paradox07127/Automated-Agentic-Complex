@@ -239,7 +239,7 @@ Companion 的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet
 ### 数据与执行边界
 
 - `integration.py` 把当前角色卡、设定、记忆、历史、时段、提醒、行为观察、文件范围和桌面权限接入运行时。
-- `runtime.py` 管理角色执行的生命周期、任务与检查点；`harness/codex_runner.py`、`pi_runner.mjs`、`acp_runner.py`、`claude_runner.py` 用各自的 SDK 或协议跑模型循环（帧协议见 [C8 合同](../../protocol/C8-harness-runner/CONTRACT.md)）。
+- `runtime.py` 管理角色执行的生命周期、任务与检查点；`harness/codex_runner.py`、`pi_runner.mjs`、`acp_runner.py`、`claude_runner.py` 用各自的 SDK 或协议跑模型循环（帧协议见 [C8 合同](../../protocol/C8-harness-runner/CONTRACT.md)）。设了环境变量 `AGENTD_FRAME_LOG` 时，`harness/transport.py` 把 agentd 和 runner 之间收发的每一帧追加到这个 JSONL 文件（`api_key`、`token` 等键的值换成 `[redacted]`，超过 256 KiB 的字符串截断；文件超过 64 MiB 时改名为 `.1` 再记新文件），写失败只丢这一条记录；只有开发面板设它，安装版不设。
 - `services/knowledge.py` 按来源与权限检索个人档案和历史知识。依赖带版本和 hash，记忆删除、撤权或输入变化会让旧上下文失效。
 - `services/workspace.py` 只访问用户在设置里选的输入目录和输出目录；读 UTF-8 Markdown、TXT、CSV、JSON 和 docx、xlsx、pptx（由 `services/extract.py` 抽成文本），产物只写 Markdown、TXT、CSV、JSON，拒绝目录逃逸、符号链接和覆盖原文件。产物归属某次 run，记录来源与校验结果。
 - `services/store.py` 保存独立的 Run、Event、Effect、Checkpoint。角色、产品历史、长期记忆和任务 ID 不属于任何厂商 transcript；厂商原生会话不跨内核迁移。

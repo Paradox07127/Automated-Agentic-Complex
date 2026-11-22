@@ -3,6 +3,7 @@
 Only one caller owns a stream. A separate reader handles tool requests and a
 separate write lock lets interrupt bypass a tool waiting for native consent.
 """
+from datetime import datetime
 import json
 import logging
 import os
@@ -32,6 +33,18 @@ CAPABILITIES = {
     "event_scope": ("session", "global"),
     "native_questions": (True, False),
 }
+# Development only: tools/dev/dev_console.py sets it to a JSONL file that gets every frame to and from the runners, with
+# credentials redacted. Unset (the installed app), nothing is recorded.
+FRAME_LOG = os.environ.get("AGENTD_FRAME_LOG")
+# A recorded string longer than this keeps its start and its length: image replies run to megabytes.
+FRAME_LOG_CHARS = 262144
+# A frame log past this many bytes becomes FRAME_LOG + ".1", replacing the one before, and a new file starts.
+FRAME_LOG_BYTES = 64 * 1024 * 1024
+# Keys whose values a recorded frame replaces with "[redacted]", compared lower-case.
+SECRET_KEYS = {"api_key", "apikey", "token", "access_token", "refresh_token", "id_token", "authorization", "password",
+               "secret", "cookie"}
+_frame_log_lock = threading.Lock()
+_frame_log_failed = False
 # Job actor directory -> the thread reaping its last runner; the actor's next runner waits for it.
 _reaping = {}
 _reapers = set()
@@ -69,6 +82,37 @@ class HarnessError(RuntimeError):
     def __init__(self, code, message=None):
         self.code = code
         super().__init__(message or code)
+
+
+def redacted(value):
+    if isinstance(value, dict):
+        return {k: "[redacted]" if k.lower() in SECRET_KEYS and v else redacted(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [redacted(v) for v in value]
+    if isinstance(value, str) and len(value) > FRAME_LOG_CHARS:
+        return f"{value[:FRAME_LOG_CHARS]}…[{len(value)} chars]"
+    return value
+
+
+def record_frame(direction, session, proc, message):
+    """Appends one frame to FRAME_LOG: `direction` "out" (agentd to the runner) or "in". A failed write loses the record
+    only; the caller's frame goes on as without FRAME_LOG."""
+    global _frame_log_failed
+    if FRAME_LOG is None:
+        return
+    backend = type(session).__name__.removeprefix("Managed").removesuffix("Session")
+    line = json.dumps({"at": datetime.now().astimezone().isoformat(timespec="milliseconds"), "dir": direction,
+                       "backend": backend, "pid": proc.pid, "frame": redacted(message)}, ensure_ascii=False) + "\n"
+    try:
+        with _frame_log_lock:
+            if os.path.exists(FRAME_LOG) and os.path.getsize(FRAME_LOG) > FRAME_LOG_BYTES:
+                os.replace(FRAME_LOG, FRAME_LOG + ".1")
+            with open(FRAME_LOG, "a", encoding="utf-8") as f:
+                f.write(line)
+    except OSError as error:
+        if not _frame_log_failed:
+            _frame_log_failed = True
+            logging.getLogger(__name__).warning("Frame log %s not written: %s", FRAME_LOG, error)
 
 
 def cancelled_now(value):
@@ -127,6 +171,7 @@ class ManagedClaudeSession:
                 selected.stdin.flush()
             except (OSError, ValueError) as error:
                 raise HarnessError("runner_disconnected") from error
+        record_frame("out", self, selected, message)
 
     def _send_control(self, message, proc):
         def send():
@@ -164,6 +209,7 @@ class ManagedClaudeSession:
                 if seq <= last_seq:
                     continue
                 last_seq = seq
+                record_frame("in", self, proc, message)
                 if message.get("type") == "ready" and not capabilities_valid(message.get("capabilities")):
                     raise ValueError("invalid_protocol")
                 if message.get("type") == "tool_request":

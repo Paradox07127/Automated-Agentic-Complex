@@ -3,101 +3,401 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Endfield Dev Console</title>
+<title>Agentic Complex Dev Console</title>
 <style>
-  :root { color-scheme: light dark; --line: #8884; --muted: #888; --run: #2a9d5c; --bad: #d1495b; --wait: #d9a32a; }
-  body { font: 14px/1.4 -apple-system, "PingFang SC", sans-serif; margin: 16px; }
-  table { border-collapse: collapse; width: 100%; }
-  td, th { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: middle; }
-  select { max-width: 32em; }
-  input[type=text] { width: 24em; }
-  .phase { font-weight: 600; }
-  .running { color: var(--run); } .failed { color: var(--bad); } .preparing, .gpuHold { color: var(--wait); }
-  .muted { color: var(--muted); }
-  pre { background: #8881; padding: 8px; height: 45vh; overflow: auto; white-space: pre-wrap; font-size: 12px; }
-  header { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
-  button[aria-pressed="true"] { font-weight: 700; }
+  /* Values from web/src/design/tokens.css (dark). */
+  :root {
+    color-scheme: dark;
+    --canvas: #161616; --band: #141414; --plate: #222222; --plate-2: #2A2A2A; --line: #353535; --rule: #4A4A4A;
+    --text-1: #EDEDED; --text-2: #A3A3A3; --text-3: #898989; --disabled: #5E5E5E;
+    --accent: #FFF100; --accent-press: #D9CD00; --on-accent: #161616;
+    --ok: #00E092; --wait: #FFF100; --bad: #FF6B5E; --off: #6E6E6E;
+    --hatch: repeating-linear-gradient(-45deg, transparent 0 5px, rgba(237,237,237,.08) 5px 6.5px);
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; display: flex; flex-direction: column; background: var(--canvas); color: var(--text-1);
+    font: 13px/1.45 -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  header {
+    display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 12px 20px;
+    background: var(--band) var(--hatch); border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand::before { content: ""; width: 6px; height: 30px; background: var(--accent); }
+  .brand small { display: block; font: 600 10px/1 var(--mono); letter-spacing: .24em; color: var(--text-3); }
+  h1 { margin: 3px 0 0; font-size: 18px; font-weight: 700; letter-spacing: .04em; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-left: auto; font: 12px/1.4 var(--mono); }
+  .fact { color: var(--text-1); white-space: nowrap; max-width: 36ch; overflow: hidden; text-overflow: ellipsis; }
+  .fact b { font-weight: 400; color: var(--text-3); margin-right: 6px; }
+  .fact.warn { color: var(--wait); }
+  [data-copy] { cursor: copy; }
+  [data-copy]:hover { text-decoration: underline dotted var(--text-3); }
+
+  main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 16px 20px 20px; }
+  h2 {
+    display: flex; align-items: center; gap: 8px; margin: 0 0 8px;
+    font: 600 11px/1 var(--mono); letter-spacing: .2em; color: var(--text-2); text-transform: uppercase;
+  }
+  h2::before { content: ""; width: 10px; height: 2px; background: var(--accent); }
+
+  /* Rows: shell's parts (agentd, renderer) sit indented under it. */
+  .row {
+    display: grid; grid-template-columns: 4px 112px minmax(220px, 1fr) minmax(220px, 300px) 168px; align-items: center;
+    gap: 0 14px; min-height: 52px; padding-right: 12px; background: var(--plate); border: 1px solid var(--line);
+  }
+  .row + .row { border-top: none; }
+  .row.part { margin-left: 28px; position: relative; background: #1E1E1E; }
+  .row.part::before {
+    content: ""; position: absolute; left: -17px; top: -1px; bottom: 50%; width: 12px;
+    border-left: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  }
+  .stripe { align-self: stretch; background: var(--off); }
+  .ok .stripe { background: var(--ok); } .wait .stripe { background: var(--wait); } .bad .stripe { background: var(--bad); }
+  .name { font: 600 14px/1 var(--mono); }
+  .where { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; min-width: 0; }
+  select, input[type=text] {
+    width: 100%; height: 28px; padding: 0 8px; background: var(--canvas); border: 1px solid var(--rule); border-radius: 2px;
+    font: 12px var(--mono);
+  }
+  select.changed { border-color: var(--accent); }
+  .status { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; min-width: 0; }
+  .pill { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
+  .ok .pill::before { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+  .wait .pill::before { background: var(--wait); animation: blink 1.2s steps(2) infinite; }
+  .bad .pill::before { background: var(--bad); }
+  .bad .pill { color: var(--bad); }
+  @keyframes blink { 50% { opacity: .25; } }
+  .detail { font: 11px/1.4 var(--mono); color: var(--text-3); overflow-wrap: anywhere; }
+  .detail.warn { color: var(--wait); }
+  .detail.bad { color: var(--bad); }
+  .actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+  button {
+    height: 28px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--rule); background: var(--plate-2);
+    cursor: pointer; white-space: nowrap;
+  }
+  button:hover:not(:disabled) { border-color: var(--text-2); }
+  button:disabled { color: var(--disabled); border-color: var(--line); cursor: default; }
+  button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: #FFF768; }
+  button.primary:active:not(:disabled) { background: var(--accent-press); }
+
+  .logs { flex: 1; min-height: 320px; display: flex; flex-direction: column; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 8px; }
+  .tabs { display: flex; border: 1px solid var(--line); }
+  .tabs button { border: none; border-radius: 0; background: var(--plate); height: 28px; padding: 0 12px; font: 12px var(--mono); color: var(--text-2); }
+  .tabs button + button { border-left: 1px solid var(--line); }
+  .tabs button[aria-pressed="true"] { color: var(--on-accent); background: var(--accent); font-weight: 600; }
+  .bar input[type=search] {
+    width: 200px; height: 28px; padding: 0 8px; background: var(--canvas); border: 1px solid var(--rule); border-radius: 2px;
+    font: 12px var(--mono);
+  }
+  button.toggle[aria-pressed="true"] { border-color: var(--bad); color: var(--bad); }
+  .path { margin-left: auto; font: 11px var(--mono); color: var(--text-3); max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+  .count { font: 11px var(--mono); color: var(--text-3); }
+  .viewer { position: relative; flex: 1; min-height: 0; }
+  #log {
+    position: absolute; inset: 0; padding: 6px 0; overflow: auto; background: #0F0F0F; border: 1px solid var(--line);
+    font: 12px/1.5 var(--mono); color: #CFCFCF; tab-size: 4;
+  }
+  #log .l { display: grid; grid-template-columns: 96px minmax(0, 1fr); padding: 0 12px; }
+  #log.bare .l { grid-template-columns: 0 minmax(0, 1fr); }
+  #log .l:hover { background: rgba(255,255,255,.035); }
+  #log time { color: var(--text-3); white-space: nowrap; overflow: hidden; }
+  #log .m { white-space: pre-wrap; overflow-wrap: anywhere; }
+  #log .day {
+    display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; padding: 0 12px;
+    font-size: 11px; color: var(--text-2); letter-spacing: .08em;
+  }
+  #log .day::before { content: ""; width: 10px; height: 2px; background: var(--accent); }
+  #log .day::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  #log .e .m { color: var(--bad); } #log .e { background: rgba(255,107,94,.08); }
+  #log .w .m { color: var(--wait); }
+  #log .c .m { color: #8DDCFF; }
+  #log mark { background: var(--accent); color: var(--on-accent); }
+  .groups { display: flex; gap: 8px; }
+  #latest { position: absolute; right: 18px; bottom: 14px; display: none; }
+
+  #toast {
+    position: fixed; right: 20px; bottom: 20px; max-width: 520px; padding: 10px 14px; background: var(--plate-2);
+    border-left: 4px solid var(--bad); font: 12px/1.5 var(--mono); white-space: pre-wrap; display: none;
+  }
+  #toast.note { border-left-color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .row { grid-template-columns: 4px 1fr; padding: 0 12px 8px 0; }
+    .row > :not(.stripe) { grid-column: 2; }
+    .stripe { grid-row: span 4; }
+    .row.part { margin-left: 16px; }
+    .actions { justify-content: flex-start; }
+    .facts { margin-left: 0; }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>Endfield Dev Console</h1>
-  <span id="config" class="muted"></span>
-  <span id="lock" class="muted"></span>
+  <div class="brand"><div><small>AGENTIC COMPLEX</small><h1>开发面板</h1></div></div>
+  <div class="facts" id="facts"></div>
 </header>
-<table>
-  <thead><tr><th>组件</th><th>工作树</th><th>状态</th><th>pid</th><th></th></tr></thead>
-  <tbody id="rows"></tbody>
-</table>
-<p>日志：<span id="logs"></span></p>
-<pre id="log" aria-label="log"></pre>
+<main>
+  <section>
+    <h2>组件</h2>
+    <div id="rows"></div>
+  </section>
+  <section class="logs">
+    <h2>日志</h2>
+    <div class="bar">
+      <div class="groups"><div class="tabs" id="tabs" role="group" aria-label="日志"></div><div class="tabs" id="records" role="group" aria-label="agentd 记录"></div></div>
+      <input type="search" id="filter" placeholder="过滤" aria-label="过滤日志">
+      <button class="toggle" id="problems" aria-pressed="false">错误 / 警告</button>
+      <span class="count" id="count"></span>
+      <span class="path" id="path" data-copy title="点击复制路径"></span>
+    </div>
+    <div class="viewer">
+      <div id="log" role="log" aria-label="log"></div>
+      <button class="primary" id="latest">↓ 最新</button>
+    </div>
+  </section>
+</main>
+<div id="toast" role="alert"></div>
 <script>
 // web and shell are processes; agentd and renderer run inside the shell, so choosing their checkout restarts it.
 const COMPONENTS = ['web', 'shell'], PARTS = ['agentd', 'renderer'], LOGS = ['shell', 'companion', 'agentd', 'renderer', 'helper', 'web'];
-let shown = 'shell', trees = [];
+const PHASES = { running: ['运行中', 'ok'], preparing: ['构建中', 'wait'], gpuHold: ['等 GPU 锁', 'wait'], stopped: ['已停止', 'off'] };
+const ERROR = /\b(ERROR|FATAL|CRITICAL)\b|Traceback|Exception\b|\berror(\[\w+\])?:|\bfailed\b|Uncaught/;
+const WARN = /\bWARN(ING)?\b|\bwarning:|\bdegraded\b/i;
+const COMMAND = /^\$ /;
+// agentd's records: the trace events and the character runs from its databases, and its runners' frames (dev only).
+const RECORDS = ['trace', 'runs', 'frames'];
+// A leading ISO 8601 time (agentd, the shell, the records) or NSLog's local time (the renderer): date, time, fraction, rest.
+const STAMP = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:[.,](\d+))?(?:Z|[+-]\d{2}:\d{2})? (.*)$/s;
+// toEnd: the next render scrolls to the newest line (after a tab or filter change).
+let shown = 'shell', state = null, trees = '', logText = null, rendered = '', toEnd = true;
+const picked = {};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const short = (head) => (head ?? '').slice(0, 7);
+
+function toast(text, note) {
+  const t = $('toast');
+  t.textContent = text;
+  t.classList.toggle('note', Boolean(note));
+  t.style.display = 'block';
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { t.style.display = 'none'; }, 8000);
+}
 
 async function post(path, body) {
   const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!res.ok) alert(await res.text());
+  if (!res.ok) {
+    const text = await res.text();
+    let e;
+    try { e = JSON.parse(text); } catch { e = { error: text }; }
+    toast(`${body.component}: ${e.error}${e.detail ? ` — ${e.detail}` : ''}`);
+  }
+  refresh();
+}
+
+function uptime(started) {
+  const s = Math.max(0, Math.floor(Date.now() / 1000 - started));
+  const two = (n) => String(n).padStart(2, '0');
+  return s >= 3600 ? `${Math.floor(s / 3600)}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}` : `${two(Math.floor(s / 60))}:${two(s % 60)}`;
 }
 
 function row(name) {
-  const tr = document.createElement('tr'), part = PARTS.includes(name);
-  tr.innerHTML = `<td>${name}${part ? ' <span class="muted">（外壳里）</span>' : ''}</td>
-    <td><select aria-label="${name} checkout"></select>${name === 'shell' ? ' <input type="text" aria-label="外壳参数" placeholder="外壳参数">' : ''}</td>
-    <td class="phase"></td><td class="pid muted"></td>
-    <td>${part ? '<button data-start>应用并重启外壳</button>' : '<button data-start>启动 / 重启</button> <button data-stop>停止</button>'}</td>`;
-  tr.querySelector('[data-start]').onclick = () => {
-    const input = tr.querySelector('input');
-    post('/api/start', { component: name, checkout: tr.querySelector('select').value,
-      ...(input && { args: input.value.split(/\s+/).filter(Boolean) }) });
+  const part = PARTS.includes(name), div = document.createElement('div');
+  div.className = 'row' + (part ? ' part' : '');
+  div.innerHTML = `<span class="stripe"></span><span class="name">${name}</span>
+    <div class="where"><select aria-label="${name} 工作树"></select>${name === 'shell' ? '<input type="text" aria-label="外壳参数">' : ''}</div>
+    <div class="status"><span class="pill"></span><span class="detail"></span><span class="detail stale warn"></span></div>
+    <div class="actions">${part ? '<button data-start>应用并重启外壳</button>' : '<button data-start></button><button data-stop>停止</button>'}</div>`;
+  const select = div.querySelector('select');
+  select.onchange = () => { picked[name] = select.value; paint(); };
+  div.querySelector('[data-start]').onclick = () => {
+    const input = div.querySelector('input');
+    delete picked[name];
+    post('/api/start', { component: name, checkout: select.value, ...(input && { args: input.value.split(/\s+/).filter(Boolean) }) });
   };
-  tr.querySelector('[data-stop]')?.addEventListener('click', () => post('/api/stop', { component: name }));
-  document.getElementById('rows').append(tr);
-  return tr;
+  div.querySelector('[data-stop]')?.addEventListener('click', () => post('/api/stop', { component: name }));
+  $('rows').append(div);
+  return div;
 }
-const rows = Object.fromEntries([...COMPONENTS, ...PARTS].map((n) => [n, row(n)]));
+const rows = Object.fromEntries(['web', 'shell', ...PARTS].map((n) => [n, row(n)]));
 
-for (const name of LOGS) {
+for (const name of [...LOGS, ...RECORDS]) {
   const b = document.createElement('button');
   b.textContent = name;
-  b.onclick = () => { shown = name; refreshLog(); };
-  document.getElementById('logs').append(b, ' ');
+  b.onclick = () => { shown = name; logText = null; rendered = ''; toEnd = true; refreshLog(); };
+  $(RECORDS.includes(name) ? 'records' : 'tabs').append(b);
+}
+
+// [label, tone, detail, detail tone] of a component or part.
+function describe(name, s) {
+  const shell = s.components.shell, c = s.components[name];
+  if (c) {
+    const failed = c.phase.match(/^failed\((.*)\)$/s);
+    if (failed) return ['失败', 'bad', failed[1], 'bad'];
+    const [label, tone] = PHASES[c.phase] ?? [c.phase, 'off'];
+    const bits = [c.pid && `pid ${c.pid}`, c.phase === 'running' && c.started && uptime(c.started)];
+    if (name === 'shell' && c.phase === 'gpuHold') bits.push(s.gpu_lock);
+    return [label, tone, bits.filter(Boolean).join(' · '), ''];
+  }
+  if (name === 'renderer' && !s.has_renderer) return ['无源码', 'off', '纯文字角色', ''];
+  if (shell.phase !== 'running') return ['未运行', 'off', '随外壳启动', ''];
+  if (name === 'agentd') {
+    const h = s.agentd;
+    if (!h) return ['无响应', 'bad', `127.0.0.1:${s.ports.agentd}/health`, 'bad'];
+    if (h.degraded?.length) return ['降级', 'wait', h.degraded.join(', '), 'warn'];
+    return [h.status === 'ok' ? '正常' : h.status, h.status === 'ok' ? 'ok' : 'wait', '', ''];
+  }
+  const r = s.renderer ?? { state: 'waiting' };
+  return {
+    connected: ['已连接', 'ok', r.character, ''],
+    connecting: ['握手中', 'wait', '等 hello', ''],
+    waiting: ['等连接', 'wait', '', ''],
+    disconnected: ['已断开', 'bad', '', ''],
+  }[r.state];
+}
+
+function paint() {
+  const s = state;
+  if (!s) return;
+  const heads = Object.fromEntries(s.worktrees.map((t) => [t.path, t.head]));
+  const shell = s.components.shell;
+  for (const [name, div] of Object.entries(rows)) {
+    const c = s.components[name], current = c ? c.checkout : s.parts[name];
+    const select = div.querySelector('select');
+    const key = s.worktrees.map((t) => t.path + t.head).join('|');
+    if (key !== trees || select.options.length === 0) {
+      select.replaceChildren(...s.worktrees.map((t) => new Option(`${t.branch} · ${short(t.head)} · ${t.path.split('/').pop()}`, t.path)));
+      const input = div.querySelector('input');
+      if (input && c && !input.value) input.value = c.args.join(' ');
+    }
+    select.value = picked[name] ?? current ?? '';
+    const changed = picked[name] !== undefined && picked[name] !== current;
+    select.classList.toggle('changed', changed);
+
+    const [label, tone, detail, detailTone] = describe(name, s);
+    div.classList.remove('ok', 'wait', 'bad', 'off');
+    div.classList.add(tone);
+    div.querySelector('.pill').textContent = label;
+    const d = div.querySelector('.detail');
+    d.textContent = detail ?? '';
+    d.className = 'detail' + (detailTone ? ' ' + detailTone : '');
+
+    // A commit landed in the checkout since the running build: web reloads by itself, the rest need a restart.
+    const built = (name === 'web' ? c?.built : shell.built)?.[name];
+    const now = heads[current];
+    const live = name === 'web' ? c.phase === 'running' : shell.phase === 'running';
+    div.querySelector('.stale').textContent = name !== 'web' && live && built && now && built !== now
+      ? `构建于 ${short(built)}，工作树已到 ${short(now)}` : '';
+
+    const start = div.querySelector('[data-start]'), stop = div.querySelector('[data-stop]');
+    if (c) {
+      const up = c.phase !== 'stopped' && !c.phase.startsWith('failed');
+      start.textContent = up ? '重启' : '启动';
+      stop.disabled = !up;
+    }
+    start.classList.toggle('primary', changed || (c ? c.phase === 'stopped' || c.phase.startsWith('failed') : false));
+  }
+  trees = s.worktrees.map((t) => t.path + t.head).join('|');
+
+  const catalog = s.catalog ?? '';
+  const facts = [
+    ['vite', `:${s.ports.web}`], ['agentd', `:${s.ports.agentd}`], ['渲染器', s.has_renderer ? s.renderer_build : '—'],
+    ['角色库', catalog.split('/').slice(-2).join('/'), catalog], ['config', 'config.json', s.config],
+  ];
+  if (s.gpu_lock) facts.push(['GPU 锁', s.gpu_lock, null, !s.gpu_lock.startsWith('devconsole:')]);
+  $('facts').innerHTML = facts.map(([k, v, copy, warn]) =>
+    `<span class="fact${warn ? ' warn' : ''}" title="${esc(copy ?? String(v))}"${copy ? ` data-copy="${esc(copy)}"` : ''}><b>${k}</b>${esc(String(v))}</span>`).join('');
+  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-pressed', String(b.textContent === shown));
+  // LRMs keep the path's slashes in place inside the right-to-left box that ellipsizes its start.
+  $('path').textContent = `\u200e${s.logs?.[shown] ?? ''}\u200e`;
+  $('path').dataset.copy = s.logs?.[shown] ?? '';
 }
 
 async function refresh() {
-  const s = await (await fetch('/api/state')).json();
-  document.getElementById('config').textContent = s.config;
-  document.getElementById('lock').textContent = s.gpu_lock ? `gpu 锁：${s.gpu_lock}` : '';
-  const key = s.worktrees.map((t) => t.path).join('|');
-  for (const [name, tr] of Object.entries(rows)) {
-    const c = s.components[name], select = tr.querySelector('select');
-    if (key !== trees.join('|')) {
-      const keep = select.value;
-      select.replaceChildren(...s.worktrees.map((t) => new Option(`${t.branch} · ${t.head} · ${t.path.split('/').pop()}`, t.path)));
-      select.value = (c ? c.checkout : s.parts[name]) ?? keep ?? '';
-      const input = tr.querySelector('input');
-      if (input && c) input.value = c.args.join(' ');
-    }
-    if (!c) continue;
-    const phase = tr.querySelector('.phase');
-    phase.textContent = c.phase;
-    phase.className = 'phase ' + c.phase.replace(/\(.*/, '');
-    tr.querySelector('.pid').textContent = c.pid ?? '';
+  try {
+    state = await (await fetch('/api/state')).json();
+    paint();
+  } catch {
+    // The console stopped: its rows keep their last state.
   }
-  for (const b of document.querySelectorAll('#logs button')) b.setAttribute('aria-pressed', String(b.textContent === shown));
-  trees = s.worktrees.map((t) => t.path);
+}
+
+function renderLog() {
+  const pre = $('log'), text = logText ?? '';
+  const needle = $('filter').value.trim().toLowerCase(), problems = $('problems').getAttribute('aria-pressed') === 'true';
+  const key = `${shown}\n${needle}\n${problems}\n${text.length}\n${text.slice(-200)}`;
+  if (key === rendered) return;
+  rendered = key;
+  const atEnd = toEnd || pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
+  toEnd = false;
+  const lines = text.split('\n');
+  if (lines.at(-1) === '') lines.pop();
+  let shownLines = 0, day = null, stamped = false;
+  const html = [];
+  for (const line of lines) {
+    const tone = ERROR.test(line) ? 'e' : WARN.test(line) ? 'w' : COMMAND.test(line) ? 'c' : '';
+    if (problems && tone !== 'e' && tone !== 'w') continue;
+    if (needle && !line.toLowerCase().includes(needle)) continue;
+    shownLines++;
+    const m = STAMP.exec(line);
+    const message = m ? m[4] : line;
+    let body = esc(message);
+    if (needle) body = body.replace(new RegExp(esc(needle).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), (x) => `<mark>${x}</mark>`);
+    let time = '';
+    if (m) {
+      stamped = true;
+      if (m[1] !== day) html.push(`<div class="day">${day = m[1]}</div>`);
+      time = `<time title="${esc(line.slice(0, line.length - message.length - 1))}">${m[2]}.${(m[3] ?? '').padEnd(3, '0').slice(0, 3)}</time>`;
+    }
+    html.push(`<div class="l${tone ? ' ' + tone : ''}">${time || '<time></time>'}<span class="m">${body}</span></div>`);
+  }
+  pre.innerHTML = html.join('');
+  pre.classList.toggle('bare', !stamped);
+  $('count').textContent = needle || problems ? `${shownLines} / ${lines.length} 行` : `${lines.length} 行`;
+  if (atEnd) pre.scrollTop = pre.scrollHeight;
+  $('latest').style.display = atEnd ? 'none' : 'block';
 }
 
 async function refreshLog() {
-  const pre = document.getElementById('log');
-  const atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
-  pre.textContent = await (await fetch('/api/log?component=' + shown)).text();
-  if (atEnd) pre.scrollTop = pre.scrollHeight;
+  try {
+    logText = await (await fetch('/api/log?component=' + shown)).text();
+  } catch {
+    return;
+  }
+  renderLog();
 }
 
-setInterval(() => { refresh(); refreshLog(); }, 1000);
-refresh(); refreshLog();
+$('filter').oninput = () => { toEnd = true; renderLog(); };
+$('problems').onclick = (e) => {
+  e.currentTarget.setAttribute('aria-pressed', String(e.currentTarget.getAttribute('aria-pressed') !== 'true'));
+  toEnd = true;
+  renderLog();
+};
+$('log').onscroll = () => {
+  const pre = $('log');
+  $('latest').style.display = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4 ? 'none' : 'block';
+};
+$('latest').onclick = () => { $('log').scrollTop = $('log').scrollHeight; $('latest').style.display = 'none'; };
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-copy]');
+  if (el?.dataset.copy) navigator.clipboard.writeText(el.dataset.copy).then(() => toast(`已复制 ${el.dataset.copy}`, true));
+});
+
+(async function loop() {
+  await Promise.all([refresh(), refreshLog()]);
+  setTimeout(loop, 1000);
+})();
 </script>
 </body>
 </html>

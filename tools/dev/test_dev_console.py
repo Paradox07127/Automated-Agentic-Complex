@@ -119,7 +119,8 @@ class CommandTest(Paths):
         with mock.patch.object(dc, 'renderer_sources', lambda checkout: False), \
                 mock.patch.dict(dc.PARTS, {'agentd': str(shell), 'renderer': str(shell)}):
             steps = dc.COMPONENTS['shell'].steps(shell)
-        self.assertEqual(steps[-1], (dc.shell_command(shell, dc.SHELL_ARGS), {}, 'run'))
+        self.assertEqual(steps[-1], (dc.shell_command(shell, dc.SHELL_ARGS), {'env': {**os.environ,
+                         'AGENTD_FRAME_LOG': str(dc.STATE_DIR / 'harness-frames.jsonl')}}, 'run'))
 
     @unittest.skipUnless(sys.platform == 'darwin', 'an Electron.app clone')
     def test_preview_electron_carries_the_hosts_preview_service(self):
@@ -270,6 +271,189 @@ class StartupTest(Paths):
         stop_all.assert_called_once()
 
 
+
+class StatusTest(Paths):
+    """What the console page shows besides each process's phase."""
+
+    def companion(self, text):
+        log = dc.SUPPORT_DIR / 'logs/companion.log'
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with log.open('a') as f:
+            f.write(text)
+        return log
+
+    def test_renderer_link_is_the_last_hostlink_line_of_this_run(self):
+        self.assertEqual(dc.renderer_link(0), {'state': 'waiting', 'character': None})
+        log = self.companion('t hostlink: HOSTLINK hello character=old capabilities=a\n')
+        mark = log.stat().st_size
+        self.assertEqual(dc.renderer_link(mark)['state'], 'waiting')
+        self.companion('t hostlink: HOSTLINK avatar connected\n')
+        self.assertEqual(dc.renderer_link(mark)['state'], 'connecting')
+        self.companion('t hostlink: HOSTLINK hello character=jsspsi capabilities=heartbeat,ack\nt hostlink: HOSTLINK heartbeat\n')
+        self.assertEqual(dc.renderer_link(mark), {'state': 'connected', 'character': 'jsspsi'})
+        self.companion('t hostlink: HOSTLINK avatar disconnected: EOF\n')
+        self.assertEqual(dc.renderer_link(mark)['state'], 'disconnected')
+
+    def test_shell_start_records_the_heads_it_builds_and_the_log_mark(self):
+        self.companion('before\n')
+        trees = [{'path': '/w/s', 'head': 'aaa'}, {'path': '/w/a', 'head': 'bbb'}, {'path': '/w/r', 'head': 'ccc'}]
+        shell = dc.Component('shell')
+        with mock.patch.object(dc, 'worktrees', return_value=trees), mock.patch.object(dc.Component, '_run'), \
+                mock.patch.dict(dc.PARTS, {'agentd': '/w/a', 'renderer': '/w/r'}):
+            shell.start('/w/s')
+            web = dc.Component('web')
+            web.start('/w/a')
+        self.assertEqual(shell.snapshot()['built'], {'shell': 'aaa', 'agentd': 'bbb', 'renderer': 'ccc'})
+        self.assertEqual(shell.mark, len('before\n'))
+        self.assertEqual(web.snapshot()['built'], {'web': 'bbb'})
+
+    def test_agentd_health_is_its_object_or_none(self):
+        class Connection:
+            body = b'{"status": "ok", "degraded": ["tts"]}'
+            def __init__(self, *_, **__): pass
+            def request(self, *_): pass
+            def getresponse(self): return mock.Mock(read=lambda: self.body)
+            def close(self): pass
+        with mock.patch.object(dc.http.client, 'HTTPConnection', Connection):
+            self.assertEqual(dc.agentd_health(), {'status': 'ok', 'degraded': ['tts']})
+            self.assertTrue(dc.agentd_ready())
+            Connection.body = b'[]'
+            self.assertIsNone(dc.agentd_health())
+            self.assertFalse(dc.agentd_ready())
+            Connection.request = mock.Mock(side_effect=ConnectionRefusedError)
+            self.assertIsNone(dc.agentd_health())
+
+    def serve(self):
+        server = dc.http.server.ThreadingHTTPServer(('127.0.0.1', 0), dc.Handler)
+        dc.threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+
+        def get(path):
+            connection = dc.http.client.HTTPConnection('127.0.0.1', server.server_address[1], timeout=5)
+            connection.request('GET', path, headers={'Host': f'127.0.0.1:{dc.PORT}'})
+            return connection.getresponse().read()
+        return get
+
+    def test_state_has_agentd_health_and_the_renderer_link_while_the_shell_runs(self):
+        get = self.serve()
+        fakes = {n: mock.Mock(snapshot=mock.Mock(return_value={'phase': 'running', 'built': None}), mark=7)
+                 for n in ('web', 'shell')}
+        with mock.patch.dict(dc.COMPONENTS, fakes), mock.patch.object(dc, 'worktrees', return_value=[]), \
+                mock.patch.object(dc, 'agentd_health', return_value={'status': 'ok', 'degraded': []}), \
+                mock.patch.object(dc, 'renderer_link', return_value={'state': 'connected', 'character': 'x'}) as link:
+            state = json.loads(get('/api/state'))
+            link.assert_called_once_with(7)
+            self.assertEqual(state['agentd'], {'status': 'ok', 'degraded': []})
+            self.assertEqual(state['renderer'], {'state': 'connected', 'character': 'x'})
+            self.assertEqual(state['ports'], {'console': 48780, 'web': 5190, 'agentd': 48790})
+            self.assertEqual(set(state['logs']), set(dc.LOGS) | set(dc.RECORDS))
+            for fake in fakes.values():
+                fake.snapshot.return_value = {'phase': 'stopped'}
+            state = json.loads(get('/api/state'))
+        self.assertEqual((state['agentd'], state['renderer']), (None, None))
+
+    def test_a_long_log_is_its_tail_from_a_whole_line(self):
+        get = self.serve()
+        log = Path(self.tmp.name, 'web.log')
+        log.write_text('first line\nsecond\nthird\n')
+        with mock.patch.dict(dc.LOGS, {'web': log}):
+            self.assertEqual(get('/api/log?component=web'), log.read_bytes())
+            with mock.patch.object(dc, 'LOG_TAIL', 12):
+                self.assertEqual(get('/api/log?component=web'), b'third\n')
+
+
+class RecordsTest(Paths):
+    """agentd's trace events and character runs, read from its databases without writing."""
+
+    def trace_db(self):
+        dc.STATE_DIR.mkdir(parents=True)
+        db = dc.sqlite3.connect(dc.STATE_DIR / 'agentd.sqlite')
+        db.execute('PRAGMA journal_mode=WAL')
+        db.execute('CREATE TABLE trace_events (id INTEGER PRIMARY KEY, t_wall TEXT, kind TEXT, status TEXT, trace_id TEXT, '
+                   'turn_id TEXT, event TEXT, text TEXT)')
+        rows = [('2026-11-21T06:26:29.475-05:00', 'model.started', 'ok', 'bbb57074-71', 't1', {'attrs': {}}, None),
+                ('2026-11-21T06:26:29.480-05:00', 'behavior.ticked', 'ok', 'ccc', None, {'attrs': {}}, None),
+                ('2026-11-21T06:26:29.497-05:00', 'model.finished', 'ok', 'bbb57074-71', 't1',
+                 {'attrs': {'model': 'fixture', 'input_tokens': 20}, 'duration_ms': 21}, None),
+                ('2026-11-21T06:26:29.500-05:00', 'speech.finished', 'failed', 'bbb57074-71', 't1',
+                 {'attrs': {'reason': 'unreachable'}}, {'text': '第一行\n第二行'})]
+        db.executemany('INSERT INTO trace_events (t_wall, kind, status, trace_id, turn_id, event, text) VALUES (?,?,?,?,?,?,?)',
+                       [(*r[:5], json.dumps(r[5]), r[6] and json.dumps(r[6], ensure_ascii=False)) for r in rows])
+        db.commit()
+        return db
+
+    def test_trace_lines_are_the_events_without_the_behavior_tick(self):
+        self.assertEqual(dc.trace_lines(), [])
+        self.addCleanup(self.trace_db().close)
+        self.assertEqual(dc.trace_lines(), [
+            '2026-11-21T06:26:29.475-05:00 model.started trace=bbb57074 turn=t1',
+            '2026-11-21T06:26:29.497-05:00 model.finished trace=bbb57074 turn=t1 model=fixture input_tokens=20 duration_ms=21',
+            '2026-11-21T06:26:29.500-05:00 speech.finished failed trace=bbb57074 turn=t1 reason=unreachable text=第一行 第二行'])
+        with mock.patch.object(dc, 'RECORD_ROWS', 1):
+            self.assertEqual(len(dc.trace_lines()), 1)
+
+    def test_the_trace_is_read_without_writing(self):
+        db = self.trace_db()
+        self.addCleanup(db.close)
+        with closing_read_only(dc.STATE_DIR / 'agentd.sqlite') as reader, self.assertRaises(dc.sqlite3.OperationalError):
+            reader.execute("DELETE FROM trace_events")
+
+    def test_run_lines_merge_events_and_items_in_time_order(self):
+        (dc.STATE_DIR / 'character-agent').mkdir(parents=True)
+        db = dc.sqlite3.connect(dc.STATE_DIR / 'character-agent/runs.sqlite')
+        self.addCleanup(db.close)
+        db.execute('CREATE TABLE character_run_events (run_id TEXT, seq INTEGER, kind TEXT, metadata TEXT, at REAL)')
+        db.execute('CREATE TABLE character_run_items (run_id TEXT, item_id TEXT, kind TEXT, status TEXT, name TEXT, '
+                   'summary TEXT, text TEXT, updated_at REAL)')
+        db.executemany('INSERT INTO character_run_events VALUES (?,?,?,?,?)', [
+            ('r1', 1, 'running', json.dumps({'backend': 'pi', 'model': 'fixture'}), 100.0),
+            ('r1', 2, 'completed', json.dumps({'outcome': 'answered'}), 103.0)])
+        db.executemany('INSERT INTO character_run_items VALUES (?,?,?,?,?,?,?,?)', [
+            ('r1', 'r1:t1', 'tool_call', 'completed', 'read_file', 'path=a.md', '', 101.0),
+            ('r1', 'r1:m2', 'assistant_text', 'completed', None, None, 'x' * 500, 102.0)])
+        db.commit()
+        lines = [line.split(' ', 1)[1] for line in dc.run_lines()]
+        self.assertEqual(lines, ['run=r1 running backend=pi model=fixture', 'run=r1 item.tool_call completed read_file text=path=a.md',
+                                 f'run=r1 item.assistant_text completed text={"x" * 400}…', 'run=r1 completed outcome=answered'])
+        self.assertRegex(dc.run_lines()[0], r'^\d{4}-\d\d-\d\dT\d\d:\d\d:40\.000[+-]\d\d:\d\d run=r1 ')
+
+    def test_a_record_that_cannot_be_read_says_why(self):
+        server = dc.http.server.ThreadingHTTPServer(('127.0.0.1', 0), dc.Handler)
+        dc.threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        dc.STATE_DIR.mkdir(parents=True)
+        dc.sqlite3.connect(dc.STATE_DIR / 'agentd.sqlite').close()
+        connection = dc.http.client.HTTPConnection('127.0.0.1', server.server_address[1], timeout=5)
+        connection.request('GET', '/api/log?component=trace', headers={'Host': f'127.0.0.1:{dc.PORT}'})
+        body = connection.getresponse().read().decode()
+        self.assertIn('no such table: trace_events', body)
+        self.assertIn(str(dc.STATE_DIR / 'agentd.sqlite'), body)
+
+
+    def frames(self, *records, partial=b''):
+        dc.STATE_DIR.mkdir(parents=True, exist_ok=True)
+        with dc.frame_log().open('ab') as f:
+            for record in records:
+                f.write(json.dumps(record, ensure_ascii=False).encode() + b'\n')
+            f.write(partial)
+
+    def test_frame_lines_show_each_frame_and_its_long_values_as_blocks(self):
+        self.assertEqual(dc.frame_lines(), [])
+        self.frames({'at': 'T1', 'dir': 'out', 'backend': 'Pi', 'pid': 7,
+                     'frame': {'v': 1, 'type': 'query', 'run_id': 'r1', 'prompt': '第一行\n第二行', 'history': [{'role': 'user'}]}},
+                    {'at': 'T2', 'dir': 'in', 'backend': 'Pi', 'pid': 7,
+                     'frame': {'v': 1, 'seq': 3, 'type': 'text_delta', 'run_id': 'r1', 'text': '你好'}},
+                    partial=b'{"at": "T3", "dir"')
+        self.assertEqual(dc.frame_lines(), ['T1 → Pi pid=7 query run=r1 history=[{"role":"user"}]', '    prompt:', '    │ 第一行', '    │ 第二行',
+                                            'T2 ← Pi pid=7 text_delta run=r1 text=你好'])
+        with mock.patch.object(dc, 'FRAME_BLOCK_LINES', 1):
+            self.assertEqual(dc.frame_lines()[3], f'    │ … 1 more lines in {dc.frame_log()}')
+
+def closing_read_only(path):
+    return dc.closing(dc.read_only(path))
+
 class CleanupTest(unittest.TestCase):
     def test_ctrl_c_stops_the_shell_before_vite(self):
         stopped = []
@@ -383,7 +567,8 @@ class WindowsTest(Paths):
         self.assertIn((['cmd', '/d', '/c', 'build.bat'], {'cwd': shell / 'app/helpers/windows'}, 'wait'), steps)
         self.assertIn((['cmd', '/d', '/c', 'run.bat'], {'cwd': renderer / 'private/renderer/windows'}, 'wait'), steps)
         self.assertFalse([s for s in steps if s[2] != 'call' and 'swift' in s[0]])
-        self.assertEqual(steps[-1], (dc.shell_command(shell, dc.SHELL_ARGS, 'win32'), {}, 'run'))
+        self.assertEqual(steps[-1], (dc.shell_command(shell, dc.SHELL_ARGS, 'win32'), {'env': {**os.environ,
+                         'AGENTD_FRAME_LOG': str(dc.STATE_DIR / 'harness-frames.jsonl')}}, 'run'))
         self.assertEqual([s[2] for s in steps[-3:]], ['call', 'call', 'run'])
 
     def test_web_runs_vite_through_npx_cmd(self):

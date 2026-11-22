@@ -41,7 +41,7 @@ python3 -I tools/dev/dev_console.py
 python3 -I tools/dev/dev_console.py --release-renderer
 ```
 
-启动后访问 `http://127.0.0.1:48780/`，可为 `web`、`shell`、`agentd`、`renderer` 分别切换工作树并查看日志；`web` 和 `shell` 可以单独重启，给 `agentd` 或 `renderer` 换工作树会重建并重启外壳。默认传 `--no-push-to-talk --no-attention`，可在面板或命令行末尾追加外壳参数。
+启动后访问 `http://127.0.0.1:48780/`，可为 `web`、`shell`、`agentd`、`renderer` 分别切换工作树并查看日志；`web` 和 `shell` 可以单独重启，给 `agentd` 或 `renderer` 换工作树会重建并重启外壳。默认传 `--no-push-to-talk --no-attention`，可在面板或命令行末尾追加外壳参数。面板还显示 agentd 的 `/health`（含 `degraded` 项）、渲染器是否连上和它的角色（取本次外壳启动后 `companion.log` 里最后一行 `HOSTLINK`），以及外壳构建后工作树又有新提交时的提示；日志可按文字过滤，或只看错误和警告。日志的时间戳单列一栏，跨天时插一行日期。日志旁的 `trace` 和 `runs` 只读 agentd 状态目录里的数据库：`trace` 是 `agentd.sqlite` 的 `trace_events`（每回合的输入、上下文、模型开始 / 首字 / 结束及模型名、token、耗时，语音和收尾；不含每几秒一次的 `behavior.ticked`），`runs` 是 `character-agent/runs.sqlite` 的角色内核运行事件和条目（后端、模型、各段耗时、工具调用、回复文字）。两者都取最近 1000 条；`turn=` 和 `run=` 是同一个 id，用它过滤可以对上一回合。`frames` 是 agentd 和内核 runner 之间的每一帧：面板启动外壳时设 `AGENTD_FRAME_LOG=.local/cache/dev-console/agentd-state/harness-frames.jsonl`，记下 `init`（系统提示词、工具定义、配置，凭据已换成 `[redacted]`）、`query`（提示词和历史）、工具请求和结果、增量文字和带用量的 `result`。内核自己再加的系统提示词和它发给模型服务的原始 HTTP 请求不经过这里，所以不在其中。文件超过 64 MiB 时改名成 `harness-frames.jsonl.1`（替换上一份），再从新文件记起；面板只读当前文件。
 
 - 开发版的设置、数据和日志放在 `.local/cache/dev-console/`，不用正式安装版的 `48800` 端口和 `~/Library/Application Support/` 数据目录。内核的工作区和正式版一样，默认是 `~/AgenticComplex`（在「设置 › 角色内核 › 工作区」改）；Codex 等本机内核还会写它们自己的目录，例如 `~/.codex`。
 - agentd 端口固定是 `48790`，开发面板没有改端口的参数。公开检出里开发面板默认读示例角色库 `characters/sample-library/`（纯文字角色「助手」`aide`）；`--catalog <current.json>` 换成别的角色库。
