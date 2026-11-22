@@ -206,7 +206,8 @@ class CancelMatrixTest(PlaybackCase):
                   "events": tuple(e["turn_generation"] - generation for e in events),
                   "state": row["state"], "window": self.past()}
         expected = {"aborts": cell.aborts, "step": cell.step, "events": cell.events, "state": cell.state,
-                    "window": ([PROMPT if entry == "hide" else USER, cell.kept] if cell.kept else [])
+                    # A switch moves to the new character's own topic: the cut line stays in the old one's.
+                    "window": ([PROMPT if entry == "hide" else USER, cell.kept] if cell.kept and entry != "switch" else [])
                     + ([NEW, "".join(REPLY)] if entry == "supersede" else []) + [PROBE]}
         if cell.null_id:
             expected["speech_ids"], actual["speech_ids"] = [None] * len(events), [e["speech_id"] for e in events]

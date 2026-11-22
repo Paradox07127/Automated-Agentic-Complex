@@ -235,7 +235,7 @@ class CharacterDesktopTests(test_server.FeedServerCase):
         self.db = open_store(self.root / 'domain.sqlite')
         s = self.server
         domain_lock = threading.RLock()
-        s.history, s.memory, s.tasks = History(self.db, lock=domain_lock), Memory(self.db, lock=domain_lock), TaskLedger(self.db, lock=domain_lock)
+        s.history, s.memory, s.tasks = History(self.db, lock=domain_lock, character_id=s.character), Memory(self.db, lock=domain_lock), TaskLedger(self.db, lock=domain_lock)
         s.egress = EgressPolicy()
         s.mouth = Mouth(egress=s.egress)
         self.script = chat; self.sessions = []

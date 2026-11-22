@@ -91,7 +91,7 @@ class TypedTurnTest(TraceServerCase):
         self.assertEqual(events[1]["causation_id"], events[0]["event_id"])
 
     def test_exact_turn_lookup_can_find_older_turn_and_rejects_blank_id(self):
-        self.server.history = History(self.server.trace.db, lock=self.server.trace.lock)
+        self.server.history = History(self.server.trace.db, lock=self.server.trace.lock, character_id=self.server.character)
         old = self.line("找回旧 trace")
         newer = self.line("较新的 trace")
         self.assertNotEqual(old["line_id"], newer["line_id"])
@@ -106,7 +106,7 @@ class TypedTurnTest(TraceServerCase):
 
     def test_turn_list_rows_carry_their_owning_conversation(self):
         unowned = self.line("历史之外的一轮")
-        self.server.history = History(self.server.trace.db, lock=self.server.trace.lock)
+        self.server.history = History(self.server.trace.db, lock=self.server.trace.lock, character_id=self.server.character)
         owned = self.line("存进对话的一轮")
         status, body = self.request("GET", "/trace/turns")
         self.assertEqual(status, 200)
