@@ -109,7 +109,7 @@ function LightPad({ n, disabled, setMany }: { n: Native; disabled: boolean; setM
           yaws.map((y, c) => {
             const i = r * yaws.length + c;
             const on = y.value === cur.y && p.value === cur.p;
-            const name = `${y.label} · ${p.label}`;
+            const name = `${y.label}，${p.label}`;
             return (
               <button
                 key={`${y.value}/${p.value}`}
@@ -142,7 +142,7 @@ export function SettingRows({ n, tab, dev, set, setMany, pending, failed, offlin
   const row = (id: string) => {
     const r = n.rows[id]!;
     const changed = isChanged(n, id);
-    const sub = failed[id] ? <span className={styles.err}>{failed[id]}</span> : changed ? `默认 · ${valueText(r, r.default)}` : ROW_DESC[id];
+    const sub = failed[id] ? <span className={styles.err}>{failed[id]}</span> : changed ? `默认：${valueText(r, r.default)}` : ROW_DESC[id];
     return (
       <div key={id} id={`set-${id}`} className={styles.row} data-changed={changed || undefined} role="group" aria-label={r.label} title={changed ? ROW_DESC[id] : undefined}>
         <DarkRow
@@ -172,7 +172,7 @@ export function SettingRows({ n, tab, dev, set, setMany, pending, failed, offlin
           mark={changed ? 'changed' : 'hollow'}
           micro="Endfield"
           title="主光方向"
-          sub={changed ? `默认 · ${valueText(yaw, yaw.default)}（正中）` : '点格子换方向，正中是原作'}
+          sub={changed ? `默认：${valueText(yaw, yaw.default)}（正中）` : '点格子换方向，正中是原作'}
           end={<LightPad n={n} disabled={offline} setMany={setMany} />}
         />
         {changed && <ResetLead label="主光方向" disabled={offline} onReset={() => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default })} />}

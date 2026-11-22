@@ -9,6 +9,7 @@ import { SecHead } from './SettingRows';
 import { saveSettings, useCharSettings } from './settings';
 import { readFail } from './Tune';
 import styles from './PhotoMode.module.css';
+import shutter from './PhotoShutter.module.css';
 
 const FILTER = 'rnd.filter';
 /** The game's camera on opening: f/32 and focus on the character. */
@@ -204,15 +205,15 @@ export function PhotoMode(p: PhotoModeProps) {
           </div>
         </div>
       </section>
-      <div className={styles.shutter}>
-        <div className={styles.msg}>
-          <MicroLabel>Capture // Transparent PNG</MicroLabel>
+      <div className={shutter.shutter}>
+        <div className={shutter.msg}>
+          <MicroLabel>Transparent Capture</MicroLabel>
           <b>拍下桌面上的她，透明背景</b>
           <span role="status">{shot.text ?? (p.offline ? '角色未运行' : !canCapture ? '渲染器没有提供截图' : '')}</span>
         </div>
         <button
           type="button"
-          className={styles.shut}
+          className={shutter.shut}
           aria-label="拍照"
           aria-disabled={off || undefined}
           aria-busy={shot.busy || undefined}
@@ -222,7 +223,7 @@ export function PhotoMode(p: PhotoModeProps) {
           <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false">
             <path fill="currentColor" d="M8.5 3h7l1.8 3H22v15H2V6h4.7zM12 8.5a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zm0 2.3a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z" />
           </svg>
-          <span className={styles.lbl} aria-hidden="true">
+          <span className={shutter.lbl} aria-hidden="true">
             拍照
           </span>
         </button>

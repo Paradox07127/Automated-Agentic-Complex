@@ -73,7 +73,7 @@ describe('CharacterSettings', () => {
       view('render');
       const bar = await screen.findByRole('tablist', { name: '设定' });
       const pad = screen.getByRole('radiogroup', { name: '主光方向' });
-      fireEvent.click(within(pad).getByRole('radio', { name: '原作 · 抬高 10°' }));
+      fireEvent.click(within(pad).getByRole('radio', { name: '原作，抬高 10°' }));
       await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.lightYaw': '0', 'rnd.lightPitch': '10' }));
       fireEvent.click(within(screen.getByRole('radiogroup', { name: '景深' })).getByRole('radio', { name: '近景时' }));
       await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.dof': 'closeup' }));

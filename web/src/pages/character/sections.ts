@@ -22,11 +22,11 @@ export interface CharSection {
 // 画面: the sections the preview follows first, then the desktop-only ones.
 export const CHAR_SECTIONS: readonly CharSection[] = [
   { tab: 'behavior', id: 'behavior/move', title: '活动', en: 'Movement', rows: ['beh.stay', 'beh.range', 'beh.sit', 'beh.lean', 'beh.inertia', 'beh.physics', 'beh.watch'] },
-  { tab: 'behavior', id: 'behavior/touch', title: '触碰与注视', en: 'Touch · Gaze', rows: ['avatar_click', 'beh.touch', 'beh.pat', 'beh.pinch', 'beh.greet', 'beh.mouse'] },
-  { tab: 'behavior', id: 'behavior/state', title: '状态与表情', en: 'State · Face', rows: ['beh.mood', 'beh.face'] },
+  { tab: 'behavior', id: 'behavior/touch', title: '触碰与注视', en: 'Touch & Gaze', rows: ['avatar_click', 'beh.touch', 'beh.pat', 'beh.pinch', 'beh.greet', 'beh.mouse'] },
+  { tab: 'behavior', id: 'behavior/state', title: '状态与表情', en: 'State & Face', rows: ['beh.mood', 'beh.face'] },
   { tab: 'behavior', id: 'behavior/overlay', title: '桌面浮层', en: 'Overlay', rows: ['beh.rail', 'beh.hint'] },
-  { tab: 'render', id: 'render/light', title: '主光与轮廓', en: 'Key light · Outline', rows: ['rnd.lightYaw', 'rnd.lightPitch', 'rnd.lightStrength', 'rnd.outline'] },
-  { tab: 'render', id: 'render/ground', title: '落地与景深', en: 'Ground · Depth', rows: ['rnd.ground', 'rnd.dof'] },
+  { tab: 'render', id: 'render/light', title: '主光与轮廓', en: 'Key Light & Outline', rows: ['rnd.lightYaw', 'rnd.lightPitch', 'rnd.lightStrength', 'rnd.outline'] },
+  { tab: 'render', id: 'render/ground', title: '落地与景深', en: 'Ground & Depth', rows: ['rnd.ground', 'rnd.dof'] },
   { tab: 'render', id: 'render/quality', title: '画质', en: 'Quality', rows: ['rnd.aa', 'rnd.shadow'] },
   { tab: 'render', id: 'render/ambient', title: '环境光', en: 'Ambient', rows: ['rnd.ambient', 'rnd.wrap'], desktopOnly: true },
   // rnd.closeup is not a launch argument either: camera/closeup.ts pushes it to the desktop renderer only.

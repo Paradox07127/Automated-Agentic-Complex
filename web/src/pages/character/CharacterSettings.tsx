@@ -51,7 +51,7 @@ export function SetPanel(p: SetPanelProps) {
   const dev = useDevMode();
   return (
     <section className={styles.panel} data-g="detail">
-      <GameTabs label="角色页签" tabs={tabItems(p.tabs, n, dev)} value={p.tab} tail="Character // Settings" onChange={(id) => p.onTab(id as CharTab)} />
+      <GameTabs label="角色页签" tabs={tabItems(p.tabs, n, dev)} value={p.tab} tail="Character Settings" onChange={(id) => p.onTab(id as CharTab)} />
       <div className={styles.body} role="tabpanel" aria-label={CHAR_TABS.find((t) => t.id === p.tab)?.title}>
         {p.children}
       </div>

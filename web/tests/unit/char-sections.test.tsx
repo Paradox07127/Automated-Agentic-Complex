@@ -72,9 +72,9 @@ describe('SettingRows', () => {
     const pad = screen.getByRole('radiogroup', { name: '主光方向' });
     const cells = within(pad).getAllByRole('radio');
     expect(cells.map((c) => c.getAttribute('aria-label'))).toEqual([
-      '左偏 15° · 抬高 10°', '原作 · 抬高 10°', '右偏 15° · 抬高 10°',
-      '左偏 15° · 原作', '原作 · 原作', '右偏 15° · 原作',
-      '左偏 15° · 降低 10°', '原作 · 降低 10°', '右偏 15° · 降低 10°',
+      '左偏 15°，抬高 10°', '原作，抬高 10°', '右偏 15°，抬高 10°',
+      '左偏 15°，原作', '原作，原作', '右偏 15°，原作',
+      '左偏 15°，降低 10°', '原作，降低 10°', '右偏 15°，降低 10°',
     ]);
     expect(cells[4]!.getAttribute('aria-checked')).toBe('true');
     expect(cells[4]!.hasAttribute('data-default')).toBe(true);
@@ -91,11 +91,11 @@ describe('SettingRows', () => {
     draw({ ...n, saved: { ...n.saved, 'rnd.lightStrength': '1.25', 'rnd.lightPitch': '10' } }, 'render', true, { set });
     const strength = document.getElementById('set-rnd.lightStrength')!;
     expect(strength.hasAttribute('data-changed')).toBe(true);
-    expect(within(strength).getByText('默认 · 原作 · 100 %')).toBeTruthy();
+    expect(within(strength).getByText('默认：原作 · 100 %')).toBeTruthy();
     expect(within(within(strength).getByRole('radiogroup', { name: '主光强度' })).getAllByRole('radio').map((r) => r.textContent)).toEqual(['50', '75', '100', '125', '150']);
     fireEvent.click(within(strength).getByRole('button', { name: '恢复「主光强度」的默认' }));
     expect(set).toHaveBeenCalledWith('rnd.lightStrength', '1');
-    expect(within(document.getElementById('set-rnd.lightYaw')!).getByText('默认 · 原作（正中）')).toBeTruthy();
+    expect(within(document.getElementById('set-rnd.lightYaw')!).getByText('默认：原作（正中）')).toBeTruthy();
     const dof = document.getElementById('set-rnd.dof')!;
     expect(dof.hasAttribute('data-changed')).toBe(false);
     expect(within(dof).queryByRole('button', { name: /恢复/ })).toBeNull();
