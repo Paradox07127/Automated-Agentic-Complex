@@ -9,7 +9,7 @@ import { dirname } from 'node:path';
 import {
   type ActionPlayed, type Actions, attachProblem, type AvatarHello, avatarHello, behaviorReceiptProblem, type Box, boxContains, type C3Message,
   cameraGestureProblem, capturedProblem, type Capsule, capsuleHit, capsulesBox, clickProblem, COMPANION_CAPABILITIES, companionHello, CURSOR,
-  CursorKinematics, decodeLine, dropProblem, encodeLine, motionRequestProblem, motionStrokeProblem, type MotionOverridesReceipt,
+  CursorKinematics, decodeLine, dropProblem, encodeLine, motionRequestProblem, motionStateProblem, motionStrokeProblem, type MotionOverridesReceipt,
   outboundProblem, playbackProblem, type PointerState, poseStateProblem, presentationInputProblem, presentationStateProblem, readCapsules,
   readMotionOverrides,
   SPEECH_CANCEL_REASONS, speechCancelledProblem, surfaceTrackProblem, TERMINAL_BEHAVIOR_PHASES, traceEventProblem,
@@ -122,7 +122,7 @@ export interface MotionOverrides { chains: Record<string, boolean>; pools: Recor
 /** The capabilities this shell lists only when its caller says it sends their messages. */
 export type OfferedCapability = 'pass_through' | 'render_live' | 'ambient' | 'camera_free' | 'camera_track' | 'filters' | 'capture'
   | 'motion_overrides' | 'play_chain' | 'photo' | 'camera_bust';
-/** Queued output past this closes the connection; `trace` and `behavior_receipt` lines a second (rules 22, 25). */
+/** Queued output past this closes the connection; `trace` and `behavior_receipt` with `motion_state` lines a second (rules 22, 25, 54). */
 export const LINK_LIMITS = { outputBytes: 256 * 1024, traceRate: 20, receiptRate: 20, traceEvents: 50 } as const;
 
 export interface LinkOptions {
@@ -149,6 +149,8 @@ export interface LinkOptions {
    *  without `v` and `type`, for agentd. */
   onTrace?(events: Record<string, unknown>[]): void;
   onBehaviorReceipt?(receipt: Record<string, unknown>): void;
+  /** Rule 54: each valid `motion_state` without `v` and `type`, when both hellos list `behavior_receipt`. */
+  onMotionState?(state: Record<string, unknown>): void;
   onMotionRequest?(request: Record<string, unknown>): void;
   /** Each of these receives its valid messages; the ones that list a capability do so only when given: `presentation`,
    *  `drop`, `poses`, `camera_gesture`, and `surfaces`, `opacity`, `layering` for onSurfaceTrack. */
@@ -200,7 +202,7 @@ class Connection {
   cameraLiveAt = -Infinity;
   cameraLivePending: C3Message | null = null;
   traceEpoch = 0;
-  /** Receive times of the last LINK_LIMITS.traceRate `trace` and receiptRate forwarded receipts. */
+  /** Receive times of the last LINK_LIMITS.traceRate `trace` and receiptRate forwarded receipts and `motion_state`. */
   traceTimes: number[] = [];
   receiptTimes: number[] = [];
   /** `turn_generation` of each behavior whose last receipt was not terminal (rule 25). */
@@ -493,6 +495,7 @@ export class HostLink {
         break;
       case 'trace': if (!this.handleTrace(m, c)) return; break;
       case 'behavior_receipt': if (!this.handleReceipt(m, c)) return; break;
+      case 'motion_state': if (!this.handleMotionState(m, c)) return; break;
       case 'motion_request': if (!this.handleMotionRequest(m, c)) return; break;
       case 'placement': {
         const p = readPlacement(m);
@@ -732,6 +735,17 @@ export class HostLink {
     c.receiptTimes = [...c.receiptTimes, t].slice(-LINK_LIMITS.receiptRate);
     const { v: _v, type: _type, ...body } = m;
     this.options.onBehaviorReceipt?.(body);
+    return true;
+  }
+
+  /** Rule 54: counted in rule 25's receipts a second; past them it is dropped. */
+  private handleMotionState(m: C3Message, c: Connection): boolean {
+    if (!this.accepted(m, this.both(c, 'behavior_receipt') ? motionStateProblem(m) : 'capability')) return false;
+    const t = now();
+    if (c.receiptTimes.length >= LINK_LIMITS.receiptRate && t - c.receiptTimes[0]! < 1) return this.accepted(m, 'rate');
+    c.receiptTimes = [...c.receiptTimes, t].slice(-LINK_LIMITS.receiptRate);
+    const { v: _v, type: _type, ...body } = m;
+    this.options.onMotionState?.(body);
     return true;
   }
 

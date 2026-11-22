@@ -251,7 +251,8 @@ const hostLink = config && new HostLink({
   // Annotated: `watchers` is made from this link, so its type cannot come from here.
   buttonsDown: (): boolean => watchers?.buttonsDown ?? false,
   traceEpoch: () => nextTraceEpoch(config!.supportDir),
-  ...(forwarding && { onTrace: forwarding.onTrace, onBehaviorReceipt: forwarding.onBehaviorReceipt, onMotionRequest: forwarding.onMotionRequest }),
+  ...(forwarding && { onTrace: forwarding.onTrace, onBehaviorReceipt: forwarding.onBehaviorReceipt, onMotionState: forwarding.onMotionState,
+    onMotionRequest: forwarding.onMotionRequest }),
   ...reports?.options,
   onClick: (e) => interaction?.click(e),
   onDrop: (d) => drops?.drop(d),

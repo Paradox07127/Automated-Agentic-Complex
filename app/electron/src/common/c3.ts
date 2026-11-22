@@ -316,6 +316,19 @@ export function behaviorReceiptProblem(m: Record<string, unknown>): string | nul
   return null;
 }
 
+const MOTION_STATE_PHASES = ['started', 'cycle_end', 'ended', 'expired', 'rejected'];
+
+/** Rule 54's `motion_state` fields; null when they hold. */
+export function motionStateProblem(m: Record<string, unknown>): string | null {
+  if (m.origin !== 'agent' && m.origin !== 'local') return 'origin';
+  if (!(id64(m.behavior_id) || m.behavior_id === null && m.origin === 'local')) return 'behavior_id';
+  if (typeof m.phase !== 'string' || !MOTION_STATE_PHASES.includes(m.phase)) return 'phase';
+  if (typeof m.resting !== 'boolean') return 'resting';
+  if (typeof m.busy !== 'boolean') return 'busy';
+  if (!id64(m.clip)) return 'clip';
+  return null;
+}
+
 const MOTION_KINDS = ['turn', 'walk', 'window_loop', 'sit_enter', 'sit_loop', 'sit_exit', 'lean'];
 
 /** Rule 40's `motion_request` fields, `bytes` its line's length without the newline; null when they hold. */

@@ -922,6 +922,13 @@
   ],
   [
     "POST",
+    "/behavior/motion_state",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "POST",
     "/motions/generate",
     [
       "ui_token"

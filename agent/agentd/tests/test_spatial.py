@@ -1818,6 +1818,33 @@ class ReceiptServerTest(ServerCase):
                          {"running": [], "switches": SWITCHES, "last_receipt": None})
 
 
+class MotionStateServerTest(ServerCase):
+    GOOD = {"behavior_id": "b-1-1", "origin": "agent", "phase": "cycle_end", "resting": True, "busy": False,
+            "clip": "base_loop"}
+
+    def test_a_motion_state_reaches_spatial_with_its_fields(self):
+        local = {**self.GOOD, "behavior_id": None, "origin": "local", "phase": "ended"}
+        with unittest.mock.patch.object(self.server.spatial, "motion_state") as motion_state:
+            self.assertEqual(self.request("POST", "/behavior/motion_state", self.GOOD), (204, None))
+            self.assertEqual(self.request("POST", "/behavior/motion_state", local), (204, None))
+        self.assertEqual(motion_state.call_args_list, [unittest.mock.call(self.GOOD), unittest.mock.call(local)])
+
+    def test_bad_bodies_are_400_and_other_tokens_401_and_reach_nothing(self):
+        good = self.GOOD
+        bad = [{**good, "phase": "running"}, {**good, "origin": "user"}, {**good, "behavior_id": None},
+               {**good, "behavior_id": ""}, {**good, "behavior_id": "b" * 65}, {**good, "resting": 1},
+               {**good, "busy": None}, {**good, "clip": ""}, {k: v for k, v in good.items() if k != "clip"},
+               {**good, "extra": 1}, [good], "b-1-1"]
+        with unittest.mock.patch.object(self.server.spatial, "motion_state") as motion_state:
+            for body in bad:
+                with self.subTest(body=body):
+                    self.assertEqual(self.request("POST", "/behavior/motion_state", body),
+                                     (400, {"error": "invalid_motion_state"}))
+            for token in (None, HOOK, EVENTS):
+                self.assertEqual(self.request("POST", "/behavior/motion_state", good, token=token)[0], 401)
+        motion_state.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
 

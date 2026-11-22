@@ -1,5 +1,6 @@
 // What the renderer link hands agentd: `trace` events batched for `POST /trace/events`, behavior receipts to
-// `POST /behavior/receipts` in the order she sent them, motion requests to `POST /motions/generate`.
+// `POST /behavior/receipts` and motion states to `POST /behavior/motion_state` in the order she sent them, motion
+// requests to `POST /motions/generate`.
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { Mark } from '../../common/turn-marks.ts';
 
@@ -116,7 +117,7 @@ export interface ForwardPorts {
   log(line: string): void;
 }
 
-/** HostLink's `onTrace`, `onBehaviorReceipt` and `onMotionRequest`. */
+/** HostLink's `onTrace`, `onBehaviorReceipt`, `onMotionState` and `onMotionRequest`. */
 export function agentdForwarding(o: ForwardPorts) {
   const trace = new TraceForwarder(o.epoch, async (events) => {
     const { status, body } = await o.post('/trace/events', { events });
@@ -136,6 +137,12 @@ export function agentdForwarding(o: ForwardPorts) {
       tail = tail.then(async () => {
         const { status } = await o.post('/behavior/receipts', body);
         if (status !== 200) o.log(`behavior receipt forward behavior_id=${String(body.behavior_id ?? '')} status=${status}`);
+      });
+    },
+    onMotionState: (body: Event) => {
+      tail = tail.then(async () => {
+        const { status } = await o.post('/behavior/motion_state', body);
+        if (status !== 204) o.log(`motion_state forward behavior_id=${String(body.behavior_id)} phase=${String(body.phase)} status=${status}`);
       });
     },
     onMotionRequest: (body: Event) => {

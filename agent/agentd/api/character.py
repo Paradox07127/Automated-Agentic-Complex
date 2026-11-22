@@ -1,6 +1,18 @@
-"""POST /character and the switch, GET /character/state/history, PUT /avatar/visibility and /character/state/switch, POST /behavior/receipts."""
+"""POST /character and the switch, GET /character/state/history, PUT /avatar/visibility and /character/state/switch, POST /behavior/receipts and /behavior/motion_state."""
 from brain.outbound import OutboundBlocked
 import c1
+
+
+def _id64(value):
+    return isinstance(value, str) and 0 < len(value.encode()) <= 64
+
+
+def _motion_state_ok(body):
+    """C3 rule 54's motion_state without v and type."""
+    return isinstance(body, dict) and set(body) == c1.MOTION_STATE_KEYS | {"clip"} and body["origin"] in c1.ORIGINS \
+        and (_id64(body["behavior_id"]) or body["behavior_id"] is None and body["origin"] == "local") \
+        and body["phase"] in c1.MOTION_STATE_PHASES and isinstance(body["resting"], bool) \
+        and isinstance(body["busy"], bool) and _id64(body["clip"])
 
 
 class CharacterMixin:
@@ -85,3 +97,12 @@ class CharacterMixin:
                         attrs={"behavior_id": body["behavior_id"], "behavior_type": behavior_type, "phase": body["phase"],
                                "reason": trace_error(body.get("reason"))})
         self._json(200, {"applied": applied, "why": why})
+
+    def _motion_state(self, body):
+        """POST /behavior/motion_state: the renderer's clip boundary (C3 rule 54), forwarded by the Companion."""
+        if not _motion_state_ok(body):
+            return self._json(400, {"error": "invalid_motion_state"})
+        self.server.spatial.motion_state(body)
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self.end_headers()

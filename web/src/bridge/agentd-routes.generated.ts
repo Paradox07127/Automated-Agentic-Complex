@@ -150,6 +150,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'POST', path: '/blacklist/mode', templates: ['/blacklist/mode'], class: 'write', surfaces: ['main'], plugin: 'screen_awareness' },
   { method: 'POST', path: '/reset', templates: ['/reset'], class: 'confirm_native', surfaces: ['main'] },
   { method: 'POST', path: '/behavior/receipts', templates: ['/behavior/receipts'], class: 'host_only', surfaces: [] },
+  { method: 'POST', path: '/behavior/motion_state', templates: ['/behavior/motion_state'], class: 'host_only', surfaces: [] },
   { method: 'POST', path: '/motions/generate', templates: ['/motions/generate'], class: 'host_only', surfaces: [], plugin: 'motion_generation' },
   { method: 'POST', path: '/focus', templates: ['/focus'], class: 'write', surfaces: ['main', 'stack'] },
   { method: 'POST', path: '/interaction/tap', templates: ['/interaction/tap'], class: 'host_only', surfaces: [] },
@@ -255,10 +256,10 @@ export type AgentdRouteKey =
   | `DELETE /context/timeline/summaries/${string}` | 'POST /sessions' | 'POST /context/text' | 'POST /context/image'
   | 'POST /look' | 'POST /trace/events' | 'POST /memory/facts' | 'POST /feedback' | 'POST /blacklist'
   | 'POST /blacklist/defaults' | 'POST /blacklist/mode' | 'POST /reset' | 'POST /behavior/receipts'
-  | 'POST /motions/generate' | 'POST /focus' | 'POST /interaction/tap' | 'POST /interaction/gift'
-  | 'POST /model/settings' | 'POST /model/catalog' | 'POST /model/test' | 'POST /model/chatgpt/start'
-  | 'POST /model/chatgpt/cancel' | 'POST /model/chatgpt/select' | 'POST /model/chatgpt/logout'
-  | 'POST /character/prepare' | 'POST /character/commit' | 'POST /character/abort'
+  | 'POST /behavior/motion_state' | 'POST /motions/generate' | 'POST /focus' | 'POST /interaction/tap'
+  | 'POST /interaction/gift' | 'POST /model/settings' | 'POST /model/catalog' | 'POST /model/test'
+  | 'POST /model/chatgpt/start' | 'POST /model/chatgpt/cancel' | 'POST /model/chatgpt/select'
+  | 'POST /model/chatgpt/logout' | 'POST /character/prepare' | 'POST /character/commit' | 'POST /character/abort'
   | `POST /approvals/${string}/decision` | `POST /sessions/${string}/messages` | `POST /sessions/${string}/interrupt`
   | `POST /memory/facts/${string}/confirm` | `POST /memory/facts/${string}/reject` | `POST /tasks/${string}/accept`
   | `POST /tasks/${string}/reject` | `POST /commitments/${string}/cancel` | `POST /commitments/${string}/snooze`

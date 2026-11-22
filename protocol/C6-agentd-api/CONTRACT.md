@@ -6,6 +6,10 @@
 T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全部端点见 §3 端点总表；逐条的字段和错误码见表中「规格」列指的文档；本文件的端点细则在 §2 和 §4。
 本合同版本 v1；agentd 在 `GET /health` 的回复里以 `c6_contract`（字符串 `"v1"`）报它实现的版本，`agentd --describe`（C9）也报同一个值。
 
+## 2026-11-21 播放状态 POST /behavior/motion_state（只加不改）
+
+- 新端点 `POST /behavior/motion_state`（ui 令牌，`host_only`）：Companion 把渲染器的 C3 `motion_state`（C3 规则 54）原样转来，回 204；body 不合 400 `invalid_motion_state`。字段见 §4.2 的这一行。
+
 ## 2026-11-21 桌面时间线 POST /context/timeline（只加不改）
 
 - 新端点 `POST /context/timeline`（ui 令牌，`host_only`）：Companion 批量发桌面时间线记录，body `{"records": [...]}`，1–200 条，回 200 `{"stored": n, "dropped": m}`；`invalid_records`、`too_many_records`、503 `no_timeline`。记录字段、上限、过滤和清除规则见 §4.2 的这一行，请求样例 `fixtures/context-timeline.json`。`/context/events` 不变。
@@ -406,6 +410,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | POST | `/blacklist/mode` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/reset` | ui | `confirm_native` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/behavior/receipts` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/behavior/motion_state` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/motions/generate` | ui | `host_only` | — | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
 | POST | `/focus` | ui | `write` | main、stack | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/interaction/tap` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
@@ -497,6 +502,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | `PUT /avatar/visibility` | ui | Companion 告诉 agentd 角色是否显示，agentd 启动后和每次变化时各 PUT 一次。body `{visible, reason}`：`visible` 布尔；`reason` 为 ≤64 字节的字符串或 null（Companion 自己的标签，例如 `user`、`fullscreen`，agentd 只存不用）；body 不对 400 `invalid_payload`。200 `{visible, reason, since}`，`since` 是 `visible` 最后一次变化的时刻（ISO 8601；`visible` 不变的 PUT 不改它）。只在内存里，agentd 启动时为显示。隐藏时：用户开始的台词（`POST /say`，任何 `source`）照常出声；主动台词和播报只出字（Companion 显示在字幕条）：主动台词不送 `/speech`，`line` 的 `speak` 为 false，照常说完、存进聊天记录、按只出字的规则发 `clause_intent`，闸门照静音时一样计数；播报照常发 `announce` 卡，不出声也不进槽，槽里已有的不播（照常 15 s 过期，重新显示时还没过期的照常播）。变成隐藏时，正在播的主动台词或播报的语音立刻停（`client_cancel`，按 `immediate`，真截断时在 `GET /events` 发 `speech_cancelled`），还在生成的主动台词接着只出字；用户的台词不动。变成显示时不动正在进行的。`/diag/state` 的 `mouth_voice.avatar_visible` 同 `visible`。`POST /reset` 时 503 `resetting` |
 | `PUT /behavior/switches` | ui | 行为开关（C1 v2 §1.3）：body 每次是完整对象 `{stay_in_place, sit_window_top, hold_window_edge, fullscreen_give_way}`，都是布尔，可选再带 `bust_framing`；缺键、多键、非布尔或 body 读不出 400 `invalid_switches`；200 回存下的值。只存在内存里，重启回到默认（`stay_in_place` false，其余 true）。关掉的开关禁止正在跑的行为时发 `behavior_cancel`（`reason: switch_off`） |
 | `POST /behavior/receipts` | ui | 角色进程的执行回执（C1 v2 §3），由 Companion 原样转来：body `{behavior_id, phase, reason, at_ms, turn_generation}`，按 `c1.py` 的回执规则校验，不合法 400 `invalid_receipt`。200 `{applied, why}`：`why` 为 null、`unknown_behavior`（不是最近 64 个行为之一）、`after_terminal`（这个行为已收到过终态回执）或 `stale`（回执的 `turn_generation` 不是这个行为发出时的值；行为跨轮次继续有效，回执带的是它自己的代际）。只有 `completed` 记为做完（「走到了」「已松手」只在这时算数）；`cancelled` / `connection_lost` 记为失联，既不算做完也不算被打断；终态回执后这个行为不再算在跑；`blocked` 时这个目标 60 s 内不再选，并立刻换目标或换类型重发（`trigger.source: receipt`） |
+| `POST /behavior/motion_state` | ui | 渲染器片段边界的播放状态（C3 规则 54），由 Companion 去掉 `v`、`type` 后原样转来，和回执同一个队列、按收到的顺序：body 正好是 `{behavior_id, origin, phase, resting, busy, clip}`；`origin` 为 `agent` / `local`；`behavior_id` 为 1–64 字节的字符串，只有 `origin`=`local` 时可以为 null；`phase` 为 `started` / `cycle_end` / `ended` / `expired` / `rejected`；`resting`、`busy` 为布尔；`clip` 为 1–64 字节的字符串。不合 400 `invalid_motion_state`。合的回 204、无 body：动作选择器自己挑的片段（`perform` 的 `chosen`）在 `cycle_end`、`ended` 时把它的播放头对到渲染器的位置，别的只收下 |
 | `GET /feed` | ui | SSE，给外壳：`event: announce`（harness 和自有会话的播报，data 带 `state`：`terminal`\|`progress`，见下文 announce 的 data），`line`（台词）、`command`、`request`（见下文 `event: request`）、`nudge`（见下文）、`thought`（她的想法，见下表）、`memory`（「记住…」写下一条事实时 `{action: "added", fact_id, text, kind, source}`，Companion 显示「记下了… 撤销」，撤销即 `DELETE /memory/facts/<fact_id>`）、`turn_accepted`（接受一句输入，见下表）、`presence`（`GET /desktop/presence` 除 `sampled_at` 外的内容变了；data 只有 `seq`，内容要再读那个路由）；`id` 为 `<stream_epoch>-<seq>`：`stream_epoch` 是本进程 feed 缓冲的随机名，seq 是 feed 自己的，和 `/events` 无关；缓冲留最近 256 项。每次连上先发一项 `event: stream`（无 `id`），data `{stream_epoch, oldest_seq, latest_seq}`（`oldest_seq` 是还留着的最早一项，空时为 `latest_seq + 1`）。游标用 `Last-Event-ID` / `?after=`（只给整数时按本进程的 seq）：在范围内就补发它之后的项；属于别的进程（`stream_epoch` 不同，或序号比 `latest_seq` 还新）时发 `event: reset` `{reason: "other_process", stream_epoch, oldest_seq, latest_seq}`，不补发，只发之后的新项；早于 `oldest_seq - 1`（断线期间被挤掉）时发 `event: gap` `{reason: "cursor_expired", from, to, stream_epoch, oldest_seq, latest_seq}`（`from`..`to` 是丢掉的 seq），再补发还留着的全部项；格式不对 400 `invalid_cursor`。不带游标不重放历史。收到 `reset` 或 `gap` 时消费端重新取快照（`GET /agent/snapshot`，以及 `GET /state` 等），agentd 不另做什么 |
 | `GET /agent/jobs` | ui | 后台工作列表，见下文角色内核端点的 `GET/POST /agent/jobs` |
 | `POST /agent/interactions/<id>/answer` | ui | 提问时本轮结束，run/job 转 `waiting_user`，释放执行槽，等待时间不计截止；回答后同一 job 重新入队、前台从检查点续接，答案作为原 `ask_user` 工具调用的结构化结果送回，问题原文不进用户消息。当前对话恰好一张待答问题卡时，聊天消息就是它的回答。角色工具审批另支持按 `data.approval_answers` 发送 `allow_session`，仅同对话、同 server/tool、同 MCP catalog 生效；危险调用只准单次。契约与 schema 见上文「C6 角色工具审批」。 |
