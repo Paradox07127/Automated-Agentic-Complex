@@ -526,6 +526,8 @@ Handler find_handler(const std::string& name) {
         {"input.watch", input_watch},
         {"capture.window", capture_window},
         {"capture.ambient", capture_ambient},
+        {"ocr.languages", ocr_languages},
+        {"ocr.recognize", ocr_recognize},
     };
     auto found = handlers.find(name);
     return found == handlers.end() ? nullptr : found->second;

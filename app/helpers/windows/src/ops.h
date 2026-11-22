@@ -62,3 +62,10 @@ Outcome workspace_watch(const json::Value& params);
 // ops_capture.cpp
 Outcome capture_window(const json::Value& params);
 Outcome capture_ambient(const json::Value& params);
+// One frame of the window hwnd (an HWND) without the cursor, top-down premultiplied BGRA rows of width * 4 bytes;
+// empty on success, else why not. The calling thread has joined COM.
+std::string grab_window_frame(void* hwnd, unsigned& width, unsigned& height, std::vector<unsigned char>& bgra);
+
+// ops_ocr.cpp
+Outcome ocr_languages(const json::Value& params);
+Outcome ocr_recognize(const json::Value& params);

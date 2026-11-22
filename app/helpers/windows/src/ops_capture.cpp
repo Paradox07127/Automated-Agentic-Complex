@@ -307,6 +307,15 @@ Outcome capture_window(const json::Value& params) {
     return success(std::move(result));
 }
 
+std::string grab_window_frame(void* hwnd, unsigned& width, unsigned& height, std::vector<unsigned char>& bgra) {
+    Pixels frame;
+    std::string problem = grab_window(static_cast<HWND>(hwnd), frame);
+    width = frame.width;
+    height = frame.height;
+    bgra = std::move(frame.data);
+    return problem;
+}
+
 namespace {
 
 // display_id's monitor, or the primary one when it is absent; nullptr when no monitor has that id.

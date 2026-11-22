@@ -14,6 +14,9 @@ Usage: python -I app/helpers/windows/tests/replay.py [--exe PATH]   (after build
   (the helper's CPU time stays flat).
 - every op of ops.json sent with empty params: never unknown_op, bad_request exactly when the op has required params.
 - permissions.request of the four kinds without a Windows switch answers notApplicable.
+- ocr.languages must list the recognizer languages Windows PowerShell's OcrEngine lists; ocr_unavailable only when it
+  lists none. ocr.recognize answers are checked for shape (text is its lines joined, bounds within 0..1); by window_id
+  without a desktop it may fail with one of its op's codes.
 Requests that would act on or read other programs' windows are aimed at a window this script opens itself. A
 microphone permissions.request is never sent (not_sent): it opens the microphone, which may show a system prompt.
 apps.installed is checked for shape only and reported as a count. capture.window and capture.ambient are aimed at
@@ -25,7 +28,8 @@ a solid COLOUR, capture.window's PNG and JPEG decode (GDI+, in memory) to it at 
 max_bytes hold, a window of random pixels too big for one line answers a short too_large without max_bytes, a closed
 window answers window_gone; capture.ambient screen over the window averages to COLOUR and,
 with the replay's pid excluded, does not; a second test window taking the foreground gives workspace.changed;
-attention.sample's front is that window. presence.edge and input.activity need a session lock or real input, which the
+attention.sample's front is that window; with one English and one Chinese line painted in the test window,
+ocr.recognize by its window_id and by its capture.window PNG as image reads both lines, in that order. presence.edge and input.activity need a session lock or real input, which the
 replay never makes: only their watches are checked.
 Events the helper sends between answers go into the session that validate.check reads.
 Prints a line for each failed check and ends with `HELPER-WIN: <n> checks, <m> failed`; exits 1 when one failed.
@@ -52,9 +56,10 @@ SESSION = {'hello', 'cancel', 'shutdown'}
 IMPLEMENTED = {'screens.list', 'windows.list', 'windows.at_point', 'clipboard.read', 'apps.running', 'apps.activate',
                'process.usage', 'permissions.status', 'permissions.request', 'apps.installed', 'workspace.watch',
                'attention.sample', 'presence.watch', 'input.modifiers', 'input.watch', 'capture.window',
-               'capture.ambient'}
+               'capture.ambient', 'ocr.languages', 'ocr.recognize'}
 # Without a desktop (session 0) these may fail, with one of their op's own codes.
 CAPTURES = {'capture.window', 'capture.ambient'}
+OCRS = {'ocr.languages', 'ocr.recognize'}
 EVENTS = {'workspace.changed', 'presence.edge', 'input.activity'}
 WATCHES = {'workspace.watch', 'presence.watch', 'input.watch'}
 # attention.sample fields the Windows helper always answers null (CONTRACT §7.3; no UI Automation yet).
@@ -74,6 +79,7 @@ GONE_WINDOW_ID = 999  # ok-capture-ocr.ndjson's window that is not on screen
 # The noise window's physical size: about 3 bytes a pixel as PNG, over 16 MiB once base64 encoded.
 NOISE_SIZE = (2600, 1900)
 ABSENT_APP = 'c12-replay-absent.exe'
+OCR_LINES = ('Replay text', '屏幕文字测试')  # painted top to bottom in the test window for ocr.recognize
 
 
 def load_validate():
@@ -205,6 +211,7 @@ class TestWindow:
     def __init__(self):
         self.hwnd = self.second = None
         self.gone = None  # the id of a window created and destroyed at once
+        self.text = None  # lines label paints over the first window, black on white
         self.ready = threading.Event()
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
@@ -219,9 +226,30 @@ class TestWindow:
         user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
         user32.DefWindowProcW.restype = lresult
 
+        class PAINTSTRUCT(ctypes.Structure):
+            _fields_ = [('hdc', wintypes.HDC), ('fErase', wintypes.BOOL), ('rcPaint', wintypes.RECT),
+                        ('fRestore', wintypes.BOOL), ('fIncUpdate', wintypes.BOOL), ('rgbReserved', ctypes.c_byte * 32)]
+
+        user32.BeginPaint.argtypes = user32.EndPaint.argtypes = [wintypes.HWND, ctypes.POINTER(PAINTSTRUCT)]
+        user32.BeginPaint.restype = wintypes.HDC
+        user32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+        user32.FillRect.argtypes = [wintypes.HDC, ctypes.POINTER(wintypes.RECT), ctypes.c_void_p]
+
         def proc(hwnd, msg, wparam, lparam):
             if msg == 0x0002 and hwnd == self.hwnd:  # WM_DESTROY
                 user32.PostQuitMessage(0)
+                return 0
+            if msg == 0x000F and hwnd == self.hwnd and self.text:  # WM_PAINT
+                paint, client = PAINTSTRUCT(), wintypes.RECT()
+                dc = user32.BeginPaint(hwnd, ctypes.byref(paint))
+                user32.GetClientRect(hwnd, ctypes.byref(client))
+                user32.FillRect(dc, ctypes.byref(client), gdi32.GetStockObject(0))  # WHITE_BRUSH
+                previous = gdi32.SelectObject(dc, font)
+                gdi32.SetBkMode(dc, 1)  # TRANSPARENT
+                for n, line in enumerate(self.text):
+                    gdi32.TextOutW(dc, 24, 32 + n * 96, line, len(line))
+                gdi32.SelectObject(dc, previous)
+                user32.EndPaint(hwnd, ctypes.byref(paint))
                 return 0
             return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
@@ -237,6 +265,13 @@ class TestWindow:
         instance = kernel32.GetModuleHandleW(None)
         gdi32 = ctypes.WinDLL('gdi32')
         gdi32.CreateSolidBrush.restype = wintypes.HBRUSH
+        gdi32.GetStockObject.restype = gdi32.SelectObject.restype = gdi32.CreateFontW.restype = ctypes.c_void_p
+        gdi32.SelectObject.argtypes = [wintypes.HDC, ctypes.c_void_p]
+        gdi32.SetBkMode.argtypes = [wintypes.HDC, ctypes.c_int]
+        gdi32.TextOutW.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int, wintypes.LPCWSTR, ctypes.c_int]
+        gdi32.CreateFontW.argtypes = [ctypes.c_int] * 5 + [wintypes.DWORD] * 8 + [wintypes.LPCWSTR]
+        # 44 px bold Microsoft YaHei, which has Latin and CJK glyphs; DEFAULT_CHARSET, ANTIALIASED_QUALITY
+        font = gdi32.CreateFontW(-44, 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 4, 0, 'Microsoft YaHei')
         red, green, blue = COLOUR
         brush = gdi32.CreateSolidBrush(red | green << 8 | blue << 16)
         user32.RegisterClassW(ctypes.byref(WNDCLASSW(lpfnWndProc=self._proc, hInstance=instance, hbrBackground=brush,
@@ -285,6 +320,14 @@ class TestWindow:
         while user.IsWindow(self.second) and time.monotonic() < deadline:
             time.sleep(0.05)
         return not user.IsWindow(self.second)
+
+    def label(self, lines):
+        """Paints lines over the first window, black on white, or its plain COLOUR again for None."""
+        from ctypes import wintypes
+        self.text = lines
+        invalidate = ctypes.WinDLL('user32').InvalidateRect
+        invalidate.argtypes = [wintypes.HWND, ctypes.c_void_p, wintypes.BOOL]
+        invalidate(self.hwnd, None, True)
 
     def topmost(self, on):
         """The first window above every other non-topmost window, or back among them; never activated."""
@@ -469,6 +512,8 @@ def aim(request, helper, target, window):
     if op == 'capture.window':
         params['window_id'] = (window.gone if params['window_id'] == GONE_WINDOW_ID
                                else (target or {}).get('window_id', window.hwnd))
+    elif op == 'ocr.recognize' and 'window_id' in params:
+        params['window_id'] = (target or {}).get('window_id', window.hwnd)
     elif op == 'capture.ambient' and params['source'] == 'screen':
         params['rect'] = (target or {}).get('bounds', WINDOW_RECT)
         params['exclude_pids'] = [helper.proc.pid]
@@ -534,10 +579,54 @@ def check_capture(checks, name, request, got, target, window):
                       f'{name} is side x side RGBA', f'{result["width"]}x{result["height"]}, {len(rgba)} bytes')
 
 
+_host_ocr = []
+
+
+def host_ocr_languages():
+    """The tags of OcrEngine.AvailableRecognizerLanguages as Windows PowerShell reads them, apart from the helper."""
+    if not _host_ocr:
+        script = ('[void][Windows.Media.Ocr.OcrEngine,Windows.Foundation,ContentType=WindowsRuntime]; '
+                  '[Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages | ForEach-Object { $_.LanguageTag }')
+        run = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script],
+                             capture_output=True, text=True, timeout=120)
+        _host_ocr.append([line.strip() for line in run.stdout.splitlines() if line.strip()])
+        print(f'note: Windows has OCR recognizer languages {_host_ocr[0]}', flush=True)
+    return _host_ocr[0]
+
+
+def check_ocr(checks, name, request, got, target):
+    """ocr.languages against PowerShell's list; ocr.recognize's shape; ocr_unavailable only without a language."""
+    op, params = request['op'], request['params']
+    host = host_ocr_languages()
+    code = got.get('error', {}).get('code')
+    if code == 'ocr_unavailable':
+        checks.expect(not host, f'{name} is ocr_unavailable only without a recognizer language', f'Windows has {host}')
+        return
+    if not got.get('ok'):
+        print(f'note: {name} answers {code} ({got.get("error", {}).get("message")})', flush=True)
+        checks.expect(target is None and 'window_id' in params and code in SPEC['ops'][op]['errors'],
+                      f'{name} succeeds, or by window_id without a desktop fails with a code of its op',
+                      f'answer {got!a:.300}')
+        return
+    result = got['result']
+    if op == 'ocr.languages':
+        checks.expect(result['languages'] == host, f'{name} lists Windows\' recognizer languages',
+                      f'helper {result["languages"]}, PowerShell {host}')
+        return
+    lines = result['lines']
+    inside = all(0 <= b['x'] and 0 <= b['y'] and b['x'] + b['width'] <= 1.001 and b['y'] + b['height'] <= 1.001
+                 for b in (line['bounds'] for line in lines))
+    checks.expect(result['text'] == '\n'.join(line['text'] for line in lines) and inside
+                  and set(result['languages']) <= set(host) and result['languages'],
+                  f'{name} text is its lines, bounds within 0..1, languages Windows has', f'result {result!a:.300}')
+
+
 def check_answer(checks, name, request, got, hello, helper, target, window):
     op, params = request['op'], request['params']
     if op in CAPTURES:
         return check_capture(checks, name, request, got, target, window)
+    if op in OCRS:
+        return check_ocr(checks, name, request, got, target)
     if op in SESSION or op in IMPLEMENTED:
         if not checks.expect(got.get('ok') is True, f'{name} succeeds', f'answer {got!r:.300}'):
             return
@@ -760,6 +849,24 @@ def desktop(exe, checks, window, target):
     checks.expect(got.get('ok') is True and result.get('width') == result.get('height') == 2
                   and len(base64.b64decode(result.get('rgba', ''))) == 16, 'desktop capture.ambient wallpaper is 2 x 2 RGBA',
                   f'answer {got!r:.300}')
+
+    window.label(OCR_LINES)
+    try:
+        time.sleep(0.5)  # painted and composed
+        by_window = ask('ocr.recognize', window_id=window.hwnd)
+        shot = ask('capture.window', window_id=window.hwnd)
+    finally:
+        window.label(None)
+    image = shot.get('result', {}).get('image')
+    by_image = ask('ocr.recognize', image=image) if image else {'error': 'no capture.window image'}
+    for label, got in (('window_id', by_window), ('image', by_image)):
+        text = got.get('result', {}).get('text', '')
+        print(f'note: desktop ocr.recognize by {label} reads {text!a:.300} with {got.get("result", {}).get("languages")}',
+              flush=True)
+        at = [text.find(line) for line in OCR_LINES]
+        checks.expect(got.get('ok') is True and -1 not in at and at == sorted(at),
+                      f'desktop ocr.recognize by {label} reads the English and the Chinese line in order',
+                      f'answer {got!a:.600}')
 
     # After the screen readings, which it would cover.
     noise = NoiseWindow()
