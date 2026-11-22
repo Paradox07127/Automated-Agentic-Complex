@@ -16,6 +16,9 @@ from character_agent.services.settings import DEFAULTS, RuntimeSettings
 from models.model_auth import ModelError
 from models.model_backends import ModelSettings
 
+# validate() rejects the empty paths resolve_pi_runtime returns where no Pi runtime is installed.
+ABSOLUTE_RUNTIME = {"node": str(Path(__file__).resolve()), "runtime_dir": str(Path(__file__).resolve().parent)}
+
 # Fake runner: records every frame and its environment, answers ready and result.
 FAKE_RUNNER = r'''
 import json, os, sys
@@ -345,9 +348,9 @@ class SessionTests(PiConnectionCase):
     def test_pi_config_has_no_login_file(self):
         with self.assertRaises(TypeError):
             PiConfig("/tmp/pi", "anthropic", "m", auth_file="/tmp/auth.json")
-        self.assertNotIn("auth_file", PiConfig("/tmp/pi", "anthropic", "m", api_key="k").wire())
+        self.assertNotIn("auth_file", PiConfig("/tmp/pi", "anthropic", "m", api_key="k", **ABSOLUTE_RUNTIME).wire())
         with self.assertRaisesRegex(ValueError, "credentials_missing"):
-            PiConfig("/tmp/pi", "anthropic", "m", auth_source="existing_login").validate()
+            PiConfig("/tmp/pi", "anthropic", "m", auth_source="existing_login", **ABSOLUTE_RUNTIME).validate()
 
 
 class AutoSelectTests(PiConnectionCase):

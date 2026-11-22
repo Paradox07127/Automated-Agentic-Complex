@@ -111,7 +111,7 @@ class SessionConfigTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.approvals = []
         self.controller = SimpleNamespace(session_factory_override=None, state_dir=self.root, python=sys.executable,
-            harness_sites={}, settings=RuntimeSettings(self.root), _model=lambda config: "fixture", server=SimpleNamespace(models=None),
+            harness_sites={"harness.pi": str(self.root / "pi-site")}, settings=RuntimeSettings(self.root), _model=lambda config: "fixture", server=SimpleNamespace(models=None),
             _selected_runtime=lambda config: {"entry_supported": True, "path": str(self.root / "fixture" / "cli")},
             _pi_connection=lambda config: {"provider": "fixture", "auth_source": "none", "base_url": "http://127.0.0.1:1/v1"},
             _harness_permission=lambda request, source, name: self.approvals.append((request, source, name)) or "allow-once",

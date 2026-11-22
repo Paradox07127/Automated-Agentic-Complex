@@ -74,7 +74,10 @@ def probe():
                 snapshot["remaining"] = [len(workspace.list_scopes()),
                                          attention.db.execute("SELECT COUNT(*) FROM state_log").fetchone()[0]]
         if os.environ.get("TEST_PLUGIN_BRIEF"):
-            snapshot["brief"] = agent.observation_briefs.run_once()["state"]
+            briefs = agent.observation_briefs
+            # The daemon's own ticker starts the due daily brief under this lock at any moment after startup.
+            with briefs.worker_lock:
+                snapshot["brief"] = briefs._run_once("daily", None)["state"]
         print("snapshot " + json.dumps(snapshot), flush=True)
         observed.set()
 

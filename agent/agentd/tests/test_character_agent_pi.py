@@ -47,9 +47,13 @@ def capture_frames(session):
     return frames
 
 
+# validate() rejects the empty paths resolve_pi_runtime returns where no Pi runtime is installed.
+ABSOLUTE_RUNTIME = {'node': str(Path(__file__).resolve()), 'runtime_dir': str(Path(__file__).resolve().parent)}
+
+
 class PiConfigTests(unittest.TestCase):
     def config(self, **changes):
-        return replace(PiConfig('/tmp/pi-test', 'openai', 'fixture', api_key='private-api-key'), **changes)
+        return replace(PiConfig('/tmp/pi-test', 'openai', 'fixture', api_key='private-api-key', **ABSOLUTE_RUNTIME), **changes)
 
     def test_private_configuration_has_no_secret_in_repr_or_public(self):
         config = self.config()
