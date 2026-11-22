@@ -129,8 +129,12 @@
   align-items: center;
   overflow: hidden;
   color: var(--ef-text-2);
-  font: var(--ef-fw-medium) 11px / 16px var(--ef-font-num);
+  font: var(--ef-fw-medium) 12px / 16px var(--ef-font-num);
   white-space: nowrap;
+}
+
+.d small {
+  font-size: inherit;
 }
 
 .d::before {
