@@ -525,3 +525,19 @@ test('the ops check their arguments and reach the preview host', async () => {
   assert.deepEqual(await call(host, 'avatar.preview.sequence', [{ clips: ['old'], blend_s: [] }]),
     { ok: false, error: { code: 'unavailable', detail: 'no live preview' } });
 });
+
+test('her hidden layers go to the service as hidden_layers, and showing them all again is another load', async () => {
+  let hidden: string[] = ['coat'];
+  const view = new FakeView();
+  const c = new PreviewController({ view, avatar: () => ({ character: 'si', appearance: null, hiddenLayers: hidden }), library: async () => library });
+  const rect = { x: 0, y: 0, w: 10, h: 10 };
+  await c.show(rect, null, false, 0);
+  assert.deepEqual(view.loads.at(-1)?.hiddenLayers, ['coat']);
+  hidden = [];
+  await c.show(rect, null, false, 0);
+  assert.equal(view.loads.at(-1)?.hiddenLayers, undefined);
+  const { s, transport } = session();
+  s.load(selection({ hiddenLayers: ['coat', 'gloves'] })).catch(() => {});
+  assert.deepEqual(transport.sent.at(-1)?.hidden_layers, ['coat', 'gloves']);
+  s.disconnect();
+});

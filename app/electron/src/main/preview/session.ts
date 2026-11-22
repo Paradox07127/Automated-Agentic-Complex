@@ -44,6 +44,8 @@ export interface PreviewSelection {
   renderArgs?: string[];
   /** Output pixels [w, h] (previewOutput); absent keeps the service's 480×576. */
   output?: [number, number];
+  /** Layer ids the desktop hides; absent shows every layer. */
+  hiddenLayers?: string[];
 }
 
 const OUTPUT_HEIGHTS = [576, 864, 1152, 1440, 1728];
@@ -119,6 +121,7 @@ export class PreviewSession<S> {
       if (value.loop && !idle) message.loop = true;
       if (value.renderArgs !== undefined) message.render_args = value.renderArgs;
       if (value.output !== undefined) message.output = value.output;
+      if (value.hiddenLayers !== undefined) message.hidden_layers = value.hiddenLayers;
       if (!this.send(message)) {
         this.fail('预览请求发不出去（太大或连接已断）');
         return this.settled();

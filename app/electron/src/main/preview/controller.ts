@@ -18,8 +18,8 @@ export interface PreviewView {
 
 export interface PreviewControllerOptions {
   view: PreviewView;
-  /** The avatar's character, null before one is known, and her appearance. */
-  avatar(): { character: string | null; appearance: string | null };
+  /** The avatar's character, null before one is known, her appearance and the layer ids she has hidden. */
+  avatar(): { character: string | null; appearance: string | null; hiddenLayers?: string[] };
   /** The character's motion library; null when the library does not have her. */
   library(character: string): Promise<MotionLibrary | null>;
   /** The character's remembered mod settings by appearance (`avatar.modSettings.*`). */
@@ -87,7 +87,8 @@ export class PreviewController implements PreviewHost {
     const renderArgs = this.options.renderArgs?.();
     return this.options.view.load({ bundle: library.bundle, sha256: library.sha256, character: library.character, clip, facial: null,
       rate: 1, appearance: avatar.appearance, request: revision, modSettings: Object.keys(mods).length > 0 ? mods : null,
-      loop: loop && clip !== null, ...(renderArgs && { renderArgs }) });
+      loop: loop && clip !== null, ...(renderArgs && { renderArgs }),
+      ...(avatar.hiddenLayers?.length ? { hiddenLayers: avatar.hiddenLayers } : {}) });
   }
 
   hide(): void {

@@ -388,7 +388,8 @@ const preview = (() => {
   const catalog = config.characterCatalog;
   return new PreviewController({
     view: new WindowPreview({ addon, window: () => mainWindow, log: (line) => log(line) }),
-    avatar: () => ({ character: currentCharacterOf(switcher, hostLink, launched), appearance: hostLink.currentAppearance }),
+    avatar: () => ({ character: currentCharacterOf(switcher, hostLink, launched), appearance: hostLink.currentAppearance,
+      hiddenLayers: hostLink.hiddenLayers }),
     library: async (id) => (catalog ? loadMotionLibrary(catalog, id) : null),
     modSettings: (id) => looks?.modSettings(id) ?? {},
     renderArgs: () => lookArguments(readObject(configPath)),

@@ -21,6 +21,7 @@ import type { MotionLibrary } from './useMotionLibrary';
 import { useImportState } from './useImportState';
 import { useLook } from './useLook';
 import { useOutfitImport } from './useOutfitImport';
+import { previewLookChanged } from './usePreview';
 import type { SwitchState } from './useSwitch';
 import styles from './Operator.module.css';
 
@@ -231,6 +232,7 @@ export function Operator(p: OperatorProps) {
       .then(
         () => {
           setHiddenSet({ character: p.current, hidden });
+          previewLookChanged();
           p.toast(on ? `已显示「${name}」` : `已隐藏「${name}」`);
         },
         (e: unknown) => {

@@ -7,6 +7,12 @@ import { CHARACTER_LAYERS, CHARACTER_LOOKS, NOW } from '../../src/mock/fixtures'
 import { MOTIONS, STATE_WITH_CAUSES } from '../../src/mock/character';
 import { Operator, type OperatorProps } from '../../src/pages/character/Operator';
 
+const lookChanged = vi.hoisted(() => vi.fn());
+vi.mock('../../src/pages/character/usePreview', async (actual) => ({
+  ...(await actual<typeof import('../../src/pages/character/usePreview')>()),
+  previewLookChanged: lookChanged,
+}));
+
 const noop = () => {};
 let bridge: AgenticComplexBridge;
 
@@ -57,6 +63,8 @@ describe('角色页 · 服装分层', () => {
     await waitFor(() => expect(set).toHaveBeenCalledWith(['coat']));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('已隐藏「外套」'));
     expect(layer('外套').getAttribute('aria-checked')).toBe('false');
+    // The stage preview shows again, so it draws her without the coat.
+    expect(lookChanged).toHaveBeenCalledTimes(1);
   });
 
   it('has no layer options without layers', () => {
