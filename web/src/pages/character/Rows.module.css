@@ -52,34 +52,6 @@
   color: #fff;
 }
 
-.main {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  min-width: 0;
-  padding: 8px 12px;
-}
-
-.nm {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.end {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-left: auto;
-}
-
 .meta {
   font-size: var(--ef-fs-small);
   color: rgb(255 255 255 / 72%);
@@ -104,13 +76,6 @@
   width: 6px;
   height: 6px;
   background: #ffe600;
-}
-
-/* A line under the row's main text (why a value was adjusted). */
-.note {
-  flex-basis: 100%;
-  font-size: var(--ef-fs-small);
-  color: rgb(255 255 255 / 72%);
 }
 
 /* Group header row: bold title on the darker band, its count and action on the right. */

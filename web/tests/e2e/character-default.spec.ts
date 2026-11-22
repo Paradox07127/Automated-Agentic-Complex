@@ -41,10 +41,10 @@ test('character-default: roster heads stay small, look options and layer switche
   expect(tallest).toBeLessThanOrEqual(48);
   expect(await smallChinese(page)).toEqual([]);
   await page.goto('main.html#/character?still=1&pane=look');
-  await expect(page.getByRole('listbox', { name: '外观' }).getByRole('option').first()).toBeVisible();
+  await expect(page.getByRole('group', { name: '外观' }).getByRole('button').first()).toBeVisible();
   // 显示 has its own tab in the detail panel.
   await page.getByRole('tablist', { name: '角色页签' }).getByRole('tab', { name: '显示' }).click();
-  await expect(page.getByRole('group', { name: '服装分层' }).getByRole('switch', { name: '外套' })).toBeVisible();
+  await expect(page.getByRole('group', { name: '服装分层' }).getByRole('radiogroup', { name: '外套' })).toBeVisible();
   await expect(page.locator('main')).not.toContainText(/Plan\d|\bROLE\b/);
   expect(await page.locator('main [data-stage] :text-is("NOW")').evaluateAll((els) => els.every((e) => e.closest('[aria-hidden="true"]')))).toBe(true);
   expect(await smallChinese(page)).toEqual([]);

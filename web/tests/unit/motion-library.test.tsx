@@ -81,7 +81,7 @@ describe('motion library', () => {
     await waitFor(() => expect(itemOf()).not.toBeNull());
     expect(within(itemOf()!).getByText('BVH')).toBeTruthy();
 
-    await click(within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name: '动作' }));
+    await click(screen.getByRole('tab', { name: '动作表' }));
     await waitFor(() => expect(rowOf()).not.toBeNull());
     expect(within(rowOf()!).getByText('BVH')).toBeTruthy();
     const only = screen.getByRole('button', { name: /只看导入/ });
@@ -134,7 +134,7 @@ describe('motion library', () => {
     const entry = BVH;
     render(
       <ImportPane
-        outfit={{ state: 'idle', run: () => {}, remove: () => {}, removing: false, warned: null, dismiss: () => {} }}
+        outfit={{ state: 'idle', run: () => {}, remove: () => {}, removing: false, landed: null, warned: null, dismiss: () => {} }}
         looks={[]}
         motionImport={{ running: false, note: null, run: () => {} }}
         library={{ byId: { [ID]: entry }, rename: () => {}, remove: () => {}, busy: false, refetch: () => {} }}

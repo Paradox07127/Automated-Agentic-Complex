@@ -1,6 +1,6 @@
 // Live preview of the character page: the stage's rect goes to avatar.preview.show; overlays, blocks and unmounting hide it.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -145,9 +145,9 @@ describe('useLivePreview', () => {
     const bridge = window.agenticComplex!;
     window.agenticComplex = { ...bridge, avatar: { ...bridge.avatar, modSettings: { ...bridge.avatar.modSettings, set } } };
     const settings: ModSettingRow[] = [{ id: 'coat', name: '外套', category: 'clothing', default: 1, values: [{ value: 0, name: '隐藏' }, { value: 1, name: '显示' }] }];
-    const { findByRole } = render(<><Probe /><ModSettings character="birch" appearance="summer" settings={settings} disabled={false} toast={() => {}} /></>);
+    const { findByRole } = render(<><Probe /><ModSettings character="birch" appearance={{ id: 'summer', name: '夏装' }} settings={settings} ro={null} toast={() => {}} /></>);
     await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
-    fireEvent.click(await findByRole('switch', { name: '外套' }));
+    fireEvent.click(within(await findByRole('radiogroup', { name: '外套' })).getByRole('radio', { name: '隐藏' }));
     await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(show).toHaveBeenCalledTimes(2));
     expect(show).toHaveBeenLastCalledWith({ x: 40, y: 120, w: 600, h: 360 });

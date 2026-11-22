@@ -196,9 +196,9 @@ for (const theme of ['dark', 'light'] as const) {
   });
 }
 
-// The 外观 and 显示 tabs head their rows; the 大小 row names itself left of its presets, and the slider sits on the presets' line or wraps under them.
+// The 外观 and 显示 tabs head their rows; the 大小 title bar heads one row that holds the presets (while they fit), the slider and the readout on one line.
 for (const w of [900, 1050, 1280]) {
-  test(`${w}: 外观, 显示 and 大小 head their options, and the 大小 slider sits beside or under its presets`, async ({ page }) => {
+  test(`${w}: 外观, 显示 and 大小 head their rows, and the 大小 row keeps presets, slider and readout on one line`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: 800 });
     await page.goto('main.html#/character?still=1&pane=look');
     const tabs = page.getByRole('tablist', { name: '角色页签' });
@@ -208,17 +208,23 @@ for (const w of [900, 1050, 1280]) {
       const c = (await list.boundingBox())!;
       expect(c.y, tab).toBeGreaterThanOrEqual(t.y + t.height - 1);
     };
-    await heads('外观', pane.getByRole('listbox', { name: '外观' }));
-    const name = (await pane.getByText('大小', { exact: true }).boundingBox())!;
-    const presets = (await pane.getByRole('listbox', { name: '大小预设' }).boundingBox())!;
+    await heads('外观', pane.getByRole('group', { name: '外观' }));
+    const title = (await pane.getByRole('heading', { name: '大小', exact: true }).boundingBox())!;
+    const row = (await pane.locator('[data-size-row]').boundingBox())!;
     const slider = (await pane.getByRole('slider', { name: '大小' }).boundingBox())!;
-    expect(presets.x).toBeGreaterThan(name.x + name.width - 1);
-    expect(Math.abs(presets.y + presets.height / 2 - (name.y + name.height / 2))).toBeLessThan(8);
-    if (slider.y >= presets.y + presets.height - 1) {
-      expect(slider.x + slider.width).toBeGreaterThan(presets.x);
-    } else {
-      expect(Math.abs(presets.y + presets.height / 2 - (slider.y + slider.height / 2))).toBeLessThan(8);
-      expect(slider.x).toBeGreaterThan(presets.x + presets.width - 1);
+    const out = (await pane.locator('[data-size-row] output').boundingBox())!;
+    expect(row.y).toBeGreaterThanOrEqual(title.y + title.height - 1);
+    for (const box of [slider, out]) {
+      expect(box.y).toBeGreaterThanOrEqual(row.y - 1);
+      expect(box.y + box.height).toBeLessThanOrEqual(row.y + row.height + 1);
+    }
+    expect(out.x).toBeGreaterThan(slider.x + slider.width - 1);
+    expect(out.x + out.width).toBeLessThanOrEqual(row.x + row.width + 1);
+    const presets = pane.getByRole('radiogroup', { name: '大小预设' });
+    if (await presets.isVisible()) {
+      const p = (await presets.boundingBox())!;
+      expect(slider.x).toBeGreaterThan(p.x + p.width - 1);
+      expect(Math.abs(p.y + p.height / 2 - (slider.y + slider.height / 2))).toBeLessThan(10);
     }
     // 显示 has its own tab in the detail panel.
     await tabs.getByRole('tab', { name: '显示' }).click();

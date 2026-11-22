@@ -1,57 +1,305 @@
-/* 角色页「模组设置」: the category groups one under another, the ◀ value ▶ stepper, the rollback error last. */
+/* 角色页「模组设置」: a title bar per category and its switch rows, the rollback bar; the switch row is also the 显示 and 大小 row of LookPane. */
 .mods {
+  --ms-amber: #ffd36b;
+
   display: flex;
   flex-direction: column;
-  gap: var(--ef-sp-12);
+  gap: 6px;
   min-width: 0;
 }
 
-.step {
-  display: inline-flex;
-  align-items: center;
-  height: 30px;
-  background: rgb(0 0 0 / 22%);
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 4px;
+  scroll-margin-top: 4px;
 }
 
-.arrow {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 0;
-  background: none;
+
+/* The switch row: a darker lead cell (index, or a yellow diamond and CHG once changed), the name, the controls, a barcode. */
+.row {
+  --ms-row: rgb(70 70 70 / 88%);
+  --ms-row-hover: rgb(84 84 84 / 92%);
+  --ms-lead: rgb(46 46 46 / 94%);
+  --ms-row-h: 52px;
+  --ms-lead-w: 64px;
+
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  min-height: var(--ms-row-h);
+  background: linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 40%), var(--ms-row);
   color: #fff;
-  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 7%),
+    inset 0 -2px 0 rgb(0 0 0 / 14%);
+  backdrop-filter: blur(6px);
+  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
 }
 
-.arrow:hover:not(:disabled) {
-  background: rgb(255 255 255 / 14%);
+.row:hover {
+  --ms-row: var(--ms-row-hover);
 }
 
-.arrow:disabled {
-  color: rgb(255 255 255 / 28%);
-  cursor: default;
+/* The row the keys act on: a thin yellow frame and a small triangle outside its right edge. */
+.row:focus-visible {
+  outline: 1px solid rgb(255 241 0 / 75%);
+  outline-offset: -1px;
 }
 
-.arrow:focus-visible {
-  outline: 2px solid #ffe600;
-  outline-offset: -2px;
+.row:focus-visible::after {
+  content: '';
+  position: absolute;
+  top: calc(50% - 4px);
+  right: -9px;
+  border: 4px solid transparent;
+  border-right-color: var(--ef-accent);
 }
 
-.val {
-  min-width: 96px;
-  max-width: 160px;
-  overflow: hidden;
-  padding: 0 4px;
-  font-weight: 600;
+.row[data-fail] {
+  box-shadow:
+    inset 4px 0 0 var(--ef-danger),
+    inset 0 -2px 0 rgb(0 0 0 / 14%);
+}
+
+.mods[data-off] .row:not([data-busy]) {
+  opacity: 0.72;
+}
+
+.lead {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--ms-lead-w);
+  background: var(--ms-lead);
+}
+
+.idx {
+  font: 600 11px / 1 var(--ef-font-num);
+  letter-spacing: 0.06em;
+  opacity: 0.5;
+}
+
+.chgMicro {
+  position: absolute;
+  right: 0;
+  bottom: 6px;
+  left: 0;
+  font: 600 9px / 1 var(--ef-font-num);
+  letter-spacing: 0.14em;
   text-align: center;
+  color: var(--ef-accent);
+  opacity: 0.85;
+}
+
+.lead [data-stub='Diamond'] {
+  filter: drop-shadow(0 0 4px rgb(255 241 0 / 70%));
+}
+
+/* Applying: a yellow sweep over the row and a short bar under the lead. */
+.row[data-busy] .main::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 30%, rgb(255 241 0 / 16%) 48%, rgb(255 241 0 / 5%) 60%, transparent 70%);
+  pointer-events: none;
+}
+
+.row[data-busy] .lead::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+  left: 14px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--ef-accent) 0 55%, rgb(255 255 255 / 20%) 55%);
+}
+
+.main {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 6px 12px 6px 16px;
+}
+
+.col {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  font: 700 15px / 1.3 var(--ef-font-sans);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
+.busy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ef-accent);
+}
+
+.busy > * {
+  opacity: 0.85;
+}
+
+/* Why the drawn value differs from the one chosen: an amber ADJUSTED tag and the reason. */
+.note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--ms-amber);
+}
+
+.noteTag,
+.errTag {
+  flex: none;
+  padding: 1px 4px;
+  font: 700 9px / 1.2 var(--ef-font-num);
+  letter-spacing: 0.12em;
+  color: #1a1a1a;
+  background: var(--ms-amber);
+}
+
+.end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.def {
+  font-size: 12px;
+  color: rgb(255 255 255 / 55%);
+  white-space: nowrap;
+}
+
+.def b {
+  margin-left: 3px;
+  font-weight: 700;
+  color: rgb(255 255 255 / 80%);
+}
+
+/* ⇄ 对比: back to the row's value before its last change, and again for A / B. */
+.flip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px 0 6px;
+  border: 0;
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+  font: 700 12px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 22%);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+
+.flip > :first-child {
+  color: var(--ef-accent);
+}
+
+.flip:hover:not(:disabled) {
+  background: rgb(255 255 255 / 18%);
+}
+
+.flip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.flip:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -2px;
+}
+
+.flip kbd {
+  padding: 0 4px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  font: 600 10px / 14px var(--ef-font-num);
+  color: rgb(255 255 255 / 75%);
+}
+
+.bc {
+  display: flex;
+  flex: none;
+  align-items: center;
+  color: #fff;
+}
+
+/* The rollback right under what failed: a red edge, ROLLBACK, why, 再试一次. */
 .err {
-  margin: 0;
-  color: var(--ef-danger-text);
-  font-size: var(--ef-fs-small);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  margin-top: 2px;
+  padding: 0 10px 0 16px;
+  background: linear-gradient(90deg, rgb(92 38 32 / 92%), rgb(70 44 40 / 88%));
+  color: #fff;
+  font-size: 13px;
+  box-shadow: inset 4px 0 0 var(--ef-danger);
+}
+
+.errTag {
+  background: var(--ef-danger);
+}
+
+.err [role='alert'] {
+  flex: 1;
+  min-width: 0;
+}
+
+@container op (max-width: 1100px) {
+  .row {
+    --ms-row-h: 42px;
+    --ms-lead-w: 40px;
+  }
+
+  .main {
+    gap: 8px;
+    padding: 4px 8px 4px 10px;
+  }
+
+  .name {
+    font-size: 13px;
+  }
+
+  .def,
+  .bc,
+  .flip kbd,
+  .group :global([data-stub='MicroLabel']) {
+    display: none;
+  }
+
+  .flip {
+    height: 24px;
+    padding: 0 6px 0 5px;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    transition: none;
+  }
 }

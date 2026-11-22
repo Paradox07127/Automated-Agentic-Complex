@@ -159,7 +159,7 @@ describe('operator view', () => {
     vi.spyOn(bridge.avatar, 'state').mockResolvedValue({ running: true, visible: true, scale: 1.25, clickThroughAll: false, speaking: false, characterId: 'si', appearanceId: 'uniform' });
     render(<Op pane="look" />);
     await waitFor(() => expect((screen.getByRole('slider', { name: '大小' }) as HTMLInputElement).value).toBe('125'));
-    expect(within(screen.getByRole('listbox', { name: '外观' })).getByRole('option', { selected: true }).textContent).toContain('制服');
+    expect(within(screen.getByRole('group', { name: '外观' })).getByRole('button', { pressed: true }).textContent).toContain('制服');
     expect(screen.queryByRole('option', { name: '武器' })).toBeNull();
   });
 

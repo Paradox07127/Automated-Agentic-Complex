@@ -137,8 +137,8 @@ export function Operator(p: OperatorProps) {
   // 编排 is absent without an avatar.
   const pane = p.pane === 'chain' && !p.chains ? 'motion' : (p.pane ?? 'motion');
   const [lookTab, setLookTab] = useState<LookTab>('look');
-  // 导入 sits under both 外观 and 动作; the rail lights the one it was opened from.
-  const [importOf, setImportOf] = useState<'look' | 'motion'>('look');
+  // 导入 sits under both 外观 (outfit mods) and 动作 (motions); the rail lights the one it was opened from, 动作 for a URL that opens it.
+  const [importOf, setImportOf] = useState<'look' | 'motion'>('motion');
   const side = p.side;
   const at: RailItem = side ? side.of : pane === 'overview' ? 'overview' : pane === 'look' ? 'look' : pane === 'import' ? importOf : 'motion';
   const modTable = useModTable(p.current, at === 'look');
@@ -188,7 +188,6 @@ export function Operator(p: OperatorProps) {
   const appearances = ch?.appearances ?? [];
   const lookRow = appearances.find((l) => l.id === look.id) ?? appearances[0];
   const lookId = lookRow?.id ?? '';
-  const ro = p.offline || switching;
   const layers = (ch?.layers ?? []).map((l) => (hiddenSet?.character === ch?.id ? { ...l, visible: !hiddenSet?.hidden.includes(l.id) } : l));
 
   const mode: StageMode = side?.of === 'photo' ? 'photo' : !side && pane === 'overview' ? 'overview' : 'detail';
@@ -250,15 +249,14 @@ export function Operator(p: OperatorProps) {
     />
   );
 
-  const setLayer = (id: string, on: boolean, name: string) => {
-    const hidden = layers.filter((x) => (x.id === id ? !on : !x.visible)).map((x) => x.id);
+  const sendLayers = (hidden: string[], done: string) => {
     getBridge()
       .avatar.setLayers(hidden)
       .then(
         () => {
           setHiddenSet({ character: p.current, hidden });
           previewLookChanged();
-          p.toast(on ? `已显示「${name}」` : `已隐藏「${name}」`);
+          p.toast(done);
         },
         (e: unknown) => {
           const code = (e as { code?: string } | null)?.code;
@@ -266,6 +264,11 @@ export function Operator(p: OperatorProps) {
         },
       );
   };
+  const setLayer = (id: string, on: boolean, name: string) =>
+    sendLayers(
+      layers.filter((x) => (x.id === id ? !on : !x.visible)).map((x) => x.id),
+      on ? `已显示「${name}」` : `已隐藏「${name}」`,
+    );
 
   return (
     <div ref={opRef} className={styles.op} data-view="operator" data-mode={mode} data-panel={panel} data-bare={isBare || undefined} data-theme="light">
@@ -326,9 +329,9 @@ export function Operator(p: OperatorProps) {
             </section>
           ) : pane === 'chain' ? (
             <section aria-label="编排">{p.chains}</section>
-          ) : pane === 'look' ? (
+          ) : pane === 'look' || (pane === 'import' && importOf === 'look') ? (
             <LookPane
-              tab={lt}
+              tab={pane === 'import' ? 'import' : lt}
               character={p.current}
               appearances={appearances}
               lookId={lookId}
@@ -336,8 +339,12 @@ export function Operator(p: OperatorProps) {
               onWear={(l) => void wear(l)}
               layers={layers}
               onLayer={setLayer}
+              onShowAll={() => sendLayers([], '已全部显示')}
               mods={mods}
-              ro={ro}
+              modsUnreadable={modTable.unreadable}
+              ro={p.offline ? '角色未运行' : switching ? '切换中' : null}
+              outfit={outfit}
+              importing={importState}
               toast={p.toast}
             />
           ) : (

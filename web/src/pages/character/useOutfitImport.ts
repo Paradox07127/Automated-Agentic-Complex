@@ -11,7 +11,9 @@ export interface OutfitImport {
   remove: (id: string, name: string) => void;
   /** A remove is running. */
   removing: boolean;
-  /** The last import's appearance and its warnings, until `dismiss`; null when it had none. */
+  /** The last import's appearance and its warnings, until `dismiss`. */
+  landed: { id: string; name: string; warnings: string[] } | null;
+  /** `landed` when it has warnings. */
   warned: { id: string; name: string; warnings: string[] } | null;
   dismiss: () => void;
 }
@@ -35,7 +37,7 @@ export function useOutfitImport(
     return () => void (now.current.live = false);
   }, []);
   const [removing, setRemoving] = useState(false);
-  const [warned, setWarned] = useState<OutfitImport['warned']>(null);
+  const [landed, setLanded] = useState<OutfitImport['landed']>(null);
   const why = (e: unknown) => {
     const err = e as Partial<BridgeError> | null;
     return err?.code === 'not_implemented' ? '这个版本还不支持' : err?.code ? outfitImportReason(err.code, err.detail) : '桌面角色没有回应';
@@ -48,7 +50,7 @@ export function useOutfitImport(
       .character.importOutfit()
       .then(
         (r) => {
-          setWarned(r.warnings.length > 0 ? { ...r.appearance, warnings: r.warnings } : null);
+          setLanded({ ...r.appearance, warnings: r.warnings });
           if (r.warnings.length === 0) toast(`已导入「${r.appearance.name}」`);
           else {
             const words = r.warnings.slice(0, 2).map(outfitImportWarning).join('；');
@@ -84,5 +86,5 @@ export function useOutfitImport(
         },
       );
   };
-  return { state, run, remove, removing, warned, dismiss: () => setWarned(null) };
+  return { state, run, remove, removing, landed, warned: landed && landed.warnings.length > 0 ? landed : null, dismiss: () => setLanded(null) };
 }

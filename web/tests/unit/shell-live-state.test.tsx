@@ -57,7 +57,7 @@ describe('character look follows avatar.onState', () => {
         pane="look"
       />,
     );
-  const look = () => within(screen.getByRole('listbox', { name: '外观' })).getByRole('option', { selected: true }).textContent;
+  const look = () => within(screen.getByRole('group', { name: '外观' })).getByRole('button', { pressed: true }).textContent;
 
   it('moves the size slider and the look when the menu or the resize overlay changes them, and unsubscribes on unmount', async () => {
     let push: (s: AvatarState) => void = noop;

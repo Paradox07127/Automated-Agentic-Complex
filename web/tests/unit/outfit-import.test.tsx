@@ -1,4 +1,4 @@
-// skins-15w: 角色页「导入」页签的「导入外观…」调 character.importOutfit，成功后导入的外观列在下面、外观选项里也有；每个导入的外观可以删除。
+// skins-15w: 外观的「导入」页签的黄色键调 character.importOutfit，进度卡跟着导入走；导入完「刚导入」横幅落在模组设置或外观最上面；导入的外观在外观页签的行上删除。
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,89 +51,103 @@ function Harness({ toast, pane, current }: { toast: Toast; pane: 'import' | 'loo
   );
 }
 
-/** Opens on 导入; `show('look')` switches to the 外观 pane, as the page's tab does. */
-const mount = (toast: Toast = noop) => {
+/** Opens 外观's 导入 tab; `show('look')` switches to the 外观 pane, as the page's tab does. */
+const mount = async (toast: Toast = noop) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const at = (pane: 'import' | 'look', current?: string) => (
     <QueryClientProvider client={client}>
       <Harness toast={toast} pane={pane} current={current} />
     </QueryClientProvider>
   );
-  const ui = render(at('import'));
+  const ui = render(at('look'));
+  // 导入 opened from 外观 imports outfit mods.
+  fireEvent.click(await screen.findByRole('tab', { name: '导入' }));
+  ui.rerender(at('import'));
   return { ...ui, show: (pane: 'import' | 'look', current?: string) => ui.rerender(at(pane, current)) };
 };
 
-const looks = () => screen.queryByRole('list', { name: '导入的外观' });
-const look = async (name: string) => within(await screen.findByRole('group', { name }));
+const key = () => screen.findByRole('button', { name: '选择 mod 目录…' });
+/** An appearance row of 外观 and what sits on it (删除…, WEARING). */
+const look = async (name: string) => within((await screen.findByRole('button', { name: new RegExp(`^${name}`) })).closest('[data-look]') as HTMLElement);
 
 describe('角色页 · 导入外观', () => {
-  it('has no import button without a native file picker', async () => {
+  it('has no import key without a native file picker', async () => {
     use(false);
-    mount();
-    await screen.findByRole('region', { name: '外观与 mod' });
-    expect(screen.queryByRole('button', { name: '导入外观…' })).toBeNull();
+    await mount();
+    await screen.findByRole('heading', { name: '导入外观模组' });
+    expect(screen.queryByRole('button', { name: '选择 mod 目录…' })).toBeNull();
   });
 
-  it('lists the imported appearances on 导入, and neither 导入外观… nor 删除 on 外观', async () => {
+  it('imports on 导入 only, and offers 删除… on the imported rows of 外观 only', async () => {
     use(true);
-    const { show } = mount();
-    await screen.findByRole('button', { name: '导入外观…' });
-    expect(within(looks()!).getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['夏装', '野外装']);
-    show('look');
-    await screen.findByRole('listbox', { name: '外观' });
-    expect(screen.queryByRole('button', { name: '导入外观…' })).toBeNull();
+    const { show } = await mount();
+    await key();
     expect(screen.queryByRole('button', { name: /删除/ })).toBeNull();
+    expect(screen.queryByRole('group', { name: '外观' })).toBeNull();
+    show('look');
+    await screen.findByRole('group', { name: '外观' });
+    expect(screen.queryByRole('button', { name: '选择 mod 目录…' })).toBeNull();
+    expect((await look('夏装')).getByRole('button', { name: '删除…' })).toBeTruthy();
+    expect((await look('野外装')).getByRole('button', { name: '删除…' })).toBeTruthy();
+    expect((await look('日常')).queryByRole('button', { name: '删除…' })).toBeNull();
   });
 
-  it('calls character.importOutfit and disables the button while it runs', async () => {
+  it('calls character.importOutfit and disables the key while it runs', async () => {
     const bridge = use(true);
     const imp = vi.spyOn(bridge.character, 'importOutfit').mockReturnValue(new Promise(() => {}));
-    mount();
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    await mount();
+    fireEvent.click(await key());
     expect(imp).toHaveBeenCalledTimes(1);
-    const busy = await screen.findByRole('button', { name: '导入中…' });
-    expect(busy.getAttribute('aria-disabled')).toBe('true');
+    const busy = (await screen.findByRole('button', { name: '导入中…' })) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
     fireEvent.click(busy);
     expect(imp).toHaveBeenCalledTimes(1);
   });
 
-  it('lists the new appearance with its warning in words until closed, and offers it 导入 on 外观', async () => {
+  it('lands the new appearance on top of 外观 with its warning in words until 收起提示, and lists it there', async () => {
     use(true);
     const toast = vi.fn();
-    const { show } = mount(toast);
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    const { show } = await mount(toast);
+    fireEvent.click(await key());
     await waitFor(() => expect(toast).toHaveBeenCalledWith('已导入「示例外观」，有 1 处要留意：这个开关在 mod 里写死了，不能切换', { severity: 'warning' }));
-    const row = await look('示例外观');
-    expect(row.getByRole('list', { name: '「示例外观」导入提示' }).textContent).toBe('这个开关在 mod 里写死了，不能切换');
-    fireEvent.click(row.getByRole('button', { name: '关闭提示' }));
+    // It has no switches, so it stays on 导入 and the banner waits on 外观.
     expect(screen.queryByRole('list', { name: '「示例外观」导入提示' })).toBeNull();
     show('look');
-    const opts = within(await screen.findByRole('listbox', { name: '外观' })).getAllByRole('option');
-    expect(opts.map((o) => o.textContent)).toContain('示例外观导入');
+    const banner = (await screen.findByText(/已导入/)).closest('[role="status"]') as HTMLElement;
+    expect(banner.textContent).toContain('已导入「示例外观」');
+    expect(banner.textContent).toContain('1 处导入提示');
+    expect(within(screen.getByRole('list', { name: '「示例外观」导入提示' })).getByRole('listitem').textContent).toBe('01这个开关在 mod 里写死了，不能切换');
+    expect((await look('示例外观')).getByRole('button', { pressed: true }).textContent).toBe('示例外观MOD导入的外观');
+    fireEvent.click(within(banner).getByRole('button', { name: '收起提示' }));
+    expect(screen.queryByRole('list', { name: '「示例外观」导入提示' })).toBeNull();
+    expect(screen.queryByText(/已导入「示例外观」/)).toBeNull();
   });
 
-  it('puts the new appearance on and, when it has mod switches, opens 模组设置 on it', async () => {
+  it('puts the new appearance on and, when it has mod switches, opens 模组设置 on it under the landed banner', async () => {
     const bridge = use(true);
     vi.spyOn(bridge.character, 'importOutfit').mockResolvedValue({ ok: true, appearance: { id: 'imported_field', name: '野外装' }, warnings: [] });
     const wear = vi.spyOn(bridge.avatar, 'setAppearance');
-    const { show } = mount();
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    const { show } = await mount();
+    fireEvent.click(await key());
     await waitFor(() => expect(wear).toHaveBeenCalledWith('imported_field'));
     await waitFor(() => expect(window.location.hash).toContain('pane=look'));
     show('look');
     const tab = await screen.findByRole('tab', { name: '模组设置' });
     expect(tab.getAttribute('aria-selected')).toBe('true');
     expect(await screen.findByRole('group', { name: 'mod 设置' })).toBeTruthy();
+    expect(screen.getByText(/已导入/).closest('[role="status"]')?.textContent).toContain('已导入「野外装」，6 个开关按类别排好');
     fireEvent.click(screen.getByRole('tab', { name: '外观' }));
-    expect(within(screen.getByRole('listbox', { name: '外观' })).getByRole('option', { selected: true }).textContent).toBe('野外装导入');
+    expect((await look('野外装')).getByRole('button', { pressed: true })).toBeTruthy();
+    // The banner belongs to 模组设置 while she wears it.
+    expect(screen.queryByText(/已导入/)).toBeNull();
   });
 
   it('puts the new appearance on and stays on 导入 when it has no mod switches', async () => {
     const bridge = use(true);
     const wear = vi.spyOn(bridge.avatar, 'setAppearance');
     const read = vi.spyOn(bridge.agentd, 'request');
-    mount();
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    await mount();
+    fireEvent.click(await key());
     await waitFor(() => expect(wear).toHaveBeenCalledWith('mod_1a2b3c4d'));
     await waitFor(() => expect(read.mock.calls.filter(([, path]) => path === '/characters/si/mod-settings').length).toBeGreaterThan(1));
     await Promise.all(read.mock.results.map((r) => r.value));
@@ -144,9 +158,9 @@ describe('角色页 · 导入外观', () => {
     const bridge = use(true);
     vi.spyOn(bridge.character, 'importOutfit').mockRejectedValue({ code: 'cancelled' });
     const toast = vi.fn();
-    mount(toast);
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
-    await screen.findByRole('button', { name: '导入外观…' });
+    await mount(toast);
+    fireEvent.click(await key());
+    await key();
     await Promise.resolve();
     expect(toast).not.toHaveBeenCalled();
   });
@@ -155,8 +169,8 @@ describe('角色页 · 导入外观', () => {
     const bridge = use(true);
     vi.spyOn(bridge.character, 'importOutfit').mockRejectedValue({ code: 'unmapped_component', detail: 'unmapped_component:TextureOverrideBody' });
     const toast = vi.fn();
-    mount(toast);
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    await mount(toast);
+    fireEvent.click(await key());
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
         '导入外观没有完成：模组里的「TextureOverrideBody」对不上这个角色的模型，可能是给别的角色做的；请确认角色，或换一个模组',
@@ -167,18 +181,50 @@ describe('角色页 · 导入外观', () => {
   });
 
   it('says what the import left out, the first two in words', async () => {
-    window.location.hash = '#/character?demo=outfitwarn';
     use(true);
     const toast = vi.fn();
-    mount(toast);
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    const { show } = await mount(toast);
+    // After mount: opening the tab writes the hash.
+    window.location.hash = '#/character?demo=outfitwarn';
+    fireEvent.click(await key());
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
         '已导入「示例外观」，有 3 处要留意：贴图「Textures/Body-Emission.dds」找不到该套的部件，没有用上；贴图「Textures/Body-Diffuse.dds」没有缩小用的多级图，远看可能发虚',
         { severity: 'warning' },
       ),
     );
-    expect((await look('示例外观')).getAllByRole('listitem')).toHaveLength(3);
+    show('look');
+    expect(within(await screen.findByRole('list', { name: '「示例外观」导入提示' })).getAllByRole('listitem')).toHaveLength(3);
+  });
+});
+
+describe('角色页 · 导入进度', () => {
+  it('shows the folder, the six stages and the percent while an outfit imports, and nothing for another kind', async () => {
+    const bridge = use(true);
+    vi.spyOn(bridge.character, 'importState').mockResolvedValue({ running: true, kind: 'outfit', title: 'FieldWear_v2', stage: 'write', fraction: 0.58 });
+    await mount();
+    const bar = await screen.findByRole('progressbar', { name: '写入角色包' });
+    expect(bar.getAttribute('aria-valuenow')).toBe('58');
+    const card = bar.closest('[data-import-progress]') as HTMLElement;
+    expect(card.textContent).toContain('FieldWear_v2');
+    expect(Array.from(card.querySelectorAll('li')).map((l) => [l.textContent, l.dataset.state ?? ''])).toEqual([
+      ['读取文件', 'done'],
+      ['合成外观', 'done'],
+      ['写入角色包', 'cur'],
+      ['校验', ''],
+      ['发布', ''],
+      ['载入角色', ''],
+    ]);
+    expect(((await screen.findByRole('button', { name: '导入中…' })) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('holds the key while a motion import runs, without an outfit progress card', async () => {
+    const bridge = use(true);
+    vi.spyOn(bridge.character, 'importState').mockResolvedValue({ running: true, kind: 'motion', title: 'Dance', stage: 'retarget', fraction: 0.4 });
+    await mount();
+    await waitFor(async () => expect(((await key()) as HTMLButtonElement).disabled).toBe(true));
+    expect((await key()).title).toBe('另一个导入还没完成');
+    expect(screen.queryByRole('progressbar')).toBeNull();
   });
 });
 
@@ -197,8 +243,8 @@ describe('角色页 · 导入外观之后', () => {
     vi.spyOn(bridge.avatar, 'setAppearance').mockRejectedValue({ code: 'failed' });
     const read = vi.spyOn(bridge.agentd, 'request');
     const toast = vi.fn();
-    mount(toast);
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    await mount(toast);
+    fireEvent.click(await key());
     await waitFor(() => expect(toast).toHaveBeenCalledWith('换外观没有完成：桌面角色没有回应', { severity: 'danger' }));
     await waitFor(() => expect(read.mock.calls.filter(([, path]) => path === '/characters/si/mod-settings').length).toBeGreaterThan(1));
     await Promise.all(read.mock.results.map((r) => r.value));
@@ -211,12 +257,12 @@ describe('角色页 · 导入外观之后', () => {
     vi.spyOn(bridge.character, 'importOutfit').mockResolvedValue(FIELD);
     const on = deferred<void>();
     const wear = vi.spyOn(bridge.avatar, 'setAppearance').mockReturnValue(on.promise);
-    mount();
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    await mount();
+    fireEvent.click(await key());
     await waitFor(() => expect(wear).toHaveBeenCalledWith('imported_field'));
     expect(screen.getByRole('button', { name: '导入中…' })).toBeTruthy();
     await act(async () => on.resolve());
-    expect(await screen.findByRole('button', { name: '导入外观…' })).toBeTruthy();
+    expect(await key()).toBeTruthy();
   });
 
   it('neither puts it on nor opens the character page after the page is gone', async () => {
@@ -224,8 +270,8 @@ describe('角色页 · 导入外观之后', () => {
     const done = deferred<Import>();
     vi.spyOn(bridge.character, 'importOutfit').mockReturnValue(done.promise);
     const wear = vi.spyOn(bridge.avatar, 'setAppearance');
-    const ui = mount();
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    const ui = await mount();
+    fireEvent.click(await key());
     ui.unmount();
     await act(async () => done.resolve(FIELD));
     await act(() => new Promise((r) => setTimeout(r, 50)));
@@ -238,8 +284,8 @@ describe('角色页 · 导入外观之后', () => {
     const done = deferred<Import>();
     vi.spyOn(bridge.character, 'importOutfit').mockReturnValue(done.promise);
     const wear = vi.spyOn(bridge.avatar, 'setAppearance');
-    const { show } = mount();
-    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    const { show } = await mount();
+    fireEvent.click(await key());
     show('import', 'voice_a');
     await act(async () => done.resolve(FIELD));
     await act(() => new Promise((r) => setTimeout(r, 50)));
@@ -278,12 +324,15 @@ describe('角色页 · 导入外观之后', () => {
 });
 
 describe('角色页 · 删除导入的外观', () => {
+  /** Opens on 外观, where 删除… sits on each imported row. */
+  const onLook = async (toast: Toast = noop) => (await mount(toast)).show('look');
+
   it('asks first, then removes it, says so and reads the roster again', async () => {
     const bridge = use(true);
     await bridge.character.importOutfit();
     const remove = vi.spyOn(bridge.character, 'removeOutfit');
     const toast = vi.fn();
-    mount(toast);
+    await onLook(toast);
     fireEvent.click((await look('示例外观')).getByRole('button', { name: '删除…' }));
     const dialog = await screen.findByRole('dialog', { name: '删除「示例外观」' });
     expect(dialog.textContent).toContain('模组设置');
@@ -292,14 +341,14 @@ describe('角色页 · 删除导入的外观', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '删除' }));
     expect(remove).toHaveBeenCalledWith('mod_1a2b3c4d');
     await waitFor(() => expect(toast).toHaveBeenCalledWith('已删除「示例外观」'));
-    await waitFor(() => expect(screen.queryByRole('group', { name: '示例外观' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^示例外观/ })).toBeNull());
   });
 
   it('cancel keeps the appearance', async () => {
     const bridge = use(true);
     await bridge.character.importOutfit();
     const remove = vi.spyOn(bridge.character, 'removeOutfit');
-    mount();
+    await onLook();
     fireEvent.click((await look('示例外观')).getByRole('button', { name: '删除…' }));
     fireEvent.click(await screen.findByRole('button', { name: '取消' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -311,23 +360,26 @@ describe('角色页 · 删除导入的外观', () => {
     await bridge.character.importOutfit();
     vi.spyOn(bridge.character, 'removeOutfit').mockRejectedValue({ code: 'busy', detail: 'another outfit import is running' });
     const toast = vi.fn();
-    mount(toast);
+    await onLook(toast);
     fireEvent.click((await look('示例外观')).getByRole('button', { name: '删除…' }));
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '删除' }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith(`删除外观没有完成：${OUTFIT_IMPORT_REASON.busy}`, { severity: 'danger' }));
-    expect((await look('示例外观')).getByRole('button', { name: '删除…' }).getAttribute('aria-disabled')).not.toBe('true');
+    expect(((await look('示例外观')).getByRole('button', { name: '删除…' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('is disabled while it runs', async () => {
+  it('is disabled while it runs, and so is the import key', async () => {
     const bridge = use(true);
     await bridge.character.importOutfit();
     vi.spyOn(bridge.character, 'removeOutfit').mockReturnValue(new Promise(() => {}));
-    mount();
+    const { show } = await mount();
+    show('look');
     fireEvent.click((await look('示例外观')).getByRole('button', { name: '删除…' }));
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '删除' }));
-    expect((await screen.findByRole('button', { name: '删除中…' })).getAttribute('aria-disabled')).toBe('true');
-    expect(screen.getByRole('button', { name: '导入外观…' }).getAttribute('aria-disabled')).toBe('true');
-    expect((await look('夏装')).getByRole('button', { name: '删除…' }).getAttribute('aria-disabled')).toBe('true');
+    expect(((await screen.findByRole('button', { name: '删除中…' })) as HTMLButtonElement).disabled).toBe(true);
+    expect(((await look('夏装')).getByRole('button', { name: '删除…' }) as HTMLButtonElement).disabled).toBe(true);
+    show('import');
+    expect(((await key()) as HTMLButtonElement).disabled).toBe(true);
+    expect((await key()).title).toBe('删除外观还没完成');
   });
 });
 

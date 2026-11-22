@@ -1,0 +1,243 @@
+/* 角色页「外观」 imports: the yellow key on its board, the progress card, the landed banner and its warnings. */
+/* 导入: the yellow key and what it does on a dark hatched board, then the progress card while an outfit imports. */
+.drop {
+  --lk-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 10%) 4px 5px);
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 96px;
+  padding: 0 20px;
+  background: linear-gradient(100deg, rgb(40 40 40 / 94%), rgb(64 64 64 / 88%));
+  color: #fff;
+}
+
+.drop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--lk-hatch);
+  opacity: 0.25;
+  mask: linear-gradient(90deg, transparent 40%, #000);
+  pointer-events: none;
+}
+
+.dropTx {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  color: rgb(255 255 255 / 78%);
+}
+
+.dropTx b {
+  font-size: 14px;
+  color: #fff;
+}
+
+.prog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 18px 16px;
+  background: rgb(36 36 36 / 92%);
+  color: #fff;
+  box-shadow: inset 0 2px 0 var(--ef-accent);
+}
+
+.progHd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fd {
+  min-width: 0;
+  overflow: hidden;
+  font: 600 15px / 1.2 var(--ef-font-num);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pct {
+  margin-left: auto;
+  font: 600 34px / 1 var(--ef-font-num);
+  color: var(--ef-accent);
+}
+
+.pct small {
+  font-size: 14px;
+  color: rgb(255 255 255 / 70%);
+}
+
+/* The six stages: white diamonds done, the yellow one now, hollow ones to come. */
+.chain {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chain li {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgb(255 255 255 / 45%);
+  white-space: nowrap;
+}
+
+.chain li:last-child {
+  flex: none;
+}
+
+.chain li::after {
+  content: '';
+  flex: 1;
+  min-width: 10px;
+  height: 1px;
+  margin: 0 8px;
+  background: rgb(255 255 255 / 20%);
+}
+
+.chain li:last-child::after {
+  display: none;
+}
+
+.chain i {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid rgb(255 255 255 / 40%);
+  transform: rotate(45deg);
+}
+
+.chain li[data-state='done'] {
+  color: rgb(255 255 255 / 85%);
+}
+
+.chain li[data-state='done']::after {
+  background: rgb(255 255 255 / 70%);
+}
+
+.chain li[data-state='done'] i {
+  border-color: #fff;
+  background: #fff;
+}
+
+.chain li[data-state='cur'] {
+  font-weight: 700;
+  color: var(--ef-accent);
+}
+
+.chain li[data-state='cur'] i {
+  border-color: var(--ef-accent);
+  background: var(--ef-accent);
+}
+
+.pbar {
+  position: relative;
+  height: 6px;
+  background: rgb(255 255 255 / 12%);
+}
+
+.pbar b {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: repeating-linear-gradient(-45deg, var(--ef-accent) 0 6px, rgb(230 207 0) 6px 9px);
+}
+
+.ft {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+  color: rgb(255 255 255 / 60%);
+}
+
+/* 刚导入: a yellow slanted tag, what was imported, 收起提示; each warning on an amber-edged line below. */
+.landed {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding-right: 10px;
+  background: rgb(30 30 30 / 90%);
+  color: #fff;
+}
+
+.landedTag {
+  display: flex;
+  flex: none;
+  align-items: center;
+  align-self: stretch;
+  gap: 8px;
+  padding: 0 18px 0 12px;
+  background: var(--ef-accent);
+  color: #1a1a1a;
+  font: 900 13px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+}
+
+.landedTx {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.landedTx b {
+  font-weight: 700;
+}
+
+.amber {
+  color: var(--lk-amber);
+}
+
+.warns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.warns li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 4px 12px 4px 16px;
+  background: rgb(56 56 56 / 86%);
+  color: rgb(255 255 255 / 85%);
+  font-size: 12px;
+  box-shadow: inset 3px 0 0 var(--lk-amber);
+  overflow-wrap: anywhere;
+}
+
+.wix {
+  font: 600 10px / 1 var(--ef-font-num);
+  opacity: 0.5;
+}
+
+@container op (max-width: 1100px) {
+  .wide,
+  .landedTag :global([data-stub='MicroLabel']) {
+    display: none;
+  }
+
+  .landed {
+    min-height: 36px;
+  }
+
+  .landedTx {
+    font-size: 12px;
+  }
+}

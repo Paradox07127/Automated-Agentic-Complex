@@ -45,7 +45,7 @@ describe('角色页 · 页签', () => {
     expect(panel().getAttribute('aria-label')).toBe('动作表');
     expect(await within(panel()).findByRole('grid', { name: '全部动作' })).toBeTruthy();
     expect(within(panel()).queryByRole('region', { name: '编排' })).toBeNull();
-    expect(screen.queryByRole('listbox', { name: '外观' })).toBeNull();
+    expect(screen.queryByRole('group', { name: '外观' })).toBeNull();
     expect(screen.queryByRole('button', { name: '导入动作' })).toBeNull();
   });
 
@@ -64,27 +64,28 @@ describe('角色页 · 页签', () => {
     expect(tabs()).toEqual(['外观', '显示', '导入']);
     expect(tab('外观').getAttribute('aria-selected')).toBe('true');
     expect(within(panel()).getByRole('region', { name: '角色外观与大小' })).toBeTruthy();
-    expect(within(panel()).getByRole('listbox', { name: '外观' })).toBeTruthy();
+    expect(within(panel()).getByRole('group', { name: '外观' })).toBeTruthy();
     expect(within(panel()).getByRole('slider', { name: '大小' })).toBeTruthy();
     expect(screen.queryByRole('grid', { name: '全部动作' })).toBeNull();
 
     await click(tab('显示'));
     expect(pane(router)).toBe('look');
     expect(within(panel()).getByRole('group', { name: '服装分层' })).toBeTruthy();
-    expect(within(panel()).queryByRole('listbox', { name: '外观' })).toBeNull();
+    expect(within(panel()).queryByRole('group', { name: '外观' })).toBeNull();
 
     await click(tab('导入'));
     await waitFor(() => expect(pane(router)).toBe('import'));
-    // 导入 stays under 外观, the item it was opened from.
+    // 导入 stays under 外观, the item it was opened from, and imports outfit mods only: 导入角色 is on 总览's roster, 导入动作 under 动作.
     expect(tabs()).toEqual(['外观', '显示', '导入']);
-    for (const g of ['角色', '外观与 mod', '动作']) expect(within(panel()).getByRole('region', { name: g })).toBeTruthy();
-    expect(within(panel()).getByRole('button', { name: '导入角色' })).toBeTruthy();
-    expect(within(panel()).getByRole('button', { name: '导入动作' })).toBeTruthy();
-    expect(screen.queryByRole('region', { name: '角色外观与大小' })).toBeNull();
+    expect(within(panel()).getByRole('heading', { name: '导入外观模组' })).toBeTruthy();
+    expect(within(panel()).getByRole('button', { name: '选择 mod 目录…' })).toBeTruthy();
+    expect(within(panel()).queryByRole('button', { name: '导入角色' })).toBeNull();
+    expect(within(panel()).queryByRole('button', { name: '导入动作' })).toBeNull();
+    expect(within(panel()).queryByRole('group', { name: '外观' })).toBeNull();
 
     await click(tab('外观'));
     await waitFor(() => expect(pane(router)).toBe('look'));
-    expect(within(panel()).getByRole('listbox', { name: '外观' })).toBeTruthy();
+    expect(within(panel()).getByRole('group', { name: '外观' })).toBeTruthy();
   });
 
   it('opens the pane the URL names', async () => {

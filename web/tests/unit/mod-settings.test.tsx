@@ -1,6 +1,7 @@
 // 角色页「外观 → 模组设置」: the current appearance's switches from agentd's mod-settings table, one row each under its category, set through avatar.modSettings.set.
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AgentdCallError } from '../../src/bridge/agentd';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { CharacterEntry, AgenticComplexBridge } from '../../src/bridge/protocol';
 import { CHARACTER_LOOKS } from '../../src/mock/fixtures';
@@ -45,8 +46,11 @@ function Op({ toast = noop }: { toast?: (m: string) => void }) {
 
 const mods = () => screen.getByRole('group', { name: 'mod 设置' });
 const control = (name: string) => within(mods()).getByRole('group', { name });
-/** The value a stepper shows, or its menu's caption without the （默认） mark. */
-const shown = (name: string) => (control(name).querySelector('[data-mod-value]') ?? control(name).querySelector('[aria-haspopup]'))?.textContent?.replace('（默认）', '');
+/** The value a stepper shows, or its menu's caption. */
+const shown = (name: string) => (control(name).querySelector('[data-value]') ?? control(name).querySelector('[aria-haspopup]'))?.textContent;
+/** A 显示 / 隐藏 switch: is 显示 the chosen half. */
+const showing = (name: string) => within(within(mods()).getByRole('radiogroup', { name })).getByRole('radio', { name: '显示' }).getAttribute('aria-checked') === 'true';
+const half = (name: string, label: '显示' | '隐藏') => within(within(mods()).getByRole('radiogroup', { name })).getByRole('radio', { name: label });
 const arrow = (name: string, dir: '上一个' | '下一个') => within(mods()).getByRole('button', { name: `${name}：${dir}` }) as HTMLButtonElement;
 const groups = () => Array.from(mods().querySelectorAll('[data-mod-group]')).map((g) => g.getAttribute('aria-label'));
 const rowsOf = (group: string) => Array.from(within(mods()).getByRole('group', { name: group }).querySelectorAll('[data-mod-setting]')).map((r) => r.getAttribute('data-mod-setting'));
@@ -144,9 +148,10 @@ describe('角色页 · 模组设置', () => {
     await wear('imported_summer');
     expect(within(mods()).queryByRole('button', { name: '袖口' })).toBeNull();
     expect(shown('袖口')).toBe('一');
-    fireEvent.click(within(mods()).getByRole('button', { name: '裙摆' }));
+    fireEvent.click(within(mods()).getByRole('button', { name: '裙摆：一' }));
     const list = screen.getByRole('listbox', { name: '裙摆' });
-    expect(within(list).getAllByRole('option').map((o) => o.textContent)).toEqual(['一（默认）', '二', '三', '四', '五', '六', '七']);
+    // Each option leads with its place; the default one says so.
+    expect(within(list).getAllByRole('option').map((o) => o.textContent)).toEqual(['01一默认', '02二', '03三', '04四', '05五', '06六', '07七']);
     fireEvent.click(within(list).getByRole('option', { name: '五' }));
     await waitFor(() => expect(set).toHaveBeenCalledWith({ character: 'si', appearance: 'imported_summer', values: { skirt: 4, cuff: 0 } }));
     await waitFor(() => expect(shown('裙摆')).toBe('五'));
@@ -170,16 +175,18 @@ describe('角色页 · 模组设置', () => {
     expect(shown('配色')).toBe('白');
   });
 
-  it('marks a row whose value is not its default', async () => {
+  it('marks a row whose value is not its default, with its default in words', async () => {
     await bridge.avatar.modSettings.set({ character: 'si', appearance: 'imported_field', values: { tint: 2 } });
     await wear('imported_field');
-    expect(within(row('tint')).getByTitle('已改')).toBeTruthy();
     expect(row('tint').hasAttribute('data-changed')).toBe(true);
-    for (const id of ['glow', 'jacket', 'bag', 'ponytail', 'gloves']) expect(within(row(id)).queryByTitle('已改')).toBeNull();
+    expect(row('tint').textContent).toContain('默认Black');
+    for (const id of ['glow', 'jacket', 'bag', 'ponytail', 'gloves']) expect(row(id).hasAttribute('data-changed')).toBe(false);
     fireEvent.click(arrow('Hair Color', '上一个'));
-    await waitFor(() => expect(within(row('tint')).getByTitle('已改')).toBeTruthy());
+    await waitFor(() => expect(shown('Hair Color')).toBe('Red'));
+    expect(row('tint').hasAttribute('data-changed')).toBe(true);
     fireEvent.click(arrow('Hair Color', '上一个'));
-    await waitFor(() => expect(within(row('tint')).queryByTitle('已改')).toBeNull());
+    await waitFor(() => expect(row('tint').hasAttribute('data-changed')).toBe(false));
+    expect(row('tint').textContent).not.toContain('默认');
   });
 });
 
@@ -204,17 +211,18 @@ describe('角色页 · 模组设置分组', () => {
     expect(within(within(mods()).getByRole('group', { name: '其他' })).getByRole('group', { name: '披风' })).toBeTruthy();
   });
 
-  it('draws a 显示 / 隐藏 switch as a toggle that is on while shown', async () => {
+  it('draws a 显示 / 隐藏 switch as 显示 | 隐藏 halves, 显示 on the left whatever the value order', async () => {
     const set = vi.spyOn(bridge.avatar.modSettings, 'set');
     await wear('imported_field');
-    const toggle = (name: string) => within(mods()).getByRole('switch', { name });
-    expect(toggle('外套').getAttribute('aria-checked')).toBe('true');
-    expect(toggle('手套').getAttribute('aria-checked')).toBe('false');
-    expect(toggle('背包').getAttribute('aria-checked')).toBe('true');
+    expect(showing('外套')).toBe(true);
+    expect(showing('手套')).toBe(false);
+    // 背包 lists 隐藏 first.
+    expect(showing('背包')).toBe(true);
+    expect(within(within(mods()).getByRole('radiogroup', { name: '背包' })).getAllByRole('radio').map((r) => r.textContent)).toEqual(['显示', '隐藏']);
     expect(shown('Hair Color')).toBe('Black');
-    fireEvent.click(toggle('手套'));
+    fireEvent.click(half('手套', '显示'));
     await waitFor(() => expect(set).toHaveBeenCalledWith(expect.objectContaining({ appearance: 'imported_field', values: expect.objectContaining({ gloves: 0 }) })));
-    await waitFor(() => expect(toggle('手套').getAttribute('aria-checked')).toBe('true'));
+    await waitFor(() => expect(showing('手套')).toBe(true));
   });
 
   it('恢复默认 on a group header puts only that group back on its defaults, in one set', async () => {
@@ -225,15 +233,138 @@ describe('角色页 · 模组设置分组', () => {
     render(<Op toast={toast} />);
     fireEvent.click(await screen.findByRole('tab', { name: '模组设置' }));
     await screen.findByRole('group', { name: 'mod 设置' });
-    const reset = (group: string) => within(within(mods()).getByRole('group', { name: group })).getByRole('button', { name: '恢复默认' });
-    expect(reset('发型').getAttribute('aria-disabled')).toBe('true');
+    const reset = (group: string) => within(within(mods()).getByRole('group', { name: group })).getByRole('button', { name: '恢复默认' }) as HTMLButtonElement;
+    expect(reset('发型').disabled).toBe(true);
+    expect(reset('发型').title).toBe('已是默认');
     fireEvent.click(reset('衣服'));
     await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
     expect(set).toHaveBeenCalledWith({ character: 'si', appearance: 'imported_field', values: { glow: 0, tint: 2, jacket: 0, bag: 0, ponytail: 0, gloves: 1 } });
     await waitFor(() => expect(toast).toHaveBeenCalledWith('「衣服」已恢复默认'));
-    expect(within(mods()).getByRole('switch', { name: '外套' }).getAttribute('aria-checked')).toBe('true');
-    expect(within(mods()).getByRole('switch', { name: '背包' }).getAttribute('aria-checked')).toBe('false');
-    expect(reset('衣服').getAttribute('aria-disabled')).toBe('true');
-    expect(reset('道具').getAttribute('aria-disabled')).not.toBe('true');
+    expect(showing('外套')).toBe(true);
+    expect(showing('背包')).toBe(false);
+    expect(reset('衣服').disabled).toBe(true);
+    expect(reset('道具').disabled).toBe(false);
+  });
+});
+
+function deferred<T>() {
+  let resolve!: (v: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
+type SetReply = Awaited<ReturnType<AgenticComplexBridge['avatar']['modSettings']['set']>>;
+const card = () => mods().querySelector('[data-mod-card]') as HTMLElement;
+const sync = () => within(card()).getByRole('status').textContent;
+
+describe('角色页 · 模组设置的外观卡', () => {
+  it('names the appearance and its id, and says the preview matches, is applying, or went back', async () => {
+    const reply = deferred<SetReply>();
+    vi.spyOn(bridge.avatar.modSettings, 'set').mockReturnValueOnce(reply.promise).mockRejectedValueOnce({ code: 'failed' });
+    await wear('imported_summer');
+    expect(within(card()).getByRole('heading').textContent).toBe('夏装');
+    expect(card().textContent).toContain('imported_summer');
+    expect(sync()).toBe('预览与桌面一致');
+    fireEvent.click(arrow('裙长', '下一个'));
+    expect(sync()).toBe('正在应用「裙长」…');
+    // The row being applied says so; every control waits.
+    expect(row('skirt').hasAttribute('data-busy')).toBe(true);
+    expect(row('skirt').textContent).toContain('应用中');
+    expect(arrow('配色', '下一个').disabled).toBe(true);
+    await act(async () => reply.resolve({ values: { skirt: 1, color: 0 }, adjusted: [] }));
+    expect(sync()).toBe('预览与桌面一致');
+    fireEvent.click(arrow('配色', '下一个'));
+    await waitFor(() => expect(sync()).toBe('上次改动没成功，已改回'));
+  });
+
+  it('全部恢复默认 sends every switch on its default in one set, and is off while all are', async () => {
+    await bridge.avatar.modSettings.set({ character: 'si', appearance: 'imported_field', values: { jacket: 1, tint: 2, bag: 1, gloves: 1, ponytail: 0, glow: 0 } });
+    const set = vi.spyOn(bridge.avatar.modSettings, 'set');
+    await wear('imported_field');
+    const all = within(card()).getByRole('button', { name: '全部恢复默认' }) as HTMLButtonElement;
+    expect(all.disabled).toBe(false);
+    fireEvent.click(all);
+    await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
+    expect(set).toHaveBeenCalledWith({ character: 'si', appearance: 'imported_field', values: { glow: 0, tint: 0, jacket: 0, bag: 1, ponytail: 0, gloves: 1 } });
+    await waitFor(() => expect(all.disabled).toBe(true));
+  });
+
+  it('jumps to a category from its chip, which counts its switches', async () => {
+    const into = vi.fn();
+    Element.prototype.scrollIntoView = into;
+    await wear('imported_field');
+    const chips = within(within(mods()).getByRole('group', { name: '跳到类别' })).getAllByRole('button');
+    expect(chips.map((c) => c.textContent)).toEqual(['衣服2', '道具1', '发型1', '颜色1', '其他1']);
+    fireEvent.click(chips[3]!);
+    expect(into).toHaveBeenCalledTimes(1);
+    expect(into.mock.contexts[0]).toBe(within(mods()).getByRole('group', { name: '颜色' }));
+    expect(chips[3]!.getAttribute('aria-current')).toBe('true');
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+  });
+});
+
+describe('角色页 · 模组设置的对比、回滚和按键', () => {
+  it('offers 对比 back to the value before the last change, and flips A / B on each press', async () => {
+    const set = vi.spyOn(bridge.avatar.modSettings, 'set');
+    await wear('imported_summer');
+    expect(within(row('skirt')).queryByRole('button', { name: /对比/ })).toBeNull();
+    fireEvent.click(arrow('裙长', '下一个'));
+    await waitFor(() => expect(shown('裙长')).toBe('短'));
+    fireEvent.click(await within(row('skirt')).findByRole('button', { name: '对比「长」' }));
+    await waitFor(() => expect(shown('裙长')).toBe('长'));
+    fireEvent.click(await within(row('skirt')).findByRole('button', { name: '对比「短」' }));
+    await waitFor(() => expect(shown('裙长')).toBe('短'));
+    expect(set.mock.calls.map(([a]) => a.values.skirt)).toEqual([1, 0, 1]);
+  });
+
+  it('bars a failed change right under its row, and 再试一次 sends the same change again', async () => {
+    const set = vi.spyOn(bridge.avatar.modSettings, 'set').mockRejectedValueOnce({ code: 'failed' });
+    await wear('imported_summer');
+    fireEvent.click(arrow('配色', '下一个'));
+    const alert = await screen.findByRole('alert');
+    expect(row('color').hasAttribute('data-fail')).toBe(true);
+    expect(row('color').nextElementSibling?.contains(alert)).toBe(true);
+    // A change that did not land leaves no 对比 to the value it never left.
+    expect(within(row('color')).queryByRole('button', { name: /对比/ })).toBeNull();
+    fireEvent.click(within(row('color').nextElementSibling as HTMLElement).getByRole('button', { name: '再试一次' }));
+    await waitFor(() => expect(shown('配色')).toBe('黑'));
+    expect(set.mock.calls.map(([a]) => a.values.color)).toEqual([1, 1]);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('↑↓ move between rows, ←→ change the row, Space flips 显示 / 隐藏, X goes back to the last value', async () => {
+    const set = vi.spyOn(bridge.avatar.modSettings, 'set');
+    await wear('imported_field');
+    // The first row of the first group holds the Tab stop.
+    expect(row('jacket').tabIndex).toBe(0);
+    row('jacket').focus();
+    fireEvent.keyDown(row('jacket'), { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(row('gloves'));
+    fireEvent.keyDown(row('gloves'), { key: ' ' });
+    await waitFor(() => expect(showing('手套')).toBe(true));
+    fireEvent.keyDown(row('gloves'), { key: 'ArrowRight' });
+    await waitFor(() => expect(showing('手套')).toBe(false));
+    fireEvent.keyDown(row('gloves'), { key: 'x' });
+    await waitFor(() => expect(showing('手套')).toBe(true));
+    row('tint').focus();
+    fireEvent.keyDown(row('tint'), { key: 'ArrowRight' });
+    await waitFor(() => expect(shown('Hair Color')).toBe('Red'));
+    expect(set.mock.calls.map(([a]) => [a.values.gloves, a.values.tint])).toEqual([
+      [0, 0],
+      [1, 0],
+      [0, 0],
+      [0, 1],
+    ]);
+  });
+});
+
+describe('角色页 · 模组设置表读不了', () => {
+  it('says so on the imported appearances instead of dropping the tab without a word', async () => {
+    vi.spyOn(bridge.agentd, 'request').mockRejectedValue(new AgentdCallError(409, 'http_409', undefined, { error: 'sha256 mismatch' }, 'sha256 mismatch'));
+    await bridge.avatar.setAppearance('imported_field');
+    render(<Op />);
+    const looks = await screen.findByRole('group', { name: '外观' });
+    await waitFor(() => expect(within(looks).getAllByText('设置表读不了：安装后文件被改过')).toHaveLength(2));
+    expect(screen.queryByRole('tab', { name: '模组设置' })).toBeNull();
+    expect(within(looks).getByRole('button', { name: /日常/ }).textContent).not.toContain('设置表');
   });
 });

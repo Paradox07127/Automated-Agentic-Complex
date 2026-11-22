@@ -193,11 +193,16 @@ describe('offline note', () => {
 });
 
 describe('import receipts', () => {
-  it('has 导入角色 on the 导入 pane, not in the header', async () => {
+  it('has 导入角色 on the 导入 pane opened from 动作, not on the 外观 导入 tab nor in the header', async () => {
     await mount('&pane=look');
     expect(screen.queryByRole('button', { name: '导入角色' })).toBeNull();
+    // The 外观 导入 tab imports outfit mods only.
     await click(await screen.findByRole('tab', { name: '导入' }));
-    expect(within(screen.getByRole('region', { name: '角色' })).getByRole('button', { name: '导入角色' })).toBeTruthy();
+    await screen.findByRole('heading', { name: '导入外观模组' });
+    expect(screen.queryByRole('button', { name: '导入角色' })).toBeNull();
+    cleanup();
+    await mount('&pane=import');
+    expect(within(await screen.findByRole('region', { name: '角色' })).getByRole('button', { name: '导入角色' })).toBeTruthy();
   });
 
   it('says each import outcome in Chinese; cancelling is not an error', async () => {
@@ -266,7 +271,7 @@ describe('motion import', () => {
     });
     await mount('&pane=import');
     await click(await screen.findByRole('button', { name: '导入动作' }));
-    await click(within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name: '动作' }));
+    await click(screen.getByRole('tab', { name: '动作表' }));
     await waitFor(() => expect(document.querySelector('[data-motion="vmd_dance"]')).not.toBeNull());
     await click(document.querySelector('[data-motion="vmd_dance"]')!);
     const speed = screen.getByRole('radiogroup', { name: '播放速度' });

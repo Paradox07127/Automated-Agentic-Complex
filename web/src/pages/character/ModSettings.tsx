@@ -1,19 +1,21 @@
 // 角色页「模组设置」: the current appearance's switches from agentd's table (C6), each change sent through avatar.modSettings.set.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { getBridge, type ModSettingAdjusted, type ModSettingValues } from '../../bridge';
-import { Btn, Icon, Select, Toggle } from '../../ui';
+import { Icon } from '../../ui';
+import { Barcode, Diamond, GameSeg, MicroLabel, Stepper, TitleBar, WhiteCapsule } from '../../ui/game';
 import type { Toast } from './feedback';
 import type { ModSettingRow } from './modSettingsTable';
 import { previewLookChanged } from './usePreview';
-import dark from './Rows.module.css';
+import head from './ModCard.module.css';
 import styles from './ModSettings.module.css';
 
 export interface ModSettingsProps {
   character: string;
-  appearance: string;
+  appearance: { id: string; name: string };
   /** The appearance's switches from the table. */
   settings: ModSettingRow[];
-  disabled: boolean;
+  /** Why it is read only (角色未运行, 切换中); null when it is not. */
+  ro: string | null;
   toast: Toast;
 }
 
@@ -29,13 +31,13 @@ const why = (e: unknown) => {
 
 const nameOf = (s: ModSettingRow, v: number) => s.values.find((x) => x.value === v)?.name ?? String(v);
 
-/** Groups in drawing order; a switch without a category, or with one this page does not know, is 其他. */
-const GROUPS: ReadonlyArray<[NonNullable<ModSettingRow['category']>, string]> = [
-  ['clothing', '衣服'],
-  ['accessory', '道具'],
-  ['hair', '发型'],
-  ['color', '颜色'],
-  ['other', '其他'],
+/** Groups in drawing order with their title bar's English; a switch without a category, or with one this page does not know, is 其他. */
+const GROUPS: ReadonlyArray<[NonNullable<ModSettingRow['category']>, string, string]> = [
+  ['clothing', '衣服', 'Clothing'],
+  ['accessory', '道具', 'Accessory'],
+  ['hair', '发型', 'Hair'],
+  ['color', '颜色', 'Color'],
+  ['other', '其他', 'Other'],
 ];
 const groupOf = (s: ModSettingRow) => (GROUPS.some(([c]) => c === s.category) ? s.category : 'other');
 
@@ -46,14 +48,29 @@ const shownValue = (s: ModSettingRow) => {
   return s.values.length === 2 && on && off ? { on: on.value, off: off.value } : null;
 };
 
-/** More values than this: the value between the arrows opens a menu of them all. */
-const MENU_OVER = 6;
+/** One send: the values it changes, the words for the card, the toast and the rollback, and where the rollback bar goes (a row, a group, or under the card). */
+interface Change {
+  values: Record<string, number>;
+  what: string;
+  done: string;
+  fail: (reason: string) => string;
+  at: string | null;
+}
 
-/** One row per switch under its category's header row; a failed set goes back to the old values. */
-export function ModSettings({ character, appearance, settings, disabled, toast }: ModSettingsProps) {
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** The appearance card, the category jump bar, then one title bar per category over its rows; ↑↓ pick a row, ←→ change it, X goes back to its last value. */
+export function ModSettings({ character, appearance, settings, ro, toast }: ModSettingsProps) {
+  const id = appearance.id;
   const [stored, setStored] = useState<{ character: string; values: Record<string, ModSettingValues> }>();
-  const [marks, setMarks] = useState<{ appearance: string; notes: Record<string, string>; error: string | null }>();
-  const [busy, setBusy] = useState(false);
+  const [marks, setMarks] = useState<{ appearance: string; notes: Record<string, string>; fail: (Change & { text: string }) | null }>();
+  const [run, setRun] = useState<{ ids: string[]; what: string } | null>(null);
+  // Each row's value before its last change this session: the other end of 对比.
+  const [prev, setPrev] = useState<{ appearance: string; values: Record<string, number> }>();
+  const [cur, setCur] = useState<string>();
+  const [at, setAt] = useState<string>();
+  const root = useRef<HTMLDivElement>(null);
+  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     let live = true;
@@ -71,115 +88,256 @@ export function ModSettings({ character, appearance, settings, disabled, toast }
   }, [character]);
 
   if (stored?.character !== character || settings.length === 0) return null;
-  const value = (s: ModSettingRow) => stored.values[appearance]?.[s.id] ?? s.default;
-  const mark = marks?.appearance === appearance ? marks : undefined;
-  const off = disabled || busy;
-  const put = (values: ModSettingValues) => setStored((x) => (x && x.character === character ? { ...x, values: { ...x.values, [appearance]: values } } : x));
+  const value = (s: ModSettingRow) => stored.values[id]?.[s.id] ?? s.default;
+  const mark = marks?.appearance === id ? marks : undefined;
+  const before = prev?.appearance === id ? prev.values : {};
+  const off = ro != null || run != null;
+  const put = (values: ModSettingValues) => setStored((x) => (x && x.character === character ? { ...x, values: { ...x.values, [id]: values } } : x));
 
-  /** Sends the whole set with `change` applied; `fail` words the error after the reason. */
-  const send = (change: Record<string, number>, done: string, fail: (reason: string) => string) => {
-    const before = stored.values[appearance] ?? {};
-    const next = Object.fromEntries(settings.map((x) => [x.id, change[x.id] ?? value(x)]));
+  /** Sends the whole set with `c.values` applied; a failure puts the old values back and bars where `c.at` says. */
+  const send = (c: Change) => {
+    const old = stored.values[id] ?? {};
+    const next = Object.fromEntries(settings.map((x) => [x.id, c.values[x.id] ?? value(x)]));
+    const moved = settings.filter((x) => next[x.id] !== value(x));
+    const lastPrev = before;
+    setPrev({ appearance: id, values: { ...before, ...Object.fromEntries(moved.map((x) => [x.id, value(x)])) } });
     put(next);
-    setMarks({ appearance, notes: {}, error: null });
-    setBusy(true);
+    setMarks({ appearance: id, notes: {}, fail: null });
+    setRun({ ids: moved.map((x) => x.id), what: c.what });
     getBridge()
-      .avatar.modSettings.set({ character, appearance, values: next })
+      .avatar.modSettings.set({ character, appearance: id, values: next })
       .then(
         (res) => {
           put(res.values);
           previewLookChanged();
-          setMarks({ appearance, notes: Object.fromEntries(res.adjusted.map((a) => [a.id, ADJUSTED[a.reason]])), error: null });
-          if (res.adjusted.length === 0) toast(done);
+          setMarks({ appearance: id, notes: Object.fromEntries(res.adjusted.map((a) => [a.id, ADJUSTED[a.reason]])), fail: null });
+          if (res.adjusted.length === 0) toast(c.done);
         },
         (e: unknown) => {
-          put(before);
-          setMarks({ appearance, notes: {}, error: fail(why(e)) });
+          put(old);
+          setPrev({ appearance: id, values: lastPrev });
+          setMarks({ appearance: id, notes: {}, fail: { ...c, text: c.fail(why(e)) } });
         },
       )
-      .finally(() => setBusy(false));
+      .finally(() => setRun(null));
   };
   const pick = (s: ModSettingRow, v: number) => {
-    const prev = value(s);
-    send({ [s.id]: v }, `「${s.name}」已改成「${nameOf(s, v)}」`, (w) => `「${s.name}」没有改成：${w}，已改回「${nameOf(s, prev)}」`);
+    const was = value(s);
+    send({ values: { [s.id]: v }, what: s.name, done: `「${s.name}」已改成「${nameOf(s, v)}」`, fail: (w) => `「${s.name}」没有改成：${w}，已改回「${nameOf(s, was)}」`, at: s.id });
   };
-  const reset = (title: string, rows: ModSettingRow[]) =>
-    send(Object.fromEntries(rows.map((s) => [s.id, s.default])), `「${title}」已恢复默认`, (w) => `「${title}」没有恢复默认：${w}`);
+  const reset = (title: string, rows: ModSettingRow[], at: string | null) =>
+    send({ values: Object.fromEntries(rows.map((s) => [s.id, s.default])), what: title, done: `「${title}」已恢复默认`, fail: (w) => `「${title}」没有恢复默认：${w}`, at });
+  const flip = (s: ModSettingRow) => {
+    const v = before[s.id];
+    if (v !== undefined && v !== value(s) && !off) pick(s, v);
+  };
+  const step = (s: ModSettingRow, by: -1 | 1) => {
+    const two = shownValue(s);
+    // 显示 is always on the left.
+    const x = two ? { value: by < 0 ? two.on : two.off } : s.values[s.values.findIndex((y) => y.value === value(s)) + by];
+    if (x && x.value !== value(s) && !off) pick(s, x.value);
+  };
+
+  const groups = GROUPS.map(([category, title, en]) => ({ category, title, en, rows: settings.filter((s) => groupOf(s) === category) })).filter((g) => g.rows.length > 0);
+  const moved = (s: ModSettingRow) => value(s) !== s.default;
+  const current = cur && settings.some((s) => s.id === cur) ? cur : groups[0]?.rows[0]?.id;
+  const here = at ?? groups[0]?.category;
+
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+    const row = (e.target as HTMLElement).closest<HTMLElement>('[data-mod-setting]');
+    const s = settings.find((x) => x.id === row?.dataset.modSetting);
+    if (!row || !s) return;
+    const onRow = e.target === row;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const all = Array.from(root.current?.querySelectorAll<HTMLElement>('[data-mod-setting]') ?? []);
+      all[all.indexOf(row) + (e.key === 'ArrowDown' ? 1 : -1)]?.focus();
+    } else if (onRow && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) step(s, e.key === 'ArrowLeft' ? -1 : 1);
+    else if (onRow && e.key === ' ' && shownValue(s)) step(s, value(s) === shownValue(s)?.on ? 1 : -1);
+    else if (onRow && e.key === 'Enter') row.querySelector<HTMLElement>('[aria-haspopup]')?.click();
+    else if (e.key === 'x' || e.key === 'X') flip(s);
+    else return;
+    e.preventDefault();
+  };
 
   const control = (s: ModSettingRow) => {
     const two = shownValue(s);
-    if (two) return <Toggle size="sm" label={s.name} on={value(s) === two.on} disabled={off} onChange={(on) => pick(s, on ? two.on : two.off)} />;
-    const i = s.values.findIndex((x) => x.value === value(s));
-    const step = (by: -1 | 1) => {
-      const x = s.values[i + by];
-      if (x) pick(s, x.value);
-    };
+    if (two)
+      return (
+        <GameSeg
+          label={s.name}
+          options={[
+            { value: String(two.on), label: '显示' },
+            { value: String(two.off), label: '隐藏' },
+          ]}
+          value={String(value(s))}
+          disabled={off}
+          onChange={(v) => pick(s, Number(v))}
+        />
+      );
     return (
-      <span className={styles.step} role="group" aria-label={s.name}>
-        <button type="button" className={styles.arrow} aria-label={`${s.name}：上一个`} disabled={off || i <= 0} onClick={() => step(-1)}>
-          <Icon name="chevl" size={14} />
-        </button>
-        {s.values.length > MENU_OVER ? (
-          <Select
-              width={150}
-              label={s.name}
-              options={s.values.map((x) => ({ value: String(x.value), label: x.name }))}
-              value={String(value(s))}
-              defaultValue={String(s.default)}
-              disabled={off}
-              onChange={(v) => pick(s, Number(v))}
-            />
-        ) : (
-          <span className={styles.val} data-mod-value="">
-            {nameOf(s, value(s))}
-          </span>
-        )}
-        <button type="button" className={styles.arrow} aria-label={`${s.name}：下一个`} disabled={off || i >= s.values.length - 1} onClick={() => step(1)}>
-          <Icon name="chev" size={14} />
-        </button>
-      </span>
+      <Stepper
+        label={s.name}
+        options={s.values.map((x) => ({ value: String(x.value), label: x.name }))}
+        value={String(value(s))}
+        defaultValue={String(s.default)}
+        disabled={off}
+        onChange={(v) => pick(s, Number(v))}
+      />
     );
   };
 
+  const failBar = (where: string | null) =>
+    mark?.fail && mark.fail.at === where ? (
+      <div className={styles.err}>
+        <span className={styles.errTag} aria-hidden="true">
+          ROLLBACK
+        </span>
+        <span role="alert">{mark.fail.text}</span>
+        <WhiteCapsule label="再试一次" icon="refresh" disabled={off} onClick={() => mark.fail && send(mark.fail)} />
+      </div>
+    ) : null;
+
+  const sync = ro ?? (run ? `正在应用「${run.what}」…` : mark?.fail ? '上次改动没成功，已改回' : '预览与桌面一致');
+  const anyMoved = settings.some(moved);
+
   return (
-    <div className={styles.mods} role="group" aria-label="mod 设置">
-      {GROUPS.map(([category, title]) => {
-        const rows = settings.filter((s) => groupOf(s) === category);
-        const changed = rows.some((s) => value(s) !== s.default);
+    <div ref={root} className={styles.mods} role="group" aria-label="mod 设置" data-off={off || undefined} onKeyDown={onKey}>
+      <div className={head.card} data-mod-card="">
+        <span className={head.flag} aria-hidden="true">
+          <span>MOD</span>
+        </span>
+        <div className={head.info}>
+          <div className={head.t}>
+            <h3 className={head.nm}>{appearance.name}</h3>
+            <span className={head.id}>{id}</span>
+          </div>
+          <div className={head.acts}>
+            <span className={head.sync} role="status" data-sync={ro ? 'ro' : run ? 'busy' : mark?.fail ? 'fail' : 'ok'}>
+              <i aria-hidden="true" />
+              {sync}
+            </span>
+            <WhiteCapsule label="全部恢复默认" icon="refresh" disabled={off || !anyMoved} disabledReason={anyMoved ? '' : '已是默认'} onClick={() => reset('全部开关', settings, null)} />
+          </div>
+        </div>
+      </div>
+      {failBar(null)}
+      <div className={head.jump} role="group" aria-label="跳到类别">
+        <span className={head.jumpLbl}>跳到</span>
+        {groups.map((g) => (
+          <button
+            key={g.category}
+            type="button"
+            className={head.chip}
+            aria-current={g.category === here || undefined}
+            onClick={() => {
+              setAt(g.category);
+              groupRefs.current[g.category]?.scrollIntoView({ block: 'start' });
+            }}
+          >
+            {g.title}
+            <b>{g.rows.length}</b>
+            {g.rows.some(moved) && <Diamond tone="yellow" size={5} />}
+          </button>
+        ))}
+        <span className={head.keys} aria-hidden="true">
+          <kbd>↑↓</kbd>选行<kbd>←→</kbd>换值<kbd>X</kbd>对比上一值
+        </span>
+      </div>
+      {groups.map((g, gi) => {
+        const changed = g.rows.filter(moved).length;
         return (
-          rows.length > 0 && (
-            <div key={category} className={dark.list} role="group" aria-label={title} data-mod-group={category}>
-              <div className={dark.head}>
-                <span>{title}</span>
-                <span className={dark.end}>
-                  <Btn size="sm" variant="text" disabled={off || !changed} disabledReason={changed ? '' : '已是默认'} onClick={() => reset(title, rows)}>
-                    恢复默认
-                  </Btn>
-                </span>
-              </div>
-              {rows.map((s) => {
-                const note = mark?.notes[s.id];
-                const moved = value(s) !== s.default;
-                return (
-                  <div key={s.id} className={dark.row} data-mod-setting={s.id} data-changed={moved || undefined}>
-                    <span className={dark.lead}>{moved && <i className={dark.chg} title="已改" aria-label="已改" />}</span>
-                    <span className={dark.main}>
-                      <span className={dark.nm}>{s.name}</span>
-                      <span className={dark.end}>{control(s)}</span>
-                      {note && <span className={dark.note}>{note}</span>}
+          <div
+            key={g.category}
+            ref={(el) => {
+              groupRefs.current[g.category] = el;
+            }}
+            className={styles.group}
+            role="group"
+            aria-label={g.title}
+            data-mod-group={g.category}
+          >
+            <TitleBar
+              title={g.title}
+              micro={`${g.en} / ${pad(gi + 1)}`}
+              count={g.rows.length}
+              changed={changed}
+              actions={<WhiteCapsule label="恢复默认" icon="refresh" disabled={off || changed === 0} disabledReason={changed ? '' : '已是默认'} onClick={() => reset(g.title, g.rows, `group:${g.category}`)} />}
+            />
+            {failBar(`group:${g.category}`)}
+            {g.rows.map((s, i) => {
+              const note = mark?.notes[s.id];
+              const was = before[s.id];
+              const busy = run?.ids.includes(s.id);
+              return (
+                <div key={s.id}>
+                  <div
+                    className={styles.row}
+                    data-mod-setting={s.id}
+                    data-changed={moved(s) || undefined}
+                    data-busy={busy || undefined}
+                    data-fail={(mark?.fail?.at === s.id) || undefined}
+                    tabIndex={s.id === current ? 0 : -1}
+                    onFocus={() => {
+                      setCur(s.id);
+                      setAt(g.category);
+                    }}
+                  >
+                    <span className={styles.lead} aria-hidden="true">
+                      {moved(s) ? (
+                        <>
+                          <Diamond tone="yellow" size={9} />
+                          <span className={styles.chgMicro}>CHG</span>
+                        </>
+                      ) : (
+                        <span className={styles.idx}>{pad(i + 1)}</span>
+                      )}
+                    </span>
+                    <span className={styles.main}>
+                      <span className={styles.col}>
+                        <span className={styles.name}>{s.name}</span>
+                        {busy ? (
+                          <span className={styles.busy}>
+                            <MicroLabel>Applying</MicroLabel>应用中
+                          </span>
+                        ) : (
+                          note && (
+                            <span className={styles.note}>
+                              <span className={styles.noteTag} aria-hidden="true">
+                                ADJUSTED
+                              </span>
+                              <span>{note}</span>
+                            </span>
+                          )
+                        )}
+                      </span>
+                      <span className={styles.end}>
+                        {moved(s) && (
+                          <span className={styles.def}>
+                            默认<b>{nameOf(s, s.default)}</b>
+                          </span>
+                        )}
+                        {was !== undefined && was !== value(s) && !busy && (
+                          <button type="button" className={styles.flip} disabled={off} onClick={() => flip(s)}>
+                            <Icon name="sync" size={12} />
+                            对比「{nameOf(s, was)}」
+                            <kbd aria-hidden="true">X</kbd>
+                          </button>
+                        )}
+                        {control(s)}
+                      </span>
+                      <span className={styles.bc} aria-hidden="true">
+                        <Barcode width={34} height={9} label="AGENTIC" />
+                      </span>
                     </span>
                   </div>
-                );
-              })}
-            </div>
-          )
+                  {failBar(s.id)}
+                </div>
+              );
+            })}
+          </div>
         );
       })}
-      {mark?.error && (
-        <p className={styles.err} role="alert">
-          {mark.error}
-        </p>
-      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
-// 导入进度条: character.importState/onImport drive one bar under the import buttons of 导入 and MMD; the fake pushes read … publish → reload.
+// 导入进度条: character.importState/onImport drive the bar under 动作's 导入 buttons, 外观's 导入 progress card and MMD's strip; the fake pushes read … publish → reload.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, ImportState } from '../../src/bridge/protocol';
@@ -78,17 +78,19 @@ describe('导入 pane', () => {
     expect(motion.getAttribute('aria-disabled')).not.toBe('true');
   });
 
-  it('puts an outfit import under the outfit button', async () => {
+  it('puts an outfit import on the progress card of the 外观 导入 tab', async () => {
     const sink = pushes();
-    await mount('&pane=import');
-    await screen.findByRole('button', { name: '导入动作' });
+    await mount('&pane=look');
+    fireEvent.click(screen.getByRole('tab', { name: '导入' }));
+    await screen.findByRole('heading', { name: '导入外观模组' });
     await act(async () => sink.push({ running: true, kind: 'outfit', title: 'SummerMod', stage: 'compose', fraction: 0.2 }));
-    expect(screen.getByRole('progressbar', { name: '合成外观' }).closest('section')?.getAttribute('aria-label')).toBe('外观与 mod');
+    expect(screen.getByRole('progressbar', { name: '合成外观' }).closest('[data-import-progress]')?.textContent).toContain('SummerMod');
   });
 
   it('reads character.importState on mount, so a remount or reload shows the running import', async () => {
-    vi.spyOn(bridge.character, 'importState').mockResolvedValue({ ...RUNNING, stage: 'reload', fraction: 1 });
-    await mount('&pane=import');
+    vi.spyOn(bridge.character, 'importState').mockResolvedValue({ ...RUNNING, kind: 'outfit', stage: 'reload', fraction: 1 });
+    await mount('&pane=look');
+    fireEvent.click(screen.getByRole('tab', { name: '导入' }));
     const bar = await screen.findByRole('progressbar', { name: '载入角色' });
     expect(bar.getAttribute('aria-valuenow')).toBe('100');
   });
