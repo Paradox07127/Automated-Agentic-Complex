@@ -51,14 +51,6 @@ test('character-default: roster heads stay small, look options and layer switche
   expect(errors).toEqual([]);
 });
 
-test('character behavior uses switches', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('main.html#/tune?tab=behavior&still=1');
-  await expect(page.getByRole('switch', { name: '看向鼠标' })).toBeVisible();
-  await expect(page.locator('main')).not.toContainText('lean_edge');
-  expect(errors).toEqual([]);
-});
-
 test('character motions: group heads stay inside the table, a behavior-only row has a disabled preview mark, a missing duration reads —', async ({ page }) => {
   await page.setViewportSize({ width: 1385, height: 770 });
   await page.goto('main.html#/character?still=1&pane=motion');
@@ -79,7 +71,7 @@ test('character motions: group heads stay inside the table, a behavior-only row 
 
 test('tune: plate numbers are Title Case and no SVG text is under 11 px', async ({ page }) => {
   await page.goto('main.html#/tune?still=1');
-  await expect(page.getByRole('region', { name: '屏幕示意' })).toBeVisible();
+  await expect(page.getByRole('region', { name: '精神与心情 │ 行为决策' })).toBeVisible();
   const nos = await page.locator('main [data-stub="Plate"] > [aria-hidden="true"]').allTextContents();
   expect(nos.filter((t) => /[A-Z]{2}/.test(t))).toEqual([]);
   const small = await page.locator('main svg text').evaluateAll((els) => els.filter((e) => parseFloat(getComputedStyle(e).fontSize) < 11).map((e) => e.textContent));

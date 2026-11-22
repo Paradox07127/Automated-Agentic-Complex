@@ -1,33 +1,41 @@
-// 调参（开发者）: 行为与画面, the 24 h state curves with 行为决策, and the full motion table, moved here from the 角色 page.
-// As there, 屏幕示意, 状态倍数 and today's plays come from the fake bridge only (agentd and the host do not send them yet).
+// 调参（开发者）：行为 puts her state and her behavior decisions on one time axis; 画质 holds the three developer quality rows and the render load.
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getBridge, type AvatarAction } from '../../bridge';
-import type { ChartStatus } from '../../charts';
+import { useNavigate } from '@tanstack/react-router';
+import { getBridge } from '../../bridge';
+import { formatClock } from '../../domain';
 import { useDemo } from '../../shell/demo';
-import { PageHeaderSlot } from '../../shell/headerSlot';
-import { ErrBar, Menu, Skel, Spinner } from '../../ui';
-import { failure, readBeats, readHistory, readMotionHours, readState, resetState } from '../character/api';
+import { BottomBarSlot, PageHeaderSlot } from '../../shell/headerSlot';
+import { Btn, ErrBar, Spinner, Tabs } from '../../ui';
+import { StatusLamp } from '../../ui/game';
+import { failure, readBeats, readHistory, readState, resetState } from '../character/api';
 import { pageNow, useFeedback, usePageParams } from '../character/feedback';
-import { MotionTable } from '../character/MotionTable';
 import { DOWN } from '../character/Page';
-import { StatePanel, type PanelTab } from '../character/StatePanel';
-import { Tune } from '../character/Tune';
-import { groupMotions, useMotions } from '../character/useMotions';
-import { ToolBar } from '../diag/ToolBar';
+import { Behavior, type Range } from './Behavior';
+import { Render } from './Render';
 import styles from './Tune.module.css';
 
-const NO_ACTIONS: AvatarAction[] = [];
-const codeOf = (e: unknown) => (e as { code?: string } | null)?.code;
+type Tab = 'behavior' | 'render';
+
+const TABS = [
+  { id: 'behavior', label: '行为', icon: 'hand' as const },
+  { id: 'render', label: '画质', icon: 'sun' as const },
+];
+const DAY = 24 * 3600_000;
+/** readBeats asks agentd for at most this many decisions, newest first. */
+const BEAT_LIMIT = 200;
+
+const startOf = (range: Range, now: number) => (range === 'today' ? new Date(now).setHours(0, 0, 0, 0) : now - DAY);
 
 export function TunePage() {
   const { state, demo } = useDemo();
   const params = usePageParams();
+  const go = useNavigate();
   const fb = useFeedback();
   const qc = useQueryClient();
-  const canAvatar = getBridge().capabilities.avatar;
+  const tab: Tab = params.get('tab') === 'render' ? 'render' : 'behavior';
+  const [range, setRange] = useState<Range>('today');
   const now = pageNow();
-  const dayStart = new Date(now).setHours(0, 0, 0, 0);
   // Page clock of the last state read: where the curves stop when agentd goes away.
   const [readAt, setReadAt] = useState<number>();
   const cs = useQuery({
@@ -39,24 +47,20 @@ export function TunePage() {
     },
   });
   const log = useQuery({ queryKey: ['character', 'history', '24h'], queryFn: () => readHistory('24h', pageNow()) });
-  const beats = useQuery({ queryKey: ['character', 'beats', dayStart], queryFn: () => readBeats(dayStart) });
+  const beats = useQuery({ queryKey: ['character', 'beats', range], queryFn: () => readBeats(startOf(range, pageNow())) });
   const conn = useQuery({ queryKey: ['agentd', 'connection'], queryFn: () => getBridge().agentd.connection() });
   const sup = useQuery({ queryKey: ['supervisor', 'state'], queryFn: () => getBridge().supervisor.state() });
-  const motions = useQuery({ queryKey: ['character', 'motions'], queryFn: () => getBridge().avatar.actions(), enabled: canAvatar });
-  const actions = motions.data ?? NO_ACTIONS;
-  const m = useMotions({ actions, toast: fb.toast });
-  const [sel, setSel] = useState('');
-  const [ptab, setPtab] = useState<PanelTab>(params.get('ptab') === 'beat' ? 'beat' : 'state');
 
   const avatarState = demo === 'offline' ? 'stopped' : sup.data?.avatar?.state;
   const offline = avatarState != null && DOWN.test(avatarState);
-  const backoff = demo === 'offline' ? null : (sup.data?.avatar?.backoff ?? null);
   const disconnected = conn.data === 'offline' || [cs.error, log.error].some((e) => e != null && failure(e).kind === 'offline');
   const stateError = state === 'error' || (cs.isError && !disconnected);
   const none = state === 'empty' || cs.data === null;
-  const stop = readAt != null ? { stoppedAt: readAt } : {};
-  const status = (q: { isPending: boolean; isError: boolean }): ChartStatus =>
-    disconnected ? 'disconnected' : state === 'loading' ? 'loading' : state === 'error' || q.isError ? 'error' : q.isPending ? 'loading' : 'ok';
+  const charState = state === 'loading' ? undefined : none ? null : cs.data;
+  const t0 = startOf(range, now);
+  const restartAgentd = () => void getBridge().supervisor.restart('agentd').then(() => fb.toast('正在重新连接后台服务…'));
+
+  const setTab = (id: string) => void go({ to: '/tune', search: (prev: Record<string, unknown>) => ({ ...prev, tab: id === 'behavior' ? undefined : id }), replace: true });
   const restart = () => {
     void getBridge().supervisor.restart('avatar');
     fb.toast('正在重启角色…');
@@ -77,101 +81,81 @@ export function TunePage() {
       },
     );
   };
-  const motionsError = !canAvatar ? '桌面角色没有接入' : motions.isError ? (codeOf(motions.error) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应') : null;
-  const groups = groupMotions(actions);
-  const pick = groups.flatMap((g) => g.rows).find((r) => r.a.id === sel)?.a.id ?? '';
-
-  const table = motionsError ? (
-    <ErrBar message={`读取动作失败：${motionsError}`} onRetry={() => void motions.refetch()} />
-  ) : state === 'loading' || motions.data == null ? (
-    <Skel rows={8} />
-  ) : (
-    <MotionTable
-      groups={groups}
-      value={m.value}
-      changed={m.changed}
-      sel={pick}
-      onSel={setSel}
-      onToggle={m.toggle}
-      hours={readMotionHours(demo === 'sparse')}
-      offline={offline}
-      lock={false}
-      sparse={demo === 'sparse'}
-      saving={m.saving}
-      onUndo={m.undo}
-      onSave={m.save}
-    />
-  );
+  const ask = () =>
+    fb.ask({
+      title: '重置角色的状态？',
+      note: '精神和心情回到默认值，变化原因和状态历史都会删除。记忆不受影响。',
+      danger: true,
+      confirmLabel: '重置',
+      children: (
+        <ul className={styles.list}>
+          <li>
+            状态历史：近 24 小时的 <b>{log.data?.length ?? 0}</b> 个点
+          </li>
+          <li>
+            变化原因：<b>{cs.data?.causes.length ?? 0}</b> 条
+          </li>
+          <li className={styles.keep}>留着：行为决策记录、记忆、动作开关</li>
+        </ul>
+      ),
+      onConfirm: reset,
+    });
+  const resetWhy = disconnected ? '后台已断开' : !cs.data || none ? '还没有状态可以重置' : undefined;
 
   return (
     <div className={styles.page} data-page="tune">
       {fb.node}
       <PageHeaderSlot
+        tabs={<Tabs label="调参页签" keys={false} value={tab} tabs={TABS} onChange={setTab} />}
         right={
-          state === 'loading' && (
-            <span className={styles.loading} role="status">
+          state === 'loading' || cs.isPending ? (
+            <span className={styles.lamp} role="status">
               <Spinner label="读取中" />
               读取中
+            </span>
+          ) : (
+            <span className={styles.lamp}>
+              <StatusLamp state={disconnected ? 'broken' : 'ok'} label={disconnected ? '后台已断开' : '已连接'} />
+              {readAt != null && (
+                <span data-fold="1">
+                  {disconnected ? '停在' : '读取于'} <b>{formatClock(readAt, { seconds: true })}</b>
+                </span>
+              )}
             </span>
           )
         }
       />
-      <ToolBar
-        action={
-          <Menu
-            label="更多"
-            icon="more"
-            align="right"
-            items={[
-              {
-                kind: 'item',
-                label: '重置角色状态…',
-                danger: true,
-                disabled: !cs.data || none,
-                reason: '还没有状态可以重置',
-                onSelect: () =>
-                  fb.ask({
-                    title: '重置角色的状态？',
-                    note: '精神和心情回到默认值，变化原因和状态历史都会删除。记忆不受影响。',
-                    danger: true,
-                    confirmLabel: '重置',
-                    onConfirm: reset,
-                  }),
-              },
-            ]}
+      {tab === 'behavior' ? (
+        <>
+          <BottomBarSlot
+            actions={
+              <Btn icon="refresh" disabled={resetWhy != null} disabledReason={resetWhy} onClick={ask}>
+                重置状态…
+              </Btn>
+            }
           />
-        }
-      />
-      {(stateError || disconnected) && (
-        <div className={styles.bars}>
-          {stateError && (
-            <ErrBar message={`读取角色状态失败：${cs.error ? failure(cs.error).text : '桌面角色没有回应'}`} {...(readAt != null ? { staleAt: readAt } : {})} onRetry={() => void cs.refetch().then(() => fb.toast('正在重新读取…'))} />
+          {(stateError || disconnected) && (
+            <div className={styles.bars}>
+              {stateError && <ErrBar message={`读取角色状态失败：${cs.error ? failure(cs.error).text : '桌面角色没有回应'}`} {...(readAt != null ? { staleAt: readAt } : {})} onRetry={() => void cs.refetch()} />}
+              {disconnected && <ErrBar message={`后台已断开 │ 状态和决策停在 ${readAt != null ? formatClock(readAt) : '断开前'}`} tone="warning" onRetry={restartAgentd} />}
+            </div>
           )}
-          {disconnected && (
-            <ErrBar
-              message="后台已断开 │ 角色状态和读数停在断开前"
-              tone="warning"
-              {...(readAt != null ? { staleAt: readAt } : {})}
-              onRetry={() => void getBridge().supervisor.restart('agentd').then(() => fb.toast('正在重新连接后台服务…'))}
-            />
-          )}
-        </div>
+          <Behavior
+            state={charState}
+            log={log.data ?? []}
+            beats={beats.data ?? []}
+            capped={(beats.data?.length ?? 0) >= BEAT_LIMIT ? BEAT_LIMIT : null}
+            range={range}
+            onRange={setRange}
+            t0={t0}
+            now={now}
+            stoppedAt={disconnected ? readAt : undefined}
+            offline={offline}
+          />
+        </>
+      ) : (
+        <Render offline={offline} onRestart={restart} toast={fb.toast} />
       )}
-      <Tune offline={offline} backoff={backoff} onRestart={restart} actions={actions} state={none ? null : (cs.data ?? null)} toast={fb.toast} />
-      <div className={styles.lower}>
-        <StatePanel
-          tab={ptab}
-          onTab={setPtab}
-          log={none ? [] : (log.data ?? [])}
-          logStatus={status(log)}
-          causes={none ? [] : (cs.data?.causes ?? [])}
-          beats={beats.data ?? []}
-          beatStatus={status(beats)}
-          now={now}
-          {...stop}
-        />
-        <div className={styles.motions}>{table}</div>
-      </div>
     </div>
   );
 }

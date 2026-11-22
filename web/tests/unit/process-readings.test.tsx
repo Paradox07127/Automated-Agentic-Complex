@@ -148,14 +148,14 @@ describe('avatar details', () => {
     expect(document.querySelector('[data-nav-target="diag-render"]')?.textContent).toContain('画面暂停中 │ 屏幕睡眠');
   });
 
-  it('the 调参 frame-rate chart says 画面暂停中 when a suspended host sends no stats', async () => {
+  it('the 调参 render load says 画面暂停中 when a suspended host sends no stats', async () => {
     const fake = createFakeBridge({ surface: 'main', still: true });
     window.agenticComplex = { ...fake, avatar: { ...fake.avatar, onStats: () => () => {}, details: async () => SUSPENDED } };
-    await mountPage(TunePage, '');
+    await mountPage(TunePage, '&tab=render');
     expect(await screen.findByText(/画面暂停中 │ 屏幕睡眠/)).toBeTruthy();
     cleanup();
     window.agenticComplex = { ...fake, avatar: { ...fake.avatar, onStats: () => () => {} } };
-    await mountPage(TunePage, '');
+    await mountPage(TunePage, '&tab=render');
     expect(await screen.findByText(/还没有收到宿主读数/)).toBeTruthy();
   });
 });
@@ -179,10 +179,10 @@ describe('settings.onChange', () => {
     await waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(before));
   });
 
-  it('the 调参 behaviour block reads the native values again when the menu flips beh.stay', async () => {
+  it('the 调参 quality rows read the native values again when the menu flips beh.stay', async () => {
     const { bridge, push } = installPush();
     const read = vi.spyOn(bridge.settings, 'read');
-    await mountPage(TunePage, '');
+    await mountPage(TunePage, '&tab=render');
     await waitFor(() => expect(read).toHaveBeenCalled());
     const before = read.mock.calls.length;
     await act(async () => push()({ ids: ['beh.stay'] }));

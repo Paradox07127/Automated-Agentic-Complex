@@ -1,52 +1,249 @@
-/* 调参（开发者）：上面行为 │ 画面，下面状态曲线 │ 完整动作表；整页滚动。 */
+/* 调参：页边 24，区块之间 32，区块内 16；行为页的曲线框和变化原因并排，窄窗时原因落到图下。 */
 .page {
   display: flex;
   flex-direction: column;
+  gap: var(--ef-sp-16);
   min-width: 0;
+  padding: var(--ef-sp-16) var(--ef-page-pad) var(--ef-sp-24);
 }
 
-.loading {
+.lamp {
   display: inline-flex;
+  gap: var(--ef-sp-12);
   align-items: center;
-  gap: var(--ef-sp-6);
   color: var(--ef-text-2);
   font: var(--ef-t-meta);
   white-space: nowrap;
 }
 
+.lamp b {
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-num);
+}
+
 .bars {
   display: grid;
   gap: var(--ef-sp-8);
-  padding: var(--ef-sp-12) 24px 0;
 }
 
-.lower {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(420px, 40%, 560px);
-  align-items: start;
-  gap: 32px;
-  padding: 0 24px 32px;
-}
-
-/* The table scrolls inside a fixed height so its group heads stay on top. */
-.motions {
+.behavior,
+.render {
   display: flex;
   flex-direction: column;
-  height: 560px;
+  gap: var(--ef-space-section);
   min-width: 0;
 }
 
-.motions > [data-motions] {
-  flex: 1;
+.render {
+  gap: var(--ef-sp-24);
 }
 
+.sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-space-block);
+  min-width: 0;
+}
+
+.headR {
+  display: inline-flex;
+  flex: none;
+  gap: var(--ef-sp-16);
+  align-items: center;
+}
+
+/* Readout plate parts: what she does, the state switch at the end. */
+.doing {
+  font: var(--ef-fw-medium) var(--ef-fs-body-lg) / 1.4 var(--ef-font-sans);
+}
+
+.aff {
+  display: inline-flex;
+  gap: var(--ef-sp-12);
+  align-items: center;
+}
+
+.legend {
+  display: inline-flex;
+  gap: var(--ef-sp-12);
+  align-items: center;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+.legend > span {
+  display: inline-flex;
+  gap: var(--ef-sp-6);
+  align-items: center;
+}
+
+.legend i {
+  width: 18px;
+  height: 0;
+  border-top: 2px solid var(--ef-chart-s1);
+}
+
+.legend i[data-k='v'] {
+  border-top: 2px dashed var(--ef-chart-s2);
+}
+
+.legend i[data-k='c'] {
+  width: 0;
+  height: 12px;
+  border-top: 0;
+  border-left: 1px dashed var(--ef-text-2);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.capped {
+  position: absolute;
+  top: 4px;
+  right: 12px;
+  z-index: 3;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.chartSkel {
+  padding: 30px 14px 30px;
+}
+
+/* 变化原因：每条一行，时间、哪一项、原因、增减；选中照下拉选中项（深底白字、左 4 px 白条）。 */
+.causes {
+  padding: 30px 0 26px;
+}
+
+.causes ol {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 10px;
+  list-style: none;
+}
+
+.causes button {
+  display: grid;
+  grid-template-columns: 42px 34px minmax(0, 1fr) auto;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px 0 8px;
+  border: 0;
+  background: none;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-regular) var(--ef-fs-body) var(--ef-font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.causes button:hover {
+  background: var(--ef-chip);
+}
+
+.causes button:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.causes button[aria-pressed='true'] {
+  background: var(--ef-row-sel-bg);
+  color: var(--ef-row-sel-fg);
+  box-shadow: inset 4px 0 0 var(--ef-row-sel-fg);
+}
+
+.tm {
+  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-num);
+  opacity: 0.75;
+}
+
+.at {
+  padding: 0 4px;
+  box-shadow: inset 0 0 0 1px currentColor;
+  font: var(--ef-t-meta);
+  text-align: center;
+  opacity: 0.8;
+}
+
+.cz {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dl {
+  font: var(--ef-fw-semibold) var(--ef-fs-body) var(--ef-font-num);
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 0;
+  padding: 20px 20px;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+/* 画质 */
+.count {
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+.count b {
+  margin: 0 2px;
+  color: var(--ef-text-1);
+  font-family: var(--ef-font-num);
+}
+
+.rows {
+  display: grid;
+}
+
+/* The reset card's list: what goes and what stays. */
+.list {
+  margin: 0;
+  padding: 10px 12px 10px 28px;
+  border-left: 3px solid var(--ef-text-1);
+  background: var(--ef-chip);
+}
+
+.keep {
+  color: var(--ef-success-text);
+}
+
+/* 925 × 515: the causes drop under the chart in two columns; blocks close up so the chart starts in view. */
 @container page (max-width: 1000px) {
-  .lower {
+  .page {
+    padding-top: var(--ef-sp-8);
+  }
+
+  .behavior,
+  .render {
+    gap: var(--ef-sp-16);
+  }
+
+  .sec {
+    gap: var(--ef-sp-8);
+  }
+
+  .grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* The motion table's list stops scrolling here (MotionTable.module.css); the page scrolls instead. */
-  .motions {
-    height: auto;
+  .causes {
+    padding: 28px 0 10px;
+  }
+
+  .causes ol {
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--ef-sp-8);
   }
 }

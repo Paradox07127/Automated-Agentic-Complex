@@ -10,7 +10,6 @@ const open = async (page: Page, hash: string) => {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
 };
 const box = async (l: Locator): Promise<Box> => (await l.boundingBox())!;
-const overlaps = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
 /** Focus rings of `sel` (box grown by outline-offset plus width) that a clipping ancestor cuts, for controls fully inside it. */
 function ringCuts(page: Page, sel: string) {
@@ -47,7 +46,7 @@ for (const [w, h] of [
 ] as const) {
   test(`${w}: the motion jump bar has its own row and shows every section name in full`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
-    for (const route of ['/character?pane=motion', '/tune']) {
+    for (const route of ['/character?pane=motion']) {
       await open(page, route);
       const jump = page.getByRole('group', { name: '跳转到分区' });
       await expect(jump).toBeVisible();
@@ -122,25 +121,10 @@ test('the memory-trend peak label stays below the 14 天新增 header', async ({
   }
 });
 
-test('调参 screen map: the 活动范围 tag covers no 窗沿 label', async ({ page }) => {
-  for (const demo of ['default', 'full']) {
+test('调参 chart: cause tags, labels and lines stay inside the chart', async ({ page }) => {
+  for (const demo of ['sparse', 'default', 'disconnected']) {
     await open(page, `/tune?demo=${demo}`);
-    const map = page.getByRole('img', { name: /^屏幕示意/ });
-    if (!(await map.count())) continue;
-    // Page-side rectangles: Playwright's boundingBox puts SVG text at the svg origin in WebKit.
-    const rect = (l: Locator) => l.evaluate((e) => (({ x, y, width, height }) => ({ x, y, width, height }))(e.getBoundingClientRect()));
-    const tag = await rect(map.locator('text', { hasText: '活动范围' }).locator('xpath=preceding-sibling::*[1]'));
-    for (const l of await map.locator('text', { hasText: '窗沿' }).all()) {
-      const b = await rect(l);
-      expect(overlaps(tag, b), `${demo}: ${JSON.stringify([tag, b])}`).toBe(false);
-    }
-  }
-});
-
-test('line-chart event marks and labels stay inside the chart', async ({ page }) => {
-  for (const demo of ['sparse', 'default', 'full']) {
-    await open(page, `/tune?demo=${demo}`);
-    const out = await page.locator('[data-stub="LineChart"] svg').evaluateAll((svgs) =>
+    const out = await page.locator('svg[aria-label^="精神和心情曲线"]').evaluateAll((svgs) =>
       svgs.flatMap((svg) => {
         const r = svg.getBoundingClientRect();
         return [...svg.querySelectorAll('text, line')]

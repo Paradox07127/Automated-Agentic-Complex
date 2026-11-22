@@ -8,7 +8,6 @@ import type { AgenticComplexBridge, AvatarAction, MmdSyncState } from '../../src
 import { MOTIONS } from '../../src/mock/character';
 import { Operator, type OperatorProps } from '../../src/pages/character/Operator';
 import { CharacterPage } from '../../src/pages/character/Page';
-import { TunePage } from '../../src/pages/tune/Page';
 import { HeaderSlotContext } from '../../src/shell/headerSlot';
 import { setNavRouter } from '../../src/shell/nav';
 
@@ -192,22 +191,5 @@ describe('隐藏界面', () => {
     rerender({ ...props, side: { of: 'photo', node: <div /> } });
     expect(op.hasAttribute('data-bare')).toBe(false);
     bottom.remove();
-  });
-});
-
-describe('调参 motion table', () => {
-  it('draws its dark rows under the dark theme, so the switches in them take the dark tokens', async () => {
-    window.location.hash = '#/tune?still=1';
-    const root = createRootRoute({ component: TunePage });
-    const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
-    await waitFor(() => expect(row('nod')).not.toBeNull());
-    const sw = within(row('nod')!).getByRole('radiogroup', { name: '点头附和' });
-    expect(sw.closest('[data-theme]')?.getAttribute('data-theme')).toBe('dark');
-    window.location.hash = '';
   });
 });

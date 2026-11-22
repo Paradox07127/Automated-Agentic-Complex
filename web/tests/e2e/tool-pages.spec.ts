@@ -4,7 +4,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 // trace turn rows are pressable; the first-run step bar and word mark; nothing scrolls sideways at 900.
 
 // 运行记录 has no filter bar: its search and filters sit at the head of the turn list.
-const TOOLS = ['diag', 'pipeline', 'tune'] as const;
+const TOOLS = ['diag', 'pipeline'] as const;
 
 const css = (l: Locator, prop: string) => l.evaluate((e, p) => getComputedStyle(e).getPropertyValue(p), prop);
 const token = (page: Page, name: string) =>

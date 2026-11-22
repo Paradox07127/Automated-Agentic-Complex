@@ -1,4 +1,4 @@
-// Character page: switcher row; stage │ motion switches; commit line in the bottom bar; 行为与画面 and the state tabs on 调参; demos and mock-only blocks.
+// Character page: switcher row; stage │ motion switches; commit line in the bottom bar; demos and mock-only blocks.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -8,13 +8,12 @@ import { MOTIONS } from '../../src/mock/character';
 import { Operator } from '../../src/pages/character/Operator';
 import { CharacterPage } from '../../src/pages/character/Page';
 import { demos } from '../../src/pages/character/demos';
-import { TunePage } from '../../src/pages/tune/Page';
 import { HeaderSlotContext } from '../../src/shell/headerSlot';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 
 async function mount(search = '', component: RouteComponent = CharacterPage) {
-  window.location.hash = `#/${component === TunePage ? 'tune' : 'character'}?still=1${search}`;
+  window.location.hash = `#/character?still=1${search}`;
   const root = createRootRoute({ component });
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
   render(
@@ -94,16 +93,6 @@ describe('character · 角色与动作', () => {
     expect([...grid.querySelectorAll('[data-motion]')].map((r) => r.getAttribute('data-motion'))).toEqual(['sit', 'lean']);
   });
 
-  it('opens 行为决策 on 调参 from the URL and lays out three lanes by who decided', async () => {
-    await mount('&ptab=beat', TunePage);
-    const tab = await screen.findByRole('tab', { name: '行为决策' });
-    expect(tab.getAttribute('aria-selected')).toBe('true');
-    const panel = screen.getByRole('tabpanel');
-    await waitFor(() => expect(panel.textContent).toContain('规则 1'));
-    expect(panel.textContent).toContain('模型 0');
-    expect(panel.textContent).toContain('硬规则 0');
-  });
-
   it('has no plays-today display on 动作, even on the mock bridge that counts them for 调参', async () => {
     await mount('&pane=motion');
     const grid = await screen.findByRole('grid', { name: '全部动作' });
@@ -114,11 +103,6 @@ describe('character · 角色与动作', () => {
     expect(grid.querySelector('[title="今日播放次数"]')).toBeNull();
     expect(stage().textContent).not.toContain('今日');
     expect(stage().textContent).not.toContain('次');
-  });
-
-  it('sparse: on 调参 a curve from where the log starts', async () => {
-    await mount('&demo=sparse', TunePage);
-    await waitFor(() => expect(screen.getByText(/起记录/)).toBeTruthy());
   });
 
   it('error: says the state read failed and keeps the motion table', async () => {
@@ -186,18 +170,6 @@ describe('角色 page layout', () => {
   });
 });
 
-describe('调参 · 行为与画面', () => {
-  it('draws behavior, screen, capabilities, camera and frame rate', async () => {
-    await mount('', TunePage);
-    expect(await screen.findByRole('radiogroup', { name: '活动方式' })).toBeTruthy();
-    expect(screen.getByRole('img', { name: /屏幕示意/ })).toBeTruthy();
-    expect(screen.getByRole('switch', { name: /看向鼠标/ })).toBeTruthy();
-    expect(screen.getByRole('img', { name: /镜头水平 0°/ })).toBeTruthy();
-    expect(screen.getByText('状态倍数')).toBeTruthy();
-    expect(screen.getByText('帧率上限')).toBeTruthy();
-  });
-});
-
 describe('character · real data', () => {
   it('leaves out the blocks agentd and the host do not serve yet', async () => {
     window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
@@ -206,11 +178,6 @@ describe('character · real data', () => {
     expect(screen.queryByText('今日播放')).toBeNull();
     expect(stage().textContent).not.toContain('今日');
     expect(screen.queryByRole('switch', { name: '显示武器' })).toBeNull();
-    cleanup();
-    await mount('', TunePage);
-    await screen.findByRole('radiogroup', { name: '活动方式' });
-    expect(screen.queryByRole('img', { name: /屏幕示意/ })).toBeNull();
-    expect(screen.queryByText('状态倍数')).toBeNull();
   });
 });
 

@@ -35,8 +35,8 @@ async function mount(search = '', component: RouteComponent = CharacterPage) {
   await waitFor(() => expect(document.querySelector('[data-page]')).not.toBeNull());
 }
 
-/** 行为与画面 lives on the developer 调参 page. */
-const tune = () => mount('', TunePage);
+/** The developer quality rows and the render load live on 调参's 画质 tab. */
+const tune = () => mount('&tab=render', TunePage);
 
 const gets = (): string[] => request.mock.calls.filter(([m]) => m === 'GET').map(([, p]) => p);
 const click = (el: Element) => act(async () => void fireEvent.click(el));
@@ -97,7 +97,7 @@ describe('motions', () => {
 });
 
 describe('render readings', () => {
-  it('draws avatar.onStats (fps, P95, GPU) and never reads /character/render', async () => {
+  it('draws avatar.onStats (P95 against the frame budget, fps, GPU) and never reads /character/render', async () => {
     let push: ((s: AvatarStats) => void) | null = null;
     const off = vi.fn();
     vi.spyOn(bridge.avatar, 'onStats').mockImplementation((cb) => ((push = cb), off));
@@ -105,11 +105,10 @@ describe('render readings', () => {
     await waitFor(() => expect(push).not.toBeNull());
     expect(await screen.findByText(/还没有收到宿主读数/)).toBeTruthy();
     act(() => push?.({ fps: 58, frameMsP95: 15.24, gpuMs: 6.1, frameMs: 17.2, cpuPercent: 12 }));
-    const fps = await screen.findByText('FPS');
-    const row = fps.parentElement?.parentElement as HTMLElement;
-    expect(row.textContent).toContain('58');
-    expect(row.textContent).toContain('15.2 ms');
-    expect(row.textContent).toContain('6.1 ms');
+    const plate = await screen.findByRole('region', { name: '帧读数' });
+    await waitFor(() => expect(plate.textContent).toContain('15.2 / 16.7 ms'));
+    expect(plate.textContent).toContain('FPS58');
+    expect(plate.textContent).toContain('6.1 ms');
     expect(gets().filter((p) => p.startsWith('/character/render'))).toEqual([]);
     cleanup();
     expect(off).toHaveBeenCalled();
@@ -121,12 +120,11 @@ describe('render settings (rnd.*)', () => {
     const save = vi.spyOn(bridge.settings, 'save').mockResolvedValue({ restart: 'avatar', notApplied: [] });
     const present = vi.spyOn(bridge.avatar.presentation, 'set');
     await tune();
-    const cam = await screen.findByRole('radiogroup', { name: '镜头预设' });
-    expect(within(cam).getAllByRole('radio').map((r) => r.textContent)).toEqual(['角色展示', '总览', '档案']);
-    expect(screen.queryByText('跟随时间')).toBeNull();
-    await click(within(cam).getByRole('radio', { name: '总览' }));
-    expect(save).toHaveBeenLastCalledWith({ 'rnd.cam': 'overview' });
-    await click(within(screen.getByRole('radiogroup', { name: '自阴影精度' })).getByRole('radio', { name: '低 · 256' }));
+    const shadow = await screen.findByRole('radiogroup', { name: '自阴影精度' });
+    expect(within(shadow).getAllByRole('radio').map((r) => r.textContent)).toEqual(['高 · 1024', '中 · 512', '低 · 256']);
+    await click(within(screen.getByRole('radiogroup', { name: '2× SSAA' })).getByRole('radio', { name: '关' }));
+    expect(save).toHaveBeenLastCalledWith({ 'rnd.aa': false });
+    await click(within(shadow).getByRole('radio', { name: '低 · 256' }));
     expect(save).toHaveBeenLastCalledWith({ 'rnd.shadow': '256' });
     expect(present).not.toHaveBeenCalled();
     expect(toasts()).toEqual(['已保存 │ 角色正在重新出现', '已保存 │ 角色正在重新出现']);
@@ -136,55 +134,34 @@ describe('render settings (rnd.*)', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(bridge.settings, 'save').mockResolvedValue({ restart: 'none', notApplied: [], error: '「渲染尺寸」不能设成 x' } as SettingsSaveResult);
     await tune();
-    const cam = await screen.findByRole('radiogroup', { name: '镜头预设' });
-    await click(within(cam).getByRole('radio', { name: '档案' }));
-    expect(toasts()).toEqual(['没有保存「原作镜头预设」：桌面端没有接受这次修改']);
-    expect(within(cam).getByRole('radio', { name: '角色展示' }).getAttribute('aria-checked')).toBe('true');
+    const shadow = await screen.findByRole('radiogroup', { name: '自阴影精度' });
+    await click(within(shadow).getByRole('radio', { name: '中 · 512' }));
+    expect(toasts()).toEqual(['没有保存「自阴影精度」：桌面端没有接受这次修改']);
+    expect(within(shadow).getByRole('radio', { name: '高 · 1024' }).getAttribute('aria-checked')).toBe('true');
   });
 
   it('a raw shell error (option key, system text) goes to the log, the toast stays fixed Chinese', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(bridge.settings, 'save').mockResolvedValue({ restart: 'none', notApplied: [], error: 'authored: The file couldn’t be saved.' } as SettingsSaveResult);
     await tune();
-    await click(within(await screen.findByRole('radiogroup', { name: '镜头预设' })).getByRole('radio', { name: '档案' }));
-    expect(toasts()).toEqual(['没有保存「原作镜头预设」：桌面端没有接受这次修改']);
+    await click(within(await screen.findByRole('radiogroup', { name: '自阴影精度' })).getByRole('radio', { name: '中 · 512' }));
+    expect(toasts()).toEqual(['没有保存「自阴影精度」：桌面端没有接受这次修改']);
     expect(warn.mock.calls.flat().join(' ')).toContain('authored: The file couldn’t be saved.');
   });
 
   it('drops a control the schema does not have', async () => {
-    vi.spyOn(bridge.settings, 'schema').mockResolvedValue(DEMO_SCHEMA.filter((r) => r.id !== 'rnd.outline'));
+    vi.spyOn(bridge.settings, 'schema').mockResolvedValue(DEMO_SCHEMA.filter((r) => r.id !== 'rnd.size'));
     await tune();
-    await screen.findByRole('radiogroup', { name: '镜头预设' });
-    expect(screen.queryByText('角色边界')).toBeNull();
-    expect(screen.getByText('主光强度')).toBeTruthy();
-  });
-});
-
-describe('behavior settings (beh.*)', () => {
-  it('saves each row by its beh.* id and says the receipt', async () => {
-    const save = vi.spyOn(bridge.settings, 'save').mockResolvedValueOnce({ restart: 'none', notApplied: [] }).mockResolvedValueOnce({ restart: 'avatar', notApplied: [] });
-    await tune();
-    await click(await screen.findByRole('switch', { name: '看向鼠标' }));
-    expect(save).toHaveBeenLastCalledWith({ 'beh.mouse': false });
-    await click(within(screen.getByRole('radiogroup', { name: '活动范围' })).getByRole('radio', { name: '小窗口' }));
-    expect(save).toHaveBeenLastCalledWith({ 'beh.range': 'window' });
-    expect(toasts()).toEqual(['已保存 │ 立即生效', '已保存 │ 角色正在重新出现']);
-    expect(screen.queryByText('悬停变淡')).toBeNull();
-  });
-
-  it('greys out a capability whose motion the package lacks and says which', async () => {
-    await tune();
-    // The first is the capability; the full motion table below has a 扶着窗沿 switch of its own.
-    const lean = (await screen.findAllByRole('switch', { name: /扶着窗沿/ }))[0]!;
-    expect((lean as HTMLButtonElement).disabled).toBe(true);
-    expect(lean.parentElement?.textContent).toContain('不可用 │ 缺少 lean_02');
+    await screen.findByRole('radiogroup', { name: '自阴影精度' });
+    expect(screen.queryByText('渲染尺寸')).toBeNull();
+    expect(screen.getByText('2× SSAA')).toBeTruthy();
   });
 
   it('a failed read says why instead of showing made-up values', async () => {
     vi.spyOn(bridge.settings, 'read').mockRejectedValue({ code: 'config_unreadable', detail: 'config.json' });
     await tune();
     expect(await screen.findByText(/读取设置失败/)).toBeTruthy();
-    expect(screen.queryByRole('switch', { name: '看向鼠标' })).toBeNull();
+    expect(screen.queryByRole('radiogroup', { name: '自阴影精度' })).toBeNull();
   });
 });
 

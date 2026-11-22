@@ -103,16 +103,16 @@ test('interactions: pick a motion, preview on the desktop', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test('调参: the old 行为与画面 tab lands here; behavior, render, 行为决策 and the full motion table', async ({ page }) => {
+test('调参: 画质 holds the developer quality rows, 行为 the state and decisions on one chart', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/tune?still=1&tab=render');
   await expect(page.locator('[data-page="tune"]')).toBeVisible();
   expect(new URL(page.url()).hash).toMatch(/^#\/tune\?/);
-  await expect(page.getByRole('radiogroup', { name: '活动方式' })).toBeVisible();
-  await expect(page.getByRole('radiogroup', { name: '镜头预设' })).toBeVisible();
-  await page.getByRole('tab', { name: '行为决策' }).click();
-  await expect(page.getByRole('tabpanel')).toContainText('硬规则');
-  await expect(page.locator('[data-motion="nod"]')).toContainText('批准之后');
+  await expect(page.getByRole('radiogroup', { name: '自阴影精度' })).toBeVisible();
+  await expect(page.getByRole('radiogroup', { name: '活动方式' })).toHaveCount(0);
+  await page.getByRole('tab', { name: '行为' }).click();
+  await expect(page.getByRole('region', { name: '精神与心情 │ 行为决策' })).toContainText('硬规则');
+  await expect(page.locator('[data-motion]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -124,14 +124,6 @@ test('switching asks first and names what happens to the current character', asy
   await expect(dialog).toContainText('示例乙 先从桌面隐藏');
   await dialog.getByRole('button', { name: '切换', exact: true }).click();
   await expect(page.getByText('已切换到 示例甲')).toBeVisible();
-  expect(errors).toEqual([]);
-});
-
-test('sparse on 调参: few plays, and the state curve from where the log starts', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('main.html#/tune?still=1&demo=sparse');
-  await expect(page.getByText(/今日播放较少/)).toBeVisible();
-  await expect(page.getByText(/起记录/)).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -246,8 +238,10 @@ for (const [w, h] of [
     await expect(page.getByRole('grid', { name: '全部动作' })).toBeVisible();
     expect(await overflowX(page, 'character')).toBe(false);
     await page.goto('main.html#/tune?still=1');
-    await expect(page.getByRole('radiogroup', { name: '活动方式' })).toBeVisible();
-    await expect(page.getByRole('grid', { name: '全部动作' })).toBeVisible();
+    await expect(page.getByRole('region', { name: '变化原因' })).toBeVisible();
+    expect(await overflowX(page, 'tune')).toBe(false);
+    await page.goto('main.html#/tune?still=1&tab=render');
+    await expect(page.getByRole('radiogroup', { name: '自阴影精度' })).toBeVisible();
     expect(await overflowX(page, 'tune')).toBe(false);
     expect(errors).toEqual([]);
   });
