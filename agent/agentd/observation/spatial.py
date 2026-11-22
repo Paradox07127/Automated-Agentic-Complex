@@ -293,6 +293,7 @@ class Spatial:
         self._enter = False
         self._within = None  # behavior id of the chosen perform she plays within her sit
         self._seated = self._voice = False  # what the chooser was told: she sits; her voice plays
+        self._variant = None  # and the variant of the sit she sits in
         self._clauses = OrderedDict()  # clause key -> the intent of its clause_intent, until its clause_end
         self._reactions = None  # the chooser's snapshot reaction table
         self._seen = None  # the latest observe(), which chosen performs are admitted against
@@ -645,7 +646,7 @@ class Spatial:
             self._overlay = self._staged = self._return = None
             self._returned = []
             self._hold_at, self._seated, self._voice, self._held = 0.0, False, False, False
-            self._enter, self._within = chooser is not None, None
+            self._enter, self._within, self._variant = chooser is not None, None, None
             self._intents.clear()
             self._clauses.clear()
             if chooser is not None:
@@ -887,6 +888,9 @@ class Spatial:
                     self._within = None
                     self.chooser.report_playhead(*self._played())
                 self._input({"kind": "sit", "variant": sit.get("variant")} if sit else {"kind": "stand"}, None)
+            elif sit is not None and sit.get("variant") != self._variant:
+                self._input({"kind": "sit_variant", "variant": sit.get("variant")}, None)
+            self._variant = sit and sit.get("variant")
             if self._enter and not self._seated and self.stage() not in BLOCKING:
                 self._enter = False
                 self._input({"kind": "event", "key": "character.enter"}, None)
@@ -993,8 +997,11 @@ class Spatial:
 
     def _choose_within(self, clip, why, source, blend, s, now):
         """A seated choice: her sit plays its own enter and loop, and a loop within it that the chooser leaves for that
-        loop fades out; any other clip is a base perform within the sit."""
+        loop fades out; any other clip is a base perform within the sit. Before the chooser sits on the seat's loop its
+        clips are the standing ones it plays out and the enter, and after the sit ended there is nothing to play within."""
         sit = next((r for r in self.active.values() if r["behavior"]["type"] in SEATED), None)
+        if sit is None or not self.chooser.seated:
+            return
         within = self.active.get(self._within)
         if why.startswith(SEAT_MOVES):
             if why.startswith("loop ") and within is not None and within["spec"].get("loop"):

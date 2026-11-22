@@ -618,6 +618,9 @@ class MotionChooser:
                        if u["surface"] == "seat" and u.get("enter"))
             self._seat = Seat(use["id"], use["enter"], use["loop"], rest=item.get("variant") == "rest")
             self._call(("seat", "seat", "enter " + use["id"]), lambda: self.acquire_exact(use["enter"], SEAT_BLEND))
+        elif kind == "sit_variant":  # another sit took over the one she sits in: no new enter
+            if self._seat:
+                self._seat.rest = item.get("variant") == "rest"
         elif kind == "pat_end":
             if self._pat:
                 self._pat.leave = True
@@ -902,6 +905,11 @@ class MotionChooser:
     @property
     def posture(self):
         return self.pack.posture(self.current)
+
+    @property
+    def seated(self):
+        """Her sit's enter has played and she sits on its loop."""
+        return self._seat is not None and self._seat.seated
 
     @property
     def speaking(self):

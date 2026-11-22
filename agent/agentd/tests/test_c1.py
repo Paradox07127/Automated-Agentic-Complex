@@ -568,6 +568,21 @@ class LocalMotionsTest(unittest.TestCase):
         self.assertTrue(file(self.SIT, other))  # a plain clip perform still displaces the sit unannounced
         self.assertEqual(c1.check_message(MessageTest.receipt("rejected", 1760900000500, "target_gone")), [])
 
+    def test_a_clip_within_a_sit_ends_with_it(self):
+        file = lambda *m: c1.check_file({"description": "x", "messages": list(m)})  # noqa: E731
+        stand = {**{k: v for k, v in self.WITHIN.items() if k != "within"}, "behavior_id": "b-e8-3", "seq": 5,
+                 "replaces": None}
+        cancel = {"event": "behavior_cancel", "seq": 4, "behavior_id": "b-e8-1", "reason": "expired",
+                  "turn_generation": self.SIT["turn_generation"]}
+        ended = {"event": "receipt", "behavior_id": "b-e8-1", "phase": "completed", "reason": None,
+                 "at_ms": 1760900000500, "turn_generation": self.SIT["turn_generation"]}
+        running = {**ended, "phase": "running", "at_ms": 1760900000100}
+        self.assertEqual(file(self.SIT, self.WITHIN, cancel, stand), [])
+        self.assertEqual(file(self.SIT, running, self.WITHIN, ended, stand), [])
+        resit = {**self.SIT, "behavior_id": "b-e8-4", "seq": 4, "replaces": "b-e8-1"}
+        again = {**self.WITHIN, "behavior_id": "b-e8-5", "seq": 5, "within": "b-e8-4"}
+        self.assertEqual(file(self.SIT, self.WITHIN, resit, again), [])
+
     def test_within_is_a_behavior_id_on_a_base_clip_perform_only(self):
         overlay = {k: v for k, v in self.WITHIN.items() if k != "loop"}
         for bad in ({**self.WITHIN, "within": ""}, {**self.WITHIN, "within": 3}, {**self.WITHIN, "within": "b" * 65},

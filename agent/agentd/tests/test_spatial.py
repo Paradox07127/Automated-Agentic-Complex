@@ -2639,6 +2639,62 @@ class LocalMotionsTest(SpatialCase):
         self.assertEqual([(m["clip"]["id"], m["within"]) for m in self.within()][:1],
                          [("sit_doze", sit["behavior_id"])])
 
+    def test_a_sit_that_ends_before_the_next_step_has_nothing_played_within_it(self):
+        self.start(enter=False)
+        self.sit("rest")
+        sit = self.sent[-1]
+        self.run_clock(1)
+        self.receipt(sit["behavior_id"], "completed")
+        for _ in range(10):  # the quiet stage reaches the chooser before the motion clock's next step
+            self.now += 1
+            self.spatial.motion({"kind": "quiet"})
+            self.flush()
+        self.assertEqual(self.within(), [])
+        self.assertValid()
+
+    def test_a_sit_plays_nothing_within_it_until_she_is_seated(self):
+        def edit(name, change):
+            path = self.pack / name
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            change(doc)
+            path.write_text(json.dumps(doc), encoding="utf-8")
+        edit("actor/manifest.json", lambda d: d["clips"].append({"name": "think_end", "length": 1.0, "loop": False}))
+        edit("c7/animation/palette-contract.json", lambda d: d["clips"].append({"name": "think_end", "loop": False}))
+        edit("c7/animation/intent-motion-map.json", lambda d: d["clips"].update(
+            think_loop={"hold_policy": "while_requested", "interruptible": False, "exit": "think_end"},
+            think_end={"interruptible": True}))
+        edit("c7/interaction/motion-metadata.json", lambda d: d["clips"].update(
+            think_end={"stance_start": "stand", "stance_end": "stand"}))
+        self.start(enter=False)
+        self.spatial.motion_intent({"intent": "think", "state": "thinking", "activity": None, "mood": None,
+                                    "display_session": "claude:A"}, False)
+        self.run_clock(3)
+        self.assertEqual(self.performs()[-1]["clip"], {"id": "think_loop"})
+        self.sit()
+        sit = self.sent[-1]
+        self.run_clock(14)  # her think loop plays out its exit, then the sit's enter clip
+        self.assertEqual(self.within(), [])
+        self.spatial.motion_intent({"intent": "think", "state": "thinking", "activity": None, "mood": None,
+                                    "display_session": "claude:A"}, False)
+        self.run_clock(14)
+        self.assertEqual([(m["clip"]["id"], m["within"]) for m in self.within()][:1],
+                         [("sit_think", sit["behavior_id"])])
+        self.assertValid()
+
+    def test_a_rest_sit_that_replaces_her_sit_dozes_and_a_sit_that_replaces_it_does_not(self):
+        self.start(enter=False)
+        self.sit()
+        self.run_clock(2)
+        self.assertEqual(self.sit("rest"), (True, None))
+        rest = self.sent[-1]
+        self.run_clock(8)
+        self.assertIn(("sit_doze", rest["behavior_id"]), [(m["clip"]["id"], m["within"]) for m in self.within()])
+        self.assertEqual(self.sit(), (True, None))
+        count = len(self.within())
+        self.run_clock(8)
+        self.assertNotIn("sit_doze", [m["clip"]["id"] for m in self.within()[count:]])
+        self.assertValid()
+
     def test_an_air_activity_stands_her_up_and_keeps_her_from_sitting(self):
         self.start(enter=False)
         self.sit()

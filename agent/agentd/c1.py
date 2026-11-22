@@ -492,6 +492,8 @@ def check_file(data):
             if running.get(message.get("replaces")) == key and \
                     sent.get(message.get('replaces'),{}).get('facing_yaw') == message.get('facing_yaw'):
                 renewals.add(message.get("behavior_id"))
+            for b in [b for b in running if message.get("replaces") and sent.get(b, {}).get("within") == message["replaces"]]:
+                del running[b]  # a clip within a sit or climb ends when it is replaced
             channels = set(message.get("channels") or ())
             displaced = [b for b in running if b != message.get("replaces") and contends(sent.get(b, {}), message)
                          and channels & set(sent.get(b, {}).get("channels") or ())]
@@ -505,6 +507,8 @@ def check_file(data):
             problems.append(f"#{i}: behavior_id {message.get('behavior_id')!r} was not sent before")
         elif message.get("event") == "behavior_cancel" or message.get("phase") in ENDED:
             running.pop(message.get("behavior_id"), None)
+            for b in [b for b in running if sent.get(b, {}).get("within") == message.get("behavior_id")]:
+                del running[b]  # a clip within a sit or climb ends with it
         if message.get("event") == "behavior_cancel" and message.get("reason") == "exit":
             if message.get("condition") not in (sent.get(message.get("behavior_id")) or {}).get("exit", ()):
                 problems.append(f"#{i}: condition {message.get('condition')!r} is not in the behavior's exit")
