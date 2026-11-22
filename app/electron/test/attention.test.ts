@@ -205,9 +205,11 @@ test('payload: no mouse window is null', () => {
 
 // ---- Privacy: incognito and browsers
 
-test('browserAsks: only Safari and Chrome are asked for their tab', () => {
+test('browserAsks: Safari and Chrome on macOS, Chrome and Edge on Windows are asked for their tab', () => {
   assert.equal(browserAsks('com.apple.Safari'), true);
   assert.equal(browserAsks('com.google.Chrome'), true);
+  assert.equal(browserAsks('chrome.exe'), true);
+  assert.equal(browserAsks('msedge.exe'), true);
   assert.equal(browserAsks('com.microsoft.edgemac'), false);
   assert.equal(browserAsks('com.apple.TextEdit'), false);
   assert.equal(browserAsks(null), false);
@@ -251,7 +253,7 @@ test('payload: a browser of unknown incognito state sends only app and bundle_id
 test('Windows: a browser by its executable name is a browser of unknown incognito state, so it sends no title (C12 §2.9 app_id)', () => {
   for (const id of ['chrome.exe', 'msedge.exe', 'brave.exe', 'firefox.exe', 'arc.exe']) {
     assert.equal(isBrowser(id), true, id);
-    assert.equal(browserAsks(id), false, id);
+    assert.equal(browserAsks(id), id === 'chrome.exe' || id === 'msedge.exe', id);
     assert.deepEqual(browserState(id, null), { host: null, incognito: null }, id);
   }
   assert.equal(isBrowser('notepad.exe'), false);

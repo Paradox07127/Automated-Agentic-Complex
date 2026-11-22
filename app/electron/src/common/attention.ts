@@ -482,12 +482,12 @@ export function decodeAttention(r: Record<string, unknown>): RawAttention {
   };
 }
 
-const SAFARI = 'com.apple.Safari';
-const CHROME = 'com.google.Chrome';
+const ASKED = new Set(['com.apple.Safari', 'com.google.Chrome', 'chrome.exe', 'msedge.exe']);
 
-/** AttentionSampler.browserState: only Safari and Chrome are asked (`browser.front_tab`). */
+/** AttentionSampler.browserState: only these browsers are asked (`browser.front_tab`): Safari and Chrome on macOS, Chrome and
+ *  Edge on Windows. */
 export function browserAsks(bundleId: string | null): boolean {
-  return bundleId === SAFARI || bundleId === CHROME;
+  return bundleId !== null && ASKED.has(bundleId);
 }
 
 /** AttentionSampler.browserState: an app that is not mayBePrivate is known not incognito; another browser, a packaged app,
