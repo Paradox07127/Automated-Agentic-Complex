@@ -8,6 +8,7 @@
   {"method": "GET", "path": "/character/state/history", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "^/characters/([a-z0-9_-]{1,64})/binding$", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "^/characters/([a-z0-9_-]{1,64})/motion-graph$", "class": "read", "surfaces": ["main"]},
+  {"method": "GET", "path": "^/characters/([a-z0-9_-]{1,64})/motion-groups$", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "^/characters/([a-z0-9_-]{1,64})/mod-settings$", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "/approvals", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "/feed", "class": "stream", "surfaces": []},

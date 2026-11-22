@@ -28,6 +28,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'GET', path: '/character/state/history', templates: ['/character/state/history'], class: 'read', surfaces: ['main'] },
   { method: 'GET', path: '^/characters/([a-z0-9_-]{1,64})/binding$', templates: ['/characters/:character_id/binding'], class: 'read', surfaces: ['main'] },
   { method: 'GET', path: '^/characters/([a-z0-9_-]{1,64})/motion-graph$', templates: ['/characters/:character_id/motion-graph'], class: 'read', surfaces: ['main'] },
+  { method: 'GET', path: '^/characters/([a-z0-9_-]{1,64})/motion-groups$', templates: ['/characters/:character_id/motion-groups'], class: 'read', surfaces: ['main'] },
   { method: 'GET', path: '^/characters/([a-z0-9_-]{1,64})/mod-settings$', templates: ['/characters/:character_id/mod-settings'], class: 'read', surfaces: ['main'] },
   { method: 'GET', path: '/approvals', templates: ['/approvals'], class: 'read', surfaces: ['main'] },
   { method: 'GET', path: '/feed', templates: ['/feed'], class: 'stream', surfaces: [] },
@@ -225,9 +226,10 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
 export type AgentdRouteKey =
   | 'GET /health' | 'GET /context/browser/policy' | 'GET /state' | 'GET /events' | 'GET /speech'
   | 'GET /character/state' | 'GET /character/state/history' | `GET /characters/${string}/binding`
-  | `GET /characters/${string}/motion-graph` | `GET /characters/${string}/mod-settings` | 'GET /approvals' | 'GET /feed'
-  | 'GET /agent/snapshot' | 'GET /attention/summary' | 'GET /attention/browser' | 'GET /sessions' | 'GET /history'
-  | 'GET /history/export' | 'GET /memory' | 'GET /memory/sessions' | 'GET /memory/tasks' | `GET /memory/tasks/${string}`
+  | `GET /characters/${string}/motion-graph` | `GET /characters/${string}/motion-groups`
+  | `GET /characters/${string}/mod-settings` | 'GET /approvals' | 'GET /feed' | 'GET /agent/snapshot'
+  | 'GET /attention/summary' | 'GET /attention/browser' | 'GET /sessions' | 'GET /history' | 'GET /history/export'
+  | 'GET /memory' | 'GET /memory/sessions' | 'GET /memory/tasks' | `GET /memory/tasks/${string}`
   | `PATCH /memory/tasks/${string}` | 'GET /memory/days' | `GET /memory/days/${string}` | 'GET /memory/export'
   | 'GET /diag/state' | 'GET /diag/stream' | 'GET /blacklist' | 'GET /desktop/presence' | 'GET /user/now'
   | 'POST /desktop/sessions/seen' | 'GET /model/settings' | 'GET /motion/settings' | `GET /motions/${string}/meta`

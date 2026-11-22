@@ -21,6 +21,7 @@ MOTION_FILE_PATH = re.compile(r"^/motions/(gm-[0-9a-f]{16})/(meta|keys)$")
 MOTION_TRACKS_PATH = re.compile(r"^/motions/(gm-[0-9a-f]{16})/tracks$")
 CHARACTER_BINDING_PATH = re.compile(r"^/characters/([a-z0-9_-]{1,64})/binding$")
 CHARACTER_MOTION_GRAPH_PATH = re.compile(r"^/characters/([a-z0-9_-]{1,64})/motion-graph$")
+CHARACTER_MOTION_GROUPS_PATH = re.compile(r"^/characters/([a-z0-9_-]{1,64})/motion-groups$")
 CHARACTER_MOD_SETTINGS_PATH = re.compile(r"^/characters/([a-z0-9_-]{1,64})/mod-settings$")
 INTEGRATION_REMINDER_PATH = re.compile(r"^/integration/reminders/([0-9a-f]{1,64})$")
 
@@ -116,6 +117,9 @@ REGISTRY = (
           owner=CHARACTER_BINDINGS, summary="Effective voice, motion and persona binding for one character", spec=C6),
     Route("GET", CHARACTER_MOTION_GRAPH_PATH, UI, "read", ("main",), templates=("/characters/:character_id/motion-graph",),
           owner=CHARACTER_MOTION_GRAPH, summary="The installed pack's motion graph of one character", spec=C6),
+    Route("GET", CHARACTER_MOTION_GROUPS_PATH, UI, "read", ("main",), templates=("/characters/:character_id/motion-groups",),
+          owner=CHARACTER_MOTION_GRAPH, summary="Proposed pool members for the clips the current character's pack does not draw",
+          spec=C6),
     Route("GET", CHARACTER_MOD_SETTINGS_PATH, UI, "read", ("main",), templates=("/characters/:character_id/mod-settings",),
           owner=CHARACTER_MOD_SETTINGS, summary="Each appearance's mod settings in the installed pack of one character", spec=C6),
     Route("GET", "/approvals", UI, "read", ("main",),

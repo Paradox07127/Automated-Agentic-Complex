@@ -1,0 +1,14 @@
+{
+  "character": "aster",
+  "pools": {
+    "idle.t1": {
+      "posture": "stand",
+      "pack": [{"clip": "nod", "weight": 2}],
+      "proposal": [{"clip": "dialog_single_bow", "weight": 1, "why": "token:dialog_single"}],
+      "rejected": [{"clip": "dialog_single_kneel", "reason": "no_return"}]
+    }
+  },
+  "excluded": [{"clip": "battle_loop", "reason": "battle"}],
+  "unclassified": ["long_bow"],
+  "counts": {"clips": 5, "pooled": 1, "proposed": 1, "rejected": 1, "excluded": 1, "unclassified": 1}
+}

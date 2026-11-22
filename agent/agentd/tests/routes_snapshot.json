@@ -66,6 +66,13 @@
   ],
   [
     "GET",
+    "^/characters/([a-z0-9_-]{1,64})/motion-groups$",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "GET",
     "^/characters/([a-z0-9_-]{1,64})/mod-settings$",
     [
       "ui_token"

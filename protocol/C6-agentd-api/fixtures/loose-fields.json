@@ -115,6 +115,7 @@
     ],
     "observation-state.json": ["queue.by_origin", "queue.all_characters", "task_corrections"],
     "observation-sources.json": ["items[].metadata"],
-    "character-runtime.json": ["pi_session.builtin_tools_unavailable"]
+    "character-runtime.json": ["pi_session.builtin_tools_unavailable"],
+    "motion-groups.json": ["pools"]
   }
 }

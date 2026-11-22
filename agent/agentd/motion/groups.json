@@ -1,0 +1,18 @@
+{
+  "schema": "endfield-motion-groups-rules/v1",
+  "exclude": [
+    {"reason": "battle", "tokens": ["battle", "attack"]},
+    {"reason": "monster", "tokens": ["monster_", "boss_"]},
+    {"reason": "cutscene", "tokens": ["_cs_"]},
+    {"reason": "locomotion", "tokens": ["walk", "idle_turn", "sprint", "dash"]},
+    {"reason": "prop", "tokens": ["interact_rope", "interact_camera", "interact_cooking"]}
+  ],
+  "rules": [
+    {"id": "dialog_single", "tokens": ["dialog_single", "dialog_virtual_single", "customized_single"], "pools": ["idle.t1", "idle.*"]},
+    {"id": "dialog_state", "tokens": ["dialog_state", "dialog_virtual_state", "customized_state"], "pools": ["idle.t2", "idle.*"]},
+    {"id": "relax_sp", "tokens": ["relax_sp", "relax_react"], "pools": ["idle.t3", "idle.*"]},
+    {"id": "uiteam_idle", "tokens": ["uiteam_idle"], "pools": ["idle.t1", "idle.*"]}
+  ],
+  "structure": {"chain": ["idle.*"], "loop": ["idle.*"], "one_shot": ["click.single", "click.repeat"]},
+  "one_shot_max_s": 4
+}
