@@ -111,7 +111,7 @@ export function AboutGroup() {
           id="dev"
           title={labelOf('dev')}
           desc="显示诊断页和给开发者的设置项"
-          info="打开后显示运行记录、诊断、管线和调参页，设置里给开发者的项，画面里的性能细项（2× SSAA、渲染尺寸、自阴影精度），以及轮次号、截图配额等内部数据。"
+          info="打开后显示运行记录、诊断、记忆管线和调参页，设置里给开发者的项，画面里的性能细项（2× SSAA、渲染尺寸、自阴影精度），以及轮次号、截图配额等内部数据。"
           control={<OnOff on={devMode} label={labelOf('dev')} onChange={setDevMode} />}
         />
         {shown('agentd') && (

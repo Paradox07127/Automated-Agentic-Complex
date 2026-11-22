@@ -1,4 +1,4 @@
-// 管线页（开发者）放记忆来源、整理批次、生成记录、截图配额和「现在」；侧栏只在开发者模式列出它。
+// 记忆管线（开发者）：观察 → 理解 → 整理 → 记忆库四个工位卡排成产线，选中一个看它的详情；命令栏菜单只在开发者模式列出它。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -28,21 +28,54 @@ function mountAt(component: RouteComponent, search = '') {
 }
 
 const noop = () => {};
+const T = { timeout: 3000 };
 
-describe('管线页', () => {
-  it('draws the memory sources and the consolidation batches', async () => {
+describe('记忆管线页', () => {
+  it('draws the four stations in a line, 整理 picked, its batches one row each', async () => {
     mountAt(PipelinePage);
-    const sources = await screen.findByRole('region', { name: '记忆概况' }, { timeout: 3000 });
-    expect(sources.textContent).toContain('按来源');
-    const changes = screen.getByRole('region', { name: '最近变化' });
-    expect((await within(changes).findAllByRole('button', { name: /整理批次/ }, { timeout: 3000 })).length).toBeGreaterThan(0);
-    expect(await screen.findByRole('region', { name: '截图配额' })).toBeTruthy();
-    expect(screen.getByRole('region', { name: '现在' })).toBeTruthy();
+    const line = await screen.findByRole('tablist', { name: '工位' }, T);
+    expect(within(line).getAllByRole('tab').map((t) => t.getAttribute('aria-label')?.split('：')[0])).toEqual(['观察', '理解', '整理', '记忆库']);
+    expect(within(line).getByRole('tab', { selected: true }).getAttribute('aria-label')).toMatch(/^整理：/);
+    const table = await screen.findByRole('group', { name: '整理记录' }, T);
+    expect((await within(table).findAllByText('后台整理', {}, T)).length).toBeGreaterThan(0);
+    expect(within(table).getAllByText('对话中').length).toBeGreaterThan(0);
   });
 
-  it('a batch opens its generation record', async () => {
-    mountAt(PipelinePage, '&run=mrun-00');
-    expect(await screen.findByRole('dialog', { name: '记忆生成记录' }, { timeout: 3000 })).toBeTruthy();
+  it('a batch row opens to what it wrote, and 生成记录 opens the sheet', async () => {
+    mountAt(PipelinePage);
+    const table = await screen.findByRole('group', { name: '整理记录' }, T);
+    const rows = await within(table).findAllByRole('button', { expanded: false }, T);
+    fireEvent.click(rows[0]!);
+    expect(await within(table).findByText('按项目分组', {}, T)).toBeTruthy();
+    fireEvent.click(within(table).getAllByRole('button', { name: '生成记录' })[0]!);
+    expect(await screen.findByRole('dialog', { name: '生成记录' }, T)).toBeTruthy();
+  });
+
+  it('?run= picks 整理 and opens that batch’s generation record', async () => {
+    mountAt(PipelinePage, '&station=obs&run=mrun-00');
+    expect(await screen.findByRole('dialog', { name: '生成记录' }, T)).toBeTruthy();
+  });
+
+  it('?station= picks the station; E moves along the line', async () => {
+    mountAt(PipelinePage, '&station=obs');
+    expect(await screen.findByRole('region', { name: '最近请求' }, T)).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'e' });
+    expect(await screen.findByRole('region', { name: '她现在的理解' }, T)).toBeTruthy();
+    expect(screen.getByRole('region', { name: '最近理解' })).toBeTruthy();
+  });
+
+  it('记忆库 lists the sources and offers to confirm the candidates', async () => {
+    mountAt(PipelinePage, '&station=store');
+    const src = await screen.findByRole('group', { name: '按来源' }, T);
+    expect(within(src).getByText('陈述')).toBeTruthy();
+    expect(screen.getByRole('img', { name: /^14 天新增/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^去确认 \d+ 条/ })).toBeTruthy();
+  });
+
+  it('with the backend gone it says so and every station reads 读不到', async () => {
+    mountAt(PipelinePage, '&state=error');
+    expect((await screen.findAllByText(/后台已断开/, {}, T)).length).toBeGreaterThan(0);
+    for (const tab of screen.getAllByRole('tab')) expect(tab.getAttribute('aria-label')).toContain('读不到');
   });
 
   it('stays out of the command bar with developer mode off, and its URL still opens', async () => {
@@ -59,12 +92,12 @@ describe('管线页', () => {
     expect(router.state.matches.at(-1)?.routeId).toBe('/pipeline');
   });
 
-  it('lists 管线 in the command bar page menu with developer mode on', async () => {
+  it('lists 记忆管线 in the command bar page menu with developer mode on', async () => {
     setDevMode(true);
     stubMatchMedia();
     mountAt(() => <CommandBar routes={pageRoutes} activeId="overview" title="每日简报" tabsRef={noop} rightRef={noop} actionRef={noop} />);
     const nav = await screen.findByRole('navigation', { name: '主导航' });
     fireEvent.click(within(nav).getByRole('button', { name: '每日简报' }));
-    expect(screen.getByRole('menuitem', { name: /管线/ })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /记忆管线/ })).toBeTruthy();
   });
 });

@@ -3,8 +3,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 // Tool pages get a filter bar (filters, hatch band, main action at the right); process rows are read-only,
 // trace turn rows are pressable; the first-run step bar and word mark; nothing scrolls sideways at 900.
 
-// 运行记录 has no filter bar: its search and filters sit at the head of the turn list.
-const TOOLS = ['diag', 'pipeline'] as const;
+// 运行记录 has no filter bar: its search and filters sit at the head of the turn list; 记忆管线 has none either, its stations pick the view.
+const TOOLS = ['diag'] as const;
 
 const css = (l: Locator, prop: string) => l.evaluate((e, p) => getComputedStyle(e).getPropertyValue(p), prop);
 const token = (page: Page, name: string) =>
@@ -97,4 +97,11 @@ test('tool pages do not scroll sideways at 900×600', async ({ page }) => {
     );
     expect(over, id).toEqual([]);
   }
+  await page.goto('about:blank');
+  await page.goto('main.html#/pipeline?still=1');
+  await expect(page.getByRole('tablist', { name: '工位' })).toBeVisible();
+  const over = await page.evaluate(() =>
+    [document.documentElement, ...document.querySelectorAll('main, [data-shell="content"], [data-page]')].filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => `${el.tagName} ${el.scrollWidth}>${el.clientWidth}`),
+  );
+  expect(over, 'pipeline').toEqual([]);
 });

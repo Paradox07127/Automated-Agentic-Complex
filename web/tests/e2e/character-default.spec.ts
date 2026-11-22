@@ -78,10 +78,10 @@ test('tune: plate numbers are Title Case and no SVG text is under 11 px', async 
   expect(small).toEqual([]);
 });
 
-test('pipeline: the source bar carries no how-to line; memory-empty: 回顾 shows its empty state', async ({ page }) => {
-  await page.goto('main.html#/pipeline?still=1');
-  await expect(page.getByRole('region', { name: '记忆概况' })).toBeVisible();
-  await expect(page.locator('main')).not.toContainText('点击一段筛选列表');
+test('pipeline: the sources carry no how-to line; memory-empty: 回顾 shows its empty state', async ({ page }) => {
+  await page.goto('main.html#/pipeline?still=1&station=store');
+  await expect(page.getByRole('region', { name: '按来源' })).toBeVisible();
+  await expect(page.locator('main')).not.toContainText('点一行去记忆页看这一类');
   await page.goto('about:blank');
   await page.goto('main.html#/memory?plugins=all&still=1&state=empty&view=activity');
   const activity = page.getByRole('region', { name: '回顾' });

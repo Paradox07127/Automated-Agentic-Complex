@@ -1,0 +1,199 @@
+/* 详情头带（运行记录的 .hd）：主题色双竖条、编号、名字和说明、状态、右端斜切条码带；主题色随状态。 */
+.head {
+  --hd-c: var(--ef-text-3);
+  --hd-hi: var(--ef-surface-3);
+  --hd-lo: var(--ef-surface-2);
+
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-width: 0;
+  height: 52px;
+  overflow: hidden;
+  border-bottom: 1.5px solid color-mix(in srgb, var(--ef-text-1) 55%, transparent);
+  background: linear-gradient(180deg, var(--hd-hi), var(--hd-lo));
+}
+
+:global([data-theme='light']) .head {
+  --hd-hi: var(--ef-raised);
+  --hd-lo: var(--ef-base);
+}
+
+.head[data-phase='run'] {
+  --hd-c: var(--ef-mission-accent);
+}
+
+.head[data-phase='fail'] {
+  --hd-c: var(--ef-danger-g-power-none);
+}
+
+.head:is([data-phase='block'], [data-phase='wait']) {
+  --hd-c: var(--ef-badge-dot);
+}
+
+.bars {
+  display: flex;
+  flex: none;
+  gap: 3px;
+  align-self: stretch;
+}
+
+.bars i {
+  width: 7px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hd-c) 70%, #fff), var(--hd-c));
+}
+
+.bars i + i {
+  width: 3px;
+}
+
+.no {
+  display: grid;
+  flex: none;
+  padding: 0 var(--ef-sp-12) 0 var(--ef-sp-16);
+  color: var(--ef-text-2);
+  line-height: 1;
+}
+
+.no b {
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) 26px / 28px var(--ef-font-num);
+  letter-spacing: -0.01em;
+}
+
+.title {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  padding-right: 14px;
+}
+
+.title h2 {
+  margin: 0;
+  overflow: hidden;
+  font: var(--ef-fw-semibold) 17px / 24px var(--ef-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title small {
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.state {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding-right: var(--ef-sp-16);
+}
+
+.band {
+  position: relative;
+  display: grid;
+  flex: none;
+  align-content: center;
+  gap: 3px;
+  align-self: stretch;
+  width: min(26%, 260px);
+  padding-left: 48px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--hd-c) 16%, transparent);
+  color: var(--hd-c);
+  clip-path: polygon(30px 0, 100% 0, 100% 100%, 0 100%);
+}
+
+.band [aria-hidden] {
+  color: inherit;
+}
+
+/* 读数带（每日简报的 .band）：竖条 + 大数 + 小字，格间细线，顶上一道斜纹。 */
+.reads {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+  border: 1px solid var(--ef-line);
+  background: color-mix(in srgb, var(--ef-surface-1) 70%, transparent);
+}
+
+.reads::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: repeating-linear-gradient(-60deg, var(--ef-rule) 0 1px, transparent 1px 5px);
+}
+
+.read {
+  display: grid;
+  min-width: 0;
+  padding: 14px 12px 10px 14px;
+}
+
+.read + .read {
+  border-left: 1px solid var(--ef-line);
+}
+
+/* 深卡：GameFrame 的标题牌占左上 22 px。 */
+.panel {
+  position: relative;
+  display: grid;
+  gap: var(--ef-sp-8);
+  align-content: start;
+  min-width: 0;
+  padding: 32px 14px 14px;
+}
+
+.tip {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+}
+
+.none {
+  padding: var(--ef-sp-8) 0;
+}
+
+@media (max-width: 1099px) {
+  .head {
+    height: 44px;
+  }
+
+  .no b {
+    font-size: 22px;
+  }
+
+  .title small,
+  .band {
+    display: none;
+  }
+
+  .reads {
+    grid-template-columns: repeat(var(--n-sm, 4), minmax(0, 1fr));
+  }
+
+  .read[data-opt] {
+    display: none;
+  }
+}
+
+@media (max-height: 600px) {
+  .head {
+    height: 40px;
+  }
+
+  .read {
+    padding: 8px 8px 6px 10px;
+  }
+
+  .reads::before {
+    display: none;
+  }
+}

@@ -1,0 +1,265 @@
+/* 四个工位详情里的小件：两栏、等待计量、「她现在的理解」行里的字、增删改、来源条、火花线。 */
+.cols {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
+  gap: var(--ef-sp-12);
+  align-items: start;
+}
+
+.mono {
+  font: var(--ef-fs-small) var(--ef-font-mono);
+}
+
+.bad {
+  color: var(--ef-danger-text);
+}
+
+.wait {
+  display: inline-flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  width: 100%;
+  max-width: 220px;
+  color: var(--ef-text-2);
+}
+
+.wait > :first-child {
+  flex: 1;
+}
+
+/* 她现在的理解：DarkRow 的左格放键名，主体放值。 */
+.now {
+  display: grid;
+  gap: var(--ef-sp-4);
+}
+
+.key {
+  font: var(--ef-fw-regular) var(--ef-fs-small) / 1 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.dim {
+  margin-left: var(--ef-sp-8);
+  color: rgb(255 255 255 / 62%);
+  font-size: var(--ef-fs-small);
+  font-weight: var(--ef-fw-regular);
+}
+
+.dim:first-child {
+  margin-left: 0;
+}
+
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-6);
+}
+
+.chip {
+  margin-left: var(--ef-sp-8);
+  padding: 0 var(--ef-sp-8);
+  background: rgb(255 255 255 / 12%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%);
+  color: var(--ef-g-watch-ink);
+  font: var(--ef-fw-regular) var(--ef-fs-small) / 20px var(--ef-font-sans);
+}
+
+.chips .chip {
+  margin-left: 0;
+}
+
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* 一批写了什么：+2 新增  ~1 更新. */
+.ops {
+  display: inline-flex;
+  gap: 10px;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+}
+
+.ops b {
+  margin-right: 2px;
+  color: var(--ef-text-1);
+  font-weight: var(--ef-fw-semibold);
+}
+
+/* 展开体（记忆页「最近变化」的条目配方）。 */
+.changes {
+  display: grid;
+  gap: 2px;
+}
+
+.change {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  min-height: 26px;
+}
+
+.op {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  align-items: baseline;
+  width: 52px;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+  white-space: nowrap;
+}
+
+.op b {
+  width: 8px;
+  color: var(--ef-text-1);
+  font: 700 13px / 1 var(--ef-font-num);
+}
+
+.tx {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.change[data-op='del'] .tx {
+  color: var(--ef-text-2);
+  text-decoration: line-through;
+}
+
+.was {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cand {
+  flex: none;
+  padding: 0 6px;
+  box-shadow: inset 0 0 0 1px currentColor;
+  color: var(--ef-badge-dot);
+  font-size: var(--ef-fs-small);
+  line-height: 18px;
+}
+
+/* 按来源：名字、一句话、条（陈述实、观察 62%、确认 38%、推断斜纹）、条数、百分比。 */
+.src {
+  display: inline-flex;
+  gap: var(--ef-sp-6);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.src b {
+  font-weight: var(--ef-fw-semibold);
+}
+
+.src span {
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+  text-overflow: ellipsis;
+}
+
+.srcbar {
+  display: block;
+  height: 8px;
+  background: color-mix(in srgb, var(--ef-text-1) 8%, transparent);
+}
+
+.srcbar i {
+  display: block;
+  height: 100%;
+}
+
+.srcbar [data-src='asserted'] {
+  background: var(--ef-text-1);
+}
+
+.srcbar [data-src='observed'] {
+  background: color-mix(in srgb, var(--ef-text-1) 62%, transparent);
+}
+
+.srcbar [data-src='confirmed'] {
+  background: color-mix(in srgb, var(--ef-text-1) 38%, transparent);
+}
+
+.srcbar [data-src='inferred'] {
+  background: repeating-linear-gradient(-45deg, var(--ef-text-2) 0 1.5px, transparent 1.5px 4px);
+  box-shadow: inset 0 0 0 1px var(--ef-text-2);
+}
+
+.right {
+  display: block;
+  text-align: right;
+}
+
+.dimText {
+  color: var(--ef-text-2);
+}
+
+/* 14 天新增：GameFrame 图表板里的面积线，今天的点是黄方块。 */
+.chart {
+  padding: 14px 14px 10px;
+}
+
+.spark {
+  position: relative;
+  height: 150px;
+}
+
+.plot {
+  position: relative;
+  height: calc(100% - 18px);
+}
+
+.plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.area {
+  fill: color-mix(in srgb, var(--ef-text-1) 10%, transparent);
+}
+
+.line {
+  fill: none;
+  stroke: var(--ef-text-1);
+  stroke-width: 1.5;
+}
+
+.today {
+  position: absolute;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  background: var(--ef-accent);
+  box-shadow: 0 0 0 1px var(--ef-g-watch-map);
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+}
+
+@media (max-width: 1099px) {
+  .cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

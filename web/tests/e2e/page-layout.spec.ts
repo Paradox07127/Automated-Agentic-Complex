@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-// Layout: 角色, 记忆, 定时任务, 管线, 调参 and 诊断 text stays inside its box, nothing starts a line with a stray divider, nothing covers a label.
+// Layout: 角色, 记忆, 定时任务, 记忆管线, 调参 and 诊断 text stays inside its box, nothing starts a line with a stray divider, nothing covers a label.
 
 type Box = { x: number; y: number; width: number; height: number };
 
@@ -111,13 +111,15 @@ test('任务「定时」: the selected schedule has 编辑 and 立即运行 are 
   expect(await look(del)).not.toBe(await look(edit));
 });
 
-test('the memory-trend peak label stays below the 14 天新增 header', async ({ page }) => {
-  for (const q of ['', '?theme=light']) {
-    await open(page, `/pipeline${q}`);
-    const trend = page.getByRole('img', { name: /^14 天新增/ });
-    const peak = await box(trend.locator('> span[aria-hidden="true"]').first());
-    const hd = await box(trend.locator('xpath=preceding-sibling::*[1]'));
-    expect(peak.y, q || 'dark').toBeGreaterThanOrEqual(hd.y + hd.height);
+test('the 记忆管线 14 天新增 curve sits inside its plate, below the head bar', async ({ page }) => {
+  for (const q of ['', '&theme=light']) {
+    await open(page, `/pipeline?station=store${q}`);
+    const frame = page.getByRole('region', { name: '14 天新增' });
+    const trend = await box(frame.getByRole('img', { name: /^14 天新增/ }));
+    const hd = await box(frame.locator('> div').first());
+    const f = await box(frame);
+    expect(trend.y, q || 'dark').toBeGreaterThanOrEqual(hd.y + hd.height);
+    expect(trend.y + trend.height, q || 'dark').toBeLessThanOrEqual(f.y + f.height);
   }
 });
 

@@ -1,37 +1,173 @@
-/* 管线（开发者）：筛选条下，开放区按节间距排。 */
+/* 记忆管线：产线框在上一直可见，详情框占剩下的高度、自己滚动。 */
 .page {
   display: flex;
   flex-direction: column;
+  gap: var(--ef-sec-gap);
+  height: 100%;
   min-width: 0;
+  min-height: 0;
+  padding: 14px var(--ef-page-pad) var(--ef-sp-16);
+  overflow: hidden;
 }
 
-.body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 20px var(--ef-page-pad) 32px;
+.detail {
+  display: grid;
+  flex: 1;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
 }
 
-.body > * + * {
-  margin-top: var(--ef-sec-gap);
+/* Inside the frame's 1.5 px rim: the head band, then the station's body scrolling under it. */
+.dt {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  padding: 1.5px;
 }
 
-.runs {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ef-sp-8);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.run {
-  display: flex;
-  align-items: baseline;
+.scroll {
+  display: grid;
   gap: var(--ef-sp-12);
+  align-content: start;
+  min-height: 0;
+  padding: var(--ef-sp-12) var(--ef-sp-16) 18px;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  animation: info var(--ef-dur-g-panel-in) var(--ef-ease-g-enter) both;
 }
 
-.cap {
-  color: var(--ef-text-3);
-  font-size: 12px;
+@keyframes info {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+
+.skelRows {
+  height: 120px;
+  background: repeating-linear-gradient(180deg, var(--ef-chip) 0 14px, transparent 14px 26px);
+}
+
+/* The big number while it is read. */
+.skel {
+  display: inline-block;
+  width: 56px;
+  height: 22px;
+  vertical-align: middle;
+  background: var(--ef-chip);
+}
+
+.subValue {
+  color: var(--ef-text-1);
+  font-weight: var(--ef-fw-semibold);
+}
+
+/* The last six observation results: solid seen, red failed, hollow held back. */
+.dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.dots i {
+  width: 8px;
+  height: 8px;
+  background: var(--ef-text-3);
+}
+
+.dots i[data-r='ok'] {
+  background: var(--ef-text-1);
+}
+
+.dots i[data-r='fail'] {
+  background: var(--ef-danger-g-power-none);
+}
+
+.dots i[data-r='skip'] {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--ef-text-3);
+}
+
+/* Readouts in the command bar (dark in both themes): since when, then the whole line in one word. */
+.reads {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+  white-space: nowrap;
+}
+
+.sl {
+  width: 1px;
+  height: 12px;
+  background: var(--ef-text-3);
+  transform: skewX(-20deg);
+}
+
+.word {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  margin-right: var(--ef-sp-8);
+  color: var(--ef-text-1);
+  font-size: 13px;
+  font-weight: var(--ef-fw-semibold);
+}
+
+.word[data-phase='fail'] {
+  color: var(--ef-danger-text);
+}
+
+.word[data-phase='block'] {
+  color: var(--ef-badge-dot);
+}
+
+/* Key hints show while ⌘ / Ctrl is held. */
+.keys {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+  white-space: nowrap;
+  transition: opacity 0.12s;
+}
+
+.keys > span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+
+:global(html:not([data-keys])) .keys {
+  opacity: 0;
+}
+
+@media (max-width: 1099px) {
+  .page {
+    padding: 10px var(--ef-page-pad) var(--ef-sp-12);
+  }
+
+  .scroll {
+    gap: 10px;
+    padding: 10px var(--ef-sp-12) 14px;
+  }
+
+  .keys [data-opt] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll {
+    animation: none;
+  }
+}
+
+:global(.still) .scroll {
+  animation: none;
 }

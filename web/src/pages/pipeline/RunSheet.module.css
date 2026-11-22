@@ -1,0 +1,62 @@
+/* 生成记录抽屉的内容：键值、黄竖条小节、候选卡（左边细条，没过校验是红条）、用户原话的深底块。 */
+.sheet {
+  display: grid;
+  gap: var(--ef-sp-16);
+}
+
+.note {
+  margin: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-text);
+}
+
+.part {
+  display: grid;
+  gap: var(--ef-sp-8);
+}
+
+.quote {
+  margin: 0;
+  padding: var(--ef-sp-8) 10px;
+  background: var(--ef-surface-2);
+  color: var(--ef-text-1);
+  font: var(--ef-t-text);
+  white-space: pre-wrap;
+}
+
+.list {
+  display: grid;
+  gap: var(--ef-sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: 2px;
+  padding: var(--ef-sp-8) 10px;
+  background: var(--ef-surface-1);
+  box-shadow: inset 3px 0 0 var(--ef-rule);
+}
+
+.item[data-bad] {
+  box-shadow: inset 3px 0 0 var(--ef-danger-g-power-none);
+}
+
+.text {
+  color: var(--ef-text-1);
+  font: var(--ef-t-text);
+  white-space: pre-wrap;
+}
+
+.caption,
+.result {
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-small);
+}
+
+.item[data-bad] .result {
+  color: var(--ef-danger-text);
+  font-weight: var(--ef-fw-semibold);
+}

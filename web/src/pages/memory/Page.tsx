@@ -162,7 +162,7 @@ export function MemoryPage() {
   const any = (facts?.length ?? 0) > 0;
   const actions = (
     <BarEnd>
-      <BarLink onClick={() => go({ page: 'diag', tab: 'records', kind: 'memory' })}>整理记录 ›</BarLink>
+      <BarLink onClick={() => go({ page: 'pipeline', station: 'mem' })}>整理记录 ›</BarLink>
       <Btn disabled={!any || exportOff != null} disabledReason={exportOff ?? '还没有可导出的记忆'} onClick={() => void onExport()}>
         导出
       </Btn>

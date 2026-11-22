@@ -101,7 +101,7 @@ describe('CommandBar', () => {
     fireEvent.click(within(dev.nav).getByRole('button', { name: '诊断' }));
     const all = within(screen.getByRole('menu')).getAllByRole('menuitem').map((i) => i.querySelector('span')?.textContent);
     expect(all.slice(0, user.length)).toEqual(user.map((r) => r.title));
-    expect(all.slice(user.length)).toEqual(expect.arrayContaining(['管线', '调参']));
+    expect(all.slice(user.length)).toEqual(expect.arrayContaining(['记忆管线', '调参']));
     expect(screen.getByRole('menu').querySelectorAll('[role="separator"]')).toHaveLength(1);
   });
 

@@ -1,0 +1,130 @@
+/* 产线框：GameFrame 的标题牌左上，右边斜纹细线接图例；四个工位卡等宽，卡间 56 px 传送带，理解 → 整理之间 128 px 合流带。 */
+.frame {
+  padding: 0 var(--ef-sp-16) 18px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  height: 22px;
+  margin-bottom: var(--ef-sp-12);
+}
+
+/* Starts past the title plate in the corner. */
+.rule {
+  flex: 1;
+  min-width: 24px;
+  height: 7px;
+  margin-left: 240px;
+  border-top: 1px solid var(--ef-rule);
+  background: repeating-linear-gradient(-60deg, var(--ef-rule) 0 1px, transparent 1px 6px) right top / 56px 6px no-repeat;
+}
+
+.legend {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-12);
+  color: var(--ef-text-2);
+  font: var(--ef-fw-regular) var(--ef-fs-small) / 1 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.sign {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr) 128px minmax(0, 1fr) 56px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+/* A card's own box: the alert and the pointer measure against it (50cqw = the card's middle). */
+.cell {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+/* The selected card points down at its detail. */
+.cell[data-sel]::after {
+  content: '';
+  position: absolute;
+  bottom: -14px;
+  left: calc(50% - 8px);
+  width: 16px;
+  height: 9px;
+  background: var(--ef-accent);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  animation: point-in 0.25s var(--ef-ease-g-enter);
+  pointer-events: none;
+}
+
+@keyframes point-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.alert {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  z-index: 3;
+  transform: translateX(-50%);
+}
+
+.alert[data-at='obs'] {
+  left: 0;
+  transform: none;
+}
+
+.alert[data-at='store'] {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+
+.row[data-stale] > * {
+  opacity: 0.78;
+  filter: saturate(0.2);
+}
+
+@media (max-width: 1099px) {
+  .frame {
+    padding: 0 10px 14px;
+  }
+
+  .head {
+    margin-bottom: var(--ef-sp-8);
+  }
+
+  .rule {
+    margin-left: 200px;
+  }
+
+  .sign[data-opt] {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr) 26px minmax(0, 1fr) 54px minmax(0, 1fr) 26px minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell[data-sel]::after {
+    animation: none;
+  }
+}
+
+:global(.still) .cell[data-sel]::after {
+  animation: none;
+}
