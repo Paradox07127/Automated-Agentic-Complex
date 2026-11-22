@@ -20,10 +20,10 @@ export const MicroLabelDemos: Array<{ name: string; props: MicroLabelProps }> = 
   { name: 'short', props: { children: 'MOD CFG' } },
 ];
 
-/** 菱形标：橙（新 / 有改动，游戏 red-dot）、黄（已改）、空心（未选）。 */
+/** 菱形标：橙（新 / 有改动 / 断点，游戏 red-dot）、黄（已改）、白（已完成的一步）、空心（未选 / 未到）。 */
 export interface DiamondProps {
   /** 默认 orange */
-  tone?: 'orange' | 'yellow' | 'hollow';
+  tone?: 'orange' | 'yellow' | 'white' | 'hollow';
   /** 边长 px，默认 9 */
   size?: number;
 }
@@ -35,6 +35,7 @@ export function Diamond({ tone = 'orange', size = 9 }: DiamondProps) {
 export const DiamondDemos: Array<{ name: string; props: DiamondProps }> = [
   { name: 'orange', props: { tone: 'orange' } },
   { name: 'yellow', props: { tone: 'yellow', size: 8 } },
+  { name: 'white', props: { tone: 'white', size: 8 } },
   { name: 'hollow', props: { tone: 'hollow', size: 10 } },
 ];
 

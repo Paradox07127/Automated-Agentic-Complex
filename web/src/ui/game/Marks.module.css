@@ -27,6 +27,10 @@
   background: var(--ef-accent);
 }
 
+.diamond[data-tone='white'] {
+  background: #fff;
+}
+
 .diamond[data-tone='hollow'] {
   background: transparent;
   outline: 1.5px solid currentColor;

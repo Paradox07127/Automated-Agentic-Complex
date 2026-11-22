@@ -61,6 +61,13 @@ describe('DarkRow', () => {
     expect(row.closest('[data-stub="DarkRow"]')?.hasAttribute('data-selected')).toBe(true);
   });
 
+  it('warn: an orange-edged lead with the warning glyph, spoken 出错 after the name', () => {
+    const { container } = render(<DarkRow title="角色未运行" sub="退避 8 秒后重试" mark="warn" />);
+    expect(container.querySelector('[data-stub="DarkRow"]')?.getAttribute('data-mark')).toBe('warn');
+    expect(container.querySelector('[aria-hidden="true"] svg path')).not.toBeNull();
+    expect(screen.getByText('，出错')).toBeTruthy();
+  });
+
   it('without onPress it is a static row; a missing resource is spoken after the name', () => {
     render(<DarkRow title="思考" mark="missing" />);
     expect(screen.queryByRole('button')).toBeNull();
@@ -77,6 +84,13 @@ describe('TitleBar', () => {
     expect(screen.getByText('已改 2')).toBeTruthy();
     rerender(<TitleBar title="衣服" count={3} changed={0} />);
     expect(screen.queryByText(/已改/)).toBeNull();
+  });
+
+  it('countAccent marks the count for the accent colour; a plain count is not marked', () => {
+    const { rerender } = render(<TitleBar title="舞曲库" count={6} countAccent />);
+    expect(screen.getByText('6').hasAttribute('data-accent')).toBe(true);
+    rerender(<TitleBar title="舞曲库" count={6} />);
+    expect(screen.getByText('6').hasAttribute('data-accent')).toBe(false);
   });
 });
 
@@ -179,6 +193,22 @@ describe('keys, capsule, rail cell, action bar, marks, room', () => {
     expect(go).toHaveBeenCalledTimes(2);
   });
 
+  it('the vertical YellowKey keeps its label as the name and its micro out of it; a WhiteCapsule carries its tone', () => {
+    const go = vi.fn();
+    const { container } = render(
+      <>
+        <YellowKey vertical label="连播" micro="SETLIST" onClick={go} />
+        <WhiteCapsule label="重启角色" icon="refresh" tone="accent" />
+        <WhiteCapsule label="关闭" icon="close" />
+      </>,
+    );
+    const key = screen.getByRole('button', { name: '连播' });
+    expect(key.hasAttribute('data-vertical')).toBe(true);
+    fireEvent.click(key);
+    expect(go).toHaveBeenCalledTimes(1);
+    expect([...container.querySelectorAll('[data-stub="WhiteCapsule"]')].map((b) => b.getAttribute('data-tone'))).toEqual(['accent', 'plain']);
+  });
+
   it('RailCell: the current cell is aria-current=page; its micro label stays out of the name', () => {
     const go = vi.fn();
     render(
@@ -212,5 +242,35 @@ describe('keys, capsule, rail cell, action bar, marks, room', () => {
     for (const stub of ['MicroLabel', 'Diamond', 'Barcode', 'TrainingRoom']) {
       expect(container.querySelector(`[data-stub="${stub}"]`)?.getAttribute('aria-hidden'), stub).toBe('true');
     }
+  });
+
+  it('a white diamond is its own tone', () => {
+    const { container } = render(<Diamond tone="white" />);
+    expect(container.querySelector('[data-stub="Diamond"]')?.getAttribute('data-tone')).toBe('white');
+  });
+
+  it('the room draws her watermark only when given one, and drops it when it does not load', () => {
+    const { container, rerender } = render(<TrainingRoom />);
+    expect(container.querySelector('img')).toBeNull();
+    rerender(<TrainingRoom watermark="art/characters/si/charinfo-bg.png" />);
+    const img = container.querySelector('img') as HTMLImageElement;
+    expect(img.getAttribute('src')).toBe('art/characters/si/charinfo-bg.png');
+    fireEvent.error(img);
+    expect(container.querySelector('img')).toBeNull();
+    rerender(<TrainingRoom watermark="art/characters/cedar/charinfo-bg.png" />);
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('art/characters/cedar/charinfo-bg.png');
+  });
+
+  it('two rooms on one page keep their own gradient ids', () => {
+    const { container } = render(
+      <>
+        <TrainingRoom />
+        <TrainingRoom />
+      </>,
+    );
+    const ids = [...container.querySelectorAll('linearGradient, radialGradient')].map((g) => g.id);
+    expect(ids).toHaveLength(4);
+    expect(new Set(ids).size).toBe(4);
+    for (const g of container.querySelectorAll('[fill^="url(#"]')) expect(ids).toContain(g.getAttribute('fill')?.slice(5, -1));
   });
 });

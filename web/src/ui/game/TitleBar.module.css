@@ -57,6 +57,13 @@
   opacity: 0.85;
 }
 
+.count[data-accent] {
+  color: var(--ef-accent);
+  font-weight: 600;
+  font-size: 15px;
+  opacity: 1;
+}
+
 .chg {
   display: inline-flex;
   flex: none;

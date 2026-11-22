@@ -90,6 +90,10 @@ button.hit:focus-visible {
   color: var(--dr-miss);
 }
 
+.row[data-mark='warn'] .lead {
+  box-shadow: inset 4px 0 0 var(--ef-g-reddot);
+}
+
 .row[data-mark='changed'] .lead {
   color: var(--ef-accent);
 }

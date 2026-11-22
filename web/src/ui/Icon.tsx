@@ -51,7 +51,8 @@ export type IconName =
   | 'history'
   | 'del'
   | 'ok'
-  | 'bolt';
+  | 'bolt'
+  | 'upload';
 
 /** 图标：Material Symbols Sharp 实心；装饰时 aria-hidden，独立表意时给 label。 */
 export interface IconProps {

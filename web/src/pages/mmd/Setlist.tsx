@@ -87,6 +87,7 @@ export function Setlist({ who, cards, list, blocked }: SetlistProps) {
         </div>
         <div className={styles.keys}>
           <YellowKey
+            vertical
             label={now.playing ? '停止' : '连播'}
             icon={now.playing ? 'stop' : 'play'}
             micro={now.playing ? 'PLAYING' : 'SETLIST'}

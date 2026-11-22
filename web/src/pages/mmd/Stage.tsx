@@ -35,10 +35,6 @@ export function MmdStage(p: MmdStageProps) {
   });
   return (
     <div ref={setEl} className={styles.stage} data-stage="" data-character={p.character} data-preview-stage="" data-off={p.offline || undefined} data-live={preview.phase === 'live' || undefined}>
-      <svg className={styles.rings} viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">
-        <ellipse cx={50} cy={10} rx={49} ry={9} />
-        <ellipse cx={50} cy={10} rx={29} ry={5.4} />
-      </svg>
       <div className={styles.fig} style={{ transform: `translateX(-50%) scale(${0.8 + p.scale / 500})` }}>
         {p.portrait ? (
           <CharacterArt src={p.portrait} kind="portrait" w={520} h={520} fallback={<Silhouette />} />

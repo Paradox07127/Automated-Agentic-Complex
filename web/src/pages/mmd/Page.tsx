@@ -132,23 +132,13 @@ export function MmdPage() {
     const a = mine.find((x) => x.id === id);
     return { id, title: e?.title ?? a?.label ?? id, durationS: e?.durationS ?? a?.durationS ?? null };
   });
-  const watermark = artSrc(ch?.id, 'charinfo-bg');
 
   return (
     <div className={styles.page} data-page="mmd">
-      <TrainingRoom />
       {fb.node}
       <PageHeaderSlot sub={ch?.name || undefined} />
       <div className={styles.body} data-band={band || undefined}>
-        <div className={styles.deco} aria-hidden="true">
-          {watermark && <img className={styles.wm} src={watermark} alt="" onError={(ev) => void (ev.currentTarget.hidden = true)} />}
-          <span className={styles.xdots}>
-            {Array.from({ length: 11 }, (_, i) => (
-              <i key={i}>×</i>
-            ))}
-          </span>
-          <i className={styles.cross} />
-        </div>
+        <TrainingRoom watermark={artSrc(ch?.id, 'charinfo-bg')} />
         <div className={styles.stageAt}>
           <MmdStage
             character={current}
@@ -174,7 +164,8 @@ export function MmdPage() {
             title="舞曲库"
             micro="MMD LIBRARY / SHARED"
             count={entries.length > 0 ? entries.length : undefined}
-            actions={<WhiteCapsule label={mmdImport.running ? '导入中…' : '导入 VMD'} icon="plus" disabled={playOff != null} disabledReason={playOff ?? ''} onClick={mmdImport.run} />}
+            countAccent
+            actions={<WhiteCapsule label={mmdImport.running ? '导入中…' : '导入 VMD'} icon="upload" disabled={playOff != null} disabledReason={playOff ?? ''} onClick={mmdImport.run} />}
           />
           {status && <Status line={status} />}
           {roster.isError ? (

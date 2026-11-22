@@ -51,6 +51,54 @@
   background: rgb(26 26 26 / 22%);
 }
 
+/* Vertical key (the action bar's square key): cut at the top left and bottom right, icon and micro on top, the label under them. */
+.tall {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: var(--yk-w, 96px);
+  height: var(--yk-h, 76px);
+  padding: calc(var(--yk-h, 76px) * 0.12) 11px;
+  background: linear-gradient(165deg, var(--yk-face-top), var(--ef-accent) 50%, var(--yk-face-low));
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 12%);
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+
+.tall::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(-45deg, transparent 0 7px, rgb(0 0 0 / 5%) 7px 8px);
+  pointer-events: none;
+}
+
+.top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.top > [aria-hidden] {
+  opacity: 0.6;
+}
+
+/* The icon block and the label shrink with the key's height, the label not under 13 px. */
+.tall .ki {
+  width: min(28px, calc(var(--yk-h, 76px) * 0.37));
+  height: min(28px, calc(var(--yk-h, 76px) * 0.37));
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
+}
+
+.lbl {
+  position: relative;
+  font: 700 clamp(13px, calc(var(--yk-h, 76px) * 0.21), 16px) / 1 var(--ef-font-sans);
+  text-align: left;
+  white-space: nowrap;
+}
+
 .ki {
   position: relative;
   display: grid;
@@ -78,7 +126,7 @@
   filter: drop-shadow(0 0 14px rgb(255 241 0 / 55%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
 }
 
-.key:active:not(:disabled) .face {
+.key:active:not(:disabled) :is(.face, .tall) {
   translate: 0 1px;
 }
 
@@ -93,12 +141,13 @@
   filter: none;
 }
 
-.key:disabled .face {
+.key:disabled :is(.face, .tall) {
   background: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 8%) 4px 5px), #4a4a4a;
+  box-shadow: none;
 }
 
 .key:disabled .face::after,
-.key:disabled .face::before {
+.key:disabled :is(.face, .tall)::before {
   display: none;
 }
 
@@ -112,7 +161,7 @@
     transition: none;
   }
 
-  .key:active:not(:disabled) .face {
+  .key:active:not(:disabled) :is(.face, .tall) {
     translate: none;
   }
 }

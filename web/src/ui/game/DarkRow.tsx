@@ -6,8 +6,8 @@ import { Barcode, Diamond, MicroLabel } from './Marks';
 import { Stepper } from './Stepper';
 import styles from './DarkRow.module.css';
 
-/** 左格状态：可播 ▶、缺资源 ⊘、由行为自动触发、已改（可恢复默认）↺、空心菱形（未选的选项）。 */
-export type DarkRowMark = 'play' | 'missing' | 'auto' | 'changed' | 'hollow';
+/** 左格状态：可播 ▶、缺资源 ⊘、由行为自动触发、已改（可恢复默认）↺、空心菱形（未选的选项）、出错 ⚠（橙色左边，状态行和失败行）。 */
+export type DarkRowMark = 'play' | 'missing' | 'auto' | 'changed' | 'hollow' | 'warn';
 
 /** ▶ 深色行（游戏档案页语音行）：左格放状态，主体是名字和副行，右侧槽放控件，右端竖条码和微型英文；悬停变亮，选中左缘 4 px 黄、左格变黄带呼吸框。 */
 export interface DarkRowProps {
@@ -28,7 +28,7 @@ export interface DarkRowProps {
 }
 
 /** What a screen reader hears after the name for each mark. */
-const SAY: Record<DarkRowMark, string> = { play: '', missing: '缺资源', auto: '自动触发', changed: '已改', hollow: '' };
+const SAY: Record<DarkRowMark, string> = { play: '', missing: '缺资源', auto: '自动触发', changed: '已改', hollow: '', warn: '出错' };
 
 function Glyph({ mark }: { mark: DarkRowMark }) {
   if (mark === 'hollow') return <Diamond tone="hollow" size={10} />;
@@ -56,6 +56,7 @@ function Glyph({ mark }: { mark: DarkRowMark }) {
         <path d="M4 4.5v5h5" />
       </g>
     ),
+    warn: <path d="M12 3.5 21.5 20h-19zM12 10v4.5M12 16.5v2" fill="none" stroke="currentColor" strokeWidth="2.2" />,
   }[mark];
   return (
     <svg className={styles.glyph} viewBox="0 0 24 24" width="18" height="18" focusable="false">
@@ -127,4 +128,5 @@ export const DarkRowDemos: Array<{ name: string; props: DarkRowProps }> = [
   { name: 'auto', props: { title: '站立待机', sub: '空闲', mark: 'auto' } },
   { name: 'changed', props: { title: '裙摆', mark: 'changed', end: <Stepper label="裙摆" value="short" defaultValue="long" options={LENGTH} /> } },
   { name: 'hollow', props: { title: '夏装', sub: '导入的外观', mark: 'hollow', onPress: () => undefined } },
+  { name: 'warn', props: { title: '角色未运行', sub: '退避 8 秒后重试', mark: 'warn' } },
 ];

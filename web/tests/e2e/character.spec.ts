@@ -46,7 +46,7 @@ test('ok: roster, stage and the motion table with two unsaved switches; no state
 
 test('stage labels are Chinese; the jump row names each section in full', async ({ page }) => {
   await page.goto('main.html#/character?still=1');
-  await expect(page.locator('[data-stage] [data-nameplate]')).toHaveText('示例乙在桌面SI在做坐着');
+  await expect(page.locator('[data-stage] [data-nameplate]')).toHaveText('示例乙在桌面SIsiZH在做坐着');
   await page.goto('main.html#/character?still=1&pane=motion');
   const stage = page.locator('[data-stage]');
   await expect(stage).toContainText('触发');
