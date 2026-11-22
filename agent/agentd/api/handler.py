@@ -435,10 +435,11 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         def current():
             # Spatial publishes under its lock and then the registry lock.
             with self.server.spatial._lock, registry.cv:
-                behaviors = self.server.spatial.running()
+                behaviors, reactions = self.server.spatial.running(), self.server.spatial.reactions()
                 registry.tick()
                 return {**registry.current_intent, "seq": registry.intent_seq, "turn_generation": self.server.turn_generation,
-                        "behaviors": behaviors, "consumed": self.server.spatial.consumed.ids()}
+                        "behaviors": behaviors, "consumed": self.server.spatial.consumed.ids(),
+                        **({} if reactions is None else {"reactions": reactions})}
 
         self._sse(intents, registry.wait_for_intent, snapshot=current)
 

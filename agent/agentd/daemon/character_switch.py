@@ -5,6 +5,7 @@ from brain import persona
 from character.behavior import system_prompt
 from character.binding import effective
 from brain.outbound import OutboundBlocked
+from motion.chooser import MotionChooser
 from api.views import _iso
 
 SWITCH_LEASE = 25.0  # seconds an open character switch waits for commit or abort before it is aborted
@@ -79,9 +80,17 @@ class CharacterSwitchMixin:
         Returns the new turn_generation."""
         return self._cut("switch")[1]
 
+    def motion_chooser(self, cid):
+        """The MotionChooser of cid's runtime character directory; None for no character or a package without one."""
+        if cid is None:
+            return None
+        root = self.characters.package(cid).root / "runtime" / "characters" / cid
+        return MotionChooser(root) if (root / "c7" / "pack.json").is_file() else None
+
     def _swap_held(self, cid, card, mouth):
-        """Mouth (keeping its history), character, voice and behavior prompt; whatever raises does so before the
-        first change. mouth: None keeps the mouth. The caller holds _mouth_lock."""
+        """Mouth (keeping its history), character, voice, behavior prompt and motion chooser; whatever raises does so
+        before the first change. mouth: None keeps the mouth. The caller holds _mouth_lock."""
+        chooser = self.motion_chooser(cid)
         bindings = getattr(self, "bindings", None)
         voice = self.characters.voice(cid) if bindings is None else bindings.voice(cid)
         self.character_voice_enabled = voice is not None
@@ -98,6 +107,7 @@ class CharacterSwitchMixin:
             backend.system = system
         if self.state is not None:
             self.state.use(cid)
+        self.spatial.use_motion(chooser)
 
     def prepare_switch(self, cid):
         """POST /character/prepare:(status, body). Every check passes before anything changes; then the

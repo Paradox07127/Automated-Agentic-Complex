@@ -135,6 +135,7 @@ class Registry:
         self.role_focus = None  # Product-owned work; never masquerades as a coding session.
         self.quiet = False
         self.consumed = None  # Spatial's Consumed; None consumes nothing
+        self.on_intent = None  # callable(intent, withheld) under cv after each intent; None calls nothing
         self.turn_generation = 0
         self._focus_key = None
         self._signature = None
@@ -515,4 +516,6 @@ class Registry:
         if occurrence is not None:
             self.intents[-1]["occurrence_id"] = occurrence
         self.current_intent = self.intents[-1]
+        if self.on_intent is not None:
+            self.on_intent(self.current_intent, withheld)
         self.cv.notify_all()

@@ -8,6 +8,13 @@
     "shrug": {"stance_start": "stand", "stance_end": "stand"},
     "stretch": {"stance_start": "stand", "stance_end": "stand"},
     "wave": {"stance_start": "stand", "stance_end": "stand"},
-    "tap": {"stance_start": "stand", "stance_end": "stand"}
+    "tap": {"stance_start": "stand", "stance_end": "stand"},
+    "think_loop": {"stance_start": "stand", "stance_end": "stand"},
+    "cheer": {"stance_start": "stand", "stance_end": "stand"},
+    "point": {"stance_start": "stand", "stance_end": "stand"},
+    "pat_react": {"stance_start": "stand", "stance_end": "stand"},
+    "look_left": {"stance_start": "stand", "stance_end": "stand"},
+    "sit_enter": {"stance_start": "stand", "stance_end": "sit"},
+    "sit_loop": {"stance_start": "sit", "stance_end": "sit"}
   }
 }

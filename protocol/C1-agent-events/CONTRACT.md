@@ -77,6 +77,7 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
 旧的不延迟复活。`replaces` 为 null 且 `channels` 和正在跑的行为不重叠时，两个一起跑
 （扶窗中用眼、头、嘴回应说话，夹具 06）；重叠时按 `priority` 替换。
 - 身体片段只来自 `perform`（§1.4）和别的行为类型。intent 的 `state`、`activity` 不再让渲染器选全身片段，只给脸和气泡用（v2.7）。
+- agentd 选片发出的 `perform`（带 `clip`，§1.4）是片段层：它只和别的 `perform` 以及驱动全身的 `short_walk`、`sit`、`hold_window_edge`、`climb_window_top` 按通道互相取代；`idle`、`observe`、`listen`、`think`、`accompany`、`attend_session`、`face` 只定朝向和目标，和它通道重叠也一起跑，片段照播，朝向和看向叠在片段上（v2.7）。
 - `replaces` 指向的行为已经结束时，忽略 `replaces`，照常按 `channels` 和 `priority` 定。
 - 用户拖动、拎起是角色进程本地的，算 `priority` 2：和它重叠的行为以 `user_drag` 结束（回执 `cancelled`）；拖动中要
   `full_body` 或 `contact` 的新行为回执 `rejected` / `busy`。用户单击的本地反应打断的行为以 `user_click` 结束，渲染器为让开

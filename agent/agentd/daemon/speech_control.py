@@ -41,6 +41,11 @@ class SpeechControlMixin:
         """POST /speech/playback: (applied, why). A user's interrupt of a line's speech keeps only
         what was heard of it in the history and the mouth's window."""
         applied, why = self.speech.receipt(speech_id, state, sample, rate, reason)
+        if applied:
+            clause = self.speech.clause_ref(speech_id) if state == "ended" else None
+            if clause is not None:
+                self.spatial.motion_clause_end((clause["utterance_id"], clause["clause_id"]))
+            self.spatial.motion({"kind": "voice", "on": self.speech.busy()})
         utterance_id = self.speech.utterance_of(speech_id)
         if applied and state == "ended" and utterance_id is not None \
                 and (any(clause["state"] == "cancelled" for clause in self.speech.utterance(utterance_id))
@@ -206,10 +211,12 @@ class SpeechControlMixin:
             "reason": reason})
 
     def _clause_intent(self, line_id, intent, generation, trace_id, clause):
-        """C1 v2 §4 `clause_intent` on /events. clause: the relay's clause_ref, None for a line shown only as text."""
+        """C1 v2 §4 `clause_intent` on /events, and its gesture chosen now. clause: the relay's clause_ref, None for a
+        line shown only as text."""
         clause = clause or dict.fromkeys(("utterance_id", "clause_id", "spoken_text_revision"))
         self.registry.publish_event("clause_intent", {"line_id": line_id, **clause, "intent": intent,
                                                       "turn_generation": generation, "trace_id": trace_id})
+        self.spatial.motion_clause((clause["utterance_id"], clause["clause_id"]), intent)
 
     def _text_line(self, line_id, generation, trace_id, hold_ms=None):
         """C1 v2.3 `text_line` on /events: started while hold_ms is None, else ended, the host speaking hold_ms more."""
@@ -217,6 +224,7 @@ class SpeechControlMixin:
         self.registry.publish_event("text_line", {"line_id": line_id, "turn_generation": generation,
                                                   "trace_id": trace_id, "state": "ended" if ended else "started",
                                                   **ended})
+        self.spatial.motion({"kind": "text_line", "on": not ended})
 
     def _abort_model(self):
         if self.character_agent is not None:
@@ -345,6 +353,7 @@ class SpeechControlMixin:
                 self._speech_traces.popitem(last=False)
             for kind, attrs, at in self._early_speech.pop(speech_id, []):
                 self._tts_event(speech, kind, speech_id, attrs, at)
+        self.spatial.motion({"kind": "voice", "on": self.speech.busy()})
 
     def on_speech_event(self, kind, speech_id, attrs):
         """SpeechRelay.on_event: its first audio and end go into the voiced line's trace as producer tts."""

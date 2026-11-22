@@ -10,12 +10,21 @@
     "stretch": {"interruptible": true},
     "wave": {"interruptible": true},
     "tap": {"interruptible": true},
+    "think_loop": {"hold_policy": "while_requested", "interruptible": true},
+    "cheer": {"interruptible": true},
+    "point": {"intents": ["explain"], "interruptible": true},
+    "pat_react": {"interruptible": true},
+    "look_left": {"interruptible": true},
     "ghost": {"interruptible": true}
   },
   "idle_fidget": {"clips": ["nod"], "interval_seconds": [180, 360]},
   "events": {
     "user.greet": {"pool": [{"clip": "wave"}], "interrupt": "mid", "cooldown_s": 30},
-    "click.single": {"pool": [{"clip": "tap"}, {"clip": "nod"}], "interrupt": "user"}
+    "click.single": {"pool": [{"clip": "tap"}, {"clip": "nod"}], "interrupt": "user"},
+    "session.thinking": {"pool": [{"clip": "think_loop"}], "interrupt": "mid"},
+    "session.done": {"pool": [{"clip": "cheer"}], "interrupt": "mid"},
+    "pat.head": {"pool": [{"clip": "pat_react"}], "interrupt": "user"},
+    "look.left": {"pool": [{"clip": "look_left"}], "interrupt": "user"}
   },
   "idle_tiers": [
     {"after_s": [5, 10], "interval_s": [5, 10], "no_repeat": 2,

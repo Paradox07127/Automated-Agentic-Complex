@@ -46,6 +46,17 @@ EDGE_SIDES = ("nearest", "left", "right")  # a short_walk's edge target
 PAYLOADS = ("motion", "action", "clip")  # a perform carries exactly one
 PLAY_FIELDS = ("layer", "start", "blend_s", "loop", "ttl_s")  # how a perform plays; only on perform
 LAYER_CHANNELS = {"base": ["full_body"], "overlay": ["head", "left_hand", "right_hand"]}
+# behaviors that drive the whole body themselves; a clip perform (`perform` with `clip`) shares channels with every
+# other behavior, which only aims her (v2.7)
+EXECUTORS = ("short_walk", "sit", "hold_window_edge", "climb_window_top", "perform")
+
+
+def contends(a, b):
+    """Whether two behaviors compete for their channels: a clip perform only with another perform or an EXECUTORS one."""
+    clip = lambda m: m.get("type") == "perform" and "clip" in m
+    if clip(a) == clip(b):
+        return True
+    return (b if clip(a) else a).get("type") in EXECUTORS
 STARTS = ("now", "sync", "cycle_end", "after_exit")
 BLEND_S = (0, 2)
 TTL_S = (0.5, 120)
@@ -442,7 +453,7 @@ def check_file(data):
                     sent.get(message.get('replaces'),{}).get('facing_yaw') == message.get('facing_yaw'):
                 renewals.add(message.get("behavior_id"))
             channels = set(message.get("channels") or ())
-            displaced = [b for b in running if b != message.get("replaces")
+            displaced = [b for b in running if b != message.get("replaces") and contends(sent.get(b, {}), message)
                          and channels & set(sent.get(b, {}).get("channels") or ())]
             if displaced:
                 problems.append(f"#{i}: overlaps {displaced[0]}; name it in replaces or cancel it (replaced) first")

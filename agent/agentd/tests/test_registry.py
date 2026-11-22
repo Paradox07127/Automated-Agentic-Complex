@@ -545,6 +545,18 @@ class ConsumedTest(unittest.TestCase):
         self.assertEqual(self.reg.intents[-1]["outcome"], "succeeded")
         self.assertEqual(self.consumed.ids(), [])
 
+    def test_each_intent_reaches_on_intent_with_whether_its_terminal_was_consumed(self):
+        heard = []
+        self.reg.on_intent = lambda intent, withheld: heard.append((intent, withheld))
+        self.reg.set_role_focus(role_done("r1", 100.0), generation=2)
+        self.leave_quiet()
+        self.reg.set_activity("coding", "calm")
+        self.assertEqual([intent for intent, _ in heard], list(self.reg.intents)[-3:])
+        self.assertEqual([(i["state"], i["activity"], withheld) for i, withheld in heard],
+                         [("done", None, True), ("done", None, True), ("done", "coding", True)])
+        self.reg.set_role_focus(role_done("r2", 100.0), generation=2)
+        self.assertEqual((heard[-1][0]["outcome"], heard[-1][1]), ("succeeded", False))
+
     def test_the_consumed_list_keeps_the_newest_64(self):
         for n in range(70):
             self.assertTrue(self.consumed.take(f"o-{n}"))

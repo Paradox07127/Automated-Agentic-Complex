@@ -1,0 +1,1 @@
+{"schema": "endfield-affordance-uses-v1", "uses": [{"id": "sit.seat", "surface": "seat", "enter": "sit_enter", "loop": "sit_loop"}]}

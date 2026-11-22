@@ -8,6 +8,13 @@
     {"name": "shrug", "length": 1.5, "loop": false},
     {"name": "stretch", "length": 2.0, "loop": false},
     {"name": "wave", "length": 2.0, "loop": false},
-    {"name": "tap", "length": 1.0, "loop": false}
+    {"name": "tap", "length": 1.0, "loop": false},
+    {"name": "think_loop", "length": 3.0, "loop": true},
+    {"name": "cheer", "length": 1.5, "loop": false},
+    {"name": "point", "length": 1.0, "loop": false},
+    {"name": "pat_react", "length": 1.0, "loop": false},
+    {"name": "look_left", "length": 1.0, "loop": false},
+    {"name": "sit_enter", "length": 1.0, "loop": false},
+    {"name": "sit_loop", "length": 4.0, "loop": true}
   ]
 }

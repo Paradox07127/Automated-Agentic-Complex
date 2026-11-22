@@ -8,6 +8,13 @@
     {"name": "shrug", "loop": false},
     {"name": "stretch", "loop": false},
     {"name": "wave", "loop": false},
-    {"name": "tap", "loop": false}
+    {"name": "tap", "loop": false},
+    {"name": "think_loop", "loop": true},
+    {"name": "cheer", "loop": false},
+    {"name": "point", "loop": false},
+    {"name": "pat_react", "loop": false},
+    {"name": "look_left", "loop": false},
+    {"name": "sit_enter", "loop": false},
+    {"name": "sit_loop", "loop": true}
   ]
 }

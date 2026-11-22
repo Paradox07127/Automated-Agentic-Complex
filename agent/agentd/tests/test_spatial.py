@@ -4,6 +4,7 @@ import http.client
 import json
 from pathlib import Path
 import random
+import shutil
 import tempfile
 import threading
 import time
@@ -17,6 +18,7 @@ import c1  # noqa: E402
 from character.character_state import CharacterState  # noqa: E402
 from sessions.registry import Registry  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
+from motion.chooser import MotionChooser  # noqa: E402
 from observation import spatial  # noqa: E402
 from observation.spatial import Spatial  # noqa: E402
 from infra.store import open_store  # noqa: E402
@@ -78,6 +80,8 @@ class SpatialCase(unittest.TestCase):
                 return
             message = items[0]
             self.seen = message["seq"]
+            if "event" not in message:  # an intent: the fake renderer runs behaviors only
+                continue
             self.log.append(message)
             if message["event"] == "behavior":
                 self.sent.append(message)
@@ -1904,3 +1908,221 @@ class CapabilityServerTest(ServerCase):
                 'capabilities': {'attend_session@user': None, 'sit/rest': None, 'sit': None}}
         self.assertEqual(self.request('PUT', '/behavior/capabilities', body)[0], 200)
         self.assertEqual(self.server.spatial.diag()['capabilities'], body['capabilities'])
+
+
+PACK = Path(__file__).resolve().parent / "fixtures" / "motion-chooser" / "demo"  # a runtime character directory
+
+
+def role(state):
+    """A role focus row in `state`, as the character agent sets it."""
+    done = state == "done"
+    return {"display_session": "role:r1", "state": state, "priority": 7 if done else 4, "tool_name": None,
+            "tool_category": None, "expires_at": time.time() + 600, "run_id": "r1", "conversation_id": "c",
+            "run_generation": 1, "phase": "completed" if done else "running",
+            **({"outcome": "succeeded"} if done else {})}
+
+
+class ChooserTest(SpatialCase):
+    """Spatial owns the demo pack's chooser: each choice reaches the fake renderer as a perform through admit."""
+
+    def setUp(self):
+        super().setUp()
+        self.spatial._next_tick = self.now + 10 ** 6  # no random tick
+        self.stage = "normal"
+        self.spatial.stage = lambda: self.stage
+        self.registry.consumed = self.spatial.consumed
+        self.registry.on_intent = self.spatial.motion_intent
+        self.at = {}  # behavior_id -> clock time the fake renderer got it
+        self.spatial.use_motion(MotionChooser(PACK))
+
+    def flush(self):
+        super().flush()
+        for message in self.sent:
+            self.at.setdefault(message["behavior_id"], self.now)
+
+    def run_clock(self, seconds):
+        """The motion clock's wakes over `seconds`."""
+        for _ in range(round(seconds / spatial.MOTION_WAKE)):
+            self.now += spatial.MOTION_WAKE
+            self.spatial.motion_step()
+            self.flush()
+
+    def performs(self):
+        return [m for m in self.sent if m["type"] == "perform"]
+
+    def renewal(self, message):
+        old = next((m for m in self.sent if m["behavior_id"] == message["replaces"]), None)
+        return old is not None and old.get("loop") is True and old["clip"] == message["clip"]
+
+    def chosen(self):
+        """The performs but the renewals."""
+        return [m for m in self.performs() if not self.renewal(m)]
+
+    def test_a_character_starts_on_its_idle_loop_and_renews_it_before_its_ttl(self):
+        self.run_clock(spatial.MOTION_WAKE)
+        [loop] = self.performs()
+        self.assertEqual({k: loop[k] for k in ("clip", "layer", "loop", "ttl_s", "channels", "priority")},
+                         {"clip": {"id": "base_loop"}, "layer": "base", "loop": True, "ttl_s": spatial.LOOP_TTL,
+                          "channels": ["full_body"], "priority": 0})
+        self.run_clock(120)
+        base = [m for m in self.performs() if m["layer"] == "base"]
+        for a, b in zip(base, base[1:]):  # the base layer never lapses
+            if a.get("loop"):
+                self.assertLess(self.at[b["behavior_id"]] - self.at[a["behavior_id"]], a["ttl_s"], (a, b))
+        self.assertLess(self.now - self.at[base[-1]["behavior_id"]], spatial.LOOP_TTL)
+        renewals = [m for m in base if self.renewal(m)]
+        self.assertTrue(renewals)
+        for m in renewals:
+            self.assertEqual(m["clip"], {"id": "base_loop"})
+            self.assertLessEqual(self.at[m["behavior_id"]] - self.at[m["replaces"]],
+                                 spatial.LOOP_TTL - spatial.LOOP_RENEW + spatial.MOTION_WAKE + 1e-6)
+        self.assertValid()
+
+    def test_chosen_clips_play_under_her_idle_and_gaze_and_give_way_to_walks(self):
+        self.run_clock(spatial.MOTION_WAKE)
+        [loop] = self.performs()
+        with self.spatial._lock:  # her routine idle and a look at the user: neither owns the clip layer
+            for kind, channels in (("idle", ("full_body",)), ("observe", spatial.EYES)):
+                self.assertTrue(self.spatial._send(spatial._spec(kind, None, "tick", None, 0, channels, (), 0.5, 600.0),
+                                                   self.s, self.now)[0], kind)
+        self.flush()
+        self.assertEqual(self.cancels(), [])
+        self.assertIn(loop["behavior_id"], self.spatial.active)
+        self.run_clock(120)
+        self.assertNotIn("busy", self.spatial.diag()["refused"])
+        with self.spatial._lock:  # a walk drives the whole body: the chosen loop ends, and none starts under it
+            self.assertTrue(self.spatial._send(spatial._spec("short_walk", None, "tick", None, 0, ("full_body",), (),
+                                                             0.5, 60.0), self.s, self.now)[0])
+        self.flush()
+        base = [r for r in self.spatial.active.values() if r["spec"].get("chosen") and r["spec"]["layer"] == "base"]
+        self.assertEqual(base, [])
+        self.run_clock(30)
+        self.assertGreater(self.spatial.diag()["refused"].get("busy", 0), 0)
+        self.assertValid()
+
+    def test_idle_tier_picks_reach_the_renderer_at_the_choosers_times(self):
+        reference, expected = MotionChooser(PACK), []
+        for _ in range(round(59.9 * 60)):
+            expected += reference.tick(1 / 60)
+        self.assertGreaterEqual(len([c for c in expected if c["why"] == "idle.t1"]), 2)
+        origin = self.now + spatial.MOTION_WAKE  # the first wake starts the chooser's frames
+        self.run_clock(60)
+        chosen = self.chosen()[1:]  # after the idle loop it starts on
+        self.assertEqual([(m["clip"]["id"], m["trigger"]["event"]) for m in chosen],
+                         [(c["clip"], c["why"]) for c in expected])
+        for m, c in zip(chosen, expected):
+            late = self.at[m["behavior_id"]] - (origin + c["t_s"])
+            self.assertTrue(-1e-3 <= late <= spatial.MOTION_WAKE + 1e-3, (m, c, late))
+            self.assertEqual((m["layer"], m["trigger"]["source"]), ("base", "tick"))
+            self.assertEqual(m.get("loop", False), c["clip"] == "base_loop")
+        self.assertValid()
+
+    def test_a_focus_thinking_intent_is_the_session_clip_and_a_consumed_done_none(self):
+        self.run_clock(1)
+        self.registry.set_role_focus(role("thinking"), generation=self.generation)
+        self.run_clock(spatial.MOTION_WAKE)
+        think = self.performs()[-1]
+        self.assertEqual((think["clip"], think["layer"], think["loop"], think["trigger"]),
+                         ({"id": "think_loop"}, "base", True, {"source": "session", "event": "session.thinking"}))
+        self.stage = "quiet"
+        self.registry.set_role_focus(role("done"), generation=self.generation)
+        self.assertNotIn("outcome", self.registry.intents[-1])  # consumed
+        self.run_clock(3)
+        self.assertNotIn({"id": "cheer"}, [m["clip"] for m in self.performs()])
+        self.assertEqual(self.performs()[-1]["clip"], {"id": "base_loop"})
+        self.assertValid()
+
+    def test_a_shown_done_plays_its_terminal_clip(self):
+        self.run_clock(1)
+        self.registry.set_role_focus(role("thinking"), generation=self.generation)
+        self.run_clock(1)
+        self.registry.set_role_focus(role("done"), generation=self.generation)
+        self.run_clock(1)
+        done = self.performs()[-1]
+        self.assertEqual((done["clip"], done["layer"], done.get("loop"), done["trigger"]["source"]),
+                         ({"id": "cheer"}, "base", None, "session"))
+
+    def test_a_clause_during_speech_is_an_overlay_chosen_in_the_same_call(self):
+        self.run_clock(1)
+        self.spatial.motion({"kind": "voice", "on": True})
+        self.flush()
+        self.spatial.motion({"kind": "clause", "intent": "explain"})
+        [gesture] = [m for m in self.registry.intents_since(self.seen) if m["event"] == "behavior"]  # no clock between
+        self.assertEqual({k: gesture.get(k) for k in ("clip", "layer", "loop", "channels")},
+                         {"clip": {"id": "point"}, "layer": "overlay", "loop": None,
+                          "channels": ["head", "left_hand", "right_hand"]})
+        self.assertEqual(gesture["trigger"]["source"], "speech")
+        self.assertValid()
+
+    def test_offstage_keeps_only_the_rest_loop_and_the_playhead_on_the_playing_clip(self):
+        self.stage = "offstage"
+        chooser, reported = self.spatial.chooser, []
+        report = chooser.report_playhead
+        chooser.report_playhead = lambda clip, time_s: (reported.append((clip, time_s)), report(clip, time_s))
+        self.run_clock(30)
+        self.assertEqual({m["clip"]["id"] for m in self.performs()}, {"base_loop"})
+        self.assertTrue(any(self.renewal(m) for m in self.performs()))
+        refused = [c for c in chooser.choices if c["why"] == "idle.t1"]
+        self.assertTrue(refused)
+        self.assertGreaterEqual(self.spatial.diag()["refused"]["stage"], len(refused))
+        self.assertEqual(len(reported), len(refused))
+        for (clip, time_s), choice in zip(reported, refused):
+            self.assertEqual(clip, "base_loop")
+            self.assertAlmostEqual(time_s, choice["t_s"], delta=spatial.MOTION_WAKE + 0.02)
+        self.assertEqual(chooser.playhead()[0], "base_loop")
+        self.assertValid()
+
+    def test_a_cycle_end_of_a_chosen_perform_reaches_report_playhead(self):
+        self.run_clock(4)
+        [loop] = self.performs()
+        state = {"behavior_id": loop["behavior_id"], "origin": "agent", "phase": "cycle_end", "resting": True,
+                 "busy": False, "clip": "base_loop"}
+        with unittest.mock.patch.object(self.spatial.chooser, "report_playhead") as report:
+            self.spatial.motion_state({**state, "behavior_id": "b-7-999"})  # not a chosen perform
+            report.assert_not_called()
+            self.spatial.motion_state(state)
+        report.assert_called_once_with("base_loop", 4.0)
+
+    def test_her_sit_owns_the_body_and_the_chooser_stands_again_after_it(self):
+        self.run_clock(1)
+        [loop] = self.performs()
+        sit = spatial._spec("sit", None, "tick", "routine:test", 0, ("full_body", "contact"), ("user_drag",), 0.3, 600.0)
+        self.assertEqual(self.spatial.offer(sit), (True, None))
+        self.flush()
+        self.assertEqual(self.cancels(), [])  # the sit replaces the idle loop
+        self.assertEqual(self.sent[-1]["replaces"], loop["behavior_id"])
+        self.run_clock(20)
+        self.assertEqual(self.performs(), [loop])  # the chooser plays its seat, the sit its own clips
+        self.assertEqual(self.spatial.chooser.playhead()[0], "sit_loop")
+        self.receipt(self.sent[-1]["behavior_id"], "completed")
+        self.run_clock(1)
+        self.assertEqual(self.performs()[-1]["clip"], {"id": "base_loop"})
+        self.assertEqual(self.spatial.chooser.playhead()[0], "base_loop")
+        self.run_clock(20)
+        self.assertIn("idle.t1", [m["trigger"]["event"] for m in self.performs()])  # standing tiers again
+        self.assertValid()
+
+
+class ChooserServerTest(ServerCase):
+    def test_the_snapshot_carries_the_reaction_table_and_a_switch_sends_the_new_one(self):
+        self.server.spatial.use_motion(MotionChooser(PACK))
+        snapshot = self.snapshot()
+        overlay = lambda *clips: [{"clip": c, "weight": 1, "layer": "overlay"} for c in clips]  # noqa: E731
+        self.assertEqual(snapshot["reactions"], {"click": overlay("tap", "nod"), "pat": overlay("pat_react"),
+                                                 "attention_left": overlay("look_left")})
+        self.assertEqual(c1.check_message({**snapshot, "event": "snapshot"}), [])
+        other = Path(tempfile.mkdtemp()) / "other"
+        self.addCleanup(shutil.rmtree, other.parent)
+        shutil.copytree(PACK, other)
+        table = other / "c7" / "animation" / "intent-motion-map.json"
+        table.write_text(table.read_text(encoding="utf-8").replace('[{"clip": "tap"}, {"clip": "nod"}]',
+                                                                   '[{"clip": "wave"}]'), encoding="utf-8")
+        self.server.motion_chooser = lambda cid: MotionChooser(other)
+        seq = self.server.registry.intent_seq
+        status, body = self.request("POST", "/character/prepare", {"id": "aster"})
+        self.assertEqual(status, 200)
+        self.assertEqual(self.request("POST", "/character/commit", {"switch_id": body["switch_id"]})[0], 200)
+        [sent] = [i for i in self.server.registry.intents_since(seq) if i["event"] == "snapshot"]
+        self.assertEqual(sent["reactions"]["click"], overlay("wave"))
+        self.assertEqual(c1.check_message(sent), [])
+        self.assertEqual(self.snapshot()["reactions"], sent["reactions"])

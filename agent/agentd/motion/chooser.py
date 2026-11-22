@@ -454,6 +454,8 @@ class MotionChooser:
         elif kind == "pat_end":
             if self._pat:
                 self._pat.leave = True
+        elif kind == "stand":
+            self._call(("input", item), self._stand)
         else:
             self._call(("input", item), lambda: self._perform(item))
         return self.choices[start:]
@@ -470,6 +472,40 @@ class MotionChooser:
         """The renderer's actual clip and its time, at a clip or cycle end, over the modelled ones."""
         p = self._play
         p.active, p.time, p.target = clip, f32(time_s), None
+
+    def playhead(self):
+        """The modelled clip, its time and, while it is still blending in, the blend's seconds (else None)."""
+        p = self._play
+        return (p.target, p.target_time, p.blend_duration) if p.target else (p.active, p.time, None)
+
+    def pool(self, event):
+        """The clips and weights a standing `event` draws from, weight > 0 only, as play_event and, for
+        `click.single`, play_click_reaction draw them; [] when the pack has no pool for it."""
+        p = self.pack
+        key = p.event_key(event, "stand")
+        if event == "click.single":
+            rows = p.events[event].pool if event in p.events else [(c, 1) for c in p.click_reactions or []]
+            clips, weights = [c for c, _ in rows], [w if self._open(c) else 0 for c, w in rows]
+        elif key is not None:
+            clips, weights = self._pool(key, p.events[key].pool)
+        else:
+            return []
+        return [(c, w) for c, w in zip(clips, weights) if w > 0]
+
+    def _stand(self):
+        """The seat stand-in ends: the body stands on the clip report_playhead set, and an input kept while
+        seated plays now."""
+        self._seat = None
+        if self.exact_acquisition_pending:
+            self.pending = None
+        self.exact_owned, self.exact_tier, self.exact_event, self.exact_event_key = False, None, None, None
+        pending, self.exact_pending_input = self.exact_pending_input, None
+        if pending is None:
+            self._builtin()
+        elif pending[0] == "intent":
+            self.apply_intent(pending[1])
+        else:
+            self.handle_intent(*pending[1:])
 
     def _perform(self, i):
         kind = i["kind"]

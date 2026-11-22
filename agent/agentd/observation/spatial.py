@@ -79,6 +79,19 @@ EDGE = {"kind": "edge", "side": "nearest"}  # where entering the quiet stage wal
 EDGE_PAUSE = 1.5  # seconds typing stays off before the edge walk starts
 PARKED = c1.MOVING + ("hold_window_edge",)  # what her own schedule does not start from quiet entry until it ends
 BLOCKING = ("offstage", "quiet")  # stages that consume a terminal arriving on them
+FRAME = 1 / 60  # seconds per frame of the motion chooser
+MOTION_WAKE = 0.1  # seconds between the motion clock's wakes; the frames since the last wake run as one batch
+CATCH_UP = 2.0  # seconds of frames a late wake still runs; the chooser skips the rest of a longer stall
+LOOP_TTL = 30.0  # ttl_s of a chosen base loop
+LOOP_RENEW = 10.0  # seconds before its ttl_s a chosen base loop that still holds is renewed
+HOLD_RETRY = 1.0  # seconds before the chooser's loop that does not run is proposed again
+ONE_SHOT_WAIT = 6.0  # seconds past a one-shot clip's length agentd still counts its perform as running
+GESTURES = ("speech.gesture", "speech_gestures")  # whys of the chooser's speech gestures
+CHAINED = ("next of ", "exit of ", "source return of ")  # why prefixes of a clip its chain plays after another
+# C1 snapshot `reactions` trigger -> the pack event whose pool the renderer draws from
+REACTION_EVENTS = {"click": "click.single", "pat": "pat.head", "pinch": "pinch.cheek", "drag_lift": "drag.lift",
+                   "attention_left": "look.left", "attention_right": "look.right", "present": "present.snap"}
+BASE_REACTIONS = ("drag_lift",)  # reactions on the base layer; the rest play on the overlay
 
 
 def _spec(kind, target, source, event, priority, channels, exits, intensity, lifetime, display_session=None,
@@ -107,7 +120,8 @@ def sit_variant(activity, rng, matched=None):
 def _key(spec):
     """Behaviors with the same key are one: a repeat is not sent again (C1 §1.3)."""
     return (spec["type"], json.dumps(spec["target"], sort_keys=True), spec["trigger"]["source"],
-            spec["trigger"]["event"], spec["display_session"], spec["turn_id"], spec.get('facing_yaw'))
+            spec["trigger"]["event"], spec["display_session"], spec["turn_id"], spec.get('facing_yaw'),
+            spec.get("layer"), json.dumps(spec.get("clip")))
 
 
 def _speech(s):
@@ -133,6 +147,17 @@ def _target_key(kind, target):
     if target["kind"] == "window":
         return "window", target["window_id"]
     return json.dumps(target, sort_keys=True)
+
+
+def _reactions(chooser):
+    """C1 snapshot `reactions`: each trigger the chooser's pack has a pool for -> its clips, weights and layer."""
+    table = {}
+    for trigger, event in REACTION_EVENTS.items():
+        layer = "base" if trigger in BASE_REACTIONS else "overlay"
+        pool = chooser.pool(event)
+        if pool:
+            table[trigger] = [{"clip": clip, "weight": weight, "layer": layer} for clip, weight in pool]
+    return table
 
 
 class Consumed:
@@ -210,11 +235,27 @@ class Spatial:
         self.consumed = Consumed(lambda: self.stage())
         self._edge = None  # from quiet entry until it ends: {pending, walk: the edge walk's id or None, parked}
         self._typing_off = -math.inf  # clock time typing was last seen off after being on
+        self.chooser = None  # the current character's MotionChooser; None chooses no clips
+        self._motion_at = None  # clock time the chooser's frames have reached; None starts them at the next step
+        self._intents = deque()  # (clock time, chooser input) of the registry's intents for the next motion step
+        self._chosen = []  # (choice, source, input kind, blend_s) the chooser made and Spatial has not proposed
+        self._base_id = None  # behavior id of the chosen perform on the base layer
+        self._base_since = 0.0  # the chooser's t_s when that perform started
+        self._overlay = None  # clip of the chosen overlay perform, while the chooser still plays it
+        self._staged = None  # a clause's gesture the chooser staged behind its start family's base
+        self._hold_at = 0.0  # clock time the chooser's loop that does not run may be proposed again
+        self._seated = self._voice = False  # what the chooser was told: she sits; her voice plays
+        self._clauses = OrderedDict()  # clause key -> the intent of its clause_intent, until its clause_end
+        self._reactions = None  # the chooser's snapshot reaction table
+        self._seen = None  # the latest observe(), which chosen performs are admitted against
         self._lock = threading.RLock()
         self._wake = threading.Event()
+        self._motion_wake = threading.Event()
 
     def run(self, stop, skip=lambda: False):
-        """skip() -> True leaves this poll out (agentd's reset or an open character switch)."""
+        """skip() -> True leaves this poll and the motion clock's steps out (agentd's reset or an open character
+        switch)."""
+        threading.Thread(target=self._motion_loop, args=(stop, skip), daemon=True).start()
         self.begin()
         while True:
             self._wake.wait(POLL)
@@ -239,9 +280,12 @@ class Spatial:
                 self._next_tick = self.clock() + self.rng.uniform(*FIRST_TICK) * self.interaction.random_tick_scale
 
     def poll(self):
-        s = self.observe()
+        s = self._seen = self.observe()
         with self._lock:
             now = self.clock()
+            if self.chooser is not None and s["voicing"] != self._voice:
+                # the relay's estimate ends a voice without any receipt, so its end is also read here
+                self.motion({"kind": "voice", "on": s["voicing"]})
             s = self._stabilize_session(s, now)
             self._track(s, now)
             if s["typing"]:
@@ -319,7 +363,7 @@ class Spatial:
             if s['fullscreen'] and self.switches['fullscreen_give_way']:
                 return {'accepted':False,'reason':'fullscreen'}
             if any(r['behavior']['type'] not in ('face','idle','think','listen','accompany') and set(r['behavior']['channels']) & {'full_body','contact'}
-                   for r in self.active.values()): return {'accepted':False,'reason':'body_busy'}
+                   and 'clip' not in r['behavior'] for r in self.active.values()): return {'accepted':False,'reason':'body_busy'}
             exits = ('user_drag','focus_change') if source=='decision' else ('user_drag',)
             spec = _spec('face',None,source,'facing_decision',0,('full_body',),exits,.2,hold_seconds)
             spec.update(facing_yaw=float(yaw),decision_reason=reason)
@@ -406,7 +450,8 @@ class Spatial:
                 # only `completed` makes an arrival or a release a fact; a lost Avatar is neither done nor cut.
                 record["outcome"] = "lost" if body.get("reason") == "connection_lost" else OUTCOMES[phase]
                 self.active.pop(body["behavior_id"], None)
-                if record["behavior"]["priority"] == 0 and set(record["behavior"]["channels"]) & {"full_body", "contact"}:
+                if record["behavior"]["priority"] == 0 and set(record["behavior"]["channels"]) & {"full_body", "contact"} \
+                        and not record["spec"].get("chosen"):
                     self._recovery_at = max(self._recovery_at, now + self.recovery_delay)
                 if self.state is not None and record["state_id"] is not None:
                     self.state.on_event("behavior_ended", behavior_id=record["state_id"],
@@ -454,8 +499,8 @@ class Spatial:
     def admit(self, spec, s, now, lapsed=()):
         """Whether a proposal may run now: (True, None), or (False, the first check that fails): stale (its
         turn_generation is not the current one; a character switch moves it too), unsupported, switch_off, stage,
-        typing, speech, posture, busy (a higher priority owns one of its channels; a lapsed record owns none).
-        Changes nothing."""
+        typing, speech, posture, busy (a higher priority owns one of its channels; a lapsed record owns none; a
+        chosen perform takes no channel another owner holds). Changes nothing."""
         with self._lock:
             kind, target, source = spec["type"], spec["target"], spec["trigger"]["source"]
             renewal = self._running(_key(spec))
@@ -470,7 +515,7 @@ class Spatial:
             stage = self.stage()
             edge = target is not None and target["kind"] == "edge"
             # offstage keeps base rest only; quiet keeps task behaviors off the body but its own walk to the edge
-            if not renewal and (stage == "offstage" and (kind != "idle" or _autonomous(spec))
+            if not renewal and (stage == "offstage" and (kind != "idle" or _autonomous(spec)) and not spec.get("rest")
                                 or stage == "quiet" and source in TASK and kind != "idle" and body and not edge):
                 return False, "stage"
             if self._forbidden(kind, target, s["typing"]):
@@ -481,8 +526,9 @@ class Spatial:
                     and any(r["behavior"]["type"] in HELD for r in self.active.values()):
                 return False, "posture"
             channels = set(spec["channels"])
-            if any(r["behavior"]["priority"] > spec["priority"] and channels & set(r["behavior"]["channels"])
-                   for r in self.active.values() if r not in lapsed):
+            if any(c1.contends(r["behavior"], spec) and (r["behavior"]["priority"] > spec["priority"] or spec.get("chosen")
+                                                          and not r["spec"].get("chosen"))
+                   and channels & set(r["behavior"]["channels"]) for r in self.active.values() if r not in lapsed):
                 return False, "busy"
             return True, None
 
@@ -496,10 +542,218 @@ class Spatial:
 
     def stage_event(self, name):
         """A user_now stage.* event: entering quiet asks for one walk to the nearest free edge; any other stage ends
-        the parking and leaves an edge walk in flight to finish."""
+        the parking and leaves an edge walk in flight to finish. The quiet stage also clears the chooser's intent
+        presentation."""
         with self._lock:
             self._edge = {"pending": True, "walk": None, "parked": False} if name == "stage.quiet" else None
+            if name == "stage.quiet":
+                self.motion({"kind": "quiet"})
         self.wake()
+
+    def use_motion(self, chooser):
+        """The current character's MotionChooser, None for none. A new one starts on its own clock, and its reaction
+        table goes out in a snapshot (C1 v2.7)."""
+        with self._lock:
+            replaced = chooser is not None or self.chooser is not None
+            self.chooser, self._motion_at, self._chosen, self._base_id = chooser, None, [], None
+            self._overlay = self._staged = None
+            self._hold_at, self._seated, self._voice = 0.0, False, False
+            self._intents.clear()
+            self._clauses.clear()
+            self._reactions = None if chooser is None else _reactions(chooser)
+            if replaced:
+                self.publish("snapshot", {"behaviors": self.running(), "reactions": self._reactions or {},
+                                          "consumed": self.consumed.ids(), "turn_generation": self.generation()})
+
+    def reactions(self):
+        """The current chooser's snapshot reaction table, None without a chooser."""
+        with self._lock:
+            return self._reactions
+
+    def motion_intent(self, intent, withheld):
+        """registry.on_intent: the intent goes to the chooser at its time; a withheld terminal goes without its state,
+        so no terminal clip is chosen. It runs under registry.cv, so it only queues and wakes the motion clock."""
+        if self.chooser is None:
+            return
+        item = {"kind": "intent", "intent": intent["intent"], "state": intent["state"],
+                "activity": intent["activity"], "mood": intent["mood"], "display_session": intent["display_session"]}
+        if withheld:
+            item.update(intent="idle", state=None)
+        self._intents.append((self.clock(), item))
+        self._motion_wake.set()
+
+    def motion(self, item):
+        """A speech input for the chooser (text_line, voice, clause, clause_end) or the quiet stage's, sent now and
+        its choices proposed in this call. It takes the Spatial lock and then registry.cv: never call it holding
+        registry.cv."""
+        with self._lock:
+            if self.chooser is None:
+                return
+            now = self.clock()
+            self._advance(now)
+            self._input(item, None if item["kind"] == "quiet" else "speech")
+            if self._seen is not None:
+                self._propose(self._seen, now)
+
+    def motion_clause(self, key, intent):
+        """A clause_intent as it goes out: the chooser's gesture for it is chosen in this call; key names the clause
+        for motion_clause_end."""
+        with self._lock:
+            self._clauses[key] = intent
+            while len(self._clauses) > KEPT:
+                self._clauses.popitem(last=False)
+            self.motion({"kind": "clause", "intent": intent})
+
+    def motion_clause_end(self, key):
+        """The clause key names has played out: the chooser takes back its gesture."""
+        with self._lock:
+            intent = self._clauses.pop(key, None)
+            if intent is not None:
+                self.motion({"kind": "clause_end", "intent": intent})
+
+    def motion_state(self, body):
+        """A C3 motion_state (rule 54): at a cycle end or the end of a clip the chooser chose, the chooser's playhead
+        goes where the renderer's is."""
+        with self._lock:
+            record = self.records.get(body["behavior_id"])
+            if self.chooser is None or record is None or not record["spec"].get("chosen") \
+                    or body["phase"] not in ("cycle_end", "ended"):
+                return
+            clip = record["spec"]["clip"]["id"]
+            current, time_s, _ = self.chooser.playhead()
+            if current != clip:  # the chooser has moved on from it
+                return
+            length = self.chooser.pack.lengths[clip]
+            self.chooser.report_playhead(clip, max(1, round(time_s / length)) * length
+                                         if body["phase"] == "cycle_end" else length)
+
+    def motion_step(self):
+        """One wake of the motion clock: the chooser's frames up to now with the registry's intents at their times,
+        each choice proposed, and the chooser's loop kept on the base layer and renewed."""
+        if self._seen is None:
+            self._seen = self.observe()
+        with self._lock:
+            if self.chooser is None:
+                return
+            now = self.clock()
+            self._advance(now)
+            seated = any(r["behavior"]["type"] in SEATED for r in self.active.values())
+            if seated != self._seated:
+                self._seated = seated
+                if not seated:
+                    self.chooser.report_playhead(self.chooser.pack.overview, 0.0)  # her sit hands back a standing body
+                self._input({"kind": "sit" if seated else "stand"}, None)
+            self._propose(self._seen, now)
+            self._hold(self._seen, now)
+
+    def _motion_loop(self, stop, skip):
+        # The chooser's clock is the wall clock: each wake runs the frames since the last one, so a slow wake only
+        # delays the choices it makes, never their times.
+        while True:
+            self._motion_wake.wait(MOTION_WAKE)
+            self._motion_wake.clear()
+            if stop.is_set():
+                return
+            if skip():
+                with self._lock:
+                    self._motion_at = None  # no frames run while Spatial is skipped
+                continue
+            try:
+                self.motion_step()
+            except Exception:
+                LOG.exception("motion step failed")
+
+    def _advance(self, now):
+        """The chooser's frames up to now; each registry intent goes in before the first frame past its time."""
+        self._motion_at = now if self._motion_at is None else max(self._motion_at, now - CATCH_UP)
+        for _ in range(int((now - self._motion_at) / FRAME + 1e-6)):
+            self._motion_at += FRAME
+            while self._intents and self._intents[0][0] <= self._motion_at:
+                self._input(self._intents.popleft()[1], None)
+            self._take(self.chooser.tick(FRAME), None, "tick")
+        while self._intents and self._intents[0][0] <= now:
+            self._input(self._intents.popleft()[1], None)
+
+    def _input(self, item, source):
+        if item["kind"] == "voice":
+            if item["on"] == self._voice:
+                return
+            self._voice = item["on"]
+        self._take(self.chooser.send(item), source, item["kind"])
+
+    def _take(self, choices, source, kind):
+        if choices:
+            clip, _, blend = self.chooser.playhead()
+            self._chosen += [(c, source, kind, blend if c["clip"] == clip else None) for c in choices]
+
+    def _propose(self, s, now):
+        chosen, self._chosen = self._chosen, []
+        for choice, source, kind, blend in chosen:
+            self._choose(choice, source, kind, blend, s, now)
+
+    def _choose(self, choice, source, kind, blend, s, now):
+        """One choice as a perform through admit. A clause's gesture and the speech gestures go on the overlay, and so
+        does the chain after one; every other clip on the base layer. A refused one leaves the chooser's playhead on
+        what the base layer plays."""
+        clip, why = choice["clip"], choice["why"]
+        if self._seated:
+            return  # her sit plays its own clips
+        if kind == "clause" and why.startswith("base before "):
+            self._staged = why.removeprefix("base before ")  # the overlay needs no base to start from
+            return
+        overlay = kind == "clause" or why in GESTURES or clip == self._staged \
+            or self._overlay is not None and why in tuple(prefix + self._overlay for prefix in CHAINED)
+        base = self.active.get(self._base_id)
+        if not overlay:
+            self._overlay = None
+            if base is not None and base["spec"]["clip"]["id"] == clip:
+                return  # back on what the base layer plays
+        spec = self._chosen_spec(clip, "overlay" if overlay else "base", source or self._source(why), why, blend)
+        if not self._send(spec, s, now)[0]:
+            self.chooser.report_playhead(*self._played())
+        elif overlay:
+            self._overlay, self._staged = clip, None
+        else:
+            self._base_id, self._base_since = next(reversed(self.active)), self.chooser.t_s
+
+    def _hold(self, s, now):
+        """Renews the chosen base loop before its ttl_s runs out, and proposes the chooser's loop when the base layer
+        does not play it (at the start, after another owner or the stage took the body)."""
+        base = self.active.get(self._base_id)
+        if base is not None and base["spec"].get("loop") and base["behavior"]["expires_at_ms"] <= (now + LOOP_RENEW) * 1000:
+            if self._send(base["spec"], s, now)[0]:
+                self._base_id = next(reversed(self.active))
+            return
+        clip = self.chooser.playhead()[0]
+        if self._seated or now < self._hold_at or not self.chooser.pack.loop(clip) \
+                or base is not None and base["spec"]["clip"]["id"] == clip:
+            return
+        self._hold_at = now + HOLD_RETRY
+        if self._send(self._chosen_spec(clip, "base", self._source("hold"), "hold", None), s, now)[0]:
+            self._base_id, self._base_since = next(reversed(self.active)), self.chooser.t_s
+
+    def _source(self, why):
+        return "session" if why.startswith("session.") else "speech" if self.chooser.speaking else "tick"
+
+    def _chosen_spec(self, clip, layer, source, why, blend):
+        """A perform of a chosen clip; a base loop is a rest loop when it is one of the pack's idle bases."""
+        pack = self.chooser.pack
+        loop = layer == "base" and pack.loop(clip)
+        spec = _spec("perform", None, source, why, 0, c1.LAYER_CHANNELS[layer], (), 0.5,
+                     LOOP_TTL if loop else pack.lengths[clip] + ONE_SHOT_WAIT)
+        spec.update(clip={"id": clip}, layer=layer, chosen=True)
+        if loop:
+            spec.update(loop=True, ttl_s=LOOP_TTL, rest=clip in pack.idle_bases)
+        if blend is not None:
+            spec["blend_s"] = round(min(blend, c1.BLEND_S[1]), 3)
+        return spec
+
+    def _played(self):
+        """The clip the base layer plays and its time on the chooser's clock; the pack's overview, the renderer's
+        default rest loop, when no chosen perform holds it."""
+        if self._base_id in self.active:
+            return self.active[self._base_id]["spec"]["clip"]["id"], self.chooser.t_s - self._base_since
+        return self.chooser.pack.overview, 0.0
 
     def _edge_walk(self, s, now):
         """The quiet stage's one walk to the edge once typing has been off EDGE_PAUSE. Seated, holding a window
@@ -887,7 +1141,8 @@ class Spatial:
         self._count += 1
         behavior_id = spec.get("behavior_id") or f"b-{self.epoch}-{self._count}"
         # a behavior that ends on user_typing gives way to the next one while the user types (fixture 07).
-        gone = [r for r in self.active.values() if (r["behavior"]["priority"] <= spec["priority"] or r in lapsed)
+        gone = [r for r in self.active.values() if c1.contends(r["behavior"], spec)
+                and (r["behavior"]["priority"] <= spec["priority"] or r in lapsed)
                 and (set(r["behavior"]["channels"]) & set(spec["channels"])
                      or s["typing"] and "user_typing" in r["behavior"]["exit"])]
         # replaces names one: the renewed one when this is a renewal, else the latest; each other one is cancelled.
@@ -895,7 +1150,8 @@ class Spatial:
         lower = [r for r in gone if r["behavior"]["priority"] <= spec["priority"]]
         named = next((r for r in lower if _key(r["spec"]) == _key(spec)), lower[-1] if lower else None)
         renewal = spec["type"] == "sit" and named is not None and named["spec"] == spec
-        state_id = named["state_id"] if renewal else behavior_id
+        # her state counts what Spatial does, not each clip the chooser plays
+        state_id = None if spec.get("chosen") else named["state_id"] if renewal else behavior_id
         if renewal:
             named["state_id"] = None  # replacement receipts must not end the renewed sit's state
         intensity = min(spec["intensity"], c1.TYPING_MAX) if s["typing"] else spec["intensity"]
@@ -910,14 +1166,14 @@ class Spatial:
             behavior["variant"] = spec["variant"]
         if 'facing_yaw' in spec:
             behavior.update(facing_yaw=spec['facing_yaw'],decision_reason=spec['decision_reason'])
-        behavior.update({payload: spec[payload] for payload in c1.PAYLOADS if payload in spec})
+        behavior.update({key: spec[key] for key in c1.PAYLOADS + c1.PLAY_FIELDS if key in spec})
         for record in gone:
             if record is not named:
                 self.publish("behavior_cancel", {"behavior_id": record["behavior"]["behavior_id"],
                                                  "reason": "replaced", "turn_generation": self.generation()})
             self._end(record, "replaced")
         seq = self.publish("behavior", behavior)
-        if self.state is not None:
+        if self.state is not None and not spec.get("chosen"):
             if renewal:
                 self.state.advance(now)
             else:
