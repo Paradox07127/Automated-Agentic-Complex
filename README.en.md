@@ -16,7 +16,7 @@
 **Agentic Complex** (repository directory `Endfield`) is an experimental desktop character app and character-package development framework. It renders compatible character packages on the desktop and embeds a personal agent with switchable execution kernels for text/voice conversation, task execution, memory management, and optional desktop awareness.
 
 - **Primary platform**: Apple Silicon Mac (macOS 26 or later), built with an Electron shell, a native Swift Metal renderer, and a Swift platform helper.
-- **Windows x64 (WIP / Experimental)**: A D3D11 renderer (`efw.exe`), Windows helper (`ac-helper.exe`), and portable directory packaging are under active development and not yet feature-complete (e.g., push-to-talk and live 3D character-page previews are not implemented yet).
+- **Windows x64 (WIP / Experimental)**: A Vulkan renderer (`efw.exe`), Windows helper (`ac-helper.exe`), and portable directory packaging are under active development and not yet feature-complete (e.g., push-to-talk and live 3D character-page previews are not implemented yet).
 - **Assets & fan notice**: This repository ships no game assets or release character library; the public profile ships no characters and provides only a text-only example character, `aide`, under `characters/sample-library/` for testing and learning. See the [unofficial fan project notice](#unofficial-fan-project-notice) below.
 
 ## Features
@@ -38,7 +38,7 @@
 
 ### Rendering and desktop
 
-- **Native rendering**: Uses a native Metal pipeline (`metal-avatar-host`) on macOS with lighting and post-processing matched to the in-game character detail screen; Windows uses a work-in-progress D3D11 renderer (`efw.exe`).
+- **Native rendering**: Uses a native Metal pipeline (`metal-avatar-host`) on macOS with lighting and post-processing matched to the in-game character detail screen; Windows uses a work-in-progress Vulkan renderer (`efw.exe`).
 - **Desktop behavior**: Borderless transparent overlay draggable anywhere on screen; automatically steps aside when covered by windows (or stays fixed when **自由活动 (Free roam)** is unchecked in the context menu's 更多 (More) submenu); hides by default behind full-screen apps while staying at the edge for full-screen video or games.
 - **Hide while recording**: **录屏时隐藏角色 (Hide character while recording)** is on by default on macOS (she hides once when recording or sharing starts; press `⌃⌥H` to show her again) and off by default on Windows; change it under Settings › 说话与通知 › 免打扰.
 
@@ -66,7 +66,7 @@ The app coordinates multiple processes across well-defined contracts (see [Repos
 - **`web/`**: React + TypeScript UI for the main control panel (`main.html`) and floating desktop stack (`stack.html`);
 - **`app/helpers/mac` & `app/helpers/windows`**: Native platform helper `ac-helper` (protocol C12) for permissions, window/AX readings, screen capture, OCR, and push-to-talk;
 - **`agent/agentd`**: Python 3.12 daemon managing character sessions, replaceable harnesses (Pi / Codex / Claude Code / ACP), memory, observation, tool gateway, and C1/C2/C6/C9 endpoints;
-- **Renderer component**: the macOS Metal host (`metal-avatar-host` + XPC preview service) and the WIP Windows D3D11 renderer (`efw.exe`). Its source is not in the public repository; it ships only inside the released `Agentic Complex.app`, and a build from the public repository shows characters as text only;
+- **Renderer component**: the macOS Metal host (`metal-avatar-host` + XPC preview service) and the WIP Windows Vulkan renderer (`efw.exe`). Its source is not in the public repository; it ships only inside the released `Agentic Complex.app`, and a build from the public repository shows characters as text only;
 - **`characters/`, `voice/`, `motion/`, `protocol/`, `tools/`**: Character/motion build pipelines, external TTS & motion generation services, inter-process contracts, and dev/QA/release tooling.
 
 ## Shortcuts

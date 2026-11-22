@@ -15,7 +15,7 @@ class BundleError(ValueError): pass
 # The neutral package written beside each character's frame graph: entry field, path in the folder that holds graph/.
 NEUTRAL=(('neutral_scene','neutral/scene.json'),('neutral_build_record','neutral/build-record.json'),('metal_product','metal/product.json'))
 # The Windows frame table in the same folder; its blob records name files of that folder.
-D3D11=('d3d11_frame','d3d11/frame.bin')
+VULKAN=('vulkan_frame','vulkan/frame.bin')
 
 def require(ok, message):
     if not ok: raise BundleError(message)
@@ -282,28 +282,28 @@ def neutral_documents(raw):
     require(emitted(scene,record,metal)==raw,'neutral package does not emit the frame graph byte for byte')
     return scene,record,metal
 def neutral_path(entry,path):return str(pathlib.PurePosixPath(entry['graph']['file']).parent.parent/path)
-def d3d11_blobs(data,scene_sha256):
+def vulkan_blobs(data,scene_sha256):
     """(name, sha256, size) of each blob record of the frame table bytes data, which must be bound to the neutral scene scene_sha256."""
     f=package_format;head=f.STRUCTS['Header']
-    require(data[:8]==f.MAGIC and len(data)>=head.size,'d3d11 frame table is not '+f.MAGIC.decode())
+    require(data[:8]==f.VK_MAGIC and len(data)>=head.size,'vulkan frame table is not '+f.VK_MAGIC.decode())
     h=head.unpack(data)
-    require(h['version']==f.VERSION,f"d3d11 frame table is version {h['version']}, not {f.VERSION}")
-    require(h['header_bytes']==head.size and h['file_bytes']==len(data),'d3d11 frame table length mismatch')
+    require(h['version']==f.VK_VERSION,f"vulkan frame table is version {h['version']}, not {f.VK_VERSION}")
+    require(h['header_bytes']==head.size and h['file_bytes']==len(data),'vulkan frame table length mismatch')
     for t in f.TABLES:
-        size=1 if t=='strings' else f.table_struct(t).size
-        require(head.size<=h[t+'_offset'] and h[t+'_offset']+h[t+'_count']*size<=len(data),'d3d11 frame table lies outside the file: '+t)
-    require(h['scene_sha256'].hex()==scene_sha256,f"d3d11 frame table is bound to neutral scene {h['scene_sha256'].hex()}, not {scene_sha256}")
-    strings=data[h['strings_offset']:h['strings_offset']+h['strings_count']];blob=f.table_struct('blobs')
+        size=1 if t=='strings' else f.table_struct(t,'vulkan').size
+        require(head.size<=h[t+'_offset'] and h[t+'_offset']+h[t+'_count']*size<=len(data),'vulkan frame table lies outside the file: '+t)
+    require(h['scene_sha256'].hex()==scene_sha256,f"vulkan frame table is bound to neutral scene {h['scene_sha256'].hex()}, not {scene_sha256}")
+    strings=data[h['strings_offset']:h['strings_offset']+h['strings_count']];blob=f.table_struct('blobs','vulkan')
     for i in range(h['blobs_count']):
         b=blob.unpack(data,h['blobs_offset']+i*blob.size);end=strings.find(b'\0',b['file'])
-        require(end>=0,'d3d11 blob name is not NUL-terminated');name=strings[b['file']:end].decode(errors='replace')
-        require(f.blob_name_ok(name),'d3d11 blob name leaves the character directory: '+name)
+        require(end>=0,'vulkan blob name is not NUL-terminated');name=strings[b['file']:end].decode(errors='replace')
+        require(f.blob_name_ok(name),'vulkan blob name leaves the character directory: '+name)
         yield name,b['sha256'].hex(),b['size']
 def write_neutral(root,entry,graph):
     """For tools that change a frame graph: writes graph as entry's frame graph, in emit_metal's form, and its neutral package beside it,
     and points entry's NEUTRAL fields at them. root is the bundle directory; the caller lists the files in bundle.json."""
-    # The D3D11 frame table is bound to the scene it was built from.
-    entry.pop(D3D11[0],None)
+    # The Vulkan frame table is bound to the scene it was built from.
+    entry.pop(VULKAN[0],None)
     for p in graph['passes']:
         for f in p.get('fullscreen') or []:
             # A key-sorted graph has fragment_adapter first, which split refuses; emit_metal writes the adapters last.
@@ -386,13 +386,13 @@ def verify(root):
             require(all(field in e for field,_ in NEUTRAL),'neutral package is incomplete')
             for field,_ in NEUTRAL:visit(e[field],'opaque')
             require(emitted(*(load(root/e[field]['file']) for field,_ in NEUTRAL))==(root/e['graph']['file']).read_bytes(),'neutral package does not emit the frame graph byte for byte')
-        if D3D11[0] in e:
-            require(all(field in e for field,_ in NEUTRAL),'d3d11_frame needs the neutral package')
-            require(e[D3D11[0]]['file']==neutral_path(e,D3D11[1]),'d3d11_frame must be '+neutral_path(e,D3D11[1]))
-            visit(e[D3D11[0]],'opaque');folder=pathlib.PurePosixPath(e[D3D11[0]]['file']).parent.parent
-            for name,sha,size in d3d11_blobs((root/e[D3D11[0]]['file']).read_bytes(),e['neutral_scene']['sha256']):
-                path=str(folder/name);item=indexed.get(path);require(item is not None,'d3d11 blob is not in the bundle: '+path)
-                require(holds(root,item,sha,size),'d3d11 blob does not match its sha256/size: '+path);runtime.add(path)
+        if VULKAN[0] in e:
+            require(all(field in e for field,_ in NEUTRAL),'vulkan_frame needs the neutral package')
+            require(e[VULKAN[0]]['file']==neutral_path(e,VULKAN[1]),'vulkan_frame must be '+neutral_path(e,VULKAN[1]))
+            visit(e[VULKAN[0]],'opaque');folder=pathlib.PurePosixPath(e[VULKAN[0]]['file']).parent.parent
+            for name,sha,size in vulkan_blobs((root/e[VULKAN[0]]['file']).read_bytes(),e['neutral_scene']['sha256']):
+                path=str(folder/name);item=indexed.get(path);require(item is not None,'vulkan blob is not in the bundle: '+path)
+                require(holds(root,item,sha,size),'vulkan blob does not match its sha256/size: '+path);runtime.add(path)
         require(character_coverage(root,e)==load(root/e['coverage']['file']),'coverage receipt differs')
         motion_media_faces(root,e)
     if 'scene' in manifest:visit(manifest['scene']['objects'],'scene_objects')

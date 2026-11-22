@@ -176,7 +176,7 @@ Each SIGTERM and SIGINT calls `app.quit()`, the same path as the tray's 退出 (
 ## Windows differences
 
 - The renderer is `efw.exe`. Windows has no app bundle, so config.json must set `avatar_executable`. The shell connects to the named pipe the renderer creates and tells it the pipe name with `--agentic-complex-host-socket`.
-- With a character library (`character_catalog`) the shell works out `--package <character dir>` for each character: the `current.json` entry → `components.render.native_bundle.file` of its `character.json` → that character's `d3d11_frame.file` in the bundle → the directory holding it. A character without `d3d11_frame` is not rendered on Windows, like a text-only character.
+- With a character library (`character_catalog`) the shell works out `--package <character dir>` for each character: the `current.json` entry → `components.render.native_bundle.file` of its `character.json` → that character's `vulkan_frame.file` in the bundle → the directory holding it. A character without `vulkan_frame` is not rendered on Windows, like a text-only character.
 - Switching characters: the shell passes efw `--package-of <id>=<character dir>` for each renderable character, and efw answers `set_character` in process without a renderer restart; switching to or from a text-only character restarts it.
 - 录屏时隐藏角色 (hide the character from screen capture, `hide_on_screen_capture`) defaults to off on Windows; changing it restarts the renderer.
 - Default directories without `--config`: support directory `%APPDATA%\Agentic Complex`, agentd state directory `%LOCALAPPDATA%\Agentic Complex\agentd`, page logs `%LOCALAPPDATA%\Agentic Complex\Logs`.

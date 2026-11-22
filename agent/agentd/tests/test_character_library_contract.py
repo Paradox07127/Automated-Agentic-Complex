@@ -28,7 +28,7 @@ class CharacterLibraryContractTest(unittest.TestCase):
         native = c["native_fields"]
         self.assertEqual(character_library.NATIVE_FIELDS, tuple(native["required"] + native["optional"]), "native_fields")
         self.assertEqual(character_library.NEUTRAL_FIELDS, tuple(c["neutral_fields"]["optional"]), "neutral_fields")
-        self.assertEqual(character_library.D3D11_FIELDS, tuple(c["d3d11_fields"]["optional"]), "d3d11_fields")
+        self.assertEqual(character_library.VULKAN_FIELDS, tuple(c["vulkan_fields"]["optional"]), "vulkan_fields")
 
     def test_schema_strings_used_by_library(self):
         schemas = self.contract["schemas"]

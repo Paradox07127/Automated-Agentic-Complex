@@ -801,7 +801,7 @@ App 角色页里的预览（`app/electron/src/main/preview/`）不走上面的 s
 
 ## 附录：Windows（v27 追加）
 
-Windows 上渲染器是 `private/renderer/windows` 的 `efw.exe`（D3D11，下称 efw），Companion 是 Electron 外壳（`app/electron`）。本附录只写和上文不同的地方，没写的照上文。
+Windows 上渲染器是 `private/renderer/windows` 的 `efw.exe`（下称 efw）：用 Vulkan 按游戏原版 SPIR-V 画，经 D3D11 和 DirectComposition 显示；Companion 是 Electron 外壳（`app/electron`）。本附录只写和上文不同的地方，没写的照上文。
 
 ### 传输
 
@@ -820,22 +820,22 @@ Windows 上渲染器是 `private/renderer/windows` 的 `efw.exe`（D3D11，下�
 ### 启动
 
 - 参数照「启动」一节，`--agentic-complex-*` 都接受；没实现的只记日志。另有 efw 自己的参数：
-  - `--package <目录>`：角色目录，必有。efw 读其中的 D3D11 段 `d3d11\frame.bin`，帧表里每个 blob 的名字是相对角色目录的路径（`/` 分段，每段只含 `[A-Za-z0-9._-]`，不许 `.`、`..`、空段），读到后核 SHA-256 和大小（大小不等于记录的是池压缩容器，按[角色库合同](../character-library/CONTRACT.md)的「池文件压缩」先解码再核）；播放器核心（`private/renderer/core`）读同一目录的 `actor\`（rig、manifest、片段，按 manifest 列的大小和 SHA-256 核）和 `c7\`，姿势都由它算（见下面「身体」）。Companion 用角色的 `avatar_args` 传。
-  - `--package-of <角色 id>=<目录>`：可重复，`set_character` 能换到的角色和它的角色目录（目录同 `--package`，可以是相对路径、可以超过 `MAX_PATH`）。角色 id 照规则 21（非空、最多 64 字节），到第一个 `=` 为止；同一 id 只能出现一次；不合时以退出码 1 结束。efw 不读角色库，Companion 对每个在 Windows 上能画的角色（启用渲染、角色包条目有 `d3d11_frame`）各传一个，启动的角色也在内，和 `--package` 一起放在角色的 `avatar_args` 里。启动时只核参数，目录到 `set_character` 时才读。
+  - `--package <目录>`：角色目录，必有。efw 读其中的 Vulkan 段 `vulkan\frame.bin`，帧表里每个 blob 的名字是相对角色目录的路径（`/` 分段，每段只含 `[A-Za-z0-9._-]`，不许 `.`、`..`、空段），读到后核 SHA-256 和大小（大小不等于记录的是池压缩容器，按[角色库合同](../character-library/CONTRACT.md)的「池文件压缩」先解码再核）；播放器核心（`private/renderer/core`）读同一目录的 `actor\`（rig、manifest、片段，按 manifest 列的大小和 SHA-256 核）和 `c7\`，姿势都由它算（见下面「身体」）。Companion 用角色的 `avatar_args` 传。
+  - `--package-of <角色 id>=<目录>`：可重复，`set_character` 能换到的角色和它的角色目录（目录同 `--package`，可以是相对路径、可以超过 `MAX_PATH`）。角色 id 照规则 21（非空、最多 64 字节），到第一个 `=` 为止；同一 id 只能出现一次；不合时以退出码 1 结束。efw 不读角色库，Companion 对每个在 Windows 上能画的角色（启用渲染、角色包条目有 `vulkan_frame`）各传一个，启动的角色也在内，和 `--package` 一起放在角色的 `avatar_args` 里。启动时只核参数，目录到 `set_character` 时才读。
   - `--clip <片段名>`：默认休息循环（C1 §1.4「当前姿势的默认休息循环」）；不传时是角色包里固定的那一条，同 Mac 的 `ActorMotionPolicy.normal`：`c7\animation\pose-families.json` 的 `hub` 那个基座，没有这个文件时 `motion-bindings.json` 的 `overview`。`set_character` 换到的角色用它自己的这一条。
   - `--offscreen`：不建窗口、离屏画帧，供 session 0 的测试；Companion 不传。
   - `--seconds <1-20>`、`--out <目录>`：测试用的时限（到了还没收到 `quit` 就以 1 退出）和输出目录（日志 `host.txt`，退出时窗口下的屏幕截图；启动和每次换角色成功后，这个角色画的第一帧是播放器核心采样的默认休息循环第 60 帧，读回存 `probe-<序号>`，日志行 `probe <序号>: character=<id> ... sha256=<显示输出的 SHA-256>`）；Companion 不传。
   - `--power ac|battery|saver`：测试用，假定交流供电、电池供电、电池供电且开着节电模式，不读系统电源；Companion 不传。
 - Windows 另有启动参数 `--agentic-complex-hide-on-screen-capture`：传 `1` 时 efw 不进截图（见下面「不被截图」）；传 `0` 或不传时照常进截图和录屏。设置 `hide_on_screen_capture` 在 Windows 上默认关，Companion 启动 efw 时总传这个参数（开传 `1`、关传 `0`）。本版没有对应的 C3 消息：改这个设置后外壳重启渲染器，新起的 efw 按新值生效。
 - `pipeline.render.unsupported` 列出传了而 efw 不照办的渲染设置，名字是参数名去掉 `--agentic-complex-`、`-` 换成 `_`（例如 `ssaa`、`secondary_motion`、`ground_shadow`、`speech_expressions`、`camera_track`；`render_fps` 只在值不是 30/45/60 时列）。efw 画的是 `ssaa` 1、帧包的阴影分辨率、`outline` `original`，镜头、光照、滤镜等都是帧包里固定的值。
-- startup-status 文件同上文，`character` 是帧包里的角色。退出码：0 同上文（`quit`、父进程退出）；1 是参数不合、startup-status 路径不合规、建窗口或管道失败、渲染出错；69 是没有可用的 D3D11 硬件设备；78 是帧包读不了或校验不过（没有 `d3d11\frame.bin` 或版本不对、表或 blob 不合、blob 名字出了角色目录、actor 或 producer 记录不合、没有片段），或播放器核心读不了 `actor\`、`c7\`（文件缺或校验不过、rig 节点数和帧包不同、没有默认休息循环或它放不了）。`--describe` 本版不支持。
+- startup-status 文件同上文，`character` 是帧包里的角色。退出码：0 同上文（`quit`、父进程退出）；1 是参数不合、startup-status 路径不合规、建窗口或管道失败、渲染出错；71 是 Vulkan 在这台机器上画不了（没有 Vulkan 加载器或和 D3D11 硬件适配器同一 LUID 的设备、建不成 D3D11 硬件设备、显示用的共享纹理导入不了 Vulkan；Companion 和 69 一样报「无法使用 GPU」、不重启）；78 是帧包读不了或校验不过（没有 `vulkan\frame.bin` 或版本不对、表或 blob 不合、blob 名字出了角色目录、actor 或 producer 记录不合、没有片段），或播放器核心读不了 `actor\`、`c7\`（文件缺或校验不过、rig 节点数和帧包不同、没有默认休息循环或它放不了）。`--describe` 本版不支持。
 - 窗口：无边框、逐像素透明、置顶、不抢焦点、没有任务栏按钮，大小是帧包的输出尺寸（物理像素），放在主屏工作区正中。建窗时整窗点穿（`WS_EX_TRANSPARENT`，即规则 2 收到第一条 `cursor` 之前的状态），之后照下面的「点穿」切换。
 - 不被截图：`hide_on_screen_capture` 开着时（见上），efw 建好窗口就设 `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`：她照常显示在屏上，别的程序的截图、录屏、共享屏幕和桌面复制里都没有这个窗口（那块是窗口下面的画面）。macOS 上同一个设置是 Companion 在录屏、共享屏幕期间把她隐藏起来；Windows 上用户自己一直看得见她，截图里一直没有她，不只是录屏期间。Windows 10 2004 之前的系统上这个设置按 `WDA_MONITOR` 生效：截图里这块是空的窗口。`--out` 退出时截窗口下的屏幕，桌面复制存 `screen`、GDI 屏幕复制（`BitBlt`）存 `gdi`；排除截图时先对截图放开窗口截 `screen-shown`、`gdi-shown`，再排除后截 `screen`、`gdi`。
 
 ### efw 本版实现的部分
 
-- `hello`：`capabilities` 为 `heartbeat`、`render_progress`、`ack`、`actions`、`action_loop`、`pipeline`、`drag_motion`，传了 `--agentic-complex-agentd` 时另有 `playback`、`turn_generation`、`behavior_receipt`；`build` 为 `{"git": "unknown", "renderer": "d3d11"}`；`character` 是帧包里的角色；`appearances` 是帧包的外观列表（照 pack.json 顶层 `appearances` 转，第一项是默认外观），`appearance` 是正在画的外观；不带 `layers`。连上就发（这时首帧已画出）；换角色后不重发，新角色由 `character_changed` 报。
-- `heartbeat`：握手后每 100 ms 一条；`render` 在画时为 `active`，`set_visible` 隐藏或 `fps_tier` 为 `paused` 时为 `idle`；`frames` 是画出的帧数。`stats`：每秒一条，`gpu_ms` 为 null，`gpu_errors` 是失败的 Present 数，`drawable_misses` 是交换链 20 ms 内没空出来的次数。`pipeline`：照规则 37 的时机；`renderer` 为 `"d3d11"`，`bundle_sha256` 是 `d3d11\frame.bin` 的 SHA-256，`appearance` 是正在画的外观（启动时是 `--agentic-complex-appearance` 给的外观；帧包没有这个外观时是默认外观，打日志 `AAC_APPEARANCE_FALLBACK want=<id> have=<id>`，`appearance_fallback` 报它），`fps.requested` 是最近一条 `fps_tier` 的 `fps`（还没收到时 30），`fps.target` 是下面算出的目标帧率，`frames.completed` 同 `submitted`，`clip` 是正在画的片段。
+- `hello`：`capabilities` 为 `heartbeat`、`render_progress`、`ack`、`actions`、`action_loop`、`pipeline`、`drag_motion`，传了 `--agentic-complex-agentd` 时另有 `playback`、`turn_generation`、`behavior_receipt`；`build` 为 `{"git": "unknown", "renderer": "vulkan"}`；`character` 是帧包里的角色；`appearances` 是帧包的外观列表（照 pack.json 顶层 `appearances` 转，第一项是默认外观），`appearance` 是正在画的外观；不带 `layers`。连上就发（这时首帧已画出）；换角色后不重发，新角色由 `character_changed` 报。
+- `heartbeat`：握手后每 100 ms 一条；`render` 在画时为 `active`，`set_visible` 隐藏或 `fps_tier` 为 `paused` 时为 `idle`；`frames` 是画出的帧数。`stats`：每秒一条，`gpu_ms` 为 null，`gpu_errors` 是失败的 Present 数，`drawable_misses` 是交换链 20 ms 内没空出来的次数。`pipeline`：照规则 37 的时机；`renderer` 为 `"vulkan"`，`bundle_sha256` 是 `vulkan\frame.bin` 的 SHA-256，`appearance` 是正在画的外观（启动时是 `--agentic-complex-appearance` 给的外观；帧包没有这个外观时是默认外观，打日志 `AAC_APPEARANCE_FALLBACK want=<id> have=<id>`，`appearance_fallback` 报它），`fps.requested` 是最近一条 `fps_tier` 的 `fps`（还没收到时 30），`fps.target` 是下面算出的目标帧率，`frames.completed` 同 `submitted`，`clip` 是正在画的片段。
 - 帧率（规则 4 和 `fps_tier` 档位表下的 Metal 宿主规则）：暂停：隐藏或 `fps`=0 时目标为 0，不画、照常收发消息。硬上限：用户上限（`--agentic-complex-render-fps` 30/45/60，其他值按 60；收到带上限的 `fps_tier` 后用其 `user_fps`）；电池上限开着（`--agentic-complex-battery-low-fps`，收到带上限的 `fps_tier` 后用其 `battery_low`）且电池供电时 30；系统节电模式开着时 30；Windows 没有热状态，没有热状态上限。电池供电是 `GetSystemPowerStatus` 的 `ACLineStatus`=0，节电模式是它的 `SystemStatusFlag`=1，最多每 2 s 读一次。基线：`fps_tier.fps`，还没收到时 30；`play_action` 在播期间和停后 2 s 提升到 60。目标取基线和所有生效上限的最小值。每 1/目标 s 画一帧、`Present` 到下一次垂直同步；帧包的着色器时间仍按帧包的帧率走。连接断开后档位回到还没收到 `fps_tier` 时，上限保留。
 - `ack`：`set_visible` 执行后回 `ok`；`fps_tier` 校验（规则 21）后照上条生效、回 `ok`；`move_window` 执行后回 `ok`，按下或拖动中回 `busy`，坐标不合回 `invalid`；`set_placement` 回 `unsupported`。
 - `window_frame`：Companion 的 `hello` 之后一次，`move_window` 和拖动移动窗口后各一次；`viewport`=`window`，不带 `display_id`，`window_number` 是窗口的 HWND 值（`--offscreen` 时为 1，`frame` 是窗口会在的位置）。`move_window` 照规则 12 移窗口；切换角色中照常执行（efw 没有淡出淡入）。
@@ -860,7 +860,7 @@ Windows 上渲染器是 `private/renderer/windows` 的 `efw.exe`（D3D11，下�
 
 `placement`、`viewport_fullscreen`、`trace`、`surfaces`、`opacity`、`layering`、`pointer`、`drop`、`motion_requests`、`pass_through`、`keep_clear`、`render_live`、`ambient`、`touch`、`motion_media`、`layers`、`poses`、`camera_free`、`camera_track`、`camera_gesture`、`camera_bust`、`filters`、`capture`、`photo`、`motion_overrides`、`play_chain`、`mod_settings`。
 
-说话时的嘴型：`d3d11\frame.bin` 的 Actor 表有 `face_control`、`face_delta` 和 a/i/u/e/o 五条 `vowel` 记录（`windows_actor_export.py` 的 `face_records` 从 `original-face-controls.json`、`original-audio-face-controls.json`、`emotion-lipsync.json` 导出默认口型组）。efw 把 C2 cue 的元音权重按 40 ms 升、80 ms 落平滑，按这些记录把关节增量叠在片段姿势上；没有这些记录的帧包嘴不动，`playback` 照发。
+说话时的嘴型：`vulkan\frame.bin` 的 Actor 表有 `face_control`、`face_delta` 和 a/i/u/e/o 五条 `vowel` 记录（`windows_actor_export.py` 的 `face_records` 从 `original-face-controls.json`、`original-audio-face-controls.json`、`emotion-lipsync.json` 导出默认口型组）。efw 把 C2 cue 的元音权重按 40 ms 升、80 ms 落平滑，按这些记录把关节增量叠在片段姿势上；没有这些记录的帧包嘴不动，`playback` 照发。
 
 ### 校验
 

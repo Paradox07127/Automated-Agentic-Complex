@@ -176,7 +176,7 @@ SIGTERM 和 SIGINT 每次收到都调 `app.quit()`，和托盘的「退出」走
 ## Windows 差异
 
 - 渲染器是 `efw.exe`。Windows 上没有 app 包，config.json 必须写 `avatar_executable`。外壳连渲染器建的命名管道，经 `--agentic-complex-host-socket` 告诉它管道名。
-- 用角色库（`character_catalog`）时，外壳为每个角色算出 `--package <角色目录>`：`current.json` 条目 → `character.json` 的 `components.render.native_bundle.file` → bundle 里该角色的 `d3d11_frame.file` → 它所在的目录。没有 `d3d11_frame` 的角色在 Windows 上不渲染，和纯文字角色一样。
+- 用角色库（`character_catalog`）时，外壳为每个角色算出 `--package <角色目录>`：`current.json` 条目 → `character.json` 的 `components.render.native_bundle.file` → bundle 里该角色的 `vulkan_frame.file` → 它所在的目录。没有 `vulkan_frame` 的角色在 Windows 上不渲染，和纯文字角色一样。
 - 切角色：外壳给 efw 传每个可渲染角色的 `--package-of <id>=<角色目录>`，efw 在进程内应答 `set_character`，不重启渲染器；切到或切出纯文字角色时重启。
 - 「录屏时隐藏角色」（`hide_on_screen_capture`）在 Windows 上默认关，改了要重启渲染器。
 - 不带 `--config` 时的默认目录：支持目录 `%APPDATA%\Agentic Complex`，agentd 状态目录 `%LOCALAPPDATA%\Agentic Complex\agentd`，页面日志 `%LOCALAPPDATA%\Agentic Complex\Logs`。

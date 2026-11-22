@@ -285,7 +285,7 @@ const baseConfig = (extra: Record<string, unknown>) => parseConfig(JSON.stringif
   agentd_dir: '/a', python: '/p', agentd_port: 48999, gpu_hold_files: [], support_dir: '/s', characters: [{ id: 'aster', name: '示例甲', avatar_app: '/A.app' }], ...extra,
 }), { supportDir: '/s', agentdStateDir: '/st', catalog: () => null });
 
-test('the renderer: a missing component or library fails it, exit 78 and 69 fail it without a restart', () => {
+test('the renderer: a missing component or library fails it, exit 78, 69 and 71 fail it without a restart', () => {
   assert.deepEqual(rendererPreflight(baseConfig({ missing_components: { renderer: 'componentMissing' } })),
     { kind: 'failed', reason: '缺 renderer 组件' });
   assert.deepEqual(rendererPreflight(baseConfig({ character_library_missing: ['agentd', 'characters.aster'] })),
@@ -294,6 +294,7 @@ test('the renderer: a missing component or library fails it, exit 78 and 69 fail
   const backoff = new Backoff(() => 0);
   assert.deepEqual(rendererExit(78, null, backoff), { kind: 'failed', reason: '角色包与程序版本不符' });
   assert.deepEqual(rendererExit(69, null, backoff), { kind: 'failed', reason: '无法使用 GPU' });
+  assert.deepEqual(rendererExit(71, null, backoff), { kind: 'failed', reason: '无法使用 GPU' });
   assert.deepEqual(rendererExit(1, null, backoff), { kind: 'backoff', seconds: 1 });
   assert.deepEqual(rendererExit(null, 'SIGKILL', backoff), { kind: 'backoff', seconds: 2 });
 });

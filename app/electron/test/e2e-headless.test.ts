@@ -47,12 +47,12 @@ const MOCK_RENDERER = 'mock_host.py runs as the renderer through a #!/bin/sh wra
 const EFW = process.env.AAC_EFW ? resolve(process.env.AAC_EFW) : '';
 const EFW_PACKAGE = process.env.AAC_EFW_PACKAGE ? resolve(process.env.AAC_EFW_PACKAGE) : '';
 const REAL_EFW = !existsSync(EFW) ? `no efw.exe at AAC_EFW (${EFW || 'unset'}); private\\renderer\\windows\\run.bat builds it`
-  : !existsSync(join(EFW_PACKAGE, 'd3d11', 'frame.bin')) ? `no d3d11/frame.bin in the character directory at AAC_EFW_PACKAGE (${EFW_PACKAGE || 'unset'})` : false;
-/** A character library whose default character's bundle entry has `d3d11_frame`, from the gate (electron-e2e-win). */
+  : !existsSync(join(EFW_PACKAGE, 'vulkan', 'frame.bin')) ? `no vulkan/frame.bin in the character directory at AAC_EFW_PACKAGE (${EFW_PACKAGE || 'unset'})` : false;
+/** A character library whose default character's bundle entry has `vulkan_frame`, from the gate (electron-e2e-win). */
 const EFW_LIBRARY = process.env.AAC_EFW_LIBRARY ? resolve(process.env.AAC_EFW_LIBRARY) : '';
 const REAL_EFW_LIBRARY = !existsSync(EFW) ? `no efw.exe at AAC_EFW (${EFW || 'unset'}); private\\renderer\\windows\\run.bat builds it`
   : !existsSync(EFW_LIBRARY) ? `no library current.json at AAC_EFW_LIBRARY (${EFW_LIBRARY || 'unset'})` : false;
-/** A library of two characters whose bundle entries have `d3d11_frame`, from the gate (electron-e2e-win); the first is its default. */
+/** A library of two characters whose bundle entries have `vulkan_frame`, from the gate (electron-e2e-win); the first is its default. */
 const EFW_LIBRARY_TWO = process.env.AAC_EFW_LIBRARY_TWO ? resolve(process.env.AAC_EFW_LIBRARY_TWO) : '';
 /** The complete library (every file its inventories list), put on the host once (`winhost.py put --shared`), from the gate (electron-e2e-win). */
 const EFW_LIBRARY_FULL = process.env.AAC_EFW_LIBRARY_FULL ? resolve(process.env.AAC_EFW_LIBRARY_FULL) : '';
@@ -640,8 +640,8 @@ if (process.platform === 'win32') test('Windows: the real efw.exe (offscreen) st
       const pid = renderer.pid!;
       assert.equal(link.hello?.pid, pid);
       assert.equal(link.hello?.character, character);
-      assert.equal((link.hello?.build as Record<string, unknown> | undefined)?.renderer, 'd3d11');
-      assert.equal(link.lastPipeline?.renderer, 'd3d11');
+      assert.equal((link.hello?.build as Record<string, unknown> | undefined)?.renderer, 'vulkan');
+      assert.equal(link.lastPipeline?.renderer, 'vulkan');
       assert.ok(await until(10, () => renderer.loading.kind === 'hidden'), JSON.stringify(renderer.loading));
       await renderer.stop();
       assert.equal(renderer.state.kind, 'stopped');
@@ -696,7 +696,7 @@ if (process.platform === 'win32') test('Windows: from character_catalog alone th
       assert.ok(!command.includes('--character-catalog'), command);
       assert.equal(link.hello?.pid, renderer.pid);
       assert.equal(link.hello?.character, character);
-      assert.equal(link.lastPipeline?.renderer, 'd3d11');
+      assert.equal(link.lastPipeline?.renderer, 'vulkan');
       await renderer.stop();
       assert.equal(renderer.state.kind, 'stopped');
     } finally {

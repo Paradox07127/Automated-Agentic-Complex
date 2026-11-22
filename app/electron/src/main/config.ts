@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import {
-  type Catalog, CatalogError, type Config, ConfigError, parseCatalogDocument, parseCharacterDefinition, parseConfig, parseD3D11Frame,
+  type Catalog, CatalogError, type Config, ConfigError, parseCatalogDocument, parseCharacterDefinition, parseConfig, parseVulkanFrame,
   type ShellPlatform,
 } from '../common/config.ts';
 import { defaultDirs, shellPlatform } from './platform/index.ts';
@@ -48,7 +48,7 @@ function inside(base: string, file: string): string {
 /**
  * A library's packages as far as the shell needs them: ids, names and whether the renderer has anything to show; on Windows
  * also the character directory efw reads, as agentd's Package walks to it: `current.json` entry → `character.json` →
- * `components.render.native_bundle` → the bundle entry's `d3d11_frame` → the directory holding its `d3d11/`.
+ * `components.render.native_bundle` → the bundle entry's `vulkan_frame` → the directory holding its `vulkan/`.
  */
 export function readCatalog(path: string, platform: ShellPlatform = 'mac'): Catalog | null {
   if (!existsSync(path)) return null;
@@ -62,9 +62,9 @@ export function readCatalog(path: string, platform: ShellPlatform = 'mac'): Cata
     if (nativeBundle === null) throw new CatalogError('missing_base_component');
     const bundle = inside(dirname(file), nativeBundle);
     if (!existsSync(bundle)) throw new CatalogError('missing_or_escaping_file');
-    const frame = parseD3D11Frame(readFileSync(bundle, 'utf8'), id);
+    const frame = parseVulkanFrame(readFileSync(bundle, 'utf8'), id);
     // efw checks the frame table itself (exit 78), so a missing one fails only this character's renderer.
-    return { id, name, renderEnabled, d3d11Package: frame === null ? null : dirname(dirname(inside(dirname(file), join(dirname(nativeBundle), frame)))) };
+    return { id, name, renderEnabled, vulkanPackage: frame === null ? null : dirname(dirname(inside(dirname(file), join(dirname(nativeBundle), frame)))) };
   });
   return { characters, defaultCharacterID: doc.defaultCharacter };
 }

@@ -16,7 +16,7 @@
 **Agentic Complex**（仓库目录名 `Endfield`）是一个桌面角色与个人智能体实验应用，也是面向桌面角色包的开发框架：它在桌面上渲染兼容格式的角色包，并为每个角色内置一个可切换内核的个人智能体，可进行文字/语音对话、任务执行、记忆管理，并在用户授权后感知桌面活动。
 
 - **主平台**：Apple Silicon Mac（macOS 26 及以上），使用 Electron 外壳 + 原生 Metal 渲染器 + Swift 平台 Helper。
-- **Windows x64（开发中 / 实验性）**：D3D11 渲染器（`efw.exe`）、Windows Helper（`ac-helper.exe`）与便携版打包正在积极开发中，尚未达到功能完整（例如按住说话与角色页实时预览暂未实现）。
+- **Windows x64（开发中 / 实验性）**：Vulkan 渲染器（`efw.exe`）、Windows Helper（`ac-helper.exe`）与便携版打包正在积极开发中，尚未达到功能完整（例如按住说话与角色页实时预览暂未实现）。
 - **资产与同人声明**：本仓库不包含任何游戏本体素材与发行用角色库；公开构建配置仅提供纯文字示例角色「助手」（`aide`）。详见文末[非官方同人声明](#非官方同人声明)。
 
 ## 核心功能
@@ -38,7 +38,7 @@
 
 ### 画面与桌面
 
-- **原生渲染**：macOS 使用应用自带的 Metal 管线（`metal-avatar-host`），默认采用游戏内角色详情页灯光与后期参数；Windows 端使用 D3D11 渲染器（`efw.exe`，开发中）。
+- **原生渲染**：macOS 使用应用自带的 Metal 管线（`metal-avatar-host`），默认采用游戏内角色详情页灯光与后期参数；Windows 端使用 Vulkan 渲染器（`efw.exe`，开发中）。
 - **桌面行为**：无边框透明悬浮显示，可拖动到任意位置；窗口遮挡时自动让位到窗口旁（在右键菜单「更多」里取消勾选「自由活动」可固定位置）；前台全屏时默认隐藏，全屏视频或游戏时停留在屏幕边缘。
 - **录屏隐藏**：「录屏时隐藏角色」在 macOS 上默认开启（开始录屏/共享时隐藏一次，按 `⌃⌥H` 恢复显示），在 Windows 上默认关闭，可在「设置 › 说话与通知 › 免打扰」调整。
 
@@ -66,7 +66,7 @@
 - **`web/`（React + TypeScript 网页 UI）**：控制面板（`main.html`）与桌面浮窗栈（`stack.html`）；
 - **`app/helpers/mac` & `app/helpers/windows`（平台 Helper）**：`ac-helper` 原生进程（C12 协议），提供系统权限、窗口/AX 读数、截图、OCR 与按住说话按键；
 - **`agent/agentd`（Python 守护进程）**：负责角色主会话、可替换 Harness（Pi / Codex / Claude Code / ACP）、记忆、观察理解、工具网关与 C1/C2/C6/C9 接口；
-- **渲染器组件**：macOS Metal 宿主（`metal-avatar-host` + XPC 预览服务）与开发中的 Windows D3D11 渲染器（`efw.exe`）。源码不在公开仓库，只随发行版的 `Agentic Complex.app` 提供；从公开仓库构建时角色只显示文字；
+- **渲染器组件**：macOS Metal 宿主（`metal-avatar-host` + XPC 预览服务）与开发中的 Windows Vulkan 渲染器（`efw.exe`）。源码不在公开仓库，只随发行版的 `Agentic Complex.app` 提供；从公开仓库构建时角色只显示文字；
 - **`characters/`、`voice/`、`motion/`、`protocol/`、`tools/`**：角色包与动作构建工具、外部 TTS 服务、外部动作生成服务、跨进程协议契约与开发/测试/打包工具。
 
 ## 快捷键

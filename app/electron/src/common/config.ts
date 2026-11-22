@@ -48,8 +48,8 @@ export interface AvatarCharacter {
 
 /** What the main process read from a character library's `current.json` and its packages' `character.json`. */
 export interface Catalog {
-  /** `d3d11Package`: read only for Windows, the character directory of a bundle entry with `d3d11_frame`, else null. */
-  characters: { id: string; name: string; renderEnabled: boolean; d3d11Package?: string | null }[];
+  /** `vulkanPackage`: read only for Windows, the character directory of a bundle entry with `vulkan_frame`, else null. */
+  characters: { id: string; name: string; renderEnabled: boolean; vulkanPackage?: string | null }[];
   /** null only for a library without characters. */
   defaultCharacterID: string | null;
 }
@@ -184,13 +184,13 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
     if (loaded === null) {
       throw new ConfigError(`角色目录不存在：${characterCatalog}`, { key: 'character_catalog', path: characterCatalog });
     }
-    // C3 附录「Windows」: efw takes the character directory, and draws only a character whose bundle entry has `d3d11_frame`;
+    // C3 附录「Windows」: efw takes the character directory, and draws only a character whose bundle entry has `vulkan_frame`;
     // `--package-of` names every such character's directory, for set_character.
     const catalogPath = characterCatalog;
-    const packageOf = loaded.characters.flatMap((c) => (c.renderEnabled && c.d3d11Package ? ['--package-of', `${c.id}=${c.d3d11Package}`] : []));
+    const packageOf = loaded.characters.flatMap((c) => (c.renderEnabled && c.vulkanPackage ? ['--package-of', `${c.id}=${c.vulkanPackage}`] : []));
     const launches = loaded.characters.map((c) => (ctx.platform !== 'windows'
       ? { args: ['--character-catalog', catalogPath], renderEnabled: c.renderEnabled }
-      : { args: c.d3d11Package ? ['--package', c.d3d11Package, ...packageOf] : [], renderEnabled: c.renderEnabled && !!c.d3d11Package }));
+      : { args: c.vulkanPackage ? ['--package', c.vulkanPackage, ...packageOf] : [], renderEnabled: c.renderEnabled && !!c.vulkanPackage }));
     // Text-only characters start no renderer, so a library of only them needs no host.
     const host = optional(o, 'avatar_app', str) ?? characters[0]?.avatarApp;
     if (host === undefined && launches.some((l) => l.renderEnabled)) throw new ConfigError('角色目录需要 avatar_app');
@@ -325,8 +325,8 @@ export function parseCharacterDefinition(text: string, entryID: string):
     nativeBundle: typeof bundle === 'string' ? bundle : null };
 }
 
-/** A package's single-character native bundle: its entry's `d3d11_frame` file (relative to the bundle), null without one. */
-export function parseD3D11Frame(text: string, entryID: string): string | null {
+/** A package's single-character native bundle: its entry's `vulkan_frame` file (relative to the bundle), null without one. */
+export function parseVulkanFrame(text: string, entryID: string): string | null {
   let doc: unknown;
   try {
     doc = JSON.parse(text);
@@ -336,7 +336,7 @@ export function parseD3D11Frame(text: string, entryID: string): string | null {
   const entries = isObject(doc) && doc.schema === 'metal-native-character-bundle/v1' && Array.isArray(doc.characters) ? doc.characters : [];
   const entry: unknown = entries.length === 1 ? entries[0] : undefined;
   if (!isObject(entry) || entry.id !== entryID) throw new CatalogError('native_character_identity_mismatch');
-  if (entry.d3d11_frame === undefined) return null;
-  if (!isObject(entry.d3d11_frame) || typeof entry.d3d11_frame.file !== 'string') throw new CatalogError('invalid_reference');
-  return entry.d3d11_frame.file;
+  if (entry.vulkan_frame === undefined) return null;
+  if (!isObject(entry.vulkan_frame) || typeof entry.vulkan_frame.file !== 'string') throw new CatalogError('invalid_reference');
+  return entry.vulkan_frame.file;
 }

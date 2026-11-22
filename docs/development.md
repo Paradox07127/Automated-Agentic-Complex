@@ -139,7 +139,7 @@ e2e 的端口默认是 `4317`，并行的工作树各设一个 `EF_WEB_PORT`。�
 
 ## Windows
 
-需要 Visual Studio 2022 或它的 Build Tools，带「使用 C++ 的桌面开发」（x64 C++ 工具和 Windows SDK 的 `fxc`），`vswhere.exe` 在默认位置；Node 24（`node`、`npm.cmd`、`npx.cmd` 在 PATH 上）和 Git；装了 agentd 依赖的 CPython 3.12（主检出的 `agent\.venv\Scripts\python.exe`，或用 `--python`、`AGENTD_PYTHON` 指定）；带 `d3d11_frame` 的角色库（Windows 渲染器只画这种角色）。
+需要 Visual Studio 2022 或它的 Build Tools，带「使用 C++ 的桌面开发」（x64 C++ 工具和 Windows SDK 的 `fxc`），`vswhere.exe` 在默认位置；Node 24（`node`、`npm.cmd`、`npx.cmd` 在 PATH 上）和 Git；装了 agentd 依赖的 CPython 3.12（主检出的 `agent\.venv\Scripts\python.exe`，或用 `--python`、`AGENTD_PYTHON` 指定）；装了 Vulkan 的显卡驱动（`vulkan-1.dll`）；带 `vulkan_frame` 的角色库（Windows 渲染器只画这种角色）。
 
 平台 helper：
 

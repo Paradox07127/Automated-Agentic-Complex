@@ -2,7 +2,7 @@
 
 [English](overview.en.md)
 
-**Agentic Complex** 是一款以 Apple Silicon macOS 为主平台（Windows x64 端积极开发中）的实验性桌面角色与个人智能体应用。Electron 外壳管理窗口、托盘和子进程，控制面板与桌面浮窗是它的网页窗口；系统权限、读屏、截图、按住说话等平台能力由原生 helper 提供。`agentd` 负责角色会话、任务、记忆和工具调用。Metal 宿主（macOS）或 D3D11 宿主（Windows，开发中）从角色库加载可用的渲染和动作资源，语音由外部 TTS 合成，没有配置时只显示文字，不朗读。
+**Agentic Complex** 是一款以 Apple Silicon macOS 为主平台（Windows x64 端积极开发中）的实验性桌面角色与个人智能体应用。Electron 外壳管理窗口、托盘和子进程，控制面板与桌面浮窗是它的网页窗口；系统权限、读屏、截图、按住说话等平台能力由原生 helper 提供。`agentd` 负责角色会话、任务、记忆和工具调用。Metal 宿主（macOS）或 Vulkan 宿主（Windows，开发中）从角色库加载可用的渲染和动作资源，语音由外部 TTS 合成，没有配置时只显示文字，不朗读。
 
 功能和交互设计见[产品指南](../product.md)。
 
@@ -13,7 +13,7 @@
 | `app/` | `electron/`（Electron 外壳：窗口、托盘、子进程监督、agentd 客户端、C3 连接、网页桥，见 [shell.md](shell.md)）、`helpers/mac`（Swift 写的平台 helper `ac-helper`，协议 C12）、`helpers/windows`（Windows 版 helper `ac-helper.exe`）；`Resources/`（`agentd_launcher.py` 进 agentd 组件，`parent_watch.py` 进 host 组件）；`packaging/`（发行配置 `release.json`）；发行入口 `build_app.sh`；门禁 `Tests/gate.sh` |
 | `web/` | React + TypeScript 网页 UI，在 Electron 外壳的窗口里跑，构建进 web-ui 组件，见 [web-ui.md](web-ui.md) |
 | `agent/` | `agentd/`（Python 角色 agent）、`browser/`（浏览器扩展与 native host）、`computer-control/`（computer use 的 MCP 桥说明与验收），见 [agentd](agentd.md) |
-| 渲染器（不在公开仓库） | macOS Metal 宿主 `metal-avatar-host`、XPC 预览服务和 Windows D3D11 渲染器 `efw.exe`。源码是私有组件，只随发行版提供；外壳一端的预览客户端是 `app/electron/native/mac/preview.m`，和它的接口见 C1、C2、C3 |
+| 渲染器（不在公开仓库） | macOS Metal 宿主 `metal-avatar-host`、XPC 预览服务和 Windows Vulkan 渲染器 `efw.exe`。源码是私有组件，只随发行版提供；外壳一端的预览客户端是 `app/electron/native/mac/preview.m`，和它的接口见 C1、C2、C3 |
 | `characters/` | 角色包工具：导入（`agentic_complex_build/`，入口 `build.py`）、原生包打包（`packaging/`）、纯文字样例角色 `sample-character/` 和样例库 `sample-library/`；角色包由外部工具生成，格式见 `protocol/character-library/CONTRACT.md`，见[角色包工具与动作生成](characters.md) |
 | `motion/` | 动作生成服务：按文字描述生成动作的 HTTP 服务，见[角色包工具与动作生成](characters.md#动作生成服务) |
 | `voice/` | TTS 服务代码（`tts-service/`，部署在 TTS 主机上），见[语音合成服务](voice.md)和[部署语音服务](../guides/tts-deploy.md) |

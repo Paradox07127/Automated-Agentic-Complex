@@ -139,7 +139,7 @@ The e2e port defaults to `4317`; parallel worktrees each set their own `EF_WEB_P
 
 ## Windows
 
-You need Visual Studio 2022 or its Build Tools with "Desktop development with C++" (the x64 C++ tools and the Windows SDK's `fxc`), with `vswhere.exe` in its default place; Node 24 (`node`, `npm.cmd` and `npx.cmd` on PATH) and Git; a CPython 3.12 with agentd's dependencies (the main checkout's `agent\.venv\Scripts\python.exe`, or one named with `--python` or `AGENTD_PYTHON`); and a character library with `d3d11_frame` (the Windows renderer draws only such characters).
+You need Visual Studio 2022 or its Build Tools with "Desktop development with C++" (the x64 C++ tools and the Windows SDK's `fxc`), with `vswhere.exe` in its default place; Node 24 (`node`, `npm.cmd` and `npx.cmd` on PATH) and Git; a CPython 3.12 with agentd's dependencies (the main checkout's `agent\.venv\Scripts\python.exe`, or one named with `--python` or `AGENTD_PYTHON`); a graphics driver with Vulkan (`vulkan-1.dll`); and a character library with `vulkan_frame` (the Windows renderer draws only such characters).
 
 Platform helper:
 

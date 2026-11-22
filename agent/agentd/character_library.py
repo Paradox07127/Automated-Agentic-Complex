@@ -30,7 +30,7 @@ NATIVE_FIELDS = ("c7", "actor_archive", "source", "library", "graph", "lighting"
 # The neutral package beside the frame graph: all three or none (packages built before it).
 NEUTRAL_FIELDS = ("neutral_scene", "neutral_build_record", "metal_product")
 # The Windows frame table, bound to the neutral scene: only with the neutral package.
-D3D11_FIELDS = ("d3d11_frame",)
+VULKAN_FIELDS = ("vulkan_frame",)
 MAX_FILES = 50000
 MAX_BYTES = 32 * 1024 ** 3
 
@@ -323,9 +323,9 @@ class Package:
                  for k in ("file", "sha256", "byte_count")), "native_reference_not_indexed")
         neutral = [field for field in NEUTRAL_FIELDS if field in self.native_entry]
         need(len(neutral) in (0, len(NEUTRAL_FIELDS)), "incomplete_neutral_package")
-        d3d11 = [field for field in D3D11_FIELDS if field in self.native_entry]
-        need(not d3d11 or neutral, "d3d11_frame_without_neutral_package")
-        for field in neutral + d3d11:
+        vulkan = [field for field in VULKAN_FIELDS if field in self.native_entry]
+        need(not vulkan or neutral, "vulkan_frame_without_neutral_package")
+        for field in neutral + vulkan:
             ref = self.native_entry[field]; validate_ref(ref)
             need(all(native_index.get(ref["file"], {}).get(k) == ref[k] for k in ("file", "sha256", "byte_count")), "native_reference_not_indexed")
             self.resolve(dict(ref, file=str(native_prefix / ref["file"])))
@@ -578,7 +578,7 @@ class Library:
             if not package.render_enabled: continue
             native_prefix = str(PurePosixPath(prefix) / PurePosixPath(package.native_ref["file"]).parent)
             entry = copy.deepcopy(package.native_entry)
-            for field in NATIVE_FIELDS + NEUTRAL_FIELDS + D3D11_FIELDS:
+            for field in NATIVE_FIELDS + NEUTRAL_FIELDS + VULKAN_FIELDS:
                 if field in entry: entry[field]["file"] = native_prefix + "/" + entry[field]["file"]
             native_entries.append(entry)
             for ref in package.native["files"]:

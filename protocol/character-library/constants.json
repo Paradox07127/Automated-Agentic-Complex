@@ -13,8 +13,8 @@
   "neutral_fields": {
     "optional": ["neutral_scene", "neutral_build_record", "metal_product"]
   },
-  "d3d11_fields": {
-    "optional": ["d3d11_frame"]
+  "vulkan_fields": {
+    "optional": ["vulkan_frame"]
   },
   "schemas": {
     "catalog": "endfield-character-library/v1",

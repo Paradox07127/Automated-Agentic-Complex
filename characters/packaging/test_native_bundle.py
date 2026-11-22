@@ -285,74 +285,77 @@ class BundleTests(unittest.TestCase):
   roles={f['file']:f['roles'] for f in manifest['files']}
   manifest['files']=[dict(file=p.relative_to(out).as_posix(),sha256=n.digest(p),byte_count=p.stat().st_size,roles=roles.get(p.relative_to(out).as_posix(),['runtime']))
                      for p in sorted(out.rglob('*')) if p.is_file() and p.name!='bundle.json'];(out/'bundle.json').write_bytes(n.json_bytes(manifest))
- def d3d11(self,blobs,scene=None,version=None):
-  """A bundle whose character has a D3D11 section: a frame table holding only strings and the blob records blobs ((name, bytes);
-  bytes are written to d3d11/blobs/<sha256> when the name is there), bound to scene (default: the neutral scene's sha256)."""
+ def vulkan(self,blobs,scene=None,version=None,magic=None):
+  """A bundle whose character has a Vulkan section: a frame table holding only strings and the blob records blobs ((name, bytes);
+  bytes are written to vulkan/blobs/<sha256> when the name is there), bound to scene (default: the neutral scene's sha256)."""
   out=n.build(self.recipe(),self.root/'bundle');manifest=n.load(out/'bundle.json');e=manifest['characters'][0];f=package_format
   folder=out/'characters/fixture';strings=bytearray(b'\0');records=[]
   for name,data in blobs:
    records.append(dict(sha256=hashlib.sha256(data).digest(),size=len(data),file=len(strings)));strings+=name.encode()+b'\0'
-   if name.startswith('d3d11/blobs/'):(folder/name).parent.mkdir(parents=True,exist_ok=True);(folder/name).write_bytes(data)
-  head=f.STRUCTS['Header'];body=dict(strings=bytes(strings),blobs=b''.join(f.table_struct('blobs').pack(r) for r in records))
-  values=dict(magic=f.MAGIC,version=f.VERSION if version is None else version,header_bytes=head.size,scene_sha256=bytes.fromhex(scene or e['neutral_scene']['sha256']));offset=head.size;layout=[]
+   if name.startswith('vulkan/blobs/'):(folder/name).parent.mkdir(parents=True,exist_ok=True);(folder/name).write_bytes(data)
+  head=f.STRUCTS['Header'];body=dict(strings=bytes(strings),blobs=b''.join(f.table_struct('blobs','vulkan').pack(r) for r in records))
+  values=dict(magic=magic or f.VK_MAGIC,version=f.VK_VERSION if version is None else version,header_bytes=head.size,scene_sha256=bytes.fromhex(scene or e['neutral_scene']['sha256']));offset=head.size;layout=[]
   for t in f.TABLES:
    data=body.get(t,b'');offset=(offset+15)&~15;values.update({t+'_offset':offset,t+'_count':len(records) if t=='blobs' else len(data)});layout.append((offset,data));offset+=len(data)
   raw=bytearray(offset);values['file_bytes']=offset;raw[:head.size]=head.pack(values)
   for o,data in layout:raw[o:o+len(data)]=data
-  (folder/'d3d11/frame.bin').parent.mkdir(parents=True,exist_ok=True);(folder/'d3d11/frame.bin').write_bytes(raw)
-  e['d3d11_frame']=dict(file='characters/fixture/d3d11/frame.bin',sha256=hashlib.sha256(raw).hexdigest(),byte_count=len(raw));self.relist(out,manifest)
+  (folder/'vulkan/frame.bin').parent.mkdir(parents=True,exist_ok=True);(folder/'vulkan/frame.bin').write_bytes(raw)
+  e['vulkan_frame']=dict(file='characters/fixture/vulkan/frame.bin',sha256=hashlib.sha256(raw).hexdigest(),byte_count=len(raw));self.relist(out,manifest)
   return out,manifest,e
  def rewrite(self,out,e,g):
   # As an outfit import does: write_neutral, then the graph reference.
   n.write_neutral(out,e,g);path=out/e['graph']['file'];e['graph'].update(sha256=n.digest(path),byte_count=path.stat().st_size)
- def own(self,data=b'only the d3d11 section has this'):return ('d3d11/blobs/'+hashlib.sha256(data).hexdigest(),data)
- def testD3D11SectionWhoseBlobsNameCharacterFilesVerifies(self):
-  out,manifest,e=self.d3d11([('source/data.bin',b'asset'),self.own()]);n.verify_isolated(out)
-  files={f['file'] for f in manifest['files']};self.assertLessEqual({'characters/fixture/d3d11/frame.bin','characters/fixture/'+self.own()[0]},files)
-  self.assertEqual(set(e['d3d11_frame']),{'file','sha256','byte_count'})
- def testD3D11BlobStoredAsAContainerOfItsBytesVerifies(self):
-  name,_=self.own(POOLED);out,manifest,e=self.d3d11([(name,POOLED)])
+ def own(self,data=b'only the vulkan section has this'):return ('vulkan/blobs/'+hashlib.sha256(data).hexdigest(),data)
+ def testVulkanSectionWhoseBlobsNameCharacterFilesVerifies(self):
+  out,manifest,e=self.vulkan([('source/data.bin',b'asset'),self.own()]);n.verify_isolated(out)
+  files={f['file'] for f in manifest['files']};self.assertLessEqual({'characters/fixture/vulkan/frame.bin','characters/fixture/'+self.own()[0]},files)
+  self.assertEqual(set(e['vulkan_frame']),{'file','sha256','byte_count'})
+ def testVulkanBlobStoredAsAContainerOfItsBytesVerifies(self):
+  name,_=self.own(POOLED);out,manifest,e=self.vulkan([(name,POOLED)])
   (out/'characters/fixture'/name).write_bytes(pool_codec.encode(POOLED));self.relist(out,manifest);n.verify_isolated(out)
   (out/'characters/fixture'/name).write_bytes(other_container(POOLED));self.relist(out,manifest)
-  with self.assertRaisesRegex(n.BundleError,'d3d11 blob does not match its sha256/size: characters/fixture/d3d11/blobs/'):n.verify(out)
- def testStagedContentVerifiesAD3D11Section(self):
+  with self.assertRaisesRegex(n.BundleError,'vulkan blob does not match its sha256/size: characters/fixture/vulkan/blobs/'):n.verify(out)
+ def testStagedContentVerifiesAVulkanSection(self):
   # The agentd component carries only CONTENT_SOURCES; verify of a package with a frame table must not need anything else.
   root=pathlib.Path(__file__).resolve().parents[2];sys.path.insert(0,str(root/'tools/release'));import build_components
-  out,_,_=self.d3d11([self.own()]);content=build_components.stage_content(self.root/'runtime/content')
+  out,_,_=self.vulkan([self.own()]);content=build_components.stage_content(self.root/'runtime/content')
   probe='import sys;sys.path[:0]=sys.argv[2:4];import native_bundle;native_bundle.verify(sys.argv[1])'
   run=subprocess.run([sys.executable,'-I','-B','-c',probe,str(out),str(content),str(root/'agent/agentd')],capture_output=True,text=True)
   self.assertEqual(run.returncode,0,run.stderr)
- def testD3D11BlobNameOutsideTheCharacterDirectoryFails(self):
+ def testVulkanBlobNameOutsideTheCharacterDirectoryFails(self):
   for name in ['../fixture/source/data.bin','source//data.bin','source/da ta.bin']:
    with self.subTest(name=name):
-    shutil.rmtree(self.root/'bundle',ignore_errors=True);out,_,_=self.d3d11([(name,b'asset')])
-    with self.assertRaisesRegex(n.BundleError,'d3d11 blob name leaves the character directory: '):n.verify(out)
- def testD3D11BlobMissingOrDifferentFails(self):
-  out,manifest,e=self.d3d11([self.own()]);(out/'characters/fixture'/self.own()[0]).unlink();self.relist(out,manifest)
-  with self.assertRaisesRegex(n.BundleError,'d3d11 blob is not in the bundle: characters/fixture/d3d11/blobs/'):n.verify(out)
-  shutil.rmtree(out);out,_,_=self.d3d11([('source/data.bin',b'other bytes')])
-  with self.assertRaisesRegex(n.BundleError,'d3d11 blob does not match its sha256/size: characters/fixture/source/data.bin'):n.verify(out)
- def testD3D11FrameOfAnotherSceneOrVersionFails(self):
-  out,manifest,e=self.d3d11([self.own()],scene='0'*64)
-  with self.assertRaisesRegex(n.BundleError,'d3d11 frame table is bound to neutral scene 0{64}, not '):n.verify(out)
-  shutil.rmtree(out);out,manifest,e=self.d3d11([self.own()],version=package_format.VERSION-1)
-  with self.assertRaisesRegex(n.BundleError,'d3d11 frame table is version'):n.verify(out)
- def testD3D11FrameAfterTheSceneChangedFails(self):
+    shutil.rmtree(self.root/'bundle',ignore_errors=True);out,_,_=self.vulkan([(name,b'asset')])
+    with self.assertRaisesRegex(n.BundleError,'vulkan blob name leaves the character directory: '):n.verify(out)
+ def testVulkanBlobMissingOrDifferentFails(self):
+  out,manifest,e=self.vulkan([self.own()]);(out/'characters/fixture'/self.own()[0]).unlink();self.relist(out,manifest)
+  with self.assertRaisesRegex(n.BundleError,'vulkan blob is not in the bundle: characters/fixture/vulkan/blobs/'):n.verify(out)
+  shutil.rmtree(out);out,_,_=self.vulkan([('source/data.bin',b'other bytes')])
+  with self.assertRaisesRegex(n.BundleError,'vulkan blob does not match its sha256/size: characters/fixture/source/data.bin'):n.verify(out)
+ def testVulkanFrameOfAnotherSceneVersionOrFormatFails(self):
+  out,manifest,e=self.vulkan([self.own()],scene='0'*64)
+  with self.assertRaisesRegex(n.BundleError,'vulkan frame table is bound to neutral scene 0{64}, not '):n.verify(out)
+  shutil.rmtree(out);out,manifest,e=self.vulkan([self.own()],version=package_format.VK_VERSION-1)
+  with self.assertRaisesRegex(n.BundleError,'vulkan frame table is version'):n.verify(out)
+  # A D3D11 frame table is not one.
+  shutil.rmtree(out);out,manifest,e=self.vulkan([self.own()],magic=package_format.MAGIC)
+  with self.assertRaisesRegex(n.BundleError,'vulkan frame table is not EFWVKP01'):n.verify(out)
+ def testVulkanFrameAfterTheSceneChangedFails(self):
   # A tool that edits the frame graph but keeps the reference.
-  out,manifest,e=self.d3d11([self.own()]);ref=e['d3d11_frame'];g=n.load(out/e['graph']['file']);g['frame_inputs']['visible_draws']=[]
-  self.rewrite(out,e,g);e['d3d11_frame']=ref;self.relist(out,manifest)
-  with self.assertRaisesRegex(n.BundleError,'d3d11 frame table is bound to neutral scene'):n.verify(out)
- def testD3D11FrameNeedsTheNeutralPackage(self):
-  out,manifest,e=self.d3d11([self.own()])
+  out,manifest,e=self.vulkan([self.own()]);ref=e['vulkan_frame'];g=n.load(out/e['graph']['file']);g['frame_inputs']['visible_draws']=[]
+  self.rewrite(out,e,g);e['vulkan_frame']=ref;self.relist(out,manifest)
+  with self.assertRaisesRegex(n.BundleError,'vulkan frame table is bound to neutral scene'):n.verify(out)
+ def testVulkanFrameNeedsTheNeutralPackage(self):
+  out,manifest,e=self.vulkan([self.own()])
   for field,_ in n.NEUTRAL:(out/e.pop(field)['file']).unlink()
   self.relist(out,manifest)
-  with self.assertRaisesRegex(n.BundleError,'d3d11_frame needs the neutral package'):n.verify(out)
- def testWriteNeutralDropsTheD3D11FrameAndTheRelistedBundleVerifies(self):
-  out,manifest,e=self.d3d11([('source/data.bin',b'asset'),self.own()]);g=n.load(out/e['graph']['file']);g['frame_inputs']['visible_draws']=[]
-  self.rewrite(out,e,g);self.assertNotIn('d3d11_frame',e);self.relist(out,manifest);n.verify(out)
- def testD3D11FieldEqualsTheLibraryContract(self):
+  with self.assertRaisesRegex(n.BundleError,'vulkan_frame needs the neutral package'):n.verify(out)
+ def testWriteNeutralDropsTheVulkanFrameAndTheRelistedBundleVerifies(self):
+  out,manifest,e=self.vulkan([('source/data.bin',b'asset'),self.own()]);g=n.load(out/e['graph']['file']);g['frame_inputs']['visible_draws']=[]
+  self.rewrite(out,e,g);self.assertNotIn('vulkan_frame',e);self.relist(out,manifest);n.verify(out)
+ def testVulkanFieldEqualsTheLibraryContract(self):
   contract=json.loads((pathlib.Path(__file__).resolve().parents[2]/'protocol/character-library/constants.json').read_text())
-  self.assertEqual([n.D3D11[0]],contract['d3d11_fields']['optional'])
+  self.assertEqual([n.VULKAN[0]],contract['vulkan_fields']['optional'])
  def testSymlinkCannotEscapePack(self):
   out=n.build(self.recipe(),self.root/'bundle');path=out/'characters/fixture/source/data.bin';copy=self.root/'external';copy.write_bytes(path.read_bytes());path.unlink();path.symlink_to(copy);self.assertRaises(n.BundleError,n.verify,out)
 if __name__=='__main__':unittest.main()

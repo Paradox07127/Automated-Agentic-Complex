@@ -208,20 +208,20 @@ class BuildComponentsTests(unittest.TestCase):
         self.assertEqual({path.relative_to(art).as_posix() for path in art.rglob('*') if path.is_file()},
                          {'characters/fixture/portrait.png', 'common/contour.png', 'brand/AppIcon.icns'})
 
-    def test_a_macos_character_payload_is_sealed_without_its_d3d11_files(self):
-        source = self.root / 'role'; character_fixture(source, neutral=True, d3d11=True)
+    def test_a_macos_character_payload_is_sealed_without_its_vulkan_files(self):
+        source = self.root / 'role'; character_fixture(source, neutral=True, vulkan=True)
         package = Package(source)
         build_components.stage_character(package, self.root / 'mac', 'macos-arm64')
         build_components.stage_character(package, self.root / 'windows', 'windows-x64')
         self.assertEqual(self.files(self.root / 'windows'), self.files(source))
         mac = Package(self.root / 'mac')
-        self.assertNotIn('d3d11_frame', mac.native_entry)
-        self.assertFalse((mac.root / 'runtime/d3d11').exists())
+        self.assertNotIn('vulkan_frame', mac.native_entry)
+        self.assertFalse((mac.root / 'runtime/vulkan').exists())
         self.assertNotEqual(mac.sha256, package.sha256)
-        self.assertEqual({key for key in mac.inventory}, {key for key in package.inventory} - {'runtime/d3d11/frame.bin'})
-        self.assertEqual({ref['file'] for ref in mac.native['files']}, {ref['file'] for ref in package.native['files']} - {'d3d11/frame.bin'})
+        self.assertEqual({key for key in mac.inventory}, {key for key in package.inventory} - {'runtime/vulkan/frame.bin'})
+        self.assertEqual({ref['file'] for ref in mac.native['files']}, {ref['file'] for ref in package.native['files']} - {'vulkan/frame.bin'})
         self.assertEqual({key: value for key, value in mac.native_entry.items()},
-                         {key: value for key, value in package.native_entry.items() if key != 'd3d11_frame'})
+                         {key: value for key, value in package.native_entry.items() if key != 'vulkan_frame'})
         plain = self.root / 'plain'; character_fixture(plain)
         build_components.stage_character(Package(plain), self.root / 'plain-mac', 'macos-arm64')
         self.assertEqual(self.files(self.root / 'plain-mac'), self.files(plain))
@@ -230,9 +230,9 @@ class BuildComponentsTests(unittest.TestCase):
         compressible, incompressible = b''.join(b'texel %d ' % (i % 89) for i in range(5000)), os.urandom(4096)
         sha = lambda data: hashlib.sha256(data).hexdigest()
         files = ['runtime/Files/' + sha(compressible) + '.bytes', 'runtime/Files/' + sha(incompressible) + '.bytes']
-        for name, d3d11 in (('framed', True), ('plain', False)):
+        for name, vulkan in (('framed', True), ('plain', False)):
             with self.subTest(name):
-                source = self.root / name; character_fixture(source, neutral=d3d11, d3d11=d3d11, pool=[compressible, incompressible])
+                source = self.root / name; character_fixture(source, neutral=vulkan, vulkan=vulkan, pool=[compressible, incompressible])
                 package = Package(source)
                 build_components.stage_character(package, self.root / (name + '-mac'), 'macos-arm64')
                 build_components.stage_character(package, self.root / (name + '-windows'), 'windows-x64')
@@ -249,7 +249,7 @@ class BuildComponentsTests(unittest.TestCase):
                     if file != mac.native_ref['file']:
                         self.assertEqual({key: index[file[len('runtime/'):]][key] for key in identity}, identity)
                 self.assertEqual(mac.document['components']['render']['native_bundle'], mac.inventory[mac.native_ref['file']])
-                self.assertEqual('d3d11_frame' in mac.native_entry, False)
+                self.assertEqual('vulkan_frame' in mac.native_entry, False)
 
     def test_manifests_hash_changed_payloads_and_pass_c11_validation(self):
         components = self.stage_components()

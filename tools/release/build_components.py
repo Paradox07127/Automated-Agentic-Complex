@@ -163,7 +163,7 @@ def stage_runtime_python_windows(stage, *, python, prepared_site, pins):
 
 
 def stage_character(package, target, platform):
-    """Copy package to target. A macOS payload leaves out the D3D11 frame table and its blobs, which only the Windows
+    """Copy package to target. A macOS payload leaves out the Vulkan frame table and its blobs, which only the Windows
     renderer reads, stores its pool files compressed where that is smaller, and is sealed again: its character.json and
     native bundle differ from the library's."""
     for name in ('character.json', *package.inventory):
@@ -174,12 +174,12 @@ def stage_character(package, target, platform):
     package = Package(target)
     if package.sha256 != expected: raise ValueError('definition_sha_mismatch')
     if platform != 'macos-arm64' or not package.render_enabled: return
-    if 'd3d11_frame' in package.native_entry:
+    if 'vulkan_frame' in package.native_entry:
         prefix = PurePosixPath(package.native_ref['file']).parent
-        folder = PurePosixPath(package.native_entry['d3d11_frame']['file']).parent
+        folder = PurePosixPath(package.native_entry['vulkan_frame']['file']).parent
         dropped = {ref['file'] for ref in package.native['files'] if PurePosixPath(ref['file']).is_relative_to(folder)}
         native = dict(package.native, files=[ref for ref in package.native['files'] if ref['file'] not in dropped],
-                      characters=[{key: value for key, value in package.native_entry.items() if key != 'd3d11_frame'}])
+                      characters=[{key: value for key, value in package.native_entry.items() if key != 'vulkan_frame'}])
         shutil.rmtree(target / prefix / folder)
         seal(package, target, native, {}, {str(prefix / file) for file in dropped})
     compress_pool(target)

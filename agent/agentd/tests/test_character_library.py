@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_library import Library, Package, PackageError, write_json, export_package, relative
 
 
-def fixture(root, cid="fixture", voice=False, weapon=False, portrait=False, neutral=False, d3d11=False, pool=()):
+def fixture(root, cid="fixture", voice=False, weapon=False, portrait=False, neutral=False, vulkan=False, pool=()):
     """pool: the bytes of each file of the source manifest's Files/ pool."""
     root.mkdir(parents=True)
     inventory = []
@@ -50,7 +50,7 @@ def fixture(root, cid="fixture", voice=False, weapon=False, portrait=False, neut
     # The installer only checks the neutral package's digests; native_bundle.verify checks that it emits the graph.
     neutral = {field: component(path, {"schema": field}) for field, path in (("neutral_scene", "neutral/scene.json"),
                ("neutral_build_record", "neutral/build-record.json"), ("metal_product", "metal/product.json"))} if neutral else {}
-    if d3d11: neutral["d3d11_frame"] = component("d3d11/frame.bin", {"schema": "d3d11_frame"})
+    if vulkan: neutral["vulkan_frame"] = component("vulkan/frame.bin", {"schema": "vulkan_frame"})
     for data in pool: component("Files/" + hashlib.sha256(data).hexdigest() + ".bytes", data)
     native = blob("runtime/bundle.json", {"schema": "metal-native-character-bundle/v1", "characters": [dict(
         id=cid, default_clip="idle", default_appearance="default", c7=pack, actor_archive=archive,
@@ -427,25 +427,25 @@ class CharacterLibraryTests(unittest.TestCase):
         edit(lambda n: n["characters"][0].pop("metal_product"))
         with self.assertRaisesRegex(PackageError, "incomplete_neutral_package"): Package(src)
 
-    def test_the_d3d11_frame_is_optional_needs_the_neutral_package_and_its_digest_is_checked(self):
-        src = self.root / "role"; fixture(src, neutral=True, d3d11=True)
-        self.assertEqual(Package(src).native_entry["d3d11_frame"]["file"], "d3d11/frame.bin")
+    def test_the_vulkan_frame_is_optional_needs_the_neutral_package_and_its_digest_is_checked(self):
+        src = self.root / "role"; fixture(src, neutral=True, vulkan=True)
+        self.assertEqual(Package(src).native_entry["vulkan_frame"]["file"], "vulkan/frame.bin")
         Library(self.root / "library").install(src)
-        frame = src / "runtime/d3d11/frame.bin"; data = frame.read_bytes()
+        frame = src / "runtime/vulkan/frame.bin"; data = frame.read_bytes()
         frame.write_bytes(data[:-2] + b" \n")
         with self.assertRaisesRegex(PackageError, "component_sha_mismatch"): Package(src, deep=False)
         frame.write_bytes(data)
-        bare = self.root / "bare"; fixture(bare, d3d11=True)
-        with self.assertRaisesRegex(PackageError, "d3d11_frame_without_neutral_package"): Package(bare)
+        bare = self.root / "bare"; fixture(bare, vulkan=True)
+        with self.assertRaisesRegex(PackageError, "vulkan_frame_without_neutral_package"): Package(bare)
         old = self.root / "old"; fixture(old, neutral=True)
-        self.assertNotIn("d3d11_frame", Package(old).native_entry); Library(self.root / "old-library").install(old)
+        self.assertNotIn("vulkan_frame", Package(old).native_entry); Library(self.root / "old-library").install(old)
 
-    def test_the_library_bundle_resolves_the_neutral_package_and_the_d3d11_frame(self):
-        src = self.root / "role"; fixture(src, neutral=True, d3d11=True)
+    def test_the_library_bundle_resolves_the_neutral_package_and_the_vulkan_frame(self):
+        src = self.root / "role"; fixture(src, neutral=True, vulkan=True)
         library = Library(self.root / "library"); library.install(src)
         native = json.loads((library.root / library.snapshot()["native_bundle"]["file"]).read_text(encoding="utf-8"))
         entry = native["characters"][0]
-        for field in ("neutral_scene", "neutral_build_record", "metal_product", "d3d11_frame"):
+        for field in ("neutral_scene", "neutral_build_record", "metal_product", "vulkan_frame"):
             with self.subTest(field=field):
                 path = library.root / entry[field]["file"]
                 self.assertTrue(path.is_file(), entry[field]["file"])

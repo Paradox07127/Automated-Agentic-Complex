@@ -191,10 +191,11 @@ export function rendererPreflight(config: Config): ChildState | null {
   return null;
 }
 
-/** The renderer's state after it exits: 78 (package and program differ) and 69 (no usable GPU) fail without a restart. */
+/** The renderer's state after it exits: 78 (package and program differ), 69 (no usable Metal device) and 71 (Vulkan cannot run)
+ * fail without a restart. */
 export function rendererExit(status: number | null, signal: string | null, backoff: Backoff): ChildState {
   if (signal === null && status === 78) return { kind: 'failed', reason: '角色包与程序版本不符' };
-  if (signal === null && status === 69) return { kind: 'failed', reason: '无法使用 GPU' };
+  if (signal === null && (status === 69 || status === 71)) return { kind: 'failed', reason: '无法使用 GPU' };
   return crashState(backoff.recordCrash());
 }
 

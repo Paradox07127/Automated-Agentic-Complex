@@ -89,9 +89,9 @@ test('characters: empty, unknown selection, and the library errors', () => {
     renderEnabled: false });
 });
 
-/** A library of `aster` (bundle entry with `d3d11_frame`), `birch` (none, a stale `d3d11/frame.bin` on disk, unless
- * `framed` names it) and text-only `aide`. */
-function writeD3D11Library(dir: string, framed = ['aster']): { catalog: string; aster: string; birch: string } {
+/** A library of `aster` (bundle entry with `vulkan_frame`), `birch` (unless `framed` names it, only the old name `d3d11_frame`
+ * and a stale `vulkan/frame.bin` on disk) and text-only `aide`. */
+function writeVulkanLibrary(dir: string, framed = ['aster']): { catalog: string; aster: string; birch: string } {
   const library = join(dir, 'library');
   const write = (file: string, value: unknown) => {
     mkdirSync(dirname(join(library, file)), { recursive: true });
@@ -104,17 +104,18 @@ function writeD3D11Library(dir: string, framed = ['aster']): { catalog: string; 
     write(`packages/${id}/${id[0]!.repeat(64)}/character.json`, { id, display: { name: { 'zh-Hans': id } },
       components: { render: { native_bundle: ref('runtime/bundle.json') } } });
     write(`packages/${id}/${id[0]!.repeat(64)}/runtime/bundle.json`, { schema: 'metal-native-character-bundle/v1', characters: [{ id,
-      graph: ref(`characters/${id}/graph/frame-graph.json`), ...(framed.includes(id) ? { d3d11_frame: ref(`characters/${id}/d3d11/frame.bin`) } : {}) }] });
+      graph: ref(`characters/${id}/graph/frame-graph.json`), ...(framed.includes(id) ? { vulkan_frame: ref(`characters/${id}/vulkan/frame.bin`) }
+        : { d3d11_frame: ref(`characters/${id}/d3d11/frame.bin`) }) }] });
   }
-  write(`packages/birch/${'birch'[0]!.repeat(64)}/runtime/characters/birch/d3d11/frame.bin`, 'stale');
+  write(`packages/birch/${'birch'[0]!.repeat(64)}/runtime/characters/birch/vulkan/frame.bin`, 'stale');
   write(`packages/aide/${'a'.repeat(64)}/character.json`, { id: 'aide', display: { name: { 'zh-Hans': 'aide' } }, components: {} });
   return { catalog: join(library, 'current.json'), aster: join(library, `packages/aster/${'aster'[0]!.repeat(64)}/runtime/characters/aster`),
     birch: join(library, `packages/birch/${'birch'[0]!.repeat(64)}/runtime/characters/birch`) };
 }
 
-test('Windows: a library character launches efw with --package <its character directory> only when its bundle entry has d3d11_frame', () => {
+test('Windows: a library character launches efw with --package <its character directory> only when its bundle entry has vulkan_frame', () => {
   withTemp((dir) => {
-    const { catalog, aster } = writeD3D11Library(dir);
+    const { catalog, aster } = writeVulkanLibrary(dir);
     const path = join(dir, 'config.json');
     writeFileSync(path, JSON.stringify({ ...BASE, avatar_app: '/efw', character_catalog: catalog, support_dir: dir }));
     const windows = loadConfig(path, 'windows');
@@ -133,11 +134,11 @@ test('Windows: a library character launches efw with --package <its character di
 
 test('Windows: efw gets --package-of <id>=<character directory> for every character it can draw, so set_character needs no restart', () => {
   withTemp((dir) => {
-    const { catalog, aster, birch } = writeD3D11Library(dir, ['aster', 'birch']);
+    const { catalog, aster, birch } = writeVulkanLibrary(dir, ['aster', 'birch']);
     const path = join(dir, 'config.json');
     writeFileSync(path, JSON.stringify({ ...BASE, avatar_app: '/efw', character_catalog: catalog, support_dir: dir }));
     const both = ['--package-of', `aster=${aster}`, '--package-of', `birch=${birch}`];
-    // The text-only aide has no d3d11_frame, so it is in no list.
+    // The text-only aide has no vulkan_frame, so it is in no list.
     assert.deepEqual(loadConfig(path, 'windows').characters.map((c) => [c.id, c.avatarArgs, c.renderEnabled]),
       [['aster', ['--package', aster, ...both], true], ['birch', ['--package', birch, ...both], true], ['aide', [], false]]);
     assert.deepEqual(loadConfig(path, 'mac').characters.map((c) => c.avatarArgs),

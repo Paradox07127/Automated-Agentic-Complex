@@ -41,7 +41,7 @@ python3 -m unittest discover -s packaging -p 'test_*.py'
 ```
 
 - `build` 还在每个角色的 frame graph 旁写出它的中性包：`neutral/scene.json`、`neutral/build-record.json` 和 `metal/product.json`。三者由 `neutral_package.py` 从 `graph/frame-graph.json` 拆出，条目字段 `neutral_scene`、`neutral_build_record`、`metal_product` 指向它们。拆出的三份不能逐字节还原 graph 时，`build` 拒绝。`verify` 对每个带这三个字段的条目做同样的检查，三个字段都没有的条目也接受。改 frame graph 的工具用 `write_neutral` 一起重写 graph 和这三个文件。渲染器不读这三个文件。
-- 条目还可以有 `d3d11_frame`：Windows 渲染器的帧表 `d3d11/frame.bin`，放在同一个角色目录里，格式定义在 `characters/packaging/package_format.py`。`bundle.json` 列出它和 `d3d11/blobs/`。`build` 不写它。条目有它时，`verify` 要求：三个中性字段齐全；帧表头的 `scene_sha256` 等于 `neutral_scene` 文件的 SHA-256；每条 blob 记录的名字通过 `blob_name_ok`，指向角色目录里一个列出的文件，且 SHA-256 和大小与记录相符。`write_neutral` 会去掉 `d3d11_frame`，因为帧表属于旧的 scene。
+- 条目还可以有 `vulkan_frame`：Windows 渲染器的帧表 `vulkan/frame.bin`（magic `EFWVKP01`，程序是游戏原版 SPIR-V），放在同一个角色目录里，格式定义在 `characters/packaging/package_format.py`。`bundle.json` 列出它和 `vulkan/blobs/`。`build` 不写它。条目有它时，`verify` 要求：三个中性字段齐全；帧表的 magic 和版本是 `VK_MAGIC`、`VK_VERSION`；帧表头的 `scene_sha256` 等于 `neutral_scene` 文件的 SHA-256；每条 blob 记录的名字通过 `blob_name_ok`，指向角色目录里一个列出的文件，且 SHA-256 和大小与记录相符。`write_neutral` 会去掉 `vulkan_frame`，因为帧表属于旧的 scene。
 - `host_inputs.py` 校验包，然后打印宿主现有的启动参数，不启动任何东西。JSON 里的 `argv` 可直接用于 `subprocess.run([host, *argv, ...])`，不经 shell。角色 id 取自包目录，没有内置角色列表；未知 id 报错。
 
 ## 动作生成服务
