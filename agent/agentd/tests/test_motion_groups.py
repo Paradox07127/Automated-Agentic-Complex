@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from api.handler import Handler  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
-from motion.chooser import MotionChooser  # noqa: E402
+from motion.chooser import EVENT_RULES, MotionChooser  # noqa: E402
 from motion.groups import propose  # noqa: E402
 import support  # noqa: E402
 from test_c6_fixtures import mismatches  # noqa: E402
@@ -32,7 +32,10 @@ ADDED = {
     "pose_start": (1.0, False, "stand", "stand", "pose_hold", "unwired"),  # a start/loop/end chain
     "pose_hold": (2.0, True, "stand", "stand", "pose_end", "unwired"),
     "pose_end": (1.0, False, "stand", "stand", None, "unwired"),
-    "long_bow": (6.0, False, "stand", "stand", None, "unwired"),  # no rule
+    "long_kneel": (6.0, False, "stand", "stand", None, "unwired"),  # no rule
+    "hero_surprise": (6.0, False, "stand", "stand", None, "unwired"),  # a meaning word, reaction keys
+    "hero_sit_think": (3.0, True, "sit", "sit", None, "unwired"),  # meaning words on a seated clip
+    "hero_battle_wave": (2.0, False, "stand", "stand", None, "unwired"),  # a meaning word an exclusion rule beats
 }
 DEMO_GROUPS = {"base_loop": "base", "relax_loop": "base", "to_relax": "base", "point": "speech", "sit_enter": "seat",
                "sit_loop": "seat", "think_loop": "session.thinking", "pat_react": "click", "look_left": "click",
@@ -85,8 +88,8 @@ class ProposeTest(unittest.TestCase):
         out = propose(self.chooser, self.graph)
         self.assertEqual(out["character"], "hero")
         pools = out["pools"]
-        self.assertEqual(set(pools), {"user.greet", "click.single", "session.thinking", "session.done", "pat.head",
-                                      "look.left", "idle.t1", "idle.t2"})
+        self.assertEqual(set(pools), set(EVENT_RULES) | {"idle.t1", "idle.t2"})
+        self.assertEqual(pools["pinch.cheek"]["pack"], [])
         one = lambda clip, why: {"clip": clip, "weight": 1, "why": why}  # noqa: E731
         self.assertEqual(pools["idle.t1"], {
             "posture": "stand",
@@ -98,24 +101,65 @@ class ProposeTest(unittest.TestCase):
                                             "proposal": [one("hero_dialog_single_sitnod", "token:dialog_single")],
                                             "rejected": []})
         self.assertEqual(pools["click.single"]["pack"], [{"clip": "tap", "weight": 1}, {"clip": "nod", "weight": 1}])
-        self.assertEqual(pools["click.single"]["proposal"], [one("blink", "structure:one_shot")])
+        self.assertEqual(pools["click.single"]["proposal"], [one("blink", "structure:one_shot"),
+                                                             one("hero_surprise", "meaning:startled")])
+        self.assertEqual(pools["user.greet"]["proposal"], [one("hero_dialog_single_bow", "meaning:greet")])
+        self.assertEqual(pools["session.thinking@sit"]["proposal"], [one("sit_loop", "meaning:seated"),
+                                                                     one("hero_sit_think", "meaning:think")])
         self.assertEqual(out["excluded"], [{"clip": c, "reason": "wired"} for c in
                                            ("base_loop", "relax_loop", "to_relax", "point", "sit_enter")]
                          + [{"clip": "hero_battle_stance", "reason": "battle"},
-                            {"clip": "pose_hold", "reason": "in_chain"}, {"clip": "pose_end", "reason": "in_chain"}])
-        self.assertEqual(out["unclassified"], ["long_bow"])
-        self.assertEqual(out["counts"], {"clips": 25, "pooled": 10, "proposed": 5, "rejected": 1, "excluded": 8,
-                                         "unclassified": 1})
+                            {"clip": "pose_hold", "reason": "in_chain"}, {"clip": "pose_end", "reason": "in_chain"},
+                            {"clip": "hero_battle_wave", "reason": "battle"}])
+        self.assertEqual(out["unclassified"], ["long_kneel"])
+        self.assertEqual(out["counts"], {"clips": 28, "pooled": 10, "proposed": 7, "rejected": 1, "excluded": 9,
+                                         "unclassified": 1, "proposals": 25})
 
-    def test_every_clip_is_in_exactly_one_place(self):
+    def test_every_clip_is_counted_once_by_its_first_place(self):
         out = propose(self.chooser, self.graph)
         pooled = {r["clip"] for p in out["pools"].values() for r in p["pack"]}
-        placed = [c["name"] for c in self.graph["clips"] if c["name"] in pooled]
-        placed += [r["clip"] for p in out["pools"].values() for r in p["proposal"] + p["rejected"]]
-        placed += [r["clip"] for r in out["excluded"]] + out["unclassified"]
-        self.assertEqual(sorted(placed), sorted(c["name"] for c in self.graph["clips"]))
+        proposed = {r["clip"] for p in out["pools"].values() for r in p["proposal"]}
+        rejected = {r["clip"] for p in out["pools"].values() for r in p["rejected"]}
+        excluded = [r["clip"] for r in out["excluded"]]
+        first = {}
+        for c in self.graph["clips"]:
+            c = c["name"]
+            first[c] = next(k for k, clips in (("pooled", pooled), ("proposed", proposed), ("rejected", rejected),
+                                               ("excluded", excluded), ("unclassified", out["unclassified"]))
+                            if c in clips)
         counts = out["counts"]
-        self.assertEqual(counts["clips"], sum(v for k, v in counts.items() if k != "clips"))
+        self.assertEqual({k: list(first.values()).count(k) for k in ("pooled", "proposed", "rejected", "excluded",
+                                                                     "unclassified")},
+                         {k: v for k, v in counts.items() if k not in ("clips", "proposals")})
+        self.assertEqual(counts["clips"], len(first))
+        self.assertEqual(counts["proposals"], sum(len(p["proposal"]) for p in out["pools"].values()))
+        self.assertFalse(set(excluded + out["unclassified"]) & (pooled | proposed | rejected))
+
+    def test_a_word_matched_clip_is_proposed_for_each_key_its_meaning_names(self):
+        pools = propose(self.chooser, self.graph)["pools"]
+        for key in ("pinch.cheek", "click.single", "click.repeat"):
+            self.assertIn({"clip": "hero_surprise", "weight": 1, "why": "meaning:startled"}, pools[key]["proposal"], key)
+
+    def test_a_seated_clip_goes_to_sit_keys_only(self):
+        pools = propose(self.chooser, self.graph)["pools"]
+        placed = {k: r["why"] for k, p in pools.items() for r in p["proposal"] + p["rejected"]
+                  if r["clip"] == "hero_sit_think"}
+        self.assertEqual(placed, {"session.thinking@sit": "meaning:think", "session.tool@sit": "meaning:think",
+                                  "session.subagent@sit": "meaning:seated", "rest.sleep@sit": "meaning:seated"})
+
+    def test_a_pooled_clip_is_proposed_for_other_pools_than_its_own(self):
+        pools = propose(self.chooser, self.graph)["pools"]
+        placed = lambda clip: {k: r["why"] for k, p in pools.items() for r in p["proposal"]  # noqa: E731
+                               if r["clip"] == clip}
+        self.assertEqual(placed("nod"), {"session.done": "meaning:nod", "session.input": "meaning:nod"})
+        self.assertEqual(placed("look_left"), {"look.right": "meaning:look", "user.hover": "meaning:look"})
+        self.assertEqual(placed("wave"), {"present.snap": "meaning:greet", "character.enter": "meaning:greet"})
+
+    def test_an_exclusion_rule_removes_a_clip_everywhere(self):
+        out = propose(self.chooser, self.graph)
+        self.assertIn({"clip": "hero_battle_wave", "reason": "battle"}, out["excluded"])
+        self.assertEqual([k for k, p in out["pools"].items() for r in p["proposal"] + p["rejected"]
+                          if r["clip"] == "hero_battle_wave"], [])
 
     def test_every_proposal_passes_the_chooser_s_pool_check(self):
         out = propose(self.chooser, self.graph)

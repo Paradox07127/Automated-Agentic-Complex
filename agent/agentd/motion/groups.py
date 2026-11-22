@@ -1,28 +1,34 @@
-"""Which existing pool each clip of a character's motion graph that the pack does not draw could join, by the rules of
-groups.json. A proposal changes nothing she plays until the user accepts it as a pool override.
+"""Which pools each clip of a character's motion graph could join, by the rules of groups.json. A proposal changes
+nothing she plays until the user accepts it as a pool override.
 
     propose(chooser, graph) -> {character, pools, excluded, unclassified, counts}
 
-Each graph clip lands in one place, checked in this order: a pack pool (or a chain one draws), `excluded` as `wired`
-(the pack plays it some other way), an exclusion rule, `excluded` as `in_chain` (only another clip's chain reaches
-it), a name-token rule, a structure rule, else `unclassified`. A rule's pool is the first of its keys the chooser knows
-whose posture is the clip's start posture, else the first it knows; the chooser's pool check sorts the clip into that
-pool's `proposal` or `rejected`."""
+`pools` has every event key agentd knows and each idle tier. A clip the pack draws (a pack pool, or a chain one draws)
+gets only meaning-rule proposals, for pools it is not in, when it starts a chain and no exclusion rule matches it. Any
+other clip is `excluded` as `wired` (the pack plays it some other way), by an exclusion rule, or as `in_chain` (only
+another clip's chain reaches it); else it is proposed by the first name-token rule with a pool and by every meaning
+rule, or when none applies by a structure rule; else it is `unclassified`. A token or structure rule's pool is the
+first of its keys the chooser knows whose posture is the clip's start posture, else the first it knows. A meaning key
+`k` is `k` for a standing clip and `k@<posture>` for another (a key with `@` only for its own posture), dropped when
+the chooser does not know it. The chooser's pool check sorts the clip into each pool's `proposal` or `rejected`."""
 import json
 from pathlib import Path
 
-from motion.chooser import POSTURES
+from motion.chooser import EVENT_RULES, POSTURES
 
 RULES = json.loads(Path(__file__).with_name("groups.json").read_text(encoding="utf-8"))
 
 
 def _pack_rows(p, key):
-    """(clip, weight) the pack's pool `key` draws without overrides."""
+    """(clip, weight) the pack's pool `key` draws without overrides; [] for an event key the pack lacks."""
+    event = p.pack_events.get(key)
     if key.startswith("click.") and key != "click.repeat":  # play_click_reaction reads only the events pool
-        return list(p.events[key].pool)
+        return list(event.pool) if event else []
     if p.contexts.get(key):
         return [(c, p.weight(c, key)) for c in p.contexts[key]]
-    return list(p.events[key].pool if key in p.events else p.tiers[int(key[len("idle.t"):]) - 1].pool)
+    if key.startswith("idle.t"):
+        return list(p.tiers[int(key[len("idle.t"):]) - 1].pool)
+    return list(event.pool) if event else []
 
 
 def _played(p, clip):
@@ -40,6 +46,11 @@ def _matches(clip, tokens):
     return any(t in name for t in tokens)
 
 
+def _words(clip):
+    """The clip name's `_`-separated words, lower case, without trailing digits."""
+    return {w.rstrip("0123456789") for w in clip.lower().split("_")}
+
+
 def _start(p, clip):
     s = p.stances[clip][0] if clip in p.stances else "stand"
     return s if s in POSTURES else "stand"
@@ -53,6 +64,18 @@ def _target(postures, targets, posture):
             if k in postures and k not in known:
                 known.append(k)
     return next((k for k in known if postures[k] == posture), known[0] if known else None)
+
+
+def _meant(postures, words, posture):
+    """(key, why) for each meaning rule a word of the clip matches, each key in the clip's posture."""
+    out = []
+    for r in RULES["meanings"]:
+        if words & set(r["words"]):
+            for k in r["pools"]:
+                k = k if "@" in k or posture == "stand" else k + "@" + posture
+                if postures.get(k) == posture:
+                    out.append((k, "meaning:" + r["id"]))
+    return out
 
 
 def _structure(p, clip, postures):
@@ -74,53 +97,61 @@ def _structure(p, clip, postures):
 
 def propose(chooser, graph):
     p = chooser.pack
-    keys = list(p.events) + ["idle.t%d" % (i + 1) for i in range(len(p.tiers or []))]
+    keys = list(EVENT_RULES) + ["idle.t%d" % (i + 1) for i in range(len(p.tiers or []))]
     postures = {k: chooser._pool_posture(k) for k in keys if chooser._pool_posture(k) is not None}
-    pools, pooled = {}, set()
+    pools, pooled, own = {}, set(), {}
     for k, posture in postures.items():
         rows = _pack_rows(p, k)
         pools[k] = {"posture": posture, "pack": [{"clip": c, "weight": w} for c, w in rows], "proposal": [],
                     "rejected": []}
         for c, _ in rows:
             pooled |= _played(p, c)
+            own.setdefault(c, set()).add(k)
     starts = set(graph["chains"])
     excluded, unclassified = [], []
     counts = {"clips": len(graph["clips"]), "pooled": 0, "proposed": 0, "rejected": 0, "excluded": 0,
-              "unclassified": 0}
+              "unclassified": 0, "proposals": 0}
     for row in graph["clips"]:
         c = row["name"]
+        start = _start(p, c)
+        rule = next((r["reason"] for r in RULES["exclude"] if _matches(c, r["tokens"])), None)
         if c in pooled:
-            counts["pooled"] += 1
-            continue
-        if row["group"] != "unwired":
-            reason = "wired"
+            targets = [] if rule or c not in starts else [
+                (k, why) for k, why in _meant(postures, _words(c), start) if k not in own.get(c, ())]
         else:
-            reason = next((r["reason"] for r in RULES["exclude"] if _matches(c, r["tokens"])), None)
-            if reason is None and c not in starts:
-                reason = "in_chain"
-        if reason:
-            excluded.append({"clip": c, "reason": reason})
-            counts["excluded"] += 1
-            continue
-        key = why = None
-        for r in RULES["rules"]:
-            if _matches(c, r["tokens"]):
-                key, why = _target(postures, r["pools"], _start(p, c)), "token:" + r["id"]
+            reason = "wired" if row["group"] != "unwired" else rule or (None if c in starts else "in_chain")
+            if reason:
+                excluded.append({"clip": c, "reason": reason})
+                counts["excluded"] += 1
+                continue
+            targets = []
+            for r in RULES["rules"]:
+                if _matches(c, r["tokens"]):
+                    key = _target(postures, r["pools"], start)
+                    if key:
+                        targets.append((key, "token:" + r["id"]))
+                        break
+            targets += _meant(postures, _words(c), start)
+            if not targets:
+                kind = _structure(p, c, postures)
+                key = kind and _target(postures, RULES["structure"][kind], start)
                 if key:
-                    break
-        if key is None:
-            kind = _structure(p, c, postures)
-            if kind:
-                key, why = _target(postures, RULES["structure"][kind], _start(p, c)), "structure:" + kind
-        if key is None:
-            unclassified.append(c)
-            counts["unclassified"] += 1
-            continue
-        rejection = chooser._pool_rejection([c], postures[key])
-        if rejection:
-            pools[key]["rejected"].append({"clip": c, "reason": rejection})
-            counts["rejected"] += 1
-        else:
-            pools[key]["proposal"].append({"clip": c, "weight": 1, "why": why})
-            counts["proposed"] += 1
+                    targets.append((key, "structure:" + kind))
+            if not targets:
+                unclassified.append(c)
+                counts["unclassified"] += 1
+                continue
+        placed, proposed = set(), 0
+        for key, why in targets:
+            if key in placed:
+                continue
+            placed.add(key)
+            rejection = chooser._pool_rejection([c], postures[key])
+            if rejection:
+                pools[key]["rejected"].append({"clip": c, "reason": rejection})
+            else:
+                pools[key]["proposal"].append({"clip": c, "weight": 1, "why": why})
+                proposed += 1
+        counts["proposals"] += proposed
+        counts["pooled" if c in pooled else "proposed" if proposed else "rejected"] += 1
     return {"character": p.id, "pools": pools, "excluded": excluded, "unclassified": unclassified, "counts": counts}

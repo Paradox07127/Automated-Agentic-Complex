@@ -9,6 +9,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 ## 2026-11-22 动作分组提案 GET /characters/:character_id/motion-groups（只加不改）
 
 - 新端点 `GET /characters/:character_id/motion-groups`（ui 令牌，`read`）：当前角色动作图里每个片段归到哪里，包里还没抽的片段提议进哪个现有池子；只读，什么都不改。不是当前角色 409 `not_current`，没有动作选择器或动作图 404 `motion_graph_missing`。字段见 §2 的这一条，回包样例 `fixtures/motion-groups.json`。
+- 按词义提议：`pools` 改为 agentd 认得的每个事件键（包里没有的也列，`pack` 为 `[]`）和每个空闲档；一个片段可以出现在多个池子的 `proposal`（`why` 新增 `meaning:<规则 id>`），已在包池子里的片段也可以被提议进别的池子；新增 `counts.proposals`（片段-池子提议的条数），其余计数每个片段只记一次，记在它的第一类。
 
 ## 2026-11-21 每日简报的触碰和桌面时长 POST /interaction/record（只加不改）
 
@@ -288,9 +289,10 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 **`GET /characters/:character_id/motion-groups`**
 - 令牌：只收 ui token。请求体：无。处理模块 `character/motion_graph_routes.py`，分类在 `motion/groups.py`，规则是数据 `motion/groups.json`（排除规则各带 `reason`，名字规则各带 `id`），不写角色 id 和片段名。
 - 只答当前角色：别的 id（含不认识的）409 `not_current`。当前角色没有动作选择器（纯文字角色）或 C7 包里没有 `animation/motion-graph.json` 时 404 `motion_graph_missing`。
-- 200 `{character, pools, excluded, unclassified, counts}`。`pools` 是动作选择器认得的每个池子键（`events` 的键和 `idle.t<n>`）→ `{posture, pack, proposal, rejected}`：`posture` 是这个池子的姿势；`pack` 是包自己的池子（不算用户的覆盖），`[{clip, weight}]`，`click.` 开头的键（`click.repeat` 除外）是 `events` 的池子，其余有审过的 `motion_library` 片段时是它们，否则是 `events` 或 `idle_tiers` 的池子；`proposal` 是提议加进来的 `[{clip, weight: 1, why}]`，`why` 为 `token:<规则 id>` 或 `structure:chain|loop|one_shot`；`rejected` 是规则指到这个池子、但过不了动作选择器的池子检查（同 `PUT /behavior/motion_prefs` 覆盖池子的检查）的 `[{clip, reason}]`，`reason` 为 `unknown_clip`、`stance_mismatch`、`excluded_family`、`no_return`。
-- 动作图的每个片段正好落在一处，按顺序取第一条成立的：在某个 `pack` 里或在它们抽出的链里（`counts.pooled`）；动作图的 `group` 不是 `unwired`，包用别的方式播它（`excluded`，`reason: "wired"`）；排除规则（`excluded`，`reason` 是规则的，如 `battle`、`monster`、`cutscene`、`locomotion`、`prop`）；不是动作图 `chains` 的键，只在别的片段的链里（`excluded`，`reason: "in_chain"`）；名字规则；结构规则：链在起头之后有循环 → `chain`，起止姿势相同、有这个姿势的空闲档的循环 → `loop`，站着开始、链停在站姿、短于 4 s 的一次性片段 → `one_shot`；都不成立的进 `unclassified`（片段名列表）。名字和结构规则各列一串池子键（`idle.*` 是按顺序的每个空闲档），取其中动作选择器认得、姿势等于片段起始姿势的第一个，没有就取认得的第一个；一个都不认得的名字规则跳过。
-- `counts` `{clips, pooled, proposed, rejected, excluded, unclassified}`，后五项加起来等于 `clips`（动作图的片段数）。
+- 200 `{character, pools, excluded, unclassified, counts}`。`pools` 是动作选择器认得的每个池子键（agentd 认得的每个事件键，包里没有的也在，和 `idle.t<n>`）→ `{posture, pack, proposal, rejected}`：`posture` 是这个池子的姿势；`pack` 是包自己的池子（不算用户的覆盖），`[{clip, weight}]`，`click.` 开头的键（`click.repeat` 除外）是 `events` 的池子，其余有审过的 `motion_library` 片段时是它们，否则是 `events` 或 `idle_tiers` 的池子，包里没有的键为 `[]`；`proposal` 是提议加进来的 `[{clip, weight: 1, why}]`，`why` 为 `token:<规则 id>`、`meaning:<规则 id>` 或 `structure:chain|loop|one_shot`，同一片段可以出现在多个池子的 `proposal`；`rejected` 是规则指到这个池子、但过不了动作选择器的池子检查（同 `PUT /behavior/motion_prefs` 覆盖池子的检查）的 `[{clip, reason}]`，`reason` 为 `unknown_clip`、`stance_mismatch`、`excluded_family`、`no_return`。
+- 动作图的片段按顺序取第一条成立的：在某个 `pack` 里或在它们抽出的链里（`counts.pooled`）；动作图的 `group` 不是 `unwired`，包用别的方式播它（`excluded`，`reason: "wired"`）；排除规则（`excluded`，`reason` 是规则的，如 `battle`、`monster`、`cutscene`、`locomotion`、`prop`）；不是动作图 `chains` 的键，只在别的片段的链里（`excluded`，`reason: "in_chain"`）；名字规则（第一条有池子的）和每条词义规则；这些都没有时结构规则：链在起头之后有循环 → `chain`，起止姿势相同、有这个姿势的空闲档的循环 → `loop`，站着开始、链停在站姿、短于 4 s 的一次性片段 → `one_shot`；都不成立的进 `unclassified`（片段名列表）。`excluded` 和 `unclassified` 里的片段不在任何 `proposal`、`rejected` 里。名字和结构规则各列一串池子键（`idle.*` 是按顺序的每个空闲档），取其中动作选择器认得、姿势等于片段起始姿势的第一个，没有就取认得的第一个；一个都不认得的名字规则跳过。
+- 词义规则（`meanings`，各带 `id`）：片段名按 `_` 切成词、小写、去掉词尾数字，有一个词在规则的词表里就成立，每条成立的规则把片段提议进它列的每个事件键；键 `k` 对站姿起始的片段就是 `k`，对别的起始姿势是 `k@<姿势>`（坐着起始的片段只进 `@sit` 的键），本身带 `@` 的键只给这个姿势起始的片段，动作选择器不认得的键跳过；同一片段同一池子只记第一条规则。已在包池子里的片段只走词义规则，只提议进它不在其 `pack` 里的池子，且须是动作图 `chains` 的键、不中排除规则。
+- `counts` `{clips, pooled, proposed, rejected, excluded, unclassified, proposals}`：每个片段只记一次，记在它的第一类（`pooled`、`proposed`、`rejected`、`excluded`、`unclassified` 的顺序），这五项加起来等于 `clips`（动作图的片段数）；`proposals` 是所有池子 `proposal` 的条数之和。
 - 示例：`fixtures/motion-groups.json`（`loose-fields.json` 里 `pools` 的键不固定）。
 
 **`GET /characters/:character_id/mod-settings`**

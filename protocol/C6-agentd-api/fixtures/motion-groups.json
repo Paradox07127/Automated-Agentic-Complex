@@ -6,9 +6,21 @@
       "pack": [{"clip": "nod", "weight": 2}],
       "proposal": [{"clip": "dialog_single_bow", "weight": 1, "why": "token:dialog_single"}],
       "rejected": [{"clip": "dialog_single_kneel", "reason": "no_return"}]
+    },
+    "user.greet": {
+      "posture": "stand",
+      "pack": [],
+      "proposal": [{"clip": "dialog_single_bow", "weight": 1, "why": "meaning:greet"}],
+      "rejected": []
+    },
+    "session.done": {
+      "posture": "stand",
+      "pack": [],
+      "proposal": [{"clip": "nod", "weight": 1, "why": "meaning:nod"}],
+      "rejected": []
     }
   },
   "excluded": [{"clip": "battle_loop", "reason": "battle"}],
-  "unclassified": ["long_bow"],
-  "counts": {"clips": 5, "pooled": 1, "proposed": 1, "rejected": 1, "excluded": 1, "unclassified": 1}
+  "unclassified": ["long_kneel"],
+  "counts": {"clips": 5, "pooled": 1, "proposed": 1, "rejected": 1, "excluded": 1, "unclassified": 1, "proposals": 3}
 }

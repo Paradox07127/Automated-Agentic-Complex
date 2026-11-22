@@ -13,6 +13,32 @@
     {"id": "relax_sp", "tokens": ["relax_sp", "relax_react"], "pools": ["idle.t3", "idle.*"]},
     {"id": "uiteam_idle", "tokens": ["uiteam_idle"], "pools": ["idle.t1", "idle.*"]}
   ],
+  "meanings": [
+    {"id": "startled", "words": ["surprise", "fear", "alert"], "pools": ["pinch.cheek", "click.single", "click.repeat"]},
+    {"id": "annoyed", "words": ["angry", "censure", "tsundere", "blame", "clench", "stop"], "pools": ["pinch.annoyed", "click.repeat"]},
+    {"id": "shy", "words": ["shy", "titter", "tsundere"], "pools": ["pat.head", "click.cheek"]},
+    {"id": "touch_face", "words": ["touchnose", "scratchface", "touchbrow"], "pools": ["click.face", "click.cheek"]},
+    {"id": "touch_head", "words": ["scratchhead", "touchbrow"], "pools": ["click.head"]},
+    {"id": "arms_crossed", "words": ["chesthugging", "holdarm"], "pools": ["click.chest", "session.approval", "session.input"]},
+    {"id": "hands_on_hips", "words": ["akimbo", "akimboleft", "akimboright"], "pools": ["click.waist", "pinch.annoyed", "session.approval"]},
+    {"id": "hands", "words": ["clasp", "receive", "gift", "receivemoney"], "pools": ["click.hand", "present.snap"]},
+    {"id": "think", "words": ["think", "muse", "mime", "scratchhead", "padthink", "thinkakimbo", "thinkship", "sitread", "idea"], "pools": ["session.thinking", "session.tool"]},
+    {"id": "work", "words": ["pad", "padlook", "operate", "type", "adjust", "play", "spell", "earphone", "stretchhandf", "stretchhandm", "stretchhandflean", "stretchhandmlean"], "pools": ["session.tool", "session.background"]},
+    {"id": "delegate", "words": ["supervise", "call", "callup", "watch"], "pools": ["session.subagent", "session.tool"]},
+    {"id": "ask", "words": ["halfraise", "extend", "introduction", "callup", "listen"], "pools": ["session.input", "session.approval"]},
+    {"id": "lean_in", "words": ["anteversion", "listen"], "pools": ["user.hover", "session.input"]},
+    {"id": "greet", "words": ["wave", "bow"], "pools": ["user.greet", "present.snap", "character.enter"]},
+    {"id": "present", "words": ["snap", "point", "stepfront", "serving", "introduction"], "pools": ["present.snap"]},
+    {"id": "nod", "words": ["nod"], "pools": ["session.done", "session.input"]},
+    {"id": "cheer", "words": ["thumb", "thumbself", "fistdouble", "strive", "akimbolaugh", "cofidence", "dignified", "sighrelief", "idea", "wipe"], "pools": ["session.done"]},
+    {"id": "tired", "words": ["tired", "tiredsit", "yawn", "sigh"], "pools": ["session.stale", "session.error", "rest.sleep@sit"]},
+    {"id": "dismay", "words": ["lose", "surrender", "shake", "shakehead", "sorryfinger", "cough"], "pools": ["session.error"]},
+    {"id": "look_left", "words": ["lookbackleft"], "pools": ["look.left", "user.hover"]},
+    {"id": "look_right", "words": ["lookbackright"], "pools": ["look.right", "user.hover"]},
+    {"id": "look", "words": ["look"], "pools": ["look.left", "look.right", "user.hover"]},
+    {"id": "break", "words": ["tea", "bread", "rest"], "pools": ["session.background", "session.stale"]},
+    {"id": "seated", "words": ["sit", "sitmild"], "pools": ["session.thinking@sit", "session.subagent@sit", "rest.sleep@sit"]}
+  ],
   "structure": {"chain": ["idle.*"], "loop": ["idle.*"], "one_shot": ["click.single", "click.repeat"]},
   "one_shot_max_s": 4
 }
