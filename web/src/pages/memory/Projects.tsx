@@ -1,6 +1,7 @@
 import { useState, type Ref } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { get, seg } from '../../bridge/agentd';
+import { keyText } from '../../bridge/platformText';
 import type { MemoryTaskResponse, MemoryTasksResponse } from '../../bridge/agentd-routes.generated';
 import { secToMs } from '../../domain/units';
 import { Empty, ErrBar, KV, OpenSec, Region, Row, RowPlate, SearchField, Sheet, Skel, type RegionSource } from '../../ui';
@@ -43,7 +44,7 @@ export function Projects({ source, q, onQ, searchRef, onSession }: ProjectsProps
   return (
     <OpenSec title="项目" count={source.data?.filter((t) => projectMatches(t, q)).length}>
       <div className={styles.tools}>
-        <SearchField inputRef={searchRef} value={q} label="搜索记忆" placeholder="搜索项目和记忆 ⌘F" onChange={onQ} />
+        <SearchField inputRef={searchRef} value={q} label="搜索记忆" placeholder={keyText('搜索项目和记忆 ⌘F')} onChange={onQ} />
       </div>
       <Region q={source} what="项目" reserve={{ rows: 4 }} empty={{ text: '还没有项目，后台整理会话后会列在这里' }}>
         {(tasks) => {

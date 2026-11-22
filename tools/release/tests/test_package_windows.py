@@ -180,6 +180,16 @@ class PackageWindowsTests(unittest.TestCase):
                               layout='portable', port=48820, defaultCharacter=catalog.get('default_character')))
         self.assertRegex(distribution['catalogSHA256'], '^[0-9a-f]{64}$')
 
+    def test_the_browser_host_sits_beside_agentd_where_the_shell_looks_for_it(self):
+        self.stage()
+        # app/electron/src/main/index.ts: resolve(agentdDir, '..', 'browser', 'native_host.py'), agentdDir the payload's agentd.
+        payload = self.output / 'Agentic Complex/resources/components/agentd/payload'
+        self.assertTrue((payload / 'agentd/codex_hook_forward.py').is_file())
+        browser = payload / 'agentd' / '..' / 'browser'
+        self.assertEqual(sorted(path.name for path in browser.iterdir()), ['extension-origin', 'native_host.py'])
+        for name in ('native_host.py', 'extension-origin'):
+            self.assertEqual((browser / name).read_bytes(), (ROOT / 'agent/browser' / name).read_bytes())
+
     def test_no_payload_is_staged_in_a_mkdtemp_directory(self):
         # On Windows mkdtemp's directory admits only its creator, and what is moved out of it keeps that ACL.
         with patch.object(tempfile, 'mkdtemp', wraps=tempfile.mkdtemp) as mkdtemp:

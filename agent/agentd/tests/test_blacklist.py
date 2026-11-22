@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -38,7 +39,7 @@ class BlacklistTest(unittest.TestCase):
                              ("keepass.exe", "KeePass"), ("wechat.exe", "WeChat"), ("weixin.exe", "Weixin"), ("qq.exe", "QQ"),
                              ("slack.exe", "Slack"), ("telegram.exe", "Telegram Desktop"), ("whatsapp.exe", "WhatsApp"),
                              ("5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App", "WhatsApp"), ("discord.exe", "Discord"),
-                             ("line.exe", "LINE")):
+                             ("line.exe", "LINE"), ("endfield.exe", "Arknights: Endfield Game")):
             with self.subTest(app_id=app_id):
                 self.assertTrue(blacklist.hides({"app": name, "bundle_id": app_id, "title": "chat"}))
                 self.assertEqual(blacklist.scrub({"app": name, "bundle_id": app_id, "pid": 4}), HIDDEN)
@@ -69,6 +70,12 @@ class BlacklistTest(unittest.TestCase):
         self.assertTrue(blacklist.hides({"app": "Endfield", "bundle_id": bundle}))
         self.assertEqual(blacklist.scrub({"app": "Endfield", "bundle_id": bundle, "title": "private"}), HIDDEN)
         self.assertFalse(blacklist.hides({"app": "Fixture", "bundle_id": "local.agenticcomplex.controlfixture"}))
+        # On Windows the helper's app_id of the packaged exe: its lower-case name.
+        packager = (Path(__file__).resolve().parents[3] / "tools/release/package_windows.py").read_text(encoding="utf-8")
+        [executable] = re.findall(r"^EXECUTABLE = '([^']+)'$", packager, re.M)
+        windows = {"app": "Agentic Complex", "bundle_id": executable.lower(), "title": "private"}
+        self.assertTrue(blacklist.hides(windows))
+        self.assertEqual(blacklist.scrub(windows), HIDDEN)
         self.assertEqual(self.path.read_bytes(), before, "existing user blacklist is not rewritten")
 
     def test_existing_file_is_kept(self):

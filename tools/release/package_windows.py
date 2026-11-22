@@ -39,6 +39,8 @@ RUNTIME_IMPORTS = 'ssl, sqlite3, ctypes, httpx, jwt, mcp, numpy, pydantic_core, 
 ICON_SOURCE = 'brand/AppIcon-1024.png'
 # Electron's locales\*.pak the package keeps: Chromium falls back to en-US.pak for any other system language.
 LOCALES = ('en-US', 'ja', 'zh-CN', 'zh-TW')
+# What agent/browser/native_host.py reads at run time; main/index.ts looks for it in browser\ beside agentd\.
+BROWSER_HOST_FILES = ('native_host.py', 'extension-origin')
 # contents() lists every file at least this large.
 LARGE_FILE = 100 * 1024 * 1024
 
@@ -163,6 +165,8 @@ def stage(*, library, python, harness_runtime, web_dist, electron_runtime, elect
         components = build_components.stage_components(component_stage, python=python,
             harness_runtime=harness_runtime, web_dist=web_dist, ui_art=ui_art, library=library, build_version=build_version,
             fbx_tool=fbx_tool, platform=PLATFORM)
+        browser = component_stage / 'agentd/payload/browser'; browser.mkdir()
+        for name in BROWSER_HOST_FILES: shutil.copy2(ROOT / 'agent/browser' / name, browser / name)
         host = component_stage / 'host/payload'
         product_name, app_version = product_name or 'Agentic Complex', app_version or '0.2.0'
         host_paths = stage_host(host, electron_runtime, electron_dir, helper, product_name, app_version)

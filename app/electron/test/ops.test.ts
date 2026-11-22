@@ -8,7 +8,7 @@ import { handle } from '../src/common/bridge.ts';
 import { type EventFeed, FeedSource, silentSource } from '../src/common/feed.ts';
 import { type Cancel, PageSession, type StreamEvent } from '../src/common/page.ts';
 import { checkRequest, isExportPath, RouteTable, swapHandles } from '../src/common/routes.ts';
-import { current, desktopHotkeys, hotkeyName, planSave, schema, webHotkey } from '../src/common/settings.ts';
+import { current, desktopHotkeys, hotkeyName, parseChanges, planSave, schema, snapshot, webHotkey } from '../src/common/settings.ts';
 import type { HandedItem } from '../src/common/stack-cards.ts';
 import { ORIGIN } from '../src/common/ui.ts';
 import { DropHandover } from '../src/main/handover/drop.ts';
@@ -559,6 +559,25 @@ test('desktop.onState hotkeys: each hot key row by web id as the page shows it, 
     { hk_ptt: '右⌥', hk_quick: '⌃⌥K', hk_hide: '⌃⌥H', hk_pass: '⌃⌥P', hk_wheel: '⌃⌥R' });
   assert.deepEqual(desktopHotkeys({ hotkey_quick_input: 'command+shift+k', hotkey_look: 'bogus+' }, 'windows'),
     { hk_ptt: '右Alt', hk_quick: 'Shift+Win+K', hk_hide: 'Ctrl+Alt+H', hk_pass: 'Ctrl+Alt+P', hk_wheel: 'Ctrl+Alt+R' });
+});
+
+test('hot key statuses and refusals name Ctrl, Alt and Win on Windows and keep the macOS caps on macOS', () => {
+  const refused = { hotkey_click_through: 'control+option+p' };
+  const status = (platform: 'mac' | 'windows') =>
+    (snapshot(refused, null, true, platform, refused) as { statuses: Record<string, string> }).statuses.hk_pass;
+  assert.equal(status('mac'), '「⌃⌥P」没设上，可能被别的程序占用，请换一个');
+  assert.equal(status('windows'), '「Ctrl+Alt+P」没设上，可能被别的程序占用，请换一个');
+  const refusal = (id: string, combo: string, platform: 'mac' | 'windows') => {
+    try {
+      parseChanges({ [id]: combo }, () => {}, platform);
+    } catch (e) {
+      return (e as Error).message;
+    }
+    return null;
+  };
+  assert.equal(refusal('hk_ptt', '⇧K', 'mac'), '「按住说话」不能设成 ⇧K：要用带 ⌃、⌥ 或 ⌘ 的组合键，或 F1–F12，或 右⌥');
+  assert.equal(refusal('hk_ptt', '⇧K', 'windows'), '「按住说话」不能设成 Shift+K：要用带 Ctrl、Alt 或 Win 的组合键，或 F1–F12，或 右Alt');
+  assert.equal(refusal('hk_quick', '⌘⌘K', 'windows'), '「快速输入」不能设成 Win+Win+K：要用带 Ctrl、Alt 或 Win 的组合键，或 F1–F12');
 });
 
 test('avatar.details: photo, capture and filters count when she and the link both list them (WebAvatarWatch.details)', () => {

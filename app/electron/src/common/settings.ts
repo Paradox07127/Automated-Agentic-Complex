@@ -245,8 +245,8 @@ export function webHotkey(name: string): string | null {
 
 const WINDOWS_CAPS: Readonly<Record<string, string>> = { '⌃': 'Ctrl', '⌥': 'Alt', '⇧': 'Shift', '⌘': 'Win' };
 
-/** web/src/bridge/platformText.ts `hotkeyText`: `Ctrl+Alt+H`, `右Alt`. */
-const windowsCaps = (caps: string) => caps.replace(/[⌃⌥⇧⌘]/g, (cap, at: number) => WINDOWS_CAPS[cap] + (at + 1 < caps.length ? '+' : ''));
+/** web/src/bridge/platformText.ts `hotkeyText`: `Ctrl+Alt+H`, `右Alt`, `带 Ctrl、Alt 或 Win 的`. */
+const windowsCaps = (caps: string) => caps.replace(/[⌃⌥⇧⌘]/g, (cap, at: number) => WINDOWS_CAPS[cap] + (/^[^\s、，。）)]/.test(caps.slice(at + 1)) ? '+' : ''));
 
 /** `desktop.onState`'s `hotkeys`: these rows' key caps by web id, in words on Windows; a name that is no hot key is left out. */
 export function desktopHotkeys(saved: Record<string, unknown>, platform: ShellPlatform = 'mac'): Record<string, string> {
@@ -360,7 +360,8 @@ export function snapshot(saved: Record<string, SettingValue>, login: boolean | n
   const state = current(saved, login, platform, refused);
   const statuses: Record<string, string> = {};
   for (const [id, raw] of Object.entries(state.broken)) statuses[id] = `配置里的「${raw}」不是有效热键，按默认显示`;
-  for (const [id, name] of Object.entries(state.unregistered)) statuses[id] = `「${webHotkey(name) ?? name}」没设上，可能被别的程序占用，请换一个`;
+  const caps = (name: string) => (platform === 'windows' ? windowsCaps(webHotkey(name) ?? name) : webHotkey(name) ?? name);
+  for (const [id, name] of Object.entries(state.unregistered)) statuses[id] = `「${caps(name)}」没设上，可能被别的程序占用，请换一个`;
   if (!state.loginFromSystem) statuses.login = '测试实例不改系统登录项';
   if (!cameraBust) statuses['beh.stay'] = '这个版本的角色还不支持半身固定';
   const values = Object.fromEntries(ROWS.map((row) => [row.id, webValue(row, state.values[row.item.key]!)]));
@@ -418,7 +419,8 @@ function parseValue(raw: unknown, row: Row, platform: ShellPlatform): SettingVal
   else if (c.kind === 'hotkey') allowed = '要用带 ⌃、⌥ 或 ⌘ 的组合键，或 F1–F12' + (allowsRightOption(row) ? '，或 右⌥' : '');
   else if (c.kind === 'slider') allowed = `范围 ${c.min.toFixed(1)}…${c.max.toFixed(1)}`;
   else allowed = '可选 true / false';
-  throw new Rejection(`「${row.item.label}」不能设成 ${describe(raw)}：${allowed}`);
+  const shown = c.kind === 'hotkey' && platform === 'windows' ? windowsCaps : (s: string) => s;
+  throw new Rejection(`「${row.item.label}」不能设成 ${shown(describe(raw))}：${shown(allowed)}`);
 }
 
 /** protocol.ts `HotkeyCheck` of `combo` for row `id` against the other hot keys in `saved` and the page's fixed ⌘K. */

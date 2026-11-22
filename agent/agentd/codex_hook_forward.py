@@ -45,6 +45,65 @@ ENV_FIELDS = (("entrypoint", "CLAUDE_CODE_ENTRYPOINT"), ("bundle_id", "__CFBundl
               ("kitty_listen_on", "KITTY_LISTEN_ON"))
 
 
+# What the agent runs a hook command through on Windows; they exit with the hook, before any jump.
+WINDOWS_SHELLS = frozenset(("cmd.exe", "conhost.exe", "powershell.exe", "pwsh.exe"))
+
+
+def _windows_processes():
+    """{pid: (parent pid, lower-case exe name)} of every process, from a Toolhelp32 snapshot."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Entry(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD), ("th32ProcessID", wintypes.DWORD),
+                    ("th32DefaultHeapID", ctypes.c_size_t), ("th32ModuleID", wintypes.DWORD),
+                    ("cntThreads", wintypes.DWORD), ("th32ParentProcessID", wintypes.DWORD),
+                    ("pcPriClassBase", wintypes.LONG), ("dwFlags", wintypes.DWORD),
+                    ("szExeFile", wintypes.WCHAR * 260)]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    kernel32.CreateToolhelp32Snapshot.argtypes = (wintypes.DWORD, wintypes.DWORD)
+    for name in ("Process32FirstW", "Process32NextW"):
+        getattr(kernel32, name).argtypes = (wintypes.HANDLE, ctypes.POINTER(Entry))
+        getattr(kernel32, name).restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    snapshot = kernel32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    if snapshot in (None, ctypes.c_void_p(-1).value):
+        raise OSError(ctypes.get_last_error(), "CreateToolhelp32Snapshot failed")
+    processes, entry = {}, Entry()
+    entry.dwSize = ctypes.sizeof(Entry)
+    try:
+        more = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
+        while more:
+            processes[entry.th32ProcessID] = (entry.th32ParentProcessID, entry.szExeFile.lower())
+            more = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
+    finally:
+        kernel32.CloseHandle(snapshot)
+    return processes
+
+
+def _agent_pid(processes=None):
+    """The pid the jump starts from: the parent, on Windows its first ancestor that is none of WINDOWS_SHELLS (the agent
+    CLI); the parent when the walk finds none."""
+    parent = os.getppid()
+    if os.name != "nt":
+        return parent
+    try:
+        processes = _windows_processes() if processes is None else processes
+    except OSError:
+        return parent
+    pid = parent
+    for _ in range(64):  # a reused pid can make the parent links a loop
+        if pid not in processes:
+            break
+        up, exe = processes[pid]
+        if exe not in WINDOWS_SHELLS:
+            return pid
+        pid = up
+    return parent
+
+
 def origin(env=None):
     env = os.environ if env is None else env
     tty, tmux = _tty(), env.get("TMUX") or None
@@ -57,7 +116,7 @@ def origin(env=None):
     # Inside tmux TERM_PROGRAM is "tmux"; finding the outer terminal is left to the shell.
     return {"kind": kind, "term_program": env.get("TERM_PROGRAM") or None, "tty": tty,
             "tmux_pane": env.get("TMUX_PANE") or None, "tmux_socket": tmux.split(",")[0] if tmux else None,
-            "pid": os.getppid(), **{field: env.get(var) or None for field, var in ENV_FIELDS}}
+            "pid": _agent_pid(), **{field: env.get(var) or None for field, var in ENV_FIELDS}}
 
 
 def with_origin(raw, started):

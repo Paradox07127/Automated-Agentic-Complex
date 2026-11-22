@@ -4,6 +4,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
+import { createFakeBridge } from '../../src/bridge/fake';
 import { demos } from '../../src/pages/home/demos';
 import { BANNER, BAR_SLOTS, CARD, COUNTERS, leftTiles, rightTiles, STAGE, TOP_ICONS, type Box } from '../../src/pages/home/geometry';
 import { HomePage } from '../../src/pages/home/Page';
@@ -72,6 +73,19 @@ describe('home tiles', () => {
     setDevMode(false);
     mount();
     expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(ACTIONS);
+  });
+
+  it('spells the key hints Ctrl on the Windows shell', async () => {
+    window.agenticComplex = { ...createFakeBridge({ surface: 'main', still: true }), platform: 'windows' };
+    try {
+      mount();
+      const main = await screen.findByRole('group', { name: '主要页面' });
+      expect(within(main).getByRole('button', { name: '对话' }).textContent).toContain('Ctrl+2');
+      expect(within(screen.getByRole('group', { name: '工具' })).getByRole('button', { name: '搜索' }).textContent).toContain('Ctrl+K');
+      expect(document.body.textContent).not.toMatch(/[⌘⌃⌥⇧]/);
+    } finally {
+      delete window.agenticComplex;
+    }
   });
 
   it('writes each key name under its icon', async () => {

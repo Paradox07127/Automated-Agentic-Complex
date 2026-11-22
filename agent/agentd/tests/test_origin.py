@@ -114,6 +114,58 @@ class OriginTest(unittest.TestCase):
                           "wezterm_pane": "7", "kitty_window_id": "3", "kitty_listen_on": "unix:/tmp/kitty-501",
                           "entrypoint": None})
 
+    def test_windows_pid_is_the_first_ancestor_past_the_hook_shells(self):
+        """Codex runs the .cmd through cmd /C; Claude Code through PowerShell; a non-ASCII path adds PowerShell."""
+        processes = {40: (30, "powershell.exe"), 30: (20, "cmd.exe"), 20: (10, "pwsh.exe"), 10: (5, "claude.exe"),
+                     5: (1, "windowsterminal.exe"), 70: (60, "cmd.exe"), 60: (50, "cmd.exe"), 50: (5, "codex.exe")}
+        for parent, expected in ((40, 10), (70, 50), (10, 10)):
+            with self.subTest(parent=parent), mock.patch.object(codex_hook_forward.os, "name", "nt"), \
+                    mock.patch.object(codex_hook_forward.os, "getppid", return_value=parent):
+                self.assertEqual(codex_hook_forward._agent_pid(processes), expected)
+
+    def test_windows_pid_stays_the_parent_when_the_walk_finds_no_agent(self):
+        gone = {40: (30, "cmd.exe")}  # 30 has exited
+        loop = {40: (30, "cmd.exe"), 30: (40, "conhost.exe")}
+        for processes in (gone, loop, {}):
+            with self.subTest(processes=processes), mock.patch.object(codex_hook_forward.os, "name", "nt"), \
+                    mock.patch.object(codex_hook_forward.os, "getppid", return_value=40):
+                self.assertEqual(codex_hook_forward._agent_pid(processes), 40)
+        with mock.patch.object(codex_hook_forward.os, "name", "nt"), \
+                mock.patch.object(codex_hook_forward.os, "getppid", return_value=40), \
+                mock.patch.object(codex_hook_forward, "_windows_processes", side_effect=OSError):
+            self.assertEqual(codex_hook_forward._agent_pid(), 40)
+
+    def test_pid_is_the_parent_outside_windows(self):
+        with mock.patch.object(codex_hook_forward.os, "name", "posix"), \
+                mock.patch.object(codex_hook_forward.os, "getppid", return_value=40), \
+                mock.patch.object(codex_hook_forward, "_windows_processes") as walk:
+            self.assertEqual(codex_hook_forward._agent_pid(), 40)
+        walk.assert_not_called()
+
+    @unittest.skipUnless(sys.platform == "win32", "walks the real Windows process tree")
+    def test_windows_pid_skips_the_real_cmd_and_powershell(self):
+        """A hook started through cmd.exe or powershell.exe records this test's own python.exe, which outlives them."""
+        with tempfile.TemporaryDirectory() as tmp:
+            probe = Path(tmp) / "probe.py"
+            probe.write_text("import os, sys\nsys.path.insert(0, sys.argv[1])\nimport codex_hook_forward\n"
+                             "print(os.getppid(), codex_hook_forward._agent_pid())\n", encoding="utf-8")
+            agentd = str(Path(codex_hook_forward.__file__).parent)
+            # A venv's python.exe starts the base one as its child: the probe would record that launcher.
+            python = getattr(sys, "_base_executable", sys.executable)
+            powershell = Path(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "WindowsPowerShell", "v1.0",
+                              "powershell.exe")
+            runs = {"cmd": f'cmd.exe /d /s /c ""{python}" -I "{probe}" "{agentd}""',
+                    "powershell": [str(powershell), "-NoProfile", "-NonInteractive", "-Command",
+                                   f"& '{python}' -I '{probe}' '{agentd}'"]}
+            for name, argv in runs.items():
+                with self.subTest(shell=name):
+                    done = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+                                          creationflags=subprocess.CREATE_NO_WINDOW)
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                    parent, agent = map(int, done.stdout.split())
+                    self.assertNotEqual(parent, os.getpid())
+                    self.assertEqual(agent, os.getpid())
+
     def test_events_keep_only_valid_origin_fields(self):
         good = {"kind": "tmux", "term_program": "tmux", "tty": "/dev/ttys004", "tmux_pane": "%3",
                 "tmux_socket": "/private/tmp/tmux-501/default", "pid": 4321, "entrypoint": "cli",

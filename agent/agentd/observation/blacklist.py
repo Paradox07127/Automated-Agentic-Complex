@@ -16,9 +16,10 @@ ALLOW_FIELDS = ("bundle_ids", "app_names", "domains")  # the lists of "allow"
 MODES = ("allow", "deny")
 WINDOW_KEYS = ("app", "bundle_id", "pid", "window_id", "title", "url_host", "category")
 TITLE_MAX = 256
-# Never observe the control panel itself, even with an old or customized blacklist.json.
+# Never observe the control panel itself, even with an old or customized blacklist.json; on Windows its app_id is the
+# lower-case tools/release/package_windows.py EXECUTABLE.
 # Other local.agenticcomplex.* bundles (including user test fixtures) are not implicitly hidden.
-CONTROL_PANEL_BUNDLES = frozenset((COMPANION_BUNDLE,))
+CONTROL_PANEL_BUNDLES = frozenset((COMPANION_BUNDLE, "agentic complex.exe"))
 DEFAULTS = {
     "schema": 1,
     "bundle_ids": ["com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
@@ -28,7 +29,7 @@ DEFAULTS = {
                    # Windows: the helper's app_id, a lower-case exe name or a packaged app's AUMID.
                    "1password.exe", "bitwarden.exe", "keepass.exe", "keepassxc.exe", "wechat.exe", "weixin.exe",
                    "qq.exe", "slack.exe", "telegram.exe", "whatsapp.exe", "5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App",
-                   "discord.exe", "line.exe"],
+                   "discord.exe", "line.exe", "endfield.exe"],
     "app_names": ["Endfield.exe", "Arknights: Endfield", "明日方舟：终末地"],
     "domains": ["1password.com", "bitwarden.com", "icbc.com.cn", "ccb.com", "boc.cn", "abchina.com",
                 "bankcomm.com", "cmbchina.com", "paypal.com", "alipay.com", "web.whatsapp.com",

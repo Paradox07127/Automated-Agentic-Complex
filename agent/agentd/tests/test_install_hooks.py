@@ -1,3 +1,4 @@
+import base64
 import contextlib
 import http.server
 import io
@@ -581,6 +582,19 @@ class DefaultLocationTest(unittest.TestCase):
                 self.assertIn("Stop", json.loads(path.read_text(encoding="utf-8"))["hooks"], path)
 
 
+def windows_hook_cmd(python, flags, script):
+    """The .cmd app/electron/src/common/onboarding.ts binScript writes for a path that is not ASCII, without arguments."""
+    def literal(s):
+        return "'" + s.replace("'", "''") + "'"
+    target = " ".join([*flags, f'"{script}"'])
+    command = (f"$ProgressPreference='SilentlyContinue';$p=[System.Diagnostics.Process]::new();$p.StartInfo.FileName={literal(python)};"
+               f"$p.StartInfo.Arguments={literal(target + ' ')}+$env:AGENTIC_COMPLEX_ARGS;$p.StartInfo.UseShellExecute=$false;"
+               "[void]$p.Start();$p.WaitForExit();exit $p.ExitCode")
+    powershell = '"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoLogo -NoProfile -NonInteractive'
+    encoded = base64.b64encode(command.encode("utf-16-le")).decode("ascii")
+    return f'@echo off\r\nset "AGENTIC_COMPLEX_ARGS=%*"\r\n{powershell} -EncodedCommand {encoded}\r\n'
+
+
 @unittest.skipUnless(sys.platform == "win32", "runs cmd.exe and PowerShell the way Codex and Claude Code run a hook")
 class WindowsHookRunTest(InstallerCase):
     def test_both_commands_post_to_agentd_from_a_support_dir_with_a_space_and_non_ascii(self):
@@ -609,9 +623,7 @@ class WindowsHookRunTest(InstallerCase):
         shutil.copy(AGENTD / "codex_hook_forward.py", forwarder)
         script = support / "bin" / "agentic-complex-hook.cmd"
         script.parent.mkdir()
-        # The .cmd app/electron/src/common/onboarding.ts hookScript writes for a path that is not ASCII.
-        line = f'"{sys.executable.replace("%", "%%")}" -I -B "{str(forwarder).replace("%", "%%")}" %*'
-        script.write_bytes(f"@echo off\r\nchcp 65001 >nul\r\n{line}\r\n".encode("utf-8"))
+        script.write_bytes(windows_hook_cmd(sys.executable, ["-I", "-B"], str(forwarder)).encode("ascii"))
         self.token = support / "agentd-state" / "hook.token"
         self.token.parent.mkdir()
         self.token.write_text("tok-123\n", encoding="utf-8")

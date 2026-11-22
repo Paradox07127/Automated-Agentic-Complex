@@ -1,4 +1,5 @@
 import { useRef, useState, type Ref } from 'react';
+import { keyText } from '../../bridge/platformText';
 import { gameClips } from '../../design/gameClips.generated';
 import type { Fact, MemorySource } from '../../domain';
 import { useDevMode } from '../../shell/devMode';
@@ -205,7 +206,7 @@ export function FactList(p: FactListProps) {
       {facts.length > 0 && (
         <div className={styles.tools} role="toolbar" aria-label="搜索、排序、分组跳转">
           <span className={styles.search}>
-            <SearchField inputRef={p.searchRef} value={q} label="搜索记忆" placeholder="搜索记忆 ⌘F" onChange={p.onQ} />
+            <SearchField inputRef={p.searchRef} value={q} label="搜索记忆" placeholder={keyText('搜索记忆 ⌘F')} onChange={p.onQ} />
           </span>
           <span className={m.cap}>排序</span>
           <Seg size="sm" label="排序" value={sort} options={SORTS} onChange={(v) => setSort(v as Sort)} />

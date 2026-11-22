@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getBridge } from '../../../bridge';
 import { AgentdCallError, resetVoice, saveVoiceToken, testVoice } from '../../../bridge/agentd';
+import { hotkeyText } from '../../../bridge/platformText';
 import { CumulativeStep } from '../../../charts';
 import { formatDuration, isoToMsOrNull, type Cooldown, type VisualStateKey } from '../../../domain';
 import { voiceSource, voiceState, voiceText, type Voice, type VoiceState } from '../../../domain/voiceState';
@@ -268,7 +269,7 @@ export function SpeakGroup() {
             </>
           }
         />
-        <SetRow id="capHide" title="录屏时隐藏角色" desc="开始录屏或共享屏幕时隐藏一次，按 ⌃⌥H 显示" control={c.toggle('capHide', '录屏时隐藏角色')} />
+        <SetRow id="capHide" title="录屏时隐藏角色" desc={hotkeyText('开始录屏或共享屏幕时隐藏一次，按 ⌃⌥H 显示')} control={c.toggle('capHide', '录屏时隐藏角色')} />
       </SetSection>
 
       <SetSection title="通知方式">

@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { keyText } from '../../bridge/platformText';
 import { Breath, Icon, Kbd, type IconName } from '../../ui';
 import type { Box } from './geometry';
 import { SQUARE } from './outlines';
@@ -52,7 +53,7 @@ export function WatchKey({ box, pts, mid, big, icon, title, hotkey, off, g, onCl
           </span>
           {hotkey && (
             <span className={styles.hot}>
-              <Kbd>{hotkey}</Kbd>
+              <Kbd>{keyText(hotkey)}</Kbd>
             </span>
           )}
         </Slab>
