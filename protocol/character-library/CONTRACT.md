@@ -83,6 +83,14 @@ Vulkan 段：`vulkan/frame.bin` 是 Windows 渲染器读的帧表，由 `neutral
 | `components.game_data`、`components.ui.head` | 可选 | 见「纯文字角色包」一节最后一段 | `character_library.py:265-278` |
 | `character.json` 的 `base_package_version` | 可选 | 见「派生包的窗口包络」一节 | `HostFixedWindow.swift` |
 
+## 衣片的横向约束（bone-physics.json）
+
+每个物理队可给出 `sheet_links` 数组，按文件顺序参与现有布面距离约束求解。每项形如 `{"a":2,"b":5,"stiffness_scale":0.35}`，两端是本队 `particles` 的零起始索引。`stiffness_scale` 缩放该深度的弯曲刚度，取值为大于 0、小于或等于 1 的有限数。绑定间距从骨架静止姿势计算，模拟中的目标间距取自动画姿势。
+
+缺少这个字段时，运行时沿用原有的三角弯曲开关和空间邻近推断。显式空数组关闭该队的横向连接。有边时只求解列出的连接，调用方的全局布面开关仍然有效。
+
+每队上限为 2,048 条显式连接，两端须属于根粒子不同的链，至少一端可动，静止间距须有限且大于 0.0001 个角色空间单位。反向重复、与已有结构约束相同的连接、无效索引或非法数值都会导致物理文档加载失败。
+
 ## 外观和分层（c7/pack.json）
 
 schema 仍是 `endfield-character-pack/v1`，只加可选字段；包里没有 `layers` 时行为不变。
