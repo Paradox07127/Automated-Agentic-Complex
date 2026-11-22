@@ -571,6 +571,17 @@
     "value": true
   },
   {
+    "op": "avatar.preview.view",
+    "surface": "main",
+    "args": [
+      {
+        "turn": 45,
+        "zoom": 0.6
+      }
+    ],
+    "kind": "undefined"
+  },
+  {
     "op": "avatar.motionChain.check",
     "surface": "main",
     "args": [

@@ -41,7 +41,7 @@ const IMPLEMENTED = [
   'mmd.list', 'mmd.syncState', 'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.complete',
   'avatar.state', 'avatar.details', 'avatar.setVisible', 'avatar.stopSpeech', 'avatar.actions', 'avatar.playAction', 'avatar.stopAction',
   'avatar.setScale', 'avatar.keepClearOfMain', 'avatar.resetPosition', 'avatar.preview.show', 'avatar.preview.hide',
-  'avatar.preview.sequence', 'avatar.setAppearance', 'avatar.setLayers', 'avatar.setActionSwitches', 'avatar.modSettings.get',
+  'avatar.preview.sequence', 'avatar.preview.view', 'avatar.setAppearance', 'avatar.setLayers', 'avatar.setActionSwitches', 'avatar.modSettings.get',
   'avatar.modSettings.set', 'character.switchTo', 'permissions.status', 'permissions.request', 'permissions.openSettings',
   'open.jumpToSession', 'open.runFeedCommand', 'open.runInTerminal',
   'avatar.motionOverrides.get', 'avatar.motionOverrides.set', 'avatar.playChain', 'avatar.motionChain.check', 'avatar.motionChain.apply',
