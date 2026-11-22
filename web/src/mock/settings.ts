@@ -43,6 +43,7 @@ const ROWS: Row[] = [
   ['n_remind', 'speak', '提醒', 'sound', 'none', NOTIFY],
   ['sysnotify', 'speak', '改走 macOS 系统通知', true, 'none'],
   ['capHide', 'speak', '录屏时隐藏角色', true, 'none'],
+  ['switchTitle', 'speak', '切换角色时的雷霆大字', true, 'none'],
   ['avatar_click', '@character', '点击角色', 'interact', 'none', [['interact', '角色互动'], ['quick_input', '打开快速输入']]],
   ['hk_ptt', 'keys', '按住说话', '右⌥', 'none'],
   ['hk_quick', 'keys', '快速输入', '⌃Space', 'none'],

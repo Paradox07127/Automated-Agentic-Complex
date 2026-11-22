@@ -110,6 +110,7 @@ import { rendererReports } from './renderer/reports.ts';
 import { liveSaved } from './renderer/saved.ts';
 import { type Loading, lookArguments, RendererSupervisor } from './renderer/supervisor.ts';
 import { singleInstance } from './single-instance.ts';
+import { TitleOverlay, titleNames, titleScreen } from './title/overlay.ts';
 import { TunnelSupervisor } from './tunnel/supervisor.ts';
 import { uiServer, type UiResponse } from './ui-scheme.ts';
 import { guardWebContents, type WebGuardPorts } from './web-guard.ts';
@@ -418,9 +419,26 @@ const mmdSync = config?.characterCatalog && hostLink && switcher ? shellMmdSync(
   current: () => switcher.current,
   log: (line) => appendLog(config!.supportDir, 'companion', `AVATAR ${line}`),
 }) : null;
+/** 雷霆大字's window (title/overlay.ts) at each completed switch; its BrowserWindow is made at each title. */
+const titleOverlay = config && new TitleOverlay({
+  url: `${ORIGIN}/stack.html#/title`,
+  makeWindow: () => {
+    const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
+      webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
+    makeOverlay(win, 'title', addon);
+    guardWebContents(win.webContents, 'stack', webGuard);
+    return win;
+  },
+  toDip: (r) => c3Dip(screen)(r),
+  screen: () => titleScreen(placer?.currentScreen() ?? null, (cursorSpace ??= c3Space(screen)).screens()),
+  names: (id) => (config.characterCatalog ? titleNames(config.characterCatalog, id) : null)
+    ?? { name: config.characters.find((c) => c.id === id)?.name ?? id, en: '' },
+  enabled: () => readObject(configPath).switch_title !== false,
+});
 if (switcher) {
   switcher.onChange = (view) => {
     runtime.send({ kind: 'character', view });
+    titleOverlay?.view(view);
     void mmdSync?.sync.follow(view.current);
     pushToTalk?.agentd(agentdState.kind === 'running' && !view.switching && plan().has('pushToTalk'));
     menus.refreshIcon();
@@ -1173,6 +1191,7 @@ app.on('will-quit', (e) => {
   camera?.stop();
   cameraOverlay?.stop();
   resizeOverlay?.stop();
+  titleOverlay?.stop();
   regionWindow.stop();
   placer?.stop();
   watchers?.stop();

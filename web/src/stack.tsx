@@ -14,7 +14,8 @@ const root = document.getElementById('root');
 if (!root) throw new Error('missing #root');
 
 // Native loads each desktop panel with its own hash path: `#/bubble`, `#/hud`, `#/ring`, `#/chip`, `#/cmd`, `#/console`,
-// `#/computer`, `#/camera`, `#/region`, `#/resize`; any other path shows the HUD. Each panel loads only its own Root's chunk.
+// `#/computer`, `#/camera`, `#/region`, `#/resize`, `#/title`; any other path shows the HUD. Each panel loads only its own
+// Root's chunk.
 const path = window.location.hash.replace(/^#/, '').split('?')[0];
 type RootModule = Promise<{ default: ComponentType }>;
 const hud = (): RootModule => import('./surfaces/desktop/HudRoot').then((m) => ({ default: m.HudRoot }));
@@ -29,6 +30,7 @@ const ROOTS: Record<string, () => RootModule> = {
   '/camera': () => import('./surfaces/desktop/CameraRoot').then((m) => ({ default: m.CameraRoot })),
   '/region': () => import('./surfaces/desktop/RegionRoot').then((m) => ({ default: m.RegionRoot })),
   '/resize': () => import('./surfaces/desktop/ResizeRoot').then((m) => ({ default: m.ResizeRoot })),
+  '/title': () => import('./surfaces/desktop/TitleRoot').then((m) => ({ default: m.TitleRoot })),
 };
 const Root = lazy(ROOTS[path ?? ''] ?? hud);
 

@@ -1,0 +1,140 @@
+/* BigMapNode at the middle of her screen. Game px are on a 1080 px tall screen: 1 game px = 1vh / 10.8. */
+.root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* AnimationNode: band, bars, name and subtitle move and fade as one. map_toast_inout runs 320 frames at 60 fps. */
+.block {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  opacity: 0;
+  animation:
+    title-fade 5333ms linear both,
+    title-drop 5333ms linear both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block {
+    animation: title-fade 5333ms linear both;
+  }
+}
+
+/* CanvasGroup alpha: 0 until frame 10, in by frame 40, out over frames 300-320. */
+@keyframes title-fade {
+  0%,
+  3.125% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.333, 0, 0.667, 1);
+  }
+  12.5%,
+  93.75% {
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.333, 0, 0.667, 1);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* anchoredPosition.y +40 -> 0 over frames 10-70. */
+@keyframes title-drop {
+  0%,
+  3.125% {
+    transform: translateY(calc(-40vh / 10.8));
+    animation-timing-function: cubic-bezier(0.157, 0, 0, 1);
+  }
+  21.875%,
+  100% {
+    transform: none;
+  }
+}
+
+/* BgImage, 500 tall: bg_map_region_toast_1's ramp mirrored about the text, darkest in its middle. */
+.band {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 46.3vh;
+  transform: translateY(-50%);
+  background: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.008) 0%,
+    rgb(0 0 0 / 0.051) 5%,
+    rgb(0 0 0 / 0.107) 10%,
+    rgb(0 0 0 / 0.168) 15%,
+    rgb(0 0 0 / 0.24) 20%,
+    rgb(0 0 0 / 0.317) 25%,
+    rgb(0 0 0 / 0.391) 30%,
+    rgb(0 0 0 / 0.465) 35%,
+    rgb(0 0 0 / 0.528) 40%,
+    rgb(0 0 0 / 0.587) 45%,
+    rgb(0 0 0 / 0.633) 50%,
+    rgb(0 0 0 / 0.587) 55%,
+    rgb(0 0 0 / 0.528) 60%,
+    rgb(0 0 0 / 0.465) 65%,
+    rgb(0 0 0 / 0.391) 70%,
+    rgb(0 0 0 / 0.317) 75%,
+    rgb(0 0 0 / 0.24) 80%,
+    rgb(0 0 0 / 0.168) 85%,
+    rgb(0 0 0 / 0.107) 90%,
+    rgb(0 0 0 / 0.051) 95%,
+    rgb(0 0 0 / 0.008) 100%
+  );
+}
+
+/* MapInfoNode: 74.67 tall, the bars 28 from the name. */
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(28vh / 10.8);
+  height: calc(74.67vh / 10.8);
+}
+
+/* LeftLineImage / RightLineImage: 18x4 #C0C0C0. */
+.bar {
+  flex: none;
+  width: calc(18vh / 10.8);
+  height: calc(4vh / 10.8);
+  background: #c0c0c0;
+}
+
+/* DefaultFont_CN_3500 (HarmonyOS Sans SC Medium) when the system has it. Shadow_3 underlay: black .835 at (+1.2, +0.7),
+   4 px blur at 63.7 px, in em so the subtitle's scales with it. */
+.name,
+.sub {
+  font-family: 'HarmonyOS Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-shadow: 0.0188em 0.011em 0.0628em rgb(0 0 0 / 0.835);
+}
+
+/* NameTxt: 63.7 white. */
+.name {
+  font-size: calc(63.7vh / 10.8);
+  line-height: 1;
+  color: #fff;
+}
+
+/* DescTxt: 26 in the game's #FFD800, 46 from each side of the 700 wide node. */
+.sub {
+  position: relative;
+  max-width: calc(608vh / 10.8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: calc(26vh / 10.8);
+  line-height: calc(30vh / 10.8);
+  color: #ffd800;
+}

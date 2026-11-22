@@ -247,6 +247,7 @@ export function SpeakGroup() {
         </Slab>
         <SetRow id="sysnotify" title={labelOf('sysnotify')} desc="角色隐藏或前台全屏时生效" control={c.toggle('sysnotify')} />
         <SetRow id="capHide" title={labelOf('capHide')} desc={hotkeyText('开始录屏或共享屏幕时隐藏一次，按 ⌃⌥H 显示')} control={c.toggle('capHide', labelOf('capHide'))} />
+        <SetRow id="switchTitle" title={labelOf('switchTitle')} desc="切换后在她所在屏幕正中显示她的名字" control={c.toggle('switchTitle')} />
         <SetRow
           id="testcard"
           title={labelOf('testcard')}

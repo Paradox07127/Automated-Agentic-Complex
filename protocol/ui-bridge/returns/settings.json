@@ -25,6 +25,7 @@
         "speakUp": false,
         "sysnotify": false,
         "capHide": true,
+        "switchTitle": true,
         "wintext": false,
         "web": false,
         "typing": false,
