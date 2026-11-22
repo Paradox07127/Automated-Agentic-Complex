@@ -1,0 +1,259 @@
+/* 明细：照游戏物品统计页的行。深色斜切名牌（两种主题都深）、星标圆钮压在名牌左缘、浅色走势凹槽、右列黄色今天值和灰色对比值。 */
+.dt {
+  /* The name plate stays dark in both themes, as in the game; its text is paper on ink. */
+  --dt-plate: var(--ef-plate);
+  --dt-plate-hi: color-mix(in srgb, var(--ef-plate) 88%, var(--ef-paper));
+  --dt-plate-t1: var(--ef-paper);
+  --dt-plate-t2: color-mix(in srgb, var(--ef-paper) 62%, var(--ef-plate));
+  --dt-well: var(--ef-surface-3);
+  --dt-well-line: color-mix(in srgb, var(--ef-text-1) 8%, transparent);
+  --dt-cols: minmax(200px, 300px) minmax(0, 1fr) 150px;
+  display: grid;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+}
+
+.head {
+  display: grid;
+  grid-template-columns: var(--dt-cols);
+  padding-left: 14px;
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1.4 var(--ef-font-sans);
+  color: var(--ef-text-2);
+}
+
+.head span:nth-child(2),
+.head span:nth-child(3) {
+  padding-left: 14px;
+}
+
+.list {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0 0 0 14px;
+  list-style: none;
+}
+
+.it {
+  display: grid;
+  grid-template-columns: var(--dt-cols);
+  min-height: 66px;
+}
+
+.nm {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 2px;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 16px 8px 0;
+  background: linear-gradient(135deg, var(--dt-plate) 0 70%, var(--dt-plate-hi) 70% 100%);
+  color: var(--dt-plate-t1);
+}
+
+/* Round star button over the plate's left edge, ringed in the page ground. */
+.star {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ef-list);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ef-bg-base) 70%, transparent);
+  color: var(--ef-text-3);
+  cursor: pointer;
+}
+
+.star svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
+.star:hover {
+  background: var(--ef-field-hover);
+}
+
+.star[aria-pressed='true'] {
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.star[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.star:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.t {
+  display: grid;
+  min-width: 0;
+}
+
+.name,
+.t small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name {
+  font: var(--ef-fw-medium) var(--ef-fs-text) / 1.5 var(--ef-font-sans);
+}
+
+.t small {
+  font-size: var(--ef-fs-small);
+  line-height: 16px;
+  color: var(--dt-plate-t2);
+}
+
+/* Divider bar at the plate's right end; yellow while starred. */
+.bar {
+  align-self: stretch;
+  margin: 6px 0;
+  background: var(--dt-plate-t2);
+}
+
+.it[data-pinned] .bar {
+  background: var(--ef-accent);
+}
+
+.well {
+  position: relative;
+  display: grid;
+  align-items: center;
+  min-width: 0;
+  background-color: var(--dt-well);
+  background-image:
+    linear-gradient(var(--dt-well-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--dt-well-line) 1px, transparent 1px);
+  background-size: 100% 25%, calc(100% / 24) 100%;
+}
+
+.well svg {
+  position: absolute;
+  inset: 6px 6px 4px;
+  width: calc(100% - 12px);
+  height: calc(100% - 10px);
+}
+
+.area {
+  fill: var(--ef-text-1);
+  opacity: 0.18;
+}
+
+.line {
+  fill: none;
+  stroke: var(--ef-text-1);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.now {
+  stroke: var(--ef-text-1);
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.total {
+  padding: 0 14px;
+  font: var(--ef-fw-semibold) var(--ef-fs-title-2) / 1 var(--ef-font-num);
+  color: var(--ef-text-1);
+}
+
+.vals {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 8px 14px;
+  border-left: 1px solid var(--dt-well-line);
+  background: var(--dt-well);
+}
+
+.vals b,
+.vals span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.vals b::before,
+.vals span::before {
+  content: '';
+  width: 2px;
+  height: 13px;
+  background: currentColor;
+}
+
+.vals b {
+  font: var(--ef-fw-semibold) var(--ef-fs-title-2) / 20px var(--ef-font-num);
+  color: var(--ef-accent-text);
+}
+
+.vals span {
+  font: var(--ef-fw-medium) var(--ef-fs-small) / 18px var(--ef-font-num);
+  color: var(--ef-text-2);
+}
+
+.off {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--ef-sp-12);
+  align-items: center;
+  margin-left: 14px;
+  padding: 10px 14px;
+  border: 1px dashed var(--ef-line-strong);
+  font-size: var(--ef-fs-body);
+  color: var(--ef-text-2);
+}
+
+.off b {
+  font-weight: var(--ef-fw-semibold);
+  color: var(--ef-text-1);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 14px;
+}
+
+.sel {
+  display: inline-flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  font-size: var(--ef-fs-body);
+  color: var(--ef-text-2);
+}
+
+@container page (max-width: 1000px) {
+  .dt {
+    --dt-cols: minmax(170px, 230px) minmax(0, 1fr) 128px;
+  }
+}
+
+@container page (max-width: 640px) {
+  .head {
+    display: none;
+  }
+
+  .it {
+    grid-template-columns: minmax(0, 1fr) 110px;
+    grid-template-rows: auto 56px;
+  }
+
+  .nm {
+    grid-column: 1 / -1;
+  }
+}
