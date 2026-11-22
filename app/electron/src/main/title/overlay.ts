@@ -1,5 +1,6 @@
 // 雷霆大字: the new character's name in big white text over the middle of the screen she stands on while a character switch
-// runs, in the game's white big area-title layout, from the switch's start until the avatar shows her. `stack.html#/title` shows it in a transparent overlay that clicks pass through and that never
+// runs, in the game's white big area-title layout, from the switch's start until the avatar shows her: shown at least 4 s, gone
+// 12 s after it opened at the latest. `stack.html#/title` shows it in a transparent overlay that clicks pass through and that never
 // activates the app; the page has no bridge, its name and English name come in its URL. Frames are in the placement space.
 import { readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
@@ -23,6 +24,11 @@ export interface TitleOverlayOptions {
   enabled(): boolean;
 }
 
+/** The least time the title stays once it has shown, so a quick switch does not flash it. */
+export const TITLE_MIN_MS = 4000;
+/** The most time the title stays from opening, so a page that never loads or a switch that hangs does not keep it up. */
+export const TITLE_MAX_MS = 12000;
+
 /** The frame of the screen with id `current` (AvatarPlacer.currentScreen), else the main screen's; null without screens. */
 export function titleScreen(current: string | null, screens: readonly ScreenInfo[]): Rect | null {
   return (screens.find((s) => String(s.id) === current) ?? screens[0])?.frame ?? null;
@@ -44,19 +50,24 @@ export function titleNames(catalog: string, id: string): { name: string; en: str
 export class TitleOverlay {
   private readonly o: TitleOverlayOptions;
   private win: BrowserWindow | null = null;
-  /** The character the showing title names. */
+  /** The character the open title names. */
   private target: string | null = null;
   /** The user's last choice not yet started: the switch sets `pending`, then clears it just before it starts running. */
   private picked: string | null = null;
   private switching = false;
+  /** When the open title showed, in ms; null while its page loads. */
+  private shownAt: number | null = null;
+  /** She has appeared, or the run ended without her: the title goes once it has shown TITLE_MIN_MS. */
+  private done = false;
+  private readonly timers: ReturnType<typeof setTimeout>[] = [];
 
   constructor(options: TitleOverlayOptions) {
     this.o = options;
   }
 
-  /** CharacterSwitch.onChange: a run that starts on the user's choice of another character opens the title; it closes once the
-   *  avatar shows that character, or when the run ends without it. Launch, a reconnect, a restore or an agentd catch-up start
-   *  no run on a choice, so they show nothing. */
+  /** CharacterSwitch.onChange: a run that starts on the user's choice of another character opens the title; it goes once the
+   *  avatar shows that character or the run ends without it, after showing TITLE_MIN_MS. Launch, a reconnect, a restore or an
+   *  agentd catch-up start no run on a choice, so they show nothing. */
   view(view: CharacterView): void {
     if (view.pending !== null) this.picked = view.pending;
     if (view.switching && !this.switching) {
@@ -65,16 +76,20 @@ export class TitleOverlay {
       if (id !== null && id !== view.current) this.open(id);
     }
     this.switching = view.switching;
-    if (this.target !== null && (!view.switching || view.shown === this.target)) this.stop();
+    if (this.target !== null && !this.done && (!view.switching || view.shown === this.target)) {
+      this.done = true;
+      if (this.shownAt !== null) this.closeAfterFloor();
+    }
   }
 
   stop(): void {
+    for (const timer of this.timers.splice(0)) clearTimeout(timer);
     if (this.win && !this.win.isDestroyed()) this.win.destroy();
     this.win = null;
     this.target = null;
   }
 
-  /** A new title replaces the one showing. */
+  /** A new title replaces the open one. */
   private open(id: string): void {
     this.stop();
     if (!this.o.enabled()) return;
@@ -83,10 +98,22 @@ export class TitleOverlay {
     const { name, en } = this.o.names(id);
     const win = this.win = this.o.makeWindow();
     this.target = id;
+    this.shownAt = null;
+    this.done = false;
+    this.timers.push(setTimeout(() => this.stop(), TITLE_MAX_MS));
     win.setBounds(this.o.toDip(frame));
     win.webContents.once('did-finish-load', () => {
-      if (this.win === win) win.showInactive();
+      if (this.win !== win) return;
+      win.showInactive();
+      this.shownAt = Date.now();
+      if (this.done) this.closeAfterFloor();
     });
     void win.loadURL(`${this.o.url}?${new URLSearchParams({ name, ...(en ? { en } : {}) }).toString()}`);
+  }
+
+  private closeAfterFloor(): void {
+    const left = this.shownAt! + TITLE_MIN_MS - Date.now();
+    if (left <= 0) this.stop();
+    else this.timers.push(setTimeout(() => this.stop(), left));
   }
 }

@@ -3,7 +3,7 @@ import styles from './TitleRoot.module.css';
 
 /** `stack.html#/title?name=…&en=…`: 雷霆大字, the new character's name in the game's big white area title, shown still in the
  *  middle of the screen she stands on while a character switch runs. Native covers that screen, shows the page once it has
- *  loaded and closes it as the avatar shows her; the page takes no pointer and calls nothing. */
+ *  loaded and closes it after the avatar shows her (at least 4 s, at most 12 s); the page takes no pointer and calls nothing. */
 export function TitleRoot() {
   const q = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
   const name = q.get('name') ?? '';

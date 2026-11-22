@@ -9,7 +9,7 @@ import type { BrowserWindow } from 'electron';
 import { parseChanges, planSave, schema } from '../src/common/settings.ts';
 import { CharacterSwitch, type SwitchPorts } from '../src/common/switch.ts';
 import { OVERLAY_LEVELS } from '../src/main/platform/index.ts';
-import { TitleOverlay, titleNames, titleScreen } from '../src/main/title/overlay.ts';
+import { TITLE_MAX_MS, TITLE_MIN_MS, TitleOverlay, titleNames, titleScreen } from '../src/main/title/overlay.ts';
 
 const settle = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); };
 
@@ -101,7 +101,18 @@ test('the title opens as a switch starts, with the new character\'s name, never 
   assert.match(t.windows[1]!.calls[1]!, /#\/title\?name=%E7%AE%A1%E7%90%86%E5%91%98$/, 'no en without an English name');
 });
 
-test('the title shows once its page has loaded, without taking the front app, and closes as soon as she appears', async () => {
+/** Runs `body` with setTimeout and Date on a mock clock. */
+async function clocked(body: () => Promise<void>): Promise<void> {
+  mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  try {
+    await body();
+  } finally {
+    mock.timers.reset();
+  }
+}
+
+test('the title shows once its page has loaded, without taking the front app, and stays at least 4 s', () => clocked(async () => {
+  assert.equal(TITLE_MIN_MS, 4000);
   const t = setup();
   t.sw.avatar({ kind: 'current', id: 'b' });
   t.commit.held = true;
@@ -111,29 +122,73 @@ test('the title shows once its page has loaded, without taking the front app, an
   assert.ok(!w.calls.includes('showInactive'), 'hidden until the page is there');
   w.load();
   assert.equal(w.calls.at(-1), 'showInactive');
-  assert.ok(!w.calls.includes('destroy'), 'stays while the avatar loads her');
+  mock.timers.tick(1000);
   t.sw.avatar({ kind: 'changed', id: 'a' });
   await settle();
-  assert.equal(w.calls.at(-1), 'destroy', 'gone once the avatar shows her, before agentd has committed');
+  assert.ok(!w.calls.includes('destroy'), 'she appeared 1 s after it showed: it stays');
+  mock.timers.tick(2999);
+  assert.ok(!w.calls.includes('destroy'));
+  mock.timers.tick(1);
+  assert.equal(w.calls.at(-1), 'destroy', 'gone 4 s after it showed, before agentd has committed');
   assert.equal(t.sw.busy, true);
   t.commit.open();
   await settle();
   assert.equal(t.windows.length, 1);
-});
+}));
 
-test('a failed switch closes the title; a page that loads after she appeared never shows', async () => {
+test('once it has shown 4 s, the title closes as soon as she appears', () => clocked(async () => {
   const t = setup();
   t.sw.avatar({ kind: 'current', id: 'b' });
-  await t.to('c', 'failed');
-  assert.equal(t.windows.length, 1);
+  t.sw.select('a');
+  await settle();
+  t.windows[0]!.load();
+  mock.timers.tick(6000);
+  t.sw.avatar({ kind: 'changed', id: 'a' });
+  await settle();
   assert.equal(t.windows[0]!.calls.at(-1), 'destroy');
-  await t.to('a');
-  const late = t.windows[1]!;
-  late.load();
-  assert.ok(!late.calls.includes('showInactive'));
-});
+}));
 
-test('a new switch picked while the title shows replaces it; with the setting off nothing shows', async () => {
+test('a page that loads after she appeared still shows 4 s; a failed switch closes the title after its 4 s', () => clocked(async () => {
+  const t = setup();
+  t.sw.avatar({ kind: 'current', id: 'b' });
+  await t.to('a');
+  const late = t.windows[0]!;
+  assert.ok(!late.calls.includes('destroy'));
+  late.load();
+  assert.equal(late.calls.at(-1), 'showInactive');
+  mock.timers.tick(TITLE_MIN_MS);
+  assert.equal(late.calls.at(-1), 'destroy');
+  t.sw.select('c');
+  await settle();
+  t.windows[1]!.load();
+  t.sw.avatar({ kind: 'failed', id: 'c', reason: 'no_such_character' });
+  await settle();
+  assert.ok(!t.windows[1]!.calls.includes('destroy'));
+  mock.timers.tick(TITLE_MIN_MS);
+  assert.equal(t.windows[1]!.calls.at(-1), 'destroy');
+}));
+
+test('a title whose page never loads, or whose switch never ends, goes 12 s after it opened', () => clocked(async () => {
+  assert.equal(TITLE_MAX_MS, 12000);
+  const t = setup();
+  t.sw.avatar({ kind: 'current', id: 'b' });
+  t.sw.select('a');
+  await settle();
+  mock.timers.tick(TITLE_MAX_MS - 1);
+  assert.ok(!t.windows[0]!.calls.includes('destroy'));
+  mock.timers.tick(1);
+  assert.equal(t.windows[0]!.calls.at(-1), 'destroy', 'never loaded, never shown, gone');
+  assert.ok(!t.windows[0]!.calls.includes('showInactive'));
+  t.sw.avatar({ kind: 'changed', id: 'a' });
+  await settle();
+  t.sw.select('b');
+  await settle();
+  t.windows[1]!.load();
+  mock.timers.tick(TITLE_MAX_MS);
+  assert.equal(t.windows[1]!.calls.at(-1), 'destroy', 'shown, the avatar never answered, gone');
+}));
+
+test('a new switch picked while the title shows replaces it; with the setting off nothing shows', () => clocked(async () => {
   const t = setup();
   t.sw.avatar({ kind: 'current', id: 'b' });
   t.commit.held = true;
@@ -143,21 +198,22 @@ test('a new switch picked while the title shows replaces it; with the setting of
   t.sw.select('b');
   t.sw.avatar({ kind: 'changed', id: 'a' });
   await settle();
-  assert.equal(t.windows[0]!.calls.at(-1), 'destroy');
   t.commit.open();
   await settle();
   assert.equal(t.windows.length, 2, 'the kept choice opens its own title');
+  assert.equal(t.windows[0]!.calls.at(-1), 'destroy', 'the showing one goes at once, its 4 s or not');
   assert.match(t.windows[1]!.calls[1]!, /name=%E7%AE%A1%E7%90%86%E5%91%98$/);
   t.windows[1]!.load();
   t.commit.held = false;
   t.sw.avatar({ kind: 'changed', id: 'b' });
   await settle();
+  mock.timers.tick(TITLE_MIN_MS);
   t.state.on = false;
   await t.to('a');
   assert.equal(t.windows.length, 2);
-  t.title.stop();
   assert.equal(t.windows[1]!.calls.at(-1), 'destroy');
-});
+  t.title.stop();
+}));
 
 test('the title stands over her window and under the stack and every overlay over it', () => {
   const L = OVERLAY_LEVELS;
