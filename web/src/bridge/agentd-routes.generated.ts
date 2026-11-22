@@ -972,6 +972,7 @@ export interface EpisodesResponse {
     version: number;
     run_id: string | null;
     edited: boolean;
+    owner: string | null;
     outcome: string | null;
     titles: string[];
     typed: boolean;

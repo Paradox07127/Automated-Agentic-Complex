@@ -6,7 +6,7 @@ import threading
 import time
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from brain.egress import EgressPolicy
@@ -1910,7 +1910,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.server.say = Mock(return_value=(202, {'run_id': 'resumed'}))
         card = self.c.interactions.list()[0]
         self.c.interactions.respond(card['request_id'], card['revision'], {'q': ['answer']})
-        self.server.say.assert_called_once_with('original-goal', scope_id=None, resume_run_id='asked')
+        self.server.say.assert_called_once_with('original-goal', scope_id=None, resume_run_id='asked', ready_chat=ANY)
         checkpoint = self.c.store.load_checkpoint(run_id='asked')
         self.assertEqual(checkpoint['pending_tool']['result'], {'answers': {'q': ['answer']}})
         self.assertEqual(self.c.interactions.get(card['request_id'])['state'], 'resumed')

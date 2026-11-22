@@ -140,7 +140,7 @@ let newIds = 0;
 /** The user was away while the full test run went (the fixture's 12:00–13:10 afk span). */
 const AWAY_EPISODE: WireEpisode = { id: Math.max(...WIRE_EPISODES.map((e) => e.id)) + 1, start: isoAt(12, 10), end: isoAt(13, 5), created_at: isoAt(13, 5), title: '终端跑完整测试', apps: ['Terminal'] };
 /** The rest of a v2 row of episodes.py `day()`, for fields the fixtures leave out. */
-const EPISODE_ROW = { hosts: [], threads: [], open_questions: [], user_actions: [], agent_actions: [], version: 2, run_id: null, edited: false, outcome: 'committed', titles: [], typed: false };
+const EPISODE_ROW = { hosts: [], threads: [], open_questions: [], user_actions: [], agent_actions: [], version: 2, run_id: null, edited: false, owner: null, outcome: 'committed', titles: [], typed: false };
 /** Episodes after the away one came from memory_pipeline.py, which writes presence 'unknown'. */
 const presenceOf = (e: WireEpisode) => (e === AWAY_EPISODE ? 'away' : e.start > AWAY_EPISODE.start ? 'unknown' : 'present');
 const episodes: WireEpisode[] = [...WIRE_EPISODES, AWAY_EPISODE]

@@ -52,7 +52,7 @@ class EpisodesDayTest(unittest.TestCase):
                                    "description": "你在写代码。", "threads": [thread],
                                    "open_questions": [], "apps": ["Code"], "hosts": [], "created_at": at(DAY2, 23),
                                    "presence": "unknown", "user_actions": [], "agent_actions": [], "version": 3,
-                                   "run_id": None, "edited": False, "outcome": None, "titles": ["a.py"],
+                                   "run_id": None, "edited": False, "owner": None, "outcome": None, "titles": ["a.py"],
                                    "typed": True})
         self.assertEqual(rows[0]["typed"], False)
 

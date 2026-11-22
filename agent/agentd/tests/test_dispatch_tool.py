@@ -235,7 +235,7 @@ class DispatchToolTests(unittest.TestCase):
         with patch.object(self.controller, 'busy', return_value=True):
             self.line('顺便聊一句')
         self.assertFalse({'dispatch_session', 'dispatch_status'} & {d['name'] for d in self.definitions[-1]})
-        self.line('临时聊一句', no_memory=True)
+        self.line('临时查一下天气', no_memory=True)
         self.assertFalse({'dispatch_session', 'dispatch_status'} & {d['name'] for d in self.definitions[-1]})
         # A proactive line offers the typing turn's tools, and its mode refuses the dispatch.
         def script(session, prompt, options):

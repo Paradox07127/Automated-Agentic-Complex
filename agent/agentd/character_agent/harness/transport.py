@@ -413,9 +413,12 @@ class ManagedClaudeSession:
             active = {"id": run_id, "handler": tool_handler or self.tool_handler, "cancel_signal": cancelled,
                       "permission_handler": permission_handler or self.permission_handler, "cancelled": False}
             with self._state_lock:
-                if cancelled_now(cancelled):
-                    raise HarnessError("cancelled")
-                self._active = active
+                stop = cancelled_now(cancelled)
+                if not stop:
+                    self._active = active
+            if stop:
+                yield {"type": "result", "success": False, "subtype": "cancelled", "run_id": run_id}
+                return
             self._write({"type": "query", "run_id": run_id, "prompt": prompt,
                          "history": history if replace_history or self._first_query else None,
                          **({"system_prompt": system_prompt, "max_output_tokens": 1024} if replace_history else {}),

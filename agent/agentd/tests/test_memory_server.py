@@ -208,7 +208,7 @@ class MemoryServerCase(test_server.FeedServerCase):
         self.data = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.addCleanup(self.data.cleanup)
         self.db = Path(self.data.name) / "agentd.sqlite"
-        self.server.history = History(open_store(self.db))
+        self.server.history = History(open_store(self.db), character_id=self.server.character)
         self.server.memory = self.memory = Memory(open_store(self.db))
         self.server.events_token = EVENTS
         self.server.speech = self.relay = FakeRelay()

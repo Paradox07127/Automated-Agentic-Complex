@@ -210,13 +210,31 @@ class ManagedTransportTests(unittest.TestCase):
         self.assertIn({"type": "permission_requested", **self.PERMISSION}, events)
         self.assertIsNone(self.permission_reply(events)["option_id"])
 
+    def test_cancel_after_ready_sends_no_query(self):
+        cancel = threading.Event()
+        session = self.session()
+        sent = []
+        write = session._write
+        session._write = lambda message, *args: sent.append(message["type"]) or write(message, *args)
+        stream = session.stream("hello", system_prompt="persona", run_id="run-r", cancelled=cancel)
+        self.assertEqual(next(stream)["type"], "ready")
+        cancel.set()
+        self.assertEqual([e["subtype"] for e in stream], ["cancelled"])
+        self.assertNotIn("query", sent)
+
     @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_permission_request_after_cancel_is_answered_null(self):
         calls, cancel = [], threading.Event()
-        stream = self.session().stream("permission-after-cancel", system_prompt="persona", run_id="run-c",
-                                       cancelled=cancel, permission_handler=lambda r: calls.append(r) or "allow-once")
+        session = self.session()
+        write = session._write
+        def query_then_cancel(message, *args):  # the cancel lands after the runner has the query
+            write(message, *args)
+            if message["type"] == "query":
+                cancel.set()
+        session._write = query_then_cancel
+        stream = session.stream("permission-after-cancel", system_prompt="persona", run_id="run-c",
+                                cancelled=cancel, permission_handler=lambda r: calls.append(r) or "allow-once")
         self.assertEqual(next(stream)["type"], "ready")
-        cancel.set()
         events = list(stream)
         self.assertEqual(calls, [])
         self.assertNotIn("permission_requested", [e["type"] for e in events])

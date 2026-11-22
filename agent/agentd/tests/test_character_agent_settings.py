@@ -136,8 +136,9 @@ class SettingsTests(unittest.TestCase):
                                          'auth_source': 'api_key', 'provider': 'deepseek', 'model': 'deepseek-chat'})
         for purpose in ROUTES:
             with self.subTest(follows=purpose):
-                account = {'auth_source': 'existing_login', 'provider': ''} if purpose == 'quick' else {}
-                self.assertEqual(RuntimeSettings.route(main, purpose), {**main, **account, '_turn_effort': None})
+                # Quick logs in on its own account, keeps the main model only for the same provider and thinks not at all.
+                quick = {'auth_source': 'existing_login', 'provider': '', 'model': '', '_turn_effort': 'off'} if purpose == 'quick' else {}
+                self.assertEqual(RuntimeSettings.route(main, purpose), {**main, '_turn_effort': None, **quick})
         codex = RuntimeSettings.validate({'backend': 'codex', 'runtime_source': 'local', 'model': 'gpt-5'})
         self.assertEqual(RuntimeSettings.route(codex, 'chat')['_turn_effort'], 'low')
         self.assertIsNone(RuntimeSettings.route(codex, 'background')['_turn_effort'])

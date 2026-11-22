@@ -89,7 +89,7 @@ class SemanticAdmissionTests(unittest.TestCase):
         self.source()
         self.server.capture = SimpleNamespace(window_text=lambda:{'text':'private-window'},share_text=True,vision=None)
         self.server.observation_paused = lambda:False
-        self.c.jobs.store.results_since = lambda cutoff:[{'job_id':'one','payload':{'user_request':'verify'},'result':{'reply':'checked'},
+        self.c.jobs.store.results_since = lambda cutoff:[{'job_id':'one','payload':{'user_request':'verify','character_id':self.server.character},'result':{'reply':'checked'},
                 'updated_at':time.time(),'state':'succeeded'}]
         self.pipeline.run_once()
         evidence = json.loads(self.sessions[0].calls[0]['prompt'])['evidence']

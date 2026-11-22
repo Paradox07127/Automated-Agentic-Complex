@@ -419,7 +419,7 @@ class HarnessTurnTest(test_character_agent_integration.IntegrationFixture):
 
     def test_harness_turn_traces_its_context_then_one_model_span(self):
         self.script = codex_reply
-        body, _ = self.line("你好")
+        body, _ = self.line("帮我查一下天气")
         events = self.stored()
         chain = ["context.assembled", "model.started", "model.first_token", "model.finished"]
         marks = [e for e in events if e["kind"] in chain]
@@ -437,7 +437,7 @@ class HarnessTurnTest(test_character_agent_integration.IntegrationFixture):
             self.assertIsInstance(running.get(key), int, key)
 
     def test_token_details_the_harness_did_not_give_stay_out(self):
-        self.line("你好")
+        self.line("帮我查一下天气")
         [finished] = [e for e in self.stored() if e["kind"] == "model.finished"]
         self.assertNotIn("cached_tokens", finished["attrs"])
         self.assertNotIn("reasoning_tokens", finished["attrs"])

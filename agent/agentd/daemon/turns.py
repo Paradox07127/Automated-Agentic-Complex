@@ -33,9 +33,9 @@ OBSERVED = {"ready": "ok", "declined": "ok", "unavailable": "ok", "cancelled": "
 
 TOOL_REQUEST = re.compile(
     r"[a-z][a-z0-9+.-]*://\S|www\.\S|(?:~/|(?<![a-z0-9])/|[a-z]:\\)[^\s/]|[\w-]+\.[a-z][a-z0-9]*"
+    r"|(?:打开|运行|执行|安装|修改|改一下|修一下|写个|创建|删除|搜索|查一下|整理|发给|下载)(?![了过])\s*\w"
     r"|(?:^\s*|请\s*|帮我\s*|能不能\s*|可以\s*|\b(?:please|can you|could you)\s+)(?:"
-    r"(?:打开|运行|执行|安装|修改|改一下|修一下|写个|创建|删除|搜索|查一下|整理|发给|下载)\s*\w"
-    r"|(?:看看|看一下)(?:这个|一下)?(?:窗口|屏幕)|(?:接着|继续)刚才"
+    r"(?:看看|看一下)(?:这个|一下)?(?:窗口|屏幕)|(?:接着|继续)刚才"
     r"|(?:open|run|execute|install|edit|create|delete|search|download)\s+\w"
     r"|look at (?:this|the) (?:screen|window)\b|continue (?:the|that) task\b|remember (?:my|that)\b"
     r"|(?:set|add|cancel|remove|change|update|move|snooze|postpone|reschedule)\b.*\breminders?\b"
