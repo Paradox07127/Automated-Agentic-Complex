@@ -56,8 +56,6 @@ export const BEHAVIOR: Readonly<Record<string, string>> = {
   think: '思考',
   wait: '等待',
   react: '反应',
-  welcome_back: '欢迎回来',
-  welcome_small: '打个招呼',
   yawn: '打哈欠',
   sleep: '睡觉',
   fly: '空中施术',

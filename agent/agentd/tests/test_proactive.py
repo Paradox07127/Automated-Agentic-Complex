@@ -816,41 +816,51 @@ class ProactiveTest(unittest.TestCase):
                 self.now += 3 * 3600
                 self.gate._last, self.gate._last_any = {}, None
 
-    def test_afk_5min_resets_break_clock(self):
-        self.breaking(break_minutes=45)
+    def test_user_nows_absence_restarts_the_break_clock(self):
+        self.absence = None
+        self.breaking(break_minutes=45, absence=lambda: self.absence)
         self.desk(30)
-        self.desk(0.5, idle_s=300.0)
-        self.desk(45)
+        self.absence = {"id": "1", "since": self.now}
+        self.desk(0.5)
+        self.absence = None
+        self.desk(45)  # the clock starts at the first beat after the absence: 44 min 30 s so far
         self.assertEqual(self.nudges("break"), [])
-        # Control: idle just under five minutes keeps the clock running.
-        self.breaking(break_minutes=45)
-        self.desk(30)
-        self.desk(0.5, idle_s=299.0)
-        self.desk(15)
-        self.assertEqual(len(self.claims), 1)
-
-    def test_lock_and_sleep_restart_break_clock(self):
-        for flag in ("locked", "asleep"):
-            with self.subTest(flag=flag):
-                self.published = []
+        self.desk(0.5)
+        self.assertEqual([reason["minutes"] for _, _, reason in self.claims], [45])
+        # Control: idle seconds, a lock or a sleep the beat reports are not user_now's absence.
+        for extra in ({"idle_s": 300.0}, {"locked": True}, {"asleep": True}):
+            with self.subTest(extra=extra):
                 self.breaking(break_minutes=45)
-                self.desk(44.5)
-                for _ in range(4):
+                self.desk(30)
+                for _ in range(2):
                     self.now += 30
-                    self.p.beat(beat(self.now, CODE, **{flag: True}, input={"keys_60s": 30}))
-                self.desk(45)
-                self.assertEqual(self.nudges("break"), [])
-                self.desk(0.5)
-                self.assertEqual([reason["minutes"] for _, _, reason in self.claims], [45])
+                    self.p.beat(beat(self.now, CODE, **{"idle_s": 4.0, **extra}, input={"keys_60s": 30}))
+                self.desk(15)
+                self.assertEqual(len(self.claims), 1)
 
-    def test_heartbeat_gap_over_afk_limit_restarts_break_clock(self):
+    def test_a_return_restarts_the_break_clock(self):
+        """user_now's return reaches back() even when no beat saw the absence open."""
         self.breaking(break_minutes=45)
         self.desk(44.5)
-        self.now += 301
+        self.now += 60
+        self.p.back(60)
         self.desk(45)
         self.assertEqual(self.nudges("break"), [])
         self.desk(0.5)
         self.assertEqual([reason["minutes"] for _, _, reason in self.claims], [45])
+
+    def test_water_time_skips_user_nows_absence(self):
+        self.absence = None
+        self.breaking(water_minutes=1, absence=lambda: self.absence)
+        self.desk(1, idle_s=0)  # 30 s at the desk
+        self.absence = {"id": "1", "since": self.now}
+        self.desk(10, idle_s=4)
+        self.assertEqual(self.claims, [])
+        self.absence = None
+        self.desk(1, idle_s=0)  # 30 s more from the second beat back: due, but no pause yet
+        self.assertEqual(self.claims, [])
+        self.desk(0.5, idle_s=4)
+        self.assertEqual([reason["code"] for _, _, reason in self.claims], ["water"])
 
     def test_break_needs_input_activity(self):
         self.breaking(break_minutes=45)

@@ -84,33 +84,35 @@ export function revokedKinds(old: ContextPolicy, next: ContextPolicy): string[] 
 
 // ---- Automatic reads
 
-/** Same threshold agentd uses to call the user away (observation/attention.py). */
-export const AWAY_IDLE_SECONDS = 180;
+/** agentd's presence values of an absence (observation/user_now.py ABSENT). */
+const ABSENT = ['asleep', 'locked', 'away'];
 const BACKOFF = [5, 10, 20, 30];
 const NOTIFICATION_DELAY = 2;
 
 /** When to read the front window's AX text; fed once per tick, times in seconds. Without an app, window or focus change,
  *  re-reads come after 5, 10, 20, then every 30 s, back to 5 s on a change. AX notifications ask for one read, at least
- *  2 s after the first unanswered one and 5 s after the last read. */
+ *  2 s after the first unanswered one and 5 s after the last read. `user` is agentd's last `/user/coarse` answer: no
+ *  reads while it calls the user away, and one when its absence ends. */
 export class CaptureTriggers {
   private started = false;
   private windowId: number | null = null;
   private app: string | null = null;
   private focus: string | null = null;
-  private away = false;
+  private absent = false;
   private lastRead = -Infinity;
   private step = 0;
   private notifiedAt: number | null = null;
 
-  update(now: number, frontWindowId: number | null, frontApp: string | null, focusedElement: string | null, idleSeconds: number): boolean {
-    const nowAway = idleSeconds >= AWAY_IDLE_SECONDS;
-    const returned = this.away && !nowAway;
+  update(now: number, frontWindowId: number | null, frontApp: string | null, focusedElement: string | null,
+    user: { presence: string; absence: unknown }): boolean {
+    const nowAway = ABSENT.includes(user.presence);
+    const returned = this.absent && user.absence === null;
     const changed = !this.started || frontApp !== this.app || frontWindowId !== this.windowId || focusedElement !== this.focus || returned;
     this.started = true;
     this.windowId = frontWindowId;
     this.app = frontApp;
     this.focus = focusedElement;
-    this.away = nowAway;
+    this.absent = user.absence !== null;
     if (changed) {
       this.lastRead = now;
       this.step = 0;

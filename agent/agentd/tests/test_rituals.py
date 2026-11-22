@@ -297,7 +297,8 @@ class TapDeliveryTest(unittest.TestCase):
                            None, lambda: False, clock=lambda: self.now,
                            claim=lambda *args: self.claims.append(args) or True,
                            break_minutes=50, water_minutes=90, deliver="tap",
-                           on_pending=self.r.set_pending, on_clear=self.r.clear_pending)
+                           on_pending=self.r.set_pending, on_clear=self.r.clear_pending, absence=lambda: self.absence)
+        self.absence = None  # user_now's open absence
 
     def desk(self, minutes, idle_s=0.0, keys=30):
         """A heartbeat every 30 s for `minutes` minutes."""
@@ -314,12 +315,13 @@ class TapDeliveryTest(unittest.TestCase):
         self.assertEqual(self.r.pick(), ("break", {"minutes": 50}))
         self.assertEqual((self.claims, [e for e, _ in self.published]), ([], []))
 
-    def test_five_minutes_away_clears_the_break(self):
+    def test_an_absence_clears_the_break(self):
         self.desk(50.5)
         self.assertEqual(self.r.pending(), ["break"])
-        self.desk(0.5, idle_s=299.0)
+        self.desk(0.5, idle_s=300.0)  # idle seconds alone are no absence
         self.assertEqual(self.r.pending(), ["break"])
-        self.desk(0.5, idle_s=300.0)
+        self.absence = {"id": "1", "since": self.now}
+        self.desk(0.5)
         self.assertEqual(self.r.pending(), [])
 
     def test_water_after_ninety_active_minutes(self):
@@ -332,7 +334,9 @@ class TapDeliveryTest(unittest.TestCase):
         # Active time adds up across an absence; the absence itself does not count.
         self.r.clear_pending("water")
         self.desk(45)
-        self.desk(10, idle_s=400.0)
+        self.absence = {"id": "1", "since": self.now}
+        self.desk(10)
+        self.absence = None
         self.desk(45)
         self.assertNotIn("water", self.r.pending())
         self.desk(0.5)

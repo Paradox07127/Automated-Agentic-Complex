@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import { type AttentionSample, type BlacklistRules, EMPTY_BLACKLIST, parseBlacklist } from '../src/common/attention.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
 import { BlacklistFile } from '../src/main/attention/blacklist.ts';
-import { type AttentionPorts, startAttention } from '../src/main/attention/sampler.ts';
+import { type AttentionPorts, NO_ANSWER, startAttention } from '../src/main/attention/sampler.ts';
 
 // Deny mode with no rules: every window but our own is read.
 const NO_RULES = parseBlacklist({ mode: 'deny' });
@@ -43,8 +43,12 @@ function later<T>() {
 
 const settle = async () => { for (let i = 0; i < 20; i += 1) await new Promise((r) => setImmediate(r)); };
 
-function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number>; postCoarse?: () => Promise<number>; aware?: boolean;
-  sensing?: { input: boolean; audioApps: boolean; redact: boolean }; blacklist?: BlacklistRules } = {}) {
+/** C6 `fixtures/user-coarse-reply.json`. */
+const LOCKED = { presence: 'locked', stage: 'offstage', doing: 'idle', absence: { id: '1795280400000-1', since: 1795280400 }, revision: 2, typing: false };
+
+/** `postCoarse` gives the status, `answer` the body of a 200 (LOCKED when absent). */
+function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number>; postCoarse?: () => Promise<number>; answer?: () => unknown;
+  aware?: boolean; sensing?: { input: boolean; audioApps: boolean; redact: boolean }; blacklist?: BlacklistRules } = {}) {
   let clock = 1_763_539_200_000;
   let fire: (() => void) | null = null;
   let interval = 0;
@@ -68,7 +72,11 @@ function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number
       },
     },
     post: async (body) => { posts.push(body); return o.post ? o.post() : 200; },
-    postCoarse: async (body) => { coarse.push(body); return o.postCoarse ? o.postCoarse() : 200; },
+    postCoarse: async (body) => {
+      coarse.push(body);
+      const status = o.postCoarse ? await o.postCoarse() : 200;
+      return { status, body: status === 200 ? (o.answer ? o.answer() : LOCKED) : null };
+    },
     aware: () => o.aware ?? true,
     blacklist: () => o.blacklist ?? NO_RULES,
     sensing: () => o.sensing ?? { input: true, audioApps: true, redact: true },
@@ -409,6 +417,32 @@ test('an edge stays pending until a coarse POST that carried it succeeded', asyn
   await t.edge('display_wake');
   assert.deepEqual(t.coarse.map((b) => b.edge), [null, 'sleep', 'sleep', 'wake']);
   assert.deepEqual(t.posts.slice(0, 3).map((p) => p.edge), [undefined, 'sleep', 'wake']);
+});
+
+test('user is the last /user/coarse answer; before one, after a failed or malformed one and once agentd stops, present and normal', async () => {
+  let status = 200;
+  let answer: unknown = LOCKED;
+  const t = setup({ postCoarse: async () => status, answer: () => answer });
+  assert.deepEqual(NO_ANSWER, { presence: 'present', stage: 'normal', doing: 'idle', absence: null, revision: 0, typing: false });
+  assert.deepEqual(t.sampler.user, NO_ANSWER);
+  t.sampler.agentd(true);
+  await t.second();
+  assert.deepEqual(t.sampler.user, LOCKED);
+  status = 503;
+  await t.second();
+  assert.deepEqual(t.sampler.user, NO_ANSWER);
+  status = 200;
+  for (const bad of [{ ...LOCKED, typing: null }, { ...LOCKED, absence: { id: 1, since: 0 } }, { presence: 'present' }, null]) {
+    answer = bad;
+    await t.second();
+    assert.deepEqual(t.sampler.user, NO_ANSWER, JSON.stringify(bad));
+  }
+  answer = { ...LOCKED, presence: 'present', stage: 'engaged', absence: null, revision: 3 };
+  await t.second();
+  assert.deepEqual(t.sampler.user, answer);
+  assert.equal(t.coarse.length, 7, 'one POST a beat, no other request');
+  t.sampler.agentd(false);
+  assert.deepEqual(t.sampler.user, NO_ANSWER);
 });
 
 test('screen awareness off: the log gets no coarse values, only a failed coarse beat\'s code', async () => {

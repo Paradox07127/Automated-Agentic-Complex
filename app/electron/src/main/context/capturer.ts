@@ -14,6 +14,7 @@ import {
   imageResult, type LookResult, lookResult, lookTitle, namedWindow, type Observation, ocrObservation, OwnCapture, resultText,
   revokedKinds, scalarCount, SELECTION_LIMIT, selectionBlockReason, type SelectionDecision, textResult, windowNow, windowReadPlan,
 } from '../../common/screen-context.ts';
+import type { UserAnswer } from '../attention/sampler.ts';
 import { shellPlatform } from '../platform/index.ts';
 
 export interface ContextPorts {
@@ -24,6 +25,8 @@ export interface ContextPorts {
   blacklist(): BlacklistRules;
   /** Read at each tick, request and send: config.json's screen context settings (`contextPolicy`). */
   policy(): ContextPolicy;
+  /** AttentionSampler.user: whether the user is away, and when an absence ends, for the automatic reads. */
+  user(): UserAnswer;
   /** This shell's processes (main and helper), never read. */
   ownPids(): readonly number[];
   /** A fresh snapshot id for an OCR read. */
@@ -318,7 +321,7 @@ export class ContextCapturer {
       || current.asleep || current.front?.windowId !== windowId) return;
     const front = window.window;
     const fire = this.triggers.update(this.seconds(), windowId, front.bundleId ?? front.app, focused.key ?? sample.focusRole,
-      sample.idleSeconds);
+      this.ports.user());
     if (!fire || this.reading || front.pid === null) return;
     if (captureBlockReason(window, this.ports.blacklist(), this.ports.ownPids()) !== null) return;
     this.reading = true;

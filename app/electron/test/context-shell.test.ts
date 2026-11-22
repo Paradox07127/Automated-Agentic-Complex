@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import type { AttentionSample } from '../src/common/attention.ts';
 import { DEFAULT_PLUGINS, shellPlan } from '../src/common/plugins.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
+import { NO_ANSWER, type UserAnswer } from '../src/main/attention/sampler.ts';
 import { shellAttention } from '../src/main/attention/shell.ts';
 import { agentdLook, anyOwnCapture, shellContext } from '../src/main/context/shell.ts';
 
@@ -37,7 +38,8 @@ function setup(o: { argv?: string[]; settings?: Record<string, unknown>; helper?
   let clock = 1_763_539_200_000;
   let tickFn: (() => void) | null = null;
   const timers: { at: number; fn: () => void; live: boolean }[] = [];
-  const state = { settings: o.settings ?? { share_window_text: true, share_screenshots: true } };
+  const state = { settings: o.settings ?? { share_window_text: true, share_screenshots: true },
+    attention: null as { user: UserAnswer } | null };
   const requests: [string, Record<string, unknown>][] = [];
   const posts: [string, Record<string, unknown>][] = [];
   const logs: string[] = [];
@@ -74,6 +76,7 @@ function setup(o: { argv?: string[]; settings?: Record<string, unknown>; helper?
       },
     },
     agentdStateDir: dir, settings: () => state.settings, ownPids: () => [4000], log: (line) => logs.push(line),
+    attention: () => state.attention,
     clock: {
       now: () => clock,
       every: (_ms, fn) => {
@@ -200,6 +203,29 @@ test('each attention sample, the helper\'s hello and its ax.notification events 
   }
 });
 
+test('the automatic reads follow the attention sampler\'s answer; without a sampler the user is present', async () => {
+  const s = setup({ settings: { share_window_text: true } });
+  const reads = () => s.ops().filter((op) => op === 'ax.window_text').length;
+  try {
+    s.state.attention = { user: { ...NO_ANSWER, presence: 'locked', stage: 'offstage', absence: { id: '1795280400000-1', since: 0 } } };
+    s.context!.agentd(true);
+    await s.beat();
+    await s.tick();
+    assert.equal(reads(), 1, 'the first read of the window');
+    await s.beat();
+    await s.advance(60_000);
+    await s.tick();
+    assert.equal(reads(), 1, 'locked');
+    s.state.attention = null;
+    await s.advance(1000);
+    await s.tick();
+    assert.equal(reads(), 2, 'no sampler: present, and the absence it saw is over');
+  } finally {
+    s.context!.stop();
+    s.done();
+  }
+});
+
 test('look: agentd\'s POST /look answer, as ContextCapturer.lookNow and the main window\'s look read it', async () => {
   const answers: Record<string, { status: number; body: unknown }> = {
     requested: { status: 202, body: { request_id: 'look-1' } },
@@ -244,7 +270,7 @@ test('the attention sampler does not count a screenshot of the context capturer 
       plan: () => shellPlan({ ...DEFAULT_PLUGINS, screen_awareness: true }),
       agentd: { request: async (_method, path, json) => {
         if (path === '/context/attention') posts.push(json as Record<string, unknown>);
-        return { status: 200 };
+        return { status: 200, body: Buffer.from('{}') };
       } },
       ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, ownCaptureRecent: recent });
     sampler!.helper(true);

@@ -2,6 +2,7 @@
 import { join } from 'node:path';
 import type { AttentionSample, HelperY } from '../../common/attention.ts';
 import type { Subsystem } from '../../common/plugins.ts';
+import { agentdPost } from '../context/shell.ts';
 import { BlacklistFile } from './blacklist.ts';
 import { type AttentionPorts, type AttentionSampler, startAttention } from './sampler.ts';
 
@@ -9,7 +10,7 @@ export interface ShellAttentionOptions {
   /** The shell's arguments: `--no-attention` (test and host runs) starts no sampler, so no window title is read. */
   argv: readonly string[];
   helper: AttentionPorts['helper'];
-  agentd: { request(method: string, path: string, json?: unknown): Promise<{ status: number }> };
+  agentd: { request(method: string, path: string, json?: unknown): Promise<{ status: number; body: Buffer }> };
   /** `agentd_state_dir`, which holds blacklist.json. */
   agentdStateDir: string;
   /** config.json as saved now. */
@@ -35,17 +36,11 @@ export interface ShellAttentionOptions {
 export function shellAttention(o: ShellAttentionOptions): AttentionSampler | null {
   if (o.argv.includes('--no-attention')) return null;
   const blacklist = new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
-  const post = (path: string) => async (body: Record<string, unknown>) => {
-    try {
-      return (await o.agentd.request('POST', path, body)).status;
-    } catch {
-      return 0;
-    }
-  };
+  const post = agentdPost(o.agentd);
   return startAttention({
     helper: o.helper,
-    post: post('/context/attention'),
-    postCoarse: post('/user/coarse'),
+    post: async (body) => (await post('/context/attention', body)).status,
+    postCoarse: (body) => post('/user/coarse', body),
     aware: () => o.plan().has('attention'),
     blacklist: () => blacklist.rules(),
     // Anything but a saved `false` is on.

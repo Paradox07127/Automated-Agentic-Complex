@@ -21,20 +21,20 @@ class SignalsTest(unittest.TestCase):
         self.now, self.posts = T0, []
         self.gate = Gate(enabled=True, quiet=(0, 0))
         self.registry = Registry(clock=lambda: self.now, coalesce=0)
-        self.scene, self.allowed, self.pending = {}, True, []
+        self.presence, self.allowed, self.pending = 'present', True, []
         self.own = NS(own_id=lambda sid: 'own:A' if sid == 'owned' else sid)
         self.away = False
         self.signals = Signals(self.gate, NS(post=lambda data: self.posts.append(data), log=None), self.registry,
-                               sessions=self.own, scene=lambda: self.scene,
+                               sessions=self.own, presence=lambda: self.presence,
                                allowed=lambda row: self.allowed, pending=lambda: self.pending,
                                clock=lambda: self.now, absent=lambda: self.away)
 
     def leave(self):
-        self.away, self.scene = True, {'activity': 'away'}
+        self.away, self.presence = True, 'away'
 
     def back(self):
         """user_now's return."""
-        self.away, self.scene = False, {}
+        self.away, self.presence = False, 'present'
         self.signals.returned()
 
     def logged(self, reason, *outcomes):
@@ -368,7 +368,7 @@ class SignalsTest(unittest.TestCase):
 class WorkSignalsTest(unittest.TestCase):
     def setUp(self):
         from test_repeat_finder import FakeSemantic
-        self.now, self.posts, self.scene, self.allowed = T0, [], {}, True
+        self.now, self.posts, self.presence, self.allowed = T0, [], 'present', True
         self.cards = [dict(id='task-A', title='修渲染', status='active', next_step='检查材质', last_at=T0 - 25 * 3600)]
         self.linked, self.summaries, self.rows, self.jobs = [], [], [], []
         self.worklog = NS(tasks=lambda statuses: [c for c in self.cards if c['status'] in statuses],
@@ -379,7 +379,7 @@ class WorkSignalsTest(unittest.TestCase):
         self.client = FakeSemantic()
         self.away = False
         self.signals = Signals(self.gate, NS(post=self.posts.append, log=None), NS(snapshot=lambda now: {'sessions': self.rows}),
-                               worklog=self.worklog, semantic=self.client, scene=lambda: self.scene,
+                               worklog=self.worklog, semantic=self.client, presence=lambda: self.presence,
                                allowed=lambda row: self.allowed, clock=lambda: self.now, spawn=lambda fn: fn(),
                                absent=lambda: self.away)
 
@@ -452,12 +452,15 @@ class WorkSignalsTest(unittest.TestCase):
         self.tick(60)
         self.assertEqual(self.posts, [])
 
-    def test_away_resets_presence_and_invalid_reminder_has_no_button(self):
+    def test_user_nows_presence_resets_presence_and_invalid_reminder_has_no_button(self):
         self.tick()
-        self.scene = {'activity': 'away'}
+        self.presence = 'away'
         self.tick(600)
         self.assertEqual(self.posts, [])
-        self.scene = {}
+        self.presence = 'unknown'  # no beats: not present
+        self.tick(300)
+        self.assertEqual(self.posts, [])
+        self.presence = 'present'
         self.tick(60)
         self.tick(240)
         self.assertEqual(self.posts, [])

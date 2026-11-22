@@ -83,7 +83,7 @@ function setup(o: { argv?: string[]; capturer?: boolean; settings?: Record<strin
         return { status: r.status, body: Buffer.from(JSON.stringify(r.body)) };
       },
     },
-    agentdStateDir: dir, settings: () => ({}), ownPids: () => [4000], log: (line) => logs.push(line),
+    agentdStateDir: dir, settings: () => ({}), attention: () => null, ownPids: () => [4000], log: (line) => logs.push(line),
     onLook: lookReceipt(() => (state.desktop ? stack : null)),
     clock: { now: () => 1_000, every: () => () => {}, after: () => () => {} },
   });

@@ -9,7 +9,7 @@ import time
 from brain.language import mismatch
 from character.reminder_offer import offer as reminder_offer
 from character.repeat_finder import find as find_repeat
-from character.thoughts import OWN_BUDGET, UNHEARD, _factor, _heard, _idle, _thread, _typing
+from character.thoughts import OWN_BUDGET, UNHEARD, _factor, _heard, _thread, _typing
 from character_agent.services.semantic import room
 from sessions.check_result import parse
 from sessions.registry import APPS, HISTORY, own_app_wait
@@ -94,13 +94,14 @@ def _short(text, limit):
 
 
 class Signals:
-    def __init__(self, gate, thoughts, registry, *, sessions=None, scene=lambda: None,
+    def __init__(self, gate, thoughts, registry, *, sessions=None, presence=lambda: "unknown",
                  allowed=lambda row: True, pending=lambda: [], clock=time.time, worklog=None,
                  semantic=None, report_time=(17, 30), egress=None, spawn=_thread,
                  work_allowed=lambda row: True, absent=lambda: False):
-        """absent() -> user_now has an absence open; a signal that comes then waits for returned()."""
+        """presence() -> user_now's presence, whose present run a stalled task waits for; absent() -> user_now has an
+        absence open; a signal that comes then waits for returned()."""
         self.gate, self.thoughts, self.registry = gate, thoughts, registry
-        self.sessions, self.scene, self.allowed, self.pending, self.clock = sessions, scene, allowed, pending, clock
+        self.sessions, self.presence, self.allowed, self.pending, self.clock = sessions, presence, allowed, pending, clock
         self.absent = absent
         self._lock = threading.RLock()
         self._turns = {}
@@ -199,8 +200,7 @@ class Signals:
             if self._tick_at is not None and now - self._tick_at < EVERY:
                 return
             self._tick_at = now
-            scene = self.scene()
-            if scene is None or _idle(scene):
+            if self.presence() != 'present':
                 self._present_since = None
             elif self._present_since is None:
                 self._present_since = now

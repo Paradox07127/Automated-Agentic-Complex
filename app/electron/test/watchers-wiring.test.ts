@@ -10,6 +10,7 @@ import type { AttentionSample } from '../src/common/attention.ts';
 import type { Box } from '../src/common/c3.ts';
 import { DEFAULT_PLUGINS, shellPlan, type Subsystem } from '../src/common/plugins.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
+import { NO_ANSWER, type UserAnswer } from '../src/main/attention/sampler.ts';
 import { helperYFor, type RecorderOptions, shellRecorders, shellWatchers, surfaceLinkOptions, type WatcherOptions }
   from '../src/main/attention/watchers.ts';
 import { placementSpace } from '../src/main/platform/screens.ts';
@@ -52,8 +53,11 @@ interface Observed { meeting: boolean; pausedUntil: number | null }
 const AWARE = shellPlan({ ...DEFAULT_PLUGINS, screen_awareness: true });
 
 function setup(o: { argv?: string[]; saved?: Record<string, unknown> | null; platform?: 'mac' | 'windows'; frontFullscreen?: boolean;
-  observation?: Observed | null; helper?: Record<string, HelperAnswer>; focus?: boolean; plan?: ReadonlySet<Subsystem> } = {}) {
+  observation?: Observed | null; helper?: Record<string, HelperAnswer>; focus?: boolean; plan?: ReadonlySet<Subsystem>;
+  user?: Partial<UserAnswer> } = {}) {
   let clock = 0;
+  /** The sampler's last `/user/coarse` answer. */
+  let user: UserAnswer = { ...NO_ANSWER, ...o.user };
   const answers = { ...HELPER, ...o.helper };
   let cursor = { x: 0, y: 0 };
   let lastCursorHit = false;
@@ -86,7 +90,7 @@ function setup(o: { argv?: string[]; saved?: Record<string, unknown> | null; pla
     plan: () => o.plan ?? AWARE,
     cursor: () => cursor,
     ownPids: () => [77],
-    attention: () => ({ reflex: null, systemPaused: false, frontFullscreen: o.frontFullscreen ?? false }),
+    attention: () => ({ reflex: null, systemPaused: false, frontFullscreen: o.frontFullscreen ?? false, user }),
     keyIdle: () => 60,
     avatarHidden: () => hidden,
     setHidden: (h, reason) => { hides.push([h, reason]); hidden = h; },
@@ -125,7 +129,7 @@ function setup(o: { argv?: string[]; saved?: Record<string, unknown> | null; pla
   const lost = () => { for (const l of listeners) l({ kind: 'lost' } as never); };
   return { watchers, recorders, requests, posts, sent, hides, step, hello, message, lost, timers, ops: () => requests.map(([op]) => op), answers, focusHides,
     point: (p: { x: number; y: number }) => { cursor = p; }, cursorHit: (hit: boolean) => { lastCursorHit = hit; },
-    setHidden: (h: boolean) => { hidden = h; } };
+    setHidden: (h: boolean) => { hidden = h; }, answer: (over: Partial<UserAnswer>) => { user = { ...NO_ANSWER, ...over }; } };
 }
 
 test('the helper up: the surfaces send their first snapshot, give-way its first screen targets, and the recorder watches the front app', async () => {
@@ -227,9 +231,8 @@ const BODY = { type: 'hit_capsules', space: 'global', capsules: [{ a: [700, 200]
 /** In helper coordinates; on the 900 pt main display its AppKit centre is (150, 600), 626 pt from hers. */
 const FAR_LEFT = r(0, 100, 300, 400);
 const sides = (t: ReturnType<typeof setup>) => t.sent.filter((m) => m.type === 'attention_side').map((m) => m.body);
-const behavior = (event: string) => ({ event: 'behavior', id: null, data: JSON.stringify({ trigger: { event } }) });
 
-test('a focused window far from her for 3 s turns her toward it once; agentd\'s typing behavior turns her too', () => {
+test('a focused window far from her for 3 s turns her toward it once; the user starting to type turns her too', () => {
   const t = setup();
   t.hello();
   t.message(BODY);
@@ -240,22 +243,25 @@ test('a focused window far from her for 3 s turns her toward it once; agentd\'s 
   w.sampled(sample({ ts: 3, frontBounds: FAR_LEFT }));
   w.sampled(sample({ ts: 10, frontBounds: FAR_LEFT }));
   assert.deepEqual(sides(t), [{ source: 'focus', kind: 'window', side: 'left' }]);
-  w.feed(behavior('click'));
-  w.feed({ event: 'intent', id: null, data: JSON.stringify({ trigger: { event: 'typing' } }) });
-  w.feed(behavior('typing'));
-  w.feed(behavior('typing'));
-  assert.deepEqual(sides(t).slice(1), [{ source: 'focus', kind: 'typing', side: 'left' }]);
+  t.answer({ typing: true });
+  w.sampled(sample({ ts: 11, frontBounds: FAR_LEFT }));
+  w.sampled(sample({ ts: 12, frontBounds: FAR_LEFT }));
+  t.answer({ typing: false });
+  w.sampled(sample({ ts: 13, frontBounds: FAR_LEFT }));
+  t.answer({ typing: true });
+  w.sampled(sample({ ts: 14, frontBounds: FAR_LEFT }));
+  assert.deepEqual(sides(t).slice(1), [{ source: 'focus', kind: 'typing', side: 'left' }], 'at most once per typingInterval');
+  assert.equal('feed' in w, false, 'agentd\'s behavior events turn her no more');
 });
 
 test('without her body or without ObservationControl she does not turn; a new avatar starts without a body', () => {
-  const noBody = setup();
+  const noBody = setup({ user: { typing: true } });
   noBody.hello();
-  const noObservation = setup({ observation: null });
+  const noObservation = setup({ observation: null, user: { typing: true } });
   noObservation.hello();
   noObservation.message(BODY);
   for (const t of [noBody, noObservation]) {
     for (const ts of [0, 3, 6]) t.watchers!.sampled(sample({ ts, frontBounds: FAR_LEFT }));
-    t.watchers!.feed(behavior('typing'));
     assert.deepEqual(sides(t), []);
   }
   const again = setup();
@@ -267,9 +273,11 @@ test('without her body or without ObservationControl she does not turn; a new av
   assert.deepEqual(sides(again), []);
 });
 
-test('meeting, pause, screen awareness off, lock, sleep, secure input and an incognito front stop the turn and clear the dwell', () => {
+test('a manual or detected meeting, offstage, pause, screen awareness off, lock, sleep, secure input and an incognito front stop the turn and clear the dwell', () => {
   const gates: [string, Parameters<typeof setup>[0], Partial<AttentionSample>][] = [
-    ['meeting', { observation: { meeting: true, pausedUntil: null } }, {}],
+    ['manual meeting', { observation: { meeting: true, pausedUntil: null } }, {}],
+    ['detected meeting', { user: { stage: 'quiet', doing: 'meeting' } }, {}],
+    ['offstage', { user: { stage: 'offstage' } }, {}],
     ['paused', { observation: { meeting: false, pausedUntil: 2_000_000 } }, {}],
     ['screen awareness off', { plan: shellPlan(DEFAULT_PLUGINS) }, {}],
     ['locked', {}, { locked: true }],
@@ -278,17 +286,22 @@ test('meeting, pause, screen awareness off, lock, sleep, secure input and an inc
     ['incognito', {}, { frontIncognito: true }],
   ];
   for (const [name, options, over] of gates) {
-    const t = setup(options);
+    const t = setup({ ...options, user: { ...options!.user, typing: true } });
     t.hello();
     t.message(BODY);
     const w = t.watchers!;
     w.sampled(sample({ ts: 0, frontBounds: FAR_LEFT, ...over }));
     w.sampled(sample({ ts: 3, frontBounds: FAR_LEFT, ...over }));
-    w.feed(behavior('typing'));
     assert.deepEqual(sides(t), [], name);
   }
+  // Quiet for the user's own typing is no meeting.
+  const typing = setup({ user: { stage: 'quiet', typing: true } });
+  typing.hello();
+  typing.message(BODY);
+  typing.watchers!.sampled(sample({ ts: 0, frontBounds: FAR_LEFT }));
+  assert.deepEqual(sides(typing), [{ source: 'focus', kind: 'typing', side: 'left' }]);
   // A gated sample forgets the window: after one, the dwell starts again.
-  for (const [name, , over] of gates.slice(3)) {
+  for (const [name, , over] of gates.slice(5)) {
     const t = setup();
     t.hello();
     t.message(BODY);
@@ -303,21 +316,24 @@ test('meeting, pause, screen awareness off, lock, sleep, secure input and an inc
   }
 });
 
-test('meeting and pause are read at each sample: once both end the dwell starts', () => {
+test('meeting, pause and the answer are read at each sample: once they end the dwell starts', () => {
   const observation: Observed = { meeting: true, pausedUntil: null };
-  const t = setup({ observation });
+  const t = setup({ observation, user: { stage: 'quiet' } });
   t.hello();
   t.message(BODY);
   const w = t.watchers!;
   w.sampled(sample({ ts: 0, frontBounds: FAR_LEFT }));
   w.sampled(sample({ ts: 3, frontBounds: FAR_LEFT }));
-  w.feed(behavior('typing'));
+  t.answer({ stage: 'quiet', typing: true });
+  w.sampled(sample({ ts: 3.5, frontBounds: FAR_LEFT }));
   assert.deepEqual(sides(t), [], 'meeting');
   observation.meeting = false;
   observation.pausedUntil = 999_000;
+  t.answer({});
   w.sampled(sample({ ts: 4, frontBounds: FAR_LEFT }));
   w.sampled(sample({ ts: 7, frontBounds: FAR_LEFT }));
-  w.feed(behavior('typing'));
+  t.answer({ typing: true });
+  w.sampled(sample({ ts: 8, frontBounds: FAR_LEFT }));
   assert.deepEqual(sides(t), [{ source: 'focus', kind: 'window', side: 'left' }, { source: 'focus', kind: 'typing', side: 'left' }]);
 });
 
@@ -334,31 +350,35 @@ test('the front window\'s bounds go into her capsules\' space: AppKit points on 
   }
 });
 
-test('only a typing behavior turns her, and none while a meeting runs; capsules in window space sit at her window frame', () => {
+test('only the answer\'s typing coming on turns her, and none in a meeting; capsules in window space sit at her window frame', () => {
   const observation: Observed = { meeting: false, pausedUntil: null };
   const t = setup({ observation });
   t.hello();
   t.message(BODY);
   const w = t.watchers!;
   w.sampled(sample({ ts: 0, frontBounds: FAR_LEFT }));
-  w.feed(behavior('click'));
-  assert.deepEqual(sides(t), [], 'click');
+  assert.deepEqual(sides(t), [], 'not typing');
   observation.meeting = true;
-  w.feed(behavior('typing'));
+  t.answer({ stage: 'quiet', typing: true });
+  w.sampled(sample({ ts: 0.5, frontBounds: FAR_LEFT }));
   assert.deepEqual(sides(t), [], 'meeting');
   observation.meeting = false;
-  w.feed(behavior('typing'));
+  t.answer({});
+  w.sampled(sample({ ts: 1, frontBounds: FAR_LEFT }));
+  t.answer({ typing: true });
+  w.sampled(sample({ ts: 1.5, frontBounds: FAR_LEFT }));
   assert.deepEqual(sides(t), [{ source: 'focus', kind: 'typing', side: 'left' }]);
   // Window-space centre (100, 300) in a frame at (600, 0): global (700, 300), right of the window's 150.
-  const local = setup();
+  const local = setup({ user: { typing: true } });
   local.hello();
   local.message({ type: 'hit_capsules', space: 'window', capsules: [{ a: [100, 200], b: [100, 400], r: 80 }] });
   local.watchers!.sampled(sample({ ts: 0, frontBounds: FAR_LEFT }));
-  local.watchers!.feed(behavior('typing'));
   assert.deepEqual(sides(local), [], 'no window frame yet');
   local.message({ type: 'window_frame', frame: { x: 600, y: 0, w: 300, h: 600 }, viewport: 'window' });
+  local.answer({});
   local.watchers!.sampled(sample({ ts: 1, frontBounds: FAR_LEFT }));
-  local.watchers!.feed(behavior('typing'));
+  local.answer({ typing: true });
+  local.watchers!.sampled(sample({ ts: 2, frontBounds: FAR_LEFT }));
   assert.deepEqual(sides(local), [{ source: 'focus', kind: 'typing', side: 'left' }]);
 });
 

@@ -1,5 +1,5 @@
 // C3 rule 39 `attention_side` with source `focus`: a focused window far from her
-// that keeps the focus, and agentd's typing behavior, turn her toward the window's side.
+// that keeps the focus, and the user starting to type (agentd's `/user/coarse` answer), turn her toward the window's side.
 import type { Rect } from './attention.ts';
 
 export type Side = 'left' | 'right';
@@ -38,7 +38,7 @@ export class FocusSide {
     return farSide;
   }
 
-  /** agentd's typing behavior arrived: the focused window's side, at most once per `typingInterval` seconds. */
+  /** The user began typing: the focused window's side, at most once per `typingInterval` seconds. */
   typing(now: number, deliver: (side: Side) => boolean = () => true): Side | null {
     if (now - this.typedAt < FOCUS_SIDE.typingInterval) return null;
     const side = this.side();

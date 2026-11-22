@@ -80,37 +80,45 @@ test('ContextCapturer.configure: narrowing revokes window_text and screenshots',
 
 // ---- Triggers and memory
 
+/** agentd's `/user/coarse` answer as CaptureTriggers reads it. */
+const HERE = { presence: 'present', absence: null };
+const gone = (presence: string) => ({ presence, absence: { id: '1795280400000-1', since: 0 } });
+
 test('CaptureTriggers: a change reads at once, then backs off 5, 10, 20, 30 s', () => {
   const t = new CaptureTriggers();
-  assert.equal(t.update(0, 1, 'a', null, 0), true);
-  assert.equal(t.update(4, 1, 'a', null, 0), false);
-  assert.equal(t.update(5, 1, 'a', null, 0), true);
-  assert.equal(t.update(14, 1, 'a', null, 0), false);
-  assert.equal(t.update(15, 1, 'a', null, 0), true);
-  assert.equal(t.update(35, 1, 'a', null, 0), true);
-  assert.equal(t.update(64, 1, 'a', null, 0), false);
-  assert.equal(t.update(65, 1, 'a', null, 0), true);
-  assert.equal(t.update(66, 2, 'a', null, 0), true, 'another window');
-  assert.equal(t.update(67, 2, 'a', 'f2', 0), true, 'another focused element');
+  assert.equal(t.update(0, 1, 'a', null, HERE), true);
+  assert.equal(t.update(4, 1, 'a', null, HERE), false);
+  assert.equal(t.update(5, 1, 'a', null, HERE), true);
+  assert.equal(t.update(14, 1, 'a', null, HERE), false);
+  assert.equal(t.update(15, 1, 'a', null, HERE), true);
+  assert.equal(t.update(35, 1, 'a', null, HERE), true);
+  assert.equal(t.update(64, 1, 'a', null, HERE), false);
+  assert.equal(t.update(65, 1, 'a', null, HERE), true);
+  assert.equal(t.update(66, 2, 'a', null, HERE), true, 'another window');
+  assert.equal(t.update(67, 2, 'a', 'f2', HERE), true, 'another focused element');
 });
 
-test('CaptureTriggers: no reads while away; coming back reads', () => {
-  const t = new CaptureTriggers();
-  t.update(0, 1, 'a', null, 0);
-  assert.equal(t.update(100, 1, 'a', null, 180), false);
-  assert.equal(t.update(101, 1, 'a', null, 0), true);
+test('CaptureTriggers: no reads while agentd says the user is away, locked or asleep; the absence ending reads', () => {
+  for (const presence of ['away', 'locked', 'asleep']) {
+    const t = new CaptureTriggers();
+    t.update(0, 1, 'a', null, HERE);
+    assert.equal(t.update(100, 1, 'a', null, gone(presence)), false, presence);
+    assert.equal(t.update(101, 1, 'a', null, { presence: 'unknown', absence: gone(presence).absence }), true,
+      'unknown is not away, though the absence is still open');
+    assert.equal(t.update(102, 1, 'a', null, HERE), true, 'the return');
+  }
 });
 
 test('CaptureTriggers: an AX notification reads 2 s after it, 5 s after the last read', () => {
   const t = new CaptureTriggers();
-  t.update(0, 1, 'a', null, 0);
-  t.update(5, 1, 'a', null, 0);
+  t.update(0, 1, 'a', null, HERE);
+  t.update(5, 1, 'a', null, HERE);
   t.axNotified(6);
-  assert.equal(t.update(7, 1, 'a', null, 0), false);
-  assert.equal(t.update(10, 1, 'a', null, 0), true);
+  assert.equal(t.update(7, 1, 'a', null, HERE), false);
+  assert.equal(t.update(10, 1, 'a', null, HERE), true);
   t.contentChanged();
-  assert.equal(t.update(14, 1, 'a', null, 0), false);
-  assert.equal(t.update(15, 1, 'a', null, 0), true);
+  assert.equal(t.update(14, 1, 'a', null, HERE), false);
+  assert.equal(t.update(15, 1, 'a', null, HERE), true);
 });
 
 test('BrowserWindowMemory: a browser window never seen in front is unknown, another app is not incognito', () => {

@@ -7,6 +7,7 @@ import {
   type AgentdReply, contextPolicy, type LookResult, lookResult, resultText, type SelectionDecision,
 } from '../../common/screen-context.ts';
 import { BlacklistFile } from '../attention/blacklist.ts';
+import { NO_ANSWER, type UserAnswer } from '../attention/sampler.ts';
 import { type ContextPorts, startContext } from './capturer.ts';
 
 type Agentd = { request(method: string, path: string, json?: unknown): Promise<{ status: number; body: Buffer }> };
@@ -20,6 +21,8 @@ export interface ShellContextOptions {
   agentdStateDir: string;
   /** config.json as saved now; `{}` when it cannot be read. */
   settings(): Record<string, unknown>;
+  /** The attention sampler, whose `user` the automatic reads follow; null without one. */
+  attention(): { readonly user: UserAnswer } | null;
   ownPids(): readonly number[];
   log(line: string): void;
   /** Tests drive the timers; Unix milliseconds. */
@@ -105,6 +108,7 @@ export function shellContext(o: ShellContextOptions): ShellContext | null {
     helper: o.helper, post: agentdPost(o.agentd), blacklist: () => blacklist.rules(),
     // `store.saved()` nil is the default policy, `contextPolicy({})`.
     policy: () => contextPolicy(o.settings()),
+    user: () => o.attention()?.user ?? NO_ANSWER,
     ownPids: o.ownPids, newId: () => randomUUID().toUpperCase(), now: clock.now, every: clock.every, after: clock.after, log: o.log,
   });
   return {

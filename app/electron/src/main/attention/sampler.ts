@@ -10,12 +10,37 @@ import {
 } from '../../common/attention.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 
+/** C6 `POST /user/coarse`'s answer: agentd's judgment of the user and her stage after the beat. */
+export interface UserAnswer {
+  presence: string;
+  stage: string;
+  /** user_now's `doing`: sharing, meeting, gaming, watching, reading, browsing or idle. */
+  doing: string;
+  absence: { id: string; since: number } | null;
+  revision: number;
+  typing: boolean;
+}
+
+/** What every consumer reads while there is no answer (agentd not up, or the last POST failed). */
+export const NO_ANSWER: UserAnswer = Object.freeze({ presence: 'present', stage: 'normal', doing: 'idle', absence: null, revision: 0, typing: false });
+
+/** The answer, or null when a field is missing or of another type. */
+function decodeAnswer(v: unknown): UserAnswer | null {
+  const obj = (x: unknown) => (typeof x === 'object' && x !== null ? x as Record<string, unknown> : null);
+  const o = obj(v), a = obj(o?.absence);
+  if (!o || typeof o.presence !== 'string' || typeof o.stage !== 'string' || typeof o.doing !== 'string' || typeof o.revision !== 'number'
+    || typeof o.typing !== 'boolean') return null;
+  if (o.absence === null) return { presence: o.presence, stage: o.stage, doing: o.doing, absence: null, revision: o.revision, typing: o.typing };
+  if (!a || typeof a.id !== 'string' || typeof a.since !== 'number') return null;
+  return { presence: o.presence, stage: o.stage, doing: o.doing, absence: { id: a.id, since: a.since }, revision: o.revision, typing: o.typing };
+}
+
 export interface AttentionPorts {
   helper: { request(op: string, params?: Record<string, unknown>): Promise<HelperAnswer> };
   /** `POST /context/attention`; the HTTP status, 0 when agentd could not be reached. */
   post(body: Record<string, unknown>): Promise<number>;
-  /** `POST /user/coarse`; the HTTP status, 0 when agentd could not be reached. */
-  postCoarse(body: Record<string, unknown>): Promise<number>;
+  /** `POST /user/coarse`; the HTTP status (0 when agentd could not be reached) and the JSON body. */
+  postCoarse(body: Record<string, unknown>): Promise<{ status: number; body: unknown }>;
   /** Read at each beat: screen awareness is on, so the sample reads titles, the browser tab and the audio apps, and goes to `post`. */
   aware(): boolean;
   /** `<agentd_state_dir>/blacklist.json`'s rules now. */
@@ -60,6 +85,7 @@ export class AttentionSampler {
   private sending = false;
   private polling = false;
   private last: AttentionSample | null = null;
+  private answer: UserAnswer | null = null;
   private reflexValue: ReflexState | null = null;
   private loggedGate: string | null = null;
   private loggedFocus: string | null = null;
@@ -77,6 +103,11 @@ export class AttentionSampler {
   /** The last beat's sample. */
   get lastSample(): AttentionSample | null {
     return this.last;
+  }
+
+  /** agentd's last `/user/coarse` answer; NO_ANSWER before the first, after a failed POST and while agentd is down. */
+  get user(): UserAnswer {
+    return this.answer ?? NO_ANSWER;
   }
 
   /** The front window covers a whole display. */
@@ -118,6 +149,7 @@ export class AttentionSampler {
       this.pendingEdges = [];
       this.coarseEdges = [];
       this.polledLocked = null;
+      this.answer = null;
     }
   }
 
@@ -218,8 +250,10 @@ export class AttentionSampler {
       const coarseBody = coarseBeat(raw, coarse, sampled.sensing);
       const body = aware ? attentionPayload(current, this.ports.blacklist(), this.ports.ownPids(), this.ports.sensing().redact) : null;
       posted = true;
-      const [status] = await Promise.all([this.ports.postCoarse(coarseBody), body && this.ports.post(body)]);
-      if (status >= 200 && status < 300) {
+      const [{ status, body: answer }] = await Promise.all([this.ports.postCoarse(coarseBody), body && this.ports.post(body)]);
+      const ok = status >= 200 && status < 300;
+      this.answer = ok ? decodeAnswer(answer) : null;
+      if (ok) {
         if (coarse.edge !== null) this.coarseEdges.shift();
         coarseSent = true;
         this.loggedCoarse = null;

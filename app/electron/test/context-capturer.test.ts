@@ -7,6 +7,7 @@ import { type AttentionSample, type AttentionWindow, type BlacklistRules, parseB
 import type { ShellPlatform } from '../src/common/config.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
 import { type AgentdReply, type ContextPolicy, DEFAULT_CONTEXT_POLICY, SELECTION_LIMIT } from '../src/common/screen-context.ts';
+import { NO_ANSWER, type UserAnswer } from '../src/main/attention/sampler.ts';
 import { type ContextPorts, startContext } from '../src/main/context/capturer.ts';
 
 // Deny mode with no rules: every window but our own is read.
@@ -53,7 +54,7 @@ function setup(o: { helper?: Record<string, Answer>; policy?: ContextPolicy; bla
   let clock = 1_763_539_200_000;
   let tickFn: (() => void) | null = null;
   const timers: { at: number; fn: () => void; live: boolean }[] = [];
-  const state = { policy: o.policy ?? TEXT_ON };
+  const state = { policy: o.policy ?? TEXT_ON, user: NO_ANSWER as UserAnswer };
   const requests: [string, Record<string, unknown>][] = [];
   const posts: [string, Record<string, unknown>][] = [];
   const logs: string[] = [];
@@ -90,6 +91,7 @@ function setup(o: { helper?: Record<string, Answer>; policy?: ContextPolicy; bla
     },
     blacklist: () => o.blacklist ?? NO_RULES,
     policy: () => state.policy,
+    user: () => state.user,
     ownPids: () => [4000, 4001],
     newId: () => 'ocr-snap',
     now: () => clock,
@@ -473,6 +475,28 @@ test('automatic: an AX notification of the context watch asks for a read', async
   assert.equal(reads(), 2, 'another watch’s notification and a backoff of 10 s');
   s.c.event('ax.notification', { watch_id: 'context', pid: 702, notification: 'value' });
   await s.advance(2000);
+  await s.tick();
+  assert.equal(reads(), 3);
+});
+
+test('automatic: no reads while agentd\'s answer says the user is away; the absence ending reads at once', async () => {
+  const s = await running();
+  const reads = () => s.ops().filter((op) => op === 'ax.window_text').length;
+  await s.tick();
+  await s.beat();
+  await s.beat();
+  assert.equal(reads(), 1);
+  s.state.user = { ...NO_ANSWER, presence: 'away', stage: 'offstage', absence: { id: '1795280400000-1', since: 0 } };
+  await s.advance(60_000);
+  await s.tick();
+  assert.equal(reads(), 1, 'away');
+  s.state.user = NO_ANSWER;
+  await s.advance(1000);
+  await s.tick();
+  assert.equal(reads(), 2, 'back');
+  // The sample's own idle seconds are no absence.
+  await s.beat(sample({ idleSeconds: 600 }));
+  await s.advance(5000);
   await s.tick();
   assert.equal(reads(), 3);
 });

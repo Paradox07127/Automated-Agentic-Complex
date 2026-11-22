@@ -592,7 +592,7 @@ class SignalOfferServerTest(unittest.TestCase):
         gate = Gate(enabled=True, quiet=(0, 0))
         thoughts = Thoughts(gate, self.server._proactive_publish, None, clock=lambda: self.now)
         signals = Signals(gate, thoughts, self.server.registry, worklog=worklog,
-                          scene=lambda: {}, clock=lambda: self.now)
+                          presence=lambda: 'present', clock=lambda: self.now)
         signals.tick(self.now)
         self.now += 300
         signals.tick(self.now)

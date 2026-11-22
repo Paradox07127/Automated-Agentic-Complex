@@ -8,6 +8,7 @@ import time
 from brain.persona import PROMPT_USER, USER_SLOT
 from character_agent.services.semantic import room
 from observation.activity import CONFIDENCE, INTERPRETED_FRESH
+from observation.user_now import ABSENT
 
 CATEGORY = "thought"  # gate category; mutable through PUT /proactive/mutes
 LEVEL = "P2"
@@ -76,11 +77,6 @@ def transition(was, state):
     return ENDS.get(state)
 
 
-def _idle(scene):
-    return scene is not None and (scene.get("activity") == "away" or scene.get("mode") == "away"
-                                  or scene.get("state") == "idle")
-
-
 def _typing(gate):
     return gate.typing
 
@@ -126,15 +122,18 @@ def _checked(value, most):
 class Thoughts:
     def __init__(self, gate, publish, semantic, scene=lambda: None, context=lambda: "",
                  sessions=lambda: {"sessions": []}, consent=lambda: False, egress=None,
-                 clock=time.time, spawn=_thread, work=None, log=None, user=lambda: PROMPT_USER):
+                 clock=time.time, spawn=_thread, work=None, log=None, user=lambda: PROMPT_USER,
+                 presence=lambda: "unknown"):
         """semantic: the SemanticService a thought runs on, as purpose "thought", in the character's persona; scene() ->
         activity()'s result or None; context() -> the observed summary (_attention_context); sessions() ->
         Registry.snapshot(); consent() -> titles and text may reach the model, else only the activity name and
         session states do. egress: EgressPolicy or None. work(cwds) -> a short
         work-memory text for the trigger session's cwds (none for other triggers), or "", or work None. log: the
         ProactiveLog of shown thoughts, whose outcomes and 少说点 factor stretch the gap; None leaves the gap alone.
-        user() -> the shown character's user_title, which the trigger reason names the user by."""
+        user() -> the shown character's user_title, which the trigger reason names the user by. presence() ->
+        user_now's presence; no thought while it is an absence's."""
         self.gate, self.publish, self.semantic, self.user = gate, publish, semantic, user
+        self.presence = presence
         self.scene, self.context, self.sessions, self.consent = scene, context, sessions, consent
         self.work, self.log = work, log
         self.egress, self.clock, self.spawn = egress, clock, spawn
@@ -159,7 +158,7 @@ class Thoughts:
         coming back is user_now's return."""
         if scene is not None:
             was, self._seen = self._seen, scene["activity"]
-            if _idle(scene):
+            if self.presence() in ABSENT:
                 return
             if scene["activity"] != was and was != "away" and scene["confidence"] >= MIN_CONFIDENCE \
                     and scene["activity"] not in ("away", "unknown"):
@@ -261,9 +260,9 @@ class Thoughts:
             with self._lock:
                 if self._signal_fresh():
                     return
-            scene = self.scene()
-            if _idle(scene):
+            if self.presence() in ABSENT:
                 return
+            scene = self.scene()
             rows = self.sessions()["sessions"]
             facts = (scene and scene.get("activity"), tuple(sorted((s["display_session"], s["effective_state"])
                                                                    for s in rows)),

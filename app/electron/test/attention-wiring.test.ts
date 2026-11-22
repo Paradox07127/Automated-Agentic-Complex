@@ -56,6 +56,8 @@ async function until(seconds: number, ok: () => boolean): Promise<boolean> {
 }
 
 const unused = { request: async () => { throw new Error('not reached'); } };
+/** agentd's `/user/coarse` answer the fake agentd gives. */
+const ANSWER = { presence: 'present', stage: 'quiet', doing: 'idle', absence: null, revision: 4, typing: true };
 /** The plan with screen awareness on: the beats go to agentd. */
 const AWARE = shellPlan({ ...DEFAULT_PLUGINS, screen_awareness: true });
 
@@ -77,7 +79,7 @@ test('the helper says hello and agentd runs: beats POST /context/attention and /
     req.on('end', () => {
       if (req.method === 'POST' && req.url === '/context/attention') posts.push(JSON.parse(body) as Record<string, unknown>);
       if (req.method === 'POST' && req.url === '/user/coarse') coarse.push(JSON.parse(body) as Record<string, unknown>);
-      res.writeHead(200, { 'Content-Type': 'application/json' }).end('{}');
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(req.url === '/user/coarse' ? JSON.stringify(ANSWER) : '{}');
     });
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -100,6 +102,8 @@ test('the helper says hello and agentd runs: beats POST /context/attention and /
     assert.ok(await until(10, () => { try { return ops().some((m) => m.op === 'presence.watch'); } catch { return false; } }));
     sampler!.agentd(true);
     assert.ok(await until(5, () => posts.length >= 1 && coarse.length >= 1));
+    assert.ok(await until(5, () => sampler!.user.stage === 'quiet'));
+    assert.deepEqual(sampler!.user, ANSWER);
     assert.equal(coarse[0]!.user_speaking, true);
     assert.equal('input' in coarse[0]!, false);
     const front = posts[0]!.front as Record<string, unknown>;
@@ -133,7 +137,7 @@ test('our own screen capture is not the user recording the screen: ownCaptureRec
     const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), plan: () => AWARE,
       agentd: { request: async (_method, path, json) => {
         if (path === '/context/attention') posts.push(json as Record<string, unknown>);
-        return { status: 200 };
+        return { status: 200, body: Buffer.from('{}') };
       } },
       ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, ...(ownCaptureRecent && { ownCaptureRecent }) });
     sampler!.helper(true);
@@ -162,7 +166,7 @@ test('without screen awareness the beats still sample for give-way and the surfa
   } };
   const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({ sense_input_counts: false }),
     plan: () => shellPlan(DEFAULT_PLUGINS),
-    agentd: { request: async (method, path, json) => { posts.push([method, path, json as Record<string, unknown>]); return { status: 200 }; } },
+    agentd: { request: async (method, path, json) => { posts.push([method, path, json as Record<string, unknown>]); return { status: 200, body: Buffer.from('{}') }; } },
     ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, onSample: (s) => samples.push(s) });
   sampler!.helper(true);
   sampler!.agentd(true);
@@ -190,7 +194,7 @@ test('the clicks near her reach the beat as `near_clicks_10s`; without the port 
     const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: '/nonexistent', settings: () => ({}), plan: () => AWARE,
       agentd: { request: async (_method, path, json) => {
         if (path === '/context/attention') posts.push(json as Record<string, unknown>);
-        return { status: 200 };
+        return { status: 200, body: Buffer.from('{}') };
       } },
       ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {}, ...(nearClicks && { nearClicks }) });
     sampler!.helper(true);
@@ -222,7 +226,7 @@ test('redact_sensitive is read from the saved settings at each beat, as the sens
   const sampler = shellAttention({ argv: ['electron', '.'], helper, agentdStateDir: dir, settings: () => saved, plan: () => AWARE,
     agentd: { request: async (_method, path, json) => {
       if (path === '/context/attention') posts.push(json as Record<string, unknown>);
-      return { status: 200 };
+      return { status: 200, body: Buffer.from('{}') };
     } },
     ownPids: () => [], userSpeaking: () => null, log: () => {}, onSystemPaused: () => {} });
   const title = () => (posts.at(-1)!.front as Record<string, unknown>).title;

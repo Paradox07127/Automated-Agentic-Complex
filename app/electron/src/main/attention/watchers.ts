@@ -9,7 +9,6 @@ import { type Box, type Capsule, capsuleHit, capsulesBox, CURSOR, readCapsules }
 import { FocusSide } from '../../common/focus-side.ts';
 import { FocusVisibility } from '../../common/focus-visibility.ts';
 import { ControlTargets, gap, KEEP_CLEAR, type KeepClearRect, NearClickCells, NearClickCount } from '../../common/keepclear.ts';
-import type { StreamEvent } from '../../common/page.ts';
 import type { Rect } from '../../common/placement.ts';
 import type { Subsystem } from '../../common/plugins.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
@@ -21,6 +20,7 @@ import { type SurfaceLink, startSurfaces } from '../surfaces/source.ts';
 import { TimelineRecorder } from '../timeline/recorder.ts';
 import { BlacklistFile } from './blacklist.ts';
 import { MouseDowns } from './mouse-downs.ts';
+import { NO_ANSWER, type UserAnswer } from './sampler.ts';
 
 /** The link's tick, which runs FocusVisibility and the `control` hover. */
 const TICK_MS = 1000 / 60;
@@ -49,7 +49,8 @@ export interface WatcherOptions {
   /** This shell's processes (main and helper). */
   ownPids(): readonly number[];
   /** The attention sampler; null without one. */
-  attention(): { readonly reflex: ReflexState | null; readonly systemPaused: boolean; readonly frontFullscreen: boolean } | null;
+  attention(): { readonly reflex: ReflexState | null; readonly systemPaused: boolean; readonly frontFullscreen: boolean;
+    readonly user: UserAnswer } | null;
   /** Seconds since the last input. */
   keyIdle(): number;
   /** She is hidden, for any reason. */
@@ -78,8 +79,6 @@ export interface ShellWatchers {
   /** The helper said hello (true) or went (false). */
   helper(running: boolean): void;
   event(name: string, data: Record<string, unknown>): void;
-  /** Each event of agentd's `/feed` (AgentStore.subscribe): `behavior` may turn her (rule 39). */
-  feed(e: StreamEvent): void;
   /** Each attention sample (AttentionSampler.onSample). */
   sampled(s: AttentionSample): void;
   /** LinkOptions.onSurfaceTrack. */
@@ -106,16 +105,6 @@ const every = (ms: number, fn: () => void) => {
   return () => clearInterval(timer);
 };
 
-/** typingBehavior's test of a `behavior` event's data. */
-const typingTrigger = (data: string): boolean => {
-  try {
-    const trigger = (JSON.parse(data) as { trigger?: { event?: unknown } | null } | null)?.trigger;
-    return typeof trigger === 'object' && trigger !== null && trigger.event === 'typing';
-  } catch {
-    return false;
-  }
-};
-
 /** The surfaces, give-way and the focus turn, idle until the helper says hello; null with `--no-attention`. */
 export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
   if (o.argv.includes('--no-attention')) return null;
@@ -123,6 +112,7 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
   const y = helperYFor(o.platform);
   const stayInPlace = () => ['stay', 'bust'].includes(o.saved()?.stay_mode as string);
   const seconds = () => clock.now() / 1000;
+  const user = () => o.attention()?.user ?? NO_ANSWER;
   const link = o.link;
   // HostLink.Connection's: new at each hello.
   let visibility = new FocusVisibility();
@@ -239,13 +229,18 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
     if (a.frame && link.capabilities.includes('keep_clear')) controls.update(o.cursor(), passThrough, press, now);
   });
   const wall = o.wall ?? Date.now;
-  /** The gate focusSampled and typingBehavior share. */
+  /** The focus turn's gate: a manual or detected meeting, or agentd putting her offstage, stops it as a pause does. */
   const observing = () => {
-    const s = o.observation?.() ?? null;
-    return s !== null && o.plan().has('focusTurn') && !s.meeting && (s.pausedUntil === null || s.pausedUntil <= wall());
+    const s = o.observation?.() ?? null, u = user();
+    return s !== null && o.plan().has('focusTurn') && !s.meeting && u.doing !== 'meeting' && u.stage !== 'offstage'
+      && (s.pausedUntil === null || s.pausedUntil <= wall());
   };
   const focus = new FocusSide();
+  /** The answer's `typing` at the last sample. */
+  let typed = false;
   const focusSampled = (s: AttentionSample) => {
+    const typing = user().typing, began = typing && !typed;
+    typed = typing;
     if (!observing() || s.locked || s.asleep || s.secureInput || s.frontIncognito === true) {
       focus.sample(null, null, null, s.ts);
       return;
@@ -253,6 +248,7 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
     const mainHeight = o.mainHeight?.() ?? null;
     const frame = s.frontBounds && mainHeight !== null ? toAppKit(s.frontBounds, mainHeight, y) : null;
     focus.sample(s.front?.windowId ?? null, frame, body(), s.ts, (side) => o.link.sendAttentionSide('focus', 'window', side));
+    if (began) focus.typing(s.ts, (side) => o.link.sendAttentionSide('focus', 'typing', side));
   };
   return {
     helper(running) {
@@ -264,10 +260,6 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
       surfaces.event(name, data);
       giveWay.event(name, data);
       mouse.event(name, data);
-    },
-    feed(e) {
-      if (e.event !== 'behavior' || !observing() || !typingTrigger(e.data)) return;
-      focus.typing(wall() / 1000, (side) => o.link.sendAttentionSide('focus', 'typing', side));
     },
     sampled(s) {
       giveWay.sampled(s);

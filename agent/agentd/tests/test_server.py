@@ -72,7 +72,8 @@ class UserRoutesTest(unittest.TestCase):
     def test_coarse_with_screen_awareness_off_changes_the_snapshot(self):
         with unittest.mock.patch.dict("infra.plugins.resolved", screen_awareness=False):
             self.assertEqual(self.request("POST", "/user/coarse", {"ts": time.time(), "idle_s": 0, "mic_active": True}),
-                             (200, {"presence": "present", "stage": "quiet", "absence": None, "revision": 1}))
+                             (200, {"presence": "present", "stage": "quiet", "doing": "meeting", "absence": None, "revision": 1,
+                                    "typing": True}))
             body = self.now()
         self.assertEqual((body["snapshot"]["revision"], body["snapshot"]["presence"], body["snapshot"]["doing"]),
                          (1, "present", "meeting"))
@@ -133,7 +134,8 @@ class UserRoutesTest(unittest.TestCase):
         self.assertEqual(self.request("PUT", "/observation/paused", {"minutes": 5})[0], 200)
         frozen = self.now()["snapshot"]
         self.assertTrue(frozen["paused"])
-        self.assertEqual(beat(edge="unlock"), (200, {k: frozen[k] for k in ("presence", "stage", "absence", "revision")}))
+        self.assertEqual(beat(edge="unlock"), (200, {**{k: frozen[k] for k in ("presence", "stage", "doing", "absence", "revision")},
+                                                     "typing": False}))
         self.assertEqual(self.now()["snapshot"], frozen)
         self.request("PUT", "/observation/paused", {"minutes": 0})
         self.assertFalse(self.now()["snapshot"]["paused"])
@@ -167,10 +169,12 @@ class UserNowReadersTest(unittest.TestCase):
         policy.write_text('{"sense_input_counts": true}', encoding="utf-8")
         self.server.privacy_config = policy
 
-    def test_the_answer_is_the_snapshots_presence_stage_absence_and_revision(self):
-        self.assertEqual(self.beat(), (200, {"presence": "present", "stage": "normal", "absence": None, "revision": 1}))
+    def test_the_answer_is_the_snapshots_presence_stage_absence_revision_and_typing(self):
+        self.assertEqual(self.beat(), (200, {"presence": "present", "stage": "normal", "doing": "idle", "absence": None, "revision": 1,
+                                             "typing": True}))
         status, body = self.beat(edge="lock")
-        self.assertEqual((status, body["presence"], body["stage"], body["revision"]), (200, "locked", "offstage", 2))
+        self.assertEqual((status, body["presence"], body["stage"], body["revision"], body["typing"]),
+                         (200, "locked", "offstage", 2, False))
         self.assertEqual(set(body["absence"]), {"id", "since"})
 
     def test_the_gate_takes_meeting_fullscreen_speaking_and_typing_from_user_now(self):
@@ -253,6 +257,38 @@ class UserNowReadersTest(unittest.TestCase):
         self.assertEqual({k: self.server.situation()[k] for k in ("meeting", "typing")}, {"meeting": True, "typing": False})
         self.beat(edge="lock")
         self.assertEqual(self.server.spatial_situation()["absence"], self.server.user_now.snapshot()["absence"])
+
+    def test_behaviors_presence_is_user_nows(self):
+        self.server.focus = SimpleNamespace(running=lambda: False)
+        presence = lambda: tuple(self.server.situation()[k] for k in ("presence", "presence_s"))  # noqa: E731
+        self.assertEqual(presence(), ("unknown", 0.0))
+        self.beat(idle_s=1)
+        self.assertEqual(presence(), ("active", 0.0))
+        self.beat(5, idle_s=1)
+        self.assertEqual(presence(), ("active", 5.0))
+        self.beat(idle_s=1, edge="lock")  # the absence began at the last input
+        self.assertEqual(presence(), ("afk", 1.0))
+        self.beat(100)
+        self.assertEqual(presence(), ("afk", 101.0))
+
+    def test_the_focus_clock_counts_the_beats_user_now_finds_present(self):
+        support.enable_plugins(self, "screen_awareness")
+        self.server.attention = SimpleNamespace(ingest=lambda body: None, blacklist=SimpleNamespace(scrub=lambda front: front))
+        self.server.focus.start(25)
+        front = {"app": "Code", "category": "public.app-category.developer-tools"}
+
+        def beats(n, idle_s, **fields):
+            for _ in range(n):
+                self.beat(idle_s=idle_s, **fields)
+                body = {"ts": self.ts, "front": front, "mouse": None, "idle_s": idle_s, "locked": False, "asleep": False}
+                self.assertEqual(self.request("POST", "/context/attention", body), (200, {}))
+
+        counted = lambda: sum(self.server.focus.session["categories"].values())  # noqa: E731
+        beats(4, 200, front_video=True)  # a video holds the user present without input
+        self.assertEqual(counted(), 3.0)
+        beats(1, 0, edge="lock")  # the second before it still goes to the last present beat
+        beats(3, 0)
+        self.assertEqual(counted(), 4.0)
 
 
 class ServerTest(unittest.TestCase):
@@ -3513,6 +3549,7 @@ class SituationCategoryTest(unittest.TestCase):
             server.broker = SimpleNamespace(pending=lambda: [])
             server.focus = Focus()
             server.user_now = UserNow()
+            server.clock = time.time
             now = time.time()
             front = {"app": "Arena", "bundle_id": "x.Arena", "window_id": 4,
                      "category": "public.app-category.action-games"}
@@ -3598,6 +3635,7 @@ class AttentionServerTest(FeedServerCase):
         now = time.time()
         for i in range(3):
             self.beat(now - 2 + i, "Code", "SECRET-TITLE")
+            self.coarse(now - 2 + i)
         situation = self.server.situation()
         self.assertEqual({k: situation[k] for k in ("focus_state", "pending", "presence", "category")},
                          {"focus_state": "idle", "pending": 0, "presence": "active", "category": "other"})

@@ -33,22 +33,27 @@ SOURCES = {"prompt": "a prompt to an AI", "search": "a search box", "field": "an
 class ContextMixin:
     _scene = None  # the scene spatial_situation() last read, for the behavior tick
     _busy_since = None  # clock time the focus session went busy, as the behavior tick saw it; None while not busy
+    _presence = None  # (presence, clock time) of user_now's presence as the behavior tick first saw it
 
     def situation(self):
         """For the behavior tick: states, counts and an app category only, never titles or text."""
-        presence = self.attention.presence() if self.attention is not None else None
         window = self.attention.focus() if self.attention is not None else None
         declared = self.attention.app_category(window) if window is not None else None
         if declared is not None:
             window = {**window, "category": declared}
         state = self.registry.snapshot()["focus"]["state"]
         self._busy_since = (self._busy_since or self.clock()) if state in BUSY else None
-        scene, user = self._scene, self.user_now.snapshot()
+        scene, user, now = self._scene, self.user_now.snapshot(), self.clock()
+        presence = {"present": "active", "unknown": "unknown"}.get(user["presence"], "afk")
+        if self._presence is None or self._presence[0] != presence:
+            self._presence = (presence, now)
+        # An absence began at the last input.
+        since = user["absence"]["since"] if presence == "afk" else self._presence[1]
         holds = scene["holds"] if scene is not None else []
         jobs = getattr(getattr(self, "character_agent", None), "jobs", None)  # none without a character agent or its jobs
         return {"hour": datetime.datetime.now().hour, "focus_state": state,
-                "pending": len(self.broker.pending()), "presence": presence[0] if presence else "unknown",
-                "presence_s": presence[1] if presence else 0.0, "category": category(window),
+                "pending": len(self.broker.pending()), "presence": presence,
+                "presence_s": now - since, "category": category(window),
                 "focus": self.focus.running(), "busy_since": self._busy_since,
                 "own_job": bool(jobs and jobs.store.list(states=("queued", "running"), limit=1)),
                 "scene": scene and scene["activity"], "meeting": user["doing"] in ("meeting", "sharing"),

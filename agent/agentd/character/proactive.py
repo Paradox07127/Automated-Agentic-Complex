@@ -39,7 +39,6 @@ RESPONSE_WINDOW = 60.0  # seconds after a proactive line ends in which a /say an
 SUBJECT_MEMORY = 20  # comments whose subjects are not commented again
 ENDED = {"done": "finished", "error": "hit an error"}  # registry outcome kinds a back report names
 WAITING = {"awaiting_approval": "waiting for approval", "awaiting_input": "waiting for a reply"}
-BREAK_AFK = 300  # idle seconds that restart the break clock
 BREAK_INPUT = 20  # keys_60s + 6 x clicks_10s a beat needs for a break line
 BEFORE_AWAY = 600  # away seconds after which a back line may name only what came before
 BEFORE_FRESH = 600  # seconds before leaving that before_away may have been last in effect
@@ -91,7 +90,8 @@ def _version(scene):
 class Proactive:
     def __init__(self, store, gate, publish, start_line, busy, judge=None, clock=time.time, spawn=_thread,
                  activity=None, claim=None, sessions=None, break_minutes=0, water_minutes=0, deliver="speak",
-                 on_pending=None, on_clear=None, log=None, user=lambda: PROMPT_USER, language=lambda: None):
+                 on_pending=None, on_clear=None, log=None, user=lambda: PROMPT_USER, language=lambda: None,
+                 absence=lambda: None):
         """publish(event, data) -> /feed; start_line(line_id, text, reason=, material=) runs a mouth line, material
         (observed text or None) going to its live context only; busy() -> a line or speech is in progress; judge
         None turns comments off. activity() -> activity.assemble's result or None; claim(line_id, text, recheck,
@@ -105,9 +105,11 @@ class Proactive:
         log: the ProactiveLog
         unanswered lines are marked ignored in and the 少说点 factor is kept in; None keeps neither.
         user() -> the shown character's user_title, which the lines and judge questions name the user by.
-        language() -> the reply language code, None under "harness"; the lines' reason texts are in it."""
+        language() -> the reply language code, None under "harness"; the lines' reason texts are in it.
+        absence() -> user_now's open absence or None: the break and water clocks stand still through it and start
+        over at its return (back)."""
         self.store, self.gate, self.publish, self.start_line, self.busy = store, gate, publish, start_line, busy
-        self.user, self.language = user, language
+        self.user, self.language, self.absence = user, language, absence
         self.judge, self.clock, self.spawn = judge, clock, spawn
         self.activity, self.claim, self.sessions = activity, claim, sessions
         self._back = None  # line_id of the last started back report; voiced() starts the back cooldown
@@ -121,7 +123,6 @@ class Proactive:
         self._break_retry_at = 0.0
         self._active_since = None  # clock time the user's present run began; None while away
         self._break_due = None  # clock time the next break line is due
-        self._last_beat = None  # clock time of the last heartbeat for the break clock
         self._stuck_line = None  # line_id of the last started stuck line; voiced() starts the stuck cooldown
         self._stuck_since = None  # clock time the scene became stuck on _stuck_key; None while it is not
         self._stuck_key = None  # (thread, blocker without digits) of the present stuck run
@@ -260,7 +261,10 @@ class Proactive:
         """The user is back after away_s seconds: one line naming the sessions that ended, failed or began to
         wait meanwhile, by name and state only, then the scene's before_away when it was in effect up to
         BEFORE_FRESH seconds before leaving; without such sessions, before_away alone after BEFORE_AWAY seconds away,
-        else silent."""
+        else silent. The break and water clocks skip the absence even when no beat saw it open."""
+        if self.break_minutes:
+            self._break_reset()
+        self._water_beat = None
         if self.sessions is None:
             return
         now = self.clock()
@@ -330,10 +334,7 @@ class Proactive:
         if not self.break_minutes:
             return
         now = self.clock()
-        if self._last_beat is not None and now - self._last_beat > BREAK_AFK:
-            self._break_reset()
-        self._last_beat = now
-        if body["idle_s"] >= BREAK_AFK or body.get("locked") or body.get("asleep"):
+        if self.absence() is not None:
             self._break_reset()
             return
         if self._active_since is None:
@@ -401,10 +402,10 @@ class Proactive:
         if not self.water_minutes:
             return
         now = self.clock()
-        if body["idle_s"] >= BREAK_AFK or body.get("locked") or body.get("asleep"):
+        if self.absence() is not None:
             self._water_beat = None
             return
-        if self._water_beat is not None and now - self._water_beat <= BREAK_AFK:
+        if self._water_beat is not None:
             self._water_s += now - self._water_beat
         self._water_beat = now
         if self._water_s < self.water_minutes * 60:

@@ -15,6 +15,7 @@ from character.proactive import MUTABLE  # noqa: E402
 from character.thoughts import DAILY_CAP, FRESH, GAP, KEPT, LOOKBACK, MAX_GAP, REASONS, Thoughts, parse  # noqa: E402
 from character import thoughts as thoughts_module  # noqa: E402
 from observation.activity import INTERPRETED_FRESH  # noqa: E402
+from observation.user_now import ABSENT  # noqa: E402
 from sessions.events import normalize_claude  # noqa: E402
 
 T0 = datetime.datetime(2026, 11, 2, 12, 0).timestamp()  # local noon
@@ -64,10 +65,11 @@ class ThoughtsTest(unittest.TestCase):
         self.rows = [session("claude:A", "thinking", "/work/SECRET-PROJECT")]
         self.allowed = True
         self.contexts = []
+        self.presence = "present"
         self.t = Thoughts(self.gate, lambda event, data: self.published.append((event, data)), self.client,
                           scene=lambda: self.scene, context=self.context,
                           sessions=lambda: {"sessions": self.rows}, consent=lambda: self.allowed,
-                          clock=lambda: self.now, spawn=lambda f: f())
+                          clock=lambda: self.now, spawn=lambda f: f(), presence=lambda: self.presence)
 
     def context(self):
         self.contexts.append(self.now)
@@ -403,14 +405,20 @@ class ThoughtsTest(unittest.TestCase):
             self.gate.commit("comment", datetime.datetime.fromtimestamp(T0))
         self.assertTrue(self.notice(0))
 
-    def test_no_thought_while_the_user_is_idle_or_away(self):
-        for scene in ({"activity": "away"}, {"mode": "away"}, {"state": "idle"}):
-            with self.subTest(scene=scene):
+    def test_no_thought_while_user_nows_presence_is_away(self):
+        for presence in ABSENT:
+            with self.subTest(presence=presence):
                 self.setUp()
-                self.scene = {**self.scene, **scene}
+                self.presence = presence
                 self.assertFalse(self.notice(0))
-                self.t.observe({**self.scene, "activity": "away", "confidence": 0.9})
+                self.t.observe({**self.scene, "activity": "reading", "confidence": 0.9})
                 self.assertEqual(self.client.calls, [])
+        for presence in ("present", "unknown"):
+            with self.subTest(presence=presence):
+                self.setUp()
+                self.presence = presence
+                self.scene = {**self.scene, "activity": "away", "mode": "away", "state": "idle"}  # the scene's away holds none
+                self.assertTrue(self.notice(0))
 
     def test_consent_off_sends_only_the_activity_and_session_states(self):
         self.allowed = False

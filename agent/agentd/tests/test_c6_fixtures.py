@@ -395,7 +395,7 @@ class C6FixtureTest(unittest.TestCase):
         self.server.clock = lambda: beat["ts"]
         self.server.user_now = UserNow(clock=self.server.clock)  # the fixture's absence id comes from this start
         full = json.loads((FIXTURES / "user-coarse-reply.json").read_text(encoding="utf-8"))
-        minimal = {"presence": "present", "stage": "normal", "absence": None, "revision": 1}
+        minimal = {"presence": "present", "stage": "normal", "doing": "idle", "absence": None, "revision": 1, "typing": True}
         for name, expected in (("minimal", (200, minimal)), ("full", (200, full)),
                                ("invalid", (400, {"error": "invalid_coarse"}))):
             with self.subTest(name=name):

@@ -439,7 +439,8 @@ def main():
                                      break_minutes=max(0, args.break_reminder_minutes),
                                      water_minutes=max(0, args.water_reminder_minutes), deliver="speak",
                                      log=server.proactive_log, user=server.user_title,
-                                     language=server.character_agent.semantic.reply)
+                                     language=server.character_agent.semantic.reply,
+                                     absence=lambda: server.user_now.snapshot()["absence"])
 
     def work_signal_allowed(row):
         permissions = server.consent.snapshot()[0]
@@ -450,7 +451,8 @@ def main():
                                    scene=server.activity, context=server._attention_context,
                                    sessions=server.registry.snapshot, consent=server.page_text_allowed,
                                    egress=egress, work=(lambda cwds: thought_work(server, work_signal_allowed, cwds)) if server.worklog else None,
-                                   log=server.proactive_log, user=server.user_title)
+                                   log=server.proactive_log, user=server.user_title,
+                                   presence=lambda: server.user_now.snapshot()["presence"])
 
     def interpreted(character, body):
         """The continuous interpreter's committed analysis of the shown character reaches her thoughts and lines."""
@@ -463,7 +465,8 @@ def main():
 
     if light:
         server.signals = Signals(server.gate, server.thoughts, server.registry, sessions=server.sessions,
-                                 scene=server.activity, allowed=server._signals_allowed,
+                                 presence=lambda: server.user_now.snapshot()["presence"],
+                                 allowed=server._signals_allowed,
                                  pending=server.broker.pending, clock=server.clock, worklog=server.worklog,
                                  semantic=server.character_agent.semantic,
                                  report_time=server.rituals.report_time, egress=egress,

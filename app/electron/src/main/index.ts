@@ -561,15 +561,13 @@ const ambient = config && hostLink && helper ? shellAmbient({
  *  with `--no-attention`. */
 const context = config && helper && runtimePath !== null ? shellContext({
   argv: process.argv, helper, agentd: new AgentdClient(runtimePath), agentdStateDir: config.agentdStateDir,
-  settings: () => readObject(configPath),
+  settings: () => readObject(configPath), attention: () => attention,
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
   log: (line) => appendLog(config!.supportDir, 'companion', line),
   onLook: lookReceipt(() => desktop?.source ?? null),
 }) : null;
 // ContextCapturer.attach: agentd's `request`s come over the app's one `/feed` connection.
 store?.subscribe((e) => context?.feed(e));
-// agentd's typing behavior may turn her.
-store?.subscribe((e) => watchers?.feed(e));
 /** 按住 Option 把她拖到窗口上 (handover/window.ts); none with `--no-attention`. */
 const windowHandover = config && helper ? shellWindowHandover({ argv: process.argv, helper, settings: () => readObject(configPath),
   helperY: helperYFor(shellPlatform()), mainHeight: () => screen.getPrimaryDisplay().bounds.height, desktop: () => desktop }) : null;

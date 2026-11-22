@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlparse
 
 from infra import plugins
 from character.behavior import category
-from observation.attention import AFK_AFTER, BUCKETS
+from observation.attention import BUCKETS
 from observation.browser_stats import valid_metrics
 from observation.capture import TEXT_FAILURES, image_size
 from observation.privacy import saved_switch
@@ -51,8 +51,9 @@ class ContextInputMixin:
         now, gate = user_now.snapshot(), self.server.gate
         gate.fullscreen, gate.user_speaking = now["flags"]["fullscreen"], now["flags"]["user_speaking"]
         gate.meeting, gate.typing = now["doing"] in ("meeting", "sharing"), typing(now)
-        self._json(200, {"presence": now["presence"], "stage": now["stage"],
-                         "absence": now["absence"] and dict(now["absence"]), "revision": now["revision"]})
+        self._json(200, {"presence": now["presence"], "stage": now["stage"], "doing": now["doing"],
+                         "absence": now["absence"] and dict(now["absence"]), "revision": now["revision"],
+                         "typing": gate.typing})
 
     def _user_now(self):
         user_now = self.server.user_now
@@ -85,8 +86,8 @@ class ContextInputMixin:
                 and body.get("edge") in (None, "lock", "unlock", "sleep", "wake")):
             return self._json(400, {"error": "invalid_attention"})
         store.ingest(body)
-        self.server.focus.beat(category(body["front"]), body["ts"], body["idle_s"] < AFK_AFTER
-                               and not body.get("locked") and not body.get("asleep"))
+        self.server.focus.beat(category(body["front"]), body["ts"],
+                               self.server.user_now.snapshot()["presence"] == "present")
         if self.server.character_agent is not None:
             pipeline = self.server.character_agent.memory_pipeline
             if pipeline: pipeline.tick(pipeline.clock())
