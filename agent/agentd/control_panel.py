@@ -6,27 +6,6 @@ CONVERSATION = re.compile(r'^/conversations/([a-f0-9]{32})(?:/(activate|turns|me
 SESSION = re.compile(r'^/sessions/(own:[a-f0-9]{12})$')
 
 
-def _reload(server):
-    server.cancel_turn('client_cancel')
-    controller = server.character_agent
-    if controller is not None:
-        # Retire only the foreground runtime; background jobs retain their leases.
-        with controller._lock:
-            if controller.runtime is not None:
-                controller.runtime.close()
-                controller.runtime = None
-            controller._runtime_config = None
-    if server.mouth is not None:
-        server.load_window()
-
-
-def _fence(server):
-    server.history_generation += 1
-    server._line_entries.clear()
-    server._cut_lines.clear()
-    server._window_ops.clear()
-
-
 def route(h, method, path):
     conversation, session = CONVERSATION.fullmatch(path), SESSION.fullmatch(path)
     if path != '/conversations' and not conversation and not session: return False
@@ -48,7 +27,12 @@ def route(h, method, path):
         if server.history is None: return reply(503, {'error': 'no_history'})
         store = server.history.conversations
         if method == 'GET':
-            if path == '/conversations': return reply(200, {'conversations': store.list(), 'busy': _busy(server)})
+            if path == '/conversations':
+                character = parse_qs(urlparse(h.path).query, keep_blank_values=True).get('character', [server.character])[0]
+                if character is None: return reply(409, {'error': 'no_character'})
+                if character not in server.characters.ids(): raise ValueError('unknown_character')
+                return reply(200, {'character': character, 'conversations': store.list(character),
+                                   'busy': character == server.character and _busy(server)})
             if conversation[2] == 'turns':
                 query = parse_qs(urlparse(h.path).query)
                 before = int(query['before'][0]) if 'before' in query else None
@@ -58,12 +42,18 @@ def route(h, method, path):
         if not isinstance(body, dict): raise ValueError('invalid_payload')
         with server._switch_lock:
             if path == '/conversations' and method == 'POST':
-                if set(body) - {'title'}: raise ValueError('invalid_payload')
-                if _busy(server): raise ValueError('busy')
+                if set(body) - {'title', 'character_id'}: raise ValueError('invalid_payload')
+                character = body.get('character_id', server.character)
+                if character is None and 'character_id' not in body: return reply(409, {'error': 'no_character'})
+                if character not in server.characters.ids(): raise ValueError('unknown_character')
+                present = character == server.character
+                if present and _busy(server): raise ValueError('busy')
                 with server._write_lock:
-                    value = store.create(body.get('title', '新对话'))
-                    _fence(server)
-                _reload(server)
+                    value = store.create(body.get('title', '新对话'), character)
+                    if present: server.fence_conversation()
+                if present:
+                    server.cancel_turn('client_cancel')
+                    server.reload_conversation()
                 return reply(201, value)
             if not conversation: return reply(405, {'error': 'method_not_allowed'})
             ident, action = conversation.groups()
@@ -85,8 +75,10 @@ def route(h, method, path):
                         if body.get('no_memory'): raise ValueError('temporary_scope_not_allowed')
                 item = store.get(ident)
                 if item is None: raise ValueError('unknown_conversation')
+                if item['character_id'] != server.character:
+                    return reply(409, {'error': 'character_not_present', 'character_id': item['character_id']})
                 if item['archived']: raise ValueError('archived')
-                if store.active != ident: raise ValueError('conversation_not_active')
+                if not item['active']: raise ValueError('conversation_not_active')
                 controller = server.character_agent
                 if 'reply_to' in body:
                     target = body['reply_to']
@@ -109,15 +101,19 @@ def route(h, method, path):
                 return reply(405, {'error': 'method_not_allowed'})
             turn_ids = []
             with server._write_lock:
-                old = store.active
-                if _busy(server) and (activate or delete or ident == old and body.get('archived')): raise ValueError('busy')
+                item = store.get(ident)
+                if item is None: raise ValueError('unknown_conversation')
+                present = item['character_id'] == server.character
+                if present and _busy(server) and (activate or delete or item['active'] and body.get('archived')): raise ValueError('busy')
                 if delete:
                     with store.lock:
                         turn_ids = [r[0] for r in store.db.execute('SELECT h.turn_id FROM history_turns h JOIN conversation_turns t ON h.event_id=t.event_id WHERE t.conversation_id=?', (ident,))]
                 value = store.update(ident, body, activate=activate, delete=delete)
-                changed = old != store.active
-                if changed or delete: _fence(server)
-            if changed or delete: _reload(server)
+                reload = present and (delete or item['active'] != value['active'])
+                if reload: server.fence_conversation()
+            if reload:
+                server.cancel_turn('client_cancel')
+                server.reload_conversation()
             if delete:
                 if server.trace is not None: server.trace.forget(turn_ids)
                 if server.character_agent is not None:
@@ -127,7 +123,7 @@ def route(h, method, path):
             return reply(200, value)
     except (ValueError, TypeError) as error:
         code = str(error) if isinstance(error, ValueError) else 'invalid_payload'
-        status = 404 if code == 'unknown_conversation' else 409 if code in ('version_conflict', 'archived', 'busy', 'conversation_not_active', 'interaction_version_changed', 'interaction_cancelled', 'interaction_character_changed', 'character_busy') else 400
+        status = 404 if code in ('unknown_conversation', 'unknown_character') else 409 if code in ('version_conflict', 'archived', 'busy', 'conversation_not_active', 'interaction_version_changed', 'interaction_cancelled', 'interaction_character_changed', 'character_busy') else 400
         return reply(status, {'error': code})
 
 

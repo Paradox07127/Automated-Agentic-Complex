@@ -1,5 +1,6 @@
 {
-  "conversations": [{"id": "0123456789abcdef0123456789abcdef", "title": "周报", "pinned": false, "archived": false, "revision": 2,
+  "character": "voice_a",
+  "conversations": [{"id": "0123456789abcdef0123456789abcdef", "character_id": "voice_a", "title": "周报", "preview": "周报已经整理好了。", "pinned": false, "archived": false, "revision": 2,
                      "created_at": 1793500000.5, "updated_at": 1793503662.4, "turn_count": 4, "active": true}],
   "busy": false
 }

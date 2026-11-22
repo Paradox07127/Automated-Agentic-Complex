@@ -69,10 +69,8 @@ class NoCharacterTest(unittest.TestCase):
                 self.assertEqual(self.request(method, path, None if method in ("GET", "DELETE") else {}),
                                  (409, {"error": "no_character"}))
 
-    def test_a_conversation_message_answers_no_character(self):
-        status, conversation = self.request("POST", "/conversations", {})
-        self.assertEqual(status, 201)
-        self.assertEqual(self.request("POST", f"/conversations/{conversation['id']}/messages", {"text": "你好"}),
+    def test_a_conversation_needs_a_character(self):
+        self.assertEqual(self.request("POST", "/conversations", {}),
                          (409, {"error": "no_character"}))
 
 

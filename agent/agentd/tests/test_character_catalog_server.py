@@ -34,7 +34,7 @@ class CatalogSwitchTest(helpers.FeedServerCase):
         self.assertEqual(self.server.character, "third")
         self.assertTrue(self.server._text_only("text"))
         self.assertFalse(self.server.character_voice_enabled)
-        self.assertEqual(self.server.mouth.history, [["u", "live", "a"]])
+        self.assertEqual(self.server.mouth.history, [])
         self.server.set_character("aster")
         self.assertTrue(self.server.character_voice_enabled)
         self.assertFalse(self.server._text_only("text"))

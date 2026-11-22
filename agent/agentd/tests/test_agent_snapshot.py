@@ -132,10 +132,10 @@ class AgentSnapshotTest(unittest.TestCase):
         before = feed.publish("test", {"value": "before"})
         conversations = self.server.history.conversations
         read = conversations.list
-        def change():
+        def change(character):
             task = self.server.tasks.create("d" * 32, "claude", self.tmp.name, "during snapshot", "read_only")
             feed.publish("task", {"task": task})
-            return read()
+            return read(character)
         with patch.object(conversations, "list", side_effect=change):
             snapshot = self.snapshot()
         self.assertEqual(snapshot["seq"], before["seq"])

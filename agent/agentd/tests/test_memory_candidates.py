@@ -32,7 +32,7 @@ class CandidateTests(unittest.TestCase):
                     'user':'可以把报告写简洁一些吗？', 'assistant':'', 'requires':[]}]
         value = {'no_new_knowledge':False, 'title':'报告格式', 'summary':'讨论报告长度',
                  'projects':[{'subject':'报告', 'goal':'调整长度', 'evidence':[ident]}],
-                 'memories':[{'kind':'preference', 'text':text, 'confidence':confidence,
+                 'memories':[{'scope':'shared', 'kind':'preference', 'text':text, 'confidence':confidence,
                               'evidence':[{'source_id':ident, 'quote':sources[0]['user']}]}]}
         findings = self.pipeline.validate(value, sources)
         run = {'run_id':ident, 'value':value, 'journal':SimpleNamespace(commit_extraction=lambda *_:'committed')}
@@ -78,9 +78,9 @@ class CandidateTests(unittest.TestCase):
                     'user':'可以把报告写简洁一些吗？周五前交初稿', 'assistant':'', 'requires':[]}]
         value = {'no_new_knowledge':False, 'title':'报告格式', 'summary':'讨论报告长度',
                  'projects':[{'subject':'报告', 'goal':'调整长度', 'evidence':['batch']}],
-                 'memories':[{'kind':'preference', 'text':'喜欢简洁的报告', 'confidence':.9,
+                 'memories':[{'scope':'shared', 'kind':'preference', 'text':'喜欢简洁的报告', 'confidence':.9,
                               'evidence':[{'source_id':'batch', 'quote':'可以把报告写简洁一些吗？'}]},
-                             {'kind':'agreement', 'text':'周五前交初稿', 'confidence':.9,
+                             {'scope':'shared', 'kind':'agreement', 'text':'周五前交初稿', 'confidence':.9,
                               'evidence':[{'source_id':'batch', 'quote':'周五前交初稿'}]}]}
         run = {'run_id':'batch', 'value':value, 'journal':SimpleNamespace(commit_extraction=lambda *_:'committed')}
         commits = self.pipeline.commit(run, sources, self.pipeline.validate(value, sources), lambda:True)['memories']

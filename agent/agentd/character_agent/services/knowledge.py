@@ -137,6 +137,8 @@ class KnowledgeService:
     def _allowed(self, source, row=None):
         if source not in SOURCES:
             return False
+        if source == "history" and row is not None and self.character_id is not None and row["character_id"] != self.character_id:
+            return False
         if self.permitted is not None:
             try:
                 return self.permitted(source, row) is True
@@ -239,7 +241,7 @@ class KnowledgeService:
             return
         if source == "memory" and self.memory is not None:
             candidates = []
-            for row in reversed(self.memory.active()):
+            for row in reversed(self.memory.visible(self.character_id)):
                 if self._allowed(source, row) and (row["source"] in TRUSTED or self.permitted is not None):
                     item = self._fact(row)
                     if profile and (item["kind"] not in PROFILE_KINDS or item["authority"] not in TRUSTED):
@@ -252,7 +254,7 @@ class KnowledgeService:
             if query.strip():
                 # Query the existing FTS index before bounding candidate count;
                 # long-term history is not restricted to the last 1,000 turns.
-                for match in self.history.search(query, k=MAX_SCAN, skip_recent=0):
+                for match in self.history.search(query, k=MAX_SCAN, skip_recent=0, character_id=self.character_id):
                     row = self._raw_read(source, match["turn_id"])
                     if row is not None:
                         yield row
@@ -353,7 +355,7 @@ class KnowledgeService:
             row = self.episodes.get(ident)
             return self._episode(row) if row is not None and self._allowed(source, row) else None
         if source == "memory" and self.memory is not None:
-            return next((self._fact(row) for row in self.memory.active() if row["fact_id"] == ident
+            return next((self._fact(row) for row in self.memory.visible(self.character_id) if row["fact_id"] == ident
                          and self._allowed(source, row) and (row["source"] in TRUSTED or self.permitted is not None)), None)
         return next((row for row in self._raw_rows(source) if row["id"] == ident), None)
 

@@ -22,6 +22,7 @@ memories hold only lasting content: stable personal facts, clear preferences, re
 - Worth keeping: the user says "write code review comments in Chinese from now on" (preference); "we agreed to run the full tests before every release" (agreement).
 - Not kept: what they had for lunch today, asking you to open the terminal this time, a window title, a one-off command or temporary path, a behavior seen once.
 An observed habit can become a memory with kind=preference and authority=observed_context, such as "still writing code after 11 pm"; when it matches a habit in existing, use same_as and the system counts it across days. fact and experience do not need the user to say "remember"; a lasting fact backed by source text can be written; the work process itself still goes into the results, experience and context of projects.
+Set scope=shared for general facts about the user's preferences, schedule, work, people and life. Set scope=character only for things between this character and the user: their nicknames, promises, private jokes, or private instructions about how she should treat them. Cite her conversation for a character memory.
 Do not widen time ranges: one "Friday" cannot become "every Friday", and one agreement cannot become periodic, daily or a lasting habit; keep a period only when the source states it.
 Trust goes in the authority field (asserted_by_user | observed_context | inferred_hypothesis), not in the text; the text states the content directly, with no notes like "maybe", "unverified" or "this is not a preference"; what you are unsure of is not written.
 When sources contradict each other, recent outweighs old, and the user's own words beat the assistant's words and observations; when the user changes their mind, write the new version and do not point same_as at the old fact.
@@ -30,7 +31,7 @@ Return JSON: {"title":"concrete matter","summary":"informative complete summary"
 "projects":[{"subject":"matter","goal":"goal","constraints":["constraint"],
 "decisions":[{"decision":"decision","reason":"reason"}],"outcome":"result",
 "unresolved":["open issue"],"next_steps":["next step"],"evidence":["source_id"]}],
-"memories":[{"kind":"fact|preference|experience|agreement","text":"complete knowledge","confidence":0.0,
+"memories":[{"scope":"shared|character","kind":"fact|preference|experience|agreement","text":"complete knowledge","confidence":0.0,
 "authority":"asserted_by_user|observed_context|inferred_hypothesis",
 "evidence":[{"source_id":"source id","quote":"verbatim text from that source"}]}],
 "no_new_knowledge":false}.
@@ -138,7 +139,7 @@ class MemoryPipeline:
                     if row['started_at'] < cutoff or row['source'] not in ('text','voice') or row['state'] not in ('completed','interrupted','cancelled') or not row['user_text']: continue
                     if DENY_WRITE.search(row['user_text']) or re.match(r'^\s*(?:请)?(?:忘记|删除.{0,12}记忆|更正.{0,12}记忆|forget\b)',row['user_text'],re.I): continue
                     item = {'source_id':'history:'+str(row['turn_id'] or row['id']), 'user':row['user_text'],
-                        'assistant':row['reply'] if row['state'] != 'cancelled' else '',
+                        'character_id':row['character_id'], 'assistant':row['reply'] if row['state'] != 'cancelled' else '',
                         'at':row['started_at'], 'verified':False, 'kind':'conversation', 'requires':[], '_history_id':row['id']}
                     with s.memory.lock:
                         processed = s.memory.db.execute('SELECT version FROM agent_memory_processed WHERE source_id=?', (item['source_id'],)).fetchone()
@@ -188,6 +189,9 @@ class MemoryPipeline:
                 versioned={**versioned,'content':content}
             version = digest(versioned)
             if processed.get(item['source_id']) in (version,'forgotten','quarantined:'+version): continue
+            # Stop at the first different owner so the committed cursor never skips her lines.
+            if selected and selected[0].get('character_id', s.character) != item.get('character_id', s.character):
+                break
             length = len(json.dumps(item, ensure_ascii=False))
             # A large source runs alone and stays complete in the request/log.
             if selected and (size + length > 40000 or len(selected) >= 12): break
@@ -238,8 +242,10 @@ class MemoryPipeline:
             except ValueError as exc: findings = exc
         text = '\n'.join(content for source in sources for content in text_values(
             [source.get('user',''), source.get('assistant',''), source.get('content',{})]))
-        existing = [fact for kind in ('fact','preference','experience','agreement') for fact in s.memory.similar(text, kind)]
-        run = c.semantic.run('memory_extract', INSTRUCTIONS, {'sources':sources, 'existing':existing}, valid=valid, validate_output=validate_output)
+        character_id = sources[0].get('character_id')
+        existing = [fact for kind in ('fact','preference','experience','agreement') for fact in s.memory.similar(text, kind, character_id=character_id)]
+        run = c.semantic.run('memory_extract', INSTRUCTIONS, {'sources':sources, 'existing':existing},
+                             valid=valid, validate_output=validate_output, character_id=character_id)
         try:
             if isinstance(findings, ValueError): raise findings
             current = {r['source_id']:r['version'] for r in self.sources()}
@@ -293,7 +299,7 @@ class MemoryPipeline:
         accepted, rejected = [], []
         for item in proposed:
             reason, supports = None, []
-            if not isinstance(item,dict) or item.get('kind') not in ('fact','preference','experience','agreement') \
+            if not isinstance(item,dict) or item.get('scope') not in ('shared','character') or item.get('kind') not in ('fact','preference','experience','agreement') \
                     or not isinstance(item.get('text'),str) or not 2 <= len(item['text'].strip()) <= 2000:
                 reason = 'invalid_memory_record'
             elif HEDGE.search(item['text']):
@@ -309,6 +315,8 @@ class MemoryPipeline:
                         reason='unsupported_memory_quote'; break
                     supports.append((src,quote))
                 if not supports and reason is None: reason = 'missing_memory_evidence'
+                if reason is None and item['scope'] == 'character' and not any(src['kind'] == 'conversation' for src, _ in supports):
+                    reason = 'missing_character_evidence'
                 if reason is None and unsupported_recurrence(item['text'], [quote for _,quote in supports]):
                     reason = 'unsupported_memory_recurrence'
             if reason:
@@ -355,11 +363,12 @@ class MemoryPipeline:
                     text = item['text'].strip()
                     if memory._suppressed(text):
                         findings['rejected'].append({'proposal':item,'reason':'previously_forgotten'}); continue
+                    owner = sources[0]['character_id'] if item['scope'] == 'character' else None
                     same_as = item.get('same_as')
-                    old = db.execute("SELECT fact_id,version FROM facts WHERE fact_id=? AND kind=? AND state IN ('active','candidate')",
-                                     (same_as,item['kind'])).fetchone() if isinstance(same_as,str) else None
+                    old = db.execute("SELECT fact_id,version FROM facts WHERE fact_id=? AND kind=? AND owner IS ? AND state IN ('active','candidate')",
+                                     (same_as,item['kind'],owner)).fetchone() if isinstance(same_as,str) else None
                     if old is None:
-                        old = next((row for row in db.execute("SELECT fact_id,version,text,state FROM facts WHERE kind=? AND state IN ('active','candidate')", (item['kind'],))
+                        old = next((row for row in db.execute("SELECT fact_id,version,text,state FROM facts WHERE kind=? AND owner IS ? AND state IN ('active','candidate')", (item['kind'],owner))
                                     if normalized_text(row[2]) == normalized_text(text)), None)
                     evidence = [f'episode:{episode}@{time.strftime("%Y-%m-%d",time.localtime(self.clock()))}', 'agent_run:'+run['run_id']]
                     supported = {ref['source_id'] for ref in item['evidence']}
@@ -374,7 +383,7 @@ class MemoryPipeline:
                                    (json.dumps(list(dict.fromkeys(json.loads(prior)+evidence))), self.clock(), ident))
                     else:
                         ident, version = str(uuid.uuid4()), 1
-                        memory._insert(ident,version,item['kind'],text,item['source'],json.dumps(evidence),None,state=item['state'])
+                        memory._insert(ident,version,item['kind'],text,item['source'],json.dumps(evidence),None,state=item['state'],owner=owner)
                         memory._sight(ident, sightings, item['confidence'])
                     source, state = db.execute("SELECT source,state FROM facts WHERE fact_id=? AND state IN ('active','candidate')", (ident,)).fetchone()
                     commits.append({'fact_id':ident,'version':version,'text':text,'source':source,'state':state,'evidence':item['evidence']})

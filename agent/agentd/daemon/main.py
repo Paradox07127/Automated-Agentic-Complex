@@ -319,7 +319,7 @@ def main():
     server.privacy_config = args.privacy_config
     server.muted = args.mute
     if light or plugins.on("personal_agent"):
-        server.history = History(open_store(db))
+        server.history = History(open_store(db), character_id=server.character, catalog=repository)
     if light:
         server.proactive_log = ProactiveLog(open_store(db))
         server.proactive_log.prune()

@@ -49,7 +49,7 @@ class CharacterSwitchMixin:
             return 200, self.character_state()
 
     def set_character(self, cid):
-        """Swap card, lore and voice (round 16); sessions, attention and the mouth's history stay.
+        """Swap the card, voice and active conversation.
         Raises ValueError for an unknown id and OutboundBlocked before anything is cancelled.
         None while a character switch is open: nothing changes."""
         card = self.characters.load_card(cid)
@@ -88,18 +88,23 @@ class CharacterSwitchMixin:
         return MotionChooser(root) if (root / "c7" / "pack.json").is_file() else None
 
     def _swap_held(self, cid, card, mouth):
-        """Mouth (keeping its history), character, voice, behavior prompt and motion chooser; whatever raises does so
-        before the first change. mouth: None keeps the mouth. The caller holds _mouth_lock."""
+        """Swap the mouth, character, active topic, voice, behavior prompt and motion chooser. The caller holds _mouth_lock."""
         chooser = self.motion_chooser(cid)
         bindings = getattr(self, "bindings", None)
         voice = self.characters.voice(cid) if bindings is None else bindings.voice(cid)
         self.character_voice_enabled = voice is not None
         backend = self.behavior.backend if self.behavior is not None else None
         system = system_prompt(card["name"]) if backend is not None else None
-        if mouth is not None:
-            mouth.history = self.mouth.history
-            self.mouth = mouth
-        self.character = cid
+        with self._write_lock:
+            if self.history is not None:
+                self.history.conversations.use(cid)
+            self.fence_conversation()
+            if mouth is not None:
+                self.mouth = mouth
+            if self.history is None and self.mouth is not None:
+                self.mouth.history = []
+            self.character = cid
+        self.reload_conversation()
         self.feed.publish("task_understanding", {"action":"updated", "character_id":cid})
         if voice is not None and self.speech is not None:
             self.speech.character, self.speech.language = voice

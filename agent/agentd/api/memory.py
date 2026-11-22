@@ -23,13 +23,15 @@ class MemoryMixin:
             return self._json(400, {"error": "invalid_cursor"})
         self._json(200, {"turns": turns, "next": after})
 
-    def _memory_read(self, path):
+    def _memory_read(self, path, owner=None):
         memory = self.server.memory
         if memory is None:
             return self._json(503, NO_MEMORY)
+        facts = memory.active(owner=owner)
         if path == "/memory/export":
-            return self._json(200, {"facts": memory.export()})
-        facts, uses = memory.active() + memory.candidates(), memory.uses()
+            return self._json(200, {"facts": facts})
+        facts += memory.candidates(owner=owner)
+        uses = memory.uses()
         unused = {"uses_today": 0, "last_injected_at": None, "last_mentioned_at": None, "recent_uses": []}
         facts = [{**fact, "state": fact.get("state", "active"), **uses.get(fact["fact_id"], unused)} for fact in facts]
         self._json(200, {"paused": memory.paused(), "facts": facts,

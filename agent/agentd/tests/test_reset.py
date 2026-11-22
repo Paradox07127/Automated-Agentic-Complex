@@ -88,7 +88,7 @@ class ResetTest(unittest.TestCase):
         server.character = "aster"  # these fixtures start as aster and switch to birch
         server.character_agent = KernelLines(server)
         server.broker.window = 5.0
-        server.history = History(open_store(self.db))
+        server.history = History(open_store(self.db), character_id=server.character)
         server.memory = Memory(open_store(self.db))
         server.rituals = Rituals(open_store(self.db))
         server.trace = TraceStore(open_store(self.db), producer_epoch=server.registry.epoch)
@@ -493,7 +493,7 @@ class ResetTest(unittest.TestCase):
         class Mouth:
             history = []
 
-            def pick_facts(self, query, derived=False):
+            def pick_facts(self, query, derived=False, character_id=None):
                 entered.set()
                 release.wait(5)  # the line picks its facts only after the reset is done
                 return {"trusted": [], "low_trust": []}

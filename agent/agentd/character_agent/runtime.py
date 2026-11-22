@@ -621,7 +621,7 @@ class PersonalAgentRuntime:
             facts = {"trusted": [], "low_trust": []}
             if knowledge.memory is not None:
                 ids = {d.get("id") for d in dependencies if d.get("source") == "memory"}
-                for fact in knowledge.memory.active():
+                for fact in knowledge.memory.visible(knowledge.character_id):
                     if fact["fact_id"] in ids or "memory:" + fact["fact_id"] in ids:
                         key = "trusted" if fact["source"] in ("asserted_by_user", "confirmed_by_user") else "low_trust"
                         facts[key].append(fact)

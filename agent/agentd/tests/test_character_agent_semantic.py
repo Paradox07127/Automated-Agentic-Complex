@@ -33,7 +33,7 @@ class SemanticTests(unittest.TestCase):
         with patch('socketserver.TCPServer.server_bind'), patch('socketserver.TCPServer.server_activate'), patch.object(AgentdServer,'_tick_loop'):
             s = self.server = AgentdServer(('127.0.0.1',48810),'hook','ui')
         s.character = 'aster'  # these fixtures start as aster and switch to birch
-        s.memory, s.history, s.tasks, s.episodes = Memory(self.db,lock=lock), History(self.db,lock=lock), TaskLedger(self.db,lock=lock), Episodes(self.db,lock=lock)
+        s.memory, s.history, s.tasks, s.episodes = Memory(self.db,lock=lock), History(self.db,lock=lock,character_id=s.character), TaskLedger(self.db,lock=lock), Episodes(self.db,lock=lock)
         s.egress = EgressPolicy(); s.mouth = Mouth(egress=s.egress)
         self.sessions=[]; self.definitions=[]; self.reply={'no_new_knowledge':True,'projects':[],'memories':[]}
         self.during = lambda:None
@@ -61,7 +61,7 @@ class SemanticTests(unittest.TestCase):
             'projects':[{'subject':'报告交付','goal':'建立证据先行的验收流程','constraints':['保留其他会话改动'],
               'decisions':[{'decision':'先核验再交付','reason':'保证可追溯'}],'outcome':'尚未完成安装验收',
               'unresolved':['安装验收待做'],'next_steps':['核对产物'],'evidence':[source]}],
-            'memories':[{'kind':'preference','text':quote,'evidence':[{'source_id':source,'quote':quote}]}],
+            'memories':[{'scope':'shared', 'kind':'preference','text':quote,'evidence':[{'source_id':source,'quote':quote}]}],
             'no_new_knowledge':False}
 
     def test_k03_semantic_records_turn_cost_for_both_harnesses(self):
@@ -325,7 +325,7 @@ class SemanticTests(unittest.TestCase):
         self.source('记住：报告先给证据，会议使用中文。')
         self.reply = self.findings('报告先给证据')
         source = self.reply['memories'][0]['evidence'][0]['source_id']
-        self.reply['memories'].append({'kind': 'preference', 'text': '会议使用中文',
+        self.reply['memories'].append({'scope':'shared', 'kind': 'preference', 'text': '会议使用中文',
                                       'evidence': [{'source_id': source, 'quote': '会议使用中文'}]})
         result = self.pipeline.run_once()
         sibling = result['memories'][1]['fact_id']
@@ -491,7 +491,7 @@ class SemanticTests(unittest.TestCase):
         sources=[{'source_id':'job:one','user':'请核对预算','content':{'reply':'尚未付款'},'verified':True,'kind':'role_task'}]
         value=self.findings() if self.pipeline.sources() else {'title':'预算','summary':'尚未付款',
             'projects':[{'subject':'预算','goal':'核对预算','evidence':['job:one']}],
-            'memories':[{'kind':'fact','text':'用户已经付款','evidence':[{'source_id':'job:one','quote':'尚未付款'}]}],
+            'memories':[{'scope':'shared', 'kind':'fact','text':'用户已经付款','evidence':[{'source_id':'job:one','quote':'尚未付款'}]}],
             'no_new_knowledge':False}
         findings=self.pipeline.validate(value,sources)
         self.assertEqual(findings['rejected'],[])
@@ -512,7 +512,7 @@ class SemanticTests(unittest.TestCase):
     def test_nested_raw_quote_is_checked_as_content_not_json_escaping(self):
         source={'source_id':'nested','user':'','content':{'reply':'原文："先核对"\n再交付'},'verified':False,'kind':'role_task'}
         value={'no_new_knowledge':False,'title':'交付','summary':'先核对再交付','projects':[{'subject':'交付','goal':'核对','evidence':['nested']}],
-            'memories':[{'kind':'agreement','text':'先核对后交付','evidence':[{'source_id':'nested','quote':'"先核对"\n再交付'}]}]}
+            'memories':[{'scope':'shared', 'kind':'agreement','text':'先核对后交付','evidence':[{'source_id':'nested','quote':'"先核对"\n再交付'}]}]}
         findings=self.pipeline.validate(value,[source])
         self.assertEqual(len(findings['accepted']),1)
 

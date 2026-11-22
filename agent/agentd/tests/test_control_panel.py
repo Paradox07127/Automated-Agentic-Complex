@@ -23,7 +23,7 @@ class QuestionReplyTest(unittest.TestCase):
             'conversation_id':conversation, 'data':{'character_id':'aster', 'questions':[{'id':'a'}, {'id':'b'}]}}
         interactions = SimpleNamespace(get=Mock(return_value=card), respond=Mock(return_value={'state':'resumed'}))
         server = SimpleNamespace(ui_token='ui', resetting=False, closing=False, character='aster', _switch_lock=threading.RLock(),
-            history=SimpleNamespace(conversations=SimpleNamespace(active=conversation, get=lambda ident:{'archived':False})),
+            history=SimpleNamespace(conversations=SimpleNamespace(active=conversation, get=lambda ident:{'archived':False, 'character_id':'aster', 'active':True})),
             character_agent=SimpleNamespace(busy=lambda:False, interactions=interactions), say=Mock(return_value=(202, {'line_id':'ordinary'})))
         result = []
         handler = SimpleNamespace(server=server, auth=lambda token:True, body=lambda:{'text':'hello'},
@@ -51,7 +51,7 @@ class ControlPanelTest(test_server.FeedServerCase):
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.addCleanup(self.tmp.cleanup)
         self.path = Path(self.tmp.name) / 'test.sqlite'
-        self.server.history = self.history = History(open_store(self.path))
+        self.server.history = self.history = History(open_store(self.path), character_id=self.server.character)
         self.addCleanup(self.history.db.close)
         self.manager = SessionManager(self.server.broker, self.server.announce, Path(self.tmp.name), '', 'hook', 10, store=open_store(self.path))
         self.server.sessions = self.manager
@@ -59,7 +59,7 @@ class ControlPanelTest(test_server.FeedServerCase):
         self.addCleanup(self.manager.close)
 
     def record(self, text='original', reply='answer'):
-        return self.history.record(turn_id='turn-' + text, source='text', character_id='voice_a', persona_revision='1',
+        return self.history.record(turn_id='turn-' + text, source='text', character_id=self.server.character, persona_revision='1',
                                    user_text=text, reply=reply, state='completed', started_at=1)
 
     def conversations(self):
@@ -70,16 +70,16 @@ class ControlPanelTest(test_server.FeedServerCase):
     def test_migrate_old_rows_restart_and_independent_windows(self):
         self.record()
         first = self.conversations()[0]
-        self.assertEqual(len(self.history.window('voice_a', 10, {})), 1)
+        self.assertEqual(len(self.history.window(self.server.character, 10, {})), 1)
         code, second = self.request('POST', '/conversations', {})
         self.assertEqual(code, 201)
-        self.assertEqual(self.history.window('voice_a', 10, {}), [])
+        self.assertEqual(self.history.window(self.server.character, 10, {}), [])
         self.record('second')
         rows = self.request('GET', '/conversations/' + second['id'] + '/turns')[1]['turns']
         self.assertEqual([r['user_text'] for r in rows], ['second'])
         self.assertEqual(self.request('POST', '/conversations/' + first['id'] + '/activate', {'expected_version': first['revision']})[0], 200)
-        self.assertEqual(self.history.window('voice_a', 10, {})[0][0]['content'], 'original')
-        restarted = History(open_store(self.path))
+        self.assertEqual(self.history.window(self.server.character, 10, {})[0][0]['content'], 'original')
+        restarted = History(open_store(self.path), character_id=self.server.character)
         self.addCleanup(restarted.db.close)
         self.assertEqual(restarted.conversations.active, first['id'])
         self.assertEqual(len(restarted.conversations.list()), 2)

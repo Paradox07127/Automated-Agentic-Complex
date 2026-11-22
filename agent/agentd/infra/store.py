@@ -58,7 +58,7 @@ SCHEMA = (
     "CREATE TABLE IF NOT EXISTS facts (id INTEGER PRIMARY KEY, fact_id TEXT NOT NULL, version INTEGER NOT NULL,"
     " kind TEXT NOT NULL, text TEXT, source TEXT NOT NULL, evidence TEXT NOT NULL, occurred_at REAL,"
     " recorded_at REAL NOT NULL, state TEXT NOT NULL, last_used_at REAL, reinforcement REAL NOT NULL DEFAULT 0,"
-    " reinforced_at REAL, UNIQUE(fact_id, version))",
+    " reinforced_at REAL, owner TEXT, UNIQUE(fact_id, version))",
     "CREATE TABLE IF NOT EXISTS memory_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS fact_uses (fact_id TEXT NOT NULL, version INTEGER NOT NULL, line_id TEXT NOT NULL,"
     " used_at REAL NOT NULL, mode TEXT NOT NULL)",
@@ -260,6 +260,8 @@ def open_store(path):
     db.execute("PRAGMA mmap_size=268435456")
     for statement in SCHEMA:
         db.execute(statement)
+    if 'owner' not in {row[1] for row in db.execute('PRAGMA table_info(facts)')}:
+        db.execute('ALTER TABLE facts ADD COLUMN owner TEXT')
     if not db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='observation_frame_cleanup'").fetchone():
         db.execute('''CREATE TRIGGER observation_frame_cleanup AFTER DELETE ON observation_frames BEGIN
             DELETE FROM observation_processed WHERE id=OLD.id;

@@ -35,7 +35,7 @@ class HistoryServerCase(test_server.FeedServerCase):
         self.data = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.addCleanup(self.data.cleanup)
         self.db = Path(self.data.name) / "agentd.sqlite"
-        self.server.history = History(open_store(self.db))
+        self.server.history = History(open_store(self.db), character_id=self.server.character)
         self.server.events_token = EVENTS
         self.fake = test_server.Script(REPLY)
         self.server.mouth = ScriptedMouth(self.fake, character="aster")
@@ -68,7 +68,7 @@ class RestartTest(HistoryServerCase):
         self.server.character = "aster"  # main() restarts with the --character Companion passes
         self.server.character_agent = test_server.KernelLines(self.server)
         self.thread = serve_in_thread(self.server)
-        self.server.history = History(open_store(self.db))
+        self.server.history = History(open_store(self.db), character_id=self.server.character)
         mouth = ScriptedMouth(self.fake, character="aster")
         mouth.history = self.server.history.window("aster", mouth.max_turns, NAMES)
         self.server.mouth = mouth
@@ -78,18 +78,17 @@ class RestartTest(HistoryServerCase):
 
 
 class CharacterSwitchTest(HistoryServerCase):
-    def test_switch_keeps_the_window_and_labels_the_old_speaker_on_reload(self):
+    def test_switch_loads_the_new_characters_window(self):
         self.server.mouth_factory = lambda cid: ScriptedMouth(self.fake, character=cid)
         self.line("第一句")
         self.assertEqual(self.request("POST", "/character", {"id": "birch"})[0], 200)
         self.line("第二句")
-        self.assertEqual(self.past()[:2], ["第一句", "".join(REPLY)])  # the live window keeps the raw reply
+        self.assertEqual(self.past(), ["第二句"])
         rows = self.rows()
         self.assertEqual([(r["character_id"], r["persona_revision"]) for r in rows],
                          [("aster", characters.revision("aster")), ("birch", characters.revision("birch"))])
         window = History(open_store(self.db)).window("birch", 8, NAMES)
-        self.assertEqual(window[0][1]["content"], f"(said by 示例甲) {''.join(REPLY)}")
-        self.assertEqual(window[1][1]["content"], "".join(REPLY))
+        self.assertEqual([turn[1]["content"] for turn in window], ["".join(REPLY)])
         self.assertEqual(rows[0]["reply"], SHOWN)
 
 

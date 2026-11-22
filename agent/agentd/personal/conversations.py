@@ -1,5 +1,6 @@
 """Persisted role conversations."""
 import json
+import re
 import uuid
 
 # history_turns' columns in table order; history reads them from here
@@ -11,34 +12,46 @@ SHOWN = ", ".join("CASE WHEN h.resume_run_id IS NULL THEN h.user_text ELSE '' EN
 
 
 class Conversations:
-    def __init__(self, history):
+    def __init__(self, history, character_id, default_character):
         self.history = history
         self.db, self.lock = history.db, history.lock
+        self.character_id = character_id
         self.run_store = None
-        with self.lock:
-            self.db.execute("CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, title TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0, revision INTEGER NOT NULL DEFAULT 1, created_at REAL NOT NULL)")
+        with self.lock, self.db:
+            self.db.execute("CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, title TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0, revision INTEGER NOT NULL DEFAULT 1, created_at REAL NOT NULL, character_id TEXT NOT NULL)")
             self.db.execute("CREATE TABLE IF NOT EXISTS conversation_turns (event_id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL)")
             self.db.execute("CREATE INDEX IF NOT EXISTS conversation_turns_conversation ON conversation_turns(conversation_id)")
             self.db.execute("CREATE TABLE IF NOT EXISTS conversation_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
-            if not self.db.execute("SELECT 1 FROM conversation_settings WHERE key='active'").fetchone():
-                self._create('新对话')
-            self.db.commit()
+            self.db.execute("DELETE FROM conversation_settings WHERE key='active'")
+            if 'character_id' not in {r[1] for r in self.db.execute('PRAGMA table_info(conversations)')}:
+                self.db.execute("ALTER TABLE conversations ADD COLUMN character_id TEXT")
+                self.db.execute("UPDATE conversations SET character_id=COALESCE(("
+                                "SELECT h.character_id FROM conversation_turns t JOIN history_turns h USING(event_id)"
+                                " WHERE t.conversation_id=conversations.id GROUP BY h.character_id"
+                                " ORDER BY COUNT(*) DESC,h.character_id LIMIT 1),?) WHERE character_id IS NULL",
+                                (default_character,))
+            if character_id is not None:
+                self._active(character_id)
 
-    def _active(self):
-        row = self.db.execute("SELECT value FROM conversation_settings WHERE key='active' AND value IN (SELECT id FROM conversations)").fetchone()
-        if row: return row[0]
-        ident = self._create('新对话')
-        self.db.commit()
-        return ident
+    def _active(self, character_id):
+        row = self.db.execute("SELECT value FROM conversation_settings WHERE key=?", ('active:' + character_id,)).fetchone()
+        return row[0] if row else self._create('新对话', character_id)
 
     @property
     def active(self):
-        with self.lock: return self._active()
+        with self.lock, self.db:
+            return self._active(self.character_id) if self.character_id is not None else None
 
-    def _create(self, title):
+    def use(self, character_id):
+        with self.lock, self.db:
+            self._active(character_id)
+            self.character_id = character_id
+
+    def _create(self, title, character_id):
         ident = uuid.uuid4().hex
-        self.db.execute("INSERT INTO conversations(id,title,created_at) VALUES(?,?,?)", (ident, title, self.history.clock()))
-        self.db.execute("INSERT OR REPLACE INTO conversation_settings VALUES('active',?)", (ident,))
+        self.db.execute("INSERT INTO conversations(id,title,created_at,character_id) VALUES(?,?,?,?)",
+                        (ident, title, self.history.clock(), character_id))
+        self.db.execute("INSERT OR REPLACE INTO conversation_settings VALUES(?,?)", ('active:' + character_id, ident))
         return ident
 
     @staticmethod
@@ -46,23 +59,40 @@ class Conversations:
         if not isinstance(value, str) or not 0 < len(value.strip()) <= 80: raise ValueError('invalid_title')
         return value.strip()
 
-    def create(self, title='新对话'):
+    def create(self, title='新对话', character_id=None):
         title = self.title(title)
-        with self.lock:
-            ident = self._create(title)
-            self.db.commit()
+        with self.lock, self.db:
+            ident = self._create(title, character_id or self.character_id)
         return self.get(ident)
 
-    def list(self):
+    def _rows(self, where, value):
         with self.lock:
-            active = self._active()
-            cursor = self.db.execute("SELECT c.*, COALESCE(MAX(h.ended_at),c.created_at) AS updated_at, COUNT(h.id) AS turn_count FROM conversations c LEFT JOIN conversation_turns t ON t.conversation_id=c.id LEFT JOIN history_turns h ON h.event_id=t.event_id GROUP BY c.id ORDER BY c.pinned DESC,updated_at DESC,c.id")
+            cursor = self.db.execute(
+                "SELECT c.*, COALESCE(MAX(h.ended_at),c.created_at) AS updated_at, COUNT(h.id) AS turn_count,"
+                " s.value IS c.id AS active, (SELECT COALESCE(NULLIF(last.reply,''),last.user_text)"
+                " FROM conversation_turns t JOIN history_turns last USING(event_id) WHERE t.conversation_id=c.id"
+                " ORDER BY last.id DESC LIMIT 1) AS preview FROM conversations c"
+                " LEFT JOIN conversation_settings s ON s.key='active:' || c.character_id"
+                " LEFT JOIN conversation_turns t ON t.conversation_id=c.id LEFT JOIN history_turns h ON h.event_id=t.event_id"
+                f" WHERE {where} GROUP BY c.id ORDER BY c.pinned DESC,updated_at DESC,c.id", (value,))
             keys = [c[0] for c in cursor.description]
-            rows = [dict(zip(keys, row)) for row in cursor.fetchall()]
-        return [{**row, 'pinned': bool(row['pinned']), 'archived': bool(row['archived']), 'active': row['id'] == active} for row in rows]
+            rows = [dict(zip(keys, row)) for row in cursor]
+        for row in rows:
+            shown = re.sub(r'\[[a-z_]+:[^\[\]\n]*\]', '', row['preview'] or '')
+            row['preview'] = ' '.join(shown.split())[:60]
+            for flag in ('active', 'pinned', 'archived'):
+                row[flag] = bool(row[flag])
+        return rows
+
+    def list(self, character_id=None):
+        character_id = character_id or self.character_id
+        if character_id is not None and character_id == self.character_id:
+            with self.lock, self.db:
+                self._active(character_id)
+        return self._rows('c.character_id=?', character_id)
 
     def get(self, ident):
-        return next((r for r in self.list() if r['id'] == ident), None)
+        return next(iter(self._rows('c.id=?', ident)), None)
 
     def owners_of_turns(self, turn_ids):
         """turn_id -> id of the newest stored conversation owning it; unowned turns are absent."""
@@ -97,18 +127,20 @@ class Conversations:
                 for task_id, owner in self.run_store.db.execute(
                         'SELECT task_id,conversation_id FROM character_runs WHERE task_id IS NOT NULL'):
                     (task_ids if owner == ident else other_tasks).add(task_id)
-        with self.lock:
-            row = self.db.execute('SELECT revision,archived FROM conversations WHERE id=?', (ident,)).fetchone()
+        with self.lock, self.db:
+            row = self.db.execute('SELECT revision,archived,character_id FROM conversations WHERE id=?', (ident,)).fetchone()
             if row is None: raise ValueError('unknown_conversation')
-            if row[0] != body['expected_version']: raise ValueError('version_conflict')
+            revision, archived, character_id = row
+            if revision != body['expected_version']: raise ValueError('version_conflict')
+            active_key = 'active:' + character_id
             if activate:
-                if row[1]: raise ValueError('archived')
-                self.db.execute("UPDATE conversation_settings SET value=? WHERE key='active'", (ident,))
+                if archived: raise ValueError('archived')
+                self.db.execute("INSERT OR REPLACE INTO conversation_settings VALUES(?,?)", (active_key, ident))
             elif delete:
                 # A queued/running worker may have passed its current()
                 # check before creating its TaskLedger row. Let it stop
                 # before deleting ownership, as foreground deletion does.
-                if self.db.execute("SELECT 1 FROM personal_jobs WHERE conversation_id=? AND state IN ('queued','running') LIMIT 1", (ident,)).fetchone():
+                if character_id == self.character_id and self.db.execute("SELECT 1 FROM personal_jobs WHERE conversation_id=? AND state IN ('queued','running') LIMIT 1", (ident,)).fetchone():
                     raise ValueError('busy')
                 for owner, raw in self.db.execute('SELECT conversation_id,result FROM personal_jobs WHERE result IS NOT NULL'):
                     result = json.loads(raw)
@@ -129,8 +161,9 @@ class Conversations:
                 for key in ('title', 'pinned', 'archived'):
                     if key in body: self.db.execute(f'UPDATE conversations SET {key}=? WHERE id=?', (body[key].strip() if key == 'title' else body[key], ident))
             if not delete: self.db.execute('UPDATE conversations SET revision=revision+1 WHERE id=?', (ident,))
-            if self._active() == ident and (delete or body.get('archived')): self._create('新对话')
-            self.db.commit()
+            if (delete or body.get('archived')) and self.db.execute(
+                    "SELECT 1 FROM conversation_settings WHERE key=? AND value=?", (active_key, ident)).fetchone():
+                self._create('新对话', character_id)
         if delete and self.run_store is not None:
             self.run_store.forget_runs((), conversation_id=ident)
         return {'deleted': True} if delete else self.get(ident)
@@ -139,4 +172,6 @@ class Conversations:
         # Caller holds history.lock.
         self.db.execute('DELETE FROM conversation_turns')
         self.db.execute('DELETE FROM conversations')
-        self._create('新对话')
+        self.db.execute('DELETE FROM conversation_settings')
+        if self.character_id is not None:
+            self._create('新对话', self.character_id)

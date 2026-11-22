@@ -1,6 +1,6 @@
 {
   "paused": false,
-  "facts": [{"fact_id": "5651041b-72d4-4e6f-9c5f-8b6df0b9dd24", "version": 1, "state": "active", "kind": "preference", "text": "回答先给结论",
+  "facts": [{"fact_id": "5651041b-72d4-4e6f-9c5f-8b6df0b9dd24", "version": 1, "state": "active", "owner": "voice_a", "kind": "preference", "text": "回答先给结论",
              "source": "asserted_by_user", "evidence": ["episode:1@2026-10-31"], "occurred_at": 1793500000.5,
              "recorded_at": 1793500000.5, "last_used_at": 1793503662.4, "stale": false, "score": 0.0, "uses_today": 1,
              "last_injected_at": 1793503662.4, "last_mentioned_at": 1793503600.2,

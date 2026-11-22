@@ -3008,7 +3008,7 @@ class CharacterTest(FeedServerCase):
         self.assertEqual(self.request("POST", "/character", {"id": "birch"}), (200, {"id": "birch", "changed": True}))
         self.assertEqual(self.built, ["birch"])
         self.assertIsNot(self.server.mouth, old)
-        self.assertEqual(self.server.mouth.history, [["u", "live", "a"]])
+        self.assertEqual(self.server.mouth.history, [])
         self.assertEqual((self.server.speech.character, self.server.speech.language), ("si", "zh"))
         state = self.request("GET", "/state", token=EVENTS)[1]
         self.assertEqual((state["character"], state["character_generation"]), ("birch", 0))  # no bump
@@ -3162,7 +3162,7 @@ class CharacterSwitchTest(FeedServerCase):
                          ("birch", 1, None))
         self.assertEqual((self.server.speech.character, self.server.speech.language), ("si", "zh"))
         self.assertIsNot(self.server.mouth, old)
-        self.assertEqual(self.server.mouth.history, [["u", "live", "a"]])
+        self.assertEqual(self.server.mouth.history, [])
         self.assertEqual(self.say("打开 Safari"), (200, {"command": "open"}))
         conn, response = self.open_feed()
         self.say("你好")

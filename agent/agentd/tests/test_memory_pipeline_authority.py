@@ -20,7 +20,7 @@ class MemoryAuthorityTests(unittest.TestCase):
         hedge = '这不是用户偏好的证据，用户提到了 X'
         self.source(reply=hedge)
         value = self.findings()
-        value['memories'].append({'kind':'fact', 'text':hedge,
+        value['memories'].append({'scope':'shared', 'kind':'fact', 'text':hedge,
             'evidence':[{'source_id':self.pipeline.sources()[0]['source_id'], 'quote':hedge}]})
         result = self.pipeline.validate(value, self.pipeline.sources())
         self.assertEqual([item['text'] for item in result['accepted']], [value['memories'][0]['text']])
@@ -42,7 +42,7 @@ class MemoryAuthorityTests(unittest.TestCase):
         observed = {'source_id':'observation:one', 'kind':'authorized_observation',
                     'content':{'summary':'报告项目正在核对来源'}}
         value['projects'][0]['evidence'] = [observed['source_id']]
-        value['memories'] = [{'kind':'fact', 'text':'报告项目正在核对来源',
+        value['memories'] = [{'scope':'shared', 'kind':'fact', 'text':'报告项目正在核对来源',
             'authority':'asserted_by_user', 'evidence':[{'source_id':observed['source_id'], 'quote':'报告项目正在核对来源'}]}]
         result = self.pipeline.validate(value, [observed])
         self.assertEqual(result['rejected'], [])
@@ -69,7 +69,7 @@ class MemoryAuthorityTests(unittest.TestCase):
         observed = {'source_id':'observation:habit', 'kind':'authorized_observation',
                     'content':{'summary':'晚上 11 点后还在写代码'}}
         value['projects'][0]['evidence'] = [observed['source_id']]
-        value['memories'] = [{'kind':'preference', 'text':'晚上 11 点后还在写代码', 'authority':'observed_context',
+        value['memories'] = [{'scope':'shared', 'kind':'preference', 'text':'晚上 11 点后还在写代码', 'authority':'observed_context',
             'evidence':[{'source_id':observed['source_id'], 'quote':'晚上 11 点后还在写代码'}]}]
         result = self.pipeline.validate(value, [observed])
         self.assertEqual(result['rejected'], [])

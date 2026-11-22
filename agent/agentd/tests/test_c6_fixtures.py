@@ -141,7 +141,7 @@ class C6FixtureTest(unittest.TestCase):
                                "policy_verification": "on_session_start"},
              "authenticated": True, "auth_mode": "existing_login", "auth_method": "chatgpt"}], "scanned_at": 0})
         conversation = server.history.conversations.active
-        server.history.record(turn_id="tr1", source="text", character_id="voice_a", persona_revision="1",
+        server.history.record(turn_id="tr1", source="text", character_id=server.character, persona_revision="1",
                               user_text="你好", reply="在呢", state="completed", started_at=time.time())
         jobs = controller.jobs.store
         goal = jobs.create_goal("周报", "每周五整理提交")

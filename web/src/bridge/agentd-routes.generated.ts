@@ -359,6 +359,7 @@ export interface AgentSnapshotResponse {
   stream_epoch: string;
   seq: number;
   conversations: {
+    character: string;
     conversations: Array<{
       id: string;
       title: string;
@@ -366,9 +367,11 @@ export interface AgentSnapshotResponse {
       archived: boolean;
       revision: number;
       created_at: number;
+      character_id: string;
       updated_at: number;
       turn_count: number;
       active: boolean;
+      preview: string;
     }>;
     busy: boolean;
   } | null;
@@ -604,6 +607,7 @@ export interface MemoryResponse {
     fact_id: string;
     version: number;
     state: string;
+    owner: string | null;
     kind: string;
     text: string;
     source: string;
@@ -1065,9 +1069,12 @@ export interface TraceTurnsResponse {
 
 /** protocol/C6-agentd-api/fixtures/conversations.json */
 export interface ConversationsResponse {
+  character: string;
   conversations: Array<{
     id: string;
+    character_id: string;
     title: string;
+    preview: string;
     pinned: boolean;
     archived: boolean;
     revision: number;

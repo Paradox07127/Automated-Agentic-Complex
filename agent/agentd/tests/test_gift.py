@@ -28,7 +28,7 @@ class GiftSourceTest(unittest.TestCase):
         self.addCleanup(self.db.close)
 
     def test_gift_is_a_persisted_conversation_source(self):
-        history = History(self.db)
+        history = History(self.db, character_id="aster")
         conversation = history.conversations.active
         event_id = history.record(turn_id="gift-line", source="gift", character_id="aster", persona_revision="1",
                                   user_text="（送了你一份礼物）", reply="谢谢你。", state="completed", started_at=time.time())

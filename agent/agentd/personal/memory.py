@@ -15,7 +15,7 @@ STATES = ("active", "candidate", "corrected", "deleted", "rejected")  # candidat
 OBSERVED = ("observed_context", "inferred_hypothesis")
 CONSOLIDATED = "state IN ('active', 'candidate') AND source IN ('observed_context', 'inferred_hypothesis')"
 COLUMNS = ("fact_id", "version", "kind", "text", "source", "evidence", "occurred_at", "recorded_at", "last_used_at",
-           "reinforcement", "reinforced_at")
+           "reinforcement", "reinforced_at", "owner")
 STALE_AFTER = 30 * 86400  # seconds since last use (or recording) after which a fact is stale
 # N.E.K.O. memory/evidence.py (Apache-2.0) EVIDENCE_REIN_HALF_LIFE_DAYS = 30; there is no disputation signal here.
 REINFORCE_HALF_LIFE = 30 * 86400
@@ -177,7 +177,7 @@ class Memory:
             if self._paused() and not manual:
                 return None
             row = self.db.execute("SELECT id, fact_id FROM facts WHERE state = 'active' AND kind = ? AND text = ?"
-                                  " AND source = ? ORDER BY id DESC", (kind, text, source)).fetchone()
+                                  " AND source = ? AND owner IS NULL ORDER BY id DESC", (kind, text, source)).fetchone()
             if row is None:
                 return None
             self.db.execute("UPDATE facts SET reinforcement = reinforcement + 1, reinforced_at = ? WHERE id = ?",
@@ -339,23 +339,29 @@ class Memory:
                             pending.extend(by_episode.get('episode:' + ident, set()) - affected)
         return affected, episodes
 
-    def active(self, sources=None):
-        return self._records('active',sources)
+    def active(self, sources=None, *, owner=None):
+        return self._records('active', sources, owner=owner)
 
-    def candidates(self):
-        return [{**row,'state':'candidate'} for row in self._records('candidate')]
+    def visible(self, character_id):
+        return self._records('active', where=" AND (owner IS NULL OR owner=?)", args=(character_id,))
 
-    def similar(self, text, kind, k=5):
+    def candidates(self, *, owner=None):
+        return [{**row,'state':'candidate'} for row in self._records('candidate', owner=owner)]
+
+    def similar(self, text, kind, k=5, *, character_id=None):
         with self.lock:
             rows = self.db.execute("SELECT fact_id,text FROM facts WHERE kind=? AND state IN ('active','candidate')"
-                                   " ORDER BY recorded_at DESC,id DESC", (kind,)).fetchall()
+                                   " AND (owner IS NULL OR owner=?) ORDER BY recorded_at DESC,id DESC", (kind, character_id)).fetchall()
         facts = [dict(zip(('fact_id','text'), row)) for row in rows]
         return sorted(facts, key=lambda fact: overlap(text, fact['text']), reverse=True)[:k]
 
-    def _records(self, state, sources=None):
-        where, args = "", ()
+    def _records(self, state, sources=None, *, owner=None, where="", args=()):
         if sources is not None:
-            where, args = f" AND source IN ({', '.join('?' * len(sources))})", tuple(sources)
+            where += f" AND source IN ({', '.join('?' * len(sources))})"
+            args += tuple(sources)
+        if owner is not None:
+            where += " AND owner IS ?"
+            args += (None if owner == "shared" else owner,)
         with self.lock:
             rows = self.db.execute(f"SELECT {', '.join(COLUMNS)} FROM facts WHERE state = ?{where}"
                                    " ORDER BY recorded_at, id", (state,*args)).fetchall()
@@ -382,15 +388,19 @@ class Memory:
                                   (fact_id,)).fetchone()
         return None if row is None else row[0]
 
-    def injectable(self):
-        return {"trusted": self.active(TRUSTED), "low_trust": self.active([s for s in SOURCES if s not in TRUSTED])}
+    def injectable(self, character_id=None):
+        facts = self.visible(character_id)
+        return {"trusted": [f for f in facts if f["source"] in TRUSTED],
+                "low_trust": [f for f in facts if f["source"] not in TRUSTED]}
 
-    def select(self, query, k=2, now=None, derived=False):
+    def select(self, query, k=2, now=None, derived=False, character_id=None):
         """The facts one turn carries, split as injectable() splits them: up to RESIDENTS trusted name and agreement
         facts, then up to k more by bigram overlap with query times 1 + evidence score, none under RELEVANT;
         SELECT_CHARS of text in all. Without derived, no OBSERVED fact: the consolidator writes them from episodes."""
         now = self.clock() if now is None else now
-        facts = self.active() if derived else [f for f in self.active() if f["source"] not in OBSERVED]
+        facts = self.visible(character_id)
+        if not derived:
+            facts = [f for f in facts if f["source"] not in OBSERVED]
         with self.lock:
             last = {(fact_id, mode): at for fact_id, mode, at in self.db.execute(
                 "SELECT fact_id, mode, MAX(used_at) FROM fact_uses GROUP BY fact_id, mode")}
@@ -526,11 +536,11 @@ class Memory:
         return row is not None and row[0] == "1"
 
     def _insert(self, fact_id, version, kind, text, source, evidence, occurred_at, reinforcement=0, reinforced_at=None,
-                state="active"):
+                state="active", owner=None):
         self.db.execute("INSERT INTO facts (fact_id, version, kind, text, source, evidence, occurred_at, recorded_at,"
-                        " state, reinforcement, reinforced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        " state, reinforcement, reinforced_at, owner) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (fact_id, version, kind, text, source, evidence, occurred_at, self.clock(), state,
-                         reinforcement, reinforced_at))
+                         reinforcement, reinforced_at, owner))
 
     def _revise(self, fact_id, text, *, expected_version=None):
         """Supersede the active version with one the user has touched; text None keeps the old text."""
@@ -538,11 +548,11 @@ class Memory:
             raise ValueError("blank text")
         with self.lock:
             row = self.db.execute("SELECT id, version, kind, text, source, evidence, occurred_at, reinforcement,"
-                                  " reinforced_at FROM facts WHERE fact_id = ? AND state IN ('active','candidate')",
+                                  " reinforced_at, owner FROM facts WHERE fact_id = ? AND state IN ('active','candidate')",
                                   (fact_id,)).fetchone()
             if row is None:
                 raise KeyError(fact_id)
-            row_id, version, kind, old_text, source, evidence, occurred_at, reinforcement, reinforced_at = row
+            row_id, version, kind, old_text, source, evidence, occurred_at, reinforcement, reinforced_at, owner = row
             if expected_version is not None and version != expected_version:
                 raise VersionConflict(version)
             if source in ("inferred_hypothesis", "observed_context") or text is None:
@@ -557,7 +567,7 @@ class Memory:
             # A corrected text is a new claim; confirming keeps the signals the same words already had.
             kept = (reinforcement, reinforced_at) if text is None else ()
             self._insert(fact_id, version + 1, kind, old_text if text is None else text, source, evidence,
-                         occurred_at, *kept)
+                         occurred_at, *kept, owner=owner)
             self.db.commit()
             self.revision += 1
         return version + 1

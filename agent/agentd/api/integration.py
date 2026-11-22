@@ -147,8 +147,9 @@ def _memory_search(h, query):
         return h.json(400, {"error": "invalid_query"})
     if memory is None:
         return h.json(503, {"error": "no_memory"})
-    scored = sorted(((overlap(q, f["text"]), f) for f in memory.active()), key=lambda p: (-p[0], -p[1]["recorded_at"]))
-    h.json(200, {"facts": [{"text": f["text"], "kind": f["kind"], "source": f["source"], "recorded_at": f["recorded_at"]}
+    facts = memory.active(owner=query.get("owner", ["shared"])[0])
+    scored = sorted(((overlap(q, f["text"]), f) for f in facts), key=lambda p: (-p[0], -p[1]["recorded_at"]))
+    h.json(200, {"facts": [{"text": f["text"], "kind": f["kind"], "source": f["source"], "owner": f["owner"], "recorded_at": f["recorded_at"]}
                            for score, f in scored[:int(limit)] if score >= RELEVANT]})
 
 

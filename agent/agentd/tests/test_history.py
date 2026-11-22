@@ -20,7 +20,7 @@ class HistoryTest(unittest.TestCase):
         self.path = Path(self.tmp.name) / "agentd.db"
         self.db = open_store(self.path)
         self.now = 1000.0
-        self.history = History(self.db, clock=lambda: self.now)
+        self.history = History(self.db, clock=lambda: self.now, character_id="aster")
 
     def tearDown(self):
         self.db.close()
@@ -71,12 +71,12 @@ class HistoryTest(unittest.TestCase):
         window = self.history.window("aster", 3, NAMES)
         self.assertEqual([turn[0]["content"] for turn in window], ["问2", "问3", "问4"])
 
-    def test_window_labels_other_speakers(self):
+    def test_window_excludes_other_characters_topics(self):
         self.add("一", "壹", character_id="voice_a_alt")
         self.add("二", "贰", character_id="stranger")
         self.add("三", "叁")
         replies = [turn[1]["content"] for turn in self.history.window("aster", 8, NAMES)]
-        self.assertEqual(replies, ["(said by 别人) 壹", "(said by stranger) 贰", "叁"])
+        self.assertEqual(replies, ["叁"])
 
     def test_page_walks_back_from_the_newest(self):
         for i in range(5):

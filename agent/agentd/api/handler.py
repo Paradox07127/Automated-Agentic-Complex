@@ -409,7 +409,8 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         return self._history(urlparse(self.path).path, parse_qs(urlparse(self.path).query))
 
     def _memory_get(self):
-        return self._memory_read(urlparse(self.path).path)
+        url = urlparse(self.path)
+        return self._memory_read(url.path, parse_qs(url.query).get("owner", [None])[0])
 
     def _trace_get(self, _trace_id=None):
         return self._trace_read(urlparse(self.path).path, self.route_match, parse_qs(urlparse(self.path).query))

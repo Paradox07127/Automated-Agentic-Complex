@@ -24,7 +24,7 @@ class MemorySyncMixin:
         ritual or tap line's query is its kind's words, so it recalls no episodes."""
         pick = getattr(mouth, "pick_facts", None)  # test doubles of Mouth have none
         derived = trace["remember"] and self.page_text_allowed() and source not in ("proactive", "ritual", "tap")
-        facts = pick(query, derived=derived) if pick is not None else {"trusted": [], "low_trust": []}
+        facts = pick(query, derived=derived, character_id=self.character) if pick is not None else {"trusted": [], "low_trust": []}
         recall = getattr(mouth, "pick_history", None)
         if recall is not None and self.history is not None and trace["remember"]:
             try:

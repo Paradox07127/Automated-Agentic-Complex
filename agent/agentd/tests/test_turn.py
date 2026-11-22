@@ -524,7 +524,7 @@ class TurnTest(test_server.FeedServerCase):
                 super().__init__(chunks)
                 self.history = []
 
-            def pick_facts(self, query, derived=False):
+            def pick_facts(self, query, derived=False, character_id=None):
                 facts = [{"fact_id": "f1", "version": 1}] if "猫" in query else []
                 return {"trusted": facts, "low_trust": []}
 

@@ -4,6 +4,7 @@ import threading
 import time
 import uuid
 
+from brain import characters
 from personal.conversations import COLUMNS, SHOWN, Conversations
 
 SOURCES = ("text", "voice", "proactive", "announce", "ritual", "gift", "tap")
@@ -38,10 +39,11 @@ def _body(user_text, reply):
 
 
 class History:
-    def __init__(self, db, lock=None, clock=time.time):
+    def __init__(self, db, lock=None, clock=time.time, *, character_id=None, catalog=characters):
         self.db, self.clock = db, clock
         self.lock = threading.Lock() if lock is None else lock
-        self.conversations = Conversations(self)
+        default_character = catalog.default()
+        self.conversations = Conversations(self, character_id or default_character, default_character)
         with self.lock:  # rows written before the index existed
             rows = self.db.execute(f"SELECT id, user_text, reply FROM history_turns WHERE {HEARD}"
                                    " AND id NOT IN (SELECT rowid FROM history_fts)").fetchall()
@@ -66,24 +68,25 @@ class History:
             if state in ("completed", "interrupted"):
                 self.db.execute("INSERT INTO history_fts (rowid, body) VALUES (?, ?)",
                                 (row_id, _body(user_text, reply)))
-            self.db.execute("INSERT INTO conversation_turns VALUES(?,?)", (event_id, conversation_id or self.conversations._active()))
+            conversation_id = conversation_id or self.conversations._active(character_id)
+            self.db.execute("INSERT INTO conversation_turns VALUES(?,?)", (event_id, conversation_id))
             if user_text.strip():
                 self.db.execute("UPDATE conversations SET title=?,revision=revision+1 WHERE id=? AND title='新对话'",
-                                (user_text.strip().splitlines()[0][:80], conversation_id or self.conversations._active()))
+                                (user_text.strip().splitlines()[0][:80], conversation_id))
             self.db.commit()
         return event_id
 
     def window(self, character_id, max_turns, names, with_ids=False):
         """The last max_turns completed or interrupted turns (those as heard), oldest first, as Mouth.history;
         other speakers are labelled. with_ids: (turn_id, turn) pairs instead."""
-        with self.lock:
+        with self.lock, self.db:
             # The API refuses an empty assistant turn before the last message.
             rows = self.db.execute("SELECT turn_id, character_id, user_text, COALESCE(raw_reply, reply)"
                                    " FROM history_turns"
                                    " WHERE state IN ('completed', 'interrupted')"
                                    " AND TRIM(COALESCE(raw_reply, reply), char(32, 9, 10, 13, 12288)) != ''"
                                    " AND event_id IN (SELECT event_id FROM conversation_turns WHERE conversation_id=?)"
-                                   " ORDER BY id DESC LIMIT ?", (self.conversations._active(), max_turns)).fetchall()
+                                   " ORDER BY id DESC LIMIT ?", (self.conversations._active(character_id), max_turns)).fetchall()
         turns = []
         for turn_id, cid, user_text, reply in reversed(rows):
             if cid != character_id:

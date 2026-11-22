@@ -184,7 +184,7 @@ class IntegrationRoutesTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual([(f["text"], f["kind"], f["source"]) for f in body["facts"]],
                          [("用户喜欢喝乌龙茶", "preference", "asserted_by_user")])
-        self.assertEqual(set(body["facts"][0]), {"text", "kind", "source", "recorded_at"})
+        self.assertEqual(set(body["facts"][0]), {"text", "kind", "source", "owner", "recorded_at"})
         for query in ("", "?q=", "?q=%20", "?q=x&limit=0", "?q=x&limit=11", "?q=x&limit=a"):
             with self.subTest(query=query):
                 self.assertEqual(self.call("GET", "/integration/memory" + query)[0], 400)

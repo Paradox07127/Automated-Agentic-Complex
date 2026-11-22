@@ -62,7 +62,7 @@ class MemoryTest(unittest.TestCase):
         self.assertEqual([f["fact_id"] for f in layers["trusted"]], [said])
         self.assertEqual([f["fact_id"] for f in layers["low_trust"]], [page, guess])
         self.assertEqual(layers["trusted"][0], {
-            "fact_id": said, "version": 1, "kind": "fact", "text": "我在上海工作", "source": "asserted_by_user",
+            "fact_id": said, "version": 1, "owner": None, "kind": "fact", "text": "我在上海工作", "source": "asserted_by_user",
             "evidence": ["ev-1"], "occurred_at": 900.0, "recorded_at": 1001.0, "last_used_at": None, "stale": False,
             "score": 0.0})
 

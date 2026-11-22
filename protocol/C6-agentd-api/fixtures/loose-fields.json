@@ -89,7 +89,7 @@
     "memory-sessions.json": ["sessions[].agent", "sessions[].project", "sessions[].task_id"],
     "memory-tasks.json": ["tasks[].project", "tasks[].next_step"],
     "memory-task.json": ["task.project", "task.next_step", "sessions[].agent", "sessions[].project", "sessions[].task_id"],
-    "memory.json": ["facts[].occurred_at", "facts[].last_used_at", "facts[].last_injected_at", "facts[].last_mentioned_at"],
+    "memory.json": ["facts[].owner", "facts[].occurred_at", "facts[].last_used_at", "facts[].last_injected_at", "facts[].last_mentioned_at"],
     "episodes.json": ["episodes[].presence", "episodes[].run_id", "episodes[].outcome", "episodes[].threads[].session", "episodes[].threads[].status", "episodes[].threads[].progress", "episodes[].threads[].topic", "episodes[].threads[].blocked", "episodes[].threads[].subject", "episodes[].threads[].goal", "episodes[].threads[].outcome", "threads[].status", "threads[].progress"],
     "day-segments.json": ["projects[].sessions[].started_at", "projects[].sessions[].ended_at", "projects[].sessions[].last_gate",
                           "projects[].sessions[].last_gate.at", "projects[].own[].last_line", "projects[].own[].task_id"],

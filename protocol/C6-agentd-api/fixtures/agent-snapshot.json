@@ -2,8 +2,10 @@
   "stream_epoch": "378abfa5",
   "seq": 18422,
   "conversations": {
+    "character": "voice_a",
     "conversations": [{"id": "0123456789abcdef0123456789abcdef", "title": "周报", "pinned": false, "archived": false, "revision": 2,
-                       "created_at": 1793500000.5, "updated_at": 1793503662.4, "turn_count": 4, "active": true}],
+                       "created_at": 1793500000.5, "character_id": "voice_a", "updated_at": 1793503662.4, "turn_count": 4, "active": true,
+                       "preview": "好，这个要动电脑，我交给内核"}],
     "busy": false
   },
   "interactions": {

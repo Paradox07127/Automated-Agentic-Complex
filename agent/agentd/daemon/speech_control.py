@@ -112,6 +112,24 @@ class SpeechControlMixin:
             self._window_ops.append(("heard", entry, None))
         self._window_changed()
 
+    def reload_conversation(self):
+        controller = self.character_agent
+        if controller is not None:
+            # Retire only the foreground runtime; background jobs retain their leases.
+            with controller._lock:
+                if controller.runtime is not None:
+                    controller.runtime.close()
+                    controller.runtime = None
+                controller._runtime_config = None
+        if self.mouth is not None and self.history is not None:
+            self.load_window()
+
+    def fence_conversation(self):
+        self.history_generation += 1
+        self._line_entries.clear()
+        self._cut_lines.clear()
+        self._window_ops.clear()
+
     def load_window(self):
         """At startup: the mouth's window, read back from the history; a deleted fact or a receipt finds each of its
         turns by line_id, as it finds a turn spoken since."""

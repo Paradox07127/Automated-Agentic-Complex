@@ -168,6 +168,7 @@ class MemoryTurn:
             "input_schema": {"type": "object", "properties": {
                 "operation": {"type": "string", "enum": ["add", "correct", "forget"], "description": "add a new fact, correct an existing one, or forget one."},
                 "text": {"type": "string", "maxLength": 2000, "description": "The fact as stored; for add and correct it must equal evidence_quote."},
+                "scope": {"type": "string", "enum": ["shared", "character"], "description": "For add, use character for nicknames, promises, private jokes and instructions specific to this relationship. General user facts are shared (default)."},
                 "kind": {"type": "string", "enum": list(KINDS), "description": "Category; defaults to fact. Ignored for correct/forget."},
                 "evidence_quote": {"type": "string", "maxLength": 2000, "description": "Verbatim substring of the current user message that asks for this change."},
                 "fact_id": {"type": "string", "maxLength": 128, "description": "correct/forget only: id of the existing fact."},
@@ -316,8 +317,9 @@ class MemoryTurn:
             return result
 
     def _change(self, args):
-        allowed = {"operation", "text", "kind", "evidence_quote", "fact_id", "expected_version", "target_quote"}
-        if set(args) - allowed:
+        allowed = {"operation", "text", "kind", "scope", "evidence_quote", "fact_id", "expected_version", "target_quote"}
+        scope = args.get("scope", "shared")
+        if set(args) - allowed or scope not in ("shared", "character"):
             raise ValueError("invalid_memory_proposal")
         op, quote, text = args.get("operation"), args.get("evidence_quote"), args.get("text", "")
         if op in ('add', 'correct') and DENY_WRITE.search(self.text):
@@ -336,7 +338,7 @@ class MemoryTurn:
             pattern = CORRECT if op == "correct" else FORGET
             if not positive_instruction(self.text, pattern):
                 raise ValueError("explicit_memory_instruction_required")
-            row = db.execute("SELECT version,kind,text FROM facts WHERE fact_id=? AND state='active'", (ident,)).fetchone()
+            row = db.execute("SELECT version,kind,text,owner FROM facts WHERE fact_id=? AND state='active' AND (owner IS NULL OR owner=?)", (ident,self.character_id)).fetchone()
             if row is None:
                 raise ValueError("unknown_fact")
             if isinstance(version, bool) or version != row[0]:
@@ -357,19 +359,20 @@ class MemoryTurn:
                 raise ValueError('previously_rejected')
             if kind in ("name", "birthday"):
                 raise ValueError("profile_requires_settings_confirmation")
-            old = db.execute("SELECT fact_id,version FROM facts WHERE text=? AND kind=? AND source=? AND state=?",
-                             (text, kind, source, state)).fetchone()
+            owner = self.character_id if scope == "character" else None
+            old = db.execute("SELECT fact_id,version FROM facts WHERE text=? AND kind=? AND source=? AND state=? AND owner IS ?",
+                             (text, kind, source, state, owner)).fetchone()
             if old:
                 return {"outcome": "unchanged", "fact_id": old[0], "version": old[1]}
             ident, version = str(uuid.uuid4()), 1
-            self.memory._insert(ident, version, kind, text, source, dump(["role_run:" + self.run_id]), None, state=state)
+            self.memory._insert(ident, version, kind, text, source, dump(["role_run:" + self.run_id]), None, state=state, owner=owner)
             outcome = "stored" if explicit else "candidate"
             if explicit: self.stored.append(ident)
         elif op == "correct":
             self.memory._tombstone(ident)
             db.execute("UPDATE facts SET state='corrected' WHERE fact_id=? AND state='active'", (ident,))
             version += 1
-            self.memory._insert(ident, version, kind, text, "asserted_by_user", dump(["role_run:" + self.run_id]), None)
+            self.memory._insert(ident, version, kind, text, "asserted_by_user", dump(["role_run:" + self.run_id]), None, owner=row[3])
             self.memory._redact_agent_journal()
             self.epoch = self.memory.content_epoch
             self.changed.append((ident, False))

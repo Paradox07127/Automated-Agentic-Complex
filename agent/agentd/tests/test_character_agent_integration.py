@@ -32,7 +32,7 @@ class IntegrationFixture(test_server.FeedServerCase):
         self.db = open_store(self.root / 'domain.sqlite')
         s = self.server
         domain_lock = threading.RLock()
-        s.history, s.memory, s.tasks = History(self.db, lock=domain_lock), Memory(self.db, lock=domain_lock), TaskLedger(self.db, lock=domain_lock)
+        s.history, s.memory, s.tasks = History(self.db, lock=domain_lock, character_id=s.character), Memory(self.db, lock=domain_lock), TaskLedger(self.db, lock=domain_lock)
         s.egress = EgressPolicy()
         s.mouth = Mouth(egress=s.egress)
         self.script = chat; self.sessions = []; self.definitions = []
@@ -1686,9 +1686,8 @@ class ScopedCancelTests(unittest.TestCase):
         return result[0]
 
     def job(self, conversation, running=True):
-        with self.server.history.conversations.lock:
-            self.server.history.conversations.db.execute("UPDATE conversation_settings SET value=? WHERE key='active'", (conversation,))
-            self.server.history.conversations.db.commit()
+        topics = self.server.history.conversations
+        topics.update(conversation, {'expected_version': topics.get(conversation)['revision']}, activate=True)
         job = self.c.submit_job('work', 'synthetic work', 'synthetic work')
         if running:
             self.wait(lambda: job['run_id'] in self.sessions)
@@ -1892,9 +1891,8 @@ class ScopedCancelTests(unittest.TestCase):
 
     def test_k10_new_controller_answers_retained_foreground_card(self):
         from character_agent.services.interactions import QuestionTurn
-        with self.server.history.conversations.lock:
-            self.server.history.conversations.db.execute("UPDATE conversation_settings SET value=? WHERE key='active'", (self.a,))
-            self.server.history.conversations.db.commit()
+        topics = self.server.history.conversations
+        topics.update(self.a, {'expected_version': topics.get(self.a)['revision']}, activate=True)
         runtime = self.c._ensure_runtime()
         self.c.interactions.wait_seconds = 0
         def factory(definitions):
@@ -2481,7 +2479,7 @@ class RuntimeAutoSelectTests(test_server.FeedServerCase):
         self.db = open_store(self.root / 'domain.sqlite')
         s = self.server
         domain_lock = threading.RLock()
-        s.history, s.memory, s.tasks = History(self.db, lock=domain_lock), Memory(self.db, lock=domain_lock), TaskLedger(self.db, lock=domain_lock)
+        s.history, s.memory, s.tasks = History(self.db, lock=domain_lock, character_id=s.character), Memory(self.db, lock=domain_lock), TaskLedger(self.db, lock=domain_lock)
         s.egress = EgressPolicy()
         s.mouth = Mouth(egress=s.egress)
         self.rows = []

@@ -203,7 +203,7 @@ class SemanticService:
                 if failure: raise ValueError(failure)
             _, consent = s.sync_privacy()
             selected_character=s.character
-            if character_id is not None and purpose!='observation_interpret': raise ValueError('invalid_semantic_character')
+            if character_id is not None and purpose not in ('observation_interpret', 'memory_extract'): raise ValueError('invalid_semantic_character')
             cid = character_id or selected_character
             current = lambda: valid() and epoch == self.epoch and not s.closing and not s.resetting \
                 and s.character == selected_character and s.consent.snapshot()[1] == consent and c.settings.snapshot() == settings
