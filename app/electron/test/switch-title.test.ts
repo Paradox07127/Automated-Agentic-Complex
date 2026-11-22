@@ -1,5 +1,5 @@
-// 雷霆大字 (src/main/title/overlay.ts): the title window over her screen at each completed character switch, fed the switch's
-// views as index.ts feeds it, over fake windows; and its 设置 row's config key.
+// 雷霆大字 (src/main/title/overlay.ts): the title window over her screen while a character switch runs, from its start until
+// the avatar shows the new character, fed the switch's views as index.ts feeds it, over fake windows; and its 设置 row's key.
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -9,7 +9,7 @@ import type { BrowserWindow } from 'electron';
 import { parseChanges, planSave, schema } from '../src/common/settings.ts';
 import { CharacterSwitch, type SwitchPorts } from '../src/common/switch.ts';
 import { OVERLAY_LEVELS } from '../src/main/platform/index.ts';
-import { TITLE_MS, TitleOverlay, titleNames, titleScreen } from '../src/main/title/overlay.ts';
+import { TitleOverlay, titleNames, titleScreen } from '../src/main/title/overlay.ts';
 
 const settle = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); };
 
@@ -38,10 +38,12 @@ const HER = { id: 2, frame: { x: 1440, y: 0, w: 1920, h: 1080 }, visibleFrame: {
 const MAIN = { id: 1, frame: { x: 0, y: 0, w: 1440, h: 900 }, visibleFrame: { x: 0, y: 0, w: 1440, h: 875 } };
 
 function setup() {
+  /** agentd's commit answers when `commit.open` is called; open until a test holds it. */
+  const commit = { held: false, open: () => {}, };
   const ports: SwitchPorts = {
     agentdRunning: () => true,
     prepare: async (id) => ({ kind: 'prepared', switchId: id }),
-    commit: async () => ({ kind: 'committed' }),
+    commit: () => commit.held ? new Promise((r) => { commit.open = () => r({ kind: 'committed' }); }) : Promise.resolve({ kind: 'committed' }),
     abort: async () => ({ kind: 'aborted' }),
     setAgentdCharacter: async () => ({ kind: 'changed', changed: true }),
     readAgentd: async () => null,
@@ -72,58 +74,84 @@ function setup() {
     sw.avatar(reply === 'changed' ? { kind: 'changed', id } : { kind: 'failed', id, reason: 'no_such_character' });
     await settle();
   };
-  return { sw, title, windows, state, to };
+  return { sw, title, windows, state, to, commit };
 }
 
-test('the title plays once per completed switch, never at launch, on a reconnect or for a failed switch', async () => {
+test('the title opens as a switch starts, with the new character\'s name, never at launch or on a reconnect', async () => {
   const t = setup();
   t.sw.avatar({ kind: 'current', id: 'b' });
   t.sw.agentdReported('b');
   await settle();
-  assert.equal(t.windows.length, 0, 'the launch hello plays nothing');
+  assert.equal(t.windows.length, 0, 'the launch hello shows nothing');
   t.sw.avatar({ kind: 'current', id: 'b' });
   await settle();
-  assert.equal(t.windows.length, 0, 'a reconnect to the same character plays nothing');
-  await t.to('a');
-  assert.equal(t.windows.length, 1);
+  assert.equal(t.windows.length, 0, 'a reconnect to the same character shows nothing');
+  t.sw.select('b');
+  await settle();
+  assert.equal(t.windows.length, 0, 'picking the character she is shows nothing');
+  t.sw.select('a');
+  assert.equal(t.windows.length, 1, 'open before the avatar has answered');
   assert.deepEqual(t.windows[0]!.calls, ['bounds 1440,-180 1920x1080',
     `load agentic-complex-ui://app/stack.html#/title?${new URLSearchParams({ name: '佩丽卡', en: 'Perlica' }).toString()}`]);
-  await t.to('c', 'failed');
-  assert.equal(t.windows.length, 1, 'a failed switch plays nothing');
+  await settle();
+  t.sw.avatar({ kind: 'changed', id: 'a' });
+  await settle();
   await t.to('b');
   assert.equal(t.windows.length, 2);
-  assert.match(t.windows[1]!.calls.at(-1)!, /#\/title\?name=%E7%AE%A1%E7%90%86%E5%91%98$/, 'no en without an English name');
+  assert.match(t.windows[1]!.calls[1]!, /#\/title\?name=%E7%AE%A1%E7%90%86%E5%91%98$/, 'no en without an English name');
 });
 
-test('the title shows once its page has loaded, without taking the front app, and closes 5.4 s later', async () => {
-  mock.timers.enable({ apis: ['setTimeout'] });
-  try {
-    const t = setup();
-    t.sw.avatar({ kind: 'current', id: 'b' });
-    await t.to('a');
-    const w = t.windows[0]!;
-    assert.ok(!w.calls.includes('showInactive'), 'hidden until the page is there');
-    w.load();
-    assert.equal(w.calls.at(-1), 'showInactive');
-    mock.timers.tick(TITLE_MS - 1);
-    assert.ok(!w.calls.includes('destroy'));
-    mock.timers.tick(1);
-    assert.equal(w.calls.at(-1), 'destroy');
-    assert.ok(TITLE_MS >= 5333);
-  } finally {
-    mock.timers.reset();
-  }
-});
-
-test('a new switch while the title shows replaces it; with the setting off nothing plays', async () => {
+test('the title shows once its page has loaded, without taking the front app, and closes as soon as she appears', async () => {
   const t = setup();
   t.sw.avatar({ kind: 'current', id: 'b' });
+  t.commit.held = true;
+  t.sw.select('a');
+  await settle();
+  const w = t.windows[0]!;
+  assert.ok(!w.calls.includes('showInactive'), 'hidden until the page is there');
+  w.load();
+  assert.equal(w.calls.at(-1), 'showInactive');
+  assert.ok(!w.calls.includes('destroy'), 'stays while the avatar loads her');
+  t.sw.avatar({ kind: 'changed', id: 'a' });
+  await settle();
+  assert.equal(w.calls.at(-1), 'destroy', 'gone once the avatar shows her, before agentd has committed');
+  assert.equal(t.sw.busy, true);
+  t.commit.open();
+  await settle();
+  assert.equal(t.windows.length, 1);
+});
+
+test('a failed switch closes the title; a page that loads after she appeared never shows', async () => {
+  const t = setup();
+  t.sw.avatar({ kind: 'current', id: 'b' });
+  await t.to('c', 'failed');
+  assert.equal(t.windows.length, 1);
+  assert.equal(t.windows[0]!.calls.at(-1), 'destroy');
   await t.to('a');
+  const late = t.windows[1]!;
+  late.load();
+  assert.ok(!late.calls.includes('showInactive'));
+});
+
+test('a new switch picked while the title shows replaces it; with the setting off nothing shows', async () => {
+  const t = setup();
+  t.sw.avatar({ kind: 'current', id: 'b' });
+  t.commit.held = true;
+  t.sw.select('a');
+  await settle();
   t.windows[0]!.load();
-  await t.to('b');
-  assert.equal(t.windows.length, 2);
-  assert.equal(t.windows[0]!.calls.at(-1), 'destroy', 'the showing one goes');
-  assert.ok(!t.windows[1]!.calls.includes('destroy'));
+  t.sw.select('b');
+  t.sw.avatar({ kind: 'changed', id: 'a' });
+  await settle();
+  assert.equal(t.windows[0]!.calls.at(-1), 'destroy');
+  t.commit.open();
+  await settle();
+  assert.equal(t.windows.length, 2, 'the kept choice opens its own title');
+  assert.match(t.windows[1]!.calls[1]!, /name=%E7%AE%A1%E7%90%86%E5%91%98$/);
+  t.windows[1]!.load();
+  t.commit.held = false;
+  t.sw.avatar({ kind: 'changed', id: 'b' });
+  await settle();
   t.state.on = false;
   await t.to('a');
   assert.equal(t.windows.length, 2);

@@ -1,5 +1,5 @@
-// 雷霆大字: her name in big white text over the middle of the screen she stands on when a character switch lands, in the
-// game's white big area-title layout. `stack.html#/title` shows it in a transparent overlay that clicks pass through and that never
+// 雷霆大字: the new character's name in big white text over the middle of the screen she stands on while a character switch
+// runs, in the game's white big area-title layout, from the switch's start until the avatar shows her. `stack.html#/title` shows it in a transparent overlay that clicks pass through and that never
 // activates the app; the page has no bridge, its name and English name come in its URL. Frames are in the placement space.
 import { readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
@@ -23,9 +23,6 @@ export interface TitleOverlayOptions {
   enabled(): boolean;
 }
 
-/** How long the title stays on screen. */
-export const TITLE_MS = 5400;
-
 /** The frame of the screen with id `current` (AvatarPlacer.currentScreen), else the main screen's; null without screens. */
 export function titleScreen(current: string | null, screens: readonly ScreenInfo[]): Rect | null {
   return (screens.find((s) => String(s.id) === current) ?? screens[0])?.frame ?? null;
@@ -47,42 +44,48 @@ export function titleNames(catalog: string, id: string): { name: string; en: str
 export class TitleOverlay {
   private readonly o: TitleOverlayOptions;
   private win: BrowserWindow | null = null;
-  private timer: ReturnType<typeof setTimeout> | null = null;
-  private current: string | null = null;
+  /** The character the showing title names. */
+  private target: string | null = null;
+  /** The user's last choice not yet started: the switch sets `pending`, then clears it just before it starts running. */
+  private picked: string | null = null;
+  private switching = false;
 
   constructor(options: TitleOverlayOptions) {
     this.o = options;
   }
 
-  /** CharacterSwitch.onChange: a switch has landed when its current character moves to another one while it runs; a hello's
-   *  current at launch or on a reconnect is no switch. */
+  /** CharacterSwitch.onChange: a run that starts on the user's choice of another character opens the title; it closes once the
+   *  avatar shows that character, or when the run ends without it. Launch, a reconnect, a restore or an agentd catch-up start
+   *  no run on a choice, so they show nothing. */
   view(view: CharacterView): void {
-    const was = this.current;
-    this.current = view.current;
-    if (view.switching && was !== null && view.current !== null && view.current !== was) this.play(view.current);
+    if (view.pending !== null) this.picked = view.pending;
+    if (view.switching && !this.switching) {
+      const id = this.picked;
+      this.picked = null;
+      if (id !== null && id !== view.current) this.open(id);
+    }
+    this.switching = view.switching;
+    if (this.target !== null && (!view.switching || view.shown === this.target)) this.stop();
   }
 
   stop(): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
     if (this.win && !this.win.isDestroyed()) this.win.destroy();
     this.win = null;
+    this.target = null;
   }
 
   /** A new title replaces the one showing. */
-  private play(id: string): void {
+  private open(id: string): void {
+    this.stop();
     if (!this.o.enabled()) return;
     const frame = this.o.screen();
     if (!frame) return;
-    this.stop();
     const { name, en } = this.o.names(id);
     const win = this.win = this.o.makeWindow();
+    this.target = id;
     win.setBounds(this.o.toDip(frame));
-    // Shown once the page is there, so the title does not stay for less than its time.
     win.webContents.once('did-finish-load', () => {
-      if (this.win !== win) return;
-      win.showInactive();
-      this.timer = setTimeout(() => this.stop(), TITLE_MS);
+      if (this.win === win) win.showInactive();
     });
     void win.loadURL(`${this.o.url}?${new URLSearchParams({ name, ...(en ? { en } : {}) }).toString()}`);
   }
