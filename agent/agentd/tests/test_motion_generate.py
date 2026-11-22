@@ -308,7 +308,8 @@ class GenerateRouteTest(base.MotionCase):
     def performer(self, **client):
         self.client = GeometryClient(self.clock, **client)
         self.server.motion = base.Performer(self.settings, self.server.registry.publish_event,
-                                            lambda: self.state / "pkg", self.state / "cache", trace=self.trace,
+                                            lambda: self.state / "pkg", self.state / "cache",
+                                            offer=self.server.spatial.offer, trace=self.trace,
                                             client=self.client, retarget=GeometryRetarget, clock=self.clock)
         return self.server.motion
 

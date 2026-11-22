@@ -341,7 +341,7 @@ def main():
     from motion.settings import MotionSettings
     server.motion = Performer(MotionSettings(state_dir), server.registry.publish_event,
                               lambda: server.characters.package(server.character).root, state_dir / "motion-cache",
-                              trace=server._trace)
+                              offer=server.spatial.offer, trace=server._trace)
     server.bindings = Bindings(state_dir, repository, lambda: server.motion.settings.backend)
     server.character_voice_enabled = args.character is not None and server.bindings.voice(args.character) is not None
     if server.mouth is not None:
@@ -353,6 +353,7 @@ def main():
         server.state.retention = server.history_retention
         server.state.use(args.character)
     server.spatial.state = server.state_view
+    server.spatial.stage = lambda: server.user_now.snapshot()["stage"]
     if mouth is not None:
         server.load_window()
     server.egress, server.usage = egress, usage

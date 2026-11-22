@@ -106,6 +106,7 @@ class MotionCase(unittest.TestCase):
         self.addCleanup(self.server.shutdown)
         self.clock, self.traced, self.texts = Clock(), [], []
         self.settings = MotionSettings(self.state)
+        self.server.turn_generation = 4  # the turn the tests' motions belong to
 
     request = support.request
 
@@ -113,7 +114,7 @@ class MotionCase(unittest.TestCase):
         self.client = FakeClient(self.clock, **client)
         self.server.motion = Performer(self.settings, self.server.registry.publish_event,
                                        package_root or (lambda: self.state / "pkg"), self.state / "cache",
-                                       trace=self.trace, client=self.client, retarget=FakeRetarget, clock=self.clock)
+                                       offer=self.server.spatial.offer, trace=self.trace, client=self.client, retarget=FakeRetarget, clock=self.clock)
         return self.server.motion
 
     def trace(self, kind, trace_id, **fields):
@@ -213,6 +214,28 @@ class PerformerTest(MotionCase):
         self.assertIn(("motion.fallback", "trace-1", {"reason": "replaced"}), self.traced)
         self.assertEqual(len(self.behaviors()), 2)
 
+    def test_a_motion_whose_turn_moved_while_it_generated_is_not_published(self):
+        gate = threading.Event()
+        self.performer(gate=gate).start("waves her right hand happily", 3.0, 4, "trace-1")
+        self.assertTrue(wait_for(lambda: self.client.calls))
+        self.server.turn_generation = 5
+        gate.set()
+        self.assertTrue(wait_for(lambda: self.traced))
+        self.assertEqual(self.behaviors(), [])
+        self.assertEqual(self.traced[0][:2], ("motion.fallback", "trace-1"))
+        self.assertEqual(self.traced[0][2]["reason"], "stale")
+
+    def test_an_offer_from_the_motion_thread_waits_out_the_snapshot_locks(self):
+        spatial, registry = self.server.spatial, self.server.registry
+        with spatial._lock, registry.cv:  # as GET /events takes them for its snapshot
+            self.performer().start("waves her right hand happily", 3.0, 4, "trace-1")
+            self.assertTrue(wait_for(lambda: self.client.calls))
+            time.sleep(0.1)
+            self.assertEqual(self.traced, [])
+        self.assertTrue(wait_for(lambda: self.traced))
+        self.assertEqual(self.traced[0][:2], ("motion.published", "trace-1"))
+        self.assertEqual(len(self.behaviors()), 1)
+
     def quality_case(self, **quality):
         performer = self.performer()
         performer._retarget = type("Retarget", (FakeRetarget,), {"quality": {**FakeRetarget.quality, **quality}})
@@ -268,6 +291,18 @@ class MatchTest(MotionCase):
         self.assertEqual(self.traced, [("motion.matched", "trace-1", {"action_id": action["id"], "group": "wave",
                                                                       "length_s": action["length_s"], "seconds": 3.0})])
         self.assertEqual(self.texts, [{"prompt": "waves her right hand happily"}])
+
+    def test_an_action_runs_in_spatial_and_a_lower_priority_proposal_cannot_cancel_it(self):
+        self.server.motion.start("waves her right hand happily", 3.0, 4, "trace-1")
+        self.assertTrue(wait_for(lambda: self.traced))
+        [behavior] = self.behaviors()
+        self.assertIn(behavior["behavior_id"], self.server.spatial.active)
+        tick = {"type": "idle", "target": None, "trigger": {"source": "tick", "event": None}, "display_session": None,
+                "turn_id": None, "priority": 0, "channels": ["full_body"], "exit": [], "intensity": 0.5,
+                "lifetime": 60.0}
+        self.assertEqual(self.server.spatial.offer(tick), (False, "busy"))
+        self.assertEqual([e for e in self.server.registry.intents if e.get("event") == "behavior_cancel"], [])
+        self.assertEqual(self.behaviors(), [behavior])
 
     def test_a_turn_not_remembered_leaves_the_prompt_out_of_its_traces(self):
         self.server.motion.start("waves her right hand happily", 3.0, 4, "trace-1", False)

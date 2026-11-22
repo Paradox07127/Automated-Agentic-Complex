@@ -92,7 +92,7 @@ class Harness:
         self._lock = threading.Lock()
         self._waiting = {}  # trace_id -> sample being filled
         self.performer = performer.Performer(_Settings(url, token), self._publish, lambda: package_root, cache_dir,
-                                             trace=self._trace, client=client, store=self.store, retarget=retarget,
+                                             offer=self._offer, trace=self._trace, client=client, store=self.store, retarget=retarget,
                                              perform_budget=BUDGET, request_budget=BUDGET)
         self._server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         threading.Thread(target=self._server.serve_forever, daemon=True).start()
@@ -128,6 +128,11 @@ class Harness:
         with self._lock:
             self._waiting[trace_id] = sample
         return sample
+
+    def _offer(self, spec):
+        """Performer's offer: every perform is admitted and published as it comes."""
+        self._publish("behavior", spec)
+        return True, None
 
     def _publish(self, event, data):
         now = time.perf_counter()

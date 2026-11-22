@@ -1,6 +1,6 @@
 """A reply's [motion:...] marker as a C1 `perform` behavior: the character's game action when the text names one
-(motion.catalog), else generate, retarget for the current character, store, publish. Late or failed, nothing is
-published: the line's clause_intent already drives the pack's gesture.
+(motion.catalog), else generate, retarget for the current character, store, and offer it to Spatial. Late, failed
+or refused, nothing is published: the line's clause_intent already drives the pack's gesture.
 
 A host's POST /motions/generate runs in a slot of its own and always answers with one C1 `motion` event."""
 from functools import cached_property
@@ -43,13 +43,15 @@ def _ms(start, end):
 
 
 class Performer:
-    def __init__(self, settings, publish, package_root, cache_dir, trace=lambda kind, trace_id, **fields: None,
-                 client=None, store=None, retarget=live_retarget, clock=time.monotonic,
-                 perform_budget=PERFORM_BUDGET, request_budget=REQUEST_BUDGET):
-        """settings: MotionSettings; publish(event, data): the /events publish Spatial uses; package_root() -> the
-        current character's installed package root; trace(kind, trace_id, attrs=...): the trace step sink;
+    def __init__(self, settings, publish, package_root, cache_dir, *, offer,
+                 trace=lambda kind, trace_id, **fields: None, client=None, store=None, retarget=live_retarget,
+                 clock=time.monotonic, perform_budget=PERFORM_BUDGET, request_budget=REQUEST_BUDGET):
+        """settings: MotionSettings; publish(event, data): the /events publish, for `motion` answers; offer(spec) ->
+        (admitted, reason): Spatial.offer, which sends each perform behavior; package_root() -> the current
+        character's installed package root; trace(kind, trace_id, attrs=...): the trace step sink;
         retarget(package_root, cache_dir) -> a LiveRetarget."""
         self.settings, self.publish, self.package_root, self.cache_dir = settings, publish, package_root, cache_dir
+        self.offer = offer
         self.trace, self.clock = trace, clock
         self.perform_budget, self.request_budget = perform_budget, request_budget
         if client is not None:
@@ -104,13 +106,16 @@ class Performer:
         return self._gesture_cache[1]
 
     def _play(self, action_id, group, length_s, seconds, generation, trace_id, texts):
-        behavior = {"behavior_id": "b-ga-" + secrets.token_hex(8), "type": "perform", "target": None,
-                    "trigger": {"source": "agent", "event": None}, "display_session": None, "turn_id": None,
-                    "turn_generation": generation, "priority": PRIORITY,
-                    "expires_at_ms": int((time.time() + length_s + HOST_WAIT) * 1000), "intensity": 1.0,
-                    "channels": ["full_body"], "exit": [], "replaces": None, "trace_id": trace_id,
-                    "action": {"id": action_id, "length_s": length_s}}
-        self.publish("behavior", behavior)
+        spec = {"behavior_id": "b-ga-" + secrets.token_hex(8), "type": "perform", "target": None,
+                "trigger": {"source": "agent", "event": None}, "display_session": None, "turn_id": None,
+                "turn_generation": generation, "priority": PRIORITY,
+                "expires_at_ms": int((time.time() + length_s + HOST_WAIT) * 1000), "intensity": 1.0,
+                "channels": ["full_body"], "exit": [], "trace_id": trace_id,
+                "action": {"id": action_id, "length_s": length_s}}
+        admitted, reason = self.offer(spec)
+        if not admitted:
+            self.trace("motion.fallback", trace_id, attrs={"reason": reason}, texts=texts)
+            return
         self.trace("motion.matched", trace_id,
                    attrs={"action_id": action_id, "group": group, "length_s": length_s, "seconds": seconds},
                    texts=texts)
@@ -214,22 +219,26 @@ class Performer:
                 return
             meta_bytes = json.dumps(meta).encode()
             self.store.put(motion_id, meta_bytes, keys)
-            behavior = {"behavior_id": f"b-{motion_id}", "type": "perform", "target": None,
-                        "trigger": {"source": "agent", "event": None}, "display_session": None, "turn_id": None,
-                        "turn_generation": generation, "priority": PRIORITY,
-                        "expires_at_ms": int((time.time() + meta["length"] + HOST_WAIT) * 1000), "intensity": 1.0,
-                        "channels": ["full_body"], "exit": [], "replaces": None, "trace_id": trace_id,
-                        "motion": {"id": motion_id, "meta_sha256": hashlib.sha256(meta_bytes).hexdigest(),
-                                   "keys_sha256": hashlib.sha256(keys).hexdigest(),
-                                   "rig_sha256": retarget.rig_sha256, "length_s": meta["length"]}}
-            self.publish("behavior", behavior)
+            spec = {"behavior_id": f"b-{motion_id}", "type": "perform", "target": None,
+                    "trigger": {"source": "agent", "event": None}, "display_session": None, "turn_id": None,
+                    "turn_generation": generation, "priority": PRIORITY,
+                    "expires_at_ms": int((time.time() + meta["length"] + HOST_WAIT) * 1000), "intensity": 1.0,
+                    "channels": ["full_body"], "exit": [], "trace_id": trace_id,
+                    "motion": {"id": motion_id, "meta_sha256": hashlib.sha256(meta_bytes).hexdigest(),
+                               "keys_sha256": hashlib.sha256(keys).hexdigest(),
+                               "rig_sha256": retarget.rig_sha256, "length_s": meta["length"]}}
+            admitted, refused = self.offer(spec)  # stale when the turn moved while it generated
         except Exception as error:  # the pack's gesture stands in for any failure
             reason = error.reason if isinstance(error, ServiceError) else f"{stage}_failed"
             self.trace("motion.fallback", trace_id, attrs={"reason": reason, "total_ms": _ms(began, self.clock())},
                        texts=texts)
             return
+        if not admitted:
+            self.trace("motion.fallback", trace_id, attrs={"reason": refused, "total_ms": _ms(began, self.clock())},
+                       texts=texts)
+            return
         self.trace("motion.published", trace_id,
-                   attrs={"motion_id": motion_id, "behavior_id": behavior["behavior_id"],
+                   attrs={"motion_id": motion_id, "behavior_id": spec["behavior_id"],
                           "generate_ms": _ms(called, generated), "retarget_ms": _ms(generated, retargeted),
                           "total_ms": _ms(began, self.clock())}, texts=texts)
 

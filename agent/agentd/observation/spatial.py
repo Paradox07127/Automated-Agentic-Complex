@@ -2,6 +2,7 @@
 from session, user and speech events and a random tick, under the behavior switches; the avatar host's receipts end them."""
 from collections import OrderedDict
 import json
+import logging
 import math
 import random
 import threading
@@ -12,6 +13,7 @@ from character.character_state import ENGAGED
 from traces.trace_store import new_trace_id
 from character.interactions import preset
 
+LOG = logging.getLogger(__name__)
 POLL = 1.0  # seconds between checks for an event
 TICK = (60.0, 120.0)  # seconds between random ticks, uniform
 FIRST_TICK = (60.0, 120.0)  # seconds from begin() to the first random tick, uniform
@@ -38,7 +40,7 @@ EYES = ("eyes", "head")
 # random tick type -> (channels, exit); hold_window_edge also takes the hand of its side
 TICKED = {"idle": (("full_body",), ("speech_start",)),
           "observe": (EYES, ("focus_change", "target_gone")),
-          "short_walk": (("full_body",), ("user_typing", "user_drag")),
+          "short_walk": (("full_body",), ("user_typing", "user_drag", "speech_start")),
           "sit": (("full_body", "contact"), ("target_gone", "user_drag")),
           "hold_window_edge": (("full_body", "contact"), ("target_gone", "user_drag")),
           "climb_window_top": (("full_body", "contact"), ("user_typing", "target_gone", "user_drag"))}
@@ -68,6 +70,11 @@ USER_REACTIONS = {"reading": (("sit", "read"), ("observe", None)), "watching_vid
 REACTION = {"sit": (POSTURE, ("target_gone", "user_drag"), 0.2, 300.0),
             "observe": (EYES, ("focus_change", "target_gone"), 0.3, 20.0),
             "idle": (("full_body",), ("focus_change",), 0.1, 600.0)}
+QUIET_SLOW = 2.0  # factor on the random tick and wander gaps on the quiet stage
+BODY = ("full_body", "contact")  # what the quiet stage and a held posture keep from task and speech behaviors
+TASK = ("session", "agent", "decision")  # trigger sources of task behaviors
+SPOKEN = ("speech", "agent")  # trigger sources of behaviors her speech drives
+HELD = SEATED + ("hold_window_edge", "short_walk")  # postures her speech does not break
 
 
 def _spec(kind, target, source, event, priority, channels, exits, intensity, lifetime, display_session=None,
@@ -104,6 +111,11 @@ def _speech(s):
     return s["user_speaking"] or s["voicing"]
 
 
+def _autonomous(spec):
+    """Her own schedule: a random tick, a routine activity, a blocked one's retarget or a focus walk."""
+    return spec["trigger"]["source"] in ("tick", "receipt") or spec["trigger"]["event"] == "focus_change"
+
+
 def _unsupported_key(kind, target, variant=None):
     """`sit` without a target, `sit@window` on a window, `sit/read` as a reading sit: the avatar host may run one and reject
     the other."""
@@ -123,7 +135,7 @@ class Spatial:
     def __init__(self, observe, publish, generation, epoch, clock=time.time, rng=None, trace_id=new_trace_id,
                  walk_bias=lambda: None, state=None, session_settle=SESSION_SETTLE,
                  session_min_hold=SESSION_MIN_HOLD, recovery_delay=RECOVERY_DELAY, interaction_preset="balanced",
-                 trace_epoch=lambda: None, routine=None):
+                 trace_epoch=lambda: None, routine=None, stage=lambda: "normal"):
         """observe() -> {fullscreen, user_speaking, speaking, voicing, line_id, typing, absence, session, state, related,
         window_id, activity, idle_s}: the gate flags, whether the mouth generates or speaks (and its line), whether the
         relay has audio in flight, user_now's typing and absence ({id, since} or None; may be absent), the focus
@@ -133,9 +145,12 @@ class Spatial:
         publish(event, data) -> seq; generation() -> the current turn_generation; epoch names the behavior ids.
         state: her CharacterState, told what she does and scaling the random tick; None leaves it out.
         routine: her Routine, which then picks the random tick's behavior and how long it lasts, and long work no
-        longer sits her down; None keeps the plain random tick."""
+        longer sits her down; None keeps the plain random tick.
+        stage() -> user_now's stage: offstage, quiet, normal or engaged."""
         self.observe, self.publish, self.generation, self.epoch = observe, publish, generation, epoch
-        self.routine = routine
+        self.routine, self.stage = routine, stage
+        self._refused = {}  # admit reason -> how many proposals it refused
+        self._rows = set()  # behavior ids the event rows sent and that still run
         self._plan = None  # {name, ids}: the routine activity Spatial plays and the behaviors it sent for it
         self.clock, self.rng, self.trace_id = clock, rng or random.Random(), trace_id
         self.trace_epoch = trace_epoch
@@ -207,10 +222,15 @@ class Spatial:
             key = event and _key(event)
             if key != self._event_key:
                 self._event_key = key
+                # a row that no longer holds owns nothing: the row that follows it ends it, whatever its priority
+                lapsed = [r for r in self.active.values() if r["behavior"]["behavior_id"] in self._rows]
                 if event is not None and not self._running(key) \
                         and self._blocked.get(_target_key(event["type"], event["target"]), 0) <= now \
                         and self._unsupported.get(_unsupported_key(event["type"], event["target"]), 0) <= now:
-                    self._send(event, s, now)
+                    if self._send(event, s, now, lapsed)[0]:
+                        self._rows.add(next(reversed(self.active)))
+                    else:
+                        self._event_key = None  # a refused row is proposed again at the next poll
             self._take_posture(posture, s, now)
             self._react(s, now, event, posture)
             self._focus_walk(s, now)
@@ -220,7 +240,8 @@ class Spatial:
                 if self.state is not None:
                     self.state.advance(now)
                 scale = 1.0 if self.state is None else self.state.tick_scale()
-                self._next_tick = now + self.rng.uniform(*TICK) * scale * self.interaction.random_tick_scale
+                self._next_tick = now + self.rng.uniform(*TICK) * scale * self.interaction.random_tick_scale \
+                    * self._slow()
                 spec = None if self._engaged() else self._pick(s, now, "tick", None)
                 if spec is not None:
                     self._send(spec, s, now)
@@ -267,7 +288,8 @@ class Spatial:
             spec.update(facing_yaw=float(yaw),decision_reason=reason)
             if trace_id:
                 spec.update(trace_id=trace_id, trace_turn_id=trace_turn_id, trace_epoch=trace_epoch)
-            self._send(spec,s,self.clock())
+            admitted, refused = self._send(spec,s,self.clock())
+            if not admitted:return {'accepted':False,'reason':refused}
             record = next(reversed(self.active.values()))
             return {'accepted':True,'behavior_id':record['behavior']['behavior_id'],
                     'facing_yaw':float(yaw),'phase':'requested'}
@@ -385,7 +407,53 @@ class Spatial:
             unsupported = {kind: until - now for kind, until in self._unsupported.items() if until > now}
             return {"running": running, "switches": dict(self.switches),
                     "last_receipt": self.last_receipt and dict(self.last_receipt), "unsupported": unsupported,
-                    "capability_character": self.capability_character, "capabilities": self.capabilities}
+                    "capability_character": self.capability_character, "capabilities": self.capabilities,
+                    "refused": dict(self._refused)}
+
+    def admit(self, spec, s, now, lapsed=()):
+        """Whether a proposal may run now: (True, None), or (False, the first check that fails): stale (its
+        turn_generation is not the current one; a character switch moves it too), unsupported, switch_off, stage,
+        typing, speech, posture, busy (a higher priority owns one of its channels; a lapsed record owns none).
+        Changes nothing."""
+        with self._lock:
+            kind, target, source = spec["type"], spec["target"], spec["trigger"]["source"]
+            renewal = self._running(_key(spec))
+            body = bool(set(spec["channels"]) & set(BODY))
+            speaking = s["speaking"] or s["voicing"]
+            if "turn_generation" in spec and spec["turn_generation"] != self.generation():
+                return False, "stale"
+            if not self._capable(kind, target):
+                return False, "unsupported"
+            if self._forbidden(kind, target, False):
+                return False, "switch_off"
+            stage = self.stage()
+            # offstage keeps base rest only; quiet keeps task behaviors off the body
+            if not renewal and (stage == "offstage" and (kind != "idle" or _autonomous(spec))
+                                or stage == "quiet" and source in TASK and kind != "idle" and body):
+                return False, "stage"
+            if self._forbidden(kind, target, s["typing"]):
+                return False, "typing"
+            if speaking and not renewal and _autonomous(spec):
+                return False, "speech"
+            if speaking and source in SPOKEN and body \
+                    and any(r["behavior"]["type"] in HELD for r in self.active.values()):
+                return False, "posture"
+            channels = set(spec["channels"])
+            if any(r["behavior"]["priority"] > spec["priority"] and channels & set(r["behavior"]["channels"])
+                   for r in self.active.values() if r not in lapsed):
+                return False, "busy"
+            return True, None
+
+    def offer(self, spec):
+        """A proposal from outside the poll (the Performer's perform), admitted and sent as Spatial's own; spec's
+        behavior_id, turn_generation, expires_at_ms and payload stay. Returns admit's answer.
+        It takes the Spatial lock and then registry.cv to publish: never call it holding registry.cv."""
+        s = self.observe()
+        with self._lock:
+            return self._send(spec, s, self.clock())
+
+    def _slow(self):
+        return QUIET_SLOW if self.stage() == "quiet" else 1.0
 
     def _stabilize_session(self, s, now):
         """Coalesce hook chatter into a held pose, without delaying user speech, typing, fullscreen or stops.
@@ -497,9 +565,9 @@ class Spatial:
                            for r in self.active.values()):
                 continue
             run["tries"] += 1
-            self._send(_spec(kind, target, "user", "activity:" + run["activity"], 1, channels, exits, intensity,
-                             lifetime, variant=variant), s, now)
-            run["sent"] = next(reversed(self.records))
+            if self._send(_spec(kind, target, "user", "activity:" + run["activity"], 1, channels, exits, intensity,
+                                lifetime, variant=variant), s, now)[0]:
+                run["sent"] = next(reversed(self.records))
             return
 
     def _event(self, s):
@@ -699,9 +767,9 @@ class Spatial:
         if variant is not None and self._unsupported.get(_unsupported_key(act.kind, target, variant), 0) > now:
             variant = None
         count = self._count
-        self._send(_spec(act.kind, target, "tick", f"routine:{name}", 0, channels, exits,
-                         round(self.rng.uniform(*intensity), 2), seconds, variant=variant), s, now)
-        self._next_tick = None
+        admitted, _ = self._send(_spec(act.kind, target, "tick", f"routine:{name}", 0, channels, exits,
+                                       round(self.rng.uniform(*intensity), 2), seconds, variant=variant), s, now)
+        self._next_tick = None if admitted else now + ROUTINE_RETRY
         self._plan = {"name": name, "ids": [f"b-{self.epoch}-{self._count}"] if self._count > count else []}
 
     def _weighted(self, kinds):
@@ -740,19 +808,25 @@ class Spatial:
     def _running(self, key):
         return any(_key(record["spec"]) == key for record in self.active.values())
 
-    def _send(self, spec, s, now):
-        if not self._capable(spec["type"], spec["target"]):
-            return None
+    def _send(self, spec, s, now, lapsed=()):
+        """Sends spec once admit lets it; a refused one is dropped, counted in diag() and logged, and cancels
+        nothing. Returns admit's answer."""
+        admitted, reason = self.admit(spec, s, now, lapsed)
+        if not admitted:
+            self._refused[reason] = self._refused.get(reason, 0) + 1
+            LOG.debug("behavior %s from %s refused: %s", spec["type"], spec["trigger"]["source"], reason)
+            return admitted, reason
         trace_epoch = spec.get("trace_epoch") or self.trace_epoch()
         self._count += 1
-        behavior_id = f"b-{self.epoch}-{self._count}"
+        behavior_id = spec.get("behavior_id") or f"b-{self.epoch}-{self._count}"
         # a behavior that ends on user_typing gives way to the next one while the user types (fixture 07).
-        gone = [r for r in self.active.values() if set(r["behavior"]["channels"]) & set(spec["channels"])
-                or s["typing"] and "user_typing" in r["behavior"]["exit"]]
+        gone = [r for r in self.active.values() if (r["behavior"]["priority"] <= spec["priority"] or r in lapsed)
+                and (set(r["behavior"]["channels"]) & set(spec["channels"])
+                     or s["typing"] and "user_typing" in r["behavior"]["exit"])]
         # replaces names one: the renewed one when this is a renewal, else the latest; each other one is cancelled.
-        # The renderer rejects a replacement of a higher priority as busy, so a higher one is always cancelled.
-        named = [r for r in gone if r["behavior"]["priority"] <= spec["priority"]]
-        named = next((r for r in named if _key(r["spec"]) == _key(spec)), named[-1] if named else None)
+        # The renderer rejects a replacement of a higher priority as busy, so a lapsed higher one is cancelled.
+        lower = [r for r in gone if r["behavior"]["priority"] <= spec["priority"]]
+        named = next((r for r in lower if _key(r["spec"]) == _key(spec)), lower[-1] if lower else None)
         renewal = spec["type"] == "sit" and named is not None and named["spec"] == spec
         state_id = named["state_id"] if renewal else behavior_id
         if renewal:
@@ -761,13 +835,15 @@ class Spatial:
         behavior = {"behavior_id": behavior_id, "type": spec["type"], "target": spec["target"],
                     "trigger": dict(spec["trigger"]), "display_session": spec["display_session"],
                     "turn_id": spec["turn_id"], "turn_generation": self.generation(), "priority": spec["priority"],
-                    "expires_at_ms": int((now + spec["lifetime"]) * 1000), "intensity": intensity,
+                    "expires_at_ms": spec["expires_at_ms"] if "expires_at_ms" in spec
+                    else int((now + spec["lifetime"]) * 1000), "intensity": intensity,
                     "channels": list(spec["channels"]), "exit": list(spec["exit"]),
                     "replaces": named and named["behavior"]["behavior_id"], "trace_id": spec.get("trace_id") or self.trace_id()}
         if "variant" in spec:  # a renewal sends its spec again, so the variant stays
             behavior["variant"] = spec["variant"]
         if 'facing_yaw' in spec:
             behavior.update(facing_yaw=spec['facing_yaw'],decision_reason=spec['decision_reason'])
+        behavior.update({payload: spec[payload] for payload in c1.PAYLOADS if payload in spec})
         for record in gone:
             if record is not named:
                 self.publish("behavior_cancel", {"behavior_id": record["behavior"]["behavior_id"],
@@ -783,7 +859,7 @@ class Spatial:
             scale = WALK_BIAS[self._walk_bias()] if spec["target"] is None else 1.0
             if self.state is not None:
                 scale *= self.state.walk_scale()  # on the gap walk_bias set
-            self._wander_at = now + self.rng.uniform(*WANDER) * scale * self.interaction.wander_scale
+            self._wander_at = now + self.rng.uniform(*WANDER) * scale * self.interaction.wander_scale * self._slow()
             self._walked_at = now
         # what _exit compares with: speech seen on or off since it started, its own session and state, the focus window
         record = {"behavior": {"seq": seq, **behavior}, "spec": spec, "since": now, "phase": None, "outcome": None,
@@ -796,8 +872,10 @@ class Spatial:
         self.active[behavior_id] = self.records[behavior_id] = record
         while len(self.records) > KEPT:
             self.records.popitem(last=False)
+        return True, None
 
     def _end(self, record, why):
         """agentd stops counting it as running: expired, replaced, switch_off, exit or character_switch."""
         record["ended"] = why
         self.active.pop(record["behavior"]["behavior_id"], None)
+        self._rows.discard(record["behavior"]["behavior_id"])
