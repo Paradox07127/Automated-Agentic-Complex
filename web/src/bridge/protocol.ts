@@ -166,11 +166,6 @@ export interface PickedHandle {
   readonly displayName: string;
 }
 
-/** A dropped or pasted file's handle; `size` in bytes. */
-export interface DroppedHandle extends PickedHandle {
-  readonly size: number;
-}
-
 export interface Rect {
   x: number;
   y: number;
@@ -352,13 +347,9 @@ export interface AgenticComplexBridge {
     getPlaylist(): Promise<MotionPlaylist>; setPlaylist(p: MotionPlaylist): Promise<{ ok: true }>;
   };
   mmd: import('./mmd').MmdOps; voice: { onPushToTalk(cb: (s: PushToTalkState) => void): Unsubscribe };
-  files: {
+  files: import('./adopt').FileAdopt & {
     pickFile(o: { purpose: 'runtime_executable' | 'scope_file' }): Promise<PickedHandle | null>;
     pickFolder(o: { purpose: 'scope_root' | 'scope_output' | 'session_cwd' }): Promise<PickedHandle | null>;
-    /** Files dropped on the page, as `scope_file` handles; files that are not a scope type are left out. */
-    adoptDropped?(files: File[]): Promise<DroppedHandle[]>;
-    /** Pasted images (png, jpeg, gif, webp, ≤ 20 MB each), saved by the shell and held as `scope_file` handles. */
-    adoptPasted?(items: Array<{ type: string; data: ArrayBuffer }>): Promise<DroppedHandle[]>;
     /** `with_text=1` on a trace turn asks natively first; false when declined or the save panel was cancelled. */
     saveAgentdExport(o: {
       path: '/history/export' | '/memory/export' | `/trace/turns/${string}`;

@@ -336,20 +336,8 @@ export function ChatPage() {
           />
         )}
       </aside>
-      <section
-        className={styles.thread}
-        aria-label="消息"
-        data-g="dialog"
-        onDragOver={(e) => {
-          if (e.dataTransfer.types.includes('Files')) e.preventDefault();
-        }}
-        onDrop={(e) => {
-          if (e.dataTransfer.files.length === 0) return;
-          e.preventDefault();
-          setDropped({ files: [...e.dataTransfer.files] });
-        }}
-      >
-        {motion.node}
+      <section className={styles.thread} aria-label="消息" data-g="dialog" onDragOver={(e) => e.dataTransfer.types.includes('Files') && e.preventDefault()}
+        onDrop={(e) => e.dataTransfer.files.length > 0 && (e.preventDefault(), setDropped({ files: [...e.dataTransfer.files] }))}>{motion.node}
         {current && !empty && state == null && <DlgHead title={current.title} />}
         {convs.data && state !== 'empty' && <ChatReadBanner errors={[convs.error, turns.query.error, tasksQ.error]} disconnected={convs.data.offline} readAt={convs.dataUpdatedAt} onRetry={retryLoad} />}
         {empty ? (
