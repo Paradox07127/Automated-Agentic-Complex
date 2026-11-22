@@ -3,6 +3,7 @@ export * from './ActionBar';
 export * from './DarkRow';
 export * from './GameSeg';
 export * from './GameTabs';
+export * from './LoadBar';
 export * from './Marks';
 export * from './RailCell';
 export * from './Stepper';

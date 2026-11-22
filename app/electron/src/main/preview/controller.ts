@@ -1,6 +1,7 @@
 // `avatar.preview.*` over the main window's preview: the current character, playing the
 // first archive clip of the action or her idle.
 import { BridgeFailure } from '../../common/bridge.ts';
+import type { EventSource } from '../../common/page.ts';
 import type { PreviewHost, PreviewRect } from '../ops/preview.ts';
 import type { MotionLibrary } from './library.ts';
 import type { PreviewSelection } from './session.ts';
@@ -14,6 +15,8 @@ export interface PreviewView {
   /** Preview XPC v2 `sequence` in the drawn preview; `unavailable` without one. */
   sequence(clips: string[], blendSeconds: number[]): Promise<void>;
   hide(): void;
+  /** `{fraction}` while a load builds anew, null once none does. */
+  readonly progress: EventSource;
 }
 
 export interface PreviewControllerOptions {
@@ -43,6 +46,10 @@ export class PreviewController implements PreviewHost {
 
   constructor(options: PreviewControllerOptions) {
     this.options = options;
+  }
+
+  get progress(): EventSource {
+    return this.options.view.progress;
   }
 
   async show(rect: PreviewRect, action: string | null, loop: boolean, revision: number): Promise<boolean> {

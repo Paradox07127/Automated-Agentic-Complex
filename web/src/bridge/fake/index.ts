@@ -285,7 +285,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       presentation: { get: async () => null, set: done },
       photo: { set: done }, capture: async () => ({ file: `Agentic Complex-${character}-20261116-120000.png` }),
       // A browser has no live preview: the stage keeps its art.
-      preview: { show: async () => false, hide: done, sequence: fakePreviewSequence },
+      preview: { show: async () => false, hide: done, sequence: fakePreviewSequence, onProgress: () => none },
       onState: () => none,
       onStats: (cb) => {
         if (hashQuery().get('demo') === 'suspended') return none;

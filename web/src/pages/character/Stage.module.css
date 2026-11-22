@@ -106,15 +106,20 @@
   max-height: none;
 }
 
-.stage[data-live] .fig {
-  visibility: hidden;
-}
-
 .fig svg,
 .fig img {
   display: block;
   width: auto;
   height: 100%;
+}
+
+/* A load that builds her anew: the loading bar where she will stand, in place of the art. */
+.load {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  width: min(70%, 560px);
+  transform: translate(-50%, -50%);
 }
 
 /* Name block: the left column on 总览, low beside the 拍照 panel. */

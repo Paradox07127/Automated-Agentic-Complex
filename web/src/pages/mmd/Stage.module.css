@@ -34,13 +34,18 @@
   height: 100%;
 }
 
-.stage[data-live] .fig {
-  visibility: hidden;
-}
-
 .stage[data-off] .fig {
   opacity: 0.35;
   filter: grayscale(1);
+}
+
+/* A load that builds her anew: the loading bar where she will stand. */
+.load {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  width: min(70%, 560px);
+  transform: translate(-50%, -50%);
 }
 
 /* The preview did not load: a slanted dark tag with an orange diamond, not a control. */

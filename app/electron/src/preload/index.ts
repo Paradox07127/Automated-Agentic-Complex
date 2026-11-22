@@ -22,6 +22,10 @@ function installPreview(): void {
   ipcRenderer.on('preview:hide', () => {
     if (canvas) canvas.hidden = true;
   });
+  // A load that builds anew: the old frame must not stand over the page's loading bar; the next frame draws again.
+  ipcRenderer.on('preview:clear', () => {
+    if (canvas) canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+  });
   sharedTexture.setSharedTextureReceiver(async ({ importedSharedTexture: texture }) => {
     try {
       const context = canvas && !canvas.hidden ? canvas.getContext('2d') : null;

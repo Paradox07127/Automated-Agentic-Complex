@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { NodeChain, type ChainNode } from '../../charts';
 import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
-import { Btn, CharacterArt, Spinner, StatusTag } from '../../ui';
-import { Diamond } from '../../ui/game';
+import { Btn, CharacterArt, StatusTag } from '../../ui';
+import { Diamond, LoadBar } from '../../ui/game';
 import { Silhouette } from './Figure';
 import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';
 import { useLivePreview } from './usePreview';
@@ -40,11 +40,11 @@ export interface StageProps {
   currentName: string;
   onRetry: () => void;
   onDismiss: () => void;
-  /** Detail pages: the page's line for the slot under the stage; a `warn` line goes before the live preview's loading or failure, any other after its failure. */
+  /** Detail pages: the page's line for the slot under the stage; a `warn` line goes before the live preview's failure, any other after it. */
   status?: StageStatus | null | undefined;
   /** Detail pages: the page's action bar stands under the slot, so the stage ends above both. */
   deck?: boolean;
-  /** Character id for the shell's live preview, which covers the art while it draws; absent keeps the art. */
+  /** Character id for the shell's live preview, which takes the art's place while it loads and draws; absent keeps the art. */
   characterId?: string;
   /** Action the user picked to preview live; absent plays the idle. */
   previewAction?: string | undefined;
@@ -78,14 +78,11 @@ export function Stage(p: StageProps) {
   });
   const mode = p.mode ?? 'detail';
   const overview = mode === 'overview';
-  const previewNote = (
-    <>
-      {preview.phase === 'loading' && <span className={styles.cap} role="status"><Spinner label="正在载入预览" /> 正在载入预览</span>}
-      {preview.phase === 'failed' && <div className={styles.ovlRow} role="status">
-        <span className={styles.cap}>{preview.message}</span>
-        <Btn size="sm" variant="quiet" onClick={preview.retry}>重试预览</Btn>
-      </div>}
-    </>
+  const previewNote = preview.phase === 'failed' && (
+    <div className={styles.ovlRow} role="status">
+      <span className={styles.cap}>{preview.message}</span>
+      <Btn size="sm" variant="quiet" onClick={preview.retry}>重试预览</Btn>
+    </div>
   );
   const warn = p.status?.tone === 'warn' ? p.status : null;
   const line: StageStatus | null =
@@ -102,18 +99,26 @@ export function Stage(p: StageProps) {
           ),
           tone: 'warn',
         }
-      : (p.status ?? (preview.phase === 'loading' ? { text: '正在载入预览' } : null)));
+      : (p.status ?? null));
   return (
     <div className={styles.frame} data-stage="" data-mode={mode} data-deck={(mode === 'detail' && p.deck) || undefined}>
       <div ref={setEl} className={styles.stage} data-off={p.offline || undefined} data-preview-stage="" data-live={preview.phase === 'live' || undefined}>
         {overview && <span className={styles.ticks} aria-hidden="true"><i /><i /><i /><i /></span>}
-        <div className={styles.fig} style={{ transform: `translateX(-50%) scale(${0.8 + p.scale / 500})` }}>
-          {p.portrait ? (
-            <CharacterArt src={p.portrait} kind="portrait" w={520} h={520} fallback={<Silhouette />} />
-          ) : (
-            <CharacterArt src={p.head} kind="head" w={152} h={212} fallback={<Silhouette />} />
-          )}
-        </div>
+        {/* The art only where the live preview cannot draw: under its transparent canvas it would show through. */}
+        {preview.phase !== 'loading' && preview.phase !== 'live' && (
+          <div className={styles.fig} style={{ transform: `translateX(-50%) scale(${0.8 + p.scale / 500})` }}>
+            {p.portrait ? (
+              <CharacterArt src={p.portrait} kind="portrait" w={520} h={520} fallback={<Silhouette />} />
+            ) : (
+              <CharacterArt src={p.head} kind="head" w={152} h={212} fallback={<Silhouette />} />
+            )}
+          </div>
+        )}
+        {preview.progress != null && (
+          <div className={styles.load}>
+            <LoadBar fraction={preview.progress} name={p.name} head={p.head} />
+          </div>
+        )}
         {!overview && p.offline && (
           <div className={styles.ovl} data-theme="dark" role="status">
             <StatusTag state="unreachable" label="角色未运行" />

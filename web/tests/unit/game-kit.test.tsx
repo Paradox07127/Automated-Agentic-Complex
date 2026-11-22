@@ -1,7 +1,7 @@
 // ui/game: the character area's shared game pieces — keyboard, selected states, the stepper's default tick and its list threshold.
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ActionBar, Barcode, DarkRow, Diamond, GameSeg, GameTabs, MicroLabel, RailCell, Stepper, TitleBar, TrainingRoom, WhiteCapsule, YellowKey } from '../../src/ui/game';
+import { ActionBar, Barcode, DarkRow, Diamond, GameSeg, GameTabs, LoadBar, MicroLabel, RailCell, Stepper, TitleBar, TrainingRoom, WhiteCapsule, YellowKey } from '../../src/ui/game';
 
 afterEach(cleanup);
 
@@ -384,5 +384,30 @@ describe('variants the pages asked for', () => {
     expect((screen.getByRole('button', { name: '权重：减少' }) as HTMLButtonElement).disabled).toBe(true);
     rerender(<Stepper label="保持" value={1.5} min={0} max={600} step={0.5} digits={1} onChange={onChange} />);
     expect((screen.getByRole('spinbutton', { name: '保持' }) as HTMLInputElement).value).toBe('1.5');
+  });
+});
+
+describe('LoadBar', () => {
+  it('is a progressbar at the rounded percent: the text, the fill and the striped strip all at that share', () => {
+    const { container } = render(<LoadBar fraction={0.564} name="示例乙" />);
+    const bar = screen.getByRole('progressbar', { name: '正在载入 示例乙' });
+    expect(bar.getAttribute('aria-valuenow')).toBe('56');
+    expect(bar.getAttribute('aria-valuemin')).toBe('0');
+    expect(bar.getAttribute('aria-valuemax')).toBe('100');
+    expect(within(bar).getByText('56%')).toBeTruthy();
+    expect(within(bar).getByText('正在载入')).toBeTruthy();
+    expect(within(bar).getByText('示例乙')).toBeTruthy();
+    const fills = container.querySelectorAll<HTMLElement>('[data-fill]');
+    expect([...fills].map((f) => f.style.width)).toEqual(['56%', '56%']);
+  });
+
+  it('keeps the share within 0–100 and draws the head art in the square cell, a glyph without one', () => {
+    const { container, rerender } = render(<LoadBar fraction={1.2} name="示例乙" head="/head.png" />);
+    expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('100');
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('/head.png');
+    rerender(<LoadBar fraction={-0.1} />);
+    expect(screen.getByRole('progressbar', { name: '正在载入' }).getAttribute('aria-valuenow')).toBe('0');
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('svg')).toBeTruthy();
   });
 });

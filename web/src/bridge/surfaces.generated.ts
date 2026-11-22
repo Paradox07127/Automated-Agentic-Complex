@@ -12,12 +12,12 @@ export const BRIDGE_OPS: readonly string[] = [
   'avatar.toggleClickThroughAll', 'avatar.stopSpeech', 'avatar.actions', 'avatar.playAction', 'avatar.stopAction',
   'avatar.setActionSwitches', 'avatar.setAppearance', 'avatar.setLayers', 'avatar.presentation.get',
   'avatar.presentation.set', 'avatar.preview.show', 'avatar.preview.hide', 'avatar.preview.sequence',
-  'avatar.motionOverrides.get', 'avatar.motionOverrides.set', 'avatar.playChain', 'avatar.motionChain.check',
-  'avatar.motionChain.apply', 'avatar.modSettings.get', 'avatar.modSettings.set', 'avatar.photo.set', 'avatar.capture',
-  'avatar.onState', 'avatar.onStats', 'character.list', 'character.switchTo', 'character.importPackage',
-  'character.importMotion', 'character.importOutfit', 'character.removeOutfit', 'character.listImportedMotions',
-  'character.renameMotion', 'character.removeMotion', 'character.importState', 'character.onImport',
-  'character.getPlaylist', 'character.setPlaylist', 'avatar.playPlaylist', 'avatar.stopPlaylist',
+  'avatar.preview.onProgress', 'avatar.motionOverrides.get', 'avatar.motionOverrides.set', 'avatar.playChain',
+  'avatar.motionChain.check', 'avatar.motionChain.apply', 'avatar.modSettings.get', 'avatar.modSettings.set',
+  'avatar.photo.set', 'avatar.capture', 'avatar.onState', 'avatar.onStats', 'character.list', 'character.switchTo',
+  'character.importPackage', 'character.importMotion', 'character.importOutfit', 'character.removeOutfit',
+  'character.listImportedMotions', 'character.renameMotion', 'character.removeMotion', 'character.importState',
+  'character.onImport', 'character.getPlaylist', 'character.setPlaylist', 'avatar.playPlaylist', 'avatar.stopPlaylist',
   'avatar.playlistState', 'mmd.list', 'mmd.import', 'mmd.syncState', 'mmd.onSync', 'voice.onPushToTalk',
   'files.pickFile', 'files.pickFolder', 'files.saveAgentdExport', 'open.url', 'open.artifact', 'open.revealInFinder',
   'open.jumpToSession', 'open.runFeedCommand', 'open.runInTerminal', 'clipboard.writeText', 'logs.sources', 'logs.read',
@@ -48,10 +48,10 @@ export const SURFACE_OPS: Readonly<Record<Surface, readonly string[]>> = {
     'avatar.setVisible', 'avatar.setScale', 'avatar.keepClearOfMain', 'avatar.resetPosition',
     'avatar.toggleClickThroughAll', 'avatar.stopSpeech', 'avatar.actions', 'avatar.playAction', 'avatar.stopAction',
     'avatar.setActionSwitches', 'avatar.setAppearance', 'avatar.setLayers', 'avatar.preview.show',
-    'avatar.preview.hide', 'avatar.preview.sequence', 'avatar.motionOverrides.get', 'avatar.motionOverrides.set',
-    'avatar.playChain', 'avatar.motionChain.check', 'avatar.motionChain.apply', 'avatar.modSettings.get',
-    'avatar.modSettings.set', 'avatar.photo.set', 'avatar.capture', 'avatar.onState', 'avatar.onStats',
-    'character.list', 'character.switchTo', 'character.importPackage', 'character.importMotion',
+    'avatar.preview.hide', 'avatar.preview.sequence', 'avatar.preview.onProgress', 'avatar.motionOverrides.get',
+    'avatar.motionOverrides.set', 'avatar.playChain', 'avatar.motionChain.check', 'avatar.motionChain.apply',
+    'avatar.modSettings.get', 'avatar.modSettings.set', 'avatar.photo.set', 'avatar.capture', 'avatar.onState',
+    'avatar.onStats', 'character.list', 'character.switchTo', 'character.importPackage', 'character.importMotion',
     'character.importOutfit', 'character.removeOutfit', 'character.listImportedMotions', 'character.renameMotion',
     'character.removeMotion', 'character.importState', 'character.onImport', 'character.getPlaylist',
     'character.setPlaylist', 'avatar.playPlaylist', 'avatar.stopPlaylist', 'avatar.playlistState', 'mmd.list',
@@ -84,10 +84,10 @@ export const SURFACE_OPS: Readonly<Record<Surface, readonly string[]>> = {
 
 /** `on<Name>` subscriptions; `events.unsubscribe` ends them. */
 export const WATCH_OPS: readonly string[] = [
-  'app.onRuntime', 'settings.onChange', 'avatar.onState', 'avatar.onStats', 'voice.onPushToTalk', 'computerUse.onState',
-  'computerUse.onPanel', 'camera.onState', 'resize.onState', 'window.onVisibility', 'window.onPointer',
-  'window.onAnchorState', 'window.onA11y', 'window.onAnchor', 'stack.onCards', 'desktop.onState', 'desktop.onPresence',
-  'desktop.onCommand', 'mmd.onSync', 'character.onImport',
+  'app.onRuntime', 'settings.onChange', 'avatar.onState', 'avatar.onStats', 'avatar.preview.onProgress',
+  'voice.onPushToTalk', 'computerUse.onState', 'computerUse.onPanel', 'camera.onState', 'resize.onState',
+  'window.onVisibility', 'window.onPointer', 'window.onAnchorState', 'window.onA11y', 'window.onAnchor',
+  'stack.onCards', 'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'mmd.onSync', 'character.onImport',
 ];
 
 /** Void ops sent without waiting for the reply. */

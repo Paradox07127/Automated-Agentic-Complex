@@ -16,7 +16,7 @@ import { MODAL_ROOT_ID } from '../../src/ui';
 function Probe({ action, blocked = false, character = 'birch', request }: { action?: string; blocked?: boolean; character?: string; request?: number }) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const preview = useLivePreview(el, { character, action, blocked, request });
-  return <><div ref={setEl} data-testid="stage" data-live={preview.phase === 'live' || undefined} />
+  return <><div ref={setEl} data-testid="stage" data-live={preview.phase === 'live' || undefined} data-progress={preview.progress ?? undefined} />
     {preview.phase === 'failed' && <button onClick={preview.retry}>重试预览</button>}</>;
 }
 
@@ -179,6 +179,48 @@ describe('useLivePreview', () => {
     fireEvent.click(getByRole('button', { name: '重试预览' }));
     await waitFor(() => expect(getByTestId('stage').dataset.live).toBe('true'));
     expect(show).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('load progress', () => {
+  it('takes a full load\'s share from avatar.preview.onProgress; the first show counts 0 until a report or a frame, a clip change none', async () => {
+    let push: (p: { fraction: number } | null) => void = () => {};
+    const off = vi.fn();
+    vi.spyOn(window.agenticComplex!.avatar.preview, 'onProgress').mockImplementation((cb) => ((push = cb), off));
+    let draw: (on: boolean) => void = () => {};
+    show.mockImplementation(() => new Promise<boolean>((r) => { draw = r; }));
+    const { getByTestId, rerender, unmount } = render(<Probe />);
+    const stage = getByTestId('stage');
+    await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
+    expect(stage.dataset.progress).toBe('0');
+    act(() => push({ fraction: 0.6 }));
+    expect(stage.dataset.progress).toBe('0.6');
+    // The first frame ends the report before the show answers: no fall back to 0 in between.
+    act(() => push(null));
+    expect(stage.dataset.progress).toBeUndefined();
+    await act(async () => draw(true));
+    expect(stage.dataset.live).toBe('true');
+    // Another action only swaps the clip: nothing reports.
+    rerender(<Probe action="wave" />);
+    await waitFor(() => expect(show).toHaveBeenCalledTimes(2));
+    expect(stage.dataset.progress).toBeUndefined();
+    await act(async () => draw(true));
+    // A new output size builds anew while she is live.
+    act(() => push({ fraction: 0.05 }));
+    expect(stage.dataset.progress).toBe('0.05');
+    act(() => push(null));
+    unmount();
+    expect(off).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports none while the preview is hidden or failed', async () => {
+    let push: (p: { fraction: number } | null) => void = () => {};
+    vi.spyOn(window.agenticComplex!.avatar.preview, 'onProgress').mockImplementation((cb) => ((push = cb), () => {}));
+    show.mockRejectedValue(Object.assign(new Error('failed'), { code: 'failed' }));
+    const { getByTestId } = render(<Probe />);
+    await waitFor(() => expect(hide).toHaveBeenCalledTimes(1));
+    act(() => push({ fraction: 0.6 }));
+    expect(getByTestId('stage').dataset.progress).toBeUndefined();
   });
 });
 

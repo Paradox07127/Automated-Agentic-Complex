@@ -24,6 +24,8 @@ export interface PreviewTransport<S> {
 export interface PreviewPresenter<S> {
   /** The preview is placed and on screen. */
   readonly active: boolean;
+  /** Drops the drawn frame: a load that builds anew draws nothing for seconds. */
+  clear(): void;
   /** Draws `surface`; `done(drawn)` once the GPU is through with it, false when it was not drawn. */
   present(surface: S, done: (drawn: boolean) => void): void;
 }
@@ -71,6 +73,8 @@ export interface SessionOptions<S> {
   log(line: string): void;
   /** ms to wait for a load's first frame. */
   firstFrameTimeout?: number;
+  /** A load that builds anew: its share done (the service's `progress`, 0.95 at `loaded`); null once it is drawn, fails or is replaced. */
+  progress?(fraction: number | null): void;
 }
 
 type Phase = { kind: 'idle' | 'loading' | 'live' } | { kind: 'failed'; reason: string };
@@ -96,6 +100,8 @@ export class PreviewSession<S> {
   private timeout: ReturnType<typeof setTimeout> | null = null;
   private loadStarted = 0;
   private framesReported = 0;
+  /** The current load's last reported share; null when it reported none. */
+  private progressed: number | null = null;
 
   constructor(options: SessionOptions<S>) {
     this.options = options;
@@ -179,6 +185,7 @@ export class PreviewSession<S> {
     this.loadID += 1;
     this.loadStarted = performance.now();
     this.framesReported = 0;
+    this.endProgress();
     const replaced = this.waiters;
     this.waiters = [];
     for (const w of replaced) w.reject(new PreviewFailure('预览换成了新的请求'));
@@ -208,6 +215,7 @@ export class PreviewSession<S> {
   private fail(reason: string, report = true): void {
     if (this.timeout !== null) clearTimeout(this.timeout);
     this.timeout = null;
+    this.endProgress();
     if (report) this.options.log(`character preview load_id=${this.loadID} failed: ${reason}`);
     if (this.connected && !this.servicePaused) {
       this.servicePaused = true;
@@ -218,6 +226,18 @@ export class PreviewSession<S> {
     const ended = this.waiters;
     this.waiters = [];
     for (const w of ended) w.reject(new PreviewFailure(reason));
+  }
+
+  private reportProgress(fraction: number): void {
+    if (this.progressed === null) this.options.presenter.clear();
+    this.progressed = fraction;
+    this.options.progress?.(fraction);
+  }
+
+  private endProgress(): void {
+    if (this.progressed === null) return;
+    this.progressed = null;
+    this.options.progress?.(null);
   }
 
   private send(value: Record<string, unknown>): boolean {
@@ -246,6 +266,13 @@ export class PreviewSession<S> {
         if (!this.connected) return;
         this.connected = false;
         this.fail('预览服务断开了');
+        return;
+      case 'progress':
+        if (this.selection === null || message.load_id !== this.loadID || this.phase.kind !== 'loading' || typeof message.fraction !== 'number') return;
+        this.reportProgress(message.fraction);
+        return;
+      case 'loaded':
+        if (message.load_id === this.loadID && this.progressed !== null) this.reportProgress(0.95);
         return;
       case 'stats': {
         if (this.selection === null || message.load_id !== this.loadID || typeof message.fps !== 'number') return;
@@ -277,6 +304,7 @@ export class PreviewSession<S> {
       this.played = true;
       if (this.timeout !== null) clearTimeout(this.timeout);
       this.timeout = null;
+      this.endProgress();
       this.options.log(`character preview load_id=${load} first_frame_ms=${Math.round(performance.now() - this.loadStarted)}`);
       const ready = this.waiters;
       this.waiters = [];

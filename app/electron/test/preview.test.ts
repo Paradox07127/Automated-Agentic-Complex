@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { BridgeFailure, handle } from '../src/common/bridge.ts';
+import { PageSession } from '../src/common/page.ts';
+import { PushSource } from '../src/common/push.ts';
 import { ORIGIN } from '../src/common/ui.ts';
 import type { OpsContext } from '../src/main/ops/context.ts';
 import { type PreviewHost, previewOps } from '../src/main/ops/preview.ts';
@@ -44,6 +46,10 @@ class FakeTransport {
 class FakePresenter {
   active = true;
   drawing: { surface: string; done: (drawn: boolean) => void }[] = [];
+  clears = 0;
+  clear(): void {
+    this.clears += 1;
+  }
   present(surface: string, done: (drawn: boolean) => void): void {
     this.drawing.push({ surface, done });
   }
@@ -56,10 +62,10 @@ const selection = (o: Partial<PreviewSelection> = {}): PreviewSelection => ({ bu
   character: 'si', clip: null, facial: null, rate: 1, appearance: null, request: 0, modSettings: null, loop: false, ...o });
 
 function session(firstFrameTimeout = 5000) {
-  const transport = new FakeTransport(), presenter = new FakePresenter(), logs: string[] = [];
+  const transport = new FakeTransport(), presenter = new FakePresenter(), logs: string[] = [], progress: (number | null)[] = [];
   const s = new PreviewSession<string>({ transport, service: 'test.preview', presenter,
-    log: (l) => logs.push(l), firstFrameTimeout });
-  return { s, transport, presenter, logs };
+    log: (l) => logs.push(l), firstFrameTimeout, progress: (f) => progress.push(f) });
+  return { s, transport, presenter, logs, progress };
 }
 
 /** Lets the promise callbacks run. */
@@ -270,11 +276,43 @@ test('a rebuild for new render arguments or output does not replay a drawn one-s
   }
 });
 
+test('a load that builds anew reports its progress, loaded as 0.95 and null once drawn, and clears the canvas once', async () => {
+  const { s, transport, presenter, progress } = session();
+  const loaded = s.load(selection());
+  transport.emit({ event: 'progress', load_id: 0, fraction: 0.3 });
+  assert.deepEqual(progress, [], 'an older load\'s progress is dropped');
+  assert.equal(presenter.clears, 0);
+  for (const fraction of [0.05, 0.6, 0.85]) transport.emit({ event: 'progress', load_id: 1, fraction });
+  assert.equal(presenter.clears, 1, 'once per load');
+  transport.emit({ event: 'loaded', load_id: 1, character: 'si', clip: null });
+  assert.deepEqual(progress, [0.05, 0.6, 0.85, 0.95]);
+  await draw(s, transport, presenter, loaded);
+  assert.deepEqual(progress, [0.05, 0.6, 0.85, 0.95, null], 'the first frame ends it');
+  // Only the clip changes: no progress, no clear; the old frame stays until the new clip's.
+  const clip = s.load(selection({ clip: 'wave' }));
+  transport.emit({ event: 'loaded', load_id: 2, character: 'si', clip: 'wave' });
+  await draw(s, transport, presenter, clip);
+  assert.equal(progress.length, 5);
+  assert.equal(presenter.clears, 1);
+  // A full load that a newer one replaces, or that fails, ends its progress undrawn.
+  s.load(selection({ output: [720, 864] })).catch(() => {});
+  transport.emit({ event: 'progress', load_id: 3, fraction: 0.05 });
+  assert.equal(presenter.clears, 2);
+  s.load(selection({ output: [960, 1152] })).catch(() => {});
+  transport.emit({ event: 'progress', load_id: 4, fraction: 0.6 });
+  transport.emit({ event: 'error', load_id: 4, reason: 'no gpu' });
+  assert.deepEqual(progress.slice(5), [0.05, null, 0.6, null]);
+  assert.equal(presenter.clears, 3);
+  s.disconnect();
+  assert.equal(progress.length, 9);
+});
+
 /** A view that records what the controller asks of it. */
 class FakeView implements PreviewView {
   placed: unknown[] = [];
   loads: PreviewSelection[] = [];
   hides = 0;
+  readonly progress = new PushSource('progress');
   place(rect: unknown): void { this.placed.push(rect); }
   async load(s: PreviewSelection): Promise<boolean> { this.loads.push(s); return true; }
   async sequence(): Promise<void> {}
@@ -468,9 +506,9 @@ const sender = { mainFrame: true, origin: ORIGIN };
 const call = (preview: PreviewHost | null, op: string, args: unknown[] = []) =>
   handle('main', sender, { op, args }, new Map(Object.entries(previewOps({ preview } as unknown as OpsContext))));
 
-test('without a preview host (Windows) the three ops answer not_implemented, after the sequence argument check', async () => {
+test('without a preview host (Windows) the four ops answer not_implemented, after the sequence argument check', async () => {
   for (const [op, args] of [['avatar.preview.show', [{ x: 0, y: 0, w: 10, h: 10 }]], ['avatar.preview.hide', []],
-    ['avatar.preview.sequence', [{ clips: ['a'], blend_s: [] }]]] as const) {
+    ['avatar.preview.sequence', [{ clips: ['a'], blend_s: [] }]], ['avatar.preview.onProgress', [1]]] as const) {
     assert.deepEqual(await call(null, op, [...args]), { ok: false, error: { code: 'not_implemented', detail: op } }, op);
   }
   assert.equal(((await call(null, 'avatar.preview.sequence', [{ clips: [] }])) as { error: { code: string } }).error.code, 'invalid_args');
@@ -486,6 +524,7 @@ test('the ops check their arguments and reach the preview host', async () => {
       return true;
     },
     hide: () => { hides += 1; },
+    progress: new PushSource('progress'),
     sequence: async (clips, blends) => {
       if (clips[0] === 'old') throw new BridgeFailure('unavailable', 'no live preview');
       sequences.push([clips, blends]);
@@ -540,4 +579,18 @@ test('her hidden layers go to the service as hidden_layers, and showing them all
   s.load(selection({ hiddenLayers: ['coat', 'gloves'] })).catch(() => {});
   assert.deepEqual(transport.sent.at(-1)?.hidden_layers, ['coat', 'gloves']);
   s.disconnect();
+});
+
+test('avatar.preview.onProgress pushes the view\'s progress through the controller to the page', async () => {
+  const view = new FakeView();
+  const preview = new PreviewController({ view, avatar: () => ({ character: 'si', appearance: null }), library: async () => library });
+  const pushed: unknown[] = [];
+  const page = new PageSession((_id, stream, kind, payload) => {
+    if (stream === 'avatar.preview.onProgress' && kind === 'event') pushed.push(JSON.parse(payload!.data));
+  });
+  const ops = new Map(Object.entries(previewOps({ preview } as unknown as OpsContext)));
+  assert.deepEqual(await handle('main', sender, { op: 'avatar.preview.onProgress', args: [1] }, ops, page), { ok: true, value: null });
+  view.progress.send({ fraction: 0.6 });
+  view.progress.send(null);
+  assert.deepEqual(pushed, [{ fraction: 0.6 }, null]);
 });

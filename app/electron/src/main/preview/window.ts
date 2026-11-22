@@ -3,6 +3,7 @@
 // closing it ends the connection.
 import { type BrowserWindow, screen, sharedTexture } from 'electron';
 import { BridgeFailure } from '../../common/bridge.ts';
+import { PushSource } from '../../common/push.ts';
 import type { PreviewRect } from '../ops/preview.ts';
 import type { PreviewView } from './controller.ts';
 import { previewOutput, PreviewSession, type PreviewSelection, type PreviewSurface, type PreviewTransport } from './session.ts';
@@ -33,6 +34,7 @@ export class WindowPreview implements PreviewView {
   private shown = false;
   private rect: PreviewRect | null = null;
   private readonly inFlight = new Set<PreviewSurface>();
+  readonly progress = new PushSource('progress');
 
   constructor(options: WindowPreviewOptions) {
     this.options = options;
@@ -78,7 +80,12 @@ export class WindowPreview implements PreviewView {
     const active = () => this.shown && !win.isDestroyed() && win.isVisible() && !win.isMinimized();
     const session = this.session = new PreviewSession<PreviewSurface>({
       transport: this.options.addon, service: this.service, log: this.options.log,
-      presenter: { get active() { return active(); }, present: (surface, done) => this.present(win, surface, done) },
+      presenter: {
+        get active() { return active(); },
+        clear: () => { if (!win.isDestroyed()) win.webContents.send('preview:clear'); },
+        present: (surface, done) => this.present(win, surface, done),
+      },
+      progress: (fraction) => this.progress.send(fraction === null ? null : { fraction }),
     });
     const sync = () => session.syncPlayback();
     for (const event of ['show', 'hide', 'minimize', 'restore'] as const) win.on(event as 'show', sync);

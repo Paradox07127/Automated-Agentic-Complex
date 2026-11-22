@@ -328,8 +328,8 @@ export interface AgenticComplexBridge {
     /** The character page's live preview, drawn by the shell over the page; main surface only. */
     preview: {
       /** Places or moves it and plays `action`; true once the character is drawn there, false where the shell has no live preview. */
-      show(at: PreviewPlacement): Promise<boolean>;
-      hide(): Promise<void>;
+      show(at: PreviewPlacement): Promise<boolean>; hide(): Promise<void>;
+      /** `{ fraction }` 0–1 while a load builds her anew; null once none does (drawn, failed, replaced). A clip change reports none. */ onProgress(cb: (p: { fraction: number } | null) => void): Unsubscribe;
     };
     onState(cb: (s: AvatarState) => void): Unsubscribe;
     onStats(cb: (s: AvatarStats) => void): Unsubscribe;

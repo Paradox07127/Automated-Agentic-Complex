@@ -88,13 +88,19 @@ export interface LivePreviewWant {
  * Keeps the shell's live preview over `stage`: reports its rect (resize, window resize, scroll and transitions, once per
  * frame) and hides it while covered, blocked, cut off, in a hidden document, after the shell failed to draw the same
  * character and action, and on unmount. True while the shell draws the character there, so the stage can drop its art.
+ * `progress` is the share done of a load that builds her anew, null while none runs (live, or only the clip changes).
  */
 type PreviewPhase = { phase: 'idle' | 'loading' | 'live' } | { phase: 'failed'; message: string };
 
-export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant): PreviewPhase & { retry: () => void } {
+/** The shell's last `avatar.preview.onProgress`, and whether the current show has had one. */
+interface LoadReport { fraction: number | null; seen: boolean }
+
+export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant): PreviewPhase & { progress: number | null; retry: () => void } {
   const covered = usePreviewOverlay(stage);
   const loop = !!want.loop && !!want.action;
   const [status, setStatus] = useState<PreviewPhase>({ phase: 'idle' });
+  const [report, setReport] = useState<LoadReport>({ fraction: null, seen: false });
+  const [drawn, setDrawn] = useState(false);
   const latest = useRef({ ...want, loop, off: false });
   latest.current = { ...want, loop, off: covered || want.blocked };
   const schedule = useRef<() => void>(() => {});
@@ -120,6 +126,7 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
     const bridge = getBridge();
     if (!stage || !window.agenticComplex || bridge.surface !== 'main' || !bridge.capabilities.avatar) return;
     const preview = bridge.avatar.preview;
+    const unsubscribe = preview.onProgress((p) => setReport((r) => ({ fraction: p?.fraction ?? null, seen: r.seen || p !== null })));
     let frame = 0;
     let sent = '';
     let failed = '';
@@ -160,6 +167,7 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
         active = what;
         failed = '';
         setStatus({ phase: 'loading' });
+        setReport((r) => ({ ...r, seen: false }));
       }
       const n = ++seq;
       const reject = () => {
@@ -170,8 +178,9 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
       preview.show(at).then(
         (on) => {
           if (n !== seq) return;
-          if (on) setStatus({ phase: 'live' });
-          else reject();
+          if (!on) return reject();
+          setStatus({ phase: 'live' });
+          setDrawn(true);
         },
         reject,
       );
@@ -204,11 +213,15 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
       document.removeEventListener('transitionend', later, true);
       document.removeEventListener('animationend', later, true);
       document.removeEventListener('visibilitychange', later);
+      unsubscribe();
       hide();
     };
   }, [stage]);
 
   const off = covered || want.blocked;
   useEffect(() => schedule.current(), [off, want.character, want.action, loop, want.appearance, want.request]);
-  return { ...status, retry: () => retry.current() };
+  const placed = status.phase === 'loading' || status.phase === 'live';
+  // A service that reports no progress: the first show on this stage counts 0 until her first frame.
+  const progress = !placed ? null : (report.fraction ?? (status.phase === 'loading' && !drawn && !report.seen ? 0 : null));
+  return { ...status, progress, retry: () => retry.current() };
 }

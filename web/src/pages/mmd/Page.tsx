@@ -142,6 +142,7 @@ export function MmdPage() {
         <div className={styles.stageAt}>
           <MmdStage
             character={current}
+            name={ch?.name}
             head={ch?.head}
             portrait={ch?.portrait}
             scale={look.scale}

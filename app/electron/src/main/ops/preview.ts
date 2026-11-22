@@ -1,7 +1,9 @@
 // `avatar.preview.*`: the character page's live preview. Without a preview host (Windows for now) they are
 // `not_implemented`, after the argument checks.
 import { BridgeFailure } from '../../common/bridge.ts';
+import type { EventSource } from '../../common/page.ts';
 import type { Ops, OpsContext } from './context.ts';
+import { watch } from './events.ts';
 
 /** A rect of the page's viewport in CSS px. */
 export interface PreviewRect { x: number; y: number; w: number; h: number }
@@ -12,6 +14,8 @@ export interface PreviewHost {
   hide(): void;
   /** Preview XPC v2 `sequence`: clips and the blend seconds between them; resolves once its first frame is drawn. */
   sequence(clips: string[], blendSeconds: number[]): Promise<void>;
+  /** `avatar.preview.onProgress`: `{fraction}` while a load builds anew, null once none does. */
+  readonly progress: EventSource;
 }
 
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -50,5 +54,6 @@ export function previewOps(ctx: OpsContext): Ops {
       await host('avatar.preview.sequence').sequence(clips as string[], blends as number[]);
       return true;
     },
+    'avatar.preview.onProgress': (args, page) => watch('avatar.preview.onProgress', host('avatar.preview.onProgress').progress)(args, page),
   };
 }
