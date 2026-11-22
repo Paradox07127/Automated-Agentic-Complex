@@ -20,10 +20,12 @@ its process group and fails.
 """
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+import contextlib
 import dataclasses
 import datetime
 import fnmatch
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -538,6 +540,34 @@ def cache_dir(repo):
     return (Path(common).parent if common else Path(repo)) / '.local/cache/gate-results'
 
 
+@contextlib.contextmanager
+def checkout_lock(repo, profile):
+    """Holds the gate runner's checkout lock of repo's main checkout (gate_daemon.py) and prints GATE QUEUE once while
+    another run holds it; a run the holder started takes none."""
+    if os.name == 'nt':
+        # gate_daemon.alive's os.kill(pid, 0) would terminate the holder there.
+        yield
+        return
+    spec = importlib.util.spec_from_file_location('gate_daemon', HERE / 'gate_daemon.py')
+    daemon = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(daemon)
+    if os.environ.get(daemon.LOCK_HELD):
+        yield
+        return
+    common = git(repo, 'rev-parse', '--path-format=absolute', '--git-common-dir')
+    root = Path(common).parent if common else repo
+    lock = daemon.Daemon(root).checkout_lock
+    # A runner from before LOCK_HELD calls gate.py while it holds the lock; waiting on the parent would never end.
+    if daemon.lock_pid(lock) == os.getppid():
+        yield
+        return
+    label = f'gate {profile} {repo.relative_to(root) if repo.is_relative_to(root) else repo}'
+    if not daemon.acquire(lock, label, wait=False):
+        print(f'GATE QUEUE: waiting for {daemon.owner(lock)}', flush=True)
+    with daemon.held(lock, label):
+        yield
+
+
 def blobs(repo, entries):
     """{path: git blob id} of the existing tracked and untracked, not ignored, files under entries."""
     listed = subprocess.run(['git', '-C', str(repo), 'ls-files', '-z', '-c', '-o', '--exclude-standard', '--', *entries],
@@ -703,44 +733,45 @@ def main(argv=None):
         if not keep:
             shutil.rmtree(logs)
         return 0
-    started = datetime.datetime.now(datetime.timezone.utc)
-    files, f0 = source_fingerprint.compute(repo)
-    guard = release.source_state(repo)
-    changed = set(git(repo, 'diff', '--name-only', 'HEAD').splitlines()) | set(
-        git(repo, 'ls-files', '--others', '--exclude-standard').splitlines())
-    nz_phases = {i for i, phase in enumerate(doc['profiles'][args.profile]['phases']) if phase.get('nz')}
-    setup_s = round(time.monotonic() - clock, 1)
-    lines, results, skipped, passed, phases_s = run_profile(phases, ctx, nz_phases, hits)
-    ended = time.monotonic()
-    lines = head + lines
-    f1 = source_fingerprint.compute(repo)[1]
-    if f1 != f0:
-        lines.append('SOURCES-CHANGED FAIL')
-    store_results(results, keys, folder,
-                  dict(checkout=str(repo), started_at=utc(started), head=guard['head'], profile=args.profile), f1 == f0)
-    passed = passed and f1 == f0
-    finished = datetime.datetime.now(datetime.timezone.utc)
-    receipt = gate_receipt.build(
-        profile=args.profile, result='PASS' if passed else 'FAIL', partial=only is not None,
-        started_at=utc(started), finished_at=utc(finished), duration_s=round((finished - started).total_seconds(), 1),
-        checkout=str(repo), head=guard['head'], main=guard['main'], branch=git(repo, 'rev-parse', '--abbrev-ref', 'HEAD'),
-        source=dict(algorithm='endfield-release-source/v1', fingerprint=f0, files=len(files), changed_during_run=f1 != f0),
-        shipping_sources_clean=guard['shipping_sources_clean'], dirty_shipping=guard['dirty_shipping'],
-        dirty_other=sorted(changed - set(guard['dirty_shipping']))[:50],
-        suites_sha256=sha256(*suites_files()),
-        runner_sha256=gate_receipt.runner_digest(RUNNER_ROOT, repo),
-        host=dict(tools, macos=platform.mac_ver()[0]),
-        logs_kept=keep, suites=[dataclasses.asdict(r) for r in results], skipped_suites=skipped, selection=selection,
-        cache=dict(enabled=not args.no_cache, reused=[r.id for r in results if r.cached]),
-        timing=dict(setup_s=setup_s, phases_s=phases_s, teardown_s=round(time.monotonic() - ended, 1)))
-    stored = gate_receipt.write(receipt, logs if keep else None, gate_receipt.store_dir(repo))
-    if not keep:
-        shutil.rmtree(logs)
-    for line in lines:
-        print(line)
-    print(f'receipt: {logs / gate_receipt.LATEST if keep else stored}')
-    print('GATE PASS' if passed else 'GATE FAIL')
-    return 0 if passed else 1
+    with checkout_lock(repo, args.profile):
+        started = datetime.datetime.now(datetime.timezone.utc)
+        files, f0 = source_fingerprint.compute(repo)
+        guard = release.source_state(repo)
+        changed = set(git(repo, 'diff', '--name-only', 'HEAD').splitlines()) | set(
+            git(repo, 'ls-files', '--others', '--exclude-standard').splitlines())
+        nz_phases = {i for i, phase in enumerate(doc['profiles'][args.profile]['phases']) if phase.get('nz')}
+        setup_s = round(time.monotonic() - clock, 1)
+        lines, results, skipped, passed, phases_s = run_profile(phases, ctx, nz_phases, hits)
+        ended = time.monotonic()
+        lines = head + lines
+        f1 = source_fingerprint.compute(repo)[1]
+        if f1 != f0:
+            lines.append('SOURCES-CHANGED FAIL')
+        store_results(results, keys, folder,
+                      dict(checkout=str(repo), started_at=utc(started), head=guard['head'], profile=args.profile), f1 == f0)
+        passed = passed and f1 == f0
+        finished = datetime.datetime.now(datetime.timezone.utc)
+        receipt = gate_receipt.build(
+            profile=args.profile, result='PASS' if passed else 'FAIL', partial=only is not None,
+            started_at=utc(started), finished_at=utc(finished), duration_s=round((finished - started).total_seconds(), 1),
+            checkout=str(repo), head=guard['head'], main=guard['main'], branch=git(repo, 'rev-parse', '--abbrev-ref', 'HEAD'),
+            source=dict(algorithm='endfield-release-source/v1', fingerprint=f0, files=len(files), changed_during_run=f1 != f0),
+            shipping_sources_clean=guard['shipping_sources_clean'], dirty_shipping=guard['dirty_shipping'],
+            dirty_other=sorted(changed - set(guard['dirty_shipping']))[:50],
+            suites_sha256=sha256(*suites_files()),
+            runner_sha256=gate_receipt.runner_digest(RUNNER_ROOT, repo),
+            host=dict(tools, macos=platform.mac_ver()[0]),
+            logs_kept=keep, suites=[dataclasses.asdict(r) for r in results], skipped_suites=skipped, selection=selection,
+            cache=dict(enabled=not args.no_cache, reused=[r.id for r in results if r.cached]),
+            timing=dict(setup_s=setup_s, phases_s=phases_s, teardown_s=round(time.monotonic() - ended, 1)))
+        stored = gate_receipt.write(receipt, logs if keep else None, gate_receipt.store_dir(repo))
+        if not keep:
+            shutil.rmtree(logs)
+        for line in lines:
+            print(line)
+        print(f'receipt: {logs / gate_receipt.LATEST if keep else stored}')
+        print('GATE PASS' if passed else 'GATE FAIL')
+        return 0 if passed else 1
 
 
 if __name__ == '__main__':

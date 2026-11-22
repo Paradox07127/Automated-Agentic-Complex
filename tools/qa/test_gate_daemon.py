@@ -27,7 +27,8 @@ opt = lambda k: a[a.index(k) + 1] if k in a else None
 checkout, logs, ctl = Path(opt('--checkout')), Path(opt('--logs')), Path(os.environ['GATE_STUB_CTL'])
 head = subprocess.run(['git', '-C', str(checkout), 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()
 with open(ctl / 'calls.jsonl', 'a') as f:
-    f.write(json.dumps(dict(argv=a, head=head, release_profile=os.environ.get('AAC_RELEASE_PROFILE'))) + '\\n')
+    f.write(json.dumps(dict(argv=a, head=head, release_profile=os.environ.get('AAC_RELEASE_PROFILE'),
+                            lock_held=os.environ.get('GATE_CHECKOUT_LOCK_HELD'))) + '\\n')
 red = []
 if (ctl / 'flaky').exists():
     (ctl / 'flaky').unlink()
@@ -113,6 +114,8 @@ class GateDaemonTest(unittest.TestCase):
         self.assertEqual(call['head'], self.c0)
         self.assertEqual(call['argv'], ['--profile', 'commit', '--checkout', str(gr),
                                         '--logs', str(self.repo / '.local/gate-daemon/logs' / self.c0[:12])])
+        # The runner holds the checkout lock while gate.py runs, so gate.py must not wait on it.
+        self.assertEqual(call['lock_held'], '1')
         for name in ['.local/inputs', '.local/cache/character-system',
                      '.local/output/rel-1', '.local/output/ui-art-1', '.local/output/looks-1', '.local/gate-receipts',
                      '.local/pi-runtime']:

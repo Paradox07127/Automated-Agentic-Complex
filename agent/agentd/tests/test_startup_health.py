@@ -5,6 +5,7 @@ import inspect
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
 import sys
 import tempfile
@@ -73,7 +74,10 @@ class MainStartupTest(unittest.TestCase):
         home = Path(self.tmp.name)
         (home / ".claude").mkdir()
         self.state = home / "state"
-        self.port = 48810
+        # /health answers during recovery, before ui-runtime.json names the port, so the port is picked first.
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            self.port = probe.getsockname()[1]
         self.process = subprocess.Popen(
             [sys.executable, "-I", "-c", MAIN, "--port", str(self.port), "--state-dir", str(self.state), "--no-proactive",
              "--mute", "--plugin-on", "screen_awareness", "--plugin-on", "personal_agent", "--plugin-on", "coding_sessions", "--ledger-root", str(home / "no-ledger")],

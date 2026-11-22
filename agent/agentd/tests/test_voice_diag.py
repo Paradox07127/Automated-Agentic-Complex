@@ -261,9 +261,8 @@ class VoiceStartupTest(unittest.TestCase):
         home = Path(tmp.name)
         (home / ".claude").mkdir()
         self.state = home / "state"
-        self.port = 48810
         self.process = subprocess.Popen(
-            [sys.executable, "-I", "-c", MAIN, "--port", str(self.port), "--state-dir", str(self.state), "--no-proactive",
+            [sys.executable, "-I", "-c", MAIN, "--port", "0", "--state-dir", str(self.state), "--no-proactive",
              "--mute", "--plugin-off", "screen_awareness", "--ledger-root", str(home / "no-ledger"), *extra],
             env={**os.environ, "HOME": str(home), "TEST_AGENTD": str(AGENTD),
                  "AAC_TTS_TOKEN_FILE": str(home / "no-tts.token"), **env},
@@ -272,9 +271,10 @@ class VoiceStartupTest(unittest.TestCase):
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline and self.process.poll() is None:
             try:
+                runtime = json.loads((self.state / "ui-runtime.json").read_text(encoding="utf-8"))
+                self.port, self.ui = int(runtime["base_url"].rsplit(":", 1)[1]), runtime["ui_token"]
                 status, body = request(self.port, "GET", "/health")
                 if body["status"] == "ok":
-                    self.ui = json.loads((self.state / "ui-runtime.json").read_text(encoding="utf-8"))["ui_token"]
                     return body["degraded"], self.tts()
             except OSError:
                 pass

@@ -41,7 +41,7 @@ class DiscoveryFilesTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="efc9-") as tmp:
             state, ledger = Path(tmp) / "state", Path(tmp) / "ledger"
             ledger.mkdir()
-            proc = subprocess.Popen([sys.executable, str(AGENTD / "server.py"), "--port", "48810", "--state-dir", str(state),
+            proc = subprocess.Popen([sys.executable, str(AGENTD / "server.py"), "--port", "0", "--state-dir", str(state),
                                      "--ledger-root", str(ledger), "--character", "aster", "--no-proactive"],
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=str(AGENTD))
             try:
@@ -83,7 +83,7 @@ class LauncherStopTest(unittest.TestCase):
     def agentd_args(self, tmp):
         state, ledger = Path(tmp) / "state", Path(tmp) / "ledger"
         ledger.mkdir()
-        return state, ["--port", "48810", "--state-dir", str(state), "--ledger-root", str(ledger), "--character", "aster",
+        return state, ["--port", "0", "--state-dir", str(state), "--ledger-root", str(ledger), "--character", "aster",
                        "--no-proactive", "--mute", "--plugin-off", "screen_awareness"]
 
     def test_stop_request_runs_shutdown_cleanly_and_exits_0(self):

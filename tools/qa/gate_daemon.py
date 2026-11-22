@@ -46,6 +46,9 @@ LINKS = ['.local/inputs', '.local/cache/character-system',
          '.local/cache/personal-agent-runtime', '.local/gate-receipts', '.local/pi-runtime']
 # release.py in any checkout looks for receipts here; the runner's receipts must land in the main checkout's store.
 RECEIPTS = '.local/gate-receipts'
+# Set for the gate.py runs of a holder of the checkout lock, so that gate.py does not wait on it. Not AAC_*: those
+# enter the suites' cache keys, and the runner's results must stay reusable by session gates.
+LOCK_HELD = 'GATE_CHECKOUT_LOCK_HELD'
 
 
 def utc(moment=None):
@@ -243,7 +246,8 @@ class Daemon:
                    '--checkout', str(self.gr), '--logs', str(self.logs / logs_name), *extra]
         print(' '.join(command), flush=True)
         self.logs.mkdir(parents=True, exist_ok=True)
-        done = subprocess.run(command, cwd=self.gr, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        done = subprocess.run(command, cwd=self.gr, env=dict(os.environ, **{LOCK_HELD: '1'}), stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, text=True)
         print(done.stdout, end='', flush=True)
         lines = done.stdout.splitlines()
         receipt = next((line[len('receipt: '):] for line in reversed(lines) if line.startswith('receipt: ')), None)

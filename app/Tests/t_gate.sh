@@ -9,7 +9,7 @@ tmp="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/companion-tests/tgate.XXXXXX")" && pwd -
 trap 'rm -rf "$tmp"' EXIT
 export AGENTD_PYTHON="$(command -v python3)"
 scripts="app/Tests/gate.sh tools/qa/mac_gate.sh tools/qa/web_gate.sh tools/qa/agentd_gate.sh"
-runner="tools/qa/gate.py tools/qa/suites.json tools/release/gate_receipt.py
+runner="tools/qa/gate.py tools/qa/gate_daemon.py tools/qa/suites.json tools/release/gate_receipt.py
     tools/release/source_fingerprint.py tools/release/release.py tools/platform/agentd-python.sh"
 extra=$("$AGENTD_PYTHON" -I -B -c 'import sys; sys.path.insert(0, sys.argv[1]); import source_fingerprint as s; print(*s.EXTRA_FILES)' \
     "$src/tools/release")

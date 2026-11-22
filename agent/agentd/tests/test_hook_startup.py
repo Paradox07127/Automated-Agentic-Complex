@@ -25,7 +25,7 @@ class HookStartupTest(unittest.TestCase):
             claude.parent.mkdir(); codex.mkdir()
             state = home / "state"
             process = subprocess.Popen(
-                [sys.executable, str(AGENTD / "server.py"), "--port", "48810", "--state-dir", str(state),
+                [sys.executable, str(AGENTD / "server.py"), "--port", "0", "--state-dir", str(state),
                  "--no-proactive", "--mute", "--plugin-on", "coding_sessions", "--ledger-root", str(home / "no-ledger")],
                 env={**os.environ, "HOME": str(home)}, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             try:
@@ -75,7 +75,7 @@ class HookStartupTest(unittest.TestCase):
             invalid = b'{"n":7,"hashes":[]}'
             index.write_bytes(invalid)
             process = subprocess.run(
-                [sys.executable, str(AGENTD / "server.py"), "--port", "48810", "--state-dir", str(state),
+                [sys.executable, str(AGENTD / "server.py"), "--port", "0", "--state-dir", str(state),
                  "--no-proactive", "--mute", "--plugin-on", "coding_sessions", "--ledger-root", str(home / "no-ledger")],
                 env={**os.environ, "HOME": str(home)}, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 timeout=10)

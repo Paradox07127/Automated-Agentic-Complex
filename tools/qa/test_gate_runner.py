@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import select
 import shutil
 import subprocess
 import sys
@@ -16,7 +17,7 @@ import gate
 import gate_receipt
 import source_fingerprint
 
-RUNNER_FILES = ['tools/qa/gate.py', 'tools/qa/suites.json', 'tools/release/gate_receipt.py',
+RUNNER_FILES = ['tools/qa/gate.py', 'tools/qa/gate_daemon.py', 'tools/qa/suites.json', 'tools/release/gate_receipt.py',
                 'tools/release/source_fingerprint.py', 'tools/release/release.py', 'tools/platform/agentd-python.sh']
 # The awk program of app/Tests/gate.sh's metal().
 GATE_SH_AWK = r'''
@@ -176,6 +177,85 @@ class StubTree(unittest.TestCase):
         self.assertEqual(result.stdout.splitlines(), [f'SELECT: 0 of {len(dev)} suites for 0 changed files since HEAD',
                                                       f'receipt: {self.logs}/gate-receipt.json', 'GATE PASS'])
         self.assertEqual(self.receipt()['suites'], [])
+
+
+class CheckoutLock(unittest.TestCase):
+    """gate.py in a worktree waits on the gate runner's checkout lock of the main checkout."""
+    SUITES = {'schema': 'endfield-gate-suites/v1', 'full_on': [], 'no_suite': [],
+              'suites': {'owner': dict(run=['bash', '-c', 'cat "$1/.local/cache/gate-checkout.lock/owner" >> "$1/owners"',
+                                            '_', '{repo}/../../..'],
+                                       parse='exit', line={'pass': 'OWNER ok', 'fail': 'OWNER fail'})},
+              'profiles': {'dev': {'phases': [{'lanes': [['owner']]}]}}}
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name, 'main').resolve()
+        tree(self.root)
+        write(self.root / 'tools/qa/suites.json', json.dumps(self.SUITES))
+        write(self.root / '.gitignore', '/.local/\n/.claude/\n/owners\n__pycache__/\n')
+        for args in (['add', '-A'], ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'suites'],
+                     ['worktree', 'add', '-q', '--detach', '.claude/worktrees/x']):
+            subprocess.run(['git', '-C', str(self.root), *args], check=True, capture_output=True)
+        self.worktree = self.root / '.claude/worktrees/x'
+        self.lock = self.root / '.local/cache/gate-checkout.lock'
+        self.owners = self.root / 'owners'
+
+    def hold(self, pid, owner):
+        self.lock.mkdir(parents=True)
+        (self.lock / 'pid').write_text(f'{pid}\n')
+        (self.lock / 'owner').write_text(f'{owner}\n')
+
+    def start(self, **extra):
+        env = {k: v for k, v in os.environ.items() if k != 'GATE_CHECKOUT_LOCK_HELD'}
+        env.update(AGENTD_PYTHON=sys.executable, **extra)
+        run = subprocess.Popen([sys.executable, '-I', str(self.worktree / 'tools/qa/gate.py'), '--checkout',
+                                str(self.worktree), '--profile', 'dev'],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+        self.addCleanup(lambda: (run.kill(), run.communicate()))
+        return run
+
+    def test_a_held_lock_queues_the_run_with_one_line_until_it_is_released(self):
+        other = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(600)'])
+        self.addCleanup(lambda: (other.kill(), other.wait()))
+        self.hold(other.pid, 'gate-daemon verify abc')
+        run = self.start()
+        self.assertTrue(select.select([run.stdout], [], [], 60)[0])
+        self.assertEqual(run.stdout.readline(), 'GATE QUEUE: waiting for gate-daemon verify abc\n')
+        time.sleep(7)
+        self.assertIsNone(run.poll())
+        self.assertFalse(self.owners.exists())
+        shutil.rmtree(self.lock)
+        out = run.communicate(timeout=120)[0]
+        self.assertEqual(out.splitlines()[-1], 'GATE PASS', out)
+        self.assertNotIn('GATE QUEUE', out)
+        self.assertRegex(self.owners.read_text(), r'^gate dev \.claude/worktrees/x \S+Z\n$')
+        self.assertFalse(self.lock.exists())
+
+    def test_a_run_of_the_lock_holder_does_not_wait(self):
+        self.hold(os.getpid(), 'gate-daemon verify abc')
+        out = self.start(GATE_CHECKOUT_LOCK_HELD='1').communicate(timeout=120)[0]
+        self.assertEqual(out.splitlines()[-1], 'GATE PASS', out)
+        self.assertNotIn('GATE QUEUE', out)
+        self.assertEqual(self.owners.read_text(), 'gate-daemon verify abc\n')
+        self.assertEqual((self.lock / 'pid').read_text(), f'{os.getpid()}\n')
+
+    def test_a_run_whose_parent_holds_the_lock_does_not_wait_without_the_variable(self):
+        self.hold(os.getpid(), 'gate-daemon verify abc')
+        out = self.start().communicate(timeout=120)[0]
+        self.assertEqual(out.splitlines()[-1], 'GATE PASS', out)
+        self.assertNotIn('GATE QUEUE', out)
+        self.assertEqual(self.owners.read_text(), 'gate-daemon verify abc\n')
+
+    def test_a_lock_left_by_a_dead_pid_is_reclaimed(self):
+        dead = subprocess.Popen([sys.executable, '-c', 'pass'])
+        dead.wait()
+        self.hold(dead.pid, 'gate dev .claude/worktrees/gone')
+        out = self.start().communicate(timeout=120)[0]
+        self.assertEqual(out.splitlines()[-1], 'GATE PASS', out)
+        self.assertNotIn('GATE QUEUE', out)
+        self.assertRegex(self.owners.read_text(), r'^gate dev \.claude/worktrees/x \S+Z\n$')
+        self.assertFalse(self.lock.exists())
 
 
 class Select(unittest.TestCase):

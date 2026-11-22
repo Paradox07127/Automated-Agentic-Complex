@@ -924,7 +924,7 @@ class ArgsTest(unittest.TestCase):
 
         for extra, minutes in (([], 50), (["--break-reminder-minutes", "60"], 60), (["--break-reminder-minutes", "-5"], 0)):
             with self.subTest(extra=extra), tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32") as tmp:
-                argv = ["agentd", "--port", "48810", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent", "--plugin-on", "screen_awareness", *extra]
+                argv = ["agentd", "--port", "0", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent", "--plugin-on", "screen_awareness", *extra]
                 with unittest.mock.patch.dict("infra.plugins.resolved"), unittest.mock.patch.object(sys, "argv", argv), \
                         unittest.mock.patch.object(agentd_main, "Proactive", proactive), \
                         self.assertRaises(Built) as built:
@@ -947,7 +947,7 @@ class ArgsTest(unittest.TestCase):
         self.assertEqual((args.break_reminder_minutes, args.water_reminder_minutes, args.ritual_report_time),
                          (50, 90, "17:30"))
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32") as tmp:
-            argv = ["agentd", "--port", "48810", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent", "--plugin-on", "screen_awareness",
+            argv = ["agentd", "--port", "0", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent", "--plugin-on", "screen_awareness",
                     "--water-reminder-minutes", "80", "--ritual-report-time", "18:05"]
             with unittest.mock.patch.dict("infra.plugins.resolved"), unittest.mock.patch.object(sys, "argv", argv), \
                     unittest.mock.patch.object(agentd_main, "Proactive", proactive), \
