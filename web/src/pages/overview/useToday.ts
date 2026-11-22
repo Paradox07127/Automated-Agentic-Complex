@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { get } from '../../bridge/agentd';
 import type { MemoryDaysResponse, MemorySessionsResponse } from '../../bridge/agentd-routes.generated';
 import type { DemoState } from '../../shell/demo';
+import { usePlugins } from '../../shell/plugins';
 import type { RegionSource } from '../../ui';
 import { clock, dayOf, readDay } from './load';
 import { loadBrief } from './loadBrief';
@@ -40,6 +41,7 @@ export interface TodayReads {
 
 /** `day` is the `day=` URL value; anything but YYYY-MM-DD reads today. */
 export function useToday(ov: Overview, demo: string | null, state: DemoState | null, dayParam: string | null, now: number): TodayReads {
+  const plugins = usePlugins();
   const today = dayOf(clock());
   const day = dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) ? dayParam : today;
   const isToday = day === today;
@@ -85,7 +87,7 @@ export function useToday(ov: Overview, demo: string | null, state: DemoState | n
 
   const days = rowsOf(l3, off);
   const l3Line = days ? dayLineFromL3(days, day) : days;
-  const local: DayLine | null | undefined = !isToday ? null : ov.q.data && ov.brief ? { text: summaryText(ov.data, ov.brief, now), origin: 'local', at: null } : undefined;
+  const local: DayLine | null | undefined = !isToday ? null : ov.q.data && ov.brief ? { text: summaryText(ov.data, ov.brief, now, plugins.coding_sessions), origin: 'local', at: null } : undefined;
   return {
     day,
     isToday,

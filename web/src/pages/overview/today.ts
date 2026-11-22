@@ -44,13 +44,15 @@ export function parseTodayParams(search: string): TodayParams {
 }
 
 /** 今天 6 段对话，7 个编码会话（进行中 3，待批准 2，已完成 1）；下一条提醒 15:20 组会带周报。 */
-export function summaryText(snap: OverviewSnapshot, brief: OverviewBrief, now: number): string {
+export function summaryText(snap: OverviewSnapshot, brief: OverviewBrief, now: number, codingOn: boolean): string {
   const code = codeCounts(snap);
   const parts = ([[code.running, '进行中'], [code.waiting, '待批准'], [code.done, '已完成']] as const).filter((x) => x[0] > 0);
   const next = nextReminder(snap.reminders, now);
-  const conv = brief.convs ? `${brief.convs.length} 段对话，` : '';
-  const work = code.total ? `${code.total} 个编码会话（${parts.map(([v, k]) => `${k} ${v}`).join('，')}）` : '还没有编码会话';
-  return `今天 ${conv}${work}${next ? `；下一条提醒 ${reminderTime(next.due_at, now)} ${next.title}` : ''}。`;
+  const work = [
+    brief.convs ? `${brief.convs.length} 段对话` : '',
+    !codingOn ? '' : code.total ? `${code.total} 个编码会话（${parts.map(([v, k]) => `${k} ${v}`).join('，')}）` : '还没有编码会话',
+  ].filter(Boolean).join('，') || '还没有对话';
+  return `今天 ${work}${next ? `；下一条提醒 ${reminderTime(next.due_at, now)} ${next.title}` : ''}。`;
 }
 
 export type WireSessionSummary = MemorySessionsResponse['sessions'][number];

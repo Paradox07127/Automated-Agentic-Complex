@@ -157,6 +157,8 @@ export function Operator(p: OperatorProps) {
     character: string;
     hidden: string[];
   }>();
+  // The newest requested hidden set while a request is open, so a click builds on it and not on the page; `done` is the newest request that succeeded.
+  const layerReq = useRef<{ seq: number; done: number; hidden?: { character: string; hidden: string[] } }>({ seq: 0, done: 0 });
   const opRef = useRef<HTMLDivElement>(null);
   const midRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -243,25 +245,36 @@ export function Operator(p: OperatorProps) {
   );
 
   const sendLayers = (hidden: string[], done: string) => {
+    const req = layerReq.current;
+    const n = ++req.seq;
+    req.hidden = { character: p.current, hidden };
     getBridge()
       .avatar.setLayers(hidden)
       .then(
         () => {
-          setHiddenSet({ character: p.current, hidden });
+          if (n > req.done) {
+            req.done = n;
+            setHiddenSet({ character: p.current, hidden });
+          }
+          if (n === req.seq) req.hidden = undefined;
           previewLookChanged();
           p.toast(done);
         },
         (e: unknown) => {
+          if (n === req.seq) req.hidden = undefined;
           const code = (e as { code?: string } | null)?.code;
           p.toast(`服装分层没有完成：${code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' });
         },
       );
   };
-  const setLayer = (id: string, on: boolean, name: string) =>
+  const setLayer = (id: string, on: boolean, name: string) => {
+    const open = layerReq.current.hidden;
+    const hidden = open?.character === p.current ? open.hidden : layers.filter((x) => !x.visible).map((x) => x.id);
     sendLayers(
-      layers.filter((x) => (x.id === id ? !on : !x.visible)).map((x) => x.id),
+      layers.map((x) => x.id).filter((x) => (x === id ? !on : hidden.includes(x))),
       on ? `已显示「${name}」` : `已隐藏「${name}」`,
     );
+  };
 
   // What the section draws besides the stage and the rail; the sequencer keeps the leaving one until its out clip and the wait end.
   const view = useSectionSwitch(

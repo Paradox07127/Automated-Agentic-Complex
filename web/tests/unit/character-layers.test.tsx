@@ -68,6 +68,39 @@ describe('角色页 · 服装分层', () => {
     expect(lookChanged).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the first switch when a second click comes before the first request settles', async () => {
+    const pending: Array<{ ok: () => void; fail: () => void }> = [];
+    const set = vi.spyOn(bridge.avatar, 'setLayers').mockImplementation(
+      () => new Promise<void>((ok, fail) => void pending.push({ ok, fail: () => fail({ code: 'failed' }) })),
+    );
+    render(<Op />);
+    fireEvent.click(screen.getByRole('tab', { name: '显示' }));
+    const layer = (name: string, half: '显示' | '隐藏' = '显示') =>
+      within(within(screen.getByRole('group', { name: '服装分层' })).getByRole('radiogroup', { name })).getByRole('radio', { name: half });
+    fireEvent.click(layer('外套', '隐藏'));
+    fireEvent.click(layer('披风', '隐藏'));
+    pending[0]!.ok();
+    await waitFor(() => expect(pending).toHaveLength(2));
+    expect(set).toHaveBeenLastCalledWith(['coat', 'cape']);
+    pending[1]!.ok();
+    await waitFor(() => expect(layer('披风').getAttribute('aria-checked')).toBe('false'));
+    expect(layer('外套').getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('shows what the avatar reported when a switch fails', async () => {
+    vi.spyOn(bridge.avatar, 'setLayers').mockRejectedValueOnce({ code: 'failed' });
+    const toast = vi.fn();
+    render(<Op toast={toast} />);
+    fireEvent.click(screen.getByRole('tab', { name: '显示' }));
+    const layer = (name: string, half: '显示' | '隐藏' = '显示') =>
+      within(within(screen.getByRole('group', { name: '服装分层' })).getByRole('radiogroup', { name })).getByRole('radio', { name: half });
+    fireEvent.click(layer('外套', '隐藏'));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('服装分层没有完成：桌面角色没有回应', { severity: 'danger' }));
+    fireEvent.click(layer('披风', '隐藏'));
+    await waitFor(() => expect(layer('披风').getAttribute('aria-checked')).toBe('false'));
+    expect(layer('外套').getAttribute('aria-checked')).toBe('true');
+  });
+
   it('has no layer options without layers', () => {
     render(<Op roster={[si()]} />);
     expect(screen.queryByRole('tab', { name: '显示' })).toBeNull();

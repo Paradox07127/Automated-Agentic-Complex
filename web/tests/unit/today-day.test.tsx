@@ -14,11 +14,14 @@ import { clock, dayOf } from '../../src/pages/overview/load';
 import { OverviewPage } from '../../src/pages/overview/Page';
 import { timelineFromDay } from '../../src/pages/overview/today';
 import type { DayEpisode } from '../../src/pages/overview/loadBrief';
+import { setPlugins } from '../../src/shell/plugins';
 import { ToastHost } from '../../src/shell/toast';
+import { pluginsOn, pluginsReset } from './plugins';
 
 beforeEach(() => {
   localStorage.clear();
   Element.prototype.scrollIntoView = vi.fn();
+  pluginsOn();
 });
 
 afterEach(() => {
@@ -26,6 +29,7 @@ afterEach(() => {
   delete window.agenticComplex;
   vi.restoreAllMocks();
   localStorage.clear();
+  pluginsReset();
 });
 
 function mount(search = '', Page = OverviewPage) {
@@ -138,6 +142,16 @@ describe('今天: 今日一句', () => {
     mount();
     const l3 = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
     await waitFor(() => expect(l3.textContent).toBe(`今日一句${L3.headline}`), { timeout: 3000 });
+  });
+});
+
+describe('今天: 今日一句 without the coding-sessions plug-in', () => {
+  it('leaves the coding part out instead of saying there are no sessions', async () => {
+    setPlugins({ 'plugins.coding_sessions': false });
+    mount();
+    const line = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
+    await waitFor(() => expect(line.textContent).toMatch(/^今日一句今天 /), { timeout: 3000 });
+    expect(line.textContent).not.toMatch(/编码会话/);
   });
 });
 
