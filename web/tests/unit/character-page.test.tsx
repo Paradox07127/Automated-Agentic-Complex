@@ -143,7 +143,7 @@ describe('角色 page layout', () => {
     const ui = render(
       <HeaderSlotContext.Provider value={slot}>
         <Operator
-          roster={[{ id: 'si', name: '示例乙', en: 'SI', active: true, appearances: [] }]}
+          roster={[{ id: 'si', name: '示例乙', en: 'SI', active: true, voice: true, appearances: [] }]}
           current="si"
           sw={{ state: { phase: 'idle' }, request: () => {}, retry: () => {}, dismiss: () => {} }}
           offline={false}

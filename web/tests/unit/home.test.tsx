@@ -251,7 +251,7 @@ describe('home disc', () => {
   it('puts the outfit she wears and the renderer frame rate on the character card', async () => {
     const b = getBridge();
     vi.spyOn(b.character, 'list').mockResolvedValue([
-      { id: 'si', name: '祀', en: 'SI', active: true, appearances: [{ id: 'daily', name: '日常', desc: '' }, { id: 'uniform', name: '制服', desc: '' }] },
+      { id: 'si', name: '祀', en: 'SI', active: true, voice: true, appearances: [{ id: 'daily', name: '日常', desc: '' }, { id: 'uniform', name: '制服', desc: '' }] },
     ]);
     vi.spyOn(b.avatar, 'state').mockResolvedValue({ ...(await b.avatar.state()), appearanceId: 'uniform' });
     vi.spyOn(b.avatar, 'onStats').mockImplementation((cb) => {

@@ -1,182 +1,172 @@
-/* Guide media panel: our black ground and contour lines, a bottom ramp; the media frame, n/N and the text node under it. Paper in light. Breakpoints are the window's (full-screen layer). */
-@import './PagePart1.css';
+/* The guide window: the main window's dark command bar and tri-colour line, the settings page's wall, the step, the action bar. */
+.root {
+  --onb-ground: #151613;
+  --onb-ghost: rgb(255 255 255 / 0.16);
+  --onb-frame: rgb(23 23 23 / 0.5);
+  --onb-frame-rim: rgb(255 255 255 / 0.12);
+  --onb-contour-o: 0.06;
 
-/* Step 1: the installed characters as head cards, the current one with a yellow bottom bar, then 导入. */
-.welcomeRole {
-  display: flex;
-  flex-wrap: wrap;
-  min-height: 242px;
-  align-content: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.roster {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.rc {
-  --fill: var(--ef-surface-2);
-  --bar: var(--ef-line-strong);
-
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  justify-content: flex-end;
-  width: 60px;
-  height: 86.5px;
+  height: 100dvh;
   overflow: hidden;
-  padding: 0 0 4px;
-  border: 0;
-  background: linear-gradient(var(--bar), var(--bar)) bottom / 100% 4px no-repeat, var(--fill);
-  color: var(--ef-text-1);
-  text-align: left;
+  background: var(--onb-ground);
 }
 
-.rc[aria-current] {
-  --bar: var(--ef-accent);
+:global([data-theme='light']) .root {
+  --onb-ground: #dcdbd6;
+  --onb-ghost: rgb(0 0 0 / 0.14);
+  --onb-frame: rgb(255 255 255 / 0.38);
+  --onb-frame-rim: rgb(0 0 0 / 0.12);
 }
 
-.rc::before {
+.win {
+  position: relative;
+  display: grid;
+  grid-template-rows: 50px 3px minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+}
+
+/* CommandBar recipe, dark in both themes; the left room is the macOS traffic lights' when the shell sets it. */
+.cmd {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: minmax(min-content, 1fr) auto minmax(min-content, 1fr);
+  align-items: center;
+  gap: 12px;
+  height: 50px;
+  padding: 0 20px 0 max(20px, var(--ef-chrome-left, 0px));
+  background: #161616;
+  color: #ededed;
+  white-space: nowrap;
+  -webkit-app-region: drag;
+}
+
+.cmd :is(button, [role='tab']) {
+  -webkit-app-region: no-drag;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font: 600 15px / 1 var(--ef-font-sans);
+}
+
+/* TabsPC band: the hatch fills the bar's 50 px; the selected block hangs 6 px below it. */
+.plate {
+  display: flex;
+  align-self: flex-start;
+  height: 56px;
+  padding: 0 16px;
+  background: repeating-linear-gradient(-45deg, rgb(250 249 249 / 0.15) 0 1px, transparent 1px 5px) top / 100% 50px no-repeat;
+}
+
+/* Q and E clear the yellow block that hangs 13 px past the first and last cell. */
+.plate [role='tablist'] > span[aria-hidden='true'] {
+  margin: 0 18px;
+}
+
+.rt {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  min-width: 0;
+}
+
+.lamp {
+  display: inline-flex;
+}
+
+.tri {
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ef-tri-a) 0 calc(100% / 3), var(--ef-tri-b) calc(100% / 3) calc(200% / 3), var(--ef-tri-c) calc(200% / 3) 100%);
+}
+
+/* The settings page's wall shows through; the guide's large thin contour lines sit at the top right. */
+.stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden auto;
+  scrollbar-color: var(--s-t3) transparent;
+  scrollbar-width: thin;
+}
+
+.stage::before {
   content: '';
   position: absolute;
-  inset: auto 0 4px;
-  z-index: 1;
-  height: 40px;
-  background: linear-gradient(to top, var(--fill) 45%, transparent);
+  z-index: -1;
+  top: -40px;
+  right: -60px;
+  width: 900px;
+  height: 700px;
+  background: var(--onb-contour) no-repeat;
+  opacity: var(--onb-contour-o);
   pointer-events: none;
 }
 
-.rcArt {
-  position: absolute;
-  inset: 0 0 4px;
-  z-index: 0;
-  display: flex;
+:global([data-theme='light']) .stage::before {
+  filter: invert(1);
 }
 
-.rcArt :global([data-stub='CharacterArt']) {
-  width: 100%;
-  height: 100%;
+.view {
+  min-height: 100%;
 }
 
-.rcArt :global([data-stub='CharacterArt'])::before,
-.rcArt :global([data-stub='CharacterArt'])::after {
-  display: none;
-}
-
-.rcArt img {
-  clip-path: none;
-}
-
-.rcName {
-  position: relative;
-  z-index: 2;
-  overflow: hidden;
-  padding: 0 5px 5px;
-  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1.2 var(--ef-font-sans);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.add {
-  align-items: center;
-  justify-content: center;
-  gap: var(--ef-sp-6);
-  color: var(--ef-text-2);
-  cursor: pointer;
-  transition: transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
-}
-
-.add:hover {
-  --fill: var(--ef-surface-3);
-}
-
-.add:active {
-  transform: translateY(1px);
-}
-
-.add:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
-/* Step 2: two cards side by side, the chosen one with the accent bar at its foot. */
-.choices {
+.step {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  min-height: 242px;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 44px;
+  align-items: center;
   align-content: center;
+  max-width: 1260px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 28px 48px 28px 56px;
 }
 
-.choice {
-  --bar: var(--ef-line-strong);
-
-  display: flex;
-  flex-direction: column;
-  gap: var(--ef-sp-8);
-  min-height: 132px;
-  padding: 16px 14px 18px;
-  border: 1px solid var(--ef-line);
-  background: linear-gradient(var(--bar), var(--bar)) bottom / 100% 4px no-repeat, var(--ef-surface-2);
-  color: var(--ef-text-1);
-  text-align: left;
-  cursor: pointer;
+.primary {
+  display: inline-flex;
 }
 
-.choice:hover {
-  background-color: var(--ef-surface-3);
+.hint {
+  min-width: 0;
+  overflow: hidden;
+  color: #b3b3b0;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.choice[aria-checked='true'] {
-  --bar: var(--ef-accent);
-
-  border-color: var(--ef-line-strong);
+.hint[data-tone='bad'] {
+  color: #ff8a7a;
 }
 
-.choice:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
-.choiceName {
-  font: var(--ef-fw-semibold) 15px / 1.3 var(--ef-font-sans);
-}
-
-.choiceLine {
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-meta);
-  line-height: 1.6;
-}
-
-/* Narrow (< 1100): the bars keep 24 px from the window edge. */
-@media (max-width: 1099px) {
-  .top,
-  .foot {
-    padding-right: 24px;
-    padding-left: 24px;
-  }
-
-  .primary > button {
-    min-width: 128px;
+/* The smallest window: the step card folds to one line above the frame. */
+@container setp (max-width: 1040px) {
+  .step {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    align-content: start;
+    padding: 10px 20px 14px 30px;
   }
 }
 
-/* Short windows (< 700): top and bottom bars shrink. */
-@media (max-height: 699px) {
-  .onb {
-    grid-template-rows: 48px minmax(0, 1fr) 60px;
+@media (max-width: 1040px) {
+  .brand > [aria-hidden] {
+    display: none;
   }
 
-  .main {
-    padding-block: 8px;
+  .lamp [data-stub='StatusLamp'] > :last-child {
+    display: none;
+  }
+
+  .plate [role='tab'][data-icon] {
+    min-width: 48px;
+    padding: 0 9px;
   }
 }

@@ -11,9 +11,9 @@ import { useSwitch } from '../../src/pages/character/useSwitch';
 
 const noop = () => {};
 const ROSTER = [
-  { id: 'si', name: '示例乙', en: 'SI', active: true, appearances: [] },
-  { id: 'voice_a', name: '示例甲', en: 'VOICE_A', active: false, appearances: [] },
-  { id: 'cedar', name: '示例丙', en: 'CEDAR', active: false, appearances: [] },
+  { id: 'si', name: '示例乙', en: 'SI', active: true, voice: true, appearances: [] },
+  { id: 'voice_a', name: '示例甲', en: 'VOICE_A', active: false, voice: true, appearances: [] },
+  { id: 'cedar', name: '示例丙', en: 'CEDAR', active: false, voice: true, appearances: [] },
 ];
 
 afterEach(() => {

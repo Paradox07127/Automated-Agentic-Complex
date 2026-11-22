@@ -23,21 +23,31 @@ describe('motion metadata and onboarding', () => {
     expect(caps).toMatchObject({ pushToTalk: true, systemSettings: true, avatar: false, runInTerminal: true });
   });
 
-  it('runs 选角色 → 怎么陪你 → 完成, goes back, and completes only at the end with a choice like the native host', async () => {
+  it('runs 角色 → 对话 → 声音 → 完成 with per-step results, jumps, and completes only at the end like the native host', async () => {
     const onboarding = createFakeBridge({ surface: 'onboarding', still: true }).onboarding;
     await expect(onboarding.back()).rejects.toMatchObject({ code: 'invalid_state' });
     const initial = await onboarding.state();
-    expect(initial.steps.map((s) => s.title)).toEqual(['选角色', '怎么陪你', '完成']);
+    expect(initial.steps.map((s) => s.title)).toEqual(['角色', '对话', '声音', '完成']);
     expect(initial).toMatchObject({ step: 1, done: false, canAdvance: true });
-    await expect(onboarding.complete({ companion: 'pet' })).rejects.toMatchObject({ code: 'invalid_state' });
+    await expect(onboarding.complete()).rejects.toMatchObject({ code: 'invalid_state' });
     expect(await onboarding.advance()).toMatchObject({ step: 2 });
     expect(await onboarding.back()).toMatchObject({ step: 1 });
     await onboarding.advance();
-    expect(await onboarding.advance()).toMatchObject({ step: 3, canAdvance: false });
+    const skipped = await onboarding.advance({ skip: true });
+    expect(skipped.steps.map((s) => s.result)).toEqual(['done', 'skipped', 'todo', 'todo']);
+    expect(await onboarding.goto(1)).toMatchObject({ step: 1 });
+    expect(await onboarding.goto(4)).toMatchObject({ step: 4, canAdvance: false });
     await expect(onboarding.advance()).rejects.toMatchObject({ code: 'invalid_state' });
-    await expect(onboarding.complete({ companion: 'ai' } as never)).rejects.toMatchObject({ code: 'invalid_args' });
-    await expect(onboarding.complete({ companion: 'pet', destination: 'model' } as never)).rejects.toMatchObject({ code: 'invalid_args' });
-    expect(await onboarding.complete({ companion: 'chat', destination: 'plugins' })).toMatchObject({ done: true });
+    await expect(onboarding.goto(5 as never)).rejects.toMatchObject({ code: 'invalid_args' });
+    await expect(onboarding.complete({ destination: 'plugins' } as never)).rejects.toMatchObject({ code: 'invalid_args' });
+    expect(await onboarding.complete({ destination: 'talk' })).toMatchObject({ done: true });
+    await expect(onboarding.skip()).rejects.toMatchObject({ code: 'invalid_state' });
+  });
+
+  it('跳过引导 ends the guide from any step', async () => {
+    const onboarding = createFakeBridge({ surface: 'onboarding', still: true }).onboarding;
+    await onboarding.advance();
+    expect(await onboarding.skip()).toMatchObject({ done: true, step: 2 });
   });
 
   it('denies onboarding operations on main and stack', async () => {

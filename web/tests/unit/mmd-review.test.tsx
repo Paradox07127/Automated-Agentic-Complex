@@ -10,8 +10,8 @@ import { useSetlist } from '../../src/pages/mmd/useSetlist';
 let bridge: AgenticComplexBridge;
 
 const ROSTER: CharacterEntry[] = [
-  { id: 'si', name: '示例乙', en: 'SI', active: true, appearances: [] },
-  { id: 'voice_a', name: '示例甲', en: 'VA', active: false, appearances: [] },
+  { id: 'si', name: '示例乙', en: 'SI', active: true, voice: true, appearances: [] },
+  { id: 'voice_a', name: '示例甲', en: 'VA', active: false, voice: true, appearances: [] },
 ];
 const baked = (id: string, title: string): MmdEntry => ({
   id, title, durationS: 10, hasBgm: false, hasCamera: false, createdAt: '',

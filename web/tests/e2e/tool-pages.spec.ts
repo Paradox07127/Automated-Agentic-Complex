@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-// Diag process rows are read-only, trace turn rows are pressable; the first-run step bar and word mark; nothing scrolls sideways at 900.
+// Diag process rows are read-only, trace turn rows are pressable; the first-run step cells and step card; nothing scrolls sideways at 900.
 
 const css = (l: Locator, prop: string) => l.evaluate((e, p) => getComputedStyle(e).getPropertyValue(p), prop);
 
@@ -26,26 +26,16 @@ test('trace turn rows are pressable: hover draws the stripes, the picked row is 
 });
 
 for (const theme of ['dark', 'light'] as const) {
-  test(`onboarding ${theme}: media panel index, no step bar or arrows, and the wide word mark`, async ({ page }) => {
-    await page.goto(`main.html#/onboarding?demo=step2&theme=${theme}&still=1`);
-    const guide = page.getByRole('dialog', { name: /^首次设置/ });
-    await expect(guide.getByLabel('第 2 步，共 3 步')).toHaveText('02/03');
-    await expect(page.getByRole('list', { name: '首次设置步骤' })).toHaveCount(0);
-    expect(await css(guide.getByLabel('第 2 步，共 3 步'), 'font-size')).toBe('15px');
-    expect(await css(guide.getByRole('heading', { level: 1 }), 'font-size')).toBe('15px');
-    // The 505 px frame sits centred over the index; no paging arrows beside it.
-    const frame = await guide.getByLabel('第 2 步，共 3 步').evaluate((el) => {
-      const r = el.parentElement!.querySelector('.media-frame')!.getBoundingClientRect();
-      const i = el.getBoundingClientRect();
-      return { width: r.width, off: Math.abs(r.left + r.width / 2 - (i.left + i.width / 2)) };
-    });
-    expect(frame.width).toBe(505);
-    expect(frame.off).toBeLessThan(1);
+  test(`onboarding ${theme}: the step cells on a dark bar, the step card beside the media frame, no paging arrows`, async ({ page }) => {
+    await page.goto(`main.html#/onboarding?demo=chat&theme=${theme}&still=1`);
+    const guide = page.locator('[data-page="onboarding"]');
+    await expect(page.getByRole('tab', { name: '02 对话' })).toHaveAttribute('aria-selected', 'true');
+    expect(await css(guide.locator('header'), 'background-color')).toBe('rgb(22, 22, 22)');
+    expect(await css(guide.getByRole('heading', { level: 1 }), 'font-size')).toBe('28px');
+    const card = await guide.getByRole('heading', { level: 1 }).boundingBox();
+    const frame = await guide.locator('[data-stub="GameFrame"]').boundingBox();
+    expect(card!.x + card!.width).toBeLessThan(frame!.x);
     await expect(guide.getByRole('button', { name: /上一页|下一页/, includeHidden: true })).toHaveCount(0);
-    const mark = page.getByText('Agentic Complex', { exact: true });
-    expect(await css(mark, 'font-weight')).toBe('800');
-    expect(await css(mark, 'font-stretch')).toBe('125%');
-    expect(await css(mark, 'font-family')).toContain('Saira');
   });
 }
 

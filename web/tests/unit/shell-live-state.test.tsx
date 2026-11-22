@@ -39,7 +39,7 @@ const avatar = (over: Partial<AvatarState>): AvatarState => ({
 });
 
 describe('character look follows avatar.onState', () => {
-  const characters = [{ id: 'si', name: '示例乙', en: 'SI', active: true, appearances: CHARACTER_LOOKS.si ?? [] }];
+  const characters = [{ id: 'si', name: '示例乙', en: 'SI', active: true, voice: true, appearances: CHARACTER_LOOKS.si ?? [] }];
   const profile = () =>
     render(
       <Operator

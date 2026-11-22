@@ -115,8 +115,8 @@ describe('mock routes in agentd shapes', () => {
 });
 
 const characters = [
-  { id: 'si', name: '示例乙', en: 'SI', active: true, appearances: CHARACTER_LOOKS.si ?? [] },
-  { id: 'voice_a', name: '示例甲', en: 'VOICE_A', active: false, appearances: CHARACTER_LOOKS.voice_a ?? [] },
+  { id: 'si', name: '示例乙', en: 'SI', active: true, voice: true, appearances: CHARACTER_LOOKS.si ?? [] },
+  { id: 'voice_a', name: '示例甲', en: 'VOICE_A', active: false, voice: true, appearances: CHARACTER_LOOKS.voice_a ?? [] },
 ];
 
 function Op(over: Partial<OperatorProps> = {}) {

@@ -1,11 +1,16 @@
-// The first-run guide's flow and its `onboarding.*` value: 01 选角色 → 02 怎么陪你 → 03 完成, which stores the companion
-// choice; and the session hook commands and `<support>/bin` scripts the shell gives the settings.
+// The first-run guide's flow and its `onboarding.*` value: 01 角色 → 02 对话 → 03 声音 → 完成, each step done, skipped or not
+// reached; and the session hook commands and `<support>/bin` scripts the shell gives the settings.
 import type { ShellPlatform } from './config.ts';
 
-const STEPS = [{ id: 1, number: '01', title: '选角色' }, { id: 2, number: '02', title: '怎么陪你' }, { id: 3, number: '03', title: '完成' }];
+const STEPS = [{ id: 1, number: '01', title: '角色' }, { id: 2, number: '02', title: '对话' }, { id: 3, number: '03', title: '声音' },
+  { id: 4, number: '04', title: '完成' }];
 
-/** 只陪伴 runs without light AI, 陪伴加对话 with it. */
-export type Companion = 'pet' | 'chat';
+const LAST = STEPS.length;
+
+export type StepResult = 'done' | 'skipped' | 'todo';
+
+/** The setting ids the guide's rows save through `settings.save`; it refuses the others. */
+export const GUIDE_SETTINGS: ReadonlySet<string> = new Set(['plugins.light_ai', 'mute', 'tts', 'ttsUrl', 'hk_ptt']);
 
 const WINDOWS_HOOK = 'agentic-complex-hook.cmd';
 
@@ -71,21 +76,31 @@ export class OnboardingModel {
   completed = false;
   characterName = '';
   completionError: string | null = null;
+  /** The results of the steps passed with 下一步, by step id. */
+  private results = new Map<number, StepResult>();
 
-  /** Steps 1 and 2 go on; step 3 only completes. */
+  /** Steps 1–3 go on; 完成 only completes. */
   get canAdvance(): boolean {
-    return !this.completed && this.step < 3;
+    return !this.completed && this.step < LAST;
   }
 
-  advance(): void {
-    if (this.canAdvance) this.step += 1;
+  /** The step left counts as done, or as skipped (「稍后再连」「先不导入」). */
+  advance(skip = false): void {
+    if (!this.canAdvance) return;
+    this.results.set(this.step, skip ? 'skipped' : 'done');
+    this.step += 1;
   }
 
   back(): void {
     if (!this.completed && this.step > 1) this.step -= 1;
   }
 
-  /** 「完成」 on step 3 with its choice stored. */
+  /** A step cell: any step, forward too; the steps passed keep their results. */
+  goto(step: number): void {
+    if (!this.completed && Number.isInteger(step) && step >= 1 && step <= LAST) this.step = step;
+  }
+
+  /** 「完成」 or 「跳过引导」 with `onboarding_done` stored. */
   finished(): void {
     this.completionError = null;
     this.completed = true;
@@ -98,6 +113,7 @@ export class OnboardingModel {
 
   /** The `onboarding.*` value. */
   json(done: boolean): Record<string, unknown> {
-    return { steps: STEPS, step: this.step, done, canAdvance: this.canAdvance, characterName: this.characterName, completionError: this.completionError };
+    const steps = STEPS.map((s) => ({ ...s, result: this.results.get(s.id) ?? 'todo' }));
+    return { steps, step: this.step, done, canAdvance: this.canAdvance, characterName: this.characterName, completionError: this.completionError };
   }
 }

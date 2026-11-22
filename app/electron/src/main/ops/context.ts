@@ -127,8 +127,8 @@ export interface OpsContext {
   computerUse?: ComputerUseHost | null;
   /** Opens the first-run guide's window or brings it front; null or absent leaves `open_onboarding` unimplemented. */
   openOnboarding?: (() => void) | null;
-  /** Closes the guide's window and opens the main window at `destination`. */
-  endOnboarding?: ((destination: 'home' | 'model' | 'plugins') => void) | null;
+  /** Closes the guide's window and opens the main window at `destination`'s route, when it has one (onboarding/window.ts). */
+  endOnboarding?: ((destination: 'home' | 'talk' | null) => void) | null;
   /** Opens the main window at a hash route without `#` and brings it front; null or absent without one.
    *  `activate: false` is the agent's entry: shown without taking the focus, and a focused main window keeps its page. */
   openMain?: ((route: string, activate?: boolean) => void) | null;

@@ -10,7 +10,8 @@
         {
           "id": 1,
           "number": "01",
-          "title": "Character"
+          "title": "Character",
+          "result": "todo"
         }
       ],
       "step": 1,
@@ -31,7 +32,35 @@
         {
           "id": 1,
           "number": "01",
-          "title": "Character"
+          "title": "Character",
+          "result": "todo"
+        }
+      ],
+      "step": 1,
+      "done": false,
+      "canAdvance": true,
+      "characterName": "Si",
+      "completionError": null
+    }
+  },
+  {
+    "op": "onboarding.advance",
+    "surface": "onboarding",
+    "args": [
+      {
+        "skip": true
+      }
+    ],
+    "nullable": [
+      "completionError"
+    ],
+    "value": {
+      "steps": [
+        {
+          "id": 1,
+          "number": "01",
+          "title": "Character",
+          "result": "todo"
         }
       ],
       "step": 1,
@@ -57,7 +86,55 @@
         {
           "id": 1,
           "number": "01",
-          "title": "Character"
+          "title": "Character",
+          "result": "todo"
+        }
+      ],
+      "step": 1,
+      "done": false,
+      "canAdvance": true,
+      "characterName": "Si",
+      "completionError": null
+    }
+  },
+  {
+    "op": "onboarding.goto",
+    "surface": "onboarding",
+    "args": [
+      3
+    ],
+    "nullable": [
+      "completionError"
+    ],
+    "value": {
+      "steps": [
+        {
+          "id": 1,
+          "number": "01",
+          "title": "Character",
+          "result": "todo"
+        }
+      ],
+      "step": 1,
+      "done": false,
+      "canAdvance": true,
+      "characterName": "Si",
+      "completionError": null
+    }
+  },
+  {
+    "op": "onboarding.skip",
+    "surface": "onboarding",
+    "nullable": [
+      "completionError"
+    ],
+    "value": {
+      "steps": [
+        {
+          "id": 1,
+          "number": "01",
+          "title": "Character",
+          "result": "todo"
         }
       ],
       "step": 1,
@@ -72,13 +149,16 @@
     "surface": "onboarding",
     "args": [
       {
-        "companion": "chat"
+        "destination": "home"
       }
     ],
     "nullable": [
       "completionError"
     ],
     "before": [
+      {
+        "op": "onboarding.advance"
+      },
       {
         "op": "onboarding.advance"
       },
@@ -91,7 +171,8 @@
         {
           "id": 1,
           "number": "01",
-          "title": "Character"
+          "title": "Character",
+          "result": "todo"
         }
       ],
       "step": 1,

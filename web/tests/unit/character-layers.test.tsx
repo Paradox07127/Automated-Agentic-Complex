@@ -27,7 +27,7 @@ afterEach(() => {
 });
 
 const si = (layers?: CharacterEntry['layers']): CharacterEntry => ({
-  id: 'si', name: '示例乙', en: 'SI', active: true, appearances: CHARACTER_LOOKS.si ?? [], ...(layers ? { layers } : {}),
+  id: 'si', name: '示例乙', en: 'SI', active: true, voice: true, appearances: CHARACTER_LOOKS.si ?? [], ...(layers ? { layers } : {}),
 });
 
 function Op(over: Partial<OperatorProps> = {}) {

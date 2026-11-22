@@ -77,7 +77,8 @@ function withDir(body: (dir: string, fake: Fake) => Promise<void>): () => Promis
     mkdirSync(join(dir, 'library', 'cedar'), { recursive: true });
     writeFileSync(join(dir, 'library', 'current.json'), JSON.stringify({ schema: 'endfield-character-library/v1',
       characters: [{ id: 'si', definition: { file: 'si/character.json' } }, { id: 'cedar', definition: { file: 'cedar/character.json' } }] }));
-    writeFileSync(join(dir, 'library', 'si', 'character.json'), JSON.stringify({ id: 'si', display: { name: { 'zh-Hans': '斯', en: 'Si' } } }));
+    writeFileSync(join(dir, 'library', 'si', 'character.json'), JSON.stringify({ id: 'si', display: { name: { 'zh-Hans': '斯', en: 'Si' } },
+      components: { voice: { character: 'si', language: 'zh' } } }));
     writeFileSync(join(dir, 'library', 'cedar', 'character.json'), JSON.stringify({ id: 'cedar', display: { name: { 'zh-Hans': '陈' } } }));
     writeFileSync(join(dir, 'config.json'), JSON.stringify({ python: '/usr/bin/python3', motion_playlists: { cedar: { items: ['a'], loop: 'one', speed: 2 } } }));
     const fake: Fake = { character: 'si', facts: [], writeStatus: 200, sent: [], tools: [], picked: null, restarts: 0, rosters: 0,
@@ -90,11 +91,11 @@ function withDir(body: (dir: string, fake: Fake) => Promise<void>): () => Promis
   };
 }
 
-test('character.list reads the library and marks agentd\'s character; an empty library lists none', withDir(async (dir, fake) => {
+test('character.list reads the library, marks agentd\'s character and says which has a voice; an empty library lists none', withDir(async (dir, fake) => {
   const call = setUp(dir, fake);
   assert.deepEqual(await call('character.list'), { ok: true, value: [
-    { id: 'si', name: '斯', en: 'Si', active: true, appearances: [] },
-    { id: 'cedar', name: '陈', en: '', active: false, appearances: [] },
+    { id: 'si', name: '斯', en: 'Si', active: true, appearances: [], voice: true },
+    { id: 'cedar', name: '陈', en: '', active: false, appearances: [], voice: false },
   ] });
   fake.character = undefined;
   assert.equal(((await call('character.list')) as { value: { active: boolean }[] }).value[0]!.active, false, 'no switch: none is current');
@@ -126,15 +127,15 @@ test('character.list gives the current character the appearances and the worn ap
     hiddenLayers: ['bag'] };
   const call = setUp(dir, fake);
   assert.deepEqual(await call('character.list'), { ok: true, value: [
-    { id: 'si', name: '斯', en: 'Si', active: true,
+    { id: 'si', name: '斯', en: 'Si', active: true, voice: true,
       appearances: [{ id: 'default', name: '默认', desc: '常服', kind: 'outfit' }, { id: 'summer', name: '夏装', desc: '' }],
       layers: [{ id: 'coat', name: '外套', visible: true }, { id: 'bag', name: '包', visible: false }] },
-    { id: 'cedar', name: '陈', en: '', active: false, appearances: [] },
+    { id: 'cedar', name: '陈', en: '', active: false, appearances: [], voice: false },
   ] });
   // While the renderer still shows another character its lists are not this one's.
   fake.avatar.currentCharacter = 'cedar';
   assert.deepEqual(((await call('character.list')) as { value: Record<string, unknown>[] }).value[0],
-    { id: 'si', name: '斯', en: 'Si', active: true, appearances: [] });
+    { id: 'si', name: '斯', en: 'Si', active: true, appearances: [], voice: true });
 }));
 
 test('a package imported into a library agentd runs without a character restarts agentd and the renderer', withDir(async (dir, fake) => {
@@ -207,7 +208,7 @@ test('import and MMD sync states are idle and their watches subscribe', withDir(
   assert.deepEqual(await call('mmd.list'), { ok: true, value: { ok: false, reason: 'internal', detail: 'boom' } });
 }));
 
-test('onboarding walks its three steps without agentd, then stores 只陪伴 as plugins.light_ai false and restarts agentd', withDir(async (dir, fake) => {
+test('onboarding walks its four steps without agentd; 完成 stores only onboarding_done, so a choice saved on the way stays', withDir(async (dir, fake) => {
   const call = setUp(dir, fake, 'onboarding');
   const state = async (op: string, ...args: unknown[]) => {
     const r = await call(op, ...args);
@@ -215,25 +216,24 @@ test('onboarding walks its three steps without agentd, then stores 只陪伴 as 
     return r.value as Record<string, unknown>;
   };
   assert.deepEqual(await state('onboarding.state'), {
-    steps: [{ id: 1, number: '01', title: '选角色' }, { id: 2, number: '02', title: '怎么陪你' }, { id: 3, number: '03', title: '完成' }],
+    steps: [{ id: 1, number: '01', title: '角色', result: 'todo' }, { id: 2, number: '02', title: '对话', result: 'todo' },
+      { id: 3, number: '03', title: '声音', result: 'todo' }, { id: 4, number: '04', title: '完成', result: 'todo' }],
     step: 1, done: false, canAdvance: true, characterName: 'Si', completionError: null,
   });
   assert.deepEqual(await state('onboarding.back'), { code: 'invalid_state', detail: 'cannot go back' });
-  assert.deepEqual(await state('onboarding.complete', { companion: 'pet' }), { code: 'invalid_state', detail: 'complete at step 3' });
-  assert.equal((await state('onboarding.advance') as Record<string, unknown>).step, 2);
-  assert.equal((await state('onboarding.advance') as Record<string, unknown>).step, 3);
+  assert.deepEqual(await state('onboarding.complete'), { code: 'invalid_state', detail: 'complete at the last step' });
+  for (const step of [2, 3, 4]) assert.equal((await state('onboarding.advance') as Record<string, unknown>).step, step);
   assert.deepEqual(await state('onboarding.advance'), { code: 'invalid_state', detail: 'cannot advance this step' });
-  for (const bad of [undefined, 'pet', { companion: 'ai' }, { companion: 'pet', destination: 'privacy' }, { companion: 'pet', extra: 1 }, ['pet']]) {
-    assert.deepEqual(await state('onboarding.complete', bad), { code: 'invalid_args', detail: 'onboarding choice' }, JSON.stringify(bad));
+  for (const bad of ['pet', { companion: 'pet' }, { destination: 'privacy' }, { destination: 'home', extra: 1 }, ['home']]) {
+    assert.deepEqual(await state('onboarding.complete', bad), { code: 'invalid_args', detail: 'onboarding destination' }, JSON.stringify(bad));
   }
-  assert.equal(fake.restarts, 0);
-  const end = await state('onboarding.complete', { companion: 'pet' }) as Record<string, unknown>;
+  const end = await state('onboarding.complete') as Record<string, unknown>;
   assert.equal(end.done, true);
   assert.equal(end.completionError, null);
   const config = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8'));
   assert.equal(config.onboarding_done, true);
-  assert.deepEqual(config.plugins, { light_ai: false });
-  assert.equal(fake.restarts, 1, 'agentd starts again without light AI');
+  assert.equal(config.plugins, undefined, 'the end writes no choice');
+  assert.equal(fake.restarts, 0, 'nothing changed that agentd takes at start');
   assert.deepEqual(fake.sent, [], 'the guide asks agentd for nothing');
-  assert.deepEqual(await state('onboarding.complete', { companion: 'pet' }), { code: 'invalid_state', detail: 'complete at step 3' });
+  assert.deepEqual(await state('onboarding.complete'), { code: 'invalid_state', detail: 'complete at the last step' });
 }));

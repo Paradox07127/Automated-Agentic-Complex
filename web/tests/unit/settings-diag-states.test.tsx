@@ -146,20 +146,20 @@ describe('diag empty flow', () => {
 });
 
 describe('onboarding', () => {
-  it('has no English step eyebrow', async () => {
+  it('keeps its English micro labels out of the screen reader', async () => {
     window.agenticComplex = createFakeBridge({ surface: 'onboarding', still: true });
     mount(OnboardingPage, '');
-    await screen.findByRole('list', { name: '角色名册' });
-    expect(screen.getByRole('dialog').textContent).not.toMatch(/STEP|PERMISSIONS/);
+    await screen.findByRole('radiogroup', { name: '角色名册' });
+    for (const el of document.querySelectorAll('[data-stub="MicroLabel"]')) expect(el.closest('[aria-hidden="true"]')).not.toBeNull();
   });
 
-  it('keeps the page index and offers 重试 when the guide cannot be read', async () => {
+  it('keeps the step card and offers 重试 when the guide cannot be read', async () => {
     const fake = createFakeBridge({ surface: 'onboarding', still: true });
     window.agenticComplex = { ...fake, onboarding: { ...fake.onboarding, state: () => Promise.reject({ code: 'offline', detail: '' }) } };
     mount(OnboardingPage, '');
-    const guide = await screen.findByRole('dialog');
-    await within(guide).findByText('没有连上桌面端，请重试');
-    expect(within(guide).getByText('01/03')).toBeTruthy();
-    expect(within(guide).getByRole('button', { name: '重试' })).toBeTruthy();
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText('没有连上桌面端，请重试')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('首次设置');
+    expect(within(alert).getByRole('button', { name: '重试' })).toBeTruthy();
   });
 });

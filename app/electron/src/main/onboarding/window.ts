@@ -1,32 +1,34 @@
 // The first-run guide in its own window:
 // `main.html#/onboarding` on the `onboarding` surface, opened at launch while config.json has no `"onboarding_done": true`
-// and from `app.action('open_onboarding')`. 「完成」 closes it and opens the main window at the destination; the close button
-// only closes it, so it opens again next launch.
+// and from `app.action('open_onboarding')`. 「完成」 and 「跳过引导」 close it, 「打开主窗口」 then opens the main window at
+// 主页; the close button only closes it, so it opens again next launch.
 import type { BrowserWindow, BrowserWindowConstructorOptions, WebContents } from 'electron';
 import type { Handler } from '../../common/bridge.ts';
+import type { ShellPlatform } from '../../common/config.ts';
 import { PageSession } from '../../common/page.ts';
 import { ORIGIN } from '../../common/ui.ts';
 import { readObject } from '../ops/settings.ts';
+import { shellPlatform } from '../platform/index.ts';
 import { guardWebContents, type WebGuardPorts } from '../web-guard.ts';
 
-export type OnboardingDestination = 'home' | 'model' | 'plugins';
+export type OnboardingDestination = 'home' | 'talk';
 
-/** The routes the guide's end opens. */
-export const DESTINATIONS: Record<OnboardingDestination, string> = {
-  home: '/home', model: '/settings?group=model', plugins: '/settings?group=perm',
-};
+/** The main window's route each end opens; `talk` opens none: the desktop's 快速输入 opens beside her instead. */
+export const DESTINATIONS: Record<OnboardingDestination, string | null> = { home: '/home', talk: null };
 
 /** The room a title bar and the window's borders take on either system. */
 const FRAME = 48;
 
-/** Titled, resizable, closable and miniaturizable; 1080×760 or less, so the window with its frame fits `area` (a work area), and
- *  the page scrolls what does not fit. */
-export function windowOptions(area: { width: number; height: number }): BrowserWindowConstructorOptions {
+/** Resizable, closable and miniaturizable; 1080×760 or less, so the window with its frame fits `area` (a work area), and
+ *  the page scrolls what does not fit. On macOS the page draws up to the top edge and its top bar holds the traffic lights,
+ *  as in the main window; Windows keeps the system frame. */
+export function windowOptions(area: { width: number; height: number }, platform: ShellPlatform = shellPlatform()): BrowserWindowConstructorOptions {
   const minWidth = 900, minHeight = 560;
   return {
     width: Math.max(minWidth, Math.min(1080, area.width - FRAME)), height: Math.max(minHeight, Math.min(760, area.height - FRAME)),
     useContentSize: true, title: '首次启动引导', resizable: true, minWidth, minHeight, maximizable: false, fullscreenable: false,
     minimizable: true, closable: true, show: false,
+    ...(platform === 'mac' && { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 17 } }),
   };
 }
 
@@ -58,8 +60,8 @@ export interface OnboardingWindow {
   firstRun(): boolean;
   /** At launch on a first run, or from 设置 › 关于; an open guide, minimized too, only comes to the front. */
   begin(): void;
-  /** Closes the guide and opens the main window at `destination`. */
-  end(destination: OnboardingDestination): void;
+  /** Closes the guide and opens the main window at `destination`'s route, when it has one. */
+  end(destination: OnboardingDestination | null): void;
 }
 
 export function onboardingWindow(o: OnboardingWindowOptions): OnboardingWindow {
@@ -76,8 +78,11 @@ export function onboardingWindow(o: OnboardingWindowOptions): OnboardingWindow {
       if (!o.served()) return o.log('onboarding: no built web UI');
       const ops = o.ops();
       if (!ops) return o.log('onboarding: no guide (config failed)');
-      const w = o.makeWindow(windowOptions(o.workArea()));
+      const platform = shellPlatform();
+      const w = o.makeWindow(windowOptions(o.workArea(), platform));
       const contents = w.webContents, id = contents.id;
+      // The page's top bar leaves this much room for the traffic lights.
+      if (platform === 'mac') contents.on('dom-ready', () => void contents.insertCSS(':root { --ef-chrome-left: 84px; }'));
       const page = new PageSession((sub, stream, kind, payload) => {
         if (!contents.isDestroyed()) contents.send('bridge:push', sub, stream, kind, payload);
       });
@@ -101,7 +106,8 @@ export function onboardingWindow(o: OnboardingWindowOptions): OnboardingWindow {
     },
     end: (destination) => {
       win?.close();
-      o.openMain(DESTINATIONS[destination]);
+      const route = destination && DESTINATIONS[destination];
+      if (route) o.openMain(route);
     },
   };
 }

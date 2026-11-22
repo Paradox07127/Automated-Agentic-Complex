@@ -15,8 +15,9 @@ import { silentSource } from '../src/common/feed.ts';
 import { PageSession } from '../src/common/page.ts';
 import { type HelperAnswer, PushToTalk, type VoiceTrial } from '../src/common/push-to-talk.ts';
 import { ORIGIN } from '../src/common/ui.ts';
-import { onboardingWindow, type OnboardingDestination } from '../src/main/onboarding/window.ts';
+import { onboardingWindow, type OnboardingDestination, windowOptions } from '../src/main/onboarding/window.ts';
 import { bundleBuild } from '../src/main/ops/app.ts';
+import { shellPlatform } from '../src/main/platform/index.ts';
 import type { WebGuardPorts } from '../src/main/web-guard.ts';
 import { type OpsContext, registry } from '../src/main/ops/index.ts';
 
@@ -93,14 +94,15 @@ test('a first run is config.json without onboarding_done true (OnboardingMarker.
   }
 });
 
-test('begin opens main.html#/onboarding in a 1080×760 titled, resizable, closable, miniaturizable window on the onboarding surface', () => {
+test('begin opens main.html#/onboarding in a 1080×760 resizable, closable, miniaturizable window on the onboarding surface', () => {
   const s = guideSetup();
   try {
     s.guide.begin();
     assert.equal(s.made.length, 1);
     const { options, fake } = s.made[0]!;
-    assert.deepEqual(options, { width: 1080, height: 760, useContentSize: true, title: '首次启动引导', resizable: true, minWidth: 900,
-      minHeight: 560, maximizable: false, fullscreenable: false, minimizable: true, closable: true, show: false });
+    assert.deepEqual(options, windowOptions({ width: 1920, height: 1055 }, shellPlatform()));
+    assert.equal(options.width, 1080);
+    assert.equal(options.height, 760);
     assert.deepEqual(fake.calls, [`load ${ORIGIN}/main.html#/onboarding`, 'center']);
     assert.ok(s.registered.has(1), 'the page has the bridge');
     assert.deepEqual(s.logs, ['ONBOARDING shown']);
@@ -112,6 +114,14 @@ test('begin opens main.html#/onboarding in a 1080×760 titled, resizable, closab
   } finally {
     rmSync(s.dir, { recursive: true, force: true });
   }
+});
+
+test('on macOS the page draws up to the top edge, its top bar holding the traffic lights; Windows keeps the system frame', () => {
+  const base = { width: 1080, height: 760, useContentSize: true, title: '首次启动引导', resizable: true, minWidth: 900, minHeight: 560,
+    maximizable: false, fullscreenable: false, minimizable: true, closable: true, show: false };
+  const area = { width: 1920, height: 1055 };
+  assert.deepEqual(windowOptions(area, 'mac'), { ...base, titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 14, y: 17 } });
+  assert.deepEqual(windowOptions(area, 'windows'), base);
 });
 
 test('on a 1280×800 screen the whole window, frame and title bar included, fits the work area; the page scrolls the rest', () => {
@@ -185,13 +195,13 @@ test('the guide\'s page has the main window\'s guards: links to the system brows
   }
 });
 
-test('end closes the guide and opens the main window at the destination (MainWindowRouter.endOnboarding)', () => {
-  for (const [destination, route] of [['home', '/home'], ['model', '/settings?group=model'], ['plugins', '/settings?group=perm']] as const) {
+test('end closes the guide; 打开主窗口 opens the main window at 主页, 和她说句话 and a plain end open none', () => {
+  for (const [destination, opened] of [['home', ['/home']], ['talk', []], [null, []]] as const) {
     const s = guideSetup();
     s.guide.begin();
     s.guide.end(destination);
     assert.equal(s.made[0]!.fake.calls.at(-1), 'close');
-    assert.deepEqual(s.opened, [route]);
+    assert.deepEqual(s.opened, opened, String(destination));
     rmSync(s.dir, { recursive: true, force: true });
   }
 });
@@ -213,78 +223,96 @@ async function call(ops: ReadonlyMap<string, Handler<PageSession>>, op: string, 
   return handle(surface, sender, { op, args }, ops, page);
 }
 
-/** The guide over `config`; `complete` walks to its closing screen first, `ends` and `restarts` count what its end did. */
+/** The guide over `config`; `complete` walks to its closing screen first; `ends`, `restarts` and `quick` count what its end did. */
 function closing(dir: string, config: Record<string, unknown>) {
   writeFileSync(join(dir, 'config.json'), JSON.stringify(config));
-  const ends: OnboardingDestination[] = [];
-  let restarts = 0;
+  const ends: (OnboardingDestination | null)[] = [];
+  let restarts = 0, quick = 0;
   const ops = registry(context(dir, {
     endOnboarding: (destination) => {
       assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).onboarding_done, true, 'marked before it ends');
       ends.push(destination);
     },
+    openQuickInput: () => { quick += 1; },
     supervisor: { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => { restarts += 1; }, avatar: () => ({ kind: 'stopped' }) },
   }));
-  const complete = async (choice: unknown) => {
-    for (const op of ['onboarding.advance', 'onboarding.advance']) assert.ok((await call(ops, op)).ok, op);
-    return call(ops, 'onboarding.complete', [choice]);
+  const complete = async (...args: unknown[]) => {
+    for (let i = 0; i < 3; i += 1) assert.ok((await call(ops, 'onboarding.advance')).ok);
+    return call(ops, 'onboarding.complete', args);
   };
-  return { ops, ends, complete, restarts: () => restarts, config: () => JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) };
+  return { ops, ends, complete, restarts: () => restarts, quick: () => quick, config: () => JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) };
 }
 
-test('只陪伴 writes plugins.light_ai false, restarts agentd on it and ends the guide at home, not at the AI account', async () => {
-  const dir = tempDir();
-  try {
-    const g = closing(dir, { mute: false });
-    const reply = await g.complete({ companion: 'pet' });
-    assert.ok(reply.ok);
-    assert.equal((reply.value as { done: boolean }).done, true);
-    assert.deepEqual(g.config(), { mute: false, onboarding_done: true, plugins: { light_ai: false } });
-    assert.equal(g.restarts(), 1);
-    assert.deepEqual(g.ends, ['home']);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
+const stateOf = (reply: Awaited<ReturnType<typeof call>>) => {
+  assert.ok(reply.ok);
+  return reply.value as { step: number; done: boolean; canAdvance: boolean; steps: { id: number; title: string; result: string }[] };
+};
 
-test('陪伴加对话 writes plugins.light_ai true and opens the main window at 设置 › AI 账号; agentd restarts only on a change', async () => {
-  const dir = tempDir();
-  try {
-    const g = closing(dir, { mute: false, plugins: { screen_awareness: false } });
-    assert.ok((await g.complete({ companion: 'chat' })).ok);
-    assert.deepEqual(g.config(), { mute: false, onboarding_done: true, plugins: { light_ai: true, screen_awareness: false } });
-    assert.equal(g.restarts(), 0, 'light AI was on already');
-    assert.deepEqual(g.ends, ['model']);
-    const again = closing(dir, { plugins: { light_ai: false } });
-    assert.ok((await again.complete({ companion: 'chat' })).ok);
-    assert.equal(again.restarts(), 1);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('打开插件设置 stores the choice and ends the guide at 设置 › 插件', async () => {
+test('the guide runs 角色 → 对话 → 声音 → 完成; 下一步 records a step done, 稍后再连 skipped, a step cell jumps without one', async () => {
   const dir = tempDir();
   try {
     const g = closing(dir, {});
-    assert.ok((await g.complete({ companion: 'chat', destination: 'plugins' })).ok);
-    assert.deepEqual(g.config().plugins, { light_ai: true });
-    assert.deepEqual(g.ends, ['plugins']);
+    const first = stateOf(await call(g.ops, 'onboarding.state'));
+    assert.deepEqual(first.steps.map((s) => [s.title, s.result]), [['角色', 'todo'], ['对话', 'todo'], ['声音', 'todo'], ['完成', 'todo']]);
+    assert.deepEqual([first.step, first.canAdvance, first.done], [1, true, false]);
+    assert.equal(stateOf(await call(g.ops, 'onboarding.advance')).step, 2);
+    const skipped = stateOf(await call(g.ops, 'onboarding.advance', [{ skip: true }]));
+    assert.deepEqual([skipped.step, skipped.steps.map((s) => s.result)], [3, ['done', 'skipped', 'todo', 'todo']]);
+    assert.equal(stateOf(await call(g.ops, 'onboarding.goto', [1])).step, 1);
+    const last = stateOf(await call(g.ops, 'onboarding.goto', [4]));
+    assert.deepEqual([last.step, last.canAdvance, last.steps.map((s) => s.result)], [4, false, ['done', 'skipped', 'todo', 'todo']]);
+    assert.deepEqual(await call(g.ops, 'onboarding.advance'), { ok: false, error: { code: 'invalid_state', detail: 'cannot advance this step' } });
+    for (const bad of [0, 5, 2.5, '2', null]) {
+      assert.deepEqual(await call(g.ops, 'onboarding.goto', [bad]), { ok: false, error: { code: 'invalid_args', detail: 'onboarding step' } });
+    }
+    for (const bad of [{ skip: false }, { skip: true, x: 1 }, 'skip']) {
+      assert.deepEqual(await call(g.ops, 'onboarding.advance', [bad]), { ok: false, error: { code: 'invalid_args', detail: 'onboarding advance' } });
+    }
+    assert.deepEqual(g.config(), {}, 'moving through the steps writes nothing');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('onboarding.complete refuses a choice other than { companion: pet | chat, destination?: plugins } and writes nothing', async () => {
+test('完成 stores only onboarding_done and closes the guide; 和她说句话 opens 快速输入, 打开主窗口 the main window at 主页', async () => {
+  const dir = tempDir();
+  try {
+    for (const [args, end, quick] of [[[], null, 0], [[{}], null, 0], [[{ destination: 'talk' }], 'talk', 1], [[{ destination: 'home' }], 'home', 0]] as const) {
+      const g = closing(dir, { mute: false, plugins: { light_ai: true } });
+      const reply = stateOf(await g.complete(...args));
+      assert.equal(reply.done, true);
+      assert.deepEqual(g.config(), { mute: false, onboarding_done: true, plugins: { light_ai: true } });
+      assert.deepEqual([g.ends, g.quick(), g.restarts()], [[end], quick, 0], JSON.stringify(args));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('跳过引导 stores only onboarding_done from any step and closes the guide without opening anything', async () => {
+  const dir = tempDir();
+  try {
+    const g = closing(dir, { mute: true });
+    assert.ok((await call(g.ops, 'onboarding.advance')).ok);
+    assert.equal(stateOf(await call(g.ops, 'onboarding.skip')).done, true);
+    assert.deepEqual(g.config(), { mute: true, onboarding_done: true });
+    assert.deepEqual([g.ends, g.quick()], [[null], 0]);
+    assert.deepEqual(await call(g.ops, 'onboarding.skip'), { ok: false, error: { code: 'invalid_state', detail: 'the guide is done' } });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('onboarding.complete refuses an argument other than nothing or { destination?: home | talk }, and any step but the last', async () => {
   const dir = tempDir();
   try {
     const g = closing(dir, { mute: false });
-    assert.deepEqual(await g.complete('chat'), { ok: false, error: { code: 'invalid_args', detail: 'onboarding choice' } });
-    for (const bad of [null, { companion: 'both' }, { companion: 'pet', destination: 'model' }, { companion: 'pet', light_ai: true }]) {
-      assert.deepEqual(await call(g.ops, 'onboarding.complete', [bad]), { ok: false, error: { code: 'invalid_args', detail: 'onboarding choice' } });
+    assert.deepEqual(await call(g.ops, 'onboarding.complete'), { ok: false, error: { code: 'invalid_state', detail: 'complete at the last step' } });
+    for (const bad of ['home', { destination: 'model' }, { destination: 'plugins' }, { companion: 'chat' }]) {
+      assert.deepEqual(await call(g.ops, 'onboarding.complete', [bad]), { ok: false, error: { code: 'invalid_args', detail: 'onboarding destination' } });
     }
     assert.deepEqual(g.config(), { mute: false });
-    assert.deepEqual([g.ends, g.restarts()], [[], 0]);
+    assert.deepEqual(g.ends, []);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -295,13 +323,36 @@ test('完成 that cannot write config.json keeps the guide open with the error',
   try {
     const g = closing(dir, { mute: false });
     chmodSync(dir, 0o500);
-    const reply = await g.complete({ companion: 'pet' });
+    const reply = await g.complete();
     chmodSync(dir, 0o700);
     assert.ok(reply.ok);
     assert.equal((reply.value as { completionError: string | null }).completionError, '配置没有存上，请检查配置文件权限后再点完成重试');
     assert.deepEqual([g.ends, g.restarts()], [[], 0]);
   } finally {
     chmodSync(dir, 0o700);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the guide saves only its own rows, at once, and restarts agentd for a row the backend takes at start', async () => {
+  const dir = tempDir();
+  try {
+    const g = closing(dir, { plugins: { light_ai: false } });
+    assert.deepEqual(await call(g.ops, 'settings.save', [{ 'plugins.light_ai': true }]), { ok: true, value: { restart: 'backend', notApplied: [] } });
+    assert.deepEqual(g.config(), { plugins: { light_ai: true } });
+    assert.equal(g.restarts(), 1);
+    assert.deepEqual(await call(g.ops, 'settings.save', [{ hk_ptt: '⌃⌥V' }]), { ok: true, value: { restart: 'none', notApplied: [] } });
+    assert.equal(g.restarts(), 1, 'a hot key needs no restart');
+    for (const id of ['plugins.computer_use', 'login', 'kernel']) {
+      assert.deepEqual(await call(g.ops, 'settings.save', [{ mute: true, [id]: true }]),
+        { ok: false, error: { code: 'op_not_allowed', detail: `settings.save ${id}` } });
+    }
+    assert.deepEqual(g.config(), { plugins: { light_ai: true }, voice_hotkey: 'control+option+v' });
+    const main = registry(context(dir, { surface: 'main',
+      supervisor: { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => assert.fail('main restarts from its own bar'), avatar: () => ({ kind: 'stopped' }) } }));
+    assert.deepEqual(await call(main, 'settings.save', [{ 'plugins.computer_use': true }], undefined, 'main'),
+      { ok: true, value: { restart: 'backend', notApplied: [] } });
+  } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });

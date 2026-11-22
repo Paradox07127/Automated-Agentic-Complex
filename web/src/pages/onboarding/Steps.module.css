@@ -1,0 +1,320 @@
+/* The media frame takes the step's rows; its height follows them. */
+.frame {
+  --cw: 300px;
+
+  min-width: 0;
+}
+
+.media {
+  display: grid;
+  min-width: 0;
+}
+
+.media > [role='alert'] {
+  margin-bottom: 8px;
+}
+
+/* Roster: head cells 104×136, the current one under a yellow rim and corner. */
+.roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+
+.rc {
+  all: unset;
+  position: relative;
+  display: grid;
+  gap: 6px;
+  width: 104px;
+  cursor: pointer;
+}
+
+.rc:focus-visible .art {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.art {
+  position: relative;
+  display: block;
+  width: 104px;
+  height: 136px;
+  overflow: hidden;
+  background: var(--s-plate);
+  box-shadow: inset 0 0 0 1px var(--s-rim);
+}
+
+.art > [data-stub='CharacterArt'] {
+  position: absolute;
+  inset: 0;
+}
+
+.drawn {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.en {
+  position: absolute;
+  bottom: 5px;
+  left: 6px;
+  color: #fff;
+}
+
+.rc[aria-checked='true'] .art {
+  box-shadow: inset 0 0 0 2px var(--ef-accent);
+}
+
+.rc[aria-checked='true'] .art::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 22px;
+  height: 22px;
+  background: var(--ef-accent);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.chk {
+  position: absolute;
+  z-index: 1;
+  top: 1px;
+  right: 2px;
+  color: var(--ef-on-accent);
+  font: 700 11px / 1 var(--ef-font-num);
+}
+
+.nm {
+  color: var(--s-t2);
+  font: 600 13px / 18px var(--ef-font-sans);
+  text-align: center;
+}
+
+.rc[aria-checked='true'] .nm {
+  color: var(--s-t1);
+}
+
+.rc[data-add] .art {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  background: repeating-linear-gradient(-45deg, var(--s-tex) 0 1px, transparent 1px 6px);
+  box-shadow: inset 0 0 0 1px var(--s-t3);
+  color: var(--s-t2);
+}
+
+.plus {
+  font: 300 30px / 1 var(--ef-font-num);
+}
+
+.addTx {
+  font-size: 12px;
+}
+
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 18px 0 8px;
+}
+
+.why {
+  color: var(--s-t2);
+  font-size: 14px;
+}
+
+/* 完成: a 400 wide desk stage, then the title, the result board and the ways to call her. */
+.done {
+  display: grid;
+  grid-template-columns: 400px minmax(0, 1fr);
+  gap: 48px;
+  align-items: center;
+  align-content: center;
+  max-width: 1180px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 28px 48px 28px 56px;
+}
+
+.desk {
+  position: relative;
+  height: 400px;
+  overflow: hidden;
+  background: var(--onb-frame);
+  box-shadow: inset 0 0 0 1px var(--onb-frame-rim);
+}
+
+.wm {
+  position: absolute;
+  top: 6px;
+  left: 18px;
+  color: var(--onb-ghost);
+  font: 800 92px / 1 var(--ef-font-sans);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.fig {
+  position: absolute;
+  bottom: 44px;
+  left: 50%;
+  width: 220px;
+  height: 300px;
+  color: var(--s-t1);
+  translate: -50% 0;
+}
+
+.fig > [data-stub='CharacterArt'] {
+  position: absolute;
+  inset: 0;
+}
+
+.line {
+  position: absolute;
+  right: 24px;
+  bottom: 44px;
+  left: 24px;
+  height: 1px;
+  background: var(--s-rule);
+}
+
+.here {
+  position: absolute;
+  bottom: 14px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.side {
+  display: grid;
+  gap: 12px;
+  align-content: center;
+  min-width: 0;
+}
+
+.mi {
+  color: var(--s-t2);
+}
+
+.lead {
+  margin: 0;
+  color: var(--s-t2);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  gap: 6px 14px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.kvRow {
+  display: contents;
+}
+
+.k {
+  color: var(--s-t2);
+}
+
+.calls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.call {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  color: var(--s-t2);
+  font-size: 12px;
+}
+
+.call b {
+  color: var(--s-t1);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.how {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  color: var(--s-t1);
+  font-size: 13px;
+}
+
+.mouse {
+  width: 20px;
+  height: 24px;
+}
+
+.btnFill {
+  fill: var(--ef-accent);
+}
+
+/* The smallest window: the 230 control column, smaller heads and a 200×150 stage. */
+@container setp (max-width: 1040px) {
+  .frame {
+    --cw: 230px;
+  }
+
+  .rc {
+    width: 84px;
+  }
+
+  .art {
+    width: 84px;
+    height: 104px;
+  }
+
+  .done {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+    align-content: start;
+    padding: 10px 20px 14px 30px;
+  }
+
+  .desk {
+    height: 150px;
+  }
+
+  .wm {
+    font-size: 56px;
+  }
+
+  .fig {
+    bottom: 20px;
+    width: 110px;
+    height: 140px;
+  }
+
+  .line {
+    bottom: 20px;
+  }
+
+  .here,
+  .lead {
+    display: none;
+  }
+
+  .side {
+    gap: 8px;
+  }
+
+  .calls {
+    gap: 6px;
+  }
+}

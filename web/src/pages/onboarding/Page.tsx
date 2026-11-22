@@ -1,195 +1,196 @@
 import { useRef, useState, type CSSProperties } from 'react';
-import { createPortal } from 'react-dom';
-import { getBridge, type CharacterEntry, type OnboardingCompanion } from '../../bridge';
-import { navigate, type NavTarget } from '../../shell/nav';
+import type { OnboardingDestination, OnboardingStep } from '../../bridge';
+import { navigate } from '../../shell/nav';
 import { toast } from '../../shell/toast';
-import { Btn, CharacterArt, ErrBar, Frosted, Icon } from '../../ui';
-import { useOverlayFocus } from '../../ui/Dialog';
-import { hostReason } from '../character/labels';
-import { useAttended } from '../home/watchMotion';
+import { ErrBar, Tabs } from '../../ui';
+import { ActionBar, MicroLabel, StatusLamp, YellowKey } from '../../ui/game';
+import { SettingsCtx } from '../settings/ctx';
+import { Cap } from '../settings/kit';
+import { SettingsOverlays } from '../settings/SettingsOverlays';
+import page from '../settings/Page.module.css';
 import { Loading } from './Bits';
 import { contourUrl } from './contour';
-import { COMPANIONS, NO_CHARACTER_STEPS, STEPS, footHint, pad2, type ViewStep } from './copy';
+import { STEPS, STEP_IDS, pad2 } from './copy';
+import { GuideCard } from './GuideCard';
 import { MediaIn, Primary, useGuideMotion } from './guideMotion';
-import { Ready } from './Ready';
+import { Frame, StepChar, StepChat, StepDone, StepVoice } from './Steps';
+import { stepMarks } from './marks';
+import { GUIDE_PERMS, useGuideSettings, type GuideSettings } from './useGuideSettings';
 import { useOnboarding, type Onboarding } from './useOnboarding';
 import styles from './Page.module.css';
 
-/** 首次引导：full-screen title screen over the shell, opened by the native guide window as main.html#/onboarding. */
+/** 首次设置: the native guide window opens main.html#/onboarding; every row saves the same value the settings page does. */
 export function OnboardingPage() {
   const o = useOnboarding();
-  // The content area sits in the shell's stacking context, under the sidebar; the guide covers the whole window.
-  return createPortal(<Guide o={o} />, document.body);
+  const g = useGuideSettings();
+  return (
+    <SettingsCtx.Provider value={g.ctx}>
+      <Guide o={o} g={g} />
+      <SettingsOverlays />
+    </SettingsCtx.Provider>
+  );
 }
 
 let contour: string | undefined;
 
-/** Where the page goes once the guide is done (the browser preview); the native window closes and opens the main window itself. */
-const LANDING: Record<OnboardingCompanion | 'plugins', NavTarget> = {
-  pet: { page: 'character' },
-  chat: { page: 'settings', group: 'model' },
-  plugins: { page: 'settings', group: 'perm' },
-};
-
-/** Step 1: the installed characters (shown only; the guide cannot switch) and 导入 as the last cell. */
-function ImportRoster({ characters, current, onImported }: { characters: CharacterEntry[]; current: string | null; onImported: () => void }) {
-  const importPackage = () =>
-    void getBridge()
-      .character.importPackage()
-      .then(
-        (r) => {
-          if (r.ok) {
-            toast('已导入角色');
-            onImported();
-          } else if (r.reason === 'cancelled') toast('已取消导入');
-          else toast(`导入没有完成：${hostReason(r.reason)}`, { severity: 'danger', persistent: true });
-        },
-        (e: unknown) =>
-          toast(`导入没有完成：${(e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' }),
-      );
-  return (
-    <section className={styles.welcomeRole} aria-label="角色">
-      <ul className={styles.roster} aria-label="角色名册">
-        {characters.map((c) => (
-          <li key={c.id} className={styles.rc} aria-current={c.id === current ? 'true' : undefined}>
-            <span className={styles.rcArt} aria-hidden="true">
-              <CharacterArt src={c.head} kind="head" w={60} h={83} fallback={null} />
-            </span>
-            <span className={styles.rcName}>{c.name}</span>
-          </li>
-        ))}
-      </ul>
-      <button type="button" className={`${styles.rc} ${styles.add}`} onClick={importPackage}>
-        <Icon name="plus" size={14} />
-        <span className={styles.rcName}>导入</span>
-      </button>
-    </section>
-  );
-}
-
-/** Step 2: 只陪伴 or 陪伴加对话, a name and one line each. */
-function CompanionChoice({ value, onChange }: { value: OnboardingCompanion | null; onChange: (c: OnboardingCompanion) => void }) {
-  return (
-    <div className={styles.choices} role="radiogroup" aria-label={STEPS[2].title}>
-      {COMPANIONS.map((c) => (
-        <button key={c.id} type="button" role="radio" aria-checked={value === c.id} className={styles.choice} data-companion={c.id} onClick={() => onChange(c.id)}>
-          <b className={styles.choiceName}>{c.name}</b>
-          <span className={styles.choiceLine}>{c.line}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Guide({ o }: { o: Onboarding }) {
+function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
   const { s, run } = o;
-  const step: ViewStep = s?.step ?? 1;
-  const noCharacters = o.characters?.length === 0;
-  const C = noCharacters ? { ...STEPS[step], ...NO_CHARACTER_STEPS[step] } : STEPS[step];
-  const [companion, setCompanion] = useState<OnboardingCompanion | null>(null);
-  const panel = useRef<HTMLDivElement>(null);
-  const trapFocus = useOverlayFocus(panel, undefined);
-  const out = useGuideMotion(panel);
-  const attended = useAttended();
+  const step: OnboardingStep = s?.step ?? 1;
+  const root = useRef<HTMLDivElement>(null);
   const media = useRef<HTMLDivElement>(null);
+  const out = useGuideMotion(root);
+  const roster = o.characters?.length ?? 0;
+  const missing = g.ctx.perms.filter((p) => GUIDE_PERMS.includes(p.kind) && (p.state === 'denied' || p.state === 'notDetermined'));
+  const chatReady = !g.talks || g.test.state === 'ok';
+  const marks = s ? stepMarks(s, { chat: !chatReady, voice: g.talks && missing.length > 0 }) : null;
+  const canNext = step === 1 ? roster > 0 : step === 2 ? chatReady : step === 3;
+  const live = !!s && !s.done;
 
-  const back = () => void run('back', (ops) => ops.back());
-  const next = () => void run('advance', (ops) => ops.advance());
-  const complete = (destination?: 'plugins') => {
-    if (!companion) return;
-    void run('complete', (ops) => ops.complete(destination ? { companion, destination } : { companion })).then((r) => {
-      if (!r || r.completionError) return;
-      void out.play().then(() => {
-        toast('首次设置已完成');
-        navigate(LANDING[destination ?? companion]);
-      });
-    });
-  };
-
-  // The media panel opens once the state is read; later page turns replay its entrance faster.
+  // The panel opens once the state is read; later page turns replay its entrance faster.
   const at = s ? step : 0;
   const [shown, setShown] = useState({ at, turned: false });
   if (shown.at !== at) setShown({ at, turned: shown.at !== 0 });
-  const hint = footHint(step, o.opError ?? (step === 3 ? s?.completionError : null) ?? null);
-  const unchosen = step === 2 && companion === null;
 
-  let body = null;
-  if (!s) body = o.loadError ? <ErrBar message={o.loadError} onRetry={o.reload} /> : <Loading tip="正在读取首次设置…" />;
-  else if (step === 1) body = <ImportRoster characters={o.characters ?? []} current={o.characterId} onImported={o.readCharacters} />;
-  else if (step === 2) body = <CompanionChoice value={companion} onChange={setCompanion} />;
+  /** The guide closes itself in the shell; the browser preview goes on to 主页. */
+  const leave = () =>
+    void out.play().then(() => {
+      if (window.agenticComplex) return;
+      toast('首次设置已完成');
+      navigate({ page: 'home' });
+    });
+  const advance = (skip = false) => void run('advance', (ops) => ops.advance(skip ? { skip: true } : undefined));
+  const back = () => void run('back', (ops) => ops.back());
+  const goto = (n: OnboardingStep) => void run('goto', (ops) => ops.goto(n));
+  const complete = (destination?: OnboardingDestination) =>
+    void run('complete', (ops) => ops.complete(destination ? { destination } : undefined)).then((r) => r?.done && leave());
+  const askSkip = () =>
+    g.ctx.model.ask({
+      title: '跳过首次设置？',
+      list: [`已经选的会保留：${o.current?.name ?? '—'}、对话${g.talks ? '开着' : '关着'}`, '还没设的用默认：账号没连、只显示文字、按住说话没开'],
+      note: '这些都在设置里，随时可以改；「设置 › 关于 › 重新运行首次设置」可以再走一遍。',
+      cancelLabel: '继续设置',
+      confirmLabel: '跳过',
+      onConfirm: async () => {
+        const r = await run('skip', (ops) => ops.skip());
+        if (r?.done) leave();
+      },
+    });
+  // A step cell or E onto the next step passes this one, as 下一步 does; any other cell only jumps.
+  const onTab = (id: string) => {
+    const n = Number(id) as OnboardingStep;
+    if (!live || n === step) return;
+    if (n === step + 1 && canNext) advance();
+    else goto(n);
+  };
+
+  const C = STEPS[step];
+  let body;
+  if (!s)
+    body = (
+      <section className={styles.step}>
+        <GuideCard n={0} title="首次设置" />
+        <Frame n={1}>{o.loadError ? <ErrBar message={o.loadError} onRetry={o.reload} /> : <Loading tip="正在读取首次设置…" />}</Frame>
+      </section>
+    );
+  else if (step === 4) body = <StepDone o={o} g={g} missing={missing} goto={goto} />;
+  else
+    body = (
+      <section className={styles.step}>
+        <GuideCard n={step} en={C.en} title={C.title} lead={C.lead} tag={step === 1 && roster > 0 ? 'must' : 'skip'} />
+        {step === 1 ? <StepChar o={o} /> : step === 2 ? <StepChat g={g} /> : <StepVoice g={g} her={o.current} />}
+      </section>
+    );
+
+  const next = (reason: string) => (
+    <Primary>
+      <YellowKey label="下一步" micro="Next" icon="chev" busy={o.busy === 'advance'} disabled={!canNext} disabledReason={reason} onClick={() => advance()} />
+    </Primary>
+  );
+  let right = null;
+  if (live && step === 1) right = roster > 0 ? next('') : <>
+      <Cap onClick={() => advance(true)}>先不导入</Cap>
+      {next('先导入一个角色包，或点「先不导入」')}
+    </>;
+  if (live && step === 2)
+    right = chatReady ? next('') : <>
+      <Cap onClick={() => advance(true)}>稍后再连</Cap>
+      {next('先连上账号并测试通过，或点「稍后再连」')}
+    </>;
+  if (live && step === 3) right = next('');
+  if (live && step === 4) {
+    const talk = g.talks && g.test.state === 'ok';
+    right = (
+      <>
+        <Cap go disabled={o.busy !== null} onClick={() => complete('home')}>
+          打开主窗口
+        </Cap>
+        <Primary>
+          <YellowKey label={talk ? '和她聊几句' : '完成'} micro={talk ? 'Talk' : 'Done'} icon={talk ? 'g-chat' : 'check'} busy={o.busy === 'complete'} onClick={() => complete(talk ? 'talk' : undefined)} />
+        </Primary>
+      </>
+    );
+  }
+  const error = o.opError ?? s?.completionError ?? null;
+  const lamp = g.restarting ? (['running', '正在重启后台'] as const) : g.agentdOff ? (['broken', '后台没有运行'] as const) : (['ok', '后台'] as const);
 
   return (
-    <div
-      className={styles.onb}
-      style={{ '--onb-contour': (contour ??= contourUrl(480, 240, 3.4)) } as CSSProperties}
-      data-step={step}
-      data-attended={attended || undefined}
-      ref={panel} tabIndex={-1} onKeyDown={trapFocus}
-      role="dialog" aria-modal="true" aria-label={`首次设置 │ ${C.title}`} data-page="onboarding">
-      <span className={styles.ctr} aria-hidden="true" />
-      <span className={styles.blur} data-g="blur" aria-hidden="true">
-        <Frosted blur={12} tint={0.5} />
-      </span>
-      <span className={`${styles.ramp} popup_media2_5`} data-g="ramp" aria-hidden="true" />
-      <header className={styles.top}>
-        <b className={styles.mark} aria-hidden="true">
-          Agentic Complex
-        </b>
-        <span className={styles.sp} />
-        <span className={styles.cap}>首次设置</span>
-      </header>
-      {step === 3 && s ? (
-        <Ready id={o.characterId} name={s.characterName} title={C.title} lead={C.lead} busy={o.busy === 'complete'} onPlugins={() => complete('plugins')} />
-      ) : (
-        <div key={at} ref={media} className={styles.main}>
-          <MediaIn root={media} turned={shown.turned} />
-          <div className={`${styles.frame} media-frame`} data-g="frame">
-            <span className={styles.bar} data-side="left" data-g="sideL" aria-hidden="true" />
-            <span className={styles.bar} data-side="right" data-g="sideR" aria-hidden="true" />
-            <span className={styles.tick} data-side="left" data-g="sideLTick" aria-hidden="true" />
-            <span className={styles.tick} data-side="right" data-g="sideRTick" aria-hidden="true" />
-            <span className={`${styles.pic02} media-ticks`} data-g="ticks" aria-hidden="true" />
-            <div className={`${styles.media} media-edge`} data-g="media">{body}</div>
-          </div>
-          <span className={styles.index} data-g="index" aria-label={`第 ${step} 步，共 3 步`}>
-            {pad2(step)}/03
-          </span>
-          <div className={styles.text} data-g="text">
-            <h1 className={styles.h1} data-g="title">{C.title}</h1>
-            <span className={styles.rule} data-g="rule" aria-hidden="true">
-              <i className={`${styles.pic05} rule-cap`} data-g="ruleLine" />
-              <i className={`${styles.pic03} rule-dashes`} data-g="ruleLine2" />
+    <div ref={root} className={styles.root} data-page="onboarding" data-step={s ? step : undefined} role="region" aria-label={`首次设置 │ ${s && step === 4 ? '完成' : C.title}`}>
+      <div className={page.page}>
+        <div className={page.wall} data-g="blur" aria-hidden="true" />
+        <div className={styles.win}>
+          <header className={styles.cmd} data-theme="dark">
+            <span className={styles.brand}>
+              <b>首次设置</b>
+              <MicroLabel>Setup / Agentic Complex</MicroLabel>
             </span>
-            <p className={styles.lead}>{C.lead}</p>
+            <nav className={styles.plate} aria-label="首次设置的步骤">
+              {marks && (
+                <Tabs
+                  variant="steps"
+                  label="首次设置的步骤"
+                  value={String(step)}
+                  onChange={onTab}
+                  tabs={STEP_IDS.map((n) => ({ id: String(n), label: STEPS[n].label, icon: STEPS[n].icon, step: marks[n], ariaLabel: `${pad2(n)} ${STEPS[n].label}` }))}
+                />
+              )}
+            </nav>
+            <span className={styles.rt}>
+              <span className={styles.lamp} title="后台服务">
+                <StatusLamp state={lamp[0]} label={lamp[1]} onDark />
+              </span>
+              <Cap disabled={!live} onClick={askSkip}>
+                跳过引导
+              </Cap>
+            </span>
+          </header>
+          <i className={styles.tri} aria-hidden="true" />
+          <div className={styles.stage} style={{ '--onb-contour': (contour ??= contourUrl(900, 700, 3.4)) } as CSSProperties}>
+            <div key={at} ref={media} className={styles.view}>
+              <MediaIn root={media} turned={shown.turned} />
+              {body}
+            </div>
           </div>
+          <ActionBar
+            label="首次设置操作"
+            micro="Setup"
+            left={
+              <>
+                {live && step > 1 && (
+                  <Cap label="上一步" disabled={o.busy !== null} onClick={back}>
+                    ‹ 上一步
+                  </Cap>
+                )}
+                {error && (
+                  <span className={styles.hint} data-g="hint" data-tone="bad" role="alert" title={error}>
+                    {error}
+                  </span>
+                )}
+              </>
+            }
+            right={right}
+          />
         </div>
-      )}
-      <footer className={styles.foot}>
-        {step > 1 && s && (
-          <Btn variant="text" disabled={o.busy !== null} onClick={back}>
-            上一步
-          </Btn>
-        )}
-        <span className={styles.hint} data-g="hint" data-danger={hint.danger || undefined} role={hint.danger ? 'alert' : undefined} title={hint.text}>
-          {hint.text}
-        </span>
-        <span className={styles.sp} />
-        {s && (
-          <Primary>
-            {step < 3 ? (
-              <Btn variant="primary" disabled={!s.canAdvance || unchosen} disabledReason={unchosen ? '先选一种陪伴方式' : '这一步现在不能继续'}
-                loading={o.busy === 'advance'} onClick={next}>
-                {C.next}
-              </Btn>
-            ) : (
-              <Btn variant="primary" disabled={companion === null || s.done} disabledReason="回到上一步选一种陪伴方式" loading={o.busy === 'complete'}
-                onClick={() => complete()}>
-                {C.next}
-              </Btn>
-            )}
-          </Primary>
-        )}
-      </footer>
+      </div>
     </div>
   );
 }

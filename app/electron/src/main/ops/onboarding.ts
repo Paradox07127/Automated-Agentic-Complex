@@ -1,23 +1,30 @@
-// `onboarding.*`: the guide's three steps; 「完成」 stores the companion choice as `plugins.light_ai` and `onboarding_done` in
-// config.json, restarts agentd when the plug-in changed, and ends the guide's window at the choice's destination
-// (`ctx.endOnboarding`).
+// `onboarding.*`: the guide's steps. Its rows save through `settings.save` as they change; 「完成」 and 「跳过引导」 only store
+// `onboarding_done` in config.json and end the guide's window (`ctx.endOnboarding`); 「和她说句话」 then opens the desktop's
+// 快速输入.
 import { BridgeFailure } from '../../common/bridge.ts';
-import { type Companion, OnboardingModel } from '../../common/onboarding.ts';
-import { planSave, settingValues, withSettings } from '../../common/settings.ts';
+import { OnboardingModel } from '../../common/onboarding.ts';
 import type { Ops, OpsContext } from './context.ts';
 import { readObject, writeObject } from './settings.ts';
 
-interface Choice { companion: Companion; destination?: 'plugins' }
+type Destination = 'home' | 'talk';
 
-/** `onboarding.complete`'s argument: `{ companion: 'pet' | 'chat', destination?: 'plugins' }` and nothing else. */
-function choice(input: unknown): Choice {
-  const fields = typeof input === 'object' && input !== null && !Array.isArray(input) ? input as Record<string, unknown> : null;
-  if (fields === null || (fields.companion !== 'pet' && fields.companion !== 'chat')
-    || (fields.destination !== undefined && fields.destination !== 'plugins')
-    || !Object.keys(fields).every((k) => k === 'companion' || k === 'destination')) {
-    throw new BridgeFailure('invalid_args', 'onboarding choice');
+/** `onboarding.complete`'s argument: nothing, or `{ destination?: 'home' | 'talk' }`. */
+function destination(input: unknown): Destination | null {
+  if (input == null) return null;
+  const fields = typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : null;
+  if (fields === null || !Object.keys(fields).every((k) => k === 'destination')
+    || (fields.destination !== undefined && fields.destination !== 'home' && fields.destination !== 'talk')) {
+    throw new BridgeFailure('invalid_args', 'onboarding destination');
   }
-  return fields as unknown as Choice;
+  return (fields.destination as Destination | undefined) ?? null;
+}
+
+/** `onboarding.advance`'s argument: nothing, or `{ skip: true }`. */
+function skipping(input: unknown): boolean {
+  if (input == null) return false;
+  const fields = typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : null;
+  if (fields === null || fields.skip !== true || Object.keys(fields).length !== 1) throw new BridgeFailure('invalid_args', 'onboarding advance');
+  return true;
 }
 
 export function onboardingOps(ctx: OpsContext): Ops {
@@ -35,39 +42,45 @@ export function onboardingOps(ctx: OpsContext): Ops {
   const model = new OnboardingModel();
   model.characterName = ctx.library?.characterName ?? '';
 
-  /** Writes the choice and the mark at once; a changed plug-in restarts agentd like a saved `restart: 'backend'` row. */
-  function finish({ companion, destination }: Choice): void {
-    const light = { 'plugins.light_ai': companion === 'chat' };
-    let restart: string;
+  /** Writes the mark alone; the choices were saved as they were made. */
+  function finish(to: Destination | null): void {
     try {
-      const config = readObject(ctx.config.path);
-      restart = planSave(settingValues(config), null, light, ctx.platform ?? 'mac').restart;
-      writeObject(ctx.config.path, { ...withSettings(config, light), onboarding_done: true });
+      writeObject(ctx.config.path, { ...readObject(ctx.config.path), onboarding_done: true });
     } catch (e) {
       log(`finish failed: ${e instanceof Error ? e.message : String(e)}`);
       model.completionNotSaved();
       return;
     }
     model.finished();
-    if (restart === 'backend') ctx.supervisor?.restart();
-    const to = destination ?? (companion === 'chat' ? 'model' : 'home');
-    log(`done companion=${companion} destination=${to}`);
+    log(`done destination=${to ?? 'none'}`);
     ctx.endOnboarding?.(to);
+    if (to === 'talk') ctx.openQuickInput?.();
   }
 
   const steps: Record<string, (args: unknown[]) => void> = {
     'onboarding.state': () => {},
-    'onboarding.advance': () => {
+    'onboarding.advance': ([input]) => {
+      const skip = skipping(input);
       if (!model.canAdvance) throw new BridgeFailure('invalid_state', 'cannot advance this step');
-      model.advance();
+      model.advance(skip);
     },
     'onboarding.back': () => {
       if (model.completed || model.step === 1) throw new BridgeFailure('invalid_state', 'cannot go back');
       model.back();
     },
+    'onboarding.goto': ([step]) => {
+      if (!Number.isInteger(step) || (step as number) < 1 || (step as number) > 4) throw new BridgeFailure('invalid_args', 'onboarding step');
+      if (model.completed) throw new BridgeFailure('invalid_state', 'the guide is done');
+      model.goto(step as number);
+    },
+    'onboarding.skip': () => {
+      if (model.completed) throw new BridgeFailure('invalid_state', 'the guide is done');
+      finish(null);
+    },
     'onboarding.complete': ([input]) => {
-      if (model.completed || model.step !== 3) throw new BridgeFailure('invalid_state', 'complete at step 3');
-      finish(choice(input));
+      const to = destination(input);
+      if (model.completed || model.step !== 4) throw new BridgeFailure('invalid_state', 'complete at the last step');
+      finish(to);
     },
   };
 

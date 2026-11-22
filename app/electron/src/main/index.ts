@@ -894,7 +894,7 @@ function opsContext(surface: Surface): OpsContext {
     openMain: openMainAt,
     unregisteredHotkeys: () => unregisteredHotkeys(hotkeys, desktop?.quickInputFailed ?? null, pushToTalk?.failedHotkey ?? null),
     // Only the main window records.
-    recordHotkey: surface === 'main' ? (rightOption) => hotkeyRecorder.record(rightOption) : null,
+    recordHotkey: surface !== 'stack' ? (rightOption) => hotkeyRecorder.record(rightOption) : null,
     runtime: { snapshot: () => runtimeJson(runtime.snapshot), events: runtimeEvents },
     // The main window asks agentd itself, the panels through the capturer.
     look: surface === 'main' ? (runtimePath === null ? null : agentdLook(new AgentdClient(runtimePath), log))

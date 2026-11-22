@@ -151,6 +151,7 @@ const RAW: Raw[] = [
   ['provider', 'kernel', '外接 harness', '服务提供方', 'openai anthropic deepseek xai grok 兼容'],
   ['mainModel', 'kernel', '外接 harness', '主会话模型', '模型'],
   ['routes', 'kernel', '外接 harness', '按用途指定内核', '用途 对话 后台 判断 理解 记忆 电脑操控 模型 强度 思考'],
+  ['plugins.light_ai', 'model', '模型服务', '和她对话', '对话 聊天 轻量 AI 记忆 主动搭话 模型账号 只陪伴'],
   ['svc', 'model', '模型服务', '模型服务', 'pi anthropic deepseek grok xai openai 兼容 chatgpt 订阅 服务提供方 目录 openrouter groq mistral moonshot qwen zai'],
   ['apiBase', 'model', '模型服务', 'API 地址', 'pi url'],
   ['apikey', 'model', '模型服务', 'API Key', 'pi 密钥 凭据'],

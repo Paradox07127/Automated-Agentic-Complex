@@ -28,7 +28,7 @@ function install(over: Partial<Parameters<typeof createFakeBridge>[0]> = {}) {
 function Op() {
   return (
     <Operator
-      roster={[{ id: 'si', name: '示例乙', en: 'SI', active: true, appearances: CHARACTER_LOOKS.si ?? [] }]}
+      roster={[{ id: 'si', name: '示例乙', en: 'SI', active: true, voice: true, appearances: CHARACTER_LOOKS.si ?? [] }]}
       current="si"
       sw={{ state: { phase: 'idle' }, request: noop, retry: noop, dismiss: noop }}
       offline={false}

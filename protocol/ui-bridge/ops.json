@@ -309,14 +309,26 @@
       "events.unsubscribe"
     ],
     "onboarding": [
+      "app.openQuickInput",
       "agentd.request",
+      "settings.read",
+      "settings.save",
+      "settings.validateHotkey",
+      "settings.recordHotkey",
+      "permissions.status",
+      "permissions.request",
+      "permissions.openSettings",
       "character.list",
+      "character.switchTo",
       "character.importPackage",
-      "clipboard.writeText",
       "open.runInTerminal",
+      "clipboard.writeText",
+      "desktop.onState",
       "onboarding.state",
       "onboarding.advance",
       "onboarding.back",
+      "onboarding.goto",
+      "onboarding.skip",
       "onboarding.complete",
       "events.unsubscribe"
     ]

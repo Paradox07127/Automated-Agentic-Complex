@@ -128,6 +128,7 @@
         "name": "Si",
         "en": "SI",
         "active": true,
+        "voice": true,
         "appearances": [
           {
             "id": "default",

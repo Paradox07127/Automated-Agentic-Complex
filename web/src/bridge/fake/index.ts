@@ -309,8 +309,9 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       },
     },
     character: {
+      // 示例甲's package has no voice profile.
       list: async () => CHARACTERS.map((c) => ({
-        ...c, active: c.id === character, appearances: [...(CHARACTER_LOOKS[c.id] ?? []), ...outfit.looks(c.id)],
+        ...c, active: c.id === character, voice: c.id !== 'voice_a', appearances: [...(CHARACTER_LOOKS[c.id] ?? []), ...outfit.looks(c.id)],
         ...(c.id === character ? { layers: CHARACTER_LAYERS.map((l) => ({ ...l, visible: !hiddenLayers.includes(l.id) })) } : {}),
       })),
       switchTo: async (id) => {

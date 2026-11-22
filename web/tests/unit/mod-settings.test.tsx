@@ -23,7 +23,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const si: CharacterEntry = { id: 'si', name: '示例乙', en: 'SI', active: true, appearances: CHARACTER_LOOKS.si ?? [] };
+const si: CharacterEntry = { id: 'si', name: '示例乙', en: 'SI', active: true, voice: true, appearances: CHARACTER_LOOKS.si ?? [] };
 
 function Op({ toast = noop }: { toast?: (m: string) => void }) {
   return (

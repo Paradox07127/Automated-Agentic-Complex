@@ -3,6 +3,8 @@
     "onboarding.state",
     "onboarding.advance",
     "onboarding.back",
+    "onboarding.goto",
+    "onboarding.skip",
     "onboarding.complete"
   ]
 }

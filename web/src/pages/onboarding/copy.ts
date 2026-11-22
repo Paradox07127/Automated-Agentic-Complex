@@ -1,35 +1,29 @@
-import type { OnboardingCompanion, OnboardingStep } from '../../bridge';
-import { settingPath } from '../settings/groups';
-
-export type ViewStep = OnboardingStep;
+import type { IconName } from '../../ui';
+import type { OnboardingStep } from '../../bridge';
 
 export interface StepCopy {
+  /** The step cell's name. */
+  label: string;
+  icon: IconName;
+  /** Micro English of the card and the frame. */
+  en: string;
   title: string;
   lead: string;
-  next: string;
-  hint: string;
 }
 
-export const STEPS: Record<ViewStep, StepCopy> = {
-  1: { title: '选角色', lead: '她会出现在桌面上；也可以导入新的角色包。', next: '下一步', hint: '之后可在 角色 页切换和导入' },
-  2: { title: '怎么陪你', lead: '选一种，马上就能用。', next: '下一步', hint: `之后可在 ${settingPath('perm')} 中修改` },
-  3: { title: '已在桌面就位', lead: `点她互动，右键打开菜单；更多功能在 ${settingPath('perm')} 里按需打开。`, next: '完成', hint: '以上选项之后均可在 设置 中修改' },
+export const STEPS: Record<OnboardingStep, StepCopy> = {
+  1: { label: '角色', icon: 'user', en: 'Character', title: '选她', lead: '她会出现在桌面上。名册里点一个，或导入角色包。' },
+  2: { label: '对话', icon: 'g-chat', en: 'Chat', title: '连一个账号', lead: '连一个模型账号，她就能聊天、记得聊过的事。不连也能陪你。' },
+  3: { label: '声音', icon: 'voice', en: 'Voice', title: '声音', lead: '她念出回答要你自己部署的语音服务；按住说话要麦克风。都可以先不开。' },
+  4: { label: '完成', icon: 'check', en: 'Ready', title: '完成', lead: '' },
 };
 
-/** Steps 1 and 3 over STEPS when the roster is empty: nobody is on the desktop. */
-export const NO_CHARACTER_STEPS: Partial<Record<ViewStep, Partial<StepCopy>>> = {
-  1: { lead: '还没有角色。先完成设置，之后导入角色包。' },
-  3: { title: '设置完成', lead: `桌面上暂时看不到她，导入角色包后她会出现；更多功能在 ${settingPath('perm')} 里按需打开。` },
-};
-
-export const COMPANIONS: Array<{ id: OnboardingCompanion; name: string; line: string }> = [
-  { id: 'pet', name: '只陪伴', line: '她在桌面上活动，点她、摸头都有反应；不用 AI 账号。' },
-  { id: 'chat', name: '陪伴加对话', line: '还能和她聊天，她会记得聊过的事；完成后连一个 AI 账号。' },
-];
+export const STEP_IDS: OnboardingStep[] = [1, 2, 3, 4];
 
 export const pad2 = (n: number) => String(n).padStart(2, '0');
 
-/** Footer line: a failed op or save first, then the step's own hint. */
-export function footHint(step: ViewStep, error: string | null): { text: string; danger: boolean } {
-  return error ? { text: error, danger: true } : { text: STEPS[step].hint, danger: false };
+/** The closing screen's title and line: whether she is on the desktop and can talk. */
+export function doneCopy(name: string | null, talks: boolean): { title: string; lead: string } {
+  if (!name) return { title: '设置完成', lead: '导入角色包后她会出现在桌面上。' };
+  return { title: `${name} 已在桌面就位`, lead: talks ? '现在就能和她聊天。其余的能力在设置里按需打开。' : '她会在桌面上陪你；连上账号后才能对话。' };
 }

@@ -244,8 +244,8 @@ describe('useInspect', () => {
 describe('inspection on the character page', () => {
   const props: OperatorProps = {
     roster: [
-      { id: 'si', name: '示例乙', en: 'SI', active: true, appearances: [] },
-      { id: 'voice_a', name: '示例甲', en: 'VOICE_A', active: false, appearances: [] },
+      { id: 'si', name: '示例乙', en: 'SI', active: true, voice: true, appearances: [] },
+      { id: 'voice_a', name: '示例甲', en: 'VOICE_A', active: false, voice: true, appearances: [] },
     ],
     current: 'si',
     sw: { state: { phase: 'idle' }, request: () => {}, retry: () => {}, dismiss: () => {} },

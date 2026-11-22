@@ -344,13 +344,13 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | GET | `/memory/days` | ui | `read` | main | `character_agent.routes.worklog_http` | `protocol/C6-agentd-api/CONTRACT.md` | `memory-days.json` |
 | GET | `/memory/days/:date` | ui | `read` | main | `character_agent.routes.worklog_http` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/memory/export` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| GET | `/diag/state` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| GET | `/diag/state` | ui | `read` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/diag/stream` | ui | `stream` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/blacklist` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/desktop/presence` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `desktop-presence.json` |
 | GET | `/user/now` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `user-now.json` |
 | POST | `/desktop/sessions/seen` | ui | `write` | main、stack | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| GET | `/model/settings` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `model-settings.json` |
+| GET | `/model/settings` | ui | `read` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `model-settings.json` |
 | GET | `/motion/settings` | ui | `read` | main、stack | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
 | GET | `/motions/:motion_id/meta`、`/motions/:motion_id/keys` | ui 或 events | `host_only` | — | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
 | GET | `/motions/:motion_id/tracks` | ui 或 events | `host_only` | — | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
@@ -429,9 +429,9 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | POST | `/say` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/speech/cancel` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/speech/playback` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| POST | `/voice/reset` | ui | `write` | main | `api.handler` | — | — |
-| POST | `/voice/test` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| POST | `/voice/token` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/voice/reset` | ui | `write` | main、onboarding | `api.handler` | — | — |
+| POST | `/voice/test` | ui | `write` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/voice/token` | ui | `write` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/turn/cancel` | ui | `write` | main、stack | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/character` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/user/coarse` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
@@ -458,13 +458,13 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | POST | `/interaction/tap` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/interaction/gift` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/interaction/record` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| POST | `/model/settings` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| POST | `/model/catalog` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| POST | `/model/test` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| POST | `/model/chatgpt/start` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| POST | `/model/chatgpt/cancel` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| POST | `/model/chatgpt/select` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| POST | `/model/chatgpt/logout` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/model/settings` | ui | `write` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/model/catalog` | ui | `write` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/model/test` | ui | `write` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/model/chatgpt/start` | ui | `write` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/model/chatgpt/cancel` | ui | `write` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/model/chatgpt/select` | ui | `write` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/model/chatgpt/logout` | ui | `write` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/character/prepare` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/character/commit` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/character/abort` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |

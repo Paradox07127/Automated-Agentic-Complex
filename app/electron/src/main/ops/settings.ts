@@ -5,6 +5,7 @@ import { basename, join } from 'node:path';
 import { ttsTokenFile } from '../../common/agentd.ts';
 import { BridgeFailure } from '../../common/bridge.ts';
 import { storedSwitches, withSwitches } from '../../common/looks.ts';
+import { GUIDE_SETTINGS } from '../../common/onboarding.ts';
 import { agentdError } from '../../common/routes.ts';
 import {
   allowsRightOption, behaviorSwitches, idsOfKeys, isHotkeyRow, parseChanges, planSave, Rejection, REVOKE_KINDS, rowById, schema, type SettingValue,
@@ -199,13 +200,20 @@ export function settingsOps(ctx: OpsContext): Ops {
       if (typeof changes !== 'object' || changes === null || Array.isArray(changes)) {
         throw new BridgeFailure('invalid_args', 'changes must be an object');
       }
+      const guide = ctx.surface === 'onboarding';
+      const other = guide ? Object.keys(changes).find((id) => !GUIDE_SETTINGS.has(id)) : undefined;
+      if (other !== undefined) throw new BridgeFailure('op_not_allowed', `settings.save ${other}`);
       let parsed: Record<string, SettingValue>;
       try {
         parsed = parseChanges(changes as Record<string, unknown>, ctx.log, platform);
       } catch (e) {
         return { restart: 'none', notApplied: [], error: e instanceof Rejection ? e.message : String(e) };
       }
-      const task = saving.then(() => write(parsed));
+      // The guide has no 重启后台 button: a row it saves that the backend takes only at start restarts it at once.
+      const task = saving.then(() => write(parsed)).then((r) => {
+        if (guide && r.restart === 'backend') ctx.supervisor?.restart();
+        return r;
+      });
       // The page gets this save's failure from `task`; the next save waits for it but not on it.
       saving = task.catch(() => {});
       return task;

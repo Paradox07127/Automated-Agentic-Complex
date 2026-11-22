@@ -7,12 +7,14 @@ type Json = Record<string, unknown>;
 const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** protocol.ts `CharacterEntry` of a package's `character.json`. Appearances and layers come from the renderer, so none yet;
- *  head and portrait depend on the package's files. */
+ *  head and portrait depend on the package's files. `voice`: the package has a voice profile (character_library.py
+ *  `voice_enabled`). */
 export function characterEntry(definition: string, id: string, active: boolean): Json {
   const { name } = parseCharacterDefinition(definition, id);
   const def = JSON.parse(definition) as Json;
   const names = isObject(def.display) && isObject(def.display.name) ? def.display.name : {};
-  return { id, name, en: typeof names.en === 'string' ? names.en : '', active, appearances: [] };
+  const voice = isObject(def.components) && def.components.voice != null;
+  return { id, name, en: typeof names.en === 'string' ? names.en : '', active, appearances: [], voice };
 }
 
 /** An action id of 1–64 UTF-8 bytes, else null. */

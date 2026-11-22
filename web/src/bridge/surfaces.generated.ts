@@ -29,7 +29,8 @@ export const BRIDGE_OPS: readonly string[] = [
   'window.onVisibility', 'window.onPointer', 'window.onAnchorState', 'window.onA11y', 'window.setContentSize',
   'window.releaseKey', 'window.onAnchor', 'window.logInfo', 'stack.onCards', 'stack.decide', 'stack.later',
   'stack.collapse', 'stack.complete', 'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'desktop.say',
-  'desktop.action', 'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.complete',
+  'desktop.action', 'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.goto', 'onboarding.skip',
+  'onboarding.complete',
 ];
 
 /** Ops only the native shim sends; they are not bridge members. */
@@ -77,8 +78,11 @@ export const SURFACE_OPS: Readonly<Record<Surface, readonly string[]>> = {
     'desktop.say', 'desktop.action', 'feed.unsubscribe', 'events.unsubscribe',
   ],
   onboarding: [
-    'agentd.request', 'character.list', 'character.importPackage', 'clipboard.writeText', 'open.runInTerminal',
-    'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.complete', 'events.unsubscribe',
+    'app.openQuickInput', 'agentd.request', 'settings.read', 'settings.save', 'settings.validateHotkey',
+    'settings.recordHotkey', 'permissions.status', 'permissions.request', 'permissions.openSettings', 'character.list',
+    'character.switchTo', 'character.importPackage', 'open.runInTerminal', 'clipboard.writeText', 'desktop.onState',
+    'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.goto', 'onboarding.skip',
+    'onboarding.complete', 'events.unsubscribe',
   ],
 };
 

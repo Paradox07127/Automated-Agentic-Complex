@@ -22,7 +22,7 @@ const codeOf = async (run: () => unknown) => {
 describe('fake bridge gates ops per surface like the native shim', () => {
   it('rejects an op the surface may not send', async () => {
     const onboarding = createFakeBridge({ surface: 'onboarding', still: true });
-    await expect(onboarding.character.switchTo('birch')).rejects.toMatchObject({ code: 'not_implemented', detail: 'character.switchTo' });
+    await expect(onboarding.character.importMotion()).rejects.toMatchObject({ code: 'not_implemented', detail: 'character.importMotion' });
     await expect(onboarding.avatar.state()).rejects.toMatchObject({ code: 'not_implemented', detail: 'avatar.state' });
     const stack = createFakeBridge({ surface: 'stack', still: true });
     await expect(stack.open.runInTerminal('true')).rejects.toMatchObject({ code: 'not_implemented', detail: 'open.runInTerminal' });

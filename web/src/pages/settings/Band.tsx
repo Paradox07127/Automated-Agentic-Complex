@@ -9,10 +9,9 @@ import { labelOf } from './registry';
 import band from './band.module.css';
 import styles from './rows.module.css';
 
-type BandPlugin = Exclude<PluginId, 'light_ai'>;
-
 /** What each capability does, needs and costs; the band says all three, the ⓘ repeats them for the smallest window. */
-export const BAND: Record<BandPlugin, { does: string; needs: string; cost: string; perms?: PermissionKind[] }> = {
+export const BAND: Record<PluginId, { does: string; needs: string; cost: string; perms?: PermissionKind[] }> = {
+  light_ai: { does: '聊天、记得聊过的事、主动搭话', needs: '一个模型账号', cost: '按模型用量计' },
   screen_awareness: { does: '一直看前台窗口和活动，用来主动搭话和写简报', needs: '辅助功能、屏幕录制', cost: '本机少量 CPU；只把下面打开的项发给模型', perms: ['accessibility', 'screenRecording'] },
   screen_reading: { does: '按热键时读一次屏幕、选中的字或剪贴板', needs: '屏幕录制', cost: '每次一张截图（打开附图时）', perms: ['screenRecording'] },
   coding_sessions: { does: '接上 Claude Code 和 Codex，播报进度、弹审批卡', needs: '在终端里装一次 hooks', cost: '本机保存 48 小时' },
@@ -25,7 +24,7 @@ export const BAND: Record<BandPlugin, { does: string; needs: string; cost: strin
 };
 
 export interface BandProps {
-  plugin: BandPlugin;
+  plugin: PluginId;
   /** The child rows' names, for the folded line while the capability is off. */
   fold?: string;
   children?: ReactNode;
