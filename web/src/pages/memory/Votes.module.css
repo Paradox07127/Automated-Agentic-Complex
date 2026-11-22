@@ -190,7 +190,7 @@
   color: #f2f2f0;
   cursor: pointer;
   background: linear-gradient(180deg, #5a5a5c, #454547);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.35), 0 3px 6px -3px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.35), var(--ef-shadow-btn);
   transition: filter 0.083s, transform 0.1s;
 }
 

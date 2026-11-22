@@ -28,7 +28,6 @@
   min-width: 0;
   padding: var(--ef-sp-12) 14px 14px;
   background: linear-gradient(180deg, var(--ef-surface-2), var(--ef-raised) 40px);
-  box-shadow: var(--ef-shadow-paper);
 }
 
 .pn::after {
@@ -65,7 +64,6 @@
   margin: 0;
   padding: 0;
   background: var(--ef-raised);
-  box-shadow: var(--ef-shadow-paper);
   list-style: none;
 }
 

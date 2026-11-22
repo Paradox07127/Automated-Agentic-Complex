@@ -61,7 +61,7 @@ export function ApprovalPaper({ item, kernelName, scopeLabel, onDecide, onMouseO
     else decide('allow');
   };
   return (
-    <div className={styles.paper} data-theme="light" data-warn={danger || undefined} tabIndex={0} onKeyDown={onKey} data-focus-card aria-label={danger ? `审批：${item.title}，只能用鼠标点批准` : `审批：${item.title}，回车批准`}>
+    <div className={styles.paper} data-depth="" data-theme="light" data-warn={danger || undefined} tabIndex={0} onKeyDown={onKey} data-focus-card aria-label={danger ? `审批：${item.title}，只能用鼠标点批准` : `审批：${item.title}，回车批准`}>
       <h4>{item.title}</h4>
       <p>
         {who} 要调用 {tool ? <code>{tool}</code> : '一个工具'}，内容如下：
@@ -121,7 +121,7 @@ export function ReviewPaper({ review, kernelName, busy, decideFail, onAction, qu
   const fail = decideFail ? DECIDE_FAIL[decideFail] : null;
   const first = review.artifacts[0]?.name;
   return (
-    <div className={styles.paper} data-theme="light">
+    <div className={styles.paper} data-depth="" data-theme="light">
       <h4>
         复核 v{review.version}
         {first ? `：${first}` : ''}
@@ -175,7 +175,7 @@ export function ReviewPaper({ review, kernelName, busy, decideFail, onAction, qu
 /** A coding task that needs 验收: its check result, 验收 or 驳回. */
 export function CodeReviewPaper({ verify, onReview }: { verify: { exit_code: number | null; reason: string | null } | null; onReview: (v: 'accept' | 'reject') => void }) {
   return (
-    <div className={styles.paper} data-theme="light">
+    <div className={styles.paper} data-depth="" data-theme="light">
       <h4>验收编码结果</h4>
       <p>{verify ? (verify.reason === 'no_verify_cmd' ? `${verifyText(verify)}，结果待复核` : verifyText(verify)) : '没有检查结果'}</p>
       <div className={styles.btns}>
@@ -193,7 +193,7 @@ export function CodeReviewPaper({ verify, onReview }: { verify: { exit_code: num
 /** Her question: QuestionBox on paper. */
 export function QuestionPaper({ question, now, onAnswer, onCancel }: { question: Question; now: number; onAnswer: (a: Record<string, string[]>) => void; onCancel: () => void }) {
   return (
-    <div className={styles.paper} data-theme="light" data-focus-card tabIndex={-1}>
+    <div className={styles.paper} data-depth="" data-theme="light" data-focus-card tabIndex={-1}>
       <QuestionBox question={question} now={now} onAnswer={onAnswer} onCancel={onCancel} />
     </div>
   );

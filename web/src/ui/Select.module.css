@@ -95,8 +95,6 @@
 
 /* Portalled to body and placed by Select.tsx; above a Modal the control may sit in. */
 .list {
-  /* List plate: black shadow, alpha <= 0.14. */
-  --plate-shadow: rgba(0, 0, 0, 0.14);
   position: fixed;
   z-index: calc(var(--ef-z-modal) + 1);
   box-sizing: border-box;
@@ -107,14 +105,13 @@
   border: 0;
   border-radius: 0 0 5px 5px;
   background: var(--ef-dropdown-list);
-  box-shadow: 0 8px 12px -4px var(--plate-shadow);
+  box-shadow: var(--ef-shadow-popup);
   color: var(--ef-dropdown-opt-text);
   list-style: none;
 }
 
 .list[data-up] {
   border-radius: 5px 5px 0 0;
-  box-shadow: 0 -8px 12px -4px var(--plate-shadow);
 }
 
 .list:focus-visible {

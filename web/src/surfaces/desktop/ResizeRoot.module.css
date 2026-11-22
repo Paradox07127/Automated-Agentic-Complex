@@ -49,17 +49,16 @@
   height: 14px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 0 0 1.5px #434343, 0 1px 1px rgb(0 0 0 / 0.18);
+  box-shadow: 0 0 0 1.5px #434343;
 }
 
 .root:not([data-dragging]) .handle:not([data-limit]):hover .dot {
   transform: scale(1.15);
-  box-shadow: 0 0 0 1.5px #434343, 0 2px 2px rgb(0 0 0 / 0.18);
 }
 
 .handle[data-active] .dot {
   background: #c4c4c4;
-  box-shadow: 0 0 0 1.5px #050505, 0 2px 2px rgb(0 0 0 / 0.18);
+  box-shadow: 0 0 0 1.5px #050505;
 }
 
 .handle[data-limit] .dot {
@@ -124,7 +123,7 @@
   font-size: 12px;
 }
 
-/* The capsule bar: glass over ink, 6 pt padding, 8 pt between buttons, a 10 pt black 0.3 shadow. */
+/* The capsule bar: glass over ink, 6 pt padding, 8 pt between buttons. */
 .bar {
   position: absolute;
   display: flex;
@@ -133,6 +132,5 @@
   border-radius: var(--ef-r-pill);
   background: var(--ef-ink-s1);
   backdrop-filter: blur(20px);
-  box-shadow: 0 0 10px rgb(0 0 0 / 0.3);
   white-space: nowrap;
 }

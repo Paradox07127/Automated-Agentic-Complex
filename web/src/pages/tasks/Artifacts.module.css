@@ -78,7 +78,7 @@
   overflow: hidden;
   color: #d8d8d5;
   background: linear-gradient(180deg, #3a3b3e, #1e1f21);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 4px 8px -4px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
   transition: transform 120ms var(--ef-ease-g-enter);
 }
 
@@ -189,7 +189,7 @@
   padding: 6px;
   color: var(--tk-t1);
   background: linear-gradient(180deg, var(--tk-row-hi), var(--tk-row));
-  box-shadow: inset 0 1px 0 var(--tk-deco), 0 0 0 1px rgba(0, 0, 0, 0.45), 0 14px 30px -8px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 0 var(--tk-deco), 0 0 0 1px rgba(0, 0, 0, 0.45), var(--ef-shadow-popup);
   animation: menu 150ms var(--ef-ease-g-enter) both;
 }
 

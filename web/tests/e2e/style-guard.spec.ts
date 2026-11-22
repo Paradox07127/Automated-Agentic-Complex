@@ -7,7 +7,8 @@ import { STACK_DEMOS } from '../../src/surfaces/stack/demos.ts';
 
 // Style guard, every page demo, the HUD in each stack preset and every desktop panel demo, dark and light:
 // visible Chinese text >= 12px; other text >= 11px, or >= 9px for decorative English inside aria-hidden;
-// no box-shadow outside overlays and buttons; yellow fill counts primary buttons only, <= 1 per view.
+// drop shadows only on controls, popups and marked depth frames, cast down and right with no edge above;
+// yellow fill counts primary buttons only, <= 1 per view.
 // On the desktop panels, visible text is also drawn at an effective opacity >= 0.9.
 // The #/ds and #/dv catalogs show many components side by side, so only the text and shadow rules apply there.
 
@@ -22,8 +23,10 @@ const pageIds = readdirSync(`${srcDir}pages`, { withFileTypes: true })
   .filter((e) => e.isDirectory() && existsSync(`${srcDir}pages/${e.name}/route.ts`))
   .map((e) => e.name);
 
-/** Overlays and buttons may cast shadows: dialogs, menus, tooltips, marked overlays, desktop glass and stack cards, buttons. */
-const OVERLAY = '[role="dialog"], [role="menu"], [role="tooltip"], [data-overlay], [data-glass], [data-card-id], button';
+/** Popups: the only places a blurred inset shadow may sit. */
+const POPUP = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], [role="tooltip"], [data-overlay]';
+/** Elements that may cast a shadow: controls, popups, desktop glass, stack cards and frames marked `data-depth`. */
+const CASTS = `button, [role="tab"], [role="switch"], [role="slider"], ${POPUP}, [data-glass], [data-card-id], [data-depth]`;
 
 async function settle(page: Page) {
   await page.waitForLoadState('networkidle');
@@ -40,7 +43,7 @@ async function settle(page: Page) {
 
 /** Rule hits on the current view, one line each; `perView` adds the primary-button count, `faded` the text opacity rule. */
 function audit(page: Page, perView = true, faded = false): Promise<string[]> {
-  return page.evaluate(([overlay, perView, faded]) => {
+  return page.evaluate(([castSel, popupSel, perView, faded]) => {
     const hits: string[] = [];
     const seen = (el: Element) => {
       const r = el.getBoundingClientRect();
@@ -79,16 +82,26 @@ function audit(page: Page, perView = true, faded = false): Promise<string[]> {
       if (o != null && o < 0.9) hits.push(`opacity ${o.toFixed(2)} < 0.9: ${name(el)} "${text.slice(0, 24)}"`);
     }
 
+    // The game lights its controls from above left: a shadow falls down and right, never as a ring all round.
     for (const el of document.body.querySelectorAll('*')) {
-      const shadow = getComputedStyle(el).boxShadow;
-      if (shadow === 'none' || el.closest(overlay) || !seen(el)) continue;
-      // Transparent layers draw nothing; unblurred rings and inset edges are strokes, not shadows.
-      const cast = shadow.split(/,(?![^(]*\))/).filter((l) => {
-        if (/rgba\([^)]*,\s*0\)/.test(l)) return false;
-        const [x = 0, y = 0, blur = 0] = l.replace(/rgba?\([^)]*\)/, '').match(/-?[\d.]+(?=px)/g)?.map(Number) ?? [];
-        return blur !== 0 || (!/inset/.test(l) && (x !== 0 || y !== 0));
-      });
-      if (cast.length > 0) hits.push(`box-shadow ${shadow}: ${name(el)}`);
+      if (!seen(el)) continue;
+      // Parts inside a control (a switch thumb, a key face, a segmented control's knob) shade with it.
+      const casts = el.matches(castSel) || !!el.parentElement?.closest('button, [role="tab"], [role="switch"], [role="slider"], [role="radiogroup"]');
+      const inPopup = !!el.closest(popupSel);
+      for (const pseudo of ['', '::before', '::after']) {
+        const s = getComputedStyle(el, pseudo || null);
+        if (s.boxShadow === 'none' || (pseudo && s.content === 'none')) continue;
+        const bad = s.boxShadow.split(/,(?![^(]*\))/).filter((l) => {
+          // Transparent layers draw nothing; unblurred rings and inset edges are strokes, not shadows.
+          if (/rgba\([^)]*,\s*0\)|\/\s*0\)/.test(l)) return false;
+          const [x = 0, y = 0, blur = 0, spread = 0] = l.replace(/(rgba?|color)\([^)]*\)/, '').match(/-?[\d.]+(?=px)/g)?.map(Number) ?? [];
+          const inset = /inset/.test(l);
+          if (blur === 0 && (inset || (x === 0 && y === 0))) return false;
+          if (inset) return !inPopup;
+          return !casts || x < 0 || y <= 0 || blur + spread - y > 2;
+        });
+        if (bad.length > 0) hits.push(`box-shadow${pseudo} ${bad.join(',')}: ${name(el)}`);
+      }
     }
 
     if (!perView) return hits;
@@ -99,7 +112,7 @@ function audit(page: Page, perView = true, faded = false): Promise<string[]> {
     const primary = [...view.querySelectorAll('[data-stub="Btn"][data-variant="primary"]')].filter(seen);
     if (primary.length > 1) hits.push(`primary x${primary.length}: ${primary.map(name).join(' / ')}`);
     return hits;
-  }, [OVERLAY, perView, faded] as const);
+  }, [CASTS, POPUP, perView, faded] as const);
 }
 
 for (const scheme of ['dark', 'light'] as const) {

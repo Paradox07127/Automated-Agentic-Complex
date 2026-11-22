@@ -83,6 +83,9 @@
   --ef-dlg-backing: #222222;
   --ef-text-shadow-hud: none;
   --ef-shadow-hud: none;
+  --ef-shadow-btn: 1px 4px 6px -1px rgba(0,0,0,.48);
+  --ef-shadow-card: 1.5px 7.5px 0 rgba(45,45,45,.48);
+  --ef-shadow-popup: 0 24px 24px -16px rgba(0,0,0,.5);
   --ef-bg-canvas: #161616;
   --ef-bg-base: #191919;
   --ef-band: #141414;
@@ -331,6 +334,9 @@
   --ef-dlg-backing: #FFFFFF;
   --ef-text-shadow-hud: none;
   --ef-shadow-hud: none;
+  --ef-shadow-btn: 1px 4px 6px -1px rgba(0,0,0,.28);
+  --ef-shadow-card: 1.5px 7.5px 0 rgba(45,45,45,.22);
+  --ef-shadow-popup: 0 24px 24px -16px rgba(0,0,0,.3);
   --ef-bg-canvas: #ECECE9;
   --ef-bg-base: #F4F4F2;
   --ef-band: #E1E0DC;
@@ -598,12 +604,6 @@
   --ef-lw-hair: 1px;
   --ef-lw-focus: 2px;
   --ef-lw-category: 4px;
-  --ef-shadow-tab: none;
-  --ef-shadow-tab-lg: none;
-  --ef-shadow-btn: none;
-  --ef-shadow-float: none;
-  --ef-shadow-paper: none;
-  --ef-glow-accent: none;
   --ef-z-raised: 10;
   --ef-z-sticky: 100;
   --ef-z-dropdown: 1000;

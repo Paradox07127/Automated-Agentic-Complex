@@ -87,8 +87,7 @@
   margin-top: 3px;
   background: var(--ef-accent);
   transform: rotate(45deg);
-  box-shadow: 0 0 0 3px var(--tk-bg0), 0 0 10px rgba(255, 241, 0, 0.8);
-  animation: pulse 1s var(--ef-ease-g-fade) infinite alternate;
+  box-shadow: 0 0 0 3px var(--tk-bg0);
 }
 
 .qb {
@@ -158,15 +157,8 @@
   }
 }
 
-@keyframes pulse {
-  to {
-    box-shadow: 0 0 0 3px var(--tk-bg0), 0 0 2px rgba(255, 241, 0, 0.4);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .ring::after,
-  .dia {
+  .ring::after {
     animation: none;
   }
 }

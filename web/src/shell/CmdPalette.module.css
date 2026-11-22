@@ -12,7 +12,7 @@
 .panel {
   width: 560px;
   background: var(--ef-surface-2);
-  box-shadow: var(--ef-shadow-float);
+  box-shadow: var(--ef-shadow-popup);
   border-radius: var(--ef-r-6);
   overflow: hidden;
 }

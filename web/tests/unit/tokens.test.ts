@@ -211,11 +211,20 @@ describe('new-style tokens', () => {
     expect(aliasRoot('light', 'trace')).toBe('text-1');
   });
 
-  it('sets every radius to 0 and every shadow to none', () => {
+  it('sets every radius to 0 and the HUD shadows to none', () => {
     for (const [k, v] of Object.entries(tokens.radius)) expect(v, k).toBe('0');
-    for (const [k, v] of Object.entries(tokens.shadow)) expect(v, k).toBe('none');
     for (const theme of ['dark', 'light'] as const) {
       for (const k of ['shadow-hud', 'text-shadow-hud', 'plate-sheen']) expect(palette(theme)[k], `${theme} ${k}`).toBe('none');
+    }
+  });
+
+  // The game's light falls from above left: a shadow sits right of and below its element, nothing shows above.
+  it.each(['shadow-btn', 'shadow-card', 'shadow-popup'])('%s casts down and right in both themes', (key) => {
+    for (const theme of ['dark', 'light'] as const) {
+      const [x = 0, y = 0, blur = 0, spread = 0] = palette(theme)[key]!.replace(/rgba?\([^)]*\)/, '').match(/-?[\d.]+(?=px|\s|$)/g)!.map(Number);
+      expect(x, `${theme} ${key} x`).toBeGreaterThanOrEqual(0);
+      expect(y, `${theme} ${key} y`).toBeGreaterThan(0);
+      expect(blur + spread - y, `${theme} ${key} above`).toBeLessThanOrEqual(2);
     }
   });
 

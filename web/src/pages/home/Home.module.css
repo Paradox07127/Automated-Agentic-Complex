@@ -1,9 +1,9 @@
 /* The watch face is drawn at 960×540 (the game's watch canvas at half size) and scaled (--k) to the content box. */
 .page {
-  /* The wall under a card that is laid out rather than drawn: stacked 1.5 px edges, then its shadow. */
+  /* The wall under a card that is laid out rather than drawn: stacked 1.5 px edges, then the game's card shadow. */
   --home-edge:
     0 1.5px 0 color-mix(in srgb, var(--ef-raised) 70%, #000), 0 3px 0 color-mix(in srgb, var(--ef-raised) 60%, #000),
-    0 4.5px 0 color-mix(in srgb, var(--ef-raised) 50%, #000), 0 9px 10px rgb(0 0 0 / 0.35);
+    0 4.5px 0 color-mix(in srgb, var(--ef-raised) 50%, #000), var(--ef-shadow-card);
   position: relative;
   height: 100%;
   min-height: 0;

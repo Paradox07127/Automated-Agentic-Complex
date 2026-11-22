@@ -6,7 +6,7 @@
   padding: 10px 10px 14px;
   border-radius: 10px;
   background: linear-gradient(180deg, var(--tk-grp), transparent 70%);
-  box-shadow: inset 0 0 0 1px var(--tk-grp-line), 0 14px 24px -16px var(--tk-shadow);
+  box-shadow: inset 0 0 0 1px var(--tk-grp-line);
 }
 
 .grp::before {
@@ -100,7 +100,6 @@
   color: #444;
   white-space: nowrap;
   background: linear-gradient(180deg, #fff, #e9e8e5);
-  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.45);
 }
 
 .tag[data-tone='y'] {

@@ -21,7 +21,7 @@
   padding: 22px 22px 18px;
   --ui-btn-ring: var(--ef-raised);
   background: var(--ef-raised);
-  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--ef-shadow-card);
   color: var(--ef-raised-fg);
   animation: pop 0.3s var(--g-enter) both;
 }

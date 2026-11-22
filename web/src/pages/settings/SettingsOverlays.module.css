@@ -19,7 +19,7 @@
   overflow: auto;
   padding: 24px 24px 18px;
   background: linear-gradient(180deg, #faf9f7, #f2f1ef);
-  box-shadow: 0 24px 48px -12px rgb(0 0 0 / 0.6);
+  box-shadow: var(--ef-shadow-card);
   color: #1f1f1f;
   animation: popIn 300ms var(--ef-ease-g-enter) both;
 }

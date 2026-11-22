@@ -25,7 +25,6 @@
   --m-cell-deco: rgba(255, 255, 255, 0.1);
   --m-chip: #141414;
   --m-vote: #26bbfd;
-  --m-shadow: rgba(0, 0, 0, 0.5);
   --m-enter: cubic-bezier(0.333, 0, 0, 1);
   --m-fade: cubic-bezier(0.333, 0, 0.667, 1);
 }
@@ -50,7 +49,6 @@
   --m-cell-t2: #55554f;
   --m-cell-deco: rgba(0, 0, 0, 0.12);
   --m-vote: #1a9fd8;
-  --m-shadow: rgba(0, 0, 0, 0.2);
 }
 
 .glyph {
@@ -224,7 +222,7 @@
 
 .row[aria-pressed='true'] {
   background: linear-gradient(180deg, #4a4b4f, #3e3f43);
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.75), 0 0 12px rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.75);
 }
 
 .row[aria-pressed='true']::after {

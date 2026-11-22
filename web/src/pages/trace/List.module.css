@@ -258,7 +258,7 @@
   min-width: 200px;
   padding: 6px;
   background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
-  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px rgb(0 0 0 / 45%), 0 0 0 2.5px var(--b-frame), 0 14px 30px -8px rgb(0 0 0 / 65%);
+  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px rgb(0 0 0 / 45%), 0 0 0 2.5px var(--b-frame), var(--ef-shadow-popup);
   color: var(--b-t1);
   animation: menu-in 0.15s var(--ease-enter) both;
 }

@@ -1,11 +1,9 @@
-/* Switch: inner-shadow pill track, knob with an underline below it;
+/* Switch: pill track, knob with an underline below it;
    on = knob on 开 (left), off = knob on 关 (right). Colours are the toggle tokens. */
 .sw {
   /* commontoggle_btn Highlighted: the selected light fades to white@0.25; pressed tint #C8C8C8. */
   --light-hover: rgba(255, 255, 255, 0.25);
   --light-press: rgba(200, 200, 200, 0.298);
-  /* Inner shadow: darkens to 0.83 at the edge. */
-  --inner: rgba(0, 0, 0, 0.17);
   --w: 108px;
   --knob-w: 58px;
   position: relative;
@@ -34,7 +32,6 @@
 
 .track {
   background: var(--ef-toggle-track);
-  box-shadow: inset 0 0 3px 1px var(--inner);
 }
 
 .light {

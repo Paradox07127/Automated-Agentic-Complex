@@ -7,7 +7,7 @@
   overflow: hidden;
   background: var(--ef-tips-bg);
   color: var(--hud-t1);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.38);
+  box-shadow: var(--ef-shadow-popup);
   animation: pop-in var(--ef-dur-g-cell-in) var(--ef-ease-g-fade);
 }
 

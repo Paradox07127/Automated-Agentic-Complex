@@ -71,12 +71,12 @@
   position: relative;
 }
 
-/* The selected plate: a top sheen and the dark hatch. */
+/* The selected plate: a top sheen and the dark hatch; its shadow shows below and at the sides, not above. */
 .plate {
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, rgb(255 255 255 / 8%), transparent 60%), var(--gt-hatch-dark), var(--gt-plate);
-  box-shadow: 0 8px 18px rgb(0 0 0 / 18%);
+  box-shadow: 0 6px 8px -2px rgb(0 0 0 / 18%);
 }
 
 /* Orange corner diamonds (common red-dot shape) on the plate's two top corners. */
@@ -87,7 +87,6 @@
   height: 10px;
   background: var(--ef-g-reddot);
   transform: rotate(45deg);
-  box-shadow: 0 0 6px rgb(255 118 0 / 60%);
 }
 
 .dia[data-side='l'] {

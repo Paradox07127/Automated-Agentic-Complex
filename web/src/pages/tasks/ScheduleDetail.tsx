@@ -71,7 +71,7 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
       </div>
       <div className={styles.scroll}>
         {proposal && (
-          <div className={paper.paper} data-theme="light">
+          <div className={paper.paper} data-depth="" data-theme="light">
             <h4>她提议：{triggerText(t)} {s.title}</h4>
             <p>启用后按时自己跑{scope ? `，读「${scope.label}」` : ''}。</p>
             <div className={paper.btns}>

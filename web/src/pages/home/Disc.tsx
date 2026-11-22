@@ -36,7 +36,7 @@ function Focus({ item, act, go }: { item: PendingItem; act: DiscProps['act']; go
   const danger = item.kind !== 'review' && item.dangerous ? dangerRuleText(item.danger_rule ?? '') : null;
   const one = item.kind === 'question' && item.interaction_kind === 'question' && item.questions.length === 1 ? item.questions[0] : undefined;
   return (
-    <div className={styles.focus} role="group" aria-label={`${KIND_LABEL[item.kind]}：${item.title}`}>
+    <div className={styles.focus} data-depth="" role="group" aria-label={`${KIND_LABEL[item.kind]}：${item.title}`}>
       <button type="button" className={styles.focusT} onClick={open}>
         <b>{item.title}</b>
         <span>{item.source}</span>

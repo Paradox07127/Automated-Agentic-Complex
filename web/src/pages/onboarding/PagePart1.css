@@ -4,9 +4,8 @@
   --onb-ramp: #000;
   /* Medium blur tint: the ground here; the game's #EEEEEE multiplies the blurred scene, which an alpha tint cannot. */
   --onb-blur: #0a0a0a;
-  /* Frame plate #171717@0.502; its drop shadow alpha is inferred. */
+  /* Frame plate #171717@0.502. */
   --onb-frame: rgb(23 23 23 / 0.502);
-  --onb-frame-shadow: rgb(0 0 0 / 0.35);
   /* Side bars #FFFFFF, faded to 0.1 by guidemedia_in; the line accent on them (alpha inferred). */
   --onb-bar: #fff;
   --onb-bar-accent: rgb(255 255 255 / 0.5);
@@ -29,7 +28,6 @@
   --onb-ramp: rgb(0 0 0 / 0.12);
   --onb-blur: var(--ef-g-guide-blur);
   --onb-frame: rgb(255 255 255 / 0.6);
-  --onb-frame-shadow: rgb(0 0 0 / 0.12);
   --onb-bar: #000;
   --onb-bar-accent: rgb(0 0 0 / 0.4);
   --onb-scroll: rgb(0 0 0 / 0.2);
@@ -129,7 +127,6 @@
   max-height: 100%;
   padding: 12.5px;
   background: var(--onb-frame);
-  box-shadow: 0 4px 16px var(--onb-frame-shadow);
 }
 
 /* Deco01 / Deco02: 3.5 px bars on the frame's sides, the media's height at --size-y 270; guidemedia_in grows them from 41. */

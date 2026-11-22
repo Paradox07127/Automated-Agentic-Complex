@@ -48,11 +48,11 @@
   cursor: pointer;
   color: #181818;
   background: radial-gradient(circle, #f2f1ef 0 60%, #d8d7d3);
-  box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.25), 0 0 0 4px rgba(0, 0, 0, 0.55), 0 6px 10px -4px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.25), 0 0 0 4px rgba(0, 0, 0, 0.55), var(--ef-shadow-btn);
 }
 
 .rb:hover {
-  box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.5), 0 0 0 4px rgba(0, 0, 0, 0.55), 0 0 14px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.5), 0 0 0 4px rgba(0, 0, 0, 0.55), var(--ef-shadow-btn);
 }
 
 .rb:focus-visible {

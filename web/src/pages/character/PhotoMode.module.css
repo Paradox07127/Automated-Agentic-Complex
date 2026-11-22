@@ -106,9 +106,7 @@
 /* In use: a yellow inner frame and glow, a yellow corner with a dark tick. */
 .cell[aria-checked='true'] {
   background: rgb(30 30 30 / 90%);
-  box-shadow:
-    inset 0 0 0 2px var(--ef-accent),
-    0 0 16px rgb(255 241 0 / 35%);
+  box-shadow: inset 0 0 0 2px var(--ef-accent);
 }
 
 .cell[aria-checked='true'] .name {
@@ -170,9 +168,7 @@
   background: linear-gradient(180deg, rgb(74 74 74 / 84%), rgb(60 60 60 / 82%));
   color: #fff;
   backdrop-filter: blur(10px);
-  box-shadow:
-    0 7px 10px -7px rgb(0 0 0 / 55%),
-    inset 0 1px 0 rgb(255 255 255 / 7%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
 }
 
 .cam[data-off] .body {

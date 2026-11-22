@@ -1,8 +1,8 @@
 /* .ef-btn: capsule button. ::before = fill + 1.5px ring in the fill colour + outline in the gap + soft shadow;
    .contour = texture layer; ::after = hover wash / pressed shade. lg = long capsule, md = short, sm = smallest. */
 .btn {
-  /* Shadow: black, alpha peaks 0.42 under the capsule. */
-  --btn-shadow: rgba(0, 0, 0, 0.42);
+  /* Shadow: the game's capsule shadow, below and a little right. */
+  --btn-shadow: var(--ef-shadow-btn);
   /* Pressed mask #000@0.357, shown while pressed. */
   --btn-press: rgba(0, 0, 0, 0.357);
   --btn-fill: var(--ef-btn-light);
@@ -57,7 +57,7 @@
   background-color: var(--btn-fill);
   box-shadow:
     0 0 0 3.5px var(--btn-edge),
-    0 5px 6px -1px var(--btn-shadow);
+    var(--btn-shadow);
   transition:
     background-color var(--btn-dur) var(--ef-ease-g-fade),
     outline-color var(--btn-dur) var(--ef-ease-g-fade),
@@ -114,7 +114,7 @@
   outline: 0;
   box-shadow:
     0 0 0 1px var(--btn-edge),
-    0 2px 4px -1px var(--btn-shadow);
+    var(--btn-shadow);
 }
 
 .label {
@@ -206,7 +206,7 @@
   outline-offset: 0;
   box-shadow:
     0 0 0 2px var(--btn-edge),
-    0 3px 6px -1px var(--btn-shadow);
+    var(--btn-shadow);
 }
 
 .ring.sm {
@@ -218,7 +218,7 @@
   --btn-fill: transparent;
   --btn-ring: transparent;
   --btn-edge: transparent;
-  --btn-shadow: transparent;
+  --btn-shadow: 0 0 transparent;
   --btn-fg: var(--ef-text-2);
   --btn-wash: var(--ef-overlay-hover);
 }
@@ -323,7 +323,7 @@
   box-shadow:
     0 0 0 3.5px var(--btn-edge),
     0 0 0 5.5px var(--ef-focus),
-    0 5px 6px -1px var(--btn-shadow);
+    var(--btn-shadow);
 }
 
 .sm:focus-visible::before,

@@ -240,7 +240,7 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
           </div>
         )}
         {note && (
-          <div className={paper.paper} data-theme="light" data-task-note="">
+          <div className={paper.paper} data-depth="" data-theme="light" data-task-note="">
             <h4>补一句{ended ? '再让她接着做' : ''}</h4>
             <p>{ended ? '她从停下的那一步接着做，带上这句话。' : '她收到后照这句话接着做。'}</p>
             <RejectBox

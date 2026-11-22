@@ -1,7 +1,5 @@
 /* Watch panel: square edges, entry squares for the shortcuts. */
 .card {
-  /* Entry square: shadow plate #FFF@.39 behind the button, offset 3 px. */
-  --tile-shadow: rgba(255, 255, 255, 0.39);
   position: relative;
   width: 332px;
   min-width: 0;
@@ -113,7 +111,6 @@
   padding: var(--ef-sp-8) var(--ef-sp-4);
   border-color: var(--ef-btn-outline);
   background: var(--ef-btn-light);
-  box-shadow: -3px 0 0 var(--tile-shadow);
   color: var(--ef-btn-light-text);
   text-align: center;
   transition: background var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);

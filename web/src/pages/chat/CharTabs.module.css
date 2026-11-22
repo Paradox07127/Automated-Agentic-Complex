@@ -94,7 +94,7 @@
   border-radius: 50%;
   box-shadow:
     0 0 0 1.5px rgba(0, 0, 0, 0.5),
-    0 2px 6px rgba(0, 0, 0, 0.4);
+    var(--ef-shadow-btn);
 }
 
 .face img {
@@ -123,9 +123,7 @@
   height: 8px;
   border-radius: 50%;
   background: var(--ef-success);
-  box-shadow:
-    0 0 0 2px var(--ef-canvas),
-    0 0 6px var(--ef-success);
+  box-shadow: 0 0 0 2px var(--ef-canvas);
 }
 
 .name {

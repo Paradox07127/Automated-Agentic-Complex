@@ -25,7 +25,7 @@
   color: #1f1f1f;
   outline: none;
   background: linear-gradient(180deg, #faf9f7, #f2f1ef);
-  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--ef-shadow-card);
   box-sizing: border-box;
   animation: pop-up 0.3s var(--m-enter) both;
 }
@@ -106,11 +106,11 @@
   font-size: 14px;
   color: #1f1f1f;
   background: #fff;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
 }
 
 .paper input:focus {
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25), 0 0 0 2px #161616;
+  box-shadow: 0 0 0 2px #161616;
 }
 
 .btns {
@@ -127,7 +127,7 @@
   color: var(--m-pn-t1);
   outline: none;
   background: linear-gradient(180deg, var(--m-pn-hi), var(--m-pn));
-  box-shadow: 0 0 0 1.5px rgba(236, 236, 234, 0.7), 0 24px 48px -12px rgba(0, 0, 0, 0.65);
+  box-shadow: 0 0 0 1.5px rgba(236, 236, 234, 0.7), var(--ef-shadow-popup);
   animation: pop-up 0.3s var(--m-enter) both;
 }
 
@@ -146,13 +146,12 @@
   color: #1f1f1f;
   resize: vertical;
   background: #f2f1ef;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
   box-sizing: border-box;
 }
 
 .pb textarea:focus {
   outline: none;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--ef-accent);
+  box-shadow: 0 0 0 2px var(--ef-accent);
 }
 
 .pb p {

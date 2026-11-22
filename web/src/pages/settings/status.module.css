@@ -21,7 +21,6 @@
 .st[data-tone='ok']::before {
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 6px currentColor;
 }
 
 .st[data-tone='bad'] {
