@@ -130,13 +130,12 @@ describe('a running coding session’s lines are read incrementally', () => {
   });
 });
 
-describe('附加窗口 needs screenshot sharing', () => {
+describe('看一眼屏幕 needs screenshot sharing', () => {
   const props = (over: Partial<ComposerProps>): ComposerProps => ({
     roleName: '示例甲',
     history: false,
     busy: false,
     kernel: null,
-    alternative: null,
     failed: null,
     sending: false,
     onSend: () => {},
@@ -144,8 +143,6 @@ describe('附加窗口 needs screenshot sharing', () => {
     onDiscardFailed: () => {},
     onContinue: () => {},
     onRecheck: () => {},
-    onCopy: () => {},
-    onSwitchKernel: () => {},
     ...over,
   });
 
@@ -158,7 +155,8 @@ describe('附加窗口 needs screenshot sharing', () => {
   it('is disabled with its reason while sharing is off', () => {
     const onSend = vi.fn();
     render(<Composer {...props({ onSend, lookOff: '隐私里没开「看一下」时附上截图' })} />);
-    const look = screen.getByRole('button', { name: '附加窗口' });
+    fireEvent.click(screen.getByRole('button', { name: '附加' }));
+    const look = screen.getByRole('menuitemcheckbox', { name: /^让她看一眼屏幕/ });
     expect(look.getAttribute('aria-disabled')).toBe('true');
     expect(look.getAttribute('title')).toBe('隐私里没开「看一下」时附上截图');
     fireEvent.click(look);

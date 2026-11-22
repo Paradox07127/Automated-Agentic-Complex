@@ -1,11 +1,12 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
-import { keyText } from '../../bridge/platformText';
+import { getBridge, type PickedHandle } from '../../bridge';
+import { post } from '../../bridge/agentd';
 import type { RuntimeInfo } from '../../domain';
-import { KernelChain } from '../../features/kernel';
 import { Btn, Icon, Menu, type MenuItem } from '../../ui';
+import type { WireScope } from '../settings/wire';
 import { reasonOf } from './actions';
+import { AttachTray, type TrayItem } from './AttachTray';
 import styles from './Composer.module.css';
-import { pickScope, recentScope, shortName, type ChatScope } from './scope';
 
 /** Per-message options agentd takes beside the text (control_panel.py messages). */
 export interface SendOptions {
@@ -33,11 +34,12 @@ export interface ComposerProps {
   quietSend?: boolean;
   /** Selected kernel when it is not ready (banner), else null. */
   kernel: RuntimeInfo | null;
-  alternative: RuntimeInfo | null;
+  /** Unused (the kernel is chosen in 设置); optional while Page.tsx still passes it. */
+  alternative?: RuntimeInfo | null;
   /** Text of a message that failed to send; kept for 「重新发送」. */
   failed: { text: string; reason: string; options?: SendOptions } | null;
   sending: boolean;
-  /** Why 附加窗口 is off (screenshot sharing is off), else null. */
+  /** Why 看一眼屏幕 is off (screenshot sharing is off), else null. */
   lookOff?: string | null;
   /** One line from the last send's receipt (scope warning, read-only turn). */
   notice?: string | null;
@@ -47,27 +49,58 @@ export interface ComposerProps {
   onContinue: () => void;
   onRestore?: () => void;
   onRecheck: () => void;
-  onCopy: (cmd: string) => void;
-  /** Only when the shell can run a command in a terminal. */
+  /** Unused (the kernel is chosen in 设置); optional while Page.tsx still passes it. */
+  onCopy?: (cmd: string) => void;
+  /** Unused (the kernel is chosen in 设置); optional while Page.tsx still passes it. */
   onRunInTerminal?: (cmd: string) => void;
-  onSwitchKernel: (id: string) => void;
+  /** Unused (the kernel is chosen in 设置); optional while Page.tsx still passes it. */
+  onSwitchKernel?: (id: string) => void;
   /** Text put into the input; a new object puts it in again. */
   draft?: { text: string } | null;
+  /** The topic the input writes to; each keeps its own draft. Null: one draft for all. */
+  topicId?: string | null;
+  /** A line the user quotes; it goes out as `> ` lines before the text. */
+  quote?: string | null;
+  onClearQuote?: () => void;
 }
+
+/** What is typed and attached for one topic. `files` are picker handles, good only in the page that picked them. */
+interface Draft {
+  text: string;
+  files: PickedHandle[];
+  look: boolean;
+  noMem: boolean;
+}
+
+const EMPTY: Draft = { text: '', files: [], look: false, noMem: false };
+
+/** Unsent drafts by topic id, for the life of the page. */
+const drafts = new Map<string, Draft>();
 
 const NO_MODEL = new Set(['no_llm', 'missing_api_key', 'native_login_required', 'local_runtime_missing', 'credentials_rejected',
   'usage_limit', 'subscription_sharing_usage_limit_exceeded', 'subscription_sharing_usage_unavailable', 'pi_connection_missing']);
 
-/** Input area: kernel-not-ready block with the kernel chain, send failure with the original text kept, two option chips, 资料 and 发送. */
+/** The image types among the picker's scope_file types (app/electron SCOPE_FILE_TYPES). */
+const IMAGE = /\.(png|jpe?g|gif|webp)$/i;
+
+/** Input area: kernel / model notices, send failure with the original text kept, quote, tray, then ＋, the input and 发送. */
 export function Composer(p: ComposerProps) {
-  const [text, setText] = useState('');
-  const [look, setLook] = useState(false);
-  const [noMem, setNoMem] = useState(false);
-  const [scope, setScope] = useState<ChatScope | null>(null);
-  const [scopeNote, setScopeNote] = useState<string | null>(null);
+  const key = p.topicId ?? null;
+  const [shown, setShown] = useState(key);
+  const [d, setD] = useState<Draft>(() => (key != null && drafts.get(key)) || EMPTY);
+  if (shown !== key) {
+    setShown(key);
+    setD((key != null && drafts.get(key)) || EMPTY);
+  }
+  const [attaching, setAttaching] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   const noModel = NO_MODEL.has(p.modelError ?? p.kernel?.reason ?? '');
+  const edit = (next: Partial<Draft>) => setD((cur) => ({ ...cur, ...next }));
   useEffect(() => {
-    if (p.draft) setText(p.draft.text);
+    if (key != null) drafts.set(key, d);
+  }, [key, d]);
+  useEffect(() => {
+    if (p.draft) edit({ text: p.draft.text });
   }, [p.draft]);
   if (p.history) {
     return (
@@ -90,36 +123,57 @@ export function Composer(p: ComposerProps) {
     );
   }
   const off = p.kernel != null;
-  const send = () => {
-    if (text.trim() === '' || off) return;
-    p.onSend(text.trim(), { look: look && !p.lookOff, no_memory: noMem, ...(scope && !noMem ? { scope_id: scope.id } : {}) });
-    setText('');
-    setLook(false);
-    setNoMem(false);
-    setScopeNote(null);
-  };
-  /** `none` is the line when nothing comes back; a cancelled picker says nothing. */
-  const take = async (find: () => Promise<ChatScope | null>, none?: string) => {
-    setScopeNote(null);
-    try {
-      const s = await find();
-      if (s) setScope(s);
-      else if (none) setScopeNote(none);
-    } catch (e) {
-      setScopeNote(`资料没有带上：${reasonOf(e)}`);
+  const look = d.look && !p.lookOff;
+  const said = d.text.trim();
+  const send = async () => {
+    if (said === '' || off || attaching) return;
+    let scope: { scope_id?: string } = {};
+    if (d.files.length > 0) {
+      setAttaching(true);
+      try {
+        scope = { scope_id: (await post<WireScope>('/agent/scopes', { files: d.files })).scope_id };
+      } catch (e) {
+        // A picked handle is spent once tried: the tray empties and the text stays.
+        setNote(`附件没有带上：${reasonOf(e)}`);
+        edit({ files: [] });
+        return;
+      } finally {
+        setAttaching(false);
+      }
     }
+    const quoted = p.quote ? `${p.quote.split('\n').map((l) => `> ${l}`).join('\n')}\n\n${said}` : said;
+    p.onSend(quoted, { look, no_memory: d.noMem, ...scope });
+    setD(EMPTY);
+    setNote(null);
+    p.onClearQuote?.();
   };
-  const scopeItems: MenuItem[] = [
-    { kind: 'item', label: '选文件…', onSelect: () => void take(() => pickScope('file')) },
-    { kind: 'item', label: '选文件夹…', onSelect: () => void take(() => pickScope('folder')) },
-    { kind: 'item', label: '用最近的资料', onSelect: () => void take(recentScope, '还没有可用的资料') },
+  const addFile = async () => {
+    const h = await getBridge().files.pickFile({ purpose: 'scope_file' });
+    if (h) setD((cur) => ({ ...cur, files: [...cur.files, h] }));
+  };
+  const plus: MenuItem[] = [
+    { kind: 'item', label: '添加文件或图片', disabled: off || d.noMem, ...(!off && d.noMem ? { reason: '这句不记时不带文件' } : {}), onSelect: () => void addFile() },
+    { kind: 'item', label: '让她看一眼屏幕', checked: look, disabled: off || p.lookOff != null, ...(p.lookOff ? { reason: p.lookOff } : {}), onSelect: () => edit({ look: !d.look }) },
+    { kind: 'item', label: '这句不记', checked: d.noMem, disabled: off || d.files.length > 0, ...(!off && d.files.length > 0 ? { reason: '带着文件时不能不记' } : {}), onSelect: () => edit({ noMem: !d.noMem }) },
+  ];
+  const tray: TrayItem[] = [
+    ...d.files.map((f, i) => ({
+      key: f.handle,
+      name: f.displayName,
+      icon: IMAGE.test(f.displayName) ? ('g-image' as const) : ('g-file' as const),
+      removeLabel: `移除 ${f.displayName}`,
+      onRemove: () => edit({ files: d.files.filter((_, j) => j !== i) }),
+    })),
+    ...(look ? [{ key: 'look', name: '看一眼屏幕', icon: 'g-window' as const, flag: true, removeLabel: '不看屏幕', onRemove: () => edit({ look: false }) }] : []),
+    ...(d.noMem ? [{ key: 'nomem', name: '这句不记', icon: 'g-nomem' as const, flag: true, removeLabel: '取消这句不记', onRemove: () => edit({ noMem: false }) }] : []),
   ];
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      send();
+      void send();
     }
   };
+  const inactive = off || said === '';
   return (
     <div className={styles.root}>
       {noModel && (
@@ -132,18 +186,16 @@ export function Composer(p: ComposerProps) {
       )}
       {p.kernel && !noModel && (
         <div className={styles.kernel} role="alert">
-          <span className={styles.kernelH}>
-            <span className={styles.att} aria-hidden="true">
-              ▲
-            </span>
-            <b>角色内核未就绪</b>
-            <span className={styles.cap}>{p.kernel.name} 未就绪，就绪后可发送</span>
-            <span className={styles.sp} />
-            <Btn size="sm" variant="ghost" icon="refresh" onClick={p.onRecheck}>
-              重新检测
-            </Btn>
+          <span className={styles.flagMark} aria-hidden="true">
+            ▲
           </span>
-          <KernelChain runtime={p.kernel} alternative={p.alternative} surface="inline" onCopy={p.onCopy} onRunInTerminal={p.onRunInTerminal} onSwitch={p.onSwitchKernel} onRecheck={p.onRecheck} />
+          <b>角色内核未就绪</b>
+          <span className={styles.cap}>{p.kernel.name} 未就绪，就绪后可发送</span>
+          <a href="#/settings?group=kernel">设置 › 角色内核</a>
+          <span className={styles.sp} />
+          <Btn size="sm" variant="ghost" icon="refresh" onClick={p.onRecheck}>
+            重新检测
+          </Btn>
         </div>
       )}
       {p.failed && (
@@ -159,54 +211,45 @@ export function Composer(p: ComposerProps) {
         </div>
       )}
       {p.notice && <p className={styles.notice}>{p.notice}</p>}
-      {scopeNote && <p className={styles.notice}>{scopeNote}</p>}
-      <textarea
-        className={styles.input}
-        rows={2}
-        value={text}
-        placeholder={off ? '内核就绪后可发送' : keyText(`输入消息，⌘↩ 发送给 ${p.roleName}`)}
-        disabled={off}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={onKey}
-        aria-label="消息"
-      />
-      <div className={styles.foot}>
+      {note && <p className={styles.notice}>{note}</p>}
+      {p.sideHint && !off && <p className={`${styles.cap} ${styles.busy}`} title="前台执行中，新消息由只读旁路回答">前台执行中，新消息由只读旁路回答</p>}
+      {p.quote && (
+        <div className={styles.quote}>
+          <Icon name="g-quote" size={14} />
+          <span className={styles.quoteText}>{p.quote}</span>
+          <button type="button" className={styles.x} aria-label="不引用" onClick={p.onClearQuote}>
+            <Icon name="g-close" size={12} />
+          </button>
+        </div>
+      )}
+      <AttachTray items={tray} />
+      <div className={styles.cbar}>
+        <span className={styles.plus}>
+          <Menu label="附加" icon="g-plus" items={plus} />
+        </span>
+        <label className={styles.inp}>
+          <textarea
+            rows={1}
+            value={d.text}
+            placeholder={off ? '内核就绪后可发送' : `对${p.roleName}说…`}
+            disabled={off}
+            onChange={(e) => edit({ text: e.target.value })}
+            onKeyDown={onKey}
+            aria-label="消息"
+          />
+        </label>
         <button
           type="button"
-          className={styles.chip}
-          aria-pressed={look && !p.lookOff}
-          data-on={(look && !p.lookOff) || undefined}
-          aria-disabled={off || p.lookOff != null || undefined}
-          title={p.lookOff ?? '附加当前前台窗口'}
-          onClick={() => !off && !p.lookOff && setLook(!look)}
+          className={styles.send}
+          data-quiet={p.quietSend || undefined}
+          aria-disabled={inactive || undefined}
+          aria-busy={p.sending || attaching || undefined}
+          title={off ? '内核未就绪' : said === '' ? '先输入消息' : undefined}
+          onClick={() => void send()}
         >
-          <Icon name="look" size={14} />
-          {look && !p.lookOff ? '已附加窗口' : '附加窗口'}
+          <Icon name="g-send" size={16} />
+          <span>发送</span>
         </button>
-        <button type="button" className={styles.chip} aria-pressed={noMem} data-on={noMem || undefined} disabled={off} title="本轮不写入聊天记录和记忆" onClick={() => setNoMem(!noMem)}>
-          <Icon name="privacy" size={14} />
-          本轮不记录
-        </button>
-        {off || noMem ? (
-          <button type="button" className={styles.chip} disabled title={noMem ? '临时对话不带资料' : '选文件或文件夹给角色读'}>
-            <Icon name="file" size={14} />
-            {scope ? shortName(scope.name) : '资料'}
-          </button>
-        ) : (
-          <span className={styles.scope} title={scope?.name ?? '选文件或文件夹给角色读'}>
-            <Menu label={scope ? shortName(scope.name) : '资料'} items={scopeItems} />
-            {scope && (
-              <button type="button" className={styles.chip} aria-label="这次不带资料" title="这次不带资料，授权不撤销" onClick={() => setScope(null)}>
-                <Icon name="close" size={14} />
-              </button>
-            )}
-          </span>
-        )}
-        <span className={styles.sp} />
-        {p.sideHint && !off && <span className={`${styles.cap} ${styles.busy}`} title="前台执行中，新消息由只读旁路回答">前台执行中，新消息由只读旁路回答</span>}
-        <Btn variant={p.quietSend ? 'secondary' : 'primary'} icon="send" tail="send" kbd={keyText('⌘↩')} loading={p.sending} disabled={off || text.trim() === ''} disabledReason={off ? '内核未就绪' : '先输入消息'} onClick={send}>
-          发送
-        </Btn>
       </div>
     </div>
   );

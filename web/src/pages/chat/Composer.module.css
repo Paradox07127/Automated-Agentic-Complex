@@ -1,6 +1,6 @@
 .root {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: 8px;
   container-type: inline-size;
 }
 
@@ -10,50 +10,11 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--ef-surface-1);
-  outline: 1px dashed var(--ef-line);
+  background: var(--b-plate);
+  outline: 1px dashed var(--b-edge-lo);
   outline-offset: -1px;
-  font: var(--ef-t-text);
-  color: var(--ef-text-2);
-}
-
-/* FriendDialogueSendArea input (screenshots 0128/013, 071): a light rounded field with dark text. */
-.input {
-  width: 100%;
-  min-height: 60px;
-  padding: 8px 16px;
-  resize: none;
-  border: var(--ef-lw-hair) solid var(--ef-field-border);
-  border-radius: 18px;
-  background: var(--ef-field);
-  color: var(--ef-field-text);
-  font: 400 14px/1.55 var(--ef-font-sans);
-}
-
-.input:hover:not(:disabled) {
-  background: var(--ef-field-hover);
-}
-
-.input:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 1px;
-}
-
-.input::placeholder {
-  color: var(--ef-paper-text-2);
-}
-
-.input:disabled {
-  color: var(--ef-text-disabled);
-  cursor: not-allowed;
-}
-
-.foot {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  margin-top: 10px;
+  font-size: 13px;
+  color: var(--b-t2);
 }
 
 .sp {
@@ -61,8 +22,8 @@
 }
 
 .cap {
-  font: var(--ef-t-meta);
-  color: var(--ef-text-2);
+  font-size: 12px;
+  color: var(--b-t2);
 }
 
 .busy {
@@ -72,137 +33,292 @@
   white-space: nowrap;
 }
 
-/* A narrow composer: the hint takes its own line above the chips and 发送. */
-@container (max-width: 640px) {
-  .foot {
-    flex-wrap: wrap;
-  }
-
-  /* 发送 alone on a wrapped line stays at the right edge. */
-  .sp ~ button {
-    margin-left: auto;
-  }
-
-  .busy {
-    flex: 1 0 100%;
-    order: -1;
-    white-space: normal;
-  }
-}
-
-/* A short window gives the height to the thread: a one-line field, and the hint shrinks on the tool row. */
-@media (max-height: 699px) {
-  .input {
-    min-height: 0;
-    height: calc(14px * 1.55 + 16px + 2 * var(--ef-lw-hair));
-  }
-
-  .foot {
-    flex-wrap: nowrap;
-  }
-
-  .busy {
-    flex: 0 1 auto;
-    order: 0;
-    white-space: nowrap;
-  }
-}
-
-/* Option toggle: a round-ended chip like the send area's round buttons; on is an ink chip. */
-.chip {
-  display: inline-flex;
-  flex: none;
+/* ＋ | the input pill | 发送: the pill takes the width between two fixed ends. */
+.cbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 12px 0 10px;
-  border: 0;
-  border-radius: 13px;
-  background: var(--ef-chip);
-  color: var(--ef-text-1);
-  font: 500 12px/1 var(--ef-font-sans);
-  white-space: nowrap;
-  /* f_sns_message_btn Highlighted: 83 ms colour fade (the timing only; the plate keeps our colours). */
+}
+
+/* The Menu trigger drawn as the round plate button. */
+.plus button[aria-haspopup] {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, var(--b-plate-hi), var(--b-plate-lo));
+  color: var(--b-t1);
+  mask: none;
+  box-shadow:
+    0 0 0 1.5px var(--b-t1),
+    0 0 0 3px var(--b-edge-lo),
+    0 4px 8px -2px var(--b-shadow);
   transition:
-    background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade),
-    color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+    transform 0.1s var(--g-fade),
+    box-shadow 0.083s var(--g-fade);
+}
+
+.plus button[aria-haspopup]:hover,
+.plus [data-open] > button[aria-haspopup] {
+  box-shadow:
+    0 0 0 1.5px var(--b-t1),
+    0 0 0 3px var(--b-edge-lo),
+    0 0 14px -2px color-mix(in srgb, var(--b-t1) 40%, transparent),
+    0 4px 8px -2px var(--b-shadow);
+}
+
+.plus button[aria-haspopup]:active {
+  transform: scale(0.94);
+}
+
+/* The field stays light in both themes, so its text is ink. */
+.inp {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 21px;
+  background: var(--b-field);
+  box-shadow:
+    inset 0 1px 3px color-mix(in srgb, var(--b-ink) 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--b-ink) 30%, transparent),
+    0 3px 6px -2px var(--b-shadow);
+  transition: box-shadow 0.15s var(--g-fade);
+}
+
+.inp:focus-within {
+  box-shadow:
+    inset 0 1px 3px color-mix(in srgb, var(--b-ink) 22%, transparent),
+    0 0 0 2px var(--b-sel),
+    0 3px 10px -2px var(--b-shadow);
+}
+
+/* One line high, growing with Shift+Enter lines up to five. */
+.inp textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: calc(5 * 1.5em);
+  padding: 10px 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  field-sizing: content;
+  background: none;
+  color: var(--b-ink);
+  font: 400 14px/1.5 var(--ef-font-sans);
+}
+
+.inp textarea::placeholder {
+  color: color-mix(in srgb, var(--b-ink) 58%, var(--b-field));
+}
+
+.inp textarea:disabled {
+  cursor: not-allowed;
+}
+
+/* 发送: a yellow capsule with a dark ring; quiet, it takes the plate colour. */
+.send {
+  --cf: var(--b-sel);
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px 2px;
+  border: 0;
+  background: none;
+  color: var(--b-ink);
+  font: 500 14px/1 var(--ef-font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 0.1s var(--g-fade);
+}
+
+.send[data-quiet] {
+  --cf: var(--b-plate-hi);
+  color: var(--b-t1);
+}
+
+.send::before,
+.send::after {
+  content: '';
+  position: absolute;
+  inset: 4.5px 5.5px 6.5px;
+  z-index: -1;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.send::before {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cf) 70%, var(--b-plate-hi)), var(--cf) 55%, color-mix(in srgb, var(--cf) 88%, var(--b-ink)));
+  outline: 1.5px solid var(--cf);
+  outline-offset: 1px;
+  box-shadow:
+    0 0 0 3.5px color-mix(in srgb, var(--b-ink) 80%, transparent),
+    0 5px 6px -1px var(--b-shadow);
+}
+
+.send::after {
+  background: color-mix(in srgb, var(--b-plate-hi) 18%, transparent);
+  opacity: 0;
+  transition: opacity 0.083s var(--g-fade);
+}
+
+.send:hover:not([aria-disabled='true'])::after {
+  opacity: 1;
+}
+
+.send:active:not([aria-disabled='true']) {
+  transform: translateY(1px);
+}
+
+.send[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.send:focus-visible {
+  outline: 2px solid var(--b-t1);
+  outline-offset: 2px;
+  border-radius: 999px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chip {
+  .send,
+  .send::after,
+  .inp,
+  .plus button[aria-haspopup] {
     transition: none;
   }
 }
 
-:global([data-reduce-motion]) .chip {
+:global([data-reduce-motion]) :is(.send, .send::after, .inp, .plus button[aria-haspopup]) {
   transition: none;
 }
 
-.chip:hover:not(:disabled, [aria-disabled='true']) {
-  background: var(--ef-surface-3);
-}
-
-.chip[data-on] {
-  background: var(--ef-text-1);
-  color: var(--ef-base);
-}
-
-.chip:disabled,
-.chip[aria-disabled='true'] {
-  color: var(--ef-text-disabled);
-  cursor: not-allowed;
-}
-
-.chip:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: -3px;
-}
-
-/* 资料 opens a Menu: its trigger takes the chip's size, type and round ends. */
-.scope {
-  display: inline-flex;
-  flex: none;
-  gap: 2px;
-}
-
-/* The composer sits at the window's bottom edge, where a menu opening downward is cut off. */
-.scope [role='menu'] {
-  top: auto;
-  bottom: calc(100% + 4px);
-}
-
-.scope button[aria-haspopup] {
-  gap: 6px;
-  height: 26px;
-  padding: 0 12px 0 10px;
-  border-radius: 13px;
-  mask: none;
-  font: 500 12px/1 var(--ef-font-sans);
-}
-
-/* Kernel not ready: a framed notice with a yellow flag. */
-.kernel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--ef-line);
-  background: var(--ef-raised);
-}
-
-.kernelH {
+/* Tray: files and the turn's flags, each a plate chip with its own ×. */
+.tray {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
 }
 
 .att {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  height: 44px;
+  padding: 0 30px 0 4px;
+  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
+  box-shadow:
+    inset 0 1px 0 var(--b-edge),
+    0 0 0 1px var(--b-edge-lo),
+    0 3px 6px -3px var(--b-shadow);
+  font-size: 12px;
+  color: var(--b-t1);
+}
+
+.att[data-flag] {
+  padding-left: 12px;
+  box-shadow:
+    inset 0 0 0 1.5px var(--b-sel),
+    0 3px 6px -3px var(--b-shadow);
+}
+
+.th {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 36px;
+  background: var(--b-plate-lo);
+  box-shadow: inset 0 0 0 1px var(--b-edge-lo);
+  color: var(--b-t2);
+}
+
+.att b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.x {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--b-t2);
+  cursor: pointer;
+}
+
+.x:hover {
+  background: var(--b-plate-lo);
+  color: var(--b-t1);
+}
+
+.x:focus-visible {
+  outline: 2px solid var(--b-t1);
+}
+
+/* Quote: one clipped line with a yellow bar on its left. */
+.quote {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 30px 0 12px;
+  border-left: 3px solid var(--b-sel);
+  background: var(--b-plate);
+  box-shadow: inset 0 0 0 1px var(--b-edge-lo);
+  font-size: 13px;
+  color: var(--b-t2);
+}
+
+.quoteText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Kernel not ready, or no model: a framed notice. */
+.kernel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--b-edge-lo);
+  background: var(--b-plate);
+  font-size: 13px;
+  color: var(--b-t1);
+}
+
+.kernel a {
+  color: var(--b-t1);
+}
+
+.flagMark {
   padding: 1px 4px;
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
+  background: var(--b-sel);
+  color: var(--b-ink);
   font-size: 11px;
 }
 
@@ -211,27 +327,25 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 10px;
-  margin-bottom: 8px;
   padding: 6px 10px;
-  border: 1px solid var(--ef-line);
-  background: var(--ef-raised);
+  border: 1px solid var(--b-edge-lo);
+  background: var(--b-plate);
 }
 
 .failedText {
   flex: 1 1 100%;
   font-size: 13px;
-  color: var(--ef-text-1);
+  color: var(--b-t1);
   opacity: 0.85;
 }
 
 .err {
   flex: 1;
-  font: var(--ef-t-meta);
-  color: var(--ef-text-1);
+  font-size: 12px;
+  color: var(--b-t1);
 }
 
 .notice {
-  margin-bottom: 8px;
-  font: var(--ef-t-meta);
-  color: var(--ef-text-1);
+  font-size: 12px;
+  color: var(--b-t1);
 }
