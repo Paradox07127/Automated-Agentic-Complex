@@ -1,5 +1,21 @@
 /* Training room after the game's CharInfo scene: fixed colours in both themes, under everything on the page. */
+/* Registered so a section switch eases the floor with the stage (useSectionSwitch: a 200 ms wait, then the 667 ms in clip). */
+@property --room-floor-y {
+  syntax: '<length-percentage>';
+  inherits: true;
+  initial-value: 76.9%;
+}
+
+@property --room-close {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
 .room {
+  transition:
+    --room-floor-y 667ms cubic-bezier(0.333, 0, 0, 1) 200ms,
+    --room-close 667ms cubic-bezier(0.333, 0, 0, 1) 200ms;
   /* Screen values of the game's room with its floor line at 76.9 %; each stop keeps its distance from the floor line. */
   --room-c-wall-0: #8a8a88;
   --room-c-wall-1: #969694;
@@ -134,4 +150,14 @@
   position: absolute;
   inset: 0;
   background: radial-gradient(farthest-corner, transparent 45%, var(--room-c-vignette));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room {
+    transition: none;
+  }
+}
+
+:global(.still) .room {
+  transition: none;
 }
