@@ -17,6 +17,8 @@ sys.path[:0] = [str(CHARACTERS), str(CHARACTERS.parent/'agent/agentd/tests')]
 from agentic_complex_build import import_outfit
 from character_library import Package, read_json, write_json
 import native_bundle
+import package_format
+import vulkan_outfit
 from test_character_library import fixture
 
 CLOTH = 'S_actor_test_cloth_01_lod0'
@@ -39,13 +41,14 @@ def dds(width, height, dxgi=None, fourcc=b'DX10', fill=None):
     return b'DDS '+bytes(header)+dx10+bytes([fill if fill is not None else dxgi or 7])*16*((width+3)//4)*((height+3)//4)
 
 
-def package_fixture(root, cloth_extra=(), atlas=False, second_material=False, skinned=False, tables={}, neutral=True):
+def package_fixture(root, cloth_extra=(), atlas=False, second_material=False, skinned=False, tables={}, neutral=True, vulkan=False):
     """test_character_library's package with a runtime of three meshes: O1, its same-IB vfxpart twin O3, and two-submesh O2.
 
     `cloth_extra` adds (name, format, srgb, binding, size) textures to O1; `second_material` a draw of O1's submesh in material
     M_cloth_b, whose _BaseMap is 8x8; `atlas` a self-shadow atlas pass casting O1, its blobs beside the frame graph; `skinned`
     rig ids 11-13 for the three bones and O1's weights and bone indices (channels 12 and 13); `tables` ({file: document}) files
-    of interaction/ that the pack lists; without `neutral` the bundle has no neutral package, as one built before it."""
+    of interaction/ that the pack lists; without `neutral` the bundle has no neutral package, as one built before it; `vulkan` a
+    Windows frame table (vulkan_frame_fixture)."""
     doc = fixture(root, 'fixture')
     runtime = root/'runtime'
     for p in sorted(runtime.rglob('*'), reverse=True):p.unlink() if p.is_file() else p.rmdir()
@@ -106,6 +109,7 @@ def package_fixture(root, cloth_extra=(), atlas=False, second_material=False, sk
         library=put('programs.json', {'schema': 'metal-program-library-v1', 'programs': []}), graph=put('graph.json', graph),
         lighting=put('lighting.json', {'schema': 'metal-product-lighting/v1', 'sphere_source': put('sphere.json', {})}))
     if neutral:native_bundle.write_neutral(runtime, entry, graph); entry['graph'] = put('graph.json', (runtime/'graph.json').read_bytes())
+    if vulkan:entry['vulkan_frame'] = put('vulkan/frame.bin', vulkan_frame_fixture(runtime, draws, palette, read_json(runtime/'pack.json'), entry))
     entry['coverage'] = put('coverage.json', native_bundle.character_coverage(runtime, entry))
     files = [put(p.relative_to(runtime).as_posix(), p.read_bytes()) for p in sorted(runtime.rglob('*')) if p.is_file()]
     native = put('bundle.json', {'schema': 'metal-native-character-bundle/v1', 'characters': [entry], 'files': files})
@@ -113,6 +117,43 @@ def package_fixture(root, cloth_extra=(), atlas=False, second_material=False, sk
     doc['inventory'] = [x for x in doc['inventory'] if not x['file'].startswith('runtime/')]+[dict(x, file='runtime/'+x['file']) for x in files+[native]]
     (root/'character.json').write_text(json.dumps(doc, ensure_ascii=False))
     return Package(root)
+
+
+def vulkan_frame_fixture(runtime, draws, palette, pack, entry):
+    """A frame table of one render pass `pre-gbuffer` drawing every source draw: vertex buffers by attribute location, its
+    indices, a texture binding per image resource; the appearance records and a mesh record per palette mesh with its bones."""
+    E, NONE = package_format.ENUMS, package_format.NONE
+    tables = {t: [] for t in package_format.TABLES}; tables['strings'] = bytearray(b'\0')
+    pkg = vulkan_outfit.Table.__new__(vulkan_outfit.Table)
+    pkg.header, pkg.t, pkg.dir, pkg.written, pkg.blob_index, pkg.string_index = {}, tables, runtime, {}, {}, {'': 0}
+    pkg.read = lambda r, where: (runtime/'source'/r['file']).read_bytes()
+    for i, d in enumerate(draws):
+        first_element, first_vb = len(tables['input_elements']), len(tables['vertex_buffers'])
+        for slot, a in enumerate(sorted(d['attributes'], key=lambda a: a['location'])):
+            pkg.add('input_elements', dict(location=a['location'], input_slot=slot))
+            pkg.add('vertex_buffers', dict(blob=pkg.blob(pkg.read(a, 'source')), stride=a['stride'], byte_count=a['byte_count']))
+        layout = pkg.add('input_layouts', dict(first_element=first_element, element_count=len(d['attributes'])))
+        first_binding = len(tables['bindings'])
+        for r in d['resources']:
+            pkg.add('bindings', dict(stage=1, set=r['set'], binding=r['binding'], source=E['BindingSource']['texture'], index=pkg.texture(r, 'source')))
+        pkg.add('draws', dict(kind=E['DrawKind']['source'], input_layout=layout, first_vertex_buffer=first_vb, vertex_buffer_count=len(d['attributes']),
+                              index_blob=pkg.blob(pkg.read(d['indices'], 'source')), index_format=57, index_count=d['index_count'], vertex_count=d['vertex_count'],
+                              mesh=pkg.string(d['mesh']), source_draw=i, first_binding=first_binding, binding_count=len(d['resources'])))
+    pkg.add('passes', dict(name=pkg.string('pre-gbuffer'), first_draw=0, draw_count=len(draws)))
+    for ai, a in enumerate(pack['appearances']):
+        pkg.add('actors', dict(kind=E['ActorKind']['appearance'], name=pkg.string(a['id']), index=ai, first=pkg.string(a['name']), parent=NONE, node=NONE))
+    looks = [a['id'] for a in pack['appearances']]
+    for mi, m in enumerate(palette['meshes']):
+        worn = m.get('appearances')
+        gate = NONE if worn is None else pkg.blob(b''.join(struct.pack('<I', looks.index(a)) for a in worn))
+        pkg.add('actors', dict(kind=E['ActorKind']['mesh'], name=pkg.string(m['mesh']), index=mi, first=len(tables['actors'])+1, count=len(m['bones']),
+                               blob=NONE, aux_blob=NONE, oracle_blob=gate, flags=0 if worn is None else E['ActorFlag']['appearance_gate']))
+        for bi, _ in enumerate(m['bones']):pkg.add('actors', dict(kind=E['ActorKind']['bone'], index=bi, parent=mi, node=bi))
+    (runtime/vulkan_outfit.OWN).mkdir(parents=True, exist_ok=True)
+    for digest, raw in pkg.written.items():(runtime/vulkan_outfit.OWN/digest).write_bytes(raw)
+    header = dict(width=4, height=4, output_target=NONE, character=pkg.string('fixture'), scene_sha256=bytes.fromhex(entry['neutral_scene']['sha256']),
+                  manifest_sha256=bytes.fromhex(entry['source']['sha256']))
+    return vulkan_outfit.write_table(header, tables)
 
 
 # The SI free-migration shape: non-ASCII ini name, LF, mixed separators, merged-skeleton pools, slot textures,
@@ -407,6 +448,38 @@ class ImportOutfitTests(unittest.TestCase):
         self.assertTrue(same)
         self.assertNotEqual(again.native_entry['neutral_scene'], package.native_entry['neutral_scene'])
         self.assertEqual(scene['passes'][0]['draws'], graph['passes'][0]['draws'])
+
+    def test_the_import_carries_the_clone_into_the_windows_frame_table(self):
+        self.package = package_fixture(self.root/'windows', skinned=True, vulkan=True)
+        report, _ = self.si_import(textures={'1': '_MetallicGlossMap'})
+        package, runtime, pack, source, palette, _ = self.staged(self.root/'out')
+        entry, aid = package.native_entry, report['appearance']['id']
+        self.assertIn('vulkan_frame', entry)
+        header, t = vulkan_outfit.read_table((runtime/entry['vulkan_frame']['file']).read_bytes())
+        self.assertEqual((header['manifest_sha256'].hex(), header['scene_sha256'].hex()), (entry['source']['sha256'], entry['neutral_scene']['sha256']))
+        def text(o):return t['strings'][o:t['strings'].index(b'\0', o)].decode()
+        new = 'outfit:'+aid+'/'+CLOTH
+        self.assertEqual([(text(d['mesh']), d['source_draw']) for d in t['draws']], [(CLOTH, 0), (BODY, 1), (BODY, 2), (TWIN, 3), (new, 4)])
+        self.assertEqual((t['passes'][0]['first_draw'], t['passes'][0]['draw_count']), (0, 5))
+        template, clone = t['draws'][0], t['draws'][4]
+        def bound(d):
+            return {(b['set'], b['binding']): t['blobs'][t['textures'][b['index']]['blob']]['sha256'].hex()
+                    for b in t['bindings'][d['first_binding']:d['first_binding']+d['binding_count']]}
+        resources = {(r['set'], r['binding']): r['sha256'] for r in source['draws'][4]['resources']}
+        self.assertEqual(bound(clone), resources)
+        self.assertNotEqual(bound(clone)[(1, 7)], bound(template)[(1, 7)])
+        self.assertEqual(bound(clone)[(1, 6)], bound(template)[(1, 6)])
+        self.assertEqual(t['blobs'][clone['index_blob']]['sha256'].hex(), source['draws'][4]['indices']['sha256'])
+        K = package_format.ENUMS['ActorKind']
+        self.assertEqual([text(r['name']) for r in t['actors'] if r['kind'] == K['appearance']], ['default', 'top', aid])
+        def gate(name):
+            [r] = [r for r in t['actors'] if r['kind'] == K['mesh'] and text(r['name']) == name]
+            data = (runtime/text(t['blobs'][r['oracle_blob']]['file'])).read_bytes()
+            return list(struct.unpack('<%dI' % (len(data)//4), data))
+        self.assertEqual((gate(CLOTH), gate(new), gate(TWIN)), ([0, 1], [2], [1]))
+        [mesh] = [r for r in t['actors'] if r['kind'] == K['mesh'] and text(r['name']) == new]
+        bones = t['actors'][mesh['first']:mesh['first']+mesh['count']]
+        self.assertEqual([(b['kind'], b['parent'], b['node']) for b in bones], [(K['bone'], mesh['index'], n) for n in range(3)])
 
     def test_the_import_names_the_version_it_derives_from(self):
         self.si_import(textures={'1': '_MetallicGlossMap'})

@@ -33,7 +33,7 @@ def default_profile(root=ROOT):
 
 # The motion and outfit importers and the live Kimodo retarget staged in the agentd component's content/.
 CONTENT_SOURCES=('characters/agentic_complex_build/import_vmd.py','characters/agentic_complex_build/common.py',
-    'characters/agentic_complex_build/stance.py','characters/packaging/native_bundle.py','characters/packaging/neutral_package.py','characters/packaging/package_format.py',
+    'characters/agentic_complex_build/stance.py','characters/packaging/native_bundle.py','characters/packaging/neutral_package.py','characters/packaging/package_format.py','characters/packaging/vulkan_outfit.py',
     'characters/agentic_complex_build/import_generated.py','characters/agentic_complex_build/secondary_fit.py',
     'characters/agentic_complex_build/keys_v2.py','characters/agentic_complex_build/live_motion.py',
     'characters/agentic_complex_build/style_retarget.py','characters/agentic_complex_build/kimodo_stand_reference.json',

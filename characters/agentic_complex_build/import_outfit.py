@@ -23,6 +23,7 @@ import tempfile
 from character_library import Package, read_json, write_json, need
 import native_bundle
 import pool_codec
+import vulkan_outfit
 from .common import canonical_json, reference as ref, sha256_bytes, sha256_file
 from . import efmi_geometry, efmi_mod, mod_settings, outfit_compose
 
@@ -943,6 +944,7 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
             elif m.get('appearances') is not None:m['appearances'] = visible_in(m['appearances'], entry['default_appearance'], appearance['id'])
         progress('compose', 1); progress('write', 0)
         write_json(source_path, source)
+        frame_ref = entry.get(native_bundle.VULKAN[0])
         graph['manifest_sha256'] = sha256_file(source_path); native_bundle.write_neutral(runtime, entry, graph)
         write_json(palette_path, palette); pack['animation']['palette_contract'] = ref(palette_path, animation)
         if (animation/'supplemental-clips.json').exists():
@@ -953,6 +955,19 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
             pack[section]['data'] = [dict(x, **ref(folder/x['file'], folder)) for x in pack[section]['data']]
         pack['render']['manifest'] = ref(source_path, source_path.parent); write_json(pack_path, pack)
         for key, path in (('source', source_path), ('graph', graph_path), ('c7', pack_path)):entry[key] = ref(path, runtime)
+        if frame_ref:
+            # The Windows frame table gets the clones from its own records; without one the character has no Windows section.
+            frame_path = runtime/frame_ref['file']; character_dir = frame_path.parent.parent
+            def read_any(r, where):
+                path = (source_path.parent if where == 'source' else graph_path.parent)/r['file']
+                if not path.is_file():path = source_path.parent/'Files'/(r['sha256']+'.bytes')
+                stored = path.read_bytes(); raw = stored if len(stored) == r['byte_count'] else pool_codec.decode(stored)
+                need(sha256_bytes(raw) == r['sha256'], 'file_sha_mismatch'); return raw
+            table, written = vulkan_outfit.extend(character_dir, frame_path.read_bytes(), source, entry['source']['sha256'], entry['neutral_scene']['sha256'],
+                                                  graph, palette, pack, rig, read_any)
+            (character_dir/vulkan_outfit.OWN).mkdir(parents=True, exist_ok=True)
+            for digest, raw in written.items():(character_dir/vulkan_outfit.OWN/digest).write_bytes(raw)
+            frame_path.write_bytes(table); entry[native_bundle.VULKAN[0]] = ref(frame_path, runtime)
         cp = runtime/entry['coverage']['file']; write_json(cp, native_bundle.character_coverage(runtime, entry)); entry['coverage'] = ref(cp, runtime)
         def reference(p, root):
             """ref(p, root); a file still as cloned (cp -c keeps size and mtime) keeps the hash of the package's inventory, which the

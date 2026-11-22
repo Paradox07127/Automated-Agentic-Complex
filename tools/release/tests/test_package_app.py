@@ -224,7 +224,7 @@ class SingleAppStageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             content = build_components.stage_content(Path(tmp) / 'runtime/content')
             staged = sorted(p.relative_to(content).as_posix() for p in content.rglob('*') if p.is_file())
-            self.assertEqual(staged, sorted(['__init__.py', 'import_vmd.py', 'common.py', 'stance.py', 'native_bundle.py', 'neutral_package.py', 'package_format.py',
+            self.assertEqual(staged, sorted(['__init__.py', 'import_vmd.py', 'common.py', 'stance.py', 'native_bundle.py', 'neutral_package.py', 'package_format.py', 'vulkan_outfit.py',
                 'import_generated.py', 'secondary_fit.py', 'keys_v2.py', 'live_motion.py', 'style_retarget.py',
                 'kimodo_stand_reference.json', 'efmi_mod.py', 'outfit_compose.py', 'import_outfit.py',
                 'motion_graph.py', 'motion_families.py', 'pose_family.py',
