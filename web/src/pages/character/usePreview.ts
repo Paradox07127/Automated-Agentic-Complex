@@ -1,8 +1,12 @@
-// The shell draws the live preview natively over the page, so anything the page draws over the stage has to make it hide.
+// The shell draws the live preview into the page's preview layer, under the page's UI and over the room; without a layer, over
+// the stage on top of everything, so anything the page draws over the stage has to make it hide.
 import { QueryClientContext } from '@tanstack/react-query';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { getBridge, type PreviewPlacement } from '../../bridge';
 import { MODAL_ROOT_ID } from '../../ui';
+
+/** The page's full-size layer the shell draws the preview into (src/preload/index.ts in the shell). */
+export const PREVIEW_LAYER = '[data-preview-layer]';
 
 let lookRevision = 0;
 const lookListeners = new Set<() => void>();
@@ -85,8 +89,8 @@ export interface LivePreviewWant {
 }
 
 /**
- * Keeps the shell's live preview over `stage`: reports its rect (resize, window resize, scroll and transitions, once per
- * frame) and hides it while covered, blocked, cut off, in a hidden document, after the shell failed to draw the same
+ * Keeps the shell's live preview on `stage`: reports the preview layer's rect, or the stage's without one (resize, window resize,
+ * scroll and transitions, once per frame), and hides it while covered, blocked, cut off, in a hidden document, after the shell failed to draw the same
  * character and action, and on unmount. True while the shell draws the character there, so the stage can drop its art.
  * `progress` is the share done of a load that builds her anew, null while none runs (live, or only the clip changes).
  */
@@ -144,9 +148,11 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
       frame = 0;
       const { character, action, appearance, request, loop, off } = latest.current;
       const what = `${character}|${action ?? ''}|${loop ? 'loop' : ''}|${appearance ?? ''}|${request ?? ''}`;
-      const r = stage.getBoundingClientRect();
+      const s = stage.getBoundingClientRect();
+      const layer = document.querySelector(PREVIEW_LAYER) ?? stage;
+      const r = layer === stage ? s : layer.getBoundingClientRect();
       if (failed === what) return;
-      if (off || document.hidden || r.width <= 0 || r.height <= 0 || clipped(stage, r)) {
+      if (off || document.hidden || s.width <= 0 || s.height <= 0 || r.width <= 0 || r.height <= 0 || clipped(layer, r)) {
         if (sent) hide();
         return;
       }
@@ -197,6 +203,8 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
     report();
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(later);
     ro?.observe(stage);
+    const layer = document.querySelector(PREVIEW_LAYER);
+    if (layer) ro?.observe(layer);
     window.addEventListener('resize', later);
     document.addEventListener('scroll', later, true);
     document.addEventListener('transitionend', later, true);

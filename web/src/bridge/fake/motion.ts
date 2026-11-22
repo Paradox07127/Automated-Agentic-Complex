@@ -1,6 +1,6 @@
 // The fake bridge's motion settings: one override set per character, as native keeps them in config.json `motion_overrides`.
 import { MOTION_GRAPH } from '../../mock/motionGraph';
-import type { BridgeError, ChainCheck, ChainProposal, MotionAvatarOps, MotionChainOps, MotionOverrides, PreviewSequence } from '../protocol';
+import type { BridgeError, ChainCheck, ChainProposal, MotionAvatarOps, MotionChainOps, MotionOverrides, PreviewSequence, PreviewView } from '../protocol';
 import { fakeModSettings } from './modSettings';
 
 const copy = (o: MotionOverrides): MotionOverrides => JSON.parse(JSON.stringify(o)) as MotionOverrides;
@@ -16,17 +16,23 @@ export async function fakePreviewSequence(s: PreviewSequence): Promise<boolean> 
   return false;
 }
 
-let viewed: { turn: number; zoom: number } | null = null;
+let viewed: Required<PreviewView> | null = null;
 
-/** The last `avatar.preview.view` the newest fake bridge took, its zoom clamped as native clamps it; null before one. */
+/** The last `avatar.preview.view` the newest fake bridge took, with its defaults and clamps as native applies them; null before one. */
 export const lastFakeView = () => viewed;
 
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const numbers = (v: unknown, n: number): v is number[] => Array.isArray(v) && v.length === n && v.every(finite);
+
 /** `avatar.preview.view`, checked as native checks it; each new fake bridge starts with no view. */
-export function fakePreviewView(): (v: { turn: number; zoom: number }) => Promise<void> {
+export function fakePreviewView(): (v: PreviewView) => Promise<void> {
   viewed = null;
   return async (v) => {
-    if (!Number.isFinite(v?.turn) || !Number.isFinite(v?.zoom)) return Promise.reject({ code: 'invalid_args', detail: '{turn, zoom}: finite numbers' } satisfies BridgeError);
-    viewed = { turn: v.turn, zoom: Math.min(1, Math.max(0.3, v.zoom)) };
+    const frame = v?.frame ?? [0, 0, 1, 1];
+    const ok = finite(v?.turn) && finite(v?.zoom) && (v.tilt === undefined || finite(v.tilt)) && (v.pan === undefined || numbers(v.pan, 2))
+      && numbers(frame, 4) && frame[0] >= 0 && frame[1] >= 0 && frame[2] > 0 && frame[3] > 0 && frame[0] + frame[2] <= 1 && frame[1] + frame[3] <= 1;
+    if (!ok) return Promise.reject({ code: 'invalid_args', detail: '{turn, tilt?, zoom, pan?: [x, y], frame?: [x, y, w, h] in 0–1}: finite numbers' } satisfies BridgeError);
+    viewed = { turn: v.turn, tilt: Math.min(80, Math.max(-80, v.tilt ?? 0)), zoom: Math.min(2, Math.max(0.1, v.zoom)), pan: v.pan ?? [0, 0], frame };
   };
 }
 

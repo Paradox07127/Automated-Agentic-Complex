@@ -378,7 +378,6 @@ export function Operator(p: OperatorProps) {
           previewRequest={pv.request}
           previewAppearance={lookId}
           loop={pv.loop}
-          observe={isBare}
         />
       </div>
       {view.parts && s.right}

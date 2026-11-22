@@ -191,6 +191,8 @@ export function CharacterPage() {
   return (
     <div className={styles.page} data-page="character" data-stage-span={stage}>
       <TrainingRoom watermark={artSrc(cur, 'charinfo-bg')} />
+      {/* The shell draws the live preview in here: over the room, under every part of the page (usePreview.ts). */}
+      <div className={styles.layer} data-preview-layer="" aria-hidden="true" />
       {fb.node}
       <PageHeaderSlot
         sub={name || undefined}

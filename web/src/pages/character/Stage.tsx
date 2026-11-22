@@ -4,7 +4,7 @@ import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
 import { Btn, StatusTag } from '../../ui';
 import { Diamond, LoadBar } from '../../ui/game';
 import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';
-import { useObserve } from './useObserve';
+import { useInspect } from './useInspect';
 import { useLivePreview } from './usePreview';
 import type { SwitchState } from './useSwitch';
 import styles from './Stage.module.css';
@@ -47,8 +47,6 @@ export interface StageProps {
   previewRequest?: number | undefined;
   /** The previewed action starts over at its end (播放方式 循环); absent plays it once. */
   loop?: boolean;
-  /** 观察模式: the stage takes the drag, wheel and pinch that turn and zoom the live preview. */
-  observe?: boolean;
 }
 
 export type StageMode = 'overview' | 'detail' | 'photo';
@@ -65,6 +63,7 @@ export function StageSkel() {
 /** The live preview stage on the training room floor. On 总览 the name block and the state rows (not running, a switch) stand beside it; on a detail page one status line stands in the slot under it, outside the rect the live preview covers. */
 export function Stage(p: StageProps) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
+  const [grip, setGrip] = useState<HTMLDivElement | null>(null);
   const preview = useLivePreview(p.characterId ? el : null, {
     character: p.characterId ?? '',
     action: p.previewAction,
@@ -73,7 +72,7 @@ export function Stage(p: StageProps) {
     loop: p.loop,
     blocked: p.offline || p.sw.phase !== 'idle',
   });
-  useObserve(el, p.observe === true, p.characterId ?? '');
+  const inspect = useInspect(p.characterId ? grip : null, el, p.characterId ?? '');
   const mode = p.mode ?? 'detail';
   const overview = mode === 'overview';
   const previewNote = preview.phase === 'failed' && (
@@ -100,6 +99,8 @@ export function Stage(p: StageProps) {
       : (p.status ?? null));
   return (
     <div className={styles.frame} data-stage="" data-mode={mode} data-deck={(mode === 'detail' && p.deck) || undefined}>
+      {/* Under every part of the scene: the drag, wheel and pinch on her go to the inspection camera. */}
+      {p.characterId && <div ref={setGrip} className={styles.grip} data-inspect="" />}
       <div ref={setEl} className={styles.stage} data-off={p.offline || undefined} data-preview-stage="" data-live={preview.phase === 'live' || undefined}>
         {overview && <span className={styles.ticks} aria-hidden="true"><i /><i /><i /><i /></span>}
         {preview.progress != null && (
@@ -115,6 +116,7 @@ export function Stage(p: StageProps) {
           </div>
         )}
         {!overview && p.sw.phase !== 'idle' && <SwitchOverlay sw={p.sw} currentName={p.currentName} onRetry={p.onRetry} onDismiss={p.onDismiss} />}
+        {p.characterId && <ResetKey hidden={!inspect.moved} onClick={inspect.reset} />}
       </div>
       {mode === 'detail' ? (
         <div className={styles.slot} data-g="info">
@@ -136,6 +138,18 @@ export function Stage(p: StageProps) {
       )}
       {overview && <div className={styles.pv}>{previewNote}</div>}
     </div>
+  );
+}
+
+/** 镜头回正: back to the default view, only while the view is off it. */
+function ResetKey({ hidden, onClick }: { hidden: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className={styles.reset} aria-label="镜头回正" hidden={hidden} onClick={onClick}>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true" focusable="false">
+        <path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5" />
+        <circle cx="12" cy="12" r="2.5" />
+      </svg>
+    </button>
   );
 }
 

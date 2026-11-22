@@ -50,6 +50,19 @@ export interface PreviewSequence {
   blend_s: number[];
 }
 
+/**
+ * `avatar.preview.view`, the live preview's inspection camera (C3 预览 XPC `view`): `turn` degrees on her yaw, `tilt` degrees on her
+ * pitch (±80), `zoom` the share 0.1–2 of the fitted frame shown, `pan` the shown centre's offset from the fit's in fitted-frame sizes
+ * (y down), and `frame` where the fit sits in the placed rect as x, y, w, h shares of it (y down). Zoom and tilt are clamped.
+ */
+export interface PreviewView {
+  turn: number;
+  tilt?: number;
+  zoom: number;
+  pan?: [number, number];
+  frame?: [number, number, number, number];
+}
+
 /** The motion settings' `avatar` ops; main surface only. */
 export interface MotionAvatarOps {
   motionOverrides: {

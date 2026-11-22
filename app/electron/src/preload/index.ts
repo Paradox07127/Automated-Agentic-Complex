@@ -5,17 +5,20 @@ import { MAX_SCOPE_FILES, pastedImages } from '../common/adoption.ts';
 import type { Boot, Reply } from '../common/bridge.ts';
 import { installBridge, type Push } from '../common/shim.ts';
 
-/** Frames from the main process, fitted inside the rect the page reported; clicks pass through to the page. */
+/** Frames from the main process, fitted inside the rect the page reported; clicks pass through to the page. The canvas fills the
+ *  page's `[data-preview-layer]` when it has one (the page's UI stands over it), else it stands over the rect above everything. */
 function installPreview(): void {
   let canvas: HTMLCanvasElement | null = null;
   ipcRenderer.on('preview:place', (_e, r: { x: number; y: number; w: number; h: number }) => {
     if (!canvas) {
       canvas = document.createElement('canvas');
       canvas.id = 'agentic-complex-preview';
-      canvas.style.cssText = 'position:fixed;pointer-events:none;z-index:2147483647;background:transparent';
-      document.documentElement.appendChild(canvas);
     }
-    Object.assign(canvas.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
+    const layer = document.querySelector('[data-preview-layer]');
+    if (canvas.parentElement !== (layer ?? document.documentElement)) (layer ?? document.documentElement).appendChild(canvas);
+    canvas.style.cssText = layer
+      ? 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;background:transparent'
+      : `position:fixed;pointer-events:none;z-index:2147483647;background:transparent;left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`;
     const w = Math.round(r.w * devicePixelRatio), h = Math.round(r.h * devicePixelRatio);
     if (canvas.width !== w || canvas.height !== h) Object.assign(canvas, { width: w, height: h });
     canvas.hidden = false;

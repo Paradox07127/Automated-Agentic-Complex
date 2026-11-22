@@ -2,6 +2,7 @@
 // `not_implemented`, after the argument checks.
 import { BridgeFailure } from '../../common/bridge.ts';
 import type { EventSource } from '../../common/page.ts';
+import type { CameraView } from '../preview/session.ts';
 import type { Ops, OpsContext } from './context.ts';
 import { watch } from './events.ts';
 
@@ -16,13 +17,17 @@ export interface PreviewHost {
   sequence(clips: string[], blendSeconds: number[]): Promise<void>;
   /** `avatar.preview.onProgress`: `{fraction}` while a load builds anew, null once none does. */
   readonly progress: EventSource;
-  /** Preview XPC `view`: degrees added to her camera yaw, and the share 0.3–1 of the fitted frame shown. */
-  view(turn: number, zoom: number): void;
+  /** Preview XPC `view`, its zoom and tilt clamped and its defaults filled in. */
+  view(v: CameraView): void;
 }
 
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const bytes = (s: string) => new TextEncoder().encode(s).length;
+const numbers = (v: unknown, n: number): v is number[] => Array.isArray(v) && v.length === n && v.every(finite);
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+/** A frame of the output: x, y, w, h shares with w, h > 0, inside 0–1. */
+const inside = ([x, y, w, h]: number[]) => x! >= 0 && y! >= 0 && w! > 0 && h! > 0 && x! + w! <= 1 && y! + h! <= 1;
 
 export function previewOps(ctx: OpsContext): Ops {
   const host = (op: string): PreviewHost => {
@@ -58,8 +63,14 @@ export function previewOps(ctx: OpsContext): Ops {
     },
     'avatar.preview.onProgress': (args, page) => watch('avatar.preview.onProgress', host('avatar.preview.onProgress').progress)(args, page),
     'avatar.preview.view': ([v]) => {
-      if (!isObject(v) || !finite(v.turn) || !finite(v.zoom)) throw new BridgeFailure('invalid_args', '{turn, zoom}: finite numbers');
-      host('avatar.preview.view').view(v.turn as number, Math.min(1, Math.max(0.3, v.zoom as number)));
+      const pan = isObject(v) ? (v.pan ?? [0, 0]) : null;
+      const frame = isObject(v) ? (v.frame ?? [0, 0, 1, 1]) : null;
+      if (!isObject(v) || !finite(v.turn) || !finite(v.zoom) || !(v.tilt === undefined || finite(v.tilt)) || !numbers(pan, 2)
+        || !numbers(frame, 4) || !inside(frame)) {
+        throw new BridgeFailure('invalid_args', '{turn, tilt?, zoom, pan?: [x, y], frame?: [x, y, w, h] inside 0–1}: finite numbers');
+      }
+      host('avatar.preview.view').view({ turn: v.turn as number, tilt: clamp((v.tilt as number | undefined) ?? 0, -80, 80),
+        zoom: clamp(v.zoom as number, 0.1, 2), pan: [pan[0]!, pan[1]!], frame: [frame[0]!, frame[1]!, frame[2]!, frame[3]!] });
       return null;
     },
   };

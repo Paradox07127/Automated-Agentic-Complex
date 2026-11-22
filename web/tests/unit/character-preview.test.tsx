@@ -51,6 +51,16 @@ describe('useLivePreview', () => {
     await waitFor(() => expect(getByTestId('stage').dataset.live).toBe('true'));
   });
 
+  it('places it over the page\'s preview layer when there is one, so she can reach past the stage', async () => {
+    const layer = document.createElement('div');
+    layer.dataset.previewLayer = '';
+    layer.getBoundingClientRect = () => ({ x: 0, y: 64, width: 1000, height: 700, top: 64, left: 0, right: 1000, bottom: 764, toJSON: () => ({}) }) as DOMRect;
+    document.body.append(layer);
+    render(<Probe />);
+    await waitFor(() => expect(show).toHaveBeenCalledWith({ x: 0, y: 64, w: 1000, h: 700 }));
+    layer.remove();
+  });
+
   it('shows through an ancestor laid out as display: contents even when it sets overflow', async () => {
     render(
       <div style={{ display: 'contents', overflowX: 'hidden', overflowY: 'auto' }}>

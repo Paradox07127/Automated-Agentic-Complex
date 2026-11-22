@@ -50,16 +50,30 @@ export interface PreviewSelection {
   hiddenLayers?: string[];
 }
 
+/** Preview XPC `view`: `turn` degrees on her camera yaw, `tilt` degrees on its pitch (±80), `zoom` the share 0.1–2 of the fitted
+ *  frame shown, `pan` the shown centre's offset from the fit's in fitted-frame sizes (y down), `frame` where the fit sits in the
+ *  output as x, y, w, h shares of it (y down). */
+export interface CameraView {
+  turn: number;
+  tilt: number;
+  zoom: number;
+  pan: [number, number];
+  frame: [number, number, number, number];
+}
+
+const DEFAULT_VIEW: CameraView = { turn: 0, tilt: 0, zoom: 1, pan: [0, 0], frame: [0, 0, 1, 1] };
+
 const OUTPUT_HEIGHTS = [576, 864, 1152, 1440, 1728];
+const OUTPUT_MAX = 4096;
 
 /** `rect` (CSS px) × `scale` (device px per CSS px), rounded up to a height of OUTPUT_HEIGHTS, the width from the rect's aspect
- *  to a multiple of 16 within 240–2048: a small resize keeps the output, so the service does not reload. Past 2048 wide the height
+ *  to a multiple of 16 within 240–4096: a small resize keeps the output, so the service does not reload. Past 4096 wide the height
  *  comes down to keep the aspect. */
 export function previewOutput(rect: { w: number; h: number }, scale: number): [number, number] {
   const height = OUTPUT_HEIGHTS.find((h) => h >= rect.h * scale) ?? OUTPUT_HEIGHTS.at(-1)!;
   const width = Math.max(240, Math.ceil((height * rect.w) / rect.h / 16) * 16);
-  if (width <= 2048) return [width, height];
-  return [2048, Math.max(240, Math.floor((2048 * rect.h) / rect.w / 16) * 16)];
+  if (width <= OUTPUT_MAX) return [width, height];
+  return [OUTPUT_MAX, Math.max(240, Math.floor((OUTPUT_MAX * rect.h) / rect.w / 16) * 16)];
 }
 
 /** The preview could not play; its message is the page's reason. */
@@ -103,7 +117,7 @@ export class PreviewSession<S> {
   /** The current load's last reported share; null when it reported none. */
   private progressed: number | null = null;
   /** The last `view` asked for; null before one. */
-  private lastView: { turn: number; zoom: number } | null = null;
+  private lastView: CameraView | null = null;
 
   constructor(options: SessionOptions<S>) {
     this.options = options;
@@ -114,7 +128,7 @@ export class PreviewSession<S> {
     if (!sameSelection(value, this.selection)) {
       // The service keeps a view across loads and connections (a reload can reuse it), so a new connection sets this session's
       // first; a service that starts with it applies it to the actor its load builds.
-      if (this.connect()) this.send({ op: 'view', ...(this.lastView ?? { turn: 0, zoom: 1 }) });
+      if (this.connect()) this.send({ op: 'view', ...(this.lastView ?? DEFAULT_VIEW) });
       // The service cannot keep a playhead across a load: a rebuild of a clip that has played draws her idle, a loop loops on.
       const idle = this.selection !== null && this.played && samePlayback(value, this.selection) && (this.sequenced || !value.loop);
       this.played = idle;
@@ -159,10 +173,10 @@ export class PreviewSession<S> {
     return this.settled();
   }
 
-  /** Preview XPC `view`: `turn` degrees on her camera yaw, `zoom` the share of the fitted frame shown; kept for a new connection. */
-  view(turn: number, zoom: number): void {
-    this.lastView = { turn, zoom };
-    if (this.connected) this.send({ op: 'view', turn, zoom });
+  /** Preview XPC `view`; kept for a new connection. */
+  view(v: CameraView): void {
+    this.lastView = v;
+    if (this.connected) this.send({ op: 'view', ...v });
   }
 
   /** The presenter's `active` changed: `pause` or `resume` to match it. */

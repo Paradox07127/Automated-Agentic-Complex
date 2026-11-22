@@ -1,12 +1,12 @@
 // The preview in the main window: frames from the preview service go to the page with Electron's `sharedTexture`, and the preload
-// draws them into a canvas over the rect the page reported (src/preload/index.ts). A window gets one connection for its life;
+// draws them into a canvas in the page's preview layer, or over the rect the page reported without one (src/preload/index.ts). A window gets one connection for its life;
 // closing it ends the connection.
 import { type BrowserWindow, screen, sharedTexture } from 'electron';
 import { BridgeFailure } from '../../common/bridge.ts';
 import { PushSource } from '../../common/push.ts';
 import type { PreviewRect } from '../ops/preview.ts';
 import type { PreviewView } from './controller.ts';
-import { previewOutput, PreviewSession, type PreviewSelection, type PreviewSurface, type PreviewTransport } from './session.ts';
+import { type CameraView, previewOutput, PreviewSession, type PreviewSelection, type PreviewSurface, type PreviewTransport } from './session.ts';
 
 /** The addon (native/mac/preview.m). */
 export interface PreviewAddon extends PreviewTransport<PreviewSurface> {
@@ -67,8 +67,8 @@ export class WindowPreview implements PreviewView {
     return this.session.sequence(clips, blendSeconds);
   }
 
-  view(turn: number, zoom: number): void {
-    this.session?.view(turn, zoom);
+  view(v: CameraView): void {
+    this.session?.view(v);
   }
 
   hide(): void {

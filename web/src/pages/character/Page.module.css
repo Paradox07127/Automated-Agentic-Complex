@@ -69,6 +69,15 @@
   }
 }
 
+/* The live preview's layer: the whole page, its own stacking context over the room (z-index 0) and under the bars and the body (1). */
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 /* The one 读取中 of the page, in the header while the catalog loads. */
 .loading {
   display: inline-flex;

@@ -293,13 +293,76 @@
   }
 }
 
-/* 观察模式 (useObserve.ts): the stage takes the drag, wheel and pinch; the live preview's canvas over it lets them through. */
-.stage[data-observe] {
+/* The inspection camera's surface (useInspect.ts): the whole scene, under every part drawn on it; the live preview is under it. */
+.grip {
+  position: absolute;
+  inset: 0;
   cursor: grab;
   pointer-events: auto;
   touch-action: none;
 }
 
-.stage[data-observe][data-grabbing] {
+.grip[data-grabbing] {
   cursor: grabbing;
+}
+
+/* 镜头回正 at the stage's bottom-right corner, above the status slot and the action bar: a frosted square with a cut corner, as 只看模型. */
+.reset {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgb(0 0 0 / 60%);
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 1;
+  transition:
+    opacity 100ms linear,
+    display 100ms allow-discrete;
+}
+
+@starting-style {
+  .reset {
+    opacity: 0;
+  }
+}
+
+.reset[hidden] {
+  display: none;
+  opacity: 0;
+}
+
+.reset::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / 42%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 70%);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  backdrop-filter: blur(6px);
+  transition: background-color 100ms linear;
+}
+
+.reset:hover::before {
+  background: rgb(255 255 255 / 70%);
+}
+
+.reset:active::before {
+  background: var(--ef-accent);
+}
+
+.reset:focus-visible {
+  outline: 2px solid #262626;
+  outline-offset: 2px;
+}
+
+.reset > svg {
+  position: relative;
 }
