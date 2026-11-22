@@ -260,14 +260,15 @@
 
 | op | 平台 | 参数 | 回包 | 错误码 |
 |---|---|---|---|---|
-| `permissions.status` | 两者 | — | `accessibility`、`screenRecording`、`microphone`、`automation`、`inputMonitoring`，各为 `granted`/`denied`/`notDetermined`/`notApplicable`；选填 `speech`（同样四种） | — |
+| `permissions.status` | 两者 | — | `accessibility`、`screenRecording`、`microphone`、`automation`、`inputMonitoring`，各为 `granted`/`denied`/`notDetermined`/`notApplicable`；选填 `speech`、`notifications`（同样四种） | — |
 | `permissions.request` | 两者 | `kind`（上面五种之一） | `state` | — |
 
 - 只读不弹窗的是 `permissions.status`；会弹系统框的只有 `permissions.request`，主进程只在用户点了按钮后调它。
 - macOS：`automation` 查的是 Terminal 的自动化权限（跳转会话的目标）；`microphone` 请求后，语音识别权限还没决定的话一起请求（麦克风已允许时再请求 `microphone` 不弹麦克风框，只问语音识别）。
 - `speech` 是语音识别权限，只有 macOS 回：`notDetermined` 只在 helper 能问时回；helper 所在的应用没写 `NSSpeechRecognitionUsageDescription`（这时问了会结束进程）时回 `notApplicable`。主进程只把 `notDetermined` 当「还没问过」，第一次按住时先问它（`app/electron/src/common/push-to-talk.ts`）；不出现（旧 helper、Windows）按 `notApplicable` 处理。这些权限归属 helper 的「负责进程」（实测时授权弹窗显示的就是它）。
 - Windows：辅助功能、录屏、自动化、输入监控没有系统开关，回 `notApplicable`；`permissions.request` 对它们直接回 `notApplicable`。主进程把 `notApplicable` 换成网页认的 `unsupported`。`microphone` 读系统的麦克风隐私开关；请求时短暂打开一次采集，让有逐应用开关的系统弹首次使用框。
-- 通知权限、登录项和「打开系统设置」不经 helper：主进程用 Electron 的 `Notification`、`app.setLoginItemSettings`、`shell.openExternal`（`x-apple.systempreferences:…`、`ms-settings:privacy-microphone`）。
+- `notifications` 是应用的通知权限，只有 macOS 回，只读不问：helper 在应用包里时它的主 bundle 就是应用，读 `UNUserNotificationCenter` 的授权（`provisional` 算 `granted`）；不在 `.app` 里（开发构建，这时读会抛异常）回 `notApplicable`。Electron 读不到这个权限，主进程用它。
+- 发通知、登录项和「打开系统设置」不经 helper：主进程用 Electron 的 `Notification`、`app.setLoginItemSettings`、`shell.openExternal`（`x-apple.systempreferences:…`、`ms-settings:privacy-microphone`）。
 
 ### 7.10 剪贴板
 

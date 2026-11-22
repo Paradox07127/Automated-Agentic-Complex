@@ -298,9 +298,10 @@ def check_answer(checks, name, request, got, hello, helper, trusted):
         checks.expect(result == {'items': [], 'concealed': False, 'truncated': False}, f'{name} reads the empty private pasteboard',
                       f'{len(result.get("items", []))} items')
     elif op == 'permissions.status':
-        speech = result.get('speech')
-        checks.expect({v for k, v in result.items() if k != 'speech'} <= PERMISSION_STATES
-                      and speech in PERMISSION_STATES | {'notApplicable'}, f'{name} on macOS, speech among them', f'result {result}')
+        optional = ('speech', 'notifications')
+        checks.expect({v for k, v in result.items() if k not in optional} <= PERMISSION_STATES
+                      and all(result.get(k) in PERMISSION_STATES | {'notApplicable'} for k in optional),
+                      f'{name} on macOS, speech and notifications among them', f'result {result}')
     elif op == 'workspace.watch':
         front = result.get('front_pid', 'absent')
         checks.expect(result.get('watching') == params['enabled'] and len(result) == 1 + params['enabled']

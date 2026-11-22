@@ -1,12 +1,12 @@
 // `permissions.*`: the system grants the platform helper reads and asks for,
-// and the system settings page of each. Notifications are not the helper's (C12 §7.9), and Electron reads no grant of them:
-// macOS has the grant, read as not determined; Windows asks for none.
+// and the system settings page of each. macOS's notification grant is the app's, which Electron cannot read: the helper
+// reads it (C12 §7.9) and nothing asks for it. Windows asks for none.
 import { BridgeFailure } from '../../common/bridge.ts';
 import type { ShellPlatform } from '../../common/config.ts';
 import type { Ops, OpsContext } from './context.ts';
 
 export const PERMISSION_KINDS = ['accessibility', 'screenRecording', 'microphone', 'automation', 'inputMonitoring', 'notifications'];
-/** The five C12 `permissions.status` reads. */
+/** The five C12 `permissions.request` kinds. */
 const HELPER_KINDS = PERMISSION_KINDS.slice(0, 5);
 
 type WebState = 'granted' | 'denied' | 'notDetermined' | 'unsupported';
@@ -65,18 +65,19 @@ export async function openSettings(ctx: OpsContext, pane: string): Promise<void>
 
 export function permissionsOps(ctx: OpsContext): Ops {
   const mac = (ctx.platform ?? 'mac') === 'mac';
-  const notifications: WebState = mac ? 'notDetermined' : 'unsupported';
   // Windows has a grant for the microphone only (C12 §7.9), so the page lists no other.
   const kinds = mac ? PERMISSION_KINDS : ['microphone'];
   return {
     'permissions.status': async () => {
       const status = await helperStatus(ctx);
-      return Object.fromEntries(kinds.map((k) => [k, k === 'notifications' ? notifications
-        : status && HELPER_KINDS.includes(k) ? webState(k, status[k]) : 'unsupported']));
+      return Object.fromEntries(kinds.map((k) => [k, status ? webState(k, status[k]) : 'unsupported']));
     },
     'permissions.request': async ([kind]) => {
       if (typeof kind !== 'string' || !PERMISSION_KINDS.includes(kind)) throw new BridgeFailure('invalid_args', 'permission kind');
-      if (!HELPER_KINDS.includes(kind)) return notifications;
+      if (!HELPER_KINDS.includes(kind)) {
+        const status = mac ? await helperStatus(ctx) : null;
+        return status ? webState(kind, status[kind]) : 'unsupported';
+      }
       const state = await helperRequest(ctx, kind);
       return state === null ? 'unsupported' : webState(kind, state);
     },

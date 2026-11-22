@@ -106,47 +106,52 @@ const failure = (r: Reply) => {
   return r.error;
 };
 
-const STATUS = ok({ accessibility: 'denied', screenRecording: 'granted', microphone: 'notDetermined', automation: 'denied',
-  inputMonitoring: 'notApplicable' });
+const READINGS = { accessibility: 'denied', screenRecording: 'granted', microphone: 'notDetermined', automation: 'denied',
+  inputMonitoring: 'notApplicable', notifications: 'denied' };
+const STATUS = ok(READINGS);
 
-test('permissions.status reads the helper and answers in the web page\'s values; notifications are not readable here', async () => {
+test('permissions.status reads the helper and answers in the web page\'s values, notifications among them', async () => {
   const helper = new FakeHelper({ 'permissions.status': STATUS });
   const { call } = setup({ helper });
   assert.deepEqual(value(await call('permissions.status')), {
     // WebPermissions.status: a missing screen recording or accessibility grant reads as not determined.
     accessibility: 'notDetermined', screenRecording: 'granted', microphone: 'notDetermined', automation: 'denied',
-    inputMonitoring: 'unsupported', notifications: 'notDetermined',
+    inputMonitoring: 'unsupported', notifications: 'denied',
   });
   assert.deepEqual(helper.requests, [['permissions.status', {}]], 'never permissions.request');
 });
 
-test('permissions.status: macOS has notifications, read as not determined; Windows has only the microphone', async () => {
+test('permissions.status: macOS has the notification grant the helper reads, unsupported outside an app; Windows has only the microphone', async () => {
+  const notifications = async (reading: string) => (value(await setup({ helper: new FakeHelper({ 'permissions.status':
+    ok({ ...READINGS, notifications: reading }) }) }).call('permissions.status')) as Record<string, unknown>).notifications;
+  for (const reading of ['granted', 'denied', 'notDetermined']) assert.equal(await notifications(reading), reading);
+  assert.equal(await notifications('notApplicable'), 'unsupported');
   const helper = new FakeHelper({ 'permissions.status': STATUS });
-  assert.equal((value(await setup({ helper }).call('permissions.status')) as Record<string, unknown>).notifications, 'notDetermined');
   assert.deepEqual(value(await setup({ helper, platform: 'windows' }).call('permissions.status')), { microphone: 'notDetermined' });
   assert.deepEqual(value(await setup({ helper: null, platform: 'windows' }).call('permissions.status')), { microphone: 'unsupported' });
 });
 
 test('permissions.status without an answer from the helper reads every helper permission as unsupported', async () => {
   const unsupported = { accessibility: 'unsupported', screenRecording: 'unsupported', microphone: 'unsupported', automation: 'unsupported',
-    inputMonitoring: 'unsupported', notifications: 'notDetermined' };
+    inputMonitoring: 'unsupported', notifications: 'unsupported' };
   for (const helper of [new FakeHelper({ 'permissions.status': err('internal') }), exited, null]) {
     assert.deepEqual(value(await setup({ helper }).call('permissions.status')), unsupported);
   }
 });
 
-test('permissions.request asks the helper for that one permission and answers its state', async () => {
-  const helper = new FakeHelper({ 'permissions.request': (p) => ok({ state: p.kind === 'inputMonitoring' ? 'notApplicable' : 'denied' }) });
+test('permissions.request asks the helper for that one permission and answers its state; notifications are only read', async () => {
+  const helper = new FakeHelper({ 'permissions.request': (p) => ok({ state: p.kind === 'inputMonitoring' ? 'notApplicable' : 'denied' }),
+    'permissions.status': ok({ notifications: 'granted' }) });
   const { call } = setup({ helper });
   assert.equal(value(await call('permissions.request', ['microphone'])), 'denied');
   assert.equal(value(await call('permissions.request', ['screenRecording'])), 'notDetermined');
   assert.equal(value(await call('permissions.request', ['inputMonitoring'])), 'unsupported');
-  assert.equal(value(await call('permissions.request', ['notifications'])), 'notDetermined');
-  assert.equal(value(await setup({ helper, platform: 'windows' }).call('permissions.request', ['notifications'])), 'unsupported');
+  assert.equal(value(await call('permissions.request', ['notifications'])), 'granted');
+  assert.equal(value(await setup({ helper: new FakeHelper({}), platform: 'windows' }).call('permissions.request', ['notifications'])), 'unsupported');
   assert.deepEqual(helper.requests,[['permissions.request', { kind: 'microphone' }], ['permissions.request', { kind: 'screenRecording' }],
-    ['permissions.request', { kind: 'inputMonitoring' }]]);
+    ['permissions.request', { kind: 'inputMonitoring' }], ['permissions.status', {}]]);
   assert.deepEqual(failure(await call('permissions.request', ['camera'])), { code: 'invalid_args', detail: 'permission kind' });
-  assert.equal(helper.requests.length, 3);
+  assert.equal(helper.requests.length, 4);
 });
 
 test('permissions.request answers unsupported when the helper fails or is not there', async () => {

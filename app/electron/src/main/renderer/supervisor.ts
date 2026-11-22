@@ -242,6 +242,8 @@ export class RendererSupervisor {
   private stopping: Promise<void> | undefined;
   /** Counts stop and restart calls; a restart starts the renderer only when no later one came while it was stopping. */
   private requests = 0;
+  /** Set by stop: the shell is quitting, and nothing starts the renderer again. */
+  private ended = false;
   private _loading: Loading = { kind: 'hidden' };
 
   constructor(options: RendererOptions) {
@@ -274,7 +276,7 @@ export class RendererSupervisor {
       appendLog(this.config.supportDir, 'companion', `restart avatar: config.json unreadable: ${e instanceof Error ? e.message : String(e)}`);
       return Promise.resolve();
     }
-    const stopped = this.stop('restart'), request = this.requests;
+    const stopped = this.halt('restart'), request = this.requests;
     return stopped.then(() => {
       if (request !== this.requests) return;
       this.config = config;
@@ -283,8 +285,14 @@ export class RendererSupervisor {
     });
   }
 
-  /** C3 quit (SIGTERM without a handshaken link), then SIGKILL after 4 s; resolves once it is stopped. */
-  stop(reason = 'companion_exit'): Promise<void> {
+  /** The shell's quit: C3 quit (SIGTERM without a handshaken link), then SIGKILL after 4 s; resolves once it is stopped.
+   *  No start or restart launches it again. */
+  stop(): Promise<void> {
+    this.ended = true;
+    return this.halt('companion_exit');
+  }
+
+  private halt(reason: string): Promise<void> {
     this.requests += 1;
     this.stopping ??= this.stopNow(reason).finally(() => { this.stopping = undefined; });
     return this.stopping;
@@ -331,6 +339,7 @@ export class RendererSupervisor {
   }
 
   private startAvatar(): void {
+    if (this.ended) return;
     const failure = rendererPreflight(this.config);
     if (failure !== null) return this.setState(failure);
     const character = this.options.character();
@@ -403,12 +412,13 @@ export class RendererSupervisor {
     this.generation += 1;
     const gen = this.generation;
     const logPath = join(this.config.supportDir, 'logs', 'avatar.log');
-    let fd: number;
+    let fd = -1;
     try {
       mkdirSync(join(this.config.supportDir, 'logs'), { recursive: true, mode: 0o700 });
       fd = openSync(logPath, 'a', 0o600);
       fchmodSync(fd, 0o600);
     } catch {
+      if (fd !== -1) closeSync(fd);
       this.setState({ kind: 'failed', reason: `无法打开日志 ${logPath}` });
       return false;
     }

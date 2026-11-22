@@ -71,6 +71,8 @@ export class AgentdSupervisor {
   private stopping: Promise<void> | undefined;
   /** Counts stop and restart calls; a restart starts agentd only when no later one came while it was stopping. */
   private requests = 0;
+  /** Set by stop: the shell is quitting, and nothing starts agentd again. */
+  private ended = false;
 
   constructor(options: SupervisorOptions) {
     this.options = options;
@@ -105,7 +107,7 @@ export class AgentdSupervisor {
       appendLog(this.config.supportDir, 'companion', `restart backend: config.json unreadable: ${e instanceof Error ? e.message : String(e)}`);
       return Promise.resolve();
     }
-    const stopped = this.stop('restart'), request = this.requests;
+    const stopped = this.halt('restart'), request = this.requests;
     return stopped.then(() => {
       if (request !== this.requests) return;
       this.config = config;
@@ -114,8 +116,14 @@ export class AgentdSupervisor {
     });
   }
 
-  /** SIGTERM (on Windows: closing agentd's stdin), then SIGKILL after 6 s; resolves once agentd is stopped. */
-  stop(reason = 'companion_exit'): Promise<void> {
+  /** The shell's quit: SIGTERM (on Windows: closing agentd's stdin), then SIGKILL after 6 s; resolves once agentd is
+   *  stopped. No start or restart launches it again. */
+  stop(): Promise<void> {
+    this.ended = true;
+    return this.halt('companion_exit');
+  }
+
+  private halt(reason: string): Promise<void> {
     this.requests += 1;
     this.stopping ??= this.stopNow(reason).finally(() => { this.stopping = undefined; });
     return this.stopping;
@@ -141,6 +149,7 @@ export class AgentdSupervisor {
   }
 
   private async startAgentd(): Promise<void> {
+    if (this.ended) return;
     const failure = preflightFailure(this.config);
     if (failure !== null) return this.setState(failure);
     const gen = this.generation, port = this.config.agentdPort;

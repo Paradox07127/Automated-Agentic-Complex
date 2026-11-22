@@ -3,6 +3,7 @@ import AVFoundation
 import CoreGraphics
 import IOKit.hid
 import Speech
+import UserNotifications
 
 /// CONTRACT §7.9 `permissions.status`, read without showing a system prompt, and
 /// `permissions.request`, which does. The grants belong to the helper's responsible process, the app that started it.
@@ -18,7 +19,30 @@ enum Permissions {
             "automation": automation(),
             "inputMonitoring": inputMonitoring(IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)),
             "speech": speech(SFSpeechRecognizer.authorizationStatus(), askable: speechAskable()),
+            "notifications": notifications(),
         ]
+    }
+
+    /// The app's notification grant: inside the app the helper's main bundle is the app's. Outside an app bundle the
+    /// notification center raises, so there it is notApplicable.
+    static func notifications() -> String {
+        guard Bundle.main.bundleURL.pathExtension == "app" else { return "notApplicable" }
+        let done = DispatchSemaphore(value: 0)
+        let reading = Reading()
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            reading.status = settings.authorizationStatus
+            done.signal()
+        }
+        done.wait()
+        return notifications(reading.status)
+    }
+
+    static func notifications(_ status: UNAuthorizationStatus) -> String {
+        switch status {
+        case .authorized, .provisional: "granted"
+        case .denied: "denied"
+        default: "notDetermined"
+        }
     }
 
     /// notDetermined only where asking is possible, notApplicable where asking ends the process.
@@ -109,6 +133,10 @@ struct PermissionPrompts {
 
 private final class Flag: @unchecked Sendable {
     var value = false
+}
+
+private final class Reading: @unchecked Sendable {
+    var status = UNAuthorizationStatus.notDetermined
 }
 
 extension Permissions {

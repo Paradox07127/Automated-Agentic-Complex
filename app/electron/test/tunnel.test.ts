@@ -1,7 +1,8 @@
 // TunnelSupervisor: the TTS tunnel's command line, its port checks, backoff,
 // restart and stop. The wrapper is a Node script run with process.execPath as `python`; no ssh starts and no host is reached.
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -358,6 +359,47 @@ test('restart takes config.json read again: a cleared host stops the tunnel, a n
     s.cleanup();
   }
 });
+
+test('after stop, the shell\'s quit, neither a restart nor a start launches the tunnel again', async () => {
+  const s = setup();
+  const port = await freePort();
+  const config = s.write({ tts_url: `http://127.0.0.1:${port}` });
+  const tunnel = supervisor({ config, watcherScript: s.watcher, onStatus: (st) => s.seen.push(text(st)) });
+  try {
+    tunnel.start();
+    assert.ok(await until(10, () => tunnel.state.kind === 'running' && s.launches().length === 1), s.seen.join('\n'));
+    await tunnel.stop();
+    await tunnel.restart(config);
+    tunnel.start();
+    await new Promise((r) => setTimeout(r, 500));
+    assert.deepEqual([tunnel.state.kind, s.launches().length], ['stopped', 1]);
+  } finally {
+    await tunnel.stop();
+    s.cleanup();
+  }
+});
+
+// An append-only log opens for appending but refuses fchmod.
+test('a log whose mode cannot be set fails the tunnel launch without keeping its descriptor open',
+  { skip: process.platform !== 'darwin' && 'chflags uappnd is macOS only' }, async () => {
+    const s = setup();
+    const port = await freePort(), log = join(s.support, 'logs', 'tunnel.log');
+    const tunnel = supervisor({ config: s.write({ tts_url: `http://127.0.0.1:${port}` }), watcherScript: s.watcher,
+      onStatus: (st) => s.seen.push(text(st)) });
+    mkdirSync(join(s.support, 'logs'), { recursive: true });
+    writeFileSync(log, '');
+    execFileSync('chflags', ['uappnd', log]);
+    try {
+      const before = readdirSync('/dev/fd').length;
+      tunnel.start();
+      assert.ok(await until(5, () => tunnel.state.kind === 'failed'), s.seen.join('\n'));
+      assert.equal(readdirSync('/dev/fd').length, before);
+    } finally {
+      await tunnel.stop();
+      execFileSync('chflags', ['nouappnd', log]);
+      s.cleanup();
+    }
+  });
 
 test('the tray\'s 语音隧道 row shows the tunnel\'s state; external reads 沿用已有连接', () => {
   const s = setup();

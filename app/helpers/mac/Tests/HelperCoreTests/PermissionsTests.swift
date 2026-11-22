@@ -1,5 +1,6 @@
 // permissions.request over fake system prompts: the replay never sends it, since a real request may show a system prompt.
 @testable import HelperCore
+import UserNotifications
 import XCTest
 
 final class PermissionsTests: XCTestCase {
@@ -34,6 +35,18 @@ final class PermissionsTests: XCTestCase {
             _ = Permissions.request(["kind": "microphone"], prompts(calls, micGranted: granted, speechUndecided: undecided))
             XCTAssertEqual(calls.names, asked + ["states"], "granted \(granted), undecided \(undecided)")
         }
+    }
+
+    func testTheNotificationGrantReadsAsTheContractStates() {
+        for (status, state) in [(UNAuthorizationStatus.authorized, "granted"), (.provisional, "granted"), (.denied, "denied"),
+                                (.notDetermined, "notDetermined")] {
+            XCTAssertEqual(Permissions.notifications(status), state, "\(status.rawValue)")
+        }
+    }
+
+    /// The test runner is no app bundle, where the notification center would raise.
+    func testOutsideAnAppBundleTheNotificationGrantIsNotApplicable() {
+        XCTAssertEqual(Permissions.states()["notifications"], "notApplicable")
     }
 }
 

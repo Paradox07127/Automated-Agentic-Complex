@@ -112,6 +112,28 @@ test('a stop while a restart is stopping agentd wins: agentd stays stopped', asy
   }
 });
 
+test('after stop, the shell\'s quit, neither a restart nor a start launches agentd again', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ended-')), support = join(dir, 's');
+  mkdirSync(support);
+  const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
+  writeFileSync(script, fakeAgentd(launches));
+  writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir, python: process.execPath,
+    agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+  const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
+  try {
+    supervisor.start();
+    assert.ok(await until(20, () => supervisor.state.kind === 'running'), JSON.stringify(supervisor.state));
+    await supervisor.stop();
+    await supervisor.restart();
+    supervisor.start();
+    await new Promise((r) => setTimeout(r, 500));
+    assert.deepEqual([supervisor.state.kind, lines(launches).length], ['stopped', 1]);
+  } finally {
+    await supervisor.stop();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('starting agentd with coding sessions and external access on writes <support>/bin/agentic-complex-hook (on Windows its .cmd) to run this launch\'s forwarder, and the CLI', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hook-')), support = join(dir, 's');
   mkdirSync(support);
@@ -231,3 +253,52 @@ test('restarting the renderer passes config.json as saved since launch; an unrea
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+/** A RendererSupervisor running a Node script that appends its arguments to `launches` and stays. */
+function fakeRenderer(prefix: string) {
+  const dir = mkdtempSync(join(tmpdir(), prefix)), support = join(dir, 's');
+  mkdirSync(support);
+  const script = join(dir, 'avatar.mjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
+  writeFileSync(script, `import { appendFileSync } from 'node:fs';\n`
+    + `appendFileSync(${JSON.stringify(launches)}, process.argv.slice(2).join(' ') + '\\n');\nsetInterval(() => {}, 1000);\n`);
+  writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }],
+    avatar_executable: process.execPath, agentd_dir: dir, python: '/usr/bin/false', agentd_port: 1, support_dir: support,
+    agentd_state_dir: join(dir, 'state'), gpu_hold_files: [] }));
+  const renderer = new RendererSupervisor({ config: loadConfig(configPath), settings: () => ({}), state: () => ({}),
+    character: () => 'aster', link: null, captureDir: join(dir, 'captures'), prefix: [script] });
+  return { dir, support, launches, renderer };
+}
+
+test('after stop, the shell\'s quit, neither a restart nor agentd coming up launches the renderer again', async () => {
+  const { dir, launches, renderer } = fakeRenderer('ended-avatar-');
+  try {
+    renderer.start();
+    assert.ok(await until(10, () => lines(launches).length === 1), JSON.stringify(renderer.state));
+    await renderer.stop();
+    await renderer.restart();
+    renderer.startIfStopped();
+    await new Promise((r) => setTimeout(r, 500));
+    assert.deepEqual([renderer.state.kind, lines(launches).length], ['stopped', 1]);
+  } finally {
+    await renderer.stop();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a log whose mode cannot be set fails the renderer launch without keeping its descriptor open',
+  { skip: process.platform !== 'darwin' && 'chflags uappnd is macOS only' }, async () => {
+    const { dir, support, renderer } = fakeRenderer('fd-avatar-'), log = join(support, 'logs', 'avatar.log');
+    mkdirSync(join(support, 'logs'), { recursive: true });
+    writeFileSync(log, '');
+    execFileSync('chflags', ['uappnd', log]);
+    try {
+      const before = readdirSync('/dev/fd').length;
+      renderer.start();
+      assert.equal(renderer.state.kind, 'failed', JSON.stringify(renderer.state));
+      assert.equal(readdirSync('/dev/fd').length, before);
+    } finally {
+      await renderer.stop();
+      execFileSync('chflags', ['nouappnd', log]);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });

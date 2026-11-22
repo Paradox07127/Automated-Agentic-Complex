@@ -127,6 +127,8 @@ export class TunnelSupervisor {
   private startedAt = 0;
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
   private stopping: Promise<void> | undefined;
+  /** Set by stop: the shell is quitting, and nothing starts the tunnel again. */
+  private ended = false;
 
   constructor(options: TunnelOptions) {
     this.options = options;
@@ -157,15 +159,21 @@ export class TunnelSupervisor {
   /** Stops the tunnel, then starts it with `config` (config.json
    *  read again) and a fresh backoff. */
   restart(config: Config): Promise<void> {
-    return this.stop('restart').then(() => {
+    return this.halt('restart').then(() => {
       this.current = config;
       this.backoff.reset();
       void this.startTunnel();
     });
   }
 
-  /** SIGTERM, then SIGKILL after 4 s; resolves once the tunnel is stopped. */
-  stop(reason = 'companion_exit'): Promise<void> {
+  /** The shell's quit: SIGTERM, then SIGKILL after 4 s; resolves once the tunnel is stopped. No start or restart launches
+   *  it again. */
+  stop(): Promise<void> {
+    this.ended = true;
+    return this.halt('companion_exit');
+  }
+
+  private halt(reason: string): Promise<void> {
     this.stopping ??= this.stopNow(reason).finally(() => { this.stopping = undefined; });
     return this.stopping;
   }
@@ -191,6 +199,7 @@ export class TunnelSupervisor {
 
   /** No host or no port in `tts_url` means no tunnel. */
   private async startTunnel(): Promise<void> {
+    if (this.ended) return;
     const host = this.current.ttsTunnelHost, port = tunnelPort(this.current.ttsURL);
     if (host === '' || port === null) return;
     // A hand-edited config.json does not pass settings.save's check.
@@ -221,11 +230,12 @@ export class TunnelSupervisor {
     this.generation += 1;
     const gen = this.generation;
     const logPath = join(this.current.supportDir, 'logs', 'tunnel.log');
-    let fd: number;
+    let fd = -1;
     try {
       fd = openSync(logPath, 'a', 0o600);
       fchmodSync(fd, 0o600);
     } catch {
+      if (fd !== -1) closeSync(fd);
       this.setState({ kind: 'failed', reason: `无法打开日志 ${logPath}` });
       return false;
     }

@@ -336,7 +336,8 @@
                  "microphone": "enum(granted|denied|notDetermined|notApplicable)",
                  "automation": "enum(granted|denied|notDetermined|notApplicable)",
                  "inputMonitoring": "enum(granted|denied|notDetermined|notApplicable)"},
-      "result_optional": {"speech": "enum(granted|denied|notDetermined|notApplicable)"},
+      "result_optional": {"speech": "enum(granted|denied|notDetermined|notApplicable)",
+                          "notifications": "enum(granted|denied|notDetermined|notApplicable)"},
       "errors": []
     },
     "permissions.request": {
