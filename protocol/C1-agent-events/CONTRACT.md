@@ -210,7 +210,8 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
   | `ttl_s` | 数 0.5–120，可缺省 | 渲染器收到这条行为起 `ttl_s` 秒内没有续期就丢掉它，回执 `expired`，回到当前姿势的默认休息循环；`expires_at_ms` 照旧，先到的那个算 |
 
   - 续期照 §1.3：同一层、同一载荷、`replaces` 为旧 id 的 `perform` 是续期，片段接着播，不重新开始，`ttl_s` 从收到续期时重算。
-  - 当前姿势的默认休息循环是角色包里固定的一条，渲染器不挑选；过期或 agentd 断开时回到它。
+  - 当前姿势的默认休息循环是角色包里固定的一条，渲染器不挑选；一层上的行为到期（`ttl_s` 或 `expires_at_ms`）、被取消且没有接替时回到它。
+  - `/events` 断开不结束行为：断开期间行为照常播，没有续期就按 `ttl_s`、`expires_at_ms` 到期；重连后按上面的重连对账，snapshot `behaviors` 里有的保留，没有的安全释放。
   - 片段边界的播放状态由渲染器经 C3 `motion_state`（规则 54）报给 agentd。
 - 下面取文件、校验的规则只对 `motion`。宿主用 AgentBridgeTransport 发 GET 时已用的基址和令牌取两个文件（C6，ui 或 events 令牌）：
   - `GET /motions/<id>/meta` 回一份 `metal-actor-clip-v1` JSON：`{schema, name, length, frame_rate, loop:false, curves,
