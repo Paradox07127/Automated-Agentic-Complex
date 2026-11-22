@@ -358,4 +358,9 @@ class BundleTests(unittest.TestCase):
   self.assertEqual([n.VULKAN[0]],contract['vulkan_fields']['optional'])
  def testSymlinkCannotEscapePack(self):
   out=n.build(self.recipe(),self.root/'bundle');path=out/'characters/fixture/source/data.bin';copy=self.root/'external';copy.write_bytes(path.read_bytes());path.unlink();path.symlink_to(copy);self.assertRaises(n.BundleError,n.verify,out)
+ def testCharInfoProducerKindIsAdditive(self):
+  # An efw without the kind skips its records and keeps the desktop lighting, so the format version stays.
+  kinds=package_format.ENUMS['ProducerKind'];self.assertEqual(package_format.VERSION,5)
+  self.assertEqual([k for k,v in sorted(kinds.items(),key=lambda kv:kv[1])][:13],['convention','camera_endpoint','camera_settings','key_light','point_light','face_light','environment','shadow','shadow_sphere','bins','post_look','time','constant'])
+  self.assertEqual(kinds['charinfo'],13);self.assertIn('    kCharinfo = 13,\n',package_format.header_text())
 if __name__=='__main__':unittest.main()
