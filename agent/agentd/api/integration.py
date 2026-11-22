@@ -37,8 +37,8 @@ def route(h, method, path):
     if match:
         _reminder_state(h, match[1])
         return True
-    query = parse_qs(urlparse(h.path).query)
     if method == "GET":
+        query = parse_qs(urlparse(h.path).query, keep_blank_values=path == "/integration/memory")
         {"/integration/memory": _memory_search, "/integration/timeline": _timeline}[path](h, query)
         return True
     try:
@@ -143,11 +143,11 @@ def _reminder_state(h, request_id):
 
 def _memory_search(h, query):
     memory, q, limit = h.server.memory, query.get("q", [""])[0], query.get("limit", ["5"])[0]
-    if not q.strip() or not limit.isdigit() or not 1 <= int(limit) <= MEMORY_LIMIT:
+    if 'owner' in query or not q.strip() or not limit.isdigit() or not 1 <= int(limit) <= MEMORY_LIMIT:
         return h.json(400, {"error": "invalid_query"})
     if memory is None:
         return h.json(503, {"error": "no_memory"})
-    facts = memory.active(owner=query.get("owner", ["shared"])[0])
+    facts = memory.active(owner="shared")
     scored = sorted(((overlap(q, f["text"]), f) for f in facts), key=lambda p: (-p[0], -p[1]["recorded_at"]))
     h.json(200, {"facts": [{"text": f["text"], "kind": f["kind"], "source": f["source"], "owner": f["owner"], "recorded_at": f["recorded_at"]}
                            for score, f in scored[:int(limit)] if score >= RELEVANT]})

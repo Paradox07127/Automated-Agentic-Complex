@@ -81,14 +81,15 @@ class CharacterState:
                 self._advance(now)
                 self._write()
             card = self.profiles(character_id) or {}
-            self.profile = {**DEFAULT_PROFILE, **card}
-            self.character = character_id
             row = self.db.execute("SELECT energy, valence, causes, updated_at FROM character_state"
                                   " WHERE character_id = ?", (character_id,)).fetchone()
+            causes = json.loads(row[2]) if row else []
+            self.profile = {**DEFAULT_PROFILE, **card}
+            self.character = character_id
             if row is None:
                 self.energy, self.valence, self.causes, self._at = self._target(now), self._baseline(), [], now
             else:
-                self.energy, self.valence, self.causes, self._at = row[0], row[1], json.loads(row[2]), row[3]
+                self.energy, self.valence, self.causes, self._at = row[0], row[1], causes, row[3]
             self.engagement, self.activity, self._engaged = 0.0, None, None
             self._running, self._sustained = {}, None
             self._lines, self._spoke, self._blocked = [], None, 0

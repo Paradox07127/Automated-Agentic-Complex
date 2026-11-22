@@ -262,6 +262,8 @@ def open_store(path):
         db.execute(statement)
     if 'owner' not in {row[1] for row in db.execute('PRAGMA table_info(facts)')}:
         db.execute('ALTER TABLE facts ADD COLUMN owner TEXT')
+    if 'owner' not in {r[1] for r in db.execute('PRAGMA table_info(episodes)')}:
+        db.execute('ALTER TABLE episodes ADD COLUMN owner TEXT')
     if not db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='observation_frame_cleanup'").fetchone():
         db.execute('''CREATE TRIGGER observation_frame_cleanup AFTER DELETE ON observation_frames BEGIN
             DELETE FROM observation_processed WHERE id=OLD.id;

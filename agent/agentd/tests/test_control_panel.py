@@ -21,7 +21,8 @@ class QuestionReplyTest(unittest.TestCase):
         conversation = 'a' * 32
         card = {'request_id':'card', 'revision':1, 'kind':'question', 'state':'pending',
             'conversation_id':conversation, 'data':{'character_id':'aster', 'questions':[{'id':'a'}, {'id':'b'}]}}
-        interactions = SimpleNamespace(get=Mock(return_value=card), respond=Mock(return_value={'state':'resumed'}))
+        interactions = SimpleNamespace(get=Mock(return_value=card), record_answer=Mock(return_value={'state':'answered'}),
+                                       resume_answer=Mock(return_value={'state':'resumed'}))
         server = SimpleNamespace(ui_token='ui', resetting=False, closing=False, character='aster', _switch_lock=threading.RLock(),
             history=SimpleNamespace(conversations=SimpleNamespace(active=conversation, get=lambda ident:{'archived':False, 'character_id':'aster', 'active':True})),
             character_agent=SimpleNamespace(busy=lambda:False, interactions=interactions), say=Mock(return_value=(202, {'line_id':'ordinary'})))
@@ -30,11 +31,11 @@ class QuestionReplyTest(unittest.TestCase):
             json=lambda code, body:result.append((code,body)))
         path = '/conversations/' + conversation + '/messages'
         route(handler, 'POST', path)
-        server.say.assert_called_once_with('hello')
-        interactions.respond.assert_not_called()
+        server.say.assert_called_once_with('hello', conversation_id=conversation)
+        interactions.record_answer.assert_not_called()
         handler.body = lambda:{'reply_to':{'request_id':'card', 'revision':1}, 'answers':{'a':['one'], 'b':['two']}}
         route(handler, 'POST', path)
-        interactions.respond.assert_called_once_with('card', 1, {'a':['one'], 'b':['two']})
+        interactions.record_answer.assert_called_once_with('card', 1, {'a':['one'], 'b':['two']})
         card['conversation_id'] = 'b' * 32
         route(handler, 'POST', path)
         self.assertEqual(result[-1][0], 400)
@@ -141,7 +142,7 @@ class ControlPanelTest(test_server.FeedServerCase):
         path = '/conversations/' + item['id'] + '/messages'
         self.server.say = Mock(return_value=(202, {'line_id': 'line-1'}))
         self.assertEqual(self.request('POST', path, {'text': 'hello'})[0], 202)
-        self.server.say.assert_called_once_with('hello')
+        self.server.say.assert_called_once_with('hello', conversation_id=item['id'])
         self.request('POST', '/conversations', {})
         self.assertEqual(self.request('POST', path, {'text': 'hello'})[0], 409)
         self.assertEqual(self.request('POST', path, {'text': ' '})[0], 400)
@@ -152,9 +153,9 @@ class ControlPanelTest(test_server.FeedServerCase):
         path = '/conversations/' + item['id'] + '/messages'
         self.server.say = Mock(return_value=(202, {'line_id': 'line-1'}))
         self.assertEqual(self.request('POST', path, {'text': 'hello', 'look': True, 'no_memory': True})[0], 202)
-        self.server.say.assert_called_once_with('hello', look=True, remember=False)
+        self.server.say.assert_called_once_with('hello', conversation_id=item['id'], look=True, remember=False)
         self.assertEqual(self.request('POST', path, {'text': 'hello', 'look': False, 'no_memory': False})[0], 202)
-        self.server.say.assert_called_with('hello', look=False, remember=True)
+        self.server.say.assert_called_with('hello', conversation_id=item['id'], look=False, remember=True)
         for body, error in (({'text': 'hello', 'look': 1}, 'invalid_look'), ({'text': 'hello', 'look': None}, 'invalid_look'),
                             ({'text': 'hello', 'no_memory': 'yes'}, 'invalid_no_memory'),
                             ({'look': True}, 'invalid_text'), ({'text': 'hello', 'extra': True}, 'invalid_text')):
@@ -166,7 +167,7 @@ class ControlPanelTest(test_server.FeedServerCase):
         path = '/conversations/' + item['id'] + '/messages'
         self.server.say = Mock(return_value=(202, {'line_id': 'line-1'}))
         self.assertEqual(self.request('POST', path, {'text': '汇总一下', 'scope_id': 'scope-1'})[0], 202)
-        self.server.say.assert_called_once_with('汇总一下', scope_id='scope-1')
+        self.server.say.assert_called_once_with('汇总一下', conversation_id=item['id'], scope_id='scope-1')
         for value in (5, 'x' * 129, ''):
             self.assertEqual(self.request('POST', path, {'text': 't', 'scope_id': value}), (400, {'error': 'invalid_scope_id'}))
         self.assertEqual(self.request('POST', path, {'text': 't', 'no_memory': True, 'scope_id': 'scope-1'}),
@@ -181,7 +182,7 @@ class ControlPanelTest(test_server.FeedServerCase):
             self.assertEqual(self.request('POST', '/conversations/' + item['id'] + '/messages', {'text': 'hello'})[0], 202)
         finally:
             self.server.character_agent = None
-        self.server.say.assert_called_once_with('hello')
+        self.server.say.assert_called_once_with('hello', conversation_id=item['id'])
 
     def test_owned_session_management_persists_and_prevents_resurrection(self):
         session = OwnSession('claude', self.tmp.name, 'original')

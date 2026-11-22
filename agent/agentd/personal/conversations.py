@@ -22,7 +22,6 @@ class Conversations:
             self.db.execute("CREATE TABLE IF NOT EXISTS conversation_turns (event_id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL)")
             self.db.execute("CREATE INDEX IF NOT EXISTS conversation_turns_conversation ON conversation_turns(conversation_id)")
             self.db.execute("CREATE TABLE IF NOT EXISTS conversation_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
-            self.db.execute("DELETE FROM conversation_settings WHERE key='active'")
             if 'character_id' not in {r[1] for r in self.db.execute('PRAGMA table_info(conversations)')}:
                 self.db.execute("ALTER TABLE conversations ADD COLUMN character_id TEXT")
                 self.db.execute("UPDATE conversations SET character_id=COALESCE(("
@@ -30,6 +29,9 @@ class Conversations:
                                 " WHERE t.conversation_id=conversations.id GROUP BY h.character_id"
                                 " ORDER BY COUNT(*) DESC,h.character_id LIMIT 1),?) WHERE character_id IS NULL",
                                 (default_character,))
+            self.db.execute("INSERT OR REPLACE INTO conversation_settings SELECT 'active:' || c.character_id,c.id"
+                            " FROM conversations c JOIN conversation_settings s ON s.value=c.id WHERE s.key='active'")
+            self.db.execute("DELETE FROM conversation_settings WHERE key='active'")
             if character_id is not None:
                 self._active(character_id)
 
@@ -112,6 +114,11 @@ class Conversations:
             rows = [dict(zip(COLUMNS, row)) for row in cursor.fetchall()]
         return {'turns': list(reversed(rows[:limit])), 'before': rows[limit - 1]['id'] if len(rows) > limit else None}
 
+    def has_live_job(self, ident):
+        """Caller holds the history lock, including the delete transaction when this protects a topic."""
+        return self.db.execute("SELECT 1 FROM personal_jobs WHERE conversation_id=? AND state IN ('queued','running') LIMIT 1",
+                               (ident,)).fetchone() is not None
+
     def update(self, ident, body, *, activate=False, delete=False):
         allowed = {'expected_version'} if activate or delete else {'expected_version', 'title', 'pinned', 'archived'}
         if not isinstance(body, dict) or set(body) - allowed or type(body.get('expected_version')) is not int:
@@ -140,7 +147,7 @@ class Conversations:
                 # A queued/running worker may have passed its current()
                 # check before creating its TaskLedger row. Let it stop
                 # before deleting ownership, as foreground deletion does.
-                if character_id == self.character_id and self.db.execute("SELECT 1 FROM personal_jobs WHERE conversation_id=? AND state IN ('queued','running') LIMIT 1", (ident,)).fetchone():
+                if self.has_live_job(ident):
                     raise ValueError('busy')
                 for owner, raw in self.db.execute('SELECT conversation_id,result FROM personal_jobs WHERE result IS NOT NULL'):
                     result = json.loads(raw)

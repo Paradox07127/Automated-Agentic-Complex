@@ -1266,6 +1266,12 @@ class KernelLines:
     def quick_status(self):
         return self.public()["routes"]["chat"]
 
+    def begin_quick(self, trace, scope_id):
+        pass
+
+    def settle_quick(self, ident, state, error):
+        pass
+
     def busy(self):
         return False
 

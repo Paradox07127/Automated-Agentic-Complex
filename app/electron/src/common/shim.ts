@@ -13,7 +13,7 @@ interface Subscription { stream: string; onEvent: (e: { event: string; id: strin
  * the void `window.*` calls send without waiting. `listen` receives the function that delivers pushes.
  */
 /** The preload's channels for dropped and pasted files (src/main/ops/adopt.ts). */
-export interface FileChannels { adopt(files: File[]): Promise<unknown>; paste(items: unknown[]): Promise<unknown> }
+export interface FileChannels { adopt(files: File[]): Promise<unknown>; paste(items: unknown[]): Promise<unknown>; release(handle: string): Promise<void> }
 
 export function installBridge(boot: Boot, invoke: (op: string, args: unknown[]) => Promise<Reply>, listen: (push: Push) => void,
   files?: FileChannels): void {
@@ -91,8 +91,9 @@ export function installBridge(boot: Boot, invoke: (op: string, args: unknown[]) 
     for (let i = 0; i < parts.length - 1; i++) node = (node[parts[i]] as Node | undefined) ?? (node[parts[i]] = {}) as Node;
     node[parts[parts.length - 1]] = method(op);
   }
-  if (files && bridge.files) {
+  if (boot.surface === 'main' && files && bridge.files) {
     const node = bridge.files as Node;
+    node.release = (handle: string) => files.release(handle);
     node.adoptDropped = (list: File[]) => files.adopt(list);
     node.adoptPasted = (items: unknown[]) => files.paste(items);
   }

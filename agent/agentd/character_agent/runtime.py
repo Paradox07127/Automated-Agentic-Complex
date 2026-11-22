@@ -1,7 +1,6 @@
 """Backend-neutral personal agent lifecycle. The adapter, not this module, runs the LLM loop."""
 from dataclasses import dataclass, field
 import hashlib
-from itertools import chain
 import json
 from pathlib import Path
 import threading
@@ -80,6 +79,9 @@ def _quick_events(session, prompt, **options):
     events = session.stream(prompt, replace_history=True, **options)
     try:
         for event in events:
+            if event["type"] == "ready":
+                yield event
+                continue
             if handoff:
                 if event["type"] == "result":
                     yield {**event, "type": "handoff"}
@@ -150,6 +152,7 @@ class PersonalAgentRuntime:
                 run = self.store.get(run_id)
                 if run is not None and run['state'] not in ('running', 'waiting_user'): return None
             if active is not None:
+                session = active.get("quick_session") or session
                 active["reason"] = reason
                 active["interrupted"] = interrupted
                 active["cancel"].set()
@@ -192,7 +195,7 @@ class PersonalAgentRuntime:
 
     def run(self, *, run_id, text, system_prompt, history, character_id, generation,
             scope_id=None, context="", before_input="", cancelled=None, is_current=lambda: True, expected_outputs=None, resume_run_id=None, allow_actions=True, knowledge_service=None, memory_session=None, orchestration_session=None, question_session=None, conversation_id=None, remember=True, mode=None,
-            setup_ms=None, on_first_token=None, on_tool=None, language=None, quick_session=None):
+            setup_ms=None, on_first_token=None, on_tool=None, language=None, quick_session=None, admitted=False):
         """before_input: lines the prompt carries after the context, right before the user's text.
         setup_ms: the caller's own preparation times in ms, recorded on the running event.
         on_first_token() runs when the harness reports the first text.
@@ -212,7 +215,7 @@ class PersonalAgentRuntime:
         outcome = "answered"
         output, dependencies = [], []
         quick_events = None
-        begun = False
+        begun = admitted
         native_verified = False
         previous = None
         planned_outputs = None
@@ -278,7 +281,7 @@ class PersonalAgentRuntime:
         try:
             if not allow_actions and (expected_outputs is not None or resume_run_id is not None):
                 raise ValueError("read_only_run")
-            if self.store.get(run_id) is not None:
+            if not admitted and self.store.get(run_id) is not None:
                 return AgentReply(model=self.model, error="duplicate_run")
             at = time.monotonic()
             knowledge = knowledge_service or self.knowledge_factory()
@@ -311,22 +314,15 @@ class PersonalAgentRuntime:
                     return AgentReply(model=self.model, error="cancelled")
                 active['knowledge'] = knowledge
                 self._active = active
-            if quick_session is not None:
-                quick_events = _quick_events(quick_session, _turn_prompt(text, before_input, context),
-                    system_prompt=system_prompt, history=history, cancelled=lambda: not current(), run_id=run_id)
-                requested_at = time.monotonic()
-                first = next(quick_events)
-                if first["type"] == "handoff":
-                    return AgentReply(model=first.get("model") or self.model, usage=first.get("usage") or {},
-                                      cost_usd=first.get("cost_usd"), result={"handoff": True})
-            if scope_id:
+                if not admitted:
+                    self.store.begin(run_id, active['conversation_id'], character_id, generation, scope_id,
+                        delivery_eligible=remember and allow_actions)
+                    begun = True
+            if scope_id and quick_session is None:
                 self.workspace.validate_scope(scope_id)
             with self._lock:
-                if self._closed or cancel.is_set() or not is_current():
+                if not current():
                     raise ValueError("cancelled")
-                self.store.begin(run_id, conversation_id if conversation_id is not None else self.conversation_id, character_id, generation, scope_id,
-                    delivery_eligible=remember and allow_actions)
-                begun = True
                 if memory_session is not None:
                     at = time.monotonic()
                     memory_session.open(current)
@@ -503,25 +499,38 @@ class PersonalAgentRuntime:
                     "previous_artifacts": previous.get("artifacts", []),
                     "planned_outputs": planned_outputs,
                     "remaining_request": text}, ensure_ascii=False)
-            self._emit(run_id, "running", backend=self.backend, model=self.model,
-                       queue_ms=round((acquired_at-enqueued_at)*1000),
-                       context_setup_ms=round((time.monotonic()-acquired_at)*1000),
-                       work_kind='background' if mode == 'background' else 'foreground', **segments, **(setup_ms or {}))
-            if quick_session is None:
-                prompt = _turn_prompt(text, before_input, context)
-                resume_options = {'ask_user_result': previous['pending_tool']} if previous and (previous.get('pending_tool') or {}).get('result') else {}
-                if memory_session is not None:
-                    memory_session.assembled(prompt=prompt, system_prompt=system_prompt, history=history, tools=definitions,
-                                             continuation=resume_options)
-                requested_at = time.monotonic()
+            if not admitted:
+                self._emit(run_id, "running", backend=self.backend, model=self.model,
+                           queue_ms=round((acquired_at-enqueued_at)*1000),
+                           context_setup_ms=round((time.monotonic()-acquired_at)*1000),
+                           work_kind='background' if mode == 'background' else 'foreground', **segments, **(setup_ms or {}))
+            prompt = _turn_prompt(text, before_input, context)
+            resume_options = {'ask_user_result': previous['pending_tool']} if previous and (previous.get('pending_tool') or {}).get('result') else {}
+            if memory_session is not None:
+                memory_session.assembled(prompt=prompt, system_prompt=system_prompt, history=history, tools=definitions,
+                                         continuation=resume_options)
+            requested_at = time.monotonic()
+            if quick_session is not None:
+                with self._lock:
+                    if not current():
+                        raise ValueError("cancelled")
+                    active["quick_session"] = quick_session
+                if scope_id:
+                    self.workspace.validate_scope(scope_id)
+                events = quick_events = _quick_events(quick_session, prompt, system_prompt=system_prompt, history=history,
+                    cancelled=lambda: not current(), run_id=run_id)
+            else:
+                events = self._session.stream(prompt, system_prompt=system_prompt, history=history, cancelled=lambda: not current(),
+                                              run_id=run_id, tool_handler=call, **resume_options)
             knowledge.record_prompt_uses(run_id)
             own_tools, native_open = {d['name'] for d in definitions}, set()
-            for event in (chain((first,), quick_events) if quick_session is not None else
-                    self._session.stream(prompt, system_prompt=system_prompt, history=history, cancelled=lambda: not current(),
-                                         run_id=run_id, tool_handler=call, **resume_options)):
+            for event in events:
                 if suspended: raise ValueError("interaction_pending")
                 if not current():
                     break
+                if event["type"] == "handoff":
+                    return AgentReply(model=event.get("model") or self.model, usage=event.get("usage") or {},
+                                      cost_usd=event.get("cost_usd"), result={"handoff": True})
                 if event.get('item_id'):
                     item_seq += 1
                     summary = event.get('summary')
@@ -589,6 +598,8 @@ class PersonalAgentRuntime:
                 if kind == "plan":
                     publish_plan(event['title'], event['steps'], event['source'])
                 elif kind == "ready":
+                    if quick_session is not None and scope_id:
+                        self.workspace.validate_scope(scope_id)
                     actual_model = event.get('model') or actual_model
                     effort = event.get('effort') if isinstance(event.get('effort'), str) else effort
                     self._emit(run_id, "capabilities_checked", tool_inventory_verified=event.get("tool_inventory_verified") is True,

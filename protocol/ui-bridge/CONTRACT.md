@@ -37,7 +37,7 @@
 7. 下列字段只收 `files.pickFile` / `files.pickFolder` 返回的不透明句柄，由桥换成真实路径后再发；收到明文路径字符串就拒绝整个请求：
    - `PUT /character/runtime` 的可执行文件路径：`pickFile({purpose:'runtime_executable'})`；`workspace_dir`：`pickFolder({purpose:'session_cwd'})`；
    - `POST /agent/scopes` 的 `roots` 各项：`pickFolder({purpose:'scope_root'})`，`output_root`：`pickFolder({purpose:'scope_output'})`（agentd 接受任意非符号链接目录，并对 `output_root` 做 `mkdir -p`）；
-   - `POST /agent/scopes` 的 `files` 各项：`pickFile({purpose:'scope_file'})`（宿主只让选 `.md .txt .csv .json`）；这一项也收交给她卡上文件项的 `handle`：外壳在本次运行里收到原生拖入或交出剪贴板文件时为每个文件发一个，这张卡建几次范围都能用；也收 `files.adoptDropped(files)`（拖进页面的文件，preload 用 `webUtils.getPathForFile` 取路径，页面造的 File 取不到）和 `files.adoptPasted(items)`（粘贴的 png/jpeg/gif/webp，外壳写进 `<支持目录>/pasted/`）返回的句柄，和 pickFile 的句柄一样只用一次；明文路径字符串一律拒绝；
+   - `POST /agent/scopes` 的 `files` 各项：`pickFile({purpose:'scope_file'})`（宿主只让选 `.md .txt .csv .json`）；这一项也收交给她卡上文件项的 `handle`：外壳在本次运行里收到原生拖入或交出剪贴板文件时为每个文件发一个，这张卡建几次范围都能用；也收 `files.adoptDropped(files)`（拖进页面的文件，preload 用 `webUtils.getPathForFile` 取路径，页面造的 File 取不到）和 `files.adoptPasted(items)`（粘贴的 png/jpeg/gif/webp，外壳写进 `<支持目录>/pasted/`）返回的句柄，和 pickFile 的句柄一样只用一次。只有主窗口的可信主框架可接收拖放或粘贴，每次最多取前 16 项，每项至多 5 MiB，每个范围最多 16 个文件。页面放弃附件时调用 `files.release(handle)`，关闭或刷新页面也会删除未使用的粘贴副本。已交给范围的文件保留供 agentd 读取，应用启动或清除本地数据时清空 `pasted/`。明文路径字符串一律拒绝；
    - `POST /sessions` 的 `cwd`：`pickFolder({purpose:'session_cwd'})`（agentd 接受任意目录和 `workspace_write` 模式）；
    - `POST /say` 带 `cwd` 字段的拒绝（见「现行取舍」）。
 8. 其余由 `AgentdClient` 带 token 转发。

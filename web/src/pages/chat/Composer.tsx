@@ -246,7 +246,10 @@ export function Composer(p: ComposerProps) {
       name: f.displayName,
       icon: IMAGE.test(f.displayName) ? ('g-image' as const) : ('g-file' as const),
       removeLabel: `移除 ${f.displayName}`,
-      onRemove: () => edit({ files: d.files.filter((_, j) => j !== i) }),
+      onRemove: () => {
+        edit({ files: d.files.filter((_, j) => j !== i) });
+        void getBridge().files.release?.(f.handle).catch(() => undefined);
+      },
     })),
     ...(look ? [{ key: 'look', name: '看一眼屏幕', icon: 'g-window' as const, flag: true, removeLabel: '不看屏幕', onRemove: () => edit({ look: false }) }] : []),
     ...(d.noMem ? [{ key: 'nomem', name: '这句不记', icon: 'g-nomem' as const, flag: true, removeLabel: '取消这句不记', onRemove: () => edit({ noMem: false }) }] : []),

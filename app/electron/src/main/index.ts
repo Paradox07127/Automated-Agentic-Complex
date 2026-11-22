@@ -78,7 +78,7 @@ import { shellMenus } from './menus/shell.ts';
 import { trayContextMenu } from './menus/tray.ts';
 import { SystemNotifier } from './notify/system.ts';
 import { onboardingWindow } from './onboarding/window.ts';
-import { adoptPasted, adoptPaths, SCOPE_FILE_TYPES } from './ops/adopt.ts';
+import { adoptPasted, adoptPaths, clearPasted, filePage, SCOPE_FILE_TYPES } from './ops/adopt.ts';
 import { bundleBuild } from './ops/app.ts';
 import { avatarPlaylist, cpuSecondsReader } from './ops/avatar.ts';
 import { characterArt, shellMmdSync } from './ops/character.ts';
@@ -1134,12 +1134,15 @@ ipcMain.on('bridge:boot', (e) => {
 
 // Dropped and pasted files, from the preload only (src/main/ops/adopt.ts); the main frame's page gets handles back.
 ipcMain.handle('files:adopt', (e, paths: unknown) => {
-  const entry = pages.get(e.sender.id);
-  return entry && e.senderFrame === e.sender.mainFrame ? adoptPaths(paths, entry.page.picked) : [];
+  const page = filePage(e, pages.get(e.sender.id));
+  return page ? adoptPaths(paths, page.picked) : [];
+});
+ipcMain.handle('files:release', (e, handle: unknown) => {
+  if (typeof handle === 'string') filePage(e, pages.get(e.sender.id))?.release(handle);
 });
 ipcMain.handle('files:paste', (e, items: unknown) => {
-  const entry = pages.get(e.sender.id);
-  return entry && e.senderFrame === e.sender.mainFrame && config ? adoptPasted(items, entry.page.picked, join(config.supportDir, 'pasted')) : [];
+  const page = filePage(e, pages.get(e.sender.id));
+  return page && config ? adoptPasted(items, page, join(config.supportDir, 'pasted')) : [];
 });
 
 ipcMain.handle('bridge:invoke', (e, message: unknown): Reply | Promise<Reply> => {
@@ -1194,6 +1197,7 @@ app.on('will-quit', (e) => {
 });
 
 void app.whenReady().then(async () => {
+  clearPasted(config?.supportDir ?? supportDir);
   setNotificationId(app);
   hideFromDock(app);
   // Electron's own handlers, installed by now, quit once and then restore the default action (quit.ts).

@@ -20,8 +20,12 @@ export function agentdOps(ctx: OpsContext): Ops {
       if (checked.route.class === 'confirm_native' && !(await ctx.confirm(`${checked.method} ${route}`))) {
         return rejected('declined', `${checked.method} ${route}`);
       }
+      const discards = [...swapped.used].map(handle => page.picked.get(handle)?.discard);
       for (const handle of swapped.used) page.picked.delete(handle);
-      if (!ctx.agentd) return rejected('offline', 'agentd is unreachable');
+      if (!ctx.agentd) {
+        for (const discard of discards) discard?.();
+        return rejected('offline', 'agentd is unreachable');
+      }
       const message = checked.method === 'POST' && route.startsWith('/conversations/') && route.endsWith('/messages');
       const submittedAt = markNow();
       let status: number, data: Buffer;
@@ -30,6 +34,7 @@ export function agentdOps(ctx: OpsContext): Ops {
       } catch {
         return rejected('offline', 'agentd is unreachable');
       }
+      if (status < 200 || status >= 300) for (const discard of discards) discard?.();
       let json: unknown = null;
       try {
         json = JSON.parse(data.toString('utf8'));

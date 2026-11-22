@@ -94,11 +94,23 @@ test('files.adoptDropped and files.adoptPasted go to the preload channels, not t
   const fromSource = new Function('return (' + installBridge.toString() + ')')() as typeof installBridge;
   fromSource(boot('main'), async (op, args) => { calls.push([op, args]); return { ok: true, value: null }; }, () => {}, {
     adopt: async (files) => { sent.push(['adopt', files]); return []; },
+    release: async (handle) => { sent.push(['release', handle]); },
     paste: async (items) => { sent.push(['paste', items]); return []; },
   });
   const files = g.window.agenticComplex.files;
   await files.adoptDropped(['f']);
   await files.adoptPasted([{ type: 'image/png' }]);
-  assert.deepEqual(sent, [['adopt', ['f']], ['paste', [{ type: 'image/png' }]]]);
+  await files.release('held');
+  assert.deepEqual(sent, [['adopt', ['f']], ['paste', [{ type: 'image/png' }]], ['release', 'held']]);
   assert.deepEqual(calls, []);
+});
+
+test('only the main document receives local file channels', () => {
+  for (const surface of ['stack', 'onboarding'] as const) {
+    g.window = {};
+    installBridge(boot(surface), async () => ({ ok: true, value: null }), () => {},
+      { adopt: async () => [], paste: async () => [], release: async () => {} });
+    assert.equal(g.window.agenticComplex.files.adoptDropped, undefined);
+    assert.equal(g.window.agenticComplex.files.adoptPasted, undefined);
+  }
 });

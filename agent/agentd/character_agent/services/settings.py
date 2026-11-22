@@ -131,7 +131,7 @@ class RuntimeSettings:
         return result
 
     @staticmethod
-    def route(config, purpose):
+    def route(config, purpose, *, pi_provider=None):
         """The kernel config `purpose` (one of ROUTES) runs on: the main config with its routes entry applied.
         `_turn_effort` is the session's reasoning effort; None leaves the harness's own."""
         entry = config["routes"].get(purpose)
@@ -151,8 +151,10 @@ class RuntimeSettings:
                 value["model"] = entry["model"]
         if purpose == "quick":
             chat = RuntimeSettings.route(config, "chat")
+            inherit = chat["backend"] == "pi" and (not chat["provider"] or chat["provider"] == pi_provider)
+            effort = "off"
             value.update(backend="pi", provider="", acp_agent=None, auth_source="existing_login",
-                         model=(entry and entry["model"]) or (chat["model"] if chat["backend"] == "pi" else ""))
+                         model=(entry and entry["model"]) or (chat["model"] if inherit else ""))
             if config["backend"] != "pi":
                 value.update(runtime_source="bundled", executable=None)
             elif config["auth_source"] == "local_no_auth":

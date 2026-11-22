@@ -92,26 +92,32 @@ class CharacterSwitchMixin:
         chooser = self.motion_chooser(cid)
         bindings = getattr(self, "bindings", None)
         voice = self.characters.voice(cid) if bindings is None else bindings.voice(cid)
-        self.character_voice_enabled = voice is not None
         backend = self.behavior.backend if self.behavior is not None else None
         system = system_prompt(card["name"]) if backend is not None else None
         with self._write_lock:
+            next_mouth = mouth or self.mouth
+            turns = self._read_window(cid, next_mouth) if self.history and next_mouth else []
+            if self.history and next_mouth is None:
+                with self.history.lock, self.history.db:
+                    self.history.conversations._active(cid)
+            if self.state is not None:
+                self.state.use(cid)
             if self.history is not None:
-                self.history.conversations.use(cid)
+                self.history.conversations.character_id = cid
+            self.character_voice_enabled = voice is not None
             self.fence_conversation()
             if mouth is not None:
                 self.mouth = mouth
-            if self.history is None and self.mouth is not None:
-                self.mouth.history = []
             self.character = cid
-        self.reload_conversation()
+            if next_mouth is not None:
+                next_mouth.history = [turn for _, turn in turns]
+                self._line_entries.update(turns)
+        self.retire_foreground()
         self.feed.publish("task_understanding", {"action":"updated", "character_id":cid})
         if voice is not None and self.speech is not None:
             self.speech.character, self.speech.language = voice
         if backend is not None:
             backend.system = system
-        if self.state is not None:
-            self.state.use(cid)
         self.spatial.use_motion(chooser)
 
     def prepare_switch(self, cid):

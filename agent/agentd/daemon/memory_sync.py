@@ -35,7 +35,7 @@ class MemorySyncMixin:
         if recall is not None and self.episodes is not None and trace["remember"] and self.page_text_allowed() \
                 and source not in ("proactive", "ritual", "tap"):
             try:
-                recall(*self.episodes.recall(query, self.clock()))
+                recall(*self.episodes.recall(query, self.clock(), character_id=self.character))
             except sqlite3.Error:
                 pass
         used = [(f["fact_id"], f["version"]) for f in facts["trusted"] + facts["low_trust"]]

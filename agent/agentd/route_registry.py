@@ -58,6 +58,10 @@ for entry in PLUGINS:
     for prefix in entry["agentd"]["routes"]:
         PLUGIN_PREFIXES.setdefault(prefix, []).append(entry["id"])
 
+# Text chat and its topic lifecycle also run on a standalone local harness.
+for prefix in ("/say", "/conversations", "/turn/cancel"):
+    PLUGIN_PREFIXES[prefix].append("harness_bridge")
+
 
 @dataclass(frozen=True, slots=True)
 class Route:

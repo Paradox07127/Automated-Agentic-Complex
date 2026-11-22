@@ -11,7 +11,7 @@ from infra.platform import new_group_options, track_group
 
 from .codex_runner import classify_failure
 from .pi_config import PiConfig, pi_runner_environment
-from .transport import HarnessError, ManagedClaudeSession
+from .transport import HarnessError, ManagedClaudeSession, cancelled_now
 
 RUNNER = Path(__file__).with_name("pi_runner.mjs")
 
@@ -93,7 +93,7 @@ class ManagedPiSession(ManagedClaudeSession):
                 raise HarnessError(str(error)) from None
         super()._write(message, proc)
 
-    def _ensure(self, system_prompt):
+    def _ensure(self, system_prompt, cancelled=None):
         self.config.validate(require_key=False)
         if self._proc is not None and self._proc.poll() is None and self._system_prompt == system_prompt:
             return self._ready
@@ -120,6 +120,9 @@ class ManagedPiSession(ManagedClaudeSession):
                      "tools": self.tool_definitions})
         deadline = time.monotonic() + self.config.startup_timeout
         while time.monotonic() < deadline:
+            if cancelled_now(cancelled):
+                self.close()
+                raise HarnessError("cancelled")
             try:
                 event = self._events.get(timeout=min(.1, max(.001, deadline-time.monotonic())))
             except queue.Empty:

@@ -25,7 +25,7 @@ export class PageSession {
   /** The last route pushed while no document had subscribed; its next subscriber gets it. */
   private pendingRoute: string | null = null;
   /** The current document's unused `files.pick*` handles. */
-  readonly picked = new Map<string, { purpose: string; path: string }>();
+  picked = new Map<string, { purpose: string; path: string; discard?: () => void }>();
 
   constructor(target: PushTarget) {
     this.target = target;
@@ -72,11 +72,17 @@ export class PageSession {
     for (const id of this.routeIds) this.push(this.generation, id, 'route', 'event', { event: 'route', id: null, data: route });
   }
 
+  release(handle: string): void {
+    this.picked.get(handle)?.discard?.();
+    this.picked.delete(handle);
+  }
+
   /** The document ended (navigation, reload or close): cancels every subscription. */
   end(): void {
     this.generation += 1;
     this.routeIds = [];
-    this.picked.clear();
+    for (const handle of this.picked.keys()) this.release(handle);
+    this.picked = new Map();
     const ended = [...this.subscriptions.values()];
     this.subscriptions.clear();
     for (const cancel of ended) cancel();

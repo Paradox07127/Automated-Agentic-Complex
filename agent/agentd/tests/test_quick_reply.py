@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 import sys
+import threading
 import time
 import unittest
 from unittest.mock import Mock, patch
@@ -34,13 +35,10 @@ class QuickTests(unittest.TestCase):
         self.sessions.append(session)
         return session
 
-    def say(self, text):
-        status, body = self.server.say(text)
+    def say(self, text, **options):
+        status, body = self.server.say(text, **options)
         self.assertEqual(status, 202, body)
-        deadline = time.monotonic() + 3
-        while self.server._live_lines and time.monotonic() < deadline:
-            time.sleep(.005)
-        self.assertFalse(self.server._live_lines)
+        self.wait_settled()
         events = [e['data'] for e in self.server.feed.since(0) if e['event'] == 'line' and
                   e['data']['line_id'] == body['line_id']]
         self.assertTrue(events[-1]['final'])
@@ -55,6 +53,12 @@ class QuickTests(unittest.TestCase):
         from daemon.turns import foreground_route
         for text, options, expected in [
             ('早上好', {}, 'quick'), ('今天好累', {}, 'quick'), ('你在干嘛', {}, 'quick'),
+            ('They remind me of spring', {}, 'quick'), ('谢谢你提醒我', {}, 'quick'),
+            ('昨天我记住了他的名字', {}, 'quick'), ('I went for a run yesterday', {}, 'quick'), ('我昨天安装了软件', {}, 'quick'),
+            ('看看这个窗口', {}, 'chat'), ('帮我看看这个窗口', {}, 'chat'), ('看一下屏幕', {}, 'chat'),
+            ('look at this window', {}, 'chat'), ('接着刚才那个继续', {}, 'chat'), ('继续刚才那个', {}, 'chat'),
+            ('continue the task', {}, 'chat'), ('Remember my nickname', {}, 'chat'),
+            ('明日リマインドして', {}, 'chat'), ('Could you run this', {}, 'chat'),
             ('I went for a run.', {}, 'quick'), ('download?', {}, 'quick'),
             ('https://example.org', {}, 'chat'), ('www.example.com', {}, 'chat'),
             ('它在~/Documents', {}, 'chat'), ('看 /tmp', {}, 'chat'),
@@ -80,7 +84,7 @@ class QuickTests(unittest.TestCase):
             quick = RuntimeSettings.route(config, 'quick')
             self.assertEqual((quick['backend'], quick['model']), ('pi', model))
         config = RuntimeSettings.validate({'routes': {'quick': route('pi', 'mine', 'low')}})
-        self.assertEqual(RuntimeSettings.route(config, 'quick')['_turn_effort'], 'low')
+        self.assertEqual(RuntimeSettings.route(config, 'quick')['_turn_effort'], 'off')
         self.assertEqual(RuntimeSettings.route(config, 'quick')['model'], 'mine')
         with self.assertRaisesRegex(ValueError, 'invalid_route_backend'):
             RuntimeSettings.validate({'routes': {'quick': route('codex')}})
@@ -107,7 +111,7 @@ class QuickTests(unittest.TestCase):
     def test_warm_pi_provider_requests(self):
         models = self.server.models = ModelSettings(self.root / 'models')
         models.save({'provider': 'compatible', 'base_url': 'https://fixture.invalid/v1',
-                     'api_key': 'fixture', 'model': 'fixture'})
+                     'api_key': 'fixture', 'model': 'fixture', 'reasoning': True, 'reasoning_effort': 'high'})
         self.c.settings.save({'backend': 'codex', 'runtime_source': 'local', 'model': 'chat-only'})
         self.c.session_factory_override = None
         runner = Path(__file__).parent / 'fakes' / 'quick_pi_fetch.mjs'
@@ -130,6 +134,7 @@ class QuickTests(unittest.TestCase):
         for i, frame in enumerate(frames):
             body = frame['request']
             self.assertEqual(body['model'], 'fixture')
+            self.assertIn(body.get('reasoning_effort'), (None, 'none', 'off'))
             self.assertIn('[handoff]', body['messages'][0]['content'])
             self.assertFalse(body.get('tools'))
             self.assertLessEqual(body.get('max_tokens') or body['max_completion_tokens'], 1024)
@@ -167,7 +172,11 @@ class QuickTests(unittest.TestCase):
                        'status': 'delta', 'phase': 'final', 'text': part}
             yield {'type': 'result', 'success': True, 'final_text': ''.join(parts), 'model': 'fixture'}
         self.script = answer
-        events, selected = self.say('你能帮帮我吗')
+        with patch.object(self.server.mouth, 'pick_lore', wraps=self.server.mouth.pick_lore) as lore, \
+                patch.object(self.c.reply_language, 'observe', wraps=self.c.reply_language.observe) as observe, \
+                patch.object(self.server, '_context_assembled', wraps=self.server._context_assembled) as assembled:
+            events, selected = self.say('你能帮帮我吗')
+        self.assertEqual((lore.call_count, observe.call_count, assembled.call_count), (1, 1, 1))
         self.assertEqual(len(self.sessions), 2)
         self.assertEqual(selected, 'chat')
         self.assertEqual(''.join(e['text_delta'] for e in events), 'Hello')
@@ -185,3 +194,255 @@ class QuickTests(unittest.TestCase):
         self.say('早上好')
         self.assertEqual(len(self.sessions), 1)
         self.assertEqual(len(self.sessions[0].calls), 1)
+
+    def test_unavailable_quick_uses_chat(self):
+        with patch.object(self.c, 'quick_status', return_value={'ready': False, 'error': 'plugin_off', 'backend': 'pi'}):
+            self.assertEqual(self.say('hello')[1], 'chat')
+        from infra import plugins
+        with patch.dict(plugins.resolved, light_ai=False, harness_bridge=True):
+            for path in ('/say', '/conversations/' + self.server.history.conversations.active + '/messages'):
+                status, body = request(self.server, 'POST', path, {'text': 'hello'})
+                self.assertEqual(status, 202, body)
+                self.wait_settled()
+                self.assertEqual(body['runtime'], 'codex')
+
+    def test_readiness_outside_topic_lock(self):
+        owned = []
+        path = '/conversations/' + self.server.history.conversations.active + '/messages'
+        def status():
+            owned.append(self.server._switch_lock._is_owned())
+            return {'ready': True, 'backend': 'pi'}
+        with patch.object(self.c, 'quick_status', side_effect=status):
+            self.assertEqual(request(self.server, 'POST', path, {'text': 'hi'})[0], 202)
+        self.wait_settled()
+        self.assertEqual(owned, [False])
+
+    def wait_settled(self):
+        deadline = time.monotonic() + 3
+        while self.server._live_lines and time.monotonic() < deadline:
+            time.sleep(.005)
+        self.assertFalse(self.server._live_lines)
+
+    def test_quick_preserves_chat_kernel_and_session(self):
+        self.say('查一下 document')
+        runtime, session = self.c.runtime, self.sessions[-1]
+        self.say('hello')
+        self.say('查一下 document again')
+        self.assertIs(self.c.runtime, runtime)
+        self.assertEqual(session.closed, 0)
+        self.assertEqual(len(session.calls), 2)
+
+    def test_stale_prepare_never_replaces_runtime(self):
+        runtime = self.c._ensure_runtime()
+        self.c.prepare('old', 'hi', threading.Event(), self.server.turn_generation - 1, 'text', {'route': 'quick'})
+        self.assertIs(self.c.runtime, runtime)
+        self.assertFalse(runtime._closed)
+
+    def test_quick_uses_temporary_history(self):
+        self.say('first', remember=False)
+        self.say('second', remember=False)
+        self.assertEqual(self.sessions[0].calls[-1]['history'][0][0]['content'], 'first')
+        with patch.object(self.server, 'history', None):
+            self.say('third')
+        self.assertEqual([turn[0]['content'] for turn in self.sessions[0].calls[-1]['history']], ['first', 'second'])
+
+    def test_quick_validates_scope_before_dispatch(self):
+        (self.root / 'in').mkdir()
+        scope = self.c.workspace.create_scope([str(self.root / 'in')], str(self.root / 'out'), ttl=3600)
+        self.c.settings.save({**self.c.settings.snapshot(), 'scope_id': scope['scope_id']})
+        with patch.object(self.c.workspace, 'validate_scope', side_effect=[scope, ValueError('scope_expired')]):
+            status, body = self.server.say('hi')
+            self.assertEqual(status, 202)
+            self.wait_settled()
+        self.assertFalse(any(s.calls for s in self.sessions))
+
+    def test_failed_quick_dispatch_has_run_and_fact_receipt(self):
+        fact = self.server.memory.add('I drink tea', 'asserted_by_user', kind='preference')
+        at_dispatch = []
+        def fail(session, prompt, options):
+            ident = options['run_id']
+            at_dispatch.append((self.c.store.get(ident), self.db.execute(
+                'SELECT 1 FROM fact_uses WHERE fact_id=? AND line_id=?', (fact, ident)).fetchone()))
+            raise ValueError('transport_failed')
+        self.script = fail
+        status, body = self.server.say('hi')
+        self.assertEqual(status, 202)
+        self.wait_settled()
+        self.assertTrue(all(at_dispatch[0]))
+        self.assertEqual(self.c.store.get(body['run_id'])['state'], 'failed')
+
+    def test_ready_event_precedes_opening_text(self):
+        phases = []
+        def answer(session, prompt, options):
+            yield {'type': 'ready'}
+            phases.extend(e['data'].get('phase') for e in self.server.feed.since(0) if e['event'] == 'agent_run')
+            yield from chat(session, prompt, options)
+        self.script = answer
+        self.say('hi')
+        self.assertIn('capabilities_checked', phases)
+
+    def test_prewarm_retired_during_start(self):
+        s = self.c.quick_session()
+        def start():
+            self.c.cancel('runtime_changed')
+            s.closed = 0  # the child starts after retirement
+        s.prewarm.side_effect = start
+        self.assertEqual(request(self.server, 'POST', '/chat/prewarm', {})[0], 503)
+        self.assertGreater(s.closed, 0)
+        self.assertIsNot(self.c.quick_session(), s)
+
+    def test_session_key_tracks_config(self):
+        s = self.c.quick_session()
+        self.c.settings.save({'routes': {'quick': route('pi', 'different')}})
+        self.assertIsNot(self.c.quick_session(), s)
+        self.assertGreater(s.closed, 0)
+
+    def test_quick_model_uses_resolved_provider(self):
+        self.server.models = ModelSettings(self.root / 'models')
+        self.server.models.save({'provider': 'compatible', 'base_url': 'https://fixture.invalid/v1',
+                                 'api_key': 'fixture', 'model': 'account'})
+        for provider, expected in [('deepseek', 'account'), ('compatible', 'chat-model')]:
+            self.c.settings.save({'backend': 'pi', 'provider': provider, 'auth_source': 'api_key', 'model': 'chat-model'})
+            with patch.object(self.c, '_session_factory', wraps=self.c._session_factory) as create:
+                self.c.quick_session()
+                self.assertEqual(self.c._model(create.call_args.args[1]), expected)
+            self.c.cancel('runtime_changed')
+
+    def test_cancel_interrupts_quick_stream(self):
+        started, release = threading.Event(), threading.Event()
+        def answer(session, prompt, options):
+            session.interrupt_hook = release.set
+            started.set()
+            release.wait(2)
+            yield from chat(session, prompt, options)
+        self.script = answer
+        status, body = self.server.say('hi')
+        self.assertTrue(started.wait(2))
+        try:
+            self.c.cancel_conversation(self.server.history.conversations.active, body['run_id'], body['generation'])
+            self.assertTrue(release.wait(.2))
+        finally:
+            release.set()
+            self.wait_settled()
+
+    def test_quote_uses_only_the_named_topics_displayed_words(self):
+        s = self.server
+        self.say('first question')
+        path = '/conversations/' + s.history.conversations.active + '/messages'
+        ident = s.history.page()[0][0]['turn_id']
+        for part, words in [('user', 'first question'), ('reply', 'Hello')]:
+            status, body = request(s, 'POST', path, {'text': 'why?', 'quote_turn': {'turn_id': ident, 'part': part}})
+            self.assertEqual(status, 202, body)
+            self.wait_settled()
+            prompt = self.sessions[-1].calls[-1]['prompt']
+            self.assertIn(words, prompt.split('</observed_context>')[0])
+            self.assertIn('"speaker": "' + ('user' if part == 'user' else 'aster') + '"', prompt)
+            self.assertTrue(prompt.endswith('why?'))
+            self.assertTrue(self.definitions[-1])
+        topic = s.history.conversations.create()
+        self.assertEqual(request(s, 'POST', '/conversations/' + topic['id'] + '/messages',
+                                {'text': 'why?', 'quote_turn': {'turn_id': ident, 'part': 'reply'}}),
+                         (400, {'error': 'invalid_quote_turn'}))
+
+    def test_cancel_quick_waiting_for_prewarm_lock(self):
+        from character_agent.harness.transport import HarnessError, ManagedClaudeSession
+        session = ManagedClaudeSession(Mock(), runner_path='unused')
+        queued, cancelled, stopped = threading.Event(), threading.Event(), threading.Event()
+        outcome = []
+
+        def stream():
+            queued.set()
+            try:
+                list(session.stream('hi', system_prompt='', replace_history=True, cancelled=cancelled))
+            except HarnessError as error:
+                outcome.append(error.code)
+            finally:
+                stopped.set()
+
+        with session._stream_lock:
+            worker = threading.Thread(target=stream)
+            worker.start()
+            self.assertTrue(queued.wait(1))
+            cancelled.set()
+            ended_while_locked = stopped.wait(.5)
+        worker.join(2)
+        self.assertTrue(ended_while_locked)
+        self.assertEqual(outcome, ['cancelled'])
+
+    def test_scope_expiring_at_adapter_ready_sends_no_prompt(self):
+        (self.root / 'in').mkdir()
+        scope = self.c.workspace.create_scope([str(self.root / 'in')], str(self.root / 'out'), ttl=3600)
+        self.c.settings.save({**self.c.settings.snapshot(), 'scope_id': scope['scope_id']})
+        sent = []
+        def start(session, prompt, options):
+            self.c.workspace.revoke_scope(scope['scope_id'])
+            yield {'type': 'ready'}
+            sent.append(prompt)
+            yield from chat(session, prompt, options)
+        self.script = start
+        status, body = self.server.say('hi')
+        self.assertEqual(status, 202)
+        self.wait_settled()
+        self.assertFalse(sent)
+        self.assertEqual(self.c.store.get(body['run_id'])['state'], 'failed')
+
+    def test_cancel_during_preparation_settles_accepted_quick_run(self):
+        entered, release = threading.Event(), threading.Event()
+        def lore(*args):
+            entered.set()
+            release.wait(2)
+            return []
+        with patch.object(self.server.mouth, 'pick_lore', side_effect=lore):
+            status, body = self.server.say('hi')
+            self.assertEqual(status, 202)
+            self.assertTrue(entered.wait(1))
+            self.assertEqual(self.c.cancel_conversation(self.server.history.conversations.active,
+                                                        body['run_id'], body['generation'])[0], 202)
+            release.set()
+            self.wait_settled()
+        run = self.c.store.get(body['run_id'])
+        self.assertIsNotNone(run)
+        self.assertEqual(run['state'], 'cancelled')
+
+    @unittest.skipUnless(HAS_SDK, 'Pinned Pi SDK unavailable')
+    def test_quick_query_overrides_session_thinking_budget(self):
+        from character_agent.harness.pi_config import PiConfig, resolve_pi_runtime
+        from character_agent.harness.pi_transport import ManagedPiSession
+        node, runtime = resolve_pi_runtime()
+        config = PiConfig(self.root / 'pi', 'compatible', 'fixture', api_key='fixture',
+                          base_url='https://fixture.invalid/v1', reasoning=True, effort='high',
+                          native_tools=False, node=node, runtime_dir=runtime)
+        session = ManagedPiSession(config, runner_path=Path(__file__).parent / 'fakes' / 'quick_pi_fetch.mjs')
+        try:
+            events = list(session.stream('hi', system_prompt='answer', history=[], replace_history=True))
+            self.assertTrue(events[-1]['success'], events[-1])
+            log, = self.root.rglob('requests.jsonl')
+            body = json.loads(log.read_text(encoding='utf-8'))['request']
+            self.assertIn(body.get('reasoning_effort'), (None, 'none', 'off'))
+            self.assertEqual(body.get('max_completion_tokens', body.get('max_tokens')), 1024)
+        finally:
+            session.close()
+
+    def test_question_reply_reads_chat_readiness_outside_switch_lock(self):
+        topic = self.server.history.conversations.active
+        run = 'asked'
+        questions = [{'id': 'q', 'question': 'Which one?'}]
+        self.c.store.begin(run, topic, self.server.character, 0)
+        self.c.store.checkpoint(run, None, {'task_id': None, 'goal': 'original goal', 'scope_id': None,
+            'dependencies': [], 'pending_tool': {'name': 'ask_user', 'tool_call_id': 'call', 'args': {'questions': questions}}})
+        with self.assertRaisesRegex(ValueError, 'interaction_pending'):
+            self.c.interactions.ask(run, questions, valid=lambda: True, character_id=self.server.character)
+        card, = self.c.interactions.list()
+        owned = []
+        public = self.c.public
+        def readiness(*args, **kwargs):
+            owned.append(self.server._switch_lock._is_owned())
+            return public(*args, **kwargs)
+        with patch.object(self.c, 'public', side_effect=readiness):
+            status, body = request(self.server, 'POST', '/conversations/' + topic + '/messages',
+                {'reply_to': {'request_id': card['request_id'], 'revision': card['revision']}, 'answers': {'q': ['first']}})
+            self.wait_settled()
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body['state'], 'resumed')
+        self.assertTrue(owned)
+        self.assertFalse(any(owned))

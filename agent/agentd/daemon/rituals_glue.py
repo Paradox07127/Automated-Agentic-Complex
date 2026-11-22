@@ -186,7 +186,7 @@ class RitualsGlueMixin:
         date = datetime.date.fromisoformat(day)
         start, end = (datetime.datetime.combine(d, datetime.time()).timestamp()
                       for d in (date, date + datetime.timedelta(days=1)))
-        return threads.day_arc(self.episodes.between(start, end))
+        return threads.day_arc(self.episodes.between(start, end, character_id=self.character))
 
     def _proactive_publish(self, event, data):
         if event == "thought" and self.proactive_log is not None:

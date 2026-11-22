@@ -32,7 +32,7 @@
 
 ## `GET /integration/memory?q=<文字>&limit=<1–10>`
 
-在生效的记忆里按双字重合度找，分数不到 0.15 的不回；`limit` 缺省 5。回 200 `{"facts": [{"text", "kind", "source", "recorded_at"}]}`，`source` 是可信度（`asserted_by_user`、`confirmed_by_user`、`observed_context`、`inferred_hypothesis`）。候选不回。`q` 为空或 `limit` 越界回 400 `invalid_query`。
+只在生效的共享记忆里按双字重合度找，分数不到 0.15 的不回；`limit` 缺省 5。回 200 `{"facts": [{"text", "kind", "source", "recorded_at"}]}`，`source` 是可信度（`asserted_by_user`、`confirmed_by_user`、`observed_context`、`inferred_hypothesis`）。候选不回。携带 `owner`、`q` 为空或 `limit` 越界回 400 `invalid_query`。
 
 ## `POST /integration/memory`
 

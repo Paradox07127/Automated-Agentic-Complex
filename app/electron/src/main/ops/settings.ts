@@ -14,6 +14,7 @@ import { webLogsDir } from '../../common/config.ts';
 import { DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR, loadConfig } from '../config.ts';
 import type { Ops, OpsContext } from './context.ts';
 import { watch } from './events.ts';
+import { clearPasted } from './adopt.ts';
 import { listed } from './holding.ts';
 
 /** config.json's top-level object; throws when the file exists but is not a JSON object. */
@@ -52,6 +53,7 @@ export function saveSettings(path: string, values: Record<string, SettingValue>)
 
 /** Empties the logs and the web log (their writers hold them open); returns how many files. */
 function wipeLocalFiles(supportDir: string): number {
+  clearPasted(supportDir);
   let count = 0;
   const logs = join(supportDir, 'logs'), web = webLogsDir(supportDir, DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR);
   const logFiles = [

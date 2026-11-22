@@ -273,7 +273,9 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         state = self.server.feed.stream_state()
         snapshot = {"stream_epoch": state["stream_epoch"], "seq": state["latest_seq"]}
         def collect(code, body):
-            snapshot[part] = None if code == 503 or code == 409 and body.get("error") == "plugin_off" else body
+            unavailable = code == 503 or code == 409 and (
+                body.get("error") == "plugin_off" or part == "conversations" and body.get("error") == "no_character")
+            snapshot[part] = None if unavailable else body
         # Each part runs its own route through _dispatch; reader carries only server, command, path, the route, _auth and _json, so a GET handler that needs more fails test_agent_snapshot.
         reader = Handler.__new__(Handler)
         reader.server, reader.command, reader._auth, reader._json = self.server, "GET", self._auth, collect

@@ -395,7 +395,11 @@ class ManagedClaudeSession:
         self.config.validate()
         if not isinstance(prompt, str):
             raise ValueError("prompt_must_be_text")
-        if not self._stream_lock.acquire(blocking=replace_history):
+        if replace_history:
+            while not self._stream_lock.acquire(timeout=.05):
+                if cancelled_now(cancelled):
+                    raise HarnessError("cancelled")
+        elif not self._stream_lock.acquire(blocking=False):
             raise HarnessError("run_busy")
         run_id = run_id or secrets.token_hex(12)
         started = False
@@ -403,12 +407,14 @@ class ManagedClaudeSession:
             if cancelled_now(cancelled):
                 yield {"type": "result", "success": False, "subtype": "cancelled", "run_id": run_id}
                 return
-            ready = self._ensure("" if replace_history else system_prompt)
+            ready = self._ensure("", cancelled=cancelled) if replace_history else self._ensure(system_prompt)
             yield {**ready, "run_id": run_id, "session_id": self.session_id}
             deadline = None if timeout is None else time.monotonic() + timeout
             active = {"id": run_id, "handler": tool_handler or self.tool_handler, "cancel_signal": cancelled,
                       "permission_handler": permission_handler or self.permission_handler, "cancelled": False}
             with self._state_lock:
+                if cancelled_now(cancelled):
+                    raise HarnessError("cancelled")
                 self._active = active
             self._write({"type": "query", "run_id": run_id, "prompt": prompt,
                          "history": history if replace_history or self._first_query else None,

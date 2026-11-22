@@ -51,10 +51,10 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 
 ## 2026-11-18 /character/runtime 按用途指定内核
 
-- PUT 的 body 接受 `routes`：`{用途: {backend, acp_agent, model, effort}}`，用途是 `chat`、`quick`、`background`、`judge`、`understand`、`memory`、`computer`，每项可省；除 `quick` 外，省掉的用途跟随主内核。`quick` 固定使用 light_ai 的 Pi 和模型设置中的 AI 账号；省略模型时，若聊天走 Pi 则沿用聊天模型，否则使用账号的默认模型。`backend` 取 `pi`、`codex`、`claude`、`acp`；`backend=acp` 时 `acp_agent` 必填（本机 agent），否则为 null；`model` 为 null 时同内核沿用 `model`、换了内核用那个内核自己的模型；`effort` 取 null、`inherit`、`low`、`medium`、`high`。错误码 `invalid_routes`、`invalid_route_backend`、`invalid_route_model`、`invalid_route_effort`、`invalid_acp_agent`。
+- PUT 的 body 接受 `routes`：`{用途: {backend, acp_agent, model, effort}}`，用途是 `chat`、`quick`、`background`、`judge`、`understand`、`memory`、`computer`，每项可省；除 `quick` 外，省掉的用途跟随主内核。`quick` 固定使用 light_ai 的 Pi 和模型设置中的 AI 账号；省略模型时，若聊天走同一提供商的 Pi 则沿用聊天模型，否则使用账号的默认模型。`backend` 取 `pi`、`codex`、`claude`、`acp`；`backend=acp` 时 `acp_agent` 必填（本机 agent），否则为 null；`model` 为 null 时同内核沿用 `model`、换了内核用那个内核自己的模型；`effort` 取 null、`inherit`、`low`、`medium`、`high`。错误码 `invalid_routes`、`invalid_route_backend`、`invalid_route_model`、`invalid_route_effort`、`invalid_acp_agent`。
 - GET 和 PUT 的回包里 `routes` 列出全部 7 个用途：`{backend, acp_agent, model, effort, follows_main, ready, error}`。`follows_main` 为 true 时 `backend`、`acp_agent` 是主内核的，`model`、`effort` 为 null，`ready`、`error` 同主内核；否则 `ready`、`error` 是那个内核自己的就绪结果，错误码同顶层 `error`。
 - 回包和 body 不再有 `chat_effort`、`front_model`、`back_model`、`back_effort`；body 带它们会被拒（`invalid_runtime_settings`）。
-- 前台闲聊走 `quick`，带当前对话最近 8 轮。角色回执、近期任务、记忆和观察与 `chat` 共用同一套上下文，放在系统提示之后。快速回复不开放工具，最多生成 1024 tokens。需要文件、观察、回复引用、电脑操作、设置或更改提醒（含取消）、明确要求记住内容的输入走 `chat`。快速回复以 `[handoff]` 开头时，同一轮转交 `chat`。开启记忆时，两条路由的对话都进入后台记忆提取流程。最终路由存于 trace 的 `turn.settled.attrs.route`。
+- 前台闲聊走 `quick`，带当前对话最近 8 轮。角色回执、近期任务、记忆和观察与 `chat` 共用同一套上下文，放在系统提示之后。快速回复关闭推理，不开放工具，回答最多 1024 tokens。快速路由不可用时使用就绪的聊天路由。需要文件、观察、回复引用、电脑操作、设置或更改提醒（含取消）、明确要求记住内容的输入走 `chat`。快速回复以 `[handoff]` 开头时，同一轮转交 `chat`。开启记忆时，两条路由的对话都进入后台记忆提取流程。最终路由存于 trace 的 `turn.settled.attrs.route`。
 - 后台语义任务按用途走：`judge`（主动判断、朝向、复核、重复检测、主动想法）、`understand`（屏幕理解、看截图、简报、任务推测）、`memory`（记忆提取、工作日志）。用途指定的内核没就绪时，这次任务以它的错误码失败，不改用主内核。后台任务（`background`）提交时按它的就绪结果拒绝。
 
 ## 2026-11-18 ACP agent 安装与直连标记（只加不改）
@@ -254,12 +254,13 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 
 - `GET /conversations?character=<id>` 返回 `{character, conversations, busy}`。省略角色时取桌面角色，未知角色返回 404 `unknown_character`。列表包含该角色的归档对话。每行的 `active` 表示该角色当前选中的话题，`character_id` 是所属角色。`preview` 取最新一轮的回复，回复为空时取用户原文，去掉标记、合并空白后保留前 60 个字符。空对话的预览为空字符串。
 - `POST /conversations {title?, character_id?}` 为指定角色创建并选中话题，默认取桌面角色。`POST /conversations/:id/activate {expected_version}` 选中话题所属角色的对话。切换桌面角色会载入她选中的话题，首次切换时创建「新对话」。创建、选中、编辑或删除其他角色的话题均可在当前角色忙碌时进行。
-- 旧对话归属于其中发言轮数最多的角色。没有轮次时归属于角色目录的默认角色。
+- 旧对话归属于其中发言轮数最多的角色。没有轮次时归属于角色目录的默认角色。升级会保留旧的选中话题。话题中有排队或运行中的后台任务时，删除返回 409 `busy`。
 
 **`POST /conversations/:id/messages`**
 
+- 发送文字时可带 `quote_turn: {"turn_id": 字符串, "part": "user" | "reply"}`。角色用 chat 回答，上下文标明引用来自本对话的历史消息及其说话者。引用格式错误、轮次不存在或属于其他对话时返回 400 `invalid_quote_turn`。
 - 对话所属角色不在桌面时返回 409 `{"error":"character_not_present","character_id":"<owner>"}`。
-- 令牌：只收 ui token。请求体 `{"text": 字符串, "look"?: 布尔, "no_memory"?: 布尔, "scope_id"?: 字符串}`；`text` 去掉首尾空白后 1–8000 字符，缺 `text` 或有别的字段 400 `invalid_text`；`look`、`no_memory` 不是布尔 400 `invalid_look`、`invalid_no_memory`。
+- 令牌：只收 ui token。请求体 `{"text": 字符串, "look"?: 布尔, "no_memory"?: 布尔, "scope_id"?: 字符串, "quote_turn"?: 对象}`；`text` 去掉首尾空白后 1–8000 字符，缺 `text` 或有别的字段 400 `invalid_text`；`look`、`no_memory` 不是布尔 400 `invalid_look`、`invalid_no_memory`。
 - `scope_id` 是 `POST /agent/scopes` 建的资料范围，这一轮按它读写；不是 1–128 字符的字符串 400 `invalid_scope_id`；与 `no_memory: true` 同给 400 `temporary_scope_not_allowed`；范围失效时 409，码同 `POST /say`（`scope_revoked` 等）。
 
 **`POST /voice/token`**

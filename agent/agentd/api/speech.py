@@ -24,7 +24,7 @@ class SpeechMixin:
         if not status["ready"]:
             return self._json(503, {"error": status["error"]})
         try:
-            agent.quick_session().prewarm()
+            agent.prewarm()
         except (HarnessError, ValueError) as failure:
             return self._json(503, {"error": str(failure)})
         return self._json(200, {"ready": True})

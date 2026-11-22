@@ -159,12 +159,12 @@ class MemoryPipeline:
                     try: c.workspace.validate_scope(scope)
                     except ValueError: continue
                 result.append({'source_id':'job:'+job['job_id'], 'user':job['payload']['user_request'],
-                    'content':job['result'], 'at':job['updated_at'], 'verified':job['state']=='succeeded', 'kind':'role_task', 'requires':[], 'scope_id':scope})
+                    'character_id':job['payload'].get('character_id'), 'content':job['result'], 'at':job['updated_at'], 'verified':job['state']=='succeeded', 'kind':'role_task', 'requires':[], 'scope_id':scope})
         observations=getattr(c,'observations',None)
         if observations:
             for event in reversed(observations.events(cutoff)):
                 result.append({'source_id':'observation:'+event['id'],'user':'','content':event,'at':event['at'],
-                    'verified':False,'kind':'authorized_observation',
+                    'character_id':event['character_id'],'verified':False,'kind':'authorized_observation',
                     'requires':sorted({p for dep in event['dependencies'] for p in dep['requires']})})
         # Task hypotheses remain ephemeral context, never long-term extraction inputs.
         clean, blocked = [], {}
@@ -190,7 +190,7 @@ class MemoryPipeline:
             version = digest(versioned)
             if processed.get(item['source_id']) in (version,'forgotten','quarantined:'+version): continue
             # Stop at the first different owner so the committed cursor never skips her lines.
-            if selected and selected[0].get('character_id', s.character) != item.get('character_id', s.character):
+            if selected and selected[0].get('character_id') != item.get('character_id'):
                 break
             length = len(json.dumps(item, ensure_ascii=False))
             # A large source runs alone and stays complete in the request/log.
@@ -243,6 +243,9 @@ class MemoryPipeline:
         text = '\n'.join(content for source in sources for content in text_values(
             [source.get('user',''), source.get('assistant',''), source.get('content',{})]))
         character_id = sources[0].get('character_id')
+        if character_id not in s.characters.ids():
+            self._quarantine(sources, 'unknown_character')
+            return {'run_id': None, 'state': 'rejected', 'reason': 'unknown_character'}
         existing = [fact for kind in ('fact','preference','experience','agreement') for fact in s.memory.similar(text, kind, character_id=character_id)]
         run = c.semantic.run('memory_extract', INSTRUCTIONS, {'sources':sources, 'existing':existing},
                              valid=valid, validate_output=validate_output, character_id=character_id)
@@ -267,7 +270,7 @@ class MemoryPipeline:
         prior = json.loads(memory.setting('agent_memory_rejection') or '{}')
         attempts = prior.get('attempts', 0)+1 if prior.get('batch') == batch else 1
         memory.set_setting('agent_memory_rejection', json.dumps({'batch':batch, 'attempts':attempts, 'reason':reason[:80]}))
-        if attempts < 3: return
+        if attempts < 3 and reason != 'unknown_character': return
         with memory.lock:
             memory.db.executemany('INSERT OR REPLACE INTO agent_memory_processed VALUES(?,?)',
                 [(r['source_id'], 'quarantined:'+r['version']) for r in sources])
@@ -355,8 +358,8 @@ class MemoryPipeline:
                     body = _body(title, summary, threads, [])
                     values = (start,end,title,summary,json.dumps(threads,ensure_ascii=False),
                         json.dumps([q for p in projects for q in p.get('unresolved',[])],ensure_ascii=False),json.dumps(apps),'[]',
-                        self.clock(),json.dumps(titles),int('typed_text' in requirements),'unknown','[]','[]',3,run['run_id'],0)
-                    episode = db.execute('INSERT INTO episodes(start,end,title,description,threads,open_questions,apps,hosts,created_at,titles,typed,presence,user_actions,agent_actions,version,run_id,edited) VALUES('+','.join('?' for _ in values)+')',values).lastrowid
+                        self.clock(),json.dumps(titles),int('typed_text' in requirements),'unknown','[]','[]',3,run['run_id'],0,sources[0].get('character_id'))
+                    episode = db.execute('INSERT INTO episodes(start,end,title,description,threads,open_questions,apps,hosts,created_at,titles,typed,presence,user_actions,agent_actions,version,run_id,edited,owner) VALUES('+','.join('?' for _ in values)+')',values).lastrowid
                     db.execute('INSERT INTO episodes_fts(rowid,body) VALUES(?,?)',(episode,body))
                 commits = []
                 for item in findings['accepted']:

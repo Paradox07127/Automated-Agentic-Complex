@@ -9,4 +9,6 @@ export interface FileAdopt {
   adoptDropped?(files: File[]): Promise<DroppedHandle[]>;
   /** Pasted png, jpeg, gif or webp images (≤ 5 MiB each), saved by the shell and held as `scope_file` handles. */
   adoptPasted?(items: Array<{ type: string; data: ArrayBuffer }>): Promise<DroppedHandle[]>;
+  /** Gives back an unsent handle; the shell deletes a pasted copy. */
+  release?(handle: string): Promise<void>;
 }

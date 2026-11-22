@@ -188,6 +188,18 @@ describe('chat composer: pasted and dropped files', () => {
     expect(adoptPasted.mock.calls[0]![0][0]!.type).toBe('image/png');
   });
 
+  it('removing a file from the tray gives its handle back to the shell', async () => {
+    const { adoptPasted } = adopting();
+    const release = vi.fn(async () => undefined);
+    window.agenticComplex = { ...window.agenticComplex!, files: { ...window.agenticComplex!.files, adoptPasted, release } };
+    render(<Composer {...props()} />);
+    fireEvent.paste(box(), { clipboardData: { files: [new File([new Uint8Array([1])], 'image.png', { type: 'image/png' })], getData: () => '' } });
+    await waitFor(() => expect(screen.getByText('pasted-0.png')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: '移除 pasted-0.png' }));
+    expect(screen.queryByText('pasted-0.png')).toBeNull();
+    expect(release).toHaveBeenCalledWith('P0');
+  });
+
   it('files dropped on the page land in the tray through adoptDropped', async () => {
     const { adoptDropped } = adopting();
     const doc = new File(['x'], '名单.xlsx');

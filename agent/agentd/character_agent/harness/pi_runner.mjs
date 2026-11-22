@@ -322,7 +322,7 @@ async function query(message) {
       session.agent.state.messages = [];
       session.agent.streamFunction = (model, context, options) => {
         const maxTokens = Math.min(model.maxTokens, message.max_output_tokens);
-        return stream({ ...model, maxTokens }, { ...context, systemPrompt: message.system_prompt }, { ...options, maxTokens });
+        return stream({ ...model, maxTokens }, { ...context, systemPrompt: message.system_prompt }, { ...options, reasoning: undefined, maxTokens });
       };
     }
     const answer = message.ask_user_result;

@@ -69,7 +69,7 @@ class SpeechControlMixin:
         with self._write_lock:  # a retract or a clear pops the line first, and nothing brings it back after that
             cut = self._cut_lines.pop(line_id, None) if heard else None
             if cut is not None:
-                user, earlier, facts = cut
+                user, earlier, facts, topic = cut
                 if self.history is not None:
                     try:
                         self.history.interrupt(line_id, heard, cut=True)
@@ -78,7 +78,8 @@ class SpeechControlMixin:
                 if self.memory is not None:
                     self.memory.record_uses([(fact_id, version) for fact_id, version, text in facts
                                              if mentions(heard, text)], line_id, "mentioned")
-                self._keep_turn(line_id, user, earlier, heard)
+                if self.history is None or topic == self.history.conversations.active:
+                    self._keep_turn(line_id, user, earlier, heard)
         if cut is not None:
             self._window_changed()
             return
@@ -98,7 +99,8 @@ class SpeechControlMixin:
                 past = self.mouth.history
                 at = next((n for n, turn in enumerate(past) if turn[0] is entry[0]), 0)
                 # Held as a line cut while it streamed: a later receipt can still say some of it was heard.
-                self._cut_lines[line_id] = (entry[0], [turn[0] for turn in past[:at]], self._line_facts(line_id))
+                self._cut_lines[line_id] = (entry[0], [turn[0] for turn in past[:at]], self._line_facts(line_id),
+                                            self.history.conversations.active if self.history else None)
                 while len(self._cut_lines) > LINE_ENTRIES:
                     self._cut_lines.popitem(last=False)
                 self._window_ops.append(("drop", entry, None))
@@ -112,7 +114,7 @@ class SpeechControlMixin:
             self._window_ops.append(("heard", entry, None))
         self._window_changed()
 
-    def reload_conversation(self):
+    def retire_foreground(self):
         controller = self.character_agent
         if controller is not None:
             # Retire only the foreground runtime; background jobs retain their leases.
@@ -121,20 +123,24 @@ class SpeechControlMixin:
                     controller.runtime.close()
                     controller.runtime = None
                 controller._runtime_config = None
+
+    def reload_conversation(self):
+        self.retire_foreground()
         if self.mouth is not None and self.history is not None:
             self.load_window()
 
     def fence_conversation(self):
-        self.history_generation += 1
         self._line_entries.clear()
-        self._cut_lines.clear()
         self._window_ops.clear()
+
+    def _read_window(self, character, mouth):
+        names = {cid: self.characters.load_card(cid)["name"] for cid in self.characters.ids()}
+        return self.history.window(character, mouth.max_turns, names, with_ids=True)
 
     def load_window(self):
         """At startup: the mouth's window, read back from the history; a deleted fact or a receipt finds each of its
         turns by line_id, as it finds a turn spoken since."""
-        names = {cid: self.characters.load_card(cid)["name"] for cid in self.characters.ids()}
-        turns = self.history.window(self.character, self.mouth.max_turns, names, with_ids=True)
+        turns = self._read_window(self.character, self.mouth)
         self.mouth.history = [turn for _, turn in turns]
         with self._write_lock:
             self._line_entries.update(turns)

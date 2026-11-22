@@ -1,5 +1,6 @@
 // `agentd.request`'s checks before it sends: method, path shape, the route's class and
 // surfaces in protocol/ui-bridge/routes.json, the body, and picked file handles in place of paths.
+import { MAX_SCOPE_FILES } from './adoption.ts';
 import type { Surface } from './bridge.ts';
 
 /** One entry of protocol/ui-bridge/routes.json; a `path` starting with `^` is a pattern. */
@@ -100,6 +101,9 @@ export function checkRequest(table: RouteTable, surface: Surface, method: unknow
   if (!['read', 'write', 'confirm_native'].includes(route.class)) return no('route_class', route.class);
   if (!route.surfaces.includes(surface)) return no('surface_not_allowed', surface);
   if (body != null && !isObject(body)) return no('invalid_body', 'body must be a JSON object');
+  if (method === 'POST' && routePath === '/agent/scopes' && body != null && Array.isArray(body.files) && body.files.length > MAX_SCOPE_FILES) {
+    return no('invalid_files', 'at most 16 files per scope');
+  }
   return { ok: true, method, path, route, body: body == null ? undefined : body };
 }
 

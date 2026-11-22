@@ -137,6 +137,8 @@ class KnowledgeService:
     def _allowed(self, source, row=None):
         if source not in SOURCES:
             return False
+        if source == "episodes" and row is not None and row["owner"] not in (None, self.character_id):
+            return False
         if source == "history" and row is not None and self.character_id is not None and row["character_id"] != self.character_id:
             return False
         if self.permitted is not None:
@@ -274,10 +276,10 @@ class KnowledgeService:
             # The existing store has no bounded reverse-page API. Fetch IDs under
             # its lock, then use get() so its current summary/version shape wins.
             if query.strip():
-                ids = [row["id"] for row in self.episodes.search(query, k=MAX_SCAN)]
+                ids = [row["id"] for row in self.episodes.search(query, k=MAX_SCAN, character_id=self.character_id)]
             else:
                 with self.episodes.lock:
-                    ids = [row[0] for row in self.episodes.db.execute("SELECT id FROM episodes ORDER BY start DESC, id DESC LIMIT ?", (MAX_SCAN,))]
+                    ids = [row[0] for row in self.episodes.db.execute("SELECT id FROM episodes WHERE owner IS NULL OR owner IS ? ORDER BY start DESC, id DESC LIMIT ?", (self.character_id, MAX_SCAN))]
             for ident in ids:
                 row = self.episodes.get(ident)
                 if row is not None and self._allowed(source, row):

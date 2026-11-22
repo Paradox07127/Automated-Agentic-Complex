@@ -166,6 +166,9 @@ class InteractionService:
         return {'request_id':result['request_id'],'input_sha256':digest}
 
     def respond(self,ident,revision,answers):
+        return self.resume_answer(self.record_answer(ident,revision,answers))
+
+    def record_answer(self,ident,revision,answers):
         row=self.get(ident)
         if not row or row['state']!='pending' or row['revision']!=revision:raise ValueError('interaction_version_changed')
         with self.lock:live=self.live.get(ident)
@@ -188,7 +191,11 @@ class InteractionService:
         if not changed:raise ValueError('interaction_version_changed')
         if live:live[0].set()
         self.emit({'request_id':ident,'kind':row['kind'],'state':'answered'})
-        if row['kind']=='question' and self.resume:
+        return {**receipt,'resume_required':not bool(live)}
+
+    def resume_answer(self, receipt):
+        ident = receipt['request_id']
+        if receipt['kind']=='question' and self.resume:
             try:
                 self.resume(ident, receipt['revision'])
             except ValueError as error:
@@ -200,7 +207,7 @@ class InteractionService:
                 return {**result, 'answer':receipt['answer'], 'resume_required':True, 'resume_reason':str(error)}
             result = self.get(ident) or receipt
             return {**result, 'answer': receipt['answer'], 'resume_required': result['state']=='answered'}
-        return {**receipt,'resume_required':not bool(live)}
+        return receipt
 
     def claim(self, ident, revision):
         with self.lock:

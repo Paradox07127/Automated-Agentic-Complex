@@ -296,7 +296,8 @@ def main():
     factory = lambda cid: Mouth(character=cid, persona_path=repository.card_path(cid), lore_path=repository.lore_path(cid),
                                 egress=egress, motion_phrases=motion_phrases(cid))  # noqa: E731
     # No character: no mouth, and the routes in api.handler.CHARACTER_ROUTES answer 409 no_character.
-    mouth = factory(args.character) if light and args.character is not None else None
+    chat = light or plugins.on("harness_bridge")
+    mouth = factory(args.character) if chat and args.character is not None else None
     mouth_off = "no_character" if args.character is None else "plugin_off"
     attention = AttentionStore(paths.attention_db(state_dir), Blacklist(paths.blacklist(state_dir))) if awareness else None
     server = AgentdServer(("127.0.0.1", args.port), hook_token, ui_token,
@@ -313,12 +314,12 @@ def main():
     server.startup_stage = "storage"
     if awareness:
         server.timeline = Timeline(paths.timeline_db(state_dir), attention.blacklist)
-    server.character, server.mouth_factory = args.character, factory if light else None
+    server.character, server.mouth_factory = args.character, factory if chat else None
     server.no_character = args.character is None
     server.models = models
     server.privacy_config = args.privacy_config
     server.muted = args.mute
-    if light or plugins.on("personal_agent"):
+    if chat or plugins.on("personal_agent"):
         server.history = History(open_store(db), character_id=server.character, catalog=repository)
     if light:
         server.proactive_log = ProactiveLog(open_store(db))

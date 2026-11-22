@@ -7,7 +7,7 @@ from personal.history import terms
 from sessions import threads
 
 COLUMNS = ("id", "start", "end", "title", "description", "threads", "open_questions", "apps", "hosts", "created_at",
-           "presence", "user_actions", "agent_actions", "version", "run_id", "edited")
+           "presence", "user_actions", "agent_actions", "version", "run_id", "edited", "owner")
 
 
 LISTS = ("threads", "open_questions", "apps", "hosts", "user_actions", "agent_actions")  # stored as JSON arrays
@@ -94,11 +94,11 @@ class Episodes:
             self.db.execute("INSERT INTO episodes_fts(episodes_fts, rank) VALUES('secure-delete', 1)")
             self.db.commit()
 
-    def between(self, start, end):
+    def between(self, start, end, *, character_id=None):
         """Episodes that overlap [start, end), oldest first."""
         with self.lock:
-            rows = self.db.execute(f"{SELECT} WHERE e.start < ? AND e.end > ? ORDER BY e.start, e.id",
-                                   (end, start)).fetchall()
+            rows = self.db.execute(f"{SELECT} WHERE e.start < ? AND e.end > ? AND (e.owner IS NULL OR e.owner IS ?) ORDER BY e.start, e.id",
+                                   (end, start, character_id)).fetchall()
         return [_row(row) for row in rows]
 
     def day(self, date):
@@ -143,7 +143,7 @@ class Episodes:
                                    " ORDER BY at DESC, id DESC LIMIT ?", (limit,)).fetchall()
         return [dict(zip(CORRECTION_COLUMNS, row)) for row in rows]
 
-    def search(self, query, k=3):
+    def search(self, query, k=3, *, character_id=None):
         """The k episodes that best match query (bm25)."""
         words = terms(query)
         if not words:
@@ -151,24 +151,24 @@ class Episodes:
         match = " OR ".join(f'"{word}"' for word in words)
         with self.lock:
             rows = self.db.execute(f"{SELECT} JOIN episodes_fts ON e.id = episodes_fts.rowid"
-                                   " WHERE episodes_fts MATCH ? ORDER BY bm25(episodes_fts) LIMIT ?",
-                                   (match, k)).fetchall()
+                                   " WHERE episodes_fts MATCH ? AND (e.owner IS NULL OR e.owner IS ?) ORDER BY bm25(episodes_fts) LIMIT ?",
+                                   (match, character_id, k)).fetchall()
         return [_row(row) for row in rows]
 
-    def recall(self, text, now):
+    def recall(self, text, now, *, character_id=None):
         """(label, episodes, overview) for a question: those of the time it names, at most RECALL_MAX spread over it,
         oldest first, and threads.day_arc() of the whole time; without a time word, label and overview None and the
         searched ones that share two words of text past STOP."""
         found = time_range(text, now)
         if found is not None:
             start, end, label = found
-            rows = self.between(start, end)
+            rows = self.between(start, end, character_id=character_id)
             overview = threads.day_arc(rows)
             if len(rows) > RECALL_MAX:
                 rows = [rows[round(i * (len(rows) - 1) / (RECALL_MAX - 1))] for i in range(RECALL_MAX)]
             return label, rows, overview
         words = set(terms(text)) - STOP
-        return None, [e for e in self.search(text, k=RECALL_SEARCH_K)
+        return None, [e for e in self.search(text, k=RECALL_SEARCH_K, character_id=character_id)
                       if len(words & set(terms(" ".join([e["title"], e["description"], *(
                           f"{t['topic']} {t['progress']}" for t in e["threads"])])))) >= 2], None
 

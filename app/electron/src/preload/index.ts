@@ -1,6 +1,7 @@
 // Defines `window.agenticComplex` in the page's world before its scripts run; every op goes to the main process. In the main
 // window it also draws the character page's live preview (src/main/preview/window.ts).
 import { contextBridge, ipcRenderer, sharedTexture, webUtils } from 'electron';
+import { MAX_SCOPE_FILES, pastedImages } from '../common/adoption.ts';
 import type { Boot, Reply } from '../common/bridge.ts';
 import { installBridge, type Push } from '../common/shim.ts';
 
@@ -53,11 +54,15 @@ if (boot) {
       boot,
       (op: string, args: unknown[]) => ipcRenderer.invoke('bridge:invoke', { op, args }) as Promise<Reply>,
       (push: Push) => { ipcRenderer.on('bridge:push', (_e, id, stream, kind, payload) => push(id, stream, kind, payload)); },
-      {
+      boot.surface === 'main' ? {
         // getPathForFile gives '' for a File the page built itself, so only real drops reach main.
-        adopt: (files: File[]) => ipcRenderer.invoke('files:adopt', Array.from(files, (f) => webUtils.getPathForFile(f))),
-        paste: (items: unknown[]) => ipcRenderer.invoke('files:paste', items),
-      },
+        adopt: (files: File[]) => {
+          const batch = Array.prototype.slice.call(files, 0, MAX_SCOPE_FILES) as File[];
+          return ipcRenderer.invoke('files:adopt', batch.map(f => webUtils.getPathForFile(f)));
+        },
+        release: (handle: string) => ipcRenderer.invoke('files:release', handle),
+        paste: (items: unknown[]) => ipcRenderer.invoke('files:paste', pastedImages(items)),
+      } : undefined,
     ],
   });
   if (boot.surface === 'main') installPreview();

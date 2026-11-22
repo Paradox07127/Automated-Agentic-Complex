@@ -72,7 +72,7 @@ class TracingMixin:
         trace = {"trace_id": trace_id or new_trace_id(), "turn_id": line_id, "generation": generation,
                  "span": new_span_id(), "observation": new_span_id(), "last": causation, "cancel": None,
                  "done": False, "source": source, "marks": [], "reset": self.reset_generation,
-                 "history": self.history_generation, "trace_generation": self.trace_generation, "remember": remember}
+                 "character_id": self.character, "history": self.history_generation, "trace_generation": self.trace_generation, "remember": remember}
         if not detached:
             self._turn_trace = trace
         attrs = {"source": source} if voice_timing is None else {"source": source, "voice_timing": voice_timing}
@@ -84,7 +84,13 @@ class TracingMixin:
 
     def _current(self, trace):
         """True while no reset and no chat clear has come since the trace opened."""
-        return trace["reset"] == self.reset_generation and trace["history"] == self.history_generation
+        if trace["reset"] != self.reset_generation or trace["history"] != self.history_generation:
+            return False
+        topic = trace.get("conversation_id")
+        if topic and self.history is not None:
+            with self.history.lock:
+                return self.history.db.execute("SELECT 1 FROM conversations WHERE id=?", (topic,)).fetchone() is not None
+        return True
 
     def _traced(self, trace):
         """_current, and no DELETE /attention has come since the trace opened."""

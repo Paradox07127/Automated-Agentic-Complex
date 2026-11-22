@@ -852,10 +852,10 @@ class ObservationService:
 
     def events(self, since=0, limit=100):
         with self.lock:
-            rows = self.db.execute('SELECT id,at,title,body,dependencies,analysis_id FROM observation_work_events WHERE character_id=? AND at>=? ORDER BY at DESC LIMIT ?',
+            rows = self.db.execute('SELECT id,at,title,body,dependencies,analysis_id,character_id FROM observation_work_events WHERE character_id=? AND at>=? ORDER BY at DESC LIMIT ?',
                 (self.character,since,limit)).fetchall()
-        return [dict(json.loads(body),id=ident,at=at,title=title,analysis_id=analysis,dependencies=json.loads(deps))
-                for ident,at,title,body,deps,analysis in rows if self.valid_dependencies(json.loads(deps),allow_expired=True)]
+        return [dict(json.loads(body),id=ident,at=at,title=title,analysis_id=analysis,character_id=owner,dependencies=json.loads(deps))
+                for ident,at,title,body,deps,analysis,owner in rows if self.valid_dependencies(json.loads(deps),allow_expired=True)]
 
     def pending(self, limit=10):
         character=self.character

@@ -471,12 +471,15 @@ test('settings.wipeLocalData empties the web log and keeps config.json', async (
   const dir = mkdtempSync(join(tmpdir(), 'wipe-'));
   try {
     writeFileSync(join(dir, 'config.json'), '{"mute":true}');
+    mkdirSync(join(dir, 'pasted'));
+    writeFileSync(join(dir, 'pasted', 'private.png'), Buffer.from([1]));
     mkdirSync(join(dir, 'logs'));
     writeFileSync(join(dir, 'logs', 'ui.log'), 'error\n');
     writeFileSync(join(dir, 'logs', 'ui.log.1'), 'older\n');
     const agentd = { request: async () => ({ status: 200, body: Buffer.from('{"deleted":{}}') }) } as unknown as OpsContext['agentd'];
     const r = await handle('main', page0, { op: 'settings.wipeLocalData', args: [] }, registry({ ...context(dir), agentd }), new PageSession(() => {}));
     assert.deepEqual(r, { ok: true, value: null });
+    assert.equal(existsSync(join(dir, 'pasted', 'private.png')), false);
     assert.deepEqual([readFileSync(join(dir, 'logs', 'ui.log'), 'utf8'), readFileSync(join(dir, 'logs', 'ui.log.1'), 'utf8')], ['', '']);
     assert.equal(readFileSync(join(dir, 'config.json'), 'utf8'), '{"mute":true}');
   } finally {
