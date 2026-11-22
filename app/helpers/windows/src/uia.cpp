@@ -1,8 +1,9 @@
 // The UIA thread and the reads the ax.* handlers share; ax.focused, ax.selected_text, and ax.watch with its event
-// handlers and ax.notification (CONTRACT §7.4, §8).
+// handlers and ax.notification (CONTRACT §7.4, §8); input.actions' reads and attention.sample's focus roles (§7.3).
 #include "uia.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -24,6 +25,7 @@ constexpr HRESULT kElementGone = static_cast<HRESULT>(0x80040201L);  // UIA_E_EL
 constexpr DWORD kUiaTimeoutMs = 1000;
 constexpr ULONGLONG kBackOffMs = 2000;
 constexpr LONG kCaretMargin = 40;
+constexpr size_t kLabelScalars = 200;  // a static text's label (CONTRACT §7.3)
 
 struct Done {
     std::mutex lock;
@@ -303,6 +305,160 @@ json::Value caret(IUIAutomationElement* element, const Info& info, Reads& reads)
     return rect(r);
 }
 
+json::Value element_json(IUIAutomationElement* element, HWND window, bool selected, bool value, Reads& reads) {
+    Info i = info(element);
+    json::Value v = json::object();
+    v.set("role", json::str(role(i.type)));
+    v.set("native_role", json::str(native_role(i.type)));
+    v.set("subrole", subrole(i));
+    std::string label = utf8(!i.name.empty() ? i.name : i.help);
+    if (i.type == UIA_TextControlTypeId) label = first_scalars(label, kLabelScalars);
+    v.set("label", i.password || label.empty() ? json::null() : json::str(label));
+    bool cut = false;
+    json::Value read = value_text(element, i, kMaxTextUnits, reads, &cut);
+    bool counted = read.type == json::Type::Str && !cut;
+    v.set("value_length", counted ? json::integer(static_cast<int64_t>(scalars(read.s))) : json::null());
+    std::string title = window_title(window);
+    v.set("window_title", title.empty() ? json::null() : json::str(title));
+    json::Value key = element_key(element);
+    if (key.type == json::Type::Str) v.set("element_key", std::move(key));
+    if (selected && !i.password) v.set("selected_text", selected_text(element, i, reads));
+    if (value) v.set("value", std::move(read));
+    return reads.timed_out ? json::null() : v;
+}
+
+void set_focus_roles(json::Value& result, DWORD front) {
+    static const char* const keys[] = {"focus_role", "focus_native_role", "focus_window_role",
+                                       "focus_window_native_role", "focus_window_subrole"};
+    auto read = std::make_shared<std::array<json::Value, 5>>();
+    auto work = [read, front](IUIAutomation* automation) {
+        Reads reads;
+        reads.pid = front;
+        ComPtr<IUIAutomationElement> element = focused(automation, 0, reads);
+        if (!element) return;
+        Info i = info(element.Get());
+        reads.pid = i.pid;
+        ComPtr<IUIAutomationElement> at = element;
+        Info w = i;
+        bool found = i.type == UIA_WindowControlTypeId;
+        ComPtr<IUIAutomationTreeWalker> walker;
+        ComPtr<IUIAutomationElement> root;
+        if (!found && SUCCEEDED(automation->get_ControlViewWalker(&walker)) &&
+            SUCCEEDED(automation->GetRootElement(&root))) {
+            for (int depth = 0; !found && depth < 16; ++depth) {
+                ComPtr<IUIAutomationElement> parent;
+                BOOL top = FALSE;
+                if (!reads.ok(walker->GetParentElementBuildCache(at.Get(), cache_request(automation), &parent)) ||
+                    !parent || FAILED(automation->CompareElements(parent.Get(), root.Get(), &top)) || top) {
+                    break;
+                }
+                w = info(parent.Get());
+                found = w.type == UIA_WindowControlTypeId;
+                at = parent;
+            }
+        }
+        if (reads.timed_out) return;
+        (*read)[0] = json::str(role(i.type));
+        (*read)[1] = json::str(native_role(i.type));
+        if (!found) return;
+        (*read)[2] = json::str(role(w.type));
+        (*read)[3] = json::str(native_role(w.type));
+        (*read)[4] = subrole(w);
+    };
+    // No back-off for a wait that other ops' reads made long; a timeout of the app itself backs it off.
+    bool done = available() && !(front && skipped(front)) && call(kSampleMs, 0, work);
+    for (size_t k = 0; k < 5; ++k) result.set(keys[k], done ? (*read)[k] : json::null());
+}
+
+// ---- input.actions
+
+namespace {
+
+constexpr int kMaxActionReads = 16;  // actions waiting for their read on the UIA thread; later ones are dropped
+constexpr ULONGLONG kClickRepeatMs = 150;
+
+std::atomic<bool> g_actions_live{false};
+std::atomic<unsigned> g_actions_era{0};  // a new one each time input.actions turns on: older reads send nothing
+std::atomic<int> g_action_reads{0};
+// UIA thread only: the control of the last click sent, and its tick.
+std::string g_last_click;
+ULONGLONG g_last_click_at = 0;
+
+void post_action(std::function<void(IUIAutomation*)> read) {
+    if (g_action_reads.fetch_add(1) >= kMaxActionReads) {
+        --g_action_reads;
+        return;
+    }
+    post([read](IUIAutomation* automation) {
+        struct Release {
+            ~Release() { --g_action_reads; }
+        } release;
+        read(automation);
+    });
+}
+
+void send_action(const char* kind, DWORD pid, json::Value target, const std::string* keys, unsigned era) {
+    if (g_actions_era != era) return;
+    json::Value data = json::object();
+    data.set("kind", json::str(kind));
+    data.set("pid", json::integer(pid));
+    data.set("target", std::move(target));
+    if (keys) data.set("keys", json::str(*keys));
+    send_event("input.action", std::move(data), g_actions_live);
+}
+
+}  // namespace
+
+bool actions_on() { return g_actions_live; }
+
+// CONTRACT §7.3: the element at p of whichever window is there, as the system-wide element answers on macOS; no event
+// when UIA finds none. An app on the back-off list is not asked: its click goes without a target.
+void click_action(POINT p, bool context_menu) {
+    unsigned era = g_actions_era;
+    ULONGLONG at = GetTickCount64();
+    post_action([p, context_menu, era, at](IUIAutomation* automation) {
+        if (!g_actions_live || g_actions_era != era) return;
+        HWND under = WindowFromPoint(p);
+        HWND window = under ? GetAncestor(under, GA_ROOT) : nullptr;
+        DWORD pid = window ? win32::owner_pid(window) : 0;
+        if (!pid) return;
+        json::Value target = json::null();
+        std::string control = std::to_string(pid);
+        if (!skipped(pid)) {
+            Reads reads;
+            reads.pid = pid;
+            ComPtr<IUIAutomationElement> hit;
+            if (!reads.ok(automation->ElementFromPointBuildCache(p, cache_request(automation), &hit)) || !hit) return;
+            Info i = info(hit.Get());
+            if (i.pid) pid = i.pid;
+            json::Value key = element_key(hit.Get());
+            control = std::to_string(pid) + ":" + (key.type == json::Type::Str ? key.s : std::string());
+            target = element_json(hit.Get(), window, false, false, reads);
+        }
+        if (!context_menu) {
+            if (control == g_last_click && at - g_last_click_at < kClickRepeatMs) return;
+            g_last_click = control;
+            g_last_click_at = at;
+        }
+        send_action(context_menu ? "context_menu" : "click", pid, std::move(target), nullptr, era);
+    });
+}
+
+void key_action(DWORD pid, const char* kind, std::string keys) {
+    unsigned era = g_actions_era;
+    post_action([pid, kind, keys, era](IUIAutomation* automation) {
+        if (!g_actions_live || g_actions_era != era) return;
+        json::Value target = json::null();
+        if (!skipped(pid)) {
+            Reads reads;
+            reads.pid = pid;
+            ComPtr<IUIAutomationElement> element = focused(automation, pid, reads);
+            if (element) target = element_json(element.Get(), front_window(pid), false, false, reads);
+        }
+        send_action(kind, pid, std::move(target), &keys, era);
+    });
+}
+
 // ---- ax.watch
 
 namespace {
@@ -315,7 +471,7 @@ struct Watch {
     std::string id;  // "" is the default one
     DWORD pid = 0;
     bool kinds[kKinds] = {};
-    bool selected = false;
+    bool selected = false, value = false;
     std::atomic<bool> live{false};     // its answer is out and it was not stopped
     std::atomic<bool> queued[kKinds];  // a read of that kind waits on the UIA thread
     // UIA thread only; remove_handlers drops the listener, which holds the Watch.
@@ -324,28 +480,24 @@ struct Watch {
     bool properties = false;
 };
 
-// CONTRACT §7.4 for Windows: the roles, the label, the value's length and the window title, the selection only when
-// asked; no element_key, value or doc. A password control gives its roles and window title only.
-json::Value element_json(IUIAutomation* automation, const Watch& watch) {
+// The app's focused element; no doc on Windows.
+json::Value watch_element(IUIAutomation* automation, const Watch& watch) {
     Reads reads;
     reads.pid = watch.pid;
     ComPtr<IUIAutomationElement> element = focused(automation, watch.pid, reads);
     if (!element) return json::null();
-    Info i = info(element.Get());
+    return element_json(element.Get(), front_window(watch.pid), watch.selected, watch.value, reads);
+}
+
+// An ax_window: the app's front window's title; Windows has no document path.
+json::Value window_json(DWORD pid) {
+    HWND hwnd = front_window(pid);
+    if (!hwnd) return json::null();
+    std::string title = window_title(hwnd);
     json::Value v = json::object();
-    v.set("role", json::str(role(i.type)));
-    v.set("native_role", json::str(native_role(i.type)));
-    v.set("subrole", subrole(i));
-    std::wstring label = !i.name.empty() ? i.name : i.help;
-    v.set("label", i.password || label.empty() ? json::null() : json::str(utf8(label)));
-    bool cut = false;
-    json::Value value = value_text(element.Get(), i, kMaxTextUnits, reads, &cut);
-    bool counted = value.type == json::Type::Str && !cut;
-    v.set("value_length", counted ? json::integer(static_cast<int64_t>(scalars(value.s))) : json::null());
-    std::string title = window_title(front_window(watch.pid));
-    v.set("window_title", title.empty() ? json::null() : json::str(title));
-    if (watch.selected && !i.password) v.set("selected_text", selected_text(element.Get(), i, reads));
-    return reads.timed_out ? json::null() : v;
+    v.set("title", title.empty() ? json::null() : json::str(title));
+    v.set("doc", json::null());
+    return v;
 }
 
 class Listener : public IUIAutomationFocusChangedEventHandler,
@@ -396,7 +548,8 @@ public:
     }
 
 private:
-    // On a UIA event thread: reads only the sender's cache and queues the rest for the UIA thread, one read per kind.
+    // On a UIA event thread: reads only the sender's cache and key and queues the rest for the UIA thread, one read
+    // per kind.
     void notify(IUIAutomationElement* sender, int kind) {
         int pid = 0;
         if (!watch_->live || !watch_->kinds[kind] || !sender || FAILED(sender->get_CachedProcessId(&pid)) ||
@@ -404,13 +557,17 @@ private:
             return;
         }
         std::shared_ptr<Watch> watch = watch_;
-        post([watch, kind](IUIAutomation* automation) {
+        json::Value source = element_key(sender);
+        post([watch, kind, source](IUIAutomation* automation) {
             watch->queued[kind] = false;
             if (!watch->live) return;
+            bool skip = skipped(watch->pid);
             json::Value data = json::object();
             data.set("pid", json::integer(watch->pid));
             data.set("notification", json::str(kKindNames[kind]));
-            data.set("element", skipped(watch->pid) ? json::null() : element_json(automation, *watch));
+            data.set("element", skip ? json::null() : watch_element(automation, *watch));
+            if (source.type == json::Type::Str) data.set("source_key", source);
+            if (kind == kWindow || kind == kTitle) data.set("window", skip ? json::null() : window_json(watch->pid));
             if (!watch->id.empty()) data.set("watch_id", json::str(watch->id));
             send_event("ax.notification", std::move(data), watch->live);
         });
@@ -466,11 +623,13 @@ bool add_handlers(IUIAutomation* automation, const std::shared_ptr<Watch>& watch
 }
 
 // The handlers of a new subscription, registered; null when UIA refused them.
-std::shared_ptr<Watch> subscribe(DWORD pid, const json::Value& notifications, bool read_selected_text, std::string id) {
+std::shared_ptr<Watch> subscribe(DWORD pid, const json::Value& notifications, bool read_selected_text, bool read_value,
+                                 std::string id) {
     auto made = std::make_shared<Watch>();
     made->id = std::move(id);
     made->pid = pid;
     made->selected = read_selected_text;
+    made->value = read_value;
     for (int k = 0; k < kKinds; ++k) made->queued[k] = false;
     for (const json::Value& name : notifications.values) {
         for (int k = 0; k < kKinds; ++k) made->kinds[k] = made->kinds[k] || name.s == kKindNames[k];
@@ -553,12 +712,9 @@ Outcome ax_selected_text(const json::Value& params) {
     });
 }
 
-// CONTRACT §7.4 for Windows: watch_id is honoured; read_value and manual_accessibility are accepted and do nothing.
+// CONTRACT §7.4 for Windows: manual_accessibility has no meaning here; asked for, it answers false.
 Outcome ax_watch(const json::Value& params) {
     const json::Value* given = params.get("watch_id");
-    if (given && (given->type != json::Type::Str || given->s.empty())) {
-        return failure("bad_request", "ax.watch.params.watch_id not str+");
-    }
     std::string id = given ? given->s : std::string();
     const json::Value* asked = params.get("pid");
     bool stop = asked->type == json::Type::Null;
@@ -576,9 +732,18 @@ Outcome ax_watch(const json::Value& params) {
     result.set("pid", stop ? json::null() : json::integer(pid));
     if (!id.empty()) result.set("watch_id", json::str(id));
     if (stop) return success(std::move(result));
-    std::shared_ptr<uia::Watch> watch =
-        uia::subscribe(pid, *params.get("notifications"), win32::flag(params, "read_selected_text"), id);
+    std::shared_ptr<uia::Watch> watch = uia::subscribe(pid, *params.get("notifications"),
+                                                       win32::flag(params, "read_selected_text"),
+                                                       win32::flag(params, "read_value"), id);
     if (!watch) return failure("internal", "UI Automation did not take the event handlers");
+    // The focus as the watch starts; a read that does not finish in time leaves it null.
+    auto read = std::make_shared<json::Value>();
+    bool done = !uia::skipped(pid) && uia::call(uia::kWatchReadMs, pid, [watch, read](IUIAutomation* automation) {
+        *read = uia::watch_element(automation, *watch);
+    });
+    result.set("element", done ? *read : json::null());
+    result.set("window", uia::window_json(pid));
+    if (win32::flag(params, "manual_accessibility")) result.set("manual_accessibility", json::boolean(false));
     uia::g_watches[id] = watch;
     uia::t_starting = watch;
     Outcome out = success(std::move(result));
@@ -586,5 +751,23 @@ Outcome ax_watch(const json::Value& params) {
         if (uia::t_starting) uia::t_starting->live = true;
         uia::t_starting.reset();
     };
+    return out;
+}
+
+// CONTRACT §7.3 for Windows: the actions come from the watch window's Raw Input, which needs no permission.
+Outcome input_actions(const json::Value& params) {
+    bool enabled = win32::flag(params, "enabled");
+    if (enabled && !keyboard_watched()) return failure("internal", "Raw Input could not be registered");
+    if (enabled && !uia::available()) return failure("internal", "UI Automation could not start");
+    if (!enabled) uia::g_actions_live = false;
+    json::Value result = json::object();
+    result.set("watching", json::boolean(enabled));
+    Outcome out = success(std::move(result));
+    if (enabled) {
+        out.answered = [] {
+            ++uia::g_actions_era;
+            uia::g_actions_live = true;
+        };
+    }
     return out;
 }

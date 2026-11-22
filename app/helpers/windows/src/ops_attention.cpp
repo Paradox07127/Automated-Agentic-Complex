@@ -1,6 +1,6 @@
 // The attention ops of CONTRACT §7.3 (attention.sample, presence.watch, input.modifiers, input.watch) and
 // workspace.watch of §7.2, with their events (§8). One hidden window on its own thread receives the session, power,
-// display, foreground and Raw Input notifications of all three watches.
+// display, foreground and Raw Input notifications of all three watches, and the actions of input.actions (uia.cpp).
 #define NOMINMAX
 #include <windows.h>
 #include <audiopolicy.h>
@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <bitset>
 #include <cstdint>
 #include <cstring>
 #include <cwchar>
@@ -26,6 +27,7 @@
 
 #include "json.h"
 #include "ops.h"
+#include "uia.h"
 #include "win32.h"
 
 namespace {
@@ -81,15 +83,88 @@ void activity(const char* kind, uint64_t* sent, uint64_t now) {
     send_event("input.activity", std::move(data), g_input);
 }
 
-// Counts only whether a key went down, never which one; the push-to-talk key is ops_voice.cpp's. Windows sends no
-// mouse_up (CONTRACT §7.3).
+// input.actions' view of the keyboard, watch thread only: the keys down, to tell a press from its auto-repeat, and the
+// modifiers held.
+std::bitset<256> g_down;
+enum : unsigned { kLeftCtrl = 1, kRightCtrl = 2, kLeftAlt = 4, kRightAlt = 8, kLeftShift = 16, kRightShift = 32,
+                  kWin = 64 };
+unsigned g_modifiers = 0;
+
+// CONTRACT §7.3's name of a shortcut's main key: the unmodified character on the foreground window's layout, else
+// key<virtual key code>.
+std::string key_name(unsigned vkey) {
+    switch (vkey) {
+    case VK_RETURN: return "return";
+    case VK_TAB: return "tab";
+    case VK_SPACE: return "space";
+    case VK_BACK: return "delete";
+    case VK_DELETE: return "forward_delete";
+    case VK_ESCAPE: return "escape";
+    case VK_LEFT: return "left";
+    case VK_RIGHT: return "right";
+    case VK_UP: return "up";
+    case VK_DOWN: return "down";
+    }
+    HWND front = GetForegroundWindow();
+    HKL layout = GetKeyboardLayout(front ? GetWindowThreadProcessId(front, nullptr) : 0);
+    // The top bit marks a dead key.
+    wchar_t c = static_cast<wchar_t>(MapVirtualKeyExW(vkey, MAPVK_VK_TO_CHAR, layout) & 0x7FFFFFFF);
+    if (c <= L' ' || c == 0x7F || (c >= 0x80 && c < 0xA0) || (c >= 0xD800 && c <= 0xDFFF)) {
+        return "key" + std::to_string(vkey);
+    }
+    CharLowerBuffW(&c, 1);
+    return utf8(&c, 1);
+}
+
+// A shortcut (with Ctrl, Alt or the Windows key) or a submit (Return or keypad Enter without them or Shift) to
+// input.actions; no other key's character is read. A synthetic key (SendInput: no device) is no action, but its
+// modifiers count as held.
+void key_action(const RAWKEYBOARD& key, bool synthetic) {
+    unsigned vkey = key.VKey;
+    if (vkey == 0 || vkey >= 255) return;
+    bool up = (key.Flags & RI_KEY_BREAK) != 0, right = (key.Flags & RI_KEY_E0) != 0;
+    bool repeat = !up && g_down[vkey];
+    g_down[vkey] = !up;
+    unsigned bit = 0;
+    if (vkey == VK_CONTROL) bit = right ? kRightCtrl : kLeftCtrl;
+    else if (vkey == VK_MENU) bit = right ? kRightAlt : kLeftAlt;
+    else if (vkey == VK_SHIFT) bit = key.MakeCode == 0x36 ? kRightShift : kLeftShift;
+    else if (vkey == VK_LWIN || vkey == VK_RWIN) bit = kWin;
+    if (bit) {
+        g_modifiers = up ? g_modifiers & ~bit : g_modifiers | bit;
+        return;
+    }
+    if (up || repeat || synthetic || !uia::actions_on()) return;
+    // AltGr sends a left Ctrl with the right Alt: that Ctrl is no modifier of its own.
+    bool ctrl = (g_modifiers & kRightCtrl) || ((g_modifiers & kLeftCtrl) && !(g_modifiers & kRightAlt));
+    bool alt = (g_modifiers & (kLeftAlt | kRightAlt)) != 0, shift = (g_modifiers & (kLeftShift | kRightShift)) != 0;
+    bool win = (g_modifiers & kWin) != 0;
+    HWND front = GetForegroundWindow();
+    DWORD pid = front ? owner_pid(front) : 0;
+    if (!pid) return;
+    if (!ctrl && !alt && !win) {
+        if (vkey == VK_RETURN && !shift) uia::key_action(pid, "submit", "return");
+        return;
+    }
+    std::string keys;
+    for (auto held : {std::make_pair(ctrl, "ctrl"), std::make_pair(alt, "alt"), std::make_pair(shift, "shift"),
+                      std::make_pair(win, "cmd")}) {
+        if (held.first) keys += std::string(held.second) + "+";
+    }
+    uia::key_action(pid, "shortcut", keys + key_name(vkey));
+}
+
+// Counts only whether a key went down, never which one; the push-to-talk key is ops_voice.cpp's and the actions are
+// key_action's. Windows sends no mouse_up (CONTRACT §7.3).
 void raw_input(HRAWINPUT handle) {
     RAWINPUT raw{};
     UINT size = sizeof raw;
     if (GetRawInputData(handle, RID_INPUT, &raw, &size, sizeof(RAWINPUTHEADER)) == static_cast<UINT>(-1)) return;
     uint64_t now = GetTickCount64();
+    bool synthetic = raw.header.hDevice == nullptr;
     if (raw.header.dwType == RIM_TYPEKEYBOARD) {
         ptt_key(raw.data.keyboard.VKey, raw.data.keyboard.MakeCode, raw.data.keyboard.Flags);
+        key_action(raw.data.keyboard, synthetic);
         if (raw.data.keyboard.Flags & RI_KEY_BREAK) return;
         ++g_keys;
         g_last_key = now;
@@ -116,6 +191,13 @@ void raw_input(HRAWINPUT handle) {
         ++g_scrolls;
         g_last_scroll = now;
         activity("scroll", &g_scroll_sent, now);
+    }
+    // input.actions: Raw Input has no position, so the cursor's, read as the message is handled.
+    POINT at{};
+    if ((buttons & (RI_MOUSE_LEFT_BUTTON_UP | RI_MOUSE_RIGHT_BUTTON_DOWN)) && !synthetic && uia::actions_on() &&
+        GetCursorPos(&at)) {
+        if (buttons & RI_MOUSE_LEFT_BUTTON_UP) uia::click_action(at, false);
+        if (buttons & RI_MOUSE_RIGHT_BUTTON_DOWN) uia::click_action(at, true);
     }
 }
 
@@ -479,11 +561,7 @@ Outcome attention_sample(const json::Value& params) {
     result.set("idle_s", json::number(idle_seconds()));
     result.set("locked", json::boolean(session_locked()));
     result.set("secure_input", json::boolean(false));
-    // UI Automation is a later task; ops.json types these str?, so null is allowed.
-    for (const char* key : {"focus_role", "focus_native_role", "focus_window_role", "focus_window_native_role",
-                            "focus_window_subrole"}) {
-        result.set(key, json::null());
-    }
+    uia::set_focus_roles(result, pid);
     result.set("camera_active", camera_active());
     HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     IMMDeviceEnumerator* devices = nullptr;

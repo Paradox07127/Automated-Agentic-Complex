@@ -141,7 +141,7 @@
       "events": ["presence.edge"]
     },
     "browser.front_tab": {
-      "group": "attention", "platforms": ["macos"], "timeout_ms": 2000,
+      "group": "attention", "platforms": ["macos", "windows"], "timeout_ms": 2000,
       "params": {"app_id": "str+"},
       "result": {"url_host": "str?", "incognito": "bool?"},
       "errors": ["automation_denied", "process_gone"]
@@ -160,7 +160,7 @@
       "events": ["input.activity"]
     },
     "input.actions": {
-      "group": "attention", "platforms": ["macos"], "timeout_ms": 2000,
+      "group": "attention", "platforms": ["macos", "windows"], "timeout_ms": 2000,
       "params": {"enabled": "bool"},
       "result": {"watching": "bool"},
       "errors": ["permission_denied"],
@@ -201,7 +201,7 @@
       "errors": ["permission_denied", "ax_timeout", "ax_unavailable", "process_gone"]
     },
     "ax.window_tree": {
-      "group": "ax", "platforms": ["macos"], "timeout_ms": 2000,
+      "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 2000,
       "params": {"pid": "int+"},
       "params_optional": {"window_bounds": "rect", "previous": "str+", "max_lines": "int+", "max_scalars": "int+"},
       "result": {"matched": "bool", "tree_id": "str+", "mode": "enum(full|diff|no_change)", "text": "str", "lines": "uint",

@@ -36,7 +36,10 @@ the test window (the screen rect, excluding the helper's pid) and the primary di
 decode to the size they claim; without a desktop they may fail with one of their op's codes. The attention ops are checked for shape and for
 the fields Windows always answers the same way: from ssh the helper runs in session 0, with no desktop and no input.
 The ax.* requests are aimed at the replay's pid and the test window; each must succeed or fail with one of its op's
-codes, ax.watch answers only watching, pid and watch_id, ax.focused has no app_pid, and an unknown cursor resets.
+codes, ax.watch answers watching, pid, watch_id, element and window (no doc) and manual_accessibility false when asked
+for, ax.window_tree is a tree of its line count or no window, ax.focused has no app_pid, and an unknown cursor resets.
+attention.sample's focus roles come in pairs, a window's being AXWindow. browser.front_tab of the fixtures names an app id
+that is no browser (null fields); browser_tab checks the replay's own app id and an absent chrome.exe (process_gone).
 With a desktop (winhost.py test helper-win --interactive) one more session checks real readings, and one helper
 whose models directory is empty must download the model during mic.start, sending speech.download before it answers: the test window has
 a solid COLOUR, capture.window's PNG and JPEG decode (GDI+, in memory) to it at their centre, max_long_side and
@@ -48,8 +51,13 @@ ocr.recognize by its window_id and by its capture.window PNG as image reads both
 input.activity need a session lock or real input, which the replay never makes: only their watches are checked. With the
 test window in front and its edit focused, ax.focused is
 an AXTextField with a caret inside the window, ax.selected_text is the edit's selection, ax.window_text holds its text,
-ax.hit_chain at its centre starts with it, ax.dialog_buttons is empty; ax.watch sends a focus ax.notification when the
-focus moves to the password edit and back, and no line of that session holds the password edit's text.
+ax.hit_chain at its centre starts with it, ax.dialog_buttons is empty, attention.sample's focus roles are the edit's
+and its window's; ax.watch answers the edit with its value and selection and sends a focus ax.notification when the
+focus moves to the password edit (no value, label or selection) and back; ax.window_tree holds the window and both
+edits, secure, gives no_change against its own version and one ~ line after the edit's text changes (WM_SETTEXT); no
+line of that session holds the password edit's text. input.actions turns on and off; no input.action is checked, which
+needs a real click or key, and no synthetic input is sent to the host. Edge and Chrome windows the replay opens in
+profiles of their own (see browser_tab) give browser.front_tab's private state and host.
 Events the helper sends between answers go into the session that validate.check reads.
 Prints a line for each failed check and ends with `HELPER-WIN: <n> checks, <m> failed`; exits 1 when one failed.
 """
@@ -75,22 +83,24 @@ REPO = HERE.parents[3]
 C12 = REPO / 'protocol/C12-platform-helper'
 EXE = REPO / '.local/build/helper-windows/ac-helper.exe'
 SESSION = {'hello', 'cancel', 'shutdown'}
-AX = {'ax.focused', 'ax.dialog_buttons', 'ax.overlays', 'ax.hit_chain', 'ax.window_text', 'ax.selected_text',
-      'ax.watch'}
+AX = {'ax.focused', 'ax.dialog_buttons', 'ax.overlays', 'ax.hit_chain', 'ax.window_text', 'ax.window_tree',
+      'ax.selected_text', 'ax.watch'}
 IMPLEMENTED = {'screens.list', 'windows.list', 'windows.at_point', 'clipboard.read', 'apps.running', 'apps.activate',
                'process.usage', 'permissions.status', 'permissions.request', 'apps.installed', 'workspace.watch',
-               'attention.sample', 'presence.watch', 'input.modifiers', 'input.watch', 'capture.window',
-               'capture.ambient', 'ocr.languages', 'ocr.recognize', 'control.listen', 'control.respond',
-               'speech.locales', 'mic.start', 'mic.stop', 'ptt.register', 'ptt.unregister'} | AX
+               'attention.sample', 'presence.watch', 'browser.front_tab', 'input.modifiers', 'input.watch',
+               'input.actions', 'capture.window', 'capture.ambient', 'ocr.languages', 'ocr.recognize',
+               'control.listen', 'control.respond', 'speech.locales', 'mic.start', 'mic.stop', 'ptt.register',
+               'ptt.unregister'} | AX
 # Without a desktop (session 0) these may fail, with one of their op's own codes.
 CAPTURES = {'capture.window', 'capture.ambient'}
 OCRS = {'ocr.languages', 'ocr.recognize'}
-EVENTS = {'workspace.changed', 'presence.edge', 'input.activity', 'ax.notification', 'control.request', 'ptt.down',
-          'ptt.up', 'mic.level', 'speech.partial', 'speech.download'}
-WATCHES = {'workspace.watch', 'presence.watch', 'input.watch'}
-# attention.sample fields the Windows helper always answers null (CONTRACT §7.3; no UI Automation yet).
-NULL_ON_WINDOWS = ('focus_role', 'focus_native_role', 'focus_window_role', 'focus_window_native_role',
-                   'focus_window_subrole', 'video_pids', 'capture_indicator')
+EVENTS = {'workspace.changed', 'presence.edge', 'input.activity', 'input.action', 'ax.notification', 'control.request',
+          'ptt.down', 'ptt.up', 'mic.level', 'speech.partial', 'speech.download'}
+WATCHES = {'workspace.watch', 'presence.watch', 'input.watch', 'input.actions'}
+# attention.sample fields the Windows helper always answers null (CONTRACT §7.3).
+NULL_ON_WINDOWS = ('video_pids', 'capture_indicator')
+FOCUS_FIELDS = ('focus_role', 'focus_native_role', 'focus_window_role', 'focus_window_native_role',
+                'focus_window_subrole')
 VOICE = {'speech.locales', 'mic.start', 'mic.stop', 'ptt.register', 'ptt.unregister'}
 LOCALES = {'engine': 'sherpa-onnx-sensevoice', 'locales': ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'yue-HK']}
 MODELS = REPO / '.local/cache/helper-models'
@@ -112,6 +122,7 @@ GONE_WINDOW_ID = 999  # ok-capture-ocr.ndjson's window that is not on screen
 # The noise window's physical size: about 3 bytes a pixel as PNG, over 16 MiB once base64 encoded.
 NOISE_SIZE = (2600, 1900)
 ABSENT_APP = 'c12-replay-absent.exe'
+UNRESOLVED_URL = 'http://c12-replay.invalid/tab?q=1'  # .invalid never resolves (RFC 6761)
 OCR_LINES = ('Replay text', '屏幕文字测试')  # painted top to bottom in the test window for ocr.recognize
 # The test window's two edits, along its top edge, clear of the middle the capture checks read.
 EDIT_TEXT = 'C12 replay edit: milk and eggs'
@@ -397,6 +408,11 @@ class TestWindow:
         """Moves the keyboard focus to the edit (EDIT_ID) or the password edit (PASSWORD_ID) and sets its selection."""
         user32().SendMessageW(self.hwnd, WM_FOCUS_CONTROL, control, 0)
 
+    def set_edit_text(self, text):
+        """Replaces the edit's text (WM_SETTEXT, handled on the window's thread)."""
+        buffer = ctypes.create_unicode_buffer(text)
+        user32().SendMessageW(self.edit, 0x000C, 0, ctypes.addressof(buffer))
+
     def close_second(self):
         """Closes the second window; whether it is gone within 5 s."""
         user = user32()
@@ -615,6 +631,8 @@ def aim(request, helper, target, window):
                            if bounds else {'x': -100000, 'y': -100000})
     elif op == 'process.usage':
         params['pids'] = [helper.proc.pid, os.getpid()]
+    elif op == 'browser.front_tab':
+        params['app_id'] = ABSENT_APP
     elif op in AX:
         if params.get('pid') is not None:
             params['pid'] = os.getpid()
@@ -760,6 +778,9 @@ def check_answer(checks, name, request, got, hello, helper, target, window):
     elif op == 'apps.activate':
         checks.expect(result == {'activated': False, 'pid': None}, f'{name} of an app that is not running',
                       f'result {result}')
+    elif op == 'browser.front_tab':
+        checks.expect(result == {'url_host': None, 'incognito': None}, f'{name} of an app that is no browser',
+                      f'result {result}')
     elif op == 'windows.at_point' and params.get('include_titles') and target:
         window = result.get('window') or {}
         checks.expect(window.get('window_id') == target['window_id'] and window.get('title') == WINDOW_TITLE,
@@ -796,7 +817,20 @@ def check_ax(checks, name, request, got):
     if op == 'ax.watch':
         pid, watch_id = params['pid'], params.get('watch_id')
         want = dict({'watching': pid is not None, 'pid': pid}, **({'watch_id': watch_id} if watch_id else {}))
-        checks.expect(result == want, f'{name} answers watching, pid and watch_id only', f'result {result}')
+        if pid is not None:
+            want.update(element=result.get('element'), window=result.get('window'))
+        if pid is not None and params.get('manual_accessibility'):
+            want['manual_accessibility'] = False
+        window = result.get('window') or {}
+        checks.expect(result == want and window.get('doc', None) is None and 'doc' not in (result.get('element') or {}),
+                      f'{name} answers watching, pid, watch_id, element and window, no doc, manual_accessibility false',
+                      f'keys {sorted(result)}')
+    elif op == 'ax.window_tree':
+        lines = result['text'].split('\n') if result['text'] else []
+        checks.expect(result['mode'] in ('full', 'diff', 'no_change') and re.fullmatch(r't-\d+', result['tree_id'])
+                      and (result['mode'] != 'full' or len(lines) == result['lines'])
+                      and (result['matched'] or (lines, result['lines']) == ([], 0)),
+                      f'{name} is a tree of its line count, or no window', f'result {result!r:.300}')
     elif op == 'ax.focused':
         checks.expect('app_pid' not in result, f'{name} has no app_pid on Windows', f'result {result!r:.300}')
     elif op == 'ax.window_text' and 'cursor' in params:
@@ -809,6 +843,13 @@ def check_sample(checks, name, params, result):
     fixed = {key: result.get(key, 'absent') for key in NULL_ON_WINDOWS}
     checks.expect(set(fixed.values()) == {None} and result.get('secure_input') is False,
                   f'{name} answers the Windows constants', f'fields {fixed}, secure_input {result.get("secure_input")}')
+    role, native, window, window_native, subrole = (result.get(key) for key in FOCUS_FIELDS)
+    checks.expect((role is None) == (native is None) and (window is None) == (window_native is None)
+                  and (role is not None or window is None) and (window is not None or subrole is None)
+                  and (window is None or (window, window_native) == ('AXWindow', 'Window'))
+                  and subrole in (None, 'AXDialog'),
+                  f'{name} focus roles come in pairs, the window\'s of a Window',
+                  f'fields {[result.get(key) for key in FOCUS_FIELDS]}')
     checks.expect(result.get('camera_active', 'absent') in (True, False, None), f'{name} camera_active',
                   f'camera_active {result.get("camera_active", "absent")!r}')
     for key, asked in (('audio_clients', 'include_audio'), ('input_counters', 'include_input'),
@@ -1267,6 +1308,11 @@ def desktop_ax(exe, checks, window, target):
                   'desktop ax.focused reports the edit as AXTextField', f'answer {got!r:.300}')
     checks.expect(inside(focus.get('caret'), bounds), 'desktop ax.focused has a caret inside the test window',
                   f'caret {focus.get("caret")}, bounds {bounds}')
+    got = ask('attention.sample')
+    roles = {key: (got.get('result') or {}).get(key, 'absent') for key in FOCUS_FIELDS}
+    checks.expect(roles == {'focus_role': 'AXTextField', 'focus_native_role': 'Edit', 'focus_window_role': 'AXWindow',
+                            'focus_window_native_role': 'Window', 'focus_window_subrole': None},
+                  'desktop attention.sample focus roles are the edit\'s and its window\'s', f'roles {roles}')
     got = ask('ax.selected_text', pid=me)
     checks.expect(got.get('result') == {'text': SELECTED}, 'desktop ax.selected_text reads the edit\'s selection',
                   f'answer {got!r:.300}')
@@ -1287,13 +1333,25 @@ def desktop_ax(exe, checks, window, target):
                   f'answer {got!r:.300}')
 
     got = ask('ax.watch', pid=me, notifications=['focus', 'value', 'selection'], read_selected_text=True,
-              watch_id='replay')
-    checks.expect(got.get('result') == {'watching': True, 'pid': me, 'watch_id': 'replay'}, 'desktop ax.watch starts',
+              read_value=True, manual_accessibility=True, watch_id='replay')
+    result = got.get('result') or {}
+    element = result.get('element') or {}
+    checks.expect({k: result.get(k) for k in ('watching', 'pid', 'watch_id', 'manual_accessibility', 'window')}
+                  == {'watching': True, 'pid': me, 'watch_id': 'replay', 'manual_accessibility': False,
+                      'window': {'title': WINDOW_TITLE, 'doc': None}}, 'desktop ax.watch starts',
                   f'answer {got!r:.300}')
+    checks.expect(element.get('role') == 'AXTextField' and element.get('value') == EDIT_TEXT
+                  and element.get('selected_text') == SELECTED and isinstance(element.get('element_key'), str),
+                  'desktop ax.watch answers the focused edit with its value, selection and key', f'element {element}')
     window.focus_control(PASSWORD_ID)
     event = focus_event('AXSecureTextField')
-    checks.expect(event is not None and event['data'].get('pid') == me and event['data'].get('watch_id') == 'replay',
+    secure = (event or {}).get('data', {}).get('element') or {}
+    checks.expect(event is not None and event['data'].get('pid') == me and event['data'].get('watch_id') == 'replay'
+                  and isinstance(event['data'].get('source_key'), str),
                   'desktop ax.watch sends a focus ax.notification for the password edit', f'events {helper.events!r:.400}')
+    checks.expect(secure.get('value', 'absent') is None and secure.get('label', 'absent') is None
+                  and 'selected_text' not in secure, 'desktop ax.watch reads no value, label or selection of the password edit',
+                  f'element {secure}')
     got = ask('ax.focused', pid=me)
     focus = (got.get('result') or {}).get('focus') or {}
     checks.expect(focus.get('subrole') == 'AXSecureTextField' and focus.get('caret', 'absent') is None,
@@ -1308,12 +1366,140 @@ def desktop_ax(exe, checks, window, target):
     got = ask('ax.watch', pid=None, notifications=[], watch_id='replay')
     checks.expect(got.get('result') == {'watching': False, 'pid': None, 'watch_id': 'replay'}, 'desktop ax.watch stops',
                   f'answer {got!r:.300}')
+    desktop_tree(ask, checks, window, me, bounds)
+    for enabled in (True, False):
+        got = ask('input.actions', enabled=enabled)
+        checks.expect(got.get('result') == {'watching': enabled}, f'desktop input.actions turns {enabled}',
+                      f'answer {got!r:.300}')
+    print('note: input.action stays unverified: it needs a real click or key, and no synthetic input is sent to this '
+          'host (the helper drops input without a device, which SendInput makes)', flush=True)
     checks.expect(helper.exit_code() == 0, 'desktop ax session exit', '')
     leaked = [line for line in helper.transcript if PASSWORD_TEXT in line]
     checks.expect(not leaked, 'desktop: no answer or event of the ax session holds the password edit\'s text',
                   f'{len(leaked)} lines')
     problem = validate.check(helper.transcript, SPEC)
     checks.expect(problem is None, 'desktop ax session validate.check', problem)
+
+
+def desktop_tree(ask, checks, window, me, bounds):
+    """ax.window_tree of the test window: the window's line first, both edits, the password edit's without its text,
+    secure; against its own version no_change, and after a new text in the edit one ~ line with it."""
+    got = ask('ax.window_tree', pid=me, window_bounds=bounds)
+    result = got.get('result') or {}
+    lines = result.get('text', '').split('\n')
+    edits = [line for line in lines if re.match(r'\t*\d+ text field\b', line)]
+    print(f'note: desktop ax.window_tree of the test window: {lines!a:.1200}', flush=True)
+    checks.expect(result.get('matched') is True and result.get('mode') == 'full' and result.get('secure') is True
+                  and result.get('lines') == len(lines) and lines[0] == f'0 window {WINDOW_TITLE}' and len(edits) == 2
+                  and any(line.endswith(f', Value: {EDIT_TEXT}') for line in edits)
+                  and not any(PASSWORD_TEXT in line for line in lines),
+                  'desktop ax.window_tree holds the window and both edits, the password one without its text',
+                  f'answer {got!a:.600}')
+    got = ask('ax.window_tree', pid=me, window_bounds=bounds, previous=result.get('tree_id', 't-0'))
+    again = got.get('result') or {}
+    checks.expect(again.get('mode') == 'no_change' and again.get('text') == '' and again.get('lines') == len(lines),
+                  'desktop ax.window_tree against its previous version is no_change', f'answer {got!a:.300}')
+    changed = EDIT_TEXT + ' and tea'
+    window.set_edit_text(changed)
+    try:
+        got = ask('ax.window_tree', pid=me, window_bounds=bounds, previous=again.get('tree_id', 't-0'))
+    finally:
+        window.set_edit_text(EDIT_TEXT)
+    diffed = got.get('result') or {}
+    changes = diffed.get('text', '').split('\n')
+    checks.expect(diffed.get('mode') == 'diff' and len(changes) == 1 and changes[0].startswith('~\t')
+                  and changes[0].endswith(f' text field, Value: {changed}'),
+                  'desktop ax.window_tree after the edit\'s text changed is one ~ line', f'answer {got!a:.300}')
+
+
+def installed(exe):
+    """The path App Paths gives exe (msedge.exe, chrome.exe), or None when it is not installed."""
+    import winreg
+    for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+        try:
+            with winreg.OpenKey(root, rf'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe}') as key:
+                path = winreg.QueryValue(key, None).strip('"')
+        except OSError:
+            continue
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def own_browser(ask, checks, apps, exe, flag, url, wants):
+    """exe (msedge.exe, chrome.exe) started with flag on url in a profile of its own, read with browser.front_tab and
+    closed; its answer must be one of wants. Not run when exe is missing or already has a window: no request may read a
+    browser window this replay did not open."""
+    path = installed(exe)
+    if not path or any(a.get('app_id') == exe and a.get('regular') for a in apps):
+        print(f'note: {exe} {"has windows open" if path else "is not installed"} here; its {flag} check did not run',
+              flush=True)
+        return
+    profile = Path(tempfile.mkdtemp(prefix='c12-browser-'))
+    browser = subprocess.Popen([path, f'--user-data-dir={profile}', '--no-first-run', '--no-default-browser-check', flag,
+                                url])
+    windows = []
+    try:
+        deadline = time.monotonic() + 30
+        while not windows and time.monotonic() < deadline:
+            time.sleep(0.5)
+            listed = ask('windows.list', include_titles=True).get('result', {}).get('windows', [])
+            windows = [w for w in listed if w.get('app_id') == exe and w.get('title')]
+        time.sleep(3)  # its toolbar built and the page's load over
+        got = ask('browser.front_tab', app_id=exe)
+        print(f'note: {exe} {flag} {url}, window {[w.get("title") for w in windows]!a}: browser.front_tab '
+              f'{got.get("result") or got.get("error")}', flush=True)
+        checks.expect(bool(windows) and got.get('result') in wants, f'browser.front_tab of a {exe} {flag} window on {url}',
+                      f'answer {got!a:.300}, wanted one of {wants}')
+    finally:
+        for w in windows:
+            user32().PostMessageW(w['window_id'], 0x0010, 0, 0)  # WM_CLOSE
+        try:
+            browser.wait(15)
+        except subprocess.TimeoutExpired:
+            subprocess.run(['taskkill', '/PID', str(browser.pid), '/T', '/F'], capture_output=True, timeout=30)
+            browser.wait(15)
+        time.sleep(1)
+        shutil.rmtree(profile, ignore_errors=True)
+
+
+def browser_tab(exe, checks, target):
+    """browser.front_tab: the replay's own app id, which is no browser, has null fields; an absent chrome.exe is
+    process_gone. With a desktop, Edge and Chrome windows this replay opens in profiles of their own: InPrivate and
+    Incognito on about:blank are private with no host (Chrome's Incognito, whose mark is translated, may be null in
+    another language than English), a normal Edge window on an address that does not resolve gives its host, a normal
+    Chrome window on about:blank is not private."""
+    helper = Helper(exe)
+    ids = iter(range(2, 1000))
+
+    def ask(op, **params):
+        return helper.request({'v': 1, 'id': next(ids), 'op': op, 'params': params}) or {}
+
+    helper.request(HELLO)
+    apps = ask('apps.running').get('result', {}).get('apps', [])
+    mine = next((a.get('app_id') for a in apps if a['pid'] == os.getpid()), None) or ABSENT_APP
+    got = ask('browser.front_tab', app_id=mine)
+    checks.expect(got.get('result') == {'url_host': None, 'incognito': None},
+                  f'browser.front_tab of the replay\'s own app id {mine} has null fields', f'answer {got!r:.300}')
+    if any(a.get('app_id') == 'chrome.exe' for a in apps):
+        print('note: chrome.exe runs here; browser.front_tab of an absent chrome.exe is unchecked', flush=True)
+    else:
+        got = ask('browser.front_tab', app_id='chrome.exe')
+        checks.expect(got.get('error', {}).get('code') == 'process_gone',
+                      'browser.front_tab of an absent chrome.exe is process_gone', f'answer {got!r:.300}')
+    if target:
+        english = (ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF) == 0x09  # LANG_ENGLISH
+        hidden = {'url_host': None, 'incognito': True}
+        own_browser(ask, checks, apps, 'msedge.exe', '--inprivate', 'about:blank', [hidden])
+        own_browser(ask, checks, apps, 'msedge.exe', '--new-window', UNRESOLVED_URL,
+                    [{'url_host': 'c12-replay.invalid', 'incognito': False}])
+        own_browser(ask, checks, apps, 'chrome.exe', '--incognito', 'about:blank',
+                    [hidden] if english else [hidden, {'url_host': None, 'incognito': None}])
+        own_browser(ask, checks, apps, 'chrome.exe', '--new-window', 'about:blank',
+                    [{'url_host': None, 'incognito': False}])
+    checks.expect(helper.exit_code() == 0, 'browser session exit', '')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, 'browser session validate.check', problem)
 
 
 def permission_requests(exe, checks):
@@ -1599,6 +1785,7 @@ def main(argv=None):
         if target:
             desktop(args.exe, checks, window, target)
             voice_download(args.exe, checks, wavs)
+        browser_tab(args.exe, checks, target)
         voice(args.exe, checks)
         # Before replay_ok and voice_spoken, which then find the model in MODELS.
         recognizer(args.exe, checks, wavs)

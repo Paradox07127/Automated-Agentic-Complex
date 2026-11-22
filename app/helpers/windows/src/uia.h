@@ -21,11 +21,14 @@
 Outcome ax_focused(const json::Value& params);
 Outcome ax_selected_text(const json::Value& params);
 Outcome ax_watch(const json::Value& params);
+Outcome input_actions(const json::Value& params);
 // ops_uia.cpp
 Outcome ax_dialog_buttons(const json::Value& params);
 Outcome ax_overlays(const json::Value& params);
 Outcome ax_hit_chain(const json::Value& params);
 Outcome ax_window_text(const json::Value& params);
+Outcome ax_window_tree(const json::Value& params);
+Outcome browser_front_tab(const json::Value& params);
 
 namespace uia {
 
@@ -35,6 +38,12 @@ using Microsoft::WRL::ComPtr;
 constexpr DWORD kProbeMs = 800;
 constexpr DWORD kWatchMs = 1500;
 constexpr DWORD kTextMs = 2500;
+// ax.watch's read at subscription, after kWatchMs; ax.window_tree and browser.front_tab of 2000 ms; attention.sample's
+// focus read, beside its other reads.
+constexpr DWORD kWatchReadMs = 300;
+constexpr DWORD kTreeMs = 1700;
+constexpr DWORD kTabMs = 1500;
+constexpr DWORD kSampleMs = 400;
 // The most UTF-16 units one value or selection read takes.
 constexpr int kMaxTextUnits = 1 << 18;
 
@@ -108,6 +117,23 @@ json::Value value_text(IUIAutomationElement* element, const Info& info, int max_
                        bool* cut = nullptr);
 // The caret at the selection's start when it lies within 40 px of the control, else null.
 json::Value caret(IUIAutomationElement* element, const Info& info, Reads& reads);
+// An ax_element (CONTRACT §7.4) of element in the top-level window: roles, label (a Text control's first 200 scalars),
+// the value's length, the window's title and element_key; selected_text and value only when asked. A password control
+// gives its roles, window title and key only, and a null value when asked.
+json::Value element_json(IUIAutomationElement* element, HWND window, bool selected, bool value, Reads& reads);
+
+// attention.sample's focus_* fields (CONTRACT §7.3): the focused element's roles and those of the first Window up from
+// it; null where UIA does not answer. front: the foreground app.
+void set_focus_roles(json::Value& result, DWORD front);
+
+// input.actions (CONTRACT §7.3) is on; ops_attention.cpp's Raw Input asks before it reads an action.
+bool actions_on();
+// A user's release of the left button (click) or press of the right one (context_menu) at p; the control under it is
+// read on the UIA thread.
+void click_action(POINT p, bool context_menu);
+// A shortcut or submit (kind) with its keys, sent to pid, the foreground app; its focused control is read on the UIA
+// thread.
+void key_action(DWORD pid, const char* kind, std::string keys);
 
 // ---- text
 
@@ -241,10 +267,9 @@ inline bool intersects(const RECT& a, const RECT& b) {
     return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 }
 
-// The opaque element_key: the RuntimeId's parts in hex.
-inline json::Value element_key(IUIAutomationElement* element) {
-    SAFEARRAY* id = nullptr;
-    if (!element || FAILED(element->GetRuntimeId(&id)) || !id) return json::null();
+// The opaque element_key: the RuntimeId's parts in hex; empty without one. Takes id.
+inline std::string runtime_key(SAFEARRAY* id) {
+    if (!id) return {};
     LONG low = 0, high = -1;
     SafeArrayGetLBound(id, 1, &low);
     SafeArrayGetUBound(id, 1, &high);
@@ -257,6 +282,13 @@ inline json::Value element_key(IUIAutomationElement* element) {
         key += (key.empty() ? "" : ".") + std::string(hex);
     }
     SafeArrayDestroy(id);
+    return key;
+}
+
+inline json::Value element_key(IUIAutomationElement* element) {
+    SAFEARRAY* id = nullptr;
+    if (!element || FAILED(element->GetRuntimeId(&id))) return json::null();
+    std::string key = runtime_key(id);
     return key.empty() ? json::null() : json::str(key);
 }
 

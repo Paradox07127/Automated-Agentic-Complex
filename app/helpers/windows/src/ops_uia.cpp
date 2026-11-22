@@ -1,11 +1,14 @@
 // The ax.* ops of CONTRACT §7.4 that read other windows with UI Automation: ax.dialog_buttons, ax.overlays,
-// ax.hit_chain and ax.window_text. Every UIA call runs on uia.cpp's thread; none reads the value of a password
-// control. Coordinates are physical pixels of the virtual screen (§2.8).
+// ax.hit_chain, ax.window_text and ax.window_tree; and browser.front_tab of §7.3. Every UIA call runs on uia.cpp's
+// thread; none reads the value of a password control. Coordinates are physical pixels of the virtual screen (§2.8).
 #include "uia.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <cwchar>
+#include <cwctype>
 #include <deque>
 #include <map>
 #include <memory>
@@ -543,6 +546,584 @@ Outcome text_read(IUIAutomation* automation, const TextParams& p) {
     return text_answer(walk->id, true, std::move(text), std::move(nodes), std::move(covered));
 }
 
+// ---- ax.window_tree
+
+constexpr size_t kTreeLines = 800, kTreeScalars = 32000, kTreeValueScalars = 500, kKeptTrees = 8;
+// Above this many old-by-new line pairs the changed middle is all - lines, then all + lines.
+constexpr size_t kDiffCells = 4000000;
+// After this much of the op's time the values are not asked for: the tree is answered truncated without them.
+constexpr ULONGLONG kTreeValuesBy = 1000;
+
+// One line: head is the role and the title, tail the value, the description and the states.
+struct TreeLine {
+    size_t depth = 0, id = 0;
+    std::string head, tail;
+
+    std::string text() const { return std::string(depth, '\t') + std::to_string(id) + " " + head + tail; }
+    // The line without its number, which every line above an added or removed one shifts.
+    std::string key() const { return std::to_string(depth) + '\x1f' + head + '\x1f' + tail; }
+    // What a ~ line keeps.
+    std::string place() const { return std::to_string(depth) + '\x1f' + head; }
+};
+
+struct TreeVersion {
+    std::string id, window;
+    std::vector<TreeLine> lines;
+};
+
+// UIA thread only: the versions previous can name, oldest first.
+std::deque<TreeVersion> g_trees;
+int g_tree_ids = 0;
+
+// What one element gives its line; empty texts are none.
+struct TreeNode {
+    std::string role, title, description, value;
+    bool selected = false, disabled = false, secure = false;
+    int expanded = -1;                     // -1: no such state, else collapsed (0) or expanded (1)
+    size_t first = 0, last = 0, total = 0;  // total > 0: only items first..last (from 1) of total are on screen
+};
+
+// AXStaticText -> static text.
+std::string role_words(const std::string& role) {
+    std::string name;
+    char previous = 0;
+    for (char c : role.compare(0, 2, "AX") == 0 ? role.substr(2) : role) {
+        bool upper = c >= 'A' && c <= 'Z';
+        if (upper && ((previous >= 'a' && previous <= 'z') || (previous >= '0' && previous <= '9'))) name += ' ';
+        name += upper ? static_cast<char>(c - 'A' + 'a') : c;
+        previous = c;
+    }
+    return name;
+}
+
+// One line per element: line breaks are written as \n, tabs as spaces.
+std::string flat(const std::string& text) {
+    std::string out;
+    for (size_t k = 0; k < text.size(); ++k) {
+        if (text[k] == '\r' || text[k] == '\n') {
+            out += "\\n";
+            if (text[k] == '\r' && k + 1 < text.size() && text[k + 1] == '\n') ++k;
+        } else {
+            out += text[k] == '\t' ? ' ' : text[k];
+        }
+    }
+    return out;
+}
+
+bool value_role(const std::string& role) {
+    static const std::set<std::string> roles = {"AXStaticText", "AXTextField", "AXTextArea", "AXComboBox",
+                                                "AXCheckBox", "AXRadioButton", "AXPopUpButton"};
+    return roles.count(role) > 0;
+}
+
+std::pair<std::string, std::string> describe(const TreeNode& node) {
+    std::string head = role_words(node.role);
+    const std::string& label = !node.title.empty() ? node.title : node.description;
+    if (!label.empty()) head += " " + flat(label);
+    std::string tail;
+    if (!node.secure && value_role(node.role) && !node.value.empty()) {
+        tail += ", Value: " + flat(uia::first_scalars(node.value, kTreeValueScalars));
+    }
+    if (!node.title.empty() && !node.description.empty() && node.description != node.title) {
+        tail += ", Description: " + flat(node.description);
+    }
+    if (node.selected) tail += " (selected)";
+    if (node.disabled) tail += " (disabled)";
+    if (node.expanded >= 0) tail += node.expanded ? " (expanded)" : " (collapsed)";
+    if (node.total) {
+        tail += " (showing " + std::to_string(node.first) + "-" + std::to_string(node.last) + " of " +
+                std::to_string(node.total) + " items)";
+    }
+    return {head, tail};
+}
+
+// A container with nothing of its own and one child gives no line; the child takes its place.
+bool folds(const TreeNode& node, size_t children) {
+    static const std::set<std::string> roles = {"AXGroup", "AXUnknown", "AXLayoutArea", "AXLayoutItem",
+                                                "AXSplitGroup"};
+    return children == 1 && roles.count(node.role) && node.title.empty() && node.description.empty() &&
+           node.value.empty() && !node.selected && !node.disabled && node.expanded < 0 && !node.total;
+}
+
+bool cached_int(IUIAutomationElement* element, PROPERTYID property, int& out) {
+    VARIANT value;
+    VariantInit(&value);
+    bool found = SUCCEEDED(element->GetCachedPropertyValue(property, &value)) && value.vt == VT_I4;
+    if (found) out = value.lVal;
+    VariantClear(&value);
+    return found;
+}
+
+// False when the element does not support the property's pattern.
+bool cached_bool(IUIAutomationElement* element, PROPERTYID property, bool& out) {
+    VARIANT value;
+    VariantInit(&value);
+    bool found = SUCCEEDED(element->GetCachedPropertyValue(property, &value)) && value.vt == VT_BOOL;
+    if (found) out = value.boolVal != VARIANT_FALSE;
+    VariantClear(&value);
+    return found;
+}
+
+std::string cached_text(IUIAutomationElement* element, PROPERTYID property) {
+    VARIANT value;
+    VariantInit(&value);
+    std::string text;
+    if (SUCCEEDED(element->GetCachedPropertyValue(property, &value)) && value.vt == VT_BSTR && value.bstrVal) {
+        text = uia::utf8(std::wstring(value.bstrVal, SysStringLen(value.bstrVal)));
+    }
+    VariantClear(&value);
+    return text;
+}
+
+std::string cached_key(IUIAutomationElement* element) {
+    VARIANT value;
+    VariantInit(&value);
+    std::string key;
+    if (SUCCEEDED(element->GetCachedPropertyValue(UIA_RuntimeIdPropertyId, &value)) &&
+        value.vt == (VT_ARRAY | VT_I4)) {
+        key = uia::runtime_key(value.parray);  // takes the array
+        value.vt = VT_EMPTY;
+    }
+    VariantClear(&value);
+    return key;
+}
+
+std::vector<ComPtr<IUIAutomationElement>> cached_children(IUIAutomationElement* element) {
+    ComPtr<IUIAutomationElementArray> children;
+    if (FAILED(element->GetCachedChildren(&children))) return {};
+    return elements(children.Get());
+}
+
+bool text_control(CONTROLTYPEID type) {
+    return type == UIA_EditControlTypeId || type == UIA_DocumentControlTypeId || type == UIA_ComboBoxControlTypeId;
+}
+
+// The element's line and the children to walk: a list's on-screen items only, when some are off screen. A Text
+// control's name is its value, as AXStaticText's value is its text.
+TreeNode tree_node(IUIAutomationElement* element, const std::map<std::string, std::string>& values,
+                   std::vector<ComPtr<IUIAutomationElement>>& children) {
+    TreeNode node;
+    CONTROLTYPEID type = 0;
+    element->get_CachedControlType(&type);
+    node.role = uia::role(type);
+    BOOL on = FALSE;
+    node.secure = SUCCEEDED(element->get_CachedIsPassword(&on)) && on != FALSE;
+    on = TRUE;
+    node.disabled = SUCCEEDED(element->get_CachedIsEnabled(&on)) && on == FALSE;
+    std::string name = cached_text(element, UIA_NamePropertyId);
+    node.description = cached_text(element, UIA_HelpTextPropertyId);
+    (type == UIA_TextControlTypeId ? node.value : node.title) = name;
+    if (text_control(type) && !node.secure) {
+        auto found = values.find(cached_key(element));
+        if (found != values.end()) node.value = found->second;
+    }
+    int state = 0;
+    bool selected = false;
+    if (type == UIA_CheckBoxControlTypeId && cached_int(element, UIA_ToggleToggleStatePropertyId, state)) {
+        node.value = std::to_string(state);
+    }
+    if (cached_bool(element, UIA_SelectionItemIsSelectedPropertyId, selected)) {
+        // A radio button's or tab's selection is its value, as AppKit's.
+        if (type == UIA_RadioButtonControlTypeId || type == UIA_TabItemControlTypeId) node.value = selected ? "1" : "0";
+        else node.selected = selected;
+    }
+    if (cached_int(element, UIA_ExpandCollapseExpandCollapseStatePropertyId, state) &&
+        state != ExpandCollapseState_LeafNode) {
+        node.expanded = state == ExpandCollapseState_Collapsed ? 0 : 1;
+    }
+    children = cached_children(element);
+    if (type == UIA_ListControlTypeId || type == UIA_TreeControlTypeId || type == UIA_DataGridControlTypeId ||
+        type == UIA_TableControlTypeId) {
+        std::vector<ComPtr<IUIAutomationElement>> shown;
+        size_t first = 0;
+        for (size_t k = 0; k < children.size(); ++k) {
+            BOOL off = FALSE;
+            if (SUCCEEDED(children[k]->get_CachedIsOffscreen(&off)) && off != FALSE) continue;
+            if (shown.empty()) first = k;
+            shown.push_back(children[k]);
+        }
+        if (!shown.empty() && shown.size() < children.size()) {
+            node.first = first + 1;
+            node.last = std::min(first + shown.size(), children.size());
+            node.total = children.size();
+            children = std::move(shown);
+        }
+    }
+    return node;
+}
+
+// Whether the cached tree under root holds a text control that is no password.
+bool has_text_controls(IUIAutomationElement* root) {
+    std::vector<ComPtr<IUIAutomationElement>> stack = {ComPtr<IUIAutomationElement>(root)};
+    while (!stack.empty()) {
+        ComPtr<IUIAutomationElement> element = stack.back();
+        stack.pop_back();
+        CONTROLTYPEID type = 0;
+        BOOL password = FALSE;
+        element->get_CachedControlType(&type);
+        if (text_control(type) && SUCCEEDED(element->get_CachedIsPassword(&password)) && password == FALSE) {
+            return true;
+        }
+        for (const auto& child : cached_children(element.Get())) stack.push_back(child);
+    }
+    return false;
+}
+
+// The values of the text controls under root that are no password, by element key, in one more call: a password
+// control's value is never asked for. False when UIA did not answer.
+bool read_values(IUIAutomation* automation, IUIAutomationElement* root, Reads& reads,
+                 std::map<std::string, std::string>& values) {
+    ComPtr<IUIAutomationCacheRequest> cache;
+    if (FAILED(automation->CreateCacheRequest(&cache))) return false;
+    cache->AddProperty(UIA_RuntimeIdPropertyId);
+    cache->AddProperty(UIA_ValueValuePropertyId);
+    cache->put_AutomationElementMode(AutomationElementMode_None);
+    VARIANT no, yes;
+    VariantInit(&no);
+    VariantInit(&yes);
+    no.vt = yes.vt = VT_BOOL;
+    no.boolVal = VARIANT_FALSE;
+    yes.boolVal = VARIANT_TRUE;
+    ComPtr<IUIAutomationCondition> plain = uia::condition(automation, UIA_IsPasswordPropertyId, no);
+    ComPtr<IUIAutomationCondition> valued = uia::condition(automation, UIA_IsValuePatternAvailablePropertyId, yes);
+    ComPtr<IUIAutomationCondition> edit = uia::condition(automation, UIA_ControlTypePropertyId, UIA_EditControlTypeId);
+    ComPtr<IUIAutomationCondition> document =
+        uia::condition(automation, UIA_ControlTypePropertyId, UIA_DocumentControlTypeId);
+    ComPtr<IUIAutomationCondition> combo =
+        uia::condition(automation, UIA_ControlTypePropertyId, UIA_ComboBoxControlTypeId);
+    ComPtr<IUIAutomationCondition> either, all;
+    if (!plain || !valued || !edit || !document || !combo) return false;
+    IUIAutomationCondition* types[] = {edit.Get(), document.Get(), combo.Get()};
+    if (FAILED(automation->CreateOrConditionFromNativeArray(types, 3, &either))) return false;
+    IUIAutomationCondition* parts[] = {plain.Get(), valued.Get(), either.Get()};
+    ComPtr<IUIAutomationElementArray> found;
+    if (FAILED(automation->CreateAndConditionFromNativeArray(parts, 3, &all)) ||
+        !reads.ok(root->FindAllBuildCache(TreeScope_Descendants, all.Get(), cache.Get(), &found))) {
+        return false;
+    }
+    for (const auto& element : elements(found.Get())) {
+        std::string key = cached_key(element.Get());
+        if (!key.empty()) values[key] = cached_text(element.Get(), UIA_ValueValuePropertyId);
+    }
+    return true;
+}
+
+struct Walked {
+    std::vector<TreeLine> lines;
+    bool truncated = false, secure = false;
+};
+
+// Preorder from root. A line that does not fit max_scalars (each line with its newline) is left out.
+Walked walk_tree(IUIAutomationElement* root, const std::map<std::string, std::string>& values, size_t max_lines,
+                 size_t max_scalars) {
+    Walked out;
+    size_t used = 0;
+    std::vector<std::pair<ComPtr<IUIAutomationElement>, size_t>> stack = {{ComPtr<IUIAutomationElement>(root), 0}};
+    while (!stack.empty()) {
+        if (out.lines.size() >= max_lines) {
+            out.truncated = true;
+            break;
+        }
+        auto entry = stack.back();
+        stack.pop_back();
+        std::vector<ComPtr<IUIAutomationElement>> children;
+        TreeNode node = tree_node(entry.first.Get(), values, children);
+        if (folds(node, children.size())) {
+            stack.emplace_back(children[0], entry.second);
+            continue;
+        }
+        std::pair<std::string, std::string> parts = describe(node);
+        TreeLine line{entry.second, out.lines.size(), parts.first, parts.second};
+        size_t cost = uia::scalars(line.text()) + 1;
+        if (used + cost > max_scalars) {
+            out.truncated = true;
+            break;
+        }
+        used += cost;
+        out.secure = out.secure || node.secure;
+        out.lines.push_back(std::move(line));
+        for (auto child = children.rbegin(); child != children.rend(); ++child) {
+            stack.emplace_back(*child, entry.second + 1);
+        }
+    }
+    return out;
+}
+
+// The index pairs of a longest common subsequence of a and b.
+std::vector<std::pair<size_t, size_t>> common_lines(const std::vector<std::string>& a,
+                                                    const std::vector<std::string>& b) {
+    if (a.empty() || b.empty() || a.size() * b.size() > kDiffCells) return {};
+    std::map<std::string, int> codes;
+    std::vector<int> x, y;
+    for (const std::string& key : a) x.push_back(codes.emplace(key, static_cast<int>(codes.size())).first->second);
+    for (const std::string& key : b) {
+        auto found = codes.find(key);
+        y.push_back(found == codes.end() ? -1 : found->second);
+    }
+    size_t width = y.size() + 1;
+    std::vector<int32_t> lengths((x.size() + 1) * width, 0);
+    for (size_t i = x.size(); i-- > 0;) {
+        for (size_t j = y.size(); j-- > 0;) {
+            lengths[i * width + j] = x[i] == y[j] ? lengths[(i + 1) * width + j + 1] + 1
+                                                  : std::max(lengths[(i + 1) * width + j], lengths[i * width + j + 1]);
+        }
+    }
+    std::vector<std::pair<size_t, size_t>> pairs;
+    for (size_t i = 0, j = 0; i < x.size() && j < y.size();) {
+        if (x[i] == y[j]) {
+            pairs.emplace_back(i++, j++);
+        } else if (lengths[(i + 1) * width + j] >= lengths[i * width + j + 1]) {
+            ++i;
+        } else {
+            ++j;
+        }
+    }
+    return pairs;
+}
+
+// + added and - removed lines; a removed and an added line at the same place with the same depth, role and title are
+// one ~ line with the new text. Unchanged lines are left out.
+std::vector<std::string> diff(const std::vector<TreeLine>& old, const std::vector<TreeLine>& now) {
+    size_t prefix = 0, suffix = 0;
+    while (prefix < old.size() && prefix < now.size() && old[prefix].key() == now[prefix].key()) ++prefix;
+    while (suffix < old.size() - prefix && suffix < now.size() - prefix &&
+           old[old.size() - 1 - suffix].key() == now[now.size() - 1 - suffix].key()) {
+        ++suffix;
+    }
+    std::vector<const TreeLine*> a, b;
+    std::vector<std::string> a_keys, b_keys;
+    for (size_t k = prefix; k < old.size() - suffix; ++k) {
+        a.push_back(&old[k]);
+        a_keys.push_back(old[k].key());
+    }
+    for (size_t k = prefix; k < now.size() - suffix; ++k) {
+        b.push_back(&now[k]);
+        b_keys.push_back(now[k].key());
+    }
+    std::vector<std::pair<size_t, size_t>> pairs = common_lines(a_keys, b_keys);
+    pairs.emplace_back(a.size(), b.size());
+    std::vector<std::string> out;
+    size_t i = 0, j = 0;
+    for (const auto& pair : pairs) {
+        size_t gone = pair.first - i, came = pair.second - j;
+        for (size_t k = 0; k < std::max(gone, came); ++k) {
+            const TreeLine* was = k < gone ? a[i + k] : nullptr;
+            const TreeLine* is = k < came ? b[j + k] : nullptr;
+            if (was && is && was->place() == is->place()) {
+                out.push_back("~" + is->text());
+                continue;
+            }
+            if (was) out.push_back("-" + was->text());
+            if (is) out.push_back("+" + is->text());
+        }
+        i = pair.first + 1;
+        j = pair.second + 1;
+    }
+    return out;
+}
+
+json::Value tree_result(bool matched, std::string id, const char* mode, std::string text, size_t lines,
+                        bool truncated, bool secure) {
+    json::Value result = json::object();
+    result.set("matched", json::boolean(matched));
+    result.set("tree_id", json::str(std::move(id)));
+    result.set("mode", json::str(mode));
+    result.set("text", json::str(std::move(text)));
+    result.set("lines", json::integer(static_cast<int64_t>(lines)));
+    result.set("truncated", json::boolean(truncated));
+    result.set("secure", json::boolean(secure));
+    return result;
+}
+
+// Kept as a new version; against previous when it is a kept version of window and this walk was not truncated, whose
+// unread lines a diff would give as removed.
+Outcome tree_answer(Walked walked, const std::string& window, const std::optional<std::string>& previous) {
+    std::string id = "t-" + std::to_string(++g_tree_ids);
+    std::optional<std::vector<TreeLine>> old;
+    for (const TreeVersion& version : g_trees) {
+        if (previous && version.id == *previous && version.window == window) old = version.lines;
+    }
+    std::vector<std::string> text;
+    const char* mode = "full";
+    if (old && !walked.truncated) {
+        text = diff(*old, walked.lines);
+        mode = text.empty() ? "no_change" : "diff";
+    } else {
+        for (const TreeLine& line : walked.lines) text.push_back(line.text());
+    }
+    std::string joined;
+    for (const std::string& line : text) joined += (joined.empty() ? "" : "\n") + line;
+    size_t count = walked.lines.size();
+    g_trees.push_back({id, window, std::move(walked.lines)});
+    if (g_trees.size() > kKeptTrees) g_trees.pop_front();
+    return success(tree_result(true, std::move(id), mode, std::move(joined), count, walked.truncated, walked.secure));
+}
+
+struct TreeParams {
+    DWORD pid = 0;
+    std::optional<RECT> bounds;
+    std::optional<std::string> previous;
+    size_t max_lines = kTreeLines, max_scalars = kTreeScalars;
+};
+
+// CONTRACT §7.4: one window's controls as text lines, read with one subtree cache request (and one more for the text
+// controls' values); the text is not redacted (the main process does).
+Outcome tree_read(IUIAutomation* automation, const TreeParams& p) {
+    ULONGLONG started = GetTickCount64();
+    Reads reads;
+    reads.pid = p.pid;
+    HWND hwnd = p.bounds ? matching_window(p.pid, *p.bounds) : uia::front_window(p.pid);
+    if (!hwnd) return success(tree_result(false, "t-" + std::to_string(++g_tree_ids), "full", "", 0, false, false));
+    ComPtr<IUIAutomationCacheRequest> cache;
+    if (FAILED(automation->CreateCacheRequest(&cache))) return failure("internal", "cannot make a UIA cache request");
+    cache->put_TreeScope(TreeScope_Subtree);
+    for (PROPERTYID id : {UIA_ControlTypePropertyId, UIA_NamePropertyId, UIA_HelpTextPropertyId,
+                          UIA_IsPasswordPropertyId, UIA_IsEnabledPropertyId, UIA_IsOffscreenPropertyId,
+                          UIA_RuntimeIdPropertyId, UIA_ToggleToggleStatePropertyId,
+                          UIA_SelectionItemIsSelectedPropertyId, UIA_ExpandCollapseExpandCollapseStatePropertyId}) {
+        cache->AddProperty(id);
+    }
+    ComPtr<IUIAutomationElement> root;
+    if (!reads.ok(automation->ElementFromHandleBuildCache(hwnd, cache.Get(), &root)) || !root) {
+        if (reads.timed_out) return uia::timeout();
+        return failure("ax_unavailable", "the app does not answer UI Automation reads of its window");
+    }
+    std::map<std::string, std::string> values;
+    bool unread = has_text_controls(root.Get()) &&
+                  (GetTickCount64() - started > kTreeValuesBy || !read_values(automation, root.Get(), reads, values));
+    Walked walked = walk_tree(root.Get(), values, p.max_lines, p.max_scalars);
+    walked.truncated = walked.truncated || unread;
+    std::string window = std::to_string(p.pid) + ":" + std::to_string(reinterpret_cast<uintptr_t>(hwnd));
+    return tree_answer(std::move(walked), window, p.previous);
+}
+
+// ---- browser.front_tab
+
+// The front-most window of the Chromium browser whose app id is exe: visible, uncloaked, unowned, of Chromium's
+// window class and with a title; minimized counts.
+HWND browser_window(const wchar_t* exe) {
+    struct Search {
+        const wchar_t* exe;
+        std::map<DWORD, bool> theirs;
+        HWND found;
+    } search{exe, {}, nullptr};
+    EnumWindows([](HWND hwnd, LPARAM into) -> BOOL {
+        auto* s = reinterpret_cast<Search*>(into);
+        wchar_t type[32] = {};
+        if (!IsWindowVisible(hwnd) || win32::is_cloaked(hwnd) || GetWindow(hwnd, GW_OWNER) ||
+            !GetClassNameW(hwnd, type, 32) || std::wcscmp(type, L"Chrome_WidgetWin_1") != 0 ||
+            uia::window_title(hwnd).empty()) {
+            return TRUE;
+        }
+        DWORD pid = win32::owner_pid(hwnd);
+        auto known = s->theirs.find(pid);
+        if (known == s->theirs.end()) {
+            HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+            std::wstring id = process ? win32::app_id_of(process, win32::base_name(win32::image_path(process)))
+                                      : std::wstring();
+            if (process) CloseHandle(process);
+            known = s->theirs.emplace(pid, id == s->exe).first;
+        }
+        if (!known->second) return TRUE;
+        s->found = hwnd;
+        return FALSE;
+    }, reinterpret_cast<LPARAM>(&search));
+    return search.found;
+}
+
+// The lower-case host of a URL the address bar shows, scheme or not (Chromium leaves out http:// and https://);
+// empty when the text is no URL with a host (a search being typed, about:blank).
+std::wstring url_host(const std::wstring& shown) {
+    size_t start = shown.find_first_not_of(L' '), end = shown.find_last_not_of(L' ');
+    if (start == std::wstring::npos) return {};
+    std::wstring text = shown.substr(start, end - start + 1);
+    for (wchar_t c : text) {
+        if (std::iswspace(c)) return {};
+    }
+    size_t colon = text.find(L':'), from = 0;
+    bool scheme = colon != std::wstring::npos && colon > 0 && std::iswalpha(text[0]);
+    for (size_t k = 0; scheme && k < colon; ++k) {
+        wchar_t c = text[k];
+        scheme = c < 0x80 && (std::iswalnum(c) || c == L'+' || c == L'-' || c == L'.');
+    }
+    if (scheme) {
+        if (text.compare(colon, 3, L"://") != 0) return {};
+        from = colon + 3;
+    }
+    std::wstring authority = text.substr(from, text.find_first_of(L"/?#", from) - from);
+    size_t at = authority.rfind(L'@');
+    if (at != std::wstring::npos) authority = authority.substr(at + 1);
+    std::wstring host = authority;
+    if (!authority.empty() && authority[0] == L'[') {
+        size_t close = authority.find(L']');
+        if (close == std::wstring::npos) return {};
+        host = authority.substr(1, close - 1);
+    } else {
+        size_t port = authority.rfind(L':');
+        if (port != std::wstring::npos) {
+            for (size_t k = port + 1; k < authority.size(); ++k) {
+                if (!std::iswdigit(authority[k])) return {};
+            }
+            host = authority.substr(0, port);
+        }
+        if (host.empty()) return {};
+        // Without a scheme only a dotted name or localhost is an address, not one word of a search.
+        bool dotted = host.find(L'.') != std::wstring::npos && host.front() != L'.' && host.back() != L'.';
+        if (!scheme && !dotted && win32::lower(host) != L"localhost") return {};
+        for (wchar_t c : host) {
+            if (c < 0x80 && !std::iswalnum(c) && c != L'.' && c != L'-' && c != L'_') return {};
+        }
+    }
+    return host.empty() ? host : win32::lower(host);
+}
+
+// What UIA reads of a browser window, found by Chromium's view class names, which no language changes: the root
+// view's accessible name (the window title as Chromium announces it) and the address bar's text.
+struct Tab {
+    std::wstring name;
+    std::optional<std::wstring> address;
+};
+
+void tab_read(IUIAutomation* automation, HWND hwnd, DWORD pid, Tab& tab) {
+    Reads reads;
+    reads.pid = pid;
+    IUIAutomationCacheRequest* cache = uia::cache_request(automation);
+    ComPtr<IUIAutomationElement> window, view, omnibox;
+    ComPtr<IUIAutomationCacheRequest> value;
+    ComPtr<IUIAutomationCondition> root = uia::condition(automation, UIA_ClassNamePropertyId, L"BrowserRootView");
+    ComPtr<IUIAutomationCondition> address = uia::condition(automation, UIA_ClassNamePropertyId, L"OmniboxViewViews");
+    if (!reads.ok(automation->ElementFromHandleBuildCache(hwnd, cache, &window)) || !window) return;
+    if (root && reads.ok(window->FindFirstBuildCache(TreeScope_Children, root.Get(), cache, &view)) && view) {
+        tab.name = uia::info(view.Get()).name;
+    }
+    if (reads.timed_out || !address || FAILED(automation->CreateCacheRequest(&value)) ||
+        FAILED(value->AddProperty(UIA_ValueValuePropertyId)) ||
+        !reads.ok(window->FindFirstBuildCache(TreeScope_Descendants, address.Get(), value.Get(), &omnibox)) ||
+        !omnibox) {
+        return;
+    }
+    VARIANT text;
+    VariantInit(&text);
+    if (SUCCEEDED(omnibox->GetCachedPropertyValue(UIA_ValueValuePropertyId, &text)) && text.vt == VT_BSTR &&
+        text.bstrVal) {
+        tab.address = std::wstring(text.bstrVal, SysStringLen(text.bstrVal));
+    }
+    VariantClear(&text);
+}
+
+// Whether the window is private. Edge writes InPrivate, a name it does not translate, into its title and its root
+// view's name. Chrome adds a translated "(Incognito)" to its root view's name only: a name that is just the title is
+// a normal window in any language, and one with more but not the English word is unknown (null).
+json::Value private_window(bool edge, const std::wstring& title, const std::wstring& name) {
+    if (edge) {
+        return json::boolean(title.find(L"InPrivate") != std::wstring::npos ||
+                             name.find(L"InPrivate") != std::wstring::npos);
+    }
+    if (name.find(L"Incognito") != std::wstring::npos) return json::boolean(true);
+    if (!name.empty() && name == title) return json::boolean(false);
+    return json::null();
+}
+
 }  // namespace
 
 Outcome ax_dialog_buttons(const json::Value& params) {
@@ -596,4 +1177,46 @@ Outcome ax_window_text(const json::Value& params) {
     p.max_nodes = nodes ? static_cast<size_t>(nodes->i) : kDefaultNodes;
     p.max_scalars = chars ? static_cast<size_t>(chars->i) : p.focused_level ? kFocusedScalars : kWindowScalars;
     return uia::on_uia(uia::kTextMs, p.pid, [p](IUIAutomation* automation) { return text_read(automation, p); });
+}
+
+Outcome ax_window_tree(const json::Value& params) {
+    TreeParams p;
+    p.pid = uia::live_pid(params.get("pid"));
+    if (!p.pid) return uia::gone();
+    if (uia::skipped(p.pid)) return uia::timeout();
+    if (const json::Value* bounds = params.get("window_bounds")) p.bounds = rect_param(*bounds);
+    if (const json::Value* previous = params.get("previous")) p.previous = previous->s;
+    if (const json::Value* lines = params.get("max_lines")) p.max_lines = static_cast<size_t>(lines->i);
+    if (const json::Value* chars = params.get("max_scalars")) p.max_scalars = static_cast<size_t>(chars->i);
+    return uia::on_uia(uia::kTreeMs, p.pid, [p](IUIAutomation* automation) { return tree_read(automation, p); });
+}
+
+// CONTRACT §7.3 for Windows: Chrome and Edge through UI Automation, which needs no permission; what cannot be read in
+// time is null.
+Outcome browser_front_tab(const json::Value& params) {
+    const std::string& app = params.get("app_id")->s;
+    json::Value result = json::object();
+    result.set("url_host", json::null());
+    result.set("incognito", json::null());
+    bool edge = app == "msedge.exe";
+    if (!edge && app != "chrome.exe") return success(std::move(result));
+    HWND hwnd = browser_window(edge ? L"msedge.exe" : L"chrome.exe");
+    if (!hwnd) return failure("process_gone", "the browser has no window");
+    DWORD pid = win32::owner_pid(hwnd);
+    if (uia::skipped(pid) || !uia::available()) return success(std::move(result));
+    wchar_t title[1024] = {};
+    int length = GetWindowTextW(hwnd, title, 1024);
+    auto tab = std::make_shared<Tab>();
+    if (!uia::call(uia::kTabMs, pid, [tab, hwnd, pid](IUIAutomation* automation) {
+            tab_read(automation, hwnd, pid, *tab);
+        })) {
+        return success(std::move(result));
+    }
+    json::Value incognito =
+        private_window(edge, std::wstring(title, length > 0 ? static_cast<size_t>(length) : 0), tab->name);
+    result.set("incognito", incognito);
+    std::wstring host = incognito.type == json::Type::Bool && !incognito.b && tab->address ? url_host(*tab->address)
+                                                                                         : std::wstring();
+    if (!host.empty()) result.set("url_host", json::str(uia::utf8(host)));
+    return success(std::move(result));
 }

@@ -112,10 +112,10 @@
 |---|---|---|---|---|
 | `attention.sample` | 两者 | 选填 `include_titles`、`include_input`、`include_audio` | 见下 | — |
 | `presence.watch` | 两者 | `enabled` | `watching` | — |
-| `browser.front_tab` | 仅 Mac | `app_id` | `url_host`、`incognito`，读不到时为 null | `automation_denied`、`process_gone` |
+| `browser.front_tab` | 两者 | `app_id` | `url_host`、`incognito`，读不到时为 null | `automation_denied`、`process_gone` |
 | `input.modifiers` | 两者 | — | `alt`、`shift`、`control`、`meta` | — |
 | `input.watch` | 两者 | `enabled` | `watching` | `permission_denied` |
-| `input.actions` | 仅 Mac | `enabled` | `watching` | `permission_denied` |
+| `input.actions` | 两者 | `enabled` | `watching` | `permission_denied` |
 
 `attention.sample` 一次读完下列字段，任何一项读不到时为 null，不报错：
 
@@ -127,7 +127,7 @@
 | `idle_s` | 距上一次任何输入的秒数 | `GetLastInputInfo` |
 | `locked` | 屏幕已锁 | WTS 会话状态 |
 | `secure_input` | 系统安全输入开着（macOS `IsSecureEventInputEnabled`） | 恒为 false |
-| `focus_role`、`focus_native_role`、`focus_window_role`、`focus_window_native_role`、`focus_window_subrole` | 焦点控件的角色，及其所在窗口或 sheet 的角色（第 2 节第 10 条） | 按第 7.13 节换成 AX 名字 |
+| `focus_role`、`focus_native_role`、`focus_window_role`、`focus_window_native_role`、`focus_window_subrole` | 焦点控件的角色，及其所在窗口或 sheet 的角色（第 2 节第 10 条） | UIA 的焦点元素，和从它往上第一个 `Window` 控件（焦点元素自己是窗口时就是它）；`native_role` 是 ControlType 名，按第 7.13 节换成 AX 名字；UIA 400 ms 内没答完或焦点在桌面上时都为 null，往上 16 层没有窗口时 `focus_window_*` 为 null |
 | `camera_active`、`mic_active` | 有设备在用；helper 自己在录音时 `mic_active` 为 null | 摄像头看当前用户的 `CapabilityAccessManager\ConsentStore\webcam`（打包应用是它的子键，桌面应用是它的 `NonPackaged` 的子键）：有一项 `LastUsedTimeStart` 大于 0 且 `LastUsedTimeStop` 为 0 就是有应用正在用，读不到这个键时 null；麦克风看默认采集端点上有没有活动的会话 |
 | `audio_clients` | 有音频输入或输出的进程（`include_audio`） | `IAudioSessionManager2` 枚举采集和播放端点 |
 | `input_counters`、`input_idles` | 会话级的按键、点击、滚动、移动累计数和各自的空闲秒数，从不含键码（`include_input`） | helper 用 Raw Input 自己计数，从启动时起算 |
@@ -140,13 +140,15 @@
 `front.focused_window_title`（选填）：前台 app 焦点窗口的 AX 标题（`kAXFocusedWindowAttribute` 的 `kAXTitleAttribute`），只在 `include_titles` 时读，读不到或没有辅助功能权限时 null；不带 `include_titles` 时不出现。主进程的 `chooseTitle`（`app/electron/src/common/attention.ts`）优先用它、空时再用 `front.window.title`。Windows 暂不给（不出现）。
 
 - `presence.watch` 打开后发 `presence.edge`：`lock`/`unlock`（macOS 屏幕锁定通知，Windows `WTSRegisterSessionNotification`），`sleep`/`wake`（系统睡眠和唤醒，Windows `PBT_APMSUSPEND`/`PBT_APMRESUMEAUTOMATIC`），`display_sleep`/`display_wake`（显示器，Windows `GUID_CONSOLE_DISPLAY_STATE`）。边沿原样发，去抖由主进程做。
-- `browser.front_tab` 用 AppleScript 读 Safari 或 Chrome 前台标签页的地址和无痕状态；没有自动化权限时不弹窗，回 `automation_denied`。Safari 读不出无痕状态，`incognito` 为 null。Windows 没有对应接口，主进程把浏览器窗口按 `browser_unknown` 处理。
+- `browser.front_tab` 用 AppleScript 读 Safari 或 Chrome 前台标签页的地址和无痕状态；没有自动化权限时不弹窗，回 `automation_denied`。Safari 读不出无痕状态，`incognito` 为 null。
+  - Windows 读 Chrome（`chrome.exe`）和 Edge（`msedge.exe`），用 UIA，不要权限，不回 `automation_denied`：取这个 `app_id` 最前面的浏览器窗口（可见、没被 cloak、没有属主、类名 `Chrome_WidgetWin_1`、有标题，最小化的也算），没有时回 `process_gone`；控件按 Chromium 的视图类名（UIA ClassName，不随界面语言变）找：地址是 `OmniboxViewViews` 的值，`url_host` 只取其中的主机名，小写，不带协议、端口、路径和查询，Chromium 省掉 `http://`、`https://` 时也认，不是带主机名的网址（正在输入的搜索词、`about:blank`）时为 null。无痕看窗口标题和窗口下 `BrowserRootView` 的 Name（Chromium 读给读屏软件的窗口标题）：Edge 的两处都带 `InPrivate`，这个名字各语言都不翻译；Chrome 的窗口标题不带无痕标记，`BrowserRootView` 的 Name 是标题后面加 ` (Incognito)`，这个词随界面语言翻译，所以 Name 里有 `Incognito` 为 true，Name 和标题相同为 false（任何语言都对），两处不同又没有这个词（别的语言的无痕标记，或 Chromium 给 Name 加的标签状态等）为 null。`incognito` 不为 false 时 `url_host` 为 null（同 macOS 的 Chrome）。其他 `app_id` 回两个 null；UIA 1500 ms 内没读完时也是两个 null。
 - `input.modifiers` 读当前的全局修饰键状态；`meta` 是 Command 键或 Windows 键。
 - `input.watch` 打开后，用户每次按键、按下鼠标键、松开鼠标键或滚动发一个 `input.activity`，只带种类，不带键码和位置；helper 自己合成的输入（`control.act`）不算。按键和滚动同一种类 100 ms 内最多发一个；`mouse_down`、`mouse_up` 每次都发，主进程靠这一对知道鼠标键此刻是否按着（`HostLink.buttonsDown`）。macOS 监听按键要辅助功能权限，没有时回 `permission_denied`。Windows 暂不发 `mouse_up`：主进程在一个 helper 进程发来第一个 `mouse_up` 之前，把每次 `mouse_down` 只当作一次按下。
 - `input.actions` 打开后，用户的一次动作发一个 `input.action`，带动作落到的控件：`target` 是 `ax_element`（读不到时 null），不带 `value`；落在静态文字上时 `label` 取它的文字（没有占位符时，最多 200 字）。它和 `input.watch` 各用自己的只监听 event tap，`input.watch` 照旧不读键码和位置；helper 自己合成的输入（`control.act`）不算。
   - 松开左键发 `kind: click`，按下右键发 `kind: context_menu`：helper 读点击位置，用系统级元素问这个位置上的控件，`pid` 是它所属的 app；位置本身不进事件，问不到控件时不发。同一控件 150 ms 内的重复 `click` 只发一个。
   - 按键只读修饰键和键码：带 Command、Control 或 Option 的是 `kind: shortcut`，`keys` 是小写的修饰键按 `ctrl`、`alt`、`shift`、`cmd` 的顺序加主键，用 `+` 连（`shift+cmd+p`）；主键是当前键盘布局上不带修饰键的字符，Return、Tab、空格、Delete、Esc、方向键用名字（`return`、`tab`、`space`、`delete`、`forward_delete`、`escape`、`left`、`right`、`up`、`down`），没有可见字符时是 `key<键码>`。不带这三个修饰键的 Return 和小键盘 Enter 是 `kind: submit`，`keys: "return"`。其余按键（普通打字、只带 Shift 的键）不发事件，也不读字符。按键的 `pid` 是前台 app，`target` 是它的焦点控件。
-  - 没有辅助功能权限时回 `permission_denied`。Windows 暂不实现。
+  - 没有辅助功能权限时回 `permission_denied`。
+  - Windows：动作来自第 7.3 节输入计数的那个隐藏窗口和那一份 Raw Input 注册（不另注册），不要权限，不回 `permission_denied`。Raw Input 不带位置，点击位置取处理它时的光标位置，在 UIA 线程上用 `ElementFromPoint` 问控件，`pid` 是控件所属的进程；那个 app 在 2 秒的退避里时不问，`target` 为 null。Ctrl、Alt 和 Windows 键（写 `cmd`）算快捷键的修饰键，AltGr 带出的左 Ctrl 不算；主键的字符按前台窗口的键盘布局用 `MapVirtualKeyEx` 取，`key<键码>` 是虚拟键码，`delete` 是 Backspace，`forward_delete` 是 Delete；没有 Raw Input 的重复标志，按键没松开又按下算自动重复，不发。没有设备句柄的 Raw Input（`SendInput` 合成的输入，不管哪个程序合成）不算动作；Windows helper 自己不合成输入。
 
 ### 7.4 读屏（AX / UIA）
 
@@ -157,7 +159,7 @@
 | `ax.overlays` | 两者 | — | `banners`、`ime`：`rect` 数组 | `permission_denied`、`ax_timeout` |
 | `ax.hit_chain` | 两者 | `point`；选填 `exclude_pids` | `pid`（或 null）、`chain`：`ax_hit` 数组 | `permission_denied`、`ax_timeout` |
 | `ax.window_text` | 两者 | `pid`、`level`（`focused`/`window`）；选填 `window_bounds`、`clip`、`cursor`、`max_nodes`、`max_scalars` | `snapshot_id`、`matched`、`text`、`nodes`：`ax_node` 数组、`coverage` | `permission_denied`、`ax_timeout`、`ax_unavailable`、`process_gone` |
-| `ax.window_tree` | 仅 Mac | `pid`；选填 `window_bounds`、`previous`、`max_lines`、`max_scalars` | `matched`、`tree_id`、`mode`（`full`/`diff`/`no_change`）、`text`、`lines`、`truncated`、`secure` | `permission_denied`、`ax_timeout`、`ax_unavailable`、`process_gone` |
+| `ax.window_tree` | 两者 | `pid`；选填 `window_bounds`、`previous`、`max_lines`、`max_scalars` | `matched`、`tree_id`、`mode`（`full`/`diff`/`no_change`）、`text`、`lines`、`truncated`、`secure` | `permission_denied`、`ax_timeout`、`ax_unavailable`、`process_gone` |
 | `ax.selected_text` | 两者 | `pid` | `text`，没有时 null | `permission_denied`、`ax_timeout` |
 | `ax.video_rect` | 仅 Mac | `pid` | `rect`，没有时 null | `permission_denied`、`ax_timeout`、`process_gone` |
 | `ax.watch` | 两者 | `pid`（null 表示停止）、`notifications`；选填 `read_selected_text`、`read_value`、`manual_accessibility`、`watch_id` | `watching`、`pid`；选填 `watch_id`、`element`、`window`、`manual_accessibility` | `permission_denied`、`process_gone` |
@@ -175,6 +177,7 @@
   - 密码控件（同本节第一条）照样占一行，但不读值；树里有密码控件时 `secure: true`。
   - 每次回包是一个新版本 `tree_id`，helper 记最近 8 版。`previous` 是其中一版、且是同一个窗口时只回差异：按行比（不看编号），新增的行写 `+<新行>`，没了的写 `-<旧行>`，同一位置深度、角色、标题相同只是值或状态变了的写 `~<新行>`，不变的行不写，`mode: diff`；一行都没变时 `mode: no_change`，`text` 为空串。`previous` 不认识或是别的窗口时回整棵树。`lines` 总是这一版整棵树的行数。
   - 上限：默认最多 800 行、32000 个字（每行连换行一起算；放不下的那一行不写）；整次读取最多 250 ms。到了任何一个上限就停，`truncated: true`，这时 `previous` 认识也回整棵树（`mode: full`），没读到的行不写成 `-`。没找到窗口时 `matched: false`、`mode: full`、`text` 为空串。
+  - Windows：一次带 `TreeScope_Subtree` 的 UIA 缓存请求（control view）读整棵树，再一次 `FindAll` 只读不是密码控件的文本框、文本区、组合框的值（密码控件的值从不请求）。标题取 Name，说明取 HelpText；`Text` 控件的 Name 是它的值（同 `AXStaticText`）；复选框的值是 ToggleState（`0`/`1`/`2`），单选按钮和标签页的值是选没选中（`1`/`0`），其他带 SelectionItem 的选中时写 ` (selected)`；`IsEnabled` 为假写 ` (disabled)`；ExpandCollapse 的状态写 ` (expanded)` 或 ` (collapsed)`；列表、树、表格的子项有的在屏幕外（`IsOffscreen`）时只往下走屏幕上的那些，写 ` (showing a-b of n items)`。没有 250 ms 的上限：UIA 每次调用最多 1000 ms（第 5 节第 3 条），整次最多等 1700 ms，到时回 `ax_timeout`；读值之前已用掉 1000 ms 时不读值，`truncated: true`。
 - `ax.video_rect`：焦点窗口里第一个 `AXVideo` 元素的框，最多走 12 层、400 个节点。UIA 没有视频控件类型，Windows 由主进程直接用前台窗口的框。
 - `ax.watch` 订阅一个 app 的 AX/UIA 通知。`notifications` 取 `focus`、`window`、`title`、`value`、`selection`。每次通知发一个 `ax.notification`，`element` 是通知时的焦点控件：`value_length` 是值的字数，不带值本身；`selected_text` 只在 `read_selected_text: true` 时带（对应「分享打字内容」开关）。
   - 订阅标识 `watch_id`（选填）：每个 `watch_id` 各是一份订阅，同一个 `watch_id` 新的替换旧的，不同的互不影响，可以订同一个 `pid`（活动记录和读屏各订一份）。不带 `watch_id` 是默认的那一份，含义和以前相同：同时一个 `pid`，新的替换旧的；`pid: null` 不带 `watch_id` 只停默认那份，带 `watch_id` 只停那一份。带 `watch_id` 时回包和这份订阅的每个 `ax.notification` 都带同一个 `watch_id`，不带时都不出现。`process_gone`、`permission_denied` 不动已有的订阅。
@@ -184,7 +187,7 @@
   - `window`：`window`、`title` 两种通知另带 `ax_window`，焦点控件读不到、`element` 为 null 时也读，读不到窗口时 null；其他通知不出现。
   - `read_value`（选填，默认 false）：为 true 时 `element.value` 带控件值的文字（先 `AXStringForRange` 读 0 到 `value_length`，读不到再读 `AXValue`）；密码控件和系统安全输入开着时为 null。不带或 false 时 `value` 不出现。只在主进程的「分享打字内容」开着时传 true，写法同 `read_selected_text`。
   - `manual_accessibility`（选填，默认 false）：为 true 时订阅前给这个 app 设 `AXManualAccessibility = true`（Electron、Chromium 类 app 要这样才建 AX 树），回包带 `manual_accessibility`：设成功了没有；不带时不出现。名单由主进程按 bundle id 决定（`app/electron/src/main/activity/recorder.ts` 的 `MANUAL_ACCESSIBILITY`）：`com.microsoft.VSCode`、`com.todesktop.230313mzl4w4u92`、`com.openai.codex`、`com.anthropic.claudefordesktop`、`md.obsidian`。
-  - Windows：实现 `ax.watch` 时要支持 `watch_id`；其余新字段暂不给（`element_key`、`source_key`、`window`、`value`、回包的 `element`、`window`、`manual_accessibility` 都不出现），`read_value`、`manual_accessibility` 被接受但不起作用。
+  - Windows：`element_key`、`source_key` 用 RuntimeId；`window` 的 `title` 是这个 app 前台窗口的标题，`doc` 恒为 null（UIA 没有文档路径），`ax_element` 不带 `doc`；`read_value` 的值先读 ValuePattern、再读 TextPattern（Document 反过来），最多 262144 个 UTF-16 单元；回包的 `element` 300 ms 内没读完时为 null。`manual_accessibility` 在 Windows 没有对应的设置：被接受，传 true 时回包带 `manual_accessibility: false`。
 
 ### 7.5 截图
 

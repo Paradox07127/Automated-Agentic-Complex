@@ -523,8 +523,10 @@ Handler find_handler(const std::string& name) {
         {"workspace.watch", workspace_watch},
         {"attention.sample", attention_sample},
         {"presence.watch", presence_watch},
+        {"browser.front_tab", browser_front_tab},
         {"input.modifiers", input_modifiers},
         {"input.watch", input_watch},
+        {"input.actions", input_actions},
         {"capture.window", capture_window},
         {"capture.ambient", capture_ambient},
         {"ocr.languages", ocr_languages},
@@ -534,6 +536,7 @@ Handler find_handler(const std::string& name) {
         {"ax.overlays", ax_overlays},
         {"ax.hit_chain", ax_hit_chain},
         {"ax.window_text", ax_window_text},
+        {"ax.window_tree", ax_window_tree},
         {"ax.selected_text", ax_selected_text},
         {"ax.watch", ax_watch},
         {"control.listen", control_listen},
@@ -550,7 +553,7 @@ Handler find_handler(const std::string& name) {
 
 const std::vector<const char*>& event_names() {
     static const std::vector<const char*> names = {"workspace.changed", "presence.edge", "input.activity",
-                                                   "ax.notification", "control.request", "ptt.down", "ptt.up",
-                                                   "mic.level", "speech.partial", "speech.download"};
+                                                   "input.action", "ax.notification", "control.request", "ptt.down",
+                                                   "ptt.up", "mic.level", "speech.partial", "speech.download"};
     return names;
 }
