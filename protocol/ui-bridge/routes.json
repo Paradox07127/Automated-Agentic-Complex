@@ -49,6 +49,7 @@
   {"method": "GET", "path": "/proactive/mutes", "class": "read", "surfaces": ["main", "stack"], "plugin": "light_ai"},
   {"method": "GET", "path": "/proactive/settings", "class": "read", "surfaces": ["main", "onboarding"], "plugin": "light_ai"},
   {"method": "GET", "path": "/proactive/stats", "class": "read", "surfaces": ["main"], "plugin": "light_ai"},
+  {"method": "GET", "path": "/brief/day", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "/summary/runs", "class": "read", "surfaces": ["main"], "plugin": "daily_brief"},
   {"method": "GET", "path": "/trace/turns", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "/trace/decisions", "class": "read", "surfaces": ["main"]},

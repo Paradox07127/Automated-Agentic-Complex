@@ -69,6 +69,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'GET', path: '/proactive/mutes', templates: ['/proactive/mutes'], class: 'read', surfaces: ['main', 'stack'], plugin: 'light_ai' },
   { method: 'GET', path: '/proactive/settings', templates: ['/proactive/settings'], class: 'read', surfaces: ['main', 'onboarding'], plugin: 'light_ai' },
   { method: 'GET', path: '/proactive/stats', templates: ['/proactive/stats'], class: 'read', surfaces: ['main'], plugin: 'light_ai' },
+  { method: 'GET', path: '/brief/day', templates: ['/brief/day'], class: 'read', surfaces: ['main'] },
   { method: 'GET', path: '/summary/runs', templates: ['/summary/runs'], class: 'read', surfaces: ['main'], plugin: 'daily_brief', response: 'summary-runs.json' },
   { method: 'GET', path: '/trace/turns', templates: ['/trace/turns'], class: 'read', surfaces: ['main'], response: 'trace-turns.json' },
   { method: 'GET', path: '/trace/decisions', templates: ['/trace/decisions'], class: 'read', surfaces: ['main'] },
@@ -230,7 +231,7 @@ export type AgentdRouteKey =
   | `GET /motions/${string}/keys` | `GET /motions/${string}/tracks` | 'GET /tasks' | 'GET /capabilities'
   | 'GET /day/segments' | 'GET /episodes' | 'GET /commitments' | 'GET /schedules' | 'POST /schedules'
   | `PUT /schedules/${string}` | `DELETE /schedules/${string}` | `POST /schedules/${string}/run` | 'GET /focus'
-  | 'GET /proactive/mutes' | 'GET /proactive/settings' | 'GET /proactive/stats' | 'GET /summary/runs'
+  | 'GET /proactive/mutes' | 'GET /proactive/settings' | 'GET /proactive/stats' | 'GET /brief/day' | 'GET /summary/runs'
   | 'GET /trace/turns' | 'GET /trace/decisions' | 'GET /trace/export' | `GET /sessions/${string}/lines`
   | `GET /trace/turns/${string}` | `GET /episodes/${string}/evidence` | `GET /diag/observations/${string}`
   | 'GET /conversations' | `GET /conversations/${string}/turns` | 'GET /character/runtime'

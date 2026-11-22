@@ -355,6 +355,13 @@
   ],
   [
     "GET",
+    "/brief/day",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "GET",
     "/summary/runs",
     [
       "ui_token"

@@ -329,6 +329,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | GET | `/proactive/mutes` | ui | `read` | main、stack | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/proactive/settings` | ui | `read` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/proactive/stats` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| GET | `/brief/day` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/summary/runs` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `summary-runs.json` |
 | GET | `/trace/turns` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `trace-turns.json` |
 | GET | `/trace/decisions` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
@@ -627,6 +628,20 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 隐私同步：Companion 保存后的 `POST /context/privacy/sync {}` 只允许 UI token，返回 `{permissions: {window_text, page_text, screenshots, typed_text, agent_sessions}, consent_epoch}`。可带 `revoke: ["window_text"|"page_text"|"screenshots"|"typed_text"|"agent_sessions"]` 作为撤销记录，确保快速关闭再开启也会丢掉旧缓存。请求本身不授予权限，后台仍只认保存配置；ticker 和读取/出站边界也会复核，UI 离线不影响后台自行收窄。
 
 hook 解绑：设置 › 会话中的每个已安装工具提供「解绑」。该动作走 `POST /integrations/hooks/disconnect {"target":"claude"|"codex"}`，只接受 UI token，配置路径由服务器确定；只移除本服务的 observe-only 组，不留副本，保留其他 hooks、配置键和会话记录。响应为 `{target, removed}`；重复解绑不写文件。JSON 损坏或预备期间文件改变返回 409，读写失败返回 500，不显示成功。`installed=false` 优先于历史 `last_at`，避免解绑后仍误报「接上了」。已经运行的编码工具可能保留旧 hook 配置，重启后生效。解绑不删除历史，也不撤销曾经授予源工具的其他权限。
+
+#### 每日简报 `GET /brief/day?date=YYYY-MM-DD`
+
+主窗口使用 ui token。按服务所在时区的自然日查询，含今天及之前六天。缺少日期、格式不符或日期不存在，回 400 `{"error":"invalid_date"}`。日期有效但超出范围，回 400 `{"error":"date_out_of_range"}`。
+
+200 的顶层字段为 `date`、`partial`、`switches`、`items`、`focus` 和 `her`。今天的 `partial` 为 true，统计截至请求时刻。所有时间戳均为 Unix 秒。
+
+- `switches` 表示当前有效开关。`scr` 对应屏幕感知插件，`read` 对应屏幕识读插件且允许窗口文字或网页正文，`shot` 对应截图同意，`code` 对应编码会话插件且允许读取编码会话，`agent` 对应个人 Agent 插件，`voice` 表示已配置 TTS、当前角色启用语音且未静音。
+- `items` 含 `done/err`（任务、运行和会话的完成或失败记录）、`turn`（对话往返）、`line`（角色发言）、`fg`（非 AFK 分钟）、`say`（主动台词）、`motion`（动作开始）、`touch`（有记录的触碰）、`voice`（语音秒数）、`mem`（新事实）、`cost`（美元）、`code`（活跃编码会话）、`shot`（已发送截图）、`mask`（有日期记录的外发遮蔽数）和 `rem`（到期提醒）。每项均为 `{enabled,today,hours,avg7,yesterday}`。一个会话在同一天计一次，归入当天首次有活动记录的小时。
+- `hours` 的 24 项对应本地 0–23 点。`cost` 和 `mask` 按日返回，`hours` 为 null。`avg7` 为所选日期之前七个自然日的总数除以七，七天内无该项记录为 null。昨天无记录时 `yesterday` 为 null。所需开关全部关闭时，跳过该来源，`enabled` 为 false，合计为零，比较值为 null。
+- `focus` 为 `{enabled,away_min,longest,pauses,apps,sites}`。`longest` 为 `{start,minutes}` 或 null，`pauses` 为当天已知暂停区间 `[start,end][]`。`apps` 和 `sites` 分别为 `{name,minutes}[]` 和 `{host,minutes}[]`，按前台分钟降序各取前六。屏幕感知关闭时整块为空值。站点另需开启识读并允许网页正文，仅计能排除无痕的前台浏览记录。
+- `her.said` 为 `{total,self,replied}`，分别为发言总数、主动台词数和用户回复过的主动台词数。`lines` 按 `self`、`reply`、`miss` 各取最近一条 `{at,kind,text,note}`。`touch` 含 `pat,pinch,drag,wheel` 四项。`why` 和 `motions` 为按次数降序排列的 `{key,label,count}[]`，动作最多六项。`desk` 的同形记录另带 `minutes`，计次行为为 null。
+- `her.tools` 为 `{enabled,by_name,files_changed,run_minutes,asked}`，包括各工具的 `{key,label,count}`、确认写入的不同文件数、当天的运行分钟以及提问或审批卡数。插件关闭时返回空列表和零。`mood` 取当前角色，按时间升序返回 `[at,energy,valence][]`。`on_desk_min` 无可用时长记录时为 null。
+- 所有读数限于各来源保留的记录。触碰可从 tap、ritual 输入和拖动打断回执识别，完整手势流水未保存。窗顶分钟按运行与终态回执配对，其间跨午夜按日切分；仍在执行的行为计至请求时刻。让路按取消回执计次。屏幕边缘停留、渲染器本地迎接及角色显示时长均无可按日还原的流水。外发遮蔽只汇总有时间戳的 `egress.checked`，进程累计值无法分配给具体日期。
 
 ### 4.3 `tool_summary`
 

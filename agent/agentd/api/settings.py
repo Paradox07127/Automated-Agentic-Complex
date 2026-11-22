@@ -1,8 +1,11 @@
 """POST /model/*, PUT /behavior/capabilities and /behavior/switches, /proactive/*, and POST /reset."""
+from datetime import date
+import re
 from urllib.parse import parse_qs, urlparse
 
 import c1
 from character.proactive import MUTABLE
+from personal.brief_day import brief_day
 
 RESET_CONFIRM = "delete all local data"  # POST /reset's body must be {"confirm": RESET_CONFIRM}
 
@@ -151,6 +154,20 @@ class SettingsMixin:
             return self._json(400, {"error": "invalid_days"})
         log = self.server.proactive_log
         self._json(200, log.stats(min(days, 30), self.server.clock()) if log is not None else {})
+
+    def _brief_day_get(self):
+        query = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+        raw = query.get("date", [""])[0]
+        if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", raw):
+            return self._json(400, {"error": "invalid_date"})
+        try:
+            day = date.fromisoformat(raw)
+        except ValueError:
+            return self._json(400, {"error": "invalid_date"})
+        now = self.server.clock()
+        if not 0 <= (date.fromtimestamp(now) - day).days <= 6:
+            return self._json(400, {"error": "date_out_of_range"})
+        return self._json(200, brief_day(self.server, day, now))
 
     def _proactive_mutes_put(self):
         """PUT /proactive/mutes: the whole list of muted proactive kinds each time."""

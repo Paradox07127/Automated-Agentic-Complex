@@ -209,6 +209,8 @@ REGISTRY = (
           owner=SERVER, action="_proactive_settings_get", summary="Companion mode and quiet hours", spec=C6),
     Route("GET", "/proactive/stats", UI, "read", ("main",),
           owner=SERVER, action="_proactive_stats_get", summary="Proactive response counts by trigger", spec=C6),
+    Route("GET", "/brief/day", UI, "read", ("main",),
+          owner=SERVER, action="_brief_day_get", summary="Local daily brief from recorded activity", spec=C6),
     Route("GET", "/summary/runs", UI, "read", ("main",),
           owner=SERVER, action="_day_get", summary="Summary run receipts of one day", spec=C6,
           response="summary-runs.json"),
