@@ -1,4 +1,4 @@
-// GET /brief/day?date=YYYY-MM-DD：今天按假数据钟点截断，前 6 天按日期种子缩放同一模板；?sw=scr,voice 只开列出的开关（演示用）。
+// GET /brief/day?date=YYYY-MM-DD：今天按假数据钟点截断，前 6 天按日期种子缩放同一模板；请求或页面地址里的 sw=scr,voice 只开列出的开关（演示用）。
 import { appNow } from '../bridge/clock';
 import { ITEM_ORDER, ITEMS, type BriefDay, type BriefItemId, type BriefSwitch } from '../pages/overview/briefDay';
 import type { MockRoute } from './types';
@@ -124,7 +124,7 @@ export const routes: MockRoute[] = [
     handler: ({ query }) => {
       const date = query.get('date') ?? '';
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { status: 400, body: { error: 'invalid_date' } };
-      const sw = query.get('sw');
+      const sw = query.get('sw') ?? new URLSearchParams((globalThis.location?.hash ?? '').split('?')[1] ?? '').get('sw');
       const on = Object.fromEntries(SWITCHES.map((s) => [s, sw == null || sw.split(',').includes(s)])) as Record<BriefSwitch, boolean>;
       return { status: 200, body: build(date, on) };
     },
