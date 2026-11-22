@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 
-// Character page and the 调参 page it hands 行为与画面 to: blocks, interactions, sparse and error demos, and no sideways scroll at the four window sizes.
+// Character page and the 调参 page it hands 行为与画面 to: blocks, interactions, error and offline demos, 调参's sparse demo, and no sideways scroll at the four window sizes.
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -28,15 +28,13 @@ async function roster(page: Page) {
   return nav;
 }
 
-test('ok: roster, stage, today’s plays and the motion table with two unsaved switches; no state tabs', async ({ page }) => {
+test('ok: roster, stage and the motion table with two unsaved switches; no state tabs', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/character?still=1&demo=ok&pane=motion');
   await expect(page.getByRole('navigation', { name: '角色名册' })).toHaveCount(0);
   await roster(page);
   const stage = page.locator('[data-stage]');
   await expect(stage).toContainText('点头附和');
-  await expect(stage).toContainText('12 次');
-  await expect(page.getByRole('img', { name: /今日按小时播放/ })).toBeVisible();
   await expect(page.getByRole('grid', { name: '全部动作' })).toContainText('移动与姿态');
   await expect(page.getByRole('region', { name: '状态与行为决策' })).toHaveCount(0);
   await expect(page.getByText(/已修改\s*2\s*项/)).toBeVisible();
@@ -48,7 +46,6 @@ test('stage labels are Chinese; the jump row names each section in full', async 
   await page.goto('main.html#/character?still=1&pane=motion');
   const stage = page.locator('[data-stage]');
   await expect(stage).toContainText('触发');
-  await expect(stage).toContainText('今日');
   await expect(stage.locator('[data-nameplate]')).toHaveText('示例乙SI在做坐着');
   await expect(stage).not.toContainText(/TRIGGER|TIME|TODAY|NOW|DESKTOP PARTNER|MOTION/i);
   const jump = page.getByRole('group', { name: '跳转到分区' });
@@ -127,12 +124,10 @@ test('switching asks first and names what happens to the current character', asy
   expect(errors).toEqual([]);
 });
 
-test('sparse: few plays, and on 调参 the state curve from where the log starts', async ({ page }) => {
+test('sparse on 调参: few plays, and the state curve from where the log starts', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/character?still=1&demo=sparse&pane=motion');
-  await expect(page.locator('[data-stage]')).toContainText('1 次');
-  await expect(page.getByText(/今日播放较少/)).toBeVisible();
   await page.goto('main.html#/tune?still=1&demo=sparse');
+  await expect(page.getByText(/今日播放较少/)).toBeVisible();
   await expect(page.getByText(/起记录/)).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -176,17 +171,19 @@ for (const theme of ['dark', 'light'] as const) {
 }
 
 const ACCENT = 'rgb(255, 241, 0)';
+// The character page's dark rows mark the selected one with this yellow left edge.
+const ROW_MARK = 'rgb(255, 230, 0)';
 
 for (const theme of ['dark', 'light'] as const) {
-  test(`yellow marks (${theme}): the current character, the current motion's index and the current hour; the commit line sits in the bottom bar`, async ({ page }) => {
+  test(`yellow marks (${theme}): the current character and the current motion's row edge; the commit line sits in the bottom bar`, async ({ page }) => {
     await page.goto(`main.html#/character?still=1&demo=ok&pane=motion&theme=${theme}`);
     const fill = (l: ReturnType<Page['locator']>) => l.evaluate((e) => getComputedStyle(e).backgroundImage + getComputedStyle(e).backgroundColor);
     const nav = await roster(page);
     await expect(nav.locator('button[aria-current]')).toHaveCount(1);
     expect(await fill(nav.locator('button[aria-current] [data-g="bg"]'))).toContain(ACCENT);
-    expect(await fill(page.locator('[data-motion="nod"] > :first-child'))).toContain(ACCENT);
-    expect(await fill(page.locator('[data-motion="talk"] > :first-child'))).not.toContain(ACCENT);
-    expect(await fill(page.getByRole('img', { name: /今日按小时播放/ }).locator('i[data-now]'))).toContain(ACCENT);
+    const edge = (l: ReturnType<Page['locator']>) => l.evaluate((e) => getComputedStyle(e).borderLeftColor);
+    expect(await edge(page.locator('[data-motion="nod"]'))).toBe(ROW_MARK);
+    expect(await edge(page.locator('[data-motion="talk"]'))).not.toBe(ROW_MARK);
     const bar = page.locator('[data-slot="bottom"]');
     await expect(bar.getByRole('button', { name: /桌面预览/ })).toBeVisible();
     await expect(bar.getByRole('button', { name: '保存' })).toBeVisible();
@@ -194,31 +191,33 @@ for (const theme of ['dark', 'light'] as const) {
   });
 }
 
-// Each 外观 section title heads its option plates; the size slider sits on the presets' line, or under them where the scene is 1100 wide or less.
+// The 外观 and 显示 tabs head their rows; the 大小 row names itself left of its presets, and the slider sits on the presets' line or wraps under them.
 for (const w of [900, 1050, 1280]) {
   test(`${w}: 外观, 显示 and 大小 head their options, and the 大小 slider sits beside or under its presets`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: 800 });
     await page.goto('main.html#/character?still=1&pane=look');
+    const tabs = page.getByRole('tablist', { name: '角色页签' });
     const pane = page.locator('[data-view="operator"] [data-pane="look"]');
-    const heads = async (title: string, list: string) => {
-      const l = (await pane.getByText(title, { exact: true }).boundingBox())!;
-      const c = (await pane.getByRole('listbox', { name: list }).boundingBox())!;
-      expect(c.y, title).toBeGreaterThanOrEqual(l.y + l.height - 1);
+    const heads = async (tab: string, list: ReturnType<Page['locator']>) => {
+      const t = (await tabs.getByRole('tab', { name: tab }).boundingBox())!;
+      const c = (await list.boundingBox())!;
+      expect(c.y, tab).toBeGreaterThanOrEqual(t.y + t.height - 1);
     };
-    await heads('外观', '外观');
-    await heads('大小', '大小预设');
+    await heads('外观', pane.getByRole('listbox', { name: '外观' }));
+    const name = (await pane.getByText('大小', { exact: true }).boundingBox())!;
     const presets = (await pane.getByRole('listbox', { name: '大小预设' }).boundingBox())!;
     const slider = (await pane.getByRole('slider', { name: '大小' }).boundingBox())!;
-    const narrow = await page.locator('[data-view="operator"]').evaluate((el) => el.clientWidth <= 1100);
-    if (narrow) {
-      expect(slider.y).toBeGreaterThanOrEqual(presets.y + presets.height - 1);
+    expect(presets.x).toBeGreaterThan(name.x + name.width - 1);
+    expect(Math.abs(presets.y + presets.height / 2 - (name.y + name.height / 2))).toBeLessThan(8);
+    if (slider.y >= presets.y + presets.height - 1) {
+      expect(slider.x + slider.width).toBeGreaterThan(presets.x);
     } else {
       expect(Math.abs(presets.y + presets.height / 2 - (slider.y + slider.height / 2))).toBeLessThan(8);
       expect(slider.x).toBeGreaterThan(presets.x + presets.width - 1);
     }
     // 显示 has its own tab in the detail panel.
-    await page.getByRole('tablist', { name: '角色页签' }).getByRole('tab', { name: '显示' }).click();
-    await heads('显示', '服装分层');
+    await tabs.getByRole('tab', { name: '显示' }).click();
+    await heads('显示', pane.getByRole('group', { name: '服装分层' }));
   });
 }
 

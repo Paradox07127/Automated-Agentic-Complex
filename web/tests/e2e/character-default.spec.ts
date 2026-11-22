@@ -31,7 +31,7 @@ async function smallChinese(page: Page): Promise<string[]> {
 }
 
 // The page brings back the preview stage as the page's main visual; its English marks are aria-hidden decoration.
-test('character-default: roster heads stay small, look and weapon options, no small Chinese', async ({ page }) => {
+test('character-default: roster heads stay small, look options and layer switches, no small Chinese', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/character?still=1&pane=look');
   // The roster opens from the stage's 切换角色 button.
@@ -42,7 +42,7 @@ test('character-default: roster heads stay small, look and weapon options, no sm
   await expect(page.getByRole('listbox', { name: '外观' }).getByRole('option').first()).toBeVisible();
   // 显示 has its own tab in the detail panel.
   await page.getByRole('tablist', { name: '角色页签' }).getByRole('tab', { name: '显示' }).click();
-  await expect(page.getByRole('listbox', { name: '服装分层' }).getByRole('option', { name: '武器' })).toBeVisible();
+  await expect(page.getByRole('group', { name: '服装分层' }).getByRole('switch', { name: '外套' })).toBeVisible();
   await expect(page.locator('main')).not.toContainText(/Plan\d|\bROLE\b/);
   expect(await page.locator('main [data-stage] :text-is("NOW")').evaluateAll((els) => els.every((e) => e.closest('[aria-hidden="true"]')))).toBe(true);
   expect(await smallChinese(page)).toEqual([]);
@@ -70,7 +70,8 @@ test('character motions: group heads stay inside the table, a behavior-only row 
   await expect(grid).not.toContainText('不支持单独预览');
   await expect(grid.locator('[data-motion="walk"]').getByRole('img', { name: '由行为触发 │ 不支持单独预览' })).toBeVisible();
   await expect(grid.locator('[data-motion="nod"]').getByRole('img', { name: /不支持单独预览/ })).toHaveCount(0);
-  for (const id of ['drag', 'idle', 'walk']) await expect(grid.locator(`[data-motion="${id}"] > :nth-child(4)`)).toHaveText('—');
+  // A row is the play-mark cell, then name, trigger, duration, ….
+  for (const id of ['drag', 'idle', 'walk']) await expect(grid.locator(`[data-motion="${id}"] > :nth-child(2) > :nth-child(3)`)).toHaveText('—');
 });
 
 test('tune: plate numbers are Title Case and no SVG text is under 11 px', async ({ page }) => {
