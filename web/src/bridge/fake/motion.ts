@@ -75,3 +75,4 @@ export function fakeMotion(character: () => string): Omit<MotionAvatarOps, 'prev
   };
 }
 export { motionGroupRoutes } from './motionGroups';
+export { traceEventRoutes } from './traceEvents';

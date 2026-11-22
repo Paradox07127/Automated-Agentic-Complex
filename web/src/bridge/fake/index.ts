@@ -37,10 +37,9 @@ import { exampleRoutes } from './endpoints';
 import { feedScript, playOnce, replyScript, scriptedStream } from './feed';
 import { fakeImports } from './imports';
 import { fakeLogs } from './logs';
-import { fakeMotion, fakePreviewSequence, fakePreviewView, motionGroupRoutes } from './motion';
+import { fakeMotion, fakePreviewSequence, fakePreviewView, motionGroupRoutes, traceEventRoutes } from './motion';
 import { createFakeOnboarding } from './onboarding';
 import { fakeOutfit } from './outfit';
-import { traceEventRoutes } from './traceEvents';
 
 pinClock(NOW);
 // Page demo fillers: each file in ./demos sets up its page's demo data when the fake bridge loads.
