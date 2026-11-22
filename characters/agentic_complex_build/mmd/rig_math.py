@@ -29,7 +29,7 @@ def humanoid_ids(document,paths):
 def pack_humanoid(pack_path):
     """The humanoid.json document the C7 pack at pack_path lists in animation.data, None without one."""
     pack_path=Path(pack_path)
-    ref=next((r for r in json.loads(pack_path.read_text())['animation']['data'] if r['file']==HUMANOID_FILE),None)
+    ref=next((r for r in json.loads(pack_path.read_text(encoding='utf-8'))['animation']['data'] if r['file']==HUMANOID_FILE),None)
     if ref is None:return None
     blob=(pack_path.parent/'animation'/HUMANOID_FILE).read_bytes()
     if hashlib.sha256(blob).hexdigest()!=ref['sha256']:raise ValueError('humanoid_map_sha256_mismatch')
