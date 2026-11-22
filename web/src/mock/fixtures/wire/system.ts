@@ -61,9 +61,12 @@ export const WIRE_RUNTIME: WireRuntimePublic = {
   interactive_tools: true,
   history_retention: 'keep',
   web_access: 'off',
-  routes: Object.fromEntries(
-    (['chat', 'background', 'judge', 'understand', 'memory', 'computer'] as const).map((p) => [p, { backend: 'codex', acp_agent: null, model: null, effort: null, follows_main: true, ready: true, error: null }]),
-  ) as WireRuntimePublic['routes'],
+  routes: {
+    ...Object.fromEntries(
+      (['chat', 'background', 'judge', 'understand', 'memory', 'computer'] as const).map((p) => [p, { backend: 'codex', acp_agent: null, model: null, effort: null, follows_main: true, ready: true, error: null }]),
+    ),
+    quick: { backend: 'pi', acp_agent: null, model: null, effort: null, follows_main: false, ready: true, error: null },
+  } as WireRuntimePublic['routes'],
   acp_agent: null,
   acp_launcher: 'local',
   workspace_dir: null,

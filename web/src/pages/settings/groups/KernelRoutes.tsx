@@ -1,14 +1,13 @@
-import type { WireRoutePurpose } from '../../../domain/wire';
 import { Table, TableCell, TableHead, TableRow } from '../../../ui';
 import type { AcpAgent } from '../api';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
-import { KERNEL_LABEL, ROUTES, routeIds, RUNTIME_EFFORT, type Opt } from '../fields';
+import { KERNEL_LABEL, ROUTES, routeIds, RUNTIME_EFFORT, type Opt, type TableRoute } from '../fields';
 import { labelOf } from '../registry';
 import { Slab } from '../Slab';
 import styles from '../groups.module.css';
 
-const PURPOSE: Record<WireRoutePurpose, string> = {
+const PURPOSE: Record<TableRoute, string> = {
   chat: '对话',
   background: '后台任务',
   judge: '主动判断',

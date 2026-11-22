@@ -24,7 +24,7 @@ const PUSHED: Record<string, (b: AgenticComplexBridge) => Promise<unknown>> = {
 async function body(r: (typeof backed)[number]): Promise<unknown> {
   const pushed = PUSHED[`${r.method} ${r.path}`];
   if (pushed) return pushed(createFakeBridge({ surface: 'stack', still: true }));
-  const res = await createFakeBridge({ surface: 'main', still: true }).agentd.request(r.method, fill(r.templates[0] ?? r.path));
+  const res = await createFakeBridge({ surface: 'main', still: true }).agentd.request(r.method, fill(r.templates[0] ?? r.path), r.method === 'GET' ? undefined : {});
   expect(res.status).toBe(200);
   return res.body;
 }

@@ -48,7 +48,7 @@ export interface WireBackend {
 }
 
 /** settings.py ROUTES: the purposes that can run on their own kernel. */
-export type WireRoutePurpose = 'chat' | 'background' | 'judge' | 'understand' | 'memory' | 'computer';
+export type WireRoutePurpose = 'chat' | 'quick' | 'background' | 'judge' | 'understand' | 'memory' | 'computer';
 
 /** One `routes` entry. null model: the main model on the main kernel, else the kernel's own; null effort: the product default, 'inherit' the harness's own. */
 export interface WireRoute {
