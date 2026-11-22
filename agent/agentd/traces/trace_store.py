@@ -11,13 +11,14 @@ from traces.trace_format import ENDS, HEAD_MAX, TEXT_MAX, VERSION, validate_even
 BATCH_MAX = 200
 PAGE_MAX = 200
 REMOTE_PRODUCERS = ("companion", "avatar")
-DAEMON_EVENTS = frozenset({"tool.started", "tool.settled", "turn.settled", "behavior.dispatched", "behavior.receipt"})
+DAEMON_EVENTS = frozenset({"tool.started", "tool.settled", "turn.settled", "behavior.dispatched", "behavior.receipt",
+                           "behavior.refused", "signal.changed", "stage.changed", "motion.chosen", "motion.state"})
 LOCAL_PRODUCERS = ("agentd", "tts")  # tts: the speech relay's lines, written by agentd (§4.1)
 PURGE_EVERY = 3600
 FORGET_CHUNK = 500  # turn_ids per query, under SQLite's bound-parameter limit
 # Stored even past the daily cap, besides ENDS and any status other than ok.
 KEPT_KINDS = {"input.received", "gate.decided", "judge.decided", "behavior.ticked", "behavior.receipt", "egress.checked", "trace.dropped",
-              "proactive.feedback"}
+              "proactive.feedback", "signal.changed", "stage.changed"}
 KEPT_PREFIXES = ("dispatch.", "approval.", "cancel.")
 DECISION_KINDS = ("gate.decided", "judge.decided", "behavior.ticked", "proactive.feedback")
 DECISION_PREFIXES = ("dispatch", "approval")

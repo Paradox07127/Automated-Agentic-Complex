@@ -63,6 +63,11 @@
 | `behavior.ticked` | `options`（列表）、`chosen`、`reason` | |
 | `behavior.dispatched` | `behavior_id`、`behavior_type`（动作指令发出）。角色工具发出的动作与发起轮次使用同一个 trace ID | |
 | `behavior.receipt` | `behavior_id`、`behavior_type`、`phase`、`reason`（可为 null）。只记录 agentd 接受的 C1 宿主回执，不推断上屏画面 | |
+| `behavior.refused` | `behavior_type`、`trigger_source`、`trigger_event`（可为 null）、`priority`、`channels`（列表）、`reason`：admit 的理由（stale / unsupported / switch_off / lifted / stage / typing / speech / posture / busy）或 `user_play`（用户自己的播放占着基础层）。agentd 的一个行为提议没有发出。仅 agentd 发出 | |
+| `signal.changed` | `source`：coarse / content / pointer / attention / present / touch / override / pause；`key`；`value`：布尔、数或一个枚举词（小写字母开头，只含小写字母、数字和 `_`，≤ 32 字；不知道写 `unknown`），不写用户文字、窗口标题、应用名、网址；`revision`（user_now 的 revision，没有为 null）。只在判断出的值变了时写，不按采样写。仅 agentd 发出 | |
+| `stage.changed` | `from`、`to`：offstage / quiet / normal / engaged；`revision`（这次变化的 user_now revision）。仅 agentd 发出 | |
+| `motion.chosen` | `clip`、`why`（选择器给的理由）、`layer`：base / overlay，这次选择没提出 `perform` 时为 null；`behavior_id`：播它的行为，被拒或没有行为播它时为 null；`t_s`（选择器时钟上的秒数）。选择器的每次选择一条。仅 agentd 发出 | |
+| `motion.state` | `origin`：agent / local / user，`phase`：started / cycle_end / ended / expired / rejected，`clip`，`behavior_id`（null 可）；agentd 收到的 C3 规则 54 `motion_state`。仅 agentd 发出 | |
 | `proactive.feedback` | `line_id`、`value`：useful / dont_disturb（`POST /feedback`） | |
 | `dispatch.proposed`、`dispatch.decided`、`dispatch.failed`、`dispatch.finished` | `request_id`；decided 另有 `decision`；failed 另有 `error`（异常类名，派活没能开始，不结束）；finished 结束 | finished |
 | `approval.opened`、`approval.decided`、`approval.retired` | `request_id`、`tool`；decided 另有 `decision`、`by`：card / native；retired 另有 `reason` | decided、retired |
@@ -93,3 +98,13 @@
 - `POST /trace/events`：body `{"events": [...]}`，每批 ≤ 200 条，`producer` 只能是 `companion` 或 `avatar`。回 200 `{"accepted": n, "rejected": [{"index", "error"}]}`；超 200 条 413。
 
 ---
+
+**动作线**（agentd）：一条 trace 可以按输入、舞台、决策、渲染器反馈几条线并排读：
+- 每条 `signal.changed` 开一条自己的 trace，`causation_id` 为 null；同一次 user_now 变化里的 `stage.changed` 接在这次最后一条 `signal.changed` 的 trace 里、由它引起，这次没有别的值变时自开一条。
+- 决策事件（`motion.chosen`、`behavior.refused`、`behavior.dispatched`）指向它读到的最新输入事件：`signal.changed`、`stage.changed`，或渲染器自己挑的反应和用户自己的播放（`origin` 为 local / user 的 `motion.state`），并进那条输入的 trace。选择器自己的一拍和她自己的日程（随机一拍、作息、受阻后另选、焦点走动）各开一条 trace，`causation_id` 为 null。
+- `behavior.dispatched` 指向它播的那次 `motion.chosen`；选择器选的片段被拒时 `behavior.refused` 指向它的 `motion.chosen`；续期指向被续的那个行为的 `behavior.dispatched`。`motion.state` 和 `behavior.receipt` 写在它那个行为的 trace 里；`motion.state` 指向那个行为的 `behavior.dispatched`，不知道是哪个行为时自开一条 trace。
+- 带轮次 trace 的提议（`think`、角色工具的 `face`）不写 `behavior.refused`、`behavior.dispatched`，由那一轮自己记。
+- 同一个拒绝（`behavior_type`、`trigger_event`、`reason` 都相同）连着出现、中间没有别的动作线事件时只写第一条：身体被占着时基础循环每秒重试一次，每次都被拒。
+- 每日上限之后 `signal.changed`、`stage.changed` 和输入一样保留；`motion.chosen`、`behavior.refused`、`behavior.dispatched`、`motion.state` 照常丢。
+
+追加（2026-11-22，只加不改）：加 kind `signal.changed`、`stage.changed`、`behavior.refused`、`motion.chosen`、`motion.state`（都只由 agentd 写，`POST /trace/events` 不收）和「动作线」一节；样例加一段动作线。

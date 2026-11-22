@@ -12,6 +12,7 @@ import time
 import c1
 from character.character_state import ENGAGED
 from fsutil import atomic_write_json, read_json
+from traces.motion_lane import MotionLane
 from traces.trace_store import new_trace_id
 from character.interactions import preset
 from motion.chooser import REGION_KEYS
@@ -228,7 +229,7 @@ class Spatial:
     def __init__(self, observe, publish, generation, epoch, clock=time.time, rng=None, trace_id=new_trace_id,
                  walk_bias=lambda: None, state=None, session_settle=SESSION_SETTLE,
                  session_min_hold=SESSION_MIN_HOLD, recovery_delay=RECOVERY_DELAY, interaction_preset="balanced",
-                 trace_epoch=lambda: None, routine=None, stage=lambda: "normal"):
+                 trace_epoch=lambda: None, routine=None, stage=lambda: "normal", lane=None):
         """observe() -> {fullscreen, user_speaking, speaking, voicing, line_id, typing, absence, session, state, related,
         window_id, activity, idle_s}: the gate flags, whether the mouth generates or speaks (and its line), whether the
         relay has audio in flight, user_now's typing and absence ({id, since} or None; may be absent), the focus
@@ -239,8 +240,10 @@ class Spatial:
         state: her CharacterState, told what she does and scaling the random tick; None leaves it out.
         routine: her Routine, which then picks the random tick's behavior and how long it lasts, and long work no
         longer sits her down; None keeps the plain random tick.
-        stage() -> user_now's stage: offstage, quiet, normal or engaged."""
+        stage() -> user_now's stage: offstage, quiet, normal or engaged.
+        lane: the MotionLane her proposals, the chooser's choices and the renderer's motion_state go to."""
         self.observe, self.publish, self.generation, self.epoch = observe, publish, generation, epoch
+        self.lane = lane or MotionLane()
         self.routine, self.stage = routine, stage
         self._refused = {}  # admit reason -> how many proposals it refused
         self._stage_revision = 0  # C1 snapshot stage.revision: stage.* events seen, over restarts once kept
@@ -856,13 +859,19 @@ class Spatial:
         """A C3 motion_state (rule 54): at a cycle end or the end of a clip the chooser chose, the chooser's playhead
         goes where the renderer's is. The user's own play holds the chooser's base clips from its start to its end."""
         with self._lock:
+            record = self.records.get(body["behavior_id"])
+            trace_id, cause = (record["behavior"]["trace_id"], record.get("dispatched")) if record is not None \
+                else (self.trace_id(), None)
+            # her own reaction and the user's play are inputs the next decisions read
+            self.lane.write("motion.state", trace_id, cause,
+                            {k: body[k] for k in ("origin", "phase", "clip", "behavior_id")},
+                            input=body["origin"] != "agent")
             if body["origin"] == "user":
                 if body["phase"] == "started":
                     self._user_play = True
                 else:
                     self._user_play_over()
                 return
-            record = self.records.get(body["behavior_id"])
             if self.chooser is None or record is None or not record["spec"].get("chosen") \
                     or body["phase"] not in ("cycle_end", "ended"):
                 return
@@ -952,24 +961,28 @@ class Spatial:
     def _take(self, choices, source, kind):
         if choices:
             clip, _, blend = self.chooser.playhead()
-            self._chosen += [(c, source, kind, blend if c["clip"] == clip else None) for c in choices]
+            # a tick of her own starts its own trace; the choices any other input made follow the newest input
+            cause = (self.trace_id(), None) if kind == "tick" else self.lane.newest or (self.trace_id(), None)
+            self._chosen += [(c, source, kind, blend if c["clip"] == clip else None, cause) for c in choices]
 
     def _propose(self, s, now):
         chosen, self._chosen = self._chosen, []
-        for choice, source, kind, blend in chosen:
-            self._choose(choice, source, kind, blend, s, now)
+        for choice, source, kind, blend, cause in chosen:
+            self._choose(choice, source, kind, blend, s, now, cause)
 
-    def _choose(self, choice, source, kind, blend, s, now):
+    def _choose(self, choice, source, kind, blend, s, now, cause):
         """One choice as a perform through admit. A clause's gesture and the speech gestures go on the overlay, and so
         does the chain after one; every other clip on the base layer. A refused one leaves the chooser's playhead on
-        what the base layer plays."""
+        what the base layer plays. cause: (trace_id, causation_id) of its motion.chosen."""
         clip, why = choice["clip"], choice["why"]
+        chosen = {"clip": clip, "why": why, "t_s": choice["t_s"], "cause": cause}
         if self._seated:
-            self._choose_within(clip, why, source, blend, s, now)
+            self._choose_within(clip, why, source, blend, s, now, chosen)
             return
         ret = self._return
         if ret is not None and ret["clip"] is not None and clip not in self.chooser.pack.chain(ret["clip"]):
             if self._return_next():
+                self._trace_chosen(chosen, None, None)
                 return  # the chooser left the step's clip: the next step's clips play instead of this one
             self._return_over()
             ret = None
@@ -977,6 +990,7 @@ class Spatial:
             ret["clip"] = clip
         if kind == "clause" and why.startswith("base before "):
             self._staged = why.removeprefix("base before ")  # the overlay needs no base to start from
+            self._trace_chosen(chosen, None, None)
             return
         overlay = kind == "clause" or why in GESTURES or clip == self._staged \
             or self._overlay is not None and why in tuple(prefix + self._overlay for prefix in CHAINED)
@@ -984,6 +998,7 @@ class Spatial:
         if not overlay:
             self._overlay = None
             if base is not None and base["spec"]["clip"]["id"] == clip:
+                self._trace_chosen(chosen, "base", base["behavior"]["behavior_id"])
                 return  # back on what the base layer plays
         spec = self._chosen_spec(clip, "overlay" if overlay else "base",
                                  "user" if ret is not None else source or self._source(why), why, blend)
@@ -992,8 +1007,11 @@ class Spatial:
         left = self._return_left(base) if not overlay and why.startswith("exit of ") else 0.0
         if left > 0:  # the renderer plays the return's clip out first (C1 §1.4), and the chooser's clock waits with it
             spec.update(start="after_exit", lifetime=spec["lifetime"] + left)
-        admitted, refused = (False, "user_play") if self._user_play and not overlay \
-            else self._send(spec, s, now, self._lapsed())
+        if self._user_play and not overlay:
+            admitted, refused = False, "user_play"
+            self._trace_chosen(chosen, "base", None, spec, refused)
+        else:
+            admitted, refused = self._send(spec, s, now, self._lapsed(), chosen)
         if ret is not None and admitted:
             self._returned.append(next(reversed(self.active)))
             if ret["part"] not in self.last_return["played"]:
@@ -1013,12 +1031,17 @@ class Spatial:
             if left > 0:
                 self.chooser.report_playhead(clip, -left)
 
-    def _choose_within(self, clip, why, source, blend, s, now):
+    def _choose_within(self, clip, why, source, blend, s, now, chosen):
         """A seated choice: her sit plays its own enter and loop, and a loop within it that the chooser leaves for that
         loop fades out; any other clip is a base perform within the sit. Before the chooser sits on the seat's loop its
         clips are the standing ones it plays out and the enter, and after the sit ended there is nothing to play within."""
         sit = next((r for r in self.active.values() if r["behavior"]["type"] in SEATED), None)
-        if sit is None or not self.chooser.seated or self._user_play:
+        if self._user_play:
+            self._trace_chosen(chosen, "base", None, self._chosen_spec(clip, "base", source or self._source(why), why,
+                                                                       blend), "user_play")
+            return
+        if sit is None or not self.chooser.seated:
+            self._trace_chosen(chosen, None, None)
             return
         within = self.active.get(self._within)
         if why.startswith(SEAT_MOVES):
@@ -1026,10 +1049,11 @@ class Spatial:
                 self._end(within, "expired")
                 self.publish("behavior_cancel", {"behavior_id": self._within, "reason": "expired", "mode": "fade_out",
                                                  "fade_s": WITHIN_FADE, "turn_generation": self.generation()})
+            self._trace_chosen(chosen, "base", sit["behavior"]["behavior_id"])  # the sit plays it
             return
         spec = self._chosen_spec(clip, "base", source or self._source(why), why, blend)
         spec["within"] = sit["behavior"]["behavior_id"]
-        if self._send(spec, s, now)[0]:
+        if self._send(spec, s, now, chosen=chosen)[0]:
             self._within = next(reversed(self.active))
 
     def _new_base(self, now):
@@ -1061,7 +1085,7 @@ class Spatial:
             spec = {k: v for k, v in base["spec"].items() if k != "start"}
             if self._return is None:
                 spec["priority"] = 0
-            if self._send(spec, s, now, self._lapsed())[0]:
+            if self._send(spec, s, now, self._lapsed(), renews=base)[0]:
                 self._new_base(now)
             return
         clip = self.chooser.playhead()[0]
@@ -1308,7 +1332,7 @@ class Spatial:
             else:
                 holds = _key(spec) in keys
             if holds:
-                self._send(spec, s, now)  # same channels: it replaces the old one
+                self._send(spec, s, now, renews=record)  # same channels: it replaces the old one
 
     def _forbidden(self, kind, target, typing):
         """C1 §1.3: a type the switches or the user's typing rule out."""
@@ -1475,14 +1499,20 @@ class Spatial:
     def _running(self, key):
         return any(_key(record["spec"]) == key for record in self.active.values())
 
-    def _send(self, spec, s, now, lapsed=()):
-        """Sends spec once admit lets it; a refused one is dropped, counted in diag() and logged, and cancels
-        nothing. Returns admit's answer."""
+    def _send(self, spec, s, now, lapsed=(), chosen=None, renews=None):
+        """Sends spec once admit lets it; a refused one is dropped, counted in diag(), logged and traced, and cancels
+        nothing. chosen: the chooser's choice it performs, traced as motion.chosen before what became of it; renews:
+        the record of the behavior it renews. Returns admit's answer."""
         admitted, reason = self.admit(spec, s, now, lapsed)
         if not admitted:
             self._refused[reason] = self._refused.get(reason, 0) + 1
             LOG.debug("behavior %s from %s refused: %s", spec["type"], spec["trigger"]["source"], reason)
+            if chosen is not None:
+                self._trace_chosen(chosen, spec["layer"], None, spec, reason)
+            elif "trace_turn_id" not in spec:
+                self._trace_refused(spec, reason, *self._cause(spec, renews))
             return admitted, reason
+        trace_id, cause = (chosen["cause"][0], None) if chosen is not None else self._cause(spec, renews)
         trace_epoch = spec.get("trace_epoch") or self.trace_epoch()
         self._count += 1
         behavior_id = spec.get("behavior_id") or f"b-{self.epoch}-{self._count}"
@@ -1507,7 +1537,7 @@ class Spatial:
                     "expires_at_ms": spec["expires_at_ms"] if "expires_at_ms" in spec
                     else int((now + spec["lifetime"]) * 1000), "intensity": intensity,
                     "channels": list(spec["channels"]), "exit": list(spec["exit"]),
-                    "replaces": named and named["behavior"]["behavior_id"], "trace_id": spec.get("trace_id") or self.trace_id()}
+                    "replaces": named and named["behavior"]["behavior_id"], "trace_id": trace_id}
         if "variant" in spec:  # a renewal sends its spec again, so the variant stays
             behavior["variant"] = spec["variant"]
         if 'facing_yaw' in spec:
@@ -1541,7 +1571,41 @@ class Spatial:
         self.active[behavior_id] = self.records[behavior_id] = record
         while len(self.records) > KEPT:
             self.records.popitem(last=False)
+        if chosen is not None:
+            cause = self._trace_chosen(chosen, spec["layer"], behavior_id)
+        if "trace_turn_id" not in spec:  # a turn's own trace takes only the turn's steps and its receipts
+            record["dispatched"] = self.lane.write("behavior.dispatched", trace_id, cause,
+                                                   {"behavior_id": behavior_id, "behavior_type": spec["type"]})
         return True, None
+
+    def _cause(self, spec, renews=None):
+        """(trace_id, causation_id) of a proposal's events: a renewal goes on in the trace of what it renews and a
+        proposal with a trace in that one; one of her own schedule starts its own; any other follows the newest
+        input."""
+        if renews is not None:
+            return renews["behavior"]["trace_id"], renews.get("dispatched")
+        if spec.get("trace_id"):
+            return spec["trace_id"], None
+        if _autonomous(spec):
+            return self.trace_id(), None
+        return self.lane.newest or (self.trace_id(), None)
+
+    def _trace_chosen(self, chosen, layer, behavior_id, spec=None, refused=None):
+        """motion.chosen of one of the chooser's choices: layer None when it proposed no perform, behavior_id the
+        behavior that plays it or None; a perform refused for it then writes behavior.refused. Its event_id."""
+        trace_id, cause = chosen["cause"]
+        event_id = self.lane.write("motion.chosen", trace_id, cause, {
+            "clip": chosen["clip"], "why": chosen["why"], "layer": layer, "behavior_id": behavior_id,
+            "t_s": chosen["t_s"]})
+        if refused is not None:
+            self._trace_refused(spec, refused, trace_id, event_id)
+        return event_id
+
+    def _trace_refused(self, spec, reason, trace_id, cause):
+        self.lane.write("behavior.refused", trace_id, cause, {
+            "behavior_type": spec["type"], "trigger_source": spec["trigger"]["source"],
+            "trigger_event": spec["trigger"]["event"], "priority": spec["priority"],
+            "channels": list(spec["channels"]), "reason": reason})
 
     def _end(self, record, why):
         """agentd stops counting it as running: expired, replaced, switch_off, exit or character_switch."""

@@ -5,6 +5,9 @@ import threading
 import time
 from types import MappingProxyType
 
+from traces.motion_lane import MotionLane
+from traces.trace_store import new_trace_id
+
 PRESENCE = ("asleep", "locked", "away", "present", "unknown")  # the first that holds wins
 DOING = ("sharing", "meeting", "gaming", "watching", "reading", "browsing", "idle")
 CONTENT_KINDS = ("game", "video", "reading", "browsing")
@@ -26,6 +29,8 @@ LATE_NIGHT = (23, 6)  # local hours [from, to): the night band of character.char
 EVENTS_KEPT = 20
 TICK = 1.0
 KEEP = object()
+FLAGS = ("fullscreen", "music", "late_night", "user_speaking", "focused")
+SET = ("meeting_manual", "dnd", "focus_timer")  # signal.changed keys of the overrides
 
 
 def typing(snapshot):
@@ -37,9 +42,21 @@ def _freeze(state):
     return MappingProxyType({k: MappingProxyType(dict(v)) if isinstance(v, dict) else v for k, v in state.items()})
 
 
+def _signals(state):
+    """The judged values signal.changed reports, by key; unknown for a value not known."""
+    flags, overrides = state["flags"], state["overrides"]
+    values = {"presence": state["presence"], "doing": state["doing"], "input_active": state["input_active"],
+              "typing": state["typing"], "absent": state["absence"] is not None, **{k: flags[k] for k in FLAGS},
+              "meeting_manual": overrides["meeting_manual"], "dnd": overrides["dnd_until"] is not None,
+              "focus_timer": overrides["focus_timer"], "paused": state["paused"]}
+    return {key: "unknown" if value is None else value for key, value in values.items()}
+
+
 class UserNow:
-    def __init__(self, clock=time.time):
+    def __init__(self, clock=time.time, lane=None):
+        """lane: the MotionLane each committed change goes to as signal.changed and stage.changed."""
         self.clock = clock
+        self.lane = lane or MotionLane()
         self._lock = threading.Lock()
         self._subscribers = []
         self._events = deque(maxlen=EVENTS_KEPT)
@@ -109,7 +126,7 @@ class UserNow:
             if self._paused(self.clock()) or self._meeting_manual:
                 return
             self._content = (ts, kind)
-            events = self._judge(deepcopy(self._state), ts)
+            events = self._judge(deepcopy(self._state), ts, "content")
         self._notify(events)
 
     def tick(self, now):
@@ -193,7 +210,8 @@ class UserNow:
             delay = HOLD.get(current, HOLD["default"])[1]
         return self._hold(name, current, target, ts, delay)
 
-    def _judge(self, state, ts):
+    def _judge(self, state, ts, source="coarse"):
+        """source: the signal.changed source of what changed but the overrides and the pause."""
         if not self._paused(self.clock()):
             self._observe(state, ts)
         dnd = self._dnd_until if self._dnd_until is not None and ts < self._dnd_until else None
@@ -202,7 +220,7 @@ class UserNow:
         state["flags"]["late_night"] = hour >= LATE_NIGHT[0] or hour < LATE_NIGHT[1]
         state["paused"] = self._paused(self.clock())
         state["stage"] = self._stage(state, ts)
-        return self._commit(state, ts)
+        return self._commit(state, ts, source)
 
     def _observe(self, state, ts):
         beat = self._beat
@@ -271,7 +289,7 @@ class UserNow:
             return "engaged"
         return "normal"  # unknown presence, and everything else
 
-    def _commit(self, state, ts):
+    def _commit(self, state, ts, source):
         before = self._state
         if state == before:
             return []
@@ -288,4 +306,19 @@ class UserNow:
         events = [{"revision": revision, "ts": ts, "name": name, "data": data} for name, data in changes]
         self._events.extend(events)
         self._state, self._snapshot = state, _freeze(state)
+        self._trace(before, state, revision, source)
         return events
+
+    def _trace(self, before, state, revision, source):
+        """Each judged value that changed starts its own trace; the stage change goes on in the last of them."""
+        old, last = _signals(before), None
+        for key, value in _signals(state).items():
+            if value != old[key]:
+                trace_id = new_trace_id()
+                last = trace_id, self.lane.write("signal.changed", trace_id, None, input=True, attrs={
+                    "source": "override" if key in SET else "pause" if key == "paused" else source, "key": key,
+                    "value": value, "revision": revision})
+        if state["stage"] != before["stage"]:
+            trace_id, cause = last or (new_trace_id(), None)
+            self.lane.write("stage.changed", trace_id, cause, input=True,
+                            attrs={"from": before["stage"], "to": state["stage"], "revision": revision})

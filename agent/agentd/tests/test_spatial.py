@@ -22,6 +22,8 @@ from motion.chooser import MotionChooser  # noqa: E402
 from observation import spatial  # noqa: E402
 from observation.spatial import Spatial  # noqa: E402
 from infra.store import open_store  # noqa: E402
+from observation.user_now import UserNow  # noqa: E402
+from traces.motion_lane import MotionLane  # noqa: E402
 from test_server import EVENTS, HOOK, UI  # noqa: E402
 from test_motion_chooser import prefs_pack  # noqa: E402
 
@@ -1844,8 +1846,52 @@ class ReceiptServerTest(ServerCase):
                          {"running": [], "switches": SWITCHES, "last_receipt": None})
 
 
+class MotionLaneServerTest(ServerCase):
+    """The motion lane in the T1 trace: what made her do what, each event pointing at its cause."""
+
+    def setUp(self):
+        super().setUp()
+        from traces.trace_store import TraceStore
+        db = Path(tempfile.mkdtemp()) / "trace.sqlite3"
+        self.addCleanup(shutil.rmtree, db.parent)
+        self.server.trace = TraceStore(open_store(db), producer_epoch=self.server.registry.epoch)
+
+    def events(self, *kinds):
+        rows = self.server.trace.db.execute("SELECT event FROM trace_events ORDER BY id").fetchall()
+        return [e for e in map(lambda row: json.loads(row[0]), rows) if not kinds or e["kind"] in kinds]
+
+    def test_a_refused_proposal_writes_behavior_refused(self):
+        self.server.spatial.stage = lambda: "offstage"
+        walk = spatial._spec("short_walk", None, "tick", None, 0, ("full_body",), ("user_drag",), 0.5, 60.0)
+        self.assertEqual(self.server.spatial.offer(walk), (False, "stage"))
+        [refused] = self.events("behavior.refused")
+        self.assertEqual(refused["attrs"], {"behavior_type": "short_walk", "trigger_source": "tick",
+                                            "trigger_event": None, "priority": 0, "channels": ["full_body"],
+                                            "reason": "stage"})
+        self.assertEqual((refused["causation_id"], self.server.trace_errors), (None, 0))
+
+    def test_the_lane_s_events_are_stored_valid_from_the_user_s_signal_to_the_renderer_s_answer(self):
+        from traces.trace_format import validate_stream
+        self.server.user_now.coarse({"ts": time.time(), "idle_s": 0, "mic_active": True})
+        self.server.spatial.use_motion(MotionChooser(PACK))
+        self.server.spatial.motion_step()
+        [loop] = [r["behavior"] for r in self.server.spatial.active.values()]
+        self.server.spatial.motion({"kind": "clause", "intent": "explain"})
+        self.server.spatial.motion_state({"behavior_id": loop["behavior_id"], "origin": "agent", "phase": "started",
+                                          "resting": True, "busy": False, "clip": "base_loop"})
+        self.server.spatial.motion_state({"behavior_id": None, "origin": "local", "phase": "started",
+                                          "resting": False, "busy": True, "clip": "wave"})
+        events = self.events()
+        self.assertEqual(self.server.trace_errors, 0)
+        self.assertEqual(validate_stream(events), [])
+        self.assertEqual({e["kind"] for e in events},
+                         {"signal.changed", "stage.changed", "motion.chosen", "behavior.dispatched", "motion.state"})
+        stage = next(e for e in events if e["kind"] == "stage.changed")
+        self.assertEqual(stage["attrs"], {"from": "normal", "to": "quiet", "revision": 1})
+
+
 class MotionStateServerTest(ServerCase):
-    GOOD = {"behavior_id": "b-1-1", "origin": "agent", "phase": "cycle_end", "resting": True, "busy": False,
+    GOOD ={"behavior_id": "b-1-1", "origin": "agent", "phase": "cycle_end", "resting": True, "busy": False,
             "clip": "base_loop"}
 
     def test_a_motion_state_reaches_spatial_with_its_fields(self):
@@ -2265,6 +2311,101 @@ class ChooserTest(SpatialCase):
                 self.assertIn(loop["behavior_id"], self.spatial.active)
                 self.assertEqual(self.spatial.chooser.playhead()[0], "relax_loop")
         self.assertValid()
+
+
+class MotionLaneTest(SpatialCase):
+    """The chooser's choices, what became of them and the renderer's motion_state on the motion lane."""
+    run_clock, performs = ChooserTest.run_clock, ChooserTest.performs
+
+    def flush(self):
+        super().flush()
+        for message in self.sent:
+            self.at.setdefault(message["behavior_id"], self.now)
+
+    def setUp(self):
+        super().setUp()
+        self.written = []
+        self.lane = self.spatial.lane = MotionLane(self.emit)
+        self.spatial._next_tick = self.now + 10 ** 6  # no random tick
+        self.spatial.stage = lambda: "normal"
+        self.registry.on_intent = self.spatial.motion_intent
+        self.at = {}
+        self.spatial.use_motion(MotionChooser(PACK))
+
+    def emit(self, kind, trace_id, causation_id=None, attrs=None):
+        self.written.append({"event_id": f"e-{len(self.written) + 1}", "kind": kind, "trace_id": trace_id,
+                             "causation_id": causation_id, "attrs": attrs})
+        return self.written[-1]["event_id"]
+
+    def kinds(self, *kinds):
+        return [e for e in self.written if e["kind"] in kinds]
+
+    def state(self, behavior_id, origin, phase, clip):
+        self.spatial.motion_state({"behavior_id": behavior_id, "origin": origin, "phase": phase, "resting": False,
+                                   "busy": True, "clip": clip})
+
+    def test_a_run_of_the_same_refusal_is_traced_once(self):
+        refused = {"behavior_type": "perform", "trigger_source": "tick", "trigger_event": "idle", "priority": 0,
+                   "channels": ["full_body"], "reason": "busy"}
+        for _ in range(3):
+            self.lane.write("behavior.refused", "t-1", None, refused)
+        self.lane.write("signal.changed", "t-2", None, {"source": "coarse", "key": "typing", "value": True,
+                                                         "revision": 1}, input=True)
+        self.lane.write("behavior.refused", "t-1", None, refused)
+        self.lane.write("behavior.refused", "t-1", None, {**refused, "reason": "stage"})
+        self.assertEqual([e["attrs"].get("reason") for e in self.written],
+                         ["busy", None, "busy", "stage"])
+
+    def test_an_input_s_choice_its_perform_and_the_renderer_s_answer_are_one_chain(self):
+        self.run_clock(1)
+        UserNow(clock=lambda: self.now, lane=self.lane).coarse({"ts": self.now, "idle_s": 0})
+        signal = self.kinds("signal.changed")[-1]
+        self.spatial.motion({"kind": "voice", "on": True})
+        self.spatial.motion({"kind": "clause", "intent": "explain"})
+        self.flush()
+        gesture = self.performs()[-1]
+        [chosen] = [e for e in self.kinds("motion.chosen") if e["attrs"]["clip"] == "point"]
+        self.assertEqual({k: chosen["attrs"][k] for k in ("why", "layer", "behavior_id")},
+                         {"why": gesture["trigger"]["event"], "layer": "overlay",
+                          "behavior_id": gesture["behavior_id"]})
+        self.assertEqual((chosen["trace_id"], chosen["causation_id"]), (signal["trace_id"], signal["event_id"]))
+        dispatched = self.kinds("behavior.dispatched")[-1]
+        self.assertEqual((dispatched["attrs"], dispatched["trace_id"], dispatched["causation_id"]),
+                         ({"behavior_id": gesture["behavior_id"], "behavior_type": "perform"}, signal["trace_id"],
+                          chosen["event_id"]))
+        self.assertEqual(gesture["trace_id"], signal["trace_id"])  # its receipts land in this trace
+        self.state(gesture["behavior_id"], "agent", "started", "point")
+        state = self.written[-1]
+        self.assertEqual((state["kind"], state["trace_id"], state["causation_id"]),
+                         ("motion.state", signal["trace_id"], dispatched["event_id"]))
+        self.assertEqual(state["attrs"], {"origin": "agent", "phase": "started", "clip": "point",
+                                          "behavior_id": gesture["behavior_id"]})
+        self.assertEqual(self.lane.newest, (signal["trace_id"], signal["event_id"]))  # her own perform is no input
+
+    def test_each_tick_of_her_own_starts_its_own_trace(self):
+        self.run_clock(60)
+        ticked = [e for e in self.kinds("motion.chosen") if e["attrs"]["why"] == "idle.t1"]
+        self.assertGreaterEqual(len(ticked), 2)
+        self.assertEqual({e["causation_id"] for e in ticked}, {None})
+        self.assertEqual(len({e["trace_id"] for e in ticked}), len(ticked))
+
+    def test_a_base_choice_during_the_user_s_play_is_refused_for_it(self):
+        self.run_clock(1)
+        [loop] = self.performs()
+        self.receipt(loop["behavior_id"], "cancelled", "user_play")
+        self.state(None, "user", "started", "wave")
+        play = self.written[-1]
+        self.assertEqual((play["kind"], play["causation_id"]), ("motion.state", None))
+        self.assertEqual(self.lane.newest, (play["trace_id"], play["event_id"]))
+        self.registry.set_role_focus(role("thinking"), generation=self.generation)
+        self.run_clock(spatial.MOTION_WAKE)
+        self.assertEqual(self.performs(), [loop])
+        chosen, refused = self.written[-2:]
+        self.assertEqual((chosen["kind"], chosen["attrs"]["clip"], chosen["attrs"]["layer"],
+                          chosen["attrs"]["behavior_id"], chosen["causation_id"]),
+                         ("motion.chosen", "think_loop", "base", None, play["event_id"]))
+        self.assertEqual((refused["kind"], refused["attrs"]["reason"], refused["trace_id"], refused["causation_id"]),
+                         ("behavior.refused", "user_play", play["trace_id"], chosen["event_id"]))
 
 
 class RestartTest(SpatialCase):

@@ -6,6 +6,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from observation.user_now import UserNow  # noqa: E402
+from traces.motion_lane import MotionLane  # noqa: E402
 
 COUNTS = {"key_idle_s": 0, "pointer_idle_s": 0, "keys_10s": 12, "keys_60s": 60}
 
@@ -325,6 +326,35 @@ class UserNowTest(unittest.TestCase):
             state["stage"] = "normal"
         with self.assertRaises(TypeError):
             state["flags"]["fullscreen"] = True
+
+    def test_each_committed_change_is_traced_once_and_the_stage_goes_on_in_its_last_signal_s_trace(self):
+        written = []
+
+        def emit(kind, trace_id, causation_id=None, attrs=None):
+            written.append({"event_id": f"e{len(written) + 1}", "kind": kind, "trace_id": trace_id,
+                            "causation_id": causation_id, "attrs": attrs})
+            return written[-1]["event_id"]
+
+        self.now = UserNow(clock=lambda: self.ts, lane=MotionLane(emit))
+        self.beat(mic_active=True)
+        signals = [(e["attrs"]["source"], e["attrs"]["key"], e["attrs"]["value"], e["attrs"]["revision"])
+                   for e in written if e["kind"] == "signal.changed"]
+        self.assertEqual(signals, [("coarse", "presence", "present", 1), ("coarse", "doing", "meeting", 1),
+                                   ("coarse", "input_active", True, 1)])
+        *_, last, stage = written
+        self.assertEqual(stage["kind"], "stage.changed")
+        self.assertEqual(stage["attrs"], {"from": "normal", "to": "quiet", "revision": 1})
+        self.assertEqual((stage["trace_id"], stage["causation_id"]), (last["trace_id"], last["event_id"]))
+        self.assertEqual(len({e["trace_id"] for e in written}), 3)  # each signal its own trace
+        self.assertEqual({e["causation_id"] for e in written[:3]}, {None})
+        self.assertEqual(self.now.lane.newest, (stage["trace_id"], stage["event_id"]))
+        self.beat(1, mic_active=True, idle_s=1)  # a new sample, nothing judged differently
+        self.assertEqual(len(written), 4)
+        self.now.set_overrides(dnd_until=self.ts + 600)
+        self.now.content(self.ts, "reading")
+        self.now.pause(self.ts + 60)
+        self.assertEqual([(e["attrs"]["source"], e["attrs"]["key"], e["attrs"]["value"]) for e in written[4:]],
+                         [("override", "dnd", True), ("pause", "paused", True)])
 
     def test_events_are_a_bounded_ring(self):
         for i in range(40):

@@ -37,6 +37,7 @@ from sessions.dispatch import Dispatcher
 from observation.spatial import Spatial
 from observation.user_now import UserNow
 from observation.user_state import UserState
+from traces.motion_lane import MotionLane
 from api.views import _iso
 from voice.voice_provider import NoVoice
 
@@ -190,7 +191,9 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self.sessions = sessions  # SessionManager for own sessions; None answers /sessions with 503
         self.capture = capture  # CaptureManager; None answers /context/text, /context/image, /look with 503
         self.clock = time.time  # the pause and DELETE /observation cutoffs, the announce slots' TTL
-        self.user_now = UserNow(clock=lambda: self.clock())  # with or without plug-ins; main runs its tick loop
+        self.motion_lane = MotionLane(self._trace)
+        # with or without plug-ins; main runs its tick loop
+        self.user_now = UserNow(clock=lambda: self.clock(), lane=self.motion_lane)
         self.coarse_logged = None  # user_now revision the last /user/coarse log line was for
         self.paused_until = None  # PUT /observation/paused: clock time the pause ends, or None
         self.quiet_until = None  # PUT /observation/quiet: clock time quiet ends, or None
@@ -240,7 +243,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         # spatial behaviors on /events; main() starts its loop
         self.spatial = Spatial(self.spatial_situation, self.registry.publish_event, lambda: self.turn_generation,
                                self.registry.epoch, interaction_preset=self.interaction.name,
-                               trace_epoch=self._trace_epoch,
+                               trace_epoch=self._trace_epoch, lane=self.motion_lane,
                                walk_bias=lambda: self.behavior.walk_bias() if self.behavior is not None else None)
         self.registry.consumed = self.spatial.consumed
         self.registry.on_intent = self.spatial.motion_intent

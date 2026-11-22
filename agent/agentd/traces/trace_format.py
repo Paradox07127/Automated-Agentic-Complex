@@ -3,6 +3,7 @@
 
 Usage: traces/trace_format.py <file.ndjson>   exit 0 when every line and the stream as a whole are valid."""
 import json
+import math
 import re
 import sys
 from datetime import datetime
@@ -26,6 +27,9 @@ UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 SPAN = re.compile(r"^[0-9a-f]{16}$")
 WALL = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})$")
 OBSERVATION_STATES = ("ready", "declined", "unavailable", "expired", "cancelled", "failed")
+SIGNAL_SOURCES = ("coarse", "content", "pointer", "attention", "present", "touch", "override", "pause")
+SIGNAL_WORD = re.compile(r"[a-z][a-z0-9_]{0,31}")
+STAGES = ("offstage", "quiet", "normal", "engaged")
 
 
 def valid_wall(value):
@@ -82,6 +86,15 @@ def _answers(v):
     return _list(v) and all(isinstance(a, dict) and {"id", "value", "prob"} <= set(a) for a in v)
 
 
+def _number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _signal_value(v):
+    # an enum word, never free text
+    return _bool(v) or _number(v) or isinstance(v, str) and bool(SIGNAL_WORD.fullmatch(v))
+
+
 SPEECH = {"speech_id": _str, "clause_id": _opt_str}
 # kind -> required attrs; the value checks each one.
 KINDS = {
@@ -121,6 +134,16 @@ KINDS = {
     "behavior.ticked": {"options": _list, "chosen": _opt_str, "reason": _opt_str},
     "behavior.dispatched": {"behavior_id": _str, "behavior_type": _str},
     "behavior.receipt": {"behavior_id": _str, "behavior_type": _str, "phase": _str, "reason": _opt_str},
+    "behavior.refused": {"behavior_type": _str, "trigger_source": _str, "trigger_event": _opt_str,
+                         "priority": _int, "channels": lambda v: _list(v) and all(map(_str, v)), "reason": _str},
+    "signal.changed": {"source": _enum(*SIGNAL_SOURCES), "key": _str, "value": _signal_value,
+                       "revision": lambda v: v is None or _int(v)},
+    "stage.changed": {"from": _enum(*STAGES), "to": _enum(*STAGES), "revision": _int},
+    "motion.chosen": {"clip": _str, "why": _str, "layer": lambda v: v is None or v in ("base", "overlay"),
+                      "behavior_id": _opt_str, "t_s": lambda v: _number(v) and v >= 0},
+    "motion.state": {"origin": _enum("agent", "local", "user"),
+                     "phase": _enum("started", "cycle_end", "ended", "expired", "rejected"), "clip": _str,
+                     "behavior_id": _opt_str},
     "proactive.feedback": {"line_id": _str, "value": _enum("useful", "dont_disturb")},
     "dispatch.proposed": {"request_id": _str},
     "dispatch.decided": {"request_id": _str, "decision": _str},

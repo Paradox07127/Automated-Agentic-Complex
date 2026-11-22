@@ -189,6 +189,25 @@ class TraceStoreTest(unittest.TestCase):
         self.assertEqual(self.trace.export()[-2]["attrs"]["count"], 1)
         self.assertEqual(validate_stream(self.trace.export(with_text=True)), [])
 
+    def test_past_the_cap_the_motion_lane_keeps_its_inputs_and_only_agentd_writes_it(self):
+        self.trace = self.make(daily_cap=1, dropped_every=1000)
+        trace_id = new_trace_id()
+        self.trace.emit("signal.changed", trace_id,
+                        attrs={"source": "coarse", "key": "presence", "value": "present", "revision": 1})
+        self.trace.emit("stage.changed", trace_id, attrs={"from": "normal", "to": "quiet", "revision": 1})
+        self.trace.emit("motion.chosen", trace_id, attrs={"clip": "c", "why": "idle.t1", "layer": "base",
+                                                          "behavior_id": None, "t_s": 1.5})
+        self.trace.emit("motion.state", trace_id, attrs={"origin": "local", "phase": "started", "clip": "c",
+                                                         "behavior_id": None})
+        self.trace.emit("behavior.refused", trace_id, attrs={
+            "behavior_type": "perform", "trigger_source": "tick", "trigger_event": "idle.t1", "priority": 0,
+            "channels": ["full_body"], "reason": "busy"})
+        self.assertEqual(self.kinds(), ["signal.changed", "stage.changed"])
+        state = {**sample()[10], "event_id": "d0d0d0d0-0000-4000-8000-000000000003", "kind": "motion.state",
+                 "attrs": {"origin": "local", "phase": "started", "clip": "c", "behavior_id": None}}
+        self.assertEqual(self.trace.ingest([state]), {"accepted": 0, "rejected": [{"index": 0,
+                                                                                    "error": "kind_not_allowed"}]})
+
     def test_rows_are_kept_by_default_whatever_their_age(self):
         self.input()
         self.now += 400 * DAY

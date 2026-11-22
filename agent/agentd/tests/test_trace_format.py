@@ -29,7 +29,7 @@ class TraceFormatTest(unittest.TestCase):
 
     def test_script_exit_codes(self):
         ok = subprocess.run([sys.executable, "-I", str(SCRIPT), str(SAMPLE)], capture_output=True, text=True, encoding="utf-8")
-        self.assertEqual((ok.returncode, ok.stdout.strip().splitlines()[-1]), (0, "16 events, 0 errors"))
+        self.assertEqual((ok.returncode, ok.stdout.strip().splitlines()[-1]), (0, "27 events, 0 errors"))
         events = sample()
         del events[0]["trace_id"]
         with tempfile.NamedTemporaryFile("w", suffix=".ndjson", delete=False, encoding="utf-8") as f:
@@ -163,6 +163,32 @@ class TraceFormatTest(unittest.TestCase):
         for kind in ("ui.submitted", "ui.ack", "ui.first_text"):
             with self.subTest(kind):
                 self.assertEqual(validate_event({**base, "kind": kind, "producer": "companion", "attrs": {}}), [])
+
+    def test_the_motion_lane_kinds(self):
+        lane = sample()[16:]
+        self.assertEqual([e["kind"] for e in lane],
+                         ["signal.changed", "stage.changed", "motion.chosen", "behavior.dispatched", "motion.state",
+                          "behavior.receipt", "motion.chosen", "behavior.refused", "motion.state", "motion.chosen",
+                          "behavior.refused"])
+        self.assertEqual([e["causation_id"] for e in lane[1:4]], [e["event_id"] for e in lane[:3]])
+        signal, stage, chosen, state, refused = lane[0], lane[1], lane[2], lane[4], lane[7]
+        for value in (True, 0.5, "unknown"):
+            self.assertEqual(validate_event({**signal, "attrs": {**signal["attrs"], "value": value}}), [], value)
+        cases = [
+            (signal, "source", "mouse"), (signal, "value", "Visual Studio Code"), (signal, "value", None),
+            (signal, "value", float("nan")), (signal, "revision", -1), (stage, "to", "away"),
+            (chosen, "layer", "face"), (chosen, "t_s", -1), (chosen, "behavior_id", ""), (state, "origin", "remote"),
+            (state, "phase", "running"), (refused, "channels", "full_body"), (refused, "priority", None),
+        ]
+        for event, key, value in cases:
+            with self.subTest(key=key, value=value):
+                self.assertIn(f"bad attrs.{key}: {value!r}",
+                              validate_event({**event, "attrs": {**event["attrs"], key: value}}))
+        self.assertEqual(validate_event({**signal, "attrs": {**signal["attrs"], "revision": None}}), [])
+        self.assertEqual(validate_event({**chosen, "attrs": {**chosen["attrs"], "layer": None, "behavior_id": None}}),
+                         [])
+        self.assertIn("motion.state needs attrs.behavior_id",
+                      validate_event({**state, "attrs": {k: v for k, v in state["attrs"].items() if k != "behavior_id"}}))
 
     def test_stream_rules_reject(self):
         events = sample()
