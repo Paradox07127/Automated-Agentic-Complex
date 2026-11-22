@@ -89,7 +89,7 @@ describe('CommandBar', () => {
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
     fireEvent.click(trigger);
     const items = within(screen.getByRole('menu', { name: '每日简报' })).getAllByRole('menuitem');
-    const user = pageRoutes.filter((r) => r.id !== 'home' && r.id !== 'onboarding' && (r.nav !== false || r.id === 'schedules') && r.group !== 'dev' && !r.devOnly);
+    const user = pageRoutes.filter((r) => r.id !== 'home' && r.id !== 'onboarding' && (r.nav !== false || r.id === 'tasks') && r.group !== 'dev' && !r.devOnly);
     expect(items.map((i) => i.querySelector('span')?.textContent)).toEqual(user.map((r) => r.title));
     expect(items.map((i) => i.textContent)).not.toContain('首次设置');
     expect(items.find((i) => i.textContent?.startsWith('设置'))?.querySelector('kbd')?.textContent).toBe('⌘,');
@@ -240,7 +240,7 @@ describe('page switch', () => {
 
   it('goes from a page back to 主页 through 回主页, and 主页 has no 回主页', async () => {
     stubMatchMedia();
-    window.location.hash = '#/schedules?still=1';
+    window.location.hash = '#/tasks?still=1';
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <RouterProvider router={createAppRouter()} />

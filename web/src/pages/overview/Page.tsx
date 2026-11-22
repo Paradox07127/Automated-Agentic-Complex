@@ -1,17 +1,17 @@
 // 每日简报：页头是日期翻页和四个页签（总览 / 她 / 时间 / 明细），两者写在地址的 tab= 和 date= 里；统计读 GET /brief/day，各列表读原有接口，常用操作在外壳底部操作条。
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useRouterState } from '@tanstack/react-router';
+import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import { get } from '../../bridge/agentd';
 import { sortPending } from '../../domain';
 import type { WireSchedule } from '../../domain/schedules';
 import { ErrBar, Icon, Menu, Btn, PageIssues, Region, Tabs, type IconName, type MenuItem } from '../../ui';
 import { useDemo } from '../../shell/demo';
+import { navRoute } from '../../shell/nav';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { usePlugins } from '../../shell/plugins';
 import { useToast } from '../../shell/toast';
-import { draftFor } from '../tasks/CreateForm';
-import { TaskDetailHost, useTaskDesk } from '../tasks/TaskDetailHost';
+import { useTaskDesk } from '../tasks/useTaskDesk';
 import { ActionBand } from './ActionBand';
 import { readBriefDay } from './briefDay';
 import { runRows } from './briefModel';
@@ -28,7 +28,6 @@ import { PendingSection } from './PendingSection';
 import { Pip } from './Pip';
 import { RunningSection } from './RunningSection';
 import { parseTodayParams } from './today';
-import { TaskRecords } from './TaskRecords';
 import { TimeTab } from './TimeTab';
 import { useOverview } from './useOverview';
 import { useOverviewActions } from './useOverviewActions';
@@ -68,17 +67,16 @@ export function OverviewPage() {
   const [path] = useState(useRouterState({ select: (s) => s.location.pathname }));
   const search = useRouterState({ select: (s) => (s.location.pathname === path ? s.location.searchStr : '') });
   const params = useMemo(() => parseTodayParams(search), [search]);
-  const desk = useTaskDesk(state, demo, false);
-  const { setOpen, setDraft } = desk;
-  const [target, setTarget] = useState<string | null>(null);
+  const desk = useTaskDesk(state, demo, null);
   const [ep, setEp] = useState<string | null>(null);
-  const [showRecords, setShowRecords] = useState(false);
+  useEffect(() => setEp(params.ep), [params]);
+  // A task or a new task asked of this page opens on the tasks page; a pending id only lands here (`focus=item-…`).
+  const landing = new URLSearchParams(search).get('focus') ?? '';
+  const forward = landing.startsWith('item-') ? null : (params.open ?? params.sel);
+  const { history } = useRouter();
   useEffect(() => {
-    setOpen(params.open);
-    setTarget(params.sel);
-    setEp(params.ep);
-    setDraft(params.create ? draftFor(params.create) : null);
-  }, [params, setOpen, setDraft]);
+    if (forward || params.create) history.replace(navRoute({ page: 'tasks', sel: forward ?? undefined, create: params.create ?? undefined }));
+  }, [forward, params.create, history]);
 
   const url = new URLSearchParams(search);
   const today = dayOf(clock());
@@ -103,15 +101,6 @@ export function OverviewPage() {
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
   });
-  // `sel` waits for the tasks data: a card or a task opens its detail; a pending id only lands (`focus=item-…`).
-  useEffect(() => {
-    if (!target || !desk.view || !desk.listReady || !desk.pendReady) return;
-    const c = desk.resolveCard(target);
-    if (c) setOpen(c.id);
-    else if (desk.view.tasks.some((t) => t.id === target)) setOpen(target);
-    setTarget(null);
-  });
-
   const pending = useMemo(() => sortPending(snap.pending.filter((p) => !p.resolved && !a.decided[p.id])), [snap, a.decided]);
   const { setDecided, setLast } = a;
   useEffect(() => {
@@ -194,7 +183,7 @@ export function OverviewPage() {
         done={desk.listReady && desk.view ? desk.view.tasks.filter((t) => t.source !== 'ext' && inDay(t.updated_at) && ['done', 'failed'].includes(desk.view?.effective[t.id] ?? '')).sort((x, y) => y.updated_at - x.updated_at).map((t) => ({ task: t, failed: desk.view?.effective[t.id] === 'failed' })) : undefined}
         convs={isToday ? brief?.convs : pastQ.data?.convs}
         reminders={snap.reminders.filter((r) => inDay(r.due_at)).sort((x, y) => x.due_at - y.due_at)}
-        onTask={setOpen}
+        onTask={(id) => go({ page: 'tasks', sel: id })}
         goPage={go}
       />
     );
@@ -220,7 +209,6 @@ export function OverviewPage() {
             </span>
             {/* The top bar says 已连接. */}
             {(loading || stale) && <span className={styles.conn}>{loading ? <Pip tone="idle" label="读取中" /> : offline ? <Pip tone="failed" label={lostText} /> : <Pip tone="failed" label="刷新失败" />}</span>}
-            <span data-nav-target="tasks"><Btn size="sm" onClick={() => setShowRecords(true)}>任务记录</Btn></span>
             <Menu label="免打扰" align="right" items={dnd} />
           </>
         }
@@ -255,8 +243,6 @@ export function OverviewPage() {
           </Region>
         </PageIssues>
       </div>
-      <TaskDetailHost desk={desk} />
-      {showRecords && <TaskRecords desk={desk} onClose={() => setShowRecords(false)} onSelect={(id) => { setShowRecords(false); setOpen(id); }} />}
       {ep && <EpisodeSheet ep={ep} onClose={() => setEp(null)} />}
     </div>
   );

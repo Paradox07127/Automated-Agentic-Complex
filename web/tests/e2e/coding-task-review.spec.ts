@@ -19,13 +19,12 @@ const shot = (page: Page, name: string, theme: string) => saveShot(page, { path:
 for (const theme of THEMES) {
   test(`${theme}: a coding task waiting for 验收 settles in the detail`, async ({ page }) => {
     const errors = collectErrors(page);
-    await open(page, `/overview?sel=${encodeURIComponent(CODE_REVIEW)}&demo=code-review&plugins=all`, theme);
-    const detail = page.locator('[data-stub="TaskView"]');
-    const bar = detail.getByRole('region', { name: '待处理' });
+    await open(page, `/tasks?sel=${encodeURIComponent(CODE_REVIEW)}&demo=code-review&plugins=all`, theme);
+    const detail = page.getByRole('region', { name: '详情' });
+    const bar = detail.getByRole('heading', { name: '验收编码结果' }).locator('..');
     await expect(bar).toContainText('没有设置检查命令');
     await expect(bar.getByRole('button', { name: '驳回' })).toBeVisible();
-    // The detail sheet sits outside <main>; 今天 itself has no primary button.
-    await expect(page.locator('[data-variant="primary"]:visible')).toHaveCount(1);
+    await expect(page.locator('main [data-variant="primary"]:visible')).toHaveCount(1);
     await expect(detail).not.toContainText('no_verify_cmd');
     await shot(page, 'code-review', theme);
     await bar.getByRole('button', { name: '验收' }).click();
@@ -35,8 +34,8 @@ for (const theme of THEMES) {
 
   test(`${theme}: a failed check shows its exit code and folds the output`, async ({ page }) => {
     const errors = collectErrors(page);
-    await open(page, `/overview?sel=${encodeURIComponent(CODE_FAILED)}&demo=code-review&plugins=all`, theme);
-    const check = page.locator('[data-stub="TaskView"] section[aria-label="检查"]');
+    await open(page, `/tasks?sel=${encodeURIComponent(CODE_FAILED)}&demo=code-review&plugins=all`, theme);
+    const check = page.getByRole('region', { name: '详情' }).locator('section[aria-label="检查"]');
     await expect(check).toContainText('检查没通过');
     await expect(check).toContainText('退出码 1');
     await expect(check).not.toContainText('XCTAssertEqual');
@@ -48,17 +47,17 @@ for (const theme of THEMES) {
 
   test(`${theme}: earlier versions are reachable`, async ({ page }) => {
     const errors = collectErrors(page);
-    await open(page, `/overview?sel=${encodeURIComponent(T1)}`, theme);
-    const section = page.locator('[data-stub="TaskView"] section[aria-label="产物"]');
-    await expect(section.getByRole('button', { name: /v1/ })).toBeVisible();
+    await open(page, `/tasks?sel=${encodeURIComponent(T1)}`, theme);
+    const chain = page.getByRole('group', { name: '版本链' });
+    await expect(chain.getByRole('button', { name: /v1/ })).toBeVisible();
     await shot(page, 'versions', theme);
     expect(errors).toEqual([]);
   });
 
   test(`${theme}: a dangerous approval names its rule in words`, async ({ page }) => {
     const errors = collectErrors(page);
-    await open(page, `/overview?open=${A1}`, theme);
-    await expect(page.getByRole('dialog').getByText('命中危险规则：强制递归删除')).toBeVisible();
+    await open(page, `/overview?focus=item-${A1}`, theme);
+    await expect(page.locator('main').getByText('命中危险规则：强制递归删除')).toBeVisible();
     await expect(page.locator('main')).not.toContainText('rm_recursive');
     await shot(page, 'danger-rule', theme);
     expect(errors).toEqual([]);

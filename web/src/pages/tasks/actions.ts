@@ -13,6 +13,7 @@ import {
   interactionDismiss,
   runCancel,
   type Approval,
+  type Artifact,
   type Delivery,
   type Goal,
   type Question,
@@ -25,7 +26,7 @@ import { codeText, failureText } from '../../domain/errorText';
 import { isPluginOff } from '../../shell/plugins';
 import type { PushToast } from '../../shell/toast';
 import { nextAfter, type TasksLocal, type TasksView } from './model';
-import { navigate, type TasksTab } from './params';
+import { navigate } from './params';
 
 export interface ActionDeps {
   view: TasksView;
@@ -33,8 +34,8 @@ export interface ActionDeps {
   push: PushToast;
   /** Ids in drawn order, for picking the item that takes a decided one's place. */
   order: string[];
-  /** `focus`: move keyboard focus to the newly selected row (after a decision). */
-  select: (id: string | null, tab?: TasksTab, focus?: boolean) => void;
+  /** After a decision: the item that took the decided one's place. */
+  select: (id: string | null) => void;
   /** Failure code the demo forces on delivery decisions. */
   failCode: DecideFailCode | null;
   setDecideFail: (c: DecideFailCode | null) => void;
@@ -85,6 +86,8 @@ const REASON: Readonly<Record<string, string>> = {
   goal_not_active: '所属目标没有在进行',
   job_store_unavailable: '任务存储暂不可用',
   not_found: '找不到这一项',
+  unknown_artifact: '找不到这个产物',
+  no_previous_version: '这个产物没有可回去的上一版',
 };
 
 /** Toast text for a failed write: offline, someone else's change, or a short reason; null when its plug-in is off. */
@@ -148,7 +151,7 @@ async function sendNote(t: Task, text: string, useCurrentKernel: boolean): Promi
 }
 
 export function createTasksActions(d: ActionDeps) {
-  const leave = (id: string) => d.select(nextAfter(d.order, id), undefined, true);
+  const leave = (id: string) => d.select(nextAfter(d.order, id));
   const resolve = (ids: string[]) => d.setLocal((l) => ({ ...l, resolved: { ...l.resolved, ...Object.fromEntries(ids.map((i) => [i, true as const])) } }));
   const copyCode = (code: string | null) => (code ? { action: { label: '复制错误码', onClick: () => void getBridge().clipboard.writeText(code) } } : {});
   const fail = (e: unknown) => {
@@ -266,7 +269,7 @@ export function createTasksActions(d: ActionDeps) {
         d.askStop([task.id]);
         return;
       case 'open_pending':
-        d.select(a.pendingId, 'inbox');
+        d.select(a.pendingId);
         return;
       case 'open_timeline':
         navigate({ page: 'diag', tab: 'timeline', run: a.runId });
@@ -289,7 +292,7 @@ export function createTasksActions(d: ActionDeps) {
         return;
       case 'open_latest':
         d.setDecideFail(null);
-        d.select(task.id, 'all');
+        d.select(task.id);
         d.reload();
         d.push('已切到最新一版');
         return;
@@ -326,7 +329,7 @@ export function createTasksActions(d: ActionDeps) {
       resolve(done);
       const first = done[0] ?? '';
       const order = d.order.filter((x) => !done.slice(1).includes(x));
-      d.select(nextAfter(order, first), undefined, true);
+      d.select(nextAfter(order, first));
       const sess = cards.find((a) => a.id === first)?.session_id ?? '';
       d.push(`${decision === 'deny' ? '已拒绝' : '已批准'}${done.length > 1 ? ` ${done.length} 张` : ''} │ ${sess}`);
     }
@@ -385,5 +388,12 @@ export function createTasksActions(d: ActionDeps) {
     d.reload();
   };
 
-  return { onTask, review, approve, answer, cancelQuestion, goal, stopNow, jump };
+  /** POST /agent/artifacts/revert writes the kept previous version back as a new version. */
+  const revert = (delivery: Delivery, a: Artifact) =>
+    post('/agent/artifacts/revert', { run_id: delivery.run_id, path: a.path, expected_version: a.version }).then(() => {
+      d.push(`已撤回：${a.name} 现在是 v${a.version + 1}，内容同 v${a.version - 1}`);
+      d.reload();
+    }, fail);
+
+  return { onTask, review, approve, answer, cancelQuestion, goal, stopNow, jump, revert };
 }

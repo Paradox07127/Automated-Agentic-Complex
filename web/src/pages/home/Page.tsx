@@ -38,8 +38,7 @@ const LEFT: ReadonlyArray<[string, IconName, string?]> = [
   ['character', 'user'],
   ['chat', 'send'],
   ['memory', 'data'],
-  // 任务 lands on 定时任务 until 定时任务 and 运行记录 become one page.
-  ['schedules', 'clock', '任务'],
+  ['tasks', 'clock'],
 ];
 /** The watch's CharInfo, Activity, Gacha and Purchase keys, top to bottom. */
 const LEFT_G = ['charInfo', 'activity', 'gacha', 'purchase'] as const;
@@ -103,10 +102,10 @@ export function HomePage() {
   const plugins = usePlugins();
   const routes = useVisibleRoutes();
   const routeOf = (id: string) => routes.find((r) => r.id === id);
-  // As the command bar's 工具 menu: 定时任务 is listed though it has no nav entry.
+  // As the command bar's page menu: 任务 is listed though it has no nav entry.
   const listed = (id: string) => {
     const r = routeOf(id);
-    return r && (r.nav !== false || r.id === 'schedules') ? r : undefined;
+    return r && (r.nav !== false || r.id === 'tasks') ? r : undefined;
   };
   const offered = (a: Act<string>) => (!a.plugin || plugins[a.plugin]) && (!a.page || !!listed(a.page));
   // 待处理, 提醒, the disc's items and the bottom card all land on the today page.

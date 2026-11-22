@@ -81,7 +81,7 @@ describe('the overview run row lands on the run waterfall', () => {
     }
   });
 
-  it('a role task row jumps with focus on the waterfall; a coding session row keeps the task row landing', () => {
+  it('a role task row and a coding session row with a task open that task on the tasks page', () => {
     const go = vi.fn();
     const own = SESSIONS.find((x) => x.own && x.task_id)!;
     render(
@@ -98,9 +98,9 @@ describe('the overview run row lands on the run waterfall', () => {
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`^角色任务「${pick(TASKS, T1).title}」`) }));
-    expect(go).toHaveBeenLastCalledWith({ page: 'overview', sel: T1, focus: 'run-waterfall' });
+    expect(go).toHaveBeenLastCalledWith({ page: 'tasks', sel: T1 });
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`${own.title}，`) }));
-    expect(go).toHaveBeenLastCalledWith({ page: 'overview', sel: own.task_id });
+    expect(go).toHaveBeenLastCalledWith({ page: 'tasks', sel: own.task_id });
   });
 });
 

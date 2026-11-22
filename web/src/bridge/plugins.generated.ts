@@ -239,7 +239,7 @@ export const PLUGINS = [
     },
     "web": {
       "pages": [
-        "schedules"
+        "tasks"
       ],
       "settings": [
         "perm.scope"

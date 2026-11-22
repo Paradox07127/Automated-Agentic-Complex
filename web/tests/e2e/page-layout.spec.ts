@@ -99,20 +99,17 @@ test('evidence lines in the detail column wrap instead of cutting the place', as
   }
 });
 
-test('定时任务 rows use the shared pill button, 删除 reads as danger at rest, and the actions line up', async ({ page }) => {
-  await open(page, '/schedules');
-  const list = page.getByRole('list', { name: '定时任务列表' });
-  for (const name of ['立即运行', '编辑', '删除']) {
-    const b = list.getByRole('button', { name: new RegExp(`^${name}\\s?「`) });
-    expect(await b.count()).toBeGreaterThan(1);
-    for (const one of await b.all()) await expect(one).toHaveAttribute('data-stub', 'Btn');
-  }
-  const del = list.getByRole('button', { name: /^删除\s?「/ }).first();
-  const edit = list.getByRole('button', { name: /^编辑\s?「/ }).first();
+test('任务「定时」: the selected schedule has 编辑 and 立即运行 are shared pill buttons in the bottom bar, 删除 a round one apart from them', async ({ page }) => {
+  await open(page, '/tasks?tab=sched&plugins=all');
+  await expect(page.getByRole('region', { name: '任务列表' }).getByRole('option').first()).toBeVisible();
+  const bar = page.locator('[data-tasks-bar]');
+  for (const name of ['编辑', '立即运行']) await expect(bar.getByRole('button', { name: new RegExp(`^${name}`) })).toHaveAttribute('data-stub', 'Btn');
+  const del = bar.getByRole('button', { name: '删除定时任务' });
+  const edit = bar.getByRole('button', { name: /^编辑/ });
+  await expect(del).not.toHaveAttribute('data-stub', 'Btn');
+  expect((await box(del)).x).toBeLessThan((await box(edit)).x);
   const look = (l: Locator) => l.evaluate((e) => `${getComputedStyle(e).backgroundColor} ${getComputedStyle(e).color}`);
   expect(await look(del)).not.toBe(await look(edit));
-  const xs = await list.getByRole('button', { name: /^立即运行\s?「/ }).evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().left)));
-  expect(new Set(xs).size).toBe(1);
 });
 
 test('the memory-trend peak label stays below the 14 天新增 header', async ({ page }) => {

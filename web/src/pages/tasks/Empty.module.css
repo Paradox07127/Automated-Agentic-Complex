@@ -1,0 +1,62 @@
+/* EmptyNode: a faded big icon, the reason with a forbid mark on each side, a soft shadow line and one action */
+.empty {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+  text-align: center;
+}
+
+.whole {
+  grid-column: 1 / -1;
+}
+
+.empty .big {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 420px;
+  height: 420px;
+  color: var(--tk-t1);
+  opacity: 0.05;
+  transform: translate(-50%, -52%);
+}
+
+.empty .big svg {
+  width: 100%;
+  height: 100%;
+}
+
+.empty b {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.empty b::before,
+.empty b::after {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--tk-t3);
+  background: linear-gradient(45deg, transparent 45%, var(--tk-t3) 45% 55%, transparent 55%);
+}
+
+.empty .shade {
+  width: 380px;
+  max-width: 80%;
+  height: 10px;
+  background: radial-gradient(50% 100% at 50% 50%, var(--tk-deco2), transparent 70%);
+}
+
+.empty p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--tk-t2);
+}

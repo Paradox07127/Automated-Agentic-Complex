@@ -19,10 +19,9 @@ import { loadError } from '../../src/pages/chat/useChatData';
 import { reminderTime } from '../../src/pages/overview/briefModel';
 import { createTasksActions, failMessage, type ActionDeps } from '../../src/pages/tasks/actions';
 import { deriveView, emptyLocal } from '../../src/pages/tasks/model';
-import { RunSections } from '../../src/pages/tasks/RunSections';
-import { TaskView } from '../../src/pages/tasks/TaskView';
 import { useSessionLines, watchTasksDiag, watchTasksFeed } from '../../src/pages/tasks/useTasksData';
 import { loadOverview } from './overviewReads';
+import { mountTaskDetail } from './taskDetailMount';
 
 afterEach(() => {
   cleanup();
@@ -140,30 +139,29 @@ describe('coding task verify result', () => {
   });
   it('the detail shows the reason in words, the exit code and the folded output', () => {
     const t = fromLedgerTask(ledger({ result: { exit_code: 2, output_tail: 'error: HostLinkTests failed', reason: null } }));
-    const { container } = render(<RunSections task={t} effective={t.status === 'failed' ? 'failed' : 'waiting'} now={NOW} />);
+    const { container } = mountTaskDetail(t);
     const sec = container.querySelector('section[aria-label="检查"]');
     expect(sec?.textContent).toContain('检查没通过');
     expect(sec?.textContent).toContain('退出码 2');
     expect(sec?.textContent).not.toContain('HostLinkTests failed');
   });
-  it('no_verify_cmd reads as a sentence, once, in the 验收 bar', () => {
+  it('no_verify_cmd reads as a sentence, once, on the 验收 paper', () => {
     const t = fromLedgerTask(ledger({ state: 'needs_review', result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd' } }));
-    const { container } = render(<TaskView task={t} effective="waiting" now={NOW} onReview={() => {}} />);
+    const { container } = mountTaskDetail(t);
     expect((container.textContent ?? '').match(/没有设置检查命令/g)).toHaveLength(1);
     expect(container.textContent).not.toContain('no_verify_cmd');
-    expect(screen.queryByRole('button', { name: /停止任务/ })).toBeNull();
-    expect(screen.getByLabelText('待处理').textContent).toContain('结果待复核');
+    expect(screen.getByRole('heading', { name: '验收编码结果' }).parentElement?.textContent).toContain('结果待复核');
   });
   it.each(['succeeded', 'failed'] as const)('a %s task without a verify command says nothing about review', (state) => {
     const t = fromLedgerTask(ledger({ state, result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd' } }));
-    const { container } = render(<TaskView task={t} effective={state === 'failed' ? 'failed' : 'done'} now={NOW} onReview={() => {}} />);
+    const { container } = mountTaskDetail(t);
     expect(container.querySelector('section[aria-label="检查"]')).toBeNull();
     expect(container.textContent).not.toContain('待复核');
   });
   it('a cancelled task shows no 检查 section, and an interrupted turn never reads as a restart', () => {
     expect(verifyText({ exit_code: null, reason: 'interrupted' })).not.toContain('重启');
     const t = fromLedgerTask(ledger({ state: 'cancelled', result: { exit_code: null, output_tail: null, reason: 'interrupted' } }));
-    const { container } = render(<RunSections task={t} effective="done" now={NOW} />);
+    const { container } = mountTaskDetail(t);
     expect(container.querySelector('section[aria-label="检查"]')).toBeNull();
     expect(container.textContent).not.toContain('重启');
   });
@@ -239,13 +237,12 @@ describe('overview errors', () => {
 describe('coding review in the main window', () => {
   const review: Task = { ...fromLedgerTask(ledger({ state: 'needs_review', result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd' } })) };
 
-  it('the detail offers 验收 and 驳回', () => {
-    const onReview = vi.fn();
-    render(<TaskView task={review} effective="waiting" now={NOW} onReview={onReview} />);
+  it('the detail offers 验收 and 驳回, each sent to the ledger task', async () => {
+    const { calls } = install((path) => (path.startsWith('/tasks/') ? { status: 200, body: { task: {} } } : null));
+    mountTaskDetail(review);
     fireEvent.click(screen.getByRole('button', { name: '验收' }));
-    expect(onReview).toHaveBeenLastCalledWith('accept');
     fireEvent.click(screen.getByRole('button', { name: '驳回' }));
-    expect(onReview).toHaveBeenLastCalledWith('reject');
+    await vi.waitFor(() => expect(calls.filter((c) => c.method === 'POST').map((c) => c.path)).toEqual([`/tasks/${review.task_id}/accept`, `/tasks/${review.task_id}/reject`]));
   });
 
   it('the inbox lists it', () => {

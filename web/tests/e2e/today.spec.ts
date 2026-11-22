@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { A1, T5 } from '../../src/mock/fixtures/ids';
+import { A1, T1 } from '../../src/mock/fixtures/ids';
 
 // 今天: what the removed 任务 and 观察 pages checked, on the page that took them over (old links, details, activity, sizes).
 
@@ -27,15 +27,12 @@ test('今天 has the 待处理 card; approving it moves the card on', async ({ p
   expect(errors).toEqual([]);
 });
 
-test('a task selection opens the task detail on 今天; Esc closes it', async ({ page }) => {
+test('a task selection on 今天 opens the tasks page in its place', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto(`main.html#/overview?sel=${encodeURIComponent(T5)}&demo=full&plugins=all&still=1`);
-  const sheet = page.getByRole('dialog', { name: '详情：Endfield' });
-  await expect(sheet).toBeVisible();
-  await expect(sheet.getByText('状态时段')).toBeVisible();
-  await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(sheet).toHaveCount(0);
+  await page.goto(`main.html#/overview?sel=${encodeURIComponent(T1)}&demo=full&plugins=all&still=1`);
+  await expect(page.locator('main[data-route-id="tasks"]')).toBeVisible();
+  await expect(page).toHaveURL(/#\/tasks\?.*sel=job%3A/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -67,10 +64,10 @@ for (const [w, h] of [
   [1024, 700],
   [1280, 800],
 ] as const) {
-  test(`${w}×${h} full: no horizontal overflow with a detail open, and the 待处理 card keeps its buttons inside`, async ({ page }) => {
+  test(`${w}×${h} full: no horizontal overflow, and the 待处理 card keeps its buttons inside`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
-    await page.goto(`main.html#/overview?demo=full&sel=${encodeURIComponent(T5)}&plugins=all&still=1`);
-    await expect(page.getByRole('dialog', { name: /^详情：/ })).toBeVisible();
+    await page.goto(`main.html#/overview?demo=full&plugins=all&still=1`);
+    await expect(page.getByRole('region', { name: '待处理', exact: true })).toBeVisible();
     const over = await page.evaluate(() => {
       const c = document.querySelector('[data-shell="content"]');
       return [document.documentElement.scrollWidth - document.documentElement.clientWidth, c ? c.scrollWidth - c.clientWidth : 0];

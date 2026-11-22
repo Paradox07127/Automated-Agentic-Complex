@@ -37,8 +37,8 @@ test("default: 今日一句, the six pinned readouts, 01 with one paper card and
   await expect(sec(page, '她今天说的一句')).toHaveCount(0);
   await expect(sec(page, '工业简报')).toHaveCount(0);
   await expect(tasks(page)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '任务记录' })).toBeVisible();
-  for (const name of ['派发任务', '快速输入', '屏幕识读', '命令面板']) await expect(page.locator('[data-shell="bottom-bar"]').getByRole('toolbar', { name: '常用操作' }).getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
+  await expect(page.getByRole('button', { name: '任务记录' })).toHaveCount(0);
+  for (const name of ['快速输入', '屏幕识读', '命令面板']) await expect(page.locator('[data-shell="bottom-bar"]').getByRole('toolbar', { name: '常用操作' }).getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
   await expect(page.getByRole('navigation', { name: '主导航' })).toContainText('已连接');
   expect(errors).toEqual([]);
 });
@@ -110,21 +110,15 @@ test("sw=scr,read: yesterday's observation brief with its counts, and 看全文 
   expect(errors).toEqual([]);
 });
 
-test('task records open the exact task; close and reopen works with the visible X', async ({ page }) => {
+test('a task in 做完了 opens on the tasks page; the brief has no task drawer of its own', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?plugins=all&still=1&demo=absent');
-  await page.getByRole('button', { name: '任务记录' }).click();
-  const records = page.getByRole('dialog', { name: '任务记录' });
-  const item = records.locator('[data-task]').first();
-  const title = await item.locator('[class*="title"]').first().innerText();
-  await item.click();
-  const detail = page.getByRole('dialog', { name: `详情：${title}` });
-  await expect(detail).toBeVisible();
-  await detail.getByRole('button', { name: '关闭详情' }).click();
-  await expect(detail).toHaveCount(0);
-  await page.getByRole('button', { name: '任务记录' }).click();
-  await records.getByRole('button', { name: '关闭', exact: true }).first().click();
-  await expect(records).toHaveCount(0);
+  await page.goto('main.html#/overview?plugins=all&still=1');
+  const done = sec(page, '做完了').getByRole('button').first();
+  const title = (await done.innerText()).split('\n')[0]!.trim();
+  await done.click();
+  await expect(page).toHaveURL(/#\/tasks\?.*sel=/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('region', { name: '详情' }).getByRole('heading', { level: 2 })).toContainText(title.slice(0, 4));
   expect(errors).toEqual([]);
 });
 
@@ -143,13 +137,13 @@ test('免打扰 menu pauses observation and the page shows it with 现在恢复'
   await expect(readout.getByRole('button', { name: '现在恢复' })).toBeVisible();
 });
 
-test('sparse: nothing waiting, no coding sessions; 派发任务 is only in the action band', async ({ page }) => {
+test('sparse: nothing waiting, no coding sessions; no 派发任务 on the brief', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/overview?plugins=all&still=1&demo=sparse');
   await expect(need(page)).toContainText('当前没有待处理事项');
   await expect(run(page)).toContainText('当前没有编码会话');
   await expect(run(page).getByRole('button', { name: /派发/ })).toHaveCount(0);
-  await expect(page.locator('main').getByRole('button', { name: /派发/ })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: /派发/ })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -201,7 +195,6 @@ for (const [w, h] of [[900, 600], [1280, 800], [1440, 900], [1920, 1080]] as con
     expect(over).toEqual([0, 0]);
     await expect(need(page)).toBeVisible();
     await expect(run(page)).toBeVisible();
-    await expect(page.getByRole('button', { name: '任务记录' })).toBeVisible();
     await expect(tasks(page)).toHaveCount(0);
   });
 }

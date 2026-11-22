@@ -52,15 +52,15 @@ describe('plug-in switches', () => {
 });
 
 describe('pages a user is offered', () => {
-  it('leave out 每日简报, 定时任务 and the developer pages with the plug-ins at their defaults', () => {
+  it('leave out 每日简报, 任务 and the developer pages with the plug-ins at their defaults', () => {
     const shown = ids();
     for (const id of ['home', 'chat', 'memory', 'character', 'settings']) expect(shown).toContain(id);
-    for (const id of ['overview', 'schedules', 'diag', 'trace', 'pipeline', 'tune']) expect(shown).not.toContain(id);
+    for (const id of ['overview', 'tasks', 'diag', 'trace', 'pipeline', 'tune']) expect(shown).not.toContain(id);
   });
 
-  it('bring 每日简报 back with 日报与简报 on, 定时任务 with 个人代理, the developer pages with 开发者模式', () => {
+  it('bring 每日简报 back with 日报与简报 on, 任务 with 个人代理, the developer pages with 开发者模式', () => {
     expect(ids({ ...DEFAULT_PLUGINS, daily_brief: true })).toContain('overview');
-    expect(ids({ ...DEFAULT_PLUGINS, personal_agent: true })).toContain('schedules');
+    expect(ids({ ...DEFAULT_PLUGINS, personal_agent: true })).toContain('tasks');
     for (const id of ['diag', 'trace', 'pipeline', 'tune']) expect(ids(DEFAULT_PLUGINS, true)).toContain(id);
   });
 

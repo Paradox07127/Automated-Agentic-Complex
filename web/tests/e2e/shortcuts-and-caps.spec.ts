@@ -18,13 +18,13 @@ function collectErrors(page: Page): string[] {
 const css = (el: Locator, prop: string) => el.evaluate((n, p) => getComputedStyle(n).getPropertyValue(p), prop);
 
 for (const from of ['chat', 'memory', 'settings', 'diag']) {
-  test(`⌘N on ${from} opens the 派发任务 dialog on 今天`, async ({ page }) => {
+  test(`⌘N on ${from} opens the 派发任务 editor on the tasks page`, async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto(`main.html#/${from}?plugins=all&still=1`);
     await expect(page.locator(`main[data-route-id="${from}"]`)).toBeVisible();
     await page.keyboard.press('ControlOrMeta+n');
-    await expect(page).toHaveURL(/#\/overview\?.*create=role/);
-    await expect(page.getByRole('dialog', { name: '新建' })).toBeVisible();
+    await expect(page).toHaveURL(/#\/tasks\?/);
+    await expect(page.getByRole('form', { name: '派发任务' })).toBeVisible();
     expect(errors).toEqual([]);
   });
 }
@@ -34,7 +34,7 @@ test('⌘N works beside the chat task column', async ({ page }) => {
   await page.goto('main.html#/chat?plugins=all&demo=plan-snapshot&still=1');
   await expect(page.getByRole('complementary', { name: '任务', exact: true })).toBeVisible();
   await page.keyboard.press('ControlOrMeta+n');
-  await expect(page).toHaveURL(/#\/overview\?.*create=role/);
+  await expect(page).toHaveURL(/#\/tasks\?/);
 });
 
 test('⌘K lists 快速输入 and 免打扰 under 动作', async ({ page }) => {

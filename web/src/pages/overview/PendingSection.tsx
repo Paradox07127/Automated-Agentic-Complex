@@ -140,7 +140,10 @@ function Receipt({ r }: { r: DecidedReceipt }) {
 function openSession(p: PendingSectionProps, item: PendingItem) {
   const session = item.kind === 'approval' ? p.sessions.find((s) => s.id === item.session_id) : undefined;
   if (session && session.kind === 'ext') p.onJumpSession(session);
-  else p.go({ page: 'overview', sel: item.task_id ?? session?.task_id ?? undefined });
+  else {
+    const sel = item.task_id ?? session?.task_id;
+    p.go(sel ? { page: 'tasks', sel } : { page: 'overview' });
+  }
 }
 
 /** The card's content: approvals decide here, questions are answered here, reviews open their task. */

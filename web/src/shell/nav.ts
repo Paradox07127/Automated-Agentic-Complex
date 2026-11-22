@@ -48,7 +48,15 @@ export type NavTarget =
     }
   | { page: 'settings'; group?: string; item?: string; focus?: string }
   | { page: 'trace'; turn?: string; tab?: 'logs'; /** Log source on the 日志 tab. */ src?: string; focus?: string }
-  | { page: 'schedules' | 'tune'; focus?: string }
+  | {
+      page: 'tasks';
+      tab?: 'run' | 'sched' | 'done';
+      /** Task id (`job:` / `task:` …) or schedule id. */
+      sel?: string;
+      create?: 'role' | 'code' | 'sched';
+      focus?: string;
+    }
+  | { page: 'tune'; focus?: string }
   | { page: 'ds' | 'dv'; focus?: string };
 
 export type PageId = NavTarget['page'];
@@ -67,7 +75,7 @@ export function setNavRouter(r: AnyRouter): void {
 
 function landing(t: NavTarget): string {
   if (t.focus) return t.focus;
-  if (t.page === 'overview' && t.sel) return `task-${t.sel}`;
+  if ((t.page === 'overview' || t.page === 'tasks') && t.sel) return `task-${t.sel}`;
   if (t.page === 'settings' && t.item) return `set-${t.item}`;
   if (t.page === 'diag' && t.item === 'usage') return 'diag-usage';
   if (t.page === 'diag' && t.item && t.item !== 'state') return `proc-${t.item}`;

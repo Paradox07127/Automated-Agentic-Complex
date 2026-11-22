@@ -44,8 +44,8 @@ const title = (id: string) => pageRoutes.find((r) => r.id === id)!.title;
 /** The overview's reads the home page made for 待处理, 在做 and the today card. */
 const TODAY_READS = ['/agent/snapshot', '/sessions', '/agent/runs', '/trace/turns', '/day/segments', '/episodes', '/trace/decisions'];
 const names = (group: HTMLElement) => within(group).getAllByRole('button').map((b) => b.getAttribute('aria-label'));
-/** The left keys: 任务 is 定时任务's key. */
-const LEFT = (...ids: string[]) => ids.map((id) => (id === 'schedules' ? '任务' : title(id)));
+/** The left keys. */
+const LEFT = (...ids: string[]) => ids.map(title);
 const ACTIONS = ['派发任务', '搜索', '屏幕识读', '快速输入', '停止说话'];
 
 describe('home route', () => {
@@ -65,7 +65,7 @@ describe('home tiles', () => {
   it('names the keys by the registry and lists devOnly pages only in 开发者模式', async () => {
     setDevMode(true);
     mount();
-    expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory', 'schedules'));
+    expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory', 'tasks'));
     expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([title('trace'), ...ACTIONS, ...['diag', 'pipeline', 'tune'].map(title)]);
     // Key hints stay in the DOM; html[data-keys] only shows them.
     expect(within(screen.getByRole('group', { name: '主要页面' })).getByRole('button', { name: '对话' }).textContent).toContain('⌘2');
@@ -99,7 +99,7 @@ describe('home tiles', () => {
     fireEvent.click(await screen.findByRole('button', { name: '记忆' }));
     expect(window.location.hash).toMatch(/^#\/memory\?/);
     fireEvent.click(screen.getByRole('button', { name: '任务' }));
-    expect(window.location.hash).toMatch(/^#\/schedules\?/);
+    expect(window.location.hash).toMatch(/^#\/tasks\?/);
     fireEvent.click(screen.getByRole('button', { name: title('settings') }));
     expect(window.location.hash).toMatch(/^#\/settings\?/);
     fireEvent.click(screen.getByRole('button', { name: /^角色：/ }));
@@ -417,7 +417,7 @@ describe('home with the plug-ins at their defaults', () => {
     pluginsOn('daily_brief', 'personal_agent', 'screen_reading');
     mount();
     expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(ACTIONS);
-    expect(names(screen.getByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory', 'schedules'));
+    expect(names(screen.getByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory', 'tasks'));
   });
 
   it('writes 待处理 with its count and 提醒 under their icons', async () => {

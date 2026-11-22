@@ -5,7 +5,7 @@ import { searchSettings } from '../../src/pages/settings/registry';
 
 const pages = ['home', 'overview', 'chat', 'memory', 'character', 'mmd', 'settings', 'diag', 'trace', 'pipeline', 'tune'];
 const devPages = ['ds', 'dv'];
-const hidden = ['onboarding', 'schedules'];
+const hidden = ['onboarding', 'tasks'];
 
 describe('route registry', () => {
   it('auto-registers the 11 pages, the hidden onboarding page and 2 dev pages', () => {

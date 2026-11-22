@@ -50,11 +50,11 @@ export function CreateDialog({ draft, setDraft, goals, push, onCreated }: Create
     try {
       const r = await submitDraft(draft);
       setDraft(null);
-      push(draft.kind === 'goal' ? `已新建目标：${r.label}` : `已交派：${r.label}`);
+      push(`已交派：${r.label}`);
       onCreated(r.select);
     } catch (e) {
       const text = failMessage(e);
-      if (text !== null) push(`${draft.kind === 'goal' ? '新建' : '交派'}失败：${text}`, { severity: 'danger' });
+      if (text !== null) push(`交派失败：${text}`, { severity: 'danger' });
     } finally {
       setBusy(false);
     }
@@ -71,7 +71,7 @@ export function CreateDialog({ draft, setDraft, goals, push, onCreated }: Create
             取消
           </Btn>
           <Btn variant="primary" kbd={keyText('⌘↵')} loading={busy} disabled={problem != null} disabledReason={problem ?? undefined} onClick={() => void submit()}>
-            {draft.kind === 'goal' ? '新建目标' : '交派'}
+            交派
           </Btn>
         </>
       }

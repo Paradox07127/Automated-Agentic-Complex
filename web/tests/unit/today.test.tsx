@@ -1,9 +1,8 @@
-// 今天：页内任务详情、当前任务（回退：按目标或项目分组）、开发者模式关闭时不露内部读数、待处理落点。
+// 今天：sel 跳到任务页、当前任务（回退：按目标或项目分组）、开发者模式关闭时不露内部读数、待处理落点。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TASKS } from '../../src/mock/fixtures';
 import { A1, T1 } from '../../src/mock/fixtures/ids';
 import { OverviewPage } from '../../src/pages/overview/Page';
 import { setDevMode } from '../../src/shell/devMode';
@@ -52,13 +51,16 @@ function mount(search = '') {
   return router;
 }
 
-const title = (id: string) => TASKS.find((t) => t.id === id)!.title;
-
 describe('今天', () => {
-  it('sel opens the task detail sheet on the page', async () => {
-    mount(`&sel=${T1}`);
-    const sheet = await screen.findByRole('dialog', { name: `详情：${title(T1)}` }, { timeout: 3000 });
-    expect(sheet.textContent).toContain(title(T1));
+  it('sel and create open on the tasks page, in place of this page in history', async () => {
+    const router = mount(`&sel=${T1}`);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/tasks'), { timeout: 3000 });
+    expect(new URLSearchParams(router.state.location.searchStr).get('sel')).toBe(T1);
+    expect(router.history.length).toBe(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const again = mount('&create=role');
+    await waitFor(() => expect(again.state.location.pathname).toBe('/tasks'), { timeout: 3000 });
+    expect(new URLSearchParams(again.state.location.searchStr).get('create')).toBe('role');
   });
 
   it('a jump to another page does not open its sel here while this page is still shown', async () => {
@@ -69,20 +71,18 @@ describe('今天', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('shows no inferred task grid; the records control opens and closes an actual task', async () => {
+  it('shows no inferred task grid and no task records: the tasks page has them', async () => {
     mount('&demo=absent');
     await screen.findByRole('region', { name: '待处理' });
     expect(screen.queryByRole('region', { name: '当前任务' })).toBeNull();
-    const open = screen.getByRole('button', { name: '任务记录' });
-    fireEvent.click(open);
-    const records = await screen.findByRole('dialog', { name: '任务记录' });
-    fireEvent.click(await within(records).findByRole('button', { name: new RegExp(title(T1)) }));
-    const task = await screen.findByRole('dialog', { name: `详情：${title(T1)}` });
-    expect(screen.queryByRole('dialog', { name: '任务记录' })).toBeNull();
-    fireEvent.click(within(task).getByRole('button', { name: '关闭详情' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    fireEvent.click(open);
-    await screen.findByRole('dialog', { name: '任务记录' });
+    expect(screen.queryByRole('button', { name: '任务记录' })).toBeNull();
+  });
+
+  it('focus=item-<id> with a sel stays here', async () => {
+    const router = mount(`&sel=${A1}&focus=item-${A1}`);
+    await screen.findByRole('region', { name: '待处理' }, { timeout: 3000 });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(router.state.location.pathname).toBe('/');
   });
 
   it('with 开发者模式 off there is no role band and no screenshot readout', async () => {
@@ -113,7 +113,7 @@ describe('今天', () => {
     expect(screen.getByRole('toolbar', { name: '常用操作' })).toBeTruthy();
   });
 
-  it('the page has one name, 每日简报, and one 派发任务: in the action band, drawn like the rest of its row', async () => {
+  it('the page has one name, 每日简报, and no 派发任务: the action band draws its buttons alike', async () => {
     mount('&demo=sparse');
     await screen.findByRole('tablist', { name: '简报页签' }, { timeout: 3000 });
     await screen.findByText('当前没有编码会话');
@@ -121,7 +121,7 @@ describe('今天', () => {
     expect(document.body.textContent).not.toContain('工业简报');
     const band = screen.getByRole('toolbar', { name: '常用操作' });
     expect(new Set(within(band).getAllByRole('button').map((b) => b.getAttribute('data-variant')))).toEqual(new Set(['ghost']));
-    expect(screen.getAllByRole('button', { name: /派发/ }).map((b) => b.textContent)).toEqual(['派发任务']);
+    expect(screen.queryAllByRole('button', { name: /派发/ })).toEqual([]);
   });
 
   it('免打扰 has one name: its items are 30 分钟, 1 小时, 到明早 7 点 and 开会, with no 安静', async () => {

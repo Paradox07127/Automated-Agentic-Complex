@@ -8,15 +8,13 @@ import { fromDelivery, type Delivery } from '../../src/domain';
 import { APPROVALS, atS, GOALS, NOW, pick, QUESTIONS, TASKS, WIRE_DELIVERIES, WIRE_RUNTIME, WIRE_TASK_ROWS } from '../../src/mock/fixtures';
 import { A2, DLV_T1_V2, G1, Q1, S_C07A, S_5E10, T1, T2, T3, T5, T6 } from '../../src/mock/fixtures/ids';
 import { createTasksActions, failMessage, NATIVE_OFF, sendReceipt, type ActionDeps } from '../../src/pages/tasks/actions';
-import { ArtifactTable } from '../../src/pages/tasks/ArtifactTable';
+import { Artifacts } from '../../src/pages/tasks/Artifacts';
 import { draftFor, type CreateDraft } from '../../src/pages/tasks/CreateForm';
 import { draftProblem, submitDraft } from '../../src/pages/tasks/create';
-import { DeliverySection } from '../../src/pages/tasks/DeliverySection';
 import { deriveView, emptyLocal, type TasksView } from '../../src/pages/tasks/model';
-import { PendingDetail } from '../../src/pages/tasks/PendingDetail';
-import { SelectedTask } from '../../src/pages/tasks/SelectedTask';
-import { useTaskDesk } from '../../src/pages/tasks/TaskDetailHost';
-import { TaskView } from '../../src/pages/tasks/TaskView';
+import { ApprovalPaper } from '../../src/pages/tasks/Papers';
+import { TaskDetail } from '../../src/pages/tasks/TaskDetail';
+import { useTaskDesk, type TaskDesk } from '../../src/pages/tasks/useTaskDesk';
 import { kernelName, loadSessionLines, loadTaskExtras, parsePlanEvent, useTasksFeed, watchTasksFeed } from '../../src/pages/tasks/useTasksData';
 import type { TasksBase } from '../../src/pages/tasks/useTasksData';
 import { ToastHost } from '../../src/shell/toast';
@@ -78,6 +76,24 @@ function deps(v: TasksView = view()) {
 }
 
 const writes = (calls: Call[]) => calls.filter((c) => c.method !== 'GET');
+
+/** One task's detail on the tasks page, over the fixture view; `over` replaces desk fields. */
+function mountDetail(id: string, v: TasksView = view(), over: Partial<TaskDesk> = {}) {
+  const d = deps(v);
+  const desk = { view: v, actions: createTasksActions(d), local: emptyLocal(), receipt: vi.fn(), kernel: { data: '默认内核' }, now: NOW, push: d.push, retry: 0, busy: false, decideFail: null, nativeOff: {}, ...over } as unknown as TaskDesk;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <TaskDetail task={pick(v.tasks, id)} desk={desk} who="陈千语" convTitle={() => null} onGoChat={() => {}} note={false} onNote={() => {}} />
+      <ToastHost />
+    </QueryClientProvider>,
+  );
+  return d;
+}
+
+const noop = () => {};
+const files = (arts: Delivery['artifacts'], over: Partial<Parameters<typeof Artifacts>[0]> = {}) =>
+  render(<Artifacts deliveries={[{ ...delivery(DLV_T1_V2), artifacts: arts }]} canReveal={false} nativeOff={{}} onOpen={noop} onReveal={noop} onCopy={noop} onRevert={noop} {...over} />);
 
 describe('tasks: stop goes to the route of the task source', () => {
   it('role job → /agent/jobs/{hex}/cancel {}; own coding session → /sessions/{id}/interrupt with no body', async () => {
@@ -232,14 +248,14 @@ describe('tasks: create', () => {
     expect(r.select).toMatch(/^job:[a-f0-9]{32}$/);
   });
 
-  it('code → POST /sessions {target, cwd: picked handle, prompt, mode}; goal → POST /agent/goals {title, objective}', async () => {
+  it('code → POST /sessions {target, cwd: picked handle, prompt, mode}; a role task with a scope sends scope_id', async () => {
     const { calls } = install();
     const cwd = { handle: 'h-1', displayName: 'agent' };
     await submitDraft({ ...draftFor('code'), brief: '补测试', agent: 'codex', cwd, mode: 'workspace_write' });
-    await submitDraft({ ...draftFor('goal'), title: '迁移桌面层', objective: '浮窗栈与就地输入' });
+    await submitDraft({ ...draftFor('role'), title: '汇总纪要', brief: '合成一份', scopeId: 'scope-1' });
     expect(writes(calls)).toEqual([
       { method: 'POST', path: '/sessions', body: { target: 'codex', cwd, prompt: '补测试', mode: 'workspace_write' } },
-      { method: 'POST', path: '/agent/goals', body: { title: '迁移桌面层', objective: '浮窗栈与就地输入' } },
+      { method: 'POST', path: '/agent/jobs', body: { title: '汇总纪要', text: '合成一份', scope_id: 'scope-1' } },
     ]);
   });
 
@@ -248,7 +264,6 @@ describe('tasks: create', () => {
     expect(draftProblem({ ...draftFor('code'), cwd: null }, false)).toBe('这台电脑的外壳不支持原生目录选择');
     expect(draftProblem({ ...draftFor('role'), title: '测试', brief: '测试要求', acceptanceOpen: true, artifact: '/abs/a.md' }, true)).toContain('相对路径');
     expect(draftProblem({ ...draftFor('role'), title: '测试', brief: '测试要求', acceptanceOpen: true, artifact: 'a.docx' }, true)).toContain('相对路径');
-    expect(draftProblem({ ...draftFor('goal'), title: '目标', objective: '' }, true)).toBe('先写目标说明');
   });
 });
 
@@ -259,11 +274,11 @@ describe('tasks: reads', () => {
     install((method, path) => method === 'GET' && path.startsWith('/agent/tasks?') ? { status: 200, body: { tasks: rows, next_cursor: null } } : null);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-    const first = renderHook(() => useTaskDesk(null, null, false), { wrapper });
+    const first = renderHook(() => useTaskDesk(null, null, null), { wrapper });
     await waitFor(() => expect(first.result.current.view?.tasks.find((t) => t.id === T1)?.status).toBe('running'));
     first.unmount();
     rows = [task];
-    const returned = renderHook(() => useTaskDesk(null, null, false), { wrapper });
+    const returned = renderHook(() => useTaskDesk(null, null, null), { wrapper });
     await waitFor(() => expect(returned.result.current.view?.tasks.find((t) => t.id === T1)?.status).toBe('needs_review'));
     expect(returned.result.current.view?.tasks.find((t) => t.id === T1)?.summary).toContain('142 条');
   });
@@ -319,21 +334,24 @@ describe('tasks: reads', () => {
 });
 
 describe('tasks: what the page shows', () => {
-  it('artifact table: 版本 column; open and copy use the absolute path', () => {
+  it('artifacts: each file names its check and version; open and copy use the absolute path', () => {
     const arts = delivery(DLV_T1_V2).artifacts;
     const onOpen = vi.fn();
-    render(<ArtifactTable artifacts={arts} onOpen={onOpen} />);
-    const table = screen.getByRole('grid', { name: '产物' });
-    expect(within(table).getByRole('columnheader', { name: '版本' })).toBeTruthy();
-    within(table).getAllByRole('button', { name: arts[0]!.name })[0]!.click();
+    const onCopy = vi.fn();
+    files(arts, { onOpen, onCopy });
+    const tile = within(screen.getByRole('group', { name: '产物' })).getByRole('button', { name: new RegExp(arts[0]!.name) });
+    expect(tile.textContent).toContain(`v${arts[0]!.version}`);
+    fireEvent.click(tile);
     expect(onOpen).toHaveBeenCalledWith(arts[0]!.absolute_path);
+    fireEvent.contextMenu(tile);
+    fireEvent.click(within(screen.getByRole('menu', { name: arts[0]!.name })).getByRole('menuitem', { name: '复制路径' }));
+    expect(onCopy).toHaveBeenCalledWith(arts[0]!.absolute_path);
   });
 
-  it('a revoked delivery shows one placeholder line instead of the table', () => {
-    const d = { ...delivery(DLV_T1_V2), redacted: true, artifacts: [] };
-    const { container } = render(<DeliverySection deliveries={[d]} countInBar={false} onOpen={() => {}} onReveal={() => {}} onCopyPath={() => {}} />);
-    expect(container.textContent).toContain('这一版已撤回');
-    expect(container.querySelector('[role="grid"]')).toBeNull();
+  it('a revoked delivery shows one placeholder line instead of the files', () => {
+    render(<Artifacts deliveries={[{ ...delivery(DLV_T1_V2), redacted: true, artifacts: [] }]} canReveal={false} nativeOff={{}} onOpen={noop} onReveal={noop} onCopy={noop} onRevert={noop} />);
+    expect(document.body.textContent).toContain('这一版已撤回');
+    expect(screen.queryByRole('group', { name: '产物' })).toBeNull();
   });
 });
 
@@ -342,7 +360,8 @@ const callError = (status: number, code: string) => new AgentdCallError(status, 
 describe('tasks: failure reasons and native entries', () => {
   it('renders an untruncated structured task result and strips the leading delivery marker', () => {
     const task = { ...pick(TASKS, T1), summary: '[int:explain] ## 推荐\n\n- 先做 **A**\n- 再做 C\n\n| 方案 | 成本 |\n| --- | --- |\n| A + C | 32 |\n\n最终预算余量 8' };
-    render(<TaskView task={task} effective="done" now={NOW} />);
+    const v = view();
+    mountDetail(T1, { ...v, tasks: v.tasks.map((t) => (t.id === T1 ? task : t)) });
     const result = screen.getByRole('region', { name: '任务结果' });
     expect(result.textContent).not.toContain('[int:explain]');
     expect(within(result).getAllByRole('listitem')).toHaveLength(2);
@@ -386,30 +405,26 @@ describe('tasks: failure reasons and native entries', () => {
     expect(d.nativeOff.mock.calls).toEqual([['artifact'], ['copy'], ['jump']]);
   });
 
-  it('entries marked off: the artifact name is no button, menu items and 跳到终端 are disabled with the reason', () => {
+  it('entries marked off: a file opens nothing and says why; 打开 and 复制路径 are disabled with the reason', () => {
     const arts = delivery(DLV_T1_V2).artifacts;
     const onOpen = vi.fn();
-    render(<ArtifactTable artifacts={arts} onOpen={onOpen} nativeOff={{ artifact: NATIVE_OFF.artifact, copy: NATIVE_OFF.copy }} />);
-    expect(screen.queryByRole('button', { name: arts[0]!.name })).toBeNull();
-    cleanup();
-    const v = view();
-    const t2 = pick(v.tasks, T2);
-    render(<TaskView task={t2} effective="running" now={NOW} sessionId={S_C07A} sessionLines={['a']} nativeOff={{ jump: NATIVE_OFF.jump }} />);
-    const jump = screen.getByRole('button', { name: /跳到终端/ });
-    expect(jump.getAttribute('aria-disabled')).toBe('true');
-    expect(document.body.textContent).toContain(NATIVE_OFF.jump);
+    files(arts, { onOpen, nativeOff: { artifact: NATIVE_OFF.artifact, copy: NATIVE_OFF.copy } });
+    const tile = within(screen.getByRole('group', { name: '产物' })).getByRole('button', { name: new RegExp(arts[0]!.name) });
+    fireEvent.click(tile);
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(tile.getAttribute('title')).toContain(NATIVE_OFF.artifact);
+    fireEvent.contextMenu(tile);
+    for (const [name, why] of [['打开', NATIVE_OFF.artifact], ['复制路径', NATIVE_OFF.copy]] as const) {
+      const it = screen.getByRole('menuitem', { name });
+      expect(it.getAttribute('aria-disabled')).toBe('true');
+      expect(it.getAttribute('title')).toBe(why);
+    }
   });
 
   it('a failed /sessions/{id}/lines read says 会话输出没读到 with a retry, not 还没有输出', async () => {
     let fail = true;
     const { calls } = install((method, path) => (path.endsWith('/lines') && fail ? { status: 500, body: { error: 'internal' }, error: { code: 'internal' } } : null));
-    const v = view();
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={client}>
-        <SelectedTask task={pick(v.tasks, T2)} view={v} now={NOW} stoppedAt={null} stepsFail={false} retry={0} toolFocus={null} decideFail={null} busy={false} canReveal={false} onReceipt={() => {}} onAction={() => {}} />
-      </QueryClientProvider>,
-    );
+    mountDetail(T2);
     await waitFor(() => expect(document.body.textContent).toContain('会话输出没读到'));
     expect(document.body.textContent).not.toContain('还没有输出');
     fail = false;
@@ -417,13 +432,12 @@ describe('tasks: failure reasons and native entries', () => {
     await waitFor(() => expect(calls.filter((c) => c.path.endsWith('/lines'))).toHaveLength(2));
   });
 
-  it('a JSON approval preview sums up as server · tool; the JSON stays in the fold', () => {
+  it('a JSON approval preview names the call as server │ tool; the JSON follows as it came', () => {
     const preview_text = JSON.stringify({ server: 'files', tool: 'write_file', arguments: { path: '/a.md' } }, null, 2);
     const q = { ...pick(QUESTIONS, Q1), interaction_kind: 'approval' as const, preview_text };
-    const noop = () => {};
-    const { container } = render(<PendingDetail item={q} pending={[]} now={NOW} onApprove={noop} onAnswer={noop} onCancelQuestion={noop} onOpenSession={noop} onOpenChat={noop} onMouseOnly={noop} />);
-    const lines = [...container.querySelectorAll('[data-summary] li')].map((l) => l.textContent ?? '');
-    expect(lines).toEqual(['files │ write_file']);
+    const { container } = render(<ApprovalPaper item={q} kernelName="默认内核" scopeLabel="这个任务里都允许" onDecide={noop} onMouseOnly={noop} />);
+    expect(container.querySelector('code')?.textContent).toBe('files │ write_file');
+    expect(container.querySelector('pre')?.textContent).toBe(preview_text);
   });
 });
 
@@ -487,16 +501,7 @@ describe('tasks: feed reads only what changed', () => {
 });
 
 describe('tasks: own coding session rename, archive, delete (⋯)', () => {
-  function mountSelected(task: typeof T2 | typeof T5 = T2) {
-    const v = view();
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={client}>
-        <SelectedTask task={pick(v.tasks, task)} view={v} now={NOW} stoppedAt={null} stepsFail={false} retry={0} toolFocus={null} decideFail={null} busy={false} canReveal={false} onReceipt={() => {}} onAction={() => {}} />
-        <ToastHost />
-      </QueryClientProvider>,
-    );
-  }
+  const mountSelected = (task: typeof T2 | typeof T5 = T2) => mountDetail(task);
   const item = async (name: string | RegExp) => {
     fireEvent.click(await screen.findByRole('button', { name: '会话操作' }));
     const it = await screen.findByRole('menuitem', { name });
@@ -555,7 +560,7 @@ describe('tasks: own coding session rename, archive, delete (⋯)', () => {
   it('an external session has no ⋯ session menu', async () => {
     install();
     mountSelected(T5);
-    await screen.findByText(/外部会话：这里只显示状态/);
+    await screen.findByRole('heading', { name: pick(TASKS, T5).title });
     expect(screen.queryByRole('button', { name: '会话操作' })).toBeNull();
   });
 });

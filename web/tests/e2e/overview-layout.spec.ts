@@ -28,15 +28,16 @@ test('overview-default (每日简报): the first paper card and the running rows
   expect(errors).toEqual([]);
 });
 
-test('overview: 派发任务 sits in the bottom action band with 快速输入, 屏幕识读 and 命令面板; ⌘N still dispatches', async ({ page }) => {
+test('overview: the bottom action band holds 快速输入, 屏幕识读 and 命令面板, no 派发任务; ⌘N dispatches on the tasks page', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/overview?plugins=all&still=1');
   const band = page.getByRole('toolbar', { name: '常用操作' });
-  for (const name of ['派发任务', '快速输入', '屏幕识读', '命令面板']) await expect(band.getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
+  for (const name of ['快速输入', '屏幕识读', '命令面板']) await expect(band.getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
+  await expect(band.getByRole('button', { name: /^派发任务/ })).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: '主导航' }).locator('[data-slot="action"] button')).toHaveCount(0);
   await page.keyboard.press('ControlOrMeta+n');
-  await expect(page).toHaveURL(/#\/overview\?.*create=role/);
-  await expect(page.getByRole('dialog', { name: '新建' })).toBeVisible();
+  await expect(page).toHaveURL(/#\/tasks\?/);
+  await expect(page.getByRole('form', { name: '派发任务' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

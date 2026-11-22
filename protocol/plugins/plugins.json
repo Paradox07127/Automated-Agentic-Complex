@@ -238,7 +238,7 @@
     },
     "web": {
       "pages": [
-        "schedules"
+        "tasks"
       ],
       "settings": [
         "perm.scope"

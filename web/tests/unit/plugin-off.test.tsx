@@ -9,7 +9,7 @@ import { AgentdCallError } from '../../src/bridge/agentd';
 import { PLUGINS, type PluginId } from '../../src/bridge/plugins.generated';
 import { isConflict } from '../../src/pages/overview/errors';
 import { OverviewPage } from '../../src/pages/overview/Page';
-import { SchedulesPage } from '../../src/pages/schedules/Page';
+import { TasksPage } from '../../src/pages/tasks/Page';
 import { failMessage } from '../../src/pages/tasks/actions';
 import { getPlugins } from '../../src/shell/plugins';
 import { ToastHost } from '../../src/shell/toast';
@@ -125,12 +125,12 @@ describe('每日简报 with 编码会话 off', () => {
     for (const p of ['/sessions', '/agent/runs', '/tasks', '/agent/goals']) expect(paths).toContain(p);
   });
 
-  it('offers 派发任务 and 屏幕识读 in the action band once 个人代理 and 屏幕识读 are on', async () => {
+  it('offers 屏幕识读 in the action band once 屏幕识读 is on; 派发任务 is on the tasks page, not here', async () => {
     pluginsOn('daily_brief', 'personal_agent', 'screen_reading');
     asAgentd();
     mount(OverviewPage);
     const band = await screen.findByRole('toolbar', { name: '常用操作' });
-    expect(within(band).getAllByRole('button').map((b) => b.textContent?.replace(/[⌃⌥⌘].*$/, ''))).toEqual(['派发任务', '快速输入', '屏幕识读', '命令面板']);
+    expect(within(band).getAllByRole('button').map((b) => b.textContent?.replace(/[⌃⌥⌘].*$/, ''))).toEqual(['快速输入', '屏幕识读', '命令面板']);
   });
 
   it('shows no error in 进行中 while agentd still has 编码会话 and 个人代理 off after they were switched on', async () => {
@@ -145,15 +145,15 @@ describe('每日简报 with 编码会话 off', () => {
   });
 });
 
-describe('定时任务 while agentd still has 个人代理 off', () => {
+describe('任务页「定时」 while agentd still has 个人代理 off', () => {
   it('shows no list, no error and nothing to create', async () => {
     pluginsOn('personal_agent');
     asAgentd([]);
-    mount(SchedulesPage);
+    mount(TasksPage, '&tab=sched');
     await settle();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(document.body.textContent).not.toContain('已在别处更新');
     expect(screen.queryByRole('button', { name: '新建定时任务' })).toBeNull();
-    expect(screen.queryByRole('list', { name: '定时任务列表' })).toBeNull();
+    expect(screen.queryByRole('option')).toBeNull();
   });
 });

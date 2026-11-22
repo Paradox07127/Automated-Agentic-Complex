@@ -1,4 +1,3 @@
-import { T1 } from '../../mock/fixtures/ids';
 import type { Demo } from '../../shell/types';
 
 // Demo list is the to-do list: every state below must open by URL and look right (prototype-v3 home ok / sparse / loading / error).
@@ -16,8 +15,6 @@ export const demos: Demo[] = [
   { name: 'pause', params: { demo: 'pause' } }, // 观察暂停，还剩 18 分
   { name: 'quiet', params: { demo: 'quiet' } }, // 免打扰·安静，还剩 58 分
   { name: 'palette', params: { demo: 'palette' } }, // ⌘K 命令面板
-  { name: 'detail', params: { sel: T1 } }, // 页内任务详情：从别处带 sel 跳来
-  { name: 'fallback', params: { demo: 'absent', focus: 'tasks' } },
   { name: 'absent', params: { demo: 'absent' } }, // 工作记忆的接口不在：今日一句用今天的读数
   { name: 'screen', params: { sw: 'scr,read' } }, // 只开屏幕感知和窗口文字：读数带 3 项补位，没有做完了和在做，右栏是前一天的观察日报
   { name: 'voice', params: { sw: 'voice' } }, // 只开语音：读数全是她的数据，没有时间页签，右栏是她今天说的一句

@@ -44,8 +44,8 @@ test('⌘K 「周报」 finds tasks, memory and deliveries and lands on sel=', a
   await expect(list).toContainText('搜索');
   await expect(options.filter({ hasText: '交付' }).first()).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/#\/overview\?.*sel=(job|task)%3A[\w-]+/);
-  await expect(page.getByRole('dialog', { name: /^详情：/ })).toBeVisible();
+  await expect(page).toHaveURL(/#\/tasks\?.*sel=(job|task)%3A[\w-]+/);
+  await expect(page.getByRole('region', { name: '详情' }).getByRole('heading', { level: 2 })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

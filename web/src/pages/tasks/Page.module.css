@@ -1,190 +1,348 @@
-/* 03 任务: 待处理带, 今日会话 plate (folded to one line by default), the task list; the detail is a sheet over the content. */
-.root {
+/* 任务页：游戏任务面板 missionpanel——左任务列表（MissionListNode，约 37% 宽）│ 竖分隔 │ 右任务详情（MissionInfoNode）。底：BgContent 的压暗、下部斜纹、点阵和左上标识水印。 */
+.page {
+  --tk-bg0: #0e0f11;
+  --tk-bg1: #1e1f22;
+  --tk-deco: rgba(255, 255, 255, 0.06);
+  --tk-deco2: rgba(255, 255, 255, 0.14);
+  --tk-row: rgba(36, 37, 40, 0.88);
+  --tk-row-hi: rgba(48, 49, 52, 0.92);
+  --tk-row-lo: rgba(24, 25, 27, 0.9);
+  --tk-row-line: rgba(255, 255, 255, 0.17);
+  --tk-row-t: #f0f0ee;
+  --tk-row-t2: #a8a8a6;
+  --tk-row-ico: rgba(255, 255, 255, 0.26);
+  --tk-sel: #dcdbd7;
+  --tk-sel-hi: #f4f3f0;
+  --tk-sel-t: #161616;
+  --tk-sel-t2: #4b4b48;
+  --tk-twill: #3fb4ea;
+  --tk-t1: #f0f0ee;
+  --tk-t2: #a8a8a6;
+  --tk-t3: #86868a;
+  --tk-cell: rgba(0, 0, 0, 0.32);
+  --tk-cell-line: rgba(255, 255, 255, 0.14);
+  --tk-grp: rgba(255, 255, 255, 0.028);
+  --tk-grp-line: rgba(255, 255, 255, 0.07);
+  --tk-mission: var(--ef-mission-accent);
+  --tk-y-t: var(--ef-accent);
+  --tk-y-band: rgba(255, 241, 0, 0.2);
+  --tk-ok: #f0e14a;
+  --tk-danger: #ff8a7a;
+  --tk-danger-band: rgba(225, 40, 49, 0.42);
+  --tk-shadow: rgba(0, 0, 0, 0.55);
+  --tk-glyph: rgba(255, 255, 255, 0.05);
+  --tk-lw: clamp(330px, 36vw, 540px);
   position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: var(--tk-lw) 30px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  padding: 6px 24px 0 16px;
+  overflow: hidden;
+  color: var(--tk-t1);
+  background: radial-gradient(90% 70% at 70% 0%, var(--tk-bg1), transparent 70%), linear-gradient(170deg, var(--tk-bg1), var(--tk-bg0) 55%);
+}
+
+:global([data-theme='light']) .page {
+  --tk-bg0: #d4d3cf;
+  --tk-bg1: #efeeea;
+  --tk-deco: rgba(0, 0, 0, 0.09);
+  --tk-deco2: rgba(0, 0, 0, 0.16);
+  --tk-row: #f7f7f4;
+  --tk-row-hi: #ffffff;
+  --tk-row-lo: #e9e8e4;
+  --tk-row-line: rgba(0, 0, 0, 0.16);
+  --tk-row-t: #1a1a1a;
+  --tk-row-t2: #555553;
+  --tk-row-ico: rgba(0, 0, 0, 0.28);
+  --tk-sel: #333436;
+  --tk-sel-hi: #44454a;
+  --tk-sel-t: #f2f2f0;
+  --tk-sel-t2: #c4c4c0;
+  --tk-twill: #8ddcff;
+  --tk-t1: #1a1a1a;
+  --tk-t2: #555553;
+  --tk-t3: #6f6f6b;
+  --tk-cell: rgba(0, 0, 0, 0.055);
+  --tk-cell-line: rgba(0, 0, 0, 0.2);
+  --tk-grp: rgba(255, 255, 255, 0.5);
+  --tk-grp-line: rgba(0, 0, 0, 0.08);
+  --tk-mission: #1f86bd;
+  --tk-y-t: #5c5500;
+  --tk-y-band: rgba(255, 241, 0, 0.42);
+  --tk-ok: #8a7f00;
+  --tk-danger: #c4161f;
+  --tk-danger-band: rgba(225, 40, 49, 0.13);
+  --tk-shadow: rgba(0, 0, 0, 0.16);
+  --tk-glyph: rgba(0, 0, 0, 0.07);
+}
+
+/* deco_mission_botton_twill tiled @0.2 over the lower part, point grid @0.05 at the top right */
+.page::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 44%;
+  z-index: -1;
+  pointer-events: none;
+  background: repeating-linear-gradient(-45deg, var(--tk-deco2) 0 1.5px, transparent 1.5px 9px);
+  mask: linear-gradient(0deg, rgba(0, 0, 0, 0.55), transparent);
+}
+
+.page::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 40% 18%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--tk-deco) 1.2px, transparent 1.5px) 0 0 / 22px 22px;
+  mask: radial-gradient(70% 80% at 60% 0%, #000, transparent);
+}
+
+.logo {
+  position: absolute;
+  left: 24px;
+  top: -20px;
+  width: 240px;
+  height: 208px;
+  z-index: -1;
+  color: var(--tk-deco);
+  pointer-events: none;
+}
+
+.list {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
-  padding: 0 var(--ef-page-pad) var(--ef-sp-24);
+  min-height: 0;
+  animation: inL 417ms var(--ef-ease-g-enter) both;
 }
 
-.banner {
-  padding-top: var(--ef-sp-12);
+/* DecoNode: 2px line @0.2 broken by a dotted middle block */
+.vdiv {
+  position: relative;
+  justify-self: center;
+  width: 2px;
+  margin: 18px 0 8px;
+  background:
+    linear-gradient(var(--tk-deco2), var(--tk-deco2)) top / 2px calc(50% - 34px) no-repeat,
+    linear-gradient(var(--tk-deco2), var(--tk-deco2)) bottom / 2px calc(50% - 34px) no-repeat;
 }
 
-.pend {
-  margin-top: 14px;
+.vdiv::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  width: 4px;
+  height: 60px;
+  margin-top: -30px;
+  background: repeating-linear-gradient(0deg, var(--tk-t2) 0 2px, transparent 2px 5px);
 }
 
-.plate {
-  margin-top: 14px;
+.detail {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
 }
 
-.plate > section {
-  padding: 22px var(--ef-sp-16) var(--ef-sp-12);
+.detail[data-anim] {
+  animation: infoIn 517ms var(--ef-ease-g-enter) both;
 }
 
-.plate[data-fold] > section {
-  padding: var(--ef-sp-8) var(--ef-sp-16);
-}
-
-.plate[data-fold] .plateHead {
-  margin-bottom: 0;
-}
-
-.fold {
-  display: inline-flex;
-  flex: none;
+/* ListTitleNode: fading rule, title, count and the yellow right bracket (deco_mission_progress) */
+.lhead {
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: var(--ef-sp-4);
-  height: 24px;
-  padding: 0 var(--ef-sp-6);
-  border: 0;
-  background: none;
-  color: var(--ef-text-2);
-  font: inherit;
-  font-size: 12px;
+  gap: 12px;
+  height: 44px;
+  padding: 0 6px 0 2px;
+}
+
+.lhead .ln {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  background: linear-gradient(90deg, transparent, var(--tk-deco2)) center / 100% 1px no-repeat;
+}
+
+.lhead .ln::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 44px;
+  height: 8px;
+  background: repeating-linear-gradient(-60deg, var(--tk-deco2) 0 1px, transparent 1px 5px);
+}
+
+.lhead b {
+  font-size: 18px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.fold:hover {
-  color: var(--ef-text-1);
+.lhead b span {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tk-t2);
 }
 
-.fold:focus-visible {
-  outline: var(--ef-lw-hair) solid var(--ef-focus);
+.br {
+  width: 9px;
+  height: 22px;
+  margin-left: -4px;
+  border: 2.5px solid var(--ef-accent);
+  border-left: 0;
+  box-shadow: 2px 0 6px -2px rgba(255, 241, 0, 0.6);
 }
 
-.fold[aria-expanded='true'] svg {
-  transform: rotate(180deg);
-}
-
-.plateHead {
+.search {
   display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 150px;
+  flex: none;
+}
+
+.search input {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.search input::placeholder {
+  color: #6b6b6b;
+}
+
+.search:focus-within {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 2px var(--ef-accent);
+}
+
+.scroll {
+  display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 14px;
+  min-height: 0;
+  padding: 12px 10px 18px 14px;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tk-t3) transparent;
+}
+
+.none {
+  margin: 0;
+  padding: 8px 4px;
+  font-size: 13px;
+  color: var(--tk-t2);
+}
+
+.more {
+  all: unset;
+  cursor: pointer;
+  justify-self: center;
+  font-size: 12px;
+  color: var(--tk-t2);
+  border-bottom: 1px solid var(--tk-t3);
+}
+
+.more:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+/* LockTipsNode: red band with a left rule */
+.tipsR {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  min-width: 0;
-  margin-bottom: var(--ef-sp-8);
-}
-
-.plateHead h3 {
-  margin: 0;
-  color: var(--ef-text-1);
-  font: 500 var(--ef-fs-title-2, 15px) / 1.3 var(--ef-font-sans);
-  white-space: nowrap;
-}
-
-.t3 {
-  color: var(--ef-text-3);
-  font-size: 12px;
-}
-
-.sp {
-  flex: 1;
-}
-
-.hint {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ef-text-3);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cards {
-  margin-top: 22px;
-}
-
-.secRight {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ef-sp-12);
-}
-
-.roleWarn {
-  display: flex;
-  align-items: center;
-  gap: var(--ef-sp-6);
-  margin: 0 0 var(--ef-sp-8);
-  padding: var(--ef-sp-6) var(--ef-sp-12);
-  border-left: 3px solid var(--ef-state-warning);
-  color: var(--ef-text-1);
+  min-height: 46px;
+  padding: 4px 8px 4px 12px;
   font-size: 13px;
+  background: linear-gradient(90deg, var(--tk-danger-band), transparent);
+  box-shadow: inset 3px 0 0 #e12831;
 }
 
-.roleWarn svg {
-  flex: none;
-  color: var(--ef-state-warning);
+.tipsR > svg {
+  color: var(--tk-danger);
 }
 
-.demo {
-  display: flex;
-  align-items: center;
-  gap: var(--ef-sp-8);
-  margin-bottom: var(--ef-sp-12);
-  color: var(--ef-text-3);
+.tipsR b {
+  display: block;
+  font-weight: 600;
+}
+
+.tipsR small {
+  display: block;
   font-size: 12px;
+  line-height: 18px;
+  color: var(--tk-t2);
 }
 
-.dispatch {
-  position: relative;
-  display: inline-flex;
+.skel {
+  height: 66px;
+  border-radius: 0 9px 9px 0;
+  background: linear-gradient(100deg, var(--tk-row-lo) 30%, var(--tk-row-hi) 50%, var(--tk-row-lo) 70%) 0 0 / 300% 100%;
+  box-shadow: inset 0 0 0 1px var(--tk-row-line);
+  animation: sk 1.2s linear infinite;
 }
 
-.menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: var(--ef-z-dropdown);
-  display: flex;
-  flex-direction: column;
-  min-width: 160px;
-  padding: var(--ef-sp-4);
-  border: 1px solid var(--ef-line);
-  background: var(--ef-overlay);
-  color: var(--ef-overlay-fg);
-}
-
-.menuItem {
-  display: flex;
-  align-items: center;
-  height: 32px;
-  padding: 0 var(--ef-sp-12);
-  border: 0;
-  background: none;
-  color: inherit;
-  text-align: left;
-  font: inherit;
-  font-size: 13px;
-}
-
-.menuItem:hover,
-.menuItem:focus-visible {
-  outline: none;
-  background: var(--ef-overlay-hover);
-}
-
-@container page (max-width: 1000px) {
-  .hint {
-    display: none;
+@keyframes inL {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
   }
 }
 
-/* Contour lines down the page's right margin, clear of the content; only the app ships the art. */
-:global(html[data-art]) .root {
-  position: relative;
-  isolation: isolate;
+@keyframes infoIn {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
 }
 
-:global(html[data-art]) .root::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: -1;
-  width: var(--ef-page-pad);
-  background: var(--ef-text-1);
-  opacity: 0.2;
-  pointer-events: none;
-  -webkit-mask: url('/art/common/contour.png') right top / 236px auto repeat-y;
-  mask: url('/art/common/contour.png') right top / 236px auto repeat-y;
+@keyframes sk {
+  to {
+    background-position: -300% 0;
+  }
+}
+
+/* 925×515: list column 292–360, tighter gutters */
+@container page (max-width: 1100px) {
+  .page {
+    --tk-lw: clamp(292px, 34vw, 360px);
+    padding: 2px 14px 0 10px;
+  }
+
+  .search {
+    width: 120px;
+  }
+}
+
+@media (max-height: 600px) {
+  .scroll {
+    gap: 10px;
+    padding-top: 10px;
+  }
+
+  .lhead {
+    height: 38px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list,
+  .detail[data-anim],
+  .skel {
+    animation: none;
+  }
 }

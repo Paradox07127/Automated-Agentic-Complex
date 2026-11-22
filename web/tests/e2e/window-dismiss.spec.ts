@@ -26,12 +26,15 @@ test('the reminders popover closes independently of its hover ring', async ({ pa
   await expect(popover).toHaveCount(0);
 });
 
-test('schedule and memory dialogs close with the header X at the minimum window size', async ({ page }) => {
+test('the memory dialog closes with the header X at the minimum window size; the schedule editor leaves with 取消', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
-  for (const [path, trigger] of [
-    ['/schedules?plugins=all&still=1', '新建定时任务'],
-    ['/memory?plugins=all&still=1&view=activity', '查看 核对渲染测试结果'],
-  ] as const) {
+  await page.goto('main.html#/tasks?tab=sched&plugins=all&still=1');
+  await page.locator('[data-tasks-bar]').getByRole('button', { name: '新建定时任务' }).click();
+  const form = page.getByRole('form', { name: '新建定时任务' });
+  await expect(form).toBeVisible();
+  await page.locator('[data-tasks-bar]').getByRole('button', { name: /^取消/ }).click();
+  await expect(form).toHaveCount(0);
+  for (const [path, trigger] of [['/memory?plugins=all&still=1&view=activity', '查看 核对渲染测试结果']] as const) {
     await page.goto(`main.html#${path}`);
     const opener = page.getByRole('button', { name: trigger, exact: true });
     await opener.click();

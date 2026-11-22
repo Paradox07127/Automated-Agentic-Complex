@@ -3,7 +3,7 @@ import type { Goal } from '../../domain';
 import { Btn, InfoTip, Seg, Select } from '../../ui';
 import styles from './CreateForm.module.css';
 
-export type CreateKind = 'role' | 'code' | 'goal';
+export type CreateKind = 'role' | 'code';
 
 /** own.py MODES. */
 export type CodeMode = 'read_only' | 'workspace_write';
@@ -12,8 +12,6 @@ export interface CreateDraft {
   kind: CreateKind;
   title: string;
   brief: string;
-  /** Goal description (`objective`). */
-  objective: string;
   goalId: string;
   acceptanceOpen: boolean;
   /** Relative path of the expected artifact. */
@@ -23,6 +21,8 @@ export interface CreateDraft {
   /** Folder handle from the native picker; the bridge turns it into the path. */
   cwd: PickedHandle | null;
   mode: CodeMode;
+  /** Scope a role task may read (`scope_id`); null leaves agentd's default. */
+  scopeId: string | null;
 }
 
 export function draftFor(kind: CreateKind): CreateDraft {
@@ -30,7 +30,6 @@ export function draftFor(kind: CreateKind): CreateDraft {
     kind,
     title: '',
     brief: '',
-    objective: '',
     goalId: '',
     acceptanceOpen: false,
     artifact: '',
@@ -38,6 +37,7 @@ export function draftFor(kind: CreateKind): CreateDraft {
     agent: 'claude',
     cwd: null,
     mode: 'read_only',
+    scopeId: null,
   };
 }
 
@@ -56,7 +56,7 @@ export interface CreateFormProps {
   onPickFolder: () => void;
 }
 
-/** 新建：类型由菜单项预选；角色任务写标题、要求和验收条件，编码任务选工具、目录和权限，目标写名称和说明。 */
+/** 新建：类型由菜单项预选；角色任务写标题、要求和验收条件，编码任务选工具、目录和权限。 */
 export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: CreateFormProps) {
   const set = (patch: Partial<CreateDraft>) => onChange({ ...draft, ...patch });
   return (
@@ -68,7 +68,6 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
         options={[
           { value: 'role', label: '角色任务' },
           { value: 'code', label: '编码会话' },
-          { value: 'goal', label: '目标' },
         ]}
       />
       {draft.kind === 'role' && (
@@ -77,12 +76,10 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
           <input className={styles.input} placeholder="给任务起个名字" value={draft.title} onChange={(e) => set({ title: e.target.value })} />
         </label>
       )}
-      {draft.kind !== 'goal' && (
-        <label className={styles.field}>
-          <span>要求</span>
-          <textarea className={styles.input} rows={3} placeholder="要做什么，做到什么程度？" value={draft.brief} onChange={(e) => set({ brief: e.target.value })} />
-        </label>
-      )}
+      <label className={styles.field}>
+        <span>要求</span>
+        <textarea className={styles.input} rows={3} placeholder="要做什么，做到什么程度？" value={draft.brief} onChange={(e) => set({ brief: e.target.value })} />
+      </label>
       {draft.kind === 'role' && (
         <>
           <div className={styles.field}>
@@ -154,22 +151,6 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
             />
             <span className={styles.note}>{MODE_NOTE[draft.mode]}</span>
           </div>
-        </>
-      )}
-      {draft.kind === 'goal' && (
-        <>
-          <label className={styles.field}>
-            <span>目标</span>
-            <input className={styles.input} value={draft.title} onChange={(e) => set({ title: e.target.value })} />
-          </label>
-          <label className={styles.field}>
-            <span>说明</span>
-            <textarea className={styles.input} rows={2} value={draft.objective} onChange={(e) => set({ objective: e.target.value })} />
-          </label>
-          <p className={styles.note}>
-            任务全部完成后才能核验
-            <InfoTip>目标下的任务全部完成或被接受后，才能「核验并完成」。</InfoTip>
-          </p>
         </>
       )}
     </div>

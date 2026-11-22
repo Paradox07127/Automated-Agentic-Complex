@@ -2,7 +2,6 @@
 import type { MemoryDaysResponse, MemorySessionsResponse } from '../../bridge/agentd-routes.generated';
 import { secToMs, unhidden, type Session } from '../../domain';
 import { uuidOf } from '../tasks/board';
-import { parseTasksParams, type TasksParams } from '../tasks/params';
 import { codeCounts, nextReminder, reminderTime } from './briefModel';
 import type { OverviewSnapshot } from './load';
 import type { DayConv, DayEpisode, OverviewBrief } from './loadBrief';
@@ -29,15 +28,19 @@ export interface DayLine {
   at: number | null;
 }
 
-export interface TodayParams extends Pick<TasksParams, 'sel' | 'open' | 'create'> {
+export interface TodayParams {
+  sel: string | null;
+  open: string | null;
+  create: 'role' | 'code' | 'sched' | null;
   ep: string | null;
   day: string | null;
 }
 
 export function parseTodayParams(search: string): TodayParams {
-  const { sel, open, create } = parseTasksParams(search);
   const q = new URLSearchParams(search);
-  return { sel, open, create, ep: q.get('ep'), day: q.get('day') };
+  const c = q.get('create');
+  const create = c === 'role' || c === 'code' || c === 'sched' ? c : null;
+  return { sel: q.get('sel'), open: q.get('open'), create, ep: q.get('ep'), day: q.get('day') };
 }
 
 /** 今天 6 段对话，7 个编码会话（进行中 3，待批准 2，已完成 1）；下一条提醒 15:20 组会带周报。 */

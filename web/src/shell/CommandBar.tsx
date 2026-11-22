@@ -50,7 +50,7 @@ export interface CommandBarProps {
 export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, actionRef }: CommandBarProps) {
   const status = useShellStatus();
   const devMode = useDevMode();
-  const pages = routes.filter((r) => r.id !== 'home' && r.id !== 'onboarding' && (r.nav !== false || r.id === 'schedules'));
+  const pages = routes.filter((r) => r.id !== 'home' && r.id !== 'onboarding' && (r.nav !== false || r.id === 'tasks'));
   const toItem = (r: PageRoute): MenuItem => ({
     kind: 'item',
     label: r.title,

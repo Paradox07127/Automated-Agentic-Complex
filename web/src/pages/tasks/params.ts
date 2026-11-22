@@ -1,39 +1,29 @@
-/** Old tab values other pages still send; the page has one view now and ignores them. */
-export type TasksTab = 'inbox' | 'all' | 'goals';
+/** 进行中 / 定时 / 已完成. */
+export type TasksTab = 'run' | 'sched' | 'done';
 
-export type SourceTab = 'all' | 'claude' | 'codex' | 'role';
+/** What the editor opens on: a role task or coding session to dispatch now, or a new schedule. */
+export type CreateKind = 'role' | 'code' | 'sched';
 
-/** Page-specific URL state (demo list in route.ts). */
+/** Page URL state (demo list in demos.ts). */
 export interface TasksParams {
-  /** Source tab; `code` (old link) means all coding tools. */
-  src: SourceTab;
-  /** A card or task id opens its detail; a pending id flashes its decision card. */
+  tab: TasksTab | null;
+  /** Task id (`job:` / `task:` …) or schedule id; picks its tab when `tab` is absent. */
   sel: string | null;
-  /** Opens the detail of a card, task or pending item. */
-  open: string | null;
-  /** Gantt window. */
-  range: '2h' | 'day';
-  /** Highlights the Write tool in the selected task's tool chart. */
-  tools: boolean;
-  kind: 'role' | 'code' | 'goal' | null;
-  /** Open the create dialog for this kind (cross-page 「新建」). */
-  create: 'role' | 'code' | 'goal' | null;
+  /** Opens the editor once. */
+  create: CreateKind | null;
 }
 
-const KINDS = ['role', 'code', 'goal'] as const;
-const kindOf = (v: string | null) => (KINDS as readonly string[]).includes(v ?? '') ? (v as TasksParams['kind']) : null;
+const TABS: readonly string[] = ['run', 'sched', 'done'];
+const KINDS: readonly string[] = ['role', 'code', 'sched'];
 
 export function parseTasksParams(search: string): TasksParams {
   const q = new URLSearchParams(search);
-  const src = q.get('src');
+  const tab = q.get('tab') ?? '';
+  const create = q.get('create') ?? '';
   return {
-    src: src === 'claude' || src === 'codex' || src === 'role' ? src : 'all',
+    tab: TABS.includes(tab) ? (tab as TasksTab) : null,
     sel: q.get('sel'),
-    open: q.get('open'),
-    range: q.get('range') === 'day' ? 'day' : '2h',
-    tools: q.get('tools') === '1',
-    kind: kindOf(q.get('kind')),
-    create: kindOf(q.get('create')),
+    create: KINDS.includes(create) ? (create as CreateKind) : null,
   };
 }
 

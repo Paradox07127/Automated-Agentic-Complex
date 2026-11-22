@@ -1,4 +1,4 @@
-// 定时任务页（网页）：domain/schedules 适配与触发器格式、今天页「进行中」节头入口、定时任务列表/启用/编辑/新建/立即运行/删除。
+// 任务页「定时」页签：domain/schedules 适配与触发器格式、今天页「进行中」节头入口、定时任务列表/启用/编辑/新建/立即运行/删除。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -9,7 +9,7 @@ import { NOW } from '../../src/mock/fixtures';
 import { C1 } from '../../src/mock/fixtures/ids';
 import { resetSchedules } from '../../src/mock/schedules';
 import { RunningSection } from '../../src/pages/overview/RunningSection';
-import { SchedulesPage } from '../../src/pages/schedules/Page';
+import { TasksPage } from '../../src/pages/tasks/Page';
 import { HeaderSlotContext } from '../../src/shell/headerSlot';
 import { ToastHost } from '../../src/shell/toast';
 
@@ -36,18 +36,18 @@ afterEach(() => {
   localStorage.clear();
 });
 
-function mountSchedules(search = '', bottom: HTMLElement | null = null) {
+function mountTasks(search = '', bottom: HTMLElement | null = null) {
   const root = createRootRoute({
     component: () => (
       <HeaderSlotContext.Provider value={bottom ? { setSub: () => {}, right: null, action: null, bottom } : null}>
-        <SchedulesPage />
+        <TasksPage />
         <ToastHost />
       </HeaderSlotContext.Provider>
     ),
   });
   const router = createRouter({
     routeTree: root,
-    history: createMemoryHistory({ initialEntries: [`/schedules?still=1${search}`] }),
+    history: createMemoryHistory({ initialEntries: [`/tasks?still=1&tab=sched${search}`] }),
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -114,14 +114,14 @@ describe('domain/schedules adapt and formatting', () => {
 describe('overview RunningSection header entry', () => {
   const READY = { status: 'success', data: true } as const;
 
-  it('shows 「定时任务 · n 个开着」 when n > 0 and 「定时任务」 when none, jumping to schedules', () => {
+  it('shows 「定时任务 │ n 个开着」 when n > 0 and 「定时任务」 when none, jumping to the 定时 tab of the tasks page', () => {
     const go = vi.fn();
     const { rerender } = render(
       <RunningSection q={READY} rows={[]} convs={0} code={0} activeRuns={{}} now={NOW} lost={false} go={go} onJumpSession={() => {}} schedules={2} />,
     );
     const linkWithCount = screen.getByRole('button', { name: /定时任务 │ 2 个开着/ });
     fireEvent.click(linkWithCount);
-    expect(go).toHaveBeenLastCalledWith({ page: 'schedules' });
+    expect(go).toHaveBeenLastCalledWith({ page: 'tasks', tab: 'sched' });
 
     rerender(<RunningSection q={READY} rows={[]} convs={0} code={0} activeRuns={{}} now={NOW} lost={false} go={go} onJumpSession={() => {}} schedules={0} />);
     const linkZero = screen.getByRole('button', { name: '定时任务' });
@@ -129,82 +129,67 @@ describe('overview RunningSection header entry', () => {
   });
 });
 
-describe('schedules page', () => {
-  it('新建定时任务 sits once in the bottom action bar; an empty list keeps only the one in its empty state', async () => {
+describe('tasks page 定时 tab', () => {
+  const bar = () => document.body.appendChild(document.createElement('div'));
+  const list = () => screen.findByRole('region', { name: '任务列表' });
+  const detail = () => screen.getByRole('region', { name: '详情' });
+
+  it('新建定时任务 sits once in the bottom bar; an empty list keeps only the one in its empty state', async () => {
     install();
-    const bottom = document.body.appendChild(document.createElement('div'));
-    mountSchedules('', bottom);
-    const region = await screen.findByRole('region', { name: '定时任务' });
-    await within(region).findByText('日报');
+    const bottom = bar();
+    mountTasks('', bottom);
+    await within(await list()).findByText('日报');
     expect(screen.getAllByRole('button', { name: '新建定时任务' })).toEqual([within(bottom).getByRole('button', { name: '新建定时任务' })]);
     cleanup();
     bottom.replaceChildren();
-    mountSchedules('&state=empty', bottom);
-    const empty = await screen.findByRole('region', { name: '定时任务' });
-    await within(empty).findByText('还没有定时任务');
-    expect(screen.getAllByRole('button', { name: '新建定时任务' })).toEqual([within(empty).getByRole('button', { name: '新建定时任务' })]);
+    mountTasks('&state=empty', bottom);
+    await screen.findByText('还没有定时任务');
+    expect(screen.getAllByRole('button', { name: '新建定时任务' })).toHaveLength(1);
+    expect(within(bottom).queryByRole('button', { name: '新建定时任务' })).toBeNull();
     bottom.remove();
   });
 
-  it('lists user schedule and agent proposal with 「她提议」 tag and primary 「启用」 button', async () => {
+  it('groups her proposal under 她提议的 with 「待你决定」 and the enabled one under 开着; the proposal offers a primary 启用', async () => {
     install();
-    mountSchedules();
-    const region = await screen.findByRole('region', { name: '定时任务' });
-    expect(await within(region).findByText('日报')).toBeTruthy();
-    expect(within(region).getByText('每周五整理周报')).toBeTruthy();
-    expect(within(region).getByText('她提议')).toBeTruthy();
-
-    const enableBtn = within(region).getByRole('button', { name: '启用' });
-    expect(enableBtn.getAttribute('data-variant')).toBe('primary');
-
-    const toggle = within(region).getByRole('switch', { name: /日报/ });
-    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    mountTasks('&sel=schedule-2');
+    const region = await list();
+    const proposed = await within(region).findByRole('listbox', { name: '她提议的' });
+    expect(within(proposed).getByText('每周五整理周报')).toBeTruthy();
+    expect(within(proposed).getByText('待你决定')).toBeTruthy();
+    expect(within(within(region).getByRole('listbox', { name: '开着' })).getByText('日报')).toBeTruthy();
+    expect((await within(detail()).findByRole('button', { name: '启用' })).getAttribute('data-variant')).toBe('primary');
   });
 
-  it('enables an agent proposal and toggles an enabled schedule via PUT /schedules/:id', async () => {
+  it('enables a proposal and switches an enabled schedule off via PUT /schedules/:id', async () => {
     const spy = install();
-    mountSchedules();
-    const region = await screen.findByRole('region', { name: '定时任务' });
-    const enableBtn = await within(region).findByRole('button', { name: '启用' });
-
+    mountTasks('&sel=schedule-2');
+    await within(await list()).findByText('每周五整理周报');
     await act(async () => {
-      fireEvent.click(enableBtn);
+      fireEvent.click(await within(detail()).findByRole('button', { name: '启用' }));
     });
-    await waitFor(() =>
-      expect(sent(spy, 'PUT', '/schedules/schedule-2')).toEqual([['PUT', '/schedules/schedule-2', { enabled: true }]]),
-    );
-    await waitFor(() => expect(within(region).getByRole('switch', { name: /每周五整理周报/ }).getAttribute('aria-checked')).toBe('true'));
-
-    const dailySwitch = within(region).getByRole('switch', { name: /日报/ });
+    await waitFor(() => expect(sent(spy, 'PUT', '/schedules/schedule-2')).toEqual([['PUT', '/schedules/schedule-2', { enabled: true }]]));
+    fireEvent.click(within(await list()).getByRole('option', { name: /日报/ }));
+    const onoff = await within(detail()).findByRole('radiogroup', { name: '启用「日报」' });
+    expect(within(onoff).getByRole('radio', { name: '开' }).getAttribute('aria-checked')).toBe('true');
     await act(async () => {
-      fireEvent.click(dailySwitch);
+      fireEvent.click(within(onoff).getByRole('radio', { name: '关' }));
     });
-    await waitFor(() =>
-      expect(sent(spy, 'PUT', '/schedules/schedule-1')).toEqual([['PUT', '/schedules/schedule-1', { enabled: false }]]),
-    );
+    await waitFor(() => expect(sent(spy, 'PUT', '/schedules/schedule-1')).toEqual([['PUT', '/schedules/schedule-1', { enabled: false }]]));
   });
 
   it('edits trigger and instruction via PUT /schedules/:id', async () => {
     const spy = install();
-    mountSchedules();
-    const region = await screen.findByRole('region', { name: '定时任务' });
-    await within(region).findByText('日报');
-
-    fireEvent.click(within(region).getByRole('button', { name: '编辑「日报」' }));
-    const dialog = await screen.findByRole('dialog', { name: /编辑定时任务/ });
-
-    const instructionInput = within(dialog).getByLabelText('指令');
-    fireEvent.change(instructionInput, { target: { value: '总结今日提交与未决问题' } });
-
-    const timeInput = within(dialog).getByLabelText('时间');
-    fireEvent.change(timeInput, { target: { value: '19:00' } });
-
-    fireEvent.click(within(dialog).getByRole('button', { name: '周六' }));
-
+    const bottom = bar();
+    mountTasks('&sel=schedule-1', bottom);
+    await within(await list()).findByText('日报');
+    fireEvent.click(await within(bottom).findByRole('button', { name: '编辑' }));
+    const form = await screen.findByRole('form', { name: /编辑定时任务/ });
+    fireEvent.change(within(form).getByLabelText('指令'), { target: { value: '总结今日提交与未决问题' } });
+    fireEvent.change(within(form).getByLabelText('时间'), { target: { value: '19:00' } });
+    fireEvent.click(within(form).getByRole('button', { name: '周六' }));
     await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
+      fireEvent.click(within(bottom).getByRole('button', { name: '保存' }));
     });
-
     await waitFor(() =>
       expect(sent(spy, 'PUT', '/schedules/schedule-1')).toEqual([
         [
@@ -220,49 +205,48 @@ describe('schedules page', () => {
         ],
       ]),
     );
-    expect(await within(region).findByText('总结今日提交与未决问题')).toBeTruthy();
-    expect(within(region).getByText('周一、二、三、四、五、六 19:00')).toBeTruthy();
+    expect(await within(detail()).findByText('总结今日提交与未决问题')).toBeTruthy();
+    expect(within(detail()).getByText(/每周一、二、三、四、五、六 19:00/)).toBeTruthy();
+    bottom.remove();
   });
 
-  it('runs a schedule now via POST /schedules/:id/run and deletes via DELETE /schedules/:id', async () => {
+  it('runs a schedule now via POST /schedules/:id/run; 删除 asks first, then DELETEs /schedules/:id', async () => {
     const spy = install();
-    mountSchedules();
-    const region = await screen.findByRole('region', { name: '定时任务' });
-    await within(region).findByText('日报');
-
+    const bottom = bar();
+    mountTasks('&sel=schedule-1', bottom);
+    await within(await list()).findByText('日报');
     await act(async () => {
-      fireEvent.click(within(region).getByRole('button', { name: '立即运行「日报」' }));
+      fireEvent.click(await within(bottom).findByRole('button', { name: '立即运行' }));
     });
     await waitFor(() => expect(sent(spy, 'POST', '/schedules/schedule-1/run')).toHaveLength(1));
-
+    fireEvent.click(within(bottom).getByRole('button', { name: '删除定时任务' }));
+    const ask = await screen.findByRole('dialog', { name: '删除「日报」？' });
+    expect(sent(spy, 'DELETE', '/schedules/schedule-1')).toHaveLength(0);
     await act(async () => {
-      fireEvent.click(within(region).getByRole('button', { name: '删除「每周五整理周报」' }));
+      fireEvent.click(within(ask).getByRole('button', { name: '删除' }));
     });
-    await waitFor(() => expect(sent(spy, 'DELETE', '/schedules/schedule-2')).toHaveLength(1));
-    await waitFor(() => expect(within(region).queryByText('每周五整理周报')).toBeNull());
+    await waitFor(() => expect(sent(spy, 'DELETE', '/schedules/schedule-1')).toHaveLength(1));
+    await waitFor(() => expect(within(screen.getByRole('region', { name: '任务列表' })).queryByText('日报')).toBeNull());
+    bottom.remove();
   });
 
   it('creates a schedule with the selected scope and conversation IDs', async () => {
     const spy = install();
     vi.spyOn(Date, 'now').mockReturnValue(NOW);
-    mountSchedules();
-    const region = await screen.findByRole('region', { name: '定时任务' });
-    await within(region).findByText('日报');
-
-    fireEvent.click(screen.getByRole('button', { name: '新建定时任务' }));
-    const dialog = await screen.findByRole('dialog', { name: /新建定时任务/ });
-
-    fireEvent.change(within(dialog).getByLabelText('标题'), { target: { value: '晨间待办检查' } });
-    fireEvent.change(within(dialog).getByLabelText('指令'), { target: { value: '梳理今日优先事项' } });
-    fireEvent.change(within(dialog).getByLabelText('时间'), { target: { value: '09:30' } });
-    const scope = await within(dialog).findByRole('option', { name: '/Users/lin/Documents/周报' });
-    fireEvent.change(within(dialog).getByLabelText('授权资料'), { target: { value: (scope as HTMLOptionElement).value } });
-    fireEvent.change(within(dialog).getByLabelText('关联对话'), { target: { value: C1 } });
-
+    const bottom = bar();
+    mountTasks('', bottom);
+    await within(await list()).findByText('日报');
+    fireEvent.click(within(bottom).getByRole('button', { name: '新建定时任务' }));
+    const form = await screen.findByRole('form', { name: /新建/ });
+    fireEvent.change(within(form).getByLabelText('标题'), { target: { value: '晨间待办检查' } });
+    fireEvent.change(within(form).getByLabelText('指令'), { target: { value: '梳理今日优先事项' } });
+    fireEvent.change(within(form).getByLabelText('时间'), { target: { value: '09:30' } });
+    const scope = await within(form).findByRole('option', { name: '/Users/lin/Documents/周报' });
+    fireEvent.change(within(form).getByLabelText('授权资料'), { target: { value: (scope as HTMLOptionElement).value } });
+    fireEvent.change(within(form).getByLabelText('关联对话'), { target: { value: C1 } });
     await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
+      fireEvent.click(within(bottom).getByRole('button', { name: '保存定时' }));
     });
-
     await waitFor(() =>
       expect(sent(spy, 'POST', '/schedules')).toEqual([
         [
@@ -279,6 +263,7 @@ describe('schedules page', () => {
         ],
       ]),
     );
-    expect(await within(region).findByText('晨间待办检查')).toBeTruthy();
+    expect(await within(await list()).findByText('晨间待办检查')).toBeTruthy();
+    bottom.remove();
   });
 });

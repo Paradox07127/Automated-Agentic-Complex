@@ -1,0 +1,123 @@
+/* ChapterCell: r10 shadowed card, a faded strip down the left, a title with a dotted 48×4 underline */
+.grp {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 10px 10px 14px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--tk-grp), transparent 70%);
+  box-shadow: inset 0 0 0 1px var(--tk-grp-line), 0 14px 24px -16px var(--tk-shadow);
+}
+
+.grp::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 34px;
+  border-radius: 10px 0 0 10px;
+  background: linear-gradient(90deg, var(--tk-deco), transparent);
+  pointer-events: none;
+}
+
+.gh {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 4px 2px 6px;
+}
+
+.gh b {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.gh .n {
+  font-size: 12px;
+  color: var(--tk-t2);
+}
+
+.gh::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  bottom: -2px;
+  width: 46px;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, var(--tk-t2) 0 4px, transparent 4px 6px);
+  opacity: 0.6;
+}
+
+/* ImportanceNode: icon_mission_vital, bigger title, a full-width rule */
+.gh[data-vital] b {
+  font-size: 17px;
+}
+
+.gh[data-vital]::after {
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 2px;
+  background: var(--tk-deco2);
+  opacity: 1;
+}
+
+.vital {
+  flex: none;
+  width: 30px;
+  height: 26px;
+}
+
+.note {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--tk-t2);
+}
+
+.rows {
+  display: grid;
+  gap: 12px;
+}
+
+/* bg_mission_tag: yellow capsule with a clock; NewNode: white capsule */
+.tag {
+  position: absolute;
+  right: 14px;
+  top: -10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 9px 0 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #444;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #fff, #e9e8e5);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.45);
+}
+
+.tag[data-tone='y'] {
+  color: #161616;
+  background: linear-gradient(180deg, #fff65a, var(--ef-accent));
+}
+
+@media (max-height: 600px) {
+  .grp {
+    padding: 8px 8px 10px;
+  }
+
+  .rows {
+    gap: 10px;
+  }
+
+  .gh {
+    min-height: 28px;
+  }
+}

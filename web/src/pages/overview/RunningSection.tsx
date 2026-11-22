@@ -132,7 +132,7 @@ function Row({ r, p }: { r: RunRow; p: RunningSectionProps }) {
         state={<StatusTag state={run?.state ?? 'running'} label={label} />}
         cap={steps.length ? <>步骤 <span className="num">{steps.filter((s) => s.status === 'completed').length + (step ? 1 : 0)}/{steps.length}</span></> : <span className="num">{run ? elapsed(now - run.started_at) : <Missing why="na" />}</span>}
         label={`角色任务「${t.title}」，${label}，打开任务详情`}
-        onClick={() => go({ page: 'overview', sel: t.id, focus: 'run-waterfall' })}
+        onClick={() => go({ page: 'tasks', sel: t.id })}
       />
     );
   }
@@ -155,7 +155,7 @@ function Row({ r, p }: { r: RunRow; p: RunningSectionProps }) {
       cap={<span className="num">{elapsed(now - (r.started ?? s.since))}</span>}
       label={`${s.agent} │ ${s.title}，${text}，${s.task_id ? '打开任务详情' : '前往编码会话'}`}
       onClick={() => {
-        if (s.task_id) go({ page: 'overview', sel: s.task_id });
+        if (s.task_id) go({ page: 'tasks', sel: s.task_id });
         else p.onJumpSession(s);
       }}
     />
@@ -198,7 +198,7 @@ export function RunningSection(p: RunningSectionProps) {
               </span>
             )}
             {p.schedules !== undefined && (
-              <button type="button" className={shared.more} onClick={() => go({ page: 'schedules' })}>
+              <button type="button" className={shared.more} onClick={() => go({ page: 'tasks', tab: 'sched' })}>
                 <span className={shared.lnk}>
                   {p.schedules > 0 ? (
                     <>

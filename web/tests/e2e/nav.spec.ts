@@ -20,19 +20,20 @@ async function expectLanding(page: Page, hash: RegExp, target: string | RegExp) 
   await expect(page).toHaveURL(/still=1/);
 }
 
-/** A task selection opens its detail on 今天; 进行中 rows carry no `task-<id>` landing to highlight. */
+/** A task selection opens it on the tasks page, selected in its list with its detail beside. */
 async function expectDetail(page: Page, hash: RegExp) {
   await expect(page).toHaveURL(hash);
-  await expect(page.getByRole('dialog', { name: /^详情：/ })).toBeVisible();
+  await expect(page.locator('[role="option"][aria-selected="true"]')).toBeVisible();
+  await expect(page.getByRole('region', { name: '详情' }).getByRole('heading', { level: 2 })).toBeVisible();
   await expect(page).toHaveURL(/still=1/);
 }
 
-test('overview: a role task row under 进行中 opens the task detail with its run waterfall', async ({ page }) => {
+test('overview: a role task row under 进行中 opens that task on the tasks page and lands on its row', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/overview?plugins=all&still=1');
   await page.getByRole('button', { name: /^角色任务「汇总 10 月开销表」/ }).click();
-  await expectLanding(page, /#\/overview\?.*sel=(job|task)%3A[\w-]+/, 'run-waterfall');
-  await expect(page.locator('[data-nav-hl]')).toHaveAttribute('data-stub', 'RunWaterfall');
+  await expectLanding(page, /#\/tasks\?.*sel=(job|task)%3A[\w-]+/, /^task-(job|task):/);
+  await expect(page.getByRole('region', { name: '详情' }).getByRole('heading', { name: '汇总 10 月开销表' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -49,7 +50,7 @@ test('the HUD error line title opens the failed task', async ({ page }) => {
   await page.goto('stack.html#/hud?demo=task-error&still=1');
   await page.getByRole('button', { name: /^展开全部/ }).click();
   await page.locator('[data-hud-row][data-status="error"] button[data-hud-title]').first().click();
-  await expectDetail(page, /main\.html#\/overview\?.*sel=(job|task)%3A[\w-]+/);
+  await expectDetail(page, /main\.html#\/tasks\?.*sel=(job|task)%3A[\w-]+/);
   expect(errors).toEqual([]);
 });
 

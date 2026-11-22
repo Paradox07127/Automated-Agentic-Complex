@@ -3,12 +3,14 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Swimlane, SwimlaneDemos, type SwimlaneLane } from '../../src/charts';
-import type { Approval, Task } from '../../src/domain';
+import type { Task } from '../../src/domain';
 import { ApprovalCard } from '../../src/features/approval';
 import { resumeOf, StopConfirm, TaskDrawer } from '../../src/features/task';
 import { APPROVALS, NOW, pick, TASKS } from '../../src/mock/fixtures';
-import { A2, T1 } from '../../src/mock/fixtures/ids';
-import { PendingDetail } from '../../src/pages/tasks/PendingDetail';
+import { A2, S_C07A, T1, T2 } from '../../src/mock/fixtures/ids';
+import { BottomBar } from '../../src/pages/tasks/Bottom';
+import { deriveView, emptyLocal } from '../../src/pages/tasks/model';
+import type { TaskDesk } from '../../src/pages/tasks/useTaskDesk';
 
 afterEach(cleanup);
 
@@ -71,11 +73,17 @@ describe('ApprovalCard: why the session link is off', () => {
     expect(link().getAttribute('title')).toBe('这台电脑的外壳暂不支持跳到终端');
   });
 
-  it('the task page passes its own reason', () => {
+  it('the task page passes its own reason to 跳到终端 in its bottom bar', () => {
     const noop = () => {};
-    const a = pick(APPROVALS, A2) as Approval;
-    render(<PendingDetail item={a} pending={[a]} now={NOW} onApprove={noop} onAnswer={noop} onCancelQuestion={noop} onOpenSession={noop} sessionOff="这台电脑的外壳暂不支持跳到终端" onOpenChat={noop} onMouseOnly={noop} />);
-    expect(link().getAttribute('title')).toBe('这台电脑的外壳暂不支持跳到终端');
+    const own = { id: S_C07A, task_id: T2, kind: 'code' as const, own: true, target: 'codex' as const, display_session: null, agent: 'Codex', title: 'companion', state: 'running' as const, since: NOW, cwd: '~/Endfield/app' };
+    const view = deriveView({ tasks: TASKS, deliveries: [], sessions: [own], approvals: [], questions: [], goals: [], activeRuns: {}, roleMissing: false }, emptyLocal());
+    const desk = { view, actions: { onTask: () => noop }, local: emptyLocal(), nativeOff: { jump: '这台电脑的外壳暂不支持跳到终端' } } as unknown as TaskDesk;
+    render(
+      <BottomBar tab="run" empty={false} newLabel="派发任务" onNew={noop} draft={null} problem={null} busy={false} onCancel={noop} onSubmit={noop} task={pick(view.tasks, T2)} desk={desk} dev={false} schedule={null} onNote={noop} onAgain={noop} onGoChat={noop} onEdit={noop} onRunNow={noop} onDelete={noop} />,
+    );
+    const jump = screen.getByRole('button', { name: '跳到终端' });
+    expect(jump.getAttribute('aria-disabled')).toBe('true');
+    expect(jump.getAttribute('title')).toBe('这台电脑的外壳暂不支持跳到终端');
   });
 });
 

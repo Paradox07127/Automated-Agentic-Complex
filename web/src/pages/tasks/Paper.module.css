@@ -1,0 +1,148 @@
+/* White paper: only for decisions (approve, review, answer, her proposal); black-and-yellow tape along the top (chat v2 .swap) */
+.paper {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 16px 18px 14px;
+  color: #1f1f1f;
+  background: linear-gradient(180deg, #faf9f7, #f2f1ef);
+  box-shadow: 0 14px 28px -14px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  animation: popUp 300ms var(--ef-ease-g-enter) both;
+}
+
+.paper::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  background: repeating-linear-gradient(115deg, #161616 0 6px, var(--ef-accent) 6px 12px);
+}
+
+.paper[data-warn]::before {
+  background: repeating-linear-gradient(115deg, #161616 0 6px, #ff4145 6px 12px);
+}
+
+.paper:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 3px;
+}
+
+.paper h4 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.paper p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: #5e5d5b;
+}
+
+.paper code {
+  font: 500 13px var(--ef-font-mono);
+  color: #1f1f1f;
+}
+
+.pv {
+  max-height: 220px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-left: 3px solid #161616;
+  font: 13px / 20px var(--ef-font-mono);
+  color: #1f1f1f;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.rule {
+  color: #b71313 !important;
+  font-weight: 600;
+}
+
+.cd {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #5e5d5b;
+}
+
+.cd i {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.cd i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: var(--left, 100%);
+  background: #161616;
+  transition: width 1s linear;
+}
+
+.btns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.btns .sp {
+  flex: 1;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #5e5d5b;
+}
+
+.paper textarea {
+  width: 100%;
+  min-height: 58px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 20px;
+  color: #1f1f1f;
+  background: #fff;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.18);
+  resize: vertical;
+}
+
+.paper textarea:focus {
+  outline: none;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 2px #161616;
+}
+
+.err {
+  font-size: 12px;
+  color: #b71313;
+}
+
+@keyframes popUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper {
+    animation: none;
+  }
+}
