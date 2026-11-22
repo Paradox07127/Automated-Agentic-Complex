@@ -306,6 +306,17 @@ test('an image needs its own grant and comes back as PNG', { skip: UNIX_SOCKET }
   } finally { h.cleanup(); }
 });
 
+test('a system permission that does not apply (Windows) counts as given: the grants go through', { skip: UNIX_SOCKET }, async () => {
+  const h = await setup({ helper: { 'permissions.status': ok({ accessibility: 'notApplicable', screenRecording: 'notApplicable',
+    microphone: 'granted', automation: 'notApplicable', inputMonitoring: 'notApplicable' }) } });
+  try {
+    await h.granted(['observation', 'image']);
+    assert.deepEqual(h.sent('permissions.request'), []);
+    const r = await h.ask('desktop_observe', { ...TARGET, include_image: true });
+    assert.deepEqual(r.result?.image, { mime_type: 'image/png', data: 'iVBORw0=' });
+  } finally { h.cleanup(); }
+});
+
 test('act: needs the control grant, sends the checked action, spends one of 5', { skip: UNIX_SOCKET }, async () => {
   const h = await setup();
   try {

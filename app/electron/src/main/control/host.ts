@@ -647,7 +647,9 @@ export class ControlHost {
 
   private async systemPermissions(): Promise<{ ax: boolean; screen: boolean }> {
     const r = await this.ports.helper.request('permissions.status', {});
-    const system = { ax: r.ok && r.result.accessibility === 'granted', screen: r.ok && r.result.screenRecording === 'granted' };
+    // notApplicable: the platform has no such permission (Windows).
+    const given = (state: unknown) => state === 'granted' || state === 'notApplicable';
+    const system = { ax: r.ok && given(r.result.accessibility), screen: r.ok && given(r.result.screenRecording) };
     this.system = system;
     return system;
   }

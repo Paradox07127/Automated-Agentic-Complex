@@ -402,7 +402,7 @@ const HELPER_CODES: Record<string, [string, string]> = {
   secure_element: ['secure_element', '不操作密码控件'],
   secure_input: ['secure_input', '安全输入已开启，暂停电脑操作'],
   action_refused: ['action_refused', '控件未接受动作；请观察结果，不要盲目重放'],
-  unsupported_action: ['unsupported', '只支持press/set_value/type/click/scroll'],
+  unsupported_action: ['unsupported', '这台电脑不支持这个动作（Windows 不支持 click/scroll，用 press/set_value/type）'],
   invalid_text: ['invalid_text', '需要element_id及最多4096字节文字'],
   invalid_point: ['invalid_point', '坐标必须在授权窗口内'],
   invalid_scroll: ['invalid_scroll', 'delta_y必须是有限整数'],
