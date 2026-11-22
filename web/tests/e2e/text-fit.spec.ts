@@ -47,11 +47,10 @@ test('每日简报 900×600: the date pager in the command bar is not cut', asyn
   expect(f.lines).toBeLessThanOrEqual(1);
 });
 
-test('运行记录 1280: a focused timeline entry draws its ring inside its own box', async ({ page }) => {
-  await open(page, 1280, 800, 'trace');
+test('每日简报 › 时间 1280: a focused timeline entry draws its ring inside its own box', async ({ page }) => {
+  await open(page, 1280, 800, 'overview?tab=tm');
   // From the keyboard, so the entry's focus is drawn as a keyboard ring.
-  await page.getByRole('tab', { name: '今日时间线' }).focus();
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('Tab');
   const entry = page.locator('button[data-entry]').first();
   await entry.focus();
   const ring = await entry.evaluate((e) => {
@@ -94,53 +93,27 @@ test('对话 900×700: the composer status hint is shown whole; at 900×600 it m
   expect(g.title).toBe(g.text);
 });
 
-const WF = '[role="list"][aria-label^="瀑布"]';
-const INSPECTOR = `[data-page="trace"] [data-wide]:has(${WF})`;
-
-for (const demo of ['full', 'full-turn', 'sparse']) {
-  test(`追踪 900×600 ${demo}: the inspector stacks to one column and nothing runs past its edge`, async ({ page }) => {
-    await open(page, 900, 600, `trace?demo=${demo === 'sparse' ? 'sparse' : 'full'}${demo === 'full-turn' ? '&turn=tr7' : ''}`);
-    const ins = page.locator(INSPECTOR);
-    await expect(ins.locator(WF)).toBeVisible();
-    const r = await ins.evaluate((root, wf) => {
-      const box = root.getBoundingClientRect();
-      const facts = root.querySelector(wf)!.closest('section')!.parentElement!.nextElementSibling!;
-      const past = [...root.querySelectorAll('*')].filter((e) => {
-        const b = e.getBoundingClientRect();
-        return b.width > 0 && b.right > box.right + 1;
-      });
-      const obsT = [...root.querySelectorAll('span:has(> b)')].find((e) => /文字/.test(e.textContent ?? ''));
-      return {
-        width: box.width,
-        cols: getComputedStyle(facts).gridTemplateColumns.split(' ').length,
-        past: past.map((e) => e.textContent?.slice(0, 40)),
-        obsT: obsT ? obsT.getBoundingClientRect().width : null,
+for (const view of ['trace?demo=full&turn=tr7', 'trace?demo=sparse', 'trace?tab=logs']) {
+  test(`运行记录 925×515 ${view}: nothing in the page runs past its right edge`, async ({ page }) => {
+    await open(page, 925, 515, view);
+    const main = page.locator('main');
+    await expect(main.getByRole(view.includes('logs') ? 'log' : 'listbox').first()).toBeVisible();
+    const past = await main.evaluate((root) => {
+      const edge = root.getBoundingClientRect().right;
+      // Text an ellipsis or a scroller cuts inside the page does not count.
+      const clipped = (e: Element) => {
+        for (let p = e.parentElement; p && p !== root; p = p.parentElement) {
+          if (getComputedStyle(p).overflowX !== 'visible') return p.getBoundingClientRect().right <= edge + 1;
+        }
+        return false;
       };
-    }, WF);
-    expect(r.width).toBeLessThan(900);
-    expect(r.cols).toBe(1);
-    expect(r.past).toEqual([]);
-    if (demo !== 'sparse') expect(r.obsT).not.toBeNull();
-    if (r.obsT !== null) expect(r.obsT).toBeGreaterThanOrEqual(120);
-  });
-
-  test(`追踪 900×600 ${demo}: waterfall axis labels do not collide, even on a narrow track`, async ({ page }) => {
-    await open(page, 900, 600, `trace?demo=${demo === 'sparse' ? 'sparse' : 'full'}${demo === 'full-turn' ? '&turn=tr7' : ''}`);
-    const wf = page.locator(`[data-page="trace"] ${WF}`);
-    await expect(wf).toBeVisible();
-    for (const width of [null, 260]) {
-      if (width) await wf.evaluate((e, w) => ((e as HTMLElement).style.width = `${w}px`), width);
-      const boxes = await wf.locator('[data-ax] span > span').evaluateAll((els) =>
-        els
-          .filter((e) => getComputedStyle(e).display !== 'none' && getComputedStyle(e).visibility !== 'hidden')
-          .map((e) => {
-            const b = e.getBoundingClientRect();
-            return [b.left, b.right, e.textContent] as const;
-          })
-          .sort((a, b) => a[0] - b[0]),
-      );
-      expect(boxes.length).toBeGreaterThanOrEqual(2);
-      for (let i = 1; i < boxes.length; i++) expect(boxes[i]![0], `${width} ${JSON.stringify(boxes)}`).toBeGreaterThanOrEqual(boxes[i - 1]![1] + 2);
-    }
+      return [...root.querySelectorAll('*')]
+        .filter((e) => {
+          const b = e.getBoundingClientRect();
+          return b.width > 0 && b.right > edge + 1 && getComputedStyle(e).visibility !== 'hidden' && !clipped(e);
+        })
+        .map((e) => `${e.tagName} ${(e.textContent ?? '').slice(0, 30)}`);
+    });
+    expect(past).toEqual([]);
   });
 }

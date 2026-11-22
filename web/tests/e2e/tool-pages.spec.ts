@@ -3,7 +3,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 // Tool pages get a filter bar (filters, hatch band, main action at the right); process rows are read-only,
 // trace turn rows are pressable; the first-run step bar and word mark; nothing scrolls sideways at 900.
 
-const TOOLS = ['diag', 'trace', 'pipeline', 'tune', 'schedules'] as const;
+// 运行记录 has no filter bar: its search and filters sit at the head of the turn list.
+const TOOLS = ['diag', 'pipeline', 'tune', 'schedules'] as const;
 
 const css = (l: Locator, prop: string) => l.evaluate((e, p) => getComputedStyle(e).getPropertyValue(p), prop);
 const token = (page: Page, name: string) =>
@@ -49,13 +50,14 @@ test('diag process rows are read-only: no hover step, no cut', async ({ page }) 
   expect(await css(page.locator('table thead th').first(), 'background-color')).toBe(await token(page, '--ef-chip'));
 });
 
-test('trace turn rows are pressable: hover draws the trace bar', async ({ page }) => {
+test('trace turn rows are pressable: hover draws the stripes, the picked row is the yellow band', async ({ page }) => {
   await page.goto('main.html#/trace?still=1&demo=full');
-  const grid = page.getByRole('grid', { name: '近 24 小时的轮次' });
-  const row = grid.locator('tbody tr').nth(1);
+  const row = page.getByRole('listbox', { name: '近 24 小时的轮次' }).getByRole('option').nth(1);
   await row.hover();
-  expect(await css(row.locator('td').first(), 'background-image')).toContain('linear-gradient');
-  expect(await css(grid.locator('thead th').first(), 'background-color')).toBe(await token(page, '--ef-chip'));
+  await expect.poll(() => row.evaluate((e) => getComputedStyle(e, '::after').opacity)).toBe('1');
+  await row.click();
+  await expect(row).toHaveAttribute('aria-selected', 'true');
+  expect(await css(row, 'background-image')).toContain('linear-gradient');
 });
 
 for (const theme of ['dark', 'light'] as const) {

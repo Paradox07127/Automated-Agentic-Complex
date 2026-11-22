@@ -1,4 +1,4 @@
-// The tool pages' filter bar, the read-only process table and the trace turn table.
+// The tool pages' filter bar, the read-only process table and the trace turn list.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -69,16 +69,15 @@ describe(' process table', () => {
   });
 });
 
-describe(' trace turn table', () => {
-  it('lists turns as table rows with a status tag; pressing a row opens it', async () => {
+describe(' trace turn list', () => {
+  it('lists turns as option rows with a state sign; pressing a row opens it', async () => {
     const router = mount(TracePage, '&demo=full');
-    const grid = await screen.findByRole('grid', { name: '近 24 小时的轮次' });
-    const rows = await within(grid).findAllByRole('row');
-    expect(within(rows[0]!).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['时间', '来源', '结果', '用时']);
+    const list = await screen.findByRole('listbox', { name: '近 24 小时的轮次' });
+    const rows = await within(list).findAllByRole('option');
     const last = rows[rows.length - 1]!;
-    expect(last.querySelector('[data-stub="StatusTag"]')).not.toBeNull();
+    expect(last.querySelector('[data-sign] svg[data-shape]')).not.toBeNull();
     fireEvent.click(last);
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ turn: last.getAttribute('data-row-id') }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ turn: last.getAttribute('data-turn') }));
     await waitFor(() => expect(last.getAttribute('aria-selected')).toBe('true'));
   });
 });

@@ -12,6 +12,7 @@ import { diagOps } from './diag.ts';
 import { eventsOps } from './events.ts';
 import { feedOps } from './feed.ts';
 import { filesOps } from './files.ts';
+import { logsOps } from './logs.ts';
 import { onboardingOps } from './onboarding.ts';
 import { openOps } from './open.ts';
 import { permissionsOps } from './permissions.ts';
@@ -25,6 +26,6 @@ export type { OpsContext } from './context.ts';
 
 export function registry(ctx: OpsContext): Map<string, Handler<PageSession>> {
   const namespaces = [agentdOps, feedOps, diagOps, eventsOps, supervisorOps, appOps, settingsOps, openOps, filesOps, clipboardOps,
-    windowOps, characterOps, mmdOps, onboardingOps, avatarOps, previewOps, permissionsOps, voiceOps, computerUseOps];
+    windowOps, characterOps, mmdOps, onboardingOps, avatarOps, previewOps, permissionsOps, voiceOps, computerUseOps, logsOps];
   return new Map(namespaces.flatMap((ns) => Object.entries(ns(ctx))));
 }

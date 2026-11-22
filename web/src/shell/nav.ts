@@ -47,7 +47,7 @@ export type NavTarget =
       focus?: string;
     }
   | { page: 'settings'; group?: string; item?: string; focus?: string }
-  | { page: 'trace'; turn?: string; focus?: string }
+  | { page: 'trace'; turn?: string; tab?: 'logs'; /** Log source on the 日志 tab. */ src?: string; focus?: string }
   | { page: 'schedules' | 'tune'; focus?: string }
   | { page: 'ds' | 'dv'; focus?: string };
 

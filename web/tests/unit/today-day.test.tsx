@@ -1,4 +1,4 @@
-// 今天：今日时间线（合并、上限、来源图标、页内片段详情，在运行记录页）、今日一句，以及工作记忆（L1 / L3）优先、读不到时回退。
+// 今天：今日时间线（合并、上限、来源图标、页内片段详情，在每日简报 › 时间）、今日一句，以及工作记忆（L1 / L3）优先、读不到时回退。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -12,7 +12,6 @@ import memorySessions from '../../../protocol/C6-agentd-api/fixtures/memory-sess
 import { DayTimeline } from '../../src/pages/overview/DayTimeline';
 import { clock, dayOf } from '../../src/pages/overview/load';
 import { OverviewPage } from '../../src/pages/overview/Page';
-import { TracePage } from '../../src/pages/trace/Page';
 import { timelineFromDay } from '../../src/pages/overview/today';
 import type { DayEpisode } from '../../src/pages/overview/loadBrief';
 import { ToastHost } from '../../src/shell/toast';
@@ -48,10 +47,9 @@ function mount(search = '', Page = OverviewPage) {
   return router;
 }
 
-/** 运行记录's 今日时间线 tab. */
+/** 每日简报 › 时间, under the hour chart. */
 async function timeline(search = '') {
-  mount(search, TracePage);
-  fireEvent.click(await screen.findByRole('tab', { name: '今日时间线' }));
+  mount(`&tab=tm${search}`);
   return screen.findByRole('region', { name: '今日时间线' }, { timeout: 3000 });
 }
 const L1 = memorySessions.sessions[0]!;
@@ -154,7 +152,7 @@ describe('今天: work memory first, today’s reads when it is absent', () => {
   });
 
   it('on a day with session summaries the timeline lists them, and one opens 做了什么 / 结果', async () => {
-    // The trace tab reads today only; today here has the fixture's sessions.
+    // Today here has the fixture's sessions.
     const request = getBridge().agentd.request.bind(getBridge().agentd);
     vi.spyOn(getBridge().agentd, 'request').mockImplementation(((method: string, path: string, body?: unknown) =>
       method === 'GET' && path.startsWith('/memory/sessions?')

@@ -1,14 +1,19 @@
-// 简报「时间」页签（屏幕感知开着才挂载）：每小时在电脑前的分钟数、暂停和提醒，读数栏，截图配额或外发前遮蔽、她开口你回了两条胶囊，应用占比和网站。
-import type { ReactNode } from 'react';
+// 简报「时间」页签（屏幕感知开着才挂载）：每小时在电脑前的分钟数、暂停和提醒，读数栏，这一天的时间线，截图配额或外发前遮蔽、她开口你回了两条胶囊，应用占比和网站。
+import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HourArea } from '../../charts';
 import { formatClock } from '../../domain';
+import { useDemo } from '../../shell/demo';
 import { readDiag } from '../settings/api';
 import type { BriefTabProps } from './briefTabs';
+import { DayTimeline, EpisodeSheet } from './DayTimeline';
 import { Bars, Big, dayClock, Panel } from './HerTab';
-import { useGo } from './nav';
+import { useGo, useNow } from './nav';
 import her from './HerTab.module.css';
 import st from './TimeTab.module.css';
+import type { TimelineEntry } from './today';
+import { useOverview } from './useOverview';
+import { useToday } from './useToday';
 
 const dur = (m: number) => (
   <>
@@ -49,8 +54,29 @@ const glyph = (d: string) => (
   </svg>
 );
 
-export function TimeTab({ day }: BriefTabProps) {
+/** The day's timeline: an episode opens its sheet here, a coding session on the briefing's 今日, a conversation in the chat. */
+function DayLine({ date, partial }: { date: string; partial: boolean }) {
+  const { state, demo, still } = useDemo();
   const go = useGo();
+  const ov = useOverview(demo, state);
+  const now = useNow(ov.data.now, still);
+  const today = useToday(ov, demo, state, date, now);
+  const [ep, setEp] = useState<string | null>(null);
+  const open = (e: TimelineEntry) => {
+    if (e.open.ep) setEp(e.open.ep);
+    else if (e.open.sel) go({ page: 'overview', sel: e.open.sel });
+    else if (e.open.conv) go({ page: 'chat', conv: e.open.conv });
+  };
+  const [, m, d] = date.split('-').map(Number);
+  return (
+    <>
+      <DayTimeline q={today.timeline} summaries={today.summaries} now={now} title={partial ? '今日时间线' : `${m} 月 ${d} 日时间线`} onOpen={open} />
+      {ep && <EpisodeSheet ep={ep} onClose={() => setEp(null)} />}
+    </>
+  );
+}
+
+export function TimeTab({ day }: BriefTabProps) {
   const { items, focus, her: said } = day;
   const { hour, now } = dayClock(day);
   const diag = useQuery({ queryKey: ['settings', 'diag'], queryFn: readDiag, enabled: items.shot.enabled });
@@ -72,9 +98,6 @@ export function TimeTab({ day }: BriefTabProps) {
             marks={(items.rem.hours ?? []).flatMap((n, h) => (n ? [{ h: h + 0.5, label: `提醒 ${n} 个` }] : []))}
             tip={(v) => `在电脑前 ${v} 分钟`}
           />
-          <button type="button" className={st.lk} onClick={() => go({ page: 'trace' })}>
-            每段做了什么，在运行记录的今日时间线看 ›
-          </button>
         </div>
         <div className={her.side}>
           <Big lead v={dur(items.fg.today)} k="在电脑前" />
@@ -82,6 +105,7 @@ export function TimeTab({ day }: BriefTabProps) {
           <Big v={focus.longest ? dur(focus.longest.minutes) : '—'} k={focus.longest ? `最长一段 │ ${formatClock(focus.longest.start * 1000)} 起` : '最长一段'} />
         </div>
       </section>
+      <DayLine date={day.date} partial={day.partial} />
       <div className={st.pills}>
         {items.shot.enabled ? (
           <Pill icon={glyph('M2 2h7v3H5v4H2zM15 2h7v7h-3V5h-4zM2 15h3v4h4v3H2zM19 15h3v7h-7v-3h4zM9 9h6v6H9z')} label="截图配额" ratio={limit ? items.shot.today / limit : 0}>

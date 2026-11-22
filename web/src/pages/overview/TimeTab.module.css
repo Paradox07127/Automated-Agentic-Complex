@@ -1,20 +1,4 @@
-/* 时间页签：图下的跳转、两条胶囊（照游戏统计页电力图下的两行）、应用占比条和列表。 */
-.lk {
-  justify-self: end;
-  padding: 0 6px;
-  border: 0;
-  border-bottom: 1px solid var(--ef-text-3);
-  background: none;
-  color: var(--ef-text-1);
-  font: var(--ef-t-meta);
-  cursor: pointer;
-}
-
-.lk:hover {
-  border-color: var(--ef-accent);
-  color: var(--ef-accent);
-}
-
+/* 时间页签：两条胶囊（照游戏统计页电力图下的两行）、应用占比条和列表。 */
 .pills {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

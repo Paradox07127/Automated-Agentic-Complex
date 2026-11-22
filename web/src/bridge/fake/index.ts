@@ -34,6 +34,7 @@ import { createFakeDesktop } from './desktop';
 import { exampleRoutes } from './endpoints';
 import { feedScript, scriptedStream } from './feed';
 import { fakeImports } from './imports';
+import { fakeLogs } from './logs';
 import { fakeMotion, fakePreviewSequence } from './motion';
 import { createFakeOnboarding } from './onboarding';
 import { fakeOutfit } from './outfit';
@@ -326,6 +327,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
     },
     open: { url: done, artifact: done, revealInFinder: done, jumpToSession: done, runFeedCommand: done, runInTerminal: done },
     clipboard: { writeText: done },
+    logs: fakeLogs(still),
     computerUse: {
       state: async () => ({ ...computerUse, granted: [...computerUse.granted] }),
       grant: async (scopes) => void (computerUse.granted = [...new Set([...computerUse.granted, ...scopes])]),

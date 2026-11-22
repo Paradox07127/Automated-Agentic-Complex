@@ -1,0 +1,349 @@
+/* 日志: sources on the left (small mission rows), the lines on the right as the dialog record (name column, text,
+   hairline between rows). */
+.main {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--b-plate-lo) 90%, transparent), color-mix(in srgb, var(--ef-base) 84%, transparent));
+  box-shadow: 0 0 0 1.5px var(--b-frame);
+}
+
+.tool {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 12px;
+  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
+  box-shadow: inset 0 1px 0 var(--b-edge), inset 0 -1.5px 0 var(--b-frame);
+}
+
+.tool > label {
+  max-width: 300px;
+}
+
+.srcdd {
+  display: none;
+}
+
+.lvs {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.lv {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--b-t2);
+  font: 12px var(--ef-font-sans);
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--b-t3);
+  cursor: pointer;
+}
+
+.lv:hover {
+  color: var(--b-t1);
+}
+
+.lv[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--b-t1) 10%, transparent);
+  color: var(--b-t1);
+  box-shadow: inset 0 0 0 1.5px var(--b-t1);
+}
+
+.lv b {
+  font: 600 12px var(--ef-font-num);
+}
+
+.lv[data-l='err'] svg,
+.lv[data-l='err'] b {
+  color: var(--danger-t);
+}
+
+.lv[data-l='warn'] svg {
+  color: var(--badge);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--b-t1);
+  font: 12px var(--ef-font-sans);
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--b-t3);
+  cursor: pointer;
+}
+
+.sp {
+  flex: 1;
+  min-width: 0;
+}
+
+.ll {
+  position: relative;
+  min-height: 0;
+  padding: 4px 0 34px;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  font: 12px / 22px var(--ef-font-mono);
+  scrollbar-width: thin;
+  scrollbar-color: var(--b-t3) transparent;
+}
+
+.ld {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 0 4px;
+  color: var(--b-t2);
+  font: 500 12px var(--ef-font-num);
+  letter-spacing: 0.04em;
+}
+
+.ld::before,
+.ld::after {
+  content: '';
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--b-t3));
+}
+
+.ld::after {
+  transform: scaleX(-1);
+}
+
+.ln {
+  position: relative;
+  display: grid;
+  grid-template-columns: 94px 64px 14px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 0 12px 0 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--b-t3) 22%, transparent);
+  cursor: default;
+}
+
+.ln:hover {
+  background: color-mix(in srgb, var(--b-t1) 5%, transparent);
+}
+
+.tm {
+  color: var(--b-t2);
+  font-variant-numeric: tabular-nums;
+}
+
+.tm i {
+  font-style: normal;
+  opacity: 0.75;
+}
+
+.so {
+  overflow: hidden;
+  color: var(--b-t2);
+  font: 12px / 22px var(--ef-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lvm {
+  display: grid;
+  place-items: center;
+  height: 22px;
+}
+
+.ms {
+  min-width: 0;
+  color: var(--b-t1);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.fold {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px dotted var(--b-t3);
+  background: none;
+  color: var(--b-t2);
+  font: 12px var(--ef-font-sans);
+  cursor: pointer;
+}
+
+.x {
+  margin-left: 8px;
+  padding: 0 5px;
+  color: var(--b-t2);
+  font: 11px var(--ef-font-num);
+  box-shadow: inset 0 0 0 1px var(--b-t3);
+}
+
+.ms mark {
+  padding: 0 1px;
+  background: var(--hit);
+  color: inherit;
+}
+
+.tb {
+  display: block;
+  padding-left: 16px;
+  color: var(--b-t2);
+}
+
+.ln[data-l='err'] {
+  background: linear-gradient(90deg, var(--danger-bg), transparent 70%);
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+.ln[data-l='err'] .lvm,
+.ln[data-l='err'] .ms {
+  color: var(--danger-t);
+}
+
+:global([data-theme='dark']) .ln[data-l='err'] .ms {
+  color: #ffb3a9;
+}
+
+.ln[data-l='warn'] .lvm {
+  color: var(--badge);
+}
+
+.ln[data-l='dbg'] .ms,
+.ln[data-l='info'] .lvm {
+  color: var(--b-t2);
+}
+
+.ln[data-sel] {
+  background: color-mix(in srgb, var(--mission) 16%, transparent);
+  box-shadow: inset 3px 0 0 var(--mission);
+}
+
+/* A line that names a turn: the dialog record's option (6×6 pale yellow square and pale yellow words). */
+.tchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--y-text);
+  font: 500 12px / 20px var(--ef-font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tchip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: #fdf684;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 35%);
+}
+
+.tchip:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tcont {
+  display: block;
+  width: 6px;
+  height: 22px;
+  margin-left: 2px;
+  border-left: 1px solid var(--y-text);
+  opacity: 0.45;
+}
+
+.tail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 0 120px;
+  color: var(--b-t2);
+  font: 12px var(--ef-font-sans);
+}
+
+.tail i {
+  width: 8px;
+  height: 15px;
+  background: var(--ef-accent);
+  animation: blink 1s steps(2) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.pill {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  z-index: 3;
+  transform: translateX(-50%);
+}
+
+.cap {
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--b-t2);
+  font: 600 9px var(--ef-font-num);
+  letter-spacing: 0.14em;
+  pointer-events: none;
+}
+
+.cap i {
+  width: 96px;
+  height: 7px;
+  background: repeating-linear-gradient(90deg, currentcolor 0 2px, transparent 2px 4px, currentcolor 4px 5px, transparent 5px 8px, currentcolor 8px 11px, transparent 11px 13px);
+}
+
+.skl {
+  height: 22px;
+  margin: 2px 10px;
+  border-radius: 0;
+}
+
+@media (max-width: 1100px) {
+  .srcdd {
+    display: block;
+  }
+
+  .tool > label {
+    max-width: 200px;
+  }
+
+  .ln {
+    grid-template-columns: 62px 52px 12px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .tm i {
+    display: none;
+  }
+
+  .tail {
+    padding-left: 82px;
+  }
+}

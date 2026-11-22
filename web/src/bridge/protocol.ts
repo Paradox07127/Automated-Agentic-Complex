@@ -368,7 +368,7 @@ export interface AgenticComplexBridge {
   clipboard: {
     writeText(t: string): Promise<void>;
   };
-  computerUse: ComputerUseOps;
+  computerUse: ComputerUseOps; logs: import('./logs').LogsOps;
   /** The 调整镜头 and 调整大小 overlay pages' own. */
   camera: CameraOps; resize: import('./resize').ResizeOps;
   window: DesktopWindowOps & {

@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
-import { revealText } from '../../bridge/platformText';
 import { formatClock } from '../../domain';
+import { navigate } from '../../shell/nav';
 import type { PushToast } from '../../shell/toast';
 import type { RowAction } from './Processes';
 import type { ProcessKey } from './status';
@@ -10,6 +10,12 @@ import type { ProcessKey } from './status';
 export type RestartTarget = 'agentd' | 'avatar' | 'all';
 
 const NAME: Record<'agentd' | 'avatar', string> = { agentd: '后台服务', avatar: '角色' };
+
+/** The 运行记录 log source of a process row; voice runs inside agentd. */
+const LOG_OF: Record<ProcessKey, string> = { agentd: 'agentd', avatar: 'avatar', voice: 'agentd', tunnel: 'tunnel' };
+
+/** 查看日志 opens that process's log on the 运行记录 page. */
+export const viewLogs = (key: ProcessKey) => navigate({ page: 'trace', tab: 'logs', src: LOG_OF[key] });
 
 export const CONFIRM: Record<RestartTarget, { title: string; note: string; danger: boolean; label: string }> = {
   all: { title: '全部重启？', note: '依次重启 Companion、后台服务和角色。进行中的任务会中断，重启后不会自动重跑。', danger: true, label: '全部重启' },
@@ -53,12 +59,5 @@ export function useDiagActions(now: number, toast: PushToast) {
       .catch((e: unknown) => toast(`复制失败：${why(e)}`, { severity: 'danger' }));
   }, [toast]);
 
-  const revealLogs = useCallback(() => {
-    getBridge()
-      .app.action('reveal_logs')
-      .then(() => toast(revealText('已在 Finder 中显示日志文件')))
-      .catch((e: unknown) => toast(`显示日志失败：${why(e)}`, { severity: 'danger' }));
-  }, [toast]);
-
-  return { actions, restart, copyDiag, revealLogs };
+  return { actions, restart, copyDiag };
 }

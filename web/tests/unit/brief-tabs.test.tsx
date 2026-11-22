@@ -1,5 +1,6 @@
-// 每日简报的「她」「时间」页签：开关决定换哪一块，网站没有记录时不占位。
+// 每日简报的「她」「时间」页签：开关决定换哪一块，网站没有记录时不占位，时间页签里有这一天的时间线。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -23,6 +24,15 @@ const read = async (sw?: string) => {
 };
 
 const draw = (tab: ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{tab}</QueryClientProvider>);
+// The time tab reads the demo flags from the URL for its timeline.
+const routed = (tab: ReactNode) => {
+  const router = createRouter({ routeTree: createRootRoute({ component: () => tab }), history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+};
 const props = (day: BriefDay): BriefTabProps => ({ day, pins: DEFAULT_PINS, onPins: () => {}, go: () => {} });
 const panel = (name: string) => screen.queryByRole('region', { name });
 
@@ -57,7 +67,8 @@ describe('brief her tab', () => {
 
 describe('brief time tab', () => {
   it('lists sites when there are any', async () => {
-    draw(<TimeTab {...props(await read())} />);
+    routed(<TimeTab {...props(await read())} />);
+    expect(await screen.findByRole('region', { name: '11 月 20 日时间线' })).not.toBeNull();
     expect(panel('应用')).not.toBeNull();
     expect(panel('网站')).not.toBeNull();
   });
@@ -65,8 +76,8 @@ describe('brief time tab', () => {
   it('drops the sites panel when sites are empty', async () => {
     const day = await read('scr');
     expect(day.focus.sites).toEqual([]);
-    draw(<TimeTab {...props(day)} />);
-    expect(panel('应用')).not.toBeNull();
+    routed(<TimeTab {...props(day)} />);
+    expect(await screen.findByRole('region', { name: '应用' })).not.toBeNull();
     expect(panel('网站')).toBeNull();
   });
 });

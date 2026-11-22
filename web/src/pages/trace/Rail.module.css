@@ -1,0 +1,129 @@
+/* 日志 sources on the left: small mission rows with a check box, error count, and the two log folders. */
+.rail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.srcs {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 2px 4px 4px 2px;
+  overflow: auto;
+}
+
+.sr {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: 2px 9px;
+  align-items: center;
+  padding: 7px 10px 7px 12px;
+  border: 0;
+  border-radius: 0 5px 5px 0;
+  background: linear-gradient(180deg, var(--b-plate), var(--b-plate-lo));
+  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px rgb(0 0 0 / 24%);
+  color: var(--b-t1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sr:hover {
+  filter: brightness(1.08);
+}
+
+.sr::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--cat, transparent);
+}
+
+.sr[data-err] {
+  --cat: var(--danger);
+}
+
+.sr[aria-pressed='false'] {
+  opacity: 0.62;
+}
+
+.sr[data-miss] {
+  opacity: 0.5;
+}
+
+.bx {
+  display: grid;
+  grid-row: 1 / 3;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  box-shadow: inset 0 0 0 1.5px var(--b-t2);
+}
+
+.sr[aria-pressed='true'] .bx {
+  background: var(--b-t1);
+  box-shadow: none;
+}
+
+.sr[aria-pressed='true'] .bx::after {
+  content: '';
+  width: 7px;
+  height: 4px;
+  border-bottom: 2px solid var(--b-plate);
+  border-left: 2px solid var(--b-plate);
+  transform: translateY(-1px) rotate(-45deg);
+}
+
+.sr b {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sr small {
+  grid-column: 2 / 4;
+  overflow: hidden;
+  color: var(--b-t2);
+  font: 12px / 15px var(--ef-font-num);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ec {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--danger-t);
+  font: 600 12px var(--ef-font-num);
+}
+
+.ec[data-z] {
+  color: var(--b-t2);
+  font-weight: 500;
+}
+
+.where {
+  padding: 6px 4px 0;
+  border-top: 1px dashed var(--b-t3);
+  color: var(--b-t2);
+  font: 12px / 16px var(--ef-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.where span {
+  display: block;
+  font-family: var(--ef-font-sans);
+}
+
+@media (max-width: 1100px) {
+  .rail {
+    display: none;
+  }
+}

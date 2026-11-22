@@ -48,6 +48,7 @@ const IMPLEMENTED = [
   'avatar.playPlaylist', 'avatar.stopPlaylist', 'avatar.playlistState', 'avatar.toggleClickThroughAll', 'avatar.photo.set', 'avatar.capture',
   'app.openQuickInput',
   'settings.recordHotkey',
+  'logs.sources', 'logs.read',
 ];
 
 /** A platform helper that has every grant, finds the fixtures' app and session, and activates what it is asked to. */

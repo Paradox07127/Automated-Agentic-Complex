@@ -1,0 +1,57 @@
+[
+  {
+    "op": "logs.sources",
+    "surface": "main",
+    "nullable": [
+      "sources[].mtime"
+    ],
+    "value": {
+      "dirs": {
+        "support": "/path/to/support/logs",
+        "web": "/path/to/web/logs"
+      },
+      "sources": [
+        {
+          "id": "agentd",
+          "file": "agentd.log",
+          "bytes": 1024,
+          "mtime": 1795276206919,
+          "exists": true
+        }
+      ]
+    }
+  },
+  {
+    "op": "logs.read",
+    "surface": "main",
+    "args": [
+      {
+        "sources": ["agentd"]
+      }
+    ],
+    "nullable": [
+      "lines[].at",
+      "lines[].turn"
+    ],
+    "free_keys": [
+      "cursor"
+    ],
+    "value": {
+      "lines": [
+        {
+          "source": "agentd",
+          "off": 0,
+          "at": 1795276206919,
+          "level": "info",
+          "text": "agentd: listening on 127.0.0.1:48800",
+          "more": [],
+          "turn": null
+        }
+      ],
+      "cursor": {
+        "agentd": 48
+      },
+      "truncated": []
+    }
+  }
+]

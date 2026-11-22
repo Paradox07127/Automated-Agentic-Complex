@@ -153,8 +153,10 @@ describe('diag page', () => {
     fireEvent.click(within(row).getByRole('button', { name: '重启' }));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '重启角色' })));
     expect(restarts).toEqual(['avatar']);
+    // 查看日志 opens that process's source on 运行记录 › 日志; 在 Finder 中显示 lives only there.
     await act(async () => fireEvent.click(within(row).getByRole('button', { name: '查看日志' })));
-    expect(actions).toEqual(['copy_diagnostics', 'reveal_logs']);
+    expect(actions).toEqual(['copy_diagnostics']);
+    expect(window.location.hash).toMatch(/^#\/trace\?tab=logs&src=avatar/);
   });
 
   it('without render samples the frame plate says why', async () => {

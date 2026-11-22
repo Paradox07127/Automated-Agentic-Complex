@@ -29,7 +29,7 @@ import { Resources } from './Resources';
 import { healthOf, issuesOf, processesOf, type DiagProcess, type ProcessKey } from './status';
 import { TurnsSection } from './TurnsSection';
 import { clock, STATE_KEY, type DiagSnap, useDiagState, useDiagStream, useFailEvents, useHourReads, useRenderStats, useSideReads, useTurnEvents, useTurns } from './useDiag';
-import { CONFIRM, useDiagActions, type RestartTarget } from './useDiagActions';
+import { CONFIRM, useDiagActions, viewLogs, type RestartTarget } from './useDiagActions';
 import type { WireDiagItem } from './wire';
 import styles from './Dg.module.css';
 
@@ -276,7 +276,7 @@ export function DiagPage() {
               highlight={highlight}
               staleAt={dataAt}
               onRestart={setConfirm}
-              onLogs={act.revealLogs}
+              onLogs={viewLogs}
               onVoice={() => go({ page: 'settings', group: 'speak', item: 'tts' })}
             />
           </HealthRow>

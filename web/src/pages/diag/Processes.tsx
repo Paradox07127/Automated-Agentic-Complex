@@ -28,7 +28,7 @@ export interface ProcessesProps {
   /** agentd is gone: every row reads unknown since this time (0 when nothing was ever read). */
   staleAt?: number | null;
   onRestart: (target: 'agentd' | 'avatar') => void;
-  onLogs: () => void;
+  onLogs: (key: ProcessKey) => void;
   onVoice: () => void;
 }
 
@@ -134,7 +134,7 @@ export function Processes({ q, uptime, history, actions, highlight, staleAt = nu
                       </td>
                       <td className={styles.pa}>
                         <span className={styles.in}>
-                          <Btn variant="text" size="sm" onClick={onLogs}>
+                          <Btn variant="text" size="sm" onClick={() => onLogs(p.key)}>
                             查看日志
                           </Btn>
                           {p.restartable ? (

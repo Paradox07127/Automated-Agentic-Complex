@@ -1,0 +1,368 @@
+/* 经过: one row a step (offset, icon, name, one sentence, state, time bar, length, fold), its body and raw text. */
+.steps {
+  --trk: clamp(120px, 18vw, 240px);
+  --cols: 54px 28px 64px minmax(0, 1fr) auto var(--trk) 56px 14px;
+
+  display: grid;
+  gap: 3px;
+}
+
+.axis {
+  display: grid;
+  grid-template-columns: var(--cols);
+  gap: 10px;
+  padding: 0 10px 0 8px;
+  color: var(--b-t2);
+  font: 500 11px var(--ef-font-num);
+}
+
+.ax {
+  position: relative;
+  grid-column: 6;
+  height: 14px;
+}
+
+.ax span {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.ax span:first-child {
+  transform: none;
+}
+
+.ax span:last-child {
+  transform: translateX(-100%);
+}
+
+.st {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--cols);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 3px 10px 3px 8px;
+  border: 0;
+  background: var(--pn-lo);
+  color: var(--b-t1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: filter 0.083s;
+}
+
+.st:hover {
+  filter: brightness(1.07);
+}
+
+.st:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -2px;
+}
+
+.st[aria-disabled='true'] {
+  cursor: default;
+}
+
+.t {
+  color: var(--b-t2);
+  font: 500 12px var(--ef-font-num);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ib {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  background: var(--pn-hi);
+  color: var(--b-t2);
+  box-shadow: inset 0 0 0 1px var(--pn-line);
+}
+
+.nm {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sm {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sm [data-k='d'] {
+  color: var(--b-t2);
+}
+
+.sm [data-k='m'],
+.kv [data-k='m'] {
+  font-family: var(--ef-font-mono);
+  font-size: 12px;
+}
+
+.kv [data-k='d'] {
+  color: var(--b-t2);
+}
+
+.trk {
+  position: relative;
+  height: 16px;
+  background: repeating-linear-gradient(90deg, var(--pn-line) 0 1px, transparent 1px 25%);
+}
+
+.trk i {
+  position: absolute;
+  top: 5px;
+  height: 6px;
+  min-width: 2px;
+  background: var(--b-t2);
+}
+
+.trk i[data-c='cr'] {
+  background: var(--ef-accent);
+}
+
+.trk i[data-c='f'] {
+  background: var(--danger);
+}
+
+.trk i[data-c='c'] {
+  background: repeating-linear-gradient(90deg, var(--badge) 0 3px, transparent 3px 5px);
+}
+
+.trk i[data-c='w'] {
+  background: repeating-linear-gradient(90deg, var(--badge) 0 2px, transparent 2px 4px);
+}
+
+.trk b {
+  position: absolute;
+  top: 3px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  background: var(--b-t1);
+  box-shadow: 0 0 0 1.5px var(--pn-lo);
+  transform: rotate(45deg);
+}
+
+.d {
+  font: 500 12px var(--ef-font-num);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.chev {
+  justify-self: center;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--b-t2);
+  border-bottom: 1.5px solid var(--b-t2);
+  transform: rotate(-45deg);
+  transition: transform 0.2s var(--ease-enter);
+}
+
+.st[aria-expanded='true'] .chev {
+  transform: rotate(45deg);
+}
+
+.st[data-s='fail'] {
+  background: linear-gradient(90deg, var(--danger-bg), transparent 60%), var(--pn-lo);
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+.st[data-s='fail'] .ib {
+  color: var(--danger-t);
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+.st[data-s='wait'] {
+  box-shadow: inset 3px 0 0 var(--badge);
+}
+
+.st[data-sub] {
+  min-height: 34px;
+  background: color-mix(in srgb, var(--pn-lo) 60%, transparent);
+}
+
+.st[data-sub][data-s='fail'] {
+  background: linear-gradient(90deg, var(--danger-bg), transparent 60%), color-mix(in srgb, var(--pn-lo) 60%, transparent);
+}
+
+.st[data-sub] .ib {
+  position: relative;
+  justify-items: end;
+  background: none;
+  box-shadow: none;
+}
+
+.st[data-sub] .ib::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  bottom: 50%;
+  left: 3px;
+  width: 12px;
+  border-bottom: 1px solid var(--b-t3);
+  border-left: 1px solid var(--b-t3);
+}
+
+.st[data-sub] .nm {
+  font-weight: 500;
+}
+
+.st[data-sub] .trk i {
+  top: 6px;
+  height: 4px;
+}
+
+.sb {
+  display: grid;
+  gap: 10px;
+  margin-left: 8px;
+  padding: 10px 12px 12px 102px;
+  border-left: 1px solid var(--pn-line);
+  background: color-mix(in srgb, var(--pn-well) 70%, transparent);
+  animation: info 0.3s var(--ease-enter) both;
+}
+
+@keyframes info {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.kv dt {
+  color: var(--b-t2);
+  white-space: nowrap;
+}
+
+.kv dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--b-t1);
+  font: 12px var(--ef-font-sans);
+  box-shadow: inset 0 0 0 1px var(--b-t3);
+  cursor: pointer;
+}
+
+.chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  box-shadow: inset 0 0 0 1px var(--b-t1);
+}
+
+.chip svg {
+  flex: none;
+  color: var(--mission);
+}
+
+.chip[data-new] {
+  box-shadow: inset 0 0 0 1px var(--mission);
+}
+
+.chip b {
+  color: var(--mission);
+  font-size: 12px;
+}
+
+.jg {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 220px) auto auto;
+  gap: 4px 10px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.jg i {
+  position: relative;
+  height: 8px;
+  background: var(--pn-line);
+}
+
+.jg i::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--p);
+  background: var(--b-t2);
+}
+
+.jg i[data-on]::after {
+  background: var(--ef-accent);
+}
+
+.jg em {
+  color: var(--y-text);
+  font-size: 12px;
+  font-style: normal;
+}
+
+@media (max-width: 1100px) {
+  .steps {
+    --trk: 110px;
+    --cols: 52px 24px 52px minmax(0, 1fr) auto var(--trk) 48px 12px;
+  }
+
+  .axis,
+  .st {
+    gap: 7px;
+  }
+
+  .t {
+    font-size: 11px;
+  }
+
+  .ib {
+    width: 24px;
+    height: 24px;
+  }
+
+  .ax span[data-mid] {
+    display: none;
+  }
+
+  .sb {
+    padding-left: 12px;
+  }
+}

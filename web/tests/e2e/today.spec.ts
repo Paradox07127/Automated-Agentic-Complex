@@ -46,17 +46,20 @@ test('an episode link opens that episode on 今天, with 删除片段 and 排除
   await expect(sheet).toContainText('排查 HostLink 断线');
   await expect(sheet.getByRole('button', { name: '删除片段' })).toBeVisible();
   await expect(sheet.getByRole('button', { name: /排除 Terminal/ })).toBeVisible();
-  // The day timeline is on 运行记录 now.
+  // The day timeline is on 每日简报 › 时间.
   await expect(page.locator('section[aria-label="今日时间线"]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('运行记录 › 今日时间线 carries no foreground and site counts: they are on 每日简报', async ({ page }) => {
+test('每日简报 › 时间 has the day timeline under the hour chart, with no foreground and site count buttons', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/trace?still=1');
-  await page.getByRole('tab', { name: '今日时间线' }).click();
-  await expect(page.locator('section[aria-label="今日时间线"]')).toBeVisible();
+  await page.goto('main.html#/overview?tab=tm&still=1');
+  const line = page.locator('section[aria-label="今日时间线"]');
+  await expect(line).toBeVisible();
+  const chart = (await page.locator('section[aria-label="在电脑前"]').boundingBox())!;
+  expect((await line.boundingBox())!.y).toBeGreaterThanOrEqual(chart.y + chart.height);
   await expect(page.getByRole('button', { name: /^前台 / })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /在运行记录的今日时间线看/ })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
