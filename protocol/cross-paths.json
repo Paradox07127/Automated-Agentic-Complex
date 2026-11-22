@@ -50,7 +50,7 @@
   {"row": "C8", "token": "pi-runtime", "files": ["agent/agentd/character_agent/harness/pi_install_runtime.py"]},
   {"row": "C8", "token": "pi-runtime", "files": ["agent/agentd/character_agent/harness/pi_config.py"]},
   {"row": "C8", "token": "pi-runtime", "files": ["agent/agentd/daemon/main.py"]},
-  {"row": "character-library", "token": "motion-graph.json", "files": ["agent/agentd/character/motion_graph_routes.py"]},
+  {"row": "character-library", "token": "motion-graph.json", "files": ["agent/agentd/character/motion_graph_routes.py", "agent/agentd/motion/chooser.py"]},
   {"row": "character-library", "token": "actions.json", "files": ["agent/agentd/motion/chooser.py"]},
   {"row": "character-library", "token": "affordance-uses.json", "files": ["agent/agentd/motion/chooser.py"]},
   {"row": "character-library", "token": "blend-times.json", "files": ["agent/agentd/motion/chooser.py"]},

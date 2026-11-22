@@ -21,9 +21,9 @@ import { blockedReason, deckLine, groupMotions, useMotions } from './useMotions'
 import type { MotionImport } from './useMotionImport';
 import type { MotionLibrary } from './useMotionLibrary';
 import { useImportState } from './useImportState';
+import { useLayers } from './useLayers';
 import { useLook } from './useLook';
 import { useOutfitImport } from './useOutfitImport';
-import { previewLookChanged } from './usePreview';
 import { useSectionSwitch } from './useSectionSwitch';
 import type { SwitchState } from './useSwitch';
 import styles from './Operator.module.css';
@@ -152,13 +152,6 @@ export function Operator(p: OperatorProps) {
     }),
   );
   const [bare, setBare] = useState(false);
-  // The hidden set the last successful `avatar.setLayers` sent; the roster only changes on a refetch.
-  const [hiddenSet, setHiddenSet] = useState<{
-    character: string;
-    hidden: string[];
-  }>();
-  // The newest requested hidden set while a request is open, so a click builds on it and not on the page; `done` is the newest request that succeeded.
-  const layerReq = useRef<{ seq: number; done: number; hidden?: { character: string; hidden: string[] } }>({ seq: 0, done: 0 });
   const opRef = useRef<HTMLDivElement>(null);
   const midRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -177,7 +170,7 @@ export function Operator(p: OperatorProps) {
   const appearances = ch?.appearances ?? [];
   const lookRow = appearances.find((l) => l.id === look.id) ?? appearances[0];
   const lookId = lookRow?.id ?? '';
-  const layers = (ch?.layers ?? []).map((l) => (hiddenSet?.character === ch?.id ? { ...l, visible: !hiddenSet?.hidden.includes(l.id) } : l));
+  const { layers, setLayer, showAll } = useLayers(ch, p.current, p.toast);
 
   const mode: StageMode = side?.of === 'photo' ? 'photo' : !side && pane === 'overview' ? 'overview' : 'detail';
   const overview = mode === 'overview';
@@ -244,38 +237,6 @@ export function Operator(p: OperatorProps) {
     />
   );
 
-  const sendLayers = (hidden: string[], done: string) => {
-    const req = layerReq.current;
-    const n = ++req.seq;
-    req.hidden = { character: p.current, hidden };
-    getBridge()
-      .avatar.setLayers(hidden)
-      .then(
-        () => {
-          if (n > req.done) {
-            req.done = n;
-            setHiddenSet({ character: p.current, hidden });
-          }
-          if (n === req.seq) req.hidden = undefined;
-          previewLookChanged();
-          p.toast(done);
-        },
-        (e: unknown) => {
-          if (n === req.seq) req.hidden = undefined;
-          const code = (e as { code?: string } | null)?.code;
-          p.toast(`服装分层没有完成：${code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' });
-        },
-      );
-  };
-  const setLayer = (id: string, on: boolean, name: string) => {
-    const open = layerReq.current.hidden;
-    const hidden = open?.character === p.current ? open.hidden : layers.filter((x) => !x.visible).map((x) => x.id);
-    sendLayers(
-      layers.map((x) => x.id).filter((x) => (x === id ? !on : hidden.includes(x))),
-      on ? `已显示「${name}」` : `已隐藏「${name}」`,
-    );
-  };
-
   // What the section draws besides the stage and the rail; the sequencer keeps the leaving one until its out clip and the wait end.
   const view = useSectionSwitch(
     at,
@@ -321,7 +282,7 @@ export function Operator(p: OperatorProps) {
               onWear={(l) => void wear(l)}
               layers={layers}
               onLayer={setLayer}
-              onShowAll={() => sendLayers([], '已全部显示')}
+              onShowAll={showAll}
               mods={mods}
               modsUnreadable={modTable.unreadable}
               ro={p.offline ? '角色未运行' : switching ? '切换中' : null}

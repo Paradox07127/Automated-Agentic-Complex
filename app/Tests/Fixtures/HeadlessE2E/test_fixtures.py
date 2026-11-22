@@ -40,7 +40,7 @@ class AgentdServer:
         pass
 
 
-def main():
+def main(secret_store):
     p = argparse.ArgumentParser()
     p.add_argument("--port", type=int)
     p.add_argument("--state-dir")
@@ -259,6 +259,9 @@ class LauncherTests(Processes):
         (self.agentd / "server.py").write_text(STUB_SERVER)
         # With --parent-pid the launcher watches the parent through agentd's infra.platform.
         shutil.copytree(ROOT / "agent/agentd/infra", self.agentd / "infra", ignore=shutil.ignore_patterns("__pycache__"))
+        # The launcher seeds the TTS reference through agentd's voice.credential.
+        shutil.copytree(ROOT / "agent/agentd/voice", self.agentd / "voice", ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copy(ROOT / "agent/agentd/fsutil.py", self.agentd / "fsutil.py")
         self.state = self.tmp / "state"
         self.faults = self.tmp / "agentd-faults.json"
         self.port = free_port()
@@ -267,7 +270,8 @@ class LauncherTests(Processes):
         self.faults.write_text(json.dumps(faults))
         return self.spawn([sys.executable, "-I", str(LAUNCHER), "--agentd-dir", str(self.agentd),
                            "--parent-pid", str(os.getpid()), "--", "--port", str(self.port),
-                           "--state-dir", str(self.state), "--character", "aster"],
+                           "--state-dir", str(self.state), "--tts-token-file", str(self.tmp / "tts-token"),
+                           "--character", "aster"],
                           env={**os.environ, "E2E_AGENTD_FAULTS": str(self.faults)})
 
     def test_exit_status_fault_exits_without_binding(self):
