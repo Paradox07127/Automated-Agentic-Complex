@@ -285,15 +285,15 @@ def neutral_path(entry,path):return str(pathlib.PurePosixPath(entry['graph']['fi
 def vulkan_blobs(data,scene_sha256):
     """(name, sha256, size) of each blob record of the frame table bytes data, which must be bound to the neutral scene scene_sha256."""
     f=package_format;head=f.STRUCTS['Header']
-    require(data[:8]==f.VK_MAGIC and len(data)>=head.size,'vulkan frame table is not '+f.VK_MAGIC.decode())
+    require(data[:8]==f.MAGIC and len(data)>=head.size,'vulkan frame table is not '+f.MAGIC.decode())
     h=head.unpack(data)
-    require(h['version']==f.VK_VERSION,f"vulkan frame table is version {h['version']}, not {f.VK_VERSION}")
+    require(h['version']==f.VERSION,f"vulkan frame table is version {h['version']}, not {f.VERSION}")
     require(h['header_bytes']==head.size and h['file_bytes']==len(data),'vulkan frame table length mismatch')
     for t in f.TABLES:
-        size=1 if t=='strings' else f.table_struct(t,'vulkan').size
+        size=1 if t=='strings' else f.table_struct(t).size
         require(head.size<=h[t+'_offset'] and h[t+'_offset']+h[t+'_count']*size<=len(data),'vulkan frame table lies outside the file: '+t)
     require(h['scene_sha256'].hex()==scene_sha256,f"vulkan frame table is bound to neutral scene {h['scene_sha256'].hex()}, not {scene_sha256}")
-    strings=data[h['strings_offset']:h['strings_offset']+h['strings_count']];blob=f.table_struct('blobs','vulkan')
+    strings=data[h['strings_offset']:h['strings_offset']+h['strings_count']];blob=f.table_struct('blobs')
     for i in range(h['blobs_count']):
         b=blob.unpack(data,h['blobs_offset']+i*blob.size);end=strings.find(b'\0',b['file'])
         require(end>=0,'vulkan blob name is not NUL-terminated');name=strings[b['file']:end].decode(errors='replace')

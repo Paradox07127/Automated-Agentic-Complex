@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""The one definition of the Windows frame tables (d3d11/frame.bin of a character directory, magic EFWPKG01, and vulkan/frame.bin,
-magic EFWVKP01).
+"""The one definition of the Windows frame table (vulkan/frame.bin of a character directory, magic EFWVKP01).
 
-d3d11/frame.bin is little-endian: a Header, then every table in TABLES order. Each
+vulkan/frame.bin is little-endian: a Header, then every table in TABLES order. Each
 record is packed (no padding); the Header holds every table's byte offset and
 record count. Strings live in the `strings` table (NUL-terminated UTF-8, for
 logs only) and are referenced by byte offset. Index fields hold NONE where
-there is no referent. vulkan/frame.bin has the same Header and TABLES under VK_MAGIC and
-VK_VERSION, with the VK_TABLE_STRUCTS records in place of Program, ProgramBinding, InputElement and
-Binding. The same struct list generates the Python layouts the
+there is no referent. The same struct list generates the Python layouts the
 writer packs and private/renderer/windows/package_format.h for the C++ reader:
   --write-header <path>   write the C++ header
   --check-header <path>   exit 1 when <path> differs from the generated header
@@ -19,13 +16,11 @@ import re
 import struct
 import sys
 
-MAGIC = b'EFWPKG01'
-VERSION = 4
-# vulkan/frame.bin's magic and Header.version (windows_package.py --api vulkan). Its Header's d3d11_library_sha256 holds the SHA-256
-# of source-index.json. Formats stay DXGI values and states D3D11 descriptions (the loader translates); each DynamicAddress keeps its
-# fields with the six D3D11 view fields (bind_flags .. srv_flags) 0, a ubo's byte_count the block size of the SPIR-V that binds it.
-VK_MAGIC = b'EFWVKP01'
-VK_VERSION = 5
+# The Header's source_index_sha256 holds the SHA-256 of source-index.json. Formats stay DXGI values and states D3D11 descriptions (the
+# loader translates); each DynamicAddress keeps its fields with the six D3D11 view fields (bind_flags .. srv_flags) 0, a ubo's byte_count
+# the block size of the SPIR-V that binds it.
+MAGIC = b'EFWVKP01'
+VERSION = 5
 NONE = 0xFFFFFFFF
 
 # type -> (struct code, C++ type)
@@ -75,7 +70,7 @@ TABLES = ['strings', 'blobs', 'targets', 'textures', 'subresources', 'programs',
 
 STRUCTS = {
     'Header': Struct('Header', 'magic:u8[8] version:u32 header_bytes:u32 file_bytes:u32 width:u32 height:u32 output_target:u32 character:u32 '
-                     'scene_sha256:u8[32] manifest_sha256:u8[32] d3d11_library_sha256:u8[32] library_revision:u8[32] '
+                     'scene_sha256:u8[32] manifest_sha256:u8[32] source_index_sha256:u8[32] library_revision:u8[32] '
                      + ' '.join('%s_offset:u32 %s_count:u32' % (t, t) for t in TABLES)),
     # `file` names the blob by its path in the character directory (blob_name_ok); C++ checks SHA-256 and size on load.
     'Blob': Struct('Blob', 'sha256:u8[32] size:u64 file:u32'),
@@ -84,10 +79,7 @@ STRUCTS = {
                       'blob:u32 first_subresource:u32 subresource_count:u32'),
     # D3D11 subresource order: mip + face * mip_count.
     'Subresource': Struct('Subresource', 'offset:u32 row_pitch:u32 slice_pitch:u32 byte_count:u32'),
-    'Program': Struct('Program', 'stage:u32 dxbc_blob:u32 first_binding:u32 binding_count:u32 name:u32'),
-    'ProgramBinding': Struct('ProgramBinding', 'register_class:u32 slot:u32 kind:u32 stride:u32 cb_bytes:u32 name:u32'),
     'InputLayout': Struct('InputLayout', 'program:u32 first_element:u32 element_count:u32'),
-    'InputElement': Struct('InputElement', 'semantic_name:u32 semantic_index:u32 format:u32 input_slot:u32 aligned_byte_offset:u32'),
     'Sampler': Struct('Sampler', 'filter:u32 address_u:u32 address_v:u32 address_w:u32 mip_lod_bias:f32 max_anisotropy:u32 comparison_func:u32 '
                       'border_color:f32[4] min_lod:f32 max_lod:f32'),
     # D3D11_BLEND_DESC; arrays index RenderTarget[0..7].
@@ -110,7 +102,6 @@ STRUCTS = {
                    'index_format:u32 index_count:u32 vertex_count:u32 blend_state:u32 depth_stencil_state:u32 rasterizer_state:u32 mesh:u32 '
                    'source_draw:i32 first_binding:u32 binding_count:u32'),
     'VertexBuffer': Struct('VertexBuffer', 'blob:u32 stride:u32 byte_count:u32'),
-    'Binding': Struct('Binding', 'stage:u32 register_class:u32 slot:u32 source:u32 index:u32'),
     # A buffer the C++ uploads each frame (DYNAMIC, Map WRITE_DISCARD), starting from default_blob.
     'DynamicAddress': Struct('DynamicAddress', 'pass:u32 draw_kind:u32 draw_index:u32 category:u32 set:u32 binding:u32 byte_count:u32 byte_width:u32 '
                              'default_blob:u32 semantics:u32 mesh:u32 post_role:u32 bind_flags:u32 misc_flags:u32 structure_byte_stride:u32 '
@@ -136,30 +127,28 @@ STRUCTS = {
     # indices (u32), then the 16-aligned byte data the entries point into (offsets from the file start).
     'FrameHeader': Struct('FrameHeader', 'magic:u8[8] version:u32 frame_index:u32 address_count:u32 visible_draw_count:u32 package_sha256:u8[32]'),
     'FrameEntry': Struct('FrameEntry', 'offset:u32 byte_count:u32'),
-    # vulkan/frame.bin. spirv_blob: the game's original SPIR-V, its sha256 the stage's source_spirv_sha256; entry: the name of its
-    # one OpEntryPoint.
+    # spirv_blob: the game's original SPIR-V, its sha256 the stage's source_spirv_sha256; entry: the name of its one OpEntryPoint.
     'VkProgram': Struct('VkProgram', 'stage:u32 spirv_blob:u32 first_binding:u32 binding_count:u32 name:u32 entry:u32'),
     # From SPIR-V reflection, by (set, binding): category a VkCategory, kind a BindingKind (cb for ubos, structured for ssbos), stride
     # the ssbo's runtime array stride, block_bytes the ubo block size.
     'VkProgramBinding': Struct('VkProgramBinding', 'category:u32 set:u32 binding:u32 kind:u32 stride:u32 block_bytes:u32'),
     # Input slot i of the draw reads vertex buffer first_vertex_buffer + i into the SPIR-V input `location`; semantic_name and
-    # semantic_index name the Unity vertex channel the source feeds it as InputElement does (TEXCOORD n for channel 4 + n).
+    # semantic_index name the Unity vertex channel the source feeds it (TEXCOORD n for channel 4 + n).
     'VkInputElement': Struct('VkInputElement', 'location:u32 semantic_name:u32 semantic_index:u32 format:u32 input_slot:u32 aligned_byte_offset:u32'),
     # The descriptor (set, binding) of the stage's program; a product draw reads pass read i at set 0, binding i.
     'VkBinding': Struct('VkBinding', 'stage:u32 set:u32 binding:u32 source:u32 index:u32'),
 }
 FRAME_MAGIC = b'EFWFRM01'
-TABLE_STRUCTS = {'blobs': 'Blob', 'targets': 'Target', 'textures': 'Texture', 'subresources': 'Subresource', 'programs': 'Program',
-                 'program_bindings': 'ProgramBinding', 'input_layouts': 'InputLayout', 'input_elements': 'InputElement', 'samplers': 'Sampler',
+FRAME_VERSION = 4
+TABLE_STRUCTS = {'blobs': 'Blob', 'targets': 'Target', 'textures': 'Texture', 'subresources': 'Subresource', 'programs': 'VkProgram',
+                 'program_bindings': 'VkProgramBinding', 'input_layouts': 'InputLayout', 'input_elements': 'VkInputElement', 'samplers': 'Sampler',
                  'blend_states': 'BlendState', 'depth_stencil_states': 'DepthStencilState', 'rasterizer_states': 'RasterizerState',
                  'passes': 'Pass', 'color_attachments': 'ColorAttachment', 'pass_reads': 'PassRead', 'draws': 'Draw',
-                 'vertex_buffers': 'VertexBuffer', 'bindings': 'Binding', 'dynamic_addresses': 'DynamicAddress', 'producers': 'Producer', 'actors': 'Actor'}
-VK_TABLE_STRUCTS = dict(TABLE_STRUCTS, programs='VkProgram', program_bindings='VkProgramBinding', input_elements='VkInputElement', bindings='VkBinding')
+                 'vertex_buffers': 'VertexBuffer', 'bindings': 'VkBinding', 'dynamic_addresses': 'DynamicAddress', 'producers': 'Producer', 'actors': 'Actor'}
 
 # Enumerations written into the package; the C++ header carries the same values.
 ENUMS = {
     'Stage': {'vertex': 0, 'pixel': 1},
-    'RegisterClass': {'b': 0, 't': 1, 's': 2},
     'BindingKind': {'cb': 0, 'structured': 1, 'raw': 2, 'tex2d': 3, 'tex3d': 4, 'cube': 5, 'tex2darray': 6, 'sampler': 7},
     'TextureDimension': {'2D': 0, '3D': 1, 'Cube': 2, '2DArray': 3},
     'PassKind': {'render': 0, 'depth_copy': 1, 'premultiply': 2, 'coverage_split': 3, 'max_edges': 4, 'unpremultiply': 5,
@@ -188,7 +177,7 @@ ENUMS = {
 }
 
 
-def table_struct(name, api='d3d11'):return STRUCTS[(VK_TABLE_STRUCTS if api == 'vulkan' else TABLE_STRUCTS)[name]]
+def table_struct(name):return STRUCTS[TABLE_STRUCTS[name]]
 
 
 SEGMENT = re.compile(r'[A-Za-z0-9._-]+')
@@ -204,11 +193,10 @@ def enumerator(name):return 'k'+''.join(p[:1].upper()+p[1:] for p in name.split(
 
 def header_text():
     out = ['// Generated by characters/packaging/package_format.py --write-header; do not edit.',
-           '// Windows frame tables (d3d11/frame.bin, vulkan/frame.bin): little-endian, packed records, tables in Header order.',
+           '// The Windows frame table (vulkan/frame.bin): little-endian, packed records, tables in Header order.',
            '#ifndef EFW_PACKAGE_FORMAT_H', '#define EFW_PACKAGE_FORMAT_H', '', '#include <cstdint>', '', 'namespace efw {', '',
            'constexpr char kMagic[9] = "%s";' % MAGIC.decode(), 'constexpr char kFrameMagic[9] = "%s";' % FRAME_MAGIC.decode(),
-           'constexpr uint32_t kVersion = %d;' % VERSION,
-           'constexpr char kVkMagic[9] = "%s";' % VK_MAGIC.decode(), 'constexpr uint32_t kVkVersion = %d;' % VK_VERSION,
+           'constexpr uint32_t kVersion = %d;' % VERSION, 'constexpr uint32_t kFrameVersion = %d;' % FRAME_VERSION,
            'constexpr uint32_t kNone = 0x%08Xu;' % NONE, '']
     for enum, values in ENUMS.items():
         out.append('enum class %s : uint32_t {' % enum)

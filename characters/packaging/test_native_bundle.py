@@ -293,8 +293,8 @@ class BundleTests(unittest.TestCase):
   for name,data in blobs:
    records.append(dict(sha256=hashlib.sha256(data).digest(),size=len(data),file=len(strings)));strings+=name.encode()+b'\0'
    if name.startswith('vulkan/blobs/'):(folder/name).parent.mkdir(parents=True,exist_ok=True);(folder/name).write_bytes(data)
-  head=f.STRUCTS['Header'];body=dict(strings=bytes(strings),blobs=b''.join(f.table_struct('blobs','vulkan').pack(r) for r in records))
-  values=dict(magic=magic or f.VK_MAGIC,version=f.VK_VERSION if version is None else version,header_bytes=head.size,scene_sha256=bytes.fromhex(scene or e['neutral_scene']['sha256']));offset=head.size;layout=[]
+  head=f.STRUCTS['Header'];body=dict(strings=bytes(strings),blobs=b''.join(f.table_struct('blobs').pack(r) for r in records))
+  values=dict(magic=magic or f.MAGIC,version=f.VERSION if version is None else version,header_bytes=head.size,scene_sha256=bytes.fromhex(scene or e['neutral_scene']['sha256']));offset=head.size;layout=[]
   for t in f.TABLES:
    data=body.get(t,b'');offset=(offset+15)&~15;values.update({t+'_offset':offset,t+'_count':len(records) if t=='blobs' else len(data)});layout.append((offset,data));offset+=len(data)
   raw=bytearray(offset);values['file_bytes']=offset;raw[:head.size]=head.pack(values)
@@ -335,10 +335,10 @@ class BundleTests(unittest.TestCase):
  def testVulkanFrameOfAnotherSceneVersionOrFormatFails(self):
   out,manifest,e=self.vulkan([self.own()],scene='0'*64)
   with self.assertRaisesRegex(n.BundleError,'vulkan frame table is bound to neutral scene 0{64}, not '):n.verify(out)
-  shutil.rmtree(out);out,manifest,e=self.vulkan([self.own()],version=package_format.VK_VERSION-1)
+  shutil.rmtree(out);out,manifest,e=self.vulkan([self.own()],version=package_format.VERSION-1)
   with self.assertRaisesRegex(n.BundleError,'vulkan frame table is version'):n.verify(out)
-  # A D3D11 frame table is not one.
-  shutil.rmtree(out);out,manifest,e=self.vulkan([self.own()],magic=package_format.MAGIC)
+  # Another frame table's magic is not one.
+  shutil.rmtree(out);out,manifest,e=self.vulkan([self.own()],magic=b'EFWPKG01')
   with self.assertRaisesRegex(n.BundleError,'vulkan frame table is not EFWVKP01'):n.verify(out)
  def testVulkanFrameAfterTheSceneChangedFails(self):
   # A tool that edits the frame graph but keeps the reference.

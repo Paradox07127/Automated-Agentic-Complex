@@ -135,7 +135,7 @@ def stage(args):
             ui_art=getattr(args, 'ui_art', None), library=args.library, build_version=args.build_version,
             fbx_tool=args.fbx_tool)
         strip_local_symbols(component_stage / 'harness.pi/payload' / LAYOUT['darwin-arm64']['node'])
-        # The staged payloads, not the library's packages: a macOS character payload is sealed again without its D3D11 files.
+        # The staged payloads, not the library's packages: a macOS character payload is sealed again without its Vulkan files.
         packages = [Package(component_stage / component['id'] / 'payload', deep=False)
                     for component in components if component['id'].startswith('characters.')]
         host = component_stage / 'host/payload'; host_resources = host / 'Resources'
