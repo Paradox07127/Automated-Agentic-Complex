@@ -233,6 +233,8 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self.state = None  # CharacterState: her own energy, engagement and mood; None records nothing
         self.state_affects = True  # PUT /character/state/switch; kept in memory only
         self.state_view = StateView(self)
+        # +1 per turn: a line, look or speech of an older generation is dropped.
+        self.turn_generation = 0
         # spatial behaviors on /events; main() starts its loop
         self.spatial = Spatial(self.spatial_situation, self.registry.publish_event, lambda: self.turn_generation,
                                self.registry.epoch, interaction_preset=self.interaction.name,
@@ -293,8 +295,6 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self._line_material = {}  # cancel event -> start_line's material, until its context is assembled
         self._context_cut = set()  # cancel events of live lines ended by a cleared or corrected context item
         self._user_cut = set()  # cancel events of live lines the user cut: a key, 「停下」, new input or a switch
-        # +1 per turn: a line, look or speech of an older generation is dropped.
-        self.turn_generation = 0
         self._turn_lock = threading.RLock()
         self._look = None  # request_id of the look the current turn waits for
         # One line streams at a time; the mouth's history is not thread-safe.

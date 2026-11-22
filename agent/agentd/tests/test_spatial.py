@@ -2131,6 +2131,13 @@ class ChooserTest(SpatialCase):
 
 
 class ChooserServerTest(ServerCase):
+    def test_a_character_with_a_motion_pack_starts(self):
+        # the chooser's first snapshot reads the turn generation while the server is still being built
+        with unittest.mock.patch.object(AgentdServer, "motion_chooser", lambda server, cid: MotionChooser(PACK)):
+            server = AgentdServer(("127.0.0.1", 0), HOOK, UI)
+        self.addCleanup(server.server_close)
+        self.assertIsNotNone(server.spatial.chooser)
+
     def test_the_snapshot_carries_the_reaction_table_and_a_switch_sends_the_new_one(self):
         self.server.spatial.use_motion(MotionChooser(PACK))
         snapshot = self.snapshot()
