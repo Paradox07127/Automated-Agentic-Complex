@@ -58,15 +58,17 @@ export interface Play {
 export function useMotions(o: { character?: string; actions: AvatarAction[]; toast: Toast; seed?: Record<string, boolean>; playing?: string | null }) {
   const [changed, setChanged] = useState<Record<string, boolean>>(() => o.seed ?? {});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [play, setPlay] = useState<Play | null>(() => (o.playing ? { id: o.playing, t0: Date.now(), speed: 1, loop: false } : null));
   const [owner, setOwner] = useState(o.character);
   if (owner !== o.character) {
     setOwner(o.character);
     setChanged({});
     setSaved({});
+    // The switch restarted the avatar, which ended what she played.
+    setPlay(null);
   }
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
-  const [play, setPlay] = useState<Play | null>(() => (o.playing ? { id: o.playing, t0: Date.now(), speed: 1, loop: false } : null));
   const [, tick] = useState(0);
   const base = (a: AvatarAction) => saved[a.id] ?? a.enabled;
   const value = (a: AvatarAction) => changed[a.id] ?? base(a);

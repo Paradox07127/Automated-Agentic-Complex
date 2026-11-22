@@ -83,8 +83,9 @@
   }
 }
 
-/* The motion list fills the panel and scrolls inside it. */
-.motions {
+/* The motion list and 编排 fill the panel and scroll inside it (编排 its pool rows only). */
+.motions,
+.chain {
   display: flex;
   flex: 1;
   flex-direction: column;

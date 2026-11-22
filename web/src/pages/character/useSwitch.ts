@@ -28,6 +28,8 @@ export function useSwitch(o: SwitchOptions) {
   const asked = useRef(0);
 
   const start = (target: CharacterProfile) => {
+    // A head's task read still out would open its confirm during this run.
+    asked.current++;
     setState({ phase: 'running', target });
     getBridge()
       .character.switchTo(target.id)

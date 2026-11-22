@@ -15,6 +15,7 @@ import { pageNow, useFeedback, usePageParams } from './feedback';
 import { hostReason } from './labels';
 import { MotionSettings } from './motions/MotionSettings';
 import { isPane, Operator, OperatorSkel } from './Operator';
+import type { SceneReport } from './operatorScene';
 import { PhotoMode } from './PhotoMode';
 import { CHAR_TABS, isCharTab } from './sections';
 import { useCharSettings } from './settings';
@@ -98,7 +99,10 @@ export function CharacterPage() {
   const avatarState = demo === 'offline' ? 'stopped' : sup.data?.avatar?.state;
   const offline = avatarState != null && DOWN.test(avatarState);
   const backoff = demo === 'offline' ? null : (sup.data?.avatar?.backoff ?? null);
-  const mmd = useMmdSection({ on: mmdView, roster: roster ?? NO_ROSTER, ch: currentOf(roster, host.current), actions: motions.data, offline, switching: host.switching, sync, toast: fb.toast });
+  // A switch from the tray or menu bar runs on the host only.
+  const switching = host.switching || sw.state.phase === 'running';
+  const mmd = useMmdSection({ on: mmdView, roster: roster ?? NO_ROSTER, ch: currentOf(roster, host.current), actions: motions.data, offline, switching, sync, toast: fb.toast });
+  const [scene, setScene] = useState<SceneReport>({ deck: false, compact: false });
   const disconnected = conn.data === 'offline' || (cs.error != null && failure(cs.error).kind === 'offline');
   const stateError = state === 'error' || (cs.isError && !disconnected);
   // A library without characters; its only way on is an import, and there is no character state to report on.
@@ -163,6 +167,8 @@ export function CharacterPage() {
           roster={roster}
           current={cur}
           sw={{ state: sw.state, request: (c) => sw.request(c, cur, name), retry: sw.retry, dismiss: sw.dismiss }}
+          switching={switching}
+          onScene={setScene}
           offline={offline}
           backoff={backoff}
           onRestart={restart}
@@ -186,10 +192,10 @@ export function CharacterPage() {
       </div>
     );
 
-  // Where the stage stands, for the room's floor and rings (Stage.module.css): 总览 is the room's default span.
-  const stage = isCharTab(tab) ? 'set' : photo ? 'photo' : mmdView ? (mmd.band ? 'band' : 'set') : isPane(pane) && pane !== 'overview' ? (pane === 'motion' ? 'deck' : 'wide') : undefined;
+  // Where the stage stands, for the room's floor and rings (Stage.module.css): 总览 is the room's default span; the deck is the one the stage stands on.
+  const stage = isCharTab(tab) ? 'set' : photo ? 'photo' : mmdView ? (mmd.band ? 'band' : 'set') : isPane(pane) && pane !== 'overview' ? (scene.deck ? 'deck' : 'wide') : undefined;
   return (
-    <div className={styles.page} data-page="character" data-stage-span={stage}>
+    <div className={styles.page} data-page="character" data-stage-span={stage} data-compact={scene.compact || undefined}>
       <TrainingRoom watermark={artSrc(cur, 'charinfo-bg')} />
       {/* The shell draws the live preview in here: over the room, under every part of the page (usePreview.ts). */}
       <div className={styles.layer} data-preview-layer="" aria-hidden="true" />

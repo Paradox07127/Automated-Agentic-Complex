@@ -50,23 +50,24 @@
     --room-stage-l: 30%;
     --room-stage-r: 30%;
   }
+}
 
-  .page[data-stage-span] > [data-training-room] {
-    --room-rail: 52px;
-    --room-slot: 22px;
-  }
+/* The stage's compact sizes (`data-compact`: the operator view ≤ 1100 wide or ≤ 560 tall, Stage.module.css). */
+.page[data-compact][data-stage-span] > [data-training-room] {
+  --room-rail: 52px;
+  --room-slot: 22px;
+}
 
-  .page[data-stage-span='deck'] > [data-training-room] {
-    --room-deck: 48px;
-  }
+.page[data-compact][data-stage-span='deck'] > [data-training-room] {
+  --room-deck: 48px;
+}
 
-  .page[data-stage-span='band'] > [data-training-room] {
-    --room-deck: calc(94px + 12px);
-  }
+.page[data-compact][data-stage-span='band'] > [data-training-room] {
+  --room-deck: calc(94px + 12px);
+}
 
-  .page[data-stage-span='photo'] > [data-training-room] {
-    --room-slot: 0px;
-  }
+.page[data-compact][data-stage-span='photo'] > [data-training-room] {
+  --room-slot: 0px;
 }
 
 /* The live preview's layer: the whole page, its own stacking context over the room (z-index 0) and under the bars and the body (1). */

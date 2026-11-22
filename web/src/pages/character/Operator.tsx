@@ -15,6 +15,7 @@ import { MotionTable } from './MotionTable';
 import { useVoiceBinding } from './NameBlock';
 import { Panel } from './Panel';
 import { Rail, type RailItem } from './Rail';
+import { failed, firstPick, PANEL, useSceneReport, type SceneReport } from './operatorScene';
 import { GO, go, SidePanel, type Side } from './Side';
 import { Stage, StageSkel, type StageMode } from './Stage';
 import { blockedReason, deckLine, groupMotions, useMotions } from './useMotions';
@@ -62,6 +63,10 @@ export interface OperatorProps {
   toast: Toast;
   /** 设定 (with its tab), 拍照 or MMD in the panel in place of the panes. */
   side?: Side;
+  /** A switch runs, the page's own or one from the tray or menu bar; absent, the page's own. */
+  switching?: boolean;
+  /** Gets the drawn scene's deck and compact layout, for the room under it. */
+  onScene?: (s: SceneReport) => void;
 }
 
 export type Pane = 'overview' | 'motion' | 'chain' | 'look' | 'import';
@@ -70,27 +75,8 @@ const PANES: readonly Pane[] = ['overview', 'motion', 'chain', 'look', 'import']
 
 export const isPane = (v: string | null): v is Pane => PANES.some((x) => x === v);
 
-/** Detail panel width per view (BRIEF 11-22 C): wide for 外观, 动作 and 编排 (and 导入 under them), narrow for 设定 and MMD, a single column for 拍照. */
-const PANEL: Record<Exclude<Pane, 'overview'> | Side['of'], 'wide' | 'narrow' | 'photo'> = {
-  motion: 'wide',
-  chain: 'wide',
-  look: 'wide',
-  import: 'wide',
-  set: 'narrow',
-  photo: 'photo',
-  mmd: 'narrow',
-};
-
 const NO_ACTIONS: AvatarAction[] = [];
 const NO_LOOKS: Readonly<Record<string, unknown>> = {};
-
-/** First motion worth showing: not required, playable, present. */
-const firstPick = (actions: AvatarAction[]) => actions.find((a) => !a.requiredReason && a.playable !== false && !a.missing)?.id ?? actions[0]?.id ?? '';
-
-const failed = (what: string, toast: Toast) => (e: unknown) => {
-  const code = (e as { code?: string } | null)?.code;
-  toast(`${what}没有完成：${code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' });
-};
 
 /** 角色页：训练场上的实机舞台。总览是头像条、名字块、舞台、黄色斜块和竖栏；外观 / 动作 / 设定 / 拍照 / MMD 没有头像条和名字块，舞台在左，右边是按页取宽的面板。 */
 export function Operator(p: OperatorProps) {
@@ -161,7 +147,7 @@ export function Operator(p: OperatorProps) {
   const ch = p.roster.find((c) => c.id === p.current) ?? p.roster[0];
   const pick = rows.find((r) => r.a.id === sel) ?? rows.find((r) => r.a.id === firstPick(rows.map((x) => x.a)));
   const motion = pick?.a;
-  const switching = p.sw.state.phase === 'running';
+  const switching = p.switching ?? p.sw.state.phase === 'running';
   const importing = importState.running || p.motionImport?.running === true || outfit.state === 'busy';
   const why = blockedReason(motion, p.offline, switching);
   const blocked = why ?? (importing ? '导入中' : m.previewing ? '正在请求桌面预览' : null);
@@ -184,6 +170,8 @@ export function Operator(p: OperatorProps) {
   // 动作 always has its action bar; another detail page only while switches wait to be saved (总览 has no room; 编排 has its own commit bar).
   const deck = !side && mode === 'detail' && pane !== 'chain' && (pane === 'motion' || changes.length > 0);
   const play = m.play;
+  // MMD plays on the same stage: back from it, a row asked before does not play again.
+  if (side?.of === 'mmd' && previewAction) setPreviewAction(undefined);
   const asked = previewAction?.character === p.current ? previewAction : undefined;
   // MMD previews its own dance on the same stage.
   const pv = side?.of === 'mmd' ? side.preview : { action: asked?.id, request: asked?.request, loop };
@@ -250,7 +238,8 @@ export function Operator(p: OperatorProps) {
         <HeadStrip
           roster={p.roster}
           current={p.current}
-          pending={switching && p.sw.state.phase === 'running' ? p.sw.state.target.id : null}
+          // A switch from the tray has no target here: '' locks every head.
+          pending={p.sw.state.phase === 'running' ? p.sw.state.target.id : switching ? '' : null}
           offline={p.offline}
           importing={importing}
           onPick={p.sw.request}
@@ -326,6 +315,7 @@ export function Operator(p: OperatorProps) {
     opRef,
   );
   const s = view.scene;
+  useSceneReport(opRef, s.deck, p.onScene);
 
   return (
     <div ref={opRef} className={styles.op} data-view="operator" data-mode={s.mode} data-panel={s.panel} data-bare={isBare || undefined} data-deck={s.deck || undefined} data-band={s.band} data-theme="light">
