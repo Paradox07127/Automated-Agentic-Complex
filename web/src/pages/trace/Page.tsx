@@ -73,6 +73,7 @@ export function TracePage() {
   const tabParam = useParam('tab');
   const tab = tabParam === 'logs' || tabParam === 'lanes' ? tabParam : 'turns';
   const turnParam = useParam('turn');
+  const atParam = Number(useParam('at') ?? NaN);
   const srcParam = useParam('src');
   const put = useCallback((patch: Record<string, string | undefined>) => void navigate({ to: '/trace', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }), replace: true }), [navigate]);
 
@@ -83,7 +84,8 @@ export function TracePage() {
   const logSearch = useRef<HTMLInputElement>(null);
 
   // Opening on the newest turn that has ended; a running one stays on top without taking the pick.
-  const selId = turnParam ?? (all.find((r) => shapeOf(r) !== 'run') ?? all[0])?.turn_id ?? null;
+  const atTurn = Number.isFinite(atParam) ? all.findLast((r) => isoToMs(r.started_at) >= atParam) : undefined;
+  const selId = turnParam ?? atTurn?.turn_id ?? (all.find((r) => shapeOf(r) !== 'run') ?? all[0])?.turn_id ?? null;
   const recent = selId ? (rows.data?.get(selId) ?? null) : null;
   const exact = useTraceRow(selId, 'turn_id', live && src == null && rows.isSuccess && !recent);
   const selRow = recent ?? exact.data ?? null;

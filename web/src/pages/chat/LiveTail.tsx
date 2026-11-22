@@ -32,7 +32,7 @@ export interface LiveTailProps extends MessageMenuProps {
 const NEXT: Readonly<Record<string, { label: string; to: NavTarget }>> = {
   auth_expired: { label: '去登录', to: { page: 'settings', group: 'kernel', item: 'kcur' } },
   native_login_required: { label: '去登录', to: { page: 'settings', group: 'kernel', item: 'kcur' } },
-  quota_exhausted: { label: '查看用量', to: { page: 'diag', item: 'usage' } },
+  quota_exhausted: { label: '查看用量', to: { page: 'diag', tab: 'flow', item: 'usage' } },
 };
 
 /** Why a reply failed: the sentence for its run's or its line's code, else agentd's public_message. */

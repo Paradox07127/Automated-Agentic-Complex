@@ -1,4 +1,4 @@
-// Diag: memory run detail, capability codes in Chinese, the last unspoken line, native deep links.
+// The memory run sheet (opened from 记忆管线), capability codes in Chinese, the last unspoken line, old diag links.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
@@ -8,6 +8,7 @@ import type { AgenticComplexBridge, HttpMethod } from '../../src/bridge/protocol
 import { isoWithOffset } from '../../src/domain/units';
 import { NOW } from '../../src/mock/fixtures';
 import { DIAG_STATE } from '../../src/mock/diag';
+import { MemoryRunSheet } from '../../src/pages/diag/MemoryRunSheet';
 import { NowPanel } from '../../src/pages/diag/NowPanel';
 import { DiagPage } from '../../src/pages/diag/Page';
 import { issuesOf } from '../../src/pages/diag/status';
@@ -49,34 +50,37 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('diag › memory run detail', () => {
+function sheet(id: string) {
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRunSheet id={id} onClose={() => {}} />
+    </QueryClientProvider>,
+  );
+}
 
-  it('a run link (fact sheet) opens that run straight away', async () => {
-    await mount('&kind=memory&run=mrun-00');
+describe('memory run sheet', () => {
+  it('opens that run straight away', async () => {
+    sheet('mrun-00');
     expect(await screen.findByRole('dialog', { name: '记忆生成记录' })).toBeTruthy();
     expect(paths()).toContain('GET /memory/runs/mrun-00');
   });
 
   it('says a cleared run detail in Chinese', async () => {
-    await mount('&kind=memory&run=mrun-03');
-    const sheet = await screen.findByRole('dialog', { name: '记忆生成记录' });
-    expect(await within(sheet).findByText(/详细内容已清理/)).toBeTruthy();
-    expect(sheet.textContent).not.toContain('expired');
-  });
-
-  it('a task run link (run= without kind=memory) opens no memory run', async () => {
-    await mount('&tab=timeline&run=run-9c1e');
-    await waitFor(() => expect(paths()).toContain('GET /diag/state'));
-    expect(screen.queryByRole('dialog', { name: '记忆生成记录' })).toBeNull();
-    expect(paths().filter((p) => p.startsWith('GET /memory/runs/'))).toEqual([]);
+    sheet('mrun-03');
+    const sheetEl = await screen.findByRole('dialog', { name: '记忆生成记录' });
+    expect(await within(sheetEl).findByText(/详细内容已清理/)).toBeTruthy();
+    expect(sheetEl.textContent).not.toContain('expired');
   });
 });
 
-describe('diag › native deep links keep their target', () => {
-  it('trace= opens that turn and reads its events', async () => {
-    await mount('&trace=tr2');
-    await waitFor(() => expect(paths()).toContain('GET /trace/turns/tr2'));
-    expect(await screen.findByText('轮次详情')).toBeTruthy();
+describe('diag › old links land on 总览', () => {
+  // Memory runs live on 记忆管线 and single turns on 运行记录 now; diag reads neither.
+  it.each(['&kind=memory&run=mrun-00', '&tab=timeline&run=run-9c1e', '&trace=tr2'])('%s opens no run or turn', async (q) => {
+    await mount(q);
+    await waitFor(() => expect(paths()).toContain('GET /diag/state'));
+    await waitFor(() => expect(document.querySelector('[data-row="agentd"]')).not.toBeNull());
+    expect(screen.queryByRole('dialog', { name: '记忆生成记录' })).toBeNull();
+    expect(paths().filter((p) => p.startsWith('GET /memory/runs/') || p === 'GET /trace/turns/tr2')).toEqual([]);
   });
 });
 

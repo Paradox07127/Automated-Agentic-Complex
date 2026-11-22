@@ -1,108 +1,40 @@
-.t2 {
-  color: var(--ef-text-2);
-}
-
-.t3 {
-  color: var(--ef-text-3);
-}
-
-.okText {
-  color: var(--ef-success-text);
-}
-
-.gateRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ef-sp-8);
-  align-items: center;
-  font-size: var(--ef-fs-caption);
-}
-
-/* A sentence with numbers in it: plain text flow, not one flex item per fragment. */
-.gateLine {
-  font-size: var(--ef-fs-caption);
-}
-
-.state {
+/* 状态: the phase strip, the gate and 现在 frames side by side, the raw state folded last. */
+.sec {
+  display: grid;
+  gap: var(--ef-sp-12);
   min-width: 0;
 }
 
-/* Collapsed open section: the summary reads like a section head. */
-.stateSum {
+.dim {
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.dim b {
+  color: var(--ef-text-1);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.phase {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 10px;
-  align-items: baseline;
-  min-height: 28px;
-  padding-bottom: 6px;
-  border-bottom: var(--ef-lw-hair) solid var(--ef-line-subtle);
-  color: var(--ef-text-2);
-  list-style: none;
-}
-
-.stateSum::-webkit-details-marker {
-  display: none;
-}
-
-.stateSum:focus-visible {
-  outline: var(--ef-lw-hair) solid var(--ef-focus);
-  outline-offset: 3px;
-}
-
-.sumNo {
-  color: var(--ef-text-3);
-  font: 700 var(--ef-fs-eyebrow) / 1 var(--ef-font-din);
-}
-
-.sumTitle {
-  color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-title-2) / var(--ef-lh-title-1) var(--ef-font-sans);
-}
-
-.sumNote {
-  color: var(--ef-text-3);
-  font-size: 12px;
-}
-
-.chev {
-  margin-left: auto;
-  color: var(--ef-text-2);
-  font-size: 12px;
-}
-
-.stateSum:hover .chev {
-  text-decoration: underline;
-}
-
-.stateGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--ef-sp-12);
-  margin: var(--ef-sp-12) 0;
-}
-
-.phaseRow {
-  display: flex;
-  gap: var(--ef-sp-12);
+  gap: var(--ef-sp-8) var(--ef-sp-16);
   align-items: center;
-  margin-top: var(--ef-sp-12);
-  font-size: 12px;
+  min-height: 52px;
+  padding: var(--ef-sp-8) var(--ef-sp-16);
+  background: var(--dg-read);
 }
 
-.lang {
+.phase > :last-child {
   margin-left: auto;
-}
-
-@container page (max-width: 1000px) {
-  .stateGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 .f21 {
   display: inline-grid;
-  gap: 2px;
-  width: 300px;
+  flex: 1;
+  gap: 4px;
+  min-width: 240px;
+  max-width: 640px;
 }
 
 .f21Bar {
@@ -112,20 +44,23 @@
 }
 
 .f21Bar i {
-  background: var(--ef-chart-done);
+  background: color-mix(in srgb, var(--ef-text-1) 30%, transparent);
 }
 
 .f21Bar i[data-cur] {
-  background: var(--ef-chart-s1);
-  box-shadow: inset -2px 0 0 var(--ef-chart-cursor);
+  background: var(--ef-accent);
+}
+
+:global([data-theme='light']) .f21Bar i[data-cur] {
+  background: var(--ef-text-1);
 }
 
 .f21Lab {
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--ef-sp-12);
-  font: var(--ef-t-meta);
   color: var(--ef-text-2);
+  font: var(--ef-t-meta);
 }
 
 /* A phase wraps whole: never 40 / ms or 进 / 行中. */
@@ -134,141 +69,97 @@
 }
 
 .f21Lab [data-cur] {
-  color: var(--ef-info-text);
-}
-
-.gate,
-.obs {
-  display: grid;
-  gap: var(--ef-sp-6);
-  align-content: start;
-  padding: var(--ef-sp-12);
-  background: var(--ef-surface-1);
-  font-size: var(--ef-fs-caption);
-}
-
-.panelHead {
   color: var(--ef-text-1);
-  font-size: var(--ef-fs-small);
   font-weight: var(--ef-fw-semibold);
 }
 
-/* Wait gauge as a load bar: a bracket frame 11 high, the fill 6.5 high inside it, tinted Low / Medium / High. */
-.obsBar {
-  --load-low: #b4d945;
-  --load-mid: #ffcc00;
-  --load-high: #ff8080;
-  --load: var(--load-low);
-  position: relative;
-  box-sizing: border-box;
-  width: 120px;
-  height: 11px;
-  padding: 2.25px 7px;
-  border-inline: var(--ef-lw-hair) solid var(--ef-text-2);
-  background:
-    linear-gradient(var(--ef-text-2), var(--ef-text-2)) left top / 4px 1px no-repeat,
-    linear-gradient(var(--ef-text-2), var(--ef-text-2)) left bottom / 4px 1px no-repeat,
-    linear-gradient(var(--ef-text-2), var(--ef-text-2)) right top / 4px 1px no-repeat,
-    linear-gradient(var(--ef-text-2), var(--ef-text-2)) right bottom / 4px 1px no-repeat,
-    linear-gradient(var(--ef-chart-track), var(--ef-chart-track)) center / calc(100% - 14px) 6.5px no-repeat;
+.two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--ef-sp-12);
+  align-items: start;
 }
 
-/* Light theme (ours): the dark greens and yellows fall under 3:1 on paper. */
-:global([data-theme='light']) .obsBar {
-  --load-low: var(--ef-text-2);
-  --load-mid: var(--ef-attention-text);
-  --load-high: var(--ef-danger);
+.panel {
+  display: grid;
+  gap: var(--ef-sp-8);
+  padding: 34px var(--ef-sp-12) var(--ef-sp-12);
 }
 
-.obsBar[data-level='mid'] {
-  --load: var(--load-mid);
+.lampHead {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -28px;
 }
 
-.obsBar[data-level='high'] {
-  --load: var(--load-high);
+.rows {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 
-.obsBar i {
-  display: block;
-  height: 6.5px;
-  max-width: 100%;
-  background: var(--load);
+.gr {
+  display: flex;
+  gap: var(--ef-sp-12);
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  padding: 0 var(--ef-sp-8);
+  border-bottom: 1px solid var(--ef-line);
+  font: var(--ef-t-meta);
 }
 
-/* Meter frame (recipe settings-meter-frame) 277x22 g, 9-slice l76 r76: the bracket ends, the track and its centre tick,
-   in the frame ink; the fill stays on top. */
-:global(html[data-art]) .obsBar {
-  border-inline: 0;
-  background: none;
+.k {
+  color: var(--ef-text-2);
 }
 
-:global(html[data-art]) .obsBar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--ef-text-2);
-  pointer-events: none;
-  -webkit-mask-box-image: url('/art/common/settings-meter-frame.png') 0 76 0 76 / 0 38px 0 38px stretch;
-}
-
-:global(html[data-art]) .obsBar i {
-  position: relative;
-}
-
-.obsDots {
+.v {
   display: inline-flex;
-  gap: var(--ef-sp-4);
+  gap: var(--ef-sp-8);
+  align-items: center;
+  color: var(--ef-text-1);
 }
 
-.obsDots i {
-  font-style: normal;
-}
-
-.obsDots button {
-  min-width: 16px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  cursor: pointer;
-}
-
-.obsDots button[aria-pressed='true'] {
-  box-shadow: inset 0 -2px 0 var(--ef-info-text);
-}
-
-.obsDots [data-r='ok'] {
-  color: var(--ef-state-ok);
-}
-
-.obsDots [data-r='fail'] {
-  color: var(--ef-state-failed);
-}
-
-/* Yellow on a light plate needs the ink edge the legend's failed square has. */
-:global([data-theme='light']) .obsDots [data-r='fail'] {
-  -webkit-text-stroke: var(--ef-lw-hair) var(--ef-text-1);
-}
-
-.obsDots [data-r='skip'] {
-  color: var(--ef-text-3);
-}
-
-.statTable {
+.st7 {
   width: 100%;
   border-collapse: collapse;
+  color: var(--ef-text-1);
+  font: var(--ef-t-meta);
+}
+
+.st7 th {
+  height: 26px;
+  padding: 0 var(--ef-sp-8);
+  background: var(--dg-read);
   color: var(--ef-text-2);
-  font-size: var(--ef-fs-caption);
-}
-
-.statTable th,
-.statTable td {
-  padding: 2px var(--ef-sp-6) 2px 0;
+  font-weight: var(--ef-fw-medium);
   text-align: left;
-  font-weight: 400;
 }
 
-.statTable th {
-  color: var(--ef-text-3);
+.st7 td {
+  height: 32px;
+  padding: 0 var(--ef-sp-8);
+  border-bottom: 1px solid var(--ef-line);
 }
 
+.empty {
+  display: grid;
+  gap: var(--ef-sp-12);
+  place-items: center;
+  min-height: 200px;
+  padding: 30px 16px;
+  background: var(--dg-grid);
+  color: var(--ef-text-2);
+  text-align: center;
+}
+
+.empty b {
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) 16px / 24px var(--ef-font-sans);
+}
+
+@media (max-width: 1100px) {
+  .two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

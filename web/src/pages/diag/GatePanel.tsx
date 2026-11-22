@@ -3,6 +3,7 @@ import { BracketMeter, CountdownRing } from '../../charts';
 import { formatDuration, type Cooldown, type WireDiagGate } from '../../domain';
 import { secToMs } from '../../domain/units';
 import { useDevMode } from '../../shell/devMode';
+import { MicroLabel, StatusLamp } from '../../ui/game';
 import { readProactiveStats, type ProactiveStats } from '../settings/api';
 import styles from './State.module.css';
 
@@ -26,9 +27,8 @@ export function gateHolds(g: WireDiagGate): string[] {
 
 const pct = (n: number, total: number): string => (total > 0 ? `${Math.round((n / total) * 100)}%` : '—');
 
-/** What holds speech back, one cooldown ring per cooling kind (agentd lists only those), today's meter with «被拦 N». */
+/** One lamp per gate condition, one ring per cooling kind (agentd lists only those), today's meter with «被拦 N». */
 export function GatePanel({ cooldowns, gate }: GatePanelProps) {
-  const holds = gateHolds(gate);
   const dev = useDevMode();
   const [stats, setStats] = useState<ProactiveStats | null>(null);
 
@@ -57,34 +57,52 @@ export function GatePanel({ cooldowns, gate }: GatePanelProps) {
   const replied = entries.reduce((s, [, v]) => s + v.replied, 0);
   const accepted = entries.reduce((s, [, v]) => s + v.accepted, 0);
   const responded = replied + accepted;
+  const conds: Array<[string, boolean, string, string]> = [
+    ['主动发言开关', gate.enabled, '开着', '关了'],
+    ['开会', !gate.meeting, '没在开会', '开会中'],
+    ['前台全屏', !gate.fullscreen, '没有', '全屏中'],
+    ['你在说话', !gate.user_speaking, '没有', '在说'],
+  ];
 
   return (
-    <div className={styles.gate}>
-      <span className={styles.panelHead}>主动发言闸门</span>
-      <span className={styles.gateRow}>{holds.length ? <span className={styles.t2}>{holds.join(' │ ')}</span> : <span className={styles.okText}>✓ 没有拦着的条件</span>}</span>
-      {/* agentd sends the configured periods, not whether one is on now. */}
-      {gate.quiet_hours.length > 0 && <span className={styles.t3}>已设免打扰时段</span>}
-      {cooldowns.map((c) => (
-        <span key={c.key} className={styles.gateRow} title={`${c.label}冷却 │ 还剩 ${formatDuration(secToMs(c.left_s))}`}>
-          <span className={styles.t3}>{c.label}</span>
-          <CountdownRing secondsLeft={c.left_s} windowS={c.total_s} size="mini" label={`${c.label}冷却`} />
-        </span>
+    <div className={styles.rows}>
+      {conds.map(([k, ok, yes, no]) => (
+        <div key={k} className={styles.gr}>
+          <span className={styles.k}>{k}</span>
+          <StatusLamp state={ok ? 'ok' : 'warning'} label={ok ? yes : no} />
+        </div>
       ))}
-      <span className={styles.gateRow}>
-        <span className={styles.t3}>今日主动发言</span>
-        <BracketMeter value={gate.today} max={gate.daily_limit} size="sm" label="今日主动发言" />
-        <span className={styles.t2}>
-          被拦 <span className="num">{gate.blocked_today}</span>
+      {cooldowns.map((c) => (
+        <div key={c.key} className={styles.gr} title={`${c.label}冷却 │ 还剩 ${formatDuration(secToMs(c.left_s))}`}>
+          <span className={styles.k}>{c.label}冷却</span>
+          <span className={styles.v}>
+            <CountdownRing secondsLeft={c.left_s} windowS={c.total_s} size="mini" label={`${c.label}冷却`} />
+          </span>
+        </div>
+      ))}
+      <div className={styles.gr}>
+        <span className={styles.k}>今天主动发言</span>
+        <span className={styles.v}>
+          <BracketMeter value={gate.today} max={gate.daily_limit} size="sm" label="今日主动发言" />
+          <span className={styles.dim}>
+            被拦 <b className="num">{gate.blocked_today}</b>
+          </span>
         </span>
-      </span>
+      </div>
+      {/* agentd sends the configured periods, not whether one is on now. */}
+      <div className={styles.gr}>
+        <span className={styles.k}>免打扰时段</span>
+        <span className={styles.v}>{gate.quiet_hours.length > 0 ? '已设' : '没有设'}</span>
+      </div>
       {dev && stats != null && (
         <>
-          <span className={`${styles.gateLine} ${styles.t2}`}>
+          <MicroLabel>LAST 7 DAYS</MicroLabel>
+          <span className={styles.dim}>
             近 7 天主动 <span className="num">{shown}</span> 条 │ 有回应 <span className="num">{responded}</span>（<span className="num">{pct(responded, shown)}</span>） │ 点了建议{' '}
             <span className="num">{accepted}</span>
           </span>
           {entries.length > 0 && (
-            <table className={styles.statTable} aria-label="近 7 天主动发言回应">
+            <table className={styles.st7} aria-label="近 7 天主动发言回应">
               <thead>
                 <tr>
                   <th scope="col">触发</th>

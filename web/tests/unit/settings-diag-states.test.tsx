@@ -1,4 +1,4 @@
-// Settings error state, the gate chart's proactive-only count, no 浮层背景 row, diag offline and process table, empty flow counts, onboarding error.
+// Settings error state, the gate chart's proactive-only count, no 浮层背景 row, diag offline and process rows, empty flow counts, onboarding error.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -6,8 +6,6 @@ import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { CharacterSettings } from '../../src/pages/character/CharacterSettings';
 import { DgFlow } from '../../src/pages/diag/DgFlow';
-import { fromSummaryRun } from '../../src/domain/adapt/context';
-import type { WireSummaryRun } from '../../src/domain/wire';
 import { demoShotRuns } from '../../src/mock/settings';
 import { flowOf } from '../../src/pages/diag/flow';
 import { SUM_KIND } from '../../src/pages/diag/model';
@@ -16,7 +14,6 @@ import { processesOf } from '../../src/pages/diag/status';
 import { OnboardingPage } from '../../src/pages/onboarding/Page';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { searchSettings } from '../../src/pages/settings/registry';
-import type { Health } from '../../src/domain';
 import { pluginsOn, pluginsReset } from './plugins';
 
 // Every plug-in on, so each group shows all its rows.
@@ -40,17 +37,11 @@ afterEach(() => {
   delete window.agenticComplex;
 });
 
-const shot = (kind: string, error: string | null = null): WireSummaryRun => ({
-  run_id: kind, kind, started_at: '2026-10-29T10:00:00+08:00', span_start: null, span_end: null, outcome: error ? 'released' : 'completed',
-  error, attempt: 1, duration_ms: 1800, backend: 'pi', model: 'native', episode_id: null, reasons: [],
-});
-
 describe('今天发出的截图 counts the screenshots the user asked for too', () => {
-  it('has a user_vision run in the preview data, the diag lane and the run sheet purpose', () => {
+  it('has a user_vision run in the preview data and the run sheet purpose; diag leaves the count to 记忆管线', () => {
     expect(new Set(demoShotRuns(null).map((r) => r.kind))).toEqual(new Set(['observation_vision', 'user_vision']));
-    const run = { ...fromSummaryRun(shot('user_vision')), at: 1 };
-    const obs = flowOf({ turns: [], runs: [run], decisions: [], since: 0, failAt: {}, voiceDown: false, hookSub: '', hourly: null }).nodes.find((n) => n.id === 'obs');
-    expect(obs?.stat?.count).toBe(1);
+    const obs = flowOf({ turns: [], decisions: [], since: 0, failAt: {}, voiceDown: false, hookSub: '', hourly: null }).nodes.find((n) => n.id === 'obs');
+    expect([obs?.station, obs?.stat]).toEqual(['obs', null]);
     expect(SUM_KIND.user_vision).toBe('图片理解（你发起）');
   });
 });
@@ -115,42 +106,42 @@ describe('点击角色 row', () => {
   });
 });
 
-const HEALTH = { voice: { state: 'ready' } } as unknown as Health;
 const SUP = { agentd: { state: 'running', pid: 1, cpuPercent: 3.42, memoryMB: 168 }, avatar: { state: 'stopped', pid: null } } as const;
 const noop = () => {};
 
-describe('diag process table', () => {
-  it('heads the columns and writes 离线 / 未知 instead of a dash', () => {
-    const rows = processesOf(SUP, 'connected', HEALTH, null);
-    const { container } = render(<Processes q={{ status: 'success', data: rows }} uptime={{}} history={null} actions={{}} highlight={null} onRestart={noop} onLogs={noop} onVoice={noop} />);
-    const head = container.querySelector('[data-colhead]');
-    expect(head?.textContent).toBe('运行时长内存CPU');
-    const row = (k: string) => container.querySelector(`[data-nav-target="proc-${k}"]`)?.textContent ?? '';
-    expect(row('agentd')).toContain('未知');
-    expect(row('agentd')).toContain('168 MB');
-    expect(row('avatar')).toContain('离线');
-    expect(container.textContent).not.toContain('—');
+const procs = (agentdGone: boolean) =>
+  render(
+    <Processes rows={processesOf(SUP, 'connected')} error={null} onRetry={noop} samples={[]} now={0} metric="cpu" onMetric={noop} uptime={{}} agentdGone={agentdGone} actions={{}} highlight={null} onRestart={noop} onLogs={noop} />,
+  ).container;
+
+describe('diag process rows', () => {
+  it('a stopped process says so and offers 重启; a missing uptime is 运行 —', () => {
+    const container = procs(false);
+    const row = (k: string) => container.querySelector<HTMLElement>(`[data-nav-target="proc-${k}"]`)!;
+    expect(row('agentd').textContent).toMatch(/168\s*MB/);
+    expect(row('agentd').textContent).toContain('运行 —');
+    expect(row('avatar').textContent).toContain('已停止');
+    expect(within(row('avatar')).getByRole('button', { name: '重启' })).toBeTruthy();
   });
 
-  it('reads every row as unknown since the last data while agentd is gone, and the count agrees', () => {
-    const at = new Date(2026, 9, 29, 14, 31).getTime();
-    const rows = processesOf(SUP, 'connected', HEALTH, null);
-    const { container } = render(<Processes q={{ status: 'success', data: rows }} uptime={{}} history={null} actions={{}} highlight={null} staleAt={at} onRestart={noop} onLogs={noop} onVoice={noop} />);
-    const procs = [...container.querySelectorAll('[data-nav-target^="proc-"]')];
-    expect(procs.every((r) => r.hasAttribute('data-stale') && r.textContent?.includes('未知 │ 上次 14:31'))).toBe(true);
-    expect(container.textContent).not.toContain('运行中');
-    expect(container.textContent).toContain('3 个 │ 3 个未知');
-    expect(container.textContent).toContain('14:31 的数据');
+  it('agentd gone: its row says 没有响应 and drops its readings; the others keep theirs', () => {
+    const container = procs(true);
+    const row = (k: string) => container.querySelector<HTMLElement>(`[data-nav-target="proc-${k}"]`)!;
+    expect(row('agentd').textContent).toContain('没有响应');
+    expect(row('agentd').textContent).not.toMatch(/168\s*MB/);
+    expect(row('avatar').textContent).toContain('已停止');
   });
 });
 
 describe('diag empty flow', () => {
-  it('counts an unvisited node as 0 次', () => {
-    const { nodes, edges } = flowOf({ turns: [], runs: [], decisions: [], since: 0, failAt: {}, voiceDown: false, hookSub: '未安装', hourly: null });
-    const { container } = render(<DgFlow nodes={nodes} edges={edges} path={[]} lit={[]} pulse={null} sel={null} onPick={noop} live={null} dead={false} calm />);
-    const counts = [...container.querySelectorAll('button')].filter((b) => !b.textContent?.includes('编码 hook')).map((b) => b.lastElementChild?.textContent);
-    expect(counts.length).toBeGreaterThan(0);
+  it('counts an unvisited node as 0 次; the 记忆管线 stations keep no count', () => {
+    const { nodes, edges } = flowOf({ turns: [], decisions: [], since: 0, failAt: {}, voiceDown: false, hookSub: '未安装', hourly: null });
+    const { container } = render(<DgFlow nodes={nodes} edges={edges} sel={null} onPick={noop} onStation={noop} live={null} dead={false} calm />);
+    const plates = [...container.querySelectorAll('button')].filter((b) => !b.textContent?.includes('编码 hook'));
+    const counts = plates.filter((b) => !b.hasAttribute('data-station')).map((b) => b.children[2]?.textContent);
+    expect(counts.length).toBe(10);
     expect(counts.every((c) => c === '0 次')).toBe(true);
+    expect(plates.filter((b) => b.hasAttribute('data-station')).map((b) => b.children[2]?.textContent)).toEqual(['记忆管线 ›', '记忆管线 ›', '记忆管线 ›']);
   });
 });
 

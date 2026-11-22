@@ -90,21 +90,20 @@ describe('diag processes', () => {
     const rows = processesOf(
       { agentd: { state: 'running', pid: 1, cpuPercent: 3.42, memoryMB: 168.4 }, avatar: { state: 'running', pid: 2, cpuPercent: null, memoryMB: 1210 } },
       'connected',
-      HEALTH,
-      null,
     );
     expect(rows.map((r) => [r.key, r.cpu_percent, r.memory_mb])).toEqual([
       ['agentd', 3.42, 168.4],
       ['avatar', null, 1210],
-      ['voice', null, null],
     ]);
     expect([cpuText(3.42), cpuText(21.6), cpuText(null)]).toEqual(['3.4%', '22%', '—']);
     expect([memText(168.4), memText(1210), memText(null)]).toEqual(['168 MB', '1.2 GB', '—']);
-    const { container } = render(<Processes q={{ status: 'success', data: rows }} uptime={{}} history={null} actions={{}} highlight={null} onRestart={() => {}} onLogs={() => {}} onVoice={() => {}} />);
+    const { container } = render(
+      <Processes rows={rows} error={null} onRetry={() => {}} samples={[]} now={0} metric="cpu" onMetric={() => {}} uptime={{}} agentdGone={false} actions={{}} highlight={null} onRestart={() => {}} onLogs={() => {}} />,
+    );
     const row = (key: string) => container.querySelector(`[data-nav-target="proc-${key}"]`)?.textContent;
-    expect(row('agentd')).toContain('3.4%');
+    expect(row('agentd')).toMatch(/3\.4\s*%/);
     expect(row('agentd')).toContain('pid 1');
-    expect(row('avatar')).toContain('1.2 GB');
+    expect(row('avatar')).toMatch(/1\.2\s*GB/);
   });
 });
 
@@ -132,20 +131,24 @@ describe('avatar details', () => {
     expect(renderWhy(false, HEALTH.avatar, SUSPENDED)).toBe('这个窗口收不到角色的帧数据');
   });
 
-  it('the frame plate folds the host details under the charts', async () => {
+  it('the host details sit under the charts with their raw text folded', async () => {
     const samples = RENDER_STATS.slice(0, 20).map((s) => ({ ...s, suspended: false }));
-    render(<Resources samples={samples} renderWhy="" details={SUSPENDED} budget={null} procHistory={null} procNow={[]} totals={null} st="ok" />);
-    expect(screen.getByText('渲染器 Metal │ 构建 3f9c2a71')).toBeTruthy();
-    await act(async () => void fireEvent.click(screen.getByRole('button', { name: /宿主详情/ })));
-    expect(document.body.textContent).toContain('shader cache miss');
+    render(<Resources samples={samples} renderWhy="" details={SUSPENDED} onProc={() => {}} />);
+    const host = screen.getByRole('region', { name: '宿主详情' });
+    expect(host.textContent).toContain('Metal');
+    expect(host.textContent).toContain('3f9c2a71');
+    expect(host.textContent).toContain('shader cache miss');
+    expect(host.textContent).not.toContain('1520, 84');
+    await act(async () => void fireEvent.click(screen.getByRole('button', { name: /宿主详情原文/ })));
+    expect(document.body.textContent).toContain('1520, 84');
   });
 
   it('the diag page without samples shows the details and the suspend reason', async () => {
     const fake = createFakeBridge({ surface: 'main', still: true });
     window.agenticComplex = { ...fake, avatar: { ...fake.avatar, onStats: () => () => {}, details: async () => SUSPENDED } };
-    await mountPage(DiagPage, '');
-    expect(await screen.findByText('渲染器 Metal │ 构建 3f9c2a71')).toBeTruthy();
-    expect(document.querySelector('[data-nav-target="diag-render"]')?.textContent).toContain('画面暂停中 │ 屏幕睡眠');
+    await mountPage(DiagPage, '&tab=render');
+    expect((await screen.findByRole('region', { name: '宿主详情' })).textContent).toContain('Metal');
+    expect(screen.getByRole('region', { name: '帧率' }).textContent).toContain('画面暂停中 │ 屏幕睡眠');
   });
 
   it('the 调参 render load says 画面暂停中 when a suspended host sends no stats', async () => {

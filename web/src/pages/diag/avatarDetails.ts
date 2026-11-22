@@ -13,7 +13,7 @@ export const suspendedText = (code: string): string => (SUSPENDED[code] ? `画�
 
 const UNSUPPORTED: Readonly<Record<string, string>> = { ssaa: 'SSAA 关', display_resolution: '按显示器分辨率' };
 
-const rendererName = (r: string | null): string => (r == null ? '未知' : r === 'metal' ? 'Metal' : r);
+export const rendererName =(r: string | null): string => (r == null ? '未知' : r === 'metal' ? 'Metal' : r);
 
 /** Up to three lines: renderer and build, character and quality, frame rate and video memory. */
 export function detailSummary(d: AvatarDetails): string[] {

@@ -55,8 +55,7 @@ export function NowPanel({ d }: NowPanelProps) {
   const labels = d.character_state.labels;
   const mood = (labels?.mood && stateWord('mood', labels.mood)) || d.body.mood;
   return (
-    <div className={styles.obs}>
-      <span className={styles.panelHead}>现在</span>
+    <div className={styles.rows}>
       <KV
         items={[
           {

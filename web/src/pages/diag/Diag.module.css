@@ -1,0 +1,168 @@
+/* 诊断: five tabs on the console grid; dark name plates, gridded faces, reads on a lighter band. */
+.page {
+  --dg-grid: color-mix(in srgb, var(--ef-canvas) 96%, var(--ef-text-1));
+  --dg-read: color-mix(in srgb, var(--ef-canvas) 92%, var(--ef-text-1));
+  --dg-plate: color-mix(in srgb, var(--ef-g-watch-map) 85%, var(--ef-g-watch-ink));
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+:global([data-theme='light']) .page {
+  --dg-grid: color-mix(in srgb, var(--ef-canvas) 93%, var(--ef-text-1));
+  --dg-read: color-mix(in srgb, var(--ef-canvas) 98%, var(--ef-text-1));
+  --dg-plate: color-mix(in srgb, var(--ef-g-watch-map) 78%, var(--ef-g-watch-ink));
+}
+
+/* The tab's word behind the panels. */
+.wm {
+  position: absolute;
+  right: 28px;
+  bottom: 14px;
+  z-index: -1;
+  color: transparent;
+  font: var(--ef-fw-semibold) 120px / 1 var(--ef-font-num);
+  letter-spacing: -0.02em;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--ef-text-1) 9%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+
+.view {
+  display: grid;
+  gap: var(--ef-sp-12);
+  align-content: start;
+  min-width: 0;
+  padding: var(--ef-sp-16) var(--ef-sp-24) var(--ef-sp-32);
+}
+
+.board {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.slot {
+  min-width: 0;
+}
+
+.opt {
+  display: contents;
+}
+
+.source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  margin: var(--ef-sp-8) 0 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.source b {
+  color: var(--ef-text-1);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.source[data-dev] b {
+  color: color-mix(in srgb, var(--ef-g-reddot) 62%, var(--ef-text-1));
+}
+
+.warnMark {
+  color: var(--ef-g-reddot);
+}
+
+/* Readouts at the header's right end: the shell header is dark in both themes. */
+.reads {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: color-mix(in srgb, var(--ef-g-watch-ink) 66%, transparent);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.reads b {
+  color: var(--ef-g-watch-ink);
+  font: var(--ef-fw-semibold) 15px var(--ef-font-num);
+}
+
+.reads b[data-bad] {
+  color: var(--ef-danger-text);
+}
+
+.sl {
+  width: 1px;
+  height: 12px;
+  background: color-mix(in srgb, var(--ef-g-watch-ink) 40%, transparent);
+  transform: skewX(-20deg);
+}
+
+.lamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 6px;
+}
+
+.lamp i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ef-g-mission-green);
+}
+
+.lamp[data-s='pause'] i {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.lamp[data-s='off'] i {
+  border-radius: 0;
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--ef-danger-text);
+  transform: rotate(45deg);
+}
+
+/* Bottom bar key hints, shown while ⌘ / Ctrl is held. */
+.keys {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  transition: opacity var(--ef-dur-instant);
+}
+
+.keys > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+:global(html:not([data-keys])) .keys {
+  opacity: 0;
+}
+
+.dialogText {
+  margin: 0;
+  color: var(--ef-text-2);
+}
+
+@media (max-width: 1100px) {
+  .opt,
+  .long {
+    display: none;
+  }
+
+  .view {
+    padding: var(--ef-sp-12) var(--ef-sp-16) var(--ef-sp-24);
+  }
+}

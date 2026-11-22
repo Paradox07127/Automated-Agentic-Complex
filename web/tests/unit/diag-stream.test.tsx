@@ -23,16 +23,16 @@ it('a streamed state with seq keeps the diag page up', async () => {
   const bridge: AgenticComplexBridge = { ...fake, diag: { subscribe: (on) => ((push = on), () => {}) } };
   window.agenticComplex = bridge;
   const root = createRootRoute({ component: DiagPage });
-  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/'] }) });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?tab=state'] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await screen.findByText('内部状态');
+  await screen.findByRole('region', { name: '主动发言闸门' });
   const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
   act(() => push({ event: 'state', id: 'b-270', data: JSON.stringify({ seq: 270, ...DIAG_STATE }) } as StreamEvent));
-  expect(await screen.findByText('内部状态')).toBeTruthy();
+  expect(await screen.findByRole('region', { name: '主动发言闸门' })).toBeTruthy();
   expect(screen.queryByText(/Something went wrong/)).toBeNull();
   expect(screen.queryByText(/"seq"/)).toBeNull();
   spy.mockRestore();

@@ -1,277 +1,121 @@
-/* 资源：帧率板 + 两栏开放区；系列走墨色灰阶，强调色只给一条。 */
+/* 渲染: a band of large frame readings, two chart frames side by side, the host's details below. */
 .sec {
-  min-width: 0;
-}
-
-.t2 {
-  color: var(--ef-text-2);
-  font-size: 12px;
-}
-
-.t3 {
-  color: var(--ef-text-3);
-  font-size: 12px;
-}
-
-.sp {
-  flex: 1;
-}
-
-.fps {
-  position: relative;
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-  margin-top: 12px;
-  padding: 24px 16px 12px;
-  border: var(--ef-lw-hair) solid var(--ef-line);
-  background: var(--ef-plate-bg);
+  gap: var(--ef-sp-12);
+  min-width: 0;
 }
 
-.plateNo {
-  position: absolute;
-  top: 0;
-  left: 0;
+.band {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.band > * {
+  padding: var(--ef-sp-12) var(--ef-sp-16);
+  background: var(--dg-read);
+}
+
+.opt {
+  display: block;
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--ef-sp-12);
+}
+
+.plot {
+  height: clamp(180px, 30vh, 280px);
+}
+
+.why {
   display: inline-flex;
-  align-items: center;
-  height: 16px;
-  padding: 0 6px;
-  background: var(--ef-text-1);
-  color: var(--ef-bg-base);
-  font: 700 12px / 1 var(--ef-font-sans);
-}
-
-.fpsK {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.fpsC {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.big {
-  color: var(--ef-text-1);
-  font: 600 26px / 1 var(--ef-font-num);
-}
-
-.kv {
-  display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  color: var(--ef-text-3);
-  font-size: 12px;
-}
-
-.kv b {
-  color: var(--ef-text-1);
-  font-weight: 500;
-}
-
-/* Live readouts hold their width from 0 to 999 fps and 0.0 to 99.9 ms. */
-.fpsN {
-  display: inline-block;
-  min-width: 3ch;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.ms {
-  display: inline-block;
-  min-width: 8ch;
-  text-align: right;
-}
-
-.warn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--ef-text-2);
-  font-size: 12px;
-}
-
-/* Over budget: a yellow flag with an ink mark. */
-.ic {
-  display: inline-flex;
+  gap: var(--ef-sp-8);
   align-items: center;
   justify-content: center;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.legend i {
+  display: inline-block;
   width: 14px;
-  height: 14px;
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
-  font-size: 11px;
+  height: 0;
+  margin-right: 5px;
+  border-top: 1.5px solid var(--ef-text-2);
+  vertical-align: 3px;
+}
+
+.legend [data-tone='main'] {
+  color: var(--ef-accent-text);
+}
+
+.legend [data-tone='main'] i {
+  border-top: 2px solid var(--ef-accent);
+}
+
+:global([data-theme='light']) .legend [data-tone='main'] {
+  color: var(--ef-text-1);
+}
+
+:global([data-theme='light']) .legend [data-tone='main'] i {
+  border-top-color: var(--ef-text-1);
+}
+
+.legend [data-tone='warn'] {
+  color: color-mix(in srgb, var(--ef-g-reddot) 62%, var(--ef-text-1));
+}
+
+.legend [data-tone='warn'] i {
+  border-top: 1px dashed var(--ef-g-reddot);
+}
+
+.legend [data-tone='pad'] i {
+  height: 10px;
+  border: 0;
+  background: color-mix(in srgb, var(--ef-danger-vivid) 22%, transparent);
+  vertical-align: -1px;
 }
 
 .host {
-  margin-top: 8px;
-}
-
-/* The chart frames' corner ticks sit 3 px outside each chart. */
-.res2 {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  margin-top: 18px;
-  padding: 0 3px;
+  gap: var(--ef-sp-8);
+  padding: 34px var(--ef-sp-12) var(--ef-sp-8);
 }
 
-.res2[data-one] {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.blk {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  padding: 0 20px;
-}
-
-.blk:first-child {
-  padding-left: 0;
-}
-
-.blk:last-child {
-  padding-right: 0;
-}
-
-.blk + .blk {
-  border-left: var(--ef-lw-hair) solid var(--ef-line-subtle);
-}
-
-.bh {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-height: 26px;
-}
-
-.bh b {
-  color: var(--ef-text-1);
-  font: 500 13px / 1.3 var(--ef-font-sans);
-}
-
-.pair {
+.kv {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ef-sp-16);
 }
 
-.pair > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.cost {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.cost .big {
-  font-size: 22px;
-}
-
-.use {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 6px;
-}
-
-.use > :first-child {
-  flex: none;
-  width: auto;
-}
-
-.useR {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.bars {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.bar {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 52px;
-  align-items: center;
-  gap: 10px;
-  color: var(--ef-text-2);
-  font-size: 12px;
-}
-
-.bt {
-  position: relative;
-  height: 6px;
-}
-
-.bt i {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  background: var(--ef-ink-s3);
-}
-
-.bar[data-em] .bt i {
-  background: var(--ef-emph);
-}
-
-.bar[data-em] .bl {
-  color: var(--ef-text-1);
-}
-
-.bv {
-  color: var(--ef-text-1);
-  text-align: right;
-}
-
-@container page (max-width: 1000px) {
-  .fps {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+@media (max-width: 1100px) {
+  .band {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .fpsK {
-    flex-direction: row;
-    flex-wrap: wrap;
-    grid-column: 1 / -1;
-    align-items: baseline;
-    gap: 6px 16px;
+  .opt {
+    display: none;
   }
 
-  .res2 {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
+  .charts {
+    gap: var(--ef-sp-8);
   }
 
-  .blk {
-    padding: 0;
-  }
-
-  .blk + .blk {
-    padding-top: 14px;
-    border-top: var(--ef-lw-hair) solid var(--ef-line-subtle);
-    border-left: 0;
-  }
-}
-
-@container page (max-width: 720px) {
-  .fps,
-  .pair {
-    grid-template-columns: minmax(0, 1fr);
+  .kv {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

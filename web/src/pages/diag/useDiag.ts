@@ -4,7 +4,7 @@ import { getBridge } from '../../bridge';
 import { get, seg } from '../../bridge/agentd';
 import { appNow } from '../../bridge/clock';
 import { useRuntimePublic } from '../../data/runtime';
-import { fromSummaryRun, type RenderSample, type SummaryRun, type WireRuntimePublic, type WireSummaryRun, type WireTraceTurn } from '../../domain';
+import type { RenderSample, WireRuntimePublic, WireTraceTurn } from '../../domain';
 import { DAY, isoWithOffset } from '../../domain/units';
 import { turnsView, TURN_LIMIT, type DiagTurns } from './model';
 import type { WireDiagState } from '../../domain/wire';
@@ -26,7 +26,7 @@ export function useDiagState(enabled: boolean) {
   return useQuery<DiagSnap, Error>({ queryKey: STATE_KEY, queryFn: async () => ({ state: await get<WireDiagState>('/diag/state'), at: clock() }), enabled, ...opts });
 }
 
-/** Bridge-side readings the run tab needs besides `/diag/state`; each push of the diag stream re-reads them. */
+/** Bridge-side readings the page needs besides `/diag/state`; each push of the diag stream re-reads them. */
 export function useSideReads(enabled: boolean) {
   const bridge = getBridge();
   const supervisor = useQuery({ queryKey: ['diag', 'supervisor'], queryFn: () => bridge.supervisor.state(), enabled, ...opts });
@@ -84,15 +84,6 @@ export function useTurns(range: '24h' | '7d', enabled: boolean) {
   });
 }
 
-export function useTurnEvents(id: string | null) {
-  return useQuery<WireTurnEvents, Error>({
-    queryKey: ['diag', 'turn', id],
-    queryFn: () => get<WireTurnEvents>(`/trace/turns/${seg(id ?? '')}`),
-    enabled: id != null,
-    ...opts,
-  });
-}
-
 /** Events of the last hour's failed turns, to place each failure on its node. */
 export function useFailEvents(ids: readonly string[]) {
   return useQueries({ queries: ids.map((id) => ({ queryKey: ['diag', 'turn', id], queryFn: () => get<WireTurnEvents>(`/trace/turns/${seg(id)}`), ...opts })) });
@@ -100,21 +91,14 @@ export function useFailEvents(ids: readonly string[]) {
 
 const HOUR = 3_600_000;
 
-/** Today's summary runs and the last hour's decisions: the flow chart's side lanes. */
-export function useHourReads(enabled: boolean, day: string) {
-  const runs = useQuery<SummaryRun[], Error>({
-    queryKey: ['diag', 'runs', day],
-    queryFn: async () => (await get<{ runs: WireSummaryRun[] }>(`/summary/runs?date=${day}`)).runs.map(fromSummaryRun),
-    enabled,
-    ...opts,
-  });
-  const decisions = useQuery<WireTraceEvent[], Error>({
+/** The last hour of /trace/decisions: the coding-tool lane's sessions and approvals. */
+export function useDecisions(enabled: boolean) {
+  return useQuery<WireTraceEvent[], Error>({
     queryKey: ['diag', 'decisions', 'hour'],
     queryFn: async () => (await get<{ events: WireTraceEvent[] }>(`/trace/decisions?since=${encodeURIComponent(isoWithOffset(clock() - HOUR))}&limit=100`)).events,
     enabled,
     ...opts,
   });
-  return { runs, decisions };
 }
 
 /** The last 60 one-second avatar.onStats samples; nothing is read while paused or without the avatar capability. */

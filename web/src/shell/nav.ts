@@ -38,19 +38,22 @@ export type NavTarget =
   | { page: 'character'; tab?: 'profile' | 'motion' | 'behavior' | 'render' | 'scene'; view?: 'photo' | 'mmd'; pane?: 'motion' | 'chain' | 'look' | 'import'; row?: string; focus?: string }
   | {
       page: 'diag';
-      tab?: 'run' | 'timeline' | 'records' | 'logs';
-      /** Turn id on the timeline. */
-      sel?: string;
-      run?: string;
-      /** Record kind on the records tab. */
-      kind?: string;
-      memory?: string;
-      /** Process row, `state` (internal state) or `usage` (token and cost card). */
+      tab?: 'overview' | 'proc' | 'render' | 'flow' | 'state';
+      /** Overview row (`agentd`, `avatar`, `voice`), `state` (internal state) or `usage` (model calls). */
       item?: string;
       focus?: string;
     }
   | { page: 'settings'; group?: string; item?: string; focus?: string }
-  | { page: 'trace'; turn?: string; tab?: 'logs'; /** Log source on the 日志 tab. */ src?: string; focus?: string }
+  | {
+      page: 'trace';
+      turn?: string;
+      /** Epoch ms: picks the first turn at or after it. */
+      at?: number;
+      tab?: 'logs';
+      /** Log source on the 日志 tab. */
+      src?: string;
+      focus?: string;
+    }
   | {
       page: 'tasks';
       tab?: 'run' | 'sched' | 'done';

@@ -81,7 +81,7 @@ describe('a failed chat turn says why and what to do next', () => {
     fireEvent.click(within(auth).getByRole('button', { name: '去登录' }));
     expect(window.location.hash).toContain('/settings?group=kernel');
     fireEvent.click(within(quota).getByRole('button', { name: '查看用量' }));
-    expect(window.location.hash).toContain('/diag?item=usage');
+    expect(window.location.hash).toContain('/diag?tab=flow&item=usage');
   });
 
   it('a kernel code from the line has its own sentence', async () => {

@@ -1,13 +1,11 @@
-// The tool pages' filter bar, the read-only process table and the trace turn list.
+// Diag's bottom bar and read-only process rows, and the trace turn list.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Health } from '../../src/domain';
 import { DiagPage } from '../../src/pages/diag/Page';
 import { Processes } from '../../src/pages/diag/Processes';
 import { processesOf } from '../../src/pages/diag/status';
-import { ToolBar } from '../../src/pages/diag/ToolBar';
 import { TracePage } from '../../src/pages/trace/Page';
 
 afterEach(cleanup);
@@ -23,49 +21,30 @@ function mount(component: RouteComponent, search: string) {
   return router;
 }
 
-describe(' tool bar', () => {
-  it('puts the filters first, then the hatch band, then the main action last', () => {
-    const { container } = render(
-      <ToolBar action={<button type="button">新建</button>}>
-        <button type="button">暂停</button>
-      </ToolBar>,
-    );
-    const bar = container.querySelector('[data-toolbar]')!;
-    const kids = [...bar.children];
-    expect(kids.map((k) => k.textContent)).toEqual(['暂停', '', '新建']);
-    expect(kids[1]?.getAttribute('aria-hidden')).toBe('true');
-    expect(kids[2]?.hasAttribute('data-toolbar-action')).toBe(true);
-  });
-
-  it('is only the band when a page has no filters and no action', () => {
-    const { container } = render(<ToolBar />);
-    expect(container.querySelector('[data-toolbar]')?.children).toHaveLength(1);
-  });
-
-  it('diag: 暂停 is the filter, 复制诊断信息 and 重启 sit at the right end', async () => {
+describe(' diag bottom bar', () => {
+  it('diag has no tool bar: 暂停, 复制诊断信息 and 重启 sit at the bottom bar\'s right end', async () => {
     mount(DiagPage, '');
-    const bar = await waitFor(() => document.querySelector<HTMLElement>('[data-toolbar]') ?? Promise.reject(new Error('no bar')));
-    const action = bar.querySelector<HTMLElement>('[data-toolbar-action]')!;
-    expect(within(action).getByRole('button', { name: '复制诊断信息' })).toBeTruthy();
-    expect(within(action).getByRole('button', { name: /重启/ })).toBeTruthy();
-    expect(bar.firstElementChild?.textContent).toContain('暂停');
+    const bar = await waitFor(() => document.querySelector<HTMLElement>('[data-bottom-zones]') ?? Promise.reject(new Error('no bar')));
+    expect(document.querySelector('[data-toolbar]')).toBeNull();
+    const acts = bar.lastElementChild as HTMLElement;
+    expect(within(acts).getAllByRole('button').map((b) => b.textContent)).toEqual(['暂停', '复制诊断信息', '重启']);
   });
 });
 
-const HEALTH = { voice: { state: 'ready' } } as unknown as Health;
 const SUP = { agentd: { state: 'running', pid: 1, cpuPercent: 3.42, memoryMB: 168 }, avatar: { state: 'stopped', pid: null } } as const;
 const noop = () => {};
 
-describe(' process table', () => {
-  it('is a read-only data table: column heads, rows that take no focus or selection', () => {
-    const rows = processesOf(SUP, 'connected', HEALTH, null);
-    render(<Processes q={{ status: 'success', data: rows }} uptime={{}} history={null} actions={{}} highlight={null} onRestart={noop} onLogs={noop} onVoice={noop} />);
-    const table = screen.getByRole('table');
-    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['', '', '运行时长', '内存', 'CPU', '']);
-    const row = table.querySelector<HTMLElement>('tr[data-nav-target="proc-agentd"]')!;
+describe(' process rows', () => {
+  it('are read-only: rows take no focus or selection, the state is a lamp', () => {
+    const rows = processesOf(SUP, 'connected');
+    render(
+      <Processes rows={rows} error={null} onRetry={noop} samples={[]} now={0} metric="cpu" onMetric={noop} uptime={{}} agentdGone={false} actions={{}} highlight={null} onRestart={noop} onLogs={noop} />,
+    );
+    const row = document.querySelector<HTMLElement>('[data-nav-target="proc-agentd"]')!;
     expect(row.hasAttribute('tabindex')).toBe(false);
     expect(row.hasAttribute('aria-selected')).toBe(false);
-    expect(within(row).getByText('运行中').closest('[data-stub="StatusTag"]')).not.toBeNull();
+    expect(within(row).getByText('运行中').closest('[data-stub="StatusLamp"]')).not.toBeNull();
+    expect(screen.getByRole('radiogroup', { name: '曲线' })).toBeTruthy();
   });
 });
 

@@ -1,4 +1,48 @@
-/* 流程图：三条泳道细线分隔，节点是板，传送带是细线加方向刻度；只有回放中的一轮（强调色）和失败节点上色；空闲节点是虚线框。 */
+/* 管道: the turn pipeline on a gridded face with its detail column, then turns per hour and model calls side by side. */
+.sec {
+  display: grid;
+  gap: var(--ef-sp-12);
+  min-width: 0;
+}
+
+.head {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+.head b {
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) 13px / 1 var(--ef-font-num);
+}
+
+.head b[data-bad] {
+  color: var(--ef-danger-text);
+}
+
+.wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--ef-sp-12);
+  align-items: start;
+  min-width: 0;
+}
+
+.face {
+  position: relative;
+  min-width: 0;
+  padding: 6px 10px 4px;
+  background-color: var(--dg-grid);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--ef-text-1) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ef-text-1) 5%, transparent) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
 .flowc {
   position: relative;
   width: 100%;
@@ -13,15 +57,22 @@
 }
 
 .lane + .lane {
-  border-top: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  border-top: 1px dashed color-mix(in srgb, var(--ef-text-1) 16%, transparent);
 }
 
 .lane span {
   position: absolute;
-  top: 7px;
+  top: 5px;
   left: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) 12px / 1 var(--ef-font-sans);
+}
+
+.lane small {
+  margin-left: 6px;
   color: var(--ef-text-3);
-  font: 500 12px / 1 var(--ef-font-sans);
+  font: var(--ef-fw-semibold) 11px / 1 var(--ef-font-num);
+  letter-spacing: 0.08em;
 }
 
 .belts {
@@ -33,187 +84,403 @@
 
 .ln {
   fill: none;
-  stroke: var(--ef-ink-s3);
-  stroke-width: 1;
-  shape-rendering: crispEdges;
+  stroke: var(--ef-text-2);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
 }
 
-.tk {
-  fill: none;
-  stroke: var(--ef-ink-s3);
-  stroke-width: 1;
+.belt[data-live] .ln {
+  stroke: var(--ef-accent);
+  stroke-width: 2;
 }
 
-.hd {
-  fill: var(--ef-ink-s2);
-}
-
-.n {
-  fill: var(--ef-text-2);
-  font: 500 12px / 1 var(--ef-font-num);
+:global([data-theme='light']) .belt[data-live] .ln {
+  stroke: var(--ef-text-1);
 }
 
 .dot {
-  fill: var(--ef-emph);
+  fill: var(--ef-accent);
+  stroke: var(--ef-text-1);
+  stroke-width: 1;
 }
 
-.halo {
-  fill: var(--ef-emph);
-  opacity: 0.25;
+.flowc[data-dead] .dot {
+  display: none;
 }
 
-.belt[data-on] .ln {
-  stroke: var(--ef-emph);
-  stroke-width: 1.5;
-}
-
-.belt[data-on] .tk {
-  stroke: var(--ef-emph);
-}
-
-.belt[data-on] .hd {
-  fill: var(--ef-emph);
-}
-
-.belt[data-on] .n {
-  fill: var(--ef-text-1);
-}
-
-/* Off the replayed path: the line fades, its count stays readable in a quieter colour. */
-.belt[data-dim] .ln,
-.belt[data-dim] .tk,
-.belt[data-dim] .hd {
-  opacity: 0.35;
-}
-
-.belt[data-dim] .n {
-  fill: var(--ef-text-3);
-}
-
-/* Plate look (ui/Plate) on a button: one step lighter, inner rim, top highlight, square. */
-.node {
+.n {
   position: absolute;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 3px;
-  padding: 0 8px 7px;
-  border: 0;
-  background: var(--ef-plate-sheen), var(--ef-plate-bg);
-  box-shadow: inset 0 0 0 var(--ef-lw-hair) var(--ef-plate-rim);
+  padding: 0 3px;
+  background: var(--dg-grid);
   color: var(--ef-text-1);
-  font: inherit;
-  text-align: left;
-  transition: opacity var(--ef-dur-instant);
-}
-
-.node::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 8px;
-  left: 1px;
-  height: 1px;
-  background: var(--ef-plate-top);
+  font: var(--ef-fw-semibold) 11px / 16px var(--ef-font-num);
+  transform: translateX(-50%);
   pointer-events: none;
 }
 
-.nst {
+.n[data-v] {
+  transform: none;
+}
+
+/* A node: the dark name plate with the state strip at its left edge. */
+.node {
   position: absolute;
-  top: 5px;
-  right: 11px;
-  font-size: 12px;
-  line-height: 1;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 0 6px 0 12px;
+  border: 0;
+  background: var(--dg-plate);
+  color: var(--ef-g-watch-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.nst[data-k='f'] {
-  color: var(--ef-danger);
+.node:hover {
+  background: color-mix(in srgb, var(--dg-plate) 88%, var(--ef-g-watch-ink));
 }
 
-.nst[data-k='a'] {
-  color: var(--ef-text-2);
+.node:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
 }
 
-.nst b {
-  margin-left: 2px;
-  font: 600 12px / 1 var(--ef-font-num);
+.strip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--ef-g-mission-green);
+}
+
+.node[data-st='fail'] .strip {
+  background: var(--ef-danger-vivid);
+}
+
+.node[data-st='att'] .strip {
+  background: var(--ef-g-reddot);
+}
+
+.node[data-st='idle'] .strip {
+  background: color-mix(in srgb, var(--ef-g-watch-ink) 28%, transparent);
+}
+
+.node[data-station] {
+  background: color-mix(in srgb, var(--dg-plate) 80%, transparent);
+}
+
+.node[data-on] {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: 0;
 }
 
 .nl {
-  display: block;
   overflow: hidden;
-  font: 500 13px / 1.2 var(--ef-font-sans);
+  font: var(--ef-fw-semibold) 14px / 18px var(--ef-font-sans);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .ns {
-  display: block;
   overflow: hidden;
-  color: var(--ef-text-2);
+  color: color-mix(in srgb, var(--ef-g-watch-ink) 66%, transparent);
   font-size: 12px;
-  line-height: 1.2;
+  line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.flowc[data-tight] .node {
-  padding: 0 6px 6px;
+.badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 1px 5px;
+  background: var(--ef-danger-vivid);
+  color: var(--ef-g-watch-ink);
+  font: var(--ef-fw-semibold) 11px / 14px var(--ef-font-num);
 }
 
-.flowc[data-tight] .nl {
+.badge b {
+  font-weight: inherit;
+}
+
+.att {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  color: var(--ef-g-reddot);
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* The detail column (a docked Sheet; a drawer below 1200 px). */
+.side {
+  display: grid;
+  gap: var(--ef-sp-12);
+  align-content: start;
+  min-width: 0;
+}
+
+.sideHead {
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sideHead b {
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) 15px / 22px var(--ef-font-sans);
+}
+
+.band {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.band > * {
+  padding: var(--ef-sp-8) var(--ef-sp-12);
+  background: var(--dg-read);
+}
+
+.gr {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.note {
+  margin: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.code {
+  color: var(--ef-danger-text);
+  font-family: var(--ef-font-mono);
+}
+
+.acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.empty {
+  display: grid;
+  gap: var(--ef-sp-12);
+  place-items: center;
+  min-height: 160px;
+  padding: 24px 16px;
+  background: var(--dg-grid);
+  color: var(--ef-text-2);
+  text-align: center;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--ef-sp-16);
+  align-items: start;
+  min-width: 0;
+}
+
+.col {
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+/* Turns per hour: grey for done, red on top for failed, the yellow line is the hour's p50. */
+.hours {
+  position: relative;
+  height: 150px;
+  margin: 10px 12px 0 38px;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--ef-text-1) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ef-text-1) 6%, transparent) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+.hb {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.hb:hover {
+  background: color-mix(in srgb, var(--ef-text-1) 6%, transparent);
+}
+
+.hb:focus-visible {
+  outline: 2px solid var(--ef-focus);
+}
+
+.hb i {
+  display: block;
+  flex: none;
+  width: 100%;
+  background: color-mix(in srgb, var(--ef-text-1) 38%, transparent);
+}
+
+.hb i[data-f] {
+  background: var(--ef-danger-vivid);
+}
+
+.p50 {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.p50 path {
+  fill: none;
+  stroke: var(--ef-accent);
+  stroke-width: 2;
+}
+
+:global([data-theme='light']) .p50 path {
+  stroke: var(--ef-text-1);
+}
+
+.yl {
+  position: absolute;
+  left: -36px;
+  width: 30px;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) 11px / 1 var(--ef-font-num);
+  text-align: right;
+  transform: translateY(-50%);
+}
+
+.ax {
+  position: relative;
+  height: 20px;
+  margin: 2px 12px 4px 38px;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) 12px / 18px var(--ef-font-num);
+}
+
+.ax span {
+  position: absolute;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* Model calls: bars by call kind, stacked bars by channel. */
+.calls {
+  display: grid;
+  gap: 6px;
+  padding: var(--ef-sp-12);
+}
+
+.bars {
+  display: grid;
+  gap: 6px;
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 56px;
+  gap: 12px;
+  align-items: center;
+  color: var(--ef-text-2);
   font-size: 12px;
 }
 
-.node:hover {
-  filter: brightness(1.08);
+.bt {
+  position: relative;
+  height: 8px;
+  background: color-mix(in srgb, var(--ef-text-1) 6%, transparent);
 }
 
-.node:focus-visible {
-  outline: var(--ef-lw-hair) solid var(--ef-focus);
-  outline-offset: 3px;
+.bt i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: color-mix(in srgb, var(--ef-text-1) 38%, transparent);
 }
 
-.node[data-st='idle'] {
-  border: var(--ef-lw-hair) dashed var(--ef-line-strong);
-  background: none;
-  box-shadow: none;
+.bar[data-em] .bt i {
+  background: var(--ef-accent);
 }
 
-.node[data-st='idle']::before {
-  display: none;
+:global([data-theme='light']) .bar[data-em] .bt i {
+  background: var(--ef-text-1);
 }
 
-.node[data-st='fail'] {
-  box-shadow: inset 0 0 0 var(--ef-lw-hair) var(--ef-plate-rim), inset 0 -2px 0 var(--ef-danger);
+.bar[data-em] .bl {
+  color: var(--ef-text-1);
 }
 
-.node[data-lit] {
-  box-shadow: inset 0 0 0 1px var(--ef-emph);
+.bl {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.node[data-lit][data-st='fail'] {
-  box-shadow: inset 0 0 0 1px var(--ef-emph), inset 0 -2px 0 var(--ef-danger);
+.bv {
+  color: var(--ef-text-1);
+  font-family: var(--ef-font-num);
+  font-weight: var(--ef-fw-semibold);
+  text-align: right;
 }
 
-.node[data-on] {
-  box-shadow: inset 0 0 0 2px var(--ef-emph);
+.stk {
+  display: flex;
+  height: 8px;
 }
 
-.node[data-dim] {
-  background: none;
-  box-shadow: inset 0 0 0 var(--ef-lw-hair) var(--ef-line);
+.stk i {
+  display: block;
+  height: 100%;
+}
+
+.stk i[data-k='in'] {
+  background: var(--ef-accent);
+}
+
+:global([data-theme='light']) .stk i[data-k='in'] {
+  background: var(--ef-text-1);
+}
+
+.stk i[data-k='cache'] {
+  background: repeating-linear-gradient(-60deg, color-mix(in srgb, var(--ef-text-1) 55%, transparent) 0 2px, transparent 2px 5px);
+}
+
+.stk i[data-k='out'] {
+  background: color-mix(in srgb, var(--ef-text-1) 38%, transparent);
+}
+
+.micro {
   color: var(--ef-text-3);
+  font: var(--ef-fw-semibold) 11px / 16px var(--ef-font-num);
+  letter-spacing: 0.08em;
 }
 
-.node[data-dim]::before {
-  display: none;
-}
+@media (max-width: 1100px) {
+  .two {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-.node[data-dim] .ns {
-  color: var(--ef-text-3);
-}
-
-.flowc[data-dead] .dot {
-  display: none;
+  .nl {
+    font-size: 13px;
+  }
 }

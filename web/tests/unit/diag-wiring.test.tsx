@@ -7,12 +7,10 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, HttpMethod, ProcessState, StreamEvent } from '../../src/bridge/protocol';
 import { isoWithOffset } from '../../src/domain/units';
 import { NOW } from '../../src/mock/fixtures';
-import { CAPABILITIES, DIAG_STATE, turnEvents } from '../../src/mock/diag';
-import { pathFromEvents } from '../../src/pages/diag/flow';
+import { CAPABILITIES, DIAG_STATE } from '../../src/mock/diag';
 import { GatePanel, gateHolds } from '../../src/pages/diag/GatePanel';
-import { ObsPanel } from '../../src/pages/diag/ObsPanel';
 import { DiagPage } from '../../src/pages/diag/Page';
-import { Resources } from '../../src/pages/diag/Resources';
+import { UsageCard } from '../../src/pages/diag/UsageCard';
 import { turnsView } from '../../src/pages/diag/model';
 import { issuesOf, parseChild } from '../../src/pages/diag/status';
 
@@ -86,44 +84,50 @@ describe('diag page', () => {
     await mount();
     expect((await procRow('agentd')).textContent).toMatch(/4242.*运行中/);
     expect((await procRow('avatar')).textContent).toMatch(/4343.*运行中/);
-    expect((await procRow('voice')).textContent).toContain('远端不通 │ 连接断开');
+    await waitFor(async () => expect((await procRow('voice')).textContent).toMatch(/连不上.*连接断开/));
   });
 
   it('turns a supervisor backoff(8) into the row and link reading', async () => {
     install({ agentd: { state: 'running', pid: 1, backoff: null }, avatar: { state: 'backoff(8)', pid: null, backoff: 8 } });
     await mount();
     const row = await procRow('avatar');
-    await within(row).findByText(/退避/);
-    expect(row.textContent).toMatch(/重启中.*退避 8 秒后重试/);
-    expect(screen.getByRole('button', { name: /桌面角色：断开，8 s 后重启/ })).toBeTruthy();
+    await within(row).findByText(/秒后自动重启/);
+    expect(row.textContent).toMatch(/重启中.*8 秒后自动重启/);
   });
 
   it('reads the seconds from supervisor.state `backoff`, not from the state text', async () => {
     install({ agentd: { state: 'running', pid: 1, backoff: null }, avatar: { state: 'backoff(8)', pid: null, backoff: 30 } });
     await mount();
     const row = await procRow('avatar');
-    await within(row).findByText(/退避/);
-    expect(row.textContent).toContain('退避 30 秒后重试');
-    expect(screen.getByRole('button', { name: /桌面角色：断开，30 s 后重启/ })).toBeTruthy();
+    await within(row).findByText(/秒后自动重启/);
+    expect(row.textContent).toContain('30 秒后自动重启');
   });
 
-  it('lists degraded /capabilities items as issues with their fix, leaving sharing turned off out', async () => {
+  it('puts a degraded voice on its row with the way to its setting, leaving sharing turned off out', async () => {
     await mount();
-    const issue = await screen.findByText(/语音受限/);
-    expect(issue.closest('[role="status"]')?.textContent).toContain('连不上 TTS 服务');
-    expect(within(issue.closest('[role="status"]') as HTMLElement).getByRole('button', { name: '前往设置' })).toBeTruthy();
+    const row = await procRow('voice');
+    expect(within(row).getByRole('button', { name: '设置 › 说话' })).toBeTruthy();
     expect(screen.queryByText(/共享截图/)).toBeNull();
-    expect(screen.getByText('观察只读取窗口文字，不截图')).toBeTruthy();
+  });
+
+  it('without screen recording the bar says observation reads window text only', async () => {
+    const base = window.agenticComplex!;
+    window.agenticComplex = { ...base, permissions: { ...base.permissions, status: async () => ({ ...(await base.permissions.status()), screenRecording: 'denied' }) } };
+    await mount();
+    const bar = (await screen.findByText(/屏幕录制没有授权/)).closest('[role="alert"]') as HTMLElement;
+    expect(bar.textContent).toContain('观察只读取窗口文字，不截图');
+    expect(within(bar).getByRole('button', { name: '前往设置' })).toBeTruthy();
   });
 
   it('a diag stream `state` replaces the snapshot without another request', async () => {
     await mount();
-    await screen.findByText(/\$0\.42/);
+    const gate = await procRow('gate');
+    const lim = DIAG_STATE.gate.daily_limit;
+    await waitFor(() => expect(gate.textContent).toContain(`${DIAG_STATE.gate.today}/${lim}`));
     const before = calls.filter(([, p]) => p === '/diag/state').length;
-    const model = DIAG_STATE.budget.model!;
-    const next = { ...DIAG_STATE, budget: { ...DIAG_STATE.budget, model: { ...model, cost_usd: 0.99 } } };
+    const next = { ...DIAG_STATE, gate: { ...DIAG_STATE.gate, today: lim - 1 } };
     act(() => stream?.onEvent({ event: 'state', id: 'b-2', data: JSON.stringify(next) }));
-    expect(await screen.findByText(/\$0\.99/)).toBeTruthy();
+    await waitFor(() => expect(gate.textContent).toContain(`${lim - 1}/${lim}`));
     expect(calls.filter(([, p]) => p === '/diag/state').length).toBe(before);
   });
 
@@ -145,7 +149,7 @@ describe('diag page', () => {
   });
 
   it('copies diagnostics through app.action, not the clipboard, and restarts through supervisor.restart', async () => {
-    await mount();
+    await mount('&tab=proc');
     const row = await procRow('avatar');
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '复制诊断信息' })));
     expect(actions).toEqual(['copy_diagnostics']);
@@ -153,8 +157,8 @@ describe('diag page', () => {
     fireEvent.click(within(row).getByRole('button', { name: '重启' }));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '重启角色' })));
     expect(restarts).toEqual(['avatar']);
-    // 查看日志 opens that process's source on 运行记录 › 日志; 在 Finder 中显示 lives only there.
-    await act(async () => fireEvent.click(within(row).getByRole('button', { name: '查看日志' })));
+    // 日志 opens that process's source on 运行记录 › 日志; 在 Finder 中显示 lives only there.
+    await act(async () => fireEvent.click(within(row).getByRole('button', { name: '日志' })));
     expect(actions).toEqual(['copy_diagnostics']);
     expect(window.location.hash).toMatch(/^#\/trace\?tab=logs&src=avatar/);
   });
@@ -163,88 +167,25 @@ describe('diag page', () => {
     const base = window.agenticComplex!;
     const details = async () => ({ renderer: null, build: null, pipeline: null, placement: null });
     window.agenticComplex = { ...base, avatar: { ...base.avatar, onStats: () => () => {}, details } };
-    await mount();
-    await procRow('agentd');
-    const plate = document.querySelector('[data-nav-target="diag-render"]');
-    expect(plate?.textContent).toContain('宿主没有上报帧数据');
-    expect(screen.queryByRole('button', { name: /宿主详情/ })).toBeNull();
+    await mount('&tab=render');
+    await waitFor(() => expect(screen.getByRole('region', { name: '帧率' }).textContent).toContain('宿主没有上报帧数据'));
+    expect(screen.queryByRole('region', { name: '宿主详情' })).toBeNull();
   });
 
   it('reads the frame rate from avatar.onStats', async () => {
     const base = window.agenticComplex!;
     window.agenticComplex = { ...base, avatar: { ...base.avatar, onStats: (cb) => (cb({ fps: 60, frameMs: 10, cpuPercent: 20, frameMsP95: 12, gpuMs: 8 }), () => {}) } };
-    await mount();
-    await waitFor(() => expect(document.querySelector('[data-nav-target="diag-render"]')?.textContent).toContain('60 fps'));
+    await mount('&tab=render');
+    await waitFor(() => expect(document.querySelector('[data-nav-target="diag-render"]')?.textContent).toMatch(/^60\s*fps/));
   });
 
-  it('a recent observation opens GET /diag/observations/<id>: summary, field table, the description folded', async () => {
-    Element.prototype.scrollIntoView = () => {};
-    await mount('&item=state');
-    fireEvent.click(await screen.findByRole('button', { name: '看这条观察：成功 │ 截图' }));
-    await waitFor(() => expect(calls).toContainEqual(['GET', '/diag/observations/a2a2a2a2a2a2', undefined]));
-    const box = await screen.findByRole('region', { name: '观察详情' });
-    expect(await within(box).findByText('截图 │ 看到了 │ Xcode')).toBeTruthy();
-    expect(within(box).getByText('读取时可用于上下文，最近一轮用了它')).toBeTruthy();
-    expect(within(box).getByText('观察时间')).toBeTruthy();
-    expect(within(box).getByText('14:29:12')).toBeTruthy();
-    const fold = within(box).getByRole('button', { name: /视觉描述/ });
-    expect(fold.getAttribute('aria-expanded')).toBe('false');
-    expect(box.textContent).not.toContain('reconnectDelay');
-    fireEvent.click(fold);
-    expect(box.textContent).toContain('reconnectDelay');
-    fireEvent.click(within(box).getByRole('button', { name: '收起' }));
-    expect(screen.queryByRole('region', { name: '观察详情' })).toBeNull();
-  });
-
-  it('obs=<id> in the link opens that observation under 内部状态', async () => {
-    Element.prototype.scrollIntoView = () => {};
-    await mount('&item=state&obs=a2a2a2a2a2a2');
-    const box = await screen.findByRole('region', { name: '观察详情' });
-    expect(await within(box).findByText('截图 │ 看到了 │ Xcode')).toBeTruthy();
-    expect(calls).toContainEqual(['GET', '/diag/observations/a2a2a2a2a2a2', undefined]);
-    expect(screen.getByRole('button', { name: '看这条观察：成功 │ 截图' }).getAttribute('aria-pressed')).toBe('true');
-  });
-
-  it('an observation agentd no longer holds says so instead of raw JSON', async () => {
-    Element.prototype.scrollIntoView = () => {};
-    await mount('&item=state');
-    const base = window.agenticComplex!;
-    window.agenticComplex = { ...base, agentd: { ...base.agentd, request: async (m, p, b) => (p.startsWith('/diag/observations/') ? { status: 404, body: null, error: { code: 'observation_not_found' } } : base.agentd.request(m, p, b)) } };
-    fireEvent.click(await screen.findByRole('button', { name: '看这条观察：成功 │ 截图' }));
-    const box = await screen.findByRole('region', { name: '观察详情' });
-    expect((await within(box).findByRole('alert')).textContent).toContain('这条观察已经不在后台内存里');
-  });
-
-  it.each([
-    ['secure_input', '正在输入密码'],
-    ['incognito', '无痕窗口'],
-    ['capture_failed', '截图失败'],
-    ['permission_denied', '没有截图权限'],
-    ['window_gone', '窗口已关闭'],
-    ['vision_error', '视觉模型出错'],
-    ['policy_changed', '隐私设置变了'],
-    ['turn_cancelled', '这一轮已取消'],
-    ['deleted', '已删除'],
-    ['something_new', '其他原因'],
-  ])('an observation declined for %s gives the reason in Chinese', async (reason, text) => {
-    Element.prototype.scrollIntoView = () => {};
-    await mount('&item=state');
-    const base = window.agenticComplex!;
-    const body = { request_id: 'a2a2a2a2a2a2', mode: 'image', status: 'declined', reason, app: null, requested_at: isoWithOffset(NOW - 2000), observed_at: null, current: false, description: null, description_truncated: false, content_available: false, used_in_last_turn: null };
-    window.agenticComplex = { ...base, agentd: { ...base.agentd, request: async (m, p, b) => (p.startsWith('/diag/observations/') ? { status: 200, body: body as never } : base.agentd.request(m, p, b)) } };
-    fireEvent.click(await screen.findByRole('button', { name: '看这条观察：成功 │ 截图' }));
-    const box = await screen.findByRole('region', { name: '观察详情' });
-    expect(await within(box).findByText(text)).toBeTruthy();
-    expect(box.textContent).not.toContain(reason);
-  });
-
-  it('an offline /diag/state is 后台服务无响应, not raw JSON', async () => {
+  it('an offline /diag/state is 后台服务没有响应, not raw JSON', async () => {
     window.agenticComplex = {
       ...window.agenticComplex!,
       agentd: { ...window.agenticComplex!.agentd, request: async () => ({ status: 0, body: null, error: { code: 'offline' } }) },
     };
     await mount();
-    const fail = (await screen.findByText(/后台服务无响应/)).closest('[role="alert"]');
+    const fail = (await screen.findByText('后台服务没有响应')).closest('[role="alert"]');
     expect(fail).not.toBeNull();
     expect(fail?.textContent).not.toMatch(/[{}]/);
     expect(screen.getAllByText(/已断开/).length).toBeGreaterThan(0);
@@ -252,34 +193,21 @@ describe('diag page', () => {
 });
 
 describe('diag turns', () => {
-  it('reads /trace/turns since 24 h back with an offset ISO and limit 200, then the selected trace', async () => {
-    await mount('&sel=tr6');
-    await screen.findByText('轮次详情');
+  it('reads /trace/turns since 24 h back with an offset ISO and limit 200', async () => {
+    await mount('&tab=flow');
     const since = encodeURIComponent(isoWithOffset(NOW - 86_400_000));
-    await waitFor(() => expect(calls).toEqual(expect.arrayContaining([['GET', `/trace/turns?since=${since}&limit=200`, undefined], ['GET', '/trace/turns/tr6', undefined]])));
+    await waitFor(() => expect(calls).toEqual(expect.arrayContaining([['GET', `/trace/turns?since=${since}&limit=200`, undefined]])));
   });
 
-  it('replays an interrupted turn up to the playback node', async () => {
-    await mount('&sel=tr6');
-    await screen.findByText('已回放');
-    await waitFor(() => expect(document.querySelector('button[aria-label^="播放 │ "]')?.hasAttribute('data-lit')).toBe(true));
-    expect(document.querySelector('button[aria-label^="动作 │ "]')?.hasAttribute('data-dim')).toBe(true);
-  });
-
-  it('a link by turn_id lands on the trace that holds it', async () => {
-    await mount('&sel=tr8');
-    expect((await screen.findAllByText('14:14:00')).length).toBeGreaterThan(0);
-  });
-
-  it('reads today’s /summary/runs and the last hour of /trace/decisions for the side lanes', async () => {
-    await mount();
-    await procRow('agentd');
+  it('reads the last hour of /trace/decisions for the coding-tool lane and no memory runs', async () => {
+    await mount('&tab=flow');
     const hour = encodeURIComponent(isoWithOffset(NOW - 3_600_000));
-    await waitFor(() => expect(paths()).toEqual(expect.arrayContaining(['GET /summary/runs?date=2026-10-29', `GET /trace/decisions?since=${hour}&limit=100`])));
-    await waitFor(() => expect(document.querySelector('button[aria-label^="记忆提取 │ "]')?.getAttribute('aria-label')).toContain('近 1 小时 1 次 │ p50 5.4 s'));
+    await waitFor(() => expect(paths()).toContain(`GET /trace/decisions?since=${hour}&limit=100`));
+    expect(paths().filter((p) => p.includes('/summary/runs') || p.includes('/memory/runs'))).toEqual([]);
+    expect(document.querySelector('button[aria-label^="记忆提取 │ "]')?.getAttribute('aria-label')).toBe('记忆提取 │ 次数在记忆管线页');
   });
 
-  it('a failed /trace/turns read shows the timeline error, not 后台服务无响应', async () => {
+  it('a failed /trace/turns read says so in 管道, not 后台服务没有响应', async () => {
     const base = window.agenticComplex!;
     window.agenticComplex = {
       ...base,
@@ -288,10 +216,9 @@ describe('diag turns', () => {
         request: async (m, p, b) => (p.startsWith('/trace/turns?') ? { status: 500, body: null } : base.agentd.request(m, p, b)),
       },
     };
-    await mount();
-    await procRow('agentd');
-    await waitFor(() => expect(document.querySelector('section[aria-label="轮次时间轴"]')?.textContent).toContain('读取失败'));
-    expect(document.body.textContent).not.toContain('后台服务无响应');
+    await mount('&tab=flow');
+    await waitFor(() => expect(screen.getByRole('region', { name: '管道' }).textContent).toContain('读不到轮次：'));
+    expect(document.body.textContent).not.toContain('后台服务没有响应');
   });
 
   it('a live input.received re-reads the turn list', async () => {
@@ -315,12 +242,6 @@ describe('diag model', () => {
     expect(v.truncated).toBe(true);
   });
 
-  it('replays only the nodes evidenced by failed or still-running turn events', () => {
-    expect(pathFromEvents(turnEvents('tr5')!.events)).toEqual(['input', 'ctx', 'model']);
-    expect(pathFromEvents(turnEvents('tr0')!.events)).toEqual(['input', 'ctx', 'model']);
-    expect(pathFromEvents([])).toEqual([]);
-  });
-
   it('keeps sharing turned off and a muted voice out of the issues', () => {
     expect(issuesOf({ ...CAPABILITIES, items: { voice: { state: 'degraded', reason: 'muted' }, share_page_text: { state: 'unavailable', reason: 'off' } } })).toEqual([]);
     expect(issuesOf(CAPABILITIES).map((i) => [i.id, i.to])).toEqual([['voice', { page: 'settings', group: 'speak', item: 'tts' }]]);
@@ -330,26 +251,18 @@ describe('diag model', () => {
     const gate = { ...DIAG_STATE.gate, quiet_hours: [22, 8] };
     expect(gateHolds(gate)).toEqual([]);
     render(<GatePanel cooldowns={[]} gate={gate} />);
-    expect(screen.getByText('✓ 没有拦着的条件')).toBeTruthy();
-    expect(screen.getByText('已设免打扰时段')).toBeTruthy();
+    expect(screen.getAllByText(/^(开着|没在开会|没有)$/)).toHaveLength(4);
+    expect(screen.getByText('免打扰时段').nextElementSibling?.textContent).toBe('已设');
   });
 
-  it('puts the observation reason into the pending and recent hover text', () => {
-    const o = { ...DIAG_STATE.observation, pending: [{ ...DIAG_STATE.observation.pending[0]!, reason: 'look' }] };
-    const { container } = render(<ObsPanel observation={o} readAt={NOW} now={NOW} />);
-    expect(container.querySelector('[title*="超时"]')?.getAttribute('title')).toBe('失败 │ 窗口文字 │ 超时');
-    expect(container.querySelector('[title*="look"]')).toBeTruthy();
-  });
-
-  it('draws today’s usage by channel and by call, with the cost as a floor while calls are unpriced', () => {
+  it('draws today’s model calls by channel and by call', () => {
     const m = DIAG_STATE.budget.model!;
     const use = { ...m, calls: 3, input_tokens: 2000, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1000 };
     const wire = { ...DIAG_STATE.budget, model: { ...m, by_channel: { anthropic_api: use, unknown: { ...use, calls: 0 } } } };
-    const { container } = render(<Resources samples={[]} renderWhy="" details={null} budget={wire} procHistory={null} procNow={[]} totals={null} st="ok" />);
+    const { container } = render(<UsageCard budget={wire} loading={false} />);
     expect(container.textContent).toContain('Anthropic');
     expect(container.textContent).not.toContain('未知渠道');
     expect(screen.getByRole('list', { name: '按调用次数' }).textContent).toContain('观察摘要96 次');
-    expect(container.textContent).toContain('≥ $0.42');
   });
 
   it('reads supervisor ChildState descriptions', () => {

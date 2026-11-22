@@ -15,7 +15,6 @@ import { useSessionLines } from '../../src/pages/tasks/useTasksData';
 import { paletteItems } from '../../src/shell/CmdPalette.data';
 import { pageRoutes } from '../../src/shell/registry';
 import { DEFAULT_PLUGINS } from '../../src/shell/plugins';
-import type { Health } from '../../src/domain';
 import { loadOverview } from './overviewReads';
 import { pluginsOn, pluginsReset } from './plugins';
 
@@ -46,7 +45,6 @@ const wrapperOf = (client: QueryClient) =>
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   };
 
-const HEALTH = { voice: { state: 'ready' } } as unknown as Health;
 
 describe('diag tunnel rows', () => {
   it('shows the voice and decision tunnels supervisor.state reports, without a restart', () => {
@@ -57,26 +55,21 @@ describe('diag tunnel rows', () => {
         tunnel: { state: 'running', pid: 3 },
       },
       'connected',
-      HEALTH,
-      null,
     );
     const tunnel = rows.find((r) => r.key === 'tunnel');
     expect([tunnel?.name, tunnel?.status_text, tunnel?.restartable, tunnel?.pid]).toEqual(['语音隧道', '运行中', false, 3]);
-    const { container } = render(<Processes q={{ status: 'success', data: rows }} uptime={{}} history={null} actions={{}} highlight={null} onRestart={() => {}} onLogs={() => {}} onVoice={() => {}} />);
+    const { container } = render(
+      <Processes rows={rows} error={null} onRetry={() => {}} samples={[]} now={0} metric="cpu" onMetric={() => {}} uptime={{}} agentdGone={false} actions={{}} highlight={null} onRestart={() => {}} onLogs={() => {}} />,
+    );
     const restartIn = (key: string) => container.querySelector(`[data-nav-target="proc-${key}"]`)?.textContent?.includes('重启');
     expect(restartIn('tunnel')).toBe(false);
     expect(restartIn('avatar')).toBe(true);
   });
 
-  it('lists no tunnel row when none is configured', () => {
-    const rows = processesOf({ agentd: { state: 'running', pid: 1 }, avatar: { state: 'running', pid: 2 } }, 'connected', HEALTH, null);
-    expect(rows.map((r) => r.key)).toEqual(['agentd', 'avatar', 'voice']);
-  });
-
-  it('shows an unknown voice as not checked yet', () => {
-    const rows = processesOf({ agentd: { state: 'running', pid: 1 } }, 'connected', { voice: { state: 'unknown' } } as unknown as Health, null);
-    const voice = rows.find((r) => r.key === 'voice');
-    expect([voice?.status_text, voice?.tone]).toEqual(['未检测', 'idle']);
+  // The voice is not a process: it is a 总览 row read from /diag/state.
+  it('lists no tunnel row when none is configured, and no voice row', () => {
+    const rows = processesOf({ agentd: { state: 'running', pid: 1 }, avatar: { state: 'running', pid: 2 } }, 'connected');
+    expect(rows.map((r) => r.key)).toEqual(['agentd', 'avatar']);
   });
 });
 

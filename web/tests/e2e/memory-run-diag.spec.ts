@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 
-// A memory run's detail, decisions narrowed by a native link, the last unspoken line.
+// The last unspoken line on 诊断 › 状态; memory runs and single turns moved to 记忆管线 and 运行记录.
 const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
 
 async function settle(page: Page) {
@@ -12,22 +12,8 @@ async function settle(page: Page) {
 
 const SHOTS: Array<{ name: string; hash: string; open: (page: Page) => Promise<void> }> = [
   {
-    name: 'memory-run',
-    hash: '/diag?still=1&kind=memory&run=mrun-01',
-    open: async (page) => {
-      await expect(page.getByRole('dialog', { name: '记忆生成记录' }).getByText('候选 1 │ 记下')).toBeVisible();
-    },
-  },
-  {
-    name: 'turn-by-trace',
-    hash: '/diag?still=1&trace=tr2',
-    open: async (page) => {
-      await expect(page.getByText('轮次详情')).toBeVisible();
-    },
-  },
-  {
     name: 'now-speech-failed',
-    hash: '/diag?still=1&item=state',
+    hash: '/diag?still=1&tab=state',
     open: async (page) => {
       await expect(page.getByText('上次没说出口')).toBeVisible();
     },

@@ -27,16 +27,16 @@ afterEach(() => {
   window.location.hash = '';
 });
 
-const res = (samples: RenderSample[]) => <Resources samples={samples} renderWhy="" details={null} budget={null} procHistory={null} procNow={[]} totals={null} st="ok" />;
-const gpuText = (c: HTMLElement) => [...c.querySelectorAll('b')].find((b) => b.parentElement?.textContent?.startsWith('GPU'))?.textContent ?? '';
+const res = (samples: RenderSample[]) => <Resources samples={samples} renderWhy="" details={null} onProc={() => {}} />;
+const gpuText = (c: HTMLElement) => [...c.querySelectorAll('[data-stub="ReadTick"]')].find((t) => t.lastElementChild?.textContent === 'GPU')?.querySelector('b')?.textContent ?? '';
 
 describe(' frame readouts', () => {
   it('rounds the fps, P95 and GPU readouts of a raw host sample', () => {
     const { container } = render(res([{ at: 1_000, fps: 59.7, p95_ms: 6.123456789, gpu_ms: 3.04999 }]));
     const fps = container.querySelector('[data-nav-target="diag-render"]')!;
-    expect(fps.textContent).toContain('60 fps');
-    expect(fps.textContent).toContain('6.1 ms');
-    expect(fps.textContent).toContain('3.0 ms');
+    expect(fps.textContent).toContain('60fps');
+    expect(fps.textContent).toContain('6.1ms');
+    expect(fps.textContent).toContain('3.0ms');
     expect(fps.textContent).not.toContain('6.123');
   });
 
@@ -48,6 +48,7 @@ describe(' frame readouts', () => {
     list.push(sample(0));
     const { container, rerender } = render(res([...list]));
     const seen = [gpuText(container)];
+    expect(seen[0]).toBe('3.0ms');
     for (let i = 1; i < 10; i += 1) {
       act(() => void vi.advanceTimersByTime(100));
       list.push(sample(i));

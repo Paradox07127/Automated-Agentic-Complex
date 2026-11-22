@@ -141,16 +141,16 @@ test('调参 chart: cause tags, labels and lines stay inside the chart', async (
   }
 });
 
-test('diag process rows: 查看日志 sits in the same column on every row', async ({ page }) => {
-  await open(page, '/diag');
-  const xs = await page.locator('[data-stub="Btn"]', { hasText: '查看日志' }).evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().left)));
-  expect(xs.length).toBeGreaterThan(2);
+test('diag process rows: 日志 sits in the same column on every row', async ({ page }) => {
+  await open(page, '/diag?tab=proc');
+  const xs = await page.locator('[data-nav-target^="proc-"] [data-stub="Btn"]', { hasText: '日志' }).evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().left)));
+  expect(xs.length).toBeGreaterThanOrEqual(2);
   expect(new Set(xs).size).toBe(1);
 });
 
 test('diag gate: the 7-day line takes at most two lines', async ({ page }) => {
   for (const demo of ['default', 'full']) {
-    await open(page, `/diag?item=state&demo=${demo}`);
+    await open(page, `/diag?tab=state&demo=${demo}`);
     const line = page.locator('span', { hasText: /^近 7 天主动/ }).last();
     await expect(line).toBeVisible();
     // Two lines of 12 px text are under 2 × 1.6 em tall; the flex row with its row gap was 45 px.
@@ -160,9 +160,9 @@ test('diag gate: the 7-day line takes at most two lines', async ({ page }) => {
 });
 
 test('diag live fps readout uses tabular digits', async ({ page }) => {
-  await open(page, '/diag?demo=full');
+  await open(page, '/diag?demo=full&tab=render');
   const num = await page.evaluate(() => {
-    const s = [...document.querySelectorAll('span')].find((e) => e.nextSibling?.nodeType === Node.TEXT_NODE && e.nextSibling.textContent?.trim() === 'fps');
+    const s = document.querySelector('[data-nav-target="diag-render"] [data-stub="ReadTick"] b');
     return s ? getComputedStyle(s).fontVariantNumeric : 'missing';
   });
   expect(num).toContain('tabular-nums');

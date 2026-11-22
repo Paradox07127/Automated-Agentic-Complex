@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { isoToMs } from '../../src/domain';
+import { CHAT_DEMO } from '../../src/mock/fixtures/chatDemo';
 import { DiagPage } from '../../src/pages/diag/Page';
 import { TracePage } from '../../src/pages/trace/Page';
 import { pluginsOn, pluginsReset } from './plugins';
@@ -41,6 +43,16 @@ describe(' 运行记录 page', () => {
     expect(screen.queryByRole('button', { name: '刷新记录' })).toBeNull();
   });
 
+  it('/trace?at=<ms> picks the first turn at or after that time', async () => {
+    const day = [...CHAT_DEMO.full.rows].sort((a, b) => isoToMs(b.started_at) - isoToMs(a.started_at));
+    const mid = day[Math.floor(day.length / 2)]!;
+    const at = isoToMs(mid.started_at) - 1;
+    const want = day.filter((r) => isoToMs(r.started_at) >= at).sort((a, b) => isoToMs(a.started_at) - isoToMs(b.started_at))[0]!;
+    expect(want.turn_id).not.toBe(day[0]!.turn_id);
+    mount(TracePage, `&demo=full&at=${at}`);
+    await waitFor(() => expect(screen.getByRole('option', { selected: true }).getAttribute('data-turn')).toBe(want.turn_id));
+  });
+
   it('日志: lines from the bridge with debug off by default; 看日志 on a turn narrows to its time', async () => {
     const router = mount(TracePage, '&tab=logs');
     const log = await screen.findByRole('log', { name: '日志行' });
@@ -64,13 +76,13 @@ describe(' 运行记录 page', () => {
 });
 
 describe(' 诊断 keeps its usage card', () => {
-  it('still has diag-usage with 今日用量', async () => {
-    mount(DiagPage, '');
+  it('has diag-usage with 模型调用 on its 管道 tab', async () => {
+    mount(DiagPage, '&tab=flow');
     const usage = await waitFor(() => {
       const el = document.querySelector('[data-nav-target="diag-usage"]');
       expect(el).not.toBeNull();
       return el!;
     });
-    expect(usage.textContent).toContain('今日用量');
+    expect(usage.textContent).toContain('模型调用');
   });
 });

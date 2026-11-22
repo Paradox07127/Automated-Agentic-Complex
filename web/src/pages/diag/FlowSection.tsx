@@ -1,114 +1,183 @@
-import { useEffect, useState } from 'react';
-import { ChartState } from '../../charts';
-import { formatClock, formatMs, type Turn } from '../../domain';
-import { Btn, SecHead } from '../../ui';
+import type { ReactNode } from 'react';
+import { formatClock, formatMs, type VisualStateKey } from '../../domain';
+import { Btn, InfoTip, SecHead, Sheet, Skel } from '../../ui';
+import { GameTable, ReadTick, StatusLamp } from '../../ui/game';
 import { DgFlow } from './DgFlow';
-import { HOOK_TIP, LANES, type FlowEdge, type FlowNode, type NodeId } from './flow';
-import { RESULT_TEXT } from './labels';
-import { sourceLabel } from './model';
-import styles from './Dg.module.css';
+import { STATE_TEXT, type FlowEdge, type FlowNode, type NodeId, type NodeState } from './flow';
+import styles from './Flow.module.css';
 
-/** Replay steps through the path in about 1.5 s; a still page shows it lit at once. */
-export function useReplay(path: NodeId[], key: string | null, still: boolean) {
-  const [step, setStep] = useState(0);
-  const len = path.length;
-  useEffect(() => setStep(still ? len : 1), [key, len, still]);
-  useEffect(() => {
-    if (still || !key || step >= len) return;
-    const id = setTimeout(() => setStep((s) => s + 1), Math.round(1500 / Math.max(1, len)));
-    return () => clearTimeout(id);
-  }, [step, len, key, still]);
-  return [key ? Math.min(step, len) : 0, () => setStep(still ? len : 1)] as const;
+const LAMP: Record<NodeState, VisualStateKey> = { ok: 'ok', fail: 'failed', att: 'warning', idle: 'idle' };
+
+/** One failed turn of the last hour, placed on its node. */
+export interface FailRow {
+  /** trace_id */
+  id: string;
+  turn_id: string;
+  at: number;
+  /** 你说 / 她主动 */
+  src: string;
+  /** The failed event's code, or its kind. */
+  code: string;
 }
 
 export interface FlowSectionProps {
   nodes: FlowNode[];
   edges: FlowEdge[];
   loading: boolean;
-  sel: Turn | null;
-  path: NodeId[];
-  replayLoading: boolean;
-  step: number;
-  onReplay: () => void;
-  onExit: () => void;
-  nodeF: NodeId | null;
-  onNode: (id: NodeId) => void;
+  /** Why /trace/turns could not be read. */
+  error: string | null;
+  onRetry: () => void;
+  turns: number;
+  fails: number;
+  /** Label of the node the turn in progress is on; null while none runs. */
+  liveAt: string | null;
   live: [NodeId, NodeId] | null;
-  /** agentd is gone: the time of the data shown; null while live. */
-  staleAt: number | null;
+  /** agentd is gone. */
+  dead: boolean;
   calm: boolean;
+  sel: NodeId | null;
+  onPick: (id: NodeId) => void;
+  onClear: () => void;
+  onStation: (station: 'obs' | 'interp' | 'mem') => void;
+  failsOf: (id: NodeId) => FailRow[];
+  approvals: number;
+  onTasks: () => void;
+  /** 运行记录: that turn, or the list. */
+  onTrace: (turnId: string | null) => void;
+  onChat: () => void;
+  /** 近 24 小时 and 模型调用 below the flow. */
+  children?: ReactNode;
 }
 
-/** 01 流程图：the pipeline as the page's main visual; the footer reads the replay, the picked node or a hint, then the legend. */
+/** 管道: the last hour of the turn pipeline; a node opens its failures in the right column. */
 export function FlowSection(p: FlowSectionProps) {
-  const lit = p.sel ? p.path.slice(0, p.step) : [];
-  const pulse: [NodeId, NodeId] | null =
-    p.sel && p.step > 0 && p.step < p.path.length && p.edges.some((e) => e.from === p.path[p.step - 1] && e.to === p.path[p.step]) ? [p.path[p.step - 1] as NodeId, p.path[p.step] as NodeId] : null;
-  const selNode = p.nodeF ? p.nodes.find((n) => n.id === p.nodeF) : null;
-  const s = selNode?.stat;
+  const node = p.sel ? (p.nodes.find((n) => n.id === p.sel) ?? null) : null;
   return (
-    <section className={styles.sec} aria-label="流程图">
-      <SecHead no="01" title="流程图" right={<span className={styles.t2}>近 1 小时 │ 阶段估算</span>} />
-      <div className={`${styles.flow} panel-bg`}>
-        {p.loading ? (
-          <ChartState state="loading" emptyText="" height={LANES.length * 92}>
-            {null}
-          </ChartState>
-        ) : (
-          <DgFlow nodes={p.nodes} edges={p.edges} path={p.sel ? p.path : []} lit={lit} pulse={pulse} sel={p.nodeF} onPick={p.onNode} live={p.live} dead={p.staleAt != null} calm={p.calm} />
-        )}
-        {p.staleAt != null && p.staleAt > 0 && (
-          <span className={styles.stamp} role="status">
-            <span className="num">{formatClock(p.staleAt)}</span> 的数据
-          </span>
-        )}
-      </div>
-      <div className={styles.flowF}>
-        {p.sel ? (
+    <section className={styles.sec} aria-label="管道">
+      <SecHead
+        title="轮次管道"
+        right={
           <>
-            <span className={styles.replay}>
-              <b>{p.path.length ? (p.step < p.path.length ? '回放中' : '已回放') : p.replayLoading ? '正在读取事件' : '没有可回放的事件'}</b> <span className="num">{formatClock(p.sel.started_at, { seconds: true })}</span> │ {sourceLabel(p.sel.source)} │ {RESULT_TEXT[p.sel.result]} │{' '}
-              <span className="num">{formatMs(p.sel.duration_ms)}</span>
+            <InfoTip>节点的次数是近 1 小时轮次走过的估算；主线节点的耗时等后端补上，现在写「—」。观察、解读、记忆提取的次数在记忆管线页。</InfoTip>
+            <span className={styles.head}>
+              近 1 小时 │ <b className="num">{p.turns}</b> 轮 │ 失败{' '}
+              <b className="num" data-bad={p.fails > 0 || undefined}>
+                {p.fails}
+              </b>
+              {p.liveAt && <StatusLamp state="running" label={`正在「${p.liveAt}」`} />}
             </span>
-            {p.path.length > 0 && <Btn variant="text" size="sm" onClick={p.onReplay}>
-              重新回放
-            </Btn>}
-            <Btn variant="text" size="sm" onClick={p.onExit}>
-              退出回放
-            </Btn>
           </>
-        ) : selNode ? (
-          <span className={styles.t2}>
-            <b className={styles.t1}>{selNode.label}</b>
-            {s ? (
-              <>
-                {' '}
-                │ 近 1 小时 <span className="num">{s.count}</span> 次{s.p50 != null && <> │ p50 <span className="num">{formatMs(s.p50)}</span></>} │ 失败 <span className="num">{s.fail}</span>
-              </>
-            ) : (
-              ' │ 近 1 小时无统计'
-            )}
-            {selNode.id === 'hook' ? ` │ ${HOOK_TIP}` : ''} │ 下方时间轴已按此节点筛选
-          </span>
-        ) : (
-          <span className={styles.t3}>细线显示估算次数。选择轮次可回放实际事件。</span>
-        )}
-        <span className={styles.sp} />
-        <span className={styles.lg}>
-          <i className={styles.lgCur} aria-hidden="true" />
-          当前一轮
-          <i className={styles.lgF} aria-hidden="true">
-            ■
-          </i>
-          失败
-          <i className={styles.lgA} aria-hidden="true">
-            ▲
-          </i>
-          需要注意
-          <i className={styles.lgIdle} aria-hidden="true" />
-          空闲
-        </span>
+        }
+      />
+      {p.error && (
+        <p className={styles.note} role="status">
+          读不到轮次：{p.error}{' '}
+          <Btn size="sm" variant="text" icon="refresh" onClick={p.onRetry}>
+            重试
+          </Btn>
+        </p>
+      )}
+      {!p.loading && !p.error && p.turns === 0 && (
+        <p className={styles.note}>
+          近 1 小时她没有跑过一轮{' '}
+          <Btn size="sm" variant="text" onClick={p.onChat}>
+            去对话
+          </Btn>
+        </p>
+      )}
+      <div className={styles.wrap}>
+        <div className={styles.face}>
+          {p.loading ? <Skel rows={3} shape="cards" /> : <DgFlow nodes={p.nodes} edges={p.edges} sel={p.sel} onPick={p.onPick} onStation={p.onStation} live={p.live} dead={p.dead} calm={p.calm} />}
+        </div>
+        <Sheet open={node != null} title={node ? `${node.label}节点` : '读法'} head="none" dockFrom={1200} onClose={p.onClear}>
+          {node ? <NodeDetail node={node} fails={p.failsOf(node.id)} approvals={p.approvals} onTasks={p.onTasks} onTrace={p.onTrace} onClear={p.onClear} /> : <Legend />}
+        </Sheet>
       </div>
+      {p.children && <div className={styles.two}>{p.children}</div>}
     </section>
+  );
+}
+
+function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear }: { node: FlowNode; fails: FailRow[]; approvals: number; onTasks: () => void; onTrace: (turnId: string | null) => void; onClear: () => void }) {
+  const s = node.stat;
+  return (
+    <div className={styles.side}>
+      <div className={styles.sideHead}>
+        <b>{node.label}</b>
+        <StatusLamp state={LAMP[node.state]} label={STATE_TEXT[node.state]} />
+      </div>
+      <div className={styles.band}>
+        <ReadTick value={String(s?.count ?? 0)} label="近 1 小时" />
+        <ReadTick value={String(s?.fail ?? 0)} label="失败" tone={s?.fail ? 'bad' : 'ink'} />
+        <ReadTick value={s?.p50 == null ? '—' : formatMs(s.p50).split(' ')[0]} unit={s?.p50 == null ? undefined : formatMs(s.p50).split(' ')[1]} label="p50 耗时" tone="ink" />
+      </div>
+      {node.id === 'appr' && approvals > 0 && (
+        <div className={styles.gr}>
+          <span>审批有 {approvals} 个待处理</span>
+          <Btn size="sm" onClick={onTasks}>
+            去任务
+          </Btn>
+        </div>
+      )}
+      {fails.length > 0 ? (
+        <GameTable
+          label="最近失败"
+          columns={[
+            { key: 't', label: '时间', width: '68px' },
+            { key: 'c', label: '失败', width: 'minmax(0, 1fr)' },
+          ]}
+          rows={fails.map((f) => ({
+            id: f.id,
+            tone: 'fail' as const,
+            cells: {
+              t: <span className="num">{formatClock(f.at, { seconds: true })}</span>,
+              c: (
+                <span>
+                  {f.src} │ <span className={styles.code}>{f.code}</span>
+                </span>
+              ),
+            },
+            end: (
+              <Btn size="sm" variant="text" onClick={() => onTrace(f.turn_id)}>
+                打开
+              </Btn>
+            ),
+          }))}
+        />
+      ) : (
+        <p className={styles.note}>近 1 小时没有失败</p>
+      )}
+      <div className={styles.acts}>
+        <Btn size="sm" onClick={() => onTrace(null)}>
+          在运行记录里看
+        </Btn>
+        <Btn size="sm" variant="secondary" onClick={onClear}>
+          取消选中
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+function Legend() {
+  const rows: Array<[NodeState, string]> = [
+    ['ok', '近 1 小时走过、没失败'],
+    ['fail', '红角标是失败次数'],
+    ['att', '语音连不上，或审批在等'],
+    ['idle', '近 1 小时没有经过'],
+  ];
+  return (
+    <div className={styles.side}>
+      <div className={styles.sideHead}>
+        <b>读法</b>
+      </div>
+      {rows.map(([st, text]) => (
+        <div key={st} className={styles.gr}>
+          <StatusLamp state={LAMP[st]} label={STATE_TEXT[st]} />
+          <span>{text}</span>
+        </div>
+      ))}
+      <p className={styles.note}>点一个节点看它的失败；单独一轮的经过在运行记录里看。</p>
+    </div>
   );
 }

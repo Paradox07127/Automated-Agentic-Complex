@@ -1,5 +1,5 @@
-// Pipeline flow model: node layout, the path a turn takes, and last-hour counts from /trace/turns, /summary/runs and /trace/decisions.
-import type { SummaryRun, Turn, TurnResult } from '../../domain';
+// Pipeline flow model: node layout, the path a turn takes, and last-hour counts from /trace/turns and /trace/decisions.
+import type { Turn, TurnResult } from '../../domain';
 import { isoToMs } from '../../domain/units';
 import type { WireTraceEvent } from './wire';
 
@@ -16,13 +16,14 @@ export interface NodeStat {
 export interface FlowNode {
   id: NodeId;
   label: string;
-  no: string;
   xi: number;
   yi: number;
   stat: NodeStat | null;
   state: NodeState;
   /** Second line when there is no stat (the hook node reads the hook block). */
   sub?: string;
+  /** The memory pipeline station this node opens; such a node keeps no count of its own. */
+  station?: 'obs' | 'interp' | 'mem';
 }
 
 export interface FlowEdge {
@@ -38,7 +39,7 @@ export const LANES: ReadonlyArray<[string, string]> = [
   ['Claude / Codex', 'HOOK'],
 ];
 
-/** server.py PHASES drawn as one production line; the side lanes are the summary runs and the coding-tool hooks. */
+/** server.py PHASES drawn as one production line; the side lanes are the memory pipeline's stations and the coding-tool hooks. */
 const NODE_DEF: ReadonlyArray<[NodeId, string, number, number]> = [
   ['obs', '观察', 0, 0],
   ['interp', '解读', 1, 0],
@@ -56,6 +57,9 @@ const NODE_DEF: ReadonlyArray<[NodeId, string, number, number]> = [
   ['memx', '记忆提取', 4, 2],
 ];
 
+/** Nodes whose numbers live on the 记忆管线 page. */
+const STATION: Partial<Record<NodeId, 'obs' | 'interp' | 'mem'>> = { obs: 'obs', interp: 'interp', memx: 'mem' };
+
 const EDGE_DEF: ReadonlyArray<[NodeId, NodeId]> = [
   ['obs', 'interp'],
   ['interp', 'ctx'],
@@ -71,7 +75,7 @@ const EDGE_DEF: ReadonlyArray<[NodeId, NodeId]> = [
   ['sess', 'appr'],
 ];
 
-export const STATE_TEXT: Record<NodeState, string> = { ok: '正常', att: '需要注意', fail: '失败', idle: '空闲' };
+export const STATE_TEXT: Record<NodeState, string> = { ok: '正常', att: '需要注意', fail: '有失败', idle: '空闲' };
 export const HOOK_TIP = 'Claude Code / Codex 的 hook 事件';
 
 const MAIN: NodeId[] = ['input', 'ctx', 'judge', 'model', 'line', 'tts', 'play', 'motion'];
@@ -120,29 +124,8 @@ const KIND_NODE: Readonly<Record<string, NodeId>> = {
 };
 export const nodeOfKind = (kind: string): NodeId | null => KIND_NODE[kind] ?? null;
 
-/** The selected turn's replay path contains only the nodes its recorded events reached. */
-export function pathFromEvents(events: readonly WireTraceEvent[]): NodeId[] {
-  const reached = new Set(events.flatMap((event) => {
-    const node = nodeOfKind(event.kind);
-    return node ? [node] : [];
-  }));
-  return [...reached];
-}
-
-const median = (xs: number[]): number | null => {
-  if (xs.length === 0) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? (s[m] ?? null) : Math.round(((s[m - 1] ?? 0) + (s[m] ?? 0)) / 2);
-};
-
-/** /summary/runs kinds drawn on the side lanes. */
-const RUN_NODE: Readonly<Record<string, NodeId>> = { observation_vision: 'obs', user_vision: 'obs', observation_interpret: 'interp', memory_extract: 'memx' };
-const RUN_FAILED = new Set(['failed', 'rejected']);
-
 export interface FlowInput {
   turns: readonly Turn[];
-  runs: readonly SummaryRun[];
   decisions: readonly WireTraceEvent[];
   since: number;
   /** Failed turns whose events were read: where each one failed. */
@@ -155,11 +138,17 @@ export interface FlowInput {
   hourly?: Partial<Record<NodeId, NodeStat>> | null;
 }
 
-/** Last-hour nodes and belts; counts come from the turn paths, the side lanes from summary runs and decisions. */
+/** Approvals opened since `since` and not decided yet. */
+export function waitingApprovals(decisions: readonly WireTraceEvent[], since: number): number {
+  const recent = decisions.filter((e) => isoToMs(e.t_wall) >= since);
+  const decided = new Set(recent.filter((e) => e.kind === 'approval.decided').map((e) => String(e.attrs.approval_id ?? e.trace_id)));
+  return recent.filter((e) => e.kind === 'approval.opened' && !decided.has(String(e.attrs.approval_id ?? e.trace_id))).length;
+}
+
+/** Last-hour nodes and belts; counts come from the turn paths and the decisions. */
 export function flowOf(f: FlowInput): { nodes: FlowNode[]; edges: FlowEdge[] } {
   const count = new Map<NodeId, number>();
   const fail = new Map<NodeId, number>();
-  const ms = new Map<NodeId, number[]>();
   const edgeN = new Map<string, number>();
   const add = <K>(m: Map<K, number>, k: K, n = 1) => m.set(k, (m.get(k) ?? 0) + n);
   for (const t of f.turns) {
@@ -171,35 +160,28 @@ export function flowOf(f: FlowInput): { nodes: FlowNode[]; edges: FlowEdge[] } {
     });
     if (t.result === 'failed') add(fail, p.at(-1) ?? 'model');
   }
-  for (const r of f.runs) {
-    const id = RUN_NODE[r.kind];
-    if (!id || r.at < f.since) continue;
-    add(count, id);
-    ms.set(id, [...(ms.get(id) ?? []), r.durationMs]);
-    if (RUN_FAILED.has(r.outcome)) add(fail, id);
-    if (id === 'memx') add(edgeN, 'line>memx');
-    if (id === 'interp') add(edgeN, 'obs>interp');
-  }
   const recent = f.decisions.filter((e) => isoToMs(e.t_wall) >= f.since);
   const requests = new Set(recent.filter((e) => e.kind.startsWith('dispatch.')).map((e) => String(e.attrs.request_id ?? e.event_id)));
   const opened = recent.filter((e) => e.kind === 'approval.opened');
-  const decided = new Set(recent.filter((e) => e.kind === 'approval.decided').map((e) => String(e.attrs.approval_id ?? e.trace_id)));
   if (requests.size) count.set('sess', requests.size);
   if (opened.length) {
     count.set('appr', opened.length);
     add(edgeN, 'sess>appr', opened.length);
   }
-  const waiting = opened.some((e) => !decided.has(String(e.attrs.approval_id ?? e.trace_id)));
-  const nodes = NODE_DEF.map(([id, label, xi, yi], i): FlowNode => {
+  const waiting = waitingApprovals(f.decisions, f.since) > 0;
+  const nodes = NODE_DEF.map(([id, label, xi, yi]): FlowNode => {
+    const station = STATION[id];
+    if (station) return { id, label, xi, yi, stat: null, state: 'idle', station };
     const h = f.hourly?.[id];
     const n = h?.count ?? count.get(id) ?? 0;
-    const stat: NodeStat | null = h ?? (n > 0 ? { count: n, p50: median(ms.get(id) ?? []), fail: fail.get(id) ?? 0 } : null);
+    const stat: NodeStat | null = h ?? (n > 0 ? { count: n, p50: null, fail: fail.get(id) ?? 0 } : null);
     const att = (id === 'tts' && f.voiceDown) || (id === 'appr' && waiting);
     const state: NodeState = stat && stat.fail > 0 ? 'fail' : att ? 'att' : stat && stat.count > 0 ? 'ok' : 'idle';
-    return { id, label, no: String(i + 1).padStart(2, '0'), xi, yi, stat: stat && stat.count > 0 ? stat : null, state, ...(id === 'hook' ? { sub: f.hookSub } : {}) };
+    return { id, label, xi, yi, stat: stat && stat.count > 0 ? stat : null, state, ...(id === 'hook' ? { sub: f.hookSub } : {}) };
   });
   const edges = EDGE_DEF.map(([from, to]): FlowEdge => {
-    const n = f.hourly ? (f.hourly[to]?.count ?? 0) : (edgeN.get(`${from}>${to}`) ?? 0);
+    // What flows into a station is the pipeline page's number.
+    const n = STATION[to] ? 0 : f.hourly ? (f.hourly[to]?.count ?? 0) : (edgeN.get(`${from}>${to}`) ?? 0);
     return { from, to, ...(n > 0 ? { n } : {}) };
   });
   return { nodes, edges };

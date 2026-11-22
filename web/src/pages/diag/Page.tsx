@@ -1,43 +1,52 @@
-// `full` demo: the stage p50s, process CPU and memory history and online segments show only with the mock data.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// `full` demo: the stage p50s and the process history show only with the mock data.
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
 import { AgentdCallError, resetVoice } from '../../bridge/agentd';
 import { serverFaultText } from '../../domain/errorText';
 import { formatAgo } from '../../domain/time';
-import { formatClock, formatDuration, fromTraceTurn, type Turn, type WireVoice } from '../../domain';
+import { formatClock, formatDuration, type WireVoice } from '../../domain';
 import { isoToMsOrNull } from '../../domain/units';
-import { Btn, Dialog, Menu, PageIssues, type RegionSource } from '../../ui';
+import { Btn, Dialog, ErrBar, Kbd, Menu, Skel, Tabs } from '../../ui';
 import { useDemo } from '../../shell/demo';
-import { PageHeaderSlot } from '../../shell/headerSlot';
+import { BottomBarSlot, PageHeaderSlot } from '../../shell/headerSlot';
 import { useToast } from '../../shell/toast';
 import { useGo, useNow, useParam } from '../overview/nav';
-import { useTraceRow } from '../chat/useTurnData';
-import { RunItems } from '../chat/RunItems';
 import { demo as slot } from './demoSlot';
-import { flowOf, liveEdgeOf, nodeOfKind, pathFromEvents, pathOf, type NodeId } from './flow';
-import { FlowSection, useReplay } from './FlowSection';
-import { HealthRow } from './Health';
-import { inspectorOf } from './inspector';
+import { flowOf, liveEdgeOf, nodeOfKind, waitingApprovals, type NodeId } from './flow';
+import { FlowSection, type FailRow } from './FlowSection';
+import { bucketsOf, HourBars } from './HourBars';
 import { InternalState } from './InternalState';
-import { MemoryRunSheet } from './MemoryRunSheet';
-import { localDay } from './model';
+import { Overview, RestartAgentd, rowsOf, type DiagTab, type OverviewProps } from './Overview';
 import { Processes } from './Processes';
 import { renderWhy } from './renderWhy';
-import { ToolBar } from './ToolBar';
-import { Resources } from './Resources';
-import { healthOf, issuesOf, processesOf, type DiagProcess, type ProcessKey } from './status';
-import { TurnsSection } from './TurnsSection';
-import { clock, STATE_KEY, type DiagSnap, useDiagState, useDiagStream, useFailEvents, useHourReads, useRenderStats, useSideReads, useTurnEvents, useTurns } from './useDiag';
+import { overBudget, Resources } from './Resources';
+import { healthOf, issuesOf, processesOf, type ProcKey } from './status';
+import { UsageCard } from './UsageCard';
+import { clock, STATE_KEY, type DiagSnap, useDecisions, useDiagState, useDiagStream, useFailEvents, useRenderStats, useSideReads, useTurns } from './useDiag';
 import { CONFIRM, useDiagActions, viewLogs, type RestartTarget } from './useDiagActions';
+import type { ProcSample } from './useProcSamples';
+import { useProcSamples } from './useProcSamples';
 import type { WireDiagItem } from './wire';
-import styles from './Dg.module.css';
+import styles from './Diag.module.css';
+import stateStyles from './State.module.css';
 
 const HOUR = 3_600_000;
-const asKey = (v: string | null): ProcessKey | null => (v === 'agentd' || v === 'avatar' || v === 'voice' ? v : null);
+const TABS: ReadonlyArray<{ id: DiagTab; label: string; icon: 'grid' | 'data' | 'g-window' | 'hub' | 'tune'; wm: string }> = [
+  { id: 'overview', label: '总览', icon: 'grid', wm: 'DIAG' },
+  { id: 'proc', label: '进程', icon: 'data', wm: 'PROC' },
+  { id: 'render', label: '渲染', icon: 'g-window', wm: 'FRAME' },
+  { id: 'flow', label: '管道', icon: 'hub', wm: 'FLOW' },
+  { id: 'state', label: '状态', icon: 'tune', wm: 'STATE' },
+];
+const asTab = (v: string | null): DiagTab | null => TABS.find((t) => t.id === v)?.id ?? null;
+const ROW_ITEMS = new Set(['agentd', 'avatar', 'voice']);
 /** Trace kinds that add a turn to the list or settle one. */
 const LIST_KINDS = new Set(['input.received', 'model.finished', 'playback.ended', 'playback.interrupted', 'cancel.acked', 'turn.settled']);
 const USER = new Set(['text', 'voice']);
+const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="dialog"], [role="menu"]';
+/** The `full` demo's process curves are named by their row. */
+const SEED_KEY: Readonly<Record<string, ProcKey>> = { 后台服务: 'agentd', 角色: 'avatar' };
 
 /** One short reason for a failed read; only `offline` means agentd is gone. */
 export function reasonOf(e: unknown): string {
@@ -52,31 +61,39 @@ export function reasonOf(e: unknown): string {
   return `后台返回 ${e.status}`;
 }
 
+/** The `full` demo's process history as page samples. */
+function seedOf(full: boolean): ProcSample[] {
+  const h = full ? slot.full?.procHistory : undefined;
+  if (!h) return [];
+  const first = h.cpu[0]?.pts ?? [];
+  return first.map(([at], i) => {
+    const pick = (list: typeof h.cpu) => Object.fromEntries(list.filter((s) => SEED_KEY[s.label]).map((s) => [SEED_KEY[s.label], s.pts[i]?.[1] ?? null]));
+    return { at, cpu: pick(h.cpu), mem: pick(h.mem) };
+  });
+}
+
+const keyHint = (k: string[], label: string) => (
+  <span key={label}>
+    {k.map((x) => (
+      <Kbd key={x}>{x}</Kbd>
+    ))}
+    {label}
+  </span>
+);
+
 export function DiagPage() {
   const { state, demo, still } = useDemo();
   const go = useGo();
   const toast = useToast();
   const qc = useQueryClient();
   const item = useParam('item');
-  const selLink = useParam('sel');
-  // An announcement or approval card links its trace; it opens that turn.
-  const traceLink = useParam('trace');
-  const obsParam = useParam('obs');
-  const kindParam = useParam('kind');
-  const runLink = useParam('run');
-  // Only a 记忆生成 link names a memory run; a task's link sends its agent run id under the same key.
-  const runParam = kindParam === 'memory' ? runLink : null;
-  const agentRunParam = kindParam === 'memory' ? null : runLink;
-  const selParam = selLink ?? traceLink ?? agentRunParam;
-  const rngParam = useParam('rng');
+  const tab: DiagTab = asTab(useParam('tab')) ?? (item === 'usage' ? 'flow' : item === 'state' ? 'state' : 'overview');
   const full = demo === 'full';
   const [paused, setPaused] = useState(demo === 'paused');
-  const [stateOpen, setStateOpen] = useState(item === 'state');
-  const [highlight, setHighlight] = useState<ProcessKey | null>(asKey(item));
-  const [turnId, setTurnId] = useState<string | null>(selParam);
-  const [memRun, setMemRun] = useState<string | null>(runParam);
-  const [range, setRange] = useState<'24h' | '7d'>(rngParam === '7d' ? '7d' : '24h');
-  const [nodeF, setNodeF] = useState<NodeId | null>(null);
+  const [highlight, setHighlight] = useState<string | null>(item && ROW_ITEMS.has(item) ? item : null);
+  const [range, setRange] = useState<'24h' | '7d'>('24h');
+  const [metric, setMetric] = useState<'cpu' | 'mem'>('cpu');
+  const [node, setNode] = useState<NodeId | null>(null);
   const [confirm, setConfirm] = useState<RestartTarget | null>(demo === 'confirm' ? 'all' : null);
 
   const enabled = state !== 'loading';
@@ -85,24 +102,16 @@ export function DiagPage() {
   const ds = useDiagState(enabled);
   const side = useSideReads(enabled);
   const turns = useTurns(range, enabled);
-  const hour = useHourReads(enabled, localDay(base));
-  const allTurns = turns.data?.turns ?? [];
-  const recent = allTurns.find((t) => t.id === turnId || t.turn_id === turnId) ?? null;
-  const exact = useTraceRow(recent?.id ?? turnId, recent || (traceLink === turnId && !selLink) ? 'trace_id' : 'turn_id', enabled && turns.isSuccess);
-  const byTrace = useTraceRow(turnId, 'trace_id', enabled && turns.isSuccess && recent == null && traceLink !== turnId && exact.data === null);
-  const exactRow = exact.data ?? byTrace.data ?? null;
-  const sel = recent ?? (exactRow ? fromTraceTurn(exactRow) : null);
-  const detail = useTurnEvents(sel?.id ?? null);
+  const decisions = useDecisions(enabled);
   const renderAvailable = getBridge().capabilities.avatar;
   const samples = useRenderStats(renderAvailable && !paused);
   const act = useDiagActions(now, toast);
+  const seed = useMemo(() => seedOf(full), [full]);
+  const procSamples = useProcSamples(side.supervisor, base, enabled && !paused && !still, seed);
 
-  const selected = useRef(sel?.id);
-  selected.current = sel?.id;
   const onItem = useCallback(
     (kind: 'trace' | 'decision', it: WireDiagItem) => {
       if (kind === 'decision') return void qc.invalidateQueries({ queryKey: ['diag', 'decisions'] });
-      if (it.trace_id === selected.current) void qc.invalidateQueries({ queryKey: ['diag', 'turn', it.trace_id] });
       if (LIST_KINDS.has(it.kind)) void qc.invalidateQueries({ queryKey: ['diag', 'turns'] });
     },
     [qc],
@@ -124,116 +133,173 @@ export function DiagPage() {
   }, [qc, toast]);
 
   useEffect(() => {
-    if (selParam) setTurnId(selParam);
-    if (item === 'state') setStateOpen(true);
-    if (asKey(item)) setHighlight(asKey(item));
-  }, [selParam, item]);
-  useEffect(() => {
-    if (runParam) setMemRun(runParam);
-  }, [runParam]);
+    if (item && ROW_ITEMS.has(item)) setHighlight(item);
+  }, [item]);
   useEffect(() => {
     if (!highlight || still) return;
     const id = setTimeout(() => setHighlight(null), 1600);
     return () => clearTimeout(id);
   }, [highlight, still]);
-  useEffect(() => {
-    if (item === 'usage' && ds.data) document.getElementById('diag-usage')?.scrollIntoView({ block: 'center' });
-  }, [item, ds.data]);
+
+  const setTab = useCallback((id: DiagTab) => {
+    setNode(null);
+    go({ page: 'diag', ...(id === 'overview' ? {} : { tab: id }) });
+  }, [go]);
+  const togglePause = useCallback(() => {
+    if (paused) void qc.invalidateQueries({ queryKey: STATE_KEY });
+    setPaused((v) => !v);
+  }, [paused, qc]);
 
   const d = ds.data?.state ?? null;
   const connection = ds.isError ? 'offline' : (side.connection.data ?? 'connected');
   const sup = side.supervisor.data ?? null;
-  const health = d || ds.isError ? healthOf(connection, side.runtime.data ?? null, sup, d, samples.at(-1)?.fps ?? null) : null;
+  const last = samples.at(-1) ?? null;
+  const health = d || ds.isError ? healthOf(connection, side.runtime.data ?? null, sup, d, last?.fps ?? null) : null;
   const offline = ds.isError || connection === 'offline';
   const staleAt = offline ? (ds.data?.at ?? 0) : null;
-  // The time of the flow and process data shown while agentd is gone: its last state, else when the page read them.
-  const dataAt = offline ? staleAt || base : null;
-  // supervisor.state alone draws the rows; the voice row waits for /diag/state, which names its state.
-  const processes = sup ? processesOf(sup, side.connection.data ?? null, health ?? healthOf(connection, null, sup, null, null), d).filter((p) => p.key !== 'voice' || d != null || ds.isError) : null;
-  const procQ: RegionSource<DiagProcess[]> = {
-    status: side.supervisor.status,
-    data: processes ?? undefined,
-    error: side.supervisor.error && new Error(reasonOf(side.supervisor.error)),
-    isFetching: side.supervisor.isFetching,
-    dataUpdatedAt: side.supervisor.dataUpdatedAt,
-    refetch: side.supervisor.refetch,
-  };
+  const procs = sup ? processesOf(sup, side.connection.data ?? null) : null;
 
   const since = now - HOUR;
-  const failedIds = allTurns.filter((t) => t.result === 'failed' && t.started_at >= since).map((t) => t.id);
-  const failReads = useFailEvents(failedIds);
+  const allTurns = turns.data?.turns ?? [];
+  const hourTurns = allTurns.filter((t) => t.started_at >= since);
+  const failed = hourTurns.filter((t) => t.result === 'failed');
+  const failReads = useFailEvents(failed.map((t) => t.id));
   const failAt: Record<string, NodeId> = {};
+  const failRows: Array<FailRow & { node: NodeId }> = [];
   failReads.forEach((q, i) => {
+    const t = failed[i];
+    if (!t) return;
     const bad = q.data?.events.find((e) => e.status === 'failed');
-    const node = bad ? nodeOfKind(bad.kind) : null;
-    if (node && failedIds[i]) failAt[failedIds[i]] = node;
+    const at = bad ? nodeOfKind(bad.kind) : null;
+    if (at) failAt[t.id] = at;
+    const code = bad?.attrs.code ?? bad?.attrs.error ?? bad?.kind ?? '失败';
+    failRows.push({ id: t.id, turn_id: t.turn_id, at: t.started_at, src: USER.has(t.source) ? '对话' : '主动发言', code: String(code), node: at ?? 'model' });
   });
   const hooks = d?.hooks;
   const hookLast = Math.max(0, ...[hooks?.claude.last_at, hooks?.codex.last_at].map((x) => isoToMsOrNull(x) ?? 0));
   const hookSub = !hooks ? '没读到' : hooks.claude.installed || hooks.codex.installed ? (hookLast ? formatAgo(now - hookLast) : '已安装') : '未安装';
   const { nodes, edges } = flowOf({
     turns: allTurns,
-    runs: hour.runs.data ?? [],
-    decisions: hour.decisions.data ?? [],
+    decisions: decisions.data ?? [],
     since,
     failAt,
     voiceDown: health?.voice.state === 'unreachable',
     hookSub,
     hourly: full ? (slot.full?.hourly ?? null) : null,
   });
-  const path = sel && detail.data ? pathFromEvents(detail.data.events) : [];
-  const [step, replay] = useReplay(path, sel?.id ?? null, still);
-  const nodeTurns = nodeF ? allTurns.filter((t) => (range === '24h' ? pathOf(t.source, t.result, failAt[t.id] ?? null) : pathOf(t.source, 'ok')).includes(nodeF)) : allTurns;
-  const group = (t: Turn) => USER.has(t.source);
-  const no = sel ? allTurns.filter((t) => group(t) === group(sel) && t.started_at <= sel.started_at && t.started_at >= new Date(sel.started_at).setHours(0, 0, 0, 0)).length : 0;
-  const trace = sel && detail.data ? inspectorOf(sel, detail.data.events, no, detail.data.skew_ms) : null;
-  const pick = (t: Turn) => setTurnId(t.id);
+  const live = paused || offline ? null : liveEdgeOf(d?.turn.phase);
+  const liveAt = live ? (nodes.find((n) => n.id === live[1])?.label ?? null) : null;
+  const approvals = waitingApprovals(decisions.data ?? [], since);
+  const worst = nodes.filter((n) => (n.stat?.fail ?? 0) > 0).sort((a, b) => (b.stat?.fail ?? 0) - (a.stat?.fail ?? 0))[0];
+  const hourTotal = full ? (slot.full?.hourly.ctx.count ?? hourTurns.length) : hourTurns.length;
+  const hourFails = full ? nodes.reduce((a, n) => a + (n.stat?.fail ?? 0), 0) : failed.length;
 
-  const memTotal = processes?.reduce((a, p) => a + (p.memory_mb ?? 0), 0) ?? 0;
-  const cpuTotal = processes?.reduce((a, p) => a + (p.cpu_percent ?? 0), 0) ?? 0;
-  const totals = sup ? `内存 ${Math.round(memTotal)} MB │ CPU ${Math.round(cpuTotal)}%` : null;
   const caps = side.caps.data ?? null;
-  const screenOff = side.perms.data && side.perms.data.screenRecording !== 'granted';
-  const issues = [
-    ...(screenOff ? [{ id: 'screen', title: '屏幕录制未授权', detail: '', to: { page: 'settings' as const, group: 'perm', item: 'screenRecording' } }] : []),
-    ...issuesOf(caps),
-  ];
-  const textOnly = caps?.items.share_screenshots?.reason === 'off';
-  const togglePause = () => {
-    if (paused) void qc.invalidateQueries({ queryKey: STATE_KEY });
-    setPaused((v) => !v);
-  };
-  const c = confirm ? CONFIRM[confirm] : null;
-  const close = () => setConfirm(null);
+  const screenOff = side.perms.data != null && side.perms.data.screenRecording !== 'granted';
+  const why = renderWhy(renderAvailable, health?.avatar ?? null, side.avatar.data ?? null);
   const loading = !enabled || (!ds.data && !ds.isError);
   const calm = still || (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  // With agentd gone the alert above names the cause; the turns keep their data under a time tag.
-  const tst = !enabled || (!turns.data && !turns.isError) ? 'loading' : turns.isError && !turns.data ? 'error' : allTurns.length === 0 ? 'empty' : 'ok';
+
+  const ov: OverviewProps = {
+    loading,
+    health,
+    staleAt,
+    now,
+    procs,
+    runtime: side.runtime.data ?? null,
+    d,
+    issues: issuesOf(caps),
+    screenOff,
+    textOnly: caps?.items.share_screenshots?.reason === 'off',
+    fps: last?.fps ?? null,
+    p95: last?.p95_ms ?? null,
+    over: overBudget(samples),
+    renderWhy: why,
+    flow: { turns: hourTotal, fails: hourFails, worst: worst ? { label: worst.label, n: worst.stat?.fail ?? 0 } : null, approvals },
+    source: side.app.data ?? null,
+    highlight,
+    go,
+    onTab: setTab,
+    onRestart: (t) => setConfirm(t),
+    onVoiceReset: reconnectVoice,
+  };
+  const link = loading ? [] : rowsOf(ov).link;
+  const linkOk = link.filter((r) => r.state === 'ok').length;
+  const linkBad = link.filter((r) => r.state === 'failed').length;
+
+  // 1–5 jump to a tab, Space pauses, Esc first clears the picked flow node.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+      if (e.target instanceof Element && e.target.closest(TYPING)) return;
+      if (e.key === 'Escape' && node) {
+        e.preventDefault();
+        e.stopPropagation();
+        setNode(null);
+        return;
+      }
+      const n = /^[1-5]$/.test(e.key) ? TABS[Number(e.key) - 1] : undefined;
+      if (n) {
+        e.preventDefault();
+        setTab(n.id);
+      } else if (e.key === ' ' && !offline && !(e.target instanceof HTMLButtonElement)) {
+        e.preventDefault();
+        togglePause();
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [node, offline, setTab, togglePause]);
+
+  const gone = staleAt != null && tab !== 'overview' && (
+    <ErrBar message="后台服务没有响应" staleAt={staleAt || undefined} extra={<RestartAgentd onClick={() => setConfirm('agentd')} />} />
+  );
+  const lamp: [string, string] = offline ? ['off', '已断开'] : paused ? ['pause', '已暂停'] : ['on', '实时'];
+  const c = confirm ? CONFIRM[confirm] : null;
+  const close = () => setConfirm(null);
+  const marks: Partial<Record<DiagTab, string>> = {
+    ...(health?.avatar && procs?.find((p) => p.key === 'avatar')?.tone === 'failed' ? { proc: '角色没有在运行' } : {}),
+    ...(staleAt != null ? { proc: '后台服务没有响应' } : {}),
+    ...(hourFails > 0 && !offline ? { flow: `近 1 小时失败 ${hourFails} 轮` } : {}),
+  };
 
   return (
-    <div className={styles.page} data-page="diag">
+    <div className={styles.page} data-page="diag" data-tab={tab}>
+      <span className={styles.wm} aria-hidden="true">
+        {TABS.find((t) => t.id === tab)?.wm}
+      </span>
       <PageHeaderSlot
+        tabs={<Tabs label="诊断页签" keys={false} value={tab} tabs={TABS.map((t) => ({ id: t.id, label: t.label, icon: t.icon, mark: marks[t.id] }))} onChange={(id) => setTab(asTab(id) ?? 'overview')} />}
         right={
-          <>
-            <span className={styles.live} data-off={paused || offline || undefined}>
-              只存本机 │{' '}
-              {offline ? (
-                <>
-                  已断开{staleAt ? <> │ 截至 <span className="num">{formatClock(staleAt)}</span></> : null}
-                </>
-              ) : paused ? (
-                '已暂停'
-              ) : (
-                '实时'
-              )}
+          <span className={styles.reads}>
+            {!loading && (
+              <>
+                <span className={styles.long}>链路</span>
+                <b className="num">{linkOk}</b>项正常<span className={styles.sl} />出错<b className="num" data-bad={linkBad > 0 || undefined}>{linkBad}</b>
+              </>
+            )}
+            <span className={styles.lamp} data-s={lamp[0]} role="status">
               <i aria-hidden="true" />
+              {lamp[1]}
+              {staleAt ? <> │ 截至 <span className="num">{formatClock(staleAt)}</span></> : null}
             </span>
-          </>
+          </span>
         }
       />
-      <ToolBar
-        action={
+      <BottomBarSlot
+        lead={
+          <span className={styles.keys} aria-hidden="true">
+            {keyHint(['Q', 'E'], '切页签')}
+            {keyHint(['1', '5'], '直达页签')}
+            <span className={styles.long}>{keyHint(['Space'], '暂停')}</span>
+            {keyHint(['esc'], node ? '取消选中' : '主页')}
+          </span>
+        }
+        actions={
           <>
+            <Btn size="sm" icon={paused ? 'play' : 'stop'} disabled={offline} disabledReason="后台已断开" onClick={togglePause}>
+              {paused ? '继续' : '暂停'}
+            </Btn>
             <Btn size="sm" icon="copy" onClick={act.copyDiag}>
               复制诊断信息
             </Btn>
@@ -249,89 +315,78 @@ export function DiagPage() {
             />
           </>
         }
-      >
-        <Btn size="sm" icon={paused ? 'play' : 'stop'} disabled={offline} disabledReason="后台已断开" onClick={togglePause}>
-          {paused ? '继续' : '暂停'}
-        </Btn>
-      </ToolBar>
-      <PageIssues>
-        <div className={styles.dg}>
-          <HealthRow
-            health={loading ? null : health}
-            now={now}
-            issues={issues}
-            textOnly={textOnly}
-            staleAt={staleAt}
-            go={go}
-            onNode={(n) => (n === 'runtime' ? go({ page: 'settings', group: 'kernel' }) : n === 'agentd' ? setConfirm('agentd') : setHighlight(n))}
-            onRestartAgentd={() => setConfirm('agentd')}
-            onVoiceReset={reconnectVoice}
-            source={side.app.data ?? null}
-          >
-            <Processes
-              q={procQ}
-              uptime={health && health.agentd.up && health.agentd.started_at ? { agentd: formatDuration(now - health.agentd.started_at) } : {}}
-              history={full ? (slot.full?.procRows ?? null) : null}
-              actions={act.actions}
-              highlight={highlight}
-              staleAt={dataAt}
-              onRestart={setConfirm}
-              onLogs={viewLogs}
-              onVoice={() => go({ page: 'settings', group: 'speak', item: 'tts' })}
-            />
-          </HealthRow>
+      />
+      {tab === 'overview' && <Overview {...ov} />}
+      {tab === 'proc' && (
+        <div className={styles.view}>
+          {gone}
+          <Processes
+            rows={procs}
+            error={side.supervisor.error ? reasonOf(side.supervisor.error) : null}
+            onRetry={() => void side.supervisor.refetch()}
+            samples={procSamples}
+            now={procSamples.at(-1)?.at ?? now}
+            metric={metric}
+            onMetric={setMetric}
+            uptime={health?.agentd.up && health.agentd.started_at ? { agentd: formatDuration(now - health.agentd.started_at) } : {}}
+            agentdGone={staleAt != null}
+            actions={act.actions}
+            highlight={highlight === 'agentd' || highlight === 'avatar' || highlight === 'tunnel' ? highlight : null}
+            onRestart={setConfirm}
+            onLogs={viewLogs}
+          />
+        </div>
+      )}
+      {tab === 'render' && (
+        <div className={styles.view}>
+          {loading ? <Skel rows={2} shape="cards" /> : <Resources samples={samples} renderWhy={why} details={side.avatar.data ?? null} onProc={() => setTab('proc')} />}
+        </div>
+      )}
+      {tab === 'flow' && (
+        <div className={styles.view}>
+          {gone}
           <FlowSection
             nodes={nodes}
             edges={edges}
             loading={loading}
-            sel={sel}
-            path={path}
-            replayLoading={detail.isPending}
-            step={step}
-            onReplay={replay}
-            onExit={() => setTurnId(null)}
-            nodeF={nodeF}
-            onNode={(id) => setNodeF((f) => (f === id ? null : id))}
-            live={paused || offline ? null : liveEdgeOf(d?.turn.phase)}
-            staleAt={dataAt}
+            error={turns.isError && !turns.data ? reasonOf(turns.error) : null}
+            onRetry={() => void turns.refetch()}
+            turns={hourTotal}
+            fails={hourFails}
+            liveAt={liveAt}
+            live={live}
+            dead={offline}
             calm={calm}
-          />
-          <TurnsSection
-            turns={nodeTurns}
-            start={turns.data?.start ?? now - 24 * HOUR}
-            end={turns.data?.end ?? now}
-            range={range}
-            setRange={(r) => (setRange(r), setTurnId(null))}
-            st={tst}
-            stoppedAt={staleAt || undefined}
-            truncated={turns.data?.truncated ?? false}
-            sel={sel}
-            onPick={pick}
-            node={nodeF ? (nodes.find((n) => n.id === nodeF) ?? null) : null}
-            onClearNode={() => setNodeF(null)}
-            trace={trace}
-            traceSt={detail.isError ? 'error' : trace ? 'ok' : 'loading'}
-            onRetry={() => void detail.refetch()}
-            onRecords={sel ? () => go({ page: 'trace', turn: sel.turn_id }) : null}
-            onChat={sel && exactRow?.conversation_id ? () => go({ page: 'chat', conv: exactRow.conversation_id!, turn: sel.turn_id }) : null}
-          />
-          {agentRunParam && <RunItems runId={agentRunParam} running={sel?.result === 'running'} />}
-          {turnId && !sel && !exact.isFetching && !byTrace.isFetching && turns.isSuccess && !agentRunParam && <p role="status" className={styles.empty}>没有找到此轮的追踪记录。</p>}
-          <Resources
-            samples={samples}
-            renderWhy={renderWhy(renderAvailable, health?.avatar ?? null, side.avatar.data ?? null)}
-            details={side.avatar.data ?? null}
-            budget={d?.budget ?? null}
-            procHistory={full ? (slot.full?.procHistory ?? null) : null}
-            procNow={(processes ?? []).filter((p) => p.cpu_percent != null || p.memory_mb != null).map((p) => ({ k: p.key, label: p.name, cpu: p.cpu_percent, mem: p.memory_mb }))}
-            totals={totals}
-            st={loading ? 'loading' : offline && !d ? 'error' : 'ok'}
-            stoppedAt={staleAt || undefined}
-          />
-          {d && ds.data && <InternalState d={d} readAt={ds.data.at} now={now} open={stateOpen} onToggle={setStateOpen} focus={item === 'state'} obs={obsParam} />}
+            sel={node}
+            onPick={(id) => setNode((x) => (x === id ? null : id))}
+            onClear={() => setNode(null)}
+            onStation={(station) => go({ page: 'pipeline', station })}
+            failsOf={(id) => failRows.filter((f) => f.node === id)}
+            approvals={approvals}
+            onTasks={() => go({ page: 'tasks' })}
+            onTrace={(turn) => go(turn ? { page: 'trace', turn } : { page: 'trace' })}
+            onChat={() => go({ page: 'chat' })}
+          >
+            <HourBars buckets={bucketsOf(allTurns, range, turns.data?.end ?? now)} range={range} onRange={setRange} onPick={(at) => go({ page: 'trace', at })} truncated={turns.data?.truncated ?? false} />
+            <UsageCard budget={d?.budget ?? null} loading={loading} />
+          </FlowSection>
         </div>
-      </PageIssues>
-      <MemoryRunSheet id={memRun} onClose={() => setMemRun(null)} />
+      )}
+      {tab === 'state' && (
+        <div className={styles.view}>
+          {gone}
+          {d ? (
+            <InternalState d={d} />
+          ) : loading ? (
+            <Skel rows={3} shape="cards" />
+          ) : (
+            <div className={stateStyles.empty} role="status">
+              <b>后台断开时没有内部状态</b>
+              <span>{staleAt ? `最后一次读到是 ${formatClock(staleAt)}，重启后会重新读` : '重启后台服务后会重新读'}</span>
+            </div>
+          )}
+        </div>
+      )}
       {c && confirm && (
         <Dialog
           open

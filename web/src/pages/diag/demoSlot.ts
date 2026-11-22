@@ -1,7 +1,13 @@
 import type { LineSeries } from '../../charts';
 import type { NodeId, NodeStat } from './flow';
-import type { UptimeSeg } from './Processes';
 import type { ProcessKey } from './status';
+
+/** One online segment as a share of the bar. */
+export interface UptimeSeg {
+  from: number;
+  to: number;
+  up: boolean;
+}
 
 // Filled by src/bridge/fake/demos/diag.ts; empty in the app.
 export const demo: {

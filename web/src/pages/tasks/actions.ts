@@ -272,7 +272,8 @@ export function createTasksActions(d: ActionDeps) {
         d.select(a.pendingId);
         return;
       case 'open_timeline':
-        navigate({ page: 'diag', tab: 'timeline', run: a.runId });
+        // A task carries its run id, not the trace id 运行记录 selects by, so this lands on the turn list.
+        navigate({ page: 'trace' });
         return;
       case 'jump_terminal':
         await jump(a.sessionId);

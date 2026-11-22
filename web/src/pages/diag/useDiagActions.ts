@@ -4,10 +4,12 @@ import { getBridge } from '../../bridge';
 import { formatClock } from '../../domain';
 import { navigate } from '../../shell/nav';
 import type { PushToast } from '../../shell/toast';
-import type { RowAction } from './Processes';
 import type { ProcessKey } from './status';
 
 export type RestartTarget = 'agentd' | 'avatar' | 'all';
+
+/** Per-row action state after the user acted: restart in flight, or done. */
+export type RowAction = { kind: 'restart'; phase: 'busy' | 'done'; at: number; text?: string };
 
 const NAME: Record<'agentd' | 'avatar', string> = { agentd: '后台服务', avatar: '角色' };
 
@@ -24,7 +26,7 @@ export const CONFIRM: Record<RestartTarget, { title: string; note: string; dange
 };
 
 /** A bridge op's rejection as one short reason; the shell may not implement the op. */
-const why = (e: unknown) => ((e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本的窗口不支持' : '没有成功');
+export const why = (e: unknown) => ((e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本的窗口不支持' : '没有成功');
 
 /** Restart and copy: every control shows progress in its row and ends with a toast. */
 export function useDiagActions(now: number, toast: PushToast) {

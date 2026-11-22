@@ -1,8 +1,7 @@
-// Run-tab view model: supervisor state, /diag/state blocks and /capabilities → process rows, link health and issues.
+// Diag view model: supervisor state, /diag/state blocks and /capabilities → process rows, link health and issues.
 import type { AgentdConnection, ProcessState, SupervisorTarget } from '../../bridge/protocol';
 import type { Health, VisualStateKey, WireRuntimePublic } from '../../domain';
 import { composeHealth } from '../../domain/adapt';
-import { voiceText } from '../../domain/voiceState';
 import type { NavTarget } from '../overview/nav';
 import type { WireDiagState } from '../../domain/wire';
 import type { WireCapabilities } from './wire';
@@ -10,6 +9,8 @@ import type { WireCapabilities } from './wire';
 /** Tunnels supervisor.state reports only when their host is configured; supervisor.restart takes neither. */
 type Tunnel = 'tunnel';
 export type ProcessKey = 'agentd' | 'avatar' | 'voice' | Tunnel;
+/** The processes supervisor.state reports. */
+export type ProcKey = SupervisorTarget | Tunnel;
 type Supervised = Partial<Record<SupervisorTarget | Tunnel, ProcessState>>;
 
 /** One supervised child. */
@@ -43,7 +44,7 @@ const CHILD_TEXT: Record<Child['kind'], [VisualStateKey, string]> = {
 };
 
 export interface DiagProcess {
-  key: ProcessKey;
+  key: ProcKey;
   name: string;
   sub: string;
   tone: VisualStateKey;
@@ -70,14 +71,9 @@ const TTS_RESULT: Readonly<Record<string, string>> = {
 /** speech.py also reports `http_<status>` when the TTS answers with an error. */
 export const ttsText = (code: string): string => TTS_RESULT[code] ?? (/^http_\d+$/.test(code) ? `服务返回错误 ${code.slice(5)}` : '其他原因');
 
-/** 后台服务, 角色 and the configured tunnels from supervisor.state (agentd also from the bridge connection), 语音 from /diag/state. */
-export function processesOf(
-  sup: Supervised | null,
-  connection: AgentdConnection | null,
-  health: Health,
-  d: WireDiagState | null,
-): DiagProcess[] {
-  const row = (key: SupervisorTarget | Tunnel, name: string, sub: string): DiagProcess => {
+/** 后台服务, 角色 and the configured tunnels from supervisor.state; agentd also from the bridge connection. */
+export function processesOf(sup: Supervised | null, connection: AgentdConnection | null): DiagProcess[] {
+  const row = (key: ProcKey, name: string, sub: string): DiagProcess => {
     const c = parseChild(sup?.[key]?.state);
     let [tone, text] = CHILD_TEXT[c.kind];
     if (c.kind === 'failed' && c.reason) text = `${text}：${c.reason}`;
@@ -96,24 +92,22 @@ export function processesOf(
       restartable: key === 'agentd' || key === 'avatar',
     };
   };
-  const tts = d?.connections.tts;
-  const v = health.voice.state;
-  const voice: DiagProcess = {
-    key: 'voice',
-    name: '语音',
-    sub: d?.mouth_voice.muted ? '已静音' : v === 'off' ? '只显示文字' : 'TTS',
-    tone: v === 'ready' ? 'running' : v === 'unreachable' ? 'unreachable' : 'idle',
-    // The last speech's failure; a state from agentd's probe may follow a speech that went fine.
-    status_text: v === 'unreachable' && tts?.result && tts.result !== 'complete' && tts.result !== 'cancelled' ? `${voiceText(v, null)} │ ${ttsText(tts.result)}` : voiceText(v, null),
-    healthy: v !== 'unreachable',
-    pid: null,
-    cpu_percent: null,
-    memory_mb: null,
-    restartable: false,
-  };
   const tunnels = (['tunnel'] as const).filter((k) => sup?.[k]).map((k) => row(k, '语音隧道', '连远端语音'));
-  return [row('agentd', '后台服务', 'agentd'), row('avatar', '角色', '桌面角色'), voice, ...tunnels];
+  return [row('agentd', '后台服务', 'agentd'), row('avatar', '角色', '渲染宿主'), ...tunnels];
 }
+
+/** Attention and too-high lines per process: CPU as a share of one core in percent, memory in MB. */
+export const LIMITS: Readonly<Record<ProcKey, { cpu: [number, number]; mem: [number, number] }>> = {
+  agentd: { cpu: [50, 100], mem: [600, 1024] },
+  avatar: { cpu: [120, 250], mem: [1536, 3072] },
+  tunnel: { cpu: [20, 50], mem: [64, 128] },
+};
+
+/** Past the attention line → warn, past the too-high line → bad. */
+export const levelOf = (v: number | null, [warn, bad]: [number, number]): 'warn' | 'bad' | null => (v == null ? null : v >= bad ? 'bad' : v >= warn ? 'warn' : null);
+
+/** The lamp of a process row: a running one is green, the rest keep their state. */
+export const lampOf = (p: DiagProcess): VisualStateKey => (p.tone === 'running' ? 'ok' : p.tone);
 
 /** Link health; the avatar node carries the supervisor's backoff seconds. */
 export function healthOf(
@@ -146,7 +140,7 @@ const CAP_LABEL: Readonly<Record<string, string>> = {
 const CAP_ORDER = ['generation', 'mouth', 'voice'];
 
 /** Capability reason codes from agentd (capabilities.py, trace_format.py). */
-const CAP_REASON: Readonly<Record<string, string>> = {
+export const CAP_REASON: Readonly<Record<string, string>> = {
   missing_api_key: '没有 API key',
   sign_in_required: 'ChatGPT 没登录',
   plan_usage_not_enabled: '没授权订阅额度',

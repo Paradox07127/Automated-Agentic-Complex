@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Diag: one page — health, pipeline flow, turn timeline and details, resources, processes, internal state.
+// Diag: five tabs — 总览 rows, 进程 curves, 渲染 frames, 管道 flow with hours and model calls, 状态 blocks.
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -12,90 +12,80 @@ function collectErrors(page: Page): string[] {
 }
 
 const node = (page: Page, label: string) => page.locator(`button[aria-label^="${label} │ "]`);
+const TABS = ['overview', 'proc', 'render', 'flow', 'state'] as const;
 
-test('diag: processes in the health strip, then the sections in order, without horizontal overflow', async ({ page }) => {
+test('diag: 总览 lists the link rows, then the run rows, without errors', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/diag?still=1');
+  await expect(page.locator('main [data-stub="SecHead"] h3')).toHaveText(['链路', '运行']);
+  await expect(page.locator('[data-row]')).toHaveCount(6);
+  await expect(page.getByRole('tab')).toHaveText(['总览', '进程', '渲染', '管道', '状态']);
+  expect(errors).toEqual([]);
+});
+
+test('diag: the tabs switch by click and by 1–5; a row › opens its tab', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('main.html#/diag?still=1');
+  await page.getByRole('tab', { name: '管道' }).click();
   await expect(node(page, '模型')).toBeVisible();
-  await expect(page.locator('main [data-stub="SecHead"] h3')).toHaveText(['流程图', '轮次时间轴', '资源']);
-  const procs = (await page.getByRole('region', { name: '进程' }).boundingBox())!;
-  const flow = (await page.getByRole('region', { name: '流程图' }).boundingBox())!;
-  expect(procs.y + procs.height).toBeLessThanOrEqual(flow.y);
-  await expect(page.getByText('内部状态', { exact: true })).toBeVisible();
-  await expect(page.getByRole('img', { name: /轮次时间轴：\d+ 轮/ })).toBeVisible();
-  await expect(page.getByText('今日用量')).toBeVisible();
+  await page.keyboard.press('2');
+  await expect(page.getByRole('radiogroup', { name: '曲线' })).toBeVisible();
+  await page.keyboard.press('1');
+  await page.locator('[data-row="gate"]').getByRole('button', { name: '去状态' }).click();
+  await expect(page.getByRole('region', { name: '主动发言闸门' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test('diag: a node filters the turns; clicking a turn replays it and opens 轮次详情', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('main.html#/diag?still=1');
-  await node(page, '解读').click();
-  await expect(page.getByText(/下方时间轴已按此节点筛选/)).toBeVisible();
-  await page.getByRole('button', { name: '清除筛选' }).click();
-  const tl = page.getByRole('img', { name: /轮次时间轴/ });
-  const box = (await tl.boundingBox())!;
-  await page.mouse.move(box.x + box.width - 14, box.y + 60);
-  await page.mouse.click(box.x + box.width - 14, box.y + 60);
-  await expect(page.getByText('轮次详情')).toBeVisible();
-  await expect(page.getByText(/已回放|回放中/)).toBeVisible();
-  await page.getByRole('button', { name: '退出回放' }).click();
-  await expect(page.getByText('轮次详情')).toHaveCount(0);
-  expect(errors).toEqual([]);
+test('diag 管道: a node opens its failures; Esc clears it before leaving the page', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('main.html#/diag?still=1&tab=flow&demo=full');
+  await node(page, '语音').click();
+  await expect(node(page, '语音')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '在运行记录里看' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(node(page, '语音')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('[data-page="diag"]')).toBeVisible();
 });
 
-test('diag: 暂停 stops the live label; 重启 asks first', async ({ page }) => {
+test('diag: 暂停 stops the live lamp; 重启 asks first', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/diag?still=1');
+  await page.goto('main.html#/diag?still=1&tab=proc');
   await page.getByRole('button', { name: '暂停' }).click();
-  await expect(page.getByText(/只存本机 │ 已暂停/)).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: '已暂停' })).toBeVisible();
   await page.locator('[data-nav-target="proc-avatar"]').getByRole('button', { name: '重启' }).click();
   await expect(page.getByRole('dialog', { name: '重启角色？' })).toBeVisible();
   await page.getByRole('button', { name: '不重启' }).click();
-  await page.getByText('内部状态', { exact: true }).click();
-  await expect(page.getByText('主动发言闸门', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
 test('diag: 运行来源 names the packaged app, or marks a dev deployment with its commit', async ({ page }) => {
   await page.goto('main.html#/diag?still=1');
   const line = page.locator('p').filter({ hasText: '运行来源' });
-  await expect(line).toHaveText(/运行来源正式打包 │ fake/);
+  await expect(line).toHaveText(/运行来源正式打包fake/);
   await expect(line).not.toHaveAttribute('data-dev');
   await page.goto('main.html#/diag?still=1&source=dev');
   await page.reload();
-  await expect(line).toHaveText('▲运行来源开发目录 │ 09c8967d0 │ 含未提交改动');
+  await expect(line).toHaveText('▲运行来源开发目录09c8967d0含未提交改动');
   await expect(line).toHaveAttribute('data-dev', 'true');
 });
 
-test('diag sparse: nine turns today', async ({ page }) => {
-  await page.goto('main.html#/diag?still=1&demo=sparse');
-  await expect(page.getByRole('img', { name: /^轮次时间轴：9 轮，失败 1 轮/ })).toBeVisible();
-  await expect(page.getByText('$0.06')).toBeVisible();
-});
-
-test('diag error: agentd gone shows the alert; the flow stays readable and the processes still read', async ({ page }) => {
+test('diag error: agentd gone shows the alert with the one yellow 重启后台服务; the lamp says 已断开', async ({ page }) => {
   await page.goto('main.html#/diag?still=1&state=error');
-  const alert = page.getByRole('alert').filter({ hasText: '后台服务无响应' });
+  const alert = page.getByRole('alert').filter({ hasText: '后台服务没有响应' });
   await expect(alert).toBeVisible();
   await expect(alert.getByRole('button', { name: /重启后台服务/ })).toBeVisible();
-  await expect(page.locator('[data-dead]')).toHaveCount(1);
-  expect(await page.locator('[data-dead]').evaluate((e) => getComputedStyle(e).opacity)).toBe('1');
-  await expect(page.locator('[data-nav-target="proc-agentd"]')).toBeVisible();
-  await expect(page.getByText(/只存本机 │ 已断开/)).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: '已断开' })).toBeVisible();
+  await expect(page.locator('[data-row="agentd"]')).toBeVisible();
 });
 
-test('diag flow: idle nodes are dashed at full opacity, no ordinals, no text under 12 px', async ({ page }) => {
-  await page.goto('main.html#/diag?still=1&demo=sparse');
-  const idle = node(page, '会话');
-  await expect(idle).toHaveAttribute('data-st', 'idle');
-  expect(await idle.evaluate((e) => [getComputedStyle(e).borderTopStyle, getComputedStyle(e).opacity])).toEqual(['dashed', '1']);
-  expect(await idle.textContent()).not.toMatch(/^\d/);
+test('diag 管道: no text under 12 px outside marks', async ({ page }) => {
+  await page.goto('main.html#/diag?still=1&tab=flow&demo=sparse');
+  await expect(node(page, '会话')).toHaveAttribute('data-st', 'idle');
   const small = await page.evaluate(() =>
-    [...document.querySelectorAll('[data-dead], section[aria-label="流程图"] *')]
-      // Section heads are shared; aria-hidden glyphs (■ ▲) are marks, not text.
-      .filter((e) => !e.closest('[aria-hidden="true"], [data-stub="SecHead"]'))
-      .filter((e) => [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent?.trim()) && (e as HTMLElement).getBoundingClientRect().width > 0)
+    [...document.querySelectorAll('section[aria-label="管道"] *')]
+      // Section heads are shared; aria-hidden glyphs and belt counts are marks, not text.
+      .filter((e) => !e.closest('[aria-hidden="true"], [data-stub="SecHead"], [data-stub="MicroLabel"]'))
+      .filter((e) => [...e.childNodes].some((n) => n.nodeType === 3 && /[一-鿿]/.test(n.textContent ?? '')) && (e as HTMLElement).getBoundingClientRect().width > 0)
       .map((e) => parseFloat(getComputedStyle(e).fontSize))
       .filter((px) => px < 12),
   );
@@ -108,14 +98,16 @@ for (const [w, h] of [
   [1440, 900],
   [1920, 1080],
 ] as const) {
-  test(`diag at ${w}×${h} has no horizontal overflow`, async ({ page }) => {
+  test(`diag at ${w}×${h} has no horizontal overflow on any tab`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
-    await page.goto('main.html#/diag?still=1&sel=tr3');
-    await expect(page.getByText('轮次详情')).toBeVisible();
-    const over = await page.evaluate(() => {
-      const els = [document.documentElement, ...document.querySelectorAll('main, [data-page="diag"], [data-page="diag"] section')];
-      return els.filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => `${el.tagName}.${el.getAttribute('aria-label') ?? ''} ${el.scrollWidth}>${el.clientWidth}`);
-    });
-    expect(over).toEqual([]);
+    for (const tab of TABS) {
+      await page.goto(`main.html#/diag?still=1&demo=full&tab=${tab}`);
+      await expect(page.locator(`[data-page="diag"][data-tab="${tab}"]`)).toBeVisible();
+      const over = await page.evaluate(() => {
+        const els = [document.documentElement, ...document.querySelectorAll('main, [data-page="diag"], [data-page="diag"] section')];
+        return els.filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => `${el.tagName}.${el.getAttribute('aria-label') ?? ''} ${el.scrollWidth}>${el.clientWidth}`);
+      });
+      expect(over, tab).toEqual([]);
+    }
   });
 }
