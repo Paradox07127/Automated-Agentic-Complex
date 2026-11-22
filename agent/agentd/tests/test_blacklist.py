@@ -32,6 +32,18 @@ class BlacklistTest(unittest.TestCase):
         self.assertTrue(data["incognito"])
         self.assertEqual((data["mode"], data["allow"]), ("allow", {"bundle_ids": [], "app_names": [], "domains": []}))
 
+    def test_defaults_hide_the_same_apps_on_windows_by_the_helpers_app_id(self):
+        blacklist = self.denying()
+        for app_id, name in (("1password.exe", "1Password"), ("bitwarden.exe", "Bitwarden"), ("keepassxc.exe", "KeePassXC"),
+                             ("keepass.exe", "KeePass"), ("wechat.exe", "WeChat"), ("weixin.exe", "Weixin"), ("qq.exe", "QQ"),
+                             ("slack.exe", "Slack"), ("telegram.exe", "Telegram Desktop"), ("whatsapp.exe", "WhatsApp"),
+                             ("5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App", "WhatsApp"), ("discord.exe", "Discord"),
+                             ("line.exe", "LINE")):
+            with self.subTest(app_id=app_id):
+                self.assertTrue(blacklist.hides({"app": name, "bundle_id": app_id, "title": "chat"}))
+                self.assertEqual(blacklist.scrub({"app": name, "bundle_id": app_id, "pid": 4}), HIDDEN)
+        self.assertFalse(blacklist.hides({"app": "记事本", "bundle_id": "notepad.exe", "title": "x"}))
+
     @unittest.skipIf(sys.platform == "win32", "POSIX mode bits, uid or FIFO; on Windows the state directory's DACL protects these files")
     def test_defaults_file_is_private_whatever_the_umask(self):
         old = os.umask(0o022)

@@ -10,6 +10,7 @@ import {
   type ActionPlayed, type Actions, type AvatarHello, type C3Message, type MotionOverridesReceipt, type Stats,
 } from '../../common/c3.ts';
 import { decodePlaylists, type Playlist } from '../../common/character.ts';
+import type { ShellPlatform } from '../../common/config.ts';
 import {
   type AppearanceOption, type LayerOption, modAppearance, type ModReceipt, modValues, type ModValues, type SwitchReply,
 } from '../../common/looks.ts';
@@ -19,6 +20,7 @@ import {
 } from '../../common/motion-overrides.ts';
 import type { Cancel, EventSource, StreamEvent } from '../../common/page.ts';
 import { PlaylistPlayer, type PlaylistState } from '../../common/playlist.ts';
+import type { HelperReply } from '../helper/client.ts';
 import { ActionFailure, type CommandResult, LINK_TIMING, type LinkEvent, type MotionOverrides } from '../renderer/link.ts';
 import type { Ops, OpsContext } from './context.ts';
 import { watch } from './events.ts';
@@ -143,6 +145,27 @@ export function psCpuSeconds(pid: number): number | null {
   if (m === null) return null;
   const seconds = m[2]!.split(':').reduce((sum, part) => sum * 60 + Number(part), 0);
   return Number.isFinite(seconds) ? Number(m[1] ?? 0) * 86400 + seconds : null;
+}
+
+/**
+ * OpsContext's `cpuSeconds` port: `ps` on macOS; on Windows, which has no `ps`, the helper's `process.usage` `cpu_time_ns`.
+ * A helper read returns the answer to the read before it and asks again, so it is null until the helper first answers for
+ * the pid, and null after an answer without it; null without a helper.
+ */
+export function cpuSecondsReader(platform: ShellPlatform,
+  helper: { request(op: string, params: Record<string, unknown>): Promise<HelperReply> } | null): ((pid: number) => number | null) | null {
+  if (platform === 'mac') return psCpuSeconds;
+  if (!helper) return null;
+  const last = new Map<number, number>();
+  return (pid) => {
+    void helper.request('process.usage', { pids: [pid] }).then((r) => {
+      const usage = r.ok && Array.isArray(r.result.usage) ? r.result.usage as Record<string, unknown>[] : [];
+      const ns = usage.find((u) => u.pid === pid)?.cpu_time_ns;
+      if (typeof ns === 'number') last.set(pid, ns / 1e9);
+      else last.delete(pid);
+    });
+    return last.get(pid) ?? null;
+  };
 }
 
 /** Reads once a second while a page listens; `changesOnly` pushes only a value that differs from the last. */

@@ -6,6 +6,8 @@ import { currentScreen } from '../src/common/current-screen.ts';
 import { desktopScreens } from '../src/common/desktop-screens.ts';
 import type { StreamEvent } from '../src/common/page.ts';
 import { AvatarVisibility, HIDE_EXPIRY_MS } from '../src/common/visibility-reason.ts';
+import type { HelperReply } from '../src/main/helper/client.ts';
+import { cpuSecondsReader, psCpuSeconds } from '../src/main/ops/avatar.ts';
 import type { OpsContext } from '../src/main/ops/context.ts';
 import { psResidentMB, supervisorOps } from '../src/main/ops/supervisor.ts';
 
@@ -41,6 +43,44 @@ test('supervisor.state on Windows has no memory; without a CPU reader no CPU', (
   read();
   const s = read();
   assert.deepEqual([s.agentd!.cpuPercent, s.agentd!.memoryMB, s.agentd!.state], [null, null, 'running']);
+});
+
+test('supervisor.state on Windows: CPU from the helper\'s process.usage, each read showing the answer to the one before', async () => {
+  let ns = 10e9;
+  const asked: unknown[] = [];
+  const helper = { request: async (op: string, params: Record<string, unknown>): Promise<HelperReply> => {
+    asked.push([op, params]);
+    return { ok: true, result: { usage: [{ pid: process.pid, cpu_time_ns: ns, resident_bytes: 1 }] } };
+  } };
+  const cpuSeconds = cpuSecondsReader('windows', helper)!;
+  assert.equal(cpuSeconds(process.pid), null, 'no answer yet');
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(asked, [['process.usage', { pids: [process.pid] }]]);
+  assert.equal(cpuSeconds(process.pid), 10);
+  const read = state({ platform: 'windows', cpuSeconds });
+  assert.equal(read().agentd!.cpuPercent, null, 'the first read has nothing to compare');
+  await new Promise((r) => setTimeout(r, 100));
+  ns += 0.05e9;
+  read();
+  await new Promise((r) => setTimeout(r, 100));
+  const share = read().agentd!.cpuPercent as number;
+  assert.ok(share > 10 && share <= 50, `cpu ${share}`);
+  assert.equal(cpuSecondsReader('windows', null), null, 'no helper, no CPU');
+  assert.equal(cpuSecondsReader('mac', null), psCpuSeconds);
+});
+
+test('the helper CPU reader forgets a pid the helper no longer lists or fails for', async () => {
+  let reply: HelperReply = { ok: true, result: { usage: [{ pid: 7, cpu_time_ns: 2e9, resident_bytes: 1 }] } };
+  const cpuSeconds = cpuSecondsReader('windows', { request: async () => reply })!;
+  cpuSeconds(7);
+  await new Promise((r) => setImmediate(r));
+  reply = { ok: true, result: { usage: [] } };
+  assert.equal(cpuSeconds(7), 2);
+  await new Promise((r) => setImmediate(r));
+  reply = { ok: false, error: { code: 'helper_exited', message: 'gone' } };
+  assert.equal(cpuSeconds(7), null, 'gone');
+  await new Promise((r) => setImmediate(r));
+  assert.equal(cpuSeconds(7), null);
 });
 
 test('supervisor.state lists the tunnel only with tts_tunnel_host, external as external', () => {

@@ -24,7 +24,11 @@ DEFAULTS = {
     "bundle_ids": ["com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
                    "com.apple.keychainaccess", "com.apple.Passwords", "com.tencent.xinWeChat",
                    "com.tencent.qq", "com.tinyspeck.slackmacgap", "ru.keepcoder.Telegram",
-                   "net.whatsapp.WhatsApp", "com.apple.MobileSMS", "com.hnc.Discord", "jp.naver.line.mac"],
+                   "net.whatsapp.WhatsApp", "com.apple.MobileSMS", "com.hnc.Discord", "jp.naver.line.mac",
+                   # Windows: the helper's app_id, a lower-case exe name or a packaged app's AUMID.
+                   "1password.exe", "bitwarden.exe", "keepass.exe", "keepassxc.exe", "wechat.exe", "weixin.exe",
+                   "qq.exe", "slack.exe", "telegram.exe", "whatsapp.exe", "5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App",
+                   "discord.exe", "line.exe"],
     "app_names": ["Endfield.exe", "Arknights: Endfield", "明日方舟：终末地"],
     "domains": ["1password.com", "bitwarden.com", "icbc.com.cn", "ccb.com", "boc.cn", "abchina.com",
                 "bankcomm.com", "cmbchina.com", "paypal.com", "alipay.com", "web.whatsapp.com",

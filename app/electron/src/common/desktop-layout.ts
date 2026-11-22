@@ -390,6 +390,10 @@ class Pass {
     const v = inset(s.visibleFrame, EDGE);
     const { w, h } = r.size, cardWidth = w - 2 * CONSOLE_INSET;
     const cardX = Math.max(Math.min(item ? maxX(item) : maxX(v), maxX(v)) - cardWidth, v.x);
+    // A button in a taskbar at the bottom (Windows) has the card stand on the taskbar instead.
+    if (item && midY(item) < midY(s.frame)) {
+      return { x: cardX - CONSOLE_INSET, y: Math.max(maxY(item), s.visibleFrame.y) + CONSOLE_DROP - CONSOLE_INSET, w, h };
+    }
     const top = (item ? item.y : maxY(s.visibleFrame)) - CONSOLE_DROP;
     return { x: cardX - CONSOLE_INSET, y: top + CONSOLE_INSET - h, w, h };
   }

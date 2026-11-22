@@ -59,6 +59,12 @@ export function hideFromDock(app: App): void {
   if (mac) app.setActivationPolicy('accessory');
 }
 
+/** Windows shows a toast only for an app with an AppUserModelID, which the portable exe has no installer to set; macOS
+ *  takes the bundle's id. Before the first `Notification`. */
+export function setNotificationId(app: Pick<App, 'setAppUserModelId'>, platform: ShellPlatform = shellPlatform()): void {
+  if (platform === 'windows') app.setAppUserModelId(IDS.appId);
+}
+
 /** `app.info`'s `os` without the version. */
 export function osName(): string {
   return mac ? 'macOS' : process.platform === 'win32' ? 'Windows' : process.platform;

@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { iconState, MENU_STATE_DEFAULTS, type MenuBarStatus, type MenuState, processStatus, quietUntil } from '../src/common/menus.ts';
 import { PLUGIN_IDS, type Plugins, shellPlan } from '../src/common/plugins.ts';
-import { appMenu } from '../src/main/menus/app.ts';
+import { appMenu, pageShortcut } from '../src/main/menus/app.ts';
 import { avatarMenu } from '../src/main/menus/avatar.ts';
-import { iconBitmap } from '../src/main/menus/icon.ts';
+import { iconBitmap, squareIcon } from '../src/main/menus/icon.ts';
 import { type MenuItem, type MenuPorts, SettingsChanges } from '../src/main/menus/items.ts';
 import { trayContextMenu, trayMenu } from '../src/main/menus/tray.ts';
 
@@ -110,9 +110,9 @@ test('menus: tray shortcuts, checks and greyed items follow the state', () => {
   assert.deepEqual(titles(trayMenu({ ...SAMPLE, showsDiagnostics: true }, ports().ports)).slice(-4), ['切换角色', '外观', '设置…', '重启子进程', '退出'].slice(-4));
 });
 
-test('menus: on Windows the tray icon\'s own menu is the Mac\'s popup with the helper\'s row under the children\'s; none on the Mac', () => {
+test('menus: on Windows the tray icon\'s menu is the Mac\'s popup with the helper\'s row under the children\'s', () => {
   const h = ports();
-  const menu = trayContextMenu('windows', () => SAMPLE, h.ports, '系统助手 · 运行中')!;
+  const menu = trayContextMenu('windows', SAMPLE, h.ports, '系统助手 · 运行中');
   const mac = deepTitles(trayMenu(SAMPLE, h.ports));
   assert.deepEqual(deepTitles(menu), [...mac.slice(0, 3), '系统助手 · 运行中', ...mac.slice(3)]);
   assert.equal(menu[4]!.type, 'separator');
@@ -123,19 +123,18 @@ test('menus: on Windows the tray icon\'s own menu is the Mac\'s popup with the h
   click(find(menu, '退出'));
   assert.deepEqual(h.calls, ['switchCharacter "birch"', 'openMain "/settings"', 'quit']);
   const failed = { ...SAMPLE, configError: '请查看设置' };
-  assert.deepEqual(titles(trayContextMenu('windows', () => failed, h.ports, '系统助手 · 未启动')!), titles(trayMenu(failed, h.ports)));
-  assert.equal(trayContextMenu('mac', () => assert.fail('the Mac reads no state for it'), h.ports, '系统助手 · 运行中'), null,
-    'trayClick pops the Mac\'s menu up');
+  assert.deepEqual(titles(trayContextMenu('windows', failed, h.ports, '系统助手 · 未启动')), titles(trayMenu(failed, h.ports)));
+  assert.deepEqual(deepTitles(trayContextMenu('mac', SAMPLE, h.ports, '系统助手 · 运行中')), mac, 'the Mac\'s has no helper row');
 });
 
 test('menus: off the Mac the tray icon\'s menu has no Command+ shortcut, a config error\'s included; hot keys stay', () => {
   const deep = (menu: MenuItem[]): MenuItem[] => menu.flatMap((i) => [i, ...deep((i.submenu as MenuItem[] | undefined) ?? [])]);
   const h = ports();
   for (const s of [SAMPLE, { ...SAMPLE, configError: '请查看设置' }]) {
-    const menu = trayContextMenu('windows', () => s, h.ports, '系统助手 · 运行中')!;
+    const menu = trayContextMenu('windows', s, h.ports, '系统助手 · 运行中');
     assert.deepEqual(deep(menu).filter((i) => i.accelerator?.startsWith('Command+')).map((i) => i.label), []);
   }
-  const accel = Object.fromEntries(trayContextMenu('windows', () => SAMPLE, h.ports, '系统助手 · 运行中')!
+  const accel = Object.fromEntries(trayContextMenu('windows', SAMPLE, h.ports, '系统助手 · 运行中')
     .filter((i) => i.accelerator).map((i) => [i.label, i.accelerator]));
   assert.deepEqual(accel, { 屏幕识读: 'Control+Alt+L', '快速输入…': 'Control+Space', 临时全部点穿: 'Control+Alt+P' });
   assert.equal(find(trayMenu(SAMPLE, h.ports), '退出').accelerator, 'Command+Q', 'the Mac keeps its own');
@@ -363,6 +362,24 @@ test('menus: 前往 leaves out the page of a plug-in that is off; 今天 is nowh
   assert.ok(!deepTitles(appMenu(ports().ports, on)).includes('今天'));
 });
 
+test('menus: on Windows Ctrl+0–4 and Ctrl+, open the app menu\'s pages, gated by the plug-ins alike; the Mac\'s menu has its own', () => {
+  const on = Object.fromEntries(PLUGIN_IDS.map((id) => [id, true])) as Plugins;
+  const key = (k: string, mods: Partial<Record<'control' | 'alt' | 'shift' | 'meta', boolean>> = { control: true }, type = 'keyDown') =>
+    ({ type, key: k, control: false, alt: false, shift: false, meta: false, ...mods });
+  const routes = ['0', '1', '2', '3', '4', ',', '5', '7'].map((k) => pageShortcut('windows', key(k), on));
+  assert.deepEqual(routes, ['/home', '/overview', '/chat', '/memory', '/character', '/settings', null, null]);
+  const h = ports();
+  for (const m of [appMenu(h.ports, on)[0]!, appMenu(h.ports, on)[3]!]) for (const i of m.submenu as MenuItem[]) if (i.id !== 'quit' && i.click) click(i);
+  assert.deepEqual(h.calls.map((c) => JSON.parse(c.slice('openMain '.length)) as string).sort(), routes.filter((r) => r !== null).sort(),
+    'the same pages as the menu');
+  assert.equal(pageShortcut('windows', key('1'), { ...on, daily_brief: false }), null, 'its plug-in is off');
+  for (const mods of [{}, { control: true, shift: true }, { control: true, alt: true }, { meta: true }]) {
+    assert.equal(pageShortcut('windows', key('2', mods), on), null, JSON.stringify(mods));
+  }
+  assert.equal(pageShortcut('windows', key('2', { control: true }, 'keyUp'), on), null);
+  assert.equal(pageShortcut('mac', key('2'), on), null);
+});
+
 const status = (s: Partial<MenuBarStatus> = {}): MenuBarStatus => ({ agentdConnected: true, childFailed: false, restarting: false,
   pendingApprovals: 0, recording: false, avatarHidden: false, switching: false, observationPaused: false, meetingMode: false,
   clickThroughAll: false, quietUntil: null, ...s });
@@ -414,4 +431,18 @@ test('menus: each icon is 18 pt high, as wide as its mark or badge, black with a
   assert.equal(alpha(pending, 16.5, 6), 255);
   assert.equal(alpha(pending, 21, 2.5), 0, 'the 3 is knocked out');
   assert.equal(iconBitmap('pendingApproval', 12).width, 2 * 27);
+});
+
+test('menus: on Windows each icon is centred on a square, white on a dark taskbar and black on a light one', () => {
+  const at = (b: { width: number; pixels: Uint8Array }, x: number, y: number) => [...b.pixels.slice((y * b.width + x) * 4, (y * b.width + x) * 4 + 4)];
+  const quiet = iconBitmap('quiet'), dark = squareIcon(quiet, true), light = squareIcon(quiet, false);
+  assert.deepEqual([dark.width, dark.height, dark.pixels.length], [56, 56, 56 * 56 * 4]);
+  // The base line's pixel (18, 31), moved down by (56 - 36) / 2.
+  assert.deepEqual(at(quiet, 18, 31), [0, 0, 0, 255]);
+  assert.deepEqual(at(dark, 18, 41), [255, 255, 255, 255]);
+  assert.deepEqual(at(light, 18, 41), [0, 0, 0, 255]);
+  assert.deepEqual(at(dark, 18, 5), [0, 0, 0, 0], 'the padding is clear');
+  const normal = squareIcon(iconBitmap('normal'), true);
+  assert.deepEqual([normal.width, normal.height], [36, 36]);
+  assert.deepEqual(normal.pixels, iconBitmap('normal').pixels.map((v, i, p) => (i % 4 === 3 ? v : p[i - (i % 4) + 3]!)));
 });

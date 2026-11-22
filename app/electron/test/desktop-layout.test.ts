@@ -476,6 +476,12 @@ test('the console card hangs under the menu bar button even over her, its right 
   assert.equal(overlaps(p.hud!.frame, p.console!.frame), false, 'a cornered hud keeps clear of the console');
 });
 
+test('the console card stands on a taskbar at the bottom, its right edge on the notification area icon\'s', () => {
+  const display: ScreenInfo = { id: 4, frame: r(0, 0, 1920, 1080), visibleFrame: r(0, 48, 1920, 1032) };
+  const { placements: p } = layout(null, { screens: [display], requests: [consoleRequest(360, 300, r(1700, 12, 24, 24))] });
+  assert.deepEqual(p.console!.frame, r(1380, 36, 360, 300));
+});
+
 const ITEM = r(1188, 873, 36, 24);
 
 function consoleFollower() {

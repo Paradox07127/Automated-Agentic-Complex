@@ -131,3 +131,18 @@ export function iconBitmap(state: MenuBarIconState, badge = 0): IconBitmap {
   }
   return { width, height, pixels };
 }
+
+/** `b` for the Windows notification area, which fits each icon into a square and has no template images: centred on a
+ *  square, white when `white` (a dark taskbar). */
+export function squareIcon(b: IconBitmap, white: boolean): IconBitmap {
+  const side = Math.max(b.width, b.height), dx = Math.floor((side - b.width) / 2), dy = Math.floor((side - b.height) / 2);
+  const pixels = new Uint8Array(side * side * 4);
+  for (let y = 0; y < b.height; y++) {
+    for (let x = 0; x < b.width; x++) {
+      const alpha = b.pixels[(y * b.width + x) * 4 + 3]!, at = ((y + dy) * side + x + dx) * 4;
+      pixels.fill(white ? alpha : 0, at, at + 3);
+      pixels[at + 3] = alpha;
+    }
+  }
+  return { width: side, height: side, pixels };
+}

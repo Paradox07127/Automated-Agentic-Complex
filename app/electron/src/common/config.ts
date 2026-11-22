@@ -3,6 +3,8 @@ import { DEFAULT_PLUGINS, isPluginId, type Plugins } from './plugins.ts';
 
 /** Paths under the home directory, and the default TTS address. */
 export const IDS = {
+  /** The bundle id, and on Windows the AppUserModelID. */
+  appId: 'local.agenticcomplex.companion',
   companionSupportDir: 'Library/Application Support/local.agenticcomplex.companion',
   agentdStateDir: 'Library/Application Support/AgenticComplex/agentd',
   webLogsDir: 'Library/Logs/AgenticComplex',

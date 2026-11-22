@@ -50,6 +50,12 @@ export function cliScript(python: string, flags: string[], agentdDir: string, st
     ['--state-dir', stateDir, '--launcher', self], platform);
 }
 
+/** `native-host.cmd`, the browser extension's native messaging host on Windows: `script` (agent/browser/native_host.py)
+ *  on agentd's state dir, with the origin and the window handle the browser adds. */
+export function nativeHostScript(python: string, flags: string[], script: string, stateDir: string): { name: string; text: string } {
+  return binScript('native-host', python, flags, script, ['--state-dir', stateDir], 'windows');
+}
+
 export class OnboardingModel {
   step = 1;
   completed = false;

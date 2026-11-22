@@ -1,10 +1,11 @@
-// The menu bar icon's clicks on macOS (src/main/desktop/tray.ts): StatusItemClick.route's cases and
-// what each click does.
+// The tray icon's clicks (src/main/desktop/tray.ts): StatusItemClick.route's cases, what each click does, and Electron's
+// tray events read on macOS and Windows.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Rect } from '../src/common/placement.ts';
+import { statusTitle } from '../src/common/config.ts';
 import { trayTitle } from '../src/common/tray-title.ts';
-import { trayClick, type TrayPorts } from '../src/main/desktop/tray.ts';
+import { trayClick, trayClickOf, type TrayPorts } from '../src/main/desktop/tray.ts';
 
 /** A fake desktop whose console opens and closes, and a fake menu; records each call. */
 function harness(open = false) {
@@ -51,4 +52,30 @@ test('tray: a test instance (config.json loaded on another support dir) shows �
   assert.equal(trayTitle(installed, installed), '');
   assert.equal(trayTitle('/tmp/other/support', installed), '测试');
   assert.equal(trayTitle(null, installed), '', 'config.json did not load');
+});
+
+test('tray: on Windows a left click goes to the console whatever the keys; a Shift right click asks for 诊断', () => {
+  const taskbar = { x: 1700, y: 1040, width: 24, height: 24 };
+  assert.deepEqual(trayClickOf('windows', false, { altKey: true, shiftKey: true }, taskbar),
+    { click: { right: false, option: false, bounds: taskbar }, diagnostics: false });
+  assert.deepEqual(trayClickOf('windows', true, { shiftKey: false }, taskbar), { click: { right: true, option: false, bounds: taskbar }, diagnostics: false });
+  assert.deepEqual(trayClickOf('windows', true, { shiftKey: true }, taskbar), { click: { right: true, option: false, bounds: taskbar }, diagnostics: true });
+  assert.deepEqual(trayClickOf('windows', true, { altKey: true }, taskbar).diagnostics, false, 'Alt is not the Mac\'s option');
+  const h = harness();
+  trayClick(trayClickOf('windows', false, {}, taskbar).click, h.ports());
+  assert.deepEqual(h.calls, ['open {"x":1700,"y":16,"w":24,"h":24}'], 'the console at the icon');
+  trayClick(trayClickOf('windows', true, { shiftKey: true }, taskbar).click, h.ports());
+  assert.deepEqual(h.calls.slice(1), ['close', 'menu']);
+});
+
+test('tray: on macOS option makes a left click pop the menu up and asks for 诊断, left or right', () => {
+  assert.deepEqual(trayClickOf('mac', false, { altKey: true }, BOUNDS), { click: { right: false, option: true, bounds: BOUNDS }, diagnostics: true });
+  assert.deepEqual(trayClickOf('mac', true, { altKey: true }, BOUNDS), { click: { right: true, option: true, bounds: BOUNDS }, diagnostics: true });
+  assert.deepEqual(trayClickOf('mac', true, { shiftKey: true }, BOUNDS), { click: { right: true, option: false, bounds: BOUNDS }, diagnostics: false });
+});
+
+test('tray: Windows has no title beside the icon; the tooltip carries trayTitle\'s text', () => {
+  const installed = 'C:\\Users\\u\\AppData\\Roaming\\Agentic Complex', other = 'C:\\tmp\\support';
+  assert.ok(statusTitle(other, installed).endsWith(trayTitle(other, installed)) && trayTitle(other, installed) === '测试');
+  assert.equal(statusTitle(installed, installed), 'Agentic Complex');
 });

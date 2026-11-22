@@ -55,8 +55,9 @@ import {
 import { agentdLook, anyOwnCapture, lookReceipt, shellContext, type ShellContext } from './context/shell.ts';
 import { CONTROL_PANEL_WINDOW, ControlPanel } from './control/panel.ts';
 import { shellControl } from './control/shell.ts';
+import { regExe, syncBrowserHost } from './browser-host.ts';
 import { DesktopAssembly } from './desktop/assembly.ts';
-import { trayClick } from './desktop/tray.ts';
+import { trayClick, trayClickOf } from './desktop/tray.ts';
 import { devReload } from './dev-reload.ts';
 import { devWebResponse } from './dev-web.ts';
 import { handClipboard } from './handover/clipboard.ts';
@@ -68,17 +69,17 @@ import { HotkeyRecorder } from './hotkeys/record.ts';
 import { type ShellHotkeys, shellHotkeys, unregisteredHotkeys } from './hotkeys/shell.ts';
 import { interactionShell } from './interaction/shell.ts';
 import { appendLog } from './log.ts';
-import { appMenu } from './menus/app.ts';
+import { appMenu, pageShortcut } from './menus/app.ts';
 import { avatarMenu } from './menus/avatar.ts';
 import { SettingsChanges } from './menus/items.ts';
 import { characterMenuPopup } from './menus/popup.ts';
-import type { IconBitmap } from './menus/icon.ts';
+import { type IconBitmap, squareIcon } from './menus/icon.ts';
 import { shellMenus } from './menus/shell.ts';
-import { trayContextMenu, trayMenu as trayMenuItems } from './menus/tray.ts';
+import { trayContextMenu } from './menus/tray.ts';
 import { SystemNotifier } from './notify/system.ts';
 import { onboardingWindow } from './onboarding/window.ts';
 import { bundleBuild } from './ops/app.ts';
-import { avatarPlaylist, psCpuSeconds } from './ops/avatar.ts';
+import { avatarPlaylist, cpuSecondsReader } from './ops/avatar.ts';
 import { characterArt, shellMmdSync } from './ops/character.ts';
 import { reloadAvatar } from './ops/holding.ts';
 import { type OpsContext, registry } from './ops/index.ts';
@@ -94,7 +95,7 @@ import { ResizeOverlayWindow } from './placement/resize-overlay.ts';
 import { nextTraceEpoch } from './placement/store.ts';
 import {
   c3Dip, c3Space, c3Transport, helperExecutable, hideFromDock, makeOverlay, osName, overlayOptions, playAlert, previewAddon, pythonFlags,
-  shellPlatform, trayImage,
+  setNotificationId, shellPlatform, trayImage,
 } from './platform/index.ts';
 import type { PlacementSpace } from './platform/screens.ts';
 import { PreviewController } from './preview/controller.ts';
@@ -319,7 +320,6 @@ const renderer = config && new RendererSupervisor({
     if (state.kind === 'running') ambient?.start();
     else ambient?.stop();
     runtimeChanged();
-    updateTrayMenu();
   },
   onLoading: (loading) => showAvatarLoading(loading),
 });
@@ -331,7 +331,6 @@ const tunnel = config && new TunnelSupervisor({
   onStatus: (state) => {
     tunnelState = state;
     runtimeChanged();
-    updateTrayMenu();
   },
 });
 /** 重启后台 and 重启子进程 start the tunnel again with config.json read again. */
@@ -356,6 +355,11 @@ const supervisor = config && new AgentdSupervisor({
     // Before agentd first runs there is no ui-runtime.json; connecting earlier only grows the reconnect backoff.
     if (state.kind === 'running') {
       setAppMenu();
+      if (shellPlatform() === 'windows') {
+        void syncBrowserHost(supervisor!.plugins.screen_awareness, { supportDir: config.supportDir, agentdStateDir: config.agentdStateDir,
+          python: config.python, pythonFlags: PYTHON_FLAGS, script: resolve(config.agentdDir, '..', 'browser', 'native_host.py'),
+          registry: regExe(), log: (line) => appendLog(config.supportDir, 'companion', line) });
+      }
       store?.start();
       renderer?.startIfStopped();
       // Ready once the character is read, for this run only.
@@ -370,7 +374,6 @@ const supervisor = config && new AgentdSupervisor({
     // The context capture after the attention sampler.
     context?.agentd(state.kind === 'running' && plan().has('context'));
     recorders?.agentd(state.kind === 'running');
-    updateTrayMenu();
   },
   onHealth: (stage, degraded) => runtime.send({ kind: 'agentdHealth', stage, degraded }),
 });
@@ -439,7 +442,6 @@ const helper = config && new HelperSupervisor({
     recorders?.helper(state.kind === 'running');
     context?.helper(state.kind === 'running');
     control?.helper(state.kind === 'running');
-    updateTrayMenu();
   },
   onEvent: (e) => {
     pushToTalk?.event(e.event, e.data);
@@ -451,6 +453,8 @@ const helper = config && new HelperSupervisor({
     control?.event(e.event, e.data);
   },
 });
+/** The status monitor's CPU readings, one reader across every surface. */
+const cpuSeconds = cpuSecondsReader(shellPlatform(), helper);
 /** A test run's switch: push-to-talk is left out, so the helper registers no key and opens no microphone. */
 const noPushToTalk = process.argv.includes('--no-push-to-talk');
 /** `voice.onPushToTalk`'s values; sent as they come, none replayed. */
@@ -716,6 +720,13 @@ function openMain(activate = true): void {
   const contents = win.webContents, id = contents.id;
   // --ef-glass-alpha: how much of the page's ground a glass page (home) keeps over the vibrancy.
   if (shellPlatform() === 'mac') contents.on('dom-ready', () => void contents.insertCSS(':root { --ef-chrome-left: 84px; --ef-glass-alpha: 55%; }'));
+  // Windows shows no menu bar to hold the app menu's page keys.
+  contents.on('before-input-event', (e, input) => {
+    const route = pageShortcut(shellPlatform(), input, supervisor?.plugins ?? DEFAULT_PLUGINS);
+    if (route === null) return;
+    e.preventDefault();
+    openMainAt(route);
+  });
   const page = new PageSession((sub, stream, kind, payload) => {
     if (!contents.isDestroyed()) contents.send('bridge:push', sub, stream, kind, payload);
   });
@@ -792,8 +803,7 @@ function opsContext(surface: Surface): OpsContext {
         desktop?.pushState();
       },
     }),
-    // `ps` is the Mac's; Windows leaves `cpuPercent` 0.
-    cpuSeconds: shellPlatform() === 'mac' ? psCpuSeconds : null,
+    cpuSeconds,
     looks, switcher, mmdSync,
     placement: placer,
     preview,
@@ -934,7 +944,6 @@ function runtimeChanged(): void {
   runtime.send({ kind: 'visibility', view: { hidden: hostLink?.hidden ?? false, reason: visibility.reason,
     fullscreenHidden: watchers?.fullscreenHidden ?? false, clickThroughAll: hostLink?.clickThroughAll ?? false } });
   menus.refreshIcon();
-  updateTrayMenu();
   // The desktop state goes out with the icon.
   desktop?.pushState();
 }
@@ -1000,12 +1009,11 @@ const menus = shellMenus({
       mainHeight: () => screen.getPrimaryDisplay().bounds.height, desktop: () => desktop,
       log: (line) => appendLog(config!.supportDir, 'companion', line) });
   } : undefined,
-  ...(shellPlatform() === 'mac' && { setIcon: (b: IconBitmap) => tray?.setImage(trayImage(nativeImage.createFromBitmap(Buffer.from(b.pixels),
-    { width: b.width, height: b.height, scaleFactor: 2 }))) }),
-  trayChanged: () => updateTrayMenu(false),
+  setIcon: (icon: IconBitmap) => {
+    const b = shellPlatform() === 'mac' ? icon : squareIcon(icon, nativeTheme.shouldUseDarkColors);
+    tray?.setImage(trayImage(nativeImage.createFromBitmap(Buffer.from(b.pixels), { width: b.width, height: b.height, scaleFactor: 2 })));
+  },
 });
-// Her appearance and layer lists are in the tray icon's own menu.
-hostLink?.on((e) => { if (e.kind === 'appearance' || e.kind === 'layers') updateTrayMenu(false); });
 
 /** With the web panels: the loading card, under the character's name and the
  *  stage's title. */
@@ -1126,17 +1134,10 @@ ipcMain.handle('bridge:invoke', (e, message: unknown): Reply | Promise<Reply> =>
   return handle(entry.surface, { mainFrame: frame === e.sender.mainFrame, origin: frame.origin }, message, entry.ops ?? ops, entry.page);
 });
 
-/** Off the Mac the tray's context menu, built again on each change it shows, `reread` asking agentd's quiet again; on macOS
- *  the menu comes up only on a right or option click (`trayClick`), so it is not the tray's context menu. */
-function updateTrayMenu(reread = true): void {
-  if (!tray) return;
-  const items = trayContextMenu(shellPlatform(), () => menus.state({ diagnostics: false, reread }), menus.ports(), helperMenuLine(helperState));
-  if (items) tray.setContextMenu(Menu.buildFromTemplate(items));
-}
-
-/** The Mac's app menu, its 前往 by the plug-ins agentd runs with; set again at each start of agentd. */
+/** The Mac's app menu, its 前往 by the plug-ins agentd runs with; set again at each start of agentd. Windows gets none, not
+ *  Electron's default menu bar: its page keys are the main window's `pageShortcut`. */
 function setAppMenu(): void {
-  if (shellPlatform() !== 'mac') return;
+  if (shellPlatform() !== 'mac') return Menu.setApplicationMenu(null);
   Menu.setApplicationMenu(Menu.buildFromTemplate(appMenu({ openMain: openMainAt, quit: () => app.quit() }, supervisor?.plugins ?? DEFAULT_PLUGINS)));
 }
 
@@ -1179,6 +1180,7 @@ app.on('will-quit', (e) => {
 });
 
 void app.whenReady().then(async () => {
+  setNotificationId(app);
   hideFromDock(app);
   // Electron's own handlers, installed by now, quit once and then restore the default action (quit.ts).
   quitOnSignals({ on: (signal, listener) => { process.on(signal, listener); }, quit: () => app.quit() });
@@ -1294,27 +1296,26 @@ void app.whenReady().then(async () => {
   // agentd's `command` events are carried out as they come.
   store?.subscribe(feedCommands({ ctx: opsContext('main'), notice: (text) => desktop?.notice(text),
     log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line) }));
-  store?.subscribe((e) => {
-    recent.receive(e, Date.now());
-    if (e.event === 'announce') updateTrayMenu(false);
-  });
+  store?.subscribe((e) => recent.receive(e, Date.now()));
   tray = new Tray(trayImage(ringImage()));
   tray.setToolTip(statusTitle(config?.supportDir ?? supportDir, DEFAULT_SUPPORT_DIR));
-  if (shellPlatform() === 'mac') {
-    tray.setTitle(trayTitle(config?.supportDir ?? null, DEFAULT_SUPPORT_DIR));
-    const space = c3Space(screen);
-    const click = (right: boolean, option: boolean, bounds: Rectangle) => trayClick({ right, option, bounds }, {
+  // Windows has no title beside the icon; the tooltip (statusTitle) says 测试 there.
+  if (shellPlatform() === 'mac') tray.setTitle(trayTitle(config?.supportDir ?? null, DEFAULT_SUPPORT_DIR));
+  const space = c3Space(screen);
+  // No context menu on Windows either: with one set Electron shows it itself on a right click, and Shift could not add 诊断.
+  const click = (right: boolean, keys: { altKey?: boolean; shiftKey?: boolean }, bounds: Rectangle) => {
+    const { click: c, diagnostics } = trayClickOf(shellPlatform(), right, keys, bounds);
+    trayClick(c, {
       desktop, toPlacement: (b) => space.fromDip(b),
-      popUpMenu: () => tray?.popUpContextMenu(Menu.buildFromTemplate(trayMenuItems(menus.state({ diagnostics: option }), menus.ports()))),
+      popUpMenu: () => tray?.popUpContextMenu(Menu.buildFromTemplate(trayContextMenu(shellPlatform(), menus.state({ diagnostics }), menus.ports(),
+        helperMenuLine(helperState)))),
       log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),
     });
-    tray.on('click', (e, bounds) => click(false, e.altKey === true, bounds));
-    tray.on('right-click', (e, bounds) => click(true, e.altKey === true, bounds));
-  } else {
-    // A right click opens the context menu (updateTrayMenu).
-    tray.on('click', () => openMain());
-  }
-  updateTrayMenu();
+  };
+  tray.on('click', (e, bounds) => click(false, e, bounds));
+  tray.on('right-click', (e, bounds) => click(true, e, bounds));
+  // The Windows icon's colour follows the theme.
+  if (shellPlatform() === 'windows') nativeTheme.on('updated', () => menus.refreshIcon());
   menus.refreshIcon();
   // The main window only for a config error or an empty roster; a first run gets the guide.
   const start = startupWindow({ configError: config === null, characters: config?.characters.length ?? 0,

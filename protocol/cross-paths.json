@@ -59,6 +59,7 @@
   {"row": "C9", "token": "ui-runtime.json", "files": ["agent/browser/native_host.py"]},
   {"row": "C9", "token": "hook.token", "files": ["agent/browser/native_host.py"]},
   {"row": "C10", "token": "blacklist.json", "files": ["agent/browser/native_host.py"]},
+  {"row": "C10", "token": "native_host.py", "files": ["app/electron/src/main/index.ts"]},
   {"row": "C10", "token": "tts-token", "files": ["voice/tts-service/deploy/Dockerfile", "voice/tts-service/deploy/compose.yaml", "voice/tts-service/deploy/deploy.sh"]},
   {"row": "C10", "token": "config.json", "files": ["web/src/pages/settings/Page.tsx"], "note": "display text"},
   {"row": "ui-bridge", "token": "ui-bridge", "files": ["agent/agentd/route_registry.py"]},

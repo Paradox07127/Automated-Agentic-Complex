@@ -6,6 +6,15 @@ import { clickRoute, noteContent } from '../src/common/notify.ts';
 import { RecentAnnouncements } from '../src/common/recent-announcements.ts';
 import { type SystemNote, StackSource } from '../src/common/stack-source.ts';
 import { type NoteContent, SystemNotifier } from '../src/main/notify/system.ts';
+import { setNotificationId } from '../src/main/platform/index.ts';
+
+test('toasts: on Windows the app takes the product\'s AppUserModelID; macOS sets none', () => {
+  const ids: string[] = [];
+  const app = { setAppUserModelId: (id: string) => { ids.push(id); } };
+  setNotificationId(app, 'windows');
+  setNotificationId(app, 'mac');
+  assert.deepEqual(ids, ['local.agenticcomplex.companion']);
+});
 
 /** Records what is done to it; `emit` stands in for the system. */
 class FakeNote {
