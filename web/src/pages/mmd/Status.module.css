@@ -1,0 +1,98 @@
+/* The library's status strip: one import, sync or import result; dark, a yellow hatched band on top, cut at the lower right. */
+.status {
+  position: relative;
+  flex: none;
+  padding: 11px 14px 10px 16px;
+  background: rgb(40 40 40 / 86%);
+  color: #eee;
+  backdrop-filter: blur(8px);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+
+.status::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 5px;
+  background: repeating-linear-gradient(-45deg, transparent 0 3px, rgb(255 241 0 / 55%) 3px 4.5px);
+}
+
+.status[data-tone='danger'] {
+  box-shadow: inset 4px 0 0 var(--ef-g-reddot);
+}
+
+.status[data-tone='danger'] .l1 {
+  color: #ffb08a;
+}
+
+.l1 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 2px;
+  font: 500 13px / 1.4 var(--ef-font-sans);
+}
+
+.what {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.st {
+  flex: none;
+  color: #c8c8c8;
+  font-weight: 400;
+}
+
+.sp {
+  flex: 1;
+}
+
+.dn {
+  font: 500 13px / 1 var(--ef-font-num);
+}
+
+.pc {
+  color: var(--ef-accent);
+  font: 600 17px / 1 var(--ef-font-num);
+}
+
+.cells {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.cells i {
+  height: 4px;
+  background: linear-gradient(90deg, #fff calc(var(--f) * 100%), rgb(255 255 255 / 14%) calc(var(--f) * 100%));
+}
+
+/* 925 × 515: one line of words over the cells, no stage name. */
+@container mmd (max-width: 1100px) or (max-height: 600px) {
+  .status {
+    padding: 8px 10px 7px 12px;
+  }
+
+  .l1 {
+    font-size: 12px;
+  }
+
+  .pc {
+    font-size: 14px;
+  }
+
+  .st,
+  .status [data-stub='MicroLabel'] {
+    display: none;
+  }
+
+  .cells {
+    margin-top: 5px;
+  }
+}

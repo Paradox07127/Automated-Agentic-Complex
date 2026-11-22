@@ -95,7 +95,7 @@ describe('导入 pane', () => {
 });
 
 describe('MMD page', () => {
-  it('shows any running import under 导入 MMD and disables it', async () => {
+  it('shows any running import on the library strip and disables 导入 VMD', async () => {
     const sink = pushes();
     const router = createRouter({ routeTree: createRootRoute({ component: MmdPage }), history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
     render(
@@ -103,10 +103,11 @@ describe('MMD page', () => {
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
-    const btn = await screen.findByRole('button', { name: '导入 MMD' });
+    const btn = (await screen.findByRole('button', { name: '导入 VMD' })) as HTMLButtonElement;
     await act(async () => sink.push({ running: true, kind: 'outfit', title: 'SummerMod', stage: 'publish', fraction: 0.9 }));
     expect(screen.getByRole('progressbar', { name: '发布' }).getAttribute('aria-valuenow')).toBe('90');
-    expect(btn.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('status', { name: 'MMD 导入' }).textContent).toContain('正在导入「SummerMod」');
+    expect(btn.disabled).toBe(true);
     await act(async () => sink.push(IDLE));
     expect(screen.queryByRole('progressbar', { name: '发布' })).toBeNull();
   });

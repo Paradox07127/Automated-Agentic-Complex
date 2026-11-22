@@ -1,0 +1,219 @@
+/* The selected row opened: a yellow thread from the lead, a slanted dark shade; its actions, then OTHERS. */
+.ex {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 12px 70px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  background: linear-gradient(170deg, rgb(0 0 0 / 14%), transparent 60%);
+}
+
+.ex::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 14px;
+  left: 27px;
+  width: 1px;
+  background: rgb(255 241 0 / 50%);
+}
+
+.ops {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sp {
+  flex: 1;
+}
+
+.desk {
+  display: inline-flex;
+}
+
+.desk [data-stub='WhiteCapsule'] {
+  height: 32px;
+  font-size: 13px;
+}
+
+.segw {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lb {
+  color: #bdbdbd;
+  font-size: 12px;
+}
+
+/* 改名 / 删除: small dark slanted keys. */
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border: 0;
+  background: rgb(28 28 28 / 70%);
+  color: #e6e6e6;
+  font: 500 13px / 1 var(--ef-font-sans);
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
+}
+
+.key:hover:not(:disabled) {
+  background: rgb(20 20 20 / 90%);
+  color: #fff;
+}
+
+.key:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -2px;
+}
+
+.key:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.others {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: #cfcfcf;
+  font-size: 12px;
+}
+
+.others ul {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+}
+
+.ch {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.ch[data-state='failed'] {
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+
+.av {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  border: 1.5px solid #fff;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 36%, #a5a5a5 0 22%, transparent 23%), radial-gradient(ellipse at 50% 104%, #959595 0 48%, transparent 49%), #d0d0d0;
+}
+
+.av img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.ch[data-state='pending'] .av {
+  border-style: dashed;
+  border-color: #9a9a9a;
+  opacity: 0.7;
+  filter: grayscale(1);
+}
+
+.ch[data-state='failed'] .av {
+  border-color: var(--ef-g-reddot);
+}
+
+.ch[data-state='failed'] .av::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  background: var(--ef-g-reddot);
+  transform: rotate(45deg);
+}
+
+.r {
+  min-width: 0;
+  overflow: hidden;
+  color: #ffb08a;
+  text-overflow: ellipsis;
+}
+
+/* 925 × 515: icon-only actions (their names stay for screen readers and in the title), smaller heads. */
+@container mmd (max-width: 1100px) or (max-height: 600px) {
+  .ex {
+    gap: 6px;
+    padding: 7px 8px 8px 44px;
+  }
+
+  .ex::before {
+    left: 17px;
+  }
+
+  .ops {
+    gap: 5px;
+  }
+
+  .txt,
+  .lb,
+  .desk [data-stub='WhiteCapsule'] > :not(:first-child) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .desk [data-stub='WhiteCapsule'] {
+    height: 28px;
+    padding-right: 3px;
+  }
+
+  .key {
+    height: 28px;
+    padding: 0 8px;
+  }
+
+  .others,
+  .others ul {
+    gap: 8px;
+  }
+
+  .others > [data-stub='MicroLabel'] {
+    display: none;
+  }
+
+  .av {
+    width: 20px;
+    height: 20px;
+  }
+
+  .r {
+    max-width: 150px;
+  }
+}

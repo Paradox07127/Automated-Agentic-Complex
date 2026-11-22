@@ -1,0 +1,113 @@
+/* The stage: the live preview's rect on the training room floor; nothing in it takes a click while she is drawn there. */
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Two glowing rings under her feet. */
+.rings {
+  position: absolute;
+  bottom: 1.5%;
+  left: 50%;
+  width: min(440px, 62%);
+  height: 72px;
+  overflow: visible;
+  translate: -50% 0;
+}
+
+.rings ellipse {
+  fill: none;
+  stroke: rgb(255 255 255 / 92%);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 6px rgb(255 255 255 / 90%));
+}
+
+.fig {
+  position: absolute;
+  inset: 4% auto 3% 50%;
+  transform-origin: 50% 100%;
+}
+
+.fig :global([data-stub='CharacterArt'])::before,
+.fig :global([data-stub='CharacterArt'])::after {
+  display: none;
+}
+
+.fig :global([data-stub='CharacterArt']) {
+  width: auto;
+  height: 100%;
+  max-height: none;
+}
+
+.fig :global([data-stub='CharacterArt']) img {
+  clip-path: none;
+}
+
+.fig svg,
+.fig img {
+  display: block;
+  width: auto;
+  height: 100%;
+}
+
+.stage[data-live] .fig {
+  visibility: hidden;
+}
+
+.stage[data-off] .fig {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+/* The preview did not load: a slanted dark tag with an orange diamond, not a control. */
+.pv {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px 6px 9px;
+  background: rgb(30 30 30 / 74%);
+  color: #fff;
+  font: 500 12px / 1.4 var(--ef-font-sans);
+  backdrop-filter: blur(6px);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.pv i {
+  width: 7px;
+  height: 7px;
+  background: var(--ef-g-reddot);
+  transform: rotate(45deg);
+}
+
+.ovl {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ef-sp-8);
+  padding: var(--ef-sp-12);
+  background: rgb(22 22 22 / 88%);
+  color: var(--ef-text-1);
+  pointer-events: auto;
+}
+
+.cap {
+  font-size: var(--ef-fs-small);
+  color: var(--ef-text-2);
+}
+
+@container mmd (max-width: 1100px) or (max-height: 600px) {
+  .rings {
+    width: min(280px, 60%);
+    height: 46px;
+  }
+}

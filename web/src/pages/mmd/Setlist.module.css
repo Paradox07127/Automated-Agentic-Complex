@@ -1,0 +1,369 @@
+/* 演出列表: the action bar under the stage, a dark frosted plate cut at the top right with a hatched top band. */
+.band {
+  --sl-card: rgb(78 78 78 / 92%);
+  --sl-card-hover: rgb(98 98 98 / 96%);
+  --sl-ink: #1d1d1d;
+
+  position: absolute;
+  inset: 0;
+  display: flex;
+  min-width: 0;
+  background: linear-gradient(180deg, rgb(44 44 44 / 88%), rgb(30 30 30 / 93%));
+  color: #fff;
+  backdrop-filter: blur(10px);
+  clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%);
+}
+
+.band::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 6px;
+  background: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 12%) 4px 5px);
+  pointer-events: none;
+}
+
+/* Left: the title, the yellow key and the two switches. */
+.ctl {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px 14px;
+  border-right: 1px solid rgb(255 255 255 / 10%);
+}
+
+.hdl {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hdl h3 {
+  margin: 0;
+  font: 700 16px / 1.2 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.who {
+  overflow: hidden;
+  color: #bdbdbd;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.micro {
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.keys {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 16px;
+}
+
+.segs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Right: the total, then the cards. */
+.strip {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px 34px 10px 16px;
+}
+
+.sum {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #cfcfcf;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.sum :global(.num) {
+  color: #fff;
+  font: 600 13px / 1 var(--ef-font-num);
+}
+
+.ln {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(255 255 255 / 30%), rgb(255 255 255 / 5%));
+}
+
+.track {
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 8px;
+  overflow: auto hidden;
+  list-style: none;
+  mask: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+  scrollbar-color: rgb(255 255 255 / 40%) rgb(255 255 255 / 10%);
+  scrollbar-width: thin;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 150px;
+  height: 90px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  background: var(--sl-card);
+  color: #f0f0f0;
+  cursor: grab;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.card:hover,
+.card:focus-within {
+  background: var(--sl-card-hover);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 35%);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -2px;
+}
+
+.card[data-drag] {
+  opacity: 0.5;
+}
+
+/* Playing on the desktop: the card turns yellow with an equaliser. */
+.card[aria-current='true'] {
+  background: linear-gradient(160deg, #fff35a, var(--ef-accent));
+  color: var(--sl-ink);
+}
+
+.no {
+  font: 700 24px / 1 var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.id {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  max-width: 60%;
+  overflow: hidden;
+}
+
+.nm {
+  margin-top: 6px;
+  overflow: hidden;
+  font: 500 14px / 1.3 var(--ef-font-sans);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.d {
+  margin-top: 2px;
+  color: #c8c8c8;
+  font: 500 12px / 1.2 var(--ef-font-num);
+}
+
+.card[aria-current='true'] .d {
+  color: rgb(0 0 0 / 60%);
+}
+
+.bars {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  display: flex;
+  opacity: 0.2;
+}
+
+.card[aria-current='true'] .bars {
+  opacity: 0.35;
+}
+
+.eq {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.eq i {
+  width: 3px;
+  background: currentColor;
+}
+
+.eq i:nth-child(1) {
+  height: 60%;
+}
+
+.eq i:nth-child(2) {
+  height: 100%;
+}
+
+.eq i:nth-child(3) {
+  height: 40%;
+}
+
+.eq i:nth-child(4) {
+  height: 80%;
+}
+
+/* Hover or focus: ◀ ▶ and 移出 along the card's foot. */
+.mv {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  height: 24px;
+  background: rgb(18 18 18 / 92%);
+  opacity: 0;
+  transition: opacity var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.card:hover .mv,
+.card:focus-within .mv {
+  opacity: 1;
+}
+
+.mv button {
+  flex: 1;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid rgb(255 255 255 / 8%);
+  background: none;
+  color: #ddd;
+  font: 500 12px / 1 var(--ef-font-sans);
+  cursor: pointer;
+}
+
+.mv button:last-child {
+  border-right: 0;
+  color: #ffb08a;
+}
+
+.mv button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 10%);
+}
+
+.mv button:disabled {
+  color: rgb(255 255 255 / 25%);
+  cursor: default;
+}
+
+.mv button:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -2px;
+}
+
+.ghost {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  height: 90px;
+  margin: 0;
+  padding: 0 18px;
+  box-sizing: border-box;
+  border: 1px dashed rgb(255 255 255 / 30%);
+  color: #bdbdbd;
+  font-size: 12px;
+}
+
+.corner {
+  position: absolute;
+  top: 34px;
+  right: 7px;
+  writing-mode: vertical-rl;
+}
+
+/* 925 × 515: no title extras, the switches without captions, smaller cards. */
+@container mmd (max-width: 1100px) or (max-height: 600px) {
+  .ctl {
+    gap: 6px;
+    padding: 9px 10px 8px 12px;
+  }
+
+  .hdl h3 {
+    font-size: 13px;
+  }
+
+  .who,
+  .micro,
+  .sum,
+  .corner,
+  .id,
+  .bars,
+  .keys [data-stub='YellowKey'] [data-stub='MicroLabel'],
+  .segs [data-stub='GameSeg'] > span {
+    display: none;
+  }
+
+  .keys {
+    gap: 8px;
+  }
+
+  .segs {
+    gap: 3px;
+  }
+
+  .strip {
+    padding: 8px 22px 6px 10px;
+  }
+
+  .card {
+    width: 104px;
+    height: 70px;
+    padding: 6px 8px;
+  }
+
+  .no {
+    font-size: 17px;
+  }
+
+  .nm {
+    margin-top: 3px;
+    font-size: 12px;
+  }
+
+  .eq {
+    top: 8px;
+    right: 8px;
+  }
+
+  .mv {
+    height: 18px;
+  }
+
+  .ghost {
+    height: 70px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .mv {
+    transition: none;
+  }
+}

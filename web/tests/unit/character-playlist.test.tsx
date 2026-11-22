@@ -42,10 +42,17 @@ async function mount(search = '') {
 }
 
 const click = (el: Element) => act(async () => void fireEvent.click(el));
+const press = (el: Element, key: string, opts: Partial<KeyboardEventInit> = {}) => act(async () => void fireEvent.keyDown(el, { key, ...opts }));
 const row = (id: string) => document.querySelector(`[data-playlist-row="${id}"]`) as HTMLElement;
 const list = () => screen.findByRole('region', { name: 'MMD 列表' });
+const add = (id: string) => click(within(document.querySelector(`[data-mmd="${id}"]`) as HTMLElement).getByRole('button', { name: '加入演出列表' }));
+// The library entries of her two dances, baked for her.
+const LIBRARY = MMD.map((a) => ({ id: a.id, title: a.label, durationS: a.durationS ?? 0, hasBgm: false, hasCamera: false, createdAt: '', characters: [{ id: 'si', state: 'baked' as const, reason: null }] }));
 
-beforeEach(() => install(MMD));
+beforeEach(() => {
+  install(MMD);
+  vi.spyOn(bridge.mmd, 'list').mockResolvedValue({ ok: true, entries: LIBRARY });
+});
 afterEach(() => {
   cleanup();
   delete window.agenticComplex;
@@ -60,18 +67,20 @@ describe('MMD list', () => {
     expect(document.querySelector('[data-playlist-row]')).toBeNull();
   });
 
-  it('lists the mmd_ actions numbered in her order and saves adds, moves and the loop mode', async () => {
+  it('numbers the dances in her order and saves adds from the library, moves, removals and the loop mode', async () => {
     const set = vi.spyOn(bridge.character, 'setPlaylist');
     await mount();
     await list();
+    await waitFor(() => expect(document.querySelector('[data-mmd="mmd_b"]')).not.toBeNull());
+    await add('mmd_a');
+    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a'], loop: 'off', speed: 1 });
+    await add('mmd_b');
+    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
     expect(row('mmd_a').textContent).toContain('01');
     expect(row('mmd_b').textContent).toContain('02');
     expect(row('mmd_a').textContent).toContain('舞蹈甲');
-    await click(within(row('mmd_a')).getByRole('button', { name: '加入' }));
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a'], loop: 'off', speed: 1 });
-    await click(within(row('mmd_b')).getByRole('button', { name: '加入' }));
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
-    await click(within(row('mmd_b')).getByRole('button', { name: '上移' }));
+    expect((within(row('mmd_a')).getByRole('button', { name: '前移' }) as HTMLButtonElement).disabled).toBe(true);
+    await click(within(row('mmd_b')).getByRole('button', { name: '前移' }));
     expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'off', speed: 1 });
     await click(within(screen.getByRole('radiogroup', { name: '循环' })).getByRole('radio', { name: '全部' }));
     expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'all', speed: 1 });
@@ -79,21 +88,50 @@ describe('MMD list', () => {
     expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'all', speed: 2 });
     await click(within(row('mmd_a')).getByRole('button', { name: '移出' }));
     expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b'], loop: 'all', speed: 2 });
+    expect(row('mmd_a')).toBeNull();
   });
 
-  it('plays and stops the list and marks the row playing now', async () => {
+  it('moves a card with Alt+← / Alt+→, removes it with Delete, and moves it by dragging', async () => {
+    await bridge.character.setPlaylist({ items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
+    const set = vi.spyOn(bridge.character, 'setPlaylist');
+    await mount();
+    await list();
+    await waitFor(() => expect(row('mmd_b')).not.toBeNull());
+    await press(row('mmd_b'), 'ArrowLeft', { altKey: true });
+    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'off', speed: 1 });
+    await press(row('mmd_b'), 'ArrowRight', { altKey: true });
+    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
+    await act(async () => void fireEvent.dragStart(row('mmd_b'), { dataTransfer: { effectAllowed: '' } }));
+    await act(async () => void fireEvent.drop(row('mmd_a')));
+    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'off', speed: 1 });
+    await press(row('mmd_a'), 'Delete');
+    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b'], loop: 'off', speed: 1 });
+  });
+
+  it('plays and stops the list from one key and marks the card playing now', async () => {
     await bridge.character.setPlaylist({ items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
     const play = vi.spyOn(bridge.avatar, 'playPlaylist').mockResolvedValue({ ok: true });
     const stop = vi.spyOn(bridge.avatar, 'stopPlaylist');
-    vi.spyOn(bridge.avatar, 'playlistState').mockResolvedValue({ playing: true, index: 1, id: 'mmd_b' });
+    const state = vi.spyOn(bridge.avatar, 'playlistState').mockResolvedValue({ playing: true, index: 1, id: 'mmd_b' });
     await mount();
     await list();
     await waitFor(() => expect(row('mmd_b').getAttribute('aria-current')).toBe('true'));
     expect(row('mmd_a').getAttribute('aria-current')).toBeNull();
-    await click(within(await list()).getByRole('button', { name: '播放' }));
-    expect(play).toHaveBeenCalled();
-    await click(within(await list()).getByRole('button', { name: '停止' }));
+    expect((await list()).textContent).toContain('桌面正在播第 2 首');
+    expect(within(await list()).queryByRole('button', { name: /连播/ })).toBeNull();
+    state.mockResolvedValue({ playing: false, index: null, id: null });
+    await click(within(await list()).getByRole('button', { name: /停止/ }));
     expect(stop).toHaveBeenCalled();
+    await waitFor(() => expect(row('mmd_b').getAttribute('aria-current')).toBeNull());
+    await click(within(await list()).getByRole('button', { name: /连播/ }));
+    expect(play).toHaveBeenCalled();
+  });
+
+  it('cannot start an empty list', async () => {
+    await mount();
+    const key = within(await list()).getByRole('button', { name: /连播/ }) as HTMLButtonElement;
+    expect(key.disabled).toBe(true);
+    expect(key.title).toBe('先把动作加入列表');
   });
 });
 

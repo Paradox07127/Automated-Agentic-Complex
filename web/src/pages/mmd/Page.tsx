@@ -2,27 +2,28 @@ import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type MmdEntry } from '../../bridge';
 import { PageHeaderSlot } from '../../shell/headerSlot';
-import { Btn, ErrBar, Progress, Seg } from '../../ui';
-import { TrainingRoom } from '../../ui/game';
+import { artSrc } from '../../ui';
+import { TitleBar, TrainingRoom, WhiteCapsule } from '../../ui/game';
 import { useFeedback } from '../character/feedback';
 import { PLAY_REFUSED, playRefusedSeverity } from '../character/labels';
 import { MotionEditDialog, type MotionEdit } from '../character/MotionEditDialog';
 import { DOWN } from '../character/Page';
-import { Playlist } from '../character/Playlist';
-import { Stage } from '../character/Stage';
 import { currentOf, useHostCharacter, useMmdSync } from '../character/useHostCharacter';
 import { importStageLabel, useImportState } from '../character/useImportState';
 import { useLook } from '../character/useLook';
 import { useMotionImport } from '../character/useMotionImport';
 import { useMotionLibrary } from '../character/useMotionLibrary';
-import { groupMotions } from '../character/useMotions';
-import { Library, notBaked, stateOf } from './Library';
+import { Detail } from './Detail';
+import { AddKey, filtered, InList, Library, LibraryError, notBaked, stateOf, type MmdFilter } from './Library';
+import { Setlist } from './Setlist';
+import { MmdStage } from './Stage';
+import { Status, type StatusLine } from './Status';
+import { useSetlist } from './useSetlist';
 import styles from './Page.module.css';
 
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code;
-const noop = () => {};
 
-/** MMD：每个角色共用的舞曲库。左边是库，中间是当前角色的实时预览，右边是选中这支舞的操作、导入和她的 MMD 列表。 */
+/** MMD：每个角色共用的舞曲库。舞台在左，舞曲库在右，她的演出列表是舞台下的一条动作条。 */
 export function MmdPage() {
   const fb = useFeedback();
   const qc = useQueryClient();
@@ -48,9 +49,12 @@ export function MmdPage() {
   const look = useLook();
   const [edit, setEdit] = useState<MotionEdit | null>(null);
   const [sel, setSel] = useState<string>();
+  const [filter, setFilter] = useState<MmdFilter>('all');
   const [loopPick, setLoop] = useState(false);
-  // The desktop loops a dance: 停止 takes the place of 桌面预览.
+  // The desktop loops a dance: 停止 takes the place of 桌面播放.
   const [looping, setLooping] = useState(false);
+  // The import result shown last; picking another dance folds it away until the next import.
+  const [seen, setSeen] = useState<typeof mmdImport.note>(null);
   // Only a click on a baked dance plays it in the live preview; the page opens on her idle.
   const [preview, setPreview] = useState<{ character: string; id: string; request: number }>();
   const request = useRef(0);
@@ -72,12 +76,17 @@ export function MmdPage() {
   const playOff = blocked ?? (mmdImport.running || importing.running ? '导入中' : null);
   // A failed refetch keeps the old data; the library shows the failure, so nothing here acts on those entries.
   const entries = list.data?.ok && !list.isError ? list.data.entries : [];
-  const picked = entries.find((e) => e.id === sel) ?? entries[0];
+  const visible = filtered(entries, current, filter);
+  const picked = visible.find((e) => e.id === sel) ?? visible[0];
   const shown = preview?.character === current ? entries.find((e) => e.id === preview.id && notBaked(stateOf(e, current)) == null) : undefined;
-  const rows = groupMotions((motions.data ?? []).filter((a) => a.id.startsWith('mmd_'))).flatMap((g) => g.rows);
+  // Her MMD dances: only these can be in her list.
+  const mine = ch ? (motions.data ?? []).filter((a) => a.id.startsWith('mmd_')) : [];
+  const ids = mine.map((a) => a.id);
+  const setlist = useSetlist(current, ids, fb.toast);
 
   const pick = (e: MmdEntry) => {
     setSel(e.id);
+    setSeen(mmdImport.note);
     setPreview(notBaked(stateOf(e, current)) == null ? { character: current, id: e.id, request: ++request.current } : undefined);
   };
   const play = (id: string) => {
@@ -98,108 +107,114 @@ export function MmdPage() {
     void getBridge().supervisor.restart('avatar');
     fb.toast('正在重启角色…');
   };
-  const why = picked ? notBaked(stateOf(picked, current)) : null;
+  const add = (id: string) => setlist.put([...setlist.items, id]);
+  const addable = (id: string) => ids.includes(id) && !setlist.items.includes(id);
+  const onKey = (e: MmdEntry, key: string) => {
+    if ((key === 'Enter' || key === '+') && addable(e.id) && playOff == null) add(e.id);
+    else if (key === 'F2' && editOff == null) setEdit({ kind: 'rename', id: e.id, title: e.title });
+    else if (key === 'Delete' && editOff == null) setEdit({ kind: 'remove', id: e.id });
+    else return false;
+    return true;
+  };
+
+  const syncWho = roster.data?.find((c) => c.id === sync.character)?.name ?? sync.character ?? '';
+  const status: StatusLine | null =
+    mmdImport.running || importing.running
+      ? { kind: 'import', title: importing.title, stage: importStageLabel(importing.stage), fraction: importing.fraction }
+      : sync.running
+        ? { kind: 'sync', who: syncWho, stage: importStageLabel(sync.stage), done: sync.done, total: sync.total, fraction: sync.fraction }
+        : mmdImport.note && mmdImport.note !== seen
+          ? { kind: 'note', ...mmdImport.note }
+          : null;
+  const band = ch != null && ids.length > 0;
+  const cards = setlist.items.map((id) => {
+    const e = entries.find((x) => x.id === id);
+    const a = mine.find((x) => x.id === id);
+    return { id, title: e?.title ?? a?.label ?? id, durationS: e?.durationS ?? a?.durationS ?? null };
+  });
+  const watermark = artSrc(ch?.id, 'charinfo-bg');
 
   return (
     <div className={styles.page} data-page="mmd">
       <TrainingRoom />
       {fb.node}
       <PageHeaderSlot sub={ch?.name || undefined} />
-      <div className={styles.body} data-view="mmd" data-theme="light">
-        <Stage
-          motion={undefined}
-          section=""
-          name={ch?.name ?? ''}
-          en={ch?.en}
-          head={ch?.head}
-          portrait={ch?.portrait}
-          activity={null}
-          scale={look.scale}
-          offline={offline}
-          backoff={sup.data?.avatar?.backoff ?? null}
-          onRestart={restart}
-          sw={{ phase: 'idle' }}
-          currentName={ch?.name ?? ''}
-          onRetry={noop}
-          onDismiss={noop}
-          play={null}
-          characterId={current}
-          previewAction={shown?.id}
-          previewRequest={shown ? preview?.request : undefined}
-          previewAppearance={lookId}
-          loop={loopPick}
-        />
+      <div className={styles.body} data-band={band || undefined}>
+        <div className={styles.deco} aria-hidden="true">
+          {watermark && <img className={styles.wm} src={watermark} alt="" onError={(ev) => void (ev.currentTarget.hidden = true)} />}
+          <span className={styles.xdots}>
+            {Array.from({ length: 11 }, (_, i) => (
+              <i key={i}>×</i>
+            ))}
+          </span>
+          <i className={styles.cross} />
+        </div>
+        <div className={styles.stageAt}>
+          <MmdStage
+            character={current}
+            head={ch?.head}
+            portrait={ch?.portrait}
+            scale={look.scale}
+            offline={offline}
+            backoff={sup.data?.avatar?.backoff ?? null}
+            onRestart={restart}
+            action={shown?.id}
+            request={shown ? preview?.request : undefined}
+            appearance={lookId}
+            loop={loopPick}
+          />
+        </div>
+        {band && (
+          <div className={styles.bandAt} data-theme="dark">
+            <Setlist who={ch.name} cards={cards} list={setlist} blocked={playOff} />
+          </div>
+        )}
         <section className={styles.lib} data-theme="dark" aria-label="MMD 库">
+          <TitleBar
+            title="舞曲库"
+            micro="MMD LIBRARY / SHARED"
+            count={entries.length > 0 ? entries.length : undefined}
+            actions={<WhiteCapsule label={mmdImport.running ? '导入中…' : '导入 VMD'} icon="plus" disabled={playOff != null} disabledReason={playOff ?? ''} onClick={mmdImport.run} />}
+          />
+          {status && <Status line={status} />}
           {roster.isError ? (
-            <ErrBar message="读取角色目录失败：角色目录不可用" onRetry={() => void roster.refetch()} />
+            <LibraryError message="读取角色目录失败：角色目录不可用" onRetry={() => void roster.refetch()} />
           ) : noCharacter ? (
-            <span className={styles.why}>{noCharacter}</span>
+            <p className={styles.why}>{noCharacter}</p>
           ) : (
-            <Library data={ch ? list.data : undefined} error={list.isError && (codeOf(list.error) ?? null)} onRetry={() => void list.refetch()} current={current} sel={picked?.id} onPick={pick} />
+            <Library
+              data={ch ? list.data : undefined}
+              error={list.isError && (codeOf(list.error) ?? null)}
+              onRetry={() => void list.refetch()}
+              current={current}
+              sel={picked?.id}
+              onPick={pick}
+              filter={filter}
+              onFilter={setFilter}
+              slot={(e) => (!ids.includes(e.id) ? null : setlist.items.includes(e.id) ? <InList n={setlist.items.indexOf(e.id) + 1} /> : <AddKey off={playOff} onAdd={() => add(e.id)} />)}
+              onKey={onKey}
+              detail={
+                picked && (
+                  <Detail
+                    entry={picked}
+                    baked={notBaked(stateOf(picked, current)) == null}
+                    others={(roster.data ?? []).filter((c) => c.id !== current)}
+                    canLoop={canLoop}
+                    loop={loopPick}
+                    onLoop={setLoop}
+                    looping={looping}
+                    playOff={playOff}
+                    editOff={editOff}
+                    onPlay={() => play(picked.id)}
+                    onStop={stop}
+                    onRename={() => setEdit({ kind: 'rename', id: picked.id, title: picked.title })}
+                    onRemove={() => setEdit({ kind: 'remove', id: picked.id })}
+                  />
+                )
+              }
+            />
           )}
         </section>
-        <aside className={styles.side} data-theme="dark" aria-label="MMD 操作">
-          {picked && (
-            <section className={styles.grp} aria-label={picked.title} data-mmd-detail={picked.id}>
-              <h3 className={styles.title}>{picked.title}</h3>
-              {why != null && (
-                <span className={styles.why} data-tone={stateOf(picked, current).state === 'failed' ? 'danger' : undefined}>
-                  {why}
-                </span>
-              )}
-              {why == null && (
-                <Seg
-                  size="sm"
-                  // Her live preview loops on any renderer; 桌面预览 only where the avatar can.
-                  label={canLoop ? '播放方式' : '舞台播放方式'}
-                  value={loopPick ? 'loop' : 'once'}
-                  onChange={(v) => setLoop(v === 'loop')}
-                  options={[
-                    { value: 'once', label: '播放一次' },
-                    { value: 'loop', label: '循环' },
-                  ]}
-                />
-              )}
-              <div className={styles.ops}>
-                {why == null &&
-                  (looping ? (
-                    <Btn size="sm" variant="secondary" icon="stop" onClick={stop}>
-                      停止
-                    </Btn>
-                  ) : (
-                    <Btn size="sm" variant="secondary" icon="play" disabled={playOff != null} disabledReason={playOff ?? ''} onClick={() => play(picked.id)}>
-                      桌面预览
-                    </Btn>
-                  ))}
-                <Btn size="sm" variant="quiet" disabled={editOff != null} disabledReason={editOff ?? ''} onClick={() => setEdit({ kind: 'rename', id: picked.id, title: picked.title })}>
-                  改名
-                </Btn>
-                <Btn size="sm" variant="quiet" disabled={editOff != null} disabledReason={editOff ?? ''} onClick={() => setEdit({ kind: 'remove', id: picked.id })}>
-                  删除
-                </Btn>
-              </div>
-            </section>
-          )}
-          <section className={styles.grp} aria-label="导入 MMD">
-            <div className={styles.ops}>
-              <Btn size="sm" variant="secondary" loading={mmdImport.running} disabled={playOff != null} disabledReason={playOff ?? ''} onClick={mmdImport.run}>
-                {mmdImport.running ? '导入中…' : '导入 MMD'}
-              </Btn>
-              {mmdImport.note && (
-                <span className={styles.why} data-motion-import="" data-tone={mmdImport.note.ok ? undefined : 'danger'} role="status">
-                  {mmdImport.note.text}
-                </span>
-              )}
-            </div>
-            {importing.running && <Progress label={importStageLabel(importing.stage)} value={importing.fraction} />}
-            {sync.running && (
-              <div role="status" aria-label="MMD 同步">
-                <Progress label={`${importStageLabel(sync.stage)}${sync.total > 0 ? ` ${sync.done}/${sync.total}` : ''}`} value={sync.fraction} />
-              </div>
-            )}
-          </section>
-          {ch && <Playlist rows={rows} character={ch.id} blocked={playOff} toast={fb.toast} />}
-        </aside>
         {edit && <MotionEditDialog edit={edit} removeNote="每个角色都会删掉这个动作，角色会重新载入一次" onEdit={setEdit} library={library} />}
       </div>
     </div>
