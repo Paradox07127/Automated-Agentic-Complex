@@ -141,6 +141,7 @@ void cancel(int64_t id, int64_t target) {
     for (const auto& running : g_running) answer(running.first, failure("cancelled", "the helper is shutting down"));
     g_running.clear();
     answer(id, success(json::object()));
+    control_stop();
     ExitProcess(0);
 }
 
@@ -247,5 +248,6 @@ int main() {
     if (pending.find_first_not_of(" \t\r") != std::string::npos) protocol_error("the last line has no newline");
     // stdin closed: a shutdown without an answer (CONTRACT §6.1).
     std::lock_guard<std::mutex> hold(g_lock);
+    control_stop();
     ExitProcess(0);
 }

@@ -6,11 +6,13 @@ import { mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { controlEndpoint } from '../src/common/agentd.ts';
 import { DEFAULT_PLUGINS } from '../src/common/plugins.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
 import { shellControl } from '../src/main/control/shell.ts';
 import { computerUseOps } from '../src/main/ops/computer-use.ts';
 import type { OpsContext } from '../src/main/ops/context.ts';
+import { shellPlatform } from '../src/main/platform/index.ts';
 
 const ok = (result: Record<string, unknown>): HelperAnswer => ({ ok: true, result });
 const settle = async () => { for (let i = 0; i < 30; i += 1) await new Promise((r) => setImmediate(r)); };
@@ -70,13 +72,14 @@ test('--no-attention starts no computer control: the helper gets no control.list
   } finally { h.done(); }
 });
 
-test('each helper hello asks control.listen for <support_dir>/run/computer-control.sock and its token file', async () => {
+test("each helper hello asks control.listen for this platform's endpoint of the support dir and its token file", async () => {
   const h = setup();
   try {
     assert.notEqual(h.control, null);
     h.control!.helper(true);
     await settle();
-    const endpoint = { endpoint: `${h.dir}/run/computer-control.sock`, token_file: `${h.dir}/run/computer-control.token` };
+    const { path, tokenFile } = controlEndpoint(h.dir, shellPlatform());
+    const endpoint = { endpoint: path, token_file: tokenFile };
     assert.deepEqual(h.sent('control.listen'), [endpoint]);
     assert.deepEqual(h.sent('input.watch'), [{ enabled: true }]);
     // A restarted helper has no endpoint (the supervisor does not replay control.listen).

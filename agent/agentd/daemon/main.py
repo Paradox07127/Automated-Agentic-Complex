@@ -23,7 +23,7 @@ from brain import characters
 from observation.capture import CaptureManager
 from character.character_state import CharacterState
 from personal.commitments import Commitments
-from tool_gateway.computer_use import ComputerControlConfig
+from tool_gateway.computer_use import ComputerControlConfig, endpoint_path
 from daemon.agentd_server import AgentdServer
 from personal.episodes import Episodes
 from character.focus import Focus
@@ -391,7 +391,7 @@ def main():
         start_optional(server, "observations", server.character_agent.observations.start)
     server.startup_stage = "sessions"
     if plugins.on("computer_use") and args.computer_control_socket:
-        server.computer_control = ComputerControlConfig(str(Path(args.computer_control_socket).expanduser().resolve()),
+        server.computer_control = ComputerControlConfig(endpoint_path(args.computer_control_socket),
                                                        str(Path(args.computer_control_token_file).expanduser().resolve()))
     if plugins.on("coding_sessions") or plugins.on("personal_agent"):
         server.sessions = server.dispatcher.sessions = SessionManager(

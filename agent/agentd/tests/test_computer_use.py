@@ -6,6 +6,7 @@ import io
 import json
 import os
 from pathlib import Path
+import secrets
 import socket
 import stat
 import subprocess
@@ -20,11 +21,15 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sessions.approvals import ApprovalBroker
-from tool_gateway.computer_use import ComputerControlConfig, ComputerControlClient, ComputerUseError, SERVER_NAME, TOOLS, mcp_result
+from tool_gateway.computer_use import (ComputerControlConfig, ComputerControlClient, ComputerUseError, SERVER_NAME, TOOLS,
+                                       check_endpoint, endpoint_path, mcp_result)
 from daemon.main import parse_args
 from sessions.lifecycle import SessionRun
 from sessions.own import CodexProcess, OwnSession, SessionManager, real_argv
 from infra.tokens import write_secret
+
+if sys.platform == "win32":
+    import _winapi
 
 PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6JXcAAAAASUVORK5CYII="
 TARGET = {"bundle_id": "com.example.Editor", "pid": 1234, "window_id": 7, "generation": 2}
@@ -315,6 +320,101 @@ class ComputerUseTest(unittest.TestCase):
         self.assertEqual(replies[2]["result"]["content"][1]["type"], "image")
         self.assertEqual(replies[-1]["result"]["structuredContent"]["effect"], "confirmed")
         self.assertNotIn("native-secret", process.stdout + process.stderr)
+
+
+class EndpointNameTest(unittest.TestCase):
+    def test_windows_endpoint_is_a_named_pipe_name_and_nothing_else(self):
+        check_endpoint("\\\\.\\pipe\\agentic-complex-0123abcd-control", "win32")
+        check_endpoint("\\\\.\\PIPE\\x", "win32")
+        for name in ("", "C:\\Users\\me\\run\\computer-control.sock", "/tmp/cc/desktop.sock", "\\\\.\\pipe\\",
+                     "\\\\.\\pipe\\a\\b", "\\\\server\\pipe\\x", "\\\\?\\pipe\\x", "\\\\.\\pipe\\" + "x" * 248, "\\\\.\\pipe\\a\0b"):
+            with self.subTest(name=name), self.assertRaises(ComputerUseError) as error:
+                check_endpoint(name, "win32")
+            self.assertEqual(error.exception.code, "bridge_unavailable")
+
+
+class Pipe:
+    """A named pipe of this test in the helper's place, for one connection: reply(request) is written back, b"" closes
+    without a reply, None waits until close()."""
+
+    def __init__(self, reply):
+        self.name = f"\\\\.\\pipe\\cc-test-{os.getpid()}-{secrets.token_hex(4)}"
+        self.reply, self.requests, self.stopped = reply, [], threading.Event()
+        # Byte mode is 0 (_winapi has no PIPE_TYPE_BYTE).
+        self.handle = _winapi.CreateNamedPipe(self.name, _winapi.PIPE_ACCESS_DUPLEX, _winapi.PIPE_WAIT, 1, 65536, 65536,
+                                              0, _winapi.NULL)
+        self.thread = threading.Thread(target=self.run, daemon=True)
+        self.thread.start()
+
+    def run(self):
+        try:
+            _winapi.ConnectNamedPipe(self.handle, False)
+        except OSError as error:
+            if error.winerror != _winapi.ERROR_PIPE_CONNECTED:
+                raise
+        data = b""
+        while b"\n" not in data:
+            data += _winapi.ReadFile(self.handle, 65536)[0]
+        request = json.loads(data.split(b"\n", 1)[0])
+        self.requests.append(request)
+        reply = self.reply(request)
+        if reply is None:
+            self.stopped.wait(5)
+        elif reply:
+            _winapi.WriteFile(self.handle, reply)
+        _winapi.CloseHandle(self.handle)
+
+    def close(self):
+        self.stopped.set()
+        self.thread.join(5)
+
+
+@unittest.skipUnless(sys.platform == "win32", "the desktop endpoint is a named pipe on Windows only")
+class PipeClientTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix="cc-")
+        self.token = Path(self.tmp.name) / "computer-control.token"
+        write_secret(self.token, "native-secret")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def call(self, reply, timeout=5):
+        pipe = Pipe(reply)
+        try:
+            client = ComputerControlClient(ComputerControlConfig(pipe.name, str(self.token)), "own:test", timeout=timeout)
+            return client.call("desktop_status", {}), pipe.requests
+        finally:
+            pipe.close()
+
+    def test_request_and_reply_go_over_the_pipe(self):
+        result, requests = self.call(lambda r: json.dumps({"id": r["id"], "result": {"enabled": True}}).encode() + b"\n")
+        self.assertEqual(result, {"enabled": True})
+        self.assertEqual({k: v for k, v in requests[0].items() if k != "id"},
+                         {"method": "desktop_status", "params": {}, "session_id": "own:test", "token": "native-secret"})
+
+    def test_helper_errors_timeouts_and_hang_ups_are_tool_errors(self):
+        unsupported = {"code": "native_error", "message": "桌面工具未能完成"}
+        for reply, timeout, code in [(lambda r: json.dumps({"id": r["id"], "error": unsupported}).encode() + b"\n", 5, "native_error"),
+                                     (lambda r: None, .3, "bridge_timeout"), (lambda r: b"", 5, "bridge_protocol")]:
+            with self.subTest(code=code), self.assertRaises(ComputerUseError) as error:
+                self.call(reply, timeout)
+            self.assertEqual(error.exception.code, code)
+
+    def test_no_pipe_is_bridge_unavailable(self):
+        client = ComputerControlClient(ComputerControlConfig(f"\\\\.\\pipe\\cc-absent-{secrets.token_hex(4)}", str(self.token)), "own:test")
+        with self.assertRaises(ComputerUseError) as error:
+            client.call("desktop_status", {})
+        self.assertEqual(error.exception.code, "bridge_unavailable")
+
+    def test_endpoint_path_keeps_absent_and_listening_pipe_names(self):
+        name = f"\\\\.\\pipe\\cc-resolve-{secrets.token_hex(4)}"
+        self.assertEqual(endpoint_path(name), name)
+        handle = _winapi.CreateNamedPipe(name, _winapi.PIPE_ACCESS_DUPLEX, _winapi.PIPE_WAIT, 1, 4096, 4096, 0, _winapi.NULL)
+        try:
+            self.assertEqual(endpoint_path(name), name)
+        finally:
+            _winapi.CloseHandle(handle)
 
 
 class OwnComputerWiringTest(unittest.TestCase):

@@ -17,6 +17,11 @@ Usage: python -I app/helpers/windows/tests/replay.py [--exe PATH]   (after build
 - ocr.languages must list the recognizer languages Windows PowerShell's OcrEngine lists; ocr_unavailable only when it
   lists none. ocr.recognize answers are checked for shape (text is its lines joined, bounds within 0..1); by window_id
   without a desktop it may fail with one of its op's codes.
+- control.listen on a pipe of this run: its token file, already_running from the same and from a second helper,
+  endpoint_unavailable for a name that is no pipe name; a client with a wrong token gets unauthorized and sends no
+  control.request; one with the token gets its request out without the token, and control.respond's answer back;
+  answering it again is conn_gone; the token file goes when the helper exits. In ok-control.ndjson no client connects,
+  so its control.respond answers conn_gone.
 Requests that would act on or read other programs' windows are aimed at a window this script opens itself. A
 microphone permissions.request is never sent (not_sent): it opens the microphone, which may show a system prompt.
 apps.installed is checked for shape only and reported as a count. capture.window and capture.ambient are aimed at
@@ -48,9 +53,11 @@ import json
 import os
 from pathlib import Path
 import queue
+import re
 import struct
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -64,11 +71,11 @@ AX = {'ax.focused', 'ax.dialog_buttons', 'ax.overlays', 'ax.hit_chain', 'ax.wind
 IMPLEMENTED = {'screens.list', 'windows.list', 'windows.at_point', 'clipboard.read', 'apps.running', 'apps.activate',
                'process.usage', 'permissions.status', 'permissions.request', 'apps.installed', 'workspace.watch',
                'attention.sample', 'presence.watch', 'input.modifiers', 'input.watch', 'capture.window',
-               'capture.ambient', 'ocr.languages', 'ocr.recognize'} | AX
+               'capture.ambient', 'ocr.languages', 'ocr.recognize', 'control.listen', 'control.respond'} | AX
 # Without a desktop (session 0) these may fail, with one of their op's own codes.
 CAPTURES = {'capture.window', 'capture.ambient'}
 OCRS = {'ocr.languages', 'ocr.recognize'}
-EVENTS = {'workspace.changed', 'presence.edge', 'input.activity', 'ax.notification'}
+EVENTS = {'workspace.changed', 'presence.edge', 'input.activity', 'ax.notification', 'control.request'}
 WATCHES = {'workspace.watch', 'presence.watch', 'input.watch'}
 # attention.sample fields the Windows helper always answers null (CONTRACT §7.3; no UI Automation yet).
 NULL_ON_WINDOWS = ('focus_role', 'focus_native_role', 'focus_window_role', 'focus_window_native_role',
@@ -599,6 +606,9 @@ def aim(request, helper, target, window):
             params['point'] = ({'x': bounds['x'] + bounds['width'] // 2, 'y': bounds['y'] + bounds['height'] // 2}
                                if bounds else {'x': -100000, 'y': -100000})
             params['exclude_pids'] = [helper.proc.pid]
+    elif op == 'control.listen':
+        params['endpoint'] = rf'\\.\pipe\c12-replay-{helper.proc.pid}-control'
+        params['token_file'] = os.path.join(tempfile.gettempdir(), f'c12-replay-{helper.proc.pid}.token')
     return dict(request, params=params)
 
 
@@ -698,6 +708,10 @@ def check_answer(checks, name, request, got, hello, helper, target, window):
         return check_ocr(checks, name, request, got, target)
     if op in AX:
         return check_ax(checks, name, request, got)
+    if op == 'control.respond':
+        checks.expect(got.get('error', {}).get('code') == 'conn_gone', f'{name} with no client answers conn_gone',
+                      f'answer {got!r:.300}')
+        return
     if op in SESSION or op in IMPLEMENTED:
         if not checks.expect(got.get('ok') is True, f'{name} succeeds', f'answer {got!r:.300}'):
             return
@@ -715,6 +729,8 @@ def check_answer(checks, name, request, got, hello, helper, target, window):
         checks.expect(result == {'watching': params['enabled']}, f'{name} answers watching only', f'result {result}')
     elif op == 'attention.sample':
         check_sample(checks, name, params, result)
+    elif op == 'control.listen':
+        checks.expect(result == {'endpoint': params['endpoint']}, f'{name} answers its endpoint', f'result {result}')
     elif op == 'process.usage':
         pids = {u['pid'] for u in result.get('usage', [])}
         checks.expect(pids == set(params['pids']), f'{name} reads the helper and the replay', f'pids {sorted(pids)}')
@@ -1082,6 +1098,94 @@ def permission_requests(exe, checks):
     checks.expect(problem is None, 'permission requests validate.check', problem)
 
 
+def control_client(name, data):
+    """A thread that opens the pipe name, writes data and reads until the helper closes the connection; got gets
+    'data', the bytes read, or 'error'."""
+    got = {}
+
+    def run():
+        try:
+            with open(name, 'r+b', buffering=0) as pipe:
+                pipe.write(data)
+                chunks = []
+                while chunk := pipe.read(65536):
+                    chunks.append(chunk)
+            got['data'] = b''.join(chunks)
+        except OSError as error:
+            got['error'] = error
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return thread, got
+
+
+def control_endpoint(exe, checks):
+    """control.listen, control.request and control.respond with clients of this process (ssh's session 0 has pipes)."""
+    name = rf'\\.\pipe\c12-replay-{os.getpid()}-control'
+    token_file = Path(tempfile.gettempdir()) / f'c12-replay-{os.getpid()}' / 'computer-control.token'
+    helper = Helper(exe)
+    helper.request(HELLO)
+    listen = {'v': 1, 'id': 2, 'op': 'control.listen', 'params': {'endpoint': name, 'token_file': str(token_file)}}
+    got = helper.request(listen) or {}
+    checks.expect(got.get('result') == {'endpoint': name}, 'control.listen answers its endpoint', f'answer {got!r:.300}')
+    token = token_file.read_text(encoding='ascii') if token_file.is_file() else ''
+    checks.expect(re.fullmatch('[0-9a-f]{64}', token) is not None, 'control.listen writes a token of 32 random bytes',
+                  f'{len(token)} characters')
+    got = helper.request(dict(listen, id=3)) or {}
+    checks.expect(got.get('error', {}).get('code') == 'already_running', 'a second control.listen in one helper',
+                  f'answer {got!r:.300}')
+    other = Helper(exe)
+    other.request(HELLO)
+    other_token = str(token_file.with_name('other.token'))
+    got = other.request({'v': 1, 'id': 2, 'op': 'control.listen',
+                         'params': {'endpoint': r'C:\c12-replay.sock', 'token_file': other_token}}) or {}
+    checks.expect(got.get('error', {}).get('code') == 'endpoint_unavailable', 'control.listen of a name that is no pipe',
+                  f'answer {got!r:.300}')
+    got = other.request({'v': 1, 'id': 3, 'op': 'control.listen', 'params': {'endpoint': name, 'token_file': other_token}}) or {}
+    checks.expect(got.get('error', {}).get('code') == 'already_running', 'control.listen of a pipe another helper has',
+                  f'answer {got!r:.300}')
+    checks.expect(other.exit_code() == 0, 'second control helper exit', '')
+    checks.expect(token_file.is_file() and token_file.read_text(encoding='ascii') == token,
+                  'the first helper keeps its token file', '')
+
+    def line(message):
+        return json.dumps(message, separators=(',', ':')).encode('utf-8') + b'\n'
+
+    thread, reply = control_client(name, line({'id': 'w1', 'session_id': 's1', 'method': 'desktop_status',
+                                               'params': {}, 'token': '0' * 64}))
+    thread.join(10)
+    refusal = {'id': 'w1', 'error': {'code': 'unauthorized', 'message': 'the token is not valid'}}
+    checks.expect(reply.get('data', b'').endswith(b'\n') and json.loads(reply['data']) == refusal,
+                  'a wrong token is refused', f'got {reply!r:.300}')
+    request = {'id': 'r1', 'session_id': 's1', 'method': 'desktop_status', 'params': {}}
+    thread, reply = control_client(name, line(dict(request, token=token)))
+    event = helper.wait_event(lambda e: e['event'] == 'control.request', 10) or {}
+    data = event.get('data', {})
+    checks.expect(data.get('request') == request, 'control.request carries the request without its token',
+                  f'event {event!r:.300}')
+    response = {'id': 'r1', 'result': {'enabled': True}}
+    got = helper.request({'v': 1, 'id': 4, 'op': 'control.respond',
+                          'params': {'conn': data.get('conn', 1), 'response': response}}) or {}
+    checks.expect(got.get('result') == {'sent': True}, 'control.respond sends', f'answer {got!r:.300}')
+    thread.join(10)
+    checks.expect(reply.get('data', b'').endswith(b'\n') and json.loads(reply['data']) == response,
+                  'the client reads the response and the end of the connection', f'got {reply!r:.300}')
+    got = helper.request({'v': 1, 'id': 5, 'op': 'control.respond',
+                          'params': {'conn': data.get('conn', 1), 'response': response}}) or {}
+    checks.expect(got.get('error', {}).get('code') == 'conn_gone', 'control.respond again answers conn_gone',
+                  f'answer {got!r:.300}')
+    requests = [e['data']['request'].get('id') for e in helper.events if e['event'] == 'control.request']
+    checks.expect(requests == ['r1'], 'only the request with the token reaches the main process', f'requests {requests}')
+    checks.expect(helper.exit_code() == 0, 'control session exit', '')
+    checks.expect(not token_file.exists(), 'the token file goes when the helper exits', '')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, 'control session validate.check', problem)
+    try:
+        token_file.parent.rmdir()
+    except OSError:
+        pass
+
+
 def replay_ok(exe, checks, target, window):
     for path in sorted((C12 / 'examples').glob('ok-*.ndjson')):
         helper, hello = Helper(exe), None
@@ -1260,6 +1364,7 @@ def main(argv=None):
         if target:
             desktop(args.exe, checks, window, target)
         replay_ok(args.exe, checks, target, window)
+        control_endpoint(args.exe, checks)
         permission_requests(args.exe, checks)
         replay_bad(args.exe, checks)
         edge_cases(args.exe, checks)

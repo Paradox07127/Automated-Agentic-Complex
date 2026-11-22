@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:net';
 import { test } from 'node:test';
 import {
-  agentdArguments, agentdMenuLine, Backoff, type ChildState, crashState, HealthWatch, launchFailure, parseHealth, preflightFailure,
-  stateText,
+  agentdArguments, agentdMenuLine, Backoff, type ChildState, controlEndpoint, crashState, HealthWatch, launchFailure, parseHealth,
+  preflightFailure, stateText,
 } from '../src/common/agentd.ts';
 import { parseConfig } from '../src/common/config.ts';
 import { PLUGIN_IDS } from '../src/common/plugins.ts';
@@ -113,6 +113,20 @@ test('the agentd command line follows C9 in a fixed order', () => {
     '--no-proactive', '--break-reminder-minutes', '0', '--water-reminder-minutes', '0', '--mute', '--tts-url', 'http://127.0.0.1:9888', '--tts-token-file', '/s/tts-token',
     '--tts-ensure-host', 'gpu', '--tts-ensure-script', '/e.sh',
   ]);
+});
+
+test("the helper's control.listen and agentd get one endpoint: a socket in <support>/run on macOS, a pipe per support dir on Windows", () => {
+  assert.deepEqual(controlEndpoint('/s', 'mac'), { path: '/s/run/computer-control.sock', tokenFile: '/s/run/computer-control.token' });
+  const support = 'C:\\Users\\me\\AppData\\Roaming\\Agentic Complex';
+  const win = controlEndpoint(support, 'windows');
+  assert.match(win.path, /^\\\\\.\\pipe\\agentic-complex-[0-9a-f]{8}-control$/);
+  assert.equal(win.tokenFile, `${support}\\run\\computer-control.token`);
+  assert.deepEqual(controlEndpoint(support, 'windows'), win);
+  assert.notEqual(controlEndpoint('C:\\Users\\you\\AppData\\Roaming\\Agentic Complex', 'windows').path, win.path);
+  const ctx = { launcherScript: 'C:\\r\\agentd_launcher.py', parentPid: 42, character: '', platform: 'windows' as const };
+  const args = agentdArguments(config({ support_dir: support, plugins: { computer_use: true } }), ctx);
+  const at = args.indexOf('--computer-control-socket');
+  assert.deepEqual(args.slice(at, at + 4), ['--computer-control-socket', win.path, '--computer-control-token-file', win.tokenFile]);
 });
 
 test('a packaged Windows app runs its plain python.exe with -I -B before the launcher; the macOS wrapper adds them itself', () => {

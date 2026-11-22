@@ -1,6 +1,6 @@
 // agentd's supervision:
 // the states, the restart backoff, the health deadlines and the C9 command line. Processes and timers are src/main's.
-import { type Config, firstMissingComponent, launchAgentdDir } from './config.ts';
+import { type Config, firstMissingComponent, launchAgentdDir, type ShellPlatform } from './config.ts';
 import { PLUGIN_IDS } from './plugins.ts';
 
 export type ChildState =
@@ -166,10 +166,25 @@ export interface LaunchContext {
   /** Empty: agentd runs without a character (an empty library). */
   character: string;
   privacyConfigPath?: string;
+  /** Absent is macOS. */
+  platform?: ShellPlatform;
 }
 
 /** The TTS bearer token agentd sends to `tts_url` (C10). */
 export const ttsTokenFile = (supportDir: string) => `${supportDir}/tts-token`;
+
+/**
+ * `control.listen`'s endpoint and token file (CONTRACT §7.8), the same for the helper and agentd: a Unix socket in
+ * `<supportDir>/run/` on macOS; on Windows a named pipe, unique per support dir by an FNV-1a hash of it, and the token
+ * in `<supportDir>\run\`.
+ */
+export function controlEndpoint(supportDir: string, platform: ShellPlatform): { path: string; tokenFile: string } {
+  if (platform !== 'windows') return { path: `${supportDir}/run/computer-control.sock`, tokenFile: `${supportDir}/run/computer-control.token` };
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < supportDir.length; i += 1) hash = Math.imul(hash ^ supportDir.charCodeAt(i), 0x01000193) >>> 0;
+  return { path: `\\\\.\\pipe\\agentic-complex-${hash.toString(16).padStart(8, '0')}-control`,
+    tokenFile: `${supportDir}\\run\\computer-control.token` };
+}
 
 /** `[<python flags>] <launcher> --agentd-dir … --parent-pid … -- <agentd arguments>` (C9 「启动」). */
 export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
@@ -181,8 +196,8 @@ export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
   if (ctx.privacyConfigPath !== undefined) args.push('--privacy-config', ctx.privacyConfigPath);
   for (const id of PLUGIN_IDS) args.push(config.plugins[id] ? '--plugin-on' : '--plugin-off', id);
   if (config.plugins.computer_use) {
-    args.push('--computer-control-socket', `${config.supportDir}/run/computer-control.sock`,
-      '--computer-control-token-file', `${config.supportDir}/run/computer-control.token`);
+    const endpoint = controlEndpoint(config.supportDir, ctx.platform ?? 'mac');
+    args.push('--computer-control-socket', endpoint.path, '--computer-control-token-file', endpoint.tokenFile);
   }
   if (config.sharePageText) args.push('--share-page-text');
   if (config.shareWindowText) args.push('--share-window-text');

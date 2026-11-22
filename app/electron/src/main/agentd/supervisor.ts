@@ -162,7 +162,7 @@ export class AgentdSupervisor {
     if (gen !== this.generation) return;
     const character = typeof this.options.character === 'string' ? this.options.character : this.options.character(this.config);
     const args = agentdArguments(this.config, { pythonFlags: this.options.pythonFlags, launcherScript: this.options.launcherScript,
-      parentPid: process.pid, character, privacyConfigPath: this.options.privacyConfigPath });
+      parentPid: process.pid, character, privacyConfigPath: this.options.privacyConfigPath, platform: shellPlatform() });
     this.writeBinScripts();
     if (!(await this.launch(this.config.python, args, 'agentd.log'))) return;
     const launchGen = this.generation, watch = new HealthWatch(seconds());

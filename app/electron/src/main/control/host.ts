@@ -16,7 +16,7 @@ import { decodeWindows } from '../../common/screen-context.ts';
 export interface ControlPorts {
   /** `signal`'s abort sends C12 `cancel` for the request in flight. */
   helper: { request(op: string, params?: Record<string, unknown>, signal?: AbortSignal): Promise<HelperAnswer> };
-  /** `control.listen`'s endpoint and token file (`controlEndpoint`). */
+  /** `control.listen`'s endpoint and token file (common/agentd.ts `controlEndpoint`). */
   endpoint: { path: string; tokenFile: string };
   /** config.json's `computer_use` plug-in now; false while config.json fails to load. */
   enabled(): boolean;
@@ -31,11 +31,6 @@ export interface ControlPorts {
   /** A fresh unique id (an act's `action_id`). */
   newId(): string;
   log(line: string): void;
-}
-
-/** The socket and its token in `<support_dir>/run/` (macOS; the Windows pipe name is not settled). */
-export function controlEndpoint(supportDir: string): { path: string; tokenFile: string } {
-  return { path: `${supportDir}/run/computer-control.sock`, tokenFile: `${supportDir}/run/computer-control.token` };
 }
 
 /** Compared by identity; `id` is what the panel shows and its grant click carries back. */

@@ -18,6 +18,9 @@ import time
 
 from infra.tokens import read_token
 
+if sys.platform == "win32":
+    import _winapi
+
 SERVER_NAME = "agentic_complex_desktop"
 MAX_REQUEST = 32768
 MAX_REPLY = 8 * 1024 * 1024
@@ -128,6 +131,78 @@ def validate(method, params):
             raise ComputerUseError("invalid_arguments", "Action lacks its required bounded target or input")
 
 
+PIPE_PREFIX = "\\\\.\\pipe\\"
+
+
+def check_endpoint(path, platform=sys.platform):
+    r"""bridge_unavailable unless path is the desktop endpoint's kind: on Windows a named pipe name \\.\pipe\<name>
+    (the helper's pipe DACL admits this user alone and refuses remote clients), elsewhere a Unix socket this user owns."""
+    if platform == "win32":
+        name = path[len(PIPE_PREFIX):]
+        if path[:len(PIPE_PREFIX)].lower() != PIPE_PREFIX or not name or "\\" in name or "\0" in path or len(path) > 256:
+            raise ComputerUseError("bridge_unavailable", "Desktop endpoint is not a named pipe")
+        return
+    info = os.lstat(path)
+    if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
+        raise ComputerUseError("bridge_unavailable", "Desktop endpoint is not an owned local socket")
+
+
+def endpoint_path(value):
+    """--computer-control-socket as the client opens it: a pipe name unchanged (resolving a listening pipe opens it as a
+    client and raises), else the absolute socket path."""
+    return value if value[:len(PIPE_PREFIX)].lower() == PIPE_PREFIX else str(Path(value).expanduser().resolve())
+
+
+def _finish(overlapped, deadline):
+    """One overlapped transfer finished by deadline, or cancelled and socket.timeout."""
+    remaining = deadline - time.monotonic()
+    if remaining > 0 and _winapi.WaitForMultipleObjects([overlapped.event], False, math.ceil(remaining * 1000)) \
+            == _winapi.WAIT_OBJECT_0:
+        overlapped.GetOverlappedResult(True)
+        return
+    overlapped.cancel()
+    overlapped.GetOverlappedResult(True)
+    raise socket.timeout()
+
+
+def pipe_exchange(name, payload, deadline):
+    """Windows: payload out over the named pipe and the reply's bytes up to its newline back, as the socket path does."""
+    while True:
+        try:
+            handle = _winapi.CreateFile(name, _winapi.GENERIC_READ | _winapi.GENERIC_WRITE, 0, _winapi.NULL,
+                                        _winapi.OPEN_EXISTING, _winapi.FILE_FLAG_OVERLAPPED, _winapi.NULL)
+            break
+        except OSError as error:
+            if error.winerror != _winapi.ERROR_PIPE_BUSY:
+                raise
+        # Every instance is taken until the helper makes the next one.
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise socket.timeout()
+        try:
+            _winapi.WaitNamedPipe(name, math.ceil(min(remaining, 1) * 1000))
+        except OSError:
+            pass
+    try:
+        _finish(_winapi.WriteFile(handle, payload, overlapped=True)[0], deadline)
+        data = bytearray()
+        while b"\n" not in data:
+            try:
+                overlapped, _ = _winapi.ReadFile(handle, min(65536, MAX_REPLY + 1 - len(data)), overlapped=True)
+                _finish(overlapped, deadline)
+            except BrokenPipeError:
+                raise ComputerUseError("bridge_protocol", "Desktop endpoint closed before its reply") from None
+            chunk = overlapped.getbuffer()
+            if not chunk:
+                raise ComputerUseError("bridge_protocol", "Desktop endpoint closed before its reply")
+            data.extend(chunk)
+            if len(data) > MAX_REPLY:
+                raise ComputerUseError("bridge_protocol", "Desktop reply exceeds the bounded response limit")
+        return data
+    finally:
+        _winapi.CloseHandle(handle)
+
+
 @dataclass(frozen=True)
 class ComputerControlConfig:
     socket_path: str
@@ -156,9 +231,7 @@ class ComputerControlClient:
             self.snapshots.clear()  # even a timed-out/permission-interrupted attempt must never be replayed blindly
         try:
             token = read_token(self.config.token_file)
-            info = os.lstat(self.config.socket_path)
-            if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
-                raise ComputerUseError("bridge_unavailable", "Desktop endpoint is not an owned local socket")
+            check_endpoint(self.config.socket_path)
             request_id = secrets.token_hex(12)
             request = {"id": request_id, "method": method, "params": params,
                        "session_id": self.session_id, "token": token}
@@ -170,22 +243,25 @@ class ComputerControlClient:
             if not token or len(payload) > MAX_REQUEST:
                 raise ComputerUseError("invalid_arguments", "Desktop request exceeds the bounded request limit")
             deadline = time.monotonic() + self.timeout
-            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
-                connection.settimeout(self.timeout)
-                connection.connect(self.config.socket_path)
-                connection.sendall(payload)
-                data = bytearray()
-                while b"\n" not in data:
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise socket.timeout()
-                    connection.settimeout(remaining)
-                    chunk = connection.recv(min(65536, MAX_REPLY + 1 - len(data)))
-                    if not chunk:
-                        raise ComputerUseError("bridge_protocol", "Desktop endpoint closed before its reply")
-                    data.extend(chunk)
-                    if len(data) > MAX_REPLY:
-                        raise ComputerUseError("bridge_protocol", "Desktop reply exceeds the bounded response limit")
+            if sys.platform == "win32":
+                data = pipe_exchange(self.config.socket_path, payload, deadline)
+            else:
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+                    connection.settimeout(self.timeout)
+                    connection.connect(self.config.socket_path)
+                    connection.sendall(payload)
+                    data = bytearray()
+                    while b"\n" not in data:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            raise socket.timeout()
+                        connection.settimeout(remaining)
+                        chunk = connection.recv(min(65536, MAX_REPLY + 1 - len(data)))
+                        if not chunk:
+                            raise ComputerUseError("bridge_protocol", "Desktop endpoint closed before its reply")
+                        data.extend(chunk)
+                        if len(data) > MAX_REPLY:
+                            raise ComputerUseError("bridge_protocol", "Desktop reply exceeds the bounded response limit")
             reply = json.loads(bytes(data).split(b"\n", 1)[0])
             if not isinstance(reply, dict) or reply.get("id") != request_id:
                 raise ComputerUseError("bridge_protocol", "Desktop response identity does not match")

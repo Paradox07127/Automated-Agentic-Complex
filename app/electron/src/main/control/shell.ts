@@ -2,10 +2,12 @@
 import { randomUUID } from 'node:crypto';
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
+import { controlEndpoint } from '../../common/agentd.ts';
 import type { ComputerUsePanelState } from '../../common/computer-control.ts';
 import type { Plugins } from '../../common/plugins.ts';
 import { BlacklistFile } from '../attention/blacklist.ts';
-import { controlEndpoint, ControlHost, type ControlPorts } from './host.ts';
+import { shellPlatform } from '../platform/index.ts';
+import { ControlHost, type ControlPorts } from './host.ts';
 
 export interface ShellControlOptions {
   /** The shell's arguments: `--no-attention` (test and host runs) starts no control, so no window is read or acted on. */
@@ -56,7 +58,7 @@ export function shellControl(o: ShellControlOptions): ControlHost | null {
   if (o.argv.includes('--no-attention')) return null;
   const blacklist = new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
   const host = new ControlHost({
-    helper: o.helper, endpoint: controlEndpoint(o.supportDir), enabled: savedComputerUse(o.configPath, o.saved),
+    helper: o.helper, endpoint: controlEndpoint(o.supportDir, shellPlatform()), enabled: savedComputerUse(o.configPath, o.saved),
     blacklist: () => blacklist.rules(), ownPids: o.ownPids, now: Date.now,
     after: (ms, fn) => {
       const timer = setTimeout(fn, ms);

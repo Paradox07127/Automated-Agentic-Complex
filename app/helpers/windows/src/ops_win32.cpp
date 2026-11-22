@@ -536,6 +536,8 @@ Handler find_handler(const std::string& name) {
         {"ax.window_text", ax_window_text},
         {"ax.selected_text", ax_selected_text},
         {"ax.watch", ax_watch},
+        {"control.listen", control_listen},
+        {"control.respond", control_respond},
     };
     auto found = handlers.find(name);
     return found == handlers.end() ? nullptr : found->second;
@@ -543,6 +545,6 @@ Handler find_handler(const std::string& name) {
 
 const std::vector<const char*>& event_names() {
     static const std::vector<const char*> names = {"workspace.changed", "presence.edge", "input.activity",
-                                                   "ax.notification"};
+                                                   "ax.notification", "control.request"};
     return names;
 }

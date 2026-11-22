@@ -69,3 +69,9 @@ std::string grab_window_frame(void* hwnd, unsigned& width, unsigned& height, std
 // ops_ocr.cpp
 Outcome ocr_languages(const json::Value& params);
 Outcome ocr_recognize(const json::Value& params);
+
+// ops_control.cpp. control_stop closes the endpoint and deletes the token file (CONTRACT §6.1); main calls it before
+// exiting.
+Outcome control_listen(const json::Value& params);
+Outcome control_respond(const json::Value& params);
+void control_stop();

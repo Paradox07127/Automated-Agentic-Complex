@@ -12,7 +12,8 @@ import { type BlacklistRules, parseBlacklist } from '../src/common/attention.ts'
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
 import type { StreamEvent } from '../src/common/page.ts';
 import type { BrowserWindow } from 'electron';
-import { controlEndpoint, type ControlHost, startControl } from '../src/main/control/host.ts';
+import { controlEndpoint } from '../src/common/agentd.ts';
+import { type ControlHost, startControl } from '../src/main/control/host.ts';
 import { ControlPanel } from '../src/main/control/panel.ts';
 import { computerUseOps } from '../src/main/ops/computer-use.ts';
 import type { OpsContext } from '../src/main/ops/context.ts';
@@ -48,7 +49,7 @@ const settle = async () => { for (let i = 0; i < 40; i += 1) await new Promise((
 
 async function setup(o: { helper?: Record<string, Answer>; enabled?: boolean; blacklist?: BlacklistRules } = {}) {
   const support = mkdtempSync(join(tmpdir(), 'cc-'));
-  const endpoint = controlEndpoint(support);
+  const endpoint = controlEndpoint(support, 'mac');
   let clock = 1_763_539_200_000;
   const timers: { at: number; fn: () => void; live: boolean }[] = [];
   const state = { enabled: o.enabled ?? true, blacklist: o.blacklist ?? NO_RULES };
