@@ -73,7 +73,8 @@ export function MotionTable(p: MotionTableProps) {
   const missN = all.filter((r) => r.a.missing).length;
   const imported = p.imported ?? NO_IMPORTS;
   const impN = all.filter((r) => r.a.id in imported).length;
-  // Off by itself once the last imported row is gone.
+  // Off by itself once the last imported row is gone, and stays off when one comes again.
+  if (onlyImpOn && impN === 0) setOnlyImp(false);
   const onlyImp = onlyImpOn && impN > 0;
   const n = Object.keys(p.changed).length;
   const here = at ?? p.groups.find((g) => g.rows.some((r) => r.a.id === p.sel))?.key ?? p.groups[0]?.key;

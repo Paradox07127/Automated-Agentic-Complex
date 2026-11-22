@@ -52,8 +52,9 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
   const [sel, setSel] = useState<string>();
   const [filter, setFilter] = useState<MmdFilter>('all');
   const [loopPick, setLoop] = useState(false);
-  // The desktop loops a dance: 停止 takes the place of 桌面播放.
-  const [looping, setLooping] = useState(false);
+  // The dance the desktop loops for her: 停止 takes the place of its 桌面播放. A switch or her stopping ends the loop.
+  const [looping, setLooping] = useState<{ character: string; id: string } | null>(null);
+  if (looping && (looping.character !== current || p.offline)) setLooping(null);
   // The import result shown last; picking another dance folds it away until the next import.
   const [seen, setSeen] = useState<typeof mmdImport.note>(null);
   // Only a click on a baked dance plays it on the stage; the section opens on her idle.
@@ -88,8 +89,9 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
   };
   const play = (id: string) => {
     const loop = canLoop && loopPick;
+    const of = current;
     void (loop ? getBridge().avatar.playAction(id, 1, { loop: true }) : getBridge().avatar.playAction(id, 1)).then(
-      () => loop && setLooping(true),
+      () => setLooping(loop ? { character: of, id } : null),
       (e: unknown) => p.toast(PLAY_REFUSED[codeOf(e) ?? ''] ?? '没有播放：桌面角色未确认播放，请检查角色是否显示、是否连上', { severity: playRefusedSeverity(codeOf(e) ?? '') }),
     );
   };
@@ -97,7 +99,7 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
     void getBridge()
       .avatar.stopAction()
       .then(
-        () => setLooping(false),
+        () => setLooping(null),
         (e: unknown) => p.toast(`没有停止：${codeOf(e) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' }),
       );
   const add = (id: string) => setlist.put([...setlist.items, id]);
@@ -166,7 +168,7 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
                   canLoop={canLoop}
                   loop={loopPick}
                   onLoop={setLoop}
-                  looping={looping}
+                  looping={looping?.character === current && looping.id === picked.id}
                   playOff={playOff}
                   editOff={editOff}
                   onPlay={() => play(picked.id)}

@@ -224,10 +224,6 @@
 
 /* The narrow column (925 × 515): thumbnails down to a hatched strip, no SP tag, a smaller shutter without its words. */
 @container (max-width: 330px) {
-  .photo {
-    gap: 6px;
-  }
-
   .part {
     gap: 4px;
   }
@@ -279,10 +275,18 @@
 
 }
 
+/* .photo is its own container, so its gap follows the scene's. */
+@container op (max-width: 1100px) {
+  .photo {
+    gap: 6px;
+  }
+}
+
 @container op (max-height: 560px) {
   .photo {
     top: 8px;
     bottom: 8px;
+    gap: 6px;
   }
 }
 

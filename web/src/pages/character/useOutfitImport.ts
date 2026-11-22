@@ -38,6 +38,12 @@ export function useOutfitImport(
   }, []);
   const [removing, setRemoving] = useState(false);
   const [landed, setLanded] = useState<OutfitImport['landed']>(null);
+  // The banner is the character's who imported it.
+  const [landedOf, setLandedOf] = useState(character);
+  if (landedOf !== character) {
+    setLandedOf(character);
+    setLanded(null);
+  }
   const why = (e: unknown) => {
     const err = e as Partial<BridgeError> | null;
     return err?.code === 'not_implemented' ? '这个版本还不支持' : err?.code ? outfitImportReason(err.code, err.detail) : '桌面角色没有回应';
@@ -50,7 +56,7 @@ export function useOutfitImport(
       .character.importOutfit()
       .then(
         (r) => {
-          setLanded({ ...r.appearance, warnings: r.warnings });
+          if (owns()) setLanded({ ...r.appearance, warnings: r.warnings });
           if (r.warnings.length === 0) toast(`已导入「${r.appearance.name}」`);
           else {
             const words = r.warnings.slice(0, 2).map(outfitImportWarning).join('；');
@@ -77,6 +83,7 @@ export function useOutfitImport(
       .then(
         () => {
           setRemoving(false);
+          setLanded((l) => (l?.id === id ? null : l));
           toast(`已删除「${name}」`);
           void qc?.invalidateQueries({ queryKey: ['character', 'list'] });
         },

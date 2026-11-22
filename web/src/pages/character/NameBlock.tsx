@@ -13,7 +13,7 @@ export interface VoiceBinding {
   language: string;
 }
 
-/** `character`'s voice from agentd's binding, read once per character while `on`; null without one or when the read fails. */
+/** `character`'s voice from agentd's binding, read once per character while `on`; null without one or when the read fails, which the next `on` reads again. */
 export function useVoiceBinding(character: string, on: boolean): VoiceBinding | null {
   const [read, setRead] = useState<{ character: string; voice: VoiceBinding | null }>();
   const have = read?.character === character;
@@ -22,7 +22,7 @@ export function useVoiceBinding(character: string, on: boolean): VoiceBinding | 
     let live = true;
     readVoiceBinding(character).then(
       (voice) => live && setRead({ character, voice }),
-      () => live && setRead({ character, voice: null }),
+      () => {},
     );
     return () => {
       live = false;

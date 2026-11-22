@@ -64,11 +64,15 @@ export function PhotoMode(p: PhotoModeProps) {
     };
   }, [p.avatar]);
 
+  // A stopped avatar loses the photo state; it opens again on f/32 when she is back.
   useEffect(() => {
-    if (!photo || photoOn.current) return;
+    if (p.offline) photoOn.current = false;
+    if (!photo || p.offline || photoOn.current) return;
     photoOn.current = true;
+    setAperture(OPEN.aperture);
+    setFocus(OPEN.focus);
     void getBridge().avatar.photo.set(OPEN).catch(() => {});
-  }, [photo]);
+  }, [photo, p.offline]);
 
   const send = (next: Partial<PhotoState>) => {
     if (next.aperture !== undefined) setAperture(next.aperture);
@@ -77,6 +81,7 @@ export function PhotoMode(p: PhotoModeProps) {
   };
 
   const off = p.offline || !canCapture;
+  const camOff = !photo || p.offline;
   const take = () => {
     if (off || shot.busy) return;
     setShot({ busy: true, text: null });
@@ -161,7 +166,7 @@ export function PhotoMode(p: PhotoModeProps) {
             景深还没有接上：渲染器支持拍照景深后，光圈和对焦才可以调
           </div>
         )}
-        <div className={styles.cam} data-theme="dark" data-off={!photo || undefined}>
+        <div className={styles.cam} data-theme="dark" data-off={camOff || undefined}>
           <span className={styles.lead} aria-hidden="true">
             <i />
           </span>
@@ -172,10 +177,10 @@ export function PhotoMode(p: PhotoModeProps) {
                 {fNumber(aperture)}
               </b>
             </div>
-            <Slider label="光圈" min={1.4} max={32} step={0.1} value={aperture} defaultValue={OPEN.aperture} disabled={!photo} onChange={(v) => send({ aperture: v })} />
+            <Slider label="光圈" min={1.4} max={32} step={0.1} value={aperture} defaultValue={OPEN.aperture} disabled={camOff} onChange={(v) => send({ aperture: v })} />
           </div>
         </div>
-        <div className={styles.cam} data-theme="dark" data-off={!photo || undefined}>
+        <div className={styles.cam} data-theme="dark" data-off={camOff || undefined}>
           <span className={styles.lead} aria-hidden="true">
             <i />
           </span>
@@ -189,7 +194,7 @@ export function PhotoMode(p: PhotoModeProps) {
                   { value: 'auto', label: '自动' },
                   { value: 'manual', label: '手动' },
                 ]}
-                disabled={!photo}
+                disabled={camOff}
                 onChange={(v) => (v === 'auto' ? send({ focus: 'auto' }) : focus === 'auto' && send({ focus: FOCUS_FAR }))}
               />
               {focus !== 'auto' && (
@@ -200,7 +205,7 @@ export function PhotoMode(p: PhotoModeProps) {
               )}
             </div>
             {focus !== 'auto' && (
-              <Slider label="对焦距离" min={0.1} max={FOCUS_FAR} step={0.1} value={focus} defaultValue={FOCUS_FAR} unit="m" disabled={!photo} onChange={(v) => send({ focus: v })} />
+              <Slider label="对焦距离" min={0.1} max={FOCUS_FAR} step={0.1} value={focus} defaultValue={FOCUS_FAR} unit="m" disabled={camOff} onChange={(v) => send({ focus: v })} />
             )}
           </div>
         </div>

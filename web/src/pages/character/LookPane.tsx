@@ -310,7 +310,7 @@ export function LookPane(p: LookPaneProps) {
               <div className={imp.progHd}>
                 <Icon name="folder" size={16} />
                 <span className={imp.fd}>{importing.title}</span>
-                <MicroLabel>{`Stage ${stage + 1} / ${STAGES.length}`}</MicroLabel>
+                <MicroLabel>{stage < 0 ? '准备中' : `Stage ${stage + 1} / ${STAGES.length}`}</MicroLabel>
                 <span className={imp.pct} aria-hidden="true">
                   {pct}
                   <small>%</small>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getBridge, type MotionPlaylist, type PlaylistState } from '../../bridge';
 import type { Toast } from '../character/feedback';
 
@@ -25,16 +25,26 @@ export interface Setlist {
 /** Her MMD list (`character.getPlaylist/setPlaylist`) and the desktop's run of it (`avatar.playPlaylist/stopPlaylist/playlistState`), read only while she has `mmd_` actions (`ids`). */
 export function useSetlist(character: string, ids: string[], toast: Toast): Setlist {
   const [saved, setSaved] = useState<MotionPlaylist>(EMPTY);
+  // Whose list `saved` is; edits wait for it, or a save would write over the list on disk.
+  const [read, setRead] = useState<string | null>(null);
+  // Only the latest save rolls back on failure.
+  const last = useRef(0);
   const [now, setNow] = useState<PlaylistState>(IDLE);
   const shown = ids.length > 0;
 
   useEffect(() => {
     if (!shown) return;
     let live = true;
+    last.current++;
     setSaved(EMPTY);
+    setRead(null);
     getBridge()
       .character.getPlaylist()
-      .then((l) => live && setSaved(l), failed('读取 MMD 列表', toast));
+      .then((l) => {
+        if (!live) return;
+        setSaved(l);
+        setRead(character);
+      }, failed('读取 MMD 列表', toast));
     return () => {
       live = false;
     };
@@ -55,12 +65,14 @@ export function useSetlist(character: string, ids: string[], toast: Toast): Setl
   // Ids she no longer has drop out of the list on the next save.
   const items = saved.items.filter((id) => ids.includes(id));
   const save = (next: MotionPlaylist) => {
+    if (read !== character) return;
     const before = saved;
+    const n = ++last.current;
     setSaved(next);
     getBridge()
       .character.setPlaylist(next)
       .catch((e: unknown) => {
-        setSaved(before);
+        if (n === last.current) setSaved(before);
         failed('改 MMD 列表', toast)(e);
       });
   };

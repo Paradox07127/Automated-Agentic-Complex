@@ -67,11 +67,12 @@ export function CharacterSettings(p: CharacterSettingsProps) {
   const tabs = n ? presentTabs(n, dev) : [];
   const tab = tabs.includes(p.tab) ? p.tab : tabs[0];
 
+  const loaded = n != null;
   useEffect(() => {
     // 主光水平 and 主光俯仰 share the light pad's row.
     const id = p.row === LIGHT_PAD.pitch ? LIGHT_PAD.yaw : p.row;
-    if (n && id) document.getElementById(`set-${id}`)?.scrollIntoView({ block: 'center' });
-  }, [n, p.row]);
+    if (loaded && id) document.getElementById(`set-${id}`)?.scrollIntoView({ block: 'center' });
+  }, [loaded, p.row]);
 
   useEffect(() => {
     if (!p.avatar) return;

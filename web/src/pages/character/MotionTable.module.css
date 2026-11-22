@@ -234,8 +234,8 @@
   }
 }
 
-/* Compact: no column titles, trigger, barcode or section note; 必需 is its lock only. */
-@container op (max-width: 1100px) {
+/* Compact: no column titles, trigger, barcode or section note; 必需 is its lock only. The limits are useCompactScene's. */
+@container op (max-width: 1100px) or (max-height: 560px) {
   .mt {
     --cells: minmax(0, 1fr) 44px;
     --row-end: 170px;

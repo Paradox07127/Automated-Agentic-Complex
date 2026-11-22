@@ -145,7 +145,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
   const groups = GROUPS.map(([category, title, en]) => ({ category, title, en, rows: settings.filter((s) => groupOf(s) === category) })).filter((g) => g.rows.length > 0);
   const moved = (s: ModSettingRow) => value(s) !== s.default;
   const current = cur && settings.some((s) => s.id === cur) ? cur : groups[0]?.rows[0]?.id;
-  const here = at ?? groups[0]?.category;
+  const here = at && groups.some((g) => g.category === at) ? at : groups[0]?.category;
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
