@@ -13,7 +13,8 @@ from character.gate import Gate  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 from motion.chooser import MotionChooser  # noqa: E402
 from test_server import HOOK, UI, FakeMouth, FakeRelay, KernelLines  # noqa: E402
-from test_spatial import PACK, situation  # noqa: E402
+from test_return import greeting_pack  # noqa: E402
+from test_spatial import situation  # noqa: E402
 from personal.memory import Memory  # noqa: E402
 from character.proactive import Proactive  # noqa: E402
 from brain.persona import PROMPT_USER  # noqa: E402
@@ -370,9 +371,10 @@ class ReturnWelcomeTapTest(unittest.TestCase):
         db = open_store(Path(tmp.name) / "agentd.sqlite")
         self.addCleanup(db.close)
         self.now = time.mktime(datetime.datetime.now().replace(hour=8, minute=0, second=0, microsecond=0).timetuple())
-        server.rituals = Rituals(db, clock=lambda: self.now, summary=lambda day: None, on_change=server.ritual_check)
+        server.rituals = Rituals(db, clock=lambda: self.now, summary=lambda day: None, on_change=server.ritual_check,
+                                 greeted=server.returning.welcomed_on)
         server.spatial.observe = lambda: situation()
-        server.spatial.use_motion(MotionChooser(PACK))
+        server.spatial.use_motion(MotionChooser(greeting_pack(tmp.name)))
         server.spatial.motion_step()
 
     def back(self, stage):
@@ -390,6 +392,7 @@ class ReturnWelcomeTapTest(unittest.TestCase):
     def test_a_welcome_that_played_today_leaves_no_morning_greeting(self):
         self.back("engaged")
         self.assertEqual(self.server.spatial.diag()["return"]["played"], ["welcome"])
+        self.assertNotIn("morning", self.server.rituals.pending())  # /feed and presence say no morning tap either
         self.assertEqual(self.tap(), "tap")
 
     def test_a_return_without_a_welcome_keeps_the_morning(self):

@@ -1,6 +1,7 @@
 """Turn traces, decision traces and their steps."""
 import re
 import sqlite3
+import sys
 import time
 
 from character.proactive import WANT_COMMENT
@@ -27,8 +28,11 @@ class TracingMixin:
             return None
         try:
             event_id = self.trace.emit(kind, trace_id, **fields)
-        except (sqlite3.Error, ValueError):
+        except (sqlite3.Error, ValueError) as e:
             self.trace_errors += 1
+            # the store's reasons quote the refused values, which may be the user's text: names only
+            reason = re.sub(r"(bad [\w.]+): [^;]*", r"\1", str(e)).replace("\n", " ")[:300]
+            print(f"agentd: trace {kind} refused: {reason}", file=sys.stderr)
             return None
         if event_id is None:
             return None

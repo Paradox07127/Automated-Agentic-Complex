@@ -159,14 +159,32 @@ class RowTest(ReturnCase):
 
 
 class OneWelcomeTest(ReturnCase):
-    """The plain demo pack maps no greet or acknowledge intent: its user.greet event is both welcomes."""
-    pack = test_spatial.PACK
+    pack = None  # set in setUp: the greeting pack without the acknowledge intent
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.pack = greeting_pack(self.tmp)
+        path = self.pack / "c7" / "animation" / "intent-motion-map.json"
+        table = json.loads(path.read_text(encoding="utf-8"))
+        table["clips"]["nod"]["intents"] = []
+        path.write_text(json.dumps(table), encoding="utf-8")
+        super().setUp()
 
     def test_the_small_welcome_is_the_one_the_pack_has(self):
         self.leave()
         self.assertEqual(self.back(300), [("face", None), ("perform", "wave")])
-        self.assertEqual(self.played[1]["trigger"]["event"], "user.greet")
         self.assertValid()
+
+
+class NoWelcomeTest(ReturnCase):
+    """The plain demo pack maps no greet or acknowledge intent: she only looks at the user."""
+    pack = test_spatial.PACK
+
+    def test_a_pack_without_welcome_intents_looks_at_the_user_only(self):
+        self.leave()
+        self.assertEqual(self.back(300), [("face", None)])
+        self.assertEqual((self.last()["played"], self.last()["why"]), (["face"], "no_clip"))
 
 
 class NoPerformanceTest(ReturnCase):
@@ -237,7 +255,7 @@ class AbsenceTest(ReturnCase):
 
 
 class ServerCase(unittest.TestCase):
-    """agentd with the demo pack's chooser, the user just back."""
+    """agentd with the greeting pack's chooser, the user just back."""
 
     def setUp(self):
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI, events_token=EVENTS)
@@ -245,12 +263,12 @@ class ServerCase(unittest.TestCase):
         self.addCleanup(self.thread.join, 2)
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
-        self.server.spatial.observe = lambda: test_spatial.situation()
-        self.server.spatial.use_motion(MotionChooser(test_spatial.PACK))
-        self.server.spatial.stage = lambda: "engaged"
-        self.server.spatial.motion_step()
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
+        self.server.spatial.observe = lambda: test_spatial.situation()
+        self.server.spatial.use_motion(MotionChooser(greeting_pack(tmp.name)))
+        self.server.spatial.stage = lambda: "engaged"
+        self.server.spatial.motion_step()
         self.config = Path(tmp.name) / "config.json"
 
     def back(self, away_s=900, ts=None):
@@ -281,3 +299,62 @@ class GreetSettingTest(ServerCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReviewTest(ReturnCase):
+    """Real event orders and chooser states around a return."""
+
+    def wave_ran(self, played):
+        """Whether the wave the return sent ran its length before anything replaced it."""
+        [wave] = [m for m in played if m.get("clip") == {"id": "wave"}]
+        after = [m for m in self.sent if m.get("replaces") == wave["behavior_id"]]
+        return not after or self.at[after[0]["behavior_id"]] - self.at[wave["behavior_id"]] >= WAVE - CROSSFADE - 0.01
+
+    def test_the_stage_change_after_the_return_does_not_cut_the_welcome(self):
+        self.registry.set_quiet(True)
+        self.leave()
+        self.jump(self.left + 600)
+        self.stage = "engaged"
+        mark = len(self.sent)
+        self.returning.returned({"revision": 1, "ts": self.now, "name": "user.return",
+                                 "data": {"absence_id": "a-1", "away_s": 600}})
+        seq = self.registry.intent_seq
+        self.registry.set_quiet(False)  # stage.engaged follows user.return in one user_now commit
+        self.assertGreater(self.registry.intent_seq, seq)
+        self.flush()
+        self.run_clock(10)
+        self.assertTrue(self.wave_ran(self.sent[mark:]), self.sent[mark:])
+
+    def returned_at(self, away_s):
+        self.jump(self.left + away_s)
+        self.stage = "engaged"
+        self.returning.returned({"revision": 1, "ts": self.now, "name": "user.return",
+                                 "data": {"absence_id": "a-1", "away_s": away_s}})
+        self.flush()
+
+    def test_the_quiet_stage_mid_return_ends_it_without_the_report(self):
+        self.leave()
+        self.done("r1")
+        mark = len(self.sent)
+        self.returned_at(900)
+        self.run_clock(0.2)
+        self.stage = "quiet"
+        self.spatial.stage_event("stage.quiet")
+        self.run_clock(10)
+        self.assertNotIn({"id": "point"}, [m.get("clip") for m in self.sent[mark:]])
+
+    def test_a_return_while_a_session_loop_blends_in_plays_or_leaves_no_trace(self):
+        self.leave()
+        self.jump(self.left + 900)
+        self.stage = "engaged"
+        self.registry.set_role_focus(test_spatial.role("thinking"), generation=self.generation)
+        self.run_clock(spatial.MOTION_WAKE)
+        mark = len(self.sent)
+        self.returning.returned({"revision": 1, "ts": self.now, "name": "user.return",
+                                 "data": {"absence_id": "a-1", "away_s": 900}})
+        self.run_clock(10)
+        waves = [m for m in self.sent[mark:] if m.get("clip") == {"id": "wave"}]
+        played = "welcome" in self.last()["played"]
+        self.assertEqual([m["trigger"]["source"] for m in waves], ["user"] if played else [])
+        self.assertNotEqual(self.spatial.chooser.semantic, "greet")
+

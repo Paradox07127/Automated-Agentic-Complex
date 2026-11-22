@@ -253,6 +253,7 @@ class Spatial:
         self._overlay = None  # clip of the chosen overlay perform, while the chooser still plays it
         self._staged = None  # a clause's gesture the chooser staged behind its start family's base
         self._hold_at = 0.0  # clock time the chooser's loop that does not run may be proposed again
+        self._held = False  # whether the current chooser has had a base loop sent
         self._seated = self._voice = False  # what the chooser was told: she sits; her voice plays
         self._clauses = OrderedDict()  # clause key -> the intent of its clause_intent, until its clause_end
         self._reactions = None  # the chooser's snapshot reaction table
@@ -565,6 +566,9 @@ class Spatial:
             if self._edge is not None and self._edge["parked"]:
                 self.parked(False)
             self._edge = {"pending": True, "walk": None, "parked": False} if name == "stage.quiet" else None
+            if self._return is not None and name in ("stage.quiet", "stage.offstage"):
+                self.last_return["why"] = "stage"
+                self._return_over()
             if name == "stage.quiet":
                 self.motion({"kind": "quiet"})
             self._stage_revision += 1
@@ -580,7 +584,7 @@ class Spatial:
             self.chooser, self._motion_at, self._chosen, self._base_id = chooser, None, [], None
             self._overlay = self._staged = self._return = None
             self._returned = []
-            self._hold_at, self._seated, self._voice = 0.0, False, False
+            self._hold_at, self._seated, self._voice, self._held = 0.0, False, False, False
             self._intents.clear()
             self._clauses.clear()
             self._reactions = None if chooser is None else _reactions(chooser)
@@ -662,6 +666,8 @@ class Spatial:
                 record["why"] = "no_motion"
             elif self._seated:
                 record["why"] = "seated"
+            elif not self.chooser.ready():
+                record["why"] = "busy"  # a session loop or a pending change holds the body: no welcome over it
             else:
                 self._advance(now)
                 self._propose(s, now)
@@ -676,15 +682,12 @@ class Spatial:
 
     def _return_steps(self, welcome, report):
         """(part, chooser input) of each clip the return plays, by what the pack maps: the small welcome is the
-        acknowledge intent and the full one the greet intent, else the pack's user.greet event, each standing in for
-        the other in a pack with one; the report gesture is the explain intent."""
+        acknowledge intent and the full one the greet intent, each standing in for the other in a pack with one; the
+        report gesture is the explain intent."""
         pack = self.chooser.pack
         intent = lambda name: {"kind": "clause", "intent": name} \
             if pack.primary(name) or pack.contexts.get("intent." + name) else None  # noqa: E731
-        # an event spends the idle budget and may wait; an intent plays at once
-        greet = intent("greet") or ({"kind": "event", "key": "user.greet"} if pack.event_key("user.greet", "stand")
-                                    else None)
-        nod = intent("acknowledge")
+        greet, nod = intent("greet"), intent("acknowledge")
         steps = (("welcome", {"small": nod or greet, "full": greet or nod, None: None}[welcome]),
                  ("report", intent("explain") if report else None))
         return [(part, item) for part, item in steps if item is not None]
@@ -808,7 +811,7 @@ class Spatial:
             if self._return_next():
                 return  # the chooser left the step's clip: the next step's clips play instead of this one
             ret = None
-        elif ret is not None and ret["clip"] is None and not why.startswith("base before "):
+        elif ret is not None and ret["clip"] is None and not why.startswith(("base before ", "toward ")):
             ret["clip"] = clip
         if kind == "clause" and why.startswith("base before "):
             self._staged = why.removeprefix("base before ")  # the overlay needs no base to start from
@@ -838,6 +841,7 @@ class Spatial:
             self._overlay, self._staged = clip, None
         else:
             self._base_id, self._base_since = next(reversed(self.active)), self.chooser.t_s
+            self._held = True
 
     def _hold(self, s, now):
         """Renews the chosen base loop before its ttl_s runs out, and proposes the chooser's loop when the base layer
@@ -845,7 +849,9 @@ class Spatial:
         base = self.active.get(self._base_id)
         if base is not None and base["spec"].get("loop") and base["behavior"]["expires_at_ms"] <= (now + LOOP_RENEW) * 1000:
             # a return loop the chooser still plays after the return is renewed as her own
-            spec = base["spec"] if self._return is not None else {**base["spec"], "priority": 0}
+            spec = {k: v for k, v in base["spec"].items() if k != "start"}
+            if self._return is None:
+                spec["priority"] = 0
             if self._send(spec, s, now, self._lapsed())[0]:
                 self._base_id = next(reversed(self.active))
             return
@@ -854,8 +860,12 @@ class Spatial:
                 or base is not None and base["spec"]["clip"]["id"] == clip:
             return
         self._hold_at = now + HOLD_RETRY
-        if self._send(self._chosen_spec(clip, "base", self._source("hold"), "hold", None), s, now, self._lapsed())[0]:
+        spec = self._chosen_spec(clip, "base", self._source("hold"), "hold", None)
+        if not self._held:
+            spec["start"] = "sync"  # after an agentd restart the renderer still plays this loop: no restart from 0
+        if self._send(spec, s, now, self._lapsed())[0]:
             self._base_id, self._base_since = next(reversed(self.active)), self.chooser.t_s
+            self._held = True
 
     def _source(self, why):
         return "session" if why.startswith("session.") else "speech" if self.chooser.speaking else "tick"

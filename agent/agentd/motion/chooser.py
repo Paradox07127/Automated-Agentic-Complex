@@ -1550,6 +1550,12 @@ class MotionChooser:
     def _clear_waiting(self):
         self.waiting_event = self.waiting_until = None
 
+    def ready(self):
+        """Whether an intent or an immediate event plays at once rather than waiting behind a loop, a pending
+        change or a seat."""
+        return not (self.exact_owned or self.exact_acquisition_pending or self.requested or self.pending
+                    or self._body_busy())
+
     def play_immediate_event(self, key):
         if self.exact_owned or self.exact_acquisition_pending or self.requested or self.pending:
             return False

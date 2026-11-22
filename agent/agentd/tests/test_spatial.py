@@ -2030,6 +2030,18 @@ class ChooserTest(SpatialCase):
                                  spatial.LOOP_TTL - spatial.LOOP_RENEW + spatial.MOTION_WAKE + 1e-6)
         self.assertValid()
 
+    def test_a_new_chooser_s_first_loop_takes_up_the_phase_the_renderer_plays(self):
+        self.run_clock(120)
+        first, *rest = self.performs()
+        self.assertEqual((first["clip"], first.get("start")), ({"id": "base_loop"}, "sync"))
+        self.assertTrue(any(self.renewal(m) for m in rest))
+        self.assertEqual([m for m in rest if "start" in m], [])
+        self.spatial.use_motion(MotionChooser(PACK))
+        self.sent.clear()
+        self.run_clock(spatial.MOTION_WAKE)
+        self.assertEqual(self.performs()[0].get("start"), "sync")
+        self.assertValid()
+
     def test_chosen_clips_play_under_her_idle_and_gaze_and_give_way_to_walks(self):
         self.run_clock(spatial.MOTION_WAKE)
         [loop] = self.performs()

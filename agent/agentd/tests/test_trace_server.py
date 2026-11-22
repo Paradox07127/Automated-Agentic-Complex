@@ -282,6 +282,33 @@ class LookTraceTest(TraceServerCase):
         self.assertEqual(self.server.trace_errors, 0)
 
 
+class RefusedTraceTest(TraceServerCase):
+    def test_an_event_the_store_refuses_is_counted_and_logged_with_its_kind(self):
+        import contextlib
+        import io
+        from traces.trace_store import new_trace_id
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            refused = self.server._trace("behavior.receipt", new_trace_id(), turn_id=None, turn_generation=3,
+                                         attrs={"behavior_id": "b-1-1", "behavior_type": "idle", "phase": "running",
+                                                "reason": None})
+        self.assertEqual((refused, self.server.trace_errors), (None, 1))
+        self.assertIn("agentd: trace behavior.receipt refused: invalid behavior.receipt event: turn_id and "
+                      "turn_generation must both be null or both be set", err.getvalue())
+
+    def test_the_log_line_names_a_refused_value_without_quoting_it(self):
+        import contextlib
+        import io
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.server._trace("behavior.receipt", "她说的私事\n第二行", attrs={"behavior_id": "b-1-1",
+                                                                          "behavior_type": "idle", "phase": "running"})
+        self.assertEqual(self.server.trace_errors, 1)
+        self.assertIn("bad trace_id", err.getvalue())
+        self.assertNotIn("私事", err.getvalue())
+        self.assertEqual(err.getvalue().count("\n"), 1)
+
+
 class TraceEndpointTest(TraceServerCase):
     def test_posted_events_from_avatar_are_stored(self):
         status, body = self.request("POST", "/trace/events", {"events": [avatar_event(),

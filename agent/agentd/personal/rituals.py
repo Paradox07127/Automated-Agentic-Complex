@@ -74,14 +74,17 @@ def _month_day(text):
 
 
 class Rituals:
-    def __init__(self, db, clock=time.time, report_time="17:30", memory=None, summary=None, on_change=None, arc=None):
+    def __init__(self, db, clock=time.time, report_time="17:30", memory=None, summary=None, on_change=None, arc=None,
+                 greeted=None):
         """db: the shared store; report_time: local "HH:MM"; memory: Memory, for a confirmed birthday;
         summary(day) -> day_summary.summarize's result for local date day, or None; on_change() runs after
-        something that may change pending(); arc(day) -> what was worked on local date day, or None."""
+        something that may change pending(); arc(day) -> what was worked on local date day, or None;
+        greeted(date) -> whether her return performance already welcomed the user on that local date, so the
+        morning greeting is not due."""
         hour, minute = report_time.split(":")
         self.report_time = (int(hour), int(minute))
         self.db, self.clock, self.memory, self.summary, self.on_change = db, clock, memory, summary, on_change
-        self.arc = arc
+        self.arc, self.greeted = arc, greeted or (lambda day: False)
         self._pending = {}  # "break" / "water" -> (its template's fields, clock time it fell due)
         self._lock = threading.Lock()
         now = self.clock()
@@ -176,7 +179,8 @@ class Rituals:
         if self._birthday(local) and not self._done("birthday", day):
             yield "birthday", {}
         evening = (local.hour, local.minute) >= self.report_time
-        if not evening and local.hour >= MORNING_FROM and not self._done("morning", day):
+        if not evening and local.hour >= MORNING_FROM and not self._done("morning", day) \
+                and not self.greeted(local.date()):
             yield "morning", {"weekday": WEEKDAYS[local.weekday()], "time": f"{local:%H:%M}"}
         if evening and not self._done("report", day):
             summary = self.summary(day) if self.summary is not None else None

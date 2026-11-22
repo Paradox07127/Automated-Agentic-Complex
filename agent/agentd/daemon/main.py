@@ -434,7 +434,8 @@ def main():
                              "codex": (Path(paths.CODEX_HOME) / paths.CODEX_HOOKS).expanduser()}  # tools/install_hooks.py defaults
     server.rituals = Rituals(open_store(db), report_time=args.ritual_report_time, memory=memory,
                              summary=server.day_session_summary if plugins.on("daily_brief") else None,
-                             arc=server.day_arc if plugins.on("daily_brief") else None, on_change=server.ritual_check)
+                             arc=server.day_arc if plugins.on("daily_brief") else None, on_change=server.ritual_check,
+                             greeted=server.returning.welcomed_on)
     if awareness and light:
         server.proactive = Proactive(attention, server.gate, server.feed.publish, server.start_line, server.busy,
                                      judge=Judge(SemanticJudge(server.character_agent.semantic, "proactive_decide"),
