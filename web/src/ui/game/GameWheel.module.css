@@ -1,0 +1,274 @@
+/* generalabilitypanel_pc at half size. Dark in both themes: the game's wheel is a black disc and must read over any
+   desktop. */
+.wheel {
+  position: relative;
+  width: 520px;
+  height: 520px;
+  color: var(--ef-g-watch-ink);
+  outline: none;
+  pointer-events: none;
+}
+
+/* The desktop dims round the wheel. */
+.vignette {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(0 0 0 / 40%) 0 30%, rgb(0 0 0 / 22%) 52%, transparent 70%);
+}
+
+/* Opening: turns in from 40° and grows from .9 over 330 ms, flickering once in its first 90 ms (quickmenu_in, shortened). */
+.content {
+  position: absolute;
+  inset: 0;
+  animation:
+    gw-turn 330ms cubic-bezier(0.286, 0, 0, 1) both,
+    gw-blink 90ms steps(1) both;
+}
+
+@keyframes gw-turn {
+  from {
+    transform: rotate(40deg) scale(0.9);
+  }
+}
+
+@keyframes gw-blink {
+  0% {
+    opacity: 0;
+  }
+
+  35% {
+    opacity: 1;
+  }
+
+  65% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.shade {
+  fill: rgb(0 0 0 / 55%);
+}
+
+.disc {
+  fill: var(--ef-g-wheel-bg);
+  stroke: rgb(255 255 255 / 6%);
+}
+
+.lit {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+}
+
+.arrow {
+  fill: var(--ef-accent);
+}
+
+.line {
+  fill: none;
+  stroke: var(--ef-g-tick);
+  stroke-width: 1.5;
+}
+
+.lineThin {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ef-g-tick) 50%, transparent);
+  stroke-width: 1;
+}
+
+.frame {
+  fill: none;
+  stroke: rgb(255 255 255 / 40%);
+  stroke-linecap: round;
+  stroke-width: 2.4;
+}
+
+.frame[data-on] {
+  stroke: rgb(255 255 255 / 90%);
+}
+
+.frameGlow {
+  fill: none;
+  stroke: rgb(255 255 255 / 12%);
+  stroke-width: 5;
+}
+
+.tick {
+  fill: rgb(255 255 255 / 22%);
+}
+
+.cancel {
+  fill: rgb(255 255 255 / 4%);
+  stroke: rgb(255 255 255 / 10%);
+}
+
+.cancel[data-on] {
+  stroke: transparent;
+}
+
+/* CancelPanelCircle: a red ring while the pointer is in the centre. */
+.cancelRing {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ef-danger-vivid) 85%, transparent);
+  stroke-width: 3;
+}
+
+/* A slot: the icon on the outer ring with a hard shadow down and right, its name under it, its number small. */
+.slot {
+  position: absolute;
+  width: 64px;
+  margin-left: -32px;
+  text-align: center;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  filter: drop-shadow(2px 5px 0 rgb(0 0 0 / 50%));
+  transition: transform var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.name {
+  display: inline-block;
+  margin-top: 3px;
+  color: rgb(255 255 255 / 76%);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 16px var(--ef-font-sans);
+  white-space: nowrap;
+  text-shadow: 1px 1px 0 rgb(0 0 0 / 60%);
+}
+
+.no {
+  position: absolute;
+  top: -6px;
+  right: 6px;
+  color: rgb(255 255 255 / 42%);
+  font: var(--ef-fw-semibold) 10px / 1 var(--ef-font-num);
+}
+
+.badge {
+  position: absolute;
+  top: -2px;
+  right: 8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--ef-g-reddot);
+  color: var(--ef-on-accent);
+  font: 700 11px / 16px var(--ef-font-num);
+}
+
+/* The pointed slot: its name moves to the centre, its icon grows a little. */
+.slot[data-sel] .name {
+  visibility: hidden;
+}
+
+.slot[data-sel] .icon {
+  transform: scale(1.12);
+}
+
+.slot[data-off] .icon {
+  color: var(--ef-danger-vivid);
+}
+
+.slot[data-off] .name {
+  color: rgb(255 255 255 / 55%);
+}
+
+.slot[data-on] .name {
+  box-shadow: inset 0 -2px 0 var(--ef-accent);
+}
+
+/* The centre: number or English, the name, a rule, one line of what it does; the text rises 21 px as it opens. */
+.center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 170px;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  animation: gw-rise 120ms cubic-bezier(1, 0.039, 0.667, 1) both;
+}
+
+@keyframes gw-rise {
+  from {
+    translate: 0 21px;
+  }
+}
+
+.en {
+  margin-bottom: 2px;
+  color: rgb(255 255 255 / 45%);
+  font: var(--ef-fw-semibold) 10px / 12px var(--ef-font-num);
+  letter-spacing: 0.24em;
+}
+
+.title {
+  font: var(--ef-fw-semibold) 20px / 28px var(--ef-font-sans);
+  letter-spacing: 0.04em;
+  text-shadow: 2px 2px 0 rgb(0 0 0 / 40%);
+}
+
+.rule {
+  width: 150px;
+  height: 1.5px;
+  margin: 6px auto;
+  background: rgb(238 238 238 / 20%);
+}
+
+.desc {
+  min-height: 18px;
+  color: rgb(255 255 255 / 72%);
+  font: var(--ef-fw-regular) var(--ef-fs-meta) / 18px var(--ef-font-sans);
+}
+
+.desc[data-bad] {
+  color: color-mix(in srgb, var(--ef-danger-vivid) 55%, #fff);
+}
+
+.help {
+  position: absolute;
+  top: calc(50% + 186px);
+  left: 50%;
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  padding: 0 10px;
+  background: rgb(18 18 18 / 85%);
+  color: rgb(255 255 255 / 80%);
+  font: var(--ef-fw-regular) var(--ef-fs-meta) / 22px var(--ef-font-sans);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.help kbd {
+  padding: 0 4px;
+  background: rgb(255 255 255 / 12%);
+  color: #eee;
+  font: var(--ef-fw-semibold) 11px / 16px var(--ef-font-num);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content,
+  .center {
+    animation: none;
+  }
+}
+
+:global(.still) :is(.content, .center) {
+  animation: none;
+}

@@ -6,8 +6,8 @@ import { Barcode, Diamond, MicroLabel } from './Marks';
 import { Stepper } from './Stepper';
 import styles from './DarkRow.module.css';
 
-/** 左格状态：可播 ▶、缺资源 ⊘、由行为自动触发、已改（可恢复默认）↺、空心菱形（未选的选项）、出错 ⚠（橙色左边，状态行和失败行）、完成 ✓（黄）。 */
-export type DarkRowMark = 'play' | 'missing' | 'auto' | 'changed' | 'hollow' | 'warn' | 'ok';
+/** 左格状态：可播 ▶、缺资源 ⊘、由行为自动触发、已改（可恢复默认）↺、空心菱形（未选的选项）、出错 ⚠（橙色左边，状态行和失败行）、完成 ✓（黄）、新的待处理（红点橙菱形，橙色左边）。 */
+export type DarkRowMark = 'play' | 'missing' | 'auto' | 'changed' | 'hollow' | 'warn' | 'ok' | 'new';
 
 /** 左格自己的按钮（设定行的 ↺ 恢复默认）：悬停整格变黄。 */
 export interface DarkRowLeadAction {
@@ -48,10 +48,11 @@ export interface DarkRowProps {
 }
 
 /** What a screen reader hears after the name for each mark. */
-const SAY: Record<DarkRowMark, string> = { play: '', missing: '缺资源', auto: '自动触发', changed: '已改', hollow: '', warn: '出错', ok: '' };
+const SAY: Record<DarkRowMark, string> = { play: '', missing: '缺资源', auto: '自动触发', changed: '已改', hollow: '', warn: '出错', ok: '', new: '待处理' };
 
 function Glyph({ mark }: { mark: DarkRowMark }) {
   if (mark === 'hollow') return <Diamond tone="hollow" size={10} />;
+  if (mark === 'new') return <Diamond size={8} />;
   if (mark === 'auto')
     return (
       <span className={styles.auto}>
@@ -188,4 +189,5 @@ export const DarkRowDemos: Array<{ name: string; props: DarkRowProps }> = [
   { name: 'reset-lead', props: { title: '亮度', sub: '默认：1.0', mark: 'changed', leadAction: { label: '恢复「亮度」的默认', title: '恢复这一行的默认', onPress: () => undefined } } },
   { name: 'custom-lead', props: { title: '外套', lead: '01', state: 'busy', focused: true, end: <GameSeg label="外套" value="on" options={SHOWN} /> } },
   { name: 'compact', props: { title: '开口说话', sub: '说话时', compact: true, onPress: () => undefined } },
+  { name: 'new', props: { title: '要不要把构建脚本里的测试重跑一遍？', sub: '批准', mark: 'new', compact: true, onPress: () => undefined, end: '还有 2 项' } },
 ];

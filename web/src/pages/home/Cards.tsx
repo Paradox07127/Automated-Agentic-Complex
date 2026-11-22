@@ -1,12 +1,12 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
 import { getBridge } from '../../bridge';
 import { formatClock, fpsReadout } from '../../domain';
-import { CharacterArt, Icon, type IconName } from '../../ui';
+import { Icon, type IconName } from '../../ui';
+import { CharMeta } from '../../ui/game';
+import { Slab, type Pt } from '../../ui/game/Slab';
 import { useRenderStats } from '../diag/useDiag';
 import { Pip, type PipProps } from '../overview/Pip';
 import { BAR, BAR_SLOTS, type Box, type KeyShape } from './geometry';
-import { BANNER as BANNER_BG } from './outlines';
-import { Slab, unit, type Pt } from './Slab';
 import styles from './Cards.module.css';
 
 const at = (b: Box): CSSProperties => ({ left: b.left, top: b.top, width: b.width, height: b.height });
@@ -42,53 +42,11 @@ export function BottomBar({ left, right }: { left: BarAction; right: BarAction |
 }
 
 /** Her outfit and the renderer's frame rate; on its own so the once-a-second samples redraw only this line. */
-function CharMeta({ outfit }: { outfit: string | null }) {
+export function LiveCharMeta({ outfit }: { outfit: string | null }) {
   const canAvatar = getBridge().capabilities.avatar;
   const fps = useRenderStats(canAvatar).at(-1)?.fps;
   if (!canAvatar) return null;
-  return (
-    <span className={styles.charMeta}>
-      {outfit && <span className={styles.charOutfit}>{outfit}</span>}
-      <span className={styles.charFps}>
-        <b>{fpsReadout(fps)}</b> FPS
-      </span>
-    </span>
-  );
-}
-
-/** The player card: her head, her name, what she is doing, her outfit and frame rate; it opens her page. */
-export function CharCard({ box, name, en, head, id, doing, outfit, onClick }: {
-  box: Box;
-  name: string;
-  en: string | null;
-  head: string | null;
-  id: string | null;
-  doing: string;
-  /** The appearance she wears now; null while unknown. */
-  outfit: string | null;
-  onClick: () => void;
-}) {
-  const notch = [[0, 0], [box.width - 14, 0], [box.width, 14], [box.width, box.height], [0, box.height]] as const;
-  return (
-    <button type="button" className={styles.char} style={at(box)} aria-label={`角色：${name}`} onClick={onClick} data-g="home">
-      <Slab pts={notch} w={box.width} h={box.height} depth={8} tone="dark">
-        <span className={styles.charIn}>
-          <span className={styles.charHead} aria-hidden="true">
-            <CharacterArt src={head ?? undefined} id={id ?? undefined} art="card" kind="head" w={56} h={56} fallback={<Icon name="user" size={24} />} />
-          </span>
-          <span className={styles.charText}>
-            <b className={styles.charName}>{name}</b>
-            {en && <span className={styles.charEn}>{en}</span>}
-            {doing && <span className={styles.charDoing} title={doing}>{doing}</span>}
-            <CharMeta outfit={outfit} />
-          </span>
-          <span className={styles.charGo} aria-hidden="true">
-            <Icon name="chev" size={14} />
-          </span>
-        </span>
-      </Slab>
-    </button>
-  );
+  return <CharMeta outfit={outfit} fps={fpsReadout(fps)} />;
 }
 
 /** What the clock card's status line says about the overview's reads. */
@@ -132,70 +90,6 @@ export function Counters({ box, now, conn }: { box: Box; now: number; conn: Conn
             <Pip {...CONN[conn]} />
           </span>
         </span>
-      </Slab>
-    </div>
-  );
-}
-
-export interface NewsItem {
-  kind: string;
-  title: string;
-  /** When, as the overview writes it. */
-  at: string;
-  go: () => void;
-}
-
-/** How long each banner item stays, as the game's banner turns. */
-const NEWS_MS = 6000;
-
-/** BannerNode: the next reminder and today's latest delivery, one at a time; it turns by itself and by its arrows. */
-export function Banner({ box, items, still }: { box: Box; items: readonly NewsItem[]; still: boolean }) {
-  const [i, setI] = useState(0);
-  // Turning by hand restarts the wait, so the item just picked stays its full time.
-  const [turned, setTurned] = useState(0);
-  useEffect(() => {
-    if (still || items.length < 2) return;
-    const t = window.setInterval(() => setI((v) => v + 1), NEWS_MS);
-    return () => window.clearInterval(t);
-  }, [still, items.length, turned]);
-  const n = Math.max(items.length, 1);
-  const at0 = ((i % n) + n) % n;
-  const item = items[at0];
-  const step = (d: 1 | -1) => {
-    setI((v) => v + d);
-    setTurned((v) => v + 1);
-  };
-  return (
-    <div className={styles.bannerNode} style={at(box)} data-g="banner">
-      <Slab pts={unit(BANNER_BG, box.width, box.height)} w={box.width} h={box.height} depth={7} tone="dark" accent>
-        <button type="button" className={styles.banner} onClick={item?.go} disabled={!item} aria-label={item ? `${item.kind}：${item.title} ${item.at}` : '没有新消息'}>
-          <span className={styles.bannerIn} aria-hidden="true">
-            {item ? (
-              <>
-                <span className={styles.news}>
-                  <b>{item.kind}</b>
-                  <span className="num">{item.at}</span>
-                </span>
-                <span className={styles.newsTitle}>{item.title}</span>
-              </>
-            ) : (
-              <span className={styles.newsCalm}>没有新消息</span>
-            )}
-          </span>
-        </button>
-        {items.length > 1 && (
-          <span className={styles.pages}>
-            <button type="button" className={styles.turn} aria-label="上一条" onClick={() => step(-1)}>
-              <Icon name="chev" size={12} />
-            </button>
-            {items.map((x, j) => (
-              <i key={x.kind} data-on={j === at0 || undefined} />
-            ))}
-            <button type="button" className={styles.turn} aria-label="下一条" onClick={() => step(1)}>
-              <Icon name="chev" size={12} />
-            </button>
-          </span>
-        )}
       </Slab>
     </div>
   );

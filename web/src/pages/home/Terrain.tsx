@@ -1,5 +1,5 @@
-import { flow } from './flow';
-import type { Pt } from './Slab';
+import { flow } from '../../ui/game/flow';
+import type { Pt } from '../../ui/game/Slab';
 import styles from './Terrain.module.css';
 
 /** Bundles of contour lines across the 400 px map, drawn as the keys' deco_btn textures are: each a curve through the

@@ -143,6 +143,30 @@
   opacity: 0.75;
 }
 
+/* Block (the popover's 打开主窗口): the key fills its row, the words lean left, the key hint sits at the right end. */
+.key[data-block] {
+  display: flex;
+  width: 100%;
+}
+
+.key[data-block] .face {
+  width: 100%;
+  height: 44px;
+  padding-right: 14px;
+}
+
+.key[data-block] .txt {
+  flex: 1;
+  text-align: left;
+}
+
+.hint {
+  position: relative;
+  padding: 3px 6px;
+  background: rgb(26 26 26 / 12%);
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+}
+
 /* White key (停止): the same cuts, a white face and a white glow. */
 .key[data-tone='white'] {
   --yk-face-top: #fff;

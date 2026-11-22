@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import { gameClips } from '../../design/gameClips.generated';
 import { useGameClip } from '../../ui';
 
@@ -30,14 +30,4 @@ export function Sway({ root, on }: { root: RefObject<HTMLElement | null>; on: bo
     else clip.pause();
   }, [clip, on]);
   return null;
-}
-
-/** keyboard_btn's Highlighted clip on a key: forward on pointer or focus in, back on out. Pressed is Normal in the
- *  game: a press drops the key to rest at once, and it rises again on release. */
-export function useKeyHover<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  const clip = useGameClip(gameClips.keyboardBtnHover, ref);
-  const on = () => void clip.play();
-  const off = () => void clip.reverse();
-  return { ref, onPointerEnter: on, onPointerLeave: off, onFocus: on, onBlur: off, onPointerDown: () => clip.rest(), onPointerUp: on };
 }

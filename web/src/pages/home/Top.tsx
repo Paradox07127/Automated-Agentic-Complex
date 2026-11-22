@@ -1,12 +1,9 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { getBridge } from '../../bridge';
 import type { RuntimeChildState, RuntimeSnapshot } from '../../bridge/runtimeSnapshot';
-import { Icon } from '../../ui';
+import { StatusRow } from '../../ui/game';
 import { Pip, type PipProps } from '../overview/Pip';
 import type { Box } from './geometry';
-import styles from './Top.module.css';
-
-const at = (b: Box): CSSProperties => ({ left: b.left, top: b.top, width: b.width, height: b.height });
 
 /** The shell's runtime snapshot, kept current; null until read, and on a host without app.runtime. */
 function useRuntime(): RuntimeSnapshot | null {
@@ -56,25 +53,5 @@ export function Status({ box }: { box: Box }) {
     ['角色', PROCESS[rt.processes.avatar.state]],
     ['语音', TTS[rt.tts.state]],
   ];
-  return (
-    <div className={styles.status} style={at(box)} role="group" aria-label="组件状态">
-      {rows.map(([name, [tone, state]]) => (
-        <span key={name} className={styles.item} data-tone={tone}>
-          <b>{name}</b>
-          <Pip tone={tone} label={state} />
-        </span>
-      ))}
-    </div>
-  );
-}
-
-/** CloseButtonNode: closes the window, as its close light does. */
-export function CloseKey({ box }: { box: Box }) {
-  return (
-    <span className={styles.closeNode} style={at(box)}>
-      <button type="button" className={styles.close} aria-label="关闭窗口" title="关闭窗口" onClick={() => window.close()}>
-        <Icon name="close" size={14} />
-      </button>
-    </span>
-  );
+  return <StatusRow box={box} items={rows.map(([name, [tone, state]]) => ({ name, failed: tone === 'failed', state: <Pip tone={tone} label={state} /> }))} />;
 }

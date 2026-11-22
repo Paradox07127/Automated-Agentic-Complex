@@ -1,5 +1,5 @@
 import { KEY1, KEY2, KEY3, KEY4, SLOT_L, SLOT_R } from './outlines';
-import type { Pt } from './Slab';
+import type { Pt } from '../../ui/game/Slab';
 
 // Design coordinates of the watch face: the game's 1920×1080 watch canvas at half size, scaled to the page by useFit.
 // Offsets are CSS px from the ring centre, y down.

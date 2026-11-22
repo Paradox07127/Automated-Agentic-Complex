@@ -1,0 +1,200 @@
+/* ReadTick: the statistic panel's read — a 2 px bar, a large Saira number, a line of label under it. */
+.tick {
+  --rt-bar: var(--ef-accent);
+  --rt-ink: var(--ef-accent-text);
+
+  display: inline-grid;
+  min-width: 0;
+  line-height: 1;
+}
+
+.tick[data-tone='ink'] {
+  --rt-bar: var(--ef-text-1);
+  --rt-ink: var(--ef-text-1);
+}
+
+.tick[data-tone='warn'] {
+  --rt-bar: var(--ef-badge-dot);
+  --rt-ink: color-mix(in srgb, var(--ef-badge-dot) 62%, var(--ef-text-1));
+}
+
+.tick[data-tone='bad'] {
+  --rt-bar: var(--ef-danger-vivid);
+  --rt-ink: var(--ef-danger-text);
+}
+
+.value {
+  position: relative;
+  padding-left: 9px;
+  color: var(--rt-ink);
+  font: var(--ef-fw-semibold) 17px / 22px var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.value::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  width: 2px;
+  background: var(--rt-bar);
+}
+
+.value small {
+  margin-left: 2px;
+  font-size: var(--ef-fs-meta);
+}
+
+.label {
+  margin-top: 2px;
+  padding-left: 9px;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-regular) var(--ef-fs-meta) / 1.3 var(--ef-font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tick[data-size='lg'] .value {
+  padding-left: 10px;
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.tick[data-size='lg'] .value::before {
+  top: 4px;
+  height: 22px;
+}
+
+.tick[data-size='lg'] .value small {
+  margin-left: 3px;
+  font-size: var(--ef-fs-body);
+}
+
+/* ReadoutPlate: the settings plate — a light plate, a hatch fading in from the right, a fine cross in two corners. */
+.plate {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8) 0;
+  align-items: center;
+  min-height: 64px;
+  padding: var(--ef-sp-12) 22px var(--ef-sp-12) 30px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: color-mix(in srgb, #fff 10.5%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #fff 20%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 28%, transparent);
+}
+
+:global([data-theme='light']) .plate {
+  background: color-mix(in srgb, #fff 62%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #000 14%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 90%, transparent);
+}
+
+.plate::before {
+  content: '';
+  position: absolute;
+  inset: 2px 2px 2px auto;
+  width: 140px;
+  background: repeating-linear-gradient(-45deg, var(--ef-contour) 0 1.2px, transparent 1.2px 6px);
+  opacity: 0.7;
+  mask: linear-gradient(270deg, #000, transparent);
+  pointer-events: none;
+}
+
+.cross {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  color: var(--ef-text-3);
+  pointer-events: none;
+}
+
+.cross::before,
+.cross::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+}
+
+.cross::before {
+  top: 0;
+  left: 4px;
+  width: 1px;
+  height: 9px;
+}
+
+.cross::after {
+  top: 4px;
+  left: 0;
+  width: 9px;
+  height: 1px;
+}
+
+.cross[data-at='a'] {
+  top: 6px;
+  left: 6px;
+}
+
+.cross[data-at='b'] {
+  right: 6px;
+  bottom: 6px;
+}
+
+/* The eyebrow: micro English set on end, a rule beside it. */
+.eyebrow {
+  display: flex;
+  align-self: stretch;
+  justify-content: center;
+  margin-right: var(--ef-sp-16);
+  padding-left: var(--ef-sp-6);
+  border-left: 1px solid var(--ef-rule);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.cell {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 18px;
+  border-left: 1px solid color-mix(in srgb, var(--ef-rule) 55%, transparent);
+}
+
+.eyebrow + .cell,
+.cell:first-of-type {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.cell[data-end] {
+  gap: 10px;
+  margin-left: auto;
+  padding-right: 0;
+  border-left: 0;
+}
+
+.k {
+  color: var(--ef-text-2);
+  font: var(--ef-fw-regular) var(--ef-fs-meta) / 1.3 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.v {
+  font: var(--ef-fw-semibold) 22px / 26px var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.w {
+  color: var(--ef-text-1);
+  font: var(--ef-fw-regular) var(--ef-fs-body) / 1.4 var(--ef-font-sans);
+  white-space: nowrap;
+}

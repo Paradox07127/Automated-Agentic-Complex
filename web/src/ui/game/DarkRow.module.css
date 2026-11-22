@@ -102,6 +102,11 @@ button.hit:focus-visible {
   box-shadow: inset 4px 0 0 var(--ef-g-reddot);
 }
 
+/* New and waiting for the user: the red-dot diamond on an orange-edged lead. */
+.row[data-mark='new'] .lead {
+  box-shadow: inset 3px 0 0 var(--ef-g-reddot);
+}
+
 .row[data-mark='changed'] .lead {
   color: var(--ef-accent);
 }

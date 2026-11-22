@@ -20,15 +20,20 @@ export interface YellowKeyProps {
   disabled?: boolean;
   /** 禁用原因（悬停提示） */
   disabledReason?: string;
+  /** 占满一行（菜单栏弹窗「打开主窗口」）：字靠左，右端放 hint */
+  block?: boolean;
+  /** 右端的键位小牌（「⌘0」） */
+  hint?: string;
   onClick?: () => void;
 }
 
-export function YellowKey({ label, icon = 'play', micro, vertical, tone = 'yellow', busy, disabled, disabledReason, onClick }: YellowKeyProps) {
+export function YellowKey({ label, icon = 'play', micro, vertical, tone = 'yellow', busy, disabled, disabledReason, block, hint, onClick }: YellowKeyProps) {
   const own = {
     type: 'button' as const,
     className: styles.key,
     'data-stub': 'YellowKey',
     'data-tone': tone,
+    'data-block': block || undefined,
     'aria-busy': busy || undefined,
     disabled,
     title: disabled ? disabledReason : undefined,
@@ -58,6 +63,7 @@ export function YellowKey({ label, icon = 'play', micro, vertical, tone = 'yello
           {micro && <MicroLabel>{micro}</MicroLabel>}
           <span>{label}</span>
         </span>
+        {hint && <span className={styles.hint}>{hint}</span>}
       </span>
     </button>
   );
@@ -70,4 +76,5 @@ export const YellowKeyDemos: Array<{ name: string; props: YellowKeyProps }> = [
   { name: 'stop', props: { label: '停止', icon: 'stop', micro: 'Desktop', tone: 'white' } },
   { name: 'vertical', props: { label: '连播', micro: 'Setlist', vertical: true } },
   { name: 'disabled', props: { label: '桌面预览', micro: 'Desktop', disabled: true, disabledReason: '桌面角色没有连上' } },
+  { name: 'block', props: { label: '打开主窗口', icon: 'side', micro: 'Home', block: true, hint: '⌘0' } },
 ];

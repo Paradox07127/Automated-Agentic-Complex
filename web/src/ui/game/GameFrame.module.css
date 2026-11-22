@@ -1,0 +1,201 @@
+/* Game frames: no shadow, they sit in the page plane. */
+.frame {
+  --gf-bg: color-mix(in srgb, #000 30%, transparent);
+  --gf-rim: color-mix(in srgb, #fff 55%, transparent);
+  --gf-tag: var(--ef-g-watch-map);
+  --gf-tag-text: var(--ef-g-watch-ink);
+
+  position: relative;
+  min-width: 0;
+  background: var(--gf-bg);
+  box-shadow: inset 0 0 0 1.5px var(--gf-rim);
+}
+
+:global([data-theme='light']) .frame {
+  --gf-bg: color-mix(in srgb, #fff 55%, transparent);
+  --gf-rim: color-mix(in srgb, #000 22%, transparent);
+}
+
+/* Monitor: a black chamfered tag in the top-left corner holds the title and its micro English. */
+.tagTitle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--ef-sp-12) 0 var(--ef-sp-8);
+  background: var(--gf-tag);
+  color: var(--gf-tag-text);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.tagTitle > [aria-hidden] {
+  opacity: 0.6;
+}
+
+.foot {
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  display: flex;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  color: var(--ef-text-3);
+  pointer-events: none;
+}
+
+/* Media (GuideMediaPanel): #171717 at .5, a 4 px bar outside each side with a tick on it, crosses in two corners. */
+.frame[data-variant='media'] {
+  --gf-bg: color-mix(in srgb, #171717 50%, transparent);
+  --gf-rim: color-mix(in srgb, #fff 12%, transparent);
+  --gf-bar: color-mix(in srgb, #fff 10%, transparent);
+
+  padding: 30px 30px 22px 38px;
+  box-shadow: inset 0 0 0 1px var(--gf-rim);
+  backdrop-filter: blur(6px);
+}
+
+:global([data-theme='light']) .frame[data-variant='media'] {
+  --gf-bg: color-mix(in srgb, #fff 38%, transparent);
+  --gf-rim: color-mix(in srgb, #000 12%, transparent);
+  --gf-bar: color-mix(in srgb, #000 12%, transparent);
+}
+
+.frame[data-variant='media']::before,
+.frame[data-variant='media']::after {
+  content: '';
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  width: 4px;
+  background: var(--gf-bar);
+}
+
+.frame[data-variant='media']::before {
+  left: -10px;
+}
+
+.frame[data-variant='media']::after {
+  right: -10px;
+}
+
+.tickL,
+.tickR {
+  position: absolute;
+  top: calc(50% - 18px);
+  width: 3px;
+  height: 36px;
+  background: var(--ef-text-1);
+  opacity: 0.85;
+}
+
+.tickL {
+  left: -9.5px;
+}
+
+.tickR {
+  right: -9.5px;
+}
+
+.mediaMark {
+  position: absolute;
+  top: 9px;
+  left: 14px;
+  display: flex;
+  gap: var(--ef-sp-6);
+  align-items: center;
+  color: var(--ef-text-2);
+}
+
+.rec {
+  padding: 0 3px;
+  background: var(--ef-text-2);
+  color: var(--ef-canvas);
+  font: 700 9px / 11px var(--ef-font-num);
+  letter-spacing: 0.1em;
+}
+
+.mediaCode {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  color: var(--ef-text-1);
+  opacity: 0.3;
+}
+
+.cross {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  color: var(--ef-text-3);
+}
+
+.cross::before,
+.cross::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+}
+
+.cross::before {
+  left: 4px;
+  width: 1px;
+  height: 9px;
+}
+
+.cross::after {
+  top: 4px;
+  width: 9px;
+  height: 1px;
+}
+
+.cross[data-at='a'] {
+  top: -5px;
+  left: -5px;
+}
+
+.cross[data-at='b'] {
+  right: -5px;
+  bottom: -5px;
+}
+
+/* Chart (the power statistic plate): a dark head bar, then a light gridded face. */
+.frame[data-variant='chart'] {
+  --gf-bg: color-mix(in srgb, var(--ef-canvas) 80%, #000);
+
+  display: grid;
+  grid-template-rows: 26px minmax(0, 1fr);
+  box-shadow: none;
+}
+
+:global([data-theme='light']) .frame[data-variant='chart'] {
+  --gf-bg: color-mix(in srgb, var(--ef-canvas) 88%, #000);
+}
+
+.head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 0 10px;
+  background: color-mix(in srgb, var(--ef-g-watch-map) 85%, var(--ef-g-watch-ink));
+  color: var(--ef-g-watch-ink);
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+}
+
+.head > [aria-hidden] {
+  margin-left: auto;
+  opacity: 0.65;
+}
+
+.body {
+  position: relative;
+  min-height: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--ef-text-1) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ef-text-1) 6%, transparent) 1px, transparent 1px);
+  background-size: 12px 12px;
+}

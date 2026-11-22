@@ -1,0 +1,181 @@
+/* BuildingState* along a panel's foot: a thin line (4 px at .3, the middle solid) for running / idle / waiting / done,
+   a whole hatched band for failed (the factory's 堵塞 red), warning (缺电 orange) and stopped (停止 grey). */
+.strip {
+  --ss-c: var(--ef-text-3);
+
+  position: relative;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 24px;
+  overflow: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--ef-text-1) 10%, transparent);
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.strip::before,
+.strip::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  height: 4px;
+}
+
+.strip::before {
+  right: 0;
+  left: 0;
+  background: color-mix(in srgb, var(--ss-c) 30%, transparent);
+}
+
+.strip::after {
+  right: 30%;
+  left: 30%;
+  background: var(--ss-c);
+}
+
+.strip > * {
+  position: relative;
+}
+
+.word {
+  flex: none;
+}
+
+.why {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font-weight: var(--ef-fw-regular);
+  text-overflow: ellipsis;
+}
+
+.strip[data-tone='running'] {
+  --ss-c: var(--ef-mission-accent);
+}
+
+.strip[data-tone='idle'] {
+  color: var(--ef-text-2);
+}
+
+.strip[data-tone='waiting'] {
+  --ss-c: var(--ef-badge-dot);
+}
+
+.strip[data-tone='waiting'] svg {
+  color: var(--ef-badge-dot);
+}
+
+.strip[data-tone='ok'] {
+  --ss-c: var(--ef-text-1);
+}
+
+/* Running: three chevrons stepping along. */
+.chev {
+  display: inline-flex;
+  gap: 2px;
+  color: var(--ef-mission-accent);
+}
+
+.chev i {
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid currentColor;
+  animation: ss-chev 1.2s steps(1) infinite;
+}
+
+.chev i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.chev i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes ss-chev {
+  0%,
+  60% {
+    opacity: 1;
+  }
+
+  61%,
+  100% {
+    opacity: 0.25;
+  }
+}
+
+/* The band: a solid fill under a white hatch, a lighter block in the middle. */
+.strip[data-band] {
+  border-top: 0;
+}
+
+.strip[data-band]::before {
+  top: 0;
+  height: auto;
+  background: repeating-linear-gradient(-60deg, color-mix(in srgb, #fff 22%, transparent) 0 2px, transparent 2px 7px), var(--ss-band);
+}
+
+.strip[data-band]::after {
+  top: 0;
+  right: 22%;
+  left: 22%;
+  height: auto;
+  background: radial-gradient(60% 120% at 50% 50%, color-mix(in srgb, #fff 18%, transparent), transparent 75%);
+}
+
+.strip[data-tone='failed'] {
+  --ss-band: var(--ef-danger-g-power-none);
+
+  color: #fff;
+}
+
+.strip[data-tone='failed'] .why {
+  color: color-mix(in srgb, #fff 92%, transparent);
+}
+
+.strip[data-tone='warning'] {
+  --ss-band: var(--ef-danger-g-power-save);
+
+  color: var(--ef-on-accent);
+}
+
+.strip[data-tone='warning'] .why {
+  color: color-mix(in srgb, var(--ef-on-accent) 85%, transparent);
+}
+
+.strip[data-tone='cancelled'] {
+  --ss-band: color-mix(in srgb, var(--ef-g-lock) 55%, var(--ef-surface-2));
+
+  color: var(--ef-text-1);
+}
+
+.strip[data-tone='cancelled'] .why {
+  color: var(--ef-text-1);
+}
+
+.strip [data-spin] {
+  transform-origin: 6px 6px;
+  animation: ss-spin 1s linear infinite;
+}
+
+@keyframes ss-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chev i,
+  .strip [data-spin] {
+    animation: none;
+  }
+}
+
+:global(.still) :is(.chev i, .strip [data-spin]) {
+  animation: none;
+}

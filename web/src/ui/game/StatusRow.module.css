@@ -1,0 +1,33 @@
+/* The status row: each component's name and state on a dark tab. */
+.status {
+  display: flex;
+  gap: var(--ef-sp-12);
+  align-items: center;
+  justify-content: center;
+  color: var(--ef-g-watch-ink);
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.status[data-placed] {
+  position: absolute;
+}
+
+.item {
+  display: inline-flex;
+  gap: var(--ef-sp-6);
+  align-items: center;
+  padding: 3px var(--ef-sp-8);
+  border-left: 2px solid var(--ef-g-watch-ink);
+  background: color-mix(in srgb, var(--ef-g-watch-map) 75%, transparent);
+}
+
+.item[data-failed] {
+  border-left-color: var(--ef-g-yellow);
+}
+
+.item b {
+  font-weight: var(--ef-fw-semibold);
+  opacity: 0.7;
+}

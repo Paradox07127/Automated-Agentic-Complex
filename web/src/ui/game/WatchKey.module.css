@@ -1,0 +1,132 @@
+/* Watch keys: a light slab (Slab.tsx), icon over name in dark ink. Every key shares one rim, radius and depth. */
+.slot {
+  position: relative;
+  display: inline-block;
+  transform-style: preserve-3d;
+  pointer-events: auto;
+}
+
+/* Placed on a stage (the watch face): absolute at its box. */
+.slot[data-placed] {
+  position: absolute;
+}
+
+.key {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transform-style: preserve-3d;
+}
+
+/* Highlighted: the face goes white and the key rises (keyboard_btn's clip, useKeyHover). Pressed is the game's Normal:
+   grey again at once. */
+.key:hover [data-tone],
+.key:focus-visible [data-tone] {
+  --face-top: var(--ef-g-btn-hover);
+  --face-mid: var(--ef-g-btn-hover);
+  --face-bot: color-mix(in srgb, var(--ef-g-btn-hover) 88%, var(--ef-g-icon));
+  --face-a: 1;
+}
+
+.key:active [data-tone] {
+  --face-top: color-mix(in srgb, var(--ef-g-btn-hover) 80%, var(--ef-g-btn-face));
+  --face-mid: var(--ef-g-btn-face);
+  --face-bot: color-mix(in srgb, var(--ef-g-btn-face) 90%, var(--ef-g-icon));
+  --face-a: var(--face-rest);
+}
+
+/* Dimmed through the slab's layers (--dim): an opacity on the key itself would flatten its raised face. */
+.key:disabled {
+  --dim: 0.45;
+  cursor: default;
+}
+
+.key:focus-visible {
+  outline: none;
+}
+
+.key:focus-visible [data-tone] {
+  --rim: var(--ef-focus);
+}
+
+.face {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-2);
+  align-items: center;
+  translate: -50% -50%;
+}
+
+/* On: the content sits on the band at the foot. */
+.face[data-on] {
+  gap: var(--ef-sp-4);
+  translate: -50% 0;
+}
+
+.icon {
+  display: inline-flex;
+  color: var(--ef-g-icon);
+}
+
+/* 12px, the least for Chinese: four characters (48px) fit inside a square key's rim (52px). */
+.name {
+  color: var(--ef-g-label);
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1 var(--ef-font-ui);
+  white-space: nowrap;
+}
+
+.sub {
+  padding: 1px var(--ef-sp-4);
+  color: var(--ef-g-label);
+  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1 var(--ef-font-ui);
+  white-space: nowrap;
+}
+
+.key:not([aria-pressed='true']) .sub {
+  background: color-mix(in srgb, #000 9%, transparent);
+}
+
+/* On (a toggle that is on): watchfactory_bg's light strip in yellow along the foot, a small dark block top right. */
+.band {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  left: 4px;
+  height: 20px;
+  background: var(--ef-g-yellow);
+}
+
+.band::after {
+  content: '';
+  position: absolute;
+  top: calc(-100% - 14px);
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  background: var(--ef-g-icon);
+}
+
+.key[data-big] .face {
+  gap: var(--ef-sp-6);
+}
+
+.hot {
+  position: absolute;
+  top: var(--ef-sp-4);
+  right: var(--ef-sp-6);
+  display: inline-flex;
+}
+
+/* 12px on the stage so the hint still reads at 11px at the smallest fit. */
+.hot kbd {
+  font-size: var(--ef-fs-meta);
+}
+
+/* Key hints show only while ⌘ or Ctrl is held (Layout sets html[data-keys]). */
+:global(html:not([data-keys])) .hot {
+  visibility: hidden;
+}

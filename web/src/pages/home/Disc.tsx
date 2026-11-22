@@ -4,7 +4,7 @@ import { dangerRuleText } from '../../features/approval';
 import type { Go } from '../../shell/nav';
 import { Btn, Icon } from '../../ui';
 import { KIND_LABEL } from '../overview/pending';
-import { Slab, unit } from './Slab';
+import { Slab, unit } from '../../ui/game/Slab';
 import styles from './Disc.module.css';
 
 type Approval = PendingItem & { kind: 'approval' };

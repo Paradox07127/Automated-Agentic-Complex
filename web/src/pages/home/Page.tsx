@@ -13,6 +13,7 @@ import { useGo, type PageId } from '../../shell/nav';
 import { usePlugins, type PluginId } from '../../shell/plugins';
 import { useVisibleRoutes } from '../../shell/registry';
 import { fxCalm, Stage3D, useGameClip, type IconName } from '../../ui';
+import { CharCard, CloseKey, NewsBanner, TopIcon, WatchKey, type NewsItem } from '../../ui/game';
 import { nextReminder, reminderTime, runRows } from '../overview/briefModel';
 import { useNow } from '../overview/nav';
 import { isExpired } from '../overview/pending';
@@ -22,13 +23,13 @@ import { useLook } from '../character/useLook';
 import { CreateDialog } from '../tasks/CreateDialog';
 import { draftFor, type CreateDraft } from '../tasks/CreateForm';
 import { useToast } from '../../shell/toast';
-import { Banner, BottomBar, CharCard, Counters, type Conn, type NewsItem } from './Cards';
+import { BottomBar, Counters, LiveCharMeta, type Conn } from './Cards';
 import { Disc, type RunItem } from './Disc';
 import { BANNER, CARD, CLOSE, COUNTERS, leftTiles, rightTiles, STAGE, STATUS, TOP_ICONS } from './geometry';
 import { Contours, Floor } from './Terrain';
-import { CloseKey, Status } from './Top';
+import { Status } from './Top';
 import { Backdrop, Logo, Rings } from './Rings';
-import { Group, TopIcon, WatchKey } from './Tiles';
+import { Group } from './Tiles';
 import { useFit } from './useFit';
 import { Sway, useAttended } from './watchMotion';
 import styles from './Home.module.css';
@@ -267,7 +268,7 @@ export function HomePage() {
             </div>
             {today && (
               <div className={styles.layer} style={z(40)}>
-                <Banner box={BANNER} items={news} still={still} />
+                <NewsBanner box={BANNER} items={news} still={still} />
               </div>
             )}
             {character && (
@@ -279,7 +280,7 @@ export function HomePage() {
                 head={snap.character.head ?? null}
                 id={snap.character.id ?? null}
                 doing={doing}
-                outfit={outfit}
+                meta={<LiveCharMeta outfit={outfit} />}
                 onClick={() => go({ page: 'character' })}
               />
               </div>
