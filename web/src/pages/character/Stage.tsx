@@ -116,7 +116,7 @@ export function Stage(p: StageProps) {
         )}
         {preview.progress != null && (
           <div className={styles.load}>
-            <LoadBar fraction={preview.progress} name={p.name} head={p.head} />
+            <LoadBar fraction={preview.progress} name={p.name} />
           </div>
         )}
         {!overview && p.offline && (

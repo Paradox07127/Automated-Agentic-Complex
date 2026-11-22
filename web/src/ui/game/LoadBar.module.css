@@ -1,163 +1,90 @@
-/* Loading bar: the row is 5:1 of its own width, the striped strip under it a quarter of the row's height. */
+/* Loading bar: a thin grey line the width of the bar, its text above it, a fine tick past each end. */
 .bar {
-  --lb-row: 20cqw;
-
-  container: loadbar / inline-size;
   display: grid;
-  gap: 4px;
+  gap: 8px;
   width: 100%;
   color: var(--ef-g-label);
   pointer-events: none;
 }
 
-.row {
-  position: relative;
+.text {
   display: flex;
-  height: var(--lb-row);
-}
-
-.icon {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: var(--lb-row);
-  overflow: hidden;
-  background: var(--ef-g-wiki-sel);
-}
-
-.icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 0;
-}
-
-.icon svg {
-  width: 46%;
-  height: 46%;
-  fill: rgb(255 255 255 / 38%);
-}
-
-/* The unfilled part: light grey with faint vertical hairlines. */
-.body {
-  position: relative;
-  display: flex;
-  flex: 1;
-  align-items: center;
-  min-width: 0;
-  background:
-    repeating-linear-gradient(90deg, rgb(0 0 0 / 6%) 0 1px, transparent 1px 4px),
-    var(--ef-list);
-}
-
-.fill,
-.stripes {
-  transition: width 300ms var(--ef-ease-g-fade);
-}
-
-.fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: var(--ef-g-teal);
+  gap: 10px;
+  align-items: baseline;
+  padding: 0 2px;
+  font: 600 12px / 1 var(--ef-font-sans);
 }
 
 .name {
-  position: relative;
   min-width: 0;
-  padding-left: 4cqw;
   overflow: hidden;
-  font: 700 clamp(14px, 4.4cqw, 20px) / 1 var(--ef-font-sans);
+  font-size: 14px;
+  font-weight: 700;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.end {
-  position: relative;
-  display: grid;
-  flex: none;
-  gap: 3px;
+.state {
   margin-left: auto;
-  padding: 0 3cqw 0 12px;
-  font: 600 12px / 1 var(--ef-font-sans);
-  text-align: right;
+  color: var(--ef-g-lock);
 }
 
 .pct {
+  min-width: 4ch;
   font-family: var(--ef-font-num);
+  text-align: right;
 }
 
-/* Thin light L corners just outside the row, and a short tick on its right side. */
-.corners i {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border: 0 solid rgb(255 255 255 / 90%);
-}
-
-.corners i:nth-child(1) {
-  top: -4px;
-  left: -4px;
-  border-width: 1px 0 0 1px;
-}
-
-.corners i:nth-child(2) {
-  top: -4px;
-  right: -4px;
-  border-width: 1px 1px 0 0;
-}
-
-.corners i:nth-child(3) {
-  bottom: -4px;
-  left: -4px;
-  border-width: 0 0 1px 1px;
-}
-
-.corners i:nth-child(4) {
-  right: -4px;
-  bottom: -4px;
-  border-width: 0 1px 1px 0;
-}
-
-.corners i:nth-child(5) {
-  top: 35%;
-  right: -8px;
-  width: 0;
-  height: 30%;
-  border-width: 0 2px 0 0;
-}
-
-/* Under the row's body, filled to the same share with diagonal teal stripes; the rest is empty. */
-.strip {
+.track {
+  position: relative;
   display: block;
-  height: calc(var(--lb-row) / 4);
-  margin-left: var(--lb-row);
+  height: 3px;
+  background: rgb(50 50 50 / 12%);
 }
 
-.stripes {
+/* The ticks: 1 px, 11 px tall, centred on the line, 6 px past each end. */
+.track::before,
+.track::after {
+  position: absolute;
+  top: -4px;
+  width: 1px;
+  height: 11px;
+  background: var(--ef-g-lock);
+  content: '';
+}
+
+.track::before {
+  left: -6px;
+}
+
+.track::after {
+  right: -6px;
+}
+
+/* The done share: dark grey with lighter diagonal hatching that scrolls while it loads. */
+.fill {
   display: block;
   height: 100%;
-  background: linear-gradient(-45deg, var(--ef-g-teal) 25%, transparent 25% 50%, var(--ef-g-teal) 50% 75%, transparent 75%) 0 0 / 12px 12px;
-  animation: lb-stripes 1.2s linear infinite;
+  background: repeating-linear-gradient(-45deg, rgb(255 255 255 / 22%) 0 2px, transparent 2px 5px) 0 0 / 7px 100%, var(--ef-g-label);
+  transition: width 300ms var(--ef-ease-g-fade);
+  animation: lb-hatch 0.9s linear infinite;
 }
 
-@keyframes lb-stripes {
+@keyframes lb-hatch {
   to {
-    background-position: 12px 0;
+    background-position: 7px 0, 0 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fill,
-  .stripes {
+  .fill {
     transition: none;
     animation: none;
   }
 }
 
 :global(.still) .fill,
-:global(.still) .stripes,
-:global([data-reduce-motion]) .fill,
-:global([data-reduce-motion]) .stripes {
+:global([data-reduce-motion]) .fill {
   transition: none;
   animation: none;
 }

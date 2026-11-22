@@ -388,7 +388,7 @@ describe('variants the pages asked for', () => {
 });
 
 describe('LoadBar', () => {
-  it('is a progressbar at the rounded percent: the text, the fill and the striped strip all at that share', () => {
+  it('is a progressbar at the rounded percent: the text and the line both at that share', () => {
     const { container } = render(<LoadBar fraction={0.564} name="示例乙" />);
     const bar = screen.getByRole('progressbar', { name: '正在载入 示例乙' });
     expect(bar.getAttribute('aria-valuenow')).toBe('56');
@@ -397,17 +397,14 @@ describe('LoadBar', () => {
     expect(within(bar).getByText('56%')).toBeTruthy();
     expect(within(bar).getByText('正在载入')).toBeTruthy();
     expect(within(bar).getByText('示例乙')).toBeTruthy();
-    const fills = container.querySelectorAll<HTMLElement>('[data-fill]');
-    expect([...fills].map((f) => f.style.width)).toEqual(['56%', '56%']);
+    expect([...container.querySelectorAll<HTMLElement>('[data-fill]')].map((f) => f.style.width)).toEqual(['56%']);
   });
 
-  it('keeps the share within 0–100 and draws the head art in the square cell, a glyph without one', () => {
-    const { container, rerender } = render(<LoadBar fraction={1.2} name="示例乙" head="/head.png" />);
+  it('keeps the share within 0–100 and leaves the name out without one', () => {
+    const { rerender } = render(<LoadBar fraction={1.2} name="示例乙" />);
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('100');
-    expect(container.querySelector('img')?.getAttribute('src')).toBe('/head.png');
     rerender(<LoadBar fraction={-0.1} />);
     expect(screen.getByRole('progressbar', { name: '正在载入' }).getAttribute('aria-valuenow')).toBe('0');
-    expect(container.querySelector('img')).toBeNull();
-    expect(container.querySelector('svg')).toBeTruthy();
+    expect(screen.queryByText('示例乙')).toBeNull();
   });
 });

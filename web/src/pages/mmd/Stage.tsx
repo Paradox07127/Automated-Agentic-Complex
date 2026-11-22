@@ -49,7 +49,7 @@ export function MmdStage(p: MmdStageProps) {
       )}
       {preview.progress != null && (
         <div className={styles.load}>
-          <LoadBar fraction={preview.progress} name={p.name} head={p.head} />
+          <LoadBar fraction={preview.progress} name={p.name} />
         </div>
       )}
       {preview.phase === 'failed' && (
