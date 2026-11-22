@@ -1822,6 +1822,25 @@ class ReceiptServerTest(ServerCase):
         rows = self.server.trace.db.execute("SELECT turn_id FROM trace_events WHERE kind = 'behavior.receipt'").fetchall()
         self.assertEqual((rows, self.server.trace_errors), ([(None,)], 0))
 
+    def test_a_receipt_is_caused_by_its_behavior_s_dispatch(self):
+        from traces.trace_store import TraceStore
+        db = Path(tempfile.mkdtemp()) / "trace.sqlite3"
+        self.addCleanup(shutil.rmtree, db.parent)
+        self.server.trace = TraceStore(open_store(db), producer_epoch=self.server.registry.epoch)
+        self.server.registry.tick()
+        self.server.turn_generation = 3
+        self.server.spatial.poll()
+        [behavior] = self.snapshot()["behaviors"]
+        body = {"behavior_id": behavior["behavior_id"], "phase": "running", "reason": None, "at_ms": 1,
+                "turn_generation": 3}
+        self.assertEqual(self.request("POST", "/behavior/receipts", body), (200, {"applied": True, "why": None}))
+        events = [json.loads(raw) for (raw,) in self.server.trace.db.execute(
+            "SELECT event FROM trace_events WHERE kind IN ('behavior.dispatched', 'behavior.receipt') ORDER BY id")]
+        [dispatched] = [e for e in events if e["kind"] == "behavior.dispatched"
+                        and e["attrs"]["behavior_id"] == behavior["behavior_id"]]
+        [receipt] = [e for e in events if e["kind"] == "behavior.receipt"]
+        self.assertEqual((receipt["trace_id"], receipt["causation_id"]), (dispatched["trace_id"], dispatched["event_id"]))
+
     def test_the_snapshot_carries_the_stage_and_a_stage_change_sends_it(self):
         self.assertEqual(self.snapshot()["stage"], {"level": "normal", "revision": 0})
         self.server.spatial.stage = lambda: "quiet"

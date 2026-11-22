@@ -55,6 +55,7 @@
   {"method": "GET", "path": "/trace/turns", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "/trace/decisions", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "/trace/export", "class": "read", "surfaces": ["main"]},
+  {"method": "GET", "path": "/trace/events", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "^/sessions/([^/]{1,200})/lines$", "class": "read", "surfaces": ["main"], "plugin": "coding_sessions"},
   {"method": "GET", "path": "^/trace/turns/([^/]{1,64})$", "class": "read", "surfaces": ["main"]},
   {"method": "GET", "path": "^/episodes/([^/]{1,64})/evidence$", "class": "read", "surfaces": ["main"], "plugin": "daily_brief"},

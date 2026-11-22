@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
 import { appNow } from '../../bridge/clock';
 import { revealText } from '../../bridge/platformText';
 import type { LogSourceId } from '../../bridge/logs';
+import { type TraceEvent, traceEvents } from '../../bridge/traceEvents';
 import type { ChartStatus } from '../../charts';
-import { isoToMs } from '../../domain';
+import { isoToMs, isoWithOffset } from '../../domain';
 import type { WireTraceTurn } from '../../domain/wire';
 import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
@@ -19,7 +20,7 @@ import type { WireDiagItem } from '../diag/wire';
 import { useParam } from '../overview/nav';
 import { dayOf, type ResFilter, shapeOf, type SrcGroup, useConvTitles, useTurnEvents, useTurnItems } from './data';
 import { LaneView } from './LaneView';
-import { lanesDemo } from './lanesDemo';
+import { RANGES } from './lanes';
 import { DEFAULT_LEVELS, filledSources, type LogFilters, LogView, shownLines } from './LogView';
 import { buildTurn } from './steps';
 import { TurnDetail } from './TurnDetail';
@@ -29,6 +30,22 @@ import bs from './Bars.module.css';
 import t from './Trace.module.css';
 
 const newestFirst = (a: WireTraceTurn, b: WireTraceTurn) => isoToMs(b.started_at) - isoToMs(a.started_at);
+/** The widest range the lanes offer, so every range choice is drawn from one read. */
+const LANE_SPAN_MS = Math.max(...RANGES) * 60_000;
+
+/** Every event of the lanes' stretch ending at `now`, page after page. */
+async function laneStretch(now: number): Promise<TraceEvent[]> {
+  const [since, until] = [isoWithOffset(now - LANE_SPAN_MS), isoWithOffset(now)];
+  const out: TraceEvent[] = [];
+  let cursor: string | null = null;
+  do {
+    const page = await traceEvents({ since, until, cursor });
+    out.push(...page.events);
+    cursor = page.cursor;
+  } while (cursor != null);
+  return out;
+}
+
 const UPDATES_LIST = new Set(['input.received', 'model.finished', 'playback.ended', 'playback.interrupted', 'turn.settled']);
 const isLogId = (v: string | null): v is LogSourceId => v != null && (LOG_IDS as string[]).includes(v);
 const editable = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
@@ -102,8 +119,9 @@ export function TracePage() {
   const [sel, setSel] = useState<ReadonlySet<string>>(new Set());
   const anchor = useRef<string | null>(null);
   const now = appNow();
-  // agentd has no read of all events by time yet; the fake bridge draws the demo stretch.
-  const laneEvents = useMemo(() => (state === 'empty' ? [] : window.agenticComplex ? null : lanesDemo(now)), [state, now]);
+  const lanes = useQuery({ queryKey: ['trace-lane-events'], queryFn: () => laneStretch(appNow()), enabled: live && tab === 'lanes', retry: false });
+  const laneEvents = state === 'empty' ? [] : (lanes.data ?? []);
+  const laneSt: ChartStatus = state === 'loading' || (live && lanes.isPending) ? 'loading' : state === 'error' || lanes.isError ? 'error' : 'ok';
 
   const copy = useCallback((text: string, done: string) => {
     getBridge().clipboard.writeText(text).then(() => toast(done)).catch(() => toast('没有复制成功', { severity: 'danger' }));
@@ -200,7 +218,7 @@ export function TracePage() {
   const today = logs.lines.filter((l) => onIds.has(l.source) && l.at != null && dayOf(l.at) === dayOf(now));
   const lamp = tab === 'logs'
     ? logs.status === 'missing' || logs.status === 'error' ? ['off', '读不到'] : !f.follow ? ['pause', '已暂停'] : ['on', '实时']
-    : tab === 'lanes' && laneEvents == null ? ['off', '读不到']
+    : tab === 'lanes' && lanes.isError ? ['off', '读不到']
     : listSt === 'error' ? ['off', '后台已断开'] : ['on', '实时'];
   const conv = selRow?.conversation_id ?? null;
 
@@ -273,7 +291,7 @@ export function TracePage() {
         }
       />
       {tab === 'lanes' ? (
-        <LaneView events={laneEvents} st={state === 'loading' ? 'loading' : state === 'error' ? 'error' : 'ok'} now={now} />
+        <LaneView events={laneEvents} st={laneSt} now={now} />
       ) : tab === 'turns' ? (
         <div className={t.turns}>
           <TurnList

@@ -31,6 +31,11 @@ class DiagMixin:
                 for turn in turns:
                     turn["conversation_id"] = owners.get(turn["turn_id"])
                 body = {"turns": turns}
+            elif path == "/trace/events":
+                kinds = raw["kinds"][0].split(",") if "kinds" in raw else None
+                events, cursor = store.events(one("since"), one("until"), kinds,
+                                              int(query.get("limit", [str(PAGE_MAX)])[0]), raw.get("cursor", [None])[0])
+                body = {"events": events, "cursor": cursor}
             else:
                 limit = int(query.get("limit", ["100"])[0])
                 if not 1 <= limit <= PAGE_MAX:

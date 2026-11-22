@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import unittest
+from urllib.parse import quote
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -350,6 +351,47 @@ class TraceEndpointTest(TraceServerCase):
         status, body = self.request("GET", f"/trace/decisions?trace_id={wanted}")
         self.assertEqual((status, [e["trace_id"] for e in body["events"]]), (200, [wanted]))
         self.assertEqual(self.request("GET", "/trace/decisions?request_id="), (400, {"error": "invalid_query"}))
+
+    def test_events_read_a_range_by_kind_page_by_page_without_full_text(self):
+        now = [time.time()]
+        self.server.trace = TraceStore(open_store(self.db), producer_epoch=self.server.registry.epoch,
+                                       clock=lambda: now[0])
+        wall = lambda t: quote(datetime.datetime.fromtimestamp(t).astimezone().isoformat(timespec="milliseconds"))  # noqa: E731
+        start, signal = now[0], {"source": "coarse", "key": "typing", "value": True, "revision": 1}
+        ids = []
+        for step, (kind, attrs, extra) in enumerate([
+                ("signal.changed", signal, {}),
+                ("input.received", {"source": "text"},
+                 {"turn_id": "t1", "turn_generation": 1, "texts": {"text": "今天下午三点和医生的约"}}),
+                ("stage.changed", {"from": "normal", "to": "quiet", "revision": 1}, {})]):
+            now[0] = start + step
+            ids.append(self.server.trace.emit(kind, str(uuid.uuid4()), attrs=attrs, **extra))
+        now[0] = start + 60
+        later = self.server.trace.emit("signal.changed", str(uuid.uuid4()), attrs=signal)
+        span = f"since={wall(start - 1)}&until={wall(start + 10)}"
+
+        status, body = self.request("GET", f"/trace/events?{span}&with_text=1")
+        self.assertEqual(status, 200, body)
+        self.assertEqual(([e["event_id"] for e in body["events"]], body["cursor"]), (ids, None))
+        self.assertEqual(body["events"][1]["attrs"]["text"], {"len": 11, "head": "今天下午三点和医"})
+        self.assertNotIn("text", body["events"][1])
+        self.assertNotIn("医生的约", json.dumps(body, ensure_ascii=False))
+        self.assertEqual([e["event_id"] for e in self.request("GET", "/trace/events")[1]["events"]], [*ids, later])
+        status, body = self.request("GET", f"/trace/events?{span}&kinds=signal.changed,stage.changed")
+        self.assertEqual((status, [e["event_id"] for e in body["events"]]), (200, [ids[0], ids[2]]))
+
+        status, first = self.request("GET", f"/trace/events?{span}&limit=2")
+        self.assertEqual((status, [e["event_id"] for e in first["events"]]), (200, ids[:2]))
+        self.assertIsInstance(first["cursor"], str)
+        status, rest = self.request("GET", f"/trace/events?{span}&limit=2&cursor={first['cursor']}")
+        self.assertEqual((status, [e["event_id"] for e in rest["events"]], rest["cursor"]), (200, ids[2:], None))
+
+        for bad in ("kinds=signal.changed,nope", "kinds=", "since=2026-11-22T10:00:00", "cursor=x", "cursor=",
+                    "limit=0", "limit=201"):
+            self.assertEqual(self.request("GET", f"/trace/events?{bad}"), (400, {"error": "invalid_query"}), bad)
+        self.assertEqual(self.request("GET", "/trace/events", token=EVENTS)[0], 401)
+        self.server.trace = None
+        self.assertEqual(self.request("GET", "/trace/events"), (503, {"error": "no_trace"}))
 
     def test_delete_attention_clears_the_trace(self):
         self.use_attention()

@@ -6,7 +6,7 @@ import threading
 import time
 import uuid
 
-from traces.trace_format import ENDS, HEAD_MAX, TEXT_MAX, VERSION, validate_event
+from traces.trace_format import ENDS, HEAD_MAX, KINDS, TEXT_MAX, VERSION, validate_event
 
 BATCH_MAX = 200
 PAGE_MAX = 200
@@ -360,6 +360,31 @@ class TraceStore:
             rows = self.db.execute(f"SELECT event, NULL FROM trace_events WHERE {where} ORDER BY id DESC LIMIT ?",
                                    [*args, limit]).fetchall()
         return [_event(row, False) for row in rows]
+
+    def events(self, since=None, until=None, kinds=None, limit=PAGE_MAX, cursor=None):
+        """Every trace's events with since <= t_wall <= until, in stored order, text as {len, head} only;
+        (page, cursor of the next page or None). kinds narrows them to those kinds."""
+        if type(limit) is not int or not 1 <= limit <= PAGE_MAX:
+            raise ValueError(f"limit must be 1-{PAGE_MAX}")
+        if cursor is not None and not (isinstance(cursor, str) and cursor.isdigit()):
+            raise ValueError("invalid cursor")
+        where, args = ["id > ?"], [0 if cursor is None else int(cursor)]
+        if since is not None:
+            where.append("julianday(t_wall)>=julianday(?)")
+            args.append(_parse(since).isoformat())
+        if until is not None:
+            where.append("julianday(t_wall)<=julianday(?)")
+            args.append(_parse(until).isoformat())
+        if kinds is not None:
+            if not kinds or any(k not in KINDS for k in kinds):
+                raise ValueError("unknown kind")
+            where.append(f"kind IN ({', '.join('?' * len(kinds))})")
+            args += kinds
+        with self.lock:
+            rows = self.db.execute(f"SELECT id, event FROM trace_events WHERE {' AND '.join(where)} ORDER BY id LIMIT ?",
+                                   [*args, limit + 1]).fetchall()
+        page = [json.loads(raw) for _, raw in rows[:limit]]
+        return page, str(rows[limit - 1][0]) if len(rows) > limit else None
 
     def export(self, with_text=False):
         """Every event, oldest first; without text the attrs keep only the len of each text value."""

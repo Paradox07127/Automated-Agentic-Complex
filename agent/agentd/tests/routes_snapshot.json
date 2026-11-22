@@ -397,6 +397,13 @@
   ],
   [
     "GET",
+    "/trace/events",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "GET",
     "^/sessions/([^/]{1,200})/lines$",
     [
       "ui_token"

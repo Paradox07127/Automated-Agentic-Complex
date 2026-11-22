@@ -75,6 +75,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'GET', path: '/trace/turns', templates: ['/trace/turns'], class: 'read', surfaces: ['main'], response: 'trace-turns.json' },
   { method: 'GET', path: '/trace/decisions', templates: ['/trace/decisions'], class: 'read', surfaces: ['main'] },
   { method: 'GET', path: '/trace/export', templates: ['/trace/export'], class: 'read', surfaces: ['main'] },
+  { method: 'GET', path: '/trace/events', templates: ['/trace/events'], class: 'read', surfaces: ['main'], response: 'trace-events.json' },
   { method: 'GET', path: '^/sessions/([^/]{1,200})/lines$', templates: ['/sessions/:session_id/lines'], class: 'read', surfaces: ['main'], plugin: 'coding_sessions' },
   { method: 'GET', path: '^/trace/turns/([^/]{1,64})$', templates: ['/trace/turns/:trace_id'], class: 'read', surfaces: ['main'] },
   { method: 'GET', path: '^/episodes/([^/]{1,64})/evidence$', templates: ['/episodes/:episode_id/evidence'], class: 'read', surfaces: ['main'], plugin: 'daily_brief' },
@@ -237,11 +238,11 @@ export type AgentdRouteKey =
   | 'GET /day/segments' | 'GET /episodes' | 'GET /commitments' | 'GET /schedules' | 'POST /schedules'
   | `PUT /schedules/${string}` | `DELETE /schedules/${string}` | `POST /schedules/${string}/run` | 'GET /focus'
   | 'GET /proactive/mutes' | 'GET /proactive/settings' | 'GET /proactive/stats' | 'GET /brief/day' | 'GET /summary/runs'
-  | 'GET /trace/turns' | 'GET /trace/decisions' | 'GET /trace/export' | `GET /sessions/${string}/lines`
-  | `GET /trace/turns/${string}` | `GET /episodes/${string}/evidence` | `GET /diag/observations/${string}`
-  | 'GET /conversations' | `GET /conversations/${string}/turns` | 'GET /character/runtime'
-  | 'GET /character/capabilities' | 'GET /character/acp/agents' | 'GET /agent/scopes' | 'GET /agent/runs'
-  | `GET /agent/runs/${string}/items` | `GET /agent/runs/${string}/files` | 'GET /memory/runs'
+  | 'GET /trace/turns' | 'GET /trace/decisions' | 'GET /trace/export' | 'GET /trace/events'
+  | `GET /sessions/${string}/lines` | `GET /trace/turns/${string}` | `GET /episodes/${string}/evidence`
+  | `GET /diag/observations/${string}` | 'GET /conversations' | `GET /conversations/${string}/turns`
+  | 'GET /character/runtime' | 'GET /character/capabilities' | 'GET /character/acp/agents' | 'GET /agent/scopes'
+  | 'GET /agent/runs' | `GET /agent/runs/${string}/items` | `GET /agent/runs/${string}/files` | 'GET /memory/runs'
   | `GET /memory/runs/${string}` | 'GET /agent/goals' | `GET /agent/goals/${string}` | 'GET /agent/jobs'
   | 'GET /agent/tasks' | `GET /agent/tasks/${string}` | `GET /agent/tasks/${string}/steps`
   | `GET /agent/tasks/${string}/files` | 'GET /agent/deliveries' | `GET /agent/deliveries/${string}`
@@ -1072,6 +1073,29 @@ export interface TraceTurnsResponse {
   }>;
 }
 
+/** protocol/C6-agentd-api/fixtures/trace-events.json */
+export interface TraceEventsResponse {
+  events: Array<{
+    v: number;
+    event_id: string;
+    trace_id: string;
+    turn_id: string | null;
+    turn_generation: number | null;
+    span_id: string;
+    parent_span_id: unknown;
+    causation_id: unknown;
+    producer: string;
+    producer_epoch: number;
+    seq: number;
+    kind: string;
+    t_wall: string;
+    t_mono_ms: number;
+    status: string;
+    attrs: Record<string, unknown>;
+  }>;
+  cursor: string | null;
+}
+
 /** protocol/C6-agentd-api/fixtures/conversations.json */
 export interface ConversationsResponse {
   character: string;
@@ -1609,6 +1633,7 @@ export interface AgentdResponses {
   'GET /focus': FocusResponse;
   'GET /summary/runs': SummaryRunsResponse;
   'GET /trace/turns': TraceTurnsResponse;
+  'GET /trace/events': TraceEventsResponse;
   'GET /conversations': ConversationsResponse;
   'GET /conversations/:conversation_id/turns': ConversationsTurnsResponse;
   'GET /character/runtime': CharacterRuntimeResponse;

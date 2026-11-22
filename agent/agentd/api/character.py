@@ -122,9 +122,12 @@ class CharacterMixin:
         if linkage is not None:
             from daemon.tracing import trace_error
             trace_id, turn_id, behavior_type, epoch = linkage
+            with self.server.spatial._lock:
+                record = self.server.spatial.records.get(body["behavior_id"])
+                dispatched = record.get("dispatched") if record is not None else None
             with self.server._write_lock:
                 if not self.server.resetting and epoch == self.server._trace_epoch():
-                    self.server._trace("behavior.receipt", trace_id, turn_id=turn_id,
+                    self.server._trace("behavior.receipt", trace_id, turn_id=turn_id, causation_id=dispatched,
                         turn_generation=None if turn_id is None else body["turn_generation"],
                         attrs={"behavior_id": body["behavior_id"], "behavior_type": behavior_type, "phase": body["phase"],
                                "reason": trace_error(body.get("reason"))})

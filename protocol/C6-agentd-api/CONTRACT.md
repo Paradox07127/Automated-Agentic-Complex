@@ -6,6 +6,11 @@
 T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全部端点见 §3 端点总表；逐条的字段和错误码见表中「规格」列指的文档；本文件的端点细则在 §2 和 §4。
 本合同版本 v1；agentd 在 `GET /health` 的回复里以 `c6_contract`（字符串 `"v1"`）报它实现的版本，`agentd --describe`（C9）也报同一个值。
 
+## 2026-11-22 一段时间的 trace 事件 GET /trace/events（只加不改）
+
+- 新端点 `GET /trace/events?since=&until=&kinds=&limit=&cursor=`（ui 令牌，`read`）：时间范围内所有 trace 的事件，按存入先后，一页一页读，文本只有 `{len, head}`；「动作线」视图用它。字段见 §4.2 的这一行，回包样例 `fixtures/trace-events.json`。
+- `behavior.receipt` 的 `causation_id` 为它那个行为的 `behavior.dispatched`（知道时），见 T1「动作线」。
+
 ## 2026-11-22 动作分组提案 GET /characters/:character_id/motion-groups（只加不改）
 
 - 新端点 `GET /characters/:character_id/motion-groups`（ui 令牌，`read`）：当前角色动作图里每个片段归到哪里，包里还没抽的片段提议进哪个现有池子；只读，什么都不改。不是当前角色 409 `not_current`，没有动作选择器或动作图 404 `motion_graph_missing`。字段见 §2 的这一条，回包样例 `fixtures/motion-groups.json`。
@@ -368,6 +373,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | GET | `/trace/turns` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `trace-turns.json` |
 | GET | `/trace/decisions` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/trace/export` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| GET | `/trace/events` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `trace-events.json` |
 | GET | `/sessions/:session_id/lines` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/trace/turns/:trace_id` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/episodes/:episode_id/evidence` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
@@ -600,6 +606,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | `GET /trace/turns/<trace_id>?with_text=1` | ui | 这一轮全部事件，按 [T1-TRACE.md](T1-TRACE.md)「时间」的规则排好：200 `{trace_id, events, skew_ms}`；文本默认只有 `{len, head}`，`with_text=1` 才带 `text` 全文；不存在 404 `unknown_trace` |
 | `GET /trace/decisions?kind=&since=&limit=&trace_id=&request_id=` | ui | 闸门、判断、行为、派活、审批、主动台词反馈事件，新的在前：200 `{events}`；`kind` 可写 `dispatch`、`approval` 前缀；`limit` 默认 100、1–200，不合法 400 `invalid_query`；`trace_id` / `request_id` 只留这一轮 / 这张卡片（`attrs.request_id`）的决策，与其他条件同时成立，空值 400 `invalid_query` |
 | `GET /trace/export?with_text=1` | ui | 全部 trace 事件，旧的在前：200 `{events}`；默认去掉 `text` 和 attrs 里每个文本值的 `head`，只留 `len`；`with_text=1` 带全文。Companion 不调；给工具和人工排查用。Companion 的单轮导出用 `/trace/turns/<trace_id>` |
+| `GET /trace/events?since=&until=&kinds=&limit=&cursor=` | ui | 所有 trace 里 `since` ≤ `t_wall` ≤ `until` 的事件，按 agentd 存入的先后，旧的在前：200 `{events, cursor}`；`since`、`until` 为带时区的 ISO 8601，省略时那一头不限；`kinds` 为逗号分隔的 kind 名（T1 的 kind 表），只回这些 kind；`limit` 默认 200、1–200；还有下一页时 `cursor` 为不透明字符串，带上它（其余参数不变）读下一页，没有了为 null。文本只有 `{len, head}`，不带 `text`（不认 `with_text`）。参数不合法（时间不带时区、未知 kind、空的 `kinds` 或 `cursor`、读不懂的 `cursor`）400 `invalid_query` |
 | `GET /diag/state?with_text=1` | ui | 诊断快照，十三个区块 `hooks`、`turn`、`mouth_voice`、`gate`、`proactive`、`observation`、`body`、`sessions`、`budget`、`connections`、`context`、`behavior`、`character_state`（`character_state` 同 `GET /character/state`，没有状态模块时各值为 null、`causes` 为 `[]`；`behavior` 为 `{running: [{behavior_id, type, target, since}]（在跑的全部行为，先发的在前，没有时为 `[]`，同 `/events` snapshot 的 `behaviors`）, switches, last_receipt: {behavior_id, phase, reason, at} 或 null}`，`since`、`at` 是 agentd 发出、收到的时刻；`observation` 还带 `paused_until`、`meeting`，同 `GET /state`；`context`：这一轮给了嘴哪些内容、各自何时失效、最近一次被拒的观察和 `reason`：`no_permission`\|`capture_failed`\|`not_connected`\|`expired`\|`unavailable`；`context.activity` 为 `{activity, confidence, corrected, until}`，现在的现场判断，`until` 是 `PUT /context/activity` 更正的到期时刻，没在更正时为 null；没有注意力存储时整块为 null；`gate` 带 `today`（今天放行的非 P0 台词数）和 `blocked_today`（今天被闸门拦下的非 P0 台词数，主动搭话和播报都算，P0 不算）；`hooks` 为 `{claude: {installed, last_at}, codex: {installed, last_at}}`（只观察 hook）：`installed` 为 true 时，设置文件里有指向本 agentd 地址的只观察 hook（判断同 `tools/install_hooks.py`）；文件不存在时为 false；没有可查的文件、或文件读不了时为 null。codex 查 `~/.codex/hooks.json`，claude 查用户级 Claude Code 设置文件（`infra/paths.py` 的 `CLAUDE_SETTINGS`）；只看文件，不看 Codex 是否信任这些 hook。`last_at` 是最近一次收到这一路 hook 请求的时刻，本次启动后没收到时为 null），每块带 `updated_at`（块内数据最后变化的时刻，随时钟走的耗时、冷却秒数不算）；窗口标题、页面标题、选区等文本默认只给 `{len, head}`，`with_text=1` 才多给 `text` 全文；`events_token` 401 |
 | `GET /diag/observations/<request_id>` | ui | 按需读取内存中的观察详情；重新检查截图授权、黑名单和策略版本。视觉描述最多 4000 字，不返回原始截图；`current` 表示读取时仍可用于上下文，`used_in_last_turn` 仅表示最近一次上下文组装使用过该记录，不代表回答已显示。请求不存在返回 404，观察模块不可用返回 503。 |
 | `GET /diag/stream` | ui | SSE，`id` 为 `<进程>-<序号>`；连上先发 `event: state`（整份快照），之后快照变化时发 `state`（每秒查一次）、新 trace 事件发 `trace`、决策事件发 `decision`（都只带 `{len, head}`；每项有 `event_id, trace_id, turn_id, kind, producer, status, span_id, parent_span_id, duration_ms, at, attrs`）；带 `Last-Event-ID` 重连从它之后补发（保留最近 512 项），序号已被挤掉或属于上一个进程时先发 `event: reset` 再发一份完整 `state`；10 s 没数据发 `: heartbeat` |

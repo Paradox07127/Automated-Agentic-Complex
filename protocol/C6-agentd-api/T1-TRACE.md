@@ -93,6 +93,7 @@
 - `GET /trace/turns?since=&limit=&source=&result=&turn_id=&trace_id=`：每轮一行。后两项按标识精确查询。每行带 `conversation_id`：留存的对话记录里拥有这一轮的对话，无记录时为 null。每行包含 `turn_state` 和 `turn_outcome`，尚无 `turn.settled` 时均为 null。
 - `GET /trace/turns/{trace_id}`：这一轮全部事件，按上面的时间规则排好。
 - `GET /trace/decisions?kind=&since=`
+- `GET /trace/events?since=&until=&kinds=&limit=&cursor=`：所有 trace 在这段时间里的事件，按存入先后、旧的在前，每页 ≤ 200 条，`cursor` 接着读下一页；文本只回 `{len, head}`。
 - `GET /diag/state`：诊断页的九个区块（这一轮、嘴和声音、闸门、主动说话、观察、身体、会话、预算、连接），每块带 `updated_at`。
 - `GET /diag/stream`：SSE，推快照变化和新事件；按 `Last-Event-ID` 续，cursor 过期回 `event: reset`。
 - `POST /trace/events`：body `{"events": [...]}`，每批 ≤ 200 条，`producer` 只能是 `companion` 或 `avatar`。回 200 `{"accepted": n, "rejected": [{"index", "error"}]}`；超 200 条 413。
@@ -106,5 +107,9 @@
 - 带轮次 trace 的提议（`think`、角色工具的 `face`）不写 `behavior.refused`、`behavior.dispatched`，由那一轮自己记。
 - 同一个拒绝（`behavior_type`、`trigger_event`、`reason` 都相同）连着出现、中间没有别的动作线事件时只写第一条：身体被占着时基础循环每秒重试一次，每次都被拒。
 - 每日上限之后 `signal.changed`、`stage.changed` 和输入一样保留；`motion.chosen`、`behavior.refused`、`behavior.dispatched`、`motion.state` 照常丢。
+- `behavior.receipt` 指向它那个行为的 `behavior.dispatched`；那个行为没写 `behavior.dispatched`（带轮次 trace 的提议）或它被每日上限丢掉时为 null。
+- 视图按时间读：`GET /trace/events?since=&until=`，跟着 `cursor` 读完这段时间。
 
 追加（2026-11-22，只加不改）：加 kind `signal.changed`、`stage.changed`、`behavior.refused`、`motion.chosen`、`motion.state`（都只由 agentd 写，`POST /trace/events` 不收）和「动作线」一节；样例加一段动作线。
+
+追加（2026-11-22，只加不改）：加端点 `GET /trace/events`（一段时间里所有 trace 的事件，分页）；`behavior.receipt` 的 `causation_id` 指向它那个行为的 `behavior.dispatched`。

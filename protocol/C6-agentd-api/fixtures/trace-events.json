@@ -1,0 +1,8 @@
+{
+  "events": [{"v": 1, "event_id": "0c4e9a52-7d1b-4f3e-a8b6-2e5f9c1d7a30", "trace_id": "5b0f3c1e-8a2d-4f6b-9c7e-1d2a3b4c5d6e",
+              "turn_id": "tr41", "turn_generation": 1, "span_id": "3f9a1c7e5b2d8a40", "parent_span_id": null,
+              "causation_id": null, "producer": "agentd", "producer_epoch": 2, "seq": 17, "kind": "input.received",
+              "t_wall": "2026-10-31T09:00:00.000-04:00", "t_mono_ms": 81234, "status": "ok",
+              "attrs": {}}],
+  "cursor": "1834"
+}

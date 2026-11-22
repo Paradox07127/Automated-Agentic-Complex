@@ -330,6 +330,23 @@ class TraceStoreTest(unittest.TestCase):
         self.assertEqual(kinds(kind="approval", trace_id=second), ["approval.decided"])
         self.assertEqual(kinds(kind="dispatch", request_id="r1"), [])
 
+    def test_events_page_a_range_in_stored_order_and_the_last_page_has_no_cursor(self):
+        signal = {"source": "coarse", "key": "typing", "value": True, "revision": 1}
+        ids = []
+        for _ in range(4):
+            ids.append(self.trace.emit("signal.changed", new_trace_id(), attrs=signal))
+            self.now += 1
+        since, until = (e["t_wall"] for e in self.trace.events(kinds=["signal.changed"])[0][1:3])
+        self.assertEqual([e["event_id"] for e in self.trace.events(since, until)[0]], ids[1:3])
+        page, cursor = self.trace.events(limit=2)
+        self.assertEqual([e["event_id"] for e in page], ids[:2])
+        page, cursor = self.trace.events(limit=2, cursor=cursor)
+        self.assertEqual(([e["event_id"] for e in page], cursor), (ids[2:], None))
+        self.assertEqual(self.trace.events(kinds=["stage.changed"]), ([], None))
+        for bad in ({"kinds": []}, {"kinds": ["nope"]}, {"cursor": "-1"}, {"limit": 201}):
+            with self.assertRaises(ValueError, msg=bad):
+                self.trace.events(**bad)
+
     def test_export_drops_text_and_heads_unless_asked(self):
         self.input()
         nested = {"text": {"len": 3, "head": "秘密的"}, "inner": [{"len": 2, "head": "密码"}]}

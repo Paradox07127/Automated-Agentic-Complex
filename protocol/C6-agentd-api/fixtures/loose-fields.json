@@ -104,10 +104,12 @@
                                "last_batch.newest_observed_at", "observed_at", "task_corrections.*.text"],
     "observation-sources.json": ["next_cursor"],
     "observation-briefs.json": ["reports[].model", "attempts[].error_code", "attempts[].validation_path", "attempts[].retry_at"],
-    "trace-turns.json": ["turns[].turn_id", "turns[].head", "turns[].len", "turns[].provider", "turns[].account_label", "turns[].model", "turns[].error_code", "turns[].turn_state", "turns[].turn_outcome", "turns[].conversation_id"]
+    "trace-turns.json": ["turns[].turn_id", "turns[].head", "turns[].len", "turns[].provider", "turns[].account_label", "turns[].model", "turns[].error_code", "turns[].turn_state", "turns[].turn_outcome", "turns[].conversation_id"],
+    "trace-events.json": ["cursor", "events[].turn_id", "events[].turn_generation", "events[].parent_span_id", "events[].causation_id"]
   },
   "free_keys": {
     "user-now.json": ["events[].data"],
+    "trace-events.json": ["events[].attrs"],
     "task-understanding.json": ["task_corrections"],
     "diag-state.json": [
       "turn.phases_ms", "gate.cooldown_s", "budget.model.by_call", "budget.model.by_channel",

@@ -40,6 +40,7 @@ import { fakeLogs } from './logs';
 import { fakeMotion, fakePreviewSequence, fakePreviewView, motionGroupRoutes } from './motion';
 import { createFakeOnboarding } from './onboarding';
 import { fakeOutfit } from './outfit';
+import { traceEventRoutes } from './traceEvents';
 
 pinClock(NOW);
 // Page demo fillers: each file in ./demos sets up its page's demo data when the fake bridge loads.
@@ -175,7 +176,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
     present: () => character,
     said: (line) => playOnce(replyScript(line), still, (e) => listeners.forEach((l) => l(e))),
   });
-  const request = createDispatcher([...exampleRoutes, ...mockRoutes, ...chat, ...motionGroupRoutes(() => character), ...(opts.routes ?? [])], () => character);
+  const request = createDispatcher([...exampleRoutes, ...mockRoutes, ...chat, ...motionGroupRoutes(() => character), ...traceEventRoutes, ...(opts.routes ?? [])], () => character);
   const avatar: AvatarState = {
     running: true, visible: true, scale: 1, clickThroughAll: false, speaking: false,
     characterId: 'voice_a', appearanceId: 'default',
