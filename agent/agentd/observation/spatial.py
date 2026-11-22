@@ -92,6 +92,11 @@ CHAINED = ("next of ", "exit of ", "source return of ")  # why prefixes of a cli
 REACTION_EVENTS = {"click": "click.single", "pat": "pat.head", "pinch": "pinch.cheek", "drag_lift": "drag.lift",
                    "attention_left": "look.left", "attention_right": "look.right", "present": "present.snap"}
 BASE_REACTIONS = ("drag_lift",)  # reactions on the base layer; the rest play on the overlay
+RETURN_PRIORITY = 1  # the return performance's clips: above the chooser's own, so an idle tier does not cut them
+RETURN_FACE = 10.0  # seconds she faces the user on a return
+# return row -> (she faces the user, the welcome: "small", "full" or None, the report gesture)
+RETURN_ROWS = {"look_welcome": (True, "small", False), "look_report": (True, None, True),
+               "welcome": (False, "full", False), "welcome_report": (False, "full", True)}
 
 
 def _spec(kind, target, source, event, priority, channels, exits, intensity, lifetime, display_session=None,
@@ -167,11 +172,13 @@ class Consumed:
 
     def __init__(self, stage):
         self.stage = stage
+        self.seen = lambda occurrence_id: None  # told each occurrence that comes here, shown or not, resends too
         self._ids = deque(maxlen=c1.CONSUMED_MAX)
         self._lock = threading.Lock()
 
     def take(self, occurrence_id):
         """True when the occurrence is not to be shown: consumed before, or consumed now by the stage."""
+        self.seen(occurrence_id)
         with self._lock:
             if occurrence_id in self._ids:
                 return True
@@ -249,6 +256,9 @@ class Spatial:
         self._clauses = OrderedDict()  # clause key -> the intent of its clause_intent, until its clause_end
         self._reactions = None  # the chooser's snapshot reaction table
         self._seen = None  # the latest observe(), which chosen performs are admitted against
+        self._return = None  # while the return performance plays: {steps, part, clip, intent, semantic}
+        self._returned = []  # behavior ids of its clips; once it is over they lapse for the chooser's next clip
+        self.last_return = None  # the last return decision with what of it played and why the rest did not
         self._lock = threading.RLock()
         self._wake = threading.Event()
         self._motion_wake = threading.Event()
@@ -359,22 +369,25 @@ class Spatial:
         s = self.observe()
         with self._lock:
             if not valid():return {'accepted':False,'reason':'decision_stale'}
-            if not self.facing_available() or self._forbidden('face', None, False):
-                return {'accepted':False,'reason':'facing_unavailable'}
-            if s['fullscreen'] and self.switches['fullscreen_give_way']:
-                return {'accepted':False,'reason':'fullscreen'}
-            if any(r['behavior']['type'] not in ('face','idle','think','listen','accompany') and set(r['behavior']['channels']) & {'full_body','contact'}
-                   and 'clip' not in r['behavior'] for r in self.active.values()): return {'accepted':False,'reason':'body_busy'}
-            exits = ('user_drag','focus_change') if source=='decision' else ('user_drag',)
-            spec = _spec('face',None,source,'facing_decision',0,('full_body',),exits,.2,hold_seconds)
-            spec.update(facing_yaw=float(yaw),decision_reason=reason)
-            if trace_id:
-                spec.update(trace_id=trace_id, trace_turn_id=trace_turn_id, trace_epoch=trace_epoch)
-            admitted, refused = self._send(spec,s,self.clock())
-            if not admitted:return {'accepted':False,'reason':refused}
-            record = next(reversed(self.active.values()))
-            return {'accepted':True,'behavior_id':record['behavior']['behavior_id'],
-                    'facing_yaw':float(yaw),'phase':'requested'}
+            trace = dict(trace_id=trace_id, trace_turn_id=trace_turn_id, trace_epoch=trace_epoch) if trace_id else {}
+            return self._face(s, float(yaw), reason, hold_seconds, source, 'facing_decision', trace)
+
+    def _face(self, s, yaw, reason, hold_seconds, source, event, trace):
+        """A face toward yaw (0 faces the user) through admit: request_facing's answer."""
+        if not self.facing_available() or self._forbidden('face', None, False):
+            return {'accepted':False,'reason':'facing_unavailable'}
+        if s['fullscreen'] and self.switches['fullscreen_give_way']:
+            return {'accepted':False,'reason':'fullscreen'}
+        if any(r['behavior']['type'] not in ('face','idle','think','listen','accompany') and set(r['behavior']['channels']) & {'full_body','contact'}
+               and 'clip' not in r['behavior'] for r in self.active.values()): return {'accepted':False,'reason':'body_busy'}
+        exits = ('user_drag','focus_change') if source=='decision' else ('user_drag',)
+        spec = _spec('face',None,source,event,0,('full_body',),exits,.2,hold_seconds)
+        spec.update(facing_yaw=yaw,decision_reason=reason,**trace)
+        admitted, refused = self._send(spec,s,self.clock())
+        if not admitted:return {'accepted':False,'reason':refused}
+        record = next(reversed(self.active.values()))
+        return {'accepted':True,'behavior_id':record['behavior']['behavior_id'],
+                'facing_yaw':yaw,'phase':'requested'}
 
     def set_capabilities(self, character, capabilities):
         """The actual loaded character's supported behaviors; values are null or an unavailable reason."""
@@ -496,7 +509,8 @@ class Spatial:
                     "capability_character": self.capability_character, "capabilities": self.capabilities,
                     "refused": dict(self._refused), "consumed": len(self.consumed.ids()),
                     "parked": bool(self._edge and self._edge["parked"]),
-                    "edge_pending": bool(self._edge and self._edge["pending"])}
+                    "edge_pending": bool(self._edge and self._edge["pending"]),
+                    "return": self.last_return and {**self.last_return, "played": list(self.last_return["played"])}}
 
     def admit(self, spec, s, now, lapsed=()):
         """Whether a proposal may run now: (True, None), or (False, the first check that fails): stale (its
@@ -560,7 +574,8 @@ class Spatial:
         with self._lock:
             replaced = chooser is not None or self.chooser is not None
             self.chooser, self._motion_at, self._chosen, self._base_id = chooser, None, [], None
-            self._overlay = self._staged = None
+            self._overlay = self._staged = self._return = None
+            self._returned = []
             self._hold_at, self._seated, self._voice = 0.0, False, False
             self._intents.clear()
             self._clauses.clear()
@@ -614,6 +629,82 @@ class Spatial:
             intent = self._clauses.pop(key, None)
             if intent is not None:
                 self.motion({"kind": "clause_end", "intent": intent})
+
+    def perform_return(self, decision):
+        """Return's decision on a user.return, {row, away_s, ended, why}: with why None the row (RETURN_ROWS) plays, a
+        face toward the user, then the welcome, then the report gesture, each a clip the chooser picks and admit lets
+        run, the next once the chooser leaves the one before. Returns the record diag() shows, which the later parts
+        update: the decision with played, the parts sent so far, and why the last part refused did not play."""
+        with self._lock:
+            record = self.last_return = {**decision, "played": []}
+            s, now = self._seen, self.clock()  # the motion clock's first step observes
+            if decision["why"] is not None or s is None:
+                record["why"] = record["why"] or "no_motion"
+                return record
+            look, welcome, report = RETURN_ROWS[decision["row"]]
+            if look:
+                face = self._face(s, 0.0, "the user came back", RETURN_FACE, "user", "user_return", {})
+                if face["accepted"]:
+                    record["played"].append("face")
+                else:
+                    record["why"] = face["reason"]
+            if self.chooser is None:
+                record["why"] = "no_motion"
+            elif self._seated:
+                record["why"] = "seated"
+            else:
+                self._advance(now)
+                self._propose(s, now)
+                steps = deque(self._return_steps(welcome, report))
+                self._return = {"steps": steps, "part": None, "clip": None, "intent": None,
+                                "semantic": self.chooser.semantic}
+                if self._return_next():
+                    self._propose(s, now)
+                else:
+                    record["why"] = "no_clip"
+            return record
+
+    def _return_steps(self, welcome, report):
+        """(part, chooser input) of each clip the return plays, by what the pack maps: the small welcome is the
+        acknowledge intent and the full one the greet intent, else the pack's user.greet event, each standing in for
+        the other in a pack with one; the report gesture is the explain intent."""
+        pack = self.chooser.pack
+        intent = lambda name: {"kind": "clause", "intent": name} \
+            if pack.primary(name) or pack.contexts.get("intent." + name) else None  # noqa: E731
+        # an event spends the idle budget and may wait; an intent plays at once
+        greet = intent("greet") or ({"kind": "event", "key": "user.greet"} if pack.event_key("user.greet", "stand")
+                                    else None)
+        nod = intent("acknowledge")
+        steps = (("welcome", {"small": nod or greet, "full": greet or nod, None: None}[welcome]),
+                 ("report", intent("explain") if report else None))
+        return [(part, item) for part, item in steps if item is not None]
+
+    def _return_next(self):
+        """Sends the return's next step to the chooser; a step it chooses nothing for is skipped. False when none is
+        left: the return is over."""
+        ret = self._return
+        while ret["steps"]:
+            ret["part"], item = ret["steps"].popleft()
+            ret["clip"] = None
+            choices = self.chooser.send(item)
+            if item["kind"] == "clause":
+                ret["intent"] = item["intent"]
+            if choices:
+                self._take(choices, "user", "return")
+                return True
+        self._return_over()
+        return False
+
+    def _return_over(self):
+        """The return ends; the chooser's intent goes back to the one before it unless something has set another."""
+        ret, self._return = self._return, None
+        if ret["intent"] is not None and self.chooser.semantic == ret["intent"]:
+            self.chooser.send({"kind": "semantic", "intent": ret["semantic"]})
+
+    def _lapsed(self):
+        """The return's clips that still run once it is over: the chooser's next clip replaces them."""
+        self._returned = [i for i in self._returned if i in self.active]
+        return [] if self._return is not None else [self.active[i] for i in self._returned]
 
     def motion_state(self, body):
         """A C3 motion_state (rule 54): at a cycle end or the end of a clip the chooser chose, the chooser's playhead
@@ -702,6 +793,13 @@ class Spatial:
         clip, why = choice["clip"], choice["why"]
         if self._seated:
             return  # her sit plays its own clips
+        ret = self._return
+        if ret is not None and ret["clip"] is not None and clip not in self.chooser.pack.chain(ret["clip"]):
+            if self._return_next():
+                return  # the chooser left the step's clip: the next step's clips play instead of this one
+            ret = None
+        elif ret is not None and ret["clip"] is None and not why.startswith("base before "):
+            ret["clip"] = clip
         if kind == "clause" and why.startswith("base before "):
             self._staged = why.removeprefix("base before ")  # the overlay needs no base to start from
             return
@@ -712,8 +810,19 @@ class Spatial:
             self._overlay = None
             if base is not None and base["spec"]["clip"]["id"] == clip:
                 return  # back on what the base layer plays
-        spec = self._chosen_spec(clip, "overlay" if overlay else "base", source or self._source(why), why, blend)
-        if not self._send(spec, s, now)[0]:
+        spec = self._chosen_spec(clip, "overlay" if overlay else "base",
+                                 "user" if ret is not None else source or self._source(why), why, blend)
+        if ret is not None:
+            spec["priority"] = RETURN_PRIORITY
+        admitted, refused = self._send(spec, s, now, self._lapsed())
+        if ret is not None and admitted:
+            self._returned.append(next(reversed(self.active)))
+            if ret["part"] not in self.last_return["played"]:
+                self.last_return["played"].append(ret["part"])
+        elif ret is not None:
+            self.last_return["why"] = refused
+            self._return_over()
+        if not admitted:
             self.chooser.report_playhead(*self._played())
         elif overlay:
             self._overlay, self._staged = clip, None
@@ -725,7 +834,9 @@ class Spatial:
         does not play it (at the start, after another owner or the stage took the body)."""
         base = self.active.get(self._base_id)
         if base is not None and base["spec"].get("loop") and base["behavior"]["expires_at_ms"] <= (now + LOOP_RENEW) * 1000:
-            if self._send(base["spec"], s, now)[0]:
+            # a return loop the chooser still plays after the return is renewed as her own
+            spec = base["spec"] if self._return is not None else {**base["spec"], "priority": 0}
+            if self._send(spec, s, now, self._lapsed())[0]:
                 self._base_id = next(reversed(self.active))
             return
         clip = self.chooser.playhead()[0]
@@ -733,7 +844,7 @@ class Spatial:
                 or base is not None and base["spec"]["clip"]["id"] == clip:
             return
         self._hold_at = now + HOLD_RETRY
-        if self._send(self._chosen_spec(clip, "base", self._source("hold"), "hold", None), s, now)[0]:
+        if self._send(self._chosen_spec(clip, "base", self._source("hold"), "hold", None), s, now, self._lapsed())[0]:
             self._base_id, self._base_since = next(reversed(self.active)), self.chooser.t_s
 
     def _source(self, why):

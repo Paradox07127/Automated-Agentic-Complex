@@ -28,9 +28,10 @@ from character.focus import Focus
 from character.gate import Gate
 from character.interactions import preset
 from character.proactive import WANT_COMMENT
+from character.returning import Return
 from sessions.ledger import DEFAULT_ROOT
 from observation.desktop_presence import PresenceFeed
-from observation.privacy import ConsentPolicy
+from observation.privacy import ConsentPolicy, saved_switch
 from sessions.registry import Registry
 from sessions.dispatch import Dispatcher
 from observation.spatial import Spatial
@@ -243,6 +244,11 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self.registry.consumed = self.spatial.consumed
         self.registry.on_intent = self.spatial.motion_intent
         self.spatial.use_motion(self.motion_chooser(self.character))
+        # the one performance on a user.return; greet_on_resume is the shell's saved setting
+        self.returning = Return(self.spatial, lambda: self.privacy_config is None
+                                or saved_switch(self.privacy_config, "greet_on_resume", default=True),
+                                clock=lambda: self.clock())
+        self.spatial.consumed.seen = self.returning.ended
         self.proactive = None  # Proactive; sees every stored heartbeat
         self.proactive_log = None
         self.thoughts = None  # Thoughts: session transitions and the spatial poll's scene reach it; None thinks nothing

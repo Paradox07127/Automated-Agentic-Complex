@@ -3,11 +3,17 @@ from pathlib import Path
 import sys
 import tempfile
 import time
+from types import SimpleNamespace
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import support  # noqa: E402
 from character.gate import Gate  # noqa: E402
+from daemon.agentd_server import AgentdServer  # noqa: E402
+from motion.chooser import MotionChooser  # noqa: E402
+from test_server import HOOK, UI, FakeMouth, FakeRelay, KernelLines  # noqa: E402
+from test_spatial import PACK, situation  # noqa: E402
 from personal.memory import Memory  # noqa: E402
 from character.proactive import Proactive  # noqa: E402
 from brain.persona import PROMPT_USER  # noqa: E402
@@ -341,6 +347,54 @@ class TapDeliveryTest(unittest.TestCase):
         self.assertNotIn("water", self.r.pending())
         self.desk(0.5)
         self.assertIn("water", self.r.pending())
+
+
+class ReturnWelcomeTapTest(unittest.TestCase):
+    """The first tap of a day on which her return performance welcomed the user: no morning greeting."""
+
+    def setUp(self):
+        support.enable_plugins(self)
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.server = server = AgentdServer(("127.0.0.1", 0), HOOK, UI)
+        thread = support.serve_in_thread(server)
+        self.addCleanup(thread.join, 2)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        server.character = "aster"
+        server.mouth = FakeMouth(["早上好。"])
+        server.speech = FakeRelay()
+        server.gate = Gate(enabled=True, quiet=(0, 0))
+        server.character_agent = KernelLines(server)
+        server.history = SimpleNamespace(record=lambda **row: None, conversations=SimpleNamespace(active=None))
+        db = open_store(Path(tmp.name) / "agentd.sqlite")
+        self.addCleanup(db.close)
+        self.now = time.mktime(datetime.datetime.now().replace(hour=8, minute=0, second=0, microsecond=0).timetuple())
+        server.rituals = Rituals(db, clock=lambda: self.now, summary=lambda day: None, on_change=server.ritual_check)
+        server.spatial.observe = lambda: situation()
+        server.spatial.use_motion(MotionChooser(PACK))
+        server.spatial.motion_step()
+
+    def back(self, stage):
+        self.server.spatial.stage = lambda: stage
+        self.server.user_event({"revision": 1, "ts": self.now - 60, "name": "user.return",
+                                "data": {"absence_id": "a-1", "away_s": 900}})
+
+    def tap(self):
+        kind = support.request(self, "POST", "/interaction/tap", {"at": "2026-10-22T08:00:00+08:00"})[1]["kind"]
+        deadline = time.monotonic() + 2
+        while self.server._live_lines and time.monotonic() < deadline:  # the line settles before the store closes
+            time.sleep(0.01)
+        return kind
+
+    def test_a_welcome_that_played_today_leaves_no_morning_greeting(self):
+        self.back("engaged")
+        self.assertEqual(self.server.spatial.diag()["return"]["played"], ["welcome"])
+        self.assertEqual(self.tap(), "tap")
+
+    def test_a_return_without_a_welcome_keeps_the_morning(self):
+        self.back("quiet")
+        self.assertEqual(self.tap(), "morning")
 
 
 if __name__ == "__main__":

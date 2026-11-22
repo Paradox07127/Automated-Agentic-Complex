@@ -53,7 +53,7 @@ class RitualsGlueMixin:
                 return 409, {"error": "switching"}
             picked = scripted = None
             if self.mouth is None or lane is None:
-                picked = self.rituals.pick() if self.rituals is not None else None
+                picked = self._ritual_pick() if self.rituals is not None else None
                 if picked:
                     event = "greeting_morning" if picked[0] == "morning" else picked[0]
                     scripted = self._scripted_line(event)
@@ -70,7 +70,7 @@ class RitualsGlueMixin:
                                             self.character_agent is not None and self.character_agent.busy())
                 return 409, {"error": "busy", "while": "working" if working else "speaking"}
             if scripted is None and self.rituals is not None:
-                picked = self.rituals.pick()
+                picked = self._ritual_pick()
             if picked is None:
                 template = TAP if count == 1 else TAPS
                 if scripted is None and self.egress is not None:
@@ -95,6 +95,14 @@ class RitualsGlueMixin:
                             reason={"code": "ritual", "kind": kind}, source="ritual", scripted=scripted,
                             material=f"Today so far: {data['arc']}" if kind == "report" else None)
         return 202, {"line_id": line_id, "kind": kind}
+
+    def _ritual_pick(self):
+        """rituals.pick(), without the morning greeting on a day a return performance already welcomed the user."""
+        picked = self.rituals.pick()
+        if picked is not None and picked[0] == "morning" \
+                and self.returning.welcomed_on(datetime.date.fromtimestamp(self.rituals.clock())):
+            return None
+        return picked
 
     def gift(self, body):
         if not isinstance(body, dict) or set(body) - {"action_id"} or "action_id" in body and \

@@ -526,6 +526,8 @@ class MotionChooser:
                 self.apply_intent(i["intent"])
         elif kind == "clause_end":
             self.retract_gesture(i["intent"])
+        elif kind == "semantic":  # agentd hands back the intent its own gestures took, without a clip
+            self.semantic = i["intent"]
         elif kind == "click":
             self.play_click_reaction(i.get("region"))
         elif kind == "event":

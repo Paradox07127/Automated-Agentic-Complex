@@ -127,12 +127,13 @@ class SwitchesMixin:
 
     def user_event(self, event):
         """Each user_now event: the gate follows the stage, each stage change sets Registry.quiet, and a return goes to
-        the spoken report and releases the signals held for the absence."""
+        the return performance and the spoken report and releases the signals held for the absence."""
         self.gate.stage = self.user_now.snapshot()["stage"]
         if event["name"].startswith("stage."):
             self.refresh_quiet()
             self.spatial.stage_event(event["name"])
         elif event["name"] == "user.return":
+            self.returning.returned(event)
             if self.proactive is not None:
                 self.proactive.back(event["data"]["away_s"])
             if self.signals is not None:
