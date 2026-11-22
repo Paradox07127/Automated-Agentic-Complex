@@ -18,10 +18,11 @@
   left: 28%;
   overflow: hidden;
   color: var(--ef-text-1);
+  /* A section switch moves the stage with the entering section's in clip (useSectionSwitch sets --switch-in). */
   transition:
-    left 300ms var(--ef-ease-g-fade),
-    right 300ms var(--ef-ease-g-fade),
-    bottom 300ms var(--ef-ease-g-fade);
+    left var(--switch-in, 667ms) var(--ef-ease-g-enter),
+    right var(--switch-in, 667ms) var(--ef-ease-g-enter),
+    bottom var(--switch-in, 667ms) var(--ef-ease-g-enter);
 }
 
 @media (prefers-reduced-motion: reduce) {

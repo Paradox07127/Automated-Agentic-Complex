@@ -24,6 +24,7 @@ import { useImportState } from './useImportState';
 import { useLook } from './useLook';
 import { useOutfitImport } from './useOutfitImport';
 import { previewLookChanged } from './usePreview';
+import { useSectionSwitch } from './useSectionSwitch';
 import type { SwitchState } from './useSwitch';
 import styles from './Operator.module.css';
 
@@ -262,9 +263,16 @@ export function Operator(p: OperatorProps) {
       on ? `已显示「${name}」` : `已隐藏「${name}」`,
     );
 
-  return (
-    <div ref={opRef} className={styles.op} data-view="operator" data-mode={mode} data-panel={panel} data-bare={isBare || undefined} data-deck={deck || undefined} data-band={(side?.of === 'mmd' && side.band) || undefined} data-theme="light">
-      {overview && (
+  // What the section draws besides the stage and the rail; the sequencer keeps the leaving one until its out clip and the wait end.
+  const view = useSectionSwitch(
+    at,
+    {
+      mode,
+      panel,
+      deck,
+      band: (side?.of === 'mmd' && side.band) || undefined,
+      status: deck ? deckLine(why, blocked, play, oneSpeed) : null,
+      strip: overview && (
         <HeadStrip
           roster={p.roster}
           current={p.current}
@@ -277,35 +285,12 @@ export function Operator(p: OperatorProps) {
           onBare={setBare}
           listRef={listRef}
         />
-      )}
-      <div ref={midRef} className={styles.mid} data-character-preview="">
-        <Stage
-          mode={mode}
-          status={deck ? deckLine(why, blocked, play, oneSpeed) : null}
-          deck={deck}
-          name={overview ? (ch?.name ?? '') : ''}
-          en={ch?.en}
-          active={ch?.active}
-          voice={voice}
-          activity={overview ? doing(p.charState?.activity ?? null) : null}
-          offline={p.offline}
-          backoff={p.backoff}
-          onRestart={p.onRestart}
-          sw={p.sw.state}
-          currentName={ch?.name ?? ''}
-          onRetry={p.sw.retry}
-          onDismiss={p.sw.dismiss}
-          characterId={p.current}
-          previewAction={pv.action}
-          previewRequest={pv.request}
-          previewAppearance={lookId}
-          loop={pv.loop}
-          observe={isBare}
-        />
-      </div>
-      {overview && <BrandBlock />}
-      {side && <SidePanel side={side} />}
-      {!overview && !side && (
+      ),
+      right: overview ? (
+        <BrandBlock />
+      ) : side ? (
+        <SidePanel side={side} />
+      ) : (
         <Panel tabs={tabs} value={tab} onTab={onTab} tail={at === 'look' ? 'Agentic Complex / Appearance' : 'Agentic Complex / Motion'} pane={pane}>
           {pane === 'motion' ? (
             <section className={styles.motions} aria-label="动作开关">
@@ -341,9 +326,8 @@ export function Operator(p: OperatorProps) {
             />
           )}
         </Panel>
-      )}
-      <Rail value={at} avatar={canAvatar} sub={!side && pane === 'import'} onGo={(item) => GO[item]()} />
-      {deck && (
+      ),
+      commit: deck && (
         <Commit
           offline={p.offline}
           changes={changes}
@@ -363,7 +347,43 @@ export function Operator(p: OperatorProps) {
           onStop={() => void m.stop()}
           progress={play && !play.loop ? play.progress : null}
         />
-      )}
+      ),
+    },
+    opRef,
+  );
+  const s = view.scene;
+
+  return (
+    <div ref={opRef} className={styles.op} data-view="operator" data-mode={s.mode} data-panel={s.panel} data-bare={isBare || undefined} data-deck={s.deck || undefined} data-band={s.band} data-theme="light">
+      {view.parts && s.strip}
+      <div ref={midRef} className={styles.mid} data-character-preview="">
+        <Stage
+          mode={s.mode}
+          status={s.status}
+          deck={s.deck}
+          name={s.mode === 'overview' && view.parts ? (ch?.name ?? '') : ''}
+          en={ch?.en}
+          active={ch?.active}
+          voice={voice}
+          activity={s.mode === 'overview' ? doing(p.charState?.activity ?? null) : null}
+          offline={p.offline}
+          backoff={p.backoff}
+          onRestart={p.onRestart}
+          sw={p.sw.state}
+          currentName={ch?.name ?? ''}
+          onRetry={p.sw.retry}
+          onDismiss={p.sw.dismiss}
+          characterId={p.current}
+          previewAction={pv.action}
+          previewRequest={pv.request}
+          previewAppearance={lookId}
+          loop={pv.loop}
+          observe={isBare}
+        />
+      </div>
+      {view.parts && s.right}
+      <Rail value={at} avatar={canAvatar} sub={!side && pane === 'import'} onGo={(item) => GO[item]()} />
+      {view.parts && s.commit}
     </div>
   );
 }

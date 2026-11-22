@@ -149,7 +149,7 @@ export function PhotoMode(p: PhotoModeProps) {
     );
 
   return (
-    <section className={styles.photo} data-g="detail" aria-label="拍照">
+    <section className={styles.photo} data-g="detail" data-switch="panel" aria-label="拍照">
       <section className={styles.part} aria-label="滤镜">
         <SecHead title="滤镜" en="Filter" />
         {filters}

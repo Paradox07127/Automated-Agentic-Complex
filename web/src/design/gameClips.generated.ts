@@ -24,7 +24,7 @@ export interface GameClip {
   tracks: readonly GameTrack[];
 }
 
-export type GameClipId = "watchIn" | "watchOut" | "watchLoop" | "keyboardBtnHover" | "quickmenuIn" | "missionIn" | "missionOut" | "missionCellIn" | "missionCellSelect" | "missionTrackLoop" | "missionInfoIn" | "missionCompleteIn" | "snsBasicIn" | "snsBasicOut" | "snsFriendIn" | "snsFriendOut" | "snsCellIn" | "snsCellSelectIn" | "snsCellSelectLoop" | "snsDialogChange" | "snsLoadingIn" | "snsEmptyIn" | "prtsIn" | "prtsInSettle" | "prtsOut" | "prtsBigCardHover" | "prtsCardHover" | "wikiGroupIn" | "wikiGroupOut" | "wikiCellIn" | "wikiCellSelect" | "wikiCellDeselect" | "wikiItemIn" | "settingIn" | "settingOut" | "settingChange" | "toggleToLeft" | "toggleToRight" | "charInfoIn" | "charInfoOut" | "charBasicIn" | "charBasicSwitch" | "charListIn" | "charMenuSelectIn" | "charMenuSelectOut" | "charMenuHover" | "charHeadSelect" | "charMarkIn" | "charMarkLoop" | "guideMediaIn" | "guideMediaOut" | "guideArrowHover" | "popupIn" | "popupOut" | "toastIn" | "toastOut" | "systemToastIn" | "tabSelectIn" | "tabSelectOut";
+export type GameClipId = "watchIn" | "watchOut" | "watchLoop" | "keyboardBtnHover" | "quickmenuIn" | "missionIn" | "missionOut" | "missionCellIn" | "missionCellSelect" | "missionTrackLoop" | "missionInfoIn" | "missionCompleteIn" | "snsBasicIn" | "snsBasicOut" | "snsFriendIn" | "snsFriendOut" | "snsCellIn" | "snsCellSelectIn" | "snsCellSelectLoop" | "snsDialogChange" | "snsLoadingIn" | "snsEmptyIn" | "prtsIn" | "prtsInSettle" | "prtsOut" | "prtsBigCardHover" | "prtsCardHover" | "wikiGroupIn" | "wikiGroupOut" | "wikiCellIn" | "wikiCellSelect" | "wikiCellDeselect" | "wikiItemIn" | "settingIn" | "settingOut" | "settingChange" | "toggleToLeft" | "toggleToRight" | "charInfoIn" | "charInfoOut" | "charBasicIn" | "charBasicSwitch" | "charListIn" | "charMenuSelectIn" | "charMenuSelectOut" | "charMenuHover" | "charHeadSelect" | "charMarkIn" | "charMarkLoop" | "charRightIn" | "charRightOut" | "charGyroOut" | "charListOut" | "charListNewIn" | "charListNewOut" | "charRowIn" | "guideMediaIn" | "guideMediaOut" | "guideArrowHover" | "popupIn" | "popupOut" | "toastIn" | "toastOut" | "systemToastIn" | "tabSelectIn" | "tabSelectOut";
 
 export const gameClips: Record<GameClipId, GameClip> = {
   watchIn: {
@@ -3113,6 +3113,117 @@ export const gameClips: Record<GameClipId, GameClip> = {
         { offset: 0, value: 1, easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
         { offset: 0.5, value: 0.5, easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
         { offset: 1, value: 1, easing: "linear" },
+      ] },
+    ],
+  },
+  charRightIn: {
+    name: "charinfoweapon_right_in", duration: 666.7, loop: false,
+    tracks: [
+      { key: "panel", property: "opacity", keyframes: [
+        { offset: 0, value: 0, easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
+        { offset: 0.99995, value: 1, easing: "linear" },
+        { offset: 1, value: 1, easing: "linear" },
+      ] },
+      { key: "panel", property: "translate", keyframes: [
+        { offset: 0, value: "100px 0px", easing: "cubic-bezier(0.333, 0, 0, 1)" },
+        { offset: 0.99995, value: "0px 0px", easing: "linear" },
+        { offset: 1, value: "0px 0px", easing: "linear" },
+      ] },
+    ],
+  },
+  charRightOut: {
+    name: "charinfoweapon_right_out", duration: 166.7, loop: false,
+    tracks: [
+      { key: "panel", property: "opacity", keyframes: [
+        { offset: 0, value: 1, easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
+        { offset: 0.9998, value: 0, easing: "linear" },
+        { offset: 1, value: 0, easing: "linear" },
+      ] },
+      { key: "panel", property: "translate", keyframes: [
+        { offset: 0, value: "0px 0px", easing: "cubic-bezier(1, 0, 0.667, 1)" },
+        { offset: 0.9998, value: "50px 0px", easing: "linear" },
+        { offset: 1, value: "50px 0px", easing: "linear" },
+      ] },
+    ],
+  },
+  charGyroOut: {
+    name: "gyroscoperoot_out", duration: 100, loop: false,
+    tracks: [
+      { key: "detail", property: "opacity", keyframes: [
+        { offset: 0, value: 1, easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
+        { offset: 1, value: 0, easing: "linear" },
+      ] },
+      { key: "detail", property: "translate", keyframes: [
+        { offset: 0, value: "0px 0px", easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
+        { offset: 1, value: "85.5px 0px", easing: "linear" },
+      ] },
+      { key: "left", property: "opacity", keyframes: [
+        { offset: 0, value: 1, easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
+        { offset: 1, value: 0, easing: "linear" },
+      ] },
+      { key: "left", property: "translate", keyframes: [
+        { offset: 0, value: "0px 0px", easing: "cubic-bezier(1, 0, 0.667, 1)" },
+        { offset: 1, value: "-106px 0px", easing: "linear" },
+      ] },
+    ],
+  },
+  charListOut: {
+    name: "charlistnode_out", duration: 100, loop: false,
+    tracks: [
+      { key: "root", property: "opacity", keyframes: [
+        { offset: 0, value: 1, easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
+        { offset: 1, value: 0, easing: "linear" },
+      ] },
+      { key: "root", property: "translate", keyframes: [
+        { offset: 0, value: "0px 0px", easing: "cubic-bezier(1, 0, 0.667, 1)" },
+        { offset: 1, value: "-40px 0px", easing: "linear" },
+      ] },
+    ],
+  },
+  charListNewIn: {
+    name: "charlistnew_in", duration: 416.7, loop: false,
+    tracks: [
+      { key: "band", property: "opacity", keyframes: [
+        { offset: 0, value: 0, easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
+        { offset: 0.99992, value: 1, easing: "linear" },
+        { offset: 1, value: 1, easing: "linear" },
+      ] },
+      { key: "band", property: "translate", keyframes: [
+        { offset: 0, value: "-100px 0px", easing: "cubic-bezier(0.333, 0, 0, 1)" },
+        { offset: 0.99992, value: "0px 0px", easing: "linear" },
+        { offset: 1, value: "0px 0px", easing: "linear" },
+      ] },
+    ],
+  },
+  charListNewOut: {
+    name: "charlistnew_out", duration: 166.7, loop: false,
+    tracks: [
+      { key: "band", property: "opacity", keyframes: [
+        { offset: 0, value: 1, easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
+        { offset: 0.9998, value: 0, easing: "linear" },
+        { offset: 1, value: 0, easing: "linear" },
+      ] },
+      { key: "band", property: "translate", keyframes: [
+        { offset: 0, value: "0px 0px", easing: "cubic-bezier(1, 0, 0.667, 1)" },
+        { offset: 0.9998, value: "-100px 0px", easing: "linear" },
+        { offset: 1, value: "-100px 0px", easing: "linear" },
+      ] },
+    ],
+  },
+  charRowIn: {
+    name: "charinfo_talent_first_in", duration: 1183.3, loop: false,
+    tracks: [
+      { key: "row", property: "opacity", keyframes: [
+        { offset: 0, value: 0, easing: "linear" },
+        { offset: 0.15493, value: 0, easing: "cubic-bezier(0.333, 0, 0.667, 1)" },
+        { offset: 0.42255, value: 1, easing: "linear" },
+        { offset: 1, value: 1, easing: "linear" },
+      ] },
+      { key: "row", property: "translate", keyframes: [
+        { offset: 0, value: "-10px 0px", easing: "linear" },
+        { offset: 0.15493, value: "-10px 0px", easing: "cubic-bezier(0.333, 0, 0, 1)" },
+        { offset: 0.71833, value: "0px 0px", easing: "linear" },
+        { offset: 1, value: "0px 0px", easing: "linear" },
       ] },
     ],
   },

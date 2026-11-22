@@ -19,7 +19,7 @@ export function Panel(p: PanelProps) {
   const ref = useRef<HTMLElement>(null);
   const compact = useCompactScene(ref);
   return (
-    <section ref={ref} className={styles.panel} data-g="detail">
+    <section ref={ref} className={styles.panel} data-g="detail" data-switch="panel">
       <GameTabs label="角色页签" tabs={p.tabs} value={p.value} {...(p.tail ? { tail: p.tail } : {})} onChange={p.onTab} />
       <div className={styles.body} data-pane={p.pane} role="tabpanel" aria-label={p.tabs.find((t) => t.id === p.value)?.label}>
         <CompactProvider value={compact}>{p.children}</CompactProvider>

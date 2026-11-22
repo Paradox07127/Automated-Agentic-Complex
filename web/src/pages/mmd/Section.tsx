@@ -130,11 +130,11 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
   const node = (
     <div className={styles.at}>
       {band && (
-        <div className={styles.bandAt} data-theme="dark">
+        <div className={styles.bandAt} data-theme="dark" data-switch="band">
           <Setlist who={ch.name} cards={cards} list={setlist} blocked={playOff} />
         </div>
       )}
-      <section className={styles.lib} data-theme="dark" aria-label="MMD 库">
+      <section className={styles.lib} data-theme="dark" data-switch="panel" aria-label="MMD 库">
         <TitleBar
           title="舞曲库"
           micro="MMD LIBRARY / SHARED"

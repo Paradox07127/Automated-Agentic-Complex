@@ -95,7 +95,7 @@ export function Commit(p: CommitProps) {
     </>
   ) : undefined;
   return (
-    <div ref={ref} className={styles.deck} data-commit="">
+    <div ref={ref} className={styles.deck} data-commit="" data-switch="band">
       <ActionBar
         label="桌面预览"
         {...(p.progress != null ? { progress: p.progress } : {})}
