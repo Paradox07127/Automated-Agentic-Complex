@@ -1,5 +1,5 @@
-// The character and MMD stages while the live preview loads: the loading bar for a full load, no portrait under the live
-// canvas while it loads or draws, the portrait back only where the preview cannot draw.
+// The character and MMD stages while the live preview loads: the loading bar for a full load, and never the portrait:
+// where the preview cannot draw the stage says why and offers a retry, or stays empty.
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { PreviewPlacement } from '../../src/bridge';
@@ -11,11 +11,11 @@ const noop = () => {};
 const RECT = { x: 40, y: 120, width: 600, height: 360, top: 120, left: 40, right: 640, bottom: 480, toJSON: () => ({}) } as DOMRect;
 
 const stageProps: StageProps = {
-  name: '示例乙', activity: null, scale: 100, offline: false, backoff: null, onRestart: noop, sw: { phase: 'idle' },
-  currentName: '示例乙', onRetry: noop, onDismiss: noop, characterId: 'si', portrait: '/portrait.png', head: '/head.png',
+  name: '示例乙', activity: null, offline: false, backoff: null, onRestart: noop, sw: { phase: 'idle' },
+  currentName: '示例乙', onRetry: noop, onDismiss: noop, characterId: 'si',
 };
 const mmdProps: MmdStageProps = {
-  character: 'si', name: '示例乙', portrait: '/portrait.png', scale: 100, offline: false, backoff: null, onRestart: noop,
+  character: 'si', name: '示例乙', offline: false, backoff: null, onRestart: noop,
   action: undefined, request: undefined, appearance: undefined, loop: false,
 };
 
@@ -71,18 +71,23 @@ for (const [page, view] of [['character', () => <Stage {...stageProps} />], ['MM
       expect(portrait()).toBeNull();
     });
 
-    it('shows the portrait again once the preview fails', async () => {
+    it('draws no portrait once the preview fails: the reason and a retry', async () => {
       render(view());
       await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
       await act(async () => draw(false));
-      await waitFor(() => expect(portrait()).toBeTruthy());
+      await waitFor(() => expect(screen.getAllByRole('button', { name: '重试预览' }).length).toBeGreaterThan(0));
+      expect(screen.getAllByText('实时预览没有加载，仍可查看角色外观').length).toBeGreaterThan(0);
+      expect(portrait()).toBeNull();
       expect(bar()).toBeNull();
+      act(() => screen.getAllByRole('button', { name: '重试预览' })[0]!.click());
+      await waitFor(() => expect(show).toHaveBeenCalledTimes(2));
     });
 
-    it('keeps the portrait where the shell has no live preview', () => {
+    it('leaves the stage empty where the shell has no live preview', () => {
       delete window.agenticComplex;
       render(view());
-      expect(portrait()).toBeTruthy();
+      expect(portrait()).toBeNull();
+      expect(document.querySelector('[data-preview-stage] svg')).toBeNull();
       expect(bar()).toBeNull();
     });
   });

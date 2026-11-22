@@ -1,9 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { NodeChain, type ChainNode } from '../../charts';
 import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
-import { Btn, CharacterArt, StatusTag } from '../../ui';
+import { Btn, StatusTag } from '../../ui';
 import { Diamond, LoadBar } from '../../ui/game';
-import { Silhouette } from './Figure';
 import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';
 import { useLivePreview } from './usePreview';
 import type { SwitchState } from './useSwitch';
@@ -26,12 +25,7 @@ export interface StageProps {
   voice?: VoiceBinding | null | undefined;
   /** Where the stage stands: right of the name on 总览, left of the panel on a detail page, beside the 拍照 panel; absent is a detail page. */
   mode?: StageMode;
-  /** Host art; the portrait wins over the head. */
-  head?: string | undefined;
-  portrait?: string | undefined;
   activity: string | null;
-  /** Avatar scale in percent. */
-  scale: number;
   offline: boolean;
   /** supervisor.state backoff seconds. */
   backoff: number | null;
@@ -104,16 +98,6 @@ export function Stage(p: StageProps) {
     <div className={styles.frame} data-stage="" data-mode={mode} data-deck={(mode === 'detail' && p.deck) || undefined}>
       <div ref={setEl} className={styles.stage} data-off={p.offline || undefined} data-preview-stage="" data-live={preview.phase === 'live' || undefined}>
         {overview && <span className={styles.ticks} aria-hidden="true"><i /><i /><i /><i /></span>}
-        {/* The art only where the live preview cannot draw: under its transparent canvas it would show through. */}
-        {preview.phase !== 'loading' && preview.phase !== 'live' && (
-          <div className={styles.fig} style={{ transform: `translateX(-50%) scale(${0.8 + p.scale / 500})` }}>
-            {p.portrait ? (
-              <CharacterArt src={p.portrait} kind="portrait" w={520} h={520} fallback={<Silhouette />} />
-            ) : (
-              <CharacterArt src={p.head} kind="head" w={152} h={212} fallback={<Silhouette />} />
-            )}
-          </div>
-        )}
         {preview.progress != null && (
           <div className={styles.load}>
             <LoadBar fraction={preview.progress} name={p.name} />

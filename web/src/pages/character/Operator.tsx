@@ -300,10 +300,7 @@ export function Operator(p: OperatorProps) {
           en={ch?.en}
           active={ch?.active}
           voice={voice}
-          head={ch?.head}
-          portrait={ch?.portrait}
           activity={overview ? doing(p.charState?.activity ?? null) : null}
-          scale={look.scale}
           offline={p.offline}
           backoff={p.backoff}
           onRestart={p.onRestart}

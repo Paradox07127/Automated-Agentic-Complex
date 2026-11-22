@@ -6,39 +6,6 @@
   pointer-events: none;
 }
 
-.fig {
-  position: absolute;
-  inset: 4% auto 3% 50%;
-  transform-origin: 50% 100%;
-}
-
-.fig :global([data-stub='CharacterArt'])::before,
-.fig :global([data-stub='CharacterArt'])::after {
-  display: none;
-}
-
-.fig :global([data-stub='CharacterArt']) {
-  width: auto;
-  height: 100%;
-  max-height: none;
-}
-
-.fig :global([data-stub='CharacterArt']) img {
-  clip-path: none;
-}
-
-.fig svg,
-.fig img {
-  display: block;
-  width: auto;
-  height: 100%;
-}
-
-.stage[data-off] .fig {
-  opacity: 0.35;
-  filter: grayscale(1);
-}
-
 /* A load that builds her anew: the loading bar where she will stand. */
 .load {
   position: absolute;
@@ -48,7 +15,7 @@
   transform: translate(-50%, -50%);
 }
 
-/* The preview did not load: a slanted dark tag with an orange diamond, not a control. */
+/* The preview did not load: a slanted dark tag with an orange diamond, the reason and a retry. */
 .pv {
   position: absolute;
   top: 0;
@@ -62,6 +29,24 @@
   font: 500 12px / 1.4 var(--ef-font-sans);
   backdrop-filter: blur(6px);
   clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.pv .retry {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.pv .retry:hover,
+.pv .retry:focus-visible {
+  background: rgb(255 255 255 / 14%);
 }
 
 .pv i {

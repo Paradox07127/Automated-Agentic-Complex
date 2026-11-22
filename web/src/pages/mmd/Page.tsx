@@ -143,9 +143,6 @@ export function MmdPage() {
           <MmdStage
             character={current}
             name={ch?.name}
-            head={ch?.head}
-            portrait={ch?.portrait}
-            scale={look.scale}
             offline={offline}
             backoff={sup.data?.avatar?.backoff ?? null}
             onRestart={restart}

@@ -241,7 +241,6 @@ describe('motions (avatar.actions shape)', () => {
 const stageProps: StageProps = {
   name: '示例乙',
   activity: '坐着',
-  scale: 100,
   offline: false,
   backoff: null,
   onRestart: noop,
