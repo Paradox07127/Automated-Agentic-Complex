@@ -1,9 +1,15 @@
 // Live preview of the character page: the stage's rect goes to avatar.preview.show; overlays, blocks and unmounting hide it.
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { PreviewPlacement } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
+import { ModSettings } from '../../src/pages/character/ModSettings';
+import type { ModSettingRow } from '../../src/pages/character/modSettingsTable';
 import { useLivePreview } from '../../src/pages/character/usePreview';
 import { MODAL_ROOT_ID } from '../../src/ui';
 
@@ -134,6 +140,38 @@ describe('useLivePreview', () => {
     expect(getByTestId('stage').dataset.live).toBeUndefined();
   });
 
+  it('shows again once a mod switch is accepted, so the stage draws her new look', async () => {
+    const set = vi.fn(async ({ values }: { values: Record<string, number> }) => ({ values, adjusted: [] }));
+    const bridge = window.agenticComplex!;
+    window.agenticComplex = { ...bridge, avatar: { ...bridge.avatar, modSettings: { ...bridge.avatar.modSettings, set } } };
+    const settings: ModSettingRow[] = [{ id: 'coat', name: '外套', category: 'clothing', default: 1, values: [{ value: 0, name: '隐藏' }, { value: 1, name: '显示' }] }];
+    const { findByRole } = render(<><Probe /><ModSettings character="birch" appearance="summer" settings={settings} disabled={false} toast={() => {}} /></>);
+    await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
+    fireEvent.click(await findByRole('switch', { name: '外套' }));
+    await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(show).toHaveBeenCalledTimes(2));
+    expect(show).toHaveBeenLastCalledWith({ x: 40, y: 120, w: 600, h: 360 });
+  });
+
+  it('shows again when a render setting is saved, and a failed reload offers the retry with the same settings', async () => {
+    const qc = new QueryClient();
+    qc.setQueryData(['character', 'settings'], { rows: {}, saved: { render_filter: 'none', beh_stay: false }, statuses: {} });
+    const { getByRole, getByTestId } = render(<QueryClientProvider client={qc}><Probe /></QueryClientProvider>);
+    await waitFor(() => expect(getByTestId('stage').dataset.live).toBe('true'));
+    // A setting that is not a render one shows nothing again.
+    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { render_filter: 'none', beh_stay: true }, statuses: {} }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(show).toHaveBeenCalledTimes(1);
+    show.mockRejectedValueOnce(Object.assign(new Error('failed'), { code: 'failed' }));
+    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { render_filter: 'filter_1', beh_stay: true }, statuses: {} }));
+    await waitFor(() => expect(getByRole('button', { name: '重试预览' })).toBeTruthy());
+    expect(show).toHaveBeenCalledTimes(2);
+    expect(getByTestId('stage').dataset.live).toBeUndefined();
+    fireEvent.click(getByRole('button', { name: '重试预览' }));
+    await waitFor(() => expect(getByTestId('stage').dataset.live).toBe('true'));
+    expect(show).toHaveBeenCalledTimes(3);
+  });
+
   it('offers a manual retry when the shell returns false', async () => {
     show.mockResolvedValueOnce(false);
     const { getByRole, getByTestId } = render(<Probe />);
@@ -141,5 +179,13 @@ describe('useLivePreview', () => {
     fireEvent.click(getByRole('button', { name: '重试预览' }));
     await waitFor(() => expect(getByTestId('stage').dataset.live).toBe('true'));
     expect(show).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('the stage transition', () => {
+  it('does not sweep the stage across the page with reduced motion, from the system or the app', () => {
+    const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../src/pages/character/Stage.module.css'), 'utf8');
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.stage \{\s*transition: none;/);
+    expect(css).toMatch(/:global\(\[data-reduce-motion\]\) \.stage[^{]*\{\s*transition: none;/);
   });
 });

@@ -796,7 +796,7 @@ function opsContext(surface: Surface): OpsContext {
       () => diagStream.stop()),
     supervisor: supervisor && {
       state: () => supervisor.state, pid: () => supervisor.pid, restart: () => { void supervisor.restart(); restartTunnel('backend'); }, avatar: () => rendererState,
-      restartAvatar: renderer ? () => { void renderer.restart(); preview?.renderSettingsChanged(); } : undefined, avatarPid: () => renderer?.pid,
+      restartAvatar: renderer ? () => { void renderer.restart(); preview?.packagesChanged(); } : undefined, avatarPid: () => renderer?.pid,
       tunnel: () => (tunnel && tunnel.config.ttsTunnelHost !== '' ? tunnelState : null), tunnelPid: () => tunnel?.pid,
     },
     avatar: hostLink && linkAvatarHost(hostLink, (hidden) => setAvatarHidden(hidden), {
@@ -867,10 +867,6 @@ function opsContext(surface: Surface): OpsContext {
         desktop?.hotkeySaved(key, name);
       },
       ...savedRender,
-      renderLive: (keys) => {
-        savedRender.renderLive(keys);
-        preview?.renderSettingsChanged();
-      },
     },
     settingsChanges,
     openOnboarding: () => guide.begin(),

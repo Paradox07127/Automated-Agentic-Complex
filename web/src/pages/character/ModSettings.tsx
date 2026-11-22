@@ -4,6 +4,7 @@ import { getBridge, type ModSettingAdjusted, type ModSettingValues } from '../..
 import { Btn, Icon, Select, Toggle } from '../../ui';
 import type { Toast } from './feedback';
 import type { ModSettingRow } from './modSettingsTable';
+import { previewLookChanged } from './usePreview';
 import dark from './Rows.module.css';
 import styles from './ModSettings.module.css';
 
@@ -87,6 +88,7 @@ export function ModSettings({ character, appearance, settings, disabled, toast }
       .then(
         (res) => {
           put(res.values);
+          previewLookChanged();
           setMarks({ appearance, notes: Object.fromEntries(res.adjusted.map((a) => [a.id, ADJUSTED[a.reason]])), error: null });
           if (res.adjusted.length === 0) toast(done);
         },

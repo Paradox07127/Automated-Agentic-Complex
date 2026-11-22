@@ -25,6 +25,17 @@
     bottom 300ms var(--ef-ease-g-fade);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .stage {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .stage,
+:global(.still) .stage {
+  transition: none;
+}
+
 /* Detail pages: the left part, next to the panel, above the name band. */
 .frame[data-mode='detail'] .stage {
   right: calc(var(--rail) + var(--gap) + var(--panel-w) + 12px);

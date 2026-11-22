@@ -1,7 +1,25 @@
 // The shell draws the live preview natively over the page, so anything the page draws over the stage has to make it hide.
-import { useEffect, useRef, useState } from 'react';
+import { QueryClientContext } from '@tanstack/react-query';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { getBridge, type PreviewPlacement } from '../../bridge';
 import { MODAL_ROOT_ID } from '../../ui';
+
+let lookRevision = 0;
+const lookListeners = new Set<() => void>();
+
+/** Her look changed where the stage's props do not say (a mod switch was accepted): a shown preview shows again, and the shell
+ *  reads her look anew. */
+export function previewLookChanged(): void {
+  lookRevision += 1;
+  for (const listener of lookListeners) listener();
+}
+
+/** The character page's saved settings (settings.tsx useCharSettings); the preview draws with their `render_*` ones. */
+const SETTINGS_KEY = ['character', 'settings'];
+const renderSettings = (data: unknown) => {
+  const saved = (data as { saved?: Record<string, unknown> } | undefined)?.saved ?? {};
+  return JSON.stringify(Object.keys(saved).filter((k) => k.startsWith('render_')).sort().map((k) => [k, saved[k]]));
+};
 
 const overlaps = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
@@ -81,6 +99,22 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
   latest.current = { ...want, loop, off: covered || want.blocked };
   const schedule = useRef<() => void>(() => {});
   const retry = useRef<() => void>(() => {});
+  const qc = useContext(QueryClientContext);
+  const render = useRef('');
+
+  // A saved render setting shows again; the answer to that show, a failure included, is the stage's.
+  useEffect(() => {
+    if (!qc) return;
+    const read = () => renderSettings(qc.getQueryData(SETTINGS_KEY));
+    render.current = read();
+    return qc.getQueryCache().subscribe((e) => {
+      if (e.type !== 'updated' || e.query.queryHash !== JSON.stringify(SETTINGS_KEY)) return;
+      const next = read();
+      if (next === render.current) return;
+      render.current = next;
+      schedule.current();
+    });
+  }, [qc]);
 
   useEffect(() => {
     const bridge = getBridge();
@@ -118,7 +152,8 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
         ...(loop ? { loop } : {}),
         ...(request != null ? { request } : {}),
       };
-      const key = `${what}|${at.x},${at.y},${at.w},${at.h}`;
+      // Her look changing shows again without loading anew on the page: the stage stays live unless the show fails.
+      const key = `${what}|${lookRevision}|${render.current}|${at.x},${at.y},${at.w},${at.h}`;
       if (key === sent) return;
       sent = key;
       if (active !== what) {
@@ -149,6 +184,7 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
       schedule.current();
     };
     const later = () => schedule.current();
+    lookListeners.add(later);
     report();
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(later);
     ro?.observe(stage);
@@ -160,6 +196,7 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
     return () => {
       schedule.current = () => {};
       retry.current = () => {};
+      lookListeners.delete(later);
       cancelAnimationFrame(frame);
       ro?.disconnect();
       window.removeEventListener('resize', later);

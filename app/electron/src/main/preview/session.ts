@@ -49,10 +49,13 @@ export interface PreviewSelection {
 const OUTPUT_HEIGHTS = [576, 864, 1152, 1440, 1728];
 
 /** `rect` (CSS px) × `scale` (device px per CSS px), rounded up to a height of OUTPUT_HEIGHTS, the width from the rect's aspect
- *  to a multiple of 16 within 240–2048: a small resize keeps the output, so the service does not reload. */
+ *  to a multiple of 16 within 240–2048: a small resize keeps the output, so the service does not reload. Past 2048 wide the height
+ *  comes down to keep the aspect. */
 export function previewOutput(rect: { w: number; h: number }, scale: number): [number, number] {
   const height = OUTPUT_HEIGHTS.find((h) => h >= rect.h * scale) ?? OUTPUT_HEIGHTS.at(-1)!;
-  return [Math.min(2048, Math.max(240, Math.ceil((height * rect.w) / rect.h / 16) * 16)), height];
+  const width = Math.max(240, Math.ceil((height * rect.w) / rect.h / 16) * 16);
+  if (width <= 2048) return [width, height];
+  return [2048, Math.max(240, Math.floor((2048 * rect.h) / rect.w / 16) * 16)];
 }
 
 /** The preview could not play; its message is the page's reason. */
@@ -71,12 +74,19 @@ export interface SessionOptions<S> {
 type Phase = { kind: 'idle' | 'loading' | 'live' } | { kind: 'failed'; reason: string };
 
 const sameSelection = (a: PreviewSelection, b: PreviewSelection | null) => b !== null && JSON.stringify(a) === JSON.stringify(b);
+/** The same playback asked for again: only her look, render arguments or output differ. */
+const samePlayback = (a: PreviewSelection, b: PreviewSelection) =>
+  a.character === b.character && a.clip === b.clip && a.loop === b.loop && a.request === b.request;
 
 export class PreviewSession<S> {
   private readonly options: SessionOptions<S>;
   private selection: PreviewSelection | null = null;
   private phase: Phase = { kind: 'idle' };
-  private waiters: { resolve(): void; reject(e: Error): void }[] = [];
+  /** Callers waiting for the first frame of load `load`. */
+  private waiters: { load: number; resolve(): void; reject(e: Error): void }[] = [];
+  /** The selection's clip has drawn (or a sequence replaced it): a rebuild of the same playback does not play it again. */
+  private played = false;
+  private sequenced = false;
   private connected = false;
   private connectionID = 0;
   private servicePaused = false;
@@ -93,22 +103,26 @@ export class PreviewSession<S> {
   load(value: PreviewSelection): Promise<void> {
     if (!sameSelection(value, this.selection)) {
       this.connect();
+      // The service cannot keep a playhead across a load: a rebuild of a clip that has played draws her idle, a loop loops on.
+      const idle = this.selection !== null && this.played && samePlayback(value, this.selection) && (this.sequenced || !value.loop);
+      this.played = idle;
+      this.sequenced = false;
       this.selection = value;
       this.phase = { kind: 'loading' };
-      this.loadID += 1;
-      this.loadStarted = performance.now();
-      this.framesReported = 0;
-      const expected = this.loadID;
+      const expected = this.nextLoad();
       const message: Record<string, unknown> = { op: 'load', bundle: value.bundle, sha256: value.sha256, character: value.character,
         rate: value.rate, load_id: expected };
-      if (value.clip !== null) message.clip = value.clip;
+      if (value.clip !== null && !idle) message.clip = value.clip;
       if (value.facial !== null) message.facial = value.facial;
       if (value.appearance !== null) message.appearance = value.appearance;
       if (value.modSettings !== null) message.mod_settings = value.modSettings;
-      if (value.loop) message.loop = true;
+      if (value.loop && !idle) message.loop = true;
       if (value.renderArgs !== undefined) message.render_args = value.renderArgs;
       if (value.output !== undefined) message.output = value.output;
-      this.send(message);
+      if (!this.send(message)) {
+        this.fail('预览请求发不出去（太大或连接已断）');
+        return this.settled();
+      }
       // A load starts the service playing.
       this.servicePaused = false;
       this.syncPlayback();
@@ -121,10 +135,9 @@ export class PreviewSession<S> {
   async sequence(clips: string[], blendSeconds: number[]): Promise<void> {
     if (!this.connected || this.selection === null || this.phase.kind !== 'live') throw new PreviewFailure('预览还没有载入');
     this.phase = { kind: 'loading' };
-    this.loadID += 1;
-    this.loadStarted = performance.now();
-    this.framesReported = 0;
-    const expected = this.loadID;
+    this.played = true;
+    this.sequenced = true;
+    const expected = this.nextLoad();
     this.send({ op: 'sequence', clips, blend_s: blendSeconds, load_id: expected });
     // A sequence starts the service playing.
     this.servicePaused = false;
@@ -139,6 +152,7 @@ export class PreviewSession<S> {
     if (!this.connected || this.selection === null || this.servicePaused !== active) return;
     this.servicePaused = !active;
     this.send({ op: this.servicePaused ? 'pause' : 'resume' });
+    if (active && this.phase.kind === 'loading') this.awaitFirstFrame(this.loadID);
   }
 
   /** The window is gone: ends the connection; nothing of it is handled after. */
@@ -153,8 +167,19 @@ export class PreviewSession<S> {
     switch (this.phase.kind) {
       case 'live': return Promise.resolve();
       case 'failed': return Promise.reject(new PreviewFailure(this.phase.reason));
-      default: return new Promise((resolve, reject) => this.waiters.push({ resolve, reject }));
+      default: return new Promise((resolve, reject) => this.waiters.push({ load: this.loadID, resolve, reject }));
     }
+  }
+
+  /** A new load_id; whoever waited for an older one is answered that it was replaced. */
+  private nextLoad(): number {
+    this.loadID += 1;
+    this.loadStarted = performance.now();
+    this.framesReported = 0;
+    const replaced = this.waiters;
+    this.waiters = [];
+    for (const w of replaced) w.reject(new PreviewFailure('预览换成了新的请求'));
+    return this.loadID;
   }
 
   private connect(): void {
@@ -170,7 +195,10 @@ export class PreviewSession<S> {
     if (this.timeout !== null) clearTimeout(this.timeout);
     this.timeout = setTimeout(() => {
       this.timeout = null;
-      if (this.loadID === expected && this.phase.kind === 'loading') this.fail('预览等待首帧超时');
+      if (this.loadID !== expected || this.phase.kind !== 'loading') return;
+      // Paused off screen, the service draws nothing to wait for; the wait starts again on `resume`.
+      if (!this.options.presenter.active) return;
+      this.fail('预览等待首帧超时');
     }, this.options.firstFrameTimeout ?? 15_000);
   }
 
@@ -189,8 +217,8 @@ export class PreviewSession<S> {
     for (const w of ended) w.reject(new PreviewFailure(reason));
   }
 
-  private send(value: Record<string, unknown>): void {
-    this.options.transport.send(JSON.stringify(value));
+  private send(value: Record<string, unknown>): boolean {
+    return this.options.transport.send(JSON.stringify(value));
   }
 
   private ack(sequence: number): void {
@@ -243,6 +271,7 @@ export class PreviewSession<S> {
       this.ack(sequence);
       if (!drawn || this.loadID !== load || this.phase.kind !== 'loading') return;
       this.phase = { kind: 'live' };
+      this.played = true;
       if (this.timeout !== null) clearTimeout(this.timeout);
       this.timeout = null;
       this.options.log(`character preview load_id=${load} first_frame_ms=${Math.round(performance.now() - this.loadStarted)}`);

@@ -190,6 +190,86 @@ test('a load whose first frame never comes fails after the timeout', async () =>
   s.disconnect();
 });
 
+test('off screen the first-frame wait does not run out: the service is paused, so no frame can come', async () => {
+  const { s, transport, presenter } = session(20);
+  presenter.active = false;
+  let outcome = 'pending';
+  const loaded = s.load(selection()).then(() => { outcome = 'drawn'; }, (e: Error) => { outcome = e.message; });
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(outcome, 'pending');
+  presenter.active = true;
+  s.syncPlayback();
+  transport.emit({ event: 'frame', load_id: 1 }, 'surface-a', 1);
+  presenter.finish();
+  await loaded;
+  assert.equal(outcome, 'drawn');
+  s.disconnect();
+});
+
+test('a load the transport cannot send fails at once with why', async () => {
+  const { s, transport } = session(2000);
+  transport.send = (json: string) => { transport.sent.push(JSON.parse(json) as Message); return false; };
+  const started = performance.now();
+  await assert.rejects(s.load(selection()), new PreviewFailure('预览请求发不出去（太大或连接已断）'));
+  assert.ok(performance.now() - started < 1000);
+  s.disconnect();
+});
+
+/** Draws the current load's first frame. */
+async function draw(s: PreviewSession<string>, transport: FakeTransport, presenter: FakePresenter, loaded: Promise<void>) {
+  transport.emit({ event: 'frame', load_id: transport.sent.filter((m) => m.load_id !== undefined).at(-1)!.load_id }, 'surface', 1);
+  presenter.finish();
+  await loaded;
+}
+
+test('a load answers for its own frame only: the load it replaced is rejected, not resolved by the newer frame', async () => {
+  const { s, transport, presenter } = session();
+  const a = s.load(selection({ request: 1 })).then(() => 'drawn', (e: Error) => e.message);
+  const b = s.load(selection({ request: 2 }));
+  // The same selection again waits for its frame with it.
+  const again = s.load(selection({ request: 2 }));
+  await draw(s, transport, presenter, b);
+  await again;
+  assert.equal(await a, '预览换成了新的请求');
+  // A sequence a load replaces does not resolve on the load's frame.
+  const chain = s.sequence(['think_start'], []).then(() => 'drawn', (e: Error) => e.message);
+  const c = s.load(selection({ request: 3 }));
+  await draw(s, transport, presenter, c);
+  assert.equal(await chain, '预览换成了新的请求');
+  s.disconnect();
+});
+
+test('a rebuild for new render arguments or output does not replay a drawn one-shot; a loop keeps looping; after a sequence it is her idle', async () => {
+  const load = (m: Message) => ({ op: 'load', bundle: '/lib/si/runtime/bundle.json', sha256: 'a'.repeat(64), character: 'si', rate: 1, ...m });
+  {
+    const { s, transport, presenter } = session();
+    // Rebuilt before its first frame, the clip still plays.
+    s.load(selection({ clip: 'wave', request: 1 })).catch(() => {});
+    const first = s.load(selection({ clip: 'wave', request: 1, output: [720, 864] }));
+    assert.deepEqual(transport.sent.at(-1), load({ load_id: 2, clip: 'wave', output: [720, 864] }));
+    await draw(s, transport, presenter, first);
+    s.load(selection({ clip: 'wave', request: 1, output: [960, 1152] })).catch(() => {});
+    assert.deepEqual(transport.sent.at(-1), load({ load_id: 3, output: [960, 1152] }));
+    s.load(selection({ clip: 'wave', request: 1, output: [960, 1152], renderArgs: ['--agentic-complex-filter', 'mono'] })).catch(() => {});
+    assert.deepEqual(transport.sent.at(-1), load({ load_id: 4, output: [960, 1152], render_args: ['--agentic-complex-filter', 'mono'] }));
+    // Asked again (a new revision), it plays again.
+    s.load(selection({ clip: 'wave', request: 2, output: [960, 1152] })).catch(() => {});
+    assert.deepEqual(transport.sent.at(-1), load({ load_id: 5, clip: 'wave', output: [960, 1152] }));
+    s.disconnect();
+  }
+  {
+    const { s, transport, presenter } = session();
+    await draw(s, transport, presenter, s.load(selection({ clip: 'wave', loop: true, request: 1 })));
+    const rebuilt = s.load(selection({ clip: 'wave', loop: true, request: 1, output: [720, 864] }));
+    assert.deepEqual(transport.sent.at(-1), load({ load_id: 2, clip: 'wave', loop: true, output: [720, 864] }));
+    await draw(s, transport, presenter, rebuilt);
+    await draw(s, transport, presenter, s.sequence(['think_start', 'idle_loop'], [0.25]));
+    s.load(selection({ clip: 'wave', loop: true, request: 1, output: [960, 1152] })).catch(() => {});
+    assert.deepEqual(transport.sent.at(-1), load({ load_id: 4, output: [960, 1152] }));
+    s.disconnect();
+  }
+});
+
 /** A view that records what the controller asks of it. */
 class FakeView implements PreviewView {
   placed: unknown[] = [];
@@ -240,6 +320,57 @@ test('a hide or a character switch while the library loads makes the show answer
   assert.equal(view.hides, 1);
 });
 
+test('a package change (an outfit import restarts her) drops the read library: the next show plays the new bundle', async () => {
+  const view = new FakeView();
+  let current = library, appearance = 'summer', reads = 0;
+  const c = new PreviewController({ view, avatar: () => ({ character: 'si', appearance }), library: async () => { reads += 1; return current; } });
+  const rect = { x: 0, y: 0, w: 300, h: 400 };
+  await c.show(rect, null, false, 0);
+  current = { ...library, bundle: '/b2.json', sha256: 'e'.repeat(64) };
+  c.packagesChanged();
+  appearance = 'imported';
+  await c.show(rect, null, false, 0);
+  assert.deepEqual(view.loads.map((s) => [s.bundle, s.sha256, s.appearance]), [['/b.json', 'f'.repeat(64), 'summer'], ['/b2.json', 'e'.repeat(64), 'imported']]);
+  assert.equal(reads, 2);
+});
+
+test('a burst of new sizes, as the stage\'s 300 ms transition makes, moves the canvas each time and loads once the size settles', async () => {
+  const view = new FakeView();
+  const c = new PreviewController({ view, avatar: () => ({ character: 'si', appearance: null }), library: async () => library });
+  assert.equal(await c.show({ x: 0, y: 0, w: 300, h: 400 }, null, false, 0), true);
+  // One rect a frame, each show answered before the next frame comes.
+  const frames: Promise<boolean>[] = [];
+  for (let i = 1; i <= 18; i += 1) {
+    frames.push(c.show({ x: 0, y: 0, w: 300 + 20 * i, h: 400 - 5 * i }, null, false, 0));
+    await new Promise((r) => setTimeout(r, 16));
+  }
+  assert.equal(view.placed.length, 19, 'the canvas follows each rect');
+  assert.deepEqual(await Promise.all(frames), [...Array(17).fill(false), true]);
+  assert.equal(view.loads.length, 2);
+  // A move that keeps the size loads at once.
+  const started = performance.now();
+  assert.equal(await c.show({ x: 30, y: 10, w: 660, h: 310 }, null, false, 0), true);
+  assert.ok(performance.now() - started < 50);
+  assert.equal(view.loads.length, 3);
+});
+
+test('the show a settings save brings answers the page: a failed load rejects it, and the same show again loads again', async () => {
+  const view = new FakeView();
+  let fail = false;
+  view.load = async (s: PreviewSelection) => { view.loads.push(s); if (fail) throw new PreviewFailure('预览等待首帧超时'); return true; };
+  let settings: Record<string, unknown> = {};
+  const c = new PreviewController({ view, avatar: () => ({ character: 'si', appearance: null }), library: async () => library,
+    renderArgs: () => lookArguments(settings) });
+  const rect = { x: 0, y: 0, w: 300, h: 400 };
+  await c.show(rect, null, false, 0);
+  fail = true;
+  settings = { render_filter: 'filter_1' };
+  await assert.rejects(c.show(rect, null, false, 0), new PreviewFailure('预览等待首帧超时'));
+  fail = false;
+  assert.equal(await c.show(rect, null, false, 0), true);
+  assert.deepEqual(view.loads.map((s) => s.renderArgs?.at(-3)), ['none', 'filter_1', 'filter_1']);
+});
+
 test('a selection with render arguments and an output sends them as render_args and output; one without sends neither', async () => {
   const { s, transport } = session();
   s.load(selection()).catch(() => {});
@@ -262,15 +393,18 @@ test('the output rounds the rect in device pixels up to a height bucket, the wid
   assert.deepEqual(previewOutput({ w: 100, h: 100 }, 1), [576, 576]);
   // Past the last bucket it stays there; each side within 240–2048.
   assert.deepEqual(previewOutput({ w: 1000, h: 1200 }, 2), [1440, 1728]);
-  assert.deepEqual(previewOutput({ w: 4000, h: 300 }, 1), [2048, 576]);
   assert.deepEqual(previewOutput({ w: 50, h: 1000 }, 1), [240, 1152]);
+  // At the width limit the height comes down to keep the stage's aspect, to a multiple of 16 within 240–2048.
+  assert.deepEqual(previewOutput({ w: 1200, h: 620 }, 2), [2048, 1056]);
+  assert.deepEqual(previewOutput({ w: 4000, h: 300 }, 1), [2048, 240]);
 });
 
-test("the preview takes the desktop renderer's look arguments and loads again when a saved setting changes them while shown", async () => {
+test("each show takes the desktop renderer's look arguments and her mod settings as they are then", async () => {
   const view = new FakeView();
   let settings: Record<string, unknown> = { render_ssaa: false, render_shadow: '512', render_outline: 'subtle', render_camera_yaw: 30 };
+  let mods: Record<string, Record<string, number>> = {};
   const c = new PreviewController({ view, avatar: () => ({ character: 'si', appearance: null }), library: async () => library,
-    renderArgs: () => lookArguments(settings) });
+    renderArgs: () => lookArguments(settings), modSettings: () => mods });
   const desktop = renderArguments(settings, '/p'), look = lookArguments(settings);
   assert.deepEqual(desktop.slice(0, look.length), look, 'the desktop starts with the same list');
   for (const flag of ['--agentic-complex-camera-yaw', '--agentic-complex-render-fps', '--agentic-complex-display-resolution',
@@ -280,29 +414,20 @@ test("the preview takes the desktop renderer's look arguments and loads again wh
   const rect = { x: 0, y: 0, w: 256, h: 307 };
   await c.show(rect, 'wave', true, 1);
   assert.deepEqual(view.loads.at(-1)?.renderArgs, look);
-  // Saved settings that do not change her look load nothing.
-  settings = { ...settings, render_camera_yaw: 90 };
-  c.renderSettingsChanged();
-  assert.equal(view.loads.length, 1);
+  assert.equal(view.loads.at(-1)?.modSettings, null);
   settings = { ...settings, render_ssaa: true };
-  c.renderSettingsChanged();
-  assert.equal(view.loads.length, 2);
-  assert.deepEqual(view.loads[1], { ...view.loads[0], renderArgs: lookArguments(settings) });
+  mods = { summer: { coat: 0 } };
+  await c.show(rect, 'wave', true, 1);
+  assert.deepEqual(view.loads[1], { ...view.loads[0], renderArgs: lookArguments(settings), modSettings: mods });
   assert.equal(view.loads[1]!.renderArgs![1], '2');
-  c.hide();
-  settings = { ...settings, render_outline: 'contrast' };
-  c.renderSettingsChanged();
-  assert.equal(view.loads.length, 2, 'a hidden preview does not load');
 });
 
-test('a controller without render arguments shows the selection it showed before', async () => {
+test('a controller without render arguments or mod settings sends a selection without them', async () => {
   const view = new FakeView();
   const c = new PreviewController({ view, avatar: () => ({ character: 'si', appearance: null }), library: async () => library });
   await c.show({ x: 0, y: 0, w: 10, h: 10 }, null, false, 0);
   assert.deepEqual(view.loads, [{ bundle: '/b.json', sha256: 'f'.repeat(64), character: 'si', clip: null, facial: null, rate: 1,
     appearance: null, request: 0, modSettings: null, loop: false }]);
-  c.renderSettingsChanged();
-  assert.equal(view.loads.length, 1);
 });
 
 const sha = (data: string) => createHash('sha256').update(data).digest('hex');
