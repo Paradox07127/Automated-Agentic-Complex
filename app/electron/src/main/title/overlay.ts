@@ -1,5 +1,5 @@
-// 雷霆大字: her name in big white text over the middle of the screen she stands on when a character switch lands, as the
-// game's region banner. `stack.html#/title` plays it in a transparent overlay that clicks pass through and that never
+// 雷霆大字: her name in big white text over the middle of the screen she stands on when a character switch lands, in the
+// game's white big area-title layout. `stack.html#/title` shows it in a transparent overlay that clicks pass through and that never
 // activates the app; the page has no bridge, its name and English name come in its URL. Frames are in the placement space.
 import { readFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
@@ -23,7 +23,7 @@ export interface TitleOverlayOptions {
   enabled(): boolean;
 }
 
-/** The page's 5.333 s and a little more. */
+/** How long the title stays on screen. */
 export const TITLE_MS = 5400;
 
 /** The frame of the screen with id `current` (AvatarPlacer.currentScreen), else the main screen's; null without screens. */
@@ -78,7 +78,7 @@ export class TitleOverlay {
     const { name, en } = this.o.names(id);
     const win = this.win = this.o.makeWindow();
     win.setBounds(this.o.toDip(frame));
-    // Shown once the page is there, so its 5.333 s start with the window.
+    // Shown once the page is there, so the title does not stay for less than its time.
     win.webContents.once('did-finish-load', () => {
       if (this.win !== win) return;
       win.showInactive();

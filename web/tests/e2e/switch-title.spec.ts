@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// 雷霆大字 (`stack.html#/title`): the game's map_toast_inout timeline, read at set points of the page's animations.
+// 雷霆大字 (`stack.html#/title`): her name in the white big text layout, shown still in the middle of the screen.
 
 test.use({ viewport: { width: 1920, height: 1080 } });
 
@@ -10,61 +10,68 @@ async function open(page: Page, params: Record<string, string>) {
   await expect(page.locator('[data-slot="name"]')).toHaveText(params.name!);
 }
 
-/** The block's opacity and vertical offset in px with every animation held at `ms`. */
-async function at(page: Page, ms: number): Promise<{ opacity: number; y: number }> {
-  return page.evaluate((t) => {
-    for (const a of document.getAnimations()) {
-      a.pause();
-      a.currentTime = t;
-    }
-    const s = getComputedStyle(document.querySelector('[data-slot="block"]')!);
-    return { opacity: Number(s.opacity), y: s.transform === 'none' ? 0 : new DOMMatrix(s.transform).m42 };
-  }, ms);
+/** The ink box of the white pixels in a shot of the page, in CSS px. */
+async function ink(page: Page): Promise<{ x: number; y: number; w: number; h: number }> {
+  const png = await page.screenshot({ omitBackground: true });
+  return page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = new OffscreenCanvas(img.width, img.height), k = c.getContext('2d')!;
+    k.drawImage(img, 0, 0);
+    const d = k.getImageData(0, 0, c.width, c.height).data;
+    let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+    for (let y = 0; y < c.height; y++)
+      for (let x = 0; x < c.width; x++) {
+        const o = (y * c.width + x) * 4;
+        if (d[o + 3]! > 200 && d[o]! > 200) [x0, y0, x1, y1] = [Math.min(x0, x), Math.min(y0, y), Math.max(x1, x), Math.max(y1, y)];
+      }
+    return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  }, png.toString('base64'));
 }
 
-test('invisible before 167 ms, fully shown and settled at 1200 ms, gone after 5333 ms', async ({ page }) => {
-  await open(page, { name: '佩丽卡', en: 'Perlica' });
-  for (const ms of [0, 100, 160]) {
-    const s = await at(page, ms);
-    expect(s.opacity, `${ms} ms`).toBe(0);
-    // 40 game px at 1080: the block starts above its place.
-    expect(s.y, `${ms} ms`).toBeCloseTo(-40, 0);
-  }
-  const fading = await at(page, 400);
-  expect(fading.opacity).toBeGreaterThan(0);
-  expect(fading.opacity).toBeLessThan(1);
-  expect(fading.y).toBeGreaterThan(-40);
-  expect(fading.y).toBeLessThan(0);
-  for (const ms of [1200, 3000, 4990]) expect(await at(page, ms), `${ms} ms`).toEqual({ opacity: 1, y: 0 });
-  const leaving = await at(page, 5200);
-  expect(leaving.opacity).toBeGreaterThan(0);
-  expect(leaving.opacity).toBeLessThan(1);
-  expect(leaving.y).toBe(0);
-  for (const ms of [5334, 6000]) expect((await at(page, ms)).opacity, `${ms} ms`).toBe(0);
-});
-
-test('with reduced motion it only fades', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+test('the name is Source Han Sans Bold at 24.72 % of the screen height, its ink in the middle of the screen', async ({ page }) => {
   await open(page, { name: '佩丽卡' });
-  expect(await at(page, 100)).toEqual({ opacity: 0, y: 0 });
-  const fading = await at(page, 400);
-  expect(fading.y).toBe(0);
-  expect(fading.opacity).toBeGreaterThan(0);
-  expect(await at(page, 1200)).toEqual({ opacity: 1, y: 0 });
-  expect((await at(page, 5334)).opacity).toBe(0);
+  const name = page.locator('[data-slot="name"]');
+  const style = await name.evaluate((el) => ({ size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight, family: getComputedStyle(el).fontFamily }));
+  expect(Number.parseFloat(style.size)).toBeCloseTo(267, 0);
+  expect(style.weight).toBe('700');
+  expect(style.family.startsWith('"Noto Sans SC"')).toBe(true);
+  expect(await page.evaluate(() => document.fonts.check('700 100px "Noto Sans SC"', '佩'))).toBe(true);
+  const box = await ink(page);
+  // Ink about 0.92 of the font size tall, centred on the screen within a few px.
+  expect(box.h).toBeGreaterThan(230);
+  expect(box.h).toBeLessThan(260);
+  expect(box.x + box.w / 2).toBeCloseTo(960, -1);
+  expect(box.y + box.h / 2).toBeCloseTo(540, -1);
+  // Three glyphs about 0.92 em wide with the generator's gap of 0.469 % of 1920 px between their ink.
+  expect(box.w).toBeGreaterThan(3 * 0.88 * 267 + 2 * 9);
+  expect(box.w).toBeLessThan(3 * 0.97 * 267 + 2 * 9);
 });
 
-test('the name sits in the middle of the screen at 5.9 % of its height, the band centred on the text', async ({ page }) => {
+test('the English name runs under the name in Saira caps at 2.5 % of the screen height, fading downwards', async ({ page }) => {
   await open(page, { name: '佩丽卡', en: 'Perlica' });
-  await at(page, 1200);
-  const box = (sel: string) => page.locator(sel).first().boundingBox();
-  const block = (await box('[data-slot="block"]'))!;
-  expect(block.y + block.height / 2).toBeCloseTo(540, 0);
-  const name = page.locator('[data-slot="name"]');
-  expect(Number.parseFloat(await name.evaluate((el) => getComputedStyle(el).fontSize))).toBeCloseTo(63.7, 0);
-  const band = (await box('[data-slot="band"]'))!;
-  expect(band.width).toBe(1920);
-  expect(band.height).toBeCloseTo(500, 0);
-  expect(band.y + band.height / 2).toBeCloseTo(block.y + block.height / 2, 0);
-  await expect(page.locator('[data-slot="sub"]')).toHaveText('Perlica');
+  const sub = page.locator('[data-slot="sub"]');
+  await expect(sub).toHaveText('Perlica');
+  const s = await sub.evaluate((el) => ({ size: getComputedStyle(el).fontSize, transform: getComputedStyle(el).textTransform, mask: getComputedStyle(el).maskImage }));
+  expect(Number.parseFloat(s.size)).toBeCloseTo(27, 0);
+  expect(s.transform).toBe('uppercase');
+  expect(s.mask).toContain('linear-gradient');
+  const name = (await page.locator('[data-slot="name"]').boundingBox())!, under = (await sub.boundingBox())!;
+  expect(under.y).toBeGreaterThan(name.y + name.height - 10);
+});
+
+test('a soft ellipse 1.2 times the text wide sits under it, a fifth of its height lower', async ({ page }) => {
+  await open(page, { name: '佩丽卡', en: 'Perlica' });
+  const block = (await page.locator('[data-slot="block"]').boundingBox())!;
+  const shadow = (await page.locator('[data-slot="shadow"]').boundingBox())!;
+  expect(shadow.width).toBeCloseTo(block.width * 1.2, 0);
+  expect(shadow.height).toBeCloseTo(block.height, 0);
+  expect(shadow.y - block.y).toBeCloseTo(block.height * 0.2, 0);
+});
+
+test('shot: 佩丽卡 at rest', async ({ page }) => {
+  await open(page, { name: '佩丽卡', en: 'Perlica' });
+  await page.evaluate(() => (document.body.style.background = 'linear-gradient(#5f7487, #98a8b3 55%, #6c7769 55%, #414d43)'));
+  await page.screenshot({ path: test.info().outputPath('title-rest.png') });
 });

@@ -21,7 +21,7 @@ describe('the title page', () => {
     const root = document.querySelector('[data-surface-root="title"]')!;
     expect(root.querySelector('[data-slot="name"]')?.textContent).toBe('佩丽卡');
     expect(root.querySelector('[data-slot="sub"]')?.textContent).toBe('Perlica');
-    expect(root.querySelectorAll('[data-slot="bar"]')).toHaveLength(2);
+    expect(root.querySelector('[data-slot="shadow"]')?.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('leaves the subtitle line out without an English name', () => {
