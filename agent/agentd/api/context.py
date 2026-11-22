@@ -44,7 +44,7 @@ class ContextInputMixin:
                 and (body.get("front_gpu") is None or number(body["front_gpu"]) and 0 <= body["front_gpu"] <= 1)
                 and ("input" not in body or isinstance(body["input"], dict) and body["input"].keys() <= COARSE_COUNTS
                      and all(number(v) and v >= 0 for v in body["input"].values())
-                     and saved_switch(self.server.privacy_config, "sense_input_counts"))):
+                     and saved_switch(self.server.privacy_config, "sense_input_counts", default=True))):
             return self._json(400, {"error": "invalid_coarse"})
         user_now = self.server.user_now
         user_now.coarse(body)

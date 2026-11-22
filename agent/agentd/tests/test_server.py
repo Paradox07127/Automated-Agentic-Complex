@@ -113,6 +113,8 @@ class UserRoutesTest(unittest.TestCase):
             policy.write_text('{"sense_input_counts": false}', encoding="utf-8")
             self.assertEqual(self.request("POST", "/user/coarse", {**base, "input": {}}),
                              (400, {"error": "invalid_coarse"}))
+            policy.write_text('{}', encoding="utf-8")  # never saved: on, as the shell's Settings default is
+            self.assertEqual(self.request("POST", "/user/coarse", {**base, "input": {}})[0], 200)
 
     def test_only_the_observation_pause_freezes_it(self):
         support.enable_plugins(self, "screen_awareness")
