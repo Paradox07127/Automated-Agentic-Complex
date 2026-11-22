@@ -2,6 +2,7 @@
 ended meanwhile, which row of RETURN_ROWS Spatial plays. The spoken summary is Proactive.back's."""
 from collections import OrderedDict
 import datetime
+import sys
 import threading
 import time
 
@@ -45,6 +46,7 @@ class Return:
             row = "welcome_report" if ended else "welcome"
         why = "short" if row is None else "greet_off" if not self.greet() \
             else "stage" if self.spatial.stage() in BLOCKING else None
+        print(f"agentd: user.return away_s={away:.0f} ended={ended} row={row} why={why}", file=sys.stderr)
         record = self.spatial.perform_return({"row": row, "away_s": away, "ended": ended, "why": why})
         if why is None and RETURN_ROWS[row][1] is not None:
             day = datetime.date.fromtimestamp(ts)

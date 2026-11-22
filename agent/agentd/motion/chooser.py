@@ -462,8 +462,10 @@ class MotionChooser:
     """One character's motion selection. `send` takes a scenario input, `tick` advances the clock; both return the
     clips started, each as {t_s, clip, why}."""
 
-    def __init__(self, character_dir):
+    def __init__(self, character_dir, seeds=SEEDS):
+        """seeds: stream -> the 32-bit value it starts at, here and at each `restart`."""
         self.pack = Pack(character_dir)
+        self.seeds = dict(seeds)
         self.t_s = 0.0
         self.choices = []
         # The user's settings: the action switch table, the off chain starts, the pool overrides by key, the framing.
@@ -691,7 +693,7 @@ class MotionChooser:
         """A fresh controller on the overview loop, every stream at its seed; its first frame has no length."""
         p = self.pack
         self._play = Playhead(p.overview)
-        self._rand = dict(SEEDS)
+        self._rand = dict(self.seeds)
         self.semantic, self.clock, self.last_event_start, self.waiting_event = "idle", 0.0, None, None
         self.clause_gestures = False
         self.deferred, self.bridging = None, None

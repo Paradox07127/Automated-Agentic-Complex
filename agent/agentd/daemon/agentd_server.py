@@ -191,6 +191,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self.capture = capture  # CaptureManager; None answers /context/text, /context/image, /look with 503
         self.clock = time.time  # the pause and DELETE /observation cutoffs, the announce slots' TTL
         self.user_now = UserNow(clock=lambda: self.clock())  # with or without plug-ins; main runs its tick loop
+        self.coarse_logged = None  # user_now revision the last /user/coarse log line was for
         self.paused_until = None  # PUT /observation/paused: clock time the pause ends, or None
         self.quiet_until = None  # PUT /observation/quiet: clock time quiet ends, or None
         self._quiet_meeting = False

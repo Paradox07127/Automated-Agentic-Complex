@@ -1,11 +1,12 @@
 """Her state, the character switch (prepare, commit, abort) and avatar visibility."""
+import secrets
 import uuid
 
 from brain import persona
 from character.behavior import system_prompt
 from character.binding import effective
 from brain.outbound import OutboundBlocked
-from motion.chooser import MotionChooser
+from motion.chooser import MotionChooser, SEEDS
 from api.views import _iso
 
 SWITCH_LEASE = 25.0  # seconds an open character switch waits for commit or abort before it is aborted
@@ -81,11 +82,13 @@ class CharacterSwitchMixin:
         return self._cut("switch")[1]
 
     def motion_chooser(self, cid):
-        """The MotionChooser of cid's runtime character directory; None for no character or a package without one."""
+        """The MotionChooser of cid's runtime character directory, its random streams at seeds of its own; None for no
+        character or a package without one."""
         if cid is None:
             return None
         root = self.characters.package(cid).root / "runtime" / "characters" / cid
-        return MotionChooser(root) if (root / "c7" / "pack.json").is_file() else None
+        seeds = {stream: secrets.randbits(32) for stream in SEEDS}
+        return MotionChooser(root, seeds) if (root / "c7" / "pack.json").is_file() else None
 
     def _swap_held(self, cid, card, mouth):
         """Swap the mouth, character, active topic, voice, behavior prompt and motion chooser. The caller holds _mouth_lock."""

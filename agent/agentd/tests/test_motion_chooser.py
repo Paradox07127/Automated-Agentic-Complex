@@ -4,6 +4,7 @@ import json
 import math
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -86,6 +87,28 @@ class ChooserTest(unittest.TestCase):
         self.assertTrue(first)
         self.assertEqual([(c["clip"], c["why"]) for c in again], [(c["clip"], c["why"]) for c in first])
         self.assertEqual([round(c["t_s"] - 60, 3) for c in again], [c["t_s"] for c in first])
+
+    def test_each_agentd_process_draws_its_own_opening_idle_clips(self):
+        """The chooser agentd builds for a character does not start at SEEDS: an agentd restart does not play the
+        opening idle clips again in the order the last process played them."""
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        shutil.copytree(PACK, root / "runtime" / "characters" / "demo")
+        script = "\n".join([
+            "import json, sys, types",
+            "from pathlib import Path",
+            "sys.path[:0] = sys.argv[1:3]",
+            "from test_motion_chooser import replay",
+            "from daemon.character_switch import CharacterSwitchMixin",
+            "package = types.SimpleNamespace(root=Path(sys.argv[3]))",
+            "server = types.SimpleNamespace(characters=types.SimpleNamespace(package=lambda cid: package))",
+            "print(json.dumps(replay(CharacterSwitchMixin.motion_chooser(server, 'demo'), 120)))"])
+        here = Path(__file__).resolve().parent
+        runs = [json.loads(subprocess.run([sys.executable, "-I", "-c", script, str(here.parent), str(here), str(root)],
+                                          capture_output=True, text=True, check=True).stdout.splitlines()[-1])
+                for _ in range(2)]
+        self.assertGreaterEqual(len([c for c in runs[0] if c["why"] == "idle.t1"]), 3)
+        self.assertNotEqual(runs[0], runs[1])
 
 
 ROWS = {"animation": [{"id": "idle_nod", "section": "idle", "clips": ["nod"]},

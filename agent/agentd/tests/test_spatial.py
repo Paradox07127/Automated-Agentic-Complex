@@ -2167,6 +2167,92 @@ class ChooserTest(SpatialCase):
         self.assertIn("idle.t1", [m["trigger"]["event"] for m in self.performs()])  # standing tiers again
         self.assertValid()
 
+    def test_a_rejected_sit_leaves_the_loop_the_base_layer_plays(self):
+        self.spatial.chooser.report_playhead("relax_loop", 0.0)  # a loop of hers other than the pack's overview
+        self.run_clock(1)
+        [loop] = self.performs()
+        self.assertEqual(loop["clip"], {"id": "relax_loop"})
+        self.unsupported = {"sit"}
+        sit = spatial._spec("sit", None, "tick", "routine:tea", 0, spatial.POSTURE, ("user_drag",), 0.3, 600.0,
+                            variant="tea")
+        for stepped in (False, True):  # the rejection comes before the next motion step, or after it
+            with self.subTest(stepped=stepped):
+                self.assertEqual(self.spatial.offer(sit), (True, None))
+                self.assertEqual(self.registry.intents[-1]["replaces"], loop["behavior_id"])
+                if stepped:
+                    self.spatial.motion_step()
+                self.flush()
+                self.assertEqual(self.receipts(self.sent[-1]["behavior_id"]), [("rejected", "unsupported")])
+                self.run_clock(1)
+                self.assertEqual(self.performs(), [loop])  # no restart of the loop the renderer still plays
+                self.assertIn(loop["behavior_id"], self.spatial.active)
+                self.assertEqual(self.spatial.chooser.playhead()[0], "relax_loop")
+        self.assertValid()
+
+
+class RestartTest(SpatialCase):
+    """agentd restarts while the renderer plays on; the next agentd keeps the state-dir file of the last."""
+    run_clock, performs = ChooserTest.run_clock, ChooserTest.performs
+
+    def flush(self):
+        super().flush()
+        for message in self.sent:
+            self.at.setdefault(message["behavior_id"], self.now)
+
+    def setUp(self):
+        super().setUp()
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        self.path = Path(tmp) / "spatial.json"
+        self.stage, self.at = "normal", {}
+        self.start(7)
+
+    def start(self, epoch):
+        """An agentd's Spatial on the demo pack and the file."""
+        self.registry, self.seen, self.sent, self.log = Registry(epoch=epoch), 0, [], []
+        self.spatial = Spatial(lambda: dict(self.s), self.registry.publish_event, lambda: self.generation, epoch,
+                               clock=lambda: self.now, rng=self.rng, session_settle=0, session_min_hold=0,
+                               recovery_delay=0)
+        self.spatial._next_tick = self.now + 10 ** 6  # no random tick
+        self.spatial.stage = lambda: self.stage
+        self.spatial.use_motion(MotionChooser(PACK))
+        self.spatial.keep(self.path)
+
+    def restart(self, after):
+        """A new agentd `after` seconds later; the fake renderer plays on."""
+        self.now += after
+        self.start(8)
+
+    def test_a_restart_takes_up_the_loop_the_renderer_still_plays(self):
+        self.spatial.chooser.report_playhead("relax_loop", 0.0)  # a loop of hers other than the pack's overview
+        self.run_clock(4)
+        self.assertEqual([m["clip"] for m in self.performs()], [{"id": "relax_loop"}])
+        self.restart(3)
+        self.run_clock(spatial.MOTION_WAKE)
+        [first] = self.performs()
+        self.assertEqual((first["clip"], first.get("start")), ({"id": "relax_loop"}, "sync"))
+        self.assertValid()
+
+    def test_a_restart_after_the_loop_s_ttl_starts_on_the_default_loop(self):
+        self.spatial.chooser.report_playhead("relax_loop", 0.0)
+        self.run_clock(4)
+        self.restart(spatial.LOOP_TTL)  # the renderer has dropped the loop it got no renewal for
+        self.run_clock(spatial.MOTION_WAKE)
+        self.assertEqual(self.performs()[0]["clip"], {"id": "base_loop"})
+
+    def test_the_stage_revision_keeps_growing_over_restarts(self):
+        self.stage = "engaged"
+        self.spatial.stage_event("stage.engaged")
+        self.assertEqual(self.spatial.stage_level(), {"level": "engaged", "revision": 1})
+        self.stage = "normal"  # the new agentd derives the stage again: a change
+        self.restart(3)
+        self.assertEqual(self.spatial.stage_level(), {"level": "normal", "revision": 2})
+        self.restart(3)  # the same level: no change
+        self.assertEqual(self.spatial.stage_level(), {"level": "normal", "revision": 2})
+        self.stage = "quiet"
+        self.spatial.stage_event("stage.quiet")
+        self.assertEqual(self.spatial.stage_level(), {"level": "quiet", "revision": 3})
+
 
 class ChooserServerTest(ServerCase):
     def test_a_character_with_a_motion_pack_starts(self):

@@ -3,6 +3,7 @@ import base64
 import binascii
 import datetime
 import math
+import sys
 import time
 from types import MappingProxyType
 from urllib.parse import parse_qs, urlparse
@@ -49,6 +50,10 @@ class ContextInputMixin:
         user_now = self.server.user_now
         user_now.coarse(body)
         now, gate = user_now.snapshot(), self.server.gate
+        if now["revision"] != self.server.coarse_logged:  # a line per change of user_now, not per beat
+            self.server.coarse_logged = now["revision"]
+            print(f"agentd: /user/coarse idle_s={body['idle_s']:.1f} presence={now['presence']} "
+                  f"stage={now['stage']} doing={now['doing']}", file=sys.stderr)
         gate.fullscreen, gate.user_speaking = now["flags"]["fullscreen"], now["flags"]["user_speaking"]
         gate.meeting, gate.typing = now["doing"] in ("meeting", "sharing"), typing(now)
         self._json(200, {"presence": now["presence"], "stage": now["stage"], "doing": now["doing"],

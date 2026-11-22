@@ -5,11 +5,13 @@ import json
 import logging
 import math
 import random
+import sys
 import threading
 import time
 
 import c1
 from character.character_state import ENGAGED
+from fsutil import atomic_write_json, read_json
 from traces.trace_store import new_trace_id
 from character.interactions import preset
 
@@ -212,7 +214,9 @@ class Spatial:
         self.observe, self.publish, self.generation, self.epoch = observe, publish, generation, epoch
         self.routine, self.stage = routine, stage
         self._refused = {}  # admit reason -> how many proposals it refused
-        self._stage_revision = 0  # C1 snapshot stage.revision: stage.* events seen
+        self._stage_revision = 0  # C1 snapshot stage.revision: stage.* events seen, over restarts once kept
+        self._kept = None  # the state-dir file keep() names; None keeps nothing over a restart
+        self._kept_base = None  # {pack, clip, until_ms}: the base loop the renderer plays until until_ms, or None
         self._rows = set()  # behavior ids the event rows sent and that still run
         self._plan = None  # {name, ids}: the routine activity Spatial plays and the behaviors it sent for it
         self.clock, self.rng, self.trace_id = clock, rng or random.Random(), trace_id
@@ -480,6 +484,8 @@ class Spatial:
                 if self._edge is not None and self._edge["walk"] == body["behavior_id"]:
                     self._edge["parked"] = True
                     self.parked(True)
+            if phase == "rejected" and record["ended"] is None:
+                self._restore(record["behavior"]["replaces"], now)
             if phase == "rejected" and body.get("reason") == "unsupported":
                 behavior = record["behavior"]
                 self._unsupported[_unsupported_key(behavior["type"], behavior["target"], behavior.get("variant"))] = \
@@ -494,6 +500,18 @@ class Spatial:
                     if spec is not None:
                         self._send(spec, s, now)
             return True, None
+
+    def _restore(self, behavior_id, now):
+        """A rejected behavior replaced nothing on the renderer: the one its `replaces` named runs on, unless the
+        renderer has ended it or it has run out."""
+        record = self.records.get(behavior_id)
+        if record is None or record["ended"] != "replaced" or record["phase"] in c1.ENDED \
+                or record["behavior"]["expires_at_ms"] <= now * 1000:
+            return
+        record["ended"] = None
+        self.active[behavior_id] = record
+        for key in sorted(self.active, key=lambda i: self.active[i]["behavior"]["seq"]):
+            self.active.move_to_end(key)
 
     def receipt_trace(self, behavior_id):
         with self._lock:
@@ -577,6 +595,7 @@ class Spatial:
             if name == "stage.quiet":
                 self.motion({"kind": "quiet"})
             self._stage_revision += 1
+            self._save()
             self.publish("snapshot", {"behaviors": self.running(), "stage": self.stage_level(),
                                       "consumed": self.consumed.ids(), "turn_generation": self.generation()})
         self.wake()
@@ -599,6 +618,36 @@ class Spatial:
                 self.publish("snapshot", {"behaviors": self.running(), "reactions": self._reactions or {},
                                           "stage": self.stage_level(),
                                           "consumed": self.consumed.ids(), "turn_generation": self.generation()})
+
+    def keep(self, path):
+        """main gives it its state-dir file, which carries the stage revision and the base loop over an agentd
+        restart: the revision goes on from the last one, one more when the stage derived anew differs, and a loop the
+        renderer still plays (its ttl_s not over) becomes the chooser's playhead, which the first base perform takes
+        up with start sync."""
+        try:
+            saved = read_json(path)
+        except (OSError, ValueError):
+            saved = None  # the first start
+        with self._lock:
+            self._kept = path
+            if saved is not None:
+                self._stage_revision = saved["revision"] + (saved["level"] != self.stage())
+                base = saved["base"]
+                if base is not None and self.chooser is not None and base["pack"] == self.chooser.pack.id \
+                        and self.clock() * 1000 < base["until_ms"] and self.chooser.pack.loop(base["clip"]):
+                    self.chooser.report_playhead(base["clip"], 0.0)
+                    self._kept_base = base
+            self._save()
+
+    def _save(self):
+        """Under the lock: the stage revision and the base loop to the kept file, if any."""
+        if self._kept is None:
+            return
+        try:
+            atomic_write_json(self._kept, {"revision": self._stage_revision, "level": self.stage(),
+                                           "base": self._kept_base})
+        except OSError as e:
+            print(f"agentd: spatial state not saved: {type(e).__name__}", file=sys.stderr)
 
     def set_motion_prefs(self, switches, overrides):
         """PUT /behavior/motion_prefs (body checked by the route): the current chooser takes the user's action switches
@@ -685,6 +734,7 @@ class Spatial:
             s, now = self._seen, self.clock()  # the motion clock's first step observes
             if decision["why"] is not None or s is None:
                 record["why"] = record["why"] or "no_motion"
+                self._log_return()
                 return record
             look, welcome, report = RETURN_ROWS[decision["row"]]
             if look:
@@ -707,8 +757,11 @@ class Spatial:
                                 "semantic": self.chooser.semantic}
                 if self._return_next():
                     self._propose(s, now)
-                else:
-                    record["why"] = "no_clip"
+                    return record
+                record["why"] = "no_clip"
+                self._return_over()
+                return record
+            self._log_return()
             return record
 
     def _return_steps(self, welcome, report):
@@ -725,7 +778,7 @@ class Spatial:
 
     def _return_next(self):
         """Sends the return's next step to the chooser; a step it chooses nothing for is skipped. False when none is
-        left: the return is over."""
+        left: the caller ends the return."""
         ret = self._return
         while ret["steps"]:
             ret["part"], item = ret["steps"].popleft()
@@ -736,7 +789,6 @@ class Spatial:
             if choices:
                 self._take(choices, "user", "return")
                 return True
-        self._return_over()
         return False
 
     def _return_over(self):
@@ -744,6 +796,13 @@ class Spatial:
         ret, self._return = self._return, None
         if ret["intent"] is not None and self.chooser.semantic == ret["intent"]:
             self.chooser.send({"kind": "semantic", "intent": ret["semantic"]})
+        self._log_return()
+
+    def _log_return(self):
+        """One agentd log line for the return performance's outcome, once it is over or did not start."""
+        r = self.last_return
+        print(f"agentd: return performance row={r['row']} played={','.join(r['played']) or 'none'} why={r['why']}",
+              file=sys.stderr)
 
     def _lapsed(self):
         """The return's clips that still run once it is over: the chooser's next clip replaces them."""
@@ -779,8 +838,8 @@ class Spatial:
             seated = any(r["behavior"]["type"] in SEATED for r in self.active.values())
             if seated != self._seated:
                 self._seated = seated
-                if not seated:
-                    self.chooser.report_playhead(self.chooser.pack.overview, 0.0)  # her sit hands back a standing body
+                if not seated:  # her sit hands back a standing body; a rejected one, the loop that played on
+                    self.chooser.report_playhead(*self._played())
                 self._input({"kind": "sit" if seated else "stand"}, None)
             self._propose(self._seen, now)
             self._hold(self._seen, now)
@@ -841,6 +900,7 @@ class Spatial:
         if ret is not None and ret["clip"] is not None and clip not in self.chooser.pack.chain(ret["clip"]):
             if self._return_next():
                 return  # the chooser left the step's clip: the next step's clips play instead of this one
+            self._return_over()
             ret = None
         elif ret is not None and ret["clip"] is None and not why.startswith(("base before ", "toward ")):
             ret["clip"] = clip
@@ -858,6 +918,9 @@ class Spatial:
                                  "user" if ret is not None else source or self._source(why), why, blend)
         if ret is not None:
             spec["priority"] = RETURN_PRIORITY
+        left = self._return_left(base) if not overlay and why.startswith("exit of ") else 0.0
+        if left > 0:  # the renderer plays the return's clip out first (C1 §1.4), and the chooser's clock waits with it
+            spec.update(start="after_exit", lifetime=spec["lifetime"] + left)
         admitted, refused = self._send(spec, s, now, self._lapsed())
         if ret is not None and admitted:
             self._returned.append(next(reversed(self.active)))
@@ -871,8 +934,29 @@ class Spatial:
         elif overlay:
             self._overlay, self._staged = clip, None
         else:
-            self._base_id, self._base_since = next(reversed(self.active)), self.chooser.t_s
+            self._new_base(now)
+            self._base_since = self.chooser.t_s + left
             self._held = True
+            if left > 0:
+                self.chooser.report_playhead(clip, -left)
+
+    def _new_base(self, now):
+        """The chosen perform just sent holds the base layer; a loop is kept for the next agentd until the renderer
+        would drop it unrenewed."""
+        self._base_id = next(reversed(self.active))
+        record = self.active[self._base_id]
+        spec = record["spec"]
+        self._kept_base = {"pack": self.chooser.pack.id, "clip": spec["clip"]["id"],
+                           "until_ms": min(record["behavior"]["expires_at_ms"], int((now + spec["ttl_s"]) * 1000))} \
+            if spec.get("loop") else None
+        self._save()
+
+    def _return_left(self, base):
+        """Seconds the return's one-shot clip on the base layer still plays on the chooser's clock; 0 for any other."""
+        if base is None or base["behavior"]["behavior_id"] not in self._returned or base["spec"].get("loop"):
+            return 0.0
+        played = self.chooser.t_s - self._base_since
+        return max(0.0, self.chooser.pack.lengths[base["spec"]["clip"]["id"]] - played)
 
     def _hold(self, s, now):
         """Renews the chosen base loop before its ttl_s runs out, and proposes the chooser's loop when the base layer
@@ -884,7 +968,7 @@ class Spatial:
             if self._return is None:
                 spec["priority"] = 0
             if self._send(spec, s, now, self._lapsed())[0]:
-                self._base_id = next(reversed(self.active))
+                self._new_base(now)
             return
         clip = self.chooser.playhead()[0]
         if self._seated or now < self._hold_at or not self.chooser.pack.loop(clip) \
@@ -895,7 +979,8 @@ class Spatial:
         if not self._held:
             spec["start"] = "sync"  # after an agentd restart the renderer still plays this loop: no restart from 0
         if self._send(spec, s, now, self._lapsed())[0]:
-            self._base_id, self._base_since = next(reversed(self.active)), self.chooser.t_s
+            self._new_base(now)
+            self._base_since = self.chooser.t_s
             self._held = True
 
     def _source(self, why):

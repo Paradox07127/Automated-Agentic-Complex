@@ -348,6 +348,7 @@ def main(secret_store=None):
         server.state.use(args.character)
     server.spatial.state = server.state_view
     server.spatial.stage = lambda: server.user_now.snapshot()["stage"]
+    server.spatial.keep(paths.spatial(state_dir))
     if mouth is not None:
         server.load_window()
     server.egress, server.usage = egress, usage

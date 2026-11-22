@@ -1,6 +1,8 @@
 """The one performance on the user's return from an absence: its row by the time away and the agent work that ended
 meanwhile, played as chooser clips through Spatial's admission."""
+import contextlib
 import datetime
+import io
 import json
 from pathlib import Path
 import shutil
@@ -30,6 +32,36 @@ def greeting_pack(root):
     table["clips"]["wave"]["intents"] = ["greet"]
     table["clips"]["nod"]["intents"] = ["acknowledge"]
     path.write_text(json.dumps(table), encoding="utf-8")
+    return pack
+
+
+INTRO = {"intro_start": 1.5, "intro_loop": 2.0, "intro_end": 1.0}  # the introduction chain's clips and lengths
+
+
+def introduction_pack(root):
+    """The greeting pack with the greet intent on an introduction chain instead of wave: its start clip, a loop held
+    4 s and its end clip, which is also the start's and the loop's exit."""
+    pack = greeting_pack(root)
+
+    def edit(name, change):
+        path = pack / name
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        change(doc)
+        path.write_text(json.dumps(doc), encoding="utf-8")
+
+    def motion_map(m):
+        m["clips"]["wave"]["intents"] = []
+        m["clips"].update(intro_start={"next": "intro_loop", "exit": "intro_end", "intents": ["greet"]},
+                          intro_loop={"hold_seconds": 4, "next": "intro_end", "exit": "intro_end",
+                                      "interruptible": True},
+                          intro_end={"next": None})
+    clips = [{"name": name, "length": length, "loop": name == "intro_loop"} for name, length in INTRO.items()]
+    edit("actor/manifest.json", lambda d: d["clips"].extend(clips))
+    edit("c7/animation/palette-contract.json",
+         lambda d: d["clips"].extend({"name": c["name"], "loop": c["loop"]} for c in clips))
+    edit("c7/animation/intent-motion-map.json", motion_map)
+    edit("c7/interaction/motion-metadata.json",
+         lambda d: d["clips"].update({name: {"stance_start": "stand", "stance_end": "stand"} for name in INTRO}))
     return pack
 
 
@@ -177,6 +209,39 @@ class OneWelcomeTest(ReturnCase):
         self.assertValid()
 
 
+class IntroductionTest(ReturnCase):
+    pack = None  # set in setUp: introduction_pack
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.pack = introduction_pack(self.tmp)
+        super().setUp()
+
+    def test_the_intent_after_the_return_lets_the_start_clip_play_out_before_the_end_clip(self):
+        self.registry.set_quiet(True)
+        self.leave()
+        self.jump(self.left + 900)
+        self.stage = "engaged"
+        mark = len(self.sent)
+        self.returning.returned({"revision": 1, "ts": self.now, "name": "user.return",
+                                 "data": {"absence_id": "a-1", "away_s": 900}})
+        self.registry.set_quiet(False)  # stage.engaged follows user.return: the focus intent goes out again
+        self.flush()
+        self.run_clock(10)
+        sent = {m["clip"]["id"]: m for m in self.sent[mark:] if m["type"] == "perform"}
+        start, end = sent["intro_start"], sent["intro_end"]
+        self.assertEqual(end["replaces"], start["behavior_id"])
+        # the renderer starts an after_exit perform once the one-shot it follows has played out (C1 §1.4)
+        began = self.at[start["behavior_id"]] + INTRO["intro_start"] if end.get("start") == "after_exit" \
+            else self.at[end["behavior_id"]]
+        self.assertGreaterEqual(began - self.at[start["behavior_id"]], INTRO["intro_start"] - CROSSFADE - 0.01)
+        after = next(m for m in self.sent if m["seq"] > end["seq"] and m["type"] == "perform")  # her base again
+        self.assertGreaterEqual(self.at[after["behavior_id"]] - began, INTRO["intro_end"] - CROSSFADE - 0.01)
+        self.assertGreater(end["expires_at_ms"] / 1000, began + INTRO["intro_end"])
+        self.assertValid()
+
+
 class NoWelcomeTest(ReturnCase):
     """The plain demo pack maps no greet or acknowledge intent: she only looks at the user."""
     pack = test_spatial.PACK
@@ -200,6 +265,26 @@ class NoPerformanceTest(ReturnCase):
         self.leave()
         self.assertEqual(self.back(300), [])
         self.assertEqual((self.last()["row"], self.last()["why"]), ("look_welcome", "greet_off"))
+
+
+class LogTest(ReturnCase):
+    def test_a_return_logs_its_decision_and_once_it_is_over_what_played(self):
+        self.leave()
+        self.done("r1")
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            self.back(1800)
+        self.assertEqual(err.getvalue().splitlines(),
+                         ["agentd: user.return away_s=1800 ended=1 row=welcome_report why=None",
+                          "agentd: return performance row=welcome_report played=welcome,report why=None"])
+
+    def test_a_return_that_plays_nothing_logs_why(self):
+        self.greet = False
+        self.leave()
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            self.back(300)
+        self.assertEqual(err.getvalue().splitlines(),
+                         ["agentd: user.return away_s=300 ended=0 row=look_welcome why=greet_off",
+                          "agentd: return performance row=look_welcome played=none why=greet_off"])
 
 
 class EndedTest(ReturnCase):
@@ -295,6 +380,21 @@ class GreetSettingTest(ServerCase):
         # the report follows on the motion clock, which this server does not run
         self.assertEqual((record["row"], record["ended"], record["played"]), ("welcome_report", 1, ["welcome"]))
         self.assertTrue(self.server.returning.welcomed_on(datetime.date.fromtimestamp(now + 1)))
+
+
+class CoarseLogTest(ServerCase):
+    request = support.request
+
+    def test_a_coarse_sample_that_changes_user_now_logs_its_idle_s(self):
+        beat = {"ts": time.time(), "idle_s": 42.5}
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            first = self.request("POST", "/user/coarse", beat)
+            again = self.request("POST", "/user/coarse", {**beat, "ts": beat["ts"] + 1})
+        self.assertEqual((first[0], again[0]), (200, 200))
+        lines = [line for line in err.getvalue().splitlines() if "/user/coarse" in line]
+        self.assertEqual(len(lines), 1 if again[1]["revision"] == first[1]["revision"] else 2)
+        self.assertEqual(lines[0], f"agentd: /user/coarse idle_s=42.5 presence={first[1]['presence']} "
+                                   f"stage={first[1]['stage']} doing={first[1]['doing']}")
 
 
 if __name__ == "__main__":

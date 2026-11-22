@@ -25,6 +25,7 @@ INTEGRATION_RUNTIME = "integration-runtime.json"
 MODEL_SETTINGS = "model-settings.json"
 CHARACTER_RUNTIME = "character-runtime.json"
 FOCUS = "focus.json"
+SPATIAL = "spatial.json"
 TTS_TOKEN = "tts-token"
 
 TTS_TOKEN_FILE = (Path(os.environ.get("APPDATA") or Path.home() / "AppData/Roaming") / "Agentic Complex"
@@ -49,6 +50,7 @@ def integration_runtime(state_dir): return Path(state_dir) / INTEGRATION_RUNTIME
 def model_settings(state_dir): return Path(state_dir) / MODEL_SETTINGS
 def character_runtime(state_dir): return Path(state_dir) / CHARACTER_RUNTIME
 def focus(state_dir): return Path(state_dir) / FOCUS
+def spatial(state_dir): return Path(state_dir) / SPATIAL
 
 
 def app_state_dir():
