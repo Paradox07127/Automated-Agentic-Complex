@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import random
+import secrets
 import sys
 import threading
 import time
@@ -251,7 +252,9 @@ class Spatial:
         self._kept_base = None  # {pack, clip, until_ms}: the base loop the renderer plays until until_ms, or None
         self._rows = set()  # behavior ids the event rows sent and that still run
         self._plan = None  # {name, ids}: the routine activity Spatial plays and the behaviors it sent for it
-        self.clock, self.rng, self.trace_id = clock, rng or random.Random(), trace_id
+        # her own draws start from a seed spatial.began records, unless the caller gives the RNG
+        self.seed = None if rng is not None else secrets.randbits(32)
+        self.clock, self.rng, self.trace_id = clock, rng or random.Random(self.seed), trace_id
         self.trace_epoch = trace_epoch
         self.walk_bias = walk_bias
         self.interaction = preset(interaction_preset)
@@ -304,6 +307,8 @@ class Spatial:
         self._return = None  # while the return performance plays: {steps, part, clip, intent, semantic}
         self._returned = []  # behavior ids of its clips; once it is over they lapse for the chooser's next clip
         self.last_return = None  # the last return decision with what of it played and why the rest did not
+        self._began = False  # begin() has run: from then on the lane gets the inputs a replay needs
+        self._observed = None  # the observe() fields the last situation.observed wrote
         self._lock = threading.RLock()
         self._wake = threading.Event()
         self._motion_wake = threading.Event()
@@ -330,18 +335,30 @@ class Spatial:
         self._wake.set()
 
     def begin(self):
-        """Puts the first random tick FIRST_TICK away unless one is already set."""
+        """Puts the first random tick FIRST_TICK away unless one is already set, after spatial.began and the inputs
+        that hold now, which a replay starts from."""
         with self._lock:
+            self._began, self._observed = True, None
+            self._trace_input("spatial.began", {
+                "seed": self.seed, "epoch": self.epoch, "preset": self.interaction.name, "stage": self.stage(),
+                "session_settle": self.session_settle, "session_min_hold": self.session_min_hold,
+                "recovery_delay": self.recovery_delay})
+            self._trace_chooser(None if self._held else self._kept_base)
+            self._trace_input("behavior.switches", {"switches": dict(self.switches)})
+            if self.capabilities is not None:
+                self._trace_input("behavior.capabilities", {"character": self.capability_character,
+                                                            "capabilities": dict(self.capabilities)})
             if self._next_tick is None:
                 self._next_tick = self.clock() + self.rng.uniform(*FIRST_TICK) * self.interaction.random_tick_scale
 
     def poll(self):
         s = self._seen = self.observe()
         with self._lock:
+            self._trace_observed(s, "poll")
             now = self.clock()
             if self.chooser is not None and s["voicing"] != self._voice:
                 # the relay's estimate ends a voice without any receipt, so its end is also read here
-                self.motion({"kind": "voice", "on": s["voicing"]})
+                self._motion({"kind": "voice", "on": s["voicing"]})
             s = self._stabilize_session(s, now)
             self._track(s, now)
             if s["typing"]:
@@ -413,6 +430,7 @@ class Spatial:
             raise ValueError('invalid_facing_decision')
         s = self.observe()
         with self._lock:
+            self._trace_observed(s, "facing")
             if not valid():return {'accepted':False,'reason':'decision_stale'}
             trace = dict(trace_id=trace_id, trace_turn_id=trace_turn_id, trace_epoch=trace_epoch) if trace_id else {}
             return self._face(s, float(yaw), reason, hold_seconds, source, 'facing_decision', trace)
@@ -441,6 +459,7 @@ class Spatial:
                 return dict(self.capabilities)
             self.capability_character = character
             self.capabilities = dict(capabilities)
+            self._trace_input("behavior.capabilities", {"character": character, "capabilities": dict(capabilities)})
             self._unsupported.clear()
             self._event_key = self._posture_key = None
             for record in list(self.active.values()):
@@ -466,6 +485,7 @@ class Spatial:
         values."""
         with self._lock:
             self.switches = dict(switches)
+            self._trace_input("behavior.switches", {"switches": dict(switches)})
             if self.chooser is not None:
                 self.chooser.set_framing("bust" if self.switches.get("bust_framing") else "full")
                 self._publish_reactions()
@@ -480,6 +500,7 @@ class Spatial:
     def cancel_all(self, reason):
         """Every running behavior gets `behavior_cancel` / reason (character switch prepare: character_switch)."""
         with self._lock:
+            self._trace_input("behavior.cancel_all", {"reason": reason})
             for record in list(self.active.values()):
                 self._end(record, reason)
                 self.publish("behavior_cancel", {"behavior_id": record["behavior"]["behavior_id"], "reason": reason,
@@ -496,6 +517,8 @@ class Spatial:
         after_terminal or stale."""
         s = self.observe() if body["phase"] == "blocked" else None
         with self._lock:
+            if s is not None:
+                self._trace_observed(s, "receipt")
             record = self.records.get(body["behavior_id"])
             if record is None:
                 return False, "unknown_behavior"
@@ -532,6 +555,8 @@ class Spatial:
                 self._user_play = True  # its started may come after this receipt
             if body.get("reason") == "connection_lost":
                 self._unsupported.clear()  # the next Avatar may run other types
+                if self._user_play:
+                    self._trace_clock()
                 self._user_play_over()
             if phase == "blocked":
                 behavior = record["behavior"]
@@ -623,6 +648,7 @@ class Spatial:
         It takes the Spatial lock and then registry.cv to publish: never call it holding registry.cv."""
         s = self.observe()
         with self._lock:
+            self._trace_observed(s, "offer")
             return self._send(spec, s, self.clock())
 
     def stage_event(self, name):
@@ -637,7 +663,7 @@ class Spatial:
                 self.last_return["why"] = "stage"
                 self._return_over()
             if name == "stage.quiet":
-                self.motion({"kind": "quiet"})
+                self._motion({"kind": "quiet"})
             self._stage_revision += 1
             self._save()
             self.publish("snapshot", {"behaviors": self.running(), "stage": self.stage_level(),
@@ -656,6 +682,7 @@ class Spatial:
             self._enter, self._within, self._variant, self._user_play = chooser is not None, None, None, False
             self._intents.clear()
             self._clauses.clear()
+            self._trace_chooser(None)
             if chooser is not None:
                 chooser.set_framing("bust" if self.switches.get("bust_framing") else "full")
             self._reactions = None if chooser is None else _reactions(chooser)
@@ -702,6 +729,7 @@ class Spatial:
             chooser = self.chooser
             if chooser is None:
                 return None
+            self._trace_input("motion.prefs", {"action_switches": dict(switches), "motion_overrides": overrides})
             switched = chooser.set_action_switches(switches)
             adjusted = chooser.set_motion_overrides(overrides["chains"], overrides["pools"], overrides["blend_in"])
             self._publish_reactions()
@@ -737,13 +765,21 @@ class Spatial:
                 "activity": intent["activity"], "mood": intent["mood"], "display_session": intent["display_session"]}
         if withheld:
             item.update(intent="idle", state=None)
+        self._trace_input("motion.intent", {k: v for k, v in item.items() if k != "kind"})
         self._intents.append((self.clock(), item))
         self._motion_wake.set()
 
     def motion(self, item):
-        """A speech input for the chooser (text_line, voice, clause, clause_end) or the quiet stage's, sent now and
-        its choices proposed in this call. It takes the Spatial lock and then registry.cv: never call it holding
-        registry.cv."""
+        """A speech input for the chooser (text_line, voice, clause, clause_end), sent now and its choices proposed in
+        this call. It takes the Spatial lock and then registry.cv: never call it holding registry.cv."""
+        with self._lock:
+            if self.chooser is not None:
+                self._trace_input("motion.input", {"item": dict(item)})
+            self._motion(item)
+
+    def _motion(self, item):
+        """motion() without its motion.input, for an input derived from another: the voice poll() reads, the quiet
+        stage's."""
         with self._lock:
             if self.chooser is None:
                 return
@@ -775,6 +811,7 @@ class Spatial:
         run, the next once the chooser leaves the one before. Returns the record diag() shows, which the later parts
         update: the decision with played, the parts sent so far, and why the last part refused did not play."""
         with self._lock:
+            self._trace_input("motion.return", {k: decision[k] for k in ("row", "away_s", "ended", "why")})
             record = self.last_return = {**decision, "played": []}
             s, now = self._seen, self.clock()  # the motion clock's first step observes
             if decision["why"] is not None or s is None:
@@ -862,6 +899,9 @@ class Spatial:
             record = self.records.get(body["behavior_id"])
             trace_id, cause = (record["behavior"]["trace_id"], record.get("dispatched")) if record is not None \
                 else (self.trace_id(), None)
+            if body["origin"] == "user" and body["phase"] != "started" and self._user_play \
+                    or record is not None and record["spec"].get("chosen") and body["phase"] in ("cycle_end", "ended"):
+                self._trace_clock()
             # her own reaction and the user's play are inputs the next decisions read
             self.lane.write("motion.state", trace_id, cause,
                             {k: body[k] for k in ("origin", "phase", "clip", "behavior_id")},
@@ -893,9 +933,12 @@ class Spatial:
     def motion_step(self):
         """One wake of the motion clock: the chooser's frames up to now with the registry's intents at their times,
         each choice proposed, and the chooser's loop kept on the base layer and renewed."""
-        if self._seen is None:
+        observed = self._seen is None
+        if observed:
             self._seen = self.observe()
         with self._lock:
+            if observed:
+                self._trace_observed(self._seen, "step")
             if self.chooser is None:
                 return
             now = self.clock()
@@ -1600,6 +1643,42 @@ class Spatial:
         if refused is not None:
             self._trace_refused(spec, refused, trace_id, event_id)
         return event_id
+
+    def _trace_input(self, kind, attrs):
+        """One of the motion lane's inputs a replay rebuilds Spatial from, in a trace of its own; none before begin(),
+        whose spatial.began carries what holds then."""
+        if self._began:
+            self.lane.write(kind, self.trace_id(), None, attrs)
+
+    def _trace_chooser(self, kept):
+        """Under the lock: motion.chooser of the current chooser; kept: the base loop keep() made its playhead."""
+        chooser = self.chooser
+        self._trace_input("motion.chooser", {
+            "pack": chooser and chooser.pack.id, "seeds": chooser and dict(chooser.seeds),
+            "kept": kept and {"clip": kept["clip"], "until_ms": kept["until_ms"]}})
+
+    def _trace_clock(self):
+        """Under the lock, before an input reads the chooser's playhead outside a motion step: motion.clock with the
+        frames the motion clock has run, which depend on when its thread woke."""
+        if self.chooser is not None:
+            self._trace_input("motion.clock", {"frames": round(self.chooser.t_s / FRAME)})
+
+    def _trace_observed(self, s, by):
+        """Under the lock: situation.observed when what observe() says changed; by names the call that read it. No
+        text: idle_s only as active or quiet (QUIET), the turn's trace only as whether there is one."""
+        if not self._began:
+            return
+        idle, absence = s.get("idle_s"), s.get("absence")
+        observed = {"fullscreen": bool(s["fullscreen"]), "user_speaking": bool(s["user_speaking"]),
+                    "speaking": bool(s["speaking"]), "voicing": bool(s["voicing"]), "typing": bool(s["typing"]),
+                    "line_id": s["line_id"], "absence_since": absence and absence["since"], "session": s["session"],
+                    "state": s["state"], "related": list(s["related"]), "window_id": s["window_id"],
+                    "activity": s.get("activity"),
+                    "idle": None if idle is None else "quiet" if idle >= QUIET else "active",
+                    "turn_traced": bool(s.get("turn_trace"))}
+        if observed != self._observed:
+            self._observed = observed
+            self._trace_input("situation.observed", {"by": by, **observed})
 
     def _trace_refused(self, spec, reason, trace_id, cause):
         self.lane.write("behavior.refused", trace_id, cause, {

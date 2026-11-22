@@ -112,4 +112,26 @@
 
 追加（2026-11-22，只加不改）：加 kind `signal.changed`、`stage.changed`、`behavior.refused`、`motion.chosen`、`motion.state`（都只由 agentd 写，`POST /trace/events` 不收）和「动作线」一节；样例加一段动作线。
 
+---
+
+**动作线的输入**（agentd；回放工具 `agent/agentd/tools/motion_replay.py` 靠它们把一段 trace 的输入重新喂给新的 Spatial 和选择器）：Spatial 在入口处记下上面各线没有记的输入。都只由 agentd 写，`POST /trace/events` 不收；每日上限之后和 `signal.changed` 一样保留；各开一条自己的 trace，`causation_id` 为 null，不算「最新输入」（决策事件不指向它们）。不写用户文字，只有枚举词、标识和数。
+
+| kind | 必有 attrs |
+|---|---|
+| `spatial.began` | `seed`（Spatial 自己随机数的种子；调用方给了随机数时 null）、`epoch`（行为 id 里的 epoch）、`preset`（互动预设名）、`stage`（这时的舞台）、`session_settle`、`session_min_hold`、`recovery_delay`（秒）。Spatial 开始运行时写，紧跟着写当时的 `motion.chooser`、`behavior.switches` 和（已有时）`behavior.capabilities`；回放从这里开始 |
+| `situation.observed` | `by`：poll / step / receipt / offer / facing（哪个入口读的）；`fullscreen`、`user_speaking`、`speaking`、`voicing`、`typing`、`turn_traced`（这一轮是否有 trace）为布尔；`line_id`、`session`（标识，可为 null）；`state`；`related`（会话标识列表）；`window_id`（整数或 null）；`activity`（枚举词或 null）；`absence_since`（离开的起点，时钟秒，或 null）；`idle`：active / quiet（键鼠空闲不到 / 满 300 秒）或 null。Spatial 读到的这些值变了才写 |
+| `motion.chooser` | `pack`（角色包 id，没有选择器为 null）、`seeds`（选择器各随机流的起始值，对象，或 null）、`kept`（agentd 重启后接着播的基础循环 `{clip, until_ms}`，或 null）。换选择器时写 |
+| `motion.intent` | `intent`、`state`、`activity`、`mood`、`display_session`：registry 的意图进选择器的样子（被扣下的终态已换成 `intent=idle`、`state=null`） |
+| `motion.input` | `item`：从外面送给选择器的输入，`kind` 为 text_line / voice / clause / clause_end，另带它的 `on` 或 `intent` |
+| `motion.clock` | `frames`：动作时钟这时已跑的帧数。一条输入要在动作时钟的一拍之外读选择器的播放位置时（用户的播放结束、选择器选的片段 `cycle_end` / `ended`），先写这一条；帧数取决于那个线程何时醒来，trace 里别处没有 |
+| `motion.prefs` | `action_switches`、`motion_overrides`（`PUT /behavior/motion_prefs` 的两项） |
+| `motion.return` | `row`、`away_s`、`ended`、`why`：回来演出的决定 |
+| `behavior.switches` | `switches`：`PUT /behavior/switches` 存下的值 |
+| `behavior.capabilities` | `character`、`capabilities`：宿主报的能力，值为 null 或不可用的原因 |
+| `behavior.cancel_all` | `reason`：结束所有行为的原因，例如 character_switch |
+
+不另记、从已有事件推出的输入：舞台（`stage.changed` 的 `to`，Spatial 的 `stage.*` 事件跟着它）、渲染器回报（`motion.state`，其中 `resting`、`busy` Spatial 不读；`behavior.receipt`，它的 `turn_generation` 就是那个行为自己的）、渲染器断线（`reason=connection_lost` 的 `behavior.receipt`）。不记、回放不重现：动作生成服务的 `perform`（`offer`）和模型的转向决定（`request_facing`），它们记在发起轮次的 trace 里；她的作息（Routine）和状态（CharacterState）、read model 的 `walk_bias`、`turn_generation`。
+
 追加（2026-11-22，只加不改）：加端点 `GET /trace/events`（一段时间里所有 trace 的事件，分页）；`behavior.receipt` 的 `causation_id` 指向它那个行为的 `behavior.dispatched`。
+
+追加（2026-11-22，只加不改）：加「动作线的输入」一节和其中 11 个 kind。

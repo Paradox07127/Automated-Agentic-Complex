@@ -95,6 +95,21 @@ def _signal_value(v):
     return _bool(v) or _number(v) or isinstance(v, str) and bool(SIGNAL_WORD.fullmatch(v))
 
 
+def _opt_number(v):
+    return v is None or _number(v)
+
+
+def _table(ok):
+    return lambda v: isinstance(v, dict) and all(isinstance(k, str) and ok(x) for k, x in v.items())
+
+
+def _item(v):
+    return isinstance(v, dict) and _str(v.get("kind"))
+
+
+OBSERVED_BY = ("poll", "step", "receipt", "offer", "facing")
+
+
 SPEECH = {"speech_id": _str, "clause_id": _opt_str}
 # kind -> required attrs; the value checks each one.
 KINDS = {
@@ -144,6 +159,25 @@ KINDS = {
     "motion.state": {"origin": _enum("agent", "local", "user"),
                      "phase": _enum("started", "cycle_end", "ended", "expired", "rejected"), "clip": _str,
                      "behavior_id": _opt_str},
+    "spatial.began": {"seed": lambda v: v is None or _int(v), "epoch": _int, "preset": _str, "stage": _enum(*STAGES),
+                      "session_settle": _opt_number, "session_min_hold": _opt_number, "recovery_delay": _opt_number},
+    "situation.observed": {"by": _enum(*OBSERVED_BY), "fullscreen": _bool, "user_speaking": _bool, "speaking": _bool,
+                           "voicing": _bool, "typing": _bool, "line_id": _opt_str, "absence_since": _opt_number,
+                           "session": _opt_str, "state": _str, "related": lambda v: _list(v) and all(map(_str, v)),
+                           "window_id": lambda v: v is None or _int(v), "activity": _opt_str,
+                           "idle": lambda v: v in (None, "active", "quiet"), "turn_traced": _bool},
+    "motion.chooser": {"pack": _opt_str, "seeds": lambda v: v is None or _table(_int)(v),
+                       "kept": lambda v: v is None or isinstance(v, dict) and _str(v.get("clip"))
+                       and _int(v.get("until_ms"))},
+    "motion.intent": {"intent": _str, "state": _opt_str, "activity": _opt_str, "mood": _opt_str,
+                      "display_session": _opt_str},
+    "motion.input": {"item": _item},
+    "motion.clock": {"frames": _int},
+    "motion.prefs": {"action_switches": _table(_bool), "motion_overrides": _table(lambda x: isinstance(x, dict))},
+    "motion.return": {"row": _opt_str, "away_s": _number, "ended": _int, "why": _opt_str},
+    "behavior.switches": {"switches": _table(_bool)},
+    "behavior.capabilities": {"character": _opt_str, "capabilities": _table(_opt_str)},
+    "behavior.cancel_all": {"reason": _str},
     "proactive.feedback": {"line_id": _str, "value": _enum("useful", "dont_disturb")},
     "dispatch.proposed": {"request_id": _str},
     "dispatch.decided": {"request_id": _str, "decision": _str},

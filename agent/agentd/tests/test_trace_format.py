@@ -190,6 +190,51 @@ class TraceFormatTest(unittest.TestCase):
         self.assertIn("motion.state needs attrs.behavior_id",
                       validate_event({**state, "attrs": {k: v for k, v in state["attrs"].items() if k != "behavior_id"}}))
 
+    def test_the_motion_lane_s_replay_inputs(self):
+        base = {k: v for k, v in sample()[16].items() if k != "text"}
+        good = {
+            "spatial.began": {"seed": 7, "epoch": 3, "preset": "balanced", "stage": "normal", "session_settle": 1.5,
+                              "session_min_hold": 3.0, "recovery_delay": 3.0},
+            "situation.observed": {"by": "poll", "fullscreen": False, "user_speaking": False, "speaking": True,
+                                   "voicing": False, "typing": False, "line_id": "l1", "absence_since": None,
+                                   "session": "claude:s1", "state": "thinking", "related": ["claude:s1"],
+                                   "window_id": 101, "activity": None, "idle": "active", "turn_traced": True},
+            "motion.chooser": {"pack": "demo", "seeds": {"tier": 13}, "kept": {"clip": "base_loop", "until_ms": 5}},
+            "motion.intent": {"intent": "think", "state": "thinking", "activity": None, "mood": None,
+                              "display_session": "role:r1"},
+            "motion.input": {"item": {"kind": "clause", "intent": "explain"}},
+            "motion.clock": {"frames": 1440},
+            "motion.prefs": {"action_switches": {"touch_tap": False},
+                             "motion_overrides": {"chains": {}, "pools": {}, "blend_in": {}}},
+            "motion.return": {"row": "welcome", "away_s": 900.5, "ended": 0, "why": None},
+            "behavior.switches": {"switches": {"stay_in_place": False}},
+            "behavior.capabilities": {"character": "aster", "capabilities": {"sit": None, "face": "no head"}},
+            "behavior.cancel_all": {"reason": "character_switch"},
+        }
+        for kind, attrs in good.items():
+            with self.subTest(kind):
+                self.assertEqual(validate_event({**base, "kind": kind, "attrs": attrs}), [])
+        self.assertEqual(validate_event({**base, "kind": "spatial.began", "attrs": {**good["spatial.began"],
+                                                                                     "seed": None}}), [])
+        self.assertEqual(validate_event({**base, "kind": "motion.chooser",
+                                         "attrs": {"pack": None, "seeds": None, "kept": None}}), [])
+        cases = [
+            ("spatial.began", "stage", "away"), ("spatial.began", "seed", -1), ("situation.observed", "by", "tick"),
+            ("situation.observed", "idle", 12.5), ("situation.observed", "related", "claude:s1"),
+            ("situation.observed", "window_id", "w1"), ("motion.chooser", "seeds", {"tier": "x"}),
+            ("motion.chooser", "kept", {"clip": "base_loop"}), ("motion.input", "item", {"on": True}),
+            ("motion.clock", "frames", 1.5), ("motion.return", "away_s", None),
+            ("behavior.switches", "switches", {"stay_in_place": 1}),
+            ("behavior.capabilities", "capabilities", {"sit": False}), ("behavior.cancel_all", "reason", ""),
+        ]
+        for kind, key, value in cases:
+            with self.subTest(kind=kind, key=key, value=value):
+                self.assertIn(f"bad attrs.{key}: {value!r}",
+                              validate_event({**base, "kind": kind, "attrs": {**good[kind], key: value}}))
+        self.assertIn("situation.observed needs attrs.typing", validate_event(
+            {**base, "kind": "situation.observed",
+             "attrs": {k: v for k, v in good["situation.observed"].items() if k != "typing"}}))
+
     def test_stream_rules_reject(self):
         events = sample()
         events[2]["event_id"] = events[1]["event_id"]
