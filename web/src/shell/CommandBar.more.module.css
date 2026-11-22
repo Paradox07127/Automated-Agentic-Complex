@@ -37,14 +37,3 @@
   background-color: var(--tab-press);
   color: var(--ef-tabpc-sel-icon);
 }
-
-/* Tabs that do not fit fold the status chip to its dot whatever it reads (CommandBar's data-squeeze). */
-.squeeze[data-squeeze] [data-lamp] [data-stub='Menu'] > button {
-  gap: 0;
-  padding: 0 8px;
-  font-size: 0;
-}
-
-.squeeze[data-squeeze] [data-lamp] [data-stub='Menu'] > button > svg {
-  display: none;
-}

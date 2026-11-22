@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// The command bar gives its tabs the room 回主页 and the status chip leave; 回主页 stays whole at every width.
+// The command bar gives its tabs the room 回主页 leaves; 回主页 stays whole at every width.
 
 async function open(page: Page, width: number, height: number, hash: string) {
   await page.setViewportSize({ width, height });
@@ -8,8 +8,6 @@ async function open(page: Page, width: number, height: number, hash: string) {
   await page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => document.documentElement.style.setProperty('--ef-chrome-left', '84px')));
   await page.goto(`main.html#${hash}`);
   await expect(page.locator('main[data-route-id="settings"]')).toBeVisible();
-  // demo=disconnected: the chip names the backend that is down, as wide as it gets.
-  await expect(page.getByRole('navigation', { name: '主导航' }).locator('[data-lamp="bad"]')).toHaveCount(1);
 }
 
 /** Tabs whole inside the plate, of all tabs in it. */

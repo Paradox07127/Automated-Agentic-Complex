@@ -39,7 +39,6 @@ test("default: 今日一句, the six pinned readouts, 01 with one paper card and
   await expect(tasks(page)).toHaveCount(0);
   await expect(page.getByRole('button', { name: '任务记录' })).toHaveCount(0);
   for (const name of ['快速输入', '屏幕识读', '命令面板']) await expect(page.locator('[data-shell="bottom-bar"]').getByRole('toolbar', { name: '常用操作' }).getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: '主导航' })).toContainText('已连接');
   expect(errors).toEqual([]);
 });
 

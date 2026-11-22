@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getBridge, type AvatarState } from '../../src/bridge';
 import { CmdPalette } from '../../src/shell/CmdPalette';
 import { paletteItems } from '../../src/shell/CmdPalette.data';
 import { CommandBar } from '../../src/shell/CommandBar';
@@ -147,49 +146,6 @@ describe('CommandBar', () => {
   it('shows the sub when no tab is selected', async () => {
     const { nav } = await mountCommandBar('settings', () => <PageHeaderSlot sub="隐私" />);
     expect(await within(nav).findByRole('button', { name: '设置 / 隐私' })).toBeTruthy();
-  });
-
-  it('shows 后台 / 内核 / 角色 as one status chip, without 语音; it lists the three and opens 诊断 only in 开发者模式', async () => {
-    const base: AvatarState = { running: true, visible: true, scale: 1, clickThroughAll: false, speaking: false, characterId: 'si', appearanceId: 'default' };
-    vi.spyOn(getBridge().avatar, 'state').mockResolvedValue(base);
-    setDevMode(false);
-    const { nav } = await mountCommandBar('overview');
-    const chip = await within(nav).findByRole('button', { name: '已连接' });
-    expect(chip.getAttribute('aria-haspopup')).toBe('menu');
-    expect(nav.textContent).not.toContain('语音');
-    fireEvent.click(chip);
-    const items = within(screen.getByRole('menu', { name: '已连接' })).getAllByRole('menuitem');
-    expect(items.map((i) => i.textContent)).toEqual(['后台：已连接', '内核：已就绪', '角色：在桌面']);
-    fireEvent.click(items[0]!);
-    expect(window.location.hash).toBe('');
-    cleanup();
-
-    setDevMode(true);
-    const dev = await mountCommandBar('overview');
-    fireEvent.click(await within(dev.nav).findByRole('button', { name: '已连接' }));
-    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: '查看诊断' }));
-    expect(window.location.hash).toMatch(/^#\/diag\?/);
-  });
-
-  it('names the worst light on the chip when one is not fine', async () => {
-    vi.spyOn(getBridge().agentd, 'connection').mockResolvedValue('offline');
-    const { nav } = await mountCommandBar('overview');
-    expect(await within(nav).findByRole('button', { name: '后台已断开' })).toBeTruthy();
-  });
-
-  it('updates the 角色 light when avatar state is pushed', async () => {
-    const base: AvatarState = { running: true, visible: true, scale: 1, clickThroughAll: false, speaking: false, characterId: 'si', appearanceId: 'default' };
-    let push: (s: AvatarState) => void = () => {};
-    vi.spyOn(getBridge().avatar, 'state').mockResolvedValue(base);
-    vi.spyOn(getBridge().avatar, 'onState').mockImplementation((cb) => {
-      push = cb;
-      return () => {};
-    });
-    const { nav } = await mountCommandBar('overview');
-    fireEvent.click(await within(nav).findByRole('button', { name: '已连接' }));
-    expect(await within(screen.getByRole('menu')).findByRole('menuitem', { name: '角色：在桌面' })).toBeTruthy();
-    act(() => push({ ...base, speaking: true }));
-    expect(await within(screen.getByRole('menu')).findByRole('menuitem', { name: '角色：说话中' })).toBeTruthy();
   });
 
   it("steps through the page's own tabs on Q and E and wraps around, ignores inputs, and goes home on Esc and 回主页", async () => {

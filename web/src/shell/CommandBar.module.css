@@ -211,50 +211,6 @@
   font-weight: var(--ef-fw-semibold);
 }
 
-/* One chip for 后台, 内核 and 角色; the named light's lamp is the dot before its text. */
-.status {
-  display: inline-flex;
-  flex: none;
-}
-
-.status [data-stub='Menu'] > button::before {
-  display: inline-block;
-  flex: none;
-  width: 8px;
-  height: 8px;
-  background: var(--ef-text-3);
-  content: '';
-}
-
-.status[data-lamp='ok'] [data-stub='Menu'] > button::before {
-  background: var(--ef-text-1);
-}
-
-.status[data-lamp='warn'] [data-stub='Menu'] > button::before,
-.status[data-lamp='bad'] [data-stub='Menu'] > button::before {
-  border: 1px solid var(--ef-text-1);
-  background: var(--ef-text-2);
-}
-
-.status[data-lamp='off'] [data-stub='Menu'] > button::before {
-  border: 1px dashed var(--ef-text-3);
-  background: none;
-}
-
-/* Below 1280 the chip is just its dot unless a light warns or fails; its text stays its name, the three stay in its
-   tooltip and menu. */
-@media (max-width: 1279px) {
-  .status:not([data-lamp='warn'], [data-lamp='bad']) [data-stub='Menu'] > button {
-    gap: 0;
-    padding: 0 8px;
-    font-size: 0;
-  }
-
-  .status:not([data-lamp='warn'], [data-lamp='bad']) [data-stub='Menu'] > button > svg {
-    display: none;
-  }
-}
-
 @media (max-width: 1099px) {
   .roleName {
     display: none;
@@ -390,6 +346,3 @@
   grid-template-columns: auto 0 minmax(0, 1fr);
 }
 
-.right > .status {
-  flex: none;
-}

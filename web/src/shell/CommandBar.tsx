@@ -3,7 +3,6 @@ import { gameClips } from '../design/gameClips.generated';
 import { fxCalm, Icon, Kbd, Menu, useGameClip, type MenuItem } from '../ui';
 import { useDevMode } from './devMode';
 import { navigate, type PageId } from './nav';
-import { useShellStatus, type Lamp } from './shellStatus';
 import type { PageRoute } from './types';
 import styles from './CommandBar.module.css';
 import more from './CommandBar.more.module.css';
@@ -30,9 +29,6 @@ function reveal(on: HTMLElement | null) {
   else if (t.right > p.right - pad) plate.scrollLeft += t.right - (p.right - pad);
 }
 
-/** Which light the status chip names: the worst one, the first on a tie. */
-const RANK: Record<Lamp, number> = { ok: 0, off: 1, warn: 2, bad: 3 };
-
 export interface CommandBarProps {
   routes: PageRoute[];
   activeId: string | undefined;
@@ -46,9 +42,8 @@ export interface CommandBarProps {
   actionRef: Ref<HTMLDivElement>;
 }
 
-/** The one top bar of every page but 主页: back to 主页 (esc), the page's name (it lists every page), the page's own tabs between Q and E, its readouts and action, the status chip. */
+/** The one top bar of every page but 主页: back to 主页 (esc), the page's name (it lists every page), the page's own tabs between Q and E, its readouts and action. */
 export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, actionRef }: CommandBarProps) {
-  const status = useShellStatus();
   const devMode = useDevMode();
   const pages = routes.filter((r) => r.id !== 'home' && r.id !== 'onboarding' && (r.nav !== false || r.id === 'tasks'));
   const toItem = (r: PageRoute): MenuItem => ({
@@ -60,12 +55,6 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
   const user = pages.filter((r) => r.group !== 'dev' && !r.devOnly);
   const dev = devMode ? pages.filter((r) => r.group === 'dev' || r.devOnly) : [];
   const menuItems: MenuItem[] = [...user.map(toItem), ...(dev.length > 0 ? [{ kind: 'sep' as const }] : []), ...dev.map(toItem)];
-  // 后台, 内核 and 角色 in one chip: all fine it reads 后台's state, else the worst light; it opens the three.
-  const worst = status.lights.reduce((w, l) => (RANK[l.lamp] > RANK[w.lamp] ? l : w));
-  const statusItems: MenuItem[] = [
-    ...status.lights.map((l): MenuItem => ({ kind: 'item', label: `${l.label}：${l.state}` })),
-    ...(devMode ? [{ kind: 'sep' as const }, { kind: 'item' as const, label: '查看诊断', onSelect: () => navigate({ page: 'diag' }) }] : []),
-  ];
   const home = () => navigate({ page: 'home' as PageId });
   // The bar drops in once when the window opens (sns_basic_in's tabs track), not on page switches.
   const bar = useRef<HTMLDivElement>(null);
@@ -75,13 +64,12 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
   const [tabName, setTabName] = useState<string | null>(null);
   // Tabs hidden past either end of the plate: that end shows an arrow that scrolls a plate's width.
   const [hidden, setHidden] = useState({ prev: false, next: false });
-  // Tabs that do not fit fold the status chip to its dot (1), then the page menu to the page's name (2); a resize or new
-  // tabs start again from 0, all before paint.
+  // Tabs that do not fit fold the page menu to the page's name; a resize or new tabs unfold it again, all before paint.
   const [squeeze, setSqueeze] = useState(0);
   const [refits, setRefits] = useState(0);
   useLayoutEffect(() => {
     const plate = bar.current?.querySelector<HTMLElement>('[data-slot="tabs"]');
-    if (squeeze < 2 && plate && plate.scrollWidth > plate.clientWidth + 1) setSqueeze(squeeze + 1);
+    if (squeeze < 1 && plate && plate.scrollWidth > plate.clientWidth + 1) setSqueeze(squeeze + 1);
   }, [squeeze, refits]);
   useEffect(() => {
     const host = bar.current;
@@ -109,7 +97,7 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
     mo.observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-selected', 'data-on'] });
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(read);
     ro?.observe(host);
-    // A wider window may leave the tabs as they are and still have room to unfold the chip and the menu.
+    // A wider window may leave the tabs as they are and still have room to unfold the menu.
     if (host.parentElement) ro?.observe(host.parentElement);
     // A mouse wheel scrolls tabs that do not fit sideways; a native listener, as the tabs are portalled in from the page.
     const onWheel = (e: WheelEvent) => {
@@ -194,7 +182,7 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
   }, [activeId]);
 
   return (
-    <nav ref={nav} className={`${styles.cmdbar} ${more.squeeze}`} aria-label="主导航" data-theme="dark" data-squeeze={squeeze || undefined}>
+    <nav ref={nav} className={styles.cmdbar} aria-label="主导航" data-theme="dark">
       <div className={styles.lead}>
         <button type="button" className={styles.back} onClick={home} aria-label="回主页" title="回主页">
           <Icon name="chevl" size={16} />
@@ -202,7 +190,7 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
           <Kbd>esc</Kbd>
         </button>
         <div className={styles.tools} data-nav-target="page">
-          <Menu label={squeeze >= 2 ? title : [title, tabName ?? sub].filter(Boolean).join(' / ')} items={menuItems} />
+          <Menu label={squeeze >= 1 ? title : [title, tabName ?? sub].filter(Boolean).join(' / ')} items={menuItems} />
         </div>
       </div>
       <div ref={bar} className={styles.tabs} data-g="tabs">
@@ -223,9 +211,6 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
       <div className={styles.right}>
         <div className={styles.slot} ref={rightRef} data-slot="status" />
         <div className={styles.slot} ref={actionRef} data-slot="action" />
-        <div className={styles.status} data-lamp={worst.lamp} title={status.lights.map((l) => `${l.label}：${l.state}`).join('，')}>
-          <Menu label={worst.lamp === 'ok' ? worst.state : `${worst.label}${worst.state}`} items={statusItems} align="right" />
-        </div>
       </div>
     </nav>
   );
