@@ -335,6 +335,11 @@ button.toolrow {
   font-weight: 600;
 }
 
+.swapWhy {
+  margin: 0;
+  font: 13px/20px var(--ef-font-sans);
+}
+
 .swapRow {
   display: flex;
   flex-wrap: wrap;

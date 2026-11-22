@@ -301,13 +301,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .row,
-  .row::before {
+  .row[aria-current='true']::before {
     transition: none;
     animation: none;
   }
 }
 
-:global([data-reduce-motion]) :is(.row, .row::before) {
+:global([data-reduce-motion]) .row,
+:global([data-reduce-motion]) .row[aria-current='true']::before {
   transition: none;
   animation: none;
 }

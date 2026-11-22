@@ -25,7 +25,7 @@ export interface SideMessageProps extends MessageMenuProps {
 
 /** Side answer while the foreground runs: her bubble under the 「旁路」 tag and 只读, a link up to the task, 「派发任务」. */
 export function SideMessage({ at, text, streaming, roleName, frontTitle, onFront, onQueue, headUrl, first = true, fresh, lineId, ...menuProps }: SideMessageProps) {
-  const { onContextMenu, menu } = useMessageMenu(text, { line: lineId }, menuProps);
+  const { onContextMenu, onKeyDown, menu } = useMessageMenu(text, { line: lineId }, menuProps);
   return (
     <div className={styles.msg} data-kind="side" data-first={first || undefined} data-new={fresh || undefined} aria-label="旁路对话回答">
       <Who name={roleName} at={at} />
@@ -40,7 +40,7 @@ export function SideMessage({ at, text, streaming, roleName, frontTitle, onFront
             ↑ 触发时前台：{frontTitle}
           </button>
         )}
-        <div className={styles.bub} data-first={first || undefined} onContextMenu={onContextMenu}>
+        <div className={styles.bub} data-first={first || undefined} tabIndex={0} onContextMenu={onContextMenu} onKeyDown={onKeyDown}>
           <MessageText text={text} streaming={streaming} />
         </div>
         <div className={styles.actions}>

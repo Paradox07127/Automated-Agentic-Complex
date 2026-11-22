@@ -273,8 +273,22 @@ export function ContextMenu({ label, items, at, onClose }: ContextMenuProps) {
     };
   }, [at]);
 
+  const open = at != null;
+  useLayoutEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement;
+    return () => {
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, [open]);
+
   useEffect(() => {
-    if (focusOn != null && place) itemRefs.current[focusOn]?.focus({ preventScroll: true });
+    const el = focusOn != null && place ? itemRefs.current[focusOn] : null;
+    const box = pop.current;
+    if (!el || !box) return;
+    el.focus({ preventScroll: true });
+    if (el.offsetTop < box.scrollTop) box.scrollTop = el.offsetTop;
+    else if (el.offsetTop + el.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = el.offsetTop + el.offsetHeight - box.clientHeight;
   }, [focusOn, place]);
 
   if (!at) return null;

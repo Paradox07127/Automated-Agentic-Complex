@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Banner, ContextMenu, CountBadge, Fraction, Menu, Modal, Select, StatusTag, Toast, type MenuItem } from '../../src/ui';
 
@@ -363,6 +364,40 @@ describe('ContextMenu', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: '置顶' }));
     expect(run).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives focus back to the element that opened it on Esc, Tab and a press outside', () => {
+    const Host = () => {
+      const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+      return (
+        <>
+          <button type="button" onClick={() => setAt({ x: 10, y: 10 })}>行</button>
+          <ContextMenu label="管理" items={items()} at={at} onClose={() => setAt(null)} />
+        </>
+      );
+    };
+    render(<Host />);
+    const row = screen.getByRole('button', { name: '行' });
+    for (const close of [() => fireEvent.keyDown(document.activeElement!, { key: 'Escape' }), () => fireEvent.keyDown(document.activeElement!, { key: 'Tab' }), () => fireEvent.pointerDown(document.body)]) {
+      row.focus();
+      fireEvent.click(row);
+      expect(screen.getByRole('menu')).toBeTruthy();
+      close();
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(document.activeElement).toBe(row);
+    }
+  });
+
+  it('scrolls the focused item into view while the arrow keys move', () => {
+    render(<ContextMenu label="管理" items={items()} at={{ x: 10, y: 10 }} onClose={() => {}} />);
+    const menu = screen.getByRole('menu');
+    Object.defineProperty(menu, 'clientHeight', { value: 100 });
+    const last = screen.getByRole('menuitem', { name: '删除…' });
+    Object.defineProperty(last, 'offsetTop', { value: 200 });
+    Object.defineProperty(last, 'offsetHeight', { value: 30 });
+    fireEvent.keyDown(menu, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(last);
+    expect(menu.scrollTop).toBe(130);
   });
 
   it('renders nothing while closed', () => {

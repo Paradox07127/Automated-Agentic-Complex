@@ -69,6 +69,20 @@ describe('chat message menu', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
+  it('opens the same menu from the keyboard on a focusable bubble and gives focus back when it closes', () => {
+    render(<MessageList {...base} onQuote={() => {}} onOpenTrace={() => {}} />);
+    const bubble = screen.getByText('在呢。').closest<HTMLElement>('[tabindex="0"]')!;
+    expect(bubble).toBeTruthy();
+    for (const key of [{ key: 'ContextMenu' }, { key: 'F10', shiftKey: true }]) {
+      bubble.focus();
+      fireEvent.keyDown(bubble, key);
+      expect(items()).toEqual(['复制', '引用回复', '在运行记录里看这一轮']);
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(document.activeElement).toBe(bubble);
+    }
+  });
+
   it('does not offer to replay the user line', () => {
     render(<MessageList {...base} onQuote={() => {}} onReplay={() => {}} onOpenTrace={() => {}} />);
     fireEvent.contextMenu(screen.getByText('你好'), { clientX: 40, clientY: 50 });

@@ -113,3 +113,13 @@
 .aopts {
   margin-bottom: 8px;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .qcard [role='listbox'] > :global([data-stub='OptionRow']) {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .qcard [role='listbox'] > :global([data-stub='OptionRow']) {
+  transition: none;
+}

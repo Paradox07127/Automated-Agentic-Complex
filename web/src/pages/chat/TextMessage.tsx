@@ -104,13 +104,13 @@ export function TextMessage({ mine, at, text, roleName, latest, state, source, s
   const via = source ? TURN_SOURCE[source] : undefined;
   const ended = state ? TURN_STATE[state] : undefined;
   const tags = !mine && ((mems?.length ?? 0) > 0 || (learned?.length ?? 0) > 0);
-  const { onContextMenu, menu } = useMessageMenu(text, { line: mine ? undefined : lineId, turn: turnId }, menuProps);
+  const { onContextMenu, onKeyDown, menu } = useMessageMenu(text, { line: mine ? undefined : lineId, turn: turnId }, menuProps);
   return (
     <div className={styles.msg} data-kind={mine ? 'me' : 'ai'} data-first={first || undefined} data-latest={latest || undefined} data-sel={selected || undefined} data-new={fresh || undefined}>
       <Who name={mine ? '用户' : roleName} at={at} via={via} />
       {first && <Head name={mine ? undefined : roleName} url={mine ? undefined : headUrl} />}
       <div className={styles.stack}>
-        <div className={styles.bub} data-first={first || undefined} onContextMenu={onContextMenu}>
+        <div className={styles.bub} data-first={first || undefined} tabIndex={0} onContextMenu={onContextMenu} onKeyDown={onKeyDown}>
           {(text || streaming) && <MessageText text={text} streaming={streaming} />}
           {ended && <p className={styles.ended}>■ {ended}</p>}
         </div>

@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react';
+import { useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { getBridge } from '../../bridge';
 import { ContextMenu, type MenuItem } from '../../ui';
 
@@ -25,5 +25,11 @@ export function useMessageMenu(text: string, ids: { line?: string | undefined; t
     e.preventDefault();
     setAt({ x: e.clientX, y: e.clientY });
   };
-  return { onContextMenu, menu: <ContextMenu label="这条消息" items={items} at={at} onClose={() => setAt(null)} /> };
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'ContextMenu' && !(e.key === 'F10' && e.shiftKey)) return;
+    e.preventDefault();
+    const box = e.currentTarget.getBoundingClientRect();
+    setAt({ x: box.left, y: box.bottom });
+  };
+  return { onContextMenu, onKeyDown, menu: <ContextMenu label="这条消息" items={items} at={at} onClose={() => setAt(null)} /> };
 }
