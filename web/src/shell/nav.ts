@@ -33,7 +33,8 @@ export type NavTarget =
       owner?: string;
       focus?: string;
     }
-  | { page: 'pipeline'; run?: string; focus?: string }
+  | { page: 'home'; focus?: string }
+  | { page: 'pipeline'; run?: string; station?: 'obs' | 'interp' | 'mem' | 'store'; focus?: string }
   | { page: 'character'; tab?: 'profile' | 'motion' | 'behavior' | 'render' | 'scene'; view?: 'photo' | 'mmd'; pane?: 'motion' | 'chain' | 'look' | 'import'; row?: string; focus?: string }
   | {
       page: 'diag';
@@ -58,7 +59,7 @@ export type NavTarget =
       create?: 'role' | 'code' | 'sched';
       focus?: string;
     }
-  | { page: 'tune'; focus?: string }
+  | { page: 'tune'; tab?: 'behavior' | 'render'; focus?: string }
   | { page: 'ds' | 'dv'; focus?: string };
 
 export type PageId = NavTarget['page'];

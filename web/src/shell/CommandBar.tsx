@@ -55,7 +55,7 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
   const user = pages.filter((r) => r.group !== 'dev' && !r.devOnly);
   const dev = devMode ? pages.filter((r) => r.group === 'dev' || r.devOnly) : [];
   const menuItems: MenuItem[] = [...user.map(toItem), ...(dev.length > 0 ? [{ kind: 'sep' as const }] : []), ...dev.map(toItem)];
-  const home = () => navigate({ page: 'home' as PageId });
+  const home = () => navigate({ page: 'home' });
   // The bar drops in once when the window opens (sns_basic_in's tabs track), not on page switches.
   const bar = useRef<HTMLDivElement>(null);
   useGameClip(gameClips.snsBasicIn, bar, { autoplay: true });
