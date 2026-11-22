@@ -107,7 +107,7 @@ import { AvatarLooks, linkSwitchPorts, rememberedLooks } from './renderer/looks.
 import { quitOnSignals } from './quit.ts';
 import { rendererReports } from './renderer/reports.ts';
 import { liveSaved } from './renderer/saved.ts';
-import { type Loading, RendererSupervisor } from './renderer/supervisor.ts';
+import { type Loading, lookArguments, RendererSupervisor } from './renderer/supervisor.ts';
 import { singleInstance } from './single-instance.ts';
 import { TunnelSupervisor } from './tunnel/supervisor.ts';
 import { uiServer, type UiResponse } from './ui-scheme.ts';
@@ -390,6 +390,7 @@ const preview = (() => {
     avatar: () => ({ character: currentCharacterOf(switcher, hostLink, launched), appearance: hostLink.currentAppearance }),
     library: async (id) => (catalog ? loadMotionLibrary(catalog, id) : null),
     modSettings: (id) => looks?.modSettings(id) ?? {},
+    renderArgs: () => lookArguments(readObject(configPath)),
   });
 })();
 /** The character switch over the renderer link and agentd. */
@@ -782,6 +783,10 @@ function surfaceOps(surface: Surface): ReadonlyMap<string, Handler<PageSession>>
 }
 
 function opsContext(surface: Surface): OpsContext {
+  const savedRender = liveSaved({
+    link: hostLink, settings: () => readObject(configPath), restartAvatar: () => { void renderer?.restart(); },
+    log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),
+  });
   return {
     surface, routes, platform: shellPlatform(),
     config: { path: configPath, supportDir: config?.supportDir ?? null, devResources: config?.devResources ?? null },
@@ -790,7 +795,7 @@ function opsContext(surface: Surface): OpsContext {
       () => diagStream.stop()),
     supervisor: supervisor && {
       state: () => supervisor.state, pid: () => supervisor.pid, restart: () => { void supervisor.restart(); restartTunnel('backend'); }, avatar: () => rendererState,
-      restartAvatar: renderer ? () => { void renderer.restart(); } : undefined, avatarPid: () => renderer?.pid,
+      restartAvatar: renderer ? () => { void renderer.restart(); preview?.renderSettingsChanged(); } : undefined, avatarPid: () => renderer?.pid,
       tunnel: () => (tunnel && tunnel.config.ttsTunnelHost !== '' ? tunnelState : null), tunnelPid: () => tunnel?.pid,
     },
     avatar: hostLink && linkAvatarHost(hostLink, (hidden) => setAvatarHidden(hidden), {
@@ -860,10 +865,11 @@ function opsContext(surface: Surface): OpsContext {
         hotkeys?.saved(key, name);
         desktop?.hotkeySaved(key, name);
       },
-      ...liveSaved({
-        link: hostLink, settings: () => readObject(configPath), restartAvatar: () => { void renderer?.restart(); },
-        log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),
-      }),
+      ...savedRender,
+      renderLive: (keys) => {
+        savedRender.renderLive(keys);
+        preview?.renderSettingsChanged();
+      },
     },
     settingsChanges,
     openOnboarding: () => guide.begin(),

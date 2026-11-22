@@ -12,7 +12,8 @@ import type { OpsContext } from '../src/main/ops/context.ts';
 import { type PreviewHost, previewOps } from '../src/main/ops/preview.ts';
 import { PreviewController, type PreviewView } from '../src/main/preview/controller.ts';
 import { loadMotionLibrary, type MotionLibrary } from '../src/main/preview/library.ts';
-import { PreviewFailure, PreviewSession, type PreviewSelection } from '../src/main/preview/session.ts';
+import { PreviewFailure, previewOutput, PreviewSession, type PreviewSelection } from '../src/main/preview/session.ts';
+import { lookArguments, renderArguments } from '../src/main/renderer/supervisor.ts';
 
 type Message = Record<string, unknown>;
 
@@ -237,6 +238,71 @@ test('a hide or a character switch while the library loads makes the show answer
   assert.equal(await switched, false);
   assert.equal(view.loads.length, 0);
   assert.equal(view.hides, 1);
+});
+
+test('a selection with render arguments and an output sends them as render_args and output; one without sends neither', async () => {
+  const { s, transport } = session();
+  s.load(selection()).catch(() => {});
+  assert.deepEqual(Object.keys(transport.sent.at(-1)!).sort(), ['bundle', 'character', 'load_id', 'op', 'rate', 'sha256']);
+  s.load(selection({ renderArgs: ['--agentic-complex-ssaa', '1'], output: [720, 864] })).catch(() => {});
+  assert.deepEqual(transport.sent.at(-1), { op: 'load', bundle: '/lib/si/runtime/bundle.json', sha256: 'a'.repeat(64), character: 'si', rate: 1,
+    load_id: 2, render_args: ['--agentic-complex-ssaa', '1'], output: [720, 864] });
+  // Another output is another selection.
+  s.load(selection({ renderArgs: ['--agentic-complex-ssaa', '1'], output: [960, 1152] })).catch(() => {});
+  assert.deepEqual(transport.sent.at(-1)?.load_id, 3);
+  s.disconnect();
+});
+
+test('the output rounds the rect in device pixels up to a height bucket, the width from its aspect to a multiple of 16', () => {
+  assert.deepEqual(previewOutput({ w: 250, h: 300 }, 1), [480, 576]);
+  assert.deepEqual(previewOutput({ w: 250, h: 300 }, 2), [720, 864]);
+  // A few pixels more or less keep the output.
+  assert.deepEqual(previewOutput({ w: 252, h: 303 }, 2), [720, 864]);
+  assert.deepEqual(previewOutput({ w: 400, h: 480 }, 2), [960, 1152]);
+  assert.deepEqual(previewOutput({ w: 100, h: 100 }, 1), [576, 576]);
+  // Past the last bucket it stays there; each side within 240–2048.
+  assert.deepEqual(previewOutput({ w: 1000, h: 1200 }, 2), [1440, 1728]);
+  assert.deepEqual(previewOutput({ w: 4000, h: 300 }, 1), [2048, 576]);
+  assert.deepEqual(previewOutput({ w: 50, h: 1000 }, 1), [240, 1152]);
+});
+
+test("the preview takes the desktop renderer's look arguments and loads again when a saved setting changes them while shown", async () => {
+  const view = new FakeView();
+  let settings: Record<string, unknown> = { render_ssaa: false, render_shadow: '512', render_outline: 'subtle', render_camera_yaw: 30 };
+  const c = new PreviewController({ view, avatar: () => ({ character: 'si', appearance: null }), library: async () => library,
+    renderArgs: () => lookArguments(settings) });
+  const desktop = renderArguments(settings, '/p'), look = lookArguments(settings);
+  assert.deepEqual(desktop.slice(0, look.length), look, 'the desktop starts with the same list');
+  for (const flag of ['--agentic-complex-camera-yaw', '--agentic-complex-render-fps', '--agentic-complex-display-resolution',
+    '--agentic-complex-capture-dir', '--agentic-complex-ambient', '--agentic-complex-speech-expressions']) {
+    assert.ok(desktop.includes(flag) && !look.includes(flag), flag);
+  }
+  const rect = { x: 0, y: 0, w: 256, h: 307 };
+  await c.show(rect, 'wave', true, 1);
+  assert.deepEqual(view.loads.at(-1)?.renderArgs, look);
+  // Saved settings that do not change her look load nothing.
+  settings = { ...settings, render_camera_yaw: 90 };
+  c.renderSettingsChanged();
+  assert.equal(view.loads.length, 1);
+  settings = { ...settings, render_ssaa: true };
+  c.renderSettingsChanged();
+  assert.equal(view.loads.length, 2);
+  assert.deepEqual(view.loads[1], { ...view.loads[0], renderArgs: lookArguments(settings) });
+  assert.equal(view.loads[1]!.renderArgs![1], '2');
+  c.hide();
+  settings = { ...settings, render_outline: 'contrast' };
+  c.renderSettingsChanged();
+  assert.equal(view.loads.length, 2, 'a hidden preview does not load');
+});
+
+test('a controller without render arguments shows the selection it showed before', async () => {
+  const view = new FakeView();
+  const c = new PreviewController({ view, avatar: () => ({ character: 'si', appearance: null }), library: async () => library });
+  await c.show({ x: 0, y: 0, w: 10, h: 10 }, null, false, 0);
+  assert.deepEqual(view.loads, [{ bundle: '/b.json', sha256: 'f'.repeat(64), character: 'si', clip: null, facial: null, rate: 1,
+    appearance: null, request: 0, modSettings: null, loop: false }]);
+  c.renderSettingsChanged();
+  assert.equal(view.loads.length, 1);
 });
 
 const sha = (data: string) => createHash('sha256').update(data).digest('hex');

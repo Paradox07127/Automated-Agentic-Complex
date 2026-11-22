@@ -40,6 +40,19 @@ export interface PreviewSelection {
   request: number;
   modSettings: Record<string, Record<string, number>> | null;
   loop: boolean;
+  /** The desktop's lookArguments (renderer/supervisor.ts); absent keeps the service's own. */
+  renderArgs?: string[];
+  /** Output pixels [w, h] (previewOutput); absent keeps the service's 480×576. */
+  output?: [number, number];
+}
+
+const OUTPUT_HEIGHTS = [576, 864, 1152, 1440, 1728];
+
+/** `rect` (CSS px) × `scale` (device px per CSS px), rounded up to a height of OUTPUT_HEIGHTS, the width from the rect's aspect
+ *  to a multiple of 16 within 240–2048: a small resize keeps the output, so the service does not reload. */
+export function previewOutput(rect: { w: number; h: number }, scale: number): [number, number] {
+  const height = OUTPUT_HEIGHTS.find((h) => h >= rect.h * scale) ?? OUTPUT_HEIGHTS.at(-1)!;
+  return [Math.min(2048, Math.max(240, Math.ceil((height * rect.w) / rect.h / 16) * 16)), height];
 }
 
 /** The preview could not play; its message is the page's reason. */
@@ -93,6 +106,8 @@ export class PreviewSession<S> {
       if (value.appearance !== null) message.appearance = value.appearance;
       if (value.modSettings !== null) message.mod_settings = value.modSettings;
       if (value.loop) message.loop = true;
+      if (value.renderArgs !== undefined) message.render_args = value.renderArgs;
+      if (value.output !== undefined) message.output = value.output;
       this.send(message);
       // A load starts the service playing.
       this.servicePaused = false;

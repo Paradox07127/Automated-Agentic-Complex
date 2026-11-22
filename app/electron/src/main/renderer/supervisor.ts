@@ -46,10 +46,33 @@ export function readStartupStatus(path: string, pid: number): { character: strin
 
 const FILTERS = ['none', ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => `filter_${n}`), ...[1, 2, 3, 4, 5, 6, 7].map((n) => `sp_filter_${n}`)];
 
-/** From config.json's settings: each value out of its range falls back to its default. */
+const settingReaders = (s: Record<string, unknown>) => ({
+  flag: (key: string, fallback: boolean) => (typeof s[key] === 'boolean' ? s[key] as boolean : fallback),
+  option: (key: string, allowed: string[], fallback: string) => (allowed.includes(s[key] as string) ? s[key] as string : fallback),
+});
+
+/** The settings that decide how she is drawn, which the character page's preview takes as its `load.render_args` too
+ *  (CONTRACT 「附录：预览 XPC」); each value out of its range falls back to its default. */
+export function lookArguments(s: Record<string, unknown>): string[] {
+  const { flag, option } = settingReaders(s);
+  return [
+    '--agentic-complex-ssaa', flag('render_ssaa', true) ? '2' : '1',
+    '--agentic-complex-shadow-resolution', option('render_shadow', ['1024', '512', '256'], '1024'),
+    '--agentic-complex-outline', option('render_outline', ['original', 'subtle', 'contrast'], 'original'),
+    '--agentic-complex-light-yaw', option('render_light_yaw', ['-15', '0', '15'], '0'),
+    '--agentic-complex-light-pitch', option('render_light_pitch', ['-10', '0', '10'], '0'),
+    '--agentic-complex-light-strength', option('render_light_strength', ['0.5', '0.75', '1', '1.25', '1.5'], '1'),
+    '--agentic-complex-secondary-motion', flag('render_secondary_motion', true) ? '1' : '0',
+    '--agentic-complex-ground-shadow', option('render_ground_shadow', ['off', 'contact'], 'contact'),
+    '--agentic-complex-filter', option('render_filter', FILTERS, 'none'),
+    '--agentic-complex-dof', option('render_dof', ['off', 'closeup'], 'off'),
+  ];
+}
+
+/** From config.json's settings: lookArguments, then what only the desktop window takes (its resolution and frame rate, where
+ *  her camera looks and she faces, the ambient sampled behind her, speech, captures); each value out of its range falls back to its default. */
 export function renderArguments(s: Record<string, unknown>, captureDir: string): string[] {
-  const flag = (key: string, fallback: boolean) => (typeof s[key] === 'boolean' ? s[key] as boolean : fallback);
-  const option = (key: string, allowed: string[], fallback: string) => (allowed.includes(s[key] as string) ? s[key] as string : fallback);
+  const { flag, option } = settingReaders(s);
   // A number in `range` to the nearest 0.5, written without a trailing ".0".
   const degrees = (key: string, low: number, high: number) => {
     const value = typeof s[key] === 'number' ? s[key] as number : NaN;
@@ -58,28 +81,19 @@ export function renderArguments(s: Record<string, unknown>, captureDir: string):
   };
   const zoom = typeof s.render_camera_zoom === 'number' && s.render_camera_zoom >= 1 && s.render_camera_zoom <= 4 ? s.render_camera_zoom : 1;
   return [
-    '--agentic-complex-ssaa', flag('render_ssaa', true) ? '2' : '1',
+    ...lookArguments(s),
     '--agentic-complex-display-resolution', String(option('render_resolution', ['authored', 'display'], 'authored') === 'display'),
-    '--agentic-complex-shadow-resolution', option('render_shadow', ['1024', '512', '256'], '1024'),
     '--agentic-complex-render-fps', option('render_fps', ['60', '45', '30'], '60'),
-    '--agentic-complex-outline', option('render_outline', ['original', 'subtle', 'contrast'], 'original'),
-    '--agentic-complex-light-yaw', option('render_light_yaw', ['-15', '0', '15'], '0'),
-    '--agentic-complex-light-pitch', option('render_light_pitch', ['-10', '0', '10'], '0'),
-    '--agentic-complex-light-strength', option('render_light_strength', ['0.5', '0.75', '1', '1.25', '1.5'], '1'),
     '--agentic-complex-camera-mode', option('render_camera_mode', ['show', 'overview', 'document'], 'show'),
     '--agentic-complex-camera-yaw', degrees('render_camera_yaw', -180, 180),
     '--agentic-complex-camera-pitch', degrees('render_camera_pitch', -20, 20),
     '--agentic-complex-facing-mode', option('render_facing_mode', ['auto', 'front', 'side', 'back'], 'auto'),
-    '--agentic-complex-secondary-motion', flag('render_secondary_motion', true) ? '1' : '0',
-    '--agentic-complex-ground-shadow', option('render_ground_shadow', ['off', 'contact'], 'contact'),
     '--agentic-complex-ambient', option('render_ambient', ['off', 'wallpaper', 'screen'], 'off'),
     '--agentic-complex-light-wrap', flag('render_light_wrap', false) ? '1' : '0',
     '--agentic-complex-speech-expressions', flag('speech_expressions', true) ? 'on' : 'off',
     '--agentic-complex-camera-zoom', String(zoom),
     '--agentic-complex-camera-sway', flag('render_camera_sway', false) ? '1' : '0',
     '--agentic-complex-camera-track', option('render_camera_track', ['off', 'stage'], 'stage'),
-    '--agentic-complex-filter', option('render_filter', FILTERS, 'none'),
-    '--agentic-complex-dof', option('render_dof', ['off', 'closeup'], 'off'),
     '--agentic-complex-capture-dir', captureDir,
     ...(s.stay_mode === 'bust' ? ['--agentic-complex-camera-framing', 'bust'] : []),
   ];

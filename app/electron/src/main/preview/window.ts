@@ -1,11 +1,11 @@
 // The preview in the main window: frames from the preview service go to the page with Electron's `sharedTexture`, and the preload
 // draws them into a canvas over the rect the page reported (src/preload/index.ts). A window gets one connection for its life;
 // closing it ends the connection.
-import { type BrowserWindow, sharedTexture } from 'electron';
+import { type BrowserWindow, screen, sharedTexture } from 'electron';
 import { BridgeFailure } from '../../common/bridge.ts';
 import type { PreviewRect } from '../ops/preview.ts';
 import type { PreviewView } from './controller.ts';
-import { PreviewSession, type PreviewSelection, type PreviewSurface, type PreviewTransport } from './session.ts';
+import { previewOutput, PreviewSession, type PreviewSelection, type PreviewSurface, type PreviewTransport } from './session.ts';
 
 /** The addon (native/mac/preview.m). */
 export interface PreviewAddon extends PreviewTransport<PreviewSurface> {
@@ -31,6 +31,7 @@ export class WindowPreview implements PreviewView {
   private win: BrowserWindow | null = null;
   private session: PreviewSession<PreviewSurface> | null = null;
   private shown = false;
+  private rect: PreviewRect | null = null;
   private readonly inFlight = new Set<PreviewSurface>();
 
   constructor(options: WindowPreviewOptions) {
@@ -45,12 +46,17 @@ export class WindowPreview implements PreviewView {
     if (win !== this.win) this.attach(win);
     win.webContents.send('preview:place', rect);
     this.shown = true;
+    this.rect = rect;
     this.session?.syncPlayback();
   }
 
+  /** Plays `selection` at the output the placed rect takes in device pixels, as the preload sizes its canvas. */
   async load(selection: PreviewSelection): Promise<boolean> {
     if (!this.session) return false;
-    await this.session.load(selection);
+    // A session lives while its window does.
+    const win = this.win!;
+    const scale = screen.getDisplayMatching(win.getBounds()).scaleFactor * win.webContents.getZoomFactor();
+    await this.session.load(this.rect ? { ...selection, output: previewOutput(this.rect, scale) } : selection);
     return true;
   }
 

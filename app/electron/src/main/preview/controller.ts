@@ -24,6 +24,8 @@ export interface PreviewControllerOptions {
   library(character: string): Promise<MotionLibrary | null>;
   /** The character's remembered mod settings by appearance (`avatar.modSettings.*`). */
   modSettings?(character: string): Record<string, Record<string, number>>;
+  /** The desktop renderer's lookArguments from the saved settings; absent leaves the service's own. */
+  renderArgs?(): string[];
 }
 
 const hostError = (text: string) => new BridgeFailure('failed', text);
@@ -32,6 +34,8 @@ export class PreviewController implements PreviewHost {
   private readonly options: PreviewControllerOptions;
   private readonly libraries = new Map<string, Promise<MotionLibrary | null>>();
   private request = 0;
+  /** What the view plays until the next hide. */
+  private shown: PreviewSelection | null = null;
 
   constructor(options: PreviewControllerOptions) {
     this.options = options;
@@ -68,14 +72,26 @@ export class PreviewController implements PreviewHost {
     }
     // The desktop's mod settings, so the preview draws her the same.
     const mods = this.options.modSettings?.(id) ?? {};
-    return this.options.view.load({ bundle: library.bundle, sha256: library.sha256, character: library.character, clip, facial: null,
+    const renderArgs = this.options.renderArgs?.();
+    this.shown = { bundle: library.bundle, sha256: library.sha256, character: library.character, clip, facial: null,
       rate: 1, appearance: avatar.appearance, request: revision, modSettings: Object.keys(mods).length > 0 ? mods : null,
-      loop: loop && clip !== null });
+      loop: loop && clip !== null, ...(renderArgs && { renderArgs }) };
+    return this.options.view.load(this.shown);
   }
 
   hide(): void {
     this.request += 1;
+    this.shown = null;
     this.options.view.hide();
+  }
+
+  /** Settings were saved: a shown preview whose render arguments changed loads again with the new ones. */
+  renderSettingsChanged(): void {
+    const renderArgs = this.options.renderArgs?.();
+    if (this.shown === null || renderArgs === undefined || JSON.stringify(renderArgs) === JSON.stringify(this.shown.renderArgs)) return;
+    this.shown = { ...this.shown, renderArgs };
+    // The session logs a failed load; nothing here waits on it.
+    this.options.view.load(this.shown).catch(() => {});
   }
 
   sequence(clips: string[], blendSeconds: number[]): Promise<void> {
