@@ -52,6 +52,7 @@ tree() {
     stub "$r/private/renderer-tests/scripts/host_link/run_host_link.sh" "host link: 3 passed, 0 failed" 0
     stub "$r/private/renderer-tests/scripts/host_link/run_host_link_electron.sh" "host link electron: 3 passed, 0 failed" 0
     stub "$r/private/renderer-tests/scripts/render_gate.sh" "render ok" 0
+    stub "$r/private/renderer/core/build.sh" "player core built" 0
     stub "$r/app/Tests/t5_watch.sh" "t5_watch PASS" 0
     web_stub "$r" none
     unit_module "$r/agent/agentd/tests/test_a.py" 2 True

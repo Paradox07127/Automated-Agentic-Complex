@@ -341,9 +341,12 @@ class LoadSuites(unittest.TestCase):
         self.assertEqual(doc['profiles']['dev']['empty_changes'], 'none')
 
     def test_release_is_commit_then_the_mac_profile(self):
-        # The private phases follow all public ones, so the merged release holds commit's and mac's suites, not their order.
+        # The private phases follow all public ones, so the merged release holds commit's and mac's suites, not their order;
+        # a suite both list (the player core build the swift suites require) runs once.
         doc = gate.load_suites()
-        self.assertEqual(sorted(profile_ids(doc, 'release')), sorted(profile_ids(doc, 'commit') + profile_ids(doc, 'mac')))
+        release = profile_ids(doc, 'release')
+        self.assertEqual(len(release), len(set(release)))
+        self.assertEqual(set(release), set(profile_ids(doc, 'commit')) | set(profile_ids(doc, 'mac')))
         public = gate.load_suites(gate.SUITES_FILE, private=gate.SUITES_FILE.with_name('absent-suites.json'))
         self.assertEqual(profile_ids(public, 'release'), profile_ids(public, 'commit') + profile_ids(public, 'mac'))
         for name in ('dev', 'commit', 'release'):
