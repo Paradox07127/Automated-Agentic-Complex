@@ -5,7 +5,7 @@ RUN rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources \
          echo "deb [check-valid-until=no] https://snapshot.ubuntu.com/ubuntu/20261101T000000Z/ $suite main universe"; \
        done > /etc/apt/sources.list \
     && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    build-essential ca-certificates ffmpeg git libsndfile1 python3 python3-venv \
+    build-essential ca-certificates ffmpeg git libsndfile1 python3 python3-dev python3-venv \
     && rm -rf /var/lib/apt/lists/*
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}" PYTHONUNBUFFERED=1
