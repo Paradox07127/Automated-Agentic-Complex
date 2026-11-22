@@ -177,18 +177,13 @@ describe('home disc', () => {
     expect(named()).toBe(false);
   });
 
-  it('turns the disc to 在做 and 今日, lists what runs and lands each count on 工业简报', async () => {
+  it('turns the disc to 在做 and lists what runs, with no 今日 page: the counts are on 每日简报', async () => {
     mount();
     const tabs = await screen.findByRole('tablist', { name: '圆盘' }, { timeout: 3000 });
-    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent?.replace(/\d+/g, ''))).toEqual(['待批准', '在做', '今日']);
+    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent?.replace(/\d+/g, ''))).toEqual(['待批准', '在做']);
     fireEvent.click(within(tabs).getByRole('tab', { name: /^在做/ }));
     const running = screen.getByRole('tabpanel', { name: '在做' });
     expect(within(running).getAllByRole('button', { name: /^(对话|任务|编码)：/ }).length).toBeGreaterThan(0);
-    fireEvent.click(within(tabs).getByRole('tab', { name: '今日' }));
-    const today = screen.getByRole('tabpanel', { name: '今日' });
-    expect(within(today).getAllByRole('button').map((b) => b.getAttribute('aria-label')?.split(' ')[0])).toEqual(['完成', '出错', '提醒', '交付']);
-    fireEvent.click(within(today).getByRole('button', { name: /^提醒 / }));
-    expect(window.location.hash).toMatch(/^#\/overview\?.*focus=reminders/);
   });
 
   it('turns the disc page by a sideways drag or trackpad swipe and ignores a vertical drag', async () => {
@@ -202,10 +197,10 @@ describe('home disc', () => {
     fireEvent.pointerDown(screen.getByRole('tabpanel'), { clientX: 200, clientY: 100 });
     fireEvent.pointerUp(screen.getByRole('tabpanel'), { clientX: 120, clientY: 110 });
     expect(page()).toBe('在做');
-    fireEvent.wheel(screen.getByRole('tabpanel'), { deltaX: 60, deltaY: 2 });
-    expect(page()).toBe('今日');
     fireEvent.pointerDown(screen.getByRole('tabpanel'), { clientX: 100, clientY: 100 });
     fireEvent.pointerUp(screen.getByRole('tabpanel'), { clientX: 200, clientY: 100 });
+    expect(page()).toBe('待批准');
+    fireEvent.wheel(screen.getByRole('tabpanel'), { deltaX: 60, deltaY: 2 });
     expect(page()).toBe('在做');
   });
 
@@ -268,17 +263,24 @@ describe('home disc', () => {
     await vi.waitFor(() => expect(card.textContent).toMatch(/制服.*60 FPS/));
   });
 
-  it('counts done on the task plaque as 今日 does, and shows no plaque before the runs are read', async () => {
-    mount();
-    const plaque = await screen.findByRole('button', { name: /^今日任务 完成 \d+ \/ \d+$/ }, { timeout: 3000 });
-    fireEvent.click(screen.getByRole('tab', { name: /^今日/ }));
-    const done = screen.getByRole('button', { name: /^完成 \d+$/ }).getAttribute('aria-label')!.split(' ')[1];
-    const failed = Number(screen.getByRole('button', { name: /^出错 \d+$/ }).getAttribute('aria-label')!.split(' ')[1]);
-    expect(failed).toBeGreaterThan(0);
-    expect(plaque.getAttribute('aria-label')).toMatch(new RegExp(`^今日任务 完成 ${done} /`));
-    cleanup();
+  it('counts no failed run as done on the task plaque, and shows no plaque before the runs are read', async () => {
     const bridge = getBridge();
     const real = bridge.agentd.request.bind(bridge.agentd);
+    const read = async () => (await screen.findByRole('button', { name: /^今日任务 完成 \d+ \/ \d+$/ }, { timeout: 3000 })).getAttribute('aria-label')!.match(/(\d+) \/ (\d+)$/)!.slice(1).map(Number);
+    mount();
+    const [done, total] = await read();
+    expect(done).toBeGreaterThan(0);
+    cleanup();
+    const failing = vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) => {
+      // A copy: the fake bridge hands out its shared fixtures.
+      const r = structuredClone(await real(method, path, body)) as { status: number; body: { runs?: Array<{ ended_at: number | null; state: string }> } };
+      if (path.startsWith('/agent/runs')) for (const run of r.body.runs ?? []) if (run.ended_at != null) run.state = 'failed';
+      return r as never;
+    });
+    mount();
+    expect(await read()).toEqual([0, total]);
+    cleanup();
+    failing.mockRestore();
     vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) =>
       path.startsWith('/agent/runs') ? new Promise<never>(() => {}) : await real(method, path, body),
     );

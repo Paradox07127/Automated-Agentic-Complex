@@ -23,7 +23,7 @@ import { CreateDialog } from '../tasks/CreateDialog';
 import { draftFor, type CreateDraft } from '../tasks/CreateForm';
 import { useToast } from '../../shell/toast';
 import { Banner, BottomBar, CharCard, Counters, type Conn, type NewsItem } from './Cards';
-import { Disc, type RunItem, type Today } from './Disc';
+import { Disc, type RunItem } from './Disc';
 import { BANNER, CARD, CLOSE, COUNTERS, leftTiles, rightTiles, STAGE, STATUS, TOP_ICONS } from './geometry';
 import { Contours, Floor } from './Terrain';
 import { CloseKey, Status } from './Top';
@@ -68,7 +68,7 @@ const ACTS: ReadonlyArray<Act<'dispatch' | 'search' | 'look' | 'quickInput' | 's
   { id: 'stopSpeech', icon: 'stop', title: '停止说话' },
 ];
 
-/** Run ends that count as 出错 on the disc's 今日 page. */
+/** Run ends that do not count as done on the disc's report. */
 const FAILED: ReadonlySet<string> = new Set(['failed', 'error', 'interrupted']);
 
 /** Viewing distance for the watch's tilt, in stage px. */
@@ -216,15 +216,6 @@ export function HomePage() {
               : { id: r.id, kind: '编码', title: r.session.title, sub: r.session.agent, go: () => go({ page: 'overview', sel: r.session.task_id ?? r.id }) },
         )
       : null;
-  const todayCounts: Today | null =
-    todayOn && q.data && runsRead
-      ? {
-          done,
-          failed: runs.filter((r) => FAILED.has(r.state)).length,
-          reminders: snap.reminders.filter((r) => r.due_at >= t0 && r.due_at < t0 + 86_400_000).length,
-          deliveries: snap.deliveries.filter((d) => d.produced_at >= t0).length,
-        }
-      : null;
   const doing = [snap.role?.app ? `正在看 ${snap.role.app}` : null, snap.role?.doing].filter(Boolean).join(' │ ');
 
   return (
@@ -258,7 +249,7 @@ export function HomePage() {
             )}
             </div>
             <div className={styles.layer} style={z(12)}>
-            <Disc title="待批准" urgent={today && q.data ? pending : []} report={report} running={runItems} today={todayCounts} act={act} go={go} />
+            <Disc title="待批准" urgent={today && q.data ? pending : []} report={report} running={runItems} act={act} go={go} />
             </div>
             <div className={styles.layer} style={z(40)} role="group" aria-label="主要页面">
               {left.map((t, i) => {

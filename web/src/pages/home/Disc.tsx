@@ -18,8 +18,6 @@ export interface DiscProps {
   report: Report | null;
   /** What runs now; null while neither 编码会话 nor 个人代理 is on. */
   running: readonly RunItem[] | null;
-  /** Today's counts; null while 日报与简报 is off. */
-  today: Today | null;
   act: {
     onApprove: (item: Approval, decision: 'allow' | 'deny' | 'allow_session', reason?: string) => void;
     onAnswer: (item: Question, label: '允许' | '拒绝') => void;
@@ -28,13 +26,13 @@ export interface DiscProps {
   go: Go;
 }
 
-/** Options one click can answer; a question with more, or several questions, is answered on 工业简报. */
+/** Options one click can answer; a question with more, or several questions, is answered on 每日简报. */
 const QUICK = 3;
 
 /** The first waiting item, decided here: an approval by 批准 / 拒绝, a one-question choice by its options. */
 function Focus({ item, act, go }: { item: PendingItem; act: DiscProps['act']; go: Go }) {
   const open = () => go({ page: 'overview', sel: item.id, focus: `item-${item.id}` });
-  // A call that hit a danger rule is not approved from here in one click: its card on 工业简报 shows the whole command.
+  // A call that hit a danger rule is not approved from here in one click: its card on 每日简报 shows the whole command.
   const danger = item.kind !== 'review' && item.dangerous ? dangerRuleText(item.danger_rule ?? '') : null;
   const one = item.kind === 'question' && item.interaction_kind === 'question' && item.questions.length === 1 ? item.questions[0] : undefined;
   return (
@@ -116,15 +114,7 @@ export interface RunItem {
   go: () => void;
 }
 
-/** Today's counts on the 今日 page; each opens 工业简报 at its place. */
-export interface Today {
-  done: number;
-  failed: number;
-  reminders: number;
-  deliveries: number;
-}
-
-type Tab = 'pending' | 'running' | 'today';
+type Tab = 'pending' | 'running';
 
 /** Rows the 在做 page lists before "另有 N 个". */
 const RUN_ROWS = 3;
@@ -155,26 +145,7 @@ function Running({ items, go }: { items: readonly RunItem[]; go: Go }) {
   );
 }
 
-function TodayCells({ today, go }: { today: Today; go: Go }) {
-  const cells: Array<[string, number, string]> = [
-    ['完成', today.done, 'tasks'],
-    ['出错', today.failed, 'tasks'],
-    ['提醒', today.reminders, 'reminders'],
-    ['交付', today.deliveries, 'tasks'],
-  ];
-  return (
-    <div className={styles.cells}>
-      {cells.map(([label, n, focus]) => (
-        <button key={label} type="button" className={styles.cell} data-alert={(label === '出错' && n > 0) || undefined} aria-label={`${label} ${n}`} onClick={() => go({ page: 'overview', focus })}>
-          <b className="num">{String(n).padStart(2, '0')}</b>
-          <span>{label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-const TAB_NAME: Record<Tab, string> = { pending: '待批准', running: '在做', today: '今日' };
+const TAB_NAME: Record<Tab, string> = { pending: '待批准', running: '在做' };
 
 /** A drag or trackpad swipe this far across the panel, in stage px, turns the page. */
 const SWIPE = 40;
@@ -183,12 +154,12 @@ const SWIPE_MS = 450;
 /** Sideways wheel events further apart than this many ms belong to separate gestures and do not add up. */
 const GESTURE_GAP_MS = 150;
 
-/** The centre disc over the map: tabs for what waits on the user, what runs and today's counts, over today's report. */
-export function Disc({ title, urgent, report, running, today, act, go }: DiscProps) {
-  const tabs: Tab[] = ['pending', ...(running ? (['running'] as const) : []), ...(today ? (['today'] as const) : [])];
+/** The centre disc over the map: tabs for what waits on the user and what runs, over today's report. */
+export function Disc({ title, urgent, report, running, act, go }: DiscProps) {
+  const tabs: Tab[] = ['pending', ...(running ? (['running'] as const) : [])];
   const [picked, setPicked] = useState<Tab | null>(null);
   const tab = picked && tabs.includes(picked) ? picked : urgent.length > 0 || !running?.length ? 'pending' : 'running';
-  const count: Record<Tab, number | null> = { pending: urgent.length, running: running?.length ?? null, today: null };
+  const count: Record<Tab, number | null> = { pending: urgent.length, running: running?.length ?? null };
   // dir: which way the last turn went, for the panel's slide; swiped: the last drag turned (or tried to turn) the page,
   // so the click it ends in is not a press; wheel: the swipe so far, when it last moved and when it last turned.
   const [dir, setDir] = useState<1 | -1>(1);
@@ -259,8 +230,6 @@ export function Disc({ title, urgent, report, running, today, act, go }: DiscPro
       >
         {tab === 'running' && running ? (
           <Running items={running} go={go} />
-        ) : tab === 'today' && today ? (
-          <TodayCells today={today} go={go} />
         ) : first ? (
           <>
             <Focus item={first} act={act} go={go} />

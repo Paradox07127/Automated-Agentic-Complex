@@ -64,9 +64,8 @@ test('activity review opens the original evidence, searches, and switches source
   await expect(row).toBeVisible();
   await activity.getByText('原始观察', { exact: true }).click();
   await expect(activity.getByText('本地重跑通过')).toBeVisible();
-  await activity.getByRole('button', { name: '日报与周报' }).click();
-  await expect(activity.getByRole('button', { name: '返回活动列表' })).toBeVisible();
-  await expect(activity.getByRole('button', { name: /^日报 │/ })).toBeVisible();
+  // The day and week briefs are on 每日简报, not here.
+  await expect(activity.getByRole('button', { name: '日报与周报' })).toHaveCount(0);
   expect(await overflow(page)).toEqual([0, 0]);
   expect(errors).toEqual([]);
 });

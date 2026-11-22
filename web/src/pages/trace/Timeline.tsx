@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useDemo } from '../../shell/demo';
-import { ActivityLine } from '../overview/ActivityLine';
 import { DayTimeline, EpisodeSheet } from '../overview/DayTimeline';
 import { useGo, useNow } from '../overview/nav';
 import type { TimelineEntry } from '../overview/today';
@@ -22,7 +21,7 @@ export function TraceTimeline() {
   };
   return (
     <>
-      <DayTimeline q={today.timeline} summaries={today.summaries} now={now} onOpen={open} right={<ActivityLine a={today.activity} />} />
+      <DayTimeline q={today.timeline} summaries={today.summaries} now={now} onOpen={open} />
       {ep && <EpisodeSheet ep={ep} onClose={() => setEp(null)} />}
     </>
   );

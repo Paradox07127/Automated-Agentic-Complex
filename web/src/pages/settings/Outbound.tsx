@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { CumulativeStep } from '../../charts';
 import { useWidth } from '../../charts/useWidth';
-import { clock } from './api';
+import { Btn } from '../../ui';
 import { useSettings } from './ctx';
-import { daySpan } from './diag';
 import { KERNEL_LABEL } from './fields';
 import { DESTS, OutboundMatrix, useOutboundRows, type Dest, type MatrixRow } from './OutboundMatrix';
 import rowStyles from './rows.module.css';
@@ -14,24 +12,10 @@ const DEST_LABEL: Record<Dest, string> = {
   cloud: '[云端]',
 };
 
-/** Quota level word for used + reserved against the daily limit. */
-export function quotaWord(used: number, reserved: number, limit: number): { text: string; tone: 'ok' | 'att' | 'dan' } {
-  const pct = limit > 0 ? (used + reserved) / limit : 0;
-  if (pct >= 1) return { text: '已用完', tone: 'dan' };
-  if (pct >= 0.9) return { text: '接近上限', tone: 'dan' };
-  if (pct >= 0.7) return { text: '偏高', tone: 'att' };
-  return { text: '正常', tone: 'ok' };
-}
-
-/** 外发总览 (隐私 group): a panel with two big figures, today's screenshots and the items sent out; [展开] shows today's screenshot quota as a cumulative step, screenshots per hour, the flow map and the route table. */
+/** 外发总览 (隐私 group): the way to today's screenshots on 每日简报 and the count of items sent out; [展开] shows the flow map and the route table. */
 export function OutboundPlate() {
-  const { diag, shots, model, hl } = useSettings();
+  const { diag, model, hl, goPage } = useSettings();
   const rows = useOutboundRows();
-  const s = diag.screenshots;
-  const now = clock();
-  const ev = shots ?? [];
-  const [t0, t1] = daySpan(ev, now);
-  const q = s ? quotaWord(s.used, s.reserved, s.limit) : null;
   const kernel = model.value('kernel');
   const sub: Record<Dest, string> = {
     local: '记忆 │ 本地模型',
@@ -47,17 +31,9 @@ export function OutboundPlate() {
         <span className={styles.cap}>当前配置的传输范围</span>
       </div>
       <div className={styles.figs}>
-        {s && (
+        {diag.screenshots && (
           <div className={styles.fig}>
-            <span className={styles.figName}>今日截图</span>{' '}
-            <span className={styles.figNum}>
-              <span className="num">{s.used}</span>
-              <small>
-                {' / '}
-                <span className="num">{s.limit}</span>
-              </small>
-            </span>{' '}
-            {q && <b data-tone={q.tone}>{q.text}</b>}
+            <Btn size="sm" variant="secondary" onClick={() => goPage({ page: 'overview' })}>在每日简报看今天的截图</Btn>
           </div>
         )}
         <div className={styles.fig}>
@@ -73,15 +49,6 @@ export function OutboundPlate() {
       </button>
       {open && (
         <div id="set-out-more" className={styles.unfolded}>
-          {s && (
-            <>
-              <CumulativeStep events={ev} t0={t0} t1={t1} now={now} limit={s.limit} reserve={s.reserved} h={96} label="今日截图" unit="张" st={shots == null ? 'error' : 'ok'} empty="今天还没有截图" />
-              <div className={styles.meta}>
-                进行中 <span className="num">{s.reserved}</span> │ 已退回 <span className="num">{s.released}</span> │ 本地日界
-              </div>
-            </>
-          )}
-          {shots && shots.length > 0 && <HourBars events={shots} now={now} />}
           <OutboundFlow rows={rows} sub={sub} redactions={red} />
           <details className={styles.more}>
             <summary>
@@ -93,27 +60,6 @@ export function OutboundPlate() {
         </div>
       )}
     </section>
-  );
-}
-
-/** Screenshots per hour today; only the current hour takes the accent. */
-function HourBars({ events, now }: { events: Array<{ t: number; kind: string }>; now: number }) {
-  const per = Array.from({ length: 24 }, () => 0);
-  for (const e of events) if (e.kind === 'ok') per[new Date(e.t).getHours()]! += 1;
-  const cur = new Date(now).getHours();
-  const max = Math.max(1, ...per);
-  return (
-    <div className={styles.hours}>
-      <span className={styles.cap}>按小时</span>
-      <span className={styles.bars} role="img" aria-label={`今天每小时截图次数，本小时 ${per[cur]} 张`}>
-        {per.map((n, h) => (
-          <i key={h} data-cur={h === cur || undefined} style={{ height: `${(n / max) * 100}%` }} title={`${String(h).padStart(2, '0')}:00 │ ${n} 张`} />
-        ))}
-      </span>
-      <span className={styles.cur}>
-        本小时 <span className="num">{per[cur]}</span> 张
-      </span>
-    </div>
   );
 }
 

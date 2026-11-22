@@ -3,7 +3,6 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { getBridge } from '../../bridge';
 import { get, seg } from '../../bridge/agentd';
 import { Btn, Dialog, ErrBar, Icon, Region, SearchField, Seg } from '../../ui';
-import { BriefsSec } from '../observe/BriefsSec';
 import { useGo } from './api';
 import { errorText } from './errors';
 import styles from './ActivityReview.module.css';
@@ -66,7 +65,6 @@ export function ActivityReview({ searchRef }: { searchRef: Ref<HTMLInputElement>
   const [draft, setDraft] = useState('');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Activity | null>(null);
-  const [briefs, setBriefs] = useState(false);
   const client = useQueryClient();
   const go = useGo();
   const list = useInfiniteQuery({
@@ -104,10 +102,6 @@ export function ActivityReview({ searchRef }: { searchRef: Ref<HTMLInputElement>
   const entries = [...new Map(list.data?.pages.flatMap((p) => p.items.map((item) => [item.id, item] as const))).values()];
   return (
     <section className={styles.review} aria-label="活动回顾">
-      <header className={styles.header}>
-        <Btn variant="secondary" onClick={() => setBriefs(!briefs)}>{briefs ? '返回活动列表' : '日报与周报'}</Btn>
-      </header>
-      {briefs ? <BriefsSec no="01" /> : <>
       <div className={styles.tools}>
         <Seg label="记录类型" value={kind} onChange={(value) => setKind(value as SourceKind)} options={[
           { value: 'work_events', label: '工作片段' },
@@ -157,7 +151,6 @@ export function ActivityReview({ searchRef }: { searchRef: Ref<HTMLInputElement>
       </Region>
       {list.hasNextPage && <Btn variant="secondary" loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>加载更早的活动</Btn>}
       {selected && <ActivityDetail key={selected.id} item={selected} onClose={() => setSelected(null)} />}
-      </>}
     </section>
   );
 }

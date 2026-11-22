@@ -1,16 +1,14 @@
 // 今天 reads on top of useOverview: the work memory (L1 / L2 / L3) first, today's own reads when a route fails or
-// returns nothing, and the three attention reads of the activity line.
+// returns nothing.
 import { useQuery } from '@tanstack/react-query';
 import { get } from '../../bridge/agentd';
 import type { MemoryDaysResponse, MemorySessionsResponse } from '../../bridge/agentd-routes.generated';
-import { fromAttention, type WireAttention } from '../../domain';
 import type { DemoState } from '../../shell/demo';
 import type { RegionSource } from '../../ui';
-import { KEY } from '../observe/data';
 import { clock, dayOf, readDay } from './load';
 import { loadBrief } from './loadBrief';
 import { joined } from './regions';
-import { activityOf, dayLineFromL3, summaryText, timelineFromDay, timelineFromL1, type ActivitySummary, type DayLine, type TimelineEntry, type WireDaySummary, type WireSessionSummary } from './today';
+import { dayLineFromL3, summaryText, timelineFromDay, timelineFromL1, type DayLine, type TimelineEntry, type WireDaySummary, type WireSessionSummary } from './today';
 import type { useOverview } from './useOverview';
 
 type Overview = ReturnType<typeof useOverview>;
@@ -38,7 +36,6 @@ export interface TodayReads {
   /** Undefined while it is read. */
   dayLine: DayLine | null | undefined;
   daySummary: WireDaySummary | null;
-  activity: ActivitySummary | null;
 }
 
 /** `day` is the `day=` URL value; anything but YYYY-MM-DD reads today. */
@@ -68,11 +65,6 @@ export function useToday(ov: Overview, demo: string | null, state: DemoState | n
   const otherDay = reads && !isToday;
   const ob = useQuery({ queryKey: ['today', demo, 'brief', day], queryFn: () => loadBrief(noonOf(day)), enabled: otherDay, ...once });
   const os = useQuery({ queryKey: ['today', demo, 'segments', day], queryFn: () => readDay(demo, noonOf(day)), enabled: otherDay, ...once });
-  const att = useQuery({
-    queryKey: KEY.attention,
-    queryFn: async () => fromAttention(await get<WireAttention>('/attention/summary?by=app'), await get<WireAttention>('/attention/summary?by=domain')),
-    enabled: reads && isToday,
-  });
 
   const briefRead = isToday ? ov.reads.brief : ob;
   const segRead = isToday ? ov.reads.day : os;
@@ -101,6 +93,5 @@ export function useToday(ov: Overview, demo: string | null, state: DemoState | n
     summaries: l1Rows ?? [],
     dayLine: l3Line === undefined ? undefined : (l3Line ?? local),
     daySummary: days?.find((d) => d.date === day && d.period === 'day') ?? null,
-    activity: !off && att.data ? activityOf(att.data) : null,
   };
 }

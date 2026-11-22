@@ -51,14 +51,12 @@ test('an episode link opens that episode on 今天, with 删除片段 and 排除
   expect(errors).toEqual([]);
 });
 
-test('the activity line on 运行记录 › 今日时间线 opens today’s foreground time and sites', async ({ page }) => {
+test('运行记录 › 今日时间线 carries no foreground and site counts: they are on 每日简报', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/trace?still=1');
   await page.getByRole('tab', { name: '今日时间线' }).click();
-  await page.getByRole('button', { name: /^前台 / }).click();
-  const sheet = page.getByRole('dialog', { name: '今天的前台与网站' });
-  await expect(sheet.getByRole('region', { name: '前台时长' })).toContainText('Terminal');
-  await expect(sheet.getByRole('region', { name: '浏览器与网站' })).toContainText('developer.apple.com');
+  await expect(page.locator('section[aria-label="今日时间线"]')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^前台 / })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

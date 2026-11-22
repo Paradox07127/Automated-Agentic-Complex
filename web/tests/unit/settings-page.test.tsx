@@ -9,7 +9,6 @@ import { oldWordHits } from '../../scripts/check-copy.mjs';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { PAGE_KEYS } from '../../src/pages/settings/groups/Keys';
-import { quotaWord } from '../../src/pages/settings/Outbound';
 import { daySpan } from '../../src/pages/settings/diag';
 import { pageRoutes } from '../../src/shell/registry';
 import { pluginsOn, pluginsReset } from './plugins';
@@ -36,23 +35,29 @@ afterEach(() => {
 });
 
 describe(' 隐私: 外发总览 plate', () => {
-  it('opens as a panel of two figures and one fold, so the first setting row is on the first screen', async () => {
+  it('opens as a panel of the way to 每日简报, one figure and one fold, so the first setting row is on the first screen', async () => {
     await mount('');
     const plate = await screen.findByRole('region', { name: '外发总览' });
-    expect(within(plate).getByText('正常')).toBeTruthy();
-    expect(plate.textContent).toMatch(/今日截图 37 \/ 200 正常允许送往云端的类型 \d 项展开/);
-    expect(within(plate).getAllByRole('button')).toHaveLength(1);
+    expect(plate.textContent).toMatch(/^外发总览当前配置的传输范围在每日简报看今天的截图允许送往云端的类型 \d 项展开$/);
+    expect(within(plate).getAllByRole('button')).toHaveLength(2);
     expect(within(plate).queryByRole('img')).toBeNull();
     expect(screen.getByRole('button', { name: '暂停 1 小时' })).toBeTruthy();
   });
 
-  it('draws today\'s screenshots, the hours, the flow map and the route table under [展开]', async () => {
+  it('counts no screenshots of its own: its button lands on 每日简报', async () => {
+    await mount('');
+    const plate = await screen.findByRole('region', { name: '外发总览' });
+    window.location.hash = '';
+    fireEvent.click(within(plate).getByRole('button', { name: '在每日简报看今天的截图' }));
+    expect(window.location.hash).toMatch(/^#\/overview\?/);
+  });
+
+  it('draws the flow map and the route table under [展开], and no screenshot chart', async () => {
     await mount('');
     const plate = await screen.findByRole('region', { name: '外发总览' });
     await act(async () => fireEvent.click(within(plate).getByRole('button', { name: '展开' })));
-    expect(await within(plate).findByRole('img', { name: '今日截图：已用 37 张，上限 200，预留 1，已拦截 3 次' })).toBeTruthy();
-    expect(within(plate).getByRole('img', { name: '今天每小时截图次数，本小时 17 张' })).toBeTruthy();
-    expect(within(plate).getByRole('img', { name: /^外发流向：/ })).toBeTruthy();
+    expect(await within(plate).findByRole('img', { name: /^外发流向：/ })).toBeTruthy();
+    expect(within(plate).getAllByRole('img')).toHaveLength(1);
     expect(within(plate).getByRole('grid', { name: '外发' })).toBeTruthy();
     expect(screen.getByRole('switch', { name: '附上截图' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '固定规则' })).toBeTruthy();
@@ -66,13 +71,6 @@ describe(' 隐私: 外发总览 plate', () => {
     expect(route).not.toBeNull();
     await act(async () => fireEvent.click(route!));
     expect(document.querySelector('[data-row="shot"] [data-stub="SRow"], #set-shot')).not.toBeNull();
-  });
-
-  it('words the quota', () => {
-    expect(quotaWord(37, 1, 200).text).toBe('正常');
-    expect(quotaWord(150, 0, 200).text).toBe('偏高');
-    expect(quotaWord(185, 0, 200).text).toBe('接近上限');
-    expect(quotaWord(200, 0, 200).text).toBe('已用完');
   });
 
   it('spans the day from 08:00 to 23:00 unless an event is earlier', () => {

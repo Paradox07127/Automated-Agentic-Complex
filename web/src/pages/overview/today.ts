@@ -1,6 +1,6 @@
 // 今天 view types, the work-memory (L1 / L2 / L3) views, and the fallbacks built from today's existing reads.
 import type { MemoryDaysResponse, MemorySessionsResponse } from '../../bridge/agentd-routes.generated';
-import { formatDuration, secToMs, unhidden, type AppTime, type AttentionSummary, type Session } from '../../domain';
+import { secToMs, unhidden, type Session } from '../../domain';
 import { uuidOf } from '../tasks/board';
 import { parseTasksParams, type TasksParams } from '../tasks/params';
 import { codeCounts, nextReminder, reminderTime } from './briefModel';
@@ -27,13 +27,6 @@ export interface DayLine {
   text: string;
   origin: 'l3' | 'local';
   at: number | null;
-}
-
-export interface ActivitySummary {
-  activeS: number | null;
-  topApp: string | null;
-  topAppS: number | null;
-  webMin: number | null;
 }
 
 export interface TodayParams extends Pick<TasksParams, 'sel' | 'open' | 'create'> {
@@ -126,20 +119,4 @@ export function timelineFromDay(episodes: readonly DayEpisode[], segments: WireD
     out.push({ id: `conv:${c.id}`, t0, t1, title: short(c.title), source: 'chat', taskId: null, open: { conv: c.id }, origin: 'conv' });
   }
   return out.sort(byNewest);
-}
-
-/** The server's own rest bucket in `/attention/summary`. */
-const REST = '其他';
-
-export function activityOf(att: { summary: AttentionSummary; apps: readonly AppTime[]; hosts: readonly AppTime[] }): ActivitySummary {
-  const top = att.apps.filter((a) => a.app !== REST).sort((a, b) => b.seconds - a.seconds)[0];
-  const web = att.hosts.reduce((n, h) => n + h.seconds, 0);
-  return { activeS: att.summary.active_s, topApp: top ? unhidden(top.app) : null, topAppS: top?.seconds ?? null, webMin: att.hosts.length ? Math.round(web / 60) : null };
-}
-
-/** 前台 4 小时 27 分 · 最多 Terminal · 网站 48 分; an unread part reads —. */
-export function activityText(a: ActivitySummary | null): string {
-  const fg = a?.activeS != null ? formatDuration(a.activeS * 1000) : '—';
-  const web = a?.webMin != null ? formatDuration(a.webMin * 60_000) : '—';
-  return `前台 ${fg} │ 最多 ${a?.topApp ?? '—'} │ 网站 ${web}`;
 }

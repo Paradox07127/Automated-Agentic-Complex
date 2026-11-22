@@ -13,27 +13,25 @@ function collectErrors(page: Page): string[] {
 
 const noOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
-test('privacy: the outbound panel shows two big figures and one fold; [展开] shows the screenshot chart, hours, flow map and detail table', async ({ page }) => {
+test('privacy: the outbound panel shows the way to 每日简报, one big figure and one fold; [展开] shows the flow map and detail table', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/settings?plugins=all&still=1');
   const plate = page.getByRole('region', { name: '外发总览' });
   await expect(plate).toBeVisible();
-  await expect(plate).toContainText(/今日截图\s*37 \/ 200\s*正常\s*允许送往云端的类型\s*\d 项/);
-  // A raised panel, not a grey slab; the two figures are large tabular numbers.
+  await expect(plate).toContainText(/在每日简报看今天的截图\s*允许送往云端的类型\s*\d 项/);
+  // A raised panel, not a grey slab; the figure is a large tabular number.
   expect(await plate.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe('1px');
   const figs = await plate.locator('.num').evaluateAll((els) =>
     els.filter((el) => el.parentElement?.tagName !== 'SMALL').map((el) => ({ text: el.textContent, size: parseFloat(getComputedStyle(el).fontSize), nums: getComputedStyle(el).fontVariantNumeric })),
   );
-  expect(figs.map((f) => f.text)).toEqual(['37', expect.stringMatching(/^\d$/)]);
+  expect(figs.map((f) => f.text)).toEqual([expect.stringMatching(/^\d$/)]);
   for (const f of figs) {
     expect(f.size).toBeGreaterThanOrEqual(28);
     expect(f.nums).toContain('tabular-nums');
   }
-  await expect(plate.getByRole('button')).toHaveCount(1);
+  await expect(plate.getByRole('button')).toHaveCount(2);
   await expect(page.locator('[data-row="pause"]')).toBeInViewport();
   await plate.getByRole('button', { name: '展开' }).click();
-  await expect(plate.getByRole('img', { name: '今日截图：已用 37 张，上限 200，预留 1，已拦截 3 次' })).toBeVisible();
-  await expect(plate.getByRole('img', { name: '今天每小时截图次数，本小时 17 张' })).toBeVisible();
   await expect(plate.locator('svg[aria-label^="外发流向"]')).toBeVisible();
   await expect(page.getByRole('button', { name: '暂停 1 小时' })).toBeVisible();
   await plate.getByText('读取范围与目的地').click();

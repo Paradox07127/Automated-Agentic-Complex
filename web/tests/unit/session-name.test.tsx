@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { fromSession, sessionName, unhidden, type WireSession } from '../../src/domain';
 import { EpisodeDetail } from '../../src/pages/observe/EpisodeDetail';
-import { activityOf, activityText, timelineFromDay } from '../../src/pages/overview/today';
+import { timelineFromDay } from '../../src/pages/overview/today';
 import { readPresence } from '../../src/surfaces/desktop/tags/presence';
 
 afterEach(cleanup);
@@ -38,11 +38,9 @@ describe('blacklisted windows', () => {
     expect(unhidden('Terminal')).toBe('Terminal');
   });
 
-  it('today: the timeline and the activity line never show <hidden>', () => {
+  it('today: the timeline never shows <hidden>', () => {
     const entries = timelineFromDay([{ id: '1', t0: 1, t1: 2, app: '<hidden>', title: '<hidden> 里的工作' }], null, [], [], 3);
     expect(entries.map((e) => e.title)).toEqual(['已排除的应用 里的工作']);
-    const act = activityOf({ summary: { active_s: 60, afk_s: 0, unknown_s: 0 } as never, apps: [{ app: '<hidden>', seconds: 50 }], hosts: [] });
-    expect(activityText(act)).toContain('最多 已排除的应用');
   });
 
   it('EpisodeDetail: the selected segment shows the placeholder as words', () => {
