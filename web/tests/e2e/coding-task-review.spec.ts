@@ -63,16 +63,16 @@ for (const theme of THEMES) {
     expect(errors).toEqual([]);
   });
 
-  test(`${theme}: chat composer offers 附加窗口 and 本轮不记录`, async ({ page }) => {
+  test(`${theme}: the chat composer's ＋ menu turns on 这句不记 for one line`, async ({ page }) => {
     const errors = collectErrors(page);
     await open(page, '/chat', theme);
-    const noMem = page.getByRole('button', { name: '本轮不记录' });
-    await noMem.click();
-    await expect(noMem).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: '附加' }).click();
+    await page.getByRole('menu').getByText('这句不记').click();
+    const chip = page.getByRole('button', { name: '取消这句不记' });
+    await expect(chip).toBeVisible();
     await page.locator('textarea[aria-label="消息"]').fill('这句不用记');
     await page.getByRole('button', { name: /发送/ }).click();
-    await expect(page.getByText('这次只读，不记入历史')).toBeVisible();
-    await expect(noMem).toHaveAttribute('aria-pressed', 'false');
+    await expect(chip).toHaveCount(0);
     await shot(page, 'composer', theme);
     expect(errors).toEqual([]);
   });
