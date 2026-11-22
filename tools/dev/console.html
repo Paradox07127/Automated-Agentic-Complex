@@ -333,13 +333,24 @@ async function refresh() {
   }
 }
 
+const atBottom = (pre) => pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
+
+// Text selected in the log, or a view scrolled up from the end: the log stays as it is, so it can be read and copied.
+function held() {
+  const pre = $('log'), selection = getSelection();
+  return !atBottom(pre) || (!selection.isCollapsed && pre.contains(selection.anchorNode));
+}
+
 function renderLog() {
   const pre = $('log'), text = logText ?? '';
   const needle = $('filter').value.trim().toLowerCase(), problems = $('problems').getAttribute('aria-pressed') === 'true';
   const key = `${shown}\n${needle}\n${problems}\n${text.length}\n${text.slice(-200)}`;
   if (key === rendered) return;
+  if (!toEnd && held()) {
+    $('latest').style.display = 'block';
+    return;
+  }
   rendered = key;
-  const atEnd = toEnd || pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
   toEnd = false;
   const lines = text.split('\n');
   if (lines.at(-1) === '') lines.pop();
@@ -365,8 +376,8 @@ function renderLog() {
   pre.innerHTML = html.join('');
   pre.classList.toggle('bare', !stamped);
   $('count').textContent = needle || problems ? `${shownLines} / ${lines.length} 行` : `${lines.length} 行`;
-  if (atEnd) pre.scrollTop = pre.scrollHeight;
-  $('latest').style.display = atEnd ? 'none' : 'block';
+  pre.scrollTop = pre.scrollHeight;
+  $('latest').style.display = 'none';
 }
 
 async function refreshLog() {
@@ -385,10 +396,20 @@ $('problems').onclick = (e) => {
   renderLog();
 };
 $('log').onscroll = () => {
-  const pre = $('log');
-  $('latest').style.display = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4 ? 'none' : 'block';
+  if (atBottom($('log'))) {
+    $('latest').style.display = 'none';
+    renderLog();
+  } else {
+    $('latest').style.display = 'block';
+  }
 };
-$('latest').onclick = () => { $('log').scrollTop = $('log').scrollHeight; $('latest').style.display = 'none'; };
+document.addEventListener('selectionchange', () => renderLog());
+$('latest').onclick = () => {
+  getSelection().removeAllRanges();
+  $('log').scrollTop = $('log').scrollHeight;
+  $('latest').style.display = 'none';
+  renderLog();
+};
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-copy]');
   if (el?.dataset.copy) navigator.clipboard.writeText(el.dataset.copy).then(() => toast(`已复制 ${el.dataset.copy}`, true));
