@@ -224,6 +224,31 @@ class MotionSettingsTest(unittest.TestCase):
         self.assertEqual(chooser.pool("click.single"), [("tap", 1), ("nod", 1)])
         self.assertTrue({"nod", "shrug", "crouch"} <= self.clips(chooser))
 
+    def test_a_seated_pool_takes_a_clip_that_returns_to_the_seat_loop(self):
+        """A seated detour plays back to the loop it left, so the seat loop's exit to standing does not count."""
+        def edit(name, change):
+            path = self.pack / name
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            change(doc)
+            path.write_text(json.dumps(doc), encoding="utf-8")
+        added = [{"name": c, "length": 1.0, "loop": False} for c in ("sit_fidget", "sit_exit", "sit_doze")]
+        edit("actor/manifest.json", lambda d: d["clips"].extend(added))
+        edit("c7/animation/palette-contract.json", lambda d: d["clips"].extend(
+            [{"name": "sit_fidget", "loop": False, "auto_return_clip": "sit_loop"}, {"name": "sit_exit", "loop": False},
+             {"name": "sit_doze", "loop": False}]))
+        edit("c7/animation/intent-motion-map.json", lambda d: d["clips"].update(
+            sit_loop={"exit": "sit_exit", "interruptible": True}, sit_doze={"next": "sit_exit", "interruptible": True}))
+        edit("c7/interaction/motion-metadata.json", lambda d: d["clips"].update(
+            sit_fidget={"stance_start": "sit", "stance_end": "sit"},
+            sit_doze={"stance_start": "sit", "stance_end": "sit"},
+            sit_exit={"stance_start": "sit", "stance_end": "stand"}))
+        chooser = MotionChooser(self.pack)
+        fidget = {"session.done@sit": [{"clip": "sit_fidget", "weight": 1}]}
+        self.assertEqual(chooser.set_motion_overrides({}, fidget, {}), [])
+        # A clip whose own chain stands up still may not draw.
+        self.assertEqual(chooser.set_motion_overrides({}, {"rest.sleep@sit": [{"clip": "sit_doze", "weight": 1}]}, {}),
+                         [{"kind": "pool", "key": "rest.sleep@sit", "reason": "no_return"}])
+
     def test_blend_in_is_the_clip_s_crossfade_in(self):
         chooser = MotionChooser(self.pack)
         self.assertEqual(chooser.set_motion_overrides({}, {}, {"wave": 1.5, "ghost": 1.0}),

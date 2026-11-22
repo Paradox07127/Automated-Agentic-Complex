@@ -614,15 +614,18 @@ class MotionChooser:
         """The reason the first clip a pool in `posture` may not draw fails, None when it may draw them all. A clip passes
         when it is in the archive, starts in that posture, starts and comes to rest outside the excluded pose families,
         and its chain comes to rest in that posture, standing on a base family; an unbridged library clip skips the
-        family checks."""
+        family checks. A grounded posture's detour plays back to the loop it left, so there its own chain is checked,
+        not a held loop's exit."""
         p, f = self.pack, self.pack.families
+        grounded = posture != "stand" and posture not in LIFTED
         for c in clips:
             if c not in p.rules or c not in p.lengths:
                 return "unknown_clip"
             start = p.stances[c][0] if c in p.stances else "stand"
             if (start if start in POSTURES else "stand") != posture:
                 return "stance_mismatch"
-            rest, bridged = p.rest_clip(c), not (p.library.get(c) or {}).get("unbridged")
+            rest = p.chain(c)[-1] if grounded else p.rest_clip(c)
+            bridged = not (p.library.get(c) or {}).get("unbridged")
             if f and bridged and (posture == "stand" or posture in LIFTED) and any(
                     x in EXCLUDED_FAMILIES for x in (f.clips[c][0] if c in f.clips else None,
                                                      f.clips[rest][1] if rest in f.clips else None)):
