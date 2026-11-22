@@ -173,6 +173,8 @@ export interface LinkOptions {
   onCameraGesture?(g: CameraGesture): void;
   /** Lists `touch`; read at each hello that lists it, and by touchSettingsChanged. */
   touchSettings?(): TouchSettings;
+  /** Each `set_action_switches` and `set_motion_overrides` written, with the character it is for. */
+  onMotionSettings?(character: string): void;
   /** Listed after the others, for a caller that sends their messages. */
   offers?: readonly OfferedCapability[];
 }
@@ -977,6 +979,9 @@ export class HostLink {
     c.out.push({ line, key, bytes });
     c.outBytes += bytes;
     this.flush(c);
+    if (m.type === 'set_action_switches' || m.type === 'set_motion_overrides') {
+      this.options.onMotionSettings?.(m.character as string);
+    }
     return true;
   }
 

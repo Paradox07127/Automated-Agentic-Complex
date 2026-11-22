@@ -1,4 +1,4 @@
-"""POST /character and the switch, GET /character/state/history, PUT /avatar/visibility and /character/state/switch, POST /behavior/receipts, /behavior/motion_state and /interaction/record."""
+"""POST /character and the switch, GET /character/state/history, PUT /avatar/visibility, /character/state/switch and /behavior/motion_prefs, POST /behavior/receipts, /behavior/motion_state and /interaction/record."""
 from brain.outbound import OutboundBlocked
 import c1
 from character.desk_log import COUNTED
@@ -14,6 +14,34 @@ def _motion_state_ok(body):
         and (_id64(body["behavior_id"]) or body["behavior_id"] is None and body["origin"] == "local") \
         and body["phase"] in c1.MOTION_STATE_PHASES and isinstance(body["resting"], bool) \
         and isinstance(body["busy"], bool) and _id64(body["clip"])
+
+
+def _key(value):
+    """C3 rule 51 (j): a chain key, pool key or clip name."""
+    return isinstance(value, str) and 0 < len(value.encode()) <= 128
+
+
+def _table(value, limit, ok):
+    return isinstance(value, dict) and len(value) <= limit and all(_key(k) and ok(v) for k, v in value.items())
+
+
+def _pool_ok(rows):
+    return isinstance(rows, list) and 1 <= len(rows) <= 64 and all(
+        isinstance(r, dict) and set(r) == {"clip", "weight"} and _key(r["clip"]) and type(r["weight"]) is int
+        and 1 <= r["weight"] <= 100000 for r in rows) and len({r["clip"] for r in rows}) == len(rows)
+
+
+def _motion_prefs_ok(body):
+    """{character_id, action_switches, motion_overrides}: C3 rule 28's switch table and rule 51's overrides within its
+    (j) limits."""
+    if not isinstance(body, dict) or set(body) != {"character_id", "action_switches", "motion_overrides"}:
+        return False
+    o = body["motion_overrides"]
+    is_bool = lambda v: isinstance(v, bool)  # noqa: E731
+    return _id64(body["character_id"]) and _table(body["action_switches"], 128, is_bool) \
+        and isinstance(o, dict) and set(o) == {"chains", "pools", "blend_in"} and _table(o["chains"], 512, is_bool) \
+        and _table(o["pools"], 64, _pool_ok) and _table(o["blend_in"], 512, lambda v: isinstance(v, (int, float))
+                                                        and not isinstance(v, bool) and 0 <= v <= 2)
 
 
 class CharacterMixin:
@@ -108,6 +136,23 @@ class CharacterMixin:
         self.send_response(204)
         self.send_header("Content-Length", "0")
         self.end_headers()
+
+    def _motion_prefs_put(self):
+        """PUT /behavior/motion_prefs: the current character's action switches and motion overrides as the
+        Companion's config.json keeps them; her chooser holds them until the next character switch."""
+        try:
+            body = self._body()
+        except ValueError:
+            return self._json(400, {"error": "invalid_motion_prefs"})
+        if not _motion_prefs_ok(body):
+            return self._json(400, {"error": "invalid_motion_prefs"})
+        with self.server._switch_lock:  # a commit swaps her chooser under it
+            if body["character_id"] != self.server.character:
+                return self._json(409, {"error": "character_changed"})
+            reply = self.server.spatial.set_motion_prefs(body["action_switches"], body["motion_overrides"])
+        if reply is None:
+            return self._json(409, {"error": "no_motion"})
+        self._json(200, {"character_id": body["character_id"], **reply})
 
     def _record(self, body):
         """POST /interaction/record {kind}: one touch of hers or greeting for the daily brief, forwarded by the Companion."""

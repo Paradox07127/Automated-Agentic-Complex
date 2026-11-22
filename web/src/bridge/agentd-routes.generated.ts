@@ -197,6 +197,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'PUT', path: '^/characters/([a-z0-9_-]{1,64})/binding$', templates: ['/characters/:character_id/binding'], class: 'write', surfaces: ['main'] },
   { method: 'PUT', path: '/context/activity', templates: ['/context/activity'], class: 'write', surfaces: ['main'], plugin: 'screen_awareness' },
   { method: 'PUT', path: '/behavior/capabilities', templates: ['/behavior/capabilities'], class: 'host_only', surfaces: [] },
+  { method: 'PUT', path: '/behavior/motion_prefs', templates: ['/behavior/motion_prefs'], class: 'host_only', surfaces: [] },
   { method: 'PUT', path: '/behavior/switches', templates: ['/behavior/switches'], class: 'native_only', surfaces: [] },
   { method: 'PUT', path: '/avatar/visibility', templates: ['/avatar/visibility'], class: 'host_only', surfaces: [] },
   { method: 'PUT', path: '/character/state/switch', templates: ['/character/state/switch'], class: 'native_only', surfaces: [] },
@@ -276,12 +277,12 @@ export type AgentdRouteKey =
   | 'POST /agent/jobs' | `POST /agent/jobs/${string}/cancel` | `POST /agent/jobs/${string}/resume`
   | 'PUT /observation/paused' | 'PUT /observation/meeting' | 'PUT /observation/quiet' | 'PUT /proactive/mutes'
   | 'PUT /proactive/settings' | 'PUT /motion/settings' | `PUT /characters/${string}/binding` | 'PUT /context/activity'
-  | 'PUT /behavior/capabilities' | 'PUT /behavior/switches' | 'PUT /avatar/visibility' | 'PUT /character/state/switch'
-  | 'PUT /memory/paused' | `PUT /conversations/${string}` | `PUT /sessions/${string}` | 'PUT /character/runtime'
-  | `PATCH /episodes/${string}` | `PATCH /memory/facts/${string}` | 'DELETE /attention' | 'DELETE /focus'
-  | 'DELETE /history' | 'DELETE /memory' | 'DELETE /observation' | 'DELETE /blacklist' | 'DELETE /character/state'
-  | `DELETE /memory/facts/${string}` | `DELETE /context/items/${string}` | `DELETE /episodes/${string}`
-  | `DELETE /conversations/${string}` | `DELETE /sessions/${string}`;
+  | 'PUT /behavior/capabilities' | 'PUT /behavior/motion_prefs' | 'PUT /behavior/switches' | 'PUT /avatar/visibility'
+  | 'PUT /character/state/switch' | 'PUT /memory/paused' | `PUT /conversations/${string}` | `PUT /sessions/${string}`
+  | 'PUT /character/runtime' | `PATCH /episodes/${string}` | `PATCH /memory/facts/${string}` | 'DELETE /attention'
+  | 'DELETE /focus' | 'DELETE /history' | 'DELETE /memory' | 'DELETE /observation' | 'DELETE /blacklist'
+  | 'DELETE /character/state' | `DELETE /memory/facts/${string}` | `DELETE /context/items/${string}`
+  | `DELETE /episodes/${string}` | `DELETE /conversations/${string}` | `DELETE /sessions/${string}`;
 
 /** protocol/C6-agentd-api/fixtures/health.json */
 export interface HealthResponse { status: string; degraded: string[]; c6_contract: string }

@@ -8,6 +8,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { storedSwitches } from '../src/common/looks.ts';
 import { AgentdClient } from '../src/main/agentd/client.ts';
 import { HostLink } from '../src/main/renderer/link.ts';
 import { type ReportPorts, rendererReports } from '../src/main/renderer/reports.ts';
@@ -26,7 +27,8 @@ const UNIX_LINK = process.platform === 'win32' ? "the fake avatar connects to th
 
 type Call = [string, string, unknown];
 
-function setup(f: { status?: (method: string, path: string) => number; running?: boolean; settings?: Record<string, unknown> } = {}) {
+function setup(f: { status?: (method: string, path: string) => number; running?: boolean; settings?: Record<string, unknown>;
+  body?: (path: string) => unknown; } = {}) {
   const calls: Call[] = [], log: string[] = [], companion: string[] = [], strokes: string[] = [], waits: number[] = [];
   const state = { running: f.running ?? true, settings: f.settings ?? {} };
   const ports: ReportPorts = {
@@ -34,7 +36,8 @@ function setup(f: { status?: (method: string, path: string) => number; running?:
       calls.push([method, path, json]);
       const status = f.status?.(method, path) ?? 200;
       if (status < 0) throw new Error('agentd is unreachable');
-      return { status };
+      const body = f.body?.(path);
+      return body === undefined ? { status } : { status, body: Buffer.from(JSON.stringify(body)) };
     } },
     agentdRunning: () => state.running,
     settings: () => state.settings,
@@ -72,10 +75,11 @@ test('each playback goes to POST /speech/playback as given; only a status other 
 
 test('a list\'s behavior capabilities go to PUT /behavior/capabilities once per agentd run, again when they change', async () => {
   const { reports, calls } = setup();
+  const capabilities = () => calls.filter((c) => c[1] === '/behavior/capabilities');
   const put = (caps: unknown) => ['PUT', '/behavior/capabilities', { character_id: 'aster', capabilities: caps }];
   reports.linkEvent(actions({ short_walk: null, 'sit@window': '没有坐姿' }));
-  assert.ok(await until(1, () => calls.length === 1));
-  assert.deepEqual(calls[0], put({ short_walk: null, 'sit@window': '没有坐姿' }));
+  assert.ok(await until(1, () => capabilities().length === 1));
+  assert.deepEqual(capabilities()[0], put({ short_walk: null, 'sit@window': '没有坐姿' }));
   // The same table again, a list with an error, without the field or with an invalid one: nothing.
   reports.linkEvent(actions({ 'sit@window': '没有坐姿', short_walk: null }));
   reports.linkEvent(actions({ short_walk: null }, { error: 'not_ready' }));
@@ -83,7 +87,7 @@ test('a list\'s behavior capabilities go to PUT /behavior/capabilities once per 
   reports.linkEvent(actions({ short_walk: true }));
   reports.linkEvent({ kind: 'message', message: { v: 1, type: 'stats', fps: 60, frame_ms_p95: null, gpu_ms: null } });
   await sleep(0.05);
-  assert.equal(calls.length, 1);
+  assert.equal(capabilities().length, 1);
   // AgentdReadyPlan `.relayCapabilities`: a new run needs them again.
   reports.agentdReady();
   assert.ok(await until(1, () => calls.filter((c) => c[1] === '/behavior/capabilities').length === 2));
@@ -227,13 +231,115 @@ test('through the link: hello lists touch and sends the switches, and each messa
     a.send({ type: 'playback', speech_id: 's1', clause_id: 'c0', state: 'started', sample: 0, rate: 48000 });
     a.send({ ...ACTIONS, behavior_capabilities: { short_walk: null } });
     a.send({ type: 'motion.stroke', token: 'present-7f3a', clip: 'A_snap_start' });
-    assert.ok(await until(1, () => calls.length === 3 && strokes.length === 1), JSON.stringify(calls));
-    assert.deepEqual(calls.map((c) => `${c[0]} ${c[1]}`).sort(), ['POST /speech/cancel', 'POST /speech/playback', 'PUT /behavior/capabilities']);
+    const forwarded = () => calls.filter((c) => c[1] !== '/behavior/motion_prefs');
+    assert.ok(await until(1, () => forwarded().length === 3 && strokes.length === 1), JSON.stringify(calls));
+    assert.deepEqual(forwarded().map((c) => `${c[0]} ${c[1]}`).sort(), ['POST /speech/cancel', 'POST /speech/playback', 'PUT /behavior/capabilities']);
     assert.deepEqual(calls.find((c) => c[1] === '/speech/cancel')![2], { reason: 'error', speech_id: 's1' });
     // A dropped link ends the open speech as connection_lost (rule 23).
     a.socket.destroy();
-    assert.ok(await until(1, () => calls.length === 4));
-    assert.deepEqual(calls[3]![2], { speech_id: 's1', clause_id: 'c0', state: 'interrupted', reason: 'connection_lost', sample: 0, rate: 48000 });
+    assert.ok(await until(1, () => forwarded().length === 4));
+    assert.deepEqual(forwarded()[3]![2], { speech_id: 's1', clause_id: 'c0', state: 'interrupted', reason: 'connection_lost', sample: 0, rate: 48000 });
+  } finally {
+    a.socket.destroy();
+    link.stop();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const PREFS = {
+  action_switches: { aster: { wave: false } },
+  motion_overrides: { aster: { chains: { wave: false }, pools: {}, blend_in: { nod: 0.5 }, notes: { wave: '不要挥手' } } },
+  stay_mode: 'bust',
+};
+const NO_OVERRIDES = { chains: {}, pools: {}, blend_in: {} };
+const prefs = (switches: Record<string, boolean>,
+  overrides: unknown = { chains: { wave: false }, pools: {}, blend_in: { nod: 0.5 } }) =>
+  ({ character_id: 'aster', action_switches: switches, motion_overrides: overrides });
+const ADJUSTED = { action_switches: { switches: { wave: true }, adjusted: [{ id: 'wave', reason: 'required' }] },
+  motion_overrides: { applied: { chains: 1, pools: 0, blend_in: 1 }, adjusted: [] } };
+
+test('her motion settings go to PUT /behavior/motion_prefs once per agentd run and character, again when they change', async () => {
+  const { reports, calls, state, log } = setup({ settings: structuredClone(PREFS),
+    body: (path) => (path === '/behavior/motion_prefs' ? ADJUSTED : undefined) });
+  const puts = () => calls.filter((c) => c[1] === '/behavior/motion_prefs');
+  // No character yet, or a list with an error: nothing.
+  reports.agentdReady();
+  reports.linkEvent({ kind: 'message', message: { ...ACTIONS, error: 'not_ready' } });
+  await sleep(0.05);
+  assert.deepEqual(puts(), []);
+  reports.linkEvent({ kind: 'message', message: { ...ACTIONS } });
+  assert.ok(await until(1, () => puts().length === 1));
+  assert.deepEqual(puts()[0], ['PUT', '/behavior/motion_prefs', prefs({ wave: false })]);
+  assert.ok(await until(1, () => log.length === 1));
+  assert.deepEqual(log, ['motion_prefs aster adjusted switches=[{"id":"wave","reason":"required"}] overrides=[]']);
+  // The link sent the same settings to her: agentd has them.
+  reports.options.onMotionSettings('aster');
+  await sleep(0.05);
+  assert.equal(puts().length, 1);
+  // Saved ones go with the link's message.
+  state.settings = { ...PREFS, action_switches: { aster: { wave: true } }, stay_mode: 'roam' };
+  reports.options.onMotionSettings('aster');
+  assert.ok(await until(1, () => puts().length === 2));
+  assert.deepEqual(puts()[1]![2], prefs({ wave: true }));
+  // agentd started again and forgot them.
+  reports.agentdReady();
+  assert.ok(await until(1, () => puts().length === 3));
+  assert.deepEqual(puts()[2]![2], prefs({ wave: true }));
+  // Another character, with nothing stored.
+  reports.linkEvent({ kind: 'message', message: { ...ACTIONS, character: 'birch' } });
+  assert.ok(await until(1, () => puts().length === 4));
+  assert.deepEqual(puts()[3]![2], { character_id: 'birch', action_switches: {}, motion_overrides: NO_OVERRIDES });
+});
+
+test('a 409 character_changed is tried again every 250 ms, 12 times in all; no_motion is not', async () => {
+  let error = 'character_changed';
+  const { reports, calls, waits, log } = setup({ settings: structuredClone(PREFS),
+    status: (_m, path) => (path === '/behavior/motion_prefs' ? 409 : 200),
+    body: (path) => (path === '/behavior/motion_prefs' ? { error } : undefined) });
+  const puts = () => calls.filter((c) => c[1] === '/behavior/motion_prefs').length;
+  reports.options.onMotionSettings('aster');
+  assert.ok(await until(1, () => puts() === 12));
+  await sleep(0.05);
+  assert.equal(puts(), 12);
+  assert.deepEqual(waits, Array(12).fill(250));
+  error = 'no_motion';
+  reports.agentdReady();
+  assert.ok(await until(1, () => puts() === 13));
+  await sleep(0.05);
+  assert.equal(puts(), 13);
+  assert.equal(waits.length, 12);
+  assert.deepEqual(log.filter((l) => l.startsWith('motion_prefs')), ['motion_prefs aster status=409', 'motion_prefs aster status=409']);
+});
+
+test('through the link: each set_action_switches and set_motion_overrides also reaches agentd', { skip: UNIX_LINK }, async () => {
+  const { reports, calls, state } = setup({ settings: structuredClone(PREFS) });
+  const dir = mkdtempSync(join(tmpdir(), 'rep-'));
+  const link = new HostLink({ path: join(dir, 'run/avatar.sock'), transport: 'unix', pid: 4242, build: { version: 't' },
+    fps: () => ({ idleLowFps: true, userFps: 60, batteryLow: true }), log: () => {}, offers: ['render_live', 'motion_overrides', 'camera_bust'],
+    remembered: { hiddenLayers: () => null, modSettings: () => ({}), switches: (c) => storedSwitches(state.settings, c) }, ...reports.options });
+  await link.start();
+  const a = new FakeAvatar(link.path);
+  const puts = () => calls.filter((c) => c[1] === '/behavior/motion_prefs').map((c) => c[2]);
+  try {
+    a.send({ type: 'hello', role: 'avatar', pid: 99, protocol: 1, character: 'aster',
+      capabilities: ['actions', 'ack', 'render_live', 'motion_overrides', 'camera_bust'] });
+    assert.ok(await until(2, () => link.hello !== null));
+    // Her list differs from the stored table: the link sends it (rule 28), and agentd gets it too.
+    a.send({ ...ACTIONS });
+    assert.ok(await until(1, () => a.types().includes('set_action_switches') && puts().length === 1), JSON.stringify(calls));
+    assert.deepEqual(puts(), [prefs({ wave: false })]);
+    state.settings = { ...PREFS, action_switches: { aster: { wave: true } } };
+    link.saveSwitches('aster', { wave: true }).catch(() => {});
+    assert.ok(await until(1, () => puts().length === 2));
+    assert.deepEqual(puts()[1], prefs({ wave: true }));
+    state.settings = { ...state.settings, motion_overrides: {} };
+    link.setMotionOverrides('aster', NO_OVERRIDES).catch(() => {});
+    assert.ok(await until(1, () => a.types().includes('set_motion_overrides') && puts().length === 3));
+    assert.deepEqual(puts()[2], prefs({ wave: true }, NO_OVERRIDES));
+    // Framing reaches agentd through /behavior/switches, so a set_render is not one of them.
+    assert.ok(link.sendSetRender({ camera: { framing: 'full' } }));
+    await sleep(0.05);
+    assert.equal(puts().length, 3);
   } finally {
     a.socket.destroy();
     link.stop();

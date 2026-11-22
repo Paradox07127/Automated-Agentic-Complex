@@ -429,7 +429,7 @@ class PlayerPrimitivesTest(unittest.TestCase):
         self.assertEqual(c1.check_message(self.SNAPSHOT), [])
         every = {t: [{"clip": "c", "weight": 1, "layer": "overlay"}] for t in
                  ("click", "pat", "pinch", "drag_lift", "drop", "attention_left", "attention_right", "point_at",
-                  "present")}
+                  "present", "hover")}
         self.assertEqual(c1.check_message({**self.SNAPSHOT, "reactions": every}), [])
         self.assertEqual(c1.check_message({**self.SNAPSHOT, "reactions": {}, "consumed": []}), [])
         for level in ("offstage", "normal", "engaged"):

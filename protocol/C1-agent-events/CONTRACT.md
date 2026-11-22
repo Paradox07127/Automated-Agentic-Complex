@@ -66,7 +66,7 @@
 
   | 字段 | 内容 |
   |---|---|
-  | `reactions` | 对象：触发名 → 非空数组 `[{clip, weight, layer}]`。触发名只能是 `click`、`pat`、`pinch`、`drag_lift`、`drop`、`attention_left`、`attention_right`、`point_at`、`present`；`clip` 同 §1.4 `clip.id`（1–64 字节的字符串）；`weight` 是 > 0 的数；`layer` 同 §1.4（`base` / `overlay`）。这个触发在本地发生时，渲染器按 `weight` 加权随机挑一条、在本地播，不做别的策略；表里没有这个触发名就不播 |
+  | `reactions` | 对象：触发名 → 非空数组 `[{clip, weight, layer}]`。触发名只能是 `click`、`pat`、`pinch`、`drag_lift`、`drop`、`attention_left`、`attention_right`、`point_at`、`present`、`hover`（指针停在她身上，什么时候算停由渲染器定）；`clip` 同 §1.4 `clip.id`（1–64 字节的字符串）；`weight` 是 > 0 的数；`layer` 同 §1.4（`base` / `overlay`）。这个触发在本地发生时，渲染器按 `weight` 加权随机挑一条、在本地播，不做别的策略；表里没有这个触发名就不播 |
   | `stage` | `{level, revision}`：`level` 是当前存在感等级，`offstage` / `quiet` / `normal` / `engaged`；`revision` 是整数 ≥ 0，等级每变一次 +1 |
   | `consumed` | 数组，最多 64 个终态编号（`occurrence_id`，各 1–64 字节的字符串）：被挡掉、不再演的终态（§0 2026-10-29 一节、§4.2） |
 
@@ -384,7 +384,7 @@ Companion 给某个行为补发 `cancelled` / `connection_lost` 之后，角色�
 2026-11-04 C1 v2.4（只加不改）：§1.4 新类型 `perform` 和它的 `motion` 字段（生成动作），宿主经 `GET /motions/<id>/meta`、`/keys` 取片段；agentd 的 `GET` / `PUT /motion/settings` 切换 `game` / `generated` 动作后端。夹具 14，不合法样例 `fixtures/invalid/14-perform-bad-motion.json`。
 2026-11-04 C1 v2.5（只加不改）：§1.5 新事件 `motion`（宿主经 C3 v23 `motion_request` 请求的生成片段，成功带 `motion` 和 `tracks_sha256`，失败带 `reason`），新文件 `GET /motions/<id>/tracks`（`endfield-generated-tracks/v1`）。夹具 15；`agent/agentd/c1.py` 认识 `motion` 之前，这个夹具还过不了校验器。
 2026-11-06 C1 v2.6（只加不改）：§1.4 `perform` 带 `motion` 或 `action` 二选一；`action: {id, length_s}` 是当前角色包的角色包动作，`[motion:]` 的文字配到它时 agentd 不生成，宿主按 id 播原片。夹具 14b，不合法样例 `fixtures/invalid/14b-perform-motion-and-action.json`。
-2026-11-21 C1 v2.7：agentd 选每一条片段，渲染器只播。§1.4 `perform` 加载荷 `clip`（角色包 `motion-metadata.json` 的片段 id，`motion`、`action`、`clip` 三选一）和 `layer`、`start`、`blend_s`、`loop`、`ttl_s`；§2 `behavior_cancel` 加 `mode`、`fade_s`；snapshot 加 `reactions`、`stage`、`consumed`；带 `outcome` 的终态 intent 和 §4.2 `session_reaction` 加 `occurrence_id`，`consumed` 里的和演过的编号不再演；§1.2 `short_walk` 加目标 `edge`；§3 `cancelled` 加 reason `user_click`、`give_way`；§0、§1 intent 的 `state` 和 `activity` 不再让渲染器选全身片段（这一条改了 v2 的规则）；§6 播放器一致性夹具（`fixtures/player/`，`c1.check_player_fixture`）。不合法样例 `fixtures/invalid/perform-overlay-on-full-body.json`、`perform-two-payloads.json`、`perform-loop-on-overlay.json`、`perform-unknown-start.json`、`snapshot-unknown-reaction-trigger.json`、`cancel-fade-s-without-fade-out.json`。
+2026-11-21 C1 v2.7：agentd 选每一条片段，渲染器只播。§1.4 `perform` 加载荷 `clip`（角色包 `motion-metadata.json` 的片段 id，`motion`、`action`、`clip` 三选一）和 `layer`、`start`、`blend_s`、`loop`、`ttl_s`；§2 `behavior_cancel` 加 `mode`、`fade_s`；snapshot 加 `reactions`、`stage`、`consumed`；带 `outcome` 的终态 intent 和 §4.2 `session_reaction` 加 `occurrence_id`，`consumed` 里的和演过的编号不再演；§1.2 `short_walk` 加目标 `edge`；§3 `cancelled` 加 reason `user_click`、`give_way`；§0、§1 intent 的 `state` 和 `activity` 不再让渲染器选全身片段（这一条改了 v2 的规则）；§6 播放器一致性夹具（`fixtures/player/`，`c1.check_player_fixture`）。不合法样例 `fixtures/invalid/perform-overlay-on-full-body.json`、`perform-two-payloads.json`、`perform-loop-on-overlay.json`、`perform-unknown-start.json`、`snapshot-unknown-reaction-trigger.json`、`cancel-fade-s-without-fade-out.json`。追加（只加不改）：snapshot `reactions` 的触发名加 `hover`，agentd 在角色包有 `user.hover` 池时给出；动作开关、动作覆盖或半身框选改了表时 agentd 发带新 `reactions` 的 snapshot（C6 `PUT /behavior/motion_prefs`）。
 
 ## 6. 播放器一致性夹具（v2.7）
 

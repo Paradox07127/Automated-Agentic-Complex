@@ -90,7 +90,8 @@ GESTURES = ("speech.gesture", "speech_gestures")  # whys of the chooser's speech
 CHAINED = ("next of ", "exit of ", "source return of ")  # why prefixes of a clip its chain plays after another
 # C1 snapshot `reactions` trigger -> the pack event whose pool the renderer draws from
 REACTION_EVENTS = {"click": "click.single", "pat": "pat.head", "pinch": "pinch.cheek", "drag_lift": "drag.lift",
-                   "attention_left": "look.left", "attention_right": "look.right", "present": "present.snap"}
+                   "attention_left": "look.left", "attention_right": "look.right", "present": "present.snap",
+                   "hover": "user.hover"}
 BASE_REACTIONS = ("drag_lift",)  # reactions on the base layer; the rest play on the overlay
 RETURN_PRIORITY = 1  # the return performance's clips: above the chooser's own, so an idle tier does not cut them
 RETURN_FACE = 10.0  # seconds she faces the user on a return
@@ -419,9 +420,13 @@ class Spatial:
 
     def set_switches(self, switches):
         """PUT /behavior/switches (body checked by c1.check_switches): a running behavior they now forbid gets
-        `behavior_cancel` / `switch_off`. Returns the stored values."""
+        `behavior_cancel` / `switch_off`; `bust_framing` also limits the chooser to standing clips. Returns the stored
+        values."""
         with self._lock:
             self.switches = dict(switches)
+            if self.chooser is not None:
+                self.chooser.set_framing("bust" if self.switches.get("bust_framing") else "full")
+                self._publish_reactions()
             for record in list(self.active.values()):
                 behavior = record["behavior"]
                 if self._forbidden(behavior["type"], behavior["target"], False):
@@ -587,11 +592,37 @@ class Spatial:
             self._hold_at, self._seated, self._voice, self._held = 0.0, False, False, False
             self._intents.clear()
             self._clauses.clear()
+            if chooser is not None:
+                chooser.set_framing("bust" if self.switches.get("bust_framing") else "full")
             self._reactions = None if chooser is None else _reactions(chooser)
             if replaced:
                 self.publish("snapshot", {"behaviors": self.running(), "reactions": self._reactions or {},
                                           "stage": self.stage_level(),
                                           "consumed": self.consumed.ids(), "turn_generation": self.generation()})
+
+    def set_motion_prefs(self, switches, overrides):
+        """PUT /behavior/motion_prefs (body checked by the route): the current chooser takes the user's action switches
+        and motion overrides, and a reaction table they change goes out in a snapshot. Returns what was
+        adjusted in the shape of C3's `action_switches` and `motion_overrides` replies; None without a chooser."""
+        with self._lock:
+            chooser = self.chooser
+            if chooser is None:
+                return None
+            switched = chooser.set_action_switches(switches)
+            adjusted = chooser.set_motion_overrides(overrides["chains"], overrides["pools"], overrides["blend_in"])
+            self._publish_reactions()
+            applied = {key: len(overrides[key]) - sum(1 for a in adjusted if a["kind"] == kind)
+                       for key, kind in (("chains", "chain"), ("pools", "pool"), ("blend_in", "blend_in"))}
+            return {"action_switches": {"switches": dict(chooser.switches), "adjusted": switched},
+                    "motion_overrides": {"applied": applied, "adjusted": adjusted}}
+
+    def _publish_reactions(self):
+        """Under the lock: a snapshot with the chooser's reaction table when it changed."""
+        reactions = _reactions(self.chooser)
+        if reactions != self._reactions:
+            self._reactions = reactions
+            self.publish("snapshot", {"behaviors": self.running(), "reactions": reactions, "stage": self.stage_level(),
+                                      "consumed": self.consumed.ids(), "turn_generation": self.generation()})
 
     def stage_level(self):
         """C1 snapshot `stage`: user_now's stage and how many times it changed."""

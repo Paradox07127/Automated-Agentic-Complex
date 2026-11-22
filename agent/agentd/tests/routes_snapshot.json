@@ -1251,6 +1251,13 @@
   ],
   [
     "PUT",
+    "/behavior/motion_prefs",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "PUT",
     "/behavior/switches",
     [
       "ui_token"

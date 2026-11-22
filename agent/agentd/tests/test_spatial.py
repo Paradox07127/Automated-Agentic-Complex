@@ -23,6 +23,7 @@ from observation import spatial  # noqa: E402
 from observation.spatial import Spatial  # noqa: E402
 from infra.store import open_store  # noqa: E402
 from test_server import EVENTS, HOOK, UI  # noqa: E402
+from test_motion_chooser import prefs_pack  # noqa: E402
 
 T0 = 1760900000.0
 COMPLETED_BY = ("speech_end", "session_state", "focus_change")  # C1 §1: these exits complete; the rest cancel
@@ -2197,3 +2198,135 @@ class ChooserServerTest(ServerCase):
         self.assertEqual(sent["reactions"]["click"], overlay("wave"))
         self.assertEqual(c1.check_message(sent), [])
         self.assertEqual(self.snapshot()["reactions"], sent["reactions"])
+
+
+def overlay(*clips):
+    return [{"clip": c, "weight": 1, "layer": "overlay"} for c in clips]
+
+
+NO_OVERRIDES = {"chains": {}, "pools": {}, "blend_in": {}}
+
+
+class MotionPrefsTest(SpatialCase):
+    """The user's motion settings reach the chooser Spatial owns, and its reaction table follows them."""
+
+    def setUp(self):
+        super().setUp()
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        self.spatial._next_tick = self.now + 10 ** 6  # no random tick
+        self.spatial.stage = lambda: "normal"
+        self.pack = prefs_pack(root)
+        self.spatial.use_motion(MotionChooser(self.pack))
+        self.flush()
+
+    def snapshots(self, seq):
+        return [i for i in self.registry.intents_since(seq) if i.get("event") == "snapshot"]
+
+    def test_a_setting_that_turns_a_clip_off_publishes_the_table_without_it(self):
+        before = self.spatial.reactions()
+        self.assertEqual((before["click"], before["hover"]), (overlay("tap", "nod"), overlay("glance")))
+        seq = self.registry.intent_seq
+        reply = self.spatial.set_motion_prefs({"touch_tap": False}, {**NO_OVERRIDES, "blend_in": {"ghost": 1.0}})
+        chooser = self.spatial.chooser
+        self.assertEqual(reply, {"action_switches": {"switches": chooser.switches, "adjusted": []},
+                                 "motion_overrides": {"applied": {"chains": 0, "pools": 0, "blend_in": 0},
+                                                      "adjusted": [{"kind": "blend_in", "key": "ghost",
+                                                                    "reason": "unknown_clip"}]}})
+        self.assertFalse(chooser.switches["touch_tap"])
+        [snapshot] = self.snapshots(seq)
+        self.assertEqual(snapshot["reactions"], {**before, "click": overlay("nod")})
+        self.assertEqual(self.spatial.reactions(), snapshot["reactions"])
+        self.assertEqual(c1.check_message(snapshot), [])
+        # The same table again publishes nothing.
+        seq = self.registry.intent_seq
+        self.spatial.set_motion_prefs({"touch_tap": False}, NO_OVERRIDES)
+        self.assertEqual(self.snapshots(seq), [])
+
+    def test_a_blend_in_override_is_the_perform_s_blend_s(self):
+        self.spatial.set_motion_prefs({}, {**NO_OVERRIDES, "blend_in": {"wave": 1.5}})
+        for _ in range(10):
+            self.now += spatial.MOTION_WAKE
+            self.spatial.motion_step()
+            self.flush()
+        self.spatial.motion({"kind": "event", "key": "user.greet"})
+        self.flush()
+        [wave] = [m for m in self.sent if m["type"] == "perform" and m["clip"] == {"id": "wave"}]
+        self.assertEqual(wave["blend_s"], 1.5)
+        self.assertValid()
+
+    def test_without_a_chooser_nothing_is_stored(self):
+        self.spatial.use_motion(None)
+        self.assertIsNone(self.spatial.set_motion_prefs({}, NO_OVERRIDES))
+
+    def test_the_bust_framing_switch_frames_this_chooser_and_the_next(self):
+        self.spatial.set_switches({**SWITCHES, "bust_framing": True})
+        self.assertEqual(self.spatial.chooser.framing, "bust")
+        self.spatial.use_motion(MotionChooser(self.pack))
+        self.assertEqual(self.spatial.chooser.framing, "bust")
+        self.spatial.set_switches(SWITCHES)
+        self.assertEqual(self.spatial.chooser.framing, "full")
+
+
+class MotionPrefsServerTest(ServerCase):
+    PATH = "/behavior/motion_prefs"
+    EXAMPLE = Path(__file__).resolve().parents[3] / "protocol" / "C6-agentd-api" / "fixtures" / "behavior-motion-prefs.json"
+
+    def setUp(self):
+        super().setUp()
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        self.pack = prefs_pack(root)
+        self.server.spatial.use_motion(MotionChooser(self.pack))
+        self.body = {**json.loads(self.EXAMPLE.read_text(encoding="utf-8")), "character_id": self.server.character}
+
+    def test_the_route_stores_the_settings_for_the_committed_character_and_a_switch_clears_them(self):
+        status, reply = self.request("PUT", self.PATH, self.body)
+        self.assertEqual(status, 200, reply)
+        chooser = self.server.spatial.chooser
+        self.assertEqual(reply, {"character_id": self.server.character,
+                                 "action_switches": {"switches": chooser.switches,
+                                                     "adjusted": [{"id": "react_wave", "reason": "last_in_section"}]},
+                                 "motion_overrides": {"applied": {"chains": 1, "pools": 1, "blend_in": 1},
+                                                      "adjusted": []}})
+        self.assertEqual((chooser.switches["touch_tap"], chooser.disabled_chains), (False, {"shrug"}))
+        reactions = self.snapshot()["reactions"]
+        self.assertEqual((reactions["click"], reactions["hover"]), (overlay("nod"), overlay("glance")))
+        self.assertEqual(self.request("PUT", self.PATH, {**self.body, "character_id": "aster"}),
+                         (409, {"error": "character_changed"}))
+        self.server.motion_chooser = lambda cid: MotionChooser(self.pack)
+        status, body = self.request("POST", "/character/prepare", {"id": "aster"})
+        self.assertEqual(status, 200)
+        self.assertEqual(self.request("POST", "/character/commit", {"switch_id": body["switch_id"]})[0], 200)
+        chooser = self.server.spatial.chooser
+        self.assertEqual((chooser.switches["touch_tap"], chooser.disabled_chains), (True, set()))
+        self.assertEqual(self.snapshot()["reactions"]["click"], overlay("tap", "nod"))
+        self.assertEqual(self.request("PUT", self.PATH, {**self.body, "character_id": "aster"})[0], 200)
+
+    def test_bad_bodies_are_400_and_a_wrong_token_401(self):
+        pools = lambda rows: {**NO_OVERRIDES, "pools": {"idle.t1": rows}}  # noqa: E731
+        overrides = lambda **o: {**self.body, "motion_overrides": {**NO_OVERRIDES, **o}}  # noqa: E731
+        bad = [None, [], {**self.body, "extra": 1}, {k: v for k, v in self.body.items() if k != "action_switches"},
+               {**self.body, "character_id": ""}, {**self.body, "framing": "bust"},
+               {**self.body, "action_switches": {"touch_tap": 0}},
+               {**self.body, "action_switches": {f"row{n}": True for n in range(129)}},
+               {**self.body, "motion_overrides": {"chains": {}, "pools": {}}},
+               {**self.body, "motion_overrides": {**NO_OVERRIDES, "notes": {}}},
+               overrides(chains={"a" * 129: False}), overrides(chains={"nod": 1}),
+               overrides(blend_in={"wave": 2.5}), overrides(blend_in={"wave": True}),
+               overrides(blend_in={"wave": float("nan")}),
+               {**self.body, "motion_overrides": pools([])},
+               {**self.body, "motion_overrides": pools([{"clip": "nod", "weight": 0}])},
+               {**self.body, "motion_overrides": pools([{"clip": "nod", "weight": 1.5}])},
+               {**self.body, "motion_overrides": pools([{"clip": "nod", "weight": True}])},
+               {**self.body, "motion_overrides": pools([{"clip": "nod", "weight": 1}, {"clip": "nod", "weight": 2}])},
+               {**self.body, "motion_overrides": pools([{"clip": "nod", "weight": 1, "x": 1}])}]
+        for body in bad:
+            with self.subTest(body=body):
+                self.assertEqual(self.request("PUT", self.PATH, body), (400, {"error": "invalid_motion_prefs"}))
+        self.assertEqual(self.request("PUT", self.PATH, self.body, token=EVENTS)[0], 401)
+        self.assertEqual(self.server.spatial.chooser.switches["touch_tap"], True)
+
+    def test_a_character_without_a_motion_pack_has_no_chooser_to_set(self):
+        self.server.spatial.use_motion(None)
+        self.assertEqual(self.request("PUT", self.PATH, self.body), (409, {"error": "no_motion"}))

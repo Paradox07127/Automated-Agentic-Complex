@@ -1,13 +1,16 @@
 // What the renderer link reports to agentd beside trace and receipts (forward.ts): an interrupted speech, the playback
-// receipts, her behavior capabilities and whether she is shown, and config.json's behavior switches and state switch each time agentd
-// runs; with the touch switches from config.json and her `motion.stroke` for the stack.
+// receipts, her behavior capabilities and whether she is shown, config.json's behavior switches and state switch each time agentd
+// runs, and her character's motion settings from config.json; with the touch switches from config.json and her
+// `motion.stroke` for the stack.
 import { behaviorCapabilities, touchSettings } from '../../common/c3.ts';
+import { storedSwitches } from '../../common/looks.ts';
+import { loadOverrides, sentOverrides } from '../../common/motion-overrides.ts';
 import { behaviorSwitches } from '../../common/settings.ts';
 import type { LinkEvent, LinkOptions } from './link.ts';
 
 export interface ReportPorts {
   /** agentd's client (AgentdClient.request); one that throws counts as status 0. */
-  agentd: { request(method: string, path: string, json?: unknown): Promise<{ status: number }> };
+  agentd: { request(method: string, path: string, json?: unknown): Promise<{ status: number; body?: Uint8Array }> };
   /** agentd is running. */
   agentdRunning(): boolean;
   /** config.json as saved now. */
@@ -24,9 +27,9 @@ export interface ReportPorts {
 
 type Capabilities = Record<string, string | null>;
 
-/** HostLink's `onSpeechCancelled`, `onPlayback`, `onMotionStroke` and `touchSettings`; `linkEvent` for `HostLink.on`;
- *  `visibility` after each hide or show; `agentdReady` each time agentd starts running (visibility, behavior switches,
- *  state switch and capabilities). */
+/** HostLink's `onSpeechCancelled`, `onPlayback`, `onMotionStroke`, `touchSettings` and `onMotionSettings`; `linkEvent`
+ *  for `HostLink.on`; `visibility` after each hide or show; `agentdReady` each time agentd starts running (visibility,
+ *  behavior switches, state switch, capabilities and motion settings). */
 export function rendererReports(o: ReportPorts) {
   const status = async (method: string, path: string, json: unknown) => {
     try {
@@ -58,6 +61,46 @@ export function rendererReports(o: ReportPorts) {
     });
   };
 
+  // The character's action switches, motion overrides without notes as config.json has them now, put again in
+  // each agentd run while they change; a 409 character_changed waits for agentd's switch to commit.
+  let character: string | null = null;
+  let motionDelivered: { run: number; key: string } | null = null;
+  let motionTail: Promise<void> = Promise.resolve();
+  const motionPrefs = (id: string) => {
+    let raw: Record<string, unknown> = {};
+    try {
+      raw = o.settings();
+    } catch { /* nothing stored for an unreadable file */ }
+    const overrides = loadOverrides(raw, id);
+    return { character_id: id, action_switches: storedSwitches(raw, id) ?? {},
+      motion_overrides: overrides ? sentOverrides(overrides) : { chains: {}, pools: {}, blend_in: {} } };
+  };
+  const deliverMotion = () => {
+    motionTail = motionTail.then(async () => {
+      if (character === null) return;
+      const body = motionPrefs(character), sentRun = run, sentKey = JSON.stringify(body);
+      if (motionDelivered?.run === sentRun && motionDelivered.key === sentKey) return;
+      let answer = { status: 0, reply: {} as Record<string, unknown> };
+      for (let i = 0; i < 12; i++) {
+        try {
+          const r = await o.agentd.request('PUT', '/behavior/motion_prefs', body);
+          answer = { status: r.status, reply: r.body ? JSON.parse(Buffer.from(r.body).toString('utf8')) : {} };
+        } catch {
+          answer = { status: 0, reply: {} };
+        }
+        if (answer.reply.error !== 'character_changed') break;
+        await wait(250);
+      }
+      if (answer.status !== 200) return o.log(`motion_prefs ${body.character_id} status=${answer.status}`);
+      motionDelivered = { run: sentRun, key: sentKey };
+      const switches = (answer.reply.action_switches as { adjusted?: unknown[] } | undefined)?.adjusted ?? [];
+      const overrides = (answer.reply.motion_overrides as { adjusted?: unknown[] } | undefined)?.adjusted ?? [];
+      if (switches.length > 0 || overrides.length > 0) {
+        o.log(`motion_prefs ${body.character_id} adjusted switches=${JSON.stringify(switches)} overrides=${JSON.stringify(overrides)}`);
+      }
+    });
+  };
+
   // Each put waits for the one before it.
   let shown = { visible: true, reason: null as string | null };
   let visibilityTail: Promise<void> = Promise.resolve();
@@ -83,9 +126,17 @@ export function rendererReports(o: ReportPorts) {
       },
       onMotionStroke: (token: string) => o.stroke(token),
       touchSettings: () => touchSettings(o.settings()),
+      onMotionSettings: (id: string) => {
+        character = id;
+        deliverMotion();
+      },
     } satisfies Partial<LinkOptions>,
     linkEvent: (e: LinkEvent) => {
       if (e.kind !== 'message' || e.message.type !== 'actions') return;
+      if (e.message.error === undefined && typeof e.message.character === 'string') {
+        character = e.message.character;
+        deliverMotion();
+      }
       const capabilities = behaviorCapabilities(e.message);
       if (capabilities === null) return;
       latest = { character: e.message.character as string, capabilities };
@@ -111,6 +162,7 @@ export function rendererReports(o: ReportPorts) {
       });
       run += 1;
       deliver();
+      deliverMotion();
     },
   };
 }

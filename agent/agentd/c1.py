@@ -64,7 +64,7 @@ CLIP_ID_MAX = 64  # bytes: a clip id of the character's motion metadata
 CANCEL_MODES = ("abort", "fade_out")
 FADE_S = (0.05, 2)
 REACTION_TRIGGERS = ("click", "pat", "pinch", "drag_lift", "drop", "attention_left", "attention_right", "point_at",
-                     "present")
+                     "present", "hover")
 STAGE_LEVELS = ("offstage", "quiet", "normal", "engaged")
 CONSUMED_MAX = 64
 OCCURRENCE_ID_MAX = 64  # bytes

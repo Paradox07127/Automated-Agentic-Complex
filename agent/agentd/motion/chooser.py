@@ -206,7 +206,8 @@ class Pack:
         metadata = _read(c7 / "interaction" / "motion-metadata.json")["clips"]
         self.stances = {c: (r["stance_start"], r["stance_end"]) for c, r in metadata.items()}
         blends = _read(c7 / "interaction" / "blend-times.json")["clips"]
-        self.blend_in = {c: f32(r["blend_in_s"]) for c, r in blends.items()}
+        self.pack_blend_in = {c: f32(r["blend_in_s"]) for c, r in blends.items()}
+        self.blend_in = dict(self.pack_blend_in)
         self.blend_out = {c: f32(r["blend_out_s"]) for c, r in blends.items() if r.get("blend_out_s") is not None}
         bindings = _read(c7 / "animation" / "motion-bindings.json")
         self.overview, self.relax, self.from_overview = bindings["overview"], bindings["relax"], bindings["from_overview"]
@@ -252,16 +253,24 @@ class Pack:
         if budget is not None or self.families is not None:
             b = dict(DEFAULT_BUDGET, **{k: v for k, v in (budget or {}).items() if v is not None})
             self.budget = (b["idle_per_min"], f32(b["idle_gap_s"]), b["busy_per_min"], b["seated_per_min"])
-        self.disabled = self._disabled(c7)
+        self.actions, self.missing = self._actions(c7)
+        # Only the chain keys of motion-graph.json; without it any clip of the archive starts a chain.
+        self.chain_starts = set(_read(c7 / "animation" / "motion-graph.json")["chains"]) \
+            if "motion-graph.json" in animation else None
         self.tier_postures = [t.stance or self._held_posture(t) for t in self.tiers or []]
-        self.tier_clips = set()
-        for i, t in enumerate(self.tiers or []):
-            for c in [c for c, _ in t.pool] + self.contexts.get("idle.t%d" % (i + 1), []):
-                for x in self.chain(c):
-                    self.tier_clips.add(x)
-                    if x in self.entries and self.entries[x].exit:
-                        self.tier_clips.update(self.chain(self.entries[x].exit))
         self.c7 = c7
+
+    def tier_chain_clips(self, overrides):
+        """The clips of every chain an idle tier draws, its pool override's too, and of each held loop's exit chain."""
+        clips = set()
+        for i, t in enumerate(self.tiers or []):
+            key = "idle.t%d" % (i + 1)
+            for c in [c for c, _ in t.pool] + self.contexts.get(key, []) + [c for c, _ in overrides.get(key, [])]:
+                for x in self.chain(c):
+                    clips.add(x)
+                    if x in self.entries and self.entries[x].exit:
+                        clips.update(self.chain(self.entries[x].exit))
+        return clips
 
     @staticmethod
     def _named_clips(m):
@@ -310,20 +319,40 @@ class Pack:
                 excluded[c] = family
         return excluded
 
-    def _disabled(self, c7):
-        """The clips of the action rows that are off by default or unavailable."""
+    def _actions(self, c7):
+        """The action rows, and the ids of those that are unavailable or name a clip the archive lacks."""
         rows = []
         for section in ("animation", "interaction"):
             rows += _read(c7 / section / "actions.json")["actions"]
         missing = {r["id"] for r in rows if r.get("unavailable_reason") is not None
                    or any(c not in self.rules for c in (r.get("clips") or []) + (r.get("required_clips") or []))}
-        on = {r["id"]: r["id"] not in missing and (r.get("required_reason") is not None
-                                                   or r.get("default_enabled") is not False) for r in rows}
-        for section in ("talk", "react", "idle", "touch"):
-            live = [r for r in rows if r["section"] == section and r["id"] not in missing]
-            if live and not any(on[r["id"]] for r in live):
-                on[live[0]["id"]] = True
-        return {c for r in rows if not on[r["id"]] for c in r.get("clips") or []}
+        return rows, missing
+
+    @property
+    def fixed_clips(self):
+        """The base loops and the bridges between them; no chain switch turns them off."""
+        fixed = self.idle_bases | {self.overview, self.relax, self.from_overview, self.normal}
+        if self.families:
+            fixed |= set(self.families.bases.values()) | set(self.families.bridges.values())
+        return fixed
+
+    def starts_chain(self, clip):
+        return clip in self.rules and (self.chain_starts is None or clip in self.chain_starts)
+
+    def rest_clip(self, clip):
+        """Where a drawn chain from `clip` comes to rest: its last next, or a held loop's exit."""
+        seen = set()
+        while clip not in seen:
+            seen.add(clip)
+            n = self.next_clip(clip) or (self.entries[clip].exit if clip in self.entries else None)
+            if not n:
+                break
+            clip = n
+        return clip
+
+    def standing(self, clip):
+        """Starts and ends standing; a clip without metadata counts as standing."""
+        return clip not in self.stances or self.stances[clip] == ("stand", "stand")
 
     def loop(self, clip):
         return clip in self.rules and self.rules[clip].loop
@@ -437,7 +466,124 @@ class MotionChooser:
         self.pack = Pack(character_dir)
         self.t_s = 0.0
         self.choices = []
+        # The user's settings: the action switch table, the off chain starts, the pool overrides by key, the framing.
+        self.switches, self.disabled_chains, self.pool_overrides, self.framing = {}, set(), {}, "full"
+        self.tier_clips = self.pack.tier_chain_clips({})
+        self.set_action_switches({})
         self._restart()
+
+    # The user's settings, as C3 rules 28, 51 and 49 (i) have the renderer apply them.
+
+    def set_action_switches(self, requested):
+        """The whole table, a row it lacks at its default: a required row stays on, a missing one off, and the last row
+        on in a section stays on. Returns [{id, reason}] for each row that differs from what was asked."""
+        p = self.pack
+        table, adjusted = {}, []
+        for r in p.actions:
+            want = requested[r["id"]] if r["id"] in requested else r.get("default_enabled") is not False
+            on = r["id"] not in p.missing and (r.get("required_reason") is not None or want)
+            table[r["id"]] = on
+            if r["id"] in requested and on != want:
+                adjusted.append({"id": r["id"], "reason": "missing" if r["id"] in p.missing else "required"})
+        for section in ("talk", "react", "idle", "touch"):
+            rows = [r for r in p.actions if r["section"] == section and r["id"] not in p.missing]
+            if rows and not any(table[r["id"]] for r in rows):
+                keep = next((r for r in rows if self.switches.get(r["id"], True)), rows[0])
+                table[keep["id"]] = True
+                adjusted.append({"id": keep["id"], "reason": "last_in_section"})
+        self.switches = table
+        self._rebuild_disabled()
+        return adjusted
+
+    def set_motion_overrides(self, chains, pools, blend_in):
+        """Replaces the last overrides. An off chain turns off only its start clip; a pool that fails _pool_rejection,
+        or whose key is unknown, keeps the pack's. Returns [{kind, key, reason}] for each item not applied."""
+        p = self.pack
+        adjusted, blends = [], {}
+        self.disabled_chains, self.pool_overrides = set(), {}
+        for key, on in sorted(chains.items()):
+            if not p.starts_chain(key):
+                adjusted.append({"kind": "chain", "key": key, "reason": "unknown_chain"})
+            elif on:
+                continue
+            elif key in p.fixed_clips:
+                adjusted.append({"kind": "chain", "key": key, "reason": "required"})
+            else:
+                self.disabled_chains.add(key)
+        for key, rows in sorted(pools.items()):
+            posture = self._pool_posture(key)
+            reason = "unknown_pool" if posture is None else self._pool_rejection([r["clip"] for r in rows], posture)
+            if reason:
+                adjusted.append({"kind": "pool", "key": key, "reason": reason})
+            else:
+                self.pool_overrides[key] = [(r["clip"], r["weight"]) for r in rows]
+        for clip, seconds in sorted(blend_in.items()):
+            if clip not in p.rules:
+                adjusted.append({"kind": "blend_in", "key": clip, "reason": "unknown_clip"})
+            else:
+                blends[clip] = f32(seconds)
+        p.blend_in = {**p.pack_blend_in, **blends}
+        self._rebuild_disabled()
+        self.tier_clips = p.tier_chain_clips(self.pool_overrides)
+        return adjusted
+
+    def set_framing(self, framing):
+        """`bust`: only clips that start and end standing play, but the required rows' clips."""
+        if framing != self.framing:
+            self.framing = framing
+            self._rebuild_disabled()
+
+    def _rebuild_disabled(self):
+        p = self.pack
+        disabled = set(self.disabled_chains)
+        for r in p.actions:
+            if not self.switches.get(r["id"], r.get("default_enabled") is not False):
+                disabled.update(r.get("clips") or [])
+        if self.framing == "bust":
+            required = {c for r in p.actions if r.get("required_reason") is not None for c in r.get("clips") or []}
+            disabled |= {c for c in p.stances if not p.standing(c) and c not in required}
+        self.disabled = disabled
+        self._recheck = True
+
+    def _pool_posture(self, key):
+        """The posture of the `events` or idle tier pool `key`; None for neither."""
+        p = self.pack
+        if key in p.events:
+            return key.split("@", 1)[1] if "@" in key else "stand"
+        return next((posture for i, posture in enumerate(p.tier_postures) if "idle.t%d" % (i + 1) == key), None)
+
+    def _pool_rejection(self, clips, posture):
+        """The reason the first clip a pool in `posture` may not draw fails, None when it may draw them all. A clip passes
+        when it is in the archive, starts in that posture, starts and comes to rest outside the excluded pose families,
+        and its chain comes to rest in that posture, standing on a base family; an unbridged library clip skips the
+        family checks."""
+        p, f = self.pack, self.pack.families
+        for c in clips:
+            if c not in p.rules or c not in p.lengths:
+                return "unknown_clip"
+            start = p.stances[c][0] if c in p.stances else "stand"
+            if (start if start in POSTURES else "stand") != posture:
+                return "stance_mismatch"
+            rest, bridged = p.rest_clip(c), not (p.library.get(c) or {}).get("unbridged")
+            if f and bridged and (posture == "stand" or posture in LIFTED) and any(
+                    x in EXCLUDED_FAMILIES for x in (f.clips[c][0] if c in f.clips else None,
+                                                     f.clips[rest][1] if rest in f.clips else None)):
+                return "excluded_family"
+            on_base = posture != "stand" or not bridged or f is None or f.family(rest) in f.bases
+            if p.posture(rest) != posture or not on_base:
+                return "no_return"
+        return None
+
+    def _leave_disabled(self):
+        """A loop the settings turned off while it plays gives way, at its safe exit, to the chooser's next pick."""
+        clip, r = self.current, self.requested
+        if self._enabled(clip) or not self.pack.loop(clip):
+            return
+        if r is not None:
+            if not r.stopping:
+                self._request(("builtin",))
+        elif not self.preparation_pending:
+            self._builtin()
 
     # Inputs and the clock.
 
@@ -484,7 +630,8 @@ class MotionChooser:
         p = self.pack
         key = p.event_key(event, "stand")
         if event == "click.single":
-            rows = p.events[event].pool if event in p.events else [(c, 1) for c in p.click_reactions or []]
+            rows = self.pool_overrides.get(event) or (
+                p.events[event].pool if event in p.events else [(c, 1) for c in p.click_reactions or []])
             clips, weights = [c for c, _ in rows], [w if self._open(c) else 0 for c, w in rows]
         elif key is not None:
             clips, weights = self._pool(key, p.events[key].pool)
@@ -717,6 +864,9 @@ class MotionChooser:
     def _pool(self, context, fallback, allowed=None):
         p = self.pack
         ok = lambda c: self._open(c) and (allowed is None or allowed(c))  # noqa: E731
+        if context in self.pool_overrides:
+            rows = self.pool_overrides[context]
+            return [c for c, _ in rows], [w if ok(c) else 0 for c, w in rows]
         variants = p.contexts.get(context) or []
         if variants:
             return variants, [p.weight(c, context) if ok(c) else 0 for c in variants]
@@ -753,7 +903,7 @@ class MotionChooser:
         return self._seat is not None
 
     def _enabled(self, clip):
-        return clip not in self.pack.disabled
+        return clip not in self.disabled
 
     def _drawable(self, clip):
         return self._enabled(clip) and clip not in self.pack.excluded and clip not in self.pack.absent
@@ -1696,7 +1846,9 @@ class MotionChooser:
         keys = ["click." + region] + REGION_KEYS.get(region, []) if region else []
         region_pool = next((k for k in (p.event_key(k, posture) for k in keys) if k), None)
         pool_key = region_pool or ("click.single" if "click.single" in p.events else "click_reactions")
-        if region_pool:
+        if pool_key in self.pool_overrides:
+            rows = self.pool_overrides[pool_key]
+        elif region_pool:
             rows = p.events[region_pool].pool
         elif "click.single" in p.events:
             rows = p.events["click.single"].pool
@@ -1736,6 +1888,9 @@ class MotionChooser:
         if self.requested:
             self.lifted_tier = self._due_tier(dt) if self.posture in LIFTED else None
         self._advance_bridge()
+        if self._recheck:
+            self._recheck = False
+            self._leave_disabled()
         if self._advance_requested():
             return
         if self.intent_held and not self._body_busy():
@@ -1785,7 +1940,7 @@ class MotionChooser:
             return clip in p.idle_bases or (posture != "stand" and posture in p.tier_postures and self._resting(clip))
         bridge = p.families is not None and current in p.families.bridges.values()
         if self.semantic != "idle" or self.speaking or (not rest(current) and current not in (p.relax, p.from_overview)
-                                                        and current not in p.tier_clips and not bridge):
+                                                        and current not in self.tier_clips and not bridge):
             self.idle_total = self.tier_clock = 0.0
             self.tier, self.tier_enter = -1, None
             return None

@@ -177,6 +177,7 @@
   {"method": "PUT", "path": "^/characters/([a-z0-9_-]{1,64})/binding$", "class": "write", "surfaces": ["main"]},
   {"method": "PUT", "path": "/context/activity", "class": "write", "surfaces": ["main"], "plugin": "screen_awareness"},
   {"method": "PUT", "path": "/behavior/capabilities", "class": "host_only", "surfaces": []},
+  {"method": "PUT", "path": "/behavior/motion_prefs", "class": "host_only", "surfaces": []},
   {"method": "PUT", "path": "/behavior/switches", "class": "native_only", "surfaces": []},
   {"method": "PUT", "path": "/avatar/visibility", "class": "host_only", "surfaces": []},
   {"method": "PUT", "path": "/character/state/switch", "class": "native_only", "surfaces": []},

@@ -1,0 +1,28 @@
+{
+  "character_id": "aster",
+  "action_switches": {
+    "touch_tap": false,
+    "react_wave": false,
+    "react_cheer": false
+  },
+  "motion_overrides": {
+    "chains": {
+      "shrug": false
+    },
+    "pools": {
+      "idle.t1": [
+        {
+          "clip": "stretch",
+          "weight": 2
+        },
+        {
+          "clip": "nod",
+          "weight": 1
+        }
+      ]
+    },
+    "blend_in": {
+      "wave": 1.5
+    }
+  }
+}
