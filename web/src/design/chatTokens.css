@@ -5,6 +5,7 @@
   --b-t1:#1a1a1a;--b-t2:#5c5c5c;--b-t3:#8a8a86;--b-bub:#ffffff;--b-bub-hi:#ffffff;--b-bub-t:#1a1a1a;
   --b-self:#3d3d3d;--b-self-lo:#2f2f2f;--b-self-t:#f2f2f2;--b-field:#ffffff;--b-shadow:rgba(0,0,0,.16);
   --b-sel:#fff100;--b-sel-2:#f2d900;--b-ink:#161616;--b-noise:.05;--b-danger:#b3261e;
+  --theme:#1ec8f5;
   --g-fade:cubic-bezier(.333,0,.667,1);--g-enter:cubic-bezier(.333,0,0,1);--g-exit:cubic-bezier(1,0,.667,1);
 }
 :root[data-theme="dark"]{
