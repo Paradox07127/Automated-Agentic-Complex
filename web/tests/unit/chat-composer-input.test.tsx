@@ -199,3 +199,24 @@ describe('chat composer: pasted and dropped files', () => {
     await waitFor(() => expect(screen.getByText('1 个文件没带上')).toBeTruthy());
   });
 });
+
+describe('chat composer prewarm', () => {
+  it('warms the quick session once typing pauses, not on each key', async () => {
+    vi.useFakeTimers();
+    try {
+      let warmed = 0;
+      const routes: MockRoute[] = [{ method: 'POST', path: '/chat/prewarm', handler: () => (warmed++, { status: 200, body: { ready: true } }) }];
+      window.agenticComplex = createFakeBridge({ surface: 'main', still: true, routes });
+      render(<Composer {...props()} />);
+      type('早');
+      await act(() => vi.advanceTimersByTimeAsync(300));
+      type('早上好');
+      await act(() => vi.advanceTimersByTimeAsync(300));
+      expect(warmed).toBe(0);
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      expect(warmed).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

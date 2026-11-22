@@ -77,6 +77,9 @@ const NO_MODEL = new Set(['no_llm', 'missing_api_key', 'native_login_required', 
 /** The image types among the picker's scope_file types (app/electron SCOPE_FILE_TYPES). */
 const IMAGE = /\.(png|jpe?g|gif|webp)$/i;
 
+/** A typing pause this long warms the quick session before 发送. */
+const PREWARM_PAUSE_MS = 600;
+
 /** Input area: kernel / model notices, send failure with the original text kept, quote, tray, then ＋, the input and 发送. */
 export function Composer(p: ComposerProps) {
   const key = p.topicId ?? null;
@@ -93,6 +96,12 @@ export function Composer(p: ComposerProps) {
   useEffect(() => {
     if (key != null) drafts.set(key, d);
   }, [key, d]);
+  useEffect(() => {
+    if (p.history || p.kernel != null || d.text.trim() === '') return;
+    // A failed warm-up changes nothing: the send that follows reports the same error.
+    const t = setTimeout(() => void post('/chat/prewarm', {}).catch(() => undefined), PREWARM_PAUSE_MS);
+    return () => clearTimeout(t);
+  }, [d.text]);
   useEffect(() => {
     if (p.draft) edit({ text: p.draft.text });
   }, [p.draft]);

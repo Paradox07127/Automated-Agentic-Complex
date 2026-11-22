@@ -204,6 +204,7 @@ export function chatRoutes({ present, said }: ChatMockHooks): MockRoute[] {
         return ok(202, { run_id: b.run_id, cancellation_requested: true });
       },
     },
+    { method: 'POST', path: '/chat/prewarm', handler: () => ok(200, { ready: true }) },
   ];
 }
 
