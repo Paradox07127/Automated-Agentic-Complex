@@ -1,9 +1,8 @@
 import { createContext, useContext } from 'react';
 import type { Capabilities, PermissionKind, PermissionState } from '../../bridge';
-import type { Run } from '../../domain';
 import { fromRuntimePublic } from '../../domain/adapt';
 import type { WireRuntimePublic } from '../../domain/wire';
-import type { BlockedLine, DayEvent, DiagView } from './diag';
+import type { DiagView } from './diag';
 import type { PermRow } from './perms';
 import type { SettingsModel } from './model';
 import type { Native, SchemaRow } from './native';
@@ -43,12 +42,6 @@ export interface SettingsCtxValue {
   diag: DiagView;
   blacklist: WireBlacklist | null;
   scopes: WireScope[] | null;
-  /** `/agent/runs`, newest first. */
-  runs: Run[] | null;
-  /** Today's screenshots and gate decisions; null until read or when the read failed. */
-  shots?: DayEvent[] | null;
-  gateEvents?: DayEvent[] | null;
-  gateBlocked?: BlockedLine[] | null;
   reload: (what: Reloadable) => void;
   perms: PermRow[];
   recheckPerms: (kind?: PermissionKind) => Promise<PermissionState | null>;

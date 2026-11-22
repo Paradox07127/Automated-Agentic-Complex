@@ -12,8 +12,8 @@ import type { Native } from '../../src/pages/settings/native';
 import { AboutGroup } from '../../src/pages/settings/groups/About';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
 import { KeysGroup } from '../../src/pages/settings/groups/Keys';
-import { PermGroup } from '../../src/pages/settings/groups/Perm';
-import { PrivacyGroup } from '../../src/pages/settings/groups/Privacy';
+import { ActGroup } from '../../src/pages/settings/groups/Act';
+import { SeeGroup } from '../../src/pages/settings/groups/See';
 import { SpeakGroup } from '../../src/pages/settings/groups/Speak';
 import { useSettingsModel } from '../../src/pages/settings/model';
 import { pluginsOn, pluginsReset } from './plugins';
@@ -58,7 +58,6 @@ function Harness({ children, runtime = null }: { children: ReactNode; runtime?: 
     diag: DIAG,
     blacklist: null,
     scopes: [],
-    runs: [],
     reload: () => {},
     perms: PERMISSIONS,
     recheckPerms: async () => 'denied',
@@ -93,14 +92,14 @@ describe('settings › 隐私', () => {
     const consent = vi.spyOn(window.agenticComplex!.settings, 'confirmDestructive');
     render(
       <Harness>
-        <PrivacyGroup />
+        <SeeGroup />
       </Harness>,
     );
-    const toggle = screen.getByRole('switch', { name: '读取编码会话' });
+    const toggle = screen.getByRole('switch', { name: '读会话里的工具输入输出' });
     expect(toggle.getAttribute('aria-checked')).toBe('true');
     expect(native.rows.agent_sessions).toMatchObject({ default: true, restart: 'backend', destructive: true });
     await act(async () => fireEvent.click(toggle));
-    expect(screen.getByRole('dialog', { name: '关闭「读取编码会话」并删除已收集的内容？' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: '关闭「读会话里的工具输入输出」并删除已收集的内容？' })).toBeTruthy();
     expect(save).not.toHaveBeenCalled();
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '关闭并删除' })));
     expect(consent).toHaveBeenCalledWith('agent_sessions');
@@ -112,7 +111,7 @@ describe('settings › 隐私', () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(
       <Harness>
-        <PrivacyGroup />
+        <SeeGroup />
       </Harness>,
     );
     await act(async () => fireEvent.click(screen.getByRole('switch', { name: '窗口文字' })));
@@ -124,7 +123,7 @@ describe('settings › 隐私', () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(
       <Harness>
-        <PrivacyGroup />
+        <SeeGroup />
       </Harness>,
     );
     await act(async () => fireEvent.click(screen.getByRole('switch', { name: '键鼠计数' })));
@@ -142,8 +141,8 @@ describe('settings › 声音 › 通知方式', () => {
       </Harness>,
     );
     const row = screen.getByRole('radiogroup', { name: '提醒' });
-    const companion = screen.getByRole('radiogroup', { name: '她什么时候开口' }).closest('[data-row="speakWhen"]');
-    expect(companion?.textContent).toContain('任务结果和你设置的提醒仍会送达');
+    const companion = screen.getByRole('radiogroup', { name: '她会不会主动找你' }).closest('[data-row="speakWhen"]');
+    expect(companion?.textContent).toContain('任务结果和你设的提醒照常送达');
     expect(within(row).getAllByRole('radio').map((r) => r.textContent)).toEqual(['出声', '只出卡', '不提示']);
     await act(async () => fireEvent.click(within(row).getByRole('radio', { name: '只出卡' })));
     expect(save).toHaveBeenCalledWith({ n_remind: 'card' });
@@ -171,14 +170,18 @@ describe('settings › 快捷键', () => {
   });
 });
 
-describe('settings › 权限与授权', () => {
+describe('settings › 能做 › 系统权限', () => {
+  // The section is one summary line until 去开 unfolds a row per permission.
+  const unfold = () => act(async () => fireEvent.click(within(document.querySelector('[data-row="perms"]') as HTMLElement).getByRole('button', { name: '去开' })));
+
   it('opens system settings through the bridge and offers a re-check', async () => {
     const request = vi.spyOn(window.agenticComplex!.permissions, 'openSettings');
     render(
       <Harness>
-        <PermGroup />
+        <ActGroup />
       </Harness>,
     );
+    await unfold();
     const open = screen.getByRole('button', { name: '去系统设置' });
     await act(async () => fireEvent.click(open));
     expect(request).toHaveBeenCalledWith('automation');
@@ -186,13 +189,14 @@ describe('settings › 权限与授权', () => {
     expect(screen.getByRole('button', { name: '重新检测' })).toBeTruthy();
   });
 
-  it('disables「去系统设置」when the shell cannot open system settings', () => {
+  it('disables「去系统设置」when the shell cannot open system settings', async () => {
     install({ systemSettings: false });
     render(
       <Harness>
-        <PermGroup />
+        <ActGroup />
       </Harness>,
     );
+    await unfold();
     expect(screen.getByRole('button', { name: '去系统设置' }).getAttribute('aria-disabled')).toBe('true');
   });
 });
@@ -206,7 +210,7 @@ describe('settings › 启动与关于', () => {
       </Harness>,
     );
     const row = container.querySelector('[data-row="login"]') as HTMLElement;
-    expect(within(row).getByRole('switch', { name: '登录时启动' })).toBeTruthy();
+    expect(within(row).getByRole('switch', { name: '开机登录后启动' })).toBeTruthy();
     expect(within(row).queryByRole('button', { name: '去系统设置' })).toBeNull();
   });
 
@@ -286,7 +290,8 @@ describe('settings › 角色内核', () => {
     const draft = () => JSON.parse(screen.getByTestId('draft').textContent ?? '{}') as Record<string, unknown>;
     const row = (name: string) => screen.getByRole('radio', { name }).closest('tr')!;
     expect(exe()).toBe('/opt/homebrew/bin/codex');
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: '选择…' })));
+    // 工作区 has its own 选择… under the band too.
+    await act(async () => fireEvent.click(within(screen.getByText('可执行文件').closest('[data-row]') as HTMLElement).getByRole('button', { name: '选择…' })));
     expect(draft()).toEqual({ exe: '/usr/local/bin/codex' });
     await act(async () => fireEvent.click(row('Claude Code')));
     expect(draft()).toEqual({ kernel: 'claude' });

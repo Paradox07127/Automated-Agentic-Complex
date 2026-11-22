@@ -68,9 +68,10 @@ describe('demo URL state', () => {
 });
 
 describe('model settings search', () => {
-  it('finds the Pi catalog provider and the compatible-API capability rows', () => {
+  it('finds the Pi catalog provider in 模型服务, where it is picked, and the compatible-API capability rows', () => {
     const ids = (q: string) => searchSettings(q).map((r) => r.id);
-    expect(ids('服务提供方')).toContain('piProvider');
+    expect(ids('服务提供方')).toContain('svc');
+    expect(ids('openrouter')).toEqual(['svc']);
     expect(ids('上下文长度')).toContain('ctxWindow');
     expect(ids('最大输出')).toContain('maxOut');
     expect(ids('图像输入')).toContain('images');

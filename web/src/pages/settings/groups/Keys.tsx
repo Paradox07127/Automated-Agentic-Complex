@@ -1,21 +1,24 @@
 import { useState } from 'react';
 import { getBridge, type BridgeError, type HotkeyCheck } from '../../../bridge';
 import { hotkeyText, keyText } from '../../../bridge/platformText';
-import { Btn, Kbd } from '../../../ui';
 import { useSettings } from '../ctx';
+import { groupDesc } from '../groups';
+import { Cap, KeyCell } from '../kit';
+import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
+import { Slab } from '../Slab';
 import styles from '../groups.module.css';
 
 /** Rows in schema order; the combos themselves come from settings.read() and the schema defaults. */
-const HOTKEYS: Array<{ id: string; label: string; desc?: string }> = [
-  { id: 'hk_ptt', label: '按住说话', desc: '只有这一项可以单用右 ⌥' },
-  { id: 'hk_quick', label: '快速输入' },
-  { id: 'hk_look', label: '屏幕识读' },
-  { id: 'hk_hide', label: '显示 / 隐藏角色' },
-  { id: 'hk_pass', label: '临时全部点穿' },
-  { id: 'hk_wheel', label: '快捷轮盘' },
-  { id: 'hk_sel', label: '读取选中文字', desc: '没选中时读剪贴板，带进快速输入；安全输入和黑名单窗口不读' },
+const HOTKEYS: Array<{ id: string; desc?: string }> = [
+  { id: 'hk_ptt', desc: '只有这一项能单用右 ⌥' },
+  { id: 'hk_quick' },
+  { id: 'hk_look' },
+  { id: 'hk_hide' },
+  { id: 'hk_pass' },
+  { id: 'hk_wheel' },
+  { id: 'hk_sel', desc: '没选中时读剪贴板；安全输入和不看的窗口不读' },
 ];
 
 /** ⌃Space also switches the input method on macOS and in Windows' Chinese input methods; the shell cannot tell, so the row says so. */
@@ -35,9 +38,17 @@ export const PAGE_KEYS: Array<[id: string, title: string, key: string]> = [
   ['settings', '设置', '⌘,'],
 ];
 
-/** 快捷键: global keys recorded through the native bridge, checked, then saved; the main-window keys are fixed. */
+/** A combo as key caps: each modifier its own cap, the key after them one cap; Windows text splits on +. */
+export function capsOf(text: string): string[] {
+  if (text.includes('+')) return text.split('+').map((k) => k.trim()).filter(Boolean);
+  const m = /^([⌃⌥⇧⌘]*)(.*)$/u.exec(text.replace(/\s+/g, ''));
+  return [...Array.from(m?.[1] ?? ''), ...(m?.[2] ? [m[2]] : [])];
+}
+
+/** 按键: global keys recorded through the native bridge, checked, then saved; the main-window keys are fixed. */
 export function KeysGroup() {
   const { model, ro, caps, native } = useSettings();
+  const shown = useRowShown();
   const bridge = getBridge();
   const [recording, setRecording] = useState<string | null>(null);
 
@@ -72,12 +83,18 @@ export function KeysGroup() {
     }
   };
   const noHotkeys = !caps.hotkeys;
+  const fixed: Array<[id: string, title: string, key: string]> = [
+    ...PAGE_KEYS.map(([id, title, key]): [string, string, string] => [`hk_page_${id}`, title, key]),
+    ['hk_cmdk', labelOf('hk_cmdk'), '⌘K'],
+    ['hk_find', '搜索设置', '⌘F'],
+  ];
 
   return (
     <>
-      <SetSection title="全局快捷键">
+      <SetSection title="全局快捷键" info={`${groupDesc('keys')}。轮盘、菜单和提示里的热键都取自这里。`}>
         {noHotkeys && <p className={styles.note}>这个平台不支持全局热键，只在主窗口内有效</p>}
         {HOTKEYS.map((h) => {
+          const label = labelOf(h.id);
           const saved = model.value(h.id);
           const combo = typeof saved === 'string' ? saved : String(native?.rows[h.id]?.default ?? '—');
           const status = native?.statuses[h.id];
@@ -88,40 +105,54 @@ export function KeysGroup() {
             <SetRow
               key={h.id}
               id={h.id}
-              title={h.label}
-              desc={status ? hotkeyText(status) : (clash ? `与${bridge.platform === 'windows' ? '系统' : ' macOS'}「切换输入法」冲突，建议改为 ${hotkeyText(INPUT_SWITCH_FIX)}` : h.desc && hotkeyText(h.desc))}
-              descTone={status || clash ? 'attention' : undefined}
+              title={label}
+              desc={status ? hotkeyText(status) : clash ? `和${bridge.platform === 'windows' ? '系统' : ' macOS'}「切换输入法」冲突` : h.desc && hotkeyText(h.desc)}
+              descTone={status || clash ? 'bad' : undefined}
               control={
                 <>
-                  {unset ? <span className={styles.t3}>未设置</span> : <Kbd size="lg">{hotkeyText(combo)}</Kbd>}
-                  <Btn size="sm" variant="ghost" loading={recording === h.id} disabled={ro || noHotkeys || (recording !== null && recording !== h.id)}
-                    disabledReason={recording ? '正在录制快捷键' : noHotkeys ? '这个平台不支持全局热键' : '设置当前不可写'} onClick={() => void record(h.id, h.label)}>
-                    {recording === h.id ? <span role="status">按下新快捷键，Esc 取消</span> : '更改'}
-                  </Btn>
-                  {!unset && (
-                    <Btn size="sm" variant="quiet" disabled={ro || recording !== null} onClick={() => model.set(h.id, '')}>
-                      清除
-                    </Btn>
-                  )}
+                  <KeyCell keys={unset ? undefined : capsOf(hotkeyText(combo))} none={unset} warn={clash} recording={recording === h.id} />
                   {clash && (
-                    <Btn size="sm" variant="quiet" disabled={ro || recording !== null} onClick={() => void use(h.id, h.label, INPUT_SWITCH_FIX)}>
+                    <Cap disabled={ro || recording !== null} onClick={() => void use(h.id, label, INPUT_SWITCH_FIX)}>
                       改用 {hotkeyText(INPUT_SWITCH_FIX)}
-                    </Btn>
+                    </Cap>
+                  )}
+                  <Cap
+                    loading={recording === h.id}
+                    disabled={ro || noHotkeys || (recording !== null && recording !== h.id)}
+                    disabledReason={recording ? '正在录制快捷键' : noHotkeys ? '这个平台不支持全局热键' : '设置当前不可写'}
+                    onClick={() => void record(h.id, label)}
+                  >
+                    更改
+                  </Cap>
+                  {!unset && (
+                    <Cap disabled={ro || recording !== null} onClick={() => model.set(h.id, '')}>
+                      清除
+                    </Cap>
                   )}
                 </>
               }
             />
           );
         })}
-        <p className={styles.note}>快捷轮盘、菜单和提示中的热键标注均取自此处。</p>
       </SetSection>
 
-      <SetSection title="主窗口内">
-        {PAGE_KEYS.map(([id, title, key]) => (
-          <SetRow key={id} id={`hk_page_${id}`} title={`切换到「${title}」`} control={<Kbd size="lg">{keyText(key)}</Kbd>} />
-        ))}
-        <SetRow id="hk_cmdk" title="命令面板" desc={keyText('固定为 ⌘K')} control={<Kbd size="lg">{keyText('⌘K')}</Kbd>} />
-        <SetRow id="hk_find" title="搜索设置" desc="设置页内有效" control={<Kbd size="lg">{keyText('⌘F')}</Kbd>} />
+      <SetSection title="主窗口里" right="固定，不能改">
+        <Slab id="hk_main" variant="plate" label="主窗口里的快捷键">
+          <div className={styles.fixedKeys}>
+            {fixed
+              .filter(([id]) => shown(id))
+              .map(([id, title, key]) => (
+                <span key={id} id={`set-${id}`} data-row={id} className={styles.fixedKey}>
+                  <span>{title}</span>
+                  <kbd>{keyText(key)}</kbd>
+                </span>
+              ))}
+            <span className={styles.fixedKey}>
+              <span>切换分组</span>
+              <kbd>Q / E</kbd>
+            </span>
+          </div>
+        </Slab>
       </SetSection>
     </>
   );

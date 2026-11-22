@@ -178,20 +178,20 @@ test('SRow: description is one line, no contour', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('settings danger confirm is a Dialog: solid white band, centred, at most 560 wide, footer inside the panel', async ({ page }) => {
+test('settings danger confirm is the white paper card: opaque, red-striped, centred, at most 560 wide, footer inside the card', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/settings?plugins=all&group=privacy&still=1');
   await page.getByRole('switch', { name: '窗口文字', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
-  const bg = await css(dialog, 'background-color');
-  expect(bg).toBe(await token(page, '--ef-popup-band'));
-  expect(bg).not.toMatch(/rgba\(.*,\s*0?\.\d+\)$/);
+  await expect(dialog).toHaveAttribute('data-danger', 'true');
+  expect(await css(dialog, 'background-image')).toMatch(/^linear-gradient/);
+  expect(await css(dialog, 'background-color')).not.toMatch(/rgba\(.*,\s*0?\.\d+\)$/);
   const box = (await dialog.boundingBox())!;
   expect(box.width).toBeLessThanOrEqual(560);
   const vw = page.viewportSize()!;
   await expect(page.locator('[data-stub="Modal"]')).toHaveCount(0);
-  const scrim = (await page.locator('[data-stub="Dialog"]').boundingBox())!;
+  const scrim = (await page.locator('[data-stub="SettingsConfirm"]').boundingBox())!;
   expect(Math.abs(box.x + box.width / 2 - (scrim.x + scrim.width / 2))).toBeLessThanOrEqual(1);
   expect(Math.abs(box.y + box.height / 2 - (scrim.y + scrim.height / 2))).toBeLessThanOrEqual(1);
   expect(scrim.width).toBeLessThanOrEqual(vw.width);

@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react';
 import { getBridge, type AppInfo } from '../../../bridge';
 import { NodeChain } from '../../../charts';
 import { formatAgo } from '../../../domain/time';
-import { Btn, StatusTag } from '../../../ui';
 import { clock, disconnectHooks, failure } from '../api';
 import { useSettings } from '../ctx';
 import type { Hook } from '../diag';
+import { Cap, St } from '../kit';
 import { SetRow } from '../SetRow';
-import { SetSection } from '../SetSection';
 import { runInTerminal } from '../terminal';
 import styles from '../groups.module.css';
 
@@ -46,13 +45,13 @@ function HookChain({ name, h }: { name: string; h: Hook }) {
 }
 
 function tag(h: Hook) {
-  if (h.installed == null) return <StatusTag state="todo" label="无法检查" />;
-  if (!h.installed) return <StatusTag state="todo" label="未接入" />;
-  return h.last_at ? <StatusTag state="ok" label="已接入" /> : <StatusTag state="warning" label="已安装，未收到事件" />;
+  if (h.installed == null) return <St tone="off">无法检查</St>;
+  if (!h.installed) return <St tone="off">未接入</St>;
+  return h.last_at ? <St tone="ok">{`已接入 │ ${formatAgo(clock() - h.last_at)}收到事件`}</St> : <St tone="warn">已安装，没收到事件</St>;
 }
 
-/** 编码工具接入: hook state from `/diag/state`, unbinding through agentd. */
-export function HooksSection() {
+/** Claude Code and Codex hooks under 编码会话: state from `/diag/state`, the install steps while one is not hooked up, unbinding through agentd. */
+export function HookRows() {
   const { model, ro, diag, reload } = useSettings();
   const bridge = getBridge();
   const [installer, setInstaller] = useState<Step[] | null>(null);
@@ -90,30 +89,27 @@ export function HooksSection() {
     });
 
   return (
-    <SetSection title="编码工具接入">
+    <>
       {TOOLS.map(({ id, row, name }) => {
         const h = diag.hooks?.[id] ?? null;
+        const waiting = id === 'codex' && h?.installed && !h.last_at;
         return (
           <SetRow
             key={id}
             id={row}
             title={name}
-            desc={h == null ? '—' : id === 'codex' && h.installed && !h.last_at ? '在 Codex 里跑一次任务后再检测' : '新会话会出现在 任务 › 编码会话'}
+            desc={h == null ? '—' : waiting ? '在 Codex 里跑一次任务后再检测' : '新会话会出现在 任务 › 编码会话'}
+            descTone={waiting ? 'attention' : undefined}
+            indent
             control={
               <>
                 {h && tag(h)}
-                {h?.installed && (
-                  <Btn size="sm" variant="quiet" disabled={ro} onClick={() => unbind(id, name)}>
-                    解绑
-                  </Btn>
-                )}
-                <Btn size="sm" variant="ghost" icon="refresh" disabled={ro} onClick={() => reload('diag')}>
-                  重新检测
-                </Btn>
+                {h?.installed && <Cap onClick={() => unbind(id, name)}>解绑</Cap>}
+                <Cap onClick={() => reload('diag')}>重新检测</Cap>
               </>
             }
           >
-            {h && <HookChain name={name} h={h} />}
+            {h && !(h.installed && h.last_at) && <HookChain name={name} h={h} />}
             {h && (h.installed === false || (h.installed == null && !h.last_at)) && (
               <ol className={styles.files} aria-label={`${name} 接入步骤`}>
                 {installSteps(installer ?? [], id).map((s, i) => (
@@ -122,13 +118,11 @@ export function HooksSection() {
                       {i + 1}. {s.label}
                     </span>
                     {s.terminal ? (
-                      <Btn size="sm" variant="ghost" icon="ext" disabled={ro || !s.command} onClick={() => run(s)}>
+                      <Cap go disabled={ro || !s.command} onClick={() => run(s)}>
                         在终端运行
-                      </Btn>
+                      </Cap>
                     ) : (
-                      <Btn size="sm" variant="quiet" icon="copy" onClick={() => copy(s)}>
-                        复制
-                      </Btn>
+                      <Cap onClick={() => copy(s)}>复制</Cap>
                     )}
                   </li>
                 ))}
@@ -138,6 +132,6 @@ export function HooksSection() {
           </SetRow>
         );
       })}
-    </SetSection>
+    </>
   );
 }

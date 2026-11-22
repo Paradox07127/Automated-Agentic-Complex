@@ -33,7 +33,7 @@ async function load(): Promise<Loaded> {
 
 function Harness({ d, init = {}, goRow = () => {}, children }: { d: Loaded; init?: ModelInit; goRow?: (id: string) => void; children: ReactNode }) {
   const view = useMemo(() => diagView({}), []);
-  const model = useSettingsModel(init, { native: d.native, runtime: d.runtime, models: d.models, pauses: view.pauses });
+  const model = useSettingsModel(init, { native: d.native, runtime: d.runtime, models: d.models });
   const runtime = runtimeView(d.runtime);
   const ctx: SettingsCtxValue = {
     model,
@@ -51,7 +51,6 @@ function Harness({ d, init = {}, goRow = () => {}, children }: { d: Loaded; init
     diag: view,
     blacklist: null,
     scopes: [],
-    runs: [],
     reload: () => {},
     perms: PERMISSIONS,
     recheckPerms: async () => 'granted',
@@ -119,10 +118,10 @@ describe('测试连接 result', () => {
   });
 });
 
-describe('获取列表', () => {
+describe('刷新列表', () => {
   it('waits while the service choice is an unsaved draft', async () => {
     render(<Harness d={d} init={{ draft: { svc: 'openai' } }}><ModelGroup /></Harness>);
-    const fetch = () => within(row('chatModel')!).getByRole('button', { name: '获取列表' });
+    const fetch = () => within(row('chatModel')!).getByRole('button', { name: '刷新列表' });
     expect(fetch().getAttribute('aria-disabled')).toBe('true');
     await click(fetch());
     expect(sent('POST', '/model/catalog')).toBeUndefined();
@@ -213,11 +212,13 @@ describe('其他（Pi 目录）', () => {
 
   it("is a model service whose provider comes from Pi's catalog, less the services with their own entry", async () => {
     expect(SVC.find((o) => o.value === 'pi_catalog')?.label).toBe('其他（Pi 目录）');
-    render(<Harness d={other('')}><ModelGroup /></Harness>);
+    render(<Harness d={other('')}><ModelGroup /><ApplyBar /></Harness>);
     await settle();
     expect(row('apiBase')).toBeNull();
-    expect(await options('服务提供方')).toEqual(['Groq', 'OpenRouter']);
-    await click(screen.getByRole('option', { name: 'Groq' }));
+    // The catalog's providers join the one 模型服务 list by name, in place of the bare 其他（Pi 目录）; picking one is a draft of that section.
+    expect((await options('模型服务')).filter((o) => o?.endsWith('（Pi 目录）'))).toEqual(['Groq（Pi 目录）', 'OpenRouter（Pi 目录）']);
+    await click(screen.getByRole('option', { name: 'Groq（Pi 目录）' }));
+    await click(screen.getByRole('button', { name: '应用' }));
     expect(sent('POST', '/model/settings')).toEqual({ provider: 'pi_catalog', pi_provider: 'groq' });
   });
 
@@ -254,11 +255,9 @@ describe('compatible API on this machine', () => {
 });
 
 describe('Pi account rows', () => {
-  it('offers only AI 账号 and 本机无需密钥 as the account source', async () => {
+  it("has no 账号来源 row of its own: Pi's key or 无需密钥 is chosen on 账号 › API Key", () => {
     render(<Harness d={pi()}><KernelGroup /></Harness>);
-    expect(row('acct')?.textContent).toContain('AI 账号');
-    expect(row('acct')?.textContent).not.toContain('内核自己的登录');
-    expect(await options('账号来源')).toEqual(['AI 账号', '本机无需密钥']);
+    expect(row('acct')).toBeNull();
   });
 
   it('picks the provider from provider_profiles and the account source the profile needs', async () => {
@@ -313,7 +312,7 @@ describe("Pi's own section of 角色内核", () => {
       ['grep', '本机没有 rg', '无', '无'],
       ['find', '本机没有 fd', '无', '无'],
     ]);
-    await click(within(row('piApproval')!).getByRole('switch', { name: '工具审批' }));
+    await click(within(row('piApproval')!).getByRole('switch', { name: '写文件和运行命令前先问你' }));
     expect(tools().map((t) => t[3])).toEqual(['无', '无', '无', '无', '无', '无', '无']);
     await click(screen.getByRole('button', { name: '应用' }));
     expect(sent('PUT', '/character/runtime')).toEqual({ pi_tool_approval: false });
@@ -329,7 +328,7 @@ describe("Pi's own section of 角色内核", () => {
   });
 
   it('keeps the cost cap editable unless a saved, ready Pi runs a model without a catalog price', () => {
-    const more = () => within(row('maxCost')!).getByRole('button', { name: '单次费用上限 增加' });
+    const more = () => within(row('maxCost')!).getByRole('button', { name: '单次运行费用上限 增加' });
     render(<Harness d={pi({ capability_flags: flags(true) })}><KernelGroup /></Harness>);
     expect(more().hasAttribute('disabled')).toBe(false);
     cleanup();

@@ -20,7 +20,7 @@ afterEach(() => {
 const src = resolve(dirname(fileURLToPath(import.meta.url)), '../../src');
 const css = readFileSync(resolve(src, 'ui/Tabs.module.css'), 'utf8');
 const tokens = readFileSync(resolve(src, 'design/tokens.css'), 'utf8');
-const LABELS = SETTING_GROUPS.flatMap((g) => g.items).filter((it) => isGroup(it.id)).map((it) => it.label);
+const LABELS = SETTING_GROUPS.filter((g) => isGroup(g.id)).map((g) => g.label);
 
 function Nav({ marks = {} }: { marks?: Partial<Record<GroupId, string>> }) {
   const [group, setGroup] = useState<GroupId>('privacy');
@@ -57,7 +57,7 @@ describe('icon tabs show their names', () => {
     render(<Nav />);
     const selected = () => screen.getAllByRole('tab').filter((t) => t.getAttribute('aria-selected') === 'true').map((t) => t.getAttribute('data-tab'));
     expect(selected()).toEqual(['privacy']);
-    fireEvent.click(screen.getByRole('tab', { name: /权限与授权/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /能做/ }));
     expect(selected()).toEqual(['perm']);
     cleanup();
 
@@ -72,10 +72,10 @@ describe('icon tabs show their names', () => {
 
   it('explains the ◆ mark when the cell is hovered, and keeps the bare name as the tab title', () => {
     render(<Nav marks={{ perm: '辅助功能、屏幕录制未允许' }} />);
-    const perm = screen.getByRole('tab', { name: /权限与授权/ });
-    expect(perm.getAttribute('title')).toBe('权限与授权');
-    expect(within(perm).getByText('权限与授权').closest('[title]')?.getAttribute('title')).toBe('权限与授权：辅助功能、屏幕录制未允许');
-    expect(perm.querySelector('svg')?.closest('[title]')?.getAttribute('title')).toBe('权限与授权：辅助功能、屏幕录制未允许');
+    const perm = screen.getByRole('tab', { name: /能做/ });
+    expect(perm.getAttribute('title')).toBe('能做');
+    expect(within(perm).getByText('能做').closest('[title]')?.getAttribute('title')).toBe('能做：辅助功能、屏幕录制未允许');
+    expect(perm.querySelector('svg')?.closest('[title]')?.getAttribute('title')).toBe('能做：辅助功能、屏幕录制未允许');
     const data = screen.getByRole('tab', { name: /^数据/ });
     expect(within(data).getByText('数据').closest('[title]')).toBe(data);
   });

@@ -4,13 +4,13 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
+import { createFakeBridge } from '../../src/bridge/fake';
 import { PLUGINS } from '../../src/bridge/plugins.generated';
 import { readRunningTasks } from '../../src/pages/character/api';
 import { ChatPage } from '../../src/pages/chat/Page';
 import { MemoryPage } from '../../src/pages/memory/Page';
-import { SETTING_GROUPS } from '../../src/pages/settings/groups';
 import { SettingsPage } from '../../src/pages/settings/Page';
-import { REGISTRY } from '../../src/pages/settings/registry';
+import { GROUP_IDS, REGISTRY } from '../../src/pages/settings/registry';
 import { paletteItems } from '../../src/shell/CmdPalette.data';
 import { setDevMode } from '../../src/shell/devMode';
 import { DEFAULT_PLUGINS, getPlugins, pluginState } from '../../src/shell/plugins';
@@ -81,52 +81,66 @@ describe('pages a user is offered', () => {
 describe('settings rows of a plug-in', () => {
   it('match web.settings of protocol/plugins/plugins.json', () => {
     for (const p of PLUGINS) {
-      const groups = (p.web.settings as readonly string[]).filter((s) => !s.includes('.'));
-      expect(SETTING_GROUPS.flatMap((c) => c.items).filter((i) => i.plugin === p.id).map((i) => i.id), p.id).toEqual(groups);
       for (const s of p.web.settings as readonly string[]) {
-        if (!s.includes('.')) continue;
-        const [group, row] = [s.slice(0, s.indexOf('.')), s.slice(s.indexOf('.') + 1)];
-        const entry = REGISTRY.find((r) => r.id === row);
-        if (entry) expect([entry.group, entry.plugin], s).toEqual([group, p.id]);
+        // A whole group is no longer hidden: the plug-in's rows sit in its band inside that group.
+        if (!s.includes('.')) {
+          expect(GROUP_IDS, s).toContain(s);
+          expect(REGISTRY.some((r) => r.group === s && r.plugin === p.id), s).toBe(true);
+          continue;
+        }
+        const entry = REGISTRY.find((r) => r.id === s.slice(s.indexOf('.') + 1));
+        if (entry) expect(entry.plugin, s).toBe(p.id);
       }
     }
   });
 
-  it('are not found by the settings search while the plug-in is off', async () => {
+  it('are not found by the settings search while the plug-in is off; its band switch is', async () => {
+    // A result's name is its label, then its 「设置 › 组 › 分区」 path.
+    const hits = (label: string) => screen.queryAllByRole('button', { name: new RegExp(`^${label}设置 › `) });
     await mount('');
     fireEvent.change(await screen.findByRole('textbox', { name: '搜索设置' }), { target: { value: '简报' } });
-    expect(screen.queryByRole('button', { name: /每日简报/ })).toBeNull();
+    // The band and the brief's own row share the name; only the band is offered while the plug-in is off.
+    expect(hits('每日简报')).toHaveLength(1);
+    expect(hits('每周简报')).toEqual([]);
     cleanup();
+    // The page takes the switches from config.json, so the plug-in is saved on there too, in a bridge of this test's own.
     pluginsOn('daily_brief');
-    await mount('');
-    fireEvent.change(await screen.findByRole('textbox', { name: '搜索设置' }), { target: { value: '简报' } });
-    expect(screen.getByRole('button', { name: /每日简报/ })).toBeTruthy();
+    window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
+    try {
+      await window.agenticComplex.settings.save({ 'plugins.daily_brief': true });
+      await mount('');
+      fireEvent.change(await screen.findByRole('textbox', { name: '搜索设置' }), { target: { value: '简报' } });
+      expect(hits('每日简报')).toHaveLength(2);
+      expect(hits('每周简报')).toHaveLength(1);
+    } finally {
+      delete window.agenticComplex;
+    }
   });
 
-  it('leave 隐私 with the outbound plate and the redaction switch, and hide the 角色内核 group', async () => {
+  it('leave 观察 with the outbound plate, the folded bands and the redaction switch, and hide no group', async () => {
     await mount('&group=privacy');
-    expect(await screen.findByRole('switch', { name: '遮蔽敏感内容' })).toBeTruthy();
-    for (const gone of ['窗口文字', '读取编码会话', '附上截图']) expect(screen.queryByRole('switch', { name: gone })).toBeNull();
+    expect(await screen.findByRole('switch', { name: '发出前遮蔽敏感内容' })).toBeTruthy();
+    for (const gone of ['窗口文字', '读会话里的工具输入输出', '识读时附上截图']) expect(screen.queryByRole('switch', { name: gone })).toBeNull();
     expect(screen.queryByRole('button', { name: '暂停 1 小时' })).toBeNull();
-    // 键鼠计数 feeds the coarse beat, which runs with screen awareness off; it is the region's only row then.
-    const scope = screen.getByRole('region', { name: '读取范围' });
-    expect(within(scope).getAllByRole('switch')).toHaveLength(1);
-    expect(within(scope).getByRole('switch', { name: '键鼠计数' })).toBeTruthy();
+    expect(document.querySelector('[data-row="out"]')).not.toBeNull();
+    // Besides the bands' own switches, 键鼠计数 is the only reading left: the coarse beat reads it with screen awareness off.
+    const rows = [...document.querySelectorAll('[data-row]:not([data-row^="plugins."])')].filter((r) => r.querySelector('[role="switch"]'));
+    expect(rows.map((r) => r.getAttribute('data-row'))).toEqual(['keys', 'mask']);
+    expect(screen.getByText(/^关着 │ 打开后可以设：窗口文字/)).toBeTruthy();
     const nav = screen.getByRole('tablist', { name: '设置分组' });
-    expect(within(nav).queryByRole('tab', { name: /角色内核/ })).toBeNull();
-    expect(within(nav).getAllByRole('tab')[0]?.getAttribute('title')).toBe('插件');
+    expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['说话', '能做', '观察', '内核', '账号', '按键', '数据', '关于']);
   });
 
   it('keep developer rows out of 开发者模式 off', async () => {
-    await mount('&group=adv');
-    expect(await screen.findByRole('region', { name: '排障' })).toBeTruthy();
-    expect(screen.queryByRole('region', { name: '开发者参数' })).toBeNull();
-    expect(screen.queryByRole('region', { name: '后台服务' })).toBeNull();
-    cleanup();
     await mount('&group=about');
-    expect(await screen.findByRole('region', { name: '关于' })).toBeTruthy();
-    expect(document.querySelector('[data-row="load"]')).toBeNull();
-    expect(document.querySelector('[data-row="dev"]')).not.toBeNull();
+    const fix = await screen.findByRole('region', { name: '排障' });
+    for (const gone of ['devparams', 'agentd', 'load']) expect(document.querySelector(`[data-row="${gone}"]`), gone).toBeNull();
+    expect(within(fix).getByRole('group', { name: '开发者模式' })).toBeTruthy();
+    cleanup();
+    setDevMode(true);
+    await mount('&group=about');
+    await screen.findByRole('region', { name: '排障' });
+    for (const back of ['devparams', 'agentd']) expect(document.querySelector(`[data-row="${back}"]`), back).not.toBeNull();
   });
 });
 
@@ -173,22 +187,37 @@ describe('core pages with the plug-ins at their defaults', () => {
   });
 });
 
-describe('settings › 插件', () => {
-  it('lists the nine plug-ins with a switch each, 轻量 AI not among them', async () => {
-    await mount('&group=plugins');
-    const sec = await screen.findByRole('region', { name: '插件' });
-    const names = within(sec).getAllByRole('switch').map((s) => s.getAttribute('aria-label'));
-    expect(names).toEqual(['屏幕感知', '屏幕识读', '日报与简报', '编码会话', '个人代理', 'Agent 内核桥接', '电脑操作', '外部接入', '动作生成']);
-    expect(within(sec).queryByText(/轻量/)).toBeNull();
-    // Permission tags beside the plug-ins that need them.
-    expect(within(document.querySelector('[data-row="plugins.screen_awareness"]') as HTMLElement).getByText('辅助功能 │ 已允许')).toBeTruthy();
-    expect(within(document.querySelector('[data-row="plugins.daily_brief"]') as HTMLElement).queryByText(/│/)).toBeNull();
+describe('settings › the plug-in bands', () => {
+  const band = (id: string) => document.querySelector(`[data-row="plugins.${id}"]`) as HTMLElement;
+
+  it('give the nine plug-ins a band with a switch each in the group they affect, 轻量 AI not among them', async () => {
+    const bands: Record<string, string[]> = {
+      perm: ['操作电脑', '派发任务和定时任务', '外部智能体接入', '生成新动作'],
+      privacy: ['屏幕感知', '屏幕识读', '编码会话', '每日简报'],
+      kernel: ['外接 harness'],
+    };
+    for (const [group, names] of Object.entries(bands)) {
+      await mount(`&group=${group}`);
+      await screen.findAllByRole('switch');
+      if (group === 'kernel') await screen.findByRole('switch', { name: '外接 harness' });
+      const shown = [...document.querySelectorAll('[data-row^="plugins."]')];
+      expect(shown.map((b) => within(b as HTMLElement).getByRole('switch').getAttribute('aria-label')), group).toEqual(names);
+      expect(screen.queryByText(/轻量/)).toBeNull();
+      cleanup();
+    }
+    // The permissions a band needs sit on it as chips; ✕ marks one not granted.
+    await mount('&group=privacy');
+    await screen.findAllByRole('switch');
+    expect(within(band('screen_awareness')).getByText('辅助功能')).toBeTruthy();
+    expect(within(band('screen_awareness')).getByText('屏幕录制')).toBeTruthy();
+    expect(within(band('daily_brief')).queryByText(/辅助功能|屏幕录制/)).toBeNull();
   });
 
   it('writes plugins.<id>, waits for a backend restart and shows the plug-in at once', async () => {
     const save = vi.spyOn(getBridge().settings, 'save');
-    await mount('&group=plugins');
-    const sw = await screen.findByRole('switch', { name: '日报与简报' });
+    await mount('&group=privacy');
+    await screen.findAllByRole('switch');
+    const sw = within(band('daily_brief')).getByRole('switch', { name: '每日简报' });
     expect(getPlugins().daily_brief).toBe(false);
     await act(async () => fireEvent.click(sw));
     expect(save).toHaveBeenCalledWith({ 'plugins.daily_brief': true });

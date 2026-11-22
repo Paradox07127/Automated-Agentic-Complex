@@ -26,8 +26,8 @@ describe('settings: deleting switches', () => {
 });
 
 describe('settings: registry and search', () => {
-  it('covers all nine groups and every deleting switch; restart marks come from the schema, not the registry', () => {
-    expect(SETTING_GROUPS.flatMap((c) => c.items.map((i) => i.id))).toEqual(GROUP_IDS);
+  it('covers all eight groups and every deleting switch; restart marks come from the schema, not the registry', () => {
+    expect(SETTING_GROUPS.map((g) => g.id)).toEqual(GROUP_IDS);
     for (const g of GROUP_IDS) expect(REGISTRY.some((r) => r.group === g), g).toBe(true);
     for (const id of destructive) expect(REGISTRY.find((r) => r.id === id)?.deletesData, id).toBe(true);
     expect(REGISTRY.filter((r) => r.effect === 'restartBackend')).toEqual([]);

@@ -1,92 +1,113 @@
+/* Search results: row plates with the hit in yellow and the path under it. */
+.res {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.count {
+  margin: 6px 0 2px;
+  color: var(--s-t2);
+  font-size: 12px;
+}
+
+.count b,
+.count :global(.num) {
+  color: var(--s-t1);
+  font-family: var(--ef-font-num);
+}
+
 .list {
-  display: flex;
-  flex-direction: column;
-  margin: var(--ef-sp-16) 0 0;
+  display: grid;
+  gap: 6px;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.count {
-  padding-bottom: var(--ef-sp-6);
-  border-bottom: var(--ef-lw-hair) solid var(--ef-line);
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-caption);
-}
-
-/* A result opens its row: the settings row plate; pointing at it drops the trace bar and brightens the rim. */
 .row {
-  /* Plate rim: #B9B9B9 tinted white@0.4. */
-  --plate-rim: rgb(185 185 185 / 0.4);
+  all: unset;
   position: relative;
-  display: flex;
+  isolation: isolate;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--ef-sp-12);
+  gap: 20px;
   width: 100%;
   min-height: 48px;
-  margin-top: 5px;
-  padding: var(--ef-sp-6) 30px var(--ef-sp-6) 34px;
-  border: 1px solid var(--plate-rim);
-  border-radius: 2px;
-  background: var(--ef-set-row-plate);
-  color: var(--ef-text-1);
-  text-align: left;
+  padding: 7px 22px 7px 34px;
+  border-radius: 3px;
+  background: var(--s-plate);
+  box-shadow: inset 0 0 0 1px var(--s-rim), inset 0 1px 0 var(--s-rim-hi);
   cursor: pointer;
-}
-
-:global([data-theme='light']) .row {
-  background: var(--ef-rowplate);
+  transition: background 83ms;
 }
 
 .row::before {
   content: '';
   position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--ef-lw-category);
-  background: var(--ef-trace);
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform var(--ef-dur-g-cell-in) var(--ef-ease-g-enter);
+  z-index: -1;
+  inset: 2px auto 2px 2px;
+  width: 96px;
+  background: repeating-linear-gradient(-45deg, var(--s-tex) 0 1.2px, transparent 1.2px 4px);
+  -webkit-mask: linear-gradient(90deg, #000 10%, transparent);
+  mask: linear-gradient(90deg, #000 10%, transparent);
+  opacity: 0.7;
 }
 
-.row:is(:hover, :focus-visible) {
-  border-color: var(--ef-line-strong);
+.row:hover {
+  background: var(--s-plate-hi);
 }
 
-.row:is(:hover, :focus-visible)::before {
-  transform: none;
+.row:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: 1px;
 }
 
 .main {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
+  display: grid;
+  gap: 1px;
   min-width: 0;
 }
 
 .title {
-  font: var(--ef-fw-medium) var(--ef-fs-title-2) / var(--ef-lh-h2) var(--ef-font-sans);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 15px/22px var(--ef-font-sans);
+}
+
+.title mark {
+  padding: 0 1px;
+  background: var(--ef-accent);
+  color: #161616;
 }
 
 .crumb {
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-caption);
+  color: var(--s-t2);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .danger {
-  color: var(--ef-danger-text);
-  font-size: var(--ef-fs-caption);
+  padding: 0 5px;
+  color: var(--s-bad);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 16px;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.go {
+  color: var(--s-t2);
+  font: 600 15px var(--ef-font-num);
 }
 
 .empty {
-  margin-top: var(--ef-sp-32);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .row::before {
-    transition: none;
-  }
-}
-
-:global([data-reduce-motion]) .row::before {
-  transition: none;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 80px 0;
+  color: var(--s-t2);
 }

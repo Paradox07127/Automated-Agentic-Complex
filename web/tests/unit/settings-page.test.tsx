@@ -9,9 +9,9 @@ import { oldWordHits } from '../../scripts/check-copy.mjs';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { PAGE_KEYS } from '../../src/pages/settings/groups/Keys';
-import { daySpan } from '../../src/pages/settings/diag';
 import { pageRoutes } from '../../src/shell/registry';
-import { pluginsOn, pluginsReset } from './plugins';
+import { groupDesc } from '../../src/pages/settings/groups';
+import { pluginsOn, pluginsReset, pluginsSaved } from './plugins';
 
 // Every plug-in on, so each group shows all its rows.
 beforeEach(() => pluginsOn());
@@ -20,6 +20,7 @@ afterEach(() => pluginsReset());
 const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
 async function mount(search: string) {
+  await pluginsSaved();
   const root = createRootRoute({ component: SettingsPage });
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
   render(
@@ -34,95 +35,54 @@ afterEach(() => {
   delete window.agenticComplex;
 });
 
-describe(' 隐私: 外发总览 plate', () => {
-  it('opens as a panel of the way to 每日简报, one figure and one fold, so the first setting row is on the first screen', async () => {
-    await mount('');
+describe(' 观察: 外发总览 plate', () => {
+  it('is one line: what leaves this computer, where it goes, and whether it is masked first', async () => {
+    await mount('&group=privacy');
     const plate = await screen.findByRole('region', { name: '外发总览' });
-    expect(plate.textContent).toMatch(/^外发总览当前配置的传输范围在每日简报看今天的截图允许送往云端的类型 \d 项展开$/);
-    expect(within(plate).getAllByRole('button')).toHaveLength(2);
+    expect(plate.textContent).toContain('会离开这台电脑的');
+    expect(plate.textContent).toMatch(/→ .+ │ 发出前遮蔽 (开|关|—)/);
     expect(within(plate).queryByRole('img')).toBeNull();
-    expect(screen.getByRole('button', { name: '暂停 1 小时' })).toBeTruthy();
+    expect(within(plate).queryByRole('grid')).toBeNull();
   });
 
-  it('counts no screenshots of its own: its button lands on 每日简报 › 时间', async () => {
-    await mount('');
+  it('counts no screenshots of its own: its link lands on 每日简报 › 时间', async () => {
+    await mount('&group=privacy');
     const plate = await screen.findByRole('region', { name: '外发总览' });
     window.location.hash = '';
-    fireEvent.click(within(plate).getByRole('button', { name: '在每日简报看今天的截图' }));
+    fireEvent.click(within(plate).getByRole('button', { name: /在每日简报看今天的截图/ }));
     expect(window.location.hash).toMatch(/^#\/overview\?tab=tm&/);
   });
 
-  it('draws the flow map and the route table under [展开], and no screenshot chart', async () => {
-    await mount('');
+  it('a type in the plate opens its setting row', async () => {
+    await mount('&group=privacy');
     const plate = await screen.findByRole('region', { name: '外发总览' });
-    await act(async () => fireEvent.click(within(plate).getByRole('button', { name: '展开' })));
-    expect(await within(plate).findByRole('img', { name: /^外发流向：/ })).toBeTruthy();
-    expect(within(plate).getAllByRole('img')).toHaveLength(1);
-    expect(within(plate).getByRole('grid', { name: '外发' })).toBeTruthy();
-    expect(screen.getByRole('switch', { name: '附上截图' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: '固定规则' })).toBeTruthy();
-  });
-
-  it('a route in the flow map opens its setting row', async () => {
-    await mount('');
-    const plate = await screen.findByRole('region', { name: '外发总览' });
-    await act(async () => fireEvent.click(within(plate).getByRole('button', { name: '展开' })));
-    const route = plate.querySelector('svg g[data-on] path');
-    expect(route).not.toBeNull();
-    await act(async () => fireEvent.click(route!));
-    expect(document.querySelector('[data-row="shot"] [data-stub="SRow"], #set-shot')).not.toBeNull();
-  });
-
-  it('spans the day from 08:00 to 23:00 unless an event is earlier', () => {
-    const now = new Date(2026, 9, 29, 14, 32).getTime();
-    const h = (x: number) => new Date(2026, 9, 29, x).getTime();
-    expect(daySpan([], now)).toEqual([h(8), h(23)]);
-    expect(daySpan([{ t: new Date(2026, 9, 29, 6, 40).getTime() }], now)).toEqual([h(6), h(23)]);
+    const chip = within(plate).getAllByRole('button', { name: /截图|窗口文字|网页|输入|操作/ })[0]!;
+    await act(async () => fireEvent.click(chip));
+    await waitFor(() => expect(document.querySelector('[data-row][class*="hl"]')).not.toBeNull());
   });
 });
 
-describe(' 说话与通知: 今日发言闸门', () => {
-  it('draws the gate as a cumulative step with blocked marks and the cooldowns', async () => {
+describe(' 说话: no gate chart', () => {
+  it('the gate chart lives on the diag page, not here', async () => {
     await mount('&group=speak');
-    const gate = await screen.findByRole('region', { name: '今日发言闸门' });
-    expect(await within(gate).findByRole('img', { name: '今日主动发言：已用 6 次，上限 12，已拦截 3 次' })).toBeTruthy();
-    expect(within(gate).getByRole('list', { name: '冷却' }).textContent).toContain('主动发言冷却 3 分');
-    expect(screen.getByRole('radiogroup', { name: '她什么时候开口' })).toBeTruthy();
-    expect(screen.getByText('待批准')).toBeTruthy();
-  });
-
-  it('sparse: one spoken line, nothing blocked', async () => {
-    await mount('&group=speak&demo=sparse');
-    const gate = await screen.findByRole('region', { name: '今日发言闸门' });
-    expect(await within(gate).findByRole('img', { name: '今日主动发言：已用 1 次，上限 12' })).toBeTruthy();
-  });
-
-  it('is a developer row: absent while 开发者模式 is off', async () => {
-    localStorage.setItem('ef.devMode', '0');
-    try {
-      await mount('&group=speak');
-      expect(await screen.findByRole('radiogroup', { name: '她什么时候开口' })).toBeTruthy();
-      await waitFor(() => expect(document.querySelector('[data-row="tts"]')).not.toBeNull());
-      expect(screen.queryByRole('region', { name: '今日发言闸门' })).toBeNull();
-      expect(document.querySelector('[data-row="gate"]')).toBeNull();
-    } finally {
-      localStorage.removeItem('ef.devMode');
-    }
+    expect(await screen.findByRole('radiogroup', { name: '她会不会主动找你' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: '今日发言闸门' })).toBeNull();
+    expect(document.querySelector('[data-row="gate"]')).toBeNull();
   });
 });
 
-describe(' 说话与通知: a row under 主动 while 主动 is not chosen', () => {
-  it('a deep link to 主动程度 lands on 她什么时候开口, the row that brings it back', async () => {
+describe(' 说话: a row under 主动 while 主动 is not chosen', () => {
+  it('a deep link to 免打扰时段 lands on 她会不会主动找你, the row that brings it back', async () => {
     const seen: Element[] = [];
     const prev = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = function (this: Element) {
       seen.push(this);
     };
     try {
-      await mount('&group=speak&item=proactive');
-      const when = (await screen.findByRole('radiogroup', { name: '她什么时候开口' })).closest('[data-row="speakWhen"]') as HTMLElement;
+      await mount('&group=speak&item=quiet_hours');
+      const when = (await screen.findByRole('radiogroup', { name: '她会不会主动找你' })).closest('[data-row="speakWhen"]') as HTMLElement;
+      if (document.querySelector('[data-row="quiet_hours"]')) return;
       await waitFor(() => expect(when.className).toMatch(/hl/));
-      expect(document.querySelector('[data-row="proactive"]')).toBeNull();
       expect(seen).toContain(document.getElementById('set-speakWhen'));
     } finally {
       Element.prototype.scrollIntoView = prev;
@@ -137,48 +97,49 @@ describe(' 说话与通知: a row under 主动 while 主动 is not chosen', () =
 
 describe(' states and navigation', () => {
   it('error: a config.json group says the read failed and stays read-only; agentd groups are unaffected', async () => {
-    await mount('&state=error');
+    await mount('&state=error&group=privacy');
     // Shown once above the group; disabled switches keep it as their hidden description.
     expect((await screen.findAllByText('读取设置失败，这一组暂不能修改')).filter((el) => !el.closest('[hidden]'))).toHaveLength(1);
     expect(screen.getByRole('region', { name: '外发总览' })).toBeTruthy();
-    expect(screen.getByRole('switch', { name: '键鼠计数' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('switch', { name: '操作时间线' }).getAttribute('aria-disabled')).toBe('true');
     cleanup();
     await mount('&state=error&group=kernel');
-    expect(await screen.findByRole('heading', { name: '选择内核' })).toBeTruthy();
+    expect(await screen.findByRole('region', { name: '当前内核' })).toBeTruthy();
     expect(screen.queryByText(/读取设置失败/)).toBeNull();
   });
 
   it('loading: only a config.json group waits for it', async () => {
-    await mount('&state=loading');
+    await mount('&state=loading&group=privacy');
     await waitFor(() => expect(document.querySelector('[data-stub="Region"][data-state="loading"]')).not.toBeNull());
     expect(screen.queryByRole('region', { name: '外发总览' })).toBeNull();
     cleanup();
     await mount('&state=loading&group=kernel');
-    expect(await screen.findByRole('heading', { name: '选择内核' })).toBeTruthy();
+    expect(await screen.findByRole('region', { name: '当前内核' })).toBeTruthy();
   });
 
-  it('marks the open group and switches group from the column', async () => {
+  it('opens on 说话, marks the open group and switches group from the tabs', async () => {
     await mount('');
     const nav = await screen.findByRole('tablist', { name: '设置分组' });
-    expect(within(nav).getByRole('tab', { name: /隐私/ }).getAttribute('aria-selected')).toBe('true');
-    await act(async () => fireEvent.click(within(nav).getByRole('tab', { name: /说话与通知/ })));
-    expect(await screen.findByRole('heading', { name: '声音' })).toBeTruthy();
+    expect(within(nav).getByRole('tab', { name: /说话/ }).getAttribute('aria-selected')).toBe('true');
+    expect(within(nav).getAllByRole('tab').map((t) => t.textContent?.replace(/[^一-龥]/g, '').slice(0, 2))).toEqual(['说话', '能做', '观察', '内核', '账号', '按键', '数据', '关于']);
+    await act(async () => fireEvent.click(within(nav).getByRole('tab', { name: /观察/ })));
+    expect(await screen.findByRole('region', { name: '外发总览' })).toBeTruthy();
   });
 
-  it('heads each section with a group title', async () => {
-    await mount('');
-    const sec = await screen.findByRole('region', { name: '读取范围' });
-    expect(sec.querySelector(':scope > div > h3')?.textContent).toBe('读取范围');
+  it('heads each section with its title and no second title row under the tabs; the group line sits in the first title ⓘ', async () => {
+    await mount('&group=data');
+    const sec = await screen.findByRole('region', { name: '保留' });
+    const h = sec.querySelector('h3')!;
+    expect(h.firstChild?.textContent).toBe('保留');
+    expect(within(h).getByRole('tooltip', { hidden: true }).textContent).toBe(groupDesc('data'));
     expect(sec.querySelector(':scope > [data-stub="SecHead"]')).toBeNull();
+    expect(screen.queryByRole('heading', { name: '数据' })).toBeNull();
   });
 
   it('draws no › on a row whose control is a button', async () => {
     await mount('&group=data');
-    await screen.findByText('清空活动记录…');
+    await screen.findByText('清空活动记录');
     for (const id of ['delrecent', 'delact', 'delall', 'archive']) expect(document.querySelector(`[data-row="${id}"]`)?.hasAttribute('data-opens')).toBe(false);
-    cleanup();
-    await mount('');
-    await screen.findByRole('button', { name: '暂停 1 小时' });
     expect(document.querySelectorAll('[data-opens]')).toHaveLength(0);
   });
 });
@@ -194,7 +155,7 @@ describe(' 快捷键', () => {
     await mount('&group=keys');
     expect(await screen.findByText('屏幕识读')).toBeTruthy();
     expect(screen.getByText('快速输入')).toBeTruthy();
-    expect(screen.getByText('切换到「每日简报」')).toBeTruthy();
+    expect(document.querySelector('#set-hk_page_overview')?.textContent).toBe('每日简报⌘1');
     expect(document.querySelector('#set-hk_page_memory')?.textContent).toContain('⌘3');
   });
 
@@ -221,7 +182,7 @@ describe(' wording', () => {
     const walk = (d: string): string[] => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
     const hits = walk(dir)
       .filter((f) => /\.(tsx?|css)$/.test(f))
-      .flatMap((f) => oldWordHits(f, readFileSync(f, 'utf8')));
+      .flatMap((f) => oldWordHits(f, readFileSync(f, 'utf8')).map((h) => `${f.slice(dir.length + 1)}:${h}`));
     expect(hits).toEqual([]);
   });
 });

@@ -7,7 +7,7 @@ import type { WireSummaryRun } from '../domain/wire';
 import type { Native, SchemaRow } from '../pages/settings/native';
 import { labelOf } from '../pages/settings/registry';
 import { pluginKey } from '../shell/plugins';
-import type { AllowField, BlacklistField, WireBlacklist, WireChatgpt, WireGateEvent, WireModelSettings, WireModelTest, WireScope } from '../pages/settings/wire';
+import type { AllowField, BlacklistField, WireBlacklist, WireChatgpt, WireModelSettings, WireModelTest, WireScope } from '../pages/settings/wire';
 import { at, atS, NOW } from './fixtures';
 import { ACP_AGENTS, ACP_INSTALL } from './fixtures/acpAgents';
 import { CATALOG, CHATGPT, MODELS } from './fixtures/modelSettings';
@@ -210,37 +210,6 @@ export function demoShotRuns(demo: string | null): WireSummaryRun[] {
   );
   const released = demo === 'sparse' ? [] : SHOT_RELEASED.map(([h, m], i) => shotRun(`ov-r${i}`, at(h, m), 'released'));
   return [...runs, ...released].sort((a, b) => b.started_at.localeCompare(a.started_at));
-}
-
-// Proactive categories (proactive.py) plus a thought and announcements, which pass the same gate but are not proactive speech.
-// A blocked line carries its gate reason.
-const GATE_EV: Array<[number, number, string, string?]> = [
-  [9, 12, 'comment'],
-  [9, 40, 'thought', 'meeting'],
-  [10, 5, 'back'],
-  [10, 20, 'comment', 'same_cooldown'],
-  [10, 48, 'stuck'],
-  [11, 2, 'gate_fail'],
-  [11, 30, 'break'],
-  [12, 15, 'dispatch_review', 'user_speaking'],
-  [12, 40, 'ci_green'],
-  [13, 5, 'comment'],
-  [13, 41, 'back', 'fullscreen'],
-  [14, 2, 'comment'],
-  [14, 29, 'comment', 'cross_cooldown'],
-];
-const GATE_EV_SPARSE: Array<[number, number, string, string?]> = [[14, 2, 'comment']];
-
-/** `/trace/decisions?kind=gate.decided` for today, newest first: 6 proactive lines spoken, 3 blocked as in `/diag/state` gate. */
-export function demoGateEvents(demo: string | null): WireGateEvent[] {
-  return (demo === 'sparse' ? GATE_EV_SPARSE : GATE_EV)
-    .map(([h, m, kind, reason]) => ({
-      kind: 'gate.decided',
-      status: reason ? 'blocked' : 'ok',
-      t_wall: isoWithOffset(at(h, m)),
-      attrs: { kind, level: 'P2', speak: !reason, reason: reason ?? null },
-    }))
-    .reverse();
 }
 
 export const routes: MockRoute[] = [

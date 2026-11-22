@@ -40,7 +40,6 @@ function Harness({ children }: { children: ReactNode }) {
     diag: diagView(null),
     blacklist: null,
     scopes: [],
-    runs: [],
     reload: () => {},
     perms: PERMISSIONS,
     recheckPerms: async () => 'denied',
@@ -56,7 +55,7 @@ describe('settings › 声音 › muted kinds', () => {
     native = await demoNative(null);
   });
 
-  it('says once, under 她什么时候开口, that thoughts come with 主动', async () => {
+  it('says once, under 她会不会主动找你, that thoughts come with 主动', async () => {
     native = { ...native, saved: { ...native.saved, speakUp: false } };
     vi.spyOn(window.agenticComplex!.agentd, 'request').mockResolvedValue({ status: 200, body: { muted: [] } });
     const { container } = render(<Harness><SpeakGroup /></Harness>);
@@ -101,7 +100,7 @@ describe('settings › 声音 › muted kinds', () => {
       </Harness>,
     );
     const comment = await screen.findByRole('group', { name: '久盯一个窗口时搭话' });
-    expect(again.container.querySelector('[data-row="mutes"]')?.textContent).toContain('在气泡的「更多操作」里点「关闭此类」可以关掉一类');
+    expect(again.container.querySelector('[data-row="mutes"]')?.textContent).toContain('在气泡「更多操作」里点「关闭此类」加进来');
     await act(async () => fireEvent.click(within(comment).getByRole('button', { name: '恢复' })));
     expect(again.container.querySelector('[data-row="mutes"]')).toBeNull();
   });

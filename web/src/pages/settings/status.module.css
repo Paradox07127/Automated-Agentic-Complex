@@ -1,0 +1,101 @@
+.st {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.st::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+}
+
+.st[data-tone='ok'] {
+  color: var(--s-ok);
+}
+
+.st[data-tone='ok']::before {
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.st[data-tone='bad'] {
+  color: var(--s-bad);
+}
+
+.st[data-tone='bad']::before {
+  width: 0;
+  height: 0;
+  border: 4.5px solid transparent;
+  border-top: 0;
+  border-bottom: 8px solid currentColor;
+}
+
+.st[data-tone='warn'] {
+  color: var(--s-warn);
+}
+
+.st[data-tone='warn']::before {
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.st[data-tone='off'] {
+  color: var(--s-t3);
+}
+
+.st[data-tone='off']::before {
+  background: currentColor;
+}
+
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  background: var(--s-chip);
+  box-shadow: inset 0 0 0 1px var(--s-rim);
+  color: var(--s-t1);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.chip[data-tone='on']::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--s-ok);
+}
+
+.chip[data-tone='off'] {
+  color: var(--s-t3);
+}
+
+.chip[data-tone='off']::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--s-t3);
+}
+
+.chip[data-tone='miss'] {
+  background: none;
+  box-shadow: inset 0 0 0 1px currentColor;
+  color: var(--s-bad);
+}
+
+.chip[data-tone='lock']::before {
+  content: '';
+  width: 9px;
+  height: 10px;
+  background: currentColor;
+  clip-path: polygon(15% 45%, 15% 25%, 30% 5%, 70% 5%, 85% 25%, 85% 45%, 100% 45%, 100% 100%, 0 100%, 0 45%, 15% 45%, 30% 45%, 30% 27%, 40% 17%, 60% 17%, 70% 27%, 70% 45%);
+}

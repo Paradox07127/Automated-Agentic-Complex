@@ -26,9 +26,9 @@ async function expectCapsule(field: Locator, fill: string) {
   expect(await style(field, 'background-color')).toBe(fill);
 }
 
-test('the settings search box is the raised search field', async ({ page }) => {
+test('the chat list search box is the raised search field', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?still=1');
+  await page.goto('main.html#/chat?plugins=all&still=1');
   const fill = await page.evaluate(() => {
     const probe = document.createElement('span');
     probe.style.backgroundColor = 'var(--ef-raised)';
@@ -37,7 +37,7 @@ test('the settings search box is the raised search field', async ({ page }) => {
     probe.remove();
     return c;
   });
-  await expectCapsule(page.locator('[data-stub="SearchField"]', { has: page.getByRole('textbox', { name: '搜索设置' }) }), fill);
+  await expectCapsule(page.locator('[data-stub="SearchField"]', { has: page.getByRole('textbox', { name: '搜索对话' }) }), fill);
   expect(errors).toEqual([]);
 });
 

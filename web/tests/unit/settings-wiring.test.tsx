@@ -9,18 +9,17 @@ import type { WireDiagConnections, WireRuntimePublic } from '../../src/domain/wi
 import { PERMISSIONS, WIRE_DIAG_BUDGET, WIRE_DIAG_CONNECTIONS, WIRE_DIAG_GATE, WIRE_DIAG_HOOKS, WIRE_OBSERVATION, WIRE_TTS } from '../../src/mock/fixtures';
 import { demoNative } from '../../src/mock/settings';
 import { ApplyBar } from '../../src/pages/settings/ApplyBar';
-import { failure, readGateEvents } from '../../src/pages/settings/api';
+import { failure } from '../../src/pages/settings/api';
 import { runtimeView, SettingsCtx, type SettingsCtxValue } from '../../src/pages/settings/ctx';
 import { diagView } from '../../src/pages/settings/diag';
-import { AdvGroup } from '../../src/pages/settings/groups/Adv';
+import { AboutGroup } from '../../src/pages/settings/groups/About';
 import { DataGroup } from '../../src/pages/settings/groups/Data';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
 import { KeysGroup } from '../../src/pages/settings/groups/Keys';
 import { ModelGroup } from '../../src/pages/settings/groups/Model';
-import { PermGroup } from '../../src/pages/settings/groups/Perm';
-import { PluginsGroup } from '../../src/pages/settings/groups/Plugins';
-import { PrivacyGroup } from '../../src/pages/settings/groups/Privacy';
-import { SpeakGroup, tomorrowMorning } from '../../src/pages/settings/groups/Speak';
+import { ActGroup } from '../../src/pages/settings/groups/Act';
+import { SeeGroup } from '../../src/pages/settings/groups/See';
+import { SpeakGroup } from '../../src/pages/settings/groups/Speak';
 import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model';
 import type { Native } from '../../src/pages/settings/native';
 import { searchSettings } from '../../src/pages/settings/registry';
@@ -56,7 +55,7 @@ async function load(): Promise<Loaded> {
 
 function Harness({ d, init = {}, children }: { d: Loaded; init?: ModelInit; children: ReactNode }) {
   const view = useMemo(() => diagView(d.diag), [d.diag]);
-  const model = useSettingsModel(init, { native: d.native, runtime: d.runtime, models: d.models, pauses: view.pauses });
+  const model = useSettingsModel(init, { native: d.native, runtime: d.runtime, models: d.models });
   const runtime = runtimeView(d.runtime);
   const ctx: SettingsCtxValue = {
     model,
@@ -74,7 +73,6 @@ function Harness({ d, init = {}, children }: { d: Loaded; init?: ModelInit; chil
     diag: view,
     blacklist: d.blacklist,
     scopes: d.scopes,
-    runs: [],
     reload: () => {},
     perms: PERMISSIONS,
     recheckPerms: async () => 'granted',
@@ -86,6 +84,7 @@ function Harness({ d, init = {}, children }: { d: Loaded; init?: ModelInit; chil
       {children}
       {model.confirm && (
         <div role="dialog" aria-label={model.confirm.title}>
+          {model.confirm.list?.map((x) => <p key={x}>{x}</p>)}
           <p>{model.confirm.note}</p>
           <button type="button" onClick={() => void model.confirm?.onConfirm()}>
             {model.confirm.confirmLabel}
@@ -122,22 +121,22 @@ describe('native rows (settings.schema / read / save)', () => {
   it('shows the schema options and saves the option value, not the label', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    const tts = screen.getByRole('radiogroup', { name: '语音合成来源' });
-    expect(within(tts).getAllByRole('radio').map((r) => r.textContent)).toEqual(['远端', '关闭（无语音）']);
-    await click(within(tts).getByRole('radio', { name: '关闭（无语音）' }));
+    const tts = screen.getByRole('radiogroup', { name: '语音服务' });
+    expect(within(tts).getAllByRole('radio').map((r) => r.textContent)).toEqual(['外部服务', '关闭']);
+    await click(within(tts).getByRole('radio', { name: '关闭' }));
     expect(save).toHaveBeenCalledWith({ tts: 'local' });
   });
 
   it('picking the option already chosen sends nothing (Seg fires onChange for it too)', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    const tts = screen.getByRole('radiogroup', { name: '语音合成来源' });
+    const tts = screen.getByRole('radiogroup', { name: '语音服务' });
     const chosen = within(tts).getAllByRole('radio').find((r) => r.getAttribute('aria-checked') === 'true');
-    expect(chosen?.textContent).toBe('远端');
+    expect(chosen?.textContent).toBe('外部服务');
     await click(chosen!);
     expect(save).not.toHaveBeenCalled();
     expect(screen.queryByTestId('toast')).toBeNull();
-    await click(within(tts).getByRole('radio', { name: '关闭（无语音）' }));
+    await click(within(tts).getByRole('radio', { name: '关闭' }));
     expect(save).toHaveBeenCalledWith({ tts: 'local' });
   });
 
@@ -145,7 +144,7 @@ describe('native rows (settings.schema / read / save)', () => {
     render(<Harness d={d}><SpeakGroup /><ApplyBar /></Harness>);
     await click(within(screen.getByRole('radiogroup', { name: '完成' })).getByRole('radio', { name: '不提示' }));
     expect(screen.queryByRole('region', { name: '未应用的改动' })).toBeNull();
-    await click(screen.getByRole('switch', { name: '静音' }));
+    await click(within(screen.getByRole('radiogroup', { name: '出声' })).getByRole('radio', { name: '只显示文字' }));
     expect(screen.getByRole('region', { name: '未应用的改动' }).textContent).toContain('1 项重启后台服务后生效');
   });
 
@@ -153,15 +152,15 @@ describe('native rows (settings.schema / read / save)', () => {
     vi.spyOn(window.agenticComplex!.settings, 'save').mockResolvedValue({ restart: 'none', notApplied: [], error: 'voice_service: remote' });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    await click(within(screen.getByRole('radiogroup', { name: '语音合成来源' })).getByRole('radio', { name: '关闭（无语音）' }));
-    expect(screen.getByTestId('toast').textContent).toBe('没有保存「语音合成来源」：桌面端没有接受这次修改');
+    await click(within(screen.getByRole('radiogroup', { name: '语音服务' })).getByRole('radio', { name: '关闭' }));
+    expect(screen.getByTestId('toast').textContent).toBe('没有保存「语音服务」：桌面端没有接受这次修改');
     expect(warn).toHaveBeenCalledWith('settings.save refused', 'voice_service: remote');
   });
 
   it('asks before a destructive switch goes off, logs consent, then saves', async () => {
     const consent = vi.spyOn(window.agenticComplex!.settings, 'confirmDestructive');
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
-    render(<Harness d={d}><PrivacyGroup /></Harness>);
+    render(<Harness d={d}><SeeGroup /></Harness>);
     await click(screen.getByRole('switch', { name: '窗口文字' }));
     expect(save).not.toHaveBeenCalled();
     await click(within(screen.getByRole('dialog', { name: '关闭「窗口文字」并删除已收集的内容？' })).getByRole('button', { name: '关闭并删除' }));
@@ -171,9 +170,9 @@ describe('native rows (settings.schema / read / save)', () => {
 
   it('the delete confirm says how many records go, from settings.previewDestructive', async () => {
     const preview = vi.spyOn(window.agenticComplex!.settings, 'previewDestructive').mockResolvedValue({ total: 214, counts: { task_understanding: 214 } });
-    for (const [id, label] of [['wintext', '窗口文字'], ['web', '网页正文'], ['typing', '输入的文字']] as const) {
+    for (const [id, label] of [['wintext', '窗口文字'], ['web', '网页正文'], ['typing', '你输入的文字']] as const) {
       const on = { ...d, native: { ...d.native, saved: { ...d.native.saved, [id]: true } } };
-      const ui = render(<Harness d={on}><PrivacyGroup /></Harness>);
+      const ui = render(<Harness d={on}><SeeGroup /></Harness>);
       await click(screen.getByRole('switch', { name: label }));
       expect(preview).toHaveBeenLastCalledWith(id);
       expect(screen.getByRole('dialog', { name: `关闭「${label}」并删除已收集的内容？` }).textContent).toContain('将删除 214 条');
@@ -184,7 +183,7 @@ describe('native rows (settings.schema / read / save)', () => {
   it('a preview that fails says 条数未知 and still lets the switch go off', async () => {
     vi.spyOn(window.agenticComplex!.settings, 'previewDestructive').mockRejectedValue({ code: 'failed', detail: 'agentd 503' });
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
-    render(<Harness d={d}><PrivacyGroup /></Harness>);
+    render(<Harness d={d}><SeeGroup /></Harness>);
     await click(screen.getByRole('switch', { name: '窗口文字' }));
     const dialog = screen.getByRole('dialog', { name: '关闭「窗口文字」并删除已收集的内容？' });
     expect(dialog.textContent).toContain('条数未知');
@@ -195,7 +194,7 @@ describe('native rows (settings.schema / read / save)', () => {
 
   it('turns 屏幕感知 on and off without a confirm (records stay)', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
-    render(<Harness d={d}><PluginsGroup /></Harness>);
+    render(<Harness d={d}><SeeGroup /></Harness>);
     await click(screen.getByRole('switch', { name: '屏幕感知' }));
     await click(screen.getByRole('switch', { name: '屏幕感知' }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -205,7 +204,7 @@ describe('native rows (settings.schema / read / save)', () => {
   it('恢复默认 saves the schema defaults: every read switch ends up off', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     const consent = vi.spyOn(window.agenticComplex!.settings, 'confirmDestructive');
-    render(<Harness d={d}><AdvGroup /></Harness>);
+    render(<Harness d={d}><DataGroup /></Harness>);
     await click(screen.getByRole('button', { name: '恢复默认…' }));
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '恢复默认' }));
     expect(consent.mock.calls.map((c) => c[0]).sort()).toEqual(['web', 'wintext']);
@@ -214,9 +213,11 @@ describe('native rows (settings.schema / read / save)', () => {
   });
 
   it('恢复默认 says up front which reading switches go off', async () => {
-    render(<Harness d={d}><AdvGroup /></Harness>);
+    render(<Harness d={d}><DataGroup /></Harness>);
     await click(screen.getByRole('button', { name: '恢复默认…' }));
-    expect(screen.getByRole('dialog').textContent).toContain('会关掉：窗口文字、网页正文、屏幕识读时附上截图；另有 1 项选项回到默认');
+    const card = screen.getByRole('dialog').textContent;
+    expect(card).toContain('会关掉：窗口文字、网页正文、识读时附上截图');
+    expect(card).toContain('另有 1 项选项回到默认');
   });
 
   it('marks a restart by each row\'s schema even when the shell answers restart=backend', async () => {
@@ -228,11 +229,12 @@ describe('native rows (settings.schema / read / save)', () => {
 });
 
 describe('native app actions', () => {
-  it('deletes all local data behind the shell\'s own confirm only', async () => {
+  it('deletes all local data after the in-app confirm card lists what goes', async () => {
     const wipe = vi.spyOn(window.agenticComplex!.settings, 'wipeLocalData');
     render(<Harness d={d}><DataGroup /></Harness>);
     await click(screen.getByRole('button', { name: '删除所有…' }));
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(wipe).not.toHaveBeenCalled();
+    await click(within(screen.getByRole('dialog', { name: '删除所有本地数据？' })).getByRole('button', { name: '删除所有' }));
     expect(wipe).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('toast').textContent).toBe('已删除所有本地数据');
   });
@@ -243,11 +245,11 @@ describe('native app actions', () => {
     caps.revealInFinder = false;
     try {
       const action = vi.spyOn(window.agenticComplex!.app, 'action');
-      render(<Harness d={d}><SpeakGroup /><DataGroup /><AdvGroup /></Harness>);
+      render(<Harness d={d}><SpeakGroup /><DataGroup /><AboutGroup /></Harness>);
       await click(screen.getByRole('button', { name: '测试审批卡' }));
       await click(screen.getByRole('button', { name: '测试播报' }));
-      await click(screen.getByRole('button', { name: '打开文件夹' }));
-      await click(screen.getByRole('button', { name: '打开日志目录' }));
+      await click(within(document.getElementById('set-datadir')!).getByRole('button', { name: /打开/ }));
+      await click(within(document.getElementById('set-logdir')!).getByRole('button', { name: /打开/ }));
       expect(action.mock.calls.map((c) => c[0])).toEqual(['test_approval_card', 'test_announcement', 'open_data_folder', 'reveal_logs']);
     } finally {
       caps.avatar = true;
@@ -310,7 +312,7 @@ describe('角色内核 → PUT /character/runtime patches', () => {
     render(<Harness d={d}><KernelGroup /><ApplyBar /></Harness>);
     const row = document.querySelector('[data-row="workspace"]') as HTMLElement;
     expect(within(row).getByText('~/AgenticComplex')).toBeTruthy();
-    await click(within(row).getByRole('button', { name: '选择' }));
+    await click(within(row).getByRole('button', { name: '选择…' }));
     expect(pick).toHaveBeenCalledWith({ purpose: 'session_cwd' });
     expect(row.querySelector('code')?.textContent).toBe('Work');
     await click(screen.getByRole('button', { name: '应用' }));
@@ -329,15 +331,16 @@ describe('角色内核 → PUT /character/runtime patches', () => {
     expect(within(grid).getByRole('row', { name: /Pi/ }).textContent).toContain('随应用提供');
     expect(screen.queryByText('内核原生会话恢复')).toBeNull();
     expect(document.querySelector('[data-row="maxCost"]')).toBeNull();
-    expect(document.querySelector('[data-row="cap-native_shell"]')?.textContent).toContain('已接通');
+    // What the kernel can do sits on its card as chips, one per capability agentd reports as wired.
+    expect(within(screen.getByRole('list', { name: '她用 Codex 能' })).getByText('内核原生执行工具')).toBeTruthy();
   });
 
   it('shows the cost cap as an editable row only on Pi', async () => {
     render(<Harness d={d} init={{ draft: { kernel: 'pi' } }}><KernelGroup /></Harness>);
     const row = document.querySelector('[data-row="maxCost"]') as HTMLElement;
     expect(row).not.toBeNull();
-    await click(within(row).getByRole('button', { name: '单次费用上限 增加' }));
-    expect(within(row).getByRole('button', { name: '单次费用上限 减少' }).hasAttribute('disabled')).toBe(false);
+    await click(within(row).getByRole('button', { name: '单次运行费用上限 增加' }));
+    expect(within(row).getByRole('button', { name: '单次运行费用上限 减少' }).hasAttribute('disabled')).toBe(false);
     cleanup();
     render(<Harness d={d} init={{ draft: { kernel: 'codex' } }}><KernelGroup /></Harness>);
     expect(document.querySelector('[data-row="maxCost"]')).toBeNull();
@@ -345,7 +348,7 @@ describe('角色内核 → PUT /character/runtime patches', () => {
 
   it('switches history retention through a PUT', async () => {
     render(<Harness d={d}><DataGroup /></Harness>);
-    await click(within(screen.getByRole('radiogroup', { name: '历史归档' })).getByRole('radio', { name: '30 天' }));
+    await click(within(screen.getByRole('radiogroup', { name: '历史保留多久' })).getByRole('radio', { name: '30 天' }));
     expect(sent('PUT', '/character/runtime')).toMatchObject({ history_retention: '30d' });
   });
 });
@@ -364,6 +367,8 @@ describe('pi 账号与凭据', () => {
 
   it('saves and removes the API key for the provider on screen', async () => {
     render(<Harness d={{ ...d, models: { ...d.models, provider: 'anthropic' } }}><ModelGroup /></Harness>);
+    // A saved key shows 已保存 until 替换 opens the field.
+    await click(within(document.querySelector('[data-row="apikey"]')!).getByRole('button', { name: '替换' }));
     fireEvent.change(document.querySelector('input[aria-label="API Key"]')!, { target: { value: 'sk-ant-0123456789' } });
     await click(within(document.querySelector('[data-row="apikey"]')!).getByRole('button', { name: '保存' }));
     expect(sent('POST', '/model/settings')).toEqual({ provider: 'anthropic', api_key: 'sk-ant-0123456789' });
@@ -373,10 +378,10 @@ describe('pi 账号与凭据', () => {
   });
 
   it('unbinds a coding tool through agentd and shows the hook state from /diag/state', async () => {
-    render(<Harness d={d}><ModelGroup /></Harness>);
+    render(<Harness d={d}><SeeGroup /></Harness>);
     const claude = document.querySelector('[data-row="hooks"]')!;
     expect(claude.textContent).toContain('已接入');
-    expect(document.querySelector('[data-row="hooks2"]')?.textContent).toContain('已安装，未收到事件');
+    expect(document.querySelector('[data-row="hooks2"]')?.textContent).toContain('已安装，没收到事件');
     await click(within(claude as HTMLElement).getByRole('button', { name: '解绑' }));
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '解绑' }));
     expect(sent('POST', '/integrations/hooks/disconnect')).toEqual({ target: 'claude' });
@@ -385,7 +390,7 @@ describe('pi 账号与凭据', () => {
 
 describe('隐私 and 数据 through agentd', () => {
   it('lists the blacklist and adds, removes and restores through /blacklist', async () => {
-    render(<Harness d={d}><PrivacyGroup /></Harness>);
+    render(<Harness d={d}><SeeGroup /></Harness>);
     expect(screen.getByText(/网站 │ icbc\.com\.cn/)).toBeTruthy();
     await click(screen.getByRole('button', { name: '移除 icbc.com.cn' }));
     expect(sent('DELETE', '/blacklist')).toEqual({ field: 'domains', value: 'icbc.com.cn' });
@@ -404,13 +409,13 @@ describe('隐私 and 数据 through agentd', () => {
   });
 
   it('switches to allow mode and adds and removes allow entries with list allow', async () => {
-    render(<Harness d={d}><PrivacyGroup /></Harness>);
+    render(<Harness d={d}><SeeGroup /></Harness>);
     await click(within(screen.getByRole('radiogroup', { name: '读取方式' })).getByRole('radio', { name: '只读名单里的' }));
     expect(sent('POST', '/blacklist/mode')).toEqual({ mode: 'allow' });
     // The mock keeps the mode across tests; put it back before the next one reads it.
     await window.agenticComplex!.agentd.request('POST', '/blacklist/mode', { mode: 'deny' });
     cleanup();
-    render(<Harness d={{ ...d, blacklist: { ...d.blacklist, mode: 'allow' } }}><PrivacyGroup /></Harness>);
+    render(<Harness d={{ ...d, blacklist: { ...d.blacklist, mode: 'allow' } }}><SeeGroup /></Harness>);
     expect(screen.getByText('只读取这些应用和网站')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '恢复默认排除' })).toBeNull();
     await click(screen.getByRole('button', { name: '移除 github.com' }));
@@ -423,16 +428,8 @@ describe('隐私 and 数据 through agentd', () => {
 
   it('says nothing is read in allow mode with an empty allow list', () => {
     const blacklist: WireBlacklist = { ...d.blacklist, mode: 'allow', allow: { bundle_ids: [], app_names: [], domains: [] } };
-    render(<Harness d={{ ...d, blacklist }}><PrivacyGroup /></Harness>);
+    render(<Harness d={{ ...d, blacklist }}><SeeGroup /></Harness>);
     expect(screen.getByText('什么都不读')).toBeTruthy();
-  });
-
-  it('pauses and resumes observation with whole minutes', async () => {
-    render(<Harness d={d}><PrivacyGroup /></Harness>);
-    await click(screen.getByRole('button', { name: '暂停 1 小时' }));
-    expect(sent('PUT', '/observation/paused')).toEqual({ minutes: 60 });
-    await click(screen.getByRole('button', { name: '现在恢复' }));
-    expect(request.mock.calls.filter((c) => c[1] === '/observation/paused').at(-1)?.[2]).toEqual({ minutes: 0 });
   });
 
   it('deletes recent records and the activity log, and says how many', async () => {
@@ -447,13 +444,10 @@ describe('隐私 and 数据 through agentd', () => {
     expect(screen.getByTestId('toast').textContent).toBe('已清空活动记录 1180 条');
   });
 
-  it('shows redactions, today\'s gate and the voice state from /diag/state', () => {
-    render(<Harness d={d}><PrivacyGroup /><SpeakGroup /></Harness>);
+  it('shows redactions and the voice state from /diag/state; the gate is on the diag page only', () => {
+    render(<Harness d={d}><SeeGroup /><SpeakGroup /></Harness>);
     expect(document.querySelector('[data-row="mask"]')?.textContent).toContain('密钥 2 │ 邮箱 5 │ 电话 0');
-    // The gate is a plate with a cumulative step chart and the cooldown list, not a bracket meter.
-    const gate = document.querySelector('[data-row="gate"]');
-    expect(gate?.textContent).toContain('今日发言闸门');
-    expect(gate?.textContent).toContain('主动发言冷却 3 分');
+    expect(document.querySelector('[data-row="gate"]')).toBeNull();
     expect(document.querySelector('[data-row="tts"]')?.textContent).toContain('远端不通');
   });
 
@@ -471,7 +465,7 @@ describe('语音状态', () => {
     return { ...d, native, diag: { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, tts } } };
   };
   const row = () => document.querySelector('[data-row="tts"]');
-  const sourceSeg = () => screen.queryByRole('radiogroup', { name: '语音合成来源' });
+  const sourceSeg = () => screen.queryByRole('radiogroup', { name: '语音服务' });
 
   it('shows「语音不可用」without the voice service row for a build with no TTS', () => {
     const { tts: _unset, ...saved } = d.native.saved;
@@ -483,7 +477,7 @@ describe('语音状态', () => {
   it('keeps the voice service row for voice_service local, with local named as no voice', () => {
     render(<Harness d={withTts(WIRE_TTS.off, { tts: 'local' })}><SpeakGroup /></Harness>);
     expect(row()?.textContent).not.toContain('语音不可用');
-    expect(within(sourceSeg()!).getByRole('radio', { name: '关闭（无语音）' })).toBeTruthy();
+    expect(within(sourceSeg()!).getByRole('radio', { name: '关闭' }).getAttribute('aria-checked')).toBe('true');
     expect(row()?.textContent).toContain('不发声，只显示文字');
   });
 
@@ -497,11 +491,11 @@ describe('语音状态', () => {
 
   it('says the text-only fallback on an unreachable voice, and keeps the usual line when ready', () => {
     const { unmount } = render(<Harness d={withTts(WIRE_TTS.unreachable)}><SpeakGroup /></Harness>);
-    expect(row()?.textContent).toContain('没有连上语音服务，只显示文字');
+    expect(row()?.textContent).toContain('这段时间只显示文字');
     unmount();
     render(<Harness d={withTts(WIRE_TTS.ready)}><SpeakGroup /></Harness>);
-    expect(row()?.textContent).toContain('角色隐藏时，主动发言只显示文字');
-    expect(row()?.textContent).not.toContain('没有连上语音服务');
+    expect(row()?.textContent).toContain('自己部署的语音服务，app 只连接');
+    expect(row()?.textContent).not.toContain('只显示文字');
   });
 
   it('labels the external source', () => {
@@ -536,11 +530,11 @@ describe('语音状态', () => {
   });
 });
 
-describe('识别语言', () => {
+describe('听写语言', () => {
   it('offers follow-the-system, Chinese and English and saves the locale', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    const asr = screen.getByRole('radiogroup', { name: '识别语言' });
+    const asr = screen.getByRole('radiogroup', { name: '听写语言' });
     expect(within(asr).getAllByRole('radio').map((r) => r.textContent)).toEqual(['跟随系统', '中文', 'English']);
     await click(within(asr).getByRole('radio', { name: 'English' }));
     expect(save).toHaveBeenCalledWith({ asr: 'en-US' });
@@ -548,14 +542,15 @@ describe('识别语言', () => {
 });
 
 describe('回复语言', () => {
-  it('sits after 识别语言 with its five choices and saves reply_language through PUT /character/runtime', async () => {
+  it('sits after 识别语言 with its five choices in a dropdown and saves reply_language through PUT /character/runtime', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SpeakGroup /></Harness>);
     expect(document.querySelector('[data-row="asr"] + [data-row="replyLang"]')).not.toBeNull();
-    const reply = screen.getByRole('radiogroup', { name: '回复语言' });
-    expect(within(reply).getAllByRole('radio').map((r) => r.textContent)).toEqual(['跟随对话', '简体中文', 'English', '日本語', '按内核设置']);
-    expect(within(reply).getByRole('radio', { name: '跟随对话' }).getAttribute('aria-checked')).toBe('true');
-    await click(within(reply).getByRole('radio', { name: '按内核设置' }));
+    await click(screen.getByRole('button', { name: '回复语言' }));
+    const reply = screen.getByRole('listbox', { name: '回复语言' });
+    expect(within(reply).getAllByRole('option').map((o) => o.textContent?.replace('（默认）', ''))).toEqual(['跟随对话', '简体中文', 'English', '日本語', '按内核设置']);
+    expect(within(reply).getByRole('option', { name: /^跟随对话/ }).getAttribute('aria-selected')).toBe('true');
+    await click(within(reply).getByRole('option', { name: /^按内核设置/ }));
     expect(sent('PUT', '/character/runtime')).toEqual({ reply_language: 'harness' });
     expect(save).not.toHaveBeenCalled();
   });
@@ -568,12 +563,12 @@ describe('外部语音服务', () => {
   it('shows the address, token and test rows once the external source is picked', async () => {
     render(<Harness d={local()}><SpeakGroup /></Harness>);
     expect(screen.queryByRole('textbox', { name: '服务地址' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '测试连接' })).toBeNull();
-    await click(within(screen.getByRole('radiogroup', { name: '语音合成来源' })).getByRole('radio', { name: '远端' }));
+    expect(screen.queryByRole('button', { name: '测试' })).toBeNull();
+    await click(within(screen.getByRole('radiogroup', { name: '语音服务' })).getByRole('radio', { name: '外部服务' }));
     expect(screen.getByRole('textbox', { name: '服务地址' })).toBeTruthy();
-    expect(document.querySelector('[data-row="ttsUrl"]')?.textContent).toContain('http 或 https 地址；不填时只出文字');
+    expect(screen.getByRole('textbox', { name: '服务地址' }).getAttribute('placeholder')).toBe('http://主机:端口');
     expect(screen.getByLabelText('令牌', { selector: 'input' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '测试连接' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '测试' })).toBeTruthy();
   });
 
   it('shows the tunnel host and ensure script only for the external source and saves them under their ids', async () => {
@@ -603,20 +598,20 @@ describe('外部语音服务', () => {
     fireEvent.change(url, { target: { value: 'https://tts.example:8443' } });
     await act(async () => void fireEvent.blur(url));
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: ' secret ' } });
-    await click(screen.getByRole('button', { name: '测试连接' }));
+    await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/voice/test')).toEqual({ url: 'https://tts.example:8443', token: 'secret' });
     expect(testRow()?.textContent).toContain('通过 │ 首声 320 ms');
   });
 
   it('leaves an empty token out of the test', async () => {
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    await click(screen.getByRole('button', { name: '测试连接' }));
+    await click(screen.getByRole('button', { name: '测试' }));
     expect(Object.keys(sent('POST', '/voice/test') as object)).toEqual(['url']);
   });
 
   it('leaves an empty address out of the test, so agentd tests the voice in use', async () => {
     render(<Harness d={{ ...d, native: { ...d.native, saved: { ...d.native.saved, ttsUrl: '' } } }}><SpeakGroup /></Harness>);
-    await click(screen.getByRole('button', { name: '测试连接' }));
+    await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/voice/test')).toEqual({});
   });
 
@@ -624,7 +619,7 @@ describe('外部语音服务', () => {
     render(<Harness d={d}><SpeakGroup /></Harness>);
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'secret' } });
     await click(screen.getByRole('button', { name: '保存' }));
-    await click(screen.getByRole('button', { name: '测试连接' }));
+    await click(screen.getByRole('button', { name: '测试' }));
     expect((sent('POST', '/voice/test') as { token?: string }).token).toBe('secret');
   });
 
@@ -637,7 +632,7 @@ describe('外部语音服务', () => {
     fireEvent.change(url, { target: { value: 'https://other.example:8443' } });
     await act(async () => void fireEvent.blur(url));
     expect(document.querySelector('[data-row="ttsToken"]')?.textContent).toContain('未设置：服务地址换了，旧服务的令牌已删除');
-    await click(screen.getByRole('button', { name: '测试连接' }));
+    await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/voice/test')).toEqual({ url: 'https://other.example:8443' });
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'DUMMY-second-service' } });
     await click(screen.getByRole('button', { name: '保存' }));
@@ -654,14 +649,14 @@ describe('外部语音服务', () => {
   ])('shows the failure %s as %s', async (reason, text) => {
     render(<Harness d={d}><SpeakGroup /></Harness>);
     request.mockResolvedValueOnce({ status: 200, body: { ok: false, first_audio_ms: null, total_ms: null, reason } } as never);
-    await click(screen.getByRole('button', { name: '测试连接' }));
+    await click(screen.getByRole('button', { name: '测试' }));
     expect(testRow()?.textContent).toContain(text);
   });
 
   it('says the voice is not enabled when agentd has no relay', async () => {
     render(<Harness d={d}><SpeakGroup /></Harness>);
     request.mockResolvedValueOnce({ status: 503, body: { error: 'no_tts' }, error: { code: 'no_tts' } } as never);
-    await click(screen.getByRole('button', { name: '测试连接' }));
+    await click(screen.getByRole('button', { name: '测试' }));
     expect(testRow()?.textContent).toContain('语音没有启用');
   });
 
@@ -697,40 +692,6 @@ describe('喝水提醒', () => {
   });
 });
 
-describe('免打扰', () => {
-  it('is one 免打扰 row whose menu matches the overview: 30 分钟 / 1 小时 / 到明早 7 点 / 开会', async () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
-    expect(document.querySelector('[data-row="dnd_meet"]')).toBeNull();
-    expect(document.querySelector('[data-row="dnd_quiet"]')?.textContent).toMatch(/^免打扰/);
-    await click(screen.getByRole('button', { name: '开始' }));
-    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['30 分钟', '1 小时', '到明早 7 点', '开会']);
-  });
-
-  it('starts quiet with epoch seconds, then 开会 from the same menu, and ends 开会', async () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
-    await click(screen.getByRole('button', { name: '开始' }));
-    await click(screen.getByRole('menuitem', { name: '1 小时' }));
-    const until = (sent('PUT', '/observation/quiet') as { until: number }).until;
-    expect(Number.isInteger(until)).toBe(true);
-    const row = () => document.querySelector('[data-row="dnd_quiet"]')!;
-    expect(row().textContent).toContain('还剩');
-    await click(within(row() as HTMLElement).getByRole('button', { name: '现在恢复' }));
-    await click(screen.getByRole('button', { name: '开始' }));
-    await click(screen.getByRole('menuitem', { name: '开会' }));
-    expect(sent('PUT', '/observation/meeting')).toEqual({ on: true });
-    expect(within(row() as HTMLElement).getByRole('status').textContent).toContain('开会');
-    expect(screen.queryByRole('button', { name: '开始' })).toBeNull();
-    await click(within(row() as HTMLElement).getByRole('button', { name: '现在恢复' }));
-    expect(request.mock.calls.filter((c) => c[0] === 'PUT' && c[1] === '/observation/meeting').map((c) => c[2])).toEqual([{ on: true }, { on: false }]);
-    expect(screen.getByRole('button', { name: '开始' })).toBeTruthy();
-  });
-
-  it('「到明早」is the next 07:00', () => {
-    expect(new Date(tomorrowMorning(new Date(2026, 9, 29, 14, 32).getTime())).toString()).toBe(new Date(2026, 9, 30, 7, 0).toString());
-    expect(new Date(tomorrowMorning(new Date(2026, 9, 29, 6, 0).getTime())).toString()).toBe(new Date(2026, 9, 29, 7, 0).toString());
-  });
-});
-
 describe('资料范围 with picked handles', () => {
   it('creates a scope from two picked folders and revokes by scope_id', async () => {
     const root = { handle: 'h-root', displayName: '周报' };
@@ -738,7 +699,7 @@ describe('资料范围 with picked handles', () => {
     vi.spyOn(window.agenticComplex!.files, 'pickFolder').mockResolvedValueOnce(root).mockResolvedValueOnce(out);
     // With a shell bridge the page reads the real clock; keep the fixture scope unexpired.
     d.scopes = d.scopes.map((x) => ({ ...x, expires_at: Date.now() / 1000 + 3600 }));
-    render(<Harness d={d}><PermGroup /></Harness>);
+    render(<Harness d={d}><ActGroup /></Harness>);
     await click(screen.getByRole('button', { name: '添加文件夹…' }));
     expect(sent('POST', '/agent/scopes')).toEqual({ roots: [root], output_root: out });
     await click(screen.getByRole('button', { name: '撤销授权' }));
@@ -752,15 +713,5 @@ describe('errors', () => {
     expect(failure(new AgentdCallError(0, 'offline', undefined, null, 'x')).text).toBe('后台已断开');
     expect(failure(new AgentdCallError(409, 'extensions_version_changed', undefined, {}, 'x'))).toEqual({ text: '已在别处更新', conflict: true });
     expect(failure(new AgentdCallError(400, 'some_new_code', undefined, {}, 'x')).text).toBe('后台没有接受这次修改');
-  });
-});
-
-describe('settings page limits', () => {
-  it('reads the gate events with a limit within trace_store PAGE_MAX (200)', async () => {
-    await readGateEvents('2026-01-01T00:00:00+08:00').catch(() => undefined);
-    const path = request.mock.calls.map((c) => c[1]).find((p) => p.startsWith('/trace/decisions'))!;
-    const limit = Number(new URLSearchParams(path.slice(path.indexOf('?') + 1)).get('limit'));
-    expect(limit).toBeGreaterThan(0);
-    expect(limit).toBeLessThanOrEqual(200);
   });
 });

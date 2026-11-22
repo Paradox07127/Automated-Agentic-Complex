@@ -169,12 +169,13 @@ describe('BarList labels', () => {
 });
 
 describe('settings titles and the character page', () => {
-  // Settings sections carry the group title, coloured by its own token (yellow by night, dark olive by day), not the accent fill.
+  // Section titles take the page's title colour: the title token by night, the ink by day (yellow fails 3:1 on paper); never the accent fill.
   it('settings group titles use the title token, not the accent', () => {
     expect(src('pages/settings/SetSection.tsx')).not.toContain('<SecHead');
     const title = rule(src('pages/settings/section.module.css'), '.title');
-    expect(title).toMatch(/color:\s*var\(--ef-set-title\)/);
+    expect(title).toMatch(/color:\s*var\(--s-sec-t\)/);
     expect(src('pages/settings/section.module.css')).not.toMatch(/accent/);
+    expect(rule(src('pages/settings/Page.module.css'), '.page')).toMatch(/--s-sec-t:\s*var\(--ef-set-title\)/);
   });
 
   // SRow has no contour any more and the hero is gone, so neither rule is left in the page CSS.

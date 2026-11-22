@@ -4,8 +4,7 @@ import { appNow } from '../../bridge/clock';
 import { codeText, serverFaultText } from '../../domain/errorText';
 import type { PickedHandle } from '../../bridge';
 import type { ObservationBriefsSettingsResponse } from '../../bridge/agentd-routes.generated';
-import { paused, quiet, meeting } from '../../domain/bodies';
-import type { WireRun, WireRuntimePublic, WireRuntimeSettings, WireSummaryRun } from '../../domain/wire';
+import type { WireRuntimePublic, WireRuntimeSettings } from '../../domain/wire';
 import type {
   AllowField,
   BlacklistField,
@@ -13,7 +12,6 @@ import type {
   WireCatalog,
   WireChatgpt,
   WireDiagSlice,
-  WireGateEvent,
   WireModelSettings,
   WireModelTest,
   WireScope,
@@ -75,15 +73,7 @@ export interface AcpInstall {
 export const installAcpAgent = (agent_id: string) => post<AcpInstall>('/character/acp/install', { agent_id });
 
 export const readDiag = () => get<WireDiagSlice>('/diag/state');
-export const readRuns = () => get<{ runs: WireRun[] }>('/agent/runs');
-/** Screenshots sent today: the observation_vision and user_vision runs that started on `day` (YYYY-MM-DD). */
-export const readShotRuns = (day: string) => get<{ runs: WireSummaryRun[] }>(`/summary/runs?date=${day}&kinds=observation_vision,user_vision`);
-/** Today's gate decisions, newest first. */
-export const readGateEvents = (since: string) => get<{ events: WireGateEvent[] }>(`/trace/decisions?kind=gate.decided&since=${encodeURIComponent(since)}&limit=200`);
 
-export const pauseObservation = (minutes: number) => put<{ paused_until: string | null }>('/observation/paused', paused(minutes));
-export const setQuiet = (untilMs: number | null) => put<{ quiet_until: string | null }>('/observation/quiet', quiet(untilMs));
-export const setMeeting = (on: boolean) => put<{ meeting: boolean }>('/observation/meeting', meeting(on));
 /** Proactive line kinds turned off with the bubble's 关闭此类; PUT replaces the whole list. */
 export const readMutes = () => get<{ muted: string[] }>('/proactive/mutes');
 export const saveMutes = (muted: string[]) => put<{ muted: string[] }>('/proactive/mutes', { muted });

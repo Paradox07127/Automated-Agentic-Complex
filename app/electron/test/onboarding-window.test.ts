@@ -186,7 +186,7 @@ test('the guide\'s page has the main window\'s guards: links to the system brows
 });
 
 test('end closes the guide and opens the main window at the destination (MainWindowRouter.endOnboarding)', () => {
-  for (const [destination, route] of [['home', '/home'], ['model', '/settings?group=model'], ['plugins', '/settings?group=plugins']] as const) {
+  for (const [destination, route] of [['home', '/home'], ['model', '/settings?group=model'], ['plugins', '/settings?group=perm']] as const) {
     const s = guideSetup();
     s.guide.begin();
     s.guide.end(destination);

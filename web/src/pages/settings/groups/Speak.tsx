@@ -2,51 +2,34 @@ import { useEffect, useRef, useState } from 'react';
 import { getBridge } from '../../../bridge';
 import { AgentdCallError, resetVoice, saveVoiceToken, testVoice } from '../../../bridge/agentd';
 import { hotkeyText } from '../../../bridge/platformText';
-import { CumulativeStep } from '../../../charts';
-import { formatDuration, isoToMsOrNull, type Cooldown, type VisualStateKey } from '../../../domain';
 import { voiceSource, voiceState, voiceText, type Voice, type VoiceState } from '../../../domain/voiceState';
 import { useCountdown } from '../../../features/approval/useCountdown';
-import { Btn, Menu, StatusTag } from '../../../ui';
-import { clock, failure, readMutes, saveMutes, setMeeting, setQuiet } from '../api';
+import { failure, readMutes, saveMutes } from '../api';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
-import { daySpan, type BlockedLine, type DayEvent, type DiagView } from '../diag';
+import type { DiagView } from '../diag';
 import { REPLY_LANGUAGE } from '../fields';
+import { groupDesc } from '../groups';
+import { Cap, Chip, Dis, Field, Lnk, Seg, St, type StTone } from '../kit';
 import { optionsOf } from '../native';
 import { labelOf, useRowShown } from '../registry';
-import { PauseReadout } from '../PauseReadout';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
 import { Slab } from '../Slab';
-import { GateBlocked, MUTED_KIND } from './GateBlocked';
+import { MUTED_KIND } from './GateBlocked';
 import { QuietHoursRow, useProactiveSettings } from './SpeakCompanion';
 import { SILENT_LEVEL, SpeakWhenRow } from './SpeakWhen';
 import styles from '../groups.module.css';
 
-/** Next 07:00 local after `now` (the old QuietSpan「到明早」). */
-export function tomorrowMorning(now: number): number {
-  const d = new Date(now);
-  d.setHours(7, 0, 0, 0);
-  if (d.getTime() <= now) d.setDate(d.getDate() + 1);
-  return d.getTime();
-}
-
-/** The overview's 免打扰 choices; agentd caps a quiet window at 1440 minutes. */
-const QUIET: Array<[string, (now: number) => number]> = [
-  ['30 分钟', (now) => now + 30 * 60_000],
-  ['1 小时', (now) => now + 60 * 60_000],
-  ['到明早 7 点', tomorrowMorning],
-];
-
-const NOTIFY: Array<[string, string, string?]> = [
-  ['n_done', '完成'],
+const NOTIFY: Array<[id: string, label: string, note: string]> = [
+  ['n_done', '完成', '任务做完'],
   ['n_appr', '待批准', '只作用于审批卡'],
-  ['n_err', '出错'],
-  ['n_brief', '简短播报'],
-  ['n_remind', '提醒'],
+  ['n_err', '出错', '任务失败'],
+  ['n_brief', '简短播报', '进度一句话'],
+  ['n_remind', '提醒', '你设的提醒'],
 ];
 
-const VOICE_TAG: Record<VoiceState, VisualStateKey> = { ready: 'ok', unknown: 'idle', probing: 'running', cold: 'warning', unreachable: 'broken', off: 'broken' };
+const VOICE_TONE: Record<VoiceState, StTone> = { ready: 'ok', unknown: 'off', probing: 'warn', cold: 'warn', unreachable: 'bad', off: 'off' };
 
 /** POST /voice/test `reason` → what the test row says. */
 function voiceTestFailure(reason: string | null): string {
@@ -57,34 +40,16 @@ function voiceTestFailure(reason: string | null): string {
   return text[reason ?? ''] ?? '没有通过';
 }
 
-/** 说话与通知: voice, proactivity with today's gate, do-not-disturb, notification routing. */
+/** 说话: voice and its self-hosted service, when she speaks up, how things reach you. */
 export function SpeakGroup() {
-  const { model, ro: groupRo, agentdOff, diag, gateEvents, gateBlocked, native, hl } = useSettings();
+  const { model, ro: groupRo, agentdOff, diag, native } = useSettings();
   const shown = useRowShown();
-  // The do-not-disturb rows write to agentd.
+  // The proactive rows write to agentd.
   const ro = groupRo || agentdOff;
   const c = useControls();
   const bridge = getBridge();
   const ps = useProactiveSettings();
 
-  const startQuiet = (label: string, until: (now: number) => number) =>
-    void setQuiet(until(clock())).then(
-      (r) => {
-        model.setPause('quiet', isoToMsOrNull(r.quiet_until));
-        model.notify({ message: `免打扰已开始 │ ${label}` });
-      },
-      (e) => model.notify({ message: `没能开始免打扰：${failure(e).text}`, severity: 'danger', persistent: true }),
-    );
-  const endQuiet = () =>
-    void setQuiet(null).then(
-      () => model.setPause('quiet', null),
-      (e) => model.notify({ message: `没能结束免打扰：${failure(e).text}`, severity: 'danger', persistent: true }),
-    );
-  const meeting = (on: boolean) =>
-    void setMeeting(on).then(
-      (r) => model.setMeeting(r.meeting),
-      (e) => model.notify({ message: `没能${on ? '开始' : '结束'}开会：${failure(e).text}`, severity: 'danger', persistent: true }),
-    );
   // A reset's state holds until the next /diag/state read replaces diag.voice.
   const [reset, setReset] = useState<{ from: Voice | null; voice: Voice; source: DiagView['voiceSource'] } | null>(null);
   const resetLive = reset && reset.from === diag.voice;
@@ -141,26 +106,42 @@ export function SpeakGroup() {
     }
     setTesting(false);
   };
-  const ttsOpts = optionsOf(native?.rows.tts).map((o) => (o.value === 'local' ? { ...o, label: '关闭（无语音）' } : o));
-  const quietUntil = model.pauses.quiet;
-  const meetingOn = diag.pauses != null && model.pauses.meeting;
-  const meetUnread = diag.pauses == null;
+  const ttsOpts = optionsOf(native?.rows.tts).map((o) => ({ ...o, label: o.value === 'local' ? '关闭' : o.value === 'remote' ? '外部服务' : o.label }));
   const levels = optionsOf(native?.rows.proactive).filter((o) => o.value !== SILENT_LEVEL);
   // agentd mutes live on a spoken「静音」; this row is config.json, which it reads at start.
   const muteNote = diag.muted == null || diag.muted === (model.value('mute') === true) ? null : diag.muted ? '重启后台服务后按这里的设置出声' : '后台现在仍会出声；重启后台服务后生效';
+  const mute = model.value('mute');
+
+  const voiceDesc = local ? (
+    '不发声，只显示文字'
+  ) : (
+    <>
+      {voice && <St tone={VOICE_TONE[voice.state]}>{voiceText(voice.state, retryLeft)}</St>} <span>{down ? '这段时间只显示文字' : `${sourceLabel ? `${sourceLabel} │ ` : ''}自己部署的语音服务，app 只连接`}</span>
+    </>
+  );
 
   return (
     <>
-      <SetSection title="声音">
+      <SetSection title="声音" info={groupDesc('speak')}>
         <SetRow
           id="mute"
-          title="静音"
-          desc={muteNote ?? '只显示文字，不出声。菜单栏和角色菜单中也可切换'}
+          title={labelOf('mute')}
+          desc={muteNote ?? '只显示文字时照样回答，只是不念'}
           descTone={muteNote ? 'attention' : undefined}
+          info="把她的回答和主动发言念出来，要下面的语音服务在线。"
           control={
             <>
-              {diag.muted && <StatusTag state="todo" label="后台现在静音" />}
-              {c.toggle('mute', '静音')}
+              {diag.muted && <St tone="warn">后台现在静音</St>}
+              <Seg
+                label={labelOf('mute')}
+                value={typeof mute === 'boolean' ? String(mute) : ''}
+                options={[
+                  { value: 'false', label: '念出来' },
+                  { value: 'true', label: '只显示文字' },
+                ]}
+                disabled={groupRo}
+                onChange={(v) => model.set('mute', v === 'true')}
+              />
             </>
           }
         />
@@ -169,126 +150,111 @@ export function SpeakGroup() {
         ) : (
           <SetRow
             id="tts"
-            title="语音合成来源"
-            desc={local ? '不发声，只显示文字' : down ? '没有连上语音服务，只显示文字' : '角色隐藏时，主动发言只显示文字'}
-            descTone={down ? 'attention' : undefined}
+            title={labelOf('tts')}
+            desc={voiceDesc}
+            descTone={down ? 'bad' : undefined}
+            info="把台词合成语音。要你自己部署的语音服务地址和令牌；app 不打包模型，只用你的服务。"
             control={
               <>
-                {sourceLabel && <span className={styles.t3}>{sourceLabel}</span>}
-                {voice && <StatusTag state={VOICE_TAG[voice.state]} label={voiceText(voice.state, retryLeft)} />}
                 {(voice?.state === 'unreachable' || voice?.state === 'cold') && (
-                  <Btn size="sm" variant="ghost" disabled={agentdOff} onClick={reconnect}>
+                  <Cap disabled={agentdOff} disabledReason="后台服务没有运行" onClick={reconnect}>
                     重新连接
-                  </Btn>
+                  </Cap>
                 )}
-                {c.seg('tts', ttsOpts)}
+                <Seg label={labelOf('tts')} value={String(model.value('tts') ?? '')} options={ttsOpts} disabled={groupRo} onChange={(v) => model.set('tts', v)} />
               </>
             }
           />
         )}
-        {remote && shown('ttsUrl') && (
+        {remote && (
           <>
-            <details className={styles.kernBody} open={['ttsUrl', 'ttsTunnelHost', 'ttsEnsureScript'].some((id) => id === hl)}>
-              <summary>高级连接</summary>
-              {([['ttsUrl', '服务地址', 'http 或 https 地址；不填时只出文字', 'http://主机:端口'], ['ttsTunnelHost', 'SSH 转发主机', '留空就不建隧道', 'ssh 主机名（可留空）'], ['ttsEnsureScript', '按需启动脚本', '留空就不按需启动', '远程主机上的绝对路径（可留空）']] as const).map(([id, title, desc, hint]) => <SetRow key={id} id={id} title={title} desc={desc} indent control={c.text(id, title, hint)} />)}
-            </details>
+            <SetRow id="ttsUrl" title={labelOf('ttsUrl')} indent control={c.text('ttsUrl', labelOf('ttsUrl'), 'http://主机:端口')} />
             <SetRow
               id="ttsToken"
               title="令牌"
               desc={tokenCleared ? '未设置：服务地址换了，旧服务的令牌已删除' : undefined}
               descTone={tokenCleared ? 'attention' : undefined}
+              info="令牌只送给后台，不回显；换服务地址会删掉旧令牌。"
               indent
               control={
                 <>
-                  <input className={styles.input} type="password" aria-label="令牌" placeholder="粘贴令牌" value={token} disabled={agentdOff} onChange={(e) => setToken(e.currentTarget.value)} />
-                  <Btn size="sm" variant="ghost" disabled={agentdOff || !token.trim()} onClick={saveToken}>
+                  <Field type="password" aria-label="令牌" placeholder="粘贴令牌" value={token} disabled={agentdOff} onChange={(e) => setToken(e.currentTarget.value)} />
+                  <Cap disabled={agentdOff || !token.trim()} onClick={saveToken}>
                     保存
-                  </Btn>
+                  </Cap>
                 </>
               }
             />
             <SetRow
               id="ttsTest"
               title="测试连接"
-              desc={test ? <span className={test.ok ? styles.ok : styles.att}>{test.text}</span> : undefined}
               indent
               control={
-                <Btn size="sm" variant="ghost" loading={testing} disabled={agentdOff} onClick={() => void runTest()}>
-                  测试连接
-                </Btn>
+                <>
+                  {test && <St tone={test.ok ? 'ok' : 'bad'}>{test.text}</St>}
+                  <Cap loading={testing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void runTest()}>
+                    测试
+                  </Cap>
+                </>
               }
             />
+            {([['ttsTunnelHost', '留空就不建隧道', 'ssh 主机名（可留空）'], ['ttsEnsureScript', '留空就不按需启动', '远程主机上的绝对路径（可留空）']] as const).map(([id, desc, hint]) => (
+              <SetRow key={id} id={id} title={labelOf(id)} desc={desc} indent control={c.text(id, labelOf(id), hint)} />
+            ))}
           </>
         )}
-        <SetRow id="asr" title="识别语言" control={c.seg('asr')} />
-        <SetRow id="replyLang" title="回复语言" control={c.seg('replyLang', REPLY_LANGUAGE)} />
+        <SetRow id="asr" title={labelOf('asr')} desc="按住说话时用" control={c.seg('asr')} />
+        <SetRow id="replyLang" title={labelOf('replyLang')} control={c.select('replyLang', REPLY_LANGUAGE)} />
       </SetSection>
 
-      <SetSection title="主动程度">
-        {diag.gate && shown('gate') && <GatePlate gate={diag.gate} events={gateEvents ?? null} blocked={gateBlocked ?? []} cooldowns={diag.cooldowns} />}
-        <SpeakWhenRow ps={ps} disabled={ro}>
-          <SetRow id="proactive" title="主动程度" desc="主动发言和动作的频率" indent control={c.select('proactive', levels, ['active'])} />
+      <SetSection title="主动开口">
+        <SpeakWhenRow
+          ps={ps}
+          disabled={ro}
+          asked={<SetRow id="proactive" title={labelOf('proactive')} indent control={<Dis>只在你问时她不会主动</Dis>} />}
+        >
+          <SetRow id="proactive" title={labelOf('proactive')} desc="主动发言和动作的频率" indent control={c.select('proactive', levels, ['active'])} />
           <QuietHoursRow ps={ps} disabled={ro} />
         </SpeakWhenRow>
-        <SetRow id="rest" title="休息提醒" desc="连续使用到设定时长后提醒休息" control={c.select('rest')} />
-        {native?.rows.water && (
-          <SetRow id="water" title="喝水提醒" desc="连续使用到设定时长后，在停顿时提醒喝水" control={c.select('water')} />
-        )}
         <MutedRow disabled={ro} />
+        <SetRow id="rest" title={labelOf('rest')} desc="连续用电脑到这个时长后提醒" control={c.select('rest')} />
+        {native?.rows.water && <SetRow id="water" title={labelOf('water')} desc="在你停顿时提醒" control={c.select('water')} />}
       </SetSection>
 
-      <SetSection title="免打扰">
-        <SetRow
-          id="dnd_quiet"
-          title="免打扰"
-          desc="限时：开会并暂停观察；提醒只出卡片、不出声，朝向决策关闭。开会：共享屏幕时使用，提醒照常"
-          control={
-            <>
-              {quietUntil && <PauseReadout kind="免打扰" until={quietUntil} note="提醒只出卡片、不出声" disabled={ro} onResume={endQuiet} />}
-              {meetingOn && (
-                <span className={styles.pause} role="status">
-                  <span aria-hidden="true">⏸</span>
-                  <span>
-                    免打扰 │ 开会<span className={styles.t3}> │ 提醒照常</span>
-                  </span>
-                  <Btn size="sm" variant="ghost" disabled={ro} onClick={() => meeting(false)}>
-                    现在恢复
-                  </Btn>
+      <SetSection title="事情怎么告诉你">
+        <Slab id="n_done" label="提醒方式">
+          <div className={styles.mx} role="table" aria-label="提醒方式">
+            <span role="row" className={styles.mxHead}>
+              <span role="columnheader" />
+              {['出声', '只出卡', '不提示'].map((h) => (
+                <span key={h} role="columnheader">
+                  {h}
                 </span>
-              )}
-              {!quietUntil && !meetingOn && (
-                <Menu
-                  label="开始"
-                  align="right"
-                  items={[
-                    ...QUIET.map(([label, until]) => ({ kind: 'item' as const, label, disabled: ro, onSelect: () => startQuiet(label, until) })),
-                    { kind: 'item' as const, label: '开会', disabled: ro || meetUnread, reason: meetUnread ? '未读到' : undefined, onSelect: () => meeting(true) },
-                  ]}
-                />
-              )}
-            </>
-          }
-        />
-        <SetRow id="capHide" title="录屏时隐藏角色" desc={hotkeyText('开始录屏或共享屏幕时隐藏一次，按 ⌃⌥H 显示')} control={c.toggle('capHide', '录屏时隐藏角色')} />
-      </SetSection>
-
-      <SetSection title="通知方式">
-        {NOTIFY.map(([id, label, desc]) => (
-          <SetRow key={id} id={id} title={label} desc={desc} control={c.seg(id)} />
-        ))}
+              ))}
+            </span>
+            {NOTIFY.filter(([id]) => shown(id)).map(([id, label, note]) => (
+              <span key={id} role="row" id={id === 'n_done' ? undefined : `set-${id}`} className={styles.mxRow} data-row={id}>
+                <span role="rowheader" className={styles.mxK}>
+                  {label}
+                  <small>{note}</small>
+                </span>
+                <span role="cell" className={styles.mxSeg}>
+                  {c.seg(id, undefined, false, label)}
+                </span>
+              </span>
+            ))}
+          </div>
+        </Slab>
         <SetRow id="sysnotify" title={labelOf('sysnotify')} desc="角色隐藏或前台全屏时生效" control={c.toggle('sysnotify')} />
+        <SetRow id="capHide" title={labelOf('capHide')} desc={hotkeyText('开始录屏或共享屏幕时隐藏一次，按 ⌃⌥H 显示')} control={c.toggle('capHide', labelOf('capHide'))} />
         <SetRow
           id="testcard"
-          title="发送测试卡"
+          title={labelOf('testcard')}
           desc="在角色旁显示一张通知卡，检查位置和声音"
           control={
             <>
-              <Btn size="sm" variant="ghost" onClick={() => void testCard('test_approval_card', '测试审批卡')}>
-                测试审批卡
-              </Btn>
-              <Btn size="sm" variant="ghost" onClick={() => void testCard('test_announcement', '测试播报')}>
-                测试播报
-              </Btn>
+              <Cap onClick={() => void testCard('test_approval_card', '测试审批卡')}>测试审批卡</Cap>
+              <Cap onClick={() => void testCard('test_announcement', '测试播报')}>测试播报</Cap>
             </>
           }
         />
@@ -306,7 +272,7 @@ export function SpeakGroup() {
   }
 }
 
-/** Proactive kinds turned off with the bubble's 关闭此类 (GET /proactive/mutes), each with 恢复; absent while none is. */
+/** Proactive kinds turned off with the bubble's 关闭此类 (GET /proactive/mutes), each a chip with 恢复; absent while none is. */
 function MutedRow({ disabled }: { disabled: boolean }) {
   const { model } = useSettings();
   const [muted, setMuted] = useState<string[] | null>(null);
@@ -325,13 +291,13 @@ function MutedRow({ disabled }: { disabled: boolean }) {
       (r) => setMuted(r.muted),
       (e) => model.notify({ message: `没能恢复「${label}」：${failure(e).text}`, severity: 'danger', persistent: true }),
     );
-  const how = '在气泡的「更多操作」里点「关闭此类」可以关掉一类';
   if (muted?.length === 0) return null;
   return (
     <SetRow
       id="mutes"
-      title="已关掉的主动发言"
-      desc={how}
+      title={labelOf('mutes')}
+      desc="在气泡「更多操作」里点「关闭此类」加进来"
+      wrap
       control={
         muted == null ? (
           <span className={styles.t3} title="已关掉的主动发言：还没读到后台的状态">
@@ -342,46 +308,15 @@ function MutedRow({ disabled }: { disabled: boolean }) {
             const label = MUTED_KIND[kind] ?? kind;
             return (
               <span key={kind} role="group" aria-label={label}>
-                <span>{label}</span>
-                <Btn size="sm" variant="ghost" disabled={disabled} disabledReason="后台不可写" onClick={() => restore(kind, label)}>
-                  恢复
-                </Btn>
+                <Chip>
+                  {label}
+                  {!disabled && <Lnk onClick={() => restore(kind, label)}>恢复</Lnk>}
+                </Chip>
               </span>
             );
           })
         )
       }
     />
-  );
-}
-
-/** 今日发言闸门: today's proactive lines as a cumulative step up to the daily limit, blocked ones as ✕, and the cooldowns. */
-function GatePlate({ gate, events, blocked, cooldowns }: { gate: NonNullable<DiagView['gate']>; events: DayEvent[] | null; blocked: BlockedLine[]; cooldowns: Cooldown[] }) {
-  const now = clock();
-  const ev = events ?? [];
-  const [t0, t1] = daySpan(ev, now);
-  return (
-    <Slab id="gate" variant="plate" title="今日发言闸门" right="主动发言累计达到上限后停止；已拦截的标 ✕">
-      <div className={styles.gate}>
-        <CumulativeStep events={ev} t0={t0} t1={t1} now={now} limit={gate.daily_limit} h={112} label="今日主动发言" unit="次" st={events == null ? 'error' : 'ok'} empty="今天还没有主动发言" />
-        <div className={styles.cooldowns} role="list" aria-label="冷却">
-          {cooldowns.length === 0 && (
-            <span role="listitem" className={styles.coolItem}>
-              <span className={styles.t3}>冷却</span>
-              <span>✓ 均已就绪</span>
-            </span>
-          )}
-          {cooldowns.map((cd) => (
-            <span key={cd.key} role="listitem" className={styles.coolItem}>
-              <span className={styles.t3}>{cd.label}</span>
-              <span>
-                冷却 <span className="num">{formatDuration(cd.left_s * 1000)}</span>
-              </span>
-            </span>
-          ))}
-        </div>
-      </div>
-      <GateBlocked lines={blocked} />
-    </Slab>
   );
 }

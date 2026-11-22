@@ -2,11 +2,11 @@
 // and name no macOS; the macOS shell keeps every row and its wording.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { SettingsPage } from '../../src/pages/settings/Page';
-import { pluginsOn, pluginsReset } from './plugins';
+import { pluginsOn, pluginsReset, pluginsSaved } from './plugins';
 
 beforeEach(() => pluginsOn());
 afterEach(() => {
@@ -29,6 +29,7 @@ function installWindows() {
 }
 
 async function mount(search: string) {
+  await pluginsSaved();
   const root = createRootRoute({ component: SettingsPage });
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
   render(
@@ -40,11 +41,18 @@ async function mount(search: string) {
 
 const row = (id: string) => document.querySelector(`[data-row="${id}"]`);
 
+/** 系统权限 is one summary line until its button unfolds a row per permission. */
+async function unfoldPerms() {
+  const sum = await waitFor(() => within(row('perms') as HTMLElement).getByRole('button', { name: /^(展开|去开)$/ }));
+  await act(async () => fireEvent.click(sum));
+}
+
 describe('settings on the Windows shell', () => {
   beforeEach(installWindows);
 
   it('lists only the permissions the shell reads', async () => {
     await mount('&group=perm');
+    await unfoldPerms();
     await waitFor(() => expect(row('microphone')?.textContent).toContain('已允许'));
     for (const id of [...MAC_ONLY, 'notifications']) expect(row(id), id).toBeNull();
     for (const label of ['屏幕录制', '辅助功能', '输入监控', '自动化']) expect(screen.queryByText(label), label).toBeNull();
@@ -53,9 +61,9 @@ describe('settings on the Windows shell', () => {
   /** Each group with a text that shows once its reads are in. */
   const LOADED: Array<[group: string, id: string, text: string]> = [
     ['speak', 'sysnotify', '通知'],
-    ['keys', 'hk_quick', 'Ctrl+Space'],
-    ['perm', 'microphone', '已允许'],
-    ['about', 'sys', 'Windows 10.0.26100'],
+    ['keys', 'hk_quick', '系统「切换输入法」'],
+    ['perm', 'perms', '全部已允许'],
+    ['about', 'ver', 'Windows 10.0.26100'],
   ];
   it.each(LOADED)('names no macOS in %s', async (group, id, text) => {
     await mount(`&group=${group}`);
@@ -65,15 +73,17 @@ describe('settings on the Windows shell', () => {
 
   it('calls the system notification switch a Windows one and the Ctrl+Space clash the system\'s', async () => {
     await mount('&group=speak');
-    expect(await screen.findByRole('switch', { name: '改用 Windows 通知' })).toBeTruthy();
+    expect(await screen.findByRole('switch', { name: '她不在桌面时改走 Windows 通知' })).toBeTruthy();
     cleanup();
     await mount('&group=keys');
-    expect(await screen.findByText('与系统「切换输入法」冲突，建议改为 Ctrl+Alt+Space')).toBeTruthy();
+    expect(await screen.findByText('和系统「切换输入法」冲突')).toBeTruthy();
+    expect(within(row('hk_quick') as HTMLElement).getByRole('button', { name: '改用 Ctrl+Alt+Space' })).toBeTruthy();
   });
 
   it('spells the keys out instead of the macOS glyphs', async () => {
     await mount('&group=keys');
-    await waitFor(() => expect(row('hk_quick')?.textContent).toContain('Ctrl+Space'));
+    // A combo is a cap per key, split where the Windows text has a +.
+    await waitFor(() => expect([...row('hk_quick')!.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['Ctrl', 'Space']));
     expect(row('hk_cmdk')?.textContent).toContain('Ctrl+K');
     expect(row('hk_page_chat')?.textContent).toContain('Ctrl+2');
     expect(document.body.textContent).not.toMatch(/[⌘⌃⌥⇧]/);
@@ -99,15 +109,16 @@ describe('settings on the Windows shell', () => {
   it('finds no hidden permission and no macOS row in search', async () => {
     await mount('&q=系统权限');
     expect((await screen.findByRole('list', { name: /^搜索结果/ })).textContent).toContain('麦克风与语音识别');
-    expect(screen.getByRole('list', { name: '搜索结果 1 项' })).toBeTruthy();
+    // The summary row and the one permission the shell reads.
+    expect(screen.getByRole('list', { name: '搜索结果 2 项' })).toBeTruthy();
     cleanup();
     await mount('&q=通知');
     const found = await screen.findByRole('list', { name: /^搜索结果/ });
-    expect(found.textContent).toContain('改用 Windows 通知');
+    expect(found.textContent).toContain('她不在桌面时改走 Windows 通知');
     expect(found.textContent).not.toContain('macOS');
     cleanup();
     await mount('&q=macOS');
-    expect(await screen.findByText('没有找到「macOS」')).toBeTruthy();
+    expect(await screen.findByText(/^没有找到「macOS」，/)).toBeTruthy();
   });
 });
 
@@ -118,17 +129,19 @@ describe('settings on the macOS shell', () => {
 
   it('keeps every permission row and the macOS wording', async () => {
     await mount('&group=perm');
-    expect(await screen.findByText('屏幕录制')).toBeTruthy();
+    await unfoldPerms();
+    expect((await screen.findAllByText('屏幕录制')).length).toBeGreaterThan(0);
     for (const id of [...MAC_ONLY, 'microphone', 'notifications']) expect(row(id), id).not.toBeNull();
     cleanup();
     await mount('&group=speak');
-    expect(await screen.findByRole('switch', { name: '改用 macOS 通知' })).toBeTruthy();
+    expect(await screen.findByRole('switch', { name: '她不在桌面时改走 macOS 通知' })).toBeTruthy();
     expect(row('capHide')?.textContent).toContain('按 ⌃⌥H 显示');
     cleanup();
     await mount('&group=keys');
-    expect(await screen.findByText('与 macOS「切换输入法」冲突，建议改为 ⌃⌥Space')).toBeTruthy();
+    expect(await screen.findByText('和 macOS「切换输入法」冲突')).toBeTruthy();
+    expect(within(row('hk_quick') as HTMLElement).getByRole('button', { name: '改用 ⌃⌥Space' })).toBeTruthy();
     cleanup();
     await mount('&q=系统权限');
-    expect(await screen.findByRole('list', { name: '搜索结果 6 项' })).toBeTruthy();
+    expect(await screen.findByRole('list', { name: '搜索结果 7 项' })).toBeTruthy();
   });
 });

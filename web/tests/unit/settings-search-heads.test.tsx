@@ -12,6 +12,7 @@ import { SetNav, SetSearch } from '../../src/pages/settings/SetNav';
 import { runtimeView, SettingsCtx, type RuntimeView, type SettingsCtxValue } from '../../src/pages/settings/ctx';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
 import { useSettingsModel } from '../../src/pages/settings/model';
+import { pluginsOn, pluginsReset } from './plugins';
 
 const noop = () => {};
 
@@ -20,6 +21,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  pluginsReset();
   delete window.agenticComplex;
 });
 
@@ -45,9 +47,10 @@ describe('SearchField', () => {
   });
 
   it('is the settings search, apart from the group tabs', () => {
-    const { container } = render(<SetSearch q="" onQ={noop} />);
-    const field = container.querySelector('[data-stub="SearchField"]');
-    expect(field?.contains(screen.getByRole('textbox', { name: '搜索设置' }))).toBe(true);
+    // The top bar's own white capsule with its ⌘F cap, not the shared SearchField.
+    const { container } = render(<SetSearch q="" onQ={noop} onEnter={noop} />);
+    expect(container.querySelector('label')?.contains(screen.getByRole('textbox', { name: '搜索设置' }))).toBe(true);
+    expect(container.querySelector('kbd')?.textContent).toBe('⌘F');
     cleanup();
     render(<SetNav group="kernel" searching={false} marks={{}} drafts={[]} onGroup={noop} />);
     expect(screen.getByRole('tablist', { name: '设置分组' })).toBeTruthy();
@@ -90,7 +93,6 @@ function Harness({ children, runtime }: { children: ReactNode; runtime: RuntimeV
     diag: diagView(null),
     blacklist: null,
     scopes: null,
-    runs: [],
     reload: noop,
     perms: PERMISSIONS,
     recheckPerms: async () => 'denied',
@@ -107,6 +109,8 @@ function Harness({ children, runtime }: { children: ReactNode; runtime: RuntimeV
 
 describe('settings kernel', () => {
   it('「改用 Pi」applies at once, like the desktop card, and shows the result', async () => {
+    // The kernel table sits in the 外接 harness band.
+    pluginsOn('harness_bridge');
     const request = vi.spyOn(window.agenticComplex!.agentd, 'request');
     const runtime = await loggedOutRuntime();
     render(

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Btn, IconBtn, Select } from '../../ui';
+import { IconBtn, Select } from '../../ui';
+import { Cap, Field, Lnk } from './kit';
 import { addAllow, failure, removeAllow } from './api';
 import { useSettings } from './ctx';
 import { Slab } from './Slab';
@@ -51,16 +52,11 @@ export function AllowList({ right }: { right: ReactNode }) {
             <IconBtn icon="close" size="sm" label={`移除 ${x.value}`} disabled={ro} onClick={() => remove(x.field, x.value)} />
           </span>
         ))}
-        {entries.length > FOLD && (
-          <Btn size="sm" variant="quiet" onClick={() => setAll(!all)}>
-            {all ? '收起' : `全部 ${entries.length} 项`}
-          </Btn>
-        )}
+        {entries.length > FOLD && <Lnk onClick={() => setAll(!all)}>{all ? '收起' : `全部 ${entries.length} 项`}</Lnk>}
       </div>
       <div className={styles.chips}>
         <Select label="读取类型" value={field} width={120} options={FIELD.map((f) => ({ value: f.value, label: f.label }))} disabled={ro} onChange={(v) => setField(v as AllowField)} />
-        <input
-          className={styles.input}
+        <Field
           aria-label="要读取的内容"
           placeholder={FIELD.find((f) => f.value === field)?.hint}
           value={value}
@@ -68,9 +64,9 @@ export function AllowList({ right }: { right: ReactNode }) {
           onChange={(e) => setValue(e.currentTarget.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
-        <Btn size="sm" variant="ghost" icon="plus" disabled={ro || !value.trim()} onClick={add}>
+        <Cap disabled={ro || !value.trim()} onClick={add}>
           添加
-        </Btn>
+        </Cap>
       </div>
     </Slab>
   );

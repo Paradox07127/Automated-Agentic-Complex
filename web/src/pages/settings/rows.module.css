@@ -1,256 +1,376 @@
-/* Settings row (the RowPlate look): a grey plate with a lighter rim and faint stripes at the left, the label 34 px in, the controls in a 280 column 30 px from the right; plates 37 high at a 42 pitch. */
+/* SettingItemCell/Content: an r3 plate (white@.4 over the ground), a 1 px rim; stripes at the left end and a contour fading out to the right; label 34 px in, controls in a fixed right column. */
 .row,
 .slab {
-  /* Plate rim: #B9B9B9 tinted white@0.4. */
-  --plate-rim: rgb(185 185 185 / 0.4);
-  /* Stripe texture tint. */
-  --plate-stripe: rgb(255 255 255 / 0.102);
   position: relative;
   isolation: isolate;
-  margin-bottom: 5px;
-  border: 1px solid var(--plate-rim);
-  border-radius: 2px;
-  background: var(--ef-set-row-plate);
+  margin-bottom: 6px;
+  border-radius: 3px;
+  background: var(--s-plate);
+  box-shadow: inset 0 0 0 1px var(--s-rim), inset 0 1px 0 var(--s-rim-hi);
+  animation: cellIn 300ms var(--ef-ease-g-enter) both;
+  transition: background 83ms;
 }
 
-/* Light theme (ours): the dark grey fails 4.5 for the description, so the plate takes the light row plate. */
-:global([data-theme='light']) :is(.row, .slab) {
-  background: var(--ef-rowplate);
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--cw);
+  align-items: center;
+  column-gap: 20px;
+  min-height: 48px;
+  padding: 7px 22px 7px 34px;
 }
 
-/* settings-row-texture without art: diagonal stripes fading out to the right. */
+.row:hover {
+  background: var(--s-plate-hi);
+}
+
+/* settings-row-texture: 127 px of diagonal stripes at the left end. */
+.row::before,
+.slab::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 2px auto 2px 2px;
+  width: 96px;
+  border-radius: 2px 0 0 2px;
+  background: repeating-linear-gradient(-45deg, var(--s-tex) 0 1.2px, transparent 1.2px 4px);
+  -webkit-mask: linear-gradient(90deg, #000 10%, transparent);
+  mask: linear-gradient(90deg, #000 10%, transparent);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* settings-row-contour: the contour lines, moved to the left since the controls take the right. */
 .row::after,
-.slab:not([data-variant='plain'])::after {
+.slab::after {
   content: '';
   position: absolute;
   z-index: -1;
   top: 2px;
   bottom: 2px;
-  left: 2.5px;
-  width: 63.5px;
-  background: repeating-linear-gradient(-45deg, var(--plate-stripe) 0 1.5px, transparent 1.5px 4px);
-  -webkit-mask: linear-gradient(90deg, #000, transparent);
-  mask: linear-gradient(90deg, #000, transparent);
+  left: 20px;
+  width: 360px;
+  max-width: 60%;
+  background: var(--s-contour) left center / 360px 100% no-repeat;
+  -webkit-mask: linear-gradient(90deg, #000 30%, transparent);
+  mask: linear-gradient(90deg, #000 30%, transparent);
+  opacity: 0.55;
   pointer-events: none;
 }
 
-/* Textures, white sprites at the contour's 0.149 (the stripes' own 0.102 is close): stripes at x 2.5
-   (recipe settings-row-texture), contour centred 131 px in (recipe settings-row-contour). The light theme keeps the CSS stripes. */
-:global(html[data-art][data-theme='dark']) :is(.row, .slab:not([data-variant='plain']))::after {
-  right: 2px;
-  width: auto;
-  background:
-    url('/art/common/settings-row-texture.png') left center / 66px 48px no-repeat,
-    url('/art/common/settings-row-contour.png') left 10.5px center / 236px 48px no-repeat;
-  -webkit-mask: none;
-  mask: none;
-  opacity: 0.149;
+:global([data-theme='light']) :is(.row, .slab)::after {
+  filter: invert(1);
+  opacity: 0.4;
 }
 
-.row > [data-stub='SRow'] {
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 2px var(--ef-sp-16);
-  min-height: 35px;
-  padding: var(--ef-sp-6) 30px var(--ef-sp-6) 34px;
-  border-bottom: 0;
-  background: none;
+.row[data-sub] {
+  margin-left: 24px;
 }
 
-.row [id^='set-'][id$='-title'] {
-  font: var(--ef-fw-medium) var(--ef-fs-title-2) / var(--ef-lh-h3) var(--ef-font-sans);
+.row[data-sub]::before {
+  width: 60px;
 }
 
-.row [id$='-desc'] {
-  margin-top: 1px;
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-caption);
-  line-height: 1.45;
-  white-space: normal;
+.row[data-tall] {
+  align-items: start;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
-/* A row that opens a dialog or another page: a suffix arrow at the right end; pointing at it drops the trace bar and brightens the rim. */
-.row[data-opens] > [data-stub='SRow']::after {
-  content: '';
-  position: absolute;
-  top: calc(50% - 4px);
-  right: 13px;
-  width: 6px;
-  height: 6px;
-  border-top: 1.5px solid var(--ef-text-2);
-  border-right: 1.5px solid var(--ef-text-2);
-  transform: rotate(45deg);
-  pointer-events: none;
-}
-
-.row[data-opens]:hover {
-  border-color: var(--ef-line-strong);
-}
-
-.row[data-opens]::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  z-index: 1;
-  width: var(--ef-lw-category);
-  background: var(--ef-trace);
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform var(--ef-dur-g-cell-in) var(--ef-ease-g-enter);
-  pointer-events: none;
-}
-
-.row[data-opens]:hover::before {
-  transform: none;
-}
-
-/* A disabled row keeps its title readable; each control greys itself out, so the row adds no opacity on top. */
-.row > [data-stub='SRow'][aria-disabled='true'] [id$='-title'] {
-  color: var(--ef-text-2);
-}
-
-.row > [data-stub='SRow'][aria-disabled='true'] > [inert] {
-  opacity: 1;
-}
-
-/* Segmented controls and dropdowns fill the 280 control column. */
-.row [data-stub='Seg'] {
-  width: 100%;
-  max-width: 280px;
-}
-
-.row [data-stub='Seg'] > button {
-  flex: 1;
+.lab {
+  display: grid;
+  gap: 1px;
   min-width: 0;
-  padding: 0 6px;
 }
 
-.ctl:has(> [data-stub='Select']) {
-  flex: 1;
-}
-
-.ctl > [data-stub='Select'] {
-  width: 100%;
-}
-
-/* A dependent row sits indented under its parent. */
-.indent {
-  margin-left: var(--ef-sp-16);
-}
-
-/* The row a deep link landed on, until the page clears the mark. */
-.hl {
-  outline: var(--ef-lw-hair) solid var(--ef-trace);
-  outline-offset: -1px;
-}
-
-.ctl {
-  display: inline-flex;
+.tt {
+  display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: var(--ef-sp-8);
-  flex-wrap: wrap;
+  gap: 8px;
   min-width: 0;
+  font: 500 15px/22px var(--ef-font-sans);
 }
 
-.ok {
-  color: var(--ef-success-text);
-  font-size: var(--ef-fs-caption);
+.tt > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.att {
-  color: var(--ef-attention-text);
+.row[aria-disabled='true'] .tt > span:first-child {
+  color: var(--s-t2);
 }
 
+.d {
+  overflow: hidden;
+  color: var(--s-t2);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.d[data-tone='attention'] {
+  color: var(--s-warn);
+}
+
+.d[data-tone='bad'] {
+  color: var(--s-bad);
+}
+
+.d[data-tone='ok'] {
+  color: var(--s-ok);
+}
+
+.ctl {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ctl[data-wrap] {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.ctl > [data-stub='Select'] {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: var(--cw);
+}
+
+.extra {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 6px;
+}
+
+.row:has([data-stub='Select'][data-open]) {
+  z-index: 5;
+}
+
+/* ⓘ: a 16 px ring with a written i (the shared icon is a ring of its own), the description that does not fit the one line. */
+.tt [data-stub='InfoTip'] > button,
+.band [data-stub='InfoTip'] > button {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 1.25px var(--s-t2);
+  color: var(--s-t2);
+  font: 600 11px/1 var(--ef-font-num);
+}
+
+.tt [data-stub='InfoTip'] > button:hover,
+.band [data-stub='InfoTip'] > button:hover {
+  box-shadow: inset 0 0 0 1.25px var(--s-t1);
+  color: var(--s-t1);
+}
+
+.tt [data-stub='InfoTip'] > button::after,
+.band [data-stub='InfoTip'] > button::after {
+  content: 'i';
+}
+
+.tt [data-stub='InfoTip'] svg,
+.band [data-stub='InfoTip'] svg {
+  display: none;
+}
+
+.mark {
+  flex: none;
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 400;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.mark[data-k='del'] {
+  color: var(--s-bad);
+}
+
+.mark[data-k='re'] {
+  color: var(--s-t2);
+}
+
+.mark[data-k='draft'] {
+  color: var(--s-warn);
+}
+
+.mark[data-k='dev'] {
+  color: var(--s-mission);
+  font-family: var(--ef-font-num);
+  letter-spacing: 0.06em;
+}
+
+.ok {
+  color: var(--s-ok);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.hl {
+  animation: flash 1.6s var(--ef-ease-g-fade) both;
+}
+
+/* Full-width block (lists, tables): the row plate without the two columns. */
 .slab {
-  padding: var(--ef-sp-12) 30px var(--ef-sp-12) 34px;
-  break-inside: avoid;
+  display: block;
+  padding: 10px 22px 10px 34px;
+}
+
+.slab[data-sub] {
+  margin-left: 24px;
 }
 
 .slab[data-variant='plain'] {
-  padding: var(--ef-sp-4) 0 var(--ef-sp-12);
-  border: 0;
+  padding: 0;
   background: none;
+  box-shadow: none;
 }
 
-/* Panel (load panel look): the row plate with the big stripe texture at the right end. */
+.slab[data-variant='plain']::before,
+.slab[data-variant='plain']::after {
+  content: none;
+}
+
+/* Readout plate (outbound, kernel, version): the stripes at the right end and two corner ticks. */
 .slab[data-variant='plate'] {
-  margin: var(--ef-sp-8) 0;
-  padding: var(--ef-sp-16) 30px var(--ef-sp-16) 34px;
-  color: var(--ef-text-1);
+  margin: 8px 0 6px;
+  padding: 16px 22px 16px 34px;
+  overflow: hidden;
 }
 
-/* settings-device-stripes (127x90 g @0.1 at the right end); CSS stripes without art and in the light theme. */
 .slab[data-variant='plate']::before {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  top: 2px;
-  right: 2px;
-  bottom: 2px;
-  width: 30%;
-  background: repeating-linear-gradient(-45deg, var(--plate-stripe) 0 1.5px, transparent 1.5px 6px);
+  inset: 2px 2px 2px auto;
+  width: 120px;
+  background: repeating-linear-gradient(-45deg, var(--s-tex) 0 1.2px, transparent 1.2px 6px);
   -webkit-mask: linear-gradient(270deg, #000, transparent);
   mask: linear-gradient(270deg, #000, transparent);
+}
+
+.slab[data-variant='plate']::after {
+  content: none;
+}
+
+.tk {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  color: var(--s-t3);
   pointer-events: none;
 }
 
-:global(html[data-art][data-theme='dark']) .slab[data-variant='plate']::before {
-  width: 66px;
-  background: url('/art/common/settings-device-stripes.png') center / 66px 46px no-repeat;
-  -webkit-mask: none;
-  mask: none;
-  opacity: 0.1;
+.tk::before,
+.tk::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
 }
 
-:global([data-theme='light']) :is(.row, .slab) {
-  --plate-stripe: rgb(0 0 0 / 0.07);
+.tk::before {
+  top: 0;
+  left: 4px;
+  width: 1px;
+  height: 9px;
+}
+
+.tk::after {
+  top: 4px;
+  left: 0;
+  width: 9px;
+  height: 1px;
+}
+
+.tk[data-at='a'] {
+  top: 6px;
+  left: 6px;
+}
+
+.tk[data-at='b'] {
+  right: 6px;
+  bottom: 6px;
 }
 
 .slabHead {
   display: flex;
-  align-items: baseline;
-  gap: var(--ef-sp-8);
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
 }
 
 .slabTitle {
   margin: 0;
-  color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-title-2) / var(--ef-lh-h2) var(--ef-font-sans);
+  font: 500 15px/22px var(--ef-font-sans);
 }
 
 .slabRight {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--ef-sp-8);
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
+  gap: 8px;
+  margin-left: auto;
 }
 
 .slabDesc {
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
+  color: var(--s-t2);
+  font-size: 12px;
+  line-height: 18px;
 }
 
-/* Narrow content column: the control column and wide controls shrink to 180. */
-@container setm (max-width: 640px) {
-  .row > [data-stub='SRow'] {
-    grid-template-columns: minmax(0, 1fr) 180px;
+@keyframes cellIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes flash {
+  0%,
+  40%,
+  80%,
+  100% {
+    box-shadow: inset 0 0 0 1px var(--s-rim), 0 0 0 2px var(--ef-accent);
   }
 
-  .row [data-stub='Seg'],
-  .row [data-stub='Select'] {
-    width: 180px;
+  20%,
+  60% {
+    box-shadow: inset 0 0 0 1px var(--s-rim), 0 0 0 2px transparent;
+  }
+}
+
+@container setp (max-width: 1040px) {
+  .row {
+    column-gap: 12px;
+    min-height: 44px;
+    padding: 6px 14px 6px 22px;
+  }
+
+  .row[data-sub],
+  .slab[data-sub] {
+    margin-left: 14px;
+  }
+
+  .d:not([data-tone]) {
+    display: none;
+  }
+
+  .slab[data-variant='plate'] {
+    padding: 12px 14px 12px 22px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row[data-opens]::before {
-    transition: none;
+  .row,
+  .slab,
+  .band,
+  .hl {
+    animation-duration: 0.01s;
   }
-}
-
-:global([data-reduce-motion]) .row[data-opens]::before {
-  transition: none;
 }

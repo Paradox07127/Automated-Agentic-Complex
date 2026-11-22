@@ -1,73 +1,118 @@
-/* Section title, 33 high: a 4 px bar 6.5 px left of the 13 px title, a 1 px rule under the head to the ornament; it starts 15 px left of the row plates. */
+/* ListTitleNode: a 4×16 bar (6×26 at 1920), the title, a 1 px rule to the right end and the deco_hub_img_07 ornament; it starts 16 px left of the plates. */
 .sec {
-  margin-top: var(--ef-sp-12);
+  margin-top: 18px;
+}
+
+.sec:first-child {
+  margin-top: 8px;
 }
 
 .head {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--ef-sp-8);
-  min-height: 33px;
-  margin: 0 0 var(--ef-sp-6) -15px;
-  padding: 0 54px 0 10.5px;
-  break-after: avoid;
+  gap: 10px;
+  min-height: 32px;
+  margin: 0 0 6px -16px;
+  padding: 0 64px 0 12px;
 }
 
 .head::before {
   content: '';
   position: absolute;
-  top: calc(50% - 7.5px);
+  top: calc(50% - 8px);
   left: 0;
   width: 4px;
-  height: 15px;
-  background: var(--ef-set-title-bar);
+  height: 16px;
+  background: var(--s-sec-bar);
 }
 
-/* Light theme (ours): the yellow bar fails 3:1 on the light ground, so it takes the title ink. */
-:global([data-theme='light']) .head::before {
-  background: var(--ef-set-title);
-}
-
-/* Rule 2 g white@0.4 under the title, up to the ornament. */
 .head::after {
   content: '';
   position: absolute;
-  right: 51px;
-  bottom: 2px;
-  left: 10.5px;
+  right: 62px;
+  bottom: 1px;
+  left: 12px;
   height: 1px;
-  background: var(--ef-set-rule);
+  background: var(--s-rule);
 }
 
 .title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
-  color: var(--ef-set-title);
-  font: var(--ef-fw-medium) var(--ef-fs-body) / var(--ef-lh-h3) var(--ef-font-sans);
+  color: var(--s-sec-t);
+  font: 500 15px/22px var(--ef-font-sans);
 }
 
 .right {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--ef-sp-8);
+  gap: 10px;
   margin-left: auto;
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
+  color: var(--s-t2);
+  font-size: 12px;
 }
 
-/* Ornament, mirrored, 46x5 at the right end: slashes, a dash and a hollow pip. */
-.decoHub {
+.deco {
   position: absolute;
   right: 0;
-  bottom: 0;
-  width: 46px;
-  height: 5px;
-  color: var(--ef-set-rule);
-  background:
-    linear-gradient(currentColor, currentColor) 9px 2px / 22px 1px no-repeat,
-    repeating-linear-gradient(60deg, transparent 0 2px, currentColor 2px 3px) 0 0 / 7px 5px no-repeat,
-    linear-gradient(currentColor, currentColor) 35px 0 / 1px 5px no-repeat,
-    linear-gradient(currentColor, currentColor) 45px 0 / 1px 5px no-repeat,
-    linear-gradient(currentColor, currentColor) 35px 0 / 11px 1px no-repeat,
-    linear-gradient(currentColor, currentColor) 35px 4px / 11px 1px no-repeat;
+  bottom: -2px;
+  width: 58px;
+  height: 7px;
+  color: var(--s-rule);
+}
+
+.head [data-stub='InfoTip'] > button {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 1.25px var(--s-t2);
+  color: var(--s-t2);
+}
+
+.head [data-stub='InfoTip'] svg {
+  width: 12px;
+  height: 12px;
+}
+
+@container setp (max-width: 1040px) {
+  .sec {
+    margin-top: 10px;
+  }
+
+  .head {
+    min-height: 28px;
+    margin-bottom: 4px;
+  }
+}
+
+/* The group line's ⓘ, drawn like the rows' one: a ring with a written i. */
+.title [data-stub='InfoTip'] > button {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 1.25px var(--s-t2);
+  color: var(--s-t2);
+  font: 600 11px/1 var(--ef-font-num);
+}
+
+.title [data-stub='InfoTip'] > button:hover {
+  box-shadow: inset 0 0 0 1.25px var(--s-t1);
+  color: var(--s-t1);
+}
+
+.title [data-stub='InfoTip'] > button::after {
+  content: 'i';
+}
+
+.title [data-stub='InfoTip'] svg {
+  display: none;
 }

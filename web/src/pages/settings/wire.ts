@@ -89,14 +89,6 @@ export interface WireScope {
   revoked: boolean;
 }
 
-/** GET /trace/decisions?kind=gate.decided rows (trace_store.py decisions(), gate.py on_decision). */
-export interface WireGateEvent {
-  kind: string;
-  status: string;
-  t_wall: string;
-  attrs: { kind?: string; speak?: boolean; reason?: string | null; [k: string]: unknown };
-}
-
 /** The `/diag/state` blocks this page reads; the diag stream's `state` event carries the same object. */
 export interface WireDiagSlice {
   gate?: WireDiagGate;

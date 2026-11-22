@@ -1,6 +1,6 @@
-import { Btn, StatusTag } from '../../../ui';
 import { chatgptCancel, chatgptLogout, chatgptSelect, chatgptStart, failure } from '../api';
 import { useSettings } from '../ctx';
+import { Cap, St } from '../kit';
 import { SetRow } from '../SetRow';
 import type { WireChatgpt } from '../wire';
 import styles from '../groups.module.css';
@@ -8,9 +8,9 @@ import styles from '../groups.module.css';
 type Profile = WireChatgpt['profiles'][number];
 
 function stateOf(p: Profile, active: boolean) {
-  if (!p.connected) return <StatusTag state="todo" label="已断开" />;
-  if (active) return <StatusTag state="ok" label={p.sharing ? '使用中 │ 已授权订阅额度' : '使用中'} />;
-  return <StatusTag state="idle" label="已连接" />;
+  if (!p.connected) return <St tone="off">已断开</St>;
+  if (active) return <St tone="ok">{p.sharing ? '使用中 │ 已授权订阅额度' : '使用中'}</St>;
+  return <St tone="off">已连接</St>;
 }
 
 /** ChatGPT 订阅: every saved account with 使用 / 重新连接 / 退出; 添加账号 signs a new one in. */
@@ -37,13 +37,13 @@ export function ChatgptRow() {
       desc={gpt?.pending ? '在浏览器里完成登录后回来' : active ? `正在用 ${name(active)}` : profiles.length ? '选一个账号使用' : '还没有连接'}
       control={
         gpt?.pending ? (
-          <Btn size="sm" variant="ghost" disabled={ro} onClick={() => act(chatgptCancel, '已取消登录', '没能取消')}>
+          <Cap disabled={ro} onClick={() => act(chatgptCancel, '已取消登录', '没能取消')}>
             取消登录
-          </Btn>
+          </Cap>
         ) : (
-          <Btn size="sm" variant="ghost" disabled={ro} onClick={() => act(() => chatgptStart(), '已在浏览器打开 ChatGPT 登录', '没能开始登录')}>
+          <Cap disabled={ro} onClick={() => act(() => chatgptStart(), '已在浏览器打开 ChatGPT 登录', '没能开始登录')}>
             {profiles.length ? '添加账号' : '连接 ChatGPT'}
-          </Btn>
+          </Cap>
         )
       }
     >
@@ -57,19 +57,19 @@ export function ChatgptRow() {
                 {p.email && <span className={styles.t3}>{p.email}</span>}
                 {stateOf(p, on)}
                 {!on && p.connected && (
-                  <Btn size="sm" variant="ghost" disabled={busy} onClick={() => act(() => chatgptSelect(p.id), `已改用 ${name(p)}`, '没能切换账号')}>
+                  <Cap disabled={busy} onClick={() => act(() => chatgptSelect(p.id), `已改用 ${name(p)}`, '没能切换账号')}>
                     使用
-                  </Btn>
+                  </Cap>
                 )}
                 {!p.connected && (
-                  <Btn size="sm" variant="ghost" disabled={busy} onClick={() => act(() => chatgptStart(p.id), '已在浏览器打开 ChatGPT 登录', '没能开始登录')}>
+                  <Cap disabled={busy} onClick={() => act(() => chatgptStart(p.id), '已在浏览器打开 ChatGPT 登录', '没能开始登录')}>
                     重新连接
-                  </Btn>
+                  </Cap>
                 )}
                 {p.connected && (
-                  <Btn size="sm" variant="quiet" disabled={ro} onClick={() => act(() => chatgptLogout(p.id), `已退出 ${name(p)}`, '没能退出')}>
+                  <Cap disabled={ro} onClick={() => act(() => chatgptLogout(p.id), `已退出 ${name(p)}`, '没能退出')}>
                     退出
-                  </Btn>
+                  </Cap>
                 )}
               </li>
             );

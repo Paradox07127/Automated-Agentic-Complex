@@ -56,7 +56,7 @@ describe('settings search · 角色 rows', () => {
   it('lists 抗锯齿 only in developer mode', async () => {
     setDevMode(false);
     await search('抗锯齿');
-    expect(await screen.findByText('没有找到「抗锯齿」')).toBeTruthy();
+    expect(await screen.findByText(/^没有找到「抗锯齿」，/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /2× SSAA/ })).toBeNull();
     cleanup();
     setDevMode(true);
@@ -67,7 +67,7 @@ describe('settings search · 角色 rows', () => {
   it('updates open results when developer mode turns on', async () => {
     setDevMode(false);
     await search('抗锯齿');
-    expect(await screen.findByText('没有找到「抗锯齿」')).toBeTruthy();
+    expect(await screen.findByText(/^没有找到「抗锯齿」，/)).toBeTruthy();
     act(() => setDevMode(true));
     expect(await screen.findByRole('button', { name: /2× SSAA/ })).toBeTruthy();
   });
@@ -76,9 +76,9 @@ describe('settings search · 角色 rows', () => {
 describe('settings search · Pi-only rows', () => {
   it('leaves 执行命令 and 单次费用上限 out while the kernel is not Pi', async () => {
     await search('执行命令');
-    expect(await screen.findByText('没有找到「执行命令」')).toBeTruthy();
+    expect(await screen.findByText(/^没有找到「执行命令」，/)).toBeTruthy();
     cleanup();
     await search('费用上限');
-    expect(await screen.findByText('没有找到「费用上限」')).toBeTruthy();
+    expect(await screen.findByText(/^没有找到「费用上限」，/)).toBeTruthy();
   });
 });

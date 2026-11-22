@@ -28,7 +28,7 @@ let contour: string | undefined;
 const LANDING: Record<OnboardingCompanion | 'plugins', NavTarget> = {
   pet: { page: 'character' },
   chat: { page: 'settings', group: 'model' },
-  plugins: { page: 'settings', group: 'plugins' },
+  plugins: { page: 'settings', group: 'perm' },
 };
 
 /** Step 1: the installed characters (shown only; the guide cannot switch) and 导入 as the last cell. */

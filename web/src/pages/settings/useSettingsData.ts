@@ -3,12 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { get } from '../../bridge/agentd';
 import { getBridge } from '../../bridge';
 import { useRuntimePublic } from '../../data/runtime';
-import { fromRun } from '../../domain/adapt';
-import { isoWithOffset } from '../../domain/units';
-import { clock, readBlacklist, readDiag, readGateEvents, readModels, readRuns, readScopes, readShotRuns } from './api';
+import { readBlacklist, readDiag, readModels, readScopes } from './api';
 import { demoDiag } from './demoInit';
-import { demo as slot } from './demoSlot';
-import { blockedLines, dayStart, diagView, gateEvents, shotEvents, ymd } from './diag';
+import { diagView } from './diag';
 import { loadNative, type SchemaRow } from './native';
 import type { WireDiagSlice, WireModelSettings } from './wire';
 
@@ -36,22 +33,6 @@ export function useSettingsData(demo: string | null) {
   const diag = useQuery({ queryKey: ['settings', 'diag'], queryFn: readDiag, ...once });
   const blacklist = useQuery({ queryKey: ['settings', 'blacklist'], queryFn: readBlacklist, ...once });
   const scopes = useQuery({ queryKey: ['settings', 'scopes'], queryFn: async () => (await readScopes()).scopes, ...once });
-  const runs = useQuery({ queryKey: ['settings', 'runs'], queryFn: async () => (await readRuns()).runs.map(fromRun), ...once });
-  // The preview's day events come from this page's mock: the diag mock answers these two paths without them.
-  const shots = useQuery({
-    queryKey: ['settings', 'shots', demo],
-    queryFn: async () => shotEvents(fake ? slot.shotRuns!(demo) : (await readShotRuns(ymd(clock()))).runs),
-    ...once,
-  });
-  const gate = useQuery({
-    queryKey: ['settings', 'gate', demo],
-    queryFn: async () => {
-      const events = fake ? slot.gateEvents!(demo) : (await readGateEvents(isoWithOffset(dayStart(clock())))).events;
-      return { events: gateEvents(events), blocked: blockedLines(events) };
-    },
-    ...once,
-  });
-
   useEffect(
     () =>
       bridge.diag.subscribe(
@@ -72,7 +53,7 @@ export function useSettingsData(demo: string | null) {
   useEffect(() => bridge.settings.onChange(() => void qc.invalidateQueries({ queryKey: ['settings', 'native'] })), [bridge, qc]);
 
   const view = useMemo(() => diagView(fake ? demoDiag(demo, diag.data ?? null) : (diag.data ?? null)), [diag.data, fake, demo]);
-  return { native, schema, connection, runtime, models, diag, view, blacklist, scopes, runs, shots, gate };
+  return { native, schema, connection, runtime, models, diag, view, blacklist, scopes };
 }
 
 export type SettingsData = ReturnType<typeof useSettingsData>;

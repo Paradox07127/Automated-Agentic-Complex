@@ -14,13 +14,8 @@ import { SUM_KIND } from '../../src/pages/diag/model';
 import { Processes } from '../../src/pages/diag/Processes';
 import { processesOf } from '../../src/pages/diag/status';
 import { OnboardingPage } from '../../src/pages/onboarding/Page';
-import { readShotRuns } from '../../src/pages/settings/api';
-import { isoWithOffset } from '../../src/domain/units';
-import { blockedLines, gateEvents, shotEvents } from '../../src/pages/settings/diag';
-import { GateBlocked } from '../../src/pages/settings/groups/GateBlocked';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { searchSettings } from '../../src/pages/settings/registry';
-import type { WireGateEvent } from '../../src/pages/settings/wire';
 import type { Health } from '../../src/domain';
 import { pluginsOn, pluginsReset } from './plugins';
 
@@ -45,84 +40,12 @@ afterEach(() => {
   delete window.agenticComplex;
 });
 
-const decided = (kind: string, speak = true): WireGateEvent => ({ kind: 'gate.decided', status: speak ? 'ok' : 'blocked', t_wall: '2026-10-29T10:00:00+08:00', attrs: { kind, level: 'P2', speak, reason: speak ? null : 'cross_cooldown' } });
-
-describe('今日发言闸门 counts only proactive speech', () => {
-  it('drops the broadcasts that pass the same gate', () => {
-    const ev = gateEvents([decided('comment'), decided('back', false), decided('break'), decided('stuck'), decided('gate_fail'), decided('ci_green'), decided('agent_denied', false)]);
-    expect(ev.map((e) => e.kind)).toEqual(['ok', 'blocked', 'ok', 'ok']);
-  });
-});
-
-const blockedAt = (h: number, m: number, kind: string, reason: string): WireGateEvent => ({
-  kind: 'gate.decided', status: 'blocked', t_wall: isoWithOffset(new Date(2026, 9, 29, h, m).getTime()), attrs: { kind, level: 'P2', speak: false, reason },
-});
-const spokeAt = (h: number, m: number, kind: string): WireGateEvent => ({ ...blockedAt(h, m, kind, ''), status: 'ok', attrs: { kind, level: 'P2', speak: true, reason: null } });
-
-describe('今日发言闸门 lists what it blocked today', () => {
-  it('keeps every blocked kind, thoughts and announcements too, newest first; the chart events stay proactive only', () => {
-    const wire = [spokeAt(13, 0, 'comment'), blockedAt(9, 5, 'thought', 'focus'), blockedAt(12, 10, 'back', 'meeting'), blockedAt(11, 40, 'dispatch_review', 'user_speaking'), spokeAt(8, 0, 'thought')];
-    expect(blockedLines(wire).map((b) => [b.kind, b.reason])).toEqual([['back', 'meeting'], ['dispatch_review', 'user_speaking'], ['thought', 'focus']]);
-    expect(gateEvents(wire).map((e) => e.kind)).toEqual(['ok', 'blocked']);
-  });
-
-  it('counts them on a fold; open, one row each with the time, the kind and the reason, newest first', () => {
-    render(<GateBlocked lines={blockedLines([blockedAt(9, 5, 'thought', 'focus'), blockedAt(14, 29, 'comment', 'same_cooldown'), blockedAt(11, 40, 'back', 'meeting')])} />);
-    const fold = screen.getByRole('button', { name: '今天拦截 3 条' });
-    expect(fold.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByRole('list')).toBeNull();
-    fireEvent.click(fold);
-    expect(fold.getAttribute('aria-expanded')).toBe('true');
-    const rows = within(screen.getByRole('list')).getAllByRole('listitem');
-    expect(rows.map((r) => [...r.children].map((c) => c.textContent))).toEqual([
-      ['14:29', '久盯一个窗口时搭话', '同类刚说过'],
-      ['11:40', '回来时汇报', '在开会'],
-      ['09:05', '冒出的想法', '在专注时段'],
-    ]);
-  });
-
-  it('shows nothing when nothing was blocked', () => {
-    const { container } = render(<GateBlocked lines={blockedLines([spokeAt(9, 5, 'comment')])} />);
-    expect(container.textContent).toBe('');
-  });
-
-  it('shows a reason code it does not know as the code', () => {
-    render(<GateBlocked lines={blockedLines([blockedAt(9, 5, 'comment', 'new_reason')])} />);
-    fireEvent.click(screen.getByRole('button', { name: '今天拦截 1 条' }));
-    expect(screen.getByRole('listitem').lastElementChild?.textContent).toBe('new_reason');
-  });
-
-  it('reaches the speak group from the same gate read: the preview lists its blocked lines, sparse has none', async () => {
-    mount(SettingsPage, '&group=speak');
-    const gate = await screen.findByRole('region', { name: '今日发言闸门' });
-    fireEvent.click(await within(gate).findByRole('button', { name: /^今天拦截 \d+ 条$/ }));
-    expect(new Set(within(gate).getAllByRole('listitem').map((r) => r.children[1]?.textContent))).toContain('冒出的想法');
-    cleanup();
-    mount(SettingsPage, '&group=speak&demo=sparse');
-    const sparse = await screen.findByRole('region', { name: '今日发言闸门' });
-    await within(sparse).findByRole('img', { name: '今日主动发言：已用 1 次，上限 12' });
-    expect(within(sparse).queryByRole('button', { name: /^今天拦截/ })).toBeNull();
-  });
-});
-
 const shot = (kind: string, error: string | null = null): WireSummaryRun => ({
   run_id: kind, kind, started_at: '2026-10-29T10:00:00+08:00', span_start: null, span_end: null, outcome: error ? 'released' : 'completed',
   error, attempt: 1, duration_ms: 1800, backend: 'pi', model: 'native', episode_id: null, reasons: [],
 });
 
 describe('今天发出的截图 counts the screenshots the user asked for too', () => {
-  it('reads both vision kinds from agentd', async () => {
-    const fake = createFakeBridge({ surface: 'main', still: true });
-    const paths: string[] = [];
-    window.agenticComplex = { ...fake, agentd: { ...fake.agentd, request: async (m, p) => (paths.push(p), { status: 200, body: { runs: [] } as never }) } };
-    await readShotRuns('2026-10-29');
-    expect(paths).toEqual(['/summary/runs?date=2026-10-29&kinds=observation_vision,user_vision']);
-  });
-
-  it('counts user_vision runs beside observation_vision and drops other kinds', () => {
-    expect(shotEvents([shot('observation_vision'), shot('user_vision', 'released'), shot('memory_extract')]).map((e) => e.kind)).toEqual(['ok', 'blocked']);
-  });
-
   it('has a user_vision run in the preview data, the diag lane and the run sheet purpose', () => {
     expect(new Set(demoShotRuns(null).map((r) => r.kind))).toEqual(new Set(['observation_vision', 'user_vision']));
     const run = { ...fromSummaryRun(shot('user_vision')), at: 1 };
@@ -135,7 +58,7 @@ describe('今天发出的截图 counts the screenshots the user asked for too', 
 describe('settings error state', () => {
   it('names the cause once above the group; rows keep their text and the segmented control its labels', async () => {
     mount(SettingsPage, '&state=error&group=privacy');
-    const grain = await screen.findByRole('radiogroup', { name: '屏幕理解粒度' });
+    const grain = await screen.findByRole('radiogroup', { name: '看多细' });
     // A disabled switch keeps the cause as its hidden description for screen readers.
     expect(screen.getAllByText('读取设置失败，这一组暂不能修改').filter((el) => !el.closest('[hidden]'))).toHaveLength(1);
     expect(document.body.textContent).not.toContain('不可用：');
@@ -148,8 +71,7 @@ describe('settings error state', () => {
     await screen.findByRole('region', { name: '外发总览' });
     const nav = screen.getByRole('tablist', { name: '设置分组' });
     expect(nav.textContent).not.toContain('Agent');
-    // Clusters are split by a gap, with no cluster title.
-    expect(nav.textContent).toContain('角色内核');
+    expect(nav.textContent).toContain('内核');
     expect(nav.textContent).not.toContain('智能体');
     expect(document.body.textContent).not.toMatch(/OUTBOUND|GATE|KERNEL/);
   });
@@ -158,7 +80,7 @@ describe('settings error state', () => {
 describe('浮层背景 row', () => {
   it('is gone: the overlays draw their own background', async () => {
     mount(SettingsPage, '&group=speak');
-    await screen.findByRole('radiogroup', { name: '识别语言' });
+    await screen.findByRole('radiogroup', { name: '听写语言' });
     expect(screen.queryByRole('radiogroup', { name: '浮层背景' })).toBeNull();
     expect(document.getElementById('set-overlay_background')).toBeNull();
     expect(searchSettings('浮层背景')).toEqual([]);

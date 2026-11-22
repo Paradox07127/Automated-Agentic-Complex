@@ -1,23 +1,21 @@
-import type { PluginId } from '../../shell/plugins';
+import type { GroupId } from './registry';
 
-/** Settings groups; a group with a `plugin` shows only while that plug-in is on. */
-export const SETTING_GROUPS: Array<{ title: string; items: Array<{ id: string; label: string; plugin?: PluginId }> }> = [
-  { title: '插件', items: [{ id: 'plugins', label: '插件' }] },
-  { title: '交互', items: [{ id: 'speak', label: '说话与通知' }, { id: 'keys', label: '快捷键' }] },
-  { title: '智能体', items: [{ id: 'kernel', label: '角色内核', plugin: 'harness_bridge' }, { id: 'model', label: 'AI 账号' }] },
-  {
-    title: '隐私与安全',
-    items: [
-      { id: 'privacy', label: '隐私' },
-      { id: 'perm', label: '权限与授权' },
-      { id: 'data', label: '数据' },
-    ],
-  },
-  { title: '系统', items: [{ id: 'about', label: '启动与关于' }, { id: 'adv', label: '高级' }] },
+/** Settings groups in tab order, by what the user comes for; `desc` is the ⓘ on the group's first section. */
+export const SETTING_GROUPS: Array<{ id: GroupId; label: string; desc: string }> = [
+  { id: 'speak', label: '说话', desc: '她出不出声、什么时候主动开口、事情怎么告诉你' },
+  { id: 'perm', label: '能做', desc: '她可以替你动手做哪些事，要你允许哪些系统权限' },
+  { id: 'privacy', label: '观察', desc: '她能读你屏幕上的什么，什么会离开这台电脑' },
+  { id: 'kernel', label: '内核', desc: '她用什么动手，所有角色共用；她是谁由角色卡决定' },
+  { id: 'model', label: '账号', desc: '内核用哪个模型服务、用谁的账号' },
+  { id: 'keys', label: '按键', desc: '在任何应用里叫她的全局快捷键' },
+  { id: 'data', label: '数据', desc: '留多久、在哪、怎么删' },
+  { id: 'about', label: '关于', desc: '启动、版本、排障' },
 ];
 
-/** 「设置 › <分组标签>」 for a group id, the path hints name. */
+/** 「设置 › <分组>」 for a group id, the path hints name. */
 export function settingPath(id: string): string {
-  const label = SETTING_GROUPS.flatMap((g) => g.items).find((i) => i.id === id)?.label;
+  const label = SETTING_GROUPS.find((g) => g.id === id)?.label;
   return label ? `设置 › ${label}` : '设置';
 }
+
+export const groupDesc = (id: GroupId): string => SETTING_GROUPS.find((g) => g.id === id)?.desc ?? '';

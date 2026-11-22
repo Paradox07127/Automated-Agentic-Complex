@@ -6,7 +6,7 @@ import type { AppInfo, AgenticComplexBridge } from '../../src/bridge/protocol';
 import { PERMISSIONS, WIRE_DIAG_BUDGET, WIRE_DIAG_CONNECTIONS, WIRE_DIAG_GATE, WIRE_OBSERVATION } from '../../src/mock/fixtures';
 import { SettingsCtx, type SettingsCtxValue } from '../../src/pages/settings/ctx';
 import { diagView } from '../../src/pages/settings/diag';
-import { HooksSection } from '../../src/pages/settings/groups/ModelHooks';
+import { HookRows } from '../../src/pages/settings/groups/Hooks';
 import { useSettingsModel } from '../../src/pages/settings/model';
 import { pluginsOn, pluginsReset } from './plugins';
 
@@ -35,7 +35,6 @@ function Harness() {
     diag: DIAG,
     blacklist: null,
     scopes: [],
-    runs: [],
     reload: () => {},
     perms: PERMISSIONS,
     recheckPerms: async () => 'granted',
@@ -44,7 +43,7 @@ function Harness() {
   };
   return (
     <SettingsCtx.Provider value={ctx}>
-      <HooksSection />
+      <HookRows />
     </SettingsCtx.Provider>
   );
 }

@@ -3,20 +3,20 @@ import { getBridge, type PickedHandle, type SettingValue } from '../../bridge';
 import type { Severity } from '../../domain';
 import type { WireRuntimePublic } from '../../domain/wire';
 import { clock, failure, saveModels, saveRuntime } from './api';
-import type { Pauses } from './diag';
 import { modelsBody, modelVals, runtimeBody, runtimeVals, targetOf, type Handles, type Target, type Vals } from './fields';
 import type { Native } from './native';
 import { DELETE_WHAT, DRAFT_SECTION, labelOf } from './registry';
 import type { WireModelSettings } from './wire';
 
 export type { Vals };
-export type { Pauses };
 
 /** One confirm dialog; danger ones open with focus on cancel. */
 export interface ConfirmSpec {
   title: string;
   note?: ReactNode;
   warning?: string;
+  /** What goes, one item per line, between the warning and the note. */
+  list?: string[];
   danger?: boolean;
   confirmLabel: string;
   cancelLabel?: string;
@@ -33,7 +33,6 @@ export interface ToastSpec {
 
 export interface ModelInit {
   vals?: Vals;
-  pauses?: Partial<Pauses>;
   pending?: string[];
   draft?: Vals;
   confirm?: ConfirmSpec | null;
@@ -44,7 +43,6 @@ export interface Sources {
   native?: Native | null;
   runtime?: WireRuntimePublic | null;
   models?: WireModelSettings | null;
-  pauses?: Pauses | null;
   merge?: (target: Target, reply: unknown) => void;
   reload?: (target: Target) => void;
   /** When the running agentd started (epoch ms): changes saved before it already apply. */
@@ -90,7 +88,6 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(init.confirm ?? null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const [restarting, setRestarting] = useState(false);
-  const [pauses, setPauses] = useState<Pauses>(() => ({ quiet: null, observe: null, meeting: false, ...init.pauses }));
   /** How many saves deleted the stored TTS token (`ttsTokenCleared`). */
   const [ttsTokenClears, setTtsTokenClears] = useState(0);
   const timers = useRef<number[]>([]);
@@ -102,8 +99,6 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   useEffect(() => void (src.native && setVals((v) => ({ ...v, ...src.native?.saved }))), [src.native]);
   useEffect(() => void (src.runtime && setVals((v) => ({ ...v, ...runtimeVals(src.runtime as WireRuntimePublic) }))), [src.runtime]);
   useEffect(() => void (src.models && setVals((v) => ({ ...v, ...modelVals(src.models as WireModelSettings) }))), [src.models]);
-  // A demo's own pause stays over what agentd reports.
-  useEffect(() => void (src.pauses && setPauses({ ...src.pauses, ...init.pauses })), [src.pauses]);
   useEffect(() => {
     const started = src.agentdStartedAt;
     if (started == null) return;
@@ -286,10 +281,7 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     confirm,
     toast,
     restarting,
-    pauses,
     ttsTokenClears,
-    setPause: (k: 'quiet' | 'observe', until: number | null) => setPauses((p) => ({ ...p, [k]: until })),
-    setMeeting: (on: boolean) => setPauses((p) => ({ ...p, meeting: on })),
     value,
     set,
     setHandle,

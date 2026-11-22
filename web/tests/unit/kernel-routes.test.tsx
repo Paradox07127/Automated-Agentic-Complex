@@ -55,7 +55,6 @@ function Harness({ children, view }: { children: ReactNode; view: RuntimeView })
     diag: diagView(null),
     blacklist: null,
     scopes: [],
-    runs: [],
     reload: () => {},
     perms: PERMISSIONS,
     recheckPerms: async () => 'denied',

@@ -32,7 +32,6 @@ function Harness({ children }: { children: ReactNode }) {
     diag: diagView(null),
     blacklist: null,
     scopes: [],
-    runs: [],
     reload: () => {},
     perms: PERMISSIONS,
     recheckPerms: async () => 'denied',
@@ -64,11 +63,14 @@ describe('主动提示 and developer proactive readout', () => {
         <SpeakGroup />
       </Harness>,
     );
-    const seg = await screen.findByRole('radiogroup', { name: '她什么时候开口' });
+    const seg = await screen.findByRole('radiogroup', { name: '她会不会主动找你' });
     await act(async () => {});
     const active = within(seg).getByRole('radio', { name: '主动' });
     expect(active.getAttribute('aria-checked')).toBe('false');
-    screen.getByText('主动：发现可以帮忙的时机时提示，也会说出想法。任务结果和你设置的提醒仍会送达。');
+    // What 主动 does sits in the row's ⓘ; the line under 只在我问时 says results and reminders still arrive.
+    const row = within(document.getElementById('set-speakWhen')!);
+    expect(row.getByRole('tooltip', { hidden: true }).textContent).toMatch(/^主动：看到能帮忙的时机时提示，也会说出想法/);
+    row.getByText('只回答你；任务结果和你设的提醒照常送达');
 
     await act(async () => {
       fireEvent.click(active);

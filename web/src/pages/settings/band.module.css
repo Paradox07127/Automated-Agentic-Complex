@@ -1,0 +1,103 @@
+/* The capability band; Band.tsx also puts rows.module.css `.band` on it for the shared ⓘ and reduced-motion rules. */
+/* SettingItemCell/TitleNode: the (84,84,84)@.2 band holding a capability's switch, what it does, needs and costs. */
+.band {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  margin: 14px 0 6px -16px;
+  padding: 8px 22px 8px 16px;
+  background: linear-gradient(90deg, var(--s-band), color-mix(in srgb, var(--s-band) 40%, transparent));
+  box-shadow: inset 3px 0 0 var(--s-sec-bar);
+  animation: cellIn 300ms var(--ef-ease-g-enter) both;
+}
+
+.bt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font: 600 16px/24px var(--ef-font-sans);
+}
+
+.bw {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--s-t2);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.bw b {
+  margin-right: 4px;
+  color: var(--s-t3);
+  font-weight: 500;
+}
+
+.bctl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.need {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  color: var(--s-t2);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--s-t3);
+}
+
+.need[data-miss] {
+  color: var(--s-bad);
+  box-shadow: inset 0 0 0 1px currentColor;
+  cursor: pointer;
+}
+
+.need:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: 1px;
+}
+
+/* A band that is off: its rows folded into one dashed line. */
+.fold {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  margin: 0 0 6px 8px;
+  padding: 0 16px;
+  border-left: 1px dashed var(--s-t3);
+  color: var(--s-t2);
+  font-size: 13px;
+}
+
+@keyframes cellIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@container setp (max-width: 1040px) {
+  .band {
+    min-height: 48px;
+    margin-top: 10px;
+    padding: 6px 14px;
+  }
+
+  .bt {
+    font-size: 15px;
+  }
+
+  .bw {
+    display: none;
+  }
+}

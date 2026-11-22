@@ -56,8 +56,8 @@ test('只陪伴: walks the guide without a permission or a terminal command, fin
   expect(errors).toEqual([]);
 });
 
-test('陪伴加对话 ends at 设置 › AI 账号; 打开插件设置 at 设置 › 插件', async ({ page }) => {
-  for (const [button, group] of [['完成', 'model'], ['打开插件设置', 'plugins']] as const) {
+test('陪伴加对话 ends at 设置 › 账号; 打开插件设置 at 设置 › 能做, where the capability bands are', async ({ page }) => {
+  for (const [button, group] of [['完成', 'model'], ['打开插件设置', 'perm']] as const) {
     const guide = await open(page);
     await guide.getByRole('button', { name: '下一步' }).click();
     await guide.getByRole('radio', { name: /^陪伴加对话/ }).click();

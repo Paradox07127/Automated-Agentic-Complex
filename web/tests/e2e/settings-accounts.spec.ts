@@ -32,28 +32,28 @@ test('kernel not ready names the reason and jumps to the row that fixes it', asy
 
 test('a coding tool that is not hooked up shows its install steps', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?plugins=all&group=model&demo=hooks-off&item=hooks2&still=1');
+  await page.goto('main.html#/settings?plugins=all&group=privacy&demo=hooks-off&item=hooks2&still=1');
   await expect(page.getByRole('list', { name: 'Codex 接入步骤' }).getByRole('listitem')).toHaveCount(3);
   await expect(page.getByText(/install_hooks/)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('permission rows include Input Monitoring with 允许, and 电脑操作 is switched among the plug-ins', async ({ page }) => {
+test('permission rows include Input Monitoring with 允许, and 操作电脑 is switched on its band in 能做', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?plugins=all&group=perm&still=1');
+  // A link to a permission unfolds 系统权限.
+  await page.goto('main.html#/settings?plugins=all&group=perm&item=inputMonitoring&still=1');
   const row = page.locator('[data-row="inputMonitoring"]');
   await expect(row).toContainText('输入监控');
   await expect(row.getByRole('button', { name: '允许' })).toBeVisible();
-  await expect(page.getByRole('switch', { name: '操作电脑' })).toHaveCount(0);
-  await page.goto('main.html#/settings?plugins=all&group=plugins&still=1');
-  await expect(page.getByRole('switch', { name: '电脑操作' })).toBeEnabled();
+  await expect(page.getByRole('switch', { name: '操作电脑' })).toHaveCount(1);
+  await expect(page.locator('[data-row="plugins.computer_use"]').getByRole('switch', { name: '操作电脑' })).toBeEnabled();
   expect(errors).toEqual([]);
 });
 
 test('agentd rows are read-only while it is down', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/settings?plugins=all&group=privacy&demo=agentdoff&still=1');
-  await expect(page.getByRole('button', { name: '暂停 1 小时' })).toBeDisabled();
+  await expect(page.locator('#set-brief_weekly').getByRole('switch', { name: '每周简报' })).toBeDisabled();
   await expect(page.getByRole('switch', { name: '键鼠计数' })).toBeEnabled();
   expect(errors).toEqual([]);
 });

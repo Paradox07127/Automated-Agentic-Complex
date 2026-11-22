@@ -4,61 +4,52 @@ import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { getBridge } from '../../bridge';
 import { gameClips } from '../../design/gameClips.generated';
 import { refreshRuntime, runtimeKey } from '../../data/runtime';
-import { SETTING_GROUPS } from './groups';
 import { useDemo } from '../../shell/demo';
 import { useDevMode } from '../../shell/devMode';
-import { usePlugins } from '../../shell/plugins';
+import { setPlugins } from '../../shell/plugins';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
-import { Btn, ErrBar, Region, type RegionSource } from '../../ui';
+import { ErrBar, Region, type RegionSource } from '../../ui';
 import { playClip } from '../../ui/ToggleClip';
 import { ApplyBar } from './ApplyBar';
 import { runtimeView, SettingsCtx, type Reloadable, type SettingsCtxValue } from './ctx';
 import type { Target } from './fields';
 import { AboutGroup } from './groups/About';
-import { AdvGroup } from './groups/Adv';
+import { ActGroup } from './groups/Act';
 import { DataGroup } from './groups/Data';
 import { KernelGroup } from './groups/Kernel';
 import { KeysGroup } from './groups/Keys';
 import { ModelGroup } from './groups/Model';
-import { PermGroup } from './groups/Perm';
-import { PluginsGroup } from './groups/Plugins';
-import { PrivacyGroup } from './groups/Privacy';
+import { SeeGroup } from './groups/See';
 import { SpeakGroup } from './groups/Speak';
+import { Cap } from './kit';
 import { useSettingsModel } from './model';
 import type { Native } from './native';
 import { usePerms } from './perms';
 import { demoInit } from './demoInit';
-import { DEFAULT_GROUP, groupOf, groupShown, isGroup, NATIVE_GROUPS, NEEDS_AGENTD, PI_ONLY_ROWS, SECTION_GROUP, searchSettings, DRAFT_SECTION, useRowShown, type GroupId, type RegEntry } from './registry';
+import { DEFAULT_GROUP, GROUP_IDS, groupOf, isGroup, NATIVE_GROUPS, NEEDS_AGENTD, PI_ONLY_ROWS, SECTION_GROUP, searchSettings, DRAFT_SECTION, useRowShown, type GroupId, type RegEntry } from './registry';
 import { SearchResults } from './SearchResults';
 import { SetNav, SetSearch } from './SetNav';
-import { useWidth } from '../../charts/useWidth';
 import { SettingsOverlays } from './SettingsOverlays';
 import { useSettingsData } from './useSettingsData';
 import { DEV_ONLY_ROWS, PHOTO_ONLY_ROWS, tabOf } from '../character/sections';
 import styles from './Page.module.css';
 
 const GROUPS: Record<GroupId, ComponentType> = {
-  plugins: PluginsGroup,
   speak: SpeakGroup,
-  keys: KeysGroup,
+  perm: ActGroup,
+  privacy: SeeGroup,
   kernel: KernelGroup,
   model: ModelGroup,
-  privacy: PrivacyGroup,
-  perm: PermGroup,
+  keys: KeysGroup,
   data: DataGroup,
   about: AboutGroup,
-  adv: AdvGroup,
 };
-
-/** Page width at or below which the search leaves the tab bar for the top of the list (a window under 1100 with the sidebar folded). */
-const COMPACT_W = 860;
 
 const QUERY: Record<Reloadable, string> = { runtime: 'runtime', models: 'models', diag: 'diag', blacklist: 'blacklist', scopes: 'scopes' };
 
 /** The read-only cause, said once in the bar above the group; the rows do not repeat it. */
 const NATIVE_RO = '读取设置失败，这一组暂不能修改';
-const AGENTD_RO = '后台已断开，这一组暂时只读';
 
 /** `?state=loading` / `?state=error` stand in for the config.json read; the agentd reads stay real. */
 const DEMO_NATIVE: Record<'loading' | 'error', RegionSource<Native>> = {
@@ -66,15 +57,16 @@ const DEMO_NATIVE: Record<'loading' | 'error', RegionSource<Native>> = {
   error: { status: 'error', data: undefined, error: new Error('config.json 读不到') },
 };
 
-/** A group of a plug-in that is off reads as the default group. */
+/** Keys typed into these do not switch the group. */
+const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="dialog"]';
+
 function useSearchParams() {
   const search = useRouterState({ select: (s) => s.location.searchStr });
-  const plugins = usePlugins();
   return useMemo(() => {
     const p = new URLSearchParams(search);
     const g = p.get('group');
-    return { group: isGroup(g) && groupShown(g, plugins) ? g : DEFAULT_GROUP, item: p.get('item'), q: p.get('q') ?? '' };
-  }, [search, plugins]);
+    return { group: isGroup(g) ? g : DEFAULT_GROUP, item: p.get('item'), q: p.get('q') ?? '' };
+  }, [search]);
 }
 
 // Navigating keeps the view flags so a light-theme or still session stays in that mode.
@@ -85,7 +77,7 @@ function carry(prev: Record<string, unknown>, next: Record<string, string>): Rec
   return out;
 }
 
-/** 设置: top icon tab bar + one list column, nine groups, search, bottom apply bar, danger confirms. */
+/** 设置: eight group tabs and the search in the top bar, one list column, the bottom bar, white confirm cards. */
 export function SettingsPage() {
   const { demo } = useDemo();
   return <SettingsBody key={demo ?? 'none'} />;
@@ -112,7 +104,6 @@ function SettingsBody() {
     native: nativeQ.data ?? null,
     runtime: data.runtime.data ?? null,
     models: data.models.data ?? null,
-    pauses: data.view.pauses,
     agentdStartedAt: data.view.agentdStartedAt,
     merge,
     reload: (t) => reload(t),
@@ -122,8 +113,7 @@ function SettingsBody() {
   const shownRow = useRowShown();
   const [hl, setHl] = useState<string | null>(item);
   const main = useRef<HTMLDivElement>(null);
-  const [pageRef, pageW] = useWidth<HTMLDivElement>(1072);
-  const compact = pageW <= COMPACT_W;
+  const page = useRef<HTMLDivElement>(null);
   const agentdOff = data.connection.data === 'offline';
   const nativeErr = nativeQ.status === 'error';
   const nativeRo = nativeErr && NATIVE_GROUPS.includes(group);
@@ -137,6 +127,10 @@ function SettingsBody() {
     setRuntimeChecking(false);
     return r ? runtimeView(r) : null;
   }, [qc, demo]);
+
+  // Pages, home keys and rows follow each saved capability switch at once; the backend takes it on its restart.
+  const saved = nativeQ.data?.saved;
+  useEffect(() => void (saved && setPlugins({ ...saved, ...model.vals })), [saved, model.vals]);
 
   useEffect(() => setHl(item), [item]);
   useEffect(() => {
@@ -172,23 +166,45 @@ function SettingsBody() {
     },
     [go, group],
   );
+  const goGroup = useCallback(
+    (g: GroupId) => {
+      setQ('');
+      go({ group: g });
+    },
+    [go],
+  );
   const goPage = navTo;
   const pickResult = (r: RegEntry) => {
     if (r.group === '@character') return goPage(PHOTO_ONLY_ROWS.has(r.id) ? { page: 'character', view: 'photo' } : { page: 'character', tab: tabOf(r.id), row: r.id });
     if (r.group === '@memory') return goPage({ page: 'memory', view: 'about' });
+    if (r.group === '@overview') return goPage({ page: 'overview' });
     goRow(r.id, r.group);
   };
 
+  // Q / E step through the groups, as the game's tab bar does; the caps are not drawn.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented || e.repeat) return;
+      const step = e.key === 'q' || e.key === 'Q' ? -1 : e.key === 'e' || e.key === 'E' ? 1 : 0;
+      if (!step || (e.target instanceof Element && e.target.closest(TYPING)) || document.querySelector('[data-stub="SettingsConfirm"]')) return;
+      const i = GROUP_IDS.indexOf(group);
+      goGroup(GROUP_IDS[(i + step + GROUP_IDS.length) % GROUP_IDS.length]!);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [group, goGroup]);
+
   const marks: Partial<Record<GroupId, string>> = {};
+  if (data.view.voice?.state === 'unreachable' && model.value('tts') === 'remote') marks.speak = '语音服务连不上';
   const missing = perms.filter((p) => p.state === 'denied' || p.state === 'notDetermined');
-  if (missing.length) marks.perm = `${missing.map((p) => p.label).join('、')}未允许`;
-  if (runtime && !runtime.ready) marks.kernel = '角色内核未就绪';
+  if (missing.length) marks.perm = `${missing.map((p) => p.label).join('、')}没开`;
+  if (runtime && !runtime.ready) marks.kernel = '内核没就绪';
   const drafts = [...new Set(Object.keys(model.draft).map((k) => SECTION_GROUP[DRAFT_SECTION[k] ?? ''] ?? null))].filter((g): g is GroupId => g != null);
 
   const ctx: SettingsCtxValue = {
     model,
     ro,
-    roReason: nativeRo ? NATIVE_RO : AGENTD_RO,
+    roReason: nativeRo ? NATIVE_RO : '后台已断开，这一组暂时只读',
     agentdOff,
     hl,
     demo,
@@ -203,10 +219,6 @@ function SettingsBody() {
     diag: data.view,
     blacklist: data.blacklist.data ?? null,
     scopes: data.scopes.data ?? null,
-    runs: data.runs.data ?? null,
-    shots: data.shots.data ?? null,
-    gateEvents: data.gate.data?.events ?? null,
-    gateBlocked: data.gate.data?.blocked ?? null,
     reload,
     perms,
     recheckPerms,
@@ -216,13 +228,13 @@ function SettingsBody() {
   const pi = model.value('kernel') === 'pi';
   const results = q.trim()
     ? searchSettings(q).filter((r) => !(r.group === '@character' && DEV_ONLY_ROWS.has(r.id) && !devMode) && (pi || !PI_ONLY_ROWS.has(r.id)) && shownRow(r.id)
-      && (r.section !== '系统权限' || perms.some((p) => p.kind === r.id)))
+      && (r.section !== '系统权限' || r.id === 'perms' || perms.some((p) => p.kind === r.id)))
     : null;
   const view = results ? 'search' : group;
 
   // gamesetting_in on mount; gamesetting_change on the list whenever another group or the search takes it.
   const shown = useRef(view);
-  useLayoutEffect(() => playClip(gameClips.settingIn, pageRef.current), [pageRef]);
+  useLayoutEffect(() => playClip(gameClips.settingIn, page.current), []);
   useLayoutEffect(() => {
     if (shown.current === view) return;
     shown.current = view;
@@ -248,38 +260,31 @@ function SettingsBody() {
 
   return (
     <SettingsCtx.Provider value={ctx}>
-      <div ref={pageRef} className={styles.page} data-group={group} data-demo={demo ?? undefined} data-compact={compact || undefined}>
-        <PageHeaderSlot sub={results ? '搜索' : SETTING_GROUPS.flatMap((g) => g.items).find((i) => i.id === group)?.label} tabs={<SetNav group={group} searching={!!results} marks={marks} drafts={drafts} onGroup={(g) => (setQ(''), go({ group: g }))} />} right={<SetSearch q={q} onQ={setQ} />} />
+      <div ref={page} className={styles.page} data-group={group} data-demo={demo ?? undefined}>
+        <div className={styles.wall} aria-hidden="true" />
+        <PageHeaderSlot
+          sub={results ? '搜索' : undefined}
+          tabs={<SetNav group={group} searching={!!results} marks={marks} drafts={drafts} onGroup={goGroup} />}
+          right={<SetSearch q={q} onQ={setQ} onEnter={() => results?.[0] && pickResult(results[0])} />}
+        />
         <div className={styles.main} ref={main}>
-          {/* The rise plays inside the scroller, so the shell's page scroller never overflows. */}
           <div className={styles.inner} data-g="content">
             {nativeRo && (
               <ErrBar
                 message={NATIVE_RO}
                 extra={
-                  <Btn size="sm" variant="ghost" icon="file" onClick={openConfig}>
+                  <Cap go onClick={openConfig}>
                     打开配置文件
-                  </Btn>
+                  </Cap>
                 }
               />
-            )}
-            {agentdOff && NEEDS_AGENTD.includes(group) && (
-              <div className={styles.roNote} role="status">
-                <span className={styles.roDot} aria-hidden="true" />
-                <span>
-                  <b>后台已断开</b> │ 这一组暂时只读
-                </span>
-                <Btn size="sm" variant="secondary" loading={model.restarting} onClick={() => void model.restartBackend()}>
-                  重启后台服务
-                </Btn>
-              </div>
             )}
             <div key={view} data-group={view} data-g="list">
               {body}
             </div>
-            {!results && <ApplyBar />}
           </div>
         </div>
+        <ApplyBar />
       </div>
       <SettingsOverlays />
     </SettingsCtx.Provider>

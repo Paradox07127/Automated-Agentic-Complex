@@ -153,10 +153,3 @@ test('switching pages cuts straight to the next page: no view transition', async
   expect(errors).toEqual([]);
 });
 
-test('settings 「用量和费用 → 诊断」 lands on the diag usage card', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('main.html#/settings?plugins=all&group=model&still=1');
-  await page.getByRole('button', { name: '用量和费用 → 诊断' }).click();
-  await expectLanding(page, /#\/diag\?.*item=usage/, 'diag-usage');
-  expect(errors).toEqual([]);
-});

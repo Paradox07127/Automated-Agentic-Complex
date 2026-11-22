@@ -89,7 +89,7 @@ export const PLUGINS = [
     "web": {
       "pages": [],
       "settings": [
-        "privacy.pause",
+        "overview.pause",
         "privacy.wintext",
         "privacy.grain",
         "privacy.web",
@@ -197,7 +197,7 @@ export const PLUGINS = [
       "pages": [],
       "settings": [
         "privacy.agent_sessions",
-        "model.hooks"
+        "privacy.hooks"
       ],
       "onboarding": []
     }

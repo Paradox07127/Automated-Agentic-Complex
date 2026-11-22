@@ -4,7 +4,8 @@ import type { AcpAgent } from '../api';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { KERNEL_LABEL, ROUTES, routeIds, RUNTIME_EFFORT, type Opt } from '../fields';
-import { SetSection } from '../SetSection';
+import { labelOf } from '../registry';
+import { Slab } from '../Slab';
 import styles from '../groups.module.css';
 
 const PURPOSE: Record<WireRoutePurpose, string> = {
@@ -30,8 +31,7 @@ export function KernelRoutes({ agents }: { agents: AcpAgent[] }) {
   // A saved kernel that is no longer offered still shows as itself.
   const optionsFor = (v: string): Opt[] => (kernels.some((o) => o.value === v) ? kernels : [...kernels, { value: v, label: v.startsWith('acp:') ? v.slice(4) : (KERNEL_LABEL[v] ?? v) }]);
   return (
-    <SetSection title="按用途指定">
-      <div id="set-routes" data-row="routes" data-nav-target="set-routes">
+    <Slab id="routes" indent title={labelOf('routes')}>
         <Table
           label="按用途指定"
           head={
@@ -57,7 +57,6 @@ export function KernelRoutes({ agents }: { agents: AcpAgent[] }) {
             );
           })}
         </Table>
-      </div>
-    </SetSection>
+    </Slab>
   );
 }

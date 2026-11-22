@@ -4,17 +4,18 @@ import { type RuntimeInfo } from '../../../domain';
 import { codeText } from '../../../domain/errorText';
 import { KernelChain, kernelBreak } from '../../../features/kernel';
 import { Fold } from '../../../ui/Fold';
-import { Btn, Icon, Missing, Pill, Select, Skel, StatusTag, Table, TableCell, TableHead, TableRow } from '../../../ui';
+import { Missing, Select, Skel, Table, TableCell, TableHead, TableRow } from '../../../ui';
+import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { failure, installAcpAgent, readAcpAgents, type AcpAgent, type AcpAgents, type AcpInstall } from '../api';
 import { acctOptions, providerOptions, RUNSRC, RUNTIME_ERROR, RUNTIME_ERROR_UNKNOWN, type ProviderProfile, type RuntimeError } from '../fields';
-import { useRowShown } from '../registry';
+import { Cap, Chip, Lnk, St } from '../kit';
+import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
-import { SetSection } from '../SetSection';
 import { Slab } from '../Slab';
 import { useKernelActions } from '../useKernelActions';
-import { KernelPi } from './KernelPi';
+import { KernelPi, WorkspaceRow } from './KernelPi';
 import { KernelRoutes } from './KernelRoutes';
 import styles from '../groups.module.css';
 
@@ -23,7 +24,7 @@ const BREAK_LABEL = ['没找到可执行文件', '入口不可用', '未登录']
 /** Codes the discovery chain below the card explains and fixes. */
 const DISCOVERY_CODES: ReadonlySet<string> = new Set(['native_login_required', 'runtime_protocol_unavailable', 'runtime_version_not_verified', 'local_runtime_missing', 'runtime_missing']);
 
-/** Old CharacterRuntimeSettings feature titles; agentd reports which are wired and which are switched on. */
+/** What the kernel can do as agentd reports it (`capabilities.features`): wired ones as chips, lit while switched on. */
 const FEATURE: Array<[string, string]> = [
   ['domain_tools', '资料与产物工具'],
   ['memory_write_and_journal', '长期记忆与生成记录'],
@@ -72,7 +73,7 @@ function useAcpAgents(agentdOff: boolean) {
   return { list, error, probing, refresh, reload };
 }
 
-/** 角色内核 (draft group): current kernel with its chain when broken, picker table, workspace, account, Pi's own rows, connected capabilities. */
+/** 内核 (draft group): the kernel card with what she can do through it, Pi's own rows, and the 外接 harness band holding the kernel picker. */
 export function KernelGroup() {
   const { model, ro, agentdOff, runtime, runtimeChecking, goRow, caps } = useSettings();
   const c = useControls();
@@ -133,12 +134,6 @@ export function KernelGroup() {
     if (h) model.setHandle('exe', h);
     else model.notify({ message: '没有选择文件，可执行文件保持不变' });
   };
-  const workspace = model.value('workspace');
-  const pickWorkspace = async () => {
-    const h = await bridge.files.pickFolder({ purpose: 'session_cwd' });
-    if (h) model.setHandle('workspace', h);
-    else model.notify({ message: '没有选择文件夹，工作区保持不变' });
-  };
   const features = ((runtime.wire.capabilities as { features?: Record<string, Feature> } | undefined)?.features ?? {}) as Record<string, Feature>;
   // `ready` and `error` describe the saved backend; a kernel just switched to is judged by its own discovery row.
   const saved = cur?.id === runtime.selected;
@@ -147,6 +142,8 @@ export function KernelGroup() {
   const code = !ready && saved ? runtime.error : null;
   const reason: RuntimeError | null = ready ? null : code ? (RUNTIME_ERROR[code] ?? RUNTIME_ERROR_UNKNOWN) : { label: (cur && BREAK_LABEL[kernelBreak(cur)]) || '未知原因' };
   const chain = !!cur && !readyOf(cur) && (!code || DISCOVERY_CODES.has(code));
+  const source = cur && (cur.id === 'pi' && usable(cur) && !cur.path ? '随应用提供' : RUNSRC.find((o) => o.value === cur.runtime_source)?.label);
+  const computerUse = model.value('plugins.computer_use') === true;
   const acpTable = (label: string, rows: AcpAgent[]) => (
     <Table
       label={label}
@@ -179,25 +176,25 @@ export function KernelGroup() {
             <TableCell>{a.source === 'local' ? RUNSRC.find((o) => o.value === 'local')?.label : a.source}</TableCell>
             <TableCell>
               {a.native_backend ? (
-                <span onClick={(e) => e.stopPropagation()}>
-                  <StatusTag state="idle" label="用直连" />{' '}
-                  <Btn size="sm" variant="ghost" disabled={ro || !native || !usable(native)} disabledReason={`本机没有 ${nativeName}`} onClick={() => switchTo(a.native_backend!)}>{`改用 ${nativeName}`}</Btn>
+                <span className={styles.cellActs} onClick={(e) => e.stopPropagation()}>
+                  <St tone="off">用直连</St>
+                  <Cap disabled={ro || !native || !usable(native)} disabledReason={`本机没有 ${nativeName}`} onClick={() => switchTo(a.native_backend!)}>{`改用 ${nativeName}`}</Cap>
                 </span>
               ) : a.source !== 'local' ? (
-                <>
-                  <Btn size="sm" variant="ghost" disabled={off} disabledReason={runnable(a) ? undefined : `本机没有 ${a.source}`} onClick={() => pickAcp(key)}>
+                <span className={styles.cellActs} onClick={(e) => e.stopPropagation()}>
+                  <Cap disabled={off} disabledReason={runnable(a) ? undefined : `本机没有 ${a.source}`} onClick={() => pickAcp(key)}>
                     下载并运行
-                  </Btn>{' '}
-                  <span onClick={(e) => e.stopPropagation()}>
-                    <Btn size="sm" variant="ghost" loading={installing === a.id} disabled={ro || agentdOff || installing != null} disabledReason={agentdOff ? '后台服务没有运行' : '正在安装'} onClick={() => void installAcp(a)}>安装</Btn>
-                  </span>
-                </>
+                  </Cap>
+                  <Cap loading={installing === a.id} disabled={ro || agentdOff || installing != null} disabledReason={agentdOff ? '后台服务没有运行' : '正在安装'} onClick={() => void installAcp(a)}>
+                    安装
+                  </Cap>
+                </span>
               ) : !a.probe ? (
-                <StatusTag state="todo" label="未检测" />
+                <St tone="off">未检测</St>
               ) : a.probe.ok ? (
-                <StatusTag state="ok" label="可用" />
+                <St tone="ok">可用</St>
               ) : (
-                <StatusTag state="broken" label={names ? `要登录：${names}` : '检测失败'} />
+                <St tone="bad">{names ? `要登录：${names}` : '检测失败'}</St>
               )}
               {on && ('acpAgent' in model.draft || 'acpLauncher' in model.draft) && <span className={styles.att}> │ 未应用</span>}
             </TableCell>
@@ -209,55 +206,67 @@ export function KernelGroup() {
 
   return (
     <>
-      <SetSection title="当前内核">
-        {cur && (
-          <Slab id="kcur" variant="plate">
-            <div className={styles.kernCard}>
-              <span className={styles.kava} aria-hidden="true">
-                <Icon name="kernel" size={20} />
+      {cur && (
+        <Slab id="kcur" variant="plate" label="当前内核">
+          <div className={styles.kcard}>
+            <span className={styles.big}>
+              {cur.name}
+              <small>{[cur.version ?? '—', source].filter(Boolean).join(' │ ')}</small>
+            </span>
+            <span className={styles.meta}>
+              {'kernel' in model.draft ? (
+                <St tone="warn">未应用 │ 点底部「应用」后切换</St>
+              ) : reason == null ? (
+                <St tone="ok">{cur.authenticated ? '已就绪 │ 已登录' : '已就绪'}</St>
+              ) : (
+                <span title={(code && !RUNTIME_ERROR[code] && codeText(code)) || undefined}>
+                  <St tone="bad">{`未就绪：${reason.label}`}</St>
+                </span>
+              )}
+              {reason?.fix && <Lnk onClick={() => goRow(reason.fix!.row)}>{reason.fix.action}</Lnk>}
+              {runtime.wire.auto_selected && <Chip>自动选择</Chip>}
+              <span>所有角色共用</span>
+            </span>
+            <Cap loading={runtimeChecking} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void k.recheck(cur.name, cur.id)}>
+              重新检测
+            </Cap>
+            <div className={styles.can} role="list" aria-label={`她用 ${cur.name} 能`}>
+              <span className={styles.canLbl}>她用 {cur.name} 能：</span>
+              {FEATURE.filter(([key]) => features[key]?.implemented).map(([key, label]) => (
+                <span key={key} role="listitem">
+                  <Chip tone={features[key]?.enabled === false ? 'off' : 'on'}>{label}</Chip>
+                </span>
+              ))}
+              {Object.keys(features).length === 0 && <span className={styles.t3}>保存并刷新后显示这个内核接通的能力</span>}
+              <span role="listitem">
+                <Chip tone={computerUse ? 'on' : 'off'}>
+                  {labelOf('plugins.computer_use')}
+                  {!computerUse && <Lnk onClick={() => goRow('plugins.computer_use', 'perm')}>去打开</Lnk>}
+                </Chip>
               </span>
-              <div className={styles.kernBody}>
-                <div className={styles.kernName}>
-                  <b>{cur.name}</b>
-                  <span className="num">{cur.version ?? <Missing why="unsupported" />}</span>
-                  {runtime.wire.auto_selected && <Pill>自动选择</Pill>}
-                  {reason == null ? (
-                    <StatusTag state="ok" label={cur.authenticated ? '已就绪 │ 已登录' : '已就绪'} />
-                  ) : (
-                    <span title={(code && !RUNTIME_ERROR[code] && codeText(code)) || undefined}>
-                      <StatusTag state="broken" label={`未就绪：${reason.label}`} />
-                    </span>
-                  )}
-                  {reason?.fix && (
-                    <button type="button" className={styles.lnk} onClick={() => goRow(reason.fix!.row)}>
-                      {reason.fix.action}
-                    </button>
-                  )}
-                </div>
-                {chain && <KernelChain runtime={cur} alternative={altOf(cur)} onCopy={k.onCopy} onRunInTerminal={k.onRunInTerminal} onSwitch={switchTo} />}
-                {code === 'acp_auth_required' &&
-                  (savedAgent === 'claude-acp' ? (
-                    <p className={styles.cap}>
-                      <span>在终端运行 claude 并输入 /login</span>
-                      <Btn size="sm" variant="ghost" onClick={() => k.onRunInTerminal('claude')}>
-                        在终端运行
-                      </Btn>
-                    </p>
-                  ) : (
-                    savedAuth && <p className={styles.cap}>{`要登录：${savedAuth}`}</p>
-                  ))}
-                {runtime.busy && <p className={styles.cap}>正在运行；改用别的内核或改设置会取消这次运行</p>}
-              </div>
-              <Btn size="sm" variant="ghost" icon="refresh" loading={runtimeChecking} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void k.recheck(cur.name, cur.id)}>
-                重新检测
-              </Btn>
             </div>
-          </Slab>
-        )}
-      </SetSection>
+            {chain && (
+              <div className={styles.wide}>
+                <KernelChain runtime={cur} alternative={altOf(cur)} onCopy={k.onCopy} onRunInTerminal={k.onRunInTerminal} onSwitch={switchTo} />
+              </div>
+            )}
+            {code === 'acp_auth_required' &&
+              (savedAgent === 'claude-acp' ? (
+                <p className={styles.wide}>
+                  <span>在终端运行 claude 并输入 /login</span> <Cap onClick={() => k.onRunInTerminal('claude')}>在终端运行</Cap>
+                </p>
+              ) : (
+                savedAuth && <p className={styles.wide}>{`要登录：${savedAuth}`}</p>
+              ))}
+            {runtime.busy && <p className={styles.wide}>正在运行；改用别的内核或改设置会取消这次运行</p>}
+          </div>
+        </Slab>
+      )}
 
-      <SetSection title="选择内核">
-        <div id="set-kernel" data-row="kernel" data-nav-target="set-kernel">
+      {selected === 'pi' && <KernelPi />}
+
+      <Band plugin="harness_bridge" fold="换内核（Pi / Codex / Claude Code / ACP）">
+        <Slab id="kernel" indent label={labelOf('kernel')}>
           <Table
             label="内核"
             selected={selected}
@@ -272,7 +281,7 @@ export function KernelGroup() {
             head={
               <TableHead>
                 <TableCell head />
-                <TableCell head>名称</TableCell>
+                <TableCell head>内核</TableCell>
                 <TableCell head>版本</TableCell>
                 <TableCell head>来源</TableCell>
                 <TableCell head>登录</TableCell>
@@ -296,7 +305,7 @@ export function KernelGroup() {
                   </TableCell>
                   <TableCell>{r.id === 'acp' ? <Missing why="na" /> : r.authenticated == null ? '不需要' : r.path ? (r.authenticated ? '已登录' : '未登录') : <Missing why="na" />}</TableCell>
                   <TableCell>
-                    <StatusTag state={usable(r) && bi < 0 ? 'ok' : 'broken'} label={status} />
+                    <St tone={usable(r) && bi < 0 ? 'ok' : 'bad'}>{status}</St>
                     {model.draft.kernel === r.id && <span className={styles.att}> │ 未应用</span>}
                   </TableCell>
                 </TableRow>
@@ -304,46 +313,35 @@ export function KernelGroup() {
             })}
           </Table>
           {picked && <KernelChain runtime={picked} alternative={altOf(picked)} onCopy={k.onCopy} onRunInTerminal={k.onRunInTerminal} onSwitch={switchTo} />}
-        </div>
+        </Slab>
         {local && (
           <SetRow
             id="exe"
-            title="可执行文件"
+            title={labelOf('exe')}
             desc={caps.nativeFilePicker ? '留空时由后台检测' : '这个平台不能打开文件选择器，请在配置文件里填写'}
+            indent
             control={
               <>
                 <code className={styles.path}>{exe ? String(exe) : '自动检测'}</code>
-                <Btn size="sm" variant="ghost" disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件选择器" onClick={() => void pickExe()}>
+                <Cap disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件选择器" onClick={() => void pickExe()}>
                   选择…
-                </Btn>
+                </Cap>
               </>
             }
           />
         )}
-        <SetRow
-          id="workspace"
-          title="工作区"
-          control={
-            <>
-              <code className={styles.path}>{workspace ? String(workspace) : '~/AgenticComplex'}</code>
-              <Btn size="sm" variant="ghost" disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件选择器" onClick={() => void pickWorkspace()}>
-                选择
-              </Btn>
-            </>
-          }
-        />
-      </SetSection>
-
-      {isAcp && (
-        <SetSection
-          title="ACP 智能体"
-          right={
-            <Btn size="sm" variant="ghost" icon="refresh" loading={acp.probing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void acp.refresh()}>
-              重新检测
-            </Btn>
-          }
-        >
-          <div id="set-acpAgent" data-row="acpAgent" data-nav-target="set-acpAgent">
+        {selected !== 'pi' && <WorkspaceRow indent />}
+        {isAcp && (
+          <Slab
+            id="acpAgent"
+            indent
+            title={labelOf('acpAgent')}
+            right={
+              <Cap loading={acp.probing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void acp.refresh()}>
+                重新检测
+              </Cap>
+            }
+          >
             {acp.error && !acp.list ? (
               <p className={styles.note}>{`读不到 ACP 智能体：${acp.error}`}</p>
             ) : !acp.list ? (
@@ -356,41 +354,28 @@ export function KernelGroup() {
                 {more.length > 0 && <Fold label="更多（需下载）">{acpTable('更多（需下载）', more)}</Fold>}
               </>
             )}
-          </div>
-        </SetSection>
-      )}
-
-      {shown('mainModel') && <SetSection title="账号">
-        {!ownLogin && (
-          <>
-            <SetRow
-              id="acct"
-              title="账号来源"
-              desc={selected === 'pi' ? undefined : model.value('acct') === 'api_key' ? '用 AI 账号 里保存的 API 凭据' : '用内核自己的登录'}
-              control={c.select('acct', acctOptions(selected, model.value('acct')))}
-            />
-            <SetRow
-              id="provider"
-              title="服务提供方"
-              control={<Select label="服务提供方" value={String(model.value('provider') ?? '')} options={provOpts} disabled={ro || agentdOff} onChange={pickProvider} />}
-            />
-          </>
+          </Slab>
         )}
-        <SetRow id="mainModel" title="主会话模型" desc="留空用内核默认模型" control={c.text('mainModel', '主会话模型', '模型 ID')} />
-      </SetSection>}
-
-      {shown('routes') && <KernelRoutes agents={acp.list?.agents ?? []} />}
-
-      {selected === 'pi' && shown('runsrc') && <KernelPi />}
-
-      {shown('caps') && <SetSection title="已接通能力">
-        {FEATURE.filter(([key]) => features[key]?.implemented).map(([key, label]) => {
-          const f = features[key] ?? {};
-          const state = f.enabled === false ? '已接入 │ 未启用' : '已接通';
-          return <SetRow key={key} id={`cap-${key}`} title={label} control={<StatusTag state={state === '已接通' ? 'ok' : 'todo'} label={state} />} />;
-        })}
-        {Object.keys(features).length === 0 && <p className={styles.note}>保存并刷新后显示这个内核接通的能力</p>}
-      </SetSection>}
+        {selected !== 'pi' && !ownLogin && (
+          <SetRow
+            id="acct"
+            title={labelOf('acct')}
+            desc={model.value('acct') === 'api_key' ? '用「账号」里保存的 API 凭据' : '用内核自己的登录'}
+            indent
+            control={c.select('acct', acctOptions(selected, model.value('acct')))}
+          />
+        )}
+        {!ownLogin && (
+          <SetRow
+            id="provider"
+            title={labelOf('provider')}
+            indent
+            control={<Select label={labelOf('provider')} value={String(model.value('provider') ?? '')} options={provOpts} disabled={ro || agentdOff} onChange={pickProvider} />}
+          />
+        )}
+        <SetRow id="mainModel" title={labelOf('mainModel')} desc="留空用内核默认模型" indent control={c.text('mainModel', labelOf('mainModel'), '模型 ID')} />
+        {shown('routes') && <KernelRoutes agents={acp.list?.agents ?? []} />}
+      </Band>
     </>
   );
 }

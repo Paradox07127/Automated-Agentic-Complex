@@ -1,4 +1,4 @@
-// 观察简报：设置 › 隐私 › 观察的每日 / 每周开关，「简报」区块（今天页一句话日报的回退详情）的列表、打开和不再显示。
+// 观察简报：设置 › 观察 › 每日简报带里的每日 / 每周开关，「简报」区块（今天页一句话日报的回退详情）的列表、打开和不再显示。
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
@@ -15,7 +15,7 @@ import { BriefHealth } from '../../src/pages/observe/BriefHealth';
 import { BriefsSec } from '../../src/pages/observe/BriefsSec';
 import { SettingsCtx, type SettingsCtxValue } from '../../src/pages/settings/ctx';
 import { diagView } from '../../src/pages/settings/diag';
-import { PrivacyGroup } from '../../src/pages/settings/groups/Privacy';
+import { SeeGroup } from '../../src/pages/settings/groups/See';
 import { useSettingsModel } from '../../src/pages/settings/model';
 import type { Native } from '../../src/pages/settings/native';
 import { ToastHost } from '../../src/shell/toast';
@@ -63,7 +63,6 @@ function Harness({ children, native, agentdOff = false }: { children: ReactNode;
     diag: diagView(null),
     blacklist: null,
     scopes: [],
-    runs: [],
     reload: () => {},
     perms: PERMISSIONS,
     recheckPerms: async () => 'denied',
@@ -91,21 +90,23 @@ function mountObserve() {
   );
 }
 
-describe('settings › 隐私 › 观察 › 简报', () => {
+describe('settings › 观察 › 每日简报', () => {
   it('shows the daily and weekly switches from GET settings and posts only the changed key', async () => {
     const spy = install();
     const native = await demoNative(null);
     render(
       <Harness native={native}>
-        <PrivacyGroup />
+        <SeeGroup />
       </Harness>,
     );
-    const daily = await screen.findByRole('switch', { name: '每日简报' });
+    // The 每日简报 band's own switch carries the same name; the brief's switch is the one in its row.
+    const dailyRow = () => within(document.getElementById('set-brief_daily')!);
+    const daily = await dailyRow().findByRole('switch', { name: '每日简报' });
     expect(daily.getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('switch', { name: '每周简报' }).getAttribute('aria-checked')).toBe('true');
     await act(async () => fireEvent.click(daily));
     await waitFor(() => expect(sent(spy, 'POST', '/observation/briefs/settings')).toEqual([['POST', '/observation/briefs/settings', { daily: false }]]));
-    await waitFor(() => expect(screen.getByRole('switch', { name: '每日简报' }).getAttribute('aria-checked')).toBe('false'));
+    await waitFor(() => expect(dailyRow().getByRole('switch', { name: '每日简报' }).getAttribute('aria-checked')).toBe('false'));
   });
 
   it('turns the switches read-only while agentd is down', async () => {
@@ -113,7 +114,7 @@ describe('settings › 隐私 › 观察 › 简报', () => {
     const native = await demoNative(null);
     render(
       <Harness native={native} agentdOff>
-        <PrivacyGroup />
+        <SeeGroup />
       </Harness>,
     );
     const weekly = await screen.findByRole('switch', { name: '每周简报' });

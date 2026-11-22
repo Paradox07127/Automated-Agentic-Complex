@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Menu } from '../../../ui';
+import { Select } from '../../../ui';
 import { failure, readProactiveSettings, saveProactiveSettings } from '../api';
 import { useSettings } from '../ctx';
 import { SetRow } from '../SetRow';
@@ -40,18 +40,13 @@ export function QuietHoursRow({ ps, disabled }: { ps: ProactiveState; disabled: 
   const saveQuiet = (key: 'quiet_start' | 'quiet_end', h: number) =>
     void ps.saveQuiet(key, h).catch((e) => model.notify({ message: `没能保存免打扰时段：${failure(e).text}`, severity: 'danger', persistent: true }));
   const hourMenu = (key: 'quiet_start' | 'quiet_end', label: string, value: number) => (
-    <span role="group" aria-label={label}>
-      <Menu
-        label={hourText(value)}
-        align="right"
-        items={HOURS.map((h) => ({ kind: 'item' as const, label: hourText(h), checked: h === value, disabled, onSelect: () => saveQuiet(key, h) }))}
-      />
-    </span>
+    <Select label={label} value={String(value)} options={HOURS.map((h) => ({ value: String(h), label: hourText(h) }))} disabled={disabled} onChange={(v) => saveQuiet(key, Number(v))} />
   );
   return (
     <SetRow
       id="quiet_hours"
       title="免打扰时段"
+      desc="这段时间不主动开口"
       indent
       control={
         quiet == null ? (

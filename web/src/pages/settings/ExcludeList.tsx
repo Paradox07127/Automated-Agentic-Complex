@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Btn, IconBtn, Seg, Select, Switch } from '../../ui';
+import { IconBtn, Select } from '../../ui';
+import { Cap, Field, Lnk, OnOff, Seg } from './kit';
 import { AllowList } from './AllowList';
 import { addBlacklist, failure, removeBlacklist, restoreBlacklist, setBlacklistMode } from './api';
 import { useSettings } from './ctx';
+import { labelOf } from './registry';
 import { Slab } from './Slab';
 import type { BlacklistField, WireBlacklist } from './wire';
 import styles from './groups.module.css';
@@ -74,11 +76,11 @@ export function ExcludeList() {
       reload('blacklist');
       model.notify({ message: `已改为「${MODE.find((x) => x.value === m)?.label}」` });
     }, fail('没能切换读取方式'));
-  const modeSeg = <Seg label="读取方式" size="sm" value={blacklist?.mode ?? ''} options={MODE.map((x) => ({ ...x, disabled: ro || blacklist == null }))} onChange={setMode} />;
+  const modeSeg = <Seg label="读取方式" value={blacklist?.mode ?? ''} options={MODE} disabled={ro || blacklist == null} onChange={setMode} />;
 
   if (blacklist?.mode === 'allow') return <AllowList right={modeSeg} />;
   return (
-    <Slab id="exclude" title="排除的应用和网站" desc={blacklist?.incognito ? '不读取、不外发；无痕窗口一律不看' : '不读取、不外发'} right={modeSeg}>
+    <Slab id="exclude" title={labelOf('exclude')} desc={blacklist?.incognito ? '不读取、不外发；无痕窗口一律不看' : '不读取、不外发'} right={modeSeg}>
       <div className={styles.chips}>
         {blacklist == null && <span className={styles.t2}>—</span>}
         {shown.map((x) => (
@@ -87,16 +89,11 @@ export function ExcludeList() {
             <IconBtn icon="close" size="sm" label={`移除 ${x.value}`} disabled={ro} onClick={() => remove(x.field, x.value)} />
           </span>
         ))}
-        {entries.length > FOLD && (
-          <Btn size="sm" variant="quiet" onClick={() => setAll(!all)}>
-            {all ? '收起' : `全部 ${entries.length} 项`}
-          </Btn>
-        )}
+        {entries.length > FOLD && <Lnk onClick={() => setAll(!all)}>{all ? '收起' : `全部 ${entries.length} 项`}</Lnk>}
       </div>
       <div className={styles.chips}>
         <Select label="排除类型" value={field} width={120} options={FIELD.map((f) => ({ value: f.value, label: f.label }))} disabled={ro} onChange={(v) => setField(v as BlacklistField)} />
-        <input
-          className={styles.input}
+        <Field
           aria-label="要排除的内容"
           placeholder={FIELD.find((f) => f.value === field)?.hint}
           value={value}
@@ -104,14 +101,12 @@ export function ExcludeList() {
           onChange={(e) => setValue(e.currentTarget.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
-        <Switch checked={purge} label="顺手删掉已记下的" disabled={ro} onChange={setPurge} />
-        <span className={styles.t2}>删掉已记下的</span>
-        <Btn size="sm" variant="ghost" icon="plus" disabled={ro || !value.trim()} onClick={add}>
+        <span className={styles.t2}>顺手删掉已记下的</span>
+        <OnOff on={purge} label="顺手删掉已记下的" disabled={ro} onChange={setPurge} />
+        <Cap disabled={ro || !value.trim()} onClick={add}>
           添加
-        </Btn>
-        <Btn size="sm" variant="quiet" disabled={ro} onClick={restore}>
-          恢复默认排除
-        </Btn>
+        </Cap>
+        {!ro && <Lnk onClick={restore}>恢复默认排除</Lnk>}
       </div>
     </Slab>
   );

@@ -1,6 +1,7 @@
-import { Seg, Select, Toggle } from '../../ui';
+import { Select } from '../../ui';
 import { useSettings } from './ctx';
 import { targetOf, type Opt } from './fields';
+import { Field, OnOff, Seg } from './kit';
 import { optionsOf } from './native';
 import { labelOf } from './registry';
 import { Stepper } from './Stepper';
@@ -25,16 +26,10 @@ export function useControls() {
           未读到
         </span>
       ) : (
-        <Toggle on={v(id) === true} label={label} size="sm" disabled={lock(id) || dis} disabledReason={why(id, reason)} onChange={(on) => model.set(id, on)} />
+        <OnOff on={v(id) === true} label={label} disabled={lock(id) || dis} disabledReason={why(id, reason)} onChange={(on) => model.set(id, on)} />
       ),
-    seg: (id: string, given?: Opt[], dis?: boolean) => (
-      <Seg
-        label={labelOf(id)}
-        size="sm"
-        value={String(v(id) ?? '')}
-        options={opts(id, given).map((o) => ({ value: o.value, label: o.label, disabled: lock(id) || dis || o.disabled }))}
-        onChange={(x) => model.set(id, x)}
-      />
+    seg: (id: string, given?: Opt[], dis?: boolean, label = labelOf(id)) => (
+      <Seg label={label} value={String(v(id) ?? '')} options={opts(id, given)} disabled={lock(id) || dis} onChange={(x) => model.set(id, x)} />
     ),
     select: (id: string, given?: Opt[], risky: string[] = [], dis?: boolean, label = labelOf(id)) => {
       const d = native?.rows[id]?.default;
@@ -44,7 +39,7 @@ export function useControls() {
           value={String(v(id) ?? '')}
           defaultValue={d == null ? undefined : String(d)}
           options={opts(id, given).map((o) => ({ value: o.value, label: o.label, risky: risky.includes(o.value) }))}
-          open={demo === 'dropdown-open' && (item ?? 'rest') === id}
+          open={demo === 'dropdown-open' && (item ?? 'replyLang') === id}
           disabled={lock(id) || dis}
           onChange={(x) => model.set(id, x)}
         />
@@ -65,9 +60,8 @@ export function useControls() {
     ),
     /** Free text written on blur or Enter (model ids, URLs). */
     text: (id: string, label: string, placeholder?: string, dis?: boolean) => (
-      <input
+      <Field
         key={`${id}:${String(v(id) ?? '')}`}
-        className={styles.input}
         aria-label={label}
         placeholder={placeholder}
         defaultValue={String(v(id) ?? '')}

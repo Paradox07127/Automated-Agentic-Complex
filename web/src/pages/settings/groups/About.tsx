@@ -1,89 +1,140 @@
 import { useEffect, useState } from 'react';
-import { getBridge, type AppInfo } from '../../../bridge';
+import { getBridge, type AppActionName, type AppInfo, type ProcessState } from '../../../bridge';
 import { setDevMode, useDevMode } from '../../../shell/devMode';
-import { Btn, Toggle } from '../../../ui';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
+import { groupDesc } from '../groups';
+import { Cap, OnOff, St } from '../kit';
+import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
+import { Slab } from '../Slab';
 import styles from '../groups.module.css';
 
-/** 启动与关于: login item, build from the bridge, onboarding and licences. */
+/** 关于: the version plate, the login item, and troubleshooting (diagnostics, logs, first-run setup, licences, developer mode). */
 export function AboutGroup() {
-  const { model, native } = useSettings();
+  const { model, native, agentdOff, goPage } = useSettings();
   const c = useControls();
   const devMode = useDevMode();
+  const shown = useRowShown();
   const bridge = getBridge();
   const [info, setInfo] = useState<AppInfo | null>(null);
+  const [agentd, setAgentd] = useState<ProcessState | null>(null);
   useEffect(() => {
     let live = true;
     void bridge.app.info().then((i) => live && setInfo(i));
+    void bridge.supervisor.state().then((s) => live && setAgentd(s.agentd));
     return () => {
       live = false;
     };
   }, [bridge]);
-  const action = (label: string, onClick: () => void) => (
-    <Btn size="sm" variant="secondary" onClick={onClick}>
-      {label}
-    </Btn>
-  );
+  const running = !agentdOff && agentd?.state === 'running';
+  const act = (name: AppActionName, done: string, what: string) => () =>
+    void bridge.app.action(name).then(
+      () => model.notify({ message: done }),
+      () => model.notify({ message: `这个外壳还不能${what}`, severity: 'warning' }),
+    );
+  const version = info ? `Agentic Complex ${info.version} │ ${info.buildGit} │ ${info.os}` : '';
+  const copyVersion = () =>
+    void bridge.clipboard.writeText(version).then(
+      () => model.notify({ message: '版本信息已复制' }),
+      () => model.notify({ message: '没复制成', severity: 'warning' }),
+    );
 
   return (
     <>
-      <SetSection title="启动">
-        <SetRow
-          id="login"
-          title="登录时启动"
-          desc={native?.statuses.login ?? (model.value('login') === true ? '已在系统「登录项」里允许' : '关闭')}
-          control={c.toggle('login')}
-        />
+      <Slab id="ver" variant="plate" label={labelOf('ver')}>
+        <div className={styles.kcard}>
+          <span className={styles.big}>
+            Agentic Complex
+            <small className="num">{info ? `${info.version} │ ${info.buildGit}` : '—'}</small>
+          </span>
+          <span className={styles.meta}>
+            <span>{info?.os ?? '—'}</span>
+          </span>
+          <Cap disabled={!info} onClick={copyVersion}>
+            复制版本信息
+          </Cap>
+        </div>
+      </Slab>
+
+      <SetSection title="启动" info={groupDesc('about')}>
+        <SetRow id="login" title={labelOf('login')} desc={native?.statuses.login ?? (model.value('login') === true ? '已在系统「登录项」里允许' : '关闭')} control={c.toggle('login')} />
       </SetSection>
-      <SetSection title="关于">
-        <SetRow
-          id="ver"
-          title="版本"
-          control={<span className="num">{info ? `${info.version} │ ${info.buildGit}` : '—'}</span>}
-        />
-        <SetRow id="sys" title="系统" control={<span className={styles.t2}>{info?.os ?? '—'}</span>} />
-        <SetRow
-          id="load"
-          title="运行负载"
-          control={<span className="num">{info ? `${info.loadAverage.toFixed(2)} / ${info.cores} 核` : '—'}</span>}
-        />
-        <SetRow
-          id="dev"
-          title="开发者模式"
-          desc="显示运行记录、诊断、管线和调参页，设置里给开发者的项，画面里的性能细项（2× SSAA、渲染尺寸、自阴影精度），以及轮次号、截图配额等内部数据"
-          control={<Toggle on={devMode} label="开发者模式" onChange={setDevMode} />}
-        />
+
+      <SetSection title="排障">
+        <SetRow id="copydiag" title={labelOf('copydiag')} desc="不含对话和记忆内容" control={<Cap onClick={act('copy_diagnostics', '诊断信息已复制', '复制诊断信息')}>复制</Cap>} />
+        <SetRow id="logdir" title={labelOf('logdir')} control={<Cap go onClick={act('reveal_logs', '已打开日志目录', '打开日志目录')}>打开</Cap>} />
         <SetRow
           id="onb"
-          title="重新运行首次设置"
-          control={action('开始', () =>
-            model.ask({
-              title: '重新运行首次设置？',
-              confirmLabel: '开始',
-              onConfirm: () =>
-                bridge.app.action('open_onboarding').then(
-                  () => model.notify({ message: '已打开首次设置' }),
-                  () => model.notify({ message: '这个外壳还不能打开首次设置', severity: 'warning' }),
-                ),
-            }),
-          )}
+          title={labelOf('onb')}
+          control={
+            <Cap
+              go
+              onClick={() =>
+                model.ask({
+                  title: '重新运行首次设置？',
+                  confirmLabel: '开始',
+                  onConfirm: () =>
+                    bridge.app.action('open_onboarding').then(
+                      () => model.notify({ message: '已打开首次设置' }),
+                      () => model.notify({ message: '这个外壳还不能打开首次设置', severity: 'warning' }),
+                    ),
+                })
+              }
+            >
+              开始
+            </Cap>
+          }
         />
         <SetRow
           id="fonts"
-          title="字体许可"
+          title={labelOf('fonts')}
           desc="Noto Sans SC、Saira │ SIL OFL 1.1；Material Symbols │ Apache 2.0"
-          control={action('查看许可', () =>
-            model.ask({
-              title: '字体许可',
-              note: 'Noto Sans SC 与 Saira 按 SIL Open Font License 1.1 随应用打包，许可原文在各字体包的 LICENSE；Material Symbols 按 Apache License 2.0。',
-              confirmLabel: '知道了',
-              onConfirm: () => {},
-            }),
-          )}
+          control={
+            <Cap
+              go
+              onClick={() =>
+                model.ask({
+                  title: '字体许可',
+                  note: 'Noto Sans SC 与 Saira 按 SIL Open Font License 1.1 随应用打包，许可原文在各字体包的 LICENSE；Material Symbols 按 Apache License 2.0。',
+                  confirmLabel: '知道了',
+                  onConfirm: () => {},
+                })
+              }
+            >
+              查看
+            </Cap>
+          }
         />
+        <SetRow
+          id="dev"
+          title={labelOf('dev')}
+          desc="显示诊断页和给开发者的设置项"
+          info="打开后显示运行记录、诊断、管线和调参页，设置里给开发者的项，画面里的性能细项（2× SSAA、渲染尺寸、自阴影精度），以及轮次号、截图配额等内部数据。"
+          control={<OnOff on={devMode} label={labelOf('dev')} onChange={setDevMode} />}
+        />
+        {shown('agentd') && (
+          <SetRow
+            id="agentd"
+            title={labelOf('agentd')}
+            control={
+              <>
+                <St tone={running ? 'ok' : 'bad'}>{running ? `运行中${agentd?.pid ? ` │ 进程 ${agentd.pid}` : ''}` : '没有运行'}</St>
+                {running ? (
+                  <Cap go onClick={() => goPage({ page: 'diag' })}>
+                    去诊断
+                  </Cap>
+                ) : (
+                  <Cap loading={model.restarting} onClick={() => void model.restartBackend()}>
+                    重启后台服务
+                  </Cap>
+                )}
+              </>
+            }
+          />
+        )}
+        <SetRow id="devparams" title={labelOf('devparams')} desc="只能在配置文件里改" control={<Cap go onClick={act('open_config', '已打开配置文件', '打开配置文件')}>打开配置文件</Cap>} />
       </SetSection>
     </>
   );

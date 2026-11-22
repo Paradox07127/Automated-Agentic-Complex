@@ -251,10 +251,8 @@ export function settingsOps(ctx: OpsContext): Ops {
       const name = await ctx.recordHotkey(allowsRightOption(rowById(id)!));
       return name === null ? null : webHotkey(name);
     },
-    /** After the user confirms natively: agentd's `POST /reset`, then, only when it succeeded, the local files. */
+    /** agentd's `POST /reset`, then, only when it succeeded, the local files; the settings page's confirm card is the only ask. */
     'settings.wipeLocalData': async () => {
-      const asked = '删除所有本地数据？记忆、对话、任务记录、活动记录、Trace 事件和后台日志都会删除；设置和 API Key 保留。此操作不能撤销。';
-      if (!(await ctx.confirm(asked))) throw new BridgeFailure('declined', 'settings.wipeLocalData');
       if (!ctx.agentd) throw new BridgeFailure('failed', 'agentd is unreachable');
       let reply: { status: number; body: Buffer };
       try {

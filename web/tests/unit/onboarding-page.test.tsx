@@ -92,14 +92,14 @@ describe('onboarding page', () => {
     expect(asked).toEqual([]);
   });
 
-  it('the closing screen has one sentence and a button to 设置 › 插件', async () => {
+  it('the closing screen has one sentence and a button to 设置 › 能做, where the capability bands are', async () => {
     install();
     mount();
     await walk('只陪伴');
     expect(within(guide()).getAllByRole('paragraph')).toHaveLength(1);
     press('打开插件设置');
     await waitFor(() => expect(calls).toContain('complete {"companion":"pet","destination":"plugins"}'));
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ page: 'settings', group: 'plugins' }));
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ page: 'settings', group: 'perm' }));
   });
 
   it('has one set of page controls: 上一步 and 下一步 or 完成 in the footer, no media arrows', async () => {
@@ -178,6 +178,6 @@ describe('onboarding demo layer', () => {
 describe('onboarding copy', () => {
   it('puts an error before the step hint', () => {
     expect(footHint(1, '没存上')).toEqual({ text: '没存上', danger: true });
-    expect(footHint(2, null)).toEqual({ text: '之后可在 设置 › 插件 中修改', danger: false });
+    expect(footHint(2, null)).toEqual({ text: '之后可在 设置 › 能做 中修改', danger: false });
   });
 });

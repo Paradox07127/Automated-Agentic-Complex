@@ -467,14 +467,6 @@ test('settings.read offers 半身固定 when the connected renderer lists camera
   assert.equal((await statuses(null))['beh.stay'], '这个版本的角色还不支持半身固定');
 });
 
-test('settings.wipeLocalData asks with the dialog\'s words, and a no deletes nothing', async () => {
-  const asked: string[] = [];
-  const ctx = { ...context(tmpdir()), confirm: async (text: string) => { asked.push(text); return false; } };
-  assert.deepEqual(await handle('main', page0, { op: 'settings.wipeLocalData', args: [] }, registry(ctx), new PageSession(() => {})),
-    { ok: false, error: { code: 'declined', detail: 'settings.wipeLocalData' } });
-  assert.deepEqual(asked, ['删除所有本地数据？记忆、对话、任务记录、活动记录、Trace 事件和后台日志都会删除；设置和 API Key 保留。此操作不能撤销。']);
-});
-
 test('settings.wipeLocalData empties the web log and keeps config.json', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'wipe-'));
   try {

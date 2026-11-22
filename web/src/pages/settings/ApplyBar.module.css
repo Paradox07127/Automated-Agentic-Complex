@@ -1,33 +1,41 @@
-/* Grows on short groups so the bar sits at the window bottom; at least the usual gap above the bar. */
-.fill {
-  flex: 1 0 var(--ef-sp-32);
-}
-
-/* Bottom bar, pinned to the bottom of the scrolling list; the negative margin takes back .inner's bottom padding. */
+/* BottomNode: a hairline on top, the ground darkening downward; the tip left, the capsules right. */
 .bar {
-  position: sticky;
-  bottom: 0;
-  z-index: var(--ef-z-sticky);
-  display: flex;
-  flex-direction: column;
-  margin-bottom: calc(-1 * var(--list-pad-b, 0px));
-  padding: 0 0 var(--ef-sp-4);
-  border-top: var(--ef-lw-hair) solid var(--ef-set-rule);
-  background: var(--ef-base);
-  color: var(--ef-text-1);
+  display: grid;
+  min-height: 56px;
+  padding: 4px 32px 6px 52px;
+  border-top: 1px solid color-mix(in srgb, var(--s-rule) 50%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--s-bg0) 70%, transparent), color-mix(in srgb, var(--s-bg0) 92%, transparent));
 }
 
-/* One 45 high line: the tip text 15 px at the left, the capsules at the right 3.75 apart. */
 .line {
   display: flex;
   align-items: center;
-  gap: 3.75px;
-  min-height: 45px;
+  gap: 6px;
+  min-height: 46px;
 }
 
 .tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   margin-right: auto;
-  padding-left: 7.5px;
-  color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-title-2) / var(--ef-lh-h2) var(--ef-font-sans);
+  overflow: hidden;
+  color: var(--s-t2);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tip :global(.num) {
+  color: var(--s-t1);
+  font-family: var(--ef-font-num);
+  font-weight: 600;
+}
+
+@container setp (max-width: 1040px) {
+  .bar {
+    min-height: 50px;
+    padding: 2px 14px 4px 26px;
+  }
 }

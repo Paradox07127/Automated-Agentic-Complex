@@ -10,12 +10,11 @@ import { demoNative } from '../../src/mock/settings';
 import { ApplyBar } from '../../src/pages/settings/ApplyBar';
 import { runtimeView, SettingsCtx, type SettingsCtxValue } from '../../src/pages/settings/ctx';
 import { diagView } from '../../src/pages/settings/diag';
-import { AdvGroup } from '../../src/pages/settings/groups/Adv';
+import { DataGroup } from '../../src/pages/settings/groups/Data';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
 import { ModelGroup } from '../../src/pages/settings/groups/Model';
-import { PermGroup } from '../../src/pages/settings/groups/Perm';
-import { PluginsGroup } from '../../src/pages/settings/groups/Plugins';
-import { PrivacyGroup } from '../../src/pages/settings/groups/Privacy';
+import { ActGroup } from '../../src/pages/settings/groups/Act';
+import { SeeGroup } from '../../src/pages/settings/groups/See';
 import { SpeakGroup } from '../../src/pages/settings/groups/Speak';
 import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model';
 import type { Native } from '../../src/pages/settings/native';
@@ -46,7 +45,7 @@ type Opts = { init?: ModelInit; agentdOff?: boolean; goRow?: (id: string) => voi
 
 function Harness({ d, o = {}, children }: { d: Loaded; o?: Opts; children: ReactNode }) {
   const view = useMemo(() => diagView(d.diag), [d.diag]);
-  const model = useSettingsModel(o.init ?? {}, { native: d.native, runtime: d.runtime, models: d.models, pauses: view.pauses, agentdStartedAt: view.agentdStartedAt });
+  const model = useSettingsModel(o.init ?? {}, { native: d.native, runtime: d.runtime, models: d.models, agentdStartedAt: view.agentdStartedAt });
   const runtime = runtimeView(d.runtime);
   const ctx: SettingsCtxValue = {
     model,
@@ -64,7 +63,6 @@ function Harness({ d, o = {}, children }: { d: Loaded; o?: Opts; children: React
     diag: view,
     blacklist: null,
     scopes: [],
-    runs: [],
     reload: () => {},
     perms: PERMISSIONS,
     recheckPerms: async () => 'granted',
@@ -77,6 +75,7 @@ function Harness({ d, o = {}, children }: { d: Loaded; o?: Opts; children: React
       {model.confirm && (
         <div role="dialog" aria-label={model.confirm.title}>
           <p>{model.confirm.warning}</p>
+          {model.confirm.list?.map((x) => <p key={x}>{x}</p>)}
           <p>{model.confirm.note}</p>
           <button type="button" onClick={() => void model.confirm?.onConfirm()}>
             {model.confirm.confirmLabel}
@@ -104,22 +103,27 @@ afterEach(() => {
 const click = (el: Element) => act(async () => void fireEvent.click(el));
 const sent = (method: string, path: string) => request.mock.calls.filter((c) => c[0] === method && c[1] === path).map((c) => c[2]);
 
-describe('AI 账号', () => {
-  it('names the page for pi and lists the seven providers', async () => {
-    expect(GROUP_LABEL.model).toBe('AI 账号');
+describe('账号', () => {
+  it("names the page for pi and lists the seven services, Pi's catalog providers by name in place of 其他（Pi 目录）", async () => {
+    expect(GROUP_LABEL.model).toBe('账号');
     render(<Harness d={d}><ModelGroup /></Harness>);
     await click(screen.getByRole('button', { name: '模型服务' }));
     const options = within(screen.getByRole('listbox', { name: '模型服务' })).getAllByRole('option');
-    expect(options.map((o) => o.textContent)).toEqual(['Anthropic API', 'DeepSeek', 'Grok / xAI', 'OpenAI API', '兼容 API', '其他（Pi 目录）', 'ChatGPT 订阅']);
+    expect(options.map((o) => o.textContent)).toEqual(['Anthropic API', 'DeepSeek', 'Grok / xAI', 'OpenAI API', '兼容 API', 'ChatGPT 订阅', 'Groq（Pi 目录）', 'OpenRouter（Pi 目录）']);
   });
 
-  it('has no vision model, auto or local login rows', () => {
+  it('has no vision model, auto or local login rows', async () => {
     render(<Harness d={d}><ModelGroup /></Harness>);
     expect(screen.queryByText('看图模型')).toBeNull();
     for (const row of ['visProv', 'visModel', 'claudeExe', 'codexExe', 'maxLen']) expect(document.querySelector(`[data-row="${row}"]`)).toBeNull();
     expect(screen.queryByText(/Claude 登录|Codex 登录|自动/)).toBeNull();
-    expect(screen.getByLabelText('API Key', { selector: 'input' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '默认模型' })).toBeTruthy();
+    // A saved key reads 已保存 until 替换 opens the field.
+    const key = within(document.querySelector('[data-row="apikey"]') as HTMLElement);
+    expect(key.getByText('已保存')).toBeTruthy();
+    expect(key.getByRole('button', { name: '移除' })).toBeTruthy();
+    await click(key.getByRole('button', { name: '替换' }));
+    expect(screen.getByLabelText('API Key', { selector: 'input' })).toBeTruthy();
   });
 
   it("offers the DeepSeek models of Pi's catalog and a key with no editable endpoint", async () => {
@@ -209,32 +213,10 @@ describe('mute row', () => {
   });
 });
 
-describe('agentd rows while the backend is down', () => {
-  it('locks the agentd rows', () => {
-    render(<Harness d={d} o={{ agentdOff: true }}><PrivacyGroup /></Harness>);
-    expect(screen.getByRole('button', { name: '暂停 1 小时' }).getAttribute('aria-disabled')).toBe('true');
-  });
-
-  it('locks the do-not-disturb rows', async () => {
-    render(<Harness d={d} o={{ agentdOff: true }}><SpeakGroup /></Harness>);
-    await click(screen.getByRole('button', { name: '开始' }));
-    expect(screen.getAllByRole('menuitem').map((m) => m.getAttribute('aria-disabled'))).toEqual(['true', 'true', 'true', 'true']);
-  });
-
-  it('shows 开会 as 未读到 when /diag/state was not read, not as off', async () => {
-    render(<Harness d={{ ...d, diag: { ...DIAG, observation: undefined } }}><SpeakGroup /></Harness>);
-    await click(screen.getByRole('button', { name: '开始' }));
-    const meet = screen.getByRole('menuitem', { name: /^开会/ });
-    expect(meet.getAttribute('aria-disabled')).toBe('true');
-    expect(meet.textContent).toContain('未读到');
-    expect(screen.getByRole('menuitem', { name: '1 小时' }).getAttribute('aria-disabled')).toBeNull();
-  });
-});
-
 describe('restart notice', () => {
   it('keeps the restart notice after leaving the page', async () => {
     const first = render(<Harness d={d}><SpeakGroup /><ApplyBar /></Harness>);
-    await click(screen.getByRole('switch', { name: '静音' }));
+    await click(within(screen.getByRole('radiogroup', { name: '出声' })).getByRole('radio', { name: '只显示文字' }));
     first.unmount();
     render(<Harness d={d}><ApplyBar /></Harness>);
     expect(screen.getByRole('region', { name: '未应用的改动' }).textContent).toContain('1 项重启后台服务后生效');
@@ -242,19 +224,20 @@ describe('restart notice', () => {
 
   it('drops the notice once agentd started after the change', async () => {
     const first = render(<Harness d={d}><SpeakGroup /></Harness>);
-    await click(screen.getByRole('switch', { name: '静音' }));
+    await click(within(screen.getByRole('radiogroup', { name: '出声' })).getByRole('radio', { name: '只显示文字' }));
     first.unmount();
     const later = { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, agentd: { ...WIRE_DIAG_CONNECTIONS.agentd, started_at: '2099-01-01T00:00:00Z' } } };
     render(<Harness d={{ ...d, diag: later }}><ApplyBar /></Harness>);
     expect(screen.queryByRole('region', { name: '未应用的改动' })).toBeNull();
+    expect(screen.queryByText(/重启后台服务后生效/)).toBeNull();
   });
 
   it('reports a failed restart and keeps the notice', async () => {
     vi.spyOn(window.agenticComplex!.supervisor, 'restart').mockRejectedValue({ code: 'not_implemented' });
     render(<Harness d={d} o={{ init: { pending: ['mute'] } }}><ApplyBar /></Harness>);
-    await click(screen.getByRole('button', { name: '立即重启' }));
+    await click(screen.getByRole('button', { name: '立即重启后台' }));
     expect(screen.getByTestId('toast').textContent).toBe('没能重启后台服务：桌面端没有响应');
-    expect(screen.getByRole('button', { name: '立即重启' }).getAttribute('aria-busy')).not.toBe('true');
+    expect(screen.getByRole('button', { name: '立即重启后台' }).getAttribute('aria-busy')).not.toBe('true');
     expect(screen.getByRole('region', { name: '未应用的改动' }).textContent).toContain('1 项重启后台服务后生效');
   });
 });
@@ -262,7 +245,7 @@ describe('restart notice', () => {
 describe('恢复默认 wording', () => {
   it('names the switches the reset turns on', async () => {
     const off = { ...d, native: { ...d.native, saved: { ...d.native.saved, keys: false } } };
-    render(<Harness d={off}><AdvGroup /></Harness>);
+    render(<Harness d={off}><DataGroup /></Harness>);
     await click(screen.getByRole('button', { name: '恢复默认…' }));
     const text = screen.getByRole('dialog').textContent ?? '';
     expect(text).toContain('会打开：键鼠计数');
@@ -274,14 +257,15 @@ describe('coding-tool hooks', () => {
   it('shows the install steps for a tool that is not hooked up and runs them in a terminal', async () => {
     const run = vi.spyOn(window.agenticComplex!.open, 'runInTerminal');
     const hooks = { claude: { installed: true, last_at: WIRE_DIAG_HOOKS.claude.last_at }, codex: { installed: false, last_at: null } };
-    render(<Harness d={{ ...d, diag: { ...DIAG, hooks } }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...d, diag: { ...DIAG, hooks } }}><SeeGroup /></Harness>);
     const steps = within(document.querySelector('[data-row="hooks2"]') as HTMLElement).getByRole('list', { name: 'Codex 接入步骤' });
     expect(within(steps).getAllByRole('listitem').map((i) => i.textContent)).toEqual([
       expect.stringContaining('先看会改什么'),
       expect.stringContaining('确认改动后执行'),
       expect.stringContaining('/hooks'),
     ]);
-    await waitFor(() => expect((within(steps).getAllByRole('button', { name: '在终端运行' })[0] as HTMLButtonElement).disabled).toBe(false));
+    // The capsule is disabled by aria-disabled until the app's installer steps are read.
+    await waitFor(() => expect(within(steps).getAllByRole('button', { name: '在终端运行' })[0]!.getAttribute('aria-disabled')).toBeNull());
     await click(within(steps).getAllByRole('button', { name: '在终端运行' })[0]!);
     expect(run).toHaveBeenCalledWith(expect.stringMatching(/install_hooks\.py' --hook-script '\/path\/to\/support\/bin\/agentic-complex-hook' --dry-run --target codex$/));
     expect(document.querySelector('[data-row="hooks"]')!.querySelector('[aria-label="Claude Code 接入步骤"]')).toBeNull();
@@ -289,13 +273,16 @@ describe('coding-tool hooks', () => {
 
   it('shows the install steps after unbinding, while agentd still remembers the last event', () => {
     const hooks = { claude: { installed: false, last_at: WIRE_DIAG_HOOKS.claude.last_at }, codex: { installed: true, last_at: null } };
-    render(<Harness d={{ ...d, diag: { ...DIAG, hooks } }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...d, diag: { ...DIAG, hooks } }}><SeeGroup /></Harness>);
     expect(document.querySelector('[data-row="hooks"]')!.textContent).toContain('未接入');
     expect(within(document.querySelector('[data-row="hooks"]') as HTMLElement).getByRole('list', { name: 'Claude Code 接入步骤' })).toBeTruthy();
   });
 });
 
 describe('permission rows', () => {
+  // 系统权限 is one summary line until unfolded; 去开 shows while one is missing.
+  const openPerms = () => click(within(document.querySelector('[data-row="perms"]') as HTMLElement).getByRole('button', { name: '去开' }));
+
   it('starts as 读取中 rather than made-up states, and lists Input Monitoring', async () => {
     let answer!: (s: Awaited<ReturnType<AgenticComplexBridge['permissions']['status']>>) => void;
     vi.spyOn(window.agenticComplex!.permissions, 'status').mockReturnValue(new Promise((r) => (answer = r)));
@@ -315,7 +302,8 @@ describe('permission rows', () => {
   it('asks the system for a permission that was never asked', async () => {
     const ask = vi.spyOn(window.agenticComplex!.permissions, 'request').mockResolvedValue('granted');
     const perms = PERMISSIONS.map((p) => (p.kind === 'microphone' ? { ...p, state: 'notDetermined' as const } : p));
-    render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><PermGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
+    render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><ActGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
+    await openPerms();
     await click(within(document.querySelector('[data-row="microphone"]') as HTMLElement).getByRole('button', { name: '允许' }));
     expect(ask).toHaveBeenCalledWith('microphone');
   });
@@ -326,7 +314,8 @@ describe('permission rows', () => {
       ...PERMISSIONS.map((p) => (p.kind === 'microphone' ? { ...p, state: 'notDetermined' as const } : p)),
       { kind: 'inputMonitoring' as const, label: '输入监控', purpose: '按住说话的热键', features: ['按住说话'], state: 'notDetermined' as const },
     ];
-    render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><PermGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
+    render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><ActGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
+    await openPerms();
     const mic = within(document.querySelector('[data-row="microphone"]') as HTMLElement);
     expect(within(document.querySelector('[data-row="inputMonitoring"]') as HTMLElement).getByRole('button', { name: '去系统设置' })).toBeTruthy();
     await click(mic.getByRole('button', { name: '允许' }));
@@ -337,7 +326,8 @@ describe('permission rows', () => {
   it('reports failure when the native system settings pane cannot open', async () => {
     const open = vi.spyOn(window.agenticComplex!.permissions, 'openSettings').mockRejectedValue({ code: 'failed' });
     const perms = PERMISSIONS.map((p) => p.kind === 'microphone' ? { ...p, state: 'denied' as const } : p);
-    render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><PermGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
+    render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><ActGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
+    await openPerms();
     await click(within(document.querySelector('[data-row="microphone"]') as HTMLElement).getByRole('button', { name: '去系统设置' }));
     expect(open).toHaveBeenCalledWith('microphone');
     expect(screen.getByTestId('toast').textContent).toContain('没能打开系统设置');
@@ -346,21 +336,21 @@ describe('permission rows', () => {
   it('gives the actual Terminal dependency when the automation probe is inconclusive', async () => {
     const ask = vi.spyOn(window.agenticComplex!.permissions, 'request').mockResolvedValue('notDetermined');
     const perms = PERMISSIONS.map((p) => p.kind === 'automation' ? { ...p, state: 'notDetermined' as const } : p);
-    render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><PermGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
+    render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><ActGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
+    await openPerms();
     await click(within(document.querySelector('[data-row="automation"]') as HTMLElement).getByRole('button', { name: '允许' }));
     expect(ask).toHaveBeenCalledWith('automation');
     expect(screen.getByTestId('toast').textContent).toContain('请先打开「终端」');
   });
 
-  it('the 电脑操作 plug-in switch can be turned on in the native main window, and 角色能力 has no switch of its own for it', async () => {
+  it('the 操作电脑 band switch in 能做 can be turned on in the native main window, and there is no second switch for it', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     expect(window.agenticComplex!.capabilities.computerUse).toBe(false);
-    render(<Harness d={d}><PermGroup /></Harness>);
-    expect(screen.queryByRole('switch', { name: '操作电脑' })).toBeNull();
-    cleanup();
-    render(<Harness d={d}><PluginsGroup /></Harness>);
-    expect(document.querySelector('[data-row="plugins.computer_use"]')!.textContent).not.toContain('不支持');
-    await click(screen.getByRole('switch', { name: '电脑操作' }));
+    render(<Harness d={d}><ActGroup /></Harness>);
+    const band = document.querySelector('[data-row="plugins.computer_use"]') as HTMLElement;
+    expect(screen.getAllByRole('switch', { name: '操作电脑' })).toEqual([within(band).getByRole('switch', { name: '操作电脑' })]);
+    expect(band.textContent).not.toContain('不支持');
+    await click(within(band).getByRole('switch', { name: '操作电脑' }));
     expect(save).toHaveBeenCalledWith({ 'plugins.computer_use': true });
   });
 });

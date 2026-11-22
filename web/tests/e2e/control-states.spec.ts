@@ -132,11 +132,11 @@ test('approval card: the source line has no raw session id and keeps it in the t
   await expect(line).toHaveAttribute('title', /claude:|own:/);
 });
 
-test('settings model: the service dropdown fills the 280 control column and its chosen label is on the trigger title', async ({ page }) => {
+test('settings model: the service dropdown fills the 330 control column and its chosen label is on the trigger title', async ({ page }) => {
   await go(page, 'main.html#/settings?group=model&still=1');
   const trigger = page.locator('[data-stub="Select"] > button[aria-label="模型服务"]');
   const label = 'Anthropic API';
   await expect(trigger.locator('span').first()).toHaveText(label);
   await expect(trigger).toHaveAttribute('title', label);
-  expect((await trigger.boundingBox())!.width).toBe(280);
+  expect((await trigger.boundingBox())!.width).toBe(330);
 });

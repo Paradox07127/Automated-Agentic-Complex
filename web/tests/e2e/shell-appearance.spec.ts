@@ -100,18 +100,18 @@ test("Q and E step through the page's own tabs and wrap, do nothing while typing
   await page.goto('main.html#/settings?still=1');
   const tabs = page.getByRole('tablist', { name: '设置分组' });
   const selected = () => tabs.getByRole('tab', { selected: true });
-  await expect(selected()).toHaveAttribute('title', '隐私');
+  await expect(selected()).toHaveAttribute('title', '说话');
   await page.keyboard.press('e');
-  await expect(selected()).toHaveAttribute('title', '权限与授权');
+  await expect(selected()).toHaveAttribute('title', '能做');
   await page.keyboard.press('q');
   await page.keyboard.press('q');
-  await expect(selected()).toHaveAttribute('title', 'AI 账号');
+  await expect(selected()).toHaveAttribute('title', '关于');
   for (let i = 0; i < 3; i++) await page.keyboard.press('q');
-  await expect(selected()).toHaveAttribute('title', '插件');
+  await expect(selected()).toHaveAttribute('title', '账号');
   await page.keyboard.press('q');
-  await expect(selected()).toHaveAttribute('title', '高级');
+  await expect(selected()).toHaveAttribute('title', '内核');
   await page.keyboard.press('e');
-  await expect(selected()).toHaveAttribute('title', '插件');
+  await expect(selected()).toHaveAttribute('title', '账号');
   await expect(page.locator('main[data-route-id="settings"]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('main[data-route-id="home"]')).toBeVisible();
@@ -125,8 +125,9 @@ test("Q and E step through the page's own tabs and wrap, do nothing while typing
 });
 
 test('tabs that do not fit show an arrow at that end, the arrow scrolls them into view, and a picked tab scrolls in', async ({ page }) => {
-  await page.setViewportSize({ width: 900, height: 600 });
-  await page.goto('main.html#/settings?group=plugins&still=1');
+  // Eight settings tabs fit at 900; a narrower window still leaves some out.
+  await page.setViewportSize({ width: 700, height: 600 });
+  await page.goto('main.html#/settings?group=speak&still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
   const prev = nav.getByRole('button', { name: '向左滚动页签' });
   const next = nav.getByRole('button', { name: '向右滚动页签' });
@@ -138,21 +139,21 @@ test('tabs that do not fit show an arrow at that end, the arrow scrolls them int
     });
   await expect(next).toBeVisible();
   await expect(prev).toBeHidden();
-  expect(await shown('高级')).toBe(false);
+  expect(await shown('关于')).toBe(false);
   // Each arrow press pages one plate width; the named cells here need one more.
   await next.click();
-  await expect.poll(() => shown('高级')).toBe(true);
+  await expect.poll(() => shown('关于')).toBe(true);
   await expect(next).toBeHidden();
   await expect(prev).toBeVisible();
   await prev.click();
   await expect(next).toBeVisible();
-  await expect.poll(() => shown('插件')).toBe(true);
+  await expect.poll(() => shown('说话')).toBe(true);
   await expect(prev).toBeHidden();
   // Q from the first group wraps to the last, which scrolls into view; its name is written in the cell.
   await page.keyboard.press('q');
-  await expect(nav.getByRole('tab', { selected: true })).toHaveAttribute('title', '高级');
-  await expect.poll(() => shown('高级')).toBe(true);
-  await expect(nav.getByRole('tab', { selected: true })).toContainText('高级');
+  await expect(nav.getByRole('tab', { selected: true })).toHaveAttribute('title', '关于');
+  await expect.poll(() => shown('关于')).toBe(true);
+  await expect(nav.getByRole('tab', { selected: true })).toContainText('关于');
   await page.setViewportSize({ width: 1385, height: 770 });
   await expect(next).toBeHidden();
   await expect(prev).toBeHidden();

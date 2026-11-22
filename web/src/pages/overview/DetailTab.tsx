@@ -10,8 +10,15 @@ import styles from './DetailTab.module.css';
 type Sort = 'def' | 'up' | 'down';
 type Cmp = 'avg' | 'y';
 
-/** 设置页里管这个开关的分组。 */
-const SWITCH_GROUP: Record<BriefSwitch, string> = { scr: 'plugins', read: 'privacy', shot: 'privacy', code: 'privacy', agent: 'plugins', voice: 'speak' };
+/** 设置页里管这个开关的分组；插件开关带着它的行。 */
+const SWITCH_AT: Record<BriefSwitch, { group: string; item?: string }> = {
+  scr: { group: 'privacy', item: 'plugins.screen_awareness' },
+  read: { group: 'privacy' },
+  shot: { group: 'privacy' },
+  code: { group: 'privacy' },
+  agent: { group: 'kernel', item: 'plugins.harness_bridge' },
+  voice: { group: 'speak' },
+};
 
 const W = 240;
 const H = 50;
@@ -134,7 +141,7 @@ export function DetailTab({ day, pins, onPins }: BriefTabProps) {
           <span>
             另有 <b className="num">{off.length}</b> 项没记，因为这些开关关着：{offSwitches.map((s) => SWITCH_LABEL[s]).join('、')}
           </span>
-          <Btn variant="text" size="sm" onClick={() => go({ page: 'settings', group: SWITCH_GROUP[offSwitches[0]!] })}>
+          <Btn variant="text" size="sm" onClick={() => go({ page: 'settings', ...SWITCH_AT[offSwitches[0]!] })}>
             前往设置
           </Btn>
         </div>

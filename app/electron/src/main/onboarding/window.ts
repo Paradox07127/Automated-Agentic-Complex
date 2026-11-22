@@ -13,7 +13,7 @@ export type OnboardingDestination = 'home' | 'model' | 'plugins';
 
 /** The routes the guide's end opens. */
 export const DESTINATIONS: Record<OnboardingDestination, string> = {
-  home: '/home', model: '/settings?group=model', plugins: '/settings?group=plugins',
+  home: '/home', model: '/settings?group=model', plugins: '/settings?group=perm',
 };
 
 /** The room a title bar and the window's borders take on either system. */
