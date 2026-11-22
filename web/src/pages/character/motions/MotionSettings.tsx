@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type MotionOverrideAdjusted } from '../../../bridge';
+import { motionGroups } from '../../../bridge/motionGroups';
 import { ErrBar, Skel } from '../../../ui';
 import { GameSeg, MicroLabel } from '../../../ui/game';
 import { failure } from '../api';
@@ -18,8 +19,9 @@ import { EventGrid } from './EventGrid';
 import { chainGroups, readGraph, shortName, type ChainRow } from './graph';
 import { ghosts, HARD, junctions, type Junction } from './joints';
 import { LoopMap, stanceWord, tierName, type Lane } from './LoopMap';
-import { PoolRows } from './PoolRows';
-import { packEntries, poolsOf, type Pool } from './pools';
+import { MAX_ENTRIES, PoolRows } from './PoolRows';
+import { asWeight, packEntries, poolsOf, type Pool } from './pools';
+import { Counts, Outside, PoolProposals } from './Proposals';
 import { useChainEdit } from './useChainEdit';
 import { useMotionDraft } from './useMotionDraft';
 import styles from './Chain.module.css';
@@ -48,6 +50,7 @@ const NO_PLAY = '这个版本还不支持在桌面上播放';
 const NO_SEQUENCE = '这个版本的渲染器还不支持预览动作链';
 const NO_LIVE = '实时预览没有打开';
 const NO_SHA = '取不到当前角色包的版本（package_sha256），不能检查或应用';
+const GROUPS_FAIL: Record<string, string> = { not_current: '不是当前角色', motion_graph_missing: '角色包还没有动作图' };
 const STANDBY: Record<string, string> = { stand: '站姿待机', sit: '坐姿待机', floor: '坐地上待机', boss: 'Boss 待机' };
 const POSTURE: Record<string, string> = { sit: '坐着', floor: '坐地上', lie: '躺着' };
 const BANDS: GapBand[] = [1, 2, 3, 4, 0];
@@ -61,6 +64,9 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
   const graph = useQuery({ queryKey: ['character', 'motion-graph', id], queryFn: () => readGraph(id), enabled: id !== '' });
   const ovKey = ['avatar', 'motion-overrides', id];
   const ov = useQuery({ queryKey: ovKey, queryFn: () => getBridge().avatar.motionOverrides.get(), enabled: id !== '' });
+  const groups = useQuery({ queryKey: ['character', 'motion-groups', id], queryFn: () => motionGroups(id), enabled: id !== '' });
+  // `${character}\n${pool}\n${clip}` of each proposal 不要 hid on this visit.
+  const [dropped, setDropped] = useState<ReadonlySet<string>>(() => new Set());
   const d = useMotionDraft(ov.data);
   const ce = useChainEdit(id, graph.data?.package_sha256, toast, () => void qc.invalidateQueries({ queryKey: ['character', 'motion-graph', id] }));
   const [adjusted, setAdjusted] = useState<Record<Kind, Record<string, string>>>({ chain: {}, pool: {}, blend_in: {} });
@@ -101,9 +107,13 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
   const jointsOf = (k: string) => joints.get(k) ?? NO_JOINTS;
   const own = (p: Pool) => (p.key in d.draft.pools ? (d.draft.pools[p.key] ?? null) : (stored.pools[p.key] ?? null));
   const entriesOf = (p: Pool) => own(p) ?? packEntries(p);
+  const mg = groups.data;
+  const pendingOf = (p: Pool) =>
+    (mg?.pools[p.key]?.proposal ?? []).filter((x) => !dropped.has(`${id}\n${p.key}\n${x.clip}`) && !entriesOf(p).some((e) => e.clip === x.clip));
   const laneOf = (p: Pool): Lane => {
     const entries = entriesOf(p);
-    return { pool: p, n: entries.length, hard: entries.filter((e) => jointsOf(e.clip).some((j) => j.flags.includes(HARD))).length, changed: own(p) != null, bad: p.key in adjusted.pool };
+    const hard = entries.filter((e) => jointsOf(e.clip).some((j) => j.flags.includes(HARD))).length;
+    return { pool: p, n: entries.length, hard, changed: own(p) != null, bad: p.key in adjusted.pool, proposed: pendingOf(p).length };
   };
   const tiers = pools.filter((p) => p.kind === 'tier').sort((a, b) => tierNo(a) - tierNo(b));
   const events = pools.filter((p) => p.kind === 'event');
@@ -170,10 +180,12 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
       )
       .finally(() => setPreviewing(false));
   };
-  /** A row's ▶: the pack's chain with the blends shown. */
+  /** A clip alone, as a chain of one. */
+  const previewClip = (clip: string) => preview(shortName(clip), [clip], []);
+  /** A row's ▶: the pack's chain with the blends shown; a member that starts no chain (a proposal taken) plays alone. */
   const previewRow = (key: string) => {
     const segs = g.chains[key];
-    if (!segs) return;
+    if (!segs) return previewClip(key);
     const path = chainPath(ix, key, segs);
     const blends = path.segs.slice(1).map((s) => blendIn(s.seg.clip) ?? s.joint?.blend ?? g.crossfade_s ?? 0.25);
     preview(labelOf(key), path.segs.map((s) => s.seg.clip), blends);
@@ -280,6 +292,7 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
           ))}
         </ul>
       </div>
+      {mg && <Counts counts={mg.counts} />}
       {m === 'idle' ? (
         <>
           <div className={styles.sh}>
@@ -317,10 +330,25 @@ export function MotionSettings({ offline, toast }: MotionSettingsProps) {
           onPreview={previewRow}
           onPool={(e) => d.setPool(pool.key, e)}
           inspector={inspector}
+          extra={
+            groups.isError ? (
+              <ErrBar message={`读取动作池失败：${GROUPS_FAIL[codeOf(groups.error) ?? ''] ?? failure(groups.error).text}`} onRetry={() => void groups.refetch()} />
+            ) : mg?.pools[pool.key] ? (
+              <PoolProposals
+                group={mg.pools[pool.key]!}
+                pending={pendingOf(pool)}
+                acceptBlock={lock ?? (entries.length >= MAX_ENTRIES ? `一个池子最多 ${MAX_ENTRIES} 条` : null)}
+                onPreview={previewClip}
+                onAccept={(x) => d.setPool(pool.key, [...entries, { clip: x.clip, weight: asWeight(x.weight) }])}
+                onDrop={(clip) => setDropped((s) => new Set(s).add(`${id}\n${pool.key}\n${clip}`))}
+              />
+            ) : null
+          }
         />
       ) : (
         <p className={styles.none}>角色包里没有能改的池子</p>
       )}
+      {mg && <Outside groups={mg} onPreview={previewClip} />}
       {ce.editing && (
         <ChainEditBar
           n={ce.edits.length}

@@ -101,6 +101,18 @@
   transform: rotate(45deg);
 }
 
+/* agentd's pending proposals for the pool. */
+.pr {
+  padding: 1px 4px;
+  background: var(--ef-g-reddot);
+  color: #fff;
+  font: 700 11px / 1 var(--ef-font-num);
+}
+
+.pr::before {
+  content: '+';
+}
+
 .cell[aria-checked='true'] {
   background: var(--ef-accent);
   color: #1a1a1a;

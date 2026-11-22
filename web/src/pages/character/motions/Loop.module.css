@@ -270,6 +270,19 @@
   stroke-width: 1.6;
 }
 
+/* agentd's pending proposals for the tier. */
+.pr {
+  flex: none;
+  padding: 2px 4px;
+  background: var(--ef-g-reddot);
+  color: #fff;
+  font: 700 11px / 1 var(--ef-font-num);
+}
+
+.pr::before {
+  content: '+';
+}
+
 @container op (max-width: 1100px) {
   .map {
     grid-template-columns: 92px 1fr;
@@ -368,6 +381,11 @@
 
   .n {
     width: 20px;
+    font-size: 10px;
+  }
+
+  .pr {
+    padding: 1px 3px;
     font-size: 10px;
   }
 }

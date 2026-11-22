@@ -39,6 +39,8 @@ export interface PoolRowsProps {
   onPool: (entries: MotionPoolEntry[] | null) => void;
   /** The open row's inspector, right under it. */
   inspector: ReactNode;
+  /** agentd's proposals and refusals for the pool, under its rows. */
+  extra?: ReactNode;
 }
 
 const WHERE: Record<Junction['where'], string> = { entry: '进入', inner: '段间', exit: '回站姿' };
@@ -89,6 +91,7 @@ export function PoolRows(p: PoolRowsProps) {
     <section className={styles.pool} aria-label={`池子 ${pool.key}`} data-pool={pool.key}>
       <TitleBar
         title={p.title}
+        {...(full ? { count: p.entries.length, total: MAX_ENTRIES } : {})}
         {...(compact ? {} : { note: p.detail })}
         actions={
           <>
@@ -206,6 +209,7 @@ export function PoolRows(p: PoolRowsProps) {
             </ul>
           )}
         </div>
+        {p.extra}
       </div>
     </section>
   );

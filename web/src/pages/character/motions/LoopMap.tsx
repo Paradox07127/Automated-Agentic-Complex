@@ -9,13 +9,14 @@ import type { Pool } from './pools';
 import { along, rangeText, secText, TICKS, tickText } from './timing';
 import styles from './Loop.module.css';
 
-/** One idle tier's lane: its pool, how many chains it holds, how many of them cut hard, whether it was changed or not taken. */
+/** One idle tier's lane: its pool, how many chains it holds, how many of them cut hard, whether it was changed or not taken, agentd's pending proposals. */
 export interface Lane {
   pool: Pool;
   n: number;
   hard: number;
   changed: boolean;
   bad: boolean;
+  proposed: number;
 }
 
 export interface LoopMapProps {
@@ -125,7 +126,7 @@ export function LoopMap({ ix, lanes, sel, onSel }: LoopMapProps) {
             const p = l.pool;
             const text = laneText(p);
             const on = p.key === sel;
-            const full = [`${tierName(p.key)} ${stanceWord(p.posture)}`, text ?? '包里没有写抽取时间', `${l.n} 条`, l.hard > 0 ? `${l.hard} 条会硬切` : null].filter(Boolean).join(' │ ');
+            const full = [`${tierName(p.key)} ${stanceWord(p.posture)}`, text ?? '包里没有写抽取时间', `${l.n} 条`, l.hard > 0 ? `${l.hard} 条会硬切` : null, l.proposed > 0 ? `建议 ${l.proposed}` : null].filter(Boolean).join(' │ ');
             const a = p.after_s ? along(p.after_s[0]) : 0;
             const b = p.after_s ? along(p.after_s[1]) : 0;
             return (
@@ -158,6 +159,11 @@ export function LoopMap({ ix, lanes, sel, onSel }: LoopMapProps) {
                   </span>
                 </span>
                 {l.hard > 0 && <span className={styles.warn}>{l.hard} 硬切</span>}
+                {l.proposed > 0 && (
+                  <span className={styles.pr} data-proposed="">
+                    {l.proposed}
+                  </span>
+                )}
                 <span className={styles.n}>
                   {l.n}
                   <small> 条</small>

@@ -54,7 +54,7 @@ export function EventGrid({ cells, groupTitle, sel, onSel }: EventGridProps) {
                   className={styles.cell}
                   data-pool-cell={p.key}
                   data-bad={c.bad || undefined}
-                  title={[p.key, `${c.n} 条`, c.hard > 0 ? `${c.hard} 条会硬切` : null].filter(Boolean).join(' │ ')}
+                  title={[p.key, `${c.n} 条`, c.hard > 0 ? `${c.hard} 条会硬切` : null, c.proposed > 0 ? `建议 ${c.proposed}` : null].filter(Boolean).join(' │ ')}
                   onClick={() => onSel(p.key)}
                 >
                   <span className={styles.band} aria-hidden="true">
@@ -66,6 +66,11 @@ export function EventGrid({ cells, groupTitle, sel, onSel }: EventGridProps) {
                     {c.n} 条
                     {c.hard > 0 && <i className={styles.hard} aria-label="有会硬切的链" />}
                     {c.changed && <Diamond tone="yellow" size={6} />}
+                    {c.proposed > 0 && (
+                      <span className={styles.pr} data-proposed="">
+                        {c.proposed}
+                      </span>
+                    )}
                   </span>
                 </button>
               );
