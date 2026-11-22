@@ -312,9 +312,19 @@ async function query(message) {
   const run = { id: message.run_id, cancelled: false, turns: 0, cost: 0, text: [], textItem: null,
     usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 } };
   active = run;
+  const stream = session.agent.streamFunction;
   try {
     // The connection's current key; a subscription token may have been refreshed since init.
     if (message.api_key) await modelRuntime.setRuntimeApiKey(config.provider, message.api_key);
+    if (message.system_prompt !== undefined) {
+      // Product history replaces both the model's messages and Pi's in-memory transcript for each quick query.
+      session.sessionManager.newSession({ id: session.sessionId });
+      session.agent.state.messages = [];
+      session.agent.streamFunction = (model, context, options) => {
+        const maxTokens = Math.min(model.maxTokens, message.max_output_tokens);
+        return stream({ ...model, maxTokens }, { ...context, systemPrompt: message.system_prompt }, { ...options, maxTokens });
+      };
+    }
     const answer = message.ask_user_result;
     if (answer) {
       const timestamp = Date.now();
@@ -351,7 +361,10 @@ async function query(message) {
       subtype: run.cancelled ? "cancelled" : run.limit || "model_error", final_text: "", usage: usage(run),
       model: config.model, provider: config.provider, cost_usd: priced ? run.cost : null,
       error_message: String(error?.message || "").slice(0, 2000) });
-  } finally { active = undefined; endPending(); }
+  } finally {
+    if (message.system_prompt !== undefined) session.agent.streamFunction = stream;
+    active = undefined; endPending();
+  }
 }
 async function command(message) {
   if (!message || message.v !== 1) throw new Error("invalid_protocol");

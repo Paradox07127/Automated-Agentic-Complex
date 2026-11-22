@@ -409,7 +409,7 @@ class C6FixtureTest(unittest.TestCase):
 
     def test_get_bodies_match_fixtures(self):
         loose = json.loads((FIXTURES / "loose-fields.json").read_text(encoding="utf-8"))
-        backed = [r for r in REGISTRY if r.response is not None]
+        backed = [r for r in REGISTRY if r.method == "GET" and r.response is not None]
         self.assertTrue(backed)
         for route in backed:
             path = re.sub(r":(\w+)", lambda m: self.params[m[1]], (route.templates or (route.path,))[0])

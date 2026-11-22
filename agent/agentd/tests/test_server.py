@@ -1263,6 +1263,9 @@ class KernelLines:
         ready = {"ready": True, "error": None, "backend": "pi"}
         return {**ready, "routes": {"chat": ready, "background": ready}}
 
+    def quick_status(self):
+        return self.public()["routes"]["chat"]
+
     def busy(self):
         return False
 

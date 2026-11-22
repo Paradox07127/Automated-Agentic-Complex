@@ -12,6 +12,7 @@
   "web_access": "off",
   "routes": {
     "chat": {"backend": "codex", "acp_agent": null, "model": null, "effort": null, "follows_main": true, "ready": true, "error": null},
+    "quick": {"backend": "pi", "acp_agent": null, "model": null, "effort": null, "follows_main": false, "ready": false, "error": "runtime_missing"},
     "background": {"backend": "codex", "acp_agent": null, "model": "gpt-5.5", "effort": "high", "follows_main": false, "ready": true, "error": null},
     "judge": {"backend": "claude", "acp_agent": null, "model": "sonnet", "effort": "low", "follows_main": false, "ready": false, "error": "native_login_required"},
     "understand": {"backend": "codex", "acp_agent": null, "model": null, "effort": null, "follows_main": true, "ready": true, "error": null},

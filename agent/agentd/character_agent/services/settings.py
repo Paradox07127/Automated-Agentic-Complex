@@ -19,7 +19,7 @@ DEFAULTS = {"backend": "pi", "runtime_source": "bundled", "executable": None,
             "routes": {}, "acp_agent": None, "acp_launcher": "local", "workspace_dir": None,
             "reply_language": "auto", "pi_tool_approval": True}
 # Purposes `routes` may give their own kernel; a purpose without an entry runs on the main config.
-ROUTES = ("chat", "background", "judge", "understand", "memory", "computer")
+ROUTES = ("chat", "quick", "background", "judge", "understand", "memory", "computer")
 EFFORTS = (None, "inherit", "low", "medium", "high")
 
 
@@ -89,10 +89,10 @@ class RuntimeSettings:
         routes = result["routes"]
         if not isinstance(routes, dict) or set(routes) - set(ROUTES):
             raise ValueError("invalid_routes")
-        for entry in routes.values():
+        for purpose, entry in routes.items():
             if not isinstance(entry, dict) or set(entry) != {"backend", "acp_agent", "model", "effort"}:
                 raise ValueError("invalid_routes")
-            if entry["backend"] not in ("codex", "pi", "acp", "claude"):
+            if entry["backend"] not in ("codex", "pi", "acp", "claude") or purpose == "quick" and entry["backend"] != "pi":
                 raise ValueError("invalid_route_backend")
             if (entry["acp_agent"] is not None or entry["backend"] == "acp") and (
                     not isinstance(entry["acp_agent"], str) or entry["acp_agent"] not in _acp_registry_ids()):
@@ -149,6 +149,14 @@ class RuntimeSettings:
                 value["acp_agent"] = entry["acp_agent"]
             if entry["model"] is not None:
                 value["model"] = entry["model"]
+        if purpose == "quick":
+            chat = RuntimeSettings.route(config, "chat")
+            value.update(backend="pi", provider="", acp_agent=None, auth_source="existing_login",
+                         model=(entry and entry["model"]) or (chat["model"] if chat["backend"] == "pi" else ""))
+            if config["backend"] != "pi":
+                value.update(runtime_source="bundled", executable=None)
+            elif config["auth_source"] == "local_no_auth":
+                value["auth_source"] = "local_no_auth"
         value["_turn_effort"] = None if effort == "inherit" else effort or (
             "low" if purpose == "chat" and value["backend"] == "codex" else None)
         return value

@@ -341,6 +341,8 @@ REGISTRY = (
           owner=SERVER, action="_hooks_disconnect", summary="Disconnect the installed agent hooks", spec=C6),
     Route("POST", "/context/privacy/sync", UI, "native_only", (),
           owner=SERVER, action="_privacy_sync", summary="Native privacy settings sync", spec=C6),
+    Route("POST", "/chat/prewarm", UI, "write", ("main",),
+          owner=SERVER, action="_chat_prewarm", summary="Prewarm the character's quick Pi session", spec=C6, response="chat-prewarm.json"),
     Route("POST", "/say", UI, "write", ("main",),
           owner=SERVER, action="_say_post", summary="User text or voice turn", spec=C6),
     Route("POST", "/speech/cancel", UI, "host_only", (),

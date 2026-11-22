@@ -64,6 +64,12 @@ class ManagedPiSession(ManagedClaudeSession):
         # (ready frame) -> None, each time a runner starts.
         self.on_ready = on_ready
 
+    def prewarm(self):
+        with self._state_lock:
+            if self._ready is not None and self._proc.poll() is None:
+                return
+        self.probe("")
+
     def _queue(self, event, generation):
         # The model's own error text is classified here and goes no further: it may quote request content.
         if event.get("type") == "result" and "error_message" in event:

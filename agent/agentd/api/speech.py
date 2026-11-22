@@ -15,6 +15,20 @@ SURFACES = ("quick_input", "bubble_reply", "thought_offer", "chat")
 
 
 class SpeechMixin:
+    def _chat_prewarm(self, body):
+        from character_agent.harness.transport import HarnessError
+        agent = self.server.character_agent
+        if self.server.closing or agent is None:
+            return self._json(503, {"error": "shutting_down" if self.server.closing else "no_llm"})
+        status = agent.quick_status()
+        if not status["ready"]:
+            return self._json(503, {"error": status["error"]})
+        try:
+            agent.quick_session().prewarm()
+        except (HarnessError, ValueError) as failure:
+            return self._json(503, {"error": str(failure)})
+        return self._json(200, {"ready": True})
+
     def _say(self, body):
         """(code, body) of one /say."""
         text = body.get("text") if isinstance(body, dict) else None

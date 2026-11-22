@@ -1,5 +1,6 @@
 """A turn: /say and /look, claiming and running a line, and its history row."""
 import datetime
+import re
 import secrets
 import sqlite3
 import sys
@@ -28,6 +29,18 @@ SIDE_SPEECH_WAIT = 5.0  # seconds a side line's reply waits for the speech befor
 TEXT_HOLD_MS, TEXT_HOLD_MAX_MS = 60, 3000
 # observation state -> event status; declined and unavailable are policy outcomes, not faults; failed stays failed
 OBSERVED = {"ready": "ok", "declined": "ok", "unavailable": "ok", "cancelled": "cancelled", "expired": "expired"}
+
+
+COMPUTER_REQUEST = re.compile(
+    r"[a-z][a-z0-9+.-]*://\S|www\.\S|(?:~/|(?<![a-z0-9])/|[a-z]:\\)[^\s/]|[\w-]+\.[a-z][a-z0-9]*"
+    r"|(?:打开|运行|执行|安装|修改|改一下|修一下|写个|创建|删除|搜索|查一下|整理|发给|下载)\s*\w"
+    r"|\b(?:open|run|execute|install|edit|create|delete|search|download)\s+\w", re.I)
+
+
+def foreground_route(text, *, command=None, scope_id=None, look=False, reply_to=None):
+    if command or scope_id or look or reply_to or COMPUTER_REQUEST.search(text):
+        return "chat"
+    return "quick"
 
 
 class TurnsMixin:
@@ -72,6 +85,7 @@ class TurnsMixin:
         if not plugins.on("personal_agent") and (scope_id or expected_outputs or resume_run_id or
                                                   command and command["action"] == "dispatch"):
             return 409, {"error": "plugin_off", "plugin": "personal_agent"}
+        deterministic = command is not None
         stop_task = command is not None and command['action'] == 'stop_task'
         if stop_task and self.character_agent.jobs \
                 and self.character_agent.jobs.store.list(states=('queued', 'running'), limit=None):
@@ -95,21 +109,8 @@ class TurnsMixin:
             if self.mouth is None:
                 return (409, {"error": "no_character"}) if self.no_character else (503, {"error": "no_llm"})
             scope_warning = None
-            status = runtime_status()["routes"]["chat"]
-            if not status["ready"]:
-                return 503, {"error": status["error"], "runtime": status["backend"]}
             explicit_scope = scope_id is not None or resume_run_id is not None
             scope_id = (scope_id or self.character_agent.settings.snapshot().get("scope_id")) if remember and plugins.on("personal_agent") else None
-            if scope_id:
-                try:
-                    self.character_agent.workspace.validate_scope(scope_id)
-                except ValueError as error:
-                    if explicit_scope:
-                        return 409, {"error": getattr(error, "code", "scope_changed")}
-                    scope_warning = getattr(error, "code", "scope_changed")
-                    if scope_warning in ("scope_expired", "scope_revoked", "unknown_scope"):
-                        self.character_agent.drop_default_scope(scope_id)
-                    scope_id = None
             with self._switch_lock:  # prepare cannot open a switch between the check and the new turn
                 if self.closing:
                     return 503, {"error": "shutting_down"}
@@ -118,6 +119,23 @@ class TurnsMixin:
                 # While the foreground run works, new input gets a read-only side session and the run keeps going.
                 side = resume_run_id is None and expected_outputs is None and not stop_task \
                     and self.character_agent.busy()
+                route = foreground_route(text, command=deterministic, scope_id=explicit_scope,
+                                         look=look or look_window, reply_to=reply_to)
+                if side or expected_outputs is not None:
+                    route = "chat"
+                status = self.character_agent.quick_status() if route == "quick" else runtime_status()["routes"]["chat"]
+                if not status["ready"]:
+                    return 503, {"error": status["error"], "runtime": status["backend"]}
+                if scope_id:
+                    try:
+                        self.character_agent.workspace.validate_scope(scope_id)
+                    except ValueError as error:
+                        if explicit_scope:
+                            return 409, {"error": getattr(error, "code", "scope_changed")}
+                        scope_warning = getattr(error, "code", "scope_changed")
+                        if scope_warning in ("scope_expired", "scope_revoked", "unknown_scope"):
+                            self.character_agent.drop_default_scope(scope_id)
+                        scope_id = None
                 with self._turn_lock:  # a cancel of the old generation cannot cut the new line
                     if side:
                         generation, cancel = self.turn_generation, threading.Event()
@@ -131,6 +149,7 @@ class TurnsMixin:
                     body["scope_warning"] = scope_warning
                 trace = self._open_trace(line_id, generation, source, text, remember=remember,
                                          voice_timing=voice_timing)
+                trace['route'] = route
                 if dispatch_target:
                     trace['dispatch_target'] = dispatch_target
                 if reminder_unparsed:

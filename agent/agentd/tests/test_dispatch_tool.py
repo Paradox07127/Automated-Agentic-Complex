@@ -65,7 +65,7 @@ class DispatchToolTests(unittest.TestCase):
             time.sleep(0.005)
         self.assertFalse(self.server._live_lines)
 
-    def line(self, text='你好', no_memory=False):
+    def line(self, text='查一下派发的任务', no_memory=False):
         status, body = self.server.say(text, remember=not no_memory)
         self.assertEqual(status, 202, body)
         self.settled()

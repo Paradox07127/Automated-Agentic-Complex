@@ -136,7 +136,8 @@ class SettingsTests(unittest.TestCase):
                                          'auth_source': 'api_key', 'provider': 'deepseek', 'model': 'deepseek-chat'})
         for purpose in ROUTES:
             with self.subTest(follows=purpose):
-                self.assertEqual(RuntimeSettings.route(main, purpose), {**main, '_turn_effort': None})
+                account = {'auth_source': 'existing_login', 'provider': ''} if purpose == 'quick' else {}
+                self.assertEqual(RuntimeSettings.route(main, purpose), {**main, **account, '_turn_effort': None})
         codex = RuntimeSettings.validate({'backend': 'codex', 'runtime_source': 'local', 'model': 'gpt-5'})
         self.assertEqual(RuntimeSettings.route(codex, 'chat')['_turn_effort'], 'low')
         self.assertIsNone(RuntimeSettings.route(codex, 'background')['_turn_effort'])
@@ -174,7 +175,7 @@ class SettingsTests(unittest.TestCase):
             'understand': ['observation_brief', 'observation_interpret', 'observation_summary', 'observation_vision',
                            'user_vision'],
             'memory': ['memory_extract', 'worklog_deep', 'worklog_fast']})
-        self.assertEqual(ROUTES, ('chat', 'background', 'judge', 'understand', 'memory', 'computer'))
+        self.assertEqual(ROUTES, ('chat', 'quick', 'background', 'judge', 'understand', 'memory', 'computer'))
 
     def test_corrupt_config_is_diagnosed_without_overwriting_it(self):
         self.settings.path.write_text('{corrupt', encoding='utf-8')

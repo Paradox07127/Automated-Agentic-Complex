@@ -134,13 +134,14 @@ class RuntimeRouteTests(unittest.TestCase):
     def test_runtime_reply_reports_every_route_and_whether_its_kernel_is_ready(self):
         code, reply = self.request('GET')
         self.assertEqual(code, 200)
-        self.assertEqual(reply['routes'], {purpose: {**route('codex'), 'follows_main': True, 'ready': True, 'error': None}
-                                           for purpose in ROUTES})
+        expected = {purpose: {**route('codex'), 'follows_main': True, 'ready': True, 'error': None} for purpose in ROUTES}
+        expected['quick'] = {**route('pi'), 'follows_main': False, 'ready': False, 'error': 'runtime_missing'}
+        self.assertEqual(reply['routes'], expected)
         chat, judge = route('codex', 'fast-model'), route('claude', 'sonnet', 'low')
         reply = self.put({'routes': {'chat': chat, 'judge': judge}})
         self.assertEqual(RuntimeSettings(self.root).snapshot()['routes'], {'chat': chat, 'judge': judge})
         self.assertEqual(reply['routes'], {
-            **{purpose: {**route('codex'), 'follows_main': True, 'ready': True, 'error': None} for purpose in ROUTES},
+            **expected,
             'chat': {**chat, 'follows_main': False, 'ready': True, 'error': None},
             'judge': {**judge, 'follows_main': False, 'ready': False, 'error': 'runtime_missing'}})
         self.assertEqual(set(reply) - {'routes'}, set(self.request('GET')[1]) - {'routes'})
@@ -207,13 +208,13 @@ class RuntimeRouteTests(unittest.TestCase):
         with patch.object(self.server, '_run_character_line', side_effect=lambda *args, **kwargs: lines.append(args[0])):
             self.rows[:] = [self.found('claude', True)]
             self.assertFalse(self.controller.public()['ready'])
-            status, body = self.server.say('你好')
+            status, body = self.server.say('整理资料')
             self.assertEqual((status, body.get('runtime')), (202, 'claude'), body)
             self.assertEqual(self.server._line_lane(), 'kernel')
             self.rows[:] = [self.found('codex', True), self.found('claude', False)]
             self.assertTrue(self.controller.public()['ready'])
             self.assertIsNone(self.server._line_lane())
-            self.assertEqual(self.server.say('你好'), (503, {'error': 'native_login_required', 'runtime': 'claude'}))
+            self.assertEqual(self.server.say('整理资料'), (503, {'error': 'native_login_required', 'runtime': 'claude'}))
 
 class SemanticRouteTests(unittest.TestCase):
     setUp = semantic_fixture.SemanticTests.setUp

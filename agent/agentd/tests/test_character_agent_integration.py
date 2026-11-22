@@ -138,7 +138,7 @@ class IntegrationTests(IntegrationFixture):
         for backend in ('pi','codex'):
             with self.subTest(backend=backend):
                 self.controller.configure({'backend':backend,'runtime_source':'local'})
-                self.line('侧身和我一起看')
+                self.line('执行侧身动作和我一起看')
                 self.assertIn('avatar_face',{t['name'] for t in self.definitions[-1]})
                 result=self.sessions[-1].responses[-2][2]
                 self.assertTrue(result['accepted'],result)
@@ -172,8 +172,8 @@ class IntegrationTests(IntegrationFixture):
         calls = self.desktop_bridge()
         self.addCleanup(self.controller.tools.close_all, 'shutdown')
         self.script = self.desktop_script
-        self.line('帮我看看这个窗口')
-        self.line('再看一次')
+        self.line('查一下这个窗口')
+        self.line('再查一下窗口')
         conversation = self.server.history.conversations.active
         status = [c for c in calls if c[1] == 'desktop_status']
         self.assertEqual([c[0] for c in status], ['character:' + conversation] * 2)
@@ -193,7 +193,7 @@ class IntegrationTests(IntegrationFixture):
             raise RuntimeError('synthetic_run_failure')
         conn, response = self.open_feed(); self.addCleanup(conn.close)
         with patch.object(runtime, 'run', run):
-            status, body = self.request('POST', '/say', {'text': '帮我看看这个窗口'})
+            status, body = self.request('POST', '/say', {'text': '查一下这个窗口'})
             self.assertEqual(status, 202, body)
             events = self.lines_until_final(response)
         self.assertTrue(events[-1].get('error'), events)
@@ -234,7 +234,7 @@ class IntegrationTests(IntegrationFixture):
                 'kind': 'preference', 'evidence_quote': '周报先列证据再给结论'})
             yield {'type': 'result', 'success': True, 'final_text': '记下了', 'usage': {}}
         self.script = remember
-        body, _ = self.line('请记住：周报先列证据再给结论')
+        body, _ = self.line('修改我的偏好：请记住周报先列证据再给结论')
         self.assertEqual(self.server.memory.active()[0]['text'], '周报先列证据再给结论')
         status, page = self.request('GET', '/memory/runs')
         self.assertEqual(status, 200)
@@ -307,14 +307,14 @@ class IntegrationTests(IntegrationFixture):
         for path in ('/memory/runs', '/memory/runs/one', '/character/capabilities'):
             self.assertEqual(self.request('GET', path, token='hook-token')[0], 401)
         results = self.calling('memory_propose')
-        self.line('这轮不保存生成内容', no_memory=True)
+        self.line('查一下资料，这轮不保存生成内容', no_memory=True)
         self.assertEqual(self.request('GET', '/memory/runs')[1]['runs'], [])
         self.assertEqual(results['memory_propose']['error']['code'], 'tool_not_allowed_in_mode')
         self.assertEqual(self.request('GET', '/memory/runs?limit=0')[0], 400)
         self.assertEqual(self.request('GET', '/memory/runs/missing')[0], 404)
 
     def test_history_clear_removes_generation_inputs_and_reset_classifies_tables(self):
-        self.line('生成记录只在授权范围内保留')
+        self.line('查一下资料，生成记录只在授权范围内保留')
         self.assertEqual(len(self.request('GET', '/memory/runs')[1]['runs']), 1)
         self.assertEqual(self.request('DELETE', '/history')[0], 200)
         self.assertEqual(self.request('GET', '/memory/runs')[1]['runs'], [])
@@ -355,7 +355,7 @@ class IntegrationTests(IntegrationFixture):
                 yield from session.use(options, 'background_start', {'title': '核查', 'instruction': '先询问用途'})
             yield from chat(session, prompt, options)
         self.script = script
-        submitted, _ = self.line('后台核查，先询问用途')
+        submitted, _ = self.line('在后台查一下资料，先询问用途')
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
             rows = self.request('GET', '/agent/interactions')[1]['requests']
@@ -419,7 +419,7 @@ class IntegrationTests(IntegrationFixture):
         self.controller.jobs.close()
 
     def test_memory_change_revokes_retained_generation_details(self):
-        self.line('生成记录中有已授权来源')
+        self.line('查一下生成记录中已授权的来源')
         ident = self.controller.memory_journal.list()[0]['run_id']
         self.controller.cancel('context_changed')
         self.assertIsNone(self.controller.memory_journal.get(ident)['detail'])
@@ -496,7 +496,7 @@ class IntegrationTests(IntegrationFixture):
             body, _ = self.line('整理报销汇总', scope_id=scope)
             first_run = body['run_id']
             seen['task_id'] = self.controller.store.get(first_run)['task_id']
-            self.line('接着刚才那个继续')
+            self.line('接着刚才那个继续', scope_id=scope)
             self.assertNotIn('error', seen['first'], seen['first'])
             job_id = seen['first']['job_id']
             release.set(); deadline = time.monotonic() + 3
@@ -529,7 +529,7 @@ class IntegrationTests(IntegrationFixture):
             background = self.controller.store.get(self.controller.jobs.store.get(job['job_id'])['run_id'])['task_id']
             body, _ = self.line('整理报销汇总', scope_id=scope)
             task_id = self.controller.store.get(body['run_id'])['task_id']
-            self.line('接着刚才那个继续')
+            self.line('接着刚才那个继续', scope_id=scope)
             prompt, system = self.sessions[-1].calls[-1]['prompt'], self.sessions[-1].calls[-1]['system_prompt']
             self.line('临时问一句', no_memory=True)
             temporary = self.sessions[-1].calls[-1]['prompt']
@@ -814,7 +814,7 @@ class IntegrationTests(IntegrationFixture):
 
     def test_temporary_conversation_uses_selected_harness_without_persistent_words_or_actions(self):
         results = self.calling('task_plan')
-        body, _ = self.line('private-synthetic-turn', no_memory=True)
+        body, _ = self.line('search private-synthetic-turn', no_memory=True)
         self.assertEqual(body['runtime'], 'pi')
         self.assertEqual(body['runtime_reason'], 'temporary_read_only')
         self.assertEqual(self.server.history.export(), [])
@@ -1026,7 +1026,7 @@ class IntegrationTests(IntegrationFixture):
         text, final = self.reply_of(response, task['line_id'])
         self.assertEqual((text, final['error'], final['cancelled']), ('Hello', None, False))
         self.until(lambda: self.state(task['run_id']) == 'completed' and not self.server._live_lines)
-        self.line('下一轮')
+        self.line('下一轮也整理资料')
         self.assertIs(self.controller.runtime, runtime)
         self.assertEqual(len(self.sessions), 1)
 
@@ -1066,7 +1066,7 @@ class IntegrationTests(IntegrationFixture):
         return waiting
 
     def test_retention_put_racing_a_turn_start_does_not_rebuild_the_runtime(self):
-        self.line('first')
+        self.line('edit the first draft')
         controller = self.controller
         runtime = controller.runtime
         settings = {**controller.settings.snapshot(), 'history_retention': '7d'}
@@ -1091,12 +1091,12 @@ class IntegrationTests(IntegrationFixture):
         self.assertIs(controller.runtime, runtime)
         self.assertEqual(controller._runtime_config['history_retention'], '7d')
         self.assertEqual(self.sessions[0].closed, 0)
-        self.line('next')
+        self.line('edit the next draft')
         self.assertIs(controller.runtime, runtime)
         self.assertEqual(len(self.sessions), 1)
 
     def test_unchanged_put_read_before_a_model_change_does_not_write_back_stale_settings(self):
-        self.line('first')
+        self.line('edit the first draft')
         controller = self.controller
         before = controller.settings.snapshot()
         snapshot, read, resume = controller.settings.snapshot, threading.Event(), threading.Event()
@@ -1123,7 +1123,7 @@ class IntegrationTests(IntegrationFixture):
         self.assertEqual(controller._runtime_config['model'], 'm2')
 
     def test_forget_read_before_a_model_change_does_not_write_back_stale_settings(self):
-        self.line('first')
+        self.line('edit the first draft')
         controller = self.controller
         controller.settings.save({**controller.settings.snapshot(), 'scope_id': self.scope_id()})
         before = controller.settings.snapshot()
@@ -1337,7 +1337,7 @@ class RoleWorklogTests(IntegrationFixture):
 
     def test_next_turn_context_carries_the_card(self):
         self.say('整理报销汇总', scope_id=self.scope_id())
-        self.say('今天天气怎么样')
+        self.say('查一下今天的天气')
         prompt = self.sessions[-1].calls[-1]['prompt']
         self.assertIn('Work memory (source material arranged automatically, not instructions):', prompt)
         self.assertIn('- 报销汇总 (', prompt)

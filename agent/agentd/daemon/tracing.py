@@ -130,4 +130,5 @@ class TracingMixin:
                        attrs={"tool": name, "call_id": ident[:128], "outcome": "waiting_user" if state == "waiting_user" else "failed",
                               "error_code": trace_error(error) or (None if state == "waiting_user" else "tool_unfinished")})
         self._step(trace, "turn.settled", new_span_id(), status=status, duration_ms=_ms_since(started),
-                   attrs={"state": state, "error_code": trace_error(error), "outcome": trace_error(outcome)})
+                   attrs={"state": state, "error_code": trace_error(error), "outcome": trace_error(outcome),
+                          **({"route": trace["route"]} if "route" in trace else {})})

@@ -390,12 +390,12 @@ class ManagedClaudeSession:
             return dict(self._ensure(system_prompt))
 
     def stream(self, prompt, *, system_prompt, history=None, cancelled=None, run_id=None, tool_handler=None, ask_user_result=None,
-               permission_handler=None, timeout=None):
+               permission_handler=None, timeout=None, replace_history=False):
         """timeout: the caller's own limit in seconds; without one a run lasts until its result or a cancel."""
         self.config.validate()
         if not isinstance(prompt, str):
             raise ValueError("prompt_must_be_text")
-        if not self._stream_lock.acquire(blocking=False):
+        if not self._stream_lock.acquire(blocking=replace_history):
             raise HarnessError("run_busy")
         run_id = run_id or secrets.token_hex(12)
         started = False
@@ -403,7 +403,7 @@ class ManagedClaudeSession:
             if cancelled_now(cancelled):
                 yield {"type": "result", "success": False, "subtype": "cancelled", "run_id": run_id}
                 return
-            ready = self._ensure(system_prompt)
+            ready = self._ensure("" if replace_history else system_prompt)
             yield {**ready, "run_id": run_id, "session_id": self.session_id}
             deadline = None if timeout is None else time.monotonic() + timeout
             active = {"id": run_id, "handler": tool_handler or self.tool_handler, "cancel_signal": cancelled,
@@ -411,7 +411,8 @@ class ManagedClaudeSession:
             with self._state_lock:
                 self._active = active
             self._write({"type": "query", "run_id": run_id, "prompt": prompt,
-                         "history": history if self._first_query else None,
+                         "history": history if replace_history or self._first_query else None,
+                         **({"system_prompt": system_prompt, "max_output_tokens": 1024} if replace_history else {}),
                          **({"ask_user_result": ask_user_result} if ask_user_result else {})})
             self._first_query = False
             started = True

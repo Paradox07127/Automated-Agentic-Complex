@@ -105,6 +105,7 @@
   {"method": "GET", "path": "/integration/timeline", "class": "integration_only", "surfaces": [], "plugin": "external_access"},
   {"method": "POST", "path": "/integrations/hooks/disconnect", "class": "write", "surfaces": ["main"], "plugin": "coding_sessions"},
   {"method": "POST", "path": "/context/privacy/sync", "class": "native_only", "surfaces": []},
+  {"method": "POST", "path": "/chat/prewarm", "class": "write", "surfaces": ["main"]},
   {"method": "POST", "path": "/say", "class": "write", "surfaces": ["main"], "plugin": "light_ai"},
   {"method": "POST", "path": "/speech/cancel", "class": "host_only", "surfaces": [], "plugin": "light_ai"},
   {"method": "POST", "path": "/speech/playback", "class": "host_only", "surfaces": [], "plugin": "light_ai"},
