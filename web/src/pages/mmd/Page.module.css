@@ -66,74 +66,18 @@
   padding: 16px;
 }
 
-.list {
-  display: flex;
+/* A library row's title, then its duration and tags, then why she cannot play it, one under another. */
+.lib .entry {
   flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Dark rows: the play mark in the left cell, then title, duration, tags and why she cannot play it. */
-.row {
-  display: flex;
+  flex-wrap: nowrap;
   align-items: stretch;
-  width: 100%;
-  min-height: 56px;
-  padding: 0;
-  border: 0;
-  border-left: 4px solid transparent;
-  background: rgb(70 70 70 / 88%);
-  color: #fff;
-  text-align: left;
-  cursor: pointer;
-}
-
-.row:hover:not([aria-pressed='true']) {
-  background: rgb(84 84 84 / 92%);
-}
-
-.row[aria-pressed='true'] {
-  border-left-color: #ffe600;
-}
-
-.row:focus-visible {
-  outline: 2px solid #ffe600;
-  outline-offset: -2px;
-}
-
-.lead {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 44px;
-  background: rgb(52 52 52 / 92%);
-}
-
-.main {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  justify-content: center;
   gap: 4px;
-  min-width: 0;
-  padding: 8px 12px;
-}
-
-.nm {
-  overflow: hidden;
-  font: 600 14px / 1.3 var(--ef-font-sans);
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .meta {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  font-size: var(--ef-fs-small);
-  color: rgb(255 255 255 / 72%);
 }
 
 .tag {
@@ -146,12 +90,7 @@
   color: var(--ef-text-2);
 }
 
-.row .why {
-  color: rgb(255 255 255 / 72%);
-}
-
-.why[data-tone='danger'],
-.row .why[data-tone='danger'] {
+.why[data-tone='danger'] {
   color: var(--ef-danger-text);
 }
 

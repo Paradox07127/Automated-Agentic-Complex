@@ -52,11 +52,7 @@ describe('character look follows avatar.onState', () => {
         actions={[]}
         motionsError={null}
         onRetryMotions={noop}
-        hours={null}
         charState={STATE_WITH_CAUSES}
-        now={NOW}
-        sparse={false}
-        weapon={false}
         toast={noop}
         pane="look"
       />,

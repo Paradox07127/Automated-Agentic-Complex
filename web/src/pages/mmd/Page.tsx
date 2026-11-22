@@ -113,7 +113,6 @@ export function MmdPage() {
         <Stage
           motion={undefined}
           section=""
-          today={null}
           name={ch?.name ?? ''}
           en={ch?.en}
           head={ch?.head}

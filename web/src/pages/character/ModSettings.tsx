@@ -1,22 +1,19 @@
-// 角色页「mod 设置」: the current appearance's switches from agentd's table (C6), each pick sent through avatar.modSettings.set.
+// 角色页「模组设置」: the current appearance's switches from agentd's table (C6), each change sent through avatar.modSettings.set.
 import { useEffect, useState } from 'react';
 import { getBridge, type ModSettingAdjusted, type ModSettingValues } from '../../bridge';
-import { Select, Toggle } from '../../ui';
+import { Btn, Icon, Select, Toggle } from '../../ui';
 import type { Toast } from './feedback';
-import { readModSettings, type ModSettingRow, type ModSettingsTable } from './modSettingsTable';
+import type { ModSettingRow } from './modSettingsTable';
+import dark from './Rows.module.css';
 import styles from './ModSettings.module.css';
 
 export interface ModSettingsProps {
   character: string;
   appearance: string;
+  /** The appearance's switches from the table. */
+  settings: ModSettingRow[];
   disabled: boolean;
   toast: Toast;
-}
-
-interface Read {
-  character: string;
-  table: ModSettingsTable['appearances'];
-  stored: Record<string, ModSettingValues>;
 }
 
 const ADJUSTED: Record<ModSettingAdjusted['reason'], string> = {
@@ -48,87 +45,127 @@ const shownValue = (s: ModSettingRow) => {
   return s.values.length === 2 && on && off ? { on: on.value, off: off.value } : null;
 };
 
-/** One row per switch under its category, nothing when the appearance has no table; a failed set goes back to the old value. */
-export function ModSettings({ character, appearance, disabled, toast }: ModSettingsProps) {
-  const [read, setRead] = useState<Read>();
+/** More values than this: the value between the arrows opens a menu of them all. */
+const MENU_OVER = 6;
+
+/** One row per switch under its category's header row; a failed set goes back to the old values. */
+export function ModSettings({ character, appearance, settings, disabled, toast }: ModSettingsProps) {
+  const [stored, setStored] = useState<{ character: string; values: Record<string, ModSettingValues> }>();
   const [marks, setMarks] = useState<{ appearance: string; notes: Record<string, string>; error: string | null }>();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let live = true;
     // Without the op (an older shell) every switch shows its default.
-    const stored = getBridge().avatar.modSettings.get({ character }).then((r) => r.appearances, () => ({}));
-    void Promise.all([readModSettings(character), stored]).then(
-      ([t, s]) => live && setRead({ character, table: t.appearances, stored: s }),
-      () => {},
-    );
+    void getBridge()
+      .avatar.modSettings.get({ character })
+      .then(
+        (res) => res.appearances,
+        () => ({}),
+      )
+      .then((values) => live && setStored({ character, values }));
     return () => {
       live = false;
     };
   }, [character]);
 
-  const settings = read?.character === character ? read.table[appearance]?.settings : undefined;
-  if (!read || !settings || settings.length === 0) return null;
-  const value = (s: ModSettingRow) => read.stored[appearance]?.[s.id] ?? s.default;
+  if (stored?.character !== character || settings.length === 0) return null;
+  const value = (s: ModSettingRow) => stored.values[appearance]?.[s.id] ?? s.default;
   const mark = marks?.appearance === appearance ? marks : undefined;
-  const put = (values: ModSettingValues) =>
-    setRead((r) => (r && r.character === character ? { ...r, stored: { ...r.stored, [appearance]: values } } : r));
+  const off = disabled || busy;
+  const put = (values: ModSettingValues) => setStored((x) => (x && x.character === character ? { ...x, values: { ...x.values, [appearance]: values } } : x));
 
-  const pick = (s: ModSettingRow, v: number) => {
-    const before = read.stored[appearance] ?? {};
-    const prev = value(s);
-    const next = Object.fromEntries(settings.map((x) => [x.id, x.id === s.id ? v : value(x)]));
+  /** Sends the whole set with `change` applied; `fail` words the error after the reason. */
+  const send = (change: Record<string, number>, done: string, fail: (reason: string) => string) => {
+    const before = stored.values[appearance] ?? {};
+    const next = Object.fromEntries(settings.map((x) => [x.id, change[x.id] ?? value(x)]));
     put(next);
     setMarks({ appearance, notes: {}, error: null });
     setBusy(true);
     getBridge()
       .avatar.modSettings.set({ character, appearance, values: next })
       .then(
-        (r) => {
-          put(r.values);
-          setMarks({ appearance, notes: Object.fromEntries(r.adjusted.map((a) => [a.id, ADJUSTED[a.reason]])), error: null });
-          if (r.adjusted.length === 0) toast(`「${s.name}」已改成「${nameOf(s, v)}」`);
+        (res) => {
+          put(res.values);
+          setMarks({ appearance, notes: Object.fromEntries(res.adjusted.map((a) => [a.id, ADJUSTED[a.reason]])), error: null });
+          if (res.adjusted.length === 0) toast(done);
         },
         (e: unknown) => {
           put(before);
-          setMarks({ appearance, notes: {}, error: `「${s.name}」没有改成：${why(e)}，已改回「${nameOf(s, prev)}」` });
+          setMarks({ appearance, notes: {}, error: fail(why(e)) });
         },
       )
       .finally(() => setBusy(false));
   };
+  const pick = (s: ModSettingRow, v: number) => {
+    const prev = value(s);
+    send({ [s.id]: v }, `「${s.name}」已改成「${nameOf(s, v)}」`, (w) => `「${s.name}」没有改成：${w}，已改回「${nameOf(s, prev)}」`);
+  };
+  const reset = (title: string, rows: ModSettingRow[]) =>
+    send(Object.fromEntries(rows.map((s) => [s.id, s.default])), `「${title}」已恢复默认`, (w) => `「${title}」没有恢复默认：${w}`);
 
   const control = (s: ModSettingRow) => {
     const two = shownValue(s);
-    if (two) return <Toggle size="sm" label={s.name} on={value(s) === two.on} disabled={disabled || busy} onChange={(on) => pick(s, on ? two.on : two.off)} />;
+    if (two) return <Toggle size="sm" label={s.name} on={value(s) === two.on} disabled={off} onChange={(on) => pick(s, on ? two.on : two.off)} />;
+    const i = s.values.findIndex((x) => x.value === value(s));
+    const step = (by: -1 | 1) => {
+      const x = s.values[i + by];
+      if (x) pick(s, x.value);
+    };
     return (
-      <Select
-        width={150}
-        label={s.name}
-        options={s.values.map((x) => ({ value: String(x.value), label: x.name }))}
-        value={String(value(s))}
-        defaultValue={String(s.default)}
-        disabled={disabled || busy}
-        onChange={(v) => pick(s, Number(v))}
-      />
+      <span className={styles.step} role="group" aria-label={s.name}>
+        <button type="button" className={styles.arrow} aria-label={`${s.name}：上一个`} disabled={off || i <= 0} onClick={() => step(-1)}>
+          <Icon name="chevl" size={14} />
+        </button>
+        {s.values.length > MENU_OVER ? (
+          <Select
+              width={150}
+              label={s.name}
+              options={s.values.map((x) => ({ value: String(x.value), label: x.name }))}
+              value={String(value(s))}
+              defaultValue={String(s.default)}
+              disabled={off}
+              onChange={(v) => pick(s, Number(v))}
+            />
+        ) : (
+          <span className={styles.val} data-mod-value="">
+            {nameOf(s, value(s))}
+          </span>
+        )}
+        <button type="button" className={styles.arrow} aria-label={`${s.name}：下一个`} disabled={off || i >= s.values.length - 1} onClick={() => step(1)}>
+          <Icon name="chev" size={14} />
+        </button>
+      </span>
     );
   };
 
   return (
     <div className={styles.mods} role="group" aria-label="mod 设置">
-      <span className={styles.head}>mod 设置</span>
       {GROUPS.map(([category, title]) => {
         const rows = settings.filter((s) => groupOf(s) === category);
+        const changed = rows.some((s) => value(s) !== s.default);
         return (
           rows.length > 0 && (
-            <div key={category} className={styles.group} role="group" aria-label={title} data-mod-group={category}>
-              <span className={styles.head}>{title}</span>
+            <div key={category} className={dark.list} role="group" aria-label={title} data-mod-group={category}>
+              <div className={dark.head}>
+                <span>{title}</span>
+                <span className={dark.end}>
+                  <Btn size="sm" variant="text" disabled={off || !changed} disabledReason={changed ? '' : '已是默认'} onClick={() => reset(title, rows)}>
+                    恢复默认
+                  </Btn>
+                </span>
+              </div>
               {rows.map((s) => {
                 const note = mark?.notes[s.id];
+                const moved = value(s) !== s.default;
                 return (
-                  <div key={s.id} className={styles.row}>
-                    <span className={styles.k}>{s.name}</span>
-                    {control(s)}
-                    {note && <span className={styles.note}>{note}</span>}
+                  <div key={s.id} className={dark.row} data-mod-setting={s.id} data-changed={moved || undefined}>
+                    <span className={dark.lead}>{moved && <i className={dark.chg} title="已改" aria-label="已改" />}</span>
+                    <span className={dark.main}>
+                      <span className={dark.nm}>{s.name}</span>
+                      <span className={dark.end}>{control(s)}</span>
+                      {note && <span className={dark.note}>{note}</span>}
+                    </span>
                   </div>
                 );
               })}

@@ -43,11 +43,7 @@ function Harness({ toast, pane }: { toast: Toast; pane: 'import' | 'look' }) {
       actions={MOTIONS}
       motionsError={null}
       onRetryMotions={noop}
-      hours={null}
       charState={STATE_WITH_CAUSES}
-      now={NOW}
-      sparse={false}
-      weapon={false}
       toast={toast}
       pane={pane}
     />
@@ -100,7 +96,7 @@ describe('角色页 · 导入外观', () => {
     expect(imp).toHaveBeenCalledTimes(1);
   });
 
-  it('lists the new appearance with its warning in words until closed, and offers it （导入） on 外观', async () => {
+  it('lists the new appearance with its warning in words until closed, and offers it 导入 on 外观', async () => {
     use(true);
     const toast = vi.fn();
     const { show } = mount(toast);
@@ -112,7 +108,35 @@ describe('角色页 · 导入外观', () => {
     expect(screen.queryByRole('list', { name: '「示例外观」导入提示' })).toBeNull();
     show('look');
     const opts = within(await screen.findByRole('listbox', { name: '外观' })).getAllByRole('option');
-    expect(opts.map((o) => o.textContent)).toContain('示例外观（导入）');
+    expect(opts.map((o) => o.textContent)).toContain('示例外观导入');
+  });
+
+  it('puts the new appearance on and, when it has mod switches, opens 模组设置 on it', async () => {
+    const bridge = use(true);
+    vi.spyOn(bridge.character, 'importOutfit').mockResolvedValue({ ok: true, appearance: { id: 'imported_field', name: '野外装' }, warnings: [] });
+    const wear = vi.spyOn(bridge.avatar, 'setAppearance');
+    const { show } = mount();
+    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    await waitFor(() => expect(wear).toHaveBeenCalledWith('imported_field'));
+    await waitFor(() => expect(window.location.hash).toContain('pane=look'));
+    show('look');
+    const tab = await screen.findByRole('tab', { name: '模组设置' });
+    expect(tab.getAttribute('aria-selected')).toBe('true');
+    expect(await screen.findByRole('group', { name: 'mod 设置' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: '外观' }));
+    expect(within(screen.getByRole('listbox', { name: '外观' })).getByRole('option', { selected: true }).textContent).toBe('野外装导入');
+  });
+
+  it('puts the new appearance on and stays on 导入 when it has no mod switches', async () => {
+    const bridge = use(true);
+    const wear = vi.spyOn(bridge.avatar, 'setAppearance');
+    const read = vi.spyOn(bridge.agentd, 'request');
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    await waitFor(() => expect(wear).toHaveBeenCalledWith('mod_1a2b3c4d'));
+    await waitFor(() => expect(read.mock.calls.filter(([, path]) => path === '/characters/si/mod-settings').length).toBeGreaterThan(1));
+    await Promise.all(read.mock.results.map((r) => r.value));
+    expect(window.location.hash).not.toContain('pane=look');
   });
 
   it('says nothing when the user cancels the panel', async () => {

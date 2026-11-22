@@ -1,4 +1,4 @@
-// Character page: switcher row; stage, today's plays │ motion switches; commit line in the bottom bar; 行为与画面 and the state tabs on 调参; demos and mock-only blocks.
+// Character page: switcher row; stage │ motion switches; commit line in the bottom bar; 行为与画面 and the state tabs on 调参; demos and mock-only blocks.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe('character · 角色与动作', () => {
-  it('draws the roster, the stage, today’s plays and the whole motion table', async () => {
+  it('draws the roster, the stage and the whole motion table', async () => {
     await mount('&demo=ok&pane=motion');
     // The full roster, with 导入 at its end, opens from the head strip's 切换角色 key.
     expect(screen.queryByRole('navigation', { name: '角色名册' })).toBeNull();
@@ -50,8 +50,6 @@ describe('character · 角色与动作', () => {
     expect(items[1]?.querySelector('[aria-hidden="true"]')?.textContent).toBe('02');
     await waitFor(() => expect(stage().textContent).toContain('点头附和'));
     expect(stage().textContent).toContain('批准之后');
-    expect(stage().textContent).toContain('12 次');
-    expect(screen.getByRole('img', { name: /点头附和 今日按小时播放：合计 12 次/ })).toBeTruthy();
     const grid = screen.getByRole('grid', { name: '全部动作' });
     expect(['说话', '反应', '待机', '移动与姿态', '互动'].every((s) => grid.textContent?.includes(s))).toBe(true);
     expect(within(grid.querySelector<HTMLElement>('[data-motion="walk"]')!).getByRole('img', { name: '由行为触发 │ 不支持单独预览' })).toBeTruthy();
@@ -99,11 +97,19 @@ describe('character · 角色与动作', () => {
     expect(panel.textContent).toContain('硬规则 0');
   });
 
-  it('sparse: few plays here, and on 调参 a curve from where the log starts', async () => {
-    await mount('&demo=sparse&pane=motion');
-    await waitFor(() => expect(stage().textContent).toContain('1 次'));
-    expect(screen.getByText(/今日播放较少/)).toBeTruthy();
-    cleanup();
+  it('has no plays-today display on 动作, even on the mock bridge that counts them for 调参', async () => {
+    await mount('&pane=motion');
+    const grid = await screen.findByRole('grid', { name: '全部动作' });
+    await waitFor(() => expect(stage().textContent).toContain('点头附和'));
+    expect(screen.queryByText('今日播放')).toBeNull();
+    expect(screen.queryByRole('img', { name: /今日按小时播放/ })).toBeNull();
+    expect(document.querySelector('[data-motions]')?.textContent).not.toContain('今日');
+    expect(grid.querySelector('[title="今日播放次数"]')).toBeNull();
+    expect(stage().textContent).not.toContain('今日');
+    expect(stage().textContent).not.toContain('次');
+  });
+
+  it('sparse: on 调参 a curve from where the log starts', async () => {
     await mount('&demo=sparse', TunePage);
     await waitFor(() => expect(screen.getByText(/起记录/)).toBeTruthy());
   });
@@ -153,12 +159,8 @@ describe('角色 page layout', () => {
           actions={MOTIONS}
           motionsError={null}
           onRetryMotions={() => {}}
-          hours={null}
           charState={null}
-          now={0}
-          sparse={false}
           seed={{ stretch: false }}
-          weapon={false}
           toast={() => {}}
         />
       </HeaderSlotContext.Provider>,
@@ -203,8 +205,10 @@ describe('character · real data', () => {
 });
 
 describe('character · demos', () => {
-  it('lists default, sparse, light, loading, error and the prototype demos', () => {
+  it('lists default, light, loading, error and the prototype demos', () => {
     const names = demos.map((d) => d.name);
-    for (const n of ['default', 'ok', 'full', 'sparse', 'light', 'loading', 'error', 'offline', 'switching']) expect(names).toContain(n);
+    for (const n of ['default', 'ok', 'light', 'loading', 'error', 'offline', 'switching']) expect(names).toContain(n);
+    expect(names).not.toContain('full');
+    expect(names).not.toContain('sparse');
   });
 });

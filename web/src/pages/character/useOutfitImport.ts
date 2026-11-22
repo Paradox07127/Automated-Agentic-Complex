@@ -16,8 +16,8 @@ export interface OutfitImport {
   dismiss: () => void;
 }
 
-/** `character.importOutfit` and `removeOutfit`: one at a time; on success the roster is read again so the appearance list shows the change. */
-export function useOutfitImport(toast: Toast): OutfitImport {
+/** `character.importOutfit` and `removeOutfit`: one at a time; on success the roster is read again so the appearance list shows the change, and `onImported` gets the new appearance. */
+export function useOutfitImport(toast: Toast, onImported?: (appearance: { id: string; name: string }) => void): OutfitImport {
   // Read from the context, not useQueryClient: the operator view also renders without a query client.
   const qc = useContext(QueryClientContext);
   const [state, setState] = useState<OutfitImport['state']>('idle');
@@ -41,6 +41,7 @@ export function useOutfitImport(toast: Toast): OutfitImport {
             toast(`已导入「${r.appearance.name}」，有 ${r.warnings.length} 处要留意：${words}`, { severity: 'warning' });
           }
           void qc?.invalidateQueries({ queryKey: ['character', 'list'] });
+          onImported?.(r.appearance);
         },
         (e: unknown) => {
           if ((e as Partial<BridgeError> | null)?.code === 'cancelled') {

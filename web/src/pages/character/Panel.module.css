@@ -65,6 +65,14 @@
   text-overflow: ellipsis;
 }
 
+.n {
+  flex: none;
+  margin-left: auto;
+  font: 600 12px / 1 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
 .tab[aria-selected='true'] {
   background: #2e2e2e;
   color: #fff;
@@ -93,13 +101,10 @@
   min-height: 0;
 }
 
-/* 设定's own page menu repeats the tab bar above it. */
-.body [role='tablist'][aria-label='设定'] {
-  display: none;
-}
-
 @container op (max-width: 1100px) {
+  /* Each tab as wide as its label first, so 模组设置 and its count fit. */
   .tab {
+    flex: 1 1 auto;
     gap: 8px;
     padding: 0 8px;
     font-size: 13px;

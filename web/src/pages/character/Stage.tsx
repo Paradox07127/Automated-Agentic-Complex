@@ -18,8 +18,6 @@ export interface StagePlay {
 export interface StageProps {
   motion: AvatarAction | undefined;
   section: string;
-  /** Plays today; null where nobody counts them. */
-  today: number | null;
   name: string;
   /** Latin name under the name. */
   en?: string | undefined;
@@ -68,7 +66,6 @@ export function Stage(p: StageProps) {
   const m = p.motion;
   const spec: Array<[k: string, v: string]> = [];
   if (m?.trigger) spec.push(['触发', m.trigger]);
-  if (m && p.today != null) spec.push(['今日', m.missing ? '不能播放' : `${p.today} 次`]);
   const meta = [p.section, m?.requiredReason ? '必需' : null, m?.missing ? '⊘ 缺资源' : null].filter(Boolean).join(' │ ');
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const preview = useLivePreview(p.characterId ? el : null, {

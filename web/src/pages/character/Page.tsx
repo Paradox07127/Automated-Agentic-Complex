@@ -1,4 +1,3 @@
-// Mock-only, with no agentd field behind them yet: 今日播放的点阵和次数（trace motion.started 不在 agentd 的读接口里）、屏幕示意图（/desktop/presence 是 host_only）、状态倍数（agentd 不发 walk_scale、comment_scale）、显示武器（宿主没有这个操作）。
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type CharacterEntry } from '../../bridge';
@@ -6,7 +5,7 @@ import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
 import { Btn, ErrBar, Menu, Spinner } from '../../ui';
-import { failure, mockOnly, readMotionHours, readRunningTasks, readState, resetState } from './api';
+import { failure, readRunningTasks, readState, resetState } from './api';
 import { CharacterSettings } from './CharacterSettings';
 import { demo as slot } from './demoSlot';
 import { pageNow, useFeedback, useOpenMmd, usePageParams } from './feedback';
@@ -58,7 +57,6 @@ export function CharacterPage() {
   const canAvatar = bridge.capabilities.avatar;
   const [current, setCurrent] = useState<string | null>(null);
 
-  const now = pageNow();
   const list = useQuery({ queryKey: ['character', 'list'], queryFn: () => getBridge().character.list(), enabled: canAvatar });
   // Page clock of the last state read: where the curves stop when agentd goes away.
   const [readAt, setReadAt] = useState<number>();
@@ -166,16 +164,12 @@ export function CharacterPage() {
           onRetryMotions={() => void motions.refetch()}
           {...(canAvatar ? { motionImport, library, onImportPackage: importPackage, onMmd: () => openMmd(), chains: <MotionSettings offline={offline} toast={fb.toast} /> } : {})}
           pane={isPane(pane) ? pane : 'overview'}
-          hours={readMotionHours(demo === 'sparse')}
           charState={none ? null : (cs.data ?? null)}
-          now={now}
-          sparse={demo === 'sparse'}
           {...(demo === 'ok' ? { seed: OK_SEED } : {})}
           playing={demo === 'playing' ? 'nod' : null}
-          weapon={mockOnly()}
           toast={fb.toast}
           {...(isCharTab(tab)
-            ? { side: { of: 'set' as const, tab, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} toast={fb.toast} /> } }
+            ? { side: { of: 'set' as const, tab, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} menu={false} toast={fb.toast} /> } }
             : photo
               ? { side: { of: 'photo' as const, node: <PhotoMode avatar={canAvatar} offline={offline} toast={fb.toast} /> } }
               : {})}

@@ -9,10 +9,9 @@ import type { Toast } from './feedback';
 import { HeadStrip } from './HeadStrip';
 import { ImportPane } from './ImportPane';
 import { doing, SECTIONS } from './labels';
-import { LookPane, useModLooks, type LookTab } from './LookPane';
+import { LookPane, useModTable, type LookTab } from './LookPane';
 import { MotionTable } from './MotionTable';
 import { Panel, type PanelTab } from './Panel';
-import { Playback } from './Playback';
 import { Rail, type RailItem } from './Rail';
 import { CHAR_TABS, type CharTab } from './sections';
 import { Stage, StageSkel, type StageMode } from './Stage';
@@ -51,16 +50,11 @@ export interface OperatorProps {
   chains?: ReactNode;
   /** 总览 or a detail pane; absent opens 动作. */
   pane?: Pane;
-  hours: Record<string, number[]> | null;
   charState: CharacterState | null;
-  now: number;
-  sparse: boolean;
   /** Unsaved switches a demo opens with. */
   seed?: Record<string, boolean>;
   /** Motion a demo shows as playing on the desktop. */
   playing?: string | null;
-  /** Show the weapon switch (no host op yet: mock only). */
-  weapon: boolean;
   toast: Toast;
   /** 设定 (with its tab) or 拍照 in the panel in place of the panes. */
   side?: Side;
@@ -81,6 +75,11 @@ const SET_ICON: Record<CharTab, IconName> = { behavior: 'hand', render: 'sun', s
 
 /** First motion worth showing: not required, playable, present. */
 const firstPick = (actions: AvatarAction[]) => actions.find((a) => !a.requiredReason && a.playable !== false && !a.missing)?.id ?? actions[0]?.id ?? '';
+
+const failed = (what: string, toast: Toast) => (e: unknown) => {
+  const code = (e as { code?: string } | null)?.code;
+  toast(`${what}没有完成：${code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' });
+};
 
 const go = (to: Omit<Extract<Parameters<typeof navigate>[0], { page: 'character' }>, 'page'>) => navigate({ page: 'character', ...to });
 
@@ -118,12 +117,30 @@ export function Operator(p: OperatorProps) {
     playing: p.playing ?? null,
   });
   const look = useLook();
-  const outfit = useOutfitImport(p.toast);
   const importState = useImportState();
   const pane = p.pane ?? 'motion';
   const [lookTab, setLookTab] = useState<LookTab>('look');
   // 导入 sits under both 外观 and 动作; the rail lights the one it was opened from.
   const [importOf, setImportOf] = useState<'look' | 'motion'>('look');
+  const side = p.side;
+  const at: RailItem = side ? side.of : pane === 'overview' ? 'overview' : pane === 'look' ? 'look' : pane === 'import' ? importOf : 'motion';
+  const modTable = useModTable(p.current, at === 'look');
+  const wear = (l: { id: string; name: string }) =>
+    getBridge()
+      .avatar.setAppearance(l.id)
+      .then(() => {
+        look.setId(l.id);
+        p.toast(`已换成「${l.name}」外观`);
+      }, failed('换外观', p.toast));
+  // A new appearance is put on at once; one with mod switches opens on them.
+  const outfit = useOutfitImport(p.toast, (a) => {
+    void wear(a);
+    modTable.reload().then((looks) => {
+      if (!looks[a.id]) return;
+      setLookTab('mod');
+      go({ pane: 'look' });
+    }, () => {});
+  });
   const [bare, setBare] = useState(false);
   // The hidden set the last successful `avatar.setLayers` sent; the roster only changes on a refetch.
   const [hiddenSet, setHiddenSet] = useState<{
@@ -139,32 +156,27 @@ export function Operator(p: OperatorProps) {
   const ch = p.roster.find((c) => c.id === p.current) ?? p.roster[0];
   const pick = rows.find((r) => r.a.id === sel) ?? rows.find((r) => r.a.id === firstPick(actions));
   const motion = pick?.a;
-  const hours = motion && p.hours ? (p.hours[motion.id] ?? Array.from({ length: 24 }, () => 0)) : null;
   const switching = p.sw.state.phase === 'running';
   const importing = importState.running || p.motionImport?.running === true || outfit.state === 'busy';
   const blocked = blockedReason(motion, p.offline, switching) ?? (importing ? '导入中' : m.previewing ? '正在请求桌面预览' : null);
   // A renderer that sends `media` retimes the BGM; without it BGM plays at 1× only.
   const oneSpeed = motion != null && motion.media == null && (p.library?.byId[motion.id]?.hasBgm ?? false);
-  const hour = new Date(p.now).getHours();
   const appearances = ch?.appearances ?? [];
   const lookRow = appearances.find((l) => l.id === look.id) ?? appearances[0];
   const lookId = lookRow?.id ?? '';
   const ro = p.offline || switching;
   const layers = (ch?.layers ?? []).map((l) => (hiddenSet?.character === ch?.id ? { ...l, visible: !hiddenSet?.hidden.includes(l.id) } : l));
 
-  const side = p.side;
   const mode: StageMode = side?.of === 'photo' ? 'photo' : !side && pane === 'overview' ? 'overview' : 'detail';
-  const at: RailItem = side ? side.of : pane === 'overview' ? 'overview' : pane === 'look' ? 'look' : pane === 'import' ? importOf : 'motion';
-  const modLooks = useModLooks(p.current, at === 'look');
-  const hasShow = layers.length > 0 || p.weapon;
-  const lt = (lookTab === 'mod' && !modLooks.has(lookId)) || (lookTab === 'show' && !hasShow) ? 'look' : lookTab;
+  const mods = modTable.looks[lookId];
+  const lt = (lookTab === 'mod' && !mods) || (lookTab === 'show' && layers.length === 0) ? 'look' : lookTab;
 
   const tabs: PanelTab[] =
     at === 'look'
       ? [
           { id: 'look', label: '外观', icon: 'look' },
-          ...(hasShow ? [{ id: 'show', label: '显示', icon: 'eye' as const }] : []),
-          ...(modLooks.has(lookId) ? [{ id: 'mod', label: '模组设置', icon: 'tune' as const }] : []),
+          ...(layers.length > 0 ? [{ id: 'show', label: '显示', icon: 'eye' as const }] : []),
+          ...(mods ? [{ id: 'mod', label: '模组设置', icon: 'tune' as const, count: mods.length }] : []),
           { id: 'import', label: '导入', icon: 'plus' },
         ]
       : at === 'motion'
@@ -200,10 +212,10 @@ export function Operator(p: OperatorProps) {
         setPreviewAction(a && a.playable !== false && !a.missing ? { character: p.current, id, request: ++previewRequest.current } : undefined);
       }}
       onToggle={m.toggle}
-      hours={p.hours}
+      hours={null}
       offline={p.offline}
       lock={switching}
-      sparse={p.sparse}
+      sparse={false}
       saving={m.saving}
       onUndo={m.undo}
       onSave={m.save}
@@ -249,7 +261,6 @@ export function Operator(p: OperatorProps) {
           mode={mode}
           motion={mode === 'detail' && !side && (pane === 'motion' || pane === 'chain') ? motion : undefined}
           section={motion ? (SECTIONS[motion.section ?? '']?.name ?? '') : ''}
-          today={hours ? hours.reduce((a, b) => a + b, 0) : null}
           name={ch?.name ?? ''}
           en={ch?.en}
           head={ch?.head}
@@ -284,16 +295,25 @@ export function Operator(p: OperatorProps) {
           {side ? (
             side.node
           ) : pane === 'motion' ? (
-            <>
-              <Playback motion={motion} no={pick?.no ?? ''} hours={hours} hour={hour} sparse={p.sparse} />
-              <section className={styles.motions} aria-label="动作开关">
-                {table}
-              </section>
-            </>
+            <section className={styles.motions} aria-label="动作开关">
+              {table}
+            </section>
           ) : pane === 'chain' ? (
             <section aria-label="编排">{p.chains}</section>
           ) : pane === 'look' ? (
-            <LookPane tab={lt} character={p.current} appearances={appearances} lookId={lookId} look={look} layers={layers} onLayer={setLayer} weapon={p.weapon} ro={ro} toast={p.toast} />
+            <LookPane
+              tab={lt}
+              character={p.current}
+              appearances={appearances}
+              lookId={lookId}
+              look={look}
+              onWear={(l) => void wear(l)}
+              layers={layers}
+              onLayer={setLayer}
+              mods={mods}
+              ro={ro}
+              toast={p.toast}
+            />
           ) : (
             <ImportPane
               outfit={outfit}
@@ -312,7 +332,6 @@ export function Operator(p: OperatorProps) {
         <Commit
           offline={p.offline}
           n={Object.keys(m.changed).length}
-          sparse={p.sparse}
           saving={m.saving}
           onUndo={m.undo}
           onSave={m.save}

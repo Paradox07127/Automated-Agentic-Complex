@@ -1,11 +1,4 @@
 .op {
-  /* Main attribute icon plate #FFD800. */
-  --op-attr-icon: #ffd800;
-  /* Main attribute divider #484848@0.235. */
-  --op-cell-rule: rgb(72 72 72 / 23.5%);
-  /* Attribute names solid #5A5A5A on white (@0.706 would be under 4.5:1). */
-  --op-attr-name: #5a5a5a;
-
   /* The scene's widths: head strip, rail, the name column, the detail and 拍照 panels. */
   --strip: 84px;
   --head: 60px;
@@ -200,80 +193,11 @@
   margin-bottom: 0;
 }
 
-/* Today's plays: 24 hour cells, then the readout in white attribute cells. */
-.pb {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--ef-sp-12) var(--ef-sp-24);
-}
-
-.hd {
-  flex: 1 1 160px;
-  min-width: 0;
-  max-width: 640px;
-}
-
-.hdCells {
-  display: grid;
-  grid-template-columns: repeat(24, minmax(0, 1fr));
-  gap: 2px;
-}
-
-/* An ink ramp by count; no plays is the idle chip, later hours hatched, the current hour yellow. */
-.hdCells i {
-  height: 14px;
-  background: color-mix(in srgb, var(--ef-ink-s1) calc(var(--a, 1) * 100%), transparent);
-}
-
-.hdCells i[data-z] {
-  background: var(--ef-chip);
-}
-
-.hdCells i[data-fut] {
-  background: var(--ef-chart-hatch);
-}
-
-.hdCells i[data-now] {
-  background: var(--ef-accent);
-}
-
-.hd[data-dim] .hdCells i:not([data-z], [data-fut], [data-now]) {
-  background: var(--ef-line);
-}
-
-.hdAx {
-  position: relative;
-  height: 16px;
-  margin-top: var(--ef-sp-4);
-  font: 500 11px / 16px var(--ef-font-ui);
-  font-variant-numeric: tabular-nums;
-  color: var(--ef-text-2);
-}
-
-.hdAx span {
-  position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-}
-
-.hdAx span[data-now] {
-  color: var(--ef-text-1);
-  font-weight: 700;
-}
-
-.read {
-  display: flex;
-  flex: none;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-/* 外观: numbered sections of option plates. */
+/* 外观: the appearance rows, then the size row. */
 .look {
   display: flex;
   flex-direction: column;
-  gap: var(--ef-sp-20);
+  gap: var(--ef-sp-12);
   min-width: 0;
 }
 
@@ -281,27 +205,41 @@
   opacity: 0.5;
 }
 
-.plates {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--ef-sp-6);
-  margin-top: var(--ef-sp-8);
+/* Size presets on the size row: small cells, the current one yellow. */
+.presets {
+  display: flex;
+  gap: 2px;
 }
 
-.size .plates {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.preset {
+  min-width: 46px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+  font: 600 12px / 1 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
 }
 
-.size {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(160px, 1fr);
-  gap: var(--ef-sp-16);
-  align-items: center;
+.preset:hover {
+  background: rgb(255 255 255 / 22%);
 }
 
-/* The narrow panel: the slider under the presets. */
-@container op (max-width: 1100px) {
-  .size {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.preset[aria-selected='true'] {
+  background: #ffe600;
+  color: #1a1a1a;
+}
+
+.preset:focus-visible {
+  outline: 2px solid #ffe600;
+  outline-offset: 2px;
+}
+
+/* Beside the presets while it has room, else on a line of its own under them. */
+.slider {
+  display: block;
+  flex: 1 1 160px;
+  min-width: 0;
 }

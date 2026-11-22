@@ -2,6 +2,8 @@
 .frame {
   /* Attribute row divider #484848@0.235. */
   --st-cell-rule: rgb(72 72 72 / 23.5%);
+  /* Detail pages: the band under the stage that holds the name block, clear of the live preview drawn over the stage. */
+  --det-h: 112px;
 
   position: absolute;
   inset: 0;
@@ -19,12 +21,14 @@
   color: var(--ef-text-1);
   transition:
     left 300ms var(--ef-ease-g-fade),
-    right 300ms var(--ef-ease-g-fade);
+    right 300ms var(--ef-ease-g-fade),
+    bottom 300ms var(--ef-ease-g-fade);
 }
 
-/* Detail pages: the left part, next to the panel. */
+/* Detail pages: the left part, next to the panel, above the name band. */
 .frame[data-mode='detail'] .stage {
   right: calc(var(--rail) + var(--gap) + var(--panel-w) + 12px);
+  bottom: var(--det-h);
   left: calc(var(--strip) + 8px);
 }
 
@@ -97,10 +101,33 @@
   pointer-events: auto;
 }
 
-.frame:is([data-mode='detail'], [data-mode='photo']) .details {
+.frame[data-mode='photo'] .details {
   top: auto;
   bottom: 20px;
   width: min(340px, 30cqw);
+}
+
+/* Detail pages: the name block left in the band under the stage, the selected motion and the preview state right of it. */
+.frame[data-mode='detail'] .details {
+  top: auto;
+  right: calc(var(--rail) + var(--gap) + var(--panel-w) + 12px);
+  bottom: 0;
+  left: calc(var(--strip) + 20px);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  gap: 4px 20px;
+  width: auto;
+  height: var(--det-h);
+  overflow: hidden;
+}
+
+.frame[data-mode='detail'] .details > :not(.nm) {
+  grid-column: 2;
+}
+
+.frame[data-mode='detail'] .nm {
+  grid-row: 1 / span 4;
+  align-self: center;
 }
 
 .frame[data-mode='photo'] .details {
@@ -314,6 +341,10 @@
 
 /* Compact: the name and the grey bar only. */
 @container op (max-width: 1100px) {
+  .frame {
+    --det-h: 84px;
+  }
+
   .emblem,
   .en {
     display: none;
@@ -325,6 +356,10 @@
 }
 
 @container op (max-height: 560px) {
+  .frame {
+    --det-h: 84px;
+  }
+
   .emblem,
   .en {
     display: none;

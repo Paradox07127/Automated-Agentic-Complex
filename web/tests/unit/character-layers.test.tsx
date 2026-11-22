@@ -1,4 +1,4 @@
-// skins-09w: 角色页「服装分层」的选项调 avatar.setLayers，导入的外观在外观选项里标「（导入）」。
+// skins-09w: 角色页「服装分层」每层一行开关，调 avatar.setLayers；导入的外观在外观行里标「导入」。
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
@@ -36,11 +36,7 @@ function Op(over: Partial<OperatorProps> = {}) {
       actions={MOTIONS}
       motionsError={null}
       onRetryMotions={noop}
-      hours={null}
       charState={STATE_WITH_CAUSES}
-      now={NOW}
-      sparse={false}
-      weapon={false}
       toast={noop}
       pane="look"
       {...over}
@@ -49,32 +45,32 @@ function Op(over: Partial<OperatorProps> = {}) {
 }
 
 describe('角色页 · 服装分层', () => {
-  it('draws one option per layer and hides coat through avatar.setLayers', async () => {
+  it('draws one switch row per layer and hides coat through avatar.setLayers', async () => {
     const set = vi.spyOn(bridge.avatar, 'setLayers');
     const toast = vi.fn();
     render(<Op toast={toast} />);
     fireEvent.click(screen.getByRole('tab', { name: '显示' }));
-    const layer =(name: string) => within(screen.getByRole('listbox', { name: '服装分层' })).getByRole('option', { name });
-    expect(layer('披风').getAttribute('aria-selected')).toBe('true');
-    expect(layer('外套').getAttribute('aria-selected')).toBe('true');
+    const layer = (name: string) => within(screen.getByRole('group', { name: '服装分层' })).getByRole('switch', { name });
+    expect(layer('披风').getAttribute('aria-checked')).toBe('true');
+    expect(layer('外套').getAttribute('aria-checked')).toBe('true');
     fireEvent.click(layer('外套'));
     await waitFor(() => expect(set).toHaveBeenCalledWith(['coat']));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('已隐藏「外套」'));
-    expect(layer('外套').getAttribute('aria-selected')).toBe('false');
+    expect(layer('外套').getAttribute('aria-checked')).toBe('false');
   });
 
   it('has no layer options without layers', () => {
     render(<Op roster={[si()]} />);
     expect(screen.queryByRole('tab', { name: '显示' })).toBeNull();
-    expect(screen.queryByRole('listbox', { name: '服装分层' })).toBeNull();
-    expect(screen.queryByRole('option', { name: '外套' })).toBeNull();
+    expect(screen.queryByRole('group', { name: '服装分层' })).toBeNull();
+    expect(screen.queryByRole('switch', { name: '外套' })).toBeNull();
   });
 
-  it('marks an imported appearance （导入） in the appearance options', () => {
+  it('marks an imported appearance 导入 in the appearance rows', () => {
     render(<Op />);
     const opts = within(screen.getByRole('listbox', { name: '外观' })).getAllByRole('option').map((o) => o.textContent);
-    expect(opts).toContain('夏装（导入）');
-    expect(opts.some((t) => t?.startsWith('日常'))).toBe(true);
-    expect(opts.some((t) => t?.startsWith('制服（导入）'))).toBe(false);
+    expect(opts).toContain('夏装导入');
+    expect(opts).toContain('日常');
+    expect(opts).toContain('制服');
   });
 });

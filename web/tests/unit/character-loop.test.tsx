@@ -37,11 +37,7 @@ function Op() {
       actions={MOTIONS}
       motionsError={null}
       onRetryMotions={noop}
-      hours={null}
       charState={STATE_WITH_CAUSES}
-      now={NOW}
-      sparse={false}
-      weapon={false}
       toast={noop}
     />
   );

@@ -3,8 +3,6 @@ import type { Demo } from '../../shell/types';
 export const demos: Demo[] = [
   { name: 'default', params: {} },
   { name: 'ok', params: { demo: 'ok' } }, // 原型「正常」：两项开关未保存
-  { name: 'full', params: { demo: 'full' } }, // 含真实接口还没有的区块：今日播放、显示武器（只在假桥下）
-  { name: 'sparse', params: { demo: 'sparse' } }, // 数据少：播放很少
   { name: 'light', params: { theme: 'light' } }, // 亮色主题
   { name: 'loading', params: { state: 'loading' } }, // 加载
   { name: 'error', params: { state: 'error' } }, // 读取失败

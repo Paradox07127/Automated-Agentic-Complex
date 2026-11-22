@@ -70,7 +70,7 @@ describe('角色页 · 页签', () => {
 
     await click(tab('显示'));
     expect(pane(router)).toBe('look');
-    expect(within(panel()).getByRole('listbox', { name: '服装分层' })).toBeTruthy();
+    expect(within(panel()).getByRole('group', { name: '服装分层' })).toBeTruthy();
     expect(within(panel()).queryByRole('listbox', { name: '外观' })).toBeNull();
 
     await click(tab('导入'));

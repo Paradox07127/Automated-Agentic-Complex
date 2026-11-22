@@ -19,6 +19,8 @@ export interface CharacterSettingsProps {
   /** The shell has an avatar host: while this view is open she walks clear of the main window. */
   avatar: boolean;
   onTab: (t: CharTab) => void;
+  /** The page menu on the right; off where a tab bar above already names the pages. */
+  menu?: boolean;
   toast: Toast;
 }
 
@@ -63,7 +65,7 @@ export function CharacterSettings(p: CharacterSettingsProps) {
   };
 
   return (
-    <div className={styles.set}>
+    <div className={styles.set} data-menu={p.menu !== false || undefined}>
       <div className={styles.board}>
         {p.offline && (
           <div className={tune.ro} role="status">
@@ -82,13 +84,15 @@ export function CharacterSettings(p: CharacterSettingsProps) {
           </Btn>
         </div>
       </div>
-      <div className={styles.menu} role="tablist" aria-orientation="vertical" aria-label="设定">
-        {tabs.map((id) => (
-          <button key={id} type="button" role="tab" className={styles.tab} aria-selected={id === tab} onClick={() => p.onTab(id)}>
-            {CHAR_TABS.find((t) => t.id === id)?.title}
-          </button>
-        ))}
-      </div>
+      {p.menu !== false && (
+        <div className={styles.menu} role="tablist" aria-orientation="vertical" aria-label="设定">
+          {tabs.map((id) => (
+            <button key={id} type="button" role="tab" className={styles.tab} aria-selected={id === tab} onClick={() => p.onTab(id)}>
+              {CHAR_TABS.find((t) => t.id === id)?.title}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

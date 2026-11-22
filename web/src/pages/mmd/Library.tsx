@@ -1,6 +1,7 @@
 import type { MmdEntry, MmdListResult } from '../../bridge';
 import { ErrBar, Icon, Skel } from '../../ui';
 import { motionImportReason } from '../character/labels';
+import dark from '../character/Rows.module.css';
 import styles from './Page.module.css';
 
 export type MmdState = MmdEntry['characters'][number];
@@ -36,17 +37,17 @@ export function Library(p: LibraryProps) {
   if (!d) return <Skel rows={4} />;
   if (d.entries.length === 0) return null;
   return (
-    <ul className={styles.list} aria-label="MMD 舞蹈">
+    <ul className={dark.list} aria-label="MMD 舞蹈">
       {d.entries.map((e) => {
         const s = stateOf(e, p.current);
         const why = notBaked(s);
         return (
           <li key={e.id} role="group" aria-label={e.title} data-mmd={e.id} data-state={s.state}>
-            <button type="button" className={styles.row} aria-pressed={e.id === p.sel} onClick={() => p.onPick(e)}>
-              <span className={styles.lead}>{why == null && <Icon name="play" size={16} />}</span>
-              <span className={styles.main}>
-                <span className={styles.nm}>{e.title}</span>
-                <span className={styles.meta}>
+            <button type="button" className={dark.row} aria-pressed={e.id === p.sel} onClick={() => p.onPick(e)}>
+              <span className={dark.lead}>{why == null && <Icon name="play" size={16} />}</span>
+              <span className={`${dark.main} ${styles.entry}`}>
+                <span className={dark.nm}>{e.title}</span>
+                <span className={`${dark.meta} ${styles.meta}`}>
                   <span className="num">{`${e.durationS.toFixed(1)} s`}</span>
                   {e.hasBgm && <span className={styles.tag}>BGM</span>}
                   {e.hasCamera && <span className={styles.tag}>相机</span>}

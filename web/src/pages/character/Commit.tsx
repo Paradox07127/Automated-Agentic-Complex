@@ -29,7 +29,7 @@ export function SaveNote({ offline, n, sparse }: SaveNoteProps) {
   return sparse ? <span className={styles.cap}>今日播放较少</span> : null;
 }
 
-export interface CommitProps extends SaveNoteProps {
+export interface CommitProps extends Omit<SaveNoteProps, 'sparse'> {
   saving: boolean;
   onUndo: () => void;
   onSave: () => void;
@@ -61,7 +61,7 @@ export function Commit(p: CommitProps) {
     <BottomBarSlot>
       <div className={styles.bar} data-commit="">
         <span className={styles.note}>
-          <SaveNote offline={p.offline} n={p.n} sparse={p.sparse} />
+          <SaveNote offline={p.offline} n={p.n} sparse={false} />
         </span>
         <span className={styles.why}>{why}</span>
         {p.looping ? (

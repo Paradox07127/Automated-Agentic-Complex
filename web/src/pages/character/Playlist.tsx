@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { getBridge, type MotionPlaylist, type PlaylistState } from '../../bridge';
-import { Btn, Seg } from '../../ui';
+import { Btn, Icon, Seg } from '../../ui';
 import type { Toast } from './feedback';
 import type { MotionRow } from './MotionTable';
+import dark from './Rows.module.css';
 import styles from './Playlist.module.css';
 
 export interface PlaylistProps {
@@ -94,11 +95,10 @@ export function Playlist(p: PlaylistProps) {
 
   return (
     <section className={styles.pl} aria-label="MMD 列表" data-playlist="">
-      <h3 className={styles.gh}>
+      <h3 className={dark.head}>
         MMD 列表
-        <span className={styles.den}>
-          {items.length}
-          <small>/{mmd.length}</small>
+        <span className={`${dark.meta} num`}>
+          {items.length}/{mmd.length}
         </span>
       </h3>
       <div className={styles.bar}>
@@ -112,34 +112,37 @@ export function Playlist(p: PlaylistProps) {
           停止
         </Btn>
       </div>
-      <div className={styles.list} role="grid" aria-label="MMD 动作">
+      <div className={`${dark.list} ${styles.list}`} role="grid" aria-label="MMD 动作">
         {ordered.map(({ a, no }) => {
           const i = items.indexOf(a.id);
+          const on = now.playing && now.id === a.id;
           return (
-            <div key={a.id} className={styles.row} role="row" data-playlist-row={a.id} data-out={i < 0 || undefined} aria-current={(now.playing && now.id === a.id) || undefined}>
-              <span className={styles.no}>{no}</span>
-              <span className={styles.nm}>{a.label}</span>
-              <span className={styles.at}>{i < 0 ? '' : i + 1}</span>
-              <span className={styles.ops}>
-                {i >= 0 && (
-                  <>
-                    <Btn size="sm" variant="text" disabled={off != null || i === 0} disabledReason={off ?? '已在最前'} onClick={() => move(i, -1)}>
-                      上移
-                    </Btn>
-                    <Btn size="sm" variant="text" disabled={off != null || i === items.length - 1} disabledReason={off ?? '已在最后'} onClick={() => move(i, 1)}>
-                      下移
-                    </Btn>
-                  </>
-                )}
-                <Btn
-                  size="sm"
-                  variant="ghost"
-                  disabled={off != null}
-                  disabledReason={off ?? ''}
-                  onClick={() => put(i < 0 ? [...items, a.id] : items.filter((x) => x !== a.id))}
-                >
-                  {i < 0 ? '加入' : '移出'}
-                </Btn>
+            <div key={a.id} className={dark.row} role="row" data-playlist-row={a.id} data-out={i < 0 || undefined} aria-current={on || undefined}>
+              <span className={`${dark.lead} num`}>{on ? <Icon name="play" size={14} /> : no}</span>
+              <span className={dark.main}>
+                <span className={`${dark.nm} ${styles.nm}`}>{a.label}</span>
+                <span className={`${dark.meta} num`}>{i < 0 ? '' : i + 1}</span>
+                <span className={dark.end}>
+                  {i >= 0 && (
+                    <>
+                      <Btn size="sm" variant="text" disabled={off != null || i === 0} disabledReason={off ?? '已在最前'} onClick={() => move(i, -1)}>
+                        上移
+                      </Btn>
+                      <Btn size="sm" variant="text" disabled={off != null || i === items.length - 1} disabledReason={off ?? '已在最后'} onClick={() => move(i, 1)}>
+                        下移
+                      </Btn>
+                    </>
+                  )}
+                  <Btn
+                    size="sm"
+                    variant="ghost"
+                    disabled={off != null}
+                    disabledReason={off ?? ''}
+                    onClick={() => put(i < 0 ? [...items, a.id] : items.filter((x) => x !== a.id))}
+                  >
+                    {i < 0 ? '加入' : '移出'}
+                  </Btn>
+                </span>
               </span>
             </div>
           );

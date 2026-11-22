@@ -4,7 +4,8 @@ import { SRow } from '../../ui';
 import type { Native } from '../settings/native';
 import { CHAR_SECTIONS, CHAR_TABS, DEV_ONLY_ROWS, OTHER_TITLE, placedTab, ROW_DESC, tabOf, type CharTab } from './sections';
 import { control } from './settings';
-import styles from './Tune.module.css';
+import dark from './Rows.module.css';
+import styles from './SettingRows.module.css';
 
 export interface SettingRowsProps {
   n: Native;
@@ -25,21 +26,25 @@ const others = (n: Native, dev: boolean, tab: CharTab) =>
 export function SettingRows({ n, tab, dev, set, pending, offline }: SettingRowsProps) {
   const section = (key: string, title: string, ids: string[]) =>
     ids.length > 0 && (
-      <section key={key} aria-label={title}>
-        <div className={styles.sub}>{title}</div>
+      <section key={key} className={`${dark.list} ${styles.sec}`} aria-label={title}>
+        <div className={dark.head}>{title}</div>
         {ids.map((id) => {
           const row = n.rows[id]!;
           return (
-            <SRow
-              key={id}
-              id={id}
-              title={row.label}
-              desc={ROW_DESC[id]}
-              control={control(row, n.saved[id], offline, (v, quiet) => set(id, v, quiet))}
-              effect={row.restart === 'avatar' ? 'character' : 'now'}
-              pending={pending.has(id)}
-              {...(offline ? { disabled: true, disabledReason: '角色未运行' } : {})}
-            />
+            <div key={id} className={dark.row}>
+              <span className={dark.lead} />
+              <div className={styles.cell}>
+                <SRow
+                  id={id}
+                  title={row.label}
+                  desc={ROW_DESC[id]}
+                  control={control(row, n.saved[id], offline, (v, quiet) => set(id, v, quiet))}
+                  effect={row.restart === 'avatar' ? 'character' : 'now'}
+                  pending={pending.has(id)}
+                  {...(offline ? { disabled: true, disabledReason: '角色未运行' } : {})}
+                />
+              </div>
+            </div>
           );
         })}
       </section>

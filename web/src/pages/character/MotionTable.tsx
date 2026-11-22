@@ -4,6 +4,7 @@ import { Btn, Icon, SearchField, Toggle } from '../../ui';
 import { SelMark } from './charMotion';
 import { SaveNote } from './Commit';
 import { motionFormatLabel } from './labels';
+import dark from './Rows.module.css';
 import styles from './MotionTable.module.css';
 
 export interface MotionRow {
@@ -48,7 +49,7 @@ const sum = (v: number[] | undefined) => (v ?? []).reduce((a, b) => a + b, 0);
 const secs = (d: number) => `${d.toFixed(1)} s`;
 const NO_PLAY = '由行为触发 │ 不支持单独预览';
 
-/** 动作表：一个连续列表，分区是吸顶组头和一排页签（点了跳过去）；行：编号、名称、触发、时长、今日、必需、开关；底栏整组提交。 */
+/** 动作表：一个连续列表，分区是吸顶组头和一排页签（点了跳过去）；行：播放标记、名称、触发、时长、今日（有计数时）、必需、开关；底栏整组提交。 */
 export function MotionTable(p: MotionTableProps) {
   const [q, setQ] = useState('');
   const [onlyMiss, setOnlyMiss] = useState(false);
@@ -78,7 +79,7 @@ export function MotionTable(p: MotionTableProps) {
     else el.scrollIntoView({ block: 'start' });
   };
 
-  const row = ({ a, no }: MotionRow) => {
+  const row = ({ a }: MotionRow) => {
     const v = p.value(a);
     const on = p.sel === a.id;
     const count = sum(p.hours?.[a.id]);
@@ -87,7 +88,7 @@ export function MotionTable(p: MotionTableProps) {
     return (
       <div
         key={a.id}
-        className={styles.row}
+        className={`${dark.row} ${styles.row}`}
         role="row"
         aria-selected={on}
         tabIndex={0}
@@ -102,46 +103,53 @@ export function MotionTable(p: MotionTableProps) {
           }
         }}
       >
-        <span className={styles.no}>
-          {no}
-          {on && <SelMark />}
-        </span>
-        <span className={styles.nm}>
-          <span className={styles.lb} title={a.label}>
-            {a.label}
+        <span className={dark.lead}>
+          <span className={styles.mk}>
+            {a.playable === false && !a.missing ? (
+              <span className={styles.noPlay} title={NO_PLAY}>
+                <Icon name="play" size={14} label={NO_PLAY} />
+              </span>
+            ) : (
+              !a.missing && <Icon name="play" size={14} />
+            )}
+            {on && <SelMark />}
           </span>
-          {a.isNew && <span className={styles.new}>新</span>}
-          {imp && <span className={styles.fmt}>{motionFormatLabel(imp.format)}</span>}
-          {a.media?.bgm && <span className={styles.fmt}>BGM</span>}
-          {a.media?.face && <span className={styles.fmt}>表情</span>}
-          {a.media?.camera && <span className={styles.fmt}>相机</span>}
-          {a.playable === false && !a.missing && (
-            <span className={styles.noPlay} title={NO_PLAY}>
-              <Icon name="play" size={14} label={NO_PLAY} />
-            </span>
-          )}
-          {a.id in p.changed && <i className={styles.chg} title="未保存" aria-label="未保存" />}
         </span>
-        {!p.compact && (
-          <>
-            <span className={styles.tr} title={a.missing ? (a.missingReason ?? '缺资源') : (a.trigger ?? undefined)}>
-              {a.missing ? `⊘ ${(a.missingReason ?? '缺资源').replace(/^缺少\s*/, '缺 ')}` : (a.trigger ?? '')}
+        <span className={styles.cells}>
+          <span className={styles.nm}>
+            <span className={styles.lb} title={a.label}>
+              {a.label}
             </span>
-            <span className={styles.du}>{a.durationS != null ? secs(a.durationS) : '—'}</span>
-            <span className={styles.ct} title="今日播放次数" data-zero={count === 0 || undefined}>
-              {p.hours && !a.missing ? count : ''}
-            </span>
-          </>
-        )}
-        <span>
-          {a.requiredReason && (
-            <span className={styles.req} title={a.requiredReason}>
-              必需
-            </span>
+            {a.isNew && <span className={styles.new}>新</span>}
+            {imp && <span className={styles.fmt}>{motionFormatLabel(imp.format)}</span>}
+            {a.media?.bgm && <span className={styles.fmt}>BGM</span>}
+            {a.media?.face && <span className={styles.fmt}>表情</span>}
+            {a.media?.camera && <span className={styles.fmt}>相机</span>}
+            {a.id in p.changed && <i className={dark.chg} title="未保存" aria-label="未保存" />}
+          </span>
+          {!p.compact && (
+            <>
+              <span className={styles.tr} title={a.missing ? (a.missingReason ?? '缺资源') : (a.trigger ?? undefined)}>
+                {a.missing ? `⊘ ${(a.missingReason ?? '缺资源').replace(/^缺少\s*/, '缺 ')}` : (a.trigger ?? '')}
+              </span>
+              <span className={styles.du}>{a.durationS != null ? secs(a.durationS) : '—'}</span>
+              {p.hours && (
+                <span className={styles.ct} title="今日播放次数" data-zero={count === 0 || undefined}>
+                  {a.missing ? '' : count}
+                </span>
+              )}
+            </>
           )}
-        </span>
-        <span className={styles.tg} onClick={(e) => e.stopPropagation()}>
-          <Toggle size="sm" on={v} label={a.label} disabled={lockReason != null} disabledReason={lockReason ?? ''} onChange={(x) => p.onToggle(a, x)} />
+          <span>
+            {a.requiredReason && (
+              <span className={dark.tag} title={a.requiredReason}>
+                必需
+              </span>
+            )}
+          </span>
+          <span className={styles.tg} onClick={(e) => e.stopPropagation()}>
+            <Toggle size="sm" on={v} label={a.label} disabled={lockReason != null} disabledReason={lockReason ?? ''} onChange={(x) => p.onToggle(a, x)} />
+          </span>
         </span>
       </div>
     );
@@ -170,28 +178,28 @@ export function MotionTable(p: MotionTableProps) {
         </span>
       </div>
       <div className={styles.cols} aria-hidden="true">
-        <span>#</span>
-        <span>名称</span>
-        {!p.compact && (
-          <>
-            <span>触发</span>
-            <span>时长</span>
-            <span>{p.hours ? '今日' : ''}</span>
-          </>
-        )}
-        <span />
-        <span />
+        <span className={styles.cells}>
+          <span>名称</span>
+          {!p.compact && (
+            <>
+              <span>触发</span>
+              <span>时长</span>
+              {p.hours && <span>今日</span>}
+            </>
+          )}
+          <span />
+          <span />
+        </span>
       </div>
       <div className={styles.list} ref={listRef} role="grid" aria-label="全部动作">
         {p.groups.map((g) => {
-          const shown = g.rows.filter((r) => (!onlyMiss || r.a.missing) && (!onlyImp || r.a.id in imported) && (!qq || `${r.a.label}${r.a.trigger ?? ''}`.includes(qq)));
+          const shown = g.rows.filter((x) => (!onlyMiss || x.a.missing) && (!onlyImp || x.a.id in imported) && (!qq || `${x.a.label}${x.a.trigger ?? ''}`.includes(qq)));
           return (
-            <div key={g.key} data-group={g.key} role="rowgroup">
-              <div className={styles.gh}>
-                <b>{g.name}</b>
-                <span className={`${styles.den} ${styles.num}`}>
-                  {g.rows.filter((r) => p.value(r.a)).length}
-                  <small>/{g.rows.length}</small>
+            <div key={g.key} className={dark.list} data-group={g.key} role="rowgroup">
+              <div className={`${dark.head} ${styles.gh}`}>
+                <span>{g.name}</span>
+                <span className={`${dark.meta} ${styles.num}`}>
+                  {g.rows.filter((x) => p.value(x.a)).length}/{g.rows.length}
                 </span>
               </div>
               {shown.map(row)}

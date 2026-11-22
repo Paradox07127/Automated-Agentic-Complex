@@ -106,9 +106,13 @@ describe('CharacterSettings', () => {
 });
 
 describe('角色 page 设定 view', () => {
-  it('/character?tab=render puts the 设定 menu beside the stage', async () => {
+  it('/character?tab=render names the 设定 pages in the panel tab bar, without its own menu', async () => {
     await character('&tab=render');
-    expect(await screen.findByRole('tablist', { name: '设定' })).toBeTruthy();
+    const bar = await screen.findByRole('tablist', { name: '角色页签' });
+    expect(within(bar).getAllByRole('tab').map((t) => t.textContent)).toEqual(['行为', '画面', '场景']);
+    expect(within(bar).getByRole('tab', { name: '画面' }).getAttribute('aria-selected')).toBe('true');
+    await screen.findByRole('slider', { name: '水平朝向' });
+    expect(screen.queryByRole('tablist', { name: '设定' })).toBeNull();
     expect(document.querySelector('[data-character-preview]')).not.toBeNull();
   });
 

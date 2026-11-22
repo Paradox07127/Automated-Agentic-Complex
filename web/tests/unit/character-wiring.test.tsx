@@ -142,11 +142,7 @@ function Op(over: Partial<OperatorProps> = {}) {
       actions={MOTIONS}
       motionsError={null}
       onRetryMotions={noop}
-      hours={null}
       charState={STATE_WITH_CAUSES}
-      now={NOW}
-      sparse={false}
-      weapon={false}
       toast={noop}
       {...over}
     />
@@ -241,7 +237,6 @@ describe('motions (avatar.actions shape)', () => {
 const stageProps: StageProps = {
   motion: MOTIONS[1],
   section: '说话',
-  today: null,
   name: '示例乙',
   activity: '坐着',
   scale: 100,

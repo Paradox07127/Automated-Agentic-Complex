@@ -1,0 +1,17 @@
+/* 设定 rows inside the shared dark rows: the settings row fills the row's main cell, its control column narrower than on the settings page. */
+.sec + .sec {
+  margin-top: 12px;
+}
+
+.cell {
+  flex: 1;
+  min-width: 0;
+}
+
+.cell > :global([data-stub='SRow']) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
+  gap: 4px 12px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-bottom: 0;
+}

@@ -1,10 +1,14 @@
 /* 设定: the board, then the vertical menu on the right edge (43.5 px cells, 5 px apart). */
 .set {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 43.5px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   min-width: 0;
   min-height: 0;
+}
+
+.set[data-menu] {
+  grid-template-columns: minmax(0, 1fr) 43.5px;
 }
 
 .board {

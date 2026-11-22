@@ -6,6 +6,8 @@ export interface PanelTab {
   id: string;
   label: string;
   icon: IconName;
+  /** A count after the label (模组设置's switches). */
+  count?: number;
 }
 
 export interface PanelProps {
@@ -24,7 +26,7 @@ export interface PanelProps {
   children: ReactNode;
 }
 
-/** 详情页右侧面板：游戏页签条（图标 │ 标签，选中格深灰、黄分隔、上角橙菱形），下面是深色内容。 */
+/** 详情页右侧面板：页签条（图标 │ 标签，选中格深灰、分隔变黄），下面是深色内容。 */
 export function Panel(p: PanelProps) {
   const on = p.tabs.find((t) => t.id === p.value);
   return (
@@ -37,6 +39,11 @@ export function Panel(p: PanelProps) {
                 <Icon name={t.icon} size={20} />
                 <i className={styles.div} aria-hidden="true" />
                 <span className={styles.tabL}>{t.label}</span>
+                {t.count != null && (
+                  <span className={styles.n} aria-hidden="true">
+                    {t.count}
+                  </span>
+                )}
               </button>
             ))}
           </div>
