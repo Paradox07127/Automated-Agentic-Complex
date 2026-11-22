@@ -150,6 +150,7 @@ const CAP_REASON: Readonly<Record<string, string>> = {
   missing_api_key: '没有 API key',
   sign_in_required: 'ChatGPT 没登录',
   plan_usage_not_enabled: '没授权订阅额度',
+  secret_store_unavailable: '系统凭据存储无法访问',
   credential_permissions: '设置文件权限不是 600',
   settings_unreadable: '设置文件读不出来',
   no_tts: '没配置 TTS，台词只出文字',

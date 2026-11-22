@@ -269,7 +269,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 
 **`POST /voice/token`**
 - 令牌：只收 ui token。请求体 `{"token": 字符串}`；空白、空或非字符串令牌返回 400 `invalid_token`。
-- 用 `infra.tokens.write_secret` 将令牌写入 `--tts-token-file`（未传时取 `$AAC_TTS_TOKEN_FILE`），权限 0600，并立即替换 `server.speech.token`。200 `{"ok": true}`，后续请求无需重启即可使用新令牌。
+- 将令牌写入系统凭据存储（C10），并立即替换 `server.speech.token`。200 `{"ok": true}`，后续请求无需重启即可使用新令牌。
 
 **`POST /interaction/tap`**
 - 请求体和回包见 §4.2；请求体另可带 `"region"?: 字符串`，取值同 C3 规则 45(a) 的 15 个触摸区域，表示点中的部位。
@@ -730,7 +730,7 @@ http 型 hook 读不到环境变量和 tty，所以来源由命令型 hook 的�
 
 ### 4.7 语音中继
 
-启动时给 `--tts-url`（TTS 主机上的服务，例如经 `ssh -N -L 19888:127.0.0.1:9888 <主机>` 后的 `http://127.0.0.1:19888`）才开。「嘴」的一句台词正常结束、没出错、没被打断、没静音时，agentd 把去掉标记的文本 POST 给 TTS 主机的 `/speech_stream`（不超过 50 字时是全文；更长时只送第一句，第一句也超过 50 字时截到 50 字内最后一个「，」，没有逗号就截到 50 字；`/feed` 的文字仍是全文）（`character`、`language` 取当前角色卡的 `tts`；`allow_unvalidated_pilot=true`、`accelerated=true`、`expires_at_ms` = 现在 + 120 s），收到的每行只改写 `session_epoch`（registry 的 epoch，字符串）和 `turn_id`（= 这句的 `line_id`）后原样转发到 `GET /speech`。同一时刻只有一条语音：新的 `/say`、「停下」、「静音」会先结束当前语音；被 agentd 截断或上游断开的流，由 agentd 补一行 `cancelled`（`superseded`、`client_cancel` 或 `error`，`seq` 接着上一行，`last_sample_sent` 是已转发的样本数）。角色进程读到 `speech.begin` 的 `turn_id` 与当前不同时，先按新的 epoch / turn 重置时间轴再应用。请求带 `Authorization: Bearer <令牌>`，令牌文件取 `--tts-token-file`，没给时取 `$AAC_TTS_TOKEN_FILE`（C10；Companion 总是传 `--tts-token-file <Companion 支持目录>/tts-token`）（0600，更宽就不启动；两者都没有或文件不在时照样发请求，在仓库根目录运行 `agent/.venv/bin/python agent/agentd/tools/tts_token.py push --ssh user@host --remote /srv/agentic-complex-tts/state/tts-token` 生成并复制到 TTS 主机，随后重启 TTS 和 agentd）。TTS 在发出任何行之前就失败（401、500、连不上）时 `/speech` 上什么都没有，agentd 在 `/feed` 发 `speech_failed` `{speech_id, reason}`（`reason` 为 `http_<状态码>`、`unreachable`、`bad_stream` 或 `empty_stream`），说话状态随即释放；这次失败也记进 `/diag/state` 的 `mouth_voice.speech_failed` 和 `connections.tts`。连不上（5 s 内没接受连接也算；ensure 之后仍然如此）也按这样的失败处理：这一句只出文字，不改发到别的 TTS 地址。
+启动时给 `--tts-url`（TTS 主机上的服务，例如经 `ssh -N -L 19888:127.0.0.1:9888 <主机>` 后的 `http://127.0.0.1:19888`）才开。「嘴」的一句台词正常结束、没出错、没被打断、没静音时，agentd 把去掉标记的文本 POST 给 TTS 主机的 `/speech_stream`（不超过 50 字时是全文；更长时只送第一句，第一句也超过 50 字时截到 50 字内最后一个「，」，没有逗号就截到 50 字；`/feed` 的文字仍是全文）（`character`、`language` 取当前角色卡的 `tts`；`allow_unvalidated_pilot=true`、`accelerated=true`、`expires_at_ms` = 现在 + 120 s），收到的每行只改写 `session_epoch`（registry 的 epoch，字符串）和 `turn_id`（= 这句的 `line_id`）后原样转发到 `GET /speech`。同一时刻只有一条语音：新的 `/say`、「停下」、「静音」会先结束当前语音；被 agentd 截断或上游断开的流，由 agentd 补一行 `cancelled`（`superseded`、`client_cancel` 或 `error`，`seq` 接着上一行，`last_sample_sent` 是已转发的样本数）。角色进程读到 `speech.begin` 的 `turn_id` 与当前不同时，先按新的 epoch / turn 重置时间轴再应用。请求带 `Authorization: Bearer <令牌>`，agentd 通过 C10 的凭据引用读取系统保存的令牌。用 `tools/tts_token.py push` 可经 SSH 标准输入复制到 TTS 主机。TTS 在发出任何行之前就失败（401、500、连不上）时 `/speech` 上什么都没有，agentd 在 `/feed` 发 `speech_failed` `{speech_id, reason}`（`reason` 为 `http_<状态码>`、`unreachable`、`bad_stream` 或 `empty_stream`），说话状态随即释放；这次失败也记进 `/diag/state` 的 `mouth_voice.speech_failed` 和 `connections.tts`。连不上（5 s 内没接受连接也算；ensure 之后仍然如此）也按这样的失败处理：这一句只出文字，不改发到别的 TTS 地址。
 
 ### 4.8 行为 tick 与空间行为
 

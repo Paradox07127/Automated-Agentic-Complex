@@ -77,7 +77,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 
 ## 模型与凭据
 
-- `model-settings.json` 保存各后端连接和 API Key；`chatgpt-auth.json` 保存安装标识、各账号注册和令牌。两者都在 `--state-dir` 下，以 0600 原子写入。HTTP 读端点和 UI 不返回凭据。
+- `model-settings.json` 保存各后端连接和凭据引用。`chatgpt-auth.json` 保存安装标识、账号注册、授权范围和过期时间。API Key、OAuth 令牌、动作和 TTS 服务令牌在 macOS 上保存在登录钥匙串中，在 Windows 上由当前用户的 DPAPI 加密。两份 JSON 文件都在 `--state-dir` 下，以 0600 原子写入。HTTP 读端点和 UI 不返回凭据。
 - 没保存过设置时 provider 为 `chatgpt`。保存后只影响后续请求。
 - ChatGPT 订阅：在系统浏览器登录，回调校验 state、PKCE（S256）、ID token 和 nonce；只有授权里有 `chatgpt.tokens.use.direct` 才允许推理。刷新按连接串行，并加文件锁。订阅令牌只发往 `https://api.openai.com/v1`，不读取或复用 Codex 应用的登录文件。退出时尝试撤销远端刷新令牌。
 - OpenAI 与兼容 API：Base URL 只收 https，或本机（localhost、127.0.0.1、::1）的 http。输出上限默认 4096 token，可设 128–32768。DeepSeek 固定官方地址 `https://api.deepseek.com`，必须有 Key。
@@ -112,7 +112,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 ## 语音
 
 - 启动时给 `--tts-url` 才有语音。例如 TTS 在远端主机时用 `ssh -N -L 19888:127.0.0.1:9888 <主机>`，再给 `--tts-url http://127.0.0.1:19888`。
-- 请求带 `Authorization: Bearer <令牌>`。令牌文件取 `--tts-token-file`，没给时取 `$AAC_TTS_TOKEN_FILE`（C10）；文件必须是 0600。在仓库根目录运行 `agent/.venv/bin/python agent/agentd/tools/tts_token.py push --ssh user@host --remote /srv/agentic-complex-tts/state/tts-token` 生成令牌并复制到 TTS 主机。将示例里的账户、主机和部署根目录换成实际值，随后重启 TTS 和 agentd。
+- 请求带 `Authorization: Bearer <令牌>`。`--tts-token-file` 或 `$AAC_TTS_TOKEN_FILE` 指定凭据引用的基础路径，对应的 `.ref` 文件记录系统凭据标识（C10）。使用与 agentd 相同的签名 Python 运行 `agent/agentd/tools/tts_token.py push` 生成令牌并复制到 TTS 主机，随后重启 TTS 和 agentd。
 - TTS 地址收 `http` 和 `https`。HTTPS 默认 443 端口，初次连接和重连都校验证书和主机名；URL 里的用户信息和其他协议拒收。明文 HTTP 对任何主机都收，令牌和文本不加密。
 - 转发规则（`/speech` 中继、截断补 `cancelled`、失败时 `speech_failed`）见 C6 §4.7。
 

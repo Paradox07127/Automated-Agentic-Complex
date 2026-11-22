@@ -959,30 +959,10 @@ class ArgsTest(unittest.TestCase):
             self.assertEqual(owner.rituals.report_time, (18, 5))
             owner.rituals.db.close()
 
-    @unittest.skipIf(sys.platform == "win32", "cause on Windows not yet found")
-    def test_tts_token_file_comes_from_the_flag_else_the_environment(self):
-        from daemon.main import tts_token
-        from infra.tokens import write_secret
-        from tools.tts_token import DEFAULT_FILE
-        self.assertIsNone(parse_args([]).tts_token_file)
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32") as tmp:
-            path = Path(tmp) / "tts-token"
-            with unittest.mock.patch.dict(os.environ, {"AAC_TTS_TOKEN_FILE": str(path)}):
-                self.assertIsNone(tts_token(None))  # missing: requests go out bare and the TTS answers 401
-                write_secret(path, "tok-1\n")
-                self.assertEqual(tts_token(None), "tok-1")
-                path.chmod(0o644)
-                with self.assertRaises(SystemExit):
-                    tts_token(None)
-            with unittest.mock.patch.dict(os.environ, {"AAC_TTS_TOKEN_FILE": str(Path(tmp) / "absent")}):
-                path.chmod(0o600)
-                self.assertEqual(tts_token(str(path)), "tok-1")
-            with unittest.mock.patch.dict(os.environ, {}, clear=True):
-                stderr = io.StringIO()
-                with contextlib.redirect_stderr(stderr):
-                    self.assertIsNone(tts_token(None))  # no default path: the Companion passes --tts-token-file
-                self.assertIn("--tts-token-file", stderr.getvalue())
-        self.assertEqual(DEFAULT_FILE.name, "tts-token")
+    def test_tts_credential_path_comes_from_the_flag_else_the_environment(self):
+        with unittest.mock.patch.dict(os.environ, {"AAC_TTS_TOKEN_FILE": "env-slot"}):
+            self.assertEqual(parse_args([]).tts_token_file, "env-slot")
+            self.assertEqual(parse_args(["--tts-token-file", "flag-slot"]).tts_token_file, "flag-slot")
 
     def test_capture_judge_uses_local_rules_and_only_vision_uses_semantic_service(self):
         from daemon.main import build_capture

@@ -11,8 +11,9 @@ ROOT = AGENTD.parents[1]
 EXAMPLES = ROOT / "protocol/C10-shared-files/examples"
 sys.path.insert(0, str(AGENTD))
 
-from daemon.main import parse_args, tts_token  # noqa: E402
-from infra.tokens import write_secret  # noqa: E402
+from daemon.main import parse_args  # noqa: E402
+from infra.secrets import MemorySecrets
+from voice.credential import TtsCredential  # noqa: E402
 from observation.blacklist import Blacklist  # noqa: E402
 from observation.privacy import saved_consent, saved_switch  # noqa: E402
 
@@ -59,8 +60,10 @@ class TtsTokenReaderTest(unittest.TestCase):
         text = (EXAMPLES / "tts-token").read_text(encoding="utf-8")
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "tts-token"
-            write_secret(path, text)  # git keeps no 0600 mode, and agentd refuses a wider one
-            self.assertEqual(tts_token(parse_args(["--tts-token-file", str(path)]).tts_token_file), text.strip())
+            store = MemorySecrets()
+            TtsCredential(path, store).put(text.strip())
+            args = parse_args(["--tts-token-file", str(path)])
+            self.assertEqual(TtsCredential(args.tts_token_file, store).get(), text.strip())
 
 
 if __name__ == "__main__":

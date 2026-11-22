@@ -15,6 +15,8 @@ AGENTD = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(AGENTD))
 
 from daemon.agentd_server import AgentdServer  # noqa: E402
+from infra.secrets import MemorySecrets
+from voice.credential import TtsCredential
 from api.handler import Handler  # noqa: E402
 from voice.speech import SpeechRelay  # noqa: E402
 from voice.tts_ensure import NEGATIVE, TtsEnsurer  # noqa: E402
@@ -33,7 +35,8 @@ if os.environ.get("TEST_BREAK_VOICE"):
     def broken(*args):
         raise RuntimeError("voice start fixture")
     daemon.main.make_provider = broken
-server.main()
+from infra.secrets import MemorySecrets
+server.main(MemorySecrets())
 """
 
 
@@ -223,17 +226,16 @@ class VoiceSettingsTest(unittest.TestCase):
     def test_voice_token_is_private_and_replaces_relay_token(self):
         relay = self.server.speech
         with tempfile.TemporaryDirectory() as tmp:
-            path = self.server.tts_token_file = Path(tmp) / "tts-token"
-            path.write_text("old-token", encoding="utf-8")
-            path.chmod(0o644)
+            credential = self.server.tts_credential = TtsCredential(Path(tmp) / "tts-token", MemorySecrets())
+            credential.put("old-token")
             self.assertEqual(self.request("/voice/token", {"token": "new-token"}),
                              (200, {"ok": True}))
-            self.assertEqual(path.read_text(encoding="utf-8"), "new-token")
-            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(credential.get(), "new-token")
+            self.assertEqual(credential.ref.stat().st_mode & 0o777, 0o600)
             self.assertEqual(relay.token, "new-token")
             self.server.speech = None
             self.assertEqual(self.request("/voice/token", {"token": " next-token\n"}), (200, {"ok": True}))
-            self.assertEqual(path.read_text(encoding="utf-8"), "next-token")
+            self.assertEqual(credential.get(), "next-token")
             self.server.speech = relay
             relay.token = "new-token"
             with patch("api.speech.check", create=True, return_value={"ok": True}) as check:
@@ -243,12 +245,12 @@ class VoiceSettingsTest(unittest.TestCase):
     def test_voice_token_rejects_empty_and_non_string_tokens(self):
         relay = self.server.speech
         with tempfile.TemporaryDirectory() as tmp:
-            path = self.server.tts_token_file = Path(tmp) / "tts-token"
-            path.write_text("old-token", encoding="utf-8")
+            credential = self.server.tts_credential = TtsCredential(Path(tmp) / "tts-token", MemorySecrets())
+            credential.put("old-token")
             for body in ({}, [], {"token": ""}, {"token": "  "}, {"token": None}, {"token": 7}):
                 with self.subTest(body=body):
                     self.assertEqual(self.request("/voice/token", body)[0], 400)
-                    self.assertEqual(path.read_text(encoding="utf-8"), "old-token")
+                    self.assertEqual(credential.get(), "old-token")
                     self.assertEqual(relay.token, "old-token")
 
 

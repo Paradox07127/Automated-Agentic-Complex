@@ -117,8 +117,6 @@ class Stack {
    */
   async init(options: { missing?: Record<string, string>; catalog?: string; config?: Record<string, unknown> } = {}): Promise<this> {
     mkdirSync(join(this.support, 'run'), { recursive: true });
-    // The supervisor passes it to agentd as --tts-token-file.
-    writeFileSync(join(this.support, 'tts-token'), 'e2e\n', { mode: 0o600 });
     process.env.E2E_AGENTD_FAULTS = join(this.dir, 'agentd-faults.json');
     // Without a catalog agentd reads the agentd test library, whose ids the tests use.
     process.env.AGENTD_DEV_CATALOG = join(REPO, 'agent/agentd/tests/fixtures/characters/current.json');

@@ -30,6 +30,7 @@ from daemon.rituals_glue import TAP_REGION_TEXT
 from sessions.events import normalize_claude, normalize_codex
 from route_registry import COMMITMENT_PATH, REGISTRY, SERVER, SESSION_PATH, TASK_PATH, routes_table
 from infra import plugins
+from infra.secrets import ModelError
 from infra.store import checkpoint
 from tools import install_hooks
 from api.views import _fact_text, _midnight, _iso
@@ -206,7 +207,10 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
 
     @_answers_500
     def do_GET(self):
-        self._dispatch()
+        try:
+            self._dispatch()
+        except ModelError as error:
+            self._json(503, {"error": str(error)})
 
     do_POST = do_PUT = do_PATCH = do_DELETE = do_GET
 

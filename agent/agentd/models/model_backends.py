@@ -12,6 +12,7 @@ import re
 
 from character_agent.harness.pi_config import THINKING_LEVELS
 from character_agent.services.providers import DEEPSEEK_BASE_URL, XAI_BASE_URL
+from infra.secrets import setting_secret
 from infra.paths import model_settings
 from infra.tokens import ensure_state_dir
 
@@ -24,8 +25,8 @@ DEFAULTS = {
     # supports_images, context_window, reasoning: Pi's defaults for a model without a catalog entry.
     "compatible": {"model": "", "base_url": "http://127.0.0.1:11434/v1", **_BUDGET,
                    "supports_images": False, "context_window": 128000, "reasoning": False},
-    # Another provider of Pi's catalog, named by `pi_provider`; `keys` holds one key per provider.
-    "pi_catalog": {"model": "", "base_url": "", "pi_provider": "", "keys": {}, **_BUDGET},
+    # Another provider of Pi's catalog, named by `pi_provider`.
+    "pi_catalog": {"model": "", "base_url": "", "pi_provider": "", **_BUDGET},
     "chatgpt": {"model": "", "base_url": RESOURCE, **_BUDGET},
 }
 # Services that list their own /models; Pi's offline catalog lists the others.
@@ -48,12 +49,13 @@ def check_response(response):
 
 
 class ModelSettings:
-    def __init__(self, directory):
+    def __init__(self, directory, secrets):
+        self.secrets = secrets
         self.directory = Path(directory)
         self.path = model_settings(self.directory)
         self.lock = threading.RLock()
         self.data, self.error = self._load()
-        self.auth = ChatGPTAuth(directory)
+        self.auth = ChatGPTAuth(directory, secrets)
 
     def _load(self):
         error, stored = None, None
@@ -62,7 +64,13 @@ class ModelSettings:
         except (ModelError, ValueError) as failure:
             # Run on defaults with model calls disabled until the file reads again or save() rewrites it.
             error = str(failure) if isinstance(failure, ModelError) else "settings_unreadable"
-        data = stored if stored is not None else {"provider": "chatgpt", "backends": copy.deepcopy(DEFAULTS)}
+        data = {"provider": "chatgpt", "backends": copy.deepcopy(DEFAULTS)}
+        if stored is not None:
+            data["provider"] = stored["provider"]
+            for provider, config in data["backends"].items():
+                fields = (*config, "key_refs")
+                saved = stored["backends"].get(provider, {})
+                config.update({field: saved[field] for field in fields if field in saved})
         return data, error
 
     def _recover(self):
@@ -72,30 +80,34 @@ class ModelSettings:
                 if error is None:
                     self.data, self.error = data, None
 
+    def _key(self, provider, config):
+        ref = config.get("key_refs", {}).get(config.get("pi_provider", provider))
+        value = self.secrets.get(ref) if ref else None
+        return value.decode() if value else ""
+
     def snapshot(self):
         with self.lock:
-            return copy.deepcopy(self.data)
+            data = copy.deepcopy(self.data)
+            for provider, config in data["backends"].items():
+                key = self._key(provider, config)
+                config.pop("key_refs", None)
+                if key:
+                    config["api_key"] = key
+            return data
 
     def public(self):
         self._recover()
         data = self.snapshot()
-        for provider, config in data["backends"].items():
-            config["has_key"] = self._keyed(provider, config)
-            config.pop("api_key", None)
-            config.pop("keys", None)
+        for config in data["backends"].values():
+            config["has_key"] = bool(config.pop("api_key", None))
         return {**data, "chatgpt": self.auth.state(), "error": self.error}
-
-    def _keyed(self, provider, config):
-        if provider == "pi_catalog":
-            return bool(config["keys"].get(config["pi_provider"]))
-        return bool(config.get("api_key"))
 
     def save(self, body):
         if not isinstance(body, dict) or body.get("provider") not in DEFAULTS:
             raise ModelError("invalid_provider")
         provider = body["provider"]
         with self.lock:
-            updated = self.snapshot()
+            updated = copy.deepcopy(self.data)
             config = updated["backends"][provider]
             host = urlparse(config.get("base_url", "")).hostname
             if provider == "pi_catalog" and "pi_provider" in body:
@@ -105,11 +117,15 @@ class ModelSettings:
                 if name != config["pi_provider"]:
                     # Model ids belong to one provider.
                     config.update(pi_provider=name, model="")
+            key_value = None
             for key in ("model", "base_url", "api_key"):
                 if key in body:
                     if not isinstance(body[key], str) or len(body[key]) > (8192 if key == "api_key" else 1024):
                         raise ModelError("invalid_" + key)
-                    config[key] = body[key].strip()
+                    if key == "api_key":
+                        key_value = body[key].strip()
+                    else:
+                        config[key] = body[key].strip()
             if "max_output_tokens" in body:
                 budget = body["max_output_tokens"]
                 if type(budget) is not int or not 128 <= budget <= 32768:
@@ -132,21 +148,16 @@ class ModelSettings:
                     raise ModelError("invalid_reasoning")
                 config["reasoning"] = body["reasoning"]
             if body.get("clear_key") is True:
-                config.pop("api_key", None)
+                key_value = ""
             if provider == "chatgpt":
                 config["base_url"] = RESOURCE  # OAuth tokens only ever go to the public OpenAI endpoint
-                config.pop("api_key", None)
+                key_value = None
             if provider == "deepseek":
                 config["base_url"] = DEEPSEEK_BASE_URL
             if provider == "pi_catalog":
                 # Pi's catalog has each provider's address; a key goes to the chosen provider's own slot.
-                key = config.pop("api_key", None)
-                if (key is not None or body.get("clear_key") is True) and not config["pi_provider"]:
+                if key_value is not None and not config["pi_provider"]:
                     raise ModelError("invalid_pi_provider")
-                if key is not None:
-                    config["keys"][config["pi_provider"]] = key
-                elif body.get("clear_key") is True:
-                    config["keys"].pop(config["pi_provider"], None)
                 config["base_url"] = ""
             else:
                 parsed = urlparse(config["base_url"])
@@ -154,11 +165,18 @@ class ModelSettings:
                         parsed.scheme != "https" and not (parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1", "::1"))):
                     raise ModelError("invalid_base_url")
                 if parsed.hostname != host and "api_key" not in body:
-                    config.pop("api_key", None)  # a stored key never follows the URL to another host
+                    key_value = ""  # a stored key never follows the URL to another host
                 config["base_url"] = config["base_url"].rstrip("/")
             updated["provider"] = provider
             ensure_state_dir(self.path.parent)
-            atomic_write_json(self.path, updated, ensure_ascii=False)
+            slot = config.get("pi_provider", provider)
+            old_ref = config.get("key_refs", {}).get(slot)
+            with setting_secret(self.secrets, old_ref, "provider-", None if key_value is None else key_value.encode()) as ref:
+                if ref:
+                    config.setdefault("key_refs", {})[slot] = ref
+                elif old_ref:
+                    config["key_refs"].pop(slot)
+                atomic_write_json(self.path, updated, ensure_ascii=False)
             self.data = updated
             self.error = None
         return self.public()
@@ -168,13 +186,12 @@ class ModelSettings:
         self._recover()
         if self.error:
             raise ModelError(self.error)
-        data = self.snapshot()
-        provider = data["provider"]
-        config = data["backends"][provider]
-        key = config.get("api_key", "")
-        if provider == "pi_catalog":
-            key = config["keys"].get(config["pi_provider"], "")
-        elif provider == "chatgpt":
+        with self.lock:
+            provider = self.data["provider"]
+            config = self.data["backends"][provider].copy()
+            key = self._key(provider, config)
+            config.pop("key_refs", None)
+        if provider == "chatgpt":
             key = self.auth.access_token()
         if not key and provider != "compatible":
             raise ModelError("missing_api_key")
@@ -186,7 +203,8 @@ class ModelSettings:
         self._recover()
         if self.error:
             raise ModelError(self.error)
-        data = self.snapshot()
+        with self.lock:
+            data = self.data
         if data["provider"] not in LISTS_OWN_MODELS:
             pi = data["backends"]["pi_catalog"]["pi_provider"] or None if data["provider"] == "pi_catalog" else data["provider"]
             return pi_models(pi)

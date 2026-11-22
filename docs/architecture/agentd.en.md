@@ -18,7 +18,7 @@ A new module goes into the domain package it belongs to; the root holds only fil
 |---|---|
 | `api/` | The HTTP `Handler` (`api/handler.py`: the `parse_request` checks, and `_dispatch`, which hands a request to the owner of its route in `route_registry.py`); mixins split by URL prefix: `hooks`, `sessions`, `memory`, `episodes`, `observation`, `context`, `speech`, `diag`, `character`, `settings`; `views.py` holds the views and field checks shared by `api/` and `daemon/`; `integration.py` holds the `/integration/*` routes for outside agents ([INTEGRATION.md](../../protocol/C6-agentd-api/INTEGRATION.md)) |
 | `daemon/` | `main.py` (arguments, startup order, serve loop); `AgentdServer` and `StateView` in `agentd_server.py`; mixins split by concern: `announce`, `turns`, `speech_control`, `context`, `switches`, `ingest`, `character_switch`, `rituals_glue`, `memory_sync`, `tracing`, `diagnostics`, `lifecycle`; shared constants in `constants.py` |
-| `infra/` | SQLite storage and schemas (`store`, `store_schemas`, `data_lifecycle`), 0600 token files (`tokens`), state paths (`paths`), local time in prompts (`localtime`), platform differences (`platform/`) |
+| `infra/` | SQLite storage and schemas (`store`, `store_schemas`, `data_lifecycle`), private IPC token files (`tokens`), OS credential storage (`secrets`), state paths (`paths`), local time in prompts (`localtime`), platform differences (`platform/`) |
 | `sessions/` | Event normalization, the session registry, approvals and danger rules (`approvals`, `danger`), own sessions and dispatch (`own`, `lifecycle`, `dispatch`, `tasks`), session digests, the harness ledger and day summaries |
 | `observation/` | The attention timeline and blacklist, capture and image description (`capture`), privacy and consent (`privacy`), activity judgement and user state, the one in-memory snapshot of the user's presence and the character's stage (`user_now`), the desktop timeline (`timeline`), desktop presence, spatial behavior and facing |
 | `personal/` | Fact memory, personal episodes, chat history and conversations, reminders, schedules, tap rituals, work memory |
@@ -77,7 +77,7 @@ On SIGTERM, SIGINT, or exit of the process that started it (`--exit-with-parent`
 
 ## Models and credentials
 
-- `model-settings.json` stores each backend's connection and API key; `chatgpt-auth.json` stores the install identity, each account registration, and tokens. Both live under `--state-dir` and are written atomically with mode 0600. HTTP read endpoints and the UI never return credentials.
+- `model-settings.json` stores connection settings and credential references. `chatgpt-auth.json` stores the install identity, account registrations, scopes, and expiry. Provider keys, OAuth tokens, and the motion and TTS service tokens use the login Keychain on macOS and current-user DPAPI on Windows. Both JSON files live under `--state-dir` and are written atomically with mode 0600. HTTP read endpoints and the UI never return credentials.
 - Without saved settings the provider is `chatgpt`. A saved change affects later requests only.
 - ChatGPT subscription: sign-in happens in the system browser; the callback checks state, PKCE (S256), the ID token, and the nonce. Inference is allowed only when the grant includes `chatgpt.tokens.use.direct`. Refreshes are serialized per connection under a file lock. Subscription tokens go only to `https://api.openai.com/v1`; Codex app login files are never read or reused. Signing out tries to revoke the remote refresh token.
 - OpenAI and compatible APIs: the base URL must be https, or http on the local machine (localhost, 127.0.0.1, ::1). The output limit defaults to 4096 tokens and can be set to 128–32768. DeepSeek uses the fixed official address `https://api.deepseek.com` and needs a key.
@@ -112,7 +112,7 @@ The amounts estimate what agentd can verify; they are not provider bills. Extern
 ## Voice
 
 - Voice is on only when agentd starts with `--tts-url`. For TTS on a remote host, for example, run `ssh -N -L 19888:127.0.0.1:9888 <host>` and pass `--tts-url http://127.0.0.1:19888`.
-- Requests carry `Authorization: Bearer <token>`. The token file is `--tts-token-file`, else `$AAC_TTS_TOKEN_FILE` (C10); the file must be 0600. From the repository root, `agent/.venv/bin/python agent/agentd/tools/tts_token.py push --ssh user@host --remote /srv/agentic-complex-tts/state/tts-token` creates the token and copies it to the TTS host. Substitute the service account, host and deployment root, then restart TTS and agentd.
+- Requests carry `Authorization: Bearer <token>`. The `.ref` file beside the basename selected by `--tts-token-file` or `$AAC_TTS_TOKEN_FILE` identifies the OS-stored credential (C10). Run `agent/agentd/tools/tts_token.py push` with the same signed Python runtime as agentd to copy the token to the TTS host, then restart TTS and agentd.
 - TTS URLs may be `http` or `https`. HTTPS uses port 443 by default and verifies the certificate and host name on the first connection and on reconnects; user information in the URL and other schemes are rejected. Plain HTTP is accepted for any host and sends the token and text unencrypted.
 - The relay rules (the `/speech` relay, the `cancelled` line on truncation, `speech_failed` on failure) are in C6 §4.7.
 

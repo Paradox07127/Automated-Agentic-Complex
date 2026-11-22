@@ -42,11 +42,11 @@ agentd 的参数（`--` 之后）。宿主必传的只有 `--port` 和 `--state-
 | `--mute` | 静音时 | 关 |
 | `--tts-url URL` | config `tts_url` 非空时 | 无，只出字 |
 | `--tts-ensure-host HOST` 和 `--tts-ensure-script PATH` | `tts_url`、`tts_tunnel_host`、`tts_ensure_script` 都非空时，两个一起传 | 无，不按需启动 TTS |
-| `--tts-token-file PATH` | 总传，`<support>/tts-token`，文件不在也传（C10） | `$AAC_TTS_TOKEN_FILE`；它也没有时不带令牌 |
+| `--tts-token-file PATH` | 总传，`<support>/tts-token`，文件不在也传（C10） | 凭据引用的基础路径取 `$AAC_TTS_TOKEN_FILE`，缺省取 `<state-dir>/tts-token` |
 
 agentd 还认 `--hook-timeout`、`--margin`、`--ritual-report-time`、`--ledger-root`、`--exit-with-parent/--no-exit-with-parent`、`--describe`；Companion 不传。含义见 `python3 agent/agentd/server.py --help`。
 
-环境和工作目录：Companion 不设环境变量、不设工作目录，agentd 继承 Companion 的。agentd 读一个环境变量 `AAC_TTS_TOKEN_FILE`，只在带 `--tts-url` 时读：没有 `--tts-token-file` 时用它指的 TTS 令牌文件（Companion 总传 `--tts-token-file`，所以用不到它）；两者都没有或文件不在时 agentd 照常运行，请求不带令牌，TTS 回 401。agentd 不认任何 Companion 目录的默认路径。
+环境和工作目录：Companion 不设环境变量、不设工作目录，agentd 继承 Companion 的。agentd 按 C10 的凭据引用读取系统保存的 TTS 令牌。没有配置令牌时仍可启动。
 
 Companion 每次启动 agentd 前把 `<support>/bin/agentic-complex-hook`（0755）改写成 `exec '<python>' '<agentd 目录>/codex_hook_forward.py' "$@"`。用户的 Claude/Codex hook 配置只存这个固定路径（`install_hooks.py --hook-script`），agentd 换位置后 hook 照样能用。
 

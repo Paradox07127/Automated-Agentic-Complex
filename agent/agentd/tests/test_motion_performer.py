@@ -2,7 +2,6 @@
 import hashlib
 import http.client
 import json
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -13,6 +12,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import c1  # noqa: E402
+from infra.secrets import MemorySecrets
 from brain import persona  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 from motion import catalog as motion_catalog  # noqa: E402
@@ -105,7 +105,7 @@ class MotionCase(unittest.TestCase):
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
         self.clock, self.traced, self.texts = Clock(), [], []
-        self.settings = MotionSettings(self.state)
+        self.settings = MotionSettings(self.state, MemorySecrets())
         self.server.turn_generation = 4  # the turn the tests' motions belong to
 
     request = support.request
@@ -412,14 +412,13 @@ class SettingsRouteTest(MotionCase):
         self.assertEqual(self.request("PUT", "/motion/settings", {**SERVICE, "backend": "kimodo"})[0], 400)
         self.assertEqual(self.request("PUT", "/motion/settings", {"backend": "game"})[0], 400)
         self.assertEqual(self.request("PUT", "/motion/settings", SERVICE, token=EVENTS)[0], 401)
-        reloaded = MotionSettings(self.state)
+        reloaded = MotionSettings(self.state, self.settings.secrets)
         self.assertEqual((reloaded.backend, reloaded.service_url, reloaded.token()),
                          ("generated", SERVICE["service_url"], "service-secret"))
-        self.assertEqual(os.stat(self.state / "motion-service.token").st_mode & 0o777, 0o600)
         self.assertNotIn("service-secret", (self.state / "motion-settings.json").read_text(encoding="utf-8"))
         status, saved = self.request("PUT", "/motion/settings", {"backend": "game", "service_url": None})
         self.assertEqual((status, saved["token_set"]), (200, False))
-        self.assertEqual(MotionSettings(self.state).backend, "game")
+        self.assertEqual(MotionSettings(self.state, MemorySecrets()).backend, "game")
 
     def test_a_backend_change_rerenders_the_mouth_prompt_once(self):
         self.server.mouth = test_server.FakeMouth([])

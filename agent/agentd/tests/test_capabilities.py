@@ -10,6 +10,7 @@ from unittest.mock import patch
 import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from infra.secrets import MemorySecrets
 from models.capabilities import collect
 from models.model_backends import ModelSettings
 
@@ -116,7 +117,7 @@ class CollectTest(unittest.TestCase):
             path.write_text(json.dumps(
                 {"provider": "anthropic", "backends": {"anthropic": {"model": "m", "base_url": "https://api.anthropic.com", "api_key": "k"}}}), encoding="utf-8")
             path.chmod(0o644)
-            real_models = ModelSettings(directory)
+            real_models = ModelSettings(directory, MemorySecrets())
             fake = server(models=real_models)
             snapshot = collect(fake)
             self.assertEqual(item(snapshot, "generation"), ("degraded", "credential_permissions"))

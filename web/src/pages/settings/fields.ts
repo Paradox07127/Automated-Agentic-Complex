@@ -305,6 +305,7 @@ export const RUNTIME_ERROR: Readonly<Record<string, RuntimeError>> = {
   missing_provider_api_key: { label: '还没有保存这个服务的 API Key', fix: API_KEY },
   unsupported_anthropic_endpoint: { label: 'API 凭据只能用 Anthropic 官方地址', fix: API_BASE },
   unsupported_openai_endpoint: { label: 'API 凭据只能用 OpenAI 官方地址', fix: API_BASE },
+  secret_store_unavailable: { label: '系统凭据存储无法访问' },
   credential_permissions: { label: '本机的凭据文件读不了', fix: API_KEY },
   runtime_settings_unreadable: { label: '内核设置文件读不了' },
   local_no_auth_requires_compatible: { label: '「无需密钥」只能配兼容 API', fix: PROVIDER },

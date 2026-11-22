@@ -19,6 +19,7 @@ import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from infra.secrets import MemorySecrets
 from fsutil import atomic_write_json
 from models.model_auth import ChatGPTAuth, ModelError, ISSUER, read_json
 from models.model_backends import ModelSettings
@@ -47,7 +48,7 @@ class CredentialFileTests(unittest.TestCase):
             target.write_text("keep me", encoding="utf-8")
             lock = Path(directory) / "chatgpt-auth.json.lock"
             lock.symlink_to(target)
-            auth = ChatGPTAuth(directory)
+            auth = ChatGPTAuth(directory, MemorySecrets())
             self.assertEqual(auth.state()["error"], "credential_permissions")
             with self.assertRaisesRegex(ModelError, "credential_permissions"):
                 auth.select("missing")
@@ -59,7 +60,7 @@ class CredentialFileTests(unittest.TestCase):
             path = Path(directory) / "chatgpt-auth.json"
             atomic_write_json(path, {"host_id": "urn:uuid:x", "active": None, "profiles": {}})
             path.chmod(0o644)
-            settings = ModelSettings(directory)
+            settings = ModelSettings(directory, MemorySecrets())
             self.assertEqual(settings.public()["chatgpt"]["error"], "credential_permissions")
             self.assertEqual(path.stat().st_mode & 0o777, 0o644)
 
@@ -68,7 +69,7 @@ class ModelsTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.settings = ModelSettings(self.tmp.name)
+        self.settings = ModelSettings(self.tmp.name, MemorySecrets())
         self.addCleanup(self.settings.auth.cancel)
 
     def config(self, provider="openai", **values):
@@ -90,7 +91,7 @@ class ModelsTest(unittest.TestCase):
         self.assertNotIn("secret-key", public)
         self.assertNotIn("access_token", public)
         self.assertTrue(self.settings.public()["backends"]["openai"]["has_key"])
-        loaded = ModelSettings(self.tmp.name)
+        loaded = ModelSettings(self.tmp.name, self.settings.secrets)
         self.assertEqual(loaded.connection()[2], "secret-key")
         self.config(api_key="replacement")
         self.settings.save({"provider": "openai", "model": "other"})
@@ -128,7 +129,7 @@ class ModelsTest(unittest.TestCase):
                 path = Path(directory) / "model-settings.json"
                 atomic_write_json(path, {"provider": "openai", "backends": {}})
                 damage(path)
-                settings = ModelSettings(directory)
+                settings = ModelSettings(directory, MemorySecrets())
                 self.addCleanup(settings.auth.cancel)
                 with self.assertRaisesRegex(ModelError, code):
                     settings.connection()
@@ -250,7 +251,7 @@ class ModelsTest(unittest.TestCase):
 class AuthTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
-        self.auth = ChatGPTAuth(self.tmp.name); self.addCleanup(self.auth.cancel)
+        self.auth = ChatGPTAuth(self.tmp.name, MemorySecrets()); self.addCleanup(self.auth.cancel)
         self.browser = patch("models.model_auth.webbrowser.open", return_value=True).start(); self.addCleanup(patch.stopall)
 
     def tokens(self, **overrides):
@@ -280,7 +281,7 @@ class AuthTest(unittest.TestCase):
         self.assertIsNotNone(self.auth.pending)
         self.assertNotIn("verifier", json.dumps(self.auth.state()))
         host = self.auth.data["host_id"]
-        self.assertEqual(ChatGPTAuth(self.tmp.name).data["host_id"], host)
+        self.assertEqual(ChatGPTAuth(self.tmp.name, MemorySecrets()).data["host_id"], host)
 
     @unittest.skipIf(sys.platform == "win32", "POSIX mode bits, uid or FIFO; on Windows the state directory's DACL protects these files")
     def test_registration_saved_before_exchange_then_valid_identity(self):
@@ -316,7 +317,7 @@ class AuthTest(unittest.TestCase):
         with self.assertRaisesRegex(ModelError, "plan_usage_not_enabled"):
             self.auth.access_token()
         self.assertFalse(self.finish(selected, identity=self.identity(sub="different"), access_token="replacement"))
-        self.assertEqual(self.auth.data["profiles"][selected]["access_token"], "access")
+        self.assertEqual(self.auth._credentials(selected)["access_token"], "access")
 
     def test_multiple_profiles_refresh_rotation_and_logout_retains_registration(self):
         self.assertTrue(self.finish()); first = self.auth.data["active"]
@@ -329,8 +330,8 @@ class AuthTest(unittest.TestCase):
         with patch.object(self.auth, "_token", return_value=self.tokens(access_token="renewed", refresh_token="rotated")) as token:
             self.assertEqual(self.auth.access_token(), "renewed")
             self.assertEqual(token.call_args.args[0]["client_id"], "issued-client")
-        self.assertEqual(self.auth.data["profiles"][first]["refresh_token"], "rotated")
-        self.assertEqual(self.auth.data["profiles"][second]["access_token"], "access")
+        self.assertEqual(self.auth._credentials(first)["refresh_token"], "rotated")
+        self.assertEqual(self.auth._credentials(second)["access_token"], "access")
         with patch("httpx.get", return_value=httpx.Response(200, json={"revocation_endpoint": ISSUER + "/revoke"})), patch(
                 "httpx.post", return_value=httpx.Response(200)):
             self.assertEqual(self.auth.logout(first), {"revoked": True})
@@ -345,7 +346,7 @@ class AuthTest(unittest.TestCase):
         profile = self.auth.data["profiles"][self.auth.data["active"]]
         profile["expires_at"] = time.time() - 10
         self.auth._save()
-        second = ChatGPTAuth(self.tmp.name)
+        second = ChatGPTAuth(self.tmp.name, self.auth.secrets)
         results = []
         def refresh(_):
             time.sleep(.02)
@@ -356,7 +357,7 @@ class AuthTest(unittest.TestCase):
             for thread in threads: thread.join(2)
             self.assertEqual(results, ["renewed", "renewed"])
             self.assertEqual(token.call_count, 1)
-        self.assertEqual(second.data["profiles"][second.data["active"]]["refresh_token"], "rotated")
+        self.assertEqual(second._credentials(second.data["active"])["refresh_token"], "rotated")
 
     def test_returning_signin_reuses_client_and_host_with_fresh_state(self):
         self.assertTrue(self.finish()); selected = self.auth.data["active"]
@@ -388,7 +389,7 @@ class ModelEndpointsTest(unittest.TestCase):
     def test_ui_only_settings_and_auth_and_safe_errors(self):
         with tempfile.TemporaryDirectory() as directory:
             server = AgentdServer(("127.0.0.1", 0), "hook", "ui", events_token="events")
-            server.models = ModelSettings(directory)
+            server.models = ModelSettings(directory, MemorySecrets())
             pings = []
             server.character_agent = NS(semantic=NS(run=lambda purpose, prompt, context: pings.append(purpose) or {
                 "backend": "codex", "model": "kernel-model"}), settings=NS(snapshot=lambda: {"backend": "codex"}),
@@ -427,7 +428,7 @@ class ModelEndpointsTest(unittest.TestCase):
             "input": ["text", "image"], "reasoning": True, "thinking_levels": ["off", "low", "high", "max"], "priced": True}]}
         with tempfile.TemporaryDirectory() as directory:
             server = AgentdServer(("127.0.0.1", 0), "hook", "ui", events_token="events")
-            server.models = ModelSettings(directory)
+            server.models = ModelSettings(directory, MemorySecrets())
             server.models.save({"provider": "deepseek"})
             server.character_agent = NS(cancel=lambda reason: None, close=lambda: None)
             serve_in_thread(server)
@@ -462,7 +463,7 @@ class ModelEndpointsTest(unittest.TestCase):
             def close(self): pass
         with tempfile.TemporaryDirectory() as directory:
             server = AgentdServer(("127.0.0.1", 0), "hook", "ui", events_token="events")
-            server.models = ModelSettings(directory)
+            server.models = ModelSettings(directory, MemorySecrets())
             server.usage = NS(record=lambda *args, **kwargs: recorded.append(kwargs))
             server.character_agent = NS(
                 semantic=NS(run=lambda *args: self.fail("the Pi test must not take a semantic route"), usage=None),

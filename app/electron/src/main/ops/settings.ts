@@ -1,6 +1,6 @@
 // `settings.*` over config.json. A save runs the effects agentd and the login item take, and on Windows
 // restarts the renderer; not the hot keys'. Hot keys the system refused read as none.
-import { existsSync, readdirSync, readFileSync, renameSync, rmSync, truncateSync, lstatSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, renameSync, truncateSync, lstatSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { ttsTokenFile } from '../../common/agentd.ts';
 import { BridgeFailure } from '../../common/bridge.ts';
@@ -169,7 +169,8 @@ export function settingsOps(ctx: OpsContext): Ops {
     const ttsTokenCleared = plan.effects.some((e) => e.kind === 'ttsToken');
     if (ttsTokenCleared && ctx.config.supportDir !== null) {
       try {
-        rmSync(ttsTokenFile(ctx.config.supportDir), { force: true });
+        const token = ttsTokenFile(ctx.config.supportDir);
+        if (existsSync(token + '.ref')) renameSync(token + '.ref', token + '.revoked');
       } catch (e) {
         return { restart: 'none', notApplied: [], error: `没能删除旧语音服务的令牌，没有保存：${e instanceof Error ? e.message : String(e)}` };
       }

@@ -82,7 +82,7 @@ agentd 仍然只改写 `session_epoch`、`turn_id`、`turn_generation`、`trace_
 ### v2-4. 鉴权
 
 - agentd 请求 TTS 时带 `Authorization: Bearer <token>`。缺令牌或令牌错，TTS 在发任何流之前回 HTTP 401。
-- TTS 主机上的服务从环境变量 `AAC_TTS_TOKEN_FILE` 指的文件读令牌。文件权限必须是 0600，更宽就拒绝启动。默认路径：TTS 主机上是 `<TTS 根目录>/state/tts-token`，Mac 是 Companion state dir 里的 `tts-token`。
+- TTS 主机上的服务从环境变量 `AAC_TTS_TOKEN_FILE` 指的文件读令牌。文件权限必须是 0600，更宽就拒绝启动。默认路径：TTS 主机上是 `<TTS 根目录>/state/tts-token`，agentd 客户端从系统凭据存储读取令牌（见 C10）。
 - 令牌由 agent 在 Mac 上生成，安装时用 ssh 拷到 TTS 主机；生成、拷贝和轮换的细节见 `protocol/C2-speech-stream/TTS-TOKEN.md`。服务端比较令牌用 `hmac.compare_digest`。
 - 要令牌的端点：所有 POST 端点和 `GET /artifacts/...`。`GET /health` 不要令牌：隧道和 Companion 用它查存活，它不返回音频。
 

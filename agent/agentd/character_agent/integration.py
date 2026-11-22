@@ -989,7 +989,9 @@ class CharacterAgentController:
             raise ValueError("pi_connection_missing")
         try:
             provider, backend, key = models.connection()
-        except ModelError:
+        except ModelError as error:
+            if str(error) == "secret_store_unavailable":
+                raise ValueError(str(error)) from error
             raise ValueError("pi_connection_missing") from None
         return self._pi_mapped(config, provider, backend, key), key, backend.get("model", "")
 

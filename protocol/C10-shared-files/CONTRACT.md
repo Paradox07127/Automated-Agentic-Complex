@@ -77,16 +77,12 @@
 
 | 项 | 内容 |
 |---|---|
-| 路径 | Companion 支持目录下的 `tts-token`（`~/Library/Application Support/local.agenticcomplex.companion/tts-token`）。Companion 启动 agentd 时总传 `--tts-token-file <支持目录>/tts-token`，文件不在也传。agentd 不认任何默认路径：没有 `--tts-token-file` 时用 `$AAC_TTS_TOKEN_FILE`，两者都没有就没有令牌 |
-| 所有者 | `agent/agentd/tools/tts_token.py ensure` / `rotate`（手动跑；默认写上面的路径，`--file` 或 `$AAC_TTS_TOKEN_FILE` 可改） |
-| 读者 | agentd（带 `--tts-url` 时，启动阶段读一次）；Mac 备用 TTS（C2 `TTS-TOKEN.md`） |
-| 写入时机 | `ensure`：文件不在时新建；`rotate`：先写好 TTS 主机上的副本，再替换本地文件 |
-| 权限 | 0600，普通文件，一个硬链接，属于当前用户。不满足时 agentd 以 1 退出（`infra/tokens.py`） |
-| 版本字段 | 没有 |
+| 基础路径 | Companion 传 `--tts-token-file <支持目录>/tts-token`。单独运行 agentd 时依次取该参数、`$AAC_TTS_TOKEN_FILE`、`<state-dir>/tts-token`。 |
+| 凭据引用 | `<基础路径>.ref` 是私有文件，只记录随机标识。Companion 更换 TTS 来源时将其重命名为 `.revoked`。下次读写时 agentd 删除对应的系统凭据。 |
+| 令牌 | macOS 登录钥匙串中的通用密码，或 agentd 状态目录中由 Windows 当前用户 DPAPI 加密的文件。 |
+| 写入者 | agentd 的 `POST /voice/token` 立即更新当前语音连接。`tools/tts_token.py ensure` 可生成令牌，`rotate` 先更新 TTS 主机再替换本地凭据。 |
 
-- 格式：纯文本，一行，结尾换行。读方去掉首尾空白，剩下的整串就是令牌。`tts_token.py` 生成的是 `secrets.token_urlsafe(32)`（43 个 URL 安全字符）。
-- agentd 拿到令牌后在 TTS 请求上带 `Authorization: Bearer <令牌>`。没有令牌（没给路径或文件不在）时 agentd 照常运行，请求不带令牌，TTS 回 401，agentd 发 `speech_failed`。
-- agentd 只在启动时读；换了令牌要重启 agentd。
+agentd 在 TTS 请求上添加 `Authorization: Bearer <令牌>`。未配置令牌时发送无认证请求。系统凭据存储无法访问时返回 `secret_store_unavailable`。
 
 ## 不属于 C10
 
@@ -94,10 +90,10 @@
 
 ## 样例与校验
 
-- `examples/blacklist.json`、`examples/privacy-config.json`（只含 agentd 读的 7 个键）、`examples/tts-token`（假令牌）。git 不保存 0600，用令牌样例的测试先把它拷成 0600 的临时文件。
+- `examples/blacklist.json`、`examples/privacy-config.json`（只含 agentd 读的 7 个键）、`examples/tts-token`（假令牌）。测试将假令牌注入内存凭据存储。
 - `test_examples.py`：只用标准库，查三份样例的键和类型。
-- `agent/agentd/tests/test_c10_shared_files.py`：agentd 新建和重写的 `blacklist.json` 与样例键、类型一致，`schema` 为 1；`saved_consent`、`saved_switch` 读 `examples/privacy-config.json`；`--tts-token-file` 指向样例令牌时取到的令牌等于样例内容。
-- `agent/agentd/tests/test_server.py` `test_tts_token_file_comes_from_the_flag_else_the_environment`：先 `--tts-token-file`，再 `$AAC_TTS_TOKEN_FILE`，都没有时没有令牌。
+- `agent/agentd/tests/test_c10_shared_files.py`：agentd 新建和重写的 `blacklist.json` 与样例键、类型一致，`schema` 为 1；`saved_consent`、`saved_switch` 读 `examples/privacy-config.json`；凭据引用标识可取回样例令牌。
+- `agent/agentd/tests/test_server.py` `test_tts_credential_path_comes_from_the_flag_else_the_environment`：先 `--tts-token-file`，再 `$AAC_TTS_TOKEN_FILE`，都没有时没有令牌。
 - `agent/agentd/tests/test_native_host.py` `test_reads_the_c10_example_blacklist`：native host 读样例，把其中的 `domains`、`title_patterns` 发给扩展，并按它丢弃。
 - `app/electron/test/c10.test.ts`：`BlacklistFile` 读样例；样例 `privacy-config.json` 里的每个键都是 `settings.ts` 的一个设置行，类型一致。
 - `app/electron/test/agentd-state.test.ts` 的 agentd 命令行用例：文件不在时外壳也传 `--tts-token-file <支持目录>/tts-token`。

@@ -13,6 +13,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from infra.secrets import MemorySecrets
 from brain import persona
 from brain.egress import EgressPolicy
 from brain.outbound import OutboundBlocked
@@ -50,7 +51,7 @@ class BindingCase(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.state_dir = Path(tmp.name)
-        self.settings = MotionSettings(self.state_dir)
+        self.settings = MotionSettings(self.state_dir, MemorySecrets())
         # Exercise Handler and the real server state without opening a listening socket.
         with mock.patch.object(AgentdServer, "server_bind"), mock.patch.object(AgentdServer, "server_activate"):
             self.server = AgentdServer(("127.0.0.1", 0), helpers.HOOK, support.UI, events_token=helpers.EVENTS)

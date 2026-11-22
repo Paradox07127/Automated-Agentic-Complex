@@ -4,7 +4,6 @@ import os
 from urllib.parse import parse_qs, urlparse
 
 from daemon.constants import FEEDBACK, MAX_SAY
-from infra.tokens import write_secret
 from voice.speech import REASONS, endpoint
 from api.views import _is_dir
 from voice.voice_provider import RemoteWsVoice
@@ -228,7 +227,7 @@ class SpeechMixin:
         if not isinstance(token, str) or not token.strip():
             return self._json(400, {"error": "invalid_token"})
         token = token.strip()
-        write_secret(self.server.tts_token_file, token)
+        self.server.tts_credential.put(token)
         if self.server.speech is not None:
             self.server.speech.token = token
         self._json(200, {"ok": True})

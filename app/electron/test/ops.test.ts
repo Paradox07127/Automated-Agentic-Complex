@@ -302,18 +302,19 @@ test('a scope reads only what the shell issued: a picked handle or the handle on
 test('a TTS address saved with another origin deletes the token installed for the old service, and the reply says so', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'settings-'));
   try {
-    const token = join(dir, 'tts-token');
+    const token = join(dir, 'tts-token.ref');
     writeFileSync(join(dir, 'config.json'), JSON.stringify({ tts_url: 'http://127.0.0.1:19888' }));
-    writeFileSync(token, 'DUMMY-first-service-token\n', { mode: 0o600 });
+    writeFileSync(token, 'first-reference\n', { mode: 0o600 });
     const ops = registry(context(dir)), page = new PageSession(() => {});
     const save = (changes: Record<string, unknown>) => handle('main', page0, { op: 'settings.save', args: [changes] }, ops, page);
     assert.deepEqual(await save({ ttsUrl: 'http://127.0.0.1:19888/v2' }), { ok: true, value: { restart: 'backend', notApplied: [] } });
     assert.ok(existsSync(token), 'the same service');
     assert.deepEqual(await save({ ttsUrl: 'http://gpu-box:19888' }),
       { ok: true, value: { restart: 'backend', notApplied: [], ttsTokenCleared: true } });
+    assert.equal(readFileSync(join(dir, 'tts-token.revoked'), 'utf8').trim(), 'first-reference');
     assert.ok(!existsSync(token), 'the next start sends the first service\'s token to no one');
     assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).tts_url, 'http://gpu-box:19888');
-    writeFileSync(token, 'DUMMY-second-service-token\n', { mode: 0o600 });
+    writeFileSync(token, 'second-reference\n', { mode: 0o600 });
     assert.deepEqual(await save({ ttsUrl: 'https://gpu-box:19888' }),
       { ok: true, value: { restart: 'backend', notApplied: [], ttsTokenCleared: true } }, 'another scheme');
     assert.ok(!existsSync(token));

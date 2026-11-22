@@ -13,6 +13,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import c1  # noqa: E402
+from infra.secrets import MemorySecrets
 from motion import requests  # noqa: E402
 import test_motion_performer as base  # noqa: E402
 
@@ -256,10 +257,10 @@ class ClientTest(unittest.TestCase):
     def test_changed_service_drops_saved_token(self):
         from motion.settings import MotionSettings
         with tempfile.TemporaryDirectory() as directory:
-            settings = MotionSettings(directory)
+            settings = MotionSettings(directory, MemorySecrets())
             settings.update({'backend': 'generated', 'service_url': 'https://first.example', 'token': 'sentinel'})
             status, result = settings.update({'backend': 'generated', 'service_url': 'https://next.example'})
-            self.assertEqual((status, result['token_set'], MotionSettings(directory).token()), (200, False, None))
+            self.assertEqual((status, result['token_set'], MotionSettings(directory, settings.secrets).token()), (200, False, None))
 
     def test_cross_origin_redirect_has_no_token(self):
         from urllib.response import addinfourl

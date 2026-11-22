@@ -170,7 +170,7 @@ export interface LaunchContext {
   platform?: ShellPlatform;
 }
 
-/** The TTS bearer token agentd sends to `tts_url` (C10). */
+/** The basename of the TTS credential reference shared with agentd (C10). */
 export const ttsTokenFile = (supportDir: string) => `${supportDir}/tts-token`;
 
 /**
@@ -211,7 +211,7 @@ export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
   args.push('--water-reminder-minutes', String(Math.max(0, config.waterReminderMinutes)));
   if (config.mute) args.push('--mute');
   if (config.ttsURL !== '') args.push('--tts-url', config.ttsURL);
-  // Passed even when the file is missing: agentd then sends TTS requests without a token (C10).
+  // Pass the reference basename even before a credential is configured (C10).
   args.push('--tts-token-file', ttsTokenFile(config.supportDir));
   if (config.ttsTunnelHost !== '' && config.ttsURL !== '' && config.ttsEnsureScript !== '') {
     args.push('--tts-ensure-host', config.ttsTunnelHost, '--tts-ensure-script', config.ttsEnsureScript);

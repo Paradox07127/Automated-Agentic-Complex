@@ -14,21 +14,21 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from infra.paths import TTS_TOKEN_FILE as DEFAULT_FILE  # noqa: E402
-from infra.tokens import write_secret  # noqa: E402
+from infra.paths import app_state_dir
+from infra.secrets import system_store
+from voice.credential import TtsCredential  # noqa: E402
 
 
-def ensure(path):
-    """Create the token file (0600) when it is missing; an existing one is kept."""
-    path = Path(path)
-    if not path.exists():
-        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        write_secret(path, secrets.token_urlsafe(32) + "\n")
-    return path
+def ensure(credential):
+    token = credential.get()
+    if token is None:
+        token = secrets.token_urlsafe(32)
+        credential.put(token)
+    return token
 
 
-def push(path, host, remote, run=subprocess.run):
-    """Write the local token to remote on host; the token goes over stdin, never on a command line."""
-    token = Path(path).read_text(encoding="utf-8").strip()
+def push(token, host, remote, run=subprocess.run):
+    """Write the token to remote on host over stdin."""
     target = shlex.quote(remote)
     script = (f"umask 077 && mkdir -p \"$(dirname {target})\" && cat > {target}.new && chmod 600 {target}.new"
               f" && mv {target}.new {target}")
@@ -36,20 +36,13 @@ def push(path, host, remote, run=subprocess.run):
         raise SystemExit(f"could not write the token to {host}:{remote}")
 
 
-def rotate(path, host, remote, run=subprocess.run):
-    """New token: the TTS host first, then the local file, so a failed copy leaves both sides on the old one."""
-    path = Path(path)
-    fresh = path.with_name(path.name + ".new")
-    write_secret(fresh, secrets.token_urlsafe(32) + "\n")
-    try:
-        push(fresh, host, remote, run)
-    except SystemExit:
-        fresh.unlink()
-        raise
-    os.replace(fresh, path)
+def rotate(credential, host, remote, run=subprocess.run):
+    token = secrets.token_urlsafe(32)
+    with credential.stage(token):
+        push(token, host, remote, run)
 
 
-def main():
+def main(secret_store=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("ensure", "push", "rotate"))
     parser.add_argument("--file", default=os.environ.get("AAC_TTS_TOKEN_FILE", str(DEFAULT_FILE)))
@@ -62,14 +55,16 @@ def main():
             parser.error(f"{args.action} needs the TTS host: pass --ssh HOST or set AAC_TTS_SSH_HOST")
         if not args.remote:
             parser.error(f"{args.action} needs the token path on the TTS host: pass --remote PATH or set AAC_TTS_TOKEN_REMOTE")
+    credential = TtsCredential(args.file, system_store(app_state_dir()) if secret_store is None else secret_store)
     if args.action == "ensure":
-        print(ensure(args.file))
+        ensure(credential)
+        print(credential.ref)
     elif args.action == "push":
-        push(ensure(args.file), args.ssh, args.remote)
+        push(ensure(credential), args.ssh, args.remote)
         print(f"copied to {args.ssh}:{args.remote}; restart the TTS service to load it")
     else:
-        rotate(ensure(args.file), args.ssh, args.remote)
-        print(f"rotated {args.file} and {args.ssh}:{args.remote}; restart both TTS backends and agentd")
+        rotate(credential, args.ssh, args.remote)
+        print(f"rotated the credential for {args.ssh}:{args.remote}; restart the TTS service and agentd")
 
 
 if __name__ == "__main__":

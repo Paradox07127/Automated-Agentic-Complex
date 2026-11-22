@@ -70,20 +70,6 @@ def build_capture(feed, attention, semantic, state_dir, share_window_text, share
                           app_category=attention.app_category if attention is not None else None)
 
 
-def tts_token(path):
-    """The TTS bearer token from path, else $AAC_TTS_TOKEN_FILE; None when neither is set or the file is missing
-    (the TTS then answers 401 and the speech ends)."""
-    path = path or os.environ.get("AAC_TTS_TOKEN_FILE")
-    if not path:
-        print("agentd: no TTS token: neither --tts-token-file nor $AAC_TTS_TOKEN_FILE is set", file=sys.stderr)
-        return None
-    path = Path(path)
-    if not path.exists():
-        print(f"agentd: no TTS token at {path}; run tools/tts_token.py ensure", file=sys.stderr)
-        return None
-    return read_token(path)
-
-
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=paths.AGENTD_PORT)
@@ -130,8 +116,8 @@ def parse_args(argv=None):
     parser.add_argument("--plugin-off", action="append", choices=plugins.DEFAULTS, default=[], metavar="ID")
     parser.add_argument("--share-screenshots", action="store_true",
                         help="request budgeted window screenshots and describe them with Claude; off by default")
-    parser.add_argument("--tts-token-file", help="TTS bearer token file (0600); default $AAC_TTS_TOKEN_FILE, "
-                        "else requests go out without a token")
+    parser.add_argument("--tts-token-file", default=os.environ.get("AAC_TTS_TOKEN_FILE"), help="TTS credential reference basename; default $AAC_TTS_TOKEN_FILE, "
+                        "else tts-token in the state directory")
     parser.add_argument("--redact", action=argparse.BooleanOptionalAction, default=True,
                         help="mask API keys, tokens, emails and phone numbers before any model call; on by default")
     parser.add_argument("--mute", action=argparse.BooleanOptionalAction, default=False,
@@ -227,7 +213,7 @@ def thought_work(server, allowed, cwds):
     return "\n".join(lines)[:400]
 
 
-def main():
+def main(secret_store=None):
     os.umask(0o077)
     class TimestampedStderr:
         def __init__(self, stream):
@@ -263,6 +249,10 @@ def main():
     state_dir = Path(args.state_dir)
     ensure_state_dir(state_dir)
     make_private_tree(state_dir)
+    from infra.secrets import ModelError, system_store
+    from voice.credential import TtsCredential
+    if secret_store is None:
+        secret_store = system_store(state_dir)
     hook_path = paths.hook_token(state_dir)
     if not hook_path.exists():
         write_secret(hook_path, secrets.token_urlsafe(24) + "\n")
@@ -278,7 +268,7 @@ def main():
     from models.model_backends import ModelSettings
     from brain.outbound import OutboundGuard, resolve_windows
     from brain.provider import Mouth
-    models = ModelSettings(state_dir) if needs_runtime else None
+    models = ModelSettings(state_dir, secret_store) if needs_runtime else None
     guard = OutboundGuard(resolve_windows(state_dir), paths.outbound_guard_log(state_dir))
     from brain.egress import EgressPolicy
     # One policy for every model call, so the diagnostics see one set of mask counts.
@@ -343,7 +333,7 @@ def main():
     server.spatial.parked = lambda on: server.desk.span("edge", on)
     from motion.performer import Performer
     from motion.settings import MotionSettings
-    server.motion = Performer(MotionSettings(state_dir), server.registry.publish_event,
+    server.motion = Performer(MotionSettings(state_dir, secret_store), server.registry.publish_event,
                               lambda: server.characters.package(server.character).root, state_dir / "motion-cache",
                               offer=server.spatial.offer, trace=server._trace)
     server.bindings = Bindings(state_dir, repository, lambda: server.motion.settings.backend)
@@ -407,15 +397,22 @@ def main():
     if light and args.tts_url:
         server.startup_stage = "speech"
 
+    tts_path = args.tts_token_file or state_dir / paths.TTS_TOKEN
+    server.tts_credential = TtsCredential(tts_path, secret_store)
+
     def start_voice():
-        token = tts_token(args.tts_token_file) if args.tts_url else None
+        try:
+            token = server.tts_credential.get() if args.tts_url else None
+        except ModelError as error:
+            server.voice = NoVoice(str(error))
+            server.degraded.append("speech")
+            return
         server.voice = make_provider(args, server.bindings, server.registry.epoch, token)
         if server.voice.relay() is not None:
             server.voice.relay().on_event = server.on_speech_event
     if light and not start_optional(server, "speech", start_voice):
         server.voice = NoVoice("start_failed")  # text-only, as without --tts-url
     server.speech, server.tts_ensurer = server.voice.relay(), server.voice.ensurer
-    server.tts_token_file = args.tts_token_file or os.environ.get("AAC_TTS_TOKEN_FILE")
     if isinstance(server.voice, RemoteWsVoice):
         server.voice.probe()
     server.startup_stage = "recovery"

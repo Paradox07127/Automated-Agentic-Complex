@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from infra.secrets import MemorySecrets
 from support import enable_plugins
 from brain.egress import EgressPolicy  # noqa: E402
 from brain.provider import Mouth  # noqa: E402
@@ -97,14 +98,16 @@ class C6FixtureTest(unittest.TestCase):
         state = Path(self.tmp.name)
         # One signed-in profile, so the array item is compared too.
         atomic_write_json(state / "chatgpt-auth.json", {"host_id": "urn:uuid:" + PROFILE, "active": PROFILE, "profiles": {
-            PROFILE: {"label": "连接 1", "email": "user@example.com", "access_token": "fake",
+            PROFILE: {"label": "连接 1", "email": "user@example.com", "expires_at": 9999999999,
                       "scopes": ["chatgpt.tokens.use.direct"]}}})
         with patch.object(AgentdServer, "server_bind"), patch.object(AgentdServer, "server_activate"):
             self.server = AgentdServer(("127.0.0.1", 48810), HOOK, UI, events_token=EVENTS)
         self.server._stopped.set()
         self.server._ticker.join(2)
         self.server.server_port = 48810
-        self.server.models = ModelSettings(state)
+        credentials = MemorySecrets()
+        credentials.put("chatgpt-" + PROFILE, b'{"access_token":"fake"}')
+        self.server.models = ModelSettings(state, credentials)
         self.server.models.save({"provider": "anthropic"})
         self.seed(state)
 

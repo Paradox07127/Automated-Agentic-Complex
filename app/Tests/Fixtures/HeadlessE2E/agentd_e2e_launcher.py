@@ -43,7 +43,13 @@ def main():
         os._exit(faults["exit_status"])
     time.sleep(faults.get("bind_late_s", 0))
     sys.path.insert(0, agentd_dir)
+    from functools import partial
+    from infra.secrets import MemorySecrets
+    from voice.credential import TtsCredential
     import server
+    credentials = MemorySecrets()
+    TtsCredential(option(agentd_args, "--tts-token-file"), credentials).put("e2e")
+    server.main = partial(server.main, secret_store=credentials)
     release = faults.get("recovery_wait_file")
     if release:
         recover = server.AgentdServer.recover_tasks

@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from infra.secrets import MemorySecrets
 from character_agent.harness.pi_config import PiConfig
 from character_agent.harness.registry import HARNESSES, pi_catalog
 from character_agent.harness.transport import join_reapers
@@ -67,7 +68,7 @@ class PiConnectionCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        self.models = ModelSettings(self.root / "models")
+        self.models = ModelSettings(self.root / "models", MemorySecrets())
         self.auth = self.models.auth = FakeAuth()
         site = self.root / "harness.pi"
         node = site / ("node/node.exe" if sys.platform == "win32" else "node/bin/node")
@@ -92,8 +93,7 @@ class PiConnectionCase(unittest.TestCase):
         self.tmp.cleanup()
 
     def use(self, provider, **backend):
-        self.models.data["provider"] = provider
-        self.models.data["backends"].setdefault(provider, {}).update(backend)
+        self.models.save({"provider": provider, **backend})
 
     def config(self, **changes):
         return {**DEFAULTS, **changes}
@@ -131,7 +131,7 @@ class MappingTests(PiConnectionCase):
         self.assertEqual(self.controller._model(config), "deepseek-flash")
 
     def test_pi_catalog_runs_the_chosen_provider_with_its_own_key(self):
-        self.use("pi_catalog", pi_provider="openrouter", model="openrouter/auto", keys={"openrouter": "fake-or-key", "groq": "fake-groq-key"})
+        self.use("pi_catalog", pi_provider="openrouter", model="openrouter/auto", api_key="fake-or-key")
         config = self.config()
         self.assertEqual(self.controller._pi_connection(config),
                          {"provider": "openrouter", "auth_source": "api_key", "base_url": ""})
@@ -139,7 +139,7 @@ class MappingTests(PiConnectionCase):
         self.assertEqual(self.controller._model(config), "openrouter/auto")
 
     def test_pi_catalog_without_a_chosen_provider_is_missing(self):
-        self.use("pi_catalog", pi_provider="", keys={})
+        self.use("pi_catalog")
         with self.assertRaisesRegex(ValueError, "pi_connection_missing"):
             self.controller._pi_connection(self.config())
 
@@ -152,13 +152,13 @@ class MappingTests(PiConnectionCase):
         self.assertEqual(self.controller._model(config), "grok-4.3")
 
     def test_runtime_provider_reads_its_own_backend_key_never_the_compatible_one(self):
-        self.models.data["backends"]["compatible"].update(base_url="https://api.deepseek.com", api_key="fake-compatible-key")
+        self.use("compatible", base_url="https://api.deepseek.com", api_key="fake-compatible-key")
         for provider, url in (("deepseek", "https://api.deepseek.com"), ("xai", "https://api.x.ai/v1")):
             with self.subTest(provider=provider):
                 config = self.config(provider=provider, model="m", auth_source="api_key")
                 with self.assertRaisesRegex(ValueError, "missing_provider_api_key"):
                     self.controller._credential(config)
-                self.models.data["backends"][provider]["api_key"] = "fake-" + provider + "-key"
+                self.use(provider, api_key="fake-" + provider + "-key")
                 self.assertEqual(self.controller._credential(config), "fake-" + provider + "-key")
                 self.assertEqual(self.controller._pi_connection(config),
                                  {"provider": provider, "auth_source": "api_key", "base_url": url})
@@ -170,7 +170,7 @@ class MappingTests(PiConnectionCase):
                          {"provider": "compatible", "auth_source": "api_key", "base_url": "http://127.0.0.1:11434/v1",
                           "api": "openai-completions", "supports_images": False, "max_output_tokens": 4096})
         self.assertEqual(self.controller._credential(config), "fake-compatible-key")
-        self.models.data["backends"]["compatible"]["api_key"] = ""
+        self.use("compatible", clear_key=True)
         self.assertEqual(self.controller._pi_connection(self.config(auth_source="local_no_auth"))["auth_source"], "none")
         with self.assertRaisesRegex(ValueError, "pi_connection_missing"):
             self.controller._pi_connection(config)

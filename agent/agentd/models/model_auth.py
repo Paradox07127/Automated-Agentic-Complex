@@ -17,16 +17,13 @@ import webbrowser
 import httpx
 
 from fsutil import atomic_write_json
+from infra.secrets import ModelError
 from infra.platform import lock_file, unlock_file
 from infra.tokens import ensure_state_dir, read_token, secret_fd
 
 ISSUER = "https://auth.openai.com"
 RESOURCE = "https://api.openai.com/v1"
 SCOPE = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"
-
-
-class ModelError(RuntimeError):
-    """Only stable, non-secret error codes cross the UI boundary."""
 
 
 def read_json(path, default):
@@ -40,7 +37,8 @@ def read_json(path, default):
 
 
 class ChatGPTAuth:
-    def __init__(self, directory):
+    def __init__(self, directory, secrets):
+        self.secrets = secrets
         self.path = Path(directory) / "chatgpt-auth.json"
         self.lock = threading.RLock()
         self.pending = None
@@ -48,7 +46,7 @@ class ChatGPTAuth:
         self.listener = None
         fresh = {"host_id": "urn:uuid:" + str(uuid.uuid4()), "active": None, "profiles": {}}
         try:
-            self.data = read_json(self.path, fresh)
+            self.data = fresh
             with self._storage():
                 self._save()  # persist the host before first authorization
         except (ModelError, ValueError) as error:
@@ -66,6 +64,9 @@ class ChatGPTAuth:
         try:
             lock_file(fd)
             self.data = read_json(self.path, self.data)
+            fields = ("client_id", "label", "subject", "issuer", "email", "expires_at", "scopes")
+            self.data["profiles"] = {key: {k: p[k] for k in fields if k in p}
+                                     for key, p in self.data["profiles"].items()}
             yield
         finally:
             unlock_file(fd)
@@ -77,11 +78,14 @@ class ChatGPTAuth:
 
     def state(self):
         with self.lock:
-            return {"active": self.data["active"], "pending": self.pending is not None, "error": self.error,
-                    "profiles": [{"id": key, "label": p["label"], "email": p.get("email", ""),
-                                  "connected": bool(p.get("access_token")),
-                                  "sharing": bool(p.get("access_token")) and "chatgpt.tokens.use.direct" in p.get("scopes", [])}
-                                 for key, p in self.data["profiles"].items()]}
+            profiles = []
+            for key, profile in self.data["profiles"].items():
+                connected = "expires_at" in profile and bool(self._credentials(key).get("access_token"))
+                profiles.append({"id": key, "label": profile["label"], "email": profile.get("email", ""),
+                                 "connected": connected,
+                                 "sharing": connected and "chatgpt.tokens.use.direct" in profile.get("scopes", [])})
+            return {"active": self.data["active"], "pending": self.pending is not None,
+                    "error": self.error, "profiles": profiles}
 
     def select(self, profile_id):
         with self.lock, self._storage():
@@ -99,6 +103,7 @@ class ChatGPTAuth:
                 raise ModelError("unknown_profile")
             profile_id = profile_id or str(uuid.uuid4())
             profile = self.data["profiles"].get(profile_id, {})
+            credentials = self._credentials(profile_id) if profile else {}
             auth = self
 
             class Callback(BaseHTTPRequestHandler):
@@ -133,8 +138,8 @@ class ChatGPTAuth:
                       "code_challenge": base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")}
             if not profile.get("client_id"):
                 params["agent_name_hint"] = "Agentic Complex"
-            if profile.get("id_token"):
-                params["id_token_hint"] = profile["id_token"]
+            if credentials.get("id_token"):
+                params["id_token_hint"] = credentials["id_token"]
             if profile.get("email"):
                 params["login_hint"] = profile["email"]
             listener = self.listener
@@ -217,7 +222,7 @@ class ChatGPTAuth:
                 if previous.get("subject") and (identity["sub"] != previous["subject"] or identity["iss"] != previous["issuer"]):
                     raise ModelError("account_mismatch")
                 updated = dict(profile)
-                self._store_tokens(updated, tokens)
+                self._store_tokens(attempt["id"], updated, tokens, self._credentials(attempt["id"]))
                 updated.update(subject=identity["sub"], issuer=identity["iss"], email=identity.get("email", ""))
                 profile.update(updated)
                 self.data["active"] = attempt["id"]
@@ -230,34 +235,39 @@ class ChatGPTAuth:
             finally:
                 self.cancel()
 
-    @staticmethod
-    def _store_tokens(profile, tokens):
+    def _credentials(self, profile_id):
+        raw = self.secrets.get("chatgpt-" + profile_id)
+        return json.loads(raw) if raw is not None else {}
+
+    def _store_tokens(self, profile_id, profile, tokens, previous):
         if not tokens.get("access_token") or str(tokens.get("token_type", "")).lower() != "bearer":
             raise ModelError("invalid_token_response")
-        profile.update(access_token=tokens["access_token"], refresh_token=tokens.get("refresh_token", profile.get("refresh_token")),
-                       id_token=tokens.get("id_token", profile.get("id_token")),
-                       scopes=tokens.get("scope", " ".join(profile.get("scopes", []))).split(),
+        profile.update(scopes=tokens.get("scope", " ".join(profile.get("scopes", []))).split(),
                        expires_at=time.time() + float(tokens["expires_in"]))
+        credentials = {key: tokens.get(key, previous.get(key)) for key in ("access_token", "refresh_token", "id_token")}
+        self.secrets.put("chatgpt-" + profile_id, json.dumps(credentials).encode())
+        return credentials
 
     def access_token(self):
         with self.lock, self._storage():
             profile = self.data["profiles"].get(self.data["active"], {})
-            if not profile.get("access_token"):
+            credentials = self._credentials(self.data["active"]) if profile else {}
+            if not credentials.get("access_token"):
                 raise ModelError("sign_in_required")
             if "chatgpt.tokens.use.direct" not in profile.get("scopes", []):
                 raise ModelError("plan_usage_not_enabled")
             if profile["expires_at"] <= time.time() + 60:
-                if not profile.get("refresh_token"):
+                if not credentials.get("refresh_token"):
                     raise ModelError("sign_in_required")
                 tokens = self._token({"grant_type": "refresh_token", "client_id": profile["client_id"],
-                                      "refresh_token": profile["refresh_token"], "resource": RESOURCE})
+                                      "refresh_token": credentials["refresh_token"], "resource": RESOURCE})
                 updated = dict(profile)
-                self._store_tokens(updated, tokens)
+                credentials = self._store_tokens(self.data["active"], updated, tokens, credentials)
                 profile.update(updated)
                 self._save()
                 if "chatgpt.tokens.use.direct" not in profile["scopes"]:
                     raise ModelError("plan_usage_not_enabled")
-            return profile["access_token"]
+            return credentials["access_token"]
 
     def logout(self, profile_id):
         with self.lock, self._storage():
@@ -266,18 +276,20 @@ class ChatGPTAuth:
             profile = self.data["profiles"].get(profile_id)
             if profile is None:
                 raise ModelError("unknown_profile")
-            revoked = not profile.get("refresh_token")
+            credentials = self._credentials(profile_id)
+            revoked = not credentials.get("refresh_token")
             if not revoked:
                 try:
                     discovery = httpx.get(ISSUER + "/.well-known/openid-configuration", timeout=15).json()
                     url = discovery["revocation_endpoint"]
                     if not url.startswith(ISSUER + "/"):
                         raise ModelError("invalid_revocation_endpoint")
-                    revoked = httpx.post(url, data={"token": profile["refresh_token"], "token_type_hint": "refresh_token",
+                    revoked = httpx.post(url, data={"token": credentials["refresh_token"], "token_type_hint": "refresh_token",
                                                     "client_id": profile["client_id"]}, timeout=15).status_code == 200
                 except Exception:
                     pass
-            for name in ("access_token", "refresh_token", "id_token", "expires_at", "scopes"):
+            self.secrets.delete("chatgpt-" + profile_id)
+            for name in ("expires_at", "scopes"):
                 profile.pop(name, None)
             self.error = None
             self._save()

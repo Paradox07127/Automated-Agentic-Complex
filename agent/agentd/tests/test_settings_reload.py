@@ -7,6 +7,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from infra.secrets import MemorySecrets
 from fsutil import atomic_write_json
 from models.model_auth import ModelError
 from models.model_backends import DEFAULTS, ModelSettings
@@ -25,7 +26,7 @@ class SettingsReloadTests(unittest.TestCase):
         backends["compatible"].update(base_url="http://127.0.0.1:8080/v1", model="local-model")
         atomic_write_json(path, {"provider": "compatible", "backends": backends})
         os.chmod(path, 0o644)
-        settings = ModelSettings(self.directory)
+        settings = ModelSettings(self.directory, MemorySecrets())
         public = settings.public()
         self.assertEqual(public["error"], "credential_permissions")
         self.assertEqual(public["provider"], "chatgpt")  # unreadable settings run on the defaults
@@ -43,7 +44,7 @@ class SettingsReloadTests(unittest.TestCase):
         model_path = Path(self.directory, "model-settings.json")
         atomic_write_json(model_path, {"provider": "anthropic", "backends": copy.deepcopy(DEFAULTS)})
         os.chmod(model_path, 0o644)
-        models = ModelSettings(self.directory)
+        models = ModelSettings(self.directory, MemorySecrets())
         self.assertEqual(models.public()["error"], "credential_permissions")
         self.assertEqual(models.public()["error"], "credential_permissions")
 

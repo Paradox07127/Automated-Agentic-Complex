@@ -27,7 +27,8 @@ CHARACTER_RUNTIME = "character-runtime.json"
 FOCUS = "focus.json"
 TTS_TOKEN = "tts-token"
 
-TTS_TOKEN_FILE = COMPANION_SUPPORT_DIR / TTS_TOKEN  # tools/tts_token.py only; agentd takes --tts-token-file (C10)
+TTS_TOKEN_FILE = (Path(os.environ.get("APPDATA") or Path.home() / "AppData/Roaming") / "Agentic Complex"
+                  if os.name == "nt" else COMPANION_SUPPORT_DIR) / TTS_TOKEN
 
 LEDGER_ROOT = os.path.expanduser("~/.claude/harness/events")
 CLAUDE_SETTINGS = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude", "settings.json")
