@@ -1,7 +1,6 @@
-import { useId, useLayoutEffect, useRef, type KeyboardEvent } from 'react';
-import { gameClips } from '../../design/gameClips.generated';
+import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { animate, fxCalm, playOnce } from '../fx/motion';
 import { Icon, type IconName } from '../Icon';
-import { playClip } from '../ToggleClip';
 import { useControlled } from '../useControlled';
 import { MicroLabel } from './Marks';
 import styles from './GameTabs.module.css';
@@ -38,6 +37,28 @@ const STEP: Record<string, (i: number, n: number) => number> = {
   End: (_, n) => n - 1,
 };
 
+// btnprofiletab_open / _close: the dark plate grows rightwards from 143 px short of the cell (the 6 px keep the corner diamonds).
+const SHUT = 'inset(-6px 143px -6px -6px)';
+const FULL = 'inset(-6px)';
+const EXIT = 'cubic-bezier(1, 0, 0.667, 1)';
+const FADE = 'cubic-bezier(0.333, 0, 0.667, 1)';
+
+function openTab(tab: Element | null | undefined) {
+  const plate = tab?.querySelector('[data-g="slc"]');
+  if (plate) {
+    playOnce(plate, [{ clipPath: SHUT, easing: EXIT }, { clipPath: FULL }], { duration: 200 });
+    playOnce(plate, [{ opacity: 0, easing: FADE }, { opacity: 1 }], { duration: 100 });
+  }
+  for (const el of tab?.querySelectorAll('[data-g="slcIcon"], [data-g="slcName"], [data-g="slcDiv"]') ?? []) playOnce(el, [{ opacity: 0, easing: FADE }, { opacity: 1 }], { duration: 167 });
+}
+
+/** The left tab's plate shrinks back over its content and fades out at the end; null when calm. */
+function closeTab(plate: Element): Animation | null {
+  if (fxCalm()) return null;
+  animate(plate, [{ opacity: 1 }, { opacity: 1, offset: 0.8, easing: FADE }, { opacity: 0 }], { duration: 167, fill: 'forwards' });
+  return animate(plate, [{ clipPath: FULL, easing: EXIT }, { clipPath: SHUT }], { duration: 167, fill: 'forwards' });
+}
+
 export function GameTabs({ tabs, value, label, tail, onChange }: GameTabsProps) {
   const [current, setCurrent] = useControlled(value, onChange);
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -46,13 +67,33 @@ export function GameTabs({ tabs, value, label, tail, onChange }: GameTabsProps) 
   const sel = tabs.findIndex((t) => t.id === current);
   const index = Math.max(0, sel);
 
-  // valuabledepot_tab_select_in on the cell picked: the dark plate opens, icon and name drop in.
+  // The tab picked opens its plate; the one left keeps a plate until its close run ends.
+  const [shown, setShown] = useState(current);
+  const [leaving, setLeaving] = useState<string | null>(null);
+  if (shown !== current) {
+    setShown(current);
+    setLeaving(shown);
+  }
   const prev = useRef(current);
   useLayoutEffect(() => {
     if (prev.current === current) return;
     prev.current = current;
-    playClip(gameClips.tabSelectIn, bar.current?.querySelector(`[data-tab="${current}"]`));
+    openTab(bar.current?.querySelector(`[data-tab="${current}"]`));
   }, [current]);
+  useLayoutEffect(() => {
+    if (leaving === null) return;
+    const plate = bar.current?.querySelector('[data-leaving]');
+    const run = plate ? closeTab(plate) : null;
+    if (!run) {
+      setLeaving(null);
+      return;
+    }
+    run.finished.then(
+      () => setLeaving(null),
+      () => undefined,
+    );
+    return () => plate?.getAnimations?.().forEach((a) => a.cancel());
+  }, [leaving]);
 
   const go = (i: number, focus: boolean) => {
     const n = tabs.length;
@@ -90,8 +131,8 @@ export function GameTabs({ tabs, value, label, tail, onChange }: GameTabsProps) 
               data-tab={t.id}
               onClick={() => go(i, false)}
             >
-              {on && (
-                <span className={styles.plate} data-g="slc" aria-hidden="true">
+              {(on || t.id === leaving) && (
+                <span className={styles.plate} data-g={on ? 'slc' : undefined} data-leaving={on ? undefined : ''} aria-hidden="true">
                   <i className={styles.dia} data-side="l" />
                   <i className={styles.dia} data-side="r" />
                 </span>
@@ -99,7 +140,7 @@ export function GameTabs({ tabs, value, label, tail, onChange }: GameTabsProps) 
               <span className={styles.ic} data-g={on ? 'slcIcon' : undefined}>
                 <Icon name={t.icon} size={20} />
               </span>
-              <i className={styles.div} aria-hidden="true" />
+              <i className={styles.div} data-g={on ? 'slcDiv' : undefined} aria-hidden="true" />
               <span className={styles.name} data-g={on ? 'slcName' : undefined}>
                 {t.label}
               </span>

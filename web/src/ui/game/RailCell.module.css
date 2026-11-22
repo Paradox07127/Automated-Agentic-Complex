@@ -5,6 +5,10 @@
   --rc-ink-on: #5b5b5b;
   --rc-hatch: repeating-linear-gradient(-45deg, transparent 0 3px, rgb(255 255 255 / 16%) 3px 4px);
   --rc-hatch-on: repeating-linear-gradient(-45deg, transparent 0 3px, rgb(0 0 0 / 16%) 3px 4px);
+  /* Highlighted: the plate reaches 10 of the game cell's 85 px further left and the light comes up to .239. */
+  --rc-reach: 11.8%;
+  --rc-lit: 0.239;
+  --rc-hover: 200ms;
 
   position: relative;
   display: flex;
@@ -26,8 +30,77 @@
   position: relative;
 }
 
-/* The plate grows from its right edge (--size-x -55 → 0 in menucell_selectbtn_in). */
+/* Rest plate (DefalutBg): pivot at the right edge, so --rc-grow widens it leftwards. */
+@property --rc-grow {
+  syntax: '<length-percentage>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes rc-hover {
+  from {
+    --rc-grow: 0px;
+  }
+
+  to {
+    --rc-grow: var(--rc-reach);
+  }
+}
+
+@keyframes rc-light {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: var(--rc-lit);
+  }
+}
+
+.plate,
+.light {
+  --rc-grow: 0px;
+
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: calc(100% + var(--rc-grow));
+  transition:
+    --rc-grow var(--ef-dur-g-btn) linear,
+    opacity var(--ef-dur-g-btn) linear;
+}
+
 .plate {
+  background: linear-gradient(180deg, rgb(255 255 255 / 6%), transparent 50%), var(--rc-plate);
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 18%);
+}
+
+/* DefalutBg/Light: a white wash over the plate. */
+.light {
+  background: #fff;
+  opacity: 0;
+}
+
+/* Highlighted replays from its first frame whenever the press ends; Pressed is the rest pose, reached by the 100 ms fade above. */
+.cell:where(:hover:not(:active, [aria-current])) .plate {
+  --rc-grow: var(--rc-reach);
+
+  animation: rc-hover var(--rc-hover) var(--ef-ease-g-fade);
+}
+
+.cell:where(:hover:not(:active, [aria-current])) .light {
+  --rc-grow: var(--rc-reach);
+
+  opacity: var(--rc-lit);
+  animation:
+    rc-hover var(--rc-hover) var(--ef-ease-g-fade),
+    rc-light var(--rc-hover) var(--ef-ease-g-fade);
+}
+
+/* Selected plate (CellSelected/Bg): grows from the right edge (--size-x -55 → 0 in menucell_selectbtn_in). */
+.sel {
   --size-x: 0;
 
   position: absolute;
@@ -35,21 +108,19 @@
   right: 0;
   bottom: 0;
   width: calc(100% + var(--size-x) * 1px);
-  background: linear-gradient(180deg, rgb(255 255 255 / 6%), transparent 50%), var(--rc-plate);
-  backdrop-filter: blur(8px);
-  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 18%);
-}
-
-.light {
-  position: absolute;
-  inset: 0;
-  background: #fff;
+  background: linear-gradient(180deg, #fff, transparent 60%), var(--rc-plate-on);
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 10%);
   opacity: 0;
-  transition: opacity 200ms var(--ef-ease-g-fade);
 }
 
-.cell:hover:not([aria-current]) .light {
-  opacity: 0.12;
+.sel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--ef-accent);
 }
 
 .band {
@@ -90,19 +161,12 @@
   cursor: default;
 }
 
-.cell[aria-current] .plate {
-  background: linear-gradient(180deg, #fff, transparent 60%), var(--rc-plate-on);
-  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 10%);
+.cell[aria-current] :is(.plate, .light) {
+  visibility: hidden;
 }
 
-.cell[aria-current] .plate::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 4px;
-  background: var(--ef-accent);
+.cell[aria-current] .sel {
+  opacity: 1;
 }
 
 .cell[aria-current] .band {
@@ -120,7 +184,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .light {
+  .cell :is(.plate, .light) {
     transition: none;
+    animation: none;
   }
+}
+
+:global(.still) .cell :is(.plate, .light) {
+  transition: none;
+  animation: none;
 }

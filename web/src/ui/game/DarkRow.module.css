@@ -3,7 +3,11 @@
   --dr-row: rgb(70 70 70 / 88%);
   --dr-row-hover: rgb(84 84 84 / 92%);
   --dr-row-sel: rgb(96 96 96 / 94%);
+  /* Pressed lightens the plate once more (the capsule cell's ColorTint, 100 ms linear). */
+  --dr-row-press: rgb(96 96 96 / 94%);
   --dr-lead: rgb(46 46 46 / 94%);
+  /* The ↺ lead pressed: the yellow at the close orb's pressed multiplier .478. */
+  --dr-lead-press: color-mix(in srgb, var(--ef-accent) 47.8%, #000);
   --dr-miss: #ff8a7a;
   --dr-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 8%) 4px 5px);
   --dr-hatch-miss: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 138 122 / 28%) 4px 5.5px);
@@ -20,11 +24,15 @@
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 7%),
     inset 0 -2px 0 rgb(0 0 0 / 14%);
-  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+  transition: background-color var(--ef-dur-g-btn) linear;
 }
 
 .row:hover {
   --dr-row: var(--dr-row-hover);
+}
+
+.row:has(> button.hit:active) {
+  --dr-row: var(--dr-row-press);
 }
 
 .row[data-selected] {
@@ -109,6 +117,7 @@ button.lead {
   border: 0;
   font: inherit;
   cursor: pointer;
+  transition: background-color var(--ef-dur-g-btn) linear;
 }
 
 button.lead:disabled {
@@ -135,6 +144,10 @@ button.lead:hover:not(:disabled) .face {
 
 button.lead:hover:not(:disabled) .act {
   display: block;
+}
+
+button.lead:active:not(:disabled) {
+  background: var(--dr-lead-press);
 }
 
 button.lead:focus-visible {
@@ -294,7 +307,12 @@ button.lead:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row {
+  .row,
+  button.lead {
     transition: none;
   }
+}
+
+:global(.still) :is(.row, button.lead) {
+  transition: none;
 }

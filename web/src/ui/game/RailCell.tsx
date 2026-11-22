@@ -4,7 +4,7 @@ import { Icon, type IconName } from '../Icon';
 import { playClip } from '../ToggleClip';
 import styles from './RailCell.module.css';
 
-/** 最右竖栏格（游戏 CharInfo 菜单格）：深灰半透明毛玻璃方格，顶部一条细斜纹带和微型标注，白图标和名字；当前格白底、左缘黄条。高度取 `--rail-cell`（默认 64 px）。 */
+/** 最右竖栏格（游戏 CharInfo 菜单格）：深灰半透明毛玻璃方格，顶部一条细斜纹带和微型标注，白图标和名字；当前格白底、左缘黄条。悬停底板向左伸出并变亮，按下收回，松开重放悬停。高度取 `--rail-cell`（默认 64 px）。 */
 export interface RailCellProps {
   /** 名字 */
   label: string;
@@ -18,18 +18,19 @@ export interface RailCellProps {
 
 export function RailCell({ label, icon, micro, current = false, onClick }: RailCellProps) {
   const ref = useRef<HTMLButtonElement>(null);
-  // charinfo_menucell_selectbtn_in when the cell becomes current: the white plate slides out, then icon and deco fade in.
+  // charinfo_menucell_selectbtn_in on the cell that becomes current (white plate slides out, icon and deco fade in); _out on the one that stops being it.
   const was = useRef(current);
   useLayoutEffect(() => {
     if (was.current === current) return;
     was.current = current;
-    if (current) playClip(gameClips.charMenuSelectIn, ref.current);
+    playClip(current ? gameClips.charMenuSelectIn : gameClips.charMenuSelectOut, ref.current);
   }, [current]);
 
   return (
     <button ref={ref} type="button" className={styles.cell} data-stub="RailCell" aria-current={current ? 'page' : undefined} onClick={onClick}>
-      <span className={styles.plate} data-g={current ? 'plate' : undefined} aria-hidden="true" />
+      <span className={styles.plate} aria-hidden="true" />
       <span className={styles.light} aria-hidden="true" />
+      <span className={styles.sel} data-g="plate" aria-hidden="true" />
       <span className={styles.band} data-micro={micro} data-g={current ? 'deco' : undefined} aria-hidden="true" />
       <span className={styles.ic} data-g={current ? 'icon' : undefined}>
         <Icon name={icon} size={20} />

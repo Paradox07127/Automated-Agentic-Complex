@@ -3,6 +3,11 @@
   --gs-track: rgb(0 0 0 / 40%);
   --gs-knob-off: #9a9a9a;
   --gs-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 8%) 4px 5px);
+  /* SelectedLight (commontoggle_btn): a white plate at .298 × the clip's alpha, .25 hovered, .1 at rgb .651 pressed. */
+  --gs-light: #fff;
+  --gs-light-press: rgb(166 166 166);
+  --gs-lit: 0.0745;
+  --gs-lit-press: 0.0298;
 
   display: inline-grid;
   flex: none;
@@ -30,6 +35,39 @@
   background: var(--gs-track);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%);
   clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+}
+
+@keyframes gs-hover {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: var(--gs-lit);
+  }
+}
+
+/* Over the knob, under the labels. Highlighted replays from its first frame when the press ends; Pressed is a 100 ms fade. */
+.track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--gs-light);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--ef-dur-g-btn) linear,
+    background-color var(--ef-dur-g-btn) linear;
+}
+
+.track:where(:has(.opt:not(:disabled):hover):not(:has(.opt:active)))::after {
+  opacity: var(--gs-lit);
+  animation: gs-hover var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.track:where(:has(.opt:active))::after {
+  background-color: var(--gs-light-press);
+  opacity: var(--gs-lit-press);
 }
 
 .knob {
@@ -145,7 +183,7 @@
 
 .seg[aria-disabled='true'] .track {
   background: var(--gs-hatch), var(--gs-track);
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .seg[aria-disabled='true'] .knob {
@@ -184,4 +222,14 @@
   .knob {
     transition: none;
   }
+
+  .track::after {
+    transition: none;
+    animation: none;
+  }
+}
+
+:global(.still) .track::after {
+  transition: none;
+  animation: none;
 }

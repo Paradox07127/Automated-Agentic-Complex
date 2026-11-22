@@ -1,9 +1,30 @@
 /* Yellow chamfered primary key: the face is cut (small top-right, large bottom-left); the button itself carries the glow. */
+/* The face colour's multiplier (f_white_commom_btn on BG): 1 at rest, .6 hovered, .478 pressed. */
+@property --yk-mul {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+@keyframes yk-hover {
+  from {
+    --yk-mul: 1;
+  }
+
+  to {
+    --yk-mul: 0.6;
+  }
+}
+
 .key {
   --yk-face-top: rgb(255 246 90);
   --yk-face-low: rgb(240 222 0);
   --yk-ink: #1a1a1a;
   --yk-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(0 0 0 / 14%) 4px 5.5px);
+  --yk-mul: 1;
+  --yk-top: color-mix(in srgb, var(--yk-face-top) calc(var(--yk-mul) * 100%), #000);
+  --yk-mid: color-mix(in srgb, var(--ef-accent) calc(var(--yk-mul) * 100%), #000);
+  --yk-low: color-mix(in srgb, var(--yk-face-low) calc(var(--yk-mul) * 100%), #000);
 
   display: inline-flex;
   flex: none;
@@ -13,7 +34,7 @@
   color: var(--yk-ink);
   cursor: pointer;
   filter: drop-shadow(0 0 10px rgb(255 241 0 / 35%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
-  transition: filter var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+  transition: --yk-mul var(--ef-dur-g-btn) linear;
 }
 
 .face {
@@ -23,7 +44,7 @@
   gap: 12px;
   height: 42px;
   padding: 0 24px 0 5px;
-  background: linear-gradient(180deg, var(--yk-face-top), var(--ef-accent) 60%, var(--yk-face-low));
+  background: linear-gradient(180deg, var(--yk-top), var(--yk-mid) 60%, var(--yk-low));
   font: 600 15px / 1 var(--ef-font-sans);
   white-space: nowrap;
   clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
@@ -60,7 +81,7 @@
   width: var(--yk-w, 96px);
   height: var(--yk-h, 76px);
   padding: calc(var(--yk-h, 76px) * 0.12) 11px;
-  background: linear-gradient(165deg, var(--yk-face-top), var(--ef-accent) 50%, var(--yk-face-low));
+  background: linear-gradient(165deg, var(--yk-top), var(--yk-mid) 50%, var(--yk-low));
   box-shadow: inset 0 -3px 0 rgb(0 0 0 / 12%);
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
 }
@@ -131,7 +152,7 @@
 }
 
 .key[data-tone='white'] :is(.face, .tall) {
-  background: linear-gradient(180deg, var(--yk-face-top), var(--yk-face-low));
+  background: linear-gradient(180deg, var(--yk-top), var(--yk-low));
 }
 
 .key[data-tone='white'] .ki {
@@ -161,16 +182,15 @@
   }
 }
 
-.key:hover:not(:disabled) {
-  filter: drop-shadow(0 0 14px rgb(255 241 0 / 55%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
+/* Highlighted replays from its first frame when the press ends (the bright flash); Pressed is reached by the 100 ms fade on .key. */
+.key:where(:hover:not(:active, :disabled, [aria-busy='true'])) {
+  --yk-mul: 0.6;
+
+  animation: yk-hover var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
 }
 
-.key[data-tone='white']:hover:not(:disabled) {
-  filter: drop-shadow(0 0 14px rgb(255 255 255 / 45%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
-}
-
-.key:active:not(:disabled) :is(.face, .tall) {
-  translate: 0 1px;
+.key:where(:active:not(:disabled, [aria-busy='true'])) {
+  --yk-mul: 0.478;
 }
 
 .key:focus-visible {
@@ -202,13 +222,15 @@
 @media (prefers-reduced-motion: reduce) {
   .key {
     transition: none;
+    animation: none;
   }
 
   .key[aria-busy='true'] :is(.face, .tall)::after {
     animation: none;
   }
+}
 
-  .key:active:not(:disabled) :is(.face, .tall) {
-    translate: none;
-  }
+:global(.still) .key {
+  transition: none;
+  animation: none;
 }

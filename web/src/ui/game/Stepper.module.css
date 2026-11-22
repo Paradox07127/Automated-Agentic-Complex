@@ -3,6 +3,9 @@
   --st-well: rgb(0 0 0 / 30%);
   --st-list: #1e1e1e;
   --st-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 10%) 4px 5px);
+  --st-light: #fff;
+  --st-light-press: #444;
+  --st-light-a: 0.502;
 
   position: relative;
   display: inline-grid;
@@ -26,6 +29,7 @@
 }
 
 .ar {
+  position: relative;
   display: grid;
   flex: none;
   place-items: center;
@@ -35,11 +39,32 @@
   background: rgb(255 255 255 / 8%);
   color: #fff;
   cursor: pointer;
-  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
 }
 
-.ar:hover:not(:disabled) {
-  background: rgb(255 255 255 / 18%);
+/* Light (the game's small ColorTint buttons): white .502 hovered, #444 .502 pressed, 100 ms linear, under the arrow. */
+.ar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--st-light);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--ef-dur-g-btn) linear,
+    background-color var(--ef-dur-g-btn) linear;
+}
+
+.ar > svg {
+  position: relative;
+}
+
+.ar:hover:not(:disabled)::before {
+  opacity: var(--st-light-a);
+}
+
+.ar:active:not(:disabled)::before {
+  background-color: var(--st-light-press);
+  opacity: var(--st-light-a);
 }
 
 .ar:disabled {
@@ -303,7 +328,11 @@ button.val {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ar {
+  .ar::before {
     transition: none;
   }
+}
+
+:global(.still) .ar::before {
+  transition: none;
 }

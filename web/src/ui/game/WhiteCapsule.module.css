@@ -1,7 +1,9 @@
 /* White capsule (mainnew deco_bg capsule): white .85, the icon in a dark disc, a thin rule before the label. */
+/* Press is a ColorTint on the face alone (PassiveSkillCell Bg), 100 ms linear: hover lightens it, press lightens it once more. */
 .cap {
   --wc-face: rgb(255 255 255 / 85%);
-  --wc-face-hover: #fff;
+  --wc-face-hover: rgb(255 255 255 / 93%);
+  --wc-face-press: #fff;
   --wc-ink: #262626;
 
   display: inline-flex;
@@ -20,7 +22,7 @@
   box-shadow:
     0 2px 6px rgb(0 0 0 / 18%),
     inset 0 -1px 0 rgb(0 0 0 / 10%);
-  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+  transition: background-color var(--ef-dur-g-btn) linear;
 }
 
 .cap:hover:not(:disabled) {
@@ -28,7 +30,7 @@
 }
 
 .cap:active:not(:disabled) {
-  transform: translateY(1px);
+  background-color: var(--wc-face-press);
 }
 
 .cap:focus-visible {
@@ -63,6 +65,7 @@
 .cap[data-tone='dark'] {
   --wc-face: rgb(58 58 58 / 92%);
   --wc-face-hover: rgb(76 76 76);
+  --wc-face-press: rgb(92 92 92);
   --wc-ink: #fff;
 
   background: linear-gradient(180deg, rgb(255 255 255 / 10%), transparent 55%), var(--wc-face);
@@ -96,8 +99,8 @@
   .cap {
     transition: none;
   }
+}
 
-  .cap:active:not(:disabled) {
-    transform: none;
-  }
+:global(.still) .cap {
+  transition: none;
 }
