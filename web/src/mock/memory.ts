@@ -205,7 +205,7 @@ export const routes: MockRoute[] = [
       newIds += 1;
       const fact_id = `f0new${String(newIds).padStart(27, '0')}`;
       const source = kind === 'name' || kind === 'birthday' ? 'confirmed_by_user' : 'asserted_by_user';
-      setFacts([{ fact_id, version: 1, kind, text: t, source, state: 'active', evidence: [], recorded_at: NOW_S, last_used_at: null, score: 0, uses_today: 0, last_injected_at: null, last_mentioned_at: null, recent_uses: [], stale: false, occurred_at: null }, ...facts()]);
+      setFacts([{ fact_id, version: 1, owner: null, kind, text: t, source, state: 'active', evidence: [], recorded_at: NOW_S, last_used_at: null, score: 0, uses_today: 0, last_injected_at: null, last_mentioned_at: null, recent_uses: [], stale: false, occurred_at: null }, ...facts()]);
       return ok({ fact_id }, 201);
     },
   },

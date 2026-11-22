@@ -6,7 +6,7 @@ import type { AgenticComplexBridge, StreamEvent } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { WireRunItem, WireTurn } from '../../src/domain';
 import type { MockRoute } from '../../src/mock';
-import { NOW, WIRE_CONVERSATIONS, WIRE_INTERACTION_APPROVAL, WIRE_INTERACTIONS, WIRE_RUNTIME, WIRE_TASK_ROWS, WIRE_TURNS } from '../../src/mock/fixtures';
+import { NOW, WIRE_CONVERSATIONS, WIRE_INTERACTION_APPROVAL, WIRE_INTERACTIONS, WIRE_TASK_ROWS, WIRE_TURNS } from '../../src/mock/fixtures';
 import { C1, C2, Q1, Q_APPROVAL, T1 } from '../../src/mock/fixtures/ids';
 import { createChatActions, reasonOf, type ChatDeps } from '../../src/pages/chat/actions';
 import { ChatPage } from '../../src/pages/chat/Page';
@@ -76,9 +76,12 @@ async function mount(search = '') {
   return screen.findByRole('region', { name: '消息' });
 }
 
-const menu = (name: RegExp | string) => {
-  fireEvent.click(screen.getByRole('button', { name: '管理对话' }));
-  fireEvent.click(screen.getByRole('menuitem', { name }));
+const topics = () => screen.getByRole('navigation', { name: '话题' });
+const rowOf = (title: string) => within(topics()).getByText(title).closest('button')!;
+/** Right-clicks the topic row and takes `name` from its menu. */
+const menu = (title: string, name: RegExp | string) => {
+  fireEvent.contextMenu(rowOf(title), { clientX: 40, clientY: 60 });
+  fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name }));
 };
 
 describe('chat reads', () => {
@@ -88,7 +91,7 @@ describe('chat reads', () => {
     await within(thread).findByText('按项目分组，不要按日期。');
     await waitFor(() => expect(b.of('GET', '/agent/runs').length).toBeGreaterThan(0));
     const gets = b.calls.filter((c) => c.method === 'GET').map((c) => c.path);
-    expect(gets).toContain('/conversations');
+    expect(gets).toContain('/conversations?character=si');
     expect(gets).toContain(`/conversations/${C1}/turns`);
     expect(gets).toContain(`/agent/tasks?conversation_id=${C1}&limit=100`);
     expect(gets).toContain('/agent/interactions');
@@ -98,19 +101,14 @@ describe('chat reads', () => {
     for (const c of b.calls.filter((x) => x.method === 'GET')) expect(c.body).toBeUndefined();
   });
 
-  it('shows the turns, the active conversation first, each row with its time, turn count and 24 h turns from /trace/turns, and archived rows', async () => {
+  it('shows her topics, pinned first, each row with its last line and time, and archived rows', async () => {
     bridge();
     await mount();
-    const nav = screen.getByRole('navigation', { name: '对话列表' });
+    const nav = topics();
     expect(await within(nav).findByText('周报整理')).toBeTruthy();
-    // A record row: name, last time, the conversation's turn_count.
-    await waitFor(() => expect(within(nav).getByText('周报整理').closest('button')!.textContent).toMatch(/14:31\s*13\s*轮$/));
-    expect(within(nav).getByText('HostLink 断线排查').closest('button')!.textContent).toMatch(/^HostLink 断线排查11:40\s*\d+\s*轮$/);
-    // /trace/turns (mock) has six C1 rows and three C2 rows today; C4's last turn is two days old, so no line.
-    const row = (title: string) => within(nav).getByText(title).closest('button')!;
-    await waitFor(() => expect(within(row('周报整理')).getByRole('img', { name: '近 24 小时 6 轮' })).toBeTruthy());
-    expect(within(row('HostLink 断线排查')).getByRole('img', { name: '近 24 小时 3 轮' })).toBeTruthy();
-    expect(within(row('Metal 帧率调优')).queryByRole('img')).toBeNull();
+    // A pinned row says 置顶 where the others have their last time.
+    expect(rowOf('周报整理').textContent).toMatch(/^周报整理初步看是 10-27 那组.*置顶$/);
+    expect(rowOf('HostLink 断线排查').textContent).toMatch(/^HostLink 断线排查日志里 11:38 心跳连续 3 次超时，之后重连成功。.*11:40$/);
     expect(within(nav).getByRole('button', { name: '已归档 3' })).toBeTruthy();
     const thread = screen.getByRole('region', { name: '消息' });
     expect(await within(thread).findByText(/改好了：Companion 58 条/)).toBeTruthy();
@@ -187,29 +185,6 @@ describe('chat reads', () => {
     expect(b.of('GET', '/agent/runs/run-old-qa/items').length).toBeGreaterThan(0);
   });
 
-  it('reads older trace by exact turn id and opens its persisted tool receipt', async () => {
-    const turn: WireTurn = { ...WIRE_TURNS[0]!, turn_id: 'old-tool-qa', started_at: NOW / 1000 - 48 * 3600, reply: '旧任务校对完成' };
-    const start = new Date(turn.started_at * 1000).toISOString();
-    const row = { trace_id: 'trace-old-tool-qa', turn_id: turn.turn_id, source: 'text', head: '', len: 0, producers: ['agentd'], started_at: start, duration_ms: 280, result: 'unknown', turn_state: 'completed' };
-    const item: WireRunItem = { run_id: 'old-tool-qa', item_id: 'call-1', seq: 1, kind: 'tool_call', phase: null, status: 'completed', name: 'workspace_read', summary: 'Input fields: path', text: '', parent_item_id: null, created_at: turn.started_at, updated_at: turn.started_at + .2, steps: null };
-    const b = bridge([
-      { method: 'GET', path: '/conversations/:id/turns', handler: () => ({ status: 200, body: { turns: [turn], before: null } }) },
-      { method: 'GET', path: '/trace/turns', handler: ({ query }) => ({ status: 200, body: { turns: query.get('turn_id') === turn.turn_id ? [row] : [] } }) },
-      { method: 'GET', path: '/trace/turns/:id', handler: () => ({ status: 200, body: { events: [{ kind: 'input.received', status: 'ok', t_wall: start, attrs: { source: 'text' } }] } }) },
-      { method: 'GET', path: '/agent/runs/:id/items', handler: ({ params }) => ({ status: 200, body: { items: params.id === turn.turn_id ? [item, { ...item, kind: 'tool_result', item_id: 'result-1', parent_item_id: 'call-1', summary: 'Tool failed' }] : [] } }) },
-    ]);
-    const thread = await mount();
-    fireEvent.click(await within(thread).findByRole('button', { name: '运行详情' }));
-    const drawer = await screen.findByRole('complementary', { name: '轮次详情' });
-    expect(await within(drawer).findByText('回执不全')).toBeTruthy();
-    const receipt = await within(drawer).findByRole('button', { name: /workspace_read，失败/ });
-    expect(within(drawer).queryByText('Tool failed')).toBeNull();
-    fireEvent.click(receipt);
-    expect(within(drawer).getByText('Tool failed')).toBeTruthy();
-    expect(b.of('GET', '/trace/turns?turn_id=old-tool-qa')).toHaveLength(1);
-    expect(b.of('GET', '/trace/turns/trace-old-tool-qa')).toHaveLength(1);
-  });
-
   it('refreshes tasks after background lifecycle updates and turns after unowned final notices', async () => {
     const b = bridge();
     const thread = await mount();
@@ -230,7 +205,7 @@ const send = async (thread: HTMLElement, text: string) => {
   fireEvent.click(within(thread).getByRole('button', { name: /发送/ }));
 };
 
-const pick = (title: string) => fireEvent.click(within(screen.getByRole('navigation', { name: '对话列表' })).getByText(title));
+const pick = (title: string) => fireEvent.click(within(topics()).getByText(title));
 
 describe('chat review fixes', () => {
   it('a live reply stays in the conversation it was sent from', async () => {
@@ -427,20 +402,24 @@ describe('chat writes', () => {
     await mount(`&demo=history&conv=${C2}`);
     await screen.findByText(/超时阈值是 1.5 s/);
     const c2 = WIRE_CONVERSATIONS.find((c) => c.id === C2)!;
-    menu(/重命名/);
-    fireEvent.change(screen.getByRole('textbox', { name: '对话标题' }), { target: { value: 'HostLink 心跳' } });
-    fireEvent.click(screen.getByRole('button', { name: '改名' }));
-    menu('置顶');
-    menu('归档');
+    menu('HostLink 断线排查', /重命名/);
+    const box = within(topics()).getByRole('textbox', { name: '话题名' });
+    fireEvent.change(box, { target: { value: 'HostLink 心跳' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    await within(topics()).findByText('HostLink 心跳');
+    menu('HostLink 心跳', '置顶');
+    await waitFor(() => expect(rowOf('HostLink 心跳').textContent).toMatch(/置顶$/));
+    menu('HostLink 心跳', '归档');
     await waitFor(() => expect(b.of('PUT', `/conversations/${C2}`)).toHaveLength(3));
+    // agentd counts the revision up on every write.
     expect(b.of('PUT', `/conversations/${C2}`).map((c) => c.body)).toEqual([
       { expected_version: c2.revision, title: 'HostLink 心跳' },
-      { expected_version: c2.revision, pinned: true },
-      { expected_version: c2.revision, archived: true },
+      { expected_version: c2.revision + 1, pinned: true },
+      { expected_version: c2.revision + 2, archived: true },
     ]);
     fireEvent.click(await screen.findByRole('button', { name: '撤销' }));
     await waitFor(() => expect(b.of('PUT', `/conversations/${C2}`)).toHaveLength(4));
-    expect(b.of('PUT', `/conversations/${C2}`)[3]!.body).toEqual({ expected_version: c2.revision + 1, archived: false });
+    expect(b.of('PUT', `/conversations/${C2}`)[3]!.body).toEqual({ expected_version: c2.revision + 3, archived: false });
   });
 
   it('deletes with a JSON body and continues a history conversation through activate', async () => {
@@ -451,8 +430,8 @@ describe('chat writes', () => {
     fireEvent.click(screen.getByRole('button', { name: '继续此对话' }));
     await waitFor(() => expect(b.of('POST', `/conversations/${C2}/activate`)).toHaveLength(1));
     expect(b.of('POST', `/conversations/${C2}/activate`)[0]!.body).toEqual({ expected_version: c2.revision });
-    menu(/删除/);
-    fireEvent.click(within(screen.getByRole('dialog', { name: /删除对话/ })).getByRole('button', { name: '删除' }));
+    menu('HostLink 断线排查', /删除/);
+    fireEvent.click(within(screen.getByRole('dialog', { name: '删除「HostLink 断线排查」？' })).getByRole('button', { name: '删除' }));
     await waitFor(() => expect(b.of('DELETE', `/conversations/${C2}`)).toHaveLength(1));
     expect(b.of('DELETE', `/conversations/${C2}`)[0]!.body).toEqual({ expected_version: c2.revision });
   });
@@ -461,10 +440,11 @@ describe('chat writes', () => {
     const b = bridge([{ method: 'PUT', path: '/conversations/:id', handler: () => ({ status: 409, body: { error: 'version_conflict' } }) }]);
     await mount(`&demo=history&conv=${C2}`);
     await screen.findByText(/超时阈值是 1.5 s/);
-    const reads = b.of('GET', '/conversations').filter((c) => c.path === '/conversations').length;
-    menu('置顶');
+    const reads = () => b.of('GET', '/conversations?character=si').length;
+    const before = reads();
+    menu('HostLink 断线排查', '置顶');
     expect(await screen.findByText('没有置顶：已在别处更新')).toBeTruthy();
-    await waitFor(() => expect(b.of('GET', '/conversations').filter((c) => c.path === '/conversations').length).toBe(reads + 1));
+    await waitFor(() => expect(reads()).toBe(before + 1));
   });
 });
 
@@ -477,15 +457,17 @@ describe('chat actions', () => {
   async function actionsWith(over: Partial<ChatDeps> = {}, routes: MockRoute[] = []) {
     const b = bridge([...decided, ...routes]);
     const pushes: string[] = [];
-    const { fromConversation, fromTaskRow, fromDelivery, fromRuntimePublic } = await import('../../src/domain');
+    const { fromConversation, fromTaskRow, fromDelivery } = await import('../../src/domain');
     const task = fromTaskRow(t1);
     const delivery = fromDelivery(t1.delivery!);
     const deps: ChatDeps = {
       conv: fromConversation(WIRE_CONVERSATIONS[0]!, NOW),
+      character: 'si',
+      present: 'si',
+      askSwap: async () => true,
       task,
       run: null,
       view: { tasks: [task], deliveries: [delivery], pending: [], activeRuns: {}, sessions: [], ctx: { activeRuns: {}, sessions: [], pending: [] }, effective: {}, waiting: { tasks: 0, items: 0 }, goals: [] },
-      runtime: { wire: WIRE_RUNTIME, info: fromRuntimePublic(WIRE_RUNTIME) },
       busy: false,
       setLocal: () => {},
       setAnswered: () => {},
@@ -495,9 +477,10 @@ describe('chat actions', () => {
       setBusyDecide: () => {},
       setNotice: () => {},
       select: () => {},
+      editTitle: () => {},
       addReply: () => {},
       settleReply: () => {},
-      reload: { list: () => {}, turns: () => {}, tasks: () => {}, runtime: async () => undefined },
+      reload: { list: () => {}, turns: () => {}, tasks: () => {}, present: () => {}, runtime: async () => undefined },
       push: (m) => void pushes.push(m),
       failSend: false,
       ...over,
@@ -528,17 +511,10 @@ describe('chat actions', () => {
     expect(b.of('POST', `/agent/interactions/${Q1}/dismiss`)[0]!.body).toEqual({ expected_version: q.revision });
   });
 
-  it('switches the kernel without replaying executable handles or unrelated settings', async () => {
-    const { b, a } = await actionsWith();
-    await a.switchKernel('pi');
-    const body = b.of('PUT', '/character/runtime')[0]!.body as Record<string, unknown>;
-    expect(body).toEqual({ backend: 'pi' });
-  });
-
-  it('a first line with no conversation opens one with POST /conversations {}', async () => {
+  it('a first line with no conversation opens one for her character with POST /conversations {character_id}', async () => {
     const { b, a } = await actionsWith({ conv: null });
     await a.send('你好');
-    expect(b.of('POST', '/conversations').map((c) => [c.path, c.body])[0]).toEqual(['/conversations', {}]);
+    expect(b.of('POST', '/conversations').map((c) => [c.path, c.body])[0]).toEqual(['/conversations', { character_id: 'si' }]);
   });
 
   it.each([
@@ -559,7 +535,7 @@ describe('chat actions', () => {
     const failed: string[] = [];
     let lists = 0;
     const { a } = await actionsWith(
-      { setFailed: (f) => void (f && failed.push(f.reason)), reload: { list: () => void lists++, turns: () => {}, tasks: () => {}, runtime: async () => undefined } },
+      { setFailed: (f) => void (f && failed.push(f.reason)), reload: { list: () => void lists++, turns: () => {}, tasks: () => {}, present: () => {}, runtime: async () => undefined } },
       [{ method: 'POST', path: '/conversations/:id/messages', handler: () => ({ status: 409, body: { error: code } }) }],
     );
     await a.send('停下');
@@ -570,7 +546,7 @@ describe('chat actions', () => {
   it('a 409 conflict on send still re-reads the list', async () => {
     let lists = 0;
     const { a } = await actionsWith(
-      { reload: { list: () => void lists++, turns: () => {}, tasks: () => {}, runtime: async () => undefined } },
+      { reload: { list: () => void lists++, turns: () => {}, tasks: () => {}, present: () => {}, runtime: async () => undefined } },
       [{ method: 'POST', path: '/conversations/:id/messages', handler: () => ({ status: 409, body: { error: 'version_conflict' } }) }],
     );
     await a.send('你好');

@@ -22,9 +22,8 @@ test('chat default: the command bar is visible, no right column, and the reading
   expect(reply.width).toBeLessThanOrEqual(48 * rem);
   expect(reply.width).toBeGreaterThanOrEqual(48 * rem - 16);
   expect(Math.abs(reply.x + reply.width / 2 - pane.x - pane.width / 2)).toBeLessThanOrEqual(8);
-  // SNS bubble text (snscontenttext ContentTxt fs 26 g): 13 / 1.5.
-  const font = await page.locator('[data-kind="ai"] > div > div').last().evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).lineHeight]);
-  expect(font).toEqual(['13px', '19.5px']);
+  const font = await page.locator('[data-kind="ai"] [class*="_text_"]').last().evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).lineHeight]);
+  expect(font).toEqual(['15px', '24px']);
   expect(errors).toEqual([]);
 });
 
@@ -48,16 +47,16 @@ test('chat empty: 还没有对话 once, offering 新建对话 as the one primary
   expect(errors).toEqual([]);
 });
 
-test('chat 900×600: the composer keeps a one-line field and folds the hint into the tool row, so the thread keeps the height', async ({ page }) => {
+test('chat 900×600: the composer keeps a one-line field and its hint above it, so the thread keeps the height', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
   await page.goto('main.html#/chat?plugins=all&still=1');
   const field = page.getByRole('textbox', { name: '消息' });
   const hint = page.getByText('前台执行中，新消息由只读旁路回答');
   await expect(hint).toBeVisible();
-  const [f, h, send, msgs] = await Promise.all([field.boundingBox(), hint.boundingBox(), page.getByRole('button', { name: /^发送/ }).boundingBox(), page.locator('[data-g="messages"]').boundingBox()]);
+  const [f, h, msgs] = await Promise.all([field.boundingBox(), hint.boundingBox(), page.locator('[data-g="messages"]').boundingBox()]);
   expect(f!.height).toBeLessThanOrEqual(42);
-  expect(Math.abs(h!.y + h!.height / 2 - (send!.y + send!.height / 2))).toBeLessThanOrEqual(2);
-  expect(msgs!.height).toBeGreaterThanOrEqual(320);
+  expect(h!.y + h!.height).toBeLessThanOrEqual(f!.y + 2);
+  expect(msgs!.height).toBeGreaterThanOrEqual(260);
   const fit = await hint.evaluate((e) => ({ cut: e.scrollWidth > e.clientWidth + 1, ellipsis: getComputedStyle(e).textOverflow, title: e.getAttribute('title') }));
   if (fit.cut) expect(fit).toEqual({ cut: true, ellipsis: 'ellipsis', title: '前台执行中，新消息由只读旁路回答' });
 });

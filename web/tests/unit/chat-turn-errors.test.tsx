@@ -116,7 +116,9 @@ describe('a failed chat turn says why and what to do next', () => {
   it('重试 keeps the line out of the record when the first try was', async () => {
     const emit = bridge();
     const thread = await mount();
-    fireEvent.click(within(thread).getByRole('button', { name: /本轮不记录/ }));
+    fireEvent.click(within(thread).getByRole('button', { name: '附加' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '这句不记' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
     const net = await send(thread, '只说一次', 1);
     fail(emit, 1, 'network', { code: 'network', retryable: true, public_message: '连接服务失败，请稍后重试。' });
     fireEvent.click(await within(net).findByRole('button', { name: '重试' }));
@@ -135,16 +137,14 @@ describe('a failed chat turn says why and what to do next', () => {
   });
 });
 
-describe('chat: history loads on demand and follows new lines', () => {
-  it('rereads /history when a line of this conversation ends, such as her report of a finished job', async () => {
+describe('chat: no history dialog', () => {
+  it('never reads /history, not even when a line of this conversation ends', async () => {
     const emit = bridge();
     const spy = vi.spyOn(window.agenticComplex!.agentd, 'request');
     await mount();
-    const reads = () => spy.mock.calls.filter(([m, p]) => m === 'GET' && p.startsWith('/history?')).length;
-    expect(reads()).toBe(0);
-    fireEvent.click(await screen.findByRole('button', { name: '历史记录' }));
-    await waitFor(() => expect(reads()).toBe(1));
+    expect(screen.queryByRole('button', { name: '历史记录' })).toBeNull();
     emit('line', { line_id: 'job-report-1', text_delta: '', final: true, conversation_id: C1 });
-    await waitFor(() => expect(reads()).toBe(2));
+    await waitFor(() => expect(spy.mock.calls.some(([m, p]) => m === 'GET' && p.startsWith('/conversations/') && p.includes('/turns'))).toBe(true));
+    expect(spy.mock.calls.filter(([m, p]) => m === 'GET' && p.startsWith('/history')).length).toBe(0);
   });
 });

@@ -137,71 +137,42 @@ describe('chat: turn trace from /trace/turns/{id}', () => {
 });
 
 describe('chat page', () => {
-  it('keeps one transcript, the list rows with their 24 h sparklines, the track and memory tags (full demo)', async () => {
+  it('keeps one transcript, the topic rows with their last line, and the memory tags (full demo)', async () => {
     const thread = await mount('&demo=full');
-    const nav = screen.getByRole('navigation', { name: '对话列表' });
-    await waitFor(() => expect(within(nav).getByText('周报整理').closest('button')!.textContent).toMatch(/13\s*轮$/));
-    await waitFor(() => expect(within(within(nav).getByText('周报整理').closest('button')!).getByRole('img', { name: '近 24 小时 4 轮' })).toBeTruthy());
-    const metal = within(nav).getByText('Metal 帧率调优').closest('button')!;
-    expect(metal.textContent).toMatch(/^Metal 帧率调优10月27日\d+ 轮$/);
+    const nav = screen.getByRole('navigation', { name: '话题' });
+    const metal = (await within(nav).findByText('Metal 帧率调优')).closest('button')!;
+    expect(metal.textContent).toMatch(/^Metal 帧率调优主要耗时在阴影 pass，降一级阴影分辨率后 p95 回到 7\.9 ms。10月27日$/);
     expect(within(metal).queryByRole('img')).toBeNull();
     expect(within(nav).queryByRole('region', { name: '全部台词' })).toBeNull();
     expect(screen.queryByRole('region', { name: '历史记录' })).toBeNull();
-    expect(await within(thread).findByRole('group', { name: /^最近 10 分钟前台与旁路：前台 1 项，旁路 0 项/ })).toBeTruthy();
-    const tag = await within(thread).findByRole('button', { name: '第 12 轮，成功，打开轮次详情' });
-    expect(within(thread).getByRole('button', { name: '第 13 轮，失败，打开轮次详情' }).textContent).toMatch(/^第 13 轮 │ [\d.]+ (s|ms)✕$/);
-    expect(tag.textContent).toMatch(/^第 12 轮 │ [\d.]+ (s|ms)$/);
+    const tag = await within(thread).findByRole('button', { name: /\+ 新增记忆 1 条/ });
     const reply = tag.closest<HTMLElement>('[data-kind="ai"]')!;
-    expect(within(reply).getByRole('button', { name: /\+ 新增记忆 1 条/ })).toBeTruthy();
     expect(within(reply).getByRole('button', { name: /引用记忆 2 条/ })).toBeTruthy();
   });
 
-  it('a turn tag opens 轮次详情 with the judge, cost and memories; the tag toggles it shut', async () => {
+  it('a reply’s right-click menu opens its turn in 运行记录', async () => {
     const thread = await mount('&demo=full');
-    const tag = await within(thread).findByRole('button', { name: '第 12 轮，成功，打开轮次详情' });
-    fireEvent.click(tag);
-    const col = await screen.findByRole('complementary', { name: '轮次详情' });
-    expect(await within(col).findByText('选中「发言」')).toBeTruthy();
-    expect(within(col).getByText('$0.013')).toBeTruthy();
-    expect(within(col).getByText('周报按项目分组')).toBeTruthy();
-    expect(tag.getAttribute('aria-pressed')).toBe('true');
-    fireEvent.click(within(col).getByRole('tab', { name: '任务' }));
-    expect(await screen.findByRole('complementary', { name: '任务' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('tab', { name: '轮次详情' }));
-    fireEvent.click(tag);
-    await waitFor(() => expect(screen.queryByRole('complementary', { name: '轮次详情' })).toBeNull());
+    const tag = await within(thread).findByRole('button', { name: /\+ 新增记忆 1 条/ });
+    fireEvent.contextMenu(tag.closest<HTMLElement>('[data-kind="ai"]')!.querySelector('[data-first]')!.closest('div')!.querySelector('p, div')!, { clientX: 10, clientY: 10 });
+    fireEvent.click(screen.getByRole('menuitem', { name: '在运行记录里看这一轮' }));
+    expect(window.location.hash).toMatch(/\/trace\?turn=tr7/);
   });
 
-  it('opens history on request, searches loaded turns and opens the matching details', async () => {
-    await mount('&demo=full');
-    fireEvent.click(await screen.findByRole('button', { name: '历史记录' }));
-    const history = within(await screen.findByRole('dialog', { name: '历史记录' })).getByRole('region', { name: '历史记录' });
-    fireEvent.change(within(history).getByRole('textbox', { name: '搜索已载入的记录' }), { target: { value: '改好了：Companion' } });
-    fireEvent.click(await within(history).findByRole('button', { name: /改好了/ }));
-    const col = await screen.findByRole('complementary', { name: '轮次详情' });
-    expect(await within(col).findByText('第 12 轮')).toBeTruthy();
-    expect(screen.queryByRole('dialog', { name: '历史记录' })).toBeNull();
-  });
-
-  it('keeps history and conversation management separate at 900px', async () => {
-    stubMatchMedia(new Set(['(max-width: 1099px)']));
+  it('at 900px the task opens as an overlay that Esc closes', async () => {
+    stubMatchMedia(new Set(['(max-width: 1099px)', '(max-width: 1000px)']));
     const thread = await mount('&demo=full');
-    fireEvent.click(await screen.findByRole('button', { name: '管理对话' }));
-    expect(within(screen.getByRole('menu')).queryByText('历史记录')).toBeNull();
-    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
-    fireEvent.click(await within(thread).findByRole('button', { name: '第 12 轮，成功，打开轮次详情' }));
-    expect(await screen.findByRole('dialog', { name: '轮次详情' })).toBeTruthy();
+    fireEvent.click(await within(thread).findByRole('button', { name: /^任务 整理本周提交周报/ }));
+    expect(await screen.findByRole('dialog', { name: '任务' })).toBeTruthy();
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByRole('dialog', { name: '轮次详情' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: '任务' })).toBeNull();
   });
 
-  it('sparse: one conversation, four turns, idle', async () => {
+  it('sparse: one conversation, four replies, idle', async () => {
     const thread = await mount('&demo=sparse');
-    const nav = screen.getByRole('navigation', { name: '对话列表' });
+    const nav = screen.getByRole('navigation', { name: '话题' });
     expect(await within(nav).findByText('HostLink 早上')).toBeTruthy();
-    await waitFor(() => expect(within(thread).getAllByRole('button', { name: /打开轮次详情$/ })).toHaveLength(4));
+    await waitFor(() => expect(thread.querySelectorAll('[data-kind="ai"]')).toHaveLength(4));
     expect(screen.getByText('空闲')).toBeTruthy();
-    expect(within(thread).queryByRole('group', { name: /^最近 10 分钟前台与旁路/ })).toBeNull();
   });
 
   it('error: the failure shows once, in the message area, and the input box stays', async () => {

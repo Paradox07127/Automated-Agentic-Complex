@@ -34,8 +34,6 @@ export interface ComposerProps {
   quietSend?: boolean;
   /** Selected kernel when it is not ready (banner), else null. */
   kernel: RuntimeInfo | null;
-  /** Unused (the kernel is chosen in 设置); optional while Page.tsx still passes it. */
-  alternative?: RuntimeInfo | null;
   /** Text of a message that failed to send; kept for 「重新发送」. */
   failed: { text: string; reason: string; options?: SendOptions } | null;
   sending: boolean;
@@ -49,12 +47,6 @@ export interface ComposerProps {
   onContinue: () => void;
   onRestore?: () => void;
   onRecheck: () => void;
-  /** Unused (the kernel is chosen in 设置); optional while Page.tsx still passes it. */
-  onCopy?: (cmd: string) => void;
-  /** Unused (the kernel is chosen in 设置); optional while Page.tsx still passes it. */
-  onRunInTerminal?: (cmd: string) => void;
-  /** Unused (the kernel is chosen in 设置); optional while Page.tsx still passes it. */
-  onSwitchKernel?: (id: string) => void;
   /** Text put into the input; a new object puts it in again. */
   draft?: { text: string } | null;
   /** The topic the input writes to; each keeps its own draft. Null: one draft for all. */

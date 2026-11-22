@@ -32,8 +32,11 @@ export function scriptedStream(script: ScriptedEvent[], still: boolean, onEvent:
   return () => clearTimeout(timer);
 }
 
+const REPLIES: Record<string, string> = { si: '嗯，收到啦。我记下了，等会儿就去办，办好了再来叫你。' };
+
 /** Her reply to a line the fake agentd took: `line` frames of a few deltas, then the final one (turns.py line event). */
-export function replyScript(line: { line_id: string; conversation_id: string }, text: string): ScriptedEvent[] {
+export function replyScript({ character_id, ...line }: { line_id: string; conversation_id: string; character_id: string }): ScriptedEvent[] {
+  const text = REPLIES[character_id] ?? '好，我记下了。';
   const parts = text.match(/[^，。！？]+[，。！？]?/g) ?? [text];
   const frame = (text_delta: string, final: boolean) => ({ ...line, run_id: line.line_id, text_delta, final, intents: [], cancelled: false, error: null, lane: 'character' });
   return [...parts.map((p) => ({ delay: 400, event: 'line', data: frame(p, false) })), { delay: 300, event: 'line', data: frame('', true) }];

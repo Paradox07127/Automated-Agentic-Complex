@@ -31,6 +31,10 @@
   --sns-head-sub: var(--ef-text-2);
 }
 
+.root[data-fold] {
+  --list-width: 56px;
+}
+
 .root[data-rp] {
   grid-template-columns: var(--list-width) minmax(0, 1fr) 400px;
 }
@@ -84,119 +88,6 @@
   font: var(--ef-t-meta);
   color: var(--ef-text-2);
   white-space: nowrap;
-}
-
-/* 双轨窄带：一行 28 px，有运行或旁路回答时才出现；上面两条细轨（前台、旁路），下面分钟刻度 */
-.track {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 16px;
-  height: 28px;
-  padding: 0 24px;
-  border-bottom: 1px solid var(--ef-line-subtle);
-  white-space: nowrap;
-}
-
-.trackTl {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  height: 26px;
-}
-
-.lanes {
-  position: relative;
-  height: 12px;
-  margin-top: 1px;
-}
-
-.tick {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--ef-line-subtle);
-}
-
-.blk {
-  position: absolute;
-  min-width: 3px;
-  height: 5px;
-  padding: 0;
-  border: 0;
-  background: var(--ef-ink-s1);
-  cursor: pointer;
-}
-
-.blk[data-lane='f'] {
-  top: 0;
-}
-
-.blk[data-lane='s'] {
-  bottom: 0;
-  background: var(--ef-ink-s3);
-}
-
-/* A 20 px hit area around the 5 px bar. */
-.blk::after {
-  content: '';
-  position: absolute;
-  inset: -6px 0;
-}
-
-.blk:hover {
-  background: var(--ef-text-1);
-}
-
-.blk:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
-.nowLine {
-  position: absolute;
-  top: -1px;
-  bottom: -1px;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--ef-now-line);
-}
-
-.ticks {
-  position: relative;
-  height: 12px;
-  margin-top: 1px;
-  color: var(--ef-text-3);
-  font: 400 11px / 12px var(--ef-font-num);
-  font-variant-numeric: tabular-nums;
-}
-
-.ticks > span {
-  position: absolute;
-  transform: translateX(-50%);
-}
-
-.trackR {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  white-space: nowrap;
-}
-
-.trackFront {
-  font: var(--ef-t-meta);
-  color: var(--ef-text-1);
-}
-
-.cap {
-  font: var(--ef-t-meta);
-  color: var(--ef-text-2);
-}
-
-.num {
-  font-family: var(--ef-font-num);
-  font-variant-numeric: tabular-nums;
 }
 
 .sp {
@@ -347,10 +238,6 @@
     border: 0;
     background: var(--ef-scrim);
     cursor: default;
-  }
-
-  .track {
-    padding: 0 16px;
   }
 }
 

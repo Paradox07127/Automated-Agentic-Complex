@@ -1,13 +1,10 @@
-// Chat: a speaker's round head sits before the name of the first of their consecutive messages only; never on the user's lines.
+// Chat: a speaker's round head sits on the first of their consecutive messages only; the user's lines get the plain figure.
 import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { Message } from '../../src/domain';
 import { MessageList } from '../../src/pages/chat/MessageList';
 
-afterEach(() => {
-  cleanup();
-  vi.unstubAllEnvs();
-});
+afterEach(cleanup);
 
 const T = 1_700_000_000_000;
 const MESSAGES: Message[] = [
@@ -21,44 +18,47 @@ const MESSAGES: Message[] = [
   { kind: 'me', at: T + 7, text: '再见' },
 ] as Message[];
 
-const list = () =>
+const list = (headUrl?: string) =>
   render(
     <MessageList
       messages={MESSAGES}
       view={null}
-      roleName="示例乙"
+      roleName="乙乙"
       roleId="si"
-      names={{ cedar: '示例丙' }}
+      names={{ cedar: '丙丙' }}
+      {...(headUrl ? { headUrl } : {})}
       now={T + 10}
       answered={{}}
       cancelled={{}}
       stopped={{}}
       frontTitle={null}
-      turnOf={() => null}
       memsOf={() => ({ mems: [], learned: [] })}
-      selTurn={null}
       onOpenDrawer={() => {}}
       onAnswer={() => {}}
       onCancelQuestion={() => {}}
       onQueueSide={() => {}}
-      onTurn={() => {}}
     />,
   ).container;
 
-const heads = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('[data-ava]')].map((who) => who.children[1]?.textContent);
+/** Each head of her side, by what it shows: its picture's src, else the name's first character. */
+const heads = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('[data-kind="ai"] [data-head], [data-kind="side"] [data-head]')].map((h) => h.querySelector('img')?.getAttribute('src') ?? h.textContent);
 
 describe('chat speaker heads', () => {
-  it('marks the first message of each run, across tool rows, and none of the user lines', () => {
-    const c = list();
-    expect(heads(c)).toEqual(['示例乙', '示例丙', '示例乙']);
-    expect(c.querySelectorAll('[data-kind="me"] [data-ava]')).toHaveLength(0);
+  it('marks the first message of each run, across tool rows', () => {
+    expect(heads(list())).toEqual(['乙', '丙', '乙']);
   });
 
-  it('shows the placeholder in a plain browser and the bundled round art inside the app', () => {
-    expect(list().querySelector('[data-ava] img')).toBeNull();
-    cleanup();
-    vi.stubEnv('VITE_EF_ART', '1');
-    const srcs = [...list().querySelectorAll('[data-ava] img')].map((i) => i.getAttribute('src'));
-    expect(srcs).toEqual(['art/characters/si/round.png', 'art/characters/cedar/round.png', 'art/characters/si/round.png']);
+  it('shows her head picture on her lines and the name’s first character on another speaker’s', () => {
+    expect(heads(list('/head/si.png'))).toEqual(['/head/si.png', '丙', '/head/si.png']);
+  });
+
+  it('gives the user lines the plain figure, never a name or a picture', () => {
+    const c = list('/head/si.png');
+    const mine = [...c.querySelectorAll<HTMLElement>('[data-kind="me"] [data-head]')];
+    expect(mine).toHaveLength(2);
+    for (const h of mine) {
+      expect(h.querySelector('img')).toBeNull();
+      expect(h.textContent).toBe('');
+    }
   });
 });

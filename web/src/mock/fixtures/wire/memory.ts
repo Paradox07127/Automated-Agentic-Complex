@@ -15,6 +15,7 @@ const use = (line_id: string, at: number, mode: 'injected' | 'mentioned') => ({ 
 
 const fact = (f: Pick<WireFact, 'fact_id' | 'kind' | 'text' | 'source' | 'recorded_at'> & Partial<WireFact>): WireFact => ({
   version: 1,
+  owner: null,
   evidence: [],
   occurred_at: null,
   last_used_at: null,

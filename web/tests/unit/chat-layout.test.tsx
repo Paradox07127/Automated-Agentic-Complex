@@ -15,8 +15,8 @@ import { pluginsOn, pluginsReset } from './plugins';
 beforeEach(() => pluginsOn());
 afterEach(() => pluginsReset());
 
-// The foreground/side lanes are back as a two-lane track, the task opens in the right column (not a
-// Sheet), tool rows and the inline task are the prototype's own rows, and an empty page offers 新建对话.
+// The run state is in the header, the task opens in the right column (not a Sheet), tool rows and the
+// inline task are the prototype's own rows, and an empty page offers 新建对话.
 
 afterEach(() => {
   cleanup();
@@ -62,22 +62,20 @@ const list = (messages = MESSAGES[C1] ?? []) =>
       cancelled={{}}
       stopped={{}}
       frontTitle="整理本周提交周报"
-      turnOf={() => null}
       memsOf={() => ({ mems: [], learned: [] })}
-      selTurn={null}
       onOpenDrawer={() => {}}
       onAnswer={() => {}}
       onCancelQuestion={() => {}}
       onQueueSide={() => {}}
-      onTurn={() => {}}
     />,
   ).container;
 
-describe('chat: run state and the two-lane track', () => {
-  it('shows the header status and the 前台 / 旁路 track of the last 10 minutes', async () => {
+describe('chat: run state', () => {
+  it('shows the header status and 停止, and no 前台 / 旁路 track in the thread', async () => {
     const thread = await mountDefault();
     expect(screen.getByText(/^执行中/)).toBeTruthy();
-    expect(within(thread).getByRole('group', { name: /^最近 10 分钟前台与旁路：前台 1 项，旁路 0 项/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '停止' })).toBeTruthy();
+    expect(within(thread).queryByRole('group', { name: /^最近 10 分钟前台与旁路/ })).toBeNull();
   });
 
   it('shows no first-token or whole-turn readout under the speaker', async () => {
@@ -147,7 +145,7 @@ describe('chat: empty state', () => {
 });
 
 describe('chat: kernel not ready', () => {
-  it('names the kernel above its chain and keeps the input off', async () => {
+  it('names the kernel with its settings link and keeps the input off', async () => {
     const codex = WIRE_RUNTIME.installed_runtimes.find((r) => r.backend === 'codex')!;
     const loggedOut = { ...codex, authenticated: false };
     bridgeWith([
@@ -160,7 +158,8 @@ describe('chat: kernel not ready', () => {
     const thread = await mountChat('&demo=kernel');
     const title = await within(thread).findByText('角色内核未就绪');
     const block = title.closest<HTMLElement>('[role="alert"]')!;
-    expect(block.querySelector('[data-stub="KernelChain"]')).toBeTruthy();
+    expect(block.textContent).toContain('Codex 未就绪，就绪后可发送');
+    expect(within(block).getByRole('link', { name: '设置 › 角色内核' }).getAttribute('href')).toBe('#/settings?group=kernel');
     expect((within(thread).getByRole('textbox', { name: '消息' }) as HTMLTextAreaElement).disabled).toBe(true);
   });
 
@@ -247,21 +246,21 @@ describe('chat: kernel not ready', () => {
 });
 
 describe('chat: conversation menu says no dev notes', () => {
-  it('offers 重命名, which opens a title dialog', async () => {
+  it('offers 重命名, which opens the title box in the row', async () => {
     await mountDefault();
-    fireEvent.click(screen.getByRole('button', { name: '管理对话' }));
+    fireEvent.contextMenu(within(screen.getByRole('navigation', { name: '话题' })).getByText('周报整理').closest('button')!, { clientX: 40, clientY: 60 });
     const item = screen.getByRole('menuitem', { name: /重命名/ });
     expect(item.getAttribute('aria-disabled')).not.toBe('true');
     expect(item.textContent).not.toContain('后台暂不提供');
     fireEvent.click(item);
-    expect((screen.getByRole('textbox', { name: '对话标题' }) as HTMLInputElement).value).toBe('周报整理');
+    expect((screen.getByRole('textbox', { name: '话题名' }) as HTMLInputElement).value).toBe('周报整理');
   });
 
   it('opens an archived conversation by title, without its id', async () => {
     render(<ToastHost />);
     await mountDefault();
     fireEvent.click(screen.getByRole('button', { name: /已归档 3/ }));
-    fireEvent.click(screen.getByRole('menuitem', { name: '九月旅行计划' }));
+    fireEvent.click(screen.getByText('九月旅行计划').closest('button')!);
     const thread = screen.getByRole('region', { name: '消息' });
     expect(await within(thread).findByText('已归档对话')).toBeTruthy();
     expect(within(thread).getByRole('button', { name: '恢复对话' })).toBeTruthy();
@@ -270,14 +269,13 @@ describe('chat: conversation menu says no dev notes', () => {
 });
 
 describe('chat: deleting a conversation', () => {
-  it('confirms in a Dialog', async () => {
+  it('confirms on a paper card', async () => {
     bridgeWith([idle]);
     const thread = await mountChat(`&demo=history&conv=${C2}`);
     await within(thread).findByText(/超时阈值是 1.5 s/);
-    fireEvent.click(screen.getByRole('button', { name: '管理对话' }));
+    fireEvent.contextMenu(within(screen.getByRole('navigation', { name: '话题' })).getByText('HostLink 断线排查').closest('button')!, { clientX: 40, clientY: 60 });
     fireEvent.click(screen.getByRole('menuitem', { name: /删除/ }));
-    const dlg = screen.getByRole('dialog', { name: /删除对话/ });
-    expect(dlg.closest('[data-stub="Dialog"]')).toBeTruthy();
+    const dlg = screen.getByRole('dialog', { name: '删除「HostLink 断线排查」？' });
     expect(dlg.textContent).not.toContain('//');
   });
 });

@@ -71,34 +71,6 @@ describe('chat replies point at their trace turn', () => {
       if (before) expect(t.started_at, m.turn_id).toBeGreaterThanOrEqual(before.at);
     }
   });
-
-  it('the turn tag ⌁n hands the turn id to 轮次详情', () => {
-    const onTurn = vi.fn();
-    render(
-      <MessageList
-        messages={c1.filter((m) => m.kind === 'ai')}
-        view={null}
-        roleName="示例甲"
-        now={NOW}
-        answered={{}}
-        cancelled={{}}
-        stopped={{}}
-        frontTitle={null}
-        turnOf={(id) => (id ? { no: 1, res: '成功', ms: 1000 } : null)}
-        memsOf={() => ({ mems: [], learned: [] })}
-        selTurn={null}
-        onOpenDrawer={() => {}}
-        onAnswer={() => {}}
-        onCancelQuestion={() => {}}
-        onQueueSide={() => {}}
-        onTurn={onTurn}
-      />,
-    );
-    const first = replies.find((m) => m.turn_id);
-    const tagged = replies.filter((m) => m.turn_id);
-    fireEvent.click(screen.getAllByRole('button', { name: /打开轮次详情/ })[tagged.indexOf(first!)]!);
-    expect(onTurn).toHaveBeenCalledWith(first!.turn_id);
-  });
 });
 
 describe('ChartState need', () => {

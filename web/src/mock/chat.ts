@@ -111,7 +111,7 @@ export function chatRoutes({ present, said }: ChatMockHooks): MockRoute[] {
         if (query.get('demo') === 'sparse') return ok(200, { conversations: [SPARSE_CONV], busy: false, character });
         // conversations.py list(): pinned first, then newest.
         const listed = rows.filter((c) => c.character_id === character).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updated_at - a.updated_at);
-        return ok(200, { conversations: listed.map(shown), busy: WIRE_CONVERSATIONS_BUSY, character });
+        return ok(200, { conversations: listed.map(shown), busy: busyFor(character), character });
       },
     },
     {

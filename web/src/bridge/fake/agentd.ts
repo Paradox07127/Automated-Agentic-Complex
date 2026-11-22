@@ -30,8 +30,8 @@ function reply<T>(status: number, body: unknown, error?: BridgeError): AgentdRes
   return { status, body: (body ?? null) as T | null, ...(e ? { error: e } : {}) };
 }
 
-/** Dispatches by method + path like agentd: unknown route 404, then a write without a body 400; later routes win over earlier ones with the same pattern. */
-export function createDispatcher(routes: MockRoute[]) {
+/** Dispatches by method + path like agentd: unknown route 404, then a write without a body 400; later routes win over earlier ones with the same pattern. `/state` names `character()` when given. */
+export function createDispatcher(routes: MockRoute[], character?: () => string) {
   return async function request<T>(method: HttpMethod, fullPath: string, body?: unknown): Promise<AgentdResponse<T>> {
     const [path = '', qs = ''] = fullPath.split('?');
     for (let i = routes.length - 1; i >= 0; i--) {
@@ -43,7 +43,8 @@ export function createDispatcher(routes: MockRoute[]) {
         return reply(400, { error: 'invalid_body_size' });
       }
       const res = await r.handler({ method, path, params, query: new URLSearchParams(qs), body });
-      return reply(res.status, res.body, res.error);
+      const out = reply<T>(res.status, res.body, res.error);
+      return character && method === 'GET' && path === '/state' && out.body ? { ...out, body: { ...out.body, character: character() } } : out;
     }
     return reply(404, { error: 'not_found' });
   };

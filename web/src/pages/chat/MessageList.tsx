@@ -7,7 +7,7 @@ import type { TasksView } from '../tasks/model';
 import { QuestionCard } from './QuestionCard';
 import { SideMessage } from './SideMessage';
 import { TaskCard } from './TaskCard';
-import { TextMessage, type TurnTagInfo } from './TextMessage';
+import { TextMessage } from './TextMessage';
 import { ToolRow } from './ToolRow';
 import type { TiMem } from './turnTrace';
 import type { OnDeliveryReceipt } from '../../features/delivery';
@@ -46,18 +46,14 @@ export interface MessageListProps extends MessageMenuProps {
   stopped: Record<string, number>;
   /** Foreground task of this conversation. */
   frontTitle: string | null;
-  /** Per reply turn_id: its `/trace/turns` row (not shown in the chat), the facts it used and the facts it added. */
-  turnOf: (turnId: string | undefined) => TurnTagInfo | null;
+  /** Per reply turn_id: the facts it used and the facts it added. */
   memsOf: (turnId: string | undefined) => { mems: TiMem[]; learned: TiMem[] };
-  /** turn_id open in 轮次详情 (its row is marked), and whether the task tab is open. */
-  selTurn: string | null;
+  /** The task whose drawer is open. */
   openTaskId?: string | null;
   onOpenDrawer: (taskId?: string) => void;
   onAnswer: (questionId: string, answers: Record<string, string[]>) => void;
   onCancelQuestion: (questionId: string) => void;
   onQueueSide: (text: string) => void;
-  /** Opens a turn in 轮次详情; the stream itself has no control for it. */
-  onTurn: (turnId: string) => void;
   onReceipt?: OnDeliveryReceipt;
   /** An empty conversation offers example questions; a click puts one in the composer. Absent offers none. */
   onExample?: (text: string) => void;
@@ -117,7 +113,6 @@ export function MessageList(p: MessageListProps) {
             latest={i === lastReply}
             state={m.state}
             source={m.source}
-            selected={m.turn_id != null && m.turn_id === p.selTurn}
             mems={mems}
             learned={learned}
             lineId={m.turn_id}

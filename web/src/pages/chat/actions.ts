@@ -14,7 +14,6 @@ import {
   fromConversation,
   interactionAnswer,
   interactionDismiss,
-  runtimeSettings,
   type ActiveRun,
   type Conversation,
   type Question,
@@ -70,12 +69,11 @@ export interface ChatDeps {
   character: string | null;
   /** `/state` character, the one on the desktop; null before it is read. */
   present: string | null;
-  /** Shows the swap card for a line to a character not on the desktop; true once the user asks to bring her out. */
+  /** Shows the swap card for a line to the selected character, who is not on the desktop; true once the user asks to bring her out. On no, the page puts the line back in the input. */
   askSwap: (text: string) => Promise<boolean>;
   task: Task | null;
   run: ActiveRun | null;
   view: TasksView | null;
-  runtime: ChatRuntime | null;
   /** A foreground run is going (any conversation): a new line gets a read-only side answer. */
   busy: boolean;
   setLocal: Dispatch<SetStateAction<TasksLocal>>;
@@ -268,9 +266,9 @@ export function createChatActions(d: ChatDeps) {
         d.reload.tasks();
       }),
 
-    newConversation: () =>
+    newConversation: (character = d.character) =>
       attempt('没有新建', async () => {
-        const row = await post<WireConversation>('/conversations', d.character ? conversationCreate(d.character) : {});
+        const row = await post<WireConversation>('/conversations', character ? conversationCreate(character) : {});
         d.select(row.id);
         d.editTitle(row.id);
         d.reload.list();
@@ -338,26 +336,6 @@ export function createChatActions(d: ChatDeps) {
       if (r?.info.ready) d.push('内核已就绪', { severity: 'success' });
       else d.push(`重新检测：${r?.info.runtimes.find((x) => x.id === r.info.selected)?.name ?? '内核'} 仍未就绪`, { severity: 'warning' });
     },
-
-    copy: (cmd: string) =>
-      attempt('没有复制', async () => {
-        await getBridge().clipboard.writeText(cmd);
-        d.push(`已复制：${cmd}`);
-      }),
-
-    runInTerminal: (cmd: string) =>
-      attempt('没有在终端运行', async () => {
-        await getBridge().open.runInTerminal(cmd);
-        d.push(`已在终端运行：${cmd}`);
-      }),
-
-    switchKernel: (id: string) =>
-      attempt('没有切换内核', async () => {
-        if (!d.runtime) return;
-        await put('/character/runtime', runtimeSettings(d.runtime.wire, { backend: id as ChatRuntime['wire']['backend'] }));
-        const r = await d.reload.runtime();
-        d.push(`已改用 ${r?.info.runtimes.find((x) => x.id === id)?.name ?? id}`);
-      }),
 
     async onDrawer(a: TaskAction) {
       const bridge = getBridge();

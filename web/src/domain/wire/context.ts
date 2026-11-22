@@ -39,6 +39,8 @@ export interface WireTurn {
 export interface WireFact {
   fact_id: string;
   version: number;
+  /** The character it is private to; null: shared by all. */
+  owner: string | null;
   kind: string;
   text: string;
   source: 'asserted_by_user' | 'confirmed_by_user' | 'observed_context' | 'inferred_hypothesis';

@@ -304,14 +304,16 @@ describe('chat composer look / no_memory', () => {
 
   it('send posts look and no_memory only when on', async () => {
     const { calls } = install();
-    const { fromConversation, fromRuntimePublic } = await import('../../src/domain');
-    const { WIRE_CONVERSATIONS, WIRE_RUNTIME } = await import('../../src/mock/fixtures');
+    const { fromConversation } = await import('../../src/domain');
+    const { WIRE_CONVERSATIONS } = await import('../../src/mock/fixtures');
     const deps: ChatDeps = {
       conv: fromConversation(WIRE_CONVERSATIONS[0]!, NOW),
+      character: 'si',
+      present: 'si',
+      askSwap: async () => true,
       task: null,
       run: null,
       view: null,
-      runtime: { wire: WIRE_RUNTIME, info: fromRuntimePublic(WIRE_RUNTIME) },
       busy: false,
       setLocal: () => {},
       setAnswered: () => {},
@@ -321,9 +323,10 @@ describe('chat composer look / no_memory', () => {
       setBusyDecide: () => {},
       setNotice: () => {},
       select: () => {},
+      editTitle: () => {},
       addReply: () => {},
       settleReply: () => {},
-      reload: { list: () => {}, turns: () => {}, tasks: () => {}, runtime: async () => undefined },
+      reload: { list: () => {}, turns: () => {}, tasks: () => {}, present: () => {}, runtime: async () => undefined },
       push: () => {},
       failSend: false,
     };

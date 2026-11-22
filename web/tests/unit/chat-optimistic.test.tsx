@@ -100,7 +100,6 @@ describe('a chat line shows the moment it is sent', () => {
     await reply(1, accepted(1));
     expect(live(thread)).toEqual([row]);
     expect(await within(row!).findByText('已经核对。共三条。')).toBeTruthy();
-    expect(within(row!).getByText('Codex 登录')).toBeTruthy();
     expect(within(row!).queryByText(/在想|另一个会话/)).toBeNull();
   });
 
@@ -122,10 +121,12 @@ describe('a chat line shows the moment it is sent', () => {
     const rows: Array<Partial<LiveReply>> = [];
     const deps: ChatDeps = {
       conv: fromConversation(WIRE_CONVERSATIONS[0]!, NOW),
+      character: 'si',
+      present: 'si',
+      askSwap: async () => true,
       task: null,
       run: null,
       view: null,
-      runtime: null,
       busy: false,
       setLocal: () => {},
       setAnswered: () => {},
@@ -135,9 +136,10 @@ describe('a chat line shows the moment it is sent', () => {
       setBusyDecide: () => {},
       setNotice: () => {},
       select: () => {},
+      editTitle: () => {},
       addReply: (r) => void rows.push({ ...r }),
       settleReply: (id, r) => Object.assign(rows.find((x) => x.line_id === id)!, r),
-      reload: { list: () => {}, turns: () => {}, tasks: () => {}, runtime: async () => undefined },
+      reload: { list: () => {}, turns: () => {}, tasks: () => {}, present: () => {}, runtime: async () => undefined },
       push: () => {},
       failSend: false,
     };

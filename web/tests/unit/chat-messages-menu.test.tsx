@@ -26,9 +26,8 @@ const MESSAGES: Message[] = [
 
 const base: MessageListProps = {
   messages: MESSAGES, view: null, roleName: '示例乙', roleId: 'si', now: T + 10, answered: {}, cancelled: {}, stopped: {}, frontTitle: null,
-  turnOf: () => ({ no: 3, res: '成功', ms: 4200, ttft: 900, provider: 'codex_login', account_label: 'codex_login' }),
-  memsOf: () => ({ mems: [], learned: [] }), selTurn: null,
-  onOpenDrawer: () => {}, onAnswer: () => {}, onCancelQuestion: () => {}, onQueueSide: () => {}, onTurn: () => {},
+  memsOf: () => ({ mems: [], learned: [] }),
+  onOpenDrawer: () => {}, onAnswer: () => {}, onCancelQuestion: () => {}, onQueueSide: () => {},
 };
 
 const items = () => screen.queryAllByRole('menuitem').map((n) => n.textContent);

@@ -79,6 +79,7 @@ function wire(s: Seed): WireFact {
   return {
     fact_id: v31Id(s.key),
     version: s.upd === 0 && s.key === 'a3' ? 2 : 1,
+    owner: null,
     kind: s.kind,
     text: s.text,
     source: s.src,

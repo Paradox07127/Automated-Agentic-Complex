@@ -94,7 +94,7 @@ describe('chat v2: character tabs', () => {
     const thread = await mount();
     fireEvent.keyDown(document.body, { key: 'e' });
     await waitFor(() => expect(tab('示例甲').getAttribute('aria-selected')).toBe('true'));
-    fireEvent.keyDown(within(thread).getByRole('textbox', { name: '消息' }), { key: 'q' });
+    fireEvent.keyDown(await within(thread).findByRole('textbox', { name: '消息' }), { key: 'q' });
     expect(tab('示例甲').getAttribute('aria-selected')).toBe('true');
     fireEvent.keyDown(document.body, { key: 'q' });
     await waitFor(() => expect(tab('示例乙').getAttribute('aria-selected')).toBe('true'));
@@ -131,7 +131,7 @@ describe('chat v2: the topic column folds', () => {
     await mount();
     const fold = () => within(topics()).getByRole('button', { name: /左栏$/ });
     expect(fold().getAttribute('aria-label')).toBe('展开左栏');
-    expect(within(topics()).queryByRole('searchbox')).toBeNull();
+    expect(within(topics()).queryByRole('textbox', { name: '搜索话题' })).toBeNull();
     fireEvent.click(fold());
     expect(fold().getAttribute('aria-label')).toBe('折叠左栏');
     media.set('(max-width: 1000px)', false);
@@ -306,5 +306,19 @@ describe('chat v2: no trace on the chat page', () => {
     const thread = await mount();
     const head = thread.querySelector<HTMLElement>('[data-g="head"]')!;
     expect(head.textContent).toBe('周报整理');
+  });
+});
+
+describe('chat v2: quoting a message', () => {
+  it('引用回复 puts the line above the input, and the sent line shows it as a quote block', async () => {
+    const b = bridge();
+    const thread = await mount();
+    fireEvent.contextMenu(within(thread).getByText('按项目分组，不要按日期。'), { clientX: 10, clientY: 10 });
+    fireEvent.click(menuItem('引用回复'));
+    expect(within(thread).getByRole('button', { name: '不引用' })).toBeTruthy();
+    send(thread, '好');
+    await waitFor(() => expect(b.of('POST', `/conversations/${C1}/messages`).map((c) => c.body)).toEqual([{ text: '> 按项目分组，不要按日期。\n\n好' }]));
+    expect(within(thread).queryByRole('button', { name: '不引用' })).toBeNull();
+    await waitFor(() => expect(thread.querySelector('[data-live] blockquote')?.textContent).toBe('按项目分组，不要按日期。'));
   });
 });

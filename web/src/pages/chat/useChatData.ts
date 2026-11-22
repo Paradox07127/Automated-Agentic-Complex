@@ -235,13 +235,12 @@ export function useRuntime(loggedOutDemo: boolean, enabled: boolean) {
   return { query, recheck };
 }
 
-/** Composer inputs from the runtime: the selected kernel, it again only when not ready, and a usable other kernel. */
+/** Composer inputs from the runtime: the selected kernel, and it again only when not ready. */
 export function kernelState(r: ChatRuntime | undefined) {
   const info = r?.info ?? null;
   const selected = info?.runtimes.find((x) => x.id === info.selected) ?? null;
   const kernel = info && !info.ready ? selected : null;
-  const alternative = info?.runtimes.find((x) => x.id !== info.selected && x.available !== false && x.authenticated !== false) ?? null;
-  return { selected, kernel, alternative };
+  return { selected, kernel };
 }
 
 /** `/capabilities` share_screenshots (capabilities.py): why 附加窗口 cannot attach the window, or null when it can or nothing was read. */

@@ -18,7 +18,7 @@ export function DlgHead({ title }: { title: string }) {
             <linearGradient id={grad} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor="#fff" stopOpacity=".25" />
               <stop offset=".5" stopColor="#fff" stopOpacity="0" />
-              <stop offset="1" stopColor="#000" stopOpacity=".15" />
+              <stop offset="1" stopColor="black" stopOpacity=".15" />
             </linearGradient>
           </defs>
           <path d="M0 0h340v58H0z" fill="currentColor" />

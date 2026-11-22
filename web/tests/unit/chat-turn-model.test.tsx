@@ -6,9 +6,9 @@ import { TextMessage } from '../../src/pages/chat/TextMessage';
 afterEach(cleanup);
 
 const composer: ComposerProps = {
-  roleName: '她', history: false, busy: false, kernel: null, alternative: null, failed: null, sending: false,
+  roleName: '她', history: false, busy: false, kernel: null, failed: null, sending: false,
   onSend: vi.fn(), onResend: vi.fn(), onDiscardFailed: vi.fn(), onContinue: vi.fn(),
-  onRecheck: vi.fn(), onCopy: vi.fn(), onSwitchKernel: vi.fn(),
+  onRecheck: vi.fn(),
 };
 
 describe('turn model identity', () => {

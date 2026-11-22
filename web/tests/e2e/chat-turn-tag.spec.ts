@@ -23,21 +23,10 @@ test('chat: disconnected keeps the last messages with their time, 查看诊断 a
   expect(errors).toEqual([]);
 });
 
-// A reply's turn tag ⌁n opens 轮次详情 beside the stream; the turn row comes from /trace/turns by turn_id.
-test('chat: the turn tag opens 轮次详情 for that turn', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('main.html#/chat?plugins=all&still=1');
-  await page.getByRole('button', { name: /^第 10 轮，成功/ }).click();
-  const col = page.getByRole('complementary', { name: '轮次详情' });
-  await expect(col.getByText('第 10 轮')).toBeAttached();
-  await expect(col.getByText('14:14:00 │', { exact: false })).toBeVisible();
-  expect(errors).toEqual([]);
-});
-
-// The user's SNS self bubble must stand out from the dialog plate and the page, and its text must read on it.
-test('chat light: the user line box reads against the stream', async ({ page }) => {
+// The user's bubble must stand out from the dialog plate, and its text must read on it.
+test('chat light: the user line bubble reads against the stream', async ({ page }) => {
   await page.goto('main.html#/chat?plugins=all&still=1&theme=light');
-  const line = page.locator('[data-kind="me"] .sns-bubble-self').last();
+  const line = page.locator('[data-kind="me"] [class*="_bub_"]').last();
   await line.scrollIntoViewIfNeeded();
   const s = await line.evaluate((el) => {
     const c = getComputedStyle(el);
@@ -48,13 +37,16 @@ test('chat light: the user line box reads against the stream', async ({ page }) 
       });
       return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
     };
-    const [hi, lo] = [lum(c.color), lum(c.backgroundColor)].sort((a, b) => b - a);
-    return { bg: c.backgroundColor, contrast: (hi! + 0.05) / (lo! + 0.05) };
+    const contrast = (a: string, b: string) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi! + 0.05) / (lo! + 0.05);
+    };
+    // The bubble is a gradient: its stops are the backgrounds the text sits on.
+    const stops = c.backgroundImage.match(/rgb\([^)]*\)/g) ?? [];
+    const plate = getComputedStyle(el.closest('[aria-label="消息"]')!).backgroundColor;
+    return { stops: stops.length, text: Math.min(...stops.map((x) => contrast(c.color, x))), plate: Math.max(...stops.map((x) => contrast(x, plate))) };
   });
-  const thread = page.getByRole('region', { name: '消息' });
-  const plate = await thread.evaluate((el) => getComputedStyle(el).backgroundColor);
-  const stream = await thread.evaluate((el) => getComputedStyle(el.closest('main') ?? el).backgroundColor);
-  expect(s.bg).not.toBe(plate);
-  expect(s.bg).not.toBe(stream);
-  expect(s.contrast).toBeGreaterThanOrEqual(4.5);
+  expect(s.stops).toBeGreaterThan(0);
+  expect(s.text).toBeGreaterThanOrEqual(4.5);
+  expect(s.plate).toBeGreaterThanOrEqual(3);
 });
