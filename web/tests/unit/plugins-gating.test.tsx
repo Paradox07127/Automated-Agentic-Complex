@@ -108,7 +108,10 @@ describe('settings rows of a plug-in', () => {
     expect(await screen.findByRole('switch', { name: '遮蔽敏感内容' })).toBeTruthy();
     for (const gone of ['窗口文字', '读取编码会话', '附上截图']) expect(screen.queryByRole('switch', { name: gone })).toBeNull();
     expect(screen.queryByRole('button', { name: '暂停 1 小时' })).toBeNull();
-    expect(screen.queryByRole('region', { name: '读取范围' })).toBeNull();
+    // 键鼠计数 feeds the coarse beat, which runs with screen awareness off; it is the region's only row then.
+    const scope = screen.getByRole('region', { name: '读取范围' });
+    expect(within(scope).getAllByRole('switch')).toHaveLength(1);
+    expect(within(scope).getByRole('switch', { name: '键鼠计数' })).toBeTruthy();
     const nav = screen.getByRole('tablist', { name: '设置分组' });
     expect(within(nav).queryByRole('tab', { name: /角色内核/ })).toBeNull();
     expect(within(nav).getAllByRole('tab')[0]?.getAttribute('title')).toBe('插件');
