@@ -1,0 +1,325 @@
+/* 选中池子: the title bar, then dark rows straight on the room (BRIEF 11-22 B); only the rows scroll. */
+.pool {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.detail {
+  color: rgb(255 255 255 / 80%);
+  font: 400 12px / 1 var(--ef-font-num);
+  white-space: nowrap;
+}
+
+.tag {
+  flex: none;
+  padding: 2px 6px;
+  background: var(--ef-accent);
+  color: #1a1a1a;
+  font: 700 12px / 1.2 var(--ef-font-sans);
+}
+
+.why {
+  margin: 0;
+  padding: 4px 10px;
+  background: rgb(46 46 46 / 88%);
+  color: var(--ef-danger);
+  font-size: 12px;
+}
+
+.rows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow: hidden auto;
+  padding-right: 2px;
+  scrollbar-color: rgb(38 38 38 / 45%) transparent;
+  scrollbar-width: thin;
+}
+
+.row {
+  flex: none;
+}
+
+/* Denser than the kit's 52 px: this page also holds the loop map. */
+.row :global([data-stub='DarkRow']) {
+  min-height: 40px;
+  font-size: 14px;
+}
+
+.row :global([data-stub='DarkRow']) > :first-child > span:first-child {
+  width: 44px;
+}
+
+.row[data-off] :global([data-stub='DarkRow']) {
+  background: repeating-linear-gradient(135deg, rgb(255 255 255 / 5%) 0 1px, transparent 1px 6px), rgb(60 60 60 / 82%);
+}
+
+.row[data-off] .mini,
+.row[data-off] .bar {
+  opacity: 0.4;
+}
+
+.row[data-off] .pct {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.red {
+  color: var(--ef-danger-vivid);
+  font-weight: 700;
+}
+
+.orange {
+  color: var(--ef-g-reddot);
+}
+
+/* Mini chain. */
+.mini {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  width: 128px;
+  height: 16px;
+}
+
+.me {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-right: 3px;
+  transform: rotate(45deg);
+}
+
+.ms {
+  flex: 1 1 0;
+  min-width: 3px;
+  height: 8px;
+  background: rgb(255 255 255 / 62%);
+}
+
+.ms[data-loop] {
+  height: 10px;
+  background: repeating-linear-gradient(90deg, var(--ef-accent) 0 3px, rgb(255 241 0 / 35%) 3px 5px);
+}
+
+.mj {
+  flex: none;
+  width: 3px;
+  height: 14px;
+}
+
+.mini [data-band='0'] {
+  background: repeating-linear-gradient(180deg, #8a8a8a 0 2px, transparent 2px 4px);
+}
+
+.mini [data-band='1'] {
+  background: #ededed;
+}
+
+.mini [data-band='2'] {
+  background: var(--ef-accent);
+}
+
+.mini [data-band='3'] {
+  background: var(--ef-g-reddot);
+}
+
+.mini [data-band='4'] {
+  background: var(--ef-danger-vivid);
+}
+
+.mt {
+  flex: none;
+  margin-left: 5px;
+  color: rgb(255 255 255 / 62%);
+  font: 500 10px / 1 var(--ef-font-num);
+  white-space: nowrap;
+}
+
+.share {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  width: 78px;
+}
+
+.bar {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  background: rgb(255 255 255 / 14%);
+}
+
+.bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: #fff;
+}
+
+.pct {
+  width: 32px;
+  font: 600 12px / 1 var(--ef-font-num);
+  text-align: right;
+}
+
+.exp {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgb(255 255 255 / 75%);
+  cursor: pointer;
+}
+
+.exp:hover {
+  color: #fff;
+}
+
+.exp:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -2px;
+}
+
+/* ⌄, ⌃ when open. */
+.exp i {
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.exp[aria-expanded='true'] i {
+  margin-top: 4px;
+  transform: rotate(-135deg);
+}
+
+.add {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.addKey {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 12px 0 0;
+  border: 0;
+  background: rgb(255 255 255 / 34%);
+  box-shadow: inset 0 0 0 1px rgb(38 38 38 / 35%);
+  color: #262626;
+  font: 500 13px / 1 var(--ef-font-sans);
+  text-align: left;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.addKey:hover:not(:disabled) {
+  background: rgb(255 255 255 / 60%);
+}
+
+.addKey:disabled {
+  color: rgb(38 38 38 / 55%);
+  cursor: default;
+}
+
+.plus {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  font: 600 18px / 1 var(--ef-font-num);
+}
+
+.addList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden auto;
+  list-style: none;
+}
+
+.addList button {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  height: 30px;
+  padding: 0 12px 0 54px;
+  border: 0;
+  background: rgb(60 60 60 / 82%);
+  color: #fff;
+  font: 500 13px / 1 var(--ef-font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.addList button:hover {
+  background: rgb(84 84 84 / 92%);
+}
+
+.addList small {
+  overflow: hidden;
+  color: rgb(255 255 255 / 55%);
+  font: 500 10.5px / 1 var(--ef-font-num);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@container op (max-width: 1100px) {
+  .detail,
+  .mini,
+  .bar,
+  .orange {
+    display: none;
+  }
+
+  .row :global([data-stub='DarkRow']) {
+    min-height: 32px;
+    font-size: 12px;
+  }
+
+  .row :global([data-stub='DarkRow']) > :first-child > span:first-child {
+    width: 30px;
+  }
+
+  /* No clip line under the name; the red hard-cut text stays. */
+  .row :global([data-stub='DarkRow']) > :first-child > span:nth-child(2) > span:nth-child(2):not(:has(.red)) {
+    display: none;
+  }
+
+  .row :global([data-stub='DarkRow']) > span:last-child {
+    display: none;
+  }
+
+  .share {
+    width: auto;
+  }
+
+  .pct {
+    width: 28px;
+  }
+
+  .exp {
+    width: 18px;
+  }
+}

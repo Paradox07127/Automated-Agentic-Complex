@@ -5,7 +5,8 @@ import { shortName, type GraphClip, type GraphEdge, type GraphSeg, type MotionGr
 export type GapBand = 0 | 1 | 2 | 3 | 4;
 export const gapBand = (gap: number | null | undefined): GapBand =>
   gap == null ? 0 : gap <= 8 ? 1 : gap <= 25 ? 2 : gap <= 40 ? 3 : 4;
-export const BAND_TEXT: Record<GapBand, string> = { 0: '未测', 1: '≤8 cm', 2: '≤25 cm', 3: '≤40 cm', 4: '>40 cm' };
+/** The legend's words for each band, in a row: ≤8 ≤25 ≤40 >40 cm 未测. */
+export const BAND_TEXT: Record<GapBand, string> = { 0: '未测', 1: '≤8', 2: '≤25', 3: '≤40', 4: '>40 cm' };
 
 export interface Base {
   clip: string;
@@ -43,7 +44,7 @@ export interface GraphIndex {
 }
 
 const FAMILY: Record<string, string> = { dialog: '对话站姿', relax: '放松站姿', overview: '总览站姿', sit: '坐姿', floor: '坐地上' };
-export const baseLabel = (b: Base) => `${FAMILY[b.family] ?? b.family}${b.hub ? '（中心）' : ''}`;
+export const baseLabel = (b: Base) => FAMILY[b.family] ?? b.family;
 
 export function indexGraph(g: MotionGraph): GraphIndex {
   const clips = new Map(g.clips.map((c) => [c.name, c]));
@@ -110,12 +111,5 @@ export function chainPath(ix: GraphIndex, key: string, all: GraphSeg[]): ChainPa
 }
 
 const sec = (x: number) => `${Math.round(x * 100) / 100} s`;
-
-/** How long a segment holds: its range, else the graph's note on a loop. */
-export function holdText(seg: GraphSeg): string | null {
-  const r = seg.hold_range_s;
-  if (r) return r[0] === r[1] ? `持续 ${sec(r[0])}` : `持续 ${Math.round(r[0] * 100) / 100}–${sec(r[1])}`;
-  return seg.loop || seg.held ? (seg.note ?? null) : null;
-}
 
 export const lengthText = (seg: GraphSeg) => (seg.length_s == null ? '—' : seg.loop ? `一圈 ${sec(seg.length_s)}` : sec(seg.length_s));

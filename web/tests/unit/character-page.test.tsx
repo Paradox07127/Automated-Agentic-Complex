@@ -12,8 +12,6 @@ import { TunePage } from '../../src/pages/tune/Page';
 import { HeaderSlotContext } from '../../src/shell/headerSlot';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
-// The 动作 pane draws the chain graph.
-vi.mock('cytoscape', () => import('./cytoscapeHeadless'));
 
 async function mount(search = '', component: RouteComponent = CharacterPage) {
   window.location.hash = `#/${component === TunePage ? 'tune' : 'character'}?still=1${search}`;

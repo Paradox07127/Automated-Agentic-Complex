@@ -18,6 +18,12 @@ export interface GraphUse {
   hub?: boolean;
   /** Why the runtime skips it. */
   reason?: string;
+  /** An idle tier's first draw, this many seconds idle (low, high). */
+  after_s?: [number, number];
+  /** An idle tier's later draws, every this many seconds (low, high). */
+  interval_s?: [number, number];
+  /** The pool does not draw any of its last this many again. */
+  no_repeat?: number;
 }
 
 /** game: the pack's own frames; imported: added by a motion import; generated: a generated motion. */
@@ -102,8 +108,6 @@ export interface ChainRow {
   /** On in the pack: a clip of the chain has a live use other than another chain's. */
   def: boolean;
   required: boolean;
-  /** A clip of the chain is not the game's own. */
-  isNew: boolean;
 }
 
 export interface ChainGroup {
@@ -130,7 +134,6 @@ export function chainGroups(g: MotionGraph): ChainGroup[] {
       groupTitle: title.get(group) ?? group,
       def: members.some((c) => c?.uses.some((u) => u.active && !(u.type === 'chain' && u.key !== key))),
       required: !!head?.uses.some((u) => REQUIRED_USES.has(u.type)),
-      isNew: members.some((c) => c?.origin != null && c.origin !== 'game'),
     };
   });
   const order = [...g.groups.map((x) => x.id), ...rows.map((r) => r.group)].filter((id, i, all) => all.indexOf(id) === i);
@@ -141,13 +144,4 @@ export function chainGroups(g: MotionGraph): ChainGroup[] {
       rows: rows.filter((r) => r.group === id).sort((a, b) => Number(b.def) - Number(a.def) || a.clips[0]!.localeCompare(b.clips[0]!)),
     }))
     .filter((x) => x.rows.length > 0);
-}
-
-export type ChainFilter = 'all' | 'on' | 'off' | 'chg' | 'new';
-
-/** The row passes the filter (on, off and 已改 read the value shown) and the search (any clip, the label or the group). */
-export function shows(r: ChainRow, on: boolean, f: ChainFilter, q: string): boolean {
-  const pass = f === 'all' || (f === 'on' ? on : f === 'off' ? !on : f === 'chg' ? on !== r.def : r.isNew);
-  const qq = q.trim().toLowerCase();
-  return pass && (!qq || [r.key, r.label, r.groupTitle, ...r.clips].some((s) => s.toLowerCase().includes(qq)));
 }

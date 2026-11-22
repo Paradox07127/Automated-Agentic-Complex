@@ -1,21 +1,17 @@
-import { Btn, Slider } from '../../../ui';
-import { ChainEditBar, type ChainEditBarProps } from './ChainEditBar';
-import { baseLabel, holdText, lengthText, type Base, type ChainPath, type Joint as J, type PathSeg } from './chainPath';
+import { useState, type CSSProperties, type ReactNode } from 'react';
+import { GameSeg, WhiteCapsule, YellowKey } from '../../../ui/game';
+import type { ChainPath } from './chainPath';
+import { BLEND_MAX, ChainStrip, fixBlend, type ChainStripProps } from './ChainStrip';
 import { shortName, type ChainRow } from './graph';
-import { Joint } from './Joint';
-import { SegEdit, type SegEditProps } from './SegEdit';
-import styles from './MotionDetail.module.css';
+import type { Junction } from './joints';
+import styles from './Detail.module.css';
 
 export const NOTE_MAX = 500;
-
-/** 「编辑结构」: `path` is the proposed chain while it is on. */
-export interface ChainDetailEdit {
-  on: boolean;
-  onToggle: () => void;
-  /** The controls of segment `index`. */
-  seg: (index: number, s: PathSeg) => Omit<SegEditProps, 'lock'>;
-  bar: ChainEditBarProps;
-}
+export const REQUIRED_TEXT = '基础动作，不能关';
+const PLAY = [
+  { value: 'on', label: '播' },
+  { value: 'off', label: '跳过' },
+];
 
 export interface ChainDetailProps {
   row: ChainRow;
@@ -26,150 +22,142 @@ export interface ChainDetailProps {
   blendIn: (clip: string) => number | undefined;
   /** Clip → why the avatar did not take its blend_in at the last save. */
   adjusted: Record<string, string>;
+  /** The joints under the proposal, for their problems. */
+  joints: Junction[];
   note: string;
+  /** The chain's switch as shown. */
+  on: boolean;
   lock: string | null;
-  /** Why 「预览这条链」 and 「在桌面上播一次」 are greyed out; null while they work. */
+  /** Why 舞台预览, 桌面播一次 and 从这个池去掉 are greyed out; null while they work. */
   previewBlock: string | null;
   playBlock: string | null;
+  removeBlock: string | null;
+  previewing: boolean;
   onBlend: (clip: string, seconds: number | null) => void;
   onNote: (text: string) => void;
-  /** The chain's segments and the blend into each after the first (draft over stored over the pack's). */
+  onToggle: (on: boolean) => void;
+  /** The chain's segments and the blend into each after the first. */
   onPreview: (clips: string[], blend_s: number[]) => void;
   onPlay: () => void;
-  onBack: () => void;
-  edit?: ChainDetailEdit;
+  onRemove: () => void;
+  /** 编辑结构: the strip's edit marks, the candidate list under it, and the switch in and out. */
+  edit: { on: boolean; onToggle: () => void; strip: NonNullable<ChainStripProps['edit']>; panel: ReactNode };
 }
 
-function Act({ label, block, onClick }: { label: string; block: string | null; onClick: () => void }) {
-  return (
-    <>
-      <Btn size="sm" variant="secondary" disabled={block != null} {...(block != null ? { disabledReason: block } : {})} onClick={onClick}>
-        {label}
-      </Btn>
-      {block != null && (
-        <span className={styles.sub} data-block="">
-          {block}
-        </span>
-      )}
-    </>
-  );
-}
-
-function Stance({ items, side }: { items: Array<{ base: Base; joint: J; via?: string | null }>; side: 'entry' | 'back' }) {
-  return (
-    <div className={styles.stance} data-side={side}>
-      <span className={styles.role}>{side === 'entry' ? '进入前' : '回到'}</span>
-      {items.length === 0 && <span className={styles.sub}>{side === 'entry' ? '不从站姿进入' : '不回站姿'}</span>}
-      {items.map(({ base, joint, via }) => (
-        <div key={base.clip} className={styles.base} data-base={base.clip}>
-          {side === 'back' && <Joint joint={joint} />}
-          <b>{baseLabel(base)}</b>
-          <span className={styles.clip} title={base.clip}>
-            {shortName(base.clip)}
-          </span>
-          {via && <span className={styles.sub}>经 {shortName(via)}</span>}
-          {side === 'entry' && <Joint joint={joint} />}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Seg({ s, i, def, p }: { s: PathSeg; i: number; def: number; p: ChainDetailProps }) {
-  const clip = s.seg.clip;
-  const over = p.blendIn(clip);
-  const hold = holdText(s.seg);
-  return (
-    <div className={styles.seg} data-seg={clip} data-loop={s.seg.loop || undefined}>
-      <span className={styles.role}>{s.role}</span>
-      <b className={styles.clip} title={clip}>
-        {shortName(clip)}
-      </b>
-      <span className={styles.sub}>{lengthText(s.seg)}</span>
-      {hold && <span className={styles.hold}>{hold}</span>}
-      <div className={styles.blend}>
-        <span className={styles.sub}>进入混合{over !== undefined && <b className={styles.over}> 已改</b>}</span>
-        <Slider
-          value={over ?? def}
-          min={0}
-          max={2}
-          step={0.05}
-          defaultValue={def}
-          unit="s"
-          label={`进入「${shortName(clip)}」的混合`}
-          disabled={p.lock != null}
-          onChange={(v) => p.onBlend(clip, v)}
-        />
-        {over !== undefined && p.lock == null && (
-          <Btn size="sm" variant="quiet" onClick={() => p.onBlend(clip, null)}>
-            用包里的
-          </Btn>
-        )}
-      </div>
-      {p.adjusted[clip] && <span className={styles.why}>{p.adjusted[clip]}</span>}
-      {p.edit?.on && <SegEdit {...p.edit.seg(i, s)} lock={p.lock} />}
-    </div>
-  );
-}
-
-/** 链详情：进入前的站姿 → 起 → 循环 → 收 → 回到的站姿，每个衔接标 gap 色带和混合秒数，每段的进入混合可改；下面是这条链的备注。 */
+/** 链检视（行内展开，半透明深色板）：链条带、选中衔接的混合滑条、动作条（舞台预览、桌面播一次、编辑结构、备注、从这个池去掉、所有池抽到时 播｜跳过）、备注。 */
 export function ChainDetail(p: ChainDetailProps) {
   const { path, row } = p;
-  const shown = (clip: string, j: J) => {
-    const over = p.blendIn(clip);
-    return over !== undefined ? over : j.blend;
-  };
+  const [sel, setSel] = useState<number | null>(() => {
+    const i = path.segs.findIndex((s) => p.blendIn(s.seg.clip) !== undefined);
+    return i < 0 ? null : i;
+  });
+  const [noting, setNoting] = useState(p.note !== '');
+  const pack = (i: number) => (i === 0 ? path.entry[0]?.joint.blend : path.segs[i]?.joint?.blend) ?? p.crossfade;
+  const blendOf = (i: number) => p.blendIn(path.segs[i]!.seg.clip) ?? pack(i);
+  const onBlend = (i: number, s: number | null) => p.onBlend(path.segs[i]!.seg.clip, s);
+  const at = sel != null && sel < path.segs.length ? sel : null;
+  const clip = at != null ? path.segs[at]!.seg.clip : null;
+  const flagged = p.joints.filter((j) => j.flags.length > 0);
+  const off = p.lock != null;
   return (
-    <section className={styles.detail} aria-label={`链详情 ${row.label}`} data-chain-detail={row.key}>
-      <div className={styles.head}>
-        <Btn size="sm" variant="quiet" onClick={p.onBack}>
-          返回
-        </Btn>
-        <b className={styles.title}>{row.label}</b>
-        <span className={styles.sub}>{row.groupTitle}</span>
-        <span className={styles.clip} title={row.key}>
-          {row.key}
-        </span>
-      </div>
-      <div className={styles.chain} role="group" aria-label="链条">
-        <Stance side="entry" items={path.entry.map((e) => ({ ...e, joint: { ...e.joint, blend: shown(path.segs[0]!.seg.clip, e.joint) } }))} />
-        {path.segs.map((s, i) => (
-          <div key={s.seg.clip} className={styles.step}>
-            {s.joint && <Joint joint={s.joint} blend={shown(s.seg.clip, s.joint)} />}
-            <Seg s={s} i={i} def={(i === 0 ? path.entry[0]?.joint.blend : s.joint?.blend) ?? p.crossfade} p={p} />
+    <section className={styles.insp} aria-label={`链详情 ${row.label}`} data-chain-detail={row.key}>
+      <ChainStrip
+        path={path}
+        blendOf={blendOf}
+        changedAt={(i) => p.blendIn(path.segs[i]!.seg.clip) !== undefined}
+        adjusted={p.adjusted}
+        sel={at}
+        onSel={setSel}
+        onBlend={onBlend}
+        lock={p.lock}
+        {...(p.edit.on ? { edit: p.edit.strip } : {})}
+      />
+      {flagged.length > 0 && (
+        <ul className={styles.flags} aria-label="衔接问题">
+          {flagged.map((j) => (
+            <li key={`${j.from}>${j.to}`}>
+              {shortName(j.from)} → {shortName(j.to)}：{j.flags.join('，')}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!p.edit.on &&
+        (at != null && clip ? (
+          <div className={styles.blend}>
+            <span className={styles.k} title="进入混合按片段生效：所有进入这个片段的地方都用这个秒数">
+              进入 <b>{shortName(clip)}</b> 的混合
+            </span>
+            <span className={styles.sl}>
+              <input
+                type="range"
+                min={0}
+                max={BLEND_MAX}
+                step={0.05}
+                value={blendOf(at)}
+                aria-label={`进入「${shortName(clip)}」的混合`}
+                aria-valuetext={`${blendOf(at).toFixed(2)} s`}
+                disabled={off}
+                style={{ '--f': `${(blendOf(at) / BLEND_MAX) * 100}%` } as CSSProperties}
+                onChange={(e) => onBlend(at, fixBlend(Number(e.currentTarget.value)))}
+              />
+              <i className={styles.pk} style={{ left: `${(pack(at) / BLEND_MAX) * 100}%` }} aria-hidden="true" />
+            </span>
+            <span className={styles.val}>{blendOf(at).toFixed(2)} s</span>
+            <span className={styles.pack}>包里 {pack(at).toFixed(2)} s</span>
+            {p.blendIn(clip) !== undefined && <WhiteCapsule label="用包里的" icon="refresh" disabled={off} {...(off ? { disabledReason: p.lock! } : {})} onClick={() => onBlend(at, null)} />}
           </div>
+        ) : (
+          <p className={styles.hint}>点一个衔接改混合秒数；也可以左右拖它，或用 ← → 键。</p>
         ))}
-        <Stance side="back" items={path.back.map((b) => ({ ...b, joint: { ...b.joint, blend: shown(b.via ?? b.base.clip, b.joint) } }))} />
-      </div>
-      <p className={styles.hint}>进入混合按片段生效：所有进入这个片段的地方都用这个秒数。</p>
+      {p.edit.on && p.edit.panel}
       <div className={styles.acts}>
-        <Act
-          label="预览这条链"
-          block={p.previewBlock}
-          onClick={() => p.onPreview(path.segs.map((s) => s.seg.clip), path.segs.slice(1).map((s) => p.blendIn(s.seg.clip) ?? s.joint?.blend ?? p.crossfade))}
+        <YellowKey
+          label={p.previewing ? '预览中' : '舞台预览'}
+          icon={p.previewing ? 'stop' : 'play'}
+          micro="Preview"
+          disabled={p.previewBlock != null || p.previewing}
+          {...(p.previewBlock != null ? { disabledReason: p.previewBlock } : {})}
+          onClick={() => p.onPreview(path.segs.map((s) => s.seg.clip), path.segs.slice(1).map((_, i) => blendOf(i + 1)))}
         />
-        <Act label="在桌面上播一次" block={p.playBlock} onClick={p.onPlay} />
-        {p.edit && (
-          <Btn size="sm" variant="secondary" onClick={p.edit.onToggle}>
-            {p.edit.on ? '结束编辑' : '编辑结构'}
-          </Btn>
-        )}
-      </div>
-      {p.edit?.on && <ChainEditBar {...p.edit.bar} />}
-      <label className={styles.note}>
-        <span>备注</span>
-        <textarea
-          value={p.note}
-          maxLength={NOTE_MAX}
-          rows={3}
-          disabled={p.lock != null}
-          placeholder="写给自己看的，不会发给角色"
-          onChange={(e) => p.onNote(e.currentTarget.value.slice(0, NOTE_MAX))}
-        />
-        <span className={styles.count}>
-          {p.note.length}/{NOTE_MAX}
+        <WhiteCapsule label="桌面播一次" icon="play" disabled={p.playBlock != null} {...(p.playBlock != null ? { disabledReason: p.playBlock } : {})} onClick={p.onPlay} />
+        <WhiteCapsule label={p.edit.on ? '结束编辑' : '编辑结构'} icon="tool" onClick={p.edit.onToggle} />
+        <WhiteCapsule label="备注" icon="file" onClick={() => setNoting(!noting)} />
+        <WhiteCapsule label="从这个池去掉" icon="del" disabled={p.removeBlock != null} {...(p.removeBlock != null ? { disabledReason: p.removeBlock } : {})} onClick={p.onRemove} />
+        <span className={styles.sp} />
+        <span className={styles.oo}>
+          <span className={styles.lbl}>所有池抽到时</span>
+          {row.required ? (
+            <span className={styles.req}>{REQUIRED_TEXT}</span>
+          ) : (
+            <GameSeg label={`所有池抽到「${row.label}」时`} variant="onoff" value={p.on ? 'on' : 'off'} options={PLAY} disabled={off} onChange={(v) => p.onToggle(v === 'on')} />
+          )}
         </span>
-      </label>
+      </div>
+      {[p.previewBlock, p.playBlock].some((b) => b != null) && (
+        <p className={styles.blocks}>
+          {[...new Set([p.previewBlock, p.playBlock].filter((b): b is string => b != null))].map((b) => (
+            <span key={b} data-block="">
+              {b}
+            </span>
+          ))}
+        </p>
+      )}
+      {noting && (
+        <label className={styles.note}>
+          <span>备注</span>
+          <textarea
+            value={p.note}
+            maxLength={NOTE_MAX}
+            rows={2}
+            disabled={off}
+            placeholder="写给自己看的，不会发给角色"
+            onChange={(e) => p.onNote(e.currentTarget.value.slice(0, NOTE_MAX))}
+          />
+          <span className={styles.count}>
+            {p.note.length}/{NOTE_MAX}
+          </span>
+        </label>
+      )}
     </section>
   );
 }

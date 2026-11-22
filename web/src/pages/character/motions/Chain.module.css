@@ -1,0 +1,186 @@
+/* 动作 → 编排: pool switch and gap legend, the loop map or event grid, the pool's rows (the only part that scrolls), then the commit bar. */
+.ms {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  color: #262626;
+}
+
+/* BRIEF 11-22 B: on 编排 the rows sit straight on the training room, so the panel's dark body goes clear here. */
+:global([data-pane='chain']):has(> section > .ms) {
+  background: none;
+  color: #262626;
+  backdrop-filter: none;
+}
+
+.missing {
+  align-self: stretch;
+  padding: 18px;
+  background: rgb(40 40 40 / 88%);
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+}
+
+.none {
+  margin: 0;
+  color: rgb(38 38 38 / 70%);
+  font-size: 13px;
+}
+
+.mode {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 14px;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 0 auto;
+  padding: 5px 10px;
+  background: rgb(46 46 46 / 82%);
+  color: rgb(255 255 255 / 78%);
+  font: 500 11px / 1 var(--ef-font-num);
+  list-style: none;
+  backdrop-filter: blur(6px);
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.lt {
+  font: 500 12px / 1 var(--ef-font-sans);
+}
+
+.legend i {
+  width: 14px;
+  height: 3px;
+}
+
+.legend [data-band='0'] i {
+  background: repeating-linear-gradient(90deg, #9a9a9a 0 3px, transparent 3px 5px);
+}
+
+.legend [data-band='1'] i {
+  background: #ededed;
+}
+
+.legend [data-band='2'] i {
+  background: var(--ef-accent);
+}
+
+.legend [data-band='3'] i {
+  background: var(--ef-g-reddot);
+}
+
+.legend [data-band='4'] i {
+  background: var(--ef-danger-vivid);
+}
+
+/* Section head with the \\──□ line deco. */
+.sh {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -4px;
+  font: 700 13px / 1 var(--ef-font-sans);
+}
+
+.sq {
+  flex: none;
+  width: 6px;
+  height: 13px;
+  background: var(--ef-accent);
+  box-shadow: 1px 1px 0 #262626;
+}
+
+.orn {
+  position: relative;
+  flex: 1;
+  height: 7px;
+  background: repeating-linear-gradient(115deg, rgb(38 38 38 / 40%) 0 1px, transparent 1px 5px) left / 26px 100% no-repeat;
+}
+
+.orn::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 10px;
+  left: 32px;
+  height: 1px;
+  background: rgb(38 38 38 / 30%);
+}
+
+.orn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  border: 1px solid rgb(38 38 38 / 55%);
+}
+
+.commit {
+  flex: none;
+}
+
+.st {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  font: 500 13px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.st b {
+  font: 700 14px / 1 var(--ef-font-num);
+}
+
+.st[data-quiet] {
+  color: rgb(255 255 255 / 55%);
+}
+
+.parts {
+  min-width: 0;
+  overflow: hidden;
+  color: rgb(255 255 255 / 60%);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+@container op (max-width: 1100px) {
+  .ms {
+    gap: 6px;
+  }
+
+  .sh,
+  .lt,
+  .legend [data-band='0'],
+  .parts {
+    display: none;
+  }
+
+  .legend {
+    gap: 6px;
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+
+  .commit :global([data-stub='ActionBar']) {
+    height: 40px;
+  }
+}

@@ -1,7 +1,6 @@
-// 链详情「编辑结构」: swapping and inserting clips, gaps re-measured from the graph's 17 key-bone poses, 检查, and
-// 「应用到角色包（重建）」 with its confirmation and its failures.
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+// 编排 → 编辑结构: picking a segment or a 「+」, swapping and inserting clips from the candidate list, gaps re-measured from the
+// graph's 17 key-bone poses, the hold, 检查, and 「应用到角色包（重建）」 with its confirmation and its failures.
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
@@ -11,17 +10,8 @@ import { keyBoneGap, poseGap } from '../../src/pages/character/motions/chainEdit
 import { reasonText } from '../../src/pages/character/motions/chainReasons';
 import { indexGraph } from '../../src/pages/character/motions/chainPath';
 import type { MotionGraph } from '../../src/pages/character/motions/graph';
-import { MotionSettings } from '../../src/pages/character/motions/MotionSettings';
+import { click, detail, FIDGET, IDLE, mount, openChain, PAT, PONDER, PONDER_END, PONDER_LOOP, RELAX, THINK, TO_RELAX, WAVE } from './chainPage';
 
-vi.mock('cytoscape', () => import('./cytoscapeHeadless'));
-
-const IDLE = 'A_clip_birch_idle_loop';
-const THINK = 'A_clip_birch_customized_state_think_start';
-const PONDER = 'A_clip_birch_dialog_state_think_start';
-const PONDER_LOOP = 'A_clip_birch_dialog_state_think_loop';
-const PONDER_END = 'A_clip_birch_dialog_state_think_end';
-const FIDGET = 'A_clip_birch_idle_fidget_01';
-const WAVE = 'A_clip_birch_dialog_single_wave';
 const SHA = 'ab'.repeat(32);
 
 /** 17 key bones stacked 10 cm apart and moved `dx` cm sideways: two such poses are |dx₁ − dx₂| cm apart. */
@@ -40,24 +30,17 @@ const POSES = {
 let bridge: AgenticComplexBridge;
 let toast: Mock<Toast>;
 
-const click = (el: Element) => act(async () => void fireEvent.click(el));
-const row = (key: string) => document.querySelector<HTMLElement>(`[data-chain="${key}"]`)!;
-const detail = () => document.querySelector<HTMLElement>('[data-chain-detail]')!;
 const seg = (clip: string) => detail().querySelector<HTMLElement>(`[data-seg="${clip}"]`)!;
 const segs = () => [...detail().querySelectorAll<HTMLElement>('[data-seg]')].map((s) => s.dataset.seg);
-const gaps = () => [...detail().querySelectorAll<HTMLElement>('[data-joint]')].map((j) => j.querySelector('span')!.textContent);
-const button = (name: string | RegExp, root: HTMLElement = detail()) => within(root).getByRole('button', { name });
+const gaps = () => [...detail().querySelectorAll<HTMLElement>('[data-joint]')].map((j) => j.children[2]!.textContent);
+const cands = () => [...detail().querySelectorAll<HTMLElement>('[data-cand]')];
+const cand = (clip: string) => detail().querySelector<HTMLElement>(`[data-cand="${clip}"]`)!;
+const band = () => screen.getByRole('group', { name: '结构提案' });
 
 async function edit(key: string) {
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MotionSettings offline={false} toast={toast} />
-    </QueryClientProvider>,
-  );
-  await screen.findByRole('radiogroup', { name: '动作视图' });
-  await click(screen.getByRole('radio', { name: '清单' }));
-  await click(within(row(key)).getByRole('button', { name: '详情' }));
-  await click(button('编辑结构'));
+  await mount(toast);
+  await openChain(key);
+  await click(within(detail()).getByRole('button', { name: '编辑结构' }));
 }
 
 beforeEach(() => {
@@ -70,7 +53,7 @@ afterEach(() => {
   cleanup();
   const g = MOTION_GRAPH as Record<string, unknown>;
   delete g.poses;
-  delete g.package_sha256;
+  g.package_sha256 = 'a'.repeat(64);
   delete window.agenticComplex;
   vi.restoreAllMocks();
 });
@@ -87,49 +70,59 @@ describe('gap 用 17 根关键骨骼重新量', () => {
   it('leaves a loop from its first frame and any other clip from its last, as motion_graph.py measured_gap does', () => {
     const g = { ...MOTION_GRAPH, poses: POSES } as unknown as MotionGraph;
     const ix = indexGraph(g);
-    // PONDER_LOOP loops: its first frame (6) against FIDGET's first (5).
     expect(poseGap(g, ix, PONDER_LOOP, FIDGET)).toBe(1);
-    // PONDER does not: its last frame (5) against WAVE's first (20).
     expect(poseGap(g, ix, PONDER, WAVE)).toBe(15);
-    expect(poseGap(g, ix, PONDER, 'A_clip_birch_customized_single_headpat')).toBeNull();
+    expect(poseGap(g, ix, PONDER, PAT)).toBeNull();
   });
 });
 
 describe('编辑结构', () => {
-  it('swaps a segment for a clip of the same stance and family, nearest first, and re-measures its joints', async () => {
+  it('swaps a picked segment for a clip of the same stance and family, nearest first, and re-measures its joints', async () => {
     await edit(PONDER);
-    const picker = button('换「dialog_state_think_end」或插在它前面的片段', seg(PONDER_END));
-    await click(picker);
-    const options = within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent);
-    expect(options.slice(0, 3)).toEqual(['idle_fidget_01 │ 前 1 cm', 'customized_state_think_start │ 前 5 cm', 'idle_loop │ 前 6 cm']);
-    // Unmeasured last, by name.
-    expect(options.slice(-3)).toEqual(['customized_single_headpat │ 前 未测', 'relax_loop │ 前 未测', 'idle_to_relax │ 前 未测']);
-    expect(options.some((o) => o!.startsWith('dialog_state_think'))).toBe(false);
-    await click(screen.getByRole('option', { name: /customized_state_think_start/ }));
-    await click(button('换成', seg(PONDER_END)));
+    // The first segment cannot be swapped: the pick starts on the second.
+    expect(seg(PONDER_LOOP).getAttribute('aria-pressed')).toBe('true');
+    expect(seg(PONDER).tagName).toBe('DIV');
+    await click(seg(PONDER_END));
+    expect(detail().textContent).toContain('第 3 段：换成或插在它前面');
+    expect(cands().slice(0, 3).map((c) => [c.dataset.cand, c.children[1]!.textContent])).toEqual([
+      [FIDGET, '前 1 cm'],
+      [THINK, '前 5 cm'],
+      [IDLE, '前 6 cm'],
+    ]);
+    // Unmeasured last, by name; clips already in the chain are not offered.
+    expect(cands().slice(-3).map((c) => c.dataset.cand)).toEqual([PAT, RELAX, TO_RELAX]);
+    expect(cands().some((c) => c.dataset.cand!.includes('dialog_state_think'))).toBe(false);
+    await click(within(cand(THINK)).getByRole('button', { name: '换成' }));
     expect(segs()).toEqual([PONDER, PONDER_LOOP, THINK]);
+    expect(seg(THINK).hasAttribute('data-new')).toBe(true);
     // Entry 12 (edge), 3.1 (edge), then the new joint measured from the poses: loop start 6 against THINK's 1.
     expect(gaps().slice(0, 3)).toEqual(['12 cm', '3.1 cm', '5 cm']);
-    expect(detail().textContent).toContain('已改 1 处');
+    expect(band().textContent).toContain('结构提案 │ 1 处');
   });
 
-  it('inserts the chosen clip before a segment and previews the proposed sequence', async () => {
+  it('inserts before the segment a 「+」 picks and previews the proposed sequence', async () => {
     const sequence = vi.spyOn(bridge.avatar.preview, 'sequence').mockResolvedValue(true);
     await edit(PONDER);
-    await click(button('在此前插入', seg(PONDER_LOOP)));
+    await click(within(detail()).getByRole('button', { name: '在「dialog_state_think_loop」前插入' }));
+    await click(within(cand(FIDGET)).getByRole('button', { name: '在此前插入' }));
     expect(segs()).toEqual([PONDER, FIDGET, PONDER_LOOP, PONDER_END]);
     expect(gaps().slice(0, 4)).toEqual(['12 cm', '0 cm', '1 cm', '0.4 cm']);
-    await click(button('预览这条链'));
+    await click(within(detail()).getByRole('button', { name: /舞台预览/ }));
     expect(sequence).toHaveBeenLastCalledWith({ clips: [PONDER, FIDGET, PONDER_LOOP, PONDER_END], blend_s: [0.25, 0.25, 0.25] });
   });
 
-  it('checks the proposal and lists its problems in Chinese beside their segments', async () => {
+  it('sets a loop’s hold, checks the proposal and lists its problems in Chinese beside their segments', async () => {
     const check = vi.spyOn(bridge.avatar.motionChain, 'check');
     await edit(PONDER);
-    await act(async () => void fireEvent.change(within(seg(PONDER_LOOP)).getByRole('spinbutton', { name: '「dialog_state_think_loop」保持秒数' }), { target: { value: '3' } }));
-    await click(button('在此前插入', seg(PONDER_LOOP)));
-    await click(button('检查'));
-    const sent = {
+    const hold = within(detail()).getByRole('spinbutton', { name: '「dialog_state_think_loop」保持秒数' }) as HTMLInputElement;
+    expect(hold.value).toBe('2.0');
+    await act(async () => {
+      fireEvent.change(hold, { target: { value: '3' } });
+      fireEvent.blur(hold);
+    });
+    await click(within(cand(FIDGET)).getByRole('button', { name: '在此前插入' }));
+    await click(within(band()).getByRole('button', { name: '检查' }));
+    expect(check).toHaveBeenLastCalledWith({
       schema: 'endfield-motion-chain-proposal/v1',
       character: 'si',
       package_sha256: SHA,
@@ -137,9 +130,8 @@ describe('编辑结构', () => {
         { op: 'set', clip: PONDER_LOOP, hold: 3 },
         { op: 'insert', chain: PONDER, index: 1, clip: FIDGET },
       ],
-    };
-    expect(check).toHaveBeenLastCalledWith(sent);
-    expect(detail().textContent).toContain('检查通过，会改动 1 条链');
+    });
+    expect(band().textContent).toContain('检查通过，会改动 1 条链');
     check.mockResolvedValueOnce({
       ok: false,
       problems: [
@@ -149,10 +141,10 @@ describe('编辑结构', () => {
       ],
       graph_changes: { chains_added: [], chains_removed: [], chains_changed: [] },
     });
-    await click(button('检查'));
+    await click(within(band()).getByRole('button', { name: '检查' }));
     expect(seg(FIDGET).textContent).toContain('idle_fidget_01 接 dialog_state_think_loop 时站姿接不上');
     expect(seg(PONDER_LOOP).textContent).toContain('保持秒数只能给循环段，且不能小于 0');
-    expect(detail().querySelector('[data-problems]')!.textContent).toContain('以 dialog_state_think_start 起头的链最后回不到起头的站姿');
+    expect(band().querySelector('[data-problems]')!.textContent).toContain('以 dialog_state_think_start 起头的链最后回不到起头的站姿');
   });
 
   it('names every reason motion_tool gives in Chinese', () => {
@@ -167,10 +159,10 @@ describe('编辑结构', () => {
     const apply = vi.spyOn(bridge.avatar.motionChain, 'apply');
     const request = vi.spyOn(bridge.agentd, 'request');
     await edit(PONDER);
-    await click(button('换成', seg(PONDER_END)));
-    await click(button('应用到角色包（重建）'));
+    await click(seg(PONDER_END));
+    await click(within(cand(FIDGET)).getByRole('button', { name: '换成' }));
+    await click(within(band()).getByRole('button', { name: '应用到角色包（重建）' }));
     const dialog = screen.getByRole('dialog', { name: '应用到角色包（重建）' });
-    expect(dialog.textContent).toContain('重建');
     expect(dialog.textContent).toContain('一两分钟');
     expect(dialog.textContent).toContain('重新载入');
     expect(apply).not.toHaveBeenCalled();
@@ -185,7 +177,7 @@ describe('编辑结构', () => {
     expect(toast).toHaveBeenLastCalledWith('已应用到角色包（版本 1.2.43）');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(request.mock.calls.filter((c) => String(c[1]).endsWith('/motion-graph')).length).toBeGreaterThan(reads);
-    expect(within(detail()).queryByRole('button', { name: '检查' })).toBeNull();
+    expect(screen.queryByRole('group', { name: '结构提案' })).toBeNull();
   });
 
   it('shows why the rebuild was refused, on the segment when the tool names its edit', async () => {
@@ -194,27 +186,28 @@ describe('编辑结构', () => {
       detail: JSON.stringify([{ edit: 0, reason: `cycle:${PONDER}` }]),
     });
     await edit(PONDER);
-    await click(button('换成', seg(PONDER_END)));
-    await click(button('应用到角色包（重建）'));
+    await click(seg(PONDER_END));
+    await click(within(cand(FIDGET)).getByRole('button', { name: '换成' }));
+    await click(within(band()).getByRole('button', { name: '应用到角色包（重建）' }));
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '重建' }));
     expect(apply).toHaveBeenCalledTimes(1);
-    expect(within(detail()).getByRole('alert').textContent).toContain('角色包没有接受这份改动');
+    expect(within(band()).getByRole('alert').textContent).toContain('角色包没有接受这份改动');
     expect(seg(FIDGET).textContent).toContain('以 dialog_state_think_start 起头的链会绕回自己');
     apply.mockRejectedValueOnce({ code: 'stale', detail: '[{"edit": null, "reason": "stale"}]' });
-    await click(button('应用到角色包（重建）'));
+    await click(within(band()).getByRole('button', { name: '应用到角色包（重建）' }));
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '重建' }));
-    expect(within(detail()).getByRole('alert').textContent).toContain('角色包在你编辑之后变过了');
-    await click(button('放弃改动'));
+    expect(within(band()).getByRole('alert').textContent).toContain('角色包在你编辑之后变过了');
+    await click(within(band()).getByRole('button', { name: '放弃改动' }));
     expect(segs()).toEqual([PONDER, PONDER_LOOP, PONDER_END]);
-    expect(within(detail()).queryByRole('alert')).toBeNull();
+    expect(within(band()).queryByRole('alert')).toBeNull();
   });
 
   it('greys out 检查 and 应用 when the graph does not name the pack it was read from', async () => {
     delete (MOTION_GRAPH as Record<string, unknown>).package_sha256;
     await edit(PONDER);
-    await click(button('换成', seg(PONDER_END)));
-    expect(button('检查').getAttribute('aria-disabled')).toBe('true');
-    expect(button('应用到角色包（重建）').getAttribute('aria-disabled')).toBe('true');
-    expect(detail().textContent).toContain('取不到当前角色包的版本');
+    await click(within(cand(FIDGET)).getByRole('button', { name: '换成' }));
+    expect((within(band()).getByRole('button', { name: '检查' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(band()).getByRole('button', { name: '应用到角色包（重建）' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(band().textContent).toContain('取不到当前角色包的版本');
   });
 });

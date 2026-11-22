@@ -12,8 +12,6 @@ import { setNavRouter } from '../../src/shell/nav';
 import { toast as pushToast } from '../../src/shell/toast';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
-// The 动作 pane draws the chain graph.
-vi.mock('cytoscape', () => import('./cytoscapeHeadless'));
 
 let bridge: AgenticComplexBridge;
 let request: MockInstance<AgenticComplexBridge['agentd']['request']>;

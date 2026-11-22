@@ -14,6 +14,11 @@ export interface Pool {
   locked: string | null;
   /** The clips the pack draws, with their weights (none on lists without weights). */
   entries: Array<{ clip: string; weight: number | null }>;
+  /** An idle tier's first draw and later draws, in seconds idle (low, high). */
+  after_s?: [number, number];
+  interval_s?: [number, number];
+  /** The pool does not draw any of its last this many again. */
+  no_repeat?: number;
 }
 
 const KINDS = new Set<string>(['event', 'tier', 'activity', 'intent', 'speech']);
@@ -38,6 +43,9 @@ export function poolsOf(g: MotionGraph): Pool[] {
       if (!p) {
         const posture = kind === 'event' ? (u.posture ?? 'stand') : kind === 'tier' ? (u.stance ?? 'stand') : 'stand';
         p = { key: u.key, kind, group: u.group ?? 'idle', posture, locked: editable(kind, u.key) ? null : (LOCKED[kind] ?? '这个池子不能改'), entries: [] };
+        if (u.after_s) p.after_s = u.after_s;
+        if (u.interval_s) p.interval_s = u.interval_s;
+        if (u.no_repeat != null) p.no_repeat = u.no_repeat;
         pools.set(id, p);
       }
       if (!p.entries.some((e) => e.clip === c.name)) p.entries.push({ clip: c.name, weight: u.weight ?? null });

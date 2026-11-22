@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Btn, Dialog } from '../../../ui';
 import type { ChainOutcome } from './useChainEdit';
-import styles from './MotionDetail.module.css';
+import styles from './Edit.module.css';
 
 export interface ChainEditBarProps {
   /** Edits in the proposal. */
@@ -17,7 +17,7 @@ export interface ChainEditBarProps {
   onDiscard: () => void;
 }
 
-/** 「编辑结构」's proposal: 检查, 应用到角色包（重建） behind a confirmation, 放弃改动, and what the last check or apply said. */
+/** 结构提案带（橙色斜纹，提交条上方）：检查、应用到角色包（重建）先确认、放弃改动，和上次检查或应用的结果。 */
 export function ChainEditBar(p: ChainEditBarProps) {
   const [asking, setAsking] = useState(false);
   const off = p.block != null || p.n === 0 || p.busy != null;
@@ -25,25 +25,31 @@ export function ChainEditBar(p: ChainEditBarProps) {
   const check = p.outcome && 'check' in p.outcome ? p.outcome.check : null;
   const changed = check?.graph_changes ? new Set(Object.values(check.graph_changes).flat()).size : 0;
   return (
-    <div className={styles.editBar} data-chain-edit="">
-      <div className={styles.acts}>
-        <span className={styles.sub}>已改 {p.n} 处</span>
-        <Btn size="sm" variant="secondary" loading={p.busy === 'check'} disabled={off} {...(reason ? { disabledReason: reason } : {})} onClick={p.onCheck}>
-          检查
-        </Btn>
-        <Btn size="sm" variant="primary" loading={p.busy === 'apply'} disabled={off} {...(reason ? { disabledReason: reason } : {})} onClick={() => setAsking(true)}>
-          应用到角色包（重建）
-        </Btn>
-        <Btn size="sm" variant="quiet" disabled={p.n === 0 || p.busy != null} onClick={p.onDiscard}>
+    <div className={styles.prop} data-chain-edit="" role="group" aria-label="结构提案">
+      <div className={styles.pr}>
+        <b>结构提案 │ {p.n} 处</b>
+        <span className={styles.note}>应用会重建角色包，一两分钟内她会离开桌面</span>
+        <span className={styles.sp} />
+        <button type="button" className={styles.mini} disabled={off} title={reason} onClick={p.onCheck}>
+          {p.busy === 'check' ? '检查中' : '检查'}
+        </button>
+        <button type="button" className={styles.mini} data-or="" disabled={off} title={reason} onClick={() => setAsking(true)}>
+          {p.busy === 'apply' ? '重建中' : '应用到角色包（重建）'}
+        </button>
+        <button type="button" className={styles.mini} data-q="" disabled={p.n === 0 || p.busy != null} onClick={p.onDiscard}>
           放弃改动
-        </Btn>
-        {p.block != null && (
-          <span className={styles.sub} data-block="">
-            {p.block}
-          </span>
-        )}
+        </button>
       </div>
-      {check?.ok && <span className={styles.sub} data-check="ok">检查通过，会改动 {changed} 条链</span>}
+      {p.block != null && (
+        <span className={styles.sub} data-block="">
+          {p.block}
+        </span>
+      )}
+      {check?.ok && (
+        <span className={styles.sub} data-check="ok">
+          检查通过，会改动 {changed} 条链
+        </span>
+      )}
       {p.outcome && 'failed' in p.outcome && (
         <span className={styles.why} role="alert">
           {p.outcome.failed}

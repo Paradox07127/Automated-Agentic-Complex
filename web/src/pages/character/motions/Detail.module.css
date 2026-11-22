@@ -1,0 +1,206 @@
+/* 链检视: the one translucent dark plate on this page (BRIEF 11-22 B), its yellow left edge carrying on from the open row. */
+.insp {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: -4px;
+  padding: 12px 14px 12px 18px;
+  background: linear-gradient(180deg, rgb(52 52 52 / 90%), rgb(36 36 36 / 92%));
+  box-shadow: inset 4px 0 0 var(--ef-accent);
+  color: #fff;
+  backdrop-filter: blur(10px);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+  animation: open var(--ef-dur-g-btn-hover, 160ms) var(--ef-ease-g-fade, ease-out);
+}
+
+/* A hatched band along the top, as the game's panels have. */
+.insp::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 18px;
+  height: 5px;
+  background: repeating-linear-gradient(135deg, rgb(255 255 255 / 14%) 0 1px, transparent 1px 5px);
+}
+
+@keyframes open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.flags {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ef-danger-vivid);
+  font: 500 12px / 1.4 var(--ef-font-sans);
+}
+
+.hint {
+  margin: 0;
+  color: rgb(255 255 255 / 55%);
+  font-size: 12px;
+}
+
+.blend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  background: rgb(0 0 0 / 25%);
+  font-size: 12px;
+}
+
+.k {
+  white-space: nowrap;
+  cursor: help;
+}
+
+.k b {
+  font-family: var(--ef-font-num);
+}
+
+/* A game slider: thin track, yellow fill, a yellow diamond thumb, a grey tick at the pack's value. */
+.sl {
+  position: relative;
+  flex: 1;
+  min-width: 80px;
+  height: 22px;
+}
+
+.sl input {
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  background: linear-gradient(var(--ef-accent), var(--ef-accent)) left center / var(--f) 4px no-repeat,
+    linear-gradient(rgb(255 255 255 / 22%), rgb(255 255 255 / 22%)) center / 100% 2px no-repeat;
+  appearance: none;
+  cursor: pointer;
+}
+
+.sl input::-webkit-slider-thumb {
+  width: 13px;
+  height: 13px;
+  border: 0;
+  background: var(--ef-accent);
+  box-shadow: 0 0 0 3px rgb(255 241 0 / 25%);
+  transform: rotate(45deg);
+  appearance: none;
+}
+
+.sl input:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sl input:focus-visible {
+  outline: 1px solid var(--ef-accent);
+  outline-offset: 2px;
+}
+
+.pk {
+  position: absolute;
+  top: 3px;
+  width: 2px;
+  height: 16px;
+  background: rgb(255 255 255 / 55%);
+  pointer-events: none;
+}
+
+.val {
+  width: 52px;
+  color: var(--ef-accent);
+  font: 700 15px / 1 var(--ef-font-num);
+  text-align: right;
+}
+
+.pack {
+  color: rgb(255 255 255 / 60%);
+  white-space: nowrap;
+}
+
+.acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.sp {
+  flex: 1;
+}
+
+.oo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgb(255 255 255 / 75%);
+  font-size: 12px;
+}
+
+.req {
+  color: rgb(255 255 255 / 60%);
+}
+
+.blocks {
+  display: flex;
+  gap: 12px;
+  margin: -4px 0 0;
+  color: rgb(255 255 255 / 60%);
+  font-size: 12px;
+}
+
+.note {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.note textarea {
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  background: rgb(0 0 0 / 30%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%);
+  color: #fff;
+  font: 400 13px / 1.4 var(--ef-font-sans);
+  resize: vertical;
+}
+
+.note textarea:focus-visible {
+  outline: 1px solid var(--ef-accent);
+}
+
+.count {
+  color: rgb(255 255 255 / 50%);
+  font-family: var(--ef-font-num);
+}
+
+@container op (max-width: 1100px) {
+  .insp {
+    gap: 6px;
+    padding: 8px 8px 8px 12px;
+  }
+
+  .blend,
+  .hint,
+  .lbl,
+  .acts > :nth-child(2),
+  .acts > :nth-child(4),
+  .acts > :nth-child(5) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .insp {
+    animation: none;
+  }
+}

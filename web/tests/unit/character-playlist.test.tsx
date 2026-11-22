@@ -10,8 +10,6 @@ import { CharacterPage } from '../../src/pages/character/Page';
 import { MmdPage } from '../../src/pages/mmd/Page';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
-// The 动作 pane draws the chain graph.
-vi.mock('cytoscape', () => import('./cytoscapeHeadless'));
 
 let bridge: AgenticComplexBridge;
 

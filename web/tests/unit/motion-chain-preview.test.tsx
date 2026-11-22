@@ -1,39 +1,18 @@
-// 链详情的两个按钮：「预览这条链」(avatar.preview.sequence) 和「在桌面上播一次」(avatar.playChain)，以及它们置灰时写的原因。
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+// 编排's previews: a row's ▶ and the inspector's 「舞台预览」 (avatar.preview.sequence), 「桌面播一次」 (avatar.playChain), and the
+// reasons they grey out.
+import { act, cleanup, fireEvent, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import type { Toast } from '../../src/pages/character/feedback';
-import { MotionSettings } from '../../src/pages/character/motions/MotionSettings';
-
-vi.mock('cytoscape', () => import('./cytoscapeHeadless'));
-
-const PONDER = 'A_clip_birch_dialog_state_think_start';
-const PONDER_LOOP = 'A_clip_birch_dialog_state_think_loop';
-const PONDER_END = 'A_clip_birch_dialog_state_think_end';
+import { click, detail, mount, openChain, playRow, PONDER, PONDER_END, PONDER_LOOP, THINK, IDLE, toEvent } from './chainPage';
 
 let bridge: AgenticComplexBridge;
 let toast: Mock<Toast>;
 let stage: HTMLElement;
 
-const click = (el: Element) => act(async () => void fireEvent.click(el));
-const row = (key: string) => document.querySelector<HTMLElement>(`[data-chain="${key}"]`)!;
-const detail = () => document.querySelector<HTMLElement>('[data-chain-detail]')!;
-const previewBtn = () => within(detail()).getByRole('button', { name: '预览这条链' });
-const playBtn = () => within(detail()).getByRole('button', { name: '在桌面上播一次' });
-
-async function open(key: string, offline = false) {
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MotionSettings offline={offline} toast={toast} />
-    </QueryClientProvider>,
-  );
-  await screen.findByRole('radiogroup', { name: '动作视图' });
-  await click(screen.getByRole('radio', { name: '清单' }));
-  await click(within(row(key)).getByRole('button', { name: '详情' }));
-  return detail();
-}
+const previewBtn = () => within(detail()).getByRole('button', { name: /舞台预览|预览中/ }) as HTMLButtonElement;
+const playBtn = () => within(detail()).getByRole('button', { name: '桌面播一次' }) as HTMLButtonElement;
 
 beforeEach(() => {
   bridge = createFakeBridge({ surface: 'main', still: true });
@@ -50,36 +29,53 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('链详情 预览和桌面播放', () => {
+describe('编排 预览和桌面播放', () => {
   it('previews the chain with the draft blends over the pack ones, showing the live preview first when it is not drawn', async () => {
     const show = vi.spyOn(bridge.avatar.preview, 'show').mockResolvedValue(true);
     const sequence = vi.spyOn(bridge.avatar.preview, 'sequence').mockResolvedValue(true);
-    const d = await open(PONDER);
-    await act(async () => void fireEvent.change(within(d).getByRole('slider', { name: '进入「dialog_state_think_loop」的混合' }), { target: { value: '0.5' } }));
+    await mount(toast);
+    await openChain(PONDER);
+    await click(within(detail()).getByRole('button', { name: /^进入「dialog_state_think_loop」的衔接/ }));
+    await act(async () => void fireEvent.change(within(detail()).getByRole('slider'), { target: { value: '0.5' } }));
     await click(previewBtn());
     expect(show).toHaveBeenCalledTimes(1);
     expect(sequence).toHaveBeenLastCalledWith({ clips: [PONDER, PONDER_LOOP, PONDER_END], blend_s: [0.5, 0.25] });
     expect(show.mock.invocationCallOrder[0]!).toBeLessThan(sequence.mock.invocationCallOrder[0]!);
     expect(toast).toHaveBeenLastCalledWith('预览里正在播放「dialog_state_think_start」');
     stage.setAttribute('data-live', 'true');
-    await click(previewBtn());
+    // The row's ▶ plays it too, without opening anything else.
+    await click(playRow(PONDER));
     expect(show).toHaveBeenCalledTimes(1);
     expect(sequence).toHaveBeenCalledTimes(2);
+    expect(sequence).toHaveBeenLastCalledWith({ clips: [PONDER, PONDER_LOOP, PONDER_END], blend_s: [0.5, 0.25] });
+  });
+
+  it('plays a row on the stage from its ▶ without opening it, a chain that rests on a base without the base', async () => {
+    stage.setAttribute('data-live', 'true');
+    const sequence = vi.spyOn(bridge.avatar.preview, 'sequence').mockResolvedValue(true);
+    await mount(toast);
+    await toEvent('session.thinking');
+    await click(playRow(THINK));
+    expect(sequence).toHaveBeenLastCalledWith({ clips: [THINK], blend_s: [] });
+    expect(detail()).toBeNull();
+    expect(sequence.mock.calls.flat().some((c) => (c as { clips: string[] }).clips.includes(IDLE))).toBe(false);
   });
 
   it('does not play when the live preview could not be shown', async () => {
     vi.spyOn(bridge.avatar.preview, 'show').mockResolvedValue(false);
     const sequence = vi.spyOn(bridge.avatar.preview, 'sequence');
-    await open(PONDER);
+    await mount(toast);
+    await openChain(PONDER);
     await click(previewBtn());
     expect(sequence).not.toHaveBeenCalled();
     expect(toast).toHaveBeenLastCalledWith('实时预览没有打开', { severity: 'warning' });
-    expect(previewBtn().getAttribute('aria-disabled')).toBeNull();
+    expect(previewBtn().disabled).toBe(false);
   });
 
   it('plays the chain once on the desktop from its start', async () => {
     const play = vi.spyOn(bridge.avatar, 'playChain');
-    await open(PONDER);
+    await mount(toast);
+    await openChain(PONDER);
     await click(playBtn());
     expect(play).toHaveBeenLastCalledWith({ start: PONDER });
     expect(toast).toHaveBeenLastCalledWith('桌面上正在播放「dialog_state_think_start」');
@@ -89,24 +85,26 @@ describe('链详情 预览和桌面播放', () => {
     stage.setAttribute('data-live', 'true');
     vi.spyOn(bridge.avatar.preview, 'sequence').mockRejectedValue({ code: 'not_implemented', detail: 'avatar.preview.sequence' });
     vi.spyOn(bridge.avatar, 'playChain').mockRejectedValue({ code: 'not_implemented', detail: 'avatar.playChain' });
-    const d = await open(PONDER);
+    await mount(toast);
+    await openChain(PONDER);
     await click(previewBtn());
-    expect(previewBtn().getAttribute('aria-disabled')).toBe('true');
-    expect(d.textContent).toContain('这个版本的渲染器还不支持预览动作链');
+    expect(previewBtn().disabled).toBe(true);
+    expect(detail().textContent).toContain('这个版本的渲染器还不支持预览动作链');
     await click(playBtn());
-    expect(playBtn().getAttribute('aria-disabled')).toBe('true');
-    expect(d.textContent).toContain('这个版本还不支持在桌面上播放');
+    expect(playBtn().disabled).toBe(true);
+    expect(detail().textContent).toContain('这个版本还不支持在桌面上播放');
   });
 
-  it('greys out both while the avatar is not running', async () => {
+  it('greys out both while the avatar is not running, and a row ▶ only says why', async () => {
     const sequence = vi.spyOn(bridge.avatar.preview, 'sequence');
     const play = vi.spyOn(bridge.avatar, 'playChain');
-    const d = await open(PONDER, true);
-    expect(previewBtn().getAttribute('aria-disabled')).toBe('true');
-    expect(playBtn().getAttribute('aria-disabled')).toBe('true');
-    expect(d.querySelectorAll('[data-block]').length).toBe(2);
-    await click(previewBtn());
-    await click(playBtn());
+    await mount(toast, true);
+    await openChain(PONDER);
+    expect(previewBtn().disabled).toBe(true);
+    expect(playBtn().disabled).toBe(true);
+    expect(detail().querySelector('[data-block]')!.textContent).toBe('角色未运行');
+    await click(playRow(PONDER));
+    expect(toast).toHaveBeenLastCalledWith('角色未运行', { severity: 'warning' });
     expect(sequence).not.toHaveBeenCalled();
     expect(play).not.toHaveBeenCalled();
   });

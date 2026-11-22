@@ -8,8 +8,6 @@ import { MOTIONS } from '../../src/mock/character';
 import type { MockRoute } from '../../src/mock/types';
 import { Operator, type OperatorProps } from '../../src/pages/character/Operator';
 
-vi.mock('cytoscape', () => import('./cytoscapeHeadless'));
-
 const noop = () => {};
 
 /** agentd's GET /characters/:id/binding: `si` speaks with her package voice, `voice_a` has none, others are unknown. */

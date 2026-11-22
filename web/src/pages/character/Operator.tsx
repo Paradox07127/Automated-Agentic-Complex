@@ -289,7 +289,7 @@ export function Operator(p: OperatorProps) {
       <div ref={midRef} className={styles.mid} data-character-preview="">
         <Stage
           mode={mode}
-          motion={mode === 'detail' && !side && (pane === 'motion' || pane === 'chain') ? motion : undefined}
+          motion={mode === 'detail' && !side && pane === 'motion' ? motion : undefined}
           section={motion ? (SECTIONS[motion.section ?? '']?.name ?? '') : ''}
           name={overview ? (ch?.name ?? '') : ''}
           en={ch?.en}
@@ -328,7 +328,9 @@ export function Operator(p: OperatorProps) {
               {table}
             </section>
           ) : pane === 'chain' ? (
-            <section aria-label="编排">{p.chains}</section>
+            <section className={styles.motions} aria-label="编排">
+              {p.chains}
+            </section>
           ) : pane === 'look' || (pane === 'import' && importOf === 'look') ? (
             <LookPane
               tab={pane === 'import' ? 'import' : lt}

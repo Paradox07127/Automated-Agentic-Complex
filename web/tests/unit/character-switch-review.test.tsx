@@ -13,7 +13,6 @@ import { HeaderSlotContext } from '../../src/shell/headerSlot';
 import { setNavRouter } from '../../src/shell/nav';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
-vi.mock('cytoscape', () => import('./cytoscapeHeadless'));
 
 let bridge: AgenticComplexBridge;
 /** The character the fake host has on the desktop. */

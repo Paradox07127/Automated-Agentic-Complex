@@ -9,8 +9,6 @@ import { Operator, type OperatorProps } from '../../src/pages/character/Operator
 import type { MotionLibrary } from '../../src/pages/character/useMotionLibrary';
 import { useSwitch } from '../../src/pages/character/useSwitch';
 
-vi.mock('cytoscape', () => import('./cytoscapeHeadless'));
-
 const noop = () => {};
 const ROSTER = [
   { id: 'si', name: '示例乙', en: 'SI', active: true, appearances: [] },

@@ -11,7 +11,6 @@ import { setNavRouter } from '../../src/shell/nav';
 import { Progress } from '../../src/ui';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
-vi.mock('cytoscape', () => import('./cytoscapeHeadless'));
 
 let bridge: AgenticComplexBridge;
 const IDLE: ImportState = { running: false, kind: null, title: null, stage: null, fraction: 0 };

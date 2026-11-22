@@ -8,8 +8,6 @@ import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import { CharacterPage } from '../../src/pages/character/Page';
 import { setNavRouter } from '../../src/shell/nav';
 
-vi.mock('cytoscape', () => import('./cytoscapeHeadless'));
-
 let bridge: AgenticComplexBridge;
 
 async function mount(search = '') {
