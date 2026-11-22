@@ -1,0 +1,118 @@
+/* Yellow chamfered primary key: the face is cut (small top-right, large bottom-left); the button itself carries the glow. */
+.key {
+  --yk-face-top: rgb(255 246 90);
+  --yk-face-low: rgb(240 222 0);
+  --yk-ink: #1a1a1a;
+  --yk-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(0 0 0 / 14%) 4px 5.5px);
+
+  display: inline-flex;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--yk-ink);
+  cursor: pointer;
+  filter: drop-shadow(0 0 10px rgb(255 241 0 / 35%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
+  transition: filter var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.face {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 42px;
+  padding: 0 24px 0 5px;
+  background: linear-gradient(180deg, var(--yk-face-top), var(--ef-accent) 60%, var(--yk-face-low));
+  font: 600 15px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+
+/* Hatch over the right third of the face. */
+.face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--yk-hatch);
+  opacity: 0.4;
+  mask: linear-gradient(90deg, transparent 60%, #000);
+  pointer-events: none;
+}
+
+/* Thin inner rule along the top edge. */
+.face::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 44px;
+  right: 14px;
+  height: 1px;
+  background: rgb(26 26 26 / 22%);
+}
+
+.ki {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: var(--yk-ink);
+  color: var(--ef-accent);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+.txt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.txt > [aria-hidden] {
+  opacity: 0.75;
+}
+
+.key:hover:not(:disabled) {
+  filter: drop-shadow(0 0 14px rgb(255 241 0 / 55%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
+}
+
+.key:active:not(:disabled) .face {
+  translate: 0 1px;
+}
+
+.key:focus-visible {
+  outline: 2px solid var(--yk-ink);
+  outline-offset: 2px;
+}
+
+.key:disabled {
+  color: rgb(255 255 255 / 55%);
+  cursor: default;
+  filter: none;
+}
+
+.key:disabled .face {
+  background: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 8%) 4px 5px), #4a4a4a;
+}
+
+.key:disabled .face::after,
+.key:disabled .face::before {
+  display: none;
+}
+
+.key:disabled .ki {
+  background: #333;
+  color: rgb(255 255 255 / 40%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .key {
+    transition: none;
+  }
+
+  .key:active:not(:disabled) .face {
+    translate: none;
+  }
+}

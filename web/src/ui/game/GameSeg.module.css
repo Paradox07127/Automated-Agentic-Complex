@@ -1,0 +1,147 @@
+/* Game segmented switch (common toggle): a dark slanted track, the chosen option under a sliding white block with a yellow foot. */
+.seg {
+  --gs-track: rgb(0 0 0 / 40%);
+  --gs-knob-off: #9a9a9a;
+  --gs-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 8%) 4px 5px);
+
+  display: inline-grid;
+  flex: none;
+  justify-items: start;
+  gap: 4px;
+  color: #fff;
+}
+
+.cap {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font: 500 12px / 1 var(--ef-font-sans);
+  color: rgb(255 255 255 / 60%);
+  white-space: nowrap;
+}
+
+.track {
+  position: relative;
+  display: inline-grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  height: 26px;
+  padding: 0 5px;
+  background: var(--gs-track);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%);
+  clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+}
+
+.knob {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: calc(5px + var(--i) * (100% - 10px) / var(--n));
+  width: calc((100% - 10px) / var(--n));
+  background: linear-gradient(180deg, #fff 60%, rgb(230 230 230));
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  transition: left 200ms var(--ef-ease-g-enter);
+}
+
+/* The yellow foot under the chosen label. */
+.knob::after {
+  content: '';
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  bottom: 0;
+  height: 2px;
+  background: var(--ef-accent);
+}
+
+.opt {
+  position: relative;
+  z-index: 1;
+  min-width: 44px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  color: rgb(255 255 255 / 62%);
+  font: 600 12px / 1 var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.opt + .opt::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 1px;
+  background: rgb(255 255 255 / 18%);
+}
+
+.opt[aria-checked='true']::before,
+.opt[aria-checked='true'] + .opt::before {
+  display: none;
+}
+
+.opt[aria-checked='true'] {
+  color: #1a1a1a;
+}
+
+.opt:hover:not(:disabled, [aria-checked='true']) {
+  color: #fff;
+}
+
+.opt:disabled {
+  cursor: default;
+}
+
+.opt:disabled:not([aria-checked='true']) {
+  color: rgb(255 255 255 / 30%);
+}
+
+.opt:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -3px;
+}
+
+/* 开｜关: a short track; on 关 the block turns grey and loses its foot. */
+.seg[data-variant='onoff'] .track {
+  width: 88px;
+  background: rgb(20 20 20 / 55%);
+}
+
+.seg[data-variant='onoff'] .opt {
+  min-width: 0;
+  padding: 0;
+}
+
+.seg[data-off] .knob {
+  background: var(--gs-knob-off);
+}
+
+.seg[data-off] .knob::after {
+  display: none;
+}
+
+.seg[aria-disabled='true'] .track {
+  background: var(--gs-hatch), var(--gs-track);
+  opacity: 0.6;
+}
+
+.seg[aria-disabled='true'] .knob {
+  background: #5a5a5a;
+}
+
+.seg[aria-disabled='true'] .knob::after {
+  display: none;
+}
+
+.seg[aria-disabled='true'] .opt[aria-checked='true'] {
+  color: rgb(255 255 255 / 70%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knob {
+    transition: none;
+  }
+}

@@ -1,0 +1,54 @@
+/* Small game marks: micro Latin labels, diamonds, the barcode at a row's end. Colours follow the text colour unless named. */
+
+/* 9 px is the floor the style guard allows for aria-hidden decorative Latin; the game draws these at 6–8 px. */
+.micro {
+  display: inline-block;
+  font: 600 9px / 1 var(--ef-font-num);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.diamond {
+  --d: 9px;
+
+  display: inline-block;
+  flex: none;
+  width: var(--d);
+  height: var(--d);
+  margin: calc(var(--d) * 0.2);
+  background: var(--ef-g-reddot);
+  transform: rotate(45deg);
+}
+
+.diamond[data-tone='yellow'] {
+  background: var(--ef-accent);
+}
+
+.diamond[data-tone='hollow'] {
+  background: transparent;
+  outline: 1.5px solid currentColor;
+  outline-offset: -1.5px;
+  opacity: 0.7;
+}
+
+.barcode {
+  display: inline-flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.bars {
+  display: block;
+  fill: currentColor;
+  opacity: 0.2;
+}
+
+.barcode .micro {
+  opacity: 0.28;
+}

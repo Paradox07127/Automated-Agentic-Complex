@@ -1,0 +1,126 @@
+/* Rail cell (charinfo MenuListCell): a dark frosted plate with a hatched top band; the current one a white plate with a yellow edge. */
+.cell {
+  --rc-plate: rgb(46 46 46 / 84%);
+  --rc-plate-on: rgb(255 255 255 / 95%);
+  --rc-ink-on: #5b5b5b;
+  --rc-hatch: repeating-linear-gradient(-45deg, transparent 0 3px, rgb(255 255 255 / 16%) 3px 4px);
+  --rc-hatch-on: repeating-linear-gradient(-45deg, transparent 0 3px, rgb(0 0 0 / 16%) 3px 4px);
+
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: var(--rail-cell, 64px);
+  padding: 6px 0 0;
+  border: 0;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+.cell > * {
+  position: relative;
+}
+
+/* The plate grows from its right edge (--size-x -55 → 0 in menucell_selectbtn_in). */
+.plate {
+  --size-x: 0;
+
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: calc(100% + var(--size-x) * 1px);
+  background: linear-gradient(180deg, rgb(255 255 255 / 6%), transparent 50%), var(--rc-plate);
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 18%);
+}
+
+.light {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  transition: opacity 200ms var(--ef-ease-g-fade);
+}
+
+.cell:hover:not([aria-current]) .light {
+  opacity: 0.12;
+}
+
+.band {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 6px;
+  background: var(--rc-hatch);
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+}
+
+/* The micro label: same type as MicroLabel, drawn as generated content so the button's text stays its name. */
+.band::after {
+  content: attr(data-micro);
+  position: absolute;
+  top: 9px;
+  right: 4px;
+  font: 600 9px / 1 var(--ef-font-num);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0.45;
+}
+
+.ic {
+  display: grid;
+  place-items: center;
+}
+
+.label {
+  font: 600 12px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.cell[aria-current] {
+  color: var(--rc-ink-on);
+  cursor: default;
+}
+
+.cell[aria-current] .plate {
+  background: linear-gradient(180deg, #fff, transparent 60%), var(--rc-plate-on);
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 10%);
+}
+
+.cell[aria-current] .plate::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--ef-accent);
+}
+
+.cell[aria-current] .band {
+  background: var(--rc-hatch-on);
+  border-bottom-color: rgb(0 0 0 / 10%);
+}
+
+.cell[aria-current] .label {
+  color: #262626;
+}
+
+.cell:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .light {
+    transition: none;
+  }
+}

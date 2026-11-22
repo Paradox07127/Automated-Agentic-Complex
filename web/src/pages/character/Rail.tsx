@@ -1,15 +1,16 @@
-import { Icon, type IconName } from '../../ui';
+import type { IconName } from '../../ui';
+import { RailCell } from '../../ui/game';
 import styles from './Rail.module.css';
 
 export type RailItem = 'overview' | 'look' | 'motion' | 'set' | 'photo' | 'mmd';
 
-const ITEMS: ReadonlyArray<{ id: RailItem; label: string; icon: IconName }> = [
-  { id: 'overview', label: '总览', icon: 'grid' },
-  { id: 'look', label: '外观', icon: 'look' },
-  { id: 'motion', label: '动作', icon: 'play' },
-  { id: 'set', label: '设定', icon: 'tune' },
-  { id: 'photo', label: '拍照', icon: 'eye' },
-  { id: 'mmd', label: 'MMD', icon: 'file' },
+const ITEMS: ReadonlyArray<{ id: RailItem; label: string; icon: IconName; micro: string }> = [
+  { id: 'overview', label: '总览', icon: 'grid', micro: 'Ovw' },
+  { id: 'look', label: '外观', icon: 'look', micro: 'Look' },
+  { id: 'motion', label: '动作', icon: 'play', micro: 'Mot' },
+  { id: 'set', label: '设定', icon: 'tune', micro: 'Set' },
+  { id: 'photo', label: '拍照', icon: 'eye', micro: 'Cam' },
+  { id: 'mmd', label: 'MMD', icon: 'file', micro: 'Mmd' },
 ];
 
 export interface RailProps {
@@ -19,23 +20,13 @@ export interface RailProps {
   onGo: (item: RailItem) => void;
 }
 
-/** 最右的竖栏：总览、外观、动作、设定、拍照，隔开一点是 MMD；当前项黄底。 */
+/** 最右的竖栏：总览、外观、动作、设定、拍照，隔一条线是 MMD；当前项白底黄边。 */
 export function Rail({ value, avatar, onGo }: RailProps) {
   const items = ITEMS.filter((x) => avatar || (x.id !== 'photo' && x.id !== 'mmd'));
   return (
     <nav className={styles.rail} data-g="menu" aria-label="角色分区">
       {items.map((x) => (
-        <button
-          key={x.id}
-          type="button"
-          className={styles.item}
-          data-sep={x.id === 'mmd' || undefined}
-          aria-current={x.id === value ? 'page' : undefined}
-          onClick={() => x.id !== value && onGo(x.id)}
-        >
-          <Icon name={x.icon} size={20} />
-          <span className={styles.label}>{x.label}</span>
-        </button>
+        <RailCell key={x.id} label={x.label} icon={x.icon} micro={x.micro} current={x.id === value} onClick={() => x.id !== value && onGo(x.id)} />
       ))}
     </nav>
   );

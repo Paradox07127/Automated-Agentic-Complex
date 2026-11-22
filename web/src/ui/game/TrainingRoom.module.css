@@ -8,6 +8,12 @@
   pointer-events: none;
 }
 
+/* In the catalog ([data-modal-inline] figures) the room is a block of its own. */
+:global([data-modal-inline]) .room {
+  position: relative;
+  height: 260px;
+}
+
 .lines {
   position: absolute;
   inset: 0;

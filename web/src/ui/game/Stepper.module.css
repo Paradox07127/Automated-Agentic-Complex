@@ -1,0 +1,234 @@
+/* Game stepper ◀ value ▶: a dark chamfered well, arrow cells at both ends, position ticks under the value. */
+.wrap {
+  --st-well: rgb(0 0 0 / 30%);
+  --st-list: #1e1e1e;
+  --st-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 10%) 4px 5px);
+
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  gap: 4px;
+  color: #fff;
+}
+
+.step {
+  display: flex;
+  align-items: stretch;
+  width: 210px;
+  height: 36px;
+  background: var(--st-well);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 13%);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+
+.step[data-open] {
+  box-shadow: inset 0 0 0 1px var(--ef-accent);
+}
+
+.ar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  padding: 0;
+  border: 0;
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.ar:hover:not(:disabled) {
+  background: rgb(255 255 255 / 18%);
+}
+
+.ar:disabled {
+  background: rgb(255 255 255 / 3%);
+  color: rgb(255 255 255 / 22%);
+  cursor: default;
+}
+
+.ar:focus-visible,
+.val:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -2px;
+}
+
+.mid {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.val {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 600 14px / 1 var(--ef-font-ui);
+}
+
+button.val {
+  cursor: pointer;
+}
+
+.text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.caret {
+  flex: none;
+  width: 0;
+  height: 0;
+  margin-top: 3px;
+  border: 4px solid transparent;
+  border-top-color: rgb(255 255 255 / 80%);
+}
+
+/* Position ticks: one per value, the current yellow, the default one notched above in white. */
+.pips {
+  display: flex;
+  gap: 3px;
+  max-width: 100%;
+}
+
+.pips i {
+  position: relative;
+  flex: 0 1 9px;
+  min-width: 3px;
+  height: 2px;
+  background: rgb(255 255 255 / 22%);
+}
+
+.pips i[data-on] {
+  background: var(--ef-accent);
+}
+
+.pips i[data-default]::before {
+  content: '';
+  position: absolute;
+  inset: -3px 0 auto;
+  height: 2px;
+  background: rgb(255 255 255 / 60%);
+}
+
+.step[aria-disabled='true'] {
+  opacity: 0.5;
+}
+
+.step[aria-disabled='true'] .mid {
+  background: var(--st-hatch);
+}
+
+/* The value list (>6 values): a dark chamfered plate, the current option with a yellow bar, a hatch strip at the foot. */
+.list {
+  position: fixed;
+  z-index: calc(var(--ef-z-modal) + 1);
+  box-sizing: border-box;
+  max-height: 260px;
+  margin: 0;
+  padding: 4px 0 0;
+  overflow: auto;
+  list-style: none;
+  background: var(--st-list);
+  color: #fff;
+  box-shadow:
+    0 14px 30px rgb(0 0 0 / 35%),
+    inset 0 0 0 1px rgb(255 255 255 / 12%);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+}
+
+.list::after {
+  content: '';
+  display: block;
+  height: 6px;
+  margin: 3px 8px 6px;
+  background: var(--st-hatch);
+}
+
+.list:focus-visible {
+  outline: none;
+}
+
+:global([data-modal-inline]) .list {
+  position: relative;
+  z-index: auto;
+}
+
+.opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px 0 16px;
+  color: rgb(255 255 255 / 82%);
+  font: 500 13px / 1 var(--ef-font-ui);
+  cursor: pointer;
+}
+
+.opt[aria-selected='true'] {
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+  font-weight: 600;
+}
+
+.opt[aria-selected='true']::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 3px;
+  background: var(--ef-accent);
+}
+
+.opt[data-active] {
+  background: rgb(255 255 255 / 16%);
+}
+
+.list:focus-visible .opt[data-active] {
+  outline: 1px solid rgb(255 241 0 / 70%);
+  outline-offset: -1px;
+}
+
+.ix {
+  width: 16px;
+  font: 600 11px / 1 var(--ef-font-num);
+  opacity: 0.4;
+}
+
+.optLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dt {
+  flex: none;
+  padding: 0 4px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  color: rgb(255 255 255 / 60%);
+  font: 500 12px / 16px var(--ef-font-sans);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ar {
+    transition: none;
+  }
+}

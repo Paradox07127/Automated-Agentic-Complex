@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import * as charts from '../charts';
 import type { Demo } from '../shell/types';
 import * as ui from '../ui';
+import * as game from '../ui/game';
 
 // Every component file exports `<Name>` and `<Name>Demos`; the gallery pairs them by name, so new components need no registration.
 
@@ -12,7 +13,7 @@ export interface CatalogDemo {
 
 export interface CatalogEntry {
   name: string;
-  /** `ui`, `charts` or `features/<dir>`. */
+  /** `ui`, `ui/game`, `charts` or `features/<dir>`. */
   group: string;
   component: ComponentType<Record<string, unknown>>;
   demos: CatalogDemo[];
@@ -42,7 +43,8 @@ function featureModule(path: string): Record<string, unknown> {
   return Object.assign({}, featureModules[path], ...demos.map((p) => featureDemoModules[p]));
 }
 
-export const uiCatalog: CatalogEntry[] = collect('ui', ui);
+// The character area's game pieces list with the base components, under their own group.
+export const uiCatalog: CatalogEntry[] = [...collect('ui', ui), ...collect('ui/game', game)];
 
 export const featureCatalog: CatalogEntry[] = Object.keys(featureModules)
   .sort()
