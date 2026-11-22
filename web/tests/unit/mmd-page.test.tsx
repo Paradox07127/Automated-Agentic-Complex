@@ -1,5 +1,5 @@
-// MMD 页: the MMD library every character shares (mmd.list/import/syncState/onSync) beside the current character's live preview,
-// her setlist under the stage.
+// 角色 › MMD: the MMD library every character shares (mmd.list/import/syncState/onSync) in the section panel beside the
+// character area's live preview stage, her setlist under the stage.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -7,10 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PreviewPlacement } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AvatarAction, AgenticComplexBridge, MmdEntry, MmdSyncState } from '../../src/bridge/protocol';
+import { CharacterPage } from '../../src/pages/character/Page';
 import { Library } from '../../src/pages/mmd/Library';
-import { MmdPage } from '../../src/pages/mmd/Page';
-import { route } from '../../src/pages/mmd/route';
-import { findRoute, pageRoutes } from '../../src/shell/registry';
+import { findRoute } from '../../src/shell/registry';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 
@@ -30,15 +29,17 @@ function install(over: Partial<Parameters<typeof createFakeBridge>[0]> = {}) {
   window.agenticComplex = bridge;
 }
 
-async function mount() {
-  const root = createRootRoute({ component: MmdPage });
-  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
+/** 角色 opened on its MMD section; `ready: false` does not wait for the library panel. */
+async function mount(ready = true) {
+  const root = createRootRoute({ component: CharacterPage });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1&view=mmd'] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await screen.findByRole('region', { name: 'MMD 库' });
+  if (ready) await screen.findByRole('region', { name: 'MMD 库' });
+  else await waitFor(() => expect(document.querySelector('[data-page="character"]')).not.toBeNull());
 }
 
 const click = (el: Element) => act(async () => void fireEvent.click(el));
@@ -49,7 +50,8 @@ const press = (el: Element, key: string, opts: Partial<KeyboardEventInit> = {}) 
 // The selected row's opened part.
 const detail = () => screen.getByRole('group', { name: 'MMD 操作' });
 const importKey = () => screen.getByRole('button', { name: /^导入(中…| VMD)$/ }) as HTMLButtonElement;
-const stageOf = () => document.querySelector('[data-stage]')?.getAttribute('data-character');
+// The selected dance's other characters leave her out: who the section is for.
+const herName = () => within(detail()).getByRole('list', { name: '其他角色' }).textContent;
 // The fake import takes a second.
 const SLOW = { timeout: 3000 };
 
@@ -60,18 +62,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('MMD page route', () => {
-  it('registers /mmd as a secondary page right after 角色, without a hotkey', () => {
-    expect(findRoute('/mmd')).toMatchObject({ id: 'mmd', title: 'MMD', group: 'secondary' });
-    expect(route.hotkey).toBeUndefined();
-    const ids = pageRoutes.map((r) => r.id);
-    expect(ids[ids.indexOf('character') + 1]).toBe('mmd');
+describe('MMD section', () => {
+  it('is no page of its own: /mmd only redirects (router.ts)', () => {
+    expect(findRoute('/mmd')).toBeUndefined();
   });
 
-  it('stands on the training room with a live preview stage', async () => {
+  it('stands on the character area’s training room with its one live preview stage, beside the rail', async () => {
     await mount();
-    expect(document.querySelector('[data-page="mmd"] [data-training-room]')).not.toBeNull();
-    expect(document.querySelector('[data-preview-stage]')).not.toBeNull();
+    expect(document.querySelector('[data-page="character"] [data-training-room]')).not.toBeNull();
+    expect(document.querySelectorAll('[data-preview-stage]').length).toBe(1);
+    expect(screen.getByRole('navigation', { name: '角色分区' })).toBeTruthy();
   });
 });
 
@@ -318,7 +318,7 @@ describe('MMD stage preview', () => {
   });
 });
 
-describe('MMD page · whose page it is', () => {
+describe('MMD section · whose it is', () => {
   const B_ACTION: AvatarAction = { ...MMD_ACTION, id: 'mmd_b', label: '舞蹈乙' };
 
   it('follows a switch the shell pushes: her name, her actions and her own list, which a change then writes', async () => {
@@ -340,10 +340,9 @@ describe('MMD page · whose page it is', () => {
     await bridge.character.switchTo('voice_a');
     who = 'voice_a';
     await act(async () => push({ ...rt, character: { ...rt.character, current: 'voice_a', shown: 'voice_a', agentd: 'voice_a' } }));
-    await waitFor(() => expect(stageOf()).toBe('voice_a'));
-    const after = await screen.findByRole('region', { name: 'MMD 列表' });
+    await waitFor(() => expect(screen.getByRole('region', { name: 'MMD 列表' }).textContent).toContain('示例甲'));
+    const after = screen.getByRole('region', { name: 'MMD 列表' });
     await waitFor(() => expect(after.querySelector('[data-playlist-row="mmd_b"]')).not.toBeNull());
-    expect(after.textContent).toContain('示例甲');
     expect(after.querySelector('[data-playlist-row="mmd_a"]')).toBeNull();
     await click(within(within(after).getByRole('radiogroup', { name: '连播速度' })).getByRole('radio', { name: '2×' }));
     expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b'], loop: 'off', speed: 2 });
@@ -352,33 +351,34 @@ describe('MMD page · whose page it is', () => {
   it('waits for the roster before it says how a dance stands for her, and offers no import meanwhile', async () => {
     vi.spyOn(bridge.character, 'list').mockReturnValue(new Promise(() => {}));
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
-    await mount();
+    await mount(false);
     await act(async () => {});
     expect(item('mmd_a')).toBeNull();
-    expect(importKey().disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /^导入(中…| VMD)$/ })).toBeNull();
   });
 
-  it('says the roster read failed and reads it again on 重试', async () => {
+  it('says the roster read failed in the page’s bar and reads it again on 重试', async () => {
     const roster = vi.spyOn(bridge.character, 'list').mockRejectedValue({ code: 'failed' });
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
-    await mount();
-    const region = screen.getByRole('region', { name: 'MMD 库' });
-    await waitFor(() => expect(within(region).getByRole('alert').textContent).toContain('读取角色目录失败'));
+    await mount(false);
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('读取角色目录失败'));
     expect(item('mmd_a')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'MMD 库' })).toBeNull();
     const n = roster.mock.calls.length;
-    await click(within(region).getByRole('button', { name: /重试/ }));
+    await click(screen.getByRole('button', { name: /重试/ }));
     await waitFor(() => expect(roster.mock.calls.length).toBeGreaterThan(n));
   });
 
-  it('offers no import without a character', async () => {
+  it('offers no import VMD without a character, only the page’s 导入角色', async () => {
     vi.spyOn(bridge.character, 'list').mockResolvedValue([]);
-    await mount();
-    await waitFor(() => expect(importKey().disabled).toBe(true));
+    await mount(false);
+    await screen.findByRole('button', { name: '导入角色' });
+    expect(screen.queryByRole('button', { name: /^导入(中…| VMD)$/ })).toBeNull();
     expect(screen.queryByRole('region', { name: 'MMD 列表' })).toBeNull();
   });
 });
 
-describe('MMD page · minor review findings', () => {
+describe('MMD section · minor review findings', () => {
   it('says the bridge’s failure of a retry, not the reason of the read before it', () => {
     render(<Library data={{ ok: false, reason: 'bad_zip', detail: '' }} error="not_implemented" onRetry={() => {}} current="si" sel={undefined} onPick={() => {}} />);
     expect(screen.getByRole('alert').textContent).toContain('读取 MMD 库失败：这个版本还不支持');
@@ -404,8 +404,8 @@ describe('MMD page · minor review findings', () => {
   it('drops the selected dance’s actions when a later library read fails', async () => {
     const list = vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const root = createRootRoute({ component: MmdPage });
-    const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
+    const root = createRootRoute({ component: CharacterPage });
+    const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1&view=mmd'] }) });
     render(
       <QueryClientProvider client={qc}>
         <RouterProvider router={router} />
@@ -436,17 +436,17 @@ describe('MMD page · minor review findings', () => {
     await pick('mmd_a');
     await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a' })));
     await act(async () => push(at('voice_a')));
-    await waitFor(() => expect(stageOf()).toBe('voice_a'));
+    await waitFor(() => expect(herName()).not.toContain('示例甲'));
     await waitFor(() => expect(show.mock.lastCall?.[0]).not.toHaveProperty('action'));
     await act(async () => push(at('si')));
-    await waitFor(() => expect(stageOf()).toBe('si'));
+    await waitFor(() => expect(herName()).not.toContain('示例乙'));
     // The stage reports on the next animation frame.
     await act(() => new Promise((r) => setTimeout(r, 100)));
     expect(show.mock.lastCall?.[0]).not.toHaveProperty('action');
   });
 });
 
-describe('MMD page · 播放方式', () => {
+describe('MMD section · 播放方式', () => {
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
       return 'previewStage' in this.dataset ? RECT : EMPTY;

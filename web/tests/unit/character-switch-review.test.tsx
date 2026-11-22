@@ -1,4 +1,4 @@
-// 角色页 after the review of 11-22: a switch reads her actions again and drops the drafts of the one before; a finished MMD sync reads them again here too; leaving for MMD asks about unsaved switches; 设定's tab bar lists only the tabs with rows; 隐藏界面 hides the bottom bar and the roster.
+// 角色页 after the review of 11-22: a switch reads her actions again and drops the drafts of the one before; a finished MMD sync reads them again here too; the MMD section keeps unsaved switches; 设定's tab bar lists only the tabs with rows; 隐藏界面 hides the bottom bar and the roster.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -90,7 +90,7 @@ describe('a switch on the character page', () => {
     expect(screen.queryByText(/已修改/)).toBeNull();
   });
 
-  it('reads her actions again when the MMD sync after a switch ends, without the MMD page', async () => {
+  it('reads her actions again when the MMD sync after a switch ends, outside the MMD section', async () => {
     let push: (s: MmdSyncState) => void = () => {};
     vi.spyOn(bridge.mmd, 'onSync').mockImplementation((cb) => {
       push = cb;
@@ -106,26 +106,16 @@ describe('a switch on the character page', () => {
 });
 
 describe('the rail’s MMD item with unsaved switches', () => {
-  it('asks before it leaves them; 留下 keeps the page and the drafts, 放弃 opens MMD', async () => {
-    const router = await mount('&pane=motion');
+  it('opens the MMD section at once: the drafts stay in the character area and are there back on 动作', async () => {
+    await mount('&pane=motion');
     await waitFor(() => expect(row('nod')).not.toBeNull());
     await click(within(row('nod')!).getByRole('radio', { name: '关' }));
-    const mmd = within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name: 'MMD' });
-    await click(mmd);
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('1 项');
-    expect(router.state.location.pathname).toBe('/');
-    await click(within(dialog).getByRole('button', { name: '留下' }));
+    await click(rail('MMD'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await screen.findByRole('region', { name: 'MMD 库' });
+    await click(rail('动作'));
+    await waitFor(() => expect(row('nod')).not.toBeNull());
     expect(within(row('nod')!).queryByLabelText('未保存')).not.toBeNull();
-    await click(mmd);
-    await click(within(await screen.findByRole('dialog')).getByRole('button', { name: '放弃并打开 MMD' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/mmd'));
-  });
-
-  it('opens MMD at once without unsaved switches', async () => {
-    const router = await mount('&pane=motion');
-    await click(within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name: 'MMD' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/mmd'));
   });
 });
 

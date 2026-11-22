@@ -154,11 +154,11 @@ test('offline: the stage says the character is not running and the table is read
 });
 
 for (const theme of ['dark', 'light'] as const) {
-  test(`import VMD (${theme}): 导入中… while the fake imports on the MMD page, then the title, the baked entry and its ＋ into the MMD 列表`, async ({ page }, info) => {
+  test(`import VMD (${theme}): 导入中… while the fake imports in the MMD section, then the title, the baked entry and its ＋ into the MMD 列表`, async ({ page }, info) => {
     const errors = collectErrors(page);
     await page.goto(`main.html#/character?still=1&theme=${theme}`);
     await page.getByRole('navigation', { name: '角色分区' }).getByRole('button', { name: 'MMD' }).click();
-    await expect(page.locator('[data-page="mmd"]')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'MMD 库' })).toBeVisible();
     const button = page.getByRole('button', { name: '导入 VMD' });
     await expect(button).toBeVisible();
     await button.click();

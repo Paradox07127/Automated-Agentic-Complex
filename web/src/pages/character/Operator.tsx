@@ -1,11 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { getBridge, type ActionSpeed, type AvatarAction, type CharacterEntry } from '../../bridge';
 import type { CharacterProfile, CharacterState } from '../../domain';
-import { navigate } from '../../shell/nav';
 import { ErrBar, Skel } from '../../ui';
 import type { GameTab } from '../../ui/game';
 import { BrandBlock } from './BrandBlock';
-import { SetPanel } from './CharacterSettings';
 import { useCharEntrance, useSwitchFade } from './charMotion';
 import { Commit } from './Commit';
 import type { Toast } from './feedback';
@@ -17,7 +15,7 @@ import { MotionTable } from './MotionTable';
 import { useVoiceBinding } from './NameBlock';
 import { Panel } from './Panel';
 import { Rail, type RailItem } from './Rail';
-import type { CharTab } from './sections';
+import { GO, go, SidePanel, type Side } from './Side';
 import { Stage, StageSkel, type StageMode } from './Stage';
 import { blockedReason, deckLine, groupMotions, useMotions } from './useMotions';
 import type { MotionImport } from './useMotionImport';
@@ -61,22 +59,17 @@ export interface OperatorProps {
   /** Motion a demo shows as playing on the desktop. */
   playing?: string | null;
   toast: Toast;
-  /** 设定 (with its tab) or 拍照 in the panel in place of the panes. */
+  /** 设定 (with its tab), 拍照 or MMD in the panel in place of the panes. */
   side?: Side;
-  /** The rail's MMD item, with the number of unsaved switches leaving loses: opens the MMD page; absent without an avatar. */
-  onMmd?: (unsaved: number) => void;
 }
 
 export type Pane = 'overview' | 'motion' | 'chain' | 'look' | 'import';
-
-/** `tabs`: the 设定 tabs that have rows. */
-export type Side = { of: 'set'; tab: CharTab; tabs: readonly CharTab[]; node: ReactNode } | { of: 'photo'; node: ReactNode };
 
 const PANES: readonly Pane[] = ['overview', 'motion', 'chain', 'look', 'import'];
 
 export const isPane = (v: string | null): v is Pane => PANES.some((x) => x === v);
 
-/** Detail panel width per view (BRIEF 11-22 C): wide for 外观, 动作 and 编排 (and 导入 under them), narrow for 设定, a single column for 拍照. */
+/** Detail panel width per view (BRIEF 11-22 C): wide for 外观, 动作 and 编排 (and 导入 under them), narrow for 设定 and MMD, a single column for 拍照. */
 const PANEL: Record<Exclude<Pane, 'overview'> | Side['of'], 'wide' | 'narrow' | 'photo'> = {
   motion: 'wide',
   chain: 'wide',
@@ -84,6 +77,7 @@ const PANEL: Record<Exclude<Pane, 'overview'> | Side['of'], 'wide' | 'narrow' | 
   import: 'wide',
   set: 'narrow',
   photo: 'photo',
+  mmd: 'narrow',
 };
 
 const NO_ACTIONS: AvatarAction[] = [];
@@ -97,17 +91,7 @@ const failed = (what: string, toast: Toast) => (e: unknown) => {
   toast(`${what}没有完成：${code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' });
 };
 
-const go = (to: Omit<Extract<Parameters<typeof navigate>[0], { page: 'character' }>, 'page'>) => navigate({ page: 'character', ...to });
-
-const GO: Record<Exclude<RailItem, 'mmd'>, () => void> = {
-  overview: () => go({}),
-  look: () => go({ pane: 'look' }),
-  motion: () => go({ pane: 'motion' }),
-  set: () => go({ tab: 'behavior' }),
-  photo: () => go({ view: 'photo' }),
-};
-
-/** 角色页：训练场上的实机舞台。总览是头像条、名字块、舞台、黄色斜块和竖栏；外观 / 动作 / 设定 / 拍照没有头像条和名字块，舞台在左，右边是按页取宽的面板。 */
+/** 角色页：训练场上的实机舞台。总览是头像条、名字块、舞台、黄色斜块和竖栏；外观 / 动作 / 设定 / 拍照 / MMD 没有头像条和名字块，舞台在左，右边是按页取宽的面板。 */
 export function Operator(p: OperatorProps) {
   const actions = p.actions ?? NO_ACTIONS;
   // `mmd_` dances belong to the shared MMD library, not to her own actions.
@@ -204,6 +188,9 @@ export function Operator(p: OperatorProps) {
   // 动作 always has its action bar; another detail page only while switches wait to be saved (总览 has no room; 编排 has its own commit bar).
   const deck = !side && mode === 'detail' && pane !== 'chain' && (pane === 'motion' || changes.length > 0);
   const play = m.play;
+  const asked = previewAction?.character === p.current ? previewAction : undefined;
+  // MMD previews its own dance on the same stage.
+  const pv = side?.of === 'mmd' ? side.preview : { action: asked?.id, request: asked?.request, loop };
 
   const imp: GameTab = { id: 'import', label: '导入', icon: 'upload', micro: 'IMPORT' };
   const tabs: GameTab[] =
@@ -276,7 +263,7 @@ export function Operator(p: OperatorProps) {
     );
 
   return (
-    <div ref={opRef} className={styles.op} data-view="operator" data-mode={mode} data-panel={panel} data-bare={isBare || undefined} data-deck={deck || undefined} data-theme="light">
+    <div ref={opRef} className={styles.op} data-view="operator" data-mode={mode} data-panel={panel} data-bare={isBare || undefined} data-deck={deck || undefined} data-band={(side?.of === 'mmd' && side.band) || undefined} data-theme="light">
       {overview && (
         <HeadStrip
           roster={p.roster}
@@ -309,19 +296,14 @@ export function Operator(p: OperatorProps) {
           onRetry={p.sw.retry}
           onDismiss={p.sw.dismiss}
           characterId={p.current}
-          previewAction={previewAction?.character === p.current ? previewAction.id : undefined}
-          previewRequest={previewAction?.character === p.current ? previewAction.request : undefined}
+          previewAction={pv.action}
+          previewRequest={pv.request}
           previewAppearance={lookId}
-          loop={loop}
+          loop={pv.loop}
         />
       </div>
       {overview && <BrandBlock />}
-      {side?.of === 'set' && (
-        <SetPanel tabs={side.tabs} tab={side.tab} onTab={(t) => go({ tab: t })}>
-          {side.node}
-        </SetPanel>
-      )}
-      {side?.of === 'photo' && side.node}
+      {side && <SidePanel side={side} />}
       {!overview && !side && (
         <Panel tabs={tabs} value={tab} onTab={onTab} tail={at === 'look' ? 'Agentic Complex / Appearance' : 'Agentic Complex / Motion'} pane={pane}>
           {pane === 'motion' ? (
@@ -359,7 +341,7 @@ export function Operator(p: OperatorProps) {
           )}
         </Panel>
       )}
-      <Rail value={at} avatar={canAvatar} sub={!side && pane === 'import'} onGo={(item) => (item === 'mmd' ? p.onMmd?.(Object.keys(m.changed).length) : GO[item]())} />
+      <Rail value={at} avatar={canAvatar} sub={!side && pane === 'import'} onGo={(item) => GO[item]()} />
       {deck && (
         <Commit
           offline={p.offline}

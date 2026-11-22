@@ -8,7 +8,8 @@
 }
 
 /* The room draws her floor, rings and watermark around the stage's span (Stage.module.css): on a detail page between the
-   left edge and the panel (rail 64, gaps 12, the panel's tier from OperatorPart1.css) above the status slot and the action bar. */
+   left edge and the panel (rail 64, gaps 12, the panel's tier from OperatorPart1.css) above the status slot and the action bar
+   (MMD: her setlist, `band`). */
 .page[data-stage-span] > [data-training-room] {
   --room-rail: 64px;
   --room-deck: 0px;
@@ -26,8 +27,12 @@
   --room-panel: clamp(440px, 46cqw, 900px);
 }
 
-.page[data-stage-span='set'] > [data-training-room] {
+.page:is([data-stage-span='set'], [data-stage-span='band']) > [data-training-room] {
   --room-panel: clamp(404px, 36cqw, 700px);
+}
+
+.page[data-stage-span='band'] > [data-training-room] {
+  --room-deck: calc(158px + 20px);
 }
 
 .page[data-stage-span='photo'] > [data-training-room] {
@@ -49,6 +54,10 @@
 
   .page[data-stage-span='deck'] > [data-training-room] {
     --room-deck: 48px;
+  }
+
+  .page[data-stage-span='band'] > [data-training-room] {
+    --room-deck: calc(94px + 12px);
   }
 
   .page[data-stage-span='photo'] > [data-training-room] {

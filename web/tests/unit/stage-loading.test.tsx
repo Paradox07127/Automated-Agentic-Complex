@@ -1,10 +1,9 @@
-// The character and MMD stages while the live preview loads: the loading bar for a full load, and never the portrait:
-// where the preview cannot draw the stage says why and offers a retry, or stays empty.
+// The character area's stage while the live preview loads, on a motion section and in MMD (a dance, looped): the loading
+// bar for a full load, and never the portrait: where the preview cannot draw the stage says why and offers a retry, or stays empty.
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { PreviewPlacement } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
-import { MmdStage, type MmdStageProps } from '../../src/pages/mmd/Stage';
 import { Stage, type StageProps } from '../../src/pages/character/Stage';
 
 const noop = () => {};
@@ -14,10 +13,8 @@ const stageProps: StageProps = {
   name: '示例乙', activity: null, offline: false, backoff: null, onRestart: noop, sw: { phase: 'idle' },
   currentName: '示例乙', onRetry: noop, onDismiss: noop, characterId: 'si',
 };
-const mmdProps: MmdStageProps = {
-  character: 'si', name: '示例乙', offline: false, backoff: null, onRestart: noop,
-  action: undefined, request: undefined, appearance: undefined, loop: false,
-};
+/** What the MMD section hands the stage for a baked dance. */
+const mmdProps: StageProps = { ...stageProps, previewAction: 'mmd_a', previewRequest: 1, loop: true };
 
 let show: Mock<(at: PreviewPlacement) => Promise<boolean>>;
 let push: (p: { fraction: number } | null) => void;
@@ -43,7 +40,8 @@ afterEach(() => {
 const portrait = () => document.querySelector('[data-preview-stage] [data-stub="CharacterArt"]');
 const bar = () => screen.queryByRole('progressbar');
 
-for (const [page, view] of [['character', () => <Stage {...stageProps} />], ['MMD', () => <MmdStage {...mmdProps} />]] as const) {
+for (const [page, props] of [['character', stageProps], ['MMD', mmdProps]] as const) {
+  const view = () => <Stage {...props} />;
   describe(`${page} stage`, () => {
     it('draws the loading bar over no portrait through a full load, then neither once she is drawn', async () => {
       render(view());
@@ -65,7 +63,7 @@ for (const [page, view] of [['character', () => <Stage {...stageProps} />], ['MM
       const { rerender } = render(view());
       await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
       await act(async () => draw(true));
-      rerender(page === 'MMD' ? <MmdStage {...mmdProps} action="wave" /> : <Stage {...stageProps} previewAction="wave" />);
+      rerender(<Stage {...props} previewAction="wave" previewRequest={2} />);
       await waitFor(() => expect(show).toHaveBeenCalledTimes(2));
       expect(bar()).toBeNull();
       expect(portrait()).toBeNull();

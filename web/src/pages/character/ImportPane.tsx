@@ -80,7 +80,7 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
             <span className={styles.ikHint}>
               也可以把动作文件拖到桌面上的她身上
               <br />
-              VMD 舞蹈导入后在 MMD 页
+              VMD 舞蹈导入后在右侧 MMD 里
             </span>
             <span className={styles.ikMicro}>
               <MicroLabel>Import / Motion</MicroLabel>

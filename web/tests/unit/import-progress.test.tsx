@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, ImportState } from '../../src/bridge/protocol';
 import { CharacterPage } from '../../src/pages/character/Page';
-import { MmdPage } from '../../src/pages/mmd/Page';
 import { setNavRouter } from '../../src/shell/nav';
 import { Progress } from '../../src/ui';
 
@@ -99,15 +98,10 @@ describe('导入 pane', () => {
   });
 });
 
-describe('MMD page', () => {
+describe('MMD section', () => {
   it('shows any running import on the library strip and disables 导入 VMD', async () => {
     const sink = pushes();
-    const router = createRouter({ routeTree: createRootRoute({ component: MmdPage }), history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
+    await mount('&view=mmd');
     const btn = (await screen.findByRole('button', { name: '导入 VMD' })) as HTMLButtonElement;
     await act(async () => sink.push({ running: true, kind: 'outfit', title: 'SummerMod', stage: 'publish', fraction: 0.9 }));
     expect(screen.getByRole('progressbar', { name: '发布' }).getAttribute('aria-valuenow')).toBe('90');

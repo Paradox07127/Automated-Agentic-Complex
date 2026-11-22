@@ -1,4 +1,4 @@
-// The MMD page's MMD list (character.getPlaylist/setPlaylist, avatar.playPlaylist/playlistState) and the speed lock read from AvatarAction.media.
+// The MMD section's MMD list (character.getPlaylist/setPlaylist, avatar.playPlaylist/playlistState) and the speed lock read from AvatarAction.media.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -7,7 +7,6 @@ import type { AvatarAction } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import { CharacterPage } from '../../src/pages/character/Page';
-import { MmdPage } from '../../src/pages/mmd/Page';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 
@@ -25,17 +24,16 @@ function install(extra: AvatarAction[]) {
   vi.spyOn(bridge.avatar, 'actions').mockImplementation(async () => [...(await real()), ...extra.map((a) => ({ ...a }))]);
 }
 
-/** The MMD page by default; the character page's 动作 pane with `'&pane=motion'`. */
-async function mount(search = '') {
-  const root = createRootRoute({ component: search ? CharacterPage : MmdPage });
+/** The MMD section by default; the 动作 pane with `'&pane=motion'`. */
+async function mount(search = '&view=mmd') {
+  const root = createRootRoute({ component: CharacterPage });
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(document.querySelector('[data-page]')).not.toBeNull());
-  if (search) await screen.findByRole('navigation', { name: '角色分区' });
+  await screen.findByRole('navigation', { name: '角色分区' });
   await act(async () => {});
 }
 
