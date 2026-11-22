@@ -115,7 +115,7 @@ async function commandBar() {
 async function character(search: string) {
   window.location.hash = `#/character?still=1${search}`;
   mountAt(CharacterPage, search);
-  await screen.findByRole('button', { name: /^切换角色/ });
+  await screen.findByRole('navigation', { name: '角色分区' });
 }
 
 const fact: Fact = {

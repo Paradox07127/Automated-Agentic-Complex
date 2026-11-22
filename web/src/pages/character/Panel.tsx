@@ -21,16 +21,14 @@ export interface PanelProps {
   view?: string | undefined;
   /** `data-pane` of the body. */
   pane?: string | undefined;
-  /** The narrower 拍照 panel beside the stage. */
-  photo?: boolean;
   children: ReactNode;
 }
 
-/** 详情页右侧面板：页签条（图标 │ 标签，选中格深灰、分隔变黄），下面是深色内容。 */
+/** 详情页右侧面板：页签条（图标 │ 标签，选中格深灰、分隔变黄），下面是深色内容；宽度是 Operator 按页给的 `--panel-w`。 */
 export function Panel(p: PanelProps) {
   const on = p.tabs.find((t) => t.id === p.value);
   return (
-    <section className={styles.panel} data-g="detail" data-photo={p.photo || undefined} aria-label={on ? undefined : p.label}>
+    <section className={styles.panel} data-g="detail" aria-label={on ? undefined : p.label}>
       {p.tabs.length > 0 && (
         <div className={styles.bar}>
           <div className={styles.tabs} role="tablist" aria-label="角色页签">

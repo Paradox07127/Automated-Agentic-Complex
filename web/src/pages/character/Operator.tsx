@@ -3,6 +3,7 @@ import { getBridge, type ActionSpeed, type AvatarAction, type CharacterEntry } f
 import type { CharacterProfile, CharacterState } from '../../domain';
 import { navigate } from '../../shell/nav';
 import { ErrBar, Skel, type IconName } from '../../ui';
+import { BrandBlock } from './BrandBlock';
 import { useCharEntrance, useSwitchFade } from './charMotion';
 import { Commit } from './Commit';
 import type { Toast } from './feedback';
@@ -11,6 +12,7 @@ import { ImportPane } from './ImportPane';
 import { doing, SECTIONS } from './labels';
 import { LookPane, useModTable, type LookTab } from './LookPane';
 import { MotionTable } from './MotionTable';
+import { useVoiceBinding } from './NameBlock';
 import { Panel, type PanelTab } from './Panel';
 import { Rail, type RailItem } from './Rail';
 import { CHAR_TABS, type CharTab } from './sections';
@@ -72,6 +74,16 @@ const PANES: readonly Pane[] = ['overview', 'motion', 'chain', 'look', 'import']
 
 export const isPane = (v: string | null): v is Pane => PANES.some((x) => x === v);
 
+/** Detail panel width per view (BRIEF 11-22 C): wide for 外观, 动作 and 编排 (and 导入 under them), narrow for 设定, a single column for 拍照. */
+const PANEL: Record<Exclude<Pane, 'overview'> | Side['of'], 'wide' | 'narrow' | 'photo'> = {
+  motion: 'wide',
+  chain: 'wide',
+  look: 'wide',
+  import: 'wide',
+  set: 'narrow',
+  photo: 'photo',
+};
+
 const NO_ACTIONS: AvatarAction[] = [];
 const NO_LOOKS: Readonly<Record<string, unknown>> = {};
 const SET_ICON: Record<CharTab, IconName> = { behavior: 'hand', render: 'sun', scene: 'loc' };
@@ -94,7 +106,7 @@ const GO: Record<Exclude<RailItem, 'mmd'>, () => void> = {
   photo: () => go({ view: 'photo' }),
 };
 
-/** 角色页：训练场上的实机舞台。总览是头像条、名字栏、舞台和竖栏；外观 / 动作 / 设定把舞台移到左边，右边是带页签的面板。 */
+/** 角色页：训练场上的实机舞台。总览是头像条、名字块、舞台、黄色斜块和竖栏；外观 / 动作 / 设定 / 拍照没有头像条和名字块，舞台在左，右边是按页取宽的面板。 */
 export function Operator(p: OperatorProps) {
   const actions = p.actions ?? NO_ACTIONS;
   // `mmd_` dances belong to the shared MMD library, not to her own actions.
@@ -180,8 +192,11 @@ export function Operator(p: OperatorProps) {
   const layers = (ch?.layers ?? []).map((l) => (hiddenSet?.character === ch?.id ? { ...l, visible: !hiddenSet?.hidden.includes(l.id) } : l));
 
   const mode: StageMode = side?.of === 'photo' ? 'photo' : !side && pane === 'overview' ? 'overview' : 'detail';
-  // 拍照 has no head strip, so no key to bring the UI back.
-  const isBare = bare && mode !== 'photo';
+  const overview = mode === 'overview';
+  // Only 总览 has the head strip, so only there a key brings the UI back.
+  const isBare = bare && overview;
+  const panel = side ? PANEL[side.of] : pane === 'overview' ? undefined : PANEL[pane];
+  const voice = useVoiceBinding(p.current, overview);
   const mods = Object.hasOwn(modTable.looks, lookId) ? modTable.looks[lookId] : undefined;
   const lt = (lookTab === 'mod' && !mods) || (lookTab === 'show' && layers.length === 0) ? 'look' : lookTab;
 
@@ -256,8 +271,8 @@ export function Operator(p: OperatorProps) {
   };
 
   return (
-    <div ref={opRef} className={styles.op} data-view="operator" data-mode={mode} data-bare={isBare || undefined} data-theme="light">
-      {mode !== 'photo' && (
+    <div ref={opRef} className={styles.op} data-view="operator" data-mode={mode} data-panel={panel} data-bare={isBare || undefined} data-theme="light">
+      {overview && (
         <HeadStrip
           roster={p.roster}
           current={p.current}
@@ -276,11 +291,13 @@ export function Operator(p: OperatorProps) {
           mode={mode}
           motion={mode === 'detail' && !side && (pane === 'motion' || pane === 'chain') ? motion : undefined}
           section={motion ? (SECTIONS[motion.section ?? '']?.name ?? '') : ''}
-          name={ch?.name ?? ''}
+          name={overview ? (ch?.name ?? '') : ''}
           en={ch?.en}
+          active={ch?.active}
+          voice={voice}
           head={ch?.head}
           portrait={ch?.portrait}
-          activity={doing(p.charState?.activity ?? null)}
+          activity={overview ? doing(p.charState?.activity ?? null) : null}
           scale={look.scale}
           offline={p.offline}
           backoff={p.backoff}
@@ -297,16 +314,9 @@ export function Operator(p: OperatorProps) {
           loop={loop}
         />
       </div>
-      {mode !== 'overview' && (
-        <Panel
-          tabs={tabs}
-          value={tab}
-          onTab={onTab}
-          label={side?.of === 'photo' ? '拍照' : ''}
-          view={side ? 'character-settings' : undefined}
-          pane={side ? undefined : pane}
-          photo={side?.of === 'photo'}
-        >
+      {overview && <BrandBlock />}
+      {!overview && (
+        <Panel tabs={tabs} value={tab} onTab={onTab} label={side?.of === 'photo' ? '拍照' : ''} view={side ? 'character-settings' : undefined} pane={side ? undefined : pane}>
           {side ? (
             side.node
           ) : pane === 'motion' ? (

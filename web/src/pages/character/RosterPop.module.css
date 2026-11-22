@@ -1,0 +1,59 @@
+/* 全部角色 above the keys: a dark frosted panel, its top right corner cut; while it is open the live preview hides (it counts as a dialog). */
+.pop {
+  position: absolute;
+  bottom: 98px;
+  left: 16px;
+  width: 372px;
+  padding: 14px 14px 12px;
+  background: rgb(40 40 40 / 86%);
+  color: #fff;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  backdrop-filter: blur(14px);
+}
+
+.popHd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font: 500 14px / 1 var(--ef-font-sans);
+}
+
+.popHd::before {
+  content: '';
+  flex: none;
+  width: 4px;
+  height: 14px;
+  background: var(--ef-accent);
+}
+
+.popHd::after {
+  content: '';
+  flex: 1;
+  height: 8px;
+  background: repeating-linear-gradient(-45deg, rgb(255 255 255 / 20%) 0 1px, transparent 1px 5px);
+}
+
+.popN {
+  color: rgb(255 255 255 / 55%);
+  font: 500 12px / 1 var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+@container op (max-width: 1100px) {
+  .pop {
+    bottom: 66px;
+    left: 8px;
+    width: 262px;
+    padding: 10px;
+  }
+}
+
+@container op (max-height: 560px) {
+  .pop {
+    bottom: 66px;
+    left: 8px;
+    width: 262px;
+    padding: 10px;
+  }
+}

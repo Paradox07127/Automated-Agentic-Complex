@@ -10,13 +10,13 @@
   pointer-events: none;
 }
 
-/* Overview: from the end of the name column to the rail. */
+/* Overview: the middle 44 % of the scene, clear of the name column on its left and the yellow block on its right. */
 .stage {
   position: absolute;
   top: 0;
-  right: calc(var(--rail) + var(--gap));
+  right: 28%;
   bottom: 0;
-  left: calc(var(--strip) + 32px + var(--info-w));
+  left: 28%;
   overflow: hidden;
   color: var(--ef-text-1);
   transition:
@@ -44,8 +44,40 @@
 }
 
 .frame[data-mode='photo'] .stage {
-  right: calc(var(--rail) + var(--gap) + var(--photo-w) + 12px);
+  right: calc(var(--rail) + var(--gap) + var(--panel-w) + 12px);
   left: var(--gap);
+}
+
+/* 总览: thin corner ticks on the stage edges, under the live preview. */
+.ticks i {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 0 solid rgb(0 0 0 / 22%);
+}
+
+.ticks i:nth-child(1) {
+  top: 10px;
+  left: 0;
+  border-width: 1px 0 0 1px;
+}
+
+.ticks i:nth-child(2) {
+  top: 10px;
+  right: 0;
+  border-width: 1px 1px 0 0;
+}
+
+.ticks i:nth-child(3) {
+  bottom: 10px;
+  left: 0;
+  border-width: 0 0 1px 1px;
+}
+
+.ticks i:nth-child(4) {
+  right: 0;
+  bottom: 10px;
+  border-width: 0 1px 1px 0;
 }
 
 /* The floor rings under her feet. */
@@ -99,7 +131,7 @@
   height: 100%;
 }
 
-/* Name block: the left column on 总览, the stage's lower left corner on a detail page. */
+/* Name block: the left column on 总览, the band under the stage on a detail page. */
 .details {
   position: absolute;
   top: 28px;
@@ -109,6 +141,20 @@
   gap: var(--ef-sp-8);
   width: var(--info-w);
   min-width: 0;
+  pointer-events: auto;
+}
+
+.frame[data-mode='overview'] .details {
+  gap: 0;
+}
+
+/* 总览: preview loading or failed, low in the left column above the roster keys. */
+.pv {
+  position: absolute;
+  bottom: 132px;
+  left: calc(var(--strip) + 20px);
+  z-index: 1;
+  width: var(--info-w);
   pointer-events: auto;
 }
 
@@ -132,11 +178,11 @@
   overflow: hidden;
 }
 
-.frame[data-mode='detail'] .details > :not(.nm) {
+.frame[data-mode='detail'] .details > :not([data-nameplate]) {
   grid-column: 2;
 }
 
-.frame[data-mode='detail'] .nm {
+.frame[data-mode='detail'] .details > [data-nameplate] {
   grid-row: 1 / span 4;
   align-self: center;
 }
@@ -145,102 +191,12 @@
   left: calc(var(--gap) + 12px);
 }
 
-.frame[data-mode='photo'] .nm {
-  display: none;
-}
-
 .ovlRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ef-sp-8);
   min-width: 0;
-}
-
-.nm {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  min-width: 0;
-}
-
-.plate {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  max-width: 100%;
-  color: #262626;
-}
-
-.emblem {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  border: 2px solid #262626;
-  color: #262626;
-}
-
-.emblem img {
-  width: 36px;
-  height: auto;
-  filter: brightness(0);
-}
-
-.names {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.name {
-  min-width: 0;
-  overflow: hidden;
-  font: 700 44px / 1.05 var(--ef-font-sans);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.en {
-  overflow: hidden;
-  color: rgb(38 38 38 / 62%);
-  font: 600 13px / 1 var(--ef-font-ui);
-  letter-spacing: 0.12em;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.frame:is([data-mode='detail'], [data-mode='photo']) .name {
-  font-size: 30px;
-}
-
-.frame:is([data-mode='detail'], [data-mode='photo']) .emblem {
-  width: 42px;
-  height: 42px;
-}
-
-/* What she is doing: the translucent grey bar with white text. */
-.act {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 30px;
-  padding: 0 12px;
-  background: rgb(96 96 96 / 62%);
-  color: #fff;
-  font: 500 14px / 1.2 var(--ef-font-sans);
-  backdrop-filter: blur(8px);
-}
-
-.actK {
-  padding-right: 10px;
-  border-right: 1px solid rgb(255 255 255 / 45%);
-  font-weight: 700;
 }
 
 /* The selected motion: bold over a low band. */
@@ -350,19 +306,24 @@
   filter: grayscale(1);
 }
 
-/* Compact: the name and the grey bar only. */
+/* Compact: the narrower band and stage, the left column closer to the strip. */
 @container op (max-width: 1100px) {
   .frame {
     --det-h: 84px;
   }
 
-  .emblem,
-  .en {
-    display: none;
+  .stage {
+    right: 30%;
+    left: 30%;
   }
 
-  .name {
-    font-size: 30px;
+  .details,
+  .pv {
+    left: calc(var(--strip) + 14px);
+  }
+
+  .pv {
+    bottom: 74px;
   }
 }
 
@@ -371,16 +332,21 @@
     --det-h: 84px;
   }
 
-  .emblem,
-  .en {
-    display: none;
-  }
-
-  .name {
-    font-size: 30px;
+  .stage {
+    right: 30%;
+    left: 30%;
   }
 
   .details {
-    top: 16px;
+    top: 14px;
+  }
+
+  .details,
+  .pv {
+    left: calc(var(--strip) + 14px);
+  }
+
+  .pv {
+    bottom: 74px;
   }
 }

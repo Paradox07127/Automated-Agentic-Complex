@@ -70,7 +70,7 @@ for (const [w, h] of [
 
 test('focus rings on the roster and 桌面预览 are not clipped', async ({ page }) => {
   await open(page, '/character');
-  // The roster opens from the stage's 切换角色 button.
+  // The roster opens from the 切换角色 key of 总览's head strip.
   await page.getByRole('button', { name: /^切换角色/ }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('navigation', { name: '角色名册' })).toBeVisible();

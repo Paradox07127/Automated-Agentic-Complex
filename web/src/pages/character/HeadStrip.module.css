@@ -1,34 +1,37 @@
-/* Head strip on the left edge: round heads, the current one with a yellow bar on its right; three square keys at the bottom. */
+/* 总览's head strip on the left edge (game CharInfo head list): white-rimmed heads fading out downwards, the current one with a glow and a yellow bar; the roster and 只看模型 keys bottom left. */
 .strip {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   z-index: 3;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
   width: var(--strip);
-  padding: 16px 0 14px;
 }
 
 .heads {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 120px;
+  left: 0;
   display: flex;
-  flex: 1;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  min-height: 0;
+  gap: 14px;
   overflow: hidden auto;
-  padding: 2px 0;
+  padding: 22px 0 24px;
+  background: linear-gradient(90deg, rgb(255 255 255 / 30%), rgb(255 255 255 / 0%));
+  backdrop-filter: blur(2px);
   scrollbar-width: none;
+  -webkit-mask: linear-gradient(180deg, #000 84%, transparent 99%);
+  mask: linear-gradient(180deg, #000 84%, transparent 99%);
 }
 
 .head {
   position: relative;
   flex: none;
-  width: calc(var(--strip) - 8px);
-  height: var(--head);
+  width: var(--head-w);
+  height: var(--head-h);
   padding: 0;
   border: 0;
   background: none;
@@ -39,35 +42,29 @@
   cursor: default;
 }
 
-.head[disabled]:not([aria-current]) .face {
-  opacity: 0.45;
-}
-
-/* smallcharhead_in: the glow behind the head, and the bar along the strip's right edge. */
-.head [data-g='sel'] {
-  inset: 0;
-  border-radius: 50%;
-}
-
-.head [data-g='bg'] {
-  inset: 4px -4px 4px auto;
-  width: 4px;
-  height: auto;
-}
-
+/* The game's head plate: round on top, a little squarer below. */
 .face {
-  position: relative;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: var(--head);
-  height: var(--head);
-  margin: 0 auto;
   overflow: hidden;
   border: 2px solid #fff;
-  border-radius: 50%;
-  background: #b9bab9;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 18%);
-  color: #fff;
+  border-radius: 50% 50% 46% 46% / 46% 46% 54% 54%;
+  background: radial-gradient(circle at 50% 36%, #fafafa, #c7c7c7);
+  box-shadow:
+    0 4px 10px rgb(0 0 0 / 20%),
+    inset 0 0 0 1px rgb(0 0 0 / 6%);
+  color: #8a8a8a;
+}
+
+.head:not([aria-current]) .face {
+  filter: saturate(0.8) brightness(0.96);
+}
+
+.head[disabled]:not([aria-current]) .face {
+  opacity: 0.45;
 }
 
 .face :global([data-stub='CharacterArt']) {
@@ -88,65 +85,276 @@
 }
 
 .head:hover:not([disabled]) .face {
-  border-color: #ffe600;
+  border-color: var(--ef-accent);
 }
 
+/* Target of a switch in progress: a dashed yellow ring. */
 .head[data-target] .face {
-  outline: 2px solid #262626;
-  outline-offset: 2px;
+  outline: 2px dashed var(--ef-accent);
+  outline-offset: 1px;
+}
+
+/* smallcharhead_in on the current head: the glow behind it and the bar on the strip's right edge. */
+.strip .head [data-g='sel'] {
+  inset: -16px -14px -16px -22px;
+  background: radial-gradient(ellipse 50% 50% at 52% 50%, rgb(255 250 170 / 95%) 0 34%, rgb(255 241 0 / 35%) 52%, transparent 72%);
+  -webkit-mask: none;
+  mask: none;
+}
+
+.strip .head [data-g='bg'] {
+  inset: -4px calc((var(--head-w) - var(--strip)) / 2) -4px auto;
+  width: 4px;
+  height: auto;
+}
+
+/* 在桌面: the blue formation mark on the head of the one on the desktop. */
+.desk {
+  position: absolute;
+  top: -2px;
+  left: -4px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border: 1.5px solid #fff;
+  background: rgb(61 136 205);
+  color: #fff;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+}
+
+.desk svg {
+  width: 11px;
+  height: 11px;
 }
 
 .head:focus-visible,
-.key:focus-visible {
+.list:focus-visible,
+.bareKey:focus-visible {
   outline: 2px solid #262626;
   outline-offset: 2px;
 }
 
 .keys {
-  position: relative;
+  position: absolute;
+  bottom: 18px;
+  left: 0;
   display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-end;
+  gap: 14px;
 }
 
-.key {
-  display: grid;
-  place-items: center;
-  width: calc(var(--strip) - 40px);
-  min-width: 36px;
-  aspect-ratio: 1;
+/* 名册 (game ExpandListButton): a right triangle with a lit hypotenuse, yellow while the roster is open. */
+.list {
+  position: relative;
+  flex: none;
+  width: 90px;
+  height: 88px;
   padding: 0;
   border: 0;
-  background: rgb(96 96 96 / 62%);
-  color: #fff;
+  background: none;
+  color: rgb(0 0 0 / 55%);
   cursor: pointer;
-  backdrop-filter: blur(8px);
 }
 
-.key:hover,
-.key[aria-expanded='true'],
-.key[aria-pressed='true'] {
-  background: #ffe600;
+.list::before,
+.list::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.list::before {
+  background: linear-gradient(135deg, rgb(255 255 255 / 70%), rgb(255 255 255 / 30%));
+  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.list::after {
+  background: linear-gradient(135deg, transparent 49.2%, rgb(255 255 255 / 95%) 49.6% 50.4%, transparent 50.8%);
+}
+
+.list:hover::before {
+  background-color: rgb(255 255 255 / 30%);
+}
+
+.list[aria-expanded='true']::before {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ef-accent) 40%, #fff), var(--ef-accent));
+}
+
+.list > * {
+  position: absolute;
+  left: 18px;
+}
+
+.list > svg {
+  bottom: 20px;
+  width: 22px;
+  height: 22px;
+}
+
+.list > [data-stub='MicroLabel'] {
+  bottom: 6px;
+}
+
+/* 只看模型 (game PreviewBtn): a frosted square with a cut corner, yellow while the UI is hidden. */
+.bareKey {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgb(0 0 0 / 50%);
+  cursor: pointer;
+}
+
+.bareKey::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / 42%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 70%);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  backdrop-filter: blur(6px);
+}
+
+.bareKey:hover::before {
+  background: rgb(255 255 255 / 70%);
+}
+
+.bareKey[aria-pressed='true'] {
   color: #1a1a1a;
+}
+
+.bareKey[aria-pressed='true']::before {
+  background: var(--ef-accent);
+}
+
+.bareKey > svg {
+  position: relative;
+}
+
+.lbl {
+  position: absolute;
+  bottom: 16px;
+  left: 60px;
+  color: rgb(38 38 38 / 62%);
+  font: 400 12px / 1 var(--ef-font-sans);
+  white-space: nowrap;
 }
 
 /* Hidden UI: only the key that brings it back. */
 .strip[data-bare] .heads,
-.strip[data-bare] .key:not([data-bare-key]) {
+.strip[data-bare] .list,
+.strip[data-bare] .lbl {
   visibility: hidden;
 }
 
-/* The roster opens beside the strip; while it is open the live preview hides (it counts as a dialog). */
-.pop {
-  position: absolute;
-  bottom: 0;
-  left: calc(100% - 8px);
-  width: max-content;
-  max-width: min(520px, 60cqw);
-  padding: 6px;
-  border: 1px solid var(--ef-line-strong);
-  background: var(--ef-surface-1);
-  box-shadow: 0 8px 24px var(--ef-scrim-popup);
+/* Compact (925 × 515 and alike): smaller heads and keys, no key captions. */
+@container op (max-width: 1100px) {
+  .heads {
+    bottom: 74px;
+    gap: 8px;
+    padding-top: 12px;
+  }
+
+  .desk {
+    width: 15px;
+    height: 15px;
+  }
+
+  .desk svg {
+    width: 9px;
+    height: 9px;
+  }
+
+  .strip .head [data-g='bg'] {
+    width: 3px;
+  }
+
+  .keys {
+    bottom: 8px;
+    gap: 8px;
+  }
+
+  .list {
+    width: 62px;
+    height: 60px;
+  }
+
+  .list > svg {
+    left: 12px;
+    bottom: 10px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .list > [data-stub='MicroLabel'],
+  .lbl {
+    display: none;
+  }
+
+  .bareKey {
+    width: 40px;
+    height: 40px;
+  }
+
+  .bareKey > svg {
+    width: 20px;
+    height: 20px;
+  }
+
+}
+
+@container op (max-height: 560px) {
+  .heads {
+    bottom: 74px;
+    gap: 8px;
+    padding-top: 12px;
+  }
+
+  .keys {
+    bottom: 8px;
+    gap: 8px;
+  }
+
+  .list {
+    width: 62px;
+    height: 60px;
+  }
+
+  .list > svg {
+    left: 12px;
+    bottom: 10px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .list > [data-stub='MicroLabel'],
+  .lbl {
+    display: none;
+  }
+
+  .bareKey {
+    width: 40px;
+    height: 40px;
+  }
+
+  .bareKey > svg {
+    width: 20px;
+    height: 20px;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list::before {
+    transition: none;
+  }
 }

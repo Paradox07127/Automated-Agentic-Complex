@@ -12,10 +12,6 @@
   min-height: 0;
 }
 
-.panel[data-photo] {
-  width: var(--photo-w);
-}
-
 .bar {
   flex: none;
 }
@@ -79,7 +75,7 @@
 }
 
 .tab[aria-selected='true'] .div {
-  background: #ffe600;
+  background: var(--ef-accent);
 }
 
 .body {

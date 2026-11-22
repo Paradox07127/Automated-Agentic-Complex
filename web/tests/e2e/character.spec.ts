@@ -20,7 +20,7 @@ const overflowX = (page: Page, id: string) =>
     ),
   id);
 
-/** The roster opens from the stage's 切换角色 button. */
+/** The roster opens from the 切换角色 key of 总览's head strip. */
 async function roster(page: Page) {
   await page.getByRole('button', { name: /^切换角色/ }).click();
   const nav = page.getByRole('navigation', { name: '角色名册' });
@@ -30,9 +30,11 @@ async function roster(page: Page) {
 
 test('ok: roster, stage and the motion table with two unsaved switches; no state tabs', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/character?still=1&demo=ok&pane=motion');
+  await page.goto('main.html#/character?still=1&demo=ok');
   await expect(page.getByRole('navigation', { name: '角色名册' })).toHaveCount(0);
   await roster(page);
+  await page.goto('main.html#/character?still=1&demo=ok&pane=motion');
+  await expect(page.getByRole('button', { name: /^切换角色/ })).toHaveCount(0);
   const stage = page.locator('[data-stage]');
   await expect(stage).toContainText('点头附和');
   await expect(page.getByRole('grid', { name: '全部动作' })).toContainText('移动与姿态');
@@ -43,10 +45,12 @@ test('ok: roster, stage and the motion table with two unsaved switches; no state
 });
 
 test('stage labels are Chinese; the jump row names each section in full', async ({ page }) => {
+  await page.goto('main.html#/character?still=1');
+  await expect(page.locator('[data-stage] [data-nameplate]')).toHaveText('示例乙在桌面SI在做坐着');
   await page.goto('main.html#/character?still=1&pane=motion');
   const stage = page.locator('[data-stage]');
   await expect(stage).toContainText('触发');
-  await expect(stage.locator('[data-nameplate]')).toHaveText('示例乙SI在做坐着');
+  await expect(stage.locator('[data-nameplate]')).toHaveCount(0);
   await expect(stage).not.toContainText(/TRIGGER|TIME|TODAY|NOW|DESKTOP PARTNER|MOTION/i);
   const jump = page.getByRole('group', { name: '跳转到分区' });
   await expect(jump.getByRole('button', { name: '跳转到 移动与姿态' })).toHaveText('移动与姿态');
@@ -83,7 +87,6 @@ test('900×600: the portrait stays beside the action list', async ({ page }) => 
   const grid = page.getByRole('grid', { name: '全部动作' });
   await expect(grid).toBeVisible();
   const table = (await grid.boundingBox())!;
-  expect(stage.width).toBeLessThanOrEqual(330);
   expect(table.x).toBeGreaterThan(stage.x + stage.width);
   expect(table.width).toBeGreaterThan(stage.width);
   expect(await overflowX(page, 'character')).toBe(false);
@@ -177,11 +180,12 @@ const ROW_MARK = 'rgb(255, 230, 0)';
 
 for (const theme of ['dark', 'light'] as const) {
   test(`yellow marks (${theme}): the current character and the current motion's row edge; the commit line sits in the bottom bar`, async ({ page }) => {
-    await page.goto(`main.html#/character?still=1&demo=ok&pane=motion&theme=${theme}`);
+    await page.goto(`main.html#/character?still=1&demo=ok&theme=${theme}`);
     const fill = (l: ReturnType<Page['locator']>) => l.evaluate((e) => getComputedStyle(e).backgroundImage + getComputedStyle(e).backgroundColor);
     const nav = await roster(page);
     await expect(nav.locator('button[aria-current]')).toHaveCount(1);
     expect(await fill(nav.locator('button[aria-current] [data-g="bg"]'))).toContain(ACCENT);
+    await page.goto(`main.html#/character?still=1&demo=ok&pane=motion&theme=${theme}`);
     const edge = (l: ReturnType<Page['locator']>) => l.evaluate((e) => getComputedStyle(e).borderLeftColor);
     expect(await edge(page.locator('[data-motion="nod"]'))).toBe(ROW_MARK);
     expect(await edge(page.locator('[data-motion="talk"]'))).not.toBe(ROW_MARK);

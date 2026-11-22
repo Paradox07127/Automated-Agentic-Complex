@@ -1,4 +1,4 @@
-/* 角色页: the scene layout, the roster cards and the 外观 size row. */
+/* 角色页: the scene layout and the 外观 size row. */
 @import './OperatorPart1.css';
 
 /* State / behavior decision tabs. */
@@ -84,24 +84,4 @@
 .num {
   font-family: var(--ef-font-num);
   font-variant-numeric: tabular-nums;
-}
-
-/* Reduced motion: the panels fade in without sliding. */
-@media (prefers-reduced-motion: reduce) {
-  .rc {
-    transition: none;
-  }
-
-  .roster {
-    animation: op-fade-in var(--ef-dur-g-panel-in) var(--ef-ease-g-fade) both;
-  }
-}
-
-:global([data-reduce-motion]) .rc,
-:global(.still) .rc {
-  transition: none;
-}
-
-:global([data-reduce-motion]) .roster {
-  animation: op-fade-in var(--ef-dur-g-panel-in) var(--ef-ease-g-fade) both;
 }

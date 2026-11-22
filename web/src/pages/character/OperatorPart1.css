@@ -1,19 +1,37 @@
 .op {
-  /* The scene's widths: head strip, rail, the name column, the detail and 拍照 panels. */
+  /* The scene's widths: head strip (总览 only), rail, the name column; --panel-w comes from the view's tier below. */
   --strip: 84px;
-  --head: 60px;
+  --head-w: 62px;
+  --head-h: 68px;
   --rail: 64px;
-  --rail-item: 64px;
+  --rail-item: clamp(64px, calc((100cqh - 190px) / 6), 96px);
   --gap: 12px;
-  --info-w: clamp(220px, 22cqw, 320px);
-  --panel-w: clamp(440px, 50cqw, 880px);
-  --photo-w: clamp(300px, 26cqw, 380px);
+  --info-w: min(292px, calc(28cqw - var(--strip) - 27px));
+  --panel-w: 0px;
 
   position: relative;
   height: 100%;
   overflow: hidden;
   container: op / size;
   color: #262626;
+}
+
+/* Detail panel tiers (BRIEF 11-22 C): about 46 % of the content, 36 % for 设定, a 360 px column for 拍照 at 1440. */
+.op[data-panel='wide'] {
+  --panel-w: clamp(440px, 46cqw, 900px);
+}
+
+.op[data-panel='narrow'] {
+  --panel-w: clamp(340px, 36cqw, 700px);
+}
+
+.op[data-panel='photo'] {
+  --panel-w: clamp(300px, 25cqw, 380px);
+}
+
+/* No head strip outside 总览: the stage starts at the left edge. */
+.op:not([data-mode='overview']) {
+  --strip: 0px;
 }
 
 /* The stage layer: no box of its own to click, and no scroll box (it would cut the shell's live preview). */
@@ -29,154 +47,33 @@
   visibility: hidden;
 }
 
-/* Compact (925 × 515 and alike): a narrower head strip and name column, shorter rail keys. */
+/* Compact (925 × 515 and alike): a narrower head strip, name column and rail, shorter rail cells. */
 @container op (max-width: 1100px) {
   .op > * {
-    --strip: 64px;
-    --head: 44px;
-    --info-w: 190px;
+    --head-w: 44px;
+    --head-h: 48px;
+    --rail: 52px;
+    --rail-item: 66px;
+    --info-w: min(196px, calc(30cqw - var(--strip) - 20px));
+  }
+
+  .op[data-mode='overview'] > * {
+    --strip: 62px;
   }
 }
 
 @container op (max-height: 560px) {
   .op > * {
-    --strip: 64px;
-    --head: 44px;
-    --rail-item: 52px;
-    --info-w: 190px;
+    --head-w: 44px;
+    --head-h: 48px;
+    --rail: 52px;
+    --rail-item: 66px;
+    --info-w: min(196px, calc(30cqw - var(--strip) - 20px));
   }
-}
 
-/* Character cards (charformation): portrait, ghost index, name, and the bar along the bottom, yellow on the current one. */
-.roster {
-  position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* CharListNode/BG/Blur: the frosted band under the cards. */
-.rosterBg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.rosterBg > * {
-  height: 100%;
-}
-
-.rc {
-  --fill: var(--ef-surface-2);
-  --bar: var(--ef-line-strong);
-
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  justify-content: flex-end;
-  width: 60px;
-  height: 86.5px;
-  overflow: hidden;
-  padding: 0 0 4px;
-  border: 0;
-  background: linear-gradient(var(--bar), var(--bar)) bottom / 100% 4px no-repeat, var(--fill);
-  color: var(--ef-text-1);
-  text-align: left;
-  cursor: pointer;
-  transition: transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
-}
-
-.rc:hover:not([disabled], [aria-current]) {
-  --fill: var(--ef-surface-3);
-}
-
-.rc:active:not([disabled], [aria-current]) {
-  transform: translateY(1px);
-}
-
-.rc[disabled] {
-  color: var(--ef-text-disabled);
-  cursor: default;
-}
-
-/* Target of a switch in progress: running, a solid ink frame. */
-.rc[data-target] {
-  outline: 1px solid var(--ef-text-1);
-  outline-offset: -1px;
-}
-
-.rc:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
-/* Head art fills the card; the plate colour ramps up under the name. */
-.rcArt {
-  position: absolute;
-  inset: 0 0 4px;
-  z-index: 0;
-  display: flex;
-}
-
-.rcArt :global([data-stub='CharacterArt']) {
-  width: 100%;
-  height: 100%;
-}
-
-.rcArt :global([data-stub='CharacterArt'])::before,
-.rcArt :global([data-stub='CharacterArt'])::after {
-  display: none;
-}
-
-.rcArt img {
-  clip-path: none;
-}
-
-.rc[disabled] .rcArt {
-  opacity: 0.5;
-}
-
-.rc::before {
-  content: '';
-  position: absolute;
-  inset: auto 0 4px;
-  z-index: 1;
-  height: 40px;
-  background: linear-gradient(to top, var(--fill) 45%, transparent);
-  pointer-events: none;
-}
-
-/* Ghost index: a big outlined number, decoration only. */
-.rcNo {
-  position: absolute;
-  z-index: 2;
-  top: 2px;
-  right: 3px;
-  font: 800 34px / 1 var(--ef-font-ui);
-  font-stretch: var(--ef-wide);
-  font-variant-numeric: tabular-nums;
-  color: transparent;
-  -webkit-text-stroke: 1px color-mix(in srgb, var(--ef-text-1) 28%, transparent);
-}
-
-.rcName {
-  position: relative;
-  z-index: 2;
-  overflow: hidden;
-  padding: 0 5px 5px;
-  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1.2 var(--ef-font-sans);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.add {
-  align-items: center;
-  justify-content: center;
-  gap: var(--ef-sp-6);
-  color: var(--ef-text-2);
+  .op[data-mode='overview'] > * {
+    --strip: 62px;
+  }
 }
 
 /* The motion list fills the panel and scrolls inside it. */
@@ -228,12 +125,12 @@
 }
 
 .preset[aria-selected='true'] {
-  background: #ffe600;
+  background: var(--ef-accent);
   color: #1a1a1a;
 }
 
 .preset:focus-visible {
-  outline: 2px solid #ffe600;
+  outline: 2px solid var(--ef-accent);
   outline-offset: 2px;
 }
 
@@ -242,4 +139,9 @@
   display: block;
   flex: 1 1 160px;
   min-width: 0;
+}
+
+/* The slider spans its share of the row, and the whole line once it wraps under the presets. */
+.slider > :global([data-stub='Slider']) {
+  width: 100%;
 }

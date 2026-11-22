@@ -26,7 +26,7 @@ async function mount(search: string) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await screen.findByRole('button', { name: /^切换角色/ });
+  await screen.findByRole('navigation', { name: '角色分区' });
 }
 
 /** Captures every `character.onImport` callback; `push` reaches them all. */

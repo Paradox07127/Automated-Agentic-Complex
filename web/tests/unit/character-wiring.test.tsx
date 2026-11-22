@@ -150,8 +150,8 @@ function Op(over: Partial<OperatorProps> = {}) {
 }
 
 describe('operator view', () => {
-  it('names the activity key in words on the stage', () => {
-    render(<Op />);
+  it('names the activity key in words on 总览', () => {
+    render(<Op pane="overview" />);
     expect(document.querySelector('[data-stage]')?.textContent).toContain('坐着');
   });
 

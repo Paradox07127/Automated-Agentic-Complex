@@ -3,7 +3,8 @@ import type { AvatarAction } from '../../bridge';
 import { NodeChain, type ChainNode } from '../../charts';
 import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
 import { Btn, CharacterArt, Spinner, StatusTag } from '../../ui';
-import { Emblem, Silhouette } from './Figure';
+import { Silhouette } from './Figure';
+import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';
 import { useLivePreview } from './usePreview';
 import type { SwitchState } from './useSwitch';
 import styles from './Stage.module.css';
@@ -18,9 +19,14 @@ export interface StagePlay {
 export interface StageProps {
   motion: AvatarAction | undefined;
   section: string;
+  /** Empty draws no name block. */
   name: string;
   /** Latin name under the name. */
   en?: string | undefined;
+  /** She is the one on the desktop: the 在桌面 mark on the name block. */
+  active?: boolean | undefined;
+  /** Her voice binding under the name; absent or null draws no voice line. */
+  voice?: VoiceBinding | null | undefined;
   /** Where the stage stands: right of the name on 总览, left of the panel on a detail page, beside the 拍照 panel; absent is a detail page. */
   mode?: StageMode;
   /** Host art; the portrait wins over the head. */
@@ -61,7 +67,7 @@ export function StageSkel() {
   );
 }
 
-/** The live preview stage on the training room floor, and the name block: her name, what she is doing, the selected motion and playback feedback. */
+/** The live preview stage on the training room floor, and the name block: her name, what she is doing, the selected motion and playback feedback. On 总览 the state rows (not running, a switch) stand under the name block, outside the stage the live preview covers. */
 export function Stage(p: StageProps) {
   const m = p.motion;
   const spec: Array<[k: string, v: string]> = [];
@@ -76,13 +82,25 @@ export function Stage(p: StageProps) {
     loop: p.loop,
     blocked: p.offline || p.sw.phase !== 'idle',
   });
+  const mode = p.mode ?? 'detail';
+  const overview = mode === 'overview';
+  const previewNote = (
+    <>
+      {preview.phase === 'loading' && <span className={styles.cap} role="status"><Spinner label="正在载入预览" /> 正在载入预览</span>}
+      {preview.phase === 'failed' && <div className={styles.ovlRow} role="status">
+        <span className={styles.cap}>{preview.message}</span>
+        <Btn size="sm" variant="quiet" onClick={preview.retry}>重试预览</Btn>
+      </div>}
+    </>
+  );
   return (
-    <div className={styles.frame} data-stage="" data-mode={p.mode ?? 'detail'}>
+    <div className={styles.frame} data-stage="" data-mode={mode}>
       <div ref={setEl} className={styles.stage} data-off={p.offline || undefined} data-preview-stage="" data-live={preview.phase === 'live' || undefined}>
         <svg className={styles.rings} viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">
           <ellipse cx={50} cy={10} rx={49} ry={9} />
           <ellipse cx={50} cy={10} rx={30} ry={5.5} />
         </svg>
+        {overview && <span className={styles.ticks} aria-hidden="true"><i /><i /><i /><i /></span>}
         <div className={styles.fig} style={{ transform: `translateX(-50%) scale(${0.8 + p.scale / 500})` }}>
           {p.portrait ? (
             <CharacterArt src={p.portrait} kind="portrait" w={520} h={520} fallback={<Silhouette />} />
@@ -90,31 +108,20 @@ export function Stage(p: StageProps) {
             <CharacterArt src={p.head} kind="head" w={152} h={212} fallback={<Silhouette />} />
           )}
         </div>
-        {p.offline && (
+        {!overview && p.offline && (
           <div className={styles.ovl} data-theme="dark" role="status">
             <StatusTag state="unreachable" label="角色未运行" />
             {p.backoff != null && <span className={styles.cap}>退避 {p.backoff} 秒后重试</span>}
             <Btn variant="secondary" onClick={p.onRestart}>重启角色</Btn>
           </div>
         )}
-        {p.sw.phase !== 'idle' && <SwitchOverlay sw={p.sw} currentName={p.currentName} onRetry={p.onRetry} onDismiss={p.onDismiss} />}
+        {!overview && p.sw.phase !== 'idle' && <SwitchOverlay sw={p.sw} currentName={p.currentName} onRetry={p.onRetry} onDismiss={p.onDismiss} />}
       </div>
       <div className={styles.details} data-g="info">
-        <div className={styles.nm} data-nameplate="" data-g="root">
-          <span className={styles.plate} data-g="nameplate">
-            <Emblem className={styles.emblem} />
-            <span className={styles.names}>
-              <b className={styles.name}>{p.name}</b>
-              {p.en && <span className={styles.en}>{p.en}</span>}
-            </span>
-          </span>
-          {!p.offline && p.activity && (
-            <span className={styles.act} data-g="level">
-              <span className={styles.actK}>在做</span>
-              {p.activity}
-            </span>
-          )}
-        </div>
+        {/* The state row takes the place of 在做 while she is not running or a switch is on. */}
+        {p.name && <NameBlock name={p.name} en={p.en} active={p.active} voice={p.voice} activity={overview && p.sw.phase !== 'idle' ? null : p.activity} offline={p.offline} />}
+        {overview && p.offline && <OfflineRow backoff={p.backoff} onRestart={p.onRestart} />}
+        {overview && p.sw.phase !== 'idle' && <SwitchRow sw={p.sw} currentName={p.currentName} onRetry={p.onRetry} onDismiss={p.onDismiss} />}
         {m && <div className={styles.motion} data-g="tags">
           <b>{m.label}</b>
           {m.durationS != null && <span className="num">{secs(m.durationS)}</span>}
@@ -130,11 +137,7 @@ export function Stage(p: StageProps) {
             ))}
           </dl>
         )}
-        {preview.phase === 'loading' && <span className={styles.cap} role="status"><Spinner label="正在载入预览" /> 正在载入预览</span>}
-        {preview.phase === 'failed' && <div className={styles.ovlRow} role="status">
-          <span className={styles.cap}>{preview.message}</span>
-          <Btn size="sm" variant="quiet" onClick={preview.retry}>重试预览</Btn>
-        </div>}
+        {!overview && previewNote}
         {p.play && (
           <div className={styles.playing} role="status">
             <span className={styles.plT}>
@@ -148,6 +151,7 @@ export function Stage(p: StageProps) {
           </div>
         )}
       </div>
+      {overview && <div className={styles.pv}>{previewNote}</div>}
     </div>
   );
 }

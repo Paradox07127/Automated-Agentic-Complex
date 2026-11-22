@@ -37,18 +37,22 @@ afterEach(() => {
 
 describe('character · 角色与动作', () => {
   it('draws the roster, the stage and the whole motion table', async () => {
-    await mount('&demo=ok&pane=motion');
-    // The full roster, with 导入 at its end, opens from the head strip's 切换角色 key.
+    await mount('&demo=ok');
+    // The full roster, with 导入角色 at its end, opens from the 切换角色 key of 总览's head strip.
     expect(screen.queryByRole('navigation', { name: '角色名册' })).toBeNull();
     const toggle = await screen.findByRole('button', { name: '切换角色，当前 示例乙' });
     await act(async () => void fireEvent.click(toggle));
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     const roster = screen.getByRole('navigation', { name: '角色名册' });
     const items = within(roster).getAllByRole('button');
-    expect(items.map((b) => b.textContent)).toEqual(['01示例乙', '02示例甲', '03示例丙', '导入']);
+    expect(items.map((b) => b.textContent)).toEqual(['01示例乙', '02示例甲', '03示例丙', '导入角色']);
     expect(items.map((b) => b.getAttribute('aria-current'))).toEqual(['true', null, null, null]);
     expect(items[1]?.querySelector('[aria-hidden="true"]')?.textContent).toBe('02');
+    cleanup();
+    // The detail pages have no head strip and no roster key.
+    await mount('&demo=ok&pane=motion');
     await waitFor(() => expect(stage().textContent).toContain('点头附和'));
+    expect(screen.queryByRole('button', { name: /^切换角色/ })).toBeNull();
     expect(stage().textContent).toContain('批准之后');
     const grid = screen.getByRole('grid', { name: '全部动作' });
     expect(['说话', '反应', '待机', '移动与姿态', '互动'].every((s) => grid.textContent?.includes(s))).toBe(true);
@@ -121,13 +125,15 @@ describe('character · 角色与动作', () => {
 });
 
 describe('角色 page layout', () => {
-  it('keeps the name and posture separate from the selected motion', async () => {
+  it('puts the name block with what she is doing on 总览 only, apart from the selected motion on 动作', async () => {
+    await mount();
+    await waitFor(() => expect(stage().querySelector('[data-nameplate]')?.textContent).toContain('在做坐着'));
+    expect(stage().querySelector('[data-nameplate]')?.textContent).toContain('示例乙');
+    cleanup();
     await mount('&pane=motion');
     await waitFor(() => expect(stage().textContent).toContain('点头附和'));
-    const plate = stage().querySelector('[data-nameplate]')?.textContent ?? '';
-    expect(plate).toContain('示例乙');
-    expect(plate).toContain('在做坐着');
-    expect(plate).not.toContain('点头附和');
+    expect(stage().querySelector('[data-nameplate]')).toBeNull();
+    expect(stage().textContent).not.toContain('坐着');
   });
 
   it('section tabs mark the selected motion’s section and move to the one jumped to', async () => {

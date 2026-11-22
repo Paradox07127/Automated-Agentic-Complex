@@ -95,3 +95,7 @@ export const testVoice = (body: { url?: string; token?: string }) => post<WireVo
 
 /** Stores the external voice service's token for the running agentd and later starts (main surface only). */
 export const saveVoiceToken = (token: string) => post<{ ok: true }>('/voice/token', { token });
+
+/** The voice a character speaks with, from her effective binding; null when neither her package nor the user names one (main surface only). */
+export const readVoiceBinding = (character: string) =>
+  get<{ voice: { voice_id: string; language: string } | null }>(`/characters/${seg(character)}/binding`).then((b) => (b.voice ? { voiceId: b.voice.voice_id, language: b.voice.language } : null));

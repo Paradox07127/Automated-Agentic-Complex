@@ -1,8 +1,8 @@
 import type { Ref } from 'react';
 import type { CharacterProfile } from '../../domain';
-import { CharacterArt, Frosted, Icon } from '../../ui';
+import { CharacterArt, Icon } from '../../ui';
 import { HeadPick } from './charMotion';
-import styles from './Operator.module.css';
+import styles from './Roster.module.css';
 
 export interface RosterProps {
   characters: CharacterProfile[];
@@ -20,15 +20,12 @@ export interface RosterProps {
   listRef?: Ref<HTMLElement>;
 }
 
-const pad2 = (n: number) => String(n).padStart(2, '0');
+export const pad2 = (n: number) => String(n).padStart(2, '0');
 
-/** 角色切换：一行角色卡，头像、幽灵编号和名字，当前角色底边黄条；点别的角色发起切换，最后一格导入。 */
+/** 全部角色：三列角色卡，头像、幽灵编号和底部名字条，当前角色底边黄条、名字变黄；点别的角色发起切换，最后一格斜纹「导入角色」。 */
 export function Roster({ characters, current, pending, offline, importing = false, onPick, onImport, listRef }: RosterProps) {
   return (
     <nav ref={listRef} className={styles.roster} aria-label="角色名册" data-nav-target="roster" data-g="listSide">
-      <span className={styles.rosterBg} aria-hidden="true">
-        <Frosted blur={16} tint={0.5} />
-      </span>
       {characters.map((c, i) => {
         const on = c.id === current;
         return (
@@ -44,20 +41,20 @@ export function Roster({ characters, current, pending, offline, importing = fals
             onClick={() => onPick(c)}
           >
             {on && <HeadPick />}
-            <span className={styles.rcNo} aria-hidden="true">
+            <span className={styles.no} aria-hidden="true">
               {pad2(i + 1)}
             </span>
-            <span className={styles.rcArt} aria-hidden="true">
-              <CharacterArt src={c.head} kind="head" w={60} h={83} fallback={null} />
+            <span className={styles.art} aria-hidden="true">
+              <CharacterArt src={c.head} id={c.id} art="round" kind="head" w={84} h={84} fallback={<Icon name="user" size={32} />} />
             </span>
-            <span className={styles.rcName}>{c.name}</span>
+            <span className={styles.name}>{c.name}</span>
           </button>
         );
       })}
       {onImport && (
         <button type="button" className={`${styles.rc} ${styles.add}`} data-g="root" onClick={onImport}>
-          <Icon name="plus" size={14} />
-          <span className={styles.rcName}>导入</span>
+          <Icon name="plus" size={24} />
+          <span>导入角色</span>
         </button>
       )}
     </nav>

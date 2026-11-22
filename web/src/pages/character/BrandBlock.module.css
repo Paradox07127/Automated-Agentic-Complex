@@ -1,0 +1,151 @@
+/* The yellow slanted block left of the rail: one long slanted edge with a cut lower left corner, a fine hatch, halftone dots and a white edge; the brand set vertically in an outline and a solid layer. Decoration only. */
+.yb {
+  position: absolute;
+  top: 0;
+  right: var(--rail);
+  z-index: 1;
+  width: clamp(150px, 17.4cqw, 250px);
+  height: min(760px, 92%);
+  pointer-events: none;
+}
+
+.shape {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(-60deg, transparent 0 26px, rgb(255 255 255 / 14%) 26px 27px),
+    linear-gradient(175deg, color-mix(in srgb, var(--ef-accent) 65%, #fff) 0%, var(--ef-accent) 40%, color-mix(in srgb, var(--ef-accent) 88%, #b08c00) 100%);
+  clip-path: polygon(84% 0, 100% 0, 100% 100%, 12% 100%, 0 96%);
+}
+
+.shape::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgb(0 0 0 / 20%) 1px, transparent 1.5px) 0 0 / 6px 6px;
+  -webkit-mask: linear-gradient(160deg, transparent 50%, #000 70%, transparent 92%);
+  mask: linear-gradient(160deg, transparent 50%, #000 70%, transparent 92%);
+}
+
+/* The white line along the slanted edge. */
+.edge {
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / 90%);
+  clip-path: polygon(84% 0, 85.2% 0, 1.2% 96.1%, 0 96%);
+}
+
+.rule {
+  position: absolute;
+  bottom: 16px;
+  left: 46.4%;
+  width: 1px;
+  height: 40%;
+  background: rgb(0 0 0 / 35%);
+}
+
+.brand {
+  position: absolute;
+  bottom: 16px;
+  left: 51.2%;
+  width: 110px;
+  height: 60%;
+}
+
+.w {
+  position: absolute;
+  bottom: 0;
+  color: #fff;
+  font: 900 48px / 1 var(--ef-font-num);
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+}
+
+.o {
+  bottom: 8px;
+  left: 4px;
+  color: transparent;
+  -webkit-text-stroke: 1.5px #1a1a1a;
+}
+
+.s {
+  left: 0;
+  text-shadow: 3px 0 0 rgb(26 26 26 / 85%);
+}
+
+.w2 {
+  position: absolute;
+  bottom: 2px;
+  left: 60px;
+  color: #1a1a1a;
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+}
+
+.w2 > * {
+  letter-spacing: 1.2em;
+  opacity: 0.8;
+}
+
+.orn {
+  position: absolute;
+  right: 12px;
+  bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #1a1a1a;
+}
+
+.orn i {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid currentColor;
+}
+
+@container op (max-width: 1100px) {
+  .yb {
+    width: 150px;
+  }
+
+  .brand {
+    left: 65%;
+    width: 50px;
+    height: 75%;
+    bottom: 12px;
+  }
+
+  .w {
+    font-size: 33px;
+  }
+
+  .w2,
+  .rule,
+  .orn {
+    display: none;
+  }
+}
+
+@container op (max-height: 560px) {
+  .yb {
+    width: 150px;
+  }
+
+  .brand {
+    left: 65%;
+    width: 50px;
+    height: 75%;
+    bottom: 12px;
+  }
+
+  .w {
+    font-size: 33px;
+  }
+
+  .w2,
+  .rule,
+  .orn {
+    display: none;
+  }
+}

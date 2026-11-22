@@ -37,7 +37,7 @@ async function mount(search = '') {
     </QueryClientProvider>,
   );
   await waitFor(() => expect(document.querySelector('[data-page]')).not.toBeNull());
-  if (search) await screen.findByRole('button', { name: /^切换角色/ });
+  if (search) await screen.findByRole('navigation', { name: '角色分区' });
   await act(async () => {});
 }
 

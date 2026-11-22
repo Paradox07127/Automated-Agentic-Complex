@@ -33,12 +33,14 @@ async function smallChinese(page: Page): Promise<string[]> {
 // The page brings back the preview stage as the page's main visual; its English marks are aria-hidden decoration.
 test('character-default: roster heads stay small, look options and layer switches, no small Chinese', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/character?still=1&pane=look');
-  // The roster opens from the stage's 切换角色 button.
+  await page.goto('main.html#/character?still=1');
+  // The roster opens from the 切换角色 key of 总览's head strip.
   await page.getByRole('button', { name: /^切换角色/ }).click();
   await expect(page.getByRole('navigation', { name: '角色名册' })).toBeVisible();
   const tallest = await page.evaluate(() => Math.max(0, ...[...document.querySelectorAll('main svg[viewBox="0 0 22 30"]')].map((s) => s.getBoundingClientRect().height)));
   expect(tallest).toBeLessThanOrEqual(48);
+  expect(await smallChinese(page)).toEqual([]);
+  await page.goto('main.html#/character?still=1&pane=look');
   await expect(page.getByRole('listbox', { name: '外观' }).getByRole('option').first()).toBeVisible();
   // 显示 has its own tab in the detail panel.
   await page.getByRole('tablist', { name: '角色页签' }).getByRole('tab', { name: '显示' }).click();

@@ -1,5 +1,6 @@
 import type { IconName } from '../../ui';
-import { RailCell } from '../../ui/game';
+import { MicroLabel, RailCell } from '../../ui/game';
+import { pad2 } from './Roster';
 import styles from './Rail.module.css';
 
 export type RailItem = 'overview' | 'look' | 'motion' | 'set' | 'photo' | 'mmd';
@@ -20,11 +21,15 @@ export interface RailProps {
   onGo: (item: RailItem) => void;
 }
 
-/** 最右的竖栏：总览、外观、动作、设定、拍照，隔一条线是 MMD；当前项白底黄边。 */
+/** 最右的竖栏：顶上白板写当前项的序号，下面总览、外观、动作、设定、拍照，隔一条线是 MMD；当前项白底黄边。 */
 export function Rail({ value, avatar, onGo }: RailProps) {
   const items = ITEMS.filter((x) => avatar || (x.id !== 'photo' && x.id !== 'mmd'));
   return (
     <nav className={styles.rail} data-g="menu" aria-label="角色分区">
+      <div className={styles.top} aria-hidden="true">
+        <MicroLabel>Charinfo</MicroLabel>
+        <b className={styles.no}>{pad2(items.findIndex((x) => x.id === value) + 1)}</b>
+      </div>
       {items.map((x) => (
         <RailCell key={x.id} label={x.label} icon={x.icon} micro={x.micro} current={x.id === value} onClick={() => x.id !== value && onGo(x.id)} />
       ))}

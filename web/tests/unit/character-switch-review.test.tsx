@@ -52,17 +52,22 @@ async function mount(search = '') {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await screen.findByRole('button', { name: /^切换角色/ });
+  await screen.findByRole('navigation', { name: '角色分区' });
   return router;
 }
 
 const click = (el: Element) => act(async () => void fireEvent.click(el));
 const row = (id: string) => document.querySelector<HTMLElement>(`[data-motion="${id}"]`);
+const rail = (name: string) => within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name });
 
+/** Switches on 总览 (the only page with the head strip), then goes back to 动作. */
 async function switchTo(name: string) {
-  await click(within(screen.getByRole('group', { name: '角色头像' })).getByRole('button', { name }));
+  await click(rail('总览'));
+  const heads = await screen.findByRole('group', { name: '角色头像' });
+  await click(within(heads).getByRole('button', { name }));
   await click(within(await screen.findByRole('dialog')).getByRole('button', { name: '切换' }));
   await waitFor(() => expect(within(screen.getByRole('group', { name: '角色头像' })).getByRole('button', { name }).getAttribute('aria-current')).toBe('true'));
+  await click(rail('动作'));
 }
 
 describe('a switch on the character page', () => {
@@ -153,7 +158,9 @@ describe('隐藏界面', () => {
     onRetryMotions: () => {},
     charState: null,
     toast: () => {},
-    pane: 'motion',
+    // 隐藏界面 is on 总览 only; an unsaved switch keeps the bottom bar there.
+    pane: 'overview',
+    seed: { stretch: false },
   };
 
   function inShell(p: OperatorProps) {
