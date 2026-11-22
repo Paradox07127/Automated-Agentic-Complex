@@ -1,0 +1,149 @@
+/* 时间页签：图下的跳转、两条胶囊（照游戏统计页电力图下的两行）、应用占比条和列表。 */
+.lk {
+  justify-self: end;
+  padding: 0 6px;
+  border: 0;
+  border-bottom: 1px solid var(--ef-text-3);
+  background: none;
+  color: var(--ef-text-1);
+  font: var(--ef-t-meta);
+  cursor: pointer;
+}
+
+.lk:hover {
+  border-color: var(--ef-accent);
+  color: var(--ef-accent);
+}
+
+.pills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 28px;
+  padding: 4px 2px;
+}
+
+.pill {
+  display: grid;
+  grid-template-columns: 22px auto minmax(80px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 0;
+  border-bottom: 1.5px solid var(--ef-text-1);
+  color: var(--ef-text-1);
+  font: var(--ef-t-table);
+}
+
+.pill svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* The capsule: an ink ring, a yellow fill with an ink knob at its end. */
+.bar {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--ef-r-pill);
+  background: color-mix(in srgb, var(--ef-text-1) 8%, transparent);
+  box-shadow: 0 0 0 1.5px var(--ef-text-1);
+}
+
+.bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--ef-r-pill);
+  background: var(--ef-accent);
+}
+
+.bar i::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ef-text-1);
+}
+
+.n {
+  font: var(--ef-fw-semibold) var(--ef-fs-num) var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.n small {
+  color: var(--ef-text-2);
+  font-size: var(--ef-fs-meta);
+  font-weight: var(--ef-fw-medium);
+}
+
+.two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+}
+
+.comp {
+  display: flex;
+  gap: 2px;
+  height: 22px;
+}
+
+.comp i {
+  display: block;
+  height: 100%;
+}
+
+.apps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apps li {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font: var(--ef-t-table);
+}
+
+.apps i {
+  width: 10px;
+  height: 10px;
+}
+
+.apps span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apps b {
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-num);
+}
+
+@container page (max-width: 980px) {
+  .two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container page (max-width: 640px) {
+  .pills {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .apps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

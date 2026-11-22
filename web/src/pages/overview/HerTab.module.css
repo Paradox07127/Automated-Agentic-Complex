@@ -1,0 +1,366 @@
+/* 简报的数据板（她、时间两页共用）：深炭底、黑底小牌接细线和斜纹、四角细角标；大图板左图右读数栏，照游戏统计页的电力图。 */
+.view {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pn {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px 14px;
+  background: linear-gradient(180deg, var(--ef-surface-2), var(--ef-plate) 40px);
+  color: var(--ef-text-1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 24px -14px rgba(0, 0, 0, 0.45);
+}
+
+/* Corner ticks at the top-left and bottom-right. */
+.pn::after,
+.power::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background:
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 0 0 / 6px 1px no-repeat,
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 0 0 / 1px 6px no-repeat,
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 100% 100% / 6px 1px no-repeat,
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 100% 100% / 1px 6px no-repeat;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.ph {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  min-width: 0;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  background: var(--ef-band);
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) var(--ef-fs-h3) / 24px var(--ef-font-sans);
+  white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+.cnt {
+  color: var(--ef-text-2);
+  font-family: var(--ef-font-num);
+  font-weight: var(--ef-fw-medium);
+}
+
+.rule {
+  flex: 1;
+  min-width: 24px;
+  height: 7px;
+  border-top: 1px solid var(--ef-rule);
+  background: repeating-linear-gradient(-60deg, var(--ef-rule) 0 1px, transparent 1px 6px) right top / 56px 6px no-repeat;
+}
+
+.sub {
+  margin: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+.act {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.act:hover {
+  color: var(--ef-text-1);
+}
+
+.num {
+  font-family: var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chart plate: the plot left, a darker readout column right with a twill strip at its foot. */
+.power {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  min-width: 0;
+  background: var(--ef-plate);
+  color: var(--ef-text-1);
+  box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.45);
+}
+
+.chart {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 10px 10px 12px;
+}
+
+.side {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 14px 16px 20px;
+  border-left: 1px solid var(--ef-rule);
+  background: var(--ef-base) repeating-linear-gradient(-60deg, var(--ef-rule) 0 1px, transparent 1px 6px) bottom / 100% 6px no-repeat;
+}
+
+.big {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  padding-left: 10px;
+}
+
+.big::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 2px;
+  height: 30px;
+  background: var(--ef-text-2);
+}
+
+.v {
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) 30px / 36px var(--ef-font-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.v small {
+  margin: 0 3px 0 1px;
+  font-size: var(--ef-fs-h2);
+}
+
+.lead::before {
+  background: var(--ef-accent);
+}
+
+.lead .v {
+  color: var(--ef-accent);
+}
+
+.k {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.warn {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid currentColor;
+  border-left: 5px solid transparent;
+}
+
+.lead .warn {
+  color: var(--ef-accent);
+}
+
+.gridA {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.gridC {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+}
+
+.col {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.lines {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lines li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px 8px;
+  background: var(--ef-base);
+}
+
+.lines p {
+  margin: 0;
+  font: var(--ef-t-text);
+}
+
+.lines footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.kind {
+  padding: 0 6px;
+  border: 1px solid var(--ef-text-2);
+  line-height: 18px;
+}
+
+.kind[data-kind='self'] {
+  border-color: var(--ef-accent);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.kind[data-kind='miss'] {
+  border-style: dashed;
+}
+
+.touch {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.touch li {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 10px 8px 8px;
+  background: var(--ef-base);
+  text-align: center;
+}
+
+.touch svg {
+  width: 26px;
+  height: 26px;
+  fill: var(--ef-text-2);
+}
+
+.touch b {
+  font-size: 22px;
+  line-height: 26px;
+}
+
+.touch span {
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.bars {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 52px;
+  align-items: center;
+  gap: 10px;
+  font: var(--ef-t-table);
+}
+
+.bars span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bars i {
+  display: block;
+  height: 8px;
+  background: var(--ef-text-1);
+}
+
+.bars i.y {
+  background: var(--ef-accent);
+}
+
+.bars b {
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-num);
+  text-align: right;
+  white-space: nowrap;
+}
+
+@container page (max-width: 980px) {
+  .gridA {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gridC {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .power {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .side {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid var(--ef-rule);
+    border-left: 0;
+  }
+}
+
+@container page (max-width: 640px) {
+  .gridC {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .side {
+    gap: 10px;
+    padding: 12px 10px 16px;
+  }
+
+  .v {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .v small {
+    font-size: var(--ef-fs-meta);
+  }
+
+  .touch {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bars li {
+    grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 46px;
+  }
+}

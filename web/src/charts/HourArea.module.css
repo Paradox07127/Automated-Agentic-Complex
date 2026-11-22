@@ -1,0 +1,91 @@
+/* Hour area: the game's power chart, a yellow stepped area with scan lines under a 2 px top edge. */
+.fill {
+  fill: var(--ef-accent);
+  opacity: 0.5;
+}
+
+.scan {
+  fill: var(--ef-base);
+  opacity: 0.12;
+}
+
+.top {
+  fill: none;
+  stroke: var(--ef-accent);
+  stroke-width: 2;
+  stroke-linejoin: miter;
+}
+
+.dot {
+  fill: var(--ef-accent);
+}
+
+.half {
+  stroke: var(--ef-chart-axis);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  shape-rendering: crispEdges;
+}
+
+.fut {
+  opacity: 0.45;
+}
+
+.hv {
+  fill: var(--ef-text-1);
+  opacity: 0.08;
+}
+
+.line,
+.dash {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.line {
+  stroke: var(--ef-text-1);
+}
+
+.dash {
+  stroke: var(--ef-text-2);
+  stroke-dasharray: 4 3;
+}
+
+/* Reminders take the game's notice orange, not a failure colour. */
+.mark {
+  fill: var(--ef-g-reddot);
+}
+
+.now {
+  stroke: var(--ef-text-1);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.plate {
+  fill: var(--ef-accent);
+}
+
+svg text.plateT {
+  fill: var(--ef-on-accent);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.sw {
+  background: var(--ef-accent);
+}
+
+.lineSw {
+  background: var(--ef-text-1);
+}
+
+.dashSw {
+  border-top: 2px dashed var(--ef-text-2);
+  background: none;
+}
+
+.tri {
+  margin-right: 6px;
+  color: var(--ef-g-reddot);
+  font-weight: var(--ef-fw-regular);
+}

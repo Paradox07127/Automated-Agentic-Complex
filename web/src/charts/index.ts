@@ -13,6 +13,7 @@ export * from './DotMatrix';
 export * from './DotStrip';
 export * from './FlowGraph';
 export * from './Gantt';
+export * from './HourArea';
 export * from './LineChart';
 export * from './NodeChain';
 export * from './RunRing';
