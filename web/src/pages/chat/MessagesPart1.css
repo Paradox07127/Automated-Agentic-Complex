@@ -1,111 +1,231 @@
-@import './MessagesArt.css';
-.msg,
-.note,
-.endline {
-  /* Bubble plates: other mean #3A3A3A with white text, self #F0F0F0 with black text. */
-  --sns-other: #3a3a3a;
-  --sns-other-text: #ffffff;
-  --sns-self: #f0f0f0;
-  --sns-self-text: #000000;
-  /* Name #A7A7A7; group owner tag #3D88CD@0.8. */
-  --sns-name: #a7a7a7;
-  --sns-tag: rgba(61, 136, 205, 0.8);
-  /* Head ring and halftone disc. */
-  --sns-ring: rgba(255, 255, 255, 0.7);
-  --sns-halftone: rgba(255, 255, 255, 0.16);
-  /* Task plate #2A2A2A, frame @0.6, title #FFFFFF@0.8, sub #707070 -> #A7A7A7 for contrast. */
-  --sns-card: #2a2a2a;
-  --sns-card-line: rgba(255, 255, 255, 0.6);
-  --sns-task-title: rgba(255, 255, 255, 0.8);
-  --sns-task-sub: #a7a7a7;
-  --sns-task-ico: rgba(255, 255, 255, 0.2);
-  --sns-stripes: rgba(0, 0, 0, 0.2);
-  --sns-go: #eeeeee;
-  --sns-go-arrow: #444444;
-  /* Category bar: needs user #FFF100, running #8DDCFF, side / scheduled #C7FF00. */
-  --sns-cat-user: var(--ef-accent);
-  --sns-cat-run: var(--ef-mission-accent);
-  --sns-cat-side: #c7ff00;
-  /* Long-reply code blocks on #1C1C1C. */
-  --sns-code: #1c1c1c;
-  /* System band: text #FFFFFF@0.5, lines @0.502; end line @0.6, short line @0.2, ticks @0.298. */
-  --sns-sys-text: rgba(255, 255, 255, 0.5);
-  --sns-sys-line: rgba(255, 255, 255, 0.502);
-  --sns-end-line: rgba(255, 255, 255, 0.6);
-  --sns-end-ticks: rgba(255, 255, 255, 0.298);
-}
-
-/* Light theme: the same parts on our light tokens. */
-:global([data-theme='light']) :is(.msg, .note, .endline) {
-  --sns-other: var(--ef-raised);
-  --sns-other-text: var(--ef-text-1);
-  --sns-self: #3a3a3a;
-  --sns-self-text: #ffffff;
-  --sns-name: var(--ef-text-2);
-  --sns-tag: #2b6ca8;
-  --sns-ring: var(--ef-line-strong);
-  --sns-halftone: rgba(0, 0, 0, 0.12);
-  --sns-card: var(--ef-raised);
-  --sns-card-line: var(--ef-rule);
-  --sns-task-title: var(--ef-text-1);
-  --sns-task-sub: var(--ef-text-2);
-  --sns-task-ico: rgba(0, 0, 0, 0.25);
-  --sns-stripes: rgba(0, 0, 0, 0.06);
-  --sns-go: #3a3a3a;
-  --sns-go-arrow: #ffffff;
-  --sns-cat-user: var(--ef-accent-text);
-  --sns-cat-side: #4f6600;
-  --sns-code: var(--ef-bg-canvas);
-  --sns-sys-text: var(--ef-text-2);
-  --sns-sys-line: var(--ef-rule);
-  --sns-end-line: var(--ef-line-strong);
-  --sns-end-ticks: var(--ef-rule);
-}
-
-/* Message row: content column 64 px in from the row edge (other: left, self: right); the first of a run drops 13 px (IsFirstPlaceholder). */
+/* Message row: head column 64 px beside the stack of bubbles; hers on the left, the user's mirrored on the right. */
 .msg {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: start;
   min-width: 0;
-  padding: 3px 10px 3px 64px;
+  padding: 8px 18px 0;
 }
 
 .msg[data-first] {
-  padding-top: 16px;
+  padding-top: 18px;
 }
 
 .msg[data-kind='me'] {
-  align-items: flex-end;
-  padding-right: 64px;
-  padding-left: 10px;
+  grid-template-columns: minmax(0, 1fr) 64px;
 }
 
-/* The turn open in 轮次详情: the row's light plate. */
-.msg[data-sel] {
-  background: var(--ef-overlay-hover);
+.ava {
+  grid-row: 1;
+  grid-column: 1;
 }
 
-/* Name row: NameTxt fs 26 g -> 13 px, then the time; reversed on the self side. */
-.who {
+.stack {
+  display: grid;
+  grid-row: 1;
+  grid-column: 2;
+  gap: 8px;
+  justify-items: start;
+  min-width: 0;
+}
+
+.msg[data-kind='me'] > .ava {
+  grid-column: 2;
+}
+
+.msg[data-kind='me'] > .stack {
+  grid-column: 1;
+  justify-items: end;
+}
+
+/* sns_friendcell_in (snsCellIn): opacity over 416.7 ms on the fade curve, an 11 px slide on the enter curve. */
+.msg[data-new] {
+  animation:
+    cell-fade 416.7ms var(--g-fade) both,
+    cell-in 416.7ms var(--g-enter) both;
+}
+
+.msg[data-new][data-kind='me'] {
+  animation-name: cell-fade, cell-in-self;
+}
+
+/* Head: halftone disc, the round face, a broken ring that turns 30° while the row is hovered. */
+.ava {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+}
+
+.ava::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--b-t2) 1px, transparent 1.5px) 0 0 / 4px 4px;
+  -webkit-mask: radial-gradient(circle, #000 34%, transparent 72%);
+  mask: radial-gradient(circle, #000 34%, transparent 72%);
+  opacity: 0.55;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--b-t1);
+  transition: transform 0.4s var(--g-enter);
+}
+
+.ring path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+.ring circle {
+  fill: currentColor;
+}
+
+.msg:hover .ring {
+  transform: rotate(30deg);
+}
+
+.face {
+  position: relative;
+  width: 72%;
+  height: 72%;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--b-plate-lo);
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.initial {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 30%, var(--b-plate-hi), var(--b-plate-lo));
+  color: var(--b-t1);
+  font: 600 20px/1 var(--ef-font-sans);
+}
+
+/* The user's head: a dark head-and-shoulders figure on a grey disc. */
+.generic {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 42%, var(--b-ink) 0 20%, transparent 21%),
+    radial-gradient(ellipse 36% 30% at 50% 100%, var(--b-ink) 0 96%, transparent 100%),
+    radial-gradient(circle at 50% 30%, var(--b-t3), var(--b-t2) 80%);
+}
+
+/* Bubble: corner by the head turned out 6 px, other corners r14; hers with a top light, the user's dark with dots. */
+.bub {
+  position: relative;
+  max-width: min(560px, 100%);
+  min-width: 0;
+  margin: 0;
+  padding: 10px 16px 11px;
+  border-radius: 2px 14px 14px;
+  background: linear-gradient(180deg, var(--b-bub-hi), var(--b-bub) 40%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.22), 0 3px 6px -2px var(--b-shadow);
+  color: var(--b-bub-t);
+  font: 400 15px/24px var(--ef-font-sans);
+}
+
+.bub[data-first]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -7px;
+  width: 12px;
+  height: 14px;
+  background: var(--b-bub-hi);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.msg[data-kind='me'] .bub {
+  border-radius: 14px 2px 14px 14px;
+  background:
+    radial-gradient(circle, rgba(0, 0, 0, 0.06) 0.8px, transparent 1.2px) 0 0 / 3px 3px,
+    linear-gradient(180deg, var(--b-self), var(--b-self-lo));
+  color: var(--b-self-t);
+}
+
+.msg[data-kind='me'] .bub[data-first]::before {
+  right: -7px;
+  left: auto;
+  background: var(--b-self);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+/* The turn open in 轮次详情. */
+.msg[data-sel] .bub {
+  box-shadow: 0 0 0 1.5px var(--b-sel), 0 3px 6px -2px var(--b-shadow);
+}
+
+/* Time line between messages after a long quiet. */
+.day {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
-  min-height: 20px;
-  margin-bottom: 2px;
-  font: 400 13px/20px var(--ef-font-sans);
-  color: var(--sns-name);
-  overflow-wrap: anywhere;
+  justify-content: center;
+  gap: 10px;
+  margin: 18px 0 0;
+  color: var(--b-t3);
+  font: 400 12px/18px var(--ef-font-ui);
+  letter-spacing: 0.04em;
 }
 
-.msg[data-kind='me'] > .who {
-  flex-direction: row-reverse;
+.day::before,
+.day::after {
+  content: '';
+  width: 48px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--b-t3));
 }
 
-/* Later rows of a run keep the name and time for screen readers only. */
-.who[data-cont],
+.day::after {
+  transform: scaleX(-1);
+}
+
+/* Typing: three dots in her bubble, each lifting in turn. */
+.typing {
+  display: inline-flex;
+  gap: 6px;
+  padding: 15px 18px;
+}
+
+.typing > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--b-bub-t);
+  opacity: 0.3;
+  animation: typing-dot 1s var(--g-fade) infinite;
+}
+
+.typing > i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing > i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* Visually hidden, read by screen readers. */
 .sr {
   position: absolute;
   width: 1px;
@@ -115,275 +235,153 @@
   white-space: nowrap;
 }
 
-.name {
-  color: var(--sns-name);
-}
-
-.tm {
-  font: 500 12px/20px var(--ef-font-ui);
-  font-stretch: var(--ef-wide);
-  font-variant-numeric: tabular-nums;
-  color: var(--sns-name);
-}
-
-/* GroupOwnerNode tag: blue plate; text #D3D3D3 -> white and fs 18 g -> 12 px for contrast and the Chinese floor. */
-.tag {
-  padding: 0 4px 1px;
-  border-radius: 3px;
-  background: var(--sns-tag);
-  color: #ffffff;
-  font: 500 12px/18px var(--ef-font-sans);
-}
-
-/* Head: 50 px box, centre 41 px from the row edge and 20 px below the content top; 38.5 px face circle, 44.5 px broken ring, halftone behind. */
-.ava {
-  position: absolute;
-  top: 33px;
-  left: 16px;
-  display: grid;
-  place-items: center;
-  width: 50px;
-  height: 50px;
-  pointer-events: none;
-}
-
-.msg[data-kind='me'] .ava {
-  right: 16px;
-  left: auto;
-}
-
-.ava::before {
-  content: '';
-  position: absolute;
-  inset: -6px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--sns-halftone) 0.9px, transparent 1.2px) 0 0 / 4px 4px;
-  -webkit-mask: radial-gradient(closest-side, transparent 60%, #000 75%, transparent 100%);
-  mask: radial-gradient(closest-side, transparent 60%, #000 75%, transparent 100%);
-}
-
-.ava::after {
-  content: '';
-  position: absolute;
-  inset: 2.75px;
-  border: 1.5px solid var(--sns-ring);
-  border-radius: 50%;
-  -webkit-mask: conic-gradient(#000 0 40deg, transparent 40deg 52deg, #000 52deg 200deg, transparent 200deg 214deg, #000 214deg);
-  mask: conic-gradient(#000 0 40deg, transparent 40deg 52deg, #000 52deg 200deg, transparent 200deg 214deg, #000 214deg);
-}
-
-.ava img,
-.generic {
-  position: relative;
-  width: 38.5px;
-  height: 38.5px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: var(--ef-surface-2);
-}
-
-.ava img {
-  transform: scale(1.33);
-  clip-path: circle(14.5px);
-}
-
-/* Generic avatar stand-in: a dark figure on a light disc. */
-.generic {
-  display: block;
-  background:
-    radial-gradient(circle at 50% 37%, #333333 0 20%, transparent 21%),
-    radial-gradient(ellipse 34% 30% at 50% 92%, #333333 0 96%, transparent 100%),
-    #d6d6d6;
-}
-
-/* Text bubble (snscontenttext): 381 px text width, 15 px sides; the corner by the head is square with a small tail. */
-.bubble {
-  position: relative;
-  max-width: min(100%, 411px);
-  min-height: 37px;
-  padding: 9px 15px;
-  border-radius: 2px 7px 7px;
-  background: var(--sns-other);
-  color: var(--sns-other-text);
-  transform-origin: left center;
-  animation:
-    bubble-in 167ms var(--ef-ease-g-exit) both,
-    sns-fade 167ms var(--ef-ease-g-fade) both;
-}
-
-.bubble::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -5px;
-  width: 6px;
-  height: 9px;
-  background: inherit;
-  clip-path: polygon(0 0, 100% 0, 100% 100%);
-}
-
-.bubble > .body {
-  animation: sns-fade 200ms var(--ef-ease-g-fade) 133ms both;
-}
-
-.msg[data-kind='me'] > .bubble {
-  border-radius: 7px 2px 7px 7px;
-  background: var(--sns-self);
-  color: var(--sns-self-text);
-  animation:
-    self-wipe 250ms var(--ef-ease-g-exit) both,
-    sns-fade 167ms var(--ef-ease-g-fade) both;
-}
-
-.msg[data-kind='me'] > .bubble::before {
-  right: -5px;
-  left: auto;
-  clip-path: polygon(0 0, 100% 0, 0 100%);
-}
-
-.msg[data-kind='me'] > .bubble > .body {
-  animation: sns-fade 417ms var(--ef-ease-g-fade) 200ms both;
-}
-
-:global([data-theme='light']) .msg:not([data-kind='me']) > .bubble {
-  outline: 1px solid var(--ef-line);
-  outline-offset: -1px;
-}
-
-/* ContentTxt fs 26 g -> 13 px, line spacing +0.26 em. */
-.body {
-  min-width: 0;
-  font: 400 13px/1.5 var(--ef-font-sans);
-  color: inherit;
-}
-
-/* Long-reply card: the task card frame stretched to its content, full width, 13.5 px sides; the name row sits above beside the head. */
-.msg[data-shape='card'] {
-  align-items: stretch;
-  padding-right: 13.5px;
-  padding-left: 13.5px;
-}
-
-.msg[data-shape='card'][data-first] > .who {
-  min-height: 50px;
-  margin-left: 58.5px;
-}
-
-.msg[data-shape='card'] .ava {
-  top: 16px;
-}
-
-.card {
-  position: relative;
-  min-width: 0;
-  padding: 12px 13.5px 13px;
-  border: 1px solid var(--sns-card-line);
-  border-radius: 5px;
-  background: var(--sns-card);
-  color: var(--sns-other-text);
-  animation:
-    card-wipe 200ms var(--ef-ease-g-exit) both,
-    sns-fade 50ms linear both;
-}
-
-.card > .body {
-  animation: card-text-in 284ms var(--ef-ease-g-enter) 133ms both;
-}
-
-.card .messageCode {
-  border: 0;
-  background: var(--sns-code);
-}
-
-:global([data-theme='light']) .card .messageCode {
-  border: 1px solid var(--ef-line);
-}
-
+/* Rich text; also used by the task page's result and the desktop bubble, so colours follow the text colour. */
 .text {
+  min-width: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.text > * + * { margin-top: 5px; }
-.text ul, .text ol { margin-block: 5px; padding-inline-start: 1.55em; }
-.messageHeading { display: block; color: var(--ef-text-1); }
-.card .messageHeading { color: inherit; font-size: 15px; }
+.text > * + * { margin-top: 6px; }
+.text ul, .text ol { margin-block: 4px 0; padding-inline-start: 1.3em; }
+.text strong { font-weight: 600; }
+.text em { font-style: italic; }
+.text blockquote { margin: 0; padding-left: 10px; border-left: 3px solid color-mix(in srgb, currentColor 40%, transparent); color: color-mix(in srgb, currentColor 80%, transparent); }
+.messageHeading { display: block; font-size: 16px; font-weight: 600; }
 .messageTable { max-width: 100%; overflow-x: auto; }
-.messageTable table { border-collapse: collapse; width: 100%; white-space: normal; }
-.messageTable :is(th, td) { padding: 4px 8px; border-bottom: 1px solid var(--ef-line); text-align: start; }
-.messageTable th { color: var(--ef-text-1); background: var(--ef-bg-canvas); }
-.card .messageTable :is(th, td) { border-bottom-color: var(--sns-task-ico); }
-.card .messageTable th { color: inherit; background: var(--sns-code); }
+.messageTable table { width: 100%; border-collapse: collapse; white-space: normal; font-size: 14px; line-height: 20px; }
+.messageTable :is(th, td) { padding: 4px 8px; border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent); text-align: start; }
+.messageTable th { background: color-mix(in srgb, currentColor 6%, transparent); font-weight: 600; }
+
 .messageCode {
   max-width: 100%;
+  margin: 0;
   padding: 10px 12px;
   overflow: auto;
-  border: 1px solid var(--ef-line);
-  background: var(--ef-bg-canvas);
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
+  font: 13px/1.55 var(--ef-font-mono);
   white-space: pre;
 }
 
 .kw {
   font-family: var(--ef-font-mono);
   font-size: max(12px, 0.87em);
-  color: var(--ef-text-1);
 }
 
-.bubble .kw,
-.card .kw {
+code.kw {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.link {
   color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--ef-mission-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
-.cursor {
-  display: inline-block;
-  width: 6px;
-  height: 1em;
-  margin-left: var(--ef-sp-2);
-  vertical-align: -2px;
-  background: currentColor;
-  opacity: 0.6;
+.link:hover {
+  text-decoration-color: currentColor;
 }
 
-.ended {
-  margin-top: var(--ef-sp-4);
-  font: var(--ef-t-meta);
+/* Picture: thin plate with the turned-out corner and a corner mark; a click opens it large. */
+.pic {
+  position: relative;
+  display: block;
+  width: min(340px, 100%);
+  margin: 2px 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 2px 10px 10px;
+  background: linear-gradient(180deg, var(--b-bub-hi), var(--b-bub));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 4px 10px -3px var(--b-shadow);
+  cursor: zoom-in;
+  transition: transform 0.15s var(--g-enter);
+}
+
+.pic:hover {
+  transform: translateY(-2px);
+}
+
+.pic img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0 7px 7px;
+}
+
+.pic::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 14px;
+  height: 14px;
+  border-top: 2px solid var(--b-plate-hi);
+  border-right: 2px solid var(--b-plate-hi);
   opacity: 0.8;
 }
 
-/* 回复下的轮次字段行：「第 n 轮 │ 4.2 s │ 新增记忆 1 条 │ 引用记忆 2 条」 */
-.mtags {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-top: 4px;
+.picFail {
+  font-size: 13px;
+  color: color-mix(in srgb, currentColor 75%, transparent);
 }
 
-.tt,
-.mt {
-  display: inline-flex;
+/* Link card for a bare address: initial tile, host over path, link mark. */
+.lnk {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 20px;
+  gap: 12px;
   align-items: center;
-  gap: 4px;
-  height: 20px;
-  padding: 0;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--ef-text-2);
-  font: 500 12px/1 var(--ef-font-sans);
+  width: min(380px, 100%);
+  padding: 10px 12px;
+  border-left: 3px solid var(--ef-mission-accent);
+  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
+  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px rgba(0, 0, 0, 0.3), 0 3px 8px -3px var(--b-shadow);
+  color: var(--b-t1);
+  text-decoration: none;
+  white-space: normal;
+  transition: filter 0.083s var(--g-fade);
+}
+
+.lnk:hover {
+  filter: brightness(1.12);
+}
+
+.fav {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: var(--b-plate-lo);
+  box-shadow: inset 0 0 0 1px var(--b-edge-lo);
+  color: var(--ef-mission-accent);
+  font: 600 16px/1 var(--ef-font-ui);
+}
+
+.lnkText {
+  display: grid;
+  min-width: 0;
+}
+
+.lnkText > b,
+.lnkText > small {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Fields after the first: a hairline │ before each. */
-.mtags > * + * {
-  margin-left: 8px;
-  padding-left: 8px;
-  border-left: 1px solid var(--ef-rule);
+.lnkText > b {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
 }
 
-.tt :global(.num),
-.mt :global(.num) {
-  font-family: var(--ef-font-ui);
-  font-stretch: var(--ef-wide);
-  font-variant-numeric: tabular-nums;
-  color: var(--ef-text-1);
+.lnkText > small {
+  color: var(--b-t2);
+  font: 12px/18px var(--ef-font-ui);
 }

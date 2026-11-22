@@ -1,54 +1,56 @@
-import { formatClock } from '../../domain';
 import { Btn } from '../../ui';
 import { MessageText } from './MessageText';
-import { ProviderLine, useCardShape, WhoAva, type TurnTagInfo } from './TextMessage';
+import { useMessageMenu, type MessageMenuProps } from './MessageMenu';
+import { Head, Who } from './TextMessage';
 import styles from './Messages.module.css';
 
-export interface SideMessageProps {
+export interface SideMessageProps extends MessageMenuProps {
   at: number;
   text: string;
   streaming?: boolean;
   roleName: string;
-  model?: Pick<TurnTagInfo, 'provider' | 'account_label'>;
   /** Title of the foreground task when this answer started. */
   frontTitle: string | null;
   onFront: () => void;
   onQueue: () => void;
-  /** Speaker's character id; with `first` her round head goes before the name. */
-  roleId?: string | null | undefined;
+  /** Her head picture; without it the first character of `roleName`. */
+  headUrl?: string | undefined;
   /** First of consecutive messages by this speaker. */
   first?: boolean;
+  /** Came in while the page was open. */
+  fresh?: boolean;
+  /** The side line's line_id, for 在桌面上重放表情. */
+  lineId?: string | undefined;
 }
 
-/** Side answer while the foreground runs: an other row whose name carries the 「旁路」 tag (GroupOwnerNode), 只读 by the time, a link up to the task, 「派发任务」. */
-export function SideMessage({ at, text, streaming, roleName, model, frontTitle, onFront, onQueue, roleId, first = true }: SideMessageProps) {
-  const card = useCardShape(text);
+/** Side answer while the foreground runs: her bubble under the 「旁路」 tag and 只读, a link up to the task, 「派发任务」. */
+export function SideMessage({ at, text, streaming, roleName, frontTitle, onFront, onQueue, headUrl, first = true, fresh, lineId, ...menuProps }: SideMessageProps) {
+  const { onContextMenu, menu } = useMessageMenu(text, { line: lineId }, menuProps);
   return (
-    <div className={styles.msg} data-kind="side" data-shape={card ? 'card' : 'bubble'} data-first={first || undefined} aria-label="旁路对话回答">
-      <div className={styles.who} data-ava={first || undefined}>
-        {first && <WhoAva roleId={roleId} />}
-        <span className={styles.name}>{roleName}</span>
-        <span className={styles.tag}>旁路</span>
-        <span className={styles.tm}>{formatClock(at)}</span>
-        <span className={styles.tm}>只读</span>
-        {model && <ProviderLine {...model} />}
-      </div>
-      {frontTitle && (
-        <button type="button" className={styles.up} onClick={onFront}>
-          ↑ 触发时前台：{frontTitle}
-        </button>
-      )}
-      <div className={card ? styles.card : `${styles.bubble} sns-bubble-other`}>
-        <div className={styles.body}>
+    <div className={styles.msg} data-kind="side" data-first={first || undefined} data-new={fresh || undefined} aria-label="旁路对话回答">
+      <Who name={roleName} at={at} />
+      {first && <Head name={roleName} url={headUrl} />}
+      <div className={styles.stack}>
+        <span className={styles.sideHead}>
+          <span className={styles.tag}>旁路</span>
+          <span>只读</span>
+        </span>
+        {frontTitle && (
+          <button type="button" className={styles.up} onClick={onFront}>
+            ↑ 触发时前台：{frontTitle}
+          </button>
+        )}
+        <div className={styles.bub} data-first={first || undefined} onContextMenu={onContextMenu}>
           <MessageText text={text} streaming={streaming} />
         </div>
+        <div className={styles.actions}>
+          <Btn size="sm" variant="ghost" icon="plus" onClick={onQueue}>
+            派发任务
+          </Btn>
+          <span className={styles.cap}>旁路只读，不修改文件</span>
+        </div>
       </div>
-      <div className={styles.actions}>
-        <Btn size="sm" variant="ghost" icon="plus" onClick={onQueue}>
-          派发任务
-        </Btn>
-        <span className={styles.cap}>旁路只读，不修改文件</span>
-      </div>
+      {menu}
     </div>
   );
 }

@@ -1,195 +1,167 @@
-.tt:hover,
-.mt:hover {
-  color: var(--ef-text-1);
+/* Streaming cursor at the end of her text, and the turn end state under it. */
+.cursor {
+  display: inline-block;
+  width: 6px;
+  height: 1em;
+  margin-left: var(--ef-sp-2);
+  vertical-align: -2px;
+  background: currentColor;
+  opacity: 0.6;
 }
 
-/* 轮次详情里打开的那一轮 */
-.tt[data-on] {
-  border-bottom-color: var(--ef-trace);
-  color: var(--ef-text-1);
+.ended {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0.8;
 }
 
-.tt:focus-visible,
-.mt:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
+/* Chips under her reply: memory added or used. */
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--b-t3);
+  color: var(--b-t2);
+  font: 400 12px/1 var(--ef-font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip:hover {
+  box-shadow: inset 0 0 0 1px var(--b-t1);
+  color: var(--b-t1);
+}
+
+.chip[data-new] {
+  box-shadow: inset 0 0 0 1px var(--ef-mission-accent);
+  color: var(--b-t1);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--b-sel);
   outline-offset: 2px;
 }
 
-/* 失败的一轮：黄块墨字 */
-.ttX {
-  margin-left: 2px;
-  padding: 0 3px;
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
-  font-size: 11px;
-  line-height: 14px;
+.chip :global(.num) {
+  font-family: var(--ef-font-ui);
+  font-variant-numeric: tabular-nums;
 }
 
-.mt[data-new] {
-  color: var(--ef-text-1);
-  font-weight: 600;
+/* 旁路: the tag and 只读 over the bubble, the link up to the task, 派发任务. */
+.sideHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--b-t2);
+  font: 400 12px/18px var(--ef-font-sans);
 }
 
-/* 旁路：触发时前台的链接、派发任务 */
+.tag {
+  padding: 0 6px;
+  border-radius: 2px;
+  background: var(--ef-mission-accent);
+  color: var(--ef-on-mission-accent);
+  font-weight: 500;
+}
+
 .up {
   display: block;
   width: max-content;
   max-width: 100%;
-  margin-bottom: 4px;
   padding: 0 0 2px;
   overflow: hidden;
   border: 0;
-  border-bottom: 1px dashed var(--ef-line-strong);
+  border-bottom: 1px dashed var(--b-t3);
   background: none;
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
+  color: var(--b-t2);
+  font: 400 12px/18px var(--ef-font-sans);
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .up:hover {
-  color: var(--ef-text-1);
+  color: var(--b-t1);
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--ef-sp-8);
-  margin-top: 6px;
+  gap: 8px;
 }
 
 .cap {
-  font: var(--ef-t-meta);
-  color: var(--ef-text-2);
+  color: var(--b-t2);
+  font: 400 12px/18px var(--ef-font-sans);
 }
 
-/* Task card (snscontenttask): plate, 6 px category bar at 10.5 px, icon slot, 1.5 px divider, text, go button over stripes. */
-.tcard {
-  position: relative;
-  display: grid;
-  grid-template-columns: 17px 46px 13px minmax(0, 1fr);
-  align-items: center;
-  min-height: 80px;
-  padding: 12px 13.5px 12px 0;
-  border: 1px solid var(--sns-card-line);
-  border-radius: 5px;
-  background:
-    repeating-linear-gradient(-45deg, var(--sns-stripes) 0 2px, transparent 2px 6px) right / 64px 100% no-repeat,
-    var(--sns-card);
-  color: var(--sns-task-title);
-  animation:
-    card-wipe 200ms var(--ef-ease-g-exit) both,
-    sns-fade 50ms linear both;
-}
-
+/* Tool call: a slim plate with the mission edge; the output unfolds below the row. */
 .msg[data-kind='tool'],
 .msg[data-kind='task'] {
-  align-items: stretch;
-  padding: 4px 13.5px;
+  padding-top: 8px;
 }
 
-.tcard[data-compact] {
-  min-height: 48px;
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-.tcard[data-on] {
-  border-color: var(--ef-trace);
-  box-shadow: inset 0 0 0 1px var(--ef-trace);
-}
-
-.tbar {
-  align-self: center;
-  width: 6px;
-  height: 50px;
-  margin-left: 10.5px;
-  background: var(--sns-cat-run);
-  animation: sns-fade 284ms var(--ef-ease-g-fade) 133ms both;
-}
-
-.tcard[data-compact] .tbar {
-  height: 30px;
-}
-
-.tcard[data-cat='user'] .tbar {
-  background: var(--sns-cat-user);
-}
-
-.tcard[data-cat='side'] .tbar {
-  background: var(--sns-cat-side);
-}
-
-.tico {
+.tool {
   display: grid;
-  place-items: center;
-  color: var(--sns-task-sub);
-  animation: card-text-in 284ms var(--ef-ease-g-enter) 133ms both;
+  width: min(620px, 100%);
+  border-left: 3px solid var(--ef-mission-accent);
+  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
+  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px rgba(0, 0, 0, 0.3), 0 3px 6px -3px var(--b-shadow);
+  color: var(--b-t1);
 }
 
-.tdiv {
-  justify-self: start;
-  width: 1.5px;
-  height: 24px;
-  background: var(--sns-task-ico);
-  animation: divider-in 284ms var(--ef-ease-g-enter) 133ms both;
-}
-
-.tcard > .tnote,
-.tcard > .code {
-  grid-column: 1 / -1;
-}
-
-.tcard > :nth-child(4) {
-  animation: card-text-in 284ms var(--ef-ease-g-enter) 133ms both;
-}
-
-/* 工具调用行：标题、摘要、耗时小条、展开箭头 */
 .toolrow {
   display: flex;
-  grid-column: 4;
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 46px;
-  padding: 0;
+  min-height: 40px;
+  padding: 0 12px;
   border: 0;
   background: none;
-  color: var(--sns-task-title);
+  color: inherit;
   font: 400 13px/18px var(--ef-font-sans);
   text-align: left;
 }
 
-.tcard > .toolrow {
-  grid-column: 2 / -1;
-}
-
-.tcard > .toolrow > .tico {
-  width: 46px;
-  margin-right: -10px;
-}
-
-.tcard > .toolrow > .tdiv {
-  margin-right: 3px;
+button.toolrow {
+  cursor: pointer;
 }
 
 .toolrow:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline: 2px solid var(--b-sel);
   outline-offset: -2px;
+}
+
+.toolrow > svg {
+  flex: none;
+  color: var(--b-t2);
 }
 
 .tl {
   flex: none;
   font-weight: 600;
-  font-size: 14px;
 }
 
 .tsum {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: var(--sns-task-sub);
+  color: var(--b-t2);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -198,21 +170,10 @@
   text-decoration: underline;
 }
 
-.tgo {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--sns-go);
-  color: var(--sns-go-arrow);
-}
-
 .tnote {
-  margin: -6px 0 8px 59px;
-  font: var(--ef-t-meta);
-  color: var(--sns-task-sub);
+  margin: 0 12px 8px;
+  color: var(--b-t2);
+  font: 400 12px/18px var(--ef-font-sans);
 }
 
 .f09 {
@@ -221,7 +182,7 @@
   flex: none;
   width: 40px;
   height: 4px;
-  background: var(--ef-chart-cell-empty);
+  background: var(--b-plate-lo);
 }
 
 .f09 i {
@@ -229,28 +190,27 @@
   top: 0;
   bottom: 0;
   left: 0;
-  background: var(--ef-ink-s2);
+  background: var(--b-t2);
 }
 
 .f09v {
   min-width: 40px;
   font: 500 12px/1 var(--ef-font-ui);
-  font-stretch: var(--ef-wide);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
 .code {
-  margin: 0 0 12px 59px;
+  margin: 0 12px 12px;
   padding: 8px 12px;
   overflow: auto;
-  background: var(--sns-code);
-  color: var(--sns-task-title);
+  background: var(--b-plate-lo);
+  color: var(--b-t1);
   font: 400 12px/1.6 var(--ef-font-mono);
   white-space: pre;
 }
 
-/* System band (snscontentsystemmsg): centred 12 px text between two flexible 3 px lines. */
+/* System band: centred 12 px text between two flexible lines. */
 .note {
   display: flex;
   flex-wrap: wrap;
@@ -259,57 +219,54 @@
   gap: 4px 25px;
   margin: 0;
   padding: 12px 25px 4px;
+  color: var(--b-t2);
   font: 400 12px/18px var(--ef-font-sans);
-  color: var(--sns-sys-text);
   text-align: center;
-  animation: sns-fade 167ms var(--ef-ease-g-fade) 83ms both;
+  animation: cell-fade 167ms var(--g-fade) 83ms both;
 }
 
 .note::before,
 .note::after {
   content: '';
   flex: 1 1 24px;
-  height: 3px;
-  background: var(--sns-sys-line);
-  animation: line-in 200ms var(--ef-ease-g-exit) both;
+  height: 1px;
+  background: var(--b-t3);
 }
 
 .note::before {
   order: -1;
-  transform-origin: right;
 }
 
 .note::after {
   order: 99;
-  transform-origin: left;
 }
 
-/* End line (snscontentendline): a 3 px line @0.6 that flickers in, a short line and ticks at its right; our run-end words below it. */
+/* End line: a line that flickers in, ticks at its right, the run-end words below. */
 .endline {
   position: relative;
   margin: 0;
   padding: 30px 25px 0;
+  color: var(--b-t2);
   font: 400 12px/18px var(--ef-font-sans);
-  color: var(--sns-sys-text);
   text-align: right;
 }
 
 .endline::before {
   content: '';
   display: block;
-  height: 3px;
+  height: 2px;
   margin-bottom: 8px;
-  background: var(--sns-end-line);
+  background: var(--b-t3);
   animation: end-flicker calc(var(--ef-dur-g-flicker-step) * 6) steps(1, end) both;
 }
 
 .endDeco {
   position: absolute;
-  top: 36px;
+  top: 35px;
   right: 25px;
   width: 89.5px;
   height: 6px;
-  background: repeating-linear-gradient(90deg, var(--sns-end-ticks) 0 1px, transparent 1px 5px);
+  background: repeating-linear-gradient(90deg, var(--b-t3) 0 1px, transparent 1px 5px);
   animation: end-flicker calc(var(--ef-dur-g-flicker-step) * 6) steps(1, end) calc(var(--ef-dur-g-flicker-step) * 5) both;
 }
 
@@ -318,78 +275,92 @@
   margin-right: 100px;
 }
 
-/* Typing bubble (LoadingNode): 75.5 x 34.5 dark bubble with three 5 px squares at 0.502 / 1 / 1; sns_contentloading_newin widens it from 28.25. */
-.loading {
-  --size-x: 75.5;
-  --dot-mid: #959593;
-  --dot-dim: var(--ef-g-sns-dot-dim);
+/* Link confirm: a white paper card with the hazard stripe on top, over a dimmed window. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ef-z-modal);
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: cell-fade 0.2s var(--g-fade) both;
+}
+
+.swap {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7.5px;
-  width: calc(var(--size-x) * 1px);
-  height: 34.5px;
+  display: grid;
+  gap: 12px;
+  width: min(400px, calc(100% - 32px));
+  padding: 22px 22px 18px;
+  background: var(--ef-paper);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+  color: var(--ef-paper-text);
+  animation: swap-in 0.3s var(--g-enter) both;
+}
+
+.swap::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 4px;
+  background: repeating-linear-gradient(115deg, var(--b-ink) 0 6px, var(--b-sel) 6px 12px);
+}
+
+.swap:focus-visible {
+  outline: none;
+}
+
+.swapTitle {
   margin: 0;
-  border-radius: 2px 7px 7px;
-  background: var(--sns-other);
+  font: 600 17px/24px var(--ef-font-sans);
 }
 
-:global([data-theme='light']) .loading {
-  --dot-mid: color-mix(in srgb, var(--sns-other-text) 55%, transparent);
-  --dot-dim: color-mix(in srgb, var(--sns-other-text) 20%, transparent);
-  outline: 1px solid var(--ef-line);
-  outline-offset: -1px;
+.url {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--b-ink);
+  background: color-mix(in srgb, var(--ef-paper-text) 5%, transparent);
+  font: 13px/20px var(--ef-font-mono);
+  word-break: break-all;
 }
 
-/* sns_contentloading_newloop: each square dims and comes back, the next 167 ms later. */
-.loading > i {
-  width: 5px;
-  height: 5px;
-  background: var(--sns-other-text);
-  animation: loading-dot var(--ef-dur-g-pulse) linear infinite;
+.url b {
+  padding: 0 2px;
+  background: var(--b-sel);
+  color: var(--b-ink);
+  font-weight: 600;
 }
 
-.loading > i:first-child {
-  opacity: 0.502;
+.swapRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
-.loading > i:nth-child(2) {
-  animation-delay: 167ms;
+/* The picture large: centred over a dark backdrop; any click closes it. */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ef-z-modal);
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: rgba(0, 0, 0, 0.78);
+  cursor: zoom-out;
+  animation: cell-fade 0.2s var(--g-fade) both;
 }
 
-.loading > i:nth-child(3) {
-  animation-delay: 333ms;
+.lightbox:focus-visible {
+  outline: none;
 }
 
-@keyframes sns-fade {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes bubble-in {
-  from {
-    transform: scaleX(0.2);
-  }
-}
-
-@keyframes self-wipe {
-  from {
-    clip-path: inset(0 0 0 60%);
-  }
-
-  to {
-    clip-path: inset(0 -8px 0 -8px);
-  }
-}
-
-@keyframes card-wipe {
-  from {
-    clip-path: inset(0 min(440px, 100%) 0 0);
-  }
-
-  to {
-    clip-path: inset(0);
-  }
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7);
 }

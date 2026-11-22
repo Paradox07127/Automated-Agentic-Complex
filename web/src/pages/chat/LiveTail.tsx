@@ -1,18 +1,19 @@
-import { useRef } from 'react';
-import { gameClips } from '../../design/gameClips.generated';
 import { codeText } from '../../domain/errorText';
 import { navigate, type NavTarget } from '../../shell/nav';
-import { Btn, useGameClip } from '../../ui';
+import { Btn } from '../../ui';
+import type { MessageMenuProps } from './MessageMenu';
 import { SideMessage } from './SideMessage';
-import { TextMessage, WhoAva } from './TextMessage';
+import { Head, TextMessage } from './TextMessage';
 import type { LiveReply } from './useChatFeed';
 import styles from './Messages.module.css';
 
-export interface LiveTailProps {
+export interface LiveTailProps extends MessageMenuProps {
   /** Lines sent from here whose turn is not in `/turns` yet. */
   replies: LiveReply[];
   roleName: string;
-  /** Her character id: the round head beside her live replies. */
+  /** Her head picture beside her live replies; without it the first character of `roleName`. */
+  headUrl?: string | undefined;
+  /** Her character id; not drawn, the head comes from `headUrl`. */
   roleId?: string | null;
   frontTitle: string | null;
   /** The feed lost events while a reply was coming in. */
@@ -38,28 +39,25 @@ function failedOf(r: LiveReply): { reason: string; code: string | null } {
   return { reason: codeText(code) ?? r.failure?.public_message ?? '没有回复', code };
 }
 
-/** Typing bubble: three squares on the dark bubble (sns_contentloading_newin, then the squares' colour loop); the words stay for screen readers. */
-function Thinking({ roleName, roleId }: { roleName: string; roleId: string | null | undefined }) {
-  const plate = useRef<HTMLParagraphElement>(null);
-  useGameClip(gameClips.snsLoadingIn, plate, { autoplay: true });
+/** Typing bubble before her first character: three dots in her bubble; the words stay for screen readers. */
+function Thinking({ roleName, headUrl }: { roleName: string; headUrl: string | undefined }) {
   return (
-    <div className={styles.msg} data-first="">
-      <div className={styles.who}>
-        <WhoAva roleId={roleId} />
-        <span className={styles.name}>{roleName}</span>
+    <div className={styles.msg} data-first="" data-new="">
+      <Head name={roleName} url={headUrl} />
+      <div className={styles.stack}>
+        <p className={`${styles.bub} ${styles.typing}`} data-first="">
+          <i aria-hidden="true" />
+          <i aria-hidden="true" />
+          <i aria-hidden="true" />
+          <span className={styles.sr}>在想</span>
+        </p>
       </div>
-      <p ref={plate} className={`${styles.loading} sns-bubble-other`} data-g="plate">
-        <i aria-hidden="true" data-g="dot1" />
-        <i aria-hidden="true" data-g="dot2" />
-        <i aria-hidden="true" data-g="dot3" />
-        <span className={styles.sr}>在想</span>
-      </p>
     </div>
   );
 }
 
 /** The end of the stream: each line sent here with its live reply, then the run end (end line) and a gap note (system band). */
-export function LiveTail({ replies, roleName, roleId, frontTitle, incomplete, runEnd, onFront, onQueue, onRetry }: LiveTailProps) {
+export function LiveTail({ replies, roleName, headUrl, roleId: _roleId, frontTitle, incomplete, runEnd, onFront, onQueue, onRetry, ...menu }: LiveTailProps) {
   return (
     <>
       {replies.map((r) => {
@@ -69,15 +67,15 @@ export function LiveTail({ replies, roleName, roleId, frontTitle, incomplete, ru
         const thinking = r.note == null && !r.final && !text && !r.failure;
         return (
           <div key={r.key ?? r.line_id} data-live={r.line_id}>
-            <TextMessage mine at={r.at} text={r.said} roleName={roleName} />
+            <TextMessage mine fresh at={r.at} text={r.said} roleName={roleName} {...menu} />
             {r.note != null ? (
               <p className={styles.note}>{r.note}</p>
             ) : r.side ? (
-              <SideMessage at={r.at} text={text} streaming={!r.final} roleName={roleName} roleId={roleId} model={{ provider: r.provider ?? null, account_label: r.account_label ?? null }} frontTitle={frontTitle} onFront={onFront} onQueue={() => onQueue(r.said)} />
+              <SideMessage fresh at={r.at} text={text} streaming={!r.final} roleName={roleName} headUrl={headUrl} lineId={r.line_id} frontTitle={frontTitle} onFront={onFront} onQueue={() => onQueue(r.said)} {...menu} />
             ) : (
-              !thinking && <TextMessage mine={false} at={r.at} text={text} roleName={roleName} roleId={roleId} streaming={!r.final} model={{ provider: r.provider ?? null, account_label: r.account_label ?? null }} />
+              !thinking && <TextMessage mine={false} fresh at={r.at} text={text} roleName={roleName} headUrl={headUrl} streaming={!r.final} lineId={r.line_id} turnId={r.line_id} {...menu} />
             )}
-            {thinking && <Thinking roleName={roleName} roleId={roleId} />}
+            {thinking && <Thinking roleName={roleName} headUrl={headUrl} />}
             {r.cancelled && <p className={styles.note}>■ 已取消</p>}
             {failed && (
               <p className={styles.note}>
@@ -101,7 +99,7 @@ export function LiveTail({ replies, roleName, roleId, frontTitle, incomplete, ru
       {runEnd && (
         <p className={styles.endline}>
           <span className={styles.endText}>{runEnd}</span>
-          <i className={`${styles.endDeco} sns-endline-deco`} aria-hidden="true" />
+          <i className={styles.endDeco} aria-hidden="true" />
         </p>
       )}
     </>

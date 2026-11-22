@@ -3,7 +3,7 @@ import { formatClock, type Question } from '../../domain';
 import { DecisionBar, QuestionBox } from '../../features/approval';
 import { CodeBlock } from '../../features/trace';
 import { Btn, OptionRow, Pill } from '../../ui';
-import { WhoAva } from './TextMessage';
+import { Head, Who } from './TextMessage';
 import styles from './Messages.module.css';
 import qc from './QuestionCard.module.css';
 
@@ -28,14 +28,14 @@ export interface QuestionCardProps {
   onAnswer: (answers: Record<string, string[]>) => void;
   /** Sent once the 5 s undo window has passed. */
   onCancel: () => void;
-  /** Speaker's character id; with `first` her round head goes before the name. */
-  roleId?: string | null | undefined;
+  /** Her head picture; without it the first character of `roleName`. */
+  headUrl?: string | undefined;
   /** First of consecutive messages by this speaker. */
   first?: boolean;
 }
 
-/** Question or approval request from the role, inline in the stream: a vote cell with one option row each; a question also takes free text (QuestionBox). 发送 below keeps the one yellow button. */
-export function QuestionCard({ at, question, request = question, roleName, now, answered, cancelled, onAnswer, onCancel, roleId, first }: QuestionCardProps) {
+/** Question or approval request from the role, inline in the stream beside her head: a plate with one dark option bar each (yellow diamond at the left); a question also takes free text (QuestionBox). 发送 below keeps the one yellow button. */
+export function QuestionCard({ at, question, request = question, roleName, now, answered, cancelled, onAnswer, onCancel, headUrl, first }: QuestionCardProps) {
   const [v, setV] = useState<{ selected: string | null; text: string }>({ selected: null, text: '' });
   const [undoing, setUndoing] = useState(false);
   const cancel = useRef(onCancel);
@@ -55,12 +55,9 @@ export function QuestionCard({ at, question, request = question, roleName, now, 
   const pending = question != null && !answered && !cancelled;
   return (
     <div className={styles.msg} data-kind="question" data-first={first || undefined} data-pending={pending || undefined}>
-      <div className={styles.who} data-ava={first || undefined} data-cont={!first || undefined}>
-        {first && <WhoAva roleId={roleId} />}
-        <span className={styles.name}>{roleName}</span>
-        <span className={styles.tm}>{formatClock(at)}</span>
-      </div>
-      <div className={styles.body}>
+      <Who name={roleName} at={at} />
+      {first && <Head name={roleName} url={headUrl} />}
+      <div className={styles.stack}>
         <div className={qc.qcard}>
           <div className={qc.qhead}>
             <span className={qc.qicon} aria-hidden="true" />

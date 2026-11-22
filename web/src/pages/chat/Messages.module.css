@@ -1,24 +1,37 @@
-/* Chat dialog rows: her short lines are bubbles beside her round head, the user's are self bubbles on the right;
-   long replies, tool output and runs are full-width content cards; notices are the system band, a run's end the end line. */
+/* Chat dialog rows: her bubbles beside her round head on the left, the user's dark bubbles on the right;
+   tool calls and runs are plates in the stack; notices are the system band, a run's end the end line. All drawn in CSS on the --b-* palette. */
 @import './MessagesPart1.css';
 @import './MessagesPart2.css';
 
-@keyframes card-text-in {
+@keyframes cell-fade {
   from {
     opacity: 0;
-    transform: translateX(-7.5px);
   }
 }
 
-@keyframes divider-in {
+@keyframes cell-in {
   from {
-    transform: scaleY(0);
+    translate: -11px 0;
   }
 }
 
-@keyframes line-in {
+@keyframes cell-in-self {
   from {
-    transform: scaleX(0);
+    translate: 11px 0;
+  }
+}
+
+@keyframes typing-dot {
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
   }
 }
 
@@ -40,87 +53,36 @@
   }
 }
 
-@keyframes loading-dot {
-  0%,
-  66.7%,
-  100% {
-    background-color: var(--sns-other-text);
-  }
-
-  16.7% {
-    background-color: var(--dot-mid);
-  }
-
-  33.3% {
-    background-color: var(--dot-dim);
-  }
-}
-
-/* Typing bubble sprites (recipe sns-bubble-loading, sns-loading-dot). */
-:global(html[data-art][data-theme='dark']) .loading {
-  border: 0 solid transparent;
-  border-image: url('/art/pages/chat/sns-bubble-loading.png') 30 fill / 15px;
-  background: none;
-}
-
-:global(html[data-art]) .loading > i {
-  -webkit-mask: url('/art/pages/chat/sns-loading-dot.png') center / 100% 100% no-repeat;
-  mask: url('/art/pages/chat/sns-loading-dot.png') center / 100% 100% no-repeat;
-}
-
-/* Reduced motion: every entrance becomes a plain fade; no flicker and no looping squares. */
+/* Reduced motion: entrances become a plain fade; no flicker and no lifting dots. */
 @media (prefers-reduced-motion: reduce) {
-  .bubble,
-  .msg[data-kind='me'] > .bubble,
-  .card,
-  .card > .body,
-  .tcard,
-  .tcard > :nth-child(4),
-  .tico,
-  .tdiv,
-  .note::before,
-  .note::after {
-    animation-name: sns-fade;
+  .msg[data-new],
+  .msg[data-new][data-kind='me'],
+  .swap {
+    animation-name: cell-fade;
   }
 
   .endline::before,
   .endDeco,
-  .loading > i {
+  .typing > i,
+  .ring {
     animation: none;
+    transition: none;
   }
 }
 
-:global([data-reduce-motion]) :is(.bubble, .card, .card > .body, .tcard, .tcard > :nth-child(4), .tico, .tdiv),
-:global([data-reduce-motion]) .msg[data-kind='me'] > .bubble,
-:global([data-reduce-motion]) .note::before,
-:global([data-reduce-motion]) .note::after {
-  animation-name: sns-fade;
+:global([data-reduce-motion]) :is(.msg[data-new], .swap) {
+  animation-name: cell-fade;
 }
 
 :global([data-reduce-motion]) .endline::before,
-:global([data-reduce-motion]) .endDeco,
-:global([data-reduce-motion]) .loading > i {
+:global([data-reduce-motion]) :is(.endDeco, .typing > i, .ring) {
   animation: none;
+  transition: none;
 }
 
 /* Copy button over a code block's top right, shown while the block is hovered or holds focus. */
 .messageCodeBox {
-  --code-bg: var(--ef-bg-canvas);
   position: relative;
-  margin-bottom: 1em;
-}
-
-/* The box takes over the margins the browser gives the pre. */
-.messageCodeBox:first-child {
-  margin-top: 1em;
-}
-
-.messageCodeBox > .messageCode {
-  margin: 0;
-}
-
-.card .messageCodeBox {
-  --code-bg: var(--sns-code);
 }
 
 .messageCodeCopy {
@@ -135,8 +97,8 @@
   padding: 0;
   border: 0;
   border-radius: var(--ef-r-btn);
-  background: var(--code-bg);
-  color: var(--ef-text-2);
+  background: var(--b-plate);
+  color: var(--b-t2);
   cursor: pointer;
   opacity: 0;
 }
@@ -147,21 +109,11 @@
 }
 
 .messageCodeCopy:hover {
-  background: linear-gradient(var(--ef-overlay-hover), var(--ef-overlay-hover)), var(--code-bg);
-  color: var(--ef-text-1);
+  background: var(--b-plate-hi);
+  color: var(--b-t1);
 }
 
 .messageCodeCopy:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline: 2px solid var(--b-sel);
   outline-offset: -2px;
-}
-
-.provider {
-  padding-inline: 6px;
-  border: 1px solid var(--ef-line);
-  border-radius: 4px;
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-caption);
-  font-weight: 400;
-  line-height: 18px;
 }

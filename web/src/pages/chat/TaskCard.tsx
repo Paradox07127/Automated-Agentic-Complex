@@ -2,7 +2,7 @@ import type { ActiveRun, Delivery, EffectiveState, PendingItem, Task } from '../
 import { SegMeter } from '../../charts';
 import { DeliveryChain, useDeliveryVisibility, type OnDeliveryReceipt } from '../../features/delivery';
 import { statusLabel } from '../../features/task';
-import { Pill } from '../../ui';
+import { Icon } from '../../ui';
 import styles from './Messages.module.css';
 import tc from './TaskCard.module.css';
 
@@ -21,13 +21,13 @@ export interface TaskCardProps {
   onReceipt?: OnDeliveryReceipt;
 }
 
-/** Category bar of the chat task card: waits on the user, runs, or anything else. */
+/** Category of the card's left edge: waits on the user, runs, or anything else. */
 function categoryOf(effective: EffectiveState, running: boolean): 'user' | 'run' | 'side' {
   if (effective === 'waiting') return 'user';
   return running || effective === 'running' ? 'run' : 'side';
 }
 
-/** Inline task card (snscontenttask), inserted when the run starts: category bar, Task · title · state with the go button, the step cells with the current step, the delivery chain. */
+/** Inline task card (proto `.task`), inserted when the run starts: task mark, title and state over the step cells with the current step, then the delivery chain. */
 export function TaskCard({ task, effective, activeRun, pending, stoppedAt, delivery = null, now, selected, onOpenTask, onReceipt }: TaskCardProps) {
   const visible = useDeliveryVisibility(delivery, onReceipt, 'presented');
   const steps = activeRun?.plan?.steps ?? task.steps;
@@ -35,29 +35,23 @@ export function TaskCard({ task, effective, activeRun, pending, stoppedAt, deliv
   const label = statusLabel(task, effective, pending, stoppedAt);
   return (
     <div ref={visible} className={styles.msg} data-kind="task">
-      <div className={`${styles.tcard} sns-task-stripes`} data-cat={categoryOf(effective, activeRun != null)} data-on={selected || undefined}>
-        <span className={styles.tbar} aria-hidden="true" />
-        <span className={styles.tico} aria-hidden="true">
-          <span className={tc.taskK}>Task</span>
-        </span>
-        <span className={styles.tdiv} aria-hidden="true" />
-        <div className={tc.main}>
-          <button type="button" className={tc.taskH} onClick={onOpenTask} aria-label={`任务 ${task.title}，${label}，查看任务`}>
-            <span className={tc.taskT}>{task.title}</span>
-            <Pill tone={effective === 'waiting' ? 'attention' : 'neutral'}>{label}</Pill>
+      <div className={styles.stack}>
+        <div className={tc.card} data-cat={categoryOf(effective, activeRun != null)} data-on={selected || undefined}>
+          <button type="button" className={tc.head} onClick={onOpenTask} aria-label={`任务 ${task.title}，${label}，查看任务`}>
+            <Icon name="g-task" size={20} />
+            <b className={tc.title}>{task.title}</b>
+            <span className={tc.st} data-wait={effective === 'waiting' || undefined}>{label}</span>
             <span className={tc.sp} />
-            <span className={tc.cap}>查看任务</span>
-            <span className={tc.go} aria-hidden="true" />
+            <span className={tc.go}>查看任务</span>
           </button>
           {steps.length > 0 && (
-            <div className={tc.taskB}>
-              <span className={tc.cap}>步骤</span>
+            <div className={tc.steps}>
               <SegMeter steps={steps} />
-              {cur && <span className={`${tc.cap} ${tc.taskCur}`}>{activeRun ? '当前' : '最后步骤'}：{cur.text}</span>}
+              {cur && <span className={`${tc.cap} ${tc.cur}`}>{activeRun ? '当前' : '最后步骤'}：{cur.text}</span>}
             </div>
           )}
           {delivery && (
-            <div className={tc.taskD}>
+            <div className={tc.delivery}>
               <span className={tc.cap}>
                 交付 v<span className="num">{delivery.version}</span>
               </span>

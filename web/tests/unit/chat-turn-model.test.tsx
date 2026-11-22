@@ -12,9 +12,9 @@ const composer: ComposerProps = {
 };
 
 describe('turn model identity', () => {
-  it.each([['codex_login', 'codex_login', 'Codex 登录'], ['claude_login', 'claude_login', 'Claude 登录'], ['deepseek', 'deepseek_api', 'DeepSeek API']])('renders %s under her reply', (provider, account, label) => {
-    render(<TextMessage mine={false} at={0} text="好。" roleName="她" turn={{ no: 1, res: '成功', ms: 1, provider, account_label: account }} />);
-    expect(screen.getByText(label)).toBeTruthy();
+  it('keeps the model and account out of her reply', () => {
+    const { container } = render(<TextMessage mine={false} at={0} text="好。" roleName="她" />);
+    expect(container.textContent).not.toMatch(/Codex 登录|Claude 登录|DeepSeek API/);
   });
 
   it('shows the no-model banner with a link to model settings', () => {

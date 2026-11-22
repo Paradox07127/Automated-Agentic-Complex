@@ -1,127 +1,115 @@
-/* Question card as a vote cell: the dark bubble plate, title row with the blue vote mark; options are the shared option rows, one per line. */
+/* Question card: a light plate with the yellow edge of a request waiting on the user; options are proto .opt bars. */
 .qcard {
-  /* Vote title icon #26BBFD; picked option lemon #FDF684. */
-  --vote-mark: #26bbfd;
-  --vote-picked: #fdf684;
   position: relative;
   width: min(100%, 460px);
-  margin: 0 0 4px;
-  padding: 11px 21px 12px;
-  border-radius: 7px;
-  background: var(--sns-other);
-  color: var(--sns-other-text);
-  transform-origin: left center;
-  animation:
-    vote-in 167ms var(--ef-ease-g-exit) both,
-    sns-fade 167ms var(--ef-ease-g-fade) both;
-}
-
-:global([data-theme='light']) .qcard {
-  --vote-mark: #0076aa;
-  --vote-picked: var(--ef-accent-text);
-  border: 1px solid var(--ef-line);
-}
-
-@keyframes vote-in {
-  from {
-    transform: scaleX(0.3);
-  }
-}
-
-@keyframes sns-fade {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes vote-title-in {
-  from {
-    opacity: 0;
-    transform: translateX(-5px);
-  }
-}
-
-@keyframes options-in {
-  from {
-    opacity: 0;
-    transform: translateY(50px);
-  }
+  padding: 12px 16px 14px;
+  border-left: 4px solid var(--b-sel);
+  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
+  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px rgba(0, 0, 0, 0.3), 0 4px 10px -4px var(--b-shadow);
+  color: var(--b-t1);
 }
 
 .qhead {
   display: flex;
   align-items: center;
-  gap: var(--ef-sp-8);
-  margin-bottom: 13px;
-  animation: vote-title-in 216ms var(--ef-ease-g-enter) 117ms both;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-/* sns_vote_decorate 34 g: a 17 px mark in vote blue. */
+/* Three bars of the vote mark in the request yellow's ink. */
 .qicon {
   flex: none;
   width: 17px;
   height: 17px;
   background:
-    linear-gradient(var(--vote-mark), var(--vote-mark)) 0 100% / 4px 9px no-repeat,
-    linear-gradient(var(--vote-mark), var(--vote-mark)) 6px 100% / 4px 17px no-repeat,
-    linear-gradient(var(--vote-mark), var(--vote-mark)) 12px 100% / 4px 13px no-repeat;
+    linear-gradient(var(--b-t1), var(--b-t1)) 0 100% / 4px 9px no-repeat,
+    linear-gradient(var(--b-t1), var(--b-t1)) 6px 100% / 4px 17px no-repeat,
+    linear-gradient(var(--b-t1), var(--b-t1)) 12px 100% / 4px 13px no-repeat;
 }
 
-/* Title fs 30 g -> 15 px white. */
 .qkind {
   font: 600 15px/20px var(--ef-font-sans);
-  color: var(--sns-other-text);
 }
 
 .qhead > [data-stub='Pill']:last-child {
   margin-left: auto;
 }
 
-/* Options rise in from below (snsdialogoptions_in). */
 .qcard [role='listbox'] {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 6px;
   max-width: none;
-  animation: options-in 333ms var(--ef-ease-g-enter) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .qcard,
-  .qhead,
-  .qcard [role='listbox'] {
-    animation-name: sns-fade;
-  }
+/* Option bar: plate with a yellow diamond at the left; pointing lifts and shifts it 3 px, the chosen one is yellow. */
+.qcard [role='listbox'] > :global([data-stub='OptionRow']) {
+  max-width: none;
+  height: 42px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
+  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  color: var(--b-t1);
+  font-size: 14px;
+  transition: filter 0.083s var(--g-fade), transform 0.1s var(--g-fade);
 }
 
-:global([data-reduce-motion]) .qcard,
-:global([data-reduce-motion]) .qhead,
-:global([data-reduce-motion]) .qcard [role='listbox'] {
-  animation-name: sns-fade;
+.qcard [role='listbox'] > :global([data-stub='OptionRow'])::before {
+  inset: 50% auto auto 14px;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 0;
+  background: var(--b-sel);
+  transform: rotate(45deg);
+  transition: none;
+  animation: none;
 }
 
-/* Result rows: text fs 26 g, #707070 -> #A7A7A7 for contrast. */
+.qcard [role='listbox'] > :global([data-stub='OptionRow'])::after {
+  display: none;
+}
+
+.qcard [role='listbox'] > :global([data-stub='OptionRow']):hover {
+  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
+  filter: brightness(1.15);
+  transform: translateX(3px);
+}
+
+.qcard [role='listbox'] > :global([data-stub='OptionRow'][aria-selected='true']) {
+  background: linear-gradient(180deg, var(--b-sel), var(--b-sel-2));
+  color: var(--b-ink);
+}
+
+.qcard [role='listbox'] > :global([data-stub='OptionRow'][aria-selected='true'])::before {
+  opacity: 0;
+}
+
+.qcard [role='listbox'] > :global([data-stub='OptionRow']):focus-visible {
+  outline: 2px solid var(--b-sel);
+  outline-offset: 2px;
+}
+
 .qtitle {
   margin-bottom: 8px;
-  font: 400 13px/1.5 var(--ef-font-sans);
-  color: var(--sns-other-text);
+  font: 400 14px/1.5 var(--ef-font-sans);
 }
 
 .okline {
   font: 500 13px/20px var(--ef-font-sans);
-  color: var(--vote-picked);
+  color: var(--b-t1);
 }
 
 .undo {
   display: flex;
   align-items: center;
-  gap: var(--ef-sp-8);
+  gap: 8px;
 }
 
 .preview {
-  margin-bottom: var(--ef-sp-8);
+  margin-bottom: 8px;
 }
 
 .aopts {
-  margin-bottom: var(--ef-sp-8);
+  margin-bottom: 8px;
 }
