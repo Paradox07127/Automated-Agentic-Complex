@@ -1,0 +1,9 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","placement","trace","playback","turn_generation","behavior_receipt"],"build":{"git":"e8d17c47"}}
+{"v":1,"type":"motion_state","behavior_id":"b-1763700000-1","origin":"agent","phase":"started","resting":true,"busy":false,"clip":"idle_stand_a"}
+{"v":1,"type":"motion_state","behavior_id":"b-1763700000-1","origin":"agent","phase":"cycle_end","resting":true,"busy":false,"clip":"idle_stand_a"}
+{"v":1,"type":"motion_state","behavior_id":null,"origin":"local","phase":"started","resting":false,"busy":true,"clip":"react_click_a"}
+{"v":1,"type":"motion_state","behavior_id":null,"origin":"local","phase":"ended","resting":true,"busy":false,"clip":"react_click_a"}
+{"v":1,"type":"motion_state","behavior_id":"b-1763700000-2","origin":"agent","phase":"started","resting":false,"busy":true,"clip":"react_wave"}
+{"v":1,"type":"motion_state","behavior_id":"b-1763700000-2","origin":"agent","phase":"ended","resting":true,"busy":false,"clip":"react_wave"}
+{"v":1,"type":"motion_state","behavior_id":"b-1763700000-3","origin":"agent","phase":"rejected","resting":true,"busy":false,"clip":"dialog_unknown"}
+{"v":1,"type":"motion_state","behavior_id":"b-1763700000-1","origin":"agent","phase":"expired","resting":true,"busy":false,"clip":"idle_stand_a"}

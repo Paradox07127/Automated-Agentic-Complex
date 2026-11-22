@@ -1,0 +1,123 @@
+{
+ "name": "基础层休息循环 idle_stand_a；1500 ms（第二圈一半）时换成 idle_stand_b，start 为 sync：立刻换，idle_stand_b 从相位 0.5 开始，所以它的第一圈在 2000 ms 结束",
+ "character": null,
+ "steps": [
+  {
+   "t_ms": 0,
+   "c1": {
+    "event": "behavior",
+    "seq": 1,
+    "behavior_id": "b-e7-1",
+    "type": "perform",
+    "target": null,
+    "trigger": {
+     "source": "agent",
+     "event": null
+    },
+    "display_session": null,
+    "turn_id": null,
+    "turn_generation": 5,
+    "priority": 0,
+    "expires_at_ms": 4102444800000,
+    "intensity": 0.6,
+    "channels": [
+     "full_body"
+    ],
+    "exit": [],
+    "replaces": null,
+    "trace_id": "t-1",
+    "clip": {
+     "id": "idle_stand_a"
+    },
+    "layer": "base",
+    "loop": true
+   }
+  },
+  {
+   "t_ms": 1500,
+   "c1": {
+    "event": "behavior",
+    "seq": 2,
+    "behavior_id": "b-e7-2",
+    "type": "perform",
+    "target": null,
+    "trigger": {
+     "source": "agent",
+     "event": null
+    },
+    "display_session": null,
+    "turn_id": null,
+    "turn_generation": 5,
+    "priority": 0,
+    "expires_at_ms": 4102444800000,
+    "intensity": 0.6,
+    "channels": [
+     "full_body"
+    ],
+    "exit": [],
+    "replaces": "b-e7-1",
+    "trace_id": "t-2",
+    "clip": {
+     "id": "idle_stand_b"
+    },
+    "layer": "base",
+    "start": "sync",
+    "blend_s": 0.2,
+    "loop": true
+   }
+  }
+ ],
+ "expect": [
+  {
+   "t_ms_max": 100,
+   "motion_state": {
+    "behavior_id": "b-e7-1",
+    "origin": "agent",
+    "phase": "started",
+    "resting": true,
+    "busy": false
+   }
+  },
+  {
+   "t_ms_max": 1100,
+   "motion_state": {
+    "behavior_id": "b-e7-1",
+    "origin": "agent",
+    "phase": "cycle_end",
+    "resting": true,
+    "busy": false
+   }
+  },
+  {
+   "t_ms_max": 1600,
+   "motion_state": {
+    "behavior_id": "b-e7-1",
+    "origin": "agent",
+    "phase": "ended",
+    "resting": true,
+    "busy": false
+   }
+  },
+  {
+   "t_ms_max": 1600,
+   "motion_state": {
+    "behavior_id": "b-e7-2",
+    "origin": "agent",
+    "phase": "started",
+    "resting": true,
+    "busy": false
+   }
+  },
+  {
+   "t_ms_max": 2100,
+   "motion_state": {
+    "behavior_id": "b-e7-2",
+    "origin": "agent",
+    "phase": "cycle_end",
+    "resting": true,
+    "busy": false
+   }
+  }
+ ],
+ "poses": []
+}

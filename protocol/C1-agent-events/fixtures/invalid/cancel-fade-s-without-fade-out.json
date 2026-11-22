@@ -1,0 +1,42 @@
+{
+ "description": "不合法（校验器要报错）：behavior_cancel 带 fade_s 却没有 mode fade_out",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e7-1",
+   "type": "perform",
+   "target": null,
+   "trigger": {
+    "source": "agent",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 1,
+   "expires_at_ms": 4102444800000,
+   "intensity": 1.0,
+   "channels": [
+    "head",
+    "left_hand",
+    "right_hand"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "t-1",
+   "clip": {
+    "id": "react_wave"
+   },
+   "layer": "overlay"
+  },
+  {
+   "event": "behavior_cancel",
+   "seq": 2,
+   "behavior_id": "b-e7-1",
+   "reason": "turn_cancelled",
+   "turn_generation": 5,
+   "fade_s": 0.3
+  }
+ ]
+}

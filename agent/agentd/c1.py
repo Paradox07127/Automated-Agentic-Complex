@@ -1,6 +1,6 @@
 """C1 v2 message checks (`protocol/C1-agent-events/CONTRACT.md`): behavior, behavior_cancel, clause_intent, text_line,
-motion, session_reaction and the execution receipt. `python3 -I c1.py <fixture dir>` checks every shared fixture file
-there."""
+motion, session_reaction and the execution receipt, and the player fixtures (`check_player_fixture`).
+`python3 -I c1.py <fixture dir>` checks every shared fixture file there."""
 import json
 import math
 from pathlib import Path
@@ -28,7 +28,7 @@ OPTIONAL_SWITCHES = ("bust_framing",)  # PUT /behavior/switches may add these; a
 BUST_HELD = ("sit", "hold_window_edge", "face")  # never sent in the bust framing, beside MOVING
 TYPING_MAX = 0.3  # intensity cap while the user types
 # type -> target kinds it accepts; None in the tuple means no target
-TARGETS = {"idle": (None,), "observe": ("window", "point", None), "short_walk": ("window", "point", None),
+TARGETS = {"idle": (None,), "observe": ("window", "point", None), "short_walk": ("window", "point", "edge", None),
            "sit": ("window", "object", None), "hold_window_edge": ("window",), "climb_window_top": ("window",),
            "attend_session": ("session",), "accompany": (None,), "listen": ("user", None), "think": (None,), "face": (None,),
            "perform": (None,)}
@@ -42,6 +42,25 @@ ACTION_ID_MAX = 64  # bytes: the id of a perform's game action
 REQUEST_ID = re.compile(r"mr-[0-9a-f]{16}")
 MOTION_REASONS = ("timeout", "no_service", "busy", "failed", "game_backend")  # a failed motion event
 BEHAVIOR_ID_MAX = 64  # bytes: the behavior_id of a motion request
+EDGE_SIDES = ("nearest", "left", "right")  # a short_walk's edge target
+PAYLOADS = ("motion", "action", "clip")  # a perform carries exactly one
+PLAY_FIELDS = ("layer", "start", "blend_s", "loop", "ttl_s")  # how a perform plays; only on perform
+LAYER_CHANNELS = {"base": ["full_body"], "overlay": ["head", "left_hand", "right_hand"]}
+STARTS = ("now", "sync", "cycle_end", "after_exit")
+BLEND_S = (0, 2)
+TTL_S = (0.5, 120)
+CLIP_ID_MAX = 64  # bytes: a clip id of the character's motion metadata
+CANCEL_MODES = ("abort", "fade_out")
+FADE_S = (0.05, 2)
+REACTION_TRIGGERS = ("click", "pat", "pinch", "drag_lift", "drop", "attention_left", "attention_right", "point_at",
+                     "present")
+STAGE_LEVELS = ("offstage", "quiet", "normal", "engaged")
+CONSUMED_MAX = 64
+OCCURRENCE_ID_MAX = 64  # bytes
+MOTION_STATE_PHASES = ("started", "cycle_end", "ended", "expired", "rejected")
+ORIGINS = ("agent", "local")
+MOTION_STATE_KEYS = {"behavior_id", "origin", "phase", "resting", "busy"}  # C3 motion_state without its clip
+PLAYER_KEYS = {"name", "character", "steps", "expect"}  # and the optional poses
 
 
 def _int(value):
@@ -50,6 +69,14 @@ def _int(value):
 
 def _str_or_none(value):
     return value is None or isinstance(value, str) and value != ""
+
+
+def _short_str(value, limit):
+    return isinstance(value, str) and value != "" and len(value.encode()) <= limit
+
+
+def _number_in(value, bounds):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and bounds[0] <= value <= bounds[1]
 
 
 def _target(message):
@@ -74,6 +101,9 @@ def _target(message):
         elif kind == "object":
             if not _str_or_none(target.get("object_id", 0)):
                 problems.append("object target needs object_id (string, or null: the host picks)")
+        elif kind == "edge":
+            if target.get("side") not in EDGE_SIDES:
+                problems.append(f"edge target needs side, one of {EDGE_SIDES}")
         elif kind != "user":
             problems.append(f"unknown target kind {kind!r}")
     if kind not in TARGETS.get(message["type"], ()):
@@ -109,6 +139,32 @@ def _action(action):
     if isinstance(length, bool) or not isinstance(length, (int, float)) \
             or not MOTION_LENGTH[0] <= length <= MOTION_LENGTH[1]:
         problems.append(f"action.length_s is a number in {MOTION_LENGTH[0]}-{MOTION_LENGTH[1]}")
+    return problems
+
+
+def _clip(clip):
+    """Problems with a perform's clip object: one clip of the character's motion metadata (C1 §1.4, v2.7)."""
+    if not isinstance(clip, dict) or not _short_str(clip.get("id"), CLIP_ID_MAX):
+        return [f"clip is {{id}}, a string of 1-{CLIP_ID_MAX} bytes"]
+    return []
+
+
+def _play(m):
+    """Problems with how a perform plays: its layer and that layer's channels, start, blend, loop and ttl."""
+    layer = m.get("layer", "base")
+    if layer not in LAYER_CHANNELS:
+        return [f"layer is one of {tuple(LAYER_CHANNELS)}"]
+    problems = []
+    if m.get("channels") != LAYER_CHANNELS[layer]:
+        problems.append(f"a perform on layer {layer} uses channels {LAYER_CHANNELS[layer]}")
+    if m.get("start", "now") not in STARTS:
+        problems.append(f"start is one of {STARTS}")
+    if "blend_s" in m and not _number_in(m["blend_s"], BLEND_S):
+        problems.append(f"blend_s is a number in {BLEND_S[0]}-{BLEND_S[1]}")
+    if "loop" in m and (not isinstance(m["loop"], bool) or layer != "base"):
+        problems.append("loop is true or false, and only on a base perform")
+    if "ttl_s" in m and not _number_in(m["ttl_s"], TTL_S):
+        problems.append(f"ttl_s is a number in {TTL_S[0]}-{TTL_S[1]}")
     return problems
 
 
@@ -150,14 +206,18 @@ def _behavior(m):
     elif m.get('facing_yaw') is not None:
         problems.append('facing_yaw is only valid on face')
     if m["type"] == "perform":
-        if "action" in m and "motion" in m:
-            problems.append("perform carries motion or action, not both")
+        payloads = [k for k in PAYLOADS if k in m]
+        if len(payloads) > 1:
+            problems.append(f"perform carries exactly one of {PAYLOADS}")
+        elif payloads == ["action"]:
+            problems += _action(m["action"])
+        elif payloads == ["clip"]:
+            problems += _clip(m["clip"])
         else:
-            problems += _action(m["action"]) if "action" in m else _motion(m.get("motion"))
-        if m.get("channels") != ["full_body"]:
-            problems.append("perform uses full_body only")
-    elif "motion" in m or "action" in m:
-        problems.append("motion and action are only valid on perform")
+            problems += _motion(m.get("motion"))
+        problems += _play(m)
+    elif any(k in m for k in PAYLOADS + PLAY_FIELDS):
+        problems.append(f"{PAYLOADS + PLAY_FIELDS} are only valid on perform")
     if not isinstance(m.get("behavior_id"), str) or not m["behavior_id"]:
         problems.append("behavior_id")
     problems += _target(m)
@@ -199,6 +259,10 @@ def _cancel(m):
         return [f"an exit cancel names a condition agentd judges: one of {tuple(EXIT_RECEIPTS)}"]
     if m["reason"] != "exit" and "condition" in m:
         return ["condition comes with reason exit only"]
+    if m.get("mode", "abort") not in CANCEL_MODES:
+        return [f"mode is one of {CANCEL_MODES}"]
+    if "fade_s" in m and (m.get("mode") != "fade_out" or not _number_in(m["fade_s"], FADE_S)):
+        return [f"fade_s is a number in {FADE_S[0]}-{FADE_S[1]} and comes with mode fade_out only"]
     return []
 
 
@@ -234,6 +298,8 @@ def _text_line(m):
 def _session_reaction(m):
     if not isinstance(m.get("display_session"), str) or m.get("state") not in ("done", "error"):
         return ["session_reaction needs display_session and state done or error"]
+    if "occurrence_id" in m and not _short_str(m["occurrence_id"], OCCURRENCE_ID_MAX):
+        return [f"occurrence_id is a string of 1-{OCCURRENCE_ID_MAX} bytes"]
     return []
 
 
@@ -253,11 +319,35 @@ def _receipt(m):
     return problems
 
 
+def _reactions(reactions):
+    """Problems with a snapshot's reaction table: trigger -> the clips the renderer picks from by weight."""
+    if not isinstance(reactions, dict) or not set(reactions) <= set(REACTION_TRIGGERS):
+        return [f"reactions maps triggers among {REACTION_TRIGGERS} to their clips"]
+    return [f"reactions.{trigger}: a non-empty list of {{clip, weight > 0, layer}}"
+            for trigger, choices in reactions.items()
+            if not isinstance(choices, list) or not choices
+            or not all(isinstance(c, dict) and _short_str(c.get("clip"), CLIP_ID_MAX) and c.get("layer") in LAYER_CHANNELS
+                       and _number_in(c.get("weight"), (0, math.inf)) and c["weight"] > 0 for c in choices)]
+
+
 def _snapshot(m):
     behaviors = m.get("behaviors")
     if "behavior" in m or not isinstance(behaviors, list) or not all(isinstance(b, dict) for b in behaviors):
         return ["snapshot needs behaviors: every running behavior, [] when none"]
-    return [f"behaviors[{n}]: {p}" for n, b in enumerate(behaviors) for p in check_message({**b, "event": "behavior"})]
+    problems = [f"behaviors[{n}]: {p}" for n, b in enumerate(behaviors)
+                for p in check_message({**b, "event": "behavior"})]
+    if "reactions" in m:
+        problems += _reactions(m["reactions"])
+    stage = m.get("stage", {"level": "normal", "revision": 0})
+    if not isinstance(stage, dict) or stage.get("level") not in STAGE_LEVELS or not _int(stage.get("revision")) \
+            or stage["revision"] < 0:
+        problems.append(f"stage is {{level, revision}}: level one of {STAGE_LEVELS}, revision an int >= 0")
+    consumed = m.get("consumed", [])
+    if not isinstance(consumed, list) or len(consumed) > CONSUMED_MAX \
+            or not all(_short_str(o, OCCURRENCE_ID_MAX) for o in consumed):
+        problems.append(f"consumed is a list of at most {CONSUMED_MAX} occurrence ids, "
+                        f"each a string of 1-{OCCURRENCE_ID_MAX} bytes")
+    return problems
 
 
 def check_switches(body):
@@ -292,7 +382,7 @@ def _receipt_fits(receipt, behavior, renewal, last_phase):
         return []
     problems, phase, at, end = [], receipt.get("phase"), receipt.get("at_ms"), behavior.get("expires_at_ms")
     if _int(at) and _int(end):
-        if phase == "expired" and at < end:
+        if phase == "expired" and at < end and "ttl_s" not in behavior:
             problems.append("expired before expires_at_ms")
         if phase != "expired" and at > end:
             problems.append(f"{phase} after expires_at_ms; the behavior expired first")
@@ -305,6 +395,14 @@ def _receipt_fits(receipt, behavior, renewal, last_phase):
     if receipt.get("turn_generation") != behavior.get("turn_generation"):
         problems.append("a receipt carries its behavior's turn_generation")
     return problems
+
+
+def _activity(behavior):
+    """What a behavior does, for the renewal rule: its type and target, and a perform's layer and payload too."""
+    key = [behavior.get("type"), behavior.get("target")]
+    if behavior.get("type") == "perform":
+        key += [behavior.get("layer", "base")] + [behavior.get(k) for k in PAYLOADS]
+    return json.dumps(key, sort_keys=True)
 
 
 def check_file(data):
@@ -334,10 +432,9 @@ def check_file(data):
             if isinstance(behavior, dict):  # a resumed behavior counts as sent
                 sent[behavior.get("behavior_id")] = behavior
                 seen.add(behavior.get("behavior_id"))
-                running[behavior.get("behavior_id")] = (behavior.get("type"),
-                                                        json.dumps(behavior.get("target"), sort_keys=True))
+                running[behavior.get("behavior_id")] = _activity(behavior)
         if message.get("event") == "behavior":
-            key = (message.get("type"), json.dumps(message.get("target"), sort_keys=True))
+            key = _activity(message)
             same = [b for b, k in running.items() if k == key and b != message.get("replaces")]
             if same:
                 problems.append(f"#{i}: {same[0]} with the same type and target still runs; renew it with replaces")
@@ -379,6 +476,67 @@ def check_file(data):
             if last_phase in ENDED:
                 problems.append(f"#{i}: a receipt after the terminal phase {last_phase}")
             phases[message.get("behavior_id")] = message.get("phase")
+    return problems
+
+
+def _expected_state(state, sent):
+    """Problems with an expected motion_state (C3 motion_state without clip) against the behaviors the steps sent."""
+    if not isinstance(state, dict) or set(state) != MOTION_STATE_KEYS:
+        return [f"motion_state is exactly {sorted(MOTION_STATE_KEYS)}; a fixture leaves out the clip"]
+    problems = []
+    if state["origin"] not in ORIGINS:
+        problems.append(f"origin is one of {ORIGINS}")
+    if state["behavior_id"] is None and state["origin"] != "local":
+        problems.append("a null behavior_id is a local reaction's")
+    elif state["behavior_id"] is not None and state["behavior_id"] not in sent:
+        problems.append(f"behavior_id {state['behavior_id']!r} was not sent in a step")
+    if state["phase"] not in MOTION_STATE_PHASES:
+        problems.append(f"phase is one of {MOTION_STATE_PHASES}")
+    if not isinstance(state["resting"], bool) or not isinstance(state["busy"], bool):
+        problems.append("resting and busy are true or false")
+    return problems
+
+
+def check_player_fixture(data):
+    """Problems with one player fixture {name, character, steps, expect, poses?}: timed C1 messages and local inputs
+    go in, the renderer's motion_state sequence comes out."""
+    if not isinstance(data, dict) or not PLAYER_KEYS <= set(data) <= PLAYER_KEYS | {"poses"} \
+            or not isinstance(data["name"], str) or not data["name"] or not _str_or_none(data["character"]) \
+            or not isinstance(data["steps"], list) or not data["steps"] \
+            or not isinstance(data["expect"], list) or not data["expect"]:
+        return ["a player fixture is {name, character, steps: [...], expect: [...]}, optionally poses"]
+    problems = [] if data.get("poses", []) == [] else ["poses is [] until pose expectations are defined"]
+    messages, at = [], 0
+    for i, step in enumerate(data["steps"]):
+        if not isinstance(step, dict) or set(step) not in ({"t_ms", "c1"}, {"t_ms", "local"}) \
+                or not _int(step["t_ms"]) or step["t_ms"] < at:
+            problems.append(f"step {i}: {{t_ms, c1}} or {{t_ms, local}}, t_ms an int >= 0 that does not decrease")
+            continue
+        at = step["t_ms"]
+        if "local" in step:
+            if not isinstance(step["local"], dict) or set(step["local"]) != {"input"} \
+                    or step["local"]["input"] not in REACTION_TRIGGERS:
+                problems.append(f"step {i}: local is {{input}}, one of {REACTION_TRIGGERS}")
+        elif not isinstance(step["c1"], dict) or step["c1"].get("event") == "receipt":
+            problems.append(f"step {i}: c1 is a message agentd sends")
+        else:
+            messages.append(step["c1"])
+    if messages:
+        problems += [f"c1 {p}" for p in check_file({"description": data["name"], "messages": messages})]
+    sent = set()
+    for message in messages:
+        resumed = message.get("behaviors") if message.get("event") == "snapshot" else None
+        for behavior in [message] if message.get("event") == "behavior" else resumed if isinstance(resumed, list) else ():
+            if isinstance(behavior, dict):
+                sent.add(behavior.get("behavior_id"))
+    at = 0
+    for i, expected in enumerate(data["expect"]):
+        if not isinstance(expected, dict) or set(expected) != {"t_ms_max", "motion_state"} \
+                or not _int(expected["t_ms_max"]) or expected["t_ms_max"] < at:
+            problems.append(f"expect {i}: {{t_ms_max, motion_state}}, t_ms_max an int >= 0 that does not decrease")
+            continue
+        at = expected["t_ms_max"]
+        problems += [f"expect {i}: {p}" for p in _expected_state(expected["motion_state"], sent)]
     return problems
 
 

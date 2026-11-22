@@ -1,4 +1,4 @@
-# C1 agentd → 角色进程事件 v2.6：语义行为字段、分句级意图、只出字的台词和生成动作
+# C1 agentd → 角色进程事件 v2.7：语义行为字段、分句级意图、只出字的台词、生成动作和播放器原语
 
 > 角色进程指 `private/renderer/host`（私有组件，不在公开仓库） 的 `metal-avatar-host`。
 
@@ -7,7 +7,8 @@
 共用夹具：`protocol/C1-agent-events/fixtures/`（每个文件一条消息或一串消息）；校验器 `agent/agentd/c1.py`
 （`python3 -I agent/agentd/c1.py protocol/C1-agent-events/fixtures` 全部通过才算夹具有效）。夹具 01–08 各对应一条用例或
 一条规则，09 是分句级意图，10、11 是断线和重连，12 是 agentd 判断的结束条件，13 是只出字的台词，14 是生成动作 `perform`（§1.4），15 是宿主请求的生成动作 `motion`（§1.5）；接收端的测试读同一批文件。
-`fixtures/invalid/` 下是校验器必须报错的样例，不在上面的命令里。
+`fixtures/invalid/` 下是校验器必须报错的样例，不在上面的命令里。`fixtures/player/` 下是播放器一致性夹具（§6），格式和上面不同，
+由 `c1.check_player_fixture` 查，也不在上面的命令里。
 
 ## 0. 不变的部分
 
@@ -23,6 +24,8 @@
 待复核 `needs_review`、核验失败 `failed`、后台仍工作 `background_pending`。
 只有 `succeeded` 选择庆祝，普通回答用确认，待复核用不确定，失败用歉意。
 终态反应保留 8 秒；这不是用户已查看/接受的回执，交付账本仍应独立保存未处理结果。
+带 `outcome` 的终态 intent 可带 `occurrence_id`（1–64 字节的字符串，v2.7）：这一次终态表现的编号，同一次终态续发、重发都用同一个编号。
+渲染器不演在 snapshot 的 `consumed` 里见过的编号，也不再演自己已经演过的编号（§4.2 的 `session_reaction` 同此）。
 问题的实际状态与到期控制等待表现；回答、撤销、角色切换、重置后最多 0.5 秒重新对账。
 同一运行的并行工具按 `tool_call_id` 匹配结束事件，最后一个工具结束之前仍显示执行中。
 
@@ -48,8 +51,8 @@
 同角度的续期沿用执行器，新角度替换必须重新准备和执行。取消/到期释放执行器，不隐含回正指令。
 
 - `GET /events` 的 SSE、`seq`、游标、`event: snapshot`、`event: intent`、`event: speech_cancelled` 都不变。
-- 旧消费者不认识新事件名时跳过即可。v2 只加不改。
-- 角色进程可按 intent 事件的 `state`（`agent/agentd/sessions/registry.py` 的 `STATES`）选身体动作，`intent` 是兜底；
+- 旧消费者不认识新事件名时跳过即可。v2 只加不改，v2.7 例外（见 §5）。
+- intent 事件的 `state`（`agent/agentd/sessions/registry.py` 的 `STATES`）和 `intent` 只给脸和气泡用，v2.7 起角色进程不再按它们选身体动作；
   换工具时 agentd 重发同一个 `state` 和 `intent`（`test_registry.UnityIntentFieldsTest` 钉住）。
 - `state` 为 `background` 时角色只有后台任务在跑（`intent` 为 `think`）；前台工作、等待和刚完成都排在它前面。
 - 新事件和 `intent` 共用 `seq`。
@@ -58,6 +61,14 @@
   （夹具 11）。host 的 adapter 把它放在 LastState 顶层，之后的 `behavior` 加进去或按 `replaces` 替换，同 id 的
   `behavior_cancel` 把它移出；`behavior`、`behavior_cancel`、`clause_intent`、`text_line`
   按 speech.cancelled 的封装原样转，丢掉 `seq` ≤ 游标的和第一条 snapshot 之前的。
+- `event: snapshot` 可另带下面三个字段（v2.7）。角色加载或换角色时、重连时都带上，不依赖终态的有效期；带了的字段整份替换渲染器
+  手里的那一份，没带的保持原值。
+
+  | 字段 | 内容 |
+  |---|---|
+  | `reactions` | 对象：触发名 → 非空数组 `[{clip, weight, layer}]`。触发名只能是 `click`、`pat`、`pinch`、`drag_lift`、`drop`、`attention_left`、`attention_right`、`point_at`、`present`；`clip` 同 §1.4 `clip.id`（1–64 字节的字符串）；`weight` 是 > 0 的数；`layer` 同 §1.4（`base` / `overlay`）。这个触发在本地发生时，渲染器按 `weight` 加权随机挑一条、在本地播，不做别的策略；表里没有这个触发名就不播 |
+  | `stage` | `{level, revision}`：`level` 是当前存在感等级，`offstage` / `quiet` / `normal` / `engaged`；`revision` 是整数 ≥ 0，等级每变一次 +1 |
+  | `consumed` | 数组，最多 64 个终态编号（`occurrence_id`，各 1–64 字节的字符串）：被挡掉、不再演的终态（§0 2026-10-29 一节、§4.2） |
 
 ## 1. `event: behavior`（agentd 选的一个持续活动）
 
@@ -65,9 +76,11 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
 `AgentBehaviorScheduler`），按 `channels` 分配身体占用。新 behavior 替换旧的（`replaces`），承重骨链先安全释放再切，
 旧的不延迟复活。`replaces` 为 null 且 `channels` 和正在跑的行为不重叠时，两个一起跑
 （扶窗中用眼、头、嘴回应说话，夹具 06）；重叠时按 `priority` 替换。
+- 身体片段只来自 `perform`（§1.4）和别的行为类型。intent 的 `state`、`activity` 不再让渲染器选全身片段，只给脸和气泡用（v2.7）。
 - `replaces` 指向的行为已经结束时，忽略 `replaces`，照常按 `channels` 和 `priority` 定。
 - 用户拖动、拎起是角色进程本地的，算 `priority` 2：和它重叠的行为以 `user_drag` 结束（回执 `cancelled`）；拖动中要
-  `full_body` 或 `contact` 的新行为回执 `rejected` / `busy`。
+  `full_body` 或 `contact` 的新行为回执 `rejected` / `busy`。用户单击的本地反应打断的行为以 `user_click` 结束，渲染器为让开
+  用户正在用的东西结束的坐、扶以 `give_way` 结束（C3 规则 42），回执都是 `cancelled`（v2.7）。
 - agentd 发出的新行为和在跑的行为通道重叠时，必须声明被取代的那个：`replaces` 填旧 id，或先发 `behavior_cancel` /
   `replaced`。否则旧的会一直留在各消费端的 `behaviors` 里。校验器按这条查。
 - 到期是本地的：到期的行为不发 `behavior_cancel`；消费端按墙钟把 `expires_at_ms` 已过的项从 `behaviors` 里去掉。
@@ -128,8 +141,16 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
 | `point` | `x`、`y`（全局点）、`display_id` | `short_walk` 的终点、`observe` |
 | `user` | 无 | `listen` |
 | `object` | `object_id`（string 或 null：由角色进程选物体） | v2.2，`sit`（坐在场景物体上）；agentd 现在不发这种目标 |
+| `edge` | `side`（`nearest` / `left` / `right`） | v2.7，`short_walk`：走到当前显示器的一条自由边 |
 
 `target` 为 null：`sit` 是在屏幕底边当前位置坐下；`idle`、`accompany`、`think` 没有目标；`short_walk` 由角色进程选终点。
+
+`short_walk` 的 `edge` 目标（v2.7）：
+- 自由边是当前显示器上不和别的显示器相接的左边或右边。角色进程在当前显示器、当前地面线上找：`nearest` 取离她近的那条自由边，
+  `left` / `right` 只取那一边；没有可取的自由边时回执 `blocked` / `no_room`。
+- 走到那条边上（在到达容差内）回执 `completed`，不走回程。终点可以让身体部分出屏，锚点照 C3 规则 19 的自由边限位。
+- 已经在那条边上：不走，直接回执 `completed`（第一条回执照 §3 是 `running`），不回 `blocked` / `no_room`。
+- 窗口视口、固定舞台（展示台、场景盒）或角色没有走路数据：第一条回执就是 `rejected` / `unsupported`。
 
 窗口几何以系统 API 为准，agentd 只给窗口号，不给坐标、窗口代际或 display_id；角色进程用
 `HostSurfaceLink` 按 `window_id` 取几何，取不到就回执 `blocked` / `target_gone`。
@@ -158,9 +179,9 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
 动作后端为 `generated` 时，agentd 把台词里的 `[motion:<英文描述>|<秒数>]` 交给动作服务生成，重定向到当前角色，作为一条普通
 `behavior` 发出。只多一个类型和一个字段：
 
-- `type: "perform"`，`target: null`，`channels: ["full_body"]`。其余字段和别的行为一样（behavior_id、trigger、turn_generation、
+- `type: "perform"`，`target: null`，`channels: ["full_body"]`（叠加层见下面的 `layer`）。其余字段和别的行为一样（behavior_id、trigger、turn_generation、
   priority、expires_at_ms、intensity、exit、trace_id、replaces）。agentd 发的 `trigger.source` 是 `agent`。
-- `motion` 或 `action`（v2.6）：`perform` 带且只带其中一个，别的类型两个都不能带。`motion` 是生成片段：
+- `motion`、`action`（v2.6）或 `clip`（v2.7）：`perform` 带且只带其中一个，别的类型都不能带。`motion` 是生成片段：
   - `id`：`"gm-"` 加 16 个小写十六进制字符；
   - `meta_sha256`、`keys_sha256`：64 个小写十六进制字符；
   - `rig_sha256`：64 个小写十六进制字符，是宿主 `ActorArchive.rigSHA256` 里那份角色 rig 文档的 sha256；
@@ -175,6 +196,22 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
   - 宿主按 `id` 取该动作的片段，当身体片段按原长播（不拉伸、不截短，和标记里的秒数无关），进出都用默认交叉淡化，
     播完回到待机底层，发 `completed`；片段第一次参与提交的帧时发 `running`。角色没有这条动作或片段不可播时发 `rejected`，
     reason `unsupported`。
+- `clip`（v2.7）是角色包里的一条片段：`{"id"}`，`id` 是角色包 `c7/interaction/motion-metadata.json` 里一条片段的 id，1–64 字节的
+  字符串。宿主按 `id` 取片段，片段第一次参与提交的帧时发 `running`；不循环的播完发 `completed`；角色没有这条片段或片段不可播时
+  发 `rejected` / `unsupported`。
+- 怎么播（v2.7，只用于 `perform`，别的类型都不能带）：
+
+  | 字段 | 类型 | 说明 |
+  |---|---|---|
+  | `layer` | `"base"` / `"overlay"`，可缺省 | 缺省 `base`。`base` 是基础层，`channels` 为 `["full_body"]`。`overlay` 是叠加层，按骨骼遮罩（缺省上半身，片段元数据可改）盖在基础层上，`channels` 正好是 `["head", "left_hand", "right_hand"]`，不能含 `full_body`；它和基础层的 `perform` 通道不重叠，两个一起跑 |
+  | `start` | `"now"` / `"sync"` / `"cycle_end"` / `"after_exit"`，可缺省 | 缺省 `now`：立刻开始，同一层上原来的片段交叉淡化出去。`sync`：立刻切，新片段从旧片段当前的归一化相位开始。`cycle_end`：等这一层当前的循环片段走完这一圈再切。`after_exit`：等这一层当前的行为走完出口段（坐、扶窗先起身、松手，一次性片段先播完）再开始 |
+  | `blend_s` | 数 0–2，可缺省 | 切进这条片段的交叉淡化秒数；缺省用默认交叉淡化 |
+  | `loop` | 布尔，可缺省，只用于 `layer: "base"` | `true` 时这条 `perform` 就是当前的休息循环：片段循环播，不受 `length_s` 限制，只在被替换、取消或到期时结束 |
+  | `ttl_s` | 数 0.5–120，可缺省 | 渲染器收到这条行为起 `ttl_s` 秒内没有续期就丢掉它，回执 `expired`，回到当前姿势的默认休息循环；`expires_at_ms` 照旧，先到的那个算 |
+
+  - 续期照 §1.3：同一层、同一载荷、`replaces` 为旧 id 的 `perform` 是续期，片段接着播，不重新开始，`ttl_s` 从收到续期时重算。
+  - 当前姿势的默认休息循环是角色包里固定的一条，渲染器不挑选；过期或 agentd 断开时回到它。
+  - 片段边界的播放状态由渲染器经 C3 `motion_state`（规则 54）报给 agentd。
 - 下面取文件、校验的规则只对 `motion`。宿主用 AgentBridgeTransport 发 GET 时已用的基址和令牌取两个文件（C6，ui 或 events 令牌）：
   - `GET /motions/<id>/meta` 回一份 `metal-actor-clip-v1` JSON：`{schema, name, length, frame_rate, loop:false, curves,
     keys:{file, sha256, byte_count}}`，和 `characters/agentic_complex_build/import_vmd.py:append_clip` 写的一样；`name` 等于 `<id>`。
@@ -259,6 +296,9 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
 角色进程安全释放后回执 `cancelled`；`exit` 按 §1 的表回执（`speech_end`、`session_state`、`focus_change` → `completed`，
 `speech_start`、`user_typing` → `cancelled`、reason null）。校验器按这条查。
 
+可选 `mode`（v2.7）：`abort`（缺省）照上面安全释放；`fade_out` 让片段在 `fade_s` 秒里淡出，淡完再按上面回执。`fade_s` 是
+0.05–2 的数，只和 `fade_out` 一起出现；`fade_out` 不带 `fade_s` 时用默认交叉淡化。
+
 ## 3. 执行回执（角色进程 → Companion → agentd）
 
 角色进程经 C3（规则 25，和 `playback` 一样）交给 Companion，Companion 原样 `POST /behavior/receipts`
@@ -268,7 +308,7 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
 |---|---|
 | `behavior_id` | 来自 `event: behavior` |
 | `phase` | `prepared`、`rejected`、`running`、`completed`、`blocked`、`cancelled`、`expired`（Proposed→Rejected/Prepared→Running→Cancelling→Cancelled/Completed/Failed；`blocked` 和 `expired` 是 Failed 的两种） |
-| `reason` | `rejected`：`stale`、`busy`、`unsupported`、`switch_off`；`blocked`：`target_gone`、`no_room`、`path_blocked`；`cancelled` 可带 `connection_lost`（角色进程断线，Companion 对没到终态的每个行为补发，C3 v11 规则 25）、`user_drag`、`replaced`、`character_switch`（换角色前释放）；其余可为 null |
+| `reason` | `rejected`：`stale`、`busy`、`unsupported`、`switch_off`；`blocked`：`target_gone`、`no_room`、`path_blocked`；`cancelled` 可带 `connection_lost`（角色进程断线，Companion 对没到终态的每个行为补发，C3 v11 规则 25）、`user_drag`、`user_click`（v2.7，用户单击的本地反应打断了它）、`give_way`（v2.7，渲染器为让开用户正在用的东西结束了坐、扶，C3 规则 42）、`replaced`、`character_switch`（换角色前释放）；其余可为 null |
 | `at_ms` | 墙钟毫秒 |
 | `turn_generation` | 回执对应行为的 `turn_generation` |
 
@@ -321,10 +361,11 @@ Companion 给某个行为补发 `cancelled` / `connection_lost` 之后，角色�
 某个会话进入 `done` 或 `error`，而这次 hook 没让它以这个状态成为焦点 intent 时（例如另一个会话在等确认、焦点会话结束时
 别的会话还在忙），agentd 发一条。成为焦点 intent 的结束不发，所以同一次结束不会反应两遍。intent 的 `quiet` 为 true 时不发。
 
-`{seq, display_session, state, turn_generation}`；`display_session` 同 intent 的会话 id，`state` 为 `done` 或 `error`，
-`turn_generation` 是发出时的值。
+`{seq, display_session, state, turn_generation}`，可选 `occurrence_id`（v2.7）；`display_session` 同 intent 的会话 id，`state` 为 `done` 或 `error`，
+`turn_generation` 是发出时的值；`occurrence_id` 是这一次终态表现的编号，1–64 字节的字符串。
 
 - 宿主当一次性反应播，不改焦点。
+- 渲染器不演在 snapshot 的 `consumed` 里见过的 `occurrence_id`，也不再演自己已经演过的。
 - 焦点 intent 是 `awaiting_approval` 或 `awaiting_input` 时丢弃。
 - 宿主坐着或躺着、当前姿势没有这个池时不播，不为它起身。
 
@@ -341,3 +382,28 @@ Companion 给某个行为补发 `cancelled` / `connection_lost` 之后，角色�
 2026-11-04 C1 v2.4（只加不改）：§1.4 新类型 `perform` 和它的 `motion` 字段（生成动作），宿主经 `GET /motions/<id>/meta`、`/keys` 取片段；agentd 的 `GET` / `PUT /motion/settings` 切换 `game` / `generated` 动作后端。夹具 14，不合法样例 `fixtures/invalid/14-perform-bad-motion.json`。
 2026-11-04 C1 v2.5（只加不改）：§1.5 新事件 `motion`（宿主经 C3 v23 `motion_request` 请求的生成片段，成功带 `motion` 和 `tracks_sha256`，失败带 `reason`），新文件 `GET /motions/<id>/tracks`（`endfield-generated-tracks/v1`）。夹具 15；`agent/agentd/c1.py` 认识 `motion` 之前，这个夹具还过不了校验器。
 2026-11-06 C1 v2.6（只加不改）：§1.4 `perform` 带 `motion` 或 `action` 二选一；`action: {id, length_s}` 是当前角色包的角色包动作，`[motion:]` 的文字配到它时 agentd 不生成，宿主按 id 播原片。夹具 14b，不合法样例 `fixtures/invalid/14b-perform-motion-and-action.json`。
+2026-11-21 C1 v2.7：agentd 选每一条片段，渲染器只播。§1.4 `perform` 加载荷 `clip`（角色包 `motion-metadata.json` 的片段 id，`motion`、`action`、`clip` 三选一）和 `layer`、`start`、`blend_s`、`loop`、`ttl_s`；§2 `behavior_cancel` 加 `mode`、`fade_s`；snapshot 加 `reactions`、`stage`、`consumed`；带 `outcome` 的终态 intent 和 §4.2 `session_reaction` 加 `occurrence_id`，`consumed` 里的和演过的编号不再演；§1.2 `short_walk` 加目标 `edge`；§3 `cancelled` 加 reason `user_click`、`give_way`；§0、§1 intent 的 `state` 和 `activity` 不再让渲染器选全身片段（这一条改了 v2 的规则）；§6 播放器一致性夹具（`fixtures/player/`，`c1.check_player_fixture`）。不合法样例 `fixtures/invalid/perform-overlay-on-full-body.json`、`perform-two-payloads.json`、`perform-loop-on-overlay.json`、`perform-unknown-start.json`、`snapshot-unknown-reaction-trigger.json`、`cancel-fade-s-without-fade-out.json`。
+
+## 6. 播放器一致性夹具（v2.7）
+
+`fixtures/player/` 下每个文件是一个夹具：一串带时刻的 C1 消息和本地输入喂进渲染器，期望渲染器发出的 C3 `motion_state`（规则 54）
+序列。mac 和 Windows 的渲染器单测跑同一批文件。
+
+```json
+{"name": "…", "character": null,
+ "steps": [{"t_ms": 0, "c1": {…}}, {"t_ms": 200, "local": {"input": "click"}}],
+ "expect": [{"t_ms_max": 300, "motion_state": {"behavior_id": null, "origin": "local", "phase": "started", "resting": false, "busy": true}}],
+ "poses": []}
+```
+
+| 键 | 内容 |
+|---|---|
+| `name` | 非空字符串，说明这个夹具测什么 |
+| `character` | 角色 id（非空字符串）或 `null`。`null` 时不用角色包：测试用一套测试片段，夹具里出现的每个 clip id 都是 1000 ms 长、不带位移的片段，循环的一圈 1000 ms |
+| `steps` | 非空数组，按 `t_ms` 不减排列。每项是 `{t_ms, c1}` 或 `{t_ms, local}`：`t_ms` 是从夹具开始算的毫秒（整数 ≥ 0）；`c1` 是一条 agentd 发的 C1 消息（不是回执），整串 `c1` 照 §0–§4 的规则合法（`check_file`）；`local` 是 `{input}`，`input` 是 snapshot `reactions` 的一个触发名 |
+| `expect` | 非空数组：渲染器发出的 `motion_state`，按发出的顺序，`t_ms_max` 不减。每项是 `{t_ms_max, motion_state}`：`t_ms_max` 是这条最晚发出的时刻（毫秒，整数 ≥ 0，夹具给一帧以上的余量）；`motion_state` 是 C3 `motion_state` 去掉 `v`、`type`、`clip`（`behavior_id`、`origin`、`phase`、`resting`、`busy`），`behavior_id` 非空时是 `steps` 里发过的行为 |
+| `poses` | 可选，留给之后的骨骼姿势期望，现在只能是 `[]` |
+
+- 测试从 0 ms 开始按 `t_ms` 喂 `steps`，到最后一条 `expect` 的 `t_ms_max` 为止；这段时间里渲染器发的 `motion_state`
+  逐条等于 `expect`，不多不少，每条不晚于它的 `t_ms_max`。
+- 到期按 `ttl_s` 测：夹具里的 `expires_at_ms` 都取远在测试之后的值。

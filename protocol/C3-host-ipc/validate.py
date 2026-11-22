@@ -20,6 +20,8 @@ ACK_ERRORS = {"invalid", "busy", "unsupported", "failed"}
 PLACEMENT_REASONS = {"start", "drag", "behavior", "set_placement"}
 PLAYBACK_STATES = {"started", "buffering", "resumed", "ended", "interrupted", "failed", "degraded"}
 BEHAVIOR_PHASES = {"prepared", "rejected", "running", "completed", "blocked", "cancelled", "expired"}
+MOTION_STATE_PHASES = {"started", "cycle_end", "ended", "expired", "rejected"}
+MOTION_STATE_ORIGINS = {"agent", "local"}
 MAX_TRACE_EVENTS = 50
 MAX_ACTIONS = 128
 ACTION_SECTIONS = {"talk", "react", "idle", "move", "touch", "battle"}
@@ -470,6 +472,22 @@ def check_behavior_receipt(m, _):
     for key in ("at_ms", "turn_generation"):
         if not (is_int(m.get(key)) and m[key] >= 0):
             errors.append(f"behavior_receipt.{key} must be an integer >= 0")
+    return errors
+
+
+def check_motion_state(m, _):
+    """Rule 54."""
+    errors = []
+    if m.get("origin") not in MOTION_STATE_ORIGINS:
+        errors.append(f"motion_state.origin must be one of {sorted(MOTION_STATE_ORIGINS)}")
+    if "behavior_id" not in m or not (is_str(m["behavior_id"]) or m["behavior_id"] is None and m.get("origin") == "local"):
+        errors.append("motion_state.behavior_id must be a non-empty string, or null with origin local")
+    if m.get("phase") not in MOTION_STATE_PHASES:
+        errors.append(f"motion_state.phase must be one of {sorted(MOTION_STATE_PHASES)}")
+    if not (isinstance(m.get("resting"), bool) and isinstance(m.get("busy"), bool)):
+        errors.append("motion_state.resting and busy must be booleans")
+    if not (is_str(m.get("clip")) and len(m["clip"].encode("utf-8")) <= MAX_ID):
+        errors.append(f"motion_state.clip must be a non-empty string of at most {MAX_ID} bytes")
     return errors
 
 
@@ -1283,7 +1301,7 @@ CHECKS = {
             "appearance_changed": check_appearance_changed, "appearance_change_failed": check_appearance_change_failed,
             "heartbeat": check_heartbeat, "ack": check_ack, "placement": check_placement,
             "trace": check_trace, "playback": check_playback, "behavior_receipt": check_behavior_receipt,
-            "actions": check_actions, "action_switches": check_action_switches, "action_played": check_action_played,
+            "motion_state": check_motion_state, "actions": check_actions, "action_switches": check_action_switches, "action_played": check_action_played,
             "track_surface": check_track_surface, "untrack_surface": check_untrack_surface, "attach": check_attach,
             "pipeline": check_pipeline, "presentation_state": check_presentation_state, "drop": check_drop,
             "motion.stroke": check_motion_stroke, "motion_request": check_motion_request,

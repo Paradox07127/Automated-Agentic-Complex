@@ -1,0 +1,34 @@
+{
+ "description": "不合法（校验器要报错）：perform 的 start 不认识；只能是 now、sync、cycle_end、after_exit",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 1,
+   "behavior_id": "b-e7-1",
+   "type": "perform",
+   "target": null,
+   "trigger": {
+    "source": "agent",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 1,
+   "expires_at_ms": 4102444800000,
+   "intensity": 1.0,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "t-1",
+   "clip": {
+    "id": "idle_stand_a"
+   },
+   "layer": "base",
+   "start": "next_beat",
+   "loop": true
+  }
+ ]
+}

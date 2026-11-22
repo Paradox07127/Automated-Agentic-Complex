@@ -1,0 +1,27 @@
+{
+ "description": "不合法（校验器要报错）：snapshot 的 reactions 有不认识的触发名 tap",
+ "messages": [
+  {
+   "event": "snapshot",
+   "seq": 1,
+   "turn_generation": 5,
+   "behaviors": [],
+   "reactions": {
+    "click": [
+     {
+      "clip": "react_click_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "tap": [
+     {
+      "clip": "react_click_b",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ]
+   }
+  }
+ ]
+}

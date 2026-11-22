@@ -1,0 +1,57 @@
+{
+ "name": "snapshot 带反应表，click 只有一条 react_click_a（叠加层）；200 ms 时用户单击，渲染器本地播它：origin 为 local，behavior_id 为 null",
+ "character": null,
+ "steps": [
+  {
+   "t_ms": 0,
+   "c1": {
+    "event": "snapshot",
+    "seq": 1,
+    "turn_generation": 5,
+    "behaviors": [],
+    "reactions": {
+     "click": [
+      {
+       "clip": "react_click_a",
+       "weight": 1,
+       "layer": "overlay"
+      }
+     ]
+    },
+    "stage": {
+     "level": "normal",
+     "revision": 1
+    }
+   }
+  },
+  {
+   "t_ms": 200,
+   "local": {
+    "input": "click"
+   }
+  }
+ ],
+ "expect": [
+  {
+   "t_ms_max": 300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 1300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": true,
+    "busy": false
+   }
+  }
+ ],
+ "poses": []
+}

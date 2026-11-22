@@ -1,0 +1,86 @@
+{
+ "name": "重连后的 snapshot 的 consumed 里有 occ-claude-b-41；100 ms 时到来的同一编号的 session_reaction 不演，300 ms 的 perform 是第一条回报",
+ "character": null,
+ "steps": [
+  {
+   "t_ms": 0,
+   "c1": {
+    "event": "snapshot",
+    "seq": 7,
+    "turn_generation": 5,
+    "behaviors": [],
+    "stage": {
+     "level": "normal",
+     "revision": 3
+    },
+    "consumed": [
+     "occ-claude-b-41"
+    ]
+   }
+  },
+  {
+   "t_ms": 100,
+   "c1": {
+    "event": "session_reaction",
+    "seq": 8,
+    "display_session": "claude:B",
+    "state": "done",
+    "turn_generation": 5,
+    "occurrence_id": "occ-claude-b-41"
+   }
+  },
+  {
+   "t_ms": 300,
+   "c1": {
+    "event": "behavior",
+    "seq": 9,
+    "behavior_id": "b-e7-1",
+    "type": "perform",
+    "target": null,
+    "trigger": {
+     "source": "agent",
+     "event": null
+    },
+    "display_session": null,
+    "turn_id": null,
+    "turn_generation": 5,
+    "priority": 1,
+    "expires_at_ms": 4102444800000,
+    "intensity": 1.0,
+    "channels": [
+     "full_body"
+    ],
+    "exit": [],
+    "replaces": null,
+    "trace_id": "t-1",
+    "clip": {
+     "id": "dialog_nod"
+    },
+    "layer": "base"
+   }
+  }
+ ],
+ "expect": [
+  {
+   "t_ms_max": 400,
+   "motion_state": {
+    "behavior_id": "b-e7-1",
+    "origin": "agent",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 1400,
+   "motion_state": {
+    "behavior_id": "b-e7-1",
+    "origin": "agent",
+    "phase": "ended",
+    "resting": true,
+    "busy": false
+   }
+  }
+ ],
+ "poses": []
+}

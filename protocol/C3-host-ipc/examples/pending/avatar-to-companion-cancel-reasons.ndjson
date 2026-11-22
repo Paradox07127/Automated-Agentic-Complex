@@ -1,0 +1,7 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","placement","trace","playback","turn_generation","behavior_receipt"],"build":{"git":"e8d17c47"}}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1763700000-4","phase":"running","reason":null,"at_ms":1763700001000,"turn_generation":5}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1763700000-4","phase":"cancelled","reason":"user_click","at_ms":1763700002300,"turn_generation":5}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1763700000-5","phase":"prepared","reason":null,"at_ms":1763700010000,"turn_generation":5}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1763700000-5","phase":"running","reason":null,"at_ms":1763700011800,"turn_generation":5}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1763700000-5","phase":"cancelled","reason":"give_way","at_ms":1763700040000,"turn_generation":5}
+{"v":1,"type":"behavior_receipt","behavior_id":"b-1763700000-6","phase":"rejected","reason":"unsupported","at_ms":1763700050000,"turn_generation":5}
