@@ -29,6 +29,8 @@ export type NavTarget =
       sel?: string;
       /** Source filter of 用户档案: agentd's source name or its short key. */
       src?: string;
+      /** Character id: 用户档案 shows only her own facts (`GET /memory?owner=`). */
+      owner?: string;
       focus?: string;
     }
   | { page: 'pipeline'; run?: string; focus?: string }
