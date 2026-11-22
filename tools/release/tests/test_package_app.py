@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import re
 import shutil
 import subprocess
 import sys
@@ -657,6 +658,21 @@ console.log(JSON.stringify(prepareComponents({resources, support, layout:'split'
         with self.assertRaisesRegex(ValueError, 'Photo look hash mismatch: lut/filter_3.rgba8'):
             stage(self.args)
         self.assertFalse((self.args.output / 'staging-manifest.json').exists())
+
+    def test_a_photo_look_naming_a_file_outside_the_looks_directory_is_refused(self):
+        outside = self.root / 'outside.rgba8'; outside.write_bytes(b'outside')
+        (self.root / 'link.rgba8').symlink_to(outside)
+        for name in ('../outside.rgba8', str(outside), 'lut/../../outside.rgba8', 'link.rgba8'):
+            with self.subTest(name=name):
+                looks = self.root / 'looks'; (looks / 'lut').mkdir(parents=True, exist_ok=True)
+                (looks / 'link.rgba8').unlink(missing_ok=True)
+                if name == 'link.rgba8': (looks / 'link.rgba8').symlink_to(outside)
+                (looks / 'looks.json').write_text(json.dumps(dict(looks=[
+                    dict(id='x', sort=0, file=name, sha256=package_app.digest(outside))])))
+                target = self.root / 'target'
+                with self.assertRaisesRegex(ValueError, 'Photo look file outside its directory: ' + re.escape(name)):
+                    package_app.copy_photo_looks(looks, target)
+                self.assertFalse(target.exists())
 
     def test_content_overrides_land_in_their_components_before_signing_and_placement(self):
         local = self.root / 'local'; local.mkdir()

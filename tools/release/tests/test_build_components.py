@@ -3,6 +3,7 @@ import hashlib
 from importlib import metadata
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 import subprocess
@@ -207,6 +208,31 @@ class BuildComponentsTests(unittest.TestCase):
         art = self.stage / 'web-ui/payload/ui/art'
         self.assertEqual({path.relative_to(art).as_posix() for path in art.rglob('*') if path.is_file()},
                          {'characters/fixture/portrait.png', 'common/contour.png', 'brand/AppIcon.icns'})
+
+    def test_ui_art_naming_a_file_outside_the_art_directory_is_refused(self):
+        outside = self.root / 'outside.png'; outside.write_bytes(b'outside')
+        (self.art / 'link.png').symlink_to(outside)
+        for name in ('../outside.png', str(outside), 'brand/../../outside.png', 'link.png'):
+            with self.subTest(name=name):
+                (self.art / 'art-manifest.json').write_text(json.dumps(dict(files=[
+                    dict(file=name, sha256=hashlib.sha256(outside.read_bytes()).hexdigest())])))
+                target = self.root / 'ui-art'
+                with self.assertRaisesRegex(ValueError, 'UI art file outside its directory: ' + re.escape(name)):
+                    build_components.copy_ui_art(self.art, target)
+                self.assertFalse(target.exists())
+
+    def test_agentd_ships_only_the_files_git_tracks(self):
+        root = self.root / 'checkout'; agentd = root / 'agent/agentd'
+        for name, text in {'a.py': 'tracked', 'tests/t.py': 'tests', 'credentials.json': 'secret',
+                           'brain/canon-windows.json': json.dumps(dict(n=7, hashes=['0123456789abcdef']))}.items():
+            (agentd / name).parent.mkdir(parents=True, exist_ok=True); (agentd / name).write_text(text)
+        subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+        subprocess.run(['git', 'add', '--', 'agent/agentd/a.py', 'agent/agentd/tests/t.py', 'agent/agentd/brain'], cwd=root, check=True)
+        service = self.root / 'service'
+        with patch.object(build_components, 'ROOT', root):
+            build_components.stage_agentd(service)
+        self.assertEqual({path.relative_to(service).as_posix() for path in service.rglob('*') if path.is_file()},
+                         {'a.py', 'brain/canon-windows.json'})
 
     def test_a_macos_character_payload_is_sealed_without_its_vulkan_files(self):
         source = self.root / 'role'; character_fixture(source, neutral=True, vulkan=True)

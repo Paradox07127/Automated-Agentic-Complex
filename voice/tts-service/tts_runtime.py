@@ -13,6 +13,8 @@ from segment_meta import ModuleHook,SegmentRecorder,bind_accel_hook,wrap_infer_b
 FRAGMENT_INTERVAL=0.2
 class Cancelled(Exception):pass
 
+def load_weight(path):return torch.load(path,map_location='cpu',weights_only=True)['weight']
+
 class Runtime:
     def __init__(self,run_name,base=False,variant='v5dev',game_lexicon=False):
         self.run=ROOT/'runs'/run_name;assert self.run.parent==ROOT/'runs'
@@ -38,8 +40,8 @@ class Runtime:
             proofpath=self.output/'selected-checkpoint-verification.json'
             proof=json.loads(proofpath.read_text()) if proofpath.exists() else {}
             if proof.get('gpt_sha256')!=s1sha or proof.get('sovits_sha256')!=s2sha:
-                original=torch.load(pre/'s1v3.ckpt',map_location='cpu',weights_only=False)['weight']
-                selected=torch.load(s1,map_location='cpu',weights_only=False)['weight']
+                original=load_weight(pre/'s1v3.ckpt')
+                selected=load_weight(s1)
                 changed=sum(not torch.equal(selected[k],original[k]) for k in selected)
                 from process_ckpt import load_sovits_new
                 adapter=load_sovits_new(str(s2))['weight']

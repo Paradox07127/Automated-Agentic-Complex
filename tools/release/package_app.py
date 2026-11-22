@@ -37,6 +37,7 @@ def tree_sha256(root):
 def copy_photo_looks(source, target):
     """Copy looks.json and every file it lists after checking each SHA-256; return the copied paths relative to target."""
     looks = json.loads((source / 'looks.json').read_text(encoding='utf-8'))['looks']
+    for look in looks: build_components.check_manifest_file(source, look['file'], 'Photo look')
     for look in looks:
         if digest(source / look['file']) != look['sha256']: raise ValueError('Photo look hash mismatch: ' + look['file'])
     files = ['looks.json'] + [look['file'] for look in looks]

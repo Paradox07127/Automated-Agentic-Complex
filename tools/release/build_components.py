@@ -41,11 +41,20 @@ def validate_canon_windows(path):
         raise ValueError(f'Invalid bundled outbound guard: {path}')
 
 
+def check_manifest_file(source, name, what):
+    """Raise unless name is a relative path whose file lies inside source with no symlink on the way."""
+    relative = PurePosixPath(name)
+    if (not name or relative.is_absolute() or '..' in relative.parts or '\\' in name or ':' in name
+            or (source.resolve() / relative).resolve() != source.resolve() / relative):
+        raise ValueError(what + ' file outside its directory: ' + name)
+
+
 def copy_ui_art(source, target, characters=None):
     """Copy the files art-manifest.json lists after checking each SHA-256; web pages load them from ui/art/.
     Of characters/<id>/, only the ids in characters are copied; None copies every character."""
     manifest_path = source / 'art-manifest.json'
     manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    for entry in manifest['files']: check_manifest_file(source, entry['file'], 'UI art')
     files = [entry['file'] for entry in manifest['files']
              if characters is None or not entry['file'].startswith('characters/') or entry['file'].split('/')[1] in characters]
     for entry in manifest['files']:
@@ -67,11 +76,13 @@ def stage_ui(web_dist, ui_art, target, characters=None):
 
 
 def stage_agentd(service):
-    """Copy agent/agentd's shipped files (no tests or caches) into service and check its outbound guard."""
+    """Copy the files git tracks in agent/agentd (no tests or caches) into service and check its outbound guard."""
     service.mkdir(parents=True)
-    for path in sorted((ROOT / 'agent/agentd').rglob('*')):
+    tracked = subprocess.check_output(['git', 'ls-files', '-z', '--', 'agent/agentd'], cwd=ROOT, text=True).split('\0')[:-1]
+    for name in sorted(tracked):
+        path = ROOT / name
         relative = path.relative_to(ROOT / 'agent/agentd')
-        if any(p in ('tests', '__pycache__') for p in relative.parts) or not path.is_file(): continue
+        if any(p in ('tests', '__pycache__') for p in relative.parts): continue
         if path.suffix not in ('.py', '.json', '.txt', '.md', '.mjs', '.lock'): continue
         target = service / relative; target.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(path, target)
     validate_canon_windows(service / CANON_RELATIVE)
