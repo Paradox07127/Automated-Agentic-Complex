@@ -1,0 +1,267 @@
+{
+ "description": "C1 v2.8：snapshot 的反应表带 chain、hold、stroke_s 和新的触发名；坐着时 agentd 选的待机档片段带 within，和坐一起跑、不取代它；循环的那条到点由 agentd 以 expired 淡出结束，打盹片段跟着坐结束",
+ "messages": [
+  {
+   "event": "snapshot",
+   "seq": 1,
+   "turn_generation": 5,
+   "behaviors": [],
+   "reactions": {
+    "click": [
+     {
+      "clip": "react_click_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "click_head": [
+     {
+      "clip": "react_head_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "click_cheek": [
+     {
+      "clip": "react_cheek_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "click_hand": [
+     {
+      "clip": "react_hand_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "click_repeat": [
+     {
+      "clip": "react_repeat_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "pinch_annoyed": [
+     {
+      "clip": "react_annoyed_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "pat": [
+     {
+      "clip": "pat_start",
+      "weight": 1,
+      "layer": "overlay",
+      "chain": [
+       "pat_loop",
+       "pat_end"
+      ],
+      "hold": "pat_loop"
+     }
+    ],
+    "present": [
+     {
+      "clip": "snap_start",
+      "weight": 1,
+      "layer": "overlay",
+      "chain": [
+       "snap_loop",
+       "snap_end"
+      ],
+      "hold": "snap_loop",
+      "stroke_s": {
+       "snap_start": 2.45,
+       "snap_end": 1.18
+      }
+     }
+    ],
+    "drag_lift": [
+     {
+      "clip": "lift_start",
+      "weight": 1,
+      "layer": "base",
+      "chain": [
+       "lift_loop",
+       "lift_end"
+      ],
+      "hold": "lift_loop"
+     }
+    ],
+    "drop": [
+     {
+      "clip": "land",
+      "weight": 1,
+      "layer": "base"
+     }
+    ],
+    "attention_left": [
+     {
+      "clip": "look_left_start",
+      "weight": 1,
+      "layer": "overlay",
+      "chain": [
+       "look_left_loop",
+       "look_left_end"
+      ],
+      "hold": "look_left_loop"
+     }
+    ]
+   },
+   "stage": {
+    "level": "normal",
+    "revision": 1
+   }
+  },
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-e8-1",
+   "type": "sit",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": "routine:test"
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 0,
+   "expires_at_ms": 4102444800000,
+   "intensity": 0.3,
+   "channels": [
+    "full_body",
+    "contact"
+   ],
+   "exit": [
+    "target_gone",
+    "user_drag"
+   ],
+   "replaces": null,
+   "trace_id": "t-2"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e8-1",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900000000,
+   "turn_generation": 5
+  },
+  {
+   "event": "behavior",
+   "seq": 3,
+   "behavior_id": "b-e8-2",
+   "type": "perform",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": "idle.t4 seat tierPick"
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 0,
+   "expires_at_ms": 4102444800000,
+   "intensity": 0.3,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "t-3",
+   "clip": {
+    "id": "sit_think_loop"
+   },
+   "layer": "base",
+   "within": "b-e8-1",
+   "loop": true,
+   "ttl_s": 30
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e8-2",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900004000,
+   "turn_generation": 5
+  },
+  {
+   "event": "behavior_cancel",
+   "seq": 4,
+   "behavior_id": "b-e8-2",
+   "reason": "expired",
+   "mode": "fade_out",
+   "fade_s": 0.25,
+   "turn_generation": 5
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e8-2",
+   "phase": "cancelled",
+   "reason": null,
+   "at_ms": 1760900012000,
+   "turn_generation": 5
+  },
+  {
+   "event": "behavior",
+   "seq": 5,
+   "behavior_id": "b-e8-3",
+   "type": "perform",
+   "target": null,
+   "trigger": {
+    "source": "user",
+    "event": "rest.sleep@sit seat posturePick"
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 0,
+   "expires_at_ms": 4102444800000,
+   "intensity": 0.3,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "t-5",
+   "clip": {
+    "id": "rest_sleep_sit"
+   },
+   "layer": "base",
+   "within": "b-e8-1"
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e8-3",
+   "phase": "running",
+   "reason": null,
+   "at_ms": 1760900016000,
+   "turn_generation": 5
+  },
+  {
+   "event": "behavior_cancel",
+   "seq": 6,
+   "behavior_id": "b-e8-1",
+   "reason": "expired",
+   "turn_generation": 5
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e8-1",
+   "phase": "cancelled",
+   "reason": null,
+   "at_ms": 1760900020000,
+   "turn_generation": 5
+  },
+  {
+   "event": "receipt",
+   "behavior_id": "b-e8-3",
+   "phase": "cancelled",
+   "reason": "replaced",
+   "at_ms": 1760900020000,
+   "turn_generation": 5
+  }
+ ]
+}

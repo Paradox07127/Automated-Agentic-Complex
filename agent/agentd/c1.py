@@ -21,7 +21,7 @@ EXIT_RECEIPTS = {"speech_start": "cancelled", "speech_end": "completed", "sessio
                  "focus_change": "completed", "user_typing": "cancelled"}
 PHASES = ("prepared", "rejected", "running", "completed", "blocked", "cancelled", "expired")
 ENDED = ("rejected", "completed", "blocked", "cancelled", "expired")  # phases after which a behavior no longer runs
-PHASE_REASONS = {"rejected": ("stale", "busy", "unsupported", "switch_off"),
+PHASE_REASONS = {"rejected": ("stale", "busy", "unsupported", "switch_off", "target_gone"),
                  "blocked": ("target_gone", "no_room", "path_blocked")}
 SWITCHES = ("stay_in_place", "sit_window_top", "hold_window_edge", "fullscreen_give_way")  # PUT /behavior/switches
 OPTIONAL_SWITCHES = ("bust_framing",)  # PUT /behavior/switches may add these; absent is false
@@ -44,7 +44,7 @@ MOTION_REASONS = ("timeout", "no_service", "busy", "failed", "game_backend")  # 
 BEHAVIOR_ID_MAX = 64  # bytes: the behavior_id of a motion request
 EDGE_SIDES = ("nearest", "left", "right")  # a short_walk's edge target
 PAYLOADS = ("motion", "action", "clip")  # a perform carries exactly one
-PLAY_FIELDS = ("layer", "start", "blend_s", "loop", "ttl_s")  # how a perform plays; only on perform
+PLAY_FIELDS = ("layer", "start", "blend_s", "loop", "ttl_s", "within")  # how a perform plays; only on perform
 LAYER_CHANNELS = {"base": ["full_body"], "overlay": ["head", "left_hand", "right_hand"]}
 # behaviors that drive the whole body themselves; a clip perform (`perform` with `clip`) shares channels with every
 # other behavior, which only aims her (v2.7)
@@ -52,7 +52,10 @@ EXECUTORS = ("short_walk", "sit", "hold_window_edge", "climb_window_top", "perfo
 
 
 def contends(a, b):
-    """Whether two behaviors compete for their channels: a clip perform only with another perform or an EXECUTORS one."""
+    """Whether two behaviors compete for their channels: a clip perform only with another perform or an EXECUTORS one,
+    and never with the behavior it plays within."""
+    if "within" in a and a["within"] == b.get("behavior_id") or "within" in b and b["within"] == a.get("behavior_id"):
+        return False
     clip = lambda m: m.get("type") == "perform" and "clip" in m
     if clip(a) == clip(b):
         return True
@@ -64,7 +67,12 @@ CLIP_ID_MAX = 64  # bytes: a clip id of the character's motion metadata
 CANCEL_MODES = ("abort", "fade_out")
 FADE_S = (0.05, 2)
 REACTION_TRIGGERS = ("click", "pat", "pinch", "drag_lift", "drop", "attention_left", "attention_right", "point_at",
-                     "present", "hover")
+                     "present", "hover", "click_head", "click_cheek", "click_hand", "click_repeat", "pinch_annoyed")
+HOLD_TRIGGERS = ("pat", "present", "drag_lift", "attention_left", "attention_right")  # triggers with an end to hold for
+STROKE_TRIGGERS = ("present",)
+ENDED_TRIGGERS = ("pat", "present")  # triggers a player fixture's local step may end
+CHAIN_MAX = 8  # clips a reaction entry's chain plays after its clip
+WITHIN = ("sit", "climb_window_top")  # behaviors a base clip perform may play within
 STAGE_LEVELS = ("offstage", "quiet", "normal", "engaged")
 CONSUMED_MAX = 64
 OCCURRENCE_ID_MAX = 64  # bytes
@@ -176,6 +184,8 @@ def _play(m):
         problems.append("loop is true or false, and only on a base perform")
     if "ttl_s" in m and not _number_in(m["ttl_s"], TTL_S):
         problems.append(f"ttl_s is a number in {TTL_S[0]}-{TTL_S[1]}")
+    if "within" in m and (not _short_str(m["within"], BEHAVIOR_ID_MAX) or layer != "base" or "clip" not in m):
+        problems.append(f"within is a behavior_id of 1-{BEHAVIOR_ID_MAX} bytes, and only on a base clip perform")
     return problems
 
 
@@ -334,11 +344,33 @@ def _reactions(reactions):
     """Problems with a snapshot's reaction table: trigger -> the clips the renderer picks from by weight."""
     if not isinstance(reactions, dict) or not set(reactions) <= set(REACTION_TRIGGERS):
         return [f"reactions maps triggers among {REACTION_TRIGGERS} to their clips"]
-    return [f"reactions.{trigger}: a non-empty list of {{clip, weight > 0, layer}}"
-            for trigger, choices in reactions.items()
-            if not isinstance(choices, list) or not choices
-            or not all(isinstance(c, dict) and _short_str(c.get("clip"), CLIP_ID_MAX) and c.get("layer") in LAYER_CHANNELS
-                       and _number_in(c.get("weight"), (0, math.inf)) and c["weight"] > 0 for c in choices)]
+    problems = []
+    for trigger, choices in reactions.items():
+        if not isinstance(choices, list) or not choices \
+                or not all(isinstance(c, dict) and _short_str(c.get("clip"), CLIP_ID_MAX) and c.get("layer") in LAYER_CHANNELS
+                           and _number_in(c.get("weight"), (0, math.inf)) and c["weight"] > 0 for c in choices):
+            problems.append(f"reactions.{trigger}: a non-empty list of {{clip, weight > 0, layer}}")
+        else:
+            problems += [p for c in choices for p in _entry(trigger, c)]
+    return problems
+
+
+def _entry(trigger, c):
+    """Problems with a reaction entry's chain, held loop and stroke times (v2.8)."""
+    problems, chain = [], c.get("chain", [])
+    if not isinstance(chain, list) or "chain" in c and not 1 <= len(chain) <= CHAIN_MAX \
+            or not all(_short_str(x, CLIP_ID_MAX) for x in chain):
+        problems.append(f"reactions.{trigger}: chain is a list of 1-{CHAIN_MAX} clip ids")
+        chain = []
+    clips = [c["clip"]] + chain
+    if "hold" in c and (trigger not in HOLD_TRIGGERS or c["hold"] not in clips):
+        problems.append(f"reactions.{trigger}: hold is its clip or one of its chain, and only on {HOLD_TRIGGERS}")
+    stroke = c.get("stroke_s", {})
+    if "stroke_s" in c and (trigger not in STROKE_TRIGGERS or not isinstance(stroke, dict)
+                            or not all(k in clips and _number_in(v, (0, math.inf)) for k, v in stroke.items())):
+        problems.append(f"reactions.{trigger}: stroke_s maps its clip and chain to seconds >= 0, only on "
+                        f"{STROKE_TRIGGERS}")
+    return problems
 
 
 def _snapshot(m):
@@ -445,6 +477,9 @@ def check_file(data):
                 seen.add(behavior.get("behavior_id"))
                 running[behavior.get("behavior_id")] = _activity(behavior)
         if message.get("event") == "behavior":
+            if "within" in message and not (message["within"] in running
+                                            and sent.get(message["within"], {}).get("type") in WITHIN):
+                problems.append(f"#{i}: within names no running behavior of {WITHIN}")
             key = _activity(message)
             same = [b for b, k in running.items() if k == key and b != message.get("replaces")]
             if same:
@@ -525,9 +560,12 @@ def check_player_fixture(data):
             continue
         at = step["t_ms"]
         if "local" in step:
-            if not isinstance(step["local"], dict) or set(step["local"]) != {"input"} \
-                    or step["local"]["input"] not in REACTION_TRIGGERS:
-                problems.append(f"step {i}: local is {{input}}, one of {REACTION_TRIGGERS}")
+            local = step["local"]
+            if not isinstance(local, dict) or set(local) not in ({"input"}, {"input", "end"}) \
+                    or local["input"] not in REACTION_TRIGGERS \
+                    or "end" in local and (local["end"] is not True or local["input"] not in ENDED_TRIGGERS):
+                problems.append(f"step {i}: local is {{input}}, one of {REACTION_TRIGGERS}, or {{input, end: true}} "
+                                f"for one of {ENDED_TRIGGERS}")
         elif not isinstance(step["c1"], dict) or step["c1"].get("event") == "receipt":
             problems.append(f"step {i}: c1 is a message agentd sends")
         else:

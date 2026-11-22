@@ -506,6 +506,82 @@ class PlayerPrimitivesTest(unittest.TestCase):
         self.assertTrue(c1.check_file({"description": "x", "messages": [no_ttl, *receipts]}))
 
 
+class LocalMotionsTest(unittest.TestCase):
+    """C1 v2.8: reaction entries with a chain, a held loop and stroke times, the new triggers, and clips within a sit."""
+    PAT = {"clip": "pat_start", "weight": 1, "layer": "overlay", "chain": ["pat_loop", "pat_end"], "hold": "pat_loop"}
+    SIT = {**HOLD, "type": "sit", "target": None, "channels": ["full_body", "contact"], "exit": ["user_drag"],
+           "behavior_id": "b-e8-1", "seq": 2}
+    WITHIN = {**PlayerPrimitivesTest.LOOP, "behavior_id": "b-e8-2", "seq": 3, "turn_generation": SIT["turn_generation"],
+              "within": "b-e8-1"}
+
+    def table(self, reactions):
+        return c1.check_message({**PlayerPrimitivesTest.SNAPSHOT, "reactions": reactions})
+
+    def test_held_chains_on_the_triggers_with_an_end_pass(self):
+        for trigger in ("pat", "present", "drag_lift", "attention_left", "attention_right"):
+            self.assertEqual(self.table({trigger: [self.PAT]}), [], trigger)
+        self.assertEqual(self.table({"pat": [{**self.PAT, "hold": "pat_start"}]}), [])
+        self.assertEqual(self.table({"click": [{k: v for k, v in self.PAT.items() if k != "hold"}]}), [])
+        self.assertEqual(self.table({"present": [{**self.PAT, "stroke_s": {"pat_start": 0, "pat_end": 1.18}}]}), [])
+        every = {t: [{"clip": "c", "weight": 1, "layer": "overlay"}] for t in
+                 ("click_head", "click_cheek", "click_hand", "click_repeat", "pinch_annoyed")}
+        self.assertEqual(self.table(every), [])
+
+    def test_chain_hold_and_stroke_s_follow_the_contract(self):
+        bad = ({"pat": [{**self.PAT, "chain": []}]}, {"pat": [{**self.PAT, "chain": "pat_loop"}]},
+               {"pat": [{**self.PAT, "chain": [f"c{n}" for n in range(9)], "hold": "c0"}]},
+               {"pat": [{**self.PAT, "chain": ["pat_loop", ""]}]},
+               {"pat": [{k: v for k, v in self.PAT.items() if k != "chain"}]},
+               {"pat": [{**self.PAT, "hold": "other"}]}, {"pat": [{**self.PAT, "hold": None}]},
+               {"click": [self.PAT]}, {"drop": [self.PAT]}, {"click_repeat": [self.PAT]},
+               {"pat": [{**self.PAT, "stroke_s": {"pat_start": 1}}]},
+               {"present": [{**self.PAT, "stroke_s": {"other": 1}}]},
+               {"present": [{**self.PAT, "stroke_s": {"pat_start": -1}}]},
+               {"present": [{**self.PAT, "stroke_s": {"pat_start": True}}]},
+               {"present": [{**self.PAT, "stroke_s": [2.45]}]})
+        for reactions in bad:
+            with self.subTest(reactions=reactions):
+                self.assertTrue(self.table(reactions))
+
+    def test_a_clip_within_a_running_sit_passes_beside_it(self):
+        file = lambda *m: c1.check_file({"description": "x", "messages": list(m)})  # noqa: E731
+        self.assertEqual(c1.check_message(self.WITHIN), [])
+        self.assertEqual(file(self.SIT, self.WITHIN), [])
+        climb = {**self.SIT, "type": "climb_window_top", "target": {"kind": "window", "window_id": 7, "side": None}}
+        self.assertEqual(file(climb, self.WITHIN), [])
+        self.assertTrue(file(self.WITHIN))  # no sit was sent
+        cancel = {"event": "behavior_cancel", "seq": 3, "behavior_id": "b-e8-1", "reason": "expired",
+                  "turn_generation": self.SIT["turn_generation"]}
+        self.assertTrue(file(self.SIT, cancel, {**self.WITHIN, "seq": 4}))  # the sit no longer runs
+        other = {k: v for k, v in self.WITHIN.items() if k != "within"}
+        self.assertTrue(file(self.SIT, other))  # a plain clip perform still displaces the sit unannounced
+        self.assertEqual(c1.check_message(MessageTest.receipt("rejected", 1760900000500, "target_gone")), [])
+
+    def test_within_is_a_behavior_id_on_a_base_clip_perform_only(self):
+        overlay = {k: v for k, v in self.WITHIN.items() if k != "loop"}
+        for bad in ({**self.WITHIN, "within": ""}, {**self.WITHIN, "within": 3}, {**self.WITHIN, "within": "b" * 65},
+                    {**overlay, "layer": "overlay", "channels": ["head", "left_hand", "right_hand"]}):
+            with self.subTest(bad=bad):
+                self.assertTrue(c1.check_message(bad))
+        action = {**{k: v for k, v in self.WITHIN.items() if k not in ("clip", "loop", "ttl_s")},
+                  "action": {"id": "wave", "length_s": 2.4}}
+        self.assertTrue(c1.check_message(action))
+        self.assertTrue(c1.check_message({**self.SIT, "within": "b-e8-1"}))
+
+    def test_a_player_fixture_may_end_a_pat_or_a_present(self):
+        basic = copy.deepcopy(PlayerFixtureTest.BASIC)
+        for trigger in ("pat", "present"):
+            fixture = copy.deepcopy(basic)
+            fixture["steps"].append({"t_ms": 400, "local": {"input": trigger, "end": True}})
+            self.assertEqual(c1.check_player_fixture(fixture), [], trigger)
+        for local in ({"input": "click", "end": True}, {"input": "drag_lift", "end": True},
+                      {"input": "pat", "end": False}, {"input": "pat", "end": 1}):
+            fixture = copy.deepcopy(basic)
+            fixture["steps"].append({"t_ms": 400, "local": local})
+            with self.subTest(local=local):
+                self.assertTrue(c1.check_player_fixture(fixture))
+
+
 PLAYER = FIXTURES / "player"
 INVALID = FIXTURES / "invalid"
 
@@ -581,7 +657,10 @@ class InvalidFixtureTest(unittest.TestCase):
     def test_each_player_primitive_sample_fails_on_its_rule(self):
         words = {"perform-overlay-on-full-body": "overlay", "perform-two-payloads": "exactly one",
                  "perform-loop-on-overlay": "loop", "perform-unknown-start": "start",
-                 "snapshot-unknown-reaction-trigger": "reactions", "cancel-fade-s-without-fade-out": "fade_s"}
+                 "snapshot-unknown-reaction-trigger": "reactions", "cancel-fade-s-without-fade-out": "fade_s",
+                 "snapshot-hold-on-click": "hold", "snapshot-hold-not-in-list": "hold",
+                 "snapshot-stroke-off-present": "stroke_s", "perform-within-on-overlay": "within",
+                 "perform-within-no-sit": "within"}
         for name, word in words.items():
             with self.subTest(name):
                 problems = c1.check_file(json.loads((INVALID / f"{name}.json").read_text(encoding="utf-8")))

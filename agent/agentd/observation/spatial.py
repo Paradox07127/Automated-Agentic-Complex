@@ -14,6 +14,7 @@ from character.character_state import ENGAGED
 from fsutil import atomic_write_json, read_json
 from traces.trace_store import new_trace_id
 from character.interactions import preset
+from motion.chooser import REGION_KEYS
 
 LOG = logging.getLogger(__name__)
 POLL = 1.0  # seconds between checks for an event
@@ -93,8 +94,12 @@ CHAINED = ("next of ", "exit of ", "source return of ")  # why prefixes of a cli
 # C1 snapshot `reactions` trigger -> the pack event whose pool the renderer draws from
 REACTION_EVENTS = {"click": "click.single", "pat": "pat.head", "pinch": "pinch.cheek", "drag_lift": "drag.lift",
                    "attention_left": "look.left", "attention_right": "look.right", "present": "present.snap",
-                   "hover": "user.hover"}
-BASE_REACTIONS = ("drag_lift",)  # reactions on the base layer; the rest play on the overlay
+                   "hover": "user.hover", "click_repeat": "click.repeat", "pinch_annoyed": "pinch.annoyed",
+                   "drop": "drag.land"}
+REGION_TRIGGERS = {"click_head": "head_top", "click_cheek": "cheek_l", "click_hand": "hand_l"}  # -> chooser region
+BASE_REACTIONS = ("drag_lift", "drop")  # reactions on the base layer; the rest play on the overlay
+SEAT_MOVES = ("enter ", "loop ")  # why prefixes of the chooser's own seat clips, which the sit plays itself
+WITHIN_FADE = 0.25  # fade_s of a loop within a sit that the chooser leaves for the sit's own loop
 RETURN_PRIORITY = 1  # the return performance's clips: above the chooser's own, so an idle tier does not cut them
 RETURN_FACE = 10.0  # seconds she faces the user on a return
 # return row -> (she faces the user, the welcome: "small", "full" or None, the report gesture)
@@ -158,13 +163,34 @@ def _target_key(kind, target):
 
 
 def _reactions(chooser):
-    """C1 snapshot `reactions`: each trigger the chooser's pack has a pool for -> its clips, weights and layer."""
-    table = {}
+    """C1 snapshot `reactions`: each trigger the chooser's pack has a pool for -> its clips, weights and layer; on a
+    trigger with an end, a clip whose chain has a loop holds it. A region trigger draws from the first of its region's
+    pools the pack has; with the pack's lift roles the pick-up is their chain and the drop plays nothing more."""
+    pack, pools = chooser.pack, {}
     for trigger, event in REACTION_EVENTS.items():
+        pools[trigger] = chooser.pool(event)
+    for trigger, region in REGION_TRIGGERS.items():
+        pools[trigger] = next((pool for pool in map(chooser.pool, REGION_KEYS[region]) if pool), [])
+    ends = {}
+    if pack.lift is not None:
+        pools["drag_lift"] = [(pack.lift[0], 1)] if chooser._open(pack.lift[0]) else []
+        pools["drop"], ends["drag_lift"] = [], pack.lift[1]
+    table = {}
+    for trigger, pool in pools.items():
         layer = "base" if trigger in BASE_REACTIONS else "overlay"
-        pool = chooser.pool(event)
-        if pool:
-            table[trigger] = [{"clip": clip, "weight": weight, "layer": layer} for clip, weight in pool]
+        for clip, weight in pool:
+            entry = {"clip": clip, "weight": weight, "layer": layer}
+            held = pack.held_chain(clip, ends.get(trigger)) if trigger in c1.HOLD_TRIGGERS else None
+            if held is not None:
+                entry["hold"] = held[0]
+                if held[1]:
+                    entry["chain"] = held[1]
+            if trigger in c1.STROKE_TRIGGERS:
+                strokes = {c: pack.entries[c].stroke_s for c in [clip] + entry.get("chain", [])
+                           if c in pack.entries and pack.entries[c].stroke_s is not None}
+                if strokes:
+                    entry["stroke_s"] = strokes
+            table.setdefault(trigger, []).append(entry)
     return table
 
 
@@ -259,6 +285,8 @@ class Spatial:
         self._staged = None  # a clause's gesture the chooser staged behind its start family's base
         self._hold_at = 0.0  # clock time the chooser's loop that does not run may be proposed again
         self._held = False  # whether the current chooser has had a base loop sent
+        self._enter = False  # whether the current chooser's first motion step plays her entrance
+        self._within = None  # behavior id of the chosen perform she plays within her sit
         self._seated = self._voice = False  # what the chooser was told: she sits; her voice plays
         self._clauses = OrderedDict()  # clause key -> the intent of its clause_intent, until its clause_end
         self._reactions = None  # the chooser's snapshot reaction table
@@ -539,7 +567,8 @@ class Spatial:
 
     def admit(self, spec, s, now, lapsed=()):
         """Whether a proposal may run now: (True, None), or (False, the first check that fails): stale (its
-        turn_generation is not the current one; a character switch moves it too), unsupported, switch_off, stage,
+        turn_generation is not the current one; a character switch moves it too), unsupported, switch_off, lifted (a sit
+        while the chooser holds her in an air or boss posture), stage,
         typing, speech, posture, busy (a higher priority owns one of its channels; a lapsed record owns none; a
         chosen perform takes no channel another owner holds). Changes nothing."""
         with self._lock:
@@ -553,6 +582,8 @@ class Spatial:
                 return False, "unsupported"
             if self._forbidden(kind, target, False):
                 return False, "switch_off"
+            if kind in SEATED and self.chooser is not None and self.chooser.holds_lifted:
+                return False, "lifted"
             stage = self.stage()
             edge = target is not None and target["kind"] == "edge"
             # offstage keeps base rest only; quiet keeps task behaviors off the body but its own walk to the edge
@@ -609,6 +640,7 @@ class Spatial:
             self._overlay = self._staged = self._return = None
             self._returned = []
             self._hold_at, self._seated, self._voice, self._held = 0.0, False, False, False
+            self._enter, self._within = chooser is not None, None
             self._intents.clear()
             self._clauses.clear()
             if chooser is not None:
@@ -636,7 +668,7 @@ class Spatial:
                 if base is not None and self.chooser is not None and base["pack"] == self.chooser.pack.id \
                         and self.clock() * 1000 < base["until_ms"] and self.chooser.pack.loop(base["clip"]):
                     self.chooser.report_playhead(base["clip"], 0.0)
-                    self._kept_base = base
+                    self._kept_base, self._enter = base, False
             self._save()
 
     def _save(self):
@@ -835,12 +867,24 @@ class Spatial:
                 return
             now = self.clock()
             self._advance(now)
-            seated = any(r["behavior"]["type"] in SEATED for r in self.active.values())
-            if seated != self._seated:
-                self._seated = seated
-                if not seated:  # her sit hands back a standing body; a rejected one, the loop that played on
+            if self.chooser.holds_lifted:  # an air or boss activity stands her up
+                for record in [r for r in self.active.values() if r["behavior"]["type"] in SEATED]:
+                    self._end(record, "expired")
+                    self.publish("behavior_cancel", {"behavior_id": record["behavior"]["behavior_id"],
+                                                     "reason": "expired", "turn_generation": self.generation()})
+            sit = next((r["behavior"] for r in self.active.values() if r["behavior"]["type"] in SEATED), None)
+            if (sit is not None) != self._seated:
+                self._seated = sit is not None
+                if sit is None:  # her sit hands back a standing body; a rejected one, the loop that played on
+                    if self._within in self.active:  # it ended with the sit
+                        self._end(self.active[self._within], "replaced")
+                    self._within = None
                     self.chooser.report_playhead(*self._played())
-                self._input({"kind": "sit" if seated else "stand"}, None)
+                self._input({"kind": "sit", "variant": sit.get("variant")} if sit else {"kind": "stand"}, None)
+            if self._enter:
+                self._enter = False
+                if not self._seated and self.stage() not in BLOCKING:
+                    self._input({"kind": "event", "key": "character.enter"}, None)
             self._propose(self._seen, now)
             self._hold(self._seen, now)
 
@@ -895,7 +939,8 @@ class Spatial:
         what the base layer plays."""
         clip, why = choice["clip"], choice["why"]
         if self._seated:
-            return  # her sit plays its own clips
+            self._choose_within(clip, why, source, blend, s, now)
+            return
         ret = self._return
         if ret is not None and ret["clip"] is not None and clip not in self.chooser.pack.chain(ret["clip"]):
             if self._return_next():
@@ -939,6 +984,22 @@ class Spatial:
             self._held = True
             if left > 0:
                 self.chooser.report_playhead(clip, -left)
+
+    def _choose_within(self, clip, why, source, blend, s, now):
+        """A seated choice: her sit plays its own enter and loop, and a loop within it that the chooser leaves for that
+        loop fades out; any other clip is a base perform within the sit."""
+        sit = next((r for r in self.active.values() if r["behavior"]["type"] in SEATED), None)
+        within = self.active.get(self._within)
+        if why.startswith(SEAT_MOVES):
+            if why.startswith("loop ") and within is not None and within["spec"].get("loop"):
+                self._end(within, "expired")
+                self.publish("behavior_cancel", {"behavior_id": self._within, "reason": "expired", "mode": "fade_out",
+                                                 "fade_s": WITHIN_FADE, "turn_generation": self.generation()})
+            return
+        spec = self._chosen_spec(clip, "base", source or self._source(why), why, blend)
+        spec["within"] = sit["behavior"]["behavior_id"]
+        if self._send(spec, s, now)[0]:
+            self._within = next(reversed(self.active))
 
     def _new_base(self, now):
         """The chosen perform just sent holds the base layer; a loop is kept for the next agentd until the renderer

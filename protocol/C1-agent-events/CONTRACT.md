@@ -1,4 +1,4 @@
-# C1 agentd → 角色进程事件 v2.7：语义行为字段、分句级意图、只出字的台词、生成动作和播放器原语
+# C1 agentd → 角色进程事件 v2.8：语义行为字段、分句级意图、只出字的台词、生成动作、播放器原语和本地动作
 
 > 角色进程指 `private/renderer/host`（私有组件，不在公开仓库） 的 `metal-avatar-host`。
 
@@ -6,7 +6,7 @@
 §3 按 C3 v11 改稿 1a63d7a4 改了两处（协调会话 2026-10-19 11:38 定）。
 共用夹具：`protocol/C1-agent-events/fixtures/`（每个文件一条消息或一串消息）；校验器 `agent/agentd/c1.py`
 （`python3 -I agent/agentd/c1.py protocol/C1-agent-events/fixtures` 全部通过才算夹具有效）。夹具 01–08 各对应一条用例或
-一条规则，09 是分句级意图，10、11 是断线和重连，12 是 agentd 判断的结束条件，13 是只出字的台词，14 是生成动作 `perform`（§1.4），15 是宿主请求的生成动作 `motion`（§1.5）；接收端的测试读同一批文件。
+一条规则，09 是分句级意图，10、11 是断线和重连，12 是 agentd 判断的结束条件，13 是只出字的台词，14 是生成动作 `perform`（§1.4），15 是宿主请求的生成动作 `motion`（§1.5），16 是 v2.8 的反应链和坐姿里的片段；接收端的测试读同一批文件。
 `fixtures/invalid/` 下是校验器必须报错的样例，不在上面的命令里。`fixtures/player/` 下是播放器一致性夹具（§6），格式和上面不同，
 由 `c1.check_player_fixture` 查，也不在上面的命令里。
 
@@ -69,6 +69,18 @@
   | `reactions` | 对象：触发名 → 非空数组 `[{clip, weight, layer}]`。触发名只能是 `click`、`pat`、`pinch`、`drag_lift`、`drop`、`attention_left`、`attention_right`、`point_at`、`present`、`hover`（指针停在她身上，什么时候算停由渲染器定）；`clip` 同 §1.4 `clip.id`（1–64 字节的字符串）；`weight` 是 > 0 的数；`layer` 同 §1.4（`base` / `overlay`）。这个触发在本地发生时，渲染器按 `weight` 加权随机挑一条、在本地播，不做别的策略；表里没有这个触发名就不播 |
   | `stage` | `{level, revision}`：`level` 是当前存在感等级，`offstage` / `quiet` / `normal` / `engaged`；`revision` 是整数 ≥ 0，等级每变一次 +1 |
   | `consumed` | 数组，最多 64 个终态编号（`occurrence_id`，各 1–64 字节的字符串）：被挡掉、不再演的终态（§0 2026-10-29 一节、§4.2） |
+
+- `reactions` 的条目（v2.8）是 `{clip, weight, layer, chain?, hold?, stroke_s?}`：
+  - `chain`：1–8 个片段 id（各同 `clip`）的数组，在 `clip` 之后按顺序在同一层上播，每条在前一条的出口开始（同 §1.4 `start: "after_exit"`）。
+  - `hold`：`[clip] + chain` 里的一条循环片段 id；渲染器停在它上面，直到这个触发结束，再播列表里剩下的。只有下面的触发可以带 `hold`，
+    各自的结束是：`pat`（摸头结束）、`present`（这次 present 关闭）、`drag_lift`（放下）、`attention_left` / `attention_right`
+    （渲染器自己抽的保持时长，mac 上是 1.5–3 s）。别的触发带 `hold`、`hold` 不在这个列表里，校验器都报错。
+  - `stroke_s`：对象，片段 id → 秒数：渲染器在这条片段播到这个秒数时，给这次打开的 present 发 C3 `motion.stroke`；键是
+    `[clip] + chain` 里的片段，值是 ≥ 0 的数；只用于 `present`。
+  - 同一层上新起的本地触发让在停的条目立刻结束（不播出口）；渲染器因为别的原因离开在停的条目时，播它的出口。
+- 触发名（v2.8）另加 `click_head`、`click_cheek`、`click_hand`、`click_repeat`、`pinch_annoyed`。渲染器认出点在某个部位时，表里有
+  这个部位的触发就播它，没有就播 `click`；认出连点时，表里有 `click_repeat` 就播它，没有就当一次单击。agentd 按原来的回退填部位
+  触发（`cheek` → `click.cheek`，没有就 `click.face`；`head` → `click.head`；`hand` → `click.hand`），角色包没有对应池子的触发不给。
 
 ## 1. `event: behavior`（agentd 选的一个持续活动）
 
@@ -209,11 +221,15 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
   | `blend_s` | 数 0–2，可缺省 | 切进这条片段的交叉淡化秒数；缺省用默认交叉淡化 |
   | `loop` | 布尔，可缺省，只用于 `layer: "base"` | `true` 时这条 `perform` 就是当前的休息循环：片段循环播，不受 `length_s` 限制，只在被替换、取消或到期时结束 |
   | `ttl_s` | 数 0.5–120，可缺省 | 渲染器收到这条行为起 `ttl_s` 秒内没有续期就丢掉它，回执 `expired`，回到当前姿势的默认休息循环；`expires_at_ms` 照旧，先到的那个算 |
+  | `within` | string，可缺省，只用于带 `clip` 的 `layer: "base"` 的 `perform`（v2.8） | 一个在跑的 `sit` 或 `climb_window_top` 的 `behavior_id`。渲染器把片段当成她在这个行为里的姿势播：坐保持位置和接触，不结束；这个行为结束时片段也结束（回执 `cancelled` / `replaced`）。`within` 指的行为没在跑时回执 `rejected` / `target_gone`。不支持 `sit` 的渲染器收不到这种 `perform`。它和 `within` 指的行为不互相取代 |
 
   - 续期照 §1.3：同一层、同一载荷、`replaces` 为旧 id 的 `perform` 是续期，片段接着播，不重新开始，`ttl_s` 从收到续期时重算。
   - 当前姿势的默认休息循环是角色包里固定的一条，渲染器不挑选；一层上的行为到期（`ttl_s` 或 `expires_at_ms`）、被取消且没有接替时回到它。
   - `/events` 断开不结束行为：断开期间行为照常播，没有续期就按 `ttl_s`、`expires_at_ms` 到期；重连后按上面的重连对账，snapshot `behaviors` 里有的保留，没有的安全释放。
   - 片段边界的播放状态由渲染器经 C3 `motion_state`（规则 54）报给 agentd。
+- 入场（v2.8）：agentd 从角色包的 `character.enter` 池挑一条，发基础层的 `clip` `perform`，`trigger.event` 为 `character.enter`：
+  在它第一次提基础层时、状态目录的文件里没有还在播的循环时发（app 启动，不是 agentd 很快重启），换角色提交后也发。舞台为 `quiet`
+  或 `offstage` 时不发，坐着时不发。
 - 下面取文件、校验的规则只对 `motion`。宿主用 AgentBridgeTransport 发 GET 时已用的基址和令牌取两个文件（C6，ui 或 events 令牌）：
   - `GET /motions/<id>/meta` 回一份 `metal-actor-clip-v1` JSON：`{schema, name, length, frame_rate, loop:false, curves,
     keys:{file, sha256, byte_count}}`，和 `characters/agentic_complex_build/import_vmd.py:append_clip` 写的一样；`name` 等于 `<id>`。
@@ -310,7 +326,7 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
 |---|---|
 | `behavior_id` | 来自 `event: behavior` |
 | `phase` | `prepared`、`rejected`、`running`、`completed`、`blocked`、`cancelled`、`expired`（Proposed→Rejected/Prepared→Running→Cancelling→Cancelled/Completed/Failed；`blocked` 和 `expired` 是 Failed 的两种） |
-| `reason` | `rejected`：`stale`、`busy`、`unsupported`、`switch_off`；`blocked`：`target_gone`、`no_room`、`path_blocked`；`cancelled` 可带 `connection_lost`（角色进程断线，Companion 对没到终态的每个行为补发，C3 v11 规则 25）、`user_drag`、`user_click`（v2.7，用户单击的本地反应打断了它）、`give_way`（v2.7，渲染器为让开用户正在用的东西结束了坐、扶，C3 规则 42）、`replaced`、`character_switch`（换角色前释放）；其余可为 null |
+| `reason` | `rejected`：`stale`、`busy`、`unsupported`、`switch_off`、`target_gone`（v2.8，`within` 指的行为没在跑）；`blocked`：`target_gone`、`no_room`、`path_blocked`；`cancelled` 可带 `connection_lost`（角色进程断线，Companion 对没到终态的每个行为补发，C3 v11 规则 25）、`user_drag`、`user_click`（v2.7，用户单击的本地反应打断了它）、`give_way`（v2.7，渲染器为让开用户正在用的东西结束了坐、扶，C3 规则 42）、`replaced`、`character_switch`（换角色前释放）；其余可为 null |
 | `at_ms` | 墙钟毫秒 |
 | `turn_generation` | 回执对应行为的 `turn_generation` |
 
@@ -385,6 +401,7 @@ Companion 给某个行为补发 `cancelled` / `connection_lost` 之后，角色�
 2026-11-04 C1 v2.5（只加不改）：§1.5 新事件 `motion`（宿主经 C3 v23 `motion_request` 请求的生成片段，成功带 `motion` 和 `tracks_sha256`，失败带 `reason`），新文件 `GET /motions/<id>/tracks`（`endfield-generated-tracks/v1`）。夹具 15；`agent/agentd/c1.py` 认识 `motion` 之前，这个夹具还过不了校验器。
 2026-11-06 C1 v2.6（只加不改）：§1.4 `perform` 带 `motion` 或 `action` 二选一；`action: {id, length_s}` 是当前角色包的角色包动作，`[motion:]` 的文字配到它时 agentd 不生成，宿主按 id 播原片。夹具 14b，不合法样例 `fixtures/invalid/14b-perform-motion-and-action.json`。
 2026-11-21 C1 v2.7：agentd 选每一条片段，渲染器只播。§1.4 `perform` 加载荷 `clip`（角色包 `motion-metadata.json` 的片段 id，`motion`、`action`、`clip` 三选一）和 `layer`、`start`、`blend_s`、`loop`、`ttl_s`；§2 `behavior_cancel` 加 `mode`、`fade_s`；snapshot 加 `reactions`、`stage`、`consumed`；带 `outcome` 的终态 intent 和 §4.2 `session_reaction` 加 `occurrence_id`，`consumed` 里的和演过的编号不再演；§1.2 `short_walk` 加目标 `edge`；§3 `cancelled` 加 reason `user_click`、`give_way`；§0、§1 intent 的 `state` 和 `activity` 不再让渲染器选全身片段（这一条改了 v2 的规则）；§6 播放器一致性夹具（`fixtures/player/`，`c1.check_player_fixture`）。不合法样例 `fixtures/invalid/perform-overlay-on-full-body.json`、`perform-two-payloads.json`、`perform-loop-on-overlay.json`、`perform-unknown-start.json`、`snapshot-unknown-reaction-trigger.json`、`cancel-fade-s-without-fade-out.json`。追加（只加不改）：snapshot `reactions` 的触发名加 `hover`，agentd 在角色包有 `user.hover` 池时给出；动作开关、动作覆盖或半身框选改了表时 agentd 发带新 `reactions` 的 snapshot（C6 `PUT /behavior/motion_prefs`）。
+2026-11-22 C1 v2.8（只加不改）：mac 渲染器原来自己选的本地动作都改由 agentd 选、两个渲染器播。§0 snapshot `reactions` 的条目加 `chain`、`hold`（只用于 `pat`、`present`、`drag_lift`、`attention_left`、`attention_right`）、`stroke_s`（只用于 `present`），触发名加 `click_head`、`click_cheek`、`click_hand`、`click_repeat`、`pinch_annoyed`；§1.4 基础层 `clip` `perform` 加 `within`（在跑的 `sit` / `climb_window_top` 里的姿势片段：坐着时的待机档、坐姿的会话池、打盹），§3 `rejected` 加 reason `target_gone`；§1.4 加入场（`character.enter` 池）；§6 `local` 加 `end`。夹具 16，播放器夹具 `fixtures/player/07-held-chain.json`，不合法样例 `fixtures/invalid/snapshot-hold-on-click.json`、`snapshot-hold-not-in-list.json`、`snapshot-stroke-off-present.json`、`perform-within-on-overlay.json`、`perform-within-no-sit.json`。
 
 ## 6. 播放器一致性夹具（v2.7）
 
@@ -402,7 +419,7 @@ Companion 给某个行为补发 `cancelled` / `connection_lost` 之后，角色�
 |---|---|
 | `name` | 非空字符串，说明这个夹具测什么 |
 | `character` | 角色 id（非空字符串）或 `null`。`null` 时不用角色包：测试用一套测试片段，夹具里出现的每个 clip id 都是 1000 ms 长、不带位移的片段，循环的一圈 1000 ms |
-| `steps` | 非空数组，按 `t_ms` 不减排列。每项是 `{t_ms, c1}` 或 `{t_ms, local}`：`t_ms` 是从夹具开始算的毫秒（整数 ≥ 0）；`c1` 是一条 agentd 发的 C1 消息（不是回执），整串 `c1` 照 §0–§4 的规则合法（`check_file`）；`local` 是 `{input}`，`input` 是 snapshot `reactions` 的一个触发名 |
+| `steps` | 非空数组，按 `t_ms` 不减排列。每项是 `{t_ms, c1}` 或 `{t_ms, local}`：`t_ms` 是从夹具开始算的毫秒（整数 ≥ 0）；`c1` 是一条 agentd 发的 C1 消息（不是回执），整串 `c1` 照 §0–§4 的规则合法（`check_file`）；`local` 是 `{input}`，`input` 是 snapshot `reactions` 的一个触发名；或 `{input, end: true}`（v2.8）：用户结束这个触发，只用于 `pat`、`present`（`drag_lift` 的结束是 `drop`） |
 | `expect` | 非空数组：渲染器发出的 `motion_state`，按发出的顺序，`t_ms_max` 不减。每项是 `{t_ms_max, motion_state}`：`t_ms_max` 是这条最晚发出的时刻（毫秒，整数 ≥ 0，夹具给一帧以上的余量）；`motion_state` 是 C3 `motion_state` 去掉 `v`、`type`、`clip`（`behavior_id`、`origin`、`phase`、`resting`、`busy`），`behavior_id` 非空时是 `steps` 里发过的行为 |
 | `poses` | 可选，留给之后的骨骼姿势期望，现在只能是 `[]` |
 

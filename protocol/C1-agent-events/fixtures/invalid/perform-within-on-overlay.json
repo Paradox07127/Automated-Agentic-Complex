@@ -1,0 +1,62 @@
+{
+ "description": "不合法（校验器要报错）：within 只用于基础层的 clip perform，叠加层的不能带",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-e8-1",
+   "type": "sit",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": "routine:test"
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 0,
+   "expires_at_ms": 4102444800000,
+   "intensity": 0.3,
+   "channels": [
+    "full_body",
+    "contact"
+   ],
+   "exit": [
+    "target_gone",
+    "user_drag"
+   ],
+   "replaces": null,
+   "trace_id": "t-2"
+  },
+  {
+   "event": "behavior",
+   "seq": 3,
+   "behavior_id": "b-e8-2",
+   "type": "perform",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": "idle.t4 seat tierPick"
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 0,
+   "expires_at_ms": 4102444800000,
+   "intensity": 0.3,
+   "channels": [
+    "head",
+    "left_hand",
+    "right_hand"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "t-3",
+   "clip": {
+    "id": "react_wave"
+   },
+   "layer": "overlay",
+   "within": "b-e8-1"
+  }
+ ]
+}

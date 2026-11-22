@@ -2416,3 +2416,200 @@ class MotionPrefsServerTest(ServerCase):
     def test_a_character_without_a_motion_pack_has_no_chooser_to_set(self):
         self.server.spatial.use_motion(None)
         self.assertEqual(self.request("PUT", self.PATH, self.body), (409, {"error": "no_motion"}))
+
+
+LOCAL_CLIPS = {  # name -> (length, loop, stance start, stance end, its intent-motion-map row)
+    "pat_start": (1.0, False, "stand", "stand", {"next": "pat_loop", "exit": "pat_end", "interruptible": True}),
+    "pat_loop": (2.0, True, "stand", "stand", {"next": "pat_end", "exit": "pat_end", "interruptible": True}),
+    "pat_end": (1.0, False, "stand", "stand", {}),
+    "look_start": (0.5, False, "stand", "stand", {"next": "look_loop"}),
+    "look_loop": (1.0, True, "stand", "stand", {"next": "look_end", "exit": "look_end"}),
+    "look_end": (0.5, False, "stand", "stand", {}),
+    "snap_start": (3.0, False, "stand", "stand", {"next": "snap_loop", "stroke_s": 2.45}),
+    "snap_loop": (1.0, True, "stand", "stand", {"hold_policy": "while_requested", "exit": "snap_end"}),
+    "snap_end": (1.5, False, "stand", "stand", {"stroke_s": 1.18}),
+    "lift_start": (0.5, False, "stand", "stand", {"next": "lift_loop"}),
+    "lift_loop": (1.0, True, "stand", "stand", {"exit": "lift_end"}),
+    "lift_end": (0.5, False, "stand", "stand", {}),
+    "land": (1.0, False, "stand", "stand", {}),
+    "sit_nod": (1.0, False, "sit", "sit", {}),
+    "sit_think": (2.0, True, "sit", "sit", {}),
+    "sit_doze": (3.0, True, "sit", "sit", {}),
+    "fly_start": (1.0, False, "stand", "air", {"next": "fly_loop"}),
+    "fly_loop": (2.0, True, "air", "air", {"hold_policy": "while_requested"}),
+}
+LOCAL_EVENTS = {"pat.head": ["pat_start"], "look.left": ["look_start"], "present.snap": ["snap_start"],
+                "click.head": ["nod"], "click.face": ["tap"], "click.repeat": ["shrug"], "pinch.annoyed": ["stretch"],
+                "drag.lift": ["lift_start"], "drag.land": ["land"], "character.enter": ["wave"],
+                "session.thinking@sit": ["sit_think"], "rest.sleep@sit": ["sit_doze"]}
+
+
+def local_pack(root, roles=None):
+    """The demo pack in root with the pools the mac renderer used to draw from itself: held pat, look and present
+    chains, region and repeated clicks, the annoyed pinch, the lift and its landing, the entrance, a seated idle tier,
+    a seated session pool, rest dozing and a `fly` activity that holds her in the air. roles: motion-bindings.json's
+    lift_start / lift_end, None for none."""
+    pack = Path(root) / "local"
+    shutil.copytree(PACK, pack)
+
+    def edit(name, change):
+        path = pack / name
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        change(doc)
+        path.write_text(json.dumps(doc), encoding="utf-8")
+
+    def motion_map(m):
+        m["clips"].update({name: row[4] for name, row in LOCAL_CLIPS.items()})
+        for key, clips in LOCAL_EVENTS.items():
+            interrupt = "low" if key == "rest.sleep@sit" else "mid" if "@" in key or key == "character.enter" else "user"
+            m["events"][key] = {"pool": [{"clip": c} for c in clips], "interrupt": interrupt}
+        m["idle_tiers"].append({"after_s": [2, 3], "interval_s": [2, 3], "stance": "sit", "pool": [{"clip": "sit_nod"}]})
+        m["activities"] = {"fly": {"*": ["fly_start"]}}
+    edit("actor/manifest.json", lambda d: d["clips"].extend(
+        {"name": n, "length": r[0], "loop": r[1]} for n, r in LOCAL_CLIPS.items()))
+    edit("c7/animation/palette-contract.json", lambda d: d["clips"].extend(
+        {"name": n, "loop": r[1]} for n, r in LOCAL_CLIPS.items()))
+    edit("c7/animation/intent-motion-map.json", motion_map)
+    edit("c7/interaction/motion-metadata.json", lambda d: d["clips"].update(
+        {n: {"stance_start": r[2], "stance_end": r[3]} for n, r in LOCAL_CLIPS.items()}))
+    if roles is not None:
+        edit("c7/animation/motion-bindings.json", lambda d: d.update(roles=roles))
+    return pack
+
+
+class LocalMotionsTest(SpatialCase):
+    """The motions the mac renderer used to choose itself, chosen by agentd: held reaction chains, the new triggers,
+    the entrance, her seated clips within the sit, and an air activity that keeps her standing."""
+    run_clock, performs = ChooserTest.run_clock, ChooserTest.performs
+
+    def flush(self):
+        super().flush()
+        for message in self.sent:
+            self.at.setdefault(message["behavior_id"], self.now)
+
+    def setUp(self):
+        super().setUp()
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        self.spatial._next_tick = self.now + 10 ** 6  # no random tick
+        self.stage, self.at = "normal", {}
+        self.spatial.stage = lambda: self.stage
+        self.pack = local_pack(self.root)
+
+    def start(self, pack=None, enter=True):
+        self.spatial.use_motion(MotionChooser(pack or self.pack))
+        self.flush()
+        if not enter:
+            self.spatial._enter = False  # no entrance spends the budget's start
+            self.run_clock(1)
+
+    def within(self):
+        return [m for m in self.performs() if "within" in m]
+
+    def sit(self, variant=None):
+        spec = spatial._spec("sit", None, "tick", "routine:test", 0, spatial.POSTURE, ("user_drag",), 0.3, 600.0,
+                             variant=variant)
+        answer = self.spatial.offer(spec)
+        self.flush()
+        return answer
+
+    def test_the_table_holds_the_chains_of_pat_look_present_and_the_lift_and_names_the_new_triggers(self):
+        self.start()
+        entry = lambda clip, layer="overlay", **more: {"clip": clip, "weight": 1, "layer": layer, **more}  # noqa: E731
+        self.assertEqual(self.spatial.reactions(), {
+            "click": [entry("tap"), entry("nod")],
+            "pat": [entry("pat_start", chain=["pat_loop", "pat_end"], hold="pat_loop")],
+            "attention_left": [entry("look_start", chain=["look_loop", "look_end"], hold="look_loop")],
+            "present": [entry("snap_start", chain=["snap_loop", "snap_end"], hold="snap_loop",
+                              stroke_s={"snap_start": 2.45, "snap_end": 1.18})],
+            "drag_lift": [entry("lift_start", "base", chain=["lift_loop", "lift_end"], hold="lift_loop")],
+            "drop": [entry("land", "base")],
+            "click_head": [entry("nod")], "click_cheek": [entry("tap")], "click_repeat": [entry("shrug")],
+            "pinch_annoyed": [entry("stretch")]})
+        snapshot = next(m for m in reversed(self.log) if m["event"] == "snapshot")
+        self.assertEqual(c1.check_message(snapshot), [])
+        self.spatial.set_motion_prefs({}, {**NO_OVERRIDES, "pools": {"click.head": [{"clip": "tap", "weight": 2}]}})
+        self.assertEqual(self.spatial.reactions()["click_head"], [{"clip": "tap", "weight": 2, "layer": "overlay"}])
+
+    def test_with_lift_roles_the_lift_holds_their_chain_and_the_drop_plays_nothing_more(self):
+        self.start(local_pack(Path(self.root) / "roles", {"lift_start": "pat_start", "lift_end": "land"}))
+        table = self.spatial.reactions()
+        self.assertEqual(table["drag_lift"], [{"clip": "pat_start", "weight": 1, "layer": "base",
+                                               "chain": ["pat_loop", "land"], "hold": "pat_loop"}])
+        self.assertNotIn("drop", table)
+
+    def test_she_enters_on_launch_and_after_a_switch_but_not_on_a_quiet_stage_or_a_quick_restart(self):
+        self.start()
+        self.run_clock(spatial.MOTION_WAKE)
+        first = self.performs()[0]
+        self.assertEqual((first["clip"], first["layer"], first["trigger"]["event"]),
+                         ({"id": "wave"}, "base", "character.enter"))
+        self.run_clock(10)
+        self.assertEqual([m["clip"]["id"] for m in self.performs()].count("wave"), 1)
+        self.start()  # a character switch commits
+        self.run_clock(spatial.MOTION_WAKE)
+        self.assertEqual(self.performs()[-1]["trigger"]["event"], "character.enter")
+        self.stage = "quiet"
+        self.start()
+        count = len(self.performs())
+        self.run_clock(1)
+        self.assertNotIn("character.enter", [m["trigger"]["event"] for m in self.performs()[count:]])
+        self.stage = "normal"
+        path = Path(self.root) / "spatial.json"
+        self.start()
+        self.spatial.keep(path)
+        self.run_clock(4)  # the loop after the entrance is kept for the next agentd
+        self.start()
+        self.spatial.keep(path)  # a quick restart: the renderer still plays that loop
+        count = len(self.performs())
+        self.run_clock(1)
+        self.assertNotIn("character.enter", [m["trigger"]["event"] for m in self.performs()[count:]])
+        self.assertValid()
+
+    def test_her_seated_tier_clip_plays_within_the_sit_under_the_seated_budget(self):
+        self.start(enter=False)
+        self.assertEqual(self.sit(), (True, None))
+        sit = self.sent[-1]
+        self.run_clock(59)
+        self.assertEqual([(m["clip"]["id"], m["within"], m["layer"], m["trigger"]["event"]) for m in self.within()],
+                         [("sit_nod", sit["behavior_id"], "base", "idle.t2 seat tierPick")])  # one a minute
+        self.assertIn(sit["behavior_id"], self.spatial.active)
+        self.assertNotIn(sit["behavior_id"], [c[0] for c in self.cancels()])
+        self.assertValid()
+
+    def test_a_session_plays_its_seated_pool_within_the_sit(self):
+        self.start(enter=False)
+        self.sit()
+        sit = self.sent[-1]
+        self.run_clock(2)
+        self.spatial.motion_intent({"intent": "think", "state": "thinking", "activity": None, "mood": None,
+                                    "display_session": "claude:A"}, False)
+        self.run_clock(14)
+        [think] = [m for m in self.within() if m["clip"] == {"id": "sit_think"}]
+        self.assertEqual((think["within"], think["loop"], think["trigger"]), (
+            sit["behavior_id"], True, {"source": "session", "event": "session.thinking@sit seat posturePick"}))
+        self.assertIn((think["behavior_id"], "expired", None), self.cancels())  # back to the sit's own loop
+        self.assertIn(sit["behavior_id"], self.spatial.active)
+        self.assertValid()
+
+    def test_a_rest_sit_dozes_within_itself(self):
+        self.start(enter=False)
+        self.sit("rest")
+        sit = self.sent[-1]
+        self.run_clock(8)
+        self.assertEqual([(m["clip"]["id"], m["within"]) for m in self.within()][:1],
+                         [("sit_doze", sit["behavior_id"])])
+
+    def test_an_air_activity_stands_her_up_and_keeps_her_from_sitting(self):
+        self.start(enter=False)
+        self.sit()
+        sit = self.sent[-1]
+        self.run_clock(2)
+        self.spatial.motion({"kind": "intent", "intent": "idle", "state": None, "activity": "fly", "mood": None,
+                             "display_session": None})
+        self.run_clock(spatial.MOTION_WAKE)
+        self.assertIn((sit["behavior_id"], "expired", None), self.cancels())
+        self.run_clock(2)
+        self.assertIn({"id": "fly_start"}, [m["clip"] for m in self.performs()])
+        self.assertEqual(self.sit(), (False, "lifted"))
+        self.assertValid()

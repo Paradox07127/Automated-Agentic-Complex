@@ -1,0 +1,119 @@
+{
+ "name": "pat 的条目是一条带 hold 的链：react_pat_start 播完进 react_pat_loop，停在循环上直到 2700 ms 摸头结束，再播 react_pat_end，之后叠加层空着",
+ "character": null,
+ "steps": [
+  {
+   "t_ms": 0,
+   "c1": {
+    "event": "snapshot",
+    "seq": 1,
+    "turn_generation": 5,
+    "behaviors": [],
+    "reactions": {
+     "pat": [
+      {
+       "clip": "react_pat_start",
+       "weight": 1,
+       "layer": "overlay",
+       "chain": [
+        "react_pat_loop",
+        "react_pat_end"
+       ],
+       "hold": "react_pat_loop"
+      }
+     ]
+    },
+    "stage": {
+     "level": "normal",
+     "revision": 1
+    }
+   }
+  },
+  {
+   "t_ms": 200,
+   "local": {
+    "input": "pat"
+   }
+  },
+  {
+   "t_ms": 2700,
+   "local": {
+    "input": "pat",
+    "end": true
+   }
+  }
+ ],
+ "expect": [
+  {
+   "t_ms_max": 300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 1300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 1300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 2300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "cycle_end",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 3300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 3300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 4300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": true,
+    "busy": false
+   }
+  }
+ ],
+ "poses": []
+}

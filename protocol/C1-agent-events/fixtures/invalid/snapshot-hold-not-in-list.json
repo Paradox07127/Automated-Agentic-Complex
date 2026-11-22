@@ -1,0 +1,118 @@
+{
+ "description": "不合法（校验器要报错）：pat 条目的 hold 不在它的 clip 和 chain 里",
+ "messages": [
+  {
+   "event": "snapshot",
+   "seq": 1,
+   "turn_generation": 5,
+   "behaviors": [],
+   "reactions": {
+    "click": [
+     {
+      "clip": "react_click_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "click_head": [
+     {
+      "clip": "react_head_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "click_cheek": [
+     {
+      "clip": "react_cheek_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "click_hand": [
+     {
+      "clip": "react_hand_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "click_repeat": [
+     {
+      "clip": "react_repeat_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "pinch_annoyed": [
+     {
+      "clip": "react_annoyed_a",
+      "weight": 1,
+      "layer": "overlay"
+     }
+    ],
+    "pat": [
+     {
+      "clip": "pat_start",
+      "weight": 1,
+      "layer": "overlay",
+      "chain": [
+       "pat_loop",
+       "pat_end"
+      ],
+      "hold": "look_left_loop"
+     }
+    ],
+    "present": [
+     {
+      "clip": "snap_start",
+      "weight": 1,
+      "layer": "overlay",
+      "chain": [
+       "snap_loop",
+       "snap_end"
+      ],
+      "hold": "snap_loop",
+      "stroke_s": {
+       "snap_start": 2.45,
+       "snap_end": 1.18
+      }
+     }
+    ],
+    "drag_lift": [
+     {
+      "clip": "lift_start",
+      "weight": 1,
+      "layer": "base",
+      "chain": [
+       "lift_loop",
+       "lift_end"
+      ],
+      "hold": "lift_loop"
+     }
+    ],
+    "drop": [
+     {
+      "clip": "land",
+      "weight": 1,
+      "layer": "base"
+     }
+    ],
+    "attention_left": [
+     {
+      "clip": "look_left_start",
+      "weight": 1,
+      "layer": "overlay",
+      "chain": [
+       "look_left_loop",
+       "look_left_end"
+      ],
+      "hold": "look_left_loop"
+     }
+    ]
+   },
+   "stage": {
+    "level": "normal",
+    "revision": 1
+   }
+  }
+ ]
+}

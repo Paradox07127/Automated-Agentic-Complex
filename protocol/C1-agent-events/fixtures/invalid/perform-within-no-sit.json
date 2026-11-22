@@ -1,0 +1,56 @@
+{
+ "description": "不合法（校验器要报错）：within 指的行为不是在跑的 sit 或 climb_window_top",
+ "messages": [
+  {
+   "event": "behavior",
+   "seq": 2,
+   "behavior_id": "b-e8-1",
+   "type": "idle",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": null
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 0,
+   "expires_at_ms": 4102444800000,
+   "intensity": 0.3,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [],
+   "replaces": null,
+   "trace_id": "t-2"
+  },
+  {
+   "event": "behavior",
+   "seq": 3,
+   "behavior_id": "b-e8-2",
+   "type": "perform",
+   "target": null,
+   "trigger": {
+    "source": "tick",
+    "event": "idle.t4 seat tierPick"
+   },
+   "display_session": null,
+   "turn_id": null,
+   "turn_generation": 5,
+   "priority": 0,
+   "expires_at_ms": 4102444800000,
+   "intensity": 0.3,
+   "channels": [
+    "full_body"
+   ],
+   "exit": [],
+   "replaces": "b-e8-1",
+   "trace_id": "t-3",
+   "clip": {
+    "id": "sit_think_loop"
+   },
+   "layer": "base",
+   "within": "b-e8-1"
+  }
+ ]
+}

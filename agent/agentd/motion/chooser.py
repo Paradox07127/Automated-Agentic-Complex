@@ -88,6 +88,7 @@ class Entry:
     idle_variants: list = None
     idle_interval_s: list = None
     complete_on_enter: bool = None
+    stroke_s: float = None
 
     @classmethod
     def load(cls, row):
@@ -96,7 +97,7 @@ class Entry:
                    interruptible=row.get("interruptible"), end_at_length=row.get("end_at_length"),
                    hold_policy=row.get("hold_policy"), exit_condition=row.get("exit_condition"),
                    idle_variants=row.get("idle_variants"), idle_interval_s=_floats(row.get("idle_interval_s")),
-                   complete_on_enter=row.get("complete_on_enter"))
+                   complete_on_enter=row.get("complete_on_enter"), stroke_s=row.get("stroke_s"))
 
     @property
     def held(self):
@@ -211,6 +212,9 @@ class Pack:
         self.blend_out = {c: f32(r["blend_out_s"]) for c, r in blends.items() if r.get("blend_out_s") is not None}
         bindings = _read(c7 / "animation" / "motion-bindings.json")
         self.overview, self.relax, self.from_overview = bindings["overview"], bindings["relax"], bindings["from_overview"]
+        roles = bindings.get("roles") or {}
+        # The pick-up's start and end clips; None: the drag.lift and drag.land pools.
+        self.lift = (roles["lift_start"], roles["lift_end"]) if "lift_start" in roles and "lift_end" in roles else None
         self.families = None
         if "pose-families.json" in animation:
             self.families = PoseFamilies(_read(c7 / "animation" / "pose-families.json"))
@@ -391,6 +395,17 @@ class Pack:
     def requested_loop(self, start):
         return next((c for c in self.chain(start) if c in self.entries and self.entries[c].held), None)
 
+    def held_chain(self, start, end=None):
+        """The first loop of start's chain and every clip that plays after start: its chain up to that loop, then the
+        loop's exit chain (end's chain when given, else the rest of start's chain); None when the chain has no loop."""
+        chain = self.chain(start)
+        loop = next((c for c in chain if self.loop(c)), None)
+        if loop is None:
+            return None
+        e = self.entries.get(loop)
+        after = self.chain(end) if end else self.chain(e.exit) if e and e.exit else chain[chain.index(loop) + 1:]
+        return loop, chain[1:chain.index(loop) + 1] + after
+
 
 class Playhead:
     """The animator's clock: the active clip and its time, and the clip it blends to."""
@@ -445,6 +460,7 @@ class Seat:
     id: str
     enter: str
     loop: str
+    rest: bool = False  # a rest sit: its loop boundaries give way to the rest.sleep pool
     seated: bool = False
     boundary: float = None
     detour: tuple = None
@@ -597,7 +613,7 @@ class MotionChooser:
         elif kind == "sit":
             use = next(u for u in _read(self.pack.c7 / "interaction" / "affordance-uses.json")["uses"]
                        if u["surface"] == "seat" and u.get("enter"))
-            self._seat = Seat(use["id"], use["enter"], use["loop"])
+            self._seat = Seat(use["id"], use["enter"], use["loop"], rest=item.get("variant") == "rest")
             self._call(("seat", "seat", "enter " + use["id"]), lambda: self.acquire_exact(use["enter"], SEAT_BLEND))
         elif kind == "pat_end":
             if self._pat:
@@ -1364,8 +1380,46 @@ class MotionChooser:
         self._spend()
         return pick, p.lengths[pick], p.loop(pick)
 
+    def posture_pick(self, key, loop, taken=False):
+        """For an exact owner holding `loop`: a clip of `key`'s pool for the loop's posture, recorded as the event's
+        start, with its length and loop flag; None standing, without one, or, for a key not just taken, while the
+        budget has no start left. It plays nothing itself."""
+        p = self.pack
+        posture = p.posture(loop)
+        if posture == "stand" or not (taken or self._budget_allows(posture)):
+            return None
+        pick = self._draw_posture(key, loop, loops=True)
+        if pick is None:
+            return None
+        self.event_at[self._cooldown_key(key)] = self.clock
+        self.last_event_start = pick
+        self._spend()
+        return pick, p.lengths[pick], p.loop(pick)
+
+    @property
+    def holds_lifted(self):
+        """An air or boss posture holds her, or a held loop or an activity on its way to one."""
+        p = self.pack
+
+        def holds(start):
+            loop = p.requested_loop(start)
+            return self._enabled(start) and loop is not None and p.posture(loop) in LIFTED
+        if self.posture in LIFTED:
+            return True
+        r = self.requested
+        if r and not r.stopping and holds(r.start) or self.pending and self.pending[0] == "held" and holds(self.pending[1]):
+            return True
+        for value in (self.pending, self.exact_pending_input):
+            if value and value[0] == "semantic":
+                _, intent, state, activity = value[:4]
+                event = SESSION_EVENTS.get(state or "")
+                if self._lifted_activity(activity, event if event in p.event_names and intent in INTENTS else None):
+                    return True
+        return False
+
     def _seat_step(self):
-        """HostSeat's sit.seat use: enter, loop, and at each loop boundary the due seated tier's clip as a detour."""
+        """HostSeat's sit.seat use: enter, loop, and at each loop boundary a detour: the held session event's seated pool
+        clip, else on a rest sit a rest.sleep clip, else the due seated tier's clip."""
         s = self._seat
         if s is None or self.preparation_pending:
             return
@@ -1396,13 +1450,20 @@ class MotionChooser:
         if t < f32(at - SEAT_BLEND):
             return
         s.boundary = None
-        due = self.exact_tier
-        pick = self.tier_pick(s.loop)
+        due, event, self.exact_event = self.exact_tier, self.exact_event, None
+        pick = event and self.posture_pick(event, s.loop, taken=True)
+        key = event if pick else "rest.sleep" if s.rest else None
+        if key and not pick:
+            pick = self.posture_pick(key, s.loop)
+        if pick:
+            why = "%s seat posturePick" % p.event_key(key, p.posture(s.loop))
+        else:
+            pick = self.tier_pick(s.loop)
+            why = "idle.t%d seat tierPick" % ((due + 1) if due is not None else 0)
         if pick is None:
             return
         clip, length, loops = pick
         s.detour = (clip, f32(length * max(1.0, float(math.ceil(f32(SEAT_HOLD_S / length))))) if loops else length)
-        why = "idle.t%d seat tierPick" % ((due + 1) if due is not None else 0)
         self._call(("seat", "tier", why), lambda: self.acquire_exact(clip, SEAT_BLEND))
 
     def _pat_step(self):
