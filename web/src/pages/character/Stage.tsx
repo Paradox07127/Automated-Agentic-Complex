@@ -21,6 +21,10 @@ export interface StageProps {
   /** Plays today; null where nobody counts them. */
   today: number | null;
   name: string;
+  /** Latin name under the name. */
+  en?: string | undefined;
+  /** Where the stage stands: right of the name on 总览, left of the panel on a detail page, beside the 拍照 panel; absent is a detail page. */
+  mode?: StageMode;
   /** Host art; the portrait wins over the head. */
   head?: string | undefined;
   portrait?: string | undefined;
@@ -46,18 +50,20 @@ export interface StageProps {
   loop?: boolean;
 }
 
+export type StageMode = 'overview' | 'detail' | 'photo';
+
 const secs = (d: number) => `${d.toFixed(1)} s`;
 
 /** 目录读到之前的空舞台：同样的画框和影子。 */
 export function StageSkel() {
   return (
-    <div className={styles.frame}>
+    <div className={styles.frame} data-mode="overview">
       <div className={styles.stage} data-stage="" aria-busy="true" />
     </div>
   );
 }
 
-/** A portrait stage with the selected motion's details and playback feedback below it. */
+/** The live preview stage on the training room floor, and the name block: her name, what she is doing, the selected motion and playback feedback. */
 export function Stage(p: StageProps) {
   const m = p.motion;
   const spec: Array<[k: string, v: string]> = [];
@@ -74,11 +80,12 @@ export function Stage(p: StageProps) {
     blocked: p.offline || p.sw.phase !== 'idle',
   });
   return (
-    <div className={styles.frame} data-stage="">
+    <div className={styles.frame} data-stage="" data-mode={p.mode ?? 'detail'}>
       <div ref={setEl} className={styles.stage} data-off={p.offline || undefined} data-preview-stage="" data-live={preview.phase === 'live' || undefined}>
-        <span className={styles.info} aria-hidden="true">
-          <CharacterArt id={p.characterId} art="charinfo-bg" kind="portrait" w={1024} h={1024} fallback={null} />
-        </span>
+        <svg className={styles.rings} viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">
+          <ellipse cx={50} cy={10} rx={49} ry={9} />
+          <ellipse cx={50} cy={10} rx={30} ry={5.5} />
+        </svg>
         <div className={styles.fig} style={{ transform: `translateX(-50%) scale(${0.8 + p.scale / 500})` }}>
           {p.portrait ? (
             <CharacterArt src={p.portrait} kind="portrait" w={520} h={520} fallback={<Silhouette />} />
@@ -86,7 +93,6 @@ export function Stage(p: StageProps) {
             <CharacterArt src={p.head} kind="head" w={152} h={212} fallback={<Silhouette />} />
           )}
         </div>
-        <span className={styles.mask} data-g="bottomMask" aria-hidden="true" />
         {p.offline && (
           <div className={styles.ovl} data-theme="dark" role="status">
             <StatusTag state="unreachable" label="角色未运行" />
@@ -100,9 +106,17 @@ export function Stage(p: StageProps) {
         <div className={styles.nm} data-nameplate="" data-g="root">
           <span className={styles.plate} data-g="nameplate">
             <Emblem className={styles.emblem} />
-            <b className={styles.name}>{p.name}</b>
+            <span className={styles.names}>
+              <b className={styles.name}>{p.name}</b>
+              {p.en && <span className={styles.en}>{p.en}</span>}
+            </span>
           </span>
-          <span className={styles.nmF} data-g="level">{p.offline ? '未运行' : (p.activity ?? '预览')}</span>
+          {!p.offline && p.activity && (
+            <span className={styles.act} data-g="level">
+              <span className={styles.actK}>在做</span>
+              {p.activity}
+            </span>
+          )}
         </div>
         {m && <div className={styles.motion} data-g="tags">
           <b>{m.label}</b>

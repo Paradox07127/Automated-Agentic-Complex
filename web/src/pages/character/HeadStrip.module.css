@@ -1,0 +1,152 @@
+/* Head strip on the left edge: round heads, the current one with a yellow bar on its right; three square keys at the bottom. */
+.strip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: var(--strip);
+  padding: 16px 0 14px;
+}
+
+.heads {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden auto;
+  padding: 2px 0;
+  scrollbar-width: none;
+}
+
+.head {
+  position: relative;
+  flex: none;
+  width: calc(var(--strip) - 8px);
+  height: var(--head);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.head[disabled] {
+  cursor: default;
+}
+
+.head[disabled]:not([aria-current]) .face {
+  opacity: 0.45;
+}
+
+/* smallcharhead_in: the glow behind the head, and the bar along the strip's right edge. */
+.head [data-g='sel'] {
+  inset: 0;
+  border-radius: 50%;
+}
+
+.head [data-g='bg'] {
+  inset: 4px -4px 4px auto;
+  width: 4px;
+  height: auto;
+}
+
+.face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--head);
+  height: var(--head);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #b9bab9;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 18%);
+  color: #fff;
+}
+
+.face :global([data-stub='CharacterArt']) {
+  width: 100%;
+  height: 100%;
+}
+
+.face :global([data-stub='CharacterArt'])::before,
+.face :global([data-stub='CharacterArt'])::after {
+  display: none;
+}
+
+.face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  clip-path: none;
+}
+
+.head:hover:not([disabled]) .face {
+  border-color: #ffe600;
+}
+
+.head[data-target] .face {
+  outline: 2px solid #262626;
+  outline-offset: 2px;
+}
+
+.head:focus-visible,
+.key:focus-visible {
+  outline: 2px solid #262626;
+  outline-offset: 2px;
+}
+
+.keys {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.key {
+  display: grid;
+  place-items: center;
+  width: calc(var(--strip) - 40px);
+  min-width: 36px;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  background: rgb(96 96 96 / 62%);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.key:hover,
+.key[aria-expanded='true'],
+.key[aria-pressed='true'] {
+  background: #ffe600;
+  color: #1a1a1a;
+}
+
+/* Hidden UI: only the key that brings it back. */
+.strip[data-bare] .heads,
+.strip[data-bare] .key:not([data-bare-key]) {
+  visibility: hidden;
+}
+
+/* The roster opens beside the strip; while it is open the live preview hides (it counts as a dialog). */
+.pop {
+  position: absolute;
+  bottom: 0;
+  left: calc(100% - 8px);
+  width: max-content;
+  max-width: min(520px, 60cqw);
+  padding: 6px;
+  border: 1px solid var(--ef-line-strong);
+  background: var(--ef-surface-1);
+  box-shadow: 0 8px 24px var(--ef-scrim-popup);
+}

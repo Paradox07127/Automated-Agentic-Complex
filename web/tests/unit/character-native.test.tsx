@@ -56,7 +56,7 @@ afterEach(() => {
 describe('motions', () => {
   it('lists avatar.actions() and never reads a /character/motions route', async () => {
     const actions = vi.spyOn(bridge.avatar, 'actions');
-    await mount();
+    await mount('&pane=motion');
     expect((await screen.findAllByText('点头附和')).length).toBeGreaterThan(0);
     expect(actions).toHaveBeenCalled();
     expect(gets().filter((p) => p.startsWith('/character/motions'))).toEqual([]);
@@ -67,7 +67,7 @@ describe('motions', () => {
     let release = () => {};
     const gate = new Promise<void>((r) => (release = r));
     vi.spyOn(bridge.avatar, 'actions').mockImplementation(async () => (await gate, real()));
-    await mount();
+    await mount('&pane=motion');
     await waitFor(() => expect(screen.queryByText('读取中')).toBeNull());
     expect(screen.queryByText('这个分区没有启用的动作')).toBeNull();
     // The table's place holds a skeleton; the page's one 读取中 is gone from the header.
@@ -80,7 +80,7 @@ describe('motions', () => {
   it('a failed avatar.actions() says why and retries', async () => {
     const real = bridge.avatar.actions.bind(bridge.avatar);
     const actions = vi.spyOn(bridge.avatar, 'actions').mockRejectedValueOnce({ code: 'not_ready', detail: 'avatar' });
-    await mount();
+    await mount('&pane=motion');
     await waitFor(() => expect(screen.queryByText('读取中')).toBeNull());
     expect(screen.queryByText('这个分区没有启用的动作')).toBeNull();
     const bar = await screen.findByRole('alert');
@@ -194,7 +194,7 @@ describe('offline note', () => {
 
 describe('import receipts', () => {
   it('has 导入角色 on the 导入 pane, not in the header', async () => {
-    await mount();
+    await mount('&pane=look');
     expect(screen.queryByRole('button', { name: '导入角色' })).toBeNull();
     await click(await screen.findByRole('tab', { name: '导入' }));
     expect(within(screen.getByRole('region', { name: '角色' })).getByRole('button', { name: '导入角色' })).toBeTruthy();
@@ -266,7 +266,7 @@ describe('motion import', () => {
     });
     await mount('&pane=import');
     await click(await screen.findByRole('button', { name: '导入动作' }));
-    await click(screen.getByRole('tab', { name: '动作' }));
+    await click(within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name: '动作' }));
     await waitFor(() => expect(document.querySelector('[data-motion="vmd_dance"]')).not.toBeNull());
     await click(document.querySelector('[data-motion="vmd_dance"]')!);
     const speed = screen.getByRole('radiogroup', { name: '播放速度' });

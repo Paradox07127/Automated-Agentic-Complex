@@ -39,7 +39,7 @@ async function mount(search = '') {
 
 const click = (el: Element) => act(async () => void fireEvent.click(el));
 const view = () => document.querySelector<HTMLElement>('[data-view="mmd"]');
-const tab = (name: string) => within(screen.getByRole('tablist', { name: '角色页签' })).getByRole('tab', { name });
+const tab = (name: string) => within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name });
 const item = (id: string) => document.querySelector<HTMLElement>(`[data-mmd="${id}"]`);
 // The fake import takes a second.
 const SLOW = { timeout: 3000 };
@@ -52,23 +52,23 @@ afterEach(() => {
 });
 
 describe('MMD view route', () => {
-  it('opens from the MMD tab next to 拍照 and the 动作 tab leaves it', async () => {
+  it('opens from the MMD rail item after 拍照 and the 动作 item leaves it', async () => {
     await mount();
     const btn = tab('MMD');
-    expect(btn.previousElementSibling?.getAttribute('title')).toBe('拍照');
+    expect(btn.previousElementSibling?.textContent).toBe('拍照');
     expect(view()).toBeNull();
     await click(btn);
     await waitFor(() => expect(view()).not.toBeNull());
-    expect(tab('MMD').getAttribute('aria-selected')).toBe('true');
+    expect(tab('MMD').getAttribute('aria-current')).toBe('page');
     await click(tab('动作'));
     await waitFor(() => expect(view()).toBeNull());
-    expect(tab('动作').getAttribute('aria-selected')).toBe('true');
+    expect(tab('动作').getAttribute('aria-current')).toBe('page');
   });
 
   it('?view=mmd puts the view in the right column', async () => {
     await mount('&view=mmd');
     expect(view()?.closest('[data-view="character-settings"]')).not.toBeNull();
-    expect(tab('MMD').getAttribute('aria-selected')).toBe('true');
+    expect(tab('MMD').getAttribute('aria-current')).toBe('page');
   });
 });
 
@@ -177,7 +177,7 @@ describe('motion tabs without MMD dances', () => {
   it('the 动作 table and its tab leave out mmd_ rows and the MMD 列表', async () => {
     const real = bridge.avatar.actions.bind(bridge.avatar);
     vi.spyOn(bridge.avatar, 'actions').mockImplementation(async () => [...(await real()), { ...MMD_ACTION }]);
-    await mount();
+    await mount('&pane=motion');
     await screen.findAllByText('点头附和');
     expect(document.querySelector('[data-motion="nod"]')).not.toBeNull();
     expect(document.querySelector('[data-motion="mmd_a"]')).toBeNull();

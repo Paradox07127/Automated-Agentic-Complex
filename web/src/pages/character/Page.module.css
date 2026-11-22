@@ -1,5 +1,6 @@
-/* The page fills the content area; the operator view scrolls its own columns. */
+/* The page fills the content area over the training room; the scene lays itself out inside the body. */
 .page {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -17,6 +18,8 @@
 }
 
 .bars {
+  position: relative;
+  z-index: 1;
   display: grid;
   flex: none;
   gap: var(--ef-sp-8);
@@ -24,6 +27,8 @@
 }
 
 .body {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -43,15 +48,4 @@
 .body > [data-stub='Skel'],
 .body > [data-stub='ErrBar'] {
   margin: var(--ef-sp-16) var(--ef-space-page);
-}
-
-/* Under 760 px of content the operator view is one column and the page scrolls. */
-@container page (max-width: 760px) {
-  .body {
-    overflow: hidden auto;
-  }
-
-  .sw {
-    height: auto;
-  }
 }

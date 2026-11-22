@@ -6,39 +6,51 @@
   /* Attribute names solid #5A5A5A on white (@0.706 would be under 4.5:1). */
   --op-attr-name: #5a5a5a;
 
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
-  grid-template-columns: clamp(246px, 27%, 330px) minmax(0, 1fr);
-  gap: var(--ef-sp-12) var(--ef-sp-24);
-  height: 100%;
-  padding: var(--ef-sp-16) var(--ef-space-page) 0;
-}
+  /* The scene's widths: head strip, rail, the name column, the detail and 拍照 panels. */
+  --strip: 84px;
+  --head: 60px;
+  --rail: 64px;
+  --rail-item: 64px;
+  --gap: 12px;
+  --info-w: clamp(220px, 22cqw, 320px);
+  --panel-w: clamp(440px, 50cqw, 880px);
+  --photo-w: clamp(300px, 26cqw, 380px);
 
-.mid {
   position: relative;
-  grid-area: 1 / 1 / 2 / 2;
+  height: 100%;
+  overflow: hidden;
+  container: op / size;
+  color: #262626;
 }
 
-.panes,
-.settings {
-  grid-area: 1 / 2 / 2 / 3;
+/* The stage layer: no box of its own to click, and no scroll box (it would cut the shell's live preview). */
+.mid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
-.settings {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
+/* Hidden UI: the stage and the key that brings the rest back. */
+.op[data-bare] > :not(.mid, [data-g='listSide']),
+.op[data-bare] .mid [data-g='info'] {
+  visibility: hidden;
 }
 
-.settings > * {
-  flex: 1;
+/* Compact (925 × 515 and alike): a narrower head strip and name column, shorter rail keys. */
+@container op (max-width: 1100px) {
+  .op > * {
+    --strip: 64px;
+    --head: 44px;
+    --info-w: 190px;
+  }
 }
 
-/* Wide: a wider stage column. */
-@container page (min-width: 1100px) {
-  .op {
-    grid-template-columns: clamp(300px, 30%, 420px) minmax(0, 1fr);
+@container op (max-height: 560px) {
+  .op > * {
+    --strip: 64px;
+    --head: 44px;
+    --rail-item: 52px;
+    --info-w: 190px;
   }
 }
 
@@ -174,50 +186,8 @@
   color: var(--ef-text-2);
 }
 
-/* The stage column does not scroll: a scroll box around the stage would cut the shell's live preview. */
-.mid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ef-sp-12);
-  min-width: 0;
-  min-height: 0;
-  padding-bottom: var(--ef-sp-16);
-  container-type: inline-size;
-}
-
-/* The tab strip stays; the pane under it scrolls. */
-.panes {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ef-sp-12);
-  min-width: 0;
-  min-height: 0;
-}
-
-.menu {
-  flex: none;
-  align-self: flex-start;
-}
-
-/* The side padding, taken back by the margin, keeps focus rings at the edges inside the scroll box. */
-.pane {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--ef-sp-16);
-  min-width: 0;
-  min-height: 0;
-  margin: 0 -5px;
-  overflow: hidden auto;
-  padding: 0 5px var(--ef-sp-16);
-}
-
-.pane > * {
-  flex: none;
-}
-
-/* The motion list fills the pane and scrolls inside it. */
-.pane > .motions {
+/* The motion list fills the panel and scrolls inside it. */
+.motions {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -228,10 +198,6 @@
   flex: 1;
   min-height: 0;
   margin-bottom: 0;
-}
-
-.mid > section {
-  flex: none;
 }
 
 /* Today's plays: 24 hour cells, then the readout in white attribute cells. */
@@ -303,61 +269,6 @@
   gap: 2px;
 }
 
-/* The head key on the stage's corner opens the roster as a panel over the stage. */
-.switcher {
-  position: absolute;
-  z-index: 3;
-  top: var(--ef-sp-8);
-  left: var(--ef-sp-8);
-}
-
-.swBtn {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 1px solid var(--ef-line-strong);
-  background: var(--ef-surface-2);
-  color: var(--ef-text-1);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.swBtn:is(:hover, [aria-expanded='true']) {
-  border-color: var(--ef-accent);
-}
-
-.swBtn:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: -2px;
-}
-
-.swMark {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
-}
-
-.swPop {
-  position: absolute;
-  top: calc(100% + var(--ef-sp-6));
-  left: 0;
-  width: max-content;
-  max-width: min(520px, 60vw);
-  border: 1px solid var(--ef-line-strong);
-  background: var(--ef-surface-1);
-  box-shadow: 0 8px 24px var(--ef-scrim-popup);
-}
-
 /* 外观: numbered sections of option plates. */
 .look {
   display: flex;
@@ -386,4 +297,11 @@
   grid-template-columns: minmax(0, 2fr) minmax(160px, 1fr);
   gap: var(--ef-sp-16);
   align-items: center;
+}
+
+/* The narrow panel: the slider under the presets. */
+@container op (max-width: 1100px) {
+  .size {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

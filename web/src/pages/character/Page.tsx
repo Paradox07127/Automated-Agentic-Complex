@@ -5,7 +5,7 @@ import { getBridge, type CharacterEntry, type MmdSyncState } from '../../bridge'
 import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
-import { Btn, ErrBar, Menu, Spinner, Tabs } from '../../ui';
+import { Btn, ErrBar, Menu, Spinner } from '../../ui';
 import { failure, mockOnly, readMotionHours, readRunningTasks, readState, resetState } from './api';
 import { CharacterSettings } from './CharacterSettings';
 import { demo as slot } from './demoSlot';
@@ -17,6 +17,7 @@ import { isPane, Operator, OperatorSkel } from './Operator';
 import { PhotoMode } from './PhotoMode';
 import { isCharTab } from './sections';
 import { SWITCH_STAGES } from './tables';
+import { TrainingRoom } from './TrainingRoom';
 import { useMotionImport } from './useMotionImport';
 import { useMotionLibrary } from './useMotionLibrary';
 import { useSwitch, type SwitchState } from './useSwitch';
@@ -40,7 +41,7 @@ function initialSwitch(demo: string | null, roster: Roster | undefined): SwitchS
   return { phase: 'idle' };
 }
 
-/** 角色：名册、预览台，右侧 `?pane=motion|look|import` 三个页签；`?tab=behavior|render|scene` 时右侧是「设定」，`?view=photo` 时是拍照面板，`?view=mmd` 时是共用的 MMD 库；状态曲线和完整动作表在调参页。 */
+/** 角色：训练场上的实机舞台。默认（`?pane=overview`）是总览；`?pane=motion|chain|look|import` 是外观、动作的详情，`?tab=behavior|render|scene` 是「设定」，`?view=photo` 是拍照面板，`?view=mmd` 是共用的 MMD 库；状态曲线和完整动作表在调参页。 */
 export function CharacterPage() {
   const { state, demo } = useDemo();
   const fb = useFeedback();
@@ -185,8 +186,7 @@ export function CharacterPage() {
           motionsError={motionsError}
           onRetryMotions={() => void motions.refetch()}
           {...(canAvatar ? { motionImport, library, onImportPackage: importPackage, chains: <MotionSettings offline={offline} toast={fb.toast} /> } : {})}
-          pane={isPane(pane) ? pane : 'motion'}
-          onPane={(p) => navTo({ page: 'character', pane: p })}
+          pane={isPane(pane) ? pane : 'overview'}
           hours={readMotionHours(demo === 'sparse')}
           charState={none ? null : (cs.data ?? null)}
           now={now}
@@ -196,20 +196,23 @@ export function CharacterPage() {
           weapon={mockOnly()}
           toast={fb.toast}
           {...(isCharTab(tab)
-            ? { settings: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} toast={fb.toast} /> }
+            ? { side: { of: 'set' as const, tab, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} toast={fb.toast} /> } }
             : photo
-              ? { settings: <PhotoMode avatar={canAvatar} offline={offline} toast={fb.toast} /> }
+              ? { side: { of: 'photo' as const, node: <PhotoMode avatar={canAvatar} offline={offline} toast={fb.toast} /> } }
               : mmd
                 ? {
-                    settings: (
-                      <MmdView
-                        current={cur}
-                        actions={motions.data ?? null}
-                        sync={sync}
-                        blocked={offline ? '角色未运行' : sw.state.phase === 'running' ? '切换中 │ 输入暂停' : null}
-                        toast={fb.toast}
-                      />
-                    ),
+                    side: {
+                      of: 'mmd' as const,
+                      node: (
+                        <MmdView
+                          current={cur}
+                          actions={motions.data ?? null}
+                          sync={sync}
+                          blocked={offline ? '角色未运行' : sw.state.phase === 'running' ? '切换中 │ 输入暂停' : null}
+                          toast={fb.toast}
+                        />
+                      ),
+                    },
                   }
                 : {})}
         />
@@ -218,31 +221,10 @@ export function CharacterPage() {
 
   return (
     <div className={styles.page} data-page="character">
+      <TrainingRoom />
       {fb.node}
       <PageHeaderSlot
         sub={name || undefined}
-        tabs={
-          <Tabs
-            label="角色页签"
-            keys={false}
-            value={mmd ? 'mmd' : photo ? 'photo' : isCharTab(tab) ? 'set' : isPane(pane) ? pane : 'motion'}
-            tabs={[
-              { id: 'motion', label: '动作', icon: 'play' as const },
-              ...(canAvatar ? [{ id: 'chain', label: '编排', icon: 'hub' as const }] : []),
-              { id: 'look', label: '外观', icon: 'look' as const },
-              { id: 'set', label: '设定', icon: 'tune' as const },
-              ...(canAvatar ? [{ id: 'photo', label: '拍照', icon: 'eye' as const }, { id: 'mmd', label: 'MMD', icon: 'file' as const }] : []),
-              { id: 'import', label: '导入', icon: 'plus' as const },
-            ]}
-            onChange={(id) =>
-              navTo(
-                id === 'set' ? { page: 'character', tab: 'behavior' }
-                : id === 'photo' || id === 'mmd' ? { page: 'character', view: id }
-                : { page: 'character', pane: id as 'motion' | 'chain' | 'look' | 'import' },
-              )
-            }
-          />
-        }
         right={
           <>
             {loading && (

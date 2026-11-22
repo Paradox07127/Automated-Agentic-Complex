@@ -1,0 +1,53 @@
+/* The rail on the right edge: dark squares with white icons, the current one yellow. */
+.rail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  width: var(--rail);
+}
+
+.item {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: var(--rail-item);
+  padding: 0;
+  border: 0;
+  background: rgb(52 52 52 / 92%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.item:hover:not([aria-current]) {
+  background: rgb(70 70 70 / 95%);
+}
+
+.item[aria-current] {
+  background: #ffe600;
+  color: #1a1a1a;
+}
+
+.item[data-sep] {
+  margin-top: 13px;
+}
+
+.item:focus-visible {
+  outline: 2px solid #ffe600;
+  outline-offset: -4px;
+}
+
+.label {
+  font: 600 11px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+}

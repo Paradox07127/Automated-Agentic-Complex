@@ -1,0 +1,35 @@
+/* Training room: fixed light colours in both themes, under everything on the page. */
+.room {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(#dcdcdb, #cfd0cf 62%, #c3c4c3);
+  pointer-events: none;
+}
+
+.lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.lines line {
+  stroke: rgb(255 255 255 / 55%);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.lines .dim {
+  stroke: rgb(0 0 0 / 5%);
+}
+
+.lines .floor {
+  stroke: rgb(255 255 255 / 45%);
+}
+
+.lines .horizon {
+  stroke: rgb(255 255 255 / 85%);
+  stroke-width: 1.5px;
+}

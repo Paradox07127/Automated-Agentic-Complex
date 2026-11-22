@@ -1,0 +1,122 @@
+/* Detail panel right of the stage: the game tab bar on the light room, then the dark content. */
+.panel {
+  position: absolute;
+  top: 16px;
+  right: calc(var(--rail) + var(--gap));
+  bottom: 16px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: var(--panel-w);
+  min-height: 0;
+}
+
+.panel[data-photo] {
+  width: var(--photo-w);
+}
+
+.bar {
+  flex: none;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  border: 0;
+  background: rgb(255 255 255 / 48%);
+  color: #262626;
+  font: 600 15px / 1 var(--ef-font-sans);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.tab:hover:not([aria-selected='true']) {
+  background: rgb(255 255 255 / 72%);
+}
+
+.tab:focus-visible {
+  outline: 2px solid #262626;
+  outline-offset: 2px;
+}
+
+.div {
+  flex: none;
+  width: 2px;
+  height: 20px;
+  background: rgb(38 38 38 / 30%);
+}
+
+.tabL {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tab[aria-selected='true'] {
+  background: #2e2e2e;
+  color: #fff;
+}
+
+.tab[aria-selected='true'] .div {
+  background: #ffe600;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--ef-sp-16);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden auto;
+  padding: 16px;
+  background: color-mix(in srgb, var(--ef-base) 90%, transparent);
+  color: var(--ef-text-1);
+  backdrop-filter: blur(8px);
+}
+
+.body[data-view] > * {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 设定's own page menu repeats the tab bar above it. */
+.body [role='tablist'][aria-label='设定'] {
+  display: none;
+}
+
+@container op (max-width: 1100px) {
+  .tab {
+    gap: 8px;
+    padding: 0 8px;
+    font-size: 13px;
+  }
+}
+
+@container op (max-height: 560px) {
+  .panel {
+    top: 8px;
+    bottom: 8px;
+  }
+
+  .tab {
+    height: 38px;
+  }
+
+  .body {
+    padding: 12px;
+  }
+}

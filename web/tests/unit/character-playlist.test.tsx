@@ -26,7 +26,7 @@ function install(extra: AvatarAction[]) {
   vi.spyOn(bridge.avatar, 'actions').mockImplementation(async () => [...(await real()), ...extra.map((a) => ({ ...a }))]);
 }
 
-/** The MMD view by default; the 动作 tab with `''`. */
+/** The MMD view by default; the 动作 pane with `'&pane=motion'`. */
 async function mount(search = '&view=mmd') {
   const root = createRootRoute({ component: CharacterPage });
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
@@ -106,7 +106,7 @@ describe('speed lock reads media', () => {
       ok: true,
       motions: [{ id: 'vmd_old', clip: 'imported_vmd_old', title: '旧舞蹈', format: 'vmd', durationS: 8, hasBgm: true, createdAt: null, warnings: [] }],
     });
-    await mount('');
+    await mount('&pane=motion');
     await screen.findAllByText('点头附和');
     const mmd = document.querySelector('[data-motion="dance_a"]')!;
     expect(mmd.textContent).toContain('BGM');

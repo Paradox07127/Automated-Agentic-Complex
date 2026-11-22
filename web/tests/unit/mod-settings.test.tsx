@@ -59,6 +59,8 @@ const groups = () => within(mods()).getAllByRole('group').map((g) => g.getAttrib
 async function wear(appearance: string) {
   await bridge.avatar.setAppearance(appearance);
   render(<Op />);
+  // The 模组设置 tab shows up once the table names this appearance.
+  fireEvent.click(await screen.findByRole('tab', { name: '模组设置' }));
   await screen.findByRole('group', { name: 'mod 设置' });
 }
 
@@ -85,6 +87,7 @@ describe('角色页 · mod 设置', () => {
     await Promise.all(read.mock.results.map((r) => r.value));
     expect(screen.queryByRole('group', { name: 'mod 设置' })).toBeNull();
     expect(screen.queryByText('mod 设置')).toBeNull();
+    expect(screen.queryByRole('tab', { name: '模组设置' })).toBeNull();
   });
 
   it('sends the appearance\'s whole set once per pick', async () => {

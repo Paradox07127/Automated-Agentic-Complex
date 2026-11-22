@@ -81,7 +81,7 @@ describe('motion library', () => {
     await waitFor(() => expect(itemOf()).not.toBeNull());
     expect(within(itemOf()!).getByText('BVH')).toBeTruthy();
 
-    await click(screen.getByRole('tab', { name: '动作' }));
+    await click(within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name: '动作' }));
     await waitFor(() => expect(rowOf()).not.toBeNull());
     expect(within(rowOf()!).getByText('BVH')).toBeTruthy();
     const only = screen.getByRole('button', { name: /只看导入/ });
@@ -121,7 +121,7 @@ describe('motion library', () => {
 
   it('shows no 只看导入 and no imported list without an imported motion', async () => {
     const list = vi.spyOn(bridge.character, 'listImportedMotions');
-    await mount();
+    await mount('&pane=motion');
     await screen.findAllByText('点头附和');
     await waitFor(() => expect(list).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: /只看导入/ })).toBeNull();

@@ -37,16 +37,16 @@ afterEach(() => {
 
 describe('character · 角色与动作', () => {
   it('draws the roster, the stage, today’s plays and the whole motion table', async () => {
-    await mount('&demo=ok');
-    // The roster opens from the stage's 切换角色 button.
+    await mount('&demo=ok&pane=motion');
+    // The full roster, with 导入 at its end, opens from the head strip's 切换角色 key.
     expect(screen.queryByRole('navigation', { name: '角色名册' })).toBeNull();
     const toggle = await screen.findByRole('button', { name: '切换角色，当前 示例乙' });
     await act(async () => void fireEvent.click(toggle));
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     const roster = screen.getByRole('navigation', { name: '角色名册' });
     const items = within(roster).getAllByRole('button');
-    expect(items.map((b) => b.textContent)).toEqual(['01示例乙', '02示例甲', '03示例丙']);
-    expect(items.map((b) => b.getAttribute('aria-current'))).toEqual(['true', null, null]);
+    expect(items.map((b) => b.textContent)).toEqual(['01示例乙', '02示例甲', '03示例丙', '导入']);
+    expect(items.map((b) => b.getAttribute('aria-current'))).toEqual(['true', null, null, null]);
     expect(items[1]?.querySelector('[aria-hidden="true"]')?.textContent).toBe('02');
     await waitFor(() => expect(stage().textContent).toContain('点头附和'));
     expect(stage().textContent).toContain('批准之后');
@@ -62,7 +62,7 @@ describe('character · 角色与动作', () => {
   });
 
   it('selects a motion from the table and says why a missing one cannot preview', async () => {
-    await mount();
+    await mount('&pane=motion');
     const grid = await screen.findByRole('grid', { name: '全部动作' });
     await act(async () => void fireEvent.click(grid.querySelector('[data-motion="think"]')!));
     expect(stage().textContent).toContain('思考');
@@ -73,14 +73,14 @@ describe('character · 角色与动作', () => {
   });
 
   it('plays on the desktop and shows the progress on the stage', async () => {
-    await mount();
+    await mount('&pane=motion');
     await screen.findByRole('grid', { name: '全部动作' });
     await act(async () => void fireEvent.click(screen.getByRole('button', { name: /桌面预览/ })));
     await waitFor(() => expect(within(stage()).getByRole('status').textContent).toContain('点头附和'));
   });
 
   it('filters to missing motions and searches across sections', async () => {
-    await mount();
+    await mount('&pane=motion');
     const grid = await screen.findByRole('grid', { name: '全部动作' });
     fireEvent.click(screen.getByRole('button', { name: /仅显示缺资源/ }));
     expect([...grid.querySelectorAll('[data-motion]')].map((r) => r.getAttribute('data-motion'))).toEqual(['think', 'lean']);
@@ -100,7 +100,7 @@ describe('character · 角色与动作', () => {
   });
 
   it('sparse: few plays here, and on 调参 a curve from where the log starts', async () => {
-    await mount('&demo=sparse');
+    await mount('&demo=sparse&pane=motion');
     await waitFor(() => expect(stage().textContent).toContain('1 次'));
     expect(screen.getByText(/今日播放较少/)).toBeTruthy();
     cleanup();
@@ -109,21 +109,24 @@ describe('character · 角色与动作', () => {
   });
 
   it('error: says the state read failed and keeps the motion table', async () => {
-    await mount('&state=error');
+    await mount('&state=error&pane=motion');
     expect(await screen.findByText(/读取角色状态失败/)).toBeTruthy();
   });
 });
 
 describe('角色 page layout', () => {
   it('keeps the name and posture separate from the selected motion', async () => {
-    await mount();
+    await mount('&pane=motion');
     await waitFor(() => expect(stage().textContent).toContain('点头附和'));
-    expect(stage().querySelector('[data-nameplate]')?.textContent).toBe('示例乙坐着');
+    const plate = stage().querySelector('[data-nameplate]')?.textContent ?? '';
+    expect(plate).toContain('示例乙');
+    expect(plate).toContain('在做坐着');
+    expect(plate).not.toContain('点头附和');
   });
 
   it('section tabs mark the selected motion’s section and move to the one jumped to', async () => {
     Element.prototype.scrollIntoView = vi.fn();
-    await mount();
+    await mount('&pane=motion');
     const grid = await screen.findByRole('grid', { name: '全部动作' });
     const tabs = screen.getByRole('group', { name: '跳转到分区' });
     const current = () => within(tabs).getAllByRole('button').filter((b) => b.hasAttribute('aria-current')).map((b) => b.textContent);
@@ -186,7 +189,7 @@ describe('调参 · 行为与画面', () => {
 describe('character · real data', () => {
   it('leaves out the blocks agentd and the host do not serve yet', async () => {
     window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
-    await mount();
+    await mount('&pane=motion');
     await waitFor(() => expect(stage().textContent).toContain('点头附和'));
     expect(screen.queryByText('今日播放')).toBeNull();
     expect(stage().textContent).not.toContain('今日');

@@ -53,7 +53,8 @@ describe('角色页 · 服装分层', () => {
     const set = vi.spyOn(bridge.avatar, 'setLayers');
     const toast = vi.fn();
     render(<Op toast={toast} />);
-    const layer = (name: string) => within(screen.getByRole('listbox', { name: '服装分层' })).getByRole('option', { name });
+    fireEvent.click(screen.getByRole('tab', { name: '显示' }));
+    const layer =(name: string) => within(screen.getByRole('listbox', { name: '服装分层' })).getByRole('option', { name });
     expect(layer('披风').getAttribute('aria-selected')).toBe('true');
     expect(layer('外套').getAttribute('aria-selected')).toBe('true');
     fireEvent.click(layer('外套'));
@@ -64,6 +65,7 @@ describe('角色页 · 服装分层', () => {
 
   it('has no layer options without layers', () => {
     render(<Op roster={[si()]} />);
+    expect(screen.queryByRole('tab', { name: '显示' })).toBeNull();
     expect(screen.queryByRole('listbox', { name: '服装分层' })).toBeNull();
     expect(screen.queryByRole('option', { name: '外套' })).toBeNull();
   });
