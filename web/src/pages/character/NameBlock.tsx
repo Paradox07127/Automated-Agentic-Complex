@@ -133,7 +133,7 @@ export function OfflineRow({ backoff, onRestart }: { backoff: number | null; onR
     <div className={rows.state} role="status">
       <StateRow title="角色未运行" {...(backoff != null ? { sub: `退避 ${backoff} 秒后重试` } : {})} />
       <div className={rows.acts}>
-        <WhiteCapsule label="重启角色" icon="refresh" onClick={onRestart} />
+        <WhiteCapsule label="重启角色" icon="refresh" tone="accent" onClick={onRestart} />
       </div>
     </div>
   );
@@ -155,7 +155,7 @@ export function SwitchRow({ sw, currentName, onRetry, onDismiss }: { sw: Exclude
           <span className={rows.chain}>
             {SWITCH_STAGES.map((stage, i) => (
               <span key={stage} className={rows.node} data-state={i === at ? 'broken' : i < at ? 'done' : 'unreachable'}>
-                <Diamond tone={i === at ? 'orange' : i < at ? 'yellow' : 'hollow'} size={8} />
+                <Diamond tone={i === at ? 'orange' : i < at ? 'white' : 'hollow'} size={8} />
                 {SWITCH_STAGE_LABELS[stage]}
                 {i <= at && <span className={rows.vh}>{i === at ? '，停在这里' : '，完成'}</span>}
               </span>
@@ -164,7 +164,7 @@ export function SwitchRow({ sw, currentName, onRetry, onDismiss }: { sw: Exclude
         )}
       </StateRow>
       <div className={rows.acts}>
-        <WhiteCapsule label="重试" icon="refresh" onClick={onRetry} />
+        <WhiteCapsule label="重试" icon="refresh" tone="accent" onClick={onRetry} />
         <WhiteCapsule label="关闭" icon="close" onClick={onDismiss} />
       </div>
     </div>

@@ -2,7 +2,8 @@
 import { useState, type CSSProperties } from 'react';
 import type { ImportedMotionEntry, ImportState } from '../../bridge';
 import { Icon } from '../../ui';
-import { Diamond, MicroLabel, TitleBar, WhiteCapsule } from '../../ui/game';
+import { DarkRow, Diamond, MicroLabel, TitleBar, WhiteCapsule } from '../../ui/game';
+import { useCompact } from './compact';
 import { motionFormatLabel } from './labels';
 import { MotionEditDialog, type MotionEdit } from './MotionEditDialog';
 import { importStageLabel, useImportState } from './useImportState';
@@ -56,6 +57,7 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
   const now = importing.stage == null ? -1 : stages.indexOf(importing.stage);
   const pct = Math.round(Math.min(1, Math.max(0, importing.fraction)) * 100);
   const note = motionImport?.note;
+  const compact = useCompact();
 
   return (
     <div className={styles.imp} data-import-pane="" data-of="motion">
@@ -69,7 +71,7 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
           <TitleBar title="动作" micro="Motion import" actions={<span className={styles.fm}>{FORMATS}</span>} />
           <button type="button" className={styles.ikey} aria-busy={busy || undefined} disabled={busy} title="也可以把动作文件拖到桌面上的她身上" onClick={motionImport.run}>
             <span className={styles.ikIc}>
-              <Icon name="folder" size={24} />
+              <Icon name="upload" size={24} />
             </span>
             <span className={styles.ikTx}>
               <b>{motionImport.running ? '导入中…' : '导入动作…'}</b>
@@ -111,24 +113,11 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
             </div>
           )}
           {note && (
-            <div className={styles.note} data-motion-import="" data-tone={note.ok ? undefined : 'danger'} role="status">
-              <span className={styles.noteLead} aria-hidden="true">
-                <Icon name={note.ok ? 'check' : 'close'} size={20} />
-              </span>
+            <div data-motion-import="" role="status">
               {note.ok ? (
-                <span className={styles.noteTx}>
-                  <b>{note.text}</b>
-                </span>
+                <DarkRow mark="ok" title={note.text} micro="Imported" compact={compact} />
               ) : (
-                <span className={styles.noteTx}>
-                  <b>导入没有完成</b>
-                  <span>{note.reason ?? note.text}</span>
-                </span>
-              )}
-              {note.code && (
-                <span className={styles.noteCode}>
-                  <MicroLabel>{note.code}</MicroLabel>
-                </span>
+                <DarkRow mark="warn" title="导入没有完成" sub={note.reason ?? note.text} micro={note.code ?? 'Failed'} compact={compact} />
               )}
             </div>
           )}

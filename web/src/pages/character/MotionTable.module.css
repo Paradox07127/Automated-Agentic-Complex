@@ -88,28 +88,6 @@
   z-index: 2;
 }
 
-.gm {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  white-space: nowrap;
-}
-
-.gn {
-  font: 600 13px / 1 var(--ef-font-num);
-  font-variant-numeric: tabular-nums;
-}
-
-.gn em {
-  font-style: normal;
-  opacity: 0.55;
-}
-
-.gd {
-  font-size: 12px;
-  opacity: 0.72;
-}
-
 .r[data-off] :is(.lb, .tr, .du) {
   opacity: 0.42;
 }
@@ -276,10 +254,8 @@
   .long,
   .cols,
   .tr,
-  .gd,
   .fmt,
-  .media,
-  .r [data-stub='DarkRow'] > [aria-hidden='true']:last-child {
+  .media {
     display: none;
   }
 
@@ -301,10 +277,6 @@
 
   .du {
     font-size: 13px;
-  }
-
-  .r [data-stub='DarkRow'] {
-    min-height: 40px;
   }
 
   .req {

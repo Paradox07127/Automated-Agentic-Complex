@@ -3,6 +3,7 @@ import { getBridge, type ActionSpeed, type AvatarAction, type CharacterEntry } f
 import type { CharacterProfile, CharacterState } from '../../domain';
 import { navigate } from '../../shell/nav';
 import { ErrBar, Skel } from '../../ui';
+import type { GameTab } from '../../ui/game';
 import { BrandBlock } from './BrandBlock';
 import { SetPanel } from './CharacterSettings';
 import { useCharEntrance, useSwitchFade } from './charMotion';
@@ -14,7 +15,7 @@ import { doing } from './labels';
 import { LookPane, useModTable, type LookTab } from './LookPane';
 import { MotionTable } from './MotionTable';
 import { useVoiceBinding } from './NameBlock';
-import { Panel, type PanelTab } from './Panel';
+import { Panel } from './Panel';
 import { Rail, type RailItem } from './Rail';
 import type { CharTab } from './sections';
 import { Stage, StageSkel, type StageMode } from './Stage';
@@ -200,21 +201,20 @@ export function Operator(p: OperatorProps) {
   const mods = Object.hasOwn(modTable.looks, lookId) ? modTable.looks[lookId] : undefined;
   const lt = (lookTab === 'mod' && !mods) || (lookTab === 'show' && layers.length === 0) ? 'look' : lookTab;
   const changes = rows.filter((r) => Object.hasOwn(m.changed, r.a.id)).map((r) => ({ label: r.a.label, on: m.changed[r.a.id] === true }));
-  // 动作 always has its action bar; another detail page only while switches wait to be saved (总览 has no room for it).
-  const deck = !side && mode === 'detail' && (pane === 'motion' || changes.length > 0);
+  // 动作 always has its action bar; another detail page only while switches wait to be saved (总览 has no room; 编排 has its own commit bar).
+  const deck = !side && mode === 'detail' && pane !== 'chain' && (pane === 'motion' || changes.length > 0);
   const play = m.play;
 
-  const tabs: PanelTab[] =
+  const imp: GameTab = { id: 'import', label: '导入', icon: 'upload', micro: 'IMPORT' };
+  const tabs: GameTab[] =
     at === 'look'
       ? [
-          { id: 'look', label: '外观', icon: 'look' },
-          ...(layers.length > 0 ? [{ id: 'show', label: '显示', icon: 'eye' as const }] : []),
-          ...(mods ? [{ id: 'mod', label: '模组设置', icon: 'tune' as const, count: mods.length }] : []),
-          { id: 'import', label: '导入', icon: 'plus' },
+          { id: 'look', label: '外观', icon: 'look', micro: 'OUTFIT' },
+          ...(layers.length > 0 ? [{ id: 'show', label: '显示', icon: 'eye' as const, micro: 'LAYERS' }] : []),
+          ...(mods ? [{ id: 'mod', label: '模组设置', icon: 'tune' as const, micro: 'MOD CFG', count: mods.length }] : []),
+          imp,
         ]
-      : at === 'motion'
-        ? [{ id: 'motion', label: '动作表', icon: 'play' }, ...(p.chains ? [{ id: 'chain', label: '编排', icon: 'hub' as const }] : []), { id: 'import', label: '导入', icon: 'plus' }]
-        : [];
+      : [{ id: 'motion', label: '动作表', icon: 'play', micro: 'MOTIONS' }, ...(p.chains ? [{ id: 'chain', label: '编排', icon: 'hub' as const, micro: 'CHAIN' }] : []), imp];
   const tab = at === 'look' && pane === 'look' ? lt : pane;
   const onTab = (id: string) => {
     if (id === 'import') {
@@ -326,13 +326,13 @@ export function Operator(p: OperatorProps) {
       )}
       {side?.of === 'photo' && side.node}
       {!overview && !side && (
-        <Panel tabs={tabs} value={tab} onTab={onTab} label="" pane={pane}>
+        <Panel tabs={tabs} value={tab} onTab={onTab} tail={at === 'look' ? 'Agentic Complex / Appearance' : 'Agentic Complex / Motion'} pane={pane}>
           {pane === 'motion' ? (
             <section className={styles.motions} aria-label="动作开关">
               {table}
             </section>
           ) : pane === 'chain' ? (
-            <section className={styles.motions} aria-label="编排">{p.chains}</section>
+            <section className={styles.chain} aria-label="编排">{p.chains}</section>
           ) : pane === 'look' || (pane === 'import' && importOf === 'look') ? (
             <LookPane
               tab={pane === 'import' ? 'import' : lt}
@@ -362,7 +362,7 @@ export function Operator(p: OperatorProps) {
           )}
         </Panel>
       )}
-      <Rail value={at} avatar={canAvatar} onGo={(item) => (item === 'mmd' ? p.onMmd?.(Object.keys(m.changed).length) : GO[item]())} />
+      <Rail value={at} avatar={canAvatar} sub={!side && pane === 'import'} onGo={(item) => (item === 'mmd' ? p.onMmd?.(Object.keys(m.changed).length) : GO[item]())} />
       {deck && (
         <Commit
           offline={p.offline}

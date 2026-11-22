@@ -35,7 +35,7 @@ import { SetNav, SetSearch } from './SetNav';
 import { useWidth } from '../../charts/useWidth';
 import { SettingsOverlays } from './SettingsOverlays';
 import { useSettingsData } from './useSettingsData';
-import { DEV_ONLY_ROWS, tabOf } from '../character/sections';
+import { DEV_ONLY_ROWS, PHOTO_ONLY_ROWS, tabOf } from '../character/sections';
 import styles from './Page.module.css';
 
 const GROUPS: Record<GroupId, ComponentType> = {
@@ -174,7 +174,7 @@ function SettingsBody() {
   );
   const goPage = navTo;
   const pickResult = (r: RegEntry) => {
-    if (r.group === '@character') return goPage({ page: 'character', tab: tabOf(r.id), row: r.id });
+    if (r.group === '@character') return goPage(PHOTO_ONLY_ROWS.has(r.id) ? { page: 'character', view: 'photo' } : { page: 'character', tab: tabOf(r.id), row: r.id });
     if (r.group === '@memory') return goPage({ page: 'memory', view: 'about' });
     goRow(r.id, r.group);
   };

@@ -208,60 +208,6 @@
   background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgb(0 0 0 / 50%) calc(10% - 1px) 10%);
 }
 
-/* The last result: a dark row, yellow edge and ✓ on success, orange edge and ✕ on failure with the tool's code. */
-.note {
-  position: relative;
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  min-height: 56px;
-  background: rgb(70 70 70 / 88%);
-  color: #fff;
-  box-shadow: inset 4px 0 0 var(--ef-accent);
-}
-
-.noteLead {
-  display: grid;
-  place-items: center;
-  background: rgb(46 46 46 / 94%);
-  color: var(--ef-accent);
-}
-
-.note[data-tone='danger'] {
-  box-shadow: inset 4px 0 0 #ff8a7a;
-}
-
-.note[data-tone='danger'] .noteLead {
-  background: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 138 122 / 28%) 4px 5.5px), rgb(46 46 46 / 94%);
-  color: #ff8a7a;
-}
-
-.noteTx {
-  display: grid;
-  align-content: center;
-  gap: 4px;
-  padding: 9px 14px;
-  overflow-wrap: anywhere;
-}
-
-.noteTx b {
-  font-size: 14px;
-}
-
-.note[data-tone='danger'] .noteTx b {
-  color: #ff8a7a;
-}
-
-.noteTx span {
-  font-size: 12px;
-  color: rgb(255 255 255 / 62%);
-}
-
-.noteCode {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-}
-
 /* Compact: a lower key without the hints, the stage chain names only the current stage, no import time. */
 @container op (max-width: 1100px) {
   .ikey {

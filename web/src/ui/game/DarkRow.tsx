@@ -6,10 +6,20 @@ import { Barcode, Diamond, MicroLabel } from './Marks';
 import { Stepper } from './Stepper';
 import styles from './DarkRow.module.css';
 
-/** 左格状态：可播 ▶、缺资源 ⊘、由行为自动触发、已改（可恢复默认）↺、空心菱形（未选的选项）、出错 ⚠（橙色左边，状态行和失败行）。 */
-export type DarkRowMark = 'play' | 'missing' | 'auto' | 'changed' | 'hollow' | 'warn';
+/** 左格状态：可播 ▶、缺资源 ⊘、由行为自动触发、已改（可恢复默认）↺、空心菱形（未选的选项）、出错 ⚠（橙色左边，状态行和失败行）、完成 ✓（黄）。 */
+export type DarkRowMark = 'play' | 'missing' | 'auto' | 'changed' | 'hollow' | 'warn' | 'ok';
 
-/** ▶ 深色行（游戏档案页语音行）：左格放状态，主体是名字和副行，右侧槽放控件，右端竖条码和微型英文；悬停变亮，选中左缘 4 px 黄、左格变黄带呼吸框。 */
+/** 左格自己的按钮（设定行的 ↺ 恢复默认）：悬停整格变黄。 */
+export interface DarkRowLeadAction {
+  /** 读屏名称 */
+  label: string;
+  /** 悬停提示 */
+  title?: string;
+  disabled?: boolean;
+  onPress: () => void;
+}
+
+/** ▶ 深色行（游戏档案页语音行）：左格放状态，主体是名字和副行，右侧槽放控件，右端竖条码和微型英文；悬停变亮，选中左缘 4 px 黄、左格变黄带呼吸框。紧凑款左格 34、没有条码（925）。 */
 export interface DarkRowProps {
   /** 名字 */
   title: ReactNode;
@@ -17,6 +27,16 @@ export interface DarkRowProps {
   sub?: ReactNode;
   /** 左格，默认 play */
   mark?: DarkRowMark;
+  /** 左格里放这个代替 mark 的图形（序号、CHG 菱形）；mark 仍定左格的底色 */
+  lead?: ReactNode;
+  /** 左格单独可点（不在 onPress 的按钮里） */
+  leadAction?: DarkRowLeadAction;
+  /** busy：应用中，一道黄光扫过、左格下一小段进度；fail：没改成，左缘红 */
+  state?: 'busy' | 'fail';
+  /** 键盘正落在这一行：细黄框，右缘外一个小三角 */
+  focused?: boolean;
+  /** 紧凑款：左格 34、矮一号、没有条码 */
+  compact?: boolean;
   /** 选中（正在预览、正在穿） */
   selected?: boolean;
   /** 右侧槽：开关、步进器等控件，不在按下区域里 */
@@ -28,7 +48,7 @@ export interface DarkRowProps {
 }
 
 /** What a screen reader hears after the name for each mark. */
-const SAY: Record<DarkRowMark, string> = { play: '', missing: '缺资源', auto: '自动触发', changed: '已改', hollow: '', warn: '出错' };
+const SAY: Record<DarkRowMark, string> = { play: '', missing: '缺资源', auto: '自动触发', changed: '已改', hollow: '', warn: '出错', ok: '' };
 
 function Glyph({ mark }: { mark: DarkRowMark }) {
   if (mark === 'hollow') return <Diamond tone="hollow" size={10} />;
@@ -57,6 +77,7 @@ function Glyph({ mark }: { mark: DarkRowMark }) {
       </g>
     ),
     warn: <path d="M12 3.5 21.5 20h-19zM12 10v4.5M12 16.5v2" fill="none" stroke="currentColor" strokeWidth="2.2" />,
+    ok: <path d="M4.5 12.5 10 18 19.5 6.5" fill="none" stroke="currentColor" strokeWidth="2.6" />,
   }[mark];
   return (
     <svg className={styles.glyph} viewBox="0 0 24 24" width="18" height="18" focusable="false">
@@ -72,13 +93,20 @@ function Breath() {
   return <i ref={ref} className={styles.frame} data-g="root" />;
 }
 
-export function DarkRow({ title, sub, mark = 'play', selected = false, end, micro = 'AGENTIC', onPress }: DarkRowProps) {
+export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, focused, compact, selected = false, end, micro = 'AGENTIC', onPress }: DarkRowProps) {
+  const face = (
+    <>
+      {selected && <Breath />}
+      {lead ?? <Glyph mark={mark} />}
+    </>
+  );
   const inner = (
     <>
-      <span className={styles.lead} aria-hidden="true">
-        {selected && <Breath />}
-        <Glyph mark={mark} />
-      </span>
+      {!leadAction && (
+        <span className={styles.lead} aria-hidden="true">
+          {face}
+        </span>
+      )}
       <span className={styles.body}>
         <span className={styles.title}>{title}</span>
         {sub != null && <span className={styles.sub}>{sub}</span>}
@@ -87,7 +115,28 @@ export function DarkRow({ title, sub, mark = 'play', selected = false, end, micr
     </>
   );
   return (
-    <div className={styles.row} data-stub="DarkRow" data-mark={mark} data-selected={selected || undefined}>
+    <div
+      className={styles.row}
+      data-stub="DarkRow"
+      data-mark={mark}
+      data-selected={selected || undefined}
+      data-state={state}
+      data-focused={focused || undefined}
+      data-compact={compact || undefined}
+    >
+      {leadAction && (
+        <button type="button" className={styles.lead} aria-label={leadAction.label} title={leadAction.title} disabled={leadAction.disabled} onClick={leadAction.onPress}>
+          <span className={styles.face} aria-hidden="true">
+            {face}
+          </span>
+          <svg className={styles.act} viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <g fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M7.5 8.5A7 7 0 1 1 5 13.5" />
+              <path d="M4 4.5v5h5" />
+            </g>
+          </svg>
+        </button>
+      )}
       {onPress ? (
         <button type="button" className={styles.hit} aria-pressed={selected} onClick={onPress}>
           {inner}
@@ -96,9 +145,11 @@ export function DarkRow({ title, sub, mark = 'play', selected = false, end, micr
         <div className={styles.hit}>{inner}</div>
       )}
       {end != null && <div className={styles.end}>{end}</div>}
-      <span className={styles.deco} aria-hidden="true">
-        <Barcode width={64} height={10} label={micro} />
-      </span>
+      {!compact && (
+        <span className={styles.deco} aria-hidden="true">
+          <Barcode width={64} height={10} label={micro} />
+        </span>
+      )}
     </div>
   );
 }
@@ -106,6 +157,10 @@ export function DarkRow({ title, sub, mark = 'play', selected = false, end, micr
 const ON_OFF = [
   { value: 'on', label: '开' },
   { value: 'off', label: '关' },
+];
+const SHOWN = [
+  { value: 'on', label: '显示' },
+  { value: 'off', label: '隐藏' },
 ];
 const LENGTH = [
   { value: 'short', label: '短' },
@@ -129,4 +184,8 @@ export const DarkRowDemos: Array<{ name: string; props: DarkRowProps }> = [
   { name: 'changed', props: { title: '裙摆', mark: 'changed', end: <Stepper label="裙摆" value="short" defaultValue="long" options={LENGTH} /> } },
   { name: 'hollow', props: { title: '夏装', sub: '导入的外观', mark: 'hollow', onPress: () => undefined } },
   { name: 'warn', props: { title: '角色未运行', sub: '退避 8 秒后重试', mark: 'warn' } },
+  { name: 'ok', props: { title: '已导入「挥手」', mark: 'ok' } },
+  { name: 'reset-lead', props: { title: '亮度', sub: '默认：1.0', mark: 'changed', leadAction: { label: '恢复「亮度」的默认', title: '恢复这一行的默认', onPress: () => undefined } } },
+  { name: 'custom-lead', props: { title: '外套', lead: '01', state: 'busy', focused: true, end: <GameSeg label="外套" value="on" options={SHOWN} /> } },
+  { name: 'compact', props: { title: '开口说话', sub: '说话时', compact: true, onPress: () => undefined } },
 ];

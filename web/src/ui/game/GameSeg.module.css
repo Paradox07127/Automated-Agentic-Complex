@@ -57,6 +57,10 @@
 .opt {
   position: relative;
   z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   min-width: 44px;
   padding: 0 10px;
   border: 0;
@@ -85,6 +89,22 @@
 
 .opt[aria-checked='true'] {
   color: #1a1a1a;
+}
+
+/* The default option: a small dot under its label. */
+.opt[data-default]::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: calc(50% - 1.5px);
+  width: 3px;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.opt svg {
+  flex: none;
 }
 
 .opt:hover:not(:disabled, [aria-checked='true']) {
@@ -138,6 +158,26 @@
 
 .seg[aria-disabled='true'] .opt[aria-checked='true'] {
   color: rgb(255 255 255 / 70%);
+}
+
+/* Compact (925 and alike): a lower, narrower track. */
+.seg[data-size='compact'] .track {
+  height: 22px;
+  padding: 0 4px;
+}
+
+.seg[data-size='compact'] .opt {
+  min-width: 32px;
+  padding: 0 6px;
+}
+
+.seg[data-size='compact'][data-variant='onoff'] .track {
+  width: 72px;
+}
+
+.seg[data-size='compact'] .knob {
+  left: calc(4px + var(--i) * (100% - 8px) / var(--n));
+  width: calc((100% - 8px) / var(--n));
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -274,3 +274,115 @@ describe('keys, capsule, rail cell, action bar, marks, room', () => {
     for (const g of container.querySelectorAll('[fill^="url(#"]')) expect(ids).toContain(g.getAttribute('fill')?.slice(5, -1));
   });
 });
+
+describe('variants the pages asked for', () => {
+  it('TitleBar: a fraction count, a one-line note and its own word for 已改', () => {
+    const { container } = render(<TitleBar title="说话" count={2} total={5} note="批准之后点头" changed={1} changedLabel="隐藏" />);
+    expect(container.querySelector('[data-total]')?.textContent).toBe('2/5');
+    expect(screen.getByText('批准之后点头')).toBeTruthy();
+    expect(screen.getByText('隐藏 1')).toBeTruthy();
+  });
+
+  it('GameSeg: an option carries its own title and icon, the default option is marked, the compact size is marked', () => {
+    const { container } = render(
+      <GameSeg
+        label="播放方式"
+        size="compact"
+        value="once"
+        defaultValue="loop"
+        options={[
+          { value: 'once', label: '一次' },
+          { value: 'loop', label: '循环', disabled: true, title: '这个版本的角色还不支持循环', icon: 'refresh' },
+        ]}
+      />,
+    );
+    const loop = screen.getByRole('radio', { name: '循环' });
+    expect(loop.getAttribute('title')).toBe('这个版本的角色还不支持循环');
+    expect(loop.querySelector('svg')).not.toBeNull();
+    expect(loop.hasAttribute('data-default')).toBe(true);
+    expect(screen.getByRole('radio', { name: '一次' }).hasAttribute('data-default')).toBe(false);
+    expect(container.querySelector('[data-stub="GameSeg"]')?.getAttribute('data-size')).toBe('compact');
+  });
+
+  it('YellowKey: busy is announced and ignores clicks; the white tone is marked', () => {
+    const go = vi.fn();
+    render(
+      <>
+        <YellowKey label="保存" busy onClick={go} />
+        <YellowKey label="停止" icon="stop" tone="white" onClick={go} />
+      </>,
+    );
+    const save = screen.getByRole('button', { name: '保存' });
+    expect(save.getAttribute('aria-busy')).toBe('true');
+    fireEvent.click(save);
+    expect(go).not.toHaveBeenCalled();
+    const stop = screen.getByRole('button', { name: '停止' });
+    expect(stop.getAttribute('data-tone')).toBe('white');
+    fireEvent.click(stop);
+    expect(go).toHaveBeenCalledTimes(1);
+  });
+
+  it('DarkRow: compact drops the barcode; ok is its own mark; the lead takes custom content and a press of its own', () => {
+    const reset = vi.fn();
+    const pick = vi.fn();
+    const { container } = render(
+      <>
+        <DarkRow title="导入完成" mark="ok" compact />
+        <DarkRow title="外套" lead={<span>01</span>} state="busy" focused />
+        <DarkRow title="亮度" mark="changed" leadAction={{ label: '恢复「亮度」的默认', title: '恢复这一行的默认', onPress: reset }} onPress={pick} />
+      </>,
+    );
+    const rows = [...container.querySelectorAll('[data-stub="DarkRow"]')];
+    expect(rows[0]?.getAttribute('data-mark')).toBe('ok');
+    expect(rows[0]?.hasAttribute('data-compact')).toBe(true);
+    expect(rows[0]?.querySelector('[data-stub="Barcode"]')).toBeNull();
+    expect(rows[1]?.querySelector('[data-stub="Barcode"]')).not.toBeNull();
+    expect(rows[1]?.textContent).toContain('01');
+    expect(rows[1]?.getAttribute('data-state')).toBe('busy');
+    expect(rows[1]?.hasAttribute('data-focused')).toBe(true);
+    const lead = screen.getByRole('button', { name: '恢复「亮度」的默认' });
+    expect(lead.getAttribute('title')).toBe('恢复这一行的默认');
+    fireEvent.click(lead);
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(pick).not.toHaveBeenCalled();
+    expect(lead.contains(screen.getByRole('button', { name: /亮度，已改/ }))).toBe(false);
+  });
+
+  it('ActionBar: the progress line runs in the left part only; looping draws the running hatch there', () => {
+    const { container, rerender } = render(<ActionBar label="播放" progress={0.5} left={<i />} right={<i />} />);
+    const left = container.querySelector('[data-side="left"]');
+    expect((left?.querySelector('[style]') as HTMLElement | null)?.style.getPropertyValue('--p')).toBe('0.5');
+    expect(container.querySelector('[data-side="right"] [style]')).toBeNull();
+    rerender(<ActionBar label="播放" looping left={<i />} />);
+    expect(container.querySelector('[data-side="left"] [data-looping]')).not.toBeNull();
+  });
+
+  it('WhiteCapsule: the dark tone is marked', () => {
+    const { container } = render(<WhiteCapsule label="收起提示" icon="chev" tone="dark" />);
+    expect(container.querySelector('[data-stub="WhiteCapsule"]')?.getAttribute('data-tone')).toBe('dark');
+  });
+
+  it('Stepper: the compact size is marked', () => {
+    const { container } = render(<Stepper label="裙摆" compact options={[{ value: 'a', label: '短' }]} value="a" />);
+    expect(container.querySelector('[data-stub="Stepper"]')?.getAttribute('data-size')).toBe('compact');
+  });
+
+  it('Stepper with numbers: arrows step (Shift by big), typing commits on Enter, values are kept in range', () => {
+    const onChange = vi.fn();
+    const { container, rerender } = render(<Stepper label="权重" value={5} min={1} max={100000} step={1} big={10} changed onChange={onChange} />);
+    const box = screen.getByRole('spinbutton', { name: '权重' }) as HTMLInputElement;
+    expect(box.value).toBe('5');
+    expect(container.querySelector('[data-stub="Stepper"]')?.hasAttribute('data-changed')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: '权重：增加' }));
+    expect(onChange).toHaveBeenLastCalledWith(6);
+    fireEvent.click(screen.getByRole('button', { name: '权重：减少' }), { shiftKey: true });
+    expect(onChange).toHaveBeenLastCalledWith(1);
+    fireEvent.change(box, { target: { value: '200000' } });
+    key(box, 'Enter');
+    expect(onChange).toHaveBeenLastCalledWith(100000);
+    rerender(<Stepper label="权重" value={1} min={1} max={100000} step={1} onChange={onChange} />);
+    expect((screen.getByRole('button', { name: '权重：减少' }) as HTMLButtonElement).disabled).toBe(true);
+    rerender(<Stepper label="保持" value={1.5} min={0} max={600} step={0.5} digits={1} onChange={onChange} />);
+    expect((screen.getByRole('spinbutton', { name: '保持' }) as HTMLInputElement).value).toBe('1.5');
+  });
+});

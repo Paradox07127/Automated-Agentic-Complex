@@ -83,23 +83,6 @@
   border-width: 0 1px 1px 0;
 }
 
-/* The floor rings under her feet. */
-.rings {
-  position: absolute;
-  bottom: 1.5%;
-  left: 10%;
-  width: 80%;
-  height: 9%;
-  overflow: visible;
-}
-
-.rings ellipse {
-  fill: none;
-  stroke: rgb(255 255 255 / 60%);
-  stroke-width: 1.5px;
-  vector-effect: non-scaling-stroke;
-}
-
 .fig {
   position: absolute;
   inset: 5% auto 3% 50%;

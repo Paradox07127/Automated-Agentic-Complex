@@ -3,6 +3,7 @@ import type { AvatarAction, ImportedMotionEntry } from '../../bridge';
 import { Btn, Icon } from '../../ui';
 import { DarkRow, Diamond, GameSeg, MicroLabel, TitleBar, type DarkRowMark } from '../../ui/game';
 import { SaveNote } from './Commit';
+import { useCompact } from './compact';
 import { motionFormatLabel, SECTIONS } from './labels';
 import styles from './MotionTable.module.css';
 
@@ -64,6 +65,7 @@ export function MotionTable(p: MotionTableProps) {
   const [onlyMiss, setOnlyMiss] = useState(false);
   const [onlyImpOn, setOnlyImp] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const compact = useCompact();
   // The section tab last jumped to, else the selected motion's.
   const [at, setAt] = useState<string | null>(null);
   const qq = q.trim();
@@ -111,6 +113,7 @@ export function MotionTable(p: MotionTableProps) {
         <div role="gridcell">
           <DarkRow
             mark={mark}
+            compact={compact}
             selected={on}
             micro={on ? 'Preview' : 'Agentic'}
             onPress={() => pick(a.id)}
@@ -161,9 +164,15 @@ export function MotionTable(p: MotionTableProps) {
                     </span>
                   )}
                 </span>
-                <span title={lockReason ?? undefined}>
-                  <GameSeg variant="onoff" label={a.label} value={v ? 'on' : 'off'} options={ON_OFF} disabled={lockReason != null} onChange={(x) => p.onToggle(a, x === 'on')} />
-                </span>
+                <GameSeg
+                  variant="onoff"
+                  size={compact ? 'compact' : 'normal'}
+                  label={a.label}
+                  value={v ? 'on' : 'off'}
+                  options={lockReason ? ON_OFF.map((o) => ({ ...o, title: lockReason })) : ON_OFF}
+                  disabled={lockReason != null}
+                  onChange={(x) => p.onToggle(a, x === 'on')}
+                />
               </span>
             }
           />
@@ -242,15 +251,9 @@ export function MotionTable(p: MotionTableProps) {
                 <TitleBar
                   title={g.name}
                   micro={`Sec / ${(g.key || 'etc').toUpperCase()}`}
-                  actions={
-                    <span className={styles.gm}>
-                      <span className={styles.gn}>
-                        {g.rows.filter((x) => p.value(x.a)).length}
-                        <em>/{g.rows.length}</em>
-                      </span>
-                      {SECTIONS[g.key] && <span className={styles.gd}>{SECTIONS[g.key]?.note}</span>}
-                    </span>
-                  }
+                  count={g.rows.filter((x) => p.value(x.a)).length}
+                  total={g.rows.length}
+                  {...(SECTIONS[g.key] && !compact ? { note: SECTIONS[g.key]?.note } : {})}
                 />
               </div>
               {shown.map(row)}

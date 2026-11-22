@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { getBridge, type ModSettingAdjusted, type ModSettingValues } from '../../bridge';
 import { Icon } from '../../ui';
-import { Barcode, Diamond, GameSeg, MicroLabel, Stepper, TitleBar, WhiteCapsule } from '../../ui/game';
+import { DarkRow, Diamond, GameSeg, MicroLabel, Stepper, TitleBar, WhiteCapsule } from '../../ui/game';
+import { useCompact } from './compact';
 import type { Toast } from './feedback';
 import type { ModSettingRow } from './modSettingsTable';
 import { previewLookChanged } from './usePreview';
@@ -69,6 +70,9 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
   const [prev, setPrev] = useState<{ appearance: string; values: Record<string, number> }>();
   const [cur, setCur] = useState<string>();
   const [at, setAt] = useState<string>();
+  // The row itself holds focus (the keys act on it): DarkRow's focus frame.
+  const [focused, setFocused] = useState<string | null>(null);
+  const compact = useCompact();
   const root = useRef<HTMLDivElement>(null);
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -166,6 +170,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
       return (
         <GameSeg
           label={s.name}
+          size={compact ? 'compact' : 'normal'}
           options={[
             { value: String(two.on), label: '显示' },
             { value: String(two.off), label: '隐藏' },
@@ -178,6 +183,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
     return (
       <Stepper
         label={s.name}
+        compact={compact}
         options={s.values.map((x) => ({ value: String(x.value), label: x.name }))}
         value={String(value(s))}
         defaultValue={String(s.default)}
@@ -269,67 +275,71 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
               const note = mark?.notes[s.id];
               const was = before[s.id];
               const busy = run?.ids.includes(s.id);
+              const fail = mark?.fail?.at === s.id;
               return (
                 <div key={s.id}>
                   <div
-                    className={styles.row}
+                    className={styles.slot}
                     data-mod-setting={s.id}
                     data-changed={moved(s) || undefined}
                     data-busy={busy || undefined}
-                    data-fail={(mark?.fail?.at === s.id) || undefined}
+                    data-fail={fail || undefined}
                     tabIndex={s.id === current ? 0 : -1}
-                    onFocus={() => {
+                    onFocus={(e) => {
                       setCur(s.id);
                       setAt(g.category);
+                      if (e.target === e.currentTarget) setFocused(s.id);
                     }}
+                    onBlur={(e) => e.target === e.currentTarget && setFocused(null)}
                   >
-                    <span className={styles.lead} aria-hidden="true">
-                      {moved(s) ? (
-                        <>
-                          <Diamond tone="yellow" size={9} />
-                          <span className={styles.chgMicro}>CHG</span>
-                        </>
-                      ) : (
-                        <span className={styles.idx}>{pad(i + 1)}</span>
-                      )}
-                    </span>
-                    <span className={styles.main}>
-                      <span className={styles.col}>
-                        <span className={styles.name}>{s.name}</span>
-                        {busy ? (
+                    <DarkRow
+                      mark={moved(s) ? 'changed' : 'hollow'}
+                      compact={compact}
+                      focused={focused === s.id}
+                      {...(busy ? { state: 'busy' as const } : fail ? { state: 'fail' as const } : {})}
+                      lead={
+                        moved(s) ? (
+                          <>
+                            <Diamond tone="yellow" size={9} />
+                            <span className={styles.chgMicro}>CHG</span>
+                          </>
+                        ) : (
+                          <span className={styles.idx}>{pad(i + 1)}</span>
+                        )
+                      }
+                      title={s.name}
+                      sub={
+                        busy ? (
                           <span className={styles.busy}>
                             <MicroLabel>Applying</MicroLabel>应用中
                           </span>
-                        ) : (
-                          note && (
-                            <span className={styles.note}>
-                              <span className={styles.noteTag} aria-hidden="true">
-                                ADJUSTED
-                              </span>
-                              <span>{note}</span>
+                        ) : note ? (
+                          <span className={styles.note}>
+                            <span className={styles.noteTag} aria-hidden="true">
+                              ADJUSTED
                             </span>
-                          )
-                        )}
-                      </span>
-                      <span className={styles.end}>
-                        {moved(s) && (
-                          <span className={styles.def}>
-                            默认<b>{nameOf(s, s.default)}</b>
+                            <span>{note}</span>
                           </span>
-                        )}
-                        {was !== undefined && was !== value(s) && !busy && (
-                          <button type="button" className={styles.flip} disabled={off} onClick={() => flip(s)}>
-                            <Icon name="sync" size={12} />
-                            对比「{nameOf(s, was)}」
-                            <kbd aria-hidden="true">X</kbd>
-                          </button>
-                        )}
-                        {control(s)}
-                      </span>
-                      <span className={styles.bc} aria-hidden="true">
-                        <Barcode width={34} height={9} label="AGENTIC" />
-                      </span>
-                    </span>
+                        ) : undefined
+                      }
+                      end={
+                        <>
+                          {moved(s) && (
+                            <span className={styles.def}>
+                              默认<b>{nameOf(s, s.default)}</b>
+                            </span>
+                          )}
+                          {was !== undefined && was !== value(s) && !busy && (
+                            <button type="button" className={styles.flip} disabled={off} onClick={() => flip(s)}>
+                              <Icon name="sync" size={12} />
+                              对比「{nameOf(s, was)}」
+                              <kbd aria-hidden="true">X</kbd>
+                            </button>
+                          )}
+                          {control(s)}
+                        </>
+                      }
+                    />
                   </div>
                   {failBar(s.id)}
                 </div>

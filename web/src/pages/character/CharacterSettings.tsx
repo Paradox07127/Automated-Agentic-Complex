@@ -5,6 +5,7 @@ import { ErrBar, Skel, type IconName } from '../../ui';
 import { GameTabs, MicroLabel, WhiteCapsule, type GameTab } from '../../ui/game';
 import type { Native } from '../settings/native';
 import type { Toast } from './feedback';
+import { Panel } from './Panel';
 import { CHAR_TABS, LIGHT_PAD, type CharTab } from './sections';
 import { isChanged, presentTabs, SettingRows, tabRows } from './SettingRows';
 import { saveSettings, useCharSettings } from './settings';
@@ -45,17 +46,14 @@ export interface SetPanelProps {
   children: ReactNode;
 }
 
-/** 设定 right of the stage, straight on the training room: the game tab bar, then the page; as wide as Operator's `--panel-w`. */
+/** 设定 in the detail panel: its pages as tabs, an orange dot on each page with a row off its default. */
 export function SetPanel(p: SetPanelProps) {
   const n = useCharSettings().q.data;
   const dev = useDevMode();
   return (
-    <section className={styles.panel} data-g="detail">
-      <GameTabs label="角色页签" tabs={tabItems(p.tabs, n, dev)} value={p.tab} tail="Character Settings" onChange={(id) => p.onTab(id as CharTab)} />
-      <div className={styles.body} role="tabpanel" aria-label={CHAR_TABS.find((t) => t.id === p.tab)?.title}>
-        {p.children}
-      </div>
-    </section>
+    <Panel tabs={tabItems(p.tabs, n, dev)} value={p.tab} tail="Character Settings" onTab={(id) => p.onTab(id as CharTab)}>
+      {p.children}
+    </Panel>
   );
 }
 

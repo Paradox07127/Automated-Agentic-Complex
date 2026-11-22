@@ -39,7 +39,7 @@ export function CommitBar(p: CommitBarProps) {
               right: (
                 <>
                   <WhiteCapsule label="全部撤销" icon="refresh" disabled={p.saving} onClick={p.onUndo} />
-                  <YellowKey label={p.saving ? '保存中' : '保存'} icon="check" micro="Save" disabled={p.saving} onClick={p.onSave} />
+                  <YellowKey label="保存" icon="check" micro="Save" busy={p.saving} onClick={p.onSave} />
                 </>
               ),
             }

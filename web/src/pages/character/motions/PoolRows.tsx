@@ -1,10 +1,10 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import type { MotionPoolEntry } from '../../../bridge';
-import { DarkRow, TitleBar, WhiteCapsule } from '../../../ui/game';
+import { DarkRow, Stepper, TitleBar, WhiteCapsule } from '../../../ui/game';
+import { useCompact } from '../compact';
 import { chainPath, gapBand, type GraphIndex } from './chainPath';
 import { shortName, type MotionGraph } from './graph';
 import { HARD, POSTURE_BREAKS, type Junction } from './joints';
-import { NumStep } from './NumStep';
 import { asWeight, candidates, type Pool } from './pools';
 import { secText, segTime } from './timing';
 import styles from './Pool.module.css';
@@ -77,6 +77,7 @@ function Mini({ g, ix, chain }: { g: MotionGraph; ix: GraphIndex; chain: string 
 export function PoolRows(p: PoolRowsProps) {
   const { graph: g, ix, pool } = p;
   const [adding, setAdding] = useState(false);
+  const compact = useCompact();
   const total = p.entries.reduce((s, e) => s + e.weight, 0);
   const pack = new Map(pool.entries.map((e) => [e.clip, asWeight(e.weight)]));
   const set = (i: number, w: number) => p.onPool(p.entries.map((e, j) => (j === i ? { ...e, weight: w } : e)));
@@ -88,9 +89,9 @@ export function PoolRows(p: PoolRowsProps) {
     <section className={styles.pool} aria-label={`池子 ${pool.key}`} data-pool={pool.key}>
       <TitleBar
         title={p.title}
+        {...(compact ? {} : { note: p.detail })}
         actions={
           <>
-            <span className={styles.detail}>{p.detail}</span>
             {p.overridden && <span className={styles.tag}>已改</span>}
             {p.overridden && !off && <WhiteCapsule label="用包里的" icon="refresh" onClick={() => p.onPool(null)} />}
           </>
@@ -109,9 +110,10 @@ export function PoolRows(p: PoolRowsProps) {
           const open = p.open === key;
           const flag = flagOf(p.joints(key));
           const why = p.adjustedChain[key];
+          // Compact rows keep only a red line (why it was not taken, a hard cut).
           const sub = why ? (
             <span className={styles.red}>{why}</span>
-          ) : !on ? (
+          ) : compact && flag?.tone !== 'red' ? undefined : !on ? (
             '已关 │ 抽到跳过'
           ) : flag ? (
             <span className={flag.tone === 'red' ? styles.red : styles.orange}>{flag.text}</span>
@@ -124,7 +126,8 @@ export function PoolRows(p: PoolRowsProps) {
               <div className={styles.row} data-chain={key} data-off={!on || undefined} data-open={open || undefined}>
                 <DarkRow
                   title={label}
-                  sub={sub}
+                  {...(sub != null ? { sub } : {})}
+                  compact={compact}
                   selected={open}
                   onPress={() => p.onPreview(key)}
                   end={
@@ -136,7 +139,7 @@ export function PoolRows(p: PoolRowsProps) {
                         </span>
                         <span className={styles.pct}>{share}%</span>
                       </span>
-                      <NumStep
+                      <Stepper
                         label={`「${label}」的权重`}
                         value={e.weight}
                         min={1}
@@ -145,7 +148,8 @@ export function PoolRows(p: PoolRowsProps) {
                         big={10}
                         changed={pack.get(key) !== e.weight}
                         disabled={off}
-                        onCommit={(w) => set(i, w)}
+                        compact={compact}
+                        onChange={(w) => set(i, w)}
                       />
                       {g.chains[key] ? (
                         <button

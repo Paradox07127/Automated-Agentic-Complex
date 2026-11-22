@@ -7,8 +7,8 @@ export interface WhiteCapsuleProps {
   label: string;
   /** 小圆里的图标 */
   icon: IconName;
-  /** 小圆：默认黑底白图标；accent 黑底黄图标（这一排的主操作，如「重启角色」「重试」） */
-  tone?: 'plain' | 'accent';
+  /** 小圆：默认黑底白图标；accent 黑底黄图标（这一排的主操作，如「重启角色」「重试」）；dark 是深色胶囊、白字白圆（放在深色横幅上，如「刚导入」的「收起提示」） */
+  tone?: 'plain' | 'accent' | 'dark';
   /** 禁用 */
   disabled?: boolean;
   /** 禁用原因（悬停提示） */
@@ -32,5 +32,6 @@ export const WhiteCapsuleDemos: Array<{ name: string; props: WhiteCapsuleProps }
   { name: 'reset', props: { label: '恢复默认', icon: 'refresh' } },
   { name: 'show-all', props: { label: '全部显示', icon: 'eye' } },
   { name: 'accent', props: { label: '重启角色', icon: 'refresh', tone: 'accent' } },
+  { name: 'dark', props: { label: '收起提示', icon: 'chev', tone: 'dark' } },
   { name: 'disabled', props: { label: '恢复默认', icon: 'refresh', disabled: true, disabledReason: '已是默认' } },
 ];

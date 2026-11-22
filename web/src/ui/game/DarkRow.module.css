@@ -98,6 +98,95 @@ button.hit:focus-visible {
   color: var(--ef-accent);
 }
 
+.row[data-mark='ok'] .lead {
+  color: var(--ef-accent);
+}
+
+/* The lead as its own button (↺): the glyph until hovered, then the whole cell yellow with a dark ↺. */
+button.lead {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.lead:disabled {
+  cursor: default;
+}
+
+.face {
+  display: grid;
+  place-items: center;
+}
+
+.act {
+  display: none;
+}
+
+button.lead:hover:not(:disabled) {
+  background: var(--ef-accent);
+  color: #1a1a1a;
+}
+
+button.lead:hover:not(:disabled) .face {
+  display: none;
+}
+
+button.lead:hover:not(:disabled) .act {
+  display: block;
+}
+
+button.lead:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -2px;
+}
+
+/* Failed: a red left edge. */
+.row[data-state='fail'] {
+  box-shadow:
+    inset 4px 0 0 var(--ef-danger),
+    inset 0 -2px 0 rgb(0 0 0 / 14%);
+}
+
+/* Busy: a yellow sweep over the body and a short bar under the lead. */
+.row[data-state='busy'] .body {
+  position: relative;
+}
+
+.row[data-state='busy'] .body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 30%, rgb(255 241 0 / 16%) 48%, rgb(255 241 0 / 5%) 60%, transparent 70%);
+  pointer-events: none;
+}
+
+.row[data-state='busy'] .lead::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+  left: 14px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--ef-accent) 0 55%, rgb(255 255 255 / 20%) 55%);
+}
+
+/* The row the keys act on: a thin yellow frame and a small triangle outside its right edge. */
+.row[data-focused] {
+  outline: 1px solid rgb(255 241 0 / 75%);
+  outline-offset: -1px;
+}
+
+.row[data-focused]::after {
+  content: '';
+  position: absolute;
+  top: calc(50% - 4px);
+  right: -9px;
+  border: 4px solid transparent;
+  border-right-color: var(--ef-accent);
+}
+
 .row[data-selected] .lead {
   background: var(--ef-accent);
   color: #1a1a1a;
@@ -179,6 +268,29 @@ button.hit:focus-visible {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* Compact (925 and alike): a 34 px lead, a lower row; the barcode is not drawn. */
+.row[data-compact] {
+  min-height: 40px;
+  font-size: 13px;
+}
+
+.row[data-compact] .lead {
+  width: 34px;
+}
+
+.row[data-compact] .glyph {
+  width: 14px;
+  height: 14px;
+}
+
+.row[data-compact] .body {
+  padding: 4px 8px 4px 10px;
+}
+
+.row[data-compact] .end {
+  padding-right: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {

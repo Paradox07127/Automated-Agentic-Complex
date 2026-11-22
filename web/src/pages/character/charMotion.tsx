@@ -1,8 +1,7 @@
 // Game clips of the charinfo panel on the operator view; the stage's live preview is not driven here.
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { gameClips } from '../../design/gameClips.generated';
 import { useGameClip } from '../../ui';
-import { useAttended } from '../home/watchMotion';
 import styles from './charMotion.module.css';
 
 /** `?still=1` from the URL: the shell marks html.still only after the page's first effects ran. */
@@ -36,29 +35,4 @@ export function HeadPick() {
       <i className={styles.pickBar} data-g="bg" />
     </span>
   );
-}
-
-/** attributecell_selected_in on the selected motion's index, then its loop while the window has focus. */
-export function SelMark() {
-  const ref = useRef<HTMLElement>(null);
-  const attended = useAttended();
-  const markIn = useGameClip(gameClips.charMarkIn, ref, { autoplay: !still() });
-  const [settled, setSettled] = useState(false);
-  useEffect(() => {
-    let live = true;
-    void markIn.finished.then(() => live && setSettled(true));
-    return () => {
-      live = false;
-    };
-  }, [markIn]);
-  return (
-    <i ref={ref} className={styles.mark} data-g="root" aria-hidden="true">
-      {settled && attended && !still() && <MarkLoop root={ref} />}
-    </i>
-  );
-}
-
-function MarkLoop({ root }: { root: RefObject<HTMLElement | null> }) {
-  useGameClip(gameClips.charMarkLoop, root, { autoplay: true });
-  return null;
 }

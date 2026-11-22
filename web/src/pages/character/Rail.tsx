@@ -18,11 +18,13 @@ export interface RailProps {
   value: RailItem;
   /** Without an avatar there is no 拍照 or MMD. */
   avatar: boolean;
+  /** The current item's 导入 page is open: its cell still goes back to the item's first page. */
+  sub?: boolean;
   onGo: (item: RailItem) => void;
 }
 
 /** 最右的竖栏：顶上白板写当前项的序号，下面总览、外观、动作、设定、拍照，隔一条线是 MMD；当前项白底黄边。 */
-export function Rail({ value, avatar, onGo }: RailProps) {
+export function Rail({ value, avatar, sub, onGo }: RailProps) {
   const items = ITEMS.filter((x) => avatar || (x.id !== 'photo' && x.id !== 'mmd'));
   return (
     <nav className={styles.rail} data-g="menu" aria-label="角色分区">
@@ -31,7 +33,7 @@ export function Rail({ value, avatar, onGo }: RailProps) {
         <b className={styles.no}>{pad2(items.findIndex((x) => x.id === value) + 1)}</b>
       </div>
       {items.map((x) => (
-        <RailCell key={x.id} label={x.label} icon={x.icon} micro={x.micro} current={x.id === value} onClick={() => x.id !== value && onGo(x.id)} />
+        <RailCell key={x.id} label={x.label} icon={x.icon} micro={x.micro} current={x.id === value} onClick={() => (x.id !== value || sub) && onGo(x.id)} />
       ))}
     </nav>
   );

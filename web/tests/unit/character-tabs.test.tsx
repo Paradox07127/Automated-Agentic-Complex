@@ -23,7 +23,8 @@ async function mount(search = '&pane=motion') {
 
 const click = (el: Element) => act(async () => void fireEvent.click(el));
 const tab = (name: string) => within(screen.getByRole('tablist', { name: '角色页签' })).getByRole('tab', { name });
-const tabs = () => within(screen.getByRole('tablist', { name: '角色页签' })).getAllByRole('tab').map((t) => t.textContent);
+// The game tab cell also carries its micro English (aria-hidden), so the tabs are read by id.
+const tabs = () => within(screen.getByRole('tablist', { name: '角色页签' })).getAllByRole('tab').map((t) => t.getAttribute('data-tab'));
 const panel = () => screen.getByRole('tabpanel');
 const pane = (router: Awaited<ReturnType<typeof mount>>) => new URLSearchParams(router.state.location.searchStr).get('pane');
 
@@ -38,13 +39,22 @@ afterEach(() => {
 describe('角色页 · 页签', () => {
   it('?pane=motion opens 动作表: the motion table and no 编排, appearance or import controls', async () => {
     await mount();
-    expect(tabs()).toEqual(['动作表', '编排', '导入']);
+    expect(tabs()).toEqual(['motion', 'chain', 'import']);
     expect(tab('动作表').getAttribute('aria-selected')).toBe('true');
     expect(panel().getAttribute('aria-label')).toBe('动作表');
     expect(await within(panel()).findByRole('grid', { name: '全部动作' })).toBeTruthy();
     expect(within(panel()).queryByRole('region', { name: '编排' })).toBeNull();
     expect(screen.queryByRole('group', { name: '外观' })).toBeNull();
     expect(screen.queryByRole('button', { name: '导入动作' })).toBeNull();
+  });
+
+  it('编排 has only its own commit bar: unsaved motion switches keep their bar for 动作表', async () => {
+    await mount('&demo=ok&pane=chain');
+    expect(await within(panel()).findByRole('region', { name: '编排' })).toBeTruthy();
+    expect(screen.queryByRole('group', { name: '桌面预览' })).toBeNull();
+    await click(tab('动作表'));
+    expect(await screen.findByRole('group', { name: '桌面预览' })).toBeTruthy();
+    expect(screen.getByText(/已修改/).textContent).toContain('已修改 2 项');
   });
 
   it('puts the chains on their own 编排 tab', async () => {
@@ -59,7 +69,7 @@ describe('角色页 · 页签', () => {
 
   it('switches content under 外观 and writes the pane into the URL', async () => {
     const router = await mount('&pane=look');
-    expect(tabs()).toEqual(['外观', '显示', '导入']);
+    expect(tabs()).toEqual(['look', 'show', 'import']);
     expect(tab('外观').getAttribute('aria-selected')).toBe('true');
     expect(within(panel()).getByRole('region', { name: '角色外观与大小' })).toBeTruthy();
     expect(within(panel()).getByRole('group', { name: '外观' })).toBeTruthy();
@@ -74,7 +84,7 @@ describe('角色页 · 页签', () => {
     await click(tab('导入'));
     await waitFor(() => expect(pane(router)).toBe('import'));
     // 导入 stays under 外观, the item it was opened from, and imports outfit mods only: 导入角色 is on 总览's roster, 导入动作 under 动作.
-    expect(tabs()).toEqual(['外观', '显示', '导入']);
+    expect(tabs()).toEqual(['look', 'show', 'import']);
     expect(within(panel()).getByRole('heading', { name: '导入外观模组' })).toBeTruthy();
     expect(within(panel()).getByRole('button', { name: '选择 mod 目录…' })).toBeTruthy();
     expect(within(panel()).queryByRole('button', { name: '导入角色' })).toBeNull();

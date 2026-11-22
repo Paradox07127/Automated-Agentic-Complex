@@ -81,8 +81,8 @@ describe('角色页 · 服装分层', () => {
     render(<Op toast={toast} roster={[si([{ id: 'coat', name: '外套', visible: false }, { id: 'cape', name: '披风', visible: true }])]} />);
     fireEvent.click(screen.getByRole('tab', { name: '显示' }));
     const all = screen.getByRole('button', { name: '全部显示' }) as HTMLButtonElement;
-    // The title bar counts the hidden ones as changed.
-    expect(all.closest('[data-stub="TitleBar"]')?.textContent).toContain('已改 1');
+    // The title bar counts the hidden ones.
+    expect(all.closest('[data-stub="TitleBar"]')?.textContent).toContain('隐藏 1');
     fireEvent.click(all);
     await waitFor(() => expect(set).toHaveBeenCalledWith([]));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('已全部显示'));

@@ -5,7 +5,7 @@ import { useDemo } from '../../shell/demo';
 import { useDevMode } from '../../shell/devMode';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
-import { Btn, ErrBar, Menu, Spinner } from '../../ui';
+import { artSrc, Btn, ErrBar, Menu, Spinner } from '../../ui';
 import { TrainingRoom } from '../../ui/game';
 import { failure, readRunningTasks, readState, resetState } from './api';
 import { CharacterSettings } from './CharacterSettings';
@@ -197,9 +197,11 @@ export function CharacterPage() {
       </div>
     );
 
+  // Where the stage stands, for the room's floor and rings (Stage.module.css): 总览 is the room's default span.
+  const stage = isCharTab(tab) ? 'set' : photo ? 'photo' : isPane(pane) && pane !== 'overview' ? (pane === 'motion' ? 'deck' : 'wide') : undefined;
   return (
-    <div className={styles.page} data-page="character">
-      <TrainingRoom />
+    <div className={styles.page} data-page="character" data-stage-span={stage}>
+      <TrainingRoom watermark={artSrc(cur, 'charinfo-bg')} />
       {fb.node}
       <PageHeaderSlot
         sub={name || undefined}

@@ -3,6 +3,7 @@ import { getBridge, type CharacterAppearance, type CharacterLayer, type ImportSt
 import { AgentdCallError } from '../../bridge/agentd';
 import { Btn, Dialog, Icon } from '../../ui';
 import { DarkRow, GameSeg, MicroLabel, TitleBar, WhiteCapsule, YellowKey } from '../../ui/game';
+import { useCompact } from './compact';
 import type { Toast } from './feedback';
 import { outfitImportWarning } from './labels';
 import { readModSettings, type ModSettingRow } from './modSettingsTable';
@@ -10,7 +11,6 @@ import { ModSettings } from './ModSettings';
 import { importStageLabel } from './useImportState';
 import type { useLook } from './useLook';
 import type { OutfitImport } from './useOutfitImport';
-import rows from './ModSettings.module.css';
 import imp from './LookImport.module.css';
 import styles from './LookPane.module.css';
 
@@ -121,7 +121,7 @@ function Landed({ outfit, switches }: { outfit: OutfitImport; switches: number |
             </>
           )}
         </span>
-        <WhiteCapsule label="收起提示" icon="chev" onClick={outfit.dismiss} />
+        <WhiteCapsule label="收起提示" icon="chev" tone="dark" onClick={outfit.dismiss} />
       </div>
       {l.warnings.length > 0 && (
         <ul className={imp.warns} aria-label={`「${l.name}」导入提示`}>
@@ -142,6 +142,7 @@ function Landed({ outfit, switches }: { outfit: OutfitImport; switches: number |
 /** 外观的四个页签：外观（换外观、删除导入的、大小）、显示（服装分层）、模组设置、导入（外观模组）；一按就换，亮起的是她现在的样子。 */
 export function LookPane(p: LookPaneProps) {
   const { outfit, importing } = p;
+  const compact = useCompact();
   const [removeLook, setRemoveLook] = useState<CharacterAppearance | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const setSize = (v: number) => {
@@ -180,6 +181,7 @@ export function LookPane(p: LookPaneProps) {
                   return (
                     <div key={l.id} className={styles.item} data-look={l.id} data-imported={imported || undefined}>
                       <DarkRow
+                        compact={compact}
                         title={
                           <>
                             {l.name}
@@ -222,11 +224,11 @@ export function LookPane(p: LookPaneProps) {
             </>
           )}
           <TitleBar title="大小" micro="Scale" />
-          <div className={rows.row} data-size-row="">
-            <span className={rows.lead} aria-hidden="true">
-              <span className={rows.idx}>SZ</span>
+          <div className={styles.size} data-size-row="">
+            <span className={styles.sizeLead} aria-hidden="true">
+              SZ
             </span>
-            <span className={`${rows.main} ${styles.sizeMain}`}>
+            <span className={styles.sizeMain}>
               <span className={styles.presets}>
                 <GameSeg label="大小预设" options={SIZES.map((v) => ({ value: String(v), label: `${v}%` }))} value={String(scale)} onChange={(v) => setSize(Number(v))} />
               </span>
@@ -257,21 +259,20 @@ export function LookPane(p: LookPaneProps) {
             micro="Layers"
             count={p.layers.length}
             changed={hidden}
+            changedLabel="隐藏"
             actions={<WhiteCapsule label="全部显示" icon="eye" disabled={hidden === 0} disabledReason="都已显示" onClick={p.onShowAll} />}
           />
           <div className={styles.list} role="group" aria-label="服装分层">
             {p.layers.map((l, i) => (
-              <div key={l.id} className={rows.row} data-layer={l.id}>
-                <span className={rows.lead} aria-hidden="true">
-                  <span className={rows.idx}>{pad(i + 1)}</span>
-                </span>
-                <span className={rows.main}>
-                  <span className={rows.col}>
-                    <span className={rows.name}>{l.name}</span>
-                  </span>
-                  <span className={rows.end}>
+              <div key={l.id} data-layer={l.id}>
+                <DarkRow
+                  title={l.name}
+                  lead={<span className={styles.idx}>{pad(i + 1)}</span>}
+                  compact={compact}
+                  end={
                     <GameSeg
                       label={l.name}
+                      size={compact ? 'compact' : 'normal'}
                       options={[
                         { value: 'on', label: '显示' },
                         { value: 'off', label: '隐藏' },
@@ -279,8 +280,8 @@ export function LookPane(p: LookPaneProps) {
                       value={l.visible ? 'on' : 'off'}
                       onChange={(v) => p.onLayer(l.id, v === 'on', l.name)}
                     />
-                  </span>
-                </span>
+                  }
+                />
               </div>
             ))}
           </div>

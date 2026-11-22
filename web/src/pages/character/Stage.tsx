@@ -106,10 +106,6 @@ export function Stage(p: StageProps) {
   return (
     <div className={styles.frame} data-stage="" data-mode={mode} data-deck={(mode === 'detail' && p.deck) || undefined}>
       <div ref={setEl} className={styles.stage} data-off={p.offline || undefined} data-preview-stage="" data-live={preview.phase === 'live' || undefined}>
-        <svg className={styles.rings} viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">
-          <ellipse cx={50} cy={10} rx={49} ry={9} />
-          <ellipse cx={50} cy={10} rx={30} ry={5.5} />
-        </svg>
         {overview && <span className={styles.ticks} aria-hidden="true"><i /><i /><i /><i /></span>}
         <div className={styles.fig} style={{ transform: `translateX(-50%) scale(${0.8 + p.scale / 500})` }}>
           {p.portrait ? (

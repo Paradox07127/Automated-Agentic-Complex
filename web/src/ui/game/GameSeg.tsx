@@ -1,15 +1,20 @@
 import { useRef, type CSSProperties, type KeyboardEvent } from 'react';
+import { Icon, type IconName } from '../Icon';
 import { useToggleClip } from '../ToggleClip';
 import { useControlled } from '../useControlled';
 import { MicroLabel } from './Marks';
 import styles from './GameSeg.module.css';
 
-/** 游戏分段开关：深色斜切槽，选中的白块滑过去（底边一小段黄）；role=radiogroup，←→ Home End 切换。 */
+/** 游戏分段开关：深色斜切槽，选中的白块滑过去（底边一小段黄），默认值那段下面一个小点；role=radiogroup，←→ Home End 切换。 */
 export interface GameSegProps {
-  /** 选项，等宽 */
-  options: Array<{ value: string; label: string; disabled?: boolean }>;
+  /** 选项，等宽；`title` 是悬停提示（禁用原因），`icon` 画在字前 */
+  options: Array<{ value: string; label: string; disabled?: boolean; title?: string; icon?: IconName }>;
   /** 当前值 */
   value: string;
+  /** 默认值：那段下面一个小点 */
+  defaultValue?: string;
+  /** compact：矮一号、窄一号（925 档） */
+  size?: 'normal' | 'compact';
   /** 读屏名称 */
   label: string;
   /** plain：速度、播放方式；onoff：斜切「开｜关」，选中第二项（关）时白块变灰、没有黄边 */
@@ -24,7 +29,7 @@ export interface GameSegProps {
 
 const NEXT: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
 
-export function GameSeg({ options, value, label, variant = 'plain', caption, micro, disabled, onChange }: GameSegProps) {
+export function GameSeg({ options, value, defaultValue, size = 'normal', label, variant = 'plain', caption, micro, disabled, onChange }: GameSegProps) {
   const [current, setCurrent] = useControlled(value, onChange);
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const track = useRef<HTMLDivElement>(null);
@@ -53,7 +58,7 @@ export function GameSeg({ options, value, label, variant = 'plain', caption, mic
 
   const place = { '--n': options.length, '--i': Math.max(0, sel) } as CSSProperties;
   return (
-    <div className={styles.seg} data-stub="GameSeg" data-variant={variant} data-off={(variant === 'onoff' && sel === 1) || undefined} aria-disabled={disabled || undefined}>
+    <div className={styles.seg} data-stub="GameSeg" data-variant={variant} data-size={size} data-off={(variant === 'onoff' && sel === 1) || undefined} aria-disabled={disabled || undefined}>
       {caption && (
         <span className={styles.cap} aria-hidden="true">
           {caption}
@@ -74,9 +79,12 @@ export function GameSeg({ options, value, label, variant = 'plain', caption, mic
             aria-checked={i === sel}
             disabled={disabled || o.disabled}
             tabIndex={i === tabStop ? 0 : -1}
+            title={o.title}
+            data-default={(defaultValue != null && o.value === defaultValue) || undefined}
             data-g={options.length === 2 ? (i === 0 ? 'leftText' : 'rightText') : undefined}
             onClick={() => pick(i)}
           >
+            {o.icon && <Icon name={o.icon} size={12} />}
             {o.label}
           </button>
         ))}
@@ -110,6 +118,31 @@ export const GameSegDemos: Array<{ name: string; props: GameSegProps }> = [
       options: [
         { value: 'once', label: '一次' },
         { value: 'loop', label: '循环' },
+      ],
+    },
+  },
+  {
+    name: 'default-compact',
+    props: {
+      label: '速度',
+      size: 'compact',
+      value: '2',
+      defaultValue: '1',
+      options: [
+        { value: '0.5', label: '0.5×' },
+        { value: '1', label: '1×' },
+        { value: '2', label: '2×' },
+      ],
+    },
+  },
+  {
+    name: 'option-reason',
+    props: {
+      label: '播放方式',
+      value: 'once',
+      options: [
+        { value: 'once', label: '一次' },
+        { value: 'loop', label: '循环', icon: 'refresh', disabled: true, title: '这个版本的角色还不支持循环' },
       ],
     },
   },

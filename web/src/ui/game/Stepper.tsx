@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent as PressEvent, type ReactElement } from 'react';
 import { placePopup, usePopupLayer } from '../popup';
 import { useControlled } from '../useControlled';
 import styles from './Stepper.module.css';
@@ -7,8 +7,10 @@ import styles from './Stepper.module.css';
 const MENU_OVER = 6;
 const LIST_MAX = 260;
 
-/** 步进器 ◀ 值 ▶：下面一排位置刻度（当前黄、默认值上方白刻痕）；值超过 6 个时中间的值点开下拉列表。←→ 换值。 */
-export interface StepperProps {
+/** 步进器 ◀ 值 ▶：下面一排位置刻度（当前黄、默认值上方白刻痕）；值超过 6 个时中间的值点开下拉列表。←→ 换值。给 min / max / step 是数字款：中间的数可以直接输入。 */
+export type StepperProps = StepperListProps | StepperNumberProps;
+
+export interface StepperListProps {
   /** 读屏名称 */
   label: string;
   /** 取值，按顺序 */
@@ -20,7 +22,28 @@ export interface StepperProps {
   disabled?: boolean;
   /** 强制展开下拉（演示、截图） */
   open?: boolean;
+  /** 紧凑款：矮一号、窄一号 */
+  compact?: boolean;
   onChange?: (value: string) => void;
+}
+
+/** 数字款 ◀ 数 ▶：箭头 ±step（Shift ±big），中间的数可以直接输入（回车或离开时提交），↑↓ 同箭头；超出的值收到 min–max。 */
+export interface StepperNumberProps {
+  /** 读屏名称；两个箭头是「减少」「增加」 */
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  /** Shift 加箭头一次走多少，默认 step */
+  big?: number;
+  /** 显示几位小数 */
+  digits?: number;
+  /** 和包里的不一样：黄框黄字 */
+  changed?: boolean;
+  disabled?: boolean;
+  compact?: boolean;
+  onChange?: (value: number) => void;
 }
 
 function Chev({ left }: { left?: boolean }) {
@@ -31,7 +54,62 @@ function Chev({ left }: { left?: boolean }) {
   );
 }
 
-export function Stepper({ label, options, value, defaultValue, disabled, open: forced, onChange }: StepperProps) {
+export function Stepper(p: StepperNumberProps): ReactElement;
+export function Stepper(p: StepperListProps): ReactElement;
+export function Stepper(p: StepperProps): ReactElement {
+  return 'min' in p ? <NumberStepper {...p} /> : <ListStepper {...p} />;
+}
+
+function NumberStepper({ label, value, min, max, step, big = step, digits, changed, disabled, compact, onChange }: StepperNumberProps) {
+  const [text, setText] = useState<string | null>(null);
+  const put = (v: number) => {
+    const next = Number(Math.min(max, Math.max(min, Math.round(v / step) * step)).toFixed(digits ?? 0));
+    if (next !== value) onChange?.(next);
+  };
+  const commit = () => {
+    if (text === null) return;
+    setText(null);
+    const n = Number(text);
+    if (text.trim() !== '' && Number.isFinite(n)) put(n);
+  };
+  const by = (dir: number) => (e: PressEvent | KeyboardEvent) => put(value + dir * (e.shiftKey ? big : step));
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') commit();
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      setText(null);
+      by(e.key === 'ArrowUp' ? 1 : -1)(e);
+    }
+  };
+  return (
+    <div className={styles.wrap} data-stub="Stepper" data-size={compact ? 'compact' : undefined} data-changed={changed || undefined}>
+      <div className={styles.step} data-num="" aria-disabled={disabled || undefined}>
+        <button type="button" className={styles.ar} tabIndex={-1} aria-label={`${label}：减少`} disabled={disabled || value <= min} onClick={by(-1)}>
+          <Chev left />
+        </button>
+        <input
+          className={styles.num}
+          type="number"
+          inputMode="decimal"
+          min={min}
+          max={max}
+          step={step}
+          aria-label={label}
+          value={text ?? (digits ? value.toFixed(digits) : String(value))}
+          disabled={disabled}
+          onChange={(e) => setText(e.currentTarget.value)}
+          onBlur={commit}
+          onKeyDown={onKey}
+        />
+        <button type="button" className={styles.ar} tabIndex={-1} aria-label={`${label}：增加`} disabled={disabled || value >= max} onClick={by(1)}>
+          <Chev />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ListStepper({ label, options, value, defaultValue, disabled, open: forced, compact, onChange }: StepperListProps) {
   const [current, setCurrent] = useControlled(value, onChange);
   const i = options.findIndex((o) => o.value === current);
   const menu = options.length > MENU_OVER;
@@ -115,7 +193,7 @@ export function Stepper({ label, options, value, defaultValue, disabled, open: f
   };
 
   return (
-    <div className={styles.wrap} data-stub="Stepper">
+    <div className={styles.wrap} data-stub="Stepper" data-size={compact ? 'compact' : undefined}>
       <div ref={root} role="group" aria-label={label} className={styles.step} data-open={open || undefined} aria-disabled={disabled || undefined} onKeyDown={onRowKey}>
         <button type="button" className={styles.ar} aria-label={`${label}：上一个`} disabled={disabled || i <= 0} onClick={() => go(i - 1)}>
           <Chev left />
@@ -206,4 +284,7 @@ export const StepperDemos: Array<{ name: string; props: StepperProps }> = [
   { name: 'menu', props: { label: 'Hair Color', options: COLORS, value: 'silver', defaultValue: 'black' } },
   { name: 'menu-open', props: { label: 'Hair Color', options: COLORS, value: 'silver', defaultValue: 'black', open: true } },
   { name: 'disabled', props: { label: '裙摆', options: LENGTH, value: 'mid', defaultValue: 'mid', disabled: true } },
+  { name: 'compact', props: { label: '裙摆', options: LENGTH, value: 'short', defaultValue: 'long', compact: true } },
+  { name: 'number', props: { label: '权重', value: 12, min: 1, max: 100000, step: 1, big: 10, changed: true } },
+  { name: 'number-compact', props: { label: '保持秒数', value: 1.5, min: 0, max: 600, step: 0.5, big: 2, digits: 1, compact: true } },
 ];

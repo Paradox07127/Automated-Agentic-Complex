@@ -87,6 +87,13 @@ describe('角色页 · 总览', () => {
     }
   });
 
+  it('on the 导入 page opened from 动作, the lit 动作 cell goes back to 动作表', async () => {
+    const router = await mount('&pane=import');
+    expect(rail('动作').getAttribute('aria-current')).toBe('page');
+    await click(rail('动作'));
+    await waitFor(() => expect(params(router)).toEqual({ pane: 'motion' }));
+  });
+
   it('moves the stage beside the panel on a detail page and to 拍照 with the panel alone', async () => {
     const router = await mount('&tab=render');
     const op = document.querySelector('[data-view="operator"]') as HTMLElement;

@@ -1,6 +1,7 @@
-import { Fragment } from 'react';
-import { Icon, StatusTag } from '../../ui';
+import { Fragment, useRef } from 'react';
+import { StatusTag } from '../../ui';
 import { ActionBar, Barcode, Diamond, GameSeg, MicroLabel, WhiteCapsule, YellowKey } from '../../ui/game';
+import { useCompactScene } from './compact';
 import styles from './Commit.module.css';
 
 export interface SaveNoteProps {
@@ -62,6 +63,8 @@ const NO_LOOP = '这个版本的角色还不支持循环';
 
 /** 动作页底部动作条：左边桌面预览（黄键，循环时白色停止）、速度和播放方式；右边改了哪些、撤销、保存。 */
 export function Commit(p: CommitProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const size = useCompactScene(ref) ? 'compact' : 'normal';
   const n = p.changes.length;
   const off = p.blocked != null;
   const right = p.offline ? (
@@ -88,23 +91,15 @@ export function Commit(p: CommitProps) {
         </span>
       </span>
       <WhiteCapsule label="撤销" icon="refresh" onClick={p.onUndo} />
-      <span className={styles.save} data-busy={p.saving || undefined} aria-busy={p.saving || undefined}>
-        <YellowKey
-          label="保存"
-          icon="check"
-          micro="Commit"
-          onClick={() => {
-            if (!p.saving) p.onSave();
-          }}
-        />
-      </span>
+      <YellowKey label="保存" icon="check" micro="Commit" busy={p.saving} onClick={p.onSave} />
     </>
   ) : undefined;
   return (
-    <div className={styles.deck} data-commit="">
+    <div ref={ref} className={styles.deck} data-commit="">
       <ActionBar
         label="桌面预览"
         {...(p.progress != null ? { progress: p.progress } : {})}
+        looping={p.looping}
         left={
           <span className={styles.left}>
             <span className={styles.ttl} aria-hidden="true">
@@ -113,34 +108,23 @@ export function Commit(p: CommitProps) {
               <Barcode width={54} height={6} />
             </span>
             {p.looping ? (
-              <button type="button" className={styles.stop} onClick={p.onStop}>
-                <span className={styles.stopFace}>
-                  <span className={styles.stopKi}>
-                    <Icon name="stop" size={16} />
-                  </span>
-                  <span className={styles.stopTx}>
-                    <MicroLabel>Desktop</MicroLabel>
-                    <span>停止</span>
-                  </span>
-                </span>
-              </button>
+              <YellowKey label="停止" icon="stop" micro="Desktop" tone="white" onClick={p.onStop} />
             ) : (
               <YellowKey label={p.hidden ? '显示角色并预览' : '桌面预览'} micro="Desktop" disabled={off} {...(p.blocked ? { disabledReason: p.blocked } : {})} onClick={p.onPlay} />
             )}
-            <GameSeg label="播放速度" caption="速度" micro="Speed" value={p.speed} onChange={p.onSpeed} disabled={off || p.oneSpeed} options={SPEEDS} />
-            <span title={p.canLoop ? undefined : NO_LOOP}>
-              <GameSeg
-                label="播放方式"
-                caption="播放方式"
-                micro="Mode"
-                value={p.loop ? 'loop' : 'once'}
-                onChange={(v) => p.onLoop(v === 'loop')}
-                options={[
-                  { value: 'once', label: '一次' },
-                  { value: 'loop', label: '循环', disabled: !p.canLoop },
-                ]}
-              />
-            </span>
+            <GameSeg label="播放速度" caption="速度" micro="Speed" size={size} value={p.speed} onChange={p.onSpeed} disabled={off || p.oneSpeed} options={SPEEDS} />
+            <GameSeg
+              label="播放方式"
+              caption="播放方式"
+              micro="Mode"
+              size={size}
+              value={p.loop ? 'loop' : 'once'}
+              onChange={(v) => p.onLoop(v === 'loop')}
+              options={[
+                { value: 'once', label: '一次' },
+                { value: 'loop', label: '循环', disabled: !p.canLoop, ...(p.canLoop ? {} : { title: NO_LOOP }) },
+              ]}
+            />
           </span>
         }
         {...(right ? { right: <span className={styles.right}>{right}</span> } : {})}

@@ -7,12 +7,6 @@
   min-height: 0;
 }
 
-.detail {
-  color: rgb(255 255 255 / 80%);
-  font: 400 12px / 1 var(--ef-font-num);
-  white-space: nowrap;
-}
-
 .tag {
   flex: none;
   padding: 2px 6px;
@@ -49,10 +43,6 @@
 .row :global([data-stub='DarkRow']) {
   min-height: 40px;
   font-size: 14px;
-}
-
-.row :global([data-stub='DarkRow']) > :first-child > span:first-child {
-  width: 44px;
 }
 
 .row[data-off] :global([data-stub='DarkRow']) {
@@ -286,29 +276,14 @@
 }
 
 @container op (max-width: 1100px) {
-  .detail,
   .mini,
-  .bar,
-  .orange {
+  .bar {
     display: none;
   }
 
   .row :global([data-stub='DarkRow']) {
     min-height: 32px;
     font-size: 12px;
-  }
-
-  .row :global([data-stub='DarkRow']) > :first-child > span:first-child {
-    width: 30px;
-  }
-
-  /* No clip line under the name; the red hard-cut text stays. */
-  .row :global([data-stub='DarkRow']) > :first-child > span:nth-child(2) > span:nth-child(2):not(:has(.red)) {
-    display: none;
-  }
-
-  .row :global([data-stub='DarkRow']) > span:last-child {
-    display: none;
   }
 
   .share {

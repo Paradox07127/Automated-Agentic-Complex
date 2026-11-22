@@ -100,7 +100,7 @@ describe('角色页 · 模组设置', () => {
     const read = vi.spyOn(bridge.agentd, 'request');
     await wear('imported_field');
     const tab = screen.getByRole('tab', { name: '模组设置' });
-    expect(tab.textContent).toBe('模组设置6');
+    expect(tab.textContent).toBe('模组设置6MOD CFG');
     fireEvent.click(screen.getByRole('tab', { name: '外观' }));
     fireEvent.click(screen.getByRole('tab', { name: '模组设置' }));
     await screen.findByRole('group', { name: 'mod 设置' });

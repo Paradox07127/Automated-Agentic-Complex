@@ -122,8 +122,51 @@
   opacity: 0.75;
 }
 
+/* White key (停止): the same cuts, a white face and a white glow. */
+.key[data-tone='white'] {
+  --yk-face-top: #fff;
+  --yk-face-low: #e4e4e4;
+
+  filter: drop-shadow(0 0 10px rgb(255 255 255 / 25%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
+}
+
+.key[data-tone='white'] :is(.face, .tall) {
+  background: linear-gradient(180deg, var(--yk-face-top), var(--yk-face-low));
+}
+
+.key[data-tone='white'] .ki {
+  color: #fff;
+}
+
+/* Busy (保存中): a hatch runs over the face. */
+.key[aria-busy='true'] {
+  cursor: progress;
+}
+
+.key[aria-busy='true'] :is(.face, .tall)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(0 0 0 / 22%) 4px 6px);
+  background-size: 8.5px 8.5px;
+  opacity: 1;
+  mask: none;
+  pointer-events: none;
+  animation: yk-run 600ms linear infinite;
+}
+
+@keyframes yk-run {
+  to {
+    background-position: 8.5px 0;
+  }
+}
+
 .key:hover:not(:disabled) {
   filter: drop-shadow(0 0 14px rgb(255 241 0 / 55%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
+}
+
+.key[data-tone='white']:hover:not(:disabled) {
+  filter: drop-shadow(0 0 14px rgb(255 255 255 / 45%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
 }
 
 .key:active:not(:disabled) :is(.face, .tall) {
@@ -159,6 +202,10 @@
 @media (prefers-reduced-motion: reduce) {
   .key {
     transition: none;
+  }
+
+  .key[aria-busy='true'] :is(.face, .tall)::after {
+    animation: none;
   }
 
   .key:active:not(:disabled) :is(.face, .tall) {

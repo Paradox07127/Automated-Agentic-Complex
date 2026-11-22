@@ -140,13 +140,25 @@ export function gameControl(
   disabled: boolean,
   onChange: (v: SettingValue, quiet?: boolean) => void,
   short?: Readonly<Record<string, string>>,
+  compact = false,
 ): ReactNode {
-  if (row.kind === 'toggle') return <GameSeg label={row.label} variant="onoff" value={value === true ? 'on' : 'off'} options={ON_OFF} disabled={disabled} onChange={(v) => onChange(v === 'on')} />;
+  const size = compact ? 'compact' : 'normal';
+  if (row.kind === 'toggle') return <GameSeg label={row.label} variant="onoff" size={size} value={value === true ? 'on' : 'off'} options={ON_OFF} disabled={disabled} onChange={(v) => onChange(v === 'on')} />;
   if (row.kind === 'slider') return <SettingSlider row={row} value={value} disabled={disabled} onChange={onChange} />;
   const options = row.options ?? [];
   if (short || options.length <= 3)
-    return <GameSeg label={row.label} value={String(value)} options={options.map((o) => ({ value: o.value, label: short?.[o.value] ?? o.label }))} disabled={disabled} onChange={onChange} />;
-  return <Stepper label={row.label} value={String(value)} defaultValue={String(row.default)} options={options} disabled={disabled} onChange={onChange} />;
+    return (
+      <GameSeg
+        label={row.label}
+        size={size}
+        value={String(value)}
+        defaultValue={String(row.default)}
+        options={options.map((o) => ({ value: o.value, label: short?.[o.value] ?? o.label }))}
+        disabled={disabled}
+        onChange={onChange}
+      />
+    );
+  return <Stepper label={row.label} compact={compact} value={String(value)} defaultValue={String(row.default)} options={options} disabled={disabled} onChange={onChange} />;
 }
 
 /** The text of a value: an option's label, 开 / 关, or a slider reading with its unit. */

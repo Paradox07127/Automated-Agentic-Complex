@@ -84,44 +84,6 @@
   pointer-events: none;
 }
 
-/* Over the DarkRow lead (52 px): clear until hovered, then the whole cell yellow with a dark ↺. */
-.reset {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 52px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #1a1a1a;
-  cursor: pointer;
-}
-
-.reset svg {
-  opacity: 0;
-}
-
-.reset:hover:not(:disabled) {
-  background: var(--ef-accent);
-}
-
-.reset:hover:not(:disabled) svg {
-  opacity: 1;
-}
-
-.reset:focus-visible {
-  outline: 2px solid var(--ef-accent);
-  outline-offset: -2px;
-}
-
-.reset:disabled {
-  cursor: default;
-}
-
 .err {
   color: #ff8a7a;
 }
@@ -245,26 +207,8 @@
     font-size: 13px;
   }
 
-  /* DarkRow and the game controls have no compact size: their public hooks are narrowed here. */
-  .sec .head > [data-stub='MicroLabel'],
-  .row [data-stub='DarkRow'] > :has(> [data-stub='Barcode']) {
+  .sec .head > [data-stub='MicroLabel'] {
     display: none;
-  }
-
-  .row [data-stub='DarkRow'] {
-    min-height: 40px;
-    padding-right: 8px;
-    font-size: 13px;
-  }
-
-  .row [data-stub='GameSeg'] [role='radio'] {
-    min-width: 0;
-    padding: 0 7px;
-  }
-
-  .row [data-stub='Stepper'] > [role='group'] {
-    width: 150px;
-    height: 30px;
   }
 
   .ax {

@@ -29,19 +29,3 @@
   -webkit-mask: url('/art/pages/character/char-head-selected-side.png') center / 100% 100% no-repeat;
   mask: url('/art/pages/character/char-head-selected-side.png') center / 100% 100% no-repeat;
 }
-
-/* attributecell_selected: a frame around the selected motion's index (texture char-skill-select). */
-.mark {
-  position: absolute;
-  inset: -3px;
-  border: 1px solid var(--ef-paper-text);
-  pointer-events: none;
-}
-
-:global(html[data-art]) .mark {
-  inset: -7px -3px;
-  border: 0;
-  background: var(--ef-paper-text);
-  -webkit-mask: url('/art/pages/character/char-skill-select.png') center / contain no-repeat;
-  mask: url('/art/pages/character/char-skill-select.png') center / contain no-repeat;
-}

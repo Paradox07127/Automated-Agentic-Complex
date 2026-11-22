@@ -22,7 +22,7 @@
 }
 
 .op[data-panel='narrow'] {
-  --panel-w: clamp(340px, 36cqw, 700px);
+  --panel-w: clamp(404px, 36cqw, 700px);
 }
 
 .op[data-panel='photo'] {

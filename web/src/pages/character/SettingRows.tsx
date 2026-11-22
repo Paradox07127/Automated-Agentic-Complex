@@ -5,6 +5,7 @@ import { EffectTag } from '../../ui';
 import { DarkRow, MicroLabel } from '../../ui/game';
 import type { Native } from '../settings/native';
 import { CHAR_SECTIONS, CHAR_TABS, DEV_ONLY_ROWS, LIGHT_PAD, OTHER_TITLE, PHOTO_ONLY_ROWS, placedTab, ROW_DESC, SEG_LABELS, tabOf, type CharTab } from './sections';
+import { useCompact } from './compact';
 import { gameControl, valueText } from './settings';
 import styles from './SettingRows.module.css';
 
@@ -38,20 +39,6 @@ export const isChanged = (n: Native, id: string) => n.saved[id] !== n.rows[id]?.
 /** Pages with at least one visible row, in CHAR_TABS order. */
 export function presentTabs(n: Native, dev: boolean): CharTab[] {
   return CHAR_TABS.map((t) => t.id).filter((tab) => tabRows(n, dev, tab).length > 0);
-}
-
-/** Over the row's ↺ lead: yellow under the pointer, a click puts the row back to its default. */
-function ResetLead({ label, disabled, onReset }: { label: string; disabled: boolean; onReset: () => void }) {
-  return (
-    <button type="button" className={styles.reset} aria-label={`恢复「${label}」的默认`} title="恢复这一行的默认" disabled={disabled} onClick={onReset}>
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-        <g fill="none" stroke="currentColor" strokeWidth="2.2">
-          <path d="M7.5 8.5A7 7 0 1 1 5 13.5" />
-          <path d="M4 4.5v5h5" />
-        </g>
-      </svg>
-    </button>
-  );
 }
 
 /** Section head on the training room (app-memory's yellow square and \\──□ rule); 「仅桌面」 where the preview does not follow. */
@@ -138,7 +125,11 @@ function LightPad({ n, disabled, setMany }: { n: Native; disabled: boolean; setM
   );
 }
 
+/** A changed row's lead: a click puts it back to its default. */
+const resetLead = (label: string, disabled: boolean, onPress: () => void) => ({ label: `恢复「${label}」的默认`, title: '恢复这一行的默认', disabled, onPress });
+
 export function SettingRows({ n, tab, dev, set, setMany, pending, failed, offline }: SettingRowsProps) {
+  const compact = useCompact();
   const row = (id: string) => {
     const r = n.rows[id]!;
     const changed = isChanged(n, id);
@@ -148,6 +139,8 @@ export function SettingRows({ n, tab, dev, set, setMany, pending, failed, offlin
         <DarkRow
           mark={changed ? 'changed' : 'hollow'}
           micro="Endfield"
+          compact={compact}
+          {...(changed ? { leadAction: resetLead(r.label, offline, () => set(id, r.default)) } : {})}
           title={
             <>
               {r.label}
@@ -155,9 +148,8 @@ export function SettingRows({ n, tab, dev, set, setMany, pending, failed, offlin
             </>
           }
           sub={sub}
-          end={gameControl(r, n.saved[id], offline, (v, quiet) => set(id, v, quiet), SEG_LABELS[id])}
+          end={gameControl(r, n.saved[id], offline, (v, quiet) => set(id, v, quiet), SEG_LABELS[id], compact)}
         />
-        {changed && <ResetLead label={r.label} disabled={offline} onReset={() => set(id, r.default)} />}
       </div>
     );
   };
@@ -171,11 +163,12 @@ export function SettingRows({ n, tab, dev, set, setMany, pending, failed, offlin
         <DarkRow
           mark={changed ? 'changed' : 'hollow'}
           micro="Endfield"
+          compact={compact}
+          {...(changed ? { leadAction: resetLead('主光方向', offline, () => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default })) } : {})}
           title="主光方向"
           sub={changed ? `默认：${valueText(yaw, yaw.default)}（正中）` : '点格子换方向，正中是原作'}
           end={<LightPad n={n} disabled={offline} setMany={setMany} />}
         />
-        {changed && <ResetLead label="主光方向" disabled={offline} onReset={() => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default })} />}
       </div>
     );
   };

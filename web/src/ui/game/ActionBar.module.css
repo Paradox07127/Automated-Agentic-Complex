@@ -8,14 +8,14 @@
   align-items: center;
   gap: 16px;
   min-width: 0;
-  height: 60px;
+  height: var(--ab-h, 60px);
   background: linear-gradient(180deg, var(--ab-band-top), var(--ab-band-low));
   color: #fff;
   backdrop-filter: blur(12px);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 35%);
 }
 
-/* Yellow progress along the top edge, a white diamond at its head. */
+/* Yellow progress along the left part's top edge, a white diamond at its head. */
 .prog {
   position: absolute;
   top: -1px;
@@ -24,6 +24,24 @@
   width: calc(var(--p) * 100%);
   height: 3px;
   background: var(--ef-accent);
+}
+
+/* Looping: the whole left part's edge, a yellow hatch running right. */
+.prog[data-looping] {
+  width: 100%;
+  background: repeating-linear-gradient(-60deg, var(--ef-accent) 0 6px, rgb(255 241 0 / 25%) 6px 12px);
+  background-size: 13.9px 3px;
+  animation: ab-run 700ms linear infinite;
+}
+
+.prog[data-looping]::after {
+  display: none;
+}
+
+@keyframes ab-run {
+  to {
+    background-position: 13.9px 0;
+  }
 }
 
 .prog::after {
@@ -60,9 +78,11 @@
 }
 
 .slot {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   align-items: center;
+  align-self: stretch;
   gap: 14px;
   min-width: 0;
 }
@@ -88,4 +108,10 @@
   gap: 10px;
   padding: 0 14px 0 4px;
   border-left: 1px solid rgb(255 255 255 / 10%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prog[data-looping] {
+    animation: none;
+  }
 }

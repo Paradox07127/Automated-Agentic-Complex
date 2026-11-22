@@ -2,7 +2,7 @@ import { gapBand } from './chainPath';
 import type { Candidate } from './chainEdit';
 import { shortName, type GraphClip } from './graph';
 import type { Ghost } from './joints';
-import { NumStep } from './NumStep';
+import { Stepper } from '../../../ui/game';
 import styles from './Edit.module.css';
 
 export interface CandidatesProps {
@@ -47,7 +47,7 @@ export function Candidates(p: CandidatesProps) {
         {p.loop && (
           <span className={styles.hold}>
             保持
-            <NumStep label={`「${name}」保持秒数`} value={p.hold ?? 0} min={0} max={600} step={0.5} big={2} digits={1} disabled={off} onCommit={p.onHold} />s
+            <Stepper label={`「${name}」保持秒数`} value={p.hold ?? 0} min={0} max={600} step={0.5} big={2} digits={1} disabled={off} onChange={p.onHold} />s
           </span>
         )}
       </div>
