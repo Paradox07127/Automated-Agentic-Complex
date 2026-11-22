@@ -23,6 +23,7 @@ import { HostLink, type LinkEvent } from '../src/main/renderer/link.ts';
 import { AvatarLooks, linkSwitchPorts, type LooksOptions, rememberedLooks } from '../src/main/renderer/looks.ts';
 import { rendererArguments } from '../src/main/renderer/supervisor.ts';
 import { loadConfig } from '../src/main/config.ts';
+import { PushSource } from '../src/common/push.ts';
 
 const sleep = (seconds: number) => new Promise((r) => setTimeout(r, seconds * 1000));
 async function until(seconds: number, ok: () => boolean): Promise<boolean> {
@@ -505,7 +506,8 @@ test('what a switch writes keeps the other state.json and config.json keys', { s
 
 test("the preview's load carries the character's remembered mod settings, none when she has none", async () => {
   const loads: PreviewSelection[] = [];
-  const view = { place: () => {}, load: async (sel: PreviewSelection) => (loads.push(sel), true), sequence: async () => {}, hide: () => {} };
+  const view = { place: () => {}, load: async (sel: PreviewSelection) => (loads.push(sel), true), sequence: async () => {}, hide: () => {},
+    progress: new PushSource('progress') };
   const mods: Record<string, Record<string, Record<string, number>>> = { aster: { summer: { coat: 1 } } };
   let character = 'aster';
   const preview = new PreviewController({ view, avatar: () => ({ character, appearance: 'summer' }), modSettings: (id) => mods[id] ?? {},

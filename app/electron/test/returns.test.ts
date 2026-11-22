@@ -181,7 +181,7 @@ function context(surface: Surface): OpsContext {
     avatar,
     placement: { setScale: () => {}, resetPosition: () => {}, keepClearOfMain: () => {} },
     // Like the web mock: no main window draws a preview, so show answers false.
-    preview: { show: async () => false, hide: () => {}, sequence: async () => {} },
+    preview: { show: async () => false, hide: () => {}, sequence: async () => {}, progress: new PushSource('progress') },
     // The renderer answers each request; one setting it does not take falls back to its default.
     looks: {
       setAppearance: async () => {}, setLayers: async () => {},
