@@ -28,7 +28,7 @@ const INPUT_SWITCH_FIX = '⌃⌥Space';
  */
 export const PAGE_KEYS: Array<[id: string, title: string, key: string]> = [
   ['home', '主页', '⌘0'],
-  ['overview', '工业简报', '⌘1'],
+  ['overview', '每日简报', '⌘1'],
   ['chat', '对话', '⌘2'],
   ['memory', '记忆', '⌘3'],
   ['character', '角色', '⌘4'],

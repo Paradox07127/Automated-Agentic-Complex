@@ -15,77 +15,64 @@
   overflow-x: clip;
 }
 
-/* Header fields, divided by hairlines. */
-.facts {
+/* Date pager in the header: back, the day with 今天 on today, forward. */
+.date {
   display: inline-flex;
   align-items: center;
-  min-width: 0;
+  gap: var(--ef-sp-4);
   color: var(--ef-text-2);
   font: var(--ef-fw-medium) 13px / 1.4 var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.facts > * {
-  padding: 0 var(--ef-sp-12);
-  border-left: var(--ef-lw-hair) solid var(--ef-rule);
+.date > span {
+  min-width: 88px;
+  text-align: center;
 }
 
-.facts > :first-child {
-  padding-left: 0;
-  border-left: 0;
+.date button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ef-text-1);
+  cursor: pointer;
 }
 
-.facts :global(.num) {
-  font-stretch: var(--ef-wide);
+.date button:hover {
+  background: var(--ef-chip);
+}
+
+.date button:disabled {
+  opacity: 0.3;
+  cursor: default;
+  background: none;
+}
+
+.date button:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.date i {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  background: var(--ef-tag-bg);
+  color: var(--ef-tag-fg);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 18px;
 }
 
 .conn {
   display: inline-flex;
   align-items: center;
-}
-
-/* Task panel: the 711 g list column (355.5 c) beside the flexible detail column, 72 g apart. */
-.row {
-  --ov-deco-line: rgba(255, 255, 255, 0.502);
-  display: grid;
-  grid-template-columns: minmax(300px, 355.5px) minmax(0, 1fr);
-  gap: 36px;
-  align-items: start;
-  min-width: 0;
-}
-
-:global([data-theme='light']) .row {
-  --ov-deco-line: var(--ef-rule);
-}
-
-/* mission_in fades the list in and slides its body from the left (MissionFx Panel). */
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ef-sp-24);
-  min-width: 0;
-}
-
-/* Task info block: mission_in slides it in from the right and grows the line along its top. */
-.detail {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ef-sp-24);
-  min-width: 0;
-  padding-top: var(--ef-sp-12);
-  border-top: var(--ef-lw-hair) solid transparent;
-}
-
-.detailLine {
-  position: absolute;
-  top: calc(-1 * var(--ef-lw-hair));
-  right: 0;
-  left: 0;
-  height: var(--ef-lw-hair);
-  background: var(--ov-deco-line);
-  transform-origin: left;
 }
 
 .need,
@@ -275,13 +262,6 @@
   flex: none;
 }
 
-/* The whole page has nothing yet. */
-.quiet {
-  display: grid;
-  place-items: center;
-  min-height: 240px;
-}
-
 /* Pause readouts (PauseReadout). */
 .pauses {
   display: flex;
@@ -314,22 +294,6 @@
   flex-wrap: wrap;
   gap: var(--ef-sp-8);
   align-items: center;
-}
-
-/* Under 1100 the detail column moves under the list; the list's own rule closes it, so the detail drops its deco line. */
-@container page (max-width: 1099px) {
-  .row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .detail {
-    padding-top: 0;
-    border-top: 0;
-  }
-
-  .detailLine {
-    display: none;
-  }
 }
 
 @container page (max-width: 1000px) {
@@ -369,5 +333,13 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+}
+
+/* Too narrow for the buttons beside the title: they go under it. */
+@container page (max-width: 640px) {
+  .focus [data-stub='ApprovalCard'] > [data-stub='DecisionBar'] {
+    grid-row: auto;
+    grid-column: 1 / -1;
   }
 }

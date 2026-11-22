@@ -1,0 +1,277 @@
+/* 总览：集成工业统计页的两栏深卡；卡头是节头（黑牌标题 + 斜纹带），四角细角标；读数带是一条深板，每格黄色大数字。 */
+.ov {
+  display: grid;
+  gap: var(--ef-sp-16);
+  min-width: 0;
+}
+
+.cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: var(--ef-sp-16);
+  align-items: start;
+}
+
+.col {
+  display: grid;
+  gap: var(--ef-sp-16);
+  align-content: start;
+  min-width: 0;
+}
+
+/* Card: the lit top fades into the raised fill; a corner tick at top left and bottom right. */
+.pn {
+  position: relative;
+  display: grid;
+  gap: var(--ef-sp-8);
+  align-content: start;
+  min-width: 0;
+  padding: var(--ef-sp-12) 14px 14px;
+  background: linear-gradient(180deg, var(--ef-surface-2), var(--ef-raised) 40px);
+  box-shadow: var(--ef-shadow-paper);
+}
+
+.pn::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background:
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 0 0 / 6px 1px no-repeat,
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 0 0 / 1px 6px no-repeat,
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 100% 100% / 6px 1px no-repeat,
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 100% 100% / 1px 6px no-repeat;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* PendingSection and RunningSection bring their own open section; inside a card it drops its bottom rule. */
+.pn [data-stub='OpenSec'] {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.line {
+  margin: 0;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) 17px / 28px var(--ef-font-sans);
+  text-wrap: pretty;
+}
+
+/* Readout band: six cells in one dark strip, hatched along its top edge. */
+.band {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  background: var(--ef-raised);
+  box-shadow: var(--ef-shadow-paper);
+  list-style: none;
+}
+
+.band::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: repeating-linear-gradient(-60deg, var(--ef-line) 0 1px, transparent 1px 5px);
+}
+
+.ro {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 14px 14px 12px 18px;
+}
+
+.ro + .ro {
+  border-left: var(--ef-lw-hair) solid var(--ef-line);
+}
+
+.ro::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  left: 10px;
+  width: 2px;
+  height: 26px;
+  background: var(--ef-accent);
+}
+
+.v {
+  overflow: hidden;
+  color: var(--ef-accent-text);
+  font: var(--ef-fw-semibold) 28px / 34px var(--ef-font-num);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.v small {
+  margin-left: 2px;
+  font-size: 14px;
+}
+
+.k {
+  overflow: hidden;
+  color: var(--ef-text-1);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Above or below the 7-day mean: a small triangle pointing the way. */
+.d {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) 11px / 16px var(--ef-font-num);
+  white-space: nowrap;
+}
+
+.d::before {
+  content: '';
+  flex: none;
+  border-right: 4px solid transparent;
+  border-bottom: 6px solid currentColor;
+  border-left: 4px solid transparent;
+}
+
+.d[data-dn]::before {
+  transform: rotate(180deg);
+}
+
+.ro[data-err]::before {
+  background: var(--ef-danger-text);
+}
+
+.ro[data-err] .v {
+  color: var(--ef-danger-text);
+}
+
+.rows {
+  display: grid;
+  gap: var(--ef-sp-4);
+}
+
+.rows [data-err] {
+  box-shadow: inset 3px 0 0 var(--ef-danger-text);
+}
+
+.none {
+  margin: 0;
+  padding: 6px 0;
+  color: var(--ef-text-3);
+  font-size: 13px;
+}
+
+/* Yesterday's observation brief: three counts in wells, then its first detail as a quote. */
+.yb {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ef-sp-4);
+}
+
+.yb div {
+  display: grid;
+  padding: var(--ef-sp-8) 10px;
+  background: var(--ef-row);
+}
+
+.yb b {
+  color: var(--ef-text-1);
+  font: var(--ef-fw-semibold) 22px / 28px var(--ef-font-num);
+}
+
+.yb span {
+  color: var(--ef-text-2);
+  font-size: 12px;
+}
+
+.quote {
+  margin: var(--ef-sp-8) 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--ef-text-3);
+  color: var(--ef-text-1);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* Her line of the day: a well with its kind tag, time and how it went. */
+.said {
+  display: grid;
+  gap: var(--ef-sp-4);
+  padding: 10px 12px var(--ef-sp-8);
+  background: var(--ef-row);
+}
+
+.said p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.said footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) 11px var(--ef-font-num);
+}
+
+.kind {
+  padding: 0 6px;
+  border: var(--ef-lw-hair) solid var(--ef-text-2);
+  font: var(--ef-fw-medium) 11px / 18px var(--ef-font-sans);
+}
+
+.kind[data-kind='self'] {
+  border-color: var(--ef-accent);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
+.kind[data-kind='miss'] {
+  border-style: dashed;
+}
+
+@container page (max-width: 1000px) {
+  .cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .band {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ro:nth-child(4) {
+    border-left: 0;
+  }
+
+  .ro:nth-child(n + 4) {
+    border-top: var(--ef-lw-hair) solid var(--ef-line);
+  }
+}
+
+@container page (max-width: 640px) {
+  .band {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ro:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .ro:nth-child(4) {
+    border-left: var(--ef-lw-hair) solid var(--ef-line);
+  }
+
+  .ro:nth-child(n + 3) {
+    border-top: var(--ef-lw-hair) solid var(--ef-line);
+  }
+}

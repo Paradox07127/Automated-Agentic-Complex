@@ -48,9 +48,9 @@ describe('管线页', () => {
   it('stays out of the command bar with developer mode off, and its URL still opens', async () => {
     setDevMode(false);
     stubMatchMedia();
-    mountAt(() => <CommandBar routes={pageRoutes} activeId="overview" title="工业简报" tabsRef={noop} rightRef={noop} actionRef={noop} />);
+    mountAt(() => <CommandBar routes={pageRoutes} activeId="overview" title="每日简报" tabsRef={noop} rightRef={noop} actionRef={noop} />);
     const nav = await screen.findByRole('navigation', { name: '主导航' });
-    fireEvent.click(within(nav).getByRole('button', { name: '工业简报' }));
+    fireEvent.click(within(nav).getByRole('button', { name: '每日简报' }));
     expect(screen.queryByRole('menuitem', { name: /管线/ })).toBeNull();
     const router = createAppRouter();
     router.history.push('/pipeline');
@@ -62,9 +62,9 @@ describe('管线页', () => {
   it('lists 管线 in the command bar page menu with developer mode on', async () => {
     setDevMode(true);
     stubMatchMedia();
-    mountAt(() => <CommandBar routes={pageRoutes} activeId="overview" title="工业简报" tabsRef={noop} rightRef={noop} actionRef={noop} />);
+    mountAt(() => <CommandBar routes={pageRoutes} activeId="overview" title="每日简报" tabsRef={noop} rightRef={noop} actionRef={noop} />);
     const nav = await screen.findByRole('navigation', { name: '主导航' });
-    fireEvent.click(within(nav).getByRole('button', { name: '工业简报' }));
+    fireEvent.click(within(nav).getByRole('button', { name: '每日简报' }));
     expect(screen.getByRole('menuitem', { name: /管线/ })).toBeTruthy();
   });
 });

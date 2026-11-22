@@ -18,7 +18,7 @@ async function inFirstScreen(el: Locator) {
   expect(box!.y + box!.height).toBeLessThanOrEqual(800);
 }
 
-test('overview-default (工业简报): the first paper card and the running rows are on the first screen', async ({ page }) => {
+test('overview-default (每日简报): the first paper card and the running rows are on the first screen', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/overview?plugins=all&still=1');
   await inFirstScreen(page.locator('section[aria-label="待处理"] [data-stub="Paper"]'));

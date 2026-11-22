@@ -18,6 +18,8 @@ export const demos: Demo[] = [
   { name: 'palette', params: { demo: 'palette' } }, // ⌘K 命令面板
   { name: 'detail', params: { sel: T1 } }, // 页内任务详情：从别处带 sel 跳来
   { name: 'fallback', params: { demo: 'absent', focus: 'tasks' } },
-  { name: 'layers', params: { day: '2026-11-04', focus: 'timeline' } }, // 有工作记忆的一天：时间线是会话摘要，一句话日报是日报标题
-  { name: 'absent', params: { demo: 'absent' } }, // 工作记忆的接口不在：时间线、日报和当前任务都用今天的读数
+  { name: 'absent', params: { demo: 'absent' } }, // 工作记忆的接口不在：今日一句用今天的读数
+  { name: 'screen', params: { sw: 'scr,read' } }, // 只开屏幕感知和窗口文字：读数带 3 项补位，没有做完了和在做，右栏是前一天的观察日报
+  { name: 'voice', params: { sw: 'voice' } }, // 只开语音：读数全是她的数据，没有时间页签，右栏是她今天说的一句
+  { name: 'past', params: { date: '2026-10-26' } }, // 往回 3 天：没有待批准和在做，读数和列表按那一天
 ];

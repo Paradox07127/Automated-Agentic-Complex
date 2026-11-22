@@ -4,7 +4,7 @@ import type { PageRoute } from '../../shell/types';
 export const route: PageRoute = {
   id: 'overview',
   path: '/overview',
-  title: '工业简报',
+  title: '每日简报',
   en: 'Briefing',
   order: 10,
   group: 'primary',

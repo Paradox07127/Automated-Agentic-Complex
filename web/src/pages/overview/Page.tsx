@@ -1,11 +1,11 @@
-// 今天（任务面板）：左列待处理的任务行，右列她的名片、进行中和今日时间线，下面整宽今日简报；今天的计数在页头字段行里只说一次，常用操作在外壳底部操作条。
+// 每日简报：页头是日期翻页和四个页签（总览 / 她 / 时间 / 明细），两者写在地址的 tab= 和 date= 里；统计读 GET /brief/day，各列表读原有接口，常用操作在外壳底部操作条。
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useRouterState } from '@tanstack/react-router';
+import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { get } from '../../bridge/agentd';
 import { sortPending } from '../../domain';
 import type { WireSchedule } from '../../domain/schedules';
-import { Empty, ErrBar, Menu, Btn, PageIssues, type MenuItem } from '../../ui';
+import { ErrBar, Icon, Menu, Btn, PageIssues, Region, Tabs, type IconName, type MenuItem } from '../../ui';
 import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { usePlugins } from '../../shell/plugins';
@@ -13,26 +13,44 @@ import { useToast } from '../../shell/toast';
 import { draftFor } from '../tasks/CreateForm';
 import { TaskDetailHost, useTaskDesk } from '../tasks/TaskDetailHost';
 import { ActionBand } from './ActionBand';
-import { Brief } from './Brief';
-import { codeCounts, nextReminder, reminderTime, runRows } from './briefModel';
-import { DayLine } from './DayLine';
+import { readBriefDay } from './briefDay';
+import { runRows } from './briefModel';
+import { usePins, type BriefTab, type BriefTabProps } from './briefTabs';
 import { EpisodeSheet } from './DayTimeline';
+import { DetailTab } from './DetailTab';
+import { HerTab } from './HerTab';
+import { clock, dayOf } from './load';
+import { loadBrief } from './loadBrief';
 import { useGo, useNow } from './nav';
+import { OverviewTab } from './OverviewTab';
 import { PauseReadout } from './PauseReadout';
-import { isExpired } from './pending';
 import { PendingSection } from './PendingSection';
 import { Pip } from './Pip';
-import { Panel } from './MissionFx';
-import { joined } from './regions';
 import { RunningSection } from './RunningSection';
 import { parseTodayParams } from './today';
 import { TaskRecords } from './TaskRecords';
+import { TimeTab } from './TimeTab';
 import { useOverview } from './useOverview';
 import { useOverviewActions } from './useOverviewActions';
 import { useToday } from './useToday';
 import styles from './Page.module.css';
 
+const TABS: Array<{ id: BriefTab; label: string; icon: IconName }> = [
+  { id: 'ov', label: '总览', icon: 'grid' },
+  { id: 'her', label: '她', icon: 'user' },
+  { id: 'tm', label: '时间', icon: 'clock' },
+  { id: 'dt', label: '明细', icon: 'data' },
+];
 const WEEK = '日一二三四五六';
+/** The pager reaches this many days before today. */
+const BACK = 6;
+
+/** `YYYY-MM-DD` moved by `n` local days. */
+function shift(date: string, n: number): string {
+  const [y = 0, m = 1, d = 1] = date.split('-').map(Number);
+  return dayOf(new Date(y, m - 1, d + n).getTime());
+}
+
 export function OverviewPage() {
   const { state, demo, still } = useDemo();
   const go = useGo();
@@ -61,7 +79,30 @@ export function OverviewPage() {
     setEp(params.ep);
     setDraft(params.create ? draftFor(params.create) : null);
   }, [params, setOpen, setDraft]);
-  const today = useToday(ov, demo, state, params.day, now);
+
+  const url = new URLSearchParams(search);
+  const today = dayOf(clock());
+  const asked = url.get('date');
+  const date = asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked >= shift(today, -BACK) && asked <= today ? asked : today;
+  const isToday = date === today;
+  const navigate = useNavigate();
+  const put = (next: { tab?: BriefTab; date?: string }) =>
+    void navigate({ to: path, search: (prev: Record<string, unknown>) => ({ ...prev, ...next }), replace: true });
+  const dayQ = useQuery({ queryKey: ['brief', 'day', date], queryFn: () => readBriefDay(date), enabled: state !== 'loading', retry: false });
+  const [pins, setPins] = usePins();
+  const timeOn = dayQ.data?.focus.enabled ?? true;
+  const tabs = TABS.filter((t) => t.id !== 'tm' || timeOn);
+  const tab = tabs.find((t) => t.id === url.get('tab'))?.id ?? 'ov';
+
+  const todayReads = useToday(ov, demo, state, date, now);
+  // Another day's conversations; the same query useToday reads for that day.
+  const pastQ = useQuery({
+    queryKey: ['today', demo, 'brief', date],
+    queryFn: () => loadBrief(new Date(`${date}T12:00:00`).getTime()),
+    enabled: state !== 'loading' && !isToday,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
   // `sel` waits for the tasks data: a card or a task opens its detail; a pending id only lands (`focus=item-…`).
   useEffect(() => {
     if (!target || !desk.view || !desk.listReady || !desk.pendReady) return;
@@ -84,7 +125,7 @@ export function OverviewPage() {
   }, [demo, q.data, snap, setDecided, setLast]);
   const run = useMemo(() => runRows(snap, brief?.convs ?? []), [snap, brief]);
   const plugins = usePlugins();
-  // 进行中 lists 个人代理's role tasks and 编码会话's sessions; with both off it is not drawn.
+  // 在做 lists 个人代理's role tasks and 编码会话's sessions; with both off it is not drawn.
   const runningOn = plugins.personal_agent || plugins.coding_sessions;
   const schedQ = useQuery({
     queryKey: ['overview', demo, 'schedules'],
@@ -94,20 +135,6 @@ export function OverviewPage() {
     staleTime: 30_000,
   });
   const schedulesCount = state === 'empty' ? 0 : (schedQ.data?.schedules ?? []).filter((s) => s.enabled).length;
-  const briefQ = joined([reads.brief, q], [reads.day, ...(runningOn ? [reads.running] : []), reads.turns, reads.role]);
-  // Nothing waiting, running or recorded today: one centred line instead of three empty sections.
-  const quietDay =
-    !!q.data &&
-    (!runningOn || !!reads.running.data) &&
-    !!brief &&
-    pending.length === 0 &&
-    run.rows.length === 0 &&
-    snap.reminders.length === 0 &&
-    snap.day.segments.length === 0 &&
-    snap.day.runs.length === 0 &&
-    !brief.episodes?.length &&
-    !brief.convs?.length &&
-    !brief.spoke?.length;
 
   const dnd: MenuItem[] = [
     { kind: 'item', label: '30 分钟', onSelect: () => a.onPause('quiet', 30) },
@@ -118,33 +145,78 @@ export function OverviewPage() {
     { kind: 'item', label: '暂停观察 1 小时', hint: '立即', onSelect: () => a.onPause('observe', 60) },
   ];
   const paused = a.pause.paused_until != null || a.pause.quiet_until != null || a.pause.meeting;
-  const code = codeCounts(snap);
-  const next = nextReminder(snap.reminders, now);
+  const [, mm = 0, dd = 0] = date.split('-').map(Number);
+  const day0 = new Date(`${date}T00:00:00`).getTime();
+  const day1 = new Date(`${shift(date, 1)}T00:00:00`).getTime();
+  const inDay = (t: number) => t >= day0 && t < day1;
+
+  const tabProps = (d: BriefTabProps['day']): BriefTabProps => ({ day: d, pins, onPins: setPins, go: (t) => put({ tab: t }) });
+  const body = (d: BriefTabProps['day']) => {
+    if (tab === 'her') return <HerTab {...tabProps(d)} />;
+    if (tab === 'tm') return <TimeTab {...tabProps(d)} />;
+    if (tab === 'dt') return <DetailTab {...tabProps(d)} />;
+    return (
+      <OverviewTab
+        {...tabProps(d)}
+        isToday={isToday}
+        line={todayReads.dayLine === undefined ? undefined : (todayReads.dayLine?.text ?? null)}
+        pending={
+          <PendingSection
+            q={q}
+            items={pending}
+            now={now}
+            at={snap.now}
+            sessions={snap.sessions}
+            receipt={a.last && a.decided[a.last.id] ? a.last : null}
+            go={go}
+            onApprove={a.onApprove}
+            onAnswer={a.onAnswer}
+            onReply={a.onReply}
+            onJumpSession={a.onJumpSession}
+          />
+        }
+        running={
+          runningOn && (
+            <RunningSection
+              q={reads.running}
+              rows={run.rows}
+              convs={run.convs}
+              code={plugins.coding_sessions ? run.code : undefined}
+              activeRuns={activeRuns}
+              now={now}
+              lost={lost}
+              go={go}
+              schedules={plugins.personal_agent ? schedulesCount : undefined}
+              onJumpSession={a.onJumpSession}
+            />
+          )
+        }
+        done={desk.listReady && desk.view ? desk.view.tasks.filter((t) => t.source !== 'ext' && inDay(t.updated_at) && ['done', 'failed'].includes(desk.view?.effective[t.id] ?? '')).sort((x, y) => y.updated_at - x.updated_at).map((t) => ({ task: t, failed: desk.view?.effective[t.id] === 'failed' })) : undefined}
+        convs={isToday ? brief?.convs : pastQ.data?.convs}
+        reminders={snap.reminders.filter((r) => inDay(r.due_at)).sort((x, y) => x.due_at - y.due_at)}
+        onTask={setOpen}
+        goPage={go}
+      />
+    );
+  };
 
   return (
     <div className={styles.page} data-page="overview">
       <PageHeaderSlot
+        tabs={<Tabs label="简报页签" keys={false} value={tab} onChange={(id) => put({ tab: id as BriefTab })} tabs={tabs} />}
         right={
           <>
-            <span className={styles.facts}>
-              {q.data && brief && (
-                <>
-                  <span>
-                    对话 <span className="num">{brief.convs?.length ?? 0}</span>
-                  </span>
-                  {plugins.coding_sessions && (
-                    <span>
-                      编码会话 <span className="num">{code.total}</span>
-                    </span>
-                  )}
-                  {next && (
-                    <span>
-                      提醒 <span className="num">{reminderTime(next.due_at, now)}</span>
-                    </span>
-                  )}
-                </>
-              )}
-              <DayLine line={today.dayLine} day={today.daySummary} />
+            <span className={styles.date}>
+              <button type="button" aria-label="前一天" title="前一天" disabled={date <= shift(today, -BACK)} onClick={() => put({ date: shift(date, -1) })}>
+                <Icon name="chevl" size={14} />
+              </button>
+              <span className="num" data-date={date}>
+                {mm}.{dd} 周{WEEK[new Date(day0).getDay()]}
+                {isToday && <i>今天</i>}
+              </span>
+              <button type="button" aria-label="后一天" title="后一天" disabled={isToday} onClick={() => put({ date: shift(date, 1) })}>
+                <Icon name="chev" size={14} />
+              </button>
             </span>
             {/* The top bar says 已连接. */}
             {(loading || stale) && <span className={styles.conn}>{loading ? <Pip tone="idle" label="读取中" /> : offline ? <Pip tone="failed" label={lostText} /> : <Pip tone="failed" label="刷新失败" />}</span>}
@@ -178,51 +250,9 @@ export function OverviewPage() {
               {a.pause.meeting && <PauseReadout kind="免打扰 │ 开会" until={null} now={now} onResume={() => a.onResume('meeting')} />}
             </div>
           )}
-          {quietDay ? (
-            <div className={styles.quiet}>
-              <Empty title="今天还没有待处理和进行中的事" desc="派发的任务、编码会话和对话会出现在这里。" />
-            </div>
-          ) : (
-            <>
-              <Panel still={still} className={styles.row}>
-                <div className={styles.list} data-g="list">
-                  <PendingSection
-                    q={q}
-                    items={pending}
-                    now={now}
-                    at={snap.now}
-                    sessions={snap.sessions}
-                    receipt={a.last && a.decided[a.last.id] ? a.last : null}
-                    go={go}
-                    onApprove={a.onApprove}
-                    onAnswer={a.onAnswer}
-                    onReply={a.onReply}
-                    onJumpSession={a.onJumpSession}
-                  />
-                </div>
-                {runningOn && (
-                  <div className={styles.detail} data-g="detail">
-                    <span className={styles.detailLine} data-g="detailLine" aria-hidden="true" />
-                    <div data-nav-target="running" data-g="body">
-                      <RunningSection
-                        q={reads.running}
-                        rows={run.rows}
-                        convs={run.convs}
-                        code={plugins.coding_sessions ? run.code : undefined}
-                        activeRuns={activeRuns}
-                        now={now}
-                        lost={lost}
-                        go={go}
-                        schedules={plugins.personal_agent ? schedulesCount : undefined}
-                        onJumpSession={a.onJumpSession}
-                      />
-                    </div>
-                  </div>
-                )}
-              </Panel>
-              <Brief q={briefQ} snap={snap} brief={brief} now={now} go={go} />
-            </>
-          )}
+          <Region q={dayQ} what="每日简报" reserve={{ height: 480 }} skel="cards">
+            {body}
+          </Region>
         </PageIssues>
       </div>
       <TaskDetailHost desk={desk} />

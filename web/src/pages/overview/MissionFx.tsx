@@ -6,8 +6,6 @@ import fx from './MissionFx.module.css';
 
 const pick = (clip: GameClip, keys: readonly string[]): GameClip => ({ ...clip, tracks: clip.tracks.filter((t) => keys.includes(t.key)) });
 
-/** mission_in's share for the columns; the group head plays its own share when it mounts. */
-const PANEL_IN = pick(gameClips.missionIn, ['list', 'listBody', 'detail', 'detailLine']);
 const TITLE_IN = pick(gameClips.missionIn, ['listTitle', 'listTitleText', 'listTitleLine']);
 /** One cycle of missiontracktip_loop per selection, so nothing loops at rest. */
 const TRACK_ONCE: GameClip = { ...gameClips.missionTrackLoop, loop: false };
@@ -16,18 +14,6 @@ const COMPLETE = pick(gameClips.missionCompleteIn, ['halo', 'bandBg', 'light2'])
 
 /** Category colour of a mission cell: waiting on you yellow, running blue, background green. */
 export type MissionTone = 'yellow' | 'blue' | 'green';
-
-/** The task panel row: mission_in slides the columns in and missioninfo_in staggers the detail blocks, once on mount. */
-export function Panel({ still, className, children }: { still: boolean; className?: string | undefined; children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useGameClip(PANEL_IN, ref, { autoplay: !still });
-  useGameClip(gameClips.missionInfoIn, ref, { autoplay: !still });
-  return (
-    <div ref={ref} className={className}>
-      {children}
-    </div>
-  );
-}
 
 /** missioninfo_in on a detail block outside the panel (the shell's action band). */
 export function useInfoIn<T extends Element>(): RefObject<T | null> {

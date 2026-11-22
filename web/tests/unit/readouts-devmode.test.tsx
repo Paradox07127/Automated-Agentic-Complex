@@ -103,12 +103,12 @@ function mountAt(component: RouteComponent, search = '') {
   );
 }
 
-/** The command bar on 工业简报 with its page menu open. */
+/** The command bar on 每日简报 with its page menu open. */
 async function commandBar() {
   stubMatchMedia();
-  mountAt(() => <CommandBar routes={pageRoutes} activeId="overview" title="工业简报" tabsRef={noop} rightRef={noop} actionRef={noop} />);
+  mountAt(() => <CommandBar routes={pageRoutes} activeId="overview" title="每日简报" tabsRef={noop} rightRef={noop} actionRef={noop} />);
   const nav = await screen.findByRole('navigation', { name: '主导航' });
-  fireEvent.click(within(nav).getByRole('button', { name: '工业简报' }));
+  fireEvent.click(within(nav).getByRole('button', { name: '每日简报' }));
   return nav;
 }
 
@@ -140,7 +140,7 @@ describe(' 开发者模式 off', () => {
   it('keeps diagnostics, run records and the other developer pages out of normal navigation', async () => {
     const nav = await commandBar();
     expect(within(nav).queryAllByRole('link')).toEqual([]);
-    for (const name of ['工业简报', '对话', '记忆', '角色', '设置', '定时任务']) expect(screen.getByRole('menuitem', { name: new RegExp(`^${name}`) })).toBeTruthy();
+    for (const name of ['每日简报', '对话', '记忆', '角色', '设置', '定时任务']) expect(screen.getByRole('menuitem', { name: new RegExp(`^${name}`) })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: '诊断' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: '运行记录' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /设计系统/ })).toBeNull();

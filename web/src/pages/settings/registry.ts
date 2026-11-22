@@ -82,7 +82,7 @@ type Raw = [id: string, group: RegEntry['group'], section: string, label: string
 const RAW: Raw[] = [
   ['plugins.screen_awareness', 'plugins', '插件', '屏幕感知', '观察 屏幕 活动 注意力 窗口文字 时间线 浏览器'],
   ['plugins.screen_reading', 'plugins', '插件', '屏幕识读', '识读 截图 框选 剪贴板 选中文字'],
-  ['plugins.daily_brief', 'plugins', '插件', '日报与简报', '工业简报 今天 日报 周报 工作记录'],
+  ['plugins.daily_brief', 'plugins', '插件', '日报与简报', '每日简报 工业简报 今天 日报 周报 工作记录'],
   ['plugins.coding_sessions', 'plugins', '插件', '编码会话', 'Claude Code Codex hook 会话 审批'],
   ['plugins.personal_agent', 'plugins', '插件', '个人代理', '派发任务 定时任务 交付 工作区'],
   ['plugins.harness_bridge', 'plugins', '插件', 'Agent 内核桥接', 'harness Claude Code Codex ACP 内核'],

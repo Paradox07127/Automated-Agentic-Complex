@@ -1,4 +1,4 @@
-// 工业简报's header: the top bar says 已连接, so the page's own pip speaks only while reading or after a failed refresh.
+// 每日简报's header: the top bar says 已连接, so the page's own pip speaks only while reading or after a failed refresh.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
@@ -28,10 +28,10 @@ function mount(search: string) {
   );
 }
 
-describe('工业简报 pip', () => {
+describe('每日简报 pip', () => {
   it('shows nothing once read', async () => {
     mount('');
-    await waitFor(() => expect(document.body.textContent).toMatch(/对话 \d/), { timeout: 3000 });
+    await waitFor(() => expect(document.body.textContent).toMatch(/比近 7 天均值/), { timeout: 3000 });
     expect(screen.queryByText('已连接')).toBeNull();
   });
 

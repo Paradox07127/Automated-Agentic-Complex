@@ -37,12 +37,12 @@ test('今天 1280: the 进行中 row message shows at most 2 lines and carries i
   }
 });
 
-test('工业简报 900×600: the command bar fields are not cut, and 日报 carries the full day line as its title', async ({ page }) => {
+test('每日简报 900×600: the date pager in the command bar is not cut', async ({ page }) => {
   await open(page, 900, 600, 'overview?plugins=coding_sessions');
-  await expect(page.locator('button[aria-label^="一句话日报"]')).toHaveAttribute('title', /下一条提醒/);
-  const facts = page.locator('nav[aria-label="主导航"] [data-slot="status"] > span:first-child');
-  await expect(facts).toContainText('编码会话');
-  const f = (await fits(facts))[0]!;
+  const pager = page.locator('nav[aria-label="主导航"] [data-slot="status"] > span:first-child');
+  await expect(pager.getByRole('button', { name: '前一天' })).toBeVisible();
+  await expect(pager).toContainText('今天');
+  const f = (await fits(pager))[0]!;
   expect(cut(f), JSON.stringify(f)).toBe(false);
   expect(f.lines).toBeLessThanOrEqual(1);
 });
