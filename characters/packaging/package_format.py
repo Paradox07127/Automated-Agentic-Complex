@@ -178,8 +178,10 @@ ENUMS = {
                   'face_delta': 8, 'vowel': 9, 'sole': 10, 'envelope': 11},
     # scene: a mesh of a 3D stage (palette `scene`), drawn only where the renderer shows that stage. particle: a mesh the
     # palette contract drives per particle (`particle_palette`); without a particle runtime it is never drawn.
+    # weapon: a mesh of a weapon presentation (windows_actor_export.py weapon_meshes): parent the weapon id, node the rig node
+    # it hangs on, values its column-major local matrix there, and its bone records node NONE with the fixed skin matrix.
     'ActorFlag': {'has_source_id': 1, 'head_basis': 2, 'clip_visibility': 4, 'loop': 8, 'scene': 16, 'appearance_gate': 32, 'particle': 64,
-                  'efkey001': 128},
+                  'efkey001': 128, 'weapon': 256},
 }
 
 
