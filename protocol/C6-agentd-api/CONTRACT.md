@@ -54,7 +54,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 - PUT 的 body 接受 `routes`：`{用途: {backend, acp_agent, model, effort}}`，用途是 `chat`、`quick`、`background`、`judge`、`understand`、`memory`、`computer`，每项可省；除 `quick` 外，省掉的用途跟随主内核。`quick` 固定使用 light_ai 的 Pi 和模型设置中的 AI 账号；省略模型时，若聊天走 Pi 则沿用聊天模型，否则使用账号的默认模型。`backend` 取 `pi`、`codex`、`claude`、`acp`；`backend=acp` 时 `acp_agent` 必填（本机 agent），否则为 null；`model` 为 null 时同内核沿用 `model`、换了内核用那个内核自己的模型；`effort` 取 null、`inherit`、`low`、`medium`、`high`。错误码 `invalid_routes`、`invalid_route_backend`、`invalid_route_model`、`invalid_route_effort`、`invalid_acp_agent`。
 - GET 和 PUT 的回包里 `routes` 列出全部 7 个用途：`{backend, acp_agent, model, effort, follows_main, ready, error}`。`follows_main` 为 true 时 `backend`、`acp_agent` 是主内核的，`model`、`effort` 为 null，`ready`、`error` 同主内核；否则 `ready`、`error` 是那个内核自己的就绪结果，错误码同顶层 `error`。
 - 回包和 body 不再有 `chat_effort`、`front_model`、`back_model`、`back_effort`；body 带它们会被拒（`invalid_runtime_settings`）。
-- 前台闲聊走 `quick`，每次只带当前对话最近 8 轮，不开放工具，最多生成 1024 tokens。需要文件、观察、回复引用或电脑操作的输入沿用 `chat`；快速回复以 `[handoff]` 开头时，同一轮转交 `chat`。最终路由存于 trace 的 `turn.settled.attrs.route`。
+- 前台闲聊走 `quick`，带当前对话最近 8 轮。角色回执、近期任务、记忆和观察与 `chat` 共用同一套上下文，放在系统提示之后。快速回复不开放工具，最多生成 1024 tokens。需要文件、观察、回复引用、电脑操作、设置或更改提醒（含取消）、明确要求记住内容的输入走 `chat`。快速回复以 `[handoff]` 开头时，同一轮转交 `chat`。开启记忆时，两条路由的对话都进入后台记忆提取流程。最终路由存于 trace 的 `turn.settled.attrs.route`。
 - 后台语义任务按用途走：`judge`（主动判断、朝向、复核、重复检测、主动想法）、`understand`（屏幕理解、看截图、简报、任务推测）、`memory`（记忆提取、工作日志）。用途指定的内核没就绪时，这次任务以它的错误码失败，不改用主内核。后台任务（`background`）提交时按它的就绪结果拒绝。
 
 ## 2026-11-18 ACP agent 安装与直连标记（只加不改）

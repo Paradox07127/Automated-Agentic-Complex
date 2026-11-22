@@ -55,7 +55,7 @@ class RegistryOfferTests(integration.IntegrationFixture):
         self.line('整理资料', scope_id=scope); result['actions'] = names()
         self.prepare('gift-1', 'gift'); result['embodied_only'] = names()
         self.prepare('side-1', 'text', side=True); result['read_only'] = names()
-        self.line('临时问候', no_memory=True); result['remember_off'] = names()
+        self.line('查一下资料', no_memory=True); result['remember_off'] = names()
         job = self.controller.submit_job('核对', '核对资料', '只核对资料', scope)
         deadline = time.monotonic() + 3
         while self.controller.jobs.store.get(job['job_id'])['state'] in ('queued', 'running'):

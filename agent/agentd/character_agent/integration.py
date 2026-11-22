@@ -1609,7 +1609,7 @@ class CharacterAgentController:
             s['total_chars'] == len(front['text']) and front['text'].startswith(s['preview'])
             for s in observed.get('current_sources', ()))  # an unavailable context has none
         context = server.context(text, wait, refused, used, now=turn_started, window=not held)
-        if main_session and not resume_run_id and server.history:
+        if not side and not resume_run_id and server.history:
             asked = self.interactions.pending_questions(server.history.conversations.active)
             if asked:
                 context += '\nYour open questions to the user: ' + '; '.join('"' + q + '"' for q in asked) + \
@@ -1642,7 +1642,7 @@ class CharacterAgentController:
             entries = [f"\n- {entry['text']}" for entry in lore if entry["tier"] == tier]
             if entries:
                 context += "\n" + header + ":" + "".join(entries)
-        if not quick and self.jobs and trace.get('remember', True):
+        if self.jobs and trace.get('remember', True):
             goals = [{k: goal[k] for k in ('goal_id', 'title', 'state', 'revision')} for goal in self.jobs.store.goals()
                      if goal['state'] in ('active', 'paused')][:10]
             active = server.history.conversations.active if server.history else None
@@ -1667,7 +1667,7 @@ class CharacterAgentController:
                 tasks.pop()
             index['tasks'] = tasks
             context += '\nGoals and background work (state at query time; failed and interrupted are past states, see updated_at; use the tools for details or changes): ' + json.dumps(index, ensure_ascii=False)
-        if not quick and server.tasks and trace.get('remember', True):
+        if server.tasks and trace.get('remember', True):
             recent = server.tasks.agent_dispatches(server.character, since=turn_started.timestamp() - 7 * 86400, limit=-1)
             terminal = {'succeeded', 'needs_review', 'failed', 'accepted', 'rejected', 'cancelled',
                         'interrupted', 'denied', 'expired'}
@@ -1678,7 +1678,7 @@ class CharacterAgentController:
                 context += '\nTasks you dispatched recently (finished first; state at query time, awaiting confirmation means not started; details via dispatch_status): ' + json.dumps(dispatched, ensure_ascii=False)
         if side:
             context += self._foreground_brief()
-        if main_session and trace.get('remember', True) and getattr(server, 'spatial', None):
+        if not side and trace.get('remember', True) and getattr(server, 'spatial', None):
             context += '\nLast body receipt (requested_yaw is the requested angle, not the measured pose; until a completion receipt arrives, the motion is not done): ' + \
                 json.dumps(server.spatial.facing_status(), ensure_ascii=False)
         context = egress.observed(context)
@@ -1691,7 +1691,7 @@ class CharacterAgentController:
         if facts:
             context += "\nFacts the user stated or confirmed that share words with this message: " + \
                 json.dumps(facts, ensure_ascii=False, separators=(",", ":"))
-        if main_session and trace.get('remember', True) and server.worklog is not None and not server.observation_paused():
+        if not side and trace.get('remember', True) and server.worklog is not None and not server.observation_paused():
             projects = {worklog_digest.project(s['cwd']) for s in server.registry.snapshot()['sessions']} - {None}
             worked = server.worklog.inject(turn_started.timestamp(), projects=projects)
             if worked:

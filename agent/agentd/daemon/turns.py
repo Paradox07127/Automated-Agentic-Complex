@@ -31,14 +31,17 @@ TEXT_HOLD_MS, TEXT_HOLD_MAX_MS = 60, 3000
 OBSERVED = {"ready": "ok", "declined": "ok", "unavailable": "ok", "cancelled": "cancelled", "expired": "expired"}
 
 
-COMPUTER_REQUEST = re.compile(
+TOOL_REQUEST = re.compile(
     r"[a-z][a-z0-9+.-]*://\S|www\.\S|(?:~/|(?<![a-z0-9])/|[a-z]:\\)[^\s/]|[\w-]+\.[a-z][a-z0-9]*"
     r"|(?:打开|运行|执行|安装|修改|改一下|修一下|写个|创建|删除|搜索|查一下|整理|发给|下载)\s*\w"
-    r"|\b(?:open|run|execute|install|edit|create|delete|search|download)\s+\w", re.I)
+    r"|\b(?:open|run|execute|install|edit|create|delete|search|download)\s+\w"
+    r"|提醒我|叫我|别让我忘了|记住|记一下|别忘了|\b(?:remind\s+me|remember\s+that)\b"
+    r"|(?:设置|添加|取消|撤销|更改|推迟|延后|提前).*提醒|提醒.*(?:取消|删除|撤销|改|推迟|延后|提前)"
+    r"|\b(?:set|add|cancel|remove|change|update|move|snooze|postpone|reschedule)\b.*\breminders?\b", re.I)
 
 
 def foreground_route(text, *, command=None, scope_id=None, look=False, reply_to=None):
-    if command or scope_id or look or reply_to or COMPUTER_REQUEST.search(text):
+    if command or scope_id or look or reply_to or TOOL_REQUEST.search(text):
         return "chat"
     return "quick"
 

@@ -60,6 +60,12 @@ class QuickTests(unittest.TestCase):
             ('它在~/Documents', {}, 'chat'), ('看 /tmp', {}, 'chat'),
             (r'X:\Documents', {}, 'chat'), ('我的草稿.md', {}, 'chat'),
             ('帮我查一下天气', {}, 'chat'), ('整理照片', {}, 'chat'), ('please install Firefox', {}, 'chat'),
+            ('十分钟后提醒我喝水', {}, 'chat'), ('明早叫我起床', {}, 'chat'), ('别让我忘了交报告', {}, 'chat'),
+            ('取消 9:00 的喝水提醒', {}, 'chat'), ('把开会提醒推迟到五点', {}, 'chat'), ('设置一个午休提醒', {}, 'chat'),
+            ('Remind me to call tomorrow', {}, 'chat'), ('Move my reminder to noon', {}, 'chat'),
+            ('Cancel the lunch reminder', {}, 'chat'), ('请记住：我喜欢薄荷茶', {}, 'chat'),
+            ('记一下我的偏好', {}, 'chat'), ('别忘了我喜欢薄荷茶', {}, 'chat'),
+            ('Please remember that I prefer tea', {}, 'chat'), ('谢谢提醒', {}, 'quick'),
             ('你好', {'scope_id': 'scope'}, 'chat'), ('你好', {'look': True}, 'chat'),
             ('你好', {'reply_to': {'kind': 'line', 'id': 'old'}}, 'chat'),
             ('stop', {}, 'chat')]:
@@ -90,7 +96,12 @@ class QuickTests(unittest.TestCase):
         for i, query in enumerate(calls):
             self.assertEqual([pair[0]['content'] for pair in query['history']],
                              ['早上好 ' + str(j) for j in range(max(0, i - 8), i)])
-        self.assertEqual(self.c.list_memory_runs(), [])
+        self.script = lambda *_: iter([{'type': 'result', 'success': True, 'final_text': json.dumps(self.reply)}])
+        extracted = self.pipeline.run_once()
+        self.assertEqual(extracted['state'], 'no_new_knowledge')
+        request = self.c.memory_run_details(extracted['run_id'])['detail']['request']
+        self.assertIn('早上好 0', request)
+        self.assertIn('Hello', request)
 
     @unittest.skipUnless(HAS_SDK, 'Pinned Pi SDK unavailable')
     def test_warm_pi_provider_requests(self):
@@ -113,7 +124,7 @@ class QuickTests(unittest.TestCase):
                 self.assertEqual(session.session_id, session_id)
             logs = list(self.root.rglob('requests.jsonl'))
             self.assertEqual(len(logs), 1)
-            frames = [json.loads(line) for line in logs[0].read_text().splitlines()]
+            frames = [json.loads(line) for line in logs[0].read_text(encoding='utf-8').splitlines()]
         self.assertEqual(len(frames), 20)
         self.assertEqual({f['pid'] for f in frames}, {pid})
         for i, frame in enumerate(frames):
@@ -131,12 +142,15 @@ class QuickTests(unittest.TestCase):
     def test_stable_persona_with_changing_memory(self):
         self.say('早上好')
         self.server.memory.add('我喜欢薄荷茶', 'asserted_by_user', kind='preference')
-        events, selected = self.say('早上好')
+        with patch.object(self.server.spatial, 'facing_status', return_value={'behavior_id': 'face-one', 'phase': 'failed'}):
+            events, selected = self.say('早上好')
         first, second = self.sessions[0].calls
         self.assertIn('[handoff]', first['system_prompt'])
         self.assertEqual(first['system_prompt'].encode(), second['system_prompt'].encode())
         self.assertNotIn('薄荷茶', first['prompt'])
         self.assertIn('薄荷茶', second['prompt'])
+        self.assertNotIn('face-one', first['prompt'])
+        self.assertIn('face-one', second['prompt'])
         self.assertEqual(selected, 'quick')
 
     def test_default_scope_keeps_casual_line_quick(self):
@@ -162,7 +176,7 @@ class QuickTests(unittest.TestCase):
         self.assertEqual([(row['user_text'], row['reply']) for row in rows], [('你能帮帮我吗', 'Hello')])
 
     def test_prewarm_twice_then_query(self):
-        expected = json.loads((Path(__file__).resolve().parents[3] / 'protocol/C6-agentd-api/fixtures/chat-prewarm.json').read_text())
+        expected = json.loads((Path(__file__).resolve().parents[3] / 'protocol/C6-agentd-api/fixtures/chat-prewarm.json').read_text(encoding='utf-8'))
         for _ in range(2):
             self.assertEqual(request(self.server, 'POST', '/chat/prewarm', {}), (200, expected))
         self.assertEqual(len(self.sessions), 1)

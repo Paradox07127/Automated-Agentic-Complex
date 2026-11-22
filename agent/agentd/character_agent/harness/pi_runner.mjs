@@ -312,7 +312,7 @@ async function query(message) {
   const run = { id: message.run_id, cancelled: false, turns: 0, cost: 0, text: [], textItem: null,
     usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 } };
   active = run;
-  const stream = session.agent.streamFunction;
+  const stream = message.system_prompt !== undefined ? session.agent.streamFunction : undefined;
   try {
     // The connection's current key; a subscription token may have been refreshed since init.
     if (message.api_key) await modelRuntime.setRuntimeApiKey(config.provider, message.api_key);

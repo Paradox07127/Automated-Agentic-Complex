@@ -234,7 +234,7 @@ class IntegrationTests(IntegrationFixture):
                 'kind': 'preference', 'evidence_quote': '周报先列证据再给结论'})
             yield {'type': 'result', 'success': True, 'final_text': '记下了', 'usage': {}}
         self.script = remember
-        body, _ = self.line('修改我的偏好：请记住周报先列证据再给结论')
+        body, _ = self.line('请记住：周报先列证据再给结论')
         self.assertEqual(self.server.memory.active()[0]['text'], '周报先列证据再给结论')
         status, page = self.request('GET', '/memory/runs')
         self.assertEqual(status, 200)

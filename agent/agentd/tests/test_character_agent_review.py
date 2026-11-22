@@ -308,7 +308,7 @@ class ReviewIntegrationTests(unittest.TestCase):
         refused = {}
 
         f.script = script
-        body, _ = f.line('temporary-synthetic-private-text', no_memory=True)
+        body, _ = f.line('search temporary-synthetic-private-text', no_memory=True)
         self.assertEqual(body['runtime'], 'pi')
         self.assertEqual(f.server.history.export(), [])
         self.assertEqual(f.server.tasks.list(), [])

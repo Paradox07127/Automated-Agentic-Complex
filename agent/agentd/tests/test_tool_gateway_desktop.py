@@ -306,7 +306,7 @@ class CharacterDesktopTests(test_server.FeedServerCase):
             while not hold.wait(.01) and not options['cancelled'](): pass
             yield from chat(session, prompt, options)
         self.script = script
-        status, body = self.request('POST', '/say', {'text': '帮我看看这个窗口'})
+        status, body = self.request('POST', '/say', {'text': '查一下这个窗口'})
         self.assertEqual(status, 202, body)
         session = self.conversation()
         until(self, lambda: (session, 'desktop_status') in calls)
@@ -329,7 +329,7 @@ class CharacterDesktopTests(test_server.FeedServerCase):
                 while not hold.wait(.01) and not options['cancelled'](): pass
             yield from chat(session, prompt, options)
         self.script = script
-        status, body = self.request('POST', '/say', {'text': 'HOLD 后台核查'})
+        status, body = self.request('POST', '/say', {'text': '在后台查一下资料'})
         self.assertEqual(status, 202, body)
         until(self, lambda: self.controller.busy() and len(results) == 1)
         self.assertEqual(self.request('POST', '/say', {'text': '顺便看看窗口'})[0], 202)

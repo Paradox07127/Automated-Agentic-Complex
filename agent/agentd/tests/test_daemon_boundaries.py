@@ -86,7 +86,7 @@ class DaemonBoundariesTest(unittest.TestCase):
                             " VALUES('result','task','done','aster',1,'produced','succeeded','automatic_checks',"
                             "'Report','{}',1)")
         delivery = self.c.deliveries.get('result')
-        status, result = self.server.say('How is the report coming along?')
+        status, result = self.server.say('Search for the latest report')
         self.assertEqual(status, 202, result)
         self.server._wait_for_closing_turns(time.monotonic() + 5)
         self.assertTrue(self.c.list_memory_runs())
