@@ -439,6 +439,7 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
                 registry.tick()
                 return {**registry.current_intent, "seq": registry.intent_seq, "turn_generation": self.server.turn_generation,
                         "behaviors": behaviors, "consumed": self.server.spatial.consumed.ids(),
+                        "stage": self.server.spatial.stage_level(),
                         **({} if reactions is None else {"reactions": reactions})}
 
         self._sse(intents, registry.wait_for_intent, snapshot=current)

@@ -211,6 +211,7 @@ class Spatial:
         self.observe, self.publish, self.generation, self.epoch = observe, publish, generation, epoch
         self.routine, self.stage = routine, stage
         self._refused = {}  # admit reason -> how many proposals it refused
+        self._stage_revision = 0  # C1 snapshot stage.revision: stage.* events seen
         self._rows = set()  # behavior ids the event rows sent and that still run
         self._plan = None  # {name, ids}: the routine activity Spatial plays and the behaviors it sent for it
         self.clock, self.rng, self.trace_id = clock, rng or random.Random(), trace_id
@@ -566,6 +567,9 @@ class Spatial:
             self._edge = {"pending": True, "walk": None, "parked": False} if name == "stage.quiet" else None
             if name == "stage.quiet":
                 self.motion({"kind": "quiet"})
+            self._stage_revision += 1
+            self.publish("snapshot", {"behaviors": self.running(), "stage": self.stage_level(),
+                                      "consumed": self.consumed.ids(), "turn_generation": self.generation()})
         self.wake()
 
     def use_motion(self, chooser):
@@ -582,7 +586,13 @@ class Spatial:
             self._reactions = None if chooser is None else _reactions(chooser)
             if replaced:
                 self.publish("snapshot", {"behaviors": self.running(), "reactions": self._reactions or {},
+                                          "stage": self.stage_level(),
                                           "consumed": self.consumed.ids(), "turn_generation": self.generation()})
+
+    def stage_level(self):
+        """C1 snapshot `stage`: user_now's stage and how many times it changed."""
+        with self._lock:
+            return {"level": self.stage(), "revision": self._stage_revision}
 
     def reactions(self):
         """The current chooser's snapshot reaction table, None without a chooser."""

@@ -1804,6 +1804,31 @@ class ReceiptServerTest(ServerCase):
         published = [i for i in self.server.registry.intents_since(0) if i.get("event") == "behavior"]
         self.assertEqual([i["behavior_id"] for i in published], [behavior["behavior_id"]])
 
+    def test_a_receipt_of_a_behavior_without_a_turn_is_traced(self):
+        from traces.trace_store import TraceStore
+        db = Path(tempfile.mkdtemp()) / "trace.sqlite3"
+        self.addCleanup(shutil.rmtree, db.parent)
+        self.server.trace = TraceStore(open_store(db), producer_epoch=self.server.registry.epoch)
+        self.server.registry.tick()
+        self.server.turn_generation = 3
+        self.server.spatial.poll()
+        [behavior] = self.snapshot()["behaviors"]
+        body = {"behavior_id": behavior["behavior_id"], "phase": "running", "reason": None, "at_ms": 1,
+                "turn_generation": 3}
+        self.assertEqual(self.request("POST", "/behavior/receipts", body), (200, {"applied": True, "why": None}))
+        rows = self.server.trace.db.execute("SELECT turn_id FROM trace_events WHERE kind = 'behavior.receipt'").fetchall()
+        self.assertEqual((rows, self.server.trace_errors), ([(None,)], 0))
+
+    def test_the_snapshot_carries_the_stage_and_a_stage_change_sends_it(self):
+        self.assertEqual(self.snapshot()["stage"], {"level": "normal", "revision": 0})
+        self.server.spatial.stage = lambda: "quiet"
+        seq = self.server.registry.intent_seq
+        self.server.spatial.stage_event("stage.quiet")
+        [sent] = [i for i in self.server.registry.intents_since(seq) if i["event"] == "snapshot"]
+        self.assertEqual(sent["stage"], {"level": "quiet", "revision": 1})
+        self.assertEqual(c1.check_message(sent), [])
+        self.assertEqual(self.snapshot()["stage"], {"level": "quiet", "revision": 1})
+
     def test_bad_receipts_are_400_and_no_token_401(self):
         good = {"behavior_id": "b-1-1", "phase": "running", "reason": None, "at_ms": 1, "turn_generation": 0}
         for body in ({**good, "phase": "walking"}, {**good, "phase": "blocked", "reason": None},
