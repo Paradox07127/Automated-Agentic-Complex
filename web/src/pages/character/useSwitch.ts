@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { getBridge, type BridgeError } from '../../bridge';
 import type { CharacterProfile } from '../../domain';
 import { SWITCH_STAGES } from './tables';
@@ -24,6 +24,8 @@ const refused = (e: unknown): string => REFUSED[(e as Partial<BridgeError> | nul
 /** Switch flow: confirm, call the shell's switch, stop at the stage it names, retry the same target. */
 export function useSwitch(o: SwitchOptions) {
   const [state, setState] = useState<SwitchState>(o.initial);
+  // Only the last head clicked gets its confirm; an earlier task read that answers later is dropped.
+  const asked = useRef(0);
 
   const start = (target: CharacterProfile) => {
     setState({ phase: 'running', target });
@@ -46,9 +48,10 @@ export function useSwitch(o: SwitchOptions) {
   const request = (target: CharacterProfile, current: string, currentName = '当前角色') => {
     if (target.id === current || state.phase === 'running') return;
     const swap = `${currentName} 先从桌面隐藏，资源加载完成后显示 ${target.name}。切换期间约 2 秒不接受输入。`;
+    const n = ++asked.current;
     o.runningTasks().then(
-      (tasks) => confirm(target, tasks.length === 0 ? swap : `${swap}现在有 ${tasks.length} 个任务在跑（${tasks.map((t) => t.title).join('、')}），任务不会停。`),
-      () => confirm(target, `${swap}没读到任务列表。`),
+      (tasks) => n === asked.current && confirm(target, tasks.length === 0 ? swap : `${swap}现在有 ${tasks.length} 个任务在跑（${tasks.map((t) => t.title).join('、')}），任务不会停。`),
+      () => n === asked.current && confirm(target, `${swap}没读到任务列表。`),
     );
   };
 

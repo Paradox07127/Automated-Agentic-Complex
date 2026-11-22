@@ -46,7 +46,7 @@ export function MotionEditDialog({ edit, removeNote, onEdit, library }: { edit: 
             spellCheck={false}
             onChange={(e) => onEdit({ ...edit, title: e.currentTarget.value })}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') saveTitle(edit.title);
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) saveTitle(edit.title);
             }}
           />
         </label>

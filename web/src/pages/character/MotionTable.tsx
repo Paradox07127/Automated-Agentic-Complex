@@ -89,6 +89,8 @@ export function MotionTable(p: MotionTableProps) {
       <div
         key={a.id}
         className={`${dark.row} ${styles.row}`}
+        // Dark in either theme (the 调参 page has no dark panel around it): its switch takes the dark tokens.
+        data-theme="dark"
         role="row"
         aria-selected={on}
         tabIndex={0}

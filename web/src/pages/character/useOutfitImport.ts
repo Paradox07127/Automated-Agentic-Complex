@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { QueryClientContext } from '@tanstack/react-query';
 import { getBridge, type BridgeError } from '../../bridge';
 import type { Toast } from './feedback';
@@ -16,11 +16,24 @@ export interface OutfitImport {
   dismiss: () => void;
 }
 
-/** `character.importOutfit` and `removeOutfit`: one at a time; on success the roster is read again so the appearance list shows the change, and `onImported` gets the new appearance. */
-export function useOutfitImport(toast: Toast, onImported?: (appearance: { id: string; name: string }) => void): OutfitImport {
+/**
+ * `character.importOutfit` and `removeOutfit` of `character`: one at a time; on success the roster is read again so the appearance list shows the change,
+ * then `onImported` gets the new appearance while the page and `character` that started it are still there (`owns` says whether they still are); the import is done when what it returns settles.
+ */
+export function useOutfitImport(
+  toast: Toast,
+  character: string,
+  onImported?: (appearance: { id: string; name: string }, owns: () => boolean) => Promise<unknown> | void,
+): OutfitImport {
   // Read from the context, not useQueryClient: the operator view also renders without a query client.
   const qc = useContext(QueryClientContext);
   const [state, setState] = useState<OutfitImport['state']>('idle');
+  const now = useRef({ character, onImported, live: true });
+  now.current = { ...now.current, character, onImported };
+  useEffect(() => {
+    now.current.live = true;
+    return () => void (now.current.live = false);
+  }, []);
   const [removing, setRemoving] = useState(false);
   const [warned, setWarned] = useState<OutfitImport['warned']>(null);
   const why = (e: unknown) => {
@@ -28,20 +41,22 @@ export function useOutfitImport(toast: Toast, onImported?: (appearance: { id: st
     return err?.code === 'not_implemented' ? '这个版本还不支持' : err?.code ? outfitImportReason(err.code, err.detail) : '桌面角色没有回应';
   };
   const run = () => {
+    const of = character;
+    const owns = () => now.current.live && now.current.character === of;
     setState('busy');
     getBridge()
       .character.importOutfit()
       .then(
         (r) => {
-          setState('done');
           setWarned(r.warnings.length > 0 ? { ...r.appearance, warnings: r.warnings } : null);
           if (r.warnings.length === 0) toast(`已导入「${r.appearance.name}」`);
           else {
             const words = r.warnings.slice(0, 2).map(outfitImportWarning).join('；');
             toast(`已导入「${r.appearance.name}」，有 ${r.warnings.length} 处要留意：${words}`, { severity: 'warning' });
           }
-          void qc?.invalidateQueries({ queryKey: ['character', 'list'] });
-          onImported?.(r.appearance);
+          void Promise.resolve(qc?.invalidateQueries({ queryKey: ['character', 'list'] }))
+            .then(() => (owns() ? now.current.onImported?.(r.appearance, owns) : undefined))
+            .finally(() => setState('done'));
         },
         (e: unknown) => {
           if ((e as Partial<BridgeError> | null)?.code === 'cancelled') {

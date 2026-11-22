@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type CharacterEntry } from '../../bridge';
 import { useDemo } from '../../shell/demo';
+import { useDevMode } from '../../shell/devMode';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
 import { Btn, ErrBar, Menu, Spinner } from '../../ui';
@@ -14,8 +15,11 @@ import { hostReason } from './labels';
 import { MotionSettings } from './motions/MotionSettings';
 import { isPane, Operator, OperatorSkel } from './Operator';
 import { PhotoMode } from './PhotoMode';
-import { isCharTab } from './sections';
+import { CHAR_TABS, isCharTab } from './sections';
+import { useCharSettings } from './settings';
+import { presentTabs } from './SettingRows';
 import { SWITCH_STAGES } from './tables';
+import { currentOf, useHostCharacter, useMmdSync } from './useHostCharacter';
 import { useMotionImport } from './useMotionImport';
 import { useMotionLibrary } from './useMotionLibrary';
 import { useSwitch, type SwitchState } from './useSwitch';
@@ -55,7 +59,8 @@ export function CharacterPage() {
   const qc = useQueryClient();
   const bridge = getBridge();
   const canAvatar = bridge.capabilities.avatar;
-  const [current, setCurrent] = useState<string | null>(null);
+  const host = useHostCharacter(canAvatar);
+  useMmdSync(canAvatar);
 
   const list = useQuery({ queryKey: ['character', 'list'], queryFn: () => getBridge().character.list(), enabled: canAvatar });
   // Page clock of the last state read: where the curves stop when agentd goes away.
@@ -70,24 +75,24 @@ export function CharacterPage() {
   });
   const conn = useQuery({ queryKey: ['agentd', 'connection'], queryFn: () => getBridge().agentd.connection() });
   const sup = useQuery({ queryKey: ['supervisor', 'state'], queryFn: () => getBridge().supervisor.state() });
-  const motions = useQuery({ queryKey: ['character', 'motions'], queryFn: () => getBridge().avatar.actions(), enabled: canAvatar });
+  // No catalog when the shell has no avatar or does not implement the op.
+  const noCatalog = !canAvatar || codeOf(list.error) === 'not_implemented';
+  const roster = noCatalog ? NO_ROSTER : list.data;
+  const cur = currentOf(roster, host.current)?.id ?? '';
+  const name = roster?.find((c) => c.id === cur)?.name ?? '';
+  const motions = useQuery({ queryKey: ['character', 'motions', cur], queryFn: () => getBridge().avatar.actions(), enabled: canAvatar && roster != null });
   const library = useMotionLibrary({ onChanged: () => void motions.refetch() });
   // importMotion resolves once the restarted avatar is back, so its list has the new action.
   const motionImport = useMotionImport(() => getBridge().character.importMotion(), () => {
     void motions.refetch();
     library.refetch();
   });
-  // No catalog when the shell has no avatar or does not implement the op.
-  const noCatalog = !canAvatar || codeOf(list.error) === 'not_implemented';
-  const roster = noCatalog ? NO_ROSTER : list.data;
-  const cur = current ?? roster?.find((c) => c.active)?.id ?? roster?.[0]?.id ?? '';
-  const name = roster?.find((c) => c.id === cur)?.name ?? '';
   const sw = useSwitch({
     initial: { phase: 'idle' },
     runningTasks: readRunningTasks,
     ask: fb.ask,
     onDone: (c) => {
-      setCurrent(c.id);
+      host.confirm(c.id);
       fb.toast(`已切换到 ${c.name}`);
     },
   });
@@ -136,6 +141,21 @@ export function CharacterPage() {
       },
     );
   };
+  // The MMD page unmounts the drafts.
+  const leaveForMmd = (unsaved: number) =>
+    unsaved === 0
+      ? openMmd()
+      : fb.ask({
+          title: '放弃没保存的动作开关？',
+          note: `还有 ${unsaved} 项动作开关没保存，打开 MMD 页会丢掉这些改动。`,
+          confirmLabel: '放弃并打开 MMD',
+          cancelLabel: '留下',
+          onConfirm: () => openMmd(),
+        });
+  // 设定's tab bar has the tabs CharacterSettings draws rows for, and lights the one it falls back to.
+  const dev = useDevMode();
+  const setN = useCharSettings(isCharTab(tab)).q.data;
+  const setTabs = setN ? presentTabs(setN, dev) : CHAR_TABS.map((t) => t.id);
   const motionsError = !canAvatar ? '桌面角色没有接入' : motions.isError ? (codeOf(motions.error) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应') : null;
 
   let body;
@@ -162,14 +182,14 @@ export function CharacterPage() {
           actions={motions.data ?? null}
           motionsError={motionsError}
           onRetryMotions={() => void motions.refetch()}
-          {...(canAvatar ? { motionImport, library, onImportPackage: importPackage, onMmd: () => openMmd(), chains: <MotionSettings offline={offline} toast={fb.toast} /> } : {})}
+          {...(canAvatar ? { motionImport, library, onImportPackage: importPackage, onMmd: leaveForMmd, chains: <MotionSettings offline={offline} toast={fb.toast} /> } : {})}
           pane={isPane(pane) ? pane : 'overview'}
           charState={none ? null : (cs.data ?? null)}
           {...(demo === 'ok' ? { seed: OK_SEED } : {})}
           playing={demo === 'playing' ? 'nod' : null}
           toast={fb.toast}
           {...(isCharTab(tab)
-            ? { side: { of: 'set' as const, tab, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} menu={false} toast={fb.toast} /> } }
+            ? { side: { of: 'set' as const, tab: setTabs.includes(tab) ? tab : (setTabs[0] ?? tab), tabs: setTabs, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} menu={false} toast={fb.toast} /> } }
             : photo
               ? { side: { of: 'photo' as const, node: <PhotoMode avatar={canAvatar} offline={offline} toast={fb.toast} /> } }
               : {})}

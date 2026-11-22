@@ -30,7 +30,7 @@ export function Library(p: LibraryProps) {
   if (p.error !== false || d?.ok === false)
     return (
       <ErrBar
-        message={`读取 MMD 库失败：${d?.ok === false ? motionImportReason(d.reason, d.detail) : p.error === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`}
+        message={`读取 MMD 库失败：${p.error === false && d?.ok === false ? motionImportReason(d.reason, d.detail) : p.error === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`}
         onRetry={p.onRetry}
       />
     );

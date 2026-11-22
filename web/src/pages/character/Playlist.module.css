@@ -28,10 +28,6 @@
 }
 
 /* Not in the list yet: the name dimmed. */
-.nm {
-  flex-basis: 0;
-}
-
 [data-out] .nm {
   color: rgb(255 255 255 / 55%);
 }

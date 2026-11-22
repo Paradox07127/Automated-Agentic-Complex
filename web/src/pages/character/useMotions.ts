@@ -44,10 +44,16 @@ export interface Play {
   loop: boolean;
 }
 
-/** Switch drafts saved as one group, and the desktop preview with its local progress. */
-export function useMotions(o: { actions: AvatarAction[]; toast: Toast; seed?: Record<string, boolean>; playing?: string | null }) {
+/** `character`'s switch drafts saved as one group, and the desktop preview with its local progress; another character starts with none. */
+export function useMotions(o: { character?: string; actions: AvatarAction[]; toast: Toast; seed?: Record<string, boolean>; playing?: string | null }) {
   const [changed, setChanged] = useState<Record<string, boolean>>(() => o.seed ?? {});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [owner, setOwner] = useState(o.character);
+  if (owner !== o.character) {
+    setOwner(o.character);
+    setChanged({});
+    setSaved({});
+  }
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [play, setPlay] = useState<Play | null>(() => (o.playing ? { id: o.playing, t0: Date.now(), speed: 1, loop: false } : null));

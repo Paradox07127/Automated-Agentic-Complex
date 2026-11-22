@@ -2,13 +2,14 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import { NOW } from '../../src/mock/fixtures';
 import { MOTIONS, STATE_WITH_CAUSES } from '../../src/mock/character';
+import { useModTable } from '../../src/pages/character/LookPane';
 import { Operator } from '../../src/pages/character/Operator';
 import type { Toast } from '../../src/pages/character/feedback';
 import { OUTFIT_IMPORT_REASON, OUTFIT_IMPORT_UNKNOWN, outfitImportReason, outfitImportWarning } from '../../src/pages/character/labels';
@@ -28,10 +29,10 @@ afterEach(() => {
 });
 
 /** The roster comes from the page's `['character', 'list']` query, as in Page.tsx; the page opens on 导入. */
-function Harness({ toast, pane }: { toast: Toast; pane: 'import' | 'look' }) {
+function Harness({ toast, pane, current }: { toast: Toast; pane: 'import' | 'look'; current?: string | undefined }) {
   const list = useQuery({ queryKey: ['character', 'list'], queryFn: () => window.agenticComplex!.character.list() });
   if (!list.data) return null;
-  const cur = list.data.find((c) => c.active)?.id ?? list.data[0]?.id ?? '';
+  const cur = current ?? list.data.find((c) => c.active)?.id ?? list.data[0]?.id ?? '';
   return (
     <Operator
       roster={list.data}
@@ -53,13 +54,13 @@ function Harness({ toast, pane }: { toast: Toast; pane: 'import' | 'look' }) {
 /** Opens on 导入; `show('look')` switches to the 外观 pane, as the page's tab does. */
 const mount = (toast: Toast = noop) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const at = (pane: 'import' | 'look') => (
+  const at = (pane: 'import' | 'look', current?: string) => (
     <QueryClientProvider client={client}>
-      <Harness toast={toast} pane={pane} />
+      <Harness toast={toast} pane={pane} current={current} />
     </QueryClientProvider>
   );
   const ui = render(at('import'));
-  return { ...ui, show: (pane: 'import' | 'look') => ui.rerender(at(pane)) };
+  return { ...ui, show: (pane: 'import' | 'look', current?: string) => ui.rerender(at(pane, current)) };
 };
 
 const looks = () => screen.queryByRole('list', { name: '导入的外观' });
@@ -178,6 +179,101 @@ describe('角色页 · 导入外观', () => {
       ),
     );
     expect((await look('示例外观')).getAllByRole('listitem')).toHaveLength(3);
+  });
+});
+
+function deferred<T>() {
+  let resolve!: (v: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
+const FIELD = { ok: true as const, appearance: { id: 'imported_field', name: '野外装' }, warnings: [] };
+type Import = Awaited<ReturnType<AgenticComplexBridge['character']['importOutfit']>>;
+
+describe('角色页 · 导入外观之后', () => {
+  it('does not open 模组设置 when putting the new appearance on fails', async () => {
+    const bridge = use(true);
+    vi.spyOn(bridge.character, 'importOutfit').mockResolvedValue(FIELD);
+    vi.spyOn(bridge.avatar, 'setAppearance').mockRejectedValue({ code: 'failed' });
+    const read = vi.spyOn(bridge.agentd, 'request');
+    const toast = vi.fn();
+    mount(toast);
+    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('换外观没有完成：桌面角色没有回应', { severity: 'danger' }));
+    await waitFor(() => expect(read.mock.calls.filter(([, path]) => path === '/characters/si/mod-settings').length).toBeGreaterThan(1));
+    await Promise.all(read.mock.results.map((r) => r.value));
+    await act(async () => {});
+    expect(window.location.hash).not.toContain('pane=look');
+  });
+
+  it('stays 导入中 until the new appearance is on', async () => {
+    const bridge = use(true);
+    vi.spyOn(bridge.character, 'importOutfit').mockResolvedValue(FIELD);
+    const on = deferred<void>();
+    const wear = vi.spyOn(bridge.avatar, 'setAppearance').mockReturnValue(on.promise);
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    await waitFor(() => expect(wear).toHaveBeenCalledWith('imported_field'));
+    expect(screen.getByRole('button', { name: '导入中…' })).toBeTruthy();
+    await act(async () => on.resolve());
+    expect(await screen.findByRole('button', { name: '导入外观…' })).toBeTruthy();
+  });
+
+  it('neither puts it on nor opens the character page after the page is gone', async () => {
+    const bridge = use(true);
+    const done = deferred<Import>();
+    vi.spyOn(bridge.character, 'importOutfit').mockReturnValue(done.promise);
+    const wear = vi.spyOn(bridge.avatar, 'setAppearance');
+    const ui = mount();
+    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    ui.unmount();
+    await act(async () => done.resolve(FIELD));
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+    expect(wear).not.toHaveBeenCalled();
+    expect(window.location.hash).not.toContain('pane=look');
+  });
+
+  it('does not put it on the character switched to meanwhile', async () => {
+    const bridge = use(true);
+    const done = deferred<Import>();
+    vi.spyOn(bridge.character, 'importOutfit').mockReturnValue(done.promise);
+    const wear = vi.spyOn(bridge.avatar, 'setAppearance');
+    const { show } = mount();
+    fireEvent.click(await screen.findByRole('button', { name: '导入外观…' }));
+    show('import', 'voice_a');
+    await act(async () => done.resolve(FIELD));
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+    expect(wear).not.toHaveBeenCalled();
+    expect(window.location.hash).not.toContain('pane=look');
+  });
+
+  it('keeps the newer of two mod-table reads', async () => {
+    const bridge = use(true);
+    const replies: Array<(id: string) => void> = [];
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(
+      () =>
+        new Promise((r) =>
+          replies.push((id) =>
+            r({ status: 200, body: { character: 'si', package_sha256: '', schema: '', appearances: { [id]: { settings: [{ id: 'glow', name: '发光', default: 0, values: [{ value: 0, name: '关' }] }] } } } as never }),
+          ),
+        ),
+    );
+    const { result } = renderHook(() => useModTable('si', false));
+    let older: Promise<unknown> = Promise.resolve();
+    let newer: Promise<unknown> = Promise.resolve();
+    act(() => {
+      older = result.current.reload();
+      newer = result.current.reload();
+    });
+    await act(async () => {
+      replies[1]!('new');
+      await newer;
+    });
+    await act(async () => {
+      replies[0]!('old');
+      await older;
+    });
+    expect(Object.keys(result.current.looks)).toEqual(['new']);
   });
 });
 

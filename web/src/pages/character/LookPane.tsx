@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getBridge, type CharacterAppearance, type CharacterLayer } from '../../bridge';
 import { Icon, Slider, Toggle } from '../../ui';
 import type { Toast } from './feedback';
@@ -42,23 +42,28 @@ const switchesOf = (character: string) =>
 /** The mod switches of `character`'s appearances that have any, read once per character from the first time `on`; `reload` reads them again (after an import). */
 export function useModTable(character: string, on: boolean): { looks: ModLooks; reload: () => Promise<ModLooks> } {
   const [read, setRead] = useState<{ character: string; looks: ModLooks }>();
+  // Only the latest read lands; an older one finishing later does not replace it.
+  const last = useRef(0);
   const have = read?.character === character;
   useEffect(() => {
     if (!on || !character || have) return;
     let live = true;
+    const n = ++last.current;
     switchesOf(character).then(
-      (looks) => live && setRead({ character, looks }),
+      (looks) => live && n === last.current && setRead({ character, looks }),
       () => {},
     );
     return () => {
       live = false;
     };
   }, [character, on, have]);
-  const reload = () =>
-    switchesOf(character).then((looks) => {
-      setRead({ character, looks });
+  const reload = () => {
+    const n = ++last.current;
+    return switchesOf(character).then((looks) => {
+      if (n === last.current) setRead({ character, looks });
       return looks;
     });
+  };
   return { looks: read?.character === character ? read.looks : NONE, reload };
 }
 

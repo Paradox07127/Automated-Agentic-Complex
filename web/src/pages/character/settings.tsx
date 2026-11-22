@@ -8,9 +8,9 @@ import { loadNative, type Native, type SchemaRow } from '../settings/native';
 
 const KEY = ['character', 'settings'];
 
-export function useCharSettings() {
+export function useCharSettings(enabled = true) {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: KEY, queryFn: () => loadNative(getBridge(), null) });
+  const q = useQuery({ queryKey: KEY, queryFn: () => loadNative(getBridge(), null), enabled });
   // A menu changed config.json (e.g. 自由活动 flips beh.stay): read it again.
   useEffect(() => getBridge().settings.onChange(() => void qc.invalidateQueries({ queryKey: KEY })), [qc]);
   /** After a save: the written values become the read. */

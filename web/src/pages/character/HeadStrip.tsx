@@ -29,8 +29,13 @@ export function HeadStrip(p: HeadStripProps) {
   useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => !boxRef.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
     document.addEventListener('mousedown', away);
-    return () => document.removeEventListener('mousedown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', away);
+      document.removeEventListener('keydown', esc);
+    };
   }, [open]);
   const cur = p.roster.find((c) => c.id === p.current);
   return (
@@ -48,7 +53,7 @@ export function HeadStrip(p: HeadStripProps) {
               aria-current={on ? 'true' : undefined}
               data-target={p.pending === c.id || undefined}
               disabled={p.pending != null || ((p.offline || p.importing) && !on)}
-              title={p.pending != null ? '正在切换' : on ? `${c.name} │ 当前` : p.importing ? '导入中' : `切换到 ${c.name}`}
+              title={p.pending != null ? '正在切换' : on ? `${c.name} │ 当前` : p.offline ? '角色未运行' : p.importing ? '导入中' : `切换到 ${c.name}`}
               onClick={() => !on && p.onPick(c)}
             >
               {on && <HeadPick />}
@@ -63,7 +68,7 @@ export function HeadStrip(p: HeadStripProps) {
         <button type="button" className={styles.key} aria-expanded={open} aria-label={`切换角色，当前 ${cur?.name ?? ''}`} title="全部角色" onClick={() => setOpen((v) => !v)}>
           <Icon name="menu" size={20} />
         </button>
-        <button type="button" className={styles.key} data-bare-key="" aria-pressed={p.bare} aria-label="隐藏界面" title="隐藏界面" onClick={() => p.onBare(!p.bare)}>
+        <button type="button" className={styles.key} data-bare-key="" aria-pressed={p.bare} aria-label="隐藏界面" title={p.bare ? '显示界面' : '隐藏界面'} onClick={() => (setOpen(false), p.onBare(!p.bare))}>
           <Icon name="side" size={20} />
         </button>
         {open && (

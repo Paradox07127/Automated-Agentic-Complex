@@ -59,19 +59,21 @@ export interface OperatorProps {
   toast: Toast;
   /** 设定 (with its tab) or 拍照 in the panel in place of the panes. */
   side?: Side;
-  /** The rail's MMD item: opens the MMD page; absent without an avatar. */
-  onMmd?: () => void;
+  /** The rail's MMD item, with the number of unsaved switches leaving loses: opens the MMD page; absent without an avatar. */
+  onMmd?: (unsaved: number) => void;
 }
 
 export type Pane = 'overview' | 'motion' | 'chain' | 'look' | 'import';
 
-export type Side = { of: 'set'; tab: CharTab; node: ReactNode } | { of: 'photo'; node: ReactNode };
+/** `tabs`: the 设定 tabs that have rows. */
+export type Side = { of: 'set'; tab: CharTab; tabs: readonly CharTab[]; node: ReactNode } | { of: 'photo'; node: ReactNode };
 
 const PANES: readonly Pane[] = ['overview', 'motion', 'chain', 'look', 'import'];
 
 export const isPane = (v: string | null): v is Pane => PANES.some((x) => x === v);
 
 const NO_ACTIONS: AvatarAction[] = [];
+const NO_LOOKS: Readonly<Record<string, unknown>> = {};
 const SET_ICON: Record<CharTab, IconName> = { behavior: 'hand', render: 'sun', scene: 'loc' };
 
 /** First motion worth showing: not required, playable, present. */
@@ -112,6 +114,7 @@ export function Operator(p: OperatorProps) {
   }>();
   const previewRequest = useRef(0);
   const m = useMotions({
+    character: p.current,
     actions,
     toast: p.toast,
     ...(p.seed ? { seed: p.seed } : {}),
@@ -119,29 +122,37 @@ export function Operator(p: OperatorProps) {
   });
   const look = useLook();
   const importState = useImportState();
-  const pane = p.pane ?? 'motion';
+  // 编排 is absent without an avatar.
+  const pane = p.pane === 'chain' && !p.chains ? 'motion' : (p.pane ?? 'motion');
   const [lookTab, setLookTab] = useState<LookTab>('look');
   // 导入 sits under both 外观 and 动作; the rail lights the one it was opened from.
   const [importOf, setImportOf] = useState<'look' | 'motion'>('look');
   const side = p.side;
   const at: RailItem = side ? side.of : pane === 'overview' ? 'overview' : pane === 'look' ? 'look' : pane === 'import' ? importOf : 'motion';
   const modTable = useModTable(p.current, at === 'look');
+  /** True once she has it on. */
   const wear = (l: { id: string; name: string }) =>
     getBridge()
       .avatar.setAppearance(l.id)
-      .then(() => {
-        look.setId(l.id);
-        p.toast(`已换成「${l.name}」外观`);
-      }, failed('换外观', p.toast));
-  // A new appearance is put on at once; one with mod switches opens on them.
-  const outfit = useOutfitImport(p.toast, (a) => {
-    void wear(a);
-    modTable.reload().then((looks) => {
-      if (!looks[a.id]) return;
+      .then(
+        () => {
+          look.setId(l.id);
+          p.toast(`已换成「${l.name}」外观`);
+          return true;
+        },
+        (e: unknown) => {
+          failed('换外观', p.toast)(e);
+          return false;
+        },
+      );
+  // A new appearance is put on at once; one with mod switches opens on them once she has it on.
+  const outfit = useOutfitImport(p.toast, p.current, (a, owns) =>
+    Promise.all([wear(a), modTable.reload().catch(() => NO_LOOKS)]).then(([worn, looks]) => {
+      if (!worn || !Object.hasOwn(looks, a.id) || !owns()) return;
       setLookTab('mod');
       go({ pane: 'look' });
-    }, () => {});
-  });
+    }),
+  );
   const [bare, setBare] = useState(false);
   // The hidden set the last successful `avatar.setLayers` sent; the roster only changes on a refetch.
   const [hiddenSet, setHiddenSet] = useState<{
@@ -155,7 +166,7 @@ export function Operator(p: OperatorProps) {
   useSwitchFade(midRef, p.current);
 
   const ch = p.roster.find((c) => c.id === p.current) ?? p.roster[0];
-  const pick = rows.find((r) => r.a.id === sel) ?? rows.find((r) => r.a.id === firstPick(actions));
+  const pick = rows.find((r) => r.a.id === sel) ?? rows.find((r) => r.a.id === firstPick(rows.map((x) => x.a)));
   const motion = pick?.a;
   const switching = p.sw.state.phase === 'running';
   const importing = importState.running || p.motionImport?.running === true || outfit.state === 'busy';
@@ -169,7 +180,9 @@ export function Operator(p: OperatorProps) {
   const layers = (ch?.layers ?? []).map((l) => (hiddenSet?.character === ch?.id ? { ...l, visible: !hiddenSet?.hidden.includes(l.id) } : l));
 
   const mode: StageMode = side?.of === 'photo' ? 'photo' : !side && pane === 'overview' ? 'overview' : 'detail';
-  const mods = modTable.looks[lookId];
+  // 拍照 has no head strip, so no key to bring the UI back.
+  const isBare = bare && mode !== 'photo';
+  const mods = Object.hasOwn(modTable.looks, lookId) ? modTable.looks[lookId] : undefined;
   const lt = (lookTab === 'mod' && !mods) || (lookTab === 'show' && layers.length === 0) ? 'look' : lookTab;
 
   const tabs: PanelTab[] =
@@ -183,7 +196,7 @@ export function Operator(p: OperatorProps) {
       : at === 'motion'
         ? [{ id: 'motion', label: '动作表', icon: 'play' }, ...(p.chains ? [{ id: 'chain', label: '编排', icon: 'hub' as const }] : []), { id: 'import', label: '导入', icon: 'plus' }]
         : side?.of === 'set'
-          ? CHAR_TABS.map((t) => ({ id: t.id, label: t.title, icon: SET_ICON[t.id] }))
+          ? CHAR_TABS.filter((t) => side.tabs.includes(t.id)).map((t) => ({ id: t.id, label: t.title, icon: SET_ICON[t.id] }))
           : [];
   const tab = side?.of === 'set' ? side.tab : at === 'look' && pane === 'look' ? lt : pane;
   const onTab = (id: string) => {
@@ -243,7 +256,7 @@ export function Operator(p: OperatorProps) {
   };
 
   return (
-    <div ref={opRef} className={styles.op} data-view="operator" data-mode={mode} data-bare={bare || undefined} data-theme="light">
+    <div ref={opRef} className={styles.op} data-view="operator" data-mode={mode} data-bare={isBare || undefined} data-theme="light">
       {mode !== 'photo' && (
         <HeadStrip
           roster={p.roster}
@@ -329,8 +342,8 @@ export function Operator(p: OperatorProps) {
           )}
         </Panel>
       )}
-      <Rail value={at} avatar={canAvatar} onGo={(item) => (item === 'mmd' ? p.onMmd?.() : GO[item]())} />
-      {!side && (pane === 'motion' || Object.keys(m.changed).length > 0) && (
+      <Rail value={at} avatar={canAvatar} onGo={(item) => (item === 'mmd' ? p.onMmd?.(Object.keys(m.changed).length) : GO[item]())} />
+      {!isBare && !side && (pane === 'motion' || Object.keys(m.changed).length > 0) && (
         <Commit
           offline={p.offline}
           n={Object.keys(m.changed).length}
