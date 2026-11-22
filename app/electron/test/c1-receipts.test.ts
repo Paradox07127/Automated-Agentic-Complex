@@ -25,7 +25,7 @@ async function until(seconds: number, ok: () => boolean): Promise<boolean> {
 
 test('every receipt in the C1 fixtures reaches agentd unchanged; the link drop makes the closing connection_lost one', { skip: UNIX_LINK }, async () => {
   const files = readdirSync(FIXTURES).filter((f) => f.endsWith('.json')).sort();
-  assert.equal(files.length, 16);
+  assert.equal(files.length, 18);
   let total = 0;
   for (const name of files) {
     const fixture = JSON.parse(readFileSync(join(FIXTURES, name), 'utf8')) as { messages: Record<string, unknown>[] };
@@ -67,5 +67,5 @@ test('every receipt in the C1 fixtures reaches agentd unchanged; the link drop m
       rmSync(dir, { recursive: true, force: true });
     }
   }
-  assert.equal(total, 73);
+  assert.equal(total, 84);
 });
