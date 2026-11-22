@@ -96,7 +96,7 @@ describe('memory › 档案', () => {
     const plate = screen.getByRole('button', { name: '用户档案：小林' });
     expect(plate.textContent).toContain('3月2日');
     expect(plate.textContent).toContain('上海');
-    for (const [label, n] of [['待确认', 3], ['全部', 16], ['偏好', 5], ['约定', 3], ['经历', 4], ['其他线索', 1]] as const) expect(cell(label).textContent).toBe(`${label}${n}`);
+    for (const [label, n] of [['待确认', 3], ['全部', 18], ['偏好', 6], ['约定', 4], ['经历', 4], ['其他线索', 1]] as const) expect(cell(label).textContent).toBe(`${label}${n}`);
     for (const c of cards()) expect(within(within(c).getByRole('group', { name: '怎么处理' })).getAllByRole('button').map((b) => b.textContent?.replace(/\d$/, ''))).toEqual(['对，记住', '差不多，我来改', '不是这样']);
     expect(rows()).toEqual([]);
     expect(document.body.textContent).not.toMatch(/USR|CONFIRM|FACTS|CHANGES/);
@@ -154,7 +154,7 @@ describe('memory › 档案', () => {
   it('全部 lists the facts in five groups; the detail column shows the first row', async () => {
     mount();
     await openAll();
-    expect(rows()).toHaveLength(16);
+    expect(rows()).toHaveLength(18);
     for (const g of ['用户档案', '偏好', '约定', '经历', '其他线索']) expect(screen.getByRole('group', { name: g })).toBeTruthy();
     const detail = screen.getByRole('complementary', { name: '这条记忆' });
     expect(within(detail).getByRole('region', { name: '出处' })).toBeTruthy();
@@ -169,7 +169,7 @@ describe('memory › 档案', () => {
     expect(rows().sort()).toEqual(['a3', 'p4', 'x1'].map(v31Id).sort());
     expect((screen.getByRole('textbox', { name: '搜索记忆' }) as HTMLInputElement).value).toBe('观察所得');
     fireEvent.click(screen.getByRole('button', { name: '清除搜索' }));
-    expect(rows()).toHaveLength(16);
+    expect(rows()).toHaveLength(18);
   });
 
   it('search drops the groups; another sort lists one run of rows', async () => {
@@ -179,7 +179,7 @@ describe('memory › 档案', () => {
     fireEvent.click(screen.getByRole('button', { name: '清除搜索' }));
     fireEvent.change(screen.getByRole('combobox', { name: '排序' }), { target: { value: 'idle' } });
     expect(screen.queryByRole('group', { name: '偏好' })).toBeNull();
-    expect(rows()).toHaveLength(16);
+    expect(rows()).toHaveLength(18);
   });
 
   it('a chat-sourced fact quotes the line it was read from', async () => {

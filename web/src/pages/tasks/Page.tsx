@@ -11,7 +11,7 @@ import { isPluginOff } from '../../shell/plugins';
 import { useToast } from '../../shell/toast';
 import { Icon, Modal, Tabs } from '../../ui';
 import { TasksLoadError } from '../../data/tasksBase';
-import { useRole } from '../chat/useChatData';
+import { useCharacters } from '../chat/useChatData';
 import { failMessage } from './actions';
 import { BottomBar, NewButton } from './Bottom';
 import { draftFromSchedule, newDraft, problemOf, schedulePayload, sendNow, type EditDraft } from './draft';
@@ -60,8 +60,8 @@ export function TasksPage() {
   const [busy, setBusy] = useState(false);
   const [del, setDel] = useState<string | null>(null);
 
-  const role = useRole();
-  const who = role.data?.name ?? '角色';
+  const chars = useCharacters();
+  const who = (chars.data?.shown && chars.data.names[chars.data.shown]) || '角色';
   const desk = useTaskDesk(state, demo, params.sel);
   const sched = useSchedules(state, true);
   const writes = useScheduleWrites(push);

@@ -95,7 +95,7 @@ test('档案: ?src= lands as a search; a row fills the detail column at 1440, an
   await page.getByRole('button', { name: /^全部/ }).click();
   await expect(page.locator('[data-fact]')).toHaveCount(3);
   await page.getByRole('button', { name: '清除搜索' }).click();
-  await expect(page.locator('[data-fact]')).toHaveCount(16);
+  await expect(page.locator('[data-fact]')).toHaveCount(18);
   const row = page.locator(`[data-fact="${A3}"] button`);
   await row.click();
   const detail = page.getByRole('complementary', { name: '这条记忆' });
