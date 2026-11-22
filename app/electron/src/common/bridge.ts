@@ -32,11 +32,15 @@ const HELPER_BIT_OPS: Readonly<Record<string, readonly string[]>> = {
 };
 
 /** On Windows `open.runInTerminal` fails: it starts Terminal through osascript. `helperOps` is the running helper's
- *  `hello.ops`; a `host:helper` bit is on when it holds the bit's ops, and while no list is known (null). */
-export function boot(surface: Surface, platform: ShellPlatform = 'mac', helperOps: readonly string[] | null = null): Boot {
+ *  `hello.ops`; a `host:helper` bit is on when it holds the bit's ops, and while no list is known (null).
+ *  `avatarCapabilities` is the avatar's C3 `hello.capabilities`, null before its hello: `host:actionLoop` is on when it lists
+ *  `action_loop`, and while not known (a page loads before her hello; a loop she cannot play fails at the call). */
+export function boot(surface: Surface, platform: ShellPlatform = 'mac', helperOps: readonly string[] | null = null,
+  avatarCapabilities: readonly string[] | null = []): Boot {
   const helperBit = (name: string) => helperOps === null || (HELPER_BIT_OPS[name] ?? []).every((op) => helperOps.includes(op));
+  const loopBit = avatarCapabilities === null || avatarCapabilities.includes('action_loop');
   const bits = Object.fromEntries(Object.entries(ops.capabilities[surface])
-    .map(([name, v]) => [name, v === true || (v === 'host:helper' && helperBit(name))]));
+    .map(([name, v]) => [name, v === true || (v === 'host:helper' && helperBit(name)) || (v === 'host:actionLoop' && loopBit)]));
   if (platform === 'windows') bits.runInTerminal = false;
   return { surface, platform, capabilities: bits, ops: [...ops.ops, ...onboarding.ops], kinds: ops.kinds };
 }

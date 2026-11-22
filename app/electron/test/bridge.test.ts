@@ -70,6 +70,13 @@ test('boot lists every bridge member and the surface capabilities with host bits
   assert.equal(b.platform, 'mac');
 });
 
+test('boot turns actionLoop on when the avatar lists action_loop, and while its list is not known yet', () => {
+  assert.equal(boot('main', 'mac', null, ['actions', 'action_loop']).capabilities.actionLoop, true);
+  assert.equal(boot('main', 'mac', null, ['actions']).capabilities.actionLoop, false);
+  assert.equal(boot('main', 'mac', null, null).capabilities.actionLoop, true);
+  assert.equal(boot('stack', 'mac', null, ['action_loop']).capabilities.actionLoop, false);
+});
+
 const HELPER_BITS = ['helperPushToTalk', 'helperWindowText', 'helperTypedText', 'helperActionTimeline', 'helperSelectedText'];
 
 test('boot turns a helper bit off when the helper\'s hello.ops lacks one of its ops', () => {
