@@ -6,11 +6,12 @@
 
 - **macOS (Primary platform)**: Apple Silicon, macOS 26 or later, and the Xcode Swift toolchain.
 - Install Node.js 24.22.1 or later, as specified by `engines.node` in `web/package.json` and `app/electron/package.json`.
-- From the repository root, create a Python 3.12 environment for `agentd` and install `agent/agentd/requirements.txt`:
+- From the repository root, create a Python 3.12 environment for `agentd` and install `agent/agentd/requirements.txt` and the release's bundled numpy (`app/packaging/requirements-content.lock`; the shell runs the MMD motion import with this environment):
 
   ```sh
   uv venv --python 3.12 agent/.venv
   uv pip install --python agent/.venv/bin/python -r agent/agentd/requirements.txt
+  uv pip install --python agent/.venv/bin/python --require-hashes --only-binary=:all: -r app/packaging/requirements-content.lock
   ```
 
 - Install the Pi SDK runtime into `.local/pi-runtime`. This step is required: **Pi** is the default character kernel, and the agentd unit tests use it too (`--npm` must be an absolute path to `npm`; see [Pi runtime notes](../agent/agentd/character_agent/pi-runtime/RUNTIME.md)):

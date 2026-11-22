@@ -18,6 +18,7 @@ import json
 import ntpath
 import os
 from pathlib import Path
+import plistlib
 import shutil
 import signal
 import socket
@@ -167,6 +168,25 @@ def write_config(agentd, renderer, platform=sys.platform):
     return CONFIG
 
 
+def preview_electron(electron, host):
+    """A clone of node_modules' Electron.app under RUN/electron-dist with `host` as its preview XPC service, as
+    tools/release/package_app.py places it; the shell's main bundle names the service, and node_modules' copy has none.
+    Returns the dist dir for ELECTRON_OVERRIDE_DIST_PATH."""
+    dist = RUN / 'electron-dist'
+    shutil.rmtree(dist, ignore_errors=True)
+    dist.mkdir(parents=True)
+    app = dist / 'Electron.app'
+    subprocess.run(['cp', '-c', '-R', electron / 'node_modules/electron/dist/Electron.app', app], check=True)
+    identity = plistlib.loads((app / 'Contents/Info.plist').read_bytes())['CFBundleIdentifier']
+    contents = app / 'Contents/XPCServices' / f'{identity}.preview.xpc' / 'Contents'
+    (contents / 'MacOS').mkdir(parents=True)
+    shutil.copy2(host, contents / 'MacOS/AgenticComplexMetalPreview')
+    (contents / 'Info.plist').write_bytes(plistlib.dumps(dict(
+        CFBundleIdentifier=identity + '.preview', CFBundlePackageType='XPC!', CFBundleExecutable='AgenticComplexMetalPreview',
+        CFBundleVersion='1', AgenticComplexPreviewService=True, XPCService=dict(ServiceType='Application', RunLoopType='dispatch_main'))))
+    return dist
+
+
 def shell_command(checkout, args, platform=sys.platform):
     electron = checkout / 'app/electron'
     rest = [electron, '--config', CONFIG, '--dev-web-server', f'http://127.0.0.1:{WEB_PORT}', *args]
@@ -292,14 +312,20 @@ class Component:
                 (['swift', 'build', *(['-c', 'release'] if RENDERER_BUILD == 'release' else []),
                   '--package-path', renderer / RENDERER / 'host', '--product', 'metal-avatar-host'], {}, 'wait'),
             ]
+        preview, run = [], {}
         if not renderer_sources(renderer):
             builds = builds[:1]
+        elif platform != 'win32':
+            host = renderer / RENDERER / 'host/.build' / RENDERER_BUILD / 'metal-avatar-host'
+            preview = [(lambda: preview_electron(electron, host), {}, 'call')]
+            run = {'env': {**os.environ, 'ELECTRON_OVERRIDE_DIST_PATH': str(RUN / 'electron-dist')}}
         return steps + [
             ([npm, 'run', 'build'], {'cwd': electron}, 'wait'),
             *builds,
+            *preview,
             (lambda: write_config(agentd, renderer, platform), {}, 'call'),
             (wait_for_web, {}, 'call'),
-            (shell_command(checkout, self.args, platform), {}, 'run'),
+            (shell_command(checkout, self.args, platform), run, 'run'),
         ]
 
     def stop(self, platform=sys.platform):
