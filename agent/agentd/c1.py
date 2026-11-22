@@ -356,7 +356,8 @@ def _reactions(reactions):
 
 
 def _entry(trigger, c):
-    """Problems with a reaction entry's chain, held loop and stroke times (v2.8)."""
+    """Problems with a reaction entry's chain, held loop, timed loops and stroke times (v2.8). Whether a clip loops is
+    in the character's pack, which the checker does not read."""
     problems, chain = [], c.get("chain", [])
     if not isinstance(chain, list) or "chain" in c and not 1 <= len(chain) <= CHAIN_MAX \
             or not all(_short_str(x, CLIP_ID_MAX) for x in chain):
@@ -365,6 +366,10 @@ def _entry(trigger, c):
     clips = [c["clip"]] + chain
     if "hold" in c and (trigger not in HOLD_TRIGGERS or c["hold"] not in clips):
         problems.append(f"reactions.{trigger}: hold is its clip or one of its chain, and only on {HOLD_TRIGGERS}")
+    timed = c.get("hold_s", {})
+    if "hold_s" in c and (not isinstance(timed, dict) or not all(
+            k in clips and k != c.get("hold") and _number_in(v, (0, math.inf)) and v > 0 for k, v in timed.items())):
+        problems.append(f"reactions.{trigger}: hold_s maps its clip and chain but the hold to seconds > 0")
     stroke = c.get("stroke_s", {})
     if "stroke_s" in c and (trigger not in STROKE_TRIGGERS or not isinstance(stroke, dict)
                             or not all(k in clips and _number_in(v, (0, math.inf)) for k, v in stroke.items())):

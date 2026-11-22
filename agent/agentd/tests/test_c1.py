@@ -543,6 +543,17 @@ class LocalMotionsTest(unittest.TestCase):
             with self.subTest(reactions=reactions):
                 self.assertTrue(self.table(reactions))
 
+    def test_hold_s_times_the_loops_of_the_list_but_the_hold_on_any_trigger(self):
+        timed = {"clip": "angry_start", "weight": 1, "layer": "overlay", "chain": ["angry_loop", "angry_end"],
+                 "hold_s": {"angry_loop": 4}}
+        self.assertEqual(self.table({"click_repeat": [timed], "click": [{**timed, "hold_s": {"angry_start": 0.5}}]}), [])
+        after = {**self.PAT, "chain": ["pat_loop", "pat_end", "rest_loop"], "hold_s": {"rest_loop": 2.5}}
+        self.assertEqual(self.table({"pat": [after]}), [])
+        for hold_s in ({"other": 4}, {"pat_loop": 4}, {"pat_end": 0}, {"pat_end": -1}, {"pat_end": True},
+                       {"pat_end": "4"}, [4]):
+            with self.subTest(hold_s=hold_s):
+                self.assertTrue(self.table({"pat": [{**self.PAT, "hold_s": hold_s}]}))
+
     def test_a_clip_within_a_running_sit_passes_beside_it(self):
         file = lambda *m: c1.check_file({"description": "x", "messages": list(m)})  # noqa: E731
         self.assertEqual(c1.check_message(self.WITHIN), [])
@@ -660,7 +671,8 @@ class InvalidFixtureTest(unittest.TestCase):
                  "snapshot-unknown-reaction-trigger": "reactions", "cancel-fade-s-without-fade-out": "fade_s",
                  "snapshot-hold-on-click": "hold", "snapshot-hold-not-in-list": "hold",
                  "snapshot-stroke-off-present": "stroke_s", "perform-within-on-overlay": "within",
-                 "perform-within-no-sit": "within"}
+                 "perform-within-no-sit": "within", "snapshot-hold-s-not-in-list": "hold_s",
+                 "snapshot-hold-s-on-the-hold": "hold_s", "snapshot-hold-s-not-positive": "hold_s"}
         for name, word in words.items():
             with self.subTest(name):
                 problems = c1.check_file(json.loads((INVALID / f"{name}.json").read_text(encoding="utf-8")))

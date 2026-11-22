@@ -163,9 +163,10 @@ def _target_key(kind, target):
 
 
 def _reactions(chooser):
-    """C1 snapshot `reactions`: each trigger the chooser's pack has a pool for -> its clips, weights and layer; on a
-    trigger with an end, a clip whose chain has a loop holds it. A region trigger draws from the first of its region's
-    pools the pack has; with the pack's lift roles the pick-up is their chain and the drop plays nothing more."""
+    """C1 snapshot `reactions`: each trigger the chooser's pack has a pool for -> its clips, weights and layer; a clip
+    that starts a pack chain plays it, a loop in it for its pack hold_seconds, and on a trigger with an end its first
+    loop is held instead. A region trigger draws from the first of its region's pools the pack has; with the pack's
+    lift roles the pick-up is their chain and the drop plays nothing more."""
     pack, pools = chooser.pack, {}
     for trigger, event in REACTION_EVENTS.items():
         pools[trigger] = chooser.pool(event)
@@ -180,11 +181,13 @@ def _reactions(chooser):
         layer = "base" if trigger in BASE_REACTIONS else "overlay"
         for clip, weight in pool:
             entry = {"clip": clip, "weight": weight, "layer": layer}
-            held = pack.held_chain(clip, ends.get(trigger)) if trigger in c1.HOLD_TRIGGERS else None
-            if held is not None:
-                entry["hold"] = held[0]
-                if held[1]:
-                    entry["chain"] = held[1]
+            chain, hold, timed = pack.reaction_chain(clip, trigger in c1.HOLD_TRIGGERS, ends.get(trigger))
+            if chain:
+                entry["chain"] = chain
+            if hold is not None:
+                entry["hold"] = hold
+            if timed:
+                entry["hold_s"] = {c: round(t, 3) for c, t in timed.items()}  # the pack's float32 seconds, to the ms
             if trigger in c1.STROKE_TRIGGERS:
                 strokes = {c: pack.entries[c].stroke_s for c in [clip] + entry.get("chain", [])
                            if c in pack.entries and pack.entries[c].stroke_s is not None}
@@ -285,7 +288,9 @@ class Spatial:
         self._staged = None  # a clause's gesture the chooser staged behind its start family's base
         self._hold_at = 0.0  # clock time the chooser's loop that does not run may be proposed again
         self._held = False  # whether the current chooser has had a base loop sent
-        self._enter = False  # whether the current chooser's first motion step plays her entrance
+        # whether the current chooser's entrance waits for a stage she shows on and for her to stand; a return
+        # performance that plays meanwhile has greeted the user in its place
+        self._enter = False
         self._within = None  # behavior id of the chosen perform she plays within her sit
         self._seated = self._voice = False  # what the chooser was told: she sits; her voice plays
         self._clauses = OrderedDict()  # clause key -> the intent of its clause_intent, until its clause_end
@@ -773,6 +778,7 @@ class Spatial:
                 face = self._face(s, 0.0, "the user came back", RETURN_FACE, "user", "user_return", {})
                 if face["accepted"]:
                     record["played"].append("face")
+                    self._enter = False
                 else:
                     record["why"] = face["reason"]
             if self.chooser is None:
@@ -881,10 +887,9 @@ class Spatial:
                     self._within = None
                     self.chooser.report_playhead(*self._played())
                 self._input({"kind": "sit", "variant": sit.get("variant")} if sit else {"kind": "stand"}, None)
-            if self._enter:
+            if self._enter and not self._seated and self.stage() not in BLOCKING:
                 self._enter = False
-                if not self._seated and self.stage() not in BLOCKING:
-                    self._input({"kind": "event", "key": "character.enter"}, None)
+                self._input({"kind": "event", "key": "character.enter"}, None)
             self._propose(self._seen, now)
             self._hold(self._seen, now)
 
@@ -971,6 +976,7 @@ class Spatial:
             self._returned.append(next(reversed(self.active)))
             if ret["part"] not in self.last_return["played"]:
                 self.last_return["played"].append(ret["part"])
+            self._enter = False
         elif ret is not None:
             self.last_return["why"] = refused
             self._return_over()

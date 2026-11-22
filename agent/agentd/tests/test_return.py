@@ -242,6 +242,33 @@ class IntroductionTest(ReturnCase):
         self.assertValid()
 
 
+class EntranceTest(ReturnCase):
+    pack = None  # set in setUp: the greeting pack with a character.enter pool
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.pack = greeting_pack(self.tmp)
+        path = self.pack / "c7" / "animation" / "intent-motion-map.json"
+        table = json.loads(path.read_text(encoding="utf-8"))
+        table["events"]["character.enter"] = {"pool": [{"clip": "shrug"}], "interrupt": "mid"}
+        path.write_text(json.dumps(table), encoding="utf-8")
+        super().setUp()
+
+    def entrances(self):
+        return [m for m in self.sent if m["type"] == "perform" and m["trigger"]["event"] == "character.enter"]
+
+    def test_a_return_that_plays_while_her_entrance_waits_takes_its_place(self):
+        self.assertEqual(len(self.entrances()), 1)  # on launch
+        self.leave()
+        self.spatial.use_motion(MotionChooser(self.pack))  # a switch commits while she is away: her entrance waits
+        self.run_clock(1)
+        self.assertEqual(self.back(600), [("perform", "wave")])
+        self.run_clock(5)
+        self.assertEqual(len(self.entrances()), 1)
+        self.assertValid()
+
+
 class NoWelcomeTest(ReturnCase):
     """The plain demo pack maps no greet or acknowledge intent: she only looks at the user."""
     pack = test_spatial.PACK

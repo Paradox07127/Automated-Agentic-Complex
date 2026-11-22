@@ -2423,7 +2423,7 @@ LOCAL_CLIPS = {  # name -> (length, loop, stance start, stance end, its intent-m
     "pat_loop": (2.0, True, "stand", "stand", {"next": "pat_end", "exit": "pat_end", "interruptible": True}),
     "pat_end": (1.0, False, "stand", "stand", {}),
     "look_start": (0.5, False, "stand", "stand", {"next": "look_loop"}),
-    "look_loop": (1.0, True, "stand", "stand", {"next": "look_end", "exit": "look_end"}),
+    "look_loop": (1.0, True, "stand", "stand", {"next": "look_end", "exit": "look_end", "hold_seconds": 3}),
     "look_end": (0.5, False, "stand", "stand", {}),
     "snap_start": (3.0, False, "stand", "stand", {"next": "snap_loop", "stroke_s": 2.45}),
     "snap_loop": (1.0, True, "stand", "stand", {"hold_policy": "while_requested", "exit": "snap_end"}),
@@ -2432,6 +2432,9 @@ LOCAL_CLIPS = {  # name -> (length, loop, stance start, stance end, its intent-m
     "lift_loop": (1.0, True, "stand", "stand", {"exit": "lift_end"}),
     "lift_end": (0.5, False, "stand", "stand", {}),
     "land": (1.0, False, "stand", "stand", {}),
+    "angry_start": (1.0, False, "stand", "stand", {"next": "angry_loop"}),
+    "angry_loop": (1.0, True, "stand", "stand", {"next": "angry_end", "hold_seconds": 4}),
+    "angry_end": (1.0, False, "stand", "stand", {}),
     "sit_nod": (1.0, False, "sit", "sit", {}),
     "sit_think": (2.0, True, "sit", "sit", {}),
     "sit_doze": (3.0, True, "sit", "sit", {}),
@@ -2439,16 +2442,16 @@ LOCAL_CLIPS = {  # name -> (length, loop, stance start, stance end, its intent-m
     "fly_loop": (2.0, True, "air", "air", {"hold_policy": "while_requested"}),
 }
 LOCAL_EVENTS = {"pat.head": ["pat_start"], "look.left": ["look_start"], "present.snap": ["snap_start"],
-                "click.head": ["nod"], "click.face": ["tap"], "click.repeat": ["shrug"], "pinch.annoyed": ["stretch"],
+                "click.head": ["nod"], "click.face": ["tap"], "click.repeat": ["shrug"], "pinch.annoyed": ["angry_start"],
                 "drag.lift": ["lift_start"], "drag.land": ["land"], "character.enter": ["wave"],
                 "session.thinking@sit": ["sit_think"], "rest.sleep@sit": ["sit_doze"]}
 
 
 def local_pack(root, roles=None):
     """The demo pack in root with the pools the mac renderer used to draw from itself: held pat, look and present
-    chains, region and repeated clicks, the annoyed pinch, the lift and its landing, the entrance, a seated idle tier,
-    a seated session pool, rest dozing and a `fly` activity that holds her in the air. roles: motion-bindings.json's
-    lift_start / lift_end, None for none."""
+    chains, region and repeated clicks, the annoyed pinch's chain with a timed loop, the lift and its landing, the
+    entrance, a seated idle tier, a seated session pool, rest dozing and a `fly` activity that holds her in the air.
+    roles: motion-bindings.json's lift_start / lift_end, None for none."""
     pack = Path(root) / "local"
     shutil.copytree(PACK, pack)
 
@@ -2513,7 +2516,8 @@ class LocalMotionsTest(SpatialCase):
         self.flush()
         return answer
 
-    def test_the_table_holds_the_chains_of_pat_look_present_and_the_lift_and_names_the_new_triggers(self):
+    def test_the_table_holds_the_chains_of_pat_look_present_and_the_lift_times_the_others_and_names_the_new_triggers(
+            self):
         self.start()
         entry = lambda clip, layer="overlay", **more: {"clip": clip, "weight": 1, "layer": layer, **more}  # noqa: E731
         self.assertEqual(self.spatial.reactions(), {
@@ -2525,7 +2529,7 @@ class LocalMotionsTest(SpatialCase):
             "drag_lift": [entry("lift_start", "base", chain=["lift_loop", "lift_end"], hold="lift_loop")],
             "drop": [entry("land", "base")],
             "click_head": [entry("nod")], "click_cheek": [entry("tap")], "click_repeat": [entry("shrug")],
-            "pinch_annoyed": [entry("stretch")]})
+            "pinch_annoyed": [entry("angry_start", chain=["angry_loop", "angry_end"], hold_s={"angry_loop": 4})]})
         snapshot = next(m for m in reversed(self.log) if m["event"] == "snapshot")
         self.assertEqual(c1.check_message(snapshot), [])
         self.spatial.set_motion_prefs({}, {**NO_OVERRIDES, "pools": {"click.head": [{"clip": "tap", "weight": 2}]}})
@@ -2538,7 +2542,7 @@ class LocalMotionsTest(SpatialCase):
                                                "chain": ["pat_loop", "land"], "hold": "pat_loop"}])
         self.assertNotIn("drop", table)
 
-    def test_she_enters_on_launch_and_after_a_switch_but_not_on_a_quiet_stage_or_a_quick_restart(self):
+    def test_she_enters_on_launch_and_after_a_switch_but_not_after_a_quick_restart(self):
         self.start()
         self.run_clock(spatial.MOTION_WAKE)
         first = self.performs()[0]
@@ -2564,6 +2568,41 @@ class LocalMotionsTest(SpatialCase):
         count = len(self.performs())
         self.run_clock(1)
         self.assertNotIn("character.enter", [m["trigger"]["event"] for m in self.performs()[count:]])
+        self.assertValid()
+
+    def entrances(self):
+        return [m for m in self.performs() if m["trigger"]["event"] == "character.enter"]
+
+    def test_her_entrance_waits_for_a_stage_she_shows_on(self):
+        self.stage = "quiet"
+        self.start()
+        self.run_clock(2)
+        self.assertEqual(self.entrances(), [])
+        self.stage = "normal"
+        self.run_clock(spatial.MOTION_WAKE)
+        self.assertEqual([m["clip"]["id"] for m in self.entrances()], ["wave"])
+        self.assertValid()
+
+    def test_her_entrance_waits_for_her_to_stand(self):
+        self.start()
+        self.assertEqual(self.sit(), (True, None))
+        sit = self.sent[-1]
+        self.run_clock(2)
+        self.assertEqual(self.entrances(), [])
+        self.receipt(sit["behavior_id"], "completed")
+        self.run_clock(spatial.MOTION_WAKE)
+        self.assertEqual([m["clip"]["id"] for m in self.entrances()], ["wave"])
+        self.assertValid()
+
+    def test_a_switch_while_her_entrance_waits_leaves_one_entrance(self):
+        self.stage = "quiet"
+        self.start()
+        self.run_clock(1)
+        self.start()  # a character switch commits while the stage is still quiet
+        self.run_clock(1)
+        self.stage = "normal"
+        self.run_clock(4)
+        self.assertEqual(len(self.entrances()), 1)
         self.assertValid()
 
     def test_her_seated_tier_clip_plays_within_the_sit_under_the_seated_budget(self):

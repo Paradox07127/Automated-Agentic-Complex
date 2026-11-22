@@ -1,0 +1,114 @@
+{
+ "name": "click_repeat 的条目是没有结束的触发上的整条链：react_angry_start 播完进 react_angry_loop，按 hold_s 播 2 s（两圈）再播 react_angry_end，之后叠加层空着",
+ "character": null,
+ "steps": [
+  {
+   "t_ms": 0,
+   "c1": {
+    "event": "snapshot",
+    "seq": 1,
+    "turn_generation": 5,
+    "behaviors": [],
+    "stage": {
+     "level": "normal",
+     "revision": 1
+    },
+    "reactions": {
+     "click_repeat": [
+      {
+       "clip": "react_angry_start",
+       "weight": 1,
+       "layer": "overlay",
+       "chain": [
+        "react_angry_loop",
+        "react_angry_end"
+       ],
+       "hold_s": {
+        "react_angry_loop": 2
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "t_ms": 200,
+   "local": {
+    "input": "click_repeat"
+   }
+  }
+ ],
+ "expect": [
+  {
+   "t_ms_max": 300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 1300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 1300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 2300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "cycle_end",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 3300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 3300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 4300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": true,
+    "busy": false
+   }
+  }
+ ],
+ "poses": []
+}

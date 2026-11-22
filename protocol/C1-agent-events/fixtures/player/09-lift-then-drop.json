@@ -1,0 +1,145 @@
+{
+ "name": "drag_lift 的条目停在 react_lift_loop 上；2700 ms 放下是这个触发自己的结束，不是新的触发：循环走完这一圈，播出口 react_lift_end，drop 的条目 react_land 在出口之后开始",
+ "character": null,
+ "steps": [
+  {
+   "t_ms": 0,
+   "c1": {
+    "event": "snapshot",
+    "seq": 1,
+    "turn_generation": 5,
+    "behaviors": [],
+    "stage": {
+     "level": "normal",
+     "revision": 1
+    },
+    "reactions": {
+     "drag_lift": [
+      {
+       "clip": "react_lift_start",
+       "weight": 1,
+       "layer": "base",
+       "chain": [
+        "react_lift_loop",
+        "react_lift_end"
+       ],
+       "hold": "react_lift_loop"
+      }
+     ],
+     "drop": [
+      {
+       "clip": "react_land",
+       "weight": 1,
+       "layer": "base"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "t_ms": 200,
+   "local": {
+    "input": "drag_lift"
+   }
+  },
+  {
+   "t_ms": 2700,
+   "local": {
+    "input": "drop"
+   }
+  }
+ ],
+ "expect": [
+  {
+   "t_ms_max": 300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 1300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 1300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 2300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "cycle_end",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 3300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 3300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 4300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 4300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "started",
+    "resting": false,
+    "busy": true
+   }
+  },
+  {
+   "t_ms_max": 5300,
+   "motion_state": {
+    "behavior_id": null,
+    "origin": "local",
+    "phase": "ended",
+    "resting": true,
+    "busy": false
+   }
+  }
+ ],
+ "poses": []
+}

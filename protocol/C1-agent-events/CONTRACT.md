@@ -70,14 +70,20 @@
   | `stage` | `{level, revision}`：`level` 是当前存在感等级，`offstage` / `quiet` / `normal` / `engaged`；`revision` 是整数 ≥ 0，等级每变一次 +1 |
   | `consumed` | 数组，最多 64 个终态编号（`occurrence_id`，各 1–64 字节的字符串）：被挡掉、不再演的终态（§0 2026-10-29 一节、§4.2） |
 
-- `reactions` 的条目（v2.8）是 `{clip, weight, layer, chain?, hold?, stroke_s?}`：
+- `reactions` 的条目（v2.8）是 `{clip, weight, layer, chain?, hold?, hold_s?, stroke_s?}`：
   - `chain`：1–8 个片段 id（各同 `clip`）的数组，在 `clip` 之后按顺序在同一层上播，每条在前一条的出口开始（同 §1.4 `start: "after_exit"`）。
+    每个触发都可以带，带不带 `hold` 都行：`clip` 是角色包里一条链的开头时，agentd 给出整条链（mac 原来播的就是池子里链头的整条链）。
   - `hold`：`[clip] + chain` 里的一条循环片段 id；渲染器停在它上面，直到这个触发结束，再播列表里剩下的。只有下面的触发可以带 `hold`，
     各自的结束是：`pat`（摸头结束）、`present`（这次 present 关闭）、`drag_lift`（放下）、`attention_left` / `attention_right`
     （渲染器自己抽的保持时长，mac 上是 1.5–3 s）。别的触发带 `hold`、`hold` 不在这个列表里，校验器都报错。
   - `stroke_s`：对象，片段 id → 秒数：渲染器在这条片段播到这个秒数时，给这次打开的 present 发 C3 `motion.stroke`；键是
     `[clip] + chain` 里的片段，值是 ≥ 0 的数；只用于 `present`。
+  - `hold_s`：对象，片段 id → 秒数：列表里这条循环片段播这么多秒，再播列表里的下一条（角色包条目的 `hold_seconds`）；键是
+    `[clip] + chain` 里不是 `hold` 的循环片段，值是 > 0 的数；每个触发都可以带。列表里的循环片段既不是 `hold` 也不在 `hold_s`
+    里时只播一圈。键不在列表里、是 `hold`、值不大于 0，校验器都报错；校验器不读角色包，查不了键是不是循环片段。
   - 同一层上新起的本地触发让在停的条目立刻结束（不播出口）；渲染器因为别的原因离开在停的条目时，播它的出口。
+  - 触发自己的结束不算新的触发：放下让在停的 `drag_lift` 循环走完这一圈，播它后面的列表（出口），`drop` 的条目（表里有的话）在
+    那段出口播完之后开始；摸头结束、present 关闭也一样只让列表往下走（播放器夹具 `09-lift-then-drop.json`）。
 - 触发名（v2.8）另加 `click_head`、`click_cheek`、`click_hand`、`click_repeat`、`pinch_annoyed`。渲染器认出点在某个部位时，表里有
   这个部位的触发就播它，没有就播 `click`；认出连点时，表里有 `click_repeat` 就播它，没有就当一次单击。agentd 按原来的回退填部位
   触发（`cheek` → `click.cheek`，没有就 `click.face`；`head` → `click.head`；`hand` → `click.hand`），角色包没有对应池子的触发不给。
@@ -229,7 +235,8 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
   - 片段边界的播放状态由渲染器经 C3 `motion_state`（规则 54）报给 agentd。
 - 入场（v2.8）：agentd 从角色包的 `character.enter` 池挑一条，发基础层的 `clip` `perform`，`trigger.event` 为 `character.enter`：
   在它第一次提基础层时、状态目录的文件里没有还在播的循环时发（app 启动，不是 agentd 很快重启），换角色提交后也发。舞台为 `quiet`
-  或 `offstage` 时不发，坐着时不发。
+  或 `offstage`、她坐着时先不发，等到第一次舞台不是这两种、她也没坐着的基础层提议时再发。等的时候换了角色，只发新角色的一次入场；
+  等的时候演过用户回来的表演（哪怕只有转向用户），就不再发：她已经招呼过用户了。
 - 下面取文件、校验的规则只对 `motion`。宿主用 AgentBridgeTransport 发 GET 时已用的基址和令牌取两个文件（C6，ui 或 events 令牌）：
   - `GET /motions/<id>/meta` 回一份 `metal-actor-clip-v1` JSON：`{schema, name, length, frame_rate, loop:false, curves,
     keys:{file, sha256, byte_count}}`，和 `characters/agentic_complex_build/import_vmd.py:append_clip` 写的一样；`name` 等于 `<id>`。
@@ -401,7 +408,7 @@ Companion 给某个行为补发 `cancelled` / `connection_lost` 之后，角色�
 2026-11-04 C1 v2.5（只加不改）：§1.5 新事件 `motion`（宿主经 C3 v23 `motion_request` 请求的生成片段，成功带 `motion` 和 `tracks_sha256`，失败带 `reason`），新文件 `GET /motions/<id>/tracks`（`endfield-generated-tracks/v1`）。夹具 15；`agent/agentd/c1.py` 认识 `motion` 之前，这个夹具还过不了校验器。
 2026-11-06 C1 v2.6（只加不改）：§1.4 `perform` 带 `motion` 或 `action` 二选一；`action: {id, length_s}` 是当前角色包的角色包动作，`[motion:]` 的文字配到它时 agentd 不生成，宿主按 id 播原片。夹具 14b，不合法样例 `fixtures/invalid/14b-perform-motion-and-action.json`。
 2026-11-21 C1 v2.7：agentd 选每一条片段，渲染器只播。§1.4 `perform` 加载荷 `clip`（角色包 `motion-metadata.json` 的片段 id，`motion`、`action`、`clip` 三选一）和 `layer`、`start`、`blend_s`、`loop`、`ttl_s`；§2 `behavior_cancel` 加 `mode`、`fade_s`；snapshot 加 `reactions`、`stage`、`consumed`；带 `outcome` 的终态 intent 和 §4.2 `session_reaction` 加 `occurrence_id`，`consumed` 里的和演过的编号不再演；§1.2 `short_walk` 加目标 `edge`；§3 `cancelled` 加 reason `user_click`、`give_way`；§0、§1 intent 的 `state` 和 `activity` 不再让渲染器选全身片段（这一条改了 v2 的规则）；§6 播放器一致性夹具（`fixtures/player/`，`c1.check_player_fixture`）。不合法样例 `fixtures/invalid/perform-overlay-on-full-body.json`、`perform-two-payloads.json`、`perform-loop-on-overlay.json`、`perform-unknown-start.json`、`snapshot-unknown-reaction-trigger.json`、`cancel-fade-s-without-fade-out.json`。追加（只加不改）：snapshot `reactions` 的触发名加 `hover`，agentd 在角色包有 `user.hover` 池时给出；动作开关、动作覆盖或半身框选改了表时 agentd 发带新 `reactions` 的 snapshot（C6 `PUT /behavior/motion_prefs`）。
-2026-11-22 C1 v2.8（只加不改）：mac 渲染器原来自己选的本地动作都改由 agentd 选、两个渲染器播。§0 snapshot `reactions` 的条目加 `chain`、`hold`（只用于 `pat`、`present`、`drag_lift`、`attention_left`、`attention_right`）、`stroke_s`（只用于 `present`），触发名加 `click_head`、`click_cheek`、`click_hand`、`click_repeat`、`pinch_annoyed`；§1.4 基础层 `clip` `perform` 加 `within`（在跑的 `sit` / `climb_window_top` 里的姿势片段：坐着时的待机档、坐姿的会话池、打盹），§3 `rejected` 加 reason `target_gone`；§1.4 加入场（`character.enter` 池）；§6 `local` 加 `end`。夹具 16，播放器夹具 `fixtures/player/07-held-chain.json`，不合法样例 `fixtures/invalid/snapshot-hold-on-click.json`、`snapshot-hold-not-in-list.json`、`snapshot-stroke-off-present.json`、`perform-within-on-overlay.json`、`perform-within-no-sit.json`。
+2026-11-22 C1 v2.8（只加不改）：mac 渲染器原来自己选的本地动作都改由 agentd 选、两个渲染器播。§0 snapshot `reactions` 的条目加 `chain`、`hold`（只用于 `pat`、`present`、`drag_lift`、`attention_left`、`attention_right`）、`stroke_s`（只用于 `present`），触发名加 `click_head`、`click_cheek`、`click_hand`、`click_repeat`、`pinch_annoyed`；§1.4 基础层 `clip` `perform` 加 `within`（在跑的 `sit` / `climb_window_top` 里的姿势片段：坐着时的待机档、坐姿的会话池、打盹），§3 `rejected` 加 reason `target_gone`；§1.4 加入场（`character.enter` 池）；§6 `local` 加 `end`。夹具 16，播放器夹具 `fixtures/player/07-held-chain.json`，不合法样例 `fixtures/invalid/snapshot-hold-on-click.json`、`snapshot-hold-not-in-list.json`、`snapshot-stroke-off-present.json`、`perform-within-on-overlay.json`、`perform-within-no-sit.json`。追加（只加不改）：`chain` 用于每个触发，条目加 `hold_s`（列表里不是 `hold` 的循环片段播的秒数；两者都没有的循环片段播一圈）；触发自己的结束（放下、摸头结束、present 关闭）不算新的触发，`drop` 的条目在 `drag_lift` 的出口之后开始；入场在舞台为 `quiet` / `offstage`、她坐着时等着，不跳过。夹具 16 加 `hold_s`，播放器夹具 `08-timed-loop-chain.json`、`09-lift-then-drop.json`，不合法样例 `snapshot-hold-s-not-in-list.json`、`snapshot-hold-s-on-the-hold.json`、`snapshot-hold-s-not-positive.json`。
 
 ## 6. 播放器一致性夹具（v2.7）
 
