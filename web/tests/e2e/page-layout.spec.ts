@@ -47,7 +47,7 @@ for (const [w, h] of [
 ] as const) {
   test(`${w}: the motion jump bar has its own row and shows every section name in full`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
-    for (const route of ['/character', '/tune']) {
+    for (const route of ['/character?pane=motion', '/tune']) {
       await open(page, route);
       const jump = page.getByRole('group', { name: '跳转到分区' });
       await expect(jump).toBeVisible();

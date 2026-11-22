@@ -50,11 +50,11 @@ test('no page header: the 50 high command bar names the current page in its page
 });
 
 test("command bar draws the page's tabs: a centred plate of 50 wide icon cells, a 76 wide block hanging 6 below, Q/E either side", async ({ page }) => {
-  await page.goto('main.html#/character?still=1');
+  await page.goto('main.html#/trace?still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
   const bar = (await nav.boundingBox())!;
-  const tab = nav.getByRole('tab', { name: '动作' });
-  await expect(tab).toHaveAttribute('title', '动作');
+  const tab = nav.getByRole('tab', { name: '轮次' });
+  await expect(tab).toHaveAttribute('title', '轮次');
   await expect(tab).toHaveAttribute('aria-selected', 'true');
   const plate = (await nav.locator('[data-slot="tabs"]').evaluate((el) => {
     const r = el.getBoundingClientRect();
@@ -76,7 +76,7 @@ test("command bar draws the page's tabs: a centred plate of 50 wide icon cells, 
   expect(caps[0]! - plate.x).toBeLessThan(24);
   expect(plate.x + plate.width - caps[1]!).toBeGreaterThan(0);
   expect(plate.x + plate.width - caps[1]!).toBeLessThan(24);
-  await expect(nav).not.toContainText('// CHARACTER');
+  await expect(nav).not.toContainText('// TRACE');
 });
 
 test('dark shell screenshots for review', async ({ page }, info) => {
@@ -164,9 +164,9 @@ test('the page menu names the open page and its tab, and only the selected page 
       const accent = 'rgb(255, 241, 0)';
       return [root, ...root.querySelectorAll('*')].filter((el) => getComputedStyle(el).backgroundColor === accent).length;
     });
-  await page.goto('main.html#/character?still=1');
+  await page.goto('main.html#/trace?still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
-  await expect(nav.getByRole('button', { name: '角色 / 动作' })).toBeVisible();
+  await expect(nav.getByRole('button', { name: '运行记录 / 轮次' })).toBeVisible();
   expect(await accentCount(nav)).toBe(1);
   expect(await nav.getByRole('tab', { selected: true }).locator('[data-g="slc"]').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 241, 0)');
 

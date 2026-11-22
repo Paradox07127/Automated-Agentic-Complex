@@ -48,6 +48,6 @@
 }
 
 .label {
-  font: 600 11px / 1 var(--ef-font-sans);
+  font: 600 12px / 1 var(--ef-font-sans);
   white-space: nowrap;
 }

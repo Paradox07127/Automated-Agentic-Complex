@@ -10,7 +10,7 @@ const look = (l: Locator) =>
 
 for (const theme of ['dark', 'light'] as const) {
   test(`${theme}: 仅显示缺资源 and the jump buttons react to hover and press`, async ({ page }) => {
-    await page.goto(`main.html#/character?still=1&theme=${theme}`);
+    await page.goto(`main.html#/character?still=1&pane=motion&theme=${theme}`);
     for (const target of [page.getByRole('button', { name: /仅显示缺资源/ }), page.getByRole('button', { name: '跳转到 互动' })]) {
       await page.mouse.move(0, 0);
       const rest = await look(target);

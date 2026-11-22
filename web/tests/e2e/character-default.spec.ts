@@ -40,6 +40,8 @@ test('character-default: roster heads stay small, look and weapon options, no sm
   const tallest = await page.evaluate(() => Math.max(0, ...[...document.querySelectorAll('main svg[viewBox="0 0 22 30"]')].map((s) => s.getBoundingClientRect().height)));
   expect(tallest).toBeLessThanOrEqual(48);
   await expect(page.getByRole('listbox', { name: '外观' }).getByRole('option').first()).toBeVisible();
+  // 显示 has its own tab in the detail panel.
+  await page.getByRole('tablist', { name: '角色页签' }).getByRole('tab', { name: '显示' }).click();
   await expect(page.getByRole('listbox', { name: '服装分层' }).getByRole('option', { name: '武器' })).toBeVisible();
   await expect(page.locator('main')).not.toContainText(/Plan\d|\bROLE\b/);
   expect(await page.locator('main [data-stage] :text-is("NOW")').evaluateAll((els) => els.every((e) => e.closest('[aria-hidden="true"]')))).toBe(true);
@@ -57,7 +59,7 @@ test('character behavior uses switches', async ({ page }) => {
 
 test('character motions: group heads stay inside the table, a behavior-only row has a disabled preview mark, a missing duration reads —', async ({ page }) => {
   await page.setViewportSize({ width: 1385, height: 770 });
-  await page.goto('main.html#/character?still=1');
+  await page.goto('main.html#/character?still=1&pane=motion');
   const grid = page.getByRole('grid', { name: '全部动作' });
   await expect(grid.locator('[data-motion="walk"]')).toBeVisible();
   const outside = await grid.evaluate((g) => {
