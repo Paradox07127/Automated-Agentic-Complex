@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Banner, CountBadge, Fraction, Menu, Modal, Select, StatusTag, Toast, type MenuItem } from '../../src/ui';
+import { Banner, ContextMenu, CountBadge, Fraction, Menu, Modal, Select, StatusTag, Toast, type MenuItem } from '../../src/ui';
 
 afterEach(() => {
   cleanup();
@@ -324,5 +324,49 @@ describe('status readouts', () => {
   it('danger banners are alerts', () => {
     render(<Banner severity="danger" title="后台服务断开" timer="已断开 00:42" />);
     expect(screen.getByRole('alert').textContent).toContain('已断开 00:42');
+  });
+});
+
+describe('ContextMenu', () => {
+  const items = (run = vi.fn()): MenuItem[] => [
+    { kind: 'item', label: '置顶', onSelect: run },
+    { kind: 'sep' },
+    { kind: 'item', label: '删除…', danger: true },
+  ];
+
+  it('opens at the pointer with no trigger button and focuses the first item', () => {
+    render(<ContextMenu label="管理「周报」" items={items()} at={{ x: 120, y: 80 }} onClose={() => {}} />);
+    const menu = screen.getByRole('menu', { name: '管理「周报」' });
+    expect(screen.queryByRole('button', { name: /管理/ })).toBeNull();
+    expect(parseFloat(menu.style.left)).toBe(120);
+    expect(parseFloat(menu.style.top)).toBe(80);
+    expect(document.activeElement?.textContent).toBe('置顶');
+  });
+
+  it('asks to close on a press outside, Esc, a resize, a scroll and the window losing focus, not on a press inside', () => {
+    const onClose = vi.fn();
+    render(<ContextMenu label="管理" items={items()} at={{ x: 10, y: 10 }} onClose={onClose} />);
+    fireEvent.pointerDown(screen.getByRole('menuitem', { name: '置顶' }));
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.pointerDown(document.body);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    fireEvent(window, new Event('resize'));
+    fireEvent.scroll(document.body);
+    fireEvent(window, new Event('blur'));
+    expect(onClose).toHaveBeenCalledTimes(5);
+  });
+
+  it('runs the chosen item and closes', () => {
+    const run = vi.fn();
+    const onClose = vi.fn();
+    render(<ContextMenu label="管理" items={items(run)} at={{ x: 10, y: 10 }} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: '置顶' }));
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders nothing while closed', () => {
+    render(<ContextMenu label="管理" items={items()} at={null} onClose={() => {}} />);
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 });

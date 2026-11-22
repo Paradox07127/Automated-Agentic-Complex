@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon, type IconName } from './Icon';
 import { placePopup, usePopupLayer } from './popup';
 import styles from './Menu.module.css';
@@ -216,3 +217,113 @@ export const MenuDemos: Array<{ name: string; props: MenuProps }> = [
   { name: 'open', props: { label: '管理', open: true, items: MANAGE } },
   { name: 'icon', props: { label: '更多操作', icon: 'more', align: 'right', open: true, items: [{ kind: 'item', label: '复制路径' }, { kind: 'item', label: '在 Finder 中显示' }] } },
 ];
+
+/** 右键菜单：开在指针处、没有触发按钮，由父组件持有开关；按外面、Esc、改窗口大小、滚动、窗口失焦都调 onClose。 */
+export interface ContextMenuProps {
+  /** 菜单的读屏名称 */
+  label: string;
+  items: MenuItem[];
+  /** 指针坐标（视口像素）；null 时不显示 */
+  at: { x: number; y: number } | null;
+  onClose: () => void;
+}
+
+export function ContextMenu({ label, items, at, onClose }: ContextMenuProps) {
+  const pop = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const actionable = items.map((it, i) => (it.kind === 'item' ? i : -1)).filter((i) => i >= 0);
+  const [focusOn, setFocusOn] = useState<number | null>(null);
+  const [place, setPlace] = useState<{ left: number; top: number; maxHeight: number } | null>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  useLayoutEffect(() => {
+    if (!at) return setPlace(null);
+    const m = pop.current;
+    const w = m?.offsetWidth ?? 0, h = m?.scrollHeight ?? 0;
+    const left = Math.max(8, Math.min(at.x, window.innerWidth - 8 - w));
+    const top = at.y + h > window.innerHeight - 8 ? Math.max(8, at.y - h) : at.y;
+    setPlace({ left, top, maxHeight: window.innerHeight - 16 });
+    setFocusOn(actionable[0] ?? null);
+  }, [at]);
+
+  useEffect(() => {
+    if (!at) return;
+    const close = () => closeRef.current();
+    const away = (e: PointerEvent) => {
+      if (!pop.current?.contains(e.target as Node)) close();
+    };
+    const esc = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    };
+    document.addEventListener('pointerdown', away, true);
+    document.addEventListener('keydown', esc, true);
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('blur', close);
+    return () => {
+      document.removeEventListener('pointerdown', away, true);
+      document.removeEventListener('keydown', esc, true);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('blur', close);
+    };
+  }, [at]);
+
+  useEffect(() => {
+    if (focusOn != null && place) itemRefs.current[focusOn]?.focus({ preventScroll: true });
+  }, [focusOn, place]);
+
+  if (!at) return null;
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const cur = actionable.indexOf(focusOn ?? -1);
+    const n = actionable.length;
+    const to: Record<string, number | undefined> = { ArrowDown: actionable[(cur + 1) % n], ArrowUp: actionable[(cur - 1 + n) % n], Home: actionable[0], End: actionable[n - 1] };
+    if (e.key in to) {
+      e.preventDefault();
+      setFocusOn(to[e.key] ?? null);
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      onClose();
+    }
+  };
+  return createPortal(
+    <div ref={pop} role="menu" aria-label={label} className={styles.menu} data-context="" style={place ?? { left: at.x, top: at.y, visibility: 'hidden' }} onKeyDown={onKey}>
+      {items.map((it, i) => {
+        if (it.kind === 'sep') return <div key={i} role="separator" className={styles.sep} />;
+        if (it.kind === 'head') return <div key={i} role="presentation" className={styles.head}>{it.label}</div>;
+        return (
+          <button
+            key={i}
+            ref={(el) => {
+              itemRefs.current[i] = el;
+            }}
+            type="button"
+            role="menuitem"
+            aria-disabled={it.disabled || undefined}
+            tabIndex={focusOn === i ? 0 : -1}
+            className={styles.item}
+            data-danger={it.danger || undefined}
+            title={it.disabled ? it.reason : undefined}
+            onClick={() => {
+              if (it.disabled) return;
+              it.onSelect?.();
+              onClose();
+            }}
+            onMouseEnter={() => setFocusOn(i)}
+          >
+            <span className={styles.text}>
+              {it.label}
+              {it.disabled && it.reason && <span className={styles.reason}>{it.reason}</span>}
+            </span>
+            {it.hint && <kbd className={styles.hint}>{it.hint}</kbd>}
+          </button>
+        );
+      })}
+    </div>,
+    document.body,
+  );
+}
