@@ -1,7 +1,7 @@
 // Mock-only, with no agentd field behind them yet: 今日播放的点阵和次数（trace motion.started 不在 agentd 的读接口里）、屏幕示意图（/desktop/presence 是 host_only）、状态倍数（agentd 不发 walk_scale、comment_scale）、显示武器（宿主没有这个操作）。
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getBridge, type CharacterEntry, type MmdSyncState } from '../../bridge';
+import { getBridge, type CharacterEntry } from '../../bridge';
 import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
@@ -9,9 +9,8 @@ import { Btn, ErrBar, Menu, Spinner } from '../../ui';
 import { failure, mockOnly, readMotionHours, readRunningTasks, readState, resetState } from './api';
 import { CharacterSettings } from './CharacterSettings';
 import { demo as slot } from './demoSlot';
-import { pageNow, useFeedback, usePageParams } from './feedback';
+import { pageNow, useFeedback, useOpenMmd, usePageParams } from './feedback';
 import { hostReason } from './labels';
-import { MmdView } from './MmdView';
 import { MotionSettings } from './motions/MotionSettings';
 import { isPane, Operator, OperatorSkel } from './Operator';
 import { PhotoMode } from './PhotoMode';
@@ -31,7 +30,6 @@ export const DOWN = /^(stopped|backoff|portInUse|gpuHold|failed)/;
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code;
 /** The `ok` demo opens with two unsaved switches, as the prototype does. */
 const OK_SEED = { stretch: false, watch: true };
-const SYNC_IDLE: MmdSyncState = { running: false, character: null, total: 0, done: 0, failed: 0, stage: null, fraction: 0 };
 
 function initialSwitch(demo: string | null, roster: Roster | undefined): SwitchState {
   const target = roster?.find((c) => c.id === (demo === 'switchfail' ? slot.switchReject?.id : 'voice_a'));
@@ -41,7 +39,7 @@ function initialSwitch(demo: string | null, roster: Roster | undefined): SwitchS
   return { phase: 'idle' };
 }
 
-/** 角色：训练场上的实机舞台。默认（`?pane=overview`）是总览；`?pane=motion|chain|look|import` 是外观、动作的详情，`?tab=behavior|render|scene` 是「设定」，`?view=photo` 是拍照面板，`?view=mmd` 是共用的 MMD 库；状态曲线和完整动作表在调参页。 */
+/** 角色：训练场上的实机舞台。默认（`?pane=overview`）是总览；`?pane=motion|chain|look|import` 是外观、动作的详情，`?tab=behavior|render|scene` 是「设定」，`?view=photo` 是拍照面板，`?view=mmd` 跳到 MMD 页；状态曲线和完整动作表在调参页。 */
 export function CharacterPage() {
   const { state, demo } = useDemo();
   const fb = useFeedback();
@@ -51,6 +49,10 @@ export function CharacterPage() {
   const pane = params.get('pane');
   const photo = !isCharTab(tab) && params.get('view') === 'photo';
   const mmd = !isCharTab(tab) && params.get('view') === 'mmd';
+  const openMmd = useOpenMmd();
+  useEffect(() => {
+    if (mmd) openMmd(true);
+  }, [mmd, openMmd]);
   const qc = useQueryClient();
   const bridge = getBridge();
   const canAvatar = bridge.capabilities.avatar;
@@ -77,29 +79,6 @@ export function CharacterPage() {
     void motions.refetch();
     library.refetch();
   });
-  // Native bakes the MMD library into her after a switch; when that ends her actions may have changed.
-  const [sync, setSync] = useState<MmdSyncState>(SYNC_IDLE);
-  useEffect(() => {
-    if (!canAvatar) return;
-    let running = false;
-    let pushed = false;
-    const apply = (s: MmdSyncState) => {
-      if (running && !s.running) {
-        void qc.invalidateQueries({ queryKey: ['character', 'motions'] });
-        void qc.invalidateQueries({ queryKey: ['mmd', 'list'] });
-      }
-      running = s.running;
-      setSync(s);
-    };
-    getBridge()
-      .mmd.syncState()
-      .then((s) => !pushed && apply(s), () => {});
-    return getBridge().mmd.onSync((s) => {
-      pushed = true;
-      apply(s);
-    });
-  }, [canAvatar, qc]);
-
   // No catalog when the shell has no avatar or does not implement the op.
   const noCatalog = !canAvatar || codeOf(list.error) === 'not_implemented';
   const roster = noCatalog ? NO_ROSTER : list.data;
@@ -185,7 +164,7 @@ export function CharacterPage() {
           actions={motions.data ?? null}
           motionsError={motionsError}
           onRetryMotions={() => void motions.refetch()}
-          {...(canAvatar ? { motionImport, library, onImportPackage: importPackage, chains: <MotionSettings offline={offline} toast={fb.toast} /> } : {})}
+          {...(canAvatar ? { motionImport, library, onImportPackage: importPackage, onMmd: () => openMmd(), chains: <MotionSettings offline={offline} toast={fb.toast} /> } : {})}
           pane={isPane(pane) ? pane : 'overview'}
           hours={readMotionHours(demo === 'sparse')}
           charState={none ? null : (cs.data ?? null)}
@@ -199,22 +178,7 @@ export function CharacterPage() {
             ? { side: { of: 'set' as const, tab, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} toast={fb.toast} /> } }
             : photo
               ? { side: { of: 'photo' as const, node: <PhotoMode avatar={canAvatar} offline={offline} toast={fb.toast} /> } }
-              : mmd
-                ? {
-                    side: {
-                      of: 'mmd' as const,
-                      node: (
-                        <MmdView
-                          current={cur}
-                          actions={motions.data ?? null}
-                          sync={sync}
-                          blocked={offline ? '角色未运行' : sw.state.phase === 'running' ? '切换中 │ 输入暂停' : null}
-                          toast={fb.toast}
-                        />
-                      ),
-                    },
-                  }
-                : {})}
+              : {})}
         />
       </div>
     );

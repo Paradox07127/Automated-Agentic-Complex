@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { getBridge, type CharacterAppearance } from '../../bridge';
 import { Btn, Dialog, IconBtn, Progress } from '../../ui';
 import { motionFormatLabel, outfitImportWarning } from './labels';
-import { MotionEditDialog, type MotionEdit } from './MmdView';
+import { MotionEditDialog, type MotionEdit } from './MotionEditDialog';
 import { importStageLabel, useImportState } from './useImportState';
 import type { MotionImport } from './useMotionImport';
 import type { MotionLibrary } from './useMotionLibrary';

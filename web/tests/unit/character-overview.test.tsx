@@ -80,7 +80,6 @@ describe('角色页 · 总览', () => {
       ['动作', { pane: 'motion' }],
       ['设定', { tab: 'behavior' }],
       ['拍照', { view: 'photo' }],
-      ['MMD', { view: 'mmd' }],
       ['总览', {}],
     ];
     for (const [name, want] of steps) {

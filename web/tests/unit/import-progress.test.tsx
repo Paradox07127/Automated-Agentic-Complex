@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, ImportState } from '../../src/bridge/protocol';
 import { CharacterPage } from '../../src/pages/character/Page';
+import { MmdPage } from '../../src/pages/mmd/Page';
 import { setNavRouter } from '../../src/shell/nav';
 import { Progress } from '../../src/ui';
 
@@ -93,10 +94,15 @@ describe('导入 pane', () => {
   });
 });
 
-describe('MMD view', () => {
+describe('MMD page', () => {
   it('shows any running import under 导入 MMD and disables it', async () => {
     const sink = pushes();
-    await mount('&view=mmd');
+    const router = createRouter({ routeTree: createRootRoute({ component: MmdPage }), history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
     const btn = await screen.findByRole('button', { name: '导入 MMD' });
     await act(async () => sink.push({ running: true, kind: 'outfit', title: 'SummerMod', stage: 'publish', fraction: 0.9 }));
     expect(screen.getByRole('progressbar', { name: '发布' }).getAttribute('aria-valuenow')).toBe('90');

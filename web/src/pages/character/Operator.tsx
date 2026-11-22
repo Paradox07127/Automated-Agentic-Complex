@@ -62,13 +62,15 @@ export interface OperatorProps {
   /** Show the weapon switch (no host op yet: mock only). */
   weapon: boolean;
   toast: Toast;
-  /** 设定 (with its tab), 拍照 or MMD in the panel in place of the panes. */
+  /** 设定 (with its tab) or 拍照 in the panel in place of the panes. */
   side?: Side;
+  /** The rail's MMD item: opens the MMD page; absent without an avatar. */
+  onMmd?: () => void;
 }
 
 export type Pane = 'overview' | 'motion' | 'chain' | 'look' | 'import';
 
-export type Side = { of: 'set'; tab: CharTab; node: ReactNode } | { of: 'photo' | 'mmd'; node: ReactNode };
+export type Side = { of: 'set'; tab: CharTab; node: ReactNode } | { of: 'photo'; node: ReactNode };
 
 const PANES: readonly Pane[] = ['overview', 'motion', 'chain', 'look', 'import'];
 
@@ -82,13 +84,12 @@ const firstPick = (actions: AvatarAction[]) => actions.find((a) => !a.requiredRe
 
 const go = (to: Omit<Extract<Parameters<typeof navigate>[0], { page: 'character' }>, 'page'>) => navigate({ page: 'character', ...to });
 
-const GO: Record<RailItem, () => void> = {
+const GO: Record<Exclude<RailItem, 'mmd'>, () => void> = {
   overview: () => go({}),
   look: () => go({ pane: 'look' }),
   motion: () => go({ pane: 'motion' }),
   set: () => go({ tab: 'behavior' }),
   photo: () => go({ view: 'photo' }),
-  mmd: () => go({ view: 'mmd' }),
 };
 
 /** 角色页：训练场上的实机舞台。总览是头像条、名字栏、舞台和竖栏；外观 / 动作 / 设定把舞台移到左边，右边是带页签的面板。 */
@@ -275,7 +276,7 @@ export function Operator(p: OperatorProps) {
           tabs={tabs}
           value={tab}
           onTab={onTab}
-          label={side?.of === 'photo' ? '拍照' : side?.of === 'mmd' ? 'MMD' : ''}
+          label={side?.of === 'photo' ? '拍照' : ''}
           view={side ? 'character-settings' : undefined}
           pane={side ? undefined : pane}
           photo={side?.of === 'photo'}
@@ -306,7 +307,7 @@ export function Operator(p: OperatorProps) {
           )}
         </Panel>
       )}
-      <Rail value={at} avatar={canAvatar} onGo={(item) => GO[item]()} />
+      <Rail value={at} avatar={canAvatar} onGo={(item) => (item === 'mmd' ? p.onMmd?.() : GO[item]())} />
       {!side && (pane === 'motion' || Object.keys(m.changed).length > 0) && (
         <Commit
           offline={p.offline}

@@ -3,12 +3,12 @@ import { findRoute, pageRoutes } from '../../src/shell/registry';
 import { parseDemo } from '../../src/shell/demo';
 import { searchSettings } from '../../src/pages/settings/registry';
 
-const pages = ['home', 'overview', 'chat', 'memory', 'character', 'settings', 'diag', 'trace', 'pipeline', 'tune'];
+const pages = ['home', 'overview', 'chat', 'memory', 'character', 'mmd', 'settings', 'diag', 'trace', 'pipeline', 'tune'];
 const devPages = ['ds', 'dv'];
 const hidden = ['onboarding', 'schedules'];
 
 describe('route registry', () => {
-  it('auto-registers the 10 pages, the hidden onboarding page and 2 dev pages', () => {
+  it('auto-registers the 11 pages, the hidden onboarding page and 2 dev pages', () => {
     expect(pageRoutes.map((r) => r.id).sort()).toEqual([...pages, ...hidden, ...devPages].sort());
   });
 
