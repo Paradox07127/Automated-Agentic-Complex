@@ -328,7 +328,7 @@ export interface AgenticComplexBridge {
     /** The character page's live preview, drawn by the shell over the page; main surface only. */
     preview: {
       /** Places or moves it and plays `action`; true once the character is drawn there, false where the shell has no live preview. */
-      show(at: PreviewPlacement): Promise<boolean>; hide(): Promise<void>;
+      show(at: PreviewPlacement): Promise<boolean>; hide(): Promise<void>; /** Observe mode: `turn` degrees on her camera yaw, `zoom` 0.3–1 the share of her fitted frame shown (clamped); the shell keeps it across loads. */ view(v: { turn: number; zoom: number }): Promise<void>;
       /** `{ fraction }` 0–1 while a load builds her anew; null once none does (drawn, failed, replaced). A clip change reports none. */ onProgress(cb: (p: { fraction: number } | null) => void): Unsubscribe;
     };
     onState(cb: (s: AvatarState) => void): Unsubscribe;

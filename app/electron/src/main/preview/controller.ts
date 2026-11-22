@@ -14,6 +14,8 @@ export interface PreviewView {
   load(selection: PreviewSelection): Promise<boolean>;
   /** Preview XPC v2 `sequence` in the drawn preview; `unavailable` without one. */
   sequence(clips: string[], blendSeconds: number[]): Promise<void>;
+  /** Preview XPC `view`; nothing without a preview. */
+  view(turn: number, zoom: number): void;
   hide(): void;
   /** `{fraction}` while a load builds anew, null once none does. */
   readonly progress: EventSource;
@@ -111,5 +113,9 @@ export class PreviewController implements PreviewHost {
 
   sequence(clips: string[], blendSeconds: number[]): Promise<void> {
     return this.options.view.sequence(clips, blendSeconds);
+  }
+
+  view(turn: number, zoom: number): void {
+    this.options.view.view(turn, zoom);
   }
 }

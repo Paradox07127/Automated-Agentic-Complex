@@ -16,6 +16,20 @@ export async function fakePreviewSequence(s: PreviewSequence): Promise<boolean> 
   return false;
 }
 
+let viewed: { turn: number; zoom: number } | null = null;
+
+/** The last `avatar.preview.view` the newest fake bridge took, its zoom clamped as native clamps it; null before one. */
+export const lastFakeView = () => viewed;
+
+/** `avatar.preview.view`, checked as native checks it; each new fake bridge starts with no view. */
+export function fakePreviewView(): (v: { turn: number; zoom: number }) => Promise<void> {
+  viewed = null;
+  return async (v) => {
+    if (!Number.isFinite(v?.turn) || !Number.isFinite(v?.zoom)) return Promise.reject({ code: 'invalid_args', detail: '{turn, zoom}: finite numbers' } satisfies BridgeError);
+    viewed = { turn: v.turn, zoom: Math.min(1, Math.max(0.3, v.zoom)) };
+  };
+}
+
 /**
  * `avatar.motionChain`: check finds only clips the mock graph lacks and a replace or insert past its chain's end (lengths as the
  * mock graph has them, not as earlier edits leave them); apply always rebuilds.

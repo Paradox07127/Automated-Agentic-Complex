@@ -16,6 +16,8 @@ export interface PreviewHost {
   sequence(clips: string[], blendSeconds: number[]): Promise<void>;
   /** `avatar.preview.onProgress`: `{fraction}` while a load builds anew, null once none does. */
   readonly progress: EventSource;
+  /** Preview XPC `view`: degrees added to her camera yaw, and the share 0.3–1 of the fitted frame shown. */
+  view(turn: number, zoom: number): void;
 }
 
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -55,5 +57,10 @@ export function previewOps(ctx: OpsContext): Ops {
       return true;
     },
     'avatar.preview.onProgress': (args, page) => watch('avatar.preview.onProgress', host('avatar.preview.onProgress').progress)(args, page),
+    'avatar.preview.view': ([v]) => {
+      if (!isObject(v) || !finite(v.turn) || !finite(v.zoom)) throw new BridgeFailure('invalid_args', '{turn, zoom}: finite numbers');
+      host('avatar.preview.view').view(v.turn as number, Math.min(1, Math.max(0.3, v.zoom as number)));
+      return null;
+    },
   };
 }

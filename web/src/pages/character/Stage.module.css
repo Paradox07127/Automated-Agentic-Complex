@@ -291,3 +291,14 @@
     bottom: 74px;
   }
 }
+
+/* 观察模式 (useObserve.ts): the stage takes the drag, wheel and pinch; the live preview's canvas over it lets them through. */
+.stage[data-observe] {
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.stage[data-observe][data-grabbing] {
+  cursor: grabbing;
+}

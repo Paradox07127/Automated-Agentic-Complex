@@ -102,6 +102,8 @@ export class PreviewSession<S> {
   private framesReported = 0;
   /** The current load's last reported share; null when it reported none. */
   private progressed: number | null = null;
+  /** The last `view` asked for; null before one. */
+  private lastView: { turn: number; zoom: number } | null = null;
 
   constructor(options: SessionOptions<S>) {
     this.options = options;
@@ -110,7 +112,9 @@ export class PreviewSession<S> {
   /** Plays `value`; resolves once a frame of it is drawn, rejects when the service reports an error or goes away. */
   load(value: PreviewSelection): Promise<void> {
     if (!sameSelection(value, this.selection)) {
-      this.connect();
+      // The service keeps a view across loads and connections (a reload can reuse it), so a new connection sets this session's
+      // first; a service that starts with it applies it to the actor its load builds.
+      if (this.connect()) this.send({ op: 'view', ...(this.lastView ?? { turn: 0, zoom: 1 }) });
       // The service cannot keep a playhead across a load: a rebuild of a clip that has played draws her idle, a loop loops on.
       const idle = this.selection !== null && this.played && samePlayback(value, this.selection) && (this.sequenced || !value.loop);
       this.played = idle;
@@ -155,6 +159,12 @@ export class PreviewSession<S> {
     return this.settled();
   }
 
+  /** Preview XPC `view`: `turn` degrees on her camera yaw, `zoom` the share of the fitted frame shown; kept for a new connection. */
+  view(turn: number, zoom: number): void {
+    this.lastView = { turn, zoom };
+    if (this.connected) this.send({ op: 'view', turn, zoom });
+  }
+
   /** The presenter's `active` changed: `pause` or `resume` to match it. */
   syncPlayback(): void {
     const active = this.options.presenter.active;
@@ -192,13 +202,15 @@ export class PreviewSession<S> {
     return this.loadID;
   }
 
-  private connect(): void {
-    if (this.connected) return;
+  /** True when it started a new connection. */
+  private connect(): boolean {
+    if (this.connected) return false;
     const id = ++this.connectionID;
     this.options.transport.start(this.options.service, (json, surface, sequence) => {
       if (id === this.connectionID) this.receive(json, surface, sequence);
     });
     this.connected = true;
+    return true;
   }
 
   private awaitFirstFrame(expected: number): void {

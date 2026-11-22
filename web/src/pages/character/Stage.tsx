@@ -4,6 +4,7 @@ import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
 import { Btn, StatusTag } from '../../ui';
 import { Diamond, LoadBar } from '../../ui/game';
 import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';
+import { useObserve } from './useObserve';
 import { useLivePreview } from './usePreview';
 import type { SwitchState } from './useSwitch';
 import styles from './Stage.module.css';
@@ -46,6 +47,8 @@ export interface StageProps {
   previewRequest?: number | undefined;
   /** The previewed action starts over at its end (播放方式 循环); absent plays it once. */
   loop?: boolean;
+  /** 观察模式: the stage takes the drag, wheel and pinch that turn and zoom the live preview. */
+  observe?: boolean;
 }
 
 export type StageMode = 'overview' | 'detail' | 'photo';
@@ -70,6 +73,7 @@ export function Stage(p: StageProps) {
     loop: p.loop,
     blocked: p.offline || p.sw.phase !== 'idle',
   });
+  useObserve(el, p.observe === true, p.characterId ?? '');
   const mode = p.mode ?? 'detail';
   const overview = mode === 'overview';
   const previewNote = preview.phase === 'failed' && (

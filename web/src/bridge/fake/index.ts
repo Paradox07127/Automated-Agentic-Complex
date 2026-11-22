@@ -37,7 +37,7 @@ import { exampleRoutes } from './endpoints';
 import { feedScript, playOnce, replyScript, scriptedStream } from './feed';
 import { fakeImports } from './imports';
 import { fakeLogs } from './logs';
-import { fakeMotion, fakePreviewSequence } from './motion';
+import { fakeMotion, fakePreviewSequence, fakePreviewView } from './motion';
 import { createFakeOnboarding } from './onboarding';
 import { fakeOutfit } from './outfit';
 
@@ -299,7 +299,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       presentation: { get: async () => null, set: done },
       photo: { set: done }, capture: async () => ({ file: `Agentic Complex-${character}-20261116-120000.png` }),
       // A browser has no live preview: the stage keeps its art.
-      preview: { show: async () => false, hide: done, sequence: fakePreviewSequence, onProgress: () => none },
+      preview: { show: async () => false, hide: done, sequence: fakePreviewSequence, onProgress: () => none, view: fakePreviewView() },
       onState: () => none,
       onStats: (cb) => {
         if (hashQuery().get('demo') === 'suspended') return none;

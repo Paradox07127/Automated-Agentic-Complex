@@ -67,6 +67,10 @@ export class WindowPreview implements PreviewView {
     return this.session.sequence(clips, blendSeconds);
   }
 
+  view(turn: number, zoom: number): void {
+    this.session?.view(turn, zoom);
+  }
+
   hide(): void {
     this.shown = false;
     if (this.win && !this.win.isDestroyed()) this.win.webContents.send('preview:hide');

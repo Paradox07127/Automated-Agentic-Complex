@@ -507,7 +507,7 @@ test('what a switch writes keeps the other state.json and config.json keys', { s
 test("the preview's load carries the character's remembered mod settings, none when she has none", async () => {
   const loads: PreviewSelection[] = [];
   const view = { place: () => {}, load: async (sel: PreviewSelection) => (loads.push(sel), true), sequence: async () => {}, hide: () => {},
-    progress: new PushSource('progress') };
+    progress: new PushSource('progress'), view: () => {} };
   const mods: Record<string, Record<string, Record<string, number>>> = { aster: { summer: { coat: 1 } } };
   let character = 'aster';
   const preview = new PreviewController({ view, avatar: () => ({ character, appearance: 'summer' }), modSettings: (id) => mods[id] ?? {},
