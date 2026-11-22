@@ -334,6 +334,7 @@ export function Operator(p: OperatorProps) {
           backoff={p.backoff}
           onRestart={p.onRestart}
           sw={p.sw.state}
+          switching={switching}
           currentName={ch?.name ?? ''}
           onRetry={p.sw.retry}
           onDismiss={p.sw.dismiss}

@@ -32,6 +32,8 @@ export interface StageProps {
   backoff: number | null;
   onRestart: () => void;
   sw: SwitchState;
+  /** A switch is running, this page's or one from the tray or menu bar. */
+  switching?: boolean;
   currentName: string;
   onRetry: () => void;
   onDismiss: () => void;
@@ -70,7 +72,7 @@ export function Stage(p: StageProps) {
     appearance: p.previewAppearance,
     request: p.previewRequest,
     loop: p.loop,
-    blocked: p.offline || p.sw.phase !== 'idle',
+    blocked: p.offline || p.sw.phase !== 'idle' || p.switching === true,
   });
   const inspect = useInspect(p.characterId ? grip : null, el, p.characterId ?? '');
   const mode = p.mode ?? 'detail';
