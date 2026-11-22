@@ -36,6 +36,7 @@ from release import PROFILE_ENV, default_profile  # noqa: E402
 import source_fingerprint  # noqa: E402
 
 POLL_S = 30
+WAIT_POLL_S = 5
 FULL_EVERY = datetime.timedelta(hours=24)
 KEEP_LOGS = 10
 GREEN = 'refs/endfield/green'
@@ -127,6 +128,33 @@ def held(lock, label):
         yield
     finally:
         shutil.rmtree(lock, ignore_errors=True)
+
+
+def waiters(lock):
+    """The directory where a gate.py run waiting on lock leaves a file named by its pid."""
+    return Path(f'{lock}.wait')
+
+
+def yield_to_waiters(lock):
+    """Returns once no live gate.py run waits on lock; files of dead pids are removed."""
+    while True:
+        live = False
+        for entry in waiters(lock).glob('*'):
+            if entry.name.isdigit() and alive(int(entry.name)):
+                live = True
+            else:
+                entry.unlink(missing_ok=True)
+        if not live:
+            return
+        time.sleep(WAIT_POLL_S)
+
+
+@contextlib.contextmanager
+def step(lock, label):
+    """The runner holds lock for one checkout and gate run at a time, after the waiting sessions' runs."""
+    yield_to_waiters(lock)
+    with held(lock, label):
+        yield
 
 
 def owner(lock):
@@ -269,50 +297,53 @@ class Daemon:
         lo, hi = 0, len(commits) - 1
         while lo < hi:
             mid = (lo + hi) // 2
-            self.checkout(self.gr, commits[mid])
-            only = ['--only', ','.join(with_requires(self.gr, red))] if red else []
-            passed = self.run_gate(commits[mid][:12], *only)[0]
+            with step(self.checkout_lock, f'gate-daemon bisect {commits[mid][:12]}'):
+                self.checkout(self.gr, commits[mid])
+                only = ['--only', ','.join(with_requires(self.gr, red))] if red else []
+                passed = self.run_gate(commits[mid][:12], *only)[0]
             self.event('bisect', sha=commits[mid], result='PASS' if passed else 'FAIL')
             if passed:
                 lo = mid + 1
             else:
                 hi = mid
-        self.checkout(self.gr, sha)
+        with step(self.checkout_lock, f'gate-daemon checkout {sha[:12]}'):
+            self.checkout(self.gr, sha)
         return self.commit_info(commits[lo])
 
     def verify(self, sha):
         before = self.load().get('last') or {}
-        with held(self.checkout_lock, f'gate-daemon verify {sha[:12]}'):
-            self.update(current=dict(sha=sha, kind='verify', started_at=utc()))
-            try:
+        self.update(current=dict(sha=sha, kind='verify', started_at=utc()))
+        try:
+            with step(self.checkout_lock, f'gate-daemon verify {sha[:12]}'):
                 self.checkout(self.gr, sha)
                 passed, red, receipt = self.run_gate(sha[:12])
-                first_red, reran = red, not passed
-                if reran:
-                    self.event('rerun', sha=sha, suites=red)
+            first_red, reran = red, not passed
+            if reran:
+                self.event('rerun', sha=sha, suites=red)
+                with step(self.checkout_lock, f'gate-daemon rerun {sha[:12]}'):
                     self.checkout(self.gr, sha)
                     passed, red, receipt = self.run_gate(f'{sha[:12]}-rerun')
-                if passed:
-                    git(self.root, 'update-ref', GREEN, sha)
-                    self.event('green', sha=sha, receipt=receipt)
-                    if reran:
-                        flaky = self.load().get('flaky', [])[-19:] + [dict(sha=sha, suites=first_red, at=utc())]
-                        self.update(flaky=flaky)
-                    if before.get('result') == 'FAIL':
-                        notify('Endfield 门禁转绿', f'{sha[:8]} 通过 commit 档')
-                else:
-                    first_bad = self.bisect(rev(self.root, GREEN), sha, red)
-                    self.update(last_red=dict(sha=sha, suites=red, at=utc(), receipt=receipt, first_bad=first_bad))
-                    self.event('red', sha=sha, suites=red, first_bad=first_bad)
-                    culprit = f'，首个红提交 {first_bad["sha"][:8]} {first_bad["subject"]}' if first_bad else ''
-                    notify('Endfield 门禁红', f'{sha[:8]} 红: {", ".join(red) or "见日志"}{culprit}')
-                self.update(verified=sha, last=dict(sha=sha, result='PASS' if passed else 'FAIL', red=red,
-                                                    receipt=receipt, finished_at=utc()))
-            finally:
-                self.update(current=None)
+            if passed:
+                git(self.root, 'update-ref', GREEN, sha)
+                self.event('green', sha=sha, receipt=receipt)
+                if reran:
+                    flaky = self.load().get('flaky', [])[-19:] + [dict(sha=sha, suites=first_red, at=utc())]
+                    self.update(flaky=flaky)
+                if before.get('result') == 'FAIL':
+                    notify('Endfield 门禁转绿', f'{sha[:8]} 通过 commit 档')
+            else:
+                first_bad = self.bisect(rev(self.root, GREEN), sha, red)
+                self.update(last_red=dict(sha=sha, suites=red, at=utc(), receipt=receipt, first_bad=first_bad))
+                self.event('red', sha=sha, suites=red, first_bad=first_bad)
+                culprit = f'，首个红提交 {first_bad["sha"][:8]} {first_bad["subject"]}' if first_bad else ''
+                notify('Endfield 门禁红', f'{sha[:8]} 红: {", ".join(red) or "见日志"}{culprit}')
+            self.update(verified=sha, last=dict(sha=sha, result='PASS' if passed else 'FAIL', red=red,
+                                                receipt=receipt, finished_at=utc()))
+        finally:
+            self.update(current=None)
 
     def full_run(self, sha):
-        with held(self.checkout_lock, f'gate-daemon no-cache {sha[:12]}'):
+        with step(self.checkout_lock, f'gate-daemon no-cache {sha[:12]}'):
             self.update(current=dict(sha=sha, kind='no-cache', started_at=utc()))
             try:
                 self.checkout(self.gr, sha)

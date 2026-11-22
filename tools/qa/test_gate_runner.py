@@ -225,10 +225,13 @@ class CheckoutLock(unittest.TestCase):
         time.sleep(7)
         self.assertIsNone(run.poll())
         self.assertFalse(self.owners.exists())
+        waiting = Path(f'{self.lock}.wait') / str(run.pid)
+        self.assertTrue(waiting.is_file())
         shutil.rmtree(self.lock)
         out = run.communicate(timeout=120)[0]
         self.assertEqual(out.splitlines()[-1], 'GATE PASS', out)
         self.assertNotIn('GATE QUEUE', out)
+        self.assertFalse(waiting.exists())
         self.assertRegex(self.owners.read_text(), r'^gate dev \.claude/worktrees/x \S+Z\n$')
         self.assertFalse(self.lock.exists())
 

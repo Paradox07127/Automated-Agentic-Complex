@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
@@ -209,6 +210,43 @@ class GateDaemonTest(unittest.TestCase):
         self.daemon.tick()
         self.assertEqual(self.green(), c4)
         self.assertEqual(len(self.notes), 2)
+
+    def test_the_runner_takes_the_lock_once_per_step_so_waiting_runs_can_go_between(self):
+        self.daemon.tick()
+        self.daemon.tick()
+        self.commit_file('one', 'x', 'one')
+        self.commit_file('broken', 'agentd', 'Break agentd')
+        self.commit_file('three', 'x', 'three')
+        owners, run = [], self.daemon.run_gate
+
+        def gate(*args, **kwargs):
+            owners.append(gate_daemon.owner(self.daemon.checkout_lock).split()[1])
+            return run(*args, **kwargs)
+        with mock.patch.object(self.daemon, 'run_gate', gate):
+            self.daemon.tick()
+        self.assertEqual(owners, ['verify', 'rerun', 'bisect', 'bisect'])
+        self.assertFalse(self.daemon.checkout_lock.exists())
+
+    def test_the_runner_waits_while_a_live_run_waits_and_clears_files_of_dead_ones(self):
+        wait = gate_daemon.waiters(self.daemon.checkout_lock)
+        wait.mkdir(parents=True)
+        dead = subprocess.Popen([sys.executable, '-c', 'pass'])
+        dead.wait()
+        (wait / str(dead.pid)).touch()
+        gate_daemon.yield_to_waiters(self.daemon.checkout_lock)
+        self.assertEqual(list(wait.iterdir()), [])
+        live = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(600)'])
+        self.addCleanup(lambda: (live.kill(), live.wait()))
+        (wait / str(live.pid)).touch()
+        done = threading.Event()
+        with mock.patch.object(gate_daemon, 'WAIT_POLL_S', 0.05):
+            thread = threading.Thread(target=lambda: (gate_daemon.yield_to_waiters(self.daemon.checkout_lock), done.set()))
+            thread.start()
+            self.assertFalse(done.wait(0.5))
+            live.kill()
+            live.wait()
+            self.assertTrue(done.wait(5))
+            thread.join()
 
     def test_bisect_runs_the_red_suites_with_what_they_require(self):
         self.write('tools/qa/suites.json', json.dumps(dict(suites=dict(

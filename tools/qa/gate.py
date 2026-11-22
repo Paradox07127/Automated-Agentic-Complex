@@ -564,6 +564,14 @@ def checkout_lock(repo, profile):
     label = f'gate {profile} {repo.relative_to(root) if repo.is_relative_to(root) else repo}'
     if not daemon.acquire(lock, label, wait=False):
         print(f'GATE QUEUE: waiting for {daemon.owner(lock)}', flush=True)
+        # The runner holds the lock one step at a time and goes after the runs that left a file here.
+        mine = daemon.waiters(lock) / str(os.getpid())
+        mine.parent.mkdir(parents=True, exist_ok=True)
+        mine.touch()
+        try:
+            daemon.acquire(lock, label)
+        finally:
+            mine.unlink(missing_ok=True)
     with daemon.held(lock, label):
         yield
 
