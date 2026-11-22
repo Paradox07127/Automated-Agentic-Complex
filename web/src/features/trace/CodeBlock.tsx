@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { getBridge } from '../../bridge';
+import { MoreLines } from '../../ui/MoreLines';
 import styles from './CodeBlock.module.css';
 
 /** 代码块：行号、换行开关、复制；超过 preview 行先显示前 preview 行，加「全部 N 行」。 */
@@ -20,6 +21,7 @@ export function CodeBlock({ code, preview = 20, wrap: wrapInit = true, label = '
   const [all, setAll] = useState(false);
   const [wrap, setWrap] = useState(wrapInit);
   const [copied, setCopied] = useState(false);
+  const preId = useId();
   const lines = code.replace(/\n$/, '').split('\n');
   const cut = !all && lines.length > preview;
   const shown = cut ? lines.slice(0, preview) : lines;
@@ -54,7 +56,7 @@ export function CodeBlock({ code, preview = 20, wrap: wrapInit = true, label = '
           {copied ? '已复制' : '复制'}
         </button>
       </div>
-      <pre className={styles.pre}>
+      <pre id={preId} className={styles.pre}>
         {shown.map((l, i) => (
           <span key={i} className={styles.line} data-line="">
             <span className={styles.ln} data-ln="" aria-hidden="true">
@@ -64,11 +66,7 @@ export function CodeBlock({ code, preview = 20, wrap: wrapInit = true, label = '
           </span>
         ))}
       </pre>
-      {lines.length > preview && (
-        <button type="button" className={styles.more} aria-expanded={all} onClick={() => setAll((a) => !a)}>
-          {all ? '收起' : `全部 ${lines.length} 行`}
-        </button>
-      )}
+      {lines.length > preview && <MoreLines total={lines.length} open={all} controls={preId} onToggle={() => setAll((a) => !a)} />}
     </div>
   );
 }

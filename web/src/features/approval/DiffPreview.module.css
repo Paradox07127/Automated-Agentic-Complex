@@ -2,21 +2,14 @@
   margin: 0 0 var(--ef-sp-8);
 }
 
-.toggle {
+.head {
   display: inline-flex;
   align-items: center;
   gap: var(--ef-sp-4);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
   font: var(--ef-t-meta);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
-.toggle :global(.num) {
+.head :global(.num) {
   padding: 0 var(--ef-sp-4);
   background: var(--ef-base);
 }
@@ -33,21 +26,27 @@
   margin: 0;
 }
 
-.diff {
+.box {
   margin: var(--ef-sp-8) 0 0;
+  border: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  background: var(--ef-base);
+}
+
+.root[data-bare] .box {
+  margin: 0;
+}
+
+.diff {
+  margin: 0;
   padding: var(--ef-sp-8) var(--ef-sp-12);
   max-height: 160px;
   overflow: auto;
-  border: var(--ef-lw-hair) solid var(--ef-line-subtle);
   background: var(--ef-base);
   color: var(--ef-base-fg);
   font: var(--ef-t-mono);
   white-space: pre;
 }
 
-.root[data-bare] .diff {
-  margin: 0;
-}
 
 .add {
   color: var(--ef-success-text);

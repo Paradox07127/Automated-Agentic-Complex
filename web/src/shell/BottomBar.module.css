@@ -1,0 +1,33 @@
+/* Fills the shell's 44 px bottom bar (Layout .bottomBar): lead, status, then the actions pushed to the right end. */
+.bar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--ef-sp-16);
+  min-width: 0;
+  height: 100%;
+}
+
+.lead,
+.actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-8);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.actions {
+  margin-left: auto;
+}

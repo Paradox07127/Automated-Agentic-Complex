@@ -157,6 +157,10 @@
   --ef-paper-toggle-knob-ring: #434343;
   --ef-paper-toggle-on-text: rgba(255,255,255,.8);
   --ef-paper-toggle-off-text: #161616;
+  --ef-seg-track: #626262;
+  --ef-seg-track-text: rgba(255,255,255,.78);
+  --ef-seg-knob: #F2F1EF;
+  --ef-seg-knob-text: #444444;
   --ef-dropdown-field: #EFEFEF;
   --ef-dropdown-text: #393939;
   --ef-dropdown-list: #C4C4C4;
@@ -408,6 +412,10 @@
   --ef-paper-toggle-knob-ring: var(--ef-toggle-knob-ring);
   --ef-paper-toggle-on-text: var(--ef-toggle-on-text);
   --ef-paper-toggle-off-text: var(--ef-toggle-off-text);
+  --ef-seg-track: #CFCECA;
+  --ef-seg-track-text: #3A3A3A;
+  --ef-seg-knob: #2C2D2F;
+  --ef-seg-knob-text: #F4F4F2;
   --ef-dropdown-field: #EFEFEF;
   --ef-dropdown-text: #393939;
   --ef-dropdown-list: #C4C4C4;

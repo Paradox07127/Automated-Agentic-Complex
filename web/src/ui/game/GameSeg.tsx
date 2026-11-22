@@ -5,7 +5,7 @@ import { useControlled } from '../useControlled';
 import { MicroLabel } from './Marks';
 import styles from './GameSeg.module.css';
 
-/** 游戏分段开关：深色斜切槽，选中的白块滑过去（底边一小段黄），默认值那段下面一个小点；role=radiogroup，←→ Home End 切换。 */
+/** 游戏分段开关：深色斜切槽，选中的白块滑过去（底边一小段黄），默认值那段下面一个小点；setting 是设置页的圆角灰槽白旋钮。role=radiogroup，←→ Home End 切换。 */
 export interface GameSegProps {
   /** 选项，等宽；`title` 是悬停提示（禁用原因），`icon` 画在字前 */
   options: Array<{ value: string; label: string; disabled?: boolean; title?: string; icon?: IconName }>;
@@ -13,12 +13,12 @@ export interface GameSegProps {
   value: string;
   /** 默认值：那段下面一个小点 */
   defaultValue?: string;
-  /** compact：矮一号、窄一号（925 档） */
+  /** compact：矮一号、窄一号（925 档）；setting 变体下是 200 宽的短槽 */
   size?: 'normal' | 'compact';
   /** 读屏名称 */
   label: string;
-  /** plain：速度、播放方式；onoff：斜切「开｜关」，选中第二项（关）时白块变灰、没有黄边 */
-  variant?: 'plain' | 'onoff';
+  /** plain：速度、播放方式；onoff：斜切「开｜关」，选中第二项（关）时白块变灰、没有黄边；setting：设置行（ToggleSetting），34 高圆角槽，宽到 --cw（默认 330） */
+  variant?: 'plain' | 'onoff' | 'setting';
   /** 槽上方的说明（中文）和它的微型英文 */
   caption?: string;
   micro?: string;
@@ -149,4 +149,18 @@ export const GameSegDemos: Array<{ name: string; props: GameSegProps }> = [
   { name: 'on', props: { label: '开口说话', variant: 'onoff', value: 'on', options: [{ value: 'on', label: '开' }, { value: 'off', label: '关' }] } },
   { name: 'off', props: { label: '思考', variant: 'onoff', value: 'off', options: [{ value: 'on', label: '开' }, { value: 'off', label: '关' }] } },
   { name: 'locked', props: { label: '站立待机', variant: 'onoff', value: 'on', disabled: true, options: [{ value: 'on', label: '开' }, { value: 'off', label: '关' }] } },
+  {
+    name: 'setting',
+    props: {
+      label: '说话方式',
+      variant: 'setting',
+      value: 'voice',
+      options: [
+        { value: 'voice', label: '出声' },
+        { value: 'text', label: '只显示文字' },
+        { value: 'off', label: '不回答', disabled: true, title: '后台服务没有运行' },
+      ],
+    },
+  },
+  { name: 'setting-short', props: { label: '主动开口', variant: 'setting', size: 'compact', value: 'on', options: [{ value: 'on', label: '开' }, { value: 'off', label: '关' }] } },
 ];

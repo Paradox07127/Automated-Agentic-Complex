@@ -1,0 +1,42 @@
+/* Stat table (fachubdatapanel): a 26 high light header strip with 12 px column names over ExpandRow rows. */
+.table {
+  --gt-cols: var(--gt-wide);
+  display: grid;
+  min-width: 0;
+}
+
+.head {
+  display: grid;
+  grid-template-columns: 14px var(--gt-cols) var(--gt-end, auto);
+  align-items: center;
+  column-gap: 10px;
+  height: 26px;
+  padding: 0 10px;
+  background: color-mix(in srgb, var(--ef-text-1) 5%, transparent);
+  color: var(--ef-text-2);
+  font: var(--ef-fw-regular) var(--ef-fs-small) / 1 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.head > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Narrow windows drop the optional columns. */
+@media (max-width: 1099px) {
+  .table {
+    --gt-cols: var(--gt-narrow);
+  }
+
+  .table [data-opt] {
+    display: none;
+  }
+}
+
+@media (max-height: 600px) {
+  .head {
+    height: 24px;
+  }
+}

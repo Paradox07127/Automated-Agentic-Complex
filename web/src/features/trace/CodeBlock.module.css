@@ -24,8 +24,7 @@
   opacity: 1;
 }
 
-.tool,
-.more {
+.tool {
   height: var(--ef-h-sm);
   padding: 0 var(--ef-sp-8);
   border: 0;
@@ -36,8 +35,7 @@
   cursor: pointer;
 }
 
-.tool:hover,
-.more:hover {
+.tool:hover {
   background: var(--ef-overlay-hover);
   color: var(--ef-text-1);
 }
@@ -46,8 +44,7 @@
   color: var(--ef-text-1);
 }
 
-.tool:focus-visible,
-.more:focus-visible {
+.tool:focus-visible {
   outline: var(--ef-lw-focus) solid var(--ef-focus);
   outline-offset: -2px;
 }
@@ -87,14 +84,4 @@
 .root:not([data-wrap]) .line {
   width: max-content;
   min-width: 100%;
-}
-
-.more {
-  display: block;
-  width: 100%;
-  border-top: var(--ef-lw-hair) solid var(--ef-line-subtle);
-  border-radius: 0;
-  height: var(--ef-h-md);
-  text-align: left;
-  padding: 0 var(--ef-sp-12);
 }

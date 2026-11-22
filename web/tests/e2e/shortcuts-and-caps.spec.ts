@@ -113,7 +113,7 @@ test('chat task column: one task title, one set of task actions and a tool secti
 
 test('DiffPreview +1 −1 is not on a dark chip in the light theme', async ({ page }) => {
   await page.goto('main.html#/ds?plugins=all&c=ApprovalCard&d=normal&still=1&theme=light');
-  const num = page.locator('[data-stub="DiffPreview"] button .num');
+  const num = page.locator('[data-stub="DiffPreview"] > span .num');
   await expect(num).toBeVisible();
   const lum = await num.evaluate((el) => {
     let n: Element | null = el;

@@ -1,7 +1,9 @@
 // Game-style pieces of the character area (外观、动作、编排、设定、拍照、MMD). Each file exports <Name>, <Name>Props and <Name>Demos; #/ds lists them as ui/game.
 export * from './ActionBar';
 export * from './DarkRow';
+export * from './ExpandRow';
 export * from './GameSeg';
+export * from './GameTable';
 export * from './GameTabs';
 export * from './LoadBar';
 export * from './Marks';

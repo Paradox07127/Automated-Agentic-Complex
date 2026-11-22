@@ -1,4 +1,4 @@
-/* Folded raw text (label, counts, wrap, copy; line numbers, the first 20 lines until 全部) and the raw event table. */
+/* The raw event fold under a turn: label and count, copy, the event table. */
 .raw {
   display: grid;
   box-shadow: 0 0 0 1px var(--pn-line);
@@ -93,45 +93,3 @@
   color: var(--danger-t);
 }
 
-.code {
-  max-height: 340px;
-  margin: 0;
-  padding: 6px 0;
-  overflow: auto;
-  background: var(--pn-well);
-  font: 12px / 19px var(--ef-font-mono);
-  counter-reset: ln;
-}
-
-.code span {
-  display: block;
-  padding-right: 12px;
-  white-space: pre;
-}
-
-.code[data-wrap] span {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.code span::before {
-  content: counter(ln);
-  display: inline-block;
-  width: 36px;
-  padding-right: 10px;
-  color: var(--b-t2);
-  text-align: right;
-  counter-increment: ln;
-  user-select: none;
-}
-
-.all {
-  padding: 4px 12px;
-  border: 0;
-  border-top: 1px dashed var(--pn-line);
-  background: var(--pn-well);
-  color: var(--b-t2);
-  font: 12px var(--ef-font-sans);
-  text-align: left;
-  cursor: pointer;
-}

@@ -56,13 +56,13 @@ describe('ApprovalCard', () => {
     expect(screen.getByRole('button', { name: '批准' })).toBeTruthy();
   });
 
-  it('opens a command that overflows two lines in place with 展开全部', () => {
+  it('opens a command that overflows two lines in place with 全部 N 行', () => {
     // jsdom lays nothing out: report every box as taller than it shows.
     const sh = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(200);
     const ch = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(52);
     try {
       const { container } = render(<ApprovalCard approval={{ ...pick(APPROVALS, A2), cmd: 'x '.repeat(200) }} />);
-      const more = screen.getByRole('button', { name: '展开全部' });
+      const more = screen.getByRole('button', { name: /^全部 \d+ 行$/ });
       expect(more.getAttribute('aria-expanded')).toBe('false');
       const code = container.querySelector('[data-stub="CmdBlock"] pre') as HTMLElement;
       expect(code.hasAttribute('data-full')).toBe(false);
@@ -75,12 +75,12 @@ describe('ApprovalCard', () => {
     }
   });
 
-  it('shows a command agentd cut short in full with its length and no 展开全部', () => {
+  it('shows a command agentd cut short in full with its length and no 全部 N 行', () => {
     const sh = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(200);
     const ch = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(52);
     try {
       const { container } = render(<ApprovalCard approval={pick(APPROVALS, A1)} />);
-      expect(screen.queryByRole('button', { name: '展开全部' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^全部 \d+ 行$/ })).toBeNull();
       expect(container.querySelector('[data-stub="CmdBlock"] pre')?.hasAttribute('data-full')).toBe(true);
       expect(container.textContent).toMatch(/命令已截断：原长 212 字符/);
     } finally {
@@ -89,9 +89,9 @@ describe('ApprovalCard', () => {
     }
   });
 
-  it('keeps a command that fits without 展开全部', () => {
+  it('keeps a command that fits without 全部 N 行', () => {
     render(<ApprovalCard approval={pick(APPROVALS, A2)} />);
-    expect(screen.queryByRole('button', { name: '展开全部' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^全部 \d+ 行$/ })).toBeNull();
   });
 });
 

@@ -178,12 +178,10 @@ describe('Row', () => {
 });
 
 describe('SecHead', () => {
-  it('fold buttons report aria-expanded and toggle', () => {
-    render(<SecHead title="已完成" count={12} collapsed />);
-    const fold = screen.getByRole('button', { name: /展开/ });
-    expect(fold.getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(fold);
-    expect(screen.getByRole('button', { name: /收起/ }).getAttribute('aria-expanded')).toBe('true');
+  it('has no fold button of its own; a folding group title is Fold variant="head"', () => {
+    render(<SecHead title="已完成" count={12} />);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText(/展开|收起/)).toBeNull();
   });
 });
 

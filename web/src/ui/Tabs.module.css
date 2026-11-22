@@ -339,3 +339,56 @@
 .tab[aria-selected='true'] > .draft {
   background: var(--ef-tabpc-sel-icon);
 }
+
+/* Avatar cells (the chat page's characters): the head in the icon's place, its name under it. */
+.tabs[data-variant='avatar'] .ic {
+  width: 26px;
+  height: 26px;
+}
+
+/* Step cells: a diamond at the top right, white done, hollow not reached, orange needs you, dashed skipped. */
+.step {
+  position: absolute;
+  z-index: 2;
+  top: 6px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+}
+
+.step[data-step='done'] {
+  background: var(--ef-text-1);
+}
+
+.step[data-step='todo'] {
+  outline: 1.5px solid currentColor;
+  outline-offset: -1.5px;
+  opacity: 0.55;
+}
+
+.step[data-step='mark'] {
+  background: var(--ef-g-reddot);
+  box-shadow: 0 0 0 1px var(--ef-canvas);
+}
+
+.step[data-step='skip'] {
+  outline: 1.5px dashed color-mix(in srgb, var(--ef-text-1) 60%, transparent);
+  outline-offset: -1.5px;
+}
+
+.tab[aria-selected='true'] > .step {
+  right: -3px;
+}
+
+.tab[aria-selected='true'] > .step[data-step='done'] {
+  background: var(--ef-tabpc-sel-icon);
+}
+
+.demoFace {
+  display: block;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, var(--ef-text-2), var(--ef-surface-3) 80%);
+}

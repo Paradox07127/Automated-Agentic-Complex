@@ -233,3 +233,97 @@
   transition: none;
   animation: none;
 }
+
+/* Settings row (ToggleSetting): a grey 34 high pill track up to --cw wide, the chosen option under a white pill knob
+   sliding 200 ms; the other options' text at .78. No caption dots, no yellow foot. */
+.seg[data-variant='setting'] {
+  display: grid;
+  justify-items: stretch;
+  width: 100%;
+  max-width: var(--cw, 330px);
+  color: var(--ef-seg-track-text);
+}
+
+.seg[data-variant='setting'] .track {
+  height: 34px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--ef-seg-track);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25);
+  clip-path: none;
+}
+
+.seg[data-variant='setting'] .track::after {
+  border-radius: 999px;
+}
+
+.seg[data-variant='setting'] .knob {
+  top: 3px;
+  bottom: 3px;
+  left: calc(3px + var(--i) * (100% - 6px) / var(--n));
+  width: calc((100% - 6px) / var(--n));
+  border-radius: 999px;
+  background: var(--ef-seg-knob);
+  box-shadow: var(--ef-shadow-btn);
+  clip-path: none;
+}
+
+.seg[data-variant='setting'] .knob::after,
+.seg[data-variant='setting'] .opt::before,
+.seg[data-variant='setting'] .opt[data-default]::after {
+  display: none;
+}
+
+.seg[data-variant='setting'] .opt {
+  min-width: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  color: var(--ef-seg-track-text);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1 var(--ef-font-sans);
+  text-overflow: ellipsis;
+}
+
+.seg[data-variant='setting'] .opt[aria-checked='true'] {
+  color: var(--ef-seg-knob-text);
+}
+
+.seg[data-variant='setting'] .opt:hover:not(:disabled, [aria-checked='true']) {
+  color: var(--ef-seg-track-text);
+}
+
+.seg[data-variant='setting'] .opt:disabled:not([aria-checked='true']) {
+  color: var(--ef-seg-track-text);
+  opacity: 0.5;
+}
+
+.seg[data-variant='setting'] .opt:focus-visible {
+  border-radius: 999px;
+  outline-offset: 2px;
+}
+
+.seg[data-variant='setting'][aria-disabled='true'] .track {
+  background: var(--ef-seg-track);
+  opacity: 0.45;
+}
+
+.seg[data-variant='setting'][aria-disabled='true'] .knob {
+  background: var(--ef-seg-knob);
+}
+
+.seg[data-variant='setting'][data-size='compact'] {
+  width: 200px;
+}
+
+.seg[data-variant='setting'][data-size='compact'] .track {
+  height: 34px;
+  padding: 3px;
+}
+
+.seg[data-variant='setting'][data-size='compact'] .opt {
+  min-width: 0;
+}
+
+.seg[data-variant='setting'][data-size='compact'] .knob {
+  left: calc(3px + var(--i) * (100% - 6px) / var(--n));
+  width: calc((100% - 6px) / var(--n));
+}

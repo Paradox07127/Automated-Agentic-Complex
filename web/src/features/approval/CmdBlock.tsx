@@ -1,7 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { MoreLines } from '../../ui/MoreLines';
 import styles from './CmdBlock.module.css';
 
-/** 审批卡里的命令：收起时两行，放不下时「展开全部」在卡内展开成最多 12 行的滚动代码块。后台截断过的命令只收到前一段：整段直接给出并写明原长，不给「展开全部」。 */
+/** 审批卡里的命令：收起时两行，放不下时「全部 N 行」在卡内展开成最多 12 行的滚动代码块。后台截断过的命令只收到前一段：整段直接给出并写明原长，不给「展开全部」。 */
 export interface CmdBlockProps {
   cmd: string;
   /** 后台截断过，cmd 只是前一段 */
@@ -15,14 +16,22 @@ export interface CmdBlockProps {
 export function CmdBlock({ cmd, truncated, origLen, paper }: CmdBlockProps) {
   const ref = useRef<HTMLPreElement>(null);
   const [open, setOpen] = useState(false);
-  const [clipped, setClipped] = useState(false);
+  // Wrapped lines the whole command takes; 0 while it fits in two.
+  const [lines, setLines] = useState(0);
+  const preId = useId();
   const full = open || !!truncated;
 
   // Measured only while clamped; a resize can push a command past two lines.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || full) return;
-    const measure = () => setClipped(el.scrollHeight > el.clientHeight);
+    const measure = () => {
+      if (el.scrollHeight <= el.clientHeight) return setLines(0);
+      const cs = getComputedStyle(el);
+      const wrapped = Math.round((el.scrollHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) / parseFloat(cs.lineHeight));
+      // More than the two lines shown; an unlaid-out box (no line height) counts the command's own lines.
+      setLines(Math.max(3, Number.isFinite(wrapped) ? wrapped : cmd.split('\n').length));
+    };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(measure);
@@ -32,7 +41,7 @@ export function CmdBlock({ cmd, truncated, origLen, paper }: CmdBlockProps) {
 
   return (
     <div data-stub="CmdBlock" className={styles.root} data-paper={paper || undefined}>
-      <pre ref={ref} className={styles.code} data-full={full || undefined} tabIndex={full ? 0 : undefined}>
+      <pre ref={ref} id={preId} className={styles.code} data-full={full || undefined} tabIndex={full ? 0 : undefined}>
         <code>{cmd}</code>
       </pre>
       {truncated ? (
@@ -40,11 +49,7 @@ export function CmdBlock({ cmd, truncated, origLen, paper }: CmdBlockProps) {
           ▲ 命令已截断：原长 <span className="num">{origLen ?? '—'}</span> 字符，后台只传来上面这一段
         </p>
       ) : (
-        clipped && (
-          <button type="button" className={styles.more} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-            {open ? '收起' : '展开全部'}
-          </button>
-        )
+        lines > 0 && <MoreLines total={lines} open={open} controls={preId} onToggle={() => setOpen((o) => !o)} />
       )}
     </div>
   );

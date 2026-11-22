@@ -1,4 +1,5 @@
-/* Section head: number, bold title, [n], then a hatched band running off to the right. */
+/* Group title (ListTitleNode): a 4×14 yellow bar, the title, [n], a hairline running to the right end, then the
+   head's actions and its micro English. */
 .head {
   display: flex;
   align-items: center;
@@ -6,6 +7,13 @@
   min-height: 28px;
   padding: 0 0 var(--ef-sp-4);
   color: var(--ef-text-2);
+}
+
+.bar {
+  flex: none;
+  width: 4px;
+  height: 14px;
+  background: var(--ef-accent);
 }
 
 /* State mark: a square in the state's shape, no hue. */
@@ -61,34 +69,44 @@
   content: '';
   flex: 1;
   min-width: var(--ef-sp-24);
-  height: 10px;
-  background: var(--ef-hatch);
+  height: var(--ef-lw-hair);
+  background: var(--ef-line);
 }
 
-.fold {
+/* Folding head (Fold variant="head"): the chevron, bar, title, count and summary are one button inside the heading. */
+.toggle {
   display: inline-flex;
   align-items: center;
-  gap: var(--ef-sp-4);
-  height: var(--ef-h-sm);
-  padding: 0 var(--ef-sp-8);
+  gap: var(--ef-sp-12);
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 var(--ef-sp-4) 0 0;
   border: 0;
   background: none;
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
-.fold:hover {
+.toggle:hover {
   background: var(--ef-chip);
-  color: var(--ef-text-1);
 }
 
-.fold:active {
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
-}
-
-.fold:focus-visible {
+.toggle:focus-visible {
   outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 1px;
+  outline-offset: 2px;
+}
+
+.head[data-fold] .title {
+  min-width: 0;
+}
+
+.summary {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-3);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }

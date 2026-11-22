@@ -7,11 +7,18 @@
   background: none;
 }
 
-.head {
+.line {
   display: flex;
   align-items: center;
   gap: var(--ef-sp-8);
-  width: 100%;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--ef-sp-8);
   min-width: 0;
   height: 32px;
   padding: 0 var(--ef-sp-4);
@@ -24,8 +31,23 @@
   cursor: pointer;
 }
 
-.head:hover {
+.head:hover:not([data-flat]) {
   color: var(--ef-text-1);
+}
+
+/* Three rows or fewer: shown flat, the head is a plain label. */
+.head[data-flat] {
+  cursor: default;
+}
+
+.right {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  padding-right: var(--ef-sp-4);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
 }
 
 .head:focus-visible {
@@ -71,6 +93,24 @@
   min-width: 0;
   padding: var(--ef-sp-8) 0 var(--ef-sp-8) var(--ef-sp-16);
   border-top: 1px solid var(--ef-rule);
+}
+
+/* Group-title variant: the SecHead line is the toggle; the body sits under it without hairlines. */
+.sec {
+  display: grid;
+  gap: var(--ef-sp-16);
+  min-width: 0;
+}
+
+.sec[data-open] .chev {
+  color: var(--ef-text-1);
+  transform: rotate(90deg);
+}
+
+.secBody {
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

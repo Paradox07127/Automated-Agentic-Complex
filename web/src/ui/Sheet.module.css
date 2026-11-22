@@ -60,8 +60,24 @@
   animation: slide-out 240ms var(--ef-ease-mech) forwards;
 }
 
+.panel[data-width='420'] {
+  width: min(420px, 100%);
+}
+
 .panel[data-width='480'] {
   width: min(480px, 100%);
+}
+
+/* Docked (dockFrom): the same column in the page's flow, no scrim, no slide; it fills the height its grid cell gives. */
+.dock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--ef-line);
+  background-color: var(--ef-raised);
+  color: var(--ef-text-1);
+  font: var(--ef-t-text);
 }
 
 .panel:focus {
@@ -77,6 +93,10 @@
   min-height: var(--ef-page-header);
   padding: 0 var(--ef-sp-16) 0 var(--ef-space-page);
   border-bottom: 1px solid var(--ef-line);
+}
+
+.head[data-head='close'] {
+  justify-content: flex-end;
 }
 
 .title {

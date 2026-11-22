@@ -1,5 +1,6 @@
 import { createContext, useContext, useLayoutEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { BottomBar, type BottomBarZones } from './BottomBar';
 
 export interface HeaderSlotValue {
   setSub: (sub: string | null) => void;
@@ -53,8 +54,14 @@ export function PageHeaderSlot({ sub, tabs, right, action, bottom }: PageHeaderS
   );
 }
 
-/** Lets a page fill the shell's 44px dark bottom action bar along the bottom of `<main>`. */
-export function BottomBarSlot({ children }: { children?: ReactNode }) {
+export interface BottomBarSlotProps extends BottomBarZones {
+  /** Free layout, when the page draws the bar's content itself; the zones take its place when given. */
+  children?: ReactNode;
+}
+
+/** Lets a page fill the shell's 44px dark bottom action bar along the bottom of `<main>`: its key hints or filters, a status line, its page-level actions. */
+export function BottomBarSlot({ children, lead, status, actions }: BottomBarSlotProps) {
   const slot = useContext(HeaderSlotContext);
-  return <Portal node={children} into={slot?.bottom ?? null} inShell={!!slot} />;
+  const zoned = lead != null || status != null || actions != null;
+  return <Portal node={zoned ? <BottomBar lead={lead} status={status} actions={actions} /> : children} into={slot?.bottom ?? null} inShell={!!slot} />;
 }

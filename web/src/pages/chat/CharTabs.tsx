@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ContextMenu, type MenuItem } from '../../ui';
+import { ContextMenu, Tabs, type MenuItem } from '../../ui';
 import type { ChatCharacter } from './useChatData';
 import styles from './CharTabs.module.css';
 
@@ -25,7 +25,7 @@ export interface CharTabsProps {
   menuFor: (c: ChatCharacter) => MenuItem[];
 }
 
-/** One tab per character in the header, the selected one a yellow block, a green dot on the one on the desktop; Q / E step through them. */
+/** One avatar tab per character in the header, a green dot on the one on the desktop; Q / E step through them. */
 export function CharTabs({ chars, selected, present, onPick, menuFor }: CharTabsProps) {
   const [ctx, setCtx] = useState<{ id: string; at: { x: number; y: number } } | null>(null);
   const [shownFor, setShownFor] = useState(selected);
@@ -53,33 +53,30 @@ export function CharTabs({ chars, selected, present, onPick, menuFor }: CharTabs
   }, [chars, selected, onPick]);
   const open = chars.find((c) => c.id === ctx?.id);
   return (
-    <div className={styles.tabs} role="tablist" aria-label="角色">
-      {chars.map((c) => {
-        const desk = c.id === present;
-        return (
-          <button
-            key={c.id}
-            type="button"
-            role="tab"
-            className={styles.tab}
-            aria-selected={c.id === selected}
-            aria-label={desk ? `${c.name}，在桌面` : c.name}
-            title={c.name}
-            onClick={() => onPick(c.id)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setCtx({ id: c.id, at: { x: e.clientX, y: e.clientY } });
-            }}
-          >
-            <span className={styles.ava}>
-              <Face c={c} />
-              {desk && <span className={styles.desk} />}
-            </span>
-            <span className={styles.name}>{c.name}</span>
-          </button>
-        );
-      })}
+    <>
+      <Tabs
+        label="角色"
+        variant="avatar"
+        keys={false}
+        value={selected ?? ''}
+        onChange={onPick}
+        onTabContextMenu={(id, at) => setCtx({ id, at })}
+        tabs={chars.map((c) => {
+          const desk = c.id === present;
+          return {
+            id: c.id,
+            label: c.name,
+            ariaLabel: desk ? `${c.name}，在桌面` : c.name,
+            avatar: (
+              <span className={styles.ava}>
+                <Face c={c} />
+                {desk && <span className={styles.desk} />}
+              </span>
+            ),
+          };
+        })}
+      />
       <ContextMenu label={open?.name ?? ''} items={open ? menuFor(open) : []} at={open ? (ctx?.at ?? null) : null} onClose={() => setCtx(null)} />
-    </div>
+    </>
   );
 }

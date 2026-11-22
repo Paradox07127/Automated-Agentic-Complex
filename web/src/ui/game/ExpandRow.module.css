@@ -1,0 +1,136 @@
+/* Expandable row (fachub stat row): 38 high, a hairline under it, darker on hover; selected a yellow left bar, failed a
+   red wash and red left bar, running a blue left bar. In a GameTable the cells sit on the table's columns (subgrid). */
+.item {
+  display: grid;
+  min-width: 0;
+}
+
+.line {
+  position: relative;
+  display: grid;
+  grid-template-columns: 14px var(--gt-cols, minmax(0, 1fr)) var(--gt-end, auto);
+  align-items: center;
+  column-gap: 10px;
+  min-height: 38px;
+  padding: 0 10px;
+  border-bottom: var(--ef-lw-hair) solid color-mix(in srgb, var(--ef-text-3) 22%, transparent);
+  color: var(--ef-text-1);
+  font: var(--ef-fw-regular) var(--ef-fs-body) / 1.3 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.row {
+  display: grid;
+  grid-column: 1 / -2;
+  grid-template-columns: subgrid;
+  align-items: center;
+  min-width: 0;
+  min-height: 38px;
+  outline: none;
+}
+
+.row > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row[role='button'] {
+  cursor: pointer;
+}
+
+.row[role='button']:focus-visible {
+  box-shadow: inset 0 0 0 var(--ef-lw-focus) var(--ef-focus);
+}
+
+.cells {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.line:hover {
+  background: color-mix(in srgb, var(--ef-text-1) 5%, transparent);
+}
+
+.item[data-tone='fail'] > .line {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ef-danger-vivid) 12%, transparent), transparent 70%);
+  box-shadow: inset 3px 0 0 var(--ef-danger-g-power-none);
+}
+
+.item[data-tone='run'] > .line {
+  box-shadow: inset 3px 0 0 var(--ef-mission-accent);
+}
+
+.item[data-selected] > .line {
+  background: color-mix(in srgb, var(--ef-text-1) 8%, transparent);
+  box-shadow:
+    inset 3px 0 0 var(--ef-accent),
+    inset 0 0 0 1px color-mix(in srgb, var(--ef-text-1) 18%, transparent);
+}
+
+:global([data-theme='light']) .item[data-selected] > .line {
+  box-shadow:
+    inset 3px 0 0 var(--ef-accent-text),
+    inset 0 0 0 1px color-mix(in srgb, var(--ef-text-1) 18%, transparent);
+}
+
+.item[data-selected][data-tone='fail'] > .line {
+  box-shadow:
+    inset 3px 0 0 var(--ef-danger-g-power-none),
+    inset 0 0 0 1px color-mix(in srgb, var(--ef-accent) 55%, transparent);
+}
+
+/* Fold's arrow drawn as a corner: points right shut, down open. */
+.chev {
+  justify-self: center;
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid var(--ef-text-2);
+  border-bottom: 1.5px solid var(--ef-text-2);
+  transform: rotate(-45deg);
+  transition: transform 160ms var(--ef-ease-mech);
+}
+
+.chev[data-none] {
+  visibility: hidden;
+}
+
+.item[data-open] .chev {
+  transform: rotate(45deg);
+}
+
+.end {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.end:empty {
+  display: none;
+}
+
+.body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 10px 10px 34px;
+  border-bottom: var(--ef-lw-hair) solid color-mix(in srgb, var(--ef-text-3) 22%, transparent);
+  background: color-mix(in srgb, var(--ef-text-1) 3%, transparent);
+  font: var(--ef-t-text);
+  white-space: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chev {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) .chev,
+:global(.still) .chev {
+  transition: none;
+}

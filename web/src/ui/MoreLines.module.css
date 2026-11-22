@@ -1,0 +1,25 @@
+/* A full-width strip under the cut text, a hairline above it. */
+.more {
+  display: block;
+  width: 100%;
+  height: var(--ef-h-sm);
+  padding: 0 var(--ef-sp-12);
+  border: 0;
+  border-top: var(--ef-lw-hair) solid var(--ef-line-subtle);
+  border-radius: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  text-align: left;
+  cursor: pointer;
+}
+
+.more:hover {
+  background: var(--ef-overlay-hover);
+  color: var(--ef-text-1);
+}
+
+.more:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -2px;
+}

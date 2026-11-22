@@ -1,9 +1,9 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { RawFold } from '../../features/trace';
 import { navigate } from '../../shell/nav';
 import { fmtMs } from '../chat/turnTrace';
 import { SHAPE_LABEL, type Shape } from './data';
 import { MemMark, ShapeMark, StepMark } from './Glyphs';
-import { RawFold } from './Raw';
 import { longestOf, type Part, type Step, type Turn } from './steps';
 import s from './Steps.module.css';
 import t from './Trace.module.css';
@@ -59,7 +59,7 @@ function Body({ x, extra, onCopy }: { x: Step; extra: ReactNode; onCopy: (text: 
         </dl>
       )}
       {extra}
-      {x.raw && <RawFold label={x.raw.label} lines={x.raw.lines} {...(x.raw.open ? { open: true } : {})} onCopy={onCopy} />}
+      {x.raw && <RawFold rawLabel={x.raw.label} raw={x.raw.lines.join('\n')} defaultOpen={!!x.raw.open} onCopy={onCopy} />}
     </div>
   );
 }

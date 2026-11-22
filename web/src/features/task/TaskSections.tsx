@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { formatClock } from '../../domain';
 import { Btn, SecHead } from '../../ui';
+import { Fold } from '../../ui/Fold';
 import { FileImpact } from './FileImpact';
 import { RunWaterfall } from './RunWaterfall';
 import type { TaskDetailProps } from './TaskDetail';
@@ -9,8 +10,6 @@ import styles from './TaskSections.module.css';
 
 /** Detail body under the delivery box: 01 steps, 02 tools, 03 files, session log, meta rows. */
 export function TaskSections({ task, now, deliveries = [], steps = [], tools = [], files = [], stepsStatus = 'ok', activeRun = null, sessionId = null, toolFocus = null, stoppedAt = null, onAction }: TaskDetailProps) {
-  const [stepsOpen, setStepsOpen] = useState(true);
-  const [toolsOpen, setToolsOpen] = useState(toolFocus != null);
   const [tool, setTool] = useState<string | null>(toolFocus);
   const [gen, setGen] = useState<number | null>(null);
   const [msg, setMsg] = useState('');
@@ -22,8 +21,7 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
     <>
       {waterfall && (
         <section className={styles.sec}>
-          <SecHead no="01" title="步骤" count={task.steps.length || undefined} collapsed={!stepsOpen} onToggle={() => setStepsOpen(!stepsOpen)} />
-          {stepsOpen && (
+          <Fold variant="head" label="步骤" count={task.steps.length || undefined} defaultOpen head={{ no: '01' }}>
             <RunWaterfall
               steps={steps}
               tools={tools}
@@ -37,13 +35,14 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
               onRetry={() => onAction?.({ kind: 'retry_steps' })}
               failedPath={`/agent/tasks/${task.id}/steps`}
             />
-          )}
+          </Fold>
         </section>
       )}
       {waterfall && !queued && (
         <section className={styles.sec}>
-          <SecHead no="02" title="工具" count={tools.length} collapsed={!toolsOpen} onToggle={() => setToolsOpen(!toolsOpen)} />
-          {toolsOpen && <ToolDist tools={tools} now={now} selected={tool} onPick={setTool} />}
+          <Fold variant="head" label="工具" count={tools.length} defaultOpen={toolFocus != null} head={{ no: '02' }}>
+            <ToolDist tools={tools} now={now} selected={tool} onPick={setTool} />
+          </Fold>
         </section>
       )}
       {task.source === 'role' && !queued && (

@@ -47,23 +47,3 @@
   color: var(--ef-attention-text);
   font: var(--ef-fw-regular) var(--ef-fs-body) / var(--ef-lh-meta) var(--ef-font-sans);
 }
-
-.more {
-  height: var(--ef-h-sm);
-  padding: 0 var(--ef-sp-8);
-  border: var(--ef-lw-hair) solid var(--ef-line-strong);
-  border-radius: var(--ef-r-btn);
-  background: none;
-  color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-body) / 1 var(--ef-font-sans);
-  cursor: pointer;
-}
-
-.more:hover {
-  background: var(--ef-glass-hover);
-}
-
-.more:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 2px;
-}
