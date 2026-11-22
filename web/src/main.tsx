@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import './design/tokens.css';
+import './design/chatTokens.css';
 import './design/base.css';
 import { loadFakeBridge } from './bridge';
 import { pageRoutes } from './shell/registry';
