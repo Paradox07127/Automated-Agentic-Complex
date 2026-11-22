@@ -10,7 +10,7 @@ import type { PreviewPlacement } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { ModSettings } from '../../src/pages/character/ModSettings';
 import type { ModSettingRow } from '../../src/pages/character/modSettingsTable';
-import { useLivePreview } from '../../src/pages/character/usePreview';
+import { previewLookChanged, useLivePreview } from '../../src/pages/character/usePreview';
 import { MODAL_ROOT_ID } from '../../src/ui';
 
 function Probe({ action, blocked = false, character = 'birch', request }: { action?: string; blocked?: boolean; character?: string; request?: number }) {
@@ -165,19 +165,44 @@ describe('useLivePreview', () => {
 
   it('shows again when a render setting is saved, and a failed reload offers the retry with the same settings', async () => {
     const qc = new QueryClient();
-    qc.setQueryData(['character', 'settings'], { rows: {}, saved: { render_filter: 'none', beh_stay: false }, statuses: {} });
+    // `saved` is keyed by row id (app/electron/src/common/settings.ts snapshot()).
+    qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.filter': 'none', 'beh.stay': false }, statuses: {} });
     const { getByRole, getByTestId } = render(<QueryClientProvider client={qc}><Probe /></QueryClientProvider>);
     await waitFor(() => expect(getByTestId('stage').dataset.live).toBe('true'));
     // A setting that is not a render one shows nothing again.
-    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { render_filter: 'none', beh_stay: true }, statuses: {} }));
+    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.filter': 'none', 'beh.stay': true }, statuses: {} }));
     await new Promise((r) => setTimeout(r, 50));
     expect(show).toHaveBeenCalledTimes(1);
     show.mockRejectedValueOnce(Object.assign(new Error('failed'), { code: 'failed' }));
-    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { render_filter: 'filter_1', beh_stay: true }, statuses: {} }));
+    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.filter': 'filter_1', 'beh.stay': true }, statuses: {} }));
     await waitFor(() => expect(getByRole('button', { name: '重试预览' })).toBeTruthy());
     expect(show).toHaveBeenCalledTimes(2);
     expect(getByTestId('stage').dataset.live).toBeUndefined();
     fireEvent.click(getByRole('button', { name: '重试预览' }));
+    await waitFor(() => expect(getByTestId('stage').dataset.live).toBe('true'));
+    expect(show).toHaveBeenCalledTimes(3);
+  });
+
+  it('shows again for her physics switch, which is a 行为 row the preview draws with', async () => {
+    const qc = new QueryClient();
+    qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'beh.physics': true }, statuses: {} });
+    render(<QueryClientProvider client={qc}><Probe /></QueryClientProvider>);
+    await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
+    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'beh.physics': false }, statuses: {} }));
+    await waitFor(() => expect(show).toHaveBeenCalledTimes(2));
+  });
+
+  it('a failed preview tries again once her look or a render setting changes', async () => {
+    const qc = new QueryClient();
+    qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.outline': 'original' }, statuses: {} });
+    show.mockRejectedValueOnce(Object.assign(new Error('failed'), { code: 'failed' }));
+    const { getByTestId } = render(<QueryClientProvider client={qc}><Probe /></QueryClientProvider>);
+    await waitFor(() => expect(hide).toHaveBeenCalledTimes(1));
+    show.mockRejectedValueOnce(Object.assign(new Error('failed'), { code: 'failed' }));
+    act(() => previewLookChanged());
+    await waitFor(() => expect(show).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(hide).toHaveBeenCalledTimes(2));
+    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.outline': 'subtle' }, statuses: {} }));
     await waitFor(() => expect(getByTestId('stage').dataset.live).toBe('true'));
     expect(show).toHaveBeenCalledTimes(3);
   });

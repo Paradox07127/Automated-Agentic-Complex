@@ -6,10 +6,13 @@
   left: 0;
   z-index: 3;
   width: var(--strip);
+  /* Only its heads and keys take the pointer; the rest goes to the stage's camera grip under it. */
+  pointer-events: none;
 }
 
 .heads {
   position: absolute;
+  pointer-events: auto;
   top: 0;
   right: 0;
   bottom: 120px;
@@ -143,6 +146,7 @@
   display: flex;
   align-items: flex-end;
   gap: 14px;
+  pointer-events: auto;
 }
 
 /* 名册 (game ExpandListButton): a right triangle with a lit hypotenuse, yellow while the roster is open. */
@@ -254,6 +258,14 @@
 .strip[data-bare] .list,
 .strip[data-bare] .lbl {
   visibility: hidden;
+}
+
+.strip[data-bare] .keys {
+  pointer-events: none;
+}
+
+.strip[data-bare] .bareKey {
+  pointer-events: auto;
 }
 
 /* Compact (925 × 515 and alike): smaller heads and keys, no key captions. */

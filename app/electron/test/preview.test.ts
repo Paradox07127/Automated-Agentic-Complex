@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { registerHooks } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -276,6 +277,29 @@ test('a rebuild for new render arguments or output does not replay a drawn one-s
   }
 });
 
+test('a sequence the transport cannot send fails at once with why', async () => {
+  const { s, transport, presenter } = session(2000);
+  await draw(s, transport, presenter, s.load(selection()));
+  transport.send = (json: string) => { transport.sent.push(JSON.parse(json) as Message); return false; };
+  const started = performance.now();
+  await assert.rejects(s.sequence(['think_start'], []), new PreviewFailure('预览请求发不出去（太大或连接已断）'));
+  assert.ok(performance.now() - started < 1000);
+  s.disconnect();
+});
+
+test('after a sequence over a loop, every later rebuild of the same playback stays her idle', async () => {
+  const { s, transport, presenter } = session();
+  await draw(s, transport, presenter, s.load(selection({ clip: 'wave', loop: true, request: 1 })));
+  await draw(s, transport, presenter, s.sequence(['think_start', 'idle_loop'], [0.25]));
+  s.load(selection({ clip: 'wave', loop: true, request: 1, output: [720, 864] })).catch(() => {});
+  assert.equal(transport.sent.at(-1)?.clip, undefined);
+  s.load(selection({ clip: 'wave', loop: true, request: 1, output: [960, 1152] })).catch(() => {});
+  assert.equal(transport.sent.at(-1)?.load_id, 4);
+  assert.equal(transport.sent.at(-1)?.clip, undefined, 'the superseded loop does not start again');
+  assert.equal(transport.sent.at(-1)?.loop, undefined);
+  s.disconnect();
+});
+
 test('a load that builds anew reports its progress, loaded as 0.95 and null once drawn, and clears the canvas once', async () => {
   const { s, transport, presenter, progress } = session();
   const loaded = s.load(selection());
@@ -397,6 +421,21 @@ test('a hide or a character switch while the library loads makes the show answer
   assert.equal(await switched, false);
   assert.equal(view.loads.length, 0);
   assert.equal(view.hides, 1);
+});
+
+test('a library read that fails after a hide is not kept: the next show of her reads it again', async () => {
+  const view = new FakeView();
+  let reads = 0;
+  let fail: (e: Error) => void = () => {};
+  const c = new PreviewController({ view, avatar: () => ({ character: 'si', appearance: null }),
+    library: () => (reads += 1) === 1 ? new Promise((_r, reject) => { fail = reject; }) : Promise.resolve(library) });
+  const rect = { x: 0, y: 0, w: 10, h: 10 };
+  const shown = c.show(rect, null, false, 0);
+  c.hide();
+  fail(new Error('library unreadable'));
+  await assert.rejects(shown, /library unreadable/);
+  assert.equal(await c.show(rect, null, false, 0), true);
+  assert.equal(reads, 2);
 });
 
 test('a package change (an outfit import restarts her) drops the read library: the next show plays the new bundle', async () => {
@@ -665,4 +704,56 @@ test('avatar.preview.onProgress pushes the view\'s progress through the controll
   view.progress.send({ fraction: 0.6 });
   view.progress.send(null);
   assert.deepEqual(pushed, [{ fraction: 0.6 }, null]);
+});
+
+/** Imports `path` with `fakes` as its `electron`: window.ts and the preload import it once each. */
+let electronHooked = false;
+async function withElectron<T>(fakes: Record<string, unknown>, path: string): Promise<T> {
+  (globalThis as { __fakeElectron?: unknown }).__fakeElectron = fakes;
+  if (!electronHooked) {
+    electronHooked = true;
+    const names = ['screen', 'sharedTexture', 'ipcRenderer', 'contextBridge', 'webUtils'];
+    const source = names.map((n) => `export const ${n} = globalThis.__fakeElectron.${n};`).join('\n');
+    let n = 0;
+    registerHooks({
+      resolve: (specifier, context, next) => specifier === 'electron'
+        ? { url: `data:text/javascript,${encodeURIComponent(`${source}\n// ${n++}`)}`, shortCircuit: true } : next(specifier, context),
+    });
+  }
+  return import(path) as Promise<T>;
+}
+
+test('a view the page sends before the window has a preview reaches the service once the first show attaches it', async () => {
+  const transport = new FakeTransport();
+  const { WindowPreview } = await withElectron<typeof import('../src/main/preview/window.ts')>(
+    { screen: { getDisplayMatching: () => ({ scaleFactor: 2 }) }, sharedTexture: {} }, '../src/main/preview/window.ts');
+  const win = { isDestroyed: () => false, isVisible: () => true, isMinimized: () => false, on() {}, getBounds: () => ({ x: 0, y: 0, width: 800, height: 600 }),
+    webContents: { send() {}, on() {}, getZoomFactor: () => 1 } };
+  const addon = Object.assign(transport, { mainBundle: () => ({ identifier: 'test', path: '/x' }), setPreventsActivation: () => true });
+  const wp = new WindowPreview({ addon: addon as never, window: () => win as never, log: () => {} });
+  const v: CameraView = { turn: 20, tilt: 0, zoom: 0.8, pan: [0, 0], frame: [0.3, 0, 0.4, 1] };
+  wp.view(v);
+  wp.place({ x: 0, y: 0, w: 300, h: 400 });
+  void wp.load(selection()).catch(() => {});
+  await settle();
+  assert.deepEqual(transport.sent[0], { op: 'view', ...v });
+  assert.equal(transport.sent[1]?.op, 'load');
+});
+
+test('the preload drops the drawn frame on preview:hide, so the next place does not show the character before', async () => {
+  const handlers = new Map<string, (...args: unknown[]) => void>();
+  const clears: number[][] = [];
+  const canvas = { id: '', hidden: true, width: 0, height: 0, style: { cssText: '' }, parentElement: null as unknown,
+    getContext: () => ({ clearRect: (...a: number[]) => clears.push(a) }) };
+  const root = { appendChild: (c: { parentElement: unknown }) => { c.parentElement = root; } };
+  Object.assign(globalThis, { devicePixelRatio: 2, document: { createElement: () => canvas, querySelector: () => null, documentElement: root } });
+  await withElectron({
+    ipcRenderer: { sendSync: () => ({ surface: 'main' }), on: (channel: string, fn: (...args: unknown[]) => void) => handlers.set(channel, fn) },
+    contextBridge: { executeInMainWorld() {} }, sharedTexture: { setSharedTextureReceiver() {} }, webUtils: {},
+  }, '../src/preload/index.ts');
+  handlers.get('preview:place')!({}, { x: 0, y: 0, w: 300, h: 400 });
+  assert.equal(canvas.hidden, false);
+  handlers.get('preview:hide')!({});
+  assert.equal(canvas.hidden, true);
+  assert.deepEqual(clears, [[0, 0, 600, 800]]);
 });

@@ -132,7 +132,7 @@ export class PreviewSession<S> {
       // The service cannot keep a playhead across a load: a rebuild of a clip that has played draws her idle, a loop loops on.
       const idle = this.selection !== null && this.played && samePlayback(value, this.selection) && (this.sequenced || !value.loop);
       this.played = idle;
-      this.sequenced = false;
+      this.sequenced = idle && this.sequenced;
       this.selection = value;
       this.phase = { kind: 'loading' };
       const expected = this.nextLoad();
@@ -165,7 +165,10 @@ export class PreviewSession<S> {
     this.played = true;
     this.sequenced = true;
     const expected = this.nextLoad();
-    this.send({ op: 'sequence', clips, blend_s: blendSeconds, load_id: expected });
+    if (!this.send({ op: 'sequence', clips, blend_s: blendSeconds, load_id: expected })) {
+      this.fail('预览请求发不出去（太大或连接已断）');
+      return this.settled();
+    }
     // A sequence starts the service playing.
     this.servicePaused = false;
     this.syncPlayback();

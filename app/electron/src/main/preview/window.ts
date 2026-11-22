@@ -33,6 +33,8 @@ export class WindowPreview implements PreviewView {
   private session: PreviewSession<PreviewSurface> | null = null;
   private shown = false;
   private rect: PreviewRect | null = null;
+  /** The page's last view: one sent before the first show reaches the session that show attaches. */
+  private lastView: CameraView | null = null;
   private readonly inFlight = new Set<PreviewSurface>();
   readonly progress = new PushSource('progress');
 
@@ -68,6 +70,7 @@ export class WindowPreview implements PreviewView {
   }
 
   view(v: CameraView): void {
+    this.lastView = v;
     this.session?.view(v);
   }
 
@@ -91,6 +94,7 @@ export class WindowPreview implements PreviewView {
       },
       progress: (fraction) => this.progress.send(fraction === null ? null : { fraction }),
     });
+    if (this.lastView) session.view(this.lastView);
     const sync = () => session.syncPlayback();
     for (const event of ['show', 'hide', 'minimize', 'restore'] as const) win.on(event as 'show', sync);
     // A new document has no canvas until its page places the preview again.

@@ -39,6 +39,8 @@ interface FakeRun {
   frames: Keyframe[];
   opts: KeyframeAnimationOptions;
   state: 'running' | 'finished' | 'cancelled';
+  /** cancel() was called, finished or not: a finished `forwards` run holds its last frame until then. */
+  dropped?: boolean;
 }
 let runs: FakeRun[] = [];
 
@@ -67,6 +69,7 @@ beforeEach(() => {
         cancel() {
           clearTimeout(timer);
           if (run.state === 'running') run.state = 'cancelled';
+          run.dropped = true;
         },
       };
     },
@@ -149,6 +152,32 @@ describe('character section switch', () => {
     await at(1000);
     expect(stage()).toBe(node);
     expect(runs.some((x) => x.el === node)).toBe(false);
+  });
+
+  it('the stage\'s name column that becomes its status slot is live again once the detail section is in', async () => {
+    const r = render(<Op pane="overview" />);
+    const info = document.querySelector('[data-stage] > [data-g="info"]');
+    r.rerender(<Op pane="motion" />);
+    expect(info?.hasAttribute('inert')).toBe(true);
+    await at(2000);
+    const slot = document.querySelector('[data-stage] > [data-g="info"]');
+    expect(slot).toBe(info);
+    expect(slot?.hasAttribute('inert')).toBe(false);
+    expect(runs.filter((x) => x.el === slot).every((x) => x.state !== 'running')).toBe(true);
+  });
+
+  it('reduced motion turned on mid-switch leaves nothing of the leaving section inert or held by its out clip', async () => {
+    const r = render(<Op pane="overview" />);
+    runs = [];
+    r.rerender(<Op pane="motion" />);
+    await at(100);
+    const outs = runs.filter((x) => x.opts.fill === 'forwards');
+    expect(outs.length).toBeGreaterThan(0);
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: (q: string) => ({ matches: q.includes('reduce'), media: q, addEventListener: noop, removeEventListener: noop }) });
+    r.rerender(<Op pane="look" />);
+    expect(look()).not.toBeNull();
+    expect(document.querySelector('[inert]')).toBeNull();
+    expect(outs.every((x) => x.dropped)).toBe(true);
   });
 
   it('switches at once under reduced motion, with no clips', () => {

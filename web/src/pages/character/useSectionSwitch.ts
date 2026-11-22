@@ -109,6 +109,21 @@ export function useSectionSwitch<S>(key: string, scene: S, root: RefObject<HTMLE
     if (current) kept.current = scene;
   });
 
+  // What stayed of the leaving section (a node both draw, the stage's name column that is now its status slot) goes back to
+  // rest: live, its out clip gone.
+  const rest = () => {
+    for (const [part, a] of outs.current) {
+      part.toggleAttribute('inert', false);
+      for (const x of a) x.cancel();
+    }
+    outs.current.clear();
+  };
+
+  // A switch that went to idle at once (reduced motion turned on mid-way) plays no in clip.
+  useLayoutEffect(() => {
+    if (run.phase === 'idle') rest();
+  }, [run.n, run.phase]);
+
   useLayoutEffect(() => {
     const el = root.current;
     if (!el || !waiting) return;
@@ -156,9 +171,7 @@ export function useSectionSwitch<S>(key: string, scene: S, root: RefObject<HTMLE
       void Promise.all(mine.map((a) => a.finished.then(() => a.cancel(), () => undefined))).then(() => ins.current.delete(part));
       runs.push(...mine);
     }
-    // What stayed of the leaving section (a node both draw, the stage's name column that is now its status slot) goes back to rest.
-    for (const a of [...outs.current.values()].flat()) a.cancel();
-    outs.current.clear();
+    rest();
     const n = run.n;
     let live = true;
     void Promise.all(runs.map((a) => a.finished.catch(() => undefined))).then(() => live && setRun((r) => (r.n === n ? { ...r, phase: 'idle' } : r)));

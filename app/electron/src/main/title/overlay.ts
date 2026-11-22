@@ -70,6 +70,8 @@ export class TitleOverlay {
    *  agentd catch-up start no run on a choice, so they show nothing. */
   view(view: CharacterView): void {
     if (view.pending !== null) this.picked = view.pending;
+    // The pick of the character she is starts no run.
+    else if (!view.switching && this.picked === view.current) this.picked = null;
     if (view.switching && !this.switching) {
       const id = this.picked;
       this.picked = null;
@@ -108,7 +110,10 @@ export class TitleOverlay {
       this.shownAt = Date.now();
       if (this.done) this.closeAfterFloor();
     });
-    void win.loadURL(`${this.o.url}?${new URLSearchParams({ name, ...(en ? { en } : {}) }).toString()}`);
+    // Destroying a window rejects its pending load.
+    void win.loadURL(`${this.o.url}?${new URLSearchParams({ name, ...(en ? { en } : {}) }).toString()}`).catch((e: unknown) => {
+      if (!win.isDestroyed()) throw e;
+    });
   }
 
   private closeAfterFloor(): void {

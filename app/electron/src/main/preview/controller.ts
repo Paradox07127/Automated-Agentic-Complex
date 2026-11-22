@@ -78,7 +78,7 @@ export class PreviewController implements PreviewHost {
         library = await task;
       }
     } catch (e) {
-      if (this.request === expected) this.libraries.delete(id);
+      if (this.libraries.get(id) === task) this.libraries.delete(id);
       throw e;
     }
     const avatar = this.options.avatar();

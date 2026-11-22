@@ -18,11 +18,12 @@ export function previewLookChanged(): void {
   for (const listener of lookListeners) listener();
 }
 
-/** The character page's saved settings (settings.tsx useCharSettings); the preview draws with their `render_*` ones. */
+/** The character page's saved settings (settings.tsx useCharSettings), keyed by row id; the preview draws with the 画面 ones
+ *  and her physics switch. */
 const SETTINGS_KEY = ['character', 'settings'];
 const renderSettings = (data: unknown) => {
   const saved = (data as { saved?: Record<string, unknown> } | undefined)?.saved ?? {};
-  return JSON.stringify(Object.keys(saved).filter((k) => k.startsWith('render_')).sort().map((k) => [k, saved[k]]));
+  return JSON.stringify(Object.keys(saved).filter((k) => k.startsWith('rnd.') || k === 'beh.physics').sort().map((k) => [k, saved[k]]));
 };
 
 const overlaps = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
@@ -151,7 +152,9 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
       const s = stage.getBoundingClientRect();
       const layer = document.querySelector(PREVIEW_LAYER) ?? stage;
       const r = layer === stage ? s : layer.getBoundingClientRect();
-      if (failed === what) return;
+      // A failed show is tried again once her look or a render setting changes.
+      const drawing = `${what}|${lookRevision}|${render.current}`;
+      if (failed === drawing) return;
       if (off || document.hidden || s.width <= 0 || s.height <= 0 || r.width <= 0 || r.height <= 0 || clipped(layer, r)) {
         if (sent) hide();
         return;
@@ -166,7 +169,7 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
         ...(request != null ? { request } : {}),
       };
       // Her look changing shows again without loading anew on the page: the stage stays live unless the show fails.
-      const key = `${what}|${lookRevision}|${render.current}|${at.x},${at.y},${at.w},${at.h}`;
+      const key = `${drawing}|${at.x},${at.y},${at.w},${at.h}`;
       if (key === sent) return;
       sent = key;
       if (active !== what) {
@@ -178,7 +181,7 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
       const n = ++seq;
       const reject = () => {
         if (n !== seq) return;
-        failed = what;
+        failed = drawing;
         hide('实时预览没有加载，仍可查看角色外观');
       };
       preview.show(at).then(

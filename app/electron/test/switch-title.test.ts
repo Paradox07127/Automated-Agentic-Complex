@@ -215,6 +215,43 @@ test('a new switch picked while the title shows replaces it; with the setting of
   t.title.stop();
 }));
 
+test('picking the character she is leaves nothing behind: a later run that is no choice opens no title', async () => {
+  const t = setup();
+  t.sw.avatar({ kind: 'current', id: 'a' });
+  t.sw.agentdReported('a');
+  t.sw.select('a');
+  await settle();
+  // The avatar comes back as another character: the run that brings agentd onto her is no choice.
+  t.sw.avatar({ kind: 'current', id: 'b' });
+  await settle();
+  assert.equal(t.windows.length, 0);
+});
+
+test('a title closed while its page loads leaves no unhandled rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (e: unknown) => unhandled.push(e);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const w = fakeWindow(0);
+    let fail: (e: Error) => void = () => {};
+    const win = w.win as unknown as { loadURL: () => Promise<void>; destroy: () => void };
+    win.loadURL = () => new Promise((_r, reject) => { fail = reject; });
+    const destroy = win.destroy;
+    win.destroy = () => { destroy(); fail(new Error('ERR_FAILED (-2) loading')); };
+    const title = new TitleOverlay({ url: 'agentic-complex-ui://app/stack.html#/title', makeWindow: () => w.win,
+      toDip: (r) => ({ x: r.x, y: r.y, width: r.w, height: r.h }), screen: () => MAIN.frame, names: (id) => ({ name: id, en: '' }), enabled: () => true });
+    const view = { current: 'b', shown: 'b', agentd: 'b', failure: null };
+    title.view({ ...view, pending: 'a', switching: false });
+    title.view({ ...view, pending: null, switching: true });
+    title.stop();
+    await settle();
+    assert.equal(w.calls.at(-1), 'destroy');
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+});
+
 test('the title stands over her window and under the stack and every overlay over it', () => {
   const L = OVERLAY_LEVELS;
   assert.ok(L.title > 0);

@@ -23,8 +23,11 @@ function installPreview(): void {
     if (canvas.width !== w || canvas.height !== h) Object.assign(canvas, { width: w, height: h });
     canvas.hidden = false;
   });
+  // The next place may be another character's (a switch): her last frame must not show until a new one draws.
   ipcRenderer.on('preview:hide', () => {
-    if (canvas) canvas.hidden = true;
+    if (!canvas) return;
+    canvas.hidden = true;
+    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   });
   // A load that builds anew: the old frame must not stand over the page's loading bar; the next frame draws again.
   ipcRenderer.on('preview:clear', () => {
