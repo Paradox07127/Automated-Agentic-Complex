@@ -393,6 +393,25 @@ class GateDaemonTest(unittest.TestCase):
         self.commit('Change the daemon')
         self.assertTrue(self.daemon.tick())
 
+    def test_ensure_starts_the_daemon_of_main_when_a_stopped_runner_left_gr_on_an_older_commit(self):
+        self.daemon.tick()
+        self.write('tools/qa/gate_daemon.py', DAEMON.read_text() + '\n# main\n')
+        main = self.commit('Change the daemon')
+        gr = self.repo / '.claude/worktrees/gr'
+        subprocess.run(['git', '-C', str(gr), 'checkout', '-q', '--detach', self.c0], check=True)
+        started, popen = [], subprocess.Popen
+
+        def start(argv, **kw):
+            if argv[-1] != 'serve':
+                return popen(argv, **kw)
+            started.append((argv, (gr / 'tools/qa/gate_daemon.py').read_text()))
+            return mock.Mock(pid=1)
+        with mock.patch.object(gate_daemon.subprocess, 'Popen', start):
+            self.assertEqual(gate_daemon.ensure(self.daemon), 0)
+        self.assertEqual(self.git('-C', str(gr), 'rev-parse', 'HEAD'), main)
+        self.assertEqual(started[0][0][2], str(gr / 'tools/qa/gate_daemon.py'))
+        self.assertTrue(started[0][1].endswith('# main\n'))
+
     def test_existing_venv_in_a_checkout_is_left_alone(self):
         gr = self.repo / '.claude/worktrees/gr'
         self.daemon.prepare(gr)

@@ -397,11 +397,10 @@ def ensure(daemon):
     if pid is not None and alive(pid):
         print(f'gate-daemon: running, pid {pid}')
         return 0
-    daemon.prepare(daemon.gr)
+    # A runner stopped mid-bisect leaves gr on an older commit, whose gate_daemon.py would run.
+    with held(daemon.checkout_lock, 'gate-daemon ensure'):
+        daemon.checkout(daemon.gr, rev(daemon.root, MAIN))
     script = daemon.gr / 'tools/qa/gate_daemon.py'
-    if not script.is_file():
-        with held(daemon.checkout_lock, 'gate-daemon ensure'):
-            git(daemon.gr, 'checkout', '-q', '--detach', MAIN)
     daemon.state.mkdir(parents=True, exist_ok=True)
     with open(daemon.state / 'daemon.log', 'a') as log:
         child = subprocess.Popen([sys.executable, '-I', str(script), 'serve'], cwd=daemon.gr, stdin=subprocess.DEVNULL,
