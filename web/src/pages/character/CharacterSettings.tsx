@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { getBridge, type SettingValue } from '../../bridge';
 import { useDevMode } from '../../shell/devMode';
-import { Btn, ErrBar, Skel, StatusTag } from '../../ui';
-import { defaultsOf } from '../settings/native';
+import { ErrBar, Skel, type IconName } from '../../ui';
+import { GameTabs, MicroLabel, WhiteCapsule, type GameTab } from '../../ui/game';
+import type { Native } from '../settings/native';
 import type { Toast } from './feedback';
-import { CHAR_TABS, DEV_ONLY_ROWS, tabOf, type CharTab } from './sections';
-import { presentTabs, SettingRows } from './SettingRows';
+import { CHAR_TABS, LIGHT_PAD, type CharTab } from './sections';
+import { isChanged, presentTabs, SettingRows, tabRows } from './SettingRows';
 import { saveSettings, useCharSettings } from './settings';
 import { readFail } from './Tune';
-import tune from './Tune.module.css';
 import styles from './CharacterSettings.module.css';
 
 export interface CharacterSettingsProps {
@@ -19,22 +19,60 @@ export interface CharacterSettingsProps {
   /** The shell has an avatar host: while this view is open she walks clear of the main window. */
   avatar: boolean;
   onTab: (t: CharTab) => void;
-  /** The page menu on the right; off where a tab bar above already names the pages. */
+  /** Its own tab bar on top; off inside SetPanel, whose bar names the pages. */
   menu?: boolean;
   toast: Toast;
 }
 
-/** 设定：左边是当前页的设置行，右边贴边的竖排菜单；每行即时保存。 */
+const SET_ICON: Record<CharTab, IconName> = { behavior: 'hand', render: 'sun', scene: 'loc' };
+
+/** The 设定 tab bar's cells, an orange dot on each page with a row off its default. */
+function tabItems(ids: readonly CharTab[], n: Native | undefined, dev: boolean): GameTab[] {
+  return CHAR_TABS.filter((t) => ids.includes(t.id)).map((t) => ({
+    id: t.id,
+    label: t.title,
+    icon: SET_ICON[t.id],
+    micro: t.en,
+    changed: n != null && tabRows(n, dev, t.id).some((id) => isChanged(n, id)),
+  }));
+}
+
+export interface SetPanelProps {
+  /** The pages that have rows (presentTabs). */
+  tabs: readonly CharTab[];
+  tab: CharTab;
+  onTab: (t: CharTab) => void;
+  children: ReactNode;
+}
+
+/** 设定 right of the stage, straight on the training room: the game tab bar, then the page; as wide as Operator's `--panel-w`. */
+export function SetPanel(p: SetPanelProps) {
+  const n = useCharSettings().q.data;
+  const dev = useDevMode();
+  return (
+    <section className={styles.panel} data-g="detail">
+      <GameTabs label="角色页签" tabs={tabItems(p.tabs, n, dev)} value={p.tab} tail="Character // Settings" onChange={(id) => p.onTab(id as CharTab)} />
+      <div className={styles.body} role="tabpanel" aria-label={CHAR_TABS.find((t) => t.id === p.tab)?.title}>
+        {p.children}
+      </div>
+    </section>
+  );
+}
+
+/** 设定：本页改了几项和整页恢复，再是各节的设置行；每行即时保存，改过的行点 ↺ 恢复默认。 */
 export function CharacterSettings(p: CharacterSettingsProps) {
   const { q, merge } = useCharSettings();
   const [pending, setPending] = useState<Set<string>>(() => new Set());
+  const [failed, setFailed] = useState<Record<string, string>>({});
   const dev = useDevMode();
   const n = q.data;
   const tabs = n ? presentTabs(n, dev) : [];
   const tab = tabs.includes(p.tab) ? p.tab : tabs[0];
 
   useEffect(() => {
-    if (n && p.row) document.getElementById(`set-${p.row}`)?.scrollIntoView({ block: 'center' });
+    // 主光水平 and 主光俯仰 share the light pad's row.
+    const id = p.row === LIGHT_PAD.pitch ? LIGHT_PAD.yaw : p.row;
+    if (n && id) document.getElementById(`set-${id}`)?.scrollIntoView({ block: 'center' });
   }, [n, p.row]);
 
   useEffect(() => {
@@ -47,52 +85,60 @@ export function CharacterSettings(p: CharacterSettingsProps) {
   if (!n) return <Skel rows={8} />;
   if (!tab) return <div className={styles.none}>没有可调的设置</div>;
 
-  // `quiet`: a slider value sent mid-drag; the released value is saved again with its toast.
-  const save = (changes: Record<string, SettingValue>, fail: string, quiet = false) =>
-    void saveSettings(changes, { ok: '已保存', fail }, n.rows, quiet ? () => {} : p.toast).then((ok) => {
+  // `quiet`: a slider value sent mid-drag; the released value is saved again with its toast, a failure stays on the row.
+  const save = (changes: Record<string, SettingValue>, fail: string, quiet = false) => {
+    const ids = Object.keys(changes);
+    const onRow = (message: string) => setFailed((f) => ({ ...f, ...Object.fromEntries(ids.map((id) => [id, message])) }));
+    void saveSettings(changes, { ok: '已保存', fail }, n.rows, quiet ? (message, o) => o?.severity === 'danger' && onRow(message) : p.toast).then((ok) => {
       if (!ok) return;
+      setFailed((f) => Object.fromEntries(Object.entries(f).filter(([id]) => !ids.includes(id))));
       merge(changes);
-      const restart = Object.keys(changes).filter((id) => n.rows[id]?.restart === 'avatar');
+      const restart = ids.filter((id) => n.rows[id]?.restart === 'avatar');
       if (restart.length) setPending((s) => new Set([...s, ...restart]));
     });
-  const set = (id: string, v: SettingValue, quiet?: boolean) => save({ [id]: v }, `没有保存「${n.rows[id]?.label ?? id}」`, quiet);
-  // The rows SettingRows draws on this page: tabOf places a row by its section, else by its id prefix.
-  const reset = () => {
-    const changes = Object.fromEntries(
-      Object.entries(defaultsOf(n, ['@character'])).filter(([id, v]) => tabOf(id) === tab && (dev || !DEV_ONLY_ROWS.has(id)) && n.saved[id] !== v),
-    );
-    if (Object.keys(changes).length) save(changes, '没有恢复默认');
   };
+  const set = (id: string, v: SettingValue, quiet?: boolean) => save({ [id]: v }, `没有保存「${n.rows[id]?.label ?? id}」`, quiet);
+  const ids = tabRows(n, dev, tab);
+  const changed = ids.filter((id) => isChanged(n, id));
+  const reset = () => save(Object.fromEntries(changed.map((id) => [id, n.rows[id]!.default])), '没有恢复默认');
+  const look = tab === 'render';
 
   return (
-    <div className={styles.set} data-menu={p.menu !== false || undefined}>
-      <div className={styles.board}>
-        {p.offline && (
-          <div className={tune.ro} role="status">
-            <StatusTag state="unreachable" label="角色未运行" />
-            <span>设定暂为只读</span>
-          </div>
-        )}
-        <div className={styles.rows}>
-          {tab === 'render' && <div className={styles.note}>镜头、帧率、环境光和光线包裹只作用在桌面上的她，预览不跟随</div>}
-          <SettingRows n={n} tab={tab} dev={dev} set={set} pending={pending} offline={p.offline} />
-        </div>
-        <div className={styles.foot}>
-          <span className={styles.tip}>改动即时生效；标「角色重新出现」的行保存后她会重新出现</span>
-          <Btn variant="ghost" disabled={p.offline} disabledReason="角色未运行" onClick={reset}>
-            恢复默认
-          </Btn>
-        </div>
-      </div>
-      {p.menu !== false && (
-        <div className={styles.menu} role="tablist" aria-orientation="vertical" aria-label="设定">
-          {tabs.map((id) => (
-            <button key={id} type="button" role="tab" className={styles.tab} aria-selected={id === tab} onClick={() => p.onTab(id)}>
-              {CHAR_TABS.find((t) => t.id === id)?.title}
-            </button>
-          ))}
+    <div className={styles.set}>
+      {p.menu !== false && <GameTabs label="设定" tabs={tabItems(tabs, n, dev)} value={tab} onChange={(id) => p.onTab(id as CharTab)} />}
+      {p.offline && (
+        <div className={styles.ro} role="status">
+          角色未运行 │ 设定暂为只读
         </div>
       )}
+      <div className={styles.sum}>
+        <span className={styles.en}>
+          <MicroLabel>{look ? 'Diff from original' : 'Diff from default'}</MicroLabel>
+        </span>
+        <span className={styles.k}>已改</span>
+        <b className={styles.n}>{changed.length}</b>
+        <span className={styles.k}>/ {ids.length} 项</span>
+        <span className={styles.sp} />
+        <WhiteCapsule
+          label={look ? '恢复原作' : '恢复默认'}
+          icon="refresh"
+          disabled={p.offline || changed.length === 0}
+          disabledReason={p.offline ? '角色未运行' : '没有改动'}
+          onClick={reset}
+        />
+      </div>
+      <div className={styles.rows} data-theme="dark">
+        <SettingRows
+          n={n}
+          tab={tab}
+          dev={dev}
+          set={set}
+          setMany={(changes) => save(changes, '没有保存「主光方向」')}
+          pending={pending}
+          failed={failed}
+          offline={p.offline}
+        />
+      </div>
     </div>
   );
 }

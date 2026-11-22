@@ -1,128 +1,414 @@
-/* 拍照: the filter grid (4 columns) and its info area above, aperture, focus and the shutter below. */
+/* 拍照 column right of the stage, on the training room: the 4×4 filter grid, the camera rows, the round shutter at the bottom right. */
 .photo {
+  position: absolute;
+  top: 16px;
+  right: calc(var(--rail) + var(--gap));
+  bottom: 16px;
+  z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: var(--ef-sp-16);
-  min-width: 0;
+  gap: 10px;
+  width: var(--panel-w);
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: none;
+  container-type: inline-size;
 }
 
-.filters,
-.camera {
+.part {
   display: flex;
   flex-direction: column;
-  gap: var(--ef-sp-12);
+  gap: 6px;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--ef-sp-8);
+  gap: 6px;
 }
 
+/* A filter: a cut-corner dark plate, a hatched thumbnail with the filter's number, its name under it. */
 .cell {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--ef-sp-4);
-  padding: var(--ef-sp-6);
+  min-width: 0;
+  padding: 0;
   border: 0;
-  background: var(--ef-surface-2);
-  box-shadow: inset 0 0 0 1px var(--ef-line);
-  color: var(--ef-text-2);
-  font: 12px / 1.2 var(--ef-font-sans);
+  background: rgb(44 44 44 / 80%);
+  color: #fff;
+  text-align: left;
   cursor: pointer;
+  backdrop-filter: blur(8px);
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
 }
 
-.cell[data-selected] {
-  box-shadow: inset 0 0 0 2px var(--ef-emph);
-  color: var(--ef-text-1);
+.cell:hover:not([aria-checked='true']) {
+  background: rgb(64 64 64 / 86%);
 }
 
 .cell:focus-visible {
-  outline: 1px solid var(--ef-focus);
-  outline-offset: 2px;
+  outline: 2px solid #fff;
+  outline-offset: -2px;
 }
 
-.icon {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  background: var(--ef-surface-1);
+.th {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 44px;
+  margin: 3px 3px 0;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(-45deg, rgb(255 255 255 / 5%) 0 4px, rgb(255 255 255 / 10%) 4px 5px),
+    linear-gradient(180deg, #5a5a5a, #3c3c3c);
+  font: 600 10px / 1 var(--ef-font-num);
+  letter-spacing: 0.1em;
+  color: rgb(255 255 255 / 55%);
+}
+
+/* 无: an empty well crossed by one slash. */
+.th[data-none] {
+  background: #3a3a3a;
+}
+
+.th[data-none]::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: 50%;
+  width: 1.5px;
+  background: rgb(255 255 255 / 45%);
+  transform: rotate(45deg);
+}
+
+.sp {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  padding: 0 4px;
+  background: rgb(0 0 0 / 55%);
+  font: 700 9px / 12px var(--ef-font-num);
+  letter-spacing: 0.08em;
+  color: rgb(255 241 0 / 85%);
 }
 
 .name {
-  max-width: 100%;
+  padding: 4px 6px 5px;
   overflow: hidden;
-  text-overflow: ellipsis;
+  font: 500 12px / 1.3 var(--ef-font-sans);
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.use {
+/* In use: a yellow inner frame and glow, a yellow corner with a dark tick. */
+.cell[aria-checked='true'] {
+  background: rgb(30 30 30 / 90%);
+  box-shadow:
+    inset 0 0 0 2px var(--ef-accent),
+    0 0 16px rgb(255 241 0 / 35%);
+}
+
+.cell[aria-checked='true'] .name {
+  color: var(--ef-accent);
+  font-weight: 700;
+}
+
+.cell[aria-checked='true']::after {
+  content: '';
   position: absolute;
-  top: var(--ef-sp-6);
-  left: var(--ef-sp-6);
-  padding: 0 var(--ef-sp-4);
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
-  font-size: 11px;
-  line-height: 16px;
+  right: 0;
+  bottom: 0;
+  border-bottom: 16px solid var(--ef-accent);
+  border-left: 16px solid transparent;
+}
+
+.ck {
+  position: absolute;
+  right: 1px;
+  bottom: 2px;
+  z-index: 1;
+  width: 8px;
+  height: 5px;
+  border-bottom: 2px solid #111;
+  border-left: 2px solid #111;
+  transform: rotate(-45deg);
 }
 
 .info {
-  padding: var(--ef-sp-8) var(--ef-sp-12);
-  background: var(--ef-surface-1);
-  box-shadow: inset 2px 0 0 var(--ef-emph);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 2px 2px;
+  color: #262626;
 }
 
-.infoName {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ef-text-1);
+.info b {
+  font: 700 16px / 1.2 var(--ef-font-sans);
 }
 
-.infoDesc {
-  margin-top: var(--ef-sp-2);
-  font-size: 12px;
-  color: var(--ef-text-3);
+.info span {
+  font: 500 12px / 1.2 var(--ef-font-sans);
+  color: #4d4d4d;
+}
+
+.info .infoEn {
+  margin-left: auto;
 }
 
 .note {
-  font-size: 12px;
-  color: var(--ef-text-3);
+  font: 500 12px / 1.4 var(--ef-font-sans);
+  color: #4d4d4d;
 }
 
-.ctl {
+/* A camera row: the dark row's lead and body, the reading in Saira at the right, the slider under it. */
+.cam {
   display: flex;
-  flex-wrap: wrap;
+  align-items: stretch;
+  background: linear-gradient(180deg, rgb(74 74 74 / 84%), rgb(60 60 60 / 82%));
+  color: #fff;
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 7px 10px -7px rgb(0 0 0 / 55%),
+    inset 0 1px 0 rgb(255 255 255 / 7%);
+}
+
+.cam[data-off] .body {
+  opacity: 0.55;
+}
+
+.lead {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  background: rgb(28 28 28 / 42%);
+}
+
+.lead i {
+  width: 8px;
+  height: 8px;
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 40%);
+  transform: rotate(45deg);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 14px 10px;
+}
+
+.hd {
+  display: flex;
   align-items: center;
-  gap: var(--ef-sp-8) var(--ef-sp-12);
+  gap: 10px;
+  min-height: 28px;
 }
 
-.k {
-  min-width: 96px;
-  font-size: 13px;
-  color: var(--ef-text-2);
+.t {
+  font: 500 15px / 1.35 var(--ef-font-sans);
 }
 
-.num {
-  font-family: var(--ef-font-num);
+.ro {
+  margin-left: auto;
+  font: 600 20px / 1 var(--ef-font-num);
   font-variant-numeric: tabular-nums;
-  color: var(--ef-text-1);
 }
 
+.ro small {
+  margin-left: 1px;
+  font-size: 11px;
+  color: rgb(255 255 255 / 55%);
+}
+
+/* The shutter: why and the last result on the left, the round key at the bottom right. */
 .shutter {
   display: flex;
+  flex: none;
   align-items: center;
-  gap: var(--ef-sp-12);
+  gap: 14px;
+  margin-top: auto;
+  padding: 12px 6px 22px 0;
 }
 
-.saved {
+.msg {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
   min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-  color: var(--ef-text-2);
+  color: #262626;
+}
+
+.msg b {
+  font: 500 12px / 1.4 var(--ef-font-sans);
+}
+
+.msg span {
+  overflow: hidden;
+  font: 500 12px / 1.4 var(--ef-font-sans);
+  color: #555;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.shut {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 58%, transparent 59%);
+  color: #1a1a1a;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 0 9px rgb(255 255 255 / 35%),
+    0 8px 18px rgb(0 0 0 / 35%);
+}
+
+.shut::before {
+  content: '';
+  position: absolute;
+  inset: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fffa7a, var(--ef-accent) 60%, #e1d400);
+  box-shadow: inset 0 -3px 6px rgb(0 0 0 / 18%);
+}
+
+.shut svg {
+  position: relative;
+}
+
+.shut:hover:not([aria-disabled='true'])::before {
+  filter: brightness(1.06);
+}
+
+.shut:focus-visible {
+  outline: 2px solid #262626;
+  outline-offset: 10px;
+}
+
+.shut[aria-busy='true']::before {
+  filter: brightness(0.75);
+}
+
+.shut[aria-disabled='true'] {
+  cursor: default;
+}
+
+.shut[aria-disabled='true']::before {
+  background: #9a9a9a;
+}
+
+.lbl {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  font: 700 12px / 1 var(--ef-font-sans);
+  color: #262626;
+  white-space: nowrap;
+  translate: -50% 0;
+}
+
+/* The narrow column (925 × 515): thumbnails down to a hatched strip, no SP tag, a smaller shutter without its words. */
+@container (max-width: 330px) {
+  .photo {
+    gap: 6px;
+  }
+
+  .part {
+    gap: 4px;
+  }
+
+  /* The section head. */
+  .part > :first-child {
+    height: 22px;
+  }
+
+  .grid {
+    gap: 4px;
+  }
+
+  .info {
+    padding: 0 2px;
+  }
+
+  .hd {
+    min-height: 24px;
+  }
+
+  .th {
+    height: 22px;
+    margin: 2px 2px 0;
+    font-size: 9px;
+  }
+
+  .sp,
+  .infoEn,
+  .part [data-stub='MicroLabel'],
+  .lbl,
+  .msg > [data-stub='MicroLabel'] {
+    display: none;
+  }
+
+  .name {
+    padding: 2px 4px 3px;
+  }
+
+  .info b {
+    font-size: 13px;
+  }
+
+  .body {
+    padding: 5px 10px 6px;
+  }
+
+  .ro {
+    font-size: 15px;
+  }
+
+  .shutter {
+    padding: 6px 4px 6px 0;
+  }
+
+  .shut {
+    width: 52px;
+    height: 52px;
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 0 6px rgb(255 255 255 / 35%),
+      0 6px 12px rgb(0 0 0 / 30%);
+  }
+
+  .shut::before {
+    inset: 7px;
+  }
+
+  .shut svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@container op (max-height: 560px) {
+  .photo {
+    top: 8px;
+    bottom: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell {
+    transition: none;
+  }
 }

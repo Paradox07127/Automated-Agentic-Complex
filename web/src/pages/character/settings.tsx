@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from '
 import { getBridge, type SettingValue } from '../../bridge';
 import type { ToastOptions } from '../../shell/toast';
 import { Select, Seg, Slider, Switch } from '../../ui';
+import { GameSeg, Stepper } from '../../ui/game';
 import { loadNative, type Native, type SchemaRow } from '../settings/native';
 
 const KEY = ['character', 'settings'];
@@ -124,6 +125,35 @@ function SettingSlider({ row, value, disabled, onChange }: SettingSliderProps) {
       />
     </div>
   );
+}
+
+const ON_OFF = [
+  { value: 'on', label: '开' },
+  { value: 'off', label: '关' },
+];
+
+/** 设定 rows on the training room: 开｜关 for a toggle row, a slider for a slider row, game segments for up to three options (or the
+ *  short labels `short` gives), else a stepper. Sends the option value, never the label. */
+export function gameControl(
+  row: SchemaRow,
+  value: SettingValue | undefined,
+  disabled: boolean,
+  onChange: (v: SettingValue, quiet?: boolean) => void,
+  short?: Readonly<Record<string, string>>,
+): ReactNode {
+  if (row.kind === 'toggle') return <GameSeg label={row.label} variant="onoff" value={value === true ? 'on' : 'off'} options={ON_OFF} disabled={disabled} onChange={(v) => onChange(v === 'on')} />;
+  if (row.kind === 'slider') return <SettingSlider row={row} value={value} disabled={disabled} onChange={onChange} />;
+  const options = row.options ?? [];
+  if (short || options.length <= 3)
+    return <GameSeg label={row.label} value={String(value)} options={options.map((o) => ({ value: o.value, label: short?.[o.value] ?? o.label }))} disabled={disabled} onChange={onChange} />;
+  return <Stepper label={row.label} value={String(value)} defaultValue={String(row.default)} options={options} disabled={disabled} onChange={onChange} />;
+}
+
+/** The text of a value: an option's label, 开 / 关, or a slider reading with its unit. */
+export function valueText(row: SchemaRow, v: SettingValue | undefined): string {
+  if (row.kind === 'toggle') return v === true ? '开' : '关';
+  if (row.kind === 'slider') return `${Number((Number(v) * (row.format === 'percent' ? 100 : 1)).toFixed(6))}${UNIT[row.format ?? ''] ?? ''}`;
+  return row.options?.find((o) => o.value === String(v))?.label ?? String(v);
 }
 
 /** Switch for a toggle row; a slider for a slider row; segments for up to three options, else a menu. Sends the option value, never the label. */

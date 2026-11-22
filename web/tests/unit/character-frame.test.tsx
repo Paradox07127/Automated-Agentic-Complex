@@ -1,4 +1,5 @@
 // 角色区框架：头像条和名字块只在总览；面板宽度按页分档；总览的语音一行读 agentd 的绑定；未运行和切换失败写在名字块下、舞台之外；黄色斜块只做装饰。
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readVoiceBinding } from '../../src/bridge/agentd';
@@ -133,7 +134,12 @@ describe('detail pages', () => {
       [{ side: { of: 'photo', node: <div /> } }, 'photo'],
     ];
     for (const [over, tier] of cases) {
-      render(<Operator {...props} {...over} />);
+      // 设定's tab bar reads the settings for its change dots.
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <Operator {...props} {...over} />
+        </QueryClientProvider>,
+      );
       expect(op().getAttribute('data-panel')).toBe(tier);
       expect(screen.queryByRole('group', { name: '角色头像' })).toBeNull();
       expect(document.querySelector('[data-nameplate]')).toBeNull();

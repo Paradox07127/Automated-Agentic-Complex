@@ -2,8 +2,9 @@ import { useRef, useState, type ReactNode } from 'react';
 import { getBridge, type ActionSpeed, type AvatarAction, type CharacterEntry } from '../../bridge';
 import type { CharacterProfile, CharacterState } from '../../domain';
 import { navigate } from '../../shell/nav';
-import { ErrBar, Skel, type IconName } from '../../ui';
+import { ErrBar, Skel } from '../../ui';
 import { BrandBlock } from './BrandBlock';
+import { SetPanel } from './CharacterSettings';
 import { useCharEntrance, useSwitchFade } from './charMotion';
 import { Commit } from './Commit';
 import type { Toast } from './feedback';
@@ -15,7 +16,7 @@ import { MotionTable } from './MotionTable';
 import { useVoiceBinding } from './NameBlock';
 import { Panel, type PanelTab } from './Panel';
 import { Rail, type RailItem } from './Rail';
-import { CHAR_TABS, type CharTab } from './sections';
+import type { CharTab } from './sections';
 import { Stage, StageSkel, type StageMode } from './Stage';
 import { blockedReason, groupMotions, useMotions } from './useMotions';
 import type { MotionImport } from './useMotionImport';
@@ -86,7 +87,6 @@ const PANEL: Record<Exclude<Pane, 'overview'> | Side['of'], 'wide' | 'narrow' | 
 
 const NO_ACTIONS: AvatarAction[] = [];
 const NO_LOOKS: Readonly<Record<string, unknown>> = {};
-const SET_ICON: Record<CharTab, IconName> = { behavior: 'hand', render: 'sun', scene: 'loc' };
 
 /** First motion worth showing: not required, playable, present. */
 const firstPick = (actions: AvatarAction[]) => actions.find((a) => !a.requiredReason && a.playable !== false && !a.missing)?.id ?? actions[0]?.id ?? '';
@@ -210,13 +210,10 @@ export function Operator(p: OperatorProps) {
         ]
       : at === 'motion'
         ? [{ id: 'motion', label: '动作表', icon: 'play' }, ...(p.chains ? [{ id: 'chain', label: '编排', icon: 'hub' as const }] : []), { id: 'import', label: '导入', icon: 'plus' }]
-        : side?.of === 'set'
-          ? CHAR_TABS.filter((t) => side.tabs.includes(t.id)).map((t) => ({ id: t.id, label: t.title, icon: SET_ICON[t.id] }))
-          : [];
-  const tab = side?.of === 'set' ? side.tab : at === 'look' && pane === 'look' ? lt : pane;
+        : [];
+  const tab = at === 'look' && pane === 'look' ? lt : pane;
   const onTab = (id: string) => {
-    if (side?.of === 'set') go({ tab: id as CharTab });
-    else if (id === 'import') {
+    if (id === 'import') {
       setImportOf(at === 'motion' ? 'motion' : 'look');
       go({ pane: 'import' });
     } else if (at === 'look') {
@@ -315,11 +312,15 @@ export function Operator(p: OperatorProps) {
         />
       </div>
       {overview && <BrandBlock />}
-      {!overview && (
-        <Panel tabs={tabs} value={tab} onTab={onTab} label={side?.of === 'photo' ? '拍照' : ''} view={side ? 'character-settings' : undefined} pane={side ? undefined : pane}>
-          {side ? (
-            side.node
-          ) : pane === 'motion' ? (
+      {side?.of === 'set' && (
+        <SetPanel tabs={side.tabs} tab={side.tab} onTab={(t) => go({ tab: t })}>
+          {side.node}
+        </SetPanel>
+      )}
+      {side?.of === 'photo' && side.node}
+      {!overview && !side && (
+        <Panel tabs={tabs} value={tab} onTab={onTab} label="" pane={pane}>
+          {pane === 'motion' ? (
             <section className={styles.motions} aria-label="动作开关">
               {table}
             </section>

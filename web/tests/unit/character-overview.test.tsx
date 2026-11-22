@@ -94,7 +94,7 @@ describe('角色页 · 总览', () => {
     const op = document.querySelector('[data-view="operator"]') as HTMLElement;
     expect(op.getAttribute('data-mode')).toBe('detail');
     const bar = screen.getByRole('tablist', { name: '角色页签' });
-    expect(within(bar).getAllByRole('tab').map((t) => t.textContent)).toEqual(['行为', '画面', '场景']);
+    expect(within(bar).getAllByRole('tab').map((t) => t.getAttribute('data-tab'))).toEqual(['behavior', 'render', 'scene']);
     expect(document.querySelector('[data-stage]')?.getAttribute('data-mode')).toBe('detail');
     await click(within(bar).getByRole('tab', { name: '场景' }));
     await waitFor(() => expect(params(router)).toEqual({ tab: 'scene' }));

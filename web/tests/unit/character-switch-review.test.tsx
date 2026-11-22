@@ -136,8 +136,8 @@ describe('设定 tab bar', () => {
     vi.spyOn(bridge.settings, 'schema').mockImplementation(async () => (await schema()).filter((r) => !(r as { id: string }).id.startsWith('scn.')));
     await mount('&tab=scene');
     const bar = screen.getByRole('tablist', { name: '角色页签' });
-    await waitFor(() => expect(within(bar).getAllByRole('tab').map((t) => t.textContent)).toEqual(['行为', '画面']));
-    expect(within(bar).getByRole('tab', { selected: true }).textContent).toBe('行为');
+    await waitFor(() => expect(within(bar).getAllByRole('tab').map((t) => t.getAttribute('data-tab'))).toEqual(['behavior', 'render']));
+    expect(within(bar).getByRole('tab', { selected: true }).getAttribute('data-tab')).toBe('behavior');
     expect(screen.getByRole('tabpanel').getAttribute('aria-label')).toBe('行为');
   });
 });

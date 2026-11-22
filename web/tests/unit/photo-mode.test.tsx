@@ -30,12 +30,17 @@ async function view(flags: { photo: boolean; capture: boolean }) {
 }
 
 describe('PhotoMode', () => {
-  it('draws the 16 filters of rnd.filter in schema order, 无 first', async () => {
+  it('draws the 16 filters of rnd.filter in schema order, 无 first, numbered on a drawn hatch rather than game art', async () => {
     const v = await view({ photo: true, capture: true });
     const cells = within(v.grid).getAllByRole('radio');
     expect(cells.map((c) => c.getAttribute('aria-label'))).toEqual(NAMES);
     expect(cells[0]!.getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByText('调整照片色彩的滤镜')).toBeTruthy();
+    expect(cells.map((c) => c.querySelector('[aria-hidden="true"]')?.textContent)).toEqual(['', 'SP·01', 'SP·02', 'SP·03', 'SP·04', 'SP·05', 'SP·06', 'SP·07', 'F·01', 'F·02', 'F·03', 'F·04', 'F·05', 'F·06', 'F·07', 'F·08']);
+    expect(v.grid.querySelector('img')).toBeNull();
+    expect(screen.queryByText('调整照片色彩的滤镜')).toBeNull();
+    expect(screen.queryByText('只复刻调色部分')).toBeNull();
+    fireEvent.keyDown(cells[0]!, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(cells[4]);
   });
 
   it('saves rnd.filter when a filter is picked', async () => {
@@ -44,6 +49,7 @@ describe('PhotoMode', () => {
     fireEvent.click(within(v.grid).getByRole('radio', { name: '黑金' }));
     await waitFor(() => expect(save).toHaveBeenCalledWith({ 'rnd.filter': 'sp_filter_1' }));
     await waitFor(() => expect(within(v.grid).getByRole('radio', { name: '黑金' }).getAttribute('aria-checked')).toBe('true'));
+    expect(screen.getByText('只复刻调色部分')).toBeTruthy();
   });
 
   it('shows aperture and focus disabled, with the reason, while depth of field is not connected', async () => {
@@ -56,13 +62,15 @@ describe('PhotoMode', () => {
   it('sends aperture and manual focus through avatar.photo.set', async () => {
     const v = await view({ photo: true, capture: true });
     await waitFor(() => expect((screen.getByRole('slider', { name: '光圈' }) as HTMLInputElement).disabled).toBe(false));
-    expect(screen.getByText('(f/32)')).toBeTruthy();
+    const reading = (k: string) => document.querySelector(`[data-readout="${k}"]`)?.textContent;
+    expect(reading('aperture')).toBe('f/32');
     fireEvent.change(screen.getByRole('slider', { name: '光圈' }), { target: { value: '5.6' } });
-    expect(screen.getByText('(f/5.6)')).toBeTruthy();
+    expect(reading('aperture')).toBe('f/5.6');
     expect(v.photo).toHaveBeenLastCalledWith({ active: true, aperture: 5.6, focus: 'auto' });
+    expect(reading('focus')).toBeUndefined();
     fireEvent.click(screen.getByRole('radio', { name: '手动' }));
     expect(v.photo).toHaveBeenLastCalledWith({ active: true, aperture: 5.6, focus: 10 });
-    expect(screen.getByText('(10.0m)')).toBeTruthy();
+    expect(reading('focus')).toBe('10.0m');
   });
 
   it('takes a transparent capture with the shutter and names the file', async () => {
@@ -75,9 +83,14 @@ describe('PhotoMode', () => {
     expect(await screen.findByText(/Agentic Complex-voice_a-20261116-120000\.png/)).toBeTruthy();
   });
 
-  it('greys the shutter without capture', async () => {
+  it('greys the shutter without capture and says why', async () => {
+    const capture = vi.spyOn(getBridge().avatar, 'capture');
     await view({ photo: true, capture: false });
-    await waitFor(() => expect(screen.getByRole('button', { name: '拍照' }).getAttribute('aria-disabled')).toBe('true'));
+    const shutter = screen.getByRole('button', { name: '拍照' });
+    await waitFor(() => expect(shutter.getAttribute('aria-disabled')).toBe('true'));
+    expect(screen.getByText('渲染器没有提供截图')).toBeTruthy();
+    fireEvent.click(shutter);
+    expect(capture).not.toHaveBeenCalled();
   });
 
   it('keeps her clear, then opens the photo state; closing undoes both in reverse', async () => {

@@ -1,17 +1,291 @@
-/* 设定 rows inside the shared dark rows: the settings row fills the row's main cell, its control column narrower than on the settings page. */
+/* 设定 sections on the training room: a yellow square head with the \\──□ rule, then dark rows; a changed row has a yellow left edge and a ↺ lead. */
+.sec {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  container-type: inline-size;
+}
+
 .sec + .sec {
-  margin-top: 12px;
+  margin-top: 10px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 28px;
+  color: #262626;
+}
+
+.sq {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--ef-accent);
+  box-shadow: 0 0 0 1.5px #2a2a2a;
+}
+
+.h {
+  flex: none;
+  margin: 0;
+  font: 700 15px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+}
+
+.rule {
+  position: relative;
+  flex: 1;
+  min-width: 20px;
+  height: 7px;
+  background: repeating-linear-gradient(-45deg, transparent 0 3px, rgb(40 40 40 / 22%) 3px 4px);
+}
+
+.rule::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgb(40 40 40 / 55%);
+  background: #e6e6e5;
+}
+
+.desk {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 9px 0 7px;
+  background: #2c2c2c;
+  color: #fff;
+  font: 500 12px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+}
+
+.row {
+  position: relative;
+  box-shadow: 0 7px 10px -7px rgb(0 0 0 / 55%);
+}
+
+.row[data-changed]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  width: 4px;
+  background: var(--ef-accent);
+  pointer-events: none;
+}
+
+/* Over the DarkRow lead (52 px): clear until hovered, then the whole cell yellow with a dark ↺. */
+.reset {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+.reset svg {
+  opacity: 0;
+}
+
+.reset:hover:not(:disabled) {
+  background: var(--ef-accent);
+}
+
+.reset:hover:not(:disabled) svg {
+  opacity: 1;
+}
+
+.reset:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: -2px;
+}
+
+.reset:disabled {
+  cursor: default;
+}
+
+.err {
+  color: #ff8a7a;
+}
+
+/* 主光方向: the readout, then a framed 3×3 grid with two corner marks. */
+.pad {
+  --cell: 26px;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.ax {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 10px;
+  font: 500 12px / 1.3 var(--ef-font-sans);
+  color: rgb(255 255 255 / 55%);
+  white-space: nowrap;
+}
+
+.ax b {
+  font-weight: 500;
+  color: #fff;
+}
+
+.grid {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 7px;
+  background: rgb(0 0 0 / 30%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+}
+
+.grid::before,
+.grid::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid rgb(255 255 255 / 55%);
+}
+
+.grid::before {
+  top: -3px;
+  left: -3px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.grid::after {
+  right: -3px;
+  bottom: -3px;
+  border-top: 0;
+  border-left: 0;
 }
 
 .cell {
-  flex: 1;
-  min-width: 0;
+  display: grid;
+  place-items: center;
+  width: var(--cell);
+  height: var(--cell);
+  padding: 0;
+  border: 0;
+  background: rgb(255 255 255 / 6%);
+  cursor: pointer;
+  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
 }
 
-.cell > :global([data-stub='SRow']) {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
-  gap: 4px 12px;
-  min-height: 48px;
-  padding: 8px 12px;
-  border-bottom: 0;
+.cell i {
+  width: 7px;
+  height: 7px;
+  background: rgb(255 255 255 / 40%);
+  transform: rotate(45deg);
+}
+
+.cell[data-default] i {
+  width: 10px;
+  height: 10px;
+  background: none;
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 75%);
+}
+
+.cell:hover:not(:disabled, [aria-checked='true']) {
+  background: rgb(255 255 255 / 16%);
+}
+
+.cell[aria-checked='true'] {
+  background: var(--ef-accent);
+  box-shadow: 0 0 12px rgb(255 241 0 / 60%);
+}
+
+.cell[aria-checked='true'] i {
+  width: 9px;
+  height: 9px;
+  background: #1a1a1a;
+  box-shadow: none;
+}
+
+.cell:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+.cell:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Narrow panel (925 × 515): no row barcode, no Latin on the heads, the light pad without its readout and on smaller cells. */
+@container (max-width: 440px) {
+  .sec .head {
+    gap: 7px;
+    height: 22px;
+  }
+
+  .sec .h {
+    font-size: 13px;
+  }
+
+  /* DarkRow and the game controls have no compact size: their public hooks are narrowed here. */
+  .sec .head > [data-stub='MicroLabel'],
+  .row [data-stub='DarkRow'] > :has(> [data-stub='Barcode']) {
+    display: none;
+  }
+
+  .row [data-stub='DarkRow'] {
+    min-height: 40px;
+    padding-right: 8px;
+    font-size: 13px;
+  }
+
+  .row [data-stub='GameSeg'] [role='radio'] {
+    min-width: 0;
+    padding: 0 7px;
+  }
+
+  .row [data-stub='Stepper'] > [role='group'] {
+    width: 150px;
+    height: 30px;
+  }
+
+  .ax {
+    display: none;
+  }
+
+  .pad {
+    --cell: 17px;
+
+    gap: 0;
+    padding: 6px 10px 6px 0;
+  }
+
+  .grid {
+    gap: 3px;
+    padding: 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell {
+    transition: none;
+  }
 }
