@@ -335,9 +335,8 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
     mmd: imports.mmd,
     voice: { onPushToTalk: () => none },
     files: {
-      pickFile: async () => null,
-      pickFolder: async () => null,
-      saveAgentdExport: async () => false,
+      pickFile: async () => null, pickFolder: async () => null, saveAgentdExport: async () => false,
+      adoptDropped: async (fs) => fs.map((f, i) => ({ handle: `DROP-${i}-${f.name}`, displayName: f.name, size: f.size })),
     },
     open: { url: done, artifact: done, revealInFinder: done, jumpToSession: done, runFeedCommand: done, runInTerminal: done },
     clipboard: { writeText: done },

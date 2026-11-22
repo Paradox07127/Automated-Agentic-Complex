@@ -49,6 +49,8 @@ export interface ComposerProps {
   onRecheck: () => void;
   /** Text put into the input; a new object puts it in again. */
   draft?: { text: string } | null;
+  /** Files dropped on the dialog; a new object adds them again. */
+  dropped?: { files: File[] } | null;
   /** The topic the input writes to; each keeps its own draft. Null: one draft for all. */
   topicId?: string | null;
   /** A line the user quotes; it goes out as `> ` lines before the text. */
@@ -94,6 +96,10 @@ export function Composer(p: ComposerProps) {
   useEffect(() => {
     if (p.draft) edit({ text: p.draft.text });
   }, [p.draft]);
+  useEffect(() => {
+    // `adopt` is declared below the history view's early return, which never takes a drop.
+    if (p.dropped && !p.history) void adopt(p.dropped.files, false);
+  }, [p.dropped]);
   if (p.history) {
     return (
       <div className={styles.root}>
@@ -142,6 +148,19 @@ export function Composer(p: ComposerProps) {
   const addFile = async () => {
     const h = await getBridge().files.pickFile({ purpose: 'scope_file' });
     if (h) setD((cur) => ({ ...cur, files: [...cur.files, h] }));
+  };
+  /** Pasted images go as bytes (they have no path), every other file through the shell's drop handles. */
+  const adopt = async (files: File[], pasted: boolean) => {
+    if (d.noMem) return setNote('这句不记时不带文件');
+    const f = getBridge().files;
+    const images = pasted ? files.filter((x) => x.type.startsWith('image/')) : [];
+    const rest = files.filter((x) => !images.includes(x));
+    const got = [
+      ...(images.length > 0 && f.adoptPasted ? await f.adoptPasted(await Promise.all(images.map(async (x) => ({ type: x.type, data: await x.arrayBuffer() })))) : []),
+      ...(rest.length > 0 && f.adoptDropped ? await f.adoptDropped(rest) : []),
+    ];
+    if (got.length > 0) setD((cur) => ({ ...cur, files: [...cur.files, ...got] }));
+    setNote(got.length < files.length ? `${files.length - got.length} 个文件没带上` : null);
   };
   const plus: MenuItem[] = [
     { kind: 'item', label: '添加文件或图片', disabled: off || d.noMem, ...(!off && d.noMem ? { reason: '这句不记时不带文件' } : {}), onSelect: () => void addFile() },
@@ -227,6 +246,12 @@ export function Composer(p: ComposerProps) {
             disabled={off}
             onChange={(e) => edit({ text: e.target.value })}
             onKeyDown={onKey}
+            onPaste={(e) => {
+              const files = [...e.clipboardData.files];
+              if (files.length === 0 || d.noMem) return;
+              e.preventDefault();
+              void adopt(files, true);
+            }}
             aria-label="消息"
           />
         </label>

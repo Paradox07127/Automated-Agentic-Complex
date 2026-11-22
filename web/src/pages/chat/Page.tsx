@@ -74,6 +74,7 @@ export function ChatPage() {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ text: string } | null>(null);
   const [quote, setQuote] = useState<string | null>(null);
+  const [dropped, setDropped] = useState<{ files: File[] } | null>(null);
   const { folded, toggle } = useFold();
   const { swapAsk, ask, answer } = useSwapAsk(charList, present, (text) => setDraft({ text }));
   const push = useToast();
@@ -335,7 +336,20 @@ export function ChatPage() {
           />
         )}
       </aside>
-      <section className={styles.thread} aria-label="消息" data-g="dialog">{motion.node}
+      <section
+        className={styles.thread}
+        aria-label="消息"
+        data-g="dialog"
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          if (e.dataTransfer.files.length === 0) return;
+          e.preventDefault();
+          setDropped({ files: [...e.dataTransfer.files] });
+        }}
+      >
+        {motion.node}
         {current && !empty && state == null && <DlgHead title={current.title} />}
         {convs.data && state !== 'empty' && <ChatReadBanner errors={[convs.error, turns.query.error, tasksQ.error]} disconnected={convs.data.offline} readAt={convs.dataUpdatedAt} onRetry={retryLoad} />}
         {empty ? (
@@ -371,6 +385,7 @@ export function ChatPage() {
               onRestore={() => current && void actions.restore(current)}
               onRecheck={() => void actions.recheck()}
               draft={draft}
+              dropped={dropped}
             />
           </div>
         )}

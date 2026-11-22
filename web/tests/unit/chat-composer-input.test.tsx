@@ -163,3 +163,39 @@ describe('chat composer kernel', () => {
     expect(box().disabled).toBe(true);
   });
 });
+
+describe('chat composer: pasted and dropped files', () => {
+  function adopting() {
+    const base = createFakeBridge({ surface: 'main', still: true });
+    const adoptPasted = vi.fn(async (items: Array<{ type: string; data: ArrayBuffer }>) =>
+      items.map((it, i) => ({ handle: `P${i}`, displayName: `pasted-${i}.png`, size: it.data.byteLength })));
+    const adoptDropped = vi.fn(async (files: File[]) => files.map((f, i) => ({ handle: `D${i}`, displayName: f.name, size: f.size })));
+    window.agenticComplex = { ...base, files: { ...base.files, adoptPasted, adoptDropped } };
+    return { adoptPasted, adoptDropped };
+  }
+
+  it('a pasted image goes to the shell as bytes and lands in the tray', async () => {
+    const { adoptPasted } = adopting();
+    render(<Composer {...props()} />);
+    const png = new File([new Uint8Array([1, 2, 3])], 'image.png', { type: 'image/png' });
+    fireEvent.paste(box(), { clipboardData: { files: [png], getData: () => '' } });
+    await waitFor(() => expect(screen.getByText('pasted-0.png')).toBeTruthy());
+    expect(adoptPasted).toHaveBeenCalledTimes(1);
+    expect(adoptPasted.mock.calls[0]![0][0]!.type).toBe('image/png');
+  });
+
+  it('files dropped on the page land in the tray through adoptDropped', async () => {
+    const { adoptDropped } = adopting();
+    const doc = new File(['x'], '名单.xlsx');
+    render(<Composer {...props({ dropped: { files: [doc] } })} />);
+    await waitFor(() => expect(screen.getByText('名单.xlsx')).toBeTruthy());
+    expect(adoptDropped).toHaveBeenCalledWith([doc]);
+  });
+
+  it('a drop the shell takes none of says how many were left out', async () => {
+    const base = createFakeBridge({ surface: 'main', still: true });
+    window.agenticComplex = { ...base, files: { ...base.files, adoptDropped: async () => [] } };
+    render(<Composer {...props({ dropped: { files: [new File(['x'], 'a.exe')] } })} />);
+    await waitFor(() => expect(screen.getByText('1 个文件没带上')).toBeTruthy());
+  });
+});
