@@ -13,7 +13,7 @@ from observation.attention import WEB_PULSE
 from character.behavior import category
 from observation.blacklist import HIDDEN
 from observation.user_now import typing
-from infra.paths import COMPANION_BUNDLE
+from infra.paths import COMPANION_BUNDLE, COMPANION_WINDOWS_APP_ID
 
 ACTIVITIES = ("editing_code", "build_failed", "comparing_sources", "watching_video", "waiting_approval", "typing",
               "away", "unreadable", "reading", "meeting", "gaming", "switching", "unknown")
@@ -72,7 +72,7 @@ TERM_PROGRAMS = {"Apple_Terminal": "com.apple.Terminal", "iTerm.app": "com.googl
                  "WarpTerminal": "dev.warp.Warp-Stable", "vscode": "com.microsoft.VSCode"}
 # Session source -> hosts of the service it runs on; a page there belongs to the session.
 SERVICE_HOSTS = {"claude": ("claude.ai", "console.anthropic.com"), "codex": ("chatgpt.com", "platform.openai.com")}
-APPROVAL_SURFACES = {COMPANION_BUNDLE}  # where agentd's approval cards are shown
+APPROVAL_SURFACES = {COMPANION_BUNDLE, COMPANION_WINDOWS_APP_ID}  # where agentd's approval cards are shown
 # cwd basenames too common to name a project in a window title.
 GENERIC_DIRS = {"src", "app", "code", "work", "projects", "repos", "tmp", "home", "Desktop", "Documents",
                 "Downloads"}

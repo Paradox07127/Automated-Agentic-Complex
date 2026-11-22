@@ -1,0 +1,54 @@
+{
+  "note": "Windows: the approval card is in the app's own window, whose helper app_id is the lower-case exe name (C12 §2.9).",
+  "inputs": {
+    "now": 1800000000.0,
+    "focus": {
+      "id": "hb:card-1",
+      "app": "Agentic Complex",
+      "bundle_id": "agentic complex.exe",
+      "pid": 510,
+      "window_id": 110,
+      "title": "Endfield",
+      "url_host": null,
+      "since": 1799999992.0,
+      "secure_input": false
+    },
+    "dwell_s": 8.0,
+    "presence": {
+      "id": "afk:card-1",
+      "status": "active",
+      "seconds": 120,
+      "idle_s": 6
+    },
+    "page": null,
+    "recent_pages": [],
+    "selection": null,
+    "window_text": null,
+    "observations": [],
+    "sessions": [
+      {
+        "display_session": "codex:s-kestrel",
+        "source": "codex",
+        "session_id": "s-kestrel",
+        "cwd": "/Users/demo/work/kestrel",
+        "state": "awaiting_approval",
+        "effective_state": "awaiting_approval",
+        "tool_name": "shell",
+        "tool_category": "command",
+        "origin": null,
+        "since": 1799999985.0,
+        "observed_at": 1799999985.0
+      }
+    ],
+    "own_sessions": [],
+    "events": []
+  },
+  "expect": {
+    "activity": "waiting_approval",
+    "status": "ok",
+    "related_session_ids": [
+      "codex:s-kestrel"
+    ],
+    "can_interrupt": true
+  }
+}

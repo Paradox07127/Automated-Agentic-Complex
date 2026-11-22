@@ -84,6 +84,13 @@ class AssembleTest(unittest.TestCase):
                 self.assertTrue(result["expires_with"])
                 self.assertEqual(bool(result.get("degraded_reasons")), result["status"] == "degraded")
 
+    def test_approval_card_in_our_window_lets_her_interrupt_on_both_platforms(self):
+        # 09 is the macOS bundle, 20 the Windows helper's app_id of the packaged exe; 08 is another app's window.
+        for name, expected in (("08_waiting_approval_elsewhere.json", False), ("09_waiting_approval_on_card.json", True),
+                               ("20_waiting_approval_on_card_windows.json", True)):
+            with self.subTest(name):
+                self.assertEqual(assemble(load(HERE / "fixtures" / "activity" / name)["inputs"])["can_interrupt"], expected)
+
     def test_every_fact_cites_evidence_from_the_inputs(self):
         for path in FIXTURES:
             inputs = load(path)["inputs"]

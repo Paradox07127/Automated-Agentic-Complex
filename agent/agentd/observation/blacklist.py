@@ -8,7 +8,7 @@ import re
 import threading
 
 from fsutil import atomic_write_json
-from infra.paths import COMPANION_BUNDLE
+from infra.paths import COMPANION_BUNDLE, COMPANION_WINDOWS_APP_ID
 
 HIDDEN = {"app": "<hidden>"}
 FIELDS = ("bundle_ids", "app_names", "domains", "title_patterns")  # the lists POST /blacklist may add to
@@ -19,7 +19,7 @@ TITLE_MAX = 256
 # Never observe the control panel itself, even with an old or customized blacklist.json; on Windows its app_id is the
 # lower-case tools/release/package_windows.py EXECUTABLE.
 # Other local.agenticcomplex.* bundles (including user test fixtures) are not implicitly hidden.
-CONTROL_PANEL_BUNDLES = frozenset((COMPANION_BUNDLE, "agentic complex.exe"))
+CONTROL_PANEL_BUNDLES = frozenset((COMPANION_BUNDLE, COMPANION_WINDOWS_APP_ID))
 DEFAULTS = {
     "schema": 1,
     "bundle_ids": ["com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
