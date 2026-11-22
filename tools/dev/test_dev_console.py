@@ -28,9 +28,11 @@ class Paths(unittest.TestCase):
             p = mock.patch.object(dc, name, value)
             p.start()
             self.addCleanup(p.stop)
-        catalog = mock.patch.object(dc, 'release_catalog', lambda: str(tmp / 'library/current.json'))
-        catalog.start()
-        self.addCleanup(catalog.stop)
+        for name, value in {'release_catalog': lambda: str(tmp / 'library/current.json'), 'DEV_LIBRARY': tmp / 'dev-library',
+                            'CATALOG': str(tmp / 'dev-library/current.json')}.items():
+            p = mock.patch.object(dc, name, value)
+            p.start()
+            self.addCleanup(p.stop)
         # The checkouts under /w have the renderer's sources unless a test says otherwise.
         sources = mock.patch.object(dc, 'renderer_sources', lambda checkout: True)
         sources.start()
@@ -57,7 +59,7 @@ class ShellConfigTest(Paths):
         self.assertEqual((config['agentd_port'], config['gpu_hold_files']), (48790, []))
         self.assertEqual(config['support_dir'], str(dc.SUPPORT_DIR))
         self.assertEqual(config['agentd_state_dir'], str(dc.STATE_DIR))
-        self.assertEqual(config['character_catalog'], str(dc.release_catalog()))
+        self.assertEqual(config['character_catalog'], dc.CATALOG)
         self.assertEqual(config['plugins'], {'screen_awareness': False, 'computer_use': False})
         self.assertNotIn('observe_activity', config)
         self.assertNotIn('computer_use_enabled', config)
@@ -83,9 +85,38 @@ class ShellConfigTest(Paths):
 class ReleaseCatalogTest(unittest.TestCase):
     def test_public_profile_names_the_sample_library(self):
         with mock.patch.object(dc, 'default_profile', return_value=dc.ROOT / 'app/packaging/release.json'):
-            config = dc.shell_config({'character_catalog': '/old/current.json'}, dc.ROOT, dc.ROOT)
-        self.assertEqual(config['character_catalog'], str(dc.ROOT / 'characters/sample-library/current.json'))
-        self.assertTrue(Path(config['character_catalog']).is_file())
+            catalog = dc.release_catalog()
+        self.assertEqual(catalog, str(dc.ROOT / 'characters/sample-library/current.json'))
+        self.assertTrue(Path(catalog).is_file())
+
+
+class DevCatalogTest(Paths):
+    """The console's imports go to its own copy of the release library, never into the release library."""
+
+    def test_copies_the_release_library_and_keeps_imports_until_it_changes(self):
+        release = Path(self.tmp.name, 'library')
+        (release / 'packages/a').mkdir(parents=True)
+        (release / 'packages/a/character.json').write_text('{}')
+        (release / 'current.json').write_text('{"v": 1}')
+        catalog = Path(dc.dev_catalog())
+        self.assertEqual(catalog, dc.DEV_LIBRARY / 'current.json')
+        self.assertEqual(catalog.read_text(), '{"v": 1}')
+        self.assertTrue((dc.DEV_LIBRARY / 'packages/a/character.json').is_file())
+        # An import writes into the copy only, and the copy keeps it while the release library is the same.
+        (dc.DEV_LIBRARY / 'mmd-library').mkdir()
+        catalog.write_text('{"v": 1, "imported": true}')
+        dc.dev_catalog()
+        self.assertTrue((dc.DEV_LIBRARY / 'mmd-library').is_dir())
+        self.assertEqual(sorted(p.name for p in release.iterdir()), ['current.json', 'packages'])
+        # A new release library replaces the copy, its imports dropped.
+        (release / 'current.json').write_text('{"v": 2}')
+        dc.dev_catalog()
+        self.assertEqual(catalog.read_text(), '{"v": 2}')
+        self.assertFalse((dc.DEV_LIBRARY / 'mmd-library').exists())
+
+    def test_none_without_a_release_library(self):
+        self.assertIsNone(dc.dev_catalog())
+        self.assertFalse(dc.DEV_LIBRARY.exists())
 
 
 class CommandTest(Paths):
@@ -625,9 +656,11 @@ class CheckTest(Paths):
         with mock.patch.dict(dc.COMPONENTS, fakes), mock.patch.object(dc, 'CHECK_SECONDS', dict.fromkeys(dc.CHECK_SECONDS, 0.2)), \
                 mock.patch.multiple(dc, **probes), mock.patch.object(dc, 'stop_all') as stop_all, \
                 mock.patch.object(dc.tempfile, 'mkdtemp', return_value=str(self.check)), \
+                mock.patch.object(dc, 'CATALOG', None), \
                 mock.patch.object(dc.time, 'sleep'), mock.patch('builtins.print', lambda *a, **kw: out.append(' '.join(map(str, a)))):
             with self.assertRaises(SystemExit) as exit:
                 dc.main(['--check', '--quit-after', '5'])
+            self.catalog = dc.CATALOG
         return exit.exception.code, out, fakes, stop_all
 
     def test_passes_when_every_step_is_reached(self):
@@ -640,6 +673,7 @@ class CheckTest(Paths):
         self.assertEqual(dc.SUPPORT_DIR, self.check / 'support')
         self.assertEqual(fakes['web'].log, self.check / 'web.log')
         self.assertFalse(self.check.exists())
+        self.assertEqual(self.catalog, str(dc.DEV_LIBRARY / 'current.json'))
 
     def test_fails_at_the_first_step_not_reached(self):
         code, out, _, stop_all = self.run_check({'web_listening', 'shell_running'})

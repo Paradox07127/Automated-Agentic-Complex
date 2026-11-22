@@ -5,7 +5,8 @@ Arguments are passed on to the shell after the default ones (SHELL_ARGS), except
   --release-renderer  the release renderer build (macOS; Windows has one build, so it changes nothing there)
   --python PATH       the Python agentd runs with (default: on macOS the main checkout's agent/.venv; on Windows
                       $AGENTD_PYTHON, else the main checkout's agent\\.venv\\Scripts\\python.exe)
-  --catalog PATH      the character library (default: the release profile's; the sample library when it names none)
+  --catalog PATH      the character library (default: the console's own copy of the release profile's library, or of
+                      the sample library when it names none, in .local/dev-library of the main checkout)
   --check             starts everything with a temporary support dir, waits for vite, the builds, agentd's health and
                       the renderer's hello (none without the renderer's sources), prints one DEV-CONSOLE-CHECK line and
                       stops everything
@@ -15,6 +16,7 @@ line and exits 1."""
 from contextlib import closing
 from datetime import datetime
 import http.client
+import hashlib
 import http.server
 import json
 import ntpath
@@ -37,6 +39,7 @@ from release import default_profile  # noqa: E402
 MAIN = Path(subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', '--path-format=absolute', '--git-common-dir'],
                                     text=True, encoding='utf-8').strip()).parent
 RUN = MAIN / '.local/cache/dev-console'
+DEV_LIBRARY = MAIN / '.local/dev-library'
 PORT, AGENTD_PORT, WEB_PORT = 48780, 48790, 5190
 # Bytes of a log the console page reads.
 LOG_TAIL = 262144
@@ -66,7 +69,7 @@ def frame_log():
 
 def renderer_sources(checkout):
     return (checkout / RENDERER).is_dir()
-# --python and --catalog, when given.
+# --python when given; --catalog when given, else main() sets dev_catalog().
 PYTHON = CATALOG = None
 # How long --check waits for each step, in seconds.
 CHECK_SECONDS = {'vite': 1800, 'builds': 1800, 'agentd health': 120, 'renderer hello': 120}
@@ -126,6 +129,25 @@ def release_catalog():
     return str(MAIN / relative) if relative is not None else str(ROOT / 'characters/sample-library/current.json')
 
 
+def dev_catalog(platform=sys.platform):
+    """current.json of the console's own copy of the release library in DEV_LIBRARY, which takes the console's imports so
+    the release library stays at the profile's pin; copied again, its imports dropped, when the release current.json
+    changes. None when there is no release library."""
+    release = Path(release_catalog())
+    if not release.is_file():
+        return None
+    pin = hashlib.sha256(release.read_bytes()).hexdigest()
+    stamp = DEV_LIBRARY / '.release-sha256'
+    if not (stamp.is_file() and stamp.read_text(encoding='utf-8') == pin):
+        shutil.rmtree(DEV_LIBRARY, ignore_errors=True)
+        if platform == 'darwin':
+            subprocess.run(['cp', '-c', '-R', release.parent, DEV_LIBRARY], check=True)
+        else:
+            shutil.copytree(release.parent, DEV_LIBRARY)
+        stamp.write_text(pin, encoding='utf-8')
+    return str(DEV_LIBRARY / release.name)
+
+
 def worktrees():
     """[{path, branch, head}] of every checkout of this repository."""
     out = subprocess.check_output(['git', '-C', str(MAIN), 'worktree', 'list', '--porcelain'], text=True, encoding='utf-8')
@@ -163,7 +185,7 @@ def shell_config(existing, agentd, renderer, platform=sys.platform):
     config = {**DEFAULTS, 'gpu_hold_files': [], **(existing or {}),
               'agentd_dir': str(agentd / 'agent/agentd'), 'python': agentd_python(platform),
               'agentd_port': AGENTD_PORT, 'support_dir': str(SUPPORT_DIR), 'agentd_state_dir': str(STATE_DIR),
-              'character_catalog': CATALOG or release_catalog(), 'avatar_app': str(host),
+              'character_catalog': CATALOG, 'avatar_app': str(host),
               'avatar_executable': str(executable)}
     if not renderer_sources(renderer):
         config.pop('avatar_app'); config.pop('avatar_executable')
@@ -537,7 +559,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             components = {n: c.snapshot() for n, c in COMPONENTS.items()}
             running, renderer = components['shell']['phase'] == 'running', renderer_sources(Path(PARTS['renderer']))
             self._json(200, {'worktrees': worktrees(), 'components': components, 'parts': PARTS, 'gpu_lock': owner,
-                             'config': str(CONFIG), 'catalog': CATALOG or release_catalog(), 'renderer_build': RENDERER_BUILD,
+                             'config': str(CONFIG), 'catalog': CATALOG, 'renderer_build': RENDERER_BUILD,
                              'ports': {'console': PORT, 'web': WEB_PORT, 'agentd': AGENTD_PORT},
                              'logs': {**{n: str(p) for n, p in LOGS.items()}, **{n: str(f()) for n, (_, f) in RECORDS.items()}},
                              'has_renderer': renderer,
@@ -681,9 +703,8 @@ def run_check(tmp, args):
     """--check: starts web and the shell, waits for each step in turn, stops everything, then prints the one result line
     (`tmp` removed on a pass, else named in it); the exit code."""
     began, passed, failure = time.time(), [], None
-    catalog = CATALOG or release_catalog()
-    if not (catalog and Path(catalog).is_file()):
-        failure = f'character library (no {catalog or "library in the release profile"}; pass --catalog)'
+    if not (CATALOG and Path(CATALOG).is_file()):
+        failure = f'character library (no {CATALOG or release_catalog()}; pass --catalog)'
     else:
         COMPONENTS['web'].start(str(ROOT))
         COMPONENTS['shell'].start(str(ROOT), args)
@@ -749,6 +770,7 @@ def main(argv=None):
         check_isolated(SUPPORT_DIR, STATE_DIR, AGENTD_PORT, args)
     except Refused as e:
         sys.exit(f'dev console: {e}')
+    CATALOG = CATALOG or dev_catalog()
     if check:
         sys.exit(run_check(tmp, args))
     RUN.mkdir(parents=True, exist_ok=True)

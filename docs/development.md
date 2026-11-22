@@ -55,11 +55,11 @@ python3 -I tools/dev/dev_console.py --release-renderer
 
 Ctrl-C 先停外壳（外壳按顺序停渲染器、agentd 和 helper），再停 vite。
 
-config.json 在主检出的 `.local/cache/dev-console/support/`（外壳的支持目录，跨次保留）。每次启动重算 `agentd_dir`、`python`（主检出的 `agent/.venv`）、`agentd_port`（`48790`）、`support_dir`、`agentd_state_dir`（`.local/cache/dev-console/agentd-state`）、`character_catalog`（发行配置的角色库）、`avatar_app` 和 `avatar_executable`，别的设置保留。新建时感知和分享类开关全关，和打包 app 的默认值一样。端口是已装 app 的 `48800`、目录落在已装 app 的数据目录里，或外壳参数里有 `--config` 时，面板报错退出。
+config.json 在主检出的 `.local/cache/dev-console/support/`（外壳的支持目录，跨次保留）。每次启动重算 `agentd_dir`、`python`（主检出的 `agent/.venv`）、`agentd_port`（`48790`）、`support_dir`、`agentd_state_dir`（`.local/cache/dev-console/agentd-state`）、`character_catalog`（开发面板自己的角色库副本，见下）、`avatar_app` 和 `avatar_executable`，别的设置保留。新建时感知和分享类开关全关，和打包 app 的默认值一样。端口是已装 app 的 `48800`、目录落在已装 app 的数据目录里，或外壳参数里有 `--config` 时，面板报错退出。
 
 日志在主检出的 `.local/cache/dev-console/`：`web.log`、`shell.log`（构建步骤和 Electron 的输出），以及外壳支持目录下的 `support/logs/companion.log`（页面来源记作 `DEV_WEB …`）、`agentd.log`、`avatar.log`（渲染器）和 `helper.log`。面板里都能看。
 
-面板自己的参数（不传给外壳）：`--help`；`--release-renderer`；`--python <路径>`，agentd 用的 Python；`--catalog <current.json>`，角色库（默认取发行配置的，公开配置下是示例角色库 `characters/sample-library/current.json`）；`--check`，见下。外壳或 agentd 起不来时，面板在终端打一行 `dev console: …` 说明原因，然后以 1 退出。
+面板自己的参数（不传给外壳）：`--help`；`--release-renderer`；`--python <路径>`，agentd 用的 Python；`--catalog <current.json>`，角色库（默认是主检出 `.local/dev-library/` 里发行配置角色库的副本，公开配置下是示例角色库 `characters/sample-library/` 的副本：面板里导入的动作和服装只写进副本，发行角色库保持 `catalog_sha256` 固定的那一版；发行库的 `current.json` 变了，下次启动重新复制，副本里的导入随之丢弃）；`--check`，见下。外壳或 agentd 起不来时，面板在终端打一行 `dev console: …` 说明原因，然后以 1 退出。
 
 ```sh
 python3 -I tools/dev/dev_console.py --check [--catalog <current.json>] [外壳参数…]
