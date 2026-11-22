@@ -1,6 +1,6 @@
 """Spatial behaviors (C1 v2 §1–3): which sustained activity the character may do now, as `event: behavior`,
 from session, user and speech events and a random tick, under the behavior switches; the avatar host's receipts end them."""
-from collections import OrderedDict
+from collections import OrderedDict, deque
 import json
 import logging
 import math
@@ -75,6 +75,10 @@ BODY = ("full_body", "contact")  # what the quiet stage and a held posture keep 
 TASK = ("session", "agent", "decision")  # trigger sources of task behaviors
 SPOKEN = ("speech", "agent")  # trigger sources of behaviors her speech drives
 HELD = SEATED + ("hold_window_edge", "short_walk")  # postures her speech does not break
+EDGE = {"kind": "edge", "side": "nearest"}  # where entering the quiet stage walks her
+EDGE_PAUSE = 1.5  # seconds typing stays off before the edge walk starts
+PARKED = c1.MOVING + ("hold_window_edge",)  # what her own schedule does not start from quiet entry until it ends
+BLOCKING = ("offstage", "quiet")  # stages that consume a terminal arriving on them
 
 
 def _spec(kind, target, source, event, priority, channels, exits, intensity, lifetime, display_session=None,
@@ -131,6 +135,31 @@ def _target_key(kind, target):
     return json.dumps(target, sort_keys=True)
 
 
+class Consumed:
+    """The terminal occurrences a stage in BLOCKING kept from being shown (C1 snapshot `consumed`), the newest
+    CONSUMED_MAX; a consumed one is never shown later.
+    Lock order: Spatial lock, registry.cv, then this lock, under which nothing else is locked."""
+
+    def __init__(self, stage):
+        self.stage = stage
+        self._ids = deque(maxlen=c1.CONSUMED_MAX)
+        self._lock = threading.Lock()
+
+    def take(self, occurrence_id):
+        """True when the occurrence is not to be shown: consumed before, or consumed now by the stage."""
+        with self._lock:
+            if occurrence_id in self._ids:
+                return True
+            if self.stage() not in BLOCKING:
+                return False
+            self._ids.append(occurrence_id)
+            return True
+
+    def ids(self):
+        with self._lock:
+            return list(self._ids)
+
+
 class Spatial:
     def __init__(self, observe, publish, generation, epoch, clock=time.time, rng=None, trace_id=new_trace_id,
                  walk_bias=lambda: None, state=None, session_settle=SESSION_SETTLE,
@@ -178,6 +207,9 @@ class Spatial:
         self._work = None  # {session, since}: the stabilized focus session's run in ACCOMPANY
         self._posture_key = None  # key of the long-work sit or rest that holds now, once sent; None when none holds
         self._activity_run = None  # {activity, since, sent, tries}: the activity's run and the last answer sent to it
+        self.consumed = Consumed(lambda: self.stage())
+        self._edge = None  # from quiet entry until it ends: {pending, walk: the edge walk's id or None, parked}
+        self._typing_off = -math.inf  # clock time typing was last seen off after being on
         self._lock = threading.RLock()
         self._wake = threading.Event()
 
@@ -212,6 +244,10 @@ class Spatial:
             now = self.clock()
             s = self._stabilize_session(s, now)
             self._track(s, now)
+            if s["typing"]:
+                self._typing_off = None
+            elif self._typing_off is None:
+                self._typing_off = now
             for record in list(self.active.values()):
                 if record["behavior"]["expires_at_ms"] <= now * 1000:
                     self._end(record, "expired")
@@ -232,6 +268,7 @@ class Spatial:
                     else:
                         self._event_key = None  # a refused row is proposed again at the next poll
             self._take_posture(posture, s, now)
+            self._edge_walk(s, now)
             self._react(s, now, event, posture)
             self._focus_walk(s, now)
             if self.routine is not None:
@@ -374,6 +411,8 @@ class Spatial:
                 if self.state is not None and record["state_id"] is not None:
                     self.state.on_event("behavior_ended", behavior_id=record["state_id"],
                                         type=record["behavior"]["type"], outcome=record["outcome"])
+                if self._edge is not None and self._edge["walk"] == body["behavior_id"]:
+                    self._edge["parked"] = True
             if phase == "rejected" and body.get("reason") == "unsupported":
                 behavior = record["behavior"]
                 self._unsupported[_unsupported_key(behavior["type"], behavior["target"], behavior.get("variant"))] = \
@@ -408,7 +447,9 @@ class Spatial:
             return {"running": running, "switches": dict(self.switches),
                     "last_receipt": self.last_receipt and dict(self.last_receipt), "unsupported": unsupported,
                     "capability_character": self.capability_character, "capabilities": self.capabilities,
-                    "refused": dict(self._refused)}
+                    "refused": dict(self._refused), "consumed": len(self.consumed.ids()),
+                    "parked": bool(self._edge and self._edge["parked"]),
+                    "edge_pending": bool(self._edge and self._edge["pending"])}
 
     def admit(self, spec, s, now, lapsed=()):
         """Whether a proposal may run now: (True, None), or (False, the first check that fails): stale (its
@@ -427,9 +468,10 @@ class Spatial:
             if self._forbidden(kind, target, False):
                 return False, "switch_off"
             stage = self.stage()
-            # offstage keeps base rest only; quiet keeps task behaviors off the body
+            edge = target is not None and target["kind"] == "edge"
+            # offstage keeps base rest only; quiet keeps task behaviors off the body but its own walk to the edge
             if not renewal and (stage == "offstage" and (kind != "idle" or _autonomous(spec))
-                                or stage == "quiet" and source in TASK and kind != "idle" and body):
+                                or stage == "quiet" and source in TASK and kind != "idle" and body and not edge):
                 return False, "stage"
             if self._forbidden(kind, target, s["typing"]):
                 return False, "typing"
@@ -451,6 +493,30 @@ class Spatial:
         s = self.observe()
         with self._lock:
             return self._send(spec, s, self.clock())
+
+    def stage_event(self, name):
+        """A user_now stage.* event: entering quiet asks for one walk to the nearest free edge; any other stage ends
+        the parking and leaves an edge walk in flight to finish."""
+        with self._lock:
+            self._edge = {"pending": True, "walk": None, "parked": False} if name == "stage.quiet" else None
+        self.wake()
+
+    def _edge_walk(self, s, now):
+        """The quiet stage's one walk to the edge once typing has been off EDGE_PAUSE. Seated, holding a window
+        edge, kept in place or unsupported she does not walk and is parked at once; busy, it waits."""
+        edge = self._edge
+        if edge is None or not edge["pending"] or self.stage() != "quiet" \
+                or self._typing_off is None or now - self._typing_off < EDGE_PAUSE:
+            return
+        if any(r["behavior"]["type"] in SEATED + ("hold_window_edge",) for r in self.active.values()) \
+                or not self._capable("short_walk", EDGE) or self._forbidden("short_walk", EDGE, False) \
+                or self._unsupported.get(_unsupported_key("short_walk", EDGE), 0) > now:
+            edge.update(pending=False, parked=True)
+            return
+        spec = _spec("short_walk", dict(EDGE), "decision", "stage_quiet", 0, ("full_body",), ("user_drag",), 0.5,
+                     60.0)
+        if self._send(spec, s, now)[0]:
+            edge.update(pending=False, walk=next(reversed(self.active)))
 
     def _slow(self):
         return QUIET_SLOW if self.stage() == "quiet" else 1.0
@@ -675,7 +741,8 @@ class Spatial:
                 or self._blocked.get(_target_key(kind, target), 0) > now \
                 or self._unsupported.get(_unsupported_key(kind, target), 0) > now \
                 or kind == "short_walk" and target is None and self._wander_at is not None and now < self._wander_at \
-                or kind == "short_walk" and self._walk_bias() == "stay":
+                or kind == "short_walk" and self._walk_bias() == "stay" \
+                or kind in PARKED and self._edge is not None:
             return False
         channels = set(TICKED[kind][0])
         for record in self.active.values():

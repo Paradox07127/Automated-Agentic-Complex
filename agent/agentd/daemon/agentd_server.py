@@ -238,6 +238,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
                                self.registry.epoch, interaction_preset=self.interaction.name,
                                trace_epoch=self._trace_epoch,
                                walk_bias=lambda: self.behavior.walk_bias() if self.behavior is not None else None)
+        self.registry.consumed = self.spatial.consumed
         self.proactive = None  # Proactive; sees every stored heartbeat
         self.proactive_log = None
         self.thoughts = None  # Thoughts: session transitions and the spatial poll's scene reach it; None thinks nothing

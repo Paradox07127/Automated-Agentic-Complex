@@ -39,11 +39,15 @@ class IngestMixin:
                 self.focus.count("sessions")
             ended = [FOCUS_ENDS[i["state"]] for i in registry.intents_since(seq)
                      if "event" not in i and i["state"] in FOCUS_ENDS]
-            if after and after.state in FOCUS_ENDS and after.state != was and not registry.quiet and not any(
+            if after and after.state in FOCUS_ENDS and after.state != was and not any(
                     "event" not in i and (i["display_session"], i["state"]) == (after.display_id, after.state)
                     for i in registry.intents_since(seq)):
-                registry.publish_event("session_reaction", {"display_session": after.display_id, "state": after.state,
-                                                            "turn_generation": registry.turn_generation})
+                occurrence = registry.occurrence_of(after)
+                # withheld first: a stage that blocks it consumes it even when quiet already keeps it unsent
+                if not registry.withheld(occurrence) and not registry.quiet:
+                    registry.publish_event("session_reaction", {
+                        "display_session": after.display_id, "state": after.state,
+                        "turn_generation": registry.turn_generation, "occurrence_id": occurrence})
         if self.commitments is not None:
             for outcome in done:
                 self.commitments.fire("session_done", {"agent": outcome["source"], "session_id": outcome["session_id"]})

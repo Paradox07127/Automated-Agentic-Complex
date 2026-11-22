@@ -110,11 +110,37 @@ class SessionReactionTest(test_server.FeedServerCase):
         self.hook("PermissionRequest", 0.0, "A", tool_name="Bash")
         self.hook("UserPromptSubmit", 0.1, "B")
         self.hook("StopFailure", 0.2, "B", error="api")
-        self.assertEqual(self.reactions(), [{"seq": self.server.registry.intent_seq, "event": "session_reaction",
-                                             "display_session": "claude:B", "state": "error",
-                                             "turn_generation": self.server.registry.turn_generation}])
+        [reaction] = self.reactions()
+        self.assertEqual(reaction, {"seq": self.server.registry.intent_seq, "event": "session_reaction",
+                                    "display_session": "claude:B", "state": "error",
+                                    "turn_generation": self.server.registry.turn_generation,
+                                    "occurrence_id": reaction["occurrence_id"]})
+        self.assertLessEqual(len(reaction["occurrence_id"].encode()), 64)
         focus = [i for i in self.published() if "event" not in i][-1]
         self.assertEqual((focus["display_session"], focus["state"]), ("claude:A", "awaiting_approval"))
+
+    def test_a_second_ending_of_the_session_has_a_new_occurrence(self):
+        self.hook("PermissionRequest", 0.0, "A", tool_name="Bash")
+        self.hook("UserPromptSubmit", 0.1, "B")
+        self.hook("StopFailure", 0.2, "B", error="api")
+        self.hook("UserPromptSubmit", 0.3, "B")
+        self.hook("StopFailure", 0.4, "B", error="api")
+        first, second = self.reactions()
+        self.assertNotEqual(first["occurrence_id"], second["occurrence_id"])
+
+    def test_an_ending_on_the_quiet_stage_is_consumed_and_never_reacts(self):
+        stage = ["quiet"]
+        self.server.spatial.stage = lambda: stage[0]
+        self.server.registry.set_quiet(True)
+        self.hook("PermissionRequest", 0.0, "A", tool_name="Bash")
+        self.hook("UserPromptSubmit", 0.1, "B")
+        self.hook("StopFailure", 0.2, "B", error="api")
+        self.assertEqual(self.reactions(), [])
+        [consumed] = self.server.spatial.consumed.ids()
+        stage[0] = "normal"
+        self.server.registry.set_quiet(False)
+        self.assertEqual(self.reactions(), [])
+        self.assertEqual(self.server.spatial.consumed.ids(), [consumed])
 
     def test_quiet_mode_sends_no_reaction(self):
         registry = self.server.registry

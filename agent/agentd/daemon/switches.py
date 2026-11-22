@@ -131,6 +131,7 @@ class SwitchesMixin:
         self.gate.stage = self.user_now.snapshot()["stage"]
         if event["name"].startswith("stage."):
             self.refresh_quiet()
+            self.spatial.stage_event(event["name"])
         elif event["name"] == "user.return":
             if self.proactive is not None:
                 self.proactive.back(event["data"]["away_s"])

@@ -1589,6 +1589,131 @@ class AdmitTest(SpatialCase):
         self.assertValid()
 
 
+EDGE = {"kind": "edge", "side": "nearest"}
+
+
+class QuietEdgeTest(SpatialCase):
+    """Entering the quiet stage walks her once to the nearest free edge, where she stays until quiet ends."""
+
+    def setUp(self):
+        super().setUp()
+        self.stage = "normal"
+        self.spatial.stage = lambda: self.stage
+        self.spatial._next_tick = T0 + 10_000  # no random tick unless a test asks for one
+
+    def enter(self, stage="quiet"):
+        self.stage = stage
+        self.spatial.stage_event(f"stage.{stage}")
+
+    def edge_walks(self):
+        return [m for m in self.sent if m["type"] == "short_walk" and m["target"] == EDGE]
+
+    def test_entering_quiet_sends_one_walk_to_the_nearest_edge(self):
+        self.enter()
+        self.assertTrue(self.spatial.diag()["edge_pending"])
+        self.step()
+        [walk] = self.sent
+        self.assertEqual((walk["type"], walk["target"], walk["trigger"]["source"], walk["priority"],
+                          walk["channels"], walk["exit"]),
+                         ("short_walk", EDGE, "decision", 0, ["full_body"], ["user_drag"]))
+        for _ in range(5):
+            self.step()
+        self.assertEqual(self.sent, [walk])
+        self.assertEqual(self.spatial.diag()["edge_pending"], False)
+        self.assertValid()
+
+    def test_after_the_walk_she_is_parked_until_quiet_ends(self):
+        self.use(Prefer("short_walk", "climb_window_top", "hold_window_edge", fraction=0.0))
+        self.enter()
+        self.step()
+        [walk] = self.sent
+        self.receipt(walk["behavior_id"], "completed")
+        self.assertTrue(self.spatial.diag()["parked"])
+        for _ in range(3):
+            self.spatial._next_tick = None
+            self.step(spatial.TICK[1] * spatial.QUIET_SLOW)
+        self.assertFalse([m for m in self.sent[1:] if m["type"] in ("short_walk", "climb_window_top",
+                                                                    "hold_window_edge")])
+        self.enter("normal")
+        self.assertFalse(self.spatial.diag()["parked"])
+        self.spatial._next_tick, self.spatial._wander_at, self.spatial._recovery_at = None, None, 0.0
+        self.step()
+        self.assertEqual(self.sent[-1]["type"], "short_walk")
+        self.assertNotEqual(self.sent[-1]["target"], EDGE)  # leaving quiet does not walk her back
+        self.assertValid()
+
+    def test_a_drag_during_the_walk_parks_her_too(self):
+        self.enter()
+        self.step()
+        [walk] = self.sent
+        self.receipt(walk["behavior_id"], "cancelled", "user_drag")
+        self.assertTrue(self.spatial.diag()["parked"])
+        self.step()
+        self.assertEqual(self.sent, [walk])
+
+    def test_a_second_quiet_entry_walks_again(self):
+        self.enter()
+        self.step()
+        self.receipt(self.sent[0]["behavior_id"], "completed")
+        self.enter("normal")
+        self.step()
+        self.enter()
+        self.step()
+        self.assertEqual(len(self.edge_walks()), 2)
+        self.assertValid()
+
+    def test_while_the_user_types_the_walk_waits_until_typing_has_been_off_for_a_while(self):
+        self.s["typing"] = True
+        self.step()
+        self.enter()
+        for _ in range(3):
+            self.step()
+        self.assertEqual(self.edge_walks(), [])
+        self.assertTrue(self.spatial.diag()["edge_pending"])
+        self.step(typing=False)
+        self.step(1.0)  # typing off 1 s
+        self.assertEqual(self.edge_walks(), [])
+        self.step(1.0)  # 2 s: past the give-way pause
+        self.assertEqual(len(self.edge_walks()), 1)
+        self.assertNotIn("typing", self.spatial.diag()["refused"])
+        self.assertValid()
+
+    def test_seated_she_does_not_walk_and_is_parked(self):
+        self.use(Prefer("sit"))
+        self.spatial._next_tick = None
+        self.step()
+        [sit] = self.sent
+        self.assertEqual(sit["type"], "sit")
+        self.enter()
+        self.step()
+        self.assertEqual(self.sent, [sit])
+        self.assertEqual((self.spatial.diag()["parked"], self.spatial.diag()["edge_pending"]), (True, False))
+
+    def test_stay_in_place_sends_nothing_and_parks(self):
+        self.spatial.set_switches({**SWITCHES, "stay_in_place": True})
+        self.enter()
+        self.step()
+        self.assertEqual(self.sent, [])
+        self.assertTrue(self.spatial.diag()["parked"])
+
+    def test_an_unsupported_edge_parks_her_and_the_next_entry_sends_nothing(self):
+        self.unsupported.add("short_walk@edge")
+        self.enter()
+        self.step()
+        self.assertEqual(self.receipts(self.sent[0]["behavior_id"]), [("rejected", "unsupported")])
+        self.assertTrue(self.spatial.diag()["parked"])
+        self.enter("normal")
+        self.enter()
+        self.step()
+        self.assertEqual(len(self.edge_walks()), 1)
+        self.assertTrue(self.spatial.diag()["parked"])
+
+    def test_diag_counts_the_consumed(self):
+        self.stage = "quiet"
+        self.spatial.consumed.take("done-1")
+        self.assertEqual(self.spatial.diag()["consumed"], 1)
+
+
 class ServerCase(unittest.TestCase):
     def setUp(self):
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI, events_token=EVENTS)
@@ -1691,6 +1816,39 @@ class ReceiptServerTest(ServerCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class ConsumedServerTest(ServerCase):
+    def test_a_terminal_on_the_quiet_stage_is_listed_in_every_snapshot_and_never_shown(self):
+        stage = ["quiet"]
+        self.server.spatial.stage = lambda: stage[0]
+        registry = self.server.registry
+        registry.set_quiet(True)
+        now = time.time()
+        registry.set_role_focus({"display_session": "role:r1", "state": "done", "priority": 7, "tool_name": None,
+                                 "tool_category": None, "expires_at": now + 8, "run_id": "r1",
+                                 "conversation_id": "c", "run_generation": 1, "phase": "completed",
+                                 "outcome": "succeeded", "intent_override": "celebrate"}, generation=0)
+        snapshot = self.snapshot()
+        occurrence = snapshot["occurrence_id"]
+        self.assertEqual(snapshot["consumed"], [occurrence])
+        self.assertNotIn("outcome", snapshot)
+        self.assertEqual(c1.check_message({**snapshot, "event": "snapshot"}), [])
+        stage[0] = "normal"
+        registry.set_quiet(False)
+        self.assertNotIn("outcome", registry.intents[-1])
+        again = self.snapshot()  # a renderer reconnect
+        self.assertEqual((again["consumed"], again["occurrence_id"]), ([occurrence], occurrence))
+        self.assertNotIn("outcome", again)
+        self.assertEqual(c1.check_message({**again, "event": "snapshot"}), [])
+
+    def test_a_quiet_stage_event_walks_her_to_the_edge(self):
+        self.server.spatial._next_tick = time.time() + 10_000
+        self.server.spatial.stage = lambda: "quiet"
+        self.server.user_event({"revision": 1, "ts": time.time(), "name": "stage.quiet", "data": {}})
+        self.server.spatial.poll()
+        [walk] = self.snapshot()["behaviors"]
+        self.assertEqual((walk["type"], walk["target"]), ("short_walk", EDGE))
+
 
 class HostCapabilityTest(SpatialCase):
     def test_unavailable_behaviors_are_filtered_without_rejection_cooldown(self):

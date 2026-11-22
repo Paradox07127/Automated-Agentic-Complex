@@ -1,5 +1,7 @@
 """Session registry: per-session state machines, TTL cleanup and focus arbitration."""
 from collections import OrderedDict, deque
+import hashlib
+import json
 import threading
 import time
 
@@ -32,6 +34,14 @@ TURN_END_KINDS = {"stop", "stop_failure", "interrupt"}
 HISTORY = 1024
 DESKTOP_DONE_SECONDS = 30 * 60
 APPS = {"claude": "Claude Code", "codex": "Codex"}  # the app an external session asks its own questions in
+TERMINAL = ("done", "error")  # states whose showing has an occurrence id
+
+
+def occurrence_id(display_session, run_id, state, at):
+    """One terminal's C1 occurrence_id, at most 64 bytes: the same for every resend of it, since it is made of
+    the session, its run (None for an external session), the state and the time the terminal began."""
+    digest = hashlib.sha256(json.dumps([display_session, run_id, state, at]).encode()).hexdigest()[:32]
+    return f"{state}-{digest}"
 
 
 def own_app_wait(row):
@@ -124,6 +134,7 @@ class Registry:
         self.activity = self.mood = None  # behavior tick; None until it first picks
         self.role_focus = None  # Product-owned work; never masquerades as a coding session.
         self.quiet = False
+        self.consumed = None  # Spatial's Consumed; None consumes nothing
         self.turn_generation = 0
         self._focus_key = None
         self._signature = None
@@ -241,6 +252,15 @@ class Registry:
         with self.cv:
             self.quiet = bool(quiet)
             self._refocus(self.clock())
+
+    def occurrence_of(self, session):
+        """Under cv: the occurrence id of a session's done or error."""
+        return occurrence_id(session.display_id, None, session.state,
+                             session.completed_at if session.state == "done" else session.failed_at)
+
+    def withheld(self, occurrence):
+        """Under cv: whether a terminal is not to be shown, the stage having consumed it."""
+        return self.consumed is not None and self.consumed.take(occurrence)
 
     def intents_since(self, seq):
         with self.cv:
@@ -438,7 +458,7 @@ class Registry:
         focus = self._focus_dict()
         signature = (focus["display_session"], focus["state"], focus["tool_category"],
                      focus["tool_name"], focus.get('run_generation'), focus.get('phase'),
-                     focus.get('outcome'), self.turn_generation, self.quiet)
+                     focus.get('outcome'), self._occurrence(focus), self.turn_generation, self.quiet)
         if signature != self._signature:
             self._signature = signature
             self._emit(focus)
@@ -466,7 +486,18 @@ class Registry:
                 "tool_category": session.tool_category,
                 "expires_at": session.expires_at if state == session.state else None}
 
+    def _occurrence(self, focus):
+        if focus["state"] not in TERMINAL:
+            return None
+        if focus["display_session"].startswith('role:'):
+            # a role row holds a fixed time past the run's end, so its expiry names when the terminal began
+            return occurrence_id(focus["display_session"], focus.get('run_id'), focus["state"], focus["expires_at"])
+        return self.occurrence_of(self.sessions[self._focus_key])
+
     def _emit(self, focus):
+        occurrence = self._occurrence(focus)
+        # a consumed terminal still sets the face and bubble; outcome is the body cue it loses
+        withheld = occurrence is not None and self.withheld(occurrence)
         self.intent_seq += 1
         v, a, d = EMOTIONS[focus["state"]]
         expires = focus["expires_at"]
@@ -480,6 +511,8 @@ class Registry:
             "activity": self.activity, "mood": self.mood, "quiet": self.quiet,
             "turn_generation": self.turn_generation,
             **{key: focus[key] for key in ('run_id', 'conversation_id', 'run_generation', 'phase', 'outcome')
-               if key in focus}})
+               if key in focus and not (withheld and key == 'outcome')}})
+        if occurrence is not None:
+            self.intents[-1]["occurrence_id"] = occurrence
         self.current_intent = self.intents[-1]
         self.cv.notify_all()

@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sessions.events import normalize_claude, normalize_codex  # noqa: E402
 from sessions.registry import INTENTS, Registry, STATES, own_app_wait  # noqa: E402
+from observation.spatial import Consumed  # noqa: E402
 
 A = ("claude", "A")
 B = ("codex", "B")
@@ -443,6 +444,114 @@ class PublishedEventTest(unittest.TestCase):
         self.assertEqual(reg.intents_since(1)[0], {"seq": 2, "event": "speech_cancelled", "speech_id": None,
                                                    "reason": "client_cancel"})
         self.assertNotIn("event", reg.intents_since(2)[0])
+
+
+def role_done(run_id, ended, outcome="succeeded", state="done"):
+    """A role run's terminal focus as the embodiment projection makes it: its row holds 8 s past the end."""
+    return {"display_session": f"role:{run_id}", "state": state, "priority": STATES.index(state), "tool_name": None,
+            "tool_category": None, "expires_at": ended + 8, "run_id": run_id, "conversation_id": "c",
+            "run_generation": 1, "phase": "completed", "outcome": outcome, "intent_override": "celebrate"}
+
+
+class OccurrenceTest(unittest.TestCase):
+    """Each terminal has one occurrence id across its resends; the next terminal of the session has a new one."""
+
+    def focus_intents(self, reg, state):
+        return [i for i in reg.intents_since(0) if "event" not in i and i["state"] == state]
+
+    def test_a_resent_done_keeps_its_id_and_the_next_done_gets_a_new_one(self):
+        reg = Registry(epoch=1)
+        reg.ingest(claude("UserPromptSubmit", 0.0))
+        reg.ingest(claude("Stop", 1.0))
+        reg.set_activity("coding", "calm")  # a resend of the same done
+        first, again = self.focus_intents(reg, "done")
+        self.assertEqual(first["occurrence_id"], again["occurrence_id"])
+        self.assertLessEqual(len(first["occurrence_id"].encode()), 64)
+        reg.ingest(claude("UserPromptSubmit", 2.0))
+        self.assertNotIn("occurrence_id", reg.intents[-1])  # only terminals carry one
+        reg.ingest(claude("Stop", 3.0))
+        self.assertNotEqual(self.focus_intents(reg, "done")[-1]["occurrence_id"], first["occurrence_id"])
+
+    def test_an_error_has_its_own_id(self):
+        reg = Registry(epoch=1)
+        reg.ingest(claude("UserPromptSubmit", 0.0))
+        reg.ingest(claude("StopFailure", 1.0, error="api"))
+        reg.set_activity("coding", "calm")
+        first, again = self.focus_intents(reg, "error")
+        self.assertEqual(first["occurrence_id"], again["occurrence_id"])
+
+    def test_a_role_run_terminal_keeps_its_id_and_the_next_run_gets_a_new_one(self):
+        now = [100.0]
+        reg = Registry(epoch=1, clock=lambda: now[0])
+        reg.set_role_focus(role_done("r1", 99.0), generation=2)
+        reg.set_activity("coding", "calm")
+        first, again = self.focus_intents(reg, "done")
+        self.assertEqual(first["occurrence_id"], again["occurrence_id"])
+        self.assertLessEqual(len(first["occurrence_id"].encode()), 64)
+        reg.set_role_focus(role_done("r2", 100.0), generation=2)
+        self.assertNotEqual(self.focus_intents(reg, "done")[-1]["occurrence_id"], first["occurrence_id"])
+        reg.set_role_focus(role_done("r3", 100.0, outcome="failed", state="error"), generation=2)
+        self.assertIn("occurrence_id", self.focus_intents(reg, "error")[-1])
+
+
+class ConsumedTest(unittest.TestCase):
+    """A terminal that arrives while the stage is offstage or quiet is consumed: it never carries its body cue."""
+
+    def setUp(self):
+        self.now, self.stage = 100.0, "quiet"
+        self.reg = Registry(epoch=1, clock=lambda: self.now)
+        self.consumed = Consumed(lambda: self.stage)
+        self.reg.consumed = self.consumed
+        self.reg.set_quiet(True)
+
+    def leave_quiet(self):
+        self.stage = "normal"
+        self.reg.set_quiet(False)
+
+    def test_a_done_on_the_quiet_stage_is_consumed_and_not_shown_when_quiet_ends(self):
+        self.reg.ingest(claude("UserPromptSubmit", 100.0))
+        self.reg.ingest(claude("Stop", 101.0))
+        done = self.reg.intents[-1]
+        self.assertEqual(done["state"], "done")
+        self.assertEqual(self.consumed.ids(), [done["occurrence_id"]])
+        self.now = 102.0
+        self.leave_quiet()  # within the 4 s it is valid
+        again = self.reg.intents[-1]
+        self.assertEqual((again["state"], again["quiet"], again["occurrence_id"]),
+                         ("done", False, done["occurrence_id"]))
+        self.reg.tick(105.0)  # done held 4 s
+        self.assertEqual(self.reg.intents[-1]["state"], "idle")
+        self.assertEqual(self.consumed.ids(), [done["occurrence_id"]])
+
+    def test_a_role_terminal_on_the_quiet_stage_loses_its_outcome_for_its_whole_row(self):
+        self.reg.set_role_focus(role_done("r1", 100.0), generation=2)
+        done = self.reg.intents[-1]
+        self.assertEqual((done["state"], done["intent"]), ("done", "celebrate"))  # the face and bubble stay
+        self.assertNotIn("outcome", done)
+        self.assertEqual(self.consumed.ids(), [done["occurrence_id"]])
+        self.now = 103.0
+        self.leave_quiet()  # the row still holds: 8 s
+        again = self.reg.intents[-1]
+        self.assertEqual((again["state"], again["occurrence_id"]), ("done", done["occurrence_id"]))
+        self.assertNotIn("outcome", again)
+        self.now = 108.5
+        self.reg.tick()
+        self.assertEqual(self.reg.intents[-1]["state"], "idle")
+        self.assertFalse([i for i in self.reg.intents if i.get("outcome")])  # shown 0 times
+
+    def test_a_terminal_on_the_normal_stage_keeps_its_outcome(self):
+        self.leave_quiet()
+        self.reg.set_role_focus(role_done("r1", 100.0), generation=2)
+        self.assertEqual(self.reg.intents[-1]["outcome"], "succeeded")
+        self.assertEqual(self.consumed.ids(), [])
+
+    def test_the_consumed_list_keeps_the_newest_64(self):
+        for n in range(70):
+            self.assertTrue(self.consumed.take(f"o-{n}"))
+        self.assertEqual(self.consumed.ids(), [f"o-{n}" for n in range(6, 70)])
+        self.stage = "normal"
+        self.assertTrue(self.consumed.take("o-69"))  # once consumed, never shown
+        self.assertFalse(self.consumed.take("o-2"))
 
 
 class OwnAppWaitTest(unittest.TestCase):
