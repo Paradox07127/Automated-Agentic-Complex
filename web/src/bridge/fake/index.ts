@@ -38,6 +38,7 @@ import { feedScript, playOnce, replyScript, scriptedStream } from './feed';
 import { fakeImports } from './imports';
 import { fakeLogs } from './logs';
 import { fakeMotion, fakePreviewSequence, fakePreviewView } from './motion';
+import { motionGroupRoutes } from './motionGroups';
 import { createFakeOnboarding } from './onboarding';
 import { fakeOutfit } from './outfit';
 
@@ -175,7 +176,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
     present: () => character,
     said: (line) => playOnce(replyScript(line), still, (e) => listeners.forEach((l) => l(e))),
   });
-  const request = createDispatcher([...exampleRoutes, ...mockRoutes, ...chat, ...(opts.routes ?? [])], () => character);
+  const request = createDispatcher([...exampleRoutes, ...mockRoutes, ...chat, ...motionGroupRoutes(() => character), ...(opts.routes ?? [])], () => character);
   const avatar: AvatarState = {
     running: true, visible: true, scale: 1, clickThroughAll: false, speaking: false,
     characterId: 'voice_a', appearanceId: 'default',

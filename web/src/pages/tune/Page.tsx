@@ -15,6 +15,7 @@ import { StatePanel, type PanelTab } from '../character/StatePanel';
 import { Tune } from '../character/Tune';
 import { groupMotions, useMotions } from '../character/useMotions';
 import { ToolBar } from '../diag/ToolBar';
+import { PoolBench } from './PoolBench';
 import styles from './Tune.module.css';
 
 const NO_ACTIONS: AvatarAction[] = [];
@@ -172,6 +173,7 @@ export function TunePage() {
         />
         <div className={styles.motions}>{table}</div>
       </div>
+      <PoolBench offline={offline} toast={fb.toast} />
     </div>
   );
 }
