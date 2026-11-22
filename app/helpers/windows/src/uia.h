@@ -29,6 +29,10 @@ Outcome ax_hit_chain(const json::Value& params);
 Outcome ax_window_text(const json::Value& params);
 Outcome ax_window_tree(const json::Value& params);
 Outcome browser_front_tab(const json::Value& params);
+// ops_control_ui.cpp
+Outcome control_observe(const json::Value& params);
+Outcome control_act(const json::Value& params);
+Outcome control_read(const json::Value& params);
 
 namespace uia {
 

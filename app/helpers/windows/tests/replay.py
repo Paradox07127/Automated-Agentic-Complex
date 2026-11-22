@@ -22,6 +22,9 @@ Usage: python -I app/helpers/windows/tests/replay.py [--exe PATH]   (after build
   control.request; one with the token gets its request out without the token, and control.respond's answer back;
   answering it again is conn_gone; the token file goes when the helper exits. In ok-control.ndjson no client connects,
   so its control.respond answers conn_gone.
+- control.observe of the fixtures is aimed at the test window: without a desktop it answers window_gone. Their
+  control.act and control.read name snapshot ids no helper gave, which are stale_snapshot; click is unsupported_action
+  and a press without element_id element_required before that.
 - voice: speech.locales lists SenseVoice's locales; ptt.register registers Config.parseHotkey's combos and answers
   bad_hotkey for the Windows key and unknown keys; mic.start answers locale_unsupported, mic_busy and not_recording where
   due, and records (no_audio_device or permission_denied where the machine has no usable microphone) with mic.level
@@ -55,7 +58,13 @@ ax.hit_chain at its centre starts with it, ax.dialog_buttons is empty, attention
 and its window's; ax.watch answers the edit with its value and selection and sends a focus ax.notification when the
 focus moves to the password edit (no value, label or selection) and back; ax.window_tree holds the window and both
 edits, secure, gives no_change against its own version and one ~ line after the edit's text changes (WM_SETTEXT); no
-line of that session holds the password edit's text. input.actions turns on and off; no input.action is checked, which
+line of that session holds the password edit's text. control.observe pins the test window and lists the edit with its
+text and the button with AXPress inside the window, not the password edit, with a whole PNG for include_image;
+control.read reads the edit; click is unsupported_action and voids nothing; with the edit made a password edit
+(ES_PASSWORD) after the snapshot set_value and read are secure_element; set_value is confirmed, a second act right after it
+waits out the 250 ms and finds its snapshot stale, as does a read, and a new snapshot reads the new text back; press
+on the button is confirmed or unverifiable and the window gets its WM_COMMAND; a second helper finds a live snapshot
+id stale; no line holds the password edit's text. input.actions turns on and off; no input.action is checked, which
 needs a real click or key, and no synthetic input is sent to the host. Edge and Chrome windows the replay opens in
 profiles of their own (see browser_tab) give browser.front_tab's private state and host.
 Events the helper sends between answers go into the session that validate.check reads.
@@ -83,6 +92,7 @@ REPO = HERE.parents[3]
 C12 = REPO / 'protocol/C12-platform-helper'
 EXE = REPO / '.local/build/helper-windows/ac-helper.exe'
 SESSION = {'hello', 'cancel', 'shutdown'}
+CONTROL = {'control.observe', 'control.act', 'control.read'}
 AX = {'ax.focused', 'ax.dialog_buttons', 'ax.overlays', 'ax.hit_chain', 'ax.window_text', 'ax.window_tree',
       'ax.selected_text', 'ax.watch'}
 IMPLEMENTED = {'screens.list', 'windows.list', 'windows.at_point', 'clipboard.read', 'apps.running', 'apps.activate',
@@ -90,7 +100,7 @@ IMPLEMENTED = {'screens.list', 'windows.list', 'windows.at_point', 'clipboard.re
                'attention.sample', 'presence.watch', 'browser.front_tab', 'input.modifiers', 'input.watch',
                'input.actions', 'capture.window', 'capture.ambient', 'ocr.languages', 'ocr.recognize',
                'control.listen', 'control.respond', 'speech.locales', 'mic.start', 'mic.stop', 'ptt.register',
-               'ptt.unregister'} | AX
+               'ptt.unregister'} | AX | CONTROL
 # Without a desktop (session 0) these may fail, with one of their op's own codes.
 CAPTURES = {'capture.window', 'capture.ambient'}
 OCRS = {'ocr.languages', 'ocr.recognize'}
@@ -128,7 +138,8 @@ OCR_LINES = ('Replay text', '屏幕文字测试')  # painted top to bottom in th
 EDIT_TEXT = 'C12 replay edit: milk and eggs'
 SELECTED = 'milk'
 PASSWORD_TEXT = 'c12-replay-secret-7Qx'
-EDIT_ID, PASSWORD_ID = 101, 102
+BUTTON_TEXT = 'Press'
+EDIT_ID, PASSWORD_ID, BUTTON_ID = 101, 102, 103
 WM_FOCUS_CONTROL = 0x8000  # WM_APP; wParam is EDIT_ID or PASSWORD_ID
 
 
@@ -245,6 +256,8 @@ def user32():
     user.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
     user.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
     user.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    user.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
+    user.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, wintypes.LONG]
     user.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
     user.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
     return user
@@ -274,10 +287,12 @@ def foreground_pid():
 class TestWindow:
     """Plain top-level windows of this process, painted COLOUR: the only windows the replay lets the helper read,
     capture or activate. second stays hidden until focus_second. The first holds two edits: edit with EDIT_TEXT and
-    SELECTED selected, and password (ES_PASSWORD) with PASSWORD_TEXT."""
+    SELECTED selected, and password (ES_PASSWORD) with PASSWORD_TEXT; and button, whose clicks (WM_COMMAND BN_CLICKED)
+    clicks counts."""
 
     def __init__(self):
-        self.hwnd = self.second = self.edit = self.password = None
+        self.hwnd = self.second = self.edit = self.password = self.button = None
+        self.clicks = 0
         self.gone = None  # the id of a window created and destroyed at once
         self.text = None  # lines label paints over the first window, black on white
         self.ready = threading.Event()
@@ -321,6 +336,8 @@ class TestWindow:
                 gdi32.SelectObject(dc, previous)
                 user32.EndPaint(hwnd, ctypes.byref(paint))
                 return 0
+            if msg == 0x0111 and hwnd == self.hwnd and wparam == BUTTON_ID:  # WM_COMMAND, BN_CLICKED (0) << 16
+                self.clicks += 1
             if msg == WM_FOCUS_CONTROL and hwnd == self.hwnd:
                 # SetFocus works on this thread's windows only. EM_SETSEL: SELECTED in the edit, all of the password.
                 target = self.edit if wparam == EDIT_ID else self.password
@@ -372,6 +389,9 @@ class TestWindow:
                                            None)
         self.password = user32.CreateWindowExW(0, 'EDIT', PASSWORD_TEXT, style | 0x0020, 236, 8, 160, 24, self.hwnd,
                                                PASSWORD_ID, instance, None)
+        # WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON
+        self.button = user32.CreateWindowExW(0, 'BUTTON', BUTTON_TEXT, 0x40000000 | 0x10000000 | 0x00010000, 400, 8,
+                                             56, 24, self.hwnd, BUTTON_ID, instance, None)
         # Not ShowWindow: its first call in a process takes the launcher's STARTUPINFO, which ssh sets to hidden.
         # SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE | SWP_NOMOVE: shown, foreground untouched.
         user32.SetWindowPos(self.hwnd, None, 0, 0, 0, 0, 0x0040 | 0x0010 | 0x0004 | 0x0001 | 0x0002)
@@ -412,6 +432,14 @@ class TestWindow:
         """Replaces the edit's text (WM_SETTEXT, handled on the window's thread)."""
         buffer = ctypes.create_unicode_buffer(text)
         user32().SendMessageW(self.edit, 0x000C, 0, ctypes.addressof(buffer))
+
+    def secure_edit(self, on):
+        """Makes the edit a password edit (EM_SETPASSWORDCHAR '*', and the ES_PASSWORD style UIA's IsPassword reads)
+        or a plain one again."""
+        user = user32()
+        user.SendMessageW(self.edit, 0x00CC, ord('*') if on else 0, 0)
+        style = user.GetWindowLongW(self.edit, -16)  # GWL_STYLE
+        user.SetWindowLongW(self.edit, -16, style | 0x0020 if on else style & ~0x0020)
 
     def close_second(self):
         """Closes the second window; whether it is gone within 5 s."""
@@ -633,6 +661,9 @@ def aim(request, helper, target, window):
         params['pids'] = [helper.proc.pid, os.getpid()]
     elif op == 'browser.front_tab':
         params['app_id'] = ABSENT_APP
+    elif op == 'control.observe':
+        params['pid'] = os.getpid()
+        params['window_id'] = (target or {}).get('window_id', window.hwnd)
     elif op in AX:
         if params.get('pid') is not None:
             params['pid'] = os.getpid()
@@ -745,6 +776,8 @@ def check_answer(checks, name, request, got, hello, helper, target, window):
         return check_ocr(checks, name, request, got, target)
     if op in AX:
         return check_ax(checks, name, request, got)
+    if op in CONTROL:
+        return check_control(checks, name, request, got, target)
     if op == 'control.respond':
         checks.expect(got.get('error', {}).get('code') == 'conn_gone', f'{name} with no client answers conn_gone',
                       f'answer {got!r:.300}')
@@ -836,6 +869,28 @@ def check_ax(checks, name, request, got):
     elif op == 'ax.window_text' and 'cursor' in params:
         checks.expect('cursor_reset' in result['coverage']['reasons'], f'{name} of a cursor it never gave resets it',
                       f'coverage {result["coverage"]}')
+
+
+def check_control(checks, name, request, got, target):
+    """The fixtures' control requests: observe of the test window, which needs a desktop; act and read of the
+    fixtures' snapshot ids, which no helper gave."""
+    op, params = request['op'], request['params']
+    code = got.get('error', {}).get('code')
+    if op == 'control.observe' and target is None:
+        checks.expect(code == 'window_gone', f'{name} without a desktop answers window_gone', f'answer {got!r:.300}')
+        return
+    if op == 'control.observe':
+        pinned = (got.get('result') or {}).get('target') or {}
+        checks.expect(got.get('ok') is True and (pinned.get('pid'), pinned.get('window_id'), pinned.get('bounds'))
+                      == (os.getpid(), target['window_id'], target['bounds']), f'{name} observes the test window',
+                      f'answer {got!a:.300}')
+        return
+    want = 'stale_snapshot'
+    if op == 'control.act' and params['action'] in ('click', 'scroll'):
+        want = 'unsupported_action'
+    elif op == 'control.act' and 'element_id' not in params:
+        want = 'element_required'
+    checks.expect(code == want, f'{name} answers {want}', f'answer {got!r:.300}')
 
 
 def check_sample(checks, name, params, result):
@@ -1264,6 +1319,7 @@ def desktop(exe, checks, window, target):
 
     # While the replay still has the foreground, which the first window then takes from the second.
     desktop_ax(exe, checks, window, target)
+    desktop_control(exe, checks, window, target)
     checks.expect(window.close_second(), 'desktop: the second test window closes', '')
     got = ask('capture.window', window_id=window.second)
     checks.expect(got.get('error', {}).get('code') == 'window_gone', 'desktop capture.window of a closed window is window_gone',
@@ -1410,6 +1466,115 @@ def desktop_tree(ask, checks, window, me, bounds):
     checks.expect(diffed.get('mode') == 'diff' and len(changes) == 1 and changes[0].startswith('~\t')
                   and changes[0].endswith(f' text field, Value: {changed}'),
                   'desktop ax.window_tree after the edit\'s text changed is one ~ line', f'answer {got!a:.300}')
+
+
+def desktop_control(exe, checks, window, target):
+    """control.observe, control.act and control.read on the test window, in one session (see the module docstring)."""
+    helper = Helper(exe)
+    ids = iter(range(2, 1000))
+    me, bounds = os.getpid(), target['bounds']
+    box = {'x': 0, 'y': 0, 'width': bounds['width'], 'height': bounds['height']}
+
+    def ask(op, **params):
+        return helper.request({'v': 1, 'id': next(ids), 'op': op, 'params': params}) or {}
+
+    def code(got):
+        return got.get('error', {}).get('code')
+
+    def observe(**params):
+        got = ask('control.observe', pid=me, window_id=window.hwnd, include_text=True, **params)
+        return got, got.get('result') or {}
+
+    def element(result, hwnd):
+        """The observed element with hwnd's bounds, relative to the window, or {}."""
+        r = physical_rect(hwnd)
+        want = dict(r, x=r['x'] - bounds['x'], y=r['y'] - bounds['y'])
+        return next((e for e in result.get('elements', []) if e.get('bounds') == want), {})
+
+    helper.request(HELLO)
+    window.focus_first()
+    got, result = observe(include_image=True)
+    pinned = result.get('target') or {}
+    checks.expect(got.get('ok') is True and (pinned.get('pid'), pinned.get('window_id'), pinned.get('bounds'))
+                  == (me, window.hwnd, bounds), 'desktop control.observe pins the test window', f'answer {got!a:.400}')
+    edit, button = element(result, window.edit), element(result, window.button)
+    print(f'note: desktop control.observe of the test window: {result.get("elements")!a:.1200}', flush=True)
+    checks.expect(edit.get('role') == 'AXTextField' and edit.get('native_role') == 'Edit'
+                  and edit.get('value') == EDIT_TEXT and inside(edit.get('bounds'), box)
+                  and button.get('role') == 'AXButton' and button.get('title') == BUTTON_TEXT
+                  and button.get('actions') == ['AXPress'] and inside(button.get('bounds'), box),
+                  'desktop control.observe lists the edit with its text and the button with AXPress, inside the window',
+                  f'edit {edit}, button {button}')
+    checks.expect(not element(result, window.password), 'desktop control.observe leaves out the password edit',
+                  f'elements {result.get("elements")!a:.600}')
+    image = result.get('image') or {}
+    size = image_size(base64.b64decode(image.get('data', '')), 'png') if image.get('format') == 'png' else None
+    checks.expect(size is not None and size == (image.get('width'), image.get('height')),
+                  'desktop control.observe include_image is a whole PNG', f'image {image!r:.200}')
+    snap, edit_id = result.get('snapshot_id', 'o-missing'), edit.get('element_id', 'e-missing')
+    got = ask('control.read', snapshot_id=snap, element_id=edit_id)
+    checks.expect((got.get('result') or {}).get('value') == EDIT_TEXT, 'desktop control.read reads the edit',
+                  f'answer {got!a:.300}')
+    got = ask('control.act', snapshot_id=snap, action='click', x=10, y=10)
+    checks.expect(code(got) == 'unsupported_action', 'desktop control.act click is unsupported_action',
+                  f'answer {got!r:.300}')
+    changed = EDIT_TEXT + ' and bread'
+    window.secure_edit(True)
+    try:
+        acted = ask('control.act', snapshot_id=snap, action='set_value', element_id=edit_id, text=changed)
+        read = ask('control.read', snapshot_id=snap, element_id=edit_id)
+    finally:
+        window.secure_edit(False)
+    checks.expect(code(acted) == 'secure_element' and code(read) == 'secure_element',
+                  'desktop control.act set_value and control.read of a password edit are secure_element',
+                  f'act {acted!a:.200}, read {read!a:.200}')
+    try:
+        sent = time.monotonic()
+        first = ask('control.act', snapshot_id=snap, action='set_value', element_id=edit_id, text=changed)
+        second = ask('control.act', snapshot_id=snap, action='set_value', element_id=edit_id, text=EDIT_TEXT)
+        waited = time.monotonic() - sent
+        read = ask('control.read', snapshot_id=snap, element_id=edit_id)
+        _, result = observe()
+        again = element(result, window.edit)
+        reread = ask('control.read', snapshot_id=result.get('snapshot_id', 'o-missing'),
+                     element_id=again.get('element_id', 'e-missing'))
+    finally:
+        window.set_edit_text(EDIT_TEXT)
+    checks.expect(first.get('result') == {'effect': 'confirmed'},
+                  'desktop control.act set_value on the edit is confirmed', f'answer {first!a:.300}')
+    print(f'note: two control.act right after each other took {waited * 1000:.0f} ms', flush=True)
+    checks.expect(code(second) == 'stale_snapshot' and waited >= 0.25,
+                  'desktop control.act right after an action waits 250 ms and finds its snapshot stale',
+                  f'answer {second!r:.200}, {waited:.3f} s')
+    checks.expect(code(read) == 'stale_snapshot',
+                  'desktop control.read of a snapshot an action voided is stale_snapshot', f'answer {read!r:.200}')
+    checks.expect((reread.get('result') or {}).get('value') == changed,
+                  'desktop control.read of a new snapshot reads the text set_value wrote', f'answer {reread!a:.300}')
+    _, result = observe()
+    button = element(result, window.button)
+    before = window.clicks
+    got = ask('control.act', snapshot_id=result.get('snapshot_id', 'o-missing'), action='press',
+              element_id=button.get('element_id', 'e-missing'))
+    deadline = time.monotonic() + 2
+    while window.clicks == before and time.monotonic() < deadline:
+        time.sleep(0.05)
+    checks.expect((got.get('result') or {}).get('effect') in ('confirmed', 'unverifiable') and window.clicks > before,
+                  'desktop control.act press on the button reaches the window as WM_COMMAND',
+                  f'answer {got!r:.300}, clicks {before} -> {window.clicks}')
+    _, result = observe()
+    other = Helper(exe)
+    other.request(HELLO)
+    got = other.request({'v': 1, 'id': 2, 'op': 'control.read',
+                         'params': {'snapshot_id': result.get('snapshot_id', 'o-missing'), 'element_id': 'e0'}}) or {}
+    other.exit_code()
+    checks.expect(code(got) == 'stale_snapshot', 'desktop control.read in another helper of a live snapshot id is stale',
+                  f'answer {got!r:.300}')
+    checks.expect(helper.exit_code() == 0, 'desktop control session exit', '')
+    leaked = [line for line in helper.transcript if PASSWORD_TEXT in line]
+    checks.expect(not leaked, 'desktop: no line of the control session holds the password edit\'s text',
+                  f'{len(leaked)} lines')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, 'desktop control session validate.check', problem)
 
 
 def installed(exe):

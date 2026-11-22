@@ -247,6 +247,11 @@
   - `click`、`scroll` 要窗口内坐标 `x`、`y`（相对窗口左上），`scroll` 另要整数 `delta_y`（夹到 ±600）。目标 app 必须已在前台（`foreground_required`），坐标处的元素必须属于这个窗口（`occluded_target`）。只在 macOS 实现（CGEvent，带标记，`input.watch` 不把它算作用户输入）；Windows 首发不用 `SendInput`，回 `unsupported_action`。
   - 两次动作至少隔 250 ms。任何动作发出后，helper 作废所有快照，之后用旧 `snapshot_id` 回 `stale_snapshot`。
 - `control.read` 读快照里一个控件当前的值和标题，主进程拿来和预期比（`desktop_verify`）。
+- Windows：UIA，只在 UIA 线程上调（第 5 节第 3 条）。
+  - `control.observe` 从窗口的 UIA 元素起按 control view 广度优先读；`IsOffscreen` 的算隐藏，`IsPassword` 的算密码控件，都不列，也不往下走。`target` 和 `windows.list` 的同一个窗口一样（`bounds` 是 DWM 的扩展边框），窗口元素自己的 `bounds` 因此可以比窗口大一圈不可见的边。`title` 取 Name，没有时取 HelpText；`Text` 控件的 Name 是它的 `value`（同第 7.4 节），`title` 只取 HelpText；`Edit`、`Document` 的 `value` 按第 7.4 节的 `read_value` 读。`control.read` 同样：`value` 是 `Text` 控件的 Name 或按 `read_value` 读的值，`title` 是 Name（`Text` 控件为 null）。支持 InvokePattern 的控件 `actions` 为 `["AXPress"]`。`include_image` 的图同 `capture.window` 的 PNG。走查本身最多 1 秒，UIA 没答完回 `ax_timeout`。
+  - `control.act`：`press` 的 `effect` 恒为 `unverifiable`。快照之后才成为密码控件的（`IsPassword`），`act`、`read` 回 `secure_element`。动作发出后 UIA 超时的，`effect` 为 `unverifiable`；动作发出之前 UIA 没答完，`act`、`read` 回 `timeout`（`retryable: true`），等不到 UIA 线程回包时 `act` 回 `timeout` 且不带 `retryable`（动作可能已经发出）。
+  - `click`、`scroll` 在其他检查（包括 `stale_snapshot`）之前回 `unsupported_action`，不算动作：不作废快照，也不占 250 ms 的间隔。所以 `foreground_required`、`occluded_target`、`invalid_point`、`invalid_scroll` 在 Windows 不出现。
+  - 没有系统安全输入，从不回 `secure_input`；不要系统权限，从不回 `permission_denied`。
 - `control.listen` 建 agentd 调用桌面工具的本机端点，写令牌文件（0600，Windows 只给当前用户的 DACL）。macOS 的 `endpoint` 是 Unix socket 路径（最长 103 字节，目录 0700 且属于当前用户）；Windows 是 `\\.\pipe\…`，带只允许当前用户的显式 DACL、`PIPE_REJECT_REMOTE_CLIENTS`、`FILE_FLAG_FIRST_PIPE_INSTANCE`。已有实例在听时回 `already_running`。
   - 每个连接一个请求。helper 校验同一用户和令牌后发 `control.request`（`conn` 是 helper 给的连接号，`request` 是去掉令牌后的请求对象，形状见 `app/electron/src/common/computer-control.ts`），主进程处理后用 `control.respond` 把回答写回并关闭连接。连接已断时回 `conn_gone`。
   - 同时最多 4 个连接在读请求，多的 helper 直接拒绝连接。请求读完、令牌验过就不再占名额；在执行的请求由主进程限 4 个（`desktop_cancel`、`desktop_release` 不限），多的回 `bridge_busy`。
