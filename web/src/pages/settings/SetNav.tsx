@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { keyText } from '../../bridge/platformText';
 import { SETTING_GROUPS } from './groups';
 import { usePlugins } from '../../shell/plugins';
 import { SearchField, Tabs } from '../../ui';
@@ -18,7 +19,7 @@ export function SetSearch({ q, onQ }: { q: string; onQ: (q: string) => void }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-  return <SearchField inputRef={input} value={q} placeholder="搜索设置… ⌘F" label="搜索设置" onChange={onQ} />;
+  return <SearchField inputRef={input} value={q} placeholder={keyText('搜索设置… ⌘F')} label="搜索设置" onChange={onQ} />;
 }
 
 export interface SetNavProps {

@@ -1,4 +1,5 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
+import { keyText } from '../../bridge/platformText';
 import type { RuntimeInfo } from '../../domain';
 import { KernelChain } from '../../features/kernel';
 import { Btn, Icon, Menu, type MenuItem } from '../../ui';
@@ -163,7 +164,7 @@ export function Composer(p: ComposerProps) {
         className={styles.input}
         rows={2}
         value={text}
-        placeholder={off ? '内核就绪后可发送' : `输入消息，⌘↩ 发送给 ${p.roleName}`}
+        placeholder={off ? '内核就绪后可发送' : keyText(`输入消息，⌘↩ 发送给 ${p.roleName}`)}
         disabled={off}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKey}
@@ -203,7 +204,7 @@ export function Composer(p: ComposerProps) {
         )}
         <span className={styles.sp} />
         {p.sideHint && !off && <span className={`${styles.cap} ${styles.busy}`} title="前台执行中，新消息由只读旁路回答">前台执行中，新消息由只读旁路回答</span>}
-        <Btn variant={p.quietSend ? 'secondary' : 'primary'} icon="send" tail="send" kbd="⌘↩" loading={p.sending} disabled={off || text.trim() === ''} disabledReason={off ? '内核未就绪' : '先输入消息'} onClick={send}>
+        <Btn variant={p.quietSend ? 'secondary' : 'primary'} icon="send" tail="send" kbd={keyText('⌘↩')} loading={p.sending} disabled={off || text.trim() === ''} disabledReason={off ? '内核未就绪' : '先输入消息'} onClick={send}>
           发送
         </Btn>
       </div>

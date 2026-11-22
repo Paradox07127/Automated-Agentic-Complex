@@ -1,3 +1,4 @@
+import { keyText } from '../../bridge/platformText';
 import { useHotkeyLabels } from '../../domain/hotkeys';
 import { look, openQuickInput, useDesktopOff } from '../../shell/desktopOps';
 import { usePlugins } from '../../shell/plugins';
@@ -30,7 +31,7 @@ export function ActionBand({ go }: { go: Go }) {
           屏幕识读
         </Btn>
       )}
-      <Btn variant="ghost" kbd="⌘K" onClick={openPalette}>
+      <Btn variant="ghost" kbd={keyText('⌘K')} onClick={openPalette}>
         命令面板
       </Btn>
     </div>

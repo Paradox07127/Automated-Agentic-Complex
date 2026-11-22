@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getBridge, type BridgeError, type HotkeyCheck } from '../../../bridge';
+import { hotkeyText, keyText } from '../../../bridge/platformText';
 import { Btn, Kbd } from '../../../ui';
 import { useSettings } from '../ctx';
 import { SetRow } from '../SetRow';
@@ -46,7 +47,7 @@ export function KeysGroup() {
     } catch (error) {
       const code = (error as BridgeError | null)?.code;
       const message = code === 'invalid_hotkey'
-        ? `${combo} 不能用作热键：要带 ⌃、⌥ 或 ⌘，或者用 F1–F12`
+        ? `${hotkeyText(combo)} 不能用作热键：${hotkeyText('要带 ⌃、⌥ 或 ⌘')}，或者用 F1–F12`
         : '无法检查快捷键，请确认设置可以读取后重试';
       model.notify({ message, severity: 'warning', persistent: true });
       return null;
@@ -55,7 +56,7 @@ export function KeysGroup() {
   const use = async (id: string, label: string, combo: string) => {
     const r = await check(id, combo);
     if (!r) return;
-    if (!r.ok) return model.notify({ message: `${combo} 已被「${r.conflictWith}」占用，「${label}」保持不变`, severity: 'warning', persistent: true });
+    if (!r.ok) return model.notify({ message: `${hotkeyText(combo)} 已被「${r.conflictWith}」占用，「${label}」保持不变`, severity: 'warning', persistent: true });
     model.set(id, combo);
   };
   const record = async (id: string, label: string) => {
@@ -88,11 +89,11 @@ export function KeysGroup() {
               key={h.id}
               id={h.id}
               title={h.label}
-              desc={status ?? (clash ? `与${bridge.platform === 'windows' ? '系统' : ' macOS'}「切换输入法」冲突，建议改为 ⌃⌥Space` : h.desc)}
+              desc={status ? hotkeyText(status) : (clash ? `与${bridge.platform === 'windows' ? '系统' : ' macOS'}「切换输入法」冲突，建议改为 ${hotkeyText(INPUT_SWITCH_FIX)}` : h.desc && hotkeyText(h.desc))}
               descTone={status || clash ? 'attention' : undefined}
               control={
                 <>
-                  {unset ? <span className={styles.t3}>未设置</span> : <Kbd size="lg">{combo}</Kbd>}
+                  {unset ? <span className={styles.t3}>未设置</span> : <Kbd size="lg">{hotkeyText(combo)}</Kbd>}
                   <Btn size="sm" variant="ghost" loading={recording === h.id} disabled={ro || noHotkeys || (recording !== null && recording !== h.id)}
                     disabledReason={recording ? '正在录制快捷键' : noHotkeys ? '这个平台不支持全局热键' : '设置当前不可写'} onClick={() => void record(h.id, h.label)}>
                     {recording === h.id ? <span role="status">按下新快捷键，Esc 取消</span> : '更改'}
@@ -104,7 +105,7 @@ export function KeysGroup() {
                   )}
                   {clash && (
                     <Btn size="sm" variant="quiet" disabled={ro || recording !== null} onClick={() => void use(h.id, h.label, INPUT_SWITCH_FIX)}>
-                      改用 {INPUT_SWITCH_FIX}
+                      改用 {hotkeyText(INPUT_SWITCH_FIX)}
                     </Btn>
                   )}
                 </>
@@ -117,10 +118,10 @@ export function KeysGroup() {
 
       <SetSection title="主窗口内">
         {PAGE_KEYS.map(([id, title, key]) => (
-          <SetRow key={id} id={`hk_page_${id}`} title={`切换到「${title}」`} control={<Kbd size="lg">{key}</Kbd>} />
+          <SetRow key={id} id={`hk_page_${id}`} title={`切换到「${title}」`} control={<Kbd size="lg">{keyText(key)}</Kbd>} />
         ))}
-        <SetRow id="hk_cmdk" title="命令面板" desc="固定为 ⌘K" control={<Kbd size="lg">⌘K</Kbd>} />
-        <SetRow id="hk_find" title="搜索设置" desc="设置页内有效" control={<Kbd size="lg">⌘F</Kbd>} />
+        <SetRow id="hk_cmdk" title="命令面板" desc={keyText('固定为 ⌘K')} control={<Kbd size="lg">{keyText('⌘K')}</Kbd>} />
+        <SetRow id="hk_find" title="搜索设置" desc="设置页内有效" control={<Kbd size="lg">{keyText('⌘F')}</Kbd>} />
       </SetSection>
     </>
   );

@@ -38,7 +38,7 @@ export interface Capabilities {
   nativeFilePicker: boolean;
   nativeConfirm: boolean;
   avatar: boolean;
-  clickThrough: boolean; /** The avatar lists C3 `action_loop`: `avatar.playAction` takes `{ loop: true }`, `avatar.stopAction` ends it. */ actionLoop: boolean;
+  clickThrough: boolean; /** The avatar lists C3 `action_loop`: `avatar.playAction` takes `{ loop: true }`, `avatar.stopAction` ends it. */ actionLoop: boolean; /** The platform helper's `hello.ops` has the feature's ops (app/electron/src/common/bridge.ts `HELPER_BIT_OPS`), or no list is known. */ helperPushToTalk: boolean; helperWindowText: boolean; helperTypedText: boolean; helperActionTimeline: boolean; helperSelectedText: boolean;
 }
 
 export type CapabilityName = keyof Capabilities;

@@ -27,8 +27,18 @@ function binScript(name: string, python: string, flags: string[], script: string
   if (platform === 'windows') {
     const quoted = (s: string) => `"${s.replaceAll('%', '%%')}"`;
     const line = [quoted(python), ...flags, ...[script, ...args].map(quoted), '%*'].join(' ');
-    // cmd decodes each batch line in the console's code page: UTF-8 from here on when a path is not ASCII.
-    return { name: `${name}.cmd`, text: `@echo off\r\n${/[^ -~]/.test(line) ? 'chcp 65001 >nul\r\n' : ''}${line}\r\n` };
+    if (!/[^ -~]/.test(line)) return { name: `${name}.cmd`, text: `@echo off\r\n${line}\r\n` };
+    // cmd decodes each batch line in the console's code page, so the paths go to PowerShell as UTF-16 and the
+    // arguments cmd was given follow as they came; the child shares the console and its standard handles.
+    const literal = (s: string) => `'${s.replaceAll("'", "''")}'`;
+    const target = [...flags, ...[script, ...args].map((s) => `"${s}"`)].join(' ');
+    // Progress records (module set-up) would reach a redirected stderr as CLIXML.
+    const command = `$ProgressPreference='SilentlyContinue';$p=[System.Diagnostics.Process]::new();$p.StartInfo.FileName=${literal(python)};`
+      + `$p.StartInfo.Arguments=${literal(`${target} `)}+$env:AGENTIC_COMPLEX_ARGS;$p.StartInfo.UseShellExecute=$false;`
+      + '[void]$p.Start();$p.WaitForExit();exit $p.ExitCode';
+    const powershell = '"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoLogo -NoProfile -NonInteractive';
+    return { name: `${name}.cmd`, text: `@echo off\r\nset "AGENTIC_COMPLEX_ARGS=%*"\r\n${powershell} -EncodedCommand ${
+      Buffer.from(command, 'utf16le').toString('base64')}\r\n` };
   }
   const quoted = (s: string) => `'${s.replaceAll("'", "'\\''")}'`;
   return { name, text: `#!/bin/sh\nexec ${[python, ...flags, script, ...args].map(quoted).join(' ')} "$@"\n` };

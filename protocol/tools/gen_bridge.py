@@ -54,8 +54,9 @@ def render_ts(file, onboarding):
     out += ts_list("STREAM_OPS", file["kinds"]["stream"], "Event streams; `<name>.unsubscribe` ends them.")
     out += ts_list("DESKTOP_OPS", file["desktop"], "Ops served only when the native host has a desktop.")
     out += [
-        "/** `'host:avatar'`: true only when the native host has an avatar; `'host:actionLoop'`: only when it lists C3 `action_loop`. */",
-        "export type SurfaceCapabilities = { readonly [K in keyof Capabilities]: boolean | 'host:avatar' | 'host:actionLoop' };",
+        "/** `'host:avatar'`: true only when the native host has an avatar; `'host:actionLoop'`: only when it lists C3 `action_loop`;",
+        " *  `'host:helper'`: only when the platform helper's `hello.ops` holds the bit's ops. */",
+        "export type SurfaceCapabilities = { readonly [K in keyof Capabilities]: boolean | 'host:avatar' | 'host:actionLoop' | 'host:helper' };",
         "",
         "export const SURFACE_CAPABILITIES: Readonly<Record<Surface, SurfaceCapabilities>> = {",
     ]

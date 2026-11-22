@@ -57,7 +57,7 @@ test('malformed messages, subframes and foreign origins are refused before the o
     { ok: false, error: { code: 'forbidden_origin', detail: 'https://example.com' } });
 });
 
-test('boot lists every bridge member and the surface capabilities with host bits off', () => {
+test('boot lists every bridge member and the surface capabilities with host bits off, helper bits on while no op list is known', () => {
   const b = boot('main');
   assert.deepEqual(b.ops, [...ops.ops, ...onboarding.ops]);
   assert.equal(b.surface, 'main');
@@ -65,9 +65,23 @@ test('boot lists every bridge member and the surface capabilities with host bits
   for (const surface of SURFACES) {
     const bits = boot(surface).capabilities;
     assert.deepEqual(Object.keys(bits), Object.keys(ops.capabilities[surface]));
-    for (const [name, v] of Object.entries(ops.capabilities[surface])) assert.equal(bits[name], v === true, `${surface} ${name}`);
+    for (const [name, v] of Object.entries(ops.capabilities[surface])) assert.equal(bits[name], v === true || v === 'host:helper', `${surface} ${name}`);
   }
   assert.equal(b.platform, 'mac');
+});
+
+const HELPER_BITS = ['helperPushToTalk', 'helperWindowText', 'helperTypedText', 'helperActionTimeline', 'helperSelectedText'];
+
+test('boot turns a helper bit off when the helper\'s hello.ops lacks one of its ops', () => {
+  const all = ['ptt.register', 'mic.start', 'ax.window_text', 'ax.watch', 'input.actions', 'ax.window_tree', 'ax.selected_text'];
+  for (const surface of SURFACES) {
+    const full = boot(surface, 'windows', all).capabilities;
+    for (const name of HELPER_BITS) assert.equal(full[name], true, `${surface} ${name}`);
+    const bits = boot(surface, 'windows', all.filter((op) => op !== 'ax.window_text' && op !== 'mic.start')).capabilities;
+    assert.deepEqual(HELPER_BITS.filter((name) => !bits[name]), ['helperPushToTalk', 'helperWindowText'], surface);
+    const none = boot(surface, 'windows', []).capabilities;
+    assert.deepEqual(HELPER_BITS.filter((name) => none[name]), [], surface);
+  }
 });
 
 test('boot on Windows names the platform and has no run-in-terminal; every other bit is the table\'s', () => {

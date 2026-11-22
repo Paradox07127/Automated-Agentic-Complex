@@ -557,6 +557,8 @@ test('the guide still answers when config.json is unreadable: not done, on step 
 test('desktop.onState hotkeys: each hot key row by web id as the page shows it, defaults included, a broken name left out', () => {
   assert.deepEqual(desktopHotkeys({ hotkey_quick_input: 'ctrl+alt+k', hotkey_look: 'bogus+' }),
     { hk_ptt: '右⌥', hk_quick: '⌃⌥K', hk_hide: '⌃⌥H', hk_pass: '⌃⌥P', hk_wheel: '⌃⌥R' });
+  assert.deepEqual(desktopHotkeys({ hotkey_quick_input: 'command+shift+k', hotkey_look: 'bogus+' }, 'windows'),
+    { hk_ptt: '右Alt', hk_quick: 'Shift+Win+K', hk_hide: 'Ctrl+Alt+H', hk_pass: 'Ctrl+Alt+P', hk_wheel: 'Ctrl+Alt+R' });
 });
 
 test('avatar.details: photo, capture and filters count when she and the link both list them (WebAvatarWatch.details)', () => {

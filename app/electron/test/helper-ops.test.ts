@@ -15,7 +15,7 @@ import { ORIGIN } from '../src/common/ui.ts';
 import type { AgentdClient } from '../src/main/agentd/client.ts';
 import { type HelperReply, localError } from '../src/main/helper/client.ts';
 import { type OpsContext, registry } from '../src/main/ops/index.ts';
-import { desktopLocalId, type RunResult, systemCommands } from '../src/main/ops/jump.ts';
+import { desktopLocalId, type RunResult, systemCommands, windowsApp } from '../src/main/ops/jump.ts';
 
 const ok = (result: Record<string, unknown>): HelperReply => ({ ok: true, result });
 const err = (code: string): HelperReply => ({ ok: false, error: { code, message: code } });
@@ -286,6 +286,59 @@ test('open.jumpToSession opens a Claude Desktop session by its local id, else ac
     for (const [k, v] of Object.entries(saved)) if (v === undefined) delete process.env[k]; else process.env[k] = v;
     rmSync(home, { recursive: true, force: true });
   }
+});
+
+test('open.jumpToSession on Windows reads Claude Desktop\'s sessions under APPDATA and activates claude.exe', async () => {
+  const appData = mkdtempSync(join(tmpdir(), 'appdata-'));
+  const saved = process.env.APPDATA;
+  process.env.APPDATA = appData;
+  try {
+    const dir = join(appData, 'Claude', 'claude-code-sessions', 'a', 'b');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'local_w-1.json'), JSON.stringify({ cliSessionId: 'cli-1' }));
+    const sessions = [session('claude:cli-1', { kind: 'desktop' }), session('claude:cli-2', { kind: 'desktop' })];
+    const helper = new FakeHelper({ 'apps.running': ok({ apps: [{ pid: 30, name: 'Claude', app_id: 'claude.exe', path: 'C:\\x\\claude.exe' }] }),
+      'apps.activate': ok({ activated: true, pid: 30 }) });
+    const { calls, call } = setup({ helper, sessions, platform: 'windows' });
+    assert.equal(value(await call('open.jumpToSession', ['claude:cli-1'])), null);
+    assert.deepEqual(calls.filter((c) => c.startsWith('openExternal')), ['openExternal claude://code/continue?session=local_w-1']);
+    assert.equal(failure(await call('open.jumpToSession', ['claude:cli-2'])).detail, 'Desktop 没找到该会话，已激活 Desktop');
+    assert.deepEqual(helper.requests, [['apps.running', { regular_only: true }], ['apps.activate', { pid: 30 }]]);
+  } finally {
+    if (saved === undefined) delete process.env.APPDATA; else process.env.APPDATA = saved;
+    rmSync(appData, { recursive: true, force: true });
+  }
+});
+
+test('on Windows the apps a session runs in are their exe names and install folders', () => {
+  const env = { LOCALAPPDATA: 'C:\\Users\\x\\AppData\\Local', ProgramFiles: 'C:\\Program Files' };
+  assert.deepEqual(windowsApp('com.microsoft.VSCode', env), { name: 'VS Code', exes: ['code.exe'],
+    dirs: ['C:\\Users\\x\\AppData\\Local\\Programs\\Microsoft VS Code', 'C:\\Program Files\\Microsoft VS Code'] });
+  assert.deepEqual(windowsApp('com.todesktop.230313mzl4w4u92', env)?.exes, ['cursor.exe']);
+  assert.deepEqual(windowsApp('com.anthropic.claudefordesktop', env),
+    { name: 'Claude Desktop', exes: ['claude.exe'], dirs: ['C:\\Users\\x\\AppData\\Local\\AnthropicClaude'] });
+  const idea = windowsApp('com.jetbrains.intellij', env);
+  assert.ok(idea?.exes.includes('idea64.exe') && idea.exes.includes('pycharm64.exe'));
+  assert.deepEqual(idea?.dirs, ['C:\\Program Files\\JetBrains', 'C:\\Users\\x\\AppData\\Local\\Programs']);
+  assert.deepEqual(windowsApp('Microsoft.WindowsTerminal', env)?.exes, ['windowsterminal.exe']);
+  assert.equal(windowsApp('com.example.ide', env), null);
+});
+
+test('open.jumpToSession on Windows activates a running app found by exe name or install folder, a pid by its window or an ancestor\'s', async () => {
+  const sessions = [session('code', { kind: 'unknown', bundle_id: 'com.microsoft.VSCode' }), session('idea', { kind: 'unknown', bundle_id: 'com.jetbrains.pycharm' }),
+    session('pid', { kind: 'unknown', pid: 4321 }), session('other', { kind: 'unknown', bundle_id: 'notepad.exe' })];
+  const pf = process.env.ProgramFiles ?? 'C:\\Program Files';
+  const running = ok({ apps: [{ pid: 7, name: 'Explorer', app_id: 'explorer.exe', path: 'C:\\Windows\\explorer.exe' },
+    { pid: 8, name: 'Visual Studio Code', app_id: 'code.exe', path: 'D:\\Tools\\VS Code\\Code.exe' },
+    { pid: 9, name: 'PyCharm', app_id: 'pycharm.exe', path: `${pf}\\JetBrains\\PyCharm 2026.2\\bin\\pycharm.exe` }] });
+  const helper = new FakeHelper({ 'apps.running': running, 'apps.activate': ok({ activated: true, pid: 1 }) });
+  const { call } = setup({ helper, sessions, platform: 'windows' });
+  for (const id of ['code', 'idea', 'pid', 'other']) assert.equal(value(await call('open.jumpToSession', [id])), null, id);
+  assert.deepEqual(helper.requests, [['apps.running', { regular_only: true }], ['apps.activate', { pid: 8 }],
+    ['apps.running', { regular_only: true }], ['apps.activate', { pid: 9 }], ['apps.activate', { pid: 4321, ancestors: true }],
+    ['apps.activate', { app_id: 'notepad.exe' }]]);
+  const none = setup({ helper: new FakeHelper({ 'apps.running': ok({ apps: [] }) }), sessions, platform: 'windows' });
+  assert.equal(failure(await none.call('open.jumpToSession', ['code'])).detail, 'VS Code 没在运行');
 });
 
 test('desktopLocalId reads only <root>/*/*/local_*.json records that list the CLI session', () => {

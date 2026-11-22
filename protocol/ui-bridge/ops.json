@@ -373,7 +373,12 @@
       "nativeConfirm": true,
       "avatar": true,
       "clickThrough": false,
-      "actionLoop": "host:actionLoop"
+      "actionLoop": "host:actionLoop",
+      "helperPushToTalk": "host:helper",
+      "helperWindowText": "host:helper",
+      "helperTypedText": "host:helper",
+      "helperActionTimeline": "host:helper",
+      "helperSelectedText": "host:helper"
     },
     "stack": {
       "screenCapture": false,
@@ -387,7 +392,12 @@
       "nativeConfirm": true,
       "avatar": "host:avatar",
       "clickThrough": true,
-      "actionLoop": false
+      "actionLoop": false,
+      "helperPushToTalk": "host:helper",
+      "helperWindowText": "host:helper",
+      "helperTypedText": "host:helper",
+      "helperActionTimeline": "host:helper",
+      "helperSelectedText": "host:helper"
     },
     "onboarding": {
       "screenCapture": false,
@@ -401,7 +411,12 @@
       "nativeConfirm": true,
       "avatar": false,
       "clickThrough": false,
-      "actionLoop": false
+      "actionLoop": false,
+      "helperPushToTalk": "host:helper",
+      "helperWindowText": "host:helper",
+      "helperTypedText": "host:helper",
+      "helperActionTimeline": "host:helper",
+      "helperSelectedText": "host:helper"
     }
   }
 }

@@ -25,9 +25,18 @@ export interface Boot {
 /** The frame that sent a message. */
 export interface Sender { mainFrame: boolean; origin: string }
 
-/** On Windows `open.runInTerminal` fails: it starts Terminal through osascript. */
-export function boot(surface: Surface, platform: ShellPlatform = 'mac'): Boot {
-  const bits = Object.fromEntries(Object.entries(ops.capabilities[surface]).map(([name, v]) => [name, v === true]));
+/** The helper ops each `host:helper` capability bit needs. */
+const HELPER_BIT_OPS: Readonly<Record<string, readonly string[]>> = {
+  helperPushToTalk: ['ptt.register', 'mic.start'], helperWindowText: ['ax.window_text'], helperTypedText: ['ax.watch'],
+  helperActionTimeline: ['input.actions', 'ax.window_tree'], helperSelectedText: ['ax.selected_text'],
+};
+
+/** On Windows `open.runInTerminal` fails: it starts Terminal through osascript. `helperOps` is the running helper's
+ *  `hello.ops`; a `host:helper` bit is on when it holds the bit's ops, and while no list is known (null). */
+export function boot(surface: Surface, platform: ShellPlatform = 'mac', helperOps: readonly string[] | null = null): Boot {
+  const helperBit = (name: string) => helperOps === null || (HELPER_BIT_OPS[name] ?? []).every((op) => helperOps.includes(op));
+  const bits = Object.fromEntries(Object.entries(ops.capabilities[surface])
+    .map(([name, v]) => [name, v === true || (v === 'host:helper' && helperBit(name))]));
   if (platform === 'windows') bits.runInTerminal = false;
   return { surface, platform, capabilities: bits, ops: [...ops.ops, ...onboarding.ops], kinds: ops.kinds };
 }

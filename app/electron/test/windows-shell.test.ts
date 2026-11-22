@@ -29,8 +29,21 @@ test('the hook script is /bin/sh on macOS and a .cmd running this launch\'s forw
     { name: 'agentic-complex-hook', text: "#!/bin/sh\nexec '/py' '/a/it'\\''s/codex_hook_forward.py' \"$@\"\n" });
   assert.deepEqual(hookScript(PY, ['-I', '-B'], AGENTD, 'windows'),
     { name: 'agentic-complex-hook.cmd', text: `@echo off\r\n"${PY}" -I -B "${AGENTD}\\codex_hook_forward.py" %*\r\n` });
-  assert.deepEqual(hookScript('C:\\100%\\python.exe', [], 'C:\\用户\\agentd', 'windows'), { name: 'agentic-complex-hook.cmd',
-    text: '@echo off\r\nchcp 65001 >nul\r\n"C:\\100%%\\python.exe" "C:\\用户\\agentd\\codex_hook_forward.py" %*\r\n' });
+});
+
+test('a .cmd whose paths are not ASCII leaves the console code page alone: PowerShell starts the target from UTF-16 text', () => {
+  const { name, text } = hookScript("C:\\100%\\it's\\python.exe", ['-I'], 'C:\\用户\\agentd', 'windows');
+  assert.equal(name, 'agentic-complex-hook.cmd');
+  assert.doesNotMatch(text, /chcp/i);
+  assert.match(text, /^[\x20-\x7e\r\n]*$/, 'the .cmd itself is ASCII');
+  const lines = text.split('\r\n');
+  assert.deepEqual(lines.slice(0, 2), ['@echo off', 'set "AGENTIC_COMPLEX_ARGS=%*"']);
+  const m = /^"%SystemRoot%\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe" -NoLogo -NoProfile -NonInteractive -EncodedCommand ([A-Za-z0-9+/=]+)$/.exec(lines[2]!);
+  assert.ok(m, lines[2]);
+  const command = Buffer.from(m[1]!, 'base64').toString('utf16le');
+  assert.ok(command.includes("FileName='C:\\100%\\it''s\\python.exe'"), command);
+  assert.ok(command.includes(`Arguments='-I "C:\\用户\\agentd\\codex_hook_forward.py" '+$env:AGENTIC_COMPLEX_ARGS`), command);
+  assert.equal(lines.slice(3).join(''), '');
 });
 
 test('the agentic-complex script runs tools/agentic_complex.py on the state dir and names itself as the launcher', () => {
@@ -97,7 +110,8 @@ test('the generated Windows hook script posts the hook to a fake agentd from a d
       const p = posts[0];
       console.log(`hook run: cwd="${root}" exit=${code} posts=${posts.length} url=${p?.url} auth=${p?.auth} observe=${p?.observe}`
         + ` session=${String(p?.body.session_id)} origin=${typeof p?.body.agentd_origin === 'object'} output=${JSON.stringify(output)}`);
-      assert.deepEqual([code, posts.length, p?.url, p?.auth, p?.observe, p?.body.session_id], [0, 1, '/hook/claude', 'Bearer hook-token', '1', 'hook-session']);
+      assert.deepEqual([code, posts.length, p?.url, p?.auth, p?.observe, p?.body.session_id, output],
+        [0, 1, '/hook/claude', 'Bearer hook-token', '1', 'hook-session', '']);
       assert.equal(typeof p?.body.agentd_origin, 'object');
     } finally {
       server.close();

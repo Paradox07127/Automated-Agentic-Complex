@@ -53,7 +53,7 @@ describe('settings on the Windows shell', () => {
   /** Each group with a text that shows once its reads are in. */
   const LOADED: Array<[group: string, id: string, text: string]> = [
     ['speak', 'sysnotify', '通知'],
-    ['keys', 'hk_quick', '⌃Space'],
+    ['keys', 'hk_quick', 'Ctrl+Space'],
     ['perm', 'microphone', '已允许'],
     ['about', 'sys', 'Windows 10.0.26100'],
   ];
@@ -63,12 +63,33 @@ describe('settings on the Windows shell', () => {
     expect(document.body.textContent).not.toContain('macOS');
   });
 
-  it('calls the system notification switch a Windows one and the ⌃Space clash the system\'s', async () => {
+  it('calls the system notification switch a Windows one and the Ctrl+Space clash the system\'s', async () => {
     await mount('&group=speak');
     expect(await screen.findByRole('switch', { name: '改用 Windows 通知' })).toBeTruthy();
     cleanup();
     await mount('&group=keys');
-    expect(await screen.findByText('与系统「切换输入法」冲突，建议改为 ⌃⌥Space')).toBeTruthy();
+    expect(await screen.findByText('与系统「切换输入法」冲突，建议改为 Ctrl+Alt+Space')).toBeTruthy();
+  });
+
+  it('spells the keys out instead of the macOS glyphs', async () => {
+    await mount('&group=keys');
+    await waitFor(() => expect(row('hk_quick')?.textContent).toContain('Ctrl+Space'));
+    expect(row('hk_cmdk')?.textContent).toContain('Ctrl+K');
+    expect(row('hk_page_chat')?.textContent).toContain('Ctrl+2');
+    expect(document.body.textContent).not.toMatch(/[⌘⌃⌥⇧]/);
+  });
+
+  it('hides the rows whose helper ops the Windows helper lacks', async () => {
+    window.agenticComplex = { ...window.agenticComplex!, capabilities: { ...window.agenticComplex!.capabilities, helperWindowText: false,
+      helperPushToTalk: false } };
+    await mount('&group=privacy');
+    await waitFor(() => expect(row('web')).not.toBeNull());
+    expect([row('wintext'), row('grain')]).toEqual([null, null]);
+    expect(row('typing')).not.toBeNull();
+    cleanup();
+    await mount('&group=keys');
+    await waitFor(() => expect(row('hk_quick')).not.toBeNull());
+    expect(row('hk_ptt')).toBeNull();
   });
 
   it('finds no hidden permission and no macOS row in search', async () => {

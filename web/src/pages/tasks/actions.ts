@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { getBridge } from '../../bridge';
 import { AgentdCallError, CONFLICT_CODES, post, seg } from '../../bridge/agentd';
+import { revealText } from '../../bridge/platformText';
 import {
   approvalDecision,
   deliveryDecision,
@@ -278,7 +279,7 @@ export function createTasksActions(d: ActionDeps) {
         return;
       case 'reveal_artifact':
         // Gated by capabilities.revealInFinder, so a refusal does not turn off opening.
-        await native(null, () => bridge.open.revealInFinder(a.path), `已在 Finder 中显示：${fileName(a.path)}`);
+        await native(null, () => bridge.open.revealInFinder(a.path), revealText(`已在 Finder 中显示：${fileName(a.path)}`));
         return;
       case 'copy_path':
         await native('copy', () => bridge.clipboard.writeText(a.path), `已复制路径：${a.path}`);

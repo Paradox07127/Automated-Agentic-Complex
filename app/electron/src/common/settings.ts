@@ -243,13 +243,18 @@ export function webHotkey(name: string): string | null {
   return caps.filter((c) => mods.has(c)).join('') + caps.filter((c) => !mods.has(c)).join('');
 }
 
-/** `desktop.onState`'s `hotkeys`: these rows' key caps by web id; a name that is no hot key is left out. */
+const WINDOWS_CAPS: Readonly<Record<string, string>> = { '⌃': 'Ctrl', '⌥': 'Alt', '⇧': 'Shift', '⌘': 'Win' };
+
+/** web/src/bridge/platformText.ts `hotkeyText`: `Ctrl+Alt+H`, `右Alt`. */
+const windowsCaps = (caps: string) => caps.replace(/[⌃⌥⇧⌘]/g, (cap, at: number) => WINDOWS_CAPS[cap] + (at + 1 < caps.length ? '+' : ''));
+
+/** `desktop.onState`'s `hotkeys`: these rows' key caps by web id, in words on Windows; a name that is no hot key is left out. */
 export function desktopHotkeys(saved: Record<string, unknown>, platform: ShellPlatform = 'mac'): Record<string, string> {
   const caps: Record<string, string> = {};
   for (const id of ['hk_ptt', 'hk_quick', 'hk_look', 'hk_hide', 'hk_pass', 'hk_wheel']) {
     const item = rowById(id)!.item, stored = saved[item.key];
     const web = webHotkey(typeof stored === 'string' ? stored : String(defaultOf(item, platform)));
-    if (web !== null) caps[id] = web;
+    if (web !== null) caps[id] = platform === 'windows' ? windowsCaps(web) : web;
   }
   return caps;
 }

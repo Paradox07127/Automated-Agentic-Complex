@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { getBridge } from '../../bridge';
 import { AgentdCallError, CONFLICT_CODES, del, post, put, seg } from '../../bridge/agentd';
+import { revealText } from '../../bridge/platformText';
 import { serverFaultText } from '../../domain/errorText';
 import { formatScheduleTime } from '../../domain/schedules';
 import {
@@ -355,7 +356,7 @@ export function createChatActions(d: ChatDeps) {
         case 'reveal_artifact':
           return attempt('没有显示', async () => {
             await bridge.open.revealInFinder(a.path);
-            d.push(`已在 Finder 中显示：${fileName(a.path)}`);
+            d.push(revealText(`已在 Finder 中显示：${fileName(a.path)}`));
           });
         case 'copy_path':
           return attempt('没有复制', async () => {

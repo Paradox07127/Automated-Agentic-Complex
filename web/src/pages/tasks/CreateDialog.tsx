@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getBridge } from '../../bridge';
+import { keyText } from '../../bridge/platformText';
 import type { Goal } from '../../domain';
 import type { PushToast } from '../../shell/toast';
 import { Btn, Dialog } from '../../ui';
@@ -69,7 +70,7 @@ export function CreateDialog({ draft, setDraft, goals, push, onCreated }: Create
           <Btn variant="ghost" kbd="esc" onClick={() => setDraft(null)}>
             取消
           </Btn>
-          <Btn variant="primary" kbd="⌘↵" loading={busy} disabled={problem != null} disabledReason={problem ?? undefined} onClick={() => void submit()}>
+          <Btn variant="primary" kbd={keyText('⌘↵')} loading={busy} disabled={problem != null} disabledReason={problem ?? undefined} onClick={() => void submit()}>
             {draft.kind === 'goal' ? '新建目标' : '交派'}
           </Btn>
         </>

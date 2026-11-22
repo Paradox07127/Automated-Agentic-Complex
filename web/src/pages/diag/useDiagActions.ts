@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
+import { revealText } from '../../bridge/platformText';
 import { formatClock } from '../../domain';
 import type { PushToast } from '../../shell/toast';
 import type { RowAction } from './Processes';
@@ -55,7 +56,7 @@ export function useDiagActions(now: number, toast: PushToast) {
   const revealLogs = useCallback(() => {
     getBridge()
       .app.action('reveal_logs')
-      .then(() => toast('已在 Finder 中显示日志文件'))
+      .then(() => toast(revealText('已在 Finder 中显示日志文件')))
       .catch((e: unknown) => toast(`显示日志失败：${why(e)}`, { severity: 'danger' }));
   }, [toast]);
 

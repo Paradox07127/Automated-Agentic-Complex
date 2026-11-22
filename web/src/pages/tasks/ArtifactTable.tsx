@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { revealText } from '../../bridge/platformText';
 import type { Artifact } from '../../domain';
 import { Menu, Table, TableCell, TableHead, TableRow, type MenuItem } from '../../ui';
 import type { NativeOff } from './actions';
@@ -24,7 +25,7 @@ export function ArtifactTable({ artifacts, canReveal, onOpen, onReveal, onCopyPa
   const openOff = nativeOff.artifact;
   const menu = (path: string): MenuItem[] => [
     { kind: 'item', label: '打开', hint: '⏎', disabled: openOff != null, reason: openOff, onSelect: () => onOpen?.(path) },
-    ...(canReveal ? [{ kind: 'item' as const, label: '在 Finder 中显示', onSelect: () => onReveal?.(path) }] : []),
+    ...(canReveal ? [{ kind: 'item' as const, label: revealText('在 Finder 中显示'), onSelect: () => onReveal?.(path) }] : []),
     { kind: 'item', label: '复制路径', disabled: nativeOff.copy != null, reason: nativeOff.copy, onSelect: () => onCopyPath?.(path) },
   ];
   return (

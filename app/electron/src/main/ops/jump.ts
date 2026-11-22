@@ -1,9 +1,10 @@
 // Carries out a JumpPlan through the platform helper (`apps.running`, `terminal.focus`, `apps.activate`),
-// the terminals' own command lines and Claude Desktop's route; the answer is the jump's text, `JUMPED` on success.
+// the terminals' own command lines and Claude Desktop's route; the answer is the jump's text, `JUMPED` on success. On Windows
+// an app is the running process with its exe name or under its install folder.
 import { spawn } from 'node:child_process';
 import { accessSync, constants, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { extname, join } from 'node:path';
+import { extname, join, win32 } from 'node:path';
 import type { JumpPlan } from '../../common/session-jump.ts';
 import type { HelperError, HelperReply } from '../helper/client.ts';
 import type { OpsContext } from './context.ts';
@@ -86,6 +87,50 @@ export async function activate(ctx: OpsContext, params: Record<string, unknown>)
   return r.ok && r.result.activated === true;
 }
 
+/** A Windows app a session runs in: its exe names (lower case, as the helper's `app_id` and `apps.running` paths end) and
+ *  the folders it installs in. */
+export interface WindowsApp { name: string; exes: string[]; dirs: string[] }
+
+const JETBRAINS_EXES = ['idea64.exe', 'pycharm64.exe', 'webstorm64.exe', 'goland64.exe', 'clion64.exe', 'rider64.exe', 'phpstorm64.exe',
+  'rubymine64.exe', 'datagrip64.exe', 'rustrover64.exe'];
+
+/** The Windows app for the bundle id agentd records (Claude Desktop's for a desktop session), or Windows Terminal's
+ *  package family name; null for any other. */
+export function windowsApp(bundleId: string, env: Readonly<Record<string, string | undefined>> = process.env): WindowsApp | null {
+  const local = env.LOCALAPPDATA ?? win32.join(homedir(), 'AppData', 'Local');
+  const programs = env.ProgramFiles ?? 'C:\\Program Files';
+  if (bundleId.startsWith('com.jetbrains.')) {
+    // Toolbox installs each IDE in its own folder under Programs.
+    return { name: 'JetBrains', exes: JETBRAINS_EXES, dirs: [win32.join(programs, 'JetBrains'), win32.join(local, 'Programs')] };
+  }
+  switch (bundleId) {
+    case 'com.microsoft.VSCode':
+      return { name: 'VS Code', exes: ['code.exe'], dirs: [win32.join(local, 'Programs', 'Microsoft VS Code'), win32.join(programs, 'Microsoft VS Code')] };
+    case 'com.todesktop.230313mzl4w4u92':
+      return { name: 'Cursor', exes: ['cursor.exe'], dirs: [win32.join(local, 'Programs', 'cursor')] };
+    case DESKTOP_BUNDLE:
+      return { name: 'Claude Desktop', exes: ['claude.exe'], dirs: [win32.join(local, 'AnthropicClaude')] };
+    case 'Microsoft.WindowsTerminal':
+      // A Store package under WindowsApps, which only its exe name finds.
+      return { name: 'Windows Terminal', exes: ['windowsterminal.exe'], dirs: [] };
+    default:
+      return null;
+  }
+}
+
+/** Activates the first running process of `app` that has a window. */
+async function activateWindowsApp(ctx: OpsContext, app: WindowsApp): Promise<boolean> {
+  const running = await helperResult(ctx, 'apps.running', { regular_only: true });
+  const apps = Array.isArray(running.apps) ? running.apps as { pid?: unknown; app_id?: unknown; path?: unknown }[] : [];
+  const dirs = app.dirs.map((d) => `${d.toLowerCase()}\\`);
+  for (const a of apps) {
+    const path = typeof a.path === 'string' ? a.path.toLowerCase() : '';
+    const ours = app.exes.includes(win32.basename(path)) || app.exes.includes(String(a.app_id).toLowerCase()) || dirs.some((d) => path.startsWith(d));
+    if (ours && typeof a.pid === 'number' && await activate(ctx, { pid: a.pid })) return true;
+  }
+  return false;
+}
+
 /** Desktop's own route only accepts ids of this shape. */
 const isDesktopLocalId = (name: string) => /^local_[A-Za-z0-9-]{1,64}$/.test(name);
 
@@ -159,9 +204,12 @@ async function focusTerminal(ctx: OpsContext, name: string, bundleId: string, pa
 
 export async function jump(ctx: OpsContext, plan: JumpPlan): Promise<string> {
   const commands = ctx.commands ?? systemCommands;
+  const windows = ctx.platform === 'windows';
   switch (plan.kind) {
     case 'desktop': {
-      const localId = desktopLocalId(plan.cliSessionId, join(homedir(), 'Library/Application Support/Claude/claude-code-sessions'));
+      const sessions = windows ? join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Claude', 'claude-code-sessions')
+        : join(homedir(), 'Library/Application Support/Claude/claude-code-sessions');
+      const localId = desktopLocalId(plan.cliSessionId, sessions);
       if (localId !== null) {
         try {
           // Undocumented Desktop route found in its app bundle; a later Desktop version may drop it.
@@ -169,7 +217,8 @@ export async function jump(ctx: OpsContext, plan: JumpPlan): Promise<string> {
           return JUMPED;
         } catch { /* activates Desktop below */ }
       }
-      return (await activate(ctx, { app_id: DESKTOP_BUNDLE })) ? 'Desktop 没找到该会话，已激活 Desktop' : 'Claude Desktop 没在运行';
+      const activated = windows ? await activateWindowsApp(ctx, windowsApp(DESKTOP_BUNDLE)!) : await activate(ctx, { app_id: DESKTOP_BUNDLE });
+      return activated ? 'Desktop 没找到该会话，已激活 Desktop' : 'Claude Desktop 没在运行';
     }
     case 'tmux': {
       const r = await switchTmux(commands, plan.socket, plan.pane);
@@ -188,8 +237,11 @@ export async function jump(ctx: OpsContext, plan: JumpPlan): Promise<string> {
       return focusTerminal(ctx, 'iTerm', 'com.googlecode.iterm2', { app: 'iterm', tty: plan.tty });
     case 'ghostty':
       return focusTerminal(ctx, 'Ghostty', 'com.mitchellh.ghostty', { app: 'ghostty', cwd: plan.cwd });
-    case 'activateBundle':
+    case 'activateBundle': {
+      const app = windows ? windowsApp(plan.bundleId) : null;
+      if (app !== null) return (await activateWindowsApp(ctx, app)) ? JUMPED : `${app.name} 没在运行`;
       return (await activate(ctx, { app_id: plan.bundleId })) ? JUMPED : `${plan.bundleId} 没在运行`;
+    }
     case 'activatePid':
       return (await activate(ctx, { pid: plan.pid, ancestors: true })) ? JUMPED : `没找到进程 ${plan.pid} 所在的 app`;
   }

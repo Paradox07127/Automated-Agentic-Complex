@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { ROUTES, routeIds } from './fields';
 import { SETTING_GROUPS } from './groups';
+import type { Capabilities } from '../../bridge';
 import { PLUGINS } from '../../bridge/plugins.generated';
 import { useDevMode } from '../../shell/devMode';
 import { usePlugins, type PluginId, type PluginState } from '../../shell/plugins';
@@ -288,14 +289,29 @@ export function groupShown(id: string, plugins: PluginState): boolean {
   return !p || plugins[p];
 }
 
-/** Whether a row shows: its plug-in (or its group's) is on, and a developer row only in 开发者模式. Ids outside the registry count too. */
-export function rowShown(id: string, plugins: PluginState, devMode: boolean): boolean {
+type HelperBit = 'helperPushToTalk' | 'helperWindowText' | 'helperTypedText' | 'helperActionTimeline' | 'helperSelectedText';
+
+/** Rows whose feature needs platform helper ops: the capability bit that says the running helper has them. */
+const ROW_HELPER: Readonly<Record<string, HelperBit>> = {
+  hk_ptt: 'helperPushToTalk', asr: 'helperPushToTalk', wintext: 'helperWindowText', grain: 'helperWindowText',
+  typing: 'helperTypedText', actions: 'helperActionTimeline', hk_sel: 'helperSelectedText',
+};
+
+const ALL_HELPER: Readonly<Record<HelperBit, true>> = { helperPushToTalk: true, helperWindowText: true, helperTypedText: true,
+  helperActionTimeline: true, helperSelectedText: true };
+
+/** Whether a row shows: its plug-in (or its group's) is on, a developer row only in 开发者模式, and a row needing helper ops
+ *  only when the helper has them. Ids outside the registry count too. */
+export function rowShown(id: string, plugins: PluginState, devMode: boolean, caps: Readonly<Pick<Capabilities, HelperBit>>): boolean {
   const p = ROW_PLUGIN[id] ?? GROUP_PLUGIN[REGISTRY.find((r) => r.id === id)?.group ?? ''];
-  return (!p || plugins[p]) && (devMode || !DEV_ROWS.has(id));
+  const bit = ROW_HELPER[id];
+  return (!p || plugins[p]) && (devMode || !DEV_ROWS.has(id)) && (!bit || caps[bit]);
 }
 
 export function useRowShown(): (id: string) => boolean {
   const plugins = usePlugins();
   const devMode = useDevMode();
-  return useCallback((id: string) => rowShown(id, plugins, devMode), [plugins, devMode]);
+  // The fake bridge's helper has every op.
+  const caps = window.agenticComplex?.capabilities ?? ALL_HELPER;
+  return useCallback((id: string) => rowShown(id, plugins, devMode, caps), [plugins, devMode, caps]);
 }

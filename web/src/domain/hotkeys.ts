@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../bridge';
+import { hotkeyText } from '../bridge/platformText';
 
 export type HotkeyId = 'hk_quick' | 'hk_look' | 'hk_hide' | 'hk_pass';
 export type HotkeyLabels = Partial<Record<HotkeyId, string>>;
@@ -10,7 +11,7 @@ const IDS: readonly HotkeyId[] = ['hk_quick', 'hk_look', 'hk_hide', 'hk_pass'];
 const KEY = ['hotkey-labels'];
 
 export function hotkeyLabels(saved: Readonly<Record<string, unknown>>): HotkeyLabels {
-  return Object.fromEntries(IDS.flatMap((id) => (typeof saved[id] === 'string' && saved[id] !== '' ? [[id, saved[id]]] : [])));
+  return Object.fromEntries(IDS.flatMap((id) => (typeof saved[id] === 'string' && saved[id] !== '' ? [[id, hotkeyText(saved[id])]] : [])));
 }
 
 /** Read again on every mount and when native changes a saved value. */

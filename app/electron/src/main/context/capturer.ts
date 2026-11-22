@@ -4,6 +4,7 @@
 // titles or URLs.
 import type { AttentionSample, BlacklistRules, Rect } from '../../common/attention.ts';
 import { type CaptureWindow, captureBlockReason } from '../../common/capture-rules.ts';
+import type { ShellPlatform } from '../../common/config.ts';
 import { type RegionRead, regionPlainText } from '../../common/handover.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 import {
@@ -13,6 +14,7 @@ import {
   imageResult, type LookResult, lookResult, lookTitle, namedWindow, type Observation, ocrObservation, OwnCapture, resultText,
   revokedKinds, scalarCount, SELECTION_LIMIT, selectionBlockReason, type SelectionDecision, textResult, windowNow, windowReadPlan,
 } from '../../common/screen-context.ts';
+import { shellPlatform } from '../platform/index.ts';
 
 export interface ContextPorts {
   helper: { request(op: string, params?: Record<string, unknown>): Promise<HelperAnswer> };
@@ -62,8 +64,11 @@ export class ContextCapturer {
   /** An unfinished `ax.window_text` walk, continued by the next automatic or front-window read of the same app and level. */
   private walk: { pid: number; level: string; cursor: string } | null = null;
 
-  constructor(ports: ContextPorts) {
+  private readonly platform: ShellPlatform;
+
+  constructor(ports: ContextPorts, platform: ShellPlatform) {
     this.ports = ports;
+    this.platform = platform;
     this.consent = new ContextConsent(ports.policy());
   }
 
@@ -183,7 +188,7 @@ export class ContextCapturer {
     const reason = captureBlockReason(found.window, this.ports.blacklist(), this.ports.ownPids());
     if (reason !== null) return refused(reason, '这个窗口设了不读');
     const read = await this.axWindowText(at.pid, at.bounds, this.policy.redact, rect);
-    if (!read.matched) return refused('ax_unavailable', '读不了这个窗口（需要辅助功能权限）');
+    if (!read.matched) return refused('ax_unavailable', this.platform === 'windows' ? '读不了这个窗口的文字' : '读不了这个窗口（需要辅助功能权限）');
     const text = regionPlainText(read.observation?.text ?? '');
     if (text.trim() === '') return refused('ax_empty', '框里没有读到文字');
     const scalars = [...text], truncated = scalars.length > SELECTION_LIMIT;
@@ -576,6 +581,6 @@ export class ContextCapturer {
 }
 
 /** The capturer, idle until `start()`. */
-export function startContext(ports: ContextPorts): ContextCapturer {
-  return new ContextCapturer(ports);
+export function startContext(ports: ContextPorts, platform: ShellPlatform = shellPlatform()): ContextCapturer {
+  return new ContextCapturer(ports, platform);
 }

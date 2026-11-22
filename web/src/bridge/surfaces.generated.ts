@@ -106,8 +106,9 @@ export const DESKTOP_OPS: readonly string[] = [
   'desktop.onCommand', 'desktop.say', 'desktop.action',
 ];
 
-/** `'host:avatar'`: true only when the native host has an avatar; `'host:actionLoop'`: only when it lists C3 `action_loop`. */
-export type SurfaceCapabilities = { readonly [K in keyof Capabilities]: boolean | 'host:avatar' | 'host:actionLoop' };
+/** `'host:avatar'`: true only when the native host has an avatar; `'host:actionLoop'`: only when it lists C3 `action_loop`;
+ *  `'host:helper'`: only when the platform helper's `hello.ops` holds the bit's ops. */
+export type SurfaceCapabilities = { readonly [K in keyof Capabilities]: boolean | 'host:avatar' | 'host:actionLoop' | 'host:helper' };
 
 export const SURFACE_CAPABILITIES: Readonly<Record<Surface, SurfaceCapabilities>> = {
   main: {
@@ -123,6 +124,11 @@ export const SURFACE_CAPABILITIES: Readonly<Record<Surface, SurfaceCapabilities>
     avatar: true,
     clickThrough: false,
     actionLoop: 'host:actionLoop',
+    helperPushToTalk: 'host:helper',
+    helperWindowText: 'host:helper',
+    helperTypedText: 'host:helper',
+    helperActionTimeline: 'host:helper',
+    helperSelectedText: 'host:helper',
   },
   stack: {
     screenCapture: false,
@@ -137,6 +143,11 @@ export const SURFACE_CAPABILITIES: Readonly<Record<Surface, SurfaceCapabilities>
     avatar: 'host:avatar',
     clickThrough: true,
     actionLoop: false,
+    helperPushToTalk: 'host:helper',
+    helperWindowText: 'host:helper',
+    helperTypedText: 'host:helper',
+    helperActionTimeline: 'host:helper',
+    helperSelectedText: 'host:helper',
   },
   onboarding: {
     screenCapture: false,
@@ -151,5 +162,10 @@ export const SURFACE_CAPABILITIES: Readonly<Record<Surface, SurfaceCapabilities>
     avatar: false,
     clickThrough: false,
     actionLoop: false,
+    helperPushToTalk: 'host:helper',
+    helperWindowText: 'host:helper',
+    helperTypedText: 'host:helper',
+    helperActionTimeline: 'host:helper',
+    helperSelectedText: 'host:helper',
   },
 };

@@ -35,7 +35,11 @@ test('browser host: on, Chrome\'s and Edge\'s HKCU keys name a manifest in the s
   assert.deepEqual(m, { name: HOST_NAME, description: 'Agentic Complex agentd browser bridge', path: join(dir, 'native-host.cmd'), type: 'stdio',
     allowed_origins: ['chrome-extension://abcdefghijklmnopabcdefghijklmnop/'] });
   const cmd = readFileSync(join(dir, 'native-host.cmd'), 'utf8');
-  assert.equal(cmd, `@echo off\r\nchcp 65001 >nul\r\n"${h.options.python}" -I -B "${h.options.script}" "--state-dir" "${h.options.agentdStateDir}" %*\r\n`);
+  // The state dir is not ASCII, so the .cmd starts python.exe through PowerShell (onboarding.ts binScript).
+  const encoded = /-EncodedCommand (\S+)\r\n$/.exec(cmd)?.[1] ?? '';
+  const command = Buffer.from(encoded, 'base64').toString('utf16le');
+  assert.ok(cmd.startsWith('@echo off\r\nset "AGENTIC_COMPLEX_ARGS=%*"\r\n'), cmd);
+  for (const part of [h.options.python, h.options.script, h.options.agentdStateDir]) assert.ok(command.includes(part), command);
   assert.deepEqual(h.lines, [`BROWSER_HOST registered ${manifest}`]);
   h.done();
 });

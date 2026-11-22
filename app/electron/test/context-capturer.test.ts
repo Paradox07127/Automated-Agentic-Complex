@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { type AttentionSample, type AttentionWindow, type BlacklistRules, parseBlacklist } from '../src/common/attention.ts';
+import type { ShellPlatform } from '../src/common/config.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
 import { type AgentdReply, type ContextPolicy, DEFAULT_CONTEXT_POLICY, SELECTION_LIMIT } from '../src/common/screen-context.ts';
 import { type ContextPorts, startContext } from '../src/main/context/capturer.ts';
@@ -48,7 +49,7 @@ const TEXT_ON: ContextPolicy = { ...DEFAULT_CONTEXT_POLICY, allowText: true };
 const ALL_ON: ContextPolicy = { allowText: true, allowImages: true, level: 'window', redact: true };
 
 function setup(o: { helper?: Record<string, Answer>; policy?: ContextPolicy; blacklist?: BlacklistRules;
-  post?: (path: string, body: Record<string, unknown>) => AgentdReply } = {}) {
+  post?: (path: string, body: Record<string, unknown>) => AgentdReply; platform?: ShellPlatform } = {}) {
   let clock = 1_763_539_200_000;
   let tickFn: (() => void) | null = null;
   const timers: { at: number; fn: () => void; live: boolean }[] = [];
@@ -103,7 +104,7 @@ function setup(o: { helper?: Record<string, Answer>; policy?: ContextPolicy; bla
     },
     log: (line) => logs.push(line),
   };
-  const c = startContext(ports);
+  const c = startContext(ports, o.platform ?? 'mac');
   return {
     c, requests, posts, logs, helper, state,
     ops: () => requests.map(([op]) => op),
@@ -586,4 +587,10 @@ test('readRegion: no window, a blocked window, no AX and no text each say why', 
     assert.deepEqual(await s.c.readRegion(rect, []), { kind: 'refused', text }, reason);
     assert.deepEqual(s.logs, [`REGION refused reason=${reason}`], reason);
   }
+});
+
+test('readRegion on Windows says the window could not be read, not which macOS permission is missing', async () => {
+  const s = setup({ platform: 'windows', helper: { 'windows.at_point': ok({ window: NOTES }), 'ax.window_text': err('unsupported') } });
+  assert.deepEqual(await s.c.readRegion({ x: 0, y: 0, width: 50, height: 50 }, []), { kind: 'refused', text: '读不了这个窗口的文字' });
+  assert.deepEqual(s.logs, ['REGION refused reason=ax_unavailable']);
 });

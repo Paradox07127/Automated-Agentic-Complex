@@ -1125,7 +1125,8 @@ function startDesktop(): void {
 
 ipcMain.on('bridge:boot', (e) => {
   const entry = pages.get(e.sender.id);
-  e.returnValue = entry ? boot(entry.surface, shellPlatform()) : null;
+  const helperOps = helper?.hello?.ops;
+  e.returnValue = entry ? boot(entry.surface, shellPlatform(), Array.isArray(helperOps) ? helperOps as string[] : null) : null;
 });
 
 ipcMain.handle('bridge:invoke', (e, message: unknown): Reply | Promise<Reply> => {
