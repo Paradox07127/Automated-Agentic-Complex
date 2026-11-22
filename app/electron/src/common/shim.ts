@@ -12,7 +12,11 @@ interface Subscription { stream: string; onEvent: (e: { event: string; id: strin
  * Error carrying `code` and `detail`. A subscription returns its unsubscribe at once and is dropped when refused;
  * the void `window.*` calls send without waiting. `listen` receives the function that delivers pushes.
  */
-export function installBridge(boot: Boot, invoke: (op: string, args: unknown[]) => Promise<Reply>, listen: (push: Push) => void): void {
+/** The preload's channels for dropped and pasted files (src/main/ops/adopt.ts). */
+export interface FileChannels { adopt(files: File[]): Promise<unknown>; paste(items: unknown[]): Promise<unknown> }
+
+export function installBridge(boot: Boot, invoke: (op: string, args: unknown[]) => Promise<Reply>, listen: (push: Push) => void,
+  files?: FileChannels): void {
   const watch = new Set(boot.kinds.watch), sync = new Set(boot.kinds.sync), streamOps = new Set(boot.kinds.stream);
   function failure(code: string, detail?: string): Error {
     const e = new Error(detail ? code + ': ' + detail : code) as Error & { code: string; detail?: string };
@@ -86,6 +90,11 @@ export function installBridge(boot: Boot, invoke: (op: string, args: unknown[]) 
     let node = bridge;
     for (let i = 0; i < parts.length - 1; i++) node = (node[parts[i]] as Node | undefined) ?? (node[parts[i]] = {}) as Node;
     node[parts[parts.length - 1]] = method(op);
+  }
+  if (files && bridge.files) {
+    const node = bridge.files as Node;
+    node.adoptDropped = (list: File[]) => files.adopt(list);
+    node.adoptPasted = (items: unknown[]) => files.paste(items);
   }
   (function freeze(o: Node) {
     for (const k of Object.keys(o)) if (o[k] && typeof o[k] === 'object') freeze(o[k] as Node);

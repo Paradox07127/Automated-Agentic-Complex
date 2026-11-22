@@ -78,6 +78,7 @@ import { shellMenus } from './menus/shell.ts';
 import { trayContextMenu } from './menus/tray.ts';
 import { SystemNotifier } from './notify/system.ts';
 import { onboardingWindow } from './onboarding/window.ts';
+import { adoptPasted, adoptPaths, SCOPE_FILE_TYPES } from './ops/adopt.ts';
 import { bundleBuild } from './ops/app.ts';
 import { avatarPlaylist, cpuSecondsReader } from './ops/avatar.ts';
 import { characterArt, shellMmdSync } from './ops/character.ts';
@@ -770,7 +771,6 @@ async function confirm(text: string): Promise<boolean> {
 }
 
 /** workspace.py READ_SUFFIXES: agentd reads no other type. */
-const SCOPE_FILE_TYPES = ['md', 'txt', 'csv', 'json', 'docx', 'xlsx', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp'];
 const FOLDER_PROMPTS: Record<string, string> = { scope_root: '选择角色可以读取的文件夹', scope_output: '选择角色写入产物的文件夹',
   session_cwd: '选择会话的工作目录' };
 
@@ -1130,6 +1130,16 @@ ipcMain.on('bridge:boot', (e) => {
   const helperOps = helper?.hello?.ops;
   e.returnValue = entry ? boot(entry.surface, shellPlatform(), Array.isArray(helperOps) ? helperOps as string[] : null,
     hostLink ? (hostLink.connected ? hostLink.capabilities : null) : []) : null;
+});
+
+// Dropped and pasted files, from the preload only (src/main/ops/adopt.ts); the main frame's page gets handles back.
+ipcMain.handle('files:adopt', (e, paths: unknown) => {
+  const entry = pages.get(e.sender.id);
+  return entry && e.senderFrame === e.sender.mainFrame ? adoptPaths(paths, entry.page.picked) : [];
+});
+ipcMain.handle('files:paste', (e, items: unknown) => {
+  const entry = pages.get(e.sender.id);
+  return entry && e.senderFrame === e.sender.mainFrame && config ? adoptPasted(items, entry.page.picked, join(config.supportDir, 'pasted')) : [];
 });
 
 ipcMain.handle('bridge:invoke', (e, message: unknown): Reply | Promise<Reply> => {

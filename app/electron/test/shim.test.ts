@@ -86,3 +86,19 @@ test('a push reaches an accepted subscription until it unsubscribes', async () =
   push()(1, 'avatar.onState', 'event', { event: 'state', id: null, data: '{"running":false}' });
   assert.equal(seen.length, 1);
 });
+
+test('files.adoptDropped and files.adoptPasted go to the preload channels, not through invoke', async () => {
+  g.window = {};
+  const calls: Calls = [];
+  const sent: Array<[string, unknown]> = [];
+  const fromSource = new Function('return (' + installBridge.toString() + ')')() as typeof installBridge;
+  fromSource(boot('main'), async (op, args) => { calls.push([op, args]); return { ok: true, value: null }; }, () => {}, {
+    adopt: async (files) => { sent.push(['adopt', files]); return []; },
+    paste: async (items) => { sent.push(['paste', items]); return []; },
+  });
+  const files = g.window.agenticComplex.files;
+  await files.adoptDropped(['f']);
+  await files.adoptPasted([{ type: 'image/png' }]);
+  assert.deepEqual(sent, [['adopt', ['f']], ['paste', [{ type: 'image/png' }]]]);
+  assert.deepEqual(calls, []);
+});

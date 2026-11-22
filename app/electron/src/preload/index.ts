@@ -1,6 +1,6 @@
 // Defines `window.agenticComplex` in the page's world before its scripts run; every op goes to the main process. In the main
 // window it also draws the character page's live preview (src/main/preview/window.ts).
-import { contextBridge, ipcRenderer, sharedTexture } from 'electron';
+import { contextBridge, ipcRenderer, sharedTexture, webUtils } from 'electron';
 import type { Boot, Reply } from '../common/bridge.ts';
 import { installBridge, type Push } from '../common/shim.ts';
 
@@ -53,6 +53,11 @@ if (boot) {
       boot,
       (op: string, args: unknown[]) => ipcRenderer.invoke('bridge:invoke', { op, args }) as Promise<Reply>,
       (push: Push) => { ipcRenderer.on('bridge:push', (_e, id, stream, kind, payload) => push(id, stream, kind, payload)); },
+      {
+        // getPathForFile gives '' for a File the page built itself, so only real drops reach main.
+        adopt: (files: File[]) => ipcRenderer.invoke('files:adopt', Array.from(files, (f) => webUtils.getPathForFile(f))),
+        paste: (items: unknown[]) => ipcRenderer.invoke('files:paste', items),
+      },
     ],
   });
   if (boot.surface === 'main') installPreview();
