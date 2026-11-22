@@ -2,9 +2,7 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { gameClips, type GameClip } from '../../design/gameClips.generated';
 import { useGameClip } from '../../ui';
-import { useAttended } from '../home/watchMotion';
 import chat from './Chat.module.css';
-import styles from './ConvList.module.css';
 
 /** Plays a clip under root once, on mount; unmounting drops it. */
 function Play({ clip, root }: { clip: GameClip; root: RefObject<Element | null> }) {
@@ -25,28 +23,6 @@ export function useChatMotion(conv: string | null, still: boolean) {
 /** sns_friendcell_in on every contact cell under root, once they are there. */
 export function CellsIn({ root }: { root: RefObject<Element | null> }) {
   return <Play clip={gameClips.snsCellIn} root={root} />;
-}
-
-/** The selected cell's frame: itembig_selectedbg_in, then its loop while the window has focus. */
-export function SelMark() {
-  const ref = useRef<HTMLSpanElement>(null);
-  const selIn = useGameClip(gameClips.snsCellSelectIn, ref, { autoplay: true });
-  const [settled, setSettled] = useState(false);
-  const attended = useAttended();
-  useEffect(() => {
-    let alive = true;
-    void selIn.finished.then(() => alive && setSettled(true));
-    return () => {
-      alive = false;
-    };
-  }, [selIn]);
-  return (
-    <span ref={ref} className={styles.sel} data-g="cellSel" aria-hidden="true">
-      <i className={styles.selBg} data-g="sel" />
-      <i className={styles.selLine} data-g="selLine" />
-      {settled && attended && <Play clip={gameClips.snsCellSelectLoop} root={ref} />}
-    </span>
-  );
 }
 
 /** No conversation: sns_barkerrightnoselected_in's backdrop mask and tips bar around the empty state. */
