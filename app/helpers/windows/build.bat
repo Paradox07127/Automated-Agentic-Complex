@@ -1,12 +1,16 @@
 @echo off
 rem Builds ac-helper.exe, the C12 platform helper for Windows, into <repo>\.local\build\helper-windows\.
-rem Needs Visual Studio 2022 or its Build Tools with the C++ x64 tools; links system libraries only.
+rem Needs Visual Studio 2022 or its Build Tools with the C++ x64 tools; links system libraries only. third_party.ps1 fetches
+rem the pinned speech runtime (its header, and the DLLs ac-helper.exe loads at run time) first.
 setlocal
 set "SRC=%~dp0src"
 for %%i in ("%~dp0..\..\..") do set "OUT=%%~fi\.local\build\helper-windows"
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if not exist "%VSWHERE%" (echo build.bat: vswhere.exe not found & exit /b 1)
 if not exist "%OUT%\" mkdir "%OUT%"
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%~dp0third_party.ps1" -Out "%OUT%"
+if errorlevel 1 (echo build.bat: third_party.ps1 failed & exit /b 1)
+set "SHERPA=%OUT%\third_party\sherpa-onnx-v2.0.2-win-x64-shared-MT-Release-no-tts"
 rem Through a file: for /f would hand the quoted path with (x86) in it to cmd /c, which drops its quotes.
 "%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath > "%OUT%\vs-path.txt"
 set "VS="
@@ -15,7 +19,7 @@ if not defined VS (echo build.bat: no Visual Studio with the C++ x64 tools & exi
 call "%VS%\VC\Auxiliary\Build\vcvars64.bat" >nul
 if errorlevel 1 (echo build.bat: vcvars64.bat failed & exit /b 1)
 pushd "%OUT%"
-cl /nologo /std:c++17 /O2 /MT /EHsc /W4 /utf-8 /DUNICODE /D_UNICODE /DWINVER=0x0A00 /D_WIN32_WINNT=0x0A00 "%SRC%\*.cpp" /Fe:ac-helper.exe /link user32.lib advapi32.lib dwmapi.lib shcore.lib version.lib ole32.lib shell32.lib uuid.lib wtsapi32.lib pdh.lib d3d11.lib windowscodecs.lib runtimeobject.lib magnification.lib oleaut32.lib uiautomationcore.lib
+cl /nologo /std:c++17 /O2 /MT /EHsc /W4 /utf-8 /DUNICODE /D_UNICODE /DWINVER=0x0A00 /D_WIN32_WINNT=0x0A00 /I "%SHERPA%\include" "%SRC%\*.cpp" /Fe:ac-helper.exe /link user32.lib advapi32.lib dwmapi.lib shcore.lib version.lib ole32.lib shell32.lib uuid.lib wtsapi32.lib pdh.lib d3d11.lib windowscodecs.lib runtimeobject.lib magnification.lib winhttp.lib bcrypt.lib oleaut32.lib uiautomationcore.lib
 set "CODE=%errorlevel%"
 popd
 if not "%CODE%"=="0" (echo build.bat: cl failed with %CODE% & exit /b 1)

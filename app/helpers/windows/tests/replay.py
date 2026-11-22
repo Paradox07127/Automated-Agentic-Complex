@@ -22,6 +22,13 @@ Usage: python -I app/helpers/windows/tests/replay.py [--exe PATH]   (after build
   control.request; one with the token gets its request out without the token, and control.respond's answer back;
   answering it again is conn_gone; the token file goes when the helper exits. In ok-control.ndjson no client connects,
   so its control.respond answers conn_gone.
+- voice: speech.locales lists SenseVoice's locales; ptt.register registers Config.parseHotkey's combos and answers
+  bad_hotkey for the Windows key and unknown keys; mic.start answers locale_unsupported, mic_busy and not_recording where
+  due, and records (no_audio_device or permission_denied where the machine has no usable microphone) with mic.level
+  for level_events. A Chinese and an English sentence spoken to 16 kHz WAVs by Windows' SAPI voices (System.Speech)
+  go through the recognizer (ac-helper.exe --transcribe) and must come back with their words; the Chinese one played
+  as the microphone (AC_HELPER_MIC_WAV) must give mic.level, speech.partial and mic.stop's text. Every helper of the
+  replay keeps the model in MODELS (AC_HELPER_MODELS_DIR), under the checkout, so the first run downloads it.
 Requests that would act on or read other programs' windows are aimed at a window this script opens itself. A
 microphone permissions.request is never sent (not_sent): it opens the microphone, which may show a system prompt.
 apps.installed is checked for shape only and reported as a count. capture.window and capture.ambient are aimed at
@@ -30,7 +37,8 @@ decode to the size they claim; without a desktop they may fail with one of their
 the fields Windows always answers the same way: from ssh the helper runs in session 0, with no desktop and no input.
 The ax.* requests are aimed at the replay's pid and the test window; each must succeed or fail with one of its op's
 codes, ax.watch answers only watching, pid and watch_id, ax.focused has no app_pid, and an unknown cursor resets.
-With a desktop (winhost.py test helper-win --interactive) one more session checks real readings: the test window has
+With a desktop (winhost.py test helper-win --interactive) one more session checks real readings, and one helper
+whose models directory is empty must download the model during mic.start, sending speech.download before it answers: the test window has
 a solid COLOUR, capture.window's PNG and JPEG decode (GDI+, in memory) to it at their centre, max_long_side and
 max_bytes hold, a window of random pixels too big for one line answers a short too_large without max_bytes, a closed
 window answers window_gone; capture.ambient screen over the window averages to COLOUR and,
@@ -54,6 +62,7 @@ import os
 from pathlib import Path
 import queue
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -71,15 +80,24 @@ AX = {'ax.focused', 'ax.dialog_buttons', 'ax.overlays', 'ax.hit_chain', 'ax.wind
 IMPLEMENTED = {'screens.list', 'windows.list', 'windows.at_point', 'clipboard.read', 'apps.running', 'apps.activate',
                'process.usage', 'permissions.status', 'permissions.request', 'apps.installed', 'workspace.watch',
                'attention.sample', 'presence.watch', 'input.modifiers', 'input.watch', 'capture.window',
-               'capture.ambient', 'ocr.languages', 'ocr.recognize', 'control.listen', 'control.respond'} | AX
+               'capture.ambient', 'ocr.languages', 'ocr.recognize', 'control.listen', 'control.respond',
+               'speech.locales', 'mic.start', 'mic.stop', 'ptt.register', 'ptt.unregister'} | AX
 # Without a desktop (session 0) these may fail, with one of their op's own codes.
 CAPTURES = {'capture.window', 'capture.ambient'}
 OCRS = {'ocr.languages', 'ocr.recognize'}
-EVENTS = {'workspace.changed', 'presence.edge', 'input.activity', 'ax.notification', 'control.request'}
+EVENTS = {'workspace.changed', 'presence.edge', 'input.activity', 'ax.notification', 'control.request', 'ptt.down',
+          'ptt.up', 'mic.level', 'speech.partial', 'speech.download'}
 WATCHES = {'workspace.watch', 'presence.watch', 'input.watch'}
 # attention.sample fields the Windows helper always answers null (CONTRACT §7.3; no UI Automation yet).
 NULL_ON_WINDOWS = ('focus_role', 'focus_native_role', 'focus_window_role', 'focus_window_native_role',
-                   'focus_window_subrole', 'camera_active', 'video_pids', 'capture_indicator')
+                   'focus_window_subrole', 'video_pids', 'capture_indicator')
+VOICE = {'speech.locales', 'mic.start', 'mic.stop', 'ptt.register', 'ptt.unregister'}
+LOCALES = {'engine': 'sherpa-onnx-sensevoice', 'locales': ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'yue-HK']}
+MODELS = REPO / '.local/cache/helper-models'
+MODEL_FILES = {'model.int8.onnx': 239233841, 'tokens.txt': 315894}  # ops_voice.cpp's kModel
+# (SAPI culture, sentence, words the recognizer must return) for the TTS check.
+SPEECH = (('zh-CN', '今天天气很好，我们去公园散步。', ('天气', '公园')),
+          ('en-US', 'Please open the settings window and check the microphone.', ('settings', 'microphone')))
 NOT_APPLICABLE = ('accessibility', 'screenRecording', 'automation', 'inputMonitoring')
 # bad-* fixtures whose rule the helper enforces: the error code of the last request, or the exit code.
 BAD_CODES = {'bad-before-hello.ndjson': 'not_ready', 'bad-unknown-op.ndjson': 'unknown_op',
@@ -130,8 +148,9 @@ class Checks:
 class Helper:
     """One ac-helper.exe process; transcript holds both directions in order, as validate.check wants them."""
 
-    def __init__(self, exe):
-        self.proc = subprocess.Popen([str(exe)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    def __init__(self, exe, env=None):
+        self.proc = subprocess.Popen([str(exe)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                     env=env)
         self.lines = queue.Queue()
         self.stderr = []
         self.transcript = []
@@ -712,6 +731,8 @@ def check_answer(checks, name, request, got, hello, helper, target, window):
         checks.expect(got.get('error', {}).get('code') == 'conn_gone', f'{name} with no client answers conn_gone',
                       f'answer {got!r:.300}')
         return
+    if op in VOICE:
+        return check_voice(checks, name, request, got)
     if op in SESSION or op in IMPLEMENTED:
         if not checks.expect(got.get('ok') is True, f'{name} succeeds', f'answer {got!r:.300}'):
             return
@@ -788,6 +809,8 @@ def check_sample(checks, name, params, result):
     fixed = {key: result.get(key, 'absent') for key in NULL_ON_WINDOWS}
     checks.expect(set(fixed.values()) == {None} and result.get('secure_input') is False,
                   f'{name} answers the Windows constants', f'fields {fixed}, secure_input {result.get("secure_input")}')
+    checks.expect(result.get('camera_active', 'absent') in (True, False, None), f'{name} camera_active',
+                  f'camera_active {result.get("camera_active", "absent")!r}')
     for key, asked in (('audio_clients', 'include_audio'), ('input_counters', 'include_input'),
                        ('input_idles', 'include_input')):
         if not params.get(asked):
@@ -801,6 +824,215 @@ def check_sample(checks, name, params, result):
     if not params.get('include_titles'):
         checks.expect(all('title' not in w and 'app_name' not in w for w in windows),
                       f'{name} reads no titles without include_titles', f'{len(windows)} windows')
+
+
+def hotkey_ok(combo):
+    """Whether the Windows helper registers combo: Config.parseHotkey's names without the Windows key."""
+    parts = combo.lower().split('+')
+    keys = {'space', *'abcdefghijklmnopqrstuvwxyz', *'0123456789', *(f'f{n}' for n in range(1, 13))}
+    return parts == ['right_option'] or (parts[-1] in keys and
+                                         all(p in ('control', 'ctrl', 'option', 'alt', 'shift') for p in parts[:-1]))
+
+
+def check_voice(checks, name, request, got):
+    """A fixture's voice op: combos by the Windows rules; a microphone may be missing or denied on this machine."""
+    op, params = request['op'], request['params']
+    error, result = got.get('error', {}), got.get('result')
+    if op == 'speech.locales':
+        checks.expect(result == LOCALES, f'{name} lists SenseVoice\'s locales', f'answer {got!r:.300}')
+    elif op == 'ptt.register':
+        want = {'registered': True} if hotkey_ok(params['combo']) else None
+        checks.expect(result == want if want else error.get('code') == 'bad_hotkey', f'{name} by the Windows rules',
+                      f'answer {got!r:.300}')
+    elif op == 'ptt.unregister':
+        checks.expect(isinstance((result or {}).get('unregistered'), bool), f'{name} succeeds', f'answer {got!r:.300}')
+    elif op == 'mic.start':
+        if error:
+            print(f'note: {name} answers {error.get("code")} ({error.get("message")})', flush=True)
+        checks.expect((result or {}).get('session') == params['session'] and result.get('sample_rate') == 16000
+                      or error.get('code') in ('no_audio_device', 'permission_denied'),
+                      f'{name} records, or this machine has no usable microphone', f'answer {got!r:.300}')
+    elif op == 'mic.stop':
+        checks.expect(error.get('code') == 'not_recording' or (result or {}).get('session') == params['session'],
+                      f'{name} stops its session, or there is none', f'answer {got!r:.300}')
+
+
+def voice(exe, checks):
+    """The voice ops' own answers in one session that validate.check accepts. A microphone that records must send
+    mic.level for level_events, at most 20 a second."""
+    helper = Helper(exe)
+    ids = iter(range(2, 1000))
+
+    def ask(op, **params):
+        return helper.request({'v': 1, 'id': next(ids), 'op': op, 'params': params}) or {}
+
+    def code(got):
+        return got.get('error', {}).get('code')
+
+    helper.request(HELLO)
+    got = ask('speech.locales')
+    checks.expect(got.get('result') == LOCALES, 'voice speech.locales', f'answer {got!r:.300}')
+    for combo, want in (('command+space', 'bad_hotkey'), ('control+f99', 'bad_hotkey'), ('right_option', None),
+                        ('right_option', None), ('control+option+space', None)):
+        got = ask('ptt.register', combo=combo)
+        checks.expect(code(got) == want if want else got.get('result') == {'registered': True},
+                      f'voice ptt.register {combo}', f'answer {got!r:.300}')
+    for had in (True, False):
+        got = ask('ptt.unregister')
+        checks.expect(got.get('result') == {'unregistered': had}, f'voice ptt.unregister with a hot key: {had}',
+                      f'answer {got!r:.300}')
+    got = ask('mic.start', session='v-fr', locale='fr-FR')
+    checks.expect(code(got) == 'locale_unsupported', 'voice mic.start fr-FR is locale_unsupported', f'answer {got!r:.300}')
+    got = ask('mic.stop', session='v-none')
+    checks.expect(code(got) == 'not_recording', 'voice mic.stop of no session', f'answer {got!r:.300}')
+    got = ask('mic.start', session='v-1', locale='en-US', transcribe=False, level_events=True)
+    if not got.get('ok'):
+        print(f'note: voice mic.start answers {code(got)} ({got.get("error", {}).get("message")}); not recorded',
+              flush=True)
+        checks.expect(code(got) in ('no_audio_device', 'permission_denied'),
+                      'voice mic.start records, or this machine has no usable microphone', f'answer {got!r:.300}')
+    else:
+        checks.expect(got.get('result') == {'session': 'v-1', 'locale': 'en-US', 'sample_rate': 16000},
+                      'voice mic.start en-US', f'answer {got!r:.300}')
+        busy = ask('mic.start', session='v-2', locale='zh-CN', transcribe=False)
+        checks.expect(code(busy) == 'mic_busy', 'voice a second mic.start is mic_busy', f'answer {busy!r:.300}')
+        helper.wait_event(lambda e: False, 1.5)
+        stop = ask('mic.stop', session='v-1')
+        levels = [e['data'] for e in helper.events if e['event'] == 'mic.level']
+        print(f'note: voice recorded {stop.get("result", {}).get("duration_ms")} ms with {len(levels)} mic.level, rms '
+              f'{[round(d["rms"], 4) for d in levels[:5]]}...', flush=True)
+        checks.expect(stop.get('result', {}).get('text') == '' and stop['result'].get('duration_ms', 0) >= 1000,
+                      'voice mic.stop without transcribe answers no text and the time recorded', f'answer {stop!r:.300}')
+        checks.expect(10 <= len(levels) <= 40 and all(d['session'] == 'v-1' and 0 <= d['rms'] <= 1 for d in levels),
+                      'voice mic.level comes for level_events, at most 20 a second, 0..1', f'levels {levels!r:.300}')
+        got = ask('mic.stop', session='v-1')
+        checks.expect(code(got) == 'not_recording', 'voice a second mic.stop is not_recording', f'answer {got!r:.300}')
+    checks.expect(helper.exit_code() == 0, 'voice session exit', '')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, 'voice session validate.check', problem)
+
+
+TTS = r'''
+Add-Type -AssemblyName System.Speech
+$s = New-Object System.Speech.Synthesis.SpeechSynthesizer
+$voices = @($s.GetInstalledVoices() | Where-Object { $_.Enabled })
+[Console]::Error.WriteLine('voices: ' + (($voices | ForEach-Object { $_.VoiceInfo.Culture.Name + ' ' + $_.VoiceInfo.Name }) -join '; '))
+$voice = $voices | Where-Object { $_.VoiceInfo.Culture.Name -eq $env:C12_TTS_CULTURE } | Select-Object -First 1
+if (-not $voice) { exit 3 }
+$s.SelectVoice($voice.VoiceInfo.Name)
+$format = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(16000,
+    [System.Speech.AudioFormat.AudioBitsPerSample]::Sixteen, [System.Speech.AudioFormat.AudioChannel]::Mono)
+$s.SetOutputToWaveFile($env:C12_TTS_WAV, $format)
+$s.Speak($env:C12_TTS_TEXT)
+$s.Dispose()
+'''
+
+
+def speak(checks, scratch):
+    """{culture: WAV} of each SPEECH sentence spoken by a SAPI voice of its culture, 16 kHz mono; a culture without
+    a voice fails and is left out."""
+    wavs = {}
+    for culture, sentence, _ in SPEECH:
+        wav = scratch / f'{culture}.wav'
+        spoken = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', TTS], timeout=120,
+                                capture_output=True, text=True, encoding='utf-8', errors='replace',
+                                env=dict(os.environ, C12_TTS_CULTURE=culture, C12_TTS_WAV=str(wav), C12_TTS_TEXT=sentence))
+        if checks.expect(spoken.returncode == 0 and wav.is_file(), f'a SAPI voice speaks {culture}',
+                         f'exit {spoken.returncode}, {spoken.stderr.strip()[:300]}'):
+            wavs[culture] = wav
+    return wavs
+
+
+def recognizer(exe, checks, wavs):
+    """Each spoken sentence through ac-helper.exe --transcribe, which decodes it as mic.stop does; the text must hold
+    the sentence's words."""
+    for culture, _, words in SPEECH:
+        if culture not in wavs:
+            continue
+        started = time.monotonic()
+        run = subprocess.run([str(exe), '--transcribe', str(wavs[culture])], capture_output=True, timeout=1500)
+        try:
+            text = json.loads(run.stdout.decode('utf-8'))['text']
+        except (ValueError, KeyError):
+            text = None
+        print(f'note: recognizer {culture} took {time.monotonic() - started:.1f} s: {text!a} '
+              f'{run.stderr.decode("utf-8", "replace").strip()[-300:]!a}', flush=True)
+        checks.expect(run.returncode == 0 and text is not None and all(w.lower() in text.lower() for w in words),
+                      f'recognizer: the {culture} sentence comes back with {words}', f'text {text!a}')
+
+
+def spoken_session(exe, checks, wav, words, env, label, attempts=1):
+    """One helper whose microphone is wav (AC_HELPER_MIC_WAV): mic.start zh-CN with level_events, up to attempts
+    times while it answers asr_unavailable retryable; then mic.level and speech.partial while it plays, and mic.stop's
+    text with words. Returns the helper's events."""
+    helper = Helper(exe, env=dict(env, AC_HELPER_MIC_WAV=str(wav)))
+    ids = iter(range(2, 1000))
+
+    def ask(op, **params):
+        return helper.request({'v': 1, 'id': next(ids), 'op': op, 'params': params}) or {}
+
+    helper.request(HELLO)
+    started, got = time.monotonic(), {}
+    for n in range(attempts):
+        got = ask('mic.start', session=f'{label}-{n}', locale='zh-CN', level_events=True)
+        error = got.get('error', {})
+        if error.get('code') != 'asr_unavailable' or not error.get('retryable'):
+            break
+        print(f'note: {label} mic.start {label}-{n} answers asr_unavailable ({error.get("message")})', flush=True)
+    print(f'note: {label} mic.start took {time.monotonic() - started:.1f} s: {got!r:.200}', flush=True)
+    session = got.get('result', {}).get('session')
+    if checks.expect(got.get('result', {}).get('sample_rate') == 16000 and got['result'].get('locale') == 'zh-CN',
+                     f'{label} mic.start records the WAV', f'answer {got!r:.300}'):
+        helper.wait_event(lambda e: False, 4)
+        stop = ask('mic.stop', session=session)
+        text = stop.get('result', {}).get('text')
+        mine = [e for e in helper.events if e['data'].get('session') == session]
+        levels = [e['data']['rms'] for e in mine if e['event'] == 'mic.level']
+        partials = [e['data']['text'] for e in mine if e['event'] == 'speech.partial']
+        print(f'note: {label} heard {text!a} after {len(levels)} mic.level (loudest {max(levels, default=None)}) and '
+              f'partials {partials!a:.300}', flush=True)
+        checks.expect(text is not None and all(w in text for w in words), f'{label} mic.stop answers the words',
+                      f'answer {stop!a:.300}')
+        checks.expect(40 <= len(levels) <= 100 and all(0 <= rms <= 1 for rms in levels) and max(levels) > 0.01,
+                      f'{label} mic.level while recording, at most 20 a second, 0..1', f'levels {levels!r:.300}')
+        checks.expect(bool(partials) and all(a != b for a, b in zip(partials, partials[1:]))
+                      and any(w in partials[-1] for w in words), f'{label} speech.partial when the text changes', f'partials {partials!a:.300}')
+    checks.expect(helper.exit_code() == 0, f'{label} session exit', '')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, f'{label} session validate.check', problem)
+    return helper.events
+
+
+def voice_spoken(exe, checks, wavs):
+    """The Chinese sentence as the microphone: what push-to-talk sees from mic.start to mic.stop."""
+    culture, _, words = SPEECH[0]
+    if culture in wavs:
+        spoken_session(exe, checks, wavs[culture], words, os.environ, 'spoken')
+
+
+def voice_download(exe, checks, wavs):
+    """From an empty models directory mic.start downloads the model: speech.download only before its answer (each
+    mic.start that has to answer first is asr_unavailable, retryable, and the next joins the download), then the files
+    under their names and nothing else."""
+    culture, _, words = SPEECH[0]
+    if culture not in wavs:
+        return
+    empty = REPO / '.local/cache' / f'helper-models-empty-{os.getpid()}'
+    shutil.rmtree(empty, ignore_errors=True)
+    empty.mkdir(parents=True)
+    try:
+        events = spoken_session(exe, checks, wavs[culture], words, dict(os.environ, AC_HELPER_MODELS_DIR=str(empty)),
+                                'download', attempts=8)
+        downloads = [e['data'] for e in events if e['event'] == 'speech.download']
+        completed = [d['completed'] for d in downloads]
+        print(f'note: download sent {len(downloads)} speech.download, last {downloads[-1:]}', flush=True)
+        checks.expect(bool(downloads) and completed == sorted(completed) and
+                      all(d['total'] == sum(MODEL_FILES.values()) and 0 <= d['fraction'] <= 1 for d in downloads),
+                      'download speech.download counts the model\'s bytes', f'events {downloads[-3:]!r}')
+        present = {p.relative_to(empty).name: p.stat().st_size for p in empty.rglob('*') if p.is_file()}
+        checks.expect(present == MODEL_FILES, 'download leaves the model files and nothing else', f'files {present}')
+    finally:
+        shutil.rmtree(empty, ignore_errors=True)
 
 
 def decode(data):
@@ -1357,12 +1589,20 @@ def main(argv=None):
         print(f'HELPER-WIN: FAIL no helper at {args.exe}; run build.bat')
         return 1
     checks = Checks()
+    os.environ['AC_HELPER_MODELS_DIR'] = str(MODELS)
     window = TestWindow()
+    scratch = tempfile.TemporaryDirectory()
     try:
         target = find_test_window(args.exe, window, checks)
+        wavs = speak(checks, Path(scratch.name))
         # Before replay_ok, whose apps.activate gives the replay the foreground.
         if target:
             desktop(args.exe, checks, window, target)
+            voice_download(args.exe, checks, wavs)
+        voice(args.exe, checks)
+        # Before replay_ok and voice_spoken, which then find the model in MODELS.
+        recognizer(args.exe, checks, wavs)
+        voice_spoken(args.exe, checks, wavs)
         replay_ok(args.exe, checks, target, window)
         control_endpoint(args.exe, checks)
         permission_requests(args.exe, checks)
@@ -1372,6 +1612,7 @@ def main(argv=None):
         sweep(args.exe, checks)
     finally:
         window.close()
+        scratch.cleanup()
     print(f'HELPER-WIN: {checks.total} checks, {checks.failed} failed')
     return 1 if checks.failed else 0
 

@@ -46,6 +46,8 @@ class PackageWindowsTests(unittest.TestCase):
                                                                         main='dist/main.mjs', devDependencies={})))
         for name in ('main.mjs', 'main.mjs.map', 'preload.cjs'): (self.electron_dir / 'dist' / name).write_text('shell ' + name)
         self.helper = self.root / 'ac-helper.exe'; self.helper.write_text('helper')
+        # build.bat puts the speech runtime's DLLs beside ac-helper.exe.
+        for name in ('sherpa-onnx-c-api.dll', 'onnxruntime.dll'): (self.root / name).write_text('dll ' + name)
         self.renderer = self.root / 'renderer'; self.renderer.mkdir()
         for name in ('efw.exe', 'depth_copy.dxbc', 'premultiply_alpha.dxbc', 'main.obj', 'product.txt'):
             (self.renderer / name).write_text('renderer ' + name)
@@ -92,8 +94,11 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertEqual(receipt['bytes'], sum((package / f).stat().st_size for f in files))
         self.assertEqual(receipt['fuses'], FUSES)
         top = {f for f in files if '/' not in f}
-        self.assertEqual(top, {'Agentic Complex.exe', 'ac-helper.exe', 'efw.exe', 'depth_copy.dxbc', 'premultiply_alpha.dxbc',
-                               'ffmpeg.dll', 'icudtl.dat', 'LICENSE'})
+        self.assertEqual(top, {'Agentic Complex.exe', 'ac-helper.exe', 'sherpa-onnx-c-api.dll', 'onnxruntime.dll', 'efw.exe',
+                               'depth_copy.dxbc', 'premultiply_alpha.dxbc', 'ffmpeg.dll', 'icudtl.dat', 'LICENSE'})
+        for name in ('sherpa-onnx-c-api.dll', 'onnxruntime.dll'): self.assertEqual((package / name).read_text(), 'dll ' + name)
+        self.assertEqual(sorted(p.name for p in (package / 'licenses').iterdir()),
+                         ['onnxruntime-LICENSE.txt', 'onnxruntime-ThirdPartyNotices.txt', 'sherpa-onnx-LICENSE.txt'])
         self.assertEqual((package / 'Agentic Complex.exe').read_text(), 'electron electron.exe')
         # Chromium's strings only in the languages kept; it falls back to en-US.pak for the others.
         self.assertEqual({f for f in files if f.startswith('locales/')},
@@ -190,6 +195,10 @@ class PackageWindowsTests(unittest.TestCase):
         for path in self.renderer.glob('*.dxbc'): path.unlink()
         with self.assertRaisesRegex(ValueError, 'renderer_shaders_missing'): self.stage()
 
+    def test_a_helper_without_its_speech_dlls_beside_it_is_refused(self):
+        (self.root / 'onnxruntime.dll').unlink()
+        with self.assertRaisesRegex(ValueError, 'helper_dll_missing: onnxruntime.dll'): self.stage()
+
     def test_the_relocation_check_runs_python_with_only_systemroot_and_needs_its_own_prefix(self):
         python = self.root / 'Agentic Complex/resources/components/runtime.python/payload/python.exe'
         prefix = str(python.parent)
@@ -254,7 +263,7 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertEqual(set(components), {'runtime.python', 'harness.pi', 'agentd', 'web-ui', 'characters.fixture', 'renderer', 'host'})
         # host's are its placed paths (the exe, the runtime's files and resources\app) and its component.json.
         host = [f for f in files if '/' not in f and f not in ('efw.exe', 'depth_copy.dxbc', 'premultiply_alpha.dxbc', 'big copy.bin')]
-        host += [f for f in files if f.startswith(('locales/', 'resources/app/', 'resources/components/host/'))]
+        host += [f for f in files if f.startswith(('locales/', 'licenses/', 'resources/app/', 'resources/components/host/'))]
         self.assertEqual(components['host']['files'], len(host + ['resources/parent_watch.py']))
         self.assertEqual(components['renderer']['files'], 4)
         self.assertEqual(sorted(row['path'] for row in found['large']),

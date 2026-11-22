@@ -32,6 +32,17 @@ Python (agent/agentd/requirements.txt, app/packaging/requirements-content.lock)
   httpx. BSD 3-Clause.
   cryptography. Apache-2.0 or BSD 3-Clause.
   numpy. BSD 3-Clause.
+Windows helper speech runtime (app/helpers/windows/third_party.ps1, which pins the release and its sha256)
+  sherpa-onnx v2.0.2, the C API library sherpa-onnx-c-api.dll and its header. Apache-2.0.
+  ONNX Runtime 1.28.2, the onnxruntime.dll of that sherpa-onnx release. MIT, with its third-party notices.
+  Their texts are in app/helpers/windows/licenses/, which the Windows app carries as licenses\.
 
 Build and test tools (TypeScript, esbuild, Vite, Vitest, Playwright and the other devDependencies) are not part of a
 built app. Each package's licence is in its own distribution.
+
+Model the Windows app downloads on first use
+--------------------------------------------
+Not in this repository or in a built app: the Windows helper fetches it on the first push-to-talk
+(app/helpers/windows/src/ops_voice.cpp, which pins its revision and sha256).
+  SenseVoice-Small (FunAudioLLM), sherpa-onnx's int8 export sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.
+  FunASR model licence (https://github.com/modelscope/FunASR, MODEL_LICENSE).

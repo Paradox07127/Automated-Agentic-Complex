@@ -26,6 +26,10 @@ import windows_exe
 PLATFORM = 'windows-x64'
 EXECUTABLE = 'Agentic Complex.exe'
 HELPER = 'ac-helper.exe'
+# The speech runtime ac-helper.exe loads from its own directory, where build.bat puts it (app/helpers/windows/third_party.ps1).
+HELPER_DLLS = ('sherpa-onnx-c-api.dll', 'onnxruntime.dll')
+# Their licence texts (sherpa-onnx v2.0.2; ONNX Runtime 1.28.2, the build that release carries), copied into licenses\.
+HELPER_LICENSES = ROOT / 'app/helpers/windows/licenses'
 RENDERER = 'efw.exe'
 # The built main process as app/electron/build.mjs writes it on Windows (no preview addon); source maps stay out.
 ELECTRON_APP_FILES = ('dist/main.mjs', 'dist/preload.cjs')
@@ -40,8 +44,8 @@ LARGE_FILE = 100 * 1024 * 1024
 
 
 def stage_host(host, electron_runtime, electron_dir, helper, product_name, app_version):
-    """Fill the host payload from the Electron root, the built main process and ac-helper.exe; return its placed paths,
-    the executable first."""
+    """Fill the host payload from the Electron root, the built main process and ac-helper.exe with the DLLs beside it;
+    return its placed paths, the executable first."""
     shutil.copytree(electron_runtime, host)
     (host / 'electron.exe').rename(host / EXECUTABLE)
     for pak in (host / 'locales').glob('*.pak'):
@@ -57,10 +61,14 @@ def stage_host(host, electron_runtime, electron_dir, helper, product_name, app_v
     write_json(app / 'package.json', dict(name=source['name'], productName=product_name, version=app_version,
                                           private=True, type=source['type'], main=source['main']))
     shutil.copy2(helper, host / HELPER)
+    for name in HELPER_DLLS:
+        if not (Path(helper).parent / name).is_file(): raise ValueError('helper_dll_missing: ' + name)
+        shutil.copy2(Path(helper).parent / name, host / name)
+    shutil.copytree(HELPER_LICENSES, host / 'licenses')
     shutil.copy2(ROOT / 'app/Resources/parent_watch.py', host / 'resources/parent_watch.py')
     first = [EXECUTABLE, HELPER]
-    rest = [path.name for path in host.iterdir() if path.name != 'resources']
-    rest += ['resources/' + path.name for path in (host / 'resources').iterdir()]
+    rest = [path.name for path in host.iterdir() if path.name not in ('resources', 'licenses')]
+    rest += [f'{folder}/{path.name}' for folder in ('resources', 'licenses') for path in (host / folder).iterdir()]
     return first + sorted(path for path in rest if path not in first)
 
 
@@ -212,7 +220,7 @@ if __name__ == '__main__':
                       ('python', 'The CPython 3.12 base prefix, the directory of python.exe'),
                       ('harness-runtime', 'harness_runtime.py --output'), ('web-dist', 'The vite build of web/'),
                       ('electron-runtime', 'electron_runtime.py: the unpacked root holding electron.exe'),
-                      ('electron-dir', 'app/electron after npm run build'), ('helper', 'ac-helper.exe'),
+                      ('electron-dir', 'app/electron after npm run build'), ('helper', 'ac-helper.exe, the DLLs of HELPER_DLLS beside it'),
                       ('renderer', 'private\\renderer\\windows\\build: efw.exe and its .dxbc'), ('fbx-tool', 'fbx-motion.exe'),
                       ('output', 'A new directory; Agentic Complex\\ is written in it')]:
         parser.add_argument('--' + key, type=Path, required=True, help=help)

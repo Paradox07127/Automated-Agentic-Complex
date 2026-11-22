@@ -81,13 +81,15 @@ void activity(const char* kind, uint64_t* sent, uint64_t now) {
     send_event("input.activity", std::move(data), g_input);
 }
 
-// Reads only whether a key went down, never which one. Windows sends no mouse_up (CONTRACT §7.3).
+// Counts only whether a key went down, never which one; the push-to-talk key is ops_voice.cpp's. Windows sends no
+// mouse_up (CONTRACT §7.3).
 void raw_input(HRAWINPUT handle) {
     RAWINPUT raw{};
     UINT size = sizeof raw;
     if (GetRawInputData(handle, RID_INPUT, &raw, &size, sizeof(RAWINPUTHEADER)) == static_cast<UINT>(-1)) return;
     uint64_t now = GetTickCount64();
     if (raw.header.dwType == RIM_TYPEKEYBOARD) {
+        ptt_key(raw.data.keyboard.VKey, raw.data.keyboard.MakeCode, raw.data.keyboard.Flags);
         if (raw.data.keyboard.Flags & RI_KEY_BREAK) return;
         ++g_keys;
         g_last_key = now;
@@ -369,6 +371,47 @@ json::Value front_json(const std::vector<Window>& windows, DWORD pid, HWND front
     return v;
 }
 
+// Whether any subkey of key has a LastUsedTimeStart and a LastUsedTimeStop of 0.
+bool consent_in_use(HKEY key) {
+    for (DWORD k = 0;; ++k) {
+        wchar_t name[256];
+        DWORD length = 256;
+        LSTATUS status = RegEnumKeyExW(key, k, name, &length, nullptr, nullptr, nullptr, nullptr);
+        if (status == ERROR_NO_MORE_ITEMS) return false;
+        uint64_t start = 0, stop = 0;
+        DWORD bytes = sizeof start;
+        if (status != ERROR_SUCCESS ||
+            RegGetValueW(key, name, L"LastUsedTimeStart", RRF_RT_REG_QWORD, nullptr, &start, &bytes) != ERROR_SUCCESS) {
+            continue;
+        }
+        bytes = sizeof stop;
+        if (start > 0 &&
+            RegGetValueW(key, name, L"LastUsedTimeStop", RRF_RT_REG_QWORD, nullptr, &stop, &bytes) == ERROR_SUCCESS &&
+            stop == 0) {
+            return true;
+        }
+    }
+}
+
+// CONTRACT §7.3: an app uses the camera now when its entry in the camera's consent store has started and not stopped;
+// packaged apps are the store's subkeys, desktop apps those of its NonPackaged. Null when the store cannot be read.
+json::Value camera_active() {
+    const wchar_t* webcam =
+        L"Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\webcam";
+    HKEY store = nullptr;
+    LSTATUS opened = RegOpenKeyExW(HKEY_CURRENT_USER, webcam, 0, KEY_READ, &store);
+    if (opened == ERROR_FILE_NOT_FOUND) return json::boolean(false);
+    if (opened != ERROR_SUCCESS) return json::null();
+    bool active = consent_in_use(store);
+    HKEY desktop = nullptr;
+    if (!active && RegOpenKeyExW(store, L"NonPackaged", 0, KEY_READ, &desktop) == ERROR_SUCCESS) {
+        active = consent_in_use(desktop);
+        RegCloseKey(desktop);
+    }
+    RegCloseKey(store);
+    return json::boolean(active);
+}
+
 // The top-level window under the cursor, when it is one windows.list would list.
 json::Value mouse_window(const std::vector<Window>& windows, bool titles, Apps& apps) {
     POINT at{};
@@ -406,6 +449,8 @@ json::Value input_idles() {
 
 }  // namespace
 
+bool keyboard_watched() { return g_counting; }
+
 void start_watches() {
     uint64_t now = GetTickCount64();
     for (std::atomic<uint64_t>* last : {&g_last_key, &g_last_pointer, &g_last_scroll, &g_last_click}) *last = now;
@@ -439,7 +484,7 @@ Outcome attention_sample(const json::Value& params) {
                             "focus_window_subrole"}) {
         result.set(key, json::null());
     }
-    result.set("camera_active", json::null());
+    result.set("camera_active", camera_active());
     HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     IMMDeviceEnumerator* devices = nullptr;
     bool audio =

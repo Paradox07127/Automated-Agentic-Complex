@@ -58,6 +58,8 @@ Outcome presence_watch(const json::Value& params);
 Outcome input_modifiers(const json::Value& params);
 Outcome input_watch(const json::Value& params);
 Outcome workspace_watch(const json::Value& params);
+// The watch window's keyboard Raw Input is registered; ptt.register needs it.
+bool keyboard_watched();
 
 // ops_capture.cpp
 Outcome capture_window(const json::Value& params);
@@ -75,3 +77,15 @@ Outcome ocr_recognize(const json::Value& params);
 Outcome control_listen(const json::Value& params);
 Outcome control_respond(const json::Value& params);
 void control_stop();
+
+// ops_voice.cpp
+Outcome speech_locales(const json::Value& params);
+Outcome mic_start(const json::Value& params);
+Outcome mic_stop(const json::Value& params);
+Outcome ptt_register(const json::Value& params);
+Outcome ptt_unregister(const json::Value& params);
+// Every keyboard Raw Input of the watch window (RAWKEYBOARD's VKey, MakeCode and Flags), on its thread.
+void ptt_key(unsigned vkey, unsigned make_code, unsigned flags);
+// ac-helper.exe --transcribe <wav>: the replay's check of the recognizer on a 16 kHz WAV, downloading the model when it
+// is missing; prints {"text": ...} and returns the exit code.
+int transcribe_file(const wchar_t* wav);

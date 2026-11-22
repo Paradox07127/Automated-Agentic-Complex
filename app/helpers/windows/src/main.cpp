@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cwchar>
 #include <exception>
 #include <map>
 #include <mutex>
@@ -220,7 +221,8 @@ void send_event(const char* name, json::Value data, const std::atomic<bool>& liv
     }
 }
 
-int main() {
+int wmain(int argc, wchar_t** argv) {
+    if (argc == 3 && std::wcscmp(argv[1], L"--transcribe") == 0) return transcribe_file(argv[2]);
     // Window and screen coordinates in physical pixels (CONTRACT §2.8).
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     start_watches();

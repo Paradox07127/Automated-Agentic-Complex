@@ -128,7 +128,7 @@
 | `locked` | 屏幕已锁 | WTS 会话状态 |
 | `secure_input` | 系统安全输入开着（macOS `IsSecureEventInputEnabled`） | 恒为 false |
 | `focus_role`、`focus_native_role`、`focus_window_role`、`focus_window_native_role`、`focus_window_subrole` | 焦点控件的角色，及其所在窗口或 sheet 的角色（第 2 节第 10 条） | 按第 7.13 节换成 AX 名字 |
-| `camera_active`、`mic_active` | 有设备在用；helper 自己在录音时 `mic_active` 为 null | 摄像头为 null；麦克风看默认采集端点上有没有活动的会话 |
+| `camera_active`、`mic_active` | 有设备在用；helper 自己在录音时 `mic_active` 为 null | 摄像头看当前用户的 `CapabilityAccessManager\ConsentStore\webcam`（打包应用是它的子键，桌面应用是它的 `NonPackaged` 的子键）：有一项 `LastUsedTimeStart` 大于 0 且 `LastUsedTimeStop` 为 0 就是有应用正在用，读不到这个键时 null；麦克风看默认采集端点上有没有活动的会话 |
 | `audio_clients` | 有音频输入或输出的进程（`include_audio`） | `IAudioSessionManager2` 枚举采集和播放端点 |
 | `input_counters`、`input_idles` | 会话级的按键、点击、滚动、移动累计数和各自的空闲秒数，从不含键码（`include_input`） | helper 用 Raw Input 自己计数，从启动时起算 |
 | `video_pids` | 持有「显示器不睡」电源断言的 app 进程 | null（没有不提权读别人电源请求的接口） |
@@ -219,10 +219,10 @@
 
 - 按住说话由主进程组合：`ptt.down` 时 `mic.start`，`ptt.up` 时 `mic.stop`，把 `text` 交给 agentd 的 `POST /say`。按下确认窗口、打断角色说话、提示条都在主进程（`PushToTalkPress`、`VoiceHintTracker`）。
 - 只有按住说话的按键进 helper，因为它要松开事件，Electron `globalShortcut` 和 `RegisterHotKey` 只给按下。快速输入、看一眼、显隐角色、点穿、轮盘菜单、选区这些普通热键由主进程用 `globalShortcut` 注册（第 9 节）。
-- `ptt.register` 的 `combo` 用 `Config.parseHotkey` 的写法（`right_option`、`control+option+space`）；只有一个按键，再注册时替换旧的。按下发 `ptt.down`，松开发 `ptt.up`。macOS：组合键用 Carbon `RegisterEventHotKey` 收按下和松开；`right_option` 每 50 ms 轮询键状态，要输入监控权限，没有时回 `permission_denied`。Windows：用 Raw Input（`RIDEV_INPUTSINK`，只看这一个键，不记其他按键）；Windows 键（`command`）保留给系统，回 `bad_hotkey`；`option` 对应 Alt，`right_option` 对应右 Alt。被别的程序占用时回 `hotkey_taken`，主进程把这个名字报给设置页。
-- `mic.start` 开麦克风并开始本机识别；`locale` 是 `zh-CN` 这样的标识，helper 换成识别引擎支持的等价语言，没有时回 `locale_unsupported`。macOS 用 SpeechTranscriber（macOS 26 起），缺语言资源时先下载，所以 `timeout_ms` 是 120 秒；低于 macOS 26 时回 `unsupported`。Windows 用 WASAPI 共享模式采集，识别引擎在 H 线选定。没有麦克风权限时不弹窗，回 `permission_denied`。同时只有一个会话，第二个回 `mic_busy`。
-- 录音期间按 `level_events` 发 `mic.level`（RMS，0–1，每秒最多 20 个），识别有中间结果时发 `speech.partial`。
-- `mic.start` 下载语言资源期间每 250 ms 发一个 `speech.download`（`fraction` 0–1；`completed`、`total` 是系统下载进度的单位数，macOS 的 `Progress` 不写单位，主进程当字节读）。这是唯一在打开它的 op 回包之前发的事件（`ops.json` 的 `during`）：只在那次 `mic.start` 还没回包时发，回包后不再发。没有要下载的不发；Windows 现在不发。
+- `ptt.register` 的 `combo` 用 `Config.parseHotkey` 的写法（`right_option`、`control+option+space`）；只有一个按键，再注册时替换旧的。按下发 `ptt.down`，松开发 `ptt.up`。macOS：组合键用 Carbon `RegisterEventHotKey` 收按下和松开；`right_option` 每 50 ms 轮询键状态，要输入监控权限，没有时回 `permission_denied`。Windows：用 Raw Input（`RIDEV_INPUTSINK`，只看这一个键，不记其他按键），和第 7.3 节的输入计数共用同一个隐藏窗口和同一份注册（一个进程每类设备只能注册给一个窗口）；Windows 键（`command`）保留给系统，回 `bad_hotkey`；`option` 对应 Alt，`right_option` 对应右 Alt（带 E0 扩展标志的 `VK_MENU`），AltGr 带出的合成左 Ctrl 不算按键。组合键在主键按下、而按着的修饰键恰好是所列那几个时算按下，主键松开时算松开；按住时的自动重复不再发 `ptt.down`。被别的程序占用时回 `hotkey_taken`，主进程把这个名字报给设置页；Raw Input 查不出占用，Windows 不回 `hotkey_taken`。
+- `mic.start` 开麦克风并开始本机识别；`locale` 是 `zh-CN` 这样的标识，helper 换成识别引擎支持的等价语言，没有时回 `locale_unsupported`。macOS 用 SpeechTranscriber（macOS 26 起），缺语言资源时先下载，所以 `timeout_ms` 是 120 秒；低于 macOS 26 时回 `unsupported`。Windows 用 WASAPI 共享模式在默认采集端点上采集，由系统换成 16 kHz 单声道；识别用 sherpa-onnx（`ac-helper.exe` 旁边的 `sherpa-onnx-c-api.dll` 和 `onnxruntime.dll`）的离线 SenseVoice-Small int8 模型，`locale` 按语言子标签对到 `speech.locales` 的一项（`zh` 对 `zh-CN`），识别时由模型自己判语言。模型不随包发：第一次要它的 `mic.start` 用 WinHTTP 下载到 `%LOCALAPPDATA%\AgenticComplex\models\sensevoice-<sha256 前 8 位>\`（第 1 节第 3 条之外 helper 写的另一处文件），先写临时名，大小和 sha256 都对上才改成正式名字；下载失败回 `asr_unavailable`（带原因，`retryable: true`），正式名字下不留残缺的文件；110 秒内没下完也回 `asr_unavailable`（`retryable: true`），下载接着在后台进行，下一次 `mic.start` 等的是同一次下载。识别器第一次用时载入，之后一直留着。一次录音最多录 60 秒。没有麦克风权限时不弹窗，回 `permission_denied`（Windows 从 WASAPI 的拒绝访问看出隐私设置不让桌面应用用麦克风）。同时只有一个会话，第二个回 `mic_busy`。
+- 录音期间按 `level_events` 发 `mic.level`（RMS，0–1，每秒最多 20 个），识别有中间结果时发 `speech.partial`。Windows 的 SenseVoice 不是流式的：录音期间每 600 ms 把到此为止的录音重新识别一遍，文字变了才发 `speech.partial`。`speech.locales` 在 Windows 回 `engine` 为 `sherpa-onnx-sensevoice`、`locales` 为 `zh-CN`、`en-US`、`ja-JP`、`ko-KR`、`yue-HK`，只有那两个 DLL 缺失或载入不了时回 `asr_unavailable`。
+- `mic.start` 下载语言资源期间每 250 ms 发一个 `speech.download`（`fraction` 0–1；`completed`、`total` 是系统下载进度的单位数，macOS 的 `Progress` 不写单位，主进程当字节读）。这是唯一在打开它的 op 回包之前发的事件（`ops.json` 的 `during`）：只在那次 `mic.start` 还没回包时发，回包后不再发。没有要下载的不发。Windows 下载识别模型时发，`completed`、`total` 是字节。
 - `ptt.typed`：`right_option` 按住期间第一次有别的键按下时发一次（每次按住最多一个，在这次的 `ptt.down` 和 `ptt.up` 之间），表示这次按住是在打 Option 字符，不是按住说话。macOS 在 50 ms 的键状态轮询里读 `CGEventSource.secondsSinceLastEventType` 的 keyDown，不记是哪个键。组合键自带一个键，不发。Windows 现在不发；主进程收不到时照旧（只按按住时长判）。
 - `mic.stop` 关麦克风，等识别收尾，回最终文字；`discard: true` 时不识别，`text` 为空串。
 
