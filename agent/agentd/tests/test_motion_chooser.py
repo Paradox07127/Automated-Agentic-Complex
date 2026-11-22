@@ -105,7 +105,7 @@ class ChooserTest(unittest.TestCase):
             "print(json.dumps(replay(CharacterSwitchMixin.motion_chooser(server, 'demo'), 120)))"])
         here = Path(__file__).resolve().parent
         runs = [json.loads(subprocess.run([sys.executable, "-I", "-c", script, str(here.parent), str(here), str(root)],
-                                          capture_output=True, text=True, check=True).stdout.splitlines()[-1])
+                                          capture_output=True, encoding="utf-8", check=True).stdout.splitlines()[-1])
                 for _ in range(2)]
         self.assertGreaterEqual(len([c for c in runs[0] if c["why"] == "idle.t1"]), 3)
         self.assertNotEqual(runs[0], runs[1])
