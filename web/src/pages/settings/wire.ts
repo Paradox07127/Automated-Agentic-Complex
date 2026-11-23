@@ -9,7 +9,8 @@ export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhi
 /** model_backends.py public(): one saved connection per provider; the key itself never comes back. */
 export interface WireBackendConfig {
   model: string;
-  base_url: string;
+  /** Absent for `compatible`, whose address is the shell's `services.llm`. */
+  base_url?: string;
   has_key: boolean;
   max_output_tokens: number;
   reasoning_effort?: '' | ThinkingLevel;
