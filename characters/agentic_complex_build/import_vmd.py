@@ -23,8 +23,8 @@ from .stance import stances
 from .motion_import.edit import write_document
 
 
-def checked_vmd(path):
-    """Validate bounds before the research parser or numpy can allocate arrays."""
+def _read_checked_vmd_raw(path):
+    """Validate VMD 0002 bounds and section offsets before allocating arrays."""
     from .mmd.io import read_vmd
     path = Path(path); need(path.is_file() and path.stat().st_size <= 64 * 1024**2, 'vmd_file_limit')
     data = path.read_bytes(); need(data.startswith(b'Vocaloid Motion Data 0002'), 'unsupported_vmd_header')
@@ -48,9 +48,14 @@ def checked_vmd(path):
                 need(bones <= 4096 and bones <= (len(data)-cursor)//21, 'vmd_ik_bounds')
                 cursor += bones * 21
     need(cursor == len(data), 'trailing_vmd_data')
-    try: vmd = read_vmd(path)
+    try: return read_vmd(path)
     except (ValueError, struct.error, IndexError) as error: raise ValueError('invalid_vmd: ' + str(error)) from error
+
+
+def checked_vmd(path):
+    """Validate bounds before the research parser or numpy can allocate arrays."""
     from .mmd.io import last_frame
+    vmd = _read_checked_vmd_raw(path)
     need(vmd.bones and last_frame(vmd) <= 54000, 'vmd_frame_limit')
     for key in vmd.bones:
         need(key.frame >= 0 and all(math.isfinite(x) for x in (*key.pos, *key.rot))
@@ -60,33 +65,21 @@ def checked_vmd(path):
 
 def checked_camera_vmd(path):
     """checked_vmd's bounds for a camera VMD: camera keys required, bone keys not."""
-    from .mmd.io import read_vmd, last_frame
-    path = Path(path); need(path.is_file() and path.stat().st_size <= 64 * 1024**2, 'vmd_file_limit')
-    data = path.read_bytes(); need(data.startswith(b'Vocaloid Motion Data 0002'), 'unsupported_vmd_header')
-    need(len(data) >= 54, 'truncated_vmd')
-    cursor = 50
-    for width in [111, 23, 61, 28, 9]:
-        if cursor == len(data): break
-        need(cursor + 4 <= len(data), 'truncated_vmd_count')
-        count = struct.unpack_from('<I', data, cursor)[0]; cursor += 4
-        need(count <= 500000 and count <= (len(data)-cursor)//width, 'vmd_section_bounds')
-        cursor += count * width
-    else:
-        if cursor < len(data):
-            need(cursor + 4 <= len(data), 'truncated_vmd_ik')
-            count = struct.unpack_from('<I', data, cursor)[0]; cursor += 4
-            need(count <= 54000, 'vmd_ik_limit')
-            for _ in range(count):
-                need(cursor + 9 <= len(data), 'truncated_vmd_ik')
-                bones = struct.unpack_from('<I', data, cursor+5)[0]; cursor += 9
-                need(bones <= 4096 and bones <= (len(data)-cursor)//21, 'vmd_ik_bounds')
-                cursor += bones * 21
-    need(cursor == len(data), 'trailing_vmd_data')
-    try: vmd = read_vmd(path)
-    except (ValueError, struct.error, IndexError) as error: raise ValueError('invalid_vmd: ' + str(error)) from error
+    from .mmd.io import last_frame
+    vmd = _read_checked_vmd_raw(path)
     need(vmd.cameras and max(k[0] for k in vmd.cameras) <= 54000 and last_frame(vmd) <= 54000, 'vmd_camera_frame_limit')
     for _, distance, center, euler, _, _, _ in vmd.cameras:
         need(all(math.isfinite(x) for x in (distance, *center, *euler)), 'invalid_vmd_camera')
+    return vmd
+
+
+def checked_morph_vmd(path):
+    """checked_vmd's bounds for a morph/facial VMD: morph keys required, bone keys optional."""
+    from .mmd.io import last_frame
+    vmd = _read_checked_vmd_raw(path)
+    need(vmd.morphs and last_frame(vmd) <= 54000, 'vmd_morph_limit')
+    for key in vmd.morphs:
+        need(key.frame >= 0 and math.isfinite(key.weight), 'invalid_vmd_morph')
     return vmd
 
 
@@ -109,14 +102,21 @@ def checked_pmd(path):
     return model
 
 
-def encode_clip(rig_doc, name, q, t, sample_rate, provenance):
+def _pchip_tangents(ts, vs):
+    """Fritsch-Carlson monotone piecewise cubic Hermite tangents (C1 continuous, zero overshoot)."""
+    from .mmd.morph import pchip_slopes
+    return pchip_slopes(ts, vs)
+
+
+def encode_clip(rig_doc, name, q, t, sample_rate, provenance, tangent_mode='linear'):
     """The clip document without its keys, oracle and samples, and its EFKEY001 bytes; q is made sign-continuous and
-    normalised in place."""
+    normalised in place. tangent_mode='pchip' emits C1 monotone Hermite tangents; 'linear' keeps secants."""
     import numpy as np
+    need(tangent_mode in ('linear', 'pchip'), 'invalid_tangent_mode')
     frames, nodes = q.shape[:2]; need(frames >= 2 and nodes == len(rig_doc['nodes']), 'invalid_bake_shape')
     need(np.isfinite(q).all() and np.isfinite(t).all(), 'nonfinite_bake')
     # Quaternion components are sampled independently by ActorClip. Keep adjacent
-    # signs continuous before emitting linear component curves.
+    # signs continuous before emitting curves.
     for f in range(1, frames):
         q[f] *= np.where(np.sum(q[f-1]*q[f], axis=1, keepdims=True) < 0, -1, 1)
     q /= np.linalg.norm(q, axis=-1, keepdims=True)
@@ -128,11 +128,16 @@ def encode_clip(rig_doc, name, q, t, sample_rate, provenance):
             for component in range(data.shape[1]):
                 values = data[:, component]
                 ts, vs = (times[:1], values[:1]) if np.max(np.abs(values-values[0])) < 1e-8 else (times, values)
-                slopes = np.diff(vs)/np.diff(ts) if len(ts)>1 else np.array([])
                 offset = len(keys)
-                for k, (time, value) in enumerate(zip(ts, vs)):
-                    keys.extend(struct.pack('<6fI', time, value, slopes[k-1] if k else 0,
-                        slopes[k] if k<len(slopes) else 0, 1/3, 1/3, 0))
+                if tangent_mode == 'pchip':
+                    d = _pchip_tangents(ts, vs)
+                    for k, (time, value) in enumerate(zip(ts, vs)):
+                        keys.extend(struct.pack('<6fI', time, value, d[k], d[k], 1/3, 1/3, 0))
+                else:
+                    slopes = np.diff(vs)/np.diff(ts) if len(ts)>1 else np.array([])
+                    for k, (time, value) in enumerate(zip(ts, vs)):
+                        keys.extend(struct.pack('<6fI', time, value, slopes[k-1] if k else 0,
+                            slopes[k] if k<len(slopes) else 0, 1/3, 1/3, 0))
                 curves.append(dict(node=i, attribute=attribute, component=component, offset=offset,
                                    count=len(ts), stride=28, pre_wrap=1, post_wrap=1))
     need(curves, 'vmd_has_no_target_motion')
@@ -142,11 +147,11 @@ def encode_clip(rig_doc, name, q, t, sample_rate, provenance):
     return metadata, bytes(keys)
 
 
-def append_clip(root, manifest_path, rig_doc, name, q, t, sample_rate, provenance):
+def append_clip(root, manifest_path, rig_doc, name, q, t, sample_rate, provenance, tangent_mode='linear'):
     import numpy as np
     archive = read_json(manifest_path)
     need(name not in {c['name'] for c in archive['clips']}, 'motion_already_imported')
-    metadata, keys = encode_clip(rig_doc, name, q, t, sample_rate, provenance)
+    metadata, keys = encode_clip(rig_doc, name, q, t, sample_rate, provenance, tangent_mode=tangent_mode)
     frames, nodes = q.shape[:2]; times = np.arange(frames)/sample_rate
     stem = sha256_bytes(name.encode()); base = manifest_path.parent
     kp = base/'clips'/(stem+'.keys'); kp.parent.mkdir(exist_ok=True); kp.write_bytes(keys)
@@ -186,10 +191,11 @@ def prepare_music(source, output, start, duration):
 
 
 def import_motion(package_path, vmd_path, output, source_model=None, duration=None, start=0,
-                  title=None, bgm=None, bgm_start=None, foot_ik=True, face=True, camera=None, progress=None):
+                  title=None, bgm=None, bgm_start=None, foot_ik=True, face=True, camera=None, progress=None,
+                  source_fps=None, morph_vmd=None, morph_fps=30.0, sample_rate=30, preroll=0.0, tangent_mode='pchip'):
     """progress(stage, fraction) is told the stages sample, retarget and write, each from 0 to 1."""
     import numpy as np
-    from .mmd.io import last_frame
+    from .mmd.io import last_frame, detect_source_fps, _slerp
     from .mmd.skeleton import MmdSkeleton, add_semi_standard_bones
     from .mmd.reference import build_pmd
     from .mmd.native_rig import NativeRig, package_humanoid
@@ -202,55 +208,102 @@ def import_motion(package_path, vmd_path, output, source_model=None, duration=No
     need(not output.exists(), 'output_already_exists')
     need(not output.is_relative_to(package.root),'output_inside_input_package')
     need(math.isfinite(start) and start >= 0, 'invalid_motion_start')
+    need(isinstance(sample_rate, (int, float)) and not isinstance(sample_rate, bool) and 15 <= sample_rate <= 120, 'invalid_sample_rate')
+    sample_rate = int(round(sample_rate))
+    need(math.isfinite(morph_fps) and 1 <= morph_fps <= 240, 'invalid_morph_fps')
+    need(math.isfinite(preroll) and 0 <= preroll <= 10.0, 'invalid_preroll')
     if bgm:need(Path(bgm).is_file() and Path(bgm).stat().st_size<=256*1024**2,'bgm_file_limit')
-    vmd=checked_vmd(vmd_path); source_frames=last_frame(vmd)+1
+    vmd=checked_vmd(vmd_path)
+    extra_morph=checked_morph_vmd(morph_vmd) if morph_vmd else None
     camera_vmd=checked_camera_vmd(camera) if camera else None
-    first=round(start*30); available=(source_frames-1-first)/30
+    if source_fps is None:
+        src_fps = 30.0
+    elif isinstance(source_fps, str) and source_fps.lower() == 'auto':
+        src_fps = detect_source_fps(vmd, extra_morph)
+    else:
+        src_fps = float(source_fps)
+        need(math.isfinite(src_fps) and 1 <= src_fps <= 240, 'invalid_source_fps')
+    source_frames=last_frame(vmd)+1
+    first_src=round(start*src_fps); available=(source_frames-1-first_src)/src_fps
     seconds=available if duration is None else duration
     need(math.isfinite(seconds) and 0 < seconds <= 180 and seconds <= available+1e-6, 'motion_range_limit_180_seconds')
-    count=round(seconds*30)+1
-    start=first/30;seconds=(count-1)/30
+    count=round(seconds*sample_rate)+1
+    start=first_src/src_fps; seconds=(count-1)/sample_rate
+    frame_times=first_src + np.arange(count, dtype=float)*(src_fps/sample_rate)
     if source_model:
         model=checked_pmd(source_model); model_source=digest(source_model)
     else: model=build_pmd(); model_source='authored-standard-control-reference-v1'
     need(len(model.bones)<=4096 and len({b.name for b in model.bones})==len(model.bones), 'invalid_source_bones')
     model=add_semi_standard_bones(model); sk=MmdSkeleton(model)
-    need((first+count)*sk.B<=4_000_000,'source_evaluation_budget')
-    ev=sk.evaluate_vmd(vmd, first+count)
-    ev={k:(v[first:first+count] if isinstance(v,np.ndarray) and v.shape[0]==first+count else v) for k,v in ev.items()}
+    need(count*sk.B<=4_000_000,'source_evaluation_budget')
+    ev=sk.evaluate_vmd(vmd, frame_times=frame_times)
     progress('sample', 1); progress('retarget', 0)
+    extra_identity = {}
+    if source_fps is not None: extra_identity['source_fps'] = src_fps
+    if sample_rate != 30: extra_identity['sample_rate'] = sample_rate
+    if morph_vmd: extra_identity.update(morph_vmd=digest(morph_vmd), morph_fps=float(morph_fps))
+    if preroll > 0: extra_identity['preroll'] = float(preroll)
     identity=sha256_bytes(canonical_json(dict(vmd=digest(vmd_path),model=model_source,start=start,duration=seconds,
-        foot_ik=foot_ik,bgm=digest(bgm) if bgm else None,bgm_start=bgm_start,**(dict(camera=digest(camera)) if camera else {}))))[:16]
+        foot_ik=foot_ik,bgm=digest(bgm) if bgm else None,bgm_start=bgm_start,
+        **(dict(camera=digest(camera)) if camera else {}), **extra_identity)))[:16]
     name='imported_vmd_'+identity; action='mmd_'+identity
     rig_doc,rig_sha=package_rig(package); rig=NativeRig(rig_doc,package_humanoid(package))
     conv=VmdToNative(rig,Retarget,sk); bake=conv.bake(ev,foot_ik=foot_ik,progress=lambda fraction:progress('retarget',fraction))
     q,t=rig.unity_pose(bake['Q'],bake['T'])
+    preroll_frames=round(preroll*sample_rate)
+    preroll_seconds=preroll_frames/sample_rate
+    if preroll_frames > 0:
+        q_rest,t_rest=rig.unity_pose(rig.q0[None],rig.t0[None])
+        u=np.arange(preroll_frames, dtype=float)/preroll_frames
+        w=(u**3)*(10.0+u*(-15.0+6.0*u))
+        pre_q=_slerp(np.broadcast_to(q_rest[0],(preroll_frames,rig.N,4)),
+                     np.broadcast_to(q[0],(preroll_frames,rig.N,4)), w[:,None])
+        pre_t=t_rest[0][None,:,:]+(t[0][None,:,:]-t_rest[0][None,:,:])*w[:,None,None]
+        q=np.concatenate([pre_q,q],axis=0)
+        t=np.concatenate([pre_t,t],axis=0)
+    total_frames=q.shape[0]; total_seconds=(total_frames-1)/sample_rate
     provenance=dict(vmd_sha256=digest(vmd_path),source_model=model_source,source_start_seconds=start,foot_ik=foot_ik,
-                    target_rig_sha256=rig_sha,coordinate_boundary='MMD mirrorZ -> calibrated RH -> Unity mirrorX')
+                    target_rig_sha256=rig_sha,coordinate_boundary='MMD mirrorZ -> calibrated RH -> Unity mirrorX',
+                    **({'source_fps': src_fps} if source_fps is not None else {}),
+                    **({'preroll_seconds': preroll_seconds} if preroll_frames > 0 else {}))
     clip=dict(name=name,action=action,title=title or Path(vmd_path).stem,trigger='导入 VMD · 手动播放',q=q,t=t,provenance=provenance,
+              sample_rate=sample_rate,tangent_mode=tangent_mode,
               bgm=dict(source=bgm,start=start if bgm_start is None else bgm_start,file=identity+'.wav') if bgm else None)
     if camera_vmd:
         from .mmd import camera as mmd_camera
-        sampled=mmd_camera.sample(camera_vmd.cameras,first,count)
+        sampled=mmd_camera.sample(camera_vmd.cameras,first_src,count,frame_times=frame_times)
         # The source hips the bake measures the root offset from (VmdToNative.bake's init).
         source_origin=conv.src.positions(ev['wp'][:1],ev['wq'][:1])[0,conv.ret.si['Hips']]
         to_rig=dict(scale=float(conv.ret.scale),basis=conv.C.tolist(),source_origin=source_origin.tolist(),
                     rig_origin=conv.rig.rest[conv.rig.hips,:3,3].tolist(),unity_mirror='x')
-        clip['camera']=mmd_camera.document(name,sampled,to_rig)
-    warnings=[];inputs=package_face(package) if face and vmd.morphs else None
+        clip['camera']=mmd_camera.document(name,sampled,to_rig,frame_rate=sample_rate)
+    warnings=[];has_any_morph=bool(vmd.morphs) or bool(extra_morph and extra_morph.morphs)
+    inputs=package_face(package) if face and has_any_morph else None
     if inputs:
         from .mmd import morph
-        dense,mapped,unmapped=morph.bake(vmd.morphs,first,count,morph.resolve(*inputs))
-        result=morph.budgeted(dense) if mapped else None
+        mapping=morph.resolve(*inputs)
+        dense={}; mapped_set=set(); unmapped_set=set()
+        if vmd.morphs:
+            d0, m0, u0 = morph.bake(vmd.morphs, first_src, count, mapping, frame_times=frame_times)
+            for k, arr in d0.items(): dense[k] = arr
+            mapped_set.update(m0); unmapped_set.update(u0)
+        if extra_morph and extra_morph.morphs:
+            morph_times = start * float(morph_fps) + np.arange(count, dtype=float) * (float(morph_fps) / sample_rate)
+            d1, m1, u1 = morph.bake(extra_morph.morphs, 0, count, mapping, frame_times=morph_times)
+            for k, arr in d1.items():
+                dense[k] = np.clip(dense[k] + arr, 0, 1) if k in dense else arr
+            mapped_set.update(m1); unmapped_set.update(u1)
+        mapped=sorted(mapped_set); unmapped=sorted(unmapped_set - mapped_set)
+        result=morph.budgeted(dense,fps=sample_rate,tangent_mode=tangent_mode,time_offset=preroll_seconds) if mapped else None
         if mapped and result is None:warnings.append('face_budget')
         if result:
             curves,tolerance=result;slots=morph.load_slots()
             blink=any(slots.get(x) in ('blink','blink_l','blink_r') for x in mapped)
-            clip['face']=dict(document=morph.clip_document(clip['title'],seconds,curves,blink),mapped=mapped,unmapped=unmapped,
-                              controls=len(curves),keys=sum(map(len,curves.values())),tolerance=tolerance)
+            clip['face']=dict(document=morph.clip_document(clip['title'],total_seconds,curves,blink,fps=sample_rate,tangent_mode=tangent_mode,time_offset=preroll_seconds),
+                              mapped=mapped,unmapped=unmapped,controls=len(curves),keys=sum(map(len,curves.values())),tolerance=tolerance)
     def report(installed,rig_unchanged):
         [(metadata,music_info)]=installed
-        doc=dict(schema='endfield-vmd-import/v1',character=package.id,action=action,clip=name,frames=count,duration=metadata['length'],target_nodes=rig.N,
+        doc=dict(schema='endfield-vmd-import/v1',character=package.id,action=action,clip=name,frames=total_frames,duration=metadata['length'],target_nodes=rig.N,
             provenance=provenance,coverage=coverage(conv,vmd),bgm=music_info,original_rig_unchanged=rig_unchanged,
             scope='retargeted body/fingers; source morph/camera/light/physics are not applied')
         # Without a face clip the report keeps its earlier bytes.
@@ -327,7 +380,7 @@ def install_clips(package,output,clips,report_name,report):
         installed=[]
         for clip in clips:
             name,action,q,t,bgm=clip['name'],clip['action'],clip['q'],clip['t'],clip['bgm']
-            metadata=append_clip(runtime,archive_path,rig_doc,name,q,t,30,clip['provenance'])
+            metadata=append_clip(runtime,archive_path,rig_doc,name,q,t,clip.get('sample_rate',30),clip['provenance'],tangent_mode=clip.get('tangent_mode','pchip'))
             stance_start,stance_end=stances(rig_doc,q,t,humanoid=humanoid)
             palette['clips'].append(dict(name=name,loop=False,length=metadata['length']))
             change(animation,'intent-motion-map.json',lambda d:d['clips'].update({name:dict(interruptible=True,end_at_length=True)}))
@@ -392,6 +445,11 @@ def main():
     p.add_argument('--source-model',type=Path,help='optional original PMD skeleton; default authored standard MMD control reference')
     p.add_argument('--bgm',type=Path);p.add_argument('--bgm-start',type=float);p.add_argument('--start',type=float,default=0);p.add_argument('--duration',type=float)
     p.add_argument('--title');p.add_argument('--no-foot-ik',action='store_true');p.add_argument('--export',action='store_true')
+    p.add_argument('--source-fps',default=None,help='source VMD frame rate (30, 60, or auto)')
+    p.add_argument('--sample-rate',type=int,default=30,help='target baked clip frame rate (15..120)')
+    p.add_argument('--morph-vmd',type=Path,help='optional paired morph-only VMD')
+    p.add_argument('--morph-fps',type=float,default=30.0,help='paired morph VMD frame rate')
+    p.add_argument('--preroll',type=float,default=0.0,help='seconds of rest-to-frame-0 C2 ease-in preroll')
     a=p.parse_args();need(not a.output.exists(),'output_already_exists')
     need(not a.output.resolve().is_relative_to(a.library.resolve()),'output_inside_input_library')
     need(len(set(a.character))==len(a.character),'duplicate_character')
@@ -400,7 +458,9 @@ def main():
     try:
         for cid in a.character:
             target=a.output/'packages-built'/cid
-            report=import_motion(by[cid].root,a.vmd,target,a.source_model,a.duration,a.start,a.title,a.bgm,a.bgm_start,not a.no_foot_ik)
+            report=import_motion(by[cid].root,a.vmd,target,a.source_model,a.duration,a.start,a.title,a.bgm,a.bgm_start,
+                                 not a.no_foot_ik,source_fps=a.source_fps,morph_vmd=a.morph_vmd,morph_fps=a.morph_fps,
+                                 sample_rate=a.sample_rate,preroll=a.preroll)
             reports.append(report);selected[cid]=target
             if a.export:export_package(target,a.output/(cid+'.endfield-character'))
         library=Library(a.output/'library');library.root.mkdir()

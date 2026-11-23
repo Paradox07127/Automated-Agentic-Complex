@@ -219,7 +219,7 @@ def _slerp(q0, q1, t):
     return q / np.linalg.norm(q, axis=-1, keepdims=True)
 
 
-def sample_bone_keys(keys, n_frames):
+def sample_bone_keys(keys, n_frames, frame_times=None):
     """Per-frame (pos (F,3), quat xyzw (F,4)) for one bone's keys.
 
     The interpolation stored on a key shapes the segment that ends at that key; outside the keyed range the
@@ -232,14 +232,15 @@ def sample_bone_keys(keys, n_frames):
     kp = np.array([k.pos for k in ks], float)
     kq = np.array([k.rot for k in ks], float)
     kq /= np.linalg.norm(kq, axis=1, keepdims=True)
-    f = np.arange(n_frames, dtype=float)
-    i1 = np.clip(np.searchsorted(kf, f, side='right'), 1, max(len(ks) - 1, 1))
-    pos = np.zeros((n_frames, 3))
-    rot = np.zeros((n_frames, 4))
+    f = np.arange(n_frames, dtype=float) if frame_times is None else np.asarray(frame_times, float)
+    out_frames = len(f)
+    pos = np.zeros((out_frames, 3))
+    rot = np.zeros((out_frames, 4))
     if len(ks) == 1:
         pos[:] = kp[0]
         rot[:] = kq[0]
         return pos, rot
+    i1 = np.clip(np.searchsorted(kf, f, side='right'), 1, len(ks) - 1)
     i0 = i1 - 1
     span = kf[i1] - kf[i0]
     t = np.clip((f - kf[i0]) / span, 0, 1)
@@ -250,14 +251,16 @@ def sample_bone_keys(keys, n_frames):
     return pos, rot
 
 
-def sample_vmd(v, n_frames=None):
-    """{bone name: (pos, quat)} sampled at every frame 0..n_frames-1 (30 fps), file coordinates."""
-    if n_frames is None:
+def sample_vmd(v, n_frames=None, frame_times=None):
+    """{bone name: (pos, quat)} sampled at frames 0..n_frames-1 (or continuous frame_times), file coordinates."""
+    if frame_times is not None:
+        n_frames = len(frame_times)
+    elif n_frames is None:
         n_frames = last_frame(v) + 1
     by = {}
     for k in v.bones:
         by.setdefault(k.name, []).append(k)
-    return {name: sample_bone_keys(keys, n_frames) for name, keys in by.items()}
+    return {name: sample_bone_keys(keys, n_frames, frame_times=frame_times) for name, keys in by.items()}
 
 
 def last_frame(v):
@@ -265,13 +268,41 @@ def last_frame(v):
     return max(frames) if frames else 0
 
 
-def ik_enabled(v, n_frames):
+def detect_source_fps(v, morph_vmd=None):
+    """Infer source VMD authoring frame rate (30.0 or 60.0) from keyframe cadence and optional paired 30fps morph VMD."""
+    body_max = max((k.frame for k in v.bones), default=0)
+    if morph_vmd is not None and getattr(morph_vmd, 'morphs', None):
+        morph_max = max(k.frame for k in morph_vmd.morphs)
+        if body_max >= 120 and morph_max >= 30 and 1.75 <= (body_max / morph_max) <= 2.25:
+            return 60.0
+    by = {}
+    for k in v.bones:
+        by.setdefault(k.name, []).append(k.frame)
+    unit_steps, total_steps = 0, 0
+    for frames in by.values():
+        fs = sorted(set(frames))
+        if len(fs) < 120:
+            continue
+        diffs = np.diff(fs)
+        unit_steps += int(np.sum(diffs == 1))
+        total_steps += len(diffs)
+    if total_steps >= 500 and (unit_steps / total_steps) >= 0.85 and body_max >= 3600:
+        return 60.0
+    return float(FPS)
+
+
+def ik_enabled(v, n_frames, frame_times=None):
     """{ik bone name: bool (F,)}; a property key holds until the next one, IK defaults to on."""
     out = {}
+    ft = None if frame_times is None else np.asarray(frame_times, float)
+    count = len(ft) if ft is not None else n_frames
     for frame, _, states in sorted(v.iks, key=lambda x: x[0]):
         for name, enabled in states:
-            arr = out.setdefault(name, np.ones(n_frames, bool))
-            arr[frame:] = enabled
+            arr = out.setdefault(name, np.ones(count, bool))
+            if ft is None:
+                arr[frame:] = enabled
+            else:
+                arr[ft >= frame] = enabled
     return out
 
 

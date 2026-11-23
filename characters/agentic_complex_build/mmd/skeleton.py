@@ -117,11 +117,14 @@ class MmdSkeleton:
                              'chain': list(k.chain), 'knee': [('ひざ' in self.names[c]) for c in k.chain],
                              'name': self.names[k.bone]})
 
-    def locals_from_vmd(self, vmd, n_frames=None):
+    def locals_from_vmd(self, vmd, n_frames=None, frame_times=None):
         """Local (F,B,4) rotations and (F,B,3) translations in RH, the keyed bone names and unknown names."""
-        if n_frames is None:
+        if frame_times is not None:
+            frame_times = np.asarray(frame_times, float)
+            n_frames = len(frame_times)
+        elif n_frames is None:
             n_frames = last_frame(vmd) + 1
-        samples = sample_vmd(vmd, n_frames)
+        samples = sample_vmd(vmd, n_frames, frame_times=frame_times)
         lq = np.zeros((n_frames, self.B, 4))
         lq[..., 3] = 1
         lt = np.zeros((n_frames, self.B, 3))
@@ -250,10 +253,10 @@ class MmdSkeleton:
         lq, wq, wp = self.solve_ik(lq, lt, wq, wp, enabled)
         return {'lq': lq, 'wq': wq, 'wp': wp, 'R': qmat(wq)}
 
-    def evaluate_vmd(self, vmd, n_frames=None, translation_scale=1.0):
-        lq, lt, keyed, missing = self.locals_from_vmd(vmd, n_frames)
+    def evaluate_vmd(self, vmd, n_frames=None, translation_scale=1.0, frame_times=None):
+        lq, lt, keyed, missing = self.locals_from_vmd(vmd, n_frames, frame_times=frame_times)
         lt = lt * translation_scale  # every bone's position keys, like MMD's ボーンフレーム位置角度補正
-        out = self.evaluate(lq, lt, ik_enabled(vmd, lq.shape[0]))
+        out = self.evaluate(lq, lt, ik_enabled(vmd, lq.shape[0], frame_times=frame_times))
         out.update(lt=lt, keyed=keyed, missing=missing)
         return out
 
@@ -323,4 +326,9 @@ def add_semi_standard_bones(pmd):
         if s + '親指０' not in idx and s + '親指１' in idx:
             t1 = idx[s + '親指１']
             add(s + '親指０', bones[t1].parent, mid(s + '手首', s + '親指１'), 0, [t1])
+        if s + '足先EX' not in idx and s + '足首' in idx:
+            ankle = idx[s + '足首']
+            toes = [idx[s + 'つま先']] if s + 'つま先' in idx else []
+            pos = mid(s + '足首', s + 'つま先') if toes else bones[ankle].pos
+            add(s + '足先EX', ankle, pos, 0, toes)
     return replace(pmd, bones=bones)

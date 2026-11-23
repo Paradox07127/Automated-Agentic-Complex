@@ -12,8 +12,8 @@ import wave
 import numpy as np
 CHARACTERS=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(CHARACTERS))
-from agentic_complex_build.import_vmd import checked_vmd,checked_pmd,append_clip,prepare_music,ref
-from agentic_complex_build.mmd.io import Vmd,BoneKey,write_vmd,write_pmd
+from agentic_complex_build.import_vmd import checked_vmd,checked_morph_vmd,checked_pmd,append_clip,encode_clip,import_motion,prepare_music,ref
+from agentic_complex_build.mmd.io import Vmd,BoneKey,MorphKey,write_vmd,write_pmd
 from agentic_complex_build.mmd.reference import build_pmd
 from agentic_complex_build.mmd.native_rig import NativeRig
 from agentic_complex_build.mmd.skeleton import MmdSkeleton,add_semi_standard_bones
@@ -208,6 +208,86 @@ class VmdImportTests(unittest.TestCase):
         deps=list(native_bundle.references(doc,'motion_media'))
         self.assertEqual(deps[0][1]['file'],'music/test.wav')
         with self.assertRaises(ValueError):prepare_music(source,output,-1,.1)
+
+    def testCheckedMorphVmdAndAutoFpsAndToeEX(self):
+        morph_only=self.root/'morph.vmd'
+        write_vmd(Vmd(morphs=[MorphKey('あ',0,0.0),MorphKey('あ',30,1.0),MorphKey('まばたき',60,0.8)]),morph_only)
+        with self.assertRaises(ValueError):checked_vmd(morph_only)
+        parsed=checked_morph_vmd(morph_only)
+        self.assertEqual(len(parsed.morphs),3)
+
+        body60=self.root/'dance60.vmd'
+        keys=[]
+        for f in range(0,121):
+            a=0.35*math.sin(f*math.pi/60.0)
+            keys.append(BoneKey('上半身',f,(0,0,0),(0,math.sin(a/2),0,math.cos(a/2))))
+        keys+=[BoneKey('左足先EX',0,(0,0,0),(0,0,0,1)),BoneKey('左足先EX',60,(0,0,0),(math.sin(.25),0,0,math.cos(.25)))]
+        write_vmd(Vmd(bones=keys),body60)
+
+        from agentic_complex_build.mmd.io import detect_source_fps
+        self.assertEqual(detect_source_fps(checked_vmd(body60),parsed),60.0)
+
+        doc=authored_rig();hum=humanoid_map(doc)
+        rig=NativeRig(doc,hum)
+        sk=MmdSkeleton(add_semi_standard_bones(build_pmd()))
+        self.assertIn('左足先EX',sk.idx);self.assertIn('右足先EX',sk.idx)
+        ev60=sk.evaluate_vmd(checked_vmd(body60),frame_times=np.arange(0,61,dtype=float)*2.0)
+        conv=VmdToNative(rig,Retarget,sk)
+        cov={row['bone']:row['status'] for row in conv and __import__('agentic_complex_build.mmd.retarget',fromlist=['coverage']).coverage(conv,checked_vmd(body60))['bones']}
+        self.assertEqual(cov['左足先EX'],'mapped')
+        bake=conv.bake(ev60)
+        toes_q=bake['Q'][:,rig.humanoid['leftToes']]
+        self.assertGreater(np.max(np.abs(toes_q[30]-toes_q[0])),0.05)
+
+    def testPchipTangentsAndSourceFpsAndPrerollImport(self):
+        doc=authored_rig();rig=NativeRig(doc,humanoid_map(doc))
+        # Plateau + step input checks zero overshoot and C1 tangent continuity (in == out).
+        frames=6
+        q=np.broadcast_to([0.,0,0,1],(frames,rig.N,4)).copy()
+        t=np.broadcast_to(np.array([n['position']for n in doc['nodes']]),(frames,rig.N,3)).copy()
+        vals=np.array([0.0,0.0,0.5,1.0,1.0,1.0])
+        t[:,0,1]+=vals
+        meta,keys=encode_clip(doc,'pchip_test',q,t,30,dict(vmd_sha256='c'*64),tangent_mode='pchip')
+        curve=next(c for c in meta['curves'] if c['node']==0 and c['attribute']=='position' and c['component']==1)
+        rows=[struct.unpack_from('<6fI',keys,curve['offset']+28*i) for i in range(curve['count'])]
+        for time_v,val_v,in_t,out_t,_,_,_ in rows:
+            self.assertAlmostEqual(in_t,out_t,places=6)
+        # Flat plateau knots 0, 4, 5 must have 0 slope (no cubic ring/overshoot).
+        self.assertAlmostEqual(rows[0][2],0.0,places=6)
+        self.assertAlmostEqual(rows[4][2],0.0,places=6)
+        self.assertAlmostEqual(rows[5][2],0.0,places=6)
+        # Midpoint of smooth ramp (segment 1->2 vs 2->3) must have non-linear Hermite cubic coefficients.
+        dt=rows[2][0]-rows[1][0]
+        m0=rows[1][3]*dt;m1=rows[2][2]*dt
+        a_coef=2*rows[1][1]-2*rows[2][1]+m0+m1
+        self.assertGreater(abs(a_coef),1e-4)
+
+        # Full import_motion test with source_fps=60, paired morph_vmd, and preroll=0.5s.
+        sys.path.insert(0,str(CHARACTERS.parent/'agent/agentd/tests'))
+        from test_motion_tool import motion_fixture
+        source=self.root/'source';motion_fixture(source,rig=doc,motion=dict(animation={
+            'original-face-controls.json':dict(
+                schema='endfield-original-face-controls-v2',
+                controls=[dict(name='jaw_open',bones=['jawJoint'])],
+                poses=[dict(name='A',weights=[dict(control='jaw_open',weight=1.0)])],
+                lipsync_groups=[dict(label='neutral',vowels=dict(a='A'))]),
+            'emotion-lipsync.json':dict(default='neutral')}))
+        vmd_path=self.root/'b60.vmd'
+        bones=[BoneKey('上半身',f,(0,0,0),(0,math.sin(0.25*f/60.0),0,math.cos(0.25*f/60.0))) for f in range(0,121,2)]
+        write_vmd(Vmd(bones=bones),vmd_path)
+        morph_path=self.root/'expr.vmd'
+        write_vmd(Vmd(morphs=[MorphKey('あ',0,0.0),MorphKey('あ',60,0.9)]),morph_path)
+        out_pkg=self.root/'imported_60'
+        report=import_motion(source,vmd_path,out_pkg,source_fps=60,morph_vmd=morph_path,morph_fps=30,preroll=0.5)
+        # 120 frames @ 60fps = 2.0s + 0.5s preroll = 2.5s (76 frames @ 30fps).
+        self.assertAlmostEqual(report['duration'],2.5,places=5)
+        self.assertEqual(report['frames'],76)
+        manifest=json.loads((out_pkg/'runtime/actor.json').read_text())
+        imported=next(c for c in manifest['clips'] if c['name']==report['clip'])
+        self.assertAlmostEqual(imported['length'],2.5,places=5)
+        self.assertEqual(report['face']['facial_animation'],report['action'])
+        self.assertIn('あ',report['face']['mapped'])
+        native_bundle.verify(out_pkg/'runtime')
 
 
 if __name__=='__main__':unittest.main()

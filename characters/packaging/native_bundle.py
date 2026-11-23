@@ -100,7 +100,7 @@ def references(doc,kind):
             if doc['schema']=='endfield-motion-media/v1' or 'audio' in track:yield ('tracks',i,'audio'),track['audio'],'blob',''
             if doc['schema']=='endfield-motion-media/v2' and 'camera' in track:yield ('tracks',i,'camera'),track['camera'],'blob',''
     elif kind=='bone_physics':
-        require(doc.get('schema')=='metal-actor-bone-physics/v1','unknown bone physics schema')
+        require(doc.get('schema') in ['metal-actor-bone-physics/v1','metal-actor-bone-physics/v2'],'unknown bone physics schema')
         for i,r in enumerate(doc['source_files']):yield ('source_files',i),r,'blob',''
     elif kind=='lighting':
         require(doc.get('schema')=='metal-product-lighting/v1','unknown lighting schema')
