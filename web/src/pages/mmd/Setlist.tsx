@@ -97,8 +97,8 @@ export function Setlist({ who, cards, list, blocked }: SetlistProps) {
             onClick={list.toggle}
           />
           <div className={styles.segs}>
-            <GameSeg label="循环" caption="循环" micro="LOOP" options={LOOPS.map((o) => ({ ...o, disabled: off != null, ...(off ? { title: off } : {}) }))} value={list.loop} onChange={(v) => list.setLoop(v as MotionPlaylist['loop'])} />
-            <GameSeg label="连播速度" caption="速度" micro="SPEED" options={SPEEDS.map((o) => ({ ...o, disabled: off != null, ...(off ? { title: off } : {}) }))} value={String(list.speed)} onChange={(v) => list.setSpeed(Number(v) as MotionPlaylist['speed'])} />
+            <GameSeg variant="setting" label="循环" caption="循环" micro="LOOP" options={LOOPS.map((o) => ({ ...o, disabled: off != null, ...(off ? { title: off } : {}) }))} value={list.loop} onChange={(v) => list.setLoop(v as MotionPlaylist['loop'])} />
+            <GameSeg variant="setting" label="连播速度" caption="速度" micro="SPEED" options={SPEEDS.map((o) => ({ ...o, disabled: off != null, ...(off ? { title: off } : {}) }))} value={String(list.speed)} onChange={(v) => list.setSpeed(Number(v) as MotionPlaylist['speed'])} />
           </div>
         </div>
       </div>

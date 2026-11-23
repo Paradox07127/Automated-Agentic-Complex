@@ -187,6 +187,8 @@ export function PhotoMode(p: PhotoModeProps) {
             <div className={styles.hd}>
               <span className={styles.t}>对焦</span>
               <GameSeg
+                variant="setting"
+                size="compact"
                 label="对焦"
                 value={focus === 'auto' ? 'auto' : 'manual'}
                 options={[

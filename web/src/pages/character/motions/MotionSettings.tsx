@@ -283,6 +283,7 @@ function Settings({ id, offline, toast }: MotionSettingsProps & { id: string }) 
     <div className={styles.ms} data-motion-settings="">
       <div className={styles.mode}>
         <GameSeg
+          variant="setting"
           label="池子类型"
           value={m}
           options={[

@@ -58,7 +58,7 @@ export function Detail(p: DetailProps) {
             <span className={styles.lb} aria-hidden="true">
               {p.canLoop ? '播放' : '舞台'}
             </span>
-            <GameSeg label={p.canLoop ? '播放方式' : '舞台播放方式'} value={p.loop ? 'loop' : 'once'} options={LOOP} onChange={(v) => p.onLoop(v === 'loop')} />
+            <GameSeg variant="setting" label={p.canLoop ? '播放方式' : '舞台播放方式'} value={p.loop ? 'loop' : 'once'} options={LOOP} onChange={(v) => p.onLoop(v === 'loop')} />
           </span>
         )}
         <span className={styles.sp} />

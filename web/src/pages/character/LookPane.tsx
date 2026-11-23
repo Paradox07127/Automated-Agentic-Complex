@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { getBridge, type CharacterAppearance, type CharacterLayer, type ImportState } from '../../bridge';
 import { AgentdCallError } from '../../bridge/agentd';
-import { Btn, Dialog, Icon } from '../../ui';
-import { DarkRow, GameSeg, MicroLabel, TitleBar, WhiteCapsule, YellowKey } from '../../ui/game';
+import { Btn, Dialog, Icon, Select, Switch } from '../../ui';
+import { DarkRow, MicroLabel, TitleBar, WhiteCapsule, YellowKey } from '../../ui/game';
 import { useCompact } from './compact';
 import type { Toast } from './feedback';
 import { outfitImportWarning } from './labels';
@@ -230,7 +230,7 @@ export function LookPane(p: LookPaneProps) {
             </span>
             <span className={styles.sizeMain}>
               <span className={styles.presets}>
-                <GameSeg label="大小预设" options={SIZES.map((v) => ({ value: String(v), label: `${v}%` }))} value={String(scale)} onChange={(v) => setSize(Number(v))} />
+                <Select label="大小预设" options={SIZES.map((v) => ({ value: String(v), label: `${v}%` }))} value={String(scale)} onChange={(v) => setSize(Number(v))} />
               </span>
               <span className={styles.track} style={{ '--at': at(scale) } as CSSProperties}>
                 <i className={styles.line} aria-hidden="true" />
@@ -270,16 +270,7 @@ export function LookPane(p: LookPaneProps) {
                   lead={<span className={styles.idx}>{pad(i + 1)}</span>}
                   compact={compact}
                   end={
-                    <GameSeg
-                      label={l.name}
-                      size={compact ? 'compact' : 'normal'}
-                      options={[
-                        { value: 'on', label: '显示' },
-                        { value: 'off', label: '隐藏' },
-                      ]}
-                      value={l.visible ? 'on' : 'off'}
-                      onChange={(v) => p.onLayer(l.id, v === 'on', l.name)}
-                    />
+                    <Switch variant="setting" label={l.name} checked={l.visible} onChange={(on) => p.onLayer(l.id, on, l.name)} />
                   }
                 />
               </div>

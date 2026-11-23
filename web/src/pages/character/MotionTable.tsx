@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { AvatarAction, ImportedMotionEntry } from '../../bridge';
-import { Btn, Icon } from '../../ui';
-import { DarkRow, Diamond, GameSeg, MicroLabel, TitleBar, type DarkRowMark } from '../../ui/game';
+import { Btn, Icon, Switch } from '../../ui';
+import { DarkRow, Diamond, MicroLabel, TitleBar, type DarkRowMark } from '../../ui/game';
 import { SaveNote } from './Commit';
 import { useCompact } from './compact';
 import { motionFormatLabel, SECTIONS } from './labels';
@@ -45,10 +45,6 @@ export interface MotionTableProps {
 const NO_IMPORTS: Record<string, ImportedMotionEntry> = {};
 const sum = (v: number[] | undefined) => (v ?? []).reduce((a, b) => a + b, 0);
 const NO_PLAY = '由行为触发 │ 不支持单独预览';
-const ON_OFF = [
-  { value: 'on', label: '开' },
-  { value: 'off', label: '关' },
-];
 
 function Lock() {
   return (
@@ -165,15 +161,7 @@ export function MotionTable(p: MotionTableProps) {
                     </span>
                   )}
                 </span>
-                <GameSeg
-                  variant="onoff"
-                  size={compact ? 'compact' : 'normal'}
-                  label={a.label}
-                  value={v ? 'on' : 'off'}
-                  options={lockReason ? ON_OFF.map((o) => ({ ...o, title: lockReason })) : ON_OFF}
-                  disabled={lockReason != null}
-                  onChange={(x) => p.onToggle(a, x === 'on')}
-                />
+                <Switch variant="setting" label={a.label} checked={v} disabled={lockReason != null} disabledReason={lockReason ?? undefined} onChange={(on) => p.onToggle(a, on)} />
               </span>
             }
           />

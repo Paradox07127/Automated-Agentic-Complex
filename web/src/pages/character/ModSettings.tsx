@@ -1,8 +1,8 @@
 // 角色页「模组设置」: the current appearance's switches from agentd's table (C6), each change sent through avatar.modSettings.set.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { getBridge, type ModSettingAdjusted, type ModSettingValues } from '../../bridge';
-import { Icon } from '../../ui';
-import { DarkRow, Diamond, GameSeg, MicroLabel, Stepper, TitleBar, WhiteCapsule } from '../../ui/game';
+import { Icon, Switch } from '../../ui';
+import { DarkRow, Diamond, MicroLabel, Stepper, TitleBar, WhiteCapsule } from '../../ui/game';
 import { useCompact } from './compact';
 import type { Toast } from './feedback';
 import type { ModSettingRow } from './modSettingsTable';
@@ -168,17 +168,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
     const two = shownValue(s);
     if (two)
       return (
-        <GameSeg
-          label={s.name}
-          size={compact ? 'compact' : 'normal'}
-          options={[
-            { value: String(two.on), label: '显示' },
-            { value: String(two.off), label: '隐藏' },
-          ]}
-          value={String(value(s))}
-          disabled={off}
-          onChange={(v) => pick(s, Number(v))}
-        />
+        <Switch variant="setting" label={s.name} checked={value(s) === two.on} disabled={off} onChange={(on) => pick(s, on ? two.on : two.off)} />
       );
     return (
       <Stepper

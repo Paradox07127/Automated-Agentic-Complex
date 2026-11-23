@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
-import { GameSeg, WhiteCapsule, YellowKey } from '../../../ui/game';
+import { Switch } from '../../../ui';
+import { WhiteCapsule, YellowKey } from '../../../ui/game';
 import type { ChainPath } from './chainPath';
 import { BLEND_MAX, ChainStrip, fixBlend, type ChainStripProps } from './ChainStrip';
 import { shortName, type ChainRow } from './graph';
@@ -8,10 +9,6 @@ import styles from './Detail.module.css';
 
 export const NOTE_MAX = 500;
 export const REQUIRED_TEXT = '基础动作，不能关';
-const PLAY = [
-  { value: 'on', label: '播' },
-  { value: 'off', label: '跳过' },
-];
 
 export interface ChainDetailProps {
   row: ChainRow;
@@ -129,7 +126,7 @@ export function ChainDetail(p: ChainDetailProps) {
           {row.required ? (
             <span className={styles.req}>{REQUIRED_TEXT}</span>
           ) : (
-            <GameSeg label={`所有池抽到「${row.label}」时`} variant="onoff" value={p.on ? 'on' : 'off'} options={PLAY} disabled={off} onChange={(v) => p.onToggle(v === 'on')} />
+            <Switch variant="setting" label={`所有池抽到「${row.label}」时`} checked={p.on} disabled={off} onChange={p.onToggle} />
           )}
         </span>
       </div>

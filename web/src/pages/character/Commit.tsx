@@ -116,8 +116,9 @@ export function Commit(p: CommitProps) {
             )}
             {p.transport || (
               <>
-                <GameSeg label="播放速度" caption="速度" micro="Speed" size={size} value={p.speed} onChange={p.onSpeed} disabled={off || p.oneSpeed} options={SPEEDS} />
+                <GameSeg variant="setting" label="播放速度" caption="速度" micro="Speed" size={size} value={p.speed} onChange={p.onSpeed} disabled={off || p.oneSpeed} options={SPEEDS} />
                 <GameSeg
+                  variant="setting"
                   label="播放方式"
                   caption="播放方式"
                   micro="Mode"
