@@ -83,6 +83,8 @@ export function Tabs({ tabs, value, label, keys = true, loop = true, variant, on
     const cell = (id: string) => root.current?.querySelector(`[data-icon][data-tab="${id}"]`);
     playClip(gameClips.tabSelectOut, cell(old));
     playClip(gameClips.tabSelectIn, cell(current));
+    // Q / E (here, the command bar or a page) pick without focusing; focus left on a tab moves with the pick so it never rings a tab that is not selected.
+    if (root.current?.contains(document.activeElement)) root.current.querySelector<HTMLElement>(`[data-tab="${current}"]`)?.focus();
   }, [current]);
 
   const go = (i: number, focus: boolean) => {

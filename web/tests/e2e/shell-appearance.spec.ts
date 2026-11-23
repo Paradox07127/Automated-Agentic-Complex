@@ -125,6 +125,27 @@ test("Q and E step through the page's own tabs and wrap, do nothing while typing
   await expect(input).toHaveValue('qe');
 });
 
+test('focus follows the picked tab, so no tab that is not selected draws a ring after Q, E or another key', async ({ page }) => {
+  await page.goto('main.html#/settings?still=1');
+  const tabs = page.getByRole('tablist', { name: '设置分组' }).getByRole('tab');
+  const ringed = () => tabs.evaluateAll((els) => els.filter((el) => el.getAttribute('aria-selected') !== 'true' && getComputedStyle(el).outlineStyle !== 'none').map((el) => el.getAttribute('title')));
+  await tabs.filter({ has: page.getByText('显示', { exact: true }) }).click();
+  await page.keyboard.press('a');
+  expect(await ringed()).toEqual([]);
+  await page.keyboard.press('e');
+  await expect(tabs.and(page.locator('[aria-selected="true"]'))).toHaveAttribute('title', 'AI');
+  expect(await ringed()).toEqual([]);
+});
+
+test('with the art plate the selected tab draws no frame around it in light theme', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('main.html#/settings?still=1');
+  const plate = page.getByRole('tablist', { name: '设置分组' }).locator('[aria-selected="true"] > [data-g="slc"]');
+  expect(await plate.evaluate((el) => getComputedStyle(el).boxShadow)).toContain('inset');
+  await page.evaluate(() => (document.documentElement.dataset.art = ''));
+  expect(await plate.evaluate((el) => getComputedStyle(el).boxShadow)).toBe('none');
+});
+
 test('tabs that do not fit show an arrow at that end, the arrow scrolls them into view, and a picked tab scrolls in', async ({ page }) => {
   // A 700 wide window leaves some of the nine settings tabs out.
   await page.setViewportSize({ width: 700, height: 600 });
