@@ -1181,6 +1181,27 @@
   ],
   [
     "POST",
+    "/character/login/start",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "POST",
+    "/character/login/cancel",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "POST",
+    "/character/login/logout",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "POST",
     "^/agent/interactions/([a-f0-9]{32})/(answer|dismiss|continue)$",
     [
       "ui_token"

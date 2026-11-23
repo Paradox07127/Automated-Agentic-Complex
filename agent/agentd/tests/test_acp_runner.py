@@ -117,7 +117,7 @@ class AcpRunnerTest(unittest.TestCase):
         self.assertEqual(runner.agent_log("set_config_option")[0]["params"],
                          {"sessionId": "sess_fake", "configId": "model", "value": "fake-large"})
         caps = runner.agent_log("initialize")[0]["params"]["clientCapabilities"]
-        self.assertEqual(caps, {"fs": {"readTextFile": False, "writeTextFile": False}, "terminal": False})
+        self.assertEqual(caps, {"fs": {"readTextFile": False, "writeTextFile": False}, "terminal": False, "auth": {"terminal": True}})
         session = runner.agent_log("session_new")[0]["params"]
         self.assertEqual(session["_meta"], {"endfield": {"character": "test"}})
         self.assertEqual(session["systemPrompt"], {"mode": "append", "content": [{"type": "text", "text": SYSTEM_PROMPT}]})

@@ -6,6 +6,14 @@
 T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全部端点见 §3 端点总表；逐条的字段和错误码见表中「规格」列指的文档；本文件的端点细则在 §2 和 §4。
 本合同版本 v1；agentd 在 `GET /health` 的回复里以 `c6_contract`（字符串 `"v1"`）报它实现的版本，`agentd --describe`（C9）也报同一个值。
 
+## 2026-11-23 在应用里登录内核（只加不改）
+
+- `auth_source: product_login` 可用于 `codex` 和 `claude`：内核跑在 agentd 状态目录 `kernel-login/<backend>` 这份自己的配置里（`CODEX_HOME`、`CLAUDE_CONFIG_DIR`），和用户终端里的登录分开；凭据由内核自己存（Codex 设 `cli_auth_credentials_store = "keyring"`）。`acp`、`pi` 不收这个值（400 `unsupported_auth_source`）。这份配置没登录时 `error` 是 `product_login_required`，第一次检查还没回来时是 `product_login_checking`。不再回 `product_login_not_supported_use_native_login`。
+- `GET /character/runtime` 多一个键 `product_login`：`{pending: {backend, acp_agent} | null, error: 码 | null, accounts: {codex|claude: {signed_in, email, plan}}}`；没检查过的内核不在 `accounts` 里。
+- 新增 `POST /character/login/start`，body `{}` 或 `{method_id}`：登录已保存的内核。Codex 由 agentd 打开登录页，Claude Code 和 ACP agent 自己打开；ACP 用 `method_id` 指定的方式，不指定时用 agent 列出的第一种。立即回 200 `product_login`；结果在之后的 `product_login.error` 里（`login_denied`、`login_timeout`（5 分钟）、`login_rejected`、`login_failed`、`browser_unavailable`）。已有登录在进行 400 `login_pending`，账号来源不是 `product_login` 400 `product_login_not_selected`，ACP agent 没有这种方式 400 `unknown_auth_method`。
+- 新增 `POST /character/login/cancel`，body `{}`：结束进行中的登录，不记错误；回 200 `product_login`。
+- 新增 `POST /character/login/logout`，body `{}`：Codex 跑 `codex logout`，Claude Code 跑 `claude auth logout`，都在应用自己的配置里；ACP 发 `logout`，agent 不支持时 400 `logout_unsupported`；回 200 `product_login`。
+
 ## 2026-11-23 /diag/state 多一个 stages 块（只加不改）
 
 - `GET /diag/state` 和 `/diag/stream` 的 `state` 多一个 `stages` 块 `{window_s, nodes: {<节点>: {p50_ms, n}}}`：近 1 小时一轮主线各节点（`ctx`、`judge`、`model`、`tts`、`play`、`motion`）耗时的中位数和样本数，取自 trace 事件，只在内存里，重启清空。逐项见 §3 `GET /diag/state?with_text=1`。

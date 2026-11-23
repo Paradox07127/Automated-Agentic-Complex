@@ -1283,7 +1283,7 @@ export interface CharacterRuntimeResponse {
   product_login: {
     pending: unknown;
     error: unknown;
-    accounts: { codex: { signed_in: boolean; email: string | null; plan: string | null } };
+    accounts: Record<string, { signed_in: boolean; email: string | null; plan: string | null }>;
   };
   capabilities: {
     backend: string;

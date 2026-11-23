@@ -79,7 +79,7 @@ class KernelLoginTest(unittest.TestCase):
         (self.bin / "mode").write_text(value, encoding="utf-8")
 
     def calls(self):
-        return [json.loads(line) for line in (self.bin / "calls").read_text().splitlines()]
+        return [json.loads(line) for line in (self.bin / "calls").read_text(encoding="utf-8").splitlines()]
 
     def finished(self):
         deadline = time.monotonic() + 15
@@ -97,7 +97,7 @@ class KernelLoginTest(unittest.TestCase):
         self.assertTrue(self.login.signed_in("codex", str(self.cli), True))
         self.assertEqual(self.login.public()["accounts"]["codex"],
                          {"signed_in": True, "email": "x@example.com", "plan": "plus"})
-        self.assertEqual((home / "config.toml").read_text(), 'cli_auth_credentials_store = "keyring"\n')
+        self.assertEqual((home / "config.toml").read_text(encoding="utf-8"), 'cli_auth_credentials_store = "keyring"\n')
         self.assertEqual({call["home"] for call in self.calls()}, {str(home)})
 
     def test_claude_signs_in_with_its_own_cli_and_reads_the_account_from_its_status(self):
@@ -164,7 +164,7 @@ class KernelLoginTest(unittest.TestCase):
                          "env": {"FAKE_ACP_AUTH": auth, "FAKE_ACP_LOG": str(log)}}
                 self.login.start("acp", agent=agent, method={"id": "fake-login", "name": "Fake login"})
                 self.assertEqual(self.finished()["error"], error)
-        events = [json.loads(line) for line in log.read_text().splitlines()]
+        events = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
         self.assertEqual([e["params"] for e in events if e["event"] == "authenticate"], [{"methodId": "fake-login"}] * 2)
         self.assertEqual(self.acp_logins, [("fake", True)])
 
