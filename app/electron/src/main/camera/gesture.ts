@@ -1,8 +1,9 @@
 // Her camera as the user moves it: ⌘ drag, ⌘ wheel or pinch on her (C3 rule 49 (h)
 // `camera_gesture`) and 调整镜头's camera mode go out as live values and are saved to config.json at the end.
 import type { Box, C3Message } from '../../common/c3.ts';
-import { CAMERA_KEYS, type CameraValue, cameraSettings, committed, gestured, liveRenderPayload, savedCamera } from '../../common/camera-model.ts';
+import { CAMERA_KEYS, type CameraValue, cameraSettings, committed, gestured, savedCamera } from '../../common/camera-model.ts';
 import type { CameraGesture, CommandResult } from '../renderer/link.ts';
+import { sendLiveRender } from '../renderer/saved.ts';
 
 /** 调整镜头's window; it calls `live`, `cancelled` and `commit` of AvatarCamera. */
 export interface CameraOverlay {
@@ -106,11 +107,6 @@ export class AvatarCamera {
 
   /** The saved settings as one `set_render` with `req`; restarts the avatar when that fails, as a settings save does. */
   private sendSaved(keys: string[], settings: Record<string, unknown>): void {
-    const fallback = (why: string) => {
-      this.ports.log(`camera render live fallback keys=${keys.join(',')} why=${why}`);
-      this.ports.restartAvatar();
-    };
-    const sent = this.ports.link?.sendSetRender(liveRenderPayload(settings), (r) => { if (!r.ok) fallback(r.reason); }) ?? false;
-    if (!sent) fallback('not_sent');
+    sendLiveRender(this.ports.link, settings, keys, () => this.ports.restartAvatar(), (line) => this.ports.log(`camera ${line}`));
   }
 }
