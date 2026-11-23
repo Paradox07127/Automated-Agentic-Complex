@@ -129,6 +129,8 @@ const MAP: Record<VisualStateKey, [VisualTone, string]> = {
   presented: ['waiting', '已送达'],
   viewed: ['waiting', '已查看'],
   warning: ['warning', '注意'],
+  blocked: ['warning', '堵住'],
+  paused: ['cancelled', '已暂停'],
   succeeded: ['ok', '已完成'],
   completed: ['ok', '已完成'],
   accepted: ['ok', '已接受'],

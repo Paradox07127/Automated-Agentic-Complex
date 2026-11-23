@@ -14,6 +14,8 @@ export interface BracketMeterProps {
   reserved?: number;
   /** 宽 48 / 80 / 120 / 300，默认 md */
   size?: 'mini' | 'sm' | 'md' | 'lg';
+  /** 轨道宽（px），给了就不按 size 取宽 */
+  width?: number;
   /** usage 按阈值着色；level 是状态量（精神、投入），填主序列色 */
   tone?: 'usage' | 'level';
   /** 凹口或参考刻度（与 value 同单位） */
@@ -36,7 +38,7 @@ export function meterLevel(value: number, max: number, tone: 'usage' | 'level'):
   return tone === 'level' ? 'level' : usageLevel(value, max);
 }
 
-export function BracketMeter({ value, max, label, reserved = 0, size = 'md', tone = 'usage', marks = [], readout, disabled, disabledReason, center }: BracketMeterProps) {
+export function BracketMeter({ value, max, label, reserved = 0, size = 'md', width, tone = 'usage', marks = [], readout, disabled, disabledReason, center }: BracketMeterProps) {
   const div = center != null;
   const lo = div ? center - max : 0;
   const hi = div ? center + max : max;
@@ -65,7 +67,7 @@ export function BracketMeter({ value, max, label, reserved = 0, size = 'md', ton
       className={styles.root}
       aria-label={aria}
       aria-disabled={disabled}
-      style={{ ['--w' as string]: `${WIDTH[size]}px` }}
+      style={{ ['--w' as string]: `${width ?? WIDTH[size]}px` }}
     >
       <span className={styles.bk} aria-hidden="true">
         [

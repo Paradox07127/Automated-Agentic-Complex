@@ -97,6 +97,10 @@ const graphicPairs: Array<[string, string]> = [
   ['slider-handle', 'base'],
   ['tab2-sel-bg', 'base'],
   ['tabpc-sel-icon', 'accent'],
+  ['power-low', 'base'],
+  ['power-low', 'surface-1'],
+  ['success-green', 'base'],
+  ['success-green', 'surface-1'],
 ];
 
 describe('tokens.css', () => {

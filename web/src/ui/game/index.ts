@@ -18,6 +18,7 @@ export * from './OptionStack';
 export * from './RailCell';
 export * from './Readout';
 export * from './Slab';
+export * from './StateGlyph';
 export * from './StateStrip';
 export * from './StationCard';
 export * from './StatusLamp';

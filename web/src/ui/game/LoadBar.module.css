@@ -76,9 +76,41 @@
   }
 }
 
+/* Indeterminate: a third of the line sweeps back and forth; standing still, the whole line shows faint. */
+.bar[data-indeterminate] .fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 30%;
+  animation: lb-hatch 0.9s linear infinite, lb-sweep 1.4s var(--ef-ease-standard) infinite alternate;
+}
+
+@keyframes lb-sweep {
+  to {
+    left: 70%;
+  }
+}
+
+/* A threshold: a fine tick across the line. */
+.threshold {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  z-index: 1;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--ef-g-lock);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fill {
     transition: none;
+    animation: none;
+  }
+
+  .bar[data-indeterminate] .fill {
+    width: 100%;
+    opacity: 0.4;
     animation: none;
   }
 }
@@ -86,6 +118,13 @@
 :global(.still) .fill,
 :global([data-reduce-motion]) .fill {
   transition: none;
+  animation: none;
+}
+
+:global(.still) .bar[data-indeterminate] .fill,
+:global([data-reduce-motion]) .bar[data-indeterminate] .fill {
+  width: 100%;
+  opacity: 0.4;
   animation: none;
 }
 
@@ -123,6 +162,10 @@
   display: block;
   height: 100%;
   background: repeating-linear-gradient(-45deg, rgb(255 255 255 / 30%) 0 2px, transparent 2px 5px) 0 0 / 7px 100%, var(--ef-text-1);
+}
+
+.port .threshold {
+  background: var(--ef-text-2);
 }
 
 .port[data-full] .portFill {

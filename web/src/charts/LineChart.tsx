@@ -14,6 +14,12 @@ export interface LineSeries {
   color?: string;
 }
 
+/** 一条参考线：label 缺省为「上限 v」 */
+export interface LineLimit {
+  v: number;
+  label?: string;
+}
+
 /** 多序列时间折线：墨色阶，emph 那条用 trace；只标端点和极值；limit 画上限虚线并直接标注。 */
 export interface LineChartProps extends ChartCommonProps {
   series: LineSeries[];
@@ -34,13 +40,14 @@ export interface LineChartProps extends ChartCommonProps {
   now?: number;
   /** 要强调的序列 id */
   emph?: string;
-  /** 上限线：label 缺省为「上限 v」 */
-  limit?: { v: number; label?: string };
+  /** 参考线（上限、注意线），一条或多条 */
+  limit?: LineLimit | readonly LineLimit[];
   /** 不写 y 轴刻度、端点和极值数值，数值只在图例里 */
   bare?: boolean;
 }
 
 export function LineChart({ series, t0, t1, yMin, yMax, h = 120, w, marks = [], fmtY = fmtN, fmtT, area, now, label = '折线', st = 'ok', empty, stoppedAt, onRetry, emph, limit, frame, bare }: LineChartProps) {
+  const limits: readonly LineLimit[] = limit == null ? [] : 'v' in limit ? [limit] : limit;
   const c = useChart(w);
   const uid = useSvgId();
   const [hv, setHv] = useState<number | null>(null);
@@ -51,8 +58,8 @@ export function LineChart({ series, t0, t1, yMin, yMax, h = 120, w, marks = [], 
   }
   const a = t0 ?? Math.min(...all.map((p) => p[0]));
   const b = t1 ?? Math.max(...all.map((p) => p[0]));
-  const lo = yMin ?? Math.min(...all.map((p) => p[1]), limit ? limit.v : Infinity);
-  const hi = yMax ?? Math.max(...all.map((p) => p[1]), limit ? limit.v : -Infinity);
+  const lo = yMin ?? Math.min(...all.map((p) => p[1]), ...limits.map((l) => l.v));
+  const hi = yMax ?? Math.max(...all.map((p) => p[1]), ...limits.map((l) => l.v));
   const W = c.W;
   const narrow = bare || W < 260;
   const L = narrow ? 6 : 34;
@@ -94,8 +101,7 @@ export function LineChart({ series, t0, t1, yMin, yMax, h = 120, w, marks = [], 
       const vs = x.pts.map((p) => p[1]).filter((v): v is number => v != null);
       return `${x.label} 最新 ${fmtY(lastP(x)?.[1] ?? null)}，最高 ${fmtY(Math.max(...vs))}，最低 ${fmtY(Math.min(...vs))}`;
     })
-    .join('；')}${limit ? `；上限 ${fmtY(limit.v)}` : ''}`;
-  const limT = limit && (limit.label ?? `上限 ${fmtY(limit.v)}`);
+    .join('；')}${limits.map((l) => `；上限 ${fmtY(l.v)}`).join('')}`;
   const base = Y(clampN(0, lo, hi));
   const gaps: Array<[number, number]> = [];
   for (const x of series) {
@@ -172,14 +178,17 @@ export function LineChart({ series, t0, t1, yMin, yMax, h = 120, w, marks = [], 
               </g>
             );
           })}
-        {limit && limT && (
-          <g data-limit="">
-            <line x1={L} x2={L + PW} y1={Y(limit.v)} y2={Y(limit.v)} className={s.lim} />
-            <text x={L + 4} y={Y(limit.v) - 4} className={zh(limT, s.limT, s.halo)}>
-              {limT}
-            </text>
-          </g>
-        )}
+        {limits.map((l, i) => {
+          const limT = l.label ?? `上限 ${fmtY(l.v)}`;
+          return (
+            <g key={`l${i}`} data-limit="">
+              <line x1={L} x2={L + PW} y1={Y(l.v)} y2={Y(l.v)} className={s.lim} />
+              <text x={L + 4} y={Y(l.v) - 4} className={zh(limT, s.limT, s.halo)}>
+                {limT}
+              </text>
+            </g>
+          );
+        })}
         {area && ks && kl && first && <path d={`${pathOf(ks.pts)}L${X(kl[0]).toFixed(1)} ${base}L${X(first[0]).toFixed(1)} ${base}Z`} fill={cols[k0]} opacity=".1" />}
         {series.map((x, i) => (
           <path key={x.id} d={pathOf(x.pts)} fill="none" stroke={cols[i]} strokeWidth={i === k0 ? 2 : 1.5} strokeLinejoin="miter" strokeLinecap="square" data-series={x.id} />

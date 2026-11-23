@@ -22,11 +22,13 @@ export interface GameFrameProps {
   variant?: 'monitor' | 'media' | 'chart';
   /** 读屏名称（有了就是一个 region） */
   label?: string;
+  /** 紧凑内边距：monitor、chart 给内容留一圈窄边（monitor 让出标题牌），media 收窄原来的边 */
+  compact?: boolean;
   children?: ReactNode;
 }
 
-export function GameFrame({ title, micro, foot, tag = 'REC', variant = 'monitor', label, children }: GameFrameProps) {
-  const own = { className: styles.frame, 'data-stub': 'GameFrame', 'data-variant': variant, role: label ? 'region' : undefined, 'aria-label': label };
+export function GameFrame({ title, micro, foot, tag = 'REC', variant = 'monitor', label, compact, children }: GameFrameProps) {
+  const own = { className: styles.frame, 'data-stub': 'GameFrame', 'data-variant': variant, 'data-compact': compact || undefined, role: label ? 'region' : undefined, 'aria-label': label };
   if (variant === 'chart')
     return (
       <div {...own}>

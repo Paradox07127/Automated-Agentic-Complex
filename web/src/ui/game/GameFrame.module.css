@@ -199,3 +199,20 @@
     linear-gradient(90deg, color-mix(in srgb, var(--ef-text-1) 6%, transparent) 1px, transparent 1px);
   background-size: 12px 12px;
 }
+
+/* Compact padding: a narrow margin round the content; under the monitor's title tag the top clears it. */
+.frame[data-variant='monitor'][data-compact] {
+  padding: var(--ef-sp-12);
+}
+
+.frame[data-variant='monitor'][data-compact]:has(> .tagTitle) {
+  padding-top: 30px;
+}
+
+.frame[data-variant='media'][data-compact] {
+  padding: var(--ef-sp-16) var(--ef-sp-16) var(--ef-sp-12) 22px;
+}
+
+.frame[data-variant='chart'][data-compact] .body {
+  padding: var(--ef-sp-8) 10px;
+}

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
 import type { VisualStateKey } from '../../domain/states';
 import { stateVisual } from '../../domain/status';
 import { Btn } from '../Btn';
@@ -17,8 +17,8 @@ export interface DeviceRowGo {
   onClick: () => void;
 }
 
-/** 设备行（游戏生产统计行）：深名牌块（图标 + 名字 + 副行 + 竖条）│ 浅格中区（StatusLamp + 一行原因）│ 行内修复按钮 │ 读数块（ReadTick ×1–2）│ › 或 ↗。child 画依赖树线；dim 读数变淡；出错时中区浅红底、名牌竖条变红。整行不可点。 */
-export interface DeviceRowProps {
+/** 设备行（游戏生产统计行）：深名牌块（图标 + 名字 + 副行 + 竖条）│ 浅格中区（StatusLamp + 一行原因）│ 行内修复按钮 │ 读数块（ReadTick ×1–2）│ › 或 ↗。child 画依赖树线；dim 读数变淡；出错时中区浅红底、名牌竖条变红。整行自己不接点击；其余属性（data-*、aria-*、className、onClick）落在根元素上。 */
+export interface DeviceRowProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   icon: IconName;
   name: string;
   /** 名字下一行（版本、地址、pid） */
@@ -46,11 +46,12 @@ export interface DeviceRowProps {
   highlight?: boolean;
 }
 
-export function DeviceRow({ icon, name, sub, tag, state, stateLabel, why, actions, reads, micro, go, child, dim, highlight }: DeviceRowProps) {
+export function DeviceRow({ icon, name, sub, tag, state, stateLabel, why, actions, reads, micro, go, child, dim, highlight, className, ...rest }: DeviceRowProps) {
   const tone = stateVisual(state).tone;
   return (
     <div
-      className={styles.row}
+      {...rest}
+      className={className ? `${styles.row} ${className}` : styles.row}
       data-stub="DeviceRow"
       data-tone={tone}
       data-child={child}

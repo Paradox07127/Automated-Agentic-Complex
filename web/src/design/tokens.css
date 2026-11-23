@@ -242,6 +242,8 @@
   --ef-g-sns-sel-frame: rgba(255,255,255,.788);
   --ef-g-guide-frame: rgba(23,23,23,.502);
   --ef-g-guide-blur: #EEEEEE;
+  --ef-power-low: var(--ef-danger-g-power-save);
+  --ef-success-green: var(--ef-g-mission-green);
   --ef-chart-s1: var(--ef-ink-s1);
   --ef-chart-s2: var(--ef-line-strong);
   --ef-chart-grid: var(--ef-line-subtle);
@@ -497,6 +499,8 @@
   --ef-g-sns-sel-frame: rgba(255,255,255,.788);
   --ef-g-guide-frame: rgba(23,23,23,.502);
   --ef-g-guide-blur: #EEEEEE;
+  --ef-power-low: #B34A00;
+  --ef-success-green: #1F8A4C;
   --ef-chart-s1: var(--ef-ink-s1);
   --ef-chart-s2: #7E7E7A;
   --ef-chart-grid: var(--ef-line-subtle);

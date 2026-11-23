@@ -31,10 +31,15 @@ export interface StationCardProps {
   selected?: boolean;
   /** 在一排工位卡（role=tablist）里：写 role=tab、aria-selected；否则是按钮、aria-pressed */
   tab?: boolean;
+  /** 紧凑款：矮一档，小图标块、小一号的大数 */
+  compact?: boolean;
   onSelect: () => void;
 }
 
-export function StationCard({ no, micro, icon, name, value, unit, note, sub, state, stateLabel, why, selected = false, tab, onSelect }: StationCardProps) {
+/** Text in a flex box clips mid-glyph; in this span it ends in an ellipsis instead. */
+const clip = (x: ReactNode) => (typeof x === 'string' ? <span className={styles.clip}>{x}</span> : x);
+
+export function StationCard({ no, micro, icon, name, value, unit, note, sub, state, stateLabel, why, selected = false, tab, compact, onSelect }: StationCardProps) {
   const word = stateLabel ?? stateVisual(state).label;
   return (
     <button
@@ -42,6 +47,7 @@ export function StationCard({ no, micro, icon, name, value, unit, note, sub, sta
       className={styles.card}
       data-stub="StationCard"
       data-depth=""
+      data-compact={compact || undefined}
       role={tab ? 'tab' : undefined}
       aria-selected={tab ? selected : undefined}
       aria-pressed={tab ? undefined : selected}
@@ -53,7 +59,7 @@ export function StationCard({ no, micro, icon, name, value, unit, note, sub, sta
         <MicroLabel>{micro}</MicroLabel>
       </span>
       <span className={styles.icon} aria-hidden="true">
-        <Icon name={icon} size={24} />
+        <Icon name={icon} size={compact ? 20 : 24} />
       </span>
       <span className={styles.name}>{name}</span>
       <span className={styles.big}>
@@ -61,9 +67,9 @@ export function StationCard({ no, micro, icon, name, value, unit, note, sub, sta
           {value}
           {unit && <em>{unit}</em>}
         </b>
-        {note != null && <small>{note}</small>}
+        {note != null && <small>{clip(note)}</small>}
       </span>
-      <span className={styles.sub}>{sub}</span>
+      <span className={styles.sub}>{clip(sub)}</span>
       <span className={styles.strip}>
         <StateStrip state={state} label={stateLabel} why={why} />
       </span>

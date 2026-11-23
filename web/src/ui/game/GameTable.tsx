@@ -15,6 +15,10 @@ export interface GameTableProps {
   selected?: string | null;
   /** 点一行（开合之外顺带选中） */
   onSelect?: (id: string) => void;
+  /** 受控：展开的行 id；给了就不看各行的 defaultOpen */
+  expanded?: readonly string[];
+  /** 开合一行后要展开的行 id */
+  onExpandedChange?: (ids: string[]) => void;
 }
 
 export interface GameTableColumn {
@@ -37,8 +41,9 @@ export interface GameTableRow {
   defaultOpen?: boolean;
 }
 
-export function GameTable({ label, columns, endWidth = 'auto', rows, selected = null, onSelect }: GameTableProps) {
-  const [open, setOpen] = useState(() => new Set(rows.filter((r) => r.defaultOpen).map((r) => r.id)));
+export function GameTable({ label, columns, endWidth = 'auto', rows, selected = null, onSelect, expanded, onExpandedChange }: GameTableProps) {
+  const [inner, setInner] = useState(() => new Set(rows.filter((r) => r.defaultOpen).map((r) => r.id)));
+  const open = expanded ? new Set(expanded) : inner;
   const grid = {
     '--gt-wide': columns.map((c) => c.width).join(' '),
     '--gt-narrow': columns.filter((c) => !c.opt).map((c) => c.width).join(' '),
@@ -46,12 +51,11 @@ export function GameTable({ label, columns, endWidth = 'auto', rows, selected = 
   } as CSSProperties;
   const toggle = (id: string, next: boolean) => {
     onSelect?.(id);
-    setOpen((s) => {
-      const n = new Set(s);
-      if (next) n.add(id);
-      else n.delete(id);
-      return n;
-    });
+    const n = new Set(open);
+    if (next) n.add(id);
+    else n.delete(id);
+    if (!expanded) setInner(n);
+    onExpandedChange?.([...n]);
   };
   return (
     <div className={styles.table} data-stub="GameTable" role="group" aria-label={label} style={grid}>

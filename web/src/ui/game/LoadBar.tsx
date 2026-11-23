@@ -10,26 +10,35 @@ export interface LoadBarProps {
   variant?: 'load' | 'port';
   /** port 款的读屏名称（「截图额度」） */
   label?: string;
+  /** 阈值（0–1）：条上各画一道细刻度 */
+  thresholds?: readonly number[];
+  /** load 款不知道进度：不写百分比，填充来回扫；减少动态效果时不动 */
+  indeterminate?: boolean;
 }
 
-export function LoadBar({ fraction, name, variant = 'load', label }: LoadBarProps) {
+export function LoadBar({ fraction, name, variant = 'load', label, thresholds = [], indeterminate }: LoadBarProps) {
   const pct = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
+  const ticks = thresholds.map((t) => (
+    <i key={t} className={styles.threshold} data-threshold="" style={{ left: `${Math.round(Math.min(1, Math.max(0, t)) * 100)}%` }} />
+  ));
   if (variant === 'port')
     return (
       <span className={styles.port} data-stub="LoadBar" data-full={pct >= 100 || undefined} role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
         <i className={styles.portFill} style={{ width: `${pct}%` }} />
+        {ticks}
       </span>
     );
   return (
-    <div className={styles.bar} data-stub="LoadBar" role="progressbar" aria-label={name ? `正在载入 ${name}` : '正在载入'}
-      aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+    <div className={styles.bar} data-stub="LoadBar" data-indeterminate={indeterminate || undefined} role="progressbar" aria-label={name ? `正在载入 ${name}` : '正在载入'}
+      aria-valuemin={0} aria-valuemax={100} aria-valuenow={indeterminate ? undefined : pct}>
       <div className={styles.text}>
         {name && <b className={styles.name}>{name}</b>}
         <span className={styles.state}>正在载入</span>
-        <span className={styles.pct}>{pct}%</span>
+        {!indeterminate && <span className={styles.pct}>{pct}%</span>}
       </div>
       <span className={styles.track}>
-        <span className={styles.fill} data-fill="" style={{ width: `${pct}%` }} />
+        <span className={styles.fill} data-fill="" style={indeterminate ? undefined : { width: `${pct}%` }} />
+        {ticks}
       </span>
     </div>
   );

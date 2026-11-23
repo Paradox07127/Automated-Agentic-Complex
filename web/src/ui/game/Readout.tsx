@@ -14,11 +14,13 @@ export interface ReadTickProps {
   tone?: 'main' | 'ink' | 'warn' | 'bad';
   /** 默认 md（17 px），lg 24 px */
   size?: 'md' | 'lg';
+  /** 单行：标签跟在数后面，同一条基线 */
+  inline?: boolean;
 }
 
-export function ReadTick({ value, unit, label, tone = 'main', size = 'md' }: ReadTickProps) {
+export function ReadTick({ value, unit, label, tone = 'main', size = 'md', inline }: ReadTickProps) {
   return (
-    <span className={styles.tick} data-stub="ReadTick" data-tone={tone} data-size={size}>
+    <span className={styles.tick} data-stub="ReadTick" data-tone={tone} data-size={size} data-inline={inline || undefined}>
       <b className={styles.value}>
         {value}
         {unit && <small>{unit}</small>}
@@ -57,11 +59,13 @@ export interface ReadoutPlateProps {
   eyebrow?: string;
   /** 读屏名称 */
   label?: string;
+  /** 紧凑款：矮板、窄格、小一号的数 */
+  compact?: boolean;
 }
 
-export function ReadoutPlate({ cells, eyebrow, label }: ReadoutPlateProps) {
+export function ReadoutPlate({ cells, eyebrow, label, compact }: ReadoutPlateProps) {
   return (
-    <section className={styles.plate} data-stub="ReadoutPlate" aria-label={label}>
+    <section className={styles.plate} data-stub="ReadoutPlate" data-compact={compact || undefined} aria-label={label}>
       <i className={styles.cross} data-at="a" aria-hidden="true" />
       <i className={styles.cross} data-at="b" aria-hidden="true" />
       {eyebrow && (

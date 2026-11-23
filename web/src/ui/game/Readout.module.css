@@ -73,6 +73,18 @@
   font-size: var(--ef-fs-body);
 }
 
+/* Inline: the label follows the number on its baseline. */
+.tick[data-inline] {
+  display: inline-flex;
+  gap: var(--ef-sp-6);
+  align-items: baseline;
+}
+
+.tick[data-inline] .label {
+  margin-top: 0;
+  padding-left: 0;
+}
+
 /* ReadoutPlate: the settings plate — a light plate, a hatch fading in from the right, a fine cross in two corners. */
 .plate {
   position: relative;
@@ -197,4 +209,33 @@
   color: var(--ef-text-1);
   font: var(--ef-fw-regular) var(--ef-fs-body) / 1.4 var(--ef-font-sans);
   white-space: nowrap;
+}
+
+/* Compact plate: lower, narrower cells, a smaller number. */
+.plate[data-compact] {
+  min-height: 44px;
+  padding: var(--ef-sp-6) var(--ef-sp-16) var(--ef-sp-6) 22px;
+}
+
+.plate[data-compact] .cell {
+  gap: var(--ef-sp-8);
+  min-height: 30px;
+  padding: 0 var(--ef-sp-12);
+}
+
+.plate[data-compact] :is(.eyebrow + .cell, .cell:first-of-type) {
+  padding-left: 0;
+}
+
+.plate[data-compact] .cell[data-end] {
+  padding-right: 0;
+}
+
+.plate[data-compact] .eyebrow {
+  margin-right: var(--ef-sp-12);
+}
+
+.plate[data-compact] .v {
+  font-size: 17px;
+  line-height: 22px;
 }

@@ -105,4 +105,6 @@ export type VisualStateKey =
   | NodeState
   | EffectiveState
   | 'warning'
-  | 'skipped';
+  | 'skipped'
+  | 'blocked'
+  | 'paused';
