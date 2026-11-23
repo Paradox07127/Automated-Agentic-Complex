@@ -268,13 +268,16 @@ class Switches:
                 if cid in components:
                     for s in efmi_geometry.kept_segments(mod, components[cid]):out.setdefault((cid, (s.first, s.count)), s)
             return out
+        overrides = this_files(mod, dict(mod.defaults, **base))
+        # A `this` of a file switches through this_files; its segments' `hash:` slot would count the switch twice.
+        covered = {'hash:'+o.hash for o in mod.overrides if o.section in overrides}
         def bound(segments):
             out = {}
             for (cid, _), s in segments.items():
-                for slot, f in efmi_geometry.slot_files(s.textures).items():out.setdefault((cid, slot), set()).add(f)
+                for slot, f in efmi_geometry.slot_files(s.textures).items():
+                    if slot not in covered:out.setdefault((cid, slot), set()).add(f)
             return out
         start = drawn(default); files = bound(start)
-        overrides = this_files(mod, dict(mod.defaults, **base))
         seen, found, slots, this = {}, {}, {}, {}
         for s in plan.settings:
             for v, state in enumerate(s.states[1:], 1):

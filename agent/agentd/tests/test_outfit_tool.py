@@ -142,7 +142,6 @@ class OutfitToolTests(unittest.TestCase):
                 Path(stage).mkdir(); raise error
             return SimpleNamespace(import_outfit=import_outfit)
         for error, reason in [(ValueError("texture_mismatch:1:Textures/L.Dds"), "texture_mismatch"),
-                              (ValueError("texture_format:Textures/N.dds: _BumpMap is BC5_UNORM_BLOCK"), "texture_format"),
                               (ValueError("nothing_to_import:只隐藏了组件 S_actor_test_body_01_lod0，贴图都没套上"), "nothing_to_import"),
                               (ValueError("unmapped_component:TextureOverride_X"), "unmapped_component"),
                               (ValueError("not_this_character:no component hash or vertex position is this character's"), "not_this_character"),

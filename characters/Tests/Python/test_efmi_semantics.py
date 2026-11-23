@@ -308,6 +308,11 @@ filename = Textures/c.dds
         mod = self.mod(ini, ['Textures/a.dds', 'Textures/b.dds', 'Textures/c.dds'])
         self.assertEqual(mod.color_spaces, {'Textures/a.dds': 'srgb', 'Textures/b.dds': 'linear'})
 
+    def test_a_slot_holding_a_texture_of_a_color_space_has_that_variant_s_format(self):
+        ini = component('ps-t0 = ResourceA\nif ps-t0->format == 99\n    drawindexed = 3, 0, 0\nendif') + \
+            '\n[ResourceA]\nfilename = Textures/a.dds\ncolor_space = sRGB\n'
+        self.assertEqual(self.spans(self.mod(ini, ['Textures/a.dds']).components), [(0, 3)])
+
 
 if __name__ == '__main__':
     unittest.main()

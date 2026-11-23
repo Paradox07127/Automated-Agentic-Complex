@@ -426,7 +426,7 @@ describe('导入外观 · 失败原因', () => {
 
   it('falls back to the code words, then to words of its own for a code it does not know', () => {
     expect(outfitImportReason('unsupported_geometry', 'unsupported_geometry:new_kind:X')).toBe(OUTFIT_IMPORT_REASON.unsupported_geometry);
-    expect(outfitImportReason('texture_format', undefined)).toBe(OUTFIT_IMPORT_REASON.texture_format);
+    expect(outfitImportReason('missing_channel', undefined)).toBe(OUTFIT_IMPORT_REASON.missing_channel);
     expect(outfitImportReason('internal', 'unknown_character: si')).toBe('unknown_character: si');
     expect(outfitImportReason('no_such_code', 'no_such_code:x')).toBe(OUTFIT_IMPORT_UNKNOWN);
   });

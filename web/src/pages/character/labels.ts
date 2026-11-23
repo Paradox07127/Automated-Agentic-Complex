@@ -137,7 +137,6 @@ export const OUTFIT_IMPORT_REASON: Record<string, string> = {
   bone_out_of_range: '模组用到的骨骼超出这个角色的骨架，可能是给别的角色做的；请确认角色，或换一个模组',
   missing_channel: '模组缺少这个角色的模型需要的数据，文件可能不完整；请重新下载，或换一个模组',
   texture_mismatch: '认不出模组的贴图该套在哪个部件上；可以换一个模组，或等更新',
-  texture_format: '模组的贴图和角色原来的贴图格式不同，本程序还不能换用；可以换一个模组，或等更新',
   nothing_to_import: '模组没有给这个角色换上任何贴图或模型，导入了也看不出变化；请换一个模组',
   not_this_character: '这个模组不是给这个角色做的；请切到对应的角色再导入，或换一个模组',
   unsupported_texture_format: '模组里有贴图用的是本程序还不支持的格式；可以换一个模组，或等更新',
@@ -175,7 +174,6 @@ export const OUTFIT_IMPORT_UNKNOWN = '导入器给出了这个版本还不认识
 const OUTFIT_IMPORT_NAMED: Record<string, (n: string) => string> = {
   unmapped_component: (n) => `模组里的「${n}」对不上这个角色的模型，可能是给别的角色做的；请确认角色，或换一个模组`,
   texture_mismatch: (n) => `认不出模组的贴图「${n}」该套在哪个部件上；可以换一个模组，或等更新`,
-  texture_format: (n) => `模组的贴图「${n}」和角色原来的贴图格式不同，本程序还不能换用；可以换一个模组，或等更新`,
 };
 
 /** `unsupported_geometry:<kind>:<name>` and `geometry_invalid:<kind>:<name>` by kind; `n` is the mod's section or resource. */

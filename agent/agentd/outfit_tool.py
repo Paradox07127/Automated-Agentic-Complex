@@ -27,7 +27,7 @@ INDEX_SCHEMA = "endfield-outfit-imports/v1"
 STAGES = (("read", .2), ("compose", .25), ("write", .25), ("validate", .1), ("publish", .2))
 # The importer's ValueError messages start with one of these reasons; any other message is a mod it cannot import.
 IMPORT_REASONS = ("unsupported_mod", "merged_skeleton", "unsafe_path", "unmapped_component", "bone_out_of_range",
-                  "missing_channel", "texture_mismatch", "texture_format", "nothing_to_import", "not_this_character",
+                  "missing_channel", "texture_mismatch", "nothing_to_import", "not_this_character",
                   "unsupported_texture_format", "unsupported_geometry", "geometry_invalid", "channel_unresolved",
                   "geometry_too_large", "ambiguous_ini", "absent_template_mesh", "absent_template_submesh", "index_format",
                   "unknown_bone", "duplicate_bone", "duplicate_submesh", "graph_store_missing", "skin_matrices_layout",

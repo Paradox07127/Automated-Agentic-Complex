@@ -25,7 +25,7 @@ import native_bundle
 import pool_codec
 import vulkan_outfit
 from .common import canonical_json, reference as ref, sha256_bytes, sha256_file
-from . import efmi_geometry, efmi_mod, mod_settings, outfit_compose
+from . import efmi_geometry, efmi_mod, mod_settings, outfit_compose, texture_dhash
 
 # skins-R1 LAYOUT.json (endfield-efmi-layout/v1) without its per-sample measurements and evidence pointers.
 LAYOUT = {'schema': 'endfield-efmi-layout/v1',
@@ -187,7 +187,6 @@ LAYOUT = {'schema': 'endfield-efmi-layout/v1',
 MAP_SCHEMA = 'endfield-outfit-map/v1'
 VERTEX_STREAMS = ('ib', 'vb0', 'vb1', 'vb2', 'vb3')
 # EFMI-Tools texture file names: `Components-<ids> t=<original texture hash> <format tag>.dds`.
-COMPONENT_HINT = re.compile(r'components-(\d+(?:-\d+)*)\b', re.IGNORECASE)
 TEXTURE_HASH = re.compile(r'\bt=([0-9a-f]{8})\b', re.IGNORECASE)
 FORMAT_TAGS = {'bc7-srgb': 'BC7_SRGB_BLOCK', 'bc7-linear': 'BC7_UNORM_BLOCK', 'bc5-linear': 'BC5_UNORM_BLOCK'}
 # A texture handed to another mod's namespace (RabbitFx): `<IB hash>-<index count>-<first index>-<semantic>Map.dds`.
@@ -201,6 +200,10 @@ HINTS_SCHEMA = 'endfield-efmi-slot-hints/v1'
 # The variables the mod's command lists are evaluated with: the game draws level 0.
 LOD0 = {'$lod_level': 0}
 DXGI_CODES = {name: code for code, name in efmi_mod.DXGI_FORMATS.items()}
+# A filter's match_format (a DXGI name without DXGI_FORMAT_) -> rd_format_name.
+DXGI_NAMES = {'BC7_UNORM': 'BC7_UNORM_BLOCK', 'BC7_UNORM_SRGB': 'BC7_SRGB_BLOCK', 'BC5_UNORM': 'BC5_UNORM_BLOCK', 'BC6H_UF16': 'BC6H_UFLOAT_BLOCK',
+              'BC3_UNORM': 'BC3_UNORM_BLOCK', 'BC3_UNORM_SRGB': 'BC3_SRGB_BLOCK', 'R8G8B8A8_UNORM': 'R8G8B8A8_UNORM',
+              'R8G8B8A8_UNORM_SRGB': 'R8G8B8A8_SRGB'}
 LOD1_FILE = 'efmi-lod1-bones.json'
 LOD1_SCHEMA = 'endfield-efmi-lod1-bones/v1'
 
@@ -526,15 +529,12 @@ def texture_targets(mod, drawn, hidden, by_component, values, components=None, g
     resources = {}
     for s in mod.sections:
         if s.get('filename'):resources.setdefault(s.get('filename').replace('\\', '/'), s.name)
+    # A `this` file is placed where a texture check binds it, by the segments' `hash:` slots.
     for h, filename in mod.textures:
         hashes.setdefault(filename, h)
-        hint = COMPONENT_HINT.search(Path(filename).name)
-        if hint:targets.setdefault(filename, set()).update((shown[int(c)], None) for c in hint.group(1).split('-') if int(c) in shown)
-        elif filename not in targets:targets[filename] = {(m, None) for m in drawn}
-        for mesh, _ in targets[filename]:slots.setdefault((filename, mesh), set()).add('hash:'+h)
         # The semantic stands in for a slot, as an external namespace texture's does.
         if semantic := SEMANTIC_NAME.search(resources.get(filename, '')) or SEMANTIC_NAME.search(Path(filename).stem):
-            for mesh, _ in targets[filename]:slots.setdefault((filename, mesh), set()).add(semantic.group(1).lower()+'map')
+            for mesh, _ in targets.get(filename, ()):slots.setdefault((filename, mesh), set()).add(semantic.group(1).lower()+'map')
     by_hash = {}
     for o in mod.overrides:
         if o.component in shown:by_hash.setdefault(o.hash, shown[o.component])
@@ -545,27 +545,59 @@ def texture_targets(mod, drawn, hidden, by_component, values, components=None, g
         # The semantic stands in for the slot that the other mod binds it to.
         targets[filename] = {(mesh, None)}; slots[filename, mesh] = {name.group(2).lower()+'map'}
     warnings += ['external_namespace:'+f for _, f in mod.external_textures if f not in targets]
+    warnings += ['texture_unbound:'+f for f in dict.fromkeys(f for _, f in mod.textures) if f not in targets]
     for filename in targets:
         if filename not in hashes and (match := TEXTURE_HASH.search(Path(filename).name)):hashes[filename] = match.group(1).lower()
     return targets, slots, hashes, warnings
 
 
-def texture_hashes(source, mesh, read_blob):
-    """3DMigoto hash -> resource names of `mesh`'s template textures: the CRC-32C of level 0 continued over the
-    D3D11_TEXTURE2D_DESC the game creates the texture with (one slice, no multisampling, default usage, shader resource)."""
-    out, seen = {}, set()
+def hashed_textures(source, mesh):
+    """The resource of each template texture file of `mesh` that the runtime hashes, its first in draw order."""
+    seen = set()
     for d in source['draws']:
         if d['mesh'] != mesh:continue
         for r in d['resources']:
             t = r.get('texture', {})
             if r['category'] != 'separate_images' or not r.get('file') or not t.get('mips') or t['rd_format_name'] not in DXGI_CODES or \
                     r['file'] in seen:continue
-            seen.add(r['file']); m = t['mips'][0]
-            # EFMI's texture_hash = 0 keeps 3DMigoto 1.2's length, width*height bytes, when level 0 is not shorter.
-            size = t['width']*t['height'] if t['width']*t['height'] <= m['size'] else m['size']
-            desc = struct.pack('<11I', t['width'], t['height'], t['mip_count'], 1, DXGI_CODES[t['rd_format_name']], 1, 0, 0, 8, 0, 0)
-            out.setdefault('%08x' % crc32c(desc, crc32c(read_blob(r)[m['offset']:m['offset']+size])), set()).add(r['names'][0])
+            seen.add(r['file'])
+            yield r
+
+
+def texture_hashes(source, mesh, read_blob):
+    """3DMigoto hash -> resource names of `mesh`'s template textures: the CRC-32C of level 0 continued over the
+    D3D11_TEXTURE2D_DESC the game creates the texture with (one slice, no multisampling, default usage, shader resource)."""
+    out = {}
+    for r in hashed_textures(source, mesh):
+        t = r['texture']; m = t['mips'][0]
+        # EFMI's texture_hash = 0 keeps 3DMigoto 1.2's length, width*height bytes, when level 0 is not shorter.
+        size = t['width']*t['height'] if t['width']*t['height'] <= m['size'] else m['size']
+        desc = struct.pack('<11I', t['width'], t['height'], t['mip_count'], 1, DXGI_CODES[t['rd_format_name']], 1, 0, 0, 8, 0, 0)
+        out.setdefault('%08x' % crc32c(desc, crc32c(read_blob(r)[m['offset']:m['offset']+size])), set()).add(r['names'][0])
     return out
+
+
+def texture_dhashes(source, mesh, read_blob, cache):
+    """(resource name, rd_format_name, dHash) of each of `mesh`'s template textures that texture_hashes reads and
+    texture_dhash decodes; `cache` keeps a file's dHash across meshes."""
+    out = []
+    for r in hashed_textures(source, mesh):
+        t = r['texture']
+        if t['rd_format_name'] not in texture_dhash.CODECS:continue
+        if r['file'] not in cache:
+            raw = read_blob(r)
+            cache[r['file']] = texture_dhash.dhash(t['rd_format_name'], [(m['width'], m['height'], raw[m['offset']:m['offset']+m['size']]) for m in t['mips']])
+        out.append((r['names'][0], t['rd_format_name'], cache[r['file']]))
+    return out
+
+
+def filtered(dhashes, key):
+    """The resources a `filter:<dHash>:<match_format>:<max distance>` slot binds of `dhashes` (texture_dhashes): those of the
+    format with the least distance to the filter's dHash, all ties, none when that is above the max distance."""
+    _, dhash, fmt, most = key.split(':')
+    found = [(texture_dhash.distance(int(dhash, 16), h), n) for n, f, h in dhashes if not fmt or f == DXGI_NAMES.get(fmt)]
+    best = min((d for d, _ in found), default=None)
+    return set() if best is None or best > int(most) else {n for d, n in found if d == best}
 
 
 def learn_textures(mod, source, read_blob, targets, slots, hashes):
@@ -582,7 +614,7 @@ def learn_textures(mod, source, read_blob, targets, slots, hashes):
     blobs, unchanged, known, claimed = {}, {}, {}, {}
     for filename in sorted(targets):
         if not targets[filename]:continue
-        blob = efmi_mod.read_dds(mod.files[filename]); m0 = blob.mips[0]; data = blob.data[m0['offset']:m0['offset']+m0['size']]
+        blob = efmi_mod.read_dds(mod.files[filename], mod.color_spaces.get(filename)); m0 = blob.mips[0]; data = blob.data[m0['offset']:m0['offset']+m0['size']]
         meshes = sorted({mesh for mesh, _ in targets[filename]})
         for mesh in meshes:
             same = [(m, n) for n, materials in material_variants(source, mesh).items() for m, t in materials.items()
@@ -594,12 +626,6 @@ def learn_textures(mod, source, read_blob, targets, slots, hashes):
                 if k is not None:known.setdefault(k, set()).update(n for _, n in same)
         if set(unchanged.get(filename, {})) != set(meshes):blobs[filename] = blob
     return blobs, unchanged, known, claimed
-
-
-def normal_map(slot, blob):
-    """A BC7 normal map in a BC5 normal slot: the programs unpack it as the game's do (x *= w, xy*2-1, z rebuilt), as the game
-    does for its own BC7 normal maps."""
-    return (slot['rd_format_name'], blob.rd_format_name) == ('BC5_UNORM_BLOCK', 'BC7_UNORM_BLOCK')
 
 
 def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping, values, hints, components=None, groups=None):
@@ -623,12 +649,19 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
     def other_hash(mesh, key, h):
         found = claimed.get(mesh, {}).get(key)
         return bool(h and found and found != h)
-    template_hashes = {}
+    template_hashes, template_dhashes, dhash_cache = {}, {}, {}
     def hashed(filename, mesh):
-        """The resources whose template texture of `mesh` has the hash of one of the file's `hash:` slots there."""
-        found = {s[5:] for s in slots.get((filename, mesh), ()) if s.startswith('hash:')}
+        """The resources whose template texture of `mesh` has the hash of one of the file's `hash:` slots there, and those its
+        `filter:` slots there name by dHash (filtered) or, where a filter names none, by the original hash in the file name."""
+        bound = slots.get((filename, mesh), ())
+        found, named = {s[5:] for s in bound if s.startswith('hash:')}, set()
+        for s in bound:
+            if not s.startswith('filter:'):continue
+            if mesh not in template_dhashes:template_dhashes[mesh] = texture_dhashes(source, mesh, read_blob, dhash_cache)
+            if near := filtered(template_dhashes[mesh], s):named |= near
+            elif match := TEXTURE_HASH.search(Path(filename).name):found.add(match.group(1).lower())
         if found and mesh not in template_hashes:template_hashes[mesh] = texture_hashes(source, mesh, read_blob)
-        return {n for h in found for n in template_hashes[mesh].get(h, ())}
+        return named | {n for h in found for n in template_hashes[mesh].get(h, ())}
     def candidates(filename, mesh, own, blob):
         """(resources, whether this mod's tables or the hints name them rather than the shape rule)."""
         if named := hashed(filename, mesh) & set(own):return named, True
@@ -648,12 +681,14 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
     def unread(filename, mesh):
         """Whether the file is bound at `mesh` only to ps-t registers that the hint table, which knows the slots of the mesh's
         programs, leaves out and this mod teaches nothing about: a patched shader's own, which the template programs never read;
-        to RabbitFX semantics the mesh's shader has no resource for; and to hashes of textures that `mesh` does not have."""
+        to RabbitFX semantics the mesh's shader has no resource for; and to hashes of textures that `mesh` does not have.
+        A file bound only by filters is unread where they name no template texture, whatever the table."""
         named = program_hints(source, mesh, hints)
         table = {s for s in named if s.startswith('ps-t')}
         bound = slots.get((filename, mesh), set())
+        if bound and all(s.startswith('filter:') for s in bound):return not hashed(filename, mesh)
         def dead(s):
-            if s.startswith('hash:'):return True
+            if s.startswith(('hash:', 'filter:')):return True
             if s.startswith('ps-t'):return s not in table and slot_key(source, mesh, s) not in known
             return s in RABBITFX_SLOTS.values() and s not in named and slot_key(source, mesh, s) not in known
         return bool(table and bound) and not hashes.get(filename) and not hashed(filename, mesh) and all(dead(s) for s in bound)
@@ -662,9 +697,10 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
     rows, assigned, placing = [], {}, []
     for i, filename in enumerate(sorted(targets)):
         places = sorted((p for p in targets[filename] if p[0] not in unchanged.get(filename, {})), key=place_key)
-        # A hash override replaces a texture only on the meshes whose template has it.
+        # A hash override or a filter replaces a texture only on the meshes whose template has it.
         if any(hashed(filename, m) for m, _ in places):
-            places = [p for p in places if hashed(filename, p[0]) or any(not s.startswith('hash:') for s in slots.get((filename, p[0]), ()))]
+            places = [p for p in places if hashed(filename, p[0]) or
+                      any(not s.startswith(('hash:', 'filter:')) for s in slots.get((filename, p[0]), ()))]
         meshes = sorted({m for m, _ in places})
         row = dict(index=i, file=filename, meshes=meshes, resource=None); rows.append(row)
         if filename in unchanged:row['unchanged'] = dict(sorted(unchanged[filename].items()))
@@ -674,9 +710,7 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
         name = mapping.get('textures', {}).get(str(i))
         if name is None and all(unread(filename, m) for m in meshes):warnings.append('texture_unbound:'+filename); continue
         if name is not None:
-            if not all(name in own[p] for p in places) or any(
-                    outfit_compose.srgb(dict(rd_format_name=blob.rd_format_name)) != outfit_compose.srgb(own[p][name]) for p in places):
-                raise ValueError(f'texture_mismatch:{i}:{filename}')
+            if not all(name in own[p] for p in places):raise ValueError(f'texture_mismatch:{i}:{filename}')
             placing.append((0, 0, i, row, places, blob, own, name)); continue
         found = [candidates(filename, p[0], own[p], blob) for p in places]
         fits = [c for c, _ in found]
@@ -707,11 +741,6 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
                 raise ValueError(f'texture_mismatch:{i}:{filename}: candidates '+'; '.join(
                     f'{p[0]}: {", ".join(n+(" (taken)" if n not in rest else "") for n in sorted(c)) or "none"}' for p, c, rest in zip(places, fits, left)))
             chosen = sorted(names)
-            # The game samples a file put in place of a hashed texture in the file's own format.
-            if bad := [(p, n) for n in chosen for p, h in zip(places, by_hash)
-                       if own[p][n]['rd_format_name'] != blob.rd_format_name and not normal_map(own[p][n], blob) and n not in h]:
-                (p, n), *_ = bad
-                raise ValueError(f'texture_format:{filename}: {n} of {p[0]} is {own[p][n]["rd_format_name"]} and the file is {blob.rd_format_name}')
         row['resource'] = chosen[0]
         if len(chosen) > 1:row['resources'] = chosen
         for name in chosen:
@@ -721,7 +750,7 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
                 assigned.setdefault(p, {}).update(dict.fromkeys(keys, blob))
         # The template samplers may need the whole chain, which a block-compressed texture cannot be given here.
         if len(blob.mips) == 1 and any(own[p][n]['mip_count'] > 1 for p in places for n in chosen):warnings.append('needs_mips:'+filename)
-        # A mapping may change any format of its color space, a hash any format; the shape rule only a BC5 normal map's to BC7.
+        # The runtime samples the file in its own format whatever the resource's.
         if any(own[p][n]['rd_format_name'] != blob.rd_format_name for p in places for n in chosen):warnings.append('format_changed:'+filename)
         tag = re.search(r'bc7-srgb|bc7-linear|bc5-linear', Path(filename).name, re.IGNORECASE)
         if tag and FORMAT_TAGS[tag.group(0).lower()] != blob.rd_format_name:warnings.append('format_tag:'+filename)
@@ -886,7 +915,7 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
         layouts = {c: mod_settings.groups(mod, drawn_with[c], controlled.get(c, {}), plan.warn) for c in geometric}
         blobs = {}
         def texture(filename):
-            if filename not in blobs:blobs[filename] = efmi_mod.read_dds(mod.files[filename])
+            if filename not in blobs:blobs[filename] = efmi_mod.read_dds(mod.files[filename], mod.color_spaces.get(filename))
             return blobs[filename]
         def added_textures(c, mesh, k):
             """Resource name -> TextureBlob of a group only other switch values draw: a file the match placed at the mesh, else one

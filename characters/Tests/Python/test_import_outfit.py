@@ -14,7 +14,7 @@ from unittest import mock
 
 CHARACTERS = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(CHARACTERS), str(CHARACTERS.parent/'agent/agentd/tests')]
-from agentic_complex_build import import_outfit
+from agentic_complex_build import import_outfit, texture_dhash
 from character_library import Package, read_json, write_json
 import native_bundle
 import package_format
@@ -266,6 +266,7 @@ run = CommandList\\EFMIv1\\Component_DrawInstances
 
 [CommandList_Draw_Component0]
 ib = ref Resource_Component0_IB
+run = CommandList\\EFMIv1\\OverrideTextures
 drawindexed = 3, 0, 0
 
 [CommandList_Draw_Component1]
@@ -362,10 +363,29 @@ filename = Textures/new.dds
 '''
 
 
+# A draw after EFMI's texture check, which fires the `this` overrides.
+CHECKED_DRAW = 'run = CommandList\\EFMIv1\\OverrideTextures\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+
+
 def this_sections(*hashes):
     """EFMI-Tools `this` overrides of CLOTH's component 0, one per original texture hash."""
     return ''.join(f'\n[Resource_Texture_{h}]\nfilename = Textures/Components-0 t={h} BC7-Linear.dds\n\n'
                    f'[TextureOverride_Texture{i}]\nhash = {h}\nthis = Resource_Texture_{h}\n' for i, h in enumerate(hashes))
+
+
+FILTER_DRAW = 'ps-t[FilterTexture0] = ref ResourceTexture0\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+
+
+def filter_sections(dhash, file='Textures/new.dds', match_format=None):
+    """The EFMI-Tools filter FILTER_DRAW binds `file` by: the template texture whose dHash is nearest `dhash` gets it."""
+    own = f'match_format = {match_format}\n' if match_format else ''
+    return f'\n[ResourceTexture0]\nfilename = {file}\n\n[FilterTexture0]\n{own}match_dhash = {dhash:016x}\n'
+
+
+def template_dhash(fmt, binding):
+    """The dHash of a template texture of `package_fixture`, its two levels filled with its binding."""
+    raw = bytes([binding])*16
+    return texture_dhash.dhash(fmt, [(4, 4, raw), (2, 2, raw)])
 
 
 def fingerprint(root, names):
@@ -560,8 +580,7 @@ class ImportOutfitTests(unittest.TestCase):
         # maid's cloth_05: two materials of one submesh sample `_MainTex` at two sizes, and the mod brings one file for each.
         package = package_fixture(self.root/'two', second_material=True)
         small, large = 'Textures/Components-0 t=0000aaaa BC7-sRGB.dds', 'Textures/Components-0 t=1111bbbb BC7-sRGB.dds'
-        draw = 'drawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
-        mod = cloth_mod(self.root/'mod', draw, {small: dds(4, 4, 99, fill=8), large: dds(8, 8, 99, fill=9)},
+        mod = cloth_mod(self.root/'mod', CHECKED_DRAW, {small: dds(4, 4, 99, fill=8), large: dds(8, 8, 99, fill=9)},
                         this_sections('0000aaaa', '1111bbbb').replace('BC7-Linear', 'BC7-sRGB'))
         report = import_outfit.import_outfit(package.root, mod, self.root/'out')
         self.assertEqual([(t['file'], t['resource']) for t in report['textures']], [(small, '_BaseMap'), (large, '_BaseMap')])
@@ -697,8 +716,6 @@ filename = Textures/new.dds
         self.assertEqual(self.code(si_mod(self.root/'b')), 'texture_mismatch')
         mapping = write_map(self.root/'map.json', textures={'1': '_EmissionMap'})
         self.assertEqual(self.code(si_mod(self.root/'c'), mapping), 'texture_mismatch')
-        mapping = write_map(self.root/'map.json', textures={'1': '_BaseMap'})
-        self.assertEqual(self.code(si_mod(self.root/'d'), mapping), 'texture_mismatch')
         bem = self.root/'bem'; bem.mkdir(); (bem/'pack.bem').write_bytes(b'BEM\0PKG\0')
         self.assertEqual(self.code(bem), 'unsupported_mod')
         stream = self.root/'stream'; stream.mkdir()
@@ -723,7 +740,7 @@ filename = Textures/new.dds
 
     def test_a_texture_equal_to_its_template_is_unchanged_and_its_hash_rules_out_its_resource(self):
         old, new = 'Textures/Components-0 t=11111111 BC7-Linear.dds', 'Textures/Components-0 t=22222222 BC7-Linear.dds'
-        mod = cloth_mod(self.root/'mod', 'drawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE',
+        mod = cloth_mod(self.root/'mod', CHECKED_DRAW,
                         {old: dds(4, 4, 98, fill=2), new: dds(8, 8, 98)}, this_sections('11111111', '22222222'))
         report = import_outfit.import_outfit(self.package.root, mod, self.root/'out')
         self.assertEqual(report['textures'], [dict(index=0, file=old, meshes=[], resource=None, unchanged={CLOTH: '_MetallicGlossMap'}),
@@ -747,11 +764,13 @@ filename = Textures/new.dds
         # old.dds, of the template's size, is placed before new.dds.
         self.assertEqual(str(caught.exception), f'texture_mismatch:1:Textures/old.dds: candidates {CLOTH}: _ClearCoatMask, _MetallicGlossMap')
 
-    def test_a_slot_learned_from_a_bc5_normal_map_takes_a_bc7_one_but_no_other_format(self):
-        # The programs unpack _BumpMap as the game's do (x *= w, xy*2-1, z rebuilt), so a BC7 normal map renders as in the game.
+    def test_a_slot_learned_from_a_bc5_normal_map_takes_a_file_of_another_format_with_a_warning(self):
+        # The runtime samples the file in its own format; the programs unpack _BumpMap as the game's do (x *= w, xy*2-1, z rebuilt).
         draw = SLOT_DRAW.replace('ps-t18', 'ps-t19')
         mod = cloth_mod(self.root/'srgb', draw, {'Textures/old.dds': dds(4, 4, fourcc=b'ATI2', fill=6), 'Textures/new.dds': dds(4, 4, 99)}, SLOT_SECTIONS)
-        self.assertEqual(self.code(mod), 'texture_format')
+        report = import_outfit.import_outfit(self.package.root, mod, self.root/'out-srgb')
+        self.assertEqual(report['textures'][0]['resource'], '_BumpMap')
+        self.assertIn('format_changed:Textures/new.dds', report['warnings'])
         mod = cloth_mod(self.root/'mod', draw, {'Textures/old.dds': dds(4, 4, fourcc=b'ATI2', fill=6), 'Textures/new.dds': dds(4, 4, 98)}, SLOT_SECTIONS)
         report = import_outfit.import_outfit(self.package.root, mod, self.root/'out')
         self.assertEqual(report['textures'][0]['resource'], '_BumpMap')
@@ -825,12 +844,14 @@ filename = Textures/new.dds
 hash = ad2ae6dc
 match_index_count = 3
 $\\EFMIv1\\component_id = 0
+run = CommandList\\EFMIv1\\OverrideTextures
 drawindexed = 3, 0, 0
 
 [TextureOverride_EntryPoint_Component1]
 hash = 40609654
 match_index_count = 6
 $\\EFMIv1\\component_id = 1
+run = CommandList\\EFMIv1\\OverrideTextures
 drawindexed = 6, 0, 0
 ''' + this_sections('1234abcd', '0000aaaa').replace('Components-0 t=0000aaaa', 'Components-0-1 t=0000aaaa')
         mod = self.root/'mod'; (mod/'Textures').mkdir(parents=True); (mod/'mod.ini').write_text(ini)
@@ -842,7 +863,7 @@ drawindexed = 6, 0, 0
         self.assertIn('texture_unbound:Textures/Components-0-1 t=0000aaaa BC7-Linear.dds', report['warnings'])
 
     def test_a_this_texture_is_placed_by_the_semantic_its_resource_or_file_is_named_by(self):
-        draw = 'drawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        draw = CHECKED_DRAW
         hints = {'fixture': {'M_cloth': {'lightmap': '_ClearCoatMask'}}}
         for i, (resource, file) in enumerate([('Resource_Component0_LightMap', 'Textures/Components-0 t=1234abcd.dds'),
                                                ('Resource_Texture0', 'Textures/Components-0 Light.dds')]):
@@ -897,12 +918,14 @@ endif
 hash = ad2ae6dc
 match_index_count = 3
 $\\EFMIv1\\component_id = 0
+run = CommandList\\EFMIv1\\OverrideTextures
 drawindexed = 3, 0, 0
 
 [TextureOverride_EntryPoint_Component1]
 hash = 40609654
 match_index_count = 6
 $\\EFMIv1\\component_id = 1
+run = CommandList\\EFMIv1\\OverrideTextures
 drawindexed = 6, 0, 0
 
 [ResourceZero]
@@ -929,6 +952,85 @@ this = ref ResourceZero
             self.assertEqual((replaced[name]['sha256'], replaced[name]['texture']['rd_format_name']),
                              (hashlib.sha256(bytes(16)).hexdigest(), 'R8G8B8A8_UNORM'))
 
+    def test_a_filter_slot_replaces_the_template_texture_of_the_nearest_dhash(self):
+        # By format and shape alone new.dds could be _ClearCoatMask or _MetallicGlossMap.
+        mod = cloth_mod(self.root/'mod', FILTER_DRAW, {'Textures/new.dds': dds(8, 8, 98)}, filter_sections(template_dhash('BC7_UNORM_BLOCK', 5)))
+        report = import_outfit.import_outfit(self.package.root, mod, self.root/'out')
+        self.assertEqual(report['textures'], [dict(index=0, file='Textures/new.dds', meshes=[CLOTH], resource='_ClearCoatMask')])
+
+    def test_a_filter_replaces_every_template_texture_at_the_least_distance(self):
+        package = package_fixture(self.root/'two', cloth_extra=[('_DetailMask', 'BC7_UNORM_BLOCK', False, 34), ('_OcclusionMap', 'BC7_UNORM_BLOCK', False, 107)])
+        a, b = template_dhash('BC7_UNORM_BLOCK', 34), template_dhash('BC7_UNORM_BLOCK', 107)
+        between = a ^ ((a ^ b) & -(a ^ b))
+        self.assertEqual((texture_dhash.distance(between, a), texture_dhash.distance(between, b)), (1, 1))
+        mod = cloth_mod(self.root/'mod', FILTER_DRAW, {'Textures/new.dds': dds(4, 4, 98)}, filter_sections(between))
+        report = import_outfit.import_outfit(package.root, mod, self.root/'out')
+        self.assertEqual(report['textures'], [dict(index=0, file='Textures/new.dds', meshes=[CLOTH], resource='_DetailMask',
+                                                   resources=['_DetailMask', '_OcclusionMap'])])
+        *_, source, _, _ = self.staged(self.root/'out')
+        [clone] = [d for d in source['draws'] if d['mesh'] == 'outfit:'+report['appearance']['id']+'/'+CLOTH]
+        replaced = {r['names'][0]: r['sha256'] for r in clone['resources']}
+        self.assertEqual({replaced['_DetailMask'], replaced['_OcclusionMap']}, {hashlib.sha256(dds(4, 4, 98)[148:]).hexdigest()})
+
+    def test_a_filter_s_match_format_leaves_out_a_nearer_texture_of_another_format(self):
+        # The filter's dHash is _BaseMap's; of the BC7_UNORM textures _ClearCoatMask is the nearest.
+        sections = filter_sections(template_dhash('BC7_SRGB_BLOCK', 7), match_format='DXGI_FORMAT_BC7_UNORM')
+        report = import_outfit.import_outfit(self.package.root, cloth_mod(self.root/'mod', FILTER_DRAW, {'Textures/new.dds': dds(8, 8, 99)}, sections),
+                                             self.root/'out')
+        self.assertEqual(report['textures'], [dict(index=0, file='Textures/new.dds', meshes=[CLOTH], resource='_ClearCoatMask')])
+        self.assertIn('format_changed:Textures/new.dds', report['warnings'])
+
+    def test_a_filter_that_matches_no_texture_falls_back_to_the_hash_in_the_file_name(self):
+        # 67d578ae is 3DMigoto's hash of _ClearCoatMask, the template texture farthest from the filter's dHash.
+        far = ~template_dhash('BC7_UNORM_BLOCK', 5) & (2**64-1)
+        file = 'Textures/Components-0 t=67d578ae BC7-Linear.dds'
+        mod = cloth_mod(self.root/'mod', FILTER_DRAW, {file: dds(8, 8, 98)}, filter_sections(far, file))
+        report = import_outfit.import_outfit(self.package.root, mod, self.root/'out')
+        self.assertEqual(report['textures'], [dict(index=0, file=file, meshes=[CLOTH], resource='_ClearCoatMask')])
+
+    def test_a_filter_whose_dhash_and_file_name_hash_name_no_texture_leaves_its_file_unbound(self):
+        far = ~template_dhash('BC7_UNORM_BLOCK', 5) & (2**64-1)
+        file = 'Textures/Components-0 t=11111111 BC7-Linear.dds'
+        draw = 'ps-t17 = ResourceBase\n'+FILTER_DRAW
+        sections = filter_sections(far, file)+'\n[ResourceBase]\nfilename = Textures/base.dds\n'
+        mod = cloth_mod(self.root/'none', draw, {file: dds(8, 8, 98), 'Textures/base.dds': dds(8, 8, 99)}, sections)
+        report = import_outfit.import_outfit(self.package.root, mod, self.root/'out-none')
+        self.assertEqual({t['file']: t['resource'] for t in report['textures']}, {file: None, 'Textures/base.dds': '_BaseMap'})
+        self.assertIn('texture_unbound:'+file, report['warnings'])
+
+    def test_a_this_texture_no_texture_check_binds_is_placed_nowhere(self):
+        file = 'Textures/Components-0 t=1234abcd BC5-Linear.dds'
+        draw = 'ps-t17 = ResourceBase\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        sections = this_sections('1234abcd').replace('BC7-Linear', 'BC5-Linear')+'\n[ResourceBase]\nfilename = Textures/base.dds\n'
+        mod = cloth_mod(self.root/'mod', draw, {file: dds(8, 8, fourcc=b'ATI2'), 'Textures/base.dds': dds(8, 8, 99)}, sections)
+        report = import_outfit.import_outfit(self.package.root, mod, self.root/'out')
+        self.assertEqual(report['textures'], [dict(index=0, file='Textures/base.dds', meshes=[CLOTH], resource='_BaseMap')])
+        self.assertIn('texture_unbound:'+file, report['warnings'])
+
+    def test_a_table_named_slot_takes_a_file_of_another_format_with_a_warning(self):
+        draw = 'ps-t18 = ResourceNew\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        hints = {'fixture': {'M_cloth': {'ps-t18': '_MetallicGlossMap'}}}
+        carrying = package_fixture(self.root/'carrying', tables={import_outfit.HINTS_FILE: dict(schema=import_outfit.HINTS_SCHEMA, characters=hints)})
+        mod = cloth_mod(self.root/'mod', draw, {'Textures/new.dds': dds(4, 4, 99)}, '\n[ResourceNew]\nfilename = Textures/new.dds\n')
+        report = import_outfit.import_outfit(carrying.root, mod, self.root/'out-hinted')
+        self.assertEqual(report['textures'], [dict(index=0, file='Textures/new.dds', meshes=[CLOTH], resource='_MetallicGlossMap')])
+        self.assertIn('format_changed:Textures/new.dds', report['warnings'])
+        # A mapping, too, may put a file of another color space in place.
+        report, _ = self.si_import(textures={'1': '_BaseMap'})
+        self.assertEqual(report['textures'][1]['resource'], '_BaseMap')
+        self.assertIn('format_changed:Textures/L.Dds', report['warnings'])
+
+    def test_a_resource_s_color_space_sets_the_format_its_file_is_read_in(self):
+        draw = 'ps-t17 = ResourceNew\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        sections = '\n[ResourceNew]\nfilename = Textures/new.dds\ncolor_space = sRGB\n'
+        report = import_outfit.import_outfit(self.package.root, cloth_mod(self.root/'mod', draw, {'Textures/new.dds': dds(8, 8, 98)}, sections), self.root/'out')
+        self.assertEqual(report['textures'], [dict(index=0, file='Textures/new.dds', meshes=[CLOTH], resource='_BaseMap')])
+        self.assertNotIn('format_changed:Textures/new.dds', report['warnings'])
+        *_, source, _, _ = self.staged(self.root/'out')
+        [clone] = [d for d in source['draws'] if d['mesh'] == 'outfit:'+report['appearance']['id']+'/'+CLOTH]
+        base = next(r for r in clone['resources'] if r['names'] == ['_BaseMap'])
+        self.assertEqual((base['sha256'], base['texture']['rd_format_name']), (hashlib.sha256(dds(8, 8, 98)[148:]).hexdigest(), 'BC7_SRGB_BLOCK'))
+
     def test_rabbitfx_slots_place_by_the_semantics_its_shaders_read_them_as(self):
         draw = 'ps-t70 = ResourceD\nps-t71 = ResourceL\nps-t72 = ResourceN\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
         sections = '\n[ResourceD]\nfilename = Textures/d.dds\n\n[ResourceL]\nfilename = Textures/l.dds\n\n[ResourceN]\nfilename = Textures/n.dds\n'
@@ -941,7 +1043,7 @@ this = ref ResourceZero
 
     def test_the_file_of_the_template_size_takes_a_contested_resource_and_the_other_is_left_unbound(self):
         other, sized = 'Textures/Components-0 t=0000aaaa BC7-Linear.dds', 'Textures/Components-0 t=1111bbbb BC7-Linear.dds'
-        draw = 'drawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        draw = CHECKED_DRAW
         mod = cloth_mod(self.root/'mod', draw, {other: dds(8, 8, 99), sized: dds(4, 4, 99, fill=9)}, this_sections('0000aaaa', '1111bbbb'))
         report = import_outfit.import_outfit(self.package.root, mod, self.root/'out')
         self.assertEqual(report['textures'], [dict(index=0, file=other, meshes=[CLOTH], resource=None),
@@ -954,7 +1056,7 @@ this = ref ResourceZero
 
     def test_of_the_shape_rule_candidates_the_one_of_the_file_size_is_taken(self):
         package = package_fixture(self.root/'outline', cloth_extra=[('_OutlineMask', 'BC7_UNORM_BLOCK', False, 9, 8)])
-        draw = 'drawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        draw = CHECKED_DRAW
         file = 'Textures/Components-0 t=1234abcd BC7-Linear.dds'
         report = import_outfit.import_outfit(package.root, cloth_mod(self.root/'mod', draw, {file: dds(8, 8, 98)}, this_sections('1234abcd')), self.root/'out')
         self.assertEqual(report['textures'], [dict(index=0, file=file, meshes=[CLOTH], resource='_OutlineMask')])

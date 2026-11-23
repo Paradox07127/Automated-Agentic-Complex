@@ -42,7 +42,8 @@ CONTENT_SOURCES=('characters/agentic_complex_build/import_vmd.py','characters/ag
     'characters/agentic_complex_build/pose_family.py',
     'characters/agentic_complex_build/motion_families.py',
     'characters/agentic_complex_build/mesh_codec.py','characters/agentic_complex_build/efmi_geometry.py',
-    'characters/agentic_complex_build/mod_settings.py','characters/agentic_complex_build/texture_mips.py')
+    'characters/agentic_complex_build/mod_settings.py','characters/agentic_complex_build/texture_mips.py',
+    'characters/agentic_complex_build/texture_dhash.py')
 CONTENT_PACKAGES=('characters/agentic_complex_build/mmd/','characters/agentic_complex_build/motion_import/')
 
 

@@ -368,7 +368,7 @@ class ModSettingsTests(unittest.TestCase):
 
     def test_sections_switching_one_texture_alike_give_one_variant(self):
         files = {'Textures/Components-0 Diffuse NoCoat.dds': dds(4, 4, 99, fill=1), 'Textures/Components-0 Diffuse.dds': dds(4, 4, 99, fill=2)}
-        report, docs, table, runtime = self.imported(cloth_mod(self.root/'mod', 'drawindexed = 6, 0, 0', files, COAT_SECTIONS))
+        report, docs, table, runtime = self.imported(cloth_mod(self.root/'mod', 'run = CommandList\\EFMIv1\\OverrideTextures\ndrawindexed = 6, 0, 0', files, COAT_SECTIONS))
         aid = report['appearance']['id']
         [texture] = table['appearances'][aid]['textures']
         self.assertEqual((texture['mesh'], texture['resource'], [v['when'] for v in texture['variants']]),

@@ -526,6 +526,11 @@ class Scene:
                     if fourcc == b'DX10' and len(head) == 148:self.formats[filename] = float(struct.unpack_from('<I', head, 128)[0])
                     elif fourcc in FOURCC_DXGI:self.formats[filename] = float(FOURCC_DXGI[fourcc])
                     elif struct.unpack_from('<5I', head, 88) == RGBA_MASKS:self.formats[filename] = 28.0
+            # A Resource's color_space loads the file as the sRGB or UNORM variant of its format (BC7 98/99, BC3 77/78, RGBA8 28/29).
+            space = self.mod.color_spaces.get(filename)
+            pairs = {98.0: 99.0, 77.0: 78.0, 28.0: 29.0}
+            if space == 'srgb':self.formats[filename] = pairs.get(self.formats[filename], self.formats[filename])
+            elif space == 'linear':self.formats[filename] = {v: k for k, v in pairs.items()}.get(self.formats[filename], self.formats[filename])
         return self.formats[filename]
 
     def marks(self, condition):
@@ -933,8 +938,9 @@ def mip_size(rd_format_name, width, height):
     return width*height*4
 
 
-def read_dds(path):
-    """A DDS as a TextureBlob whose mips index into the pixel data after the headers."""
+def read_dds(path, color_space=None):
+    """A DDS as a TextureBlob whose mips index into the pixel data after the headers; `color_space` 'srgb' or 'linear' (a
+    Resource's color_space) reads it as the sRGB or the UNORM variant of its format, where the format has one."""
     raw = Path(path).read_bytes()
     # File offsets: 'DDS ' magic, 124-byte header (fourCC at 84), then a 20-byte DX10 header from 128 when fourCC is DX10.
     if len(raw) < 128 or raw[:4] != b'DDS ':raise ValueError('unsupported_texture_format')
@@ -950,6 +956,8 @@ def read_dds(path):
     elif fourcc == b'\0\0\0\0' and struct.unpack_from('<I', raw, 80)[0] & 0x40 and struct.unpack_from('<5I', raw, 88) == RGBA_MASKS:
         fmt, data = 'R8G8B8A8_UNORM', raw[128:]
     else:raise ValueError('unsupported_texture_format')
+    if color_space == 'srgb':fmt = fmt.replace('_UNORM', '_SRGB') if fmt != 'BC5_UNORM_BLOCK' else fmt
+    elif color_space == 'linear':fmt = fmt.replace('_SRGB', '_UNORM')
     mips, offset = [], 0
     for level in range(max(1, mip_count)):
         w, h = max(1, width >> level), max(1, height >> level)
