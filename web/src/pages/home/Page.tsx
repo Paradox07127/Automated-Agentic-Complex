@@ -11,9 +11,9 @@ import { look, openQuickInput, stopSpeech, useDesktopOff } from '../../shell/des
 import { OPEN_PALETTE } from '../../shell/Layout';
 import { useGo, type PageId } from '../../shell/nav';
 import { usePlugins, type PluginId } from '../../shell/plugins';
-import { offReason, useVisibleRoutes } from '../../shell/registry';
+import { offReason, routeOff, useVisibleRoutes } from '../../shell/registry';
 import { fxCalm, Stage3D, useGameClip, type IconName } from '../../ui';
-import { CharCard, CloseKey, NewsBanner, PowerState, TopIcon, WatchKey, type NewsItem } from '../../ui/game';
+import { CharCard, CloseKey, NewsBanner, PowerMark, PowerState, TopIcon, WatchKey, type NewsItem } from '../../ui/game';
 import { nextReminder, reminderTime, runRows } from '../overview/briefModel';
 import { useNow } from '../overview/nav';
 import { isExpired } from '../overview/pending';
@@ -148,7 +148,8 @@ export function HomePage() {
   const pages = (keys: readonly string[]) =>
     keys.flatMap((id) => {
       const r = listed(id);
-      return r?.icon ? [{ id, icon: r.icon, title: r.title, hotkey: r.hotkey, off: undefined, onClick: () => go({ page: id as PageId }) }] : [];
+      const closed = r && routeOff(r, plugins);
+      return r?.icon ? [{ id, icon: r.icon, title: r.title, hotkey: r.hotkey, off: undefined, mark: closed ? <PowerMark state="off" compact reason={closed} /> : undefined, onClick: () => go({ page: id as PageId }) }] : [];
     });
   const acts = {
     dispatch: () => setDraft(draftFor('role')),
@@ -261,7 +262,7 @@ export function HomePage() {
             <div className={styles.layer} style={z(40)} role="group" aria-label="主要页面">
               {left.map((t, i) => {
                 const k = leftKeys[i]!;
-                return <WatchKey key={t.id} box={k.box} pts={k.pts} mid={k.mid} big icon={t.icon} title={t.title} hotkey={t.hotkey} g={LEFT_G[i]} onClick={t.onClick} />;
+                return <WatchKey key={t.id} box={k.box} pts={k.pts} mid={k.mid} big icon={t.icon} title={t.title} hotkey={t.hotkey} mark={t.mark} g={LEFT_G[i]} onClick={t.onClick} />;
               })}
             </div>
             <div className={styles.layer} style={z(40)} role="group" aria-label="工具">

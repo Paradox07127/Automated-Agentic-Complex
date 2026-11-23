@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getBridge, type DesktopState } from '../../bridge';
 import { formatClock } from '../../domain';
+import { navRoute } from '../../shell/nav';
 import { useSystemTheme } from '../../shell/useSystemTheme';
 import { OptionStack, type OptionStackItem } from '../../ui/game/OptionStack';
 import { stackQuery } from '../stack/demos';
@@ -31,7 +32,7 @@ export function dockItems(s: DesktopState | null, presence: unknown, talk: Talk)
     icon: 'mic',
     hotkey: talk ? undefined : keys.hk_ptt,
     live: talk != null,
-    off: talk ? undefined : (away ?? (s?.pips.voice === 'denied' ? '未接入：没有麦克风权限，前往设置 › 能做 › 系统权限里允许' : undefined)),
+    off: talk ? undefined : (away ?? (s?.pips.voice === 'denied' ? '未接入：没有麦克风权限，点按前往设置 › 能做 › 系统权限里允许' : undefined)),
   };
   if (talk) return [voice];
   const lookOff = s?.plugins.includes('screen_reading') ? (p.observation.paused ? '观察已暂停' : undefined) : '已关闭：设置 › 观察里关着「屏幕识读」';
@@ -100,6 +101,10 @@ export function DockRoot() {
     else if (id === 'look') act('look');
     else if (id === 'hide') act('hide');
   };
+  // 说话 greyed for the microphone alone opens its permission row in 设置.
+  const pickOff = (id: string) => {
+    if (id === 'talk' && state?.pips.voice === 'denied' && !readPresence(presence).offline) bridge.window.openMain(navRoute({ page: 'settings', group: 'perm', item: 'microphone' }));
+  };
 
   const dock = state?.dock;
   const shown = !!dock?.open && state?.showHoverHints !== false && !state?.hidden;
@@ -115,6 +120,7 @@ export function DockRoot() {
             note={quietUntil != null && !talk ? `免打扰到 ${formatClock(quietUntil)}` : undefined}
             label="她的按钮"
             onPick={pick}
+            onPickOff={pickOff}
             onPressStart={onPressStart}
             onPressEnd={onPressEnd}
           />

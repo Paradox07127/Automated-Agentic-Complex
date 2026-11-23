@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { DesktopState } from '../../src/bridge/protocol';
@@ -80,5 +80,26 @@ describe('快速输入 theme', () => {
     );
     expect(screen.getByRole('dialog', { name: '快速输入' }).closest('[data-theme]:not(html)')).toBeNull();
     expect(screen.getByRole('alert').closest('[data-theme]')?.getAttribute('data-theme')).toBe('dark');
+  });
+});
+
+describe('快速输入 field', () => {
+  it('is the shared TextArea in its desktop look: ⏎ sends, ⇧⏎ and a composing ⏎ do not, esc closes', () => {
+    const onSend = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <QuickInputBox role="示例甲" text="帮我看看" onText={() => {}} attach={false} noMemory={false} onNoMemory={() => {}}
+        error={null} sending={false} onSend={onSend} onClose={onClose} onRestartBackend={() => {}} onRecheck={() => {}} onOpenChat={() => {}} />,
+    );
+    const ta = screen.getByRole('textbox', { name: '对 示例甲 说的话' });
+    const field = ta.closest('[data-stub="TextArea"]');
+    expect(field?.hasAttribute('data-hud')).toBe(true);
+    fireEvent.keyDown(ta, { key: 'Enter', shiftKey: true });
+    fireEvent.keyDown(ta, { key: 'Enter', keyCode: 229 });
+    expect(onSend).not.toHaveBeenCalled();
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    expect(onSend).toHaveBeenCalledWith({ text: '帮我看看', attachWindow: false, noMemory: false });
+    fireEvent.keyDown(ta, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

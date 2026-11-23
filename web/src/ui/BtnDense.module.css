@@ -1,0 +1,4 @@
+/* Dense small button: no side padding, for keys that share a narrow strip evenly. */
+.dense[data-size='sm'] {
+  padding: 0;
+}

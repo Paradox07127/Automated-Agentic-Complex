@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getBridge } from '../../bridge';
 import type { RuntimeChildState, RuntimeSnapshot } from '../../bridge/runtimeSnapshot';
-import { StatusRow } from '../../ui/game';
-import { Pip, type PipProps } from '../overview/Pip';
+import { StatusLamp, StatusRow } from '../../ui/game';
 import type { Box } from './geometry';
 
 /** The shell's runtime snapshot, kept current; null until read, and on a host without app.runtime. */
@@ -24,7 +23,10 @@ function useRuntime(): RuntimeSnapshot | null {
   return runtime;
 }
 
-const PROCESS: Record<RuntimeChildState, [PipProps['tone'], string]> = {
+/** The lamp's state for each component state: ✓ runs, □ waits, ■ failed, • idle. */
+type Lamp = 'ok' | 'paused' | 'failed' | 'idle';
+
+const PROCESS: Record<RuntimeChildState, [Lamp, string]> = {
   running: ['ok', '运行中'],
   external: ['ok', '外部运行'],
   starting: ['idle', '启动中'],
@@ -35,7 +37,7 @@ const PROCESS: Record<RuntimeChildState, [PipProps['tone'], string]> = {
   stopped: ['idle', '未运行'],
 };
 
-const TTS: Record<RuntimeSnapshot['tts']['state'], [PipProps['tone'], string]> = {
+const TTS: Record<RuntimeSnapshot['tts']['state'], [Lamp, string]> = {
   ready: ['ok', '就绪'],
   probing: ['idle', '检测中'],
   unknown: ['idle', '检测中'],
@@ -47,7 +49,7 @@ const TTS: Record<RuntimeSnapshot['tts']['state'], [PipProps['tone'], string]> =
 /** What the page's own reads of agentd say. */
 export type Conn = 'loading' | 'failed' | 'refused' | 'lost' | 'stale' | 'ok';
 
-const CONN: Record<Conn, [PipProps['tone'], string]> = {
+const CONN: Record<Conn, [Lamp, string]> = {
   loading: ['idle', '读取中'],
   failed: ['failed', '读取失败'],
   refused: ['failed', '拒绝访问'],
@@ -57,7 +59,7 @@ const CONN: Record<Conn, [PipProps['tone'], string]> = {
 };
 
 /** 后台: the process's state, unless it runs and the page's reads of it are not through. */
-function backend(state: RuntimeChildState | undefined, conn: Conn): [PipProps['tone'], string] {
+function backend(state: RuntimeChildState | undefined, conn: Conn): [Lamp, string] {
   if (state && state !== 'running' && state !== 'external') return PROCESS[state];
   return conn !== 'ok' || !state ? CONN[conn] : PROCESS[state];
 }
@@ -65,7 +67,7 @@ function backend(state: RuntimeChildState | undefined, conn: Conn): [PipProps['t
 /** The components the shell runs, each with its state, across the top of the watch; without app.runtime, 后台 alone. */
 export function Status({ box, conn }: { box: Box; conn: Conn }) {
   const rt = useRuntime();
-  const rows: Array<[string, [PipProps['tone'], string]]> = [['后台', backend(rt?.processes.agentd.state, conn)]];
+  const rows: Array<[string, [Lamp, string]]> = [['后台', backend(rt?.processes.agentd.state, conn)]];
   if (rt) rows.push(['角色', PROCESS[rt.processes.avatar.state]], ['语音', TTS[rt.tts.state]]);
-  return <StatusRow box={box} items={rows.map(([name, [tone, state]]) => ({ name, failed: tone === 'failed', state: <Pip tone={tone} label={state} /> }))} />;
+  return <StatusRow box={box} items={rows.map(([name, [tone, state]]) => ({ name, failed: tone === 'failed', state: <StatusLamp size="sm" state={tone} label={state} /> }))} />;
 }

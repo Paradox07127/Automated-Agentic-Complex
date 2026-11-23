@@ -2,6 +2,7 @@ import { act as flush, cleanup, fireEvent, render, screen, within } from '@testi
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, DesktopState } from '../../src/bridge/protocol';
+import { navRoute } from '../../src/shell/nav';
 import { DockRoot, TAP_MS } from '../../src/surfaces/desktop/DockRoot';
 import { stubMatchMedia } from './mediaStub';
 
@@ -31,8 +32,9 @@ function mount(state: DesktopState = STATE) {
   let push: ((s: DesktopState) => void) | null = null;
   vi.spyOn(bridge.desktop, 'onState').mockImplementation((cb) => ((push = cb), queueMicrotask(() => cb(state)), () => {}));
   const action = vi.spyOn(bridge.desktop, 'action').mockResolvedValue(undefined);
+  const openMain = vi.spyOn(bridge.window, 'openMain').mockImplementation(() => {});
   render(<DockRoot />);
-  return { action, state: (s: DesktopState) => flush(async () => push?.(s)) };
+  return { action, openMain, state: (s: DesktopState) => flush(async () => push?.(s)) };
 }
 
 const group = () => screen.getByRole('group', { name: '她的按钮' });
@@ -125,5 +127,23 @@ describe('her hover buttons', () => {
     expect(row(/^说话$/).getAttribute('title')).toBe('未接入：连不上后台');
     await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
     expect(action).not.toHaveBeenCalled();
+  });
+
+  it('without the microphone 说话 is greyed, records nothing, and a click opens 设置 at the microphone permission', async () => {
+    const d = mount({ ...STATE, pips: { ...STATE.pips, voice: 'denied' } });
+    await flush(async () => {});
+    expect(row(/^说话$/).getAttribute('aria-disabled')).toBe('true');
+    await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.click(row(/^说话$/)));
+    expect(d.action).not.toHaveBeenCalled();
+    expect(d.openMain.mock.calls).toEqual([[navRoute({ page: 'settings', group: 'perm', item: 'microphone' })]]);
+  });
+
+  it('a greyed row for any other reason opens nothing', async () => {
+    const d = mount({ ...STATE, plugins: ['light_ai'] });
+    await flush(async () => {});
+    await flush(async () => fireEvent.click(row(/^给她看$/)));
+    expect(d.action).not.toHaveBeenCalled();
+    expect(d.openMain).not.toHaveBeenCalled();
   });
 });

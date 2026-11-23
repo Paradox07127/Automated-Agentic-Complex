@@ -38,12 +38,6 @@
   align-self: center;
 }
 
-/* The import result may run past one line. */
-.l1[data-motion-import] > [data-stub='StatusLamp'] {
-  min-width: 0;
-  white-space: normal;
-}
-
 .sp {
   flex: 1;
 }

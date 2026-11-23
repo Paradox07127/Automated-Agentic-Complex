@@ -75,7 +75,7 @@ function Lead({ state }: { state: MmdState['state'] }) {
 export function LibraryError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className={styles.err} role="alert">
-      <StatusLamp onDark state="failed" label={message} />
+      <StatusLamp onDark wrap state="failed" label={message} />
       <WhiteCapsule label="重试" icon="refresh" onClick={onRetry} />
     </div>
   );

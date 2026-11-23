@@ -151,13 +151,13 @@ export function Setlist({ who, cards, list, blocked }: SetlistProps) {
                     <Barcode width={40} height={9} />
                   </span>
                   <span className={styles.mv}>
-                    <Btn variant="text" size="sm" label="前移" disabled={off != null || i === 0} disabledReason={off ?? '已在最前'} onClick={() => list.move(i, -1)}>
+                    <Btn variant="text" size="sm" dense label="前移" disabled={off != null || i === 0} disabledReason={off ?? '已在最前'} onClick={() => list.move(i, -1)}>
                       ◀
                     </Btn>
-                    <Btn variant="text" size="sm" label="后移" disabled={off != null || i === items.length - 1} disabledReason={off ?? '已在最后'} onClick={() => list.move(i, 1)}>
+                    <Btn variant="text" size="sm" dense label="后移" disabled={off != null || i === items.length - 1} disabledReason={off ?? '已在最后'} onClick={() => list.move(i, 1)}>
                       ▶
                     </Btn>
-                    <Btn variant="text" size="sm" disabled={off != null} disabledReason={off ?? ''} onClick={() => list.put(items.filter((x) => x !== c.id))}>
+                    <Btn variant="text" size="sm" dense disabled={off != null} disabledReason={off ?? ''} onClick={() => list.put(items.filter((x) => x !== c.id))}>
                       移出
                     </Btn>
                   </span>

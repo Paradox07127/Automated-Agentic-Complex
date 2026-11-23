@@ -2,6 +2,7 @@ import { useEffect, useId, useState, type AriaAttributes, type KeyboardEvent, ty
 import { Icon, type IconName } from './Icon';
 import { Kbd } from './Kbd';
 import styles from './Btn.module.css';
+import denseStyles from './BtnDense.module.css';
 import hintStyles from './BtnHint.module.css';
 import pressStyles from './BtnPressed.module.css';
 
@@ -18,6 +19,8 @@ export interface BtnProps {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'text' | 'ring' | 'link' | 'cancel' | 'danger-confirm' | 'quiet' | 'action-row';
   /** 高 36 / 32 / 24，默认 md */
   size?: 'lg' | 'md' | 'sm';
+  /** 只对 sm：去掉左右内边距（窄条里并排平分宽度的键，如卡脚的 ◀ ▶ 移出） */
+  dense?: boolean;
   /** 图标：带图标位的变体放进右端圆位（没给 tail 时），其余放在文字前 */
   icon?: IconName;
   /** 右端圆形图标位的图标；不给时 primary 用勾、secondary 用箭头；sm 只有给了 tail 才带图标位 */
@@ -68,7 +71,7 @@ const VARIANT: Record<NonNullable<BtnProps['variant']>, Variant> = {
 const TAIL: Partial<Record<Variant, IconName>> = { primary: 'check', secondary: 'chev', danger: 'del', ring: 'chev' };
 export const MOUSE_ONLY_HINT = '只能用鼠标点击';
 
-export function Btn({ variant = 'ghost', size: asked = 'md', icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, mouseOnly, onClick, children, ref, ...aria }: BtnProps) {
+export function Btn({ variant = 'ghost', size: asked = 'md', dense, icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, mouseOnly, onClick, children, ref, ...aria }: BtnProps) {
   const [hint, setHint] = useState(false);
   const reasonId = useId();
   const v = VARIANT[variant];
@@ -95,10 +98,11 @@ export function Btn({ variant = 'ghost', size: asked = 'md', icon, tail, go, lab
     <button
       ref={ref}
       type="button"
-      className={`${styles.btn} ${styles[v]} ${styles[size]} ${pressStyles.press}`}
+      className={`${styles.btn} ${styles[v]} ${styles[size]} ${pressStyles.press}${dense ? ` ${denseStyles.dense}` : ''}`}
       data-stub="Btn"
       data-variant={v}
       data-size={size}
+      data-dense={(dense && size === 'sm') || undefined}
       data-icon={icon}
       data-tail={slot}
       data-loading={loading || undefined}
@@ -182,6 +186,7 @@ export const BtnDemos: Array<{ name: string; props: BtnProps }> = [
   { name: 'small', props: { variant: 'primary', size: 'sm', children: '确认' } },
   { name: 'small-tail', props: { variant: 'primary', size: 'sm', tail: 'look', children: '屏幕识读' } },
   { name: 'small-secondary', props: { variant: 'secondary', size: 'sm', icon: 'refresh', children: '重试' } },
+  { name: 'small-dense', props: { variant: 'text', size: 'sm', dense: true, children: '移出' } },
   { name: 'disabled', props: { variant: 'secondary', children: '核验并完成', disabled: true, disabledReason: '还有 1 个任务没完成' } },
   { name: 'disabled-primary', props: { variant: 'primary', children: '保存', disabled: true, disabledReason: '没有改动' } },
   { name: 'loading', props: { variant: 'ghost', icon: 'refresh', children: '重新检测', loading: true } },

@@ -29,13 +29,15 @@ export interface OptionStackProps {
   /** 读屏名称 */
   label?: string;
   onPick: (id: string) => void;
+  /** 点做不了的行（例如跳到设置里打开它）；不给时这种行点了没反应 */
+  onPickOff?: (id: string) => void;
   /** 指针按下一行（按住说话）；做不了的行不报 */
   onPressStart?: (id: string) => void;
   /** 按下的那行松开或被打断 */
   onPressEnd?: (id: string) => void;
 }
 
-export function OptionStack({ items, side = 'right', compact, hot, note, label, onPick, onPressStart, onPressEnd }: OptionStackProps) {
+export function OptionStack({ items, side = 'right', compact, hot, note, label, onPick, onPickOff, onPressStart, onPressEnd }: OptionStackProps) {
   const pressed = useRef<string | null>(null);
   const down = (it: OptionStackItem, e: PointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0 || it.off) return;
@@ -58,12 +60,12 @@ export function OptionStack({ items, side = 'right', compact, hot, note, label, 
           className={styles.opt}
           style={{ '--i': i } as CSSProperties}
           data-hot={hot === it.id || undefined}
-          data-off={it.off ? '' : undefined}
+          data-off={it.off ? (onPickOff ? 'go' : '') : undefined}
           data-live={it.live || undefined}
           aria-label={it.label}
           aria-disabled={it.off ? true : undefined}
           title={compact ? [it.label, it.hotkey, it.off].filter(Boolean).join('  ') : it.off}
-          onClick={() => !it.off && onPick(it.id)}
+          onClick={() => (it.off ? onPickOff?.(it.id) : onPick(it.id))}
           onPointerDown={(e) => down(it, e)}
           onPointerUp={up}
           onPointerCancel={up}
@@ -98,4 +100,5 @@ export const OptionStackDemos: Array<{ name: string; props: OptionStackProps }> 
   { name: 'left', props: { items: ITEMS, side: 'left', note: '免打扰到 15:30', onPick: noop } },
   { name: 'off', props: { items: [ITEMS[0]!, { ...ITEMS[1]!, label: '在听…松开发送', live: true }, { ...ITEMS[2]!, off: '观察已暂停' }], onPick: noop } },
   { name: 'compact', props: { items: ITEMS, compact: true, onPick: noop } },
+  { name: 'off-pickable', props: { items: [ITEMS[0]!, { ...ITEMS[1]!, off: '没有麦克风权限，点按前往设置' }], onPick: noop, onPickOff: noop } },
 ];

@@ -78,6 +78,8 @@ const textPairs: Array<[string, string]> = [
   ['tab2-sel-text', 'tab2-sel-bg'],
   ['set-title', 'base'],
   ['danger-conflict', 'base'],
+  ['warn-text', 'base'],
+  ['warn-text', 'raised'],
 ];
 
 // [foreground, background] pairs for graphics (edges, category bars); each must reach 3:1.
@@ -116,6 +118,11 @@ describe('tokens.css', () => {
 });
 
 describe('contrast', () => {
+  // Approval papers on the desktop are light in both themes.
+  it('light: warn-text on paper >= 4.5', () => {
+    expect(contrast(resolve('light', 'warn-text'), resolve('light', 'paper'))).toBeGreaterThanOrEqual(4.5);
+  });
+
   for (const theme of ['dark', 'light'] as const) {
     for (const [fg, bg] of textPairs) {
       it(`${theme}: ${fg} on ${bg} >= 4.5`, () => {
@@ -218,7 +225,7 @@ describe('new-style tokens', () => {
   it('sets every radius to 0 and the HUD shadows to none', () => {
     for (const [k, v] of Object.entries(tokens.radius)) expect(v, k).toBe('0');
     for (const theme of ['dark', 'light'] as const) {
-      for (const k of ['shadow-hud', 'text-shadow-hud', 'plate-sheen']) expect(palette(theme)[k], `${theme} ${k}`).toBe('none');
+      for (const k of ['shadow-hud', 'plate-sheen']) expect(palette(theme)[k], `${theme} ${k}`).toBe('none');
     }
   });
 

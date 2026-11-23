@@ -39,8 +39,14 @@
   top: calc(100% - 22px);
 }
 
-.box[data-err] .body {
-  box-shadow: inset 2px 0 var(--ef-danger-vivid);
+/* A failed send: a red line down the field's left edge. */
+.box[data-err] .body::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--ef-danger-vivid);
+  pointer-events: none;
 }
 
 .head {
@@ -90,36 +96,10 @@
   cursor: pointer;
 }
 
-/* The PC toast cell: plate, four 1.5 px dots 14 px in from the sides and 3 px from top and bottom. */
+/* The field is TextArea's HUD look; this holds the failed-send line over it. */
 .body {
-  background:
-    linear-gradient(var(--ef-hud-field-dot), var(--ef-hud-field-dot)) left 14px top 3px / 1.5px 1.5px no-repeat,
-    linear-gradient(var(--ef-hud-field-dot), var(--ef-hud-field-dot)) right 14px top 3px / 1.5px 1.5px no-repeat,
-    linear-gradient(var(--ef-hud-field-dot), var(--ef-hud-field-dot)) left 14px bottom 3px / 1.5px 1.5px no-repeat,
-    linear-gradient(var(--ef-hud-field-dot), var(--ef-hud-field-dot)) right 14px bottom 3px / 1.5px 1.5px no-repeat,
-    var(--ef-hud-field);
-}
-
-.ta {
-  display: block;
-  width: 100%;
-  min-height: 52px;
-  padding: var(--ef-sp-8) var(--ef-sp-12);
-  border: 0;
-  background: transparent;
-  color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-body-lg) / 1.5 var(--ef-font-sans);
-  resize: none;
-  caret-color: var(--ef-text-1);
-}
-
-.ta::placeholder {
-  color: var(--ef-text-3);
-}
-
-.ta:focus-visible {
-  outline: 1px solid var(--ef-focus);
-  outline-offset: -1px;
+  position: relative;
+  display: flex;
 }
 
 /* The error bar, dark in both themes; its button wraps under the words when the line is full. */

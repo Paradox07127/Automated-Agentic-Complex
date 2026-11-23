@@ -28,6 +28,11 @@
   height: 28px;
 }
 
+.btn[data-size='xs'] {
+  width: 36px;
+  height: 24px;
+}
+
 .btn::before,
 .btn::after {
   content: '';
@@ -41,6 +46,11 @@
 .btn[data-size='sm']::before,
 .btn[data-size='sm']::after {
   inset: 2px 0;
+}
+
+.btn[data-size='xs']::before,
+.btn[data-size='xs']::after {
+  inset: 1.5px 0;
 }
 
 .btn::before {
@@ -65,6 +75,10 @@
 
 .btn[data-icon='close'][data-size='sm'] {
   width: 28px;
+}
+
+.btn[data-icon='close'][data-size='xs'] {
+  width: 24px;
 }
 
 .btn[data-icon='close']::before,

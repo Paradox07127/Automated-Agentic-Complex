@@ -4,6 +4,7 @@ import { gameClips } from '../../design/gameClips.generated';
 import { useGameClip } from '../fx/useGameClip';
 import { Icon, type IconName } from '../Icon';
 import { Kbd } from '../Kbd';
+import { PowerMark } from './PowerState';
 import { Slab, unit, type Pt } from './Slab';
 import styles from './WatchKey.module.css';
 
@@ -57,6 +58,8 @@ export interface WatchKeyProps {
   pressed?: boolean;
   /** 这台机器上做不了的原因；给了键就禁用 */
   off?: string | undefined;
+  /** 名字后的小标（PowerMark compact：能力关着、键照样能点）；键上放不下状态词，只画图标 */
+  mark?: ReactNode;
   /** 手表进场动画驱动的 data-g */
   g?: string;
   onClick: () => void;
@@ -69,7 +72,7 @@ const KEY_DEPTH = 24;
 const SHIFT_BIG = [1.85, 1.2] as const;
 const SHIFT_SQUARE = [-2.5, 0.25] as const;
 
-export function WatchKey({ box, pts, mid, big, compact, icon, title, hotkey, sub, pressed, off, g, onClick }: WatchKeyProps) {
+export function WatchKey({ box, pts, mid, big, compact, icon, title, hotkey, sub, pressed, off, mark, g, onClick }: WatchKeyProps) {
   const hover = useKeyHover<HTMLButtonElement>();
   const [mx, my] = mid ?? [box.width / 2, box.height / 2];
   return (
@@ -93,9 +96,18 @@ export function WatchKey({ box, pts, mid, big, compact, icon, title, hotkey, sub
             <span className={styles.icon} data-g="icon">
               <Icon name={icon} size={compact ? 16 : pressed ? 20 : 32} />
             </span>
-            <span className={styles.name} data-g="label">
-              {title}
-            </span>
+            {mark == null ? (
+              <span className={styles.name} data-g="label">
+                {title}
+              </span>
+            ) : (
+              <span className={styles.named}>
+                <span className={styles.name} data-g="label">
+                  {title}
+                </span>
+                {mark}
+              </span>
+            )}
             {sub != null && <span className={styles.sub}>{sub}</span>}
           </span>
           {hotkey && (
@@ -118,6 +130,7 @@ export const WatchKeyDemos: Array<{ name: string; props: WatchKeyProps }> = [
   { name: 'toggle-on', props: { box: KEY, icon: 'moonz', title: '免打扰', sub: '到 15:30', pressed: true, onClick: noop } },
   { name: 'sub', props: { box: KEY, icon: 'bolt', title: '快速输入', sub: '⌃⌥Space', onClick: noop } },
   { name: 'off', props: { box: KEY, icon: 'look', title: '屏幕识读', off: '这台机器上不能识读屏幕', onClick: noop } },
+  { name: 'mark', props: { box: KEY, icon: 'clock', title: '任务', mark: <PowerMark state="off" compact />, onClick: noop } },
   { name: 'compact', props: { box: { width: 72, height: 58 }, compact: true, icon: 'send', title: '快速输入', sub: '⌃Space', onClick: noop } },
   { name: 'compact-on', props: { box: { width: 72, height: 58 }, compact: true, icon: 'moonz', title: '免打扰', sub: '到 15:30', pressed: true, onClick: noop } },
 ];

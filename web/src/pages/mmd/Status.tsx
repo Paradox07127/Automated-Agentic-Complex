@@ -12,7 +12,7 @@ export function Status({ line }: { line: StatusLine }) {
     return (
       <div className={styles.status}>
         <span className={styles.l1} data-motion-import="" role="status">
-          <StatusLamp onDark state={line.ok ? 'done' : 'failed'} label={line.text} />
+          <StatusLamp onDark wrap state={line.ok ? 'done' : 'failed'} label={line.text} />
         </span>
       </div>
     );

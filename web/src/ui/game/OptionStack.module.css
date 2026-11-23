@@ -149,6 +149,11 @@
   cursor: default;
 }
 
+/* An off row the caller still takes (to the switch in 设置). */
+.opt[data-off='go'] {
+  cursor: pointer;
+}
+
 .opt[data-off] .key {
   background: color-mix(in srgb, var(--ef-g-watch-map) 75%, var(--ef-danger-g-quit));
   color: color-mix(in srgb, var(--ef-danger-vivid) 70%, #fff);

@@ -247,7 +247,6 @@
 .mv > [data-stub='Btn'] {
   flex: 1;
   min-width: 0;
-  padding: 0;
 }
 
 .ghost {

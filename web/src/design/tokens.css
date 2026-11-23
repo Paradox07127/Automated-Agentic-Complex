@@ -81,7 +81,6 @@
   --ef-hud-solid: #222222;
   --ef-hud-text-2: #DFDFDF;
   --ef-dlg-backing: #222222;
-  --ef-text-shadow-hud: none;
   --ef-shadow-hud: none;
   --ef-shadow-btn: 1px 4px 6px -1px rgba(0,0,0,.48);
   --ef-shadow-card: 1.5px 7.5px 0 rgba(45,45,45,.48);
@@ -244,6 +243,7 @@
   --ef-g-guide-frame: rgba(23,23,23,.502);
   --ef-g-guide-blur: #EEEEEE;
   --ef-power-low: var(--ef-danger-g-power-save);
+  --ef-warn-text: #FF9A3D;
   --ef-success-green: var(--ef-g-mission-green);
   --ef-hud-text-shadow: 0 1px 2px rgba(0,0,0,.65), 0 0 1px rgba(0,0,0,.5);
   --ef-hud-ink-faint: rgba(255,255,255,.15);
@@ -353,7 +353,6 @@
   --ef-hud-solid: #FFFFFF;
   --ef-hud-text-2: #383838;
   --ef-dlg-backing: #FFFFFF;
-  --ef-text-shadow-hud: none;
   --ef-shadow-hud: none;
   --ef-shadow-btn: 1px 4px 6px -1px rgba(0,0,0,.28);
   --ef-shadow-card: 1.5px 7.5px 0 rgba(45,45,45,.22);
@@ -516,6 +515,7 @@
   --ef-g-guide-frame: rgba(23,23,23,.502);
   --ef-g-guide-blur: #EEEEEE;
   --ef-power-low: #B34A00;
+  --ef-warn-text: #B34A00;
   --ef-success-green: #1F8A4C;
   --ef-hud-text-shadow: none;
   --ef-hud-ink-faint: rgba(0,0,0,.15);

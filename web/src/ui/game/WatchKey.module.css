@@ -79,6 +79,18 @@
   white-space: nowrap;
 }
 
+/* The name with its mark after it, the pair centred under the icon. */
+.named {
+  display: inline-flex;
+  gap: var(--ef-sp-4);
+  align-items: center;
+}
+
+/* The mark in the key's ink: the closed grey fades out on the light face. */
+.named > [data-stub='PowerMark'] {
+  --ps-c: var(--ef-g-label);
+}
+
 .sub {
   padding: 1px var(--ef-sp-4);
   color: var(--ef-g-label);

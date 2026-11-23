@@ -96,6 +96,18 @@
   height: 18px;
 }
 
+/* Large: 32 high, the disc 26, 13 px words. */
+.cap[data-size='lg'] {
+  height: 32px;
+  padding: 0 16px 0 3px;
+  font-size: 13px;
+}
+
+.cap[data-size='lg'] .ic {
+  width: 26px;
+  height: 26px;
+}
+
 .bar {
   flex: none;
   width: 1px;

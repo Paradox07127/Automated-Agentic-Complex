@@ -12,12 +12,14 @@ export interface StatusLampProps {
   onDark?: boolean;
   /** md：14 px 方灯；sm：行内 8 px 小标配 12 px 字（设置行、列表行、读数旁） */
   size?: 'md' | 'sm';
+  /** 长状态词（失败原因）换行写完，不截断；灯对齐第一行 */
+  wrap?: boolean;
 }
 
-export function StatusLamp({ state, label, onDark, size = 'md' }: StatusLampProps) {
+export function StatusLamp({ state, label, onDark, size = 'md', wrap }: StatusLampProps) {
   const v = stateVisual(state);
   return (
-    <span className={styles.lamp} data-stub="StatusLamp" data-tone={v.tone} data-shape={v.shape} data-size={size} data-on-dark={onDark || undefined}>
+    <span className={styles.lamp} data-stub="StatusLamp" data-tone={v.tone} data-shape={v.shape} data-size={size} data-on-dark={onDark || undefined} data-wrap={wrap || undefined}>
       <i className={styles.light} aria-hidden="true" />
       <span className={styles.word}>{label ?? v.label}</span>
     </span>
@@ -40,4 +42,6 @@ export const StatusLampDemos: Array<{ name: string; props: StatusLampProps }> = 
   { name: 'sm-failed', props: { state: 'broken', label: '没有响应', size: 'sm' } },
   { name: 'sm-idle', props: { state: 'idle', label: '未开启', size: 'sm' } },
   { name: 'sm-stopped', props: { state: 'paused', size: 'sm' } },
+  { name: 'wrap', props: { state: 'failed', label: '导入失败：文件里没有可用的动作轨道，换一个从 MMD 导出的 VMD 再试', wrap: true } },
+  { name: 'sm-wrap', props: { state: 'failed', label: '没有响应：后台在 30 秒内没有回话，到诊断页查看后台日志', size: 'sm', wrap: true } },
 ];

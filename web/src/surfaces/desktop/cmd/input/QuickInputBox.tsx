@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import type { SayRequest, SayResult } from '../../../../bridge';
-import { Btn, ErrBar, Icon, Kbd } from '../../../../ui';
+import { Btn, ErrBar, Icon, Kbd, TextArea } from '../../../../ui';
 import { PowerMark, PowerState, type PowerStateProps } from '../../../../ui/game';
 import styles from './QuickInputBox.module.css';
 
@@ -84,15 +84,15 @@ export function QuickInputBox(p: QuickInputBoxProps) {
   const err = p.error;
   const field = (
     <div className={styles.body}>
-      <textarea
-        ref={ta}
-        className={styles.ta}
+      <TextArea
+        hud
+        textareaRef={ta}
         rows={rows}
         value={p.text}
         readOnly={p.sending}
         placeholder="帮我查这个报错"
-        aria-label={`对 ${p.role} 说的话`}
-        onChange={(e) => p.onText(e.target.value)}
+        label={`对 ${p.role} 说的话`}
+        onChange={p.onText}
         onCompositionStart={() => {
           composing.current = true;
         }}

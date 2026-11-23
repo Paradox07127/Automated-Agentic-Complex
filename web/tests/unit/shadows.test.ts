@@ -29,9 +29,10 @@ function cssFiles(dir: string): string[] {
 
 describe('desktop overlays cast no shadow', () => {
   for (const [theme, vars] of Object.entries(themes)) {
-    it(`${theme}: shadow-hud and text-shadow-hud are none`, () => {
+    it(`${theme}: shadow-hud is none, and the words' shadow has the one name hud-text-shadow`, () => {
       expect(vars['shadow-hud'], `${theme} shadow-hud`).toBe('none');
-      expect(vars['text-shadow-hud'], `${theme} text-shadow-hud`).toBe('none');
+      expect(vars['hud-text-shadow'], `${theme} hud-text-shadow`).toBeDefined();
+      expect(vars['text-shadow-hud'], `${theme} text-shadow-hud`).toBeUndefined();
     });
   }
 });

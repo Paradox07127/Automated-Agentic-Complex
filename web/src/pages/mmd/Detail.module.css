@@ -35,11 +35,6 @@
   display: inline-flex;
 }
 
-.desk [data-stub='WhiteCapsule'] {
-  height: 32px;
-  font-size: 13px;
-}
-
 .segw {
   display: inline-flex;
   align-items: center;
@@ -161,7 +156,7 @@
     white-space: nowrap;
   }
 
-  .desk [data-stub='WhiteCapsule'] {
+  .ops .desk [data-stub='WhiteCapsule'] {
     padding-right: 3px;
   }
 

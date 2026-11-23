@@ -242,6 +242,7 @@ describe('home disc', () => {
     expect(screen.getByRole('button', { name: /^(提醒|交付)：/ }).getAttribute('aria-label')).toBe(label);
     const status = await screen.findByRole('group', { name: '组件状态' });
     expect(status.textContent).toMatch(/^后台.+角色.+语音/);
+    expect(status.querySelectorAll('[data-stub="StatusLamp"][data-size="sm"]').length).toBe(3);
     fireEvent.click(screen.getByRole('button', { name: '关闭窗口' }));
     expect(close).toHaveBeenCalledOnce();
   });
@@ -412,6 +413,22 @@ describe('home with the plug-ins at their defaults', () => {
     await vi.waitFor(() => expect(status.textContent).toMatch(/^后台读取失败/));
     const clock = screen.getByRole('group', { name: '时钟' });
     for (const word of ['已连接', '读取中', '读取失败']) expect(within(clock).queryByText(word)).toBeNull();
+  });
+
+  it('marks the 任务 key 已关闭 by its icon alone while 个人代理 is off, and still opens it; on, the mark goes', async () => {
+    mount();
+    const main = await screen.findByRole('group', { name: '主要页面' });
+    const key = within(main).getByRole('button', { name: title('tasks') });
+    expect(key.hasAttribute('disabled')).toBe(false);
+    const mark = key.querySelector('[data-stub="PowerMark"]');
+    expect(mark?.getAttribute('aria-label')).toBe('已关闭');
+    expect(mark?.textContent).toBe('');
+    for (const other of ['character', 'chat', 'memory']) expect(within(main).getByRole('button', { name: title(other) }).querySelector('[data-stub="PowerMark"]')).toBeNull();
+    cleanup();
+    pluginsOn('personal_agent');
+    mount();
+    const on = await screen.findByRole('group', { name: '主要页面' });
+    expect(within(on).getByRole('button', { name: title('tasks') }).querySelector('[data-stub="PowerMark"]')).toBeNull();
   });
 
   it('offers 派发任务 with 个人代理 on and 日报与简报 off, and opens the dispatch dialog in place', async () => {

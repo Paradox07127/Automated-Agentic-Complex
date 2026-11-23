@@ -44,9 +44,9 @@ export function Detail(p: DetailProps) {
         {p.baked && (
           <span className={styles.desk} title={p.playOff ?? (p.looping ? '停止' : '桌面播放')}>
             {p.looping ? (
-              <WhiteCapsule label="停止" icon="stop" disabled={p.playOff != null} disabledReason={p.playOff ?? ''} onClick={p.onStop} />
+              <WhiteCapsule label="停止" icon="stop" size="lg" disabled={p.playOff != null} disabledReason={p.playOff ?? ''} onClick={p.onStop} />
             ) : (
-              <WhiteCapsule label="桌面播放" icon="play" disabled={p.playOff != null} disabledReason={p.playOff ?? ''} onClick={p.onPlay} />
+              <WhiteCapsule label="桌面播放" icon="play" size="lg" disabled={p.playOff != null} disabledReason={p.playOff ?? ''} onClick={p.onPlay} />
             )}
           </span>
         )}

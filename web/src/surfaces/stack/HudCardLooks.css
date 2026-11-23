@@ -1,7 +1,7 @@
 /* HudCard's looks, inlined into HudCard.module.css by @import so they share its class scope. */
 /* Looks, dark in both themes: the backdrop is ::before so it can animate apart from the text. */
 .card[data-look] {
-  --ef-text-2: var(--ef-hud-text-2);
+  --ef-text-2: var(--ef-hud-ink-2);
   isolation: isolate;
 }
 
