@@ -212,6 +212,18 @@ class CanonicalReleaseTests(unittest.TestCase):
             newer=gate_receipt.write(dict(receipt,started_at='2026-11-01T03:00:00Z'),store=store)
             self.assertEqual(gate_receipt.require(root,fingerprint)[0],newer)
 
+    def test_a_receipt_from_another_runner_gives_way_to_an_older_one_that_vouches(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.release_repo(root);store=gate_receipt.store_dir(root)
+            good=self.receipt(root);fingerprint=good['source']['fingerprint']
+            older=gate_receipt.write(good,store=store)
+            gate_receipt.write(dict(good,runner_sha256='0'*64,started_at='2026-11-01T02:00:00Z'),store=store)
+            self.assertEqual(gate_receipt.require(root,fingerprint)[0],older)
+            release=gate_receipt.write(self.receipt(root,profile='release'),store=store)
+            for path in older.parent.glob('*.json'):
+                if path.name!=gate_receipt.LATEST and path!=older:continue
+                path.unlink()
+            self.assertEqual(gate_receipt.require(root,fingerprint)[0],release)
     def test_full_runs_starting_in_the_same_second_follow_store_order(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root);store=gate_receipt.store_dir(root)

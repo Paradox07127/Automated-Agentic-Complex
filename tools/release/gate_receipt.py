@@ -67,14 +67,17 @@ def _full_runs(store, profile, fingerprint):
             yield path, receipt
 
 
-def find(store, profile, fingerprint=None):
-    """(path, receipt) of the newest valid PASS with no subsequent full FAIL for its fingerprint, else None."""
+def find(store, profile, fingerprint=None, problems=None):
+    """(path, receipt) of the newest valid PASS with no subsequent full FAIL for its fingerprint, else None.
+
+    problems(receipt) lists why a receipt cannot vouch; None is validate().
+    """
     revoked = set()
     for path, receipt in _full_runs(store, profile, fingerprint):
         source = receipt['source']['fingerprint']
         if receipt['result'] == 'FAIL':
             revoked.add(source)
-        elif source not in revoked and not validate(receipt, fingerprint):
+        elif source not in revoked and not (problems(receipt) if problems else validate(receipt, fingerprint)):
             return path, receipt
     return None
 
@@ -115,23 +118,31 @@ def require(root, fingerprint, path=None):
     Without path, the newest valid commit receipt in the store is taken, else the newest release receipt.
     """
     run = f'run python3 -I tools/qa/gate.py --profile commit --checkout {root}'
+    suites = [name for name in SUITES if Path(root, name).exists()]
+    suites_sha256, runner_sha256 = _sha256(root, suites), runner_digest(root)
+
+    def vouch(receipt):
+        problems = validate(receipt, fingerprint)
+        if receipt.get('profile') not in RELEASE_PROFILES:
+            problems.append(f'profile is {receipt.get("profile")!r}, not commit or release')
+        if receipt.get('suites_sha256') != suites_sha256:
+            problems.append('the suites (' + ', '.join(suites) + ') differ from the ones the gate ran')
+        if receipt.get('runner_sha256') != runner_sha256:
+            problems.append('the gate runner or release inputs differ from the ones the gate ran')
+        return problems
+
     explicit = path is not None
     if not explicit:
-        found = [hit for profile in RELEASE_PROFILES if (hit := find(store_dir(root), profile, fingerprint))]
+        found = [hit for profile in RELEASE_PROFILES if (hit := find(store_dir(root), profile, fingerprint, vouch))]
+        # None vouches: the newest valid PASS names why.
+        found = found or [hit for profile in RELEASE_PROFILES if (hit := find(store_dir(root), profile, fingerprint))]
         if not found:
             raise ValueError(f'No PASS gate receipt of profile commit or release for source fingerprint {fingerprint} '
                              f'in {store_dir(root)}; {run}')
         path, receipt = found[0]
     else:
         receipt = json.loads(Path(path).read_text())
-    problems = validate(receipt, fingerprint)
-    if receipt.get('profile') not in RELEASE_PROFILES:
-        problems.append(f'profile is {receipt.get("profile")!r}, not commit or release')
-    suites = [name for name in SUITES if Path(root, name).exists()]
-    if receipt.get('suites_sha256') != _sha256(root, suites):
-        problems.append('the suites (' + ', '.join(suites) + ') differ from the ones the gate ran')
-    if receipt.get('runner_sha256') != runner_digest(root):
-        problems.append('the gate runner or release inputs differ from the ones the gate ran')
+    problems = vouch(receipt)
     if explicit and not problems:
         for _, stored in _full_runs(store_dir(root), receipt['profile'], fingerprint):
             if stored == receipt or stored['started_at'] < receipt['started_at']:
