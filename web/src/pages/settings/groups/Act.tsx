@@ -164,12 +164,12 @@ function MotionRows() {
       live = false;
     };
   }, [agentdOff]);
-  const save = (body: { service_url: string | null; token?: string }, done: string, what: string) =>
+  const save = (body: { token: string }, done: string, what: string) =>
     src &&
     void saveMotion({ backend: src.backend, ...body }).then(
       (r) => {
         setSrc(r);
-        if (body.token !== undefined) setToken('');
+        setToken('');
         model.notify({ message: done, severity: 'success' });
       },
       (e) => model.notify({ message: `${what}：${failure(e).text}`, severity: 'danger', persistent: true }),
@@ -186,11 +186,11 @@ function MotionRows() {
           <>
             {src?.token_set && !token ? <Masked>已保存</Masked> : <Field type="password" aria-label="动作服务令牌" placeholder="粘贴令牌" value={token} disabled={off} onChange={(e) => setToken(e.currentTarget.value)} />}
             {src?.token_set && !token ? (
-              <Btn disabled={off} onClick={() => save({ service_url: src.service_url, token: '' }, '已删除动作服务令牌', '没能删除令牌')}>
+              <Btn disabled={off} onClick={() => save({ token: '' }, '已删除动作服务令牌', '没能删除令牌')}>
                 移除
               </Btn>
             ) : (
-              <Btn disabled={off || !token.trim()} onClick={() => save({ service_url: src?.service_url ?? null, token: token.trim() }, '令牌已保存', '没能保存令牌')}>
+              <Btn disabled={off || !token.trim()} onClick={() => save({ token: token.trim() }, '令牌已保存', '没能保存令牌')}>
                 保存
               </Btn>
             )}

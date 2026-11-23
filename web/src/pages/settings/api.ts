@@ -29,12 +29,11 @@ export const testModels = () => post<WireModelTest>('/model/test', {});
 
 export interface MotionSource {
   backend: 'game' | 'generated';
-  service_url: string | null;
   token_set: boolean;
 }
 export const readMotion = () => get<MotionSource>('/motion/settings');
 /** A token `''` removes the saved one; no `token` key keeps it. */
-export const saveMotion = (body: { backend: MotionSource['backend']; service_url: string | null; token?: string }) => put<MotionSource>('/motion/settings', body);
+export const saveMotion = (body: { backend: MotionSource['backend']; token?: string }) => put<MotionSource>('/motion/settings', body);
 export const readCatalog = () => post<WireCatalog>('/model/catalog', {});
 /** config.json's `services`, read through the shell. */
 export const readServices = () => getBridge().services.read();

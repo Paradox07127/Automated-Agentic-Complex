@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { agentdArguments } from '../src/common/agentd.ts';
-import { type Catalog, CatalogError, type ConfigContext, configLogLine, launchCharacter, parseConfig, SERVICE_DEFAULTS } from '../src/common/config.ts';
+import { type Catalog, CatalogError, type ConfigContext, configLogLine, launchCharacter, parseConfig, SERVICE_DEFAULTS, serviceRecord, ServiceRecordError } from '../src/common/config.ts';
 import {
   configPathFromArgs, DEFAULT_AGENTD_STATE_DIR, DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR, loadConfig, quitAfterFromArgs, supportDirOf,
 } from '../src/main/config.ts';
@@ -251,4 +251,13 @@ test("the installed app's directories: ~/Library on macOS; on Windows %APPDATA%,
     agentdStateDir: 'C:\\Users\\a\\AppData\\Local\\Agentic Complex\\agentd', webLogsDir: 'C:\\Users\\a\\AppData\\Local\\Agentic Complex\\Logs' });
   assert.equal(defaultDirs('win32', {}, 'C:\\Users\\a').webLogsDir, 'C:\\Users\\a\\AppData\\Local\\Agentic Complex\\Logs');
   assert.ok(!windows.agentdStateDir.toLowerCase().startsWith(`${windows.supportDir.toLowerCase()}\\`));
+});
+
+test('a model service over http to another host is refused, as agentd would refuse its --llm-url', () => {
+  for (const url of ['http://10.0.0.5:8000/v1', 'http://gpu-box:11434/v1']) {
+    assert.throws(() => serviceRecord('llm', { ...SERVICE_DEFAULTS.llm, mode: 'url', url }), (e) => e instanceof ServiceRecordError && e.field === 'url', url);
+  }
+  assert.equal(serviceRecord('llm', { ...SERVICE_DEFAULTS.llm, mode: 'url', url: 'https://10.0.0.5:8000/v1' }).url, 'https://10.0.0.5:8000/v1');
+  assert.equal(serviceRecord('llm', { ...SERVICE_DEFAULTS.llm, mode: 'url', url: 'http://127.0.0.1:11434/v1' }).mode, 'url');
+  assert.equal(serviceRecord('tts', { ...SERVICE_DEFAULTS.tts, mode: 'url', url: 'http://10.0.0.5:9888' }).url, 'http://10.0.0.5:9888');
 });

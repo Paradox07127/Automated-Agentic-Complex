@@ -8,7 +8,7 @@ export const MODELS: WireModelSettings = {
     deepseek: { model: 'deepseek-flash', base_url: 'https://api.deepseek.com', has_key: false, max_output_tokens: 4096, reasoning_effort: '' },
     xai: { model: '', base_url: 'https://api.x.ai/v1', has_key: false, max_output_tokens: 4096, reasoning_effort: '' },
     openai: { model: '', base_url: 'https://api.openai.com/v1', has_key: false, max_output_tokens: 4096, reasoning_effort: '' },
-    compatible: { model: '', base_url: 'http://127.0.0.1:11434/v1', has_key: false, max_output_tokens: 4096, reasoning_effort: '', supports_images: false, context_window: 128000, reasoning: false },
+    compatible: { model: '', has_key: false, max_output_tokens: 4096, reasoning_effort: '', supports_images: false, context_window: 128000, reasoning: false },
     pi_catalog: { model: '', base_url: '', pi_provider: '', has_key: false, max_output_tokens: 4096, reasoning_effort: '' },
     chatgpt: { model: '', base_url: 'https://api.openai.com/v1', has_key: false, max_output_tokens: 4096, reasoning_effort: '' },
   },
