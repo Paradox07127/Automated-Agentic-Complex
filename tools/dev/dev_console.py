@@ -335,6 +335,9 @@ class Component:
             builds = [
                 # Where helperExecutable looks in a repo launch.
                 (['swift', 'build', '-c', 'release', '--package-path', checkout / 'app/helpers/mac'], {}, 'wait'),
+                # The host package links these two prebuilt static libraries; swift build does not make them.
+                (['bash', renderer / RENDERER / 'core/build.sh'], {}, 'wait'),
+                (['bash', renderer / RENDERER / 'common/build.sh'], {}, 'wait'),
                 # Debug by default: release compiles MetalAvatarHost as one whole module, so any edit recompiles all of it.
                 (['swift', 'build', *(['-c', 'release'] if RENDERER_BUILD == 'release' else []),
                   '--package-path', renderer / RENDERER / 'host', '--product', 'metal-avatar-host'], {}, 'wait'),

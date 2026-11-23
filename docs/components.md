@@ -249,6 +249,6 @@ osx-sign 的文件取自提交 `ca7726ffb7da556a20ba95ab9c013049afdda6fb`（[ent
 
 Windows 只有 portable：`tools/release/package_windows.py` 把构建产物装成一个目录 `Agentic Complex\`，不做安装器和签名。
 
-- 根目录：`Agentic Complex.exe`（改名的 `electron.exe`，删掉 `resources\default_app.asar`，`flip_fuses.mjs` 直接翻 exe 里的熔丝）、Electron 的 DLL 和资源、`ac-helper.exe`、`efw.exe` 和它旁边读的 `*.dxbc`。`resources\` 下是 `app\`、`parent_watch.py`、`distribution.json`、`composition.lock.json` 和 `components\<id>\`。清单和组合锁的平台是 `windows-x64`。
+- 根目录：`Agentic Complex.exe`（改名的 `electron.exe`，删掉 `resources\default_app.asar`，`flip_fuses.mjs` 直接翻 exe 里的熔丝）、Electron 的 DLL 和资源、`ac-helper.exe`、`efw.exe` 和它旁边读的 `*.spv`。`resources\` 下是 `app\`、`parent_watch.py`、`distribution.json`、`composition.lock.json` 和 `components\<id>\`。清单和组合锁的平台是 `windows-x64`。
 - `runtime.python`：构建机上 CPython 3.12 的基础前缀（不含 `Scripts`、`Doc`、`include`、`libs`、`Tools`、`Lib\test` 和原来的 `Lib\site-packages`）。准备好的锁定站点包放进 `Lib\site-packages`，`pywin32.pth` 因此生效。入口是 `python.exe`，没有 shell 包装，`-I -B` 由外壳传。打包最后在成品目录里只带 `SYSTEMROOT` 运行它，导入失败或前缀、`sys.path` 落在目录外都报错。
 - `harness.pi` 的入口是 `node\node.exe`；agentd 组件的 `fbx_tool` 是 `tools\fbx-motion.exe`。

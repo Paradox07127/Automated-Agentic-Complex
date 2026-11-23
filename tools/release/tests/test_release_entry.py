@@ -295,7 +295,7 @@ class CanonicalReleaseTests(unittest.TestCase):
             package=self.packaging(output,'PASS')
             def run(argv,**kwargs):
                 result=package(argv,**kwargs)
-                if 'artifact_smoke.py' in argv[2]:
+                if len(argv)>2 and 'artifact_smoke.py' in argv[2]:
                     Path(argv[8]).write_text(json.dumps(dict(result='PASS',app=argv[4],support_dir=str(root/'temp'))))
                 return result
             self.build(root,self.args(output=output),run=run)
@@ -314,7 +314,7 @@ class CanonicalReleaseTests(unittest.TestCase):
                 self.build(root,self.args(output=output,layout='split'),run=run)
             packages = [Path(argv[argv.index('--package-path')+1]) for argv in commands if argv[:2] == ['swift', 'build']]
             self.assertEqual(packages, [root/'app/helpers/mac', root/'private/renderer/host'])
-            command=next(argv for argv in commands if 'package_app.py' in argv[2])
+            command=next(argv for argv in commands if len(argv)>2 and 'package_app.py' in argv[2])
             self.assertIn('--layout',command)
             self.assertEqual(command[command.index('--layout')+1],'split')
             receipt=json.loads((output/'release-receipt.json').read_text())
@@ -332,6 +332,7 @@ class CanonicalReleaseTests(unittest.TestCase):
     def packaging(self,output,smoke_result,layout='portable'):
         """Stub of the packaging subprocesses; the artifact smoke run must name the app and the gated fingerprint."""
         def run(argv,**k):
+            if argv[0]=='bash':return subprocess.CompletedProcess(argv,0)
             if 'package_app.py' in argv[2]:
                 host=dict(id='host',version='1',tree_sha256='a'*64)
                 components=[dict(id=id,version='1',tree_sha256=hashlib.sha256(id.encode()).hexdigest(),
@@ -359,7 +360,7 @@ class CanonicalReleaseTests(unittest.TestCase):
         with mock.patch.dict(os.environ,{'AAC_RELEASE_PROFILE':str(profile)}),mock.patch('sys.stdout',new_callable=io.StringIO):
             gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))
             self.build(root,self.args(output=output,profile=profile),run=run)
-        return next(argv for argv in commands if 'package_app.py' in argv[2])
+        return next(argv for argv in commands if len(argv)>2 and 'package_app.py' in argv[2])
     def test_profile_with_null_ui_art_ships_without_art_or_icon(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root)
@@ -454,6 +455,9 @@ class CanonicalReleaseTests(unittest.TestCase):
             argvs=[argv for argv,_ in commands]
             self.assertEqual([Path(argv[argv.index('--package-path')+1]) for argv in argvs if argv[:3]==['swift','build','-c'] and '--show-bin-path' not in argv],
                              [root/'app/helpers/mac',root/'private/renderer/host'])
+            host_build=argvs.index(next(argv for argv in argvs if argv[:2]==['swift','build'] and str(root/'private/renderer/host') in argv))
+            self.assertEqual([argv for argv in argvs[:host_build] if argv[0]=='bash'],
+                             [['bash',str(root/'private/renderer/core/build.sh')],['bash',str(root/'private/renderer/common/build.sh')]])
             self.assertIn(['prepare',str(root/'.local/cache/electron-runtime'),str(root)],argvs)
             self.assertIn(['npm','--prefix',str(root/'app/electron'),'ci','--ignore-scripts','--prefer-offline'],argvs)
             self.assertEqual([k['cwd'] for argv,k in commands if argv==['npm','run','build']],[root/'app/electron'])
