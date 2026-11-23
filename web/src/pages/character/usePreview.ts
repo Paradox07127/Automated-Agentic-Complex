@@ -30,9 +30,10 @@ const overlaps = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.righ
 
 /**
  * Whether the page draws something over `stage`: a dialog or sheet in the modal root, any dialog (the command palette
- * included), or a menu, dropdown list or toast that overlaps the stage.
+ * included), or a menu, dropdown list or toast that overlaps the stage. Never with a preview layer: the page's UI stands over her.
  */
 export function previewCovered(stage: Element): boolean {
+  if (document.querySelector(PREVIEW_LAYER)) return false;
   if ((document.getElementById(MODAL_ROOT_ID)?.childElementCount ?? 0) > 0) return true;
   if (document.querySelector('[role="dialog"], [aria-modal="true"]')) return true;
   const r = stage.getBoundingClientRect();

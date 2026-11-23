@@ -61,6 +61,35 @@ describe('useLivePreview', () => {
     layer.remove();
   });
 
+  it('keeps her shown under menus, dialogs, the modal root and toasts when the page has a preview layer', async () => {
+    const layer = document.createElement('div');
+    layer.dataset.previewLayer = '';
+    layer.getBoundingClientRect = () => ({ x: 0, y: 64, width: 1000, height: 700, top: 64, left: 0, right: 1000, bottom: 764, toJSON: () => ({}) }) as DOMRect;
+    document.body.append(layer);
+    render(<Probe />);
+    await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
+    const over = { x: 40, y: 120, width: 300, height: 200, top: 120, left: 40, right: 340, bottom: 320, toJSON: () => ({}) } as DOMRect;
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'menu');
+    menu.getBoundingClientRect = () => over;
+    const toast = document.createElement('div');
+    toast.dataset.stub = 'Toast';
+    toast.getBoundingClientRect = () => over;
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    const sheet = document.createElement('div');
+    try {
+      act(() => {
+        document.body.append(menu, toast, dialog);
+        document.getElementById(MODAL_ROOT_ID)?.append(sheet);
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      expect(hide).not.toHaveBeenCalled();
+    } finally {
+      act(() => [menu, toast, dialog, sheet, layer].forEach((el) => el.remove()));
+    }
+  });
+
   it('shows through an ancestor laid out as display: contents even when it sets overflow', async () => {
     render(
       <div style={{ display: 'contents', overflowX: 'hidden', overflowY: 'auto' }}>
