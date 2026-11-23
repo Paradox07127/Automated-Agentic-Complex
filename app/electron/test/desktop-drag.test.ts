@@ -38,7 +38,7 @@ test('rule 7: a user offset places the panel there, kept on screen; one whose ca
   // The dock takes its offset as well.
   ({ placements: p } = place({ body, screens: [main], requests: [{ kind: 'dock', size: { w: 212, h: 188 }, cardInsets: ZERO_INSETS, visible: true,
     userOffset: { side: 'right', gap: 40, along: -150 } }] }));
-  assert.deepEqual(p.dock, { frame: r(848, 350, 212, 188), side: 'right', docked: null, far: false });
+  assert.deepEqual(p.dock, { frame: r(796, 350, 212, 188), side: 'right', docked: null, far: false });
 });
 
 test('a pinned panel sits at its top-left, far from her, and the dock does not lift it', () => {

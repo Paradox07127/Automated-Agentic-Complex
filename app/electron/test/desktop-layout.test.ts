@@ -85,20 +85,23 @@ test('docked: a stale corner avoids her; hidden or fullscreen the bubble is the 
   }
 });
 
-test('the dock\'s card beside her chest, GAP out from her keep-out, on her roomier side, else the other, else above her', () => {
-  const at = (body: Rect, memory?: LayoutMemory) => place({ body, screens: [main], requests: [dock], memory });
+test('the dock\'s card beside her torso, GAP out from her torso and face, on her roomier side, else the other, else above her', () => {
+  const at = (body: Rect, screens = [main]) => place({ body, screens, requests: [dock] });
+  const k = (body: Rect) => keepOutOf('dock', body, r(body.x + body.w / 2, body.y + body.h, 0, 0), 1);
   let body = r(600, 100, 200, 400);
+  assert.deepEqual(k(body), r(644, 272, 112, 236), 'her torso 0.45–0.86 of 400 up and 48 a side, her face to her head top, grown by 8');
   let out = at(body);
-  assert.deepEqual(out.placements.dock, { frame: r(800, 234, 212, 188), side: 'right', docked: null, far: false });
+  assert.deepEqual(out.placements.dock, { frame: r(748, 268, 212, 188), side: 'right', docked: null, far: false });
   const card = cardIn(dock.cardInsets, out.placements.dock!.frame);
-  assert.equal(card.x, keepOut(body).x + keepOut(body).w + 8);
-  assert.equal(card.y + card.h / 2, body.y + 0.57 * body.h);
+  assert.equal(card.x, k(body).x + k(body).w + 8);
+  assert.equal(card.y + card.h / 2, body.y + 0.655 * body.h);
   body = r(1272, 100, 200, 400);
   out = at(body);
   assert.equal(out.placements.dock?.side, 'left');
-  assert.equal(cardIn(dock.cardInsets, out.placements.dock!.frame).x + 180, keepOut(body).x - 8);
-  out = at(r(100, 100, 1300, 400));
-  assert.deepEqual(out.placements.dock, { frame: r(644, 500, 212, 188), side: 'above', docked: null, far: false });
+  assert.equal(cardIn(dock.cardInsets, out.placements.dock!.frame).x + 180, k(body).x - 8);
+  const narrow: ScreenInfo = { id: 5, frame: r(0, 0, 400, 982), visibleFrame: r(0, 0, 400, 957) };
+  out = at(r(100, 100, 200, 400), [narrow]);
+  assert.deepEqual(out.placements.dock, { frame: r(94, 500, 212, 188), side: 'above', docked: null, far: false });
 });
 
 test('the dock keeps the side it had while that side has room, through a hide', () => {
@@ -106,15 +109,15 @@ test('the dock keeps the side it had while that side has room, through a hide', 
   assert.equal(p.dock?.side, 'left');
   ({ memory: mem } = place({ body: r(1272, 100, 200, 400), screens: [main], requests: [], memory: mem }));
   ({ placements: p, memory: mem } = place({ body: r(600, 100, 200, 400), screens: [main], requests: [dock], memory: mem }));
-  assert.deepEqual(p.dock?.frame, r(388, 234, 212, 188), 'left, though her right has more room');
+  assert.deepEqual(p.dock?.frame, r(440, 268, 212, 188), 'left, though her right has more room');
   ({ placements: p } = place({ body: r(100, 100, 200, 400), screens: [main], requests: [dock], memory: mem }));
   assert.equal(p.dock?.side, 'right', 'no room left of her');
 });
 
 test('a bubble meeting the dock on its side moves up clear of it; one on her other side stays', () => {
   let { placements: p } = layout(r(600, 100, 200, 400), { requests: [bubble, dock] });
-  assert.deepEqual(p.dock?.frame, r(800, 234, 212, 188));
-  assert.deepEqual(p.bubble?.frame, r(768, 414, 380, 200));
+  assert.deepEqual(p.dock?.frame, r(748, 268, 212, 188));
+  assert.deepEqual(p.bubble?.frame, r(768, 448, 380, 200));
   assert.equal(overlaps(p.bubble!.frame, cardIn(dock.cardInsets, p.dock!.frame)), false);
   const memory: LayoutMemory = { bubble: { side: 'left', candidate: null, since: 0, hiddenAt: null },
     dock: { side: 'right', candidate: null, since: 0, hiddenAt: null } };
@@ -225,9 +228,9 @@ test('the follower places a shown panel at once, holds inside the dead zone and 
   const f = new DesktopFollow({ bubble: b, dock: d });
   f.tick(sample(r(600, 100, 200, 400), 0), { x: 0, y: 0 });
   // The bubble's card lifted clear of the dock's on her right.
-  assert.deepEqual(b.moves, [{ frame: r(752, 398, 380, 200), animated: false }]);
-  assert.deepEqual(d.moves, [{ frame: r(800, 234, 212, 188), animated: false }]);
-  assert.deepEqual(f.placedCard('dock'), { card: r(816, 250, 180, 156), side: 'right' });
+  assert.deepEqual(b.moves, [{ frame: r(752, 432, 380, 200), animated: false }]);
+  assert.deepEqual(d.moves, [{ frame: r(748, 268, 212, 188), animated: false }]);
+  assert.deepEqual(f.placedCard('dock'), { card: r(764, 284, 180, 156), side: 'right' });
   assert.equal(b.anchors.at(-1)?.state, 'settled');
   assert.equal(b.anchors.at(-1)?.side, 'right');
   // A small sway stays inside the dead zone.
@@ -293,7 +296,7 @@ test('her body column: her visual rect less 24 a side around her anchor, or her 
   assert.equal(narrow.column?.source, 'capsules');
 });
 
-test('on that column the dock goes on her roomier left at her chest', () => {
+test('on that column the dock goes on her roomier left beside her torso', () => {
   const display: ScreenInfo = { id: 4, frame: r(0, 0, 1920, 1080), visibleFrame: r(0, 0, 1920, 1055) };
   const d = new Panel({ w: 212, h: 188 });
   const lines: string[] = [];
@@ -302,7 +305,7 @@ test('on that column the dock goes on her roomier left at her chest', () => {
     placement: placementBox(1100, 33, 1), figure: 'si/default', visual: r(787, 9, 672, 773) }, { x: 0, y: 0 });
   assert.equal(f.placedCard('dock')?.side, 'left');
   assert.ok(lines.includes('desk: column anchor 1100,33 rect 811,33 624x725 source visual posture standing'));
-  assert.ok(lines.includes('desk: dock frame 599,352 212x188'));
+  assert.ok(lines.includes('desk: dock frame 801,414 212x188'));
 });
 
 // The wheel: its panel centred where it opened, kept on the screen it opened on.

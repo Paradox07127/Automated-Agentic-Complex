@@ -99,8 +99,12 @@ export const SIDE_MEMORY = 600;
 export const FAR_DISTANCE = 240;
 export const KEEP_OUT_MARGIN = 8;
 export const FACE_HALF_WIDTH = 60;
-/** Her chest, as a share of her box's height from its bottom: the dock's middle. */
+/** Her chest, as a share of her box's height from its bottom. */
 export const CHEST = 0.57;
+/** Her torso and her face on her box: from and to as shares of its height from its bottom, and `half` of it either side of
+ *  her head top. The host reports neither box, and her box's width is loose, so these go by its height. */
+export const TORSO = { from: 0.45, to: 0.86, half: 0.12 } as const;
+export const FACE = { from: 0.84, to: 1, half: 0.06 } as const;
 /** The wheel's page is this many CSS px a side (GameWheel's box). */
 export const WHEEL_PANEL = 520;
 /** The console page's transparent padding around its card (ConsoleRoot.module.css `.root`): `lead` on the left and top,
@@ -121,8 +125,21 @@ export function keepOut(body: Rect): Rect {
   return inset(body, -KEEP_OUT_MARGIN);
 }
 
-/** `kind`'s keep-out: the bubble's and the chip's is her face, `FACE_HALF_WIDTH` × `scale` either side of her head top over the body's. */
+/** Her `TORSO` and `FACE` on `body`, with her head top `head`. */
+export function torsoAndFace(body: Rect, head: Rect): { torso: Rect; face: Rect } {
+  const box = (s: { from: number; to: number; half: number }): Rect =>
+    ({ x: midX(head) - s.half * body.h, y: body.y + s.from * body.h, w: 2 * s.half * body.h, h: (s.to - s.from) * body.h });
+  return { torso: box(TORSO), face: box(FACE) };
+}
+
+/** `kind`'s keep-out: the bubble's and the chip's is her face, `FACE_HALF_WIDTH` × `scale` either side of her head top over the
+ *  body's; the dock's her torso and face grown by `KEEP_OUT_MARGIN`, so it may cover her arms, skirt and hair. */
 export function keepOutOf(kind: PanelKind, body: Rect, head: Rect, scale: number): Rect {
+  if (kind === 'dock') {
+    const { torso: t, face: f } = torsoAndFace(body, head);
+    const x = Math.min(t.x, f.x), y = Math.min(t.y, f.y);
+    return inset({ x, y, w: Math.max(maxX(t), maxX(f)) - x, h: Math.max(maxY(t), maxY(f)) - y }, -KEEP_OUT_MARGIN);
+  }
   const k = keepOut(body);
   if (kind !== 'bubble' && kind !== 'chip') return k;
   const a = FACE_HALF_WIDTH * scale;
@@ -229,7 +246,7 @@ class Pass {
       this.memory[r.kind] = { side, candidate: null, since: 0, hiddenAt: null, ...(r.kind === 'cmd' ? { mode: r.mode ?? 'input' } : {}) };
       return this.placed(dragged, side, r);
     }
-    if (r.kind === 'dock') return this.dock(r, k, body);
+    if (r.kind === 'dock') return this.dock(r, k, body, head);
     const away = r.kind === 'chip' ? this.awayFrom(r, k, head) : null;
     if (away) return away;
     if (r.kind === 'bubble' || r.kind === 'chip') return this.column(r, k, (s) => Pass.beside(s, r.size, r.cardInsets, k, this.v, maxY(head), midX(head), 0));
@@ -334,11 +351,11 @@ class Pass {
     return this.noRoom(r);
   }
 
-  /** The dock's card `GAP` out from her keep-out `k`, its middle at her chest: on the side it had while that side has the
+  /** The dock's card `GAP` out from her keep-out `k`, its middle at her torso's: on the side it had while that side has the
    *  room, else on her roomier side, else the other, else above her. */
-  dock(r: PanelRequest, k: Rect, body: Rect): PanelPlacement {
+  dock(r: PanelRequest, k: Rect, body: Rect, head: Rect): PanelPlacement {
     const v = this.v, i = r.cardInsets;
-    const top = body.y + CHEST * body.h + (r.size.h - i.top - i.bottom) / 2;
+    const top = midY(torsoAndFace(body, head).torso) + (r.size.h - i.top - i.bottom) / 2;
     const last = this.memory.dock?.side;
     const first: PanelSide = last === 'left' || last === 'right' ? last : maxX(v) - maxX(k) >= k.x - v.x ? 'right' : 'left';
     for (const side of [first, first === 'left' ? 'right' : 'left', 'above'] as PanelSide[]) {
