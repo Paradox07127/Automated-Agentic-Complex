@@ -1,6 +1,6 @@
 // The desktop stack's cards: agentd's `/approvals` and `/tasks`, polled, with
 // `/agent/interactions`, `/agent/tasks` and `/commitments` read at start and on feed events, and the feed's `announce`s,
-// pushed to the pages as `stack.onCards` payloads; `stack.decide`, `later`, `collapse` and `complete` over them; and the
+// pushed to the pages as `stack.onCards` payloads; `stack.decide` and `collapse` over them; and the
 // cards the shell raises itself: avatar loading, computer use, voice hint, 屏幕识读 receipt, drop and resume notices. What
 // goes to a system notification goes through `notifier`; without one it is taken as handled and shows nothing.
 import { BridgeFailure } from './bridge.ts';
@@ -314,7 +314,7 @@ export class StackSource implements EventSource {
     const now = this.clock();
     for (const x of [...this.order]) {
       const e = this.entries.get(x);
-      if (e?.part === 'announce' && e.card.commitment_id === id) this.toHistory(x, now, null);
+      if (e?.part === 'announce' && e.card.commitment_id === id) this.toHistory(x, now);
     }
     this.publish();
   }
@@ -790,15 +790,15 @@ export class StackSource implements EventSource {
   collapse(id: string): boolean {
     const e = this.entries.get(id);
     if (!e) return false;
-    if (e.record.kind === 'notice' || e.record.kind === 'delivery' || e.record.kind === 'voiceHint') this.toHistory(id, this.clock(), null);
+    if (e.record.kind === 'notice' || e.record.kind === 'delivery' || e.record.kind === 'voiceHint') this.toHistory(id, this.clock());
     else e.collapsed = true;
     this.publish();
     return true;
   }
 
-  /** The card leaves for history now, under `title` when given. */
-  retire(id: string, title: string | null = null): void {
-    this.toHistory(id, this.clock(), title);
+  /** The card leaves for history now. */
+  retire(id: string): void {
+    this.toHistory(id, this.clock());
     this.publish();
   }
 
@@ -806,7 +806,7 @@ export class StackSource implements EventSource {
   private vanish(id: string, now: number, forced: boolean, lapsed = false): void {
     const e = this.entries.get(id);
     if (!e) return;
-    if (e.decided && !forced) return this.toHistory(id, now, null);
+    if (e.decided && !forced) return this.toHistory(id, now);
     const r = e.record;
     if (r.kind === 'approval') {
       const deadline = r.fetchedAt + ms(r.approval.seconds_left);
@@ -821,19 +821,19 @@ export class StackSource implements EventSource {
       }
     } else if (r.kind === 'review' || r.kind === 'codingReview') {
       e.receipt = ELSEWHERE;
-    } else return this.toHistory(id, now, null);
+    } else return this.toHistory(id, now);
     e.live = false;
     e.decided = false;
     e.until = now + LINGER_MS;
   }
 
-  private toHistory(id: string, now: number, title: string | null): void {
+  private toHistory(id: string, now: number): void {
     const e = this.entries.get(id);
     if (!e) return;
     this.entries.delete(id);
     this.order = this.order.filter((x) => x !== id);
     if (e.record.kind === 'delivery') this.retired.add(e.record.delivery.delivery_id);
-    const shown = title ?? (e.decided ? e.receipt : null) ?? e.title;
+    const shown = (e.decided ? e.receipt : null) ?? e.title;
     this.history.unshift({ id: `h-${id}-${now}`, at: now, title: shown, card: this.render(e) });
     if (this.history.length > HISTORY_LIMIT) this.history.length = HISTORY_LIMIT;
   }
@@ -845,7 +845,7 @@ export class StackSource implements EventSource {
     for (const id of [...this.order]) {
       const e = this.entries.get(id);
       if (!e) continue;
-      if (e.until !== null && e.until <= now) this.toHistory(id, now, null);
+      if (e.until !== null && e.until <= now) this.toHistory(id, now);
       else if (e.live && e.record.kind === 'question') {
         const expires = e.record.question.expires_at ?? 0;
         if (expires > 0 && ms(expires) <= now) this.vanish(id, now, false);
@@ -904,7 +904,7 @@ export class StackSource implements EventSource {
 const GESTURE_MS = 1_500;
 const CONFIRM_MS = 1_000;
 
-/** `stack.decide`, `later`, `collapse` and `complete`. Each request is built from the record of the card
+/** `stack.decide` and `collapse`. Each request is built from the record of the card
  *  the source last pushed under that id, and only for the generation or revision it showed; the page's own strings never
  *  reach a path. */
 export class StackDecisions {
@@ -1066,40 +1066,9 @@ export class StackDecisions {
     if (reply.status < 200 || reply.status >= 300) throw new BridgeFailure('partial', agentdError(reply.status, parse<unknown>(reply.body)).code);
   }
 
-  /** 延后: a due reminder snoozes `minutes` (agentd takes 10 or 60; none is 10); any other card only folds away. */
-  async later(id: string, minutes: unknown): Promise<void> {
-    const m = minutes ?? 10;
-    if (m !== 10 && m !== 60) throw invalid('minutes 10 or 60');
-    const entry = this.source.entryOf(id);
-    if (!entry) throw invalid(`no card ${id}`);
-    if (entry.record.kind !== 'reminder') return this.collapse(id);
-    if (this.inFlight.has(id)) throw new BridgeFailure('busy', id);
-    this.inFlight.add(id);
-    try {
-      await this.post(id, `/commitments/${seg(entry.record.commitment.id)}/snooze`, { minutes: m });
-      this.source.retire(id, m === 60 ? '提醒 · 延后 1 小时' : '提醒 · 延后 10 分钟');
-    } finally {
-      this.inFlight.delete(id);
-    }
-  }
-
   /** An error, notice or delivery card moves to history; any other card folds, and a reminder stays due in agentd. */
   collapse(id: string): void {
     if (!this.source.collapse(id)) throw invalid(`no card ${id}`);
-  }
-
-  /** A due reminder's 完成: agentd completes it, then it leaves for history; it stays if agentd did not. */
-  async complete(id: string): Promise<void> {
-    const r = this.source.entryOf(id)?.record;
-    if (r?.kind !== 'reminder') throw invalid(`no reminder ${id}`);
-    if (this.inFlight.has(id)) throw new BridgeFailure('busy', id);
-    this.inFlight.add(id);
-    try {
-      await this.post(id, `/commitments/${seg(r.commitment.id)}/complete`, {});
-      this.source.retire(id, '提醒 · 已完成');
-    } finally {
-      this.inFlight.delete(id);
-    }
   }
 
   /** 404 and 409 mean agentd no longer has this version: the card shows 已在别处处理. */

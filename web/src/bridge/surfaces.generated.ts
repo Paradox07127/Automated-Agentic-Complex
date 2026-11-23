@@ -27,10 +27,10 @@ export const BRIDGE_OPS: readonly string[] = [
   'region.cancel', 'resize.onState', 'resize.drag', 'resize.endDrag', 'resize.act', 'window.contentRect',
   'window.setInteractiveRegions', 'window.close', 'window.requestKey', 'window.openMain', 'window.onRoute',
   'window.onVisibility', 'window.onPointer', 'window.onAnchorState', 'window.onA11y', 'window.setContentSize',
-  'window.releaseKey', 'window.onAnchor', 'window.logInfo', 'stack.onCards', 'stack.decide', 'stack.later',
-  'stack.collapse', 'stack.complete', 'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'desktop.say',
-  'desktop.action', 'desktop.onRecent', 'desktop.openAnnouncement', 'desktop.markAllRead', 'onboarding.state',
-  'onboarding.advance', 'onboarding.back', 'onboarding.goto', 'onboarding.skip', 'onboarding.complete',
+  'window.releaseKey', 'window.onAnchor', 'window.logInfo', 'stack.onCards', 'stack.decide', 'stack.collapse',
+  'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'desktop.say', 'desktop.action', 'desktop.onRecent',
+  'desktop.openAnnouncement', 'desktop.markAllRead', 'onboarding.state', 'onboarding.advance', 'onboarding.back',
+  'onboarding.goto', 'onboarding.skip', 'onboarding.complete',
 ];
 
 /** Ops only the native shim sends; they are not bridge members. */
@@ -74,9 +74,8 @@ export const SURFACE_OPS: Readonly<Record<Surface, readonly string[]>> = {
     'resize.act', 'window.contentRect', 'window.setInteractiveRegions', 'window.close', 'window.requestKey',
     'window.openMain', 'window.onVisibility', 'window.onPointer', 'window.onAnchorState', 'window.onA11y',
     'window.setContentSize', 'window.releaseKey', 'window.onAnchor', 'window.logInfo', 'stack.onCards', 'stack.decide',
-    'stack.later', 'stack.collapse', 'stack.complete', 'desktop.onState', 'desktop.onPresence', 'desktop.onCommand',
-    'desktop.say', 'desktop.action', 'desktop.onRecent', 'desktop.openAnnouncement', 'desktop.markAllRead',
-    'feed.unsubscribe', 'events.unsubscribe',
+    'stack.collapse', 'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'desktop.say', 'desktop.action',
+    'desktop.onRecent', 'desktop.openAnnouncement', 'desktop.markAllRead', 'feed.unsubscribe', 'events.unsubscribe',
   ],
   onboarding: [
     'app.openQuickInput', 'agentd.request', 'settings.read', 'settings.save', 'settings.validateHotkey',

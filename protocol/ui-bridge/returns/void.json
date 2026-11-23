@@ -202,23 +202,7 @@
     "kind": "undefined"
   },
   {
-    "op": "stack.later",
-    "surface": "stack",
-    "args": [
-      "card"
-    ],
-    "kind": "undefined"
-  },
-  {
     "op": "stack.collapse",
-    "surface": "stack",
-    "args": [
-      "card"
-    ],
-    "kind": "undefined"
-  },
-  {
-    "op": "stack.complete",
     "surface": "stack",
     "args": [
       "card"

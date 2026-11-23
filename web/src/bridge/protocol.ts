@@ -380,12 +380,8 @@ export interface AgenticComplexBridge {
     /** Pushes the whole card set on subscribe and after every change; `onError` when the source is unreachable. */
     onCards(cb: (p: StackPayload) => void, onError?: (e: BridgeError) => void): Unsubscribe;
     decide(id: string, decision: StackDecision, opts?: DecideOptions): Promise<void>;
-    /** A due reminder snoozes `minutes` (default 10); any other card folds. */
-    later(id: string, minutes?: 10 | 60): Promise<void>;
     /** An error, notice or delivery card moves to history; any other card folds, and a reminder stays due. */
     collapse(id: string): Promise<void>;
-    /** Completes a due reminder. */
-    complete(id: string): Promise<void>;
   };
   desktop: DesktopOps;
 }

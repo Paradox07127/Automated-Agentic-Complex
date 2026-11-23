@@ -391,9 +391,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
         return () => void (live = false);
       },
       decide: done,
-      later: done,
       collapse: done,
-      complete: done,
     },
     desktop: desktop.desktop,
   }, opts.surface);

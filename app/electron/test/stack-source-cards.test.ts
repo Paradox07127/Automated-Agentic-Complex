@@ -515,48 +515,12 @@ test('StackSourceTests.testTheStackPanelGetsNoIdsOfChatWindowCards', async () =>
   assert.deepEqual(h.ids.at(-1), [], 'a reminder shows in the chat window, so the stack stays closed');
 });
 
-test('StackDecisionsTests.testLaterSnoozesAReminderTenMinutesByDefault, AnHour and TakesOnlyMinutesAgentdAccepts', async () => {
-  const h = new Harness();
-  await h.load({ commitments: [commitment(), commitment('c2')] });
-  h.transport.set('POST', '/commitments/c1/snooze', { commitment: {} });
-  h.transport.set('POST', '/commitments/c2/snooze', { commitment: {} });
-  const d = h.decisions();
-  await assert.rejects(d.later('rem-c1', 30), { code: 'invalid_args' });
-  assert.equal(h.posts.length, 0);
-  assert.ok(h.card('rem-c1'));
-  await d.later('rem-c1', null);
-  assert.deepEqual(h.posts.map((c) => [c.path, c.json]), [['/commitments/c1/snooze', { minutes: 10 }]]);
-  assert.equal(h.card('rem-c1'), undefined);
-  assert.equal(h.history[0]!.title, '提醒 · 延后 10 分钟');
-  await d.later('rem-c2', 60);
-  assert.deepEqual(h.posts.at(-1)!.json, { minutes: 60 });
-  assert.equal(h.history[0]!.title, '提醒 · 延后 1 小时');
-});
-
 test('StackDecisionsTests.testCollapsingAReminderOnlyFoldsIt', async () => {
   const h = new Harness();
   await h.load({ commitments: [commitment()] });
   h.decisions().collapse('rem-c1');
   assert.equal(h.posts.length, 0);
   assert.equal(h.card('rem-c1')!.collapsed, true);
-});
-
-test('StackDecisionsTests.testCompleteFinishesAReminder, testAReminderAgentdDidNotCompleteStays and testCompleteTakesRemindersOnly', async () => {
-  const h = new Harness();
-  await h.load({ approvals: [{ request_id: 'a1', generation: 3, status: 'pending', summary_truncated: false, dangerous: false, options: ['allow', 'deny'], window_s: 55, seconds_left: 50 }], commitments: [commitment(), commitment('c2')] });
-  h.transport.set('POST', '/commitments/c1/complete', { commitment: {} });
-  h.transport.set('POST', '/commitments/c2/complete', { error: 'boom' }, 500);
-  const d = h.decisions();
-  await d.complete('rem-c1');
-  assert.deepEqual(h.posts.map((c) => c.path), ['/commitments/c1/complete']);
-  assert.equal(h.card('rem-c1'), undefined);
-  assert.equal(h.history[0]!.title, '提醒 · 已完成');
-  await assert.rejects(d.complete('rem-c2'), { code: 'failed' });
-  assert.ok(h.card('rem-c2'));
-  assert.equal(h.card('rem-c2')!.collapsed, undefined);
-  await assert.rejects(d.complete('a1'), { code: 'invalid_args' });
-  await assert.rejects(d.complete('zz'), { code: 'invalid_args' });
-  assert.equal(h.posts.length, 2);
 });
 
 // MARK: Deliveries

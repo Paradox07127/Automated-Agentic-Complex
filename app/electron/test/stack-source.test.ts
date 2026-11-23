@@ -301,7 +301,7 @@ test('a dangerous allow needs a recent click or the native confirm', async () =>
   assert.equal(asked.length, 1);
 });
 
-test('collapse sends notices and errors to history and only folds waiting cards; later on them collapses', async () => {
+test('collapse sends notices and errors to history and only folds waiting cards', async () => {
   const h = new Harness();
   h.transport.set('GET', '/approvals', { approvals: [approval()] });
   await h.source.refresh();
@@ -309,10 +309,9 @@ test('collapse sends notices and errors to history and only folds waiting cards;
   const decisions = new StackDecisions(h.source, h.transport.request, async () => true, () => null, () => h.now);
   decisions.collapse('announce-1');
   assert.equal(h.card('announce-1'), undefined);
-  await decisions.later('a1', null);
+  decisions.collapse('a1');
   assert.equal(h.card('a1')!.collapsed, true);
   assert.throws(() => decisions.collapse('nope'), { code: 'invalid_args' });
-  await assert.rejects(decisions.complete('a1'), { code: 'invalid_args' });
 });
 
 test('StackSourceTests.testAvatarLoadingFollowsTheHostAndAFailureWaitsForTheUser', () => {

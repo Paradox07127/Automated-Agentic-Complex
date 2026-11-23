@@ -536,9 +536,7 @@ export class DesktopAssembly {
         }
         return decisions.decide(cardId(id), d);
       }],
-      ['stack.later', ([id, minutes]) => decisions.later(cardId(id), minutes)],
       ['stack.collapse', ([id]) => { decisions.collapse(cardId(id)); return null; }],
-      ['stack.complete', ([id]) => decisions.complete(cardId(id))],
     ];
     return new Map([...this.o.baseOps, ...own]);
   }
