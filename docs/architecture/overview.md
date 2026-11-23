@@ -64,12 +64,11 @@ agentd 每条工具路径由谁把关、桌面授权何时释放、效果账本�
 
 ## 发行版
 
-由 `bash app/build_app.sh` 构建（`package_release.sh` → `tools/release/release.py` → `build_components.py`、`package_app.py`）。默认 `--layout portable` 出一个装着全部组件的 `Agentic Complex.app`；`--layout split` 出只装 host、renderer、web-ui 的 `Agentic Complex.app`，其余组件放在 app 旁边的 `components/`。组件表、两种版本的比对、安装和缺组件时的表现见 [components.md](../components.md)。检出里没有渲染器源码（`private/renderer`）时，构建出的 app 没有 renderer 组件和预览服务，角色只显示文字。
+由 `bash app/build_app.sh` 构建（`package_release.sh` → `tools/release/release.py` → `build_components.py`、`package_app.py`）。默认 `--layout portable` 出一个装着全部组件的 `Agentic Complex.app`；`--layout split` 出只装 host、renderer、web-ui 的 `Agentic Complex.app`，其余组件放在 app 旁边的 `components/`。组件表、两种版本的比对、安装和缺组件时的表现见 [components.md](../components.md)。检出里没有渲染器源码（`private/renderer`）时，构建出的 app 没有 renderer 组件，没有预览，角色只显示文字。
 
 | 位置 | 内容 |
 |---|---|
 | `Contents/MacOS/` | `AgenticComplex`（host 组件，Electron 主程序）、`ac-helper`（host 组件，平台 helper）、`AgenticComplexMetalAvatar`（renderer 组件，即 `metal-avatar-host`） |
-| `Contents/XPCServices/<id>.preview.xpc` | 预览服务 `AgenticComplexMetalPreview`（renderer 组件，同一个宿主可执行文件） |
 | `Contents/Frameworks/`、`Contents/Resources/app/`（外壳的 `package.json`、`dist/`）、`parent_watch.py`、`AppIcon.icns` | host 组件。包含 UI 美术的构建提供图标 |
 | `Contents/Resources/window-envelopes.json` | renderer 组件 |
 | `Contents/Resources/components/<ID>/` | 组件清单 `component.json`；host、renderer 以外的组件还有 `payload/`。portable 版有全部组件，拆分版只有 host、renderer、web-ui |

@@ -1,5 +1,5 @@
 # C11 组件清单与组合锁 v1
-状态：v1，2026-11-06
+状态：v1，2026-11-23
 
 构建工具写组件清单和组合锁，构建端与宿主按同一规则读取。本文定义文件格式、树哈希和拆分版的导入。构建端的实现在 `tools/release/build_components.py`、`package_app.py`；宿主的实现在 `app/electron/src/main/components.ts`（解析 `resolveComponents`、导入 `installComponents`，`prepareComponents` 调用两者，打包启动时由 `packaged.ts` 调用）。两种版本的用法见 [docs/components.md](../../docs/components.md)。
 
@@ -20,7 +20,7 @@
 
 `component.json` 自身不属于它描述的树。为避免自引用，哈希也排除载荷根目录中的 `component.json`；更深层同名文件是载荷的一部分，照常参与哈希。
 
-`host` 和 `renderer` 是固定位置组件：两种形态的清单都放在 `Contents/Resources/components/<id>/component.json`，app 内这两个组件目录没有 `payload/`。暂存载荷通过第 2 节的 `placed` 映射放到 `Contents` 下的固定位置，主程序和渲染器留在 `MacOS/`，预览 XPC 留在 `XPCServices/`。
+`host` 和 `renderer` 是固定位置组件：两种形态的清单都放在 `Contents/Resources/components/<id>/component.json`，app 内这两个组件目录没有 `payload/`。暂存载荷通过第 2 节的 `placed` 映射放到 `Contents` 下的固定位置，主程序和渲染器留在 `MacOS/`。
 
 除此之外，`placement: bundle` 的组件位于 `Contents/Resources/components/<id>/`，包含 `component.json` 和 `payload/`。portable 的组合锁位于 `Contents/Resources/composition.lock.json`。
 

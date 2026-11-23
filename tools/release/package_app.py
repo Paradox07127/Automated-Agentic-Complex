@@ -159,7 +159,7 @@ def stage(args):
             (renderer / 'MacOS').mkdir(parents=True)
             shutil.copy2(args.host.resolve(), renderer / 'MacOS/AgenticComplexMetalAvatar')
             strip_local_symbols(renderer / 'MacOS/AgenticComplexMetalAvatar')
-            renderer_paths = ['MacOS/AgenticComplexMetalAvatar', 'XPCServices/' + identity + '.preview.xpc']
+            renderer_paths = ['MacOS/AgenticComplexMetalAvatar']
         # The profile's content overrides go in before the photo looks so placed paths keep their order.
         payloads = {component['id']: component_stage / component['id'] / 'payload' for component in components}
         placed = dict(host=host_paths, **(dict(renderer=renderer_paths) if renderer else {}))
@@ -170,13 +170,6 @@ def stage(args):
         if renderer and getattr(args, 'photo_looks', None):
             looks = 'Resources/looks/photomode-v1/'
             renderer_paths += [looks + path for path in copy_photo_looks(args.photo_looks, renderer / looks)]
-        if renderer:
-            preview=renderer/'XPCServices'/(identity+'.preview.xpc')/'Contents'
-            (preview/'MacOS').mkdir(parents=True)
-            shutil.copy2(renderer/'MacOS/AgenticComplexMetalAvatar',preview/'MacOS/AgenticComplexMetalPreview')
-            (preview/'Info.plist').write_bytes(plistlib.dumps(dict(CFBundleIdentifier=identity+'.preview',CFBundlePackageType='XPC!',
-                CFBundleExecutable='AgenticComplexMetalPreview',CFBundleVersion=args.build_version,LSMinimumSystemVersion='26.0',
-                AgenticComplexPreviewService=True,XPCService=dict(ServiceType='Application',RunLoopType='dispatch_main'))))
         baseline = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
         sources, fingerprint = source_fingerprint.compute(ROOT)
         write_json(out / 'source-manifest.json', dict(schema='endfield-release-source/v1', baseline=baseline, files=sources, fingerprint=fingerprint))

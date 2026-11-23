@@ -8,7 +8,6 @@
   "entrypoints": {"executable": "MacOS/AgenticComplexMetalAvatar"},
   "placed": {
     "MacOS/AgenticComplexMetalAvatar": "MacOS/AgenticComplexMetalAvatar",
-    "XPCServices/local.agenticcomplex.companion.preview.xpc": "XPCServices/local.agenticcomplex.companion.preview.xpc",
     "Resources/window-envelopes.json": "Resources/window-envelopes.json"
   },
   "provides": {},

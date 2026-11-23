@@ -27,7 +27,7 @@
    "blacklist.json", "hook.token", "tts-token", "distribution-seed.json", "agentd-error.jsonl"],
   "runtime.python": ["agentic-complex-python", "runtime/python"],
   "harness.pi": ["pi-runtime"],
-  "renderer": ["metal-avatar-host", "AgenticComplexMetalAvatar", "AgenticComplexMetalPreview", "preview.xpc",
+  "renderer": ["metal-avatar-host", "AgenticComplexMetalAvatar",
    "window-envelopes.json"],
   "web-ui": ["web/dist", "Resources/ui", "main.html", "stack.html", "ui-bridge", "routes.json"],
   "host": ["app/electron", "app/helpers/mac", "parent_watch.py", "config.json", "activity-recorder-stats.json", "agentic-complex-hook", "computer-control.sock",

@@ -64,12 +64,11 @@ See the [tool gateway](tool-gateway.en.md) for authorization by tool path, relea
 
 ## Release builds
 
-`bash app/build_app.sh` invokes `package_release.sh`, then `tools/release/release.py`, `build_components.py`, and `package_app.py`. The default `--layout portable` bundles every component in `Agentic Complex.app`. With `--layout split`, the app bundles host, renderer, and web-ui, with the other components in `components/` beside it. See [release components and installation](../components.en.md) for the component list, layout comparison, installation, and missing-component behavior. A checkout without the renderer source (`private/renderer`) builds an app with no renderer component and no preview service; characters then show as text only.
+`bash app/build_app.sh` invokes `package_release.sh`, then `tools/release/release.py`, `build_components.py`, and `package_app.py`. The default `--layout portable` bundles every component in `Agentic Complex.app`. With `--layout split`, the app bundles host, renderer, and web-ui, with the other components in `components/` beside it. See [release components and installation](../components.en.md) for the component list, layout comparison, installation, and missing-component behavior. A checkout without the renderer source (`private/renderer`) builds an app with no renderer component and no preview; characters then show as text only.
 
 | Location | Contents |
 |---|---|
 | `Contents/MacOS/` | `AgenticComplex` (host component, the Electron main executable), `ac-helper` (host component, the platform helper) and `AgenticComplexMetalAvatar` (renderer component, built as `metal-avatar-host`). |
-| `Contents/XPCServices/<id>.preview.xpc` | `AgenticComplexMetalPreview` (renderer component, using the same host executable). |
 | `Contents/Frameworks/`, `Contents/Resources/app/` (the shell's `package.json` and `dist/`), `parent_watch.py`, `AppIcon.icns` | Host component. The icon is present on builds that include UI art. |
 | `Contents/Resources/window-envelopes.json` | Renderer component. |
 | `Contents/Resources/components/<ID>/` | `component.json` manifest, with a `payload/` directory for components other than host and renderer. Portable builds include all components here. Split builds include host, renderer, and web-ui here. |

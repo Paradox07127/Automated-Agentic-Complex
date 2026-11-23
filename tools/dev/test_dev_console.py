@@ -1,6 +1,5 @@
 import json
 import os
-import plistlib
 from pathlib import Path
 import re
 import signal
@@ -148,8 +147,8 @@ class CommandTest(Paths):
         self.assertIn(['swift', 'build', '--package-path', renderer / 'private/renderer/host', '--product', 'metal-avatar-host'], commands)
         command, kw, mode = steps[-1]
         self.assertEqual((command, mode), (dc.shell_command(shell, dc.SHELL_ARGS), 'run'))
-        self.assertEqual(kw['env']['ELECTRON_OVERRIDE_DIST_PATH'], str(dc.RUN / 'electron-dist'))
-        self.assertEqual([s[2] for s in steps[-4:]], ['call', 'call', 'call', 'run'])
+        self.assertNotIn('ELECTRON_OVERRIDE_DIST_PATH', kw['env'])
+        self.assertEqual([s[2] for s in steps[-3:]], ['call', 'call', 'run'])
 
     def test_without_the_renderer_the_shell_runs_node_modules_electron(self):
         shell = Path(self.tmp.name, 'shell')
@@ -159,28 +158,6 @@ class CommandTest(Paths):
             steps = dc.COMPONENTS['shell'].steps(shell)
         self.assertEqual(steps[-1], (dc.shell_command(shell, dc.SHELL_ARGS), {'env': {**os.environ,
                          'AGENTD_FRAME_LOG': str(dc.STATE_DIR / 'harness-frames.jsonl')}}, 'run'))
-
-    @unittest.skipUnless(sys.platform == 'darwin', 'an Electron.app clone')
-    def test_preview_electron_carries_the_hosts_preview_service(self):
-        electron, tmp = Path(self.tmp.name, 'electron'), Path(self.tmp.name)
-        app = electron / 'node_modules/electron/dist/Electron.app/Contents'
-        (app / 'MacOS').mkdir(parents=True)
-        (app / 'MacOS/Electron').write_bytes(b'electron')
-        (app / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'com.github.Electron'}))
-        for build in (b'host one', b'host two'):
-            (tmp / 'metal-avatar-host').write_bytes(build)
-            dist = dc.preview_electron(electron, tmp / 'metal-avatar-host')
-        self.assertEqual(dist, dc.RUN / 'electron-dist')
-        contents = dist / 'Electron.app/Contents'
-        self.assertEqual((contents / 'MacOS/Electron').read_bytes(), b'electron')
-        service = contents / 'XPCServices/com.github.Electron.preview.xpc/Contents'
-        self.assertEqual((service / 'MacOS/AgenticComplexMetalPreview').read_bytes(), b'host two')
-        info = plistlib.loads((service / 'Info.plist').read_bytes())
-        self.assertEqual({k: info[k] for k in ('CFBundleIdentifier', 'CFBundlePackageType', 'CFBundleExecutable',
-                                                'AgenticComplexPreviewService', 'XPCService')},
-                         {'CFBundleIdentifier': 'com.github.Electron.preview', 'CFBundlePackageType': 'XPC!',
-                          'CFBundleExecutable': 'AgenticComplexMetalPreview', 'AgenticComplexPreviewService': True,
-                          'XPCService': {'ServiceType': 'Application', 'RunLoopType': 'dispatch_main'}})
 
     def test_release_renderer_builds_and_names_the_release_host(self):
         with mock.patch.object(dc, 'RENDERER_BUILD', 'release'):

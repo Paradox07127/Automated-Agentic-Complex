@@ -79,7 +79,7 @@ macOS 上左键点菜单栏图标开关控制台，右键或按住 Option 左键
 
 ## 角色页预览
 
-macOS 上主窗口的角色页连渲染器的预览 XPC 服务（C3 合同的「附录：预览 XPC」）。服务名是主 bundle 的 id 加 `.preview`，所以服务必须在这个 app 的 `Contents/XPCServices/<bundle id>.preview.xpc` 里。`node_modules` 里的开发用 Electron.app 没有这个服务；开发控制台（`tools/dev/dev_console.py`）在 `.local/cache/dev-console/electron-dist/` 复制一份 Electron.app，放进当前编出的 `metal-avatar-host` 作预览服务，再用 `ELECTRON_OVERRIDE_DIST_PATH` 从这份副本起外壳。直接用 `node_modules` 的 Electron 起外壳时，角色页预览报「预览服务断开了」，页面退回静态立绘。
+macOS 上主窗口的角色页的预览由桌面渲染器进程（`MacOS/AgenticComplexMetalAvatar`）提供，经 Mach port rendezvous 与 Electron 主进程连接：主进程用 `<bundle id>.preview.<pid>` 注册（check in）端口名，渲染器从 `--agentic-complex-preview-rendezvous` 参数取得这个名字并查找它；帧是 IOSurface。预览不需要把渲染器放进 Electron.app，开发控制台起的外壳与打包版走同一条路径。渲染器没起来或连接断开时，角色页预览报「预览服务断开了」，页面退回静态立绘。
 
 主进程把每帧的 IOSurface 用 `sharedTexture.importSharedTexture` 导入，经 `sendSharedTexture` 交给主窗口，preload 把它画进页面报的矩形。窗口隐藏、最小化或页面隐藏预览时发 `pause`，回来时发 `resume`。Windows 上还没有预览通道，`avatar.preview.*` 回 `not_implemented`。
 

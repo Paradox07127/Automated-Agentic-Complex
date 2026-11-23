@@ -589,7 +589,7 @@ console.log(JSON.stringify(prepareComponents({resources, support, layout:'split'
         placements = {
             'host': ['MacOS/AgenticComplex', 'MacOS/ac-helper', 'Frameworks', 'Info.plist', 'PkgInfo', 'Resources/app',
                      'Resources/en.lproj', 'Resources/parent_watch.py', 'Resources/AppIcon.icns'],
-            'renderer': ['MacOS/AgenticComplexMetalAvatar', 'XPCServices/' + self.args.id + '.preview.xpc']}
+            'renderer': ['MacOS/AgenticComplexMetalAvatar']}
         for directory in sorted(self.components.iterdir()):
             with self.subTest(component=directory.name):
                 self.assertTrue((directory / 'component.json').is_file())
@@ -691,8 +691,7 @@ console.log(JSON.stringify(prepareComponents({resources, support, layout:'split'
         self.assertTrue(any(files.get('canon-windows.json') == guard.read_bytes() for files in signed))
         self.assertEqual((self.resources / 'window-envelopes.json').read_bytes(), envelopes.read_bytes())
         placed = list(json.loads((self.components / 'renderer/component.json').read_text())['placed'])
-        self.assertEqual(placed[:3], ['MacOS/AgenticComplexMetalAvatar', 'XPCServices/' + self.args.id + '.preview.xpc',
-                                      'Resources/window-envelopes.json'])
+        self.assertEqual(placed[:2], ['MacOS/AgenticComplexMetalAvatar', 'Resources/window-envelopes.json'])
         self.args.output = self.root / 'bad-guard'
         guard.write_text('{}')
         with self.assertRaisesRegex(ValueError, 'Invalid bundled outbound guard'):
@@ -860,7 +859,7 @@ class ElectronHostStageTests(unittest.TestCase):
         helpers = {p.name: plistlib.loads((p / 'Contents/Info.plist').read_bytes())['CFBundleIdentifier']
                    for p in (contents / 'Frameworks').glob('*.app')}
         self.assertEqual(helpers, {name + '.app': self.args.id + suffix for name, suffix in ELECTRON_HELPERS.items()})
-        self.assertTrue((contents / 'XPCServices' / (self.args.id + '.preview.xpc')).is_dir())
+        self.assertFalse((contents / 'XPCServices').exists())
         host = json.loads((self.components / 'host/component.json').read_text())
         self.assertEqual(host['entrypoints'], {'executable': 'MacOS/AgenticComplex'})
         self.assertEqual(list(host['placed']), ['MacOS/AgenticComplex', 'MacOS/ac-helper', 'Frameworks', 'Info.plist', 'PkgInfo',
@@ -882,8 +881,7 @@ class ElectronHostStageTests(unittest.TestCase):
         for relative in kept + ['Resources/en.lproj']: self.assertTrue((self.contents / relative / 'locale.pak').is_file(), relative)
         for relative in dropped: self.assertFalse((self.contents / relative).exists(), relative)
         self.assertEqual(sorted(staged), ['AgenticComplexMetalAvatar', 'ac-helper', 'node'])
-        preview = self.contents / 'XPCServices/local.agenticcomplex.components-test.preview.xpc/Contents/MacOS/AgenticComplexMetalPreview'
-        for binary in (self.contents / 'MacOS/AgenticComplexMetalAvatar', preview, self.contents / 'MacOS/ac-helper',
+        for binary in (self.contents / 'MacOS/AgenticComplexMetalAvatar', self.contents / 'MacOS/ac-helper',
                        self.components / 'harness.pi/payload/node/bin/node'):
             self.assertEqual(binary.read_bytes(), b'stripped', binary)
         self.assertEqual(self.args.host.read_bytes(), b'synthetic executable')
