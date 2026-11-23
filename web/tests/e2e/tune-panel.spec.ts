@@ -112,6 +112,12 @@ test('menu bar: 打开主窗口 opens the home page and closes the panel', async
   const names = () => menu.getByRole('button').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.textContent?.trim()));
   await expect.poll(names).toEqual(['设置', '关闭菜单', '角色：示例乙', expect.stringMatching(/打开主窗口/), '快速输入', '免打扰', '隐藏她', '全部点穿', '退出']);
   await expect(menu.getByRole('button', { name: /打开主窗口/ })).toBeFocused();
+  // Opened without a key: the focused button draws no ring; the first Tab shows it on the next one.
+  const ring = () => page.evaluate(() => getComputedStyle(document.activeElement as Element).outlineStyle);
+  expect(await ring()).toBe('none');
+  await page.keyboard.press('Tab');
+  await expect(menu.getByRole('button', { name: '快速输入' })).toBeFocused();
+  expect(await ring()).not.toBe('none');
   await menu.getByRole('button', { name: /打开主窗口/ }).click();
   await expect.poll(() => calls('window.openMain')).toEqual([['/home?still=1']]);
   await expect.poll(() => calls('window.close')).toEqual([[]]);

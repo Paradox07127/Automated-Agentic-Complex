@@ -5,6 +5,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import './design/tokens.css';
 import './design/base.css';
 import { loadFakeBridge } from './bridge';
+import { trackKeyboardFocus } from './design/keyboardFocus';
 import { pageRoutes } from './shell/registry';
 import { createAppRouter } from './shell/router';
 import { applyInitialTheme } from './shell/useSystemTheme';
@@ -22,6 +23,7 @@ await loadFakeBridge();
 const router = createAppRouter();
 const queryClient = new QueryClient();
 applyInitialTheme();
+trackKeyboardFocus();
 const root = document.getElementById('root');
 if (!root) throw new Error('missing #root');
 

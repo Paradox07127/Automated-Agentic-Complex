@@ -169,6 +169,11 @@ p {
   outline-offset: 2px;
 }
 
+/* No ring before this window has seen a key (src/design/keyboardFocus.ts). */
+html:not([data-keyboard]) :focus-visible {
+  outline: none !important;
+}
+
 .tnum,
 .num {
   font-variant-numeric: tabular-nums;

@@ -4,12 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './design/tokens.css';
 import './design/base.css';
 import { loadFakeBridge } from './bridge';
+import { trackKeyboardFocus } from './design/keyboardFocus';
 import { StackErrorBoundary } from './surfaces/stack/StackErrorBoundary';
 import { applyInitialTheme } from './shell/useSystemTheme';
 
 await loadFakeBridge();
 const queryClient = new QueryClient();
 applyInitialTheme();
+trackKeyboardFocus();
 const root = document.getElementById('root');
 if (!root) throw new Error('missing #root');
 
