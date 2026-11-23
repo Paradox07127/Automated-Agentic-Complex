@@ -16,6 +16,40 @@
   pointer-events: none;
 }
 
+/* look="bar": the top bar's page name, a flat dark tab with the button cut at the bottom right. */
+.trigger {
+  --bg: var(--ef-chip);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ef-sp-6);
+  height: var(--ef-h-md);
+  padding: 0 calc(10px + var(--ef-cut-btn)) 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg);
+  /* the cut is a mask so background-color carries the hover and press steps */
+  mask: linear-gradient(-45deg, transparent calc(var(--ef-cut-btn) - 0.5px), #000 var(--ef-cut-btn));
+  box-shadow: none;
+  color: var(--ef-text-1);
+  font-weight: var(--ef-fw-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.trigger:hover,
+.wrap[data-open] > .trigger {
+  --bg: var(--ef-surface-3);
+}
+
+.trigger:active {
+  --bg: var(--ef-line-strong);
+}
+
+.trigger:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: -3px;
+}
+
 .vh {
   position: absolute;
   width: 1px;
@@ -138,6 +172,15 @@
 .item[data-check='true'] .box {
   border-color: var(--ef-text-1);
   background: linear-gradient(var(--ef-text-1), var(--ef-text-1)) center / 6px 6px no-repeat;
+}
+
+/* One choice of several: a ring with a dot; a checkbox item keeps the square. */
+.item[role='menuitemradio'] .box {
+  border-radius: 50%;
+}
+
+.item[role='menuitemradio'][data-check='true'] .box {
+  background: radial-gradient(circle, var(--ef-text-1) 3px, transparent 3.5px);
 }
 
 .sep {

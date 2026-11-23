@@ -36,21 +36,23 @@ export interface MenuProps {
   align?: 'left' | 'right';
   /** 有非默认的筛选：触发键带黄色小块 */
   narrowed?: boolean;
+  /** bar：顶栏页面名的深色扁平签（只给外壳顶栏用）；默认深色胶囊 Btn */
+  look?: 'bar';
 }
 
-export function Menu({ label, items, icon, open: forced, align = 'left', narrowed }: MenuProps) {
+export function Menu({ label, items, icon, open: forced, align = 'left', narrowed, look }: MenuProps) {
   const [openState, setOpen] = useState(false);
   const open = !!forced || openState;
   const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [focusOn, setFocusOn] = useState<number | null>(null);
   const id = useId();
   const actionable = items.map((it, i) => (it.kind === 'item' ? i : -1)).filter((i) => i >= 0);
-  const trigger = () => root.current?.querySelector<HTMLButtonElement>(':scope > button') ?? null;
 
   const place = useCallback(() => {
-    const t = trigger();
+    const t = trigger.current;
     const m = pop.current;
     return t && m ? placePopup(t.getBoundingClientRect(), m.offsetWidth, m.scrollHeight, align) : null;
   }, [align]);
@@ -70,7 +72,7 @@ export function Menu({ label, items, icon, open: forced, align = 'left', narrowe
       e.stopPropagation();
       setOpen(false);
       setFocusOn(null);
-      trigger()?.focus();
+      trigger.current?.focus();
     };
     document.addEventListener('mousedown', away);
     document.addEventListener('keydown', esc, true);
@@ -79,16 +81,6 @@ export function Menu({ label, items, icon, open: forced, align = 'left', narrowe
       document.removeEventListener('keydown', esc, true);
     };
   }, [openState, forced]);
-
-  // Btn and IconBtn take no aria props, so the menu button's state is written onto the button they render.
-  useLayoutEffect(() => {
-    const t = trigger();
-    if (!t) return;
-    t.setAttribute('aria-haspopup', 'menu');
-    t.setAttribute('aria-expanded', String(open));
-    if (open) t.setAttribute('aria-controls', `${id}-menu`);
-    else t.removeAttribute('aria-controls');
-  });
 
   useEffect(() => {
     const el = focusOn != null && open && ready ? itemRefs.current[focusOn] : null;
@@ -106,10 +98,11 @@ export function Menu({ label, items, icon, open: forced, align = 'left', narrowe
   const close = () => {
     setOpen(false);
     setFocusOn(null);
-    trigger()?.focus();
+    trigger.current?.focus();
   };
 
   const toggle = () => (openState ? close() : (setOpen(true), setFocusOn(null)));
+  const menuAria = { 'aria-haspopup': 'menu', 'aria-controls': open ? `${id}-menu` : undefined } as const;
 
   const select = (i: number, mods: MenuMods) => {
     const it = items[i];
@@ -119,7 +112,7 @@ export function Menu({ label, items, icon, open: forced, align = 'left', narrowe
   };
 
   const onTriggerKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.target !== trigger()) return;
+    if (e.target !== trigger.current) return;
     if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       show('first');
@@ -147,7 +140,7 @@ export function Menu({ label, items, icon, open: forced, align = 'left', narrowe
       close();
     } else if (e.key === 'Tab') {
       // The popup sits at the end of body: Tab goes on from the trigger, Shift+Tab lands on it.
-      trigger()?.focus();
+      trigger.current?.focus();
       if (e.shiftKey) e.preventDefault();
       setOpen(false);
       setFocusOn(null);
@@ -155,14 +148,19 @@ export function Menu({ label, items, icon, open: forced, align = 'left', narrowe
   };
 
   return (
-    <div ref={root} className={styles.wrap} data-stub="Menu" data-align={align} data-open={open || undefined} data-narrowed={narrowed || undefined} onKeyDown={onTriggerKey}>
+    <div ref={root} className={styles.wrap} data-stub="Menu" data-align={align} data-open={open || undefined} data-narrowed={narrowed || undefined} data-look={look} onKeyDown={onTriggerKey}>
       {icon ? (
-        <IconBtn icon={icon} label={narrowed ? `${label}（已收窄）` : label} size="sm" onClick={toggle} />
-      ) : (
-        <Btn variant="ghost" onClick={toggle}>
+        <IconBtn ref={trigger} icon={icon} label={narrowed ? `${label}（已收窄）` : label} size="sm" expanded={open} onClick={toggle} {...menuAria} />
+      ) : look === 'bar' ? (
+        <button ref={trigger} type="button" className={styles.trigger} aria-expanded={open} onClick={toggle} {...menuAria}>
           {label}
           {narrowed && <span className={styles.vh}>（已收窄）</span>}
           <Icon name="chevd" size={14} />
+        </button>
+      ) : (
+        <Btn ref={trigger} variant="secondary" tail="chevd" aria-expanded={open} onClick={toggle} {...menuAria}>
+          {label}
+          {narrowed && <span className={styles.vh}>（已收窄）</span>}
         </Btn>
       )}
       {open && inline !== undefined && portal(

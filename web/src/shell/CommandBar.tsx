@@ -190,7 +190,7 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
           <Kbd>esc</Kbd>
         </button>
         <div className={styles.tools} data-nav-target="page">
-          <Menu label={squeeze >= 1 ? title : [title, tabName ?? sub].filter(Boolean).join(' / ')} items={menuItems} />
+          <Menu look="bar" label={squeeze >= 1 ? title : [title, tabName ?? sub].filter(Boolean).join(' / ')} items={menuItems} />
         </div>
       </div>
       <div ref={bar} className={styles.tabs} data-g="tabs">

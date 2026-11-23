@@ -204,7 +204,7 @@
   align-items: center;
 }
 
-.tools[data-active='true'] [data-stub='Menu'] > button {
+.tools[data-active='true'] [data-look='bar'] > button {
   --bg: var(--ef-accent);
   background-color: var(--ef-accent);
   color: var(--ef-on-accent);

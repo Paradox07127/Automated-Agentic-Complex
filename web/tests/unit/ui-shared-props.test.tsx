@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApprovalCard } from '../../src/features/approval/ApprovalCard';
 import { APPROVALS, pick } from '../../src/mock/fixtures';
@@ -137,17 +138,49 @@ describe('Menu', () => {
     const { container, rerender } = render(<Menu label="管理" items={[{ kind: 'item', label: '重命名' }]} />);
     let trigger = screen.getByRole('button', { name: /管理/ });
     expect(trigger.dataset.stub).toBe('Btn');
-    expect(trigger.dataset.variant).toBe('ghost');
+    expect(trigger.dataset.variant).toBe('secondary');
+    expect(trigger.dataset.size).toBe('md');
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(trigger);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(trigger.hasAttribute('aria-pressed')).toBe(false);
     expect(trigger.getAttribute('aria-controls')).toBe(screen.getByRole('menu').id);
     rerender(<Menu label="更多操作" icon="more" items={[{ kind: 'item', label: '复制路径' }]} />);
     trigger = screen.getByRole('button', { name: '更多操作' });
     expect(trigger.dataset.stub).toBe('IconBtn');
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
     expect(container.querySelectorAll('button')).toHaveLength(1);
+  });
+
+  it('writes the trigger state in the render, not from an effect', () => {
+    // Effects do not run in a server render, so only attributes React itself renders show up.
+    const button = (html: string) => html.match(/<button[^>]*>/)?.[0] ?? '';
+    for (const icon of [undefined, 'more'] as const) {
+      const tag = button(renderToStaticMarkup(<Menu label="管理" icon={icon} open items={[{ kind: 'item', label: '重命名' }]} />));
+      expect(tag).toContain('aria-haspopup="menu"');
+      expect(tag).toContain('aria-expanded="true"');
+    }
+  });
+
+  it('gives the top bar its flat dark tab, not a Btn', () => {
+    render(<Menu label="对话 / 示例乙" look="bar" items={[{ kind: 'item', label: '记忆' }]} />);
+    const trigger = screen.getByRole('button', { name: /对话 \/ 示例乙/ });
+    expect(trigger.dataset.stub).toBeUndefined();
+    expect(trigger.closest('[data-stub="Menu"]')?.getAttribute('data-look')).toBe('bar');
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(trigger.hasAttribute('aria-pressed')).toBe(false);
+    expect(rule(css('Menu.module.css'), '.trigger')).toMatch(/background: var\(--bg\)/);
+  });
+
+  it('marks a radio item with a dot and a checkbox item with a square', () => {
+    const text = css('Menu.module.css');
+    expect(rule(text, ".item[role='menuitemradio'] .box")).toMatch(/border-radius: 50%/);
+    expect(rule(text, ".item[role='menuitemradio'][data-check='true'] .box")).toMatch(/radial-gradient/);
+    expect(rule(text, ".item[data-check='true'] .box")).toMatch(/linear-gradient/);
   });
 
   it('marks a narrowed trigger for sight and for screen readers', () => {

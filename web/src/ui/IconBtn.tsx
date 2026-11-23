@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useId, useImperativeHandle, useLayoutEffect, useRef, useState, type AriaAttributes, type CSSProperties, type Ref } from 'react';
 import { Icon, type IconName } from './Icon';
 import styles from './IconBtn.module.css';
 import tipStyles from './InfoTip.module.css';
@@ -23,16 +23,22 @@ export interface IconBtnProps {
   disabledReason?: string;
   /** 点击 */
   onClick?: () => void;
+  /** 打开菜单的按钮（Menu 的触发键）：写到 button 上；展开与否用 expanded */
+  'aria-haspopup'?: AriaAttributes['aria-haspopup'];
+  'aria-controls'?: string;
+  /** 指向 button（不是浮层） */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 const TIP_MAX = 275;
 
-export function IconBtn({ icon, label, size = 'md', shape, pressed, expanded, disabled, disabledReason, onClick }: IconBtnProps) {
+export function IconBtn({ icon, label, size = 'md', shape, pressed, expanded, disabled, disabledReason, onClick, ref, ...aria }: IconBtnProps) {
   const [tip, setTip] = useState(false);
   const [place, setPlace] = useState<CSSProperties>();
   const btn = useRef<HTMLButtonElement>(null);
   const tipEl = useRef<HTMLSpanElement>(null);
   const tipId = useId();
+  useImperativeHandle(ref, () => btn.current as HTMLButtonElement);
   const why = disabled && disabledReason ? disabledReason : undefined;
   const shown = tip && why != null;
   // Placed like InfoTip's tip: fixed to the viewport, flipped above when there is no room below.
@@ -55,6 +61,7 @@ export function IconBtn({ icon, label, size = 'md', shape, pressed, expanded, di
         data-size={size}
         data-shape={shape}
         aria-label={label}
+        {...aria}
         title={why ? undefined : label}
         aria-pressed={pressed}
         aria-expanded={expanded}

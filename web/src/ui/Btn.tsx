@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useState, type AriaAttributes, type KeyboardEvent, type ReactNode, type Ref } from 'react';
 import { Icon, type IconName } from './Icon';
 import { Kbd } from './Kbd';
 import styles from './Btn.module.css';
@@ -42,6 +42,12 @@ export interface BtnProps {
   onClick?: () => void;
   /** 按钮文字 */
   children: ReactNode;
+  /** 打开菜单或弹层的按钮（Menu 的触发键）：写到 button 上 */
+  'aria-haspopup'?: AriaAttributes['aria-haspopup'];
+  'aria-expanded'?: boolean;
+  'aria-controls'?: string;
+  /** 指向 button */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'text' | 'ring' | 'link';
@@ -62,7 +68,7 @@ const VARIANT: Record<NonNullable<BtnProps['variant']>, Variant> = {
 const TAIL: Partial<Record<Variant, IconName>> = { primary: 'check', secondary: 'chev', danger: 'del', ring: 'chev' };
 export const MOUSE_ONLY_HINT = '只能用鼠标点击';
 
-export function Btn({ variant = 'ghost', size = 'md', icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, mouseOnly, onClick, children }: BtnProps) {
+export function Btn({ variant = 'ghost', size = 'md', icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, mouseOnly, onClick, children, ref, ...aria }: BtnProps) {
   const [hint, setHint] = useState(false);
   const reasonId = useId();
   const v = VARIANT[variant];
@@ -86,6 +92,7 @@ export function Btn({ variant = 'ghost', size = 'md', icon, tail, go, label, kbd
 
   const button = (
     <button
+      ref={ref}
       type="button"
       className={`${styles.btn} ${styles[v]} ${styles[size]} ${pressStyles.press}`}
       data-stub="Btn"
@@ -96,6 +103,7 @@ export function Btn({ variant = 'ghost', size = 'md', icon, tail, go, label, kbd
       data-loading={loading || undefined}
       data-mouse-only={mouseOnly || undefined}
       aria-label={label}
+      {...aria}
       aria-pressed={pressed}
       aria-disabled={disabled || undefined}
       aria-busy={loading || undefined}
