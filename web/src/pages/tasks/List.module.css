@@ -1,4 +1,4 @@
-/* MissionCellNew 670×105 → 66 tall: #181818@0.5 plate, 1px line @0.2, rounded right end, 6px task-blue bar */
+/* MissionCellNew 670×105 → 66 tall: row plate, hairline, rounded right end, 6px task-blue bar */
 .row {
   all: unset;
   position: relative;
@@ -11,9 +11,9 @@
   padding: 6px 8px 6px 18px;
   border-radius: 0 9px 9px 0;
   cursor: pointer;
-  color: var(--tk-row-t);
-  background: linear-gradient(180deg, var(--tk-row-hi), var(--tk-row) 45%, var(--tk-row-lo));
-  box-shadow: inset 0 0 0 1px var(--tk-row-line);
+  color: var(--ef-text-1);
+  background: var(--ef-row);
+  box-shadow: inset 0 0 0 1px var(--ef-line);
   animation: cellIn 200ms var(--ef-ease-g-fade) both;
   animation-delay: calc(var(--i, 0) * 35ms);
   transition: filter 83ms var(--ef-ease-g-fade);
@@ -26,11 +26,11 @@
   top: 0;
   bottom: 0;
   width: 6px;
-  background: var(--bar, var(--tk-mission));
+  background: var(--bar, var(--ef-mission-accent));
 }
 
 .row[data-src='code'] {
-  --bar: #9a9a9a;
+  --bar: var(--ef-text-3);
 }
 
 .row:hover {
@@ -48,7 +48,7 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  color: var(--tk-row-ico);
+  color: var(--ef-rule);
 }
 
 .ico svg {
@@ -70,7 +70,7 @@
 .dv {
   width: 1px;
   height: 28px;
-  background: var(--tk-row-line);
+  background: var(--ef-line);
 }
 
 .tt {
@@ -95,18 +95,18 @@
   overflow: hidden;
   font-size: 12px;
   line-height: 18px;
-  color: var(--tk-row-t2);
+  color: var(--ef-text-2);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .tt small .st {
   font-weight: 600;
-  color: var(--tk-row-t);
+  color: var(--ef-text-1);
 }
 
 .tt small .st[data-err] {
-  color: var(--tk-danger);
+  color: var(--ef-danger-text);
 }
 
 .rn {
@@ -124,7 +124,7 @@
   bottom: 9px;
   width: 40px;
   height: 7px;
-  color: var(--tk-row-t2);
+  color: var(--ef-text-2);
   opacity: 0.35;
 }
 
@@ -146,7 +146,7 @@
   top: 50%;
   font: 800 64px / 1 var(--ef-font-sans);
   letter-spacing: -0.04em;
-  color: var(--tk-glyph);
+  color: color-mix(in srgb, var(--ef-text-1) 6%, transparent);
   white-space: nowrap;
   transform: translateY(-52%);
 }
@@ -155,11 +155,13 @@
   font: 700 44px / 1 var(--ef-font-num);
 }
 
-/* Selected: light plate, a 190 wide blue twill band from the left (bg_mission_select_twill_cell) and a glowing bar outside */
+/* Selected: the inverse plate, a 190 wide blue twill band from the left (bg_mission_select_twill_cell) and a glowing bar outside */
 .row[aria-selected='true'] {
-  color: var(--tk-sel-t);
-  background: linear-gradient(180deg, var(--tk-sel-hi), var(--tk-sel));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+  --sel-err: color-mix(in srgb, var(--ef-danger-vivid) 60%, var(--ef-row-sel-fg));
+  --sel-y: color-mix(in srgb, var(--ef-accent) 50%, var(--ef-row-sel-fg));
+  color: var(--ef-row-sel-fg);
+  background: var(--ef-row-sel-bg);
+  box-shadow: none;
 }
 
 .row[aria-selected='true']::before {
@@ -167,23 +169,27 @@
 }
 
 .row[aria-selected='true'] .tt small {
-  color: var(--tk-sel-t2);
+  color: color-mix(in srgb, var(--ef-row-sel-fg) 72%, var(--ef-row-sel-bg));
 }
 
-.row[aria-selected='true'] .tt small .st:not([data-err]) {
-  color: var(--tk-sel-t);
+.row[aria-selected='true'] .tt small .st {
+  color: var(--ef-row-sel-fg);
+}
+
+.row[aria-selected='true'] .tt small .st[data-err] {
+  color: var(--sel-err);
 }
 
 .row[aria-selected='true'] .ico {
-  color: color-mix(in srgb, var(--tk-sel-t) 45%, transparent);
+  color: color-mix(in srgb, var(--ef-row-sel-fg) 45%, transparent);
 }
 
 .row[aria-selected='true'] .dv {
-  background: color-mix(in srgb, var(--tk-sel-t) 25%, transparent);
+  background: color-mix(in srgb, var(--ef-row-sel-fg) 25%, transparent);
 }
 
 .row[aria-selected='true'] .who span {
-  color: color-mix(in srgb, var(--tk-sel-t) 7%, transparent);
+  color: color-mix(in srgb, var(--ef-row-sel-fg) 7%, transparent);
 }
 
 .twill,
@@ -199,7 +205,7 @@
   display: block;
   width: 190px;
   pointer-events: none;
-  background: repeating-linear-gradient(-60deg, var(--tk-twill) 0 2px, transparent 2px 7px);
+  background: repeating-linear-gradient(-60deg, var(--ef-mission-accent) 0 2px, transparent 2px 7px);
   mask: linear-gradient(90deg, rgba(0, 0, 0, 0.75), transparent);
   animation: band 500ms var(--ef-ease-g-enter) both;
 }
@@ -212,20 +218,20 @@
   display: block;
   width: 6px;
   border-radius: 3px;
-  background: var(--tk-mission);
+  background: var(--ef-mission-accent);
   animation: bar 500ms var(--ef-ease-g-enter) both;
 }
 
-/* RightNode shapes: tracking ring (icon_mission_follow + ring loop 1000ms), forbid #FF8383, hatch @0.15, check */
+/* RightNode shapes: tracking ring (icon_mission_follow + ring loop 1000ms), forbid, hatch @0.15, check */
 .trk {
   position: relative;
   width: 34px;
   height: 34px;
-  color: var(--tk-mission);
+  color: var(--ef-mission-accent);
 }
 
 .trk[data-y] {
-  color: var(--ef-accent);
+  color: var(--ef-accent-text);
 }
 
 .trk svg {
@@ -248,30 +254,17 @@
   animation-name: ring2;
 }
 
-:global([data-theme='light']) .trk {
-  border-radius: 50%;
-  color: #8ddcff;
-  background: radial-gradient(circle, #2e2f31 0 62%, transparent 64%);
-}
-
-:global([data-theme='light']) .trk[data-y] {
-  color: var(--ef-accent);
-}
-
 .row[aria-selected='true'] .trk {
-  color: #1f86bd;
+  color: color-mix(in srgb, var(--ef-mission-accent) 55%, var(--ef-row-sel-fg));
 }
 
-.row[aria-selected='true'] .trk[data-y] {
-  color: #8a7f00;
+.row[aria-selected='true'] .trk[data-y],
+.row[aria-selected='true'] .okc {
+  color: var(--sel-y);
 }
 
-:global([data-theme='light']) .row[aria-selected='true'] .trk {
-  color: var(--tk-twill);
-}
-
-:global([data-theme='light']) .row[aria-selected='true'] .trk[data-y] {
-  color: var(--ef-accent);
+.row[aria-selected='true'] .forbid {
+  color: var(--sel-err);
 }
 
 .hatch {
@@ -284,21 +277,13 @@
 .forbid {
   width: 30px;
   height: 30px;
-  color: var(--tk-danger);
+  color: var(--ef-danger-text);
 }
 
 .okc {
   width: 30px;
   height: 30px;
-  color: var(--tk-ok);
-}
-
-.row[aria-selected='true'] .okc {
-  color: #8a7f00;
-}
-
-:global([data-theme='light']) .row[aria-selected='true'] .okc {
-  color: var(--ef-accent);
+  color: var(--ef-accent-text);
 }
 
 @keyframes cellIn {

@@ -14,7 +14,6 @@ export interface EditDraft {
   title: string;
   /** 要求 now, 指令 for a schedule. */
   brief: string;
-  acceptanceOpen: boolean;
   artifact: string;
   sections: string;
   agent: 'claude' | 'codex';
@@ -34,7 +33,6 @@ const BASE: Omit<EditDraft, 'when' | 'type'> = {
   scheduleId: null,
   title: '',
   brief: '',
-  acceptanceOpen: false,
   artifact: '',
   sections: '',
   agent: 'claude',
@@ -89,7 +87,7 @@ export function triggerOf(d: EditDraft): ScheduleTrigger | null {
 
 /** The dispatch half as the create form's draft. */
 function createDraft(d: EditDraft): CreateDraft {
-  return { ...draftFor(d.type), title: d.title, brief: d.brief, acceptanceOpen: d.acceptanceOpen, artifact: d.artifact, sections: d.sections, agent: d.agent, cwd: d.cwd, mode: d.mode, scopeId: d.scopeId };
+  return { ...draftFor(d.type), title: d.title, brief: d.brief, artifact: d.artifact, sections: d.sections, agent: d.agent, cwd: d.cwd, mode: d.mode, scopeId: d.scopeId };
 }
 
 /** Why the draft cannot be sent yet; null when it can. */

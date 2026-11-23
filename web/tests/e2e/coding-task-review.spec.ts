@@ -39,17 +39,18 @@ for (const theme of THEMES) {
     await expect(check).toContainText('检查没通过');
     await expect(check).toContainText('退出码 1');
     await expect(check).not.toContainText('XCTAssertEqual');
-    await check.getByRole('button', { name: /检查输出/ }).click();
+    await check.getByRole('button', { name: /^检查/ }).click();
     await expect(check).toContainText('XCTAssertEqual');
     await shot(page, 'code-failed', theme);
     expect(errors).toEqual([]);
   });
 
-  test(`${theme}: earlier versions are reachable`, async ({ page }) => {
+  test(`${theme}: earlier versions are reachable under 版本`, async ({ page }) => {
     const errors = collectErrors(page);
     await open(page, `/tasks?sel=${encodeURIComponent(T1)}`, theme);
-    const chain = page.getByRole('group', { name: '版本链' });
-    await expect(chain.getByRole('button', { name: /v1/ })).toBeVisible();
+    await page.getByRole('region', { name: '详情' }).getByRole('button', { name: /^版本/ }).click();
+    const chain = page.getByRole('radiogroup', { name: '版本链' });
+    await expect(chain.getByRole('radio', { name: /v1/ })).toBeVisible();
     await shot(page, 'versions', theme);
     expect(errors).toEqual([]);
   });

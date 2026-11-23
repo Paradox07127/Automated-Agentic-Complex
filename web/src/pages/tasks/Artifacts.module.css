@@ -1,4 +1,4 @@
-/* RewardsNode: #FFF@0.15 band, 4px #B7B7B7 left rule, 4px white@0.5 right rule, a faded reward icon, 64 tiles with a rarity bar */
+/* RewardsNode: a faint band, 4px left and right rules, a faded reward icon, 64 tiles with a rarity bar */
 .rw {
   position: relative;
   display: grid;
@@ -6,8 +6,8 @@
   gap: 12px;
   padding: 12px 14px 12px 16px;
   overflow: hidden;
-  background: linear-gradient(90deg, var(--tk-deco), color-mix(in srgb, var(--tk-deco) 40%, transparent));
-  box-shadow: inset 4px 0 0 #b7b7b7, inset -4px 0 0 color-mix(in srgb, var(--tk-t1) 45%, transparent);
+  background: linear-gradient(90deg, var(--ef-contour), color-mix(in srgb, var(--ef-contour) 40%, transparent));
+  box-shadow: inset 4px 0 0 var(--ef-line-strong), inset -4px 0 0 color-mix(in srgb, var(--ef-text-1) 45%, transparent);
 }
 
 .wm {
@@ -16,7 +16,7 @@
   bottom: -14px;
   width: 96px;
   height: 96px;
-  color: var(--tk-t1);
+  color: var(--ef-text-1);
   opacity: 0.08;
 }
 
@@ -37,13 +37,13 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 18px;
-  color: var(--tk-t2);
+  color: var(--ef-text-2);
 }
 
 .lb svg {
   width: 90px;
   height: 7px;
-  color: var(--tk-t2);
+  color: var(--ef-text-2);
   opacity: 0.5;
 }
 
@@ -76,9 +76,9 @@
   width: 64px;
   height: 64px;
   overflow: hidden;
-  color: #d8d8d5;
-  background: linear-gradient(180deg, #3a3b3e, #1e1f21);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  color: var(--ef-track-text);
+  background: var(--ef-plate);
+  box-shadow: inset 0 0 0 1px var(--ef-g-ring-1);
   transition: transform 120ms var(--ef-ease-g-enter);
 }
 
@@ -89,7 +89,7 @@
   top: 4px;
   width: 18px;
   height: 3px;
-  background: repeating-linear-gradient(90deg, #888 0 2px, transparent 2px 4px);
+  background: repeating-linear-gradient(90deg, var(--ef-g-lock) 0 2px, transparent 2px 4px);
 }
 
 .tl::after {
@@ -99,7 +99,7 @@
   right: 0;
   bottom: 0;
   height: 5px;
-  background: var(--rar, #7a7a7a);
+  background: var(--rar, var(--ef-g-lock));
 }
 
 .tl .ext {
@@ -108,7 +108,7 @@
   bottom: 8px;
   font: 600 9px var(--ef-font-num);
   letter-spacing: 0.06em;
-  color: #9a9a96;
+  color: var(--ef-g-lock);
   text-transform: uppercase;
 }
 
@@ -143,40 +143,7 @@
 .fc small {
   font-size: 12px;
   line-height: 14px;
-  color: var(--tk-t2);
-}
-
-.chain {
-  grid-column: 2;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--tk-t2);
-}
-
-.chain button {
-  all: unset;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 22px;
-  padding: 0 8px;
-  cursor: pointer;
-  color: var(--tk-t1);
-  box-shadow: inset 0 0 0 1px var(--tk-cell-line);
-}
-
-.chain button[aria-pressed='true'] {
-  color: #161616;
-  background: var(--ef-accent);
-  box-shadow: none;
-}
-
-.chain button:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: 2px;
+  color: var(--ef-text-2);
 }
 
 /* Context menu: raised plate, yellow bar down the left, items light yellow on hover */
@@ -187,14 +154,10 @@
   gap: 2px;
   min-width: 200px;
   padding: 6px;
-  color: var(--tk-t1);
-  background: linear-gradient(180deg, var(--tk-row-hi), var(--tk-row));
-  box-shadow: inset 0 1px 0 var(--tk-deco), 0 0 0 1px rgba(0, 0, 0, 0.45), var(--ef-shadow-popup);
+  color: var(--ef-overlay-fg);
+  background: var(--ef-overlay);
+  box-shadow: 0 0 0 1px var(--ef-line), var(--ef-shadow-popup);
   animation: menu 150ms var(--ef-ease-g-enter) both;
-}
-
-:global([data-theme='light']) .cmenu {
-  background: #fbfbf9;
 }
 
 .cmenu::before {
@@ -210,7 +173,7 @@
 .cmenu .gt {
   padding: 4px 14px 2px;
   font-size: 12px;
-  color: var(--tk-t3);
+  color: var(--ef-text-3);
 }
 
 .cmenu button {
@@ -226,8 +189,8 @@
 
 .cmenu button:hover,
 .cmenu button:focus-visible {
-  color: #161616;
-  background: linear-gradient(90deg, #fff100, #f2d900);
+  color: var(--ef-on-accent);
+  background: var(--ef-accent);
 }
 
 .cmenu button[aria-disabled='true'] {
@@ -236,13 +199,13 @@
 }
 
 .cmenu button[data-danger] {
-  color: var(--tk-danger);
+  color: var(--ef-danger-text);
 }
 
 .cmenu button[data-danger]:hover,
 .cmenu button[data-danger]:focus-visible {
-  color: #161616;
-  background: #ff4145;
+  color: var(--ef-on-danger-vivid);
+  background: var(--ef-danger-vivid);
 }
 
 @keyframes menu {
@@ -257,12 +220,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .chain {
-    grid-column: 1;
-  }
-
   .lb {
-    grid-template-columns: auto auto;
+    grid-template-columns: auto auto auto;
     justify-content: start;
     align-items: baseline;
     gap: 2px 10px;

@@ -22,10 +22,10 @@
   overflow: hidden;
   font-size: 12px;
   line-height: 30px;
-  color: #a8a8a6;
+  color: var(--ef-text-2);
   white-space: nowrap;
   text-overflow: ellipsis;
-  background: linear-gradient(90deg, transparent, rgba(105, 105, 105, 0.22) 20%, rgba(105, 105, 105, 0.22) 80%, transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ef-text-3) 22%, transparent) 20% 80%, transparent);
 }
 
 .right {
@@ -33,36 +33,6 @@
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-/* mapBtn icon_mission_locate: light round button ringed in white and black */
-.rb {
-  all: unset;
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-right: 6px;
-  border-radius: 50%;
-  cursor: pointer;
-  color: #181818;
-  background: radial-gradient(circle, #f2f1ef 0 60%, #d8d7d3);
-  box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.25), 0 0 0 4px rgba(0, 0, 0, 0.55), var(--ef-shadow-btn);
-}
-
-.rb:hover {
-  box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.5), 0 0 0 4px rgba(0, 0, 0, 0.55), var(--ef-shadow-btn);
-}
-
-.rb:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: 4px;
-}
-
-.rb[aria-disabled='true'] {
-  opacity: 0.45;
-  cursor: default;
 }
 
 /* Key hints only while ⌘ or Ctrl is held (Layout sets html[data-keys]). */

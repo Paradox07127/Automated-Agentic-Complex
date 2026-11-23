@@ -1,9 +1,10 @@
-// 产物 (RewardsNode): the shown version, how many were opened, a tile per file with its check bar, the version chain;
-// a file's right-click menu opens, reveals, copies its path or writes the previous version back.
-import { Fragment, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
+// 产物 (RewardsNode): the shown version and its verdict, how many were opened, a tile per file with its check bar, the
+// version chain folded below; a file's right-click menu opens, reveals, copies its path or writes the previous version back.
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
 import { revealText } from '../../bridge/platformText';
 import { formatClock, type Artifact, type Delivery } from '../../domain';
-import { Icon, Modal } from '../../ui';
+import { Fold, Icon, InfoTip, Modal, SecHead } from '../../ui';
+import { GameSeg } from '../../ui/game';
 import type { NativeOff } from './actions';
 import { Box, Micro } from './Glyphs';
 import styles from './Artifacts.module.css';
@@ -20,7 +21,7 @@ export interface ArtifactsProps {
 }
 
 const check = (a: Artifact) => (a.validation ? (a.validation.ok ? '检查通过' : '检查没过') : a.self_checked ? '尝试自检' : '未检查');
-const bar = (a: Artifact) => (a.validation ? (a.validation.ok ? 'var(--tk-mission)' : '#ff4145') : '#7a7a7a');
+const bar = (a: Artifact) => (a.validation ? (a.validation.ok ? 'var(--ef-mission-accent)' : 'var(--ef-danger-vivid)') : 'var(--ef-g-lock)');
 const verdict = (d: Delivery) => (d.state === 'accepted' ? `已接受${d.decided_at ? ` ${formatClock(d.decided_at)}` : ''}` : d.state === 'rejected' ? '已驳回' : '待复核');
 
 interface MenuAt {
@@ -72,14 +73,16 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
   );
   return (
     <>
-      <div className={detail.sh}>
-        产物<span className="num">{d.artifacts.length}</span>
-        <span className={detail.r}>{d.verification_source === 'auto' ? '已自动检查' : '未验证'} │ 点开文件；右键{canReveal ? revealText('在 Finder 中显示') : ''}、复制路径</span>
-      </div>
+      <SecHead
+        title="产物"
+        count={d.artifacts.length}
+        right={<InfoTip>{`${d.verification_source === 'auto' ? '已自动检查' : '未验证'}。点开文件；右键${canReveal ? `${revealText('在 Finder 中显示')}、` : ''}复制路径。`}</InfoTip>}
+      />
       <div className={styles.rw}>
         <Box className={styles.wm} />
         <div className={styles.lb}>
           <span className={styles.v}>v{d.version}</span>
+          <small>{verdict(d)}</small>
           <small>
             看过 <span className="num">{open} / {d.artifacts.length}</span>
           </small>
@@ -97,7 +100,7 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
                 type="button"
                 className={styles.fc}
                 data-off={openOff ? '' : undefined}
-                title={openOff ? `${a.path} │ ${openOff}` : `${a.path} │ ${check(a)}`}
+                title={openOff ? `${a.path} │ ${openOff}` : `${a.path} │ ${check(a)} │ v${a.version}`}
                 onClick={() => !openOff && onOpen(a.absolute_path)}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -118,26 +121,17 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
                 </span>
                 {!a.opened && <span className={styles.seen} title="还没打开过" />}
                 <b>{a.name}</b>
-                <small>
-                  {check(a)} │ v{a.version}
-                </small>
+                <small>{check(a)}</small>
               </button>
             ))}
           </div>
         )}
-        {sorted.length > 1 && (
-          <div className={styles.chain} role="group" aria-label="版本链">
-            {sorted.map((x, i) => (
-              <Fragment key={x.id}>
-                {i > 0 && <span aria-hidden="true">→</span>}
-                <button type="button" aria-pressed={x.id === d.id} onClick={() => setShown(x.id)}>
-                  <span className="num">v{x.version}</span> {verdict(x)}
-                </button>
-              </Fragment>
-            ))}
-          </div>
-        )}
       </div>
+      {sorted.length > 1 && (
+        <Fold id="versions" label="版本" count={sorted.length} summary={`v${sorted[0]?.version} → v${sorted.at(-1)?.version}`}>
+          <GameSeg label="版本链" value={d.id} options={sorted.map((x) => ({ value: x.id, label: `v${x.version} ${verdict(x)}` }))} onChange={setShown} />
+        </Fold>
+      )}
       {menu && (
         <div ref={menuRef} className={styles.cmenu} role="menu" aria-label={menu.a.name} style={{ left: menu.x, top: menu.y }}>
           <div className={styles.gt}>{menu.a.name}</div>

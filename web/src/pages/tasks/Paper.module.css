@@ -1,13 +1,13 @@
-/* White paper: only for decisions (approve, review, answer, her proposal); black-and-yellow tape along the top (chat v2 .swap) */
+/* White paper (light theme in both): only for decisions (approve, review, answer, her proposal); black-and-yellow tape along the top (chat v2 .swap) */
 .paper {
   position: relative;
   display: grid;
   gap: 10px;
   margin-top: 6px;
   padding: 16px 18px 14px;
-  color: #1f1f1f;
-  background: linear-gradient(180deg, #faf9f7, #f2f1ef);
-  box-shadow: var(--ef-shadow-card), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  color: var(--ef-paper-text);
+  background: var(--ef-paper);
+  box-shadow: var(--ef-shadow-card), 0 0 0 1px var(--ef-line-subtle);
   animation: popUp 300ms var(--ef-ease-g-enter) both;
 }
 
@@ -18,11 +18,11 @@
   right: 0;
   top: 0;
   height: 4px;
-  background: repeating-linear-gradient(115deg, #161616 0 6px, var(--ef-accent) 6px 12px);
+  background: repeating-linear-gradient(115deg, var(--ef-text-1) 0 6px, var(--ef-accent) 6px 12px);
 }
 
 .paper[data-warn]::before {
-  background: repeating-linear-gradient(115deg, #161616 0 6px, #ff4145 6px 12px);
+  background: repeating-linear-gradient(115deg, var(--ef-text-1) 0 6px, var(--ef-danger-vivid) 6px 12px);
 }
 
 .paper:focus-visible {
@@ -40,12 +40,12 @@
   margin: 0;
   font-size: 13px;
   line-height: 20px;
-  color: #5e5d5b;
+  color: var(--ef-paper-text-2);
 }
 
 .paper code {
   font: 500 13px var(--ef-font-mono);
-  color: #1f1f1f;
+  color: var(--ef-paper-text);
 }
 
 .pv {
@@ -53,16 +53,16 @@
   margin: 0;
   padding: 8px 10px;
   overflow: auto;
-  border-left: 3px solid #161616;
+  border-left: 3px solid var(--ef-text-1);
   font: 13px / 20px var(--ef-font-mono);
-  color: #1f1f1f;
+  color: var(--ef-paper-text);
   white-space: pre-wrap;
   word-break: break-all;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--ef-step-bg);
 }
 
 .rule {
-  color: #b71313 !important;
+  color: var(--ef-danger-text) !important;
   font-weight: 600;
 }
 
@@ -72,14 +72,14 @@
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: #5e5d5b;
+  color: var(--ef-paper-text-2);
 }
 
 .cd i {
   position: relative;
   height: 4px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--ef-chart-cell-empty);
 }
 
 .cd i::after {
@@ -87,7 +87,7 @@
   position: absolute;
   inset: 0;
   width: var(--left, 100%);
-  background: #161616;
+  background: var(--ef-text-1);
   transition: width 1s linear;
 }
 
@@ -107,7 +107,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #5e5d5b;
+  color: var(--ef-paper-text-2);
 }
 
 .paper textarea {
@@ -118,20 +118,20 @@
   border-radius: 4px;
   font-size: 13px;
   line-height: 20px;
-  color: #1f1f1f;
-  background: #fff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+  color: var(--ef-paper-text);
+  background: var(--ef-raised);
+  box-shadow: 0 0 0 1px var(--ef-field-border);
   resize: vertical;
 }
 
 .paper textarea:focus {
   outline: none;
-  box-shadow: 0 0 0 2px #161616;
+  box-shadow: 0 0 0 2px var(--ef-text-1);
 }
 
 .err {
   font-size: 12px;
-  color: #b71313;
+  color: var(--ef-danger-text);
 }
 
 @keyframes popUp {

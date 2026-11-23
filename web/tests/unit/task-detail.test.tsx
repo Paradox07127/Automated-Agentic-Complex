@@ -98,15 +98,29 @@ describe('task detail: a decision sits in the step she waits on', () => {
   });
 });
 
+describe('task detail: 在运行记录看', () => {
+  it("opens the task's own turn in 运行记录, and the turn list when the task has no run", async () => {
+    const v = view();
+    const task = v.tasks.find((t) => t.run_id && !v.activeRuns[t.id])!;
+    await createTasksActions(deps(v)).onTask(task)({ kind: 'open_timeline' });
+    expect(window.location.hash).toContain(`#/trace?${new URLSearchParams({ turn: task.run_id! })}&`);
+    await createTasksActions(deps(v)).onTask({ ...task, run_id: null })({ kind: 'open_timeline' });
+    expect(window.location.hash).not.toContain('turn=');
+    expect(window.location.hash).toContain('#/trace?');
+  });
+});
+
 describe('task detail: 产物', () => {
   const both = [pick(DELIVERIES, DLV_T1_V1), pick(DELIVERIES, DLV_T1_V2)];
 
-  it('the version chain names each version and its verdict, and picks the one shown', () => {
+  it('the version chain, folded under 版本, names each version and its verdict, and picks the one shown', () => {
     render(<Artifacts deliveries={both} canReveal={false} nativeOff={{}} onOpen={noop} onReveal={noop} onCopy={noop} onRevert={noop} />);
-    const chain = screen.getByRole('group', { name: '版本链' });
-    const [v1, v2] = within(chain).getAllByRole('button');
+    expect(screen.queryByRole('radiogroup', { name: '版本链' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^版本/ }));
+    const chain = screen.getByRole('radiogroup', { name: '版本链' });
+    const [v1, v2] = within(chain).getAllByRole('radio');
     expect(v1?.textContent).toBe('v1 已驳回');
-    expect(v2?.getAttribute('aria-pressed')).toBe('true');
+    expect(v2?.getAttribute('aria-checked')).toBe('true');
     expect(within(screen.getByRole('group', { name: '产物' })).getAllByRole('button')).toHaveLength(2);
     fireEvent.click(v1!);
     expect(within(screen.getByRole('group', { name: '产物' })).getAllByRole('button')).toHaveLength(1);

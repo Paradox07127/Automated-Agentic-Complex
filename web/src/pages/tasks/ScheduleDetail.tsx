@@ -1,7 +1,7 @@
 // One schedule (MissionInfoNode): ON/OFF, the trigger on the location line, the last run; her proposal as a paper, the
 // failed last run as a red band, the next run as the TimerNode band, the instruction and what it uses.
 import type { Schedule } from '../../domain/schedules';
-import { Btn } from '../../ui';
+import { Btn, SecHead } from '../../ui';
 import { GameSeg, MicroLabel } from '../../ui/game';
 import { Clock, Pin, Warn } from './Glyphs';
 import { dayText, scheduleError, spanText, triggerText, type Choice } from './schedules';
@@ -57,9 +57,9 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
               {s.last_job_id && (
                 <>
                   {' │ '}
-                  <button type="button" className={styles.lk} onClick={() => onOpenJob(`job:${s.last_job_id}`)}>
+                  <Btn size="sm" variant="text" onClick={() => onOpenJob(`job:${s.last_job_id}`)}>
                     看那次任务
-                  </button>
+                  </Btn>
                 </>
               )}
             </span>
@@ -122,7 +122,7 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
           </div>
         )}
         <p className={styles.desc}>{s.instruction}</p>
-        <div className={styles.sh}>用到的</div>
+        <SecHead title="用到的" />
         <div className={styles.kv}>
           <div>
             <span>授权资料</span>
@@ -134,9 +134,9 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
             <b>{s.conversation_id ? `「${convTitle(s.conversation_id) ?? '对话'}」` : '独立任务'}</b>
             <em>
               {s.conversation_id && (
-                <button type="button" className={styles.lk} onClick={() => onGoChat(s.conversation_id!)}>
+                <Btn size="sm" variant="text" onClick={() => onGoChat(s.conversation_id!)}>
                   打开
-                </button>
+                </Btn>
               )}
             </em>
           </div>

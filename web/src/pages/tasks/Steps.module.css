@@ -1,4 +1,4 @@
-/* QuestCell: #000@0.3 r5 cell from x65, a square / ring / diamond / check per state, a 3px rail between cells */
+/* QuestCell: dark r5 cell from x65, a square / ring / diamond / check per state, a 3px rail between cells */
 .steps {
   display: grid;
   gap: 6px;
@@ -26,7 +26,7 @@
   bottom: -6px;
   width: 3px;
   margin-left: -1.5px;
-  background: var(--tk-deco2);
+  background: var(--ef-line);
 }
 
 .q:first-child .qi::before {
@@ -53,14 +53,14 @@
 .dia {
   position: relative;
   z-index: 1;
-  background: var(--tk-bg0);
+  background: var(--ef-canvas);
 }
 
 .sq {
   width: 18px;
   height: 18px;
   margin-top: 2px;
-  box-shadow: inset 0 0 0 2px var(--tk-t3);
+  box-shadow: inset 0 0 0 2px var(--ef-text-3);
 }
 
 .ring {
@@ -68,7 +68,7 @@
   height: 20px;
   margin-top: 1px;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 2px var(--tk-mission);
+  box-shadow: inset 0 0 0 2px var(--ef-mission-accent);
 }
 
 .ring::after {
@@ -76,7 +76,7 @@
   position: absolute;
   inset: -5px;
   border: 1.5px solid transparent;
-  border-top-color: var(--tk-mission);
+  border-top-color: var(--ef-mission-accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -87,7 +87,7 @@
   margin-top: 3px;
   background: var(--ef-accent);
   transform: rotate(45deg);
-  box-shadow: 0 0 0 3px var(--tk-bg0);
+  box-shadow: 0 0 0 3px var(--ef-canvas);
 }
 
 .qb {
@@ -98,7 +98,7 @@
   min-height: 44px;
   padding: 9px 14px;
   border-radius: 5px;
-  background: var(--tk-cell);
+  background: var(--ef-step-bg);
 }
 
 .qb .d {
@@ -111,7 +111,14 @@
   display: block;
   font-size: 12px;
   line-height: 18px;
-  color: var(--tk-t2);
+  color: var(--ef-text-2);
+}
+
+/* The finished steps inside their fold */
+.done {
+  display: grid;
+  gap: 6px;
+  padding: 6px 4px 4px;
 }
 
 .qb .p {
@@ -120,26 +127,13 @@
   opacity: 0.9;
 }
 
-.unfold {
-  all: unset;
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--tk-t2);
-  border-bottom: 1px solid var(--tk-t3);
-}
-
-.unfold:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
 .q[data-s='completed'] .d,
 .q[data-s='pending'] .d {
-  color: var(--tk-t2);
+  color: var(--ef-text-2);
 }
 
 .q[data-s='in_progress'] .qb {
-  box-shadow: inset 3px 0 0 var(--tk-mission);
+  box-shadow: inset 3px 0 0 var(--ef-mission-accent);
 }
 
 .q[data-s='waiting'] .qb {
@@ -148,7 +142,7 @@
 }
 
 .q[data-s='failed'] .qb {
-  box-shadow: inset 3px 0 0 var(--tk-danger);
+  box-shadow: inset 3px 0 0 var(--ef-danger-text);
 }
 
 @keyframes spin {

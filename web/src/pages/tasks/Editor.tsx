@@ -1,7 +1,7 @@
 // The editor in the detail column: 派发任务 (role task or coding session, now or on a schedule), 新建 / 编辑定时任务.
 import type { ReactNode } from 'react';
 import { WEEKDAYS } from '../../domain/schedules';
-import { Btn } from '../../ui';
+import { Btn, Fold } from '../../ui';
 import { GameSeg, MicroLabel } from '../../ui/game';
 import { draftNext, type EditDraft } from './draft';
 import { Clock } from './Glyphs';
@@ -165,21 +165,16 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
             </Row>
           )}
           {role && !repeat && (
-            <>
-              <button type="button" className={styles.fold} aria-expanded={d.acceptanceOpen} onClick={() => set({ acceptanceOpen: !d.acceptanceOpen })}>
-                验收条件{!d.acceptanceOpen && d.artifact.trim() ? ` │ ${d.artifact.trim()}` : ''}
-              </button>
-              {d.acceptanceOpen && (
-                <>
-                  <Row label="预期产物" note="相对产物文件夹；md / txt / csv / json">
-                    <input className={`${styles.pill} ${styles.mono}`} aria-label="预期产物" value={d.artifact} placeholder="例如：汇总.md" onChange={(e) => set({ artifact: e.target.value })} />
-                  </Row>
-                  <Row label="必须有的章节">
-                    <input className={styles.pill} aria-label="必须有的章节" value={d.sections} placeholder="用顿号隔开" onChange={(e) => set({ sections: e.target.value })} />
-                  </Row>
-                </>
-              )}
-            </>
+            <Fold label="验收条件" summary={d.artifact.trim() || undefined}>
+              <div className={styles.form}>
+                <Row label="预期产物" note="相对产物文件夹；md / txt / csv / json">
+                  <input className={`${styles.pill} ${styles.mono}`} aria-label="预期产物" value={d.artifact} placeholder="例如：汇总.md" onChange={(e) => set({ artifact: e.target.value })} />
+                </Row>
+                <Row label="必须有的章节">
+                  <input className={styles.pill} aria-label="必须有的章节" value={d.sections} placeholder="用顿号隔开" onChange={(e) => set({ sections: e.target.value })} />
+                </Row>
+              </div>
+            </Fold>
           )}
         </div>
         {repeat && (

@@ -334,13 +334,13 @@ describe('tasks: reads', () => {
 });
 
 describe('tasks: what the page shows', () => {
-  it('artifacts: each file names its check and version; open and copy use the absolute path', () => {
+  it('artifacts: each file names its check, its version in the hover title; open and copy use the absolute path', () => {
     const arts = delivery(DLV_T1_V2).artifacts;
     const onOpen = vi.fn();
     const onCopy = vi.fn();
     files(arts, { onOpen, onCopy });
     const tile = within(screen.getByRole('group', { name: '产物' })).getByRole('button', { name: new RegExp(arts[0]!.name) });
-    expect(tile.textContent).toContain(`v${arts[0]!.version}`);
+    expect(tile.getAttribute('title')).toContain(`v${arts[0]!.version}`);
     fireEvent.click(tile);
     expect(onOpen).toHaveBeenCalledWith(arts[0]!.absolute_path);
     fireEvent.contextMenu(tile);

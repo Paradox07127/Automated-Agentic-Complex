@@ -5,8 +5,8 @@
   gap: 10px;
   padding: 10px 10px 14px;
   border-radius: 10px;
-  background: linear-gradient(180deg, var(--tk-grp), transparent 70%);
-  box-shadow: inset 0 0 0 1px var(--tk-grp-line);
+  background: linear-gradient(180deg, var(--ef-overlay-hover), transparent 70%);
+  box-shadow: inset 0 0 0 1px var(--ef-line-subtle);
 }
 
 .grp::before {
@@ -17,7 +17,7 @@
   bottom: 10px;
   width: 34px;
   border-radius: 10px 0 0 10px;
-  background: linear-gradient(90deg, var(--tk-deco), transparent);
+  background: linear-gradient(90deg, var(--ef-contour), transparent);
   pointer-events: none;
 }
 
@@ -37,7 +37,7 @@
 
 .gh .n {
   font-size: 12px;
-  color: var(--tk-t2);
+  color: var(--ef-text-2);
 }
 
 .gh::after {
@@ -47,7 +47,7 @@
   bottom: -2px;
   width: 46px;
   height: 3px;
-  background: repeating-linear-gradient(90deg, var(--tk-t2) 0 4px, transparent 4px 6px);
+  background: repeating-linear-gradient(90deg, var(--ef-text-2) 0 4px, transparent 4px 6px);
   opacity: 0.6;
 }
 
@@ -61,7 +61,7 @@
   right: 0;
   width: auto;
   height: 2px;
-  background: var(--tk-deco2);
+  background: var(--ef-line);
   opacity: 1;
 }
 
@@ -73,8 +73,6 @@
 
 .note {
   margin-left: auto;
-  font-size: 12px;
-  color: var(--tk-t2);
 }
 
 .rows {
@@ -97,14 +95,14 @@
   font-size: 12px;
   font-weight: 600;
   line-height: 20px;
-  color: #444;
+  color: var(--ef-btn-light-text);
   white-space: nowrap;
-  background: linear-gradient(180deg, #fff, #e9e8e5);
+  background: var(--ef-btn-light);
 }
 
 .tag[data-tone='y'] {
-  color: #161616;
-  background: linear-gradient(180deg, #fff65a, var(--ef-accent));
+  color: var(--ef-on-accent);
+  background: var(--ef-accent);
 }
 
 @media (max-height: 600px) {

@@ -6,7 +6,7 @@ import { formatClock, formatDuration, isCodingReview, isReviewableDelivery, type
 import { verifyText } from '../../domain/errorText';
 import { useDeliveryVisibility } from '../../features/delivery';
 import { RejectBox } from '../../features/task';
-import { Btn } from '../../ui';
+import { Btn, Fold, SecHead } from '../../ui';
 import { MicroLabel } from '../../ui/game';
 import { MessageText } from '../chat/MessageText';
 import { Artifacts } from './Artifacts';
@@ -60,7 +60,6 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
   const codeLive = task.source === 'code' && task.status === 'running' && !stopped;
   const lines = useSessionLines(codeLive && session?.own ? session.id : null, desk.retry);
   const [msg, setMsg] = useState('');
-  const [out, setOut] = useState(false);
   const open = stopped ? [] : pendingOf(view, task.id).filter((p) => !p.resolved);
   const asks = open.filter(isAsk);
   const questions = open.filter(isQuestion);
@@ -104,9 +103,9 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
       {conv ? (
         <>
           来自对话{' '}
-          <button type="button" className={styles.lk} onClick={() => onGoChat(conv)}>
+          <Btn size="sm" variant="text" onClick={() => onGoChat(conv)}>
             「{convTitle(conv) ?? '对话'}」
-          </button>
+          </Btn>
         </>
       ) : (
         '独立任务'
@@ -115,6 +114,7 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
   );
   const endAt = stoppedAt ?? task.ended_at ?? (ended ? task.updated_at : null);
   const v = task.verify ?? null;
+  const checkText = v ? `${verifyText(v)}${v.exit_code != null ? ` │ 退出码 ${v.exit_code}` : ''}` : '';
   const summary = task.summary?.replace(/^(?:\s*\[(?:int(?:ent)?|motion|point):[^\]\r\n]{1,200}\])+\s*/, '');
 
   return (
@@ -195,9 +195,18 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
         {review && <ReviewPaper review={review} kernelName={desk.kernel.data ?? undefined} busy={desk.busy} decideFail={desk.decideFail} onAction={actions.onTask(task)} quiet={asks.length + questions.length > 0} />}
         {codeLive && session?.own && (
           <>
-            <div className={styles.sh}>
-              会话<span className={styles.r}>{lines.isError ? <button type="button" onClick={() => void lines.refetch()}>重试</button> : '最近 6 行 │ 全部在终端里'}</span>
-            </div>
+            <SecHead
+              title="会话"
+              right={
+                lines.isError ? (
+                  <Btn size="sm" variant="text" onClick={() => void lines.refetch()}>
+                    重试
+                  </Btn>
+                ) : (
+                  '最近 6 行 │ 全部在终端里'
+                )
+              }
+            />
             <pre className={styles.logs}>{lines.isError ? '会话输出没读到' : lines.data == null ? '正在读取会话输出…' : lines.data.length ? lines.data.slice(-6).map((l) => `› ${l}`).join('\n') : '还没有输出'}</pre>
             <div className={styles.send}>
               <input className={styles.field} placeholder="给这个会话补一句…" aria-label="给编码会话发消息" value={msg} onChange={(e) => setMsg(e.target.value)} />
@@ -212,19 +221,15 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
         )}
         <Steps steps={steps} decision={decision} folded={ended && eff !== 'failed'} />
         {v && !codeReview && (v.output_tail || v.exit_code != null) && (
-          <section aria-label="检查">
-            <div className={styles.sh}>
-              检查<span>{verifyText(v)}{v.exit_code != null ? ` │ 退出码 ${v.exit_code}` : ''}</span>
-              {v.output_tail && (
-                <span className={styles.r}>
-                  <button type="button" aria-expanded={out} onClick={() => setOut(!out)}>
-                    {out ? '收起检查输出' : '看检查输出'}
-                  </button>
-                </span>
-              )}
-            </div>
-            {out && v.output_tail && <pre className={styles.logs}>{v.output_tail}</pre>}
-          </section>
+          v.output_tail ? (
+            <Fold variant="head" id="check" label="检查" right={checkText}>
+              <pre className={styles.logs}>{v.output_tail}</pre>
+            </Fold>
+          ) : (
+            <section aria-label="检查">
+              <SecHead title="检查" right={checkText} />
+            </section>
+          )
         )}
         {deliveries.length > 0 && (
           <div ref={visible} style={{ display: 'contents' }}>

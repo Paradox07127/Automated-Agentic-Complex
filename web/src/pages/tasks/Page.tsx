@@ -9,7 +9,7 @@ import { PageHeaderSlot } from '../../shell/headerSlot';
 import { useGo } from '../../shell/nav';
 import { isPluginOff } from '../../shell/plugins';
 import { useToast } from '../../shell/toast';
-import { Icon, Modal, Tabs } from '../../ui';
+import { Btn, Icon, Modal, Tabs } from '../../ui';
 import { TasksLoadError } from '../../data/tasksBase';
 import { useCharacters } from '../chat/useChatData';
 import { failMessage } from './actions';
@@ -214,9 +214,9 @@ export function TasksPage() {
             <b>{tab === 'sched' ? '定时任务没读到' : '任务列表没读到'}</b>
             <small>{errText}</small>
           </span>
-          <button type="button" className={styles.more} onClick={() => void (tab === 'sched' ? sched.refetch() : desk.reload())}>
+          <Btn size="sm" variant="ghost" onClick={() => void (tab === 'sched' ? sched.refetch() : desk.reload())}>
             重试
-          </button>
+          </Btn>
         </div>
       )}
       {groups.map((g, gi) => (
@@ -225,16 +225,18 @@ export function TasksPage() {
       {tab === 'done' && q.trim() && ids.length === 0 && (
         <p className={styles.none}>
           没找到「{q.trim()}」{' '}
-          <button type="button" className={styles.more} onClick={() => setQ('')}>
+          <Btn size="sm" variant="text" onClick={() => setQ('')}>
             清除
-          </button>
+          </Btn>
         </p>
       )}
       {empty && <p className={styles.none}>{emptyText}</p>}
       {tab === 'done' && !q.trim() && ended.length > limit && (
-        <button type="button" className={styles.more} onClick={() => setLimit(limit + PAGE)}>
-          再往前 {PAGE} 个
-        </button>
+        <span className={styles.more}>
+          <Btn size="sm" variant="text" onClick={() => setLimit(limit + PAGE)}>
+            再往前 {PAGE} 个
+          </Btn>
+        </span>
       )}
     </div>
   );
@@ -305,7 +307,6 @@ export function TasksPage() {
         <>
           <section className={styles.list} aria-label="任务列表">
             <ListHead
-              title={TABS.find((t) => t.id === tab)?.label ?? ''}
               count={count}
               extra={
                 tab === 'done' && (

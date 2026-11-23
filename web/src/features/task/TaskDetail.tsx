@@ -14,7 +14,8 @@ export type TaskAction =
   | { kind: 'continue'; note: string; useCurrentKernel: boolean }
   | { kind: 'stop' }
   | { kind: 'open_pending'; pendingId: string }
-  | { kind: 'open_timeline'; runId: string }
+  /** The task's turn in 运行记录; the turn list when the task has no run. */
+  | { kind: 'open_timeline' }
   | { kind: 'jump_terminal'; sessionId: string }
   | { kind: 'open_artifact'; path: string }
   | { kind: 'reveal_artifact'; path: string }

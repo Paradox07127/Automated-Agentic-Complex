@@ -5,7 +5,7 @@ import { keyText } from '../../bridge/platformText';
 import type { Task } from '../../domain';
 import type { Schedule } from '../../domain/schedules';
 import { canContinue } from '../../features/task';
-import { Btn, Icon, type IconName } from '../../ui';
+import { Btn, IconBtn, InfoTip } from '../../ui';
 import type { EditDraft } from './draft';
 import { stoppable } from './model';
 import type { TasksTab } from './params';
@@ -17,14 +17,6 @@ export function NewButton({ label, onClick }: { label: string; onClick: () => vo
     <Btn variant="ghost" icon="plus" kbd={keyText('⌘N')} onClick={onClick}>
       {label}
     </Btn>
-  );
-}
-
-function Round({ icon, label, off, onClick }: { icon: IconName; label: string; off?: string | undefined; onClick: () => void }) {
-  return (
-    <button type="button" className={styles.rb} aria-label={label} title={off ?? label} aria-disabled={off ? true : undefined} onClick={() => !off && onClick()}>
-      <Icon name={icon} size={16} />
-    </button>
   );
 }
 
@@ -71,16 +63,18 @@ export function BottomBar(p: BottomBarProps) {
     const act = desk.actions.onTask(task);
     const ended = ['done', 'failed', 'stopped'].includes(desk.view.effective[task.id] ?? '');
     const session = desk.view.sessions.find((s) => s.task_id === task.id) ?? null;
-    const runId = desk.view.activeRuns[task.id]?.run_id ?? task.run_id;
-    const chat = task.conversation_id ? <Round icon="send" label="在对话中打开" onClick={() => p.onGoChat(task.conversation_id!)} /> : null;
+    const chat = task.conversation_id ? <IconBtn icon="send" label="在对话中打开" onClick={() => p.onGoChat(task.conversation_id!)} /> : null;
     const term =
-      task.source === 'code' && session ? <Round icon="ext" label="跳到终端" off={desk.nativeOff.jump} onClick={() => act({ kind: 'jump_terminal', sessionId: session.id })} /> : null;
-    const trace =
-      p.dev && runId ? (
-        <Btn variant="ghost" icon="history" onClick={() => act({ kind: 'open_timeline', runId })}>
-          运行记录
+      task.source === 'code' && session ? (
+        <Btn variant="ghost" icon="ext" disabled={!!desk.nativeOff.jump} disabledReason={desk.nativeOff.jump} onClick={() => act({ kind: 'jump_terminal', sessionId: session.id })}>
+          跳到终端
         </Btn>
       ) : null;
+    const trace = p.dev ? (
+      <Btn variant="ghost" icon="history" onClick={() => act({ kind: 'open_timeline' })}>
+        运行记录
+      </Btn>
+    ) : null;
     const stopped = task.status === 'cancelled' || desk.local.stopped[task.id] != null;
     if (ended) {
       tip = '再派一次：同样的标题新派一个任务';
@@ -102,7 +96,6 @@ export function BottomBar(p: BottomBarProps) {
       );
     } else {
       const live = stoppable(task) && !stopped;
-      tip = live ? '停止后已写的文件留着，不能接着做' : '';
       right = (
         <>
           {chat}
@@ -114,9 +107,12 @@ export function BottomBar(p: BottomBarProps) {
             </Btn>
           )}
           {live && (
-            <Btn variant="secondary" tail="close" onClick={() => act({ kind: 'stop' })}>
-              停止任务
-            </Btn>
+            <>
+              <InfoTip label="停止后会怎样">停止后已写的文件留着，不能接着做</InfoTip>
+              <Btn variant="secondary" tail="close" onClick={() => act({ kind: 'stop' })}>
+                停止任务
+              </Btn>
+            </>
           )}
         </>
       );
@@ -125,7 +121,7 @@ export function BottomBar(p: BottomBarProps) {
     tip = '删除会连同它的运行记录一起删';
     right = (
       <>
-        <Round icon="del" label="删除定时任务" onClick={p.onDelete} />
+        <IconBtn icon="del" label="删除定时任务" onClick={p.onDelete} />
         <Btn variant="ghost" icon="tune" onClick={p.onEdit}>
           编辑
         </Btn>

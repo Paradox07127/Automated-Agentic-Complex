@@ -9,14 +9,13 @@ import { ToolDist } from './ToolDist';
 import styles from './TaskSections.module.css';
 
 /** Detail body under the delivery box: 01 steps, 02 tools, 03 files, session log, meta rows. */
-export function TaskSections({ task, now, deliveries = [], steps = [], tools = [], files = [], stepsStatus = 'ok', activeRun = null, sessionId = null, toolFocus = null, stoppedAt = null, onAction }: TaskDetailProps) {
+export function TaskSections({ task, now, deliveries = [], steps = [], tools = [], files = [], stepsStatus = 'ok', sessionId = null, toolFocus = null, stoppedAt = null, onAction }: TaskDetailProps) {
   const [tool, setTool] = useState<string | null>(toolFocus);
   const [gen, setGen] = useState<number | null>(null);
   const [msg, setMsg] = useState('');
   const queued = task.status === 'queued';
   const waterfall = task.source === 'role' || queued;
   const codeLive = task.source === 'code' && task.status === 'running' && stoppedAt == null;
-  const runId = activeRun?.run_id ?? steps.at(-1)?.run_id ?? null;
   return (
     <>
       {waterfall && (
@@ -91,8 +90,8 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
             <dt>运行</dt>
             <dd>
               <span className="num">{task.run_count}</span> 次{' '}
-              <Btn size="sm" variant="quiet" icon="ext" disabled={!runId} disabledReason="没有关联的运行" onClick={() => runId && onAction?.({ kind: 'open_timeline', runId })}>
-                在诊断中看
+              <Btn size="sm" variant="quiet" icon="ext" onClick={() => onAction?.({ kind: 'open_timeline' })}>
+                在运行记录看
               </Btn>
             </dd>
           </>

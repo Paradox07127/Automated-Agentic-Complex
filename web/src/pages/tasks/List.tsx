@@ -1,6 +1,6 @@
 // Mission list pieces: list title, chapter groups, mission rows and their end shapes.
 import type { CSSProperties, ReactNode } from 'react';
-import { Icon } from '../../ui';
+import { Icon, InfoTip } from '../../ui';
 import { useCountdown } from '../../features/approval/useCountdown';
 import { Clock, Micro, TypeIcon, Vital } from './Glyphs';
 import type { ListRow, RowGroup, Shape } from './rows';
@@ -8,15 +8,12 @@ import page from './Page.module.css';
 import gs from './Group.module.css';
 import styles from './List.module.css';
 
-/** ListTitleNode: 「进行中 [5]」 and the yellow bracket; `extra` sits after it (the search box). */
-export function ListHead({ title, count, extra }: { title: string; count: number | null; extra?: ReactNode }) {
+/** ListTitleNode: the count and the yellow bracket (the tab already names the list); `extra` sits after it (the search box). */
+export function ListHead({ count, extra }: { count: number | null; extra?: ReactNode }) {
   return (
     <div className={page.lhead}>
       <span className={page.ln} aria-hidden="true" />
-      <b>
-        {title}
-        <span className="num">[{count ?? '—'}]</span>
-      </b>
+      <b className="num">[{count ?? '—'}]</b>
       <span className={page.br} aria-hidden="true" />
       {extra}
     </div>
@@ -129,7 +126,11 @@ export function Group({ group, start, selected, onSelect }: { group: RowGroup; s
         {group.vital && <Vital className={gs.vital} />}
         <b>{group.title}</b>
         <span className={`${gs.n} num`}>[{group.rows.length}]</span>
-        {group.note && <span className={gs.note}>{group.note}</span>}
+        {group.note && (
+          <span className={gs.note}>
+            <InfoTip>{group.note}</InfoTip>
+          </span>
+        )}
       </div>
       <div className={gs.rows} role="listbox" aria-label={group.title}>
         {group.rows.map((r, i) => (
