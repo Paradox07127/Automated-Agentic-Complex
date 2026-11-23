@@ -16,6 +16,7 @@ import type { Ops, OpsContext } from './context.ts';
 import { watch } from './events.ts';
 import { clearPasted } from './adopt.ts';
 import { listed } from './holding.ts';
+import { askForPluginGrants } from './permissions.ts';
 
 /** config.json's top-level object; throws when the file exists but is not a JSON object. */
 export function readObject(path: string): Record<string, unknown> {
@@ -166,6 +167,9 @@ export function settingsOps(ctx: OpsContext): Ops {
     } catch (e) {
       return { restart: 'none', notApplied: [], error: `没能写入 config.json：${e instanceof Error ? e.message : String(e)}` };
     }
+    // The save does not wait for the system's prompt.
+    const turnedOn = Object.keys(plan.write).filter((k) => k.startsWith('plugins.') && plan.write[k] === true);
+    if (turnedOn.length > 0) void askForPluginGrants(ctx, turnedOn.map((k) => k.slice('plugins.'.length)));
     for (const effect of plan.effects) {
       if (effect.kind === 'restartAvatar') ctx.supervisor?.restartAvatar?.();
       else if (effect.kind === 'fps') ctx.saved?.fps();
