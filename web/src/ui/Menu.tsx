@@ -260,7 +260,7 @@ export const MenuDemos: Array<{ name: string; props: MenuProps }> = [
       open: true,
       items: [
         { kind: 'item', label: '对话', icon: 'send', hint: '⌘2' },
-        { kind: 'item', label: '设置', icon: 'tune', hint: '⌘,' },
+        { kind: 'item', label: '设置', icon: 'settings', hint: '⌘,' },
         { kind: 'sep' },
         { kind: 'item', label: '诊断', icon: 'd-overview' },
       ],

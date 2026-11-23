@@ -226,7 +226,7 @@ export function HomePage() {
             <Rings />
             <Logo />
             <div className={styles.layer} style={z(57)}>
-            {settings && <TopIcon box={TOP_ICONS[0]} icon="tune" label={settings.title} named g="topBtn1" onClick={() => go({ page: 'settings' })} />}
+            {settings && <TopIcon box={TOP_ICONS[0]} icon="settings" label={settings.title} named g="topBtn1" onClick={() => go({ page: 'settings' })} />}
             {today && (
               <>
                 <TopIcon box={TOP_ICONS[1]} icon="bell" label="提醒" named g="topBtn3" onClick={() => go({ page: 'overview', focus: 'reminders' })} />

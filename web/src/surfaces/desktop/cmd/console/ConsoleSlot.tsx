@@ -97,7 +97,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
           <MicroLabel>Menu Bar</MicroLabel>
           <b>Agentic Complex</b>
         </span>
-        <TopIcon box={{ width: 44, height: 44 }} icon="tune" label="设置" named onClick={() => go({ page: 'settings' })} />
+        <TopIcon box={{ width: 44, height: 44 }} icon="settings" label="设置" named onClick={() => go({ page: 'settings' })} />
         <CloseKey box={{ width: 26, height: 26 }} label="关闭菜单" onClick={close} />
       </header>
       <div className={styles.body}>
@@ -113,7 +113,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
           <ErrBar message="配置读不了" detail={configError}
             actions={
               <>
-                <WhiteCapsule label="打开设置" icon="tune" tone="accent" size="sm" onClick={() => go({ page: 'settings' })} />
+                <WhiteCapsule label="打开设置" icon="settings" tone="accent" size="sm" onClick={() => go({ page: 'settings' })} />
                 <WhiteCapsule label="查看诊断" icon="radio" size="sm" onClick={() => go({ page: 'diag', item: 'agentd' })} />
               </>
             } />

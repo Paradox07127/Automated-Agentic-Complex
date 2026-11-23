@@ -217,9 +217,11 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
       <div className={styles.right}>
         <div className={styles.slot} ref={rightRef} data-slot="status" />
         <div className={styles.slot} ref={actionRef} data-slot="action" />
-        <span className={styles.gear}>
-          <IconBtn icon="tune" label="设置" shortcut={keyText('⌘,')} pressed={activeId === 'settings'} onClick={() => navigate({ page: 'settings' })} />
-        </span>
+        {activeId !== 'settings' && (
+          <span className={styles.gear}>
+            <IconBtn icon="settings" label="设置" shortcut={keyText('⌘,')} onClick={() => navigate({ page: 'settings' })} />
+          </span>
+        )}
       </div>
     </nav>
   );

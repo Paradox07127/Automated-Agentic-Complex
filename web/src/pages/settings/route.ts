@@ -5,7 +5,7 @@ export const route: PageRoute = {
   id: 'settings',
   path: '/settings',
   title: '设置',
-  icon: 'tune',
+  icon: 'settings',
   en: 'Settings',
   order: 80,
   group: 'secondary',

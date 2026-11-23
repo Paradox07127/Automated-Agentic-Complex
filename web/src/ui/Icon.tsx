@@ -46,6 +46,7 @@ export type IconName =
   | 'shield'
   | 'data'
   | 'tune'
+  | 'settings'
   | 'redeem'
   | 'radio'
   | 'history'

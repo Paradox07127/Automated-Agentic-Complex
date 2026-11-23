@@ -41,7 +41,7 @@ const BOX: Box = { width: 52, height: 48 };
 const noop = () => undefined;
 
 export const TopIconDemos: Array<{ name: string; props: TopIconProps }> = [
-  { name: 'named', props: { box: BOX, icon: 'tune', label: '设置', named: true, onClick: noop } },
+  { name: 'named', props: { box: BOX, icon: 'settings', label: '设置', named: true, onClick: noop } },
   { name: 'dot', props: { box: BOX, icon: 'warn', label: '待处理 3', named: true, dot: 'still', onClick: noop } },
   { name: 'icon-only', props: { box: BOX, icon: 'bell', label: '提醒', onClick: noop } },
 ];
