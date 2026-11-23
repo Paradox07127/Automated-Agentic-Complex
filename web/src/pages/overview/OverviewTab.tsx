@@ -12,11 +12,12 @@ import type { Reminder } from './load';
 import type { DayConv } from './loadBrief';
 import type { Go } from './nav';
 import s from './OverviewTab.module.css';
+import type { DayLine } from './today';
 
 export interface OverviewTabProps extends BriefTabProps {
   isToday: boolean;
   /** 今日一句; undefined while it is read, null when the day has none. */
-  line: string | null | undefined;
+  line: DayLine | null | undefined;
   /** 待批准, drawn only today with Agent 内核 or 编码会话 on. */
   pending: ReactNode;
   /** 在做, drawn only today; false with its plug-ins off. */
@@ -130,9 +131,9 @@ export function OverviewTab(p: OverviewTabProps) {
   const foldPast = p.reminders.length > 3 && past.length > 0;
   return (
     <div className={s.ov} data-tab="ov">
-      <Panel title="今日一句">
+      <Panel title="今日一句" right={p.line?.origin === 'local' ? '今天的读数，不是她写的日报' : undefined}>
         <p className={s.line} data-selectable="">
-          {p.line === undefined ? '—' : (p.line ?? '这一天还没有日报')}
+          {p.line === undefined ? '—' : (p.line?.text ?? '这一天还没有日报')}
         </p>
       </Panel>
       <ul className={s.band} aria-label="读数">

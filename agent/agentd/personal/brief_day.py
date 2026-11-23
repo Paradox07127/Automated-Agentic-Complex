@@ -5,6 +5,7 @@ from datetime import date, datetime, time, timedelta
 import hashlib
 import json
 import math
+from pathlib import Path
 
 import c1
 from infra import plugins
@@ -17,10 +18,30 @@ from voice.speech import SAMPLE_RATE
 NEED = {'done': ('agent', 'code'), 'err': ('agent', 'code'), 'turn': (), 'line': (), 'fg': ('scr',),
         'say': (), 'motion': (), 'touch': (), 'voice': ('voice',), 'mem': (), 'cost': (),
         'code': ('code',), 'shot': ('shot',), 'mask': ('scr', 'shot'), 'rem': ()}
+# proactive_log triggers of channel 'line': Proactive's reason kinds and dispatch_report's announcement and job states
+TRIGGERS = {'comment': '主动搭话', 'back': '你回来了', 'break': '提醒你休息', 'water': '提醒你喝水',
+            'stuck': '你卡住了，问要不要帮忙', 'dispatch_done': '派的任务做完了',
+            'dispatch_review': '派的任务等你确认', 'dispatch_failed': '派的任务没做成',
+            'succeeded': '后台的活做完了', 'needs_review': '后台的活等你确认', 'failed': '后台的活没做成'}
 
 
-def _counts(counts, limit=None):
-    return [{'key': key, 'label': key, 'count': count} for key, count in counts.most_common(limit)]
+def _counts(counts, limit=None, labels={}):
+    return [{'key': key, 'label': labels.get(key, key), 'count': count} for key, count in counts.most_common(limit)]
+
+
+def _motion_names(server):
+    """Action id and clip -> the action's name in the current character's actions.json; {} without a package."""
+    try:
+        root = server.characters.package(server.character).root
+    except ValueError:
+        return {}
+    names = {}
+    for path in sorted(Path(root).glob('runtime/characters/*/c7/animation/actions.json')):
+        for action in json.loads(path.read_text(encoding='utf-8'))['actions']:
+            if action.get('name'):
+                for key in (action['id'], *(action.get('clips') or [])):
+                    names.setdefault(key, action['name'])
+    return names
 
 
 def _focus(server, enabled, sites_allowed, since, start, end, add):
@@ -246,7 +267,7 @@ def _traces(rows, switches, spatial, since, start, stop, now, add):
                               'minutes': sum(b - a for a, b in _union(seat_spans)) / 60}
     if give_way:
         desk['give_way'] = {'key': 'give_way', 'label': '给窗口让路', 'count': give_way, 'minutes': None}
-    return _counts(motions, 6), desk
+    return motions, desk
 
 
 def _desk_log(rows, running, since, start, stop, end, add):
@@ -359,7 +380,7 @@ def brief_day(server, day: date, now: float):
             items[key]['yesterday'] = totals.get(day - timedelta(days=1))
     her = {'said': {'total': items['line']['today'], 'self': items['say']['today'], 'replied': replied},
            'lines': [lines[k] for k in ('self', 'reply', 'miss') if k in lines], 'touch': touch,
-           'why': _counts(reasons), 'motions': motions,
+           'why': _counts(reasons, labels=TRIGGERS), 'motions': _counts(motions, 6, _motion_names(server)),
            'desk': [desk[key] for key in ('window_top', 'edge', 'give_way', 'greet') if key in desk], 'tools': tools,
            'mood': [list(row) for row in mood], 'on_desk_min': on_desk}
     return {'date': day.isoformat(), 'partial': day == date.fromtimestamp(now), 'switches': switches,

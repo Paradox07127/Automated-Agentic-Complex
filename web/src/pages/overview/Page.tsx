@@ -148,7 +148,7 @@ export function OverviewPage() {
       <OverviewTab
         {...tabProps(d)}
         isToday={isToday}
-        line={todayReads.dayLine === undefined ? undefined : (todayReads.dayLine?.text ?? null)}
+        line={todayReads.dayLine}
         pending={
           <PendingSection
             q={q}

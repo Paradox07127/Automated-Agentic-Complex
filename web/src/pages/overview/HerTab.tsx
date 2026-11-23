@@ -4,7 +4,6 @@ import { appNow } from '../../bridge/clock';
 import { HourArea } from '../../charts';
 import { formatClock } from '../../domain';
 import { Btn } from '../../ui';
-import { GATE_KIND } from '../settings/groups/GateBlocked';
 import type { BriefCount, BriefDay } from './briefDay';
 import type { BriefTabProps } from './briefTabs';
 import { useGo } from './nav';
@@ -183,7 +182,7 @@ export function HerTab({ day }: BriefTabProps) {
             </ul>
           </Panel>
           <Panel tag="她为什么开口" sub={`共 ${why} 次 │ 你回了 ${her.said.replied} 次`}>
-            <Bars label="她为什么开口" rows={counted(her.why.map((c) => ({ ...c, label: GATE_KIND[c.key] ?? c.label })), '次')} />
+            <Bars label="她为什么开口" rows={counted(her.why, '次')} />
           </Panel>
         </div>
       </div>

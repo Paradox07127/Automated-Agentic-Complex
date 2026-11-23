@@ -74,10 +74,10 @@ function build(date: string, on: Record<BriefSwitch, boolean>): BriefDay {
       ],
       touch: { pat: 3, pinch: 1, drag: 3, wheel: 2 },
       why: [
-        { key: 'task', label: '任务停了时提醒', count: 2 },
-        { key: 'stuck', label: '卡住时问要不要帮忙', count: 1 },
-        { key: 'break', label: '休息提示', count: 1 },
-        { key: 'comment', label: '久盯一个窗口时搭话', count: 1 },
+        { key: 'dispatch_review', label: '派的任务等你确认', count: 2 },
+        { key: 'stuck', label: '你卡住了，问要不要帮忙', count: 1 },
+        { key: 'break', label: '提醒你休息', count: 1 },
+        { key: 'comment', label: '主动搭话', count: 1 },
       ],
       motions: [
         { key: 'idle_screen', label: '看屏幕（待机）', count: 12 },

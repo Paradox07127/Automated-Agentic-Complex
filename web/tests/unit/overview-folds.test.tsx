@@ -25,7 +25,7 @@ async function draw(over: Partial<OverviewTabProps>) {
   const bridge = createFakeBridge({ surface: 'main', still: true });
   window.agenticComplex = bridge;
   const day = (await bridge.agentd.request<BriefDay>('GET', '/brief/day?date=2026-11-20')).body!;
-  const props: OverviewTabProps = { day, pins: DEFAULT_PINS, onPins: () => {}, go: () => {}, isToday: true, line: '今天 3 个编码会话。', pending: null, running: null, done: [], convs: [], reminders: [], onTask: () => {}, goPage: () => {}, ...over };
+  const props: OverviewTabProps = { day, pins: DEFAULT_PINS, onPins: () => {}, go: () => {}, isToday: true, line: { text: '今天 3 个编码会话。', origin: 'local', at: null }, pending: null, running: null, done: [], convs: [], reminders: [], onTask: () => {}, goPage: () => {}, ...over };
   render(
     <QueryClientProvider client={new QueryClient()}>
       <OverviewTab {...props} />

@@ -38,7 +38,8 @@ class BriefDayTest(unittest.TestCase):
             clock=lambda: self.now, character='aster', memory=Memory(self.db),
             consent=SimpleNamespace(snapshot=lambda: (self.permissions, 0)), muted=False,
             observation_paused=lambda: False, character_voice_enabled=True, speech=None, character_agent=None, registry=Registry(),
-            attention=None, spatial=SimpleNamespace(running=lambda: []), _pauses=[], _meetings=[])
+            attention=None, spatial=SimpleNamespace(running=lambda: []), _pauses=[], _meetings=[],
+            characters=SimpleNamespace(package=lambda cid: SimpleNamespace(root=root / 'no-package')))
         self.switches = patch.dict(plugins.resolved, dict.fromkeys(plugins.DEFAULTS, False))
         self.switches.start()
         self.addCleanup(self.switches.stop)
@@ -111,6 +112,27 @@ class BriefDayTest(unittest.TestCase):
         self.assertEqual([(line['kind'], line['text']) for line in body['her']['lines']],
                          [('self', '1'), ('reply', 'latest reply'), ('miss', '2')])
         self.assertEqual(body['her']['motions'][0]['key'], 'wave')
+
+    def test_motion_and_reason_labels(self):
+        animation = self.tmp_root / 'pack/runtime/characters/aster/c7/animation'
+        animation.mkdir(parents=True)
+        (animation / 'actions.json').write_text(json.dumps({'actions': [
+            {'id': 'wave_a', 'name': '挥手', 'clips': ['A_clip_aster_wave']},
+            {'id': 'nod_a', 'clips': ['A_clip_aster_nod']}]}), encoding='utf-8')
+        self.server.characters = SimpleNamespace(package=lambda cid: SimpleNamespace(root=self.tmp_root / 'pack'))
+        self.at = self.start + 3600
+        for clip in ('A_clip_aster_wave', 'A_clip_aster_wave', 'wave_a', 'A_clip_aster_nod', 'A_clip_other'):
+            self.trace.emit('motion.started', new_trace_id(), attrs={'clip': clip, 'behavior_id': None})
+        for n, trigger in enumerate(('break', 'break', 'dispatch_review', 'later_kind')):
+            self.log.shown(str(n), 'line', trigger, None, str(n), None, None, self.start + n)
+        her = self.brief()['her']
+        self.assertEqual([(m['key'], m['label']) for m in her['motions']], [
+            ('A_clip_aster_wave', '挥手'), ('wave_a', '挥手'), ('A_clip_aster_nod', 'A_clip_aster_nod'),
+            ('A_clip_other', 'A_clip_other')])
+        self.assertEqual([(w['key'], w['label']) for w in her['why']], [
+            ('break', '提醒你休息'), ('dispatch_review', '派的任务等你确认'), ('later_kind', 'later_kind')])
+        self.server.characters = SimpleNamespace(package=lambda cid: (_ for _ in ()).throw(ValueError(cid)))
+        self.assertEqual(self.brief()['her']['motions'][0]['label'], 'A_clip_aster_wave')
 
     def test_previous_seven_days(self):
         for days, count in ((0, 8), (1, 2), (7, 5), (8, 9)):
