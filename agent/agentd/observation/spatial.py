@@ -177,14 +177,15 @@ def _relocates(kind, target):
     return kind in PARKED or kind == "sit" and target is not None
 
 
-def _reactions(chooser):
+def _reactions(chooser, standing):
     """C1 snapshot `reactions`: each trigger the chooser's pack has a pool for -> its clips, weights and layer; a clip
     that starts a pack chain plays it, a loop in it for its pack hold_seconds, and on a trigger with an end its first
     loop is held instead. A region trigger draws from the first of its region's pools the pack has; with the pack's
-    lift roles the pick-up is their chain and the drop plays nothing more."""
+    lift roles the pick-up is their chain and the drop plays nothing more. Hover's pool is standing, so it plays only
+    while she stands."""
     pack, pools = chooser.pack, {}
     for trigger, event in REACTION_EVENTS.items():
-        pools[trigger] = chooser.pool(event)
+        pools[trigger] = chooser.pool(event) if standing or trigger != "hover" else []
     for trigger, region in REGION_TRIGGERS.items():
         pools[trigger] = next((pool for pool in map(chooser.pool, REGION_KEYS[region]) if pool), [])
     ends = {}
@@ -316,6 +317,7 @@ class Spatial:
         self._variant = None  # and the variant of the sit she sits in
         self._clauses = OrderedDict()  # clause key -> the intent of its clause_intent, until its clause_end
         self._reactions = None  # the chooser's snapshot reaction table
+        self._standing = True  # what that table was built for: no sit, walk or window hold runs
         self._seen = None  # the latest observe(), which chosen performs are admitted against
         self._return = None  # while the return performance plays: {steps, part, clip, intent, semantic}
         self._returned = []  # behavior ids of its clips; once it is over they lapse for the chooser's next clip
@@ -715,7 +717,8 @@ class Spatial:
             self._trace_chooser(None)
             if chooser is not None:
                 chooser.set_framing("bust" if self.switches.get("bust_framing") else "full")
-            self._reactions = None if chooser is None else _reactions(chooser)
+            self._standing = True
+            self._reactions = None if chooser is None else _reactions(chooser, self._standing)
             if replaced:
                 self.publish("snapshot", {"behaviors": self.running(), "reactions": self._reactions or {},
                                           "stage": self.stage_level(),
@@ -770,7 +773,7 @@ class Spatial:
 
     def _publish_reactions(self):
         """Under the lock: a snapshot with the chooser's reaction table when it changed."""
-        reactions = _reactions(self.chooser)
+        reactions = _reactions(self.chooser, self._standing)
         if reactions != self._reactions:
             self._reactions = reactions
             self.publish("snapshot", {"behaviors": self.running(), "reactions": reactions, "stage": self.stage_level(),
@@ -1007,6 +1010,11 @@ class Spatial:
             elif sit is not None and sit.get("variant") != self._variant:
                 self._input({"kind": "sit_variant", "variant": sit.get("variant")}, None)
             self._variant = sit and sit.get("variant")
+            # running only: a snapshot that lists a behavior the renderer rejected meanwhile would resume it
+            standing = not any(r["phase"] == "running" and r["behavior"]["type"] in HELD for r in self.active.values())
+            if standing != self._standing:
+                self._standing = standing
+                self._publish_reactions()
             if self._enter and not self._seated and self.stage() not in BLOCKING:
                 self._enter = False
                 self._input({"kind": "event", "key": "character.enter"}, None)

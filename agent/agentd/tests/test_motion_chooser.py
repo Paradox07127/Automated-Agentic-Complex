@@ -409,9 +409,9 @@ class EventKeysTest(unittest.TestCase):
     def test_the_reaction_table_gains_the_filled_trigger(self):
         from observation.spatial import _reactions
         chooser = MotionChooser(PACK)
-        self.assertNotIn("pinch_annoyed", _reactions(chooser))
+        self.assertNotIn("pinch_annoyed", _reactions(chooser, True))
         chooser.set_motion_overrides({}, {"pinch.annoyed": [{"clip": "tap", "weight": 1}]}, {})
-        self.assertEqual(_reactions(chooser)["pinch_annoyed"], [{"clip": "tap", "weight": 1, "layer": "overlay"}])
+        self.assertEqual(_reactions(chooser, True)["pinch_annoyed"], [{"clip": "tap", "weight": 1, "layer": "overlay"}])
 
     def test_a_pack_event_key_agentd_does_not_know_fails_the_load(self):
         root = Path(tempfile.mkdtemp())

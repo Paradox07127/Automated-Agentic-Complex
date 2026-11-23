@@ -3065,6 +3065,43 @@ class LocalMotionsTest(SpatialCase):
         self.assertNotIn("sit_doze", [m["clip"]["id"] for m in self.within()[count:]])
         self.assertValid()
 
+    def hover_pack(self):
+        """The local pack with a `user.hover` pool of nod, a standing clip."""
+        path = self.pack / "c7" / "animation" / "intent-motion-map.json"
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        doc["events"]["user.hover"] = {"pool": [{"clip": "nod"}], "interrupt": "user"}
+        path.write_text(json.dumps(doc), encoding="utf-8")
+        return self.pack
+
+    def published_hover(self):
+        snapshot = next(m for m in reversed(self.log) if m["event"] == "snapshot")
+        return snapshot["reactions"].get("hover"), self.spatial.reactions().get("hover")
+
+    def test_hover_plays_no_standing_clip_while_she_sits_and_the_standing_one_again_after(self):
+        self.start(self.hover_pack(), enter=False)
+        self.assertEqual(self.published_hover(), (overlay("nod"), overlay("nod")))
+        self.sit()
+        sit = self.sent[-1]
+        self.run_clock(1)
+        self.assertEqual(self.published_hover(), (None, None))
+        self.receipt(sit["behavior_id"], "completed")
+        self.run_clock(1)
+        self.assertEqual(self.published_hover(), (overlay("nod"), overlay("nod")))
+        self.assertValid()
+
+    def test_hover_plays_nothing_while_she_walks(self):
+        self.start(self.hover_pack(), enter=False)
+        walk = spatial._spec("short_walk", None, "tick", None, 0, ("full_body",), ("user_drag",), 0.5, 60.0)
+        self.assertEqual(self.spatial.offer(walk), (True, None))
+        self.flush()
+        walk = self.sent[-1]
+        self.run_clock(1)
+        self.assertEqual(self.published_hover(), (None, None))
+        self.receipt(walk["behavior_id"], "completed")
+        self.run_clock(1)
+        self.assertEqual(self.published_hover(), (overlay("nod"), overlay("nod")))
+        self.assertValid()
+
     def test_an_air_activity_stands_her_up_and_keeps_her_from_sitting(self):
         self.start(enter=False)
         self.sit()
