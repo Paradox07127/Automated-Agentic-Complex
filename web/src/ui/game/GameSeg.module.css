@@ -16,6 +16,15 @@
   color: #fff;
 }
 
+/* On a light page the game's 40% black track turns mid grey and its white labels drop to about 1.7:1. */
+:global([data-theme='light']) .seg:not(:global([data-theme='dark']) .seg) {
+  --gs-track: rgb(0 0 0 / 80%);
+}
+
+:global([data-theme='light']) .seg[data-variant='plain']:not(:global([data-theme='dark']) .seg) .cap {
+  color: var(--ef-text-2);
+}
+
 .cap {
   display: flex;
   align-items: baseline;
