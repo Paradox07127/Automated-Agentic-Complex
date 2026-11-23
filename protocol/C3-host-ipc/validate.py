@@ -80,6 +80,7 @@ CLOSEUP_STATES = ("off", "active", "deferred")
 CAMERA_FREE_FIELDS = ("zoom", "sway", "closeup", "live")
 CAMERA_FRAMINGS = ("full", "bust")  # rule 49 (i), camera_bust
 CAMERA_GESTURE_PHASES = ("began", "changed", "ended")
+RIGHT_DRAG_PHASES = ("down", "move", "up")  # rule 56 (v28)
 PHOTO_FILTERS = ("none", *(f"sp_filter_{i}" for i in range(1, 8)), *(f"filter_{i}" for i in range(1, 9)))
 CAPTURE_BACKGROUNDS = ("transparent",)
 DOF_MODES = ("off", "closeup")
@@ -1062,6 +1063,21 @@ def check_reaction(m, _):
     return [] if m["trigger"] in REACTION_TRIGGERS else [f"reaction.trigger must be one of {list(REACTION_TRIGGERS)}"]
 
 
+def check_right_drag(m, _):
+    """Rule 56 (v28): the right button held on her, the cursor in global points."""
+    if set(m) != {"v", "type", "phase", "x", "y"}:
+        return ["right_drag has exactly v, type, phase, x and y"]
+    errors = [] if m["phase"] in RIGHT_DRAG_PHASES else [f"right_drag.phase must be one of {list(RIGHT_DRAG_PHASES)}"]
+    return errors + [f"right_drag.{k} must be a number within the coordinate limit" for k in ("x", "y") if not is_coord(m[k])]
+
+
+def check_moving(m, _):
+    """Rule 57 (v28): she starts or stops walking."""
+    if set(m) != {"v", "type", "moving"}:
+        return ["moving has exactly v, type and moving"]
+    return [] if isinstance(m["moving"], bool) else ["moving.moving must be a boolean"]
+
+
 def check_attention_side(m, _):
     """Rule 39 (v22.1)."""
     errors = [] if m.get("source") in ATTENTION_SOURCES else [f"attention_side.source must be one of {sorted(ATTENTION_SOURCES)}"]
@@ -1124,11 +1140,11 @@ CAPABILITY_OF = {("a2c", "attach"): "layering", ("a2c", "drop"): "drop", ("c2a",
                  ("c2a", "capture"): "capture", ("a2c", "captured"): "capture", ("a2c", "camera_gesture"): "camera_gesture",
                  ("c2a", "set_motion_overrides"): "motion_overrides", ("a2c", "motion_overrides"): "motion_overrides",
                  ("c2a", "play_chain"): "play_chain", ("c2a", "set_mod_settings"): "mod_settings",
-                 ("a2c", "mod_settings"): "mod_settings"}
+                 ("a2c", "mod_settings"): "mod_settings", ("a2c", "right_drag"): "right_drag", ("a2c", "moving"): "moving"}
 
 
 def check_capability(m, direction, caps):
-    """v15-v27: a sender only uses opacity, layering, pointer, pipeline, drop, motion_request, pass_through, keep_clear, set_render, ambient_sample, touch_settings, click.region, play_action.loop, stop_action, actions[].media, set_layers, layers_changed(_failed), set_pose, pose_state, actions[].pose, the rule 49 set_render.camera fields, camera_gesture, set_render.filter, set_render.dof, set_render.photo, capture, captured, set_motion_overrides, motion_overrides, play_chain, action_played.chain, set_mod_settings, mod_settings and set_character.mod_settings after listing them in its own hello."""
+    """v15-v27: a sender only uses opacity, layering, pointer, pipeline, drop, motion_request, pass_through, keep_clear, set_render, ambient_sample, touch_settings, click.region, play_action.loop, stop_action, actions[].media, set_layers, layers_changed(_failed), set_pose, pose_state, actions[].pose, the rule 49 set_render.camera fields, camera_gesture, set_render.filter, set_render.dof, set_render.photo, capture, captured, set_motion_overrides, motion_overrides, play_chain, action_played.chain, set_mod_settings, mod_settings, set_character.mod_settings, right_drag and moving after listing them in its own hello."""
     if not isinstance(m, dict) or caps is None:
         return []
     t = m.get("type")
@@ -1320,7 +1336,8 @@ CHECKS = {
             "motion.stroke": check_motion_stroke, "motion_request": check_motion_request,
             "layers_changed": check_layers_changed, "layers_change_failed": check_layers_change_failed,
             "pose_state": check_pose_state, "captured": check_captured, "camera_gesture": check_camera_gesture,
-            "motion_overrides": check_motion_overrides, "mod_settings": check_mod_settings, "reaction": check_reaction},
+            "motion_overrides": check_motion_overrides, "mod_settings": check_mod_settings, "reaction": check_reaction,
+            "right_drag": check_right_drag, "moving": check_moving},
     "c2a": {"hello": check_hello, "cursor": check_cursor, "fps_tier": check_fps_tier, "quit": check_quit,
             "stop_speech": check_stop_speech, "point_at": check_point_at,
             "move_window": check_move_window, "set_visible": check_set_visible,

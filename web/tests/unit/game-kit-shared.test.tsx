@@ -111,6 +111,61 @@ describe('GameWheel pointer', () => {
   });
 });
 
+describe('GameWheel forwarded press (C3 rule 56)', () => {
+  type Press = NonNullable<Parameters<typeof GameWheel>[0]['press']>;
+  /** The wheel, re-rendered with each press the shell forwards. */
+  function pressed() {
+    const onRun = vi.fn();
+    const onClose = vi.fn();
+    const view = render(<GameWheel items={ITEMS} center={CENTER} onRun={onRun} onClose={onClose} />);
+    const send = (press: Press) => act(() => void view.rerender(<GameWheel items={ITEMS} center={CENTER} onRun={onRun} onClose={onClose} press={press} />));
+    return { onRun, onClose, send };
+  }
+
+  it('a move lights the slot under it; the release there runs it, however soon', () => {
+    const { onRun, onClose, send } = pressed();
+    send({ phase: 'move', x: 400, y: 0 });
+    expect(selected()).toBe('3 免打扰');
+    send({ phase: 'up', x: 400, y: 0, ms: 120 });
+    expect(onRun).toHaveBeenCalledWith('quiet');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('a release in the centre within 250 ms that never left it keeps the wheel for a click', () => {
+    const { onRun, onClose, send } = pressed();
+    send({ phase: 'move', x: 5, y: 5 });
+    send({ phase: 'up', x: 6, y: 5, ms: 240 });
+    expect(onRun).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    pointer('pointerDown', 70, 70);
+    expect(onRun).toHaveBeenLastCalledWith('pass');
+  });
+
+  it('a release in the centre after holding, or after leaving it, closes without running', () => {
+    const late = pressed();
+    late.send({ phase: 'up', x: 0, y: 0, ms: 250 });
+    expect(late.onClose).toHaveBeenCalledTimes(1);
+    expect(late.onRun).not.toHaveBeenCalled();
+    cleanup();
+    const back = pressed();
+    back.send({ phase: 'move', x: 0, y: -80 });
+    back.send({ phase: 'move', x: 3, y: 2 });
+    back.send({ phase: 'up', x: 3, y: 2, ms: 180 });
+    expect(back.onClose).toHaveBeenCalledTimes(1);
+    expect(back.onRun).not.toHaveBeenCalled();
+  });
+
+  it('a release runs once: the window\'s own pointer up after it does nothing more', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
+    const onRun = vi.fn();
+    const view = render(<GameWheel items={ITEMS} center={CENTER} held onRun={onRun} onClose={vi.fn()} />);
+    act(() => void view.rerender(<GameWheel items={ITEMS} center={CENTER} held onRun={onRun} onClose={vi.fn()} press={{ phase: 'up', x: 400, y: 0, ms: 400 }} />));
+    now.mockReturnValue(1400);
+    pointer('pointerUp', 400, 0);
+    expect(onRun).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('GameWheel geometry', () => {
   it('the centre 30 px cancels; outside it the nearest 45° sector, none past the last item', () => {
     expect(wheelPick(0, -29, 8)).toBe('cancel');

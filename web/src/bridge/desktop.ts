@@ -50,7 +50,10 @@ export type DesktopCommand =
   /** 快速输入 opens with the window she was dragged onto; what is sent from it carries `lookWindow`. Sent like `selection`. */
   | { kind: 'window'; windowId: number; pid: number; app: string | null; title: string | null }
   /** A short line the bubble shows for a few seconds, such as why a click on her asked nothing. */
-  | { kind: 'notice'; text: string };
+  | { kind: 'notice'; text: string }
+  /** The held right button that opened the wheel (C3 rule 56), in the wheel page's CSS px; `ms` since it went down. */
+  | { kind: 'ringPointer'; phase: 'move'; x: number; y: number }
+  | { kind: 'ringPointer'; phase: 'up'; x: number; y: number; ms: number };
 
 export type DesktopActionName =
   | 'look'

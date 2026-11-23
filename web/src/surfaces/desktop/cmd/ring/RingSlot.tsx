@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getBridge } from '../../../../bridge';
 import type { Severity } from '../../../../domain';
 import { Toast } from '../../../../ui';
+import type { WheelPress } from '../../../../ui/game/GameWheel';
 import type { CommandSlotProps } from '../../types';
 import { pendingCount, wheelItems, type CmdItem } from '../actions';
 import { CommandRing, WHEEL_BOX } from './CommandRing';
@@ -23,12 +24,22 @@ export function RingSlot({ state, presence, command, close }: CommandSlotProps) 
 
   // Every open starts from the wheel with nothing selected.
   const [at, setAt] = useState<{ x: number; y: number } | undefined>(undefined);
+  const [press, setPress] = useState<WheelPress | undefined>(undefined);
   useEffect(() => {
     if (command?.kind !== 'open' || command.mode !== 'ring') return;
     setView({ kind: 'ring' });
     setAt(command.at);
+    setPress(undefined);
     setRound((r) => r + 1);
   }, [command]);
+  // Its own subscription: each forwarded move counts, not only the last command.
+  useEffect(
+    () =>
+      getBridge().desktop.onCommand((c) => {
+        if (c.kind === 'ringPointer') setPress(c.phase === 'up' ? { phase: 'up', x: c.x, y: c.y, ms: c.ms } : { phase: 'move', x: c.x, y: c.y });
+      }),
+    [],
+  );
 
   const run = (item: CmdItem) =>
     void runCmdAction(item, { bridge, state, now: Date.now }).then((o) => {
@@ -45,7 +56,7 @@ export function RingSlot({ state, presence, command, close }: CommandSlotProps) 
           <Toast message={view.text} severity={view.tone} onClose={close} />
         </div>
       ) : (
-        <CommandRing key={round} items={wheelItems(state, pendingCount(presence))} center={center} at={at} onRun={run} onClose={close} />
+        <CommandRing key={round} items={wheelItems(state, pendingCount(presence))} center={center} at={at} press={press} onRun={run} onClose={close} />
       )}
     </div>
   );

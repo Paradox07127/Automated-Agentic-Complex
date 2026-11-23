@@ -227,6 +227,25 @@ describe('wheel actions', () => {
     expect(root?.childElementCount).toBe(0);
   });
 
+  it('C3 rule 56: the shell\'s ringPointer lights the slot under the held right button, and its release runs that slot', async () => {
+    const bridge = stackBridge();
+    const openMain = vi.spyOn(bridge.window, 'openMain');
+    const listeners = new Set<(c: DesktopCommand) => void>();
+    vi.spyOn(bridge.desktop, 'onCommand').mockImplementation((cb) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    });
+    const push = (c: DesktopCommand) => flush(async () => listeners.forEach((cb) => cb(c)));
+    mount('#/cmd?still=1');
+    await push({ kind: 'open', mode: 'ring', at: { x: 260, y: 260 } });
+    await screen.findByRole('menu', { name: '她的轮盘' });
+    // jsdom lays nothing out: the wheel's centre is at 0,0.
+    await push({ kind: 'ringPointer', phase: 'move', x: 0, y: -80 });
+    expect(document.querySelector('[role="menuitem"][data-sel]')?.getAttribute('aria-label')).toMatch(/^1 /);
+    await push({ kind: 'ringPointer', phase: 'up', x: 0, y: -80, ms: 400 });
+    await waitFor(() => expect(openMain).toHaveBeenCalledWith(expect.stringMatching(/^\/chat/)));
+  });
+
   it('an input open shows nothing on the cmd page', async () => {
     stackBridge();
     mount('#/cmd?mode=input&still=1');

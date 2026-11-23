@@ -401,6 +401,52 @@ test('cursor: hit leaves out the above and pass-through rects of setHitExclusion
   });
 });
 
+test('rules 56, 57: right_drag and moving reach their callbacks once both hellos list them; a held right press keeps the hit', { skip: UNIX_LINK }, async () => {
+  const drags: unknown[] = [], moving: boolean[] = [];
+  await withLink({ cursor: () => ({ x: 1150, y: 1200 }), onRightDrag: (e) => drags.push(e), onMoving: (on) => moving.push(on) }, async (link, log) => {
+    const a = await attach(link, { pid: 99, capabilities: ['right_drag', 'moving'] });
+    assert.deepEqual(a.got[0]!.capabilities, [...BASE, 'pointer', 'right_drag', 'moving']);
+    a.send(FRAME);
+    a.send(CAPSULES);
+    assert.ok(await until(1, () => a.last('cursor')?.hit === true));
+    // Rule 56 (c): a move or up with no down before it is dropped.
+    a.send({ type: 'right_drag', phase: 'move', x: 1, y: 2 });
+    const valid = examples('avatar-to-companion', ['right_drag', 'moving']);
+    assert.ok(valid.length >= 6, `${valid.length} examples`);
+    for (const { m } of valid) a.send(m);
+    assert.ok(await until(1, () => drags.length === 4 && moving.length === 2), `${JSON.stringify(drags)} ${moving}`);
+    assert.deepEqual(drags, valid.filter(({ m }) => m.type === 'right_drag').map(({ m }) => ({ phase: m.phase, at: { x: m.x, y: m.y } })));
+    assert.deepEqual(moving, [true, false]);
+    assert.ok(log.includes('rejected type=right_drag why=no_down'), log.join('\n'));
+    // The capability files' lines are valid on this link, which lists both.
+    const bad = invalid('a2c', ['right_drag', 'moving']).filter(({ lines }) => lines[0]!.type !== 'hello');
+    assert.ok(bad.length >= 4, `${bad.length} invalid files`);
+    for (const { lines } of bad) for (const line of lines) a.send(line);
+    a.send({ type: 'moving', moving: true });
+    assert.ok(await until(1, () => moving.length === 3));
+    assert.equal(link.moving, true);
+    assert.equal(drags.length, 4, 'the invalid lines reach nothing');
+    // Rule 56 (b): the held press keeps the hit where the capsules are not.
+    link.setHitExclusions({ above: [{ x: 1100, y: 1150, w: 100, h: 100 }], passThrough: [] });
+    assert.ok(await until(1, () => a.last('cursor')?.hit === false));
+    a.send({ type: 'right_drag', phase: 'down', x: 1150, y: 1200 });
+    assert.ok(await until(1, () => a.last('cursor')?.hit === true), 'held');
+    a.send({ type: 'right_drag', phase: 'up', x: 1150, y: 1200 });
+    assert.ok(await until(1, () => a.last('cursor')?.hit === false), 'released');
+    // Rule 57: the link's end is moving false.
+    a.socket.destroy();
+    assert.ok(await until(2, () => moving.length === 4));
+    assert.equal(moving.at(-1), false);
+    assert.equal(link.moving, false);
+  });
+  // Without the callbacks the hello lists neither, so she sends neither.
+  await withLink({}, async (link) => {
+    const a = await attach(link, { pid: 99, capabilities: ['right_drag', 'moving'] });
+    assert.deepEqual(a.got[0]!.capabilities, BASE);
+    a.socket.destroy();
+  });
+});
+
 test('cursor: while buttonsDown hit only stays on; a press held since a hit goes past the pass-through rects, not the above ones', { skip: UNIX_LINK }, async () => {
   let down = false;
   await withLink({ cursor: () => ({ x: 1150, y: 1200 }), buttonsDown: () => down }, async (link) => {

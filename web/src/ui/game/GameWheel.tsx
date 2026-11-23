@@ -25,7 +25,7 @@ export interface GameWheelCenter {
   desc: string;
 }
 
-/** 游戏通用能力轮盘（generalabilitypanel_pc 按 0.5 缩）：暗盘、外环带缺口、扇区细框、刻度菱点；指着的格亮扇形光、高亮弧和黄箭头，图标在外圈带右下影子和小号编号，中心写名字和作用；指针在中心 30 px 里是取消、亮红环。一层 8 格以内，点了就执行。按住拖选（按住超过 200 ms 松开 = 选指针所在的格，在中心松开 = 取消），短按松开 = 轮盘留着、再点一格执行；1–8 直接执行，←↑ / Shift+Tab 逆时针、→↓ / Tab 顺时针，Enter 执行，Esc、点中心、再按右键关。靠边时圆心平移让整盘留在屏内，平移后指针动过 4 px 才开始选格。深浅主题都画成深色。右键轮盘和热键轮盘是这同一个。 */
+/** 游戏通用能力轮盘（generalabilitypanel_pc 按 0.5 缩）：暗盘、外环带缺口、扇区细框、刻度菱点；指着的格亮扇形光、高亮弧和黄箭头，图标在外圈带右下影子和小号编号，中心写名字和作用；指针在中心 30 px 里是取消、亮红环。一层 8 格以内，点了就执行。按住拖选（按住超过 250 ms 松开 = 选指针所在的格，在中心松开 = 取消），短按松开 = 轮盘留着、再点一格执行；外壳转来的右键按住（`press`）松开在格上就执行那格，不到 250 ms、没离开过中心就留着，其余关；1–8 直接执行，←↑ / Shift+Tab 逆时针、→↓ / Tab 顺时针，Enter 执行，Esc、点中心、再按右键关。靠边时圆心平移让整盘留在屏内，平移后指针动过 4 px 才开始选格。深浅主题都画成深色。右键轮盘和热键轮盘是这同一个。 */
 export interface GameWheelProps {
   items: readonly GameWheelItem[];
   /** 中心空闲时：AGENTIC COMPLEX / 她的名字 / 待命 */
@@ -36,6 +36,8 @@ export interface GameWheelProps {
   bounds?: { width: number; height: number };
   /** 由按下打开、键还按着：松开时按按住的时长决定是执行还是留着 */
   held?: boolean;
+  /** 外壳转来的、打开这个轮盘的那次右键按住（C3 规则 56）：坐标同 clientX/Y，`up` 带按下到松开的毫秒数 */
+  press?: WheelPress;
   /** 读屏名称，默认「快捷轮盘」 */
   label?: string;
   onRun: (id: string) => void;
@@ -49,7 +51,7 @@ const EXTENT = 178 + 8;
 /** Room under the wheel for the key help line. */
 const HELP = 32;
 /** A press held longer than this, then released, picks; a shorter one leaves the wheel open. */
-const TAP_MS = 200;
+const TAP_MS = 250;
 /** After the centre was moved off the pointer, the pointer must move this far before it selects. */
 const SETTLE_PX = 4;
 const HALF = 260;
@@ -60,6 +62,15 @@ const pt = (r: number, a: number) => `${(r * Math.cos(a)).toFixed(2)} ${(r * Mat
 const arc = (r: number, a0: number, a1: number) => `M${pt(r, a0)}A${r} ${r} 0 0 1 ${pt(r, a1)}`;
 
 type Sel = number | 'cancel' | null;
+
+/** The held right button the shell forwards (C3 rule 56), in client px. */
+export type WheelPress = { phase: 'move'; x: number; y: number } | { phase: 'up'; x: number; y: number; ms: number };
+
+/** A forwarded release: the slot under it runs; a short press that never left the centre keeps the wheel; anything else closes. */
+export function wheelRelease(sel: Sel, ms: number, left: boolean): 'run' | 'stay' | 'close' {
+  if (typeof sel === 'number') return 'run';
+  return ms < TAP_MS && !left ? 'stay' : 'close';
+}
 
 /** The slot under a point `dx`, `dy` from the centre: the centre circle cancels, anywhere else picks the nearest 45° sector. */
 export function wheelPick(dx: number, dy: number, count: number): Sel {
@@ -74,7 +85,7 @@ export function wheelCentre(o: { x: number; y: number }, bounds: { width: number
   return { x: clamp(o.x, EXTENT, bounds.width - EXTENT), y: clamp(o.y, EXTENT, bounds.height - EXTENT - HELP) };
 }
 
-export function GameWheel({ items, center, origin, bounds, held = false, label = '快捷轮盘', onRun, onClose }: GameWheelProps) {
+export function GameWheel({ items, center, origin, bounds, held = false, press, label = '快捷轮盘', onRun, onClose }: GameWheelProps) {
   const root = useRef<HTMLDivElement>(null);
   const uid = useId().replace(/[^\w-]/g, '');
   const [sel, setSel] = useState<Sel>(null);
@@ -83,7 +94,8 @@ export function GameWheel({ items, center, origin, bounds, held = false, label =
   const c = origin ? wheelCentre(origin, box) : null;
   const moved = !!(origin && c && (c.x !== origin.x || c.y !== origin.y));
   // Live values the window listeners read.
-  const live = useRef({ sel, held, opened: 0, settled: !moved, origin, items, onRun, onClose });
+  // `left`: the forwarded press has been outside the centre; `released`: its release, or the window's, was taken.
+  const live = useRef({ sel, held, opened: 0, settled: !moved, left: false, released: false, origin, items, onRun, onClose });
   live.current = { ...live.current, sel, items, onRun, onClose, origin };
 
   const run = (i: number) => {
@@ -100,11 +112,35 @@ export function GameWheel({ items, center, origin, bounds, held = false, label =
     root.current?.focus({ preventScroll: true });
   }, []);
 
+  const centreOf = () => {
+    const r = root.current?.getBoundingClientRect();
+    return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 0, y: 0 };
+  };
+
   useEffect(() => {
-    const centreOf = () => {
-      const r = root.current?.getBoundingClientRect();
-      return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 0, y: 0 };
-    };
+    const l = live.current;
+    if (!press || l.released) return;
+    const m = centreOf();
+    if (!l.settled) {
+      const o = l.origin && c ? { x: m.x + (l.origin.x - c.x), y: m.y + (l.origin.y - c.y) } : m;
+      l.settled = Math.hypot(press.x - o.x, press.y - o.y) >= SETTLE_PX;
+    }
+    // Until it settles the pointer is where the wheel opened: its centre.
+    const s: Sel = l.settled ? wheelPick(press.x - m.x, press.y - m.y, l.items.length) : 'cancel';
+    if (s !== 'cancel') l.left = true;
+    if (press.phase === 'move') {
+      if (l.settled) setSel(s);
+      return;
+    }
+    l.released = true;
+    l.held = false;
+    const then = wheelRelease(s, press.ms, l.left);
+    if (then === 'run') runRef.current(s as number);
+    else if (then === 'close') l.onClose();
+    // Each forwarded press is new; the rest is read through `live`.
+  }, [press]);
+
+  useEffect(() => {
     const pick = (e: PointerEvent) => {
       const m = centreOf();
       return wheelPick(e.clientX - m.x, e.clientY - m.y, live.current.items.length);
@@ -121,8 +157,9 @@ export function GameWheel({ items, center, origin, bounds, held = false, label =
     };
     const onUp = (e: PointerEvent) => {
       const l = live.current;
-      if (!l.held) return;
+      if (!l.held || l.released) return;
       l.held = false;
+      l.released = true;
       // A short press leaves the wheel open for a second, separate pick.
       if (performance.now() - l.opened <= TAP_MS) return;
       const s = pick(e);

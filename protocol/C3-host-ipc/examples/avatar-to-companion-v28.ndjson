@@ -1,0 +1,8 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","drag_motion","right_drag","moving"],"build":{"git":"51beebe7","renderer":"metal"}}
+{"v":1,"type":"window_frame","frame":{"x":0,"y":0,"w":1512,"h":944},"scale":2,"window_number":77,"viewport":"fullscreen","display_id":1}
+{"v":1,"type":"right_drag","phase":"down","x":812.5,"y":410}
+{"v":1,"type":"right_drag","phase":"move","x":830,"y":452.25}
+{"v":1,"type":"right_drag","phase":"move","x":861,"y":503}
+{"v":1,"type":"right_drag","phase":"up","x":866,"y":509.5}
+{"v":1,"type":"moving","moving":true}
+{"v":1,"type":"moving","moving":false}

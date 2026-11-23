@@ -46,9 +46,11 @@ export function memoryOffsets(): OffsetStore {
   return { get: (k) => saved.get(k) ?? null, set: (k, o) => { saved.set(k, o); }, clear: (k) => { saved.delete(k); } };
 }
 
-/** protocol.ts `DesktopCommand`, as far as the shell sends it. `at` is the wheel's centre in its page, CSS px from the top-left. */
+/** protocol.ts `DesktopCommand`, as far as the shell sends it. `at` is the wheel's centre in its page, CSS px from the top-left;
+ *  `ringPointer` is the held right button that opened the wheel (C3 rule 56) in the same px, `ms` since it went down. */
 export type DesktopCommand = { kind: 'open'; mode: CmdMode; prefill?: string; at?: Point } | { kind: 'close' } | { kind: 'openConsole' }
   | { kind: 'scope'; scopeId: string; files: number } | SelectionCommand | { kind: 'expandStack' } | { kind: 'notice'; text: string }
+  | { kind: 'ringPointer'; phase: 'move'; x: number; y: number } | { kind: 'ringPointer'; phase: 'up'; x: number; y: number; ms: number }
   | WindowCommand;
 
 /** C3 rule 39: a presented panel waits this long for her stroke before it shows anyway, and on close this long before it goes

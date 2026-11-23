@@ -308,6 +308,45 @@ test('the hover buttons open after a rest on her, go out in desktop.onState, and
   h.done();
 });
 
+test('C3 rule 57: the hover buttons do not open while she walks, and do once she stops', async () => {
+  const h = setup(['--no-attention'], { hovered: true });
+  h.desktop.setMoving(true);
+  h.desktop.start();
+  const states = h.watch('/dock', 'desktop.onState') as { dock: { open: boolean } }[];
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  assert.equal(states.at(-1)?.dock.open, false, 'walking');
+  h.desktop.setMoving(false);
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  assert.equal(states.at(-1)?.dock.open, true);
+  h.done();
+});
+
+test('C3 rule 56: the wheel a held right press opened gets its moves and release in its page\'s CSS px; one a click opened gets none', () => {
+  const h = setup(['--no-attention']);
+  h.desktop.start();
+  const commands = h.watch('/cmd', 'desktop.onCommand') as Record<string, unknown>[];
+  h.call('/cmd', 'window.setContentSize', [{ width: 520, height: 520 }]);
+  h.desktop.openWheel({ x: 700, y: 500 }, true);
+  h.call('/cmd', 'window.setInteractiveRegions', [[{ x: 0, y: 0, width: 520, height: 520 }]]);
+  const b = h.bounds.get('/cmd')!;
+  // The fake toDip puts a placement point at y 1000 − y.
+  h.desktop.ringPointer('move', { x: 720, y: 480 });
+  assert.deepEqual(commands.at(-1), { kind: 'ringPointer', phase: 'move', x: 720 - b.x, y: 520 - b.y });
+  h.desktop.ringPointer('up', { x: 730, y: 470 });
+  const up = commands.at(-1)!;
+  assert.deepEqual({ ...up, ms: 0 }, { kind: 'ringPointer', phase: 'up', x: 730 - b.x, y: 530 - b.y, ms: 0 });
+  assert.ok(typeof up.ms === 'number' && up.ms >= 0, `${up.ms}`);
+  const after = commands.length;
+  h.desktop.ringPointer('move', { x: 740, y: 460 });
+  assert.equal(commands.length, after, 'the press is over');
+  h.desktop.openWheel({ x: 700, y: 500 });
+  const clicked = commands.length;
+  h.desktop.ringPointer('move', { x: 720, y: 480 });
+  h.desktop.ringPointer('up', { x: 720, y: 480 });
+  assert.equal(commands.length, clicked);
+  h.done();
+});
+
 test('说话 on the hover buttons runs the push-to-talk port and keeps them while it records', async () => {
   const phases: string[] = [];
   const h = setup(['--no-attention'], { hovered: true, talk: (phase) => phases.push(phase) });

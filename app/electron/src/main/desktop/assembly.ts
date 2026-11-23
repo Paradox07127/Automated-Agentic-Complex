@@ -117,6 +117,10 @@ export class DesktopAssembly {
   private talking = false;
   /** The `dock` last sent. */
   private dockSent = '';
+  /** C3 rule 57: she walks. */
+  private moving = false;
+  /** C3 rule 56: the held right press that opened the wheel, since when (ms); null when a click or the hot key opened it. */
+  private ringPress: number | null = null;
   private failingSince: number | null = null;
   private readonly hotkey: QuickInputHotkey;
   /** `--no-attention` (test and host runs) registers no hot key, so none is taken from the user. */
@@ -288,14 +292,33 @@ export class DesktopAssembly {
     this.openAt(mode, body ? { x: body.x + body.w / 2, y: body.y + CHEST * body.h } : this.o.mouse(), false, prefill, first);
   }
 
-  /** The right button on her at `at` (placement space): the wheel opens with its centre there. */
-  openWheel(at: Point): void {
+  /** The right button on her at `at` (placement space): the wheel opens with its centre there; `held`, the button is still
+   *  down and ringPointer follows it (C3 rule 56). */
+  openWheel(at: Point, held = false): void {
     this.closeConsole();
     this.openAt('ring', at, true);
+    this.ringPress = held ? performance.now() : null;
+  }
+
+  /** C3 rule 56: the held right button at `at` (placement space), for the wheel it opened; the wheel picks or stays on `up`. */
+  ringPointer(phase: 'move' | 'up', at: Point): void {
+    const since = this.ringPress;
+    if (since === null) return;
+    if (phase === 'up') this.ringPress = null;
+    const p = this.follow.cmdMode === 'ring' ? this.panels.cmd.pagePoint(at) : null;
+    if (!p) return;
+    this.command.send(phase === 'up' ? { kind: 'ringPointer', phase, ...p, ms: Math.round(performance.now() - since) } : { kind: 'ringPointer', phase, ...p });
+  }
+
+  /** C3 rule 57: she started or stopped walking; the hover buttons wait while she walks. */
+  setMoving(on: boolean): void {
+    this.moving = on;
+    this.hoverTick();
   }
 
   private openAt(mode: CmdMode, centre: Point, at: boolean, prefill?: string, first?: DesktopCommand): void {
     if (this.follow.cmdMode === null) this.command.send({ kind: 'close' });
+    this.ringPress = null;
     if (first) this.command.send(first);
     // The wheel gets her screen first, which `desktop.onState` does not follow as she walks.
     if (mode === 'ring') this.pushState();
@@ -359,7 +382,7 @@ export class DesktopAssembly {
   private hoverTick(): void {
     const h = this.o.hover(), s = this.o.sample(), placed = this.follow.placedCard('dock');
     const within = (grow: number) => (h.within ? h.within(grow) : h.hovered);
-    const blocked = !h.present || !h.hints || s.dragging || this.follow.cmdMode === 'ring';
+    const blocked = !h.present || !h.hints || s.dragging || this.moving || this.follow.cmdMode === 'ring';
     const was = dockOpen(this.dock);
     this.dock = dockStep(this.dock, { p: this.o.mouse(), enter: within(ENTER_GROW), keep: within(KEEP_GROW), body: s.body,
       dock: placed?.card ?? null, blocked, held: this.talking }, performance.now() / 1000);

@@ -499,6 +499,16 @@ export function cameraGestureProblem(m: Fields): string | null {
   return finite(m.zoom) && m.zoom > 0 ? null : 'zoom';
 }
 
+/** Rule 56's `right_drag`: `phase` and the cursor in global points, nothing else. */
+export function rightDragProblem(m: Fields): string | null {
+  if (!only(m, ['v', 'type', 'phase', 'x', 'y'])) return 'keys';
+  if (!['down', 'move', 'up'].includes(m.phase as string)) return 'phase';
+  return coordinate(m.x) && coordinate(m.y) ? null : 'coordinate';
+}
+
+/** Rule 57's `moving`. */
+export const movingProblem = (m: Fields): string | null => (!only(m, ['v', 'type', 'moving']) ? 'keys' : typeof m.moving === 'boolean' ? null : 'moving');
+
 /** CONTRACT「Optional presentation capability」's `presentation_state`. */
 export function presentationStateProblem(m: Fields, character: string | null): string | null {
   if (!count(m.req)) return 'req';

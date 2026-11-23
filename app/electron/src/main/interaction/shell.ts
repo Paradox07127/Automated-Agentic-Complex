@@ -6,7 +6,7 @@ import type { Actions } from '../../common/c3.ts';
 import { behaviorSwitches } from '../../common/settings.ts';
 import type { Request } from '../../common/stack-source.ts';
 import { readObject, writeObject } from '../ops/settings.ts';
-import type { ClickEvent } from '../renderer/link.ts';
+import type { ClickEvent, RightDragEvent } from '../renderer/link.ts';
 
 export interface InteractionOptions {
   /** agentd. */
@@ -25,8 +25,10 @@ export interface InteractionOptions {
   /** The desktop panels; null without them. */
   desktop(): { readonly quickInputOpen: boolean; openQuickInput(): void; notice(text: string): void; pushState(): void } | null;
   openSessions(): void;
-  /** The right button on her, at `at` in global points. */
-  onContextMenu(at: { x: number; y: number }): void;
+  /** The right button on her, at `at` in global points; `held`, it is still down (C3 rule 56). */
+  onContextMenu(at: { x: number; y: number }, held: boolean): void;
+  /** C3 rule 56: the held right button moved or came up at `at`, global points. */
+  onRingPointer(phase: 'move' | 'up', at: { x: number; y: number }): void;
   /** refreshStatusIcon after click-through-all changed. */
   clickThroughChanged(): void;
   log(line: string): void;
@@ -37,6 +39,8 @@ export interface InteractionOptions {
 export interface Interaction {
   /** HostLink's `onClick`. */
   click(e: ClickEvent): void;
+  /** HostLink's `onRightDrag`: its `down` is a right click that stays held. */
+  rightDrag(e: RightDragEvent): void;
   /** `desktop.action`'s ports that act on her. */
   actions: Required<Pick<DesktopActionPorts, 'claimRitual' | 'gift' | 'freeRoam' | 'clickThroughAll'>>;
 }
@@ -78,20 +82,23 @@ export function interactionShell(o: InteractionOptions): Interaction {
 
   const changed = () => new Error('角色已改变，请重新选择操作');
 
+  const rightClicked = (at: { x: number; y: number }, held: boolean) => {
+    // C3 rule 55: each right click on her is one `wheel`.
+    void o.request('POST', '/interaction/record', { kind: 'wheel' }).then((r) => r.status, () => 0).then((status) => {
+      if (status !== 204) o.log(`RECORD kind=wheel status=${status}`);
+    });
+    o.onContextMenu(at, held);
+  };
+
   return {
     click: (e) => {
       if (e.kind === 'left') leftClicked(e.region);
       else if (e.kind === 'double') {
         tap.doubleClick();
         o.openSessions();
-      } else {
-        // C3 rule 55: each right click on her is one `wheel`.
-        void o.request('POST', '/interaction/record', { kind: 'wheel' }).then((r) => r.status, () => 0).then((status) => {
-          if (status !== 204) o.log(`RECORD kind=wheel status=${status}`);
-        });
-        o.onContextMenu(e.at);
-      }
+      } else rightClicked(e.at, false);
     },
+    rightDrag: (e) => (e.phase === 'down' ? rightClicked(e.at, true) : o.onRingPointer(e.phase, e.at)),
     actions: {
       claimRitual: () => claimRitual(null, null),
       gift: async () => {

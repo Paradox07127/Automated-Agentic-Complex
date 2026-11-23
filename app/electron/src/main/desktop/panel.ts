@@ -104,6 +104,14 @@ export class DesktopPanel implements FollowPanel {
     return this.isShown && !this.awaitingFrame && f !== null && p.x >= f.x && p.x < f.x + f.w && p.y >= f.y && p.y < f.y + f.h;
   }
 
+  /** `p` (placement space) in the page's CSS px from its top-left; null while the panel is not placed. */
+  pagePoint(p: { x: number; y: number }): { x: number; y: number } | null {
+    const win = this.win;
+    if (!win || win.isDestroyed() || !this.isShown || this.awaitingFrame) return null;
+    const b = win.getBounds(), d = this.o.toDip({ x: p.x, y: p.y, w: 0, h: 0 });
+    return { x: d.x - b.x, y: d.y - b.y };
+  }
+
   /** Around the bounds of the page's cards. */
   get cardInsets(): CardInsets | null {
     const size = this.preferredSize, first = this.glass[0];

@@ -11,7 +11,7 @@ import {
   cameraGestureProblem, capturedProblem, type Capsule, capsuleHit, capsulesBox, clickProblem, COMPANION_CAPABILITIES, companionHello, CURSOR,
   CursorKinematics, decodeLine, dropProblem, encodeLine, motionRequestProblem, motionStateProblem, motionStrokeProblem, type MotionOverridesReceipt,
   outboundProblem, playbackProblem, type PointerState, poseStateProblem, presentationInputProblem, presentationStateProblem, readCapsules,
-  reactionProblem, type ReactionTrigger, readMotionOverrides,
+  reactionProblem, type ReactionTrigger, readMotionOverrides, rightDragProblem, movingProblem,
   SPEECH_CANCEL_REASONS, speechCancelledProblem, surfaceTrackProblem, TERMINAL_BEHAVIOR_PHASES, traceEventProblem,
   fpsTier, type FpsTier, fpsTierFor, type Heartbeat, LineFramer, MAX_LINE, type Stats, Watchdog,
 } from '../../common/c3.ts';
@@ -99,6 +99,8 @@ export const LINK_TIMING = { tick: 0.1, ack: 2, reply: 2, playStart: 35, relink:
 /** Rule 10, as HostLink's onLeftClick, onDoubleClick and onRightClick: `at` in global points. */
 export type ClickEvent = { kind: 'left'; at: { x: number; y: number }; region: string | null } | { kind: 'double' }
   | { kind: 'right'; at: { x: number; y: number } };
+/** Rule 56: the right button held on her, `at` in global points. */
+export interface RightDragEvent { phase: 'down' | 'move' | 'up'; at: { x: number; y: number } }
 /** Rules 32, 34: what the renderer asks of the surface source. */
 export type SurfaceTrackEvent = { kind: 'track'; trackId: string; windowId: number; generation: number | null }
   | { kind: 'untrack'; trackId: string } | { kind: 'attach'; trackId: string | null };
@@ -171,6 +173,10 @@ export interface LinkOptions {
   onMotionStroke?(token: string, clip: string): void;
   onPoseState?(s: PoseState): void;
   onCameraGesture?(g: CameraGesture): void;
+  /** Rule 56: lists `right_drag`; each valid one after its `down`. */
+  onRightDrag?(e: RightDragEvent): void;
+  /** Rule 57: lists `moving`; each change, and false when the link that said true ends. */
+  onMoving?(moving: boolean): void;
   /** Lists `touch`; read at each hello that lists it, and by touchSettingsChanged. */
   touchSettings?(): TouchSettings;
   /** Each `set_action_switches` and `set_motion_overrides` written, with the character it is for. */
@@ -199,6 +205,9 @@ class Connection {
   capsulesGlobal = false;
   capsulesAt = -Infinity;
   dragging = false;
+  /** Rule 56: a `right_drag` `down` came and its `up` has not; rule 57: her last `moving`. */
+  rightHeld = false;
+  moving = false;
   /** The tier she runs at when neither hidden nor paused, as last worked out. */
   tier: FpsTier = 'working';
   /** Rules 34, 41: where `cursor.hit` stays false, in global points (setHitExclusions). */
@@ -305,6 +314,8 @@ export class HostLink {
   get currentCharacter(): string | null { return this.character; }
   get currentAppearance(): string | null { return this.appearance; }
   get hidden(): boolean { return this._hidden; }
+  /** Rule 57: she walks, as her last `moving` on the current connection says. */
+  get moving(): boolean { return this.conn?.moving ?? false; }
   /** HostLink.clickThroughAll: every `cursor` goes out with `hit` false while on, except during a drag. */
   get clickThroughAll(): boolean { return this._clickThroughAll; }
   set clickThroughAll(on: boolean) {
@@ -322,9 +333,11 @@ export class HostLink {
   get companionCapabilities(): string[] {
     const o = this.options, offers: readonly string[] = o.offers ?? [];
     const given: Record<string, unknown> = { presentation: o.onPresentationState, drop: o.onDrop, reactions: o.onReaction, touch: o.touchSettings,
-      poses: o.onPoseState, camera_gesture: o.onCameraGesture, surfaces: o.onSurfaceTrack, opacity: o.onSurfaceTrack, layering: o.onSurfaceTrack };
+      poses: o.onPoseState, camera_gesture: o.onCameraGesture, surfaces: o.onSurfaceTrack, opacity: o.onSurfaceTrack, layering: o.onSurfaceTrack,
+      right_drag: o.onRightDrag, moving: o.onMoving };
     const later = ['presentation', 'drop', 'reactions', 'pass_through', 'render_live', 'ambient', 'touch', 'poses', 'camera_free', 'camera_track',
-      'camera_gesture', 'filters', 'capture', 'motion_overrides', 'play_chain', 'photo', 'camera_bust', 'surfaces', 'opacity', 'layering'];
+      'camera_gesture', 'filters', 'capture', 'motion_overrides', 'play_chain', 'photo', 'camera_bust', 'surfaces', 'opacity', 'layering',
+      'right_drag', 'moving'];
     return [...COMPANION_CAPABILITIES, ...(o.onTrace ? ['trace'] : []), ...(o.onBehaviorReceipt ? ['behavior_receipt'] : []),
       ...(o.cursor ? ['pointer'] : []), ...(o.onMotionRequest ? ['motion_requests'] : []),
       ...later.filter((x) => given[x] !== undefined || offers.includes(x))];
@@ -532,6 +545,8 @@ export class HostLink {
       case 'pose_state': if (!this.handlePoseState(m, c)) return; break;
       case 'captured': if (!this.handleCaptured(m, c)) return; break;
       case 'camera_gesture': if (!this.handleCameraGesture(m, c)) return; break;
+      case 'right_drag': if (!this.handleRightDrag(m, c)) return; break;
+      case 'moving': if (!this.handleMoving(m, c)) return; break;
     }
     this.emit({ kind: 'message', message: m });
   }
@@ -670,6 +685,27 @@ export class HostLink {
     if (!this.accepted(m, this.both(c, 'camera_gesture') ? cameraGestureProblem(m) : 'capability')) return false;
     if (m.phase !== 'changed') this.options.log(`camera_gesture phase=${String(m.phase)}`);
     this.options.onCameraGesture!({ phase: m.phase as CameraGesture['phase'], dx: m.dx as number, dy: m.dy as number, zoom: m.zoom as number });
+    return true;
+  }
+
+  /** Rule 56: a move or up only after its down; the held press keeps the hit. */
+  private handleRightDrag(m: C3Message, c: Connection): boolean {
+    if (!this.options.onRightDrag) return true;
+    if (!this.accepted(m, this.both(c, 'right_drag') ? rightDragProblem(m) : 'capability')) return false;
+    if (m.phase !== 'down' && !c.rightHeld) return this.accepted(m, 'no_down');
+    if (m.phase !== 'move') this.options.log(`right_drag phase=${String(m.phase)}`);
+    c.rightHeld = m.phase !== 'up';
+    this.cursorMovedPending = true;
+    this.options.onRightDrag({ phase: m.phase as RightDragEvent['phase'], at: { x: m.x as number, y: m.y as number } });
+    return true;
+  }
+
+  private handleMoving(m: C3Message, c: Connection): boolean {
+    if (!this.options.onMoving) return true;
+    if (!this.accepted(m, this.both(c, 'moving') ? movingProblem(m) : 'capability')) return false;
+    c.moving = m.moving as boolean;
+    this.options.log(`moving ${c.moving}`);
+    this.options.onMoving(c.moving);
     return true;
   }
 
@@ -910,6 +946,11 @@ export class HostLink {
         rate: open.rate });
     }
     c.openSpeech.clear();
+    // Rule 57: the link's end is moving false.
+    if (wasActive && c.moving) {
+      c.moving = false;
+      this.options.onMoving?.(false);
+    }
     if (wasActive) {
       this.latestActions.clear();
       this.playing = null;
@@ -1135,7 +1176,7 @@ export class HostLink {
     const onCapsules = fresh && capsuleHit(hp, c.capsules) && !c.above.some((b) => boxContains(b, g)) && (!held || heldOnHer)
       && !(c.passThrough.some((b) => boxContains(b, g)) && !heldOnHer);
     const sample = { x: p.x, y: p.y, inside: p.x >= 0 && p.x < f.w && p.y >= 0 && p.y < f.h,
-      hit: !pinnedOff && (c.dragging || (!this._clickThroughAll && onCapsules)) };
+      hit: !pinnedOff && (c.dragging || c.rightHeld || (!this._clickThroughAll && onCapsules)) };
     const last = c.lastCursor;
     const same = last !== null && last.x === sample.x && last.y === sample.y && last.inside === sample.inside && last.hit === sample.hit;
     if (same && t - c.lastCursorAt < CURSOR.keepalive) return;

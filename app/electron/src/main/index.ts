@@ -254,6 +254,8 @@ const hostLink = config && new HostLink({
     onMotionRequest: forwarding.onMotionRequest, onReaction: forwarding.onReaction, onDragBegin: forwarding.onDragBegin }),
   ...reports?.options,
   onClick: (e) => interaction?.click(e),
+  onRightDrag: (e) => interaction?.rightDrag(e),
+  onMoving: (on) => desktop?.setMoving(on),
   onDrop: (d) => drops?.drop(d),
   onDragRelease: (at, excludedPids) => windowHandover?.(at, excludedPids),
   onPoseState: (s) => camera?.poses.state(s), onCameraGesture: (g) => camera?.camera.gesture(g),
@@ -689,10 +691,14 @@ const interaction = config && runtimePath !== null ? (() => {
     settings: () => readObject(configPath), configPath, link: hostLink, desktop: () => desktop,
     openSessions: () => openMainAt(sessionsRoute()),
     // The wheel opens with its centre at the click.
-    onContextMenu: (at) => {
+    onContextMenu: (at, held) => {
       const p = (cursorSpace ??= c3Space(screen)).rectFromC3({ x: at.x, y: at.y, w: 0, h: 0 });
-      if (desktop) desktop.openWheel({ x: p.x, y: p.y });
+      if (desktop) desktop.openWheel({ x: p.x, y: p.y }, held);
       else appendLog(config!.supportDir, 'companion', 'wheel: no desktop panels to open it in');
+    },
+    onRingPointer: (phase, at) => {
+      const p = (cursorSpace ??= c3Space(screen)).rectFromC3({ x: at.x, y: at.y, w: 0, h: 0 });
+      desktop?.ringPointer(phase, { x: p.x, y: p.y });
     },
     clickThroughChanged: () => {
       runtimeChanged();

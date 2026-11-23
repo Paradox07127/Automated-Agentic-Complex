@@ -34,7 +34,8 @@ function harness(o: { status?: number; body?: unknown; offline?: boolean; settin
     link: o.noLink ? null : link,
     desktop: () => (o.noDesktop ? null : desktop),
     openSessions: () => calls.push('sessions'),
-    onContextMenu: (at) => calls.push(`menu ${at.x},${at.y}`),
+    onContextMenu: (at, held) => calls.push(`menu ${at.x},${at.y}${held ? ' held' : ''}`),
+    onRingPointer: (phase, at) => calls.push(`ring ${phase} ${at.x},${at.y}`),
     clickThroughChanged: () => calls.push('clickThroughChanged'),
     log: (line) => lines.push(line),
     clock: { now: () => now, after: (s, fn) => { timers.push({ at: now + s, fn }); } },
@@ -130,6 +131,17 @@ test('a double click opens the sessions page and takes back its first half; the 
   await settle();
   assert.deepEqual(h.requests, [{ method: 'POST', path: '/interaction/record', json: { kind: 'wheel' } }]);
   assert.deepEqual(h.lines, []);
+  h.done();
+});
+
+test('C3 rule 56: a right press on her opens the wheel held there and is one wheel record; its moves and release go to the wheel', async () => {
+  const h = harness({ status: 204 });
+  h.shell.rightDrag({ phase: 'down', at: { x: 300, y: 400 } });
+  h.shell.rightDrag({ phase: 'move', at: { x: 320, y: 430 } });
+  h.shell.rightDrag({ phase: 'up', at: { x: 330, y: 450 } });
+  assert.deepEqual(h.calls, ['menu 300,400 held', 'ring move 320,430', 'ring up 330,450']);
+  await settle();
+  assert.deepEqual(h.requests, [{ method: 'POST', path: '/interaction/record', json: { kind: 'wheel' } }]);
   h.done();
 });
 

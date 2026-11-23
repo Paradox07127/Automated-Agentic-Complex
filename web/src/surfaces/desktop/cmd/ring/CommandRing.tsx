@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { GameWheel, type GameWheelCenter } from '../../../../ui/game/GameWheel';
+import { GameWheel, type GameWheelCenter, type WheelPress } from '../../../../ui/game/GameWheel';
 import type { CmdItem } from '../actions';
 
 /** The wheel's page is a square of this many CSS px (GameWheel's box; DesktopLayout's `WHEEL_PANEL`). */
@@ -10,6 +10,8 @@ export interface CommandRingProps {
   center: GameWheelCenter;
   /** Where she was right-clicked, in the page; the hot key's wheel has none and sits in the middle. */
   at?: { x: number; y: number } | undefined;
+  /** The held right button that opened it, as the shell forwards it (C3 rule 56). */
+  press?: WheelPress | undefined;
   onRun: (item: CmdItem) => void;
   onClose: () => void;
 }
@@ -34,7 +36,7 @@ function useCommandHeld(): boolean {
 }
 
 /** Her wheel, the right click's and the hot key's alike: one level of 8 slots, a pick runs at once. Dark in both themes. */
-export function CommandRing({ items, center, at, onRun, onClose }: CommandRingProps) {
+export function CommandRing({ items, center, at, press, onRun, onClose }: CommandRingProps) {
   const keys = useCommandHeld();
   return (
     <div data-theme="dark" data-keys={keys || undefined} data-region="" style={{ position: 'relative', width: WHEEL_BOX, height: WHEEL_BOX }}>
@@ -42,6 +44,7 @@ export function CommandRing({ items, center, at, onRun, onClose }: CommandRingPr
         items={items}
         center={center}
         origin={at}
+        press={press}
         bounds={{ width: WHEEL_BOX, height: WHEEL_BOX }}
         label="她的轮盘"
         onRun={(id) => {
