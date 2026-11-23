@@ -88,6 +88,12 @@ export function Operator(p: OperatorProps) {
   const groups = groupMotions(actions.filter((a) => !a.id.startsWith('mmd_')));
   const rows = groups.flatMap((g) => g.rows);
   const [sel, setSel] = useState(p.motionRow ?? '');
+  // A new link (`?row=`) while the table stays open selects its motion too.
+  const [landed, setLanded] = useState(p.motionRow);
+  if (p.motionRow !== landed) {
+    setLanded(p.motionRow);
+    if (p.motionRow) setSel(p.motionRow);
+  }
   const [speed, setSpeed] = useState('1');
   const canLoop = getBridge().capabilities.actionLoop === true;
   const canAvatar = getBridge().capabilities.avatar;

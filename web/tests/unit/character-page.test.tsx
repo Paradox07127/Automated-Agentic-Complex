@@ -22,6 +22,7 @@ async function mount(search = '', component: RouteComponent = CharacterPage) {
     </QueryClientProvider>,
   );
   await waitFor(() => expect(document.querySelector('[data-page]')).not.toBeNull());
+  return router;
 }
 
 const stage = () => document.querySelector('[data-stage]') as HTMLElement;
@@ -84,6 +85,15 @@ describe('character · 角色与动作', () => {
     await waitFor(() => expect(grid.querySelector('[data-motion="whisper"]')?.getAttribute('aria-selected')).toBe('true'));
     expect(grid.querySelector('[data-motion="nod"]')?.getAttribute('aria-selected')).toBe('false');
     expect(scroll.mock.contexts).toContain(grid.querySelector('[data-motion="whisper"]'));
+  });
+
+  it('follows a new `row` while the motion table stays open', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const router = await mount('&pane=motion');
+    const grid = await screen.findByRole('grid', { name: '全部动作' });
+    await waitFor(() => expect(grid.querySelector('[data-motion="nod"]')?.getAttribute('aria-selected')).toBe('true'));
+    await act(async () => void (await router.navigate({ to: '/', search: { still: '1', pane: 'motion', row: 'whisper' } })));
+    await waitFor(() => expect(grid.querySelector('[data-motion="whisper"]')?.getAttribute('aria-selected')).toBe('true'));
   });
 
   it('plays on the desktop and shows the progress on the stage', async () => {
