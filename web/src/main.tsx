@@ -4,7 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import './design/tokens.css';
 import './design/base.css';
-import { loadFakeBridge } from './bridge';
+import { getBridge, loadFakeBridge } from './bridge';
+import { refetchFailedWhenAgentdUp } from './data/agentdUp';
 import { trackKeyboardFocus } from './design/keyboardFocus';
 import { pageRoutes } from './shell/registry';
 import { RootErrorBoundary } from './shell/ErrorPage';
@@ -23,6 +24,7 @@ window.__EF_ROUTES__ = Object.freeze(pageRoutes.map(({ id, path, demos }) => ({ 
 await loadFakeBridge();
 const router = createAppRouter();
 const queryClient = new QueryClient();
+refetchFailedWhenAgentdUp(queryClient, (cb) => getBridge().app.onRuntime(cb));
 applyInitialTheme();
 trackKeyboardFocus();
 const root = document.getElementById('root');
