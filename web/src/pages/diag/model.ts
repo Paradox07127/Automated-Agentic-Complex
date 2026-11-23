@@ -76,15 +76,6 @@ export const RUN_STATE: Readonly<Record<string, string>> = {
   waiting_user: '待处理',
 };
 
-export const SUM_KIND: Readonly<Record<string, string>> = {
-  memory_extract: '记忆提炼',
-  observation_interpret: '现场理解',
-  observation_vision: '图片理解',
-  user_vision: '图片理解（你发起）',
-  proactive_decide: '主动决策',
-  conversation: '角色主对话',
-};
-export const SUM_BACKEND: Readonly<Record<string, string>> = { claude_agent_sdk: 'Claude Agent SDK', codex: 'Codex', pi: 'Pi', acp: 'ACP', claude: 'Claude Code' };
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 

@@ -8,7 +8,6 @@ import type { AgenticComplexBridge, HttpMethod } from '../../src/bridge/protocol
 import { isoWithOffset } from '../../src/domain/units';
 import { NOW } from '../../src/mock/fixtures';
 import { DIAG_STATE } from '../../src/mock/diag';
-import { MemoryRunSheet } from '../../src/pages/diag/MemoryRunSheet';
 import { NowPanel } from '../../src/pages/diag/NowPanel';
 import { DiagPage } from '../../src/pages/diag/Page';
 import { issuesOf } from '../../src/pages/diag/status';
@@ -48,29 +47,6 @@ afterEach(() => {
   cleanup();
   delete window.agenticComplex;
   vi.useRealTimers();
-});
-
-function sheet(id: string) {
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRunSheet id={id} onClose={() => {}} />
-    </QueryClientProvider>,
-  );
-}
-
-describe('memory run sheet', () => {
-  it('opens that run straight away', async () => {
-    sheet('mrun-00');
-    expect(await screen.findByRole('dialog', { name: '记忆生成记录' })).toBeTruthy();
-    expect(paths()).toContain('GET /memory/runs/mrun-00');
-  });
-
-  it('says a cleared run detail in Chinese', async () => {
-    sheet('mrun-03');
-    const sheetEl = await screen.findByRole('dialog', { name: '记忆生成记录' });
-    expect(await within(sheetEl).findByText(/详细内容已清理/)).toBeTruthy();
-    expect(sheetEl.textContent).not.toContain('expired');
-  });
 });
 
 describe('diag › old links land on 总览', () => {

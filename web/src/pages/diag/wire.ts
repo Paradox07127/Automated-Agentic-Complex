@@ -44,36 +44,3 @@ export interface WireCapabilities {
   items: Record<string, { state: string; reason?: string | null }>;
   at: string;
 }
-
-/** GET /memory/runs row (memory_service.py `list`); times are epoch seconds. */
-export interface WireMemoryRun {
-  run_id: string;
-  backend: string;
-  model: string;
-  character_id: string;
-  started_at: number;
-  finished_at: number | null;
-  state: string;
-  prompt_version: string;
-  redacted_reason: string | null;
-}
-
-/** One memory write proposal and its receipt (memory_service.py `_event`, memory_pipeline.py commits). */
-export interface WireMemoryProposal {
-  proposal: { operation: string; text?: string; kind?: string; evidence_quote?: string; target_quote?: string };
-  receipt: { outcome?: string; fact_id?: string; version?: number; error?: { code: string } };
-}
-
-/** GET /memory/runs/{id} (memory_service.py `get`); `detail` is null once redacted, `events` stay. */
-export interface WireMemoryRunDetail extends WireMemoryRun {
-  input_sha256: string | null;
-  detail: {
-    user_input: string;
-    request: string;
-    request_truncated: boolean;
-    proposals: WireMemoryProposal[];
-    output?: string | null;
-    trace?: string[];
-  } | null;
-  events: Array<{ seq: number; at: number; event: string } & Record<string, unknown>>;
-}

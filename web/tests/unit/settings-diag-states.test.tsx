@@ -8,7 +8,6 @@ import { CharacterSettings } from '../../src/pages/character/CharacterSettings';
 import { DgFlow } from '../../src/pages/diag/DgFlow';
 import { demoShotRuns } from '../../src/mock/settings';
 import { flowOf } from '../../src/pages/diag/flow';
-import { SUM_KIND } from '../../src/pages/diag/model';
 import { Processes } from '../../src/pages/diag/Processes';
 import { processesOf } from '../../src/pages/diag/status';
 import { OnboardingPage } from '../../src/pages/onboarding/Page';
@@ -38,11 +37,10 @@ afterEach(() => {
 });
 
 describe('今天发出的截图 counts the screenshots the user asked for too', () => {
-  it('has a user_vision run in the preview data and the run sheet purpose; diag leaves the count to 记忆管线', () => {
+  it('has a user_vision run in the preview data; diag leaves the count to 记忆管线', () => {
     expect(new Set(demoShotRuns(null).map((r) => r.kind))).toEqual(new Set(['observation_vision', 'user_vision']));
     const obs = flowOf({ turns: [], decisions: [], since: 0, failAt: {}, voiceDown: false, hookSub: '', hourly: null }).nodes.find((n) => n.id === 'obs');
     expect([obs?.station, obs?.stat]).toEqual(['obs', null]);
-    expect(SUM_KIND.user_vision).toBe('图片理解（你发起）');
   });
 });
 
