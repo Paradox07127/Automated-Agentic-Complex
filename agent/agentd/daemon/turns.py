@@ -1,4 +1,5 @@
 """A turn: /say and /look, claiming and running a line, and its history row."""
+import contextvars
 import datetime
 import re
 import secrets
@@ -19,7 +20,7 @@ from personal.memory import mentions
 from voice.speech import PLAYING
 from sessions.tasks import check_verify
 from traces.trace_format import OBSERVATION_STATES
-from traces.trace_store import new_span_id
+from traces.trace_store import TURN_TRACE, new_span_id
 from api.views import _marked, _ms_since
 from models.model_auth import ModelError
 
@@ -354,6 +355,7 @@ class TurnsMixin:
         """The harness runs outside the delivery lock; only its completed reply enters the speech pipeline.
         side: a side line (see say), whose cancel is in _side_lines until this returns."""
         started = time.monotonic()
+        traced = TURN_TRACE.set(trace["trace_id"])
         trace["agent_line"] = True
         trace["run_id"] = None if side else line_id  # a side session answers read-only, outside the foreground run
         self._live_lines.add(cancel)
@@ -415,6 +417,7 @@ class TurnsMixin:
             if side:
                 self._line_context.pop(cancel, None)
                 self._side_lines.discard(cancel)
+            TURN_TRACE.reset(traced)
 
     def _prepare_streamed(self, prepare, line_id, text, cancel, source, trace, reason):
         """prepare() on a thread of its own: (its reply, None) when it ends before its run's final answer begins,
@@ -433,7 +436,7 @@ class TurnsMixin:
                 streamed.prepared(prepare())
             except Exception as error:
                 streamed.prepared(failure=error)
-        worker = threading.Thread(target=run, daemon=True)
+        worker = threading.Thread(target=contextvars.copy_context().run, args=(run,), daemon=True)
         worker.start()
         if streamed.begun():
             return streamed, worker
@@ -481,6 +484,7 @@ class TurnsMixin:
         started = time.monotonic()
         trace = trace or self._open_trace(line_id, generation, source, text, remember=remember,
                                           voice_timing=voice_timing)
+        traced = TURN_TRACE.set(trace["trace_id"])
         state = "failed"  # until the line settles
         error = None
         shown = None  # once a text-only line's text_line started went out: the hold_ms its ended carries
@@ -729,6 +733,7 @@ class TurnsMixin:
             self._line_material.pop(cancel, None)  # a line that ended before its context was assembled
             self._context_cut.discard(cancel)
             self._user_cut.discard(cancel)
+            TURN_TRACE.reset(traced)
 
     def _record(self, trace, source, text, reply, state, started_at, raw_reply=None):
         if self.history is None or not trace["remember"]:

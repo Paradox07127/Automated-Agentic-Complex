@@ -483,6 +483,31 @@ class HarnessTurnTest(test_character_agent_integration.IntegrationFixture):
         [finished] = [e for e in self.stored() if e["kind"] == "model.finished"]
         self.assertNotIn("cached_tokens", finished["attrs"])
         self.assertNotIn("reasoning_tokens", finished["attrs"])
+        self.assertNotIn("cost_usd", finished["attrs"])
+
+    def test_the_harness_reported_cost_lands_on_model_finished(self):
+        def script(session, prompt, options):
+            for event in codex_reply(session, prompt, options):
+                yield {**event, "cost_usd": 0.0123} if event["type"] == "result" else event
+
+        self.script = script
+        self.line("帮我查一下天气")
+        [finished] = [e for e in self.stored() if e["kind"] == "model.finished"]
+        self.assertEqual((finished["attrs"]["cost_usd"], finished["attrs"]["cached_tokens"]), (0.0123, 5))
+
+    def test_the_harness_runs_with_the_turns_trace_id_for_its_log_lines(self):
+        from traces.trace_store import TURN_TRACE
+        seen = []
+
+        def script(session, prompt, options):
+            seen.append(TURN_TRACE.get())
+            yield from codex_reply(session, prompt, options)
+
+        self.script = script
+        body, _ = self.line("帮我查一下天气")
+        self.stored()
+        self.assertEqual(seen, [body["trace_id"]])
+        self.assertIsNone(TURN_TRACE.get())
 
     def test_tool_failure_and_turn_completion_are_separate_and_private(self):
         def script(session, prompt, options):

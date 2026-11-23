@@ -260,6 +260,8 @@ def validate_event(e):
         for key in ("cached_tokens", "reasoning_tokens"):
             if key in e["attrs"] and not _int(e["attrs"][key]):
                 errors.append(f"bad attrs.{key}: {e['attrs'][key]!r}")
+        if "cost_usd" in e["attrs"] and not (_number(e["attrs"]["cost_usd"]) and e["attrs"]["cost_usd"] >= 0):
+            errors.append(f"bad attrs.cost_usd: {e['attrs']['cost_usd']!r}")
     if "text" in e:
         if not isinstance(e["text"], dict):
             errors.append("text must be an object")

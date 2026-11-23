@@ -76,6 +76,15 @@ class TraceFormatTest(unittest.TestCase):
         event["attrs"]["failure_reason"] = "sensitive private exception"
         self.assertTrue(any("bad attrs.failure_reason" in e for e in validate_event(event)))
 
+    def test_model_finished_cost_is_optional_and_a_non_negative_number(self):
+        event = copy.deepcopy(sample()[5])
+        self.assertEqual((event["kind"], event["attrs"]["cost_usd"]), ("model.finished", 0.0031))
+        del event["attrs"]["cost_usd"]
+        self.assertEqual(validate_event(event), [])
+        for value in (-0.01, True, "0.01", float("nan")):
+            event["attrs"]["cost_usd"] = value
+            self.assertTrue(any("bad attrs.cost_usd" in e for e in validate_event(event)), value)
+
     def test_local_motion_has_no_behavior_id(self):
         # Click reactions, idle fidgets and talk gestures start in the renderer without an agentd behavior.
         for index in (10, 13):

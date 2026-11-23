@@ -42,7 +42,7 @@ from infra.store import checkpoint
 from tool_gateway.gateway import SessionKey, ToolGateway
 from tool_gateway.ledger import ledger_path
 from tool_gateway.registry import BRIDGED
-from traces.trace_store import new_span_id
+from traces.trace_store import TURN_TRACE, new_span_id
 
 SIDE_INSTRUCTIONS = (
     "<side_session>\n"
@@ -90,6 +90,13 @@ JOB_FAILURE_REASONS = frozenset({'auth_expired', 'rate_limited', 'quota_exhauste
 RELATED_FACTS = 4  # confirmed memory facts a turn's context carries beside the profile, matched on the user's words
 RELATED_FACTS_CHARS = 1200  # characters of those facts' JSON (summed per item), the introducing sentence excluded
 _INFER_CONVERSATION = object()
+
+
+def finished_usage(answer):
+    """model.finished's optional attrs: the cache reads, reasoning tokens and cost the harness reported for the run."""
+    attrs = {key: answer.usage[name] for key, name in (("cached_tokens", "cache_read_input_tokens"),
+             ("reasoning_tokens", "reasoning_output_tokens")) if isinstance(answer.usage.get(name), int)}
+    return attrs if answer.cost_usd is None else {**attrs, "cost_usd": answer.cost_usd}
 
 
 class KernelNotReady(ValueError):
@@ -306,6 +313,7 @@ class CharacterAgentController:
         server = self.server
         started = time.monotonic()
         trace = server._open_trace(job['run_id'], job['generation'], 'background', '', remember=False, detached=True)
+        traced = TURN_TRACE.set(trace['trace_id'])
         result = {}
         error = None
         try:
@@ -319,6 +327,7 @@ class CharacterAgentController:
             run = self.store.get(job['run_id'])
             state = run['state'] if run and run['state'] != 'running' else 'cancelled' if cancel.is_set() else 'failed'
             server._turn_settled(trace, state, started, error, result.get('job_state'))
+            TURN_TRACE.reset(traced)
 
     def _run_job(self, job, cancel, trace):
         s, p = self.server, job['payload']
@@ -384,7 +393,8 @@ class CharacterAgentController:
                         "model": answer.model, "provider": adapter.provider or config.get('provider') or 'unknown',
                         "account_label": runtime.backend + "_" + config["auth_source"],
                         "input_tokens": answer.usage.get("input_tokens") or 0,
-                        "output_tokens": answer.usage.get("output_tokens") or 0, "stop_reason": answer.error or "end_turn"})
+                        "output_tokens": answer.usage.get("output_tokens") or 0, "stop_reason": answer.error or "end_turn",
+                        **finished_usage(answer)})
             task = s.tasks.get(answer.task_id) if answer.task_id and s.tasks else None
             failure = ((self.store.get(job['run_id']) or {}).get('result') or {}).get('failure') or {} if answer.error else {}
             return {'job_state': 'cancelled' if not current() else 'waiting_user' if self.store.get(job['run_id'])['state'] == 'waiting_user' else 'failed' if answer.error else task['state'] if task else 'needs_review',
@@ -1843,9 +1853,7 @@ class CharacterAgentController:
                 duration_ms=int((time.monotonic() - started) * 1000), attrs={"model": answer.model,
                 "provider": provider, "account_label": channel,
                 "input_tokens": answer.usage.get("input_tokens", 0) or 0, "output_tokens": answer.usage.get("output_tokens", 0) or 0,
-                "stop_reason": answer.error or "end_turn",
-                **{key: answer.usage[name] for key, name in (("cached_tokens", "cache_read_input_tokens"),
-                    ("reasoning_tokens", "reasoning_output_tokens")) if isinstance(answer.usage.get(name), int)}})
+                "stop_reason": answer.error or "end_turn", **finished_usage(answer)})
             if server.usage and (answer.usage or answer.cost_usd is not None):
                 from types import SimpleNamespace
                 server.usage.record(answer.model, "character_agent", SimpleNamespace(**answer.usage),

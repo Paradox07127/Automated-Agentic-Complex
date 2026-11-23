@@ -110,7 +110,7 @@ function protoEvents(o: Proto): DemoEvent[] {
           : fam === 'judge'
             ? { backend: 'rules', answers: (['speak', 'wait', 'silent'] as const).map((id, i) => ({ id, value: i === 0, prob: (o.judge ?? [0.82, 0.12, 0.06])[i] })) }
             : fam === 'model'
-              ? { model: model.name, input_tokens: model.in, output_tokens: model.out, cache_read_tokens: model.cache, cost_usd: model.cost, stop_reason: 'end_turn' }
+              ? { model: model.name, input_tokens: model.in, output_tokens: model.out, cached_tokens: model.cache, cost_usd: model.cost, stop_reason: 'end_turn' }
               : fam === 'motion' && o.motion
                 ? { clip: o.motion.name }
                 : {};

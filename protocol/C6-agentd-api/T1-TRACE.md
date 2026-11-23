@@ -39,7 +39,7 @@
 | `egress.checked` | `result`：pass / blocked、`category`（拦下的文本类别，通过时 null）、`redactions`（整数） | |
 | `model.started` | `model`、`call`：judge / behavior / vision / capture_judge / eval / character_agent | |
 | `model.first_token` | — | |
-| `model.finished` | `model`、`input_tokens`、`output_tokens`、`stop_reason`；可选 `cached_tokens`、`reasoning_tokens`（整数，harness 报了这个数才带，没报不带） | 是 |
+| `model.finished` | `model`、`input_tokens`、`output_tokens`、`stop_reason`；可选 `cached_tokens`、`reasoning_tokens`（整数）、`cost_usd`（≥ 0 的数，harness 估的这次运行花费），harness 报了才带，没报不带 | 是 |
 | `tool.started` | `tool`（工具名）、`call_id`（本轮不透明标识）。仅 agentd 发出 | |
 | `tool.settled` | `tool`、`call_id`、`outcome`：completed / failed / waiting_user，`error_code`（可为 null）。参数、结果正文不进入 trace。仅 agentd 发出 | 是 |
 | `turn.settled` | `state`：completed / failed / cancelled / interrupted / waiting_user，`error_code` 和 `outcome`（均可为 null）。这是本轮处理终态，播放是否完成仍由宿主回执决定。仅 agentd 发出 | 是 |
@@ -79,6 +79,8 @@
 不在表里的 kind 校验报错；加 kind 时同时改本表和 `agent/agentd/traces/trace_format.py`。
 
 **时间**：先后以 `causation_id` 和同一产生方内的 `seq` 为准；同一产生方内用 `t_mono_ms` 算间隔。跨产生方摆位置时，agentd 用每批的 `t_recv_wall − t_wall` 估各产生方的时钟偏差，修正后排，瀑布图标出误差范围。不把接收顺序当执行顺序（Companion 按批转发）。
+
+**日志行**：agentd 处理一轮（打字、语音、主动、后台运行）期间写进 `agentd.log` 的行，末尾带 ` trace_id=<这一轮的 trace_id>`，运行记录的日志页据此标出轮次；缩进的续行（traceback 的栈）和不在轮内的行不带。
 
 **存储与上限**（agentd 定）：
 - `text` 列不加密。它和 `attention.sqlite` 里的选区、网页正文同级：只在本机，库文件 0600、state dir 0700，保留 7 天，和注意力记录一起清空。理由：密钥只能放在同一个 state dir，挡不住能读这个目录的进程；整盘加密交给 FileVault。

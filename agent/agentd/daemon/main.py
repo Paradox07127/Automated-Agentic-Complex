@@ -28,6 +28,7 @@ from character.desk_log import DeskLog
 from personal.commitments import Commitments
 from tool_gateway.computer_use import ComputerControlConfig, endpoint_path
 from daemon.agentd_server import AgentdServer
+from traces.trace_store import TURN_TRACE
 from personal.episodes import Episodes
 from character.focus import Focus
 from character.gate import Gate
@@ -276,7 +277,7 @@ def main(secret_store=None):
     os.umask(0o077)
     class TimestampedStderr:
         def __init__(self, stream):
-            self.stream, self.start = stream, True
+            self.stream, self.start, self.turn = stream, True, None
             self.lock = threading.Lock()
 
         def write(self, text):
@@ -285,8 +286,12 @@ def main(secret_store=None):
                     if self.start:
                         stamp = datetime.datetime.now().astimezone().isoformat(timespec="milliseconds")
                         self.stream.write(f"{stamp} pid={os.getpid()} ")
-                    self.stream.write(part)
+                        # A traceback's indented lines continue the line above and stay untagged.
+                        self.turn = None if part[:1].isspace() else TURN_TRACE.get()
                     self.start = part.endswith("\n")
+                    if self.start and self.turn is not None:
+                        part = f"{part[:-1]} trace_id={self.turn}\n"
+                    self.stream.write(part)
             return len(text)
 
         def flush(self):

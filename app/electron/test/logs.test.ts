@@ -87,6 +87,9 @@ test('motion.jsonl rows are debug lines at their at_ms; a line naming a turn car
   const got = parseLog('motion', rows('{"activity":"think","at_ms":1795276206919,"duration":0.25,"from":"a","to":"b"}', 'not json'), 5);
   assert.deepEqual(got.map((l) => [l.level, l.text, l.at]), [['dbg', 'think · a → b · 0.25 s', 1795276206919], ['dbg', 'not json', 1795276206919]]);
   assert.equal(parseLog('agentd', rows('2026-11-22T14:05:00.000+08:00 pid=7 turn settled turn_id=t-42 state=completed'), null)[0]!.turn, 't-42');
+  // agentd ends each line of a turn with its trace_id.
+  assert.equal(parseLog('agentd', rows('2026-11-22T14:05:00.000+08:00 pid=7 agentd: ritual settle failed: TimeoutError trace_id=e539a78b-c8ef-4346-8b12-ae6ead581e57'), null)[0]!.turn,
+    'e539a78b-c8ef-4346-8b12-ae6ead581e57');
   assert.equal(parseLog('helper', rows('ready'), 9)[0]!.at, 9, 'a line with no time anywhere takes the fallback');
 });
 

@@ -1,6 +1,6 @@
 import type { Demo } from '../../shell/types';
 
-// Every state below must open by URL and look right; `full` draws what agentd does not send yet (judge, cache and cost).
+// Every state below must open by URL and look right; `full` fills every optional field agentd sends (judge, cache and cost); a live turn has cost only when its harness reported one.
 export const demos: Demo[] = [
   { name: 'default', params: {} },
   { name: 'full', params: { demo: 'full' } }, // 原型数据：四轮，判断概率、缓存与费用

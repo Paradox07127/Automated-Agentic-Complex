@@ -1,4 +1,5 @@
 """T1 trace events (`protocol/C6-agentd-api/T1-TRACE.md`) in the shared store: agentd's own, those posted by Companion and Avatar."""
+import contextvars
 from datetime import datetime, timedelta, timezone
 import json
 import secrets
@@ -8,6 +9,8 @@ import uuid
 
 from traces.trace_format import ENDS, HEAD_MAX, KINDS, TEXT_MAX, VERSION, validate_event
 
+# The trace_id of the turn the current thread works for; agentd's stderr lines end with it (see daemon.main).
+TURN_TRACE = contextvars.ContextVar("turn_trace", default=None)
 BATCH_MAX = 200
 PAGE_MAX = 200
 REMOTE_PRODUCERS = ("companion", "avatar")

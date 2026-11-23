@@ -199,6 +199,24 @@ class LocalLogsTest(unittest.TestCase):
         for line, text in zip(lines, ("agentd: one part", "agentd: two", "agentd: three")):
             self.assertRegex(line, r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}[+-]\d\d:\d\d pid=\d+ " + text + "$")
 
+    def test_a_stderr_line_written_in_a_turn_ends_with_its_trace_id(self):
+        import daemon.main as agentd_main
+        from traces.trace_store import TURN_TRACE
+        stream = io.StringIO()
+        with contextlib.redirect_stderr(stream), patch.object(agentd_main, "parse_args", side_effect=RuntimeError("stop")):
+            with self.assertRaisesRegex(RuntimeError, "stop"):
+                agentd_main.main()
+            token = TURN_TRACE.set("trace-1")
+            try:
+                sys.stderr.write("agentd: in")
+                sys.stderr.write(" a turn\nTraceback (most recent call last):\n  File \"x\", line 1\nValueError: v\n")
+            finally:
+                TURN_TRACE.reset(token)
+            print("agentd: after", file=sys.stderr)
+        texts = [line.split(" ", 2)[2] for line in stream.getvalue().splitlines()]
+        self.assertEqual(texts, ["agentd: in a turn trace_id=trace-1", "Traceback (most recent call last): trace_id=trace-1",
+                                 "  File \"x\", line 1", "ValueError: v trace_id=trace-1", "agentd: after"])
+
 
 class MemoryServerCase(test_server.FeedServerCase):
     request, lines_until_final = test_server.SayTest.request, test_server.SayTest.lines_until_final
