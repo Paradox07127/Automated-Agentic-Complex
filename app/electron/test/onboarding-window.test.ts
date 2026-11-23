@@ -227,8 +227,10 @@ async function call(ops: ReadonlyMap<string, Handler<PageSession>>, op: string, 
 function closing(dir: string, config: Record<string, unknown>) {
   writeFileSync(join(dir, 'config.json'), JSON.stringify(config));
   const ends: (OnboardingDestination | null)[] = [];
+  const told: string[][] = [];
   let restarts = 0, quick = 0;
   const ops = registry(context(dir, {
+    settingsChanged: (keys) => { told.push(keys); },
     endOnboarding: (destination) => {
       assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).onboarding_done, true, 'marked before it ends');
       ends.push(destination);
@@ -240,7 +242,8 @@ function closing(dir: string, config: Record<string, unknown>) {
     for (let i = 0; i < 3; i += 1) assert.ok((await call(ops, 'onboarding.advance')).ok);
     return call(ops, 'onboarding.complete', args);
   };
-  return { ops, ends, complete, restarts: () => restarts, quick: () => quick, config: () => JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) };
+  return { ops, ends, told, complete, restarts: () => restarts, quick: () => quick,
+    config: () => JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) };
 }
 
 const stateOf = (reply: Awaited<ReturnType<typeof call>>) => {
@@ -334,7 +337,7 @@ test('完成 that cannot write config.json keeps the guide open with the error',
   }
 });
 
-test('the guide saves only its own rows, at once, and restarts agentd for a row the backend takes at start', async () => {
+test('the guide saves only its own rows, at once, restarts agentd for a row the backend takes at start and tells the other windows', async () => {
   const dir = tempDir();
   try {
     const g = closing(dir, { plugins: { light_ai: false } });
@@ -348,7 +351,8 @@ test('the guide saves only its own rows, at once, and restarts agentd for a row 
         { ok: false, error: { code: 'op_not_allowed', detail: `settings.save ${id}` } });
     }
     assert.deepEqual(g.config(), { plugins: { light_ai: true }, voice_hotkey: 'control+option+v' });
-    const main = registry(context(dir, { surface: 'main',
+    assert.deepEqual(g.told, [['plugins.light_ai'], ['voice_hotkey']], 'refused saves tell no one');
+    const main = registry(context(dir, { surface: 'main', settingsChanged: () => assert.fail('the settings pages read their own save'),
       supervisor: { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => assert.fail('main restarts from its own bar'), avatar: () => ({ kind: 'stopped' }) } }));
     assert.deepEqual(await call(main, 'settings.save', [{ 'plugins.computer_use': true }], undefined, 'main'),
       { ok: true, value: { restart: 'backend', notApplied: [] } });

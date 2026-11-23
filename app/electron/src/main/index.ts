@@ -882,7 +882,7 @@ function opsContext(surface: Surface): OpsContext {
       },
       ...savedRender,
     },
-    settingsChanges,
+    settingsChanges, settingsChanged: (keys) => settingsChanges.changed(keys),
     openOnboarding: () => guide.begin(),
     endOnboarding: (destination) => guide.end(destination),
     openQuickInput: config && (() => { desktop?.openQuickInput(); }),

@@ -118,6 +118,8 @@ export interface OpsContext {
   saved?: { fps(): void; hotkey(key: string, name: string): void; touch?(): void; renderLive?(keys: string[]): void } | null;
   /** Native changes to saved settings (`settings.onChange`). */
   settingsChanges: EventSource;
+  /** Tells `settingsChanges` that a window other than the settings pages saved these config keys; absent tells no one. */
+  settingsChanged?: ((keys: string[]) => void) | null;
   /** `app.runtime`'s wire and `app.onRuntime`'s source; null or absent leaves both unimplemented. */
   runtime?: { snapshot(): unknown; events: EventSource } | null;
   /** `app.look`'s `POST /look`: the main window's straight to agentd, the desktop panels' through the screen context
