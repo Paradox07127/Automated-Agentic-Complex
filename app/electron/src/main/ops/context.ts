@@ -70,6 +70,8 @@ export interface OpsContext {
   /** The T1 marks of the main window's conversation messages; null or
    *  absent for none. */
   turnMarks?: Pick<TurnMarks, 'acceptedBody'> | null;
+  /** Her hover buttons are open (DesktopAssembly.dockShown); absent is false. */
+  dockOpen?(): boolean;
   /** The programs session jumps and `open.runInTerminal` run; absent runs them for real. */
   commands?: Commands;
   /** The character library and agentd's tools; null when config.json did not load. */

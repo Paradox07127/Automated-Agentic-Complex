@@ -117,7 +117,7 @@ export function settingsOps(ctx: OpsContext): Ops {
         try {
           raw = readObject(path);
         } catch { /* agentd's defaults */ }
-        const s = await status('PUT', '/behavior/switches', behaviorSwitches(raw));
+        const s = await status('PUT', '/behavior/switches', behaviorSwitches(raw, ctx.dockOpen?.() ?? false));
         if (s !== 200) {
           ctx.log(`behavior switches put status=${s}`);
           failed.push(...effect.keys);

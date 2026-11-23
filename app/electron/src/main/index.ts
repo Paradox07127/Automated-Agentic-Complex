@@ -233,6 +233,7 @@ const surfaceOptions = surfaceLinkOptions(process.argv, (e) => watchers?.track(e
 /** What the link reports to agentd beside trace and receipts (renderer/reports.ts). */
 const reports = config && runtimePath !== null ? rendererReports({
   agentd: new AgentdClient(runtimePath), agentdRunning: () => agentdState.kind === 'running', settings: () => readObject(configPath),
+  dockOpen: () => desktop?.dockShown ?? false,
   log: (line) => appendLog(config!.supportDir, 'hostlink', `HOSTLINK ${line}`),
   companionLog: (line) => appendLog(config!.supportDir, 'companion', line),
   stroke: (token) => desktop?.stroke(token),
@@ -838,6 +839,7 @@ function opsContext(surface: Surface): OpsContext {
     dropped: drops && drops.dropped,
     // Only the main window's messages are marked.
     turnMarks: surface === 'main' ? turnMarks : null,
+    dockOpen: () => desktop?.dockShown ?? false,
     library: config && {
       catalog: config.characterCatalog, launched,
       characterName: config.characters.find((c) => c.id === config!.character)?.name ?? '',
@@ -1134,6 +1136,7 @@ function startDesktop(): void {
       reduceTransparency: nativeTheme.prefersReducedTransparency, increaseContrast: nativeTheme.shouldUseHighContrastColors }),
     (changed) => { nativeTheme.on('updated', changed); }),
     recent: { rows: () => recent.rows(), open: (id) => openAnnouncement(recent, openMainAt, id), markAllRead: () => recent.markAllRead() },
+    dockChanged: () => reports?.dockChanged(),
     log: (line) => appendLog(config!.supportDir, 'companion', line),
   });
   drops?.desktopReady();

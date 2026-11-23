@@ -306,7 +306,7 @@ export interface WireDiagRituals {
 /** spatial.py `diag()`; `running[].since` is ISO here. */
 export interface WireDiagBehavior {
   running: Array<{ behavior_id: string; type: string; target: unknown; since: string }>;
-  switches: { stay_in_place: boolean; sit_window_top: boolean; hold_window_edge: boolean; fullscreen_give_way: boolean; bust_framing?: boolean };
+  switches: { stay_in_place: boolean; sit_window_top: boolean; hold_window_edge: boolean; fullscreen_give_way: boolean; bust_framing?: boolean; hold_free_walks?: boolean };
   last_receipt: { behavior_id: string; phase: string; reason: string | null; at: string } | null;
   capability_character: string | null;
   capabilities: Record<string, string | null> | null;

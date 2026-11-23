@@ -164,6 +164,11 @@ def _target_key(kind, target):
     return json.dumps(target, sort_keys=True)
 
 
+def _relocates(kind, target):
+    """A behavior that takes her somewhere else: a walk, a climb, a window edge hold, a sit on a window."""
+    return kind in PARKED or kind == "sit" and target is not None
+
+
 def _reactions(chooser):
     """C1 snapshot `reactions`: each trigger the chooser's pack has a pool for -> its clips, weights and layer; a clip
     that starts a pack chain plays it, a loop in it for its pack hold_seconds, and on a trigger with an end its first
@@ -481,8 +486,8 @@ class Spatial:
 
     def set_switches(self, switches):
         """PUT /behavior/switches (body checked by c1.check_switches): a running behavior they now forbid gets
-        `behavior_cancel` / `switch_off`; `bust_framing` also limits the chooser to standing clips. Returns the stored
-        values."""
+        `behavior_cancel` / `switch_off`; `bust_framing` also limits the chooser to standing clips; `hold_free_walks`
+        only stops new ones (_free). Returns the stored values."""
         with self._lock:
             self.switches = dict(switches)
             self._trace_input("behavior.switches", {"switches": dict(switches)})
@@ -1172,7 +1177,8 @@ class Spatial:
         edge, kept in place or unsupported she does not walk and is parked at once; busy, it waits."""
         edge = self._edge
         if edge is None or not edge["pending"] or self.stage() != "quiet" \
-                or self._typing_off is None or now - self._typing_off < EDGE_PAUSE:
+                or self._typing_off is None or now - self._typing_off < EDGE_PAUSE \
+                or self.switches.get("hold_free_walks", False):
             return
         if any(r["behavior"]["type"] in SEATED + ("hold_window_edge",) for r in self.active.values()) \
                 or not self._capable("short_walk", EDGE) or self._forbidden("short_walk", EDGE, False) \
@@ -1409,7 +1415,8 @@ class Spatial:
                 or self._unsupported.get(_unsupported_key(kind, target), 0) > now \
                 or kind == "short_walk" and target is None and self._wander_at is not None and now < self._wander_at \
                 or kind == "short_walk" and self._walk_bias() == "stay" \
-                or kind in PARKED and self._edge is not None:
+                or kind in PARKED and self._edge is not None \
+                or self.switches.get("hold_free_walks", False) and _relocates(kind, target):
             return False
         channels = set(TICKED[kind][0])
         for record in self.active.values():

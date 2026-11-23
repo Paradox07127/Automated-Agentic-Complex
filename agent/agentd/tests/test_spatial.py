@@ -680,6 +680,32 @@ class SwitchTest(SpatialCase):
         self.assertEqual(self.spatial.running(), [])
         self.assertValid()
 
+    def test_hold_free_walks_starts_no_walk_climb_hold_or_window_sit(self):
+        sent = self.ticks({**SWITCHES, "hold_free_walks": True})
+        self.assertGreater(len(sent), 100)
+        self.assertFalse([m for m in sent if m["type"] in c1.MOVING + ("hold_window_edge",)
+                          or m["type"] == "sit" and m["target"]])
+        self.assertTrue(any(m["type"] == "sit" for m in sent))  # a sit on the ground stays
+
+    def test_hold_free_walks_lets_a_running_walk_finish_and_off_walks_again(self):
+        self.use(Prefer("short_walk"))
+        self.step()
+        [walk] = self.sent
+        self.spatial.set_switches({**SWITCHES, "hold_free_walks": True})
+        self.flush()
+        self.assertEqual(self.cancels(), [])
+        self.assertEqual([b["behavior_id"] for b in self.spatial.running()], [walk["behavior_id"]])
+        self.receipt(walk["behavior_id"], "completed")
+        for _ in range(20):
+            self.spatial._next_tick, self.spatial._wander_at = None, None
+            self.step()
+        self.assertEqual([m for m in self.sent if m["type"] == "short_walk"], [walk])
+        self.spatial.set_switches(SWITCHES)
+        self.spatial._next_tick, self.spatial._wander_at = None, None
+        self.step()
+        self.assertEqual(self.sent[-1]["type"], "short_walk")
+        self.assertValid()
+
     def test_a_character_switch_cancels_every_running_behavior(self):
         self.use(Prefer("hold_window_edge", "left"))
         self.step()
@@ -870,6 +896,15 @@ class FocusWalkTest(SpatialCase):
         self.assertEqual(self.walks(), [walk])
         self.stay(11, window_id=202)
         self.assertEqual([m["target"] for m in self.walks()], [window(202), window(202)])
+        self.assertValid()
+
+    def test_hold_free_walks_defers_the_focus_walk_until_it_is_off(self):
+        self.spatial.set_switches({**SWITCHES, "hold_free_walks": True})
+        self.stay(30, window_id=202)
+        self.assertEqual(self.walks(), [])
+        self.spatial.set_switches(SWITCHES)
+        self.step()
+        self.assertEqual([m["target"] for m in self.walks()], [window(202)])
         self.assertValid()
 
     def test_a_focus_walk_waits_60_s_after_the_last_walk(self):
@@ -1702,6 +1737,18 @@ class QuietEdgeTest(SpatialCase):
         self.step()
         self.assertEqual(self.sent, [])
         self.assertTrue(self.spatial.diag()["parked"])
+
+    def test_hold_free_walks_keeps_the_edge_walk_pending_until_it_is_off(self):
+        self.spatial.set_switches({**SWITCHES, "hold_free_walks": True})
+        self.enter()
+        for _ in range(3):
+            self.step()
+        self.assertEqual(self.sent, [])
+        self.assertEqual((self.spatial.diag()["parked"], self.spatial.diag()["edge_pending"]), (False, True))
+        self.spatial.set_switches(SWITCHES)
+        self.step()
+        self.assertEqual(len(self.edge_walks()), 1)
+        self.assertValid()
 
     def test_an_unsupported_edge_parks_her_and_the_next_entry_sends_nothing(self):
         self.unsupported.add("short_walk@edge")

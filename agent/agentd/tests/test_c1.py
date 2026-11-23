@@ -189,8 +189,10 @@ class MessageTest(unittest.TestCase):
                 "fullscreen_give_way": True}
         self.assertEqual(c1.check_switches(good), [])
         self.assertEqual(c1.check_switches({**good, "bust_framing": True}), [])
+        self.assertEqual(c1.check_switches({**good, "hold_free_walks": True}), [])
         for bad in ({k: v for k, v in good.items() if k != "sit_window_top"}, {**good, "fly": True},
-                    {**good, "stay_in_place": 1}, {**good, "bust_framing": "yes"}, [], None):
+                    {**good, "stay_in_place": 1}, {**good, "bust_framing": "yes"}, {**good, "hold_free_walks": 0},
+                    [], None):
             with self.subTest(bad=bad):
                 self.assertTrue(c1.check_switches(bad))
 

@@ -550,8 +550,8 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
   return { write, effects, restart: backend ? 'backend' : restartAvatar ? 'avatar' : 'none' };
 }
 
-/** `PUT /behavior/switches`'s body from config.json. */
-export function behaviorSwitches(raw: Record<string, unknown>): Record<string, boolean> {
+/** `PUT /behavior/switches`'s body from config.json; dockOpen, her hover buttons are open: she starts no free walk. */
+export function behaviorSwitches(raw: Record<string, unknown>, dockOpen: boolean): Record<string, boolean> {
   const mode = raw.stay_mode;
   const body: Record<string, boolean> = {
     stay_in_place: mode === 'stay' || mode === 'bust',
@@ -560,6 +560,7 @@ export function behaviorSwitches(raw: Record<string, unknown>): Record<string, b
     fullscreen_give_way: true,
   };
   if (mode === 'bust') body.bust_framing = true;
+  if (dockOpen) body.hold_free_walks = true;
   return body;
 }
 

@@ -15,6 +15,8 @@ export interface ReportPorts {
   agentdRunning(): boolean;
   /** config.json as saved now. */
   settings(): Record<string, unknown>;
+  /** Her hover buttons are open (DesktopAssembly.dockShown); absent is false. */
+  dockOpen?(): boolean;
   /** The hostlink log, `HOSTLINK ` in front. */
   log(line: string): void;
   /** The companion log. */
@@ -29,7 +31,7 @@ type Capabilities = Record<string, string | null>;
 
 /** HostLink's `onSpeechCancelled`, `onPlayback`, `onMotionStroke`, `touchSettings` and `onMotionSettings`; `linkEvent`
  *  for `HostLink.on`; `visibility` after each hide or show; `agentdReady` each time agentd starts running (visibility,
- *  behavior switches, state switch, capabilities and motion settings). */
+ *  behavior switches, state switch, capabilities and motion settings); `dockChanged` the behavior switches again. */
 export function rendererReports(o: ReportPorts) {
   const status = async (method: string, path: string, json: unknown) => {
     try {
@@ -112,6 +114,10 @@ export function rendererReports(o: ReportPorts) {
       if (answer !== 200) o.companionLog(`avatar visibility put visible=${visible} status=${answer}`);
     });
   };
+  const putSwitches = async (raw: Record<string, unknown>) => {
+    const behavior = await status('PUT', '/behavior/switches', behaviorSwitches(raw, o.dockOpen?.() ?? false));
+    if (behavior !== 200) o.log(`behavior switches put status=${behavior}`);
+  };
 
   return {
     options: {
@@ -154,8 +160,7 @@ export function rendererReports(o: ReportPorts) {
         try {
           raw = o.settings();
         } catch { /* agentd's defaults for an unreadable file */ }
-        const behavior = await status('PUT', '/behavior/switches', behaviorSwitches(raw));
-        if (behavior !== 200) o.log(`behavior switches put status=${behavior}`);
+        await putSwitches(raw);
         const affects = typeof raw.state_affects_behavior === 'boolean' ? raw.state_affects_behavior : true;
         const state = await status('PUT', '/character/state/switch', { affects_behavior: affects });
         if (state !== 200) o.log(`state switch put status=${state}`);
@@ -163,6 +168,17 @@ export function rendererReports(o: ReportPorts) {
       run += 1;
       deliver();
       deliverMotion();
+    },
+    /** Her hover buttons opened or closed; while agentd is not running its next agentdReady sends them. */
+    dockChanged: () => {
+      if (!o.agentdRunning()) return;
+      visibilityTail = visibilityTail.then(async () => {
+        let raw: Record<string, unknown> = {};
+        try {
+          raw = o.settings();
+        } catch { /* agentd's defaults for an unreadable file */ }
+        await putSwitches(raw);
+      });
     },
   };
 }

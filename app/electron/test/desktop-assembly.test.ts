@@ -55,7 +55,7 @@ function fakeWindow(id: number, shown: (route: string) => void, moved: (route: s
 function setup(extra: string[], o: { present?: boolean; request?: Request; marks?: TurnMarks; mouse?: () => { x: number; y: number };
   mouseDowns?: (listener: () => void) => () => void; feed?: EventSource; noteLine?: () => void; makeWindow?: (kind: string) => void;
   toDip?: (f: Rect) => Rectangle; screens?: () => ScreenInfo[]; hovered?: boolean; talk?: (phase: 'start' | 'stop') => void;
-  recent?: DesktopOptions['recent'] } = {}) {
+  recent?: DesktopOptions['recent']; dockChanged?: () => void } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'desktop-assembly-'));
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ hotkey_quick_input: 'control+option+k' }));
   const argv = process.argv;
@@ -78,6 +78,7 @@ function setup(extra: string[], o: { present?: boolean; request?: Request; marks
     ...(o.mouseDowns && { mouseDowns: o.mouseDowns }),
     ...(o.noteLine && { noteLine: o.noteLine }),
     ...(o.recent && { recent: o.recent }),
+    ...(o.dockChanged && { dockChanged: o.dockChanged }),
     register: (contents, page, ops) => {
       pages.set(ROUTES[contents.id - 1]!, { page, ops });
     },
@@ -305,6 +306,18 @@ test('the hover buttons open after a rest on her, go out in desktop.onState, and
   assert.equal(open(), true);
   assert.equal(await h.call('/dock', 'desktop.action', ['look']), null);
   assert.equal(open(), false, 'a pick closes them');
+  h.done();
+});
+
+test('dockChanged hears each opening and closing of the hover buttons, which dockShown reads', async () => {
+  const seen: boolean[] = [];
+  const h = setup(['--no-attention'], { hovered: true, dockChanged: () => seen.push(h.desktop.dockShown) });
+  h.desktop.start();
+  assert.equal(h.desktop.dockShown, false);
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  assert.deepEqual(seen, [true]);
+  assert.equal(await h.call('/dock', 'desktop.action', ['look']), null);
+  assert.deepEqual(seen, [true, false], 'a pick closes them');
   h.done();
 });
 

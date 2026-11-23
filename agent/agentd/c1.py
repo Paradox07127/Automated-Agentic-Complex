@@ -24,7 +24,7 @@ ENDED = ("rejected", "completed", "blocked", "cancelled", "expired")  # phases a
 PHASE_REASONS = {"rejected": ("stale", "busy", "unsupported", "switch_off", "target_gone"),
                  "blocked": ("target_gone", "no_room", "path_blocked")}
 SWITCHES = ("stay_in_place", "sit_window_top", "hold_window_edge", "fullscreen_give_way")  # PUT /behavior/switches
-OPTIONAL_SWITCHES = ("bust_framing",)  # PUT /behavior/switches may add these; absent is false
+OPTIONAL_SWITCHES = ("bust_framing", "hold_free_walks")  # PUT /behavior/switches may add these; absent is false
 BUST_HELD = ("sit", "hold_window_edge", "face")  # never sent in the bust framing, beside MOVING
 TYPING_MAX = 0.3  # intensity cap while the user types
 # type -> target kinds it accepts; None in the tuple means no target

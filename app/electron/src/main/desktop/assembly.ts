@@ -80,6 +80,8 @@ export interface DesktopOptions {
   a11y?: EventSource;
   /** 最近播报 for the console: its rows, and `open` reads one and shows its session; absent, `desktop.onRecent` is empty. */
   recent?: { rows(): MenuAnnouncement[]; open(id: string): void; markAllRead(): void };
+  /** Her hover buttons opened or closed (`dockShown`). */
+  dockChanged?(): void;
   log(line: string): void;
 }
 
@@ -117,6 +119,8 @@ export class DesktopAssembly {
   private talking = false;
   /** The `dock` last sent. */
   private dockSent = '';
+  /** `dockShown` as `dockChanged` last heard it. */
+  private dockHeard = false;
   /** C3 rule 57: she walks. */
   private moving = false;
   /** C3 rule 56: the held right press that opened the wheel, since when (ms); null when a click or the hot key opened it. */
@@ -185,6 +189,9 @@ export class DesktopAssembly {
 
   /** The console is open in its own panel. */
   get consoleOpen(): boolean { return this.follow.consoleOpen; }
+
+  /** Her hover buttons are open. */
+  get dockShown(): boolean { return dockOpen(this.dock); }
 
   /** `desktop.onState`'s source, for a page outside the panels to watch. */
   get stateSource(): EventSource { return this.state; }
@@ -387,6 +394,10 @@ export class DesktopAssembly {
     this.dock = dockStep(this.dock, { p: this.o.mouse(), enter: within(ENTER_GROW), keep: within(KEEP_GROW), body: s.body,
       dock: placed?.card ?? null, blocked, held: this.talking }, performance.now() / 1000);
     if (JSON.stringify(this.dockView()) !== this.dockSent) this.pushState();
+    if (this.dockShown !== this.dockHeard) {
+      this.dockHeard = this.dockShown;
+      this.o.dockChanged?.();
+    }
     if (dockOpen(this.dock) !== was) this.kick();
   }
 

@@ -181,6 +181,29 @@ test('settings.save writes the changed keys and refuses launch keys and bad valu
   }
 });
 
+test('a save of the behavior switches puts them with her hover buttons as they are then', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'settings-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), '{}');
+    const got: unknown[] = [];
+    let dock = true;
+    const agentd = { request: async (method: string, path: string, json: unknown) => {
+      got.push([method, path, json]);
+      return { status: 200, body: Buffer.from('{}') };
+    } } as unknown as OpsContext['agentd'];
+    const ops = registry({ ...context(dir), agentd, dockOpen: () => dock }), page = new PageSession(() => {});
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
+    assert.deepEqual(await call('settings.save', { 'beh.stay': 'stay' }), { ok: true, value: { restart: 'none', notApplied: [] } });
+    dock = false;
+    assert.deepEqual(await call('settings.save', { 'beh.stay': 'roam' }), { ok: true, value: { restart: 'none', notApplied: [] } });
+    const switches = { sit_window_top: true, hold_window_edge: true, fullscreen_give_way: true };
+    assert.deepEqual(got, [['PUT', '/behavior/switches', { stay_in_place: true, ...switches, hold_free_walks: true }],
+      ['PUT', '/behavior/switches', { stay_in_place: false, ...switches }]]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('settings.save refuses an SSH 转发主机 that ssh would read as an option, or with a space or control character', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'settings-'));
   try {

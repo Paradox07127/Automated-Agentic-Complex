@@ -30,7 +30,7 @@ type Call = [string, string, unknown];
 function setup(f: { status?: (method: string, path: string) => number; running?: boolean; settings?: Record<string, unknown>;
   body?: (path: string) => unknown; } = {}) {
   const calls: Call[] = [], log: string[] = [], companion: string[] = [], strokes: string[] = [], waits: number[] = [];
-  const state = { running: f.running ?? true, settings: f.settings ?? {} };
+  const state = { running: f.running ?? true, settings: f.settings ?? {}, dock: false };
   const ports: ReportPorts = {
     agentd: { request: async (method, path, json) => {
       calls.push([method, path, json]);
@@ -41,6 +41,7 @@ function setup(f: { status?: (method: string, path: string) => number; running?:
     } },
     agentdRunning: () => state.running,
     settings: () => state.settings,
+    dockOpen: () => state.dock,
     log: (line) => log.push(line),
     companionLog: (line) => companion.push(line),
     stroke: (token) => strokes.push(token),
@@ -198,6 +199,28 @@ test('each agentd run gets PUT /behavior/switches and /character/state/switch fr
     server.close();
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('her hover buttons opening or closing put config.json\'s switches again, with hold_free_walks while they are open', async () => {
+  const { reports, calls, state } = setup({ settings: { stay_mode: 'bust', sit_on_windows: false } });
+  const switches = { stay_in_place: true, sit_window_top: false, hold_window_edge: true, fullscreen_give_way: true, bust_framing: true };
+  state.dock = true;
+  reports.dockChanged();
+  assert.ok(await until(1, () => calls.length === 1));
+  state.dock = false;
+  reports.dockChanged();
+  assert.ok(await until(1, () => calls.length === 2));
+  assert.deepEqual(calls, [['PUT', '/behavior/switches', { ...switches, hold_free_walks: true }], ['PUT', '/behavior/switches', switches]]);
+  // Nothing goes out while agentd is not running; its next run gets the buttons as they are then.
+  state.running = false;
+  state.dock = true;
+  reports.dockChanged();
+  await sleep(0.05);
+  assert.equal(calls.length, 2);
+  state.running = true;
+  reports.agentdReady();
+  assert.ok(await until(1, () => calls.some((c) => c[1] === '/character/state/switch')));
+  assert.deepEqual(calls.filter((c) => c[1] === '/behavior/switches').slice(2), [['PUT', '/behavior/switches', { ...switches, hold_free_walks: true }]]);
 });
 
 test('touch switches from config.json as saved now; a stroke goes to the stack', () => {

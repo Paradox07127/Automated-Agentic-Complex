@@ -181,9 +181,11 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
 - 开关关掉的类型不发：`stay_in_place` 开时不发 `short_walk`、`climb_window_top`；
   `sit_window_top` 关时不发窗口顶的 `sit`、`climb_window_top`；`hold_window_edge` 关时不发 `hold_window_edge`；
   `bust_framing` 开时不发走动类、`sit`、`hold_window_edge`、`face`，agent 的转身请求回 `facing_unavailable`；
+  `hold_free_walks` 开时 agentd 自己不起新的走动类、`hold_window_edge`、窗口顶的 `sit`（随机 tick、作息、焦点走动、`blocked` 后换的、进 quiet 走到边的等到它关），
+  正在跑的照常跑完，不发 `behavior_cancel`；
   `fullscreen_give_way` 开且前台全屏时只发 `idle`（`priority` 3，`trigger.event` = `fullscreen`）。
 - 开关由 Companion 写入 `PUT /behavior/switches`（C6，ui token）。body 每次是完整对象
-  `{stay_in_place, sit_window_top, hold_window_edge, fullscreen_give_way}`，都是布尔，可选再带 `bust_framing`（半身固定，缺省 false）；缺键、多键、非布尔回 400
+  `{stay_in_place, sit_window_top, hold_window_edge, fullscreen_give_way}`，都是布尔，可选再带 `bust_framing`（半身固定，缺省 false）、`hold_free_walks`（她身边的悬停按钮开着，缺省 false；Companion 每次按钮开合时也重新 PUT）；缺键、多键、非布尔回 400
   `invalid_switches`；200 回存下的值。agentd 只存在内存里；Companion 在 agentd 每次变健康时和每次改动时重新 PUT。
   没写过时按默认：`stay_in_place` false，其余 true。前台全屏仍取 attention 心跳的 `fullscreen`。
 - 续期（夹具 03）：和正在跑的行为同类型、同目标的不重发（重复的会话事件合并）。`accompany`、`sit` 快到
