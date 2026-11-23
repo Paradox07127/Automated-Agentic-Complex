@@ -56,7 +56,7 @@ class WantBackend:
 
 class ProactiveTest(unittest.TestCase):
     def test_companion_off_dwell_calls_no_judge_and_sends_no_nudge(self):
-        self.gate = self.p.gate = Gate(enabled=True, quiet=(0, 0))
+        self.gate = self.p.gate = Gate(enabled=True)
         self.gate.set_companion(False)
         self.run_for(DWELL + 65, CODE)
         self.assertEqual(self.backend.states, [])
@@ -65,7 +65,7 @@ class ProactiveTest(unittest.TestCase):
         self.assertIsNone(self.p._asked)
 
     def test_proactive_speech_alone_turns_comments_on(self):
-        self.gate = self.p.gate = Gate(enabled=True, quiet=(0, 0))
+        self.gate = self.p.gate = Gate(enabled=True)
         self.run_for(DWELL + 1, CODE)
         self.assertEqual(len(self.backend.states), 1)
         self.assertEqual(len(self.lines), 1)
@@ -77,7 +77,7 @@ class ProactiveTest(unittest.TestCase):
         self.store = AttentionStore(Path(self.tmp.name) / "attention.sqlite",
                                     Blacklist(deny_blacklist(Path(self.tmp.name) / "blacklist.json")), clock=lambda: self.now)
         self.addCleanup(self.store.close)
-        self.gate = Gate(enabled=True, quiet=(0, 0))
+        self.gate = Gate(enabled=True)
         self.gate.set_companion(True)
         self.backend, self.published, self.lines, self.busy = WantBackend(), [], [], False
         self.materials = []
@@ -186,7 +186,7 @@ class ProactiveTest(unittest.TestCase):
         for setup, reason in ((lambda: setattr(self.gate, "enabled", False), "disabled"),
                               (lambda: setattr(self, "busy", True), "busy")):
             with self.subTest(reason=reason):
-                self.gate, self.busy, self.published = Gate(enabled=True, quiet=(0, 0)), False, []
+                self.gate, self.busy, self.published = Gate(enabled=True), False, []
                 self.gate.set_companion(True)
                 self.p.gate = self.gate
                 setup()
@@ -209,7 +209,7 @@ class ProactiveTest(unittest.TestCase):
                 if reason == "disabled": self.gate.enabled = False
                 elif reason == "meeting": self.gate.meeting = True
                 elif reason == "fullscreen": self.gate.fullscreen = True
-                elif reason == "quiet_hours": self.gate.quiet = (0, 24)
+                elif reason == "quiet_hours": self.gate.set_quiet(True, [[0, 12], [12, 0]])
                 elif reason == "daily_limit": self.gate.daily_limit = 0
                 elif reason == "same_cooldown": self.gate.commit("comment", now)
                 elif reason == "cross_cooldown":
@@ -225,7 +225,8 @@ class ProactiveTest(unittest.TestCase):
                 self.assertEqual(len(self.nudges("comment")), 1, "do not emit a skipped nudge every heartbeat")
                 self.gate.enabled = True
                 self.gate.meeting = self.gate.fullscreen = self.busy = False
-                self.gate.quiet, self.gate.daily_limit = (0, 0), 20
+                self.gate.daily_limit = 20
+                self.gate.set_quiet(False, [[22, 8]])
                 self.gate._last, self.gate._last_any = {}, None
                 self.p._subjects.clear()
                 self.p.activity = lambda: {"activity": "reading", "can_interrupt": True,
@@ -369,7 +370,7 @@ class ProactiveTest(unittest.TestCase):
         self.p.claim = lambda line_id, text, recheck, reason: claims.append((line_id, recheck)) or free[0]
         self.run_for(DWELL + 1, CODE)
         self.assertEqual(self.silent(self.nudges("comment")[0])["gate"], "busy")
-        self.gate = self.p.gate = Gate(enabled=True, quiet=(0, 0))
+        self.gate = self.p.gate = Gate(enabled=True)
         self.gate.set_companion(True)
         free[0] = True
         self.run_for(1, SAFARI)
@@ -490,7 +491,7 @@ class ProactiveTest(unittest.TestCase):
         self.assertEqual((self.p.misses, self.gate.scale["comment"]), (0, 1))
 
     def test_an_answer_still_resets_misses_with_a_state_scale(self):
-        self.gate = Gate(enabled=True, quiet=(0, 0), state_scale=lambda: 1.5)
+        self.gate = Gate(enabled=True, state_scale=lambda: 1.5)
         self.gate.set_companion(True)
         self.p = Proactive(self.store, self.gate, lambda event, data: self.published.append((event, data)),
                            self.start, lambda: self.busy, judge=Judge(self.backend), clock=lambda: self.now,
@@ -563,7 +564,7 @@ class ProactiveTest(unittest.TestCase):
             self.voice(f"p{self.now}")
             self.run_for(RESPONSE_WINDOW + 2, CODE)
         self.assertEqual((self.p.factor, self.gate.scale["comment"]), (2, 8), "misses multiply on top")
-        self.gate = Gate(enabled=True, quiet=(0, 0))
+        self.gate = Gate(enabled=True)
         Proactive(self.store, self.gate, lambda event, data: None, self.start, lambda: False, log=log)
         self.assertEqual(self.gate.scale["comment"], 4, "a restart keeps the factor")
         self.p.feedback("t4", "useful", channel="thought")
@@ -803,41 +804,6 @@ class ProactiveTest(unittest.TestCase):
         self.assertEqual((self.gate.check("break", last + datetime.timedelta(minutes=44)),
                           self.gate.check("break", last + datetime.timedelta(minutes=45))), ("same_cooldown", None))
 
-    def test_changed_break_minutes_start_the_clock_over(self):
-        self.breaking()
-        self.desk(60)
-        self.p.set_reminders(45, 0)  # from off: an hour at the desk does not make it due at once
-        self.desk(45)
-        self.assertEqual(self.claims, [])
-        self.desk(0.5)
-        self.assertEqual([reason["minutes"] for _, _, reason in self.claims], [45])
-        self.p.set_reminders(0, 0)
-        self.desk(60)
-        self.p.set_reminders(45, 0)  # and back on: the clock from before it went off is gone
-        self.desk(45)
-        self.assertEqual(len(self.claims), 1)
-        self.desk(0.5)
-        self.assertEqual(len(self.claims), 2)
-        self.p.set_reminders(45, 0)  # unchanged minutes keep the running clock
-        self.desk(44.5)
-        self.assertEqual(len(self.claims), 2)
-        self.desk(0.5)
-        self.assertEqual(len(self.claims), 3)
-
-    def test_changed_water_minutes_start_the_count_over(self):
-        self.breaking(water_minutes=90)
-        self.desk(80)
-        self.p.set_reminders(0, 60)  # 80 active minutes counted so far do not make it due at once
-        self.desk(60)
-        self.assertEqual(self.claims, [])
-        self.desk(0.5)
-        self.assertEqual([reason["code"] for _, _, reason in self.claims], ["water"])
-        self.p.set_reminders(0, 0)
-        self.desk(120)
-        self.p.set_reminders(0, 60)
-        self.desk(60)
-        self.assertEqual(len(self.claims), 1)
-
     def test_the_reason_text_is_in_the_reply_language(self):
         for language, text in (("zh-Hans", "你已经连续用电脑 45 分钟"), (None, "你已经连续用电脑 45 分钟"),
                                ("en", "You have been at the computer for 45 min straight"),
@@ -924,7 +890,7 @@ class ProactiveTest(unittest.TestCase):
 
 class StuckTest(unittest.TestCase):
     def test_companion_off_stuck_sends_no_nudge_or_retry(self):
-        self.gate = self.p.gate = Gate(enabled=True, quiet=(0, 0))
+        self.gate = self.p.gate = Gate(enabled=True)
         self.gate.set_companion(False)
         self.beats(200, typing=False)
         self.assertEqual(self.claims, [])
@@ -938,7 +904,7 @@ class StuckTest(unittest.TestCase):
         self.store = AttentionStore(Path(self.tmp.name) / "attention.sqlite",
                                     Blacklist(deny_blacklist(Path(self.tmp.name) / "blacklist.json")), clock=lambda: self.now)
         self.addCleanup(self.store.close)
-        self.gate = Gate(enabled=True, quiet=(0, 0))
+        self.gate = Gate(enabled=True)
         self.gate.set_companion(True)
         self.published, self.claims = [], []
         self.scene = {"activity": "editing_code", "subject": None, "focus_id": None, "can_interrupt": True,
@@ -1031,12 +997,12 @@ class StuckTest(unittest.TestCase):
         self.assertEqual(len(self.claims), 1)
 
     def test_a_gate_refusal_keeps_silent_and_the_blocker_unasked(self):
-        self.gate.quiet = (0, 24)
+        self.gate.set_quiet(True, [[0, 12], [12, 0]])
         self.beats(180, typing=False)
         self.assertEqual(self.claims, [])
         self.assertEqual([n["gate"] for n in self.nudges()], ["quiet_hours"])
         self.assertNotIn("stuck", self.gate._last)
-        self.gate.quiet = (0, 0)
+        self.gate.set_quiet(False, [[22, 8]])
         self.beats(10, typing=False)
         self.assertEqual(len(self.claims), 1)
 
@@ -1178,7 +1144,7 @@ class ProactiveServerTest(test_server.FeedServerCase):
         self.addCleanup(self.server.attention.close)
         self.server.mouth = test_server.FakeMouth(["好久", "没动了。"])
         self.server.character_agent = test_server.KernelLines(self.server)
-        self.server.gate = Gate(enabled=True, quiet=(0, 0))
+        self.server.gate = Gate(enabled=True)
         self.server.gate.set_companion(True)
         self.server.proactive = Proactive(self.server.attention, self.server.gate, self.server.feed.publish,
                                           self.server.start_line, self.server.busy, judge=Judge(WantBackend()))
@@ -1277,7 +1243,7 @@ class ProactiveServerTest(test_server.FeedServerCase):
             with self.subTest(voiced=voiced):
                 attention = AttentionStore(state / f"attention-{voiced}.sqlite", Blacklist(deny_blacklist(state / "blacklist.json")))
                 self.addCleanup(attention.close)
-                gate = self.server.gate = Gate(enabled=True, quiet=(0, 0))
+                gate = self.server.gate = Gate(enabled=True)
                 gate.set_companion(True)
                 # Fullscreen comes on after the claim, before the first clause: its recheck fails.
                 self.server.mouth = test_turn.FlipMouth(["好久", "没动了。"],

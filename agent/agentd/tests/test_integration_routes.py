@@ -43,7 +43,6 @@ class IntegrationRoutesTest(unittest.TestCase):
         db = open_store(self.dir / "agentd.sqlite")
         self.addCleanup(db.close)
         gate = Gate(enabled=True, db=db)
-        gate.set_quiet(0, 0)
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI, events_token="events-token", gate=gate,
                                    integration_token=INTEGRATION)
         self.server.memory = Memory(db)

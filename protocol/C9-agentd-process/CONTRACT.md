@@ -29,9 +29,6 @@ agentd 的参数（`--` 之后）。宿主必传的只有 `--port` 和 `--state-
 | `--state-dir D` | 总传，config `agentd_state_dir` | 工作目录下的 `agentd-state` |
 | `--character ID` | 总传，本次要启动的角色 | 角色库的 `default_character` |
 | `--interaction-preset quiet\|balanced\|active` | 总传 | `balanced` |
-| `--break-reminder-minutes N` | 总传（agentd 默认是 50，省掉 0 就成了每 50 分钟） | 50；0 为关 |
-| `--water-reminder-minutes N` | 总传，config `water_reminder_minutes` | 90；0 为关 |
-| `--ritual-report-time HH:MM` | 总传，config `ritual_report_time`（12:00 到 23:30 的整点或半点，其他值按 17:30） | 17:30 |
 | `--character-catalog PATH` | config 有 `character_catalog` 时 | 环境变量 `AGENTD_DEV_CATALOG`，没有时读仓库的公开样例库 `characters/sample-library/current.json` |
 | `--harness-site harness.pi=DIR` | 有组合锁时，锁里的 `harness.pi` 组件传一次，DIR 是它的载荷目录，内有 `node/bin/node` 和 `pi-runtime/node_modules/` | 无；ID 只接受 `harness.pi`，DIR 必须是已存在的绝对目录；未知 ID、重复 ID、相对路径或目录不存在是参数错误（退出 2） |
 | `--privacy-config PATH` | 有 config 文件路径时；agentd 读哪些键见 C10 | 无 |
@@ -50,7 +47,7 @@ agentd 的参数（`--` 之后）。宿主必传的只有 `--port` 和 `--state-
 | `--tts-ssh-host HOST`、`--motion-ssh-host HOST`、`--llm-ssh-host HOST` | 该服务 mode 为 `ssh` 时一律传（不论有没有启动脚本），和它的 `--<id>-url` 一起；HOST 非空、不含空白（不合或缺 url 是参数错误）。motion 和 llm 的 url 加这个主机是凭据所属的端点：和上次启动记下的（`<state-dir>/service-endpoints.json`）不同时，agentd 删掉动作服务令牌或兼容 API 的 Key | 无 |
 | `--tts-token-file PATH` | 总传，`<support>/tts-token`，文件不在也传（C10） | 凭据引用的基础路径取 `$AAC_TTS_TOKEN_FILE`，缺省取 `<state-dir>/tts-token` |
 
-agentd 还认 `--hook-timeout`、`--margin`、`--ritual-report-time`、`--ledger-root`、`--exit-with-parent/--no-exit-with-parent`、`--describe`；Companion 不传。含义见 `python3 agent/agentd/server.py --help`。
+agentd 还认 `--hook-timeout`、`--margin`、`--ledger-root`、`--exit-with-parent/--no-exit-with-parent`、`--describe`；Companion 不传。含义见 `python3 agent/agentd/server.py --help`。
 
 环境和工作目录：Companion 不设工作目录，环境变量也继承 Companion 的，只有 config `proxy_url` 不为空时例外：去掉继承来的各种大小写的 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、`NO_PROXY`，设 `HTTP_PROXY` 和 `HTTPS_PROXY` 为它，`NO_PROXY` 为原有的主机加上 `localhost,127.0.0.1,::1` 和开着的各项服务地址的主机。agentd 按 C10 的凭据引用读取系统保存的 TTS 令牌。没有配置令牌时仍可启动。
 

@@ -32,7 +32,7 @@
 ### Companionship and awareness
 
 - **Activity observation (off by default)**: When enabled in Settings › 隐私 (Privacy), the app records foreground app, window, and activity summaries locally and can generate daily or weekly briefs. Filtering supports both exclude mode (**名单外都读**) and allow-list mode (**只读名单里的**, the default).
-- **Proactive speech & Do Not Disturb**: Adjust proactivity level, proactive speech, break reminders, and Quiet / Meeting modes in Settings › 说话与通知 (Speech and notifications).
+- **Proactive speech & Do Not Disturb**: Choose when she speaks up, how often, and quiet-hour ranges in Settings › 交流 (Communication). Break and water reminders are built into the character; turn one kind off with 关闭此类 (Mute this kind) in the bubble menu. Quiet / Meeting modes cover quiet times and screen sharing.
 - **Coding sessions**: When 读取编码会话 (Read coding sessions) is on and the hooks are installed, progress, completion, and approval requests from local Claude Code and Codex sessions appear on desktop overlays.
 - **Desktop interactions**: Reacts to clicking body regions, dragging, and gifts from the context menu, and plays idle animations when inactive.
 

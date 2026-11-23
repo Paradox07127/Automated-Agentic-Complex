@@ -1,5 +1,6 @@
 """Proactive speech gate:P0 always passes; everything else must clear every rule."""
 import datetime
+import json
 import secrets
 import threading
 
@@ -11,14 +12,15 @@ class Gate:
 
     COMPANION = ("comment", "stuck")
 
-    def __init__(self, enabled=False, quiet=(22, 8), same_cooldown=None, cross_cooldown=30.0,
+    def __init__(self, enabled=False, same_cooldown=None, cross_cooldown=30.0,
                  daily_limit=20, state_scale=None, interaction_preset="balanced", db=None):
         """state_scale: None, or a callable giving her state's factor on the comment cooldown; below 1 counts as 1.
         db: a store connection the day's count and refusals (gate_day) and the muted categories (gate_mute) are kept
         in; None keeps them in memory only."""
         self.interaction = preset(interaction_preset)
         self.enabled = enabled and self.interaction.proactive_speech
-        self._quiet = quiet  # (start hour, end hour), local; may cross midnight; equal hours: none
+        # (on, [[start hour, end hour], ...]): local hours; a range may cross midnight
+        self._quiet = (False, [[22, 8]])
         self.same_cooldown = self.interaction.same_cooldown if same_cooldown is None else same_cooldown
         self.cross_cooldown = cross_cooldown
         self.daily_limit = daily_limit
@@ -67,28 +69,31 @@ class Gate:
             self._companion = on
 
     @property
-    def quiet(self):
-        """(start hour, end hour) as stored, else as constructed."""
+    def quiet_settings(self):
+        """(quiet hours on, their ranges) as stored, else off with [[22, 8]]."""
         with self._db_lock:
             if self.db is None:
                 return self._quiet
             rows = dict(self.db.execute("SELECT key, value FROM proactive_settings"
-                                        " WHERE key IN ('quiet_start', 'quiet_end')").fetchall())
+                                        " WHERE key IN ('quiet_enabled', 'quiet_ranges')").fetchall())
         if len(rows) < 2:
             return self._quiet
-        return int(rows["quiet_start"]), int(rows["quiet_end"])
+        return rows["quiet_enabled"] == "true", json.loads(rows["quiet_ranges"])
 
-    @quiet.setter
-    def quiet(self, hours):
-        self._quiet = hours
+    @property
+    def quiet(self):
+        """The ranges that hold lines now: the stored ones while quiet hours are on, else []."""
+        on, ranges = self.quiet_settings
+        return ranges if on else []
 
-    def set_quiet(self, start, end):
+    def set_quiet(self, on, ranges):
         with self._db_lock:
             if self.db is not None:
                 with self.db:
                     self.db.executemany("INSERT OR REPLACE INTO proactive_settings (key, value) VALUES (?, ?)",
-                                        [("quiet_start", str(start)), ("quiet_end", str(end))])
-            self._quiet = (start, end)
+                                        [("quiet_enabled", "true" if on else "false"),
+                                         ("quiet_ranges", json.dumps(ranges))])
+            self._quiet = (on, ranges)
 
     def set_interaction(self, enabled, interaction_preset):
         """Proactive speech and the interaction preset, as the constructor takes them."""
@@ -177,8 +182,8 @@ class Gate:
             return "user_speaking"
         if self.fullscreen:
             return "fullscreen"
-        start, end = self.quiet
-        if (start <= now.hour or now.hour < end) if start > end else start <= now.hour < end:
+        if any((start <= now.hour or now.hour < end) if start > end else start <= now.hour < end
+               for start, end in self.quiet):
             return "quiet_hours"
         if self._day != now.date():
             self._day, self._count, self._blocked = now.date(), 0, 0

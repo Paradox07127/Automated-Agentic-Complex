@@ -985,7 +985,7 @@ class LatestAnnouncementTest(unittest.TestCase):
     def setUp(self):
         enable_plugins(self, "coding_sessions")
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
-        gate = Gate(enabled=True, quiet=(0, 0), same_cooldown=0, cross_cooldown=0)
+        gate = Gate(enabled=True, same_cooldown=0, cross_cooldown=0)
         # The ticker never runs by itself: each test runs the ticks it means.
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI, gate=gate, tick_interval=3600)
         self.server.broker.window = 5.0

@@ -96,15 +96,12 @@ test('the agentd command line follows C9 in a fixed order', () => {
     '/r/agentd_launcher.py', '--agentd-dir', '/a/agentd', '--parent-pid', '42', '--',
     '--port', '48810', '--state-dir', '/st', '--interaction-preset', 'balanced', '--character', 'aster',
     '--privacy-config', '/s/config.json', ...PLUGIN_IDS.flatMap((id) => [id === 'light_ai' ? '--plugin-on' : '--plugin-off', id]),
-    '--share-agent-sessions', '--break-reminder-minutes', '0',
-    '--water-reminder-minutes', '90', '--ritual-report-time', '17:30',
-    '--tts-token-file', '/s/tts-token',
+    '--share-agent-sessions', '--tts-token-file', '/s/tts-token',
   ]);
   const all = agentdArguments(config({
     character_catalog: null, harness_sites: { 'harness.pi': '/pi' }, plugins: { computer_use: true }, share_page_text: true,
     share_window_text: true, share_typed_text: true, share_agent_sessions: false, share_screenshots: true,
-    redact_sensitive: false, proactive_speech: false, break_reminder_minutes: -3, water_reminder_minutes: 0, mute: true,
-    ritual_report_time: '19:00',
+    redact_sensitive: false, proactive_speech: false, mute: true,
     services: { tts: { mode: 'ssh', url: 'http://127.0.0.1:9888', ssh_host: 'gpu', start_script: '/e.sh' },
       motion: { mode: 'url', url: 'http://gpu:48830', ssh_host: 'gpu', start_script: '/m.sh' },
       llm: { mode: 'local', url: 'http://127.0.0.1:11434/v1', command: ['ollama', 'serve'], start_script: '/l.sh' } },
@@ -116,7 +113,7 @@ test('the agentd command line follows C9 in a fixed order', () => {
     ...PLUGIN_IDS.flatMap((id) => [['light_ai', 'computer_use'].includes(id) ? '--plugin-on' : '--plugin-off', id]),
     '--computer-control-socket', '/s/run/computer-control.sock', '--computer-control-token-file', '/s/run/computer-control.token',
     '--share-page-text', '--share-window-text', '--share-typed-text', '--share-screenshots', '--no-redact',
-    '--no-proactive', '--break-reminder-minutes', '0', '--water-reminder-minutes', '0', '--ritual-report-time', '19:00', '--mute',
+    '--no-proactive', '--mute',
     '--tts-url', 'http://127.0.0.1:9888', '--tts-ssh-host', 'gpu', '--tts-ensure-host', 'gpu', '--tts-ensure-script', '/e.sh',
     '--motion-url', 'http://gpu:48830', '--llm-url', 'http://127.0.0.1:11434/v1', '--tts-token-file', '/s/tts-token',
   ]);

@@ -308,7 +308,7 @@ class TapDeliveryTest(unittest.TestCase):
         self.now = at(3)  # no morning: only break and water can be pending
         self.r = Rituals(db, clock=lambda: self.now, summary=lambda day: EMPTY)
         self.claims, self.published = [], []
-        self.p = Proactive(None, Gate(enabled=True, quiet=(0, 0)), lambda e, d: self.published.append((e, d)),
+        self.p = Proactive(None, Gate(enabled=True), lambda e, d: self.published.append((e, d)),
                            None, lambda: False, clock=lambda: self.now,
                            claim=lambda *args: self.claims.append(args) or True,
                            break_minutes=50, water_minutes=90, deliver="tap",
@@ -373,7 +373,7 @@ class ReturnWelcomeTapTest(unittest.TestCase):
         server.character = "aster"
         server.mouth = FakeMouth(["早上好。"])
         server.speech = FakeRelay()
-        server.gate = Gate(enabled=True, quiet=(0, 0))
+        server.gate = Gate(enabled=True)
         server.character_agent = KernelLines(server)
         server.history = SimpleNamespace(record=lambda **row: None, conversations=SimpleNamespace(active=None))
         db = open_store(Path(tmp.name) / "agentd.sqlite")

@@ -82,7 +82,7 @@ enum OpTable {
         OpSpec("control.respond", [Field("conn", "int+"), Field("response", "obj")]),
         OpSpec("permissions.status"),
         OpSpec("permissions.request",
-               [Field("kind", "enum(accessibility|screenRecording|microphone|automation|inputMonitoring)")]),
+               [Field("kind", "enum(accessibility|screenRecording|microphone|automation|inputMonitoring|notifications)")]),
         OpSpec("clipboard.read", [], [Field("first_only", "bool"), Field("max_items", "int+"), Field("max_text_bytes", "int+")]),
         OpSpec("apps.running", [], [Field("regular_only", "bool")]),
         OpSpec("apps.installed"),

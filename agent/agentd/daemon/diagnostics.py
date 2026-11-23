@@ -111,7 +111,7 @@ class DiagnosticsMixin:
                 scale *= max(1, gate.state_scale())
             return gate.cooldown.get(kind, gate.same_cooldown) * scale
         return {"enabled": gate.enabled, "companion_mode": bool(gate.companion),
-                "quiet_hours": list(gate.quiet), "meeting": gate.meeting,
+                "quiet_hours": gate.quiet, "meeting": gate.meeting,
                 "fullscreen": gate.fullscreen, "user_speaking": gate.user_speaking,
                 "cooldown_s": {kind: left(last, cooldown(kind)) for kind, last in list(gate._last.items())
                                if left(last, cooldown(kind)) > 0},

@@ -2,7 +2,7 @@
 import type { ProactiveStats } from '../pages/settings/api';
 import type { MockRoute } from './types';
 
-const MUTABLE = ['back', 'break', 'comment', 'repeat', 'session', 'stuck', 'task', 'thought'];
+const MUTABLE = ['back', 'break', 'comment', 'repeat', 'session', 'stuck', 'task', 'thought', 'water'];
 let muted: string[] = [];
 let settings = { companion_mode: false, quiet_enabled: false, quiet_ranges: [[22, 8]] };
 const hour = (v: unknown) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 23;

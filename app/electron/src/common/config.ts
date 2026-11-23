@@ -1,6 +1,6 @@
 // config.json decoded: the keys the main process uses, with their defaults and error texts. Reading files is the caller's: `src/main/config.ts`.
 import { DEFAULT_PLUGINS, isPluginId, type Plugins } from './plugins.ts';
-import { REPORT_TIMES, unsafeSshHost, validProxyUrl } from './settings.ts';
+import { unsafeSshHost, validProxyUrl } from './settings.ts';
 
 /** Paths under the home directory. */
 export const IDS = {
@@ -189,11 +189,6 @@ export interface Config {
   shareScreenshots: boolean;
   redactSensitive: boolean;
   proactiveSpeech: boolean;
-  breakReminderMinutes: number;
-  /** Active minutes before a water reminder; 0 is off. agentd's own default when config.json has no key. */
-  waterReminderMinutes: number;
-  /** agentd's `--ritual-report-time`: one of settings.ts REPORT_TIMES, else agentd's default. */
-  ritualReportTime: string;
   /** agentd's HTTP(S) proxy (agentd.ts agentdEnv); '' leaves the inherited environment. */
   proxyUrl: string;
   mute: boolean;
@@ -333,9 +328,6 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
   const shareScreenshots = live.share_screenshots;
   const redactSensitive = live.redact_sensitive;
   const proactiveSpeech = live.proactive_speech;
-  const breakReminderMinutes = live.break_reminder_minutes;
-  const waterReminderMinutes = live.water_reminder_minutes;
-  const ritualReportTime = live.ritual_report_time;
   const proxy = optional(o, 'proxy_url', str) ?? '';
   const proxyUrl = validProxyUrl(proxy) ? proxy : '';
   const mute = live.mute;
@@ -346,7 +338,7 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
     characters, characterCatalog, character, avatarApp, avatarExecutable, agentdDir, python, agentdLauncher, harnessSites,
     missingComponents, characterLibraryMissing, agentdPort, gpuHoldFiles, supportDir, interactionPreset, plugins: pluginsOn,
     sharePageText, shareWindowText, shareTypedText, shareActions, shareAgentSessions, shareScreenshots, redactSensitive, proactiveSpeech,
-    breakReminderMinutes, waterReminderMinutes, ritualReportTime, proxyUrl, mute, agentdStateDir, services: servicesOn, devResources,
+    proxyUrl, mute, agentdStateDir, services: servicesOn, devResources,
   };
 }
 
@@ -357,9 +349,6 @@ export function agentdLive(o: JsonObject) {
     mute: optional(o, 'mute', bool) ?? false,
     proactive_speech: optional(o, 'proactive_speech', bool) ?? true,
     interaction_preset: oneOf(optional(o, 'interaction_preset', str) ?? 'balanced', ['quiet', 'balanced', 'active'], 'balanced'),
-    break_reminder_minutes: Math.max(0, optional(o, 'break_reminder_minutes', int) ?? 0),
-    water_reminder_minutes: Math.max(0, optional(o, 'water_reminder_minutes', int) ?? 90),
-    ritual_report_time: oneOf(optional(o, 'ritual_report_time', str) ?? '17:30', REPORT_TIMES, '17:30'),
     redact_sensitive: optional(o, 'redact_sensitive', bool) ?? true,
     share_page_text: optional(o, 'share_page_text', bool) ?? false,
     share_window_text: optional(o, 'share_window_text', bool) ?? false,

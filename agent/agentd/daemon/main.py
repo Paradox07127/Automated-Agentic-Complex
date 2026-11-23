@@ -91,12 +91,6 @@ def parse_args(argv=None):
                         help="proactive speech (gate master switch); on by default")
     parser.add_argument("--interaction-preset", choices=tuple(PRESETS), default="balanced",
                         help="background interaction cadence: quiet, balanced (default), active")
-    parser.add_argument("--break-reminder-minutes", type=int, default=50,
-                        help="offer a break reminder after this many active minutes; 0 is off")
-    parser.add_argument("--water-reminder-minutes", type=int, default=90,
-                        help="offer a water reminder at a pause after this many active minutes; 0 is off")
-    parser.add_argument("--ritual-report-time", default="17:30",
-                        help="local HH:MM from which a tap says the day's report; the morning greeting ends then")
     parser.add_argument("--character-catalog", type=Path,
                         help="verified CharacterLibrary/current.json; AGENTD_DEV_CATALOG or characters/sample-library/current.json when absent")
     parser.add_argument("--character",
@@ -520,7 +514,7 @@ def main(secret_store=None):
     if plugins.on("coding_sessions"):
         server.hook_files = {"claude": Path(paths.CLAUDE_SETTINGS).expanduser(),
                              "codex": (Path(paths.CODEX_HOME) / paths.CODEX_HOOKS).expanduser()}  # tools/install_hooks.py defaults
-    server.rituals = Rituals(open_store(db), report_time=args.ritual_report_time, memory=memory,
+    server.rituals = Rituals(open_store(db), memory=memory,
                              summary=server.day_session_summary if plugins.on("daily_brief") else None,
                              arc=server.day_arc if plugins.on("daily_brief") else None, on_change=server.ritual_check,
                              greeted=server.returning.welcomed_on)
@@ -529,8 +523,7 @@ def main(secret_store=None):
                                      judge=Judge(SemanticJudge(server.character_agent.semantic, "proactive_decide"),
                                                  paths.proactive_judge_log(state_dir)), activity=server.activity, claim=server.claim_line,
                                      sessions=server.registry.snapshot,
-                                     break_minutes=max(0, args.break_reminder_minutes),
-                                     water_minutes=max(0, args.water_reminder_minutes), deliver="speak",
+                                     break_minutes=60, water_minutes=90, deliver="speak",
                                      log=server.proactive_log, user=server.user_title,
                                      language=server.character_agent.semantic.reply,
                                      absence=lambda: server.user_now.snapshot()["absence"])

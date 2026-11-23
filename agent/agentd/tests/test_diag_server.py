@@ -170,7 +170,7 @@ class DecisionTraceTest(DiagCase):
 
     def test_proactive_gate_judge_and_line_share_one_trace(self):
         self.use_attention()
-        self.server.gate = Gate(enabled=True, quiet=(0, 0))
+        self.server.gate = Gate(enabled=True)
         self.server.gate.set_companion(True)
         judge = Judge(HaikuWant())
         self.server.gate.on_decision = judge.on_decision = self.server._decision
@@ -271,7 +271,7 @@ class DiagLocalStateTest(unittest.TestCase):
 
     def test_companion_off_explains_why_no_comment_judge_will_run(self):
         self.use_attention()
-        self.server.gate = Gate(enabled=True, quiet=(0, 0))
+        self.server.gate = Gate(enabled=True)
         self.server.gate.set_companion(False)
         self.server.proactive = Proactive(self.server.attention, self.server.gate, self.server.feed.publish,
                                           self.server.start_line, self.server.busy, judge=object())
@@ -414,7 +414,7 @@ class DiagStateTest(DiagCase):
             self.assertEqual(reads, [path, path])
 
     def test_gate_cooldown_includes_her_state_scale_as_the_gate_does(self):
-        self.server.gate = Gate(enabled=True, quiet=(0, 0), state_scale=lambda: 1.5)
+        self.server.gate = Gate(enabled=True, state_scale=lambda: 1.5)
         self.server.gate.set_companion(True)
         self.assertEqual(self.server.gate.admit("comment", "P2"), (True, None))
         self.assertGreater(self.state()["gate"]["cooldown_s"]["comment"], 600 + 1)  # 600 s × 1.5

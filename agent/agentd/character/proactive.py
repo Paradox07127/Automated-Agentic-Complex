@@ -329,18 +329,6 @@ class Proactive:
         if speak and self.claim is None:
             self.start_line(line_id, text, reason=line_reason, material=material)
 
-    def set_reminders(self, break_minutes, water_minutes):
-        """New break and water minutes (0 is off); a changed one starts its clock over, so the change alone never
-        makes a reminder due."""
-        with self._rest_lock:
-            if break_minutes != self.break_minutes:
-                self.break_minutes = break_minutes
-                self._break_reset()
-            if water_minutes != self.water_minutes:
-                self.water_minutes = water_minutes
-                self._water_s, self._water_beat, self._water_retry_at = 0.0, None, 0.0
-            self.gate.cooldown.update({"break": break_minutes * 60, "water": water_minutes * 60})
-
     def _break(self, body):
         """One line naming how long the user has been at the computer, due break_minutes into a present run and
         break_minutes after the last one, voiced or not, on a beat with typing or clicking."""

@@ -16,21 +16,17 @@ from brain.egress import EgressPolicy  # noqa: E402
 from character.behavior import Behavior  # noqa: E402
 from character.gate import Gate  # noqa: E402
 from character.proactive import Proactive  # noqa: E402
-from character.signals import Signals  # noqa: E402
 from character_agent.services.semantic import SemanticVision  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 from daemon.main import build_capture  # noqa: E402
 from infra import plugins  # noqa: E402
-from infra.store import open_store  # noqa: E402
 from observation.facing_decisions import FacingDecisions  # noqa: E402
 from observation.spatial import Spatial  # noqa: E402
-from personal.rituals import Rituals  # noqa: E402
 from traces.motion_lane import MotionLane  # noqa: E402
 import support  # noqa: E402
 
 # what an agentd started without arguments runs with
-DEFAULTS = {"mute": False, "proactive_speech": True, "interaction_preset": "balanced", "break_reminder_minutes": 50,
-            "water_reminder_minutes": 90, "ritual_report_time": "17:30", "redact_sensitive": True,
+DEFAULTS = {"mute": False, "proactive_speech": True, "interaction_preset": "balanced", "redact_sensitive": True,
             "share_page_text": False, "share_window_text": False, "share_typed_text": False,
             "share_agent_sessions": False, "share_screenshots": False}
 NOON = datetime.datetime(2026, 11, 23, 12, 0)
@@ -45,20 +41,16 @@ class LiveSettingsTest(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.addCleanup(tmp.cleanup)
         self.tmp = Path(tmp.name)
-        db = open_store(self.tmp / "agentd.sqlite")
-        self.addCleanup(db.close)
         with patch.object(AgentdServer, "server_bind"), patch.object(AgentdServer, "server_activate"):
             self.server = server = AgentdServer(("127.0.0.1", 48810), "hook-token", support.UI,
-                                                events_token="events-token", gate=Gate(enabled=True, quiet=(0, 0)))
+                                                events_token="events-token", gate=Gate(enabled=True))
         server.server_port = 48810
         self.addCleanup(server.server_close)
         self.addCleanup(server._stopped.set)
         server.behavior = Behavior(lambda: {}, lambda *_: None)
         server.facing_decisions = FacingDecisions(None, lambda *_: None, 180)
         server.proactive = Proactive(None, server.gate, lambda *_: None, lambda *_, **__: None, lambda: False,
-                                     break_minutes=50, water_minutes=90)
-        server.rituals = Rituals(db, summary=lambda day: None)
-        server.signals = Signals(server.gate, None, server.registry, report_time=server.rituals.report_time)
+                                     break_minutes=60, water_minutes=90)
         server.egress = EgressPolicy()
         server.character_agent = SimpleNamespace(semantic=object(), cancel=lambda reason: None, close=lambda: None)
         server.capture = build_capture(server.feed, None, None, self.tmp, False, False)
@@ -88,8 +80,7 @@ class LiveSettingsTest(unittest.TestCase):
         s = self.server
         return {"interaction": (s.interaction, s.gate.interaction, s.gate.enabled, s.gate.same_cooldown,
                                 s.spatial.interaction, s.behavior.interaction, s.facing_decisions.interval),
-                "reminders": (s.proactive.break_minutes, s.proactive.water_minutes, dict(s.gate.cooldown)),
-                "report_time": (s.rituals.report_time, s.signals.report_time), "muted": s.muted,
+                "muted": s.muted,
                 "redact": s.egress.observed("a@b.example"), "consent": s.consent.snapshot()[0],
                 "vision": s.capture.vision}
 
@@ -99,13 +90,12 @@ class LiveSettingsTest(unittest.TestCase):
         missing = dict(DEFAULTS)
         del missing["mute"]
         wrong = [("mute", 1), ("mute", None), ("proactive_speech", "true"), ("interaction_preset", "unlimited"),
-                 ("interaction_preset", None), ("break_reminder_minutes", -1), ("break_reminder_minutes", 1.5),
-                 ("break_reminder_minutes", True), ("water_reminder_minutes", "90"), ("ritual_report_time", "24:00"),
-                 ("ritual_report_time", "7:30"), ("ritual_report_time", "17:60"), ("ritual_report_time", "17:30 "),
-                 ("ritual_report_time", 1730), ("redact_sensitive", 0), ("share_page_text", "yes"),
+                 ("interaction_preset", None), ("redact_sensitive", 0), ("share_page_text", "yes"),
                  ("share_window_text", None), ("share_typed_text", []), ("share_agent_sessions", 1),
                  ("share_screenshots", {})]
-        bodies = [missing, {**DEFAULTS, "extra": True}, [], None, "balanced",
+        removed = [{**DEFAULTS, "break_reminder_minutes": 60}, {**DEFAULTS, "water_reminder_minutes": 90},
+                   {**DEFAULTS, "ritual_report_time": "17:30"}]
+        bodies = [missing, {**DEFAULTS, "extra": True}, [], None, "balanced", *removed,
                   *({**DEFAULTS, key: value} for key, value in wrong)]
         for body in bodies:
             with self.subTest(body=body):
@@ -128,10 +118,10 @@ class LiveSettingsTest(unittest.TestCase):
                 self.assertEqual((s.gate.same_cooldown, s.gate.enabled), (same_cooldown, proactive))
                 self.assertEqual(s.facing_decisions.interval, 30)
         # Break and water keep their own minutes as the cooldown, whatever the preset's.
-        self.put(interaction_preset="active", break_reminder_minutes=45)
+        self.put(interaction_preset="active")
         self.server.gate.commit("break", NOON)
-        self.assertEqual((self.server.gate.check("break", NOON + datetime.timedelta(minutes=44)),
-                          self.server.gate.check("break", NOON + datetime.timedelta(minutes=45))),
+        self.assertEqual((self.server.gate.check("break", NOON + datetime.timedelta(minutes=59)),
+                          self.server.gate.check("break", NOON + datetime.timedelta(minutes=60))),
                          ("same_cooldown", None))
 
     def test_a_changed_preset_is_a_replay_input(self):
@@ -153,24 +143,6 @@ class LiveSettingsTest(unittest.TestCase):
         self.assertEqual(gate.check("comment", NOON), "disabled")
         self.put(proactive_speech=True)
         self.assertEqual((gate.enabled, gate.check("comment", NOON)), (True, None))
-
-    def test_reminder_minutes_reach_proactive(self):
-        for minutes in ((0, 0), (45, 30), (0, 90)):
-            with self.subTest(minutes=minutes):
-                self.put(break_reminder_minutes=minutes[0], water_reminder_minutes=minutes[1])
-                p = self.server.proactive
-                self.assertEqual((p.break_minutes, p.water_minutes), minutes)
-                self.assertEqual(self.server.gate.cooldown, {"break": minutes[0] * 60, "water": minutes[1] * 60})
-
-    def test_the_report_time_reaches_rituals_and_signals(self):
-        ten = datetime.datetime.combine(datetime.date.today(), datetime.time(10, 0)).timestamp()
-        self.assertIn("morning", self.server.rituals.pending(ten))
-        self.put(ritual_report_time="09:15")
-        self.assertEqual((self.server.rituals.report_time, self.server.signals.report_time), ((9, 15), (9, 15)))
-        self.assertNotIn("morning", self.server.rituals.pending(ten))  # the report time ends the morning greeting
-        self.put(ritual_report_time="17:30")
-        self.assertEqual((self.server.rituals.report_time, self.server.signals.report_time), ((17, 30), (17, 30)))
-        self.assertIn("morning", self.server.rituals.pending(ten))
 
     def test_mute(self):
         self.put(mute=True)

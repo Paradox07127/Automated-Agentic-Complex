@@ -343,7 +343,7 @@ class TurnTest(test_server.FeedServerCase):
         self.assertTrue(wait_for(lambda: len(tts.bodies) == 1 and not self.server._live_lines))
         self.server.start_line("p1", "（主动搭话）")
         self.assertTrue(wait_for(lambda: len(tts.bodies) == 2 and not self.server._live_lines))
-        self.server.gate.enabled, self.server.gate.quiet = True, (0, 0)
+        self.server.gate.enabled = True
         self.server.announce({"ts": 1.0, "level": "P0", "kind": "dispatch_done", "headline": "codex 的任务完成了",
                               "project": "/repo", "session_id": None, "detail": None})
         self.assertTrue(wait_for(lambda: len(tts.bodies) == 3))
@@ -550,7 +550,7 @@ class TurnTest(test_server.FeedServerCase):
                                             "slots", "warm"})
 
     def test_client_cancel_drops_the_slotted_announcements(self):
-        self.server.gate.enabled, self.server.gate.quiet = True, (0, 0)
+        self.server.gate.enabled = True
         relay = self.server.speech = test_server.FakeRelay()
         relay.playing = True
         self.server.announce({"ts": 1.0, "level": "P1", "kind": "gate_fail", "headline": "A 门禁失败",

@@ -46,7 +46,7 @@ class ScheduleTests(unittest.TestCase):
         self.server.clock = lambda: self.now
         self.server.memory = self.memory
         self.server.claim_line = Mock(return_value=True)
-        self.server.gate.enabled, self.server.gate.quiet = True, (0, 0)
+        self.server.gate.enabled = True
         self.controller =self.server.character_agent = SimpleNamespace(
             jobs=SimpleNamespace(store=SimpleNamespace(get=Mock(return_value=None), results_since=Mock(return_value=[]))),
             submit_job=Mock(return_value={'job_id': 'job-1'}), close=lambda: None,
@@ -315,7 +315,11 @@ class ScheduleTests(unittest.TestCase):
         self.assert_shown_not_said('enabled', False)
 
     def test_result_is_shown_not_said_in_quiet_hours(self):
-        self.assert_shown_not_said('quiet', (0, 24))
+        self.scheduled_result()
+        self.server.gate.set_quiet(True, [[0, 12], [12, 0]])
+        self.server._schedules_due()
+        self.controller.deliveries.produce.assert_called_with('bg-1')
+        self.server.claim_line.assert_not_called()
 
     def test_result_is_shown_not_said_in_a_meeting(self):
         self.assert_shown_not_said('meeting', True)

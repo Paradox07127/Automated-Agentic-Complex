@@ -14,8 +14,6 @@ LIVE_SETTINGS = {
     **dict.fromkeys(("mute", "proactive_speech", "redact_sensitive", "share_page_text", "share_window_text",
                      "share_typed_text", "share_agent_sessions", "share_screenshots"), lambda v: type(v) is bool),
     "interaction_preset": lambda v: isinstance(v, str) and v in PRESETS,
-    **dict.fromkeys(("break_reminder_minutes", "water_reminder_minutes"), lambda v: type(v) is int and v >= 0),
-    "ritual_report_time": lambda v: isinstance(v, str) and re.fullmatch(r"([01][0-9]|2[0-3]):[0-5][0-9]", v) is not None,
 }
 
 
@@ -143,26 +141,30 @@ class SettingsMixin:
         self._json(200, {"muted": sorted(self.server.gate.muted)})
 
     def _proactive_settings_get(self):
-        start, end = self.server.gate.quiet
-        self._json(200, {"companion_mode": self.server.gate.companion, "quiet_start": start, "quiet_end": end})
+        on, ranges = self.server.gate.quiet_settings
+        self._json(200, {"companion_mode": self.server.gate.companion, "quiet_enabled": on, "quiet_ranges": ranges})
 
     def _proactive_settings_put(self):
-        """Any non-empty part of {companion_mode, quiet_start, quiet_end}; quiet hours are whole local hours 0-23."""
+        """Any non-empty part of {companion_mode, quiet_enabled, quiet_ranges}; quiet_ranges is 0 to 8 [start, end]
+        pairs of whole local hours 0-23, start != end."""
         try:
             body = self._body()
         except ValueError:
             body = None
         hour = lambda v: type(v) is int and 0 <= v <= 23  # noqa: E731
-        if not isinstance(body, dict) or not body or not set(body) <= {"companion_mode", "quiet_start", "quiet_end"} \
-                or "companion_mode" in body and not isinstance(body["companion_mode"], bool) \
-                or not all(hour(body[k]) for k in ("quiet_start", "quiet_end") if k in body):
+        if not isinstance(body, dict) or not body or not set(body) <= {"companion_mode", "quiet_enabled", "quiet_ranges"} \
+                or not all(isinstance(body[k], bool) for k in ("companion_mode", "quiet_enabled") if k in body) \
+                or "quiet_ranges" in body and not (
+                    isinstance(body["quiet_ranges"], list) and len(body["quiet_ranges"]) <= 8
+                    and all(isinstance(r, list) and len(r) == 2 and hour(r[0]) and hour(r[1]) and r[0] != r[1]
+                            for r in body["quiet_ranges"])):
             return self._json(400, {"error": "invalid_payload"})
         gate = self.server.gate
         if "companion_mode" in body:
             gate.set_companion(body["companion_mode"])
-        if "quiet_start" in body or "quiet_end" in body:
-            start, end = gate.quiet
-            gate.set_quiet(body.get("quiet_start", start), body.get("quiet_end", end))
+        if "quiet_enabled" in body or "quiet_ranges" in body:
+            on, ranges = gate.quiet_settings
+            gate.set_quiet(body.get("quiet_enabled", on), body.get("quiet_ranges", ranges))
         self._proactive_settings_get()
 
     def _proactive_stats_get(self):

@@ -172,7 +172,7 @@ class ProactiveLoggingTest(unittest.TestCase):
         self.assertEqual(row, ("line", "stuck", "好久没动了。", None))
         self.server.feedback("logged", "useful")
         self.assertEqual(db.execute("SELECT outcome FROM proactive_log WHERE id = 'logged'").fetchone(), ("useful",))
-        thoughts = Thoughts(Gate(enabled=True, quiet=(0, 0)), self.server._proactive_publish, FakeSemantic(),
+        thoughts = Thoughts(Gate(enabled=True), self.server._proactive_publish, FakeSemantic(),
                             spawn=lambda f: f())
         thoughts.notice("finished")
         thought = thoughts.latest()

@@ -104,6 +104,7 @@ struct PermissionPrompts {
     let speech: () -> Void
     let automation: () -> Void
     let inputMonitoring: () -> Void
+    let notifications: () -> Void
     let states: () -> [String: String]
 
     static let live = PermissionPrompts(
@@ -128,6 +129,13 @@ struct PermissionPrompts {
         },
         automation: { _ = Permissions.automationStatus(ask: true) },
         inputMonitoring: { _ = CGRequestListenEventAccess() },
+        // Asking also lists the app in System Settings › Notifications. Outside an app bundle the center raises.
+        notifications: {
+            guard Bundle.main.bundleURL.pathExtension == "app" else { return }
+            let done = DispatchSemaphore(value: 0)
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in done.signal() }
+            done.wait()
+        },
         states: Permissions.states)
 }
 
@@ -149,6 +157,7 @@ extension Permissions {
         case "microphone":
             if prompts.microphone(), prompts.speechUndecided() { prompts.speech() }
         case "automation": prompts.automation()
+        case "notifications": prompts.notifications()
         default: prompts.inputMonitoring()
         }
         return .success(["state": prompts.states()[kind]!])

@@ -938,27 +938,6 @@ class ArgsTest(unittest.TestCase):
         self.assertTrue(parse_args(["--mute"]).mute)
         self.assertFalse(parse_args(["--no-mute"]).mute)
 
-    def test_break_reminder_minutes_reach_proactive(self):
-        import daemon.main as agentd_main
-
-        class Built(Exception):
-            pass
-
-        def proactive(*args, **kwargs):
-            owner = args[3].__self__  # start_line: the server main built
-            owner._stopped.set()
-            owner.server_close()
-            raise Built(kwargs.get("break_minutes"))
-
-        for extra, minutes in (([], 50), (["--break-reminder-minutes", "60"], 60), (["--break-reminder-minutes", "-5"], 0)):
-            with self.subTest(extra=extra), tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32") as tmp:
-                argv = ["agentd", "--port", "0", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent", "--plugin-on", "screen_awareness", *extra]
-                with unittest.mock.patch.dict("infra.plugins.resolved"), unittest.mock.patch.object(sys, "argv", argv), \
-                        unittest.mock.patch.object(agentd_main, "Proactive", proactive), \
-                        self.assertRaises(Built) as built:
-                    agentd_main.main()
-                self.assertEqual(built.exception.args, (minutes,))
-
     def test_activity_reminders_are_proactive_by_default(self):
         import daemon.main as agentd_main
 
@@ -971,20 +950,19 @@ class ArgsTest(unittest.TestCase):
             owner.server_close()
             raise Built(owner, kwargs)
 
-        args = parse_args([])
-        self.assertEqual((args.break_reminder_minutes, args.water_reminder_minutes, args.ritual_report_time),
-                         (50, 90, "17:30"))
+        for flag in ("--break-reminder-minutes", "--water-reminder-minutes", "--ritual-report-time"):
+            with self.subTest(flag=flag), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                parse_args([flag, "60"])
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32") as tmp:
-            argv = ["agentd", "--port", "0", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent", "--plugin-on", "screen_awareness",
-                    "--water-reminder-minutes", "80", "--ritual-report-time", "18:05"]
+            argv = ["agentd", "--port", "0", "--state-dir", tmp, "--ledger-root", tmp, "--no-exit-with-parent", "--plugin-on", "screen_awareness"]
             with unittest.mock.patch.dict("infra.plugins.resolved"), unittest.mock.patch.object(sys, "argv", argv), \
                     unittest.mock.patch.object(agentd_main, "Proactive", proactive), \
                     self.assertRaises(Built) as built:
                 agentd_main.main()
             owner, kwargs = built.exception.args
-            self.assertEqual((kwargs["deliver"], kwargs["water_minutes"]), ("speak", 80))
+            self.assertEqual((kwargs["deliver"], kwargs["break_minutes"], kwargs["water_minutes"]), ("speak", 60, 90))
             self.assertNotIn("on_pending", kwargs)
-            self.assertEqual(owner.rituals.report_time, (18, 5))
+            self.assertEqual(owner.rituals.report_time, (17, 30))
             owner.rituals.db.close()
 
     def test_tts_credential_path_comes_from_the_flag_else_the_environment(self):
@@ -1088,7 +1066,6 @@ class FeedTest(FeedServerCase):
 
     def test_harness_ledger_events_never_reach_the_feed_or_the_speech_budget(self):
         self.server.gate.enabled = True
-        self.server.gate.quiet = (0, 0)
         for name, attributes in (("gate.result", {"outcome": "fail", "fail": 2}), ("gate.result", {"outcome": "pass"}),
                                  ("ci.result", {"outcome": "fail"}), ("ci.result", {"outcome": "pass"}),
                                  ("agent.end", {"state": "aborted", "agent.type": "worker"}),
@@ -1119,7 +1096,6 @@ class FeedTest(FeedServerCase):
 
     def test_enabled_gate_lets_announce_speak_once_per_cooldown(self):
         self.server.gate.enabled = True
-        self.server.gate.quiet = (0, 0)
         conn, response = self.open_feed()
         self.announce_dispatch("dispatch_failed")
         first = json.loads(self.next_event(response)["data"])
@@ -1948,7 +1924,7 @@ class SayTest(FeedServerCase):
         self.assertEqual(self.server.speech.calls, [])
 
     def test_announce_while_speaking_only_p0_supersedes(self):
-        self.server.gate.enabled, self.server.gate.quiet = True, (0, 0)
+        self.server.gate.enabled = True
         self.server.speech.playing = True
         self.assertTrue(self.announce("P1")["speak"])
         self.assertEqual(self.server.speech.calls, [])  # admitted, but the running speech is not cut
@@ -2162,7 +2138,7 @@ class AnnounceSlotTest(unittest.TestCase):
 
     def setUp(self):
         support.enable_plugins(self)
-        gate = Gate(enabled=True, quiet=(0, 0), same_cooldown=0, cross_cooldown=0)
+        gate = Gate(enabled=True, same_cooldown=0, cross_cooldown=0)
         # The ticker never runs by itself: each test runs the ticks it means.
         self.server = AgentdServer(("127.0.0.1", 0), HOOK, UI, gate=gate, tick_interval=3600)
         self.thread = support.serve_in_thread(self.server)
@@ -2437,7 +2413,7 @@ class RitualTapTest(FeedServerCase):
         from personal.rituals import Rituals
         self.server.mouth = FakeMouth(["[intent:greet]早", "上好，管理员。"])
         self.server.speech = FakeRelay()
-        self.server.gate = Gate(enabled=True, quiet=(0, 0))
+        self.server.gate = Gate(enabled=True)
         self.server.character_agent = KernelLines(self.server)
         self.rows = []
         self.server.history = SimpleNamespace(record=lambda **row: self.rows.append(row), conversations=SimpleNamespace(active=None))
@@ -3281,7 +3257,7 @@ class CharacterSwitchTest(FeedServerCase):
 
     def test_nothing_new_starts_while_switching(self):
         gate = self.server.gate
-        gate.enabled, gate.quiet, gate.same_cooldown, gate.cross_cooldown = True, (0, 0), 0, 0
+        gate.enabled, gate.same_cooldown, gate.cross_cooldown = True, 0, 0
         self.server.spatial.observe = lambda: dict(self.QUIET)
         switch_id = self.prepare()[1]["switch_id"]
         self.assertFalse(self.server.claim_line("p-1", "嗯"))

@@ -19,7 +19,7 @@ T0 = datetime.datetime(2026, 11, 2, 12).timestamp()
 class SignalsTest(unittest.TestCase):
     def setUp(self):
         self.now, self.posts = T0, []
-        self.gate = Gate(enabled=True, quiet=(0, 0))
+        self.gate = Gate(enabled=True)
         self.registry = Registry(clock=lambda: self.now, coalesce=0)
         self.presence, self.allowed, self.pending = 'present', True, []
         self.own = NS(own_id=lambda sid: 'own:A' if sid == 'owned' else sid)
@@ -375,7 +375,7 @@ class WorkSignalsTest(unittest.TestCase):
                           sessions_for_task=lambda ident: self.linked,
                           sessions_on=lambda day: [s for s in self.summaries if s['day'] == day],
                           generation=0, character=lambda: 'test')
-        self.gate = Gate(enabled=True, quiet=(0, 0))
+        self.gate = Gate(enabled=True)
         self.client = FakeSemantic()
         self.away = False
         self.signals = Signals(self.gate, NS(post=self.posts.append, log=None), NS(snapshot=lambda now: {'sessions': self.rows}),

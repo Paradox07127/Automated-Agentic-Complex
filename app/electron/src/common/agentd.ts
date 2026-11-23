@@ -189,10 +189,6 @@ export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
   if (config.shareScreenshots) args.push('--share-screenshots');
   if (!config.redactSensitive) args.push('--no-redact');
   if (!config.proactiveSpeech) args.push('--no-proactive');
-  // Always passed: agentd's own default is 50, so leaving 0 out would turn 关 into every 50 minutes.
-  args.push('--break-reminder-minutes', String(Math.max(0, config.breakReminderMinutes)));
-  args.push('--water-reminder-minutes', String(Math.max(0, config.waterReminderMinutes)));
-  args.push('--ritual-report-time', config.ritualReportTime);
   if (config.mute) args.push('--mute');
   for (const id of SERVICE_IDS) {
     const s = config.services[id];

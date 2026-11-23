@@ -845,7 +845,8 @@ function opsContext(surface: Surface): OpsContext {
     library: config && {
       catalog: config.characterCatalog, launched,
       characterName: config.characters.find((c) => c.id === config!.character)?.name ?? '',
-      hookCommand: hookCommand(config.python, config.agentdDir, config.supportDir, shellPlatform(), PYTHON_FLAGS),
+      hookCommand: hookCommand(config.python, config.agentdDir, config.supportDir,
+        { port: config.agentdPort, stateDir: config.agentdStateDir }, shellPlatform(), PYTHON_FLAGS),
       validationHost: () => validationHost(config!.avatarExecutable, config!.avatarApp),
       runTool: (script, args, progress) => runAgentdTool(config!.python, PYTHON_FLAGS, config!.agentdDir, script, args, progress),
       // The renderer's supervisor, agentd's and the switch read `config.characters` and `config.character`; an import adds to them.

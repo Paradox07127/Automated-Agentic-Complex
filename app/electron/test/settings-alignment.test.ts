@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { noteContent } from '../src/common/notify.ts';
-import { current, parseChanges, planSave, Rejection, rowById, ROWS } from '../src/common/settings.ts';
+import { current, parseChanges, Rejection, rowById, ROWS } from '../src/common/settings.ts';
 import type { AnnounceKind } from '../src/common/stack-source.ts';
 
 test('every web row has an item, each web id and each config key once', () => {
@@ -33,30 +33,11 @@ test('avatar_click: a hot choice of 角色互动 and 打开快速输入 on the c
   assert.deepEqual(row.item.control, { kind: 'choice', options: [['interact', '角色互动'], ['quick_input', '打开快速输入']], value: 'interact' });
 });
 
-test('喝水提醒 is a row of its own: agentd\'s 90 minutes by default, 0 for off, and a stored number reads as its choice', () => {
-  const row = rowById('water')!;
-  assert.deepEqual([row.group, row.item.key, row.item.restart], ['speak', 'water_reminder_minutes', 'none']);
-  assert.equal(current({}, null).values.water_reminder_minutes, '90');
-  assert.equal(current({ water_reminder_minutes: 0 }, null).values.water_reminder_minutes, '0');
-  assert.equal(current({ water_reminder_minutes: 120 }, null).values.water_reminder_minutes, '120');
-  // Not one of the choices, and not a number.
-  assert.equal(current({ water_reminder_minutes: 7 }, null).values.water_reminder_minutes, '90');
-  assert.equal(current({ water_reminder_minutes: '120' }, null).values.water_reminder_minutes, '90');
-});
-
-test('收工时间 is agentd\'s --ritual-report-time: 17:30 by default, half hours from 12:00, taken live', () => {
-  const row = rowById('reportTime')!;
-  assert.deepEqual([row.group, row.item.key, row.item.restart], ['speak', 'ritual_report_time', 'none']);
-  assert.ok(row.item.control.kind === 'dropdown');
-  const times = row.item.control.options.map(([v]) => v);
-  assert.equal(times[0], '12:00');
-  assert.equal(times.at(-1), '23:30');
-  assert.equal(times.length, 24);
-  assert.equal(current({}, null).values.ritual_report_time, '17:30');
-  assert.equal(current({ ritual_report_time: '19:00' }, null).values.ritual_report_time, '19:00');
-  assert.equal(current({ ritual_report_time: '19:05' }, null).values.ritual_report_time, '17:30');
-  assert.deepEqual(planSave({}, null, { ritual_report_time: '18:30' }),
-    { write: { ritual_report_time: '18:30' }, effects: [{ kind: 'agentdLive', keys: ['ritual_report_time'] }], restart: 'none' });
+test('break, water and report time are agentd\'s fixed values, not settings', () => {
+  for (const id of ['rest', 'water', 'reportTime']) assert.equal(rowById(id), undefined, id);
+  for (const key of ['break_reminder_minutes', 'water_reminder_minutes', 'ritual_report_time']) {
+    assert.ok(!ROWS.some((r) => r.item.key === key), key);
+  }
 });
 
 test('代理 is a text row of 服务 that restarts the backend: empty, or an http(s) address with no path, query or fragment', () => {

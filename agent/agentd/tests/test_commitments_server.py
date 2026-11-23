@@ -589,7 +589,7 @@ class SignalOfferServerTest(unittest.TestCase):
                                  blockers=[], requires=[], project='Endfield', first_at=self.now - 90000,
                                  last_at=self.now - 90000))
         self.server.proactive_log = ProactiveLog(worklog.db)
-        gate = Gate(enabled=True, quiet=(0, 0))
+        gate = Gate(enabled=True)
         thoughts = Thoughts(gate, self.server._proactive_publish, None, clock=lambda: self.now)
         signals = Signals(gate, thoughts, self.server.registry, worklog=worklog,
                           presence=lambda: 'present', clock=lambda: self.now)

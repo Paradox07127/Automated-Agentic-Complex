@@ -82,7 +82,7 @@ class ServerAddressTest(test_server.FeedServerCase):
         super().setUp()
         self.server.mouth = test_server.FakeMouth(["[intent:greet]早上好。"])
         self.server.speech = test_server.FakeRelay()
-        self.server.gate = Gate(enabled=True, quiet=(0, 0))
+        self.server.gate = Gate(enabled=True)
         self.server.character_agent = test_server.KernelLines(self.server)
         self.rows = []
         self.server.history = SimpleNamespace(record=lambda **row: self.rows.append(row),

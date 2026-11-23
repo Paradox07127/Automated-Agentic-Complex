@@ -59,7 +59,7 @@ def session(name, state, cwd=None):
 class ThoughtsTest(unittest.TestCase):
     def setUp(self):
         self.now = T0
-        self.gate = Gate(enabled=True, quiet=(0, 0))
+        self.gate = Gate(enabled=True)
         self.client, self.published = FakeSemantic(), []
         self.scene = {"activity": "editing_code", "confidence": 0.8, "mode": "coding", "state": "flowing"}
         self.rows = [session("claude:A", "thinking", "/work/SECRET-PROJECT")]
@@ -304,7 +304,7 @@ class ThoughtsTest(unittest.TestCase):
             self.assertFalse(self.notice(0))
             self.assertEqual(self.client.calls, [])
 
-        held(lambda: setattr(self.gate, "quiet", (11, 13)))
+        held(lambda: self.gate.set_quiet(True, [[11, 13]]))
         held(lambda: setattr(self.gate, "focus", True))
         held(lambda: self.gate.set_muted({"thought"}))
         self.assertIn("thought", MUTABLE)

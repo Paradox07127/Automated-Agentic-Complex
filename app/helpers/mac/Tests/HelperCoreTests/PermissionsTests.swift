@@ -5,7 +5,7 @@ import XCTest
 
 final class PermissionsTests: XCTestCase {
     private static let states: [String: String] = ["accessibility": "granted", "screenRecording": "denied", "microphone": "granted",
-                                                   "automation": "notDetermined", "inputMonitoring": "denied"]
+                                                   "automation": "notDetermined", "inputMonitoring": "denied", "notifications": "granted"]
 
     /// Prompts that record what was called; the microphone answers `micGranted`, the speech permission is `speechUndecided`.
     private func prompts(_ calls: Recorder, micGranted: Bool = true, speechUndecided: Bool = true) -> PermissionPrompts {
@@ -13,11 +13,11 @@ final class PermissionsTests: XCTestCase {
                           microphone: { calls.add("microphone"); return micGranted },
                           speechUndecided: { calls.add("speechUndecided"); return speechUndecided }, speech: { calls.add("speech") },
                           automation: { calls.add("automation") }, inputMonitoring: { calls.add("inputMonitoring") },
-                          states: { calls.add("states"); return Self.states })
+                          notifications: { calls.add("notifications") }, states: { calls.add("states"); return Self.states })
     }
 
     func testEachKindAsksItsOwnPromptThenReadsItsState() {
-        for kind in ["accessibility", "screenRecording", "automation", "inputMonitoring", "microphone"] {
+        for kind in ["accessibility", "screenRecording", "automation", "inputMonitoring", "microphone", "notifications"] {
             let calls = Recorder()
             let answer = Permissions.request(["kind": kind], prompts(calls, speechUndecided: false))
             let asked = kind == "microphone" ? ["microphone", "speechUndecided"] : [kind]

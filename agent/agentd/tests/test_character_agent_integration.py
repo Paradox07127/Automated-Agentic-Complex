@@ -2355,7 +2355,7 @@ class JobReportTests(IntegrationFixture):
     def setUp(self):
         super().setUp()
         self.server._stopped.set(); self.server._ticker.join(2)  # each test ticks by hand
-        self.server.gate.enabled, self.server.gate.quiet = True, (0, 0)
+        self.server.gate.enabled = True
 
     def tearDown(self):
         self.controller.jobs.close()
@@ -2548,7 +2548,7 @@ class JobReportTests(IntegrationFixture):
         self.assert_shown_not_said(lambda: setattr(self.server.gate, 'enabled', False))
 
     def test_a_finished_job_is_shown_not_said_in_quiet_hours(self):
-        self.assert_shown_not_said(lambda: setattr(self.server.gate, 'quiet', (0, 24)))
+        self.assert_shown_not_said(lambda: self.server.gate.set_quiet(True, [[0, 12], [12, 0]]))
 
     def test_a_finished_job_is_said_past_the_proactive_budget(self):
         def spent():

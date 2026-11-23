@@ -342,7 +342,7 @@
     },
     "permissions.request": {
       "group": "permissions", "platforms": ["macos", "windows"], "timeout_ms": 120000,
-      "params": {"kind": "enum(accessibility|screenRecording|microphone|automation|inputMonitoring)"},
+      "params": {"kind": "enum(accessibility|screenRecording|microphone|automation|inputMonitoring|notifications)"},
       "result": {"state": "enum(granted|denied|notDetermined|notApplicable)"},
       "errors": []
     },

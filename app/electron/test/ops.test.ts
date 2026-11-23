@@ -159,12 +159,11 @@ test('settings.save writes the changed keys and refuses launch keys and bad valu
     assert.equal(snap.saved['rnd.yaw'], 15);
     assert.equal(snap.saved.hk_look, '⌃⌥L');
     assert.match(snap.statuses.hk_look!, /bogus\+/);
-    assert.deepEqual(await call('settings.save', { mute: true, 'rnd.yaw': 30, water: '60' }),
+    assert.deepEqual(await call('settings.save', { mute: true, 'rnd.yaw': 30 }),
       { ok: true, value: { restart: 'none', notApplied: [] } });
     const file = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) as Record<string, unknown>;
     assert.equal(file.mute, true);
     assert.equal(file.render_camera_yaw, 30);
-    assert.equal(file.water_reminder_minutes, 60);
     assert.equal(file.python, '/usr/bin/python3');
     const refused = await call('settings.save', { python: '/x' });
     assert.ok(refused.ok);
@@ -627,7 +626,7 @@ test('services.save asks before a new start script, and a no writes nothing; an 
 test('a save of an agentd setting puts every live value to agentd and needs no restart; a refused put is not applied', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'settings-'));
   try {
-    writeFileSync(join(dir, 'config.json'), JSON.stringify({ break_reminder_minutes: -5, ritual_report_time: '03:00' }));
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ interaction_preset: 'loud' }));
     const got: unknown[] = [];
     let status = 200;
     const agentd = { request: async (method: string, path: string, json: unknown) => {
@@ -636,11 +635,10 @@ test('a save of an agentd setting puts every live value to agentd and needs no r
     } } as unknown as OpsContext['agentd'];
     const ops = registry({ ...context(dir), agentd }), page = new PageSession(() => {});
     const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
-    assert.deepEqual(await call('settings.save', { mute: true, water: '60' }), { ok: true, value: { restart: 'none', notApplied: [] } });
+    assert.deepEqual(await call('settings.save', { mute: true }), { ok: true, value: { restart: 'none', notApplied: [] } });
     assert.deepEqual(got, [['PUT', '/settings/live', {
-      mute: true, proactive_speech: true, interaction_preset: 'balanced', break_reminder_minutes: 0, water_reminder_minutes: 60,
-      ritual_report_time: '17:30', redact_sensitive: true, share_page_text: false, share_window_text: false, share_typed_text: false,
-      share_agent_sessions: true, share_screenshots: false }]]);
+      mute: true, proactive_speech: true, interaction_preset: 'balanced', redact_sensitive: true, share_page_text: false,
+      share_window_text: false, share_typed_text: false, share_agent_sessions: true, share_screenshots: false }]]);
     status = 500;
     assert.deepEqual(await call('settings.save', { mute: false }), { ok: true, value: { restart: 'none', notApplied: ['mute'] } });
     assert.deepEqual(await call('settings.save', { 'plugins.daily_brief': true }), { ok: true, value: { restart: 'backend', notApplied: [] } });

@@ -20,7 +20,7 @@ def at(base=NOON, **delta):
 
 class GateTest(unittest.TestCase):
     def test_companion_follows_proactive_speech_until_set(self):
-        g = Gate(enabled=True, quiet=(0, 0))
+        g = Gate(enabled=True)
         self.assertTrue(g.companion)
         self.assertIsNone(g.check("comment", NOON))
         self.assertIsNone(g.check("stuck", NOON))
@@ -48,13 +48,23 @@ class GateTest(unittest.TestCase):
         self.assertEqual(g.admit("approval", "P0", NOON), (True, None))
         self.assertEqual(g.admit("approval", "P0", NOON), (True, None))
 
-    def test_quiet_hours_cross_midnight(self):
+    def test_quiet_hours_are_off_by_default(self):
         g = self.gate()
-        late = datetime.datetime(2026, 10, 18, 22, 0)
-        early = datetime.datetime(2026, 10, 19, 7, 59)
-        self.assertEqual(g.admit("gate_fail", "P1", late), (False, "quiet_hours"))
-        self.assertEqual(g.admit("gate_fail", "P1", early), (False, "quiet_hours"))
-        self.assertEqual(g.admit("gate_fail", "P1", at(early, minutes=1)), (True, None))
+        self.assertEqual((g.quiet_settings, g.quiet), ((False, [[22, 8]]), []))
+        self.assertIsNone(g.check("comment", NOON.replace(hour=23)))
+
+    def test_quiet_hours_on_hold_lines_in_any_range(self):
+        g = self.gate()
+        g.set_quiet(True, [[22, 8], [12, 13]])
+        self.assertEqual(g.quiet, [[22, 8], [12, 13]])
+        for hour, minute, reason in ((23, 0, "quiet_hours"), (7, 59, "quiet_hours"), (8, 0, None),
+                                     (12, 30, "quiet_hours"), (13, 0, None), (15, 0, None)):
+            with self.subTest(hour=hour, minute=minute):
+                self.assertEqual(g.check("comment", NOON.replace(hour=hour, minute=minute)), reason)
+        self.assertEqual(g.admit("approval", "P0", NOON.replace(hour=23)), (True, None))
+        g.set_quiet(False, [[22, 8], [12, 13]])
+        self.assertEqual(g.quiet, [])
+        self.assertIsNone(g.check("comment", NOON.replace(hour=23)))
 
     def test_same_category_cooldown(self):
         g = self.gate()
@@ -120,11 +130,6 @@ class GateTest(unittest.TestCase):
         g.set_muted(set())
         self.assertEqual(g.admit("comment", "P2", NOON), (True, None))
 
-    def test_equal_quiet_hours_mean_none(self):
-        g = self.gate(quiet=(9, 9))
-        for hour in (0, 9, 23):
-            self.assertIsNone(g.check("comment", NOON.replace(hour=hour)))
-
     def test_report_records_a_decision_without_counting_it(self):
         g, seen = self.gate(), []
         g.on_decision = lambda kind, attrs, key: seen.append((kind, attrs, key))
@@ -156,6 +161,7 @@ class GateTest(unittest.TestCase):
 
     def test_check_gives_the_reason_admit_would_without_counting_or_reporting(self):
         g, seen = self.gate(daily_limit=2), []
+        g.set_quiet(True, [[22, 8]])
         g.on_decision = lambda *args: seen.append(args)
         cases = (({"enabled": False}, None, "disabled"), ({"meeting": True}, None, "meeting"),
                  ({"user_speaking": True}, None, "user_speaking"), ({"fullscreen": True}, None, "fullscreen"),
@@ -257,15 +263,18 @@ class GateDayStoreTest(unittest.TestCase):
 
     def test_quiet_hours_are_stored_and_read_live(self):
         g, other = self.gate(), self.gate()
-        self.assertEqual(g.quiet, (22, 8))
-        self.assertEqual(other.check("comment", NOON.replace(hour=22)), "quiet_hours")
-        g.set_quiet(23, 7)
-        self.assertEqual(other.quiet, (23, 7))
+        self.assertEqual(g.quiet_settings, (False, [[22, 8]]))
+        self.assertIsNone(other.check("comment", NOON.replace(hour=22)))
+        g.set_quiet(True, [[23, 7], [12, 13]])
+        self.assertEqual(other.quiet_settings, (True, [[23, 7], [12, 13]]))
         self.assertIsNone(other.check("comment", NOON.replace(hour=22)))
         self.assertEqual(other.check("comment", NOON.replace(hour=6)), "quiet_hours")
         self.assertIsNone(other.check("comment", NOON.replace(hour=7)))
-        g.set_quiet(0, 0)
-        self.assertIsNone(self.gate().check("comment", NOON.replace(hour=23)))
+        self.assertEqual(other.check("comment", NOON.replace(hour=12)), "quiet_hours")
+        g.set_quiet(False, [[23, 7]])
+        again = self.gate()
+        self.assertEqual((again.quiet_settings, again.quiet), ((False, [[23, 7]]), []))
+        self.assertIsNone(again.check("comment", NOON.replace(hour=23)))
 
     def test_only_the_last_seven_days_are_kept(self):
         g, now = self.gate(), datetime.datetime.now()

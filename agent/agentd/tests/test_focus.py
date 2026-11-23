@@ -16,7 +16,7 @@ GUILT = ("分心", "走神", "摸鱼", "偷懒", "离开", "没专注", "浪费"
 
 class FocusTest(unittest.TestCase):
     def test_focus_blocks_proactive_but_passes_p1(self):
-        gate = Gate(enabled=True, quiet=(0, 0), same_cooldown=0, cross_cooldown=0)
+        gate = Gate(enabled=True, same_cooldown=0, cross_cooldown=0)
         gate.set_companion(True)
         gate.focus = True
         for kind in ("comment", "alert", "break", "back", "stuck", "dispatch_review"):

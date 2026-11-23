@@ -139,7 +139,7 @@ class ProactiveRoutesTest(unittest.TestCase):
                                            events_token="events-token", gate=Gate(enabled=True, db=db))
             self.server.server_port = 48810
             try:
-                settings = {"companion_mode": True, "quiet_start": 22, "quiet_end": 8}
+                settings = {"companion_mode": True, "quiet_enabled": False, "quiet_ranges": [[22, 8]]}
                 self.assertEqual(self.request("GET", "/proactive/settings"), (200, settings))
                 self.assertEqual(self.request("PUT", "/proactive/settings", {"companion_mode": False}),
                                  (200, {**settings, "companion_mode": False}))
@@ -148,17 +148,32 @@ class ProactiveRoutesTest(unittest.TestCase):
                                  (200, settings))
                 self.assertTrue(self.server.gate.companion)
                 self.assertEqual(self.request("GET", "/proactive/settings"), (200, settings))
-                self.assertEqual(self.request("PUT", "/proactive/settings", {"quiet_start": 23, "quiet_end": 7}),
-                                 (200, {**settings, "quiet_start": 23, "quiet_end": 7}))
-                self.assertEqual(self.request("PUT", "/proactive/settings", {"quiet_end": 0}),
-                                 (200, {**settings, "quiet_start": 23, "quiet_end": 0}))
-                self.assertEqual(self.server.gate.quiet, (23, 0))
+                self.assertEqual(self.request("PUT", "/proactive/settings", {"quiet_enabled": True}),
+                                 (200, {**settings, "quiet_enabled": True}))
+                self.assertEqual(self.server.gate.quiet, [[22, 8]])
+                ranges = [[22, 8], [12, 13]]
+                self.assertEqual(self.request("PUT", "/proactive/settings", {"quiet_ranges": ranges}),
+                                 (200, {**settings, "quiet_enabled": True, "quiet_ranges": ranges}))
+                self.assertEqual(self.server.gate.quiet, ranges)
+                stored = {**settings, "quiet_enabled": True, "quiet_ranges": ranges}
                 for body in ({}, {"companion_mode": "true"}, {"companion_mode": 1},
-                             {"companion_mode": False, "extra": True}, [], {"quiet_start": 24},
-                             {"quiet_start": -1}, {"quiet_end": True}, {"quiet_end": "7"}, {"quiet_start": 7.0}):
-                    self.assertEqual(self.request("PUT", "/proactive/settings", body)[0], 400)
-                self.assertEqual(self.request("GET", "/proactive/settings"),
-                                 (200, {**settings, "quiet_start": 23, "quiet_end": 0}))
+                             {"companion_mode": False, "extra": True}, [], {"quiet_start": 22},
+                             {"quiet_enabled": 1}, {"quiet_enabled": False, "quiet_ranges": [[9, 9]]},
+                             {"quiet_ranges": [[h, h + 1] for h in range(9)]}, {"quiet_ranges": [[24, 1]]},
+                             {"quiet_ranges": [[-1, 1]]}, {"quiet_ranges": [[7.0, 9]]}, {"quiet_ranges": [["7", 9]]},
+                             {"quiet_ranges": [[True, 9]]}, {"quiet_ranges": [[7, 9, 10]]}, {"quiet_ranges": [7, 9]},
+                             {"quiet_ranges": None}):
+                    with self.subTest(body=body):
+                        self.assertEqual(self.request("PUT", "/proactive/settings", body),
+                                         (400, {"error": "invalid_payload"}))
+                        self.assertEqual(self.request("GET", "/proactive/settings"), (200, stored))
+                self.assertEqual(Gate(db=db).quiet_settings, (True, ranges))
+                self.assertEqual(self.request("PUT", "/proactive/settings", {"quiet_ranges": []}),
+                                 (200, {**stored, "quiet_ranges": []}))
+                self.assertEqual(self.request("PUT", "/proactive/settings", {"quiet_enabled": False,
+                                                                             "quiet_ranges": [[1, 2]] * 8}),
+                                 (200, {**settings, "quiet_ranges": [[1, 2]] * 8}))
+                self.assertEqual(self.server.gate.quiet, [])
                 from character.proactive_log import ProactiveLog
                 self.server.proactive_log = ProactiveLog(db)
                 now = self.server.clock()

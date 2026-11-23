@@ -18,11 +18,37 @@ const AGENTD = 'C:\\Users\\x\\Agentic Complex\\resources\\components\\agentd\\pa
 const SUPPORT = 'C:\\Users\\x\\AppData\\Roaming\\Agentic Complex';
 
 test('on Windows the hook install command double-quotes python, install_hooks.py and the .cmd hook script', () => {
-  assert.equal(hookCommand(PY, AGENTD, SUPPORT, 'windows', ['-I', '-B']),
-    `"${PY}" -I -B "${AGENTD}\\tools\\install_hooks.py" --hook-script "${SUPPORT}\\bin\\agentic-complex-hook.cmd"`);
-  assert.equal(hookCommand('/A/python3', '/A/agentd dir', '/S', 'mac'),
-    "'/A/python3' '/A/agentd dir/tools/install_hooks.py' --hook-script '/S/bin/agentic-complex-hook'");
+  assert.equal(hookCommand(PY, AGENTD, SUPPORT, { port: 48800, stateDir: 'C:\\L\\agentd' }, 'windows', ['-I', '-B']),
+    `"${PY}" -I -B "${AGENTD}\\tools\\install_hooks.py" --hook-script "${SUPPORT}\\bin\\agentic-complex-hook.cmd"`
+    + ' --url http://127.0.0.1:48800 --token-file "C:\\L\\agentd\\hook.token"');
+  assert.equal(hookCommand('/A/python3', '/A/agentd dir', '/S', { port: 48790, stateDir: '/st dir' }, 'mac'),
+    "'/A/python3' '/A/agentd dir/tools/install_hooks.py' --hook-script '/S/bin/agentic-complex-hook'"
+    + " --url http://127.0.0.1:48790 --token-file '/st dir/hook.token'");
 });
+
+test('the hook install command writes hooks /diag/state counts as installed: this launch\'s agentd port and hook.token',
+  { skip: process.platform === 'win32' && 'runs the command with /bin/sh', timeout: 60_000 }, async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hooks-')), settings = join(dir, 'claude', 'settings.json');
+    try {
+      mkdirSync(join(dir, 'claude'));
+      const command = `${hookCommand('/usr/bin/python3', join(REPO, 'agent/agentd'), join(dir, 'support dir'),
+        { port: 48790, stateDir: join(dir, 'agentd state') }, 'mac', ['-I'])} --target claude --claude-settings '${settings}'`;
+      const code = await new Promise((done) => spawn('/bin/sh', ['-c', command], { stdio: 'ignore' }).on('exit', done));
+      assert.equal(code, 0, command);
+      const check = ['-I', '-c', 'import json,sys; sys.path.insert(0, sys.argv[1]); from tools import install_hooks as h; '
+        + 'print(json.dumps(h.owned(h.load(sys.argv[2]), sys.argv[3])))',
+      join(REPO, 'agent/agentd'), settings, 'http://127.0.0.1:48790'];
+      const out = await new Promise<string>((done) => {
+        let text = '';
+        spawn('/usr/bin/python3', check).stdout.on('data', (b: Buffer) => { text += b.toString(); }).on('end', () => done(text));
+      });
+      const hooks = Object.values(JSON.parse(out) as Record<string, Array<{ hooks: Array<{ command: string }> }>>);
+      assert.ok(hooks.length > 0, `no hook for http://127.0.0.1:48790 in ${settings}`);
+      for (const [group] of hooks) assert.ok(group!.hooks[0]!.command.includes(`'${join(dir, 'agentd state', 'hook.token')}'`), group!.hooks[0]!.command);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
 test('the hook script is /bin/sh on macOS and a .cmd running this launch\'s forwarder with the hook\'s arguments on Windows', () => {
   assert.deepEqual(hookScript('/py', [], "/a/it's", 'mac'),

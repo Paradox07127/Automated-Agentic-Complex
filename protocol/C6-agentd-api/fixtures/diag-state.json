@@ -42,8 +42,14 @@
     "enabled": false,
     "companion_mode": false,
     "quiet_hours": [
-      22,
-      8
+      [
+        22,
+        8
+      ],
+      [
+        12,
+        13
+      ]
     ],
     "meeting": false,
     "fullscreen": false,

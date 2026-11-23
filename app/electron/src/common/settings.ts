@@ -59,8 +59,6 @@ const hotkey = (key: string, label: string, value: string): Item => ({ key, labe
 const text = (key: string, label: string, value: string): Item => ({ key, label, control: { kind: 'text', value }, restart: 'backend' });
 
 const NOTIFY: [string, string][] = [['sound', '出声'], ['card', '只出卡'], ['silent', '不提示']];
-/** agentd's `--ritual-report-time` choices: each half hour from 12:00 to 23:30. */
-export const REPORT_TIMES: string[] = Array.from({ length: 24 }, (_, i) => `${12 + Math.floor(i / 2)}:${i % 2 ? '30' : '00'}`);
 const FILTERS: [string, string][] = [['none', '无'], ['sp_filter_1', '黑金'], ['sp_filter_2', '温暖'], ['sp_filter_3', '苍白'],
   ['sp_filter_4', '胶片'], ['sp_filter_5', '希望色彩'], ['sp_filter_6', '血忆'], ['sp_filter_7', '武陵印象'], ['filter_1', '明亮'],
   ['filter_2', '冷调'], ['filter_3', '清新'], ['filter_4', '暗色'], ['filter_5', '黑白'], ['filter_6', '春'], ['filter_7', '文艺'],
@@ -121,9 +119,6 @@ const ITEMS: Item[] = [
   choice('asr_locale', '识别语言', [['auto', '跟随系统'], ['zh-CN', '中文'], ['en-US', 'English']], 'auto'),
   toggle('mute', '只出字、不出声', false),
   toggle('proactive_speech', '主动说话', true),
-  choice('break_reminder_minutes', '连续使用提醒', [['0', '关'], ['45', '45 分钟'], ['60', '60 分钟'], ['90', '90 分钟']], '0'),
-  choice('water_reminder_minutes', '喝水提醒', [['0', '关'], ['60', '60 分钟'], ['90', '90 分钟'], ['120', '120 分钟']], '90'),
-  dropdown('ritual_report_time', '收工时间', REPORT_TIMES.map((t) => [t, t]), '17:30'),
   text('proxy_url', '代理', ''),
   dropdown('screen_context_level', '屏幕理解粒度', [['status', '仅读状态'], ['focused', '焦点语义'], ['window', '窗口摘要']], 'focused'),
   toggle('share_page_text', '读取网页正文', false),
@@ -154,8 +149,7 @@ const ITEMS: Item[] = [
 const REGISTRY_ROWS: [string, string, string][] = [
   ['mute', 'speak', 'mute'], ['asr', 'speak', 'asr_locale'],
   ['proactive', 'speak', 'interaction_preset'],
-  ['speakUp', 'speak', 'proactive_speech'], ['rest', 'speak', 'break_reminder_minutes'], ['water', 'speak', 'water_reminder_minutes'],
-  ['reportTime', 'speak', 'ritual_report_time'],
+  ['speakUp', 'speak', 'proactive_speech'],
   ['n_done', 'speak', 'notify_done'],
   ['n_appr', 'speak', 'notify_approval'], ['n_err', 'speak', 'notify_error'], ['n_brief', 'speak', 'notify_brief'],
   ['n_remind', 'speak', 'notify_reminder'],
@@ -220,7 +214,7 @@ export const REVOKE_KINDS: Readonly<Record<string, string>> = { wintext: 'window
 const LAUNCH_KEYS: ReadonlySet<string> = new Set(['avatar_app', 'avatar_executable', 'python', 'agentd_dir', 'avatar_args', 'support_dir',
   'agentd_state_dir', 'character_catalog']);
 /** Choice rows whose config.json value is the option as an integer. */
-const INTEGER_CHOICE_KEYS: ReadonlySet<string> = new Set(['break_reminder_minutes', 'water_reminder_minutes', 'window_glass_alpha', 'ui_zoom']);
+const INTEGER_CHOICE_KEYS: ReadonlySet<string> = new Set(['window_glass_alpha', 'ui_zoom']);
 /** The 外观 rows, which the shell puts on the main window at once. */
 const APPEARANCE_KEYS = ['app_theme', 'window_background', 'window_glass_alpha', 'reduce_motion', 'ui_zoom'];
 
@@ -498,8 +492,8 @@ export type SaveEffect =
 
 /** What the running renderer takes in a `set_render`. */
 /** The keys config.ts agentdLive sends to a running agentd. */
-const AGENTD_LIVE_KEYS = ['mute', 'proactive_speech', 'interaction_preset', 'break_reminder_minutes', 'water_reminder_minutes', 'ritual_report_time',
-  'redact_sensitive', 'share_page_text', 'share_window_text', 'share_typed_text', 'share_agent_sessions', 'share_screenshots'];
+const AGENTD_LIVE_KEYS = ['mute', 'proactive_speech', 'interaction_preset', 'redact_sensitive', 'share_page_text', 'share_window_text',
+  'share_typed_text', 'share_agent_sessions', 'share_screenshots'];
 const LIVE_RENDER_KEYS = ['render_outline', 'render_light_yaw', 'render_light_pitch', 'render_light_strength', 'render_camera_mode',
   'render_camera_yaw', 'render_camera_pitch', 'render_facing_mode', 'render_ground_shadow', 'render_ambient', 'render_light_wrap',
   'render_camera_zoom', 'render_camera_sway', 'render_camera_track', 'render_filter', 'render_dof'];

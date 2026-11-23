@@ -122,7 +122,7 @@ class ResetThoughtsTest(unittest.TestCase):
 
     def thoughts(self, semantic):
         self.published = []
-        self.server.thoughts = Thoughts(Gate(enabled=True, quiet=(0, 0)),
+        self.server.thoughts = Thoughts(Gate(enabled=True),
                                         lambda event, data: self.published.append((event, data)), semantic,
                                         scene=lambda: {"activity": "editing_code", "confidence": 0.8},
                                         sessions=lambda: {"sessions": [session("claude:A", "thinking")]},

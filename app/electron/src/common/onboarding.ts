@@ -15,15 +15,18 @@ export const GUIDE_SETTINGS: ReadonlySet<string> = new Set(['plugins.light_ai', 
 const WINDOWS_HOOK = 'agentic-complex-hook.cmd';
 
 /** The hook installer's command, without `--target`; on Windows in cmd's double quotes, with `flags` before the
- *  script. */
-export function hookCommand(python: string, agentdDir: string, supportDir: string, platform: ShellPlatform = 'mac', flags: string[] = []): string {
+ *  script. The hooks post to this launch's agentd (its port and hook.token), which /diag/state counts as installed. */
+export function hookCommand(python: string, agentdDir: string, supportDir: string, agentd: { port: number; stateDir: string },
+  platform: ShellPlatform = 'mac', flags: string[] = []): string {
+  const url = `http://127.0.0.1:${agentd.port}`;
   if (platform === 'windows') {
     return [`"${python}"`, ...flags, `"${agentdDir}\\tools\\install_hooks.py"`, '--hook-script',
-      `"${supportDir}\\bin\\${WINDOWS_HOOK}"`].join(' ');
+      `"${supportDir}\\bin\\${WINDOWS_HOOK}"`, '--url', url, '--token-file', `"${agentd.stateDir}\\hook.token"`].join(' ');
   }
   const script = `${agentdDir}/tools/install_hooks.py`;
   const quoted = script.includes(' ') ? `'${script}'` : script;
-  return [`'${python}'`, ...flags, quoted, '--hook-script', `'${supportDir}/bin/agentic-complex-hook'`].join(' ');
+  return [`'${python}'`, ...flags, quoted, '--hook-script', `'${supportDir}/bin/agentic-complex-hook'`, '--url', url,
+    '--token-file', `'${agentd.stateDir}/hook.token'`].join(' ');
 }
 
 /** `<support>/bin/<name>`, a fixed path users' settings run: `python flags script ...args` and then its own arguments, by

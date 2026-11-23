@@ -139,17 +139,19 @@ test('permissions.status without an answer from the helper reads every helper pe
   }
 });
 
-test('permissions.request asks the helper for that one permission and answers its state; notifications are only read', async () => {
-  const helper = new FakeHelper({ 'permissions.request': (p) => ok({ state: p.kind === 'inputMonitoring' ? 'notApplicable' : 'denied' }),
-    'permissions.status': ok({ notifications: 'granted' }) });
+test('permissions.request asks the helper for that one permission and answers its state; Windows never asks for notifications', async () => {
+  const helper = new FakeHelper({ 'permissions.request': (p) => ok({ state: p.kind === 'inputMonitoring' ? 'notApplicable'
+    : p.kind === 'notifications' ? 'granted' : 'denied' }) });
   const { call } = setup({ helper });
   assert.equal(value(await call('permissions.request', ['microphone'])), 'denied');
   assert.equal(value(await call('permissions.request', ['screenRecording'])), 'notDetermined');
   assert.equal(value(await call('permissions.request', ['inputMonitoring'])), 'unsupported');
   assert.equal(value(await call('permissions.request', ['notifications'])), 'granted');
-  assert.equal(value(await setup({ helper: new FakeHelper({}), platform: 'windows' }).call('permissions.request', ['notifications'])), 'unsupported');
+  const windows = new FakeHelper({ 'permissions.request': ok({ state: 'granted' }) });
+  assert.equal(value(await setup({ helper: windows, platform: 'windows' }).call('permissions.request', ['notifications'])), 'unsupported');
+  assert.deepEqual(windows.requests, []);
   assert.deepEqual(helper.requests,[['permissions.request', { kind: 'microphone' }], ['permissions.request', { kind: 'screenRecording' }],
-    ['permissions.request', { kind: 'inputMonitoring' }], ['permissions.status', {}]]);
+    ['permissions.request', { kind: 'inputMonitoring' }], ['permissions.request', { kind: 'notifications' }]]);
   assert.deepEqual(failure(await call('permissions.request', ['camera'])), { code: 'invalid_args', detail: 'permission kind' });
   assert.equal(helper.requests.length, 4);
 });

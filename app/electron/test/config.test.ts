@@ -66,7 +66,6 @@ test('values of the wrong type are 字段 <path> 类型错误, with coding paths
   fails({ ...ASTER, harness_sites: { 'harness.pi': 1 } }, '字段 harness_sites.harness.pi 类型错误');
   fails({ ...ASTER, share_page_text: 'yes' }, '字段 share_page_text 类型错误');
   fails({ ...ASTER, redact_sensitive: 'no' }, '字段 redact_sensitive 类型错误');
-  fails({ ...ASTER, break_reminder_minutes: '25' }, '字段 break_reminder_minutes 类型错误');
   // Keys this shell does not read are not checked.
   assert.equal(parse({ ...ASTER, voice_hotkey: 1, screen_context_level: 1, battery_low_fps: 'x', viewport: 1, notify_done: 1,
     system_notifications: 'x' }).character, 'aster');
@@ -167,20 +166,8 @@ test('defaults of Config', () => {
   assert.deepEqual([c.shareAgentSessions, c.redactSensitive, c.proactiveSpeech], [true, true, true]);
   assert.deepEqual([c.sharePageText, c.shareTypedText, c.shareActions, c.mute], [false, false, false, false]);
   assert.equal(parse({ ...ASTER, share_actions: true }).shareActions, true);
-  assert.equal(c.breakReminderMinutes, 0);
-  // agentd's own default, so a config.json without the key keeps today's reminders.
-  assert.equal(c.waterReminderMinutes, 90);
   assert.equal(c.agentdLauncher, null);
-  const d = parse({ ...ASTER, interaction_preset: 'loud', break_reminder_minutes: 25, water_reminder_minutes: 120 });
-  assert.equal(d.interactionPreset, 'balanced');
-  assert.equal(d.breakReminderMinutes, 25);
-  assert.equal(d.waterReminderMinutes, 120);
-  assert.equal(parse({ ...ASTER, water_reminder_minutes: 0 }).waterReminderMinutes, 0);
-  // agentd's own default; a time the settings page does not offer reads as it too.
-  assert.equal(c.ritualReportTime, '17:30');
-  assert.equal(parse({ ...ASTER, ritual_report_time: '20:30' }).ritualReportTime, '20:30');
-  assert.equal(parse({ ...ASTER, ritual_report_time: '25:00' }).ritualReportTime, '17:30');
-  assert.equal(parse({ ...ASTER, ritual_report_time: '9:5' }).ritualReportTime, '17:30');
+  assert.equal(parse({ ...ASTER, interaction_preset: 'loud' }).interactionPreset, 'balanced');
   // No proxy unless config.json names one the settings page would take.
   assert.equal(c.proxyUrl, '');
   assert.equal(parse({ ...ASTER, proxy_url: 'http://127.0.0.1:7890' }).proxyUrl, 'http://127.0.0.1:7890');
