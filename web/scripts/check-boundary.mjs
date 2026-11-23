@@ -1,4 +1,4 @@
-// Lists production modules that import a demo module (mock data, dev pages, the fake bridge, demo presets); exits 1 on any.
+// Lists production modules that import a demo module (mock data, the fake bridge, demo presets); exits 1 on any.
 // Imports counted: static and type-only `import` / `export … from`, `import()` (also `typeof import()`), and `import.meta.glob` patterns.
 // Comment lines are skipped. Files in scripts/check-boundary.allow pass for now; an entry that no longer imports demo code fails.
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
@@ -8,14 +8,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 /** Whether a module (path from the web root, `src/…`) is demo code. */
 export function inside(rel) {
   return (
-    /^src\/(mock|dev|bridge\/fake)\//.test(rel) || /\.demos\.tsx?$/.test(rel) || /^src\/pages\/[^/]+\/demos\.ts$/.test(rel)
+    /^src\/(mock|bridge\/fake)\//.test(rel) || /\.demos\.tsx?$/.test(rel) || /^src\/pages\/[^/]+\/demos\.ts$/.test(rel)
   );
 }
 
 /** [file, specifier, reason]: imports into the boundary that the build already keeps out of the shipped app. */
 export const EXCEPTIONS = [
   ['src/bridge/index.ts', './fake', 'the fake bridge type, the MODE === test import and the import guarded by MODE !== app'],
-  ['src/shell/registry.ts', '../dev/*/route.ts', 'the dev pages glob sits behind MODE !== app'],
   ['src/shell/registry.ts', '../pages/*/demos.ts', 'the page presets glob sits behind MODE !== app'],
 ];
 

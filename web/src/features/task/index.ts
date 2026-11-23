@@ -1,4 +1,4 @@
-// Shared composite: task. Pages import it from here; #/ds lists it.
+// Shared composite: task. Pages import it from here; tests/fixtures/catalog lists it.
 export * from './FileImpact';
 export * from './RejectBox';
 export * from './RunWaterfall';

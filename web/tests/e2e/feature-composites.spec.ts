@@ -5,7 +5,7 @@ import { saveShot } from './shots.ts';
 // Trace components, DecisionBar, and the approval / delivery composites without paper, tape or eyebrow.
 
 const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
-const demo = (c: string, d: string, extra = '') => `main.html#/ds?c=${c}&d=${d}&still=1${extra}`;
+const demo = (c: string, d: string, extra = '') => `tests/fixtures/catalog/index.html#?c=${c}&d=${d}&still=1${extra}`;
 
 async function open(page: Page, c: string, d: string, extra = '') {
   await page.goto(demo(c, d, extra));

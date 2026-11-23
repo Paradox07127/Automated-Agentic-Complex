@@ -1,4 +1,4 @@
-// Chart components. Each file exports <Name>, <Name>Props and <Name>Demos; #/dv lists them from here.
+// Chart components. Each file exports <Name>, <Name>Props and <Name>Demos; tests/fixtures/catalog lists them from here.
 export * from './BarList';
 export * from './BracketMeter';
 export { ChartBox, useChart, type ChartCommonProps, type TableSpec } from './ChartBox';

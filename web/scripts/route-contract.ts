@@ -442,14 +442,14 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
-/** Scans src/ except src/mock, src/dev/ds and *.demo files. */
+/** Scans src/ except src/mock and *.demo files. */
 export function scanStatic(root: string = ROOT): { files: number; requests: Request[]; dynamic: DynamicCall[] } {
   const requests: Request[] = [];
   const dynamic: DynamicCall[] = [];
   let files = 0;
   for (const path of walk(join(root, 'src'))) {
     const file = relative(root, path).split('\\').join('/');
-    if (!/\.tsx?$/.test(file) || /\.demo\./.test(file) || file.startsWith('src/mock/') || file.startsWith('src/dev/ds/')) continue;
+    if (!/\.tsx?$/.test(file) || /\.demo\./.test(file) || file.startsWith('src/mock/')) continue;
     const r = scanSource(readFileSync(path, 'utf8'), file);
     files += 1;
     requests.push(...r.requests);

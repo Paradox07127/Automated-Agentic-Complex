@@ -4,29 +4,27 @@ import { parseDemo } from '../../src/shell/demo';
 import { searchSettings } from '../../src/pages/settings/registry';
 
 const pages = ['home', 'overview', 'chat', 'memory', 'character', 'settings', 'diag', 'trace', 'pipeline', 'tune'];
-const devPages = ['ds', 'dv'];
 const hidden = ['onboarding', 'tasks'];
 
 describe('route registry', () => {
-  it('auto-registers the 10 pages, the hidden onboarding page and 2 dev pages', () => {
-    expect(pageRoutes.map((r) => r.id).sort()).toEqual([...pages, ...hidden, ...devPages].sort());
+  it('auto-registers the 10 pages and the hidden onboarding page', () => {
+    expect(pageRoutes.map((r) => r.id).sort()).toEqual([...pages, ...hidden].sort());
   });
 
   it('keeps id, path and directory aligned and orders are unique', () => {
-    const modules = import.meta.glob(['../../src/pages/*/route.ts', '../../src/dev/*/route.ts'], { eager: true });
+    const modules = import.meta.glob('../../src/pages/*/route.ts', { eager: true });
     const dirs = Object.keys(modules).map((k) => k.split('/').at(-2));
     expect(dirs.sort()).toEqual(pageRoutes.map((r) => r.id).sort());
     for (const r of pageRoutes) expect(r.path).toBe(`/${r.id}`);
     expect(new Set(pageRoutes.map((r) => r.order)).size).toBe(pageRoutes.length);
   });
 
-  it('marks ds and dv as dev pages and gives every route at least one demo', () => {
-    for (const id of devPages) expect(findRoute(`/${id}`)?.group).toBe('dev');
+  it('gives every route at least one demo', () => {
     for (const r of pageRoutes) expect(r.demos.length).toBeGreaterThan(0);
   });
 
   it('sorts 主页 / 每日简报 / 对话 / 记忆 first with ⌘0–⌘3, then 角色 ⌘4, 设置 ⌘, with 诊断 and 运行记录 only in 开发者模式', () => {
-    const app = pageRoutes.filter((r) => r.group !== 'dev' && r.nav !== false);
+    const app = pageRoutes.filter((r) => r.nav !== false);
     expect(app.map((r) => r.id)).toEqual(pages);
     expect(app.filter((r) => r.group === 'primary').map((r) => r.id)).toEqual(['home', 'overview', 'chat', 'memory']);
     expect(app.flatMap((r) => (r.hotkey ? [r.hotkey] : []))).toEqual(['⌘0', '⌘1', '⌘2', '⌘3', '⌘4', '⌘,']);

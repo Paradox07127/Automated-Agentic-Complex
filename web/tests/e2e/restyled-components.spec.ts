@@ -29,15 +29,14 @@ const token = (page: Page, name: string) =>
 async function openDemo(page: Page, c: string, d?: string, theme?: 'light') {
   const qs = new URLSearchParams({ c, ...(d ? { d } : {}), still: '1', ...(theme ? { theme } : {}) });
   await page.goto('about:blank');
-  await page.goto(`main.html#/ds?plugins=all&${qs.toString()}`);
+  await page.goto(`tests/fixtures/catalog/index.html#?plugins=all&${qs.toString()}`);
   await expect(page.locator(`[data-component="${c}"]`)).toBeVisible();
 }
 
 test('every Btn demo: a capsule with no cut mask, 36, 32 or 24 high; the suffix slot is a round disc on lg and md', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html');
-  const manifest = await page.evaluate(() => window.__EF_ROUTES__ ?? []);
-  const demos = (manifest.find((r) => r.id === 'ds')?.demos ?? []).filter((d) => d.params.c === 'Btn').map((d) => d.params.d ?? '');
+  await page.goto('tests/fixtures/catalog/index.html#?');
+  const demos = await page.evaluate(() => window.__EF_CATALOG__?.find((e) => e.name === 'Btn')?.demos ?? []);
   expect(demos.length).toBeGreaterThan(5);
   const heights: Record<string, number> = { lg: 36, md: 32, sm: 24 };
   for (const theme of [undefined, 'light'] as const) {

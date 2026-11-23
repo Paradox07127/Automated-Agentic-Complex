@@ -67,7 +67,7 @@ test('page tabs sit in the command bar without caps of their own, and Q and E st
 
 test('EffectTag Chinese is at least 12 px', async ({ page }) => {
   for (const d of ['backend', 'pending']) {
-    await page.goto(`main.html#/ds?plugins=all&c=EffectTag&d=${d}&still=1`);
+    await page.goto(`tests/fixtures/catalog/index.html#?plugins=all&c=EffectTag&d=${d}&still=1`);
     const tag = page.locator('[data-stub="EffectTag"]');
     await expect(tag).toBeVisible();
     expect(parseFloat(await css(tag, 'font-size'))).toBeGreaterThanOrEqual(12);
@@ -75,7 +75,7 @@ test('EffectTag Chinese is at least 12 px', async ({ page }) => {
 });
 
 test('TraceLine sets Chinese in the sans face and only the path in mono', async ({ page }) => {
-  await page.goto('main.html#/ds?plugins=all&c=TraceLine&d=failed&still=1');
+  await page.goto('tests/fixtures/catalog/index.html#?plugins=all&c=TraceLine&d=failed&still=1');
   const line = page.locator('[data-stub="TraceLine"]');
   await expect(line).toBeVisible();
   const desc = line.locator('[title]').filter({ hasText: '资料授权已撤销' });
@@ -112,7 +112,7 @@ test('chat task column: one task title, one set of task actions and a tool secti
 });
 
 test('DiffPreview +1 −1 is not on a dark chip in the light theme', async ({ page }) => {
-  await page.goto('main.html#/ds?plugins=all&c=ApprovalCard&d=normal&still=1&theme=light');
+  await page.goto('tests/fixtures/catalog/index.html#?plugins=all&c=ApprovalCard&d=normal&still=1&theme=light');
   const num = page.locator('[data-stub="DiffPreview"] > span .num');
   await expect(num).toBeVisible();
   const lum = await num.evaluate((el) => {
@@ -134,7 +134,7 @@ test('every page demo has at most one visible yellow primary button', async ({ p
   await page.goto('main.html');
   const manifest = await page.evaluate(() => window.__EF_ROUTES__ ?? []);
   const over: string[] = [];
-  for (const route of manifest.filter((r) => r.id !== 'ds' && r.id !== 'dv')) {
+  for (const route of manifest) {
     for (const demo of route.demos) {
       const qs = new URLSearchParams({ ...demo.params, still: '1' }).toString();
       await page.goto('about:blank');

@@ -1,8 +1,15 @@
+/* The shell's page box: base ground, at most 1600 wide, container `page` for the @container queries. */
 .root {
   display: grid;
+  align-content: start;
   gap: var(--ef-sp-24);
+  height: 100%;
+  max-width: 1600px;
+  margin-inline: auto;
   padding: var(--ef-sp-24) var(--ef-page-pad);
   overflow: auto;
+  background: var(--ef-base);
+  container: page / inline-size;
 }
 
 .entry {
@@ -45,4 +52,14 @@
 .missing {
   padding: var(--ef-sp-24);
   color: var(--ef-text-2);
+}
+
+.modalRoot {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ef-z-modal);
+}
+
+.modalRoot:empty {
+  display: none;
 }

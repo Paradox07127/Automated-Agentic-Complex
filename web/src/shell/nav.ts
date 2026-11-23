@@ -62,8 +62,7 @@ export type NavTarget =
       create?: 'role' | 'code' | 'sched';
       focus?: string;
     }
-  | { page: 'tune'; tab?: 'behavior' | 'render'; focus?: string }
-  | { page: 'ds' | 'dv'; focus?: string };
+  | { page: 'tune'; tab?: 'behavior' | 'render'; focus?: string };
 
 export type PageId = NavTarget['page'];
 

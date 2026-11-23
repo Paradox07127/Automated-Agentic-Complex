@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { BarList, CompositionBar, CompositionBarDemos, CountdownRing, DotStrip, DotStripDemos, SmallMultiples, SmallMultiplesDemos, Swimlane, SwimlaneDemos, Waterfall, WaterfallDemos } from '../../src/charts';
-import { chartCatalog } from '../../src/dev/catalog';
+import { chartCatalog } from '../fixtures/catalog/catalog';
 
 afterEach(cleanup);
 

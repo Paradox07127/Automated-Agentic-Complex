@@ -10,7 +10,7 @@ import { STACK_DEMOS } from '../../src/surfaces/stack/demos.ts';
 // drop shadows only on controls, popups and marked depth frames, cast down and right with no edge above;
 // yellow fill counts primary buttons only, <= 1 per view.
 // On the desktop panels, visible text is also drawn at an effective opacity >= 0.9.
-// The #/ds and #/dv catalogs show many components side by side, so only the text and shadow rules apply there.
+// The catalog mount shows each component with all its demos side by side, so only the text and shadow rules apply there.
 
 /** Every desktop panel demo, plus each 控制台 demo. */
 const PANEL_DEMOS = [
@@ -137,17 +137,30 @@ for (const scheme of ['dark', 'light'] as const) {
     });
   }
 
-  test(`style guard ${scheme}: ds and dv catalogs`, async ({ page }) => {
+  test(`style guard ${scheme}: every catalog component`, async ({ page }) => {
+    test.setTimeout(300_000);
     await page.emulateMedia({ colorScheme: scheme });
+    await page.goto('tests/fixtures/catalog/index.html#?');
+    const entries = await page.evaluate(() => window.__EF_CATALOG__ ?? []);
+    expect(entries.length).toBeGreaterThan(0);
     const hits: string[] = [];
-    for (const id of ['ds', 'dv']) {
+    // Every demo also renders without a console error or an uncaught exception.
+    const errors: string[] = [];
+    let current = '';
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(`${current}: console: ${m.text()}`);
+    });
+    page.on('pageerror', (e) => errors.push(`${current}: pageerror: ${e.message}`));
+    for (const { name } of entries) {
+      current = name;
       await page.goto('about:blank');
-      await page.goto(`main.html#/${id}?still=1`);
-      await expect(page.locator(`main[data-route-id="${id}"]`)).toBeVisible();
+      await page.goto(`tests/fixtures/catalog/index.html#?c=${name}&still=1`);
+      await expect(page.locator(`[data-component="${name}"]`)).toBeVisible();
       await settle(page);
-      hits.push(...(await audit(page, false)).map((h) => `${id}: ${h}`));
+      hits.push(...(await audit(page, false)).map((h) => `${name}: ${h}`));
     }
     expect(hits).toEqual([]);
+    expect(errors).toEqual([]);
   });
 
   test(`style guard ${scheme}: hud in each stack preset`, async ({ page }) => {

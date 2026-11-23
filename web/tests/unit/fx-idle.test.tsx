@@ -1,7 +1,7 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { uiCatalog } from '../../src/dev/catalog';
+import { uiCatalog } from '../fixtures/catalog/catalog';
 import { gameClips, type GameClip } from '../../src/design/gameClips.generated';
 import { useGameClip } from '../../src/ui';
 import { WatchSample } from '../../src/ui/fx/samples';

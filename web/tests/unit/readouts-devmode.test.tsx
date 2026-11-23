@@ -145,7 +145,6 @@ describe(' 开发者模式 off', () => {
     for (const name of ['每日简报', '对话', '记忆', '角色', '设置', '任务']) expect(screen.getByRole('menuitem', { name: new RegExp(`^${name}`) })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: '诊断' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: '运行记录' })).toBeNull();
-    expect(screen.queryByRole('menuitem', { name: /设计系统/ })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /管线/ })).toBeNull();
   });
 

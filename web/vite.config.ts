@@ -2,8 +2,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Demo and dev modules: the app build may drop them when nothing uses their exports, though their top-level code calls functions.
-const DEMO = /\/src\/(dev|mock)\/|\.demos\.tsx?$|\/src\/pages\/[^/]+\/demos\.ts$/;
+// Demo modules: the app build may drop them when nothing uses their exports, though their top-level code calls functions.
+const DEMO = /\/src\/mock\/|\.demos\.tsx?$|\/src\/pages\/[^/]+\/demos\.ts$/;
 
 // The pages run only in Chromium, which takes the woff2 source; dropping the woff fallback keeps its files out of the build.
 // A PostCSS plugin, because Vite reads @import-ed CSS from disk without running plugin transform hooks on it.
@@ -33,7 +33,8 @@ export default defineConfig(({ mode }) => ({
     // The CSP allows fonts only from agentic-complex-ui:, so no asset may be inlined as data:.
     assetsInlineLimit: 0,
     rolldownOptions: {
-      input: { main: 'main.html', stack: 'stack.html' },
+      // The e2e build also carries the component demo mount the specs open; the shipped app does not.
+      input: { main: 'main.html', stack: 'stack.html', ...(mode !== 'app' ? { catalog: 'tests/fixtures/catalog/index.html' } : {}) },
       ...(mode === 'app' ? { treeshake: { moduleSideEffects: (id: string) => !DEMO.test(id) } } : {}),
     },
   },

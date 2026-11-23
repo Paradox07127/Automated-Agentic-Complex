@@ -1,4 +1,4 @@
-// Base components. Each file exports <Name>, <Name>Props and <Name>Demos; #/ds lists them from here.
+// Base components. Each file exports <Name>, <Name>Props and <Name>Demos; tests/fixtures/catalog lists them from here.
 export * from './Banner';
 export * from './Btn';
 export * from './Dialog';

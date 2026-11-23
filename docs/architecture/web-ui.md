@@ -41,7 +41,7 @@
 ## 检查
 
 - `check:copy`（`scripts/check-copy.mjs`）扫 `src/pages`、`src/features`、`src/surfaces`、`src/ui`、`src/charts` 里能上屏的字符串（字符串字面量、JSX 文字、CSS `content:`），命中上面禁止上屏的内容就按 `文件:行` 列出并以 1 退出。
-- `tests/e2e/style-guard.spec.ts` 在亮、暗两种系统外观下打开每个页面的全部 demo 和桌面浮层，检查：可见中文不小于 12px、任何文字不小于 11px；页内元素没有投影（`role=dialog/menu/tooltip`、`[data-overlay]` 和浮层卡片除外；无模糊、无偏移的描边环和内描边不算）；每个视图用 accent 作背景的可见元素不超过 2 个，可见的黄色主按钮不超过 1 个。`#/ds`、`#/dv` 只查字号和投影。新浮层加 `data-overlay` 才能带阴影。失败信息逐条列出 `<页面>-<demo>: <规则> <元素>`。
+- `tests/e2e/style-guard.spec.ts` 在亮、暗两种系统外观下打开每个页面的全部 demo 和桌面浮层，检查：可见中文不小于 12px、任何文字不小于 11px；页内元素没有投影（`role=dialog/menu/tooltip`、`[data-overlay]` 和浮层卡片除外；无模糊、无偏移的描边环和内描边不算）；每个视图用 accent 作背景的可见元素不超过 2 个，可见的黄色主按钮不超过 1 个。组件目录挂载页逐个组件打开，同一组件的 demo 并排，只查字号和投影。新浮层加 `data-overlay` 才能带阴影。失败信息逐条列出 `<页面>-<demo>: <规则> <元素>`。
 - `main.tsx` 把只读的路由清单挂在 `window.__EF_ROUTES__`（id、path、demos），smoke 测试从这里读各页的 demo。
 - vitest 关掉了 `fsModuleCache`（`vite.config.ts`）：持久的转换缓存看不到新加进 `src/mock/index.ts` 的 `import.meta.glob` 的文件。
 
@@ -56,7 +56,6 @@ src/
   mock/     各页的 mock 端点，每页一个文件 <id>.ts；types.ts 是类型
   shell/    布局、命令栏、路由、⌘K 面板、useDemo、页面注册表
   pages/    <id>/route.ts + Page.tsx：home overview chat tasks schedules memory character observe pipeline trace tune diag settings onboarding
-  dev/      ds（设计系统页）、dv（图表画廊）
   surfaces/ stack/（浮层卡片栈） desktop/（各桌面面板的根组件：bubble、hud、ring、cmd、console、chip 等）
   data/     跨页共享的 agentd 查询
   ui/       基础组件
@@ -64,13 +63,17 @@ src/
   features/ 跨页复合件：approval kernel health delivery task plan trace
   domain/   状态联合类型、实体类型和时间格式等
   mock/fixtures/  共享的 mock 数据
-tests/      unit/（vitest）  e2e/（Playwright）  route-contract.baseline.json
+tests/      unit/（vitest）  e2e/（Playwright）  fixtures/catalog/（只给测试的组件目录挂载页）  route-contract.baseline.json
 scripts/    check-size.mjs  check-copy.mjs  check-boundary.mjs  route-contract.ts
 ```
 
 ## 加页面
 
-`src/shell/registry.ts` 用 `import.meta.glob` 收集 `src/pages/*/route.ts`（非 `app` 构建另收 `src/dev/*/route.ts`）。新页面只要建目录并导出 `route`（类型 `PageRoute`，见 `src/shell/types.ts`）：`id` 等于目录名，`path` 为 `/<id>`，另有 `title`（页头中文标题）、`en`（只给 ⌘K 搜索用，不上屏）、`order`、`group`、可选的 `hotkey`、`component` 和 `demos`。不用改任何共享文件。
+`src/shell/registry.ts` 用 `import.meta.glob` 收集 `src/pages/*/route.ts`。新页面只要建目录并导出 `route`（类型 `PageRoute`，见 `src/shell/types.ts`）：`id` 等于目录名，`path` 为 `/<id>`，另有 `title`（页头中文标题）、`en`（只给 ⌘K 搜索用，不上屏）、`order`、`group`、可选的 `hotkey` 和 `component`；页面 demo 写在 `src/pages/<id>/demos.ts`，非 `app` 构建才收。不用改任何共享文件。
+
+## 组件目录
+
+设计系统和图表的展示不在应用里，没有对应页面。`tests/fixtures/catalog/` 是只给测试用的挂载页：`catalog.ts` 按名字把 `src/ui`、`src/ui/game`、`src/charts` 和 `src/features/*` 导出的 `<Name>` 与 `<Name>Demos` 配对，`index.html#?c=<Name>&d=<demo>` 渲染一个组件的一个 demo（不带 `d` 则是它的全部 demo），`still`、`theme`、`plugins` 与页面相同，`state=loading|empty|error` 给图表套 `ChartState`。`window.__EF_CATALOG__` 列出全部组件和 demo 名。它只进非 `app` 构建（`vite.config.ts` 的第三个入口），Playwright 用 `npm run build` 的产物打开它；单测直接 import `catalog.ts`。
 
 ## mock
 
@@ -99,7 +102,7 @@ export const routes: MockRoute[] = [
 
 ## 演示边界
 
-演示代码是 `src/mock/**`、`src/dev/**`、`src/bridge/fake/**`、`*.demos.ts(x)` 和 `src/pages/*/demos.ts`。边界外的模块不许 import 边界内的模块（静态 import、`import type`、`import()` 和 `import.meta.glob` 都算），这样 `vite build --mode app` 打出的包里没有演示数据。页面时钟用 `src/bridge/clock.ts` 的 `appNow()`，假桥加载时把它钉在 fixtures 的 `NOW`。
+演示代码是 `src/mock/**`、`src/bridge/fake/**`、`*.demos.ts(x)` 和 `src/pages/*/demos.ts`。边界外的模块不许 import 边界内的模块（静态 import、`import type`、`import()` 和 `import.meta.glob` 都算），这样 `vite build --mode app` 打出的包里没有演示数据。页面时钟用 `src/bridge/clock.ts` 的 `appNow()`，假桥加载时把它钉在 fixtures 的 `NOW`。
 
 `npm run check:boundary` 检查这条规则。固定的例外写在 `scripts/check-boundary.mjs` 里并注明理由；还没迁走的文件列在 `scripts/check-boundary.allow`，修好一个就删掉它那一行（已不再违规的条目也算失败）。
 

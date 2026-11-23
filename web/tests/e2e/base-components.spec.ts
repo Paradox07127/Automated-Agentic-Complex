@@ -2,11 +2,11 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 
-// The new base components behave in WebKit; each demo opens from #/ds?c=<Name>&d=<demo>.
+// The new base components behave in WebKit; each demo opens from the catalog mount, tests/fixtures/catalog/index.html#?c=<Name>&d=<demo>.
 
 const open = async (page: Page, c: string, d: string, extra = '') => {
   await page.goto('about:blank');
-  await page.goto(`main.html#/ds?c=${c}&d=${d}&still=1${extra}`);
+  await page.goto(`tests/fixtures/catalog/index.html#?c=${c}&d=${d}&still=1${extra}`);
   await expect(page.locator(`[data-demo="${c}-${d}"]`)).toBeVisible();
 };
 

@@ -10,7 +10,7 @@ const go = async (page: Page, url: string) => {
   await page.addStyleTag({ content: NO_TRANSITIONS });
 };
 const demo = async (page: Page, c: string, d: string, theme = 'dark') => {
-  await go(page, `main.html#/ds?c=${c}&d=${d}&still=1&theme=${theme}`);
+  await go(page, `tests/fixtures/catalog/index.html#?c=${c}&d=${d}&still=1&theme=${theme}`);
   await expect(page.locator(`[data-demo="${c}-${d}"]`)).toBeVisible();
   return page.locator(`[data-demo="${c}-${d}"]`);
 };

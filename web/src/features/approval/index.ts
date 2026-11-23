@@ -1,4 +1,4 @@
-// Shared composite: approval. Pages import it from here; #/ds lists it.
+// Shared composite: approval. Pages import it from here; tests/fixtures/catalog lists it.
 export * from './actionLine';
 export * from './ApprovalCard';
 export * from './approvalView';

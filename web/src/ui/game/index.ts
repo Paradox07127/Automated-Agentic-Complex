@@ -1,4 +1,4 @@
-// Game-style pieces shared by the pages, the watch and the desktop layer. Each file exports <Name>, <Name>Props and <Name>Demos; #/ds lists them as ui/game.
+// Game-style pieces shared by the pages, the watch and the desktop layer. Each file exports <Name>, <Name>Props and <Name>Demos; tests/fixtures/catalog lists them as ui/game.
 export * from './ActionBar';
 export * from './AlertTip';
 export * from './CharCard';

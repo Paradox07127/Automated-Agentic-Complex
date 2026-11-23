@@ -1,8 +1,6 @@
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { chartCatalog, featureCatalog, uiCatalog, type CatalogEntry } from '../../src/dev/catalog';
-import { route as dsRoute } from '../../src/dev/ds/route';
-import { route as dvRoute } from '../../src/dev/dv/route';
+import { chartCatalog, featureCatalog, uiCatalog, type CatalogEntry } from '../fixtures/catalog/catalog';
 
 afterEach(cleanup);
 
@@ -41,12 +39,9 @@ describe('component catalog', () => {
     });
   }
 
-  it('lists one URL per demo on #/ds and #/dv', () => {
-    const ds = new Set(dsRoute.demos.map((d) => `${d.params.c}/${d.params.d}`));
-    for (const e of [...uiCatalog, ...featureCatalog]) for (const d of e.demos) expect(ds.has(`${e.name}/${d.name}`)).toBe(true);
-    const dv = new Set(dvRoute.demos.map((d) => `${d.params.c}/${d.params.d}`));
-    for (const e of chartCatalog) for (const d of e.demos) expect(dv.has(`${e.name}/${d.name}`)).toBe(true);
-    const names = [...dsRoute.demos, ...dvRoute.demos].map((d) => d.name);
-    for (const n of names) expect(n).toMatch(/^[A-Za-z0-9-]+$/);
+  it('opens each demo alone by ?c=<Name>&d=<demo> on the test mount', () => {
+    const ids = [...uiCatalog, ...featureCatalog, ...chartCatalog].flatMap((e) => e.demos.map((d) => `${e.name}-${d.name}`));
+    for (const id of ids) expect(id).toMatch(/^[A-Za-z0-9-]+$/);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

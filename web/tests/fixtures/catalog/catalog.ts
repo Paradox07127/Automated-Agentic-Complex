@@ -1,10 +1,9 @@
 import type { ComponentType } from 'react';
-import * as charts from '../charts';
-import type { Demo } from '../shell/types';
-import * as ui from '../ui';
-import * as game from '../ui/game';
+import * as charts from '../../../src/charts';
+import * as ui from '../../../src/ui';
+import * as game from '../../../src/ui/game';
 
-// Every component file exports `<Name>` and `<Name>Demos`; the gallery pairs them by name, so new components need no registration.
+// Every component file exports `<Name>` and `<Name>Demos`; the catalog pairs them by name, so new components need no registration.
 
 export interface CatalogDemo {
   name: string;
@@ -32,9 +31,9 @@ function collect(group: string, mod: Record<string, unknown>): CatalogEntry[] {
     });
 }
 
-const featureModules = import.meta.glob<Record<string, unknown>>('../features/*/index.ts', { eager: true });
+const featureModules = import.meta.glob<Record<string, unknown>>('../../../src/features/*/index.ts', { eager: true });
 // Feature demos that need mock data sit in `X.demos.tsx`, outside the barrels; they pair with the barrel's components.
-const featureDemoModules = import.meta.glob<Record<string, unknown>>('../features/*/*.demos.tsx', { eager: true });
+const featureDemoModules = import.meta.glob<Record<string, unknown>>('../../../src/features/*/*.demos.tsx', { eager: true });
 
 const dirOf = (path: string) => path.split('/').at(-2) ?? '';
 
@@ -51,8 +50,3 @@ export const featureCatalog: CatalogEntry[] = Object.keys(featureModules)
   .flatMap((path) => collect(`features/${dirOf(path)}`, featureModule(path)));
 
 export const chartCatalog: CatalogEntry[] = collect('charts', charts);
-
-/** One screenshot-able demo per component demo: `#/<page>?c=<Name>&d=<demo>`. */
-export function catalogDemos(entries: CatalogEntry[]): Demo[] {
-  return entries.flatMap((e) => e.demos.map((d) => ({ name: `${e.name}-${d.name}`, params: { c: e.name, d: d.name } })));
-}

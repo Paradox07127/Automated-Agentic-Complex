@@ -7,7 +7,7 @@ export interface Demo {
   params: Record<string, string>;
 }
 
-/** What every `src/pages/<id>/route.ts` (and `src/dev/<id>/route.ts`) exports as `route`. */
+/** What every `src/pages/<id>/route.ts` exports as `route`. */
 export interface PageRoute {
   /** Equals the directory name. */
   id: string;
@@ -18,7 +18,7 @@ export interface PageRoute {
   en: string;
   /** Sidebar position, ascending. */
   order: number;
-  group: 'primary' | 'secondary' | 'dev';
+  group: 'primary' | 'secondary';
   hotkey?: string;
   /** false: reachable by URL only, kept out of the sidebar and ⌘K (the native onboarding window). */
   nav?: false;
@@ -28,6 +28,4 @@ export interface PageRoute {
   plugin?: PluginId;
   /** Lazy for the pages (`lazyRouteComponent`), so each page's code loads on first visit. */
   component: RouteComponent;
-  /** Pages leave this out: the registry attaches `src/pages/<id>/demos.ts` outside the shipped app. */
-  demos?: Demo[];
 }

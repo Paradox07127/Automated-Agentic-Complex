@@ -5,10 +5,10 @@ import { saveShot } from './shots.ts';
 // One-row version and delivery chains, the shared decision bar, and the chart label fixes in a real layout.
 
 const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
-const url = (page: 'ds' | 'dv', c: string, d: string, extra = '') => `main.html#/${page}?c=${c}&d=${d}&still=1${extra}`;
+const url = (c: string, d: string, extra = '') => `tests/fixtures/catalog/index.html#?c=${c}&d=${d}&still=1${extra}`;
 
-async function open(page: Page, where: 'ds' | 'dv', c: string, d: string, extra = '') {
-  await page.goto(url(where, c, d, extra));
+async function open(page: Page, c: string, d: string, extra = '') {
+  await page.goto(url(c, d, extra));
   await expect(page.locator(`[data-stub="${c}"]`).first()).toBeVisible();
 }
 
@@ -22,21 +22,21 @@ async function sameRow(a: Locator, b: Locator) {
 }
 
 test('DeliveryBox puts the version chain and the delivery chain on one row', async ({ page }) => {
-  await open(page, 'ds', 'DeliveryBox', 'review');
+  await open(page, 'DeliveryBox', 'review');
   const box = page.locator('[data-stub="DeliveryBox"]');
   await sameRow(box.locator('[data-stub="VersionChain"]'), box.locator('[data-stub="NodeChain"]'));
   await expect(box).not.toContainText('//');
 });
 
 test('the drawer version row puts both chains on one row', async ({ page }) => {
-  await open(page, 'ds', 'TaskDrawer', 'review');
+  await open(page, 'TaskDrawer', 'review');
   const drawer = page.locator('[data-stub="TaskDrawer"]');
   await sameRow(drawer.locator('[data-stub="VersionChain"]'), drawer.locator('[data-stub="NodeChain"]'));
   await expect(drawer.locator('[data-stub="DecisionBar"][data-kind="review"]')).toBeVisible();
 });
 
 test('QuestionBox answers from the question decision bar', async ({ page }) => {
-  await open(page, 'ds', 'QuestionBox', 'default');
+  await open(page, 'QuestionBox', 'default');
   const bar = page.locator('[data-stub="QuestionBox"] [data-stub="DecisionBar"][data-kind="question"]');
   await expect(bar.getByRole('button', { name: '提交回答' })).toBeVisible();
 });
@@ -75,7 +75,7 @@ test('dark HUD question card: button text reads at 4.5:1 on its own background',
 });
 
 test('SmallMultiples: 暂停 does not sit on the dashed target line', async ({ page }) => {
-  await open(page, 'dv', 'SmallMultiples', 'render');
+  await open(page, 'SmallMultiples', 'render');
   // getBBox in SVG units: WebKit's client rect for a <text> under a CSS `font` shorthand lands at the svg origin.
   const gap = await page.locator('svg[data-series="fps"]').evaluate((svg) => {
     const label = [...svg.querySelectorAll('text')].find((t) => t.textContent === '暂停') as SVGTextElement;
@@ -86,22 +86,22 @@ test('SmallMultiples: 暂停 does not sit on the dashed target line', async ({ p
   expect(gap).toBeGreaterThan(0);
 });
 
-const SHOTS: Array<['ds' | 'dv', string, string]> = [
-  ['ds', 'DeliveryBox', 'review'],
-  ['ds', 'TaskDrawer', 'review'],
-  ['ds', 'QuestionBox', 'default'],
-  ['ds', 'DiffPreview', 'open'],
-  ['ds', 'DecisionReceipt', 'expired'],
-  ['ds', 'ApprovalCard', 'normal'],
-  ['ds', 'TaskDetail', 'review'],
-  ['dv', 'SmallMultiples', 'render'],
-  ['dv', 'SegMeter', 'snapshot'],
+const SHOTS: Array<[string, string]> = [
+  ['DeliveryBox', 'review'],
+  ['TaskDrawer', 'review'],
+  ['QuestionBox', 'default'],
+  ['DiffPreview', 'open'],
+  ['DecisionReceipt', 'expired'],
+  ['ApprovalCard', 'normal'],
+  ['TaskDetail', 'review'],
+  ['SmallMultiples', 'render'],
+  ['SegMeter', 'snapshot'],
 ];
 
-for (const [where, c, d] of SHOTS) {
+for (const [c, d] of SHOTS) {
   for (const theme of ['dark', 'light'] as const) {
     test(`${theme}: ${c}-${d} renders`, async ({ page }, info) => {
-      await open(page, where, c, d, theme === 'light' ? '&theme=light' : '');
+      await open(page, c, d, theme === 'light' ? '&theme=light' : '');
       await page.evaluate(() => document.fonts.ready.then(() => undefined));
       await saveShot(page, { path: `${shotsDir}${info.project.name}/delivery-chains-${c}-${d}-${theme}.png` });
     });

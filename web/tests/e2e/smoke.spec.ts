@@ -6,11 +6,9 @@ import { saveShot } from './shots.ts';
 // Route ids come from the directories with a route.ts (the registry enforces id === directory);
 // each route's demo list is read from the running app's manifest.
 const srcDir = fileURLToPath(new URL('../../src/', import.meta.url));
-const routeIds = ['pages', 'dev'].flatMap((d) =>
-  readdirSync(`${srcDir}${d}`, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && existsSync(`${srcDir}${d}/${e.name}/route.ts`))
-    .map((e) => e.name),
-);
+const routeIds = readdirSync(`${srcDir}pages`, { withFileTypes: true })
+  .filter((e) => e.isDirectory() && existsSync(`${srcDir}pages/${e.name}/route.ts`))
+  .map((e) => e.name);
 const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
 
 function collectErrors(page: Page): string[] {
@@ -24,7 +22,6 @@ function collectErrors(page: Page): string[] {
 
 for (const id of routeIds) {
   test(`route ${id}: every demo renders without errors`, async ({ page }, info) => {
-    test.slow(id === 'ds', 'the gallery shoots ~300 demos, each waiting out the ~0.4 s header entrance clips');
     const errors = collectErrors(page);
     await page.goto('main.html');
     const manifest = await page.evaluate(() => window.__EF_ROUTES__ ?? []);

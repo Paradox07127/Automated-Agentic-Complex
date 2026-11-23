@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 // The shared frame pieces in the component catalog: one cell size for every tab variant, Fold and ExpandRow from the keyboard.
 
 const open = async (page: Page, c: string, d: string) => {
-  await page.goto(`main.html#/ds?c=${c}&d=${d}&still=1`);
+  await page.goto(`tests/fixtures/catalog/index.html#?c=${c}&d=${d}&still=1`);
   await expect(page.locator(`[data-stub="${c}"]`).first()).toBeVisible();
 };
 

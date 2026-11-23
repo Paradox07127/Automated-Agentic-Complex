@@ -52,8 +52,8 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
     ...(r.hotkey ? { hint: r.hotkey } : {}),
     onSelect: () => navigate({ page: r.id as PageId }),
   });
-  const user = pages.filter((r) => r.group !== 'dev' && !r.devOnly);
-  const dev = devMode ? pages.filter((r) => r.group === 'dev' || r.devOnly) : [];
+  const user = pages.filter((r) => !r.devOnly);
+  const dev = devMode ? pages.filter((r) => r.devOnly) : [];
   const menuItems: MenuItem[] = [...user.map(toItem), ...(dev.length > 0 ? [{ kind: 'sep' as const }] : []), ...dev.map(toItem)];
   const home = () => navigate({ page: 'home' });
   // The bar drops in once when the window opens (sns_basic_in's tabs track), not on page switches.

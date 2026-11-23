@@ -5,7 +5,6 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { createAppRouter } from '../../src/shell/router';
-import type { PageRoute } from '../../src/shell/types';
 import { StackErrorBoundary } from '../../src/surfaces/stack/StackErrorBoundary';
 import { stubMatchMedia } from './mediaStub';
 
@@ -13,7 +12,7 @@ const boom = vi.hoisted(() => ({ fail: true }));
 
 vi.mock('../../src/shell/registry', async (original) => {
   const real = await original<typeof import('../../src/shell/registry')>();
-  const route: PageRoute = {
+  const route: (typeof real.pageRoutes)[number] = {
     id: 'boom',
     path: '/boom',
     title: '试炸',

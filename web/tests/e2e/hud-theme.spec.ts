@@ -39,7 +39,7 @@ test('HUD theme= in the URL wins over the system appearance', async ({ page }) =
 
 test('effect tags are a quiet chip at rest and a yellow block only while pending', async ({ page }) => {
   for (const d of ['backend', 'character', 'pending', 'pending-backend']) {
-    await page.goto(`main.html#/ds?c=EffectTag&d=${d}&still=1`);
+    await page.goto(`tests/fixtures/catalog/index.html#?c=EffectTag&d=${d}&still=1`);
     const tag = page.locator('[data-stub="EffectTag"]');
     await expect(tag).toBeVisible();
     const pending = d.startsWith('pending');

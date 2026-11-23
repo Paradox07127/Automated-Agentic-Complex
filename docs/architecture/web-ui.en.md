@@ -41,7 +41,7 @@ The main window uses hash routes: `main.html#/<page id>?state=loading|empty|erro
 ## Checks
 
 - `check:copy` (`scripts/check-copy.mjs`) scans the on-screen strings (string literals, JSX text, CSS `content:`) in `src/pages`, `src/features`, `src/surfaces`, `src/ui` and `src/charts`; any banned content above is listed as `file:line` and the script exits 1.
-- `tests/e2e/style-guard.spec.ts` opens every demo of every page and the desktop panels under both the light and dark system appearance and checks: visible Chinese text is at least 12px and all text at least 11px; in-page elements have no drop shadow (except `role=dialog/menu/tooltip`, `[data-overlay]` and panel cards; rings and inset strokes with no blur and no offset do not count); each view has at most two visible elements with an accent background and at most one visible yellow primary button. `#/ds` and `#/dv` are checked for type size and shadows only. A new overlay needs `data-overlay` to carry a shadow. Failures list `<page>-<demo>: <rule> <element>` one per line.
+- `tests/e2e/style-guard.spec.ts` opens every demo of every page and the desktop panels under both the light and dark system appearance and checks: visible Chinese text is at least 12px and all text at least 11px; in-page elements have no drop shadow (except `role=dialog/menu/tooltip`, `[data-overlay]` and panel cards; rings and inset strokes with no blur and no offset do not count); each view has at most two visible elements with an accent background and at most one visible yellow primary button. The component catalog mount opens one component at a time with its demos side by side, checked for type size and shadows only. A new overlay needs `data-overlay` to carry a shadow. Failures list `<page>-<demo>: <rule> <element>` one per line.
 - `main.tsx` puts a read-only route list on `window.__EF_ROUTES__` (id, path, demos); the smoke test reads each page's demos from it.
 - vitest turns off `fsModuleCache` (`vite.config.ts`): the persistent transform cache misses files newly matched by the `import.meta.glob` in `src/mock/index.ts`.
 
@@ -56,7 +56,6 @@ src/
   mock/     mock endpoints per page, one file <id>.ts each; types.ts holds the types
   shell/    layout, command bar, router, ⌘K palette, useDemo, page registry
   pages/    <id>/route.ts + Page.tsx: home overview chat tasks schedules memory character observe pipeline trace tune diag settings onboarding
-  dev/      ds (design system page), dv (chart gallery)
   surfaces/ stack/ (panel card stack) desktop/ (root components of the desktop panels: bubble, hud, ring, cmd, console, chip and others)
   data/     agentd queries shared across pages
   ui/       base components
@@ -64,13 +63,17 @@ src/
   features/ composites shared across pages: approval kernel health delivery task plan trace
   domain/   state unions, entity types, time formats and the like
   mock/fixtures/  shared mock data
-tests/      unit/ (vitest)  e2e/ (Playwright)  route-contract.baseline.json
+tests/      unit/ (vitest)  e2e/ (Playwright)  fixtures/catalog/ (component catalog mount, for tests only)  route-contract.baseline.json
 scripts/    check-size.mjs  check-copy.mjs  check-boundary.mjs  route-contract.ts
 ```
 
 ## Adding a page
 
-`src/shell/registry.ts` collects `src/pages/*/route.ts` with `import.meta.glob` (and `src/dev/*/route.ts` outside the `app` build). A new page needs only its directory and an exported `route` (type `PageRoute`, see `src/shell/types.ts`): `id` equals the directory name, `path` is `/<id>`, plus `title` (the Chinese page header title), `en` (for ⌘K search only, never on screen), `order`, `group`, an optional `hotkey`, `component` and `demos`. No shared file changes.
+`src/shell/registry.ts` collects `src/pages/*/route.ts` with `import.meta.glob`. A new page needs only its directory and an exported `route` (type `PageRoute`, see `src/shell/types.ts`): `id` equals the directory name, `path` is `/<id>`, plus `title` (the Chinese page header title), `en` (for ⌘K search only, never on screen), `order`, `group`, an optional `hotkey` and `component`; the page's demos go in `src/pages/<id>/demos.ts`, collected outside the `app` build only. No shared file changes.
+
+## Component catalog
+
+The design system and chart showcases are not in the app and have no page. `tests/fixtures/catalog/` is a mount for tests only: `catalog.ts` pairs the `<Name>` and `<Name>Demos` exports of `src/ui`, `src/ui/game`, `src/charts` and `src/features/*` by name, and `index.html#?c=<Name>&d=<demo>` renders one demo of one component (without `d`, all its demos); `still`, `theme` and `plugins` work as on the pages, and `state=loading|empty|error` wraps a chart in `ChartState`. `window.__EF_CATALOG__` lists every component and its demo names. Only the non-`app` build carries it (the third entry in `vite.config.ts`); Playwright opens it from the `npm run build` output, and unit tests import `catalog.ts` directly.
 
 ## Mock
 
@@ -99,7 +102,7 @@ Shared mock data (`src/mock/fixtures/`):
 
 ## Demo boundary
 
-Demo code is `src/mock/**`, `src/dev/**`, `src/bridge/fake/**`, `*.demos.ts(x)` and `src/pages/*/demos.ts`. Modules outside the boundary may not import modules inside it (static imports, `import type`, `import()` and `import.meta.glob` all count), so the bundle from `vite build --mode app` holds no demo data. Page clocks use `appNow()` from `src/bridge/clock.ts`; the fake bridge pins it to the fixtures' `NOW` when it loads.
+Demo code is `src/mock/**`, `src/bridge/fake/**`, `*.demos.ts(x)` and `src/pages/*/demos.ts`. Modules outside the boundary may not import modules inside it (static imports, `import type`, `import()` and `import.meta.glob` all count), so the bundle from `vite build --mode app` holds no demo data. Page clocks use `appNow()` from `src/bridge/clock.ts`; the fake bridge pins it to the fixtures' `NOW` when it loads.
 
 `npm run check:boundary` checks this rule. Fixed exceptions live in `scripts/check-boundary.mjs` with their reasons; files not yet moved are listed in `scripts/check-boundary.allow`; delete a file's line once it is fixed (an entry that no longer violates the rule also fails).
 

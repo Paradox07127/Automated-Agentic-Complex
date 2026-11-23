@@ -1,4 +1,4 @@
-// Shared composite: delivery. Pages import it from here; #/ds lists it.
+// Shared composite: delivery. Pages import it from here; tests/fixtures/catalog lists it.
 export * from './ArtifactList';
 export * from './ArtifactChecks';
 export * from './useDeliveryVisibility';
