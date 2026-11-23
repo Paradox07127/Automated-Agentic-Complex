@@ -14,7 +14,7 @@ export const CONSOLE_DEMOS: Record<string, ConsoleDemo> = {
   empty: {},
   'console-unread': {},
   'console-offline': { agentdDown: true },
-  'console-config': { configError: 'config.json 第 12 行不是有效的 JSON' },
+  'console-config': { configError: '配置文件第 12 行不是有效的 JSON' },
 };
 
 export function consoleDemo(): ConsoleDemo {

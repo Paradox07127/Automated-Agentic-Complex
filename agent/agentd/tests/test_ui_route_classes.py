@@ -16,8 +16,6 @@ CLOSED = {"native_only", "host_only", "hook_only", "integration_only", "stream"}
 STACK = {  # The panel's base routes plus quiet, meeting, the task rail stopping runs and jobs, the reminder card's cancel/snooze/complete, the console reading the runtime, the focus session, and the desktop drop card's file scopes and job, the chat window muting a proactive kind, a done session card marked seen, a reminder card marked seen once the bubble shows it, and the tune panel reading and setting the motion source: the only routes the stack panel may send
     ("GET", "/character/runtime"),
     ("GET", "/proactive/mutes"),
-    ("GET", "/motion/settings"),
-    ("PUT", "/motion/settings"),
     ("POST", "/desktop/sessions/seen"),
     ("PUT", "/proactive/mutes"),
     ("POST", "^/approvals/([0-9a-f]{1,64})/decision$"),
