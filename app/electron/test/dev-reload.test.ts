@@ -23,12 +23,9 @@ function harness() {
     renameSync(join(base, '.current-1'), join(base, 'current'));
   };
   const ports = { reloadWeb: () => calls.push('web'), restartBackend: () => calls.push('agentd'), log: (l: string) => lines.push(l) };
-  /** Waits for `what`, touching the base each round: under load fs.watch can miss the events right after it starts, and any
-   *  later event there has the receipt read again. */
   const until = async (what: () => boolean, label: string): Promise<void> => {
     for (const end = Date.now() + 5000; !what(); await new Promise((r) => setTimeout(r, 20))) {
       if (Date.now() > end) assert.fail(`timed out waiting for ${label}`);
-      writeFileSync(join(base, '.touch'), `${Date.now()}`);
     }
   };
   return { base, calls, lines, deploy, ports, until, done: () => rmSync(base, { recursive: true, force: true }) };
@@ -70,6 +67,23 @@ test('launch logs dev_resources with its receipt; each switch of current reloads
       h.done();
     }
   });
+
+test('reconciles a changed receipt even without a rename in the watched parent', { skip: SYMLINK }, async () => {
+  const h = harness();
+  h.deploy(receipt('all'));
+  const dev = join(h.base, 'current');
+  const reloader = devReload({ devResources: dev, ...h.ports });
+  try {
+    writeFileSync(join(dev, 'dev-receipt.json'), JSON.stringify(receipt('web', 'second')));
+    await h.until(() => h.calls.length > 0, 'the web reload');
+    writeFileSync(join(dev, 'dev-receipt.json'), JSON.stringify(receipt('agentd', 'third')));
+    await h.until(() => h.calls.length > 1, 'the backend reload');
+    assert.deepEqual(h.calls, ['web', 'agentd']);
+  } finally {
+    reloader.stop();
+    h.done();
+  }
+});
 
 test('a receipt without a known part reloads nothing; one without the Receipt fields logs commit=none', { skip: SYMLINK }, async () => {
   const h = harness();

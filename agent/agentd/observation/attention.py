@@ -1,4 +1,5 @@
 """Attention timeline:ActivityWatch-style heartbeats in SQLite; active time = window ∩ not-AFK."""
+from bisect import bisect_right
 import collections
 import json
 import sqlite3
@@ -407,6 +408,7 @@ class AttentionStore:
         # As in ActivityWatch: an audible tab keeps the time active even while AFK.
         active = _union(not_afk + [(a, b) for a, b, data in browser if data.get("audible") and data.get("window_focused", True)
                                and data.get("visible", True) and not self.blacklist.hides(data)])
+        active_ends = [end for _, end in active]
         totals = {}
         for a, b, data in spans:
             if by == "domain" and self.blacklist.hides(data):
@@ -420,7 +422,10 @@ class AttentionStore:
             for a2, b2, key in parts:
                 if key is None or key == HIDDEN["app"] and by == "domain":
                     continue
-                for x, y in active:
+                for index in range(bisect_right(active_ends, a2), len(active)):
+                    x, y = active[index]
+                    if x >= b2:
+                        break
                     overlap = min(b2, y) - max(a2, x)
                     if overlap > 0:
                         totals[key] = totals.get(key, 0.0) + overlap

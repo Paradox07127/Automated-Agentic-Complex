@@ -25,6 +25,7 @@ MEMORY_AGENT_SCHEMA = (
     " generation INTEGER NOT NULL DEFAULT 0)",
     "CREATE TABLE IF NOT EXISTS personal_job_events (event_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, seq INTEGER NOT NULL,"
     " state TEXT NOT NULL, at REAL NOT NULL, delivered INTEGER NOT NULL DEFAULT 0, UNIQUE(job_id,seq))",
+    "CREATE INDEX IF NOT EXISTS personal_job_events_pending ON personal_job_events(at) WHERE delivered=0",
     "CREATE TABLE IF NOT EXISTS memory_agent_runs (run_id TEXT PRIMARY KEY, backend TEXT NOT NULL, model TEXT NOT NULL,"
     " character_id TEXT NOT NULL, started_at REAL NOT NULL, finished_at REAL, state TEXT NOT NULL,"
     " prompt_version TEXT NOT NULL, input_sha256 TEXT NOT NULL, detail TEXT, redacted_reason TEXT)",

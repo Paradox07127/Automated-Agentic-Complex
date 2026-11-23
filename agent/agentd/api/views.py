@@ -132,9 +132,12 @@ def _iso(t):
 
 def _episode_json(episode):
     """An episode of Episodes.day() or get() as GET /episodes lists it."""
-    refs = list(dict.fromkeys(v for t in episode['threads'] for v in t.get('evidence',[])))
+    number = {}
+    for thread in episode['threads']:
+        for ref in thread.get('evidence', []):
+            number.setdefault(ref, len(number) + 1)
     episode = {**episode, 'threads':[{**t,'source_ids':t.get('evidence',[]),
-        'evidence':[refs.index(v)+1 for v in t.get('evidence',[])]} for t in episode['threads']]}
+        'evidence':[number[v] for v in t.get('evidence',[])]} for t in episode['threads']]}
     defaults = {"session": None, "status": None, "progress": None, "topic": None, "blocked": None,
                 "subject": None, "goal": None, "outcome": None,
                 "evidence": [], "source_ids": [], "constraints": [], "decisions": [], "unresolved": [],

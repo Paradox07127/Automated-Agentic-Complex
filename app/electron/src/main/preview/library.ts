@@ -18,8 +18,8 @@ const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null 
 
 class MotionError extends Error {}
 
-function document(path: string): Json {
-  const d: unknown = JSON.parse(readFileSync(path, 'utf8'));
+function parseDocument(text: string): Json {
+  const d: unknown = JSON.parse(text);
   if (!isObject(d)) throw new MotionError('motion_document');
   return d;
 }
@@ -42,38 +42,44 @@ export function loadMotionLibrary(catalog: string, characterID: string): MotionL
     const path = contained(resolve(dirname(owner), raw.file));
     const data = readFileSync(path);
     if (data.length !== raw.byte_count || createHash('sha256').update(data).digest('hex') !== raw.sha256) throw new MotionError('motion_identity');
-    return path;
+    return { path, document: parseDocument(data.toString('utf8')) };
   };
-  const def = document(definition);
+  const def = parseDocument(readFileSync(definition, 'utf8'));
   const render = isObject(def.components) ? def.components.render : undefined;
   if (!isObject(render) || !isObject(render.native_bundle) || typeof render.native_bundle.file !== 'string') {
     throw new MotionError('text_only_package');
   }
   const bundle = contained(resolve(root, render.native_bundle.file));
   const sha256 = typeof render.native_bundle.sha256 === 'string' ? render.native_bundle.sha256 : '';
-  const native = document(bundle);
+  const native = parseDocument(readFileSync(bundle, 'utf8'));
   const role = (Array.isArray(native.characters) ? native.characters : []).find((c: unknown) => isObject(c) && c.id === characterID);
   if (!isObject(role)) throw new MotionError('motion_role');
-  const archive = document(reference(bundle, role.actor_archive));
-  const packPath = reference(bundle, role.c7);
-  const pack = document(packPath);
+  const archive = reference(bundle, role.actor_archive).document;
+  const { path: packPath, document: pack } = reference(bundle, role.c7);
   const section = (name: string, file: string): Json | null => {
     const s = pack[name];
     const ref = isObject(s) && Array.isArray(s.data) ? s.data.find((d: unknown) => isObject(d) && d.file === file) : undefined;
-    return ref === undefined ? null : document(reference(resolve(dirname(packPath), name, 'owner.json'), ref));
+    return ref === undefined ? null : reference(resolve(dirname(packPath), name, 'owner.json'), ref).document;
   };
   const actions: Json[] = [];
   for (const part of ['animation', 'interaction']) {
     const list = section(part, 'actions.json')?.actions;
     if (Array.isArray(list)) actions.push(...list.filter(isObject));
   }
-  const playable = actions.filter((a) => a.unavailable_reason === undefined && a.section !== 'move');
+  const firstAction = new Map<string, string | null>();
+  for (const action of actions) {
+    if (action.unavailable_reason !== undefined || action.section === 'move' || !Array.isArray(action.clips)) continue;
+    for (const clip of action.clips) {
+      if (typeof clip === 'string' && !firstAction.has(clip)) {
+        firstAction.set(clip, typeof action.id === 'string' ? action.id : null);
+      }
+    }
+  }
   const clips: MotionLibrary['clips'] = [];
   for (const row of Array.isArray(archive.clips) ? archive.clips : []) {
     if (!isObject(row) || typeof row.name !== 'string' || typeof row.length !== 'number') continue;
     const name = row.name;
-    const action = playable.find((a) => Array.isArray(a.clips) && a.clips.includes(name));
-    clips.push({ clip: name, actionID: typeof action?.id === 'string' ? action.id : null });
+    clips.push({ clip: name, actionID: firstAction.get(name) ?? null });
   }
   return { bundle, sha256, character: characterID, clips };
 }
