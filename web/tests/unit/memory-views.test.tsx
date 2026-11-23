@@ -60,6 +60,8 @@ describe('记忆页', () => {
   it('回顾 lists the records; a record opens in the detail column and its evidence opens in place', async () => {
     mount('&view=activity');
     expect((await tab('回顾')).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('textbox', { name: '搜索活动' }).getAttribute('maxlength')).toBe('500');
+    expect(document.querySelector('[aria-label="记录类型"] [aria-pressed="true"]')?.getAttribute('data-stub')).toBe('IndexCell');
     fireEvent.click(await screen.findByRole('button', { name: '查看 核对渲染测试结果' }));
     const detail = await screen.findByRole('complementary', { name: '这段记录' });
     fireEvent.click(await within(detail).findByRole('button', { name: /^查看证据 1/ }));
@@ -104,6 +106,8 @@ describe('记忆页', () => {
     expect(row.textContent).toMatch(/修复 HostLink 断线重连Endfield\d{4}\.\d{2}\.\d{2}会话 \d+/);
     expect(screen.getByRole('button', { name: /^进行中/ }).textContent).toBe('进行中1');
     expect(screen.getByRole('button', { name: /^搁置/ }).textContent).toBe('搁置0');
+    expect(screen.getByRole('button', { name: /^搁置/ }).getAttribute('data-stub')).toBe('IndexCell');
+    expect(screen.getByRole('textbox', { name: '搜索项目' }).getAttribute('maxlength')).toBe('500');
   });
 
   it('numbers project rows across the statuses; 搁置 lists its own', async () => {

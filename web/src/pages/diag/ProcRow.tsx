@@ -70,8 +70,8 @@ export function ProcRow({ p, metric, samples, now, uptime, stale, action, highli
           h={CHART_H}
           area
           limit={[
-            { v: warn, label: `注意 ${fmt(warn)}` },
-            { v: bad, label: `过高 ${fmt(bad)}` },
+            { v: warn, label: `注意 ${fmt(warn)}`, tone: 'warning', name: '注意线' },
+            { v: bad, label: `过高 ${fmt(bad)}`, tone: 'danger', name: '过高线' },
           ]}
           fmtY={fmt}
           fmtT={(t) => formatClock(t, { seconds: true })}

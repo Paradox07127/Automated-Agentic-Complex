@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { InfoTip } from '../../ui';
+import { DevMark, InfoTip } from '../../ui';
 import { useSettings } from './ctx';
 import { REGISTRY, useRowShown } from './registry';
 import styles from './rows.module.css';
@@ -70,11 +70,7 @@ export function SetRow({ id, title, desc, descTone, info, control, indent, tall,
               未应用
             </span>
           )}
-          {DEV.has(id) && (
-            <span className={styles.mark} data-k="dev" aria-label="开发者">
-              DEV
-            </span>
-          )}
+          {DEV.has(id) && <DevMark />}
         </div>
         {desc != null && (
           <div id={descId} className={styles.d} data-tone={descTone}>

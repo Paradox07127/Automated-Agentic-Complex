@@ -74,8 +74,8 @@ export function Resources({ samples, renderWhy, details, onProc }: ResourcesProp
               h={CHART_H}
               area
               limit={[
-                { v: 60, label: '目标 60' },
-                { v: 30, label: '过低 30' },
+                { v: 60, label: '目标 60', name: '目标线' },
+                { v: 30, label: '过低 30', tone: 'danger', name: '过低线' },
               ]}
               fmtY={(v) => (v == null ? '—' : `${Math.round(v)} fps`)}
               fmtT={hms}
@@ -97,7 +97,7 @@ export function Resources({ samples, renderWhy, details, onProc }: ResourcesProp
               yMin={0}
               yMax={30}
               h={CHART_H}
-              limit={{ v: FRAME_BUDGET_MS, label: `预算 ${FRAME_BUDGET_MS}` }}
+              limit={{ v: FRAME_BUDGET_MS, label: `预算 ${FRAME_BUDGET_MS}`, tone: 'warning', name: '预算线' }}
               fmtY={(v) => (v == null ? '—' : `${v.toFixed(1)} ms`)}
               fmtT={hms}
               st={none ? 'empty' : 'ok'}

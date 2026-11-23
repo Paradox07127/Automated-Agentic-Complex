@@ -3,12 +3,13 @@ import { keyText } from '../../bridge/platformText';
 import type { Fact, FactKind } from '../../domain';
 import { BottomBarSlot } from '../../shell/headerSlot';
 import { Btn, ErrBar, SearchField, SecHead, Select } from '../../ui';
+import { IndexCell } from '../../ui/game';
 import { Detail } from './Detail';
 import { Keys } from './Keys';
 import { LeftCol, Plate } from './Index';
 import { catOf, CATS, factText, isCandidate, isDormant, matches, plateOf, recentText, SORTERS, SORTS, SRC, ymd, type Cat, type Sort } from './model';
 import { AddPop, DeleteCard } from './Papers';
-import { Cell, DetailCol, Empty, List, Lnk, Panel, Row, Sep, Skeleton, SrcMark, Tag, useNarrow, type GlyphName } from './parts';
+import { DetailCol, Empty, Glyph, List, Lnk, Panel, Row, Sep, Skeleton, SrcMark, Tag, useNarrow, type GlyphName } from './parts';
 import { Votes } from './Votes';
 import styles from './Cols.module.css';
 
@@ -214,8 +215,8 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
       <LeftCol label="分类">
         <Plate plate={loaded ? plateOf(all) : null} selected={cat === 'about'} onClick={() => pick('about')} />
         <Sep en="Index" />
-        {cells.map((c, i) => (
-          <Cell key={c.id} i={i} icon={c.icon} label={c.label} count={count(c.id)} selected={cat === c.id} pending={c.id === 'pending'} onClick={() => pick(c.id)} />
+        {cells.map((c) => (
+          <IndexCell key={c.id} icon={<Glyph name={c.icon} />} label={c.label} count={count(c.id) ?? '—'} pressed={cat === c.id} pending={c.id === 'pending'} onClick={() => pick(c.id)} />
         ))}
       </LeftCol>
       {cat === 'pending' ? (
@@ -224,13 +225,10 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
         <section className={styles.ccol} aria-label="记忆">
           <div className={styles.crow}>
             <span className={styles.search}>
-              <SearchField value={q} label="搜索记忆" placeholder="搜索记住的事" shortcut={keyText('⌘F')} onChange={setQ} />
+              <SearchField value={q} label="搜索记忆" placeholder="搜索记住的事" shortcut={keyText('⌘F')} maxLength={500} onChange={setQ} />
             </span>
             <span className={styles.sp} />
-            <span className={styles.sel}>
-              <span aria-hidden="true">排序</span>
-              <Select label="排序" value={sort} options={SORTS} width={124} onChange={(v) => setSort(v as Sort)} />
-            </span>
+            <Select label="排序" prefix="排序" value={sort} options={SORTS} width={124} onChange={(v) => setSort(v as Sort)} />
             <Btn icon="plus" onClick={() => setAdding(true)}>
               新增
             </Btn>

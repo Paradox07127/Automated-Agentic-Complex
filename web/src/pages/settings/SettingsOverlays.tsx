@@ -28,7 +28,7 @@ export function SettingsOverlays() {
   );
 }
 
-/** White paper card (decisions only): a red-striped top on danger, the question, ▲ what cannot be undone, the list of what goes, then 取消 and the confirm. Opens on 取消, so Enter cancels. */
+/** White paper card (decisions only): the warning tape along the top, red on danger, the question, ▲ what cannot be undone, the list of what goes, then 取消 and the confirm. Opens on 取消, so Enter cancels. */
 function Paper({ spec, onClose }: { spec: ConfirmSpec; onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [word, setWord] = useState('');

@@ -205,19 +205,6 @@
   color: var(--ef-attention-text);
 }
 
-/* SecHead's DEV mark (SecHead.module.css .dev), which ui exports only inside a section head. */
-.mark[data-k='dev'] {
-  color: var(--ef-mission-accent);
-  font: var(--ef-fw-regular) var(--ef-fs-small) / 16px var(--ef-font-num);
-  letter-spacing: 0.06em;
-  box-shadow: inset 0 0 0 1px var(--ef-mission-accent);
-}
-
-/* On paper the blue stays in the frame and the letters take the ink, since the blue falls under 4.5:1 there. */
-:global([data-theme='light']) .mark[data-k='dev'] {
-  color: var(--ef-text-1);
-}
-
 .ok {
   color: var(--ef-state-ok);
   font-size: 12px;

@@ -5,13 +5,14 @@ import { keyText } from '../../bridge/platformText';
 import { get, seg } from '../../bridge/agentd';
 import { BottomBarSlot } from '../../shell/headerSlot';
 import { Btn, ErrBar, InfoTip, SearchField, SecHead } from '../../ui';
+import { IndexCell } from '../../ui/game';
 import { useGo } from './api';
 import { Frame, Note, Spacer, Text } from './Detail';
 import detail from './Detail.module.css';
 import { errorText } from './errors';
 import { LeftCol } from './Index';
 import { Keys } from './Keys';
-import { Block, Cell, DetailCol, DetailHead, Empty, Kv, List, Lnk, Panel, Quote, Row, Sep, Skeleton, Tag, useNarrow } from './parts';
+import { Block, DetailCol, DetailHead, Empty, Glyph, Kv, List, Lnk, Panel, Quote, Row, Sep, Skeleton, Tag, useNarrow } from './parts';
 import styles from './Cols.module.css';
 
 type SourceKind = 'work_events' | 'raw';
@@ -183,8 +184,8 @@ export function Review() {
     <div className={styles.body} data-wide={!open || undefined}>
       <LeftCol label="记录类型">
         <Sep en="Seen / Records" />
-        {KINDS.map((k, i) => (
-          <Cell key={k.id} i={i} icon={k.icon} label={k.label} selected={kind === k.id} onClick={() => (setKind(k.id), setSel(null), setDrawer(false))} />
+        {KINDS.map((k) => (
+          <IndexCell key={k.id} icon={<Glyph name={k.icon} />} label={k.label} pressed={kind === k.id} onClick={() => (setKind(k.id), setSel(null), setDrawer(false))} />
         ))}
       </LeftCol>
       <section className={styles.ccol} aria-label="回顾">
@@ -195,8 +196,9 @@ export function Review() {
               label="搜索活动"
               placeholder="搜索她看到的内容（按回车）"
               shortcut={keyText('⌘F')}
+              maxLength={500}
               onChange={(v) => {
-                setDraft(v.slice(0, 500));
+                setDraft(v);
                 if (!v) setQuery('');
               }}
               onSubmit={(v) => setQuery(v.trim())}

@@ -186,7 +186,10 @@ describe('memory › 档案', () => {
     mount('?still=1&q=周报');
     await openAll();
     expect(rows().sort()).toEqual(['g1', 'x3'].map(v31Id).sort());
+    expect(screen.getByRole('textbox', { name: '搜索记忆' }).getAttribute('maxlength')).toBe('500');
+    expect(cell('全部').getAttribute('data-stub')).toBe('IndexCell');
     fireEvent.click(screen.getByRole('button', { name: '清除搜索' }));
+    expect(screen.getByRole('button', { name: '排序' }).querySelector('[data-prefix]')?.textContent).toBe('排序');
     fireEvent.click(screen.getByRole('button', { name: '排序' }));
     fireEvent.click(screen.getByRole('option', { name: '最久没用' }));
     expect(screen.queryByRole('group', { name: '偏好' })).toBeNull();

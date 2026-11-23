@@ -194,6 +194,7 @@ export function Render({ offline, onRestart, toast }: RenderProps) {
                   }
                   effect="character"
                   pending={pending.has(id)}
+                  modified={off}
                   {...(offline ? { disabled: true, disabledReason: '角色未运行' } : {})}
                 />
               );

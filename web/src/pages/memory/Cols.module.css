@@ -76,17 +76,6 @@
   max-width: 420px;
 }
 
-/* Sort: its word, then the shared dropdown. */
-.sel {
-  display: inline-flex;
-  flex: none;
-  gap: 8px;
-  align-items: center;
-  font-size: 13px;
-  white-space: nowrap;
-  color: var(--ef-text-2);
-}
-
 @media (max-width: 1199px) {
   .body,
   .body[data-wide] {

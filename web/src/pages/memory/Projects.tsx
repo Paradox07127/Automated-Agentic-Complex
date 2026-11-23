@@ -7,13 +7,14 @@ import { BottomBarSlot } from '../../shell/headerSlot';
 import { toast } from '../../shell/toast';
 import { keyText } from '../../bridge/platformText';
 import { Btn, ErrBar, SearchField, SecHead } from '../../ui';
+import { IndexCell } from '../../ui/game';
 import { Frame, Line, Lines, Note, Spacer, Text } from './Detail';
 import detail from './Detail.module.css';
 import { errorText, isConflict } from './errors';
 import { LeftCol } from './Index';
 import { Keys } from './Keys';
 import { hm, ymd } from './model';
-import { Block, Cell, DetailCol, DetailHead, Empty, Kv, List, Lnk, Panel, Row, Sep, Skeleton, Glyph, useNarrow, type GlyphName } from './parts';
+import { Block, DetailCol, DetailHead, Empty, Kv, List, Lnk, Panel, Row, Sep, Skeleton, Glyph, useNarrow, type GlyphName } from './parts';
 import styles from './Cols.module.css';
 
 export type WorkTask = MemoryTasksResponse['tasks'][number];
@@ -100,14 +101,14 @@ export function Projects({ tasks, error, onRetry, initialQ, onSession }: Project
     <div className={styles.body} data-wide={!open || undefined}>
       <LeftCol label="状态">
         <Sep en="Work / Memory" />
-        {STATUS.map((s, i) => (
-          <Cell key={s.id} i={i} icon={s.icon} label={s.label} count={tasks ? tasks.filter((t) => t.status === s.id).length : null} selected={cur === s.id} onClick={() => (setStatus(s.id), setSel(null), setDrawer(false))} />
+        {STATUS.map((s) => (
+          <IndexCell key={s.id} icon={<Glyph name={s.icon} />} label={s.label} count={tasks ? tasks.filter((t) => t.status === s.id).length : '—'} pressed={cur === s.id} onClick={() => (setStatus(s.id), setSel(null), setDrawer(false))} />
         ))}
       </LeftCol>
       <section className={styles.ccol} aria-label="项目">
         <div className={styles.crow}>
           <span className={styles.search}>
-            <SearchField value={q} label="搜索项目" placeholder="搜索项目" shortcut={keyText('⌘F')} onChange={setQ} />
+            <SearchField value={q} label="搜索项目" placeholder="搜索项目" shortcut={keyText('⌘F')} maxLength={500} onChange={setQ} />
           </span>
         </div>
         <Panel>{list}</Panel>

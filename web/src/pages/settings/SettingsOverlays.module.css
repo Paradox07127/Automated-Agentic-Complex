@@ -1,4 +1,4 @@
-/* White paper card: decisions only. The veil blurs the page; the card is paper in both themes (it carries data-theme=light, so the tokens read their light values). */
+/* White paper card: decisions only, with the warning tape along its top. The veil blurs the page; the card is paper in both themes (it carries data-theme=light, so the tokens read their light values). */
 .veil {
   position: fixed;
   inset: 0;
@@ -11,6 +11,7 @@
 }
 
 .paper {
+  composes: tape from '../../ui/Tape.module.css';
   position: relative;
   display: grid;
   gap: 12px;
@@ -18,7 +19,7 @@
   max-height: calc(100% - 32px);
   overflow: auto;
   padding: 24px 24px 18px;
-  background: var(--ef-paper);
+  background: linear-gradient(180deg, var(--ef-raised), var(--ef-paper)) var(--ef-paper);
   box-shadow: var(--ef-shadow-card);
   color: var(--ef-paper-text);
   animation: popIn 300ms var(--ef-ease-g-enter) both;
@@ -28,15 +29,8 @@
   outline: none;
 }
 
-/* A danger card's top edge: black and red diagonal stripes. */
-.paper[data-danger]::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 5px;
-  background: repeating-linear-gradient(115deg, var(--ef-on-accent) 0 6px, var(--ef-danger-vivid) 6px 12px);
+.paper[data-danger] {
+  --tape-hi: var(--ef-danger-vivid);
 }
 
 .title {

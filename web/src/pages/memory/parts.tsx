@@ -59,40 +59,6 @@ export const Sep = ({ en }: { en: string }) => (
   </div>
 );
 
-export interface CellProps {
-  icon: GlyphName;
-  label: string;
-  /** Count at the right end; null draws 「—」 (not read yet). */
-  count?: number | null;
-  selected: boolean;
-  /** 待确认: the count stands out and an orange diamond marks the cell. */
-  pending?: boolean;
-  /** Entrance order. */
-  i: number;
-  onClick: () => void;
-}
-
-/** Left-column category cell (wiki TabCell): light plate with a hatch and ticks; picked, a dark contour plate, a yellow bar and a yellow icon. */
-export function Cell({ icon, label, count, selected, pending, i, onClick }: CellProps) {
-  return (
-    <button
-      type="button"
-      className={cells.cell}
-      aria-pressed={selected}
-      data-pend={pending || undefined}
-      data-theme={selected ? 'dark' : undefined}
-      style={{ '--i': i } as CSSProperties}
-      onClick={onClick}
-    >
-      <i className={cells.yb} aria-hidden="true" />
-      <Glyph name={icon} />
-      <span className={cells.ct}>{label}</span>
-      {count !== undefined && <span className={`${cells.n} num`}>{count ?? '—'}</span>}
-      {pending && <i className={cells.rd} aria-hidden="true" />}
-    </button>
-  );
-}
-
 /** Dark data panel with corner ticks; the rows and the detail sit on it in both themes. */
 export const Panel = ({ children, label }: { children: ReactNode; label?: string }) => (
   <div className={styles.pn} data-theme="dark" role={label ? 'region' : undefined} aria-label={label}>

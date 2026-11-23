@@ -1,7 +1,7 @@
 // 诊断和调参照全站规格：页签图标、DeviceRow 直接带落点属性、阈值刻度、参考线、ⓘ、DEV 标、窄宽度的紧凑读数板。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { RENDER_STATS } from '../../src/mock/fixtures';
@@ -56,7 +56,8 @@ describe('diag', () => {
     const row = document.querySelector<HTMLElement>('[data-nav-target="proc-agentd"]')!;
     const tick = row.querySelector<HTMLElement>('[data-stub="LoadBar"] [data-threshold]');
     expect(tick?.style.left).toBe(`${Math.round((600 / 1024) * 100)}%`);
-    expect(row.querySelectorAll('[data-stub="LineChart"] [data-limit]')).toHaveLength(2);
+    expect([...row.querySelectorAll('[data-stub="LineChart"] [data-limit]')].map((g) => g.getAttribute('data-limit'))).toEqual(['warning', 'danger']);
+    expect(row.querySelector('[data-stub="LineChart"] svg[role="img"]')!.getAttribute('aria-label')).toMatch(/注意线 .+；过高线 .+$/);
     expect(infoAfterTitle('进程')).toBe(true);
   });
 
@@ -65,6 +66,11 @@ describe('diag', () => {
     render(<Resources samples={samples} renderWhy="" details={null} onProc={noop} />);
     const fps = screen.getByRole('region', { name: '帧率' });
     expect([...fps.querySelectorAll('[data-limit] text')].map((t) => t.textContent)).toEqual(['目标 60', '过低 30']);
+    expect([...fps.querySelectorAll('[data-limit]')].map((g) => g.getAttribute('data-limit'))).toEqual(['', 'danger']);
+    expect(fps.querySelector('svg[role="img"]')!.getAttribute('aria-label')).toMatch(/目标线 60 fps；过低线 30 fps$/);
+    const ft = screen.getByRole('region', { name: '帧耗时' });
+    expect([...ft.querySelectorAll('[data-limit]')].map((g) => g.getAttribute('data-limit'))).toEqual(['warning']);
+    expect(ft.querySelector('svg[role="img"]')!.getAttribute('aria-label')).toMatch(/预算线 [\d.]+ ms$/);
     expect(infoAfterTitle('帧')).toBe(true);
   });
 });
@@ -75,6 +81,17 @@ describe('tune', () => {
     mount(TunePage, '&tab=render');
     await waitFor(() => expect(head('画质')).not.toBeNull());
     expect(head('画质')!.textContent).toContain('DEV');
+  });
+
+  it('a quality row whose value is not the default is marked modified', async () => {
+    window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
+    mount(TunePage, '&tab=render');
+    const row = () => document.getElementById('set-rnd.aa')!;
+    await waitFor(() => expect(document.getElementById('set-rnd.aa')).not.toBeNull());
+    expect(row().hasAttribute('data-modified')).toBe(false);
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: '2× SSAA' })).getByRole('radio', { name: '关' }));
+    await waitFor(() => expect(row().hasAttribute('data-modified')).toBe(true));
+    expect(document.getElementById('set-rnd.shadow')!.hasAttribute('data-modified')).toBe(false);
   });
 
   it('the readout plates are compact only in a narrow window', async () => {
