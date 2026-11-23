@@ -211,7 +211,7 @@ test('DarkRow: the row plate lightens on hover and once more while pressed', asy
 });
 
 test('Stepper: the arrow cells take the ColorTint light of the game\'s small buttons', async ({ page }) => {
-  await page.goto('main.html#/character?tab=behavior');
+  await page.goto('tests/fixtures/catalog/index.html#?c=DarkRow&d=changed&still=1');
   const ar = page.locator('[data-stub="Stepper"] button[aria-label$="个"]:not(:disabled)').first();
   await quiet(ar);
   const light = () => ar.evaluate((el) => {

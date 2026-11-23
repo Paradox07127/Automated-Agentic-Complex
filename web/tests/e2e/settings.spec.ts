@@ -41,8 +41,8 @@ test('the nine groups are 50 px icon tabs in the command bar; the selected one d
     const nav = page.getByRole('navigation', { name: '主导航' }).getByRole('tablist', { name: '设置分组' });
     await expect(nav.getByRole('tab')).toHaveCount(9);
     const on = nav.getByRole('tab', { selected: true });
-    await expect(on).toHaveText(/说话/);
-    await expect(on).toHaveAttribute('title', '说话');
+    await expect(on).toHaveText(/交流/);
+    await expect(on).toHaveAttribute('title', '交流');
     const look = await on.evaluate((el) => {
       const plate = getComputedStyle(el.querySelector('[data-g="slc"]')!);
       return { w: el.getBoundingClientRect().width, plate: [plate.backgroundColor, plate.width, plate.height], icon: getComputedStyle(el.querySelector('svg')!).color };
@@ -50,7 +50,7 @@ test('the nine groups are 50 px icon tabs in the command bar; the selected one d
     expect(look).toEqual({ w: 50, plate: ['rgb(255, 241, 0)', '76px', '56px'], icon: 'rgb(33, 33, 33)' });
   }
   const nav = page.getByRole('tablist', { name: '设置分组' });
-  await nav.getByRole('tab', { name: /按键/ }).click();
+  await nav.getByRole('tab', { name: /快捷键/ }).click();
   await expect(page.locator('#set-hk_page_overview')).toContainText('每日简报');
   await expect(page.locator('#set-hk_page_memory')).toContainText('⌘3');
 });

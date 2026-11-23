@@ -38,7 +38,7 @@ test('a coding tool that is not hooked up shows its install steps', async ({ pag
   expect(errors).toEqual([]);
 });
 
-test('permission rows include Input Monitoring with 允许, and 操作电脑 is switched on its band in 能做', async ({ page }) => {
+test('permission rows include Input Monitoring with 允许, and 操作电脑 is switched on its band in 能力', async ({ page }) => {
   const errors = collectErrors(page);
   // A link to a permission unfolds 系统权限.
   await page.goto('main.html#/settings?plugins=all&group=perm&item=inputMonitoring&still=1');

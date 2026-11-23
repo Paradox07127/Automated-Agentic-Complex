@@ -100,19 +100,19 @@ test("Q and E step through the page's own tabs and wrap, do nothing while typing
   await page.goto('main.html#/settings?still=1');
   const tabs = page.getByRole('tablist', { name: '设置分组' });
   const selected = () => tabs.getByRole('tab', { selected: true });
-  await expect(selected()).toHaveAttribute('title', '说话');
+  await expect(selected()).toHaveAttribute('title', '交流');
   await page.keyboard.press('e');
   await expect(selected()).toHaveAttribute('title', '能力');
   await page.keyboard.press('q');
   await page.keyboard.press('q');
   await expect(selected()).toHaveAttribute('title', '关于');
-  // 关于 › 数据 › 按键 › 服务 › AI.
+  // 关于 › 数据 › 快捷键 › 服务 › 内核.
   for (let i = 0; i < 4; i++) await page.keyboard.press('q');
-  await expect(selected()).toHaveAttribute('title', 'AI');
+  await expect(selected()).toHaveAttribute('title', '内核');
   await page.keyboard.press('q');
   await expect(selected()).toHaveAttribute('title', '显示');
   await page.keyboard.press('e');
-  await expect(selected()).toHaveAttribute('title', 'AI');
+  await expect(selected()).toHaveAttribute('title', '内核');
   await expect(page.locator('main[data-route-id="settings"]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('main[data-route-id="home"]')).toBeVisible();
@@ -133,7 +133,7 @@ test('focus follows the picked tab, so no tab that is not selected draws a ring 
   await page.keyboard.press('a');
   expect(await ringed()).toEqual([]);
   await page.keyboard.press('e');
-  await expect(tabs.and(page.locator('[aria-selected="true"]'))).toHaveAttribute('title', 'AI');
+  await expect(tabs.and(page.locator('[aria-selected="true"]'))).toHaveAttribute('title', '内核');
   expect(await ringed()).toEqual([]);
 });
 
@@ -170,12 +170,12 @@ test('tabs that do not fit show an arrow at that end, the arrow scrolls them int
   await expect.poll(() => shown('关于')).toBe(true);
   await expect(next).toBeHidden();
   await expect(prev).toBeVisible();
-  for (let i = 0; i < 3 && !(await shown('说话')); i++) {
+  for (let i = 0; i < 3 && !(await shown('交流')); i++) {
     await prev.click();
     await page.waitForTimeout(400);
   }
   await expect(next).toBeVisible();
-  await expect.poll(() => shown('说话')).toBe(true);
+  await expect.poll(() => shown('交流')).toBe(true);
   await expect(prev).toBeHidden();
   // Q from the first group wraps to the last, which scrolls into view; its name is written in the cell.
   await page.keyboard.press('q');
