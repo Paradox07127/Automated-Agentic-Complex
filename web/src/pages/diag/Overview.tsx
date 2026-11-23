@@ -230,7 +230,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
     sub: [tts ? (voiceSource(tts.provider) ?? 'TTS') : 'TTS', p.d?.mouth_voice.muted ? '已静音' : null].filter(Boolean).join(' │ '),
     child: services.length > 0 ? 'mid' : 'last',
     micro: 'TTS',
-    go: { label: '设置 › 说话', external: true, onClick: () => p.go({ page: 'settings', group: 'speak', item: 'tts' }) },
+    go: { label: '设置 › 交流', external: true, onClick: () => p.go({ page: 'settings', group: 'speak', item: 'tts' }) },
     ...(gone
       ? { state: 'idle' as const, stateLabel: '未知', why: '后台断开，读不到语音状态', dim: true }
       : v === 'unreachable'

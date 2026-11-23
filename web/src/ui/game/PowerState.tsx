@@ -170,7 +170,7 @@ const INPUT = (
 export const PowerStateDemos: Array<{ name: string; props: PowerStateProps }> = [
   {
     name: 'off-page',
-    props: { state: 'off', mode: 'page', title: 'AI 对话', reason: '设置 › AI 里关掉了「AI 对话」，角色不回消息，也不记新的对话。', action: { label: '前往设置打开', onClick: () => {} }, children: THREAD },
+    props: { state: 'off', mode: 'page', title: 'AI 对话', reason: '设置 › 内核 里关掉了「AI 对话」，角色不回消息，也不记新的对话。', action: { label: '前往设置打开', onClick: () => {} }, children: THREAD },
   },
   {
     name: 'unlinked-page',

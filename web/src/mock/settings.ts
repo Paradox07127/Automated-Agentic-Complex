@@ -23,8 +23,6 @@ type Slide = Required<Pick<SchemaRow, 'min' | 'max' | 'step' | 'format'>>;
 type Row = [id: string, group: string, label: string, def: SettingValue, restart: SchemaRow['restart'], options?: Array<[string, string]> | Slide];
 const DEG = (max: number): Slide => ({ min: -max, max, step: 0.5, format: 'degrees' });
 const NOTIFY: Array<[string, string]> = [['sound', '出声'], ['card', '只出卡'], ['silent', '不提示']];
-/** 收工时间's choices: each half hour from 12:00 to 23:30 (app/electron settings.ts REPORT_TIMES). */
-const REPORT_TIMES: Array<[string, string]> = Array.from({ length: 24 }, (_, i) => `${12 + Math.floor(i / 2)}:${i % 2 ? '30' : '00'}`).map((t) => [t, t]);
 
 const ROWS: Row[] = [
   // 轻量 AI has a row but no registry entry: the 插件 group shows no switch for it.
@@ -33,9 +31,6 @@ const ROWS: Row[] = [
   ['asr', 'speak', '识别语言', 'auto', 'none', [['auto', '跟随系统'], ['zh-CN', '中文'], ['en-US', 'English']]],
   ['proactive', 'speak', '交互档位', 'balanced', 'none', [['quiet', '安静'], ['balanced', '均衡'], ['active', '主动']]],
   ['speakUp', 'speak', '主动说话', true, 'none'],
-  ['rest', 'speak', '连续使用提醒', '0', 'none', [['0', '关'], ['45', '45 分钟'], ['60', '60 分钟'], ['90', '90 分钟']]],
-  ['water', 'speak', '喝水提醒', '90', 'none', [['0', '关'], ['60', '60 分钟'], ['90', '90 分钟'], ['120', '120 分钟']]],
-  ['reportTime', 'speak', '收工时间', '17:30', 'none', REPORT_TIMES],
   ['n_done', 'speak', '完成', 'card', 'none', NOTIFY],
   ['n_appr', 'speak', '待批准', 'sound', 'none', NOTIFY],
   ['n_err', 'speak', '出错', 'sound', 'none', NOTIFY],
@@ -110,7 +105,7 @@ export const DEMO_SCHEMA: SchemaRow[] = ROWS.map(([id, group, label, def, restar
 }));
 
 /** What the demo user changed from the defaults: reads text from windows and pages, attaches screenshots. */
-const DEMO_SAVED: Record<string, SettingValue> = { wintext: true, web: true, shot: true, rest: '45' };
+const DEMO_SAVED: Record<string, SettingValue> = { wintext: true, web: true, shot: true };
 
 /** The native settings a shell would serve; `configerr` fails like an unreadable config.json. */
 export async function demoNative(demo: string | null): Promise<Native> {

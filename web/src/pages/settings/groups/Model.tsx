@@ -18,7 +18,7 @@ const MODEL_DRAFTS = ['svc', 'piProvider', 'apiBase', 'chatModel', 'think', 'acc
 const PI = 'pi:';
 
 /**
- * AI with Pi as the kernel: 用谁的账号 │ Pi, the provider (one list, Pi's catalog providers included) with its key or ChatGPT
+ * 内核 with Pi as the kernel: 账号 │ Pi, the provider (one list, Pi's catalog providers included) with its key or ChatGPT
  * account and the runtime's `provider` row, then 模型, Pi's default model and a connection test, with `routes` under it. A 兼容 API's
  * address and key are its card's in 服务.
  */
@@ -107,7 +107,7 @@ export function PiSections({ provider, routes }: { provider?: ReactNode; routes?
 
   return (
     <>
-      <SetSection title="用谁的账号 │ Pi">
+      <SetSection title="账号 │ Pi">
         <SetRow id="svc" title={labelOf('svc')} control={<Select label={labelOf('svc')} value={svcValue} options={svcOpts} disabled={ro || agentdOff} onChange={pickSvc} />} />
         {svc !== 'chatgpt' && svc !== 'deepseek' && svc !== 'xai' && svc !== 'pi_catalog' && svc !== 'compatible' && <SetRow id="apiBase" title={labelOf('apiBase')} control={c.text('apiBase', labelOf('apiBase'), 'https://…')} />}
         {svc === 'compatible' ? (
@@ -176,7 +176,9 @@ export function PiSections({ provider, routes }: { provider?: ReactNode; routes?
             <SetRow id="reasoning" title={labelOf('reasoning')} indent control={c.toggle('reasoning', labelOf('reasoning'), svcDraft, '先应用模型提供方的改动')} />
           </>
         )}
-        {levels && <SetRow id="think" title={labelOf('think')} control={c.select('think', thinkOptions(levels))} />}
+        {levels && (
+          <SetRow id="think" title={labelOf('think')} info="越高，模型回答前想得越久：复杂问题答得更好，但更慢、用量更多。" control={c.select('think', thinkOptions(levels))} />
+        )}
         <SetRow
           id="mtest"
           title={labelOf('mtest')}

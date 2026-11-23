@@ -11,7 +11,7 @@ const PERM_INFO: Array<Omit<PermRow, 'state'>> = [
   { kind: 'accessibility', label: '辅助功能', purpose: '读取窗口文字、操作电脑', features: ['读取窗口文字', '操作电脑'] },
   { kind: 'microphone', label: '麦克风与语音识别', purpose: '按住说话', features: ['按住说话'] },
   { kind: 'inputMonitoring', label: '输入监控', purpose: '按住说话的热键', features: ['按住说话'] },
-  { kind: 'automation', label: '自动化', purpose: '检测「终端」授权，用于跳转终端会话。Safari 和 Chrome 的授权独立。', features: ['跳到终端'] },
+  { kind: 'automation', label: '自动化（终端）', purpose: '控制「终端」，用于跳到终端里的编码会话', features: ['跳到终端'] },
   { kind: 'notifications', label: '通知', purpose: '系统通知', features: ['系统通知'] },
 ];
 
@@ -21,7 +21,8 @@ export const PERM_TIP: Partial<Record<PermissionKind, string>> = {
   accessibility: '让应用读取别的应用窗口里的文字，并在窗口里点击和打字。没开时读不到窗口文字，也不能操作电脑。',
   microphone: '按住说话时用它录音并识别成文字。没开时不能按住说话，只能打字。',
   inputMonitoring: '按住说话设成右 Option 键时要用它，让应用在任何应用里都能收到这个键。没开时右 Option 按住说话不起作用；换成别的组合键不需要它。',
-  notifications: '让应用发系统通知。打开「说话」里改走系统通知的那一项后，角色隐藏或前台全屏时提醒走系统通知；没有这项权限时这些通知不会出现。',
+  automation: 'macOS 的自动化权限按目标应用分别授权。这里只查 Agentic Complex 能不能控制「终端」，用来跳到终端里的编码会话，终端开着时才读得到。系统设置里 Agentic Complex 下列出的其他应用（例如 Codex 内核自带的 Computer Use 程序）各自单独授权，和这一项无关。',
+  notifications: '让应用发系统通知。打开「交流」里改走系统通知的那一项后，角色隐藏或前台全屏时提醒走系统通知；没有这项权限时这些通知不会出现。',
 };
 
 type Reading = { kind: 'loading' } | { kind: 'unread' } | { kind: 'read'; states: Partial<Record<PermissionKind, PermissionState>> };

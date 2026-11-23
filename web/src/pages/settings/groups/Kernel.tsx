@@ -28,7 +28,7 @@ const LIGHT = 'plugins.light_ai';
 const OTHERS = 'plugins.harness_bridge';
 
 /**
- * AI: 谁来回答 (the 「AI 对话」 switch, the current kernel and the picker), then only what the picked kernel uses: 用谁的账号, 模型
+ * 内核: 选择内核 (the 「AI 对话」 switch, the current kernel and the picker), then only what the picked kernel uses: 账号, 模型
  * and its run options. Rows of agentd's runtime settings are drafts applied with the bottom bar.
  */
 export function KernelGroup() {
@@ -43,7 +43,7 @@ export function KernelGroup() {
   const routes = shown('routes') && <KernelRoutes agents={acp.list?.agents ?? []} />;
   return (
     <>
-      <SetSection title="谁来回答" info="内核替角色想和做，所有角色共用；角色是谁由角色卡决定。Pi 随应用提供，Codex、Claude Code 和 ACP 智能体要先装在这台电脑上。">
+      <SetSection title="选择内核" info="内核替角色想和做，所有角色共用；角色是谁由角色卡决定。Pi 随应用提供，Codex、Claude Code 和 ACP 智能体要先装在这台电脑上。">
         <AiRow pi={pi} />
         {!on ? (
           <div className={band.fold}>
@@ -158,7 +158,7 @@ function KernelPick({ acp }: { acp: AcpState }) {
   );
 }
 
-/** Codex, Claude Code or ACP: 用谁的账号 (its account source, key or sign-in), then 模型, its main model. */
+/** Codex, Claude Code or ACP: 账号 (its account source, key or sign-in), then 模型, its main model. */
 function OtherSections({ acp, routes }: { acp: AcpState; routes: ReactNode }) {
   const { model, runtime, models } = useSettings();
   const c = useControls();
@@ -182,7 +182,7 @@ function OtherSections({ acp, routes }: { acp: AcpState; routes: ReactNode }) {
   const label = KERNEL_LABEL[selected] ?? selected;
   return (
     <>
-      <SetSection title={`用谁的账号 │ ${label}`}>
+      <SetSection title={`账号 │ ${label}`}>
         {acctShown && (
           <SetRow
             id="acct"

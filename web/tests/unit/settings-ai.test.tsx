@@ -78,8 +78,8 @@ describe('settings › AI › 用谁的账号', () => {
         <KernelGroup />
       </Harness>,
     );
-    expect(screen.getByRole('region', { name: '谁来回答' })).toBeTruthy();
-    const acct = screen.getByRole('region', { name: '用谁的账号 │ Codex' });
+    expect(screen.getByRole('region', { name: '选择内核' })).toBeTruthy();
+    const acct = screen.getByRole('region', { name: '账号 │ Codex' });
     expect(within(acct).getByRole('group', { name: '账号来源' })).toBeTruthy();
     for (const id of ['svc', 'apiBase', 'chatgpt', 'chatModel', 'think', 'mtest', 'piApproval', 'maxCost']) expect(row(id), id).toBeNull();
     expect(within(screen.getByRole('region', { name: '模型' })).getByRole('group', { name: '主会话模型' })).toBeTruthy();
@@ -91,7 +91,7 @@ describe('settings › AI › 用谁的账号', () => {
         <KernelGroup />
       </Harness>,
     );
-    const pi = screen.getByRole('region', { name: '用谁的账号 │ Pi' });
+    const pi = screen.getByRole('region', { name: '账号 │ Pi' });
     expect(within(pi).getByRole('group', { name: '模型提供方' })).toBeTruthy();
     for (const id of ['acct', 'kernelLogin', 'mainModel']) expect(row(id), id).toBeNull();
     expect(within(screen.getByRole('region', { name: '模型' })).getByRole('group', { name: '模型' })).toBeTruthy();
@@ -105,8 +105,8 @@ describe('settings › AI › 用谁的账号', () => {
       </Harness>,
     );
     await click(screen.getByRole('radio', { name: 'Pi' }).closest('tr')!);
-    expect(screen.getByRole('region', { name: '用谁的账号 │ Pi' })).toBeTruthy();
-    expect(screen.queryByRole('region', { name: '用谁的账号 │ Codex' })).toBeNull();
+    expect(screen.getByRole('region', { name: '账号 │ Pi' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: '账号 │ Codex' })).toBeNull();
   });
 });
 
@@ -155,12 +155,12 @@ describe('settings › AI tab and old links', () => {
     );
   }
 
-  it('has one AI tab in place of 内核 and 账号, and group=model lands on it', async () => {
+  it('has one 内核 tab, and group=model lands on it', async () => {
     await mount('&group=model');
     const nav = await screen.findByRole('tablist', { name: '设置分组' });
-    expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['说话', '能做', '观察', '显示', 'AI', '服务', '按键', '数据', '关于']);
-    expect(within(nav).getByRole('tab', { name: /AI/ }).getAttribute('aria-selected')).toBe('true');
-    expect(await screen.findByRole('region', { name: '谁来回答' })).toBeTruthy();
+    expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['交流', '能力', '感知', '显示', '内核', '服务', '快捷键', '数据', '关于']);
+    expect(within(nav).getByRole('tab', { name: /内核/ }).getAttribute('aria-selected')).toBe('true');
+    expect(await screen.findByRole('region', { name: '选择内核' })).toBeTruthy();
   });
 
   it('keeps the row ids: search and 诊断 jumps land in AI or 服务', () => {

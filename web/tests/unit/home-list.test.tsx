@@ -96,7 +96,7 @@ describe('home right list', () => {
 
   it('brings a key that takes focus out of view into the window, with a little of the next row', async () => {
     const list = await mount();
-    const far = key(list, '观察');
+    const far = key(list, '感知');
     expect(slot(far).hasAttribute('data-out')).toBe(true);
     act(() => far.focus());
     expect(slot(far).hasAttribute('data-out')).toBe(false);
@@ -184,8 +184,8 @@ describe('home right list keys', () => {
       ['MMD', 'character', { view: 'mmd' }],
       ['角色这一天', 'overview', { tab: 'char' }],
       ['时间', 'overview', { tab: 'tm' }],
-      ['能做', 'settings', { group: 'perm' }],
-      ['观察', 'settings', { group: 'privacy' }],
+      ['能力', 'settings', { group: 'perm' }],
+      ['感知', 'settings', { group: 'privacy' }],
       ['诊断', 'diag', { tab: 'overview' }],
       ['对话轮次', 'diag', { tab: 'turns' }],
       ['日志', 'diag', { tab: 'logs' }],
@@ -208,7 +208,7 @@ describe('home right list keys', () => {
       expect(b.hasAttribute('disabled'), name).toBe(false);
       expect(b.querySelector('[data-stub="PowerMark"]')?.getAttribute('aria-label'), name).toBe('已关闭');
     }
-    for (const name of ['档案', '外观', '能做']) expect(key(list, name).querySelector('[data-stub="PowerMark"]'), name).toBeNull();
+    for (const name of ['档案', '外观', '能力']) expect(key(list, name).querySelector('[data-stub="PowerMark"]'), name).toBeNull();
     expect(within(list).queryByRole('button', { name: '时间' })).toBeNull();
     fireEvent.click(key(list, '回顾'));
     expect(query().get('view')).toBe('activity');

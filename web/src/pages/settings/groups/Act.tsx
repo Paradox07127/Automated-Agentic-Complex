@@ -24,13 +24,13 @@ const STATE: Record<PermRow['state'], [VisualStateKey, string]> = {
 /** Kinds whose system prompt only shows on request; 去系统设置 stays beside 允许, since a request can come back unanswered or be ignored after a refusal. */
 const ASKABLE: ReadonlySet<PermissionKind> = new Set(['microphone', 'inputMonitoring', 'automation', 'notifications']);
 
-/** 能做: whether she may ask you, the capabilities she can take on (each a band), and the system permissions they need. */
+/** 能力: whether she may ask you, the capabilities she can take on (each a band), and the system permissions they need. */
 export function ActGroup() {
   const { model, item, hl, goRow } = useSettings();
   const c = useControls();
   return (
     <>
-      <SetSection title="自主程度">
+      <SetSection title="提问">
         <SetRow
           id="k_ask"
           title={labelOf('k_ask')}
@@ -40,7 +40,7 @@ export function ActGroup() {
         />
       </SetSection>
 
-      <SetSection title="能力">
+      <SetSection title="功能">
         <Band plugin="computer_use" />
         <Band plugin="personal_agent" fold={labelOf('scope')}>
           <ScopeList />
@@ -99,8 +99,10 @@ function PermSection({ open: linked }: { open: boolean }) {
     }
     await recheckPerms(p.kind);
     if (s === 'granted') model.notify({ message: `${p.label}：已允许，${p.features.join('、')} 可以用了`, severity: 'success' });
-    else if (s === 'notDetermined') model.notify({ message: p.kind === 'automation' ? '系统没有返回授权结果。请先打开「终端」，再试一次。' : `${p.label}：系统没有给出结果，可以去系统设置里打开`, severity: 'warning', persistent: true });
-    else model.notify({ message: `${p.label}：没有允许，可以去系统设置里打开`, severity: 'warning', persistent: true });
+    // Terminal answers only while it runs, and the system lists it under the app only after that.
+    else if (s === 'notDetermined' && p.kind === 'automation') model.notify({ message: '读不到「终端」的授权。请先打开「终端」，再点「允许」。', severity: 'warning', persistent: true });
+    // No prompt came up, or it was refused: the switch is in system settings.
+    else await openSettings(p);
   };
 
   const summary = reading ? (
@@ -128,7 +130,7 @@ function PermSection({ open: linked }: { open: boolean }) {
             const ok = p.state === 'granted';
             const isKnown = p.state !== 'loading' && p.state !== 'unread';
             const askable = p.state === 'notDetermined' && ASKABLE.has(p.kind);
-            const [tone, text] = STATE[p.state];
+            const [tone, text] = p.kind === 'automation' && p.state === 'notDetermined' ? (['waiting', '未确认'] as const) : STATE[p.state];
             return (
               <SetRow
                 key={p.kind}

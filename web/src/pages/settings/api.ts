@@ -91,11 +91,13 @@ export interface ProactiveTriggerStats {
   feedback: number;
 }
 export type ProactiveStats = Record<string, ProactiveTriggerStats>;
-/** companion_mode without a stored choice follows 主动说话; quiet_start..quiet_end are local hours, equal for none. */
+/** A quiet range: [start, end) in local whole hours 0-23, start != end; start > end crosses midnight. */
+export type QuietRange = [number, number];
+/** companion_mode without a stored choice follows 主动说话; quiet_ranges hold proactive speech back only while quiet_enabled. */
 export interface ProactiveSettings {
   companion_mode: boolean;
-  quiet_start: number;
-  quiet_end: number;
+  quiet_enabled: boolean;
+  quiet_ranges: QuietRange[];
 }
 export const readProactiveSettings = () => get<ProactiveSettings>('/proactive/settings');
 /** Takes any non-empty subset of the settings and answers with all of them. */

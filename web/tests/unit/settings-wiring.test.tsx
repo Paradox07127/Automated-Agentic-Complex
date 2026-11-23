@@ -144,7 +144,7 @@ describe('native rows (settings.schema / read / save)', () => {
 
   it('marks a restart from the schema flag only (backend yes, notification routing no)', async () => {
     render(<Harness d={d}><SpeakGroup /><ActGroup /><ApplyBar /></Harness>);
-    await click(within(screen.getByRole('radiogroup', { name: '完成' })).getByRole('radio', { name: '不提示' }));
+    await click(screen.getByRole('radio', { name: '完成：不提示' }));
     expect(screen.queryByRole('region', { name: '未应用的改动' })).toBeNull();
     await click(screen.getByRole('switch', { name: '外部智能体接入' }));
     expect(screen.getByRole('region', { name: '未应用的改动' }).textContent).toContain('1 项重启后台服务后生效');
@@ -210,7 +210,7 @@ describe('native rows (settings.schema / read / save)', () => {
     await click(screen.getByRole('button', { name: '恢复默认…' }));
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '恢复默认' }));
     expect(consent.mock.calls.map((c) => c[0]).sort()).toEqual(['web', 'wintext']);
-    expect(save).toHaveBeenCalledWith({ rest: '0', wintext: false, web: false, shot: false });
+    expect(save).toHaveBeenCalledWith({ wintext: false, web: false, shot: false });
     expect(screen.getByTestId('toast').textContent).toBe('已恢复默认设置');
   });
 
@@ -219,13 +219,12 @@ describe('native rows (settings.schema / read / save)', () => {
     await click(screen.getByRole('button', { name: '恢复默认…' }));
     const card = screen.getByRole('dialog').textContent;
     expect(card).toContain('会关掉：窗口文字、网页正文、识读时附上截图');
-    expect(card).toContain('另有 1 项选项回到默认');
   });
 
   it('marks a restart by each row\'s schema even when the shell answers restart=backend', async () => {
     vi.spyOn(window.agenticComplex!.settings, 'save').mockResolvedValue({ restart: 'backend', notApplied: [] });
     render(<Harness d={d}><SpeakGroup /><ApplyBar /></Harness>);
-    await click(within(screen.getByRole('radiogroup', { name: '完成' })).getByRole('radio', { name: '不提示' }));
+    await click(screen.getByRole('radio', { name: '完成：不提示' }));
     expect(screen.queryByRole('region', { name: '未应用的改动' })).toBeNull();
   });
 });
@@ -687,25 +686,6 @@ describe('AI 对话 over the AI tab', () => {
     expect(document.querySelector('[data-row="svc"]')).toBeNull();
     expect(screen.queryByRole('region', { name: '模型' })).toBeNull();
     expect(screen.queryByRole('region', { name: '当前内核' })).toBeNull();
-  });
-});
-
-describe('喝水提醒', () => {
-  it('shows the row with the 90 minute default from the preview data', () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
-    const row = screen.getByText('喝水提醒').closest('li, div[id], [data-row]') ?? document.body;
-    expect(row.textContent).toContain('90 分钟');
-  });
-
-  it('is found by searching 喝水', () => {
-    expect(searchSettings('喝水')).toContainEqual(expect.objectContaining({ id: 'water', group: 'speak' }));
-  });
-
-  it('is hidden when the shell schema has no water row', () => {
-    const { water: _water, ...rows } = d.native.rows;
-    render(<Harness d={{ ...d, native: { ...d.native, rows } }}><SpeakGroup /></Harness>);
-    expect(screen.queryByText('喝水提醒')).toBeNull();
-    expect(screen.getAllByText('休息提醒').length).toBeGreaterThan(0);
   });
 });
 

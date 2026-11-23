@@ -45,7 +45,7 @@ export interface FlowSectionProps {
   /** 对话轮次: that turn, or the list. */
   onTrace: (turnId: string | null) => void;
   onChat: () => void;
-  /** 设置 › 说话, for a voice node waiting on an unreachable TTS. */
+  /** 设置 › 交流, for a voice node waiting on an unreachable TTS. */
   onVoice: () => void;
   /** 近 24 小时 and 模型调用 below the flow. */
   children?: ReactNode;

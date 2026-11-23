@@ -40,7 +40,7 @@ test('overview: a role task row under 进行中 opens that task on the tasks pag
 test('diag voice row ↗ lands on the voice source row in settings', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/diag?plugins=all&still=1');
-  await page.locator('[data-row="voice"]').getByRole('button', { name: '设置 › 说话' }).click();
+  await page.locator('[data-row="voice"]').getByRole('button', { name: '设置 › 交流' }).click();
   await expectLanding(page, /#\/settings\?.*group=speak.*item=tts/, 'set-tts');
   expect(errors).toEqual([]);
 });

@@ -65,7 +65,7 @@ describe(' 观察: 外发总览 plate', () => {
 describe(' 说话: no gate chart', () => {
   it('the gate chart lives on the diag page, not here', async () => {
     await mount('&group=speak');
-    expect(await screen.findByRole('radiogroup', { name: '会不会主动找你' })).toBeTruthy();
+    expect(await screen.findByRole('radiogroup', { name: '主动开口' })).toBeTruthy();
     expect(screen.queryByRole('region', { name: '今日发言闸门' })).toBeNull();
     expect(document.querySelector('[data-row="gate"]')).toBeNull();
   });
@@ -80,7 +80,7 @@ describe(' 说话: a row under 主动 while 主动 is not chosen', () => {
     };
     try {
       await mount('&group=speak&item=quiet_hours');
-      const when = (await screen.findByRole('radiogroup', { name: '会不会主动找你' })).closest('[data-row="speakWhen"]') as HTMLElement;
+      const when = (await screen.findByRole('radiogroup', { name: '主动开口' })).closest('[data-row="speakWhen"]') as HTMLElement;
       if (document.querySelector('[data-row="quiet_hours"]')) return;
       await waitFor(() => expect(when.className).toMatch(/hl/));
       expect(seen).toContain(document.getElementById('set-speakWhen'));
@@ -117,12 +117,12 @@ describe(' states and navigation', () => {
     expect(await screen.findByRole('region', { name: '当前内核' })).toBeTruthy();
   });
 
-  it('opens on 说话, marks the open group and switches group from the tabs', async () => {
+  it('opens on 交流, marks the open group and switches group from the tabs', async () => {
     await mount('');
     const nav = await screen.findByRole('tablist', { name: '设置分组' });
-    expect(within(nav).getByRole('tab', { name: /说话/ }).getAttribute('aria-selected')).toBe('true');
-    expect(within(nav).getAllByRole('tab').map((t) => t.textContent?.replace(/[^一-龥A-Z]/g, '').slice(0, 2))).toEqual(['说话', '能做', '观察', '显示', 'AI', '服务', '按键', '数据', '关于']);
-    await act(async () => fireEvent.click(within(nav).getByRole('tab', { name: /观察/ })));
+    expect(within(nav).getByRole('tab', { name: /交流/ }).getAttribute('aria-selected')).toBe('true');
+    expect(within(nav).getAllByRole('tab').map((t) => t.textContent?.replace(/[^一-龥A-Z]/g, '').slice(0, 3))).toEqual(['交流', '能力', '感知', '显示', '内核', '服务', '快捷键', '数据', '关于']);
+    await act(async () => fireEvent.click(within(nav).getByRole('tab', { name: /感知/ })));
     expect(await screen.findByRole('region', { name: '外发总览' })).toBeTruthy();
   });
 

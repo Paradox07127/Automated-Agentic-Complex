@@ -57,7 +57,7 @@ describe('icon tabs show their names', () => {
     render(<Nav />);
     const selected = () => screen.getAllByRole('tab').filter((t) => t.getAttribute('aria-selected') === 'true').map((t) => t.getAttribute('data-tab'));
     expect(selected()).toEqual(['privacy']);
-    fireEvent.click(screen.getByRole('tab', { name: /能做/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /能力/ }));
     expect(selected()).toEqual(['perm']);
     cleanup();
 
@@ -72,10 +72,10 @@ describe('icon tabs show their names', () => {
 
   it('explains the ◆ mark when the cell is hovered, and keeps the bare name as the tab title', () => {
     render(<Nav marks={{ perm: '辅助功能、屏幕录制未允许' }} />);
-    const perm = screen.getByRole('tab', { name: /能做/ });
-    expect(perm.getAttribute('title')).toBe('能做');
-    expect(within(perm).getByText('能做').closest('[title]')?.getAttribute('title')).toBe('能做：辅助功能、屏幕录制未允许');
-    expect(perm.querySelector('svg')?.closest('[title]')?.getAttribute('title')).toBe('能做：辅助功能、屏幕录制未允许');
+    const perm = screen.getByRole('tab', { name: /能力/ });
+    expect(perm.getAttribute('title')).toBe('能力');
+    expect(within(perm).getByText('能力').closest('[title]')?.getAttribute('title')).toBe('能力：辅助功能、屏幕录制未允许');
+    expect(perm.querySelector('svg')?.closest('[title]')?.getAttribute('title')).toBe('能力：辅助功能、屏幕录制未允许');
     const data = screen.getByRole('tab', { name: /^数据/ });
     expect(within(data).getByText('数据').closest('[title]')).toBe(data);
   });

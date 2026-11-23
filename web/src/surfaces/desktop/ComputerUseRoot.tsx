@@ -107,7 +107,7 @@ export function ComputerUseRoot() {
   return (
     <section ref={ref} className={styles.root} data-theme="dark" aria-label="电脑操作状态">
       {panel?.phase === 'disabled' ? (
-        <PowerState hud state="off" mode="block" title="电脑操作" reason="设置 › 能做里关着「操作电脑」，角色不能查看或操作你的窗口"
+        <PowerState hud state="off" mode="block" title="电脑操作" reason="设置 › 能力里关着「操作电脑」，角色不能查看或操作你的窗口"
           action={{ label: '前往设置打开', onClick: () => getBridge().window.openMain(navRoute({ page: 'settings', group: 'perm', item: 'plugins.computer_use' })) }}>
           {body}
         </PowerState>

@@ -140,7 +140,7 @@ export function QuickInputBox(p: QuickInputBoxProps) {
       )}
       <div className={styles.opts}>
         {p.onLookOff && (
-          <button type="button" className={styles.chip} title="已关闭：设置 › 观察里关着「屏幕识读」，点按前往设置打开" onClick={p.onLookOff}>
+          <button type="button" className={styles.chip} title="已关闭：设置 › 感知里关着「屏幕识读」，点按前往设置打开" onClick={p.onLookOff}>
             <PowerMark state="off" compact />
             附上当前窗口
           </button>

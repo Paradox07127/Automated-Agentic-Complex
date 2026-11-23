@@ -138,7 +138,7 @@ export function DataGroup() {
         <SetRow
           id="reset"
           title={labelOf('reset')}
-          desc="说话、能做、观察、按键和外观回到默认；内核、账号、记忆不动"
+          desc="交流、能力、感知、快捷键和外观回到默认；内核、账号、记忆不动"
           control={
             <Btn disabled={groupRo || !native} disabledReason="没读到设置" onClick={reset}>
               恢复默认…

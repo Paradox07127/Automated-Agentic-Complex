@@ -116,7 +116,7 @@ describe('settings rows of a plug-in', () => {
     }
   });
 
-  it('leave 观察 with the outbound plate, the folded bands and the redaction switch, and hide no group', async () => {
+  it('leave 感知 with the outbound plate, the folded bands and the redaction switch, and hide no group', async () => {
     await mount('&group=privacy');
     expect(await screen.findByRole('switch', { name: '发出前遮蔽敏感内容' })).toBeTruthy();
     for (const gone of ['窗口文字', '读会话里的工具输入输出', '识读时附上截图']) expect(screen.queryByRole('switch', { name: gone })).toBeNull();
@@ -127,7 +127,7 @@ describe('settings rows of a plug-in', () => {
     expect(rows.map((r) => r.getAttribute('data-row'))).toEqual(['keys', 'mask']);
     expect(screen.getByText(/^关着 │ 打开后可以设：窗口文字/)).toBeTruthy();
     const nav = screen.getByRole('tablist', { name: '设置分组' });
-    expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['说话', '能做', '观察', '显示', 'AI', '服务', '按键', '数据', '关于']);
+    expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['交流', '能力', '感知', '显示', '内核', '服务', '快捷键', '数据', '关于']);
   });
 
   it('keep developer rows out of 开发者模式 off', async () => {

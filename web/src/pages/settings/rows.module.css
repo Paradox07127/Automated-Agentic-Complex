@@ -136,6 +136,11 @@
   row-gap: 4px;
 }
 
+/* Squeezed by the control, the receipt kept only its check, which read as a stray arrow. */
+.ctl > [data-stub='Receipt'] {
+  flex: none;
+}
+
 .ctl > [data-stub='Select'] {
   flex: 1 1 auto;
   min-width: 0;

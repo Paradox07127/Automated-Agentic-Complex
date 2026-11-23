@@ -30,10 +30,10 @@ export function dockItems(s: DesktopState | null, presence: unknown, talk: Talk)
     label: talk === 'hold' ? '在听…松开发送' : talk === 'tap' ? '在听…再点一下发送' : s?.pips.voice === 'off' ? '说话（只出字）' : '说话',
     icon: 'mic',
     live: talk != null,
-    off: talk ? undefined : (away ?? (s?.pips.voice === 'denied' ? '未接入：没有麦克风权限，点按前往设置 › 能做 › 系统权限里允许' : undefined)),
+    off: talk ? undefined : (away ?? (s?.pips.voice === 'denied' ? '未接入：没有麦克风权限，点按前往设置 › 能力 › 系统权限里允许' : undefined)),
   };
   if (talk) return [voice];
-  const lookOff = s?.plugins.includes('screen_reading') ? (p.observation.paused ? '观察已暂停' : undefined) : '已关闭：设置 › 观察里关着「屏幕识读」';
+  const lookOff = s?.plugins.includes('screen_reading') ? (p.observation.paused ? '观察已暂停' : undefined) : '已关闭：设置 › 感知里关着「屏幕识读」';
   return [
     { id: 'chat', label: '对话', icon: 'g-chat', off: away },
     voice,

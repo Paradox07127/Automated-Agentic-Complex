@@ -177,7 +177,8 @@ export interface WireDiagBudget {
 export interface WireDiagGate {
   enabled: boolean;
   companion_mode: boolean;
-  quiet_hours: number[];
+  /** The quiet ranges in effect, [start, end] hours each; empty while quiet hours are off. */
+  quiet_hours: [number, number][];
   meeting: boolean;
   fullscreen: boolean;
   user_speaking: boolean;

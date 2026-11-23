@@ -5,6 +5,7 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import { PERMISSIONS } from '../../src/mock/fixtures';
 import { demoNative } from '../../src/mock/settings';
+import type { ProactiveSettings, QuietRange } from '../../src/pages/settings/api';
 import { SettingsCtx, type SettingsCtxValue } from '../../src/pages/settings/ctx';
 import { diagView } from '../../src/pages/settings/diag';
 import { SpeakGroup } from '../../src/pages/settings/groups/Speak';
@@ -13,6 +14,8 @@ import type { Native } from '../../src/pages/settings/native';
 
 let native: Native;
 let companion: boolean;
+/** agentd's stored quiet hours, as GET /proactive/settings answers them. */
+let quiet: { enabled: boolean; ranges: QuietRange[] };
 let request: MockInstance<AgenticComplexBridge['agentd']['request']>;
 
 function Harness({ children, agentdOff = false }: { children: ReactNode; agentdOff?: boolean }) {
@@ -56,16 +59,16 @@ async function start(mute: boolean, speakUp: boolean, on: boolean, failCompanion
     if (path !== '/proactive/settings') return real(method, path, body);
     if (method === 'PUT') {
       if (failCompanion) return { status: 503, body: { error: 'unavailable' } } as never;
-      companion = (body as { companion_mode: boolean }).companion_mode;
+      ({ companion_mode: companion = companion, quiet_enabled: quiet.enabled = quiet.enabled, quiet_ranges: quiet.ranges = quiet.ranges } = body as Partial<ProactiveSettings>);
     }
-    return { status: 200, body: { companion_mode: companion, quiet_start: 22, quiet_end: 8 } } as never;
+    return { status: 200, body: { companion_mode: companion, quiet_enabled: quiet.enabled, quiet_ranges: quiet.ranges } } as never;
   });
   render(
     <Harness>
       <SpeakGroup />
     </Harness>,
   );
-  const seg = screen.getByRole('radiogroup', { name: '会不会主动找你' });
+  const seg = screen.getByRole('radiogroup', { name: '主动开口' });
   // The companion read lands.
   await act(async () => {});
   return seg;
@@ -78,6 +81,7 @@ beforeEach(async () => {
   localStorage.clear();
   window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
   native = await demoNative(null);
+  quiet = { enabled: false, ranges: [[22, 8]] };
 });
 
 afterEach(() => {
@@ -153,7 +157,7 @@ describe('会不会主动找你', () => {
         <SpeakGroup />
       </Harness>,
     );
-    const seg = screen.getByRole('radiogroup', { name: '会不会主动找你' });
+    const seg = screen.getByRole('radiogroup', { name: '主动开口' });
     expect(within(seg).getAllByRole('radio').every((r) => (r as HTMLButtonElement).disabled)).toBe(true);
   });
 });
@@ -184,25 +188,43 @@ describe('主动 and the rows under it', () => {
   it('多主动 offers only levels that keep her speaking and writes `proactive`', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     await start(false, true, true);
-    await click(screen.getByRole('button', { name: '多主动' }));
+    await click(screen.getByRole('button', { name: '主动频率' }));
     const options = screen.getAllByRole('option');
     expect(options.map((o) => o.textContent)).toEqual(['均衡（默认）', '主动▲有风险']);
     await click(options[1]!);
     expect(save).toHaveBeenCalledWith({ proactive: 'active' });
   });
 
-  it('免打扰时段 writes quiet_start and quiet_end to /proactive/settings', async () => {
+  it('免打扰时段 is a switch; its ranges show only while it is on', async () => {
     await start(false, true, true);
-    const from = screen.getByRole('button', { name: '免打扰时段开始' });
-    expect(from.textContent).toContain('22:00');
-    await click(from);
-    await click(within(screen.getByRole('listbox', { name: '免打扰时段开始' })).getByRole('option', { name: '23:00' }));
-    expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { quiet_start: 23 });
-    const to = screen.getByRole('button', { name: '免打扰时段结束' });
-    expect(to.textContent).toContain('08:00');
-    await click(to);
-    await click(within(screen.getByRole('listbox', { name: '免打扰时段结束' })).getByRole('option', { name: '07:00' }));
-    expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { quiet_end: 7 });
+    expect(screen.getByRole('switch', { name: '免打扰时段' }).getAttribute('aria-checked')).toBe('false');
+    expect(screen.queryByRole('button', { name: '时段 1 开始' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '添加时段' })).toBeNull();
+    await click(screen.getByRole('switch', { name: '免打扰时段' }));
+    expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { quiet_enabled: true });
+    expect(screen.getByRole('button', { name: '时段 1 开始' }).textContent).toContain('22:00');
+    expect(screen.getByRole('button', { name: '时段 1 结束' }).textContent).toContain('08:00');
+  });
+
+  it('adds, edits and deletes ranges, sending the whole list each time; the last one cannot be deleted', async () => {
+    quiet.enabled = true;
+    await start(false, true, true);
+    expect(screen.getByRole('button', { name: '删除时段 1' }).hasAttribute('disabled')).toBe(true);
+    await click(screen.getByRole('button', { name: '添加时段' }));
+    expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { quiet_ranges: [[22, 8], [12, 13]] });
+    await click(screen.getByRole('button', { name: '时段 2 结束' }));
+    await click(within(screen.getByRole('listbox', { name: '时段 2 结束' })).getByRole('option', { name: '14:00' }));
+    expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { quiet_ranges: [[22, 8], [12, 14]] });
+    await click(screen.getByRole('button', { name: '删除时段 1' }));
+    expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { quiet_ranges: [[12, 14]] });
+    expect(screen.getByRole('button', { name: '时段 1 开始' }).textContent).toContain('12:00');
+  });
+
+  it('a range never offers its other end as its own end', async () => {
+    quiet.enabled = true;
+    await start(false, true, true);
+    await click(screen.getByRole('button', { name: '时段 1 结束' }));
+    expect(within(screen.getByRole('listbox', { name: '时段 1 结束' })).queryByRole('option', { name: '22:00' })).toBeNull();
   });
 
   it('a level that keeps her from speaking does not read as 主动; choosing 主动 sets it back to 均衡', async () => {
@@ -221,7 +243,7 @@ describe('主动 and the rows under it', () => {
 describe('说话 wording', () => {
   it('never says 安静, the do-not-disturb hours are 免打扰', async () => {
     await start(false, true, true);
-    await click(screen.getByRole('button', { name: '多主动' }));
+    await click(screen.getByRole('button', { name: '主动频率' }));
     const attrs = [...document.querySelectorAll('[title], [aria-label]')].flatMap((el) => [el.getAttribute('title') ?? '', el.getAttribute('aria-label') ?? '']);
     expect([document.body.textContent, ...attrs].filter((s) => s?.includes('安静'))).toEqual([]);
     expect(document.querySelector('[data-row="quiet_hours"]')?.textContent).toContain('免打扰时段');

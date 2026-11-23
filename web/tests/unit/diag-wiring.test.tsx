@@ -107,7 +107,7 @@ describe('diag page', () => {
   it('puts a degraded voice on its row with the way to its setting, leaving sharing turned off out', async () => {
     await mount();
     const row = await procRow('voice');
-    expect(within(row).getByRole('button', { name: '设置 › 说话' })).toBeTruthy();
+    expect(within(row).getByRole('button', { name: '设置 › 交流' })).toBeTruthy();
     expect(screen.queryByText(/共享截图/)).toBeNull();
   });
 
@@ -249,7 +249,7 @@ describe('diag model', () => {
   });
 
   it('a configured quiet_hours list is not a hold; the panel notes it apart', () => {
-    const gate = { ...DIAG_STATE.gate, quiet_hours: [22, 8] };
+    const gate = { ...DIAG_STATE.gate, quiet_hours: [[22, 8]] as [number, number][] };
     expect(gateHolds(gate)).toEqual([]);
     render(<GatePanel cooldowns={[]} gate={gate} />);
     expect(screen.getAllByText(/^(开着|没在开会|没有)$/)).toHaveLength(4);

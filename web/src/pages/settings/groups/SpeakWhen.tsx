@@ -62,7 +62,7 @@ export function SpeakWhenRow({ ps, disabled, children, asked }: { ps: ProactiveS
         id="speakWhen"
         title={TITLE}
         desc={chosen?.value === 'active' ? '看到能帮忙的时机会提一句，也会说出想法' : '只回答你；任务结果和你设的提醒照常送达'}
-        info="主动：看到能帮忙的时机时提示，也会说出想法；要「观察 › 屏幕感知」打开才有时机可判断。完全不出声：再把上面的「出声」改成只显示文字。"
+        info="主动：看到能帮忙的时机时提示，也会说出想法；要「感知 › 屏幕感知」打开才有时机可判断。完全不出声：再把上面的「出声」改成只显示文字。"
         disabled={disabled}
         disabledReason="后台不可写"
         control={<GameSeg variant="setting" label={TITLE} value={chosen?.value ?? ''} options={SPEAK_WHEN} disabled={disabled} onChange={(v) => void pick(v)} />}

@@ -105,7 +105,7 @@ const sent = (method: string, path: string) => request.mock.calls.filter((c) => 
 
 describe('账号', () => {
   it("names the page for pi and lists the seven services, Pi's catalog providers by name in place of 其他（Pi 目录）", async () => {
-    expect(GROUP_LABEL.kernel).toBe('AI');
+    expect(GROUP_LABEL.kernel).toBe('内核');
     render(<Harness d={d}><PiSections /></Harness>);
     await click(screen.getByRole('button', { name: '模型提供方' }));
     const options = within(screen.getByRole('listbox', { name: '模型提供方' })).getAllByRole('option');
@@ -308,8 +308,9 @@ describe('permission rows', () => {
     expect(ask).toHaveBeenCalledWith('microphone');
   });
 
-  it('keeps 去系统设置 when the request comes back still not asked, and does not claim it was refused', async () => {
+  it('opens system settings when 允许 brings up no prompt, and keeps 去系统设置', async () => {
     vi.spyOn(window.agenticComplex!.permissions, 'request').mockResolvedValue('notDetermined');
+    const open = vi.spyOn(window.agenticComplex!.permissions, 'openSettings');
     const perms = [
       ...PERMISSIONS.map((p) => (p.kind === 'microphone' ? { ...p, state: 'notDetermined' as const } : p)),
       { kind: 'inputMonitoring' as const, label: '输入监控', purpose: '按住说话的热键', features: ['按住说话'], state: 'notDetermined' as const },
@@ -319,8 +320,9 @@ describe('permission rows', () => {
     const mic = within(document.querySelector('[data-row="microphone"]') as HTMLElement);
     expect(within(document.querySelector('[data-row="inputMonitoring"]') as HTMLElement).getByRole('button', { name: '去系统设置' })).toBeTruthy();
     await click(mic.getByRole('button', { name: '允许' }));
+    expect(open).toHaveBeenCalledWith('microphone');
     expect(mic.getByRole('button', { name: '去系统设置' })).toBeTruthy();
-    expect(screen.getByTestId('toast').textContent).toBe('麦克风与语音识别：系统没有给出结果，可以去系统设置里打开');
+    expect(screen.getByTestId('toast').textContent).toBe('已打开系统设置 › 麦克风与语音识别 │ 允许 Agentic Complex 后回来点「重新检测」');
   });
 
   it('reports failure when the native system settings pane cannot open', async () => {

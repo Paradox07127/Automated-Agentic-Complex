@@ -141,7 +141,7 @@ export const WIRE_DIAG_BUDGET: WireDiagBudget = {
 export const WIRE_DIAG_GATE: WireDiagGate = {
   enabled: true,
   companion_mode: true,
-  quiet_hours: [22, 8],
+  quiet_hours: [[22, 8]],
   meeting: false,
   fullscreen: false,
   user_speaking: false,

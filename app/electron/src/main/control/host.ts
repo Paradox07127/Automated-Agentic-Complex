@@ -330,7 +330,7 @@ export class ControlHost {
         if (method === 'desktop_status') return okResponse(id, await this.status(session, params));
         if (!this.ports.enabled()) {
           this.consent.revoke();
-          throw new ControlError('disabled', '电脑操作未启用：设置 › 能做 中启用后重启后台');
+          throw new ControlError('disabled', '电脑操作未启用：设置 › 能力 中启用后重启后台');
         }
         if (!['desktop_observe', 'desktop_act', 'desktop_verify'].includes(method)) throw new ControlError('unknown_method', '未知的桌面工具');
         if (method !== 'desktop_observe' && this.userPaused && this.consent.sessionId === session) {

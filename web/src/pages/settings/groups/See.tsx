@@ -71,6 +71,7 @@ export function SeeGroup() {
           id="grain"
           title={labelOf('grain')}
           desc="越细越懂你手头的事，发出的字越多"
+          info="仅读状态：只知道你在用哪个应用，不读窗口里的文字。焦点语义：再读前台窗口里看得见的文字。窗口摘要：在焦点语义之上，读不到文字的窗口用截图做文字识别，要同时打开「识读时附上截图」。"
           indent
           control={model.value('wintext') === false ? <Dis link={{ label: '去打开', onClick: () => goRow('wintext') }}>要先打开「窗口文字」</Dis> : c.seg('grain')}
         />

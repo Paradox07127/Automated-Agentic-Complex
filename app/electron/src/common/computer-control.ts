@@ -237,7 +237,7 @@ export const MESSAGES = {
   systemPermission: '系统权限尚未授予；授权后再点对应按钮。所有选项均可跳过。',
   noChallenge: '请先让会话请求指定窗口，再选择权限。',
   waiting: `请明确选择此窗口可用的权限；不选择就不会读取或操作。执行操作：允许在此窗口内操作最多 ${CONSENT.controlActions} 次（${CONSENT.controlSeconds / 60} 分钟内），写入文字一次即用完。`,
-  disabled: '设置 › 能做 中启用电脑操作；每个窗口仍需单独授权。',
+  disabled: '设置 › 能力 中启用电脑操作；每个窗口仍需单独授权。',
 } as const;
 
 /** Display redaction, not an assertion that every secret is recognized; whitespace runs become

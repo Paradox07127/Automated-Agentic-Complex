@@ -107,7 +107,7 @@ export const DeviceRowDemos: Array<{ name: string; props: DeviceRowProps }> = [
     props: {
       icon: 'voice', name: '语音', sub: '127.0.0.1:9880', state: 'broken', stateLabel: '连不上', why: '最后一次 14:20 超时',
       actions: <Btn size="sm" variant="secondary" onClick={noop}>重新连接</Btn>, micro: 'VOICE LINK', child: 'last',
-      go: { label: '设置 › 说话', external: true, onClick: noop },
+      go: { label: '设置 › 交流', external: true, onClick: noop },
     },
   },
   { name: 'dim', props: { icon: 'kernel', name: '角色内核', sub: 'pi', state: 'idle', stateLabel: '读不到', why: '后台断开', reads: <ReadTick value="—" label="可用能力" />, child: 'mid', dim: true } },

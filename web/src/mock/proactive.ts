@@ -1,11 +1,13 @@
-// Proactive settings, mutes and stats (api/settings.py `_proactive_*`): mutes PUT replaces the whole list; settings PUT takes any non-empty subset of {companion_mode: boolean, quiet_start, quiet_end: hour 0-23}.
+// Proactive settings, mutes and stats (api/settings.py `_proactive_*`): mutes PUT replaces the whole list; settings PUT takes any non-empty subset of {companion_mode, quiet_enabled: boolean, quiet_ranges: up to 8 [start, end] hours 0-23, start != end}.
 import type { ProactiveStats } from '../pages/settings/api';
 import type { MockRoute } from './types';
 
 const MUTABLE = ['back', 'break', 'comment', 'repeat', 'session', 'stuck', 'task', 'thought'];
 let muted: string[] = [];
-let settings = { companion_mode: false, quiet_start: 22, quiet_end: 8 };
+let settings = { companion_mode: false, quiet_enabled: false, quiet_ranges: [[22, 8]] };
 const hour = (v: unknown) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 23;
+const ranges = (v: unknown) =>
+  Array.isArray(v) && v.length <= 8 && v.every((r) => Array.isArray(r) && r.length === 2 && hour(r[0]) && hour(r[1]) && r[0] !== r[1]);
 
 const STATS: ProactiveStats = {
   comment: { shown: 5, replied: 2, accepted: 0, feedback: 1 },
@@ -35,8 +37,8 @@ export const routes: MockRoute[] = [
       if (
         keys.length === 0 ||
         !keys.every((k) => k in settings) ||
-        ('companion_mode' in b && typeof b.companion_mode !== 'boolean') ||
-        !['quiet_start', 'quiet_end'].every((k) => !(k in b) || hour(b[k]))
+        ['companion_mode', 'quiet_enabled'].some((k) => k in b && typeof b[k] !== 'boolean') ||
+        ('quiet_ranges' in b && !ranges(b.quiet_ranges))
       )
         return { status: 400, body: { error: 'invalid_payload' } };
       settings = { ...settings, ...(b as Partial<typeof settings>) };

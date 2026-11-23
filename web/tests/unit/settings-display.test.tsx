@@ -53,13 +53,13 @@ describe('设置 › 显示', () => {
     }
   });
 
-  it('holds the recording and switch-title switches, which 说话 no longer has', async () => {
+  it('holds the recording and switch-title switches, which 交流 no longer has', async () => {
     await mount('&group=display');
     expect(await screen.findByRole('switch', { name: '录屏和共享屏幕时隐藏角色' })).toBeTruthy();
     expect(screen.getByRole('switch', { name: '切换角色时的雷霆大字' })).toBeTruthy();
     cleanup();
     await mount('&group=speak');
-    await screen.findByRole('region', { name: '事情怎么告诉你' });
+    await screen.findByRole('region', { name: '通知方式' });
     expect(row('capHide')).toBeNull();
     expect(row('switchTitle')).toBeNull();
   });
@@ -68,7 +68,7 @@ describe('设置 › 显示', () => {
 describe('settings ⓘ', () => {
   it('gives each capability band an ⓘ that is not its 做 / 要 / 花 line again', async () => {
     await mount('&group=perm');
-    await screen.findByRole('region', { name: '能力' });
+    await screen.findByRole('region', { name: '功能' });
     const bands = [...document.querySelectorAll('[role="group"][data-row^="plugins."]')];
     expect(bands.length).toBeGreaterThan(0);
     for (const b of bands) {

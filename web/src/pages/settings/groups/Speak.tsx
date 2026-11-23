@@ -9,7 +9,7 @@ import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import type { DiagView } from '../diag';
 import { REPLY_LANGUAGE } from '../fields';
-import { Btn, Pill } from '../../../ui';
+import { Btn, Pill, Switch } from '../../../ui';
 import { GameSeg, PowerState, StatusLamp } from '../../../ui/game';
 import { Dis } from '../kit';
 import { optionsOf } from '../native';
@@ -34,7 +34,7 @@ export const VOICE_TONE: Record<VoiceState, VisualStateKey> = { ready: 'ok', unk
 
 /** 说话: voice and its self-hosted service, when she speaks up, how things reach you. */
 export function SpeakGroup() {
-  const { model, ro: groupRo, agentdOff, diag, native, goRow } = useSettings();
+  const { model, ro: groupRo, agentdOff, diag, native, goRow, perms, recheckPerms } = useSettings();
   const shown = useRowShown();
   // The proactive rows write to agentd.
   const ro = groupRo || agentdOff;
@@ -62,6 +62,7 @@ export function SpeakGroup() {
   };
   const down = voice?.state === 'unreachable';
   const levels = optionsOf(native?.rows.proactive).filter((o) => o.value !== SILENT_LEVEL);
+  const notifyLevels = optionsOf(native?.rows.n_done);
   // agentd mutes live on a spoken「静音」; this row is config.json, which it reads at start.
   const muteNote = diag.muted == null || diag.muted === (model.value('mute') === true) ? null : diag.muted ? '重启后台服务后按这里的设置出声' : '后台现在仍会出声；重启后台服务后生效';
   const mute = model.value('mute');
@@ -131,41 +132,40 @@ export function SpeakGroup() {
             />
           </Linked>
         )}
-        <SetRow id="asr" title={labelOf('asr')} desc="按住说话时用" control={c.seg('asr')} />
-        <SetRow id="replyLang" title={labelOf('replyLang')} control={c.select('replyLang', REPLY_LANGUAGE)} />
+        <SetRow id="asr" title={labelOf('asr')} desc="按住说话时用" info="跟随系统：按系统的首选语言识别语音。实际说的语言和这里不一致时，识别会出错。" control={c.seg('asr')} />
+        <SetRow
+          id="replyLang"
+          title={labelOf('replyLang')}
+          info="跟随对话：你用什么语言说，角色就用什么语言回答。按内核设置：这里不指定，由内核自己的设置决定。"
+          control={c.select('replyLang', REPLY_LANGUAGE)}
+        />
       </SetSection>
 
-      <SetSection title="主动开口">
+      <SetSection title="主动交流">
         <SpeakWhenRow
           ps={ps}
           disabled={ro}
           asked={<SetRow id="proactive" title={labelOf('proactive')} indent control={<Dis>只在你问时开口，不会主动</Dis>} />}
         >
-          <SetRow id="proactive" title={labelOf('proactive')} desc="主动发言和动作的频率" indent control={c.select('proactive', levels, ['active'])} />
+          <SetRow
+            id="proactive"
+            title={labelOf('proactive')}
+            desc="主动发言和动作的频率"
+            info="均衡：约每 3 分钟看一次你手头的事，同类话题 10 分钟内不重复。主动：约每 2 分钟看一次，同类话题 5 分钟后就能再提，自己走动也更多。"
+            indent control={c.select('proactive', levels, ['active'])} />
           <QuietHoursRow ps={ps} disabled={ro} />
         </SpeakWhenRow>
         <MutedRow disabled={ro} />
-        <SetRow id="rest" title={labelOf('rest')} desc="连续用电脑到这个时长后提醒" control={c.select('rest')} />
-        {native?.rows.water && <SetRow id="water" title={labelOf('water')} desc="在你停顿时提醒" control={c.select('water')} />}
-        {native?.rows.reportTime && (
-          <SetRow
-            id="reportTime"
-            title={labelOf('reportTime')}
-            desc="过了这个时间，点角色会说今天的小结"
-            info="按本机时间算。到这个时间后，早安问候不再出现，点一下角色会说当天做了什么、还有哪些事没办完；周五过了这个时间写本周的工作小结。"
-            control={c.select('reportTime')}
-          />
-        )}
       </SetSection>
 
-      <SetSection title="事情怎么告诉你">
-        <Slab id="n_done" label="提醒方式">
-          <div className={styles.mx} role="table" aria-label="提醒方式">
+      <SetSection title="通知方式">
+        <Slab id="n_done" label="各类通知">
+          <div className={styles.mx} role="table" aria-label="各类通知">
             <span role="row" className={styles.mxHead}>
               <span role="columnheader" />
-              {['出声', '只出卡', '不提示'].map((h) => (
-                <span key={h} role="columnheader">
-                  {h}
+              {notifyLevels.map((o) => (
+                <span key={o.value} role="columnheader">
+                  {o.label}
                 </span>
               ))}
             </span>
@@ -175,14 +175,29 @@ export function SpeakGroup() {
                   {label}
                   <small>{note}</small>
                 </span>
-                <span role="cell" className={styles.mxSeg}>
-                  {c.seg(id, undefined, false, label)}
-                </span>
+                {notifyLevels.map((o) => (
+                  <span key={o.value} role="cell" className={styles.mxCell}>
+                    <input
+                      type="radio"
+                      className={styles.mxDot}
+                      name={`notify-${id}`}
+                      aria-label={`${label}：${o.label}`}
+                      checked={model.value(id) === o.value}
+                      disabled={groupRo}
+                      onChange={() => model.set(id, o.value)}
+                    />
+                  </span>
+                ))}
               </span>
             ))}
           </div>
         </Slab>
-        <SetRow id="sysnotify" title={labelOf('sysnotify')} desc="角色隐藏或前台全屏时生效" control={c.toggle('sysnotify')} />
+        <SetRow
+          id="sysnotify"
+          title={labelOf('sysnotify')}
+          desc="角色隐藏或前台全屏时生效"
+          control={<Switch variant="setting" checked={model.value('sysnotify') === true} label={labelOf('sysnotify')} disabled={groupRo} onChange={(on) => void sysNotify(on)} />}
+        />
         <SetRow
           id="testcard"
           title={labelOf('testcard')}
@@ -197,6 +212,13 @@ export function SpeakGroup() {
       </SetSection>
     </>
   );
+  /** Turning it on asks for the notification grant once, which also lists the app in the system's notification settings. */
+  async function sysNotify(on: boolean) {
+    model.set('sysnotify', on);
+    if (!on || perms.find((p) => p.kind === 'notifications')?.state !== 'notDetermined') return;
+    await bridge.permissions.request('notifications');
+    await recheckPerms('notifications');
+  }
   async function testCard(action: 'test_approval_card' | 'test_announcement', what: string) {
     try {
       await bridge.app.action(action);

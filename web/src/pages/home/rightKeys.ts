@@ -37,8 +37,8 @@ export const RIGHT: readonly RightSpec[] = [
   { id: 'her', icon: 'user', title: '角色这一天', plugin: 'daily_brief', to: { page: 'overview', tab: 'char' } },
   // 每日简报 has its 时间 tab only while 屏幕感知 is on (agentd's brief focus.enabled).
   { id: 'time', icon: 'g-trace', title: '时间', plugin: 'daily_brief', to: { page: 'overview', tab: 'tm' } },
-  { id: 'perm', icon: 'hand', title: '能做', to: { page: 'settings', group: 'perm' } },
-  { id: 'privacy', icon: 'privacy', title: '观察', to: { page: 'settings', group: 'privacy' } },
+  { id: 'perm', icon: 'hand', title: '能力', to: { page: 'settings', group: 'perm' } },
+  { id: 'privacy', icon: 'privacy', title: '感知', to: { page: 'settings', group: 'privacy' } },
   { id: 'diag', icon: 'd-overview', title: '诊断', dev: true, to: { page: 'diag', tab: 'overview' } },
   { id: 'turns', icon: 'g-chat', title: '对话轮次', dev: true, to: { page: 'diag', tab: 'turns' } },
   { id: 'logs', icon: 'data', title: '日志', dev: true, to: { page: 'diag', tab: 'logs' } },

@@ -1,5 +1,5 @@
-// Settings that had no row: 简报时间 (agentd's brief hour) and 收工时间 (agentd's --ritual-report-time), each with its ⓘ and
-// search entry; 恢复默认 takes 收工时间 back; the AI demos open the AI tab on Pi with a ChatGPT subscription.
+// Settings that had no row: 简报时间 (agentd's brief hour), with its ⓘ and search entry; the AI demos open the AI tab on Pi
+// with a ChatGPT subscription.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -36,7 +36,7 @@ const row = (id: string) => document.querySelector(`[data-row="${id}"]`) as HTML
 const click = (el: Element) => act(async () => void fireEvent.click(el));
 const tip = (id: string) => row(id).querySelector('[role="tooltip"]')?.textContent ?? '';
 
-describe('观察 › 每日简报 › 简报时间', () => {
+describe('感知 › 每日简报 › 简报时间', () => {
   it('picks the hour agentd writes the briefs after, through POST /observation/briefs/settings', async () => {
     const request = vi.spyOn(window.agenticComplex!.agentd, 'request');
     await mount('&group=privacy');
@@ -57,40 +57,6 @@ describe('观察 › 每日简报 › 简报时间', () => {
     expect(tip('briefHour')).not.toContain(row('briefHour').querySelector('[id$="-desc"]')?.textContent ?? '');
     expect(searchSettings('简报时间').map((r) => r.id)).toContain('briefHour');
     expect(searchSettings('几点').map((r) => r.id)).toContain('briefHour');
-  });
-});
-
-describe('说话 › 主动开口 › 收工时间', () => {
-  it('saves the time, which agentd takes live, without a restart mark', async () => {
-    await mount('&group=speak');
-    const time = await screen.findByRole('button', { name: '收工时间' });
-    expect(time.textContent).toContain('17:30');
-    const save = vi.spyOn(window.agenticComplex!.settings, 'save');
-    await click(time);
-    await click(within(screen.getByRole('listbox', { name: '收工时间' })).getByRole('option', { name: '19:00' }));
-    await waitFor(() => expect(save).toHaveBeenCalledWith({ reportTime: '19:00' }));
-    expect(row('reportTime').textContent).not.toContain('重启后台后生效');
-  });
-
-  it('has an ⓘ and is found by search', async () => {
-    await mount('&group=speak');
-    await screen.findByRole('button', { name: '收工时间' });
-    expect(tip('reportTime').length).toBeGreaterThan(20);
-    expect(searchSettings('下班').map((r) => r.id)).toContain('reportTime');
-    expect(searchSettings('收工').map((r) => r.id)).toContain('reportTime');
-  });
-
-  it('goes back to 17:30 with 恢复默认设置', async () => {
-    await mount('&group=speak');
-    const save = vi.spyOn(window.agenticComplex!.settings, 'save');
-    await click(await screen.findByRole('button', { name: '收工时间' }));
-    await click(within(screen.getByRole('listbox', { name: '收工时间' })).getByRole('option', { name: '19:00' }));
-    await waitFor(() => expect(save).toHaveBeenCalledWith({ reportTime: '19:00' }));
-    cleanup();
-    await mount('&group=data');
-    await click(await screen.findByRole('button', { name: /恢复默认…/ }));
-    await click(await screen.findByRole('button', { name: '恢复默认' }));
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ reportTime: '17:30' })));
   });
 });
 

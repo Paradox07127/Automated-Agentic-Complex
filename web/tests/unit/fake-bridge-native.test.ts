@@ -13,7 +13,7 @@ describe('fake bridge: native ops of pass 1', () => {
   it('serves the demo settings schema and saved values itself', async () => {
     const bridge = createFakeBridge({ surface: 'main', still: true });
     expect((await bridge.settings.schema()).map((r) => r.id)).toEqual(DEMO_SCHEMA.map((r) => r.id));
-    expect((await bridge.settings.read()).saved).toMatchObject({ web: true, wintext: true, rest: '45', mute: false });
+    expect((await bridge.settings.read()).saved).toMatchObject({ web: true, wintext: true, mute: false });
     await bridge.settings.save({ web: false });
     expect((await bridge.settings.read()).saved.web).toBe(false);
   });

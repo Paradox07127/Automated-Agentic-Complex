@@ -102,7 +102,7 @@ test("Q and E step through the page's own tabs and wrap, do nothing while typing
   const selected = () => tabs.getByRole('tab', { selected: true });
   await expect(selected()).toHaveAttribute('title', '说话');
   await page.keyboard.press('e');
-  await expect(selected()).toHaveAttribute('title', '能做');
+  await expect(selected()).toHaveAttribute('title', '能力');
   await page.keyboard.press('q');
   await page.keyboard.press('q');
   await expect(selected()).toHaveAttribute('title', '关于');
