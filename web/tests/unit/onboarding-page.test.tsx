@@ -160,6 +160,20 @@ describe('onboarding page', () => {
     await waitFor(() => expect(asked.filter((k) => k === 'status').length).toBeGreaterThan(before));
   });
 
+  it('gives each permission row on 声音 an ⓘ that says more than its line', async () => {
+    install();
+    mount();
+    await roster();
+    await toStep(3);
+    for (const name of ['麦克风与语音识别', '输入监控']) {
+      const row = await screen.findByRole('group', { name });
+      const tip = row.querySelector('[role="tooltip"]')?.textContent ?? '';
+      const line = row.querySelector('[id$="-desc"]')?.textContent ?? '';
+      expect(tip.length, name).toBeGreaterThan(20);
+      expect(line, name).not.toContain(tip);
+    }
+  });
+
   it.each([
     [true, '已保存'],
     [false, '还没有保存'],

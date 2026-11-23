@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { noteContent } from '../src/common/notify.ts';
-import { current, rowById, ROWS } from '../src/common/settings.ts';
+import { current, parseChanges, planSave, Rejection, rowById, ROWS } from '../src/common/settings.ts';
 import type { AnnounceKind } from '../src/common/stack-source.ts';
 
 test('every web row has an item, each web id and each config key once', () => {
@@ -42,6 +42,33 @@ test('喝水提醒 is a row of its own: agentd\'s 90 minutes by default, 0 for o
   // Not one of the choices, and not a number.
   assert.equal(current({ water_reminder_minutes: 7 }, null).values.water_reminder_minutes, '90');
   assert.equal(current({ water_reminder_minutes: '120' }, null).values.water_reminder_minutes, '90');
+});
+
+test('收工时间 is agentd\'s --ritual-report-time: 17:30 by default, half hours from 12:00, a restart of the backend', () => {
+  const row = rowById('reportTime')!;
+  assert.deepEqual([row.group, row.item.key, row.item.restart], ['speak', 'ritual_report_time', 'backend']);
+  assert.ok(row.item.control.kind === 'dropdown');
+  const times = row.item.control.options.map(([v]) => v);
+  assert.equal(times[0], '12:00');
+  assert.equal(times.at(-1), '23:30');
+  assert.equal(times.length, 24);
+  assert.equal(current({}, null).values.ritual_report_time, '17:30');
+  assert.equal(current({ ritual_report_time: '19:00' }, null).values.ritual_report_time, '19:00');
+  assert.equal(current({ ritual_report_time: '19:05' }, null).values.ritual_report_time, '17:30');
+  assert.deepEqual(planSave({}, null, { ritual_report_time: '18:30' }), { write: { ritual_report_time: '18:30' }, effects: [], restart: 'backend' });
+});
+
+test('代理 is a text row of 服务 that restarts the backend: empty, or an http(s) address with no path, query or fragment', () => {
+  const row = rowById('proxy')!;
+  assert.deepEqual([row.group, row.item.key, row.item.restart, row.item.control.kind, row.item.control.value], ['services', 'proxy_url', 'backend', 'text', '']);
+  for (const ok of ['', 'http://127.0.0.1:7890', 'https://u:p@proxy.corp:8443', 'http://proxy.corp:8080/']) {
+    assert.deepEqual(parseChanges({ proxy: ok }, () => {}), { proxy_url: ok }, ok);
+  }
+  for (const bad of ['socks5://127.0.0.1:1080', '127.0.0.1:7890', 'http://proxy:1/path', 'http://proxy:1?x=1', ' http://proxy:1', 'http://', 'http://pro xy:1']) {
+    assert.throws(() => parseChanges({ proxy: bad }, () => {}), (e: unknown) => e instanceof Rejection && /http:\/\/ 或 https:\/\//.test(e.message), bad);
+  }
+  assert.equal(current({ proxy_url: 'socks5://x:1' }, null).values.proxy_url, '');
+  assert.equal(current({ proxy_url: 'http://x:1' }, null).values.proxy_url, 'http://x:1');
 });
 
 test('a stored hot key that is not a name shows the default, and the status quotes the stored value as it is', () => {

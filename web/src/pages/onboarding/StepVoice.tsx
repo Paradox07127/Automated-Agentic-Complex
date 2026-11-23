@@ -10,7 +10,7 @@ import { capsOf } from '../settings/groups/Keys';
 import { Btn, Field } from '../../ui';
 import { GameSeg, StatusLamp } from '../../ui/game';
 import { Dis, KeyCell } from '../settings/kit';
-import type { PermRow } from '../settings/perms';
+import { PERM_TIP, type PermRow } from '../settings/perms';
 import { labelOf } from '../settings/registry';
 import { SetRow } from '../settings/SetRow';
 import { SetSection } from '../settings/SetSection';
@@ -213,7 +213,7 @@ function YourVoice() {
               indent
               desc={p.state === 'denied' ? `没允许：${p.features.join('、')}用不了，其余照常` : `用于 ${p.features.join('、')}`}
               descTone={p.state === 'denied' ? 'bad' : undefined}
-              info={p.purpose}
+              info={PERM_TIP[p.kind]}
               control={
                 <>
                   <StatusLamp size="sm" state={tone} label={text} />

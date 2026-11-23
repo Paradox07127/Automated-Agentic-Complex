@@ -5,8 +5,8 @@ import { useSettings } from '../ctx';
 import { SetRow } from '../SetRow';
 import styles from '../groups.module.css';
 
-const HOURS = Array.from({ length: 24 }, (_, h) => h);
-const hourText = (h: number) => `${String(h).padStart(2, '0')}:00`;
+export const HOURS = Array.from({ length: 24 }, (_, h) => h);
+export const hourText = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
 /** GET/PUT /proactive/settings, held by SpeakGroup for 她什么时候开口 (companion_mode) and 免打扰时段; `on` is null until read. */
 export function useProactiveSettings() {

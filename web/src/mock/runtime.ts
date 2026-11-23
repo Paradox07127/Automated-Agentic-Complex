@@ -47,7 +47,7 @@ const PUBLIC = {
   ],
 };
 
-/** `GET /character/runtime`; `demo=logged-out` signs the selected Codex out, `demo=no-key` picks Pi on Anthropic with an API key that was never saved, `demo=acp` runs the local Claude agent. */
+/** `GET /character/runtime`; `demo=logged-out` signs the selected Codex out, `demo=no-key` picks Pi on Anthropic with an API key that was never saved, `demo=pi` runs Pi on the saved Anthropic key and `demo=chatgpt` on the ChatGPT subscription, `demo=acp` runs the local Claude agent. */
 export function runtime(demo: string | null): WireRuntimePublic & Pick<CharacterRuntimeResponse, 'provider_profiles'> {
   if (demo === 'acp')
     return {
@@ -57,6 +57,8 @@ export function runtime(demo: string | null): WireRuntimePublic & Pick<Character
       selected_runtime: null,
       available_backends: [...PUBLIC.available_backends, { id: 'acp', title: 'ACP', available: true, reason: null }],
     };
+  if (demo === 'pi') return { ...PUBLIC, backend: 'pi', runtime_source: 'bundled', provider: 'anthropic', auth_source: 'api_key' };
+  if (demo === 'chatgpt') return { ...PUBLIC, backend: 'pi', runtime_source: 'bundled' };
   if (demo === 'no-key') return { ...PUBLIC, backend: 'pi', provider: 'anthropic', auth_source: 'api_key', ready: false, error: 'missing_anthropic_api_key' };
   if (demo !== 'logged-out') return PUBLIC;
   const out = (r: WireRuntimePublic['installed_runtimes'][number]) => (r.backend === 'codex' ? { ...r, authenticated: false } : r);

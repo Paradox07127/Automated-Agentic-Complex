@@ -6,7 +6,7 @@ import { createServer } from 'node:net';
 import { constants } from 'node:os';
 import { join } from 'node:path';
 import {
-  agentdArguments, Backoff, type ChildState, crashState, HealthWatch, launchFailure, preflightFailure, sameState, stateText,
+  agentdArguments, agentdEnv, Backoff, type ChildState, crashState, HealthWatch, launchFailure, preflightFailure, sameState, stateText,
   TIMING,
 } from '../../common/agentd.ts';
 import { type Config, launchAgentdDir } from '../../common/config.ts';
@@ -241,7 +241,7 @@ export class AgentdSupervisor {
     this.startedAt = began;
     let child: ChildProcess;
     try {
-      child = spawn(executable, args, { windowsHide: true, stdio: [agentdStopRequest() === 'stdin' ? 'pipe' : 'ignore', fd, fd] });
+      child = spawn(executable, args, { env: agentdEnv(this.config, process.env), windowsHide: true, stdio: [agentdStopRequest() === 'stdin' ? 'pipe' : 'ignore', fd, fd] });
     } finally {
       closeSync(fd);
     }

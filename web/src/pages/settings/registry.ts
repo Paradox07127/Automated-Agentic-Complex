@@ -103,6 +103,7 @@ const RAW: Raw[] = [
   ['mutes', 'speak', '主动开口', '已关掉的主动发言', '关闭此类 恢复'],
   ['rest', 'speak', '主动开口', '休息提醒', '久坐'],
   ['water', 'speak', '主动开口', '喝水提醒', '喝水 久坐'],
+  ['reportTime', 'speak', '主动开口', '收工时间', '下班 收工 晚间 汇报 当天小结 早安 问候 几点 时间'],
   ['n_done', 'speak', '事情怎么告诉你', '完成', '通知 提醒方式 出声 卡片'],
   ['n_appr', 'speak', '事情怎么告诉你', '待批准', '通知 审批'],
   ['n_err', 'speak', '事情怎么告诉你', '出错', '通知 失败'],
@@ -139,6 +140,7 @@ const RAW: Raw[] = [
   ['plugins.daily_brief', 'privacy', '每日简报', '每日简报', '日报 简报 工业简报 今天 周报 工作记录'],
   ['brief_daily', 'privacy', '每日简报', '每日简报', '简报 日报'],
   ['brief_weekly', 'privacy', '每日简报', '每周简报', '简报 周报'],
+  ['briefHour', 'privacy', '每日简报', '简报时间', '简报 日报 周报 几点 钟点 时间'],
   ['mask', 'privacy', '遮蔽与排除', '发出前遮蔽敏感内容', '遮蔽 密钥 邮箱'],
   ['exclude', 'privacy', '遮蔽与排除', '不看的应用和网站', '黑名单 排除 不看 白名单'],
   ['appTheme', 'display', '外观', '主题', '深色 浅色 暗色 亮色 跟随系统 外观 dark light'],
@@ -177,6 +179,7 @@ const RAW: Raw[] = [
   ['svc_tts', 'services', '自建服务', '语音服务', 'tts 语音 地址 ssh 隧道 本机 命令 启动脚本 日志 令牌 测试'],
   ['svc_motion', 'services', '自建服务', '动作服务', 'Kimodo 动作 地址 ssh 隧道 本机 命令 启动脚本 日志'],
   ['motionToken', 'services', '自建服务', '动作服务令牌', 'Kimodo 动作 令牌 token'],
+  ['proxy', 'services', '网络', '代理', 'proxy HTTP_PROXY HTTPS_PROXY 代理服务器 网络 外网 连不上'],
   ['svc_llm', 'services', '自建服务', '自建模型接口（兼容 API）', 'Ollama vLLM 兼容 API openai 模型服务 地址 ssh 隧道 本机 命令 启动脚本 日志 key 密钥'],
   ['hk_ptt', 'keys', '全局快捷键', '按住说话', '语音 热键'],
   ['hk_quick', 'keys', '全局快捷键', '快速输入', '热键 输入'],
@@ -253,6 +256,7 @@ const DELETES = new Set(['wintext', 'web', 'typing', 'agent_sessions', 'delrecen
 const BAND_ROWS: Readonly<Record<string, PluginId>> = {
   motionToken: 'motion_generation',
   hooks2: 'coding_sessions',
+  briefHour: 'daily_brief',
   ...Object.fromEntries(
     ['acpAgent', 'acct', 'kernelLogin', 'provider', 'mainModel', 'routes', ...ROUTES.flatMap((p) => Object.values(routeIds(p)))].map((id) => [id, 'harness_bridge' as const]),
   ),

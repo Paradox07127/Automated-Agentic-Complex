@@ -68,6 +68,8 @@
         "proactive": "value",
         "rest": "value",
         "water": "value",
+        "reportTime": "value",
+        "proxy": "value",
         "n_done": "value",
         "n_appr": "value",
         "n_err": "value",

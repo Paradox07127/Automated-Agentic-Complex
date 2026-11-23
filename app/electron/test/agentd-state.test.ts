@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:net';
 import { test } from 'node:test';
 import {
-  agentdArguments, Backoff, type ChildState, controlEndpoint, crashState, HealthWatch, launchFailure, parseHealth,
+  agentdArguments, agentdEnv, Backoff, type ChildState, controlEndpoint, crashState, HealthWatch, launchFailure, parseHealth,
   preflightFailure, stateText,
 } from '../src/common/agentd.ts';
 import { parseConfig } from '../src/common/config.ts';
@@ -97,13 +97,14 @@ test('the agentd command line follows C9 in a fixed order', () => {
     '--port', '48810', '--state-dir', '/st', '--interaction-preset', 'balanced', '--character', 'aster',
     '--privacy-config', '/s/config.json', ...PLUGIN_IDS.flatMap((id) => [id === 'light_ai' ? '--plugin-on' : '--plugin-off', id]),
     '--share-agent-sessions', '--break-reminder-minutes', '0',
-    '--water-reminder-minutes', '90',
+    '--water-reminder-minutes', '90', '--ritual-report-time', '17:30',
     '--tts-token-file', '/s/tts-token',
   ]);
   const all = agentdArguments(config({
     character_catalog: null, harness_sites: { 'harness.pi': '/pi' }, plugins: { computer_use: true }, share_page_text: true,
     share_window_text: true, share_typed_text: true, share_agent_sessions: false, share_screenshots: true,
     redact_sensitive: false, proactive_speech: false, break_reminder_minutes: -3, water_reminder_minutes: 0, mute: true,
+    ritual_report_time: '19:00',
     services: { tts: { mode: 'ssh', url: 'http://127.0.0.1:9888', ssh_host: 'gpu', start_script: '/e.sh' },
       motion: { mode: 'url', url: 'http://gpu:48830', ssh_host: 'gpu', start_script: '/m.sh' },
       llm: { mode: 'local', url: 'http://127.0.0.1:11434/v1', command: ['ollama', 'serve'], start_script: '/l.sh' } },
@@ -115,13 +116,25 @@ test('the agentd command line follows C9 in a fixed order', () => {
     ...PLUGIN_IDS.flatMap((id) => [['light_ai', 'computer_use'].includes(id) ? '--plugin-on' : '--plugin-off', id]),
     '--computer-control-socket', '/s/run/computer-control.sock', '--computer-control-token-file', '/s/run/computer-control.token',
     '--share-page-text', '--share-window-text', '--share-typed-text', '--share-screenshots', '--no-redact',
-    '--no-proactive', '--break-reminder-minutes', '0', '--water-reminder-minutes', '0', '--mute',
+    '--no-proactive', '--break-reminder-minutes', '0', '--water-reminder-minutes', '0', '--ritual-report-time', '19:00', '--mute',
     '--tts-url', 'http://127.0.0.1:9888', '--tts-ssh-host', 'gpu', '--tts-ensure-host', 'gpu', '--tts-ensure-script', '/e.sh',
     '--motion-url', 'http://gpu:48830', '--llm-url', 'http://127.0.0.1:11434/v1', '--tts-token-file', '/s/tts-token',
   ]);
   const ssh = { mode: 'ssh', url: 'http://127.0.0.1:48830', ssh_host: 'gpu' };
   assert.deepEqual(agentdArguments(config({ services: { motion: ssh } }), ctx).slice(-6),
     ['--motion-url', 'http://127.0.0.1:48830', '--motion-ssh-host', 'gpu', '--tts-token-file', '/s/tts-token']);
+});
+
+test('a proxy goes to agentd as HTTP_PROXY and HTTPS_PROXY in place of any case of the inherited ones; loopback and the services\' hosts go direct', () => {
+  const base = { PATH: '/bin', http_proxy: 'http://old:1', HTTPS_PROXY: 'http://old:2', no_proxy: '.corp', ALL_PROXY: 'socks5://old:3' };
+  assert.equal(agentdEnv(config(), base), base);
+  assert.deepEqual(agentdEnv(config({ proxy_url: 'http://u:p@proxy:7890' }), base), {
+    PATH: '/bin', HTTP_PROXY: 'http://u:p@proxy:7890', HTTPS_PROXY: 'http://u:p@proxy:7890', NO_PROXY: '.corp,localhost,127.0.0.1,::1',
+  });
+  const services = { motion: { mode: 'url', url: 'http://gpu-box:48830' }, tts: { mode: 'ssh', url: 'http://127.0.0.1:9888', ssh_host: 'gpu' },
+    llm: { mode: 'off', url: 'http://lan-llm:8000/v1' } };
+  assert.deepEqual(agentdEnv(config({ proxy_url: 'http://proxy:8080', services }), { PATH: '/bin' }),
+    { PATH: '/bin', HTTP_PROXY: 'http://proxy:8080', HTTPS_PROXY: 'http://proxy:8080', NO_PROXY: 'localhost,127.0.0.1,::1,gpu-box' });
 });
 
 test("the helper's control.listen and agentd get one endpoint: a socket in <support>/run on macOS, a pipe per support dir on Windows", () => {

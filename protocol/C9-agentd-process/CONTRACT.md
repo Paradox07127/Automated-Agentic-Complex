@@ -31,6 +31,7 @@ agentd 的参数（`--` 之后）。宿主必传的只有 `--port` 和 `--state-
 | `--interaction-preset quiet\|balanced\|active` | 总传 | `balanced` |
 | `--break-reminder-minutes N` | 总传（agentd 默认是 50，省掉 0 就成了每 50 分钟） | 50；0 为关 |
 | `--water-reminder-minutes N` | 总传，config `water_reminder_minutes` | 90；0 为关 |
+| `--ritual-report-time HH:MM` | 总传，config `ritual_report_time`（12:00 到 23:30 的整点或半点，其他值按 17:30） | 17:30 |
 | `--character-catalog PATH` | config 有 `character_catalog` 时 | 环境变量 `AGENTD_DEV_CATALOG`，没有时读仓库的公开样例库 `characters/sample-library/current.json` |
 | `--harness-site harness.pi=DIR` | 有组合锁时，锁里的 `harness.pi` 组件传一次，DIR 是它的载荷目录，内有 `node/bin/node` 和 `pi-runtime/node_modules/` | 无；ID 只接受 `harness.pi`，DIR 必须是已存在的绝对目录；未知 ID、重复 ID、相对路径或目录不存在是参数错误（退出 2） |
 | `--privacy-config PATH` | 有 config 文件路径时；agentd 读哪些键见 C10 | 无 |
@@ -51,7 +52,7 @@ agentd 的参数（`--` 之后）。宿主必传的只有 `--port` 和 `--state-
 
 agentd 还认 `--hook-timeout`、`--margin`、`--ritual-report-time`、`--ledger-root`、`--exit-with-parent/--no-exit-with-parent`、`--describe`；Companion 不传。含义见 `python3 agent/agentd/server.py --help`。
 
-环境和工作目录：Companion 不设环境变量、不设工作目录，agentd 继承 Companion 的。agentd 按 C10 的凭据引用读取系统保存的 TTS 令牌。没有配置令牌时仍可启动。
+环境和工作目录：Companion 不设工作目录，环境变量也继承 Companion 的，只有 config `proxy_url` 不为空时例外：去掉继承来的各种大小写的 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、`NO_PROXY`，设 `HTTP_PROXY` 和 `HTTPS_PROXY` 为它，`NO_PROXY` 为原有的主机加上 `localhost,127.0.0.1,::1` 和开着的各项服务地址的主机。agentd 按 C10 的凭据引用读取系统保存的 TTS 令牌。没有配置令牌时仍可启动。
 
 Companion 每次启动 agentd 前把 `<support>/bin/agentic-complex-hook`（0755）改写成 `exec '<python>' '<agentd 目录>/codex_hook_forward.py' "$@"`。用户的 Claude/Codex hook 配置只存这个固定路径（`install_hooks.py --hook-script`），agentd 换位置后 hook 照样能用。
 

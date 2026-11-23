@@ -176,6 +176,15 @@ test('defaults of Config', () => {
   assert.equal(d.breakReminderMinutes, 25);
   assert.equal(d.waterReminderMinutes, 120);
   assert.equal(parse({ ...ASTER, water_reminder_minutes: 0 }).waterReminderMinutes, 0);
+  // agentd's own default; a time the settings page does not offer reads as it too.
+  assert.equal(c.ritualReportTime, '17:30');
+  assert.equal(parse({ ...ASTER, ritual_report_time: '20:30' }).ritualReportTime, '20:30');
+  assert.equal(parse({ ...ASTER, ritual_report_time: '25:00' }).ritualReportTime, '17:30');
+  assert.equal(parse({ ...ASTER, ritual_report_time: '9:5' }).ritualReportTime, '17:30');
+  // No proxy unless config.json names one the settings page would take.
+  assert.equal(c.proxyUrl, '');
+  assert.equal(parse({ ...ASTER, proxy_url: 'http://127.0.0.1:7890' }).proxyUrl, 'http://127.0.0.1:7890');
+  assert.equal(parse({ ...ASTER, proxy_url: 'socks5://127.0.0.1:1080' }).proxyUrl, '');
 });
 
 test('services: an absent id or field is its default, the old TTS keys are ignored', () => {

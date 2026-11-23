@@ -59,6 +59,8 @@ const hotkey = (key: string, label: string, value: string): Item => ({ key, labe
 const text = (key: string, label: string, value: string): Item => ({ key, label, control: { kind: 'text', value }, restart: 'backend' });
 
 const NOTIFY: [string, string][] = [['sound', '出声'], ['card', '只出卡'], ['silent', '不提示']];
+/** agentd's `--ritual-report-time` choices: each half hour from 12:00 to 23:30. */
+export const REPORT_TIMES: string[] = Array.from({ length: 24 }, (_, i) => `${12 + Math.floor(i / 2)}:${i % 2 ? '30' : '00'}`);
 const FILTERS: [string, string][] = [['none', '无'], ['sp_filter_1', '黑金'], ['sp_filter_2', '温暖'], ['sp_filter_3', '苍白'],
   ['sp_filter_4', '胶片'], ['sp_filter_5', '希望色彩'], ['sp_filter_6', '血忆'], ['sp_filter_7', '武陵印象'], ['filter_1', '明亮'],
   ['filter_2', '冷调'], ['filter_3', '清新'], ['filter_4', '暗色'], ['filter_5', '黑白'], ['filter_6', '春'], ['filter_7', '文艺'],
@@ -121,6 +123,8 @@ const ITEMS: Item[] = [
   toggle('proactive_speech', '主动说话', true, 'backend'),
   choice('break_reminder_minutes', '连续使用提醒', [['0', '关'], ['45', '45 分钟'], ['60', '60 分钟'], ['90', '90 分钟']], '0', 'backend'),
   choice('water_reminder_minutes', '喝水提醒', [['0', '关'], ['60', '60 分钟'], ['90', '90 分钟'], ['120', '120 分钟']], '90', 'backend'),
+  dropdown('ritual_report_time', '收工时间', REPORT_TIMES.map((t) => [t, t]), '17:30', 'backend'),
+  text('proxy_url', '代理', ''),
   dropdown('screen_context_level', '屏幕理解粒度', [['status', '仅读状态'], ['focused', '焦点语义'], ['window', '窗口摘要']], 'focused', 'backend'),
   toggle('share_page_text', '读取网页正文', false, 'backend'),
   toggle('share_window_text', '读取窗口文字', false, 'backend'),
@@ -151,6 +155,7 @@ const REGISTRY_ROWS: [string, string, string][] = [
   ['mute', 'speak', 'mute'], ['asr', 'speak', 'asr_locale'],
   ['proactive', 'speak', 'interaction_preset'],
   ['speakUp', 'speak', 'proactive_speech'], ['rest', 'speak', 'break_reminder_minutes'], ['water', 'speak', 'water_reminder_minutes'],
+  ['reportTime', 'speak', 'ritual_report_time'],
   ['n_done', 'speak', 'notify_done'],
   ['n_appr', 'speak', 'notify_approval'], ['n_err', 'speak', 'notify_error'], ['n_brief', 'speak', 'notify_brief'],
   ['n_remind', 'speak', 'notify_reminder'],
@@ -165,6 +170,7 @@ const REGISTRY_ROWS: [string, string, string][] = [
   ['shot', 'privacy', 'share_screenshots'], ['keys', 'privacy', 'sense_input_counts'],
   ['mask', 'privacy', 'redact_sensitive'],
   ['login', 'about', 'launch_at_login'],
+  ['proxy', 'services', 'proxy_url'],
   ['appTheme', 'display', 'app_theme'], ['winBg', 'display', 'window_background'], ['glassAlpha', 'display', 'window_glass_alpha'],
   ['reduceMotion', 'display', 'reduce_motion'], ['uiZoom', 'display', 'ui_zoom'],
   ['beh.stay', '@character', 'stay_mode'], ['beh.range', '@character', 'viewport'], ['rnd.fps', '@character', 'render_fps'],
@@ -297,6 +303,7 @@ function accepts(item: Item, value: SettingValue): boolean {
     case 'toggle': return typeof value === 'boolean';
     case 'choice': case 'dropdown': return typeof value === 'string' && c.options.some(([k]) => k === value);
     case 'slider': return typeof value === 'number' && value >= c.min && value <= c.max;
+    case 'text': return typeof value === 'string' && (item.key !== 'proxy_url' || validProxyUrl(value));
     default: return typeof value === 'string';
   }
 }
@@ -386,6 +393,17 @@ function describe(raw: unknown): string {
   return JSON.stringify(raw) ?? String(raw);
 }
 
+/** config.json `proxy_url`: empty for none, or `http(s)://[user:password@]host[:port]` with nothing after it but a slash. */
+export function validProxyUrl(v: string): boolean {
+  if (v === '') return true;
+  if (!/^https?:\/\/[^/?#\s\p{Cc}]+\/?$/u.test(v)) return false;
+  try {
+    return new URL(v).hostname !== '';
+  } catch {
+    return false;
+  }
+}
+
 /** A `services` `ssh_host` ssh would read as an option, or one with a space or control character. */
 export const unsafeSshHost = (host: string) => /^-|[\s\p{Cc}]/u.test(host);
 
@@ -429,6 +447,7 @@ function parseValue(raw: unknown, row: Row, platform: ShellPlatform): SettingVal
   if (c.kind === 'choice' || c.kind === 'dropdown') allowed = '可选 ' + c.options.map(([k, l]) => `${k}（${l}）`).join(' / ');
   else if (c.kind === 'hotkey') allowed = '要用带 ⌃、⌥ 或 ⌘ 的组合键，或 F1–F12' + (allowsRightOption(row) ? '，或 右⌥' : '');
   else if (c.kind === 'slider') allowed = `范围 ${c.min.toFixed(1)}…${c.max.toFixed(1)}`;
+  else if (c.kind === 'text') allowed = '要以 http:// 或 https:// 开头，只写主机和端口，或留空';
   else allowed = '可选 true / false';
   const shown = c.kind === 'hotkey' && platform === 'windows' ? windowsCaps : (s: string) => s;
   throw new Rejection(`「${row.item.label}」不能设成 ${shown(describe(raw))}：${shown(allowed)}`);

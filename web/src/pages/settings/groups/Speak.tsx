@@ -147,6 +147,15 @@ export function SpeakGroup() {
         <MutedRow disabled={ro} />
         <SetRow id="rest" title={labelOf('rest')} desc="连续用电脑到这个时长后提醒" control={c.select('rest')} />
         {native?.rows.water && <SetRow id="water" title={labelOf('water')} desc="在你停顿时提醒" control={c.select('water')} />}
+        {native?.rows.reportTime && (
+          <SetRow
+            id="reportTime"
+            title={labelOf('reportTime')}
+            desc="过了这个时间，点角色会说今天的小结"
+            info="按本机时间算。到这个时间后，早安问候不再出现，点一下角色会说当天做了什么、还有哪些事没办完；周五过了这个时间写本周的工作小结。"
+            control={c.select('reportTime')}
+          />
+        )}
       </SetSection>
 
       <SetSection title="事情怎么告诉你">

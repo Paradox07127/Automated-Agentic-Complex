@@ -192,6 +192,7 @@ export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
   // Always passed: agentd's own default is 50, so leaving 0 out would turn 关 into every 50 minutes.
   args.push('--break-reminder-minutes', String(Math.max(0, config.breakReminderMinutes)));
   args.push('--water-reminder-minutes', String(Math.max(0, config.waterReminderMinutes)));
+  args.push('--ritual-report-time', config.ritualReportTime);
   if (config.mute) args.push('--mute');
   for (const id of SERVICE_IDS) {
     const s = config.services[id];
@@ -203,6 +204,21 @@ export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
   // Pass the reference basename even before a credential is configured (C10).
   args.push('--tts-token-file', ttsTokenFile(config.supportDir));
   return args;
+}
+
+const PROXY_VARS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'];
+
+/** agentd's environment: `base`, or with config `proxy_url` that as HTTP_PROXY and HTTPS_PROXY in place of the inherited
+ *  proxy variables of any case. NO_PROXY keeps its hosts and adds loopback and the hosts of the services that are on, which
+ *  agentd reaches directly. */
+export function agentdEnv(config: Config, base: Record<string, string | undefined>): Record<string, string | undefined> {
+  const proxy = config.proxyUrl;
+  if (proxy === '') return base;
+  const kept = Object.entries(base).filter(([k]) => k.toUpperCase() === 'NO_PROXY').flatMap(([, v]) => (v ?? '').split(','));
+  const services = SERVICE_IDS.map((id) => config.services[id]).filter((s) => s.mode !== 'off').map((s) => URL.parse(s.url)?.hostname.replace(/^\[|\]$/g, '') ?? '');
+  const direct = [...kept.map((h) => h.trim()), 'localhost', '127.0.0.1', '::1', ...services].filter((h) => h !== '');
+  const env = Object.fromEntries(Object.entries(base).filter(([k]) => !PROXY_VARS.includes(k.toUpperCase())));
+  return { ...env, HTTP_PROXY: proxy, HTTPS_PROXY: proxy, NO_PROXY: [...new Set(direct)].join(',') };
 }
 
 /** The failure text the menu shows when the executable cannot be spawned; `code` is the errno name. */

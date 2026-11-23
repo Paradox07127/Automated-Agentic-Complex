@@ -6,6 +6,7 @@ import { Region, type RegionSource } from '../../../ui';
 import { readServices } from '../api';
 import { useSettings } from '../ctx';
 import { SERVICE_NAME } from '../servicesDraft';
+import { NetworkSection } from './Network';
 import { ServicesGroup } from './Services';
 
 const ACT_VERB = { start: '启动', stop: '停止', restart: '重启' } as const;
@@ -40,7 +41,8 @@ function useServiceRuntimes(): [RuntimeSnapshot['services'] | null, () => void] 
   return [services, reread];
 }
 
-/** 服务: config.json's `services` through the shell's `services.*`, with each one's state from app.runtime; read again after each 应用. */
+/** 服务: config.json's `services` through the shell's `services.*`, with each one's state from app.runtime; read again after each 应用.
+ *  Then 网络, a settings row that does not wait for the services' read. */
 export function ServicesData() {
   const { model, ro, goPage } = useSettings();
   const [records, setRecords] = useState<RegionSource<Record<ServiceId, ServiceRecord>>>({ status: 'pending', data: undefined });
@@ -78,18 +80,21 @@ export function ServicesData() {
   };
 
   return (
-    <Region q={{ ...records, refetch: read }} what="服务" reserve={{ rows: 6 }}>
-      {(data) => (
-        <ServicesGroup
-          records={data}
-          runtimes={{ tts: runtimes?.tts ?? null, motion: runtimes?.motion ?? null, llm: runtimes?.llm ?? null }}
-          onStart={(id) => void run('start')(id)}
-          onStop={(id) => void run('stop')(id)}
-          onRestart={(id) => void run('restart')(id)}
-          onLogs={() => goPage({ page: 'diag', tab: 'logs', src: 'services' })}
-          disabled={ro || busy}
-        />
-      )}
-    </Region>
+    <>
+      <Region q={{ ...records, refetch: read }} what="服务" reserve={{ rows: 6 }}>
+        {(data) => (
+          <ServicesGroup
+            records={data}
+            runtimes={{ tts: runtimes?.tts ?? null, motion: runtimes?.motion ?? null, llm: runtimes?.llm ?? null }}
+            onStart={(id) => void run('start')(id)}
+            onStop={(id) => void run('stop')(id)}
+            onRestart={(id) => void run('restart')(id)}
+            onLogs={() => goPage({ page: 'diag', tab: 'logs', src: 'services' })}
+            disabled={ro || busy}
+          />
+        )}
+      </Region>
+      <NetworkSection />
+    </>
   );
 }

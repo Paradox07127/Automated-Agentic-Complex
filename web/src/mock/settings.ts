@@ -23,6 +23,8 @@ type Slide = Required<Pick<SchemaRow, 'min' | 'max' | 'step' | 'format'>>;
 type Row = [id: string, group: string, label: string, def: SettingValue, restart: SchemaRow['restart'], options?: Array<[string, string]> | Slide];
 const DEG = (max: number): Slide => ({ min: -max, max, step: 0.5, format: 'degrees' });
 const NOTIFY: Array<[string, string]> = [['sound', '出声'], ['card', '只出卡'], ['silent', '不提示']];
+/** 收工时间's choices: each half hour from 12:00 to 23:30 (app/electron settings.ts REPORT_TIMES). */
+const REPORT_TIMES: Array<[string, string]> = Array.from({ length: 24 }, (_, i) => `${12 + Math.floor(i / 2)}:${i % 2 ? '30' : '00'}`).map((t) => [t, t]);
 
 const ROWS: Row[] = [
   // 轻量 AI has a row but no registry entry: the 插件 group shows no switch for it.
@@ -33,6 +35,7 @@ const ROWS: Row[] = [
   ['speakUp', 'speak', '主动说话', true, 'backend'],
   ['rest', 'speak', '连续使用提醒', '0', 'backend', [['0', '关'], ['45', '45 分钟'], ['60', '60 分钟'], ['90', '90 分钟']]],
   ['water', 'speak', '喝水提醒', '90', 'backend', [['0', '关'], ['60', '60 分钟'], ['90', '90 分钟'], ['120', '120 分钟']]],
+  ['reportTime', 'speak', '收工时间', '17:30', 'backend', REPORT_TIMES],
   ['n_done', 'speak', '完成', 'card', 'none', NOTIFY],
   ['n_appr', 'speak', '待批准', 'sound', 'none', NOTIFY],
   ['n_err', 'speak', '出错', 'sound', 'none', NOTIFY],
@@ -59,6 +62,7 @@ const ROWS: Row[] = [
   ['keys', 'privacy', '键鼠计数', true, 'backend'],
   ['mask', 'privacy', '发出前遮蔽敏感内容', true, 'backend'],
   ['login', 'about', '登录时启动', true, 'none'],
+  ['proxy', 'services', '代理', '', 'backend'],
   ['appTheme', 'display', '主题', 'system', 'none', [['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']]],
   ['winBg', 'display', '窗口背景', 'glass', 'none', [['glass', '磨砂'], ['opaque', '不透明']]],
   ['glassAlpha', 'display', '磨砂强度', '55', 'none', [['35', '轻'], ['55', '中'], ['75', '重']]],
@@ -91,12 +95,14 @@ const ROWS: Row[] = [
 ];
 
 const DESTRUCTIVE = new Set(['wintext', 'web', 'typing', 'agent_sessions']);
+/** Rows typed as text; another string row without options is a hot key. */
+const TEXT = new Set(['proxy']);
 
 export const DEMO_SCHEMA: SchemaRow[] = ROWS.map(([id, group, label, def, restart, options]) => ({
   id,
   group,
   label,
-  kind: Array.isArray(options) ? 'select' : options ? 'slider' : typeof def === 'boolean' ? 'toggle' : 'hotkey',
+  kind: Array.isArray(options) ? 'select' : options ? 'slider' : typeof def === 'boolean' ? 'toggle' : TEXT.has(id) ? 'text' : 'hotkey',
   ...(Array.isArray(options) ? { options: options.map(([value, l]) => ({ value, label: l })) } : options),
   ...(DESTRUCTIVE.has(id) ? { destructive: true } : {}),
   default: def,

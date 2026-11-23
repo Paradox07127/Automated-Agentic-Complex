@@ -11,7 +11,7 @@ export const demos: Demo[] = [
   { name: 'speak', params: { group: 'speak' } },
   { name: 'keys', params: { group: 'keys' } },
   { name: 'kernel', params: { group: 'kernel' } },
-  { name: 'model', params: { group: 'model' } },
+  { name: 'model', params: { group: 'kernel', demo: 'pi' } }, // Pi 用 Anthropic 的 API Key：模型提供方、模型、测试连接
   { name: 'privacy', params: { group: 'privacy' } },
   { name: 'perm', params: { group: 'perm' } },
   { name: 'data', params: { group: 'data' } },
@@ -29,8 +29,8 @@ export const demos: Demo[] = [
   { name: 'agentdoff-kernel', params: { group: 'kernel', demo: 'agentdoff' } }, // 依赖 agentd 的组只读
   { name: 'kernel-draft', params: { group: 'kernel', demo: 'draft' } }, // 整组草稿：未应用 2 项 + 草稿三角
   { name: 'light-kernel', params: { group: 'kernel', theme: 'light' } },
-  { name: 'model-chatgpt', params: { group: 'model', demo: 'chatgpt' } }, // ChatGPT 多账号：使用 / 重新连接 / 退出
-  { name: 'model-chatgpt-light', params: { group: 'model', demo: 'chatgpt', theme: 'light' } },
+  { name: 'model-chatgpt', params: { group: 'kernel', demo: 'chatgpt' } }, // ChatGPT 多账号：使用 / 重新连接 / 退出
+  { name: 'model-chatgpt-light', params: { group: 'kernel', demo: 'chatgpt', theme: 'light' } },
   { name: 'kernel-no-key', params: { group: 'kernel', demo: 'no-key' } }, // 未就绪原因 + 去填写 API Key
   { name: 'kernel-no-key-light', params: { group: 'kernel', demo: 'no-key', theme: 'light' } },
   { name: 'hooks-off', params: { group: 'privacy', demo: 'hooks-off', item: 'hooks2' } }, // 编码工具未接入：安装步骤
