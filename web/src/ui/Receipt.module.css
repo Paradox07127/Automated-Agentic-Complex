@@ -1,0 +1,47 @@
+/* A finished action's receipt: a mark, the words, then the time after a │. */
+.receipt {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  color: var(--ef-text-1);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 20px var(--ef-font-sans);
+}
+
+.mark {
+  display: inline-flex;
+  flex: none;
+  margin-right: var(--ef-sp-6);
+}
+
+/* Green on the ink it sits on, so the check keeps its contrast in both themes. */
+.receipt[data-tone='ok'] .mark {
+  color: color-mix(in srgb, var(--ef-g-mission-green) 40%, var(--ef-text-1));
+}
+
+.text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sep {
+  flex: none;
+  color: var(--ef-text-3);
+  white-space: pre;
+}
+
+.at {
+  flex: none;
+  color: var(--ef-text-2);
+  font-weight: var(--ef-fw-regular);
+}
+
+.receipt[data-tone='neutral'] {
+  color: var(--ef-text-2);
+}
+
+.receipt[data-tone='danger'] {
+  color: var(--ef-danger-text);
+}

@@ -125,3 +125,52 @@
 :global(.still) .lamp .light {
   animation: none;
 }
+
+/* sm: an 8 px mark in the word's colour, drawn as the state's shape, beside 12 px words. */
+.lamp[data-size='sm'] {
+  gap: 6px;
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / var(--ef-lh-meta) var(--ef-font-sans);
+}
+
+.lamp[data-size='sm'] .light {
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+  box-shadow: none;
+}
+
+.lamp[data-size='sm'] .light::after {
+  content: none;
+}
+
+.lamp[data-size='sm'][data-shape='check'] .light {
+  clip-path: polygon(0 55%, 16% 40%, 38% 62%, 84% 8%, 100% 24%, 38% 94%);
+}
+
+.lamp[data-size='sm'][data-shape='square'] .light {
+  border-radius: 0;
+}
+
+.lamp[data-size='sm'][data-shape='triangle'] .light {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.lamp[data-size='sm'][data-shape='diamond'] .light {
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.lamp[data-size='sm'][data-shape='ring'] .light {
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.lamp[data-size='sm'][data-shape='dot'] .light {
+  border-radius: 50%;
+  transform: scale(0.75);
+}
+
+.lamp[data-size='sm'][data-shape='hollow-square'] .light {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}

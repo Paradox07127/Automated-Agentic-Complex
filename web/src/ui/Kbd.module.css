@@ -37,3 +37,39 @@
 :global(:disabled) .kbd {
   color: var(--ef-text-3);
 }
+
+/* Key legend: hints 14 apart, each one's keys joined into one strip, then what they do. */
+.bar {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+  transition: opacity var(--ef-dur-instant);
+}
+
+.item {
+  display: inline-flex;
+  flex: none;
+  gap: 5px;
+  align-items: center;
+}
+
+.caps {
+  display: inline-flex;
+  gap: 1px;
+}
+
+/* Key hints show only while ⌘ or Ctrl is held (Layout sets html[data-keys]). */
+:global(html:not([data-keys])) .bar[data-held] {
+  opacity: 0;
+}
+
+@media (max-width: 1199px), (max-height: 620px) {
+  .item[data-more] {
+    display: none;
+  }
+}

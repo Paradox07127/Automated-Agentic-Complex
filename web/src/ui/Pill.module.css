@@ -1,5 +1,6 @@
 /* State label, square: idle is chip, live is a solid ink frame, done is an ink block,
-   needs-a-look is a yellow block, failed adds a leading ! flag, inferred is a dashed frame. */
+   needs-a-look is a yellow block, accent a yellow frame, warn an orange block with a leading ▲,
+   failed adds a leading ! flag, inferred is a dashed frame. */
 .pill {
   --pill-bg: var(--ef-chip);
   --pill-fg: var(--ef-text-1);
@@ -22,6 +23,12 @@
   white-space: nowrap;
 }
 
+.pill[data-size='lg'] {
+  height: 24px;
+  padding: 0 var(--ef-sp-12);
+  font-size: var(--ef-fs-body);
+}
+
 .pill[data-tone='mission'],
 .pill[data-tone='info'] {
   --pill-bg: transparent;
@@ -40,6 +47,24 @@
   --pill-fg: var(--ef-on-accent);
   --pill-line: var(--ef-accent);
   font-weight: var(--ef-fw-semibold);
+}
+
+.pill[data-tone='accent'] {
+  --pill-bg: transparent;
+  --pill-fg: var(--ef-accent-text);
+  --pill-line: var(--ef-accent-text);
+}
+
+.pill[data-tone='warn'] {
+  --pill-bg: var(--ef-badge-dot);
+  --pill-fg: var(--ef-on-accent);
+  --pill-line: var(--ef-badge-dot);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.pill[data-tone='warn']::before {
+  content: '▲';
+  font-size: 9px;
 }
 
 .pill[data-tone='danger'] {

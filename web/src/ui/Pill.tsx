@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
 import styles from './Pill.module.css';
 
-/** 状态签：高 20 直角；常态灰底，进行中墨框，完成墨块，需关注黄块，失败前加「!」签，dashed 用于「推断的」。 */
+/** 状态签：高 20（lg 24）直角；常态灰底，进行中墨框，完成墨块，需关注黄块，提示黄框黄字，警示橙块带「▲」，失败前加「!」签，dashed 用于「推断的」。 */
 export interface PillProps {
-  /** 底色，默认 paper */
-  tone?: 'paper' | 'mission' | 'neutral' | 'success' | 'attention' | 'danger' | 'info';
+  /** 底色，默认 paper；accent 黄框黄字（当前、推荐），warn 橙块带 ▲（响应慢、快到期） */
+  tone?: 'paper' | 'mission' | 'neutral' | 'success' | 'attention' | 'accent' | 'warn' | 'danger' | 'info';
+  /** 高 20 / 24，默认 md */
+  size?: 'md' | 'lg';
   /** 虚线描边（待确认、推断） */
   dashed?: boolean;
   /** tooltip */
@@ -13,9 +15,9 @@ export interface PillProps {
   children: ReactNode;
 }
 
-export function Pill({ tone = 'paper', dashed, title, children }: PillProps) {
+export function Pill({ tone = 'paper', size = 'md', dashed, title, children }: PillProps) {
   return (
-    <span className={styles.pill} data-stub="Pill" data-tone={tone} data-dashed={dashed || undefined} title={title}>
+    <span className={styles.pill} data-stub="Pill" data-tone={tone} data-size={size} data-dashed={dashed || undefined} title={title}>
       {children}
     </span>
   );
@@ -32,4 +34,8 @@ export const PillDemos: Array<{ name: string; props: PillProps }> = [
   { name: 'info', props: { tone: 'info', children: '进行中' } },
   { name: 'dashed', props: { tone: 'attention', dashed: true, children: '推断的 │ 确认后才算数' } },
   { name: 'dashed-paper', props: { dashed: true, children: '待确认' } },
+  { name: 'accent', props: { tone: 'accent', children: '当前' } },
+  { name: 'warn', props: { tone: 'warn', children: '响应慢' } },
+  { name: 'lg', props: { tone: 'neutral', size: 'lg', children: '只读' } },
+  { name: 'lg-warn', props: { tone: 'warn', size: 'lg', children: '令牌快到期' } },
 ];

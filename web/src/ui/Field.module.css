@@ -1,0 +1,152 @@
+/* Field and TextArea: the game's white input capsule with a hairline rim; focus is a 2 px ring; the note line sits under the box. */
+.field {
+  display: inline-flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--ef-sp-4);
+  width: 100%;
+  min-width: 0;
+}
+
+.box {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  height: var(--ef-h-md);
+  padding: 0 var(--ef-sp-12) 0 var(--ef-sp-16);
+  border: var(--ef-lw-hair) solid var(--ef-btn-outline);
+  border-radius: 999px;
+  background: var(--ef-field);
+  color: var(--ef-field-text);
+}
+
+.box:hover {
+  background: var(--ef-field-hover);
+}
+
+.box:focus-within {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--ef-focus);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--ef-field-text);
+  font: var(--ef-fw-regular) var(--ef-fs-text) / 20px var(--ef-font-sans);
+}
+
+.input::placeholder {
+  color: var(--ef-paper-text-2);
+}
+
+.field[data-mono] .input {
+  font-family: var(--ef-font-mono);
+  font-size: var(--ef-fs-body);
+}
+
+.slot {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  color: var(--ef-paper-text-2);
+  font: var(--ef-t-meta);
+  white-space: nowrap;
+}
+
+.field[data-size='sm'] .box {
+  gap: var(--ef-sp-6);
+  height: var(--ef-h-sm);
+  padding: 0 var(--ef-sp-8) 0 var(--ef-sp-12);
+}
+
+.field[data-size='sm'] .input {
+  font-size: var(--ef-fs-small);
+  line-height: 16px;
+}
+
+/* Invalid: a red rim one step heavier; the error line under it says what is wrong. */
+.field[data-invalid] .box {
+  border-color: var(--ef-danger-text);
+  box-shadow: 0 0 0 1px var(--ef-danger-text);
+}
+
+.field[data-invalid] .box:focus-within {
+  box-shadow: 0 0 0 2px var(--ef-focus);
+}
+
+/* Disabled: a dashed rim and the reason under the box instead of fading the words. */
+.field[data-disabled] .box {
+  border-style: dashed;
+  border-color: var(--ef-paper-text-2);
+  background: var(--ef-field);
+  cursor: not-allowed;
+}
+
+.field[data-disabled] .input {
+  color: var(--ef-paper-text-2);
+  cursor: not-allowed;
+}
+
+/* TextArea: the same box with rounded corners; slots sit on the last line. */
+.field[data-multi] .box {
+  align-items: flex-end;
+  height: auto;
+  border-radius: 16px;
+}
+
+.field[data-multi] .input {
+  height: auto;
+  padding: 5px 0;
+  resize: vertical;
+}
+
+.field[data-multi] .slot {
+  min-height: 30px;
+}
+
+.field[data-multi][data-size='sm'] .box {
+  border-radius: 12px;
+}
+
+.field[data-multi][data-size='sm'] .input {
+  padding: 3px 0;
+}
+
+.field[data-multi][data-size='sm'] .slot {
+  min-height: 22px;
+}
+
+/* One line high, growing with its text up to --max-rows lines, then scrolling inside. */
+.field[data-multi][data-autogrow] textarea {
+  overflow-y: auto;
+  resize: none;
+  field-sizing: content;
+  max-height: calc(var(--max-rows) * 20px + 10px);
+}
+
+.field[data-multi][data-autogrow][data-size='sm'] textarea {
+  max-height: calc(var(--max-rows) * 16px + 6px);
+}
+
+.note {
+  padding: 0 var(--ef-sp-16);
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+}
+
+.note[data-kind='error'] {
+  color: var(--ef-danger-text);
+}
+
+.note[data-kind='error']::before {
+  content: '■';
+  margin-right: var(--ef-sp-4);
+}

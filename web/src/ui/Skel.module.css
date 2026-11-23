@@ -1,4 +1,4 @@
-/* Plain chip blocks, no shimmer; fills the height its region reserves and follows the section's shape: rows, cards, a chart frame or one block. */
+/* Chip blocks with a lighter band sweeping across; fills the height its region reserves and follows the section's shape: rows, cards, a chart frame, one block or avatar rows. */
 .skel {
   display: flex;
   flex: 1;
@@ -21,8 +21,50 @@
 }
 
 .bar,
-.block {
-  background: var(--ef-chip);
+.block,
+.face {
+  background: linear-gradient(90deg, var(--ef-chip) 0 40%, var(--ef-surface-3) 50%, var(--ef-chip) 60%) 0 0 / 300% 100%;
+  animation: sk-sweep 1.2s linear infinite;
+}
+
+@keyframes sk-sweep {
+  to {
+    background-position: -150% 0;
+  }
+}
+
+:global(.still) :is(.bar, .block, .face),
+:global([data-reduce-motion]) :is(.bar, .block, .face) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar,
+  .block,
+  .face {
+    animation: none;
+  }
+}
+
+/* A list row: a square face, then two text lines. */
+.avatar {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-rows: 14px 10px;
+  gap: var(--ef-sp-6) var(--ef-sp-12);
+  align-content: center;
+  min-height: 40px;
+}
+
+.face {
+  display: block;
+  grid-row: 1 / 3;
+  width: 32px;
+  height: 32px;
+}
+
+.avatar .bar:last-child {
+  height: 10px;
 }
 
 .bar {

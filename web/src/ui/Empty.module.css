@@ -41,3 +41,51 @@
   display: flex;
   gap: var(--ef-sp-8);
 }
+
+/* Compact: inside a card or panel; no frame, the extra words on their own line. */
+.empty[data-size='compact'] {
+  gap: var(--ef-sp-8);
+  max-width: none;
+  margin: 0;
+  padding: var(--ef-sp-24) var(--ef-sp-16);
+  border: 0;
+  background: none;
+}
+
+.empty[data-size='compact'] .line {
+  flex-direction: column;
+  gap: var(--ef-sp-4);
+  padding: 0;
+  background: none;
+}
+
+.empty[data-size='compact'] .title {
+  font-weight: var(--ef-fw-medium);
+}
+
+/* Inline: one row of a list, left aligned, at a row's height. */
+.empty[data-inline] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--ef-sp-8);
+  align-items: center;
+  max-width: none;
+  min-height: var(--ef-h-md);
+  margin: 0;
+  padding: var(--ef-sp-4) 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.empty[data-inline] .line {
+  justify-content: flex-start;
+  padding: 0;
+  background: none;
+  font: var(--ef-t-meta);
+  font-size: var(--ef-fs-body);
+}
+
+.empty[data-inline] .title {
+  color: var(--ef-text-2);
+}

@@ -15,6 +15,20 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Square counts: red on a chart node or cell; ink on a selected yellow block. */
+.badge:is([data-kind='square'], [data-kind='ink']) {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 0;
+  font-size: var(--ef-fs-caption);
+}
+
+.badge[data-kind='ink'] {
+  background: var(--ef-on-accent);
+  color: var(--ef-accent);
+}
+
 /* The left point is drawn twice so the light theme can show a 1 px edge around the whole shape. */
 .badge[data-kind='new'] {
   --new-edge: var(--ef-accent);
