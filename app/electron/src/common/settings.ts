@@ -536,7 +536,7 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
     });
     effects.push({ kind: 'hotkeys', saved: [...hotkeysChanged, ...retries].map((k) => [k, next[k] as string]) });
   }
-  const restartAvatar = ['render_ssaa', 'render_resolution', 'render_shadow', 'render_secondary_motion'].some((k) => changed.includes(k))
+  const restartAvatar = ['render_ssaa', 'render_resolution', 'render_shadow', 'render_secondary_motion', 'speech_expressions'].some((k) => changed.includes(k))
     || resolveViewport(old.viewport) !== resolveViewport(next.viewport)
     || (platform === 'windows' && changed.includes('hide_on_screen_capture'));
   if (restartAvatar) effects.push({ kind: 'restartAvatar' });

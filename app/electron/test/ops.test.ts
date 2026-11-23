@@ -367,6 +367,9 @@ test('open.* takes a POSIX absolute path on macOS and a drive-absolute one on Wi
 test('a save that needs a new renderer restarts it on macOS too; frame-rate caps and hot keys reach the running shell', async () => {
   assert.deepEqual(planSave({}, null, { render_ssaa: false }, 'mac'),
     { write: { render_ssaa: false }, effects: [{ kind: 'restartAvatar' }], restart: 'avatar' });
+  // The renderer reads 说话时有表情 only from its launch arguments.
+  assert.deepEqual(planSave({}, null, { speech_expressions: false }, 'mac'),
+    { write: { speech_expressions: false }, effects: [{ kind: 'restartAvatar' }], restart: 'avatar' });
   assert.deepEqual(planSave({}, null, { render_fps: '30' }, 'mac').effects, [{ kind: 'fps' }]);
   assert.deepEqual(planSave({}, null, { hotkey_quick_input: 'control+option+k' }, 'mac').effects,
     [{ kind: 'hotkeys', saved: [['hotkey_quick_input', 'control+option+k']] }]);

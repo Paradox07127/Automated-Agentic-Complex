@@ -543,27 +543,29 @@ def cache_dir(repo):
 @contextlib.contextmanager
 def checkout_lock(repo, profile):
     """Holds the gate runner's checkout lock of repo's main checkout (gate_daemon.py) and prints GATE QUEUE once while
-    another run holds it; a run the holder started takes none."""
+    another run holds it; a run the holder started takes none. Yields the seconds it queued."""
     if os.name == 'nt':
         # gate_daemon.alive's os.kill(pid, 0) would terminate the holder there.
-        yield
+        yield 0.0
         return
     spec = importlib.util.spec_from_file_location('gate_daemon', HERE / 'gate_daemon.py')
     daemon = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(daemon)
     if os.environ.get(daemon.LOCK_HELD):
-        yield
+        yield 0.0
         return
     common = git(repo, 'rev-parse', '--path-format=absolute', '--git-common-dir')
     root = Path(common).parent if common else repo
     lock = daemon.Daemon(root).checkout_lock
     # A runner from before LOCK_HELD calls gate.py while it holds the lock; waiting on the parent would never end.
     if daemon.lock_pid(lock) == os.getppid():
-        yield
+        yield 0.0
         return
     label = f'gate {profile} {repo.relative_to(root) if repo.is_relative_to(root) else repo}'
+    queued = 0.0
     if not daemon.acquire(lock, label, wait=False):
         print(f'GATE QUEUE: waiting for {daemon.owner(lock)}', flush=True)
+        queued = time.monotonic()
         # The runner holds the lock one step at a time and goes after the runs that left a file here.
         mine = daemon.waiters(lock) / str(os.getpid())
         mine.parent.mkdir(parents=True, exist_ok=True)
@@ -572,8 +574,9 @@ def checkout_lock(repo, profile):
             daemon.acquire(lock, label)
         finally:
             mine.unlink(missing_ok=True)
+        queued = time.monotonic() - queued
     with daemon.held(lock, label):
-        yield
+        yield queued
 
 
 def blobs(repo, entries):
@@ -741,14 +744,14 @@ def main(argv=None):
         if not keep:
             shutil.rmtree(logs)
         return 0
-    with checkout_lock(repo, args.profile):
+    with checkout_lock(repo, args.profile) as queued:
         started = datetime.datetime.now(datetime.timezone.utc)
         files, f0 = source_fingerprint.compute(repo)
         guard = release.source_state(repo)
         changed = set(git(repo, 'diff', '--name-only', 'HEAD').splitlines()) | set(
             git(repo, 'ls-files', '--others', '--exclude-standard').splitlines())
         nz_phases = {i for i, phase in enumerate(doc['profiles'][args.profile]['phases']) if phase.get('nz')}
-        setup_s = round(time.monotonic() - clock, 1)
+        setup_s = round(time.monotonic() - clock - queued, 1)
         lines, results, skipped, passed, phases_s = run_profile(phases, ctx, nz_phases, hits)
         ended = time.monotonic()
         lines = head + lines
@@ -771,7 +774,7 @@ def main(argv=None):
             host=dict(tools, macos=platform.mac_ver()[0]),
             logs_kept=keep, suites=[dataclasses.asdict(r) for r in results], skipped_suites=skipped, selection=selection,
             cache=dict(enabled=not args.no_cache, reused=[r.id for r in results if r.cached]),
-            timing=dict(setup_s=setup_s, phases_s=phases_s, teardown_s=round(time.monotonic() - ended, 1)))
+            timing=dict(queue_s=round(queued, 1), setup_s=setup_s, phases_s=phases_s, teardown_s=round(time.monotonic() - ended, 1)))
         stored = gate_receipt.write(receipt, logs if keep else None, gate_receipt.store_dir(repo))
         if not keep:
             shutil.rmtree(logs)

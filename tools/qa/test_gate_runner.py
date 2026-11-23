@@ -235,6 +235,23 @@ class CheckoutLock(unittest.TestCase):
         self.assertRegex(self.owners.read_text(), r'^gate dev \.claude/worktrees/x \S+Z\n$')
         self.assertFalse(self.lock.exists())
 
+    def test_the_receipt_counts_the_wait_for_the_lock_as_queue_not_setup(self):
+        other = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(600)'])
+        self.addCleanup(lambda: (other.kill(), other.wait()))
+        self.hold(other.pid, 'gate-daemon verify abc')
+        run = self.start()
+        self.assertTrue(select.select([run.stdout], [], [], 60)[0])
+        self.assertEqual(run.stdout.readline(), 'GATE QUEUE: waiting for gate-daemon verify abc\n')
+        held = time.monotonic()
+        time.sleep(6)
+        shutil.rmtree(self.lock)
+        held = time.monotonic() - held
+        out = run.communicate(timeout=120)[0]
+        self.assertEqual(out.splitlines()[-1], 'GATE PASS', out)
+        timing = json.loads((gate_receipt.store_dir(self.worktree) / 'dev/gate-receipt.json').read_text())['timing']
+        self.assertGreaterEqual(timing['queue_s'], round(held, 1))
+        self.assertLess(timing['setup_s'], held)
+
     def test_a_run_of_the_lock_holder_does_not_wait(self):
         self.hold(os.getpid(), 'gate-daemon verify abc')
         out = self.start(GATE_CHECKOUT_LOCK_HELD='1').communicate(timeout=120)[0]

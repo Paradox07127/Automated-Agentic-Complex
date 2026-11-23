@@ -113,6 +113,14 @@ def acquire(lock, label, wait=True):
             if pid is not None and not alive(pid):
                 shutil.rmtree(lock, ignore_errors=True)
                 continue
+            # Without a pid a lock younger than 30 s may be one whose holder is still writing it.
+            try:
+                stale = pid is None and time.time() - lock.stat().st_mtime > 30
+            except FileNotFoundError:
+                continue
+            if stale:
+                shutil.rmtree(lock, ignore_errors=True)
+                continue
             if not wait:
                 return False
             time.sleep(5)

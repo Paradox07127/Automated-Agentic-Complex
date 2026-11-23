@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from unittest import mock
 
@@ -463,6 +464,15 @@ class GateDaemonTest(unittest.TestCase):
         dead = subprocess.Popen([sys.executable, '-c', 'pass'])
         dead.wait()
         (lock / 'pid').write_text(f'{dead.pid}\n')
+        self.assertTrue(gate_daemon.acquire(lock, 'test', wait=False))
+        self.assertEqual((lock / 'pid').read_text().strip(), str(os.getpid()))
+
+    def test_a_lock_without_a_pid_is_reclaimed_only_once_it_is_old(self):
+        lock = self.repo / '.local/cache/gate-checkout.lock'
+        lock.mkdir(parents=True)
+        self.assertFalse(gate_daemon.acquire(lock, 'test', wait=False))
+        old = time.time() - 60
+        os.utime(lock, (old, old))
         self.assertTrue(gate_daemon.acquire(lock, 'test', wait=False))
         self.assertEqual((lock / 'pid').read_text().strip(), str(os.getpid()))
 
