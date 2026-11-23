@@ -90,13 +90,13 @@ export function OptionStack({ items, side = 'right', compact, hot, note, label, 
 const ITEMS: OptionStackItem[] = [
   { id: 'chat', label: '对话', icon: 'send', hotkey: '⌃Space' },
   { id: 'voice', label: '说话', icon: 'mic', hotkey: '右 ⌥' },
-  { id: 'look', label: '给她看', icon: 'look', hotkey: '⌃⌥L' },
+  { id: 'look', label: '给角色看', icon: 'look', hotkey: '⌃⌥L' },
   { id: 'hide', label: '隐藏', icon: 'eye', hotkey: '⌃⌥H' },
 ];
 const noop = () => undefined;
 
 export const OptionStackDemos: Array<{ name: string; props: OptionStackProps }> = [
-  { name: 'right', props: { items: ITEMS, hot: 'chat', label: '她的按钮', onPick: noop } },
+  { name: 'right', props: { items: ITEMS, hot: 'chat', label: '角色的按钮', onPick: noop } },
   { name: 'left', props: { items: ITEMS, side: 'left', note: '免打扰到 15:30', onPick: noop } },
   { name: 'off', props: { items: [ITEMS[0]!, { ...ITEMS[1]!, label: '在听…松开发送', live: true }, { ...ITEMS[2]!, off: '观察已暂停' }], onPick: noop } },
   { name: 'compact', props: { items: ITEMS, compact: true, onPick: noop } },

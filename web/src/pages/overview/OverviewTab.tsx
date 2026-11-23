@@ -186,7 +186,7 @@ export function OverviewTab(p: OverviewTabProps) {
   const foldPast = p.reminders.length > 3 && past.length > 0;
   return (
     <div className={s.ov} data-tab="ov">
-      <Panel title="今日一句" right={p.line?.origin === 'local' ? '今天的读数，不是她写的日报' : undefined}>
+      <Panel title="今日一句" right={p.line?.origin === 'local' ? '今天的读数，不是角色写的日报' : undefined}>
         <p className={s.line} data-selectable="">
           {p.line === undefined ? '—' : (p.line?.text ?? '这一天还没有日报')}
         </p>
@@ -296,7 +296,7 @@ export function OverviewTab(p: OverviewTabProps) {
           {sw.read ? (
             <ObsBrief date={day.date} />
           ) : (
-            <Panel title="她今天说的一句" right={<Btn size="sm" variant="text" onClick={() => p.go('her')}>看她这一天 ›</Btn>}>
+            <Panel title="角色今天说的一句" right={<Btn size="sm" variant="text" onClick={() => p.go('char')}>看角色这一天 ›</Btn>}>
               {her ? (
                 <div className={s.said}>
                   <p data-selectable="">{her.text}</p>
@@ -309,7 +309,7 @@ export function OverviewTab(p: OverviewTabProps) {
                   </footer>
                 </div>
               ) : (
-                <Empty inline title="这一天她没有开口" />
+                <Empty inline title="这一天没有开口" />
               )}
             </Panel>
           )}

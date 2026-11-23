@@ -91,7 +91,7 @@ describe('selection actions', () => {
     expect(preview()).toBe(SELECTION.text);
     pick('记住');
     expect(preview()).toBe(`记住 ${SELECTION.text}`);
-    expect(dialog.textContent).toContain('她会记住这段文字');
+    expect(dialog.textContent).toContain('会记住这段文字');
     pick('提醒');
     expect(preview()).toBeUndefined();
     pick('1 小时');
@@ -159,7 +159,7 @@ describe('drop card 问', () => {
     kind: 'notice',
     variant: 'drop',
     at: NOW,
-    title: '交给她 │ 2 项',
+    title: '拖给角色 │ 2 项',
     truncated: false,
     items: [
       { kind: 'file', path: '/Users/me/Desktop/周报.md', name: '周报.md', handle: 'H:周报.md' },

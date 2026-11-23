@@ -101,12 +101,12 @@ describe('the wheel', () => {
   it('the cmd preview shows it', async () => {
     stackBridge();
     mount('#/cmd?still=1');
-    await screen.findByRole('menu', { name: '她的轮盘' });
+    await screen.findByRole('menu', { name: '角色的轮盘' });
   });
 
   it('shows 8 slots with their names, one level, and the key help only while ⌘ is held', () => {
     render(<CommandRing items={wheelItems(STATE, 3)} center={center} onRun={() => {}} onClose={() => {}} />);
-    const wheel = screen.getByRole('menu', { name: '她的轮盘' });
+    const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
     expect(within(wheel).getAllByRole('menuitem')).toHaveLength(8);
     expect(within(wheel).getByRole('menuitem', { name: '2 待处理 3' })).toBeTruthy();
     expect(wheel.textContent).toContain('示例甲');
@@ -121,7 +121,7 @@ describe('the wheel', () => {
     const onRun = vi.fn();
     const onClose = vi.fn();
     render(<CommandRing items={wheelItems(STATE, 0)} center={center} onRun={onRun} onClose={onClose} />);
-    const wheel = screen.getByRole('menu', { name: '她的轮盘' });
+    const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
     fireEvent.keyDown(wheel, { key: '2' });
     expect(onRun).not.toHaveBeenCalled();
     expect(wheel.textContent).toContain('没有待处理的事');
@@ -158,12 +158,12 @@ describe('the wheel', () => {
     const openMain = vi.spyOn(bridge.window, 'openMain').mockImplementation(() => {});
     const close = vi.spyOn(bridge.window, 'close');
     mount('#/cmd?still=1&at=300,250');
-    await screen.findByRole('menu', { name: '她的轮盘' });
+    await screen.findByRole('menu', { name: '角色的轮盘' });
     await flush(async () => {});
-    await flush(async () => fireEvent.keyDown(screen.getByRole('menu', { name: '她的轮盘' }), { key: '1' }));
+    await flush(async () => fireEvent.keyDown(screen.getByRole('menu', { name: '角色的轮盘' }), { key: '1' }));
     expect(openMain.mock.calls).toEqual([[expect.stringMatching(/^\/chat/)]]);
     expect(close).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('menu', { name: '她的轮盘' })).toBeNull();
+    expect(screen.queryByRole('menu', { name: '角色的轮盘' })).toBeNull();
   });
 });
 
@@ -247,7 +247,7 @@ describe('wheel actions', () => {
     const push = (c: DesktopCommand) => flush(async () => listeners.forEach((cb) => cb(c)));
     mount('#/cmd?still=1');
     await push({ kind: 'open', mode: 'ring', at: { x: 260, y: 260 } });
-    await screen.findByRole('menu', { name: '她的轮盘' });
+    await screen.findByRole('menu', { name: '角色的轮盘' });
     // jsdom lays nothing out: the wheel's centre is at 0,0.
     await push({ kind: 'ringPointer', phase: 'move', x: 0, y: -80 });
     expect(document.querySelector('[role="menuitem"][data-sel]')?.getAttribute('aria-label')).toMatch(/^1 /);
@@ -260,13 +260,13 @@ describe('wheel actions', () => {
     const notice = vi.spyOn(bridge.desktop, 'notice');
     const close = vi.spyOn(bridge.window, 'close');
     mount('#/cmd?still=1');
-    await screen.findByRole('menu', { name: '她的轮盘' });
+    await screen.findByRole('menu', { name: '角色的轮盘' });
     await flush(async () => {});
-    await flush(async () => fireEvent.keyDown(screen.getByRole('menu', { name: '她的轮盘' }), { key: '3' }));
+    await flush(async () => fireEvent.keyDown(screen.getByRole('menu', { name: '角色的轮盘' }), { key: '3' }));
     await waitFor(() => expect(notice.mock.calls).toEqual([[expect.stringContaining('免打扰已开始')]]));
     expect(close).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('status')).toBeNull();
-    expect(screen.queryByRole('menu', { name: '她的轮盘' })).toBeNull();
+    expect(screen.queryByRole('menu', { name: '角色的轮盘' })).toBeNull();
   });
 
   it('送礼物 on the opened wheel says why it cannot play, and 7 runs nothing', async () => {
@@ -274,9 +274,9 @@ describe('wheel actions', () => {
     vi.spyOn(bridge.avatar, 'actions').mockResolvedValue([{ id: 'wave', label: '挥手', enabled: true }]);
     const action = vi.spyOn(bridge.desktop, 'action');
     mount('#/cmd?still=1');
-    await screen.findByRole('menu', { name: '她的轮盘' });
+    await screen.findByRole('menu', { name: '角色的轮盘' });
     await flush(async () => {});
-    const wheel = screen.getByRole('menu', { name: '她的轮盘' });
+    const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
     await waitFor(() => expect(within(wheel).getByRole('menuitem', { name: /^7 送礼物/ }).getAttribute('aria-disabled')).toBe('true'));
     await flush(async () => fireEvent.keyDown(wheel, { key: '7' }));
     expect(wheel.textContent).toContain('当前角色包尚未导入原作收礼动作');

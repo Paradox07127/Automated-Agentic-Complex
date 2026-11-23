@@ -31,9 +31,9 @@ const REASONS: Record<string, string> = {
   scope_expired: '工作目录授权已过期',
   unknown_scope: '工作目录授权不存在',
   idempotency_conflict: '同一请求已用不同内容发过',
-  character_not_present: '她不在桌面上',
-  switch_refused: '没能换她出来',
-  switch_timeout: '换角色超时，她还没出来',
+  character_not_present: '角色不在桌面上',
+  switch_refused: '没能换角色出来',
+  switch_timeout: '换角色超时，还没出来',
 };
 
 /** 409 codes that say what the request lacked, not that something changed elsewhere: no conflict text, no reload. */

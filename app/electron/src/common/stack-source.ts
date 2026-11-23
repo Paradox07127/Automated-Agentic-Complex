@@ -722,7 +722,7 @@ export class StackSource implements EventSource {
 
   /** 交给她: what was dropped on her, as paths, links and text; it stays until an action or 关闭. */
   addDrop(items: HandedItem[], truncated: boolean): void {
-    this.addNotice(`drop-${this.clock()}`, 'drop', `交给她 · ${items.length} 项`, { items: dropItems(items), truncated });
+    this.addNotice(`drop-${this.clock()}`, 'drop', `拖给角色 · ${items.length} 项`, { items: dropItems(items), truncated });
   }
 
   /** A notice the shell raises itself, e.g. after an answer that needs the main window to continue. */

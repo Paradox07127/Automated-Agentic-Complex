@@ -90,7 +90,7 @@ export const ReadoutPlateDemos: Array<{ name: string; props: ReadoutPlateProps }
     name: 'state',
     props: {
       eyebrow: 'STATE CURRENT',
-      label: '她现在的状态',
+      label: '角色现在的状态',
       cells: [
         { label: '精神', value: '0.80', word: '很好' },
         { label: '心情', value: '+0.20', word: '平稳' },
@@ -104,7 +104,7 @@ export const ReadoutPlateDemos: Array<{ name: string; props: ReadoutPlateProps }
     name: 'state-compact',
     props: {
       eyebrow: 'STATE CURRENT',
-      label: '她现在的状态',
+      label: '角色现在的状态',
       compact: true,
       cells: [
         { label: '精神', value: '0.80', word: '很好' },

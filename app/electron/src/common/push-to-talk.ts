@@ -104,7 +104,7 @@ function shortRecovery(code: string, runtime: string | null): string | null {
 const REJECTED: Record<string, string> = {
   no_reminder_time: '没听出提醒时间，再说一次',
   no_commitments: '提醒现在用不了',
-  switching: '她正在换角色，没发出去',
+  switching: '正在换角色，没发出去',
   no_llm: '对话没启用，没发出去',
   invalid_text: '说得太长了，没发出去',
   no_pending_approval: '现在没有等你批准的卡',

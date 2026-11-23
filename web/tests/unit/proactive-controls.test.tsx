@@ -55,7 +55,7 @@ describe('settings › 声音 › muted kinds', () => {
     native = await demoNative(null);
   });
 
-  it('says once, under 她会不会主动找你, that thoughts come with 主动', async () => {
+  it('says once, under 会不会主动找你, that thoughts come with 主动', async () => {
     native = { ...native, saved: { ...native.saved, speakUp: false } };
     vi.spyOn(window.agenticComplex!.agentd, 'request').mockResolvedValue({ status: 200, body: { muted: [] } });
     const { container } = render(<Harness><SpeakGroup /></Harness>);

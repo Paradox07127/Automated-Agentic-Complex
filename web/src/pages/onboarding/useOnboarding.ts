@@ -92,7 +92,7 @@ export function useOnboarding(): Onboarding {
         .character.switchTo(id)
         .then(
           (r) => {
-            if (!r.ok) toast(`没能换成她：${hostReason(r.reason)}`, { severity: 'danger', persistent: true });
+            if (!r.ok) toast(`没能换角色：${hostReason(r.reason)}`, { severity: 'danger', persistent: true });
           },
           () => toast('没能换角色：桌面角色没有回应', { severity: 'danger' }),
         )

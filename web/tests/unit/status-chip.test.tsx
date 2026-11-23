@@ -141,7 +141,7 @@ describe('the bubble opens only for something to read or answer', () => {
 
     const n = mountBubble();
     await n.presence(presenceOf());
-    await n.command({ kind: 'notice', text: '她在忙，等这一轮做完' });
+    await n.command({ kind: 'notice', text: '角色在忙，等这一轮做完' });
     expect(regions()).toBeGreaterThan(0);
   });
 

@@ -2,7 +2,7 @@
 import { useCallback, useState } from 'react';
 import { DEFAULT_PINS, ITEM_ORDER, type BriefDay, type BriefItemId } from './briefDay';
 
-export type BriefTab = 'ov' | 'her' | 'tm' | 'dt';
+export type BriefTab = 'ov' | 'char' | 'tm' | 'dt';
 
 /** Where a readout leads: `open` shows the items it counts, `to` ends its button's name. */
 export interface ItemLink {

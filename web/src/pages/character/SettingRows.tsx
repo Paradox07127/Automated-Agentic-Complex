@@ -50,7 +50,7 @@ export function SecHead({ title, en, desktopOnly = false }: { title: string; en:
       <MicroLabel>{en}</MicroLabel>
       <i className={styles.rule} aria-hidden="true" />
       {desktopOnly && (
-        <span className={styles.desk} title="只作用在桌面上的她，预览不跟随">
+        <span className={styles.desk} title="只作用在桌面上的角色，预览不跟随">
           <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
             <path fill="currentColor" d="M2 3h20v13H2zm2.5 2.5v8h15v-8zM8 19h8v2.5H8z" />
           </svg>

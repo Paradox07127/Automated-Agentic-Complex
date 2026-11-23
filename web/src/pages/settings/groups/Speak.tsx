@@ -81,7 +81,7 @@ export function SpeakGroup() {
           title={labelOf('mute')}
           desc={muteNote ?? '只显示文字时照样回答，只是不念'}
           descTone={muteNote ? 'attention' : undefined}
-          info="把她的回答和主动发言念出来，要下面的语音服务在线。"
+          info="把角色的回答和主动发言念出来，要下面的语音服务在线。"
           control={
             <>
               {diag.muted && <StatusLamp size="sm" state="waiting" label="后台现在静音" />}
@@ -139,7 +139,7 @@ export function SpeakGroup() {
         <SpeakWhenRow
           ps={ps}
           disabled={ro}
-          asked={<SetRow id="proactive" title={labelOf('proactive')} indent control={<Dis>只在你问时她不会主动</Dis>} />}
+          asked={<SetRow id="proactive" title={labelOf('proactive')} indent control={<Dis>只在你问时开口，不会主动</Dis>} />}
         >
           <SetRow id="proactive" title={labelOf('proactive')} desc="主动发言和动作的频率" indent control={c.select('proactive', levels, ['active'])} />
           <QuietHoursRow ps={ps} disabled={ro} />

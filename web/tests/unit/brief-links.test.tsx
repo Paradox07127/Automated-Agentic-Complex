@@ -107,7 +107,7 @@ describe('总览 readouts open what they count', () => {
   it('主动发言 opens the brief’s character tab', async () => {
     const router = mount();
     fireEvent.click((await band()).getByRole('button', { name: /^主动发言 \d+ 次，/ }));
-    await waitFor(() => expect((router.state.location.search as Record<string, unknown>).tab).toBe('her'));
+    await waitFor(() => expect((router.state.location.search as Record<string, unknown>).tab).toBe('char'));
   });
 });
 

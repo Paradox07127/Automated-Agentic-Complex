@@ -31,7 +31,7 @@ export const POSE_TITLES: Readonly<Record<string, string>> = { stand: '站', aki
 const NO_ROW = '这个角色没有这个姿态的原作动作';
 const REPLY_TIMEOUT = 2;
 const FAILURES: Readonly<Record<string, string>> = { unsupported: '这个版本的角色不支持姿态', timeout: '角色没有回应', invalid: '角色没有这个姿态',
-  busy: '她正在做别的动作', disconnected: '和角色的连接断了' };
+  busy: '角色正在做别的动作', disconnected: '和角色的连接断了' };
 
 /** AvatarPoses.Failure: `reason` is `unsupported`, `timeout` or the `ack.error`. */
 export class PoseFailure extends Error {

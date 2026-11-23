@@ -1,4 +1,4 @@
-// 每日简报的「她」「时间」页签：开关决定换哪一块，网站没有记录时不占位，时间页签里有这一天的时间线。
+// 每日简报的「角色」「时间」页签：开关决定换哪一块，网站没有记录时不占位，时间页签里有这一天的时间线。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -39,29 +39,29 @@ const panel = (name: string) => screen.queryByRole('region', { name });
 describe('brief her tab', () => {
   it('shows her tools when every switch is on', async () => {
     draw(<HerTab {...props(await read())} />);
-    expect(panel('她替你动手')).not.toBeNull();
-    expect(panel('她在桌面上')).toBeNull();
+    expect(panel('替你动手')).not.toBeNull();
+    expect(panel('在桌面上')).toBeNull();
   });
 
   it('shows how often you touched her in the side column when voice is off', async () => {
     draw(<HerTab {...props(await read('scr,read'))} />);
-    const side = screen.getByRole('region', { name: '她这一天' });
+    const side = screen.getByRole('region', { name: '角色这一天' });
     expect(side.textContent).not.toContain('出声');
-    expect(side.textContent).toContain('你碰她');
+    expect(side.textContent).toContain('你碰角色');
   });
 
   it('shows her desk and her voice when only voice is on', async () => {
     draw(<HerTab {...props(await read('voice'))} />);
-    expect(panel('她替你动手')).toBeNull();
-    expect(panel('她在桌面上')).not.toBeNull();
-    const side = screen.getByRole('region', { name: '她这一天' });
+    expect(panel('替你动手')).toBeNull();
+    expect(panel('在桌面上')).not.toBeNull();
+    const side = screen.getByRole('region', { name: '角色这一天' });
     expect(side.textContent).toContain('出声');
   });
 
   it('names why she spoke by agentd’s label', async () => {
     const day = await read();
     draw(<HerTab {...props({ ...day, her: { ...day.her, why: [{ key: 'break', label: '提醒你休息', count: 2 }, { key: 'new_kind', label: 'new_kind', count: 1 }] } })} />);
-    expect(screen.getByRole('img', { name: /^她为什么开口：/ }).getAttribute('aria-label')).toBe('她为什么开口：提醒你休息 2 次，new_kind 1 次');
+    expect(screen.getByRole('img', { name: /^为什么开口：/ }).getAttribute('aria-label')).toBe('为什么开口：提醒你休息 2 次，new_kind 1 次');
   });
 });
 

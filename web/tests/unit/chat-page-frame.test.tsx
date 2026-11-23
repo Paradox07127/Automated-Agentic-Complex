@@ -149,11 +149,11 @@ describe('the topic column and the tabs', () => {
     expect((within(topics()).getByRole('textbox', { name: '搜索话题' }) as HTMLInputElement).value).toBe('');
   });
 
-  it('她的专属记忆 opens the memory page for that character', async () => {
+  it('示例甲的专属记忆 opens the memory page for that character', async () => {
     bridge();
     await mount();
     rightClick(tab('示例甲'));
-    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: '她的专属记忆' }));
+    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: '示例甲的专属记忆' }));
     expect(window.location.hash).toMatch(/\/memory\?.*owner=voice_a/);
   });
 

@@ -64,7 +64,7 @@ export function Source({ fact, now, onJump }: { fact: Fact; now: number; onJump:
         </>
       }
     >
-      她看到：{ev.title ?? '一段观察'}
+      角色看到：{ev.title ?? '一段观察'}
       {ev.quote && <span className={styles.apps}>{ev.quote}</span>}
     </Quote>
   );
@@ -214,7 +214,7 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark
           <Source fact={f} now={now} onJump={onJump} />
         </Block>
         <Block
-          title="她用到它"
+          title="角色用到它"
           note={
             <>
               近 14 天 <span className="num">{recentText(f, now) ?? 0}</span> 次
@@ -226,12 +226,12 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark
             <Lines>
               {f.uses.slice(0, 3).map((u) => (
                 <Line key={`${u.line_id}-${u.at}`} at={stamp(u.at, now)}>
-                  {u.how === 'injected' ? '带进了她的回答' : '她在回答里提到'}
+                  {u.how === 'injected' ? '带进了角色的回答' : '在回答里提到'}
                 </Line>
               ))}
             </Lines>
           ) : (
-            <Note>{isDormant(f) ? '30 天没用到，她不会主动提，但问到时还会想起来' : '还没用到过'}</Note>
+            <Note>{isDormant(f) ? '30 天没用到，不会主动提，但问到时还会想起来' : '还没用到过'}</Note>
           )}
         </Block>
         {versions && versions.length > 1 && (

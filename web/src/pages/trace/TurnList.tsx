@@ -58,7 +58,7 @@ export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, search
         action={<Btn variant="secondary" size="sm" icon="refresh" onClick={onRetry}>重试</Btn>}
       />
     );
-  else if (rows.length === 0) body = <Empty size="compact" title="近 24 小时她没有跑过一轮" action={<Btn variant="secondary" size="sm" icon="send" onClick={onChat}>去对话</Btn>} />;
+  else if (rows.length === 0) body = <Empty size="compact" title="近 24 小时没有跑过一轮" action={<Btn variant="secondary" size="sm" icon="send" onClick={onChat}>去对话</Btn>} />;
   else if (list.length === 0)
     body = <Empty size="compact" title="没有符合的轮次" action={<Btn variant="secondary" size="sm" onClick={() => (onQ(''), onGroup('all'), onRes('all'))}>看全部</Btn>} />;
   else {

@@ -100,7 +100,7 @@ describe('SettingRows', () => {
     const dof = document.getElementById('set-rnd.dof')!;
     expect(dof.hasAttribute('data-changed')).toBe(false);
     expect(within(dof).queryByRole('button', { name: /恢复/ })).toBeNull();
-    expect(within(dof).getByText('镜头处于近景时虚化她身上离焦的部分；全身景别下看不出')).toBeTruthy();
+    expect(within(dof).getByText('镜头处于近景时虚化角色身上离焦的部分；全身景别下看不出')).toBeTruthy();
   });
 
   it('tags a row that brings her back with ⟳ 角色, and writes a failed save on its row', async () => {

@@ -51,7 +51,7 @@ export function ChatPage() {
   const charList = chars.data?.list ?? [];
   const character = pickedChar ?? present ?? chars.data?.shown ?? charList[0]?.id ?? null;
   const who = charList.find((c) => c.id === character);
-  const queueOff = character != null && present != null && character !== present ? '她不在桌面上' : null;
+  const queueOff = character != null && present != null && character !== present ? '角色不在桌面上' : null;
   const convs = useConversations(character, state === 'error', !off, demoQuery(demo === 'sparse', '&demo=sparse'));
   const [picked, setPicked] = useState<string | null>(q.get('conv'));
   // The turn a link points at: it is marked and scrolled to.

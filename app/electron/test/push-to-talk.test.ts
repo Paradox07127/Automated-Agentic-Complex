@@ -126,7 +126,7 @@ test('speechLocale: auto takes the first Chinese or English preferred language, 
 test('a refused /say shows the short recovery for a role runtime, the code\'s sentence, or 没发出去', () => {
   assert.equal(rejectedHint('native_login_required', 'codex'), '角色内核未登录：终端运行 codex login');
   assert.equal(rejectedHint('local_runtime_missing', null), '没找到 Codex CLI 或 ACP agent');
-  assert.equal(rejectedHint('switching', null), '她正在换角色，没发出去');
+  assert.equal(rejectedHint('switching', null), '正在换角色，没发出去');
   assert.equal(rejectedHint('whatever', null), HINT.notSent);
 });
 
@@ -426,7 +426,7 @@ test('agentd unreachable shows 没发出去; a refusal shows its sentence', asyn
   const refused = setup({ agentd: { 'POST /say': { status: 409, body: { error: 'switching' } } } });
   await refused.up();
   await refused.hold(800);
-  assert.deepEqual(refused.last(), { phase: 'error', error: '她正在换角色，没发出去' });
+  assert.deepEqual(refused.last(), { phase: 'error', error: '正在换角色，没发出去' });
   const command = setup({ agentd: { 'POST /say': { status: 200, body: { command: 'stop' } } } });
   await command.up();
   await command.hold(800);

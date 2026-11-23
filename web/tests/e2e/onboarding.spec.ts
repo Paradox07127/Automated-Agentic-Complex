@@ -27,7 +27,7 @@ test('01 fills the window: step cells, the step card, the roster and 下一步',
   expect(await guide.boundingBox()).toEqual({ x: 0, y: 0, width: 1280, height: 800 });
   await expect(page.getByRole('tab')).toHaveText(['角色', '对话', '声音', '完成']);
   await expect(page.getByRole('tab', { name: '01 角色' })).toHaveAttribute('aria-selected', 'true');
-  await expect(guide.getByRole('heading', { level: 1 })).toHaveText('选她');
+  await expect(guide.getByRole('heading', { level: 1 })).toHaveText('选角色');
   await expect(guide.getByRole('radiogroup', { name: '角色名册' }).getByRole('radio')).toHaveCount(3);
   await expect(bar(page).getByRole('button', { name: '下一步' })).toBeEnabled();
   await expect(bar(page).getByRole('button', { name: '上一步' })).toHaveCount(0);

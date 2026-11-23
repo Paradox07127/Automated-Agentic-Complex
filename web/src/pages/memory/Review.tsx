@@ -201,7 +201,7 @@ export function Review({ reads = true }: { reads?: boolean }) {
             <SearchField
               value={draft}
               label="搜索活动"
-              placeholder="搜索她看到的内容（按回车）"
+              placeholder="搜索角色看到的内容（按回车）"
               shortcut={keyText('⌘F')}
               maxLength={500}
               onChange={(v) => {

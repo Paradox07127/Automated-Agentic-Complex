@@ -97,7 +97,7 @@ const RAW: Raw[] = [
   ['tts', 'speak', '声音', '语音', 'tts 外部 令牌 测试 连不上 重新连接'],
   ['asr', 'speak', '声音', '听写语言', '语音识别 识别语言 中文 英文 English 按住说话'],
   ['replyLang', 'speak', '声音', '回复语言', '回答 语言 中文 英文 日文 English 日本語 reply_language 内核'],
-  ['speakWhen', 'speak', '主动开口', '她会不会主动找你', '主动发言 主动开口 主动提示 只在我问时 想法'],
+  ['speakWhen', 'speak', '主动开口', '会不会主动找你', '主动发言 主动开口 主动提示 只在我问时 想法'],
   ['proactive', 'speak', '主动开口', '多主动', '主动程度 交互档位 频率'],
   ['quiet_hours', 'speak', '主动开口', '免打扰时段', '勿扰 夜间 时段'],
   ['mutes', 'speak', '主动开口', '已关掉的主动发言', '关闭此类 恢复'],
@@ -109,12 +109,12 @@ const RAW: Raw[] = [
   ['n_err', 'speak', '事情怎么告诉你', '出错', '通知 失败'],
   ['n_brief', 'speak', '事情怎么告诉你', '简短播报', '通知'],
   ['n_remind', 'speak', '事情怎么告诉你', '提醒', '通知 提醒 闹钟'],
-  ['sysnotify', 'speak', '事情怎么告诉你', '她不在桌面时改走 macOS 通知', '系统通知 全屏'],
+  ['sysnotify', 'speak', '事情怎么告诉你', '角色不在桌面时改走 macOS 通知', '系统通知 全屏'],
   ['testcard', 'speak', '事情怎么告诉你', '发送测试卡', '测试 通知卡', true],
-  ['k_ask', 'perm', '自主程度', '允许她用提问卡问你', '提问 提问卡 问你 澄清 补充信息'],
+  ['k_ask', 'perm', '自主程度', '允许角色用提问卡问你', '提问 提问卡 问你 澄清 补充信息'],
   ['plugins.computer_use', 'perm', '能力', '操作电脑', 'computer use 电脑操作 控制 点击'],
   ['plugins.personal_agent', 'perm', '能力', '派发任务和定时任务', '个人代理 派发任务 定时任务 交付 工作区'],
-  ['scope', 'perm', '能力', '她能读的文件夹', '资料范围 文件夹 授权 撤销授权'],
+  ['scope', 'perm', '能力', '角色能读的文件夹', '资料范围 文件夹 授权 撤销授权'],
   ['plugins.external_access', 'perm', '能力', '外部智能体接入', 'MCP CLI 接入 外部 agent'],
   ['plugins.motion_generation', 'perm', '能力', '生成新动作', 'Kimodo 动作 生成 GPU'],
   ['perms', 'perm', '系统权限', '系统权限', '权限 TCC 屏幕录制 辅助功能 麦克风 输入监控 自动化 通知'],
@@ -150,7 +150,7 @@ const RAW: Raw[] = [
   ['uiZoom', 'display', '外观', '界面大小', '缩放 放大 缩小 字号 字体大小 外观'],
   ['capHide', 'display', '桌面上', '录屏和共享屏幕时隐藏角色', '录屏 共享屏幕 隐藏 介绍视频 显示'],
   ['switchTitle', 'display', '桌面上', '切换角色时的雷霆大字', '雷霆大字 切换角色 名字 大字 标题 显示'],
-  ['plugins.light_ai', 'kernel', '谁来回答', 'AI 对话', '对话 聊天 轻量 AI 记忆 主动搭话 模型账号 只陪伴 和她对话'],
+  ['plugins.light_ai', 'kernel', '谁来回答', 'AI 对话', '对话 聊天 轻量 AI 记忆 主动搭话 模型账号 只陪伴 和角色对话'],
   ['plugins.harness_bridge', 'kernel', '谁来回答', '改用 Codex、Claude Code 或 ACP', 'Agent 内核桥接 外接 harness Claude Code Codex ACP 内核'],
   ['kcur', 'kernel', '谁来回答', '当前内核 │ 重新检测', '运行时 codex claude 登录 内核 pi 能力'],
   ['kernel', 'kernel', '谁来回答', '内核', 'codex claude pi acp 内核 选择内核 换内核'],
@@ -288,7 +288,7 @@ export const REGISTRY: RegEntry[] = RAW.map(([id, group, section, label, keyword
 
 /** Rows that name macOS: their label and keywords on the Windows shell. */
 const WINDOWS_TEXT: Readonly<Record<string, Pick<RegEntry, 'label' | 'keywords'>>> = {
-  sysnotify: { label: '她不在桌面时改走 Windows 通知', keywords: '系统通知 全屏' },
+  sysnotify: { label: '角色不在桌面时改走 Windows 通知', keywords: '系统通知 全屏' },
   ver: { label: '版本', keywords: '开发版 正式版 系统 Windows 复制版本信息' },
 };
 

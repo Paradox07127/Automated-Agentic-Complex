@@ -50,7 +50,7 @@ test('a runtime refusal is kernel with its fix, another is rejected with the bar
   assert.deepEqual(await say(r, answering(503, { error: 'native_login_required', runtime: 'codex' }), (l) => lines.push(l)),
     { ok: false, reason: 'kernel', detail: '在终端运行 codex login，完成后到 设置 › 内核 点「重新检测」再发' });
   assert.deepEqual(await say(r, answering(409, { error: 'switching' }), () => {}),
-    { ok: false, reason: 'rejected', detail: '她正在换角色，这条没收下' });
+    { ok: false, reason: 'rejected', detail: '正在换角色，这条没收下' });
   assert.deepEqual(await say(r, answering(418, { error: 'teapot' }), () => {}),
     { ok: false, reason: 'rejected', detail: 'agentd 没收下这条（418 teapot）' });
   assert.deepEqual(await say(r, async () => { throw new Error('ECONNREFUSED'); }, () => {}), { ok: false, reason: 'agentd' });

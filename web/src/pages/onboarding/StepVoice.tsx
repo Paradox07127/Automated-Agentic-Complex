@@ -38,7 +38,7 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
   if (her && !her.voice)
-    return <SetRow id="tts" title="她念出回答" desc="没有声线的角色不出声，也不换成系统朗读" control={<Dis>{`${her.name}没有声线，只显示文字`}</Dis>} />;
+    return <SetRow id="tts" title={`${her.name}念出回答`} desc="没有声线的角色不出声，也不换成系统朗读" control={<Dis>{`${her.name}没有声线，只显示文字`}</Dis>} />;
   const remote = !diag.voiceNone;
   const voice = diag.voice;
   const saveToken = () =>
@@ -240,7 +240,7 @@ export function StepVoice({ g, her }: { g: GuideSettings; her: CharacterEntry | 
     <Frame n={3}>
       {g.talks ? (
         <>
-          <SetSection title="她的声音">
+          <SetSection title="角色的声音">
             <HerVoice her={her} />
           </SetSection>
           <SetSection title="你的声音" right={windows ? '这个系统只有麦克风一项权限' : undefined}>
@@ -248,8 +248,8 @@ export function StepVoice({ g, her }: { g: GuideSettings; her: CharacterEntry | 
           </SetSection>
         </>
       ) : (
-        <SetSection title="她的声音">
-          <div className={band.fold}>对话关着 │ 打开后可以设：她念出回答、按住说话</div>
+        <SetSection title="角色的声音">
+          <div className={band.fold}>对话关着 │ 打开后可以设：角色念出回答、按住说话</div>
         </SetSection>
       )}
     </Frame>

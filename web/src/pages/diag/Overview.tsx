@@ -204,7 +204,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
               ? `近 60 秒 P95 超出预算 ${p.over} 秒`
               : '帧率稳定'
             : p.renderWhy
-          : '桌面上看不到她',
+          : '桌面上看不到角色',
     actions:
       avatar && avatar.tone !== 'running' && backoff == null ? (
         <Btn size="sm" variant="secondary" icon="refresh" onClick={() => p.onRestart('avatar')}>
@@ -281,7 +281,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
         : f.approvals
           ? { state: 'waiting' as const, stateLabel: '需要注意', why: `「审批」有 ${f.approvals} 个待处理` }
           : f.turns === 0
-            ? { state: 'idle' as const, stateLabel: '空闲', why: '近 1 小时她没有跑过一轮' }
+            ? { state: 'idle' as const, stateLabel: '空闲', why: '近 1 小时没有跑过一轮' }
             : { state: 'ok' as const, stateLabel: '正常', why: '近 1 小时没有失败' }),
   };
 

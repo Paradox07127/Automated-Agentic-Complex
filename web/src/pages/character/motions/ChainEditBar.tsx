@@ -28,7 +28,7 @@ export function ChainEditBar(p: ChainEditBarProps) {
     <div className={styles.prop} data-chain-edit="" role="group" aria-label="结构提案">
       <div className={styles.pr}>
         <b>结构提案 │ {p.n} 处</b>
-        <span className={styles.note}>应用会重建角色包，一两分钟内她会离开桌面</span>
+        <span className={styles.note}>应用会重建角色包，一两分钟内角色会离开桌面</span>
         <span className={styles.sp} />
         <button type="button" className={styles.mini} disabled={off} title={reason} onClick={p.onCheck}>
           {p.busy === 'check' ? '检查中' : '检查'}
@@ -85,8 +85,8 @@ export function ChainEditBar(p: ChainEditBarProps) {
           </>
         }
       >
-        <p>会用这 {p.n} 处改动重建当前角色包，再用新包重新载入她。</p>
-        <p>重建通常要一两分钟；这期间她会从桌面上消失，重新载入后回来，按改过的链播放。</p>
+        <p>会用这 {p.n} 处改动重建当前角色包，再用新包重新载入角色。</p>
+        <p>重建通常要一两分钟；这期间角色会从桌面上消失，重新载入后回来，按改过的链播放。</p>
       </Dialog>
     </div>
   );

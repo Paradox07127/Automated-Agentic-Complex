@@ -349,7 +349,7 @@ describe('deliver', () => {
     const pushed: string[] = [];
     const { a } = await deps({ character: 'voice_a', push: (m) => void pushed.push(m) }, []);
     await a.queueSide('顺便查下');
-    expect(pushed).toEqual(['没有派发任务：她不在桌面上']);
+    expect(pushed).toEqual(['没有派发任务：角色不在桌面上']);
   });
 
   it('重新检测 judges by the chat and quick routes, not the main kernel', async () => {

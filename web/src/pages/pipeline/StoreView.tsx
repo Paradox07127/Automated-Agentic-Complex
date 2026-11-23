@@ -10,7 +10,7 @@ const SRC_DESC: Readonly<Record<MemorySource, string>> = {
   asserted_by_user: '你亲口说的',
   observed_context: '从观察整理的',
   confirmed_by_user: '你确认过的推断',
-  inferred_hypothesis: '她推断、未确认',
+  inferred_hypothesis: '推断、未确认',
 };
 
 const COLS = [

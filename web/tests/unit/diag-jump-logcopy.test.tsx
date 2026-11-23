@@ -78,7 +78,7 @@ describe('诊断 jumps to where a problem is fixed', () => {
     expect(within(await row('agentd')).queryByRole('button', { name: '前往设置' })).toBeNull();
   });
 
-  it('proactive speech switched off opens 她会不会主动找你, from 总览 and from the gate panel', async () => {
+  it('proactive speech switched off opens 会不会主动找你, from 总览 and from the gate panel', async () => {
     install({ gateOff: true });
     mount('');
     await waitFor(async () => expect((await row('gate')).textContent).toContain('主动发言已关'));

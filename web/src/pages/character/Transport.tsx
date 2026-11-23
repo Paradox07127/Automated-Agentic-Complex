@@ -35,7 +35,7 @@ export function useActionTransport(toast: Toast) {
       (e: unknown) => {
         setSeek(null);
         const code = (e as { code?: string } | null)?.code;
-        if (code !== 'not_playing') toast(`没有${op === 'pause' ? '暂停' : op === 'resume' ? '继续' : '跳转'}：${code === 'busy' ? '她正在被拖动' : '桌面角色没有回应'}`, { severity: 'danger' });
+        if (code !== 'not_playing') toast(`没有${op === 'pause' ? '暂停' : op === 'resume' ? '继续' : '跳转'}：${code === 'busy' ? '角色正在被拖动' : '桌面角色没有回应'}`, { severity: 'danger' });
       },
     );
   };

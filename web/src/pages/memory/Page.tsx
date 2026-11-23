@@ -248,7 +248,7 @@ export function MemoryPage() {
         <PipelineView />
       ) : view === 'projects' ? (
         !plugins.daily_brief ? (
-          <Off plugin="daily_brief" title="每日简报" reason="隐私设置里关掉了「每日简报」，她不整理你的工作项目。">
+          <Off plugin="daily_brief" title="每日简报" reason="隐私设置里关掉了「每日简报」，不整理你的工作项目。">
             {projects}
           </Off>
         ) : noRoute(work.error) ? (
@@ -262,7 +262,7 @@ export function MemoryPage() {
         plugins.screen_awareness ? (
           <Review />
         ) : (
-          <Off plugin="screen_awareness" title="屏幕感知" reason="隐私设置里关掉了「屏幕感知」，她不看屏幕，也不整理工作片段。">
+          <Off plugin="screen_awareness" title="屏幕感知" reason="隐私设置里关掉了「屏幕感知」，不看屏幕，也不整理工作片段。">
             <Review reads={false} />
           </Off>
         )

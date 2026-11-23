@@ -49,7 +49,7 @@ export function DeleteCard({ fact, onCancel, onConfirm }: { fact: Fact; onCancel
       </h4>
       <q>{factText(fact)}</q>
       <ul>
-        <li>她以后不会再引用它，也不会从同一出处再记一次。</li>
+        <li>以后不会再引用它，也不会从同一出处再记一次。</li>
         {seen && <li>这条来自一段观察；那段观察整理出的其他记忆会一起删除。</li>}
         <li>删除后找不回。</li>
       </ul>
@@ -109,7 +109,7 @@ export function AddPop({ onCancel, onSave }: { onCancel: () => void; onSave: (te
     <Overlay labelledBy={id} pop onClose={onCancel}>
       <DetailHead title={<span id={id}>新增一条记忆</span>} micro="New / Memory" />
       <div className={styles.pb}>
-        <TextArea label="内容" value={text} maxLength={500} rows={3} placeholder="要她记住的事，比如：周五下午不开会" onChange={setText} />
+        <TextArea label="内容" value={text} maxLength={500} rows={3} placeholder="要记住的事，比如：周五下午不开会" onChange={setText} />
         <GameSeg label="分类" caption="分类" micro="Kind" value={kind} options={ADD_CATS.map((c) => ({ value: c.kind, label: c.label }))} onChange={(v) => setKind(v as FactKind)} />
         <p>来源记为「用户陈述」，所有角色下一句起就会用。</p>
       </div>

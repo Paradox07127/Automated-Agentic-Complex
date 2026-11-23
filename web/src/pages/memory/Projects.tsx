@@ -177,7 +177,7 @@ function ProjectDetail({ task, onSession, onClose }: { task: WorkTask; onSession
     ) : (
       <>
         <Btn onClick={() => setGoal(t.goal)}>改目标</Btn>
-        <Note>她记错了就改，下次接着这份做</Note>
+        <Note>记错了就改，下次接着这份做</Note>
         <Spacer />
       </>
     );

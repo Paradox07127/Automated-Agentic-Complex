@@ -213,9 +213,9 @@ export function localIso(ms: number, offset: number): string {
 export function ritualFailure(status: number, body: unknown, count: number | null): string | null {
   if (status === 202) return null;
   const o = typeof body === 'object' && body !== null && !Array.isArray(body) ? body as Record<string, unknown> : {};
-  if (status === 409 && o.while === 'working') return '她在忙，等这一轮做完';
+  if (status === 409 && o.while === 'working') return '角色在忙，等这一轮做完';
   // A direct character click already cut the voice off.
-  if (status === 409 && o.while === 'speaking') return count === null ? '她正在说话，稍后再试' : null;
+  if (status === 409 && o.while === 'speaking') return count === null ? '角色正在说话，稍后再试' : null;
   if (status === 409 && o.error === 'switching') return '角色正在切换，稍后再试';
   if (status === 503 && o.error === 'no_llm') return '角色内核未就绪';
   if (status === 200) return count === null ? '这次没有可播放的回应' : null;

@@ -46,6 +46,8 @@ export const OLD_WORDS = [
   ['情节', /情节/],
   ['节拍', /节拍/],
   ['干员', /干员/],
+  // The character is not always female; on-screen text says 角色 or the character's name.
+  ['她', /她/],
   ['调校', /调校/],
   ['在桌面播', /在桌面播/],
   ['关于你', /关于你/],
@@ -258,12 +260,17 @@ export function copyHits(file, src) {
   return out;
 }
 
+/** Files of character-authored text (lines in the character's voice) that may call a third person 她. */
+export const CHARACTER_TEXT = ['src/mock/fixtures/chatDemo.ts'];
+
 /** `line  [old words]  text` for each visible TS/TSX string that still uses replaced wording. */
 export function oldWordHits(file, src) {
   if (!/\.tsx?$/.test(file)) return [];
+  const voiced = CHARACTER_TEXT.some((f) => file.split('\\').join('/').endsWith(f));
+  const words = voiced ? OLD_WORDS.filter(([name]) => name !== '她') : OLD_WORDS;
   const out = [];
   for (const [line, text] of tsPieces(src)) {
-    const old = OLD_WORDS.filter(([, re]) => re.test(text)).map(([name]) => name);
+    const old = words.filter(([, re]) => re.test(text)).map(([name]) => name);
     if (old.length > 0) out.push(`${line}  [${old.join(', ')}]  ${text.trim().replace(/\s+/g, ' ').slice(0, 80)}`);
   }
   return out;

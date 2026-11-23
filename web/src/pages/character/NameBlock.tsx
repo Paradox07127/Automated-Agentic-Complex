@@ -74,7 +74,7 @@ export function NameBlock(p: NameBlockProps) {
           {(p.active || p.en) && (
             <span className={styles.row}>
               {p.active && (
-                <span className={styles.desk} title="桌面上的是她">
+                <span className={styles.desk} title="桌面上的是这个角色">
                   <DeskGlyph />
                   在桌面
                 </span>

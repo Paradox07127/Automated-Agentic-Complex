@@ -22,7 +22,7 @@ const tab = (page: Page, name: string) => page.getByRole('tablist', { name: '简
 test("default: 今日一句, the six pinned readouts, 01 with one paper card and record rows, 02 of at most 3 rows, 做完了, 今天聊了什么, 提醒 and yesterday's observation brief", async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/overview?plugins=all&still=1');
-  for (const name of ['总览', '她', '时间', '明细']) await expect(tab(page, name)).toBeVisible();
+  for (const name of ['总览', '角色', '时间', '明细']) await expect(tab(page, name)).toBeVisible();
   await expect(tab(page, '总览')).toHaveAttribute('aria-selected', 'true');
   await expect(sec(page, '今日一句')).toContainText(/\d+ 个编码会话/);
   await expect(sec(page, '今日一句')).not.toContainText('段对话');
@@ -40,7 +40,7 @@ test("default: 今日一句, the six pinned readouts, 01 with one paper card and
   await expect(run(page)).toBeVisible();
   expect(await run(page).locator('[data-run]').count()).toBeLessThanOrEqual(3);
   for (const name of ['做完了', '今天聊了什么', '提醒', '前一天的观察日报']) await expect(sec(page, name)).toBeVisible();
-  await expect(sec(page, '她今天说的一句')).toHaveCount(0);
+  await expect(sec(page, '角色今天说的一句')).toHaveCount(0);
   await expect(sec(page, '工业简报')).toHaveCount(0);
   await expect(tasks(page)).toHaveCount(0);
   await expect(page.getByRole('button', { name: '任务记录' })).toHaveCount(0);
@@ -51,7 +51,7 @@ test("default: 今日一句, the six pinned readouts, 01 with one paper card and
 test('the four tabs switch the view and stay in the address across a reload', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/overview?plugins=all&still=1');
-  for (const [name, id] of [['她', 'her'], ['时间', 'tm'], ['明细', 'dt']] as const) {
+  for (const [name, id] of [['角色', 'char'], ['时间', 'tm'], ['明细', 'dt']] as const) {
     await tab(page, name).click();
     await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
     await expect(page).toHaveURL(new RegExp(`tab=${id}`));
@@ -97,9 +97,9 @@ test("sw=voice: six readouts of her own, no 做完了, 进行中 or 时间 tab; 
   await expect(run(page)).toHaveCount(0);
   await expect(need(page)).toHaveCount(0);
   await expect(sec(page, '前一天的观察日报')).toHaveCount(0);
-  await expect(sec(page, '她今天说的一句')).toBeVisible();
-  await sec(page, '她今天说的一句').getByRole('button', { name: /看她这一天/ }).click();
-  await expect(tab(page, '她')).toHaveAttribute('aria-selected', 'true');
+  await expect(sec(page, '角色今天说的一句')).toBeVisible();
+  await sec(page, '角色今天说的一句').getByRole('button', { name: /看角色这一天/ }).click();
+  await expect(tab(page, '角色')).toHaveAttribute('aria-selected', 'true');
   expect(errors).toEqual([]);
 });
 

@@ -55,8 +55,8 @@ export const ROW_DESC: Readonly<Record<string, string>> = {
   'beh.mouse': '视线跟随指针',
   'beh.inertia': '松开后短距离滑行',
   'beh.mood': '精神偏低时走速降低',
-  avatar_click: '角色互动：摸头、问候等；打开快速输入：点她就能打字',
-  'rnd.dof': '镜头处于近景时虚化她身上离焦的部分；全身景别下看不出',
+  avatar_click: '角色互动：摸头、问候等；打开快速输入：点角色就能打字',
+  'rnd.dof': '镜头处于近景时虚化角色身上离焦的部分；全身景别下看不出',
 };
 
 export const OTHER_TITLE = '其他';

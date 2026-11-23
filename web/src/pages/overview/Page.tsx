@@ -1,4 +1,4 @@
-// 每日简报：页头是日期翻页和四个页签（总览 / 她 / 时间 / 明细），两者写在地址的 tab= 和 date= 里；统计读 GET /brief/day，各列表读原有接口，常用操作在外壳底部操作条。
+// 每日简报：页头是日期翻页和四个页签（总览 / 角色 / 时间 / 明细），两者写在地址的 tab= 和 date= 里；统计读 GET /brief/day，各列表读原有接口，常用操作在外壳底部操作条。
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
@@ -37,7 +37,7 @@ import styles from './Page.module.css';
 
 const TABS: Array<{ id: BriefTab; label: string; icon: IconName }> = [
   { id: 'ov', label: '总览', icon: 'grid' },
-  { id: 'her', label: '她', icon: 'user' },
+  { id: 'char', label: '角色', icon: 'user' },
   { id: 'tm', label: '时间', icon: 'clock' },
   { id: 'dt', label: '明细', icon: 'data' },
 ];
@@ -142,7 +142,7 @@ export function OverviewPage() {
 
   const dayConvs = isToday ? brief?.convs : pastQ.data?.convs;
   const [errs, setErrs] = useState(false);
-  const her = { open: () => put({ tab: 'her' }), to: `看${snap.character.name ?? '角色'}这一天` };
+  const her = { open: () => put({ tab: 'char' }), to: `看${snap.character.name ?? '角色'}这一天` };
   const links: BriefTabProps['links'] = {
     done: { open: () => go({ page: 'tasks', tab: 'done' }), to: '前往已完成的任务' },
     err: { open: () => setErrs(true), to: '查看出错列表' },
@@ -159,7 +159,7 @@ export function OverviewPage() {
   };
   const tabProps = (d: BriefTabProps['day']): BriefTabProps => ({ day: d, pins, onPins: setPins, go: (t) => put({ tab: t }), links });
   const body = (d: BriefTabProps['day']) => {
-    if (tab === 'her') return <HerTab {...tabProps(d)} />;
+    if (tab === 'char') return <HerTab {...tabProps(d)} />;
     if (tab === 'tm') return <TimeTab {...tabProps(d)} />;
     if (tab === 'dt') return <DetailTab {...tabProps(d)} />;
     return (
@@ -201,7 +201,7 @@ export function OverviewPage() {
               state="off"
               mode="block"
               title="进行中"
-              reason="设置里关着「派发任务和定时任务」和「编码会话」，这里不列她在做的任务、编码会话和定时任务。"
+              reason="设置里关着「派发任务和定时任务」和「编码会话」，这里不列角色在做的任务、编码会话和定时任务。"
               action={{ label: '前往设置打开', onClick: () => go({ page: 'settings', group: 'perm', item: 'plugins.personal_agent' }) }}
               more={
                 <Btn variant="ghost" size="sm" onClick={() => go({ page: 'settings', group: 'privacy', item: 'plugins.coding_sessions' })}>

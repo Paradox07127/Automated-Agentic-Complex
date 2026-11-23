@@ -82,7 +82,7 @@ export class ActionFailure extends Error {
 }
 
 const REJECTED: Record<string, string> = {
-  missing: '这个动作缺资源', unknown_action: '角色没有这个动作', not_playable: '这个动作不能单独播', busy: '她正在做别的动作',
+  missing: '这个动作缺资源', unknown_action: '角色没有这个动作', not_playable: '这个动作不能单独播', busy: '角色正在做别的动作',
 };
 const rejected = (reason: string) => new ActionFailure(reason, REJECTED[reason] ?? '正在切换角色');
 const unsupported = () => new ActionFailure('not_implemented', '这个版本的角色不支持动作设置');
@@ -1365,7 +1365,7 @@ export class HostLink {
       const sent = this.checked(c, m, 'command', (r) => {
         if (r.ok) return resolve();
         reject(r.reason === 'timeout' ? timedOut() : r.reason === 'disconnected' ? disconnected()
-          : r.reason === 'busy' ? new ActionFailure('busy', '她正在被拖动') : refused);
+          : r.reason === 'busy' ? new ActionFailure('busy', '角色正在被拖动') : refused);
       });
       if (!sent) reject(refused);
     });

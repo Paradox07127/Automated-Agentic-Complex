@@ -91,7 +91,7 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
     ...questions.map((q) => <QuestionPaper key={q.id} question={q} now={desk.now} onAnswer={(ans) => void actions.answer(q, ans)} onCancel={() => void actions.cancelQuestion(q)} />),
   ];
   const first = asks[0] ?? questions[0];
-  const decision = first ? { title: first.title, note: asks.length ? '待批准 │ 她停在这一步' : '待回答 │ 她停在这一步', papers } : null;
+  const decision = first ? { title: first.title, note: asks.length ? '待批准 │ 停在这一步' : '待回答 │ 停在这一步', papers } : null;
 
   const chip: { k: keyof typeof CHIP; text: string } = eff === 'waiting'
     ? { k: 'wait', text: asks.length ? '待批准' : review || codeReview ? '待复核' : questions.length ? '待回答' : '待处理' }
@@ -254,8 +254,8 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
         )}
         {note && (
           <div className={paper.paper} data-depth="" data-theme="light" data-task-note="">
-            <h4>补一句{ended ? '再让她接着做' : ''}</h4>
-            <p>{ended ? '她从停下的那一步接着做，带上这句话。' : '她收到后照这句话接着做。'}</p>
+            <h4>补一句{ended ? '再让角色接着做' : ''}</h4>
+            <p>{ended ? '角色从停下的那一步接着做，带上这句话。' : '角色收到后照这句话接着做。'}</p>
             <RejectBox
               mode="continue"
               kernelName={desk.kernel.data ?? undefined}

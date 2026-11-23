@@ -23,9 +23,9 @@ export function Plate({ plate, selected, onClick }: { plate: PlateData | null; s
       <MicroLabel>You / Profile</MicroLabel>
       <span className={styles.who}>
         <b>{plate == null ? '—' : (plate.name ?? '还不知道怎么称呼你')}</b>
-        {plate?.name != null && <small>她们这样叫你</small>}
+        {plate?.name != null && <small>角色们这样叫你</small>}
       </span>
-      <span className={styles.pkv}>{none ? '对话里说一次，她会记下' : fields}</span>
+      <span className={styles.pkv}>{none ? '对话里说一次，就会记下' : fields}</span>
     </button>
   );
 }

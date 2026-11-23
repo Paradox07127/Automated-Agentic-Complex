@@ -118,7 +118,7 @@ describe('memory › 档案', () => {
     expect(within(chat).getByRole('button', { name: /去对话看原文/ })).toBeTruthy();
     const seen = await card('写代码时减少主动发言');
     fireEvent.click(within(seen).getByRole('button', { name: /^出处观察 │/ }));
-    await waitFor(() => expect(seen.textContent).toMatch(/她看到：/));
+    await waitFor(() => expect(seen.textContent).toMatch(/角色看到：/));
     expect(within(seen).getByRole('button', { name: /在简报里看这一段/ })).toBeTruthy();
   });
 
@@ -138,7 +138,7 @@ describe('memory › 档案', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mount();
     fireEvent.click(within(await card('写代码时减少主动发言')).getByRole('button', { name: '不是这样' }));
-    expect(await screen.findByText('划掉了，她不会再记这件事')).toBeTruthy();
+    expect(await screen.findByText('划掉了，不会再记这件事')).toBeTruthy();
     expect(sent('POST', '/memory/facts/')).toEqual([]);
     act(() => void vi.advanceTimersByTime(UNDO_MS));
     await waitFor(() => expect(sent('POST', '/memory/facts/')).toEqual([['POST', `/memory/facts/${v31Id('c2')}/reject`, { expected_version: 1 }]]));
@@ -207,7 +207,7 @@ describe('memory › 档案', () => {
   it('an observed fact names what she saw', async () => {
     mount(`?still=1&sel=${v31Id('a3')}`);
     const detail = await screen.findByRole('complementary', { name: '这条记忆' });
-    expect(await within(detail).findByText(/她看到：/)).toBeTruthy();
+    expect(await within(detail).findByText(/角色看到：/)).toBeTruthy();
     expect(within(detail).getByRole('button', { name: /在简报里看这一段/ })).toBeTruthy();
   });
 
@@ -285,7 +285,7 @@ describe('memory › demos', () => {
 
   it('empty: one line with 去对话, and 新增 still opens the add card', async () => {
     mount('?still=1&state=empty');
-    expect(await screen.findByText('她还没记住你的事')).toBeTruthy();
+    expect(await screen.findByText('还没记住你的事')).toBeTruthy();
     expect(screen.getByRole('button', { name: /去对话/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: '用户档案' }).textContent).toContain('还不知道怎么称呼你');
     expect(document.body.textContent).not.toContain('暂无');

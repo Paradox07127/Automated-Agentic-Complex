@@ -38,7 +38,7 @@ export function Foot({ quit }: { quit: () => void }) {
   if (asking)
     return (
       <footer className={styles.foot} data-confirm="" role="alertdialog" aria-label="退出确认">
-        <span className={styles.ask}>退出后后台和她都会停下</span>
+        <span className={styles.ask}>退出后后台和角色都会停下</span>
         <Btn size="sm" variant="ghost" onClick={() => setAsking(false)}>
           取消
         </Btn>

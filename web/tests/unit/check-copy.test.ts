@@ -111,6 +111,13 @@ describe('check-copy old wording', () => {
     expect(oldWordHits('x.tsx', "const a = ['执行工具 │ Bash', '在跑 │ Bash'];")).toEqual(['1  [执行工具]  执行工具 │ Bash']);
   });
 
+  it('lists 她 in visible strings, except in the character-authored chat fixture', () => {
+    const src = "const a = ['点击穿过她', '点击穿过角色'];\n// 她的按钮\n";
+    expect(oldWordHits('x.tsx', src)).toEqual(['1  [她]  点击穿过她']);
+    expect(oldWordHits('/w/web/src/mock/fixtures/chatDemo.ts', src)).toEqual([]);
+    expect(oldWordHits('/w/web/src/mock/fixtures/chatDemo.ts', "const a = '她说';")).toEqual(['1  [她说]  她说']);
+  });
+
   it('fails the check on a replaced word', () => {
     const root = mkdtempSync(join(tmpdir(), 'check-copy-'));
     for (const d of ['src/pages/p', 'src/features', 'src/surfaces', 'src/ui', 'src/charts']) mkdirSync(join(root, d), { recursive: true });

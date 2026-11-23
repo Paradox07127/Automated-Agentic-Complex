@@ -240,7 +240,7 @@ export function Composer(p: ComposerProps) {
   };
   const plus: MenuItem[] = [
     { kind: 'item', label: '添加文件或图片', disabled: !agent || d.noMem || d.files.length >= MAX_FILES, ...(!agent ? { reason: NO_AGENT } : d.noMem ? { reason: '这句不记时不带文件' } : d.files.length >= MAX_FILES ? { reason: `最多带 ${MAX_FILES} 个文件` } : {}), onSelect: () => void addFile() },
-    { kind: 'item', label: '让她看一眼屏幕', checked: look, disabled: p.lookOff != null, ...(p.lookOff ? { reason: p.lookOff } : {}), onSelect: () => edit({ look: !d.look }) },
+    { kind: 'item', label: `让${p.roleName}看一眼屏幕`, checked: look, disabled: p.lookOff != null, ...(p.lookOff ? { reason: p.lookOff } : {}), onSelect: () => edit({ look: !d.look }) },
     { kind: 'item', label: '这句不记', checked: d.noMem, disabled: d.files.length > 0, ...(d.files.length > 0 ? { reason: '带着文件时不能不记' } : {}), onSelect: () => edit({ noMem: !d.noMem }) },
   ];
   const tray: TrayItem[] = [

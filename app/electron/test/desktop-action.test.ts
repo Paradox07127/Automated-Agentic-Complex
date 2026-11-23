@@ -75,8 +75,8 @@ test('wired actions reach their function and answer null', async () => {
 });
 
 test('claimRitual fails with why agentd took no tap, and a failed gift fails the action', async () => {
-  const { calls, run } = setup(false, '她在忙，等这一轮做完');
-  assert.deepEqual(await failure(run(['claimRitual'], null)), { code: 'failed', detail: '她在忙，等这一轮做完' });
+  const { calls, run } = setup(false, '角色在忙，等这一轮做完');
+  assert.deepEqual(await failure(run(['claimRitual'], null)), { code: 'failed', detail: '角色在忙，等这一轮做完' });
   const gift = desktopAction({ ...setup().ports, gift: async () => { throw new Error('当前角色包尚未导入原作收礼动作'); } });
   // The bridge answers `failed` with the message.
   await assert.rejects(async () => gift(['gift'], null), { message: '当前角色包尚未导入原作收礼动作' });
@@ -174,8 +174,8 @@ test('the tap\'s `at` is ISO 8601 in the local zone, without fractions', () => {
 test('claimRitual\'s answers: what a click on her says, and what the ritual tag says', () => {
   const cases: [number, unknown, string | null, string | null][] = [
     [202, {}, null, null],
-    [409, { while: 'working' }, '她在忙，等这一轮做完', '她在忙，等这一轮做完'],
-    [409, { while: 'speaking' }, null, '她正在说话，稍后再试'],
+    [409, { while: 'working' }, '角色在忙，等这一轮做完', '角色在忙，等这一轮做完'],
+    [409, { while: 'speaking' }, null, '角色正在说话，稍后再试'],
     [409, { error: 'switching' }, '角色正在切换，稍后再试', '角色正在切换，稍后再试'],
     [503, { error: 'no_llm' }, '角色内核未就绪', '角色内核未就绪'],
     [200, {}, null, '这次没有可播放的回应'],

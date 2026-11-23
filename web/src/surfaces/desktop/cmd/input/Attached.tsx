@@ -43,7 +43,7 @@ export function Attached({ attachment: a, typed, sending, onDrop, onSend }: Atta
           }),
       ),
     ];
-    const unreadable = types.length > 0 ? `读不了 ${types.join('、')}，只把路径发给她` : null;
+    const unreadable = types.length > 0 ? `读不了 ${types.join('、')}，只把路径发给角色` : null;
     const words = (a.items ?? []).filter((i) => i.kind !== 'file').map((i) => (i.kind === 'url' ? i.url : i.text));
     return (
       <div className={styles.att}>
@@ -116,7 +116,7 @@ export function Attached({ attachment: a, typed, sending, onDrop, onSend }: Atta
       </div>
       {request && (
         <div className={styles.preview}>
-          <span className={styles.label}>{request.noMemory ? '将发给她 │ 这一轮不记' : action === 'remember' ? '将发给她 │ 她会记住这段文字' : '将发给她'}</span>
+          <span className={styles.label}>{request.noMemory ? '将发给角色 │ 这一轮不记' : action === 'remember' ? '将发给角色 │ 会记住这段文字' : '将发给角色'}</span>
           <pre className={styles.text} data-say-preview="">
             {request.text}
           </pre>

@@ -17,7 +17,7 @@ export interface Waiting {
 }
 
 /** Approvals first, then her questions, then results to look at (the order the brief's 待处理 decides them in). */
-const KINDS: ReadonlyArray<[string, string]> = [['approvals', '要你批准'], ['questions', '她在问你'], ['results', '交付待看']];
+const KINDS: ReadonlyArray<[string, string]> = [['approvals', '要你批准'], ['questions', '角色在问你'], ['results', '交付待看']];
 
 export function waitingOf(presence: unknown): Waiting | null {
   const pending = obj(obj(presence)?.pending);

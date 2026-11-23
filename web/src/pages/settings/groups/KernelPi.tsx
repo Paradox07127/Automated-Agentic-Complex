@@ -35,7 +35,7 @@ export function WorkspaceRow({ indent }: { indent?: boolean }) {
     <SetRow
       id="workspace"
       title={labelOf('workspace')}
-      desc="她写的文件放在这里"
+      desc="角色写的文件放在这里"
       indent={indent}
       control={
         <>

@@ -90,7 +90,7 @@ describe('首次设置 · 角色库为空', () => {
   it('says there is no character yet, offers 先不导入 and keeps 下一步 closed', async () => {
     installEmpty();
     mount();
-    await within(document.body).findByText('还没有角色。导入一个角色包，她就会出现在桌面上。');
+    await within(document.body).findByText('还没有角色。导入一个角色包，角色就会出现在桌面上。');
     expect(within(guide()).getByText('可跳过')).toBeTruthy();
     expect(bar().getByRole('button', { name: '下一步' })).toHaveProperty('disabled', true);
     fireEvent.click(bar().getByRole('button', { name: '先不导入' }));

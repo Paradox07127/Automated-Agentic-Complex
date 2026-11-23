@@ -81,7 +81,7 @@ export function FlowSection(p: FlowSectionProps) {
       )}
       {!p.loading && !p.error && p.turns === 0 && (
         <p className={styles.note}>
-          近 1 小时她没有跑过一轮{' '}
+          近 1 小时没有跑过一轮{' '}
           <Btn size="sm" onClick={p.onChat}>
             去对话
           </Btn>

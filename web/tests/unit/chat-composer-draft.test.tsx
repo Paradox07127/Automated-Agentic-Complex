@@ -55,7 +55,7 @@ describe('composer keeps the draft until the line is taken', () => {
     render(<Composer {...props({ onSend, topicId: 'keep-a' })} />);
     attach();
     await screen.findByText('销量.csv');
-    flag('让她看一眼屏幕');
+    flag('让陈千语看一眼屏幕');
     type('汇总一下');
     fireEvent.click(sendBtn());
     await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));

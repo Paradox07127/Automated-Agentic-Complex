@@ -81,7 +81,7 @@ export function Thought({ thought, ritual, mute, composing }: { thought: Presenc
         <div className={styles.btns}>
           {offered &&
             (sent === 'sent' ? (
-              <span className={styles.note}>已发给她</span>
+              <span className={styles.note}>已发给角色</span>
             ) : (
               <Btn variant="primary" size="sm" loading={sent === 'busy'} onClick={() => void send(offered.id, offered.reply ?? '')}>
                 {offered.offer}
@@ -95,7 +95,7 @@ export function Thought({ thought, ritual, mute, composing }: { thought: Presenc
           )}
         </div>
       )}
-      {typeof sent === 'object' && <p className={styles.err}>没能发给她：{sent.failed}</p>}
+      {typeof sent === 'object' && <p className={styles.err}>没能发给角色：{sent.failed}</p>}
       {typeof claimed === 'object' && <p className={styles.err} role="alert">{claimed.failed}</p>}
       {m?.phase === 'failed' && <p className={styles.err}>{m.text}</p>}
     </div>

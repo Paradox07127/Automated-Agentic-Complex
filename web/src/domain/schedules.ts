@@ -115,7 +115,7 @@ export function formatScheduleTime(ms: number | null): string | null {
 }
 
 export interface ScheduleItemView {
-  proposalTag: '她提议' | null;
+  proposalTag: '角色提议' | null;
   actionKind: 'enable_button' | 'toggle';
   actionLabel: string;
   triggerText: string;
@@ -125,7 +125,7 @@ export interface ScheduleItemView {
 
 export function scheduleItemView(s: Schedule): ScheduleItemView {
   return {
-    proposalTag: s.created_from === 'agent_proposal' ? '她提议' : null,
+    proposalTag: s.created_from === 'agent_proposal' ? '角色提议' : null,
     actionKind: s.enabled ? 'toggle' : 'enable_button',
     actionLabel: s.enabled ? '已启用' : '启用',
     triggerText: formatTrigger(s.trigger),

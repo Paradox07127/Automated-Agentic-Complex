@@ -100,12 +100,12 @@ test('档案: ?src= lands as a search; a row fills the detail column at 1440, an
   const row = page.locator(`[data-fact="${A3}"] button`);
   await row.click();
   const detail = page.getByRole('complementary', { name: '这条记忆' });
-  await expect(detail.getByText(/她看到：/)).toBeVisible();
+  await expect(detail.getByText(/角色看到：/)).toBeVisible();
   await page.setViewportSize({ width: 900, height: 600 });
   await expect(detail).toHaveCount(0);
   await row.click();
   const drawer = page.getByRole('dialog', { name: '这条记忆' });
-  await expect(drawer.getByText(/她看到：/)).toBeVisible();
+  await expect(drawer.getByText(/角色看到：/)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(drawer).toHaveCount(0);
   await expect(row).toBeFocused();
@@ -121,7 +121,7 @@ test('待确认: 对，记住 writes it and says so; 不是这样 waits out its 
   await expect(keep).toHaveCount(0);
   const no = page.getByRole('region', { name: '待确认：周报按项目分组，不按日期' });
   await no.getByRole('button', { name: '不是这样' }).click();
-  await expect(page.getByText('划掉了，她不会再记这件事')).toBeVisible();
+  await expect(page.getByText('划掉了，不会再记这件事')).toBeVisible();
   await expect(no.getByText(/\[已选\]/)).toBeVisible();
   await expect(no).toHaveCount(0, { timeout: 8000 });
   await expect(page.getByText('已划掉：周报按项目分组，不按日期')).toBeVisible();
@@ -175,7 +175,7 @@ test('memory sparse, error and empty demos', async ({ page }) => {
   await expect(page.locator('[data-fact]')).toHaveCount(0);
   await page.goto('about:blank');
   await page.goto('main.html#/memory?plugins=all&still=1&state=empty');
-  await expect(page.getByText('她还没记住你的事')).toBeVisible();
+  await expect(page.getByText('还没记住你的事')).toBeVisible();
   await expect(page.getByRole('button', { name: /去对话/ })).toBeVisible();
   await expect(page.getByRole('region', { name: '最近变化' })).toHaveCount(0);
   expect(errors).toEqual([]);

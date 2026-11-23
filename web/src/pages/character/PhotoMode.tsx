@@ -212,7 +212,7 @@ export function PhotoMode(p: PhotoModeProps) {
       <div className={shutter.shutter}>
         <div className={shutter.msg}>
           <MicroLabel>Transparent Capture</MicroLabel>
-          <b>拍下桌面上的她，透明背景</b>
+          <b>拍下桌面上的角色，透明背景</b>
           <span role="status">{shot.text ?? (p.offline ? '角色未运行' : !canCapture ? '渲染器没有提供截图' : '')}</span>
         </div>
         <button

@@ -79,7 +79,7 @@ afterEach(() => {
 });
 
 describe('onboarding page', () => {
-  it('walks the four steps; the account tests itself, and 和她聊几句 completes to talk', async () => {
+  it('walks the four steps; the account tests itself, and 聊几句 completes to talk', async () => {
     install();
     mount();
     await roster();
@@ -91,7 +91,7 @@ describe('onboarding page', () => {
     await toStep(4);
     expect(guide().getAttribute('aria-label')).toBe('首次设置 │ 完成');
     expect(guide().textContent).toContain('示例乙 已在桌面就位');
-    press('和她聊几句');
+    press('聊几句');
     await waitFor(() => expect(calls).toContain('complete {"destination":"talk"}'));
     expect(calls.filter((c) => c.startsWith('advance'))).toEqual(['advance', 'advance', 'advance']);
   });
@@ -129,10 +129,10 @@ describe('onboarding page', () => {
     await waitFor(() => expect(sw.getAttribute('aria-disabled')).toBeNull());
     fireEvent.click(sw);
     await waitFor(() => expect(saves).toEqual([{ 'plugins.light_ai': false }]));
-    await within(guide()).findByText('关着 │ 打开后可以设：模型服务、账号');
+    await within(guide()).findByText('关着 │ 打开后可以设：模型提供方、账号、测试连接');
     expect(screen.queryByRole('group', { name: '模型服务' })).toBeNull();
     await toStep(3);
-    expect(guide().textContent).toContain('对话关着 │ 打开后可以设：她念出回答、按住说话');
+    expect(guide().textContent).toContain('对话关着 │ 打开后可以设：角色念出回答、按住说话');
   });
 
   it('a step cell jumps there; Q goes back', async () => {
@@ -214,7 +214,7 @@ describe('onboarding page', () => {
     mount();
     await roster();
     await toStep(4);
-    press('和她聊几句');
+    press('聊几句');
     await waitFor(() => expect(bar().getByRole('alert').textContent).toBe('配置没有存上'));
     expect(step()).toBe('4');
   });

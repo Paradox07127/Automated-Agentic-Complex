@@ -81,7 +81,7 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
           <h2>{title}</h2>
         </div>
         <div className={detail.meta}>
-          <span>{repeat ? '保存后按时间自己跑；开关随时能停' : '派出去后在「进行中」里看她做到哪一步'}</span>
+          <span>{repeat ? '保存后按时间自己跑；开关随时能停' : '派出去后在「进行中」里看做到哪一步'}</span>
         </div>
         <div className={detail.sep} />
       </div>

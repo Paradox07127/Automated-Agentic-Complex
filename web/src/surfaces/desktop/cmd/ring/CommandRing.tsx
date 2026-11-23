@@ -46,7 +46,7 @@ export function CommandRing({ items, center, at, press, onRun, onClose }: Comman
         origin={at}
         press={press}
         bounds={{ width: WHEEL_BOX, height: WHEEL_BOX }}
-        label="她的轮盘"
+        label="角色的轮盘"
         onRun={(id) => {
           const item = items.find((i) => i.id === id);
           if (item) onRun(item);

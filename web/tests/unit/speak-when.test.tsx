@@ -65,7 +65,7 @@ async function start(mute: boolean, speakUp: boolean, on: boolean, failCompanion
       <SpeakGroup />
     </Harness>,
   );
-  const seg = screen.getByRole('radiogroup', { name: '她会不会主动找你' });
+  const seg = screen.getByRole('radiogroup', { name: '会不会主动找你' });
   // The companion read lands.
   await act(async () => {});
   return seg;
@@ -86,7 +86,7 @@ afterEach(() => {
   delete window.agenticComplex;
 });
 
-describe('她会不会主动找你', () => {
+describe('会不会主动找你', () => {
   // Staying silent altogether is 出声 off plus 只在我问时, so there is no third choice for it.
   it('offers the two choices before the 多主动 row', async () => {
     const seg = await start(false, true, true);
@@ -153,7 +153,7 @@ describe('她会不会主动找你', () => {
         <SpeakGroup />
       </Harness>,
     );
-    const seg = screen.getByRole('radiogroup', { name: '她会不会主动找你' });
+    const seg = screen.getByRole('radiogroup', { name: '会不会主动找你' });
     expect(within(seg).getAllByRole('radio').every((r) => (r as HTMLButtonElement).disabled)).toBe(true);
   });
 });
@@ -169,7 +169,7 @@ describe('主动 and the rows under it', () => {
     expect(locked()).toBeNull();
     await click(within(seg).getByRole('radio', { name: '只在我问时' }));
     expect(dependent()).toEqual(['proactive']);
-    expect(locked()).toBe('只在你问时她不会主动');
+    expect(locked()).toBe('只在你问时开口，不会主动');
     await click(within(seg).getByRole('radio', { name: '主动' }));
     expect(dependent()).toEqual(['proactive', 'quiet_hours']);
     expect(locked()).toBeNull();
@@ -178,7 +178,7 @@ describe('主动 and the rows under it', () => {
   it('locks them while nothing is chosen', async () => {
     await start(false, true, false);
     expect(dependent()).toEqual(['proactive']);
-    expect(locked()).toBe('只在你问时她不会主动');
+    expect(locked()).toBe('只在你问时开口，不会主动');
   });
 
   it('多主动 offers only levels that keep her speaking and writes `proactive`', async () => {
@@ -209,7 +209,7 @@ describe('主动 and the rows under it', () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     const seg = await start(false, true, true, false, 'quiet');
     expect(checked(seg)).toEqual([]);
-    expect(locked()).toBe('只在你问时她不会主动');
+    expect(locked()).toBe('只在你问时开口，不会主动');
     await click(within(seg).getByRole('radio', { name: '主动' }));
     expect(save).toHaveBeenCalledWith({ proactive: 'balanced' });
     expect(request).not.toHaveBeenCalledWith('PUT', '/proactive/settings', expect.anything());

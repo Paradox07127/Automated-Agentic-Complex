@@ -54,7 +54,7 @@ describe('tasks page: shared components', () => {
   });
 
   it('a group head is a SecHead with the count and the note behind ⓘ', () => {
-    render(<Group group={{ key: 'run', title: '在跑', note: '角色任务和她派的编码会话', rows: [] }} start={0} selected={null} onSelect={noop} />);
+    render(<Group group={{ key: 'run', title: '在跑', note: '角色任务和派出的编码会话', rows: [] }} start={0} selected={null} onSelect={noop} />);
     const head = screen.getByRole('heading', { name: '在跑' }).closest('[data-stub="SecHead"]');
     expect(head).toBeTruthy();
     expect(head?.textContent).toContain('0');

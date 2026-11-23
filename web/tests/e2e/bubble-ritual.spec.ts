@@ -104,11 +104,11 @@ test('a refused ritual shows its reason and remains available to retry', async (
   await openNative(page, {
     state: STATE,
     presence: presence({ ritual: { kind: 'water', since: Date.now() / 1000 - 1800 } }),
-    claimError: '她在忙，等这一轮做完',
+    claimError: '角色在忙，等这一轮做完',
   });
   const button = ritual(page, '喝水提醒');
   await button.click();
-  await expect(page.getByRole('alert')).toHaveText('她在忙，等这一轮做完');
+  await expect(page.getByRole('alert')).toHaveText('角色在忙，等这一轮做完');
   await expect(button).toBeEnabled();
   await button.click();
   await expect.poll(() => calls(page, 'desktop.action')).toEqual([['claimRitual'], ['claimRitual']]);

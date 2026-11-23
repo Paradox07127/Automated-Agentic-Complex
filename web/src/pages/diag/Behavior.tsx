@@ -85,7 +85,7 @@ export function Behavior(p: BehaviorProps) {
       {s === undefined ? (
         <Skel rows={1} shape="block" />
       ) : (
-        <ReadoutPlate label="她现在的状态" eyebrow="STATE CURRENT" cells={stateCells(s, p.offline, compact)} compact={compact} />
+        <ReadoutPlate label="角色现在的状态" eyebrow="STATE CURRENT" cells={stateCells(s, p.offline, compact)} compact={compact} />
       )}
       <section className={styles.sec} aria-label="状态与决策">
         <SecHead
@@ -129,8 +129,8 @@ export function Behavior(p: BehaviorProps) {
                 t1={p.now}
                 step={p.range === 'today' ? 3 : 4}
                 stoppedAt={p.stoppedAt}
-                noCurve={s ? undefined : '状态还没开始记录 │ 她第一次活动后开始画'}
-                noBeats={`${span}还没有行为决策 │ 她每次选动作时记一次`}
+                noCurve={s ? undefined : '状态还没开始记录 │ 角色第一次活动后开始画'}
+                noBeats={`${span}还没有行为决策 │ 角色每次选动作时记一次`}
                 pick={pick}
                 onPick={setPicked}
                 label={`精神和心情曲线，下面是同一时间轴上的行为决策，${span}`}

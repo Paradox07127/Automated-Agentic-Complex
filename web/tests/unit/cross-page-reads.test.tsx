@@ -153,7 +153,7 @@ describe('看一眼屏幕 needs screenshot sharing', () => {
     const onSend = vi.fn();
     render(<Composer {...props({ onSend, lookOff: '隐私里没开「看一下」时附上截图' })} />);
     fireEvent.click(screen.getByRole('button', { name: '附加' }));
-    const look = screen.getByRole('menuitemcheckbox', { name: /^让她看一眼屏幕/ });
+    const look = screen.getByRole('menuitemcheckbox', { name: /^让示例甲看一眼屏幕/ });
     expect(look.getAttribute('aria-disabled')).toBe('true');
     expect(look.getAttribute('title')).toBe('隐私里没开「看一下」时附上截图');
     fireEvent.click(look);

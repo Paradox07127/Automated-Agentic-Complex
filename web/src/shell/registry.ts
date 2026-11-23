@@ -23,13 +23,13 @@ export function visibleRoutes(devMode: boolean): Array<PageRoute & { demos: Demo
 
 /** The name of a plug-in's switch in 设置, for the 已关闭 reasons. */
 export const SWITCH_NAME: Record<PluginId, string> = {
-  light_ai: '和她对话',
+  light_ai: 'AI 对话',
   screen_awareness: '屏幕感知',
   screen_reading: '屏幕识读',
   daily_brief: '每日简报',
   coding_sessions: '编码会话',
   personal_agent: '派发任务和定时任务',
-  harness_bridge: '外接 harness',
+  harness_bridge: '改用 Codex、Claude Code 或 ACP',
   computer_use: '操作电脑',
   external_access: '外部智能体接入',
   motion_generation: '生成新动作',

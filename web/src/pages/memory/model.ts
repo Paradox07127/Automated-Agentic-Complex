@@ -8,15 +8,15 @@ export const SRC: Record<MemorySource, { short: string; full: string; key: strin
   inferred_hypothesis: { short: '推断', full: '推断', key: 'inferred' },
 };
 /** Who wrote a version (`GET /memory/facts/{id}/versions` `by`). */
-export const BY: Record<NonNullable<WireFactVersion['by']>, string> = { user: '你', character: '她', pipeline: '后台整理', integration: '外部工具' };
+export const BY: Record<NonNullable<WireFactVersion['by']>, string> = { user: '你', character: '角色', pipeline: '后台整理', integration: '外部工具' };
 export const SRC_ORDER: MemorySource[] = ['asserted_by_user', 'observed_context', 'confirmed_by_user', 'inferred_hypothesis'];
 
 /** The line under 来源 in the detail; a confirmed fact read from an episode was seen before it was confirmed. */
 export function howText(f: Pick<Fact, 'source' | 'evidence'>): string {
   if (f.source === 'asserted_by_user') return '你在对话里亲口说的';
-  if (f.source === 'observed_context') return '她从屏幕上看到的，还没问过你';
-  if (f.source === 'inferred_hypothesis') return '她猜的';
-  return f.evidence.some((r) => r.startsWith('episode:')) ? '她看到后，你点了「记住」' : '她猜的，你点了「记住」';
+  if (f.source === 'observed_context') return '从屏幕上看到的，还没问过你';
+  if (f.source === 'inferred_hypothesis') return '猜的';
+  return f.evidence.some((r) => r.startsWith('episode:')) ? '看到后，你点了「记住」' : '猜的，你点了「记住」';
 }
 
 /** The archive's categories over agentd's kinds (memory.py KINDS); 用户档案 is the nameplate, not a cell. */

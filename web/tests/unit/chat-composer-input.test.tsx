@@ -112,7 +112,7 @@ describe('chat composer tray', () => {
     const onSend = vi.fn(async () => 'sent' as const);
     render(<Composer {...props({ onSend })} />);
     fireEvent.click(screen.getByRole('button', { name: '附加' }));
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '让她看一眼屏幕' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '让陈千语看一眼屏幕' }));
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '这句不记' }));
     expect(screen.getByRole('button', { name: '不看屏幕' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '取消这句不记' }));

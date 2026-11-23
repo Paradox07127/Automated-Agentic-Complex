@@ -34,8 +34,8 @@ export function ActGroup() {
         <SetRow
           id="k_ask"
           title={labelOf('k_ask')}
-          desc={model.value('k_ask') === false ? '关掉后她不再用提问卡问你' : '缺你才知道的信息时，她出一张提问卡问你'}
-          info="只管她的提问卡。关掉时没做完的后台任务会取消。工具和编码会话的审批卡不受这里影响，照常弹出；已授权文件夹里的文件操作按授权范围执行。"
+          desc={model.value('k_ask') === false ? '关掉后角色不再用提问卡问你' : '缺你才知道的信息时，角色出一张提问卡问你'}
+          info="只管角色的提问卡。关掉时没做完的后台任务会取消。工具和编码会话的审批卡不受这里影响，照常弹出；已授权文件夹里的文件操作按授权范围执行。"
           control={c.toggle('k_ask', labelOf('k_ask'))}
         />
       </SetSection>

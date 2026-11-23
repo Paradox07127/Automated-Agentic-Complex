@@ -351,7 +351,7 @@ test('AvatarPoses.set: stores the lock once the avatar acks ok; refusals, no rep
   await s.poses.set('pose_sit', true);
   await s.poses.set(null, false);
   assert.deepEqual(s.calls, ['set_pose pose_sit true', 'lock aster=pose_sit', 'set_pose null false', 'lock aster=null']);
-  for (const [reason, text] of [['invalid', '角色没有这个姿态'], ['busy', '她正在做别的动作'], ['disconnected', '和角色的连接断了'],
+  for (const [reason, text] of [['invalid', '角色没有这个姿态'], ['busy', '角色正在做别的动作'], ['disconnected', '和角色的连接断了'],
     ['unsupported', '这个版本的角色不支持姿态'], ['timeout', '角色没有回应'], ['odd', '没能摆出这个姿态']]) {
     const f = poseSetup({ ok: false, reason: reason! });
     f.poses.listed('aster', []);
@@ -390,7 +390,7 @@ test('pose menu: the slots with their titles only when one has a row; 自动 rel
   f.poses.listed('aster', []);
   poseMenuActions(f.poses, (line) => logs.push(line)).setPose('pose_sit');
   await settle();
-  assert.deepEqual(logs, ['set_pose id=pose_sit lock=false failed: 她正在做别的动作']);
+  assert.deepEqual(logs, ['set_pose id=pose_sit lock=false failed: 角色正在做别的动作']);
 });
 
 test('linkPoses: her lists reach AvatarPoses, the lock is read from and written to config.json pose_lock, other keys kept', async () => {

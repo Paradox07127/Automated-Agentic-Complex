@@ -61,7 +61,7 @@ describe('PowerState on the desktop panels', () => {
 });
 
 describe('her hover buttons', () => {
-  it('keep 给她看 with 屏幕识读 off, greyed as 已关闭', () => {
+  it('keep 给角色看 with 屏幕识读 off, greyed as 已关闭', () => {
     const look = dockItems({ ...STATE, plugins: ['light_ai'] }, null, null).find((i) => i.id === 'look');
     expect(look?.off).toMatch(/^已关闭：/);
   });

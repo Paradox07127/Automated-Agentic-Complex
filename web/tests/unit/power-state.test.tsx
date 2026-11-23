@@ -17,13 +17,13 @@ const content = (
 describe('PowerState: page', () => {
   it('keeps the content on screen but inert, and puts a status board over it', () => {
     render(
-      <PowerState state="off" mode="page" title="和她对话" reason="设置里关掉了" action={{ label: '前往设置打开', onClick: () => {} }}>
+      <PowerState state="off" mode="page" title="AI 对话" reason="设置里关掉了" action={{ label: '前往设置打开', onClick: () => {} }}>
         {content}
       </PowerState>,
     );
     const board = screen.getByRole('status');
     expect(board.textContent).toContain('已关闭');
-    expect(board.textContent).toContain('和她对话');
+    expect(board.textContent).toContain('AI 对话');
     expect(board.textContent).toContain('设置里关掉了');
     const inner = screen.getByText('之前的对话');
     expect(inner.closest('[inert]')).not.toBeNull();
@@ -33,7 +33,7 @@ describe('PowerState: page', () => {
   it("runs the action's onClick from the board's button", () => {
     const go = vi.fn();
     render(
-      <PowerState state="off" mode="page" title="和她对话" reason="设置里关掉了" action={{ label: '前往设置打开', onClick: go }}>
+      <PowerState state="off" mode="page" title="AI 对话" reason="设置里关掉了" action={{ label: '前往设置打开', onClick: go }}>
         {content}
       </PowerState>,
     );

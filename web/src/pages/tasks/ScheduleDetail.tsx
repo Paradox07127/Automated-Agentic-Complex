@@ -47,7 +47,7 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
           <Pin />
           <span>
             {triggerText(t)}
-            {s.created_from === 'agent_proposal' ? ' │ 她提议的' : ''}
+            {s.created_from === 'agent_proposal' ? ' │ 角色提议的' : ''}
           </span>
         </div>
         <div className={styles.meta}>
@@ -72,7 +72,7 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
       <div className={styles.scroll}>
         {proposal && (
           <div className={paper.paper} data-depth="" data-theme="light">
-            <h4>她提议：{triggerText(t)} {s.title}</h4>
+            <h4>角色提议：{triggerText(t)} {s.title}</h4>
             <p>启用后按时自己跑{scope ? `，读「${scope.label}」` : ''}。</p>
             <div className={paper.btns}>
               <Btn size="sm" variant="primary" onClick={() => onToggle(true)}>

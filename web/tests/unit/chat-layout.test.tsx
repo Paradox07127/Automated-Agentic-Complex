@@ -135,12 +135,12 @@ describe('chat: read-only side answers', () => {
   it('turns 派发任务 off with its reason when her character is not on the desktop', () => {
     const queued = vi.fn();
     const side = render(
-      <MessageList messages={MESSAGES[C1] ?? []} view={null} roleName="示例乙" now={NOW} answered={{}} cancelled={{}} stopped={{}} frontTitle="整理本周提交周报" memsOf={() => ({ mems: [], learned: [] })} onOpenDrawer={() => {}} onAnswer={() => {}} onCancelQuestion={() => {}} onQueueSide={queued} queueOff="她不在桌面上" />,
+      <MessageList messages={MESSAGES[C1] ?? []} view={null} roleName="示例乙" now={NOW} answered={{}} cancelled={{}} stopped={{}} frontTitle="整理本周提交周报" memsOf={() => ({ mems: [], learned: [] })} onOpenDrawer={() => {}} onAnswer={() => {}} onCancelQuestion={() => {}} onQueueSide={queued} queueOff="角色不在桌面上" />,
     ).container.querySelector<HTMLElement>('[data-kind="side"]')!;
     const btn = within(side).getByRole('button', { name: /派发任务/ });
     fireEvent.click(btn);
     expect(queued).not.toHaveBeenCalled();
-    expect(side.textContent).toContain('她不在桌面上');
+    expect(side.textContent).toContain('角色不在桌面上');
   });
 });
 

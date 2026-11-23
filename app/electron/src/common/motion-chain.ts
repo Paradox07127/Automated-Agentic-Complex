@@ -86,7 +86,7 @@ export function playChainArg(value: unknown): { start: string; speed: number } {
 
 /** The failure texts for `play_chain`. */
 const PLAYED_REJECTED: Record<string, string> = {
-  missing: '这个动作缺资源', unknown_action: '角色没有这个动作', not_playable: '这个动作不能单独播', busy: '她正在做别的动作',
+  missing: '这个动作缺资源', unknown_action: '角色没有这个动作', not_playable: '这个动作不能单独播', busy: '角色正在做别的动作',
 };
 
 /** `action_played` `rejected` takes its reason as the code. */

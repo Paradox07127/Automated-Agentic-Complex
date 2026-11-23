@@ -843,7 +843,7 @@ test('StackSourceTests.testADropIsACardOfItsPathsNamesHandlesAndKindsOnly', () =
     { kind: 'url', url: 'https://example.com/a' }, { kind: 'text', text: '记得带伞' }], true);
   const id = (h.pushes.at(-1)!.cards as Json[])[0]!.id as string;
   assert.equal(id, `drop-${h.now}`);
-  assert.deepEqual(h.card(id), { id, kind: 'notice', variant: 'drop', title: '交给她 · 4 项', truncated: true, at: h.now, items: [
+  assert.deepEqual(h.card(id), { id, kind: 'notice', variant: 'drop', title: '拖给角色 · 4 项', truncated: true, at: h.now, items: [
     { kind: 'file', path: '/Users/someone/Desktop/周报.md', name: '周报.md', handle: 'H1' },
     { kind: 'file', path: '/Users/someone/Desktop/a.png', name: 'a.png', handle: 'H2' },
     { kind: 'url', url: 'https://example.com/a' }, { kind: 'text', text: '记得带伞' }] });
@@ -853,7 +853,7 @@ test('StackSourceTests.testADropIsACardOfItsPathsNamesHandlesAndKindsOnly', () =
   assert.ok(h.card(id));
   assert.ok(h.source.collapse(id));
   assert.equal(h.card(id), undefined);
-  assert.equal(h.history[0]!.title, '交给她 · 4 项');
+  assert.equal(h.history[0]!.title, '拖给角色 · 4 项');
 });
 
 test('a Windows path dropped on her is named by its last segment', () => {

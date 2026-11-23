@@ -79,7 +79,7 @@ export function StepChar({ o }: { o: Onboarding }) {
       <SetSection title="名册">
         {list.length === 0 ? (
           <div className={styles.empty}>
-            <span className={styles.why}>还没有角色。导入一个角色包，她就会出现在桌面上。</span>
+            <span className={styles.why}>还没有角色。导入一个角色包，角色就会出现在桌面上。</span>
             <Btn onClick={o.importPackage}>导入角色包</Btn>
           </div>
         ) : (
@@ -202,14 +202,14 @@ export function StepChat({ g }: { g: GuideSettings }) {
         />
       )}
       {restarting && <ErrBar tone="warning" message="正在重启后台… 回来后账号这一块就能用" />}
-      <Band plugin="light_ai" fold="模型服务、账号">
+      <Band plugin="light_ai" fold="模型提供方、账号、测试连接">
         <SettingsCtx.Provider value={{ ...ctx, ro, roReason: restarting ? '正在重启后台' : '后台服务没有运行' }}>
           <AccountRows />
           <SetRow
             id="mtest"
             title={labelOf('mtest')}
             indent
-            desc={test.state === 'ok' ? '她现在能和你对话了' : connected ? '发一句话给模型，看能不能回' : '先连上账号再测'}
+            desc={test.state === 'ok' ? '现在能和你对话了' : connected ? '发一句话给模型，看能不能回' : '先连上账号再测'}
             descTone={test.state === 'ok' ? 'ok' : undefined}
             control={
               <>
@@ -269,7 +269,7 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
       g.talks && !ready && <Btn variant="link" onClick={() => goto(2)}>去连</Btn>,
     ],
     [
-      '她的声音',
+      '角色的声音',
       her && !her.voice ? <StatusLamp size="sm" state="idle" label="没有声线，只显示文字" /> : g.talks && g.ctx.diag.voice != null && !g.ctx.diag.voiceNone ? <StatusLamp size="sm" state="ok" label="外部服务" /> : <StatusLamp size="sm" state="idle" label="只显示文字" />,
       null,
     ],
@@ -317,25 +317,25 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
             ))}
           </div>
         </Slab>
-        <Slab id="calls" variant="plate" title="怎么叫她">
+        <Slab id="calls" variant="plate" title={`怎么叫${her?.name ?? '角色'}`}>
           <div className={styles.calls}>
             <div className={styles.call}>
               <span className={styles.how}>
                 <Mouse side="left" />
-                点她
+                点角色
               </span>
               <b>互动、摸头</b>
             </div>
             <div className={styles.call}>
               <span className={styles.how}>
                 <Mouse side="right" />
-                右键她
+                右键角色
               </span>
               <b>快捷轮盘</b>
             </div>
             <div className={styles.call}>
               <KeyCell keys={quick ? capsOf(hotkeyText(quick)) : undefined} none={quick === ''} />
-              <b>{g.talks ? '和她聊天' : '快速输入'}</b>
+              <b>{g.talks ? '聊天' : '快速输入'}</b>
             </div>
           </div>
         </Slab>

@@ -31,7 +31,7 @@ for (const theme of ['dark', 'light'] as const) {
       if (demo === 'ring') await open(page, { mode: 'ring', theme });
       else await openInput(page, { demo, theme });
       await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe(theme);
-      if (demo === 'ring') await expect(page.getByRole('menu', { name: '她的轮盘' })).toBeVisible();
+      if (demo === 'ring') await expect(page.getByRole('menu', { name: '角色的轮盘' })).toBeVisible();
       else await expect(page.getByRole('dialog', { name: '快速输入' })).toBeVisible();
       if (demo === 'input-err-agentd') await expect(page.getByRole('button', { name: '重启后台服务' })).toBeVisible();
       if (demo === 'input-err-kernel') await expect(page.getByRole('button', { name: /重新检测/ })).toBeVisible();
@@ -46,7 +46,7 @@ for (const theme of ['dark', 'light'] as const) {
 test('wheel: 8 numbered items with the pending count, dark in a light theme, the key help only while ⌘ is held', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page, { mode: 'ring', theme: 'light' });
-  const wheel = page.getByRole('menu', { name: '她的轮盘' });
+  const wheel = page.getByRole('menu', { name: '角色的轮盘' });
   await expect(wheel).toBeVisible();
   const items = wheel.getByRole('menuitem');
   await expect(items).toHaveCount(8);
@@ -66,7 +66,7 @@ test('wheel: 8 numbered items with the pending count, dark in a light theme, the
 test('wheel: centred where she was right-clicked, moved in so it stays whole', async ({ page }) => {
   for (const [at, want] of [['260,260', [260, 260]], ['40,500', [186, 302]]] as const) {
     await open(page, { mode: 'ring', at });
-    const box = await page.getByRole('menu', { name: '她的轮盘' }).boundingBox();
+    const box = await page.getByRole('menu', { name: '角色的轮盘' }).boundingBox();
     const root = await page.locator('[data-slot="ring"]').boundingBox();
     expect(box && root && [Math.round(box.x - root.x + box.width / 2), Math.round(box.y - root.y + box.height / 2)]).toEqual(want);
   }
@@ -75,11 +75,11 @@ test('wheel: centred where she was right-clicked, moved in so it stays whole', a
 test('wheel: 1 opens the chat page; Esc closes it', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page, { mode: 'ring' });
-  await page.getByRole('menu', { name: '她的轮盘' }).press('Escape');
-  await expect(page.getByRole('menu', { name: '她的轮盘' })).toHaveCount(0);
+  await page.getByRole('menu', { name: '角色的轮盘' }).press('Escape');
+  await expect(page.getByRole('menu', { name: '角色的轮盘' })).toHaveCount(0);
 
   await open(page, { mode: 'ring' });
-  await page.getByRole('menu', { name: '她的轮盘' }).press('1');
+  await page.getByRole('menu', { name: '角色的轮盘' }).press('1');
   await expect(page).toHaveURL(/main\.html#\/chat/);
   expect(errors).toEqual([]);
 });
@@ -87,13 +87,13 @@ test('wheel: 1 opens the chat page; Esc closes it', async ({ page }) => {
 test('wheel: 自由活动 closes the wheel with no toast on the panel (its receipt goes to her bubble); with nothing pending 待处理 is greyed and runs nothing', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page, { mode: 'ring' });
-  await page.getByRole('menu', { name: '她的轮盘' }).press('6');
-  await expect(page.getByRole('menu', { name: '她的轮盘' })).toHaveCount(0);
+  await page.getByRole('menu', { name: '角色的轮盘' }).press('6');
+  await expect(page.getByRole('menu', { name: '角色的轮盘' })).toHaveCount(0);
   await expect(page.getByRole('status')).toHaveCount(0);
   await expect(page).toHaveURL(/stack\.html#\/cmd/);
 
   await open(page, { mode: 'ring', demo: 'empty' });
-  const wheel = page.getByRole('menu', { name: '她的轮盘' });
+  const wheel = page.getByRole('menu', { name: '角色的轮盘' });
   await expect(wheel.getByRole('menuitem', { name: /^2 待处理/ })).toHaveAttribute('aria-disabled', 'true');
   await wheel.press('2');
   await expect(wheel).toContainText('没有待处理的事');

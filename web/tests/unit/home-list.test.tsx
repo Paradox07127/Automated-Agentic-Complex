@@ -182,7 +182,7 @@ describe('home right list keys', () => {
       ['动作表', 'character', { pane: 'motion' }],
       ['拍照', 'character', { view: 'photo' }],
       ['MMD', 'character', { view: 'mmd' }],
-      ['她这一天', 'overview', { tab: 'her' }],
+      ['角色这一天', 'overview', { tab: 'char' }],
       ['时间', 'overview', { tab: 'tm' }],
       ['能做', 'settings', { group: 'perm' }],
       ['观察', 'settings', { group: 'privacy' }],
@@ -203,7 +203,7 @@ describe('home right list keys', () => {
     pluginsReset();
     setDevMode(false);
     const list = await mount();
-    for (const name of ['定时', '回顾', '她这一天']) {
+    for (const name of ['定时', '回顾', '角色这一天']) {
       const b = key(list, name);
       expect(b.hasAttribute('disabled'), name).toBe(false);
       expect(b.querySelector('[data-stub="PowerMark"]')?.getAttribute('aria-label'), name).toBe('已关闭');

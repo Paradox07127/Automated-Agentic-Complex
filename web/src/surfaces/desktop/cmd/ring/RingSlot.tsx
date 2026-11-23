@@ -55,7 +55,7 @@ export function RingSlot({ state, presence, command, close }: CommandSlotProps) 
       if (mounted.current) close();
     });
 
-  const center = { en: 'AGENTIC COMPLEX', name: state?.character?.name ?? '她', desc: '待命' };
+  const center = { en: 'AGENTIC COMPLEX', name: state?.character?.name ?? '角色', desc: '待命' };
   return (
     <div data-slot="ring" className={styles.box} style={{ width: WHEEL_BOX, height: WHEEL_BOX }}>
       <CommandRing key={round} items={wheelItems(state, pendingCount(presence), Date.now(), gift)} center={center} at={at} press={press} onRun={run} onClose={close} />

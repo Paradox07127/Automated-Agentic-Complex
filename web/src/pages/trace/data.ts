@@ -47,13 +47,13 @@ export function useConvTitles(enabled: boolean) {
 /** Who started a turn, by `input.received` source. */
 export const SRC_LABEL: Readonly<Record<string, string>> = {
   text: '你说', voice: '你说（语音）', desktop: '桌面输入', quick: '桌面输入', gift: '你递来东西', proactive: '主动发起', announce: '主动发起', ritual: '主动发起',
-  tap: '你碰她', background: '后台任务',
+  tap: '你碰角色', background: '后台任务',
 };
 export const srcLabel = (s: string) => SRC_LABEL[s] ?? '你说';
 
 /** The list's source filter groups. */
 export type SrcGroup = 'all' | 'user' | 'proactive' | 'tap' | 'background';
-export const SRC_GROUPS: ReadonlyArray<[SrcGroup, string]> = [['all', '全部来源'], ['user', '你说（含语音）'], ['proactive', '主动发起'], ['tap', '你碰她'], ['background', '后台任务']];
+export const SRC_GROUPS: ReadonlyArray<[SrcGroup, string]> = [['all', '全部来源'], ['user', '你说（含语音）'], ['proactive', '主动发起'], ['tap', '你碰角色'], ['background', '后台任务']];
 export function groupOf(s: string): Exclude<SrcGroup, 'all'> {
   if (s === 'background') return 'background';
   if (s === 'tap') return 'tap';

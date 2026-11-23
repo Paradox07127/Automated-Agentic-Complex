@@ -82,7 +82,7 @@ const cells = (a: string, b: string, c: string) => (
 );
 
 export const ExpandRowDemos: Array<{ name: string; props: ExpandRowProps }> = [
-  { name: 'closed', props: { children: cells('14:02', '后台整理', '+3 新增 ～1 更新'), body: '新增：她喜欢在周五下午整理周报' } },
+  { name: 'closed', props: { children: cells('14:02', '后台整理', '+3 新增 ～1 更新'), body: '新增：喜欢在周五下午整理周报' } },
   { name: 'failed-open', props: { tone: 'fail', defaultOpen: true, children: cells('13:40', '后台整理', '校验没通过'), body: '模型返回的条目缺少来源' } },
   { name: 'selected', props: { selected: true, children: cells('13:12', '对话中', '无新增'), end: '生成记录 ›' } },
   { name: 'plain', props: { tone: 'run', children: cells('14:10', '后台整理', '正在读 7 条来源…') } },

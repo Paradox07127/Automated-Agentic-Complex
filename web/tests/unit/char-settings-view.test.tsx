@@ -63,7 +63,7 @@ describe('CharacterSettings', () => {
       ['性能', true],
     ]);
     expect(screen.getAllByText('原作镜头预设').length).toBeGreaterThan(0);
-    expect(screen.queryByText('镜头、帧率、环境光和光线包裹只作用在桌面上的她，预览不跟随')).toBeNull();
+    expect(screen.queryByText('镜头、帧率、环境光和光线包裹只作用在桌面上的角色，预览不跟随')).toBeNull();
   });
 
   it('counts the changed rows of the page, dots the tabs with changes, and puts the page back with 恢复原作', async () => {

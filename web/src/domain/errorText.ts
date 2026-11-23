@@ -19,7 +19,7 @@ const CODE_TEXT: Readonly<Record<string, string>> = {
   api_error: '内核调用失败，请在 设置 › 角色内核 重新检测',
   pi_connection_missing: '还没有模型连接。到 设置 › pi 账号与凭据 填一个 API Key',
   no_character: '角色库里没有角色。到「角色」页点「导入角色」',
-  output_truncated: '回复太长，被模型的输出上限截断了。让她分几段写，或换一个输出上限更大的模型',
+  output_truncated: '回复太长，被模型的输出上限截断了。让角色分几段写，或换一个输出上限更大的模型',
   // Goals, jobs, task ledger and conversations
   version_conflict: '这条记录已更新，请刷新后重试',
   job_not_resumable: '这项任务当前不能继续，请刷新任务状态',

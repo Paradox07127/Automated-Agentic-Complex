@@ -110,7 +110,7 @@ test('menu bar: 打开主窗口 opens the home page and closes the panel', async
   await open(page, {}, '/console');
   const menu = page.getByRole('dialog', { name: 'Agentic Complex 菜单' });
   const names = () => menu.getByRole('button').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.textContent?.trim()));
-  await expect.poll(names).toEqual(['设置', '关闭菜单', '角色：示例乙', expect.stringMatching(/打开主窗口/), '快速输入', '免打扰', '隐藏她', '全部点穿', '退出']);
+  await expect.poll(names).toEqual(['设置', '关闭菜单', '角色：示例乙', expect.stringMatching(/打开主窗口/), '快速输入', '免打扰', '隐藏角色', '全部点穿', '退出']);
   await expect(menu.getByRole('button', { name: /打开主窗口/ })).toBeFocused();
   // Opened without a key: the focused button draws no ring; the first Tab shows it on the next one.
   const ring = () => page.evaluate(() => getComputedStyle(document.activeElement as Element).outlineStyle);
@@ -150,12 +150,12 @@ test('menu bar: the switches stay open and say what changed; settings opens its 
   await open(page, {}, '/console');
   const menu = page.getByRole('dialog', { name: 'Agentic Complex 菜单' });
   const keys = menu.getByRole('group', { name: '快捷开关' });
-  await expect(keys.getByRole('button', { name: '隐藏她' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(keys.getByRole('button', { name: '隐藏角色' })).toHaveAttribute('aria-pressed', 'false');
   await keys.getByRole('button', { name: '免打扰' }).click();
   await expect(menu.getByRole('status')).toContainText('免打扰已开始');
   await keys.getByRole('button', { name: '全部点穿' }).click();
   await expect(keys.getByRole('button', { name: '全部点穿' })).toBeEnabled();
-  await keys.getByRole('button', { name: '隐藏她' }).click();
+  await keys.getByRole('button', { name: '隐藏角色' }).click();
   await expect.poll(() => calls('desktop.action')).toEqual([['quiet'], ['clickThroughAll'], ['hide']]);
   await expect(menu.getByText(/陪我专注/)).toHaveCount(0);
   await menu.getByRole('button', { name: '设置' }).click();
@@ -169,7 +169,7 @@ test('menu bar: 退出 asks once in place; Escape takes the question back and le
   const menu = page.getByRole('dialog', { name: 'Agentic Complex 菜单' });
   await menu.getByRole('button', { name: '退出' }).click();
   const ask = menu.getByRole('alertdialog', { name: '退出确认' });
-  await expect(ask).toContainText('退出后后台和她都会停下');
+  await expect(ask).toContainText('退出后后台和角色都会停下');
   await page.keyboard.press('Escape');
   await expect(ask).toHaveCount(0);
   await expect(menu).toBeVisible();
@@ -191,7 +191,7 @@ test('menu bar: offline hides stale pending, offers recovery and leaves window a
   await menu.getByRole('button', { name: '重启后台' }).click();
   await expect.poll(() => calls('supervisor.restart')).toEqual([['agentd']]);
   await expect(menu.getByText('已请求重启后台')).toBeVisible();
-  const role = menu.getByRole('button', { name: '隐藏她' });
+  const role = menu.getByRole('button', { name: '隐藏角色' });
   await expect(role).toHaveAttribute('aria-pressed', 'true');
   await role.click();
   await expect.poll(() => calls('desktop.action')).toEqual([['show']]);

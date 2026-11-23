@@ -232,13 +232,13 @@ describe('the bubble', () => {
     vi.useFakeTimers();
     const b = mountBubble();
     await b.presence(presenceOf());
-    await b.command({ kind: 'notice', text: '她在忙，等这一轮做完' });
-    screen.getByText('她在忙，等这一轮做完');
+    await b.command({ kind: 'notice', text: '角色在忙，等这一轮做完' });
+    screen.getByText('角色在忙，等这一轮做完');
     screen.getByText(THOUGHT.text);
     await flush(async () => vi.advanceTimersByTime(3900));
-    screen.getByText('她在忙，等这一轮做完');
+    screen.getByText('角色在忙，等这一轮做完');
     await flush(async () => vi.advanceTimersByTime(200));
-    expect(screen.queryByText('她在忙，等这一轮做完')).toBeNull();
+    expect(screen.queryByText('角色在忙，等这一轮做完')).toBeNull();
   });
 
   it('a drop card opens 快速输入 with a scope over its files', async () => {
@@ -257,7 +257,7 @@ describe('the bubble', () => {
       kind: 'notice' as const,
       variant: 'drop' as const,
       at: SAMPLED * 1000,
-      title: '交给她 │ 2 项',
+      title: '拖给角色 │ 2 项',
       truncated: false,
       items: [
         { kind: 'file' as const, path: '/a/周报.md', name: '周报.md', handle: 'H:周报.md' },
@@ -290,7 +290,7 @@ describe('the bubble', () => {
         kind: 'notice',
         variant: 'drop',
         at: SAMPLED * 1000,
-        title: '交给她 │ 3 项',
+        title: '拖给角色 │ 3 项',
         truncated: false,
         items: [
           { kind: 'url', url: 'https://example.com/spec' },
@@ -301,7 +301,7 @@ describe('the bubble', () => {
     ]);
     await flush(async () => {});
     const dialog = screen.getByRole('dialog', { name: '快速输入' });
-    within(dialog).getByText('读不了 .pdf，只把路径发给她');
+    within(dialog).getByText('读不了 .pdf，只把路径发给角色');
     const box = within(dialog).getByRole('textbox');
     fireEvent.change(box, { target: { value: '帮我看看这些' } });
     await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
@@ -324,7 +324,7 @@ describe('the bubble', () => {
     });
     await b.presence(presenceOf());
     await b.cards([
-      { id: 'drop-long', kind: 'notice', variant: 'drop', at: SAMPLED * 1000, title: '交给她 │ 1 项', truncated: false,
+      { id: 'drop-long', kind: 'notice', variant: 'drop', at: SAMPLED * 1000, title: '拖给角色 │ 1 项', truncated: false,
         items: [{ kind: 'text', text: '长'.repeat(3000) }] },
     ]);
     await flush(async () => {});
@@ -343,7 +343,7 @@ describe('the bubble', () => {
     kind: 'notice',
     variant: 'drop',
     at: SAMPLED * 1000,
-    title: '交给她 │ 2 项',
+    title: '拖给角色 │ 2 项',
     truncated: false,
     items: [
       { kind: 'file', path: '/a/a.pdf', name: 'a.pdf', handle: 'H:a.pdf' },

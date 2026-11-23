@@ -80,5 +80,5 @@ export const TextAreaDemos: Array<{ name: string; props: TextAreaProps }> = [
   { name: 'auto-grow-long', props: { label: '消息', value: '第一行\n第二行\n第三行\n第四行\n第五行\n第六行，超出五行后在框内滚动', autoGrow: true, maxRows: 5 } },
   { name: 'disabled', props: { label: '指令', value: '', placeholder: '交给后台作业执行的说明', disabled: true, disabledReason: '这个任务已经在跑，停下后才能改' } },
   { name: 'invalid', props: { label: '要求', value: '', invalid: true, error: '要求不能为空' } },
-  { name: 'hud', props: { label: '对 她 说的话', value: '', placeholder: '帮我查这个报错', rows: 1, hud: true } },
+  { name: 'hud', props: { label: '对 角色 说的话', value: '', placeholder: '帮我查这个报错', rows: 1, hud: true } },
 ];

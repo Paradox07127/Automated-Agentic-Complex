@@ -84,22 +84,22 @@ export function ModLine({ id }: { id: string }) {
 }
 
 export const SRowDemos: Array<{ name: string; props: SRowProps }> = [
-  { name: 'toggle', props: { id: 'observe', title: '观察电脑上的活动', desc: '总开关。关掉后「她看到的」不再更新', control: <Toggle on label="观察电脑上的活动" /> } },
+  { name: 'toggle', props: { id: 'observe', title: '观察电脑上的活动', desc: '总开关。关掉后「看到的」不再更新', control: <Toggle on label="观察电脑上的活动" /> } },
   { name: 'backend', props: { id: 'wintext', title: '窗口文字', desc: '关闭会删除已收集内容', effect: 'backend', pending: true, control: <Toggle on={false} label="窗口文字" /> } },
   {
     name: 'character',
     props: {
       id: 'proactive',
       title: '主动程度',
-      desc: '她多久主动开口一次',
+      desc: '多久主动开口一次',
       effect: 'character',
       control: <Select label="主动程度" value="适中" defaultValue="适中" options={[{ value: '安静', label: '安静' }, { value: '适中', label: '适中' }, { value: '活跃', label: '活跃', risky: true }]} />,
     },
   },
   {
     name: 'modified',
-    props: { id: 'proactive-mod', title: '主动程度', desc: '她多久主动开口一次', modified: true, control: <Select label="主动程度" value="活跃" defaultValue="适中" options={[{ value: '安静', label: '安静' }, { value: '适中', label: '适中' }, { value: '活跃', label: '活跃', risky: true }]} /> },
+    props: { id: 'proactive-mod', title: '主动程度', desc: '多久主动开口一次', modified: true, control: <Select label="主动程度" value="活跃" defaultValue="适中" options={[{ value: '安静', label: '安静' }, { value: '适中', label: '适中' }, { value: '活跃', label: '活跃', risky: true }]} /> },
   },
   { name: 'disabled', props: { id: 'shot', title: '附上截图', desc: '提问时带上当前窗口的截图', disabled: true, disabledReason: '屏幕录制未允许', control: <Toggle on={false} label="附上截图" /> } },
-  { name: 'extra', props: { id: 'scope', title: '资料范围', desc: '她能读的文件夹', control: '2 个文件夹', children: '~/Documents/周报 │ ~/Endfield/app' } },
+  { name: 'extra', props: { id: 'scope', title: '资料范围', desc: '角色能读的文件夹', control: '2 个文件夹', children: '~/Documents/周报 │ ~/Endfield/app' } },
 ];

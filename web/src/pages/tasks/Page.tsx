@@ -197,7 +197,7 @@ export function TasksPage() {
   const delSched = del ? scheds.find((s) => s.schedule_id === del) : undefined;
   const newKind: CreateKind = tab === 'sched' ? 'sched' : 'role';
   const newLabel = tab === 'sched' ? '新建定时任务' : '派发任务';
-  const emptyText = tab === 'run' ? '她现在没有在做的任务' : tab === 'sched' ? '还没有定时任务' : '还没有做完的任务';
+  const emptyText = tab === 'run' ? '现在没有在做的任务' : tab === 'sched' ? '还没有定时任务' : '还没有做完的任务';
   const plugins = usePlugins();
   // Coding sessions are one kind of row in 进行中 and 已完成; with 编码会话 off that kind says 已关闭 over the list.
   const codeOff =

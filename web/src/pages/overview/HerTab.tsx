@@ -1,4 +1,4 @@
-// 简报「她」页签：她每小时的发言叠精神和心情，今天的话、你碰她、她为什么开口，动作、新记住的事和她替你动手（或她在桌面上）。
+// 简报「角色」页签：她每小时的发言叠精神和心情，今天的话、你碰她、她为什么开口，动作、新记住的事和她替你动手（或她在桌面上）。
 import type { ReactNode } from 'react';
 import { appNow } from '../../bridge/clock';
 import { HourArea } from '../../charts';
@@ -70,7 +70,7 @@ const KIND = { self: '主动', miss: '主动 │ 没回', reply: '回你' } as c
 const TOUCH: Array<{ key: keyof BriefDay['her']['touch']; label: string; d: string }> = [
   { key: 'pat', label: '摸头', d: 'M5 12V6a1.5 1.5 0 0 1 3 0v5h1V4a1.5 1.5 0 0 1 3 0v7h1V5a1.5 1.5 0 0 1 3 0v7h1V8a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-7 7h-2a7 7 0 0 1-6-3.5L2 14l2-1.5z' },
   { key: 'pinch', label: '捏脸', d: 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zM8 8h2.2v3H8zM13.8 8H16v3h-2.2zM6.5 14.5l2-1 1.5 1.5 2-1.5 2 1.5 1.5-1.5 2 1-3.5 3h-4z' },
-  { key: 'drag', label: '拖她', d: 'M12 1l4 4h-3v6h6V8l4 4-4 4v-3h-6v6h3l-4 4-4-4h3v-6H5v3l-4-4 4-4v3h6V5H8z' },
+  { key: 'drag', label: '拖动', d: 'M12 1l4 4h-3v6h6V8l4 4-4 4v-3h-6v6h3l-4 4-4-4h3v-6H5v3l-4-4 4-4v3h6V5H8z' },
   { key: 'wheel', label: '右键轮盘', d: 'M12 1a11 11 0 1 1 0 22 11 11 0 0 1 0-22zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z' },
 ];
 
@@ -90,7 +90,7 @@ export function HerTab({ day }: BriefTabProps) {
   );
   return (
     <div className={st.view}>
-      <section className={st.power} data-theme="dark" aria-label="她这一天">
+      <section className={st.power} data-theme="dark" aria-label="角色这一天">
         <div className={st.chart}>
           <HourArea
             label="每小时发言和精神、心情"
@@ -136,7 +136,7 @@ export function HerTab({ day }: BriefTabProps) {
                   <small>次</small>
                 </>
               }
-              k="你碰她"
+              k="你碰角色"
             />
           )}
           <Big
@@ -168,7 +168,7 @@ export function HerTab({ day }: BriefTabProps) {
           </ul>
         </Panel>
         <div className={st.col}>
-          <Panel tag="你碰她">
+          <Panel tag="你碰角色">
             <ul className={st.touch}>
               {TOUCH.map((t) => (
                 <li key={t.key}>
@@ -181,8 +181,8 @@ export function HerTab({ day }: BriefTabProps) {
               ))}
             </ul>
           </Panel>
-          <Panel tag="她为什么开口" sub={`共 ${why} 次 │ 你回了 ${her.said.replied} 次`}>
-            <Bars label="她为什么开口" rows={counted(her.why, '次')} />
+          <Panel tag="为什么开口" sub={`共 ${why} 次 │ 你回了 ${her.said.replied} 次`}>
+            <Bars label="为什么开口" rows={counted(her.why, '次')} />
           </Panel>
         </div>
       </div>
@@ -203,13 +203,13 @@ export function HerTab({ day }: BriefTabProps) {
           />
         </Panel>
         {tools.enabled ? (
-          <Panel tag="她替你动手">
-            <Bars label="她替你动手" rows={counted(tools.by_name, '次')} />
+          <Panel tag="替你动手">
+            <Bars label="替你动手" rows={counted(tools.by_name, '次')} />
             <p className={st.sub}>{`改了 ${tools.files_changed} 个文件 │ 跑了 ${Math.floor(tools.run_minutes / 60)} h ${pad(tools.run_minutes % 60)} m │ ${tools.asked} 次先问了你`}</p>
           </Panel>
         ) : (
-          <Panel tag="她在桌面上">
-            <Bars label="她在桌面上" rows={her.desk.map((d) => ({ key: d.key, label: d.label, value: d.minutes ?? d.count, readout: d.minutes == null ? `${d.count} 次` : `${d.minutes} m` }))} />
+          <Panel tag="在桌面上">
+            <Bars label="在桌面上" rows={her.desk.map((d) => ({ key: d.key, label: d.label, value: d.minutes ?? d.count, readout: d.minutes == null ? `${d.count} 次` : `${d.minutes} m` }))} />
           </Panel>
         )}
       </div>

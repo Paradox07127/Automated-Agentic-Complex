@@ -258,7 +258,7 @@ describe('chat composer look / no_memory', () => {
     render(<Composer {...props({ onSend })} />);
     fireEvent.change(screen.getByLabelText('消息'), { target: { value: '帮我看一下这个报错' } });
     fireEvent.click(screen.getByRole('button', { name: '附加' }));
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '让她看一眼屏幕' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '让角色看一眼屏幕' }));
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '这句不记' }));
     fireEvent.click(screen.getByRole('button', { name: /发送/ }));
     expect(onSend).toHaveBeenLastCalledWith('帮我看一下这个报错', { look: true, no_memory: true });

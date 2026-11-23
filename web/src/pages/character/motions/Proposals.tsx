@@ -58,7 +58,7 @@ export function PoolProposals(p: PoolProposalsProps) {
   return (
     <>
       {p.pending.length > 0 && (
-        <GroupFold title="她建议" n={p.pending.length} open>
+        <GroupFold title="角色建议" n={p.pending.length} open>
           {p.pending.map((x) => (
             <div key={x.clip} className={styles.row} data-proposal={x.clip}>
               <DarkRow

@@ -78,7 +78,7 @@ export function ScopeList() {
             )}
           </li>
         ))}
-        {scopes != null && live.length === 0 && <li className={styles.t3}>还没有授权文件夹；她只能读你在对话里给的文件</li>}
+        {scopes != null && live.length === 0 && <li className={styles.t3}>还没有授权文件夹；角色只能读你在对话里给的文件</li>}
       </ul>
     </Slab>
   );

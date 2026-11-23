@@ -121,7 +121,7 @@ describe('OptionStack press start and end', () => {
   const items = [
     { id: 'chat', label: '对话', icon: 'send' as const },
     { id: 'talk', label: '说话', icon: 'mic' as const },
-    { id: 'look', label: '给她看', icon: 'look' as const, off: '观察已暂停' },
+    { id: 'look', label: '给角色看', icon: 'look' as const, off: '观察已暂停' },
   ];
 
   it('reports the press and the release of a row apart; a row it cannot use reports neither', () => {
@@ -137,7 +137,7 @@ describe('OptionStack press start and end', () => {
     fireEvent.pointerDown(talk, { button: 0, pointerId: 2 });
     fireEvent.pointerCancel(talk, { pointerId: 2 });
     expect(end).toHaveBeenCalledTimes(2);
-    const look = screen.getByRole('button', { name: '给她看' });
+    const look = screen.getByRole('button', { name: '给角色看' });
     fireEvent.pointerDown(look, { button: 0, pointerId: 3 });
     fireEvent.pointerUp(look, { button: 0, pointerId: 3 });
     expect(start).toHaveBeenCalledTimes(2);

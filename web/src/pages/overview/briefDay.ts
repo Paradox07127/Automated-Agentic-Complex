@@ -85,15 +85,15 @@ export interface ItemMeta {
 }
 
 export const ITEMS: Record<BriefItemId, ItemMeta> = {
-  done: { name: '任务完成', src: '她做完的任务和交付', unit: '', need: ['agent', 'code'] },
+  done: { name: '任务完成', src: '做完的任务和交付', unit: '', need: ['agent', 'code'] },
   err: { name: '出错', src: '任务和编码会话里出错的', unit: '', need: ['agent', 'code'] },
-  turn: { name: '对话', src: '你和她的往返轮数', unit: '轮', need: [] },
+  turn: { name: '对话', src: '你和角色的往返轮数', unit: '轮', need: [] },
   line: { name: '发言', src: '回你的、主动的、被碰时的', unit: '句', need: [] },
   fg: { name: '在电脑前', src: '前台时长，离开不算', unit: '', kind: 'min', need: ['scr'] },
-  say: { name: '主动发言', src: '她先开口的次数', unit: '次', need: [] },
-  motion: { name: '动作播放', src: '她在桌面上做的动作', unit: '次', need: [] },
-  touch: { name: '你碰她', src: '摸头、捏脸、拖动、右键', unit: '次', need: [] },
-  voice: { name: '她出声', src: '语音播放时长', unit: '', kind: 'sec', need: ['voice'] },
+  say: { name: '主动发言', src: '角色先开口的次数', unit: '次', need: [] },
+  motion: { name: '动作播放', src: '角色在桌面上做的动作', unit: '次', need: [] },
+  touch: { name: '你碰角色', src: '摸头、捏脸、拖动、右键', unit: '次', need: [] },
+  voice: { name: '角色出声', src: '语音播放时长', unit: '', kind: 'sec', need: ['voice'] },
   mem: { name: '新记住的事', src: '进记忆的事实', unit: '条', need: [] },
   cost: { name: '模型花费', src: '对话、内核和记忆整理', unit: '', kind: 'usd', need: [] },
   code: { name: '编码会话', src: 'Claude Code、Codex', unit: '个', need: ['code'] },

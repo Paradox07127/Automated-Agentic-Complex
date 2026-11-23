@@ -150,13 +150,13 @@ test('pushState sends desktop.onState now; notice and openStack reach desktop.on
   const commands = h.watch('/bubble', 'desktop.onCommand');
   h.desktop.pushState();
   assert.deepEqual(states, [{ n: 1, dock: { open: false, side: 'right', compact: false } }]);
-  h.desktop.notice('她在忙，等这一轮做完');
+  h.desktop.notice('角色在忙，等这一轮做完');
   // 去处理 with no card says so in the bubble; with one the stack expands.
   assert.equal(await h.call('/cmd', 'desktop.action', ['openStack']), null);
   h.desktop.agentd(true);
   assert.equal(h.desktop.testCard('approval'), true);
   assert.equal(await h.call('/cmd', 'desktop.action', ['openStack']), null);
-  assert.deepEqual(commands, [{ kind: 'notice', text: '她在忙，等这一轮做完' }, { kind: 'notice', text: '现在没有要处理的' },
+  assert.deepEqual(commands, [{ kind: 'notice', text: '角色在忙，等这一轮做完' }, { kind: 'notice', text: '现在没有要处理的' },
     { kind: 'expandStack' }]);
   assert.equal(await h.call('/cmd', 'desktop.action', ['openSessions']), null);
   assert.ok(h.calls.includes('openMain /overview?focus=running'));

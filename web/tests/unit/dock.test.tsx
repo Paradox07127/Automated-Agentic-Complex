@@ -37,19 +37,19 @@ function mount(state: DesktopState = STATE) {
   return { action, openMain, state: (s: DesktopState) => flush(async () => push?.(s)) };
 }
 
-const group = () => screen.getByRole('group', { name: '她的按钮' });
+const group = () => screen.getByRole('group', { name: '角色的按钮' });
 const row = (name: RegExp) => within(group()).getByRole('button', { name });
 
 describe('her hover buttons', () => {
-  it('show 对话, 说话, 给她看 and 隐藏 with the saved keys while native has them open, and nothing while closed', async () => {
+  it('show 对话, 说话, 给角色看 and 隐藏 with the saved keys while native has them open, and nothing while closed', async () => {
     const d = mount();
     await flush(async () => {});
-    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '说话', '给她看', '隐藏']);
+    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '说话', '给角色看', '隐藏']);
     expect(group().textContent).toContain('⌃Space');
     expect(group().textContent).toContain('右 ⌥');
     expect(document.querySelector('[data-surface-root="dock"] [data-region]')).not.toBeNull();
     await d.state({ ...STATE, dock: { open: false, side: 'right', compact: false } });
-    expect(screen.queryByRole('group', { name: '她的按钮' })).toBeNull();
+    expect(screen.queryByRole('group', { name: '角色的按钮' })).toBeNull();
     expect(document.querySelector('[data-surface-root="dock"] [data-region]')).toBeNull();
   });
 
@@ -61,10 +61,10 @@ describe('her hover buttons', () => {
     expect(document.querySelector('[data-stub="OptionStack"]')?.hasAttribute('data-compact')).toBe(true);
   });
 
-  it('对话, 给她看 and 隐藏 go through desktop.action', async () => {
+  it('对话, 给角色看 and 隐藏 go through desktop.action', async () => {
     const d = mount();
     await flush(async () => {});
-    for (const name of [/^对话$/, /^给她看$/, /^隐藏$/]) await flush(async () => fireEvent.click(row(name)));
+    for (const name of [/^对话$/, /^给角色看$/, /^隐藏$/]) await flush(async () => fireEvent.click(row(name)));
     expect(d.action.mock.calls).toEqual([['quickInput', undefined], ['look', undefined], ['hide', undefined]]);
   });
 
@@ -103,7 +103,7 @@ describe('her hover buttons', () => {
     now.mockReturnValue(1000 + TAP_MS + 300);
     await flush(async () => fireEvent.pointerCancel(row(/^在听/), { pointerId: 1 }));
     expect(d.action.mock.calls).toEqual([['talk', 'start'], ['talk', 'stop']]);
-    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '说话', '给她看', '隐藏']);
+    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '说话', '给角色看', '隐藏']);
   });
 
   it('a press on 对话 records nothing; its click picks it', async () => {
@@ -115,7 +115,7 @@ describe('her hover buttons', () => {
     expect(d.action.mock.calls).toEqual([['quickInput', undefined]]);
   });
 
-  it('without agentd 对话, 说话 and 给她看 are greyed with the reason, and a greyed 说话 records nothing', async () => {
+  it('without agentd 对话, 说话 and 给角色看 are greyed with the reason, and a greyed 说话 records nothing', async () => {
     const bridge: AgenticComplexBridge = createFakeBridge({ surface: 'stack', still: true });
     window.agenticComplex = bridge;
     vi.spyOn(bridge.desktop, 'onState').mockImplementation((cb) => (queueMicrotask(() => cb(STATE)), () => {}));
@@ -123,7 +123,7 @@ describe('her hover buttons', () => {
     const action = vi.spyOn(bridge.desktop, 'action').mockResolvedValue(undefined);
     render(<DockRoot />);
     await flush(async () => {});
-    for (const name of [/^对话$/, /^说话$/, /^给她看$/]) expect(row(name).getAttribute('aria-disabled')).toBe('true');
+    for (const name of [/^对话$/, /^说话$/, /^给角色看$/]) expect(row(name).getAttribute('aria-disabled')).toBe('true');
     expect(row(/^说话$/).getAttribute('title')).toBe('未接入：连不上后台');
     await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
     expect(action).not.toHaveBeenCalled();
@@ -142,7 +142,7 @@ describe('her hover buttons', () => {
   it('a greyed row for any other reason opens nothing', async () => {
     const d = mount({ ...STATE, plugins: ['light_ai'] });
     await flush(async () => {});
-    await flush(async () => fireEvent.click(row(/^给她看$/)));
+    await flush(async () => fireEvent.click(row(/^给角色看$/)));
     expect(d.action).not.toHaveBeenCalled();
     expect(d.openMain).not.toHaveBeenCalled();
   });

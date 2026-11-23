@@ -137,7 +137,7 @@ export function ReviewPaper({ review, kernelName, busy, decideFail, onAction, qu
             已看
           </>
         )}
-        。接受后她把任务记为完成；驳回时写一句要改什么，她按补充要求再做一版。
+        。接受后任务记为完成；驳回时写一句要改什么，角色按补充要求再做一版。
       </p>
       <div className={styles.btns}>
         <Btn size="sm" variant={quiet ? 'ghost' : 'primary'} disabled={busy} disabledReason="正在提交" onClick={() => onAction({ kind: 'accept', deliveryId: review.id })}>

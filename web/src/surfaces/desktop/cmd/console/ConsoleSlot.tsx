@@ -84,7 +84,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
   const cells = statusCells(runtime, state?.pips.helper, offline);
   // Its name, Operator and doing lines need the full height in the short form too.
   const card = (
-    <CharCard box={{ width: INNER, height: 66 }} compact name={character?.name ?? '她'} head={head} id={character?.id ?? null}
+    <CharCard box={{ width: INNER, height: 66 }} compact name={character?.name ?? '角色'} head={head} id={character?.id ?? null}
       doing={offline ? '—' : (doingOf(presence) ?? '—')} onClick={() => go({ page: 'character' })} />
   );
   return (
@@ -127,7 +127,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
             )}
             {offline && !starting ? (
               <div data-fix="后台" role="group" aria-label="后台出错">
-                <PowerState hud state="unlinked" mode="block" title="后台没有响应" reason="她听不到你，也不会回消息"
+                <PowerState hud state="unlinked" mode="block" title="后台没有响应" reason="角色听不到你，也不会回消息"
                   action={{ label: '重启后台', onClick: () => void restart() }}>
                   {card}
                 </PowerState>

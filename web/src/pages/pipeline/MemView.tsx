@@ -139,7 +139,7 @@ export function MemView({ runs, digest, today, picked, selected, onSelect, onRec
       <Panel title="整理记录" count={0} micro="CONSOLIDATE LOG">
         <None
           title="还没有整理记录"
-          desc="和她聊几句，后台约 2 分钟后开始第一次整理"
+          desc="聊几句，后台约 2 分钟后开始第一次整理"
           icon="data"
           action={
             <Btn size="sm" variant="secondary" onClick={onChat}>

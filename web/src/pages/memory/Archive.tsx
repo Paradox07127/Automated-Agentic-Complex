@@ -164,8 +164,8 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
       <List>
         <Empty
           icon="data"
-          title="她还没记住你的事"
-          desc="你在对话里说过的偏好、约定和经历，她会记在这里；你说「记住……」她会马上记。"
+          title="还没记住你的事"
+          desc="你在对话里说过的偏好、约定和经历，会记在这里；你说「记住……」就马上记下。"
           action={
             <Btn icon="send" onClick={onChat}>
               去对话

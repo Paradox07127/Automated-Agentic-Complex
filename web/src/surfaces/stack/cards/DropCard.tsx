@@ -86,17 +86,17 @@ export function DropCard({ card, top, highlight, act }: DropCardProps) {
     } catch (e) {
       const unread = e instanceof AgentdCallError && e.code === 'no_supported_files';
       if (unread) setNone(true);
-      setStatus({ tone: 'err', text: unread ? '这些她还读不了' : `${lead}：${callFailure(e)}` });
+      setStatus({ tone: 'err', text: unread ? '这些还读不了' : `${lead}：${callFailure(e)}` });
     }
     setBusy(false);
   };
 
   const say = (text: string, scope?: string) => bridge.desktop.say({ text, attachWindow: false, noMemory: false, ...(scope ? { scopeId: scope } : {}) });
 
-  const summarize = () => run('没能交给她总结', '已交给她总结', async () => say('总结这些文件', await scopeId()));
+  const summarize = () => run('没能让角色总结', '已让角色总结', async () => say('总结这些文件', await scopeId()));
   /** 问: 快速输入 opens beside her with the scope, and what is typed there reads these files. */
   const ask = () =>
-    run('没能问她', null, async () => {
+    run('没能问角色', null, async () => {
       const s = await current();
       await bridge.desktop.action('quickInput', JSON.stringify({ scopeId: s.scope_id, files: s.files.length + s.roots.length })).catch(() => {
         throw new Error('快速输入没有打开');
@@ -107,10 +107,10 @@ export function DropCard({ card, top, highlight, act }: DropCardProps) {
       const title = `整理 ${counted(files[0]?.name ?? '', files.length, '个文件')}`;
       await call('POST', '/agent/jobs', { title, text: '读这些文件，整理要点', scope_id: await scopeId() });
     });
-  const remember = () => run('没能记住', '已让她记住', () => say(`记住 ${words.map(label).join('\n')}`));
+  const remember = () => run('没能记住', '已让角色记住', () => say(`记住 ${words.map(label).join('\n')}`));
   const remind = (when: string) => {
     setPicking(false);
-    return run('没能设提醒', '已让她提醒你', () => say(`提醒我${when}看「${subject}」`));
+    return run('没能设提醒', '已让角色提醒你', () => say(`提醒我${when}看「${subject}」`));
   };
   const revoke = (id: string) =>
     run('没能撤销', null, async () => {
@@ -123,7 +123,7 @@ export function DropCard({ card, top, highlight, act }: DropCardProps) {
       <HudCard
         title={card.title}
         state="awaiting_input"
-        label={`交给她：${subject}`}
+        label={`拖给角色：${subject}`}
         eyebrow="Drop"
         priority={priorityOf(card)}
         top={top}

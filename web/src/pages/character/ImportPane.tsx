@@ -69,7 +69,7 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
       {motionImport && (
         <section className={styles.mgrp} aria-label="动作">
           <TitleBar title="动作" micro="Motion import" actions={<span className={styles.fm}>{FORMATS}</span>} />
-          <button type="button" className={styles.ikey} aria-busy={busy || undefined} disabled={busy} title="也可以把动作文件拖到桌面上的她身上" onClick={motionImport.run}>
+          <button type="button" className={styles.ikey} aria-busy={busy || undefined} disabled={busy} title="也可以把动作文件拖到桌面上的角色身上" onClick={motionImport.run}>
             <span className={styles.ikIc}>
               <Icon name="upload" size={24} />
             </span>
@@ -78,7 +78,7 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
               <span>选动作文件，可再配一首背景音乐</span>
             </span>
             <span className={styles.ikHint}>
-              也可以把动作文件拖到桌面上的她身上
+              也可以把动作文件拖到桌面上的角色身上
               <br />
               VMD 舞蹈导入后在右侧 MMD 里
             </span>

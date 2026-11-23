@@ -78,6 +78,6 @@ describe('codes a new user meets first', () => {
 
 describe('output_truncated', () => {
   it('names the output limit and what to do', () => {
-    expect(codeText('output_truncated')).toBe('回复太长，被模型的输出上限截断了。让她分几段写，或换一个输出上限更大的模型');
+    expect(codeText('output_truncated')).toBe('回复太长，被模型的输出上限截断了。让角色分几段写，或换一个输出上限更大的模型');
   });
 });

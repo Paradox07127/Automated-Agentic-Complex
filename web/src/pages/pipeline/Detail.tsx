@@ -8,7 +8,7 @@ import styles from './Detail.module.css';
 
 /** 每个工位一句话讲清这一段做什么。 */
 const DESC: Readonly<Record<StationId, string>> = {
-  obs: '她看屏幕和窗口文字的请求；截图有每日额度',
+  obs: '角色看屏幕和窗口文字的请求；截图有每日额度',
   interp: '把看到的东西读成当前活动和任务推断；结果进本轮上下文和观察记录',
   mem: '把对话、后台任务结果和观察记录提炼成记忆；约每 2 分钟看一次有没有新来源',
   store: '整理写进来的记忆；条目、确认和删除在记忆页',

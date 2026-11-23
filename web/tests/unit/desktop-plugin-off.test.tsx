@@ -42,7 +42,7 @@ function mount(hash: string, state: DesktopState) {
 }
 
 describe('屏幕识读 off', () => {
-  it('her hover buttons keep 给她看 greyed as 已关闭, before the state comes too', () => {
+  it('her hover buttons keep 给角色看 greyed as 已关闭, before the state comes too', () => {
     const look = (s: DesktopState | null) => dockItems(s, null, null).find((i) => i.id === 'look');
     expect(dockItems(STATE, null, null).map((i) => i.id)).toEqual(['chat', 'talk', 'look', 'hide']);
     expect(look(STATE)?.off).toMatch(/^已关闭/);
@@ -50,10 +50,10 @@ describe('屏幕识读 off', () => {
     expect(look({ ...STATE, plugins: ['light_ai', 'screen_reading'] })?.off).toBeUndefined();
   });
 
-  it('the open hover buttons show 给她看 disabled', async () => {
+  it('the open hover buttons show 给角色看 disabled', async () => {
     mount('#/dock?still=1', { ...STATE, dock: { open: true, side: 'right', compact: false } });
-    const group = await screen.findByRole('group', { name: '她的按钮' });
-    expect(within(group).getByRole('button', { name: '给她看' }).getAttribute('aria-disabled')).toBe('true');
+    const group = await screen.findByRole('group', { name: '角色的按钮' });
+    expect(within(group).getByRole('button', { name: '给角色看' }).getAttribute('aria-disabled')).toBe('true');
     expect(within(group).getAllByRole('button')).toHaveLength(4);
   });
 

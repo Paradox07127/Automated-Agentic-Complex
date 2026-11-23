@@ -160,7 +160,7 @@ export function InterpView({
         />
       )}
       <div className={styles.cols}>
-        <Panel title="她现在的理解" micro="CURRENT">
+        <Panel title="现在的理解" micro="CURRENT">
           <Now now={now} guess={guess} {...acts} />
         </Panel>
         <Panel title="最近理解" count={runs.length} micro="INTERPRET LOG">

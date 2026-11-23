@@ -7,11 +7,11 @@ for (const [width, height] of [
   [1440, 900],
   [925, 515],
 ] as const) {
-  test(`编排 at ${width}×${height} with 她建议 open keeps the commit bar in the panel`, async ({ page }) => {
+  test(`编排 at ${width}×${height} with 角色建议 open keeps the commit bar in the panel`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await page.goto('main.html#/character?still=1&pane=chain');
     await expect(page.locator('[data-commit]')).toBeVisible();
-    await expect(page.getByText('她建议').first()).toBeVisible();
+    await expect(page.getByText('角色建议').first()).toBeVisible();
     const m = await page.evaluate(() => {
       const body = document.querySelector<HTMLElement>('[data-g="detail"] [role="tabpanel"]')!;
       const b = body.getBoundingClientRect();

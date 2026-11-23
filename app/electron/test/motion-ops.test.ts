@@ -239,7 +239,7 @@ test('avatar.playChain: a rejected play takes its reason as the code, an ack err
   const f = fixture();
   try {
     f.link!.chainPlayed = { phase: 'rejected', reason: 'busy' };
-    assert.deepEqual(await f.call('avatar.playChain', { start: 'a' }), err('busy', '她正在做别的动作'));
+    assert.deepEqual(await f.call('avatar.playChain', { start: 'a' }), err('busy', '角色正在做别的动作'));
     f.link!.chainAck = { ok: false, reason: 'invalid' };
     assert.deepEqual(await f.call('avatar.playChain', { start: 'a' }), err('failed', '角色没有这条链'));
     f.link!.chainAck = { ok: false, reason: 'unsupported' };

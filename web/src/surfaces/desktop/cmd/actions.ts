@@ -32,12 +32,12 @@ export function wheelItems(s: DesktopState | null, pending: number, now = Date.n
       ? { id: 'pending', label: '待处理', icon: 'bell', desc: `${pending} 项待处理`, count: pending, to: { page: 'overview', focus: 'pending' } }
       : { id: 'pending', label: '待处理', icon: 'bell', off: '没有待处理的事' },
     quiet
-      ? { id: 'quietEnd', label: '结束免打扰', icon: 'moon', desc: '她又可以主动说话', on: true }
-      : { id: 'quiet', label: '免打扰', icon: 'moon', desc: '30 分钟里她不主动说话' },
-    { id: 'pass', label: '点穿', icon: 'hand', desc: pass ? `点击穿过她；${pass} 恢复` : '点击穿过她；在菜单栏恢复' },
-    { id: 'home', label: '放回原位', icon: 'loc', desc: '她和浮窗回到默认位置' },
-    { id: 'roam', label: '自由活动', icon: 'sync', desc: s?.freeRoam ? '开着：她会在屏幕上走动' : '让她在屏幕上走动', on: s?.freeRoam === true },
-    { id: 'gift', label: '送礼物', icon: 'redeem', desc: '看她收礼的动作', ...(gift != null && { off: gift }) },
+      ? { id: 'quietEnd', label: '结束免打扰', icon: 'moon', desc: '又可以主动说话', on: true }
+      : { id: 'quiet', label: '免打扰', icon: 'moon', desc: '30 分钟里不主动说话' },
+    { id: 'pass', label: '点穿', icon: 'hand', desc: pass ? `点击穿过角色；${pass} 恢复` : '点击穿过角色；在菜单栏恢复' },
+    { id: 'home', label: '放回原位', icon: 'loc', desc: '角色和浮窗回到默认位置' },
+    { id: 'roam', label: '自由活动', icon: 'sync', desc: s?.freeRoam ? '开着：角色会在屏幕上走动' : '让角色在屏幕上走动', on: s?.freeRoam === true },
+    { id: 'gift', label: '送礼物', icon: 'redeem', desc: '看角色收礼的动作', ...(gift != null && { off: gift }) },
     { id: 'goCharacter', label: '角色页', icon: 'user', desc: '换角色、外观、姿态、镜头', to: { page: 'character' } },
   ];
 }

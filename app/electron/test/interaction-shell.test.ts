@@ -103,7 +103,7 @@ test('a tap agentd turns down says why in the bubble; an unreachable agentd is s
   const busy = harness({ status: 409, body: { while: 'working' } });
   busy.shell.click({ kind: 'left', at: { x: 0, y: 0 }, region: null });
   await busy.advance(1);
-  assert.deepEqual(busy.calls, ['notice 她在忙，等这一轮做完']);
+  assert.deepEqual(busy.calls, ['notice 角色在忙，等这一轮做完']);
   assert.deepEqual(busy.lines, ['RITUAL tap status=409']);
   busy.done();
   // While she speaks a click already cut her off: nothing to say.

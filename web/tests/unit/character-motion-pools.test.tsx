@@ -29,7 +29,7 @@ const proposal = (clip: string) => pool().querySelector<HTMLElement>(`[data-prop
 const fold = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}`) });
 const ready = () => waitFor(() => expect(proposals().length).toBeGreaterThan(0));
 
-describe('编排 › 她建议', () => {
+describe('编排 › 角色建议', () => {
   it('shows the picked pool\'s proposals open; 收下 makes one a member row with its weight, saved by the one 保存', async () => {
     const x = MOTION_GROUPS.pools['idle.t1']!.proposal.find((p) => p.clip === RELAX_SP)!;
     x.weight = 3;
@@ -37,7 +37,7 @@ describe('编排 › 她建议', () => {
       const set = vi.spyOn(bridge.avatar.motionOverrides, 'set');
       await mount(toast);
       await ready();
-      expect(fold('她建议').getAttribute('aria-expanded')).toBe('true');
+      expect(fold('角色建议').getAttribute('aria-expanded')).toBe('true');
       expect(proposals()).toEqual([RELAX_SP, `${P}uiteam_idle_loop`, `${P}customized_state_stretch_start`]);
       expect(proposal(RELAX_SP).textContent).toContain('ui_relax_sp');
       expect(proposal(RELAX_SP).textContent).toContain('token:ui_relax');

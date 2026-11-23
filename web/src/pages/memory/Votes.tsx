@@ -70,7 +70,7 @@ export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: Vo
       };
       denies.current.set(f.id, commit);
       timers.current.set(f.id, setTimeout(commit, UNDO_MS));
-      toast('划掉了，她不会再记这件事', {
+      toast('划掉了，不会再记这件事', {
         action: {
           label: '撤销',
           onClick: () => {
@@ -129,7 +129,7 @@ export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: Vo
         title="待确认"
         right={
           <>
-            <InfoTip>她猜的和看到的先放在这里；你点「记住」之前，她不会拿来用。</InfoTip>
+            <InfoTip>猜的和看到的先放在这里；你点「记住」之前不会拿来用。</InfoTip>
             <Btn
               variant="primary"
               disabled={open.length === 0}
@@ -181,7 +181,7 @@ function Card({ fact: f, i, now, held, draft, onDraft, onDecide, onJump }: CardP
     <section className={styles.vote} data-theme="light" data-leaving={held?.phase === 'leave' || undefined} data-ask={f.id} style={{ '--i': i } as CSSProperties} aria-label={`待确认：${f.text}`}>
       <div className={styles.vt}>
         <Glyph name="vote" />
-        <b>她记下了，对吗？</b>
+        <b>记下了，对吗？</b>
         <span>
           {catLabel(f)} │ {SRC[f.source].full}
         </span>
@@ -248,7 +248,7 @@ function Source({ ev, onJump }: { ev: Evidence | null; onJump: (k: 'chat' | 'obs
   const chat = ev.k === 'chat';
   return (
     <Fold label="出处" summary={`${chat ? '对话' : '观察'} │ ${ev.when}`}>
-      <span className={styles.src}>{chat ? (ev.quote ? `「${ev.quote}」` : '原句只保留 48 小时，这一段已经清理') : `她看到：${ev.title ?? '一段观察'}`}</span>
+      <span className={styles.src}>{chat ? (ev.quote ? `「${ev.quote}」` : '原句只保留 48 小时，这一段已经清理') : `角色看到：${ev.title ?? '一段观察'}`}</span>
       <span className={styles.srcm}>
         {chat && '对话 │ '}
         <span className="num">{ev.when}</span>

@@ -45,10 +45,10 @@ test('未接入 breathes its rings and link unless still', async ({ page }) => {
   expect(await running(page)).toBe(0);
 });
 
-test('chat ai-off: the page is greyed and inert, the board leads to the 和她对话 switch', async ({ page }) => {
+test('chat ai-off: the page is greyed and inert, the board leads to the AI 对话 switch', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/chat?demo=ai-off&still=1');
-  const board = page.getByRole('status', { name: '和她对话' });
+  const board = page.getByRole('status', { name: 'AI 对话' });
   await expect(board).toContainText('已关闭');
   await expect(page.locator('[inert] [data-page="chat"]')).toHaveCount(1);
   await shot(page, 'chat-ai-off');

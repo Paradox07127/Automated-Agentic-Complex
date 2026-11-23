@@ -6,7 +6,7 @@ import { ChatGate } from '../../src/pages/chat/Gate';
 import { setPlugins } from '../../src/shell/plugins';
 import { pluginsOn, pluginsReset } from './plugins';
 
-// 和她对话 off: the page stays on screen, greyed and inert, under a 已关闭 board that leads to its switch.
+// AI 对话 off: the page stays on screen, greyed and inert, under a 已关闭 board that leads to its switch.
 // No model account: the input area says 未接入 and leads to the account row.
 
 afterEach(() => {
@@ -28,13 +28,13 @@ async function mountChat(search: string) {
 
 const hashQuery = () => new URLSearchParams(window.location.hash.slice(window.location.hash.indexOf('?') + 1));
 
-describe('chat: 和她对话 off', () => {
+describe('chat: AI 对话 off', () => {
   it('greys the whole page under a 已关闭 board whose button opens the switch', async () => {
     pluginsOn();
     setPlugins({ 'plugins.light_ai': false });
     const thread = await mountChat('');
     expect(thread.closest('[inert]')).not.toBeNull();
-    const board = screen.getByRole('status', { name: /和她对话/ });
+    const board = screen.getByRole('status', { name: /AI 对话/ });
     expect(board.textContent).toContain('已关闭');
     fireEvent.click(within(board).getByRole('button', { name: /前往设置打开/ }));
     expect(window.location.hash.startsWith('#/settings?')).toBe(true);
@@ -52,7 +52,7 @@ describe('chat: 和她对话 off', () => {
   it('shows the board on the ai-off demo', async () => {
     pluginsOn();
     await mountChat('&demo=ai-off');
-    expect((await screen.findByRole('status', { name: /和她对话/ })).textContent).toContain('已关闭');
+    expect((await screen.findByRole('status', { name: /AI 对话/ })).textContent).toContain('已关闭');
   });
 });
 

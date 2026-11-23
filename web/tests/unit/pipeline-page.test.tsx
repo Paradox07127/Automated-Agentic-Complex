@@ -86,7 +86,7 @@ describe('管线页签', () => {
     fireEvent.keyDown(window, { key: 'e' });
     expect(screen.getByRole('region', { name: '最近请求' })).toBeTruthy();
     fireEvent.keyDown(window, { key: 'ArrowRight' });
-    expect(await screen.findByRole('region', { name: '她现在的理解' }, T)).toBeTruthy();
+    expect(await screen.findByRole('region', { name: '现在的理解' }, T)).toBeTruthy();
     expect(screen.getByRole('region', { name: '最近理解' })).toBeTruthy();
   });
 

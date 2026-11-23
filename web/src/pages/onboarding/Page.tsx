@@ -125,7 +125,7 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
           打开主窗口
         </Btn>
         <Primary>
-          <YellowKey label={talk ? '和她聊几句' : '完成'} micro={talk ? 'Talk' : 'Done'} icon={talk ? 'g-chat' : 'check'} busy={o.busy === 'complete'} onClick={() => complete(talk ? 'talk' : undefined)} />
+          <YellowKey label={talk ? '聊几句' : '完成'} micro={talk ? 'Talk' : 'Done'} icon={talk ? 'g-chat' : 'check'} busy={o.busy === 'complete'} onClick={() => complete(talk ? 'talk' : undefined)} />
         </Primary>
       </>
     );

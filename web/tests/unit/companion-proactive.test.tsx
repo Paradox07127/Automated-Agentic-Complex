@@ -63,7 +63,7 @@ describe('主动提示 and developer proactive readout', () => {
         <SpeakGroup />
       </Harness>,
     );
-    const seg = await screen.findByRole('radiogroup', { name: '她会不会主动找你' });
+    const seg = await screen.findByRole('radiogroup', { name: '会不会主动找你' });
     await act(async () => {});
     const active = within(seg).getByRole('radio', { name: '主动' });
     expect(active.getAttribute('aria-checked')).toBe('false');

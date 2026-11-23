@@ -113,7 +113,7 @@ const ROWS: GameTableRow[] = [
   {
     id: 'r1',
     cells: { at: '13:12', use: '对话中', res: '已写入', what: '+3 新增 ～1 更新', ms: '8 s', model: 'gpt-5.5-mini' },
-    body: '新增：她喜欢在周五下午整理周报',
+    body: '新增：喜欢在周五下午整理周报',
     end: '生成记录 ›',
   },
 ];

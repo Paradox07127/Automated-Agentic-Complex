@@ -11,7 +11,7 @@ const SWITCHES: RunItem[] = [
   { id: 'show', label: '显示角色' },
   { id: 'quiet', label: '免打扰 30 分' },
   { id: 'quietEnd', label: '结束免打扰' },
-  { id: 'pass', label: '让鼠标穿过她' },
+  { id: 'pass', label: '让鼠标穿过角色' },
 ];
 
 interface KeysProps {
@@ -61,7 +61,7 @@ export function Keys({ state, offline, noAvatar, tight, quickInput, quickBusy, s
         onClick={quickInput} />
       <WatchKey box={box} compact icon="moonz" title="免打扰" pressed={quiet != null} sub={unlinked(agentdOff) ?? (quiet != null ? `到 ${formatClock(quiet)}` : '30 分钟')}
         off={off(agentdOff) ?? (working ? '正在切换' : undefined)} onClick={() => void run(quiet == null ? 'quiet' : 'quietEnd')} />
-      <WatchKey box={box} compact icon="eye" title="隐藏她" pressed={hidden} sub={unlinked(avatarOff) ?? (hidden ? (hiddenUntil != null ? `到 ${formatClock(hiddenUntil)}` : '已隐藏') : '30 分钟')}
+      <WatchKey box={box} compact icon="eye" title="隐藏角色" pressed={hidden} sub={unlinked(avatarOff) ?? (hidden ? (hiddenUntil != null ? `到 ${formatClock(hiddenUntil)}` : '已隐藏') : '30 分钟')}
         off={off(avatarOff) ?? (working ? '正在切换' : undefined)} onClick={() => void run(hidden ? 'show' : 'hide')} />
       <WatchKey box={box} compact icon="hand" title="全部点穿" pressed={pass} sub={unlinked(avatarOff) ?? (pass ? '点穿中' : state?.hotkeys.hk_pass)}
         off={off(avatarOff) ?? (working ? '正在切换' : undefined)} onClick={() => void run('pass')} />

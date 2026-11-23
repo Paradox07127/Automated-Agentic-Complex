@@ -54,8 +54,8 @@ const textOf = (e: TextEvent | undefined) => str(e?.text?.text);
 const d = (t: string): Part => ({ t, k: 'd' });
 const m = (t: string): Part => ({ t, k: 'm' });
 
-const INPUT: Readonly<Record<string, string>> = { text: '文字', voice: '语音', desktop: '桌面输入', quick: '桌面输入', gift: '你递来的东西', proactive: '她自己起意',
-  announce: '她自己起意', ritual: '她自己起意', tap: '你碰她', background: '后台任务' };
+const INPUT: Readonly<Record<string, string>> = { text: '文字', voice: '语音', desktop: '桌面输入', quick: '桌面输入', gift: '你递来的东西', proactive: '角色自己起意',
+  announce: '角色自己起意', ritual: '角色自己起意', tap: '你碰角色', background: '后台任务' };
 const JUDGE: Readonly<Record<string, string>> = { speak: '开口', wait: '等等', silent: '不说', want_comment: '想搭话', useful: '内容有用', need_image: '要截图', next_check: '下次再看' };
 const TOOL: Readonly<Record<string, string>> = { exec_command: '跑命令', shell: '跑命令', bash: '跑命令', Bash: '跑命令', read_file: '读文件', Read: '读文件',
   list_dir: '列目录', write_file: '写文件', Write: '写文件', Edit: '改文件', apply_patch: '改文件', move_files: '移动文件', web_search: '搜网页', fetch: '读网页' };
@@ -249,7 +249,7 @@ export function buildTurn({ row, events, skew = {}, items = [], mems = [], learn
     const text = said.map((x) => textOf(x.e)).find((t) => t !== null) ?? null;
     steps.push({
       id: 'line', icon: 'say', name: '回复', sub: false, t0: s.t0, dur: s.end - s.t0, st: 'ok',
-      sum: text ? [{ t: lines(text)[0] ?? '' }] : [d('她回了话（原文没有留下）')], kv: [],
+      sum: text ? [{ t: lines(text)[0] ?? '' }] : [d('角色回了话（原文没有留下）')], kv: [],
       ...(text ? { raw: { label: '回复全文', lines: lines(text) } } : {}),
     });
   }

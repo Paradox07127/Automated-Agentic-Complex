@@ -50,13 +50,13 @@ test('an op outside the surface, or outside ops.json, is op_not_allowed', () => 
 test("a handler's failure is reported with the op and its code only, never the arguments or the detail; a success is not", async () => {
   const reported: [string, string][] = [];
   const handlers = new Map<string, Handler>([
-    ['avatar.playAction', () => { throw new BridgeFailure('busy', '她正在做别的动作'); }],
+    ['avatar.playAction', () => { throw new BridgeFailure('busy', '角色正在做别的动作'); }],
     ['app.info', () => { throw new Error('boom /Users/someone/secret'); }],
     ['avatar.stopAction', () => null],
   ]);
   const report = (op: string, code: string) => reported.push([op, code]);
   assert.deepEqual(await handle('main', page, { op: 'avatar.playAction', args: ['A_actor_wave', 1] }, handlers, undefined, report),
-    { ok: false, error: { code: 'busy', detail: '她正在做别的动作' } });
+    { ok: false, error: { code: 'busy', detail: '角色正在做别的动作' } });
   assert.equal((await handle('main', page, { op: 'app.info', args: [] }, handlers, undefined, report)).ok, false);
   assert.equal((await handle('main', page, { op: 'avatar.stopAction', args: [] }, handlers, undefined, report)).ok, true);
   assert.deepEqual(reported, [['avatar.playAction', 'busy'], ['app.info', 'failed']]);

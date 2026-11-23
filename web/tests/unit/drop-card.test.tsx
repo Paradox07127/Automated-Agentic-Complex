@@ -6,7 +6,7 @@ import type { StackCard } from '../../src/surfaces/stack/model';
 import { StackCardView } from '../../src/surfaces/stack/StackCardView';
 import { stubMatchMedia } from './mediaStub';
 
-// What was dropped on her shows as a 交给她 card; nothing is read until the user picks an action.
+// What was dropped on her shows as a 拖给角色 card; nothing is read until the user picks an action.
 
 stubMatchMedia();
 document.documentElement.dataset.surface = 'stack';
@@ -23,7 +23,7 @@ const FILES: DropCard = {
   kind: 'notice',
   variant: 'drop',
   at: NOW,
-  title: '交给她 · 3 项',
+  title: '拖给角色 · 3 项',
   truncated: false,
   items: [
     { kind: 'file', path: '/Users/me/Desktop/周报.md', name: '周报.md', handle: 'H:周报.md' },
@@ -35,7 +35,7 @@ const FILES: DropCard = {
 const TEXTS: DropCard = {
   ...FILES,
   id: 'drop-2',
-  title: '交给她 · 2 项',
+  title: '拖给角色 · 2 项',
   items: [
     { kind: 'url', url: 'https://example.com/a' },
     { kind: 'text', text: '周五前交报销单' },
@@ -102,7 +102,7 @@ describe('drop card', () => {
     agentd({ 'POST /agent/scopes': { status: 400, body: { error: 'no_supported_files' }, error: { code: 'no_supported_files' } } });
     const el = mount(FILES);
     await flush(async () => fireEvent.click(within(el).getByRole('button', { name: '总结' })));
-    expect(await within(el).findByText('这些她还读不了')).toBeTruthy();
+    expect(await within(el).findByText('这些还读不了')).toBeTruthy();
     expect(marks(el)).toEqual([true, true, true]);
     for (const name of ['总结', '问', '建任务']) expect(within(el).queryByRole('button', { name })).toBeNull();
   });

@@ -74,7 +74,7 @@ describe('settings on the Windows shell', () => {
 
   it('calls the system notification switch a Windows one and the Ctrl+Space clash the system\'s', async () => {
     await mount('&group=speak');
-    expect(await screen.findByRole('switch', { name: '她不在桌面时改走 Windows 通知' })).toBeTruthy();
+    expect(await screen.findByRole('switch', { name: '角色不在桌面时改走 Windows 通知' })).toBeTruthy();
     cleanup();
     await mount('&group=keys');
     expect(await screen.findByText('和系统「切换输入法」冲突')).toBeTruthy();
@@ -115,7 +115,7 @@ describe('settings on the Windows shell', () => {
     cleanup();
     await mount('&q=通知');
     const found = await screen.findByRole('list', { name: /^搜索结果/ });
-    expect(found.textContent).toContain('她不在桌面时改走 Windows 通知');
+    expect(found.textContent).toContain('角色不在桌面时改走 Windows 通知');
     expect(found.textContent).not.toContain('macOS');
     cleanup();
     await mount('&q=macOS');
@@ -135,7 +135,7 @@ describe('settings on the macOS shell', () => {
     for (const id of [...MAC_ONLY, 'microphone', 'notifications']) expect(row(id), id).not.toBeNull();
     cleanup();
     await mount('&group=speak');
-    expect(await screen.findByRole('switch', { name: '她不在桌面时改走 macOS 通知' })).toBeTruthy();
+    expect(await screen.findByRole('switch', { name: '角色不在桌面时改走 macOS 通知' })).toBeTruthy();
     cleanup();
     await mount('&group=display');
     await waitFor(() => expect(row('capHide')?.textContent).toContain('按 ⌃⌥H 显示'));

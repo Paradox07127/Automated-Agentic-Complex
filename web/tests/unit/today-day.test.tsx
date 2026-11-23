@@ -145,7 +145,7 @@ describe('今天: 今日一句', () => {
     mount();
     const local = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
     await waitFor(() => expect(local.textContent).toMatch(/个编码会话/), { timeout: 3000 });
-    expect(local.textContent).toMatch(/^今日一句今天的读数，不是她写的日报/);
+    expect(local.textContent).toMatch(/^今日一句今天的读数，不是角色写的日报/);
     cleanup();
     const request = getBridge().agentd.request.bind(getBridge().agentd);
     vi.spyOn(getBridge().agentd, 'request').mockImplementation(((method: string, path: string, body?: unknown) =>
@@ -163,7 +163,7 @@ describe('今天: 今日一句 without the coding-sessions plug-in', () => {
     setPlugins({ 'plugins.coding_sessions': false });
     mount();
     const line = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
-    await waitFor(() => expect(line.textContent).toMatch(/^今日一句今天的读数，不是她写的日报下一条提醒 /), { timeout: 3000 });
+    await waitFor(() => expect(line.textContent).toMatch(/^今日一句今天的读数，不是角色写的日报下一条提醒 /), { timeout: 3000 });
     expect(line.textContent).not.toMatch(/编码会话/);
   });
 });

@@ -71,8 +71,8 @@ export function KernelCard({ cur, altOf, onSwitch }: { cur: RuntimeInfo; altOf: 
         <Btn loading={runtimeChecking} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void k.recheck(cur.name, cur.id)}>
           重新检测
         </Btn>
-        <div className={styles.can} role="list" aria-label={`她用 ${cur.name} 能`}>
-          <span className={styles.canLbl}>她用 {cur.name} 能：</span>
+        <div className={styles.can} role="list" aria-label={`用 ${cur.name} 能`}>
+          <span className={styles.canLbl}>用 {cur.name} 能：</span>
           {FEATURE.filter(([key]) => features[key]?.implemented).map(([key, label]) => (
             <span key={key} role="listitem">
               <Pill dashed={features[key]?.enabled === false}>{label}</Pill>

@@ -118,7 +118,7 @@ export function TimeTab({ day }: BriefTabProps) {
             <small>{` 处 │ 均值 ${items.mask.avg7 ?? '—'}`}</small>
           </Pill>
         )}
-        <Pill icon={glyph('M3 3h18v13H10l-5 4v-4H3z')} label="她开口你回了" ratio={said.said.self ? said.said.replied / said.said.self : 0}>
+        <Pill icon={glyph('M3 3h18v13H10l-5 4v-4H3z')} label="角色开口你回了" ratio={said.said.self ? said.said.replied / said.said.self : 0}>
           {said.said.replied}
           <small>{` / ${said.said.self} 次`}</small>
         </Pill>

@@ -78,7 +78,7 @@ describe('menus, ⌘K and the hotkeys', () => {
     expect(page.hint).toBe('已关闭');
     expect(page.run).toEqual({ kind: 'nav', target: { page: 'overview' } });
     expect(items.find((i) => i.key === 'look')?.run).toEqual({ kind: 'off', reason: '已关闭：设置里关着「屏幕识读」' });
-    expect(items.find((i) => i.key === 'recheck')?.run).toEqual({ kind: 'off', reason: '已关闭：设置里关着「外接 harness」' });
+    expect(items.find((i) => i.key === 'recheck')?.run).toEqual({ kind: 'off', reason: '已关闭：设置里关着「改用 Codex、Claude Code 或 ACP」' });
     const all = { ...DEFAULT_PLUGINS, daily_brief: true, screen_reading: true, harness_bridge: true };
     const on = paletteItems('', visibleRoutes(false), undefined, {}, {}, all);
     expect(on.find((i) => i.key === 'page-overview')?.hint).toBe('');
@@ -178,7 +178,7 @@ describe('对话 off', () => {
     pluginsOn();
     setPlugins({ 'plugins.light_ai': false });
     mount(ChatGate);
-    await screen.findByRole('status', { name: '和她对话' });
+    await screen.findByRole('status', { name: 'AI 对话' });
     expect(slotsEmpty()).toBe(true);
   });
 });

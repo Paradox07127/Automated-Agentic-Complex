@@ -65,14 +65,14 @@ describe(' 观察: 外发总览 plate', () => {
 describe(' 说话: no gate chart', () => {
   it('the gate chart lives on the diag page, not here', async () => {
     await mount('&group=speak');
-    expect(await screen.findByRole('radiogroup', { name: '她会不会主动找你' })).toBeTruthy();
+    expect(await screen.findByRole('radiogroup', { name: '会不会主动找你' })).toBeTruthy();
     expect(screen.queryByRole('region', { name: '今日发言闸门' })).toBeNull();
     expect(document.querySelector('[data-row="gate"]')).toBeNull();
   });
 });
 
 describe(' 说话: a row under 主动 while 主动 is not chosen', () => {
-  it('a deep link to 免打扰时段 lands on 她会不会主动找你, the row that brings it back', async () => {
+  it('a deep link to 免打扰时段 lands on 会不会主动找你, the row that brings it back', async () => {
     const seen: Element[] = [];
     const prev = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = function (this: Element) {
@@ -80,7 +80,7 @@ describe(' 说话: a row under 主动 while 主动 is not chosen', () => {
     };
     try {
       await mount('&group=speak&item=quiet_hours');
-      const when = (await screen.findByRole('radiogroup', { name: '她会不会主动找你' })).closest('[data-row="speakWhen"]') as HTMLElement;
+      const when = (await screen.findByRole('radiogroup', { name: '会不会主动找你' })).closest('[data-row="speakWhen"]') as HTMLElement;
       if (document.querySelector('[data-row="quiet_hours"]')) return;
       await waitFor(() => expect(when.className).toMatch(/hl/));
       expect(seen).toContain(document.getElementById('set-speakWhen'));

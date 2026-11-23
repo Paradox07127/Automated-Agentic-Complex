@@ -69,7 +69,7 @@ const REJECTED: Record<string, string> = {
   no_memory_dispatch: '这一轮不记时不能派活：内容会留在 Claude/Codex 的会话里',
   no_reminder_time: '没听出提醒的时间或内容',
   no_commitments: '提醒现在用不了',
-  switching: '她正在换角色，这条没收下',
+  switching: '正在换角色，这条没收下',
   no_llm: '角色运行环境尚未准备好。',
   invalid_text: '这条太长了，最多 2000 个字',
   no_pending_approval: '现在没有等你批准的卡，没什么可拒绝的',

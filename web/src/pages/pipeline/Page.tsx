@@ -135,7 +135,7 @@ export function PipelineView() {
       note: '今天理解',
       sub: nowData?.activity ? (
         <>
-          她认为你在 <b className={styles.subValue}>{nowData.activity.label}</b>
+          角色认为你在 <b className={styles.subValue}>{nowData.activity.label}</b>
         </>
       ) : diagData ? (
         '还没有推断'

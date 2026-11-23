@@ -68,7 +68,7 @@ export function runGroups(view: TasksView, cards: readonly BoardCard[], who: str
   }
   return [
     ...(wait.length ? [{ key: 'wait', title: '要你处理', vital: true, rows: wait }] : []),
-    ...(run.length ? [{ key: 'run', title: '在跑', note: '角色任务和她派的编码会话', rows: run }] : []),
+    ...(run.length ? [{ key: 'run', title: '在跑', note: '角色任务和派出的编码会话', rows: run }] : []),
   ];
 }
 
@@ -120,7 +120,7 @@ export function schedGroups(list: readonly Schedule[], now: number): RowGroup[] 
   const row = (s: Schedule): ListRow => ({
     id: s.schedule_id,
     title: s.title,
-    state: s.last_error ? '上次没跑成' : proposal(s) ? '她提议' : s.enabled ? '开着' : '暂停',
+    state: s.last_error ? '上次没跑成' : proposal(s) ? '角色提议' : s.enabled ? '开着' : '暂停',
     sub: [triggerText(s.trigger), ...(s.enabled ? [s.next_run_at != null ? `下次 ${dayText(s.next_run_at, now)}` : s.trigger.kind === 'session_done' ? '等会话结束' : '下次 —'] : [])],
     shape: s.last_error ? 'forbid' : s.enabled ? 'trk' : 'hatch',
     src: 'sched',
@@ -128,7 +128,7 @@ export function schedGroups(list: readonly Schedule[], now: number): RowGroup[] 
     ...(proposal(s) ? { tag: { tone: 'y' as const, text: '待你决定', icon: 'chat' as const } } : {}),
   });
   const groups: RowGroup[] = [
-    { key: 'proposal', title: '她提议的', vital: true, rows: list.filter(proposal).map(row) },
+    { key: 'proposal', title: '角色提议的', vital: true, rows: list.filter(proposal).map(row) },
     { key: 'on', title: '开着', rows: list.filter((s) => s.enabled).map(row) },
     { key: 'off', title: '暂停', rows: list.filter((s) => !s.enabled && !proposal(s)).map(row) },
   ];

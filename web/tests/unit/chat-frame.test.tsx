@@ -242,7 +242,7 @@ describe('chat v2: topic management', () => {
     await mount();
     rightClick(tab('示例甲'));
     const menu = screen.getByRole('menu', { name: '示例甲' });
-    expect(within(menu).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['新话题', '换示例甲出来', '她的专属记忆']);
+    expect(within(menu).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['新话题', '换示例甲出来', '示例甲的专属记忆']);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
   });

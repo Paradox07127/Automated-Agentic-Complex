@@ -39,7 +39,7 @@ export function dockItems(s: DesktopState | null, presence: unknown, talk: Talk)
   return [
     { id: 'chat', label: '对话', icon: 'g-chat', hotkey: keys.hk_quick, off: away },
     voice,
-    { id: 'look', label: '给她看', icon: 'look', hotkey: keys.hk_look, off: away ?? lookOff },
+    { id: 'look', label: '给角色看', icon: 'look', hotkey: keys.hk_look, off: away ?? lookOff },
     { id: 'hide', label: '隐藏', icon: 'eye', hotkey: keys.hk_hide },
   ];
 }
@@ -118,7 +118,7 @@ export function DockRoot() {
             side={dock?.side === 'left' ? 'left' : 'right'}
             compact={dock?.compact}
             note={quietUntil != null && !talk ? `免打扰到 ${formatClock(quietUntil)}` : undefined}
-            label="她的按钮"
+            label="角色的按钮"
             onPick={pick}
             onPickOff={pickOff}
             onPressStart={onPressStart}

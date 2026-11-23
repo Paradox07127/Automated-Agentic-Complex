@@ -334,7 +334,7 @@ describe('角色内核 → PUT /character/runtime patches', () => {
     expect(screen.queryByText('内核原生会话恢复')).toBeNull();
     expect(document.querySelector('[data-row="maxCost"]')).toBeNull();
     // What the kernel can do sits on its card as chips, one per capability agentd reports as wired.
-    expect(within(screen.getByRole('list', { name: '她用 Codex 能' })).getByText('内核原生执行工具')).toBeTruthy();
+    expect(within(screen.getByRole('list', { name: '用 Codex 能' })).getByText('内核原生执行工具')).toBeTruthy();
   });
 
   it('shows the cost cap as an editable row only on Pi', async () => {

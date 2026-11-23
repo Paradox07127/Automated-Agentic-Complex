@@ -27,7 +27,7 @@ async function wheel(page: Page, notches: number) {
   await page.mouse.move(5, 5);
 }
 
-const ROWS_6_8 = ['拍照', 'MMD', '她这一天', '时间', '能做', '观察'];
+const ROWS_6_8 = ['拍照', 'MMD', '角色这一天', '时间', '能做', '观察'];
 const DEV_ROWS = ['诊断', '对话轮次', '日志', '管线'];
 
 test('home list: five rows at first; the wheel brings rows 6–8 in, and the first rows go', async ({ page }) => {

@@ -59,7 +59,7 @@ function mountTasks(search = '', bottom: HTMLElement | null = null) {
 }
 
 describe('domain/schedules adapt and formatting', () => {
-  it('marks agent_proposal with 她提议 and enabled=false with the enable button', () => {
+  it('marks agent_proposal with 角色提议 and enabled=false with the enable button', () => {
     const proposal = fromSchedule({
       schedule_id: 'schedule-2',
       title: '每周五整理周报',
@@ -77,7 +77,7 @@ describe('domain/schedules adapt and formatting', () => {
     expect(proposal.created_from).toBe('agent_proposal');
     expect(proposal.enabled).toBe(false);
     const view = scheduleItemView(proposal);
-    expect(view.proposalTag).toBe('她提议');
+    expect(view.proposalTag).toBe('角色提议');
     expect(view.actionKind).toBe('enable_button');
     expect(view.actionLabel).toBe('启用');
 
@@ -149,11 +149,11 @@ describe('tasks page 定时 tab', () => {
     bottom.remove();
   });
 
-  it('groups her proposal under 她提议的 with 「待你决定」 and the enabled one under 开着; the proposal offers a primary 启用', async () => {
+  it('groups her proposal under 角色提议的 with 「待你决定」 and the enabled one under 开着; the proposal offers a primary 启用', async () => {
     install();
     mountTasks('&sel=schedule-2');
     const region = await list();
-    const proposed = await within(region).findByRole('listbox', { name: '她提议的' });
+    const proposed = await within(region).findByRole('listbox', { name: '角色提议的' });
     expect(within(proposed).getByText('每周五整理周报')).toBeTruthy();
     expect(within(proposed).getByText('待你决定')).toBeTruthy();
     expect(within(within(region).getByRole('listbox', { name: '开着' })).getByText('日报')).toBeTruthy();
