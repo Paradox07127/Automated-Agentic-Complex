@@ -1,7 +1,9 @@
 // Electron main process for preview-window.test.ts, bundled by it: a page with the real preload calls avatar.preview.* through the
-// real bridge, previewOps, PreviewController, WindowPreview and the addon, against the preview service bundled in this app.
+// real bridge, previewOps, PreviewController, WindowPreview and the addon, against <host>, a child this process launches with
+// `--agentic-complex-preview-rendezvous` as the shell launches the renderer.
 // Writes `<out dir>/e2c-<mode>-result.json` and a screenshot, then quits (stdout to a pipe would be cut off by the exit).
-// argv after the script: <addon> <preload> <out dir> stub | real <catalog> <character> [<action>]
+// argv after the script: <addon> <preload> <out dir> <host> stub | real <catalog> <character> [<action>]
+import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
@@ -16,24 +18,29 @@ import type { PreviewSurface } from '../src/main/preview/session.ts';
 import { type PreviewAddon, WindowPreview } from '../src/main/preview/window.ts';
 
 const args = process.argv.slice(process.argv.findIndex((a) => a.endsWith('.mjs')) + 1);
-const [addonPath, preloadPath, outDir, mode, catalog, character, action] = args as [string, string, string, string, string?, string?, string?];
+const [addonPath, preloadPath, outDir, hostPath, mode, catalog, character, action] = args as
+  [string, string, string, string, string, string?, string?, string?];
 const real = mode === 'real';
 const started = performance.now();
 const events: string[] = [];
 const ms = () => Math.round(performance.now() - started);
 const result: Record<string, unknown> = { mode, events };
 const finish = (extra: Record<string, unknown>) => {
+  host.kill();
   writeFileSync(join(outDir, `e2c-${mode}-result.json`), JSON.stringify({ ...result, ...extra }, null, 2));
   app.exit(0);
 };
 setTimeout(() => finish({ error: 'harness timeout' }), 90_000);
 
 const raw = createRequire(import.meta.url)(addonPath) as PreviewAddon;
+const host = spawn(hostPath, ['--agentic-complex-preview-rendezvous', raw.rendezvous()], { stdio: ['ignore', 'ignore', 'inherit'] });
+host.on('exit', (code, signal) => events.push(`${ms()} host exit ${code ?? signal}`));
 let frames = 0;
 const sizes = new Set<string>();
 /** The addon, with what it delivers counted. */
 const addon: PreviewAddon = {
   ...raw,
+  rendezvous: () => raw.rendezvous(),
   mainBundle: () => raw.mainBundle(),
   setPreventsActivation: (h) => raw.setPreventsActivation(h),
   send: (json) => raw.send(json),

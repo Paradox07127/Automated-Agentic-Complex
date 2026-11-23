@@ -1,12 +1,13 @@
-// The live preview in a window, end to end: a clone of the pinned Electron.app carries a preview XPC service in
-// Contents/XPCServices (as a packaged app does), and preview-harness.ts drives avatar.preview.* from a page through the real preload.
+// The live preview in a window, end to end: preview-harness.ts runs in a clone of the pinned Electron.app (no Dock icon), launches
+// the preview host as its child with `--agentic-complex-preview-rendezvous` (as the shell launches the renderer), and drives
+// avatar.preview.* from a page through the real preload.
 // Opens a window: runs only with AAC_ELECTRON_PREVIEW=1, under tools/platform/gpu-lock.sh.
 //   stub: test/native/preview-stub.m serves a known gradient; the page's canvas must hold it at five points.
 //   real: with AAC_E2C_HOST (a metal-avatar-host build), AAC_E2C_CATALOG and AAC_E2C_CHARACTER, the renderer itself is the
-//         service; AAC_E2C_OUT keeps the screenshot.
+//         host; AAC_E2C_OUT keeps the screenshot.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
@@ -31,40 +32,31 @@ after(() => {
   if (enabled) rmSync(dir, { recursive: true, force: true });
 });
 
-/** A clone of node_modules' Electron.app (no Dock icon) with `service` as its bundled preview service. */
-function probeApp(name: string, service: (executable: string) => void): string {
-  const app = join(dir, `${name}.app`);
+/** A clone of node_modules' Electron.app with no Dock icon, made once. */
+function probeApp(): string {
+  const app = join(dir, 'Probe.app');
+  if (existsSync(app)) return app;
   execFileSync('cp', ['-c', '-R', join(ROOT, 'node_modules/electron/dist/Electron.app'), app]);
   execFileSync('plutil', ['-replace', 'LSUIElement', '-bool', 'YES', join(app, 'Contents/Info.plist')]);
-  const id = execFileSync('plutil', ['-extract', 'CFBundleIdentifier', 'raw', join(app, 'Contents/Info.plist')], { encoding: 'utf8' }).trim();
-  const contents = join(app, 'Contents/XPCServices', `${id}.preview.xpc`, 'Contents');
-  mkdirSync(join(contents, 'MacOS'), { recursive: true });
-  service(join(contents, 'MacOS/AgenticComplexMetalPreview'));
-  // tools/release/package_app.py's service Info.plist.
-  writeFileSync(join(contents, 'Info.plist'), `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>${id}.preview</string><key>CFBundlePackageType</key><string>XPC!</string>
-<key>CFBundleExecutable</key><string>AgenticComplexMetalPreview</string><key>CFBundleVersion</key><string>1</string>
-<key>AgenticComplexPreviewService</key><true/><key>XPCService</key><dict><key>ServiceType</key><string>Application</string>
-<key>RunLoopType</key><string>dispatch_main</string></dict></dict></plist>
-`);
   return app;
 }
 
-function runHarness(app: string, out: string, args: string[]): Record<string, unknown> {
+function runHarness(host: string, out: string, args: string[]): Record<string, unknown> {
   const file = join(out, `e2c-${args[0]}-result.json`);
   rmSync(file, { force: true });
-  const run = spawnSync(join(app, 'Contents/MacOS/Electron'), [join(dir, 'harness.mjs'), join(dir, 'preview.node'), join(dir, 'preload.cjs'), out, ...args],
+  const run = spawnSync(join(probeApp(), 'Contents/MacOS/Electron'),
+    [join(dir, 'harness.mjs'), join(dir, 'preview.node'), join(dir, 'preload.cjs'), out, host, ...args],
     { encoding: 'utf8', timeout: 120_000 });
   assert.ok(existsSync(file), `no result; status ${run.status}\n${run.stdout}\n${run.stderr.slice(-4000)}`);
   return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
 }
 
-test('stub service: the page draws the IOSurface it serves, five points exact, and the window can refuse activation', { skip: !enabled }, () => {
-  const app = probeApp('Stub', (executable) => execFileSync('xcrun', ['clang', '-fobjc-arc', '-O2', '-Wall',
-    '-framework', 'Foundation', '-framework', 'IOSurface', join(ROOT, 'test/native/preview-stub.m'), '-o', executable]));
+test('stub host: the page draws the IOSurface it serves, five points exact, and the window can refuse activation', { skip: !enabled }, () => {
+  const stub = join(dir, 'preview-stub');
+  execFileSync('xcrun', ['clang', '-fobjc-arc', '-O2', '-Wall', '-framework', 'Foundation', '-framework', 'IOSurface',
+    join(ROOT, 'test/native/preview-stub.m'), '-o', stub]);
   const out = process.env.AAC_E2C_OUT ?? dir;
-  const r = runHarness(app, out, ['stub']);
+  const r = runHarness(stub, out, ['stub']);
   console.log(JSON.stringify(r));
   assert.deepEqual(r.show, { ok: true }, JSON.stringify(r.events));
   assert.ok((r.frames as number) >= 2, `frames ${r.frames}`);
@@ -79,11 +71,10 @@ test('stub service: the page draws the IOSurface it serves, five points exact, a
   assert.deepEqual(off, [], JSON.stringify(canvas.points));
 });
 
-test('real renderer: its preview service draws the character in the page', { skip: !real }, () => {
-  const app = probeApp('Real', (executable) => execFileSync('cp', ['-c', process.env.AAC_E2C_HOST!, executable]));
+test('real renderer: its preview draws the character in the page', { skip: !real }, () => {
   const out = process.env.AAC_E2C_OUT ?? dir;
   mkdirSync(out, { recursive: true });
-  const r = runHarness(app, out, ['real', process.env.AAC_E2C_CATALOG!, process.env.AAC_E2C_CHARACTER!, ...(process.env.AAC_E2C_ACTION ? [process.env.AAC_E2C_ACTION] : [])]);
+  const r = runHarness(process.env.AAC_E2C_HOST!, out, ['real', process.env.AAC_E2C_CATALOG!, process.env.AAC_E2C_CHARACTER!, ...(process.env.AAC_E2C_ACTION ? [process.env.AAC_E2C_ACTION] : [])]);
   console.log(JSON.stringify(r));
   assert.deepEqual(r.show, { ok: true }, JSON.stringify(r.events));
   assert.ok((r.frames as number) >= 10, `frames ${r.frames}`);

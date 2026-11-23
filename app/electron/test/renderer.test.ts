@@ -119,6 +119,23 @@ test('on Windows the renderer always gets --agentic-complex-hide-on-screen-captu
   }
 });
 
+test('the preview rendezvous goes last on macOS, after the socket; never on Windows or without one', () => {
+  const s = setup('');
+  try {
+    const args = (platform: 'mac' | 'windows' | undefined, previewRendezvous?: string) => rendererArguments({ config: s.config,
+      character: 'aster', parentPid: 42, startupPath: '/x', socketPath: '/r/avatar.sock', captureDir: '/p', settings: {}, state: {},
+      platform, previewRendezvous });
+    const flag = '--agentic-complex-preview-rendezvous';
+    assert.deepEqual(args(undefined, 'local.agenticcomplex.companion.preview.42').slice(-4),
+      ['--agentic-complex-host-socket', '/r/avatar.sock', flag, 'local.agenticcomplex.companion.preview.42']);
+    assert.deepEqual(args('mac', 'n').slice(-2), [flag, 'n']);
+    assert.ok(!args('windows', 'n').includes(flag));
+    assert.ok(!args('mac').includes(flag));
+  } finally {
+    s.done();
+  }
+});
+
 test('the scene arguments: box passes a pack and its SHA-256, stage the stage id, both only fullscreen', () => {
   const s = setup('');
   try {

@@ -1,4 +1,4 @@
-// The preview in the main window: frames from the preview service go to the page with Electron's `sharedTexture`, and the preload
+// The preview in the main window: frames from the desktop renderer's preview go to the page with Electron's `sharedTexture`, and the preload
 // draws them into a canvas in the page's preview layer, or over the rect the page reported without one (src/preload/index.ts). A window gets one connection for its life;
 // closing it ends the connection.
 import { type BrowserWindow, screen, sharedTexture } from 'electron';
@@ -10,13 +10,10 @@ import { type CameraView, previewOutput, PreviewSession, type PreviewSelection, 
 
 /** The addon (native/mac/preview.m). */
 export interface PreviewAddon extends PreviewTransport<PreviewSurface> {
+  /** The Mach bootstrap name the renderer gets as `--agentic-complex-preview-rendezvous`; the same on every call. */
+  rendezvous(): string;
   mainBundle(): { identifier: string | null; path: string };
   setPreventsActivation(nativeWindowHandle: Buffer): boolean;
-}
-
-/** The service is `<bundle id>.preview`, `local.agenticcomplex.companion` without a bundle id. */
-export function previewService(identifier: string | null): string {
-  return `${identifier ?? 'local.agenticcomplex.companion'}.preview`;
 }
 
 export interface WindowPreviewOptions {
@@ -40,8 +37,7 @@ export class WindowPreview implements PreviewView {
 
   constructor(options: WindowPreviewOptions) {
     this.options = options;
-    const bundle = options.addon.mainBundle();
-    this.service = previewService(bundle.identifier);
+    this.service = options.addon.rendezvous();
   }
 
   place(rect: PreviewRect): void {

@@ -770,7 +770,7 @@ test('a view the page sends before the window has a preview reaches the service 
     { screen: { getDisplayMatching: () => ({ scaleFactor: 2 }) }, sharedTexture: {} }, '../src/main/preview/window.ts');
   const win = { isDestroyed: () => false, isVisible: () => true, isMinimized: () => false, on() {}, getBounds: () => ({ x: 0, y: 0, width: 800, height: 600 }),
     webContents: { send() {}, on() {}, getZoomFactor: () => 1 } };
-  const addon = Object.assign(transport, { mainBundle: () => ({ identifier: 'test', path: '/x' }), setPreventsActivation: () => true });
+  const addon = Object.assign(transport, { rendezvous: () => 'test.preview.1', setPreventsActivation: () => true });
   const wp = new WindowPreview({ addon: addon as never, window: () => win as never, log: () => {} });
   const v: CameraView = { turn: 20, tilt: 0, zoom: 0.8, pan: [0, 0], frame: [0.3, 0, 0.4, 1] };
   wp.view(v);

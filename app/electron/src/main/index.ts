@@ -317,7 +317,7 @@ const renderer = config && new RendererSupervisor({
   // The last character a switch remembered (rule 14), as at the app's launch.
   character: () => launchCharacter(config!, lastCharacter(config!.supportDir)),
   placement: (character) => placer?.launchPlacement(character) ?? null, link: hostLink,
-  captureDir: CAPTURE_DIR, platform: shellPlatform(),
+  captureDir: CAPTURE_DIR, platform: shellPlatform(), previewRendezvous: () => addon?.rendezvous(),
   onStatus: (state) => {
     rendererState = state;
     // The sampler runs while she does.
@@ -380,7 +380,7 @@ const supervisor = config && new AgentdSupervisor({
 });
 /** shellPlan of the plug-ins agentd runs with: a 重启后台 after a plug-in changed applies it to what starts with agentd. */
 const plan = (): ReadonlySet<Subsystem> => shellPlan(supervisor?.plugins ?? DEFAULT_PLUGINS);
-/** The macOS addon: the preview's XPC client and the desktop panels' `setPreventsActivation`. */
+/** The macOS addon: the preview's Mach rendezvous with the renderer and the desktop panels' `setPreventsActivation`. */
 const addon = config ? previewAddon(join(import.meta.dirname, 'native/preview.node')) : null;
 /** The character page's live preview; none on Windows yet or without a renderer link. */
 const preview = (() => {

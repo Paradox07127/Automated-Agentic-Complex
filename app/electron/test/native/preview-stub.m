@@ -1,9 +1,22 @@
-// A stand-in preview XPC service for the window test: speaks the wire of C3 CONTRACT 「附录：预览 XPC」 and draws nothing. Every
-// frame carries the same 256x256 BGRA IOSurface of a known gradient: pixel (x, y) is R = 255 - x, G = y, B = x, A = 255.
+// A stand-in renderer for the window test, launched by preview-harness.ts with `--agentic-complex-preview-rendezvous <name>`: speaks
+// the Mach wire of C3 CONTRACT 「附录：预览 XPC」 and draws nothing. Every frame carries the same 256x256 BGRA IOSurface of a known
+// gradient: pixel (x, y) is R = 255 - x, G = y, B = x, A = 255. Exits on `disconnected`, or after 60 s without a message.
 #import <Foundation/Foundation.h>
 #import <IOSurface/IOSurface.h>
-#import <xpc/xpc.h>
+#include <bootstrap.h>
+#include <mach/mach.h>
+#include <stddef.h>
 
+typedef struct {
+  mach_msg_header_t header;
+  mach_msg_body_t body;
+  mach_msg_port_descriptor_t port;
+  uint64_t sequence;
+  uint32_t length;
+  char json[8192];
+} EWPreviewWire;
+
+static mach_port_t server, own;
 static IOSurfaceRef surface;
 static uint64_t sequence, loadID;
 
@@ -24,58 +37,54 @@ static IOSurfaceRef Gradient(void) {
   return s;
 }
 
-static void Reply(xpc_connection_t peer, xpc_object_t request, NSString *json, BOOL frame) {
-  xpc_object_t reply = xpc_dictionary_create_reply(request);
-  if (!reply) return;
-  xpc_dictionary_set_string(reply, "json", json.UTF8String);
-  if (frame) {
-    xpc_dictionary_set_uint64(reply, "sequence", ++sequence);
-    xpc_dictionary_set_value(reply, "surface", IOSurfaceCreateXPCObject(surface));
-  }
-  xpc_connection_send_message(peer, reply);
+static void Send(NSString *json, mach_port_t port, mach_msg_type_name_t disposition, uint64_t seq) {
+  static EWPreviewWire m;
+  const char *text = json.UTF8String;
+  size_t length = strlen(text);
+  memset(&m, 0, sizeof m);
+  m.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0) | MACH_MSGH_BITS_COMPLEX;
+  m.header.msgh_size = (mach_msg_size_t)(offsetof(EWPreviewWire, json) + ((length + 3) & ~(size_t)3));
+  m.header.msgh_remote_port = server;
+  m.header.msgh_id = 0x45575056;
+  m.body.msgh_descriptor_count = port != MACH_PORT_NULL;
+  m.port.name = port;
+  m.port.disposition = disposition;
+  m.port.type = MACH_MSG_PORT_DESCRIPTOR;
+  m.sequence = seq;
+  m.length = (uint32_t)length;
+  memcpy(m.json, text, length);
+  mach_msg(&m.header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, m.header.msgh_size, 0, MACH_PORT_NULL, 100, MACH_PORT_NULL);
 }
 
-static void Send(xpc_connection_t peer, NSString *json) {
-  xpc_object_t message = xpc_dictionary_create(NULL, NULL, 0);
-  xpc_dictionary_set_string(message, "json", json.UTF8String);
-  xpc_connection_send_message(peer, message);
+static void Frame(void) {
+  Send([NSString stringWithFormat:@"{\"event\":\"frame\",\"load_id\":%llu}", loadID], IOSurfaceCreateMachPort(surface),
+       MACH_MSG_TYPE_MOVE_SEND, ++sequence);
 }
 
-static void Answer(xpc_connection_t peer, xpc_object_t message) {
-  if (xpc_get_type(message) != XPC_TYPE_DICTIONARY) return;
-  const char *text = xpc_dictionary_get_string(message, "json");
-  if (!text) return;
-  NSDictionary *r = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:text length:strlen(text)] options:0 error:nil];
-  NSString *op = [r isKindOfClass:NSDictionary.class] ? r[@"op"] : nil;
-  NSString *frame = nil;
-  if ([op isEqual:@"load"] || [op isEqual:@"sequence"]) {
-    loadID = [r[@"load_id"] unsignedLongLongValue];
-    NSString *clip = [op isEqual:@"load"] ? (r[@"clip"] ?: @"idle") : [r[@"clips"] firstObject];
-    Send(peer, [NSString stringWithFormat:@"{\"event\":\"loaded\",\"load_id\":%llu,\"character\":\"%@\",\"clip\":\"%@\"}", loadID,
-                r[@"character"] ?: @"stub", clip]);
-    frame = [NSString stringWithFormat:@"{\"event\":\"frame\",\"load_id\":%llu}", loadID];
-    Reply(peer, message, frame, YES);
-  } else if ([op isEqual:@"ack"] || [op isEqual:@"resume"]) {
-    frame = [NSString stringWithFormat:@"{\"event\":\"frame\",\"load_id\":%llu}", loadID];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 50 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{ Reply(peer, message, frame, YES); });
-  } else {
-    Reply(peer, message, @"{\"event\":\"accepted\"}", NO);
-  }
-}
-
-static void Accept(xpc_connection_t peer) {
-  xpc_connection_set_target_queue(peer, dispatch_get_main_queue());
-  xpc_connection_set_event_handler(peer, ^(xpc_object_t message) {
-    if (xpc_get_type(message) == XPC_TYPE_ERROR) {
-      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 250 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{ exit(0); });
-      return;
-    }
-    Answer(peer, message);
-  });
-  xpc_connection_resume(peer);
-}
-
-int main(void) {
+int main(int argc, char **argv) {
+  const char *name = NULL;
+  for (int i = 1; i + 1 < argc; i++) if (strcmp(argv[i], "--agentic-complex-preview-rendezvous") == 0) name = argv[i + 1];
+  if (!name || bootstrap_look_up(bootstrap_port, name, &server) != KERN_SUCCESS) return 2;
   surface = Gradient();
-  xpc_main(Accept);
+  mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &own);
+  Send(@"{\"event\":\"hello\"}", own, MACH_MSG_TYPE_MAKE_SEND, 0);
+  static struct { EWPreviewWire wire; mach_msg_trailer_t trailer; } r;
+  for (;;) {
+    if (mach_msg(&r.wire.header, MACH_RCV_MSG | MACH_RCV_TIMEOUT, 0, sizeof r, own, 60000, MACH_PORT_NULL) != KERN_SUCCESS) return 3;
+    if (r.wire.length == 0 || r.wire.length > 8192) continue;
+    NSDictionary *m = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:r.wire.json length:r.wire.length] options:0 error:nil];
+    if (![m isKindOfClass:NSDictionary.class]) continue;
+    if ([m[@"event"] isEqual:@"disconnected"]) return 0;
+    NSString *op = m[@"op"];
+    if ([op isEqual:@"load"] || [op isEqual:@"sequence"]) {
+      loadID = [m[@"load_id"] unsignedLongLongValue];
+      NSString *clip = [op isEqual:@"load"] ? (m[@"clip"] ?: @"idle") : [m[@"clips"] firstObject];
+      Send([NSString stringWithFormat:@"{\"event\":\"loaded\",\"load_id\":%llu,\"character\":\"%@\",\"clip\":\"%@\"}", loadID,
+            m[@"character"] ?: @"stub", clip], MACH_PORT_NULL, 0, 0);
+      Frame();
+    } else if ([op isEqual:@"ack"] || [op isEqual:@"resume"]) {
+      usleep(50 * 1000);
+      Frame();
+    }
+  }
 }

@@ -116,6 +116,8 @@ export interface LaunchInput {
   placement?: string | null;
   /** Absent is macOS. */
   platform?: ShellPlatform;
+  /** The preview addon's `rendezvous()`; absent without the addon. macOS only. */
+  previewRendezvous?: string;
 }
 
 /** Fullscreen only: `scene_mode` box passes `<support>/scenes/<scene_id>/scene.json` (an empty
@@ -175,6 +177,7 @@ export function rendererArguments(o: LaunchInput): string[] {
   if (o.platform === 'windows') args.push('--agentic-complex-hide-on-screen-capture', settings.hide_on_screen_capture === true ? '1' : '0');
   args.push(...(config.characters.find((c) => c.id === character)?.avatarArgs ?? []));
   if (o.socketPath !== null) args.push('--agentic-complex-host-socket', o.socketPath);
+  if (o.previewRendezvous !== undefined && o.platform !== 'windows') args.push('--agentic-complex-preview-rendezvous', o.previewRendezvous);
   return args;
 }
 
@@ -246,6 +249,8 @@ export interface RendererOptions {
   captureDir: string;
   /** Absent is macOS. Windows has no .app bundle to find the executable in. */
   platform?: ShellPlatform;
+  /** `LaunchInput.previewRendezvous`, read at each launch. */
+  previewRendezvous?(): string | undefined;
   /** Arguments before the renderer's own: the tests run a Node script with `process.execPath` as the executable. */
   prefix?: string[];
   onStatus?: (state: ChildState) => void;
@@ -396,7 +401,8 @@ export class RendererSupervisor {
     this.setLoading({ kind: 'loading', character, stage: 'starting' });
     const args = rendererArguments({ config: this.config, settings: this.options.settings(), state: this.options.state(), character,
       parentPid: process.pid, startupPath, socketPath: link?.path ?? null, captureDir: this.options.captureDir,
-      placement: this.options.placement?.(character) ?? null, platform: this.options.platform });
+      placement: this.options.placement?.(character) ?? null, platform: this.options.platform,
+      previewRendezvous: this.options.previewRendezvous?.() });
     if (this.launch(executable, [...this.options.prefix ?? [], ...args])) {
       this.setState({ kind: 'running' });
       this.watchStartup(this.generation, startupPath, character, seconds(), 'starting');
