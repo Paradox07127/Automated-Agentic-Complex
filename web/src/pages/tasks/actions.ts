@@ -5,9 +5,7 @@ import { revealText } from '../../bridge/platformText';
 import {
   approvalDecision,
   deliveryDecision,
-  deliveryReceipt,
   formatClock,
-  fromDelivery,
   goalState,
   interactionAnswer,
   interactionDismiss,
@@ -18,7 +16,6 @@ import {
   type Goal,
   type Question,
   type Task,
-  type WireDelivery,
   type WireInteraction,
 } from '../../domain';
 import { DECIDE_FAIL, notStopped, type DecideFailCode, type TaskAction } from '../../features/task';
@@ -27,6 +24,7 @@ import { isPluginOff } from '../../shell/plugins';
 import type { PushToast } from '../../shell/toast';
 import { nextAfter, type TasksLocal, type TasksView } from './model';
 import { navigate } from './params';
+import { sendOpened } from './deliveryCalls';
 
 export interface ActionDeps {
   view: TasksView;
@@ -108,28 +106,6 @@ function unmappedCode(e: unknown): string | null {
 }
 
 const isConflict = (e: unknown) => e instanceof AgentdCallError && !isPluginOff(e) && (e.status === 409 || CONFLICT_CODES.has(e.code));
-
-/** POST /agent/deliveries/{id}/(presented|viewed); resolves with the reply's delivery (its revision is one higher). */
-export async function sendReceipt(d: Delivery, kind: 'presented' | 'viewed'): Promise<Delivery> {
-  const body = deliveryReceipt(d);
-  const r =
-    kind === 'presented'
-      ? await post<{ delivery: WireDelivery }>(`/agent/deliveries/${seg(d.id)}/presented`, body)
-      : await post<{ delivery: WireDelivery }>(`/agent/deliveries/${seg(d.id)}/viewed`, body);
-  return fromDelivery(r.delivery);
-}
-
-/**
- * POST /agent/deliveries/{id}/opened for the file at `path` (absolute or as the delivery lists it) in the task's newest
- * delivery listing it; false when none does, as for a file the run only changed.
- */
-export async function sendOpened(deliveries: readonly Delivery[], taskId: string, path: string): Promise<boolean> {
-  const of = (d: Delivery) => d.artifacts.find((a) => a.absolute_path === path || a.path === path);
-  const d = deliveries.filter((x) => x.task_id === taskId && of(x)).sort((x, y) => y.version - x.version)[0];
-  if (!d) return false;
-  await post(`/agent/deliveries/${seg(d.id)}/opened`, { artifact_id: of(d)!.artifact_id });
-  return true;
-}
 
 /** Stop by source: a job, a character ledger task, an own coding session's turn, else the live run. */
 async function stopOne(t: Task, view: TasksView): Promise<void> {

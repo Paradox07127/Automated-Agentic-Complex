@@ -10,11 +10,11 @@ import { TaskDrawer } from '../../src/features/task/TaskDrawer';
 import { catOf, plateOf } from '../../src/pages/memory/model';
 import { useDeliveryVisibility } from '../../src/features/delivery';
 import { useReceipts } from '../../src/pages/tasks/live';
-import { sendReceipt } from '../../src/pages/tasks/actions';
+import { sendReceipt } from '../../src/pages/tasks/deliveryCalls';
 import { useMotions } from '../../src/pages/character/useMotions';
 import { createFakeBridge } from '../../src/bridge/fake';
 
-vi.mock('../../src/pages/tasks/actions', async (original) => ({ ...await original<object>(), sendReceipt: vi.fn() }));
+vi.mock('../../src/pages/tasks/deliveryCalls', async (original) => ({ ...await original<object>(), sendReceipt: vi.fn() }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); delete window.agenticComplex; });
 
 const wire = { ...WIRE_DELIVERIES[0]!, delivery_version: 1, generation: 42, revision: 1,

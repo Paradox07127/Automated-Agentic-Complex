@@ -19,7 +19,7 @@ import {
 } from '../../domain';
 import type { TaskAction } from '../../features/task';
 import type { PushToast } from '../../shell/toast';
-import { sendOpened } from '../tasks/actions';
+import { sendOpened } from '../tasks/deliveryCalls';
 import type { TasksLocal, TasksView } from '../tasks/model';
 import { navigate } from '../tasks/params';
 import type { SendOptions } from './Composer';

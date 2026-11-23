@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AgentdCallError } from '../../bridge/agentd';
 import type { Delivery } from '../../domain';
 import { appNow } from '../../bridge/clock';
-import { sendReceipt } from './actions';
+import { sendReceipt } from './deliveryCalls';
 
 /** Wall clock, re-read every 30 s; the fake bridge freezes it at the fixtures' NOW. */
 export function useClock(): number {
