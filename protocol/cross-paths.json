@@ -78,7 +78,7 @@
    "characters/agentic_complex_build/import_outfit.py", "characters/agentic_complex_build/import_vmd.py",
    "characters/agentic_complex_build/motion_import/edit.py", "characters/agentic_complex_build/motion_import/chain_edit.py",
    "agent/agentd/motion_tool.py"]},
-  {"row": "character-library", "token": "actions.json", "files": ["agent/agentd/motion/catalog.py", "agent/agentd/motion_tool.py",
+  {"row": "character-library", "token": "actions.json", "files": ["agent/agentd/motion/catalog.py", "agent/agentd/motion_tool.py", "agent/agentd/personal/brief_day.py",
    "characters/agentic_complex_build/import_vmd.py", "characters/agentic_complex_build/motion_import/edit.py",
    "characters/agentic_complex_build/motion_import/chain_edit.py"]},
   {"row": "character-library", "token": "affordance-uses.json", "files": ["characters/agentic_complex_build/live_motion.py"]},

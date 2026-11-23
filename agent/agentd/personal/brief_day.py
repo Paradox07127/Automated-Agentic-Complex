@@ -21,8 +21,8 @@ NEED = {'done': ('agent', 'code'), 'err': ('agent', 'code'), 'turn': (), 'line':
 # proactive_log triggers of channel 'line': Proactive's reason kinds and dispatch_report's announcement and job states
 TRIGGERS = {'comment': '主动搭话', 'back': '你回来了', 'break': '提醒你休息', 'water': '提醒你喝水',
             'stuck': '你卡住了，问要不要帮忙', 'dispatch_done': '派的任务做完了',
-            'dispatch_review': '派的任务等你确认', 'dispatch_failed': '派的任务没做成',
-            'succeeded': '后台的活做完了', 'needs_review': '后台的活等你确认', 'failed': '后台的活没做成'}
+            'dispatch_review': '派的任务待复核', 'dispatch_failed': '派的任务没做成',
+            'succeeded': '后台的活做完了', 'needs_review': '后台的活待复核', 'failed': '后台的活没做成'}
 
 
 def _counts(counts, limit=None, labels={}):

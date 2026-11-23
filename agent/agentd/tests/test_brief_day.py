@@ -130,7 +130,7 @@ class BriefDayTest(unittest.TestCase):
             ('A_clip_aster_wave', '挥手'), ('wave_a', '挥手'), ('A_clip_aster_nod', 'A_clip_aster_nod'),
             ('A_clip_other', 'A_clip_other')])
         self.assertEqual([(w['key'], w['label']) for w in her['why']], [
-            ('break', '提醒你休息'), ('dispatch_review', '派的任务等你确认'), ('later_kind', 'later_kind')])
+            ('break', '提醒你休息'), ('dispatch_review', '派的任务待复核'), ('later_kind', 'later_kind')])
         self.server.characters = SimpleNamespace(package=lambda cid: (_ for _ in ()).throw(ValueError(cid)))
         self.assertEqual(self.brief()['her']['motions'][0]['label'], 'A_clip_aster_wave')
 
