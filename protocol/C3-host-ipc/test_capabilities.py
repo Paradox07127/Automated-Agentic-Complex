@@ -91,13 +91,11 @@ class RendererSourceTests(unittest.TestCase):
     def test_mac_hello_matches_mac_yes(self):
         self.assertEqual(mismatch(listed('mac'), mac_hello()), mismatch(set(), set()))
 
-    def test_efw_fixed_settings_match_kfixed(self):
+    def test_efw_reports_unsupported_settings_by_the_table(self):
+        # host-common's generated table (protocol/tools/gen_render_table.py) is the only list of what efw draws fixed.
         host = (EFW / 'host.cpp').read_text(encoding='utf-8')
-        fixed = set(re.findall(r'\{"([a-z-]+)", "[^"]*"\}', re.search(r'const Fixed kFixed\[\] = \{(.*?)\};', host, re.S).group(1)))
-        # ssaa is not in kFixed: efw draws 2 whatever is passed.
-        fixed.add('ssaa')
-        table = {name.removeprefix('--agentic-complex-') for name, row in TABLE['render_settings'].items() if row['windows'] == 'fixed'}
-        self.assertEqual(mismatch(table, fixed), mismatch(set(), set()))
+        self.assertNotIn('kFixed', host)
+        self.assertIn('hc_render_settings_unsupported(HC_RENDER_WINDOWS', host)
 
 
 if __name__ == '__main__':
