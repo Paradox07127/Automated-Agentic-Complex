@@ -1934,6 +1934,9 @@ class SayTest(FeedServerCase):
         # The limit counts the text without its surrounding whitespace, as a chat message's does.
         self.assertEqual(self.request("POST", "/say", {"text": "x" * 2000 + "\n" * 5})[0], 202)
         self.assertEqual(self.request("POST", "/say", {"text": "x", "quote": {"text": " " + "x" * 2000 + " ", "app": None}})[0], 202)
+        # A no_memory that is not a bool would be taken as 记住.
+        for bad in ("yes", 1, None):
+            self.assertEqual(self.request("POST", "/say", {"text": "x", "no_memory": bad}), (400, {"error": "invalid_no_memory"}))
         self.server.mouth = None
         self.assertEqual(self.say("你好"), (503, {"error": "no_llm"}))
 

@@ -39,6 +39,9 @@ class SpeechMixin:
         look = body.get("look", False)
         if not isinstance(look, bool):
             return 400, {"error": "invalid_look"}
+        no_memory = body.get("no_memory", False)
+        if not isinstance(no_memory, bool):
+            return 400, {"error": "invalid_no_memory"}
         cwd = body.get("cwd")
         if cwd is not None and not (_is_dir(cwd) and os.path.isabs(cwd)):
             return 400, {"error": "invalid_payload", "field": "cwd"}
@@ -81,7 +84,7 @@ class SpeechMixin:
             options = validate_say(body)
         except ValueError as error:
             return 400, {"error": str(error)}
-        return self.server.say(text, source, body.get("no_memory") is not True, look, cwd, verify_cmd,
+        return self.server.say(text, source, not no_memory, look, cwd, verify_cmd,
                                voice_timing=voice_timing, surface=surface, quote=quote, reply_to=reply_to,
                                look_window=look_window, **options)
 
