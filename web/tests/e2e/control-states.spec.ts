@@ -108,7 +108,7 @@ test('CommandBar: 回主页 reacts to press', async ({ page }) => {
 });
 
 test('approval card links: hover, press, focus ring, and a disabled link that still reads as a link', async ({ page }) => {
-  await go(page, 'main.html#/overview?still=1');
+  await go(page, 'main.html#/overview?plugins=daily_brief&still=1');
   const card = page.locator('[data-stub="ApprovalCard"]').first();
   const session = card.getByRole('button', { name: '会话 ↗' });
   await expect(session).toBeVisible();
@@ -125,7 +125,7 @@ test('approval card links: hover, press, focus ring, and a disabled link that st
 });
 
 test('approval card: the source line has no raw session id and keeps it in the tooltip', async ({ page }) => {
-  await go(page, 'main.html#/overview?still=1');
+  await go(page, 'main.html#/overview?plugins=daily_brief&still=1');
   const line = page.locator('[data-stub="ApprovalCard"] p > span[title]').first();
   await expect(line).not.toHaveText(/claude:|own:/);
   await expect(line).toHaveAttribute('title', /claude:|own:/);

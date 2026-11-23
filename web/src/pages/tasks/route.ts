@@ -11,5 +11,5 @@ export const route: PageRoute = {
   group: 'secondary',
   nav: false,
   plugin: 'personal_agent',
-  component: lazyRouteComponent(() => import('./Page'), 'TasksPage'),
+  component: lazyRouteComponent(() => import('./Gate'), 'TasksGate'),
 };

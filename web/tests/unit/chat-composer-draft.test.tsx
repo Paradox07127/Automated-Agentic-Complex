@@ -246,7 +246,7 @@ describe('a finished pick, drop or paste goes to the draft that asked for it', (
     fireEvent.click(screen.getByRole('button', { name: '附加' }));
     const item = screen.getByRole('menuitem', { name: /添加文件或图片/ });
     expect(item.getAttribute('aria-disabled')).toBe('true');
-    expect(item.textContent).toMatch(/个人代理/);
+    expect(item.textContent).toMatch(/已关闭：设置里关着「派发任务和定时任务」/);
   });
 });
 

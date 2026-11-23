@@ -27,7 +27,7 @@ export interface PageRoute {
   nav?: false;
   /** Listed in the sidebar and ⌘K only in 开发者模式; its URL and hotkey still open it. */
   devOnly?: true;
-  /** The plug-in it belongs to: kept out of the menus, ⌘K and the hotkeys while that plug-in is off; its URL still opens it. */
+  /** The plug-in it belongs to: while that plug-in is off the menus and ⌘K mark it 已关闭, and the page opens greyed under its switch. */
   plugin?: PluginId;
   /** Lazy for the pages (`lazyRouteComponent`), so each page's code loads on first visit. */
   component: RouteComponent;

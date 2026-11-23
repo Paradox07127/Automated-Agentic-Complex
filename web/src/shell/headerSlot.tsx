@@ -1,4 +1,4 @@
-import { createContext, useContext, useLayoutEffect, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { BottomBar, type BottomBarZones } from './BottomBar';
 
@@ -64,4 +64,12 @@ export function BottomBarSlot({ children, lead, status, actions }: BottomBarSlot
   const slot = useContext(HeaderSlotContext);
   const zoned = lead != null || status != null || actions != null;
   return <Portal node={zoned ? <BottomBar lead={lead} status={status} actions={actions} /> : children} into={slot?.bottom ?? null} inShell={!!slot} />;
+}
+
+/** A page under a 已关闭 board: its tabs, header buttons and bottom bar are not drawn into the shell, where the board's inert cover does not reach. */
+export function SlotsOff({ children }: { children: ReactNode }) {
+  const slot = useContext(HeaderSlotContext);
+  const setSub = slot?.setSub;
+  const none = useMemo(() => (setSub ? { setSub, tabs: null, right: null, action: null, bottom: null } : null), [setSub]);
+  return <HeaderSlotContext.Provider value={none}>{children}</HeaderSlotContext.Provider>;
 }

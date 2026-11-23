@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from 'react';
+import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type WheelEvent } from 'react';
 import type { PendingItem, Question } from '../../domain';
 import { dangerRuleText } from '../../features/approval';
 import type { Go } from '../../shell/nav';
@@ -24,6 +24,8 @@ export interface DiscProps {
     onReply: (item: Question, answers: Record<string, string[]>) => void;
   };
   go: Go;
+  /** 每日简报 off: its 已关闭 block takes the place of 待批准, 在做 and the report. */
+  off?: ReactNode;
 }
 
 /** Options one click can answer; a question with more, or several questions, is answered on 每日简报. */
@@ -155,7 +157,7 @@ const SWIPE_MS = 450;
 const GESTURE_GAP_MS = 150;
 
 /** The centre disc over the map: tabs for what waits on the user and what runs, over today's report. */
-export function Disc({ title, urgent, report, running, act, go }: DiscProps) {
+export function Disc({ title, urgent, report, running, act, go, off }: DiscProps) {
   const tabs: Tab[] = ['pending', ...(running ? (['running'] as const) : [])];
   const [picked, setPicked] = useState<Tab | null>(null);
   const tab = picked && tabs.includes(picked) ? picked : urgent.length > 0 || !running?.length ? 'pending' : 'running';
@@ -206,6 +208,12 @@ export function Disc({ title, urgent, report, running, act, go }: DiscProps) {
     wheel.current = { dx: 0, last: e.timeStamp, at: e.timeStamp };
   };
   const [first, ...rest] = urgent;
+  if (off)
+    return (
+      <section className={styles.disc} aria-label={title} data-g="map">
+        <div className={styles.panel}>{off}</div>
+      </section>
+    );
   return (
     <section className={styles.disc} aria-label={title} data-g="map" data-busy={first ? '' : undefined}>
       {tabs.length > 1 && (

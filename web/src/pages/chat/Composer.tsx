@@ -5,6 +5,7 @@ import { post } from '../../bridge/agentd';
 import type { RuntimeInfo } from '../../domain';
 import { navigate } from '../../shell/nav';
 import { usePlugins } from '../../shell/plugins';
+import { offReason } from '../../shell/registry';
 import { Btn, Icon, IconBtn, Menu, type MenuItem } from '../../ui';
 import { PowerState } from '../../ui/game';
 import { AttachTray, type TrayItem } from './AttachTray';
@@ -103,7 +104,7 @@ const MAX_TEXT = 8000;
 const MAX_FILES = 16;
 const MAX_IMAGE = 5 * 1024 * 1024;
 
-const NO_AGENT = '个人代理没开，不能带文件';
+const NO_AGENT = `${offReason('personal_agent')}，不能带文件`;
 
 /** The draft after its line went: the text only if it was not edited since, and not the files the line took. */
 const without = (cur: Draft, sent: Draft): Draft => ({ ...EMPTY, text: cur.text === sent.text ? '' : cur.text, files: cur.files.filter((f) => !sent.files.some((s) => s.handle === f.handle)) });

@@ -16,9 +16,10 @@ export interface MenuMods {
 
 const modsOf = (e: MenuMods): MenuMods => ({ altKey: e.altKey, shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey });
 
-/** One menu entry; radio (with checked) is one choice of several and closes the menu, checked alone toggles and keeps it open; icon is drawn before the label. */
+/** One menu entry; radio (with checked) is one choice of several and closes the menu, checked alone toggles and keeps it open; icon is drawn before the label;
+ *  off marks an entry whose capability is switched off (grey, ⊗, the reason as its description) that can still be chosen. */
 export type MenuItem =
-  | { kind: 'item'; label: string; icon?: IconName; hint?: string; danger?: boolean; checked?: boolean; radio?: boolean; disabled?: boolean; reason?: string; onSelect?: (mods: MenuMods) => void }
+  | { kind: 'item'; label: string; icon?: IconName; hint?: string; danger?: boolean; checked?: boolean; radio?: boolean; disabled?: boolean; reason?: string; off?: string; onSelect?: (mods: MenuMods) => void }
   | { kind: 'sep' }
   | { kind: 'head'; label: string };
 
@@ -38,6 +39,19 @@ export interface MenuProps {
   narrowed?: boolean;
   /** bar：顶栏页面名的深色扁平签（只给外壳顶栏用）；默认深色胶囊 Btn */
   look?: 'bar';
+}
+
+/** 已关闭's ⊗ (PowerState's ring cut twice round a ×) and the word, grey. */
+function OffMark() {
+  return (
+    <span className={styles.off} data-off="" aria-hidden="true">
+      <svg width={12} height={12} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="9.6" fill="none" stroke="currentColor" strokeWidth="2.6" pathLength="100" strokeDasharray="38 12" transform="rotate(-80 12 12)" />
+        <path d="M6.8 6.8l3.8 3.8M17.2 6.8l-3.8 3.8M6.8 17.2l3.8-3.8M17.2 17.2l-3.8-3.8" stroke="currentColor" strokeWidth="2.8" />
+      </svg>
+      已关闭
+    </span>
+  );
 }
 
 export function Menu({ label, items, icon, open: forced, align = 'left', narrowed, look }: MenuProps) {
@@ -198,7 +212,9 @@ export function Menu({ label, items, icon, open: forced, align = 'left', narrowe
                 className={styles.item}
                 data-danger={it.danger || undefined}
                 data-check={it.checked === undefined && !it.radio ? undefined : String(!!it.checked)}
-                title={it.disabled ? it.reason : undefined}
+                data-off={it.off ? '' : undefined}
+                aria-description={it.off}
+                title={it.disabled ? it.reason : it.off}
                 onClick={(e) => select(i, modsOf(e))}
                 onMouseEnter={() => setFocusOn(i)}
               >
@@ -212,6 +228,7 @@ export function Menu({ label, items, icon, open: forced, align = 'left', narrowe
                   {it.label}
                   {it.disabled && it.reason && <span className={styles.reason}>{it.reason}</span>}
                 </span>
+                {it.off && <OffMark />}
                 {it.hint && <kbd className={styles.hint}>{it.hint}</kbd>}
               </button>
             );
@@ -249,6 +266,10 @@ export const MenuDemos: Array<{ name: string; props: MenuProps }> = [
       ],
     },
   },
+  { name: 'off', props: { label: '页面', open: true, items: [
+    { kind: 'item', label: '每日简报', icon: 'sun', hint: '⌘1', off: '已关闭：设置里关着「每日简报」' },
+    { kind: 'item', label: '对话', icon: 'send', hint: '⌘2' },
+  ] } },
 ];
 
 /** 右键菜单：开在指针处、没有触发按钮，由父组件持有开关；按外面、Esc、改窗口大小、滚动、窗口失焦都调 onClose。 */

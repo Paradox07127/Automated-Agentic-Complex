@@ -11,5 +11,5 @@ export const route: PageRoute = {
   group: 'primary',
   hotkey: '⌘1',
   plugin: 'daily_brief',
-  component: lazyRouteComponent(() => import('./Page'), 'OverviewPage'),
+  component: lazyRouteComponent(() => import('./Gate'), 'OverviewGate'),
 };

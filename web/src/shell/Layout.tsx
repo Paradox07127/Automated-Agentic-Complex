@@ -82,7 +82,7 @@ export function Layout() {
       }
       // ⌘N 派发任务 from any page; the tasks page handles it first, and an open dialog or sheet keeps it.
       if (e.key.toLowerCase() === 'n') {
-        if (e.defaultPrevented || !getPlugins().personal_agent || !shown.current.some((r) => r.id === 'overview')) return;
+        if (e.defaultPrevented || !getPlugins().personal_agent || !getPlugins().daily_brief) return;
         e.preventDefault();
         if (document.querySelector('[aria-modal="true"]')) return;
         setPalette(false);

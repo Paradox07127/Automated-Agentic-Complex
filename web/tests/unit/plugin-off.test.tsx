@@ -1,4 +1,4 @@
-// A feature whose plug-in is off is not offered, and agentd's 409 plugin_off for it is no edit conflict and shows nothing.
+// A feature whose plug-in is off reads nothing and says 已关闭, and agentd's 409 plugin_off for it is no edit conflict and shows nothing.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, render, screen, within } from '@testing-library/react';
@@ -87,17 +87,19 @@ describe('每日简报 with 编码会话 off', () => {
     expect(within(run).getByRole('button', { name: /^定时任务/ })).toBeTruthy();
   });
 
-  it('drops 进行中, 定时任务 and their reads with 个人代理 off too, and the action band offers neither 派发任务 nor 屏幕识读', async () => {
+  it('shows 进行中 as 已关闭 without 定时任务 or their reads with 个人代理 off too, and the action band has 屏幕识读 off', async () => {
     pluginsOn('daily_brief');
     const paths = asAgentd();
     mount(OverviewPage);
     await screen.findByRole('region', { name: '待处理' }, { timeout: 3000 });
     await settle();
     expect(screen.queryByRole('region', { name: '进行中' })).toBeNull();
+    expect(screen.getByRole('status', { name: '进行中' }).textContent).toContain('已关闭');
     expect(screen.queryByRole('button', { name: /^定时任务/ })).toBeNull();
     expect(paths).not.toContain('/schedules');
     const band = screen.getByRole('toolbar', { name: '常用操作' });
-    expect(within(band).getAllByRole('button').map((b) => b.textContent?.replace(/[⌃⌥⌘].*$/, ''))).toEqual(['快速输入', '命令面板']);
+    expect(within(band).getAllByRole('button').map((b) => b.textContent?.replace(/[⌃⌥⌘].*$/, ''))).toEqual(['快速输入', '屏幕识读', '命令面板']);
+    expect(within(band).getByRole('button', { name: /^屏幕识读/ }).getAttribute('title')).toBe('已关闭：设置里关着「屏幕识读」');
     expect(document.body.textContent).not.toContain('已在别处更新');
   });
 
@@ -111,7 +113,9 @@ describe('每日简报 with 编码会话 off', () => {
     expect(screen.getByRole('region', { name: '今天聊了什么' })).toBeTruthy();
     // 今日一句 is today.ts's summary sentence, which counts the snapshot's coding sessions whatever the plug-ins.
     const line = screen.getByRole('region', { name: '今日一句' }).textContent ?? '';
-    expect(document.body.textContent?.replace(line, '')).not.toContain('编码会话');
+    // 进行中's 已关闭 strip names the switch.
+    const off = screen.getByRole('status', { name: '进行中' }).textContent ?? '';
+    expect(document.body.textContent?.replace(line, '').replace(off, '')).not.toContain('编码会话');
   });
 
   it('reads the task desk again once 个人代理 and 编码会话 turn on after the page read', async () => {

@@ -17,7 +17,7 @@ const shot = (page: Page, name: string, theme: string) => saveShot(page, { path:
 for (const theme of THEMES) {
   test(`${theme}: the overview action band names the saved hotkeys`, async ({ page }) => {
     const errors = collectErrors(page);
-    await page.goto(`main.html#/overview?${suffix(theme)}`);
+    await page.goto(`main.html#/overview?plugins=daily_brief&${suffix(theme)}`);
     const band = page.getByRole('toolbar', { name: '常用操作' });
     await expect(band.getByRole('button', { name: /^快速输入/ })).toContainText('⌃Space');
     await expect(band).not.toContainText('⌃⌥Space');

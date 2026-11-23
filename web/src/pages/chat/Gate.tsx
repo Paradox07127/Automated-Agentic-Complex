@@ -1,4 +1,5 @@
 import { useDemo } from '../../shell/demo';
+import { SlotsOff } from '../../shell/headerSlot';
 import { navigate } from '../../shell/nav';
 import { usePlugins } from '../../shell/plugins';
 import { PowerState } from '../../ui/game';
@@ -11,7 +12,9 @@ export function ChatGate() {
   if (on) return <ChatPage />;
   return (
     <PowerState state="off" mode="page" title="和她对话" reason="设置里关掉了「和她对话」，她不回消息，也不记新的对话。" action={{ label: '前往设置打开', onClick: () => navigate({ page: 'settings', group: 'model', item: 'plugins.light_ai' }) }}>
-      <ChatPage />
+      <SlotsOff>
+        <ChatPage />
+      </SlotsOff>
     </PowerState>
   );
 }

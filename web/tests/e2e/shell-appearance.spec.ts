@@ -34,7 +34,7 @@ test('main theme= in the URL wins over the system appearance', async ({ page }) 
 });
 
 test('no page header: the 50 high command bar names the current page in its page menu, and 主页 has no command bar', async ({ page }) => {
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=daily_brief&still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
   await expect(nav).toBeVisible();
   expect((await nav.boundingBox())?.height).toBe(50);

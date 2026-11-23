@@ -51,7 +51,7 @@ const CONN: Record<Conn, [PipProps['tone'], string]> = {
   loading: ['idle', '读取中'],
   failed: ['failed', '读取失败'],
   refused: ['failed', '拒绝访问'],
-  lost: ['failed', '无响应'],
+  lost: ['failed', '未接入'],
   stale: ['failed', '刷新失败'],
   ok: ['ok', '已连接'],
 };

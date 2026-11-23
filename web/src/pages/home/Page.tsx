@@ -11,9 +11,9 @@ import { look, openQuickInput, stopSpeech, useDesktopOff } from '../../shell/des
 import { OPEN_PALETTE } from '../../shell/Layout';
 import { useGo, type PageId } from '../../shell/nav';
 import { usePlugins, type PluginId } from '../../shell/plugins';
-import { useVisibleRoutes } from '../../shell/registry';
+import { offReason, useVisibleRoutes } from '../../shell/registry';
 import { fxCalm, Stage3D, useGameClip, type IconName } from '../../ui';
-import { CharCard, CloseKey, NewsBanner, TopIcon, WatchKey, type NewsItem } from '../../ui/game';
+import { CharCard, CloseKey, NewsBanner, PowerState, TopIcon, WatchKey, type NewsItem } from '../../ui/game';
 import { nextReminder, reminderTime, runRows } from '../overview/briefModel';
 import { useNow } from '../overview/nav';
 import { isExpired } from '../overview/pending';
@@ -34,14 +34,14 @@ import { useFit } from './useFit';
 import { Sway, useAttended } from './watchMotion';
 import styles from './Home.module.css';
 
-/** Page keys with their routes' icons. A key shows while its page is offered (its plug-in on, devOnly in 开发者模式). */
+/** Page keys with their routes' icons. A key shows while its page is offered (devOnly in 开发者模式); a page whose plug-in is off opens 已关闭. */
 const LEFT: readonly string[] = ['character', 'chat', 'memory', 'tasks'];
 /** The watch's CharInfo, Activity, Gacha and Purchase keys, top to bottom. */
 const LEFT_G = ['charInfo', 'activity', 'gacha', 'purchase'] as const;
 /** Developer pages, last in the grid. */
 const DEV: readonly string[] = ['diag', 'pipeline'];
 
-/** An action key: shown while its plug-in is on and the page it lands on is offered. */
+/** An action key: shown while the page it lands on is offered; off, with its 已关闭 reason, while its plug-in is off. */
 interface Act<Id extends string> {
   id: Id;
   icon: IconName;
@@ -98,7 +98,7 @@ export function HomePage() {
     const r = routeOf(id);
     return r && (r.nav !== false || r.id === 'tasks') ? r : undefined;
   };
-  const offered = (a: Act<string>) => (!a.plugin || plugins[a.plugin]) && (!a.page || !!listed(a.page));
+  const offered = (a: Act<string>) => !a.page || !!listed(a.page);
   // 待处理, 提醒, the disc's items and the bottom card all land on the today page.
   const today = routeOf('overview');
   const [fit, k] = useFit<HTMLDivElement>(STAGE.w, STAGE.h, FIT_PAD, K_MIN);
@@ -158,7 +158,10 @@ export function HomePage() {
     stopSpeech: () => void stopSpeech(),
   };
   const left = pages(LEFT);
-  const right = [...ACTS.filter(offered).map((a) => ({ ...a, off: a.id in off ? off[a.id as keyof typeof off] : undefined, onClick: acts[a.id] })), ...pages(DEV)];
+  const right = [
+    ...ACTS.filter(offered).map((a) => ({ ...a, off: a.plugin && !plugins[a.plugin] ? offReason(a.plugin) : a.id in off ? off[a.id as keyof typeof off] : undefined, onClick: acts[a.id] })),
+    ...pages(DEV),
+  ];
   const next = q.data ? nextReminder(snap.reminders, now) : null;
   const t0 = new Date(now).setHours(0, 0, 0, 0);
   const delivered = q.data ? snap.deliveries.filter((d) => !d.redacted && d.produced_at >= t0).sort((a, b) => b.produced_at - a.produced_at)[0] : undefined;
@@ -229,7 +232,7 @@ export function HomePage() {
                 <TopIcon
                   box={TOP_ICONS[2]}
                   icon="warn"
-                  label={`待处理 ${counts.pending ?? '—'}`}
+                  label={todayOn ? `待处理 ${counts.pending ?? '—'}` : '待处理 已关闭'}
                   named
                   dot={waiting ? (attended ? 'live' : 'still') : undefined}
                   g="topBtn4"
@@ -239,7 +242,21 @@ export function HomePage() {
             )}
             </div>
             <div className={styles.layer} style={z(12)}>
-            <Disc title="待批准" urgent={today && q.data ? pending : []} report={report} running={runItems} act={act} go={go} />
+            <Disc
+              title="待批准"
+              urgent={today && q.data ? pending : []}
+              report={report}
+              running={runItems}
+              act={act}
+              go={go}
+              off={
+                !todayOn && (
+                  <PowerState state="off" mode="block" title="每日简报" reason="待批准、在做和今日任务都从每日简报读，它在设置里关着。" action={{ label: '前往设置打开', onClick: () => go({ page: 'settings', group: 'privacy', item: 'plugins.daily_brief' }) }}>
+                    {null}
+                  </PowerState>
+                )
+              }
+            />
             </div>
             <div className={styles.layer} style={z(40)} role="group" aria-label="主要页面">
               {left.map((t, i) => {
@@ -256,7 +273,7 @@ export function HomePage() {
                 </Group>
               ))}
             </div>
-            {today && (
+            {today && todayOn && (
               <div className={styles.layer} style={z(40)}>
                 <NewsBanner box={BANNER} items={news} still={still} />
               </div>

@@ -2,10 +2,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
+import { getBridge } from '../../bridge';
 import { get } from '../../bridge/agentd';
-import { sortPending } from '../../domain';
+import { formatClock, sortPending } from '../../domain';
 import type { WireSchedule } from '../../domain/schedules';
-import { ErrBar, IconBtn, Menu, Btn, PageIssues, Region, Tabs, type IconName, type MenuItem } from '../../ui';
+import { IconBtn, Menu, Btn, PageIssues, Region, Tabs, type IconName, type MenuItem } from '../../ui';
+import { PowerState } from '../../ui/game';
 import { useDemo } from '../../shell/demo';
 import { navRoute } from '../../shell/nav';
 import { PageHeaderSlot } from '../../shell/headerSlot';
@@ -114,7 +116,7 @@ export function OverviewPage() {
   }, [demo, q.data, snap, setDecided, setLast]);
   const run = useMemo(() => runRows(snap, brief?.convs ?? []), [snap, brief]);
   const plugins = usePlugins();
-  // 在做 lists 个人代理's role tasks and 编码会话's sessions; with both off it is not drawn.
+  // 在做 lists 个人代理's role tasks and 编码会话's sessions; with both off it shows 已关闭.
   const runningOn = plugins.personal_agent || plugins.coding_sessions;
   const schedQ = useQuery({
     queryKey: ['overview', demo, 'schedules'],
@@ -165,7 +167,7 @@ export function OverviewPage() {
           />
         }
         running={
-          runningOn && (
+          runningOn ? (
             <RunningSection
               q={reads.running}
               rows={run.rows}
@@ -178,6 +180,21 @@ export function OverviewPage() {
               schedules={plugins.personal_agent ? schedulesCount : undefined}
               onJumpSession={a.onJumpSession}
             />
+          ) : (
+            <PowerState
+              state="off"
+              mode="block"
+              title="进行中"
+              reason="设置里关着「派发任务和定时任务」和「编码会话」，这里不列她在做的任务、编码会话和定时任务。"
+              action={{ label: '前往设置打开', onClick: () => go({ page: 'settings', group: 'perm', item: 'plugins.personal_agent' }) }}
+              more={
+                <Btn variant="ghost" size="sm" onClick={() => go({ page: 'settings', group: 'privacy', item: 'plugins.coding_sessions' })}>
+                  编码会话
+                </Btn>
+              }
+            >
+              {null}
+            </PowerState>
           )
         }
         done={desk.listReady && desk.view ? desk.view.tasks.filter((t) => t.source !== 'ext' && inDay(t.updated_at) && ['done', 'failed'].includes(desk.view?.effective[t.id] ?? '')).sort((x, y) => y.updated_at - x.updated_at).map((t) => ({ task: t, failed: desk.view?.effective[t.id] === 'failed' })) : undefined}
@@ -188,6 +205,31 @@ export function OverviewPage() {
       />
     );
   };
+
+  const content = (
+    <>
+      {paused && (
+        <div className={styles.pauses}>
+          {a.pause.paused_until != null && <PauseReadout kind="观察暂停" until={a.pause.paused_until} now={now} onResume={() => a.onResume('observe')} />}
+          {a.pause.quiet_until != null && <PauseReadout kind="免打扰" until={a.pause.quiet_until} now={now} onResume={() => a.onResume('quiet')} />}
+          {a.pause.meeting && <PauseReadout kind="免打扰 │ 开会" until={null} now={now} onResume={() => a.onResume('meeting')} />}
+        </div>
+      )}
+      <Region q={dayQ} what="每日简报" reserve={{ height: 480 }} skel="cards">
+        {body}
+      </Region>
+    </>
+  );
+  const reread = () =>
+    void q.refetch().then((result) => {
+      if (result.isSuccess && result.data.connection === 'connected') toast('已重新读取');
+      else toast('后台仍未连接，保留上次读到的数据', { severity: 'warning' });
+    });
+  const restart = () =>
+    void getBridge().supervisor.restart('agentd').then(
+      () => toast('正在重启后台…'),
+      () => toast('后台没有重启，请重启应用', { severity: 'danger' }),
+    );
 
   return (
     <div className={styles.page} data-page="overview">
@@ -205,7 +247,7 @@ export function OverviewPage() {
               <IconBtn icon="chev" label="后一天" size="sm" disabled={isToday} disabledReason="已经是今天" onClick={() => put({ date: shift(date, 1) })} />
             </span>
             {/* The top bar says 已连接. */}
-            {(loading || stale) && <span className={styles.conn}>{loading ? <Pip tone="idle" label="读取中" /> : offline ? <Pip tone="failed" label={lostText} /> : <Pip tone="failed" label="刷新失败" />}</span>}
+            {(loading || (stale && !offline)) && <span className={styles.conn}>{loading ? <Pip tone="idle" label="读取中" /> : <Pip tone="failed" label="刷新失败" />}</span>}
             <Menu label="免打扰" align="right" items={dnd} />
           </>
         }
@@ -213,31 +255,24 @@ export function OverviewPage() {
       />
       <div className={styles.ov}>
         <PageIssues offline={offline} at={snap.now}>
-          {offline && (
-            <ErrBar
-              message={`${lostText}，显示上次读到的数据`}
-              staleAt={snap.now}
-              onRetry={() => void q.refetch().then((result) => {
-                if (result.isSuccess && result.data.connection === 'connected') toast('已重新读取');
-                else toast('后台仍未连接，保留上次读到的数据', { severity: 'warning' });
-              })}
-              extra={
-                <Btn variant="ghost" size="sm" onClick={() => go({ page: 'diag', item: 'agentd', focus: 'proc-agentd' })}>
-                  查看诊断
+          {offline ? (
+            <PowerState
+              state="unlinked"
+              mode="block"
+              title="后台"
+              reason={`${lostText}，下面是 ${formatClock(snap.now)} 读到的数据`}
+              action={{ label: '重启后台', onClick: restart }}
+              more={
+                <Btn variant="ghost" size="sm" icon="refresh" onClick={reread}>
+                  重新读取
                 </Btn>
               }
-            />
+            >
+              {content}
+            </PowerState>
+          ) : (
+            content
           )}
-          {paused && (
-            <div className={styles.pauses}>
-              {a.pause.paused_until != null && <PauseReadout kind="观察暂停" until={a.pause.paused_until} now={now} onResume={() => a.onResume('observe')} />}
-              {a.pause.quiet_until != null && <PauseReadout kind="免打扰" until={a.pause.quiet_until} now={now} onResume={() => a.onResume('quiet')} />}
-              {a.pause.meeting && <PauseReadout kind="免打扰 │ 开会" until={null} now={now} onResume={() => a.onResume('meeting')} />}
-            </div>
-          )}
-          <Region q={dayQ} what="每日简报" reserve={{ height: 480 }} skel="cards">
-            {body}
-          </Region>
         </PageIssues>
       </div>
       {ep && <EpisodeSheet ep={ep} onClose={() => setEp(null)} />}

@@ -371,16 +371,17 @@ describe('home with the plug-ins at their defaults', () => {
     setDevMode(false);
   });
 
-  it('keeps only 角色, 对话, 记忆 and 设置 among the pages, and no 待处理, 提醒, 派发任务, 屏幕识读, 每日简报 or report', async () => {
+  it('keeps every page and action key, 派发任务 and 屏幕识读 off; 待处理 says 已关闭, no banner or report', async () => {
     mount();
-    expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory'));
-    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual(['搜索', '快速输入', '停止说话']);
+    const main = await screen.findByRole('group', { name: '主要页面' });
+    expect(names(main)).toEqual(LEFT('character', 'chat', 'memory', 'tasks'));
+    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual(ACTIONS);
+    for (const name of ['派发任务', '屏幕识读']) expect(screen.getByRole('button', { name }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByRole('button', { name: title('settings') })).toBeTruthy();
-    for (const gone of [/^待处理/, /^提醒$/, /^提醒：/, /^交付：/, '没有新消息', /^派发任务$/, /^屏幕识读$/, new RegExp(`^${title('overview')}$`), /^今日任务/]) expect(screen.queryByRole('button', { name: gone })).toBeNull();
+    expect(screen.getByRole('button', { name: '待处理 已关闭' })).toBeTruthy();
+    for (const gone of [/^提醒：/, /^交付：/, '没有新消息', /^今日任务/]) expect(screen.queryByRole('button', { name: gone })).toBeNull();
     expect(screen.getByRole('button', { name: '打开对话' })).toBeTruthy();
-    // The bar's glow band lies under the one slot left, not under the empty 每日简报 slot.
-    const band = document.querySelector<HTMLElement>('[data-g="hudBar"] > span[aria-hidden="true"]')!;
-    expect([band.style.left, band.style.width]).toEqual([`${BAR_SLOTS[0].box.left}px`, `${BAR_SLOTS[0].box.width}px`]);
+    expect(screen.getByRole('button', { name: title('overview') })).toBeTruthy();
   });
 
   it('sends none of the today reads with 日报与简报 off, and 后台 reads /health, not them', async () => {
@@ -416,21 +417,22 @@ describe('home with the plug-ins at their defaults', () => {
   it('offers 派发任务 with 个人代理 on and 日报与简报 off, and opens the dispatch dialog in place', async () => {
     pluginsOn('personal_agent');
     mount();
-    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(['派发任务', '搜索', '快速输入', '停止说话']);
+    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(ACTIONS);
+    expect(screen.getByRole('button', { name: '派发任务' }).hasAttribute('disabled')).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: '派发任务' }));
     const dialog = await screen.findByRole('dialog', { name: '新建' });
     expect(within(dialog).getByRole('button', { name: /交派/ })).toBeTruthy();
     expect(window.location.hash).not.toMatch(/overview/);
   });
 
-  it('adds 待处理, 提醒, 每日简报 and the report once 日报与简报 is on, and 派发任务 once 个人代理 is on too', async () => {
+  it('counts 待处理 and adds the report once 日报与简报 is on, and turns 派发任务 on once 个人代理 is on too', async () => {
     pluginsOn('daily_brief');
     mount();
     expect(await screen.findByRole('button', { name: /^待处理 / })).toBeTruthy();
     expect(screen.getByRole('button', { name: '提醒' })).toBeTruthy();
     expect(screen.getByRole('button', { name: title('overview') })).toBeTruthy();
     expect(await screen.findByRole('button', { name: /^今日任务/ }, { timeout: 3000 })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '派发任务' })).toBeNull();
+    expect(screen.getByRole('button', { name: '派发任务' }).hasAttribute('disabled')).toBe(true);
     cleanup();
     pluginsOn('daily_brief', 'personal_agent', 'screen_reading');
     mount();

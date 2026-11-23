@@ -17,7 +17,7 @@ const need = (page: Page) => page.locator('section[aria-label="待处理"][data-
 
 test('今天 has the 待处理 card; approving it moves the card on', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?still=1');
+  await page.goto('main.html#/overview?plugins=daily_brief&still=1');
   await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
   const card = need(page).locator(`[data-item="${A1}"]`);
   await expect(card).toContainText('rm -rf build/');

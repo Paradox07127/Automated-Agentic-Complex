@@ -1,4 +1,4 @@
-// Plug-ins decide which pages, ⌘K entries and settings rows a user sees; 开发者模式 decides the developer ones.
+// Plug-ins decide which ⌘K actions and settings rows a user can use; 开发者模式 decides which developer pages are listed.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -40,7 +40,7 @@ async function mount(search: string) {
   );
 }
 
-const ids = (plugins = DEFAULT_PLUGINS, dev = false) => visibleRoutes(plugins, dev).map((r) => r.id);
+const ids = (dev = false) => visibleRoutes(dev).map((r) => r.id);
 
 describe('plug-in switches', () => {
   it('fill every plug-in from saved settings, a missing or odd value taking the manifest default', () => {
@@ -52,29 +52,28 @@ describe('plug-in switches', () => {
 });
 
 describe('pages a user is offered', () => {
-  it('leave out 每日简报, 任务 and the developer pages with the plug-ins at their defaults', () => {
+  it('keep 每日简报 and 任务 with their plug-ins off and leave out the developer pages', () => {
     const shown = ids();
-    for (const id of ['home', 'chat', 'memory', 'character', 'settings']) expect(shown).toContain(id);
-    for (const id of ['overview', 'tasks', 'diag', 'pipeline']) expect(shown).not.toContain(id);
+    for (const id of ['home', 'chat', 'memory', 'character', 'settings', 'overview', 'tasks']) expect(shown).toContain(id);
+    for (const id of ['diag', 'pipeline']) expect(shown).not.toContain(id);
   });
 
-  it('bring 每日简报 back with 日报与简报 on, 任务 with 个人代理, the developer pages with 开发者模式', () => {
-    expect(ids({ ...DEFAULT_PLUGINS, daily_brief: true })).toContain('overview');
-    expect(ids({ ...DEFAULT_PLUGINS, personal_agent: true })).toContain('tasks');
-    for (const id of ['diag', 'pipeline']) expect(ids(DEFAULT_PLUGINS, true)).toContain(id);
+  it('bring the developer pages with 开发者模式', () => {
+    for (const id of ['diag', 'pipeline']) expect(ids(true)).toContain(id);
   });
 
   it('match web.pages of protocol/plugins/plugins.json', () => {
     for (const p of PLUGINS) expect(pageRoutes.filter((r) => r.plugin === p.id).map((r) => r.id).sort(), p.id).toEqual([...p.web.pages].sort());
   });
 
-  it('drop 屏幕识读 and 重新检测内核 from ⌘K while their plug-ins are off', () => {
-    const keys = (plugins = DEFAULT_PLUGINS) => paletteItems('', visibleRoutes(plugins, false), undefined, {}, {}, plugins).map((i) => i.key);
-    expect(keys()).not.toContain('look');
-    expect(keys()).not.toContain('recheck');
-    expect(keys()).not.toContain('page-overview');
+  it('turn 屏幕识读 and 重新检测内核 off in ⌘K while their plug-ins are off', () => {
+    const items = (plugins = DEFAULT_PLUGINS) => paletteItems('', visibleRoutes(false), undefined, {}, {}, plugins);
+    const kind = (plugins: typeof DEFAULT_PLUGINS, key: string) => items(plugins).find((i) => i.key === key)?.run.kind;
+    for (const key of ['look', 'recheck']) expect(kind(DEFAULT_PLUGINS, key)).toBe('off');
     const all = Object.fromEntries(PLUGINS.map((p) => [p.id, true])) as typeof DEFAULT_PLUGINS;
-    expect(keys(all)).toEqual(expect.arrayContaining(['look', 'recheck', 'page-overview']));
+    expect(kind(all, 'look')).toBe('desktop');
+    expect(kind(all, 'recheck')).toBe('recheck');
+    expect(items(all).map((i) => i.key)).toContain('page-overview');
   });
 });
 
@@ -225,7 +224,6 @@ describe('settings › the plug-in bands', () => {
     expect(await screen.findByRole('region', { name: '未应用的改动' })).toBeTruthy();
     expect(screen.getByText(/项重启后台服务后生效/)).toBeTruthy();
     expect(getPlugins().daily_brief).toBe(true);
-    expect(ids(getPlugins())).toContain('overview');
     await act(async () => fireEvent.click(sw));
     expect(save).toHaveBeenLastCalledWith({ 'plugins.daily_brief': false });
     expect(getPlugins().daily_brief).toBe(false);

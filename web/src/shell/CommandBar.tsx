@@ -4,6 +4,8 @@ import { keyText } from '../bridge/platformText';
 import { fxCalm, Icon, IconBtn, Kbd, Menu, useGameClip, type MenuItem } from '../ui';
 import { useDevMode } from './devMode';
 import { navigate, type PageId } from './nav';
+import { usePlugins } from './plugins';
+import { routeOff } from './registry';
 import type { PageRoute } from './types';
 import styles from './CommandBar.module.css';
 import more from './CommandBar.more.module.css';
@@ -46,12 +48,14 @@ export interface CommandBarProps {
 /** The one top bar of every page but 主页: back to 主页 (esc), the page's name (it lists every page), the page's own tabs between Q and E, its readouts and action, then the 设置 gear. */
 export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, actionRef }: CommandBarProps) {
   const devMode = useDevMode();
+  const plugins = usePlugins();
   const pages = routes.filter((r) => r.id !== 'home' && r.id !== 'onboarding' && (r.nav !== false || r.id === 'tasks'));
   const toItem = (r: PageRoute): MenuItem => ({
     kind: 'item',
     label: r.title,
     ...(r.icon ? { icon: r.icon } : {}),
     ...(r.hotkey ? { hint: r.hotkey } : {}),
+    ...(routeOff(r, plugins) ? { off: routeOff(r, plugins) } : {}),
     onSelect: () => navigate({ page: r.id as PageId }),
   });
   const user = pages.filter((r) => !r.devOnly);

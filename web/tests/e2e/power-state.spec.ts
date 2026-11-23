@@ -68,3 +68,32 @@ test('chat nomodel: 未接入 over the input leads to the model account row', as
   await expect(page).toHaveURL(/#\/settings\?.*group=model.*item=svc/);
   expect(errors).toEqual([]);
 });
+
+for (const [id, name, url] of [
+  ['overview', '每日简报', /#\/settings\?.*group=privacy.*item=plugins\.daily_brief/],
+  ['tasks', '派发任务和定时任务', /#\/settings\?.*group=perm.*item=plugins\.personal_agent/],
+] as const) {
+  test(`${id} with its plug-in off: greyed and inert, no tabs or bottom bar, the board leads to its switch`, async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.goto(`main.html#/${id}?still=1`);
+    const board = page.getByRole('status', { name });
+    await expect(board).toContainText('已关闭');
+    await expect(page.locator(`[inert] [data-page="${id}"]`)).toHaveCount(1);
+    await expect(page.locator('[data-slot="tabs"] > *')).toHaveCount(0);
+    await expect(page.locator('[data-shell="bottom-bar"] > *')).toHaveCount(0);
+    await shot(page, `${id}-off`);
+    await board.getByRole('button', { name: /前往设置打开/ }).click();
+    await expect(page).toHaveURL(url);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('the page menu lists 每日简报 with its plug-in off, marked 已关闭, and it still opens', async ({ page }) => {
+  await page.goto('main.html#/chat?still=1');
+  await page.getByRole('navigation', { name: '主导航' }).locator('[data-look="bar"] button').click();
+  const item = page.getByRole('menuitem', { name: '每日简报' });
+  await expect(item).toHaveAttribute('aria-description', '已关闭：设置里关着「每日简报」');
+  await expect(item).toContainText('已关闭');
+  await item.click();
+  await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
+});

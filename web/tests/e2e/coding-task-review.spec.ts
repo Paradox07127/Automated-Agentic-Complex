@@ -47,7 +47,7 @@ for (const theme of THEMES) {
 
   test(`${theme}: earlier versions are reachable under 版本`, async ({ page }) => {
     const errors = collectErrors(page);
-    await open(page, `/tasks?sel=${encodeURIComponent(T1)}`, theme);
+    await open(page, `/tasks?plugins=personal_agent&sel=${encodeURIComponent(T1)}`, theme);
     await page.getByRole('region', { name: '详情' }).getByRole('button', { name: /^版本/ }).click();
     const chain = page.getByRole('radiogroup', { name: '版本链' });
     await expect(chain.getByRole('radio', { name: /v1/ })).toBeVisible();
@@ -57,7 +57,7 @@ for (const theme of THEMES) {
 
   test(`${theme}: a dangerous approval names its rule in words`, async ({ page }) => {
     const errors = collectErrors(page);
-    await open(page, `/overview?focus=item-${A1}`, theme);
+    await open(page, `/overview?plugins=daily_brief&focus=item-${A1}`, theme);
     // The urgent card keeps its rule in its 详情 fold.
     await page.locator(`main [data-item="${A1}"]`).getByRole('button', { name: /^详情/ }).click();
     await expect(page.locator('main').getByText('命中危险规则：强制递归删除')).toBeVisible();

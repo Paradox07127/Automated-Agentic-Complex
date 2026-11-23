@@ -7,9 +7,10 @@ import { useDemo } from '../../shell/demo';
 import { useDevMode } from '../../shell/devMode';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { useGo } from '../../shell/nav';
-import { isPluginOff } from '../../shell/plugins';
+import { isPluginOff, usePlugins } from '../../shell/plugins';
 import { useToast } from '../../shell/toast';
 import { Btn, Icon, Modal, Tabs } from '../../ui';
+import { PowerState } from '../../ui/game';
 import { TasksLoadError } from '../../data/tasksBase';
 import { useCharacters } from '../chat/useChatData';
 import { failMessage } from './actions';
@@ -198,6 +199,14 @@ export function TasksPage() {
   const newKind: CreateKind = tab === 'sched' ? 'sched' : 'role';
   const newLabel = tab === 'sched' ? '新建定时任务' : '派发任务';
   const emptyText = tab === 'run' ? '她现在没有在做的任务' : tab === 'sched' ? '还没有定时任务' : '还没有做完的任务';
+  const plugins = usePlugins();
+  // Coding sessions are one kind of row in 进行中 and 已完成; with 编码会话 off that kind says 已关闭 over the list.
+  const codeOff =
+    plugins.personal_agent && !plugins.coding_sessions && tab !== 'sched' ? (
+      <PowerState state="off" mode="block" title="编码会话" reason="设置里关着「编码会话」，这里不列 Claude Code 和 Codex 的会话。" action={{ label: '前往设置打开', onClick: () => go({ page: 'settings', group: 'privacy', item: 'plugins.coding_sessions' }) }}>
+        {null}
+      </PowerState>
+    ) : null;
 
   const listBody = loading ? (
     <section className={styles.scroll} aria-label="读取中">
@@ -207,6 +216,7 @@ export function TasksPage() {
     </section>
   ) : (
     <div className={styles.scroll} data-list="">
+      {codeOff}
       {errText && (
         <div className={styles.tipsR} role="alert">
           <Warn />
@@ -302,6 +312,7 @@ export function TasksPage() {
           <b>{emptyText}</b>
           <span className={blank.shade} aria-hidden="true" />
           {!off && <NewButton label={newLabel} onClick={() => openNew(newKind)} />}
+          {codeOff}
         </div>
       ) : (
         <>

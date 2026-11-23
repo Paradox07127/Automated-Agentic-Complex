@@ -18,15 +18,14 @@ for (const [id, demo] of [['overview', 'agentd-off'], ['chat', 'disconnected']] 
   });
 }
 
-test('今天: disconnected keeps the last data with its time, 查看诊断 and 重试', async ({ page }) => {
+test('今天: disconnected says 后台 未接入 over the last data with its time, 重新读取 and 重启后台', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/overview?demo=disconnected&still=1');
-  const bar = page.getByRole('alert').filter({ hasText: '显示上次读到的数据' });
-  await expect(bar).toBeVisible();
-  await expect(bar).toContainText(/下面是 \d\d:\d\d 的数据/);
-  await expect(bar.getByRole('button', { name: '重试' })).toBeVisible();
+  await page.goto('main.html#/overview?demo=disconnected&plugins=daily_brief&still=1');
+  const strip = page.getByRole('status', { name: '后台' });
+  await expect(strip).toContainText('未接入');
+  await expect(strip).toContainText(/下面是 \d\d:\d\d 读到的数据/);
+  await expect(strip.getByRole('button', { name: '重新读取' })).toBeVisible();
+  await expect(strip.getByRole('button', { name: /重启后台/ })).toBeVisible();
   await expect(page.locator(`section[aria-label="待处理"] [data-item="${A1}"]`)).toBeVisible();
-  await bar.getByRole('button', { name: /查看诊断/ }).click();
-  await expect(page).toHaveURL(/#\/diag\?/);
   expect(errors).toEqual([]);
 });

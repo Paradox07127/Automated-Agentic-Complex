@@ -161,6 +161,26 @@
   font-weight: var(--ef-fw-regular);
 }
 
+/* off: the capability is switched off; the entry still opens, so only its words go grey. */
+.item[data-off] {
+  color: var(--ef-text-2);
+}
+
+.off {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  margin-left: auto;
+  color: var(--ef-text-disabled);
+  font-size: var(--ef-fs-meta);
+  font-weight: var(--ef-fw-regular);
+}
+
+.off + .hint {
+  margin-left: 0;
+}
+
 .hint {
   margin-left: auto;
   color: var(--ef-text-3);
