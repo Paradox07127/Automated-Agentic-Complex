@@ -1,12 +1,11 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { formatDuration, type ActiveRun, type Session, type VisualStateKey } from '../../domain';
 import { useDevMode } from '../../shell/devMode';
-import { Btn, Fold, fxCalm, Icon, Missing, OpenSec, Region, StatusTag, type IconName, type RegionSource } from '../../ui';
+import { Btn, Empty, Fold, fxCalm, Icon, Missing, OpenSec, Region, StatusTag, type IconName, type RegionSource } from '../../ui';
 import { StatusLamp } from '../../ui/game';
 import type { RunRow } from './briefModel';
 import { Selected, TrackTip, useCellIn, type MissionTone } from './MissionFx';
 import type { Go } from './nav';
-import { Pip } from './Pip';
 import shared from './Page.module.css';
 import styles from './RunningSection.module.css';
 
@@ -233,9 +232,7 @@ export function RunningSection(p: RunningSectionProps) {
                 {cells(shown)}
                 {p.code === 0 && (
                   <Cell>
-                    <div className={shared.none}>
-                      <Pip tone="idle" label="当前没有编码会话" />
-                    </div>
+                    <Empty inline title="当前没有编码会话" />
                   </Cell>
                 )}
               </ul>

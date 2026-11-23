@@ -123,20 +123,6 @@
   font: 600 15px/1.4 var(--ef-font-sans);
 }
 
-.none {
-  display: flex;
-  gap: var(--ef-sp-8);
-  align-items: center;
-  min-height: 36px;
-  font-size: 13px;
-  color: var(--ef-text-2);
-}
-
-.none [data-tone] {
-  font-weight: 400;
-  color: var(--ef-text-2);
-}
-
 /* A pending row after the card: the title, then its kind and source in the meta ink; the source gives way first. */
 .pRow {
   min-width: 0;
@@ -186,10 +172,6 @@
   animation: ov-line-in 1833ms cubic-bezier(0.141, 0, 0, 1) 250ms backwards;
 }
 
-.receipt .okText {
-  color: var(--ef-g-complete-line);
-}
-
 .t2 {
   font-size: 12px;
   color: var(--ef-text-2);
@@ -223,10 +205,6 @@
   border-left: var(--ef-lw-focus) solid var(--ef-trace);
   font: var(--ef-t-meta);
   color: var(--ef-text-1);
-}
-
-.okText {
-  color: var(--ef-success-text);
 }
 
 .warnText {

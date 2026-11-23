@@ -270,7 +270,7 @@ export function BubbleRoot() {
       <ConfirmCard card={confirm} more={waiting} tail={tail} act={(a) => {
         if (a.type === 'collapse') setUnfolded(0);
         act(a);
-      }} onDetails={() => bridge.window.openMain(navRoute({ page: 'overview', focus: 'pending', sel: confirm.id }))} />
+      }} onDetails={() => bridge.window.openMain(navRoute({ page: 'overview', sel: confirm.id, focus: `item-${confirm.id}` }))} />
     );
   } else if (!docked && (said || extra)) {
     body = (

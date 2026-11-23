@@ -12,7 +12,7 @@ export interface ArtifactListProps {
   layout?: 'chips' | 'rows';
   /** 桥有 revealInFinder 能力位时显示「在 Finder 中显示」 */
   canReveal?: boolean;
-  /** 打开 */
+  /** 打开，传绝对路径（bridge.open.artifact 只认绝对路径） */
   onOpen?: (path: string) => void;
   /** 在 Finder 中显示 */
   onReveal?: (path: string) => void;
@@ -36,11 +36,12 @@ export function ArtifactList({ artifacts, layout = 'chips', canReveal, onOpen, o
       (next as HTMLElement | null)?.focus();
     }
   };
+  // The ⋯ list is portalled out of the row, so a click on its items reaches the row through React only.
   const onRowClick = (e: MouseEvent<HTMLTableRowElement>, path: string) => {
-    if (!(e.target as HTMLElement).closest('[data-stub="Menu"]')) onOpen?.(path);
+    if (e.currentTarget.contains(e.target as Node) && !(e.target as HTMLElement).closest('[data-stub="Menu"]')) onOpen?.(path);
   };
   const menu = (a: Artifact): MenuItem[] => [
-    { kind: 'item', label: '打开', hint: '⏎', onSelect: () => onOpen?.(a.path) },
+    { kind: 'item', label: '打开', hint: '⏎', onSelect: () => onOpen?.(a.absolute_path) },
     ...(canReveal ? [{ kind: 'item' as const, label: '在 Finder 中显示', onSelect: () => onReveal?.(a.absolute_path) }] : []),
     { kind: 'item', label: '复制路径', onSelect: () => onCopyPath?.(a.absolute_path) },
   ];
@@ -66,7 +67,7 @@ export function ArtifactList({ artifacts, layout = 'chips', canReveal, onOpen, o
         </thead>
         <tbody>
           {artifacts.map((a) => (
-            <tr key={a.path} tabIndex={0} title={a.path} data-self-checked={a.self_checked || undefined} onKeyDown={(e) => onRowKey(e, a.path)} onClick={(e) => onRowClick(e, a.path)}>
+            <tr key={a.path} tabIndex={0} title={a.path} data-self-checked={a.self_checked || undefined} onKeyDown={(e) => onRowKey(e, a.absolute_path)} onClick={(e) => onRowClick(e, a.absolute_path)}>
               <td>
                 <span className={styles.name}>
                   <span className={styles.icon} aria-hidden="true">

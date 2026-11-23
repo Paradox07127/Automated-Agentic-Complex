@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { ApprovalCard, approvalView, type ApprovalStackItem } from '../../../features/approval';
+import { ApprovalCard, approvalView, InSession, type ApprovalStackItem } from '../../../features/approval';
 import type { Act } from '../actions';
 import { CardFrame } from '../CardFrame';
 import { CompactCard } from '../compact';
@@ -19,6 +19,7 @@ export interface ApprovalStackCardProps {
 export function ApprovalStackCard({ card, index, total, top, highlight, act }: ApprovalStackCardProps) {
   const view = approvalView(card);
   const compact = useContext(CompactCard);
+  const inSession = useContext(InSession);
   const caps = keycapsFor(card);
   const broker = card.kind === 'approval' ? card : null;
   const openSession = broker
@@ -32,7 +33,8 @@ export function ApprovalStackCard({ card, index, total, top, highlight, act }: A
             })
     : undefined;
   return (
-    <CardFrame cardId={card.id} highlight={highlight} popup>
+    // The white paper card has its own tape; the compact block in a session card takes the frame's.
+    <CardFrame cardId={card.id} highlight={highlight} popup danger={inSession && view.dangerous}>
       <PaperLine esc={top && caps.esc} enter={top && caps.enter} />
       <ApprovalCard
         approval={broker?.item}

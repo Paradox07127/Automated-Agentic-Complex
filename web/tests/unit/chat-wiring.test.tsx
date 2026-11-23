@@ -396,7 +396,7 @@ describe('chat writes', () => {
     await waitFor(() => expect(b.of('POST', `/agent/interactions/${Q1}/answer`)).toHaveLength(1));
     const q1 = WIRE_INTERACTIONS.find((q) => q.request_id === Q1)!;
     expect(b.of('POST', `/agent/interactions/${Q1}/answer`)[0]!.body).toEqual({ expected_version: q1.revision, answers: { scope: ['包含'] } });
-    expect(await within(card).findByText('✓ 已回答：包含')).toBeTruthy();
+    expect(await within(card).findByText('已回答：包含')).toBeTruthy();
   });
 
   it('renames, pins and archives with the row revision; undo sends the revision agentd returned', async () => {

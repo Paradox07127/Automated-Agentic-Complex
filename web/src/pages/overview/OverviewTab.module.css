@@ -145,13 +145,6 @@
   box-shadow: inset 3px 0 0 var(--ef-danger-text);
 }
 
-.none {
-  margin: 0;
-  padding: 6px 0;
-  color: var(--ef-text-3);
-  font-size: 13px;
-}
-
 /* Yesterday's observation brief: three counts in wells, then its first detail as a quote. */
 .yb {
   display: grid;

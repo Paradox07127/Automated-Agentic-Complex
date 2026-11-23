@@ -38,7 +38,7 @@ test('今天 1280: the 进行中 row message shows at most 2 lines and carries i
 });
 
 test('每日简报 900×600: the date pager in the command bar is not cut', async ({ page }) => {
-  await open(page, 900, 600, 'overview?plugins=coding_sessions');
+  await open(page, 900, 600, 'overview?plugins=daily_brief,coding_sessions');
   const pager = page.locator('nav[aria-label="主导航"] [data-slot="status"] > span:first-child');
   await expect(pager.getByRole('button', { name: '前一天' })).toBeVisible();
   await expect(pager).toContainText('今天');
@@ -48,7 +48,7 @@ test('每日简报 900×600: the date pager in the command bar is not cut', asyn
 });
 
 test('每日简报 › 时间 1280: a focused timeline entry draws its ring inside its own box', async ({ page }) => {
-  await open(page, 1280, 800, 'overview?tab=tm');
+  await open(page, 1280, 800, 'overview?plugins=daily_brief&tab=tm');
   // From the keyboard, so the entry's focus is drawn as a keyboard ring.
   await page.keyboard.press('Tab');
   const entry = page.locator('button[data-entry]').first();

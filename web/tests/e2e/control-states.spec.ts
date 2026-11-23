@@ -110,6 +110,8 @@ test('CommandBar: 回主页 reacts to press', async ({ page }) => {
 test('approval card links: hover, press, focus ring, and a disabled link that still reads as a link', async ({ page }) => {
   await go(page, 'main.html#/overview?plugins=daily_brief&still=1');
   const card = page.locator('[data-stub="ApprovalCard"]').first();
+  // The brief folds the card's directory and links into 详情.
+  await card.getByRole('button', { name: /^详情/ }).click();
   const session = card.getByRole('button', { name: '会话 ↗' });
   await expect(session).toBeVisible();
   await expectHoverAndPress(page, session);

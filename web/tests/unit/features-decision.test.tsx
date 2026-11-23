@@ -98,7 +98,7 @@ describe('ApprovalCard', () => {
 describe('delivery', () => {
   const v2 = pick(DELIVERIES, DLV_T1_V2);
 
-  it('lists artifacts as table rows with one ⋯ each; Enter on a row opens it', () => {
+  it('lists artifacts as table rows with one ⋯ each; Enter on a row opens it by its absolute path', () => {
     const onOpen = vi.fn();
     const { container } = render(<ArtifactList artifacts={v2.artifacts} canReveal onOpen={onOpen} />);
     const rows = container.querySelectorAll('tbody tr');
@@ -106,6 +106,6 @@ describe('delivery', () => {
     expect(screen.getAllByRole('button', { name: /更多操作/ })).toHaveLength(v2.artifacts.length);
     expect(screen.queryByText('在 Finder 中显示')).toBeNull();
     fireEvent.keyDown(rows[1] as HTMLElement, { key: 'Enter' });
-    expect(onOpen).toHaveBeenCalledWith(v2.artifacts[1]?.path);
+    expect(onOpen).toHaveBeenCalledWith(v2.artifacts[1]?.absolute_path);
   });
 });

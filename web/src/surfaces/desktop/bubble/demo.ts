@@ -1,4 +1,4 @@
-// Browser-preview data of `stack.html#/bubble` (`demo=speech|thought|offer|reminder|done|error|look|confirm|voice|mic|loading|hidden`,
+// Browser-preview data of `stack.html#/bubble` (`demo=speech|thought|offer|reminder|done|error|look|confirm|confirm-danger|voice|mic|loading|hidden`,
 // `mode=input`); native never reads it.
 import type { StackPayload } from '../../../bridge';
 import type { useComm } from '../comm/useComm';
@@ -20,7 +20,7 @@ export function bubblePresence(raw: unknown, demo?: string | null): unknown {
   return { ...p, thought, ritual, role: { ...(p.role as Obj), doing: '在跑 swift test', since: at - 4 * 60 } };
 }
 
-function approval(now: number): Card {
+function approval(now: number, dangerous = false): Card {
   return {
     id: 'bubble-a1',
     kind: 'approval',
@@ -30,7 +30,8 @@ function approval(now: number): Card {
     item: {
       id: 'bubble-a1', kind: 'approval', task_id: null, title: '运行命令', source: 'Codex │ 补桌面叠卡的设计说明', since: now - 2 * MIN,
       generation: 1, approval_kind: 'tool', agent: 'codex', display_session: 'bubble-s1', session_id: 'bubble-s1', tool: 'Bash',
-      cmd: 'rm -rf build/ && swift build', cwd: '~/Endfield', dangerous: false, options: ['allow', 'deny'], session_scope: null,
+      cmd: dangerous ? 'sudo rm -rf /usr/local/endfield' : 'rm -rf build/ && swift build', cwd: '~/Endfield', dangerous,
+      ...(dangerous ? { danger_rule: 'rm_recursive' } : {}), options: ['allow', 'deny'], session_scope: null,
       dispatch: null, status: 'pending', window_s: 55, seconds_left: 48, fetched_at: now,
     },
   };
@@ -52,6 +53,7 @@ export function bubbleCards(demo: string | null): StackPayload | null {
     loading: { id: 'avatar-loading', kind: 'notice', variant: 'loading', at: now, phase: 'failed', title: '角色进程没能启动' },
     look: { id: `look-${now}`, kind: 'notice', variant: 'look', at: now, title: '已识读：Xcode — AppDelegate.swift' },
     confirm: approval(now),
+    'confirm-danger': approval(now, true),
   };
   const card = demo ? cards[demo] : undefined;
   return { now, cards: card ? [card] : [], history: [] };

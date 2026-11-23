@@ -1,13 +1,11 @@
 import { useRef, type ReactNode } from 'react';
 import type { PendingItem, Question, Session, VisualStateKey } from '../../domain';
-import { formatClock } from '../../domain';
 import { ApprovalCard, QuestionBox } from '../../features/approval';
-import { Btn, OpenSec, Paper, Region, StatusTag, type RegionSource } from '../../ui';
+import { Btn, Empty, OpenSec, Paper, Receipt, Region, StatusTag, type RegionSource } from '../../ui';
 import { ExpandRow } from '../../ui/game';
 import { CompleteFx, GroupHead, useCellIn } from './MissionFx';
 import type { Go } from './nav';
 import { focusOf, isExpired, KIND_LABEL, leftAt } from './pending';
-import { Pip } from './Pip';
 import styles from './Page.module.css';
 
 /** Receipt of the last decision taken here; the focus item has already moved on. */
@@ -51,15 +49,11 @@ export function PendingSection(p: PendingSectionProps) {
   const loaded = p.q.data !== undefined;
   let body;
   if (!focus) {
-    body = (
-      <div className={styles.none}>
-        <Pip tone="ok" label="当前没有待处理事项" />
-      </div>
-    );
+    body = <Empty inline title="当前没有待处理事项" />;
   } else {
     body = (
       <>
-        {p.receipt && <Receipt key={p.receipt.id} r={p.receipt} />}
+        {p.receipt && <DoneReceipt key={p.receipt.id} r={p.receipt} />}
         <GroupHead className={styles.grp} icon={<span className={styles.grpIc}>!!!</span>}>
           紧要
         </GroupHead>
@@ -110,14 +104,16 @@ function RowCell({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
-/** The receipt of a decision, entering as the task complete popup. */
-function Receipt({ r }: { r: DecidedReceipt }) {
-  const ref = useRef<HTMLParagraphElement>(null);
+/** The receipt of a decision, entering as the task complete popup on its dark band. */
+function DoneReceipt({ r }: { r: DecidedReceipt }) {
+  const ref = useRef<HTMLDivElement>(null);
   return (
-    <p ref={ref} className={styles.receipt} role="status">
+    <div ref={ref} className={styles.receipt} data-theme="dark">
       <CompleteFx root={ref} />
-      <span className={styles.okText}>✓ {r.text}</span> │ {r.title} │ <span className="num">{formatClock(r.at)}</span>
-    </p>
+      <Receipt at={r.at}>
+        {r.text} │ {r.title}
+      </Receipt>
+    </div>
   );
 }
 

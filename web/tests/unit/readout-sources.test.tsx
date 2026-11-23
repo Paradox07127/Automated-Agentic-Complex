@@ -118,7 +118,7 @@ describe('cancelling a chat question waits 5 s with 撤销', () => {
 
   it('a cancelled question reads 已取消这次提问, not 已回答', () => {
     render(<QuestionCard at={q1.since} question={null} roleName="示例甲" now={NOW} answered={null} cancelled onAnswer={() => {}} onCancel={() => {}} />);
-    expect(screen.getByText('✓ 已取消这次提问')).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe('已取消这次提问');
     expect(screen.queryByText(/已回答/)).toBeNull();
   });
 });

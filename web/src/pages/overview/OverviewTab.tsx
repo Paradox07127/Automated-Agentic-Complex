@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { formatClock } from '../../domain';
 import type { Task } from '../../domain/work';
-import { Btn, Fold, InfoTip, Region, Row, SecHead, Sheet } from '../../ui';
+import { Btn, Empty, Fold, InfoTip, Region, Row, SecHead, Sheet } from '../../ui';
 import { BriefsSec } from '../observe/BriefsSec';
 import { useBriefs } from '../observe/useBriefs';
 import { ITEMS, readouts, type ItemMeta } from './briefDay';
@@ -233,7 +233,7 @@ export function OverviewTab(p: OverviewTabProps) {
                 )}
               </div>
             ) : (
-              <p className={s.none}>{isToday ? '今天没有提醒' : '那天没有提醒'}</p>
+              <Empty inline title={isToday ? '今天没有提醒' : '那天没有提醒'} />
             )}
           </Panel>
           {sw.read ? (
@@ -252,7 +252,7 @@ export function OverviewTab(p: OverviewTabProps) {
                   </footer>
                 </div>
               ) : (
-                <p className={s.none}>这一天她没有开口</p>
+                <Empty inline title="这一天她没有开口" />
               )}
             </Panel>
           )}

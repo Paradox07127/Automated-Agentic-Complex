@@ -47,6 +47,19 @@
     var(--ef-popup-band);
 }
 
+/* A dangerous decision: the red warning tape across the top of the band, above the countdown line. */
+.frame[data-danger] {
+  --tape-hi: var(--ef-danger-vivid);
+}
+
+.tape {
+  composes: tape from '../../ui/Tape.module.css';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 4px;
+}
+
 .frame[data-popup] > section[data-theme='light'],
 .frame[data-popup] [data-stub='ApprovalCard'] {
   background: transparent;

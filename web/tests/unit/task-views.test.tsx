@@ -21,11 +21,28 @@ describe('delivery views', () => {
     expect(screen.getByRole('menuitem', { name: '在 Finder 中显示' })).toBeTruthy();
   });
 
-  it('Enter on an artifact row opens it', () => {
+  // open.artifact takes an absolute path only; the relative one names no file.
+  it('Enter, a click and 打开 in ⋯ open an artifact by its absolute path', () => {
     const onOpen = vi.fn();
     render(<ArtifactList artifacts={v2.artifacts} onOpen={onOpen} />);
-    fireEvent.keyDown(screen.getByLabelText('产物，回车打开').querySelector('tbody tr')!, { key: 'Enter' });
-    expect(onOpen).toHaveBeenCalledWith(v2.artifacts[0]?.path);
+    const row = screen.getByLabelText('产物，回车打开').querySelector('tbody tr')!;
+    fireEvent.keyDown(row, { key: 'Enter' });
+    fireEvent.click(row.querySelector('td')!);
+    fireEvent.click(screen.getAllByRole('button', { name: /^更多操作：/ })[0]!);
+    fireEvent.click(screen.getByRole('menuitem', { name: /^打开/ }));
+    const abs = v2.artifacts[0]!.absolute_path;
+    expect(abs.startsWith('/')).toBe(true);
+    expect(onOpen.mock.calls).toEqual([[abs], [abs], [abs]]);
+  });
+
+  it('复制路径 in ⋯ copies without opening the artifact', () => {
+    const onOpen = vi.fn();
+    const onCopyPath = vi.fn();
+    render(<ArtifactList artifacts={v2.artifacts} onOpen={onOpen} onCopyPath={onCopyPath} />);
+    fireEvent.click(screen.getAllByRole('button', { name: /^更多操作：/ })[0]!);
+    fireEvent.click(screen.getByRole('menuitem', { name: '复制路径' }));
+    expect(onCopyPath).toHaveBeenCalledWith(v2.artifacts[0]!.absolute_path);
+    expect(onOpen).not.toHaveBeenCalled();
   });
 
   it('the review box is marked for the gradient and never says 已查看', () => {

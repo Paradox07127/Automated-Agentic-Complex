@@ -95,11 +95,6 @@
   font: 400 14px/1.5 var(--ef-font-sans);
 }
 
-.okline {
-  font: 500 13px/20px var(--ef-font-sans);
-  color: var(--ef-text-1);
-}
-
 .undo {
   display: flex;
   align-items: center;

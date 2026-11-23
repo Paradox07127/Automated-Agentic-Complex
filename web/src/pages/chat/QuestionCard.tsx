@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatClock, type Question } from '../../domain';
 import { DecisionBar, QuestionBox } from '../../features/approval';
 import { CodeBlock } from '../../features/trace';
-import { Btn, OptionRow, Pill } from '../../ui';
+import { Btn, OptionRow, Pill, Receipt } from '../../ui';
 import { Head, Who } from './TextMessage';
 import styles from './Messages.module.css';
 import qc from './QuestionCard.module.css';
@@ -73,12 +73,12 @@ export function QuestionCard({ at, question, request = question, roleName, now, 
           )}
           {!question && !answered && !cancelled && <p className={qc.qtitle}>这次请求已处理，或已随任务停止</p>}
           {answered ? (
-            <p className={qc.okline}>✓ 已回答：{answered}</p>
+            <Receipt>已回答：{answered}</Receipt>
           ) : cancelled ? (
-            <p className={qc.okline}>✓ {CANCEL_RECEIPT}</p>
+            <Receipt tone="neutral">{CANCEL_RECEIPT}</Receipt>
           ) : undoing ? (
-            <div className={qc.undo} role="status">
-              <span className={qc.okline}>✓ {CANCEL_RECEIPT}</span>
+            <div className={qc.undo}>
+              <Receipt tone="neutral">{CANCEL_RECEIPT}</Receipt>
               <Btn variant="quiet" size="sm" onClick={() => setUndoing(false)}>
                 撤销
               </Btn>

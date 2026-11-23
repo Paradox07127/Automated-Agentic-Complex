@@ -8,12 +8,15 @@ export interface CardFrameProps {
   highlight?: boolean;
   /** 白纸决策卡（两种主题都是白纸，会话里的紧凑版也是）：弹窗的白带（上下羽化、水印、刻度条）和弹窗入场 */
   popup?: boolean;
+  /** 危险操作：卡顶红胶带 */
+  danger?: boolean;
   children: ReactNode;
 }
 
-export function CardFrame({ cardId, highlight, popup, children }: CardFrameProps) {
+export function CardFrame({ cardId, highlight, popup, danger, children }: CardFrameProps) {
   return (
-    <div className={styles.frame} data-card-id={cardId} data-highlight={highlight || undefined} data-popup={popup || undefined} data-theme={popup ? 'light' : undefined}>
+    <div className={styles.frame} data-card-id={cardId} data-highlight={highlight || undefined} data-popup={popup || undefined} data-theme={popup ? 'light' : undefined} data-danger={danger || undefined}>
+      {danger && <i className={styles.tape} aria-hidden="true" />}
       {children}
     </div>
   );
