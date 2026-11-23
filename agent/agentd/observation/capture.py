@@ -698,8 +698,9 @@ class CaptureManager:
             record = self.observations.get(request_id)
             if not self._allowed("screenshots") or record is None or record["status"] != "pending":
                 return
+            vision = self.vision  # PUT /settings/live may take it away under the lock
         try:
-            text = self.vision.describe(image, user=user)
+            text = vision.describe(image, user=user)
         except Exception as e:  # a failed look also drops this window's previous view
             self._log("vision_error", window_id, type(e).__name__, request_id)
             with self._lock:

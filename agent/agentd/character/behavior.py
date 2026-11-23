@@ -140,6 +140,10 @@ class Behavior:
             if kind == "session_done" and self.routine is not None:
                 self.routine.after_celebration(now)
 
+    def set_interaction(self, interaction_preset):
+        with self._lock:
+            self.interaction = preset(interaction_preset)
+
     def run(self, stop, skip=lambda: False):
         """skip() -> True leaves this poll out (agentd's reset or an open character switch)."""
         while not stop.wait(POLL):

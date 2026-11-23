@@ -33,11 +33,13 @@ class Gate:
         self._day, self._count = None, 0
         self._blocked = 0  # non-P0 lines refused on self._day
         self.scale = {}  # category -> factor on same_cooldown
+        self.cooldown = {}  # category -> its own cooldown in seconds, in place of same_cooldown
         self.state_scale = state_scale
         self.on_decision = None  # callable(kind, attrs, key); whatever it raises is dropped
         self.db = db
         self._companion = None  # None: on with proactive speech
         self._db_lock = threading.Lock()
+        self._settings_lock = threading.Lock()  # one decision reads enabled and the cooldowns of one setting
         if db is not None:
             today = datetime.date.today()
             row = db.execute("SELECT count, blocked FROM gate_day WHERE day = ?", (today.isoformat(),)).fetchone()
@@ -87,6 +89,14 @@ class Gate:
                     self.db.executemany("INSERT OR REPLACE INTO proactive_settings (key, value) VALUES (?, ?)",
                                         [("quiet_start", str(start)), ("quiet_end", str(end))])
             self._quiet = (start, end)
+
+    def set_interaction(self, enabled, interaction_preset):
+        """Proactive speech and the interaction preset, as the constructor takes them."""
+        interaction = preset(interaction_preset)
+        with self._settings_lock:
+            self.interaction = interaction
+            self.enabled = enabled and interaction.proactive_speech
+            self.same_cooldown = interaction.same_cooldown
 
     def set_muted(self, categories):
         """The categories whose P2 and lower lines are refused from now on, replacing the ones before."""
@@ -147,6 +157,10 @@ class Gate:
         return self._reason(category, now or datetime.datetime.now(), level)
 
     def _reason(self, category, now, level=None):
+        with self._settings_lock:
+            return self._settled_reason(category, now, level)
+
+    def _settled_reason(self, category, now, level):
         if not self.enabled:
             return "disabled"
         if category in self.COMPANION and not self.companion:
@@ -174,7 +188,7 @@ class Gate:
         scale = self.scale.get(category, 1)
         if category == "comment" and self.state_scale is not None:
             scale *= max(1, self.state_scale())
-        if last and (now - last).total_seconds() < self.same_cooldown * scale:
+        if last and (now - last).total_seconds() < self.cooldown.get(category, self.same_cooldown) * scale:
             return "same_cooldown"
         if self._last_any and (now - self._last_any).total_seconds() < self.cross_cooldown:
             return "cross_cooldown"

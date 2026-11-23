@@ -172,6 +172,7 @@ class MotionReplayTest(unittest.TestCase):
             12041: lambda: r.registry.set_role_focus(role("done"), generation=3),
             16041: r.play,  # the user's play refuses her base clips
             18041: lambda: r.registry.set_role_focus(role("thinking"), generation=3),
+            20041: lambda: r.spatial.set_interaction("active"),  # PUT /settings/live
             24041: lambda: r.state("user", "ended", "wave"),
             24541: lambda: r.registry.set_role_focus(role("done"), generation=3),
             25500: r.mic_on(True),  # a meeting: the quiet stage walks her to the edge
@@ -199,7 +200,8 @@ class MotionReplayTest(unittest.TestCase):
         self.assertEqual(validate_stream(self.events), [])
         kinds = {e["kind"] for e in self.events}
         self.assertLessEqual({"spatial.began", "motion.chooser", "situation.observed", "motion.intent", "motion.input",
-                              "stage.changed", "motion.state", "behavior.receipt", *DECISIONS}, kinds)
+                              "stage.changed", "motion.state", "behavior.receipt", "interaction.preset", *DECISIONS},
+                             kinds)
         [began] = self.kinds(self.events, "spatial.began")
         self.assertIsInstance(began["attrs"]["seed"], int)
         self.assertEqual(self.kinds(self.events, "motion.chooser")[-1]["attrs"]["seeds"], SEEDS)
@@ -213,6 +215,7 @@ class MotionReplayTest(unittest.TestCase):
         self.assertEqual(diff["replayed"], diff["recorded"])
         self.assertIn("0 differences", done.stdout)
         self.assertEqual(validate_stream(replayed), [])
+        self.assertEqual([e["attrs"] for e in self.kinds(replayed, "interaction.preset")], [{"preset": "active"}])
         self.assertEqual([(e["kind"], e["attrs"].get("clip"), e["attrs"].get("why"), e["attrs"].get("reason"))
                           for e in self.kinds(replayed, *DECISIONS)],
                          [(e["kind"], e["attrs"].get("clip"), e["attrs"].get("why"), e["attrs"].get("reason"))

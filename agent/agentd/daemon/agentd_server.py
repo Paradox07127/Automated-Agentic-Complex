@@ -185,6 +185,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self.share_typed_text = False  # --share-typed-text: AX field text and hook prompts may be kept
         self.share_agent_sessions = False  # --share-agent-sessions: live coding-session content may be kept
         self.privacy_config = None
+        self._live_lock = threading.Lock()  # one PUT /settings/live applies at a time
         self.consent = ConsentPolicy(lambda: self.privacy_config, lambda: {
             "window_text": self.capture is not None and self.capture.share_text,
             "page_text": self.share_page_text,

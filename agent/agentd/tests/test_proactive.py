@@ -803,6 +803,41 @@ class ProactiveTest(unittest.TestCase):
         self.assertEqual((self.gate.check("break", last + datetime.timedelta(minutes=44)),
                           self.gate.check("break", last + datetime.timedelta(minutes=45))), ("same_cooldown", None))
 
+    def test_changed_break_minutes_start_the_clock_over(self):
+        self.breaking()
+        self.desk(60)
+        self.p.set_reminders(45, 0)  # from off: an hour at the desk does not make it due at once
+        self.desk(45)
+        self.assertEqual(self.claims, [])
+        self.desk(0.5)
+        self.assertEqual([reason["minutes"] for _, _, reason in self.claims], [45])
+        self.p.set_reminders(0, 0)
+        self.desk(60)
+        self.p.set_reminders(45, 0)  # and back on: the clock from before it went off is gone
+        self.desk(45)
+        self.assertEqual(len(self.claims), 1)
+        self.desk(0.5)
+        self.assertEqual(len(self.claims), 2)
+        self.p.set_reminders(45, 0)  # unchanged minutes keep the running clock
+        self.desk(44.5)
+        self.assertEqual(len(self.claims), 2)
+        self.desk(0.5)
+        self.assertEqual(len(self.claims), 3)
+
+    def test_changed_water_minutes_start_the_count_over(self):
+        self.breaking(water_minutes=90)
+        self.desk(80)
+        self.p.set_reminders(0, 60)  # 80 active minutes counted so far do not make it due at once
+        self.desk(60)
+        self.assertEqual(self.claims, [])
+        self.desk(0.5)
+        self.assertEqual([reason["code"] for _, _, reason in self.claims], ["water"])
+        self.p.set_reminders(0, 0)
+        self.desk(120)
+        self.p.set_reminders(0, 60)
+        self.desk(60)
+        self.assertEqual(len(self.claims), 1)
+
     def test_the_reason_text_is_in_the_reply_language(self):
         for language, text in (("zh-Hans", "你已经连续用电脑 45 分钟"), (None, "你已经连续用电脑 45 分钟"),
                                ("en", "You have been at the computer for 45 min straight"),

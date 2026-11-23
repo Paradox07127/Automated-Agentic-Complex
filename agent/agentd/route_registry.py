@@ -527,6 +527,8 @@ REGISTRY = (
           spec=C6, request="behavior-motion-prefs.json"),
     Route("PUT", "/behavior/switches", UI, "native_only", (),
           owner=SERVER, action="_switches_put", summary="Behavior switches", spec=C6),
+    Route("PUT", "/settings/live", UI, "native_only", (),
+          owner=SERVER, action="_live_settings_put", summary="Apply the saved launch settings without restarting", spec=C6),
     Route("PUT", "/avatar/visibility", UI, "host_only", (),
           owner=SERVER, action="_avatar_put", summary="Whether the character is shown", spec=C6),
     Route("PUT", "/character/state/switch", UI, "native_only", (),

@@ -219,6 +219,7 @@ class TraceFormatTest(unittest.TestCase):
             "behavior.switches": {"switches": {"stay_in_place": False}},
             "behavior.capabilities": {"character": "aster", "capabilities": {"sit": None, "face": "no head"}},
             "behavior.cancel_all": {"reason": "character_switch"},
+            "interaction.preset": {"preset": "quiet"},
         }
         for kind, attrs in good.items():
             with self.subTest(kind):
@@ -235,6 +236,7 @@ class TraceFormatTest(unittest.TestCase):
             ("motion.clock", "frames", 1.5), ("motion.return", "away_s", None),
             ("behavior.switches", "switches", {"stay_in_place": 1}),
             ("behavior.capabilities", "capabilities", {"sit": False}), ("behavior.cancel_all", "reason", ""),
+            ("interaction.preset", "preset", None),
         ]
         for kind, key, value in cases:
             with self.subTest(kind=kind, key=key, value=value):

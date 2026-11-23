@@ -494,6 +494,13 @@ class Spatial:
         # a variant key the host does not report (`still`) counts as capable
         return self.capabilities.get(key) is None and (variant is None or self.capabilities.get(f"{key}/{variant}") is None)
 
+    def set_interaction(self, interaction_preset):
+        """PUT /settings/live: the preset of the random tick, wandering and focus walks from now on."""
+        with self._lock:
+            if interaction_preset != self.interaction.name:
+                self.interaction = preset(interaction_preset)
+                self._trace_input("interaction.preset", {"preset": interaction_preset})
+
     def set_switches(self, switches):
         """PUT /behavior/switches (body checked by c1.check_switches): a running behavior they now forbid gets
         `behavior_cancel` / `switch_off`; `bust_framing` also limits the chooser to standing clips; `hold_free_walks`

@@ -76,6 +76,7 @@
 - `GET /desktop/presence`：ui_token 的 GET，但只有宿主的 `DesktopInteraction` 读，为 `host_only` 而不是 `read`。
 - `POST /context/privacy/sync`：要先由原生保存配置再同步，为 `native_only`，UI 改隐私设置走 `settings.save`。关掉 `wintext`/`web`/`typing`/`agent_sessions` 前要显示的删除条数走 `settings.previewDestructive(id)`，由原生发 `dry_run`。
 - `PUT /behavior/switches`、`PUT /character/state/switch`：原生把 `config.json` 里的 `stay_mode`、`sit_on_windows`、`lean_on_edges`、`state_affects_behavior` 同步给 agentd（agentd 每次启动重推，设置保存后再 PUT）。JS 直写会绕过 `settings.save`，让 `config.json` 和 agentd 不一致，故为 `native_only`；UI 改这些开关走 `settings.save`。
+- `PUT /settings/live`：原生在设置保存后把 `config.json` 里启动参数对应的设置整份交给 agentd，理由同上，为 `native_only`。
 - `POST /say` 的 `cwd`：`pickFolder` 没有对应的 purpose，桥拒绝带 `cwd` 的 `/say`。
 - `DELETE /history`、`DELETE /memory`：全量删除，为 `write`。
 - stack 面板只放行 `routes.json` 里 `surfaces` 含 `stack` 的路由：卡片上的决定类写接口（审批、任务、提醒、问题、后台任务）、`PUT /observation/quiet`、`PUT /observation/meeting`（免打扰与开会）、任务轨的 `POST /agent/runs/<id>/cancel`、`POST /agent/jobs/<id>/cancel|resume`，以及少量小窗自己要读的接口。`/agent/deliveries/*/presented|viewed` 回执不在 stack 放行之列；stack 要展示的其他数据由原生推送。

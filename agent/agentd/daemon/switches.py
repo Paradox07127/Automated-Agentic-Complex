@@ -1,6 +1,8 @@
-"""Privacy, pause, quiet and meeting switches, and the observation state."""
+"""Privacy, pause, quiet and meeting switches, the observation state, and the settings PUT /settings/live applies."""
+import contextlib
 import math
 
+from character.interactions import preset
 from infra import plugins
 from infra.store import checkpoint
 from api.views import _iso
@@ -47,6 +49,46 @@ class SwitchesMixin:
             if self._live_lines:
                 self.cancel_turn("context_cleared")
         return permissions, epoch
+
+    def apply_live_settings(self, settings):
+        """PUT /settings/live (body checked by the route): each setting as its launch argument sets it at startup, in
+        effect from now on. A sharing switch whose plug-in is off stays off, as at startup."""
+        hour, minute = settings["ritual_report_time"].split(":")
+        report_time = (int(hour), int(minute))
+        interaction = preset(settings["interaction_preset"])
+        with self._live_lock:
+            self.gate.set_interaction(settings["proactive_speech"], interaction.name)
+            self.interaction = interaction
+            self.spatial.set_interaction(interaction.name)
+            if self.behavior is not None:
+                self.behavior.set_interaction(interaction.name)
+            if self.facing_decisions is not None:
+                self.facing_decisions.set_min_interval(interaction.model_every)
+            if self.proactive is not None:
+                self.proactive.set_reminders(settings["break_reminder_minutes"], settings["water_reminder_minutes"])
+            if self.rituals is not None:
+                self.rituals.report_time = report_time
+            if self.signals is not None:
+                self.signals.report_time = report_time
+            self.muted = settings["mute"]
+            if self.egress is not None:
+                self.egress.set_redact(settings["redact_sensitive"])
+            awareness, capture = plugins.on("screen_awareness"), self.capture
+            # The capture lock before the consent lock, the order CaptureManager._allowed takes them in: a consent
+            # snapshot sees every capability old or every one new.
+            with (capture._lock if capture is not None else contextlib.nullcontext()), self.consent.lock:
+                self.share_page_text = awareness and settings["share_page_text"]
+                self.share_typed_text = awareness and settings["share_typed_text"]
+                self.share_agent_sessions = plugins.on("coding_sessions") and settings["share_agent_sessions"]
+                if capture is not None:
+                    capture.share_text = settings["share_window_text"]
+                    if not settings["share_screenshots"]:
+                        capture.vision = None
+                    elif capture.vision is None:
+                        from character_agent.services.semantic import SemanticVision
+                        capture.vision = SemanticVision(self.character_agent.semantic)
+        self.sync_privacy()
+        self.ritual_check()
 
     def privacy_preview(self, revoked=()):
         """POST /context/privacy/sync with dry_run: what sync_privacy(revoked) would delete now, by category;

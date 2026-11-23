@@ -1,13 +1,22 @@
-"""POST /model/*, PUT /behavior/capabilities and /behavior/switches, /proactive/*, and POST /reset."""
+"""POST /model/*, PUT /behavior/capabilities, /behavior/switches and /settings/live, /proactive/*, and POST /reset."""
 from datetime import date
 import re
 from urllib.parse import parse_qs, urlparse
 
 import c1
+from character.interactions import PRESETS
 from character.proactive import MUTABLE
 from personal.brief_day import brief_day
 
 RESET_CONFIRM = "delete all local data"  # POST /reset's body must be {"confirm": RESET_CONFIRM}
+# PUT /settings/live: the check of each member; the body has exactly these members
+LIVE_SETTINGS = {
+    **dict.fromkeys(("mute", "proactive_speech", "redact_sensitive", "share_page_text", "share_window_text",
+                     "share_typed_text", "share_agent_sessions", "share_screenshots"), lambda v: type(v) is bool),
+    "interaction_preset": lambda v: isinstance(v, str) and v in PRESETS,
+    **dict.fromkeys(("break_reminder_minutes", "water_reminder_minutes"), lambda v: type(v) is int and v >= 0),
+    "ritual_report_time": lambda v: isinstance(v, str) and re.fullmatch(r"([01][0-9]|2[0-3]):[0-5][0-9]", v) is not None,
+}
 
 
 class SettingsMixin:
@@ -117,6 +126,18 @@ class SettingsMixin:
         if c1.check_switches(body):
             return self._json(400, {"error": "invalid_switches"})
         self._json(200, self.server.spatial.set_switches(body))
+
+    def _live_settings_put(self):
+        """PUT /settings/live: the whole object each time; 200 once every value is in effect."""
+        try:
+            body = self._body()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict) or set(body) != set(LIVE_SETTINGS) \
+                or not all(check(body[key]) for key, check in LIVE_SETTINGS.items()):
+            return self._json(400, {"error": "invalid_settings"})
+        self.server.apply_live_settings(body)
+        self._json(200, {"ok": True})
 
     def _proactive_mutes_get(self):
         self._json(200, {"muted": sorted(self.server.gate.muted)})

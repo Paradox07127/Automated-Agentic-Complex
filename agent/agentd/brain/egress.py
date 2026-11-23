@@ -135,6 +135,9 @@ class EgressPolicy:
         self.redactions = {"key": 0, "email": 0, "phone": 0}
         self._lock = threading.Lock()
 
+    def set_redact(self, on):
+        self._redact = on
+
     def authored(self, part, text):
         if self.guard is not None:
             self.guard.check(part, text)

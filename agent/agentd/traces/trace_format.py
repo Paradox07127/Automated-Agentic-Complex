@@ -178,6 +178,7 @@ KINDS = {
     "behavior.switches": {"switches": _table(_bool)},
     "behavior.capabilities": {"character": _opt_str, "capabilities": _table(_opt_str)},
     "behavior.cancel_all": {"reason": _str},
+    "interaction.preset": {"preset": _str},
     "proactive.feedback": {"line_id": _str, "value": _enum("useful", "dont_disturb")},
     "dispatch.proposed": {"request_id": _str},
     "dispatch.decided": {"request_id": _str, "decision": _str},

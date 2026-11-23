@@ -131,6 +131,7 @@
 | `behavior.switches` | `switches`：`PUT /behavior/switches` 存下的值 |
 | `behavior.capabilities` | `character`、`capabilities`：宿主报的能力，值为 null 或不可用的原因 |
 | `behavior.cancel_all` | `reason`：结束所有行为的原因，例如 character_switch |
+| `interaction.preset` | `preset`：`PUT /settings/live` 换上的互动预设名；预设没变不写 |
 
 不另记、从已有事件推出的输入：舞台（`stage.changed` 的 `to`，Spatial 的 `stage.*` 事件跟着它）、渲染器回报（`motion.state`，其中 `resting`、`busy` Spatial 不读；`behavior.receipt`，它的 `turn_generation` 就是那个行为自己的）、渲染器断线（`reason=connection_lost` 的 `behavior.receipt`）。不记、回放不重现：动作生成服务的 `perform`（`offer`）和模型的转向决定（`request_facing`），它们记在发起轮次的 trace 里；她的作息（Routine）和状态（CharacterState）、read model 的 `walk_bias`、`turn_generation`。
 

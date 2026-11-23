@@ -181,6 +181,8 @@ class Replay:
             sp.set_capabilities(a["character"], a["capabilities"])
         elif kind == "behavior.cancel_all":
             sp.cancel_all(a["reason"])
+        elif kind == "interaction.preset":
+            sp.set_interaction(a["preset"])
         elif kind == "motion.prefs":
             sp.set_motion_prefs(a["action_switches"], a["motion_overrides"])
         elif kind == "situation.observed":

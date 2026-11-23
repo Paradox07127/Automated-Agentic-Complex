@@ -188,6 +188,7 @@
   {"method": "PUT", "path": "/behavior/capabilities", "class": "host_only", "surfaces": []},
   {"method": "PUT", "path": "/behavior/motion_prefs", "class": "host_only", "surfaces": []},
   {"method": "PUT", "path": "/behavior/switches", "class": "native_only", "surfaces": []},
+  {"method": "PUT", "path": "/settings/live", "class": "native_only", "surfaces": []},
   {"method": "PUT", "path": "/avatar/visibility", "class": "host_only", "surfaces": []},
   {"method": "PUT", "path": "/character/state/switch", "class": "native_only", "surfaces": []},
   {"method": "PUT", "path": "/memory/paused", "class": "write", "surfaces": ["main"], "plugin": "light_ai"},

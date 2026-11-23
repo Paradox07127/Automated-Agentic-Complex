@@ -109,7 +109,7 @@ class DiagnosticsMixin:
             scale = gate.scale.get(kind, 1)
             if kind == "comment" and gate.state_scale is not None:
                 scale *= max(1, gate.state_scale())
-            return gate.same_cooldown * scale
+            return gate.cooldown.get(kind, gate.same_cooldown) * scale
         return {"enabled": gate.enabled, "companion_mode": bool(gate.companion),
                 "quiet_hours": list(gate.quiet), "meeting": gate.meeting,
                 "fullscreen": gate.fullscreen, "user_speaking": gate.user_speaking,

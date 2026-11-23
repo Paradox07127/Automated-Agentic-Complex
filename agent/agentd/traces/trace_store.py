@@ -17,7 +17,7 @@ REMOTE_PRODUCERS = ("companion", "avatar")
 # the motion lane's inputs a replay rebuilds Spatial from (see tools/motion_replay.py)
 REPLAY_INPUTS = frozenset({"spatial.began", "situation.observed", "motion.chooser", "motion.intent", "motion.input",
                            "motion.clock", "motion.prefs", "motion.return", "behavior.switches",
-                           "behavior.capabilities", "behavior.cancel_all"})
+                           "behavior.capabilities", "behavior.cancel_all", "interaction.preset"})
 DAEMON_EVENTS = frozenset({"tool.started", "tool.settled", "turn.settled", "behavior.dispatched", "behavior.receipt",
                            "behavior.refused", "signal.changed", "stage.changed", "motion.chosen", "motion.state",
                            *REPLAY_INPUTS})

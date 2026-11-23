@@ -1328,6 +1328,13 @@
   ],
   [
     "PUT",
+    "/settings/live",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "PUT",
     "/avatar/visibility",
     [
       "ui_token"

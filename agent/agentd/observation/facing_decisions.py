@@ -43,6 +43,10 @@ class FacingDecisions:
         self.epoch=0;self.running=False;self.last=-math.inf;self.deferred=-math.inf
         self.last_result=None;self.error=None
 
+    def set_min_interval(self,min_interval_s):
+        with self.lock:
+            self.interval=max(5,min(30,min_interval_s))
+
     def defer(self,seconds):
         """A foreground agent tool owns the next decision."""
         with self.lock:
