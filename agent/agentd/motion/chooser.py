@@ -73,6 +73,7 @@ EXCLUDED_FAMILIES = frozenset(["boss", "other"])
 SEEDS = {"activity": 1018, "event": 2110, "tier": 1021, "fidget": 20261018, "gesture": 2026, "click": 1810}
 HISTORY = 16
 SEAT_BLEND = f32(0.25)
+SEAT_RETURN = f32(0.8)  # the least blend from a seated detour back to the seat's loop: HostSeat's offLoopReturnBlend
 SEAT_HOLD_S = f32(8)
 
 
@@ -492,6 +493,7 @@ class Staged:
     entry: bool
     base: str
     start_time: float
+    through: str = None  # the end clip of the loop it leaves, which plays out first
 
 
 @dataclass
@@ -836,6 +838,8 @@ class MotionChooser:
             return "stage", "base before " + d.clip
         if b and b[0] == to:
             return "bridge", "toward " + b[1]
+        if d and d.entry and d.through == to:
+            return self._fallback(frm, to, before, kind)
         if kind[0] == "seat":
             return kind[1:]
         if to in draws:
@@ -1047,10 +1051,11 @@ class MotionChooser:
     # Starting clips.
 
     def _transition(self, clip, duration, source_duration=False, entry=False, staged_at=None, over_gap=False,
-                    start_time=None, keep_staged=False):
+                    start_time=None, keep_staged=False, ends_first=False):
         """Starts `clip`. A drawn chain start (`entry`) with pose families first moves to its start family's base and
         waits there; a move to another family's base takes the families' bridge. `keep_staged`: a bridge or source
-        return handing over to the base keeps the clip staged there."""
+        return handing over to the base keeps the clip staged there. `ends_first`: a move that is not urgent and would
+        stage at a base plays the loop it leaves out through that loop's end clip first."""
         p, a = self.pack, self._play
         if self._seated_blocks(clip) or a.target == clip or (a.active == clip and a.target is None) or (
                 a.active == clip and clip in p.rules and not p.rules[clip].loop):
@@ -1058,6 +1063,17 @@ class MotionChooser:
             return
         frm, f = self._leaving(), p.families
         if entry and f:
+            d = self.deferred
+            if d and d.entry and d.clip == clip and d.through:
+                through = d.through if a.current == d.through and not self._played_out(d.through) else None
+            else:
+                e = p.entries.get(frm) if ends_first and p.loop(frm) and frm not in p.fixed_clips else None
+                through = (e.exit or e.next) if e and self._stage_base(clip, f) else None
+            if through:
+                if a.current != through:
+                    self._transition(through, p.crossfade, over_gap=True)
+                self.deferred = Staged(clip, duration, source_duration, True, None, start_time, through)
+                return
             base = staged_at or self._stage_base(clip, f)
             if base and (a.active != base or a.target is not None):
                 if (self.bridging[1] if self.bridging else None) != base:
@@ -1093,6 +1109,11 @@ class MotionChooser:
             self.departed_base = frm
         self.bridging = (bridge, clip) if bridge else None
         self._transitions.append((frm, target))
+
+    def _played_out(self, clip):
+        p, a, e = self.pack, self._play, self.pack.entries.get(clip)
+        return a.active == clip and a.target is None and a.time >= f32(
+            p.lengths[clip] - (EPS if e and e.end_at_length is True else p.crossfade))
 
     def _stage_base(self, clip, f):
         if clip not in f.clips:
@@ -1208,7 +1229,8 @@ class MotionChooser:
             if not (self._open(start) or (owner == ("interaction", start) and not self._seated_blocks(start)
                                           and start not in p.excluded)):
                 return
-            self._transition(start, p.crossfade, entry=True)
+            self._transition(start, p.crossfade, entry=True, ends_first=owner[0] == "activity" or (
+                owner[0] == "session" and not self._urgent(owner[1])))
             self.requested = Requested(start, owner)
             self.held_idle_at = None
             self.intent_held = False
@@ -1410,7 +1432,7 @@ class MotionChooser:
         if self.deferred and self.deferred.clip == clip and self.deferred.entry:
             return True
         staged = acquiring and p.families is not None and self._stage_base(clip, p.families) is not None
-        self._transition(clip, blend, source_duration=verbatim, entry=staged)
+        self._transition(clip, blend, source_duration=verbatim, entry=staged, ends_first=True)
         self._clear_requested()
         self.activity_start, self.intent_held, self.exact_owned = None, False, True
         return True
@@ -1476,8 +1498,9 @@ class MotionChooser:
             return
         p, a = self.pack, self._play
         clip, t = a.active, a.time
-        loop_again = lambda: self._call(("seat", "seat", "loop " + s.id),  # noqa: E731
-                                        lambda: self.acquire_exact(s.loop, SEAT_BLEND))
+
+        def loop_again(blend=SEAT_BLEND, verbatim=False):
+            self._call(("seat", "seat", "loop " + s.id), lambda: self.acquire_exact(s.loop, blend, verbatim))
         if not s.seated:
             if clip == s.enter and t >= f32(p.lengths[s.enter] - SEAT_BLEND):
                 loop_again()
@@ -1489,7 +1512,8 @@ class MotionChooser:
                 s.detour = None
             else:
                 if clip == s.detour[0] and a.target is None and t >= f32(s.detour[1] - SEAT_BLEND):
-                    loop_again()
+                    gap = p.families.redraw_gap_cm(s.loop, clip) if p.families else None
+                    loop_again(max(SEAT_RETURN, blend_seconds(gap) if gap is not None else 0.0), verbatim=True)
                 return
         if not (clip == s.loop and a.target is None):
             s.boundary = None
@@ -1515,7 +1539,8 @@ class MotionChooser:
             return
         clip, length, loops = pick
         s.detour = (clip, f32(length * max(1.0, float(math.ceil(f32(SEAT_HOLD_S / length))))) if loops else length)
-        self._call(("seat", "tier", why), lambda: self.acquire_exact(clip, SEAT_BLEND))
+        blend = self._detour_blend(s.loop, clip)
+        self._call(("seat", "tier", why), lambda: self.acquire_exact(clip, blend, verbatim=True))
 
     def _pat_step(self):
         """HostReactions for the pat chain: once asked, it leaves the chain's loop through leave_event."""
@@ -1784,7 +1809,7 @@ class MotionChooser:
         if self.activity_start:
             self._tag(self.activity_start, ("activity", self._activity_why(a)))
             self._spend()
-            self._transition(self.activity_start, p.crossfade, entry=True)
+            self._transition(self.activity_start, p.crossfade, entry=True, ends_first=True)
 
     def clear_intent_presentation(self):
         p = self.pack
@@ -1871,6 +1896,12 @@ class MotionChooser:
         pool_key = p.event_key(key, "stand")
         return pool_key is not None and p.events[pool_key].interrupt == "user"
 
+    def _urgent(self, key):
+        """The event cuts what plays at once: the user's own, a high one, or one that needs the user."""
+        p = self.pack
+        pool_key = p.event_key(key, self.posture) or p.event_key(key, "stand")
+        return key in URGENT_EVENTS or pool_key is not None and p.events[pool_key].interrupt in ("user", "high")
+
     def _start_event(self, key):
         p, a = self.pack, self._play
         if key not in p.event_names:
@@ -1905,7 +1936,7 @@ class MotionChooser:
         if p.requested_loop(pick):
             self._hold(pick, ("session", key))
         else:
-            self._transition(pick, p.crossfade, entry=True)
+            self._transition(pick, p.crossfade, entry=True, ends_first=not self._urgent(key))
         self.event_at[self._cooldown_key(key)] = self.clock
         if level == "user":
             self.since_user = 0.0
@@ -2122,7 +2153,7 @@ class MotionChooser:
         if p.requested_loop(pick):
             self._hold(pick, ("activity", "idle.t%d" % (i + 1), self.semantic))
         else:
-            self._transition(pick, p.crossfade, entry=True)
+            self._transition(pick, p.crossfade, entry=True, ends_first=True)
 
     def _advance_mapped(self, dt):
         """A mapped clip's end or next, then speech gestures while speaking, and fidgets in a pack without tiers."""
@@ -2132,6 +2163,8 @@ class MotionChooser:
         clip = a.active
         if clip in p.rules and p.rules[clip].return_clip:
             return
+        if self.deferred is not None and self.deferred.through == clip:
+            return  # the staged chain start follows it
         # With pose families overview is a pose chains pass through, not a resting base.
         if self.deferred is None and p.families and clip in p.families.base_clips and clip not in p.idle_bases:
             self._builtin()

@@ -25,7 +25,7 @@ from infra.store import open_store  # noqa: E402
 from observation.user_now import UserNow  # noqa: E402
 from traces.motion_lane import MotionLane  # noqa: E402
 from test_server import EVENTS, HOOK, UI  # noqa: E402
-from test_motion_chooser import prefs_pack  # noqa: E402
+from test_motion_chooser import families_pack, prefs_pack  # noqa: E402
 
 T0 = 1760900000.0
 COMPLETED_BY = ("speech_end", "session_state", "focus_change")  # C1 §1: these exits complete; the rest cancel
@@ -72,6 +72,7 @@ class SpatialCase(unittest.TestCase):
                                clock=lambda: self.now, rng=self.rng, session_settle=0, session_min_hold=0, recovery_delay=0)
         self.log, self.seen, self.unity, self.sent = [], 0, {}, []
         self.unsupported = set()  # types (or "type@target kind") the fake renderer answers with rejected / unsupported
+        self.busy = set()  # perform clips the fake renderer answers with rejected / busy
 
     def use(self, rng):
         self.spatial.rng = self.rng = rng
@@ -89,7 +90,8 @@ class SpatialCase(unittest.TestCase):
             if message["event"] == "behavior":
                 self.sent.append(message)
                 old = self.unity.get(message["replaces"])
-                if old is not None and old["priority"] > message["priority"]:  # C1 §2 priority
+                if old is not None and old["priority"] > message["priority"] \
+                        or (message.get("clip") or {}).get("id") in self.busy:  # C1 §2 priority, or a held body
                     self.receipt(message["behavior_id"], "rejected", "busy")
                     continue
                 on = message["target"] and f"{message['type']}@{message['target']['kind']}"
@@ -2386,6 +2388,24 @@ class ChooserTest(SpatialCase):
         self.assertIn("idle.t1", [m["trigger"]["event"] for m in self.performs()])  # standing tiers again
         self.assertValid()
 
+    def test_a_seat_move_chosen_after_her_sit_ended_is_not_played_standing(self):
+        self.run_clock(1)
+        sit = spatial._spec("sit", None, "tick", "routine:test", 0, ("full_body", "contact"), ("user_drag",), 0.3, 600.0)
+        self.assertEqual(self.spatial.offer(sit), (True, None))
+        self.flush()
+        self.run_clock(20)
+        self.receipt(self.sent[-1]["behavior_id"], "cancelled")
+        self.spatial.motion_step()
+        self.flush()
+        self.assertFalse(self.spatial._seated)
+        self.sent.clear()
+        with self.spatial._lock:  # the chooser's seat loop, chosen at a frame before it heard she stood
+            self.spatial._choose({"clip": "sit_loop", "why": "loop sit.seat", "t_s": self.spatial.chooser.t_s}, None, "base",
+                                 None, self.s, self.now, ("t-stale", None))
+        self.flush()
+        self.assertEqual(self.performs(), [])
+        self.assertValid()
+
     def test_a_rejected_sit_leaves_the_loop_the_base_layer_plays(self):
         self.spatial.chooser.report_playhead("relax_loop", 0.0)  # a loop of hers other than the pack's overview
         self.run_clock(1)
@@ -2944,6 +2964,41 @@ class LocalMotionsTest(SpatialCase):
             sit["behavior_id"], True, {"source": "session", "event": "session.thinking@sit seat posturePick"}))
         self.assertIn((think["behavior_id"], "expired", None), self.cancels())  # back to the sit's own loop
         self.assertIn(sit["behavior_id"], self.spatial.active)
+        self.assertValid()
+
+    def test_a_seated_detour_carries_its_pose_gap_blend_in_and_out(self):
+        self.start(families_pack(self.root), enter=False)
+        self.sit()
+        sit = self.sent[-1]
+        self.run_clock(16)
+        [read] = [m for m in self.within() if m["clip"] == {"id": "sit_read"}]
+        self.assertEqual((read["within"], read["blend_s"]), (sit["behavior_id"], 1.032))
+        [cancel] = [m for m in self.log if m["event"] == "behavior_cancel" and m["behavior_id"] == read["behavior_id"]]
+        self.assertEqual((cancel["mode"], cancel["fade_s"]), ("fade_out", 1.032))  # back to the sit's own loop
+        self.assertValid()
+
+    def test_a_chain_start_the_renderer_rejects_is_drawn_again_from_its_start(self):
+        """The renderer holds her body while she stands up from a sit: the chooser does not go on to the rejected
+        start's next clip, and the base loop that still plays is not sent again."""
+        self.start(enter=False)
+        self.spatial.set_motion_prefs({}, {**NO_OVERRIDES, "pools": {
+            "idle.t1": [{"clip": "angry_start", "weight": 1}, {"clip": "nod", "weight": 1}]}})
+        self.busy = {"angry_start"}
+        while not [m for m in self.performs() if m["clip"] == {"id": "angry_start"}]:
+            self.run_clock(spatial.MOTION_WAKE)
+        start = self.performs()[-1]
+        self.assertEqual(self.receipts(start["behavior_id"]), [("rejected", "busy")])
+        self.assertEqual(self.spatial.chooser.playhead()[0], "base_loop")
+        self.run_clock(2)
+        clips = [m["clip"]["id"] for m in self.performs()]
+        self.assertNotIn("angry_loop", clips, "the rejected start's loop played without it")
+        self.assertEqual(clips[-2:], ["base_loop", "angry_start"])  # the loop the renderer plays on is not sent again
+        self.assertEqual(self.spatial.active[start["replaces"]]["spec"]["clip"], {"id": "base_loop"})
+        self.busy = set()
+        self.run_clock(80)  # past the idle budget's minute
+        clips = [m["clip"]["id"] for m in self.performs()]
+        self.assertIn("angry_loop", clips)
+        self.assertEqual(clips[clips.index("angry_loop") - 1], "angry_start")
         self.assertValid()
 
     def test_a_rest_sit_dozes_within_itself(self):

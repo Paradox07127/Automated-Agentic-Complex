@@ -102,7 +102,8 @@ REACTION_EVENTS = {"click": "click.single", "pat": "pat.head", "pinch": "pinch.c
 REGION_TRIGGERS = {"click_head": "head_top", "click_cheek": "cheek_l", "click_hand": "hand_l"}  # -> chooser region
 BASE_REACTIONS = ("drag_lift", "drop")  # reactions on the base layer; the rest play on the overlay
 SEAT_MOVES = ("enter ", "loop ")  # why prefixes of the chooser's own seat clips, which the sit plays itself
-WITHIN_FADE = 0.25  # fade_s of a loop within a sit that the chooser leaves for the sit's own loop
+# the least fade_s of a loop within a sit that the chooser leaves for the sit's own loop: HostSeat's offLoopReturnBlend
+WITHIN_FADE = 0.8
 RETURN_PRIORITY = 1  # the return performance's clips: above the chooser's own, so an idle tier does not cut them
 RETURN_FACE = 10.0  # seconds she faces the user on a return
 # return row -> (she faces the user, the welcome: "small", "full" or None, the report gesture)
@@ -559,6 +560,8 @@ class Spatial:
                     self.parked(True)
             if phase == "rejected" and record["ended"] is None:
                 self._restore(record["behavior"]["replaces"], now)
+                if body["behavior_id"] == self._base_id and not record["spec"].get("loop"):
+                    self._unchoose(record)
             if phase == "rejected" and body.get("reason") == "unsupported":
                 behavior = record["behavior"]
                 self._unsupported[_unsupported_key(behavior["type"], behavior["target"], behavior.get("variant"))] = \
@@ -590,6 +593,16 @@ class Spatial:
         self.active[behavior_id] = record
         for key in sorted(self.active, key=lambda i: self.active[i]["behavior"]["seq"]):
             self.active.move_to_end(key)
+
+    def _unchoose(self, record):
+        """The renderer rejected the chosen one-shot on the base layer: the chooser goes on from what that layer plays,
+        so a chain whose start it was is drawn again from its start rather than followed to its next clip. A rejected
+        loop stays the chooser's, which _hold proposes again."""
+        replaced = self.active.get(record["behavior"]["replaces"])
+        if replaced is not None and replaced["spec"].get("chosen") and replaced["spec"]["layer"] == "base":
+            self._base_id = replaced["behavior"]["behavior_id"]
+        self._trace_clock()
+        self.chooser.report_playhead(*self._played())
 
     def receipt_trace(self, behavior_id):
         with self._lock:
@@ -1056,6 +1069,9 @@ class Spatial:
         if self._seated:
             self._choose_within(clip, why, source, blend, s, now, chosen)
             return
+        if why.startswith(SEAT_MOVES):  # chosen before the chooser heard she stood: only a sit plays these
+            self._trace_chosen(chosen, None, None)
+            return
         ret = self._return
         if ret is not None and ret["clip"] is not None and clip not in self.chooser.pack.chain(ret["clip"]):
             if self._return_next():
@@ -1124,8 +1140,9 @@ class Spatial:
         if why.startswith(SEAT_MOVES):
             if why.startswith("loop ") and within is not None and within["spec"].get("loop"):
                 self._end(within, "expired")
+                fade = round(min(max(WITHIN_FADE, blend or 0.0), c1.FADE_S[1]), 3)
                 self.publish("behavior_cancel", {"behavior_id": self._within, "reason": "expired", "mode": "fade_out",
-                                                 "fade_s": WITHIN_FADE, "turn_generation": self.generation()})
+                                                 "fade_s": fade, "turn_generation": self.generation()})
             self._trace_chosen(chosen, "base", sit["behavior"]["behavior_id"])  # the sit plays it
             return
         spec = self._chosen_spec(clip, "base", source or self._source(why), why, blend)

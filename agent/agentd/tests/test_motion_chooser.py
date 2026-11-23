@@ -11,7 +11,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from motion.chooser import MotionChooser, SEEDS, lcg  # noqa: E402
+from motion.chooser import MotionChooser, SEEDS, blend_seconds, f32, lcg  # noqa: E402
 
 PACK = Path(__file__).resolve().parent / "fixtures" / "motion-chooser" / "demo"  # a runtime character directory
 FRAME = 1 / 60
@@ -151,6 +151,101 @@ def prefs_pack(root, rows=ROWS):
     (pack / "c7" / "animation" / "motion-graph.json").write_text(json.dumps(
         {"schema": "endfield-motion-graph/v1", "chains": {c: {} for c in CHAINS}}), encoding="utf-8")
     return pack
+
+
+FAMILY_CLIPS = {  # name -> (length, loop, stance start, stance end, intent-motion-map row, pose family row)
+    "muse_start": (1.0, False, "stand", "stand", {"next": "muse_loop", "exit": "muse_end"},
+                   ("dialog", "other", 0, 49.6)),
+    "muse_loop": (2.0, True, "stand", "stand", {"hold_seconds": 10, "next": "muse_end", "exit": "muse_end",
+                                                "interruptible": True}, ("other", "other", 49.6, 49.6)),
+    "muse_end": (1.0, False, "stand", "stand", {}, ("other", "dialog", 49.6, 0)),
+    "sit_read": (4.0, True, "sit", "sit", {}, ("other", "other", 63.8, 63.8)),
+    "sit_sp": (2.0, False, "sit", "sit", {}, ("other", "other", 14.9, 14.9)),
+}
+
+
+def families_pack(root):
+    """The demo pack in root with pose-families.json: base_loop the dialog hub, a muse chain that leaves it by 49.6 cm,
+    the seat in its own family and a seated idle tier of sit_read, a seated loop 63.8 cm from the seat's loop."""
+    pack = Path(root) / "families"
+    shutil.copytree(PACK, pack)
+
+    def edit(name, change):
+        path = pack / name
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        change(doc)
+        path.write_text(json.dumps(doc), encoding="utf-8")
+
+    def motion_map(m):
+        m["clips"].update({name: row[4] for name, row in FAMILY_CLIPS.items()})
+        m["idle_tiers"].append({"after_s": [2, 3], "interval_s": [2, 3], "stance": "sit",
+                                "pool": [{"clip": "sit_read"}]})
+    edit("actor/manifest.json", lambda d: d["clips"].extend(
+        {"name": n, "length": r[0], "loop": r[1]} for n, r in FAMILY_CLIPS.items()))
+    edit("c7/animation/palette-contract.json", lambda d: d["clips"].extend(
+        {"name": n, "loop": r[1]} for n, r in FAMILY_CLIPS.items()))
+    edit("c7/animation/intent-motion-map.json", motion_map)
+    edit("c7/interaction/motion-metadata.json", lambda d: d["clips"].update(
+        {n: {"stance_start": r[2], "stance_end": r[3]} for n, r in FAMILY_CLIPS.items()}))
+    edit("c7/pack.json", lambda d: d["animation"]["data"].append({"file": "pose-families.json"}))
+    rows = {n: r[5] for n, r in FAMILY_CLIPS.items()}
+    rows.update({c: ("dialog", "dialog", 0, 0) for c in ("nod", "tap", "wave")},
+                sit_enter=("dialog", "sit", 0, 0), sit_loop=("sit", "sit", 0, 0))
+    (pack / "c7" / "animation" / "pose-families.json").write_text(json.dumps({
+        "bases": {"dialog": "base_loop", "relax": "relax_loop"}, "hub": "dialog", "bridges": {},
+        "family_gaps_cm": {"dialog": {"relax": 10.0}, "relax": {"dialog": 10.0}},
+        "clips": {c: {"start": r[0], "end": r[1], "start_cm": r[2], "end_cm": r[3]} for c, r in rows.items()}}),
+        encoding="utf-8")
+    return pack
+
+
+class PoseFamilyTest(unittest.TestCase):
+    """Switches the pose families measure: seated detours and leaving a loop for another chain."""
+
+    def setUp(self):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        self.pack = families_pack(root)
+
+    def test_a_seated_detour_blends_over_its_pose_gap_and_returns_over_at_least_0_8_s(self):
+        """As HostSeat blends its own variants: into the clip over the gap from the seat's loop, back over that gap and
+        at least offLoopReturnBlend."""
+        for clip, into, back in (("sit_read", blend_seconds(f32(63.8)), blend_seconds(f32(63.8))),
+                                 ("sit_sp", blend_seconds(f32(14.9)), f32(0.8))):
+            with self.subTest(clip):
+                chooser = MotionChooser(self.pack)
+                self.assertEqual(chooser.set_motion_overrides({}, {"idle.t2": [{"clip": clip, "weight": 1}]}, {}), [])
+                replay(chooser, 1)
+                chooser.send({"kind": "sit"})
+                blends = []
+                for _ in range(round(20 * 60)):
+                    blends += [(c["clip"], c["why"], chooser.playhead()[2]) for c in chooser.tick(FRAME)]
+                detour = next(i for i, b in enumerate(blends) if b[0] == clip)
+                self.assertEqual(blends[detour][1], "idle.t2 seat tierPick")
+                self.assertEqual(blends[detour + 1][:2], ("sit_loop", "loop sit.seat"))
+                self.assertAlmostEqual(blends[detour][2], into, places=5, msg="blend into %s" % clip)
+                self.assertAlmostEqual(blends[detour + 1][2], back, places=5, msg="blend back from %s" % clip)
+
+    def test_a_move_that_is_not_urgent_leaves_a_loop_through_its_end_clip(self):
+        for item in ({"kind": "sit"}, {"kind": "event", "key": "user.greet"}):
+            with self.subTest(item["kind"]):
+                chooser = MotionChooser(self.pack)
+                replay(chooser, 1)
+                chooser.report_playhead("muse_loop", 0.5)
+                self.assertEqual([(c["clip"], c["why"]) for c in chooser.send(item)],
+                                 [("muse_end", "next of muse_loop")])
+                start = chooser.t_s
+                [after] = replay(chooser, 1)
+                self.assertEqual(after["clip"], "sit_enter" if item["kind"] == "sit" else "wave")
+                self.assertGreaterEqual(after["t_s"] - start, 1.0 - 0.25 - FRAME)  # muse_end plays out first
+
+    def test_the_user_s_click_cuts_the_loop_at_once(self):
+        chooser = MotionChooser(self.pack)
+        replay(chooser, 1)
+        chooser.report_playhead("muse_loop", 0.5)
+        [base] = chooser.send({"kind": "click"})
+        self.assertEqual(base["clip"], "base_loop")
+        self.assertTrue(base["why"].startswith("base before "), base)
 
 
 class MotionSettingsTest(unittest.TestCase):
