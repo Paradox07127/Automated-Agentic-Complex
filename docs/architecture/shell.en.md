@@ -177,6 +177,24 @@ TTS (`tts`), the motion service Kimodo (`motion`) and the OpenAI-compatible mode
 - Page guard (`src/main/web-guard.ts`): navigation is allowed only to `agentic-complex-ui://app`, and http(s) links go to the system browser; pages cannot open new windows; the context menu appears only in editable fields and over selected text.
 - Error-level console messages of a page go to `ui.log` in the page log directory: at most 60 lines a minute, each cut to 4096 bytes, moved to `ui.log.1` at 1 MiB.
 
+## Logs and error records
+
+- A `.log` under `<support dir>/logs/` past 20 MiB moves to `.log.1` (one generation): at shell start; while running, a log the shell writes itself at each line it writes, the others (`avatar.log`, `agentd.log` and the rest that children hold open) at most once a minute, copied to `.1` and emptied in place, so the child writes on from the start.
+- Error records go to `logs/error.jsonl` (`src/common/error-record.ts`), one JSON object a line: `{t, component, code, message, detail?, turn_id?, trace_id?, req?, count}`. `t` is ISO time; `component` is one of `shell`, `renderer-link`, `bridge`, `page`, `agentd`, `host`, `helper`, `tts`; `message` is cut to 300 characters, `detail` to 500. No prompt text, tool input, op arguments or secrets.
+- The first occurrence of a (`component`, `code`, `message`) is written at once with `count` 1; its repeats within 60 s become one line when that minute is over, `count` being the repeats, and one line a minute while they go on. The total of an error is the sum of its lines' `count`. At quit the counts not yet written are written.
+- `code` is one of these only (`ERROR_CODES`):
+
+| code | Written by | message |
+|---|---|---|
+| `op_failed` | bridge: an op the page called failed | `<op> <bridge error code>`, `req` the op |
+| `host_exit` | host: the renderer exited on its own (non-zero or by a signal) | `status=<n>` or `signal=<n>`, `detail` the last `error:` line of that run's output |
+| `host_message_rejected` | renderer-link: the renderer sent a message against C3 | `type=<type> why=<field or reason>` |
+| `permission_denied` | helper: a system grant is missing | `<grant> <op>`, the grant `accessibility`, `screenRecording`, `inputMonitoring` or `microphone`, `req` the op |
+| `page_exception` | page: an exception of a page (caught by an error boundary, or uncaught) | `[<route>: ]<Type: message>`, `detail` the first component frame or the source |
+
+- Noise: on one connection, `rejected type=… why=…` and `heartbeat stale` go out at most once a minute each, the skipped count riding on the next one as `(+N more)`; a `heartbeat resumed` only follows a logged stale. `desk: <panel> frame` at most once a minute per panel (the latest frame); the character page preview's frame-rate line after each load's first at most once a minute.
+- 复制诊断信息 adds, after the error lines of companion.log and agentd.log, the last 50 error records, the last 40 lines of `avatar.log` (without the JSON run report of an exit) and the last 40 lines of `ui.log`.
+
 ## Quitting
 
 Each SIGTERM and SIGINT calls `app.quit()`, the same path as the tray's 退出 (Quit): `will-quit` first stops the renderer, agentd and the helper (`src/main/quit.ts`). Electron's own handler takes only the first signal and then restores the default action, so a second signal while the children stop would kill the main process at once. Electron installs its handler after the main script's first run, so the shell installs its own after `app.whenReady()`. Windows has no SIGTERM to catch.

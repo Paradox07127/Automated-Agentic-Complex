@@ -66,7 +66,7 @@ import { shellWindowHandover } from './handover/window.ts';
 import { HotkeyRecorder } from './hotkeys/record.ts';
 import { type ShellHotkeys, shellHotkeys, unregisteredHotkeys } from './hotkeys/shell.ts';
 import { interactionShell } from './interaction/shell.ts';
-import { appendLog } from './log.ts';
+import { appendLog, flushErrors, recordError } from './log.ts';
 import { appMenu, pageShortcut } from './menus/app.ts';
 import { SettingsChanges } from './menus/items.ts';
 import { type IconBitmap, squareIcon } from './menus/icon.ts';
@@ -250,6 +250,7 @@ const hostLink = config && new HostLink({
   // Annotated: `watchers` is made from this link, so its type cannot come from here.
   buttonsDown: (): boolean => watchers?.buttonsDown ?? false,
   traceEpoch: () => nextTraceEpoch(config!.supportDir),
+  recordError: (e) => recordError(config!.supportDir, e),
   ...(forwarding && { onTrace: forwarding.onTrace, onBehaviorReceipt: forwarding.onBehaviorReceipt, onMotionState: forwarding.onMotionState,
     onUserPlay: forwarding.onUserPlay, onMotionRequest: forwarding.onMotionRequest, onReaction: forwarding.onReaction, onDragBegin: forwarding.onDragBegin }),
   ...reports?.options,
@@ -665,6 +666,7 @@ const webGuard: WebGuardPorts = {
   popUpMenu: (contents, items) => Menu.buildFromTemplate(items).popup({ window: BrowserWindow.fromWebContents(contents) ?? undefined }),
   logsDir: webLogsDir(config?.supportDir ?? supportDir, DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR),
   ...(DEV_WEB !== null && { devLog: (line: string) => log(line) }),
+  recordError: (e) => recordError(config?.supportDir ?? supportDir, e),
 };
 /** Clicks on her and the desktop actions that act on her (interaction/shell.ts). */
 const interaction = config && runtimePath !== null ? (() => {
@@ -1181,7 +1183,8 @@ ipcMain.handle('files:paste', (e, items: unknown) => {
 ipcMain.handle('bridge:invoke', (e, message: unknown): Reply | Promise<Reply> => {
   const entry = pages.get(e.sender.id), frame = e.senderFrame;
   if (!entry || !frame) return { ok: false, error: { code: 'forbidden_frame', detail: 'no bridge surface' } };
-  return handle(entry.surface, { mainFrame: frame === e.sender.mainFrame, origin: frame.origin }, message, entry.ops ?? ops, entry.page);
+  return handle(entry.surface, { mainFrame: frame === e.sender.mainFrame, origin: frame.origin }, message, entry.ops ?? ops, entry.page,
+    (op, code) => recordError(config?.supportDir ?? supportDir, { component: 'bridge', code: 'op_failed', message: `${op} ${code}`, req: op }));
 });
 
 /** The Mac's app menu, its 前往 by the plug-ins agentd runs with; set again at each start of agentd. Windows gets none, not
@@ -1198,6 +1201,7 @@ let childrenStopped = false;
 let devReloader: { stop(): void } | null = null;
 // The renderer (C3 quit first), then agentd; the platform helper last.
 app.on('will-quit', (e) => {
+  flushErrors();
   store?.stop();
   diagStream?.stop();
   desktop?.stop();

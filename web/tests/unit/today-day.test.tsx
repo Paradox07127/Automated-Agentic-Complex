@@ -69,6 +69,18 @@ const EPS: DayEpisode[] = Array.from({ length: 113 }, (_, i) => ({
 }));
 
 describe('今天: timeline', () => {
+  it('a session the ledger lists under two projects (a worktree and its checkout) is one entry over both spans', () => {
+    const sess = (started_at: number, ended_at: number | null) => ({ session_id: '4e481841-8e5d-451e-9894-66354085e863', started_at, ended_at,
+      agents_done: 0, agents_failed: 0, last_gate: null, guard_blocks: 0 });
+    const t0 = at(9, 0) / 1000;
+    const segments = { date: '2026-11-23', projects: [
+      { project: '/r', name: 'r', sessions: [sess(t0, t0 + 600)], own: [] },
+      { project: '/r/.claude/worktrees/w', name: 'w', sessions: [sess(t0 + 300, t0 + 1200)], own: [] },
+    ] };
+    const entries = timelineFromDay([], segments, [], [], at(14, 0)).filter((e) => e.origin === 'segment');
+    expect(entries.map((e) => [e.id, e.t0, e.t1])).toEqual([['seg:4e481841-8e5d-451e-9894-66354085e863', t0 * 1000, (t0 + 1200) * 1000]]);
+  });
+
   it('113 episodes merge same-app neighbours and show at most 30 rows, each with a time and a source icon', () => {
     const entries = timelineFromDay(EPS, null, [], [], at(14, 32));
     expect(entries.length).toBeLessThan(113);

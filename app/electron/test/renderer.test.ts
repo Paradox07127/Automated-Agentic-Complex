@@ -210,6 +210,29 @@ for (const [status, reason] of [[78, '角色包与程序版本不符'], [69, '�
   });
 }
 
+test('an exit on its own logs the last `error:` line of its output as the cause, past a long JSON report, and records host_exit', async () => {
+  const s = setup(`console.error('error: an earlier one');
+console.log('error: Unprepared jsspsi/default/A_actor_jsspsi_interact_sit_sp: entity:pot');
+console.log(JSON.stringify({ clips: Array.from({ length: 20000 }, (_, i) => ({ i, error: 'none' })) }, null, 2));
+process.exit(1);`);
+  try {
+    // An earlier run's line in avatar.log is not this run's cause.
+    mkdirSync(join(s.config.supportDir, 'logs'), { recursive: true });
+    writeFileSync(join(s.config.supportDir, 'logs', 'avatar.log'), 'error: from the run before\n');
+    const r = s.supervisor(1);
+    r.start();
+    const companion = () => readFileSync(join(s.config.supportDir, 'logs/companion.log'), 'utf8');
+    assert.ok(await until(10, () => companion().includes('exit child=avatar status=1')), s.states.join(' '));
+    await r.stop();
+    assert.match(companion(), /exit child=avatar status=1 runtime=\d+\.\d{3}s cause=error: Unprepared jsspsi\/default\/A_actor_jsspsi_interact_sit_sp: entity:pot\n/);
+    const records = readFileSync(join(s.config.supportDir, 'logs/error.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+    assert.deepEqual(records.map((x) => [x.component, x.code, x.message, x.detail, x.count]),
+      [['host', 'host_exit', 'status=1', 'error: Unprepared jsspsi/default/A_actor_jsspsi_interact_sit_sp: entity:pot', 1]]);
+  } finally {
+    s.done();
+  }
+});
+
 test('crashes back off 1, 2, 4, 8 and fail after the fifth; a restart starts over', async () => {
   const s = setup('process.exit(1);');
   try {

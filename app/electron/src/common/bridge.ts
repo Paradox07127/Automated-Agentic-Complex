@@ -66,9 +66,10 @@ export class BridgeFailure extends Error {
 export type Handler<P = unknown> = (args: unknown[], page: P) => unknown;
 
 /** `message` is the page's `{op, args}`. An op without a handler is
- *  `not_implemented`; a handler's thrown error other than `BridgeFailure` is `failed`. */
+ *  `not_implemented`; a handler's thrown error other than `BridgeFailure` is `failed`. `report` gets each handler failure's op
+ *  and code, never its arguments or detail. */
 export function handle<P>(surface: Surface, sender: Sender, message: unknown, handlers: ReadonlyMap<string, Handler<P>> = new Map(),
-  page?: P): Reply | Promise<Reply> {
+  page?: P, report?: (op: string, code: string) => void): Reply | Promise<Reply> {
   if (!sender.mainFrame) return fail('forbidden_frame', 'not the main frame');
   if (sender.origin !== ORIGIN) return fail('forbidden_origin', sender.origin);
   const { op, args } = (message ?? {}) as { op?: unknown; args?: unknown };
@@ -81,8 +82,9 @@ export function handle<P>(surface: Surface, sender: Sender, message: unknown, ha
       const value = await handler(args.map((a) => a ?? null), page as P);
       return { ok: true, value: value === undefined ? null : value };
     } catch (e) {
-      if (e instanceof BridgeFailure) return fail(e.code, e.detail);
-      return fail('failed', e instanceof Error ? e.message : String(e));
+      const reply = e instanceof BridgeFailure ? fail(e.code, e.detail) : fail('failed', e instanceof Error ? e.message : String(e));
+      if (!reply.ok) report?.(op, reply.error.code);
+      return reply;
     }
   })();
 }

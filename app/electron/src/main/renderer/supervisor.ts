@@ -3,14 +3,15 @@
 // first, SIGTERM only without a handshaken link, SIGKILL after 4 s).
 import { type ChildProcess, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { closeSync, existsSync, fchmodSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { closeSync, existsSync, fchmodSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, rmSync } from 'node:fs';
 import { constants } from 'node:os';
 import { join, resolve } from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { Backoff, type ChildState, crashState, launchFailure, sameState, stateText } from '../../common/agentd.ts';
 import { rendererExit, rendererPreflight } from '../../common/components.ts';
 import type { Config, ShellPlatform } from '../../common/config.ts';
 import { modArgument, storedModSettings } from '../../common/looks.ts';
-import { appendLog } from '../log.ts';
+import { appendLog, recordError } from '../log.ts';
 
 /** Seconds. */
 export const RENDERER_TIMING = { startup: 180, poll: 0.2, stop: 4 } as const;
@@ -187,6 +188,35 @@ export function bundleExecutable(avatarApp: string): string | null {
   }
   const name = /<key>CFBundleExecutable<\/key>\s*<string>([^<]+)<\/string>/.exec(plist)?.[1];
   return name === undefined ? null : join(avatarApp, 'Contents/MacOS', name);
+}
+
+/** The last line of `path` from byte `from` on that starts with `error:`, cut to 300 characters; null without one. A log
+ *  emptied by rotation since is read from its start. */
+export function lastErrorLine(path: string, from: number): string | null {
+  let fd: number;
+  try {
+    fd = openSync(path, 'r');
+  } catch {
+    return null;
+  }
+  try {
+    const size = fstatSync(fd).size, chunk = Buffer.alloc(1 << 20), decoder = new StringDecoder('utf8');
+    let pos = from <= size ? from : 0, carry = '', found: string | null = null;
+    while (pos < size) {
+      const n = readSync(fd, chunk, 0, Math.min(chunk.length, size - pos), pos);
+      if (n === 0) break;
+      pos += n;
+      const lines = (carry + decoder.write(chunk.subarray(0, n))).split('\n');
+      carry = lines.pop() ?? '';
+      for (const line of lines) if (line.startsWith('error:')) found = line;
+    }
+    if (carry.startsWith('error:')) found = carry;
+    return found === null ? null : [...found.replace(/\r$/, '')].slice(0, 300).join('');
+  } catch {
+    return null;
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** What the supervisor needs of the host link. */
@@ -406,17 +436,19 @@ export class RendererSupervisor {
     this.after(RENDERER_TIMING.poll / this.scale, () => this.watchStartup(gen, path, character, began, stage));
   }
 
-  /** Spawns with stdout and stderr appended to `<support>/logs/avatar.log`; false (and failed) when it cannot. */
+  /** Spawns with stdout and stderr appended to `<support>/logs/avatar.log`; false (and failed) when it cannot. An exit on its
+   *  own logs the last `error:` line this run wrote there as its cause. */
   private launch(executable: string, args: string[]): boolean {
     this.setState({ kind: 'starting' });
     this.generation += 1;
     const gen = this.generation;
     const logPath = join(this.config.supportDir, 'logs', 'avatar.log');
-    let fd = -1;
+    let fd = -1, logStart = 0;
     try {
       mkdirSync(join(this.config.supportDir, 'logs'), { recursive: true, mode: 0o700 });
       fd = openSync(logPath, 'a', 0o600);
       fchmodSync(fd, 0o600);
+      logStart = fstatSync(fd).size;
     } catch {
       if (fd !== -1) closeSync(fd);
       this.setState({ kind: 'failed', reason: `无法打开日志 ${logPath}` });
@@ -442,10 +474,13 @@ export class RendererSupervisor {
     child.once('exit', (code, signal) => {
       const quit = this.quitReasons.get(gen);
       this.quitReasons.delete(gen);
-      const outcome = quit !== undefined
-        ? `closed(quit) child=avatar reason=${quit.reason}`
-        : `exit child=avatar ${signal !== null ? `signal=${constants.signals[signal] ?? signal}` : `status=${code}`}`;
-      if (quit?.logged !== true) this.log(`${outcome} runtime=${((performance.now() - began) / 1000).toFixed(3)}s`);
+      const how = signal !== null ? `signal=${constants.signals[signal] ?? signal}` : `status=${code}`;
+      const cause = quit === undefined && how !== 'status=0' ? lastErrorLine(logPath, logStart) : null;
+      const outcome = quit !== undefined ? `closed(quit) child=avatar reason=${quit.reason}` : `exit child=avatar ${how}`;
+      if (quit?.logged !== true) this.log(`${outcome} runtime=${((performance.now() - began) / 1000).toFixed(3)}s${cause === null ? '' : ` cause=${cause}`}`);
+      if (quit === undefined && how !== 'status=0') {
+        recordError(this.config.supportDir, { component: 'host', code: 'host_exit', message: how, ...(cause !== null && { detail: cause }) });
+      }
       if (gen !== this.generation) return;
       this.generation += 1;
       this.child = null;

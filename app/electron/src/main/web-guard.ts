@@ -3,6 +3,7 @@
 import { appendFileSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { WebContents } from 'electron';
+import type { ErrorInput } from '../common/error-record.ts';
 import { editMenu, type EditItem, externalUrl, navigationAllowed, WEB_LOG, WebErrorLog } from '../common/web-guard.ts';
 
 export interface WebGuardPorts {
@@ -15,6 +16,19 @@ export interface WebGuardPorts {
   logsDir: string;
   /** With pages from the vite dev server: gets its client's `[vite] …` console lines, prefixed with the surface. */
   devLog?: (line: string) => void;
+  /** Gets each exception of the page (log.ts recordError). */
+  recordError?: (e: ErrorInput) => void;
+}
+
+/** A console error that is a page's exception: the page's `page_exception: <message>\n<first component frame>…`
+ *  (web/src/shell/pageException.ts), or an uncaught one with its source; null for any other. */
+export function pageException(message: string, source: string): ErrorInput | null {
+  const [first = '', second = ''] = message.split('\n');
+  if (first.startsWith('page_exception: ')) {
+    return { component: 'page', code: 'page_exception', message: first.slice('page_exception: '.length), detail: second.trim() };
+  }
+  if (first.startsWith('Uncaught ')) return { component: 'page', code: 'page_exception', message: first, detail: source };
+  return null;
 }
 
 /** Appends to `<dir>/ui.log`, first moving it to `ui.log.1` once it has reached `maxFileBytes`. */
@@ -49,6 +63,8 @@ export function guardWebContents(contents: WebContents, surface: string, ports: 
   contents.on('console-message', (e) => {
     if (ports.devLog && e.message.startsWith('[vite]')) ports.devLog(`DEV_WEB ${surface} ${e.message}`);
     if (e.level !== 'error') return;
+    const exception = ports.recordError ? pageException(e.message, `${e.sourceId}:${e.lineNumber}`) : null;
+    if (exception) ports.recordError!(exception);
     const url = contents.getURL(), hash = url.indexOf('#');
     log.record(`${e.message}\n${e.sourceId}:${e.lineNumber}`, hash < 0 ? '' : url.slice(hash + 1), Date.now());
   });

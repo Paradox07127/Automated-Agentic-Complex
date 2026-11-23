@@ -106,6 +106,13 @@ export function timelineFromDay(episodes: readonly DayEpisode[], segments: WireD
     out.push(e);
     prev = { app: ep.app, e };
   }
+  // The ledger lists a session under each project it ran in (a worktree and its checkout): one entry over all its spans.
+  const put = (e: TimelineEntry) => {
+    const same = out.find((x) => x.id === e.id);
+    if (!same) return void out.push(e);
+    same.t0 = Math.min(same.t0, e.t0);
+    same.t1 = Math.max(same.t1, e.t1);
+  };
   for (const p of segments?.projects ?? []) {
     for (const s of p.sessions) {
       if (s.started_at == null) continue;
@@ -113,11 +120,11 @@ export function timelineFromDay(episodes: readonly DayEpisode[], segments: WireD
       const sel = reg?.task_id ?? `ses:${uuidOf(s.session_id) ?? s.session_id}`;
       const t1 = s.ended_at == null ? now : secToMs(s.ended_at);
       const source = reg?.target === 'codex' || reg?.id.startsWith('codex:') ? 'codex' : 'claude';
-      out.push({ id: `seg:${s.session_id}`, t0: secToMs(s.started_at), t1, title: short(reg?.title ?? `${p.name} 会话`), source, taskId: reg?.task_id ?? null, open: { sel }, origin: 'segment' });
+      put({ id: `seg:${s.session_id}`, t0: secToMs(s.started_at), t1, title: short(reg?.title ?? `${p.name} 会话`), source, taskId: reg?.task_id ?? null, open: { sel }, origin: 'segment' });
     }
     for (const o of p.own) {
       const reg = sessions.find((x) => x.id === o.session_id);
-      out.push({ id: `own:${o.session_id}`, t0: secToMs(o.started_at), t1: secToMs(o.updated_at), title: short(o.title ?? reg?.title ?? '编码会话'), source: 'own', taskId: reg?.task_id ?? null, open: { sel: reg?.task_id ?? o.session_id }, origin: 'segment' });
+      put({ id: `own:${o.session_id}`, t0: secToMs(o.started_at), t1: secToMs(o.updated_at), title: short(o.title ?? reg?.title ?? '编码会话'), source: 'own', taskId: reg?.task_id ?? null, open: { sel: reg?.task_id ?? o.session_id }, origin: 'segment' });
     }
   }
   for (const c of convs) {

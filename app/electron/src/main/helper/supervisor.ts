@@ -6,7 +6,7 @@ import { closeSync, fchmodSync, openSync } from 'node:fs';
 import { constants } from 'node:os';
 import { join } from 'node:path';
 import { Backoff, type ChildState, launchFailure, sameState, stateText } from '../../common/agentd.ts';
-import { appendLog, prepareLogs } from '../log.ts';
+import { appendLog, prepareLogs, recordError } from '../log.ts';
 import { HelperConnection, type HelperEvent, type HelperReply, localError, PROTOCOL } from './client.ts';
 
 /** Seconds (CONTRACT §6). */
@@ -26,6 +26,13 @@ export function watchOf(op: string, params: Record<string, unknown>): { key: str
   if (ON_OFF_WATCHES.has(op)) return { key: op, on: params.enabled === true };
   if (op === 'ax.watch') return { key: `ax.watch#${typeof params.watch_id === 'string' ? params.watch_id : ''}`, on: params.pid != null };
   return null;
+}
+
+/** The system grant (ops/permissions.ts PERMISSION_KINDS) a `permission_denied` of an op lacks; the op's prefix decides. */
+export function grantOf(op: string): string {
+  const prefix = op.slice(0, op.indexOf('.') + 1);
+  return ({ 'ax.': 'accessibility', 'input.': 'accessibility', 'control.': 'accessibility', 'capture.': 'screenRecording',
+    'ocr.': 'screenRecording', 'ptt.': 'inputMonitoring', 'mic.': 'microphone' } as Record<string, string>)[prefix] ?? 'unknown';
 }
 
 export interface HelperOptions {
@@ -94,6 +101,11 @@ export class HelperSupervisor {
       return Promise.resolve(localError('helper_exited', 'the helper is not running'));
     }
     const reply = this.connection.request(op, params, signal);
+    void reply.then((r) => {
+      if (!r.ok && r.error.code === 'permission_denied') {
+        recordError(this.options.supportDir, { component: 'helper', code: 'permission_denied', message: `${grantOf(op)} ${op}`, req: op });
+      }
+    });
     if (watch?.on) {
       void reply.then((r) => {
         if ((r.ok || r.error.code === 'helper_exited') && this.watchSeq.get(watch.key) === seq) this.watches.set(watch.key, { op, params });

@@ -4,6 +4,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
+import { RootErrorBoundary } from '../../src/shell/ErrorPage';
 import { createAppRouter } from '../../src/shell/router';
 import { StackErrorBoundary } from '../../src/surfaces/stack/StackErrorBoundary';
 import { stubMatchMedia } from './mediaStub';
@@ -63,8 +64,8 @@ describe('page error', () => {
     expect(fold?.textContent).toContain('kaboom in page');
     expect(screen.getByRole('button', { name: '复制错误' })).toBeTruthy();
     const logged = errors.mock.calls.map((c) => c.map(String).join(' ')).join('\n');
-    expect(logged).toContain('/boom');
-    expect(logged).toContain('kaboom in page');
+    // One line the shell records in error.jsonl: the route and message, then the first component frame.
+    expect(logged).toMatch(/^page_exception: \/boom: Error: kaboom in page\n\s*at \S+/m);
 
     boom.fail = false;
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
@@ -92,5 +93,31 @@ describe('stack error', () => {
     state.fail = false;
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
     expect(await screen.findByText('浮窗恢复了')).toBeTruthy();
+  });
+});
+
+describe('main window root error', () => {
+  it('shows one Chinese line with 重试, logs page_exception with the first component frame, and recovers', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const state = { fail: true };
+    function Shell() {
+      if (state.fail) throw new Error('kaboom at root');
+      return <p>主窗口恢复了</p>;
+    }
+    const { container } = render(
+      <RootErrorBoundary>
+        <Shell />
+      </RootErrorBoundary>,
+    );
+    expect(screen.getByText('主窗口出错了，已记到日志')).toBeTruthy();
+    expect(container.textContent).not.toMatch(/kaboom/);
+    const reports = errors.mock.calls.map((c) => String(c[0])).filter((m) => m.startsWith('page_exception: '));
+    expect(reports).toHaveLength(1);
+    const [first, frame] = reports[0]!.split('\n');
+    expect(first).toBe('page_exception: Error: kaboom at root');
+    expect(frame).toMatch(/^at Shell\b/);
+    state.fail = false;
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    expect(await screen.findByText('主窗口恢复了')).toBeTruthy();
   });
 });

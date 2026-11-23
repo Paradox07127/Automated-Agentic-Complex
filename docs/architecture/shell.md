@@ -177,6 +177,24 @@ TTS（`tts`）、动作服务 Kimodo（`motion`）和兼容 OpenAI 的模型 API
 - 页面守卫（`src/main/web-guard.ts`）：导航只放行 `agentic-complex-ui://app`，http(s) 链接交给系统浏览器；页面不能开新窗口；右键菜单只在可编辑处和有选中文字时出现。
 - 页面的错误级控制台消息写进页面日志目录的 `ui.log`：每分钟最多 60 条，每条截到 4096 字节，满 1 MiB 时移到 `ui.log.1`。
 
+## 日志与错误记录
+
+- `<支持目录>/logs/` 下的 `.log` 超过 20 MiB 时移到 `.log.1`（只留一代）：外壳启动时看一次，运行中外壳自己写的日志每写一行看一次，其余（子进程开着的 `avatar.log`、`agentd.log` 等）至多每分钟看一次，复制到 `.1` 后原地清空，子进程接着从头写。
+- 错误记录 `logs/error.jsonl`（`src/common/error-record.ts`），每行一个 JSON：`{t, component, code, message, detail?, turn_id?, trace_id?, req?, count}`。`t` 是 ISO 时间；`component` 是 `shell`、`renderer-link`、`bridge`、`page`、`agentd`、`host`、`helper`、`tts` 之一；`message` 截到 300 字符，`detail` 截到 500。不写提示词、工具输入、op 参数和密钥。
+- 同一 (`component`, `code`, `message`) 第一次出现时立即写一行，`count` 为 1；之后 60 s 内的重复在这一分钟结束时合成一行，`count` 是重复次数，持续重复时每分钟一行。一种错误的总次数是各行 `count` 之和。外壳退出时写出还没写的次数。
+- `code` 只用下表（`ERROR_CODES`）：
+
+| code | 谁写 | message |
+|---|---|---|
+| `op_failed` | bridge：页面调用的 op 失败 | `<op> <bridge 错误码>`，`req` 是 op |
+| `host_exit` | host：渲染器自己退出（非 0 或被信号结束） | `status=<n>` 或 `signal=<n>`，`detail` 是这次运行输出里最后一行 `error:` |
+| `host_message_rejected` | renderer-link：渲染器发来不合 C3 的消息 | `type=<类型> why=<字段或原因>` |
+| `permission_denied` | helper：缺系统权限 | `<权限> <op>`，权限是 `accessibility`、`screenRecording`、`inputMonitoring`、`microphone`，`req` 是 op |
+| `page_exception` | page：页面抛出的异常（错误边界接到的和未捕获的） | `[<路由>: ]<类型: 消息>`，`detail` 是组件栈第一帧或来源 |
+
+- 降噪：同一连接上的 `rejected type=… why=…` 和 `heartbeat stale` 每种每分钟至多一行，跳过的条数记在下一行的 `(+N more)`；只有记下的 stale 才记它的 `heartbeat resumed`。`desk: <面板> frame` 每个面板每分钟至多一行（最新的位置），角色页预览的帧率行每次加载第一条之后每分钟至多一行。
+- 复制诊断信息在 companion.log、agentd.log 的错误行之后附上最近 50 条错误记录、`avatar.log` 最后 40 行（不含退出时的 JSON 运行报告）和 `ui.log` 最后 40 行。
+
 ## 退出
 
 SIGTERM 和 SIGINT 每次收到都调 `app.quit()`，和托盘的「退出」走同一条路：`will-quit` 先停渲染器、agentd 和 helper（`src/main/quit.ts`）。Electron 自己的处理器只接第一次信号，之后恢复默认动作，子进程还没停完时第二个信号会直接杀掉主进程。Electron 的处理器在主脚本第一次运行之后才装上，所以外壳在 `app.whenReady()` 之后再装自己的。Windows 上没有可接的 SIGTERM。

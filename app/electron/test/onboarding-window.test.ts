@@ -595,7 +595,8 @@ test('复制诊断 works while config.json does not load, from the logs the laun
     const ops = registry(context(dir, { surface: 'main', config: { path: join(dir, 'config.json'), supportDir: null, devResources: null },
       clipboard: { writeText: (text) => { copied = text; } } }));
     assert.deepEqual(await call(ops, 'app.action', ['copy_diagnostics'], undefined, 'main'), { ok: true, value: null });
-    assert.equal(copied.split('\n').at(-1), 'CONFIG_ERROR config.json unreadable: JSON 无效');
+    const lines = copied.split('\n');
+    assert.equal(lines[lines.indexOf('最近 1 行错误（companion.log、agentd.log）') + 1], 'CONFIG_ERROR config.json unreadable: JSON 无效');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

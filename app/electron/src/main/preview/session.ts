@@ -114,6 +114,8 @@ export class PreviewSession<S> {
   private timeout: ReturnType<typeof setTimeout> | null = null;
   private loadStarted = 0;
   private framesReported = 0;
+  /** When the last `stats` line went to the log (performance.now ms). */
+  private statsLoggedAt = 0;
   /** The current load's last reported share; null when it reported none. */
   private progressed: number | null = null;
   /** The last `view` asked for; null before one. */
@@ -306,7 +308,9 @@ export class PreviewSession<S> {
       case 'stats': {
         if (this.selection === null || message.load_id !== this.loadID || typeof message.fps !== 'number') return;
         this.framesReported += 1;
-        if (this.framesReported === 1 || this.framesReported % 10 === 0) {
+        // The load's first, then at most one a minute.
+        if (this.framesReported === 1 || performance.now() - this.statsLoggedAt >= 60_000) {
+          this.statsLoggedAt = performance.now();
           const prepare = typeof message.prepare_ms === 'number' ? message.prepare_ms : 0;
           const gpu = typeof message.gpu_ms === 'number' ? message.gpu_ms.toFixed(1) : 'unreported';
           this.options.log(`character preview load_id=${this.loadID} fps=${message.fps.toFixed(1)} prepare_ms=${prepare.toFixed(1)} gpu_ms=${gpu}`);

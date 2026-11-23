@@ -63,6 +63,8 @@ interface Present { token: string; side: 'left' | 'right' | null; openedAt: numb
   closing: boolean }
 
 export const GLIDE = 0.35;
+/** A panel's `desk: … frame` line goes out at most this often, in seconds, with its latest frame. */
+const FRAME_LOG_EVERY = 60;
 export const DRAG_ALPHA = 0.4;
 export const WALK_FADE = 0.15;
 const TOLERANCE = 0.5;
@@ -163,6 +165,8 @@ export class DesktopFollow {
   private loggedPhase: string | null = null;
   private loggedColumn: string | null = null;
   private loggedFrames: Partial<Record<PanelKind, string>> = {};
+  /** When each panel's frame line went out; a changed frame waits FRAME_LOG_EVERY after it. */
+  private loggedFramesAt: Partial<Record<PanelKind, number>> = {};
   private readonly offsets: OffsetStore;
   /** Pinned panels' top-left corners, and the display she stood on when each was pinned. */
   private pins: Partial<Record<PanelKind, { topLeft: { x: number; y: number }; screen: number | null }>> = {};
@@ -453,14 +457,19 @@ export class DesktopFollow {
       this.movedAt[kind] = now;
       if (kind === 'console') this.consolePlaced = true;
     }
-    for (const kind of KINDS) if (!this.applied[kind]) delete this.loggedFrames[kind];
+    for (const kind of KINDS) {
+      if (this.applied[kind]) continue;
+      delete this.loggedFrames[kind];
+      delete this.loggedFramesAt[kind];
+    }
     if (next !== 'dragging') {
       for (const kind of shown) {
         const a = this.applied[kind];
         if (!a) continue;
         const line = `${Math.round(a.x)},${Math.round(a.y)} ${Math.round(a.w)}x${Math.round(a.h)}`;
-        if (line === this.loggedFrames[kind]) continue;
+        if (line === this.loggedFrames[kind] || now - (this.loggedFramesAt[kind] ?? -Infinity) < FRAME_LOG_EVERY) continue;
         this.loggedFrames[kind] = line;
+        this.loggedFramesAt[kind] = now;
         this.log(`desk: ${kind} frame ${line}`);
       }
     }

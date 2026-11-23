@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import type { BrowserWindow, WebContents } from 'electron';
+import type { ErrorInput } from '../src/common/error-record.ts';
 import { ORIGIN } from '../src/common/ui.ts';
 import { clipMessage, editMenu, type EditItem, navigationAllowed, WEB_LOG, WebErrorLog } from '../src/common/web-guard.ts';
 import { DesktopPanel } from '../src/main/desktop/panel.ts';
@@ -94,6 +95,27 @@ test("ui.log: a page's console errors as one line (time, surface, #fragment, mes
     const [time, surface, fragment, message, stack] = lines[0]!.split('\t');
     assert.match(time!, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
     assert.deepEqual([surface, fragment, message, stack], ['main', '#/settings', 'Uncaught Error: boom now', `${ORIGIN}/assets/a.js:12`]);
+  } finally {
+    h.done();
+  }
+});
+
+test("a page's exception is also an error record: its message and first component frame, or an uncaught one's source", () => {
+  const h = harness();
+  try {
+    const records: ErrorInput[] = [];
+    const { contents } = fakeContents();
+    guardWebContents(contents as unknown as WebContents, 'main', { ...h.ports, recordError: (r) => records.push(r) });
+    contents.emit('console-message', { level: 'error', message: 'page_exception: /home: TypeError: x is undefined\n    at Disc (agentic-complex-ui://app/assets/main.js:1:2)\n    at div\nTypeError: x is undefined\n    at f',
+      lineNumber: 3, sourceId: `${ORIGIN}/assets/main.js` });
+    contents.emit('console-message', { level: 'error', message: 'Uncaught (in promise) Error: no texture', lineNumber: 12, sourceId: `${ORIGIN}/assets/a.js` });
+    contents.emit('console-message', { level: 'error', message: 'Encountered two children with the same key, `%s`.', lineNumber: 1, sourceId: 'x' });
+    contents.emit('console-message', { level: 'warning', message: 'page_exception: not an error level', lineNumber: 1, sourceId: 'x' });
+    assert.deepEqual(records, [
+      { component: 'page', code: 'page_exception', message: '/home: TypeError: x is undefined', detail: 'at Disc (agentic-complex-ui://app/assets/main.js:1:2)' },
+      { component: 'page', code: 'page_exception', message: 'Uncaught (in promise) Error: no texture', detail: `${ORIGIN}/assets/a.js:12` },
+    ]);
+    assert.equal(h.log().split('\n').filter(Boolean).length, 3);
   } finally {
     h.done();
   }

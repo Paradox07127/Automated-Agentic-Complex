@@ -61,8 +61,9 @@ test('with onReaction the hello lists reactions; each valid reaction is one reco
     await sleep(0.1);
     assert.deepEqual(posted, valid.map((m) => ['/interaction/record', { kind: m.trigger }]));
     assert.deepEqual(posted.map(([, body]) => (body as { kind: string }).kind), ['pat', 'pat', 'pinch', 'greet']);
+    // The second why=trigger is within the minute of the first on this connection.
     assert.deepEqual(log.filter((l) => l.startsWith('rejected type=reaction')),
-      ['rejected type=reaction why=trigger', 'rejected type=reaction why=keys', 'rejected type=reaction why=trigger']);
+      ['rejected type=reaction why=trigger', 'rejected type=reaction why=keys']);
     assert.deepEqual(log.filter((l) => l.includes('forward')), []);
   });
 });

@@ -7,6 +7,7 @@ import './design/base.css';
 import { loadFakeBridge } from './bridge';
 import { trackKeyboardFocus } from './design/keyboardFocus';
 import { pageRoutes } from './shell/registry';
+import { RootErrorBoundary } from './shell/ErrorPage';
 import { createAppRouter } from './shell/router';
 import { applyInitialTheme } from './shell/useSystemTheme';
 
@@ -29,8 +30,10 @@ if (!root) throw new Error('missing #root');
 
 createRoot(root).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <RootErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </RootErrorBoundary>
   </StrictMode>,
 );

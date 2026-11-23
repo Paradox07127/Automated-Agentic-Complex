@@ -51,6 +51,7 @@ process.stdin.on('data', (chunk) => {
     else if (op === 'windows.list') running.add(id);
     else if (op === 'apps.installed') process.exit(1);
     else if (op === 'ax.watch' && params.pid === 999) send({ id, ok: false, error: { code: 'process_gone', message: 'gone' } });
+    else if (op === 'ax.focused' || op === 'capture.window') send({ id, ok: false, error: { code: 'permission_denied', message: 'no grant' } });
     else if (op.endsWith('.watch') || op === 'ptt.register') send({ id, ok: true, result: {} });
     else if (op === 'cancel') {
       const was = running.delete(params.target);
@@ -110,6 +111,22 @@ test('hello first, then requests; stop sends shutdown and the helper exits 0', a
     assert.deepEqual(s.states, ['starting', 'running', 'stopped']);
     assert.ok(s.log().some((l) => l.includes('exit child=helper status=0')), s.log().join('\n'));
     assert.deepEqual(await s.helper.request('screens.list'), { ok: false, error: { code: 'helper_exited', message: 'the helper is not running' } });
+  } finally {
+    await s.done();
+  }
+});
+
+test('a permission_denied answer is recorded in error.jsonl with the grant it lacks and the op', async () => {
+  const s = setup();
+  try {
+    s.helper.start();
+    assert.ok(await until(10, () => s.helper.state.kind === 'running'), s.states.join(' '));
+    assert.equal((await s.helper.request('ax.focused', {})).ok, false);
+    assert.equal((await s.helper.request('capture.window', { window_id: 4 })).ok, false);
+    assert.equal((await s.helper.request('screens.list')).ok, true);
+    const records = readFileSync(join(s.support, 'logs', 'error.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+    assert.deepEqual(records.map((r) => [r.component, r.code, r.message, r.req]),
+      [['helper', 'permission_denied', 'accessibility ax.focused', 'ax.focused'], ['helper', 'permission_denied', 'screenRecording capture.window', 'capture.window']]);
   } finally {
     await s.done();
   }

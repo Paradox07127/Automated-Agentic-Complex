@@ -7,7 +7,8 @@ import { join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { decodeLine } from '../src/common/c3.ts';
 import { agentdForwarding } from '../src/main/agentd/forward.ts';
-import { HostLink, LINK_LIMITS } from '../src/main/renderer/link.ts';
+import type { ErrorInput } from '../src/common/error-record.ts';
+import { HostLink, LINK_LIMITS, type LinkOptions } from '../src/main/renderer/link.ts';
 import { FakeAvatar } from './fake-avatar.ts';
 
 const PENDING = resolve(import.meta.dirname, '../../../protocol/C3-host-ipc/examples/pending');
@@ -25,7 +26,8 @@ const lines = (file: string) => readFileSync(join(PENDING, file), 'utf8').split(
 const strip = ({ v: _v, type: _type, ...body }: Record<string, unknown>) => body;
 
 /** A link forwarding to a fake agentd that records each POST; `capabilities` are her hello's. */
-async function linked(capabilities: string[], run: (a: FakeAvatar, posted: [string, unknown][], log: string[]) => Promise<void>) {
+async function linked(capabilities: string[], run: (a: FakeAvatar, posted: [string, unknown][], log: string[]) => Promise<void>,
+  extra: Partial<LinkOptions> = {}) {
   const posted: [string, unknown][] = [], log: string[] = [];
   const forwarding = agentdForwarding({ epoch: 1, log: (l) => log.push(l), post: async (path, body) => {
     posted.push([path, body]);
@@ -34,7 +36,7 @@ async function linked(capabilities: string[], run: (a: FakeAvatar, posted: [stri
   const dir = mkdtempSync(join(tmpdir(), 'c3-ms-'));
   const link = new HostLink({ path: join(dir, 'run/avatar.sock'), transport: 'unix', pid: 4242, build: { version: 't' },
     fps: () => ({ idleLowFps: true, userFps: 60, batteryLow: true }), log: (l) => log.push(l),
-    onBehaviorReceipt: forwarding.onBehaviorReceipt, onMotionState: forwarding.onMotionState });
+    onBehaviorReceipt: forwarding.onBehaviorReceipt, onMotionState: forwarding.onMotionState, ...extra });
   await link.start();
   const a = new FakeAvatar(link.path);
   try {
@@ -64,6 +66,20 @@ test('valid motion_state lines reach POST /behavior/motion_state unchanged and i
       ['rejected type=motion_state why=behavior_id', 'rejected type=motion_state why=phase', 'rejected type=motion_state why=clip']);
     assert.deepEqual(log.filter((l) => l.includes('forward')), []);
   });
+});
+
+test('a motion_state the contract rejects again and again is one log line per connection a minute, and each an error record', { skip: UNIX_LINK }, async () => {
+  const [state] = lines('avatar-to-companion-motion-state.ndjson').filter((m) => m.type === 'motion_state');
+  const records: ErrorInput[] = [];
+  await linked(['behavior_receipt'], async (a, posted, log) => {
+    for (let i = 0; i < 30; i += 1) a.send({ ...state!, resting: 1 });
+    a.send({ ...state!, phase: 'nope' });
+    assert.ok(await until(2, () => records.length === 31), log.join(' | '));
+    assert.deepEqual(log.filter((l) => l.startsWith('rejected type=motion_state')),
+      ['rejected type=motion_state why=resting', 'rejected type=motion_state why=phase']);
+    assert.deepEqual(records[0], { component: 'renderer-link', code: 'host_message_rejected', message: 'type=motion_state why=resting' });
+    assert.deepEqual(posted, []);
+  }, { recordError: (r) => records.push(r) });
 });
 
 test('motion_state is not forwarded when her hello does not list behavior_receipt', { skip: UNIX_LINK }, async () => {

@@ -19,6 +19,7 @@ import {
   type AppearanceOption, LAYER_FAIL_REASONS, type LayerOption, type ModReceipt, type ModValues, readAppearances, readLayers, readModReceipt,
   readSwitchReply, type SwitchReply,
 } from '../../common/looks.ts';
+import { type ErrorInput, LineLimiter } from '../../common/error-record.ts';
 import { readPlacement } from '../../common/placement.ts';
 import type { CharacterEvent } from '../../common/switch.ts';
 
@@ -143,6 +144,8 @@ export interface LinkOptions {
    *  saved setting, hiding, showing, a pause); the tier changes between them use the values last read. */
   fps(): { idleLowFps: boolean; userFps: number; batteryLow: boolean };
   log(line: string): void;
+  /** Gets each message the contract rejects (log.ts recordError). */
+  recordError?(e: ErrorInput): void;
   remembered?: Remembered;
   /** Scales the reply timeouts; tests shorten them with it. */
   timeScale?: number;
@@ -199,6 +202,10 @@ class Connection {
   hello: AvatarHello | null = null;
   watchdog: Watchdog | null = null;
   watchdogFired = false;
+  /** `heartbeat stale` and `rejected type=…` lines, at most one a minute each. */
+  readonly lines = new LineLimiter();
+  /** The last stale went to the log: its `heartbeat resumed` does too. */
+  staleLogged = false;
   readonly lineTimes: number[] = [];
   /** Bytes of the line being handled, without its newline. */
   lineBytes = 0;
@@ -500,7 +507,10 @@ export class HostLink {
       case 'heartbeat': {
         if (typeof m.click_through !== 'boolean') return;
         const verdict = c.watchdog?.heartbeat(m as Heartbeat, now());
-        if (verdict && 'log' in verdict) this.options.log('heartbeat resumed');
+        if (verdict && 'log' in verdict && c.staleLogged) {
+          c.staleLogged = false;
+          this.options.log('heartbeat resumed');
+        }
         break;
       }
       case 'stats': c.stats = m as Stats; break;
@@ -566,10 +576,14 @@ export class HostLink {
     this.emit({ kind: 'message', message: m });
   }
 
-  /** Logs `rejected type=… why=…` for a problem; true when there is none. */
+  /** Logs `rejected type=… why=…` for a problem, once a minute per type and why on a connection; true when there is none. */
   private accepted(m: C3Message, why: string | null): boolean {
-    if (why !== null) this.options.log(`rejected type=${m.type} why=${why}`);
-    return why === null;
+    if (why === null) return true;
+    const text = `type=${m.type} why=${why}`;
+    const line = this.conn ? this.conn.lines.pass(`rejected ${text}`, `rejected ${text}`, Date.now()) : `rejected ${text}`;
+    if (line !== null) this.options.log(line);
+    this.options.recordError?.({ component: 'renderer-link', code: 'host_message_rejected', message: text });
+    return false;
   }
 
   /** Rule 10: a single click or the right button needs her window's frame. */
@@ -1007,7 +1021,12 @@ export class HostLink {
     if (!c?.watchdog || c.watchdogFired) return;
     const verdict = c.watchdog.check(now(), this._hidden);
     if (verdict === null) return;
-    if ('log' in verdict) return this.options.log('heartbeat stale 300 ms');
+    if ('log' in verdict) {
+      const line = c.lines.pass('stale', 'heartbeat stale 300 ms', Date.now());
+      if (line !== null) this.options.log(line);
+      c.staleLogged = line !== null;
+      return;
+    }
     c.watchdogFired = true;
     this.options.log(`watchdog kill pid=${c.hello?.pid} reason=${verdict.kill}`);
     this.emit({ kind: 'watchdog', pid: Number(c.hello?.pid), reason: verdict.kill });

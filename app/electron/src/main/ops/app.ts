@@ -1,12 +1,12 @@
 // `app.info`, `app.action`, `app.look`, `app.openQuickInput`, `app.runtime` and `app.onRuntime`.
-import { readFileSync } from 'node:fs';
+import { closeSync, fstatSync, openSync, readFileSync, readSync } from 'node:fs';
 import { availableParallelism, loadavg } from 'node:os';
 import { dirname, join } from 'node:path';
 import { stateText } from '../../common/agentd.ts';
 import { BridgeFailure } from '../../common/bridge.ts';
-import { SERVICE_IDS, type ShellPlatform } from '../../common/config.ts';
-import { diagnosticsText, errorLines } from '../../common/diagnostics.ts';
-import { supportDirOf } from '../config.ts';
+import { SERVICE_IDS, type ShellPlatform, webLogsDir } from '../../common/config.ts';
+import { diagnosticsText, errorLines, errorRecords, logTail } from '../../common/diagnostics.ts';
+import { DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR, supportDirOf } from '../config.ts';
 import type { Ops, OpsContext } from './context.ts';
 import { watch } from './events.ts';
 import { slotText } from './supervisor.ts';
@@ -21,6 +21,25 @@ const readText = (path: string) => {
     return '';
   }
 };
+
+/** The file's last `bytes` from the first whole line in them; '' without the file. */
+function readTail(path: string, bytes: number): string {
+  let fd: number;
+  try {
+    fd = openSync(path, 'r');
+  } catch {
+    return '';
+  }
+  try {
+    const size = fstatSync(fd).size, start = Math.max(0, size - bytes), buf = Buffer.alloc(size - start);
+    const text = buf.toString('utf8', 0, readSync(fd, buf, 0, buf.length, start));
+    return start === 0 ? text : text.slice(text.indexOf('\n') + 1);
+  } catch {
+    return '';
+  } finally {
+    closeSync(fd);
+  }
+}
 
 /** `<devResources>/dev-receipt.json`, read at each call since a deployment replaces it; empty without
  *  one or with any of its four fields missing. */
@@ -102,7 +121,7 @@ export function appOps(ctx: OpsContext): Ops {
           return null;
         case 'copy_diagnostics': {
           // Also while config.json does not load: the logs its error went to.
-          const logs = join(ctx.config.supportDir ?? supportDirOf(ctx.config.path, dirname(ctx.config.path)), 'logs');
+          const support = ctx.config.supportDir ?? supportDirOf(ctx.config.path, dirname(ctx.config.path)), logs = join(support, 'logs');
           const agentd = stateText(ctx.supervisor?.state() ?? { kind: 'stopped' });
           const avatar = stateText(ctx.supervisor?.avatar() ?? { kind: 'stopped' });
           const services = SERVICE_IDS.flatMap((id): [string, string][] => {
@@ -110,7 +129,12 @@ export function appOps(ctx: OpsContext): Ops {
             return state === null ? [] : [[id, slotText(state)]];
           });
           ctx.clipboard.writeText(diagnosticsText(ctx.app.version, ctx.app.build ?? '?', [['agentd', agentd], ['avatar', avatar], ...services],
-            errorLines(readText(join(logs, 'companion.log')), readText(join(logs, 'agentd.log')))));
+            errorLines(readText(join(logs, 'companion.log')), readText(join(logs, 'agentd.log'))), {
+              records: errorRecords(readTail(join(logs, 'error.jsonl'), 256 * 1024)),
+              // The renderer's run report at its exit can be thousands of lines.
+              avatar: logTail(readTail(join(logs, 'avatar.log'), 4 * 1024 * 1024)),
+              ui: logTail(readTail(join(webLogsDir(support, DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR), 'ui.log'), 256 * 1024)),
+            }));
           return null;
         }
         case 'test_approval_card':

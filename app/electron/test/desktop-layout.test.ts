@@ -308,6 +308,23 @@ test('on that column the dock goes on her roomier left beside her torso', () => 
   assert.ok(lines.includes('desk: dock frame 801,414 212x188'));
 });
 
+test('a panel that follows her logs its frame at most once a minute, the latest one', () => {
+  const display: ScreenInfo = { id: 4, frame: r(0, 0, 1920, 1080), visibleFrame: r(0, 0, 1920, 1055) };
+  const d = new Panel({ w: 212, h: 188 });
+  const lines: string[] = [];
+  const f = new DesktopFollow({ dock: d }, (l) => lines.push(l));
+  const at = (x: number, now: number) => f.tick({ body: r(x - 240, 40, 470, 700), bodyAt: now, hidden: false, frontFullscreen: false,
+    dragging: false, now, screens: [display], placement: placementBox(x, 33, 1), figure: 'si/default', visual: r(x - 313, 9, 672, 773) }, { x: 0, y: 0 });
+  // She walks three times within the minute; the dock goes along each time.
+  for (const [x, from] of [[1100, 0], [700, 2], [1100, 5], [500, 8]] as const) for (const dt of [0, 0.2, 0.5, 1]) at(x, from + dt);
+  for (let t = 10; t < 60; t += 1) at(500, t);
+  const frames = () => lines.filter((l) => l.startsWith('desk: dock frame'));
+  assert.equal(d.moves.length, 4);
+  assert.deepEqual(frames(), ['desk: dock frame 801,414 212x188']);
+  at(500, 61);
+  assert.deepEqual(frames(), ['desk: dock frame 801,414 212x188', 'desk: dock frame 201,414 212x188']);
+});
+
 // The wheel: its panel centred where it opened, kept on the screen it opened on.
 test('wheelFrame centres the panel on the point and moves it onto the visible frame of that point\'s screen', () => {
   assert.deepEqual(wheelFrame({ x: 700, y: 500 }, 520, [main, side]), r(440, 240, 520, 520));
