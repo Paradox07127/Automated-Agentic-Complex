@@ -212,14 +212,7 @@ test('character.switchTo: prepare, one set_character with her remembered appeara
     assert.deepEqual(readState(s.support), { last_character: 'birch', last_appearance: { birch: 'summer', aster: 'default' },
       hidden_layers: { birch: ['hat'], aster: [] }, window_scale: { aster: 1.25 } }, 'her hello and reply look is remembered too');
     assert.deepEqual(s.restarts, [], 'a renderer that switches in place is not restarted');
-
-    // With an appearance: switched first, then the look.
-    assert.deepEqual(await s.call('character.switchTo', 'aster', 'summer'), { ok: true, value: { ok: true } });
-    assert.deepEqual(a.sent('set_appearance').map((m) => m.id), ['summer']);
-    assert.equal(readState(s.support).last_character, 'aster');
-    assert.deepEqual((readState(s.support).last_appearance as Record<string, string>).aster, 'summer');
     assert.deepEqual(await s.call('character.switchTo', ''), { ok: false, error: { code: 'invalid_args', detail: 'character id' } });
-    assert.deepEqual(await s.call('character.switchTo', 'aster', ''), { ok: false, error: { code: 'invalid_args', detail: 'character id' } });
   } finally {
     s.done();
   }

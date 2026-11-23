@@ -564,8 +564,9 @@ e2e('character.switchTo aster → birch goes through prepare, one set_character 
     hidden_layers: { birch: [], aster: [] } });
 
   // Back to aster in her summer look; this config.json lists only aster, so the next launch is hers.
-  assert.deepEqual(await stack.op('character.switchTo', 'aster', 'summer'), { ok: true, value: { ok: true } });
+  assert.deepEqual(await stack.op('character.switchTo', 'aster'), { ok: true, value: { ok: true } });
   assert.ok(await until(15, async () => (agentd = await stack.character()) === 'aster'), `agentd says ${agentd}`);
+  assert.deepEqual(await stack.op('avatar.setAppearance', 'summer'), { ok: true, value: null });
   assert.deepEqual(await stack.op('avatar.setLayers', ['coat']), { ok: true, value: null });
   assert.deepEqual(await stack.op('avatar.modSettings.set', { character: 'aster', appearance: 'summer', values: { coat: 2 } }),
     { ok: true, value: { values: { coat: 2 }, adjusted: [] } });

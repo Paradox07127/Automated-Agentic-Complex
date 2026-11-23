@@ -301,21 +301,10 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
     },
     /** A package or a folder with character.json, installed with character_tool; agentd started on an empty library has no
      *  mouth, persona or state to switch, so it starts again on the new one. */
-    /** The switch, then the appearance when one is given. */
-    'character.switchTo': async ([id, appearance]) => {
-      if (typeof id !== 'string' || id === ''
-        || !(appearance === undefined || appearance === null || (typeof appearance === 'string' && appearance !== ''))) {
-        throw new BridgeFailure('invalid_args', 'character id');
-      }
+    'character.switchTo': async ([id]) => {
+      if (typeof id !== 'string' || id === '') throw new BridgeFailure('invalid_args', 'character id');
       if (!ctx.switcher) throw new BridgeFailure('unavailable', NOT_LINKED);
       const outcome = await ctx.switcher.switchOutcome(id);
-      if (outcome.kind === 'switched' && typeof appearance === 'string') {
-        try {
-          await ctx.looks?.setAppearance(appearance);
-        } catch (e) {
-          ctx.log(`appearance ${appearance} after switching to ${id} failed: ${e instanceof Error ? e.message : String(e)}`);
-        }
-      }
       switch (outcome.kind) {
         case 'switched': return { ok: true };
         case 'failed': return { ok: false, stage: outcome.stage, reason: outcome.reason };

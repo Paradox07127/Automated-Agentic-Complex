@@ -327,7 +327,7 @@ export interface AgenticComplexBridge {
   };
   character: import('./mmd').ImportStateOps & {
     list(): Promise<CharacterEntry[]>;
-    switchTo(id: string, appearance?: string): Promise<CharacterSwitchResult>;
+    switchTo(id: string): Promise<CharacterSwitchResult>;
     importPackage(): Promise<{ ok: boolean; reason?: string }>;
     importMotion(): Promise<MotionImportResult>;
     importOutfit(): Promise<OutfitImportResult>; removeOutfit(appearanceId: string): Promise<OutfitRemoveResult>;

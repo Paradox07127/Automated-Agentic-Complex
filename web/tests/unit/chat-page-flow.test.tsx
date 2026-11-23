@@ -42,7 +42,7 @@ function bridge(routes: MockRoute[] = []) {
   window.agenticComplex = {
     ...base,
     agentd: { ...base.agentd, request: (method, path, body) => (calls.push({ method, path, body }), base.agentd.request(method, path, body)) },
-    character: { ...base.character, switchTo: (id, look) => (switched.push(id), base.character.switchTo(id, look)) },
+    character: { ...base.character, switchTo: (id) => (switched.push(id), base.character.switchTo(id)) },
     files: { ...base.files, pickFile: async () => FILE },
     feed: { subscribe: () => () => {} },
   };
