@@ -28,6 +28,13 @@ class ImportMotionCliTests(unittest.TestCase):
         self.assertEqual(run.returncode,0,run.stderr)
         self.assertIn('--source',run.stdout)
 
+    def test_format_takes_every_format_the_pipeline_detects(self):
+        run=build('--help')
+        self.assertIn('{auto,vmd,bvh,gltf,vrma,fbx,zip}',run.stdout)
+        run=build('--library',self.root/'none','--character','fixture','--source',self.root/'x.fbx','--output',self.root/'out',
+                  '--format','fbx')
+        self.assertNotIn('invalid choice',run.stderr)
+
     def test_bvh_import_writes_checked_results(self):
         source=self.root/'source';motion_fixture(source,rig=authored_rig())
         library=Library(self.root/'library');library.install(source)

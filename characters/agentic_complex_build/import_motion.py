@@ -21,7 +21,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     for key in ['library','source','output']:p.add_argument('--'+key,type=Path,required=True)
     p.add_argument('--character',action='append',required=True,help='repeat for several existing characters')
-    p.add_argument('--format',choices=['auto','vmd','bvh','gltf','vrma'],default='auto')
+    p.add_argument('--format',choices=['auto',*take.FORMATS],default='auto')
     p.add_argument('--take',type=int,default=0,help='animation index in a multi-animation glTF')
     p.add_argument('--title');p.add_argument('--bgm',type=Path);p.add_argument('--bgm-start',type=float)
     p.add_argument('--no-foot-lock',action='store_true')
