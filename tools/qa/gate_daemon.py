@@ -171,9 +171,13 @@ def notify(title, text):
 
 
 def with_requires(checkout, suites):
-    """suites plus what they require in the checkout's tools/qa/suites.json; --only does not add those itself."""
-    path = Path(checkout) / 'tools/qa/suites.json'
-    defined = json.loads(path.read_text())['suites'] if path.is_file() else {}
+    """suites plus what they require in the checkout's tools/qa/suites.json and private/suites.json (gate.load_suites
+    merges both); --only does not add those itself."""
+    defined = {}
+    for name in ('tools/qa/suites.json', 'private/suites.json'):
+        path = Path(checkout) / name
+        if path.is_file():
+            defined.update(json.loads(path.read_text())['suites'])
     picked, todo = list(suites), list(suites)
     while todo:
         for need in defined.get(todo.pop(), {}).get('requires', []):

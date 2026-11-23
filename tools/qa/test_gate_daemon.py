@@ -265,6 +265,13 @@ class GateDaemonTest(unittest.TestCase):
             self.assertEqual(call['argv'][call['argv'].index('--only') + 1], 'agentd,prep,node')
         self.assertEqual(self.status()['last_red']['first_bad']['sha'], c2)
 
+    def test_bisect_adds_what_a_private_suite_requires(self):
+        self.write('tools/qa/suites.json', json.dumps(dict(suites=dict(core={}, agentd={}))))
+        self.write('private/suites.json', json.dumps(dict(suites=dict(renderer=dict(requires=['core'])))))
+        self.commit('Add suites')
+        self.assertEqual(gate_daemon.with_requires(self.repo, ['renderer']), ['renderer', 'core'])
+        self.assertEqual(gate_daemon.with_requires(self.repo, ['gone']), ['gone'], 'a suite an older commit lacks')
+
     def test_a_checkout_with_its_own_receipts_moves_them_to_the_main_store_and_links_it(self):
         gr = self.repo / '.claude/worktrees/gr'
         self.daemon.prepare(gr)
