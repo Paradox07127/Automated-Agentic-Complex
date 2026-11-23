@@ -44,7 +44,7 @@ export interface ApprovalCardProps {
   previewOpen?: boolean;
   /** 已处理的回执；null 为待决定 */
   outcome?: ApprovalOutcome | null;
-  /** 没有 trace 关联时「时间线 ↗」禁用的原因，默认「后台暂不提供」 */
+  /** 「时间线 ↗」不能跳时的原因；给了就禁用，没有 onOpenTimeline 时默认「这次审批没有记到对话轮次」 */
   timelineReason?: string;
   /** 「会话 ↗」不能跳时的原因；给了就禁用，没有 onOpenSession 时默认「没有会话关联」 */
   sessionReason?: string;
@@ -52,7 +52,7 @@ export interface ApprovalCardProps {
   onDecide?: (decision: 'allow' | 'deny' | 'allow_session', mode?: string, reason?: string) => void;
   /** 会话 ↗ */
   onOpenSession?: () => void;
-  /** 时间线 ↗ */
+  /** 时间线 ↗：在诊断的对话轮次里打开这张卡所在的那一轮 */
   onOpenTimeline?: () => void;
   /** 桌面浮窗栈的白纸卡：胶带、右上倒计时、目录和链接收进折叠段、卡内底行放拒绝 / 批准胶囊；top 为假时批准降为次要按钮 */
   paper?: { top: boolean };
@@ -155,7 +155,7 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
       <button type="button" className={styles.link} aria-disabled={sessionOff || undefined} title={sessionOff ? (sessionReason ?? '没有会话关联') : '打开这个会话'} onClick={sessionOff ? undefined : onOpenSession}>
         会话 ↗
       </button>
-      <button type="button" className={styles.link} aria-disabled={timelineOff || undefined} title={timelineOff ? (timelineReason ?? '后台暂不提供') : '在诊断时间线里定位'} onClick={timelineOff ? undefined : onOpenTimeline}>
+      <button type="button" className={styles.link} aria-disabled={timelineOff || undefined} title={timelineOff ? (timelineReason ?? '这次审批没有记到对话轮次') : '在诊断的对话轮次里打开这一轮'} onClick={timelineOff ? undefined : onOpenTimeline}>
         时间线 ↗
       </button>
     </p>

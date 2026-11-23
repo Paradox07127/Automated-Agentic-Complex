@@ -46,7 +46,7 @@ export interface StackSourceOptions {
 interface Approval {
   request_id: string; generation: number; display_session?: string | null; source?: string | null; session_id?: string | null;
   tool_name?: string | null; tool_summary?: string | null; kind?: string | null; content_preview?: string | null; cwd?: string | null;
-  danger_rule?: string | null; status: string; summary_truncated: boolean; dangerous: boolean;
+  danger_rule?: string | null; trace_id?: string | null; status: string; summary_truncated: boolean; dangerous: boolean;
   summary_length?: number | null; options: string[]; session_scope?: { kind: string; detail?: string | null } | null;
   window_s: number; seconds_left: number;
   dispatch?: { target?: string; cwd?: string; prompt?: string; source?: string; utterance?: string | null; mode?: string;
@@ -151,6 +151,7 @@ export function approvalCard(a: Approval, fetchedAt: number): Json {
   if (a.content_preview != null) item.content_preview = a.content_preview;
   if (a.summary_length != null) item.orig_len = a.summary_length;
   if (a.danger_rule != null) item.danger_rule = a.danger_rule;
+  if (a.trace_id != null) item.trace_id = a.trace_id;
   // Own sessions and dispatches open their task; anything else is an external terminal session.
   const own = dispatch || a.display_session?.startsWith('own:') === true;
   return { id: a.request_id, kind: 'approval', item, session: own ? 'task' : 'terminal', task_id: null };

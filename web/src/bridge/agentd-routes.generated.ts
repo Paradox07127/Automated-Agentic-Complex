@@ -589,6 +589,7 @@ export interface AgentSnapshotResponse {
       cwd: string | null;
       dangerous: boolean;
       danger_rule: string | null;
+      trace_id: string | null;
       options: string[];
       session_scope: { kind: string; detail: string } | null;
       status: string;

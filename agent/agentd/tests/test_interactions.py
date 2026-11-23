@@ -248,6 +248,41 @@ class OwnershipTest(unittest.TestCase):
             service.close(); worker.join(1)
 
 
+class HarnessPermissionDangerTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = RunStore(Path(self.tmp.name) / 'runs.sqlite')
+        self.addCleanup(self.tmp.cleanup); self.addCleanup(self.store.close)
+
+    def card(self, run_id, request):
+        """The approval row the harness permission request opened, as it read while pending."""
+        from types import MethodType, SimpleNamespace
+        from character_agent.integration import CharacterAgentController
+        rows = []
+        service = InteractionService(self.store, emit=lambda e: rows.append(service.get(e['request_id'])), wait_seconds=0)
+        self.addCleanup(service.close)
+        controller = SimpleNamespace(store=self.store, interactions=service, semantic=SimpleNamespace(reply=lambda: None))
+        self.store.begin(run_id, 'c' * 32, 'aster', 1)
+        MethodType(CharacterAgentController._harness_permission, controller)(
+            {'run_id': run_id, 'options': [{'option_id': 'allow-once', 'kind': 'allow_once'}], **request}, 'claude', 'Claude Code')
+        [row] = [r for r in rows if r and r['state'] == 'pending']
+        return row['data']
+
+    def test_a_dangerous_command_is_marked_with_its_rule_and_a_file_read_is_not(self):
+        for name, request, expected in (
+                ('claude rm', {'title': 'Bash: rm -rf build', 'kind': None, 'locations': None,
+                               'raw_input': {'command': 'rm -rf build'}}, (True, 'rm_recursive')),
+                ('acp execute', {'title': '`rm -rf ~/x`', 'kind': 'execute', 'locations': None,
+                                 'raw_input': {'command': 'rm -rf ~/x'}}, (True, 'rm_recursive')),
+                ('claude read', {'title': 'Read', 'kind': None, 'locations': ['/Users/me/notes.md'],
+                                 'raw_input': {'file_path': '/Users/me/notes.md'}}, (False, None)),
+                ('acp read', {'title': 'Read notes.md', 'kind': 'read', 'locations': ['/Users/me/notes.md'],
+                              'raw_input': {'path': '/Users/me/notes.md'}}, (False, None))):
+            with self.subTest(name):
+                data = self.card(name, request)
+                self.assertEqual((data['dangerous'], data['danger_rule']), expected)
+
+
 class Model:
     def __init__(self):
         self.calls = 0

@@ -83,7 +83,8 @@
       "summary_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
       "content_preview": "# Endfield", "content_preview_truncated": false, "content_preview_length": 10,
       "content_preview_sha256": "0000000000000000000000000000000000000000000000000000000000000003",
-      "cwd": "/Users/me/Endfield", "dangerous": false, "danger_rule": "rm_recursive", "options": ["allow", "deny"],
+      "cwd": "/Users/me/Endfield", "dangerous": false, "danger_rule": "rm_recursive",
+      "trace_id": "0123456789abcdef0123456789abcdef", "options": ["allow", "deny"],
       "session_scope": {"kind": "tool", "detail": "Read"}, "status": "pending", "created_at": 1793503662.4,
       "window_s": 55.0, "seconds_left": 54.9
     }]

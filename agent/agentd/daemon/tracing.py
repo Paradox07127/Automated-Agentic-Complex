@@ -50,12 +50,13 @@ class TracingMixin:
                            "duration_ms": fields.get("duration_ms"), "at": _iso(time.time()), "attrs": attrs})
         return event_id
 
-    def _decision(self, kind, attrs, key, status="ok"):
+    def _decision(self, kind, attrs, key, status="ok", trace_id=None):
         """on_decision of the gate, the judges, the behavior tick, the broker and the dispatcher:
-        the events of one key share a trace, each caused by the one before."""
+        the events of one key share a trace, each caused by the one before. trace_id: the turn trace a key's first
+        event opens in (an approval card opened in a turn); None opens a new trace."""
         with self._decision_lock:
             found = self._decision_traces.pop(key, None) \
-                or {"trace_id": new_trace_id(), "last": None, "at": time.monotonic()}
+                or {"trace_id": trace_id or new_trace_id(), "last": None, "at": time.monotonic()}
             self._decision_traces[key] = found
             while len(self._decision_traces) > DECISION_TRACES:
                 self._decision_traces.popitem(last=False)

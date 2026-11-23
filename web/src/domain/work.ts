@@ -172,6 +172,8 @@ export interface Approval extends PendingBase {
   cwd: string | null;
   dangerous: boolean;
   danger_rule?: string;
+  /** The turn trace the card was opened in; absent when it was opened outside a turn. */
+  trace_id?: string;
   options: Array<'allow' | 'allow_session' | 'deny'>;
   session_scope: { kind: string; detail: string } | null;
   dispatch: ApprovalDispatch | null;

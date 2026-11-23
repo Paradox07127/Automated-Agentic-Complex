@@ -47,6 +47,7 @@ export function fromApproval(w: WireApproval, fetchedAtMs: number): Approval {
     cwd: w.cwd,
     dangerous: w.dangerous,
     ...(w.danger_rule != null ? { danger_rule: w.danger_rule } : {}),
+    ...(w.trace_id != null ? { trace_id: w.trace_id } : {}),
     options: w.options,
     session_scope: w.session_scope,
     dispatch: w.dispatch

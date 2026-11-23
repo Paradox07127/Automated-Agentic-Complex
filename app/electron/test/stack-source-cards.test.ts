@@ -223,6 +223,15 @@ test('StackSourceTests.testOnlyWaitingApprovalsAndQuestionsArePresented', async 
   assert.ok(!h.cards.map((c) => c.id as string).filter((id) => id !== 'a1' && id !== 'q1').some((id) => h.source.presents(id)));
 });
 
+test('StackSourceTests.testAnApprovalCarriesItsTurnTrace', async () => {
+  const h = new Harness();
+  const row = { generation: 3, tool_name: 'Bash', tool_summary: 'ls', status: 'pending', summary_truncated: false, dangerous: false, options: ['allow', 'deny'], window_s: 55, seconds_left: 50 };
+  h.transport.set('GET', '/approvals', { approvals: [{ ...row, request_id: 'a1', trace_id: 'tr7' }, { ...row, request_id: 'a2', trace_id: null }] });
+  await h.source.refresh();
+  assert.equal(h.item('a1')!.trace_id, 'tr7');
+  assert.equal(h.item('a2')!.trace_id, undefined);
+});
+
 test('StackSourceTests.testOnlyAMissingStoreEmptiesAList', async () => {
   const h = new Harness();
   h.transport.set('GET', '/agent/interactions', { requests: [interaction('q1')] });

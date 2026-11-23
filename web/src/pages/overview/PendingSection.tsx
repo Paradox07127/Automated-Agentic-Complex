@@ -136,6 +136,7 @@ function Focus(p: PendingSectionProps & { item: PendingItem }) {
         approval={{ ...item, seconds_left: leftAt(item, now, at) ?? item.seconds_left }}
         onDecide={(d, _mode, reason) => p.onApprove(item, d, reason)}
         onOpenSession={() => openSession(p, item)}
+        onOpenTimeline={item.trace_id ? () => go({ page: 'diag', tab: 'turns', turn: item.trace_id }) : undefined}
         details="fold"
       />
     );

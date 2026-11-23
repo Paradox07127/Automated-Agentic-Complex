@@ -205,6 +205,18 @@ class ManagedTransportTests(unittest.TestCase):
         self.assertTrue(events[-1]["success"])
 
     @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
+    def test_permission_handler_runs_in_the_turn_of_its_stream(self):
+        from traces.trace_store import TURN_TRACE
+        seen = []
+        session = self.session(permission_handler=lambda request: seen.append(TURN_TRACE.get()) or "allow-once")
+        traced = TURN_TRACE.set("trace-turn")
+        try:
+            list(session.stream("permission", system_prompt="persona", run_id="run-p"))
+        finally:
+            TURN_TRACE.reset(traced)
+        self.assertEqual(seen, ["trace-turn"])
+
+    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_permission_without_handler_is_answered_null(self):
         events = list(self.session().stream("permission", system_prompt="persona", run_id="run-p"))
         self.assertIn({"type": "permission_requested", **self.PERMISSION}, events)

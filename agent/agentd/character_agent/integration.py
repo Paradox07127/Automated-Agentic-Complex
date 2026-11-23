@@ -39,8 +39,10 @@ from infra import plugins
 from infra.localtime import local_time
 from infra.platform import USER_MACHINE
 from infra.store import checkpoint
+from sessions.danger import COMMAND_TOOLS, FILE_TOOLS
 from tool_gateway.gateway import SessionKey, ToolGateway
 from tool_gateway.ledger import ledger_path
+from tool_gateway.policy import POLICY
 from tool_gateway.registry import BRIDGED
 from traces.trace_store import TURN_TRACE, new_span_id
 
@@ -97,6 +99,21 @@ def finished_usage(answer):
     attrs = {key: answer.usage[name] for key, name in (("cached_tokens", "cache_read_input_tokens"),
              ("reasoning_tokens", "reasoning_output_tokens")) if isinstance(answer.usage.get(name), int)}
     return attrs if answer.cost_usd is None else {**attrs, "cost_usd": answer.cost_usd}
+
+
+def harness_danger(request):
+    """(dangerous, rule) of a harness permission request: the command it runs, or the paths it edits, deletes or moves.
+    Claude Code sends no kind; its title names the tool before the colon."""
+    kind, raw = request.get("kind"), request.get("raw_input")
+    if kind is None:
+        tool = str(request.get("title") or "").split(":", 1)[0]
+        kind = "execute" if tool in COMMAND_TOOLS else "edit" if tool in FILE_TOOLS else None
+    if kind == "execute":
+        command = raw.get("command") if isinstance(raw, dict) else None
+        return POLICY.danger("Bash", (command if isinstance(command, str) else str(request.get("title") or ""),))
+    if kind in ("edit", "delete", "move"):
+        return POLICY.danger("Write", tuple(p for p in request.get("locations") or () if isinstance(p, str)))
+    return False, None
 
 
 class KernelNotReady(ValueError):
@@ -758,10 +775,12 @@ class CharacterAgentController:
             return None
         preview = {"source": source, "agent": agent_name, "title": request.get("title"), "kind": request.get("kind"),
                    "locations": request.get("locations"), "raw_input": request.get("raw_input")}
+        dangerous, rule = harness_danger(request)
         try:
             self.interactions.approve(run_id, preview,
                 valid=lambda: (self.store.get(run_id) or {}).get("state") in ("running", "awaiting_approval"),
-                character_id=run["character_id"], scope_id=run["scope_id"], language=self.semantic.reply())
+                character_id=run["character_id"], scope_id=run["scope_id"], language=self.semantic.reply(),
+                dangerous=dangerous, danger_rule=rule)
         except ValueError:
             return None
         return allow

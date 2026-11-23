@@ -3,6 +3,7 @@
 Only one caller owns a stream. A separate reader handles tool requests and a
 separate write lock lets interrupt bypass a tool waiting for native consent.
 """
+import contextvars
 from datetime import datetime
 import json
 import logging
@@ -286,7 +287,7 @@ class ManagedClaudeSession:
                 result, failed = {"error": "run_cancelled"}, True
             self._tool_result(proc, call_id, run_id, result, failed)
 
-        threading.Thread(target=work, name="character-tool", daemon=True).start()
+        threading.Thread(target=active["context"].copy().run, args=(work,), name="character-tool", daemon=True).start()
 
     def _dispatch_permission(self, proc, generation, message):
         request_id, run_id = message.get("request_id"), message.get("run_id")
@@ -319,7 +320,7 @@ class ManagedClaudeSession:
                 option_id = None
             self._permission_result(proc, request_id, run_id, option_id)
 
-        threading.Thread(target=work, name="character-permission", daemon=True).start()
+        threading.Thread(target=active["context"].copy().run, args=(work,), name="character-permission", daemon=True).start()
 
     def _permission_result(self, proc, request_id, run_id, option_id):
         try:
@@ -416,8 +417,10 @@ class ManagedClaudeSession:
             ready = self._ensure("", cancelled=cancelled) if replace_history else self._ensure(system_prompt)
             yield {**ready, "run_id": run_id, "session_id": self.session_id}
             deadline = None if timeout is None else time.monotonic() + timeout
+            # Tool and permission work runs on reader-spawned threads; the caller's context carries its turn's trace.
             active = {"id": run_id, "handler": tool_handler or self.tool_handler, "cancel_signal": cancelled,
-                      "permission_handler": permission_handler or self.permission_handler, "cancelled": False}
+                      "permission_handler": permission_handler or self.permission_handler, "cancelled": False,
+                      "context": contextvars.copy_context()}
             with self._state_lock:
                 stop = cancelled_now(cancelled)
                 if not stop:

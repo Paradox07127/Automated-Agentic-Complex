@@ -117,6 +117,22 @@ class DecisionTraceTest(DiagCase):
         self.assertEqual((decided["attrs"]["decision"], decided["attrs"]["by"]), ("allow", "card"))
         self.chained([opened, decided])
 
+    def test_an_approval_opened_in_a_turn_carries_that_turn_trace_and_its_decision_lands_there(self):
+        from traces.trace_store import TURN_TRACE
+        trace = self.server._open_trace("line-a", self.server.turn_generation, "text", "派个活")
+        traced = TURN_TRACE.set(trace["trace_id"])
+        try:
+            request = self.server.broker.open("claude", "A", "Bash")
+        finally:
+            TURN_TRACE.reset(traced)
+        outside = self.server.broker.open("claude", "B", "Bash")
+        rows = {r["request_id"]: r for r in self.request("GET", "/approvals")[1]["approvals"]}
+        self.assertEqual(rows[request.request_id]["trace_id"], trace["trace_id"])
+        self.assertIsNone(rows[outside.request_id]["trace_id"])
+        self.server.broker.decide(request.request_id, request.generation, "allow")
+        kinds = [e["kind"] for e in self.request("GET", f"/trace/turns/{trace['trace_id']}")[1]["events"]]
+        self.assertEqual(kinds, ["input.received", "approval.opened", "approval.decided"])
+
     def test_dispatch_proposal_and_answer_share_one_trace(self):
         request = self.server.dispatcher.propose("codex", "/repo", "跑一下测试")
         self.server.broker.decide(request.request_id, request.generation, "deny")

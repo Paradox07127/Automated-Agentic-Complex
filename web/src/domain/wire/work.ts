@@ -22,6 +22,8 @@ export interface WireApproval {
   cwd: string | null;
   dangerous: boolean;
   danger_rule: string | null;
+  /** The turn the card was opened in; null outside a turn. */
+  trace_id: string | null;
   options: Array<'allow' | 'allow_session' | 'deny'>;
   session_scope: { kind: string; detail: string } | null;
   status: 'pending' | 'decided' | 'consumed' | 'expired' | 'cancelled' | 'abandoned';

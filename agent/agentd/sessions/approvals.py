@@ -8,6 +8,7 @@ import time
 
 from sessions.own import MODES
 from tool_gateway.policy import POLICY
+from traces.trace_store import TURN_TRACE
 
 DECISIONS = ("allow", "allow_session", "deny")
 
@@ -38,6 +39,7 @@ class ApprovalRequest:
         self.dispatch = dispatch
         self.cwd = cwd  # where the tool runs; None on dispatch cards, whose dispatch["cwd"] says it
         self.display = display or f"{source}:{session_id}"  # own sessions show their "own:<hex>" id
+        self.trace_id = TURN_TRACE.get()  # the turn the card was opened in; None outside a turn
         # {"kind", "detail", "updates"} when the agent itself offers allowing this for the rest of the session.
         self.session_scope = session_scope if not (summary_truncated or content_preview_truncated) else None
         # targets: the paths or commands to judge one by one when the summary joins several; None judges the summary.
@@ -68,7 +70,7 @@ class ApprovalRequest:
                 "content_preview_sha256": self.content_preview_sha256,
                 "cwd": self.cwd,
                 "dangerous": self.danger["dangerous"], "danger_rule": self.danger["rule"],
-                "options": ["allow", "allow_session", "deny"] if scope else ["allow", "deny"],
+                "trace_id": self.trace_id, "options": ["allow", "allow_session", "deny"] if scope else ["allow", "deny"],
                 "session_scope": {"kind": scope["kind"], "detail": scope["detail"]} if scope else None,
                 "status": self.status, "created_at": self.created_at,
                 "window_s": round(self.deadline - self.created, 3),
@@ -220,14 +222,18 @@ class ApprovalBroker:
     def _report(self, kind, request, **attrs):
         if kind != "approval.opened" and request.ended is None:  # every way out of pending reports here
             request.ended, request.ended_by = self.clock(), attrs.get("reason") or attrs.get("by")
-        self.report(kind, {"request_id": request.request_id, "tool": request.tool_name, **attrs}, request.request_id)
+        self.report(kind, {"request_id": request.request_id, "tool": request.tool_name, **attrs}, request.request_id,
+                    request.trace_id)
 
-    def report(self, kind, attrs, key):
-        """Hand one decision record to on_decision."""
+    def report(self, kind, attrs, key, trace_id=None):
+        """Hand one decision record to on_decision; trace_id: the turn trace it belongs to, None for its own."""
         if self.on_decision is None:
             return
         try:
-            self.on_decision(kind, attrs, key)
+            if trace_id is None:
+                self.on_decision(kind, attrs, key)
+            else:
+                self.on_decision(kind, attrs, key, trace_id=trace_id)
         except Exception:  # a decision record never changes the decision
             pass
 

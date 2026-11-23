@@ -88,11 +88,11 @@ describe('compact cards', () => {
     expect(container.textContent).not.toMatch(/\/\/|QUESTION|REVIEW|Delivery|CORE/);
   });
 
-  it('approval timeline link says 后台暂不提供 when it is off', () => {
+  it('approval timeline link says the card has no turn when it is off', () => {
     const card = stackScenario('default').cards.find((c) => c.id === A1) as Extract<StackCard, { kind: 'approval' }>;
     render(<ApprovalStackCard card={card} index={1} total={3} top act={() => {}} />);
     // The links sit in the folded 详情 section.
     fireEvent.click(screen.getByRole('button', { name: /^详情/ }));
-    expect(screen.getByRole('button', { name: '时间线 ↗' }).getAttribute('title')).toBe('后台暂不提供');
+    expect(screen.getByRole('button', { name: '时间线 ↗' }).getAttribute('title')).toBe('这次审批没有记到对话轮次');
   });
 });
