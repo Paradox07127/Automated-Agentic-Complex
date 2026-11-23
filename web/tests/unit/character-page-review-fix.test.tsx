@@ -38,6 +38,10 @@ afterEach(() => {
 const noop = () => {};
 const click = (el: Element) => act(async () => void fireEvent.click(el));
 const row = (id: string) => document.querySelector<HTMLElement>(`[data-motion="${id}"]`);
+/** Clicks a 开 / 关 switch only when it is not at `on` yet. */
+const turn = async (sw: HTMLElement, on: boolean) => {
+  if ((sw.getAttribute('aria-checked') === 'true') !== on) await click(sw);
+};
 const rail = (name: string) => within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name });
 const page = () => document.querySelector<HTMLElement>('[data-page="character"]')!;
 const deferred = <T,>() => {
@@ -99,7 +103,7 @@ describe('949c#5 a switch the page did not start', () => {
     });
     await mount('&pane=motion');
     await waitFor(() => expect(row('nod')).not.toBeNull());
-    const off = () => (within(row('nod')!).getByRole('radio', { name: '关' }) as HTMLButtonElement).disabled;
+    const off = () => within(row('nod')!).getByRole('switch').getAttribute('aria-disabled') === 'true';
     expect(off()).toBe(false);
     const s = await bridge.app.runtime();
     await act(async () => push({ ...s, character: { ...s.character, switching: true } }));
@@ -139,7 +143,7 @@ describe('949c#11 / #12 the room under the stage', () => {
   it('lifts the room floor with the stage when 外观 shows the action bar for unsaved switches', async () => {
     await mount('&pane=motion');
     await waitFor(() => expect(row('nod')).not.toBeNull());
-    await click(within(row('nod')!).getByRole('radio', { name: '关' }));
+    await turn(within(row('nod')!).getByRole('switch'), false);
     await click(rail('外观'));
     await waitFor(() => expect(screen.getByTestId('stage').dataset.deck).toBe('true'));
     expect(page().dataset.stageSpan).toBe('deck');
@@ -167,16 +171,15 @@ describe('c434#6 useMotions', () => {
 });
 
 describe('cc03#1 / #13 useLayers', () => {
-  const layer = (name: string, half: '显示' | '隐藏' = '显示') =>
-    within(within(screen.getByRole('group', { name: '服装分层' })).getByRole('radiogroup', { name })).getByRole('radio', { name: half });
+  const layer = (name: string) => within(screen.getByRole('group', { name: '服装分层' })).getByRole('switch', { name });
 
   it('sends a second switch only once the first one answers, with every click in it', async () => {
     const pending: Array<() => void> = [];
     const set = vi.spyOn(bridge.avatar, 'setLayers').mockImplementation(() => new Promise<void>((ok) => void pending.push(ok)));
     render(<Operator {...props} pane="look" />);
     await click(screen.getByRole('tab', { name: '显示' }));
-    await click(layer('外套', '隐藏'));
-    await click(layer('披风', '隐藏'));
+    await turn(layer('外套'), false);
+    await turn(layer('披风'), false);
     expect(set).toHaveBeenCalledTimes(1);
     await act(async () => pending[0]!());
     expect(set).toHaveBeenCalledTimes(2);
@@ -189,7 +192,7 @@ describe('cc03#1 / #13 useLayers', () => {
   it('shows a layer the menu bar showed again once the roster is read again', async () => {
     await mount('&pane=look');
     await click(await screen.findByRole('tab', { name: '显示' }));
-    await click(layer('外套', '隐藏'));
+    await turn(layer('外套'), false);
     await waitFor(() => expect(layer('外套').getAttribute('aria-checked')).toBe('false'));
     // The menu bar shows it on the host.
     await act(async () => bridge.avatar.setLayers([]));

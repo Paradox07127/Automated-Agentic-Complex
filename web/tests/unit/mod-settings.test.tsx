@@ -48,9 +48,10 @@ const mods = () => screen.getByRole('group', { name: 'mod 设置' });
 const control = (name: string) => within(mods()).getByRole('group', { name });
 /** The value a stepper shows, or its menu's caption. */
 const shown = (name: string) => (control(name).querySelector('[data-value]') ?? control(name).querySelector('[aria-haspopup]'))?.textContent;
-/** A 显示 / 隐藏 switch: is 显示 the chosen half. */
-const showing = (name: string) => within(within(mods()).getByRole('radiogroup', { name })).getByRole('radio', { name: '显示' }).getAttribute('aria-checked') === 'true';
-const half = (name: string, label: '显示' | '隐藏') => within(within(mods()).getByRole('radiogroup', { name })).getByRole('radio', { name: label });
+/** A 显示 / 隐藏 setting's 开 / 关 switch. */
+const toggle = (name: string) => within(mods()).getByRole('switch', { name });
+/** Is the switch on, which is the setting's 显示 value. */
+const showing = (name: string) => toggle(name).getAttribute('aria-checked') === 'true';
 const arrow = (name: string, dir: '上一个' | '下一个') => within(mods()).getByRole('button', { name: `${name}：${dir}` }) as HTMLButtonElement;
 const groups = () => Array.from(mods().querySelectorAll('[data-mod-group]')).map((g) => g.getAttribute('aria-label'));
 const rowsOf = (group: string) => Array.from(within(mods()).getByRole('group', { name: group }).querySelectorAll('[data-mod-setting]')).map((r) => r.getAttribute('data-mod-setting'));
@@ -211,18 +212,22 @@ describe('角色页 · 模组设置分组', () => {
     expect(within(within(mods()).getByRole('group', { name: '其他' })).getByRole('group', { name: '披风' })).toBeTruthy();
   });
 
-  it('draws a 显示 / 隐藏 switch as 显示 | 隐藏 halves, 显示 on the left whatever the value order', async () => {
+  it('draws a 显示 / 隐藏 setting as one switch, on exactly when the value is its 显示 value, whatever the value order', async () => {
     const set = vi.spyOn(bridge.avatar.modSettings, 'set');
     await wear('imported_field');
     expect(showing('外套')).toBe(true);
     expect(showing('手套')).toBe(false);
     // 背包 lists 隐藏 first.
     expect(showing('背包')).toBe(true);
-    expect(within(within(mods()).getByRole('radiogroup', { name: '背包' })).getAllByRole('radio').map((r) => r.textContent)).toEqual(['显示', '隐藏']);
     expect(shown('Hair Color')).toBe('Black');
-    fireEvent.click(half('手套', '显示'));
+    fireEvent.click(toggle('手套'));
     await waitFor(() => expect(set).toHaveBeenCalledWith(expect.objectContaining({ appearance: 'imported_field', values: expect.objectContaining({ gloves: 0 }) })));
     await waitFor(() => expect(showing('手套')).toBe(true));
+    // Off on 背包 sends its 隐藏 value, which comes first.
+    await waitFor(() => expect(toggle('背包').getAttribute('aria-disabled')).toBeNull());
+    fireEvent.click(toggle('背包'));
+    await waitFor(() => expect(set).toHaveBeenLastCalledWith(expect.objectContaining({ appearance: 'imported_field', values: expect.objectContaining({ bag: 0 }) })));
+    await waitFor(() => expect(showing('背包')).toBe(false));
   });
 
   it('恢复默认 on a group header puts only that group back on its defaults, in one set', async () => {

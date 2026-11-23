@@ -56,6 +56,11 @@ async function mount(search = '') {
 
 const click = (el: Element) => act(async () => void fireEvent.click(el));
 const row = (id: string) => document.querySelector<HTMLElement>(`[data-motion="${id}"]`);
+/** Turns a motion row's 开 / 关 switch off, clicking it only while it is on. */
+const turnOff = async (id: string) => {
+  const sw = within(row(id)!).getByRole('switch');
+  if (sw.getAttribute('aria-checked') === 'true') await click(sw);
+};
 const rail = (name: string) => within(screen.getByRole('navigation', { name: '角色分区' })).getByRole('button', { name });
 
 /** Switches on 总览 (the only page with the head strip), then goes back to 动作. */
@@ -81,7 +86,7 @@ describe('a switch on the character page', () => {
   it('drops the unsaved switches of the character before', async () => {
     await mount('&pane=motion');
     await waitFor(() => expect(row('nod')).not.toBeNull());
-    await click(within(row('nod')!).getByRole('radio', { name: '关' }));
+    await turnOff('nod');
     expect(within(row('nod')!).queryByLabelText('未保存')).not.toBeNull();
     await switchTo('示例甲');
     await waitFor(() => expect(row('b_only')).not.toBeNull());
@@ -108,7 +113,7 @@ describe('the rail’s MMD item with unsaved switches', () => {
   it('opens the MMD section at once: the drafts stay in the character area and are there back on 动作', async () => {
     await mount('&pane=motion');
     await waitFor(() => expect(row('nod')).not.toBeNull());
-    await click(within(row('nod')!).getByRole('radio', { name: '关' }));
+    await turnOff('nod');
     await click(rail('MMD'));
     expect(screen.queryByRole('dialog')).toBeNull();
     await screen.findByRole('region', { name: 'MMD 库' });

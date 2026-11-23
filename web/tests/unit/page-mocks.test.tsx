@@ -137,7 +137,9 @@ describe('small fixes', () => {
     const toast = vi.fn();
     vi.spyOn(bridge.avatar, 'setActionSwitches').mockResolvedValue({ switches: { nod: true }, adjusted: [{ id: 'nod', reason: 'host_policy_x' }] });
     render(<Motions toast={toast} />);
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: '点头附和' })).getByRole('radio', { name: '关' }));
+    const nod = screen.getByRole('switch', { name: '点头附和' });
+    expect(nod.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(nod);
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() => expect(toast).toHaveBeenCalled());
     expect(String(toast.mock.calls[0]?.[0])).toContain(NO_REASON);

@@ -26,6 +26,14 @@ afterEach(() => {
   window.location.hash = '';
 });
 
+/** A layer's 开 / 关 switch: checked while the layer shows. */
+const layer = (name: string) => within(screen.getByRole('group', { name: '服装分层' })).getByRole('switch', { name });
+/** Turns a layer off, clicking its switch only while it is on. */
+const hide = (name: string) => {
+  const s = layer(name);
+  if (s.getAttribute('aria-checked') === 'true') fireEvent.click(s);
+};
+
 const si = (layers?: CharacterEntry['layers']): CharacterEntry => ({
   id: 'si', name: '示例乙', en: 'SI', active: true, voice: true, appearances: CHARACTER_LOOKS.si ?? [], ...(layers ? { layers } : {}),
 });
@@ -56,11 +64,9 @@ describe('角色页 · 服装分层', () => {
     const toast = vi.fn();
     render(<Op toast={toast} />);
     fireEvent.click(screen.getByRole('tab', { name: '显示' }));
-    const layer = (name: string, half: '显示' | '隐藏' = '显示') =>
-      within(within(screen.getByRole('group', { name: '服装分层' })).getByRole('radiogroup', { name })).getByRole('radio', { name: half });
     expect(layer('披风').getAttribute('aria-checked')).toBe('true');
     expect(layer('外套').getAttribute('aria-checked')).toBe('true');
-    fireEvent.click(layer('外套', '隐藏'));
+    hide('外套');
     await waitFor(() => expect(set).toHaveBeenCalledWith(['coat']));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('已隐藏「外套」'));
     expect(layer('外套').getAttribute('aria-checked')).toBe('false');
@@ -75,10 +81,8 @@ describe('角色页 · 服装分层', () => {
     );
     render(<Op />);
     fireEvent.click(screen.getByRole('tab', { name: '显示' }));
-    const layer = (name: string, half: '显示' | '隐藏' = '显示') =>
-      within(within(screen.getByRole('group', { name: '服装分层' })).getByRole('radiogroup', { name })).getByRole('radio', { name: half });
-    fireEvent.click(layer('外套', '隐藏'));
-    fireEvent.click(layer('披风', '隐藏'));
+    hide('外套');
+    hide('披风');
     pending[0]!.ok();
     await waitFor(() => expect(pending).toHaveLength(2));
     expect(set).toHaveBeenLastCalledWith(['coat', 'cape']);
@@ -92,11 +96,9 @@ describe('角色页 · 服装分层', () => {
     const toast = vi.fn();
     render(<Op toast={toast} />);
     fireEvent.click(screen.getByRole('tab', { name: '显示' }));
-    const layer = (name: string, half: '显示' | '隐藏' = '显示') =>
-      within(within(screen.getByRole('group', { name: '服装分层' })).getByRole('radiogroup', { name })).getByRole('radio', { name: half });
-    fireEvent.click(layer('外套', '隐藏'));
+    hide('外套');
     await waitFor(() => expect(toast).toHaveBeenCalledWith('服装分层没有完成：桌面角色没有回应', { severity: 'danger' }));
-    fireEvent.click(layer('披风', '隐藏'));
+    hide('披风');
     await waitFor(() => expect(layer('披风').getAttribute('aria-checked')).toBe('false'));
     expect(layer('外套').getAttribute('aria-checked')).toBe('true');
   });
@@ -105,7 +107,7 @@ describe('角色页 · 服装分层', () => {
     render(<Op roster={[si()]} />);
     expect(screen.queryByRole('tab', { name: '显示' })).toBeNull();
     expect(screen.queryByRole('group', { name: '服装分层' })).toBeNull();
-    expect(screen.queryByRole('radiogroup', { name: '外套' })).toBeNull();
+    expect(screen.queryByRole('switch', { name: '外套' })).toBeNull();
   });
 
   it('全部显示 sends an empty hidden set, and is off while every layer shows', async () => {
@@ -133,21 +135,26 @@ describe('角色页 · 服装分层', () => {
 
 describe('角色页 · 大小', () => {
   const slider = () => screen.getByRole('slider', { name: '大小' }) as HTMLInputElement;
-  const preset = (label: string) => within(screen.getByRole('radiogroup', { name: '大小预设' })).getByRole('radio', { name: label });
+  const presets = () => {
+    fireEvent.click(screen.getByRole('button', { name: '大小预设' }));
+    return screen.getByRole('listbox', { name: '大小预设' });
+  };
+  const preset = (label: string) => fireEvent.click(within(presets()).getByRole('option', { name: label }));
 
   it('sets her size from a preset, the slider or a tick number, and reads it out once', async () => {
     const set = vi.spyOn(bridge.avatar, 'setScale');
     render(<Op />);
     await waitFor(() => expect(slider().value).toBe('100'));
-    expect(preset('100%').getAttribute('aria-checked')).toBe('true');
-    fireEvent.click(preset('125%'));
+    expect(within(presets()).getByRole('option', { name: '100%' }).getAttribute('aria-selected')).toBe('true');
+    fireEvent.click(screen.getByRole('option', { name: '125%' }));
     expect(set).toHaveBeenLastCalledWith(1.25);
     expect(slider().value).toBe('125');
     expect(document.querySelector('output')?.textContent).toBe('125%');
     fireEvent.change(slider(), { target: { value: '60' } });
     expect(set).toHaveBeenLastCalledWith(0.6);
     // 60 is no preset: none is chosen.
-    expect(within(screen.getByRole('radiogroup', { name: '大小预设' })).queryByRole('radio', { checked: true })).toBeNull();
+    expect(within(presets()).queryByRole('option', { selected: true })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '大小预设' }));
     fireEvent.click(screen.getByRole('button', { name: '大小 150%' }));
     expect(set).toHaveBeenLastCalledWith(1.5);
   });
@@ -157,7 +164,7 @@ describe('角色页 · 大小', () => {
     const toast = vi.fn();
     render(<Op toast={toast} />);
     await waitFor(() => expect(slider().value).toBe('100'));
-    fireEvent.click(preset('150%'));
+    preset('150%');
     expect(slider().value).toBe('150');
     await waitFor(() => expect(slider().value).toBe('100'));
     expect(toast).toHaveBeenCalledWith('改大小没有完成：桌面角色没有回应', { severity: 'danger' });

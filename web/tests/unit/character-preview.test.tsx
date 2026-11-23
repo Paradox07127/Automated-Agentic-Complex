@@ -186,7 +186,9 @@ describe('useLivePreview', () => {
     const settings: ModSettingRow[] = [{ id: 'coat', name: '外套', category: 'clothing', default: 1, values: [{ value: 0, name: '隐藏' }, { value: 1, name: '显示' }] }];
     const { findByRole } = render(<><Probe /><ModSettings character="birch" appearance={{ id: 'summer', name: '夏装' }} settings={settings} ro={null} toast={() => {}} /></>);
     await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
-    fireEvent.click(within(await findByRole('radiogroup', { name: '外套' })).getByRole('radio', { name: '隐藏' }));
+    const coat = await findByRole('switch', { name: '外套' });
+    expect(coat.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(coat);
     await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(show).toHaveBeenCalledTimes(2));
     expect(show).toHaveBeenLastCalledWith({ x: 40, y: 120, w: 600, h: 360 });

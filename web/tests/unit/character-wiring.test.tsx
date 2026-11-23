@@ -160,10 +160,10 @@ describe('operator view', () => {
   });
 });
 
-/** A motion row's 开｜关 (GameSeg), named by the motion. */
-const toggle = (name: string) => screen.getByRole('radiogroup', { name });
-const isOn = (g: HTMLElement) => within(g).getByRole('radio', { name: '开' }).getAttribute('aria-checked') === 'true';
-const flip = (g: HTMLElement) => fireEvent.click(within(g).getAllByRole('radio').find((r) => r.getAttribute('aria-checked') !== 'true')!);
+/** A motion row's 开 / 关 switch, named by the motion. */
+const toggle = (name: string) => screen.getByRole('switch', { name });
+const isOn = (g: HTMLElement) => g.getAttribute('aria-checked') === 'true';
+const flip = (g: HTMLElement) => fireEvent.click(g);
 
 describe('motions (avatar.actions shape)', () => {
   it('lists every section in words in one table, locks required ones and marks missing assets', () => {
@@ -217,7 +217,7 @@ describe('motions (avatar.actions shape)', () => {
     render(<Op toast={toast} />);
     fireEvent.click(screen.getByRole('button', { name: /桌面预览/ }));
     await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
-    flip(within(screen.getByRole('grid', { name: '全部动作' })).getAllByRole('radiogroup').find((g) => g.getAttribute('aria-disabled') !== 'true')!);
+    flip(within(screen.getByRole('grid', { name: '全部动作' })).getAllByRole('switch').find((g) => g.getAttribute('aria-disabled') !== 'true')!);
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() => expect(toast).toHaveBeenCalledTimes(2));
     const said = toast.mock.calls.map((c) => String(c[0]));

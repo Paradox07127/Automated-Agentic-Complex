@@ -102,7 +102,9 @@ describe('render settings (rnd.*)', () => {
     await tune();
     const shadow = await screen.findByRole('radiogroup', { name: '自阴影精度' });
     expect(within(shadow).getAllByRole('radio').map((r) => r.textContent)).toEqual(['高 · 1024', '中 · 512', '低 · 256']);
-    await click(within(screen.getByRole('radiogroup', { name: '2× SSAA' })).getByRole('radio', { name: '关' }));
+    const aa = screen.getByRole('switch', { name: '2× SSAA' });
+    expect(aa.getAttribute('aria-checked')).toBe('true');
+    await click(aa);
     expect(save).toHaveBeenLastCalledWith({ 'rnd.aa': false });
     await click(within(shadow).getByRole('radio', { name: '低 · 256' }));
     expect(save).toHaveBeenLastCalledWith({ 'rnd.shadow': '256' });
