@@ -12,12 +12,12 @@ function collectErrors(page: Page): string[] {
 }
 
 
-// 诊断 › 总览 has two plain section heads (链路, 运行); no icon block, no status dot on the heads.
+// 诊断 › 总览 has three plain section heads (链路, 运行, 错误); no icon block, no status dot on the heads.
 test('diag section heads are plain titles', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/diag?still=1');
   const heads = page.locator('main [data-stub="SecHead"]');
-  await expect(heads).toHaveCount(2);
+  await expect(heads).toHaveCount(3);
   await expect(heads.locator('[data-icon-block]')).toHaveCount(0);
   await expect(heads.locator('[data-dot]')).toHaveCount(0);
   expect(errors).toEqual([]);

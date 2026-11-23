@@ -17,7 +17,7 @@ const TABS = ['overview', 'proc', 'render', 'flow', 'state'] as const;
 test('diag: 总览 lists the link rows, then the run rows, without errors', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/diag?still=1');
-  await expect(page.locator('main [data-stub="SecHead"] h3')).toHaveText(['链路', '运行']);
+  await expect(page.locator('main [data-stub="SecHead"] h3')).toHaveText(['链路', '运行', '错误']);
   await expect(page.locator('[data-row]')).toHaveCount(6);
   await expect(page.getByRole('tab')).toHaveText(['总览', '进程', '帧与负载', '链路', '内部状态', '对话轮次', '事件线', '行为决策', '日志']);
   expect(errors).toEqual([]);

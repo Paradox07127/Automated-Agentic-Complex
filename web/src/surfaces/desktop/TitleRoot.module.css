@@ -37,11 +37,11 @@
   mask-image: radial-gradient(closest-side, #000 67%, rgb(0 0 0 / 0) 100%);
 }
 
-/* Source Han Sans Bold, 24.72 % of the screen height, white. The box is trimmed to the ink: in a 1 em line the ink runs
-   from 0.08 em to 1.03 em, and the glyphs' side bearings add up to 0.065 em on average, so glyphs stand `--gap` apart. */
+/* HarmonyOS Sans SC Bold, 24.72 % of the screen height, white. The box is trimmed to the ink: in a 1 em line the CJK ink
+   runs from 0 em to 0.926 em, and the glyphs' side bearings add up to 0.065 em on average, so glyphs stand `--gap` apart. */
 .name {
   position: relative;
-  margin: -0.08em calc(0.0325em - var(--gap)) 0.03em -0.0325em;
+  margin: 0 calc(0.0325em - var(--gap)) -0.074em -0.0325em;
   font: 700 24.72vh / 1 var(--ef-font-sans);
   letter-spacing: calc(var(--gap) - 0.065em);
   color: var(--ef-hud-ink);

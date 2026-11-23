@@ -26,7 +26,7 @@ test('kernel not ready names the reason and jumps to the row that fixes it', asy
   await page.goto('main.html#/settings?plugins=all&group=kernel&demo=no-key&still=1');
   await expect(page.getByText('未就绪：还没有保存 Anthropic API Key')).toBeVisible();
   await page.getByRole('button', { name: '去填写 API Key' }).click();
-  await expect(page).toHaveURL(/group=model.*item=apikey/);
+  await expect(page).toHaveURL(/group=kernel.*item=apikey/);
   expect(errors).toEqual([]);
 });
 

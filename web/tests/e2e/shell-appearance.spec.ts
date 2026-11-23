@@ -106,13 +106,13 @@ test("Q and E step through the page's own tabs and wrap, do nothing while typing
   await page.keyboard.press('q');
   await page.keyboard.press('q');
   await expect(selected()).toHaveAttribute('title', '关于');
-  // 关于 › 数据 › 按键 › 服务 › 账号.
+  // 关于 › 数据 › 按键 › 服务 › AI.
   for (let i = 0; i < 4; i++) await page.keyboard.press('q');
-  await expect(selected()).toHaveAttribute('title', '账号');
+  await expect(selected()).toHaveAttribute('title', 'AI');
   await page.keyboard.press('q');
-  await expect(selected()).toHaveAttribute('title', '内核');
+  await expect(selected()).toHaveAttribute('title', '显示');
   await page.keyboard.press('e');
-  await expect(selected()).toHaveAttribute('title', '账号');
+  await expect(selected()).toHaveAttribute('title', 'AI');
   await expect(page.locator('main[data-route-id="settings"]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('main[data-route-id="home"]')).toBeVisible();

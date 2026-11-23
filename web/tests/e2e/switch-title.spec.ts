@@ -30,7 +30,7 @@ async function ink(page: Page): Promise<{ x: number; y: number; w: number; h: nu
   }, png.toString('base64'));
 }
 
-test('the name is Source Han Sans Bold at 24.72 % of the screen height, its ink in the middle of the screen', async ({ page }) => {
+test('the name is HarmonyOS Sans SC Bold at 24.72 % of the screen height, its ink in the middle of the screen', async ({ page }) => {
   await open(page, { name: '佩丽卡' });
   const name = page.locator('[data-slot="name"]');
   const style = await name.evaluate((el) => ({ size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight, family: getComputedStyle(el).fontFamily }));
@@ -58,7 +58,8 @@ test('the English name runs under the name in HarmonyOS Sans SC caps at 2.5 % of
   expect(s.transform).toBe('uppercase');
   expect(s.mask).toContain('linear-gradient');
   const name = (await page.locator('[data-slot="name"]').boundingBox())!, under = (await sub.boundingBox())!;
-  expect(under.y).toBeGreaterThan(name.y + name.height - 10);
+  // The name's 1 em line box ends 0.074 em under its ink; the English line starts under that ink.
+  expect(under.y).toBeGreaterThan(name.y + 0.926 * name.height - 10);
 });
 
 test('a soft ellipse 1.2 times the text wide sits under it, a fifth of its height lower', async ({ page }) => {
