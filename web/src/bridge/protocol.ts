@@ -7,6 +7,7 @@ import type { AvatarAction, AvatarDetails, AvatarSwitchReply, CharacterLayer, Im
   MotionRemoveResult, OutfitImportResult, OutfitRemoveResult, MotionRenameResult, PhotoState, PlaylistPlayResult, PlaylistState } from './avatarDetails';
 import type { DesktopOps, DesktopWindowOps, GlassRect, Region } from './desktop';
 import type { OnboardingOps } from './onboarding';
+import type { PermissionKind, PermissionState, SystemSettingsPane } from './permissions';
 import type { DecideOptions, StackPayload } from './stackCards';
 import type { RuntimeSnapshot } from './runtimeSnapshot';
 
@@ -17,6 +18,7 @@ export type * from './computerUse';
 export type * from './desktop';
 export type * from './motionOverrides';
 export type * from './onboarding';
+export type * from './permissions';
 export type * from './runtimeSnapshot';
 export type * from './stackCards';
 
@@ -137,19 +139,6 @@ export interface DeletionPreview {
   total: number;
   counts: Record<string, number>;
 }
-
-export type PermissionKind =
-  | 'accessibility'
-  | 'screenRecording'
-  | 'microphone'
-  | 'automation'
-  | 'inputMonitoring'
-  | 'notifications';
-
-export type PermissionState = 'granted' | 'denied' | 'notDetermined' | 'unsupported';
-
-/** System settings panes the UI can open: every permission plus login items. */
-export type SystemSettingsPane = PermissionKind | 'loginItems';
 
 /** What the user decided on a desktop stack card, with the concurrency fields the agentd request needs. */
 export type StackDecision =

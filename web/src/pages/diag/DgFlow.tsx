@@ -1,7 +1,7 @@
 import { useWidth } from '../../charts/useWidth';
 import { formatMs } from '../../domain';
 import { COLS, HOOK_TIP, LANES, STATE_TEXT, type FlowEdge, type FlowNode, type NodeId, type NodeStat } from './flow';
-import styles from './Flow.module.css';
+import styles from './DgFlow.module.css';
 
 const LH = 88;
 const NH = 58;

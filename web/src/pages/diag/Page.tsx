@@ -2,8 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
-import { AgentdCallError, resetVoice } from '../../bridge/agentd';
-import { serverFaultText } from '../../domain/errorText';
+import { resetVoice } from '../../bridge/agentd';
 import { formatAgo } from '../../domain/time';
 import { formatClock, formatDuration, type WireVoice } from '../../domain';
 import { isoToMsOrNull } from '../../domain/units';
@@ -25,8 +24,8 @@ import { healthOf, issuesOf, processesOf, type ProcKey } from './status';
 import { UsageCard } from './UsageCard';
 import { clock, STATE_KEY, type DiagSnap, useDecisions, useDiagState, useDiagStream, useFailEvents, useRenderStats, useSideReads, useTurns } from './useDiag';
 import { CONFIRM, useDiagActions, viewLogs, type RestartTarget } from './useDiagActions';
-import type { ProcSample } from './useProcSamples';
-import { useProcSamples } from './useProcSamples';
+import { seedOf, useProcSamples } from './useProcSamples';
+import { reasonOf } from './reason';
 import type { WireDiagItem } from './wire';
 import styles from './Diag.module.css';
 import stateStyles from './State.module.css';
@@ -45,32 +44,6 @@ const ROW_ITEMS = new Set(['agentd', 'avatar', 'voice']);
 const LIST_KINDS = new Set(['input.received', 'model.finished', 'playback.ended', 'playback.interrupted', 'cancel.acked', 'turn.settled']);
 const USER = new Set(['text', 'voice']);
 const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="dialog"], [role="menu"]';
-/** The `full` demo's process curves are named by their row. */
-const SEED_KEY: Readonly<Record<string, ProcKey>> = { 后台服务: 'agentd', 角色: 'avatar' };
-
-/** One short reason for a failed read; only `offline` means agentd is gone. */
-export function reasonOf(e: unknown): string {
-  if (!(e instanceof AgentdCallError)) return '读取失败';
-  if (e.code === 'offline') return '后台已断开';
-  const fault = serverFaultText(e);
-  if (fault) return fault;
-  if (e.code === 'unknown_trace') return '这一轮没有留下事件';
-  if (e.code === 'no_trace') return '后台没有事件记录库';
-  if (e.code === 'no_memory' || e.code === 'no_memory_journal') return '后台没有开启记忆';
-  if (e.status === 0) return '请求没有发出';
-  return `后台返回 ${e.status}`;
-}
-
-/** The `full` demo's process history as page samples. */
-function seedOf(full: boolean): ProcSample[] {
-  const h = full ? slot.full?.procHistory : undefined;
-  if (!h) return [];
-  const first = h.cpu[0]?.pts ?? [];
-  return first.map(([at], i) => {
-    const pick = (list: typeof h.cpu) => Object.fromEntries(list.filter((s) => SEED_KEY[s.label]).map((s) => [SEED_KEY[s.label], s.pts[i]?.[1] ?? null]));
-    return { at, cpu: pick(h.cpu), mem: pick(h.mem) };
-  });
-}
 
 const keyHint = (k: string[], label: string) => (
   <span key={label}>

@@ -26,7 +26,7 @@ import { chatRoutes } from '../../mock/chat';
 import { CAMERA_DEMO, COMPUTER_DEMO, RESIZE_DEMO } from './overlays';
 import { mockRoutes } from '../../mock';
 import { MOTIONS } from '../../mock/character';
-import { CHARACTER_LAYERS, CHARACTER_LOOKS, CHARACTERS, NOW, PIPELINE, RENDER_STATS, SWITCH_REJECT } from '../../mock/fixtures';
+import { CHARACTER_LAYERS, CHARACTER_LOOKS, CHARACTERS, NO_VOICE, NOW, PIPELINE, RENDER_STATS, SWITCH_REJECT } from '../../mock/fixtures';
 import { demoNative, demoPlugins } from '../../mock/settings';
 import { stackPush } from '../../mock/stack';
 import { pinClock } from '../clock';
@@ -309,9 +309,8 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       },
     },
     character: {
-      // 示例甲's package has no voice profile.
       list: async () => CHARACTERS.map((c) => ({
-        ...c, active: c.id === character, voice: c.id !== 'voice_a', appearances: [...(CHARACTER_LOOKS[c.id] ?? []), ...outfit.looks(c.id)],
+        ...c, active: c.id === character, voice: !NO_VOICE.has(c.id), appearances: [...(CHARACTER_LOOKS[c.id] ?? []), ...outfit.looks(c.id)],
         ...(c.id === character ? { layers: CHARACTER_LAYERS.map((l) => ({ ...l, visible: !hiddenLayers.includes(l.id) })) } : {}),
       })),
       switchTo: async (id) => {

@@ -11,6 +11,9 @@ export const CHARACTERS: CharacterProfile[] = [
   { id: 'cedar', name: '示例丙', en: 'CEDAR QIANYU', active: false },
 ];
 
+/** Characters whose package has no voice profile (示例甲). */
+export const NO_VOICE: ReadonlySet<string> = new Set(['voice_a']);
+
 /** Range rule for valence: baseline ± 0.6, may go negative (character_state.py:11,23,266-270). */
 export const VALENCE_SPAN = 0.6;
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ProcessState } from '../../bridge/protocol';
+import { demo as slot } from './demoSlot';
 import type { ProcKey } from './status';
 
 /** One supervisor.state read: CPU (share of one core, %) and memory (MB) per process. */
@@ -49,4 +50,18 @@ export function useProcSamples(read: SupervisorRead, base: number, poll: boolean
     return () => clearInterval(id);
   }, [poll]);
   return samples;
+}
+
+/** The `full` demo's process curves are named by their row. */
+const SEED_KEY: Readonly<Record<string, ProcKey>> = { 后台服务: 'agentd', 角色: 'avatar' };
+
+/** The `full` demo's process history as page samples. */
+export function seedOf(full: boolean): ProcSample[] {
+  const h = full ? slot.full?.procHistory : undefined;
+  if (!h) return [];
+  const first = h.cpu[0]?.pts ?? [];
+  return first.map(([at], i) => {
+    const pick = (list: typeof h.cpu) => Object.fromEntries(list.filter((s) => SEED_KEY[s.label]).map((s) => [SEED_KEY[s.label], s.pts[i]?.[1] ?? null]));
+    return { at, cpu: pick(h.cpu), mem: pick(h.mem) };
+  });
 }
