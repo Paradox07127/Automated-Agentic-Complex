@@ -683,8 +683,10 @@ class CharacterAgentController:
                 return self.logins.logout("acp", agent=agent)
             from character_agent.harness.acp_agents import probe
             methods = probe(agent["command"], agent.get("env"))["auth_methods"]
-            # Without a pick, the agent's first method: the page lists the methods only after a probe.
-            method = next((m for m in methods if m.get("id") == body.get("method_id", m.get("id"))), None)
+            # Without a pick, the first method that takes no API key or gateway (input the page does not collect): the page
+            # lists the methods only after a probe.
+            method = next((m for m in methods if m.get("id") == body["method_id"]) if "method_id" in body else
+                          (m for m in methods if not {"api-key", "gateway"} & set(m.get("_meta") or {})), None)
             if method is None:
                 raise ValueError("unknown_auth_method")
             return self.logins.start("acp", agent=agent, method=method)

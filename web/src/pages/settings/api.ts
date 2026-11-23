@@ -56,7 +56,7 @@ export interface AcpAgent {
   version: string | null;
   source: 'local' | 'npx' | 'uvx';
   command: string[];
-  probe: { ok: boolean; agent_info: unknown; auth_methods: Array<{ id?: string; name?: string }> | null; error: string | null } | null;
+  probe: { ok: boolean; agent_info: unknown; auth_methods: Array<{ id?: string; name?: string; _meta?: Record<string, unknown> }> | null; error: string | null } | null;
   /** The kernel that runs this harness directly; settings offer it instead of the bridge. */
   native_backend: 'claude' | 'codex' | null;
 }

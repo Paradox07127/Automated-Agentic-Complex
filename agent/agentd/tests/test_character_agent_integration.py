@@ -828,13 +828,15 @@ class IntegrationTests(IntegrationFixture):
             start.assert_called_once_with('codex', '/synthetic/codex')
         self.assertEqual(post('/character/login/logout', {'method_id': 'x'}), (400, {'error': 'invalid_payload'}))
         agent = {'id': 'claude-acp', 'name': 'Claude Agent', 'command': ['/synthetic/claude-agent-acp'], 'source': 'local'}
-        methods = [{'id': 'claude-ai-login', 'type': 'terminal', 'args': ['--cli']}, {'id': 'console-login', 'type': 'terminal', 'args': []}]
+        # A method that takes an API key or a gateway needs input the page does not collect: no default.
+        methods = [{'id': 'api-key', '_meta': {'api-key': {'provider': 'openai'}}},
+                   {'id': 'claude-ai-login', 'type': 'terminal', 'args': ['--cli']}, {'id': 'console-login', 'type': 'terminal', 'args': []}]
         self.controller.settings.save({'backend': 'acp', 'runtime_source': 'local', 'acp_agent': 'claude-acp', 'acp_launcher': 'local',
                                        'auth_source': 'existing_login', 'provider': ''})
         with patch('character_agent.integration.acp_agent', return_value=agent), \
                 patch('character_agent.harness.acp_agents.probe', return_value={'auth_methods': methods}), \
                 patch.object(self.controller.logins, 'start', return_value={}) as start:
-            for body, method in (({}, methods[0]), ({'method_id': 'console-login'}, methods[1])):
+            for body, method in (({}, methods[1]), ({'method_id': 'console-login'}, methods[2])):
                 post('/character/login/start', body)
                 self.assertEqual(start.call_args, (('acp',), {'agent': agent, 'method': method}))
             self.assertEqual(post('/character/login/start', {'method_id': 'nope'}), (400, {'error': 'unknown_auth_method'}))

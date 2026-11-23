@@ -344,7 +344,7 @@ describe('settings › 角色内核 › ACP', () => {
         probe: { ok: true, agent_info: { name: 'claude-agent-acp', version: '0.5.0' }, auth_methods: [], error: null }, native_backend: 'claude' },
       { id: 'fast-agent', name: 'fast-agent', version: '0.3.0', source: 'uvx', command: ['uvx', 'fast-agent-acp'], probe: null, native_backend: null },
       { id: 'goose', name: 'Goose', version: null, source: 'local', command: ['/usr/local/bin/goose', 'acp'],
-        probe: { ok: false, agent_info: null, auth_methods: [{ id: 'oauth', name: 'Sign in with Block' }], error: 'auth_required' }, native_backend: null },
+        probe: { ok: false, agent_info: null, auth_methods: [{ id: 'oauth', name: 'Sign in with Block' }, { id: 'key', name: 'API Key', _meta: { 'api-key': { provider: 'block' } } }], error: 'auth_required' }, native_backend: null },
     ],
     npx: false,
     uvx: true,

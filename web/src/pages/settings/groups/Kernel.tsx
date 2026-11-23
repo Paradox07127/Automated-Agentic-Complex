@@ -120,7 +120,10 @@ export function KernelGroup() {
       .then((r) => (r.ok ? model.notify({ message: `已安装 ${a.name}`, severity: 'success' }) : fail(exitWhy(r))), (e) => fail(failure(e).text))
       .finally(() => (setInstalling(null), void acp.reload()));
   };
-  const savedMethods = acp.list?.agents.find((a) => a.id === savedAgent && a.source === runtime.wire.acp_launcher)?.probe?.auth_methods ?? [];
+  // A method that takes an API key or a gateway needs input this page does not collect.
+  const savedMethods = (acp.list?.agents.find((a) => a.id === savedAgent && a.source === runtime.wire.acp_launcher)?.probe?.auth_methods ?? []).filter(
+    (m) => !m._meta || !('api-key' in m._meta || 'gateway' in m._meta),
+  );
   // Sign-in acts on the saved kernel: a picked but unapplied one waits for 应用.
   const loginShown = runtime.selected === selected && !('acct' in model.draft) && !('acpAgent' in model.draft) &&
     (isAcp ? !!savedAgent : (selected === 'codex' || selected === 'claude') && runtime.wire.auth_source === 'product_login');
