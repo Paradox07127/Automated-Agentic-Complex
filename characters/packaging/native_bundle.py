@@ -238,25 +238,26 @@ def character_coverage(root,entry):
             names,clips=entities[binding['entity']]
             require(binding['animation'] in clips,'absent composite source animation')
             composites.setdefault(binding['ownerClip'],set()).update(names)
+    # Draw coverage depends on the mesh alone. Only deficient meshes can block a clip.
+    def failure(name):
+        indices=by_mesh.get(name)
+        if not indices:return dict(mesh=name,reason='absent_source_mesh')
+        missing=[i for i in indices if i not in prepared]
+        if missing:return dict(mesh=name,reason='unprepared_source_draws',draws=missing)
+        return None
+
+    deficient=[(mesh,problem) for mesh in contract['meshes'] if (problem:=failure(mesh['mesh']))]
+    extra={clip:[problem for name in sorted(names) if (problem:=failure(name))]
+           for clip,names in composites.items()}
     for appearance in appearances:
         for clip in archive['clips']:
-            missing=[]
-            visibility_clip=aliases.get(clip['name'],clip['name'])
-            for m in contract['meshes']:
-                if m.get('visible_with_clips') is not None and visibility_clip not in m['visible_with_clips']:continue
-                if m.get('appearances') is not None and appearance not in m['appearances']:continue
-                indices=by_mesh.get(m['mesh'],[])
-                if not indices:
-                    # Action-only props are required when that action is active,
-                    # just like the body. Silently skipping them hides incomplete
-                    # packages (for example a reading action without its book).
-                    missing.append(dict(mesh=m['mesh'],reason='absent_source_mesh'))
-                elif any(i not in prepared for i in indices):missing.append(dict(mesh=m['mesh'],reason='unprepared_source_draws',draws=[i for i in indices if i not in prepared]))
-            for name in sorted(composites.get(clip['name'],())):
-                indices=by_mesh.get(name,[])
-                if not indices:missing.append(dict(mesh=name,reason='absent_source_mesh'))
-                elif any(i not in prepared for i in indices):missing.append(dict(mesh=name,reason='unprepared_source_draws',draws=[i for i in indices if i not in prepared]))
-            if missing:blocked[appearance+':'+clip['name']]=missing
+            name=clip['name']
+            visibility_clip=aliases.get(name,name)
+            missing=[problem for mesh,problem in deficient
+                     if (mesh.get('visible_with_clips') is None or visibility_clip in mesh['visible_with_clips'])
+                     and (mesh.get('appearances') is None or appearance in mesh['appearances'])]
+            missing.extend(extra.get(name,()))
+            if missing:blocked[appearance+':'+name]=missing
     require(entry['default_appearance']+':'+entry['default_clip'] not in blocked,'default clip is not fully prepared')
     return dict(clip_count=len(archive['clips']),appearances=appearances,prepared_draws=len(prepared),source_draws=len(source['draws']),blocked_clip_appearance_count=len(blocked),blocked=blocked,scope='geometry draw closure only; no GPU, fidelity, missing-UV or material acceptance inferred')
 
@@ -311,7 +312,7 @@ def write_neutral(root,entry,graph):
                 if key in f:f[key]=f.pop(key)
     scene,metal,record=neutral_package.split(graph)
     root=pathlib.Path(root);raw=emitted(scene,record,metal);(root/entry['graph']['file']).write_bytes(raw)
-    for (field,path),value in zip(NEUTRAL,neutral_documents(raw)):
+    for (field,path),value in zip(NEUTRAL,(scene,record,metal)):
         rel=neutral_path(entry,path);data=json_bytes(value);out=root/rel;out.parent.mkdir(parents=True,exist_ok=True);out.write_bytes(data)
         entry[field]=dict(file=rel,sha256=hashlib.sha256(data).hexdigest(),byte_count=len(data))
 

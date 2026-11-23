@@ -82,7 +82,7 @@ LINEAR = interp_bytes()
 def interp_points(interp):
     """(4, 4) array: rows X, Y, Z, R; columns x1, y1, x2, y2 (bytes [c, c+4, c+8, c+12])."""
     b = np.frombuffer(bytes(interp[:16]), np.uint8).astype(float)
-    return np.stack([b[[c, c + 4, c + 8, c + 12]] for c in range(4)])
+    return b.reshape(4, 4).T
 
 
 def bezier(t, cp):
@@ -102,7 +102,10 @@ def bezier(t, cp):
 
 
 def read_vmd(path):
-    data = Path(path).read_bytes()
+    return parse_vmd(Path(path).read_bytes())
+
+
+def parse_vmd(data):
     if not data.startswith(VMD_MAGIC):
         raise ValueError('not a VMD 0002 file')
     v = Vmd(model=decode_name(data[30:50]))
@@ -244,7 +247,8 @@ def sample_bone_keys(keys, n_frames, frame_times=None):
     i0 = i1 - 1
     span = kf[i1] - kf[i0]
     t = np.clip((f - kf[i0]) / span, 0, 1)
-    cps = np.stack([interp_points(k.interp if k.interp else LINEAR) for k in ks])  # (K, 4, 4)
+    controls = b''.join(bytes((k.interp or LINEAR)[:16]) for k in ks)
+    cps = np.frombuffer(controls, np.uint8).reshape(len(ks), 4, 4).transpose(0, 2, 1).astype(float)
     u = bezier(t[:, None], cps[i1])  # (F, 4): X, Y, Z, R easing of each frame's segment
     pos[:] = kp[i0] + (kp[i1] - kp[i0]) * u[:, :3]
     rot[:] = _slerp(kq[i0], kq[i1], u[:, 3])

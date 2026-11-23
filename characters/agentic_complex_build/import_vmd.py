@@ -25,7 +25,7 @@ from .motion_import.edit import write_document
 
 def _read_checked_vmd_raw(path):
     """Validate VMD 0002 bounds and section offsets before allocating arrays."""
-    from .mmd.io import read_vmd
+    from .mmd.io import parse_vmd
     path = Path(path); need(path.is_file() and path.stat().st_size <= 64 * 1024**2, 'vmd_file_limit')
     data = path.read_bytes(); need(data.startswith(b'Vocaloid Motion Data 0002'), 'unsupported_vmd_header')
     need(len(data) >= 54, 'truncated_vmd')
@@ -48,7 +48,7 @@ def _read_checked_vmd_raw(path):
                 need(bones <= 4096 and bones <= (len(data)-cursor)//21, 'vmd_ik_bounds')
                 cursor += bones * 21
     need(cursor == len(data), 'trailing_vmd_data')
-    try: return read_vmd(path)
+    try: return parse_vmd(data)
     except (ValueError, struct.error, IndexError) as error: raise ValueError('invalid_vmd: ' + str(error)) from error
 
 
@@ -155,7 +155,12 @@ def encode_clip(rig_doc, name, q, t, sample_rate, provenance, tangent_mode='line
     for f in range(1, frames):
         q[f] *= np.where(np.sum(q[f-1]*q[f], axis=1, keepdims=True) < 0, -1, 1)
     q /= np.linalg.norm(q, axis=-1, keepdims=True)
+    from .keys_v2 import KEY
     times = np.arange(frames)/sample_rate
+    records = np.empty(frames, dtype=KEY)
+    records['t'] = times
+    records['wi'] = records['wo'] = 1/3
+    records['m'] = 0
     keys = bytearray(b'EFKEY001'); curves = []
     for i, node in enumerate(rig_doc['nodes']):
         for attribute, data in [('position', t[:, i]), ('rotation', q[:, i])]:
@@ -167,16 +172,18 @@ def encode_clip(rig_doc, name, q, t, sample_rate, provenance, tangent_mode='line
                 values = data[:, component]
                 ts, vs = (times[:1], values[:1]) if np.max(np.abs(values-values[0])) < 1e-8 else (times, values)
                 offset = len(keys)
-                if tangent_mode == 'pchip':
-                    d = (dq_dt[:, component] if dq_dt is not None and len(ts) >= 2
-                         else _pchip_tangents(ts, vs))
-                    for k, (time, value) in enumerate(zip(ts, vs)):
-                        keys.extend(struct.pack('<6fI', time, value, d[k], d[k], 1/3, 1/3, 0))
-                else:
-                    slopes = np.diff(vs)/np.diff(ts) if len(ts)>1 else np.array([])
-                    for k, (time, value) in enumerate(zip(ts, vs)):
-                        keys.extend(struct.pack('<6fI', time, value, slopes[k-1] if k else 0,
-                            slopes[k] if k<len(slopes) else 0, 1/3, 1/3, 0))
+                batch = records[:len(ts)]
+                with np.errstate(over='raise'):
+                    batch['v'] = vs
+                    if tangent_mode == 'pchip':
+                        d = (dq_dt[:, component] if dq_dt is not None and len(ts) >= 2
+                             else _pchip_tangents(ts, vs))
+                        batch['i'] = batch['o'] = d
+                    else:
+                        batch['i'][0] = batch['o'][-1] = 0
+                        slopes = np.diff(vs)/np.diff(ts)
+                        batch['i'][1:] = batch['o'][:-1] = slopes
+                keys.extend(memoryview(batch).cast('B'))
                 curves.append(dict(node=i, attribute=attribute, component=component, offset=offset,
                                    count=len(ts), stride=28, pre_wrap=1, post_wrap=1))
     need(curves, 'vmd_has_no_target_motion')
