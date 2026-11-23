@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { keyText } from '../../bridge/platformText';
 import type { ChartStatus } from '../../charts';
 import { isoToMs } from '../../domain';
 import type { WireTraceTurn } from '../../domain/wire';
@@ -12,17 +13,6 @@ import t from './Trace.module.css';
 
 const PAGE = 40;
 const RES: ReadonlyArray<[ResFilter, string]> = [['all', '全部'], ['fail', '出错'], ['cut', '打断'], ['live', '在跑']];
-
-/** At the 925 tier the result switch takes its compact size so the four counts fit the list column. */
-const NARROW = '(max-width: 1100px)';
-const narrowNow = () => window.matchMedia?.(NARROW).matches ?? false;
-function useNarrow() {
-  return useSyncExternalStore((on) => {
-    const m = window.matchMedia?.(NARROW);
-    m?.addEventListener('change', on);
-    return () => m?.removeEventListener('change', on);
-  }, narrowNow);
-}
 
 export interface TurnListProps {
   rows: WireTraceTurn[];
@@ -52,7 +42,6 @@ export function visibleTurns(rows: readonly WireTraceTurn[], noOf: ReadonlyMap<s
 
 export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, searchRef, onQ, onGroup, onRes, onPick, onRetry, onChat }: TurnListProps) {
   const [shown, setShown] = useState(PAGE);
-  const narrow = useNarrow();
   const scroll = useRef<HTMLDivElement>(null);
   const list = visibleTurns(rows, noOf, q, group, res);
   const count = (f: ResFilter) => rows.filter((r) => inFilter(f, shapeOf(r))).length;
@@ -132,15 +121,16 @@ export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, search
   return (
     <section className={s.lp} aria-label="轮次列表">
       <div className={s.head}>
-        <SearchField value={q} label="找一轮" placeholder="找一轮：开头的字或轮次号  /" inputRef={searchRef} onChange={onQ} />
+        <SearchField value={q} label="找一轮" placeholder="开头的字或轮次号" inputRef={searchRef} shortcut={keyText('⌘F')} onChange={onQ} onSubmit={() => list[0] && onPick(list[0].turn_id)} />
         <Menu
           label={SRC_GROUPS.find(([id]) => id === group)?.[1] ?? '全部来源'}
           align="right"
-          items={[{ kind: 'head', label: '按来源' }, ...SRC_GROUPS.map(([id, label]): MenuItem => ({ kind: 'item', label, onSelect: () => onGroup(id) }))]}
+          narrowed={group !== 'all'}
+          items={[{ kind: 'head', label: '按来源' }, ...SRC_GROUPS.map(([id, label]): MenuItem => ({ kind: 'item', label, radio: true, checked: id === group, onSelect: () => onGroup(id) }))]}
         />
       </div>
       <div className={s.fil} hidden={st !== 'ok' || rows.length === 0}>
-        <GameSeg label="按结果筛选" size={narrow ? 'compact' : 'normal'} value={res} options={RES.map(([f, label]) => ({ value: f, label: `${label} ${count(f)}` }))} onChange={(v) => onRes(v as ResFilter)} />
+        <GameSeg label="按结果筛选" value={res} options={RES.map(([f, label]) => ({ value: f, label: `${label} ${count(f)}` }))} onChange={(v) => onRes(v as ResFilter)} />
       </div>
       <div ref={scroll} className={s.scroll} role="listbox" aria-label="近 24 小时的轮次">
         {body}

@@ -337,35 +337,7 @@
   list-style: none;
 }
 
-.ref {
-  display: grid;
-  grid-template-columns: 92px 52px minmax(0, 1fr);
-  gap: 8px;
-  width: 100%;
-  padding: 2px 8px;
-  border: 0;
-  background: var(--ef-surface-1);
-  color: var(--ef-text-1);
-  font: 12px / 20px var(--ef-font-sans);
-  text-align: left;
-  cursor: pointer;
-}
-
-.ref:hover {
-  background: var(--ef-surface-2);
-}
-
-.ref > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ref > span:nth-child(2) {
-  color: var(--ef-text-2);
-}
-
-.ref[data-tone='bad'] > span:last-child {
+.ref[data-tone='bad'] {
   color: var(--ef-danger-text);
 }
 

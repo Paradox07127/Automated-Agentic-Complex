@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { ChartStatus } from '../../charts';
 import { isoToMs } from '../../domain';
-import { Menu, type MenuItem, SecHead } from '../../ui';
+import { Menu, type MenuItem, Row, SecHead } from '../../ui';
 import { GameFrame, GameSeg } from '../../ui/game';
 import { clockOf, type Shape } from './data';
 import { ShapeMark } from './Glyphs';
@@ -132,11 +132,12 @@ export function LaneView({ events, st, now }: LaneViewProps) {
   };
   const item = (e: LaneEvent) => (
     <li key={e.event_id}>
-      <button type="button" className={l.ref} data-tone={toneOf(e)} onClick={() => pick(e.event_id)}>
-        <span className={t.num}>{clockOf(isoToMs(e.t_wall), true)}</span>
-        <span>{laneOf(e) ? laneName(e) : '—'}</span>
-        <span title={labelOf(e)}>{labelOf(e)}</span>
-      </button>
+      <Row
+        height="compact"
+        title={<span className={l.ref} data-tone={toneOf(e)} title={labelOf(e)}>{labelOf(e)}</span>}
+        sub={<><span className={t.num}>{clockOf(isoToMs(e.t_wall), true)}</span> │ {laneOf(e) ? laneName(e) : '—'}</>}
+        onClick={() => pick(e.event_id)}
+      />
     </li>
   );
   const msg = st === 'error' ? '读不到这段时间的事件' : st === 'loading' ? '正在读…' : events == null ? '后台暂不提供一段时间的事件' : all.length === 0 ? `近 ${range} 分钟没有动作事件` : null;
@@ -152,7 +153,7 @@ export function LaneView({ events, st, now }: LaneViewProps) {
           </span>
           <span className={l.sp} />
           {hidden.size > 0 && <span className={l.count}>隐藏了 {hidden.size} 条线</span>}
-          <Menu label="显示哪些线" icon="tune" align="right" items={[{ kind: 'head', label: '显示的线' }, ...lanes.map((id): MenuItem => ({ kind: 'item', label: LANE_NAME[id], checked: !hidden.has(id), onSelect: () => toggle(id) }))]} />
+          <Menu label="显示哪些线" icon="tune" align="right" narrowed={hidden.size > 0} items={[{ kind: 'head', label: '显示的线' }, ...lanes.map((id): MenuItem => ({ kind: 'item', label: LANE_NAME[id], checked: !hidden.has(id), onSelect: () => toggle(id) }))]} />
         </div>
         {msg != null ? (
           <div className={t.empty}>

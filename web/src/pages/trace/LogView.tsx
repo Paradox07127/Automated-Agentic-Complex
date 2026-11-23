@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { LogLevel, LogSourceId } from '../../bridge/logs';
-import { Btn, Menu, type MenuItem, MoreLines, SearchField, SecHead } from '../../ui';
+import { keyText } from '../../bridge/platformText';
+import { Btn, Menu, type MenuItem, MoreLines, Row, SearchField, SecHead } from '../../ui';
 import { GameFrame, GameSeg } from '../../ui/game';
 import { clockOf, dayOf } from './data';
 import { LevelMark } from './Glyphs';
@@ -64,6 +65,8 @@ export interface LogViewProps {
 
 export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, onTurn }: LogViewProps) {
   const ll = useRef<HTMLDivElement>(null);
+  // Row's onClick carries no event: the rail notes whether ⌥ was held on the click.
+  const alt = useRef(false);
   const [folds, setFolds] = useState<ReadonlySet<string>>(new Set());
   const on = new Set(f.on ?? filledSources(logs));
   const lines = shownLines(logs, f);
@@ -168,6 +171,8 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
   }
 
   const levels = LEVELS.filter((l) => f.levels[l]).length;
+  const filled = filledSources(logs);
+  const fewer = f.on != null && (f.on.length !== filled.length || f.on.some((id) => !filled.includes(id)));
   const levelItems: MenuItem[] = [
     { kind: 'head', label: '显示的级别' },
     ...LEVELS.map((l): MenuItem => ({ kind: 'item', label: l === 'err' || l === 'warn' ? `${LEVEL_NAME[l]} ${count(l)}` : LEVEL_NAME[l], checked: f.levels[l], onSelect: () => onF({ levels: { ...f.levels, [l]: !f.levels[l] } }) })),
@@ -175,27 +180,35 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
   return (
     <div className={t.logs}>
       <aside className={ra.rail} aria-label="来源">
-        <SecHead title="来源" count={on.size} right={`共 ${LOG_IDS.length}`} />
-        <div className={ra.srcs}>
+        <SecHead title="来源" count={on.size} right={`共 ${LOG_IDS.length}`} info="⌥ 点一个来源：只看这一个" />
+        <div className={ra.srcs} onClickCapture={(ev) => (alt.current = ev.altKey)}>
           {LOG_IDS.map((id) => {
             const s = info(id);
             const e = errs(id);
             const empty = !s || !s.exists || s.bytes === 0;
             const when = s?.mtime != null ? (now - s.mtime < 60_000 ? '刚刚' : clockOf(s.mtime).slice(0, 5)) : null;
             return (
-              <button key={id} type="button" className={ra.sr} aria-pressed={on.has(id)} data-err={e > 0 || undefined} data-miss={empty || undefined} title={`${s?.file ?? id}（⌥ 点只看这一个）`} onClick={(ev) => toggle(id, ev.altKey)}>
-                <span className={ra.bx} aria-hidden="true" />
-                <b>{LOG_NAME[id]}</b>
-                <span className={ra.ec} data-z={e === 0 || undefined}>
-                  {e > 0 ? (
-                    <>
-                      <LevelMark l="err" />
-                      {e}
-                    </>
-                  ) : empty ? '空' : '—'}
-                </span>
-                <small>{[s?.file ?? id, s ? size(s.bytes) : null, !empty ? when : null].filter(Boolean).join(' │ ')}</small>
-              </button>
+              <Row
+                key={id}
+                height="compact"
+                title={<span className={empty ? ra.miss : undefined}>{LOG_NAME[id]}</span>}
+                sub={<span className={empty ? ra.miss : undefined}>{[s?.file ?? id, s ? size(s.bytes) : null, !empty ? when : null].filter(Boolean).join(' │ ')}</span>}
+                right={
+                  <span className={ra.ec} data-z={e === 0 || undefined}>
+                    {e > 0 ? (
+                      <>
+                        <LevelMark l="err" />
+                        {e}
+                      </>
+                    ) : empty ? '空' : '—'}
+                  </span>
+                }
+                selected={on.has(id)}
+                onClick={() => {
+                  toggle(id, alt.current);
+                  alt.current = false;
+                }}
+              />
             );
           })}
         </div>
@@ -210,12 +223,12 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
         <section className={g.main}>
           <div className={g.tool}>
             <span className={g.q}>
-              <SearchField value={f.q} label="搜日志" placeholder="搜日志  /" inputRef={searchRef} onChange={(q) => onF({ q, follow: false, pausedAt: f.follow ? logs.last : f.pausedAt })} />
+              <SearchField value={f.q} label="搜日志" placeholder="搜日志" inputRef={searchRef} shortcut={keyText('⌘F')} onChange={(q) => onF({ q, follow: false, pausedAt: f.follow ? logs.last : f.pausedAt })} />
             </span>
             <span className={g.srcdd}>
-              <Menu label={`来源 ${on.size}/${LOG_IDS.length}`} icon="tune" items={[{ kind: 'head', label: '来源' }, ...LOG_IDS.map((id): MenuItem => ({ kind: 'item', label: `${LOG_NAME[id]} │ ${info(id)?.file ?? id}`, checked: on.has(id), onSelect: () => toggle(id, false) }))]} />
+              <Menu label={`来源 ${on.size}/${LOG_IDS.length}`} icon="tune" narrowed={fewer} items={[{ kind: 'head', label: '来源' }, ...LOG_IDS.map((id): MenuItem => ({ kind: 'item', label: `${LOG_NAME[id]} │ ${info(id)?.file ?? id}`, checked: on.has(id), onSelect: () => toggle(id, false) }))]} />
             </span>
-            <Menu label={`级别 ${levels}/${LEVELS.length}`} items={levelItems} />
+            <Menu label={`级别 ${levels}/${LEVELS.length}`} narrowed={LEVELS.some((l) => f.levels[l] !== DEFAULT_LEVELS[l])} items={levelItems} />
             {f.win && (
               <Btn variant="secondary" size="sm" tail="close" onClick={() => onF({ win: null })}>
                 只看第 {f.win.no} 轮前后

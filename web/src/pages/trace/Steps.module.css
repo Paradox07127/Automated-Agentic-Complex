@@ -91,7 +91,12 @@
 }
 
 .sm {
+  /* One line ending in …; the cut words wrap out of sight instead of running past the row. */
+  display: -webkit-box;
   font-size: 13px;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
 }
 
 .sm [data-k='d'],
@@ -235,10 +240,15 @@
   font-style: normal;
 }
 
-@media (max-width: 1100px) {
+/* Under 1200 px the steps sit in the 480 px drawer: the time bars give way to the sentence; offset and length stay as numbers. */
+@media (max-width: 1199px) {
   .steps {
-    --trk: 100px;
-    --gt-cols: 52px 24px 52px minmax(0, 1fr) 76px var(--trk) 48px;
+    --gt-cols: 50px 24px 42px minmax(0, 1fr) 64px 44px;
+  }
+
+  .axis,
+  .trk {
+    display: none;
   }
 
   .t {
@@ -248,10 +258,6 @@
   .ib {
     width: 24px;
     height: 24px;
-  }
-
-  .ax span[data-mid] {
-    display: none;
   }
 
   .sb {

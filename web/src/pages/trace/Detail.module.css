@@ -237,9 +237,11 @@
   color: var(--ef-danger-text);
 }
 
-@media (max-width: 1100px) {
+/* Under 1200 px the detail sits in the 480 px drawer. */
+@media (max-width: 1199px) {
+  /* token's column also carries the cache share. */
   .rband {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1.3fr) minmax(0, 0.9fr);
   }
 
   /* The model is shown only here, so on narrow windows it takes a row of its own. */

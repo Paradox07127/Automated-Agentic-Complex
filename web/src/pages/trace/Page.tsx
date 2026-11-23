@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
@@ -14,7 +14,7 @@ import { useDemo } from '../../shell/demo';
 import { BottomBarSlot, PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as jump } from '../../shell/nav';
 import { useToast } from '../../shell/toast';
-import { Btn, Kbd, Tabs } from '../../ui';
+import { Btn, Kbd, Sheet, Tabs } from '../../ui';
 import { StatusLamp } from '../../ui/game';
 import { demoSource, learnedOf, useTraceRow, useTraceRows, useTurnFacts } from '../chat/useTurnData';
 import { useDiagStream } from '../diag/useDiag';
@@ -50,6 +50,16 @@ async function laneStretch(now: number): Promise<TraceEvent[]> {
 
 const UPDATES_LIST = new Set(['input.received', 'model.finished', 'playback.ended', 'playback.interrupted', 'turn.settled']);
 const isLogId = (v: string | null): v is LogSourceId => v != null && (LOG_IDS as string[]).includes(v);
+/** Below this width a turn's detail opens in a drawer over the list instead of beside it. */
+const NARROW = '(max-width: 1199px)';
+const narrowNow = () => window.matchMedia?.(NARROW).matches ?? false;
+function useNarrow() {
+  return useSyncExternalStore((on) => {
+    const m = window.matchMedia?.(NARROW);
+    m?.addEventListener('change', on);
+    return () => m?.removeEventListener('change', on);
+  }, narrowNow);
+}
 const editable = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 
 const key = (k: string[], label: string) => (
@@ -79,6 +89,9 @@ export function TracePage() {
   const srcParam = useParam('src');
   const put = useCallback((patch: Record<string, string | undefined>) => void navigate({ to: '/trace', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }), replace: true }), [navigate]);
 
+  const narrow = useNarrow();
+  // A link to one turn opens it; under 1200 px that is the drawer.
+  const [drawer, setDrawer] = useState(() => turnParam != null);
   const [q, setQ] = useState('');
   const [group, setGroup] = useState<SrcGroup>('all');
   const [res, setRes] = useState<ResFilter>('all');
@@ -226,6 +239,21 @@ export function TracePage() {
     : tab === 'lanes' && lanes.isError ? ['broken', '读不到']
     : listSt === 'error' ? ['broken', '后台已断开'] : ['ok', '实时'];
   const conv = selRow?.conversation_id ?? null;
+  const detail = (
+    <TurnDetail
+      row={selRow}
+      no={no}
+      turn={turn}
+      st={detailSt}
+      emptyText={turnParam ? '这一轮没有保留追踪事件' : all.length ? '选一轮看经过' : '这里会显示一轮的经过'}
+      convTitle={conv ? (convs.data?.get(conv) ?? null) : null}
+      related={related}
+      onRetry={() => void (selRow ? ev.refetch() : exact.refetch())}
+      onOpenChat={conv && selTurn ? () => jump({ page: 'chat', conv, turn: selTurn }) : null}
+      onLogs={toLogs}
+      onCopy={copy}
+    />
+  );
 
   return (
     <div className={t.page} data-page="trace" data-state={state ?? 'ok'}>
@@ -302,23 +330,20 @@ export function TracePage() {
             onQ={setQ}
             onGroup={setGroup}
             onRes={setRes}
-            onPick={(id) => put({ turn: id })}
+            onPick={(id) => {
+              put({ turn: id });
+              setDrawer(true);
+            }}
             onRetry={() => void rows.refetch()}
             onChat={() => jump({ page: 'chat' })}
           />
-          <TurnDetail
-            row={selRow}
-            no={no}
-            turn={turn}
-            st={detailSt}
-            emptyText={turnParam ? '这一轮没有保留追踪事件' : all.length ? '选一轮看经过' : '这里会显示一轮的经过'}
-            convTitle={conv ? (convs.data?.get(conv) ?? null) : null}
-            related={related}
-            onRetry={() => void (selRow ? ev.refetch() : exact.refetch())}
-            onOpenChat={conv && selTurn ? () => jump({ page: 'chat', conv, turn: selTurn }) : null}
-            onLogs={toLogs}
-            onCopy={copy}
-          />
+          {narrow ? (
+            <Sheet open={drawer && selId != null} title={`第 ${no} 轮`} head="close" width={480} closeLabel="收起这一轮" onClose={() => setDrawer(false)}>
+              {detail}
+            </Sheet>
+          ) : (
+            detail
+          )}
         </div>
       ) : (
         <LogView logs={logs} f={f} sel={sel} now={now} searchRef={logSearch} turnNo={turnNo} onF={onF} onSelect={onSelect} onTurn={toTurn} />
