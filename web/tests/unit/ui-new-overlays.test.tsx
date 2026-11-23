@@ -182,14 +182,16 @@ describe('InfoTip', () => {
   it('shows its text while the ⓘ has focus and describes the ⓘ with it', () => {
     render(<InfoTip>只统计后台记下的轮次。</InfoTip>);
     const btn = screen.getByRole('button', { name: '说明' });
-    const tip = document.getElementById(btn.getAttribute('aria-describedby') ?? '');
-    expect(tip?.getAttribute('role')).toBe('tooltip');
-    expect(tip?.textContent).toBe('只统计后台记下的轮次。');
-    expect(tip?.hidden).toBe(true);
+    // Open, the tip moves to <body>; read it by id each time.
+    const tip = () => document.getElementById(btn.getAttribute('aria-describedby') ?? '');
+    expect(tip()?.getAttribute('role')).toBe('tooltip');
+    expect(tip()?.textContent).toBe('只统计后台记下的轮次。');
+    expect(tip()?.hidden).toBe(true);
     fireEvent.focus(btn);
-    expect(tip?.hidden).toBe(false);
+    expect(tip()?.hidden).toBe(false);
+    expect(tip()?.parentElement).toBe(document.body);
     fireEvent.blur(btn);
-    expect(tip?.hidden).toBe(true);
+    expect(tip()?.hidden).toBe(true);
   });
 
   it('shows on hover and closes on Esc without closing the dialog around it', () => {
@@ -200,15 +202,15 @@ describe('InfoTip', () => {
       </Dialog>,
     );
     const btn = screen.getByRole('button', { name: '说明' });
-    const tip = screen.getByRole('tooltip', { hidden: true });
+    const tip = () => screen.getByRole('tooltip', { hidden: true });
     fireEvent.mouseEnter(btn.parentElement as HTMLElement);
-    expect(tip.hidden).toBe(false);
+    expect(tip().hidden).toBe(false);
     fireEvent.mouseLeave(btn.parentElement as HTMLElement);
-    expect(tip.hidden).toBe(true);
+    expect(tip().hidden).toBe(true);
     fireEvent.focus(btn);
-    expect(tip.hidden).toBe(false);
+    expect(tip().hidden).toBe(false);
     fireEvent.keyDown(btn, { key: 'Escape' });
-    expect(tip.hidden).toBe(true);
+    expect(tip().hidden).toBe(true);
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.keyDown(btn, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -223,11 +225,11 @@ describe('InfoTip', () => {
       </Dialog>,
     );
     const input = screen.getByRole('textbox', { name: '名称' });
-    const tip = screen.getByRole('tooltip', { hidden: true });
-    fireEvent.mouseEnter(tip.parentElement as HTMLElement);
-    expect(tip.hidden).toBe(false);
+    const tip = () => screen.getByRole('tooltip', { hidden: true });
+    fireEvent.mouseEnter(screen.getByRole('button', { name: '说明' }).parentElement as HTMLElement);
+    expect(tip().hidden).toBe(false);
     fireEvent.keyDown(input, { key: 'Escape' });
-    expect(tip.hidden).toBe(true);
+    expect(tip().hidden).toBe(true);
     expect(onClose).not.toHaveBeenCalled();
   });
 

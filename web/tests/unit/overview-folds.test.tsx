@@ -91,6 +91,6 @@ describe('总览 readouts', () => {
     expect(text.hidden).toBe(true);
     expect(text.textContent).toMatch(/^比近 7 天均值[少多] /);
     fireEvent.focus(tip);
-    expect(text.hidden).toBe(false);
+    expect(document.getElementById(text.id)?.hidden).toBe(false);
   });
 });

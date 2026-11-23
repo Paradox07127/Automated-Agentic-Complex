@@ -1,4 +1,5 @@
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 import styles from './InfoTip.module.css';
 
@@ -46,6 +47,11 @@ export function InfoTip({ children, label = '说明', defaultOpen = false }: Inf
       document.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
+  const tipEl = (
+    <span ref={tip} id={tipId} role="tooltip" data-theme="dark" className={styles.tip} style={place} hidden={!open}>
+      {children}
+    </span>
+  );
   return (
     <span className={styles.wrap} data-stub="InfoTip" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <button
@@ -59,10 +65,9 @@ export function InfoTip({ children, label = '说明', defaultOpen = false }: Inf
       >
         <Icon name="info" size={14} />
       </button>
-      {/* The tips panel is dark in both themes, so its text reads dark-theme tokens. */}
-      <span ref={tip} id={tipId} role="tooltip" data-theme="dark" className={styles.tip} style={place} hidden={!open}>
-        {children}
-      </span>
+      {/* The tips panel is dark in both themes, so its text reads dark-theme tokens. Open, it goes to <body>: a row's own stacking
+          context would otherwise paint the rows after it over the tip. */}
+      {open ? createPortal(tipEl, document.body) : tipEl}
     </span>
   );
 }

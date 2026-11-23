@@ -1,4 +1,5 @@
 import { useId, useImperativeHandle, useLayoutEffect, useRef, useState, type AriaAttributes, type CSSProperties, type Ref } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon, type IconName } from './Icon';
 import styles from './IconBtn.module.css';
 import tipStyles from './InfoTip.module.css';
@@ -55,6 +56,12 @@ export function IconBtn({ icon, label, size = 'md', shape, pressed, shortcut, ex
     const below = r.bottom + 4;
     setPlace({ top: below + h > window.innerHeight - 8 ? r.top - 4 - h : below, left: Math.max(8, Math.min(r.left, window.innerWidth - TIP_MAX - 8)) });
   }, [shown]);
+  // Open, in <body> like InfoTip's tip, out of any row's stacking context.
+  const whyEl = (
+    <span ref={tipEl} id={tipId} role="tooltip" data-theme="dark" className={tipStyles.tip} style={place} hidden={!shown}>
+      {why}
+    </span>
+  );
   return (
     <>
       <button
@@ -83,11 +90,7 @@ export function IconBtn({ icon, label, size = 'md', shape, pressed, shortcut, ex
       >
         <Icon name={icon} size={size === 'xs' ? 12 : size === 'sm' || shape === 'round' ? 14 : 16} />
       </button>
-      {why && (
-        <span ref={tipEl} id={tipId} role="tooltip" data-theme="dark" className={tipStyles.tip} style={place} hidden={!shown}>
-          {why}
-        </span>
-      )}
+      {why && (shown ? createPortal(whyEl, document.body) : whyEl)}
     </>
   );
 }
