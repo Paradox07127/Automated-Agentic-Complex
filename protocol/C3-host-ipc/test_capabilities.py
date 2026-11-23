@@ -10,7 +10,7 @@ TABLE = json.loads((HERE / 'capabilities.json').read_text(encoding='utf-8'))
 PRIVATE = ROOT / 'private'
 EFW = PRIVATE / 'renderer' / 'windows' / 'src'
 MAC_LINK = PRIVATE / 'renderer' / 'host' / 'Sources' / 'NativeHostBridge' / 'Link.m'
-NO_PRIVATE = 'private/ is not in this checkout; the renderer sources are not compared'
+NO_PRIVATE = 'the renderer sources are not in this checkout; they are not compared'
 
 
 def strings(text, quote='"'):

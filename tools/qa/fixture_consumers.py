@@ -3,8 +3,8 @@
 Usage: fixture_consumers.py [<repo>]
 A test file refers to protocol/<contract>/<dir> when <dir> follows <contract> after at most 8 separator characters
 ("C1-agent-events/fixtures", "C1-agent-events" / "fixtures"), or when it names <contract> and holds the string
-literal "<dir>" (C12 / 'examples'). A pair in KNOWN_GAPS passes; without private/ (a public checkout) the pairs of a
-host whose test code is all under private/ are skipped. Prints each missing pair, then FIXTURE-CONSUMERS PASS or FAIL;
+literal "<dir>" (C12 / 'examples'). A pair in KNOWN_GAPS passes; without the renderer sources (a public checkout) the
+pairs of a host whose test code is all in them are skipped. Prints each missing pair, then FIXTURE-CONSUMERS PASS or FAIL;
 exits 1 on a missing pair.
 """
 import re
@@ -68,7 +68,7 @@ def check(root):
     missing, stale, skipped = [], [], 0
     for directory, hosts in CONSUMERS.items():
         for host in hosts:
-            if public and all(p.startswith('private/') for p in HOSTS[host]):
+            if public and all(p.startswith('private/renderer') for p in HOSTS[host]):
                 skipped += 1
                 continue
             found = any(refers(p.read_text(encoding='utf-8', errors='replace'), directory) for p in test_files(root, host))
@@ -88,7 +88,7 @@ def main(argv):
         print(f'{directory}: {host} consumes it now; remove the pair from KNOWN_GAPS')
     pairs = sum(len(hosts) for hosts in CONSUMERS.values())
     print(f'FIXTURE-CONSUMERS {"FAIL" if missing else "PASS"}: {pairs} pairs, {len(missing)} missing, '
-          f'{len(KNOWN_GAPS)} known gaps, {skipped} skipped without private/')
+          f'{len(KNOWN_GAPS)} known gaps, {skipped} skipped without the renderer sources')
     return 1 if missing else 0
 
 
