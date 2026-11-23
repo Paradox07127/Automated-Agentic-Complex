@@ -170,6 +170,15 @@ describe('onboarding page', () => {
     expect(step()).toBe('4');
   });
 
+  it('waits for the guide state on the shared indeterminate LoadBar', async () => {
+    install({ state: () => new Promise<OnboardingState>(() => {}) });
+    mount();
+    expect(await screen.findByText('正在读取首次设置…')).toBeTruthy();
+    const load = document.querySelector('[data-stub="LoadBar"]');
+    expect(load?.hasAttribute('data-indeterminate')).toBe(true);
+    expect(load?.getAttribute('aria-valuenow')).toBeNull();
+  });
+
   it('reads an unreadable guide as an error with retry', async () => {
     let fail = true;
     install({

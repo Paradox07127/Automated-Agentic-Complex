@@ -1,4 +1,4 @@
-/* Loading bar: a 15 px grey tip over a 2.5 px track, its end cap, and the loading icon turning at the right end. */
+/* Loading: a 15 px grey tip over the shared LoadBar. */
 .loading {
   display: flex;
   flex-direction: column;
@@ -10,51 +10,4 @@
   color: var(--ef-text-2);
   font: var(--ef-fw-regular) 15px / 1.6 var(--ef-font-sans);
   letter-spacing: -0.025em;
-}
-
-.track {
-  position: relative;
-  display: block;
-  height: 2.5px;
-  margin-right: 34px;
-  background: var(--ef-line-strong);
-}
-
-.cap {
-  position: absolute;
-  top: -1.25px;
-  right: -9px;
-  width: 6px;
-  height: 5px;
-  border: solid var(--ef-text-1);
-  border-width: 0 1.5px;
-}
-
-.spin {
-  position: absolute;
-  top: -7.5px;
-  right: -32px;
-  width: 15px;
-  height: 15px;
-  border: 1.5px solid var(--ef-text-1);
-  border-radius: 50%;
-  background: conic-gradient(var(--ef-text-1) 0 50%, transparent 0);
-  animation: spin var(--ef-dur-g-spin) linear infinite;
-}
-
-@keyframes spin {
-  to {
-    rotate: 360deg;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .spin {
-    animation: none;
-  }
-}
-
-:global(.still) .spin,
-:global([data-reduce-motion]) .spin {
-  animation: none;
 }

@@ -1,21 +1,8 @@
 /* The guide window: the main window's dark command bar and tri-colour line, the settings page's wall, the step, the action bar. */
 .root {
-  --onb-ground: #151613;
-  --onb-ghost: rgb(255 255 255 / 0.16);
-  --onb-frame: rgb(23 23 23 / 0.5);
-  --onb-frame-rim: rgb(255 255 255 / 0.12);
-  --onb-contour-o: 0.06;
-
   height: 100dvh;
   overflow: hidden;
-  background: var(--onb-ground);
-}
-
-:global([data-theme='light']) .root {
-  --onb-ground: #dcdbd6;
-  --onb-ghost: rgb(0 0 0 / 0.14);
-  --onb-frame: rgb(255 255 255 / 0.38);
-  --onb-frame-rim: rgb(0 0 0 / 0.12);
+  background: var(--ef-band);
 }
 
 .win {
@@ -36,8 +23,8 @@
   gap: 12px;
   height: 50px;
   padding: 0 20px 0 max(20px, var(--ef-chrome-left, 0px));
-  background: #161616;
-  color: #ededed;
+  background: var(--ef-canvas);
+  color: var(--ef-text-1);
   white-space: nowrap;
   -webkit-app-region: drag;
 }
@@ -60,12 +47,7 @@
   align-self: flex-start;
   height: 56px;
   padding: 0 16px;
-  background: repeating-linear-gradient(-45deg, rgb(250 249 249 / 0.15) 0 1px, transparent 1px 5px) top / 100% 50px no-repeat;
-}
-
-/* Q and E clear the yellow block that hangs 13 px past the first and last cell. */
-.plate [role='tablist'] > span[aria-hidden='true'] {
-  margin: 0 18px;
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ef-tabpc-bar) 30%, transparent) 0 1px, transparent 1px 5px) top / 100% 50px no-repeat;
 }
 
 .rt {
@@ -103,8 +85,8 @@
   right: -60px;
   width: 900px;
   height: 700px;
-  background: var(--onb-contour) no-repeat;
-  opacity: var(--onb-contour-o);
+  background: var(--guide-contour) no-repeat;
+  opacity: 0.06;
   pointer-events: none;
 }
 
@@ -135,14 +117,14 @@
 .hint {
   min-width: 0;
   overflow: hidden;
-  color: #b3b3b0;
+  color: var(--ef-text-2);
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .hint[data-tone='bad'] {
-  color: #ff8a7a;
+  color: var(--ef-danger-text);
 }
 
 /* The smallest window: the step card folds to one line above the frame. */
@@ -163,10 +145,5 @@
 
   .lamp [data-stub='StatusLamp'] > :last-child {
     display: none;
-  }
-
-  .plate [role='tab'][data-icon] {
-    min-width: 48px;
-    padding: 0 9px;
   }
 }

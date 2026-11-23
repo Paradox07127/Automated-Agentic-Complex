@@ -61,7 +61,7 @@
   position: absolute;
   bottom: 5px;
   left: 6px;
-  color: #fff;
+  color: var(--ef-text-1);
 }
 
 .rc[aria-checked='true'] .art {
@@ -145,15 +145,19 @@
   position: relative;
   height: 400px;
   overflow: hidden;
-  background: var(--onb-frame);
-  box-shadow: inset 0 0 0 1px var(--onb-frame-rim);
+  background: var(--ef-g-guide-frame);
+  box-shadow: inset 0 0 0 1px var(--ef-plate-rim);
+}
+
+:global([data-theme='light']) .desk {
+  background: color-mix(in srgb, var(--ef-plate-top) 38%, transparent);
 }
 
 .wm {
   position: absolute;
   top: 6px;
   left: 18px;
-  color: var(--onb-ghost);
+  color: color-mix(in srgb, var(--ef-text-1) 16%, transparent);
   font: 800 92px / 1 var(--ef-font-sans);
   letter-spacing: -0.02em;
   white-space: nowrap;

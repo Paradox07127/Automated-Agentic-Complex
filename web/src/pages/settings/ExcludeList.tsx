@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Btn, IconBtn, Select, Switch } from '../../ui';
+import { Btn, Fold, IconBtn, Select, Switch } from '../../ui';
 import { GameSeg } from '../../ui/game';
 import { Field } from './kit';
 import { AllowList } from './AllowList';
@@ -21,8 +21,9 @@ const MODE: Array<{ value: WireBlacklist['mode']; label: string }> = [
   { value: 'allow', label: '只读名单里的' },
   { value: 'deny', label: '名单外都读' },
 ];
-/** Chips shown before「全部 N 项」. */
+/** Chips shown before the fold; the fold takes the rest only when they are more than 3. */
 const FOLD = 8;
+const FLAT = 3;
 
 /** 不看的应用和网站: agentd's blacklist; adding can also delete what it already recorded from those windows. */
 export function ExcludeList() {
@@ -31,11 +32,11 @@ export function ExcludeList() {
   const [field, setField] = useState<BlacklistField>('app_names');
   const [value, setValue] = useState('');
   const [purge, setPurge] = useState(false);
-  const [all, setAll] = useState(false);
   const fail = (what: string) => (e: unknown) => model.notify({ message: `${what}：${failure(e).text}`, severity: 'danger', persistent: true });
 
   const entries = blacklist ? FIELD.flatMap((f) => blacklist[f.value].map((v) => ({ field: f.value, value: v }))) : [];
-  const shown = all ? entries : entries.slice(0, FOLD);
+  const shown = entries.length > FOLD + FLAT ? entries.slice(0, FOLD) : entries;
+  const rest = entries.slice(shown.length);
   const add = () => {
     const v = value.trim();
     if (!v) return;
@@ -79,19 +80,25 @@ export function ExcludeList() {
     }, fail('没能切换读取方式'));
   const modeSeg = <GameSeg variant="setting" label="读取方式" value={blacklist?.mode ?? ''} options={MODE} disabled={ro || blacklist == null} onChange={setMode} />;
 
+  const chip = (x: { field: BlacklistField; value: string }) => (
+    <span key={`${x.field}:${x.value}`} className={styles.xchip}>
+      {PREFIX[x.field]} │ {x.value}
+      <IconBtn icon="close" size="sm" label={`移除 ${x.value}`} disabled={ro} onClick={() => remove(x.field, x.value)} />
+    </span>
+  );
+
   if (blacklist?.mode === 'allow') return <AllowList right={modeSeg} />;
   return (
     <Slab id="exclude" title={labelOf('exclude')} desc={blacklist?.incognito ? '不读取、不外发；无痕窗口一律不看' : '不读取、不外发'} right={modeSeg}>
       <div className={styles.chips}>
         {blacklist == null && <span className={styles.t2}>—</span>}
-        {shown.map((x) => (
-          <span key={`${x.field}:${x.value}`} className={styles.xchip}>
-            {PREFIX[x.field]} │ {x.value}
-            <IconBtn icon="close" size="sm" label={`移除 ${x.value}`} disabled={ro} onClick={() => remove(x.field, x.value)} />
-          </span>
-        ))}
-        {entries.length > FOLD && <Btn variant="link" onClick={() => setAll(!all)}>{all ? '收起' : `全部 ${entries.length} 项`}</Btn>}
+        {shown.map(chip)}
       </div>
+      {rest.length > 0 && (
+        <Fold id="exclude-rest" label="其余" count={rest.length} summary={rest.map((x) => x.value).join('、')}>
+          <div className={styles.chips}>{rest.map(chip)}</div>
+        </Fold>
+      )}
       <div className={styles.chips}>
         <Select label="排除类型" value={field} width={120} options={FIELD.map((f) => ({ value: f.value, label: f.label }))} disabled={ro} onChange={(v) => setField(v as BlacklistField)} />
         <Field

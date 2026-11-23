@@ -87,7 +87,7 @@ export function StepChar({ o }: { o: Onboarding }) {
               <button key={r.id} type="button" role="radio" aria-checked={r.active} className={styles.rc} onClick={() => !r.active && o.pick(r.id)}>
                 <span className={styles.art}>
                   <CharacterArt src={r.head} kind="head" w={104} h={136} fallback={<DrawnHead id={r.id} />} />
-                  <span className={styles.en} aria-hidden="true">
+                  <span className={styles.en} data-theme="dark" aria-hidden="true">
                     <MicroLabel>{r.en}</MicroLabel>
                   </span>
                   {r.active && (

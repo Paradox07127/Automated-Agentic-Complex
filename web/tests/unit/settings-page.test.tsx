@@ -132,6 +132,8 @@ describe(' states and navigation', () => {
     const head = sec.querySelector(':scope > [data-stub="SecHead"]') as HTMLElement;
     expect(head.querySelector('h3')?.textContent).toBe('保留');
     expect(within(head).getByRole('tooltip', { hidden: true }).textContent).toBe(groupDesc('data'));
+    // SecHead `info`: the ⓘ follows the title, not the rule's right end.
+    expect(head.querySelector('h3')?.nextElementSibling?.getAttribute('data-stub')).toBe('InfoTip');
     expect(screen.queryByRole('heading', { name: '数据' })).toBeNull();
   });
 

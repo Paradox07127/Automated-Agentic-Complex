@@ -84,7 +84,14 @@ export function Band({ plugin, fold, children }: BandProps) {
           {c.toggle(id, labelOf(id), !native, '还没读到设置')}
         </div>
       </div>
-      {on ? children : fold && <div className={band.fold}>关着 │ 打开后可以设：{fold}</div>}
+      {on
+        ? children
+        : fold && (
+            <div className={band.fold}>
+              关着 │ 打开后可以设：{fold}
+              <span className={band.lost}>│ 少了：{b.does}</span>
+            </div>
+          )}
     </>
   );
 }

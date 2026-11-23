@@ -13,7 +13,7 @@
   color: transparent;
   font: 800 132px / 0.8 var(--ef-font-num);
   letter-spacing: -0.02em;
-  -webkit-text-stroke: 1.5px var(--onb-ghost);
+  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--ef-text-1) 16%, transparent);
   user-select: none;
 }
 
@@ -31,7 +31,7 @@
 .rec {
   padding: 0 3px;
   background: var(--ef-text-2);
-  color: var(--onb-ground);
+  color: var(--ef-band);
   font: 700 9px / 11px var(--ef-font-num);
   letter-spacing: 0.1em;
 }
@@ -100,7 +100,7 @@
 .tag[data-k='must'] {
   background: var(--ef-text-1);
   box-shadow: none;
-  color: var(--onb-ground);
+  color: var(--ef-band);
   font-weight: 600;
 }
 

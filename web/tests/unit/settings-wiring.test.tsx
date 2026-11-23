@@ -427,6 +427,32 @@ describe('隐私 and 数据 through agentd', () => {
     expect(screen.getByTestId('toast').textContent).toBe('已添加「Xcode」');
   });
 
+  it('folds the chips past the first 8 into a Fold, and lays out 3 or fewer without a toggle', async () => {
+    const apps = (n: number) => Array.from({ length: n }, (_, i) => `应用${i + 1}`);
+    const list = (n: number): WireBlacklist => ({ ...d.blacklist, mode: 'deny', app_names: apps(n), bundle_ids: [], domains: [], title_patterns: [] });
+    render(<Harness d={{ ...d, blacklist: list(12) }}><SeeGroup /></Harness>);
+    expect(screen.queryByRole('button', { name: /全部 \d+ 项/ })).toBeNull();
+    const fold = screen.getByRole('button', { name: /其余/ });
+    expect(fold.getAttribute('aria-expanded')).toBe('false');
+    expect(fold.textContent).toContain('4');
+    expect(screen.getByText(/应用 │ 应用8/)).toBeTruthy();
+    expect(screen.queryByText(/应用 │ 应用9/)).toBeNull();
+    await click(fold);
+    expect(screen.getByText(/应用 │ 应用12/)).toBeTruthy();
+    cleanup();
+    render(<Harness d={{ ...d, blacklist: list(11) }}><SeeGroup /></Harness>);
+    expect(screen.queryByRole('button', { name: /其余/ })).toBeNull();
+    expect(screen.getByText(/应用 │ 应用11/)).toBeTruthy();
+  });
+
+  it('folds the allow list past the first 8 the same way', async () => {
+    const allow = { bundle_ids: [], app_names: Array.from({ length: 10 }, (_, i) => `应用${i + 1}`), domains: [] };
+    render(<Harness d={{ ...d, blacklist: { ...d.blacklist, mode: 'allow', allow } }}><SeeGroup /></Harness>);
+    expect(screen.queryByRole('button', { name: /全部 \d+ 项/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /其余/ })).toBeNull();
+    expect(screen.getByText(/应用 │ 应用10/)).toBeTruthy();
+  });
+
   it('says nothing is read in allow mode with an empty allow list', () => {
     const blacklist: WireBlacklist = { ...d.blacklist, mode: 'allow', allow: { bundle_ids: [], app_names: [], domains: [] } };
     render(<Harness d={{ ...d, blacklist }}><SeeGroup /></Harness>);
@@ -706,6 +732,8 @@ describe('账号 under 和她对话', () => {
     setPlugins({ 'plugins.light_ai': false });
     render(<Harness d={d}><ModelGroup /></Harness>);
     expect(screen.getByText(/关着 │ 打开后可以设：模型服务、账号、默认模型、测试连接/)).toBeTruthy();
+    // The folded line also says what is gone while it is off: the band's own 做 line.
+    expect(screen.getByText(/关着 │ 打开后可以设/).textContent).toContain('少了：聊天、记得聊过的事、主动搭话');
     expect(document.querySelector('[data-row="svc"]')).toBeNull();
     expect(screen.queryByRole('region', { name: '默认模型' })).toBeNull();
   });

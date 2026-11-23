@@ -84,6 +84,13 @@
   font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-sans);
 }
 
+/* What the capability's absence takes away: its 做 line, which the narrow band hides. */
+.lost {
+  min-width: 0;
+  color: var(--ef-text-3);
+  font-weight: var(--ef-fw-regular);
+}
+
 @keyframes cellIn {
   from {
     opacity: 0;

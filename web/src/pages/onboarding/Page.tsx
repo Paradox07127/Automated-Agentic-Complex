@@ -2,7 +2,7 @@ import { useRef, useState, type CSSProperties } from 'react';
 import type { OnboardingDestination, OnboardingStep } from '../../bridge';
 import { navigate } from '../../shell/nav';
 import { toast } from '../../shell/toast';
-import { Btn, ErrBar, Tabs } from '../../ui';
+import { Btn, ErrBar, InfoTip, Tabs } from '../../ui';
 import { ActionBar, MicroLabel, StatusLamp, YellowKey } from '../../ui/game';
 import { SettingsCtx } from '../settings/ctx';
 import { SettingsOverlays } from '../settings/SettingsOverlays';
@@ -136,7 +136,7 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
   return (
     <div ref={root} className={styles.root} data-page="onboarding" data-step={s ? step : undefined} role="region" aria-label={`首次设置 │ ${s && step === 4 ? '完成' : C.title}`}>
       <div className={page.page}>
-        <div className={page.wall} data-g="blur" aria-hidden="true" />
+        <div className={page.wall} data-g="blur" data-theme="dark" aria-hidden="true" />
         <div className={styles.win}>
           <header className={styles.cmd} data-theme="dark">
             <span className={styles.brand}>
@@ -164,7 +164,7 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
             </span>
           </header>
           <i className={styles.tri} aria-hidden="true" />
-          <div className={styles.stage} style={{ '--onb-contour': (contour ??= contourUrl(900, 700, 3.4)) } as CSSProperties}>
+          <div className={styles.stage} style={{ '--guide-contour': (contour ??= contourUrl(900, 700, 3.4)) } as CSSProperties}>
             <div key={at} ref={media} className={styles.view}>
               <MediaIn root={media} turned={shown.turned} />
               {body}
@@ -181,9 +181,13 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
                   </Btn>
                 )}
                 {error && (
-                  <span className={styles.hint} data-g="hint" data-tone="bad" role="alert" title={error}>
-                    {error}
-                  </span>
+                  <>
+                    <span className={styles.hint} data-g="hint" data-tone="bad" role="alert">
+                      {error}
+                    </span>
+                    {/* The line is cut short in a narrow bar; the ⓘ holds all of it. */}
+                    <InfoTip>{error}</InfoTip>
+                  </>
                 )}
               </>
             }

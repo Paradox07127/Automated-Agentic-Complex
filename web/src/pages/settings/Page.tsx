@@ -258,7 +258,7 @@ function SettingsBody() {
   return (
     <SettingsCtx.Provider value={ctx}>
       <div ref={page} className={styles.page} data-group={group} data-demo={demo ?? undefined}>
-        <div className={styles.wall} aria-hidden="true" />
+        <div className={styles.wall} data-theme="dark" aria-hidden="true" />
         <PageHeaderSlot
           sub={results ? '搜索' : undefined}
           tabs={<SetNav group={group} searching={!!results} marks={marks} drafts={drafts} onGroup={goGroup} />}
