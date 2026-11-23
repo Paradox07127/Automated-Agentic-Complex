@@ -23,7 +23,7 @@ function rotate(path: string): void {
   } catch { /* gone meanwhile, or not ours to rotate */ }
 }
 
-/** Each `.log` and error.jsonl of `<supportDir>/logs` past LOG_ROTATE_BYTES, including the ones children hold open. */
+/** Each `.log`, error.jsonl and agentd-error.jsonl of `<supportDir>/logs` past LOG_ROTATE_BYTES, including the ones children hold open. */
 export function rotateLogs(supportDir: string): void {
   rotationChecked.set(supportDir, Date.now());
   const logs = join(supportDir, 'logs');
@@ -33,7 +33,7 @@ export function rotateLogs(supportDir: string): void {
   } catch {
     return;
   }
-  for (const name of names) if (name.endsWith('.log') || name === 'error.jsonl') rotate(join(logs, name));
+  for (const name of names) if (name.endsWith('.log') || name.endsWith('error.jsonl')) rotate(join(logs, name));
 }
 
 /** Once per support dir: the directories 0700, every log 0600, a `.log` over 20 MiB moved to `.log.1`. */

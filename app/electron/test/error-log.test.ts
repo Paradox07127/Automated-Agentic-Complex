@@ -107,6 +107,8 @@ test('a log passing 20 MiB while the shell runs moves to .1: companion.log at it
       writeSync(fd, 'old\n');
       truncateSync(join(logs, 'avatar.log'), LOG_ROTATE_BYTES + 1);
       writeFileSync(join(logs, 'helper.log'), 'small\n');
+      writeFileSync(join(logs, 'agentd-error.jsonl'), '');
+      truncateSync(join(logs, 'agentd-error.jsonl'), LOG_ROTATE_BYTES + 1);
       rotateLogs(dir);
       writeSync(fd, 'new\n');
     } finally {
@@ -116,6 +118,8 @@ test('a log passing 20 MiB while the shell runs moves to .1: companion.log at it
     assert.ok(readFileSync(join(logs, 'avatar.log.1')).subarray(0, 4).equals(Buffer.from('old\n')));
     assert.equal(readFileSync(join(logs, 'helper.log'), 'utf8'), 'small\n');
     assert.equal(existsSync(join(logs, 'helper.log.1')), false);
+    // agentd writes its own agentd-error.jsonl in the same envelope.
+    assert.equal(statSync(join(logs, 'agentd-error.jsonl')).size, 0);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
