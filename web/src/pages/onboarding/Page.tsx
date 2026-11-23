@@ -2,10 +2,9 @@ import { useRef, useState, type CSSProperties } from 'react';
 import type { OnboardingDestination, OnboardingStep } from '../../bridge';
 import { navigate } from '../../shell/nav';
 import { toast } from '../../shell/toast';
-import { ErrBar, Tabs } from '../../ui';
+import { Btn, ErrBar, Tabs } from '../../ui';
 import { ActionBar, MicroLabel, StatusLamp, YellowKey } from '../../ui/game';
 import { SettingsCtx } from '../settings/ctx';
-import { Cap } from '../settings/kit';
 import { SettingsOverlays } from '../settings/SettingsOverlays';
 import page from '../settings/Page.module.css';
 import { Loading } from './Bits';
@@ -109,12 +108,12 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
   );
   let right = null;
   if (live && step === 1) right = roster > 0 ? next('') : <>
-      <Cap onClick={() => advance(true)}>先不导入</Cap>
+      <Btn onClick={() => advance(true)}>先不导入</Btn>
       {next('先导入一个角色包，或点「先不导入」')}
     </>;
   if (live && step === 2)
     right = chatReady ? next('') : <>
-      <Cap onClick={() => advance(true)}>稍后再连</Cap>
+      <Btn onClick={() => advance(true)}>稍后再连</Btn>
       {next('先连上账号并测试通过，或点「稍后再连」')}
     </>;
   if (live && step === 3) right = next('');
@@ -122,9 +121,9 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
     const talk = g.talks && g.test.state === 'ok';
     right = (
       <>
-        <Cap go disabled={o.busy !== null} onClick={() => complete('home')}>
+        <Btn go disabled={o.busy !== null} onClick={() => complete('home')}>
           打开主窗口
-        </Cap>
+        </Btn>
         <Primary>
           <YellowKey label={talk ? '和她聊几句' : '完成'} micro={talk ? 'Talk' : 'Done'} icon={talk ? 'g-chat' : 'check'} busy={o.busy === 'complete'} onClick={() => complete(talk ? 'talk' : undefined)} />
         </Primary>
@@ -159,9 +158,9 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
               <span className={styles.lamp} title="后台服务">
                 <StatusLamp state={lamp[0]} label={lamp[1]} onDark />
               </span>
-              <Cap disabled={!live} onClick={askSkip}>
+              <Btn disabled={!live} onClick={askSkip}>
                 跳过引导
-              </Cap>
+              </Btn>
             </span>
           </header>
           <i className={styles.tri} aria-hidden="true" />
@@ -177,9 +176,9 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
             left={
               <>
                 {live && step > 1 && (
-                  <Cap label="上一步" disabled={o.busy !== null} onClick={back}>
+                  <Btn label="上一步" disabled={o.busy !== null} onClick={back}>
                     ‹ 上一步
-                  </Cap>
+                  </Btn>
                 )}
                 {error && (
                   <span className={styles.hint} data-g="hint" data-tone="bad" role="alert" title={error}>

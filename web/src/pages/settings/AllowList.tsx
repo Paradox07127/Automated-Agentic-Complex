@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { IconBtn, Select } from '../../ui';
-import { Cap, Field, Lnk } from './kit';
+import { Btn, IconBtn, Select } from '../../ui';
+import { Field } from './kit';
 import { addAllow, failure, removeAllow } from './api';
 import { useSettings } from './ctx';
 import { Slab } from './Slab';
@@ -52,7 +52,7 @@ export function AllowList({ right }: { right: ReactNode }) {
             <IconBtn icon="close" size="sm" label={`移除 ${x.value}`} disabled={ro} onClick={() => remove(x.field, x.value)} />
           </span>
         ))}
-        {entries.length > FOLD && <Lnk onClick={() => setAll(!all)}>{all ? '收起' : `全部 ${entries.length} 项`}</Lnk>}
+        {entries.length > FOLD && <Btn variant="link" onClick={() => setAll(!all)}>{all ? '收起' : `全部 ${entries.length} 项`}</Btn>}
       </div>
       <div className={styles.chips}>
         <Select label="读取类型" value={field} width={120} options={FIELD.map((f) => ({ value: f.value, label: f.label }))} disabled={ro} onChange={(v) => setField(v as AllowField)} />
@@ -64,9 +64,9 @@ export function AllowList({ right }: { right: ReactNode }) {
           onChange={(e) => setValue(e.currentTarget.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
-        <Cap disabled={ro || !value.trim()} onClick={add}>
+        <Btn disabled={ro || !value.trim()} onClick={add}>
           添加
-        </Cap>
+        </Btn>
       </div>
     </Slab>
   );

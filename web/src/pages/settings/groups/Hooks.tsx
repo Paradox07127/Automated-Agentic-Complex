@@ -5,7 +5,8 @@ import { formatAgo } from '../../../domain/time';
 import { clock, disconnectHooks, failure } from '../api';
 import { useSettings } from '../ctx';
 import type { Hook } from '../diag';
-import { Cap, St } from '../kit';
+import { Btn } from '../../../ui';
+import { St } from '../kit';
 import { SetRow } from '../SetRow';
 import { runInTerminal } from '../terminal';
 import styles from '../groups.module.css';
@@ -104,8 +105,8 @@ export function HookRows() {
             control={
               <>
                 {h && tag(h)}
-                {h?.installed && <Cap onClick={() => unbind(id, name)}>解绑</Cap>}
-                <Cap onClick={() => reload('diag')}>重新检测</Cap>
+                {h?.installed && <Btn onClick={() => unbind(id, name)}>解绑</Btn>}
+                <Btn onClick={() => reload('diag')}>重新检测</Btn>
               </>
             }
           >
@@ -118,11 +119,11 @@ export function HookRows() {
                       {i + 1}. {s.label}
                     </span>
                     {s.terminal ? (
-                      <Cap go disabled={ro || !s.command} onClick={() => run(s)}>
+                      <Btn go disabled={ro || !s.command} onClick={() => run(s)}>
                         在终端运行
-                      </Cap>
+                      </Btn>
                     ) : (
-                      <Cap onClick={() => copy(s)}>复制</Cap>
+                      <Btn onClick={() => copy(s)}>复制</Btn>
                     )}
                   </li>
                 ))}

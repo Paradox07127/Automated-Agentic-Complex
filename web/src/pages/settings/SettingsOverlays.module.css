@@ -1,11 +1,11 @@
-/* White paper card: decisions only. The veil blurs the page; the card is paper in both themes. */
+/* White paper card: decisions only. The veil blurs the page; the card is paper in both themes (it carries data-theme=light, so the tokens read their light values). */
 .veil {
   position: fixed;
   inset: 0;
   z-index: var(--ef-z-modal);
   display: grid;
   place-items: center;
-  background: rgb(0 0 0 / 0.5);
+  background: var(--ef-scrim-popup);
   backdrop-filter: blur(3px);
   animation: fade 200ms var(--ef-ease-g-fade) both;
 }
@@ -18,9 +18,9 @@
   max-height: calc(100% - 32px);
   overflow: auto;
   padding: 24px 24px 18px;
-  background: linear-gradient(180deg, #faf9f7, #f2f1ef);
+  background: var(--ef-paper);
   box-shadow: var(--ef-shadow-card);
-  color: #1f1f1f;
+  color: var(--ef-paper-text);
   animation: popIn 300ms var(--ef-ease-g-enter) both;
 }
 
@@ -36,7 +36,7 @@
   right: 0;
   left: 0;
   height: 5px;
-  background: repeating-linear-gradient(115deg, #161616 0 6px, var(--ef-danger-vivid) 6px 12px);
+  background: repeating-linear-gradient(115deg, var(--ef-on-accent) 0 6px, var(--ef-danger-vivid) 6px 12px);
 }
 
 .title {
@@ -49,7 +49,7 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  color: #b3261e;
+  color: var(--ef-danger-text);
   font-size: 13px;
   font-weight: 600;
 }
@@ -60,20 +60,20 @@
   height: 0;
   border: 6px solid transparent;
   border-top: 0;
-  border-bottom: 10px solid #e0303b;
+  border-bottom: 10px solid var(--ef-danger-vivid);
 }
 
 .list {
   margin: 0;
   padding: 10px 12px 10px 28px;
-  border-left: 3px solid #161616;
-  background: rgb(0 0 0 / 0.05);
+  border-left: 3px solid var(--ef-on-accent);
+  background: var(--ef-step-bg);
   font-size: 13px;
   line-height: 20px;
 }
 
 .note {
-  color: #5c5b5b;
+  color: var(--ef-paper-text-2);
   font-size: 13px;
   line-height: 20px;
 }
@@ -87,9 +87,9 @@
 .input {
   height: 32px;
   padding: 0 10px;
-  border: 1px solid rgb(0 0 0 / 0.3);
-  background: #fff;
-  color: #1f1f1f;
+  border: 1px solid var(--ef-field-border);
+  background: var(--ef-raised);
+  color: var(--ef-paper-text);
   font: inherit;
 }
 

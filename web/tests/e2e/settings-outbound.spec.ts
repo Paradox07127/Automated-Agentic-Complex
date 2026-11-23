@@ -52,8 +52,9 @@ test('kernel drafts show one bottom bar with the only primary button', async ({ 
   const bar = page.getByRole('region', { name: '未应用的改动' });
   await expect(bar).toBeInViewport();
   await expect(bar).toContainText('未应用 2 项');
-  // The yellow capsule is the view's one main button.
-  await expect(page.locator('main button[data-tone="acc"]')).toHaveCount(1);
+  // 应用, in the shell's bottom bar, is the view's one primary button.
+  await expect(page.locator('[data-stub="Btn"][data-variant="primary"]')).toHaveCount(1);
+  await expect(bar.locator('[data-stub="Btn"][data-variant="primary"]')).toHaveText('应用');
   await bar.getByRole('button', { name: '撤销' }).click();
   await expect(bar).toHaveCount(0);
   await expect(page.getByRole('region', { name: '改动怎么生效' })).toContainText('改动立即生效');

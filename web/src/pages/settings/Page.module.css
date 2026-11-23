@@ -1,77 +1,15 @@
-/* The page: a blurred wall behind one scrolling list column (max 1180) and the bottom bar. The --s-* set colours every settings part in both themes. */
+/* The page: a blurred wall behind one scrolling list column (max 1180); its actions sit in the shell's bottom bar. Colours are tokens. */
 .page {
   --cw: 330px;
-  --s-t1: #f2f2f0;
-  --s-t2: #b3b3b0;
-  --s-t3: #8e8e8a;
-  /* Row plate: bg_common_r2_p2_02 white@.4 over the dark ground, a 1 px lighter rim. */
-  --s-plate: rgb(255 255 255 / 0.105);
-  --s-plate-hi: rgb(255 255 255 / 0.15);
-  --s-rim: rgb(255 255 255 / 0.2);
-  --s-rim-hi: rgb(255 255 255 / 0.28);
-  --s-tex: rgb(255 255 255 / 0.15);
-  --s-rule: rgb(255 255 255 / 0.4);
-  --s-band: rgb(84 84 84 / 0.32);
-  --s-sec-t: var(--ef-set-title);
-  --s-sec-bar: var(--ef-accent);
-  --s-track: #626262;
-  --s-track-t: rgb(255 255 255 / 0.78);
-  --s-knob: #f2f1ef;
-  --s-knob-t: #444;
-  --s-field-ring: rgb(0 0 0 / 0.5);
-  --s-dis-plate: rgb(255 255 255 / 0.12);
-  --s-dis-ic: #ff8080;
-  --s-ok: #b4d845;
-  --s-warn: #ffcb00;
-  --s-bad: #ff8a7a;
-  --s-chip: rgb(255 255 255 / 0.07);
-  --s-key: rgb(255 255 255 / 0.1);
-  --s-key-rim: rgb(224 224 224 / 0.35);
-  --s-mission: #8ddcff;
-  --s-bg0: #0d110e;
-  --s-shadow: rgb(0 0 0 / 0.55);
-  --s-contour: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='60' fill='none' stroke='%23fff' stroke-opacity='.22' stroke-width='.8'%3E%3Cpath d='M0 46c30-4 44-24 78-22s40 22 74 18 44-30 80-28 46 16 80 10 30-12 48-12'/%3E%3Cpath d='M0 52c34-4 48-20 80-18s42 20 74 16 46-28 82-26 44 14 78 8 32-10 46-10'/%3E%3Cpath d='M0 58c36-2 52-16 84-14s44 18 74 14 48-24 84-22 42 12 74 6 34-8 44-8'/%3E%3Cpath d='M24 0c6 10 22 14 34 8s24-6 30 4'/%3E%3Cpath d='M30 0c6 6 18 8 26 4s20-2 24 6'/%3E%3Cpath d='M190 60c4-10 20-14 32-10s22 2 30-6'/%3E%3C/svg%3E");
   container: setp / inline-size;
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  color: var(--s-t1);
-}
-
-/* Light theme (ours): paper ground, light plates, dark ink; the section bar and title take the ink, since yellow fails 3:1 there. */
-:global([data-theme='light']) .page {
-  --s-t1: #1a1a1a;
-  --s-t2: #4f4f4d;
-  --s-t3: #6e6e6b;
-  --s-plate: rgb(255 255 255 / 0.62);
-  --s-plate-hi: rgb(255 255 255 / 0.85);
-  --s-rim: rgb(0 0 0 / 0.14);
-  --s-rim-hi: rgb(255 255 255 / 0.9);
-  --s-tex: rgb(0 0 0 / 0.1);
-  --s-rule: rgb(0 0 0 / 0.32);
-  --s-band: rgb(0 0 0 / 0.06);
-  --s-sec-t: #1a1a1a;
-  --s-sec-bar: #161616;
-  --s-track: #cfceca;
-  --s-track-t: #3a3a3a;
-  --s-knob: #2c2d2f;
-  --s-knob-t: #f4f4f2;
-  --s-field-ring: rgb(0 0 0 / 0.28);
-  --s-dis-plate: rgb(0 0 0 / 0.06);
-  --s-dis-ic: #c0392b;
-  --s-ok: #2f6f1f;
-  --s-warn: #8a5a00;
-  --s-bad: #c42b2b;
-  --s-chip: rgb(255 255 255 / 0.7);
-  --s-key: rgb(255 255 255 / 0.7);
-  --s-key-rim: rgb(0 0 0 / 0.25);
-  --s-mission: #0076aa;
-  --s-bg0: #d9d8d3;
-  --s-shadow: rgb(0 0 0 / 0.16);
+  color: var(--ef-text-1);
 }
 
 /* FullScreenBlurUI: colour blots blurred behind the panel, and faint scan lines. */
@@ -107,33 +45,20 @@
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  scrollbar-color: var(--s-t3) transparent;
+  scrollbar-color: var(--ef-text-3) transparent;
   scrollbar-width: thin;
 }
 
+/* The page frame: 24 px page margin, 16 above the first section, 32 under the last. */
 .inner {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 14px 40px 28px 52px;
-}
-
-.roNote {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 8px 0 0;
-}
-
-@container setp (max-width: 1180px) {
-  .inner {
-    padding: 4px 24px 20px 36px;
-  }
+  padding: var(--ef-sp-16) var(--ef-space-page) var(--ef-sp-32);
 }
 
 /* The smallest window (925×515): a 230 control column, the descriptions folded into ⓘ. */
 @container setp (max-width: 1040px) {
   .inner {
     --cw: 230px;
-    padding: 8px 16px 16px 26px;
   }
 }

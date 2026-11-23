@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Select } from '../../../ui';
+import { Btn, Select } from '../../../ui';
+import { usePlugins } from '../../../shell/plugins';
 import { failure, readCatalog, saveModels, testModels } from '../api';
+import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { COMPATIBLE_THINKING, isLoopback, keyOptions, listsOwnModels, modelCaps, modelTestText, SVC, thinkOptions, tokens, type Opt } from '../fields';
 import { groupDesc } from '../groups';
-import { Cap, Field, Masked, St } from '../kit';
+import { Field, Masked, St } from '../kit';
 import { labelOf } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
@@ -18,10 +20,14 @@ const MODEL_DRAFTS = ['svc', 'piProvider', 'apiBase', 'chatModel', 'think', 'acc
 /** A Pi catalog provider in the one 模型服务 list. */
 const PI = 'pi:';
 
-/** 账号: the service the bundled Pi kernel uses (one list, Pi's catalog providers included), its key or ChatGPT account, the default model and a connection test. */
+/**
+ * 账号: under the 和她对话 band, the service the bundled Pi kernel uses (one list, Pi's catalog providers included), its key or
+ * ChatGPT account, the default model and a connection test; the band off folds them all into its one line.
+ */
 export function ModelGroup() {
   const { model, ro, agentdOff, models, reload } = useSettings();
   const c = useControls();
+  const talks = usePlugins().light_ai;
   const [listed, setCatalog] = useState<WireCatalog | null>(null);
   const [providers, setProviders] = useState<Opt[]>([]);
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
@@ -118,99 +124,103 @@ export function ModelGroup() {
   return (
     <>
       <SetSection title="模型服务" info={groupDesc('model')}>
-        <SetRow
-          id="svc"
-          title={labelOf('svc')}
-          desc="Pi 用它；Codex 和 Claude Code 用自己的登录"
-          control={<Select label={labelOf('svc')} value={svcValue} options={svcOpts} disabled={ro || agentdOff} onChange={pickSvc} />}
-        />
-        {svc !== 'chatgpt' && svc !== 'deepseek' && svc !== 'xai' && svc !== 'pi_catalog' && <SetRow id="apiBase" title={labelOf('apiBase')} control={c.text('apiBase', labelOf('apiBase'), 'https://…')} />}
-        {svc !== 'chatgpt' && (
+        <Band plugin="light_ai" fold="模型服务、账号、默认模型、测试连接">
           <SetRow
-            id="apikey"
-            title={labelOf('apikey')}
-            desc={noKey ? '这台电脑上的服务不用密钥' : cfg?.has_key ? '只送给后台，不回显' : '还没有保存'}
-            descTone={!noKey && !cfg?.has_key ? 'attention' : undefined}
+            id="svc"
+            title={labelOf('svc')}
+            desc="Pi 用它；Codex 和 Claude Code 用自己的登录"
+            control={<Select label={labelOf('svc')} value={svcValue} options={svcOpts} disabled={ro || agentdOff} onChange={pickSvc} />}
+          />
+          {svc !== 'chatgpt' && svc !== 'deepseek' && svc !== 'xai' && svc !== 'pi_catalog' && <SetRow id="apiBase" title={labelOf('apiBase')} control={c.text('apiBase', labelOf('apiBase'), 'https://…')} />}
+          {svc !== 'chatgpt' && (
+            <SetRow
+              id="apikey"
+              title={labelOf('apikey')}
+              desc={noKey ? '这台电脑上的服务不用密钥' : cfg?.has_key ? '只送给后台，不回显' : '还没有保存'}
+              descTone={!noKey && !cfg?.has_key ? 'attention' : undefined}
+              control={
+                <>
+                  {keyless && c.seg('acct', keyOptions(model.value('acct')), false, 'API Key')}
+                  {!noKey &&
+                    (cfg?.has_key && !replacing ? (
+                      <>
+                        <Masked>已保存</Masked>
+                        <Btn disabled={ro} onClick={() => setReplacing(true)}>
+                          替换
+                        </Btn>
+                        <Btn variant="danger" disabled={ro} onClick={removeKey}>
+                          移除
+                        </Btn>
+                      </>
+                    ) : (
+                      <>
+                        <Field type="password" aria-label="API Key" placeholder={cfg?.has_key ? '输入新 Key 替换' : '粘贴 API Key'} value={key} disabled={ro || !keySlot} onChange={(e) => setKey(e.currentTarget.value)} />
+                        <Btn disabled={ro || !key} onClick={saveKey}>
+                          保存
+                        </Btn>
+                      </>
+                    ))}
+                </>
+              }
+            />
+          )}
+          {svc === 'chatgpt' && <ChatgptRow />}
+        </Band>
+      </SetSection>
+
+      {talks && (
+        <SetSection title="默认模型">
+          <SetRow
+            id="chatModel"
+            title={labelOf('chatModel')}
+            desc={picked ? modelCaps(picked) || undefined : undefined}
             control={
               <>
-                {keyless && c.seg('acct', keyOptions(model.value('acct')), false, 'API Key')}
-                {!noKey &&
-                  (cfg?.has_key && !replacing ? (
-                    <>
-                      <Masked>已保存</Masked>
-                      <Cap disabled={ro} onClick={() => setReplacing(true)}>
-                        替换
-                      </Cap>
-                      <Cap tone="red" disabled={ro} onClick={removeKey}>
-                        移除
-                      </Cap>
-                    </>
-                  ) : (
-                    <>
-                      <Field type="password" aria-label="API Key" placeholder={cfg?.has_key ? '输入新 Key 替换' : '粘贴 API Key'} value={key} disabled={ro || !keySlot} onChange={(e) => setKey(e.currentTarget.value)} />
-                      <Cap disabled={ro || !key} onClick={saveKey}>
-                        保存
-                      </Cap>
-                    </>
-                  ))}
+                {catalog?.models.length ? c.select('chatModel', catalog.models.map((m) => ({ value: m.id, label: m.name || m.id })), [], false, '默认模型') : c.text('chatModel', '默认模型', '模型 ID')}
+                <Btn disabled={ro || svcDraft} disabledReason="先应用模型服务的改动" onClick={fetchCatalog}>
+                  刷新列表
+                </Btn>
               </>
             }
           />
-        )}
-        {svc === 'chatgpt' && <ChatgptRow />}
-      </SetSection>
-
-      <SetSection title="默认模型">
-        <SetRow
-          id="chatModel"
-          title={labelOf('chatModel')}
-          desc={picked ? modelCaps(picked) || undefined : undefined}
-          control={
+          {svc === 'compatible' && (
             <>
-              {catalog?.models.length ? c.select('chatModel', catalog.models.map((m) => ({ value: m.id, label: m.name || m.id })), [], false, '默认模型') : c.text('chatModel', '默认模型', '模型 ID')}
-              <Cap disabled={ro || svcDraft} disabledReason="先应用模型服务的改动" onClick={fetchCatalog}>
-                刷新列表
-              </Cap>
+              {(
+                [
+                  ['ctxWindow', 16000, 2_000_000, 16000],
+                  ['maxOut', 1024, 32768, 1024],
+                ] as const
+              ).map(([id, min, max, step]) => (
+                <SetRow
+                  key={id}
+                  id={id}
+                  title={labelOf(id)}
+                  indent
+                  control={
+                    <Stepper label={labelOf(id)} value={Number(model.value(id) ?? min)} min={min} max={max} step={step} format={tokens} disabled={ro || agentdOff || svcDraft} disabledReason="先应用模型服务的改动" onChange={(n) => model.set(id, n)} />
+                  }
+                />
+              ))}
+              <SetRow id="images" title={labelOf('images')} indent control={c.toggle('images', labelOf('images'), svcDraft, '先应用模型服务的改动')} />
+              <SetRow id="reasoning" title={labelOf('reasoning')} indent control={c.toggle('reasoning', labelOf('reasoning'), svcDraft, '先应用模型服务的改动')} />
             </>
-          }
-        />
-        {svc === 'compatible' && (
-          <>
-            {(
-              [
-                ['ctxWindow', 16000, 2_000_000, 16000],
-                ['maxOut', 1024, 32768, 1024],
-              ] as const
-            ).map(([id, min, max, step]) => (
-              <SetRow
-                key={id}
-                id={id}
-                title={labelOf(id)}
-                indent
-                control={
-                  <Stepper label={labelOf(id)} value={Number(model.value(id) ?? min)} min={min} max={max} step={step} format={tokens} disabled={ro || agentdOff || svcDraft} disabledReason="先应用模型服务的改动" onChange={(n) => model.set(id, n)} />
-                }
-              />
-            ))}
-            <SetRow id="images" title={labelOf('images')} indent control={c.toggle('images', labelOf('images'), svcDraft, '先应用模型服务的改动')} />
-            <SetRow id="reasoning" title={labelOf('reasoning')} indent control={c.toggle('reasoning', labelOf('reasoning'), svcDraft, '先应用模型服务的改动')} />
-          </>
-        )}
-        {levels && <SetRow id="think" title={labelOf('think')} control={c.select('think', thinkOptions(levels))} />}
-        <SetRow
-          id="mtest"
-          title={labelOf('mtest')}
-          desc={drafted ? '先应用上面的改动再测' : undefined}
-          control={
-            <>
-              {test && <St tone={test.ok ? 'ok' : 'bad'}>{test.text}</St>}
-              <Cap loading={testing} disabled={ro || drafted} disabledReason="先应用上面的改动" onClick={() => void runTest()}>
-                测试
-              </Cap>
-            </>
-          }
-        />
-      </SetSection>
+          )}
+          {levels && <SetRow id="think" title={labelOf('think')} control={c.select('think', thinkOptions(levels))} />}
+          <SetRow
+            id="mtest"
+            title={labelOf('mtest')}
+            desc={drafted ? '先应用上面的改动再测' : undefined}
+            control={
+              <>
+                {test && <St tone={test.ok ? 'ok' : 'bad'}>{test.text}</St>}
+                <Btn loading={testing} disabled={ro || drafted} disabledReason="先应用上面的改动" onClick={() => void runTest()}>
+                  测试
+                </Btn>
+              </>
+            }
+          />
+        </SetSection>
+      )}
     </>
   );
 }

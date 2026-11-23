@@ -280,8 +280,8 @@ describe('coding-tool hooks', () => {
 });
 
 describe('permission rows', () => {
-  // 系统权限 is one summary line until unfolded; 去开 shows while one is missing.
-  const openPerms = () => click(within(document.querySelector('[data-row="perms"]') as HTMLElement).getByRole('button', { name: '去开' }));
+  // 系统权限 is one summary line and a fold of the rows, which opens by itself while one is missing.
+  const openPerms = async () => expect(screen.getByRole('button', { name: /^各项权限/ }).getAttribute('aria-expanded')).toBe('true');
 
   it('starts as 读取中 rather than made-up states, and lists Input Monitoring', async () => {
     let answer!: (s: Awaited<ReturnType<AgenticComplexBridge['permissions']['status']>>) => void;

@@ -113,6 +113,60 @@
   cursor: not-allowed;
 }
 
+/* Settings row (ToggleSetting): GameSeg's setting track, 开 | 关 in two halves, the white pill knob over the chosen one. */
+.sw[data-variant='setting'] {
+  --w: 200px;
+  --knob-w: calc((var(--w) - 6px) / 2);
+  height: 34px;
+  border-radius: 999px;
+}
+
+.sw[data-variant='setting'] :is(.track, .light) {
+  inset: 0;
+  border-radius: 999px;
+}
+
+.sw[data-variant='setting'] .track {
+  background: var(--ef-seg-track);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25);
+}
+
+.sw[data-variant='setting'] .knob {
+  top: 3px;
+  left: 3px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--ef-seg-knob);
+  box-shadow: var(--ef-shadow-btn);
+  transform: translateX(calc(var(--anchor-min-x) * (var(--w) - 6px - var(--knob-w))));
+}
+
+.sw[data-variant='setting'] .knob::after {
+  content: none;
+}
+
+.sw[data-variant='setting'] .labels {
+  inset: 3px;
+}
+
+.sw[data-variant='setting'] .side {
+  color: var(--ef-seg-track-text);
+  opacity: 1;
+}
+
+.sw[data-variant='setting'][aria-checked='false'] .side:last-child,
+.sw[data-variant='setting'][aria-checked='true'] .side:first-child {
+  color: var(--ef-seg-knob-text);
+}
+
+.sw[data-variant='setting'][aria-disabled] {
+  opacity: 0.45;
+}
+
+.sw[data-variant='setting']:focus-visible {
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .light,
   .side {

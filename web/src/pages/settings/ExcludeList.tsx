@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { IconBtn, Select } from '../../ui';
-import { Cap, Field, Lnk, OnOff, Seg } from './kit';
+import { Btn, IconBtn, Select, Switch } from '../../ui';
+import { GameSeg } from '../../ui/game';
+import { Field } from './kit';
 import { AllowList } from './AllowList';
 import { addBlacklist, failure, removeBlacklist, restoreBlacklist, setBlacklistMode } from './api';
 import { useSettings } from './ctx';
@@ -76,7 +77,7 @@ export function ExcludeList() {
       reload('blacklist');
       model.notify({ message: `已改为「${MODE.find((x) => x.value === m)?.label}」` });
     }, fail('没能切换读取方式'));
-  const modeSeg = <Seg label="读取方式" value={blacklist?.mode ?? ''} options={MODE} disabled={ro || blacklist == null} onChange={setMode} />;
+  const modeSeg = <GameSeg variant="setting" label="读取方式" value={blacklist?.mode ?? ''} options={MODE} disabled={ro || blacklist == null} onChange={setMode} />;
 
   if (blacklist?.mode === 'allow') return <AllowList right={modeSeg} />;
   return (
@@ -89,7 +90,7 @@ export function ExcludeList() {
             <IconBtn icon="close" size="sm" label={`移除 ${x.value}`} disabled={ro} onClick={() => remove(x.field, x.value)} />
           </span>
         ))}
-        {entries.length > FOLD && <Lnk onClick={() => setAll(!all)}>{all ? '收起' : `全部 ${entries.length} 项`}</Lnk>}
+        {entries.length > FOLD && <Btn variant="link" onClick={() => setAll(!all)}>{all ? '收起' : `全部 ${entries.length} 项`}</Btn>}
       </div>
       <div className={styles.chips}>
         <Select label="排除类型" value={field} width={120} options={FIELD.map((f) => ({ value: f.value, label: f.label }))} disabled={ro} onChange={(v) => setField(v as BlacklistField)} />
@@ -102,11 +103,11 @@ export function ExcludeList() {
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
         <span className={styles.t2}>顺手删掉已记下的</span>
-        <OnOff on={purge} label="顺手删掉已记下的" disabled={ro} onChange={setPurge} />
-        <Cap disabled={ro || !value.trim()} onClick={add}>
+        <Switch variant="setting" checked={purge} label="顺手删掉已记下的" disabled={ro} onChange={setPurge} />
+        <Btn disabled={ro || !value.trim()} onClick={add}>
           添加
-        </Cap>
-        {!ro && <Lnk onClick={restore}>恢复默认排除</Lnk>}
+        </Btn>
+        {!ro && <Btn variant="link" onClick={restore}>恢复默认排除</Btn>}
       </div>
     </Slab>
   );

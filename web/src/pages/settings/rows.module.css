@@ -1,12 +1,12 @@
-/* SettingItemCell/Content: an r3 plate (white@.4 over the ground), a 1 px rim; stripes at the left end and a contour fading out to the right; label 34 px in, controls in a fixed right column. */
+/* SettingItemCell/Content: an r3 plate, a 1 px rim; stripes at the left end and a contour fading out to the right; label 34 px in, controls in a fixed right column. */
 .row,
 .slab {
   position: relative;
   isolation: isolate;
   margin-bottom: 6px;
   border-radius: 3px;
-  background: var(--s-plate);
-  box-shadow: inset 0 0 0 1px var(--s-rim), inset 0 1px 0 var(--s-rim-hi);
+  background: var(--ef-plate-top);
+  box-shadow: inset 0 0 0 1px var(--ef-slab-rim), inset 0 1px 0 var(--ef-plate-top);
   animation: cellIn 300ms var(--ef-ease-g-enter) both;
   transition: background 83ms;
 }
@@ -21,7 +21,7 @@
 }
 
 .row:hover {
-  background: var(--s-plate-hi);
+  background: linear-gradient(var(--ef-overlay-hover) 0 0), var(--ef-plate-top);
 }
 
 /* settings-row-texture: 127 px of diagonal stripes at the left end. */
@@ -33,14 +33,14 @@
   inset: 2px auto 2px 2px;
   width: 96px;
   border-radius: 2px 0 0 2px;
-  background: repeating-linear-gradient(-45deg, var(--s-tex) 0 1.2px, transparent 1.2px 4px);
+  background: repeating-linear-gradient(-45deg, var(--ef-contour) 0 1.2px, transparent 1.2px 4px);
   -webkit-mask: linear-gradient(90deg, #000 10%, transparent);
   mask: linear-gradient(90deg, #000 10%, transparent);
   opacity: 0.7;
   pointer-events: none;
 }
 
-/* settings-row-contour: the contour lines, moved to the left since the controls take the right. */
+/* settings-row-contour: the contour lines in the text colour, moved to the left since the controls take the right. */
 .row::after,
 .slab::after {
   content: '';
@@ -51,15 +51,16 @@
   left: 20px;
   width: 360px;
   max-width: 60%;
-  background: var(--s-contour) left center / 360px 100% no-repeat;
-  -webkit-mask: linear-gradient(90deg, #000 30%, transparent);
-  mask: linear-gradient(90deg, #000 30%, transparent);
+  background: var(--ef-text-1);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='60' fill='none' stroke='%23000' stroke-opacity='.22' stroke-width='.8'%3E%3Cpath d='M0 46c30-4 44-24 78-22s40 22 74 18 44-30 80-28 46 16 80 10 30-12 48-12'/%3E%3Cpath d='M0 52c34-4 48-20 80-18s42 20 74 16 46-28 82-26 44 14 78 8 32-10 46-10'/%3E%3Cpath d='M0 58c36-2 52-16 84-14s44 18 74 14 48-24 84-22 42 12 74 6 34-8 44-8'/%3E%3Cpath d='M24 0c6 10 22 14 34 8s24-6 30 4'/%3E%3Cpath d='M30 0c6 6 18 8 26 4s20-2 24 6'/%3E%3Cpath d='M190 60c4-10 20-14 32-10s22 2 30-6'/%3E%3C/svg%3E") left center / 360px 100% no-repeat, linear-gradient(90deg, #000 30%, transparent);
+  -webkit-mask-composite: source-in;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='60' fill='none' stroke='%23000' stroke-opacity='.22' stroke-width='.8'%3E%3Cpath d='M0 46c30-4 44-24 78-22s40 22 74 18 44-30 80-28 46 16 80 10 30-12 48-12'/%3E%3Cpath d='M0 52c34-4 48-20 80-18s42 20 74 16 46-28 82-26 44 14 78 8 32-10 46-10'/%3E%3Cpath d='M0 58c36-2 52-16 84-14s44 18 74 14 48-24 84-22 42 12 74 6 34-8 44-8'/%3E%3Cpath d='M24 0c6 10 22 14 34 8s24-6 30 4'/%3E%3Cpath d='M30 0c6 6 18 8 26 4s20-2 24 6'/%3E%3Cpath d='M190 60c4-10 20-14 32-10s22 2 30-6'/%3E%3C/svg%3E") left center / 360px 100% no-repeat, linear-gradient(90deg, #000 30%, transparent);
+  mask-composite: intersect;
   opacity: 0.55;
   pointer-events: none;
 }
 
 :global([data-theme='light']) :is(.row, .slab)::after {
-  filter: invert(1);
   opacity: 0.4;
 }
 
@@ -98,12 +99,12 @@
 }
 
 .row[aria-disabled='true'] .tt > span:first-child {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
 }
 
 .d {
   overflow: hidden;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   line-height: 18px;
   text-overflow: ellipsis;
@@ -111,15 +112,15 @@
 }
 
 .d[data-tone='attention'] {
-  color: var(--s-warn);
+  color: var(--ef-attention-text);
 }
 
 .d[data-tone='bad'] {
-  color: var(--s-bad);
+  color: var(--ef-danger-text);
 }
 
 .d[data-tone='ok'] {
-  color: var(--s-ok);
+  color: var(--ef-state-ok);
 }
 
 .ctl {
@@ -161,15 +162,15 @@
   border: 0;
   border-radius: 50%;
   background: none;
-  box-shadow: inset 0 0 0 1.25px var(--s-t2);
-  color: var(--s-t2);
+  box-shadow: inset 0 0 0 1.25px var(--ef-text-2);
+  color: var(--ef-text-2);
   font: 600 11px/1 var(--ef-font-num);
 }
 
 .tt [data-stub='InfoTip'] > button:hover,
 .band [data-stub='InfoTip'] > button:hover {
-  box-shadow: inset 0 0 0 1.25px var(--s-t1);
-  color: var(--s-t1);
+  box-shadow: inset 0 0 0 1.25px var(--ef-text-1);
+  color: var(--ef-text-1);
 }
 
 .tt [data-stub='InfoTip'] > button::after,
@@ -193,25 +194,31 @@
 }
 
 .mark[data-k='del'] {
-  color: var(--s-bad);
+  color: var(--ef-danger-text);
 }
 
 .mark[data-k='re'] {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
 }
 
 .mark[data-k='draft'] {
-  color: var(--s-warn);
+  color: var(--ef-attention-text);
 }
 
 .mark[data-k='dev'] {
-  color: var(--s-mission);
+  color: var(--ef-mission-accent);
   font-family: var(--ef-font-num);
   letter-spacing: 0.06em;
 }
 
+/* On paper the blue stays in the frame and the letters take the ink, since the blue falls under 4.5:1 there. */
+:global([data-theme='light']) .mark[data-k='dev'] {
+  box-shadow: inset 0 0 0 1px var(--ef-mission-accent);
+  color: var(--ef-text-1);
+}
+
 .ok {
-  color: var(--s-ok);
+  color: var(--ef-state-ok);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -251,7 +258,7 @@
 .slab[data-variant='plate']::before {
   inset: 2px 2px 2px auto;
   width: 120px;
-  background: repeating-linear-gradient(-45deg, var(--s-tex) 0 1.2px, transparent 1.2px 6px);
+  background: repeating-linear-gradient(-45deg, var(--ef-contour) 0 1.2px, transparent 1.2px 6px);
   -webkit-mask: linear-gradient(270deg, #000, transparent);
   mask: linear-gradient(270deg, #000, transparent);
 }
@@ -264,7 +271,7 @@
   position: absolute;
   width: 9px;
   height: 9px;
-  color: var(--s-t3);
+  color: var(--ef-text-3);
   pointer-events: none;
 }
 
@@ -319,7 +326,7 @@
 }
 
 .slabDesc {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   line-height: 18px;
 }
@@ -336,12 +343,12 @@
   40%,
   80%,
   100% {
-    box-shadow: inset 0 0 0 1px var(--s-rim), 0 0 0 2px var(--ef-accent);
+    box-shadow: inset 0 0 0 1px var(--ef-slab-rim), 0 0 0 2px var(--ef-accent);
   }
 
   20%,
   60% {
-    box-shadow: inset 0 0 0 1px var(--s-rim), 0 0 0 2px transparent;
+    box-shadow: inset 0 0 0 1px var(--ef-slab-rim), 0 0 0 2px transparent;
   }
 }
 

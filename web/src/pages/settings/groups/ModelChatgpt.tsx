@@ -1,6 +1,7 @@
 import { chatgptCancel, chatgptLogout, chatgptSelect, chatgptStart, failure } from '../api';
 import { useSettings } from '../ctx';
-import { Cap, St } from '../kit';
+import { Btn } from '../../../ui';
+import { St } from '../kit';
 import { SetRow } from '../SetRow';
 import type { WireChatgpt } from '../wire';
 import styles from '../groups.module.css';
@@ -37,13 +38,13 @@ export function ChatgptRow() {
       desc={gpt?.pending ? '在浏览器里完成登录后回来' : active ? `正在用 ${name(active)}` : profiles.length ? '选一个账号使用' : '还没有连接'}
       control={
         gpt?.pending ? (
-          <Cap disabled={ro} onClick={() => act(chatgptCancel, '已取消登录', '没能取消')}>
+          <Btn disabled={ro} onClick={() => act(chatgptCancel, '已取消登录', '没能取消')}>
             取消登录
-          </Cap>
+          </Btn>
         ) : (
-          <Cap disabled={ro} onClick={() => act(() => chatgptStart(), '已在浏览器打开 ChatGPT 登录', '没能开始登录')}>
+          <Btn disabled={ro} onClick={() => act(() => chatgptStart(), '已在浏览器打开 ChatGPT 登录', '没能开始登录')}>
             {profiles.length ? '添加账号' : '连接 ChatGPT'}
-          </Cap>
+          </Btn>
         )
       }
     >
@@ -57,19 +58,19 @@ export function ChatgptRow() {
                 {p.email && <span className={styles.t3}>{p.email}</span>}
                 {stateOf(p, on)}
                 {!on && p.connected && (
-                  <Cap disabled={busy} onClick={() => act(() => chatgptSelect(p.id), `已改用 ${name(p)}`, '没能切换账号')}>
+                  <Btn disabled={busy} onClick={() => act(() => chatgptSelect(p.id), `已改用 ${name(p)}`, '没能切换账号')}>
                     使用
-                  </Cap>
+                  </Btn>
                 )}
                 {!p.connected && (
-                  <Cap disabled={busy} onClick={() => act(() => chatgptStart(p.id), '已在浏览器打开 ChatGPT 登录', '没能开始登录')}>
+                  <Btn disabled={busy} onClick={() => act(() => chatgptStart(p.id), '已在浏览器打开 ChatGPT 登录', '没能开始登录')}>
                     重新连接
-                  </Cap>
+                  </Btn>
                 )}
                 {p.connected && (
-                  <Cap disabled={ro} onClick={() => act(() => chatgptLogout(p.id), `已退出 ${name(p)}`, '没能退出')}>
+                  <Btn disabled={ro} onClick={() => act(() => chatgptLogout(p.id), `已退出 ${name(p)}`, '没能退出')}>
                     退出
-                  </Cap>
+                  </Btn>
                 )}
               </li>
             );

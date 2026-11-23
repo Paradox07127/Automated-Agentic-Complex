@@ -1,7 +1,8 @@
 import { usePlugins } from '../../shell/plugins';
 import { useSettings } from './ctx';
 import { KERNEL_LABEL, SVC } from './fields';
-import { Chip, Lnk } from './kit';
+import { Btn } from '../../ui';
+import { Chip } from './kit';
 import { REGISTRY } from './registry';
 import { Slab } from './Slab';
 import styles from './groups.module.css';
@@ -84,7 +85,7 @@ export function OutboundPlate() {
             → <b>{dest}</b> │ 发出前遮蔽 {mask === true ? '开' : mask === false ? '关' : '—'}
           </span>
         </span>
-        {diag.screenshots && <Lnk onClick={() => goPage({ page: 'overview', tab: 'tm' })}>在每日简报看今天的截图 ›</Lnk>}
+        {diag.screenshots && <Btn variant="link" onClick={() => goPage({ page: 'overview', tab: 'tm' })}>在每日简报看今天的截图 ›</Btn>}
       </div>
     </Slab>
   );

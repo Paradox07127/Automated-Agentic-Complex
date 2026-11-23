@@ -1,5 +1,5 @@
 /* The capability band; Band.tsx also puts rows.module.css `.band` on it for the shared ⓘ and reduced-motion rules. */
-/* SettingItemCell/TitleNode: the (84,84,84)@.2 band holding a capability's switch, what it does, needs and costs. */
+/* SettingItemCell/TitleNode: the grey band holding a capability's switch, what it does, needs and costs. */
 .band {
   position: relative;
   display: grid;
@@ -9,9 +9,13 @@
   min-height: 56px;
   margin: 14px 0 6px -16px;
   padding: 8px 22px 8px 16px;
-  background: linear-gradient(90deg, var(--s-band), color-mix(in srgb, var(--s-band) 40%, transparent));
-  box-shadow: inset 3px 0 0 var(--s-sec-bar);
+  background: linear-gradient(90deg, var(--ef-set-row-plate), color-mix(in srgb, var(--ef-set-row-plate) 40%, transparent));
+  box-shadow: inset 3px 0 0 var(--ef-accent);
   animation: cellIn 300ms var(--ef-ease-g-enter) both;
+}
+
+:global([data-theme='light']) .band {
+  background: linear-gradient(90deg, var(--ef-step-bg), color-mix(in srgb, var(--ef-step-bg) 40%, transparent));
 }
 
 .bt {
@@ -26,14 +30,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 14px;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   line-height: 18px;
 }
 
 .bw b {
   margin-right: 4px;
-  color: var(--s-t3);
+  color: var(--ef-text-3);
   font-weight: 500;
 }
 
@@ -48,15 +52,15 @@
   display: inline-flex;
   align-items: center;
   padding: 0 6px;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   line-height: 16px;
   white-space: nowrap;
-  box-shadow: inset 0 0 0 1px var(--s-t3);
+  box-shadow: inset 0 0 0 1px var(--ef-text-3);
 }
 
 .need[data-miss] {
-  color: var(--s-bad);
+  color: var(--ef-danger-text);
   box-shadow: inset 0 0 0 1px currentColor;
   cursor: pointer;
 }
@@ -66,17 +70,18 @@
   outline-offset: 1px;
 }
 
-/* A band that is off: its rows folded into one dashed line. */
+/* A band that is off: its rows folded into one summary line, drawn as Fold's shut line without the arrow (the switch opens it). */
 .fold {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  margin: 0 0 6px 8px;
-  padding: 0 16px;
-  border-left: 1px dashed var(--s-t3);
-  color: var(--s-t2);
-  font-size: 13px;
+  gap: var(--ef-sp-8);
+  min-height: 32px;
+  margin: 0 0 6px;
+  padding: 0 var(--ef-sp-4);
+  border-top: 1px solid var(--ef-line);
+  border-bottom: 1px solid var(--ef-line);
+  color: var(--ef-text-2);
+  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-sans);
 }
 
 @keyframes cellIn {

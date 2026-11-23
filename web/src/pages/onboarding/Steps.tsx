@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { getBridge, type OnboardingStep } from '../../bridge';
 import { hotkeyText } from '../../bridge/platformText';
-import { CharacterArt, ErrBar, Select } from '../../ui';
+import { Btn, CharacterArt, ErrBar, Select } from '../../ui';
 import { GameFrame, MicroLabel } from '../../ui/game';
 import { failure, saveModels } from '../settings/api';
 import { Band } from '../settings/Band';
@@ -10,7 +10,7 @@ import { SettingsCtx, useSettings } from '../settings/ctx';
 import { SVC } from '../settings/fields';
 import { capsOf } from '../settings/groups/Keys';
 import { ChatgptRow } from '../settings/groups/ModelChatgpt';
-import { Cap, Field, KeyCell, Lnk, Masked, St, type StTone } from '../settings/kit';
+import { Field, KeyCell, Masked, St, type StTone } from '../settings/kit';
 import type { PermRow } from '../settings/perms';
 import { labelOf } from '../settings/registry';
 import { SetRow } from '../settings/SetRow';
@@ -79,7 +79,7 @@ export function StepChar({ o }: { o: Onboarding }) {
         {list.length === 0 ? (
           <div className={styles.empty}>
             <span className={styles.why}>还没有角色。导入一个角色包，她就会出现在桌面上。</span>
-            <Cap onClick={o.importPackage}>导入角色包</Cap>
+            <Btn onClick={o.importPackage}>导入角色包</Btn>
           </div>
         ) : (
           <div className={styles.roster} role="radiogroup" aria-label="角色名册">
@@ -167,16 +167,16 @@ function AccountRows() {
             cfg?.has_key && !replacing ? (
               <>
                 <Masked>已保存</Masked>
-                <Cap disabled={ro} onClick={() => setReplacing(true)}>
+                <Btn disabled={ro} onClick={() => setReplacing(true)}>
                   替换
-                </Cap>
+                </Btn>
               </>
             ) : (
               <>
                 <Field type="password" aria-label="API Key" placeholder={cfg?.has_key ? '输入新 Key 替换' : '粘贴 API Key'} value={key} disabled={ro} onChange={(e) => setKey(e.currentTarget.value)} />
-                <Cap disabled={ro || !key} onClick={saveKey}>
+                <Btn disabled={ro || !key} onClick={saveKey}>
                   保存
-                </Cap>
+                </Btn>
               </>
             )
           }
@@ -197,7 +197,7 @@ export function StepChat({ g }: { g: GuideSettings }) {
       {agentdOff && !restarting && (
         <ErrBar
           message="后台服务没有运行，账号这一块暂时只读"
-          extra={<Cap onClick={g.retryAgentd}>重新连接</Cap>}
+          extra={<Btn onClick={g.retryAgentd}>重新连接</Btn>}
         />
       )}
       {restarting && <ErrBar tone="warning" message="正在重启后台… 回来后账号这一块就能用" />}
@@ -213,9 +213,9 @@ export function StepChat({ g }: { g: GuideSettings }) {
             control={
               <>
                 <St tone={testTone}>{testText}</St>
-                <Cap loading={test.state === 'testing'} disabled={ro || !connected} disabledReason="先连上账号" onClick={runTest}>
+                <Btn loading={test.state === 'testing'} disabled={ro || !connected} disabledReason="先连上账号" onClick={runTest}>
                   测试
-                </Cap>
+                </Btn>
               </>
             }
           />
@@ -261,11 +261,11 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
   const copy = doneCopy(her?.name ?? null, ready);
   const quick = o.hotkeys.hk_quick ?? String(model.value('hk_quick') ?? '');
   const lines: Array<[string, ReactNode, ReactNode]> = [
-    ['角色', her ? <St tone="ok">{`${her.name} 在桌面上`}</St> : <St tone="off">还没有角色</St>, !her && <Lnk onClick={() => goto(1)}>导入</Lnk>],
+    ['角色', her ? <St tone="ok">{`${her.name} 在桌面上`}</St> : <St tone="off">还没有角色</St>, !her && <Btn variant="link" onClick={() => goto(1)}>导入</Btn>],
     [
       '对话',
       !g.talks ? <St tone="off">关着，只陪伴</St> : ready ? <St tone="ok">{`已连上 │ ${g.service ?? ''}`}</St> : <St tone="warn">没连上账号</St>,
-      g.talks && !ready && <Lnk onClick={() => goto(2)}>去连</Lnk>,
+      g.talks && !ready && <Btn variant="link" onClick={() => goto(2)}>去连</Btn>,
     ],
     [
       '她的声音',
@@ -275,7 +275,7 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
     [
       '按住说话',
       !g.talks ? <St tone="off">对话关着</St> : missing.length ? <St tone="warn">{`${missing.map((p) => p.label).join('、')}没开`}</St> : <St tone="ok">可以用</St>,
-      g.talks && missing.length > 0 && <Lnk onClick={() => goto(3)}>去开</Lnk>,
+      g.talks && missing.length > 0 && <Btn variant="link" onClick={() => goto(3)}>去开</Btn>,
     ],
   ];
   return (

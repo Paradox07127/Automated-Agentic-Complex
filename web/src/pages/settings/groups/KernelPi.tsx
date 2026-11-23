@@ -1,10 +1,10 @@
 import { getBridge } from '../../../bridge';
-import { Missing, Table, TableCell, TableHead, TableRow } from '../../../ui';
+import { Btn, Missing, Table, TableCell, TableHead, TableRow } from '../../../ui';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { RUNSRC } from '../fields';
 import { groupDesc } from '../groups';
-import { Cap, St } from '../kit';
+import { St } from '../kit';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
@@ -40,9 +40,9 @@ export function WorkspaceRow({ indent }: { indent?: boolean }) {
       control={
         <>
           <code className={styles.path}>{workspace ? String(workspace) : '~/AgenticComplex'}</code>
-          <Cap disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件选择器" onClick={() => void pick()}>
+          <Btn disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件选择器" onClick={() => void pick()}>
             选择…
-          </Cap>
+          </Btn>
         </>
       }
     />

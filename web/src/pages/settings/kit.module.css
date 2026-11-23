@@ -1,203 +1,4 @@
-/* Settings controls; colours come from the page's --s-* set (Page.module.css), which both themes fill. */
-
-/* ToggleSetting: track (98,98,98) inset, a white r31 knob over the chosen option, the other options' text at .78. */
-.seg {
-  position: relative;
-  display: grid;
-  grid-auto-columns: 1fr;
-  grid-auto-flow: column;
-  width: 100%;
-  max-width: var(--cw, 330px);
-  height: 34px;
-  padding: 3px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--s-track);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25);
-  font: inherit;
-  cursor: pointer;
-}
-
-.seg[data-narrow] {
-  flex: none;
-  width: 200px;
-  max-width: 200px;
-}
-
-.knob {
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc((100% - 6px) / var(--n));
-  border-radius: 999px;
-  background: linear-gradient(180deg, #fff, var(--s-knob) 60%);
-  box-shadow: var(--ef-shadow-btn), inset 0 -1px 0 rgb(0 0 0 / 0.12);
-  transform: translateX(calc(var(--i) * 100%));
-  transition: transform 200ms var(--ef-ease-g-enter);
-}
-
-:global([data-theme='light']) .knob {
-  background: linear-gradient(180deg, #4a4b4d, var(--s-knob) 60%);
-}
-
-.seg > button,
-.seg > span {
-  all: unset;
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  min-width: 0;
-  padding: 0 6px;
-  overflow: hidden;
-  color: var(--s-track-t);
-  font-size: 13px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color 200ms;
-}
-
-.seg > button[aria-checked='true'],
-.seg > span[data-on] {
-  color: var(--s-knob-t);
-}
-
-.seg > button:focus-visible,
-.seg[data-switch]:focus-visible {
-  outline: 2px solid var(--ef-accent);
-  outline-offset: 2px;
-  border-radius: 999px;
-}
-
-.seg > button:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-.seg[aria-disabled='true'] {
-  cursor: default;
-  opacity: 0.45;
-}
-
-.seg[aria-disabled='true'] > * {
-  cursor: default;
-}
-
-/* ButtonSetting: white fill, a 1.5 px own-colour outline past a 1 px seam, the dark ring, a drop shadow; contour rings fade in at the right end. */
-.cap {
-  --cf: #f2f1ef;
-  all: unset;
-  position: relative;
-  isolation: isolate;
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 15px 2px;
-  color: #444;
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: transform 100ms var(--ef-ease-g-fade);
-}
-
-.cap::before,
-.cap::after,
-.ct {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  inset: 3.5px 4.5px 5px;
-  border-radius: 999px;
-  pointer-events: none;
-}
-
-.cap::before {
-  outline: 1.5px solid var(--cf);
-  outline-offset: 1px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--cf), #fff 30%), var(--cf) 55%, color-mix(in srgb, var(--cf) 88%, #000));
-  box-shadow: 0 0 0 3.5px rgb(63 63 68 / 0.8), var(--ef-shadow-btn);
-}
-
-.ct {
-  background: repeating-radial-gradient(circle at 120% 50%, transparent 0 3px, rgb(18 18 18 / 0.16) 3px 4px);
-  -webkit-mask: linear-gradient(90deg, transparent 45%, #000 80%);
-  mask: linear-gradient(90deg, transparent 45%, #000 80%);
-}
-
-.cap::after {
-  background: rgb(255 255 255 / 0.18);
-  opacity: 0;
-  transition: opacity 83ms var(--ef-ease-g-fade);
-}
-
-.cap:hover::after {
-  opacity: 1;
-}
-
-.cap:active {
-  transform: translateY(1px);
-}
-
-.cap:focus-visible {
-  outline: 2px solid var(--ef-accent);
-  outline-offset: 1px;
-  border-radius: 999px;
-}
-
-.cap[data-tone='acc'] {
-  --cf: var(--ef-accent);
-  color: #161616;
-}
-
-.cap[data-tone='red'] {
-  --cf: var(--ef-danger-vivid);
-  color: #161616;
-}
-
-.cap[data-lg] {
-  height: 40px;
-  padding: 0 20px 2px;
-  font-size: 14px;
-}
-
-.cap[data-lg]::before,
-.cap[data-lg]::after,
-.cap[data-lg] .ct {
-  inset: 4.5px 5.5px 6.5px;
-}
-
-.cap[data-go] {
-  padding-right: 28px;
-}
-
-.arr {
-  position: absolute;
-  top: calc(50% - 7px);
-  right: 11px;
-  color: #444;
-  font: 600 13px/12px var(--ef-font-num);
-}
-
-.cap[aria-disabled='true'] {
-  cursor: default;
-  opacity: 0.45;
-}
-
-.cap[aria-disabled='true']:active {
-  transform: none;
-}
-
-.cap [data-stub='Spinner'] {
-  width: 12px;
-  height: 12px;
-}
+/* Settings fields and marks; switches, segments and buttons are the shared Switch, GameSeg and Btn. */
 
 /* Text field: the same white capsule, inset. */
 .fld {
@@ -211,9 +12,9 @@
   height: 34px;
   padding: 0 6px 0 14px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #f4f3f1, #fff);
-  box-shadow: 0 0 0 1px var(--s-field-ring);
-  color: #2d2d2d;
+  background: var(--ef-field);
+  box-shadow: 0 0 0 1px var(--ef-btn-outline);
+  color: var(--ef-field-text);
 }
 
 .fld:focus-within {
@@ -224,30 +25,30 @@
   all: unset;
   flex: 1;
   min-width: 0;
-  color: #2d2d2d;
+  color: var(--ef-field-text);
   font: 13px var(--ef-font-mono);
 }
 
 .fld input::placeholder {
-  color: #6b6b6b;
+  color: var(--ef-paper-text-2);
 }
 
 .fld input:disabled {
-  color: #777;
+  color: var(--ef-paper-text-2);
 }
 
 .mask {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: #555;
+  color: var(--ef-field-text);
   font-size: 13px;
   letter-spacing: 0.06em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* DisabledBtn: white@.2 capsule, a (255,128,128) ban sign and the reason, in place of the control. */
+/* DisabledBtn: a faint capsule, a red ban sign and the reason, in place of the control. */
 .dis {
   display: flex;
   align-items: center;
@@ -259,9 +60,9 @@
   padding: 0 12px;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--s-dis-plate);
-  box-shadow: inset 0 0 0 1px var(--s-rim);
-  color: var(--s-t2);
+  background: var(--ef-slab);
+  box-shadow: inset 0 0 0 1px var(--ef-slab-rim);
+  color: var(--ef-text-2);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -270,7 +71,7 @@
   flex: none;
   width: 15px;
   height: 15px;
-  color: var(--s-dis-ic);
+  color: var(--ef-danger-conflict);
 }
 
 .dis > span {
@@ -278,33 +79,7 @@
   text-overflow: ellipsis;
 }
 
-.lnk {
-  all: unset;
-  color: var(--s-t1);
-  font-size: 12px;
-  text-decoration: underline;
-  text-decoration-color: var(--ef-accent);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-:global([data-theme='light']) .lnk {
-  text-decoration-color: #9a8f00;
-}
-
-.lnk[data-danger] {
-  color: var(--s-bad);
-  text-decoration-color: currentColor;
-}
-
-.lnk:focus-visible {
-  outline: 2px solid var(--ef-accent);
-  outline-offset: 2px;
-}
-
-/* KeySetting: an r4 rim (224)@.35 on white@.1; a clash takes (255,136,136)@.22 and the warning triangle. */
+/* KeySetting: an r4 rim on a faint plate; a clash takes the conflict red wash and the warning triangle. */
 .key {
   display: flex;
   flex: none;
@@ -314,24 +89,24 @@
   height: 34px;
   padding: 0 10px;
   border-radius: 4px;
-  background: var(--s-key);
-  box-shadow: inset 0 0 0 1px var(--s-key-rim);
-  color: var(--s-t1);
+  background: var(--ef-slab);
+  box-shadow: inset 0 0 0 1px var(--ef-line-strong);
+  color: var(--ef-text-1);
 }
 
 .key kbd {
   min-width: 24px;
   padding: 0 6px;
-  border: 1px solid var(--s-t2);
+  border: 1px solid var(--ef-text-2);
   border-radius: 3px;
-  color: var(--s-t1);
+  color: var(--ef-text-1);
   font: 500 13px/22px var(--ef-font-num);
   text-align: center;
 }
 
 .key[data-warn] {
-  background: rgb(255 136 136 / 0.22);
-  box-shadow: inset 0 0 0 1px rgb(255 136 136 / 0.7);
+  background: color-mix(in srgb, var(--ef-danger-conflict) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ef-danger-conflict) 70%, transparent);
 }
 
 .key[data-warn]::after {
@@ -342,9 +117,9 @@
   height: 14px;
   margin-left: auto;
   padding-top: 3px;
-  background: #e0303b;
+  background: var(--ef-danger-vivid);
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
-  color: #fff;
+  color: var(--ef-on-danger-strong);
   font: 700 10px/1 var(--ef-font-num);
 }
 
@@ -355,7 +130,7 @@
 }
 
 .key[data-none] {
-  color: var(--s-t3);
+  color: var(--ef-text-3);
   font-size: 12px;
 }
 

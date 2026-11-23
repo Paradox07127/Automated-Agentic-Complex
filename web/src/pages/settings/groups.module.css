@@ -1,31 +1,31 @@
 .t2 {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
 }
 
 .t3 {
-  color: var(--s-t3);
+  color: var(--ef-text-3);
   font-weight: 400;
 }
 
 .ok {
-  color: var(--s-ok);
+  color: var(--ef-state-ok);
 }
 
 .att {
-  color: var(--s-warn);
+  color: var(--ef-attention-text);
 }
 
 .bad {
-  color: var(--s-bad);
+  color: var(--ef-danger-text);
   font-size: 12px;
 }
 
 .note {
   margin: 8px 0 0;
   padding: 8px 12px;
-  border-left: 2px solid var(--s-rule);
-  background: var(--s-plate);
-  color: var(--s-t2);
+  border-left: 2px solid var(--ef-set-rule);
+  background: var(--ef-plate-top);
+  color: var(--ef-text-2);
   font-size: 12px;
 }
 
@@ -34,7 +34,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font: 12px var(--ef-font-mono);
 }
 
@@ -95,11 +95,16 @@
   gap: 4px;
   height: 26px;
   padding: 0 4px 0 10px;
-  background: var(--s-chip);
-  box-shadow: inset 0 0 0 1px var(--s-rim);
-  color: var(--s-t1);
+  background: var(--ef-slab);
+  box-shadow: inset 0 0 0 1px var(--ef-slab-rim);
+  color: var(--ef-text-1);
   font-size: 12px;
   white-space: nowrap;
+}
+
+/* Rows folded under the row above: the fold's own indent plus a little, as a child row sits. */
+.sub {
+  margin: 0 0 6px 8px;
 }
 
 /* Notify matrix: five kinds × three levels on one row plate. */
@@ -116,7 +121,7 @@
 }
 
 .mxHead > span {
-  color: var(--s-t3);
+  color: var(--ef-text-3);
   font-size: 12px;
   text-align: center;
 }
@@ -127,7 +132,7 @@
 
 .mxK small {
   margin-left: 8px;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   font-weight: 400;
 }
@@ -155,7 +160,7 @@
 
 .big small {
   margin-left: 8px;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font: 500 13px var(--ef-font-num);
   letter-spacing: 0;
 }
@@ -165,7 +170,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 14px;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
 }
 
@@ -179,14 +184,14 @@
 }
 
 .canLbl {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
 }
 
 .wide {
   grid-column: 1 / -1;
   margin: 0;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
 }
 
@@ -209,7 +214,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
 }
 
 .fixedKey kbd {
@@ -217,7 +222,7 @@
   align-items: center;
   height: 26px;
   padding: 0 6px;
-  color: var(--s-t1);
+  color: var(--ef-text-1);
   font: 600 12px var(--ef-font-num);
 }
 
@@ -230,7 +235,7 @@
 }
 
 .outLbl {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -249,7 +254,7 @@
 }
 
 .chipBtn:hover > * {
-  background: var(--s-plate-hi);
+  background: var(--ef-slab-hover);
 }
 
 .chipBtn:focus-visible {
@@ -257,12 +262,12 @@
 }
 
 .to {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font: 500 12px var(--ef-font-num);
 }
 
 .to b {
-  color: var(--s-t1);
+  color: var(--ef-text-1);
   font-weight: 600;
 }
 

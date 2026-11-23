@@ -4,7 +4,7 @@ import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { ARCHIVE } from '../fields';
 import { groupDesc } from '../groups';
-import { Cap } from '../kit';
+import { Btn } from '../../../ui';
 import type { ConfirmSpec } from '../model';
 import { defaultsOf } from '../native';
 import { DELETE_WHAT, labelOf } from '../registry';
@@ -100,7 +100,7 @@ export function DataGroup() {
           title={labelOf('datadir')}
           desc="记忆、对话和活动记录都在这里"
           control={
-            <Cap
+            <Btn
               go
               onClick={() =>
                 void bridge.app.action('open_data_folder').then(
@@ -110,7 +110,7 @@ export function DataGroup() {
               }
             >
               打开
-            </Cap>
+            </Btn>
           }
         />
       </SetSection>
@@ -121,9 +121,9 @@ export function DataGroup() {
           title={labelOf('delrecent')}
           desc="连同活动摘要和由它推出的记忆"
           control={RANGES.map(([range, x]) => (
-            <Cap key={range} disabled={ro} disabledReason="后台服务没有运行" onClick={() => ask(dataConfirm('delrecent', x), async () => `已删掉最近 ${x} 看到的 ${sum(await forgetRecent(range))} 条`, '没能删除')}>
+            <Btn key={range} disabled={ro} disabledReason="后台服务没有运行" onClick={() => ask(dataConfirm('delrecent', x), async () => `已删掉最近 ${x} 看到的 ${sum(await forgetRecent(range))} 条`, '没能删除')}>
               {x}
-            </Cap>
+            </Btn>
           ))}
         />
         <SetRow
@@ -131,9 +131,9 @@ export function DataGroup() {
           title={labelOf('delact')}
           desc="全部观察记录、活动摘要和由它推出的记忆"
           control={
-            <Cap tone="red" disabled={ro} disabledReason="后台服务没有运行" onClick={() => ask(dataConfirm('delact'), async () => `已清空活动记录 ${(await clearAttention()).deleted} 条`, '没能清空')}>
+            <Btn variant="danger" disabled={ro} disabledReason="后台服务没有运行" onClick={() => ask(dataConfirm('delact'), async () => `已清空活动记录 ${(await clearAttention()).deleted} 条`, '没能清空')}>
               清空…
-            </Cap>
+            </Btn>
           }
         />
         <SetRow
@@ -141,9 +141,9 @@ export function DataGroup() {
           title={labelOf('reset')}
           desc="说话、能做、观察、按键回到默认；内核、账号、记忆不动"
           control={
-            <Cap disabled={groupRo || !native} disabledReason="没读到设置" onClick={reset}>
+            <Btn disabled={groupRo || !native} disabledReason="没读到设置" onClick={reset}>
               恢复默认…
-            </Cap>
+            </Btn>
           }
         />
         <SetRow
@@ -151,9 +151,9 @@ export function DataGroup() {
           title={labelOf('delall')}
           desc="记忆、对话、任务、活动记录、Trace 和日志；设置和 API Key 保留"
           control={
-            <Cap tone="red" disabled={ro} disabledReason="后台服务没有运行" onClick={wipe}>
+            <Btn variant="danger" disabled={ro} disabledReason="后台服务没有运行" onClick={wipe}>
               删除所有…
-            </Cap>
+            </Btn>
           }
         />
       </SetSection>

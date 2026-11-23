@@ -21,7 +21,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
 }
 
 .mi > :first-child {
@@ -30,7 +30,7 @@
 
 .rec {
   padding: 0 3px;
-  background: var(--s-t2);
+  background: var(--ef-text-2);
   color: var(--onb-ground);
   font: 700 9px / 11px var(--ef-font-num);
   letter-spacing: 0.1em;
@@ -57,7 +57,7 @@
   right: 0;
   left: 0;
   height: 1px;
-  background: var(--s-rule);
+  background: var(--ef-set-rule);
 }
 
 .rule i {
@@ -66,7 +66,7 @@
   left: 0;
   width: 7px;
   height: 4px;
-  background: var(--s-t1);
+  background: var(--ef-text-1);
 }
 
 .rule b {
@@ -75,13 +75,13 @@
   left: calc(50% - 24px);
   width: 48px;
   height: 3px;
-  background: repeating-linear-gradient(90deg, var(--s-t1) 0 3px, transparent 3px 6px);
+  background: repeating-linear-gradient(90deg, var(--ef-text-1) 0 3px, transparent 3px 6px);
 }
 
 .lead {
   max-width: 320px;
   margin: 0;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 14px;
   line-height: 22px;
 }
@@ -92,13 +92,13 @@
   height: 22px;
   margin-top: 4px;
   padding: 0 8px;
-  box-shadow: inset 0 0 0 1px var(--s-t3);
-  color: var(--s-t2);
+  box-shadow: inset 0 0 0 1px var(--ef-text-3);
+  color: var(--ef-text-2);
   font-size: 12px;
 }
 
 .tag[data-k='must'] {
-  background: var(--s-t1);
+  background: var(--ef-text-1);
   box-shadow: none;
   color: var(--onb-ground);
   font-weight: 600;

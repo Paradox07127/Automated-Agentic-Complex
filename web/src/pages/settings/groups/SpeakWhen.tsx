@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { failure } from '../api';
 import { useSettings } from '../ctx';
-import { Seg } from '../kit';
+import { GameSeg } from '../../../ui/game';
 import { labelOf } from '../registry';
 import { SetRow } from '../SetRow';
 import type { ProactiveState } from './SpeakCompanion';
@@ -65,7 +65,7 @@ export function SpeakWhenRow({ ps, disabled, children, asked }: { ps: ProactiveS
         info="主动：看到能帮忙的时机时提示，也会说出想法；要「看到 › 屏幕感知」打开才有时机可判断。完全不出声：再把上面的「出声」改成只显示文字。"
         disabled={disabled}
         disabledReason="后台不可写"
-        control={<Seg label={TITLE} value={chosen?.value ?? ''} options={SPEAK_WHEN} disabled={disabled} onChange={(v) => void pick(v)} />}
+        control={<GameSeg variant="setting" label={TITLE} value={chosen?.value ?? ''} options={SPEAK_WHEN} disabled={disabled} onChange={(v) => void pick(v)} />}
       />
       {chosen?.value === 'active' ? children : asked}
     </>

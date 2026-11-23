@@ -8,9 +8,9 @@
   height: 34px;
   padding: 0 12px 0 14px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #fff, #efeeec);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25);
-  color: #3a3a3a;
+  background: var(--ef-field);
+  box-shadow: 0 0 0 1px var(--ef-btn-outline);
+  color: var(--ef-field-text);
   cursor: text;
 }
 
@@ -22,12 +22,12 @@
   all: unset;
   flex: 1;
   min-width: 0;
-  color: #1f1f1f;
+  color: var(--ef-paper-text);
   font-size: 13px;
 }
 
 .search input::placeholder {
-  color: #6b6b6b;
+  color: var(--ef-paper-text-2);
 }
 
 .search input::-webkit-search-cancel-button {
@@ -36,9 +36,9 @@
 
 .kbd {
   padding: 0 4px;
-  border: 1px solid #9a9a9a;
+  border: 1px solid var(--ef-paper-text-2);
   border-radius: 3px;
-  color: #6b6b6b;
+  color: var(--ef-paper-text-2);
   font: 11px/15px var(--ef-font-num);
 }
 

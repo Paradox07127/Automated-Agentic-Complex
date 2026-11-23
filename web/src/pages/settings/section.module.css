@@ -1,118 +1,22 @@
-/* ListTitleNode: a 4×16 bar (6×26 at 1920), the title, a 1 px rule to the right end and the deco_hub_img_07 ornament; it starts 16 px left of the plates. */
+/* A section of rows under the shared group title; 32 px between sections. */
 .sec {
-  margin-top: 18px;
+  margin-top: var(--ef-sp-32);
 }
 
 .sec:first-child {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
-.head {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 32px;
-  margin: 0 0 6px -16px;
-  padding: 0 64px 0 12px;
-}
-
-.head::before {
-  content: '';
-  position: absolute;
-  top: calc(50% - 8px);
-  left: 0;
-  width: 4px;
-  height: 16px;
-  background: var(--s-sec-bar);
-}
-
-.head::after {
-  content: '';
-  position: absolute;
-  right: 62px;
-  bottom: 1px;
-  left: 12px;
-  height: 1px;
-  background: var(--s-rule);
-}
-
-.title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  color: var(--s-sec-t);
-  font: 500 15px/22px var(--ef-font-sans);
-}
-
-.right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: auto;
-  color: var(--s-t2);
-  font-size: 12px;
-}
-
-.deco {
-  position: absolute;
-  right: 0;
-  bottom: -2px;
-  width: 58px;
-  height: 7px;
-  color: var(--s-rule);
-}
-
-.head [data-stub='InfoTip'] > button {
-  width: 16px;
-  height: 16px;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  box-shadow: inset 0 0 0 1.25px var(--s-t2);
-  color: var(--s-t2);
-}
-
-.head [data-stub='InfoTip'] svg {
-  width: 12px;
-  height: 12px;
+.sec > [data-stub='SecHead'] {
+  margin-bottom: var(--ef-sp-8);
 }
 
 @container setp (max-width: 1040px) {
   .sec {
-    margin-top: 10px;
+    margin-top: var(--ef-sp-16);
   }
 
-  .head {
-    min-height: 28px;
-    margin-bottom: 4px;
+  .sec:first-child {
+    margin-top: 0;
   }
-}
-
-/* The group line's ⓘ, drawn like the rows' one: a ring with a written i. */
-.title [data-stub='InfoTip'] > button {
-  display: inline-grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  box-shadow: inset 0 0 0 1.25px var(--s-t2);
-  color: var(--s-t2);
-  font: 600 11px/1 var(--ef-font-num);
-}
-
-.title [data-stub='InfoTip'] > button:hover {
-  box-shadow: inset 0 0 0 1.25px var(--s-t1);
-  color: var(--s-t1);
-}
-
-.title [data-stub='InfoTip'] > button::after {
-  content: 'i';
-}
-
-.title [data-stub='InfoTip'] svg {
-  display: none;
 }

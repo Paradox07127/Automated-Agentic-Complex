@@ -1,4 +1,4 @@
-/* The ToggleSetting track as a stepper: − and + at the ends, the value on the white knob between them. */
+/* GameSeg's setting track as a stepper: − and + at the ends, the value on the white knob between them. */
 .stepper {
   position: relative;
   display: inline-grid;
@@ -9,8 +9,8 @@
   height: 34px;
   padding: 3px;
   border-radius: 999px;
-  background: var(--s-track);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25);
+  background: var(--ef-seg-track);
+  box-shadow: 0 0 0 1px var(--ef-btn-outline);
 }
 
 .stepper button {
@@ -18,7 +18,7 @@
   display: grid;
   place-items: center;
   height: 100%;
-  color: var(--s-track-t);
+  color: var(--ef-seg-track-text);
   font: 500 16px/1 var(--ef-font-num);
   cursor: pointer;
 }
@@ -39,14 +39,10 @@
   place-items: center;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(180deg, #fff, var(--s-knob) 60%);
-  color: var(--s-knob-t);
+  background: var(--ef-seg-knob);
+  color: var(--ef-seg-knob-text);
   font: 600 13px/1 var(--ef-font-num);
   font-variant-numeric: tabular-nums;
-}
-
-:global([data-theme='light']) .v {
-  background: linear-gradient(180deg, #4a4b4d, var(--s-knob) 60%);
 }
 
 .stepper[data-disabled] {

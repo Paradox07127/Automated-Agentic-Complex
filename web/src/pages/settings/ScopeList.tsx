@@ -2,7 +2,8 @@ import { getBridge } from '../../bridge';
 import { formatDuration, secToMs } from '../../domain';
 import { clock, createScope, failure, revokeScope } from './api';
 import { useSettings } from './ctx';
-import { Cap, Chip, Lnk } from './kit';
+import { Btn } from '../../ui';
+import { Chip } from './kit';
 import { labelOf } from './registry';
 import { Slab } from './Slab';
 import type { WireScope } from './wire';
@@ -51,9 +52,9 @@ export function ScopeList() {
       indent
       title={labelOf('scope')}
       right={
-        <Cap disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件夹选择器" onClick={() => void add()}>
+        <Btn disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件夹选择器" onClick={() => void add()}>
           添加文件夹…
-        </Cap>
+        </Btn>
       }
       desc="授权 24 小时后到期；撤销立即生效"
     >
@@ -69,12 +70,12 @@ export function ScopeList() {
             {current === s.scope_id ? (
               <b className={styles.t2}>默认</b>
             ) : (
-              !ro && <Lnk onClick={() => void model.save({ scope: s.scope_id }, '默认资料范围')}>设为默认</Lnk>
+              !ro && <Btn variant="link" onClick={() => void model.save({ scope: s.scope_id }, '默认资料范围')}>设为默认</Btn>
             )}
             {!ro && (
-              <Lnk danger onClick={() => revoke(s)}>
+              <Btn variant="danger" size="sm" onClick={() => revoke(s)}>
                 撤销授权
-              </Lnk>
+              </Btn>
             )}
           </li>
         ))}

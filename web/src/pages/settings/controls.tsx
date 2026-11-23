@@ -1,7 +1,8 @@
-import { Select } from '../../ui';
+import { Select, Switch } from '../../ui';
+import { GameSeg } from '../../ui/game';
 import { useSettings } from './ctx';
 import { targetOf, type Opt } from './fields';
-import { Field, OnOff, Seg } from './kit';
+import { Field } from './kit';
 import { optionsOf } from './native';
 import { labelOf } from './registry';
 import { Stepper } from './Stepper';
@@ -26,10 +27,10 @@ export function useControls() {
           未读到
         </span>
       ) : (
-        <OnOff on={v(id) === true} label={label} disabled={lock(id) || dis} disabledReason={why(id, reason)} onChange={(on) => model.set(id, on)} />
+        <Switch variant="setting" checked={v(id) === true} label={label} disabled={lock(id) || dis} disabledReason={why(id, reason)} onChange={(on) => model.set(id, on)} />
       ),
     seg: (id: string, given?: Opt[], dis?: boolean, label = labelOf(id)) => (
-      <Seg label={label} value={String(v(id) ?? '')} options={opts(id, given)} disabled={lock(id) || dis} onChange={(x) => model.set(id, x)} />
+      <GameSeg variant="setting" label={label} value={String(v(id) ?? '')} options={opts(id, given)} disabled={lock(id) || dis} onChange={(x) => model.set(id, x)} />
     ),
     select: (id: string, given?: Opt[], risky: string[] = [], dis?: boolean, label = labelOf(id)) => {
       const d = native?.rows[id]?.default;

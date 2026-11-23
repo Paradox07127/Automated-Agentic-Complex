@@ -12,14 +12,19 @@ export interface BtnProps {
   /**
    * 变体，默认 ghost（浅色胶囊，无图标位）。
    * 旧名照旧可传：cancel、action-row 按 secondary，quiet 按 text，danger-confirm 按 danger。
+   * link：行内文字链，正文色、黄下划线，没有胶囊。
    */
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'text' | 'ring' | 'cancel' | 'danger-confirm' | 'quiet' | 'action-row';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'text' | 'ring' | 'link' | 'cancel' | 'danger-confirm' | 'quiet' | 'action-row';
   /** 高 36 / 32 / 24，默认 md */
   size?: 'lg' | 'md' | 'sm';
   /** 图标：带图标位的变体放进右端圆位（没给 tail 时），其余放在文字前 */
   icon?: IconName;
   /** 右端圆形图标位的图标；不给时 primary 用勾、secondary 用箭头；sm 只有给了 tail 才带图标位 */
   tail?: IconName;
+  /** 打开别的页面或系统：文字后一个 » */
+  go?: boolean;
+  /** 读屏名称；文字只是符号时给 */
+  label?: string;
   /** 键帽文字，例如 esc、⏎ */
   kbd?: string;
   /** 加载中：图标位（或前置位）换加载环 */
@@ -36,7 +41,7 @@ export interface BtnProps {
   children: ReactNode;
 }
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'text' | 'ring';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'text' | 'ring' | 'link';
 
 const VARIANT: Record<NonNullable<BtnProps['variant']>, Variant> = {
   primary: 'primary',
@@ -45,6 +50,7 @@ const VARIANT: Record<NonNullable<BtnProps['variant']>, Variant> = {
   danger: 'danger',
   text: 'text',
   ring: 'ring',
+  link: 'link',
   cancel: 'secondary',
   'action-row': 'secondary',
   quiet: 'text',
@@ -53,7 +59,7 @@ const VARIANT: Record<NonNullable<BtnProps['variant']>, Variant> = {
 const TAIL: Partial<Record<Variant, IconName>> = { primary: 'check', secondary: 'chev', danger: 'del', ring: 'chev' };
 export const MOUSE_ONLY_HINT = '只能用鼠标点击';
 
-export function Btn({ variant = 'ghost', size = 'md', icon, tail, kbd, loading, disabled, disabledReason, mouseOnly, onClick, children }: BtnProps) {
+export function Btn({ variant = 'ghost', size = 'md', icon, tail, go, label, kbd, loading, disabled, disabledReason, mouseOnly, onClick, children }: BtnProps) {
   const [hint, setHint] = useState(false);
   const reasonId = useId();
   const v = VARIANT[variant];
@@ -85,6 +91,7 @@ export function Btn({ variant = 'ghost', size = 'md', icon, tail, kbd, loading, 
       data-tail={slot}
       data-loading={loading || undefined}
       data-mouse-only={mouseOnly || undefined}
+      aria-label={label}
       aria-disabled={disabled || undefined}
       aria-busy={loading || undefined}
       aria-describedby={disabled && disabledReason ? reasonId : undefined}
@@ -98,6 +105,11 @@ export function Btn({ variant = 'ghost', size = 'md', icon, tail, kbd, loading, 
       {lead}
       {size === 'lg' && <span className={styles.dash} aria-hidden="true" />}
       <span className={styles.label}>{children}</span>
+      {go && (
+        <span className={styles.go} aria-hidden="true">
+          »
+        </span>
+      )}
       <span className={styles.contour} aria-hidden="true" />
       {kbd && (
         <span className={styles.kbd} aria-hidden="true">
@@ -150,6 +162,8 @@ export const BtnDemos: Array<{ name: string; props: BtnProps }> = [
   { name: 'danger', props: { variant: 'danger', children: '批准（只能点击）', mouseOnly: true } },
   { name: 'text', props: { variant: 'text', children: '前往设置' } },
   { name: 'ring', props: { variant: 'ring', children: '稍后处理' } },
+  { name: 'go', props: { go: true, children: '打开配置文件' } },
+  { name: 'link', props: { variant: 'link', children: '恢复默认排除' } },
   { name: 'small', props: { variant: 'primary', size: 'sm', children: '确认' } },
   { name: 'small-tail', props: { variant: 'primary', size: 'sm', tail: 'look', children: '屏幕识读' } },
   { name: 'small-secondary', props: { variant: 'secondary', size: 'sm', icon: 'refresh', children: '重试' } },

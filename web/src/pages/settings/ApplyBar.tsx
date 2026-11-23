@@ -1,60 +1,73 @@
+import { BottomBar } from '../../shell/BottomBar';
+import { BottomBarSlot } from '../../shell/headerSlot';
+import { Btn } from '../../ui';
 import { useSettings } from './ctx';
-import { Cap, St } from './kit';
+import { St } from './kit';
 import { labelOf } from './registry';
 import styles from './ApplyBar.module.css';
 
 /**
- * The bottom bar (BottomNode): the tip at the left, capsules at the right. Drafts「未应用 N 项 [撤销] [应用]」; saved changes that wait for a
- * backend restart; the backend gone; else how changes take effect.
+ * The page's line in the shell's bottom bar: drafts「未应用 N 项 [撤销] [应用]」; saved changes that wait for a backend restart;
+ * the backend gone; else how changes take effect.
  */
 export function ApplyBar() {
   const { model, ro, agentdOff } = useSettings();
   const drafts = Object.keys(model.draft).length;
   const pending = Object.keys(model.pending);
   const waits = drafts > 0 || pending.length > 0;
-  return (
-    // A footer inside the page is no landmark of its own; the region keeps the bar named for screen readers.
-    <footer role="region" className={styles.bar} aria-label={waits ? '未应用的改动' : '改动怎么生效'} data-g="foot">
+  const status = (
+    <>
       {pending.length > 0 && (
-        <div className={styles.line}>
-          <span className={styles.tip}>
-            <St tone="warn" />
-            <span className="num">{pending.length}</span> 项重启后台服务后生效：{pending.map(labelOf).join('、')}
-          </span>
-          <Cap lg tone={drafts ? undefined : 'acc'} loading={model.restarting} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void model.restartBackend()}>
-            立即重启后台
-          </Cap>
-        </div>
+        <span className={styles.tip}>
+          <St tone="warn" />
+          <span className="num">{pending.length}</span> 项重启后台服务后生效：{pending.map(labelOf).join('、')}
+        </span>
       )}
       {drafts > 0 && (
-        <div className={styles.line}>
-          <span className={styles.tip}>
-            <St tone="warn" />
-            未应用 <span className="num">{drafts}</span> 项 │ 要一起生效，点「应用」后保存
-          </span>
-          <Cap lg onClick={model.revertAll}>
-            撤销
-          </Cap>
-          <Cap lg tone="acc" disabled={ro || agentdOff} disabledReason="后台服务没有运行" onClick={() => void model.applyAll()}>
-            应用
-          </Cap>
-        </div>
+        <span className={styles.tip}>
+          <St tone="warn" />
+          未应用 <span className="num">{drafts}</span> 项 │ 要一起生效，点「应用」后保存
+        </span>
       )}
       {!waits && agentdOff && (
-        <div className={styles.line}>
-          <span className={styles.tip}>
-            <St tone="bad">后台已断开</St> 内核、账号暂时只读
-          </span>
-          <Cap lg loading={model.restarting} onClick={() => void model.restartBackend()}>
+        <span className={styles.tip}>
+          <St tone="bad">后台已断开</St> 内核、账号暂时只读
+        </span>
+      )}
+      {!waits && !agentdOff && '改动立即生效 │ 每次改动后几秒内可在提示里撤销'}
+    </>
+  );
+  const actions =
+    waits || agentdOff ? (
+      <>
+        {pending.length > 0 && (
+          <Btn size="sm" variant={drafts ? 'ghost' : 'primary'} loading={model.restarting} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void model.restartBackend()}>
+            立即重启后台
+          </Btn>
+        )}
+        {drafts > 0 && (
+          <>
+            <Btn size="sm" onClick={model.revertAll}>
+              撤销
+            </Btn>
+            <Btn size="sm" variant="primary" disabled={ro || agentdOff} disabledReason="后台服务没有运行" onClick={() => void model.applyAll()}>
+              应用
+            </Btn>
+          </>
+        )}
+        {!waits && (
+          <Btn size="sm" loading={model.restarting} onClick={() => void model.restartBackend()}>
             重启后台服务
-          </Cap>
-        </div>
-      )}
-      {!waits && !agentdOff && (
-        <div className={styles.line}>
-          <span className={styles.tip}>改动立即生效 │ 每次改动后几秒内可在提示里撤销</span>
-        </div>
-      )}
-    </footer>
+          </Btn>
+        )}
+      </>
+    ) : undefined;
+  return (
+    <BottomBarSlot>
+      {/* The shell's bar is no landmark of its own; the region keeps this line named for screen readers. */}
+      <div role="region" className={styles.bar} aria-label={waits ? '未应用的改动' : '改动怎么生效'}>
+        <BottomBar status={status} actions={actions} />
+      </div>
+    </BottomBarSlot>
   );
 }

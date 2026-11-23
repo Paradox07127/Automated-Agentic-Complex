@@ -4,7 +4,8 @@ import { setDevMode, useDevMode } from '../../../shell/devMode';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { groupDesc } from '../groups';
-import { Cap, OnOff, St } from '../kit';
+import { Btn, Switch } from '../../../ui';
+import { St } from '../kit';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
@@ -52,9 +53,9 @@ export function AboutGroup() {
           <span className={styles.meta}>
             <span>{info?.os ?? '—'}</span>
           </span>
-          <Cap disabled={!info} onClick={copyVersion}>
+          <Btn disabled={!info} onClick={copyVersion}>
             复制版本信息
-          </Cap>
+          </Btn>
         </div>
       </Slab>
 
@@ -63,13 +64,13 @@ export function AboutGroup() {
       </SetSection>
 
       <SetSection title="排障">
-        <SetRow id="copydiag" title={labelOf('copydiag')} desc="不含对话和记忆内容" control={<Cap onClick={act('copy_diagnostics', '诊断信息已复制', '复制诊断信息')}>复制</Cap>} />
-        <SetRow id="logdir" title={labelOf('logdir')} control={<Cap go onClick={act('reveal_logs', '已打开日志目录', '打开日志目录')}>打开</Cap>} />
+        <SetRow id="copydiag" title={labelOf('copydiag')} desc="不含对话和记忆内容" control={<Btn onClick={act('copy_diagnostics', '诊断信息已复制', '复制诊断信息')}>复制</Btn>} />
+        <SetRow id="logdir" title={labelOf('logdir')} control={<Btn go onClick={act('reveal_logs', '已打开日志目录', '打开日志目录')}>打开</Btn>} />
         <SetRow
           id="onb"
           title={labelOf('onb')}
           control={
-            <Cap
+            <Btn
               go
               onClick={() =>
                 model.ask({
@@ -84,7 +85,7 @@ export function AboutGroup() {
               }
             >
               开始
-            </Cap>
+            </Btn>
           }
         />
         <SetRow
@@ -92,7 +93,7 @@ export function AboutGroup() {
           title={labelOf('fonts')}
           desc="Noto Sans SC、Saira │ SIL OFL 1.1；Material Symbols │ Apache 2.0"
           control={
-            <Cap
+            <Btn
               go
               onClick={() =>
                 model.ask({
@@ -104,7 +105,7 @@ export function AboutGroup() {
               }
             >
               查看
-            </Cap>
+            </Btn>
           }
         />
         <SetRow
@@ -112,7 +113,7 @@ export function AboutGroup() {
           title={labelOf('dev')}
           desc="显示诊断页和给开发者的设置项"
           info="打开后显示运行记录、诊断、记忆管线和调参页，设置里给开发者的项，画面里的性能细项（2× SSAA、渲染尺寸、自阴影精度），以及轮次号、截图配额等内部数据。"
-          control={<OnOff on={devMode} label={labelOf('dev')} onChange={setDevMode} />}
+          control={<Switch variant="setting" checked={devMode} label={labelOf('dev')} onChange={setDevMode} />}
         />
         {shown('agentd') && (
           <SetRow
@@ -122,19 +123,19 @@ export function AboutGroup() {
               <>
                 <St tone={running ? 'ok' : 'bad'}>{running ? `运行中${agentd?.pid ? ` │ 进程 ${agentd.pid}` : ''}` : '没有运行'}</St>
                 {running ? (
-                  <Cap go onClick={() => goPage({ page: 'diag' })}>
+                  <Btn go onClick={() => goPage({ page: 'diag' })}>
                     去诊断
-                  </Cap>
+                  </Btn>
                 ) : (
-                  <Cap loading={model.restarting} onClick={() => void model.restartBackend()}>
+                  <Btn loading={model.restarting} onClick={() => void model.restartBackend()}>
                     重启后台服务
-                  </Cap>
+                  </Btn>
                 )}
               </>
             }
           />
         )}
-        <SetRow id="devparams" title={labelOf('devparams')} desc="只能在配置文件里改" control={<Cap go onClick={act('open_config', '已打开配置文件', '打开配置文件')}>打开配置文件</Cap>} />
+        <SetRow id="devparams" title={labelOf('devparams')} desc="只能在配置文件里改" control={<Btn go onClick={act('open_config', '已打开配置文件', '打开配置文件')}>打开配置文件</Btn>} />
       </SetSection>
     </>
   );

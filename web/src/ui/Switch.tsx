@@ -13,11 +13,13 @@ export interface SwitchProps {
   disabled?: boolean;
   /** 禁用原因，悬停和读屏都能看到 */
   disabledReason?: string;
+  /** setting：设置行（ToggleSetting）的 200×34 圆角灰槽、白旋钮，和 GameSeg 的 setting 变体同一个样子 */
+  variant?: 'default' | 'setting';
   /** 切换 */
   onChange?: (checked: boolean) => void;
 }
 
-export function Switch({ checked, label, disabled, disabledReason, onChange }: SwitchProps) {
+export function Switch({ checked, label, disabled, disabledReason, variant = 'default', onChange }: SwitchProps) {
   const [on, setOn] = useControlled(checked, onChange);
   const reasonId = useId();
   const ref = useRef<HTMLButtonElement>(null);
@@ -32,6 +34,7 @@ export function Switch({ checked, label, disabled, disabledReason, onChange }: S
       role="switch"
       className={styles.sw}
       data-stub="Switch"
+      data-variant={variant}
       aria-checked={on}
       aria-label={label}
       aria-disabled={disabled || undefined}
@@ -73,4 +76,6 @@ export const SwitchDemos: Array<{ name: string; props: SwitchProps }> = [
   { name: 'off', props: { checked: false, label: '窗口文字' } },
   { name: 'disabled', props: { checked: false, label: '附上截图', disabled: true, disabledReason: '屏幕录制未允许' } },
   { name: 'disabled-on', props: { checked: true, label: '辅助功能', disabled: true, disabledReason: '由系统设置控制' } },
+  { name: 'setting', props: { checked: true, label: '开机登录后启动', variant: 'setting' } },
+  { name: 'setting-off', props: { checked: false, label: '系统通知', variant: 'setting' } },
 ];

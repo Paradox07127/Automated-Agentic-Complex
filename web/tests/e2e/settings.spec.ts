@@ -70,12 +70,14 @@ test('switches are the game 开 | 关 track, 200 wide, in both themes', async ({
   for (const theme of ['dark', 'light']) {
     await page.goto(`main.html#/settings?plugins=all&group=privacy&still=1&theme=${theme}`);
     const sw = page.getByRole('switch', { name: '键鼠计数' });
-    await expect(sw).toHaveText('开关');
+    // The shared Switch draws its two words from data-t.
+    await expect(sw.locator('[data-t]')).toHaveCount(2);
+    expect(await sw.locator('[data-t]').evaluateAll((els) => els.map((e) => e.getAttribute('data-t')))).toEqual(['开', '关']);
     expect((await sw.boundingBox())?.width).toBe(200);
   }
 });
 
-test('rows: the row plate, name 15/500 with its ⓘ, one line under it; a child row is indented; section titles are yellow over a rule', async ({ page }) => {
+test('rows: the row plate, name 15/500 with its ⓘ, one line under it; a child row is indented; section titles are the shared SecHead', async ({ page }) => {
   await page.goto('main.html#/settings?plugins=all&still=1&theme=dark');
   const row = page.locator('[data-row="mute"]');
   const look = await row.evaluate((el) => {
@@ -83,13 +85,15 @@ test('rows: the row plate, name 15/500 with its ⓘ, one line under it; a child 
     const t = getComputedStyle(el.querySelector('[id$="-title"]')!.parentElement!);
     return { bg: s.backgroundColor, title: [t.fontSize, t.fontWeight], desc: el.querySelector('[id$="-desc"]')?.textContent };
   });
-  expect(look).toEqual({ bg: expect.stringMatching(/^rgba\(255, 255, 255, 0\.10[56]\)$/), title: ['15px', '500'], desc: '只显示文字时照样回答，只是不念' });
+  // The plate is the --ef-plate-top token now that the page's own palette is gone.
+  expect(look).toEqual({ bg: 'rgba(255, 255, 255, 0.16)', title: ['15px', '500'], desc: '只显示文字时照样回答，只是不念' });
   await expect(row.getByRole('button', { name: '说明' })).toBeVisible();
   await page.goto('main.html#/settings?plugins=all&group=privacy&still=1&theme=dark');
   expect(await page.locator('[data-row="grain"]').evaluate((el) => parseFloat(getComputedStyle(el).marginLeft))).toBe(24);
   const sec = page.getByRole('region', { name: '遮蔽与排除' });
-  await expect(sec.locator('[data-stub="SecHead"]')).toHaveCount(0);
-  expect(await sec.locator('h3').evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el).fontSize])).toEqual(['rgb(255, 241, 0)', '15px']);
+  // SPEC §4: group titles are the shared SecHead (text-1 title after a yellow bar), as on every other page.
+  await expect(sec.locator('[data-stub="SecHead"]')).toHaveCount(1);
+  expect(await sec.locator('h3').evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el).fontSize])).toEqual(['rgb(237, 237, 237)', '15px']);
 });
 
 test('a plug-in that is off folds its rows into one line under its band', async ({ page }) => {

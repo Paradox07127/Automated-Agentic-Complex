@@ -4,13 +4,13 @@ import { type RuntimeInfo } from '../../../domain';
 import { codeText } from '../../../domain/errorText';
 import { KernelChain, kernelBreak } from '../../../features/kernel';
 import { Fold } from '../../../ui/Fold';
-import { Missing, Select, Skel, Table, TableCell, TableHead, TableRow } from '../../../ui';
+import { Btn, Missing, Select, Skel, Table, TableCell, TableHead, TableRow } from '../../../ui';
 import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { failure, installAcpAgent, readAcpAgents, type AcpAgent, type AcpAgents, type AcpInstall } from '../api';
 import { acctOptions, providerOptions, RUNSRC, RUNTIME_ERROR, RUNTIME_ERROR_UNKNOWN, type ProviderProfile, type RuntimeError } from '../fields';
-import { Cap, Chip, Lnk, St } from '../kit';
+import { Chip, St } from '../kit';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { Slab } from '../Slab';
@@ -178,16 +178,16 @@ export function KernelGroup() {
               {a.native_backend ? (
                 <span className={styles.cellActs} onClick={(e) => e.stopPropagation()}>
                   <St tone="off">用直连</St>
-                  <Cap disabled={ro || !native || !usable(native)} disabledReason={`本机没有 ${nativeName}`} onClick={() => switchTo(a.native_backend!)}>{`改用 ${nativeName}`}</Cap>
+                  <Btn disabled={ro || !native || !usable(native)} disabledReason={`本机没有 ${nativeName}`} onClick={() => switchTo(a.native_backend!)}>{`改用 ${nativeName}`}</Btn>
                 </span>
               ) : a.source !== 'local' ? (
                 <span className={styles.cellActs} onClick={(e) => e.stopPropagation()}>
-                  <Cap disabled={off} disabledReason={runnable(a) ? undefined : `本机没有 ${a.source}`} onClick={() => pickAcp(key)}>
+                  <Btn disabled={off} disabledReason={runnable(a) ? undefined : `本机没有 ${a.source}`} onClick={() => pickAcp(key)}>
                     下载并运行
-                  </Cap>
-                  <Cap loading={installing === a.id} disabled={ro || agentdOff || installing != null} disabledReason={agentdOff ? '后台服务没有运行' : '正在安装'} onClick={() => void installAcp(a)}>
+                  </Btn>
+                  <Btn loading={installing === a.id} disabled={ro || agentdOff || installing != null} disabledReason={agentdOff ? '后台服务没有运行' : '正在安装'} onClick={() => void installAcp(a)}>
                     安装
-                  </Cap>
+                  </Btn>
                 </span>
               ) : !a.probe ? (
                 <St tone="off">未检测</St>
@@ -223,13 +223,13 @@ export function KernelGroup() {
                   <St tone="bad">{`未就绪：${reason.label}`}</St>
                 </span>
               )}
-              {reason?.fix && <Lnk onClick={() => goRow(reason.fix!.row)}>{reason.fix.action}</Lnk>}
+              {reason?.fix && <Btn variant="link" onClick={() => goRow(reason.fix!.row)}>{reason.fix.action}</Btn>}
               {runtime.wire.auto_selected && <Chip>自动选择</Chip>}
               <span>所有角色共用</span>
             </span>
-            <Cap loading={runtimeChecking} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void k.recheck(cur.name, cur.id)}>
+            <Btn loading={runtimeChecking} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void k.recheck(cur.name, cur.id)}>
               重新检测
-            </Cap>
+            </Btn>
             <div className={styles.can} role="list" aria-label={`她用 ${cur.name} 能`}>
               <span className={styles.canLbl}>她用 {cur.name} 能：</span>
               {FEATURE.filter(([key]) => features[key]?.implemented).map(([key, label]) => (
@@ -241,7 +241,7 @@ export function KernelGroup() {
               <span role="listitem">
                 <Chip tone={computerUse ? 'on' : 'off'}>
                   {labelOf('plugins.computer_use')}
-                  {!computerUse && <Lnk onClick={() => goRow('plugins.computer_use', 'perm')}>去打开</Lnk>}
+                  {!computerUse && <Btn variant="link" onClick={() => goRow('plugins.computer_use', 'perm')}>去打开</Btn>}
                 </Chip>
               </span>
             </div>
@@ -253,7 +253,7 @@ export function KernelGroup() {
             {code === 'acp_auth_required' &&
               (savedAgent === 'claude-acp' ? (
                 <p className={styles.wide}>
-                  <span>在终端运行 claude 并输入 /login</span> <Cap onClick={() => k.onRunInTerminal('claude')}>在终端运行</Cap>
+                  <span>在终端运行 claude 并输入 /login</span> <Btn onClick={() => k.onRunInTerminal('claude')}>在终端运行</Btn>
                 </p>
               ) : (
                 savedAuth && <p className={styles.wide}>{`要登录：${savedAuth}`}</p>
@@ -323,9 +323,9 @@ export function KernelGroup() {
             control={
               <>
                 <code className={styles.path}>{exe ? String(exe) : '自动检测'}</code>
-                <Cap disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件选择器" onClick={() => void pickExe()}>
+                <Btn disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件选择器" onClick={() => void pickExe()}>
                   选择…
-                </Cap>
+                </Btn>
               </>
             }
           />
@@ -337,9 +337,9 @@ export function KernelGroup() {
             indent
             title={labelOf('acpAgent')}
             right={
-              <Cap loading={acp.probing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void acp.refresh()}>
+              <Btn loading={acp.probing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void acp.refresh()}>
                 重新检测
-              </Cap>
+              </Btn>
             }
           >
             {acp.error && !acp.list ? (

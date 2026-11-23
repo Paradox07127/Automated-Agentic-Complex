@@ -8,7 +8,7 @@ import { useDemo } from '../../shell/demo';
 import { setPlugins } from '../../shell/plugins';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
-import { ErrBar, Region, type RegionSource } from '../../ui';
+import { Btn, ErrBar, Region, type RegionSource } from '../../ui';
 import { playClip } from '../../ui/ToggleClip';
 import { ApplyBar } from './ApplyBar';
 import { runtimeView, SettingsCtx, type Reloadable, type SettingsCtxValue } from './ctx';
@@ -21,7 +21,6 @@ import { KeysGroup } from './groups/Keys';
 import { ModelGroup } from './groups/Model';
 import { SeeGroup } from './groups/See';
 import { SpeakGroup } from './groups/Speak';
-import { Cap } from './kit';
 import { useSettingsModel } from './model';
 import type { Native } from './native';
 import { usePerms } from './perms';
@@ -271,9 +270,9 @@ function SettingsBody() {
               <ErrBar
                 message={NATIVE_RO}
                 extra={
-                  <Cap go onClick={openConfig}>
+                  <Btn go onClick={openConfig}>
                     打开配置文件
-                  </Cap>
+                  </Btn>
                 }
               />
             )}

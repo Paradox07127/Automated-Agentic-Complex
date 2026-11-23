@@ -3,7 +3,8 @@ import { getBridge, type BridgeError, type HotkeyCheck } from '../../../bridge';
 import { hotkeyText, keyText } from '../../../bridge/platformText';
 import { useSettings } from '../ctx';
 import { groupDesc } from '../groups';
-import { Cap, KeyCell } from '../kit';
+import { Btn } from '../../../ui';
+import { KeyCell } from '../kit';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
@@ -112,22 +113,22 @@ export function KeysGroup() {
                 <>
                   <KeyCell keys={unset ? undefined : capsOf(hotkeyText(combo))} none={unset} warn={clash} recording={recording === h.id} />
                   {clash && (
-                    <Cap disabled={ro || recording !== null} onClick={() => void use(h.id, label, INPUT_SWITCH_FIX)}>
+                    <Btn disabled={ro || recording !== null} onClick={() => void use(h.id, label, INPUT_SWITCH_FIX)}>
                       改用 {hotkeyText(INPUT_SWITCH_FIX)}
-                    </Cap>
+                    </Btn>
                   )}
-                  <Cap
+                  <Btn
                     loading={recording === h.id}
                     disabled={ro || noHotkeys || (recording !== null && recording !== h.id)}
                     disabledReason={recording ? '正在录制快捷键' : noHotkeys ? '这个平台不支持全局热键' : '设置当前不可写'}
                     onClick={() => void record(h.id, label)}
                   >
                     更改
-                  </Cap>
+                  </Btn>
                   {!unset && (
-                    <Cap disabled={ro || recording !== null} onClick={() => model.set(h.id, '')}>
+                    <Btn disabled={ro || recording !== null} onClick={() => model.set(h.id, '')}>
                       清除
-                    </Cap>
+                    </Btn>
                   )}
                 </>
               }

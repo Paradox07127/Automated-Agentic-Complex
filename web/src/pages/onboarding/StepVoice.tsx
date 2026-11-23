@@ -7,7 +7,9 @@ import { failure } from '../settings/api';
 import { useControls } from '../settings/controls';
 import { useSettings } from '../settings/ctx';
 import { capsOf } from '../settings/groups/Keys';
-import { Cap, Dis, Field, KeyCell, Seg, St, type StTone } from '../settings/kit';
+import { Btn } from '../../ui';
+import { GameSeg } from '../../ui/game';
+import { Dis, Field, KeyCell, St, type StTone } from '../settings/kit';
 import type { PermRow } from '../settings/perms';
 import { labelOf } from '../settings/registry';
 import { SetRow } from '../settings/SetRow';
@@ -68,7 +70,7 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
         title={labelOf('mute')}
         desc="只显示文字时照样回答，只是不念"
         control={
-          <Seg
+          <GameSeg variant="setting"
             label={labelOf('mute')}
             value={typeof mute === 'boolean' ? String(mute) : ''}
             options={[
@@ -93,7 +95,7 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
         }
         info="把台词合成语音。要你自己部署的语音服务地址和令牌；app 不打包模型，只用你的服务。"
         control={
-          <Seg
+          <GameSeg variant="setting"
             label={labelOf('tts')}
             value={String(model.value('tts') ?? '')}
             options={[
@@ -115,9 +117,9 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
             control={
               <>
                 <Field type="password" aria-label="令牌" placeholder="粘贴令牌" value={token} disabled={agentdOff} onChange={(e) => setToken(e.currentTarget.value)} />
-                <Cap disabled={agentdOff || !token.trim()} onClick={saveToken}>
+                <Btn disabled={agentdOff || !token.trim()} onClick={saveToken}>
                   保存
-                </Cap>
+                </Btn>
               </>
             }
           />
@@ -128,9 +130,9 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
             control={
               <>
                 {test && <St tone={test.ok ? 'ok' : 'bad'}>{test.text}</St>}
-                <Cap loading={testing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void runTest()}>
+                <Btn loading={testing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void runTest()}>
                   测试
-                </Cap>
+                </Btn>
               </>
             }
           />
@@ -203,9 +205,9 @@ function YourVoice() {
         control={
           <>
             <KeyCell keys={combo ? capsOf(hotkeyText(combo)) : undefined} none={combo === ''} recording={recording} />
-            <Cap loading={recording} disabled={ro || !caps.hotkeys} disabledReason="这个平台不支持全局热键" onClick={() => void record()}>
+            <Btn loading={recording} disabled={ro || !caps.hotkeys} disabledReason="这个平台不支持全局热键" onClick={() => void record()}>
               更改
-            </Cap>
+            </Btn>
           </>
         }
       />
@@ -226,13 +228,13 @@ function YourVoice() {
               control={
                 <>
                   <St tone={tone}>{text}</St>
-                  {p.state === 'notDetermined' && <Cap onClick={() => void ask(p)}>允许</Cap>}
+                  {p.state === 'notDetermined' && <Btn onClick={() => void ask(p)}>允许</Btn>}
                   {known && p.state !== 'granted' && (
-                    <Cap go disabled={!caps.systemSettings} disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的隐私设置" onClick={() => void openSettings(p)}>
+                    <Btn go disabled={!caps.systemSettings} disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的隐私设置" onClick={() => void openSettings(p)}>
                       去系统设置
-                    </Cap>
+                    </Btn>
                   )}
-                  {p.state !== 'granted' && p.state !== 'loading' && <Cap onClick={() => void recheck(p)}>重新检测</Cap>}
+                  {p.state !== 'granted' && p.state !== 'loading' && <Btn onClick={() => void recheck(p)}>重新检测</Btn>}
                 </>
               }
             />

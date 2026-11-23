@@ -213,8 +213,9 @@
   --fill-inset: 0;
 }
 
-/* Text only, no capsule. */
-.text {
+/* Text only, no capsule; link: body text over a 2 px yellow underline, inline in a row, a chip or a ban plate. */
+.text,
+.link {
   --btn-fill: transparent;
   --btn-ring: transparent;
   --btn-edge: transparent;
@@ -223,9 +224,21 @@
   --btn-wash: var(--ef-overlay-hover);
 }
 
-.text .contour,
-.text .dash {
+:is(.text, .link) :is(.contour, .dash) {
   display: none;
+}
+
+.link {
+  --btn-fg: var(--ef-text-1);
+  height: auto;
+  padding: 0;
+  font-size: var(--ef-fs-small);
+  text-decoration: underline var(--ef-accent-text) 2px;
+  text-underline-offset: 3px;
+}
+
+.go {
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-num);
 }
 
 /* The game's button controllers swap colours instead of washing: ghost = white_btn01, primary = yellow_btn, secondary = gray_btn_01. */
@@ -333,8 +346,8 @@
     0 0 0 3px var(--ef-focus);
 }
 
-.text:focus-visible::before,
-:global([data-force='focus']) > .text::before {
+:is(.text, .link):focus-visible::before,
+:global([data-force='focus']) > :is(.text, .link)::before {
   box-shadow: 0 0 0 2px var(--ef-focus);
 }
 
@@ -361,10 +374,10 @@
 
 .ghost[aria-disabled='true'] {
   --btn-fill: var(--ef-g-btn-light-off);
-  --btn-fg: var(--btn-light-ink);
+  --btn-fg: var(--ef-on-accent);
 }
 
-.text[aria-disabled='true'] {
+:is(.text, .link)[aria-disabled='true'] {
   --btn-fill: transparent;
   --btn-ring: transparent;
   --btn-fg: var(--ef-text-disabled);

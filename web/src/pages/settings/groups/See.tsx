@@ -6,7 +6,8 @@ import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { ExcludeList } from '../ExcludeList';
 import { groupDesc } from '../groups';
-import { Dis, OnOff } from '../kit';
+import { Switch } from '../../../ui';
+import { Dis } from '../kit';
 import { OutboundPlate } from '../Outbound';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
@@ -49,7 +50,7 @@ export function SeeGroup() {
     );
   const brief = (key: 'daily' | 'weekly', id: string) =>
     briefs ? (
-      <OnOff on={briefs[key]} label={labelOf(id)} disabled={agentdOff} disabledReason="后台服务没有运行，这一项暂时只读" onChange={(v) => saveBrief(key, v, id)} />
+      <Switch variant="setting" checked={briefs[key]} label={labelOf(id)} disabled={agentdOff} disabledReason="后台服务没有运行，这一项暂时只读" onChange={(v) => saveBrief(key, v, id)} />
     ) : (
       <span className={styles.t3} title={`${labelOf(id)}：还没读到后台的设置`}>
         未读到

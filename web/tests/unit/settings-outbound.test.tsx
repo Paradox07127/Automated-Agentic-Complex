@@ -199,7 +199,8 @@ describe(' 观察: 外发总览', () => {
       </Harness>,
     );
     const sw = screen.getByRole('switch', { name: '键鼠计数' });
-    expect(sw.textContent).toBe('开关');
+    // The shared Switch draws its two words from data-t, so they stay out of the accessible name.
+    expect([...sw.querySelectorAll('[data-t]')].map((e) => e.getAttribute('data-t'))).toEqual(['开', '关']);
     expect(sw.getAttribute('aria-checked')).toBe('true');
     await act(async () => fireEvent.click(sw));
     expect(save).toHaveBeenCalledWith({ keys: false });

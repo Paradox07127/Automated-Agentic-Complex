@@ -126,13 +126,12 @@ describe(' states and navigation', () => {
     expect(await screen.findByRole('region', { name: '外发总览' })).toBeTruthy();
   });
 
-  it('heads each section with its title and no second title row under the tabs; the group line sits in the first title ⓘ', async () => {
+  it('heads each section with the shared SecHead and no second title row under the tabs; the group line sits in the first head\'s ⓘ', async () => {
     await mount('&group=data');
     const sec = await screen.findByRole('region', { name: '保留' });
-    const h = sec.querySelector('h3')!;
-    expect(h.firstChild?.textContent).toBe('保留');
-    expect(within(h).getByRole('tooltip', { hidden: true }).textContent).toBe(groupDesc('data'));
-    expect(sec.querySelector(':scope > [data-stub="SecHead"]')).toBeNull();
+    const head = sec.querySelector(':scope > [data-stub="SecHead"]') as HTMLElement;
+    expect(head.querySelector('h3')?.textContent).toBe('保留');
+    expect(within(head).getByRole('tooltip', { hidden: true }).textContent).toBe(groupDesc('data'));
     expect(screen.queryByRole('heading', { name: '数据' })).toBeNull();
   });
 

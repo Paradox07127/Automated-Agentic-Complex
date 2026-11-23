@@ -42,8 +42,8 @@
   width: 104px;
   height: 136px;
   overflow: hidden;
-  background: var(--s-plate);
-  box-shadow: inset 0 0 0 1px var(--s-rim);
+  background: var(--ef-plate-top);
+  box-shadow: inset 0 0 0 1px var(--ef-slab-rim);
 }
 
 .art > [data-stub='CharacterArt'] {
@@ -89,13 +89,13 @@
 }
 
 .nm {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font: 600 13px / 18px var(--ef-font-sans);
   text-align: center;
 }
 
 .rc[aria-checked='true'] .nm {
-  color: var(--s-t1);
+  color: var(--ef-text-1);
 }
 
 .rc[data-add] .art {
@@ -103,9 +103,9 @@
   place-items: center;
   align-content: center;
   gap: 6px;
-  background: repeating-linear-gradient(-45deg, var(--s-tex) 0 1px, transparent 1px 6px);
-  box-shadow: inset 0 0 0 1px var(--s-t3);
-  color: var(--s-t2);
+  background: repeating-linear-gradient(-45deg, var(--ef-contour) 0 1px, transparent 1px 6px);
+  box-shadow: inset 0 0 0 1px var(--ef-text-3);
+  color: var(--ef-text-2);
 }
 
 .plus {
@@ -124,7 +124,7 @@
 }
 
 .why {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 14px;
 }
 
@@ -165,7 +165,7 @@
   left: 50%;
   width: 220px;
   height: 300px;
-  color: var(--s-t1);
+  color: var(--ef-text-1);
   translate: -50% 0;
 }
 
@@ -180,7 +180,7 @@
   bottom: 44px;
   left: 24px;
   height: 1px;
-  background: var(--s-rule);
+  background: var(--ef-set-rule);
 }
 
 .here {
@@ -200,12 +200,12 @@
 }
 
 .mi {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
 }
 
 .lead {
   margin: 0;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 14px;
   line-height: 22px;
 }
@@ -223,7 +223,7 @@
 }
 
 .k {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
 }
 
 .calls {
@@ -236,12 +236,12 @@
   display: grid;
   gap: 6px;
   justify-items: start;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
 }
 
 .call b {
-  color: var(--s-t1);
+  color: var(--ef-text-1);
   font-size: 13px;
   font-weight: 500;
 }
@@ -251,7 +251,7 @@
   align-items: center;
   gap: 6px;
   height: 34px;
-  color: var(--s-t1);
+  color: var(--ef-text-1);
   font-size: 13px;
 }
 

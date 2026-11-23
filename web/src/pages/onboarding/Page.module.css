@@ -91,7 +91,7 @@
   position: relative;
   min-height: 0;
   overflow: hidden auto;
-  scrollbar-color: var(--s-t3) transparent;
+  scrollbar-color: var(--ef-text-3) transparent;
   scrollbar-width: thin;
 }
 

@@ -1,8 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { toast as pushToast } from '../../shell/toast';
-import { OverlayPortal, useOverlayFocus } from '../../ui';
+import { Btn, OverlayPortal, useOverlayFocus } from '../../ui';
 import { useSettings } from './ctx';
-import { Cap } from './kit';
 import type { ConfirmSpec } from './model';
 import styles from './SettingsOverlays.module.css';
 
@@ -88,12 +87,10 @@ function Paper({ spec, onClose }: { spec: ConfirmSpec; onClose: () => void }) {
           </label>
         )}
         <div className={styles.acts}>
-          <Cap lg onClick={onClose}>
-            {spec.cancelLabel ?? '取消'}
-          </Cap>
-          <Cap lg tone={spec.danger ? 'red' : 'acc'} loading={busy} disabled={!ok} disabledReason={spec.confirmWord ? `先输入「${spec.confirmWord}」` : undefined} onClick={run}>
+          <Btn onClick={onClose}>{spec.cancelLabel ?? '取消'}</Btn>
+          <Btn variant={spec.danger ? 'danger' : 'primary'} loading={busy} disabled={!ok} disabledReason={spec.confirmWord ? `先输入「${spec.confirmWord}」` : undefined} onClick={run}>
             {busy ? '正在处理…' : spec.confirmLabel}
-          </Cap>
+          </Btn>
         </div>
       </div>
     </div>

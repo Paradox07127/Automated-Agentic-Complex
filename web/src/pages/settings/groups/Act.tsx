@@ -5,12 +5,14 @@ import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { groupDesc } from '../groups';
-import { Cap, Field, Masked, St, type StTone } from '../kit';
+import { Btn, Fold } from '../../../ui';
+import { Field, Masked, St, type StTone } from '../kit';
 import type { PermRow } from '../perms';
 import { labelOf } from '../registry';
 import { ScopeList } from '../ScopeList';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
+import styles from '../groups.module.css';
 
 const STATE: Record<PermRow['state'], [StTone, string]> = {
   granted: ['ok', '已允许'],
@@ -58,14 +60,10 @@ export function ActGroup() {
 
 const PERM_KINDS: ReadonlySet<string> = new Set(['screenRecording', 'accessibility', 'microphone', 'inputMonitoring', 'automation', 'notifications']);
 
-/** 系统权限: one summary line, unfolding into a row per permission with its fix path and a re-check. */
+/** 系统权限: one summary line, then a fold with a row per permission, its fix path and a re-check; open while one is missing. */
 function PermSection({ open: linked }: { open: boolean }) {
   const { model, caps, perms, recheckPerms } = useSettings();
   const bridge = getBridge();
-  const [open, setOpen] = useState(linked);
-  useEffect(() => {
-    if (linked) setOpen(true);
-  }, [linked]);
   const known = perms.filter((p) => p.state !== 'loading' && p.state !== 'unread' && p.state !== 'unsupported');
   const missing = known.filter((p) => p.state !== 'granted');
   const reading = perms.some((p) => p.state === 'loading');
@@ -114,42 +112,39 @@ function PermSection({ open: linked }: { open: boolean }) {
         title={labelOf('perms')}
         desc={missing.length ? `没开的会让这些功能不可用：${missing.flatMap((p) => p.features).join('、')}` : '各项能力要的系统权限'}
         descTone={missing.length ? 'attention' : undefined}
-        control={
-          <>
-            {summary}
-            <Cap onClick={() => setOpen(!open)}>{open ? '收起' : missing.length ? '去开' : '展开'}</Cap>
-          </>
-        }
+        control={summary}
       />
-      {open &&
-        perms.map((p) => {
-          const ok = p.state === 'granted';
-          const isKnown = p.state !== 'loading' && p.state !== 'unread';
-          const askable = p.state === 'notDetermined' && ASKABLE.has(p.kind);
-          const [tone, text] = STATE[p.state];
-          return (
-            <SetRow
-              key={p.kind}
-              id={p.kind}
-              title={p.label}
-              desc={`用于 ${p.features.join('、')}`}
-              info={p.purpose}
-              indent
-              control={
-                <>
-                  <St tone={tone}>{text}</St>
-                  {askable && <Cap onClick={() => void ask(p)}>允许</Cap>}
-                  {isKnown && !ok && p.state !== 'unsupported' && (
-                    <Cap go disabled={!caps.systemSettings} disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的隐私设置" onClick={() => void openSettings(p)}>
-                      去系统设置
-                    </Cap>
-                  )}
-                  {!ok && p.state !== 'loading' && p.state !== 'unsupported' && <Cap onClick={() => void recheck(p)}>重新检测</Cap>}
-                </>
-              }
-            />
-          );
-        })}
+      <div className={styles.sub}>
+        <Fold id="perm.list" label="各项权限" count={perms.length} rows={perms.length} autoOpen={linked || missing.length > 0}>
+          {perms.map((p) => {
+            const ok = p.state === 'granted';
+            const isKnown = p.state !== 'loading' && p.state !== 'unread';
+            const askable = p.state === 'notDetermined' && ASKABLE.has(p.kind);
+            const [tone, text] = STATE[p.state];
+            return (
+              <SetRow
+                key={p.kind}
+                id={p.kind}
+                title={p.label}
+                desc={`用于 ${p.features.join('、')}`}
+                info={p.purpose}
+                control={
+                  <>
+                    <St tone={tone}>{text}</St>
+                    {askable && <Btn onClick={() => void ask(p)}>允许</Btn>}
+                    {isKnown && !ok && p.state !== 'unsupported' && (
+                      <Btn go disabled={!caps.systemSettings} disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的隐私设置" onClick={() => void openSettings(p)}>
+                        去系统设置
+                      </Btn>
+                    )}
+                    {!ok && p.state !== 'loading' && p.state !== 'unsupported' && <Btn onClick={() => void recheck(p)}>重新检测</Btn>}
+                  </>
+                }
+              />
+            );
+          })}
+        </Fold>
+      </div>
     </SetSection>
   );
 }
@@ -211,13 +206,13 @@ function MotionRows() {
           <>
             {src?.token_set && !token ? <Masked>已保存</Masked> : <Field type="password" aria-label="动作服务令牌" placeholder="粘贴令牌" value={token} disabled={off} onChange={(e) => setToken(e.currentTarget.value)} />}
             {src?.token_set && !token ? (
-              <Cap disabled={off} onClick={() => save({ service_url: src.service_url, token: '' }, '已删除动作服务令牌', '没能删除令牌')}>
+              <Btn disabled={off} onClick={() => save({ service_url: src.service_url, token: '' }, '已删除动作服务令牌', '没能删除令牌')}>
                 移除
-              </Cap>
+              </Btn>
             ) : (
-              <Cap disabled={off || !token.trim()} onClick={() => save({ service_url: src?.service_url ?? null, token: token.trim() }, '令牌已保存', '没能保存令牌')}>
+              <Btn disabled={off || !token.trim()} onClick={() => save({ service_url: src?.service_url ?? null, token: token.trim() }, '令牌已保存', '没能保存令牌')}>
                 保存
-              </Cap>
+              </Btn>
             )}
           </>
         }

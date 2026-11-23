@@ -7,13 +7,13 @@
 
 .count {
   margin: 6px 0 2px;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
 }
 
 .count b,
 .count :global(.num) {
-  color: var(--s-t1);
+  color: var(--ef-text-1);
   font-family: var(--ef-font-num);
 }
 
@@ -38,8 +38,8 @@
   min-height: 48px;
   padding: 7px 22px 7px 34px;
   border-radius: 3px;
-  background: var(--s-plate);
-  box-shadow: inset 0 0 0 1px var(--s-rim), inset 0 1px 0 var(--s-rim-hi);
+  background: var(--ef-plate-top);
+  box-shadow: inset 0 0 0 1px var(--ef-slab-rim), inset 0 1px 0 var(--ef-plate-top);
   cursor: pointer;
   transition: background 83ms;
 }
@@ -50,14 +50,14 @@
   z-index: -1;
   inset: 2px auto 2px 2px;
   width: 96px;
-  background: repeating-linear-gradient(-45deg, var(--s-tex) 0 1.2px, transparent 1.2px 4px);
+  background: repeating-linear-gradient(-45deg, var(--ef-contour) 0 1.2px, transparent 1.2px 4px);
   -webkit-mask: linear-gradient(90deg, #000 10%, transparent);
   mask: linear-gradient(90deg, #000 10%, transparent);
   opacity: 0.7;
 }
 
 .row:hover {
-  background: var(--s-plate-hi);
+  background: linear-gradient(var(--ef-overlay-hover) 0 0), var(--ef-plate-top);
 }
 
 .row:focus-visible {
@@ -81,18 +81,18 @@
 .title mark {
   padding: 0 1px;
   background: var(--ef-accent);
-  color: #161616;
+  color: var(--ef-on-accent);
 }
 
 .crumb {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   line-height: 18px;
 }
 
 .danger {
   padding: 0 5px;
-  color: var(--s-bad);
+  color: var(--ef-danger-text);
   font-size: 11px;
   font-weight: 400;
   line-height: 16px;
@@ -100,7 +100,7 @@
 }
 
 .go {
-  color: var(--s-t2);
+  color: var(--ef-text-2);
   font: 600 15px var(--ef-font-num);
 }
 
@@ -109,5 +109,5 @@
   justify-items: center;
   gap: 12px;
   padding: 80px 0;
-  color: var(--s-t2);
+  color: var(--ef-text-2);
 }

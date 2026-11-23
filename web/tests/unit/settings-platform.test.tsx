@@ -41,10 +41,11 @@ async function mount(search: string) {
 
 const row = (id: string) => document.querySelector(`[data-row="${id}"]`);
 
-/** 系统权限 is one summary line until its button unfolds a row per permission. */
+/** 系统权限 is one summary line and a fold of a row per permission: flat for three or fewer, open by itself while one is missing, else opened from its head. */
 async function unfoldPerms() {
-  const sum = await waitFor(() => within(row('perms') as HTMLElement).getByRole('button', { name: /^(展开|去开)$/ }));
-  await act(async () => fireEvent.click(sum));
+  await waitFor(() => expect(row('perms')).not.toBeNull());
+  const head = screen.queryByRole('button', { name: /^各项权限/ });
+  if (head?.getAttribute('aria-expanded') === 'false') await act(async () => fireEvent.click(head));
 }
 
 describe('settings on the Windows shell', () => {

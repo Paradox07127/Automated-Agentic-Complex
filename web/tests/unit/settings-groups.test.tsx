@@ -171,8 +171,8 @@ describe('settings › 快捷键', () => {
 });
 
 describe('settings › 能做 › 系统权限', () => {
-  // The section is one summary line until 去开 unfolds a row per permission.
-  const unfold = () => act(async () => fireEvent.click(within(document.querySelector('[data-row="perms"]') as HTMLElement).getByRole('button', { name: '去开' })));
+  // The section is one summary line and a fold of a row per permission, open by itself while one is missing.
+  const unfold = async () => expect(screen.getByRole('button', { name: /^各项权限/ }).getAttribute('aria-expanded')).toBe('true');
 
   it('opens system settings through the bridge and offers a re-check', async () => {
     const request = vi.spyOn(window.agenticComplex!.permissions, 'openSettings');

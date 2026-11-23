@@ -141,13 +141,11 @@ describe('BarList labels', () => {
 });
 
 describe('settings titles and the character page', () => {
-  // Section titles take the page's title colour: the title token by night, the ink by day (yellow fails 3:1 on paper); never the accent fill.
-  it('settings group titles use the title token, not the accent', () => {
-    expect(src('pages/settings/SetSection.tsx')).not.toContain('<SecHead');
-    const title = rule(src('pages/settings/section.module.css'), '.title');
-    expect(title).toMatch(/color:\s*var\(--s-sec-t\)/);
-    expect(src('pages/settings/section.module.css')).not.toMatch(/accent/);
-    expect(rule(src('pages/settings/Page.module.css'), '.page')).toMatch(/--s-sec-t:\s*var\(--ef-set-title\)/);
+  // The unified spec (SPEC §4): group titles are the shared SecHead everywhere, settings included; the page keeps no title style or palette of its own.
+  it('settings group titles are the shared SecHead and the page has no private palette', () => {
+    expect(src('pages/settings/SetSection.tsx')).toContain('<SecHead');
+    expect(src('pages/settings/section.module.css')).not.toMatch(/\.title\b/);
+    expect(src('pages/settings/Page.module.css')).not.toMatch(/--s-/);
   });
 
   // SRow has no contour any more and the hero is gone, so neither rule is left in the page CSS.

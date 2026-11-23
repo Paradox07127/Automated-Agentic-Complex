@@ -24,6 +24,7 @@ import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model
 import type { Native } from '../../src/pages/settings/native';
 import { searchSettings } from '../../src/pages/settings/registry';
 import type { WireBlacklist, WireDiagSlice, WireModelSettings, WireScope } from '../../src/pages/settings/wire';
+import { setPlugins } from '../../src/shell/plugins';
 import { pluginsOn, pluginsReset } from './plugins';
 
 // Every plug-in on, so each group shows all its rows.
@@ -571,13 +572,35 @@ describe('外部语音服务', () => {
     expect(screen.getByRole('button', { name: '测试' })).toBeTruthy();
   });
 
-  it('shows the tunnel host and ensure script only for the external source and saves them under their ids', async () => {
+  const voice = (state: 'ready' | 'unreachable'): Loaded => ({ ...d, diag: { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, tts: WIRE_TTS[state] } } });
+  const serviceRow = () => screen.getByRole('button', { name: /^服务地址、令牌和测试/ });
+
+  it('folds the address, token and test into one row while the service answers, the address in its summary', async () => {
+    render(<Harness d={voice('ready')}><SpeakGroup /></Harness>);
+    expect(serviceRow().getAttribute('aria-expanded')).toBe('false');
+    expect(serviceRow().textContent).toContain(String(d.native.saved.ttsUrl));
+    expect(screen.queryByRole('textbox', { name: '服务地址' })).toBeNull();
+    await click(serviceRow());
+    expect(screen.getByRole('textbox', { name: '服务地址' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '测试' })).toBeTruthy();
+  });
+
+  it('opens the service row by itself while the voice is down', () => {
+    render(<Harness d={voice('unreachable')}><SpeakGroup /></Harness>);
+    expect(serviceRow().getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('textbox', { name: '服务地址' })).toBeTruthy();
+  });
+
+  it('shows the tunnel host and ensure script only for the external source, folded in 高级, and saves them under their ids', async () => {
     const { unmount } = render(<Harness d={local()}><SpeakGroup /></Harness>);
     expect(screen.queryByRole('textbox', { name: 'SSH 转发主机' })).toBeNull();
     expect(screen.queryByRole('textbox', { name: '按需启动脚本' })).toBeNull();
     unmount();
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SpeakGroup /></Harness>);
+    // The two developer rows sit in the shut 高级 fold under the service's other rows.
+    expect(screen.queryByRole('textbox', { name: 'SSH 转发主机' })).toBeNull();
+    await click(screen.getByRole('button', { name: /^高级/ }));
     const host = screen.getByRole('textbox', { name: 'SSH 转发主机' });
     const script = screen.getByRole('textbox', { name: '按需启动脚本' });
     expect(host.getAttribute('placeholder')).toBe('ssh 主机名（可留空）');
@@ -670,6 +693,21 @@ describe('外部语音服务', () => {
     expect(sent('POST', '/voice/token')).toEqual({ token: 'secret' });
     expect(token.value).toBe('');
     expect(screen.getByTestId('toast').textContent).toBe('令牌已保存');
+  });
+});
+
+describe('账号 under 和她对话', () => {
+  it('puts the account rows under the 和她对话 band and folds them all into its one line while it is off', async () => {
+    const { unmount } = render(<Harness d={d}><ModelGroup /></Harness>);
+    expect(screen.getByRole('switch', { name: '和她对话' })).toBeTruthy();
+    expect(document.querySelector('[data-row="svc"]')).not.toBeNull();
+    expect(screen.getByRole('region', { name: '默认模型' })).toBeTruthy();
+    unmount();
+    setPlugins({ 'plugins.light_ai': false });
+    render(<Harness d={d}><ModelGroup /></Harness>);
+    expect(screen.getByText(/关着 │ 打开后可以设：模型服务、账号、默认模型、测试连接/)).toBeTruthy();
+    expect(document.querySelector('[data-row="svc"]')).toBeNull();
+    expect(screen.queryByRole('region', { name: '默认模型' })).toBeNull();
   });
 });
 
