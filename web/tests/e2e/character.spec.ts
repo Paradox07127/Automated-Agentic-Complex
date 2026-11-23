@@ -141,7 +141,7 @@ test('offline: the stage says the character is not running and the table is read
   await expect(page.locator('[data-preview-stage]').getByRole('status')).toContainText('角色未运行');
   // The slot under the stage says why 桌面预览 is off.
   await expect(page.locator('[data-stage] > [data-g="info"]').getByRole('status')).toHaveText('角色未运行');
-  await expect(page.getByRole('radiogroup', { name: '挥手' })).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.getByRole('switch', { name: '挥手' })).toHaveAttribute('aria-disabled', 'true');
   expect(errors).toEqual([]);
 });
 
@@ -213,7 +213,7 @@ for (const w of [900, 1050, 1280]) {
     }
     expect(out.x).toBeGreaterThan(slider.x + slider.width - 1);
     expect(out.x + out.width).toBeLessThanOrEqual(row.x + row.width + 1);
-    const presets = pane.getByRole('radiogroup', { name: '大小预设' });
+    const presets = pane.getByRole('button', { name: '大小预设' });
     if (await presets.isVisible()) {
       const p = (await presets.boundingBox())!;
       expect(slider.x).toBeGreaterThan(p.x + p.width - 1);

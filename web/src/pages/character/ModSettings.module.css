@@ -1,7 +1,5 @@
-/* 角色页「模组设置」: a title bar per category and its switch rows (DarkRow), the rollback bar. */
+/* 角色页「模组设置」: a title bar per category and its setting rows (OptionRow), the rollback bar. */
 .mods {
-  --ms-amber: #ffd36b;
-
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -18,7 +16,7 @@
 }
 
 
-/* The switch row holds focus for the keys; DarkRow draws the focus frame. */
+/* The row holds focus for the keys; OptionRow draws the focus frame. */
 .slot {
   position: relative;
   outline: none;
@@ -28,70 +26,13 @@
   opacity: 0.72;
 }
 
-.idx {
-  font: 600 11px / 1 var(--ef-font-num);
-  letter-spacing: 0.06em;
-  opacity: 0.5;
-}
-
-.chgMicro {
-  position: absolute;
-  right: 0;
-  bottom: 6px;
-  left: 0;
-  font: 600 9px / 1 var(--ef-font-num);
-  letter-spacing: 0.14em;
-  text-align: center;
-  color: var(--ef-accent);
-  opacity: 0.85;
-}
-
-.slot [data-stub='Diamond'] {
-  filter: drop-shadow(0 0 4px rgb(255 241 0 / 70%));
-}
-
-.busy {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--ef-accent);
-}
-
-.busy > * {
-  opacity: 0.85;
-}
-
-/* Why the drawn value differs from the one chosen: an amber ADJUSTED tag and the reason. */
-.note {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: 12px;
-  color: var(--ms-amber);
-}
-
-.noteTag,
 .errTag {
   flex: none;
   padding: 1px 4px;
   font: 700 9px / 1.2 var(--ef-font-num);
   letter-spacing: 0.12em;
   color: #1a1a1a;
-  background: var(--ms-amber);
-}
-
-.def {
-  font-size: 12px;
-  color: rgb(255 255 255 / 55%);
-  white-space: nowrap;
-}
-
-.def b {
-  margin-left: 3px;
-  font-weight: 700;
-  color: rgb(255 255 255 / 80%);
+  background: var(--ef-danger);
 }
 
 /* ⇄ 对比: back to the row's value before its last change, and again for A / B. */
@@ -102,12 +43,12 @@
   height: 26px;
   padding: 0 9px 0 6px;
   border: 0;
-  background: rgb(255 255 255 / 10%);
-  color: #fff;
+  background: color-mix(in srgb, var(--ef-text-1) 8%, transparent);
+  color: var(--ef-text-1);
   font: 700 12px / 1 var(--ef-font-sans);
   white-space: nowrap;
   cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 22%);
+  box-shadow: inset 0 0 0 1px var(--ef-slab-rim);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
 }
 
@@ -116,7 +57,7 @@
 }
 
 .flip:hover:not(:disabled) {
-  background: rgb(255 255 255 / 18%);
+  background: color-mix(in srgb, var(--ef-text-1) 16%, transparent);
 }
 
 .flip:disabled {
@@ -131,9 +72,9 @@
 
 .flip kbd {
   padding: 0 4px;
-  border: 1px solid rgb(255 255 255 / 30%);
+  border: 1px solid var(--ef-text-2);
   font: 600 10px / 14px var(--ef-font-num);
-  color: rgb(255 255 255 / 75%);
+  color: var(--ef-text-2);
 }
 
 /* The rollback right under what failed: a red edge, ROLLBACK, why, 再试一次. */
@@ -150,17 +91,12 @@
   box-shadow: inset 4px 0 0 var(--ef-danger);
 }
 
-.errTag {
-  background: var(--ef-danger);
-}
-
 .err [role='alert'] {
   flex: 1;
   min-width: 0;
 }
 
 @container op (max-width: 1100px) {
-  .def,
   .flip kbd,
   .group :global([data-stub='MicroLabel']) {
     display: none;

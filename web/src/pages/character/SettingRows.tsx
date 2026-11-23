@@ -1,12 +1,13 @@
-// One 「设定」 page: its sections from sections.ts, then 「其他」 for unplaced @character rows; each row a dark row on the training room.
+// One 「设定」 page: its sections from sections.ts, then 「其他」 for unplaced @character rows; each row a settings page row.
 import { useRef, type KeyboardEvent } from 'react';
 import type { SettingValue } from '../../bridge';
 import { isDevMode, useDevMode } from '../../shell/devMode';
 import { DevMark, EffectTag } from '../../ui';
-import { DarkRow, MicroLabel } from '../../ui/game';
+import { MicroLabel } from '../../ui/game';
 import type { Native } from '../settings/native';
 import { CHAR_SECTIONS, CHAR_TABS, LIGHT_PAD, OTHER_TITLE, PHOTO_ONLY_ROWS, placedTab, ROW_DESC, SEG_LABELS, tabOf, DEV_ONLY_ROWS, type CharTab } from './sections';
 import { useCompact } from './compact';
+import { OptionRow } from './OptionRow';
 import { gameControl, valueText } from './settings';
 import styles from './SettingRows.module.css';
 
@@ -125,18 +126,6 @@ function LightPad({ n, disabled, setMany }: { n: Native; disabled: boolean; setM
   );
 }
 
-/** A changed row's lead: a click puts it back to its default. */
-const resetLead = (label: string, disabled: boolean, onPress: () => void) => ({ label: `恢复「${label}」的默认`, title: '恢复这一行的默认', disabled, onPress });
-
-/** An unchanged row's lead: a framed diamond on two side ticks, its core yellow while the row is under the pointer. */
-const IDLE = (
-  <svg className={styles.idle} viewBox="0 0 24 24" width="22" height="22" focusable="false">
-    <path className={styles.ticks} d="M.5 12h3.5M20 12h3.5" />
-    <path className={styles.frame} d="M12 4.5 19.5 12 12 19.5 4.5 12z" />
-    <path className={styles.core} d="M12 9 15 12 12 15 9 12z" />
-  </svg>
-);
-
 export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: SettingRowsProps) {
   const compact = useCompact();
   // Re-renders when 开发者模式 flips; visible() reads it.
@@ -144,27 +133,24 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
   const row = (id: string) => {
     const r = n.rows[id]!;
     const changed = isChanged(n, id);
-    const sub = failed[id] ? <span className={styles.err}>{failed[id]}</span> : changed ? `默认：${valueText(r, r.default)}` : ROW_DESC[id];
     return (
       <div key={id} id={`set-${id}`} className={styles.row} data-changed={changed || undefined} role="group" aria-label={r.label} title={changed ? ROW_DESC[id] : undefined}>
-        <DarkRow
-          mark={changed ? 'changed' : 'hollow'}
-          barcode={false}
-          compact={compact}
-          {...(changed ? { leadAction: resetLead(r.label, offline, () => set(id, r.default)) } : { lead: IDLE })}
-          title={
-            <span className={styles.tt}>
-              <span className={styles.lb}>{r.label}</span>
-              {(DEV_ONLY_ROWS.has(id) || r.restart === 'avatar') && (
-                <span className={styles.marks} data-keep="">
-                  {DEV_ONLY_ROWS.has(id) && <DevMark />}
-                  {r.restart === 'avatar' && <EffectTag target="character" pending={pending.has(id)} />}
-                </span>
-              )}
-            </span>
+        <OptionRow
+          id={id}
+          title={r.label}
+          marks={
+            (DEV_ONLY_ROWS.has(id) || r.restart === 'avatar') && (
+              <span className={styles.marks}>
+                {DEV_ONLY_ROWS.has(id) && <DevMark />}
+                {r.restart === 'avatar' && <EffectTag target="character" pending={pending.has(id)} />}
+              </span>
+            )
           }
-          sub={sub}
-          end={gameControl(r, n.saved[id], offline, (v, quiet) => set(id, v, quiet), SEG_LABELS[id], compact)}
+          desc={failed[id] ?? (changed ? `默认：${valueText(r, r.default)}` : ROW_DESC[id])}
+          {...(failed[id] ? { descTone: 'bad' as const } : {})}
+          modified={changed}
+          reset={{ label: `恢复「${r.label}」的默认`, disabled: offline, onPress: () => set(id, r.default) }}
+          control={gameControl(r, n.saved[id], offline, (v, quiet) => set(id, v, quiet), SEG_LABELS[id], compact)}
         />
       </div>
     );
@@ -176,14 +162,13 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
     const changed = isChanged(n, LIGHT_PAD.yaw) || isChanged(n, LIGHT_PAD.pitch);
     return (
       <div key="pad" id={`set-${LIGHT_PAD.yaw}`} className={styles.row} data-changed={changed || undefined} data-pad="" role="group" aria-label="主光方向">
-        <DarkRow
-          mark={changed ? 'changed' : 'hollow'}
-          barcode={false}
-          compact={compact}
-          {...(changed ? { leadAction: resetLead('主光方向', offline, () => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default })) } : { lead: IDLE })}
+        <OptionRow
+          id={LIGHT_PAD.yaw}
           title="主光方向"
-          sub={changed ? `默认：${valueText(yaw, yaw.default)}（正中）` : '点格子换方向，正中是原作'}
-          end={<LightPad n={n} disabled={offline} setMany={setMany} />}
+          desc={changed ? `默认：${valueText(yaw, yaw.default)}（正中）` : '点格子换方向，正中是原作'}
+          modified={changed}
+          reset={{ label: '恢复「主光方向」的默认', disabled: offline, onPress: () => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default }) }}
+          control={<LightPad n={n} disabled={offline} setMany={setMany} />}
         />
       </div>
     );

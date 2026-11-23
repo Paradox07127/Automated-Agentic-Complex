@@ -8,6 +8,7 @@ import type { Toast } from './feedback';
 import { outfitImportWarning } from './labels';
 import { readModSettings, type ModSettingRow } from './modSettingsTable';
 import { ModSettings } from './ModSettings';
+import { OptionRow } from './OptionRow';
 import { importStageLabel } from './useImportState';
 import type { useLook } from './useLook';
 import type { OutfitImport } from './useOutfitImport';
@@ -263,16 +264,9 @@ export function LookPane(p: LookPaneProps) {
             actions={<WhiteCapsule label="全部显示" icon="eye" disabled={hidden === 0} disabledReason="都已显示" onClick={p.onShowAll} />}
           />
           <div className={styles.list} role="group" aria-label="服装分层">
-            {p.layers.map((l, i) => (
+            {p.layers.map((l) => (
               <div key={l.id} data-layer={l.id}>
-                <DarkRow
-                  title={l.name}
-                  lead={<span className={styles.idx}>{pad(i + 1)}</span>}
-                  compact={compact}
-                  end={
-                    <Switch variant="setting" label={l.name} checked={l.visible} onChange={(on) => p.onLayer(l.id, on, l.name)} />
-                  }
-                />
+                <OptionRow id={`layer-${l.id}`} title={l.name} control={<Switch variant="setting" label={l.name} checked={l.visible} onChange={(on) => p.onLayer(l.id, on, l.name)} />} />
               </div>
             ))}
           </div>

@@ -4,8 +4,8 @@ import { motionFormatLabel, motionImportReason } from './labels';
 
 export interface MotionImport {
   running: boolean;
-  /** The last result line, gone once the next import starts; null before the first import and after a cancelled one. A failure also carries the reason in words and the tool's code. */
-  note: { ok: boolean; text: string; reason?: string; code?: string } | null;
+  /** The last result line, gone once the next import starts; null before the first import and after a cancelled one. A failure also carries the reason in words. */
+  note: { ok: boolean; text: string; reason?: string } | null;
   run: () => void;
 }
 
@@ -27,7 +27,7 @@ export function useMotionImport(call: () => Promise<MotionImportResult>, onImpor
           } else if (r.reason === 'cancelled') setNote(null);
           else {
             const reason = motionImportReason(r.reason, r.detail);
-            setNote({ ok: false, text: `导入没有完成：${reason}`, reason, code: r.reason });
+            setNote({ ok: false, text: `导入没有完成：${reason}`, reason });
           }
         },
         (e: unknown) => {

@@ -2,10 +2,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { getBridge, type ModSettingAdjusted, type ModSettingValues } from '../../bridge';
 import { Icon, Switch } from '../../ui';
-import { DarkRow, Diamond, MicroLabel, Stepper, TitleBar, WhiteCapsule } from '../../ui/game';
+import { Diamond, Stepper, TitleBar, WhiteCapsule } from '../../ui/game';
 import { useCompact } from './compact';
 import type { Toast } from './feedback';
 import type { ModSettingRow } from './modSettingsTable';
+import { OptionRow } from './OptionRow';
 import { previewLookChanged } from './usePreview';
 import head from './ModCard.module.css';
 import styles from './ModSettings.module.css';
@@ -70,7 +71,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
   const [prev, setPrev] = useState<{ appearance: string; values: Record<string, number> }>();
   const [cur, setCur] = useState<string>();
   const [at, setAt] = useState<string>();
-  // The row itself holds focus (the keys act on it): DarkRow's focus frame.
+  // The row itself holds focus (the keys act on it): OptionRow's focus frame.
   const [focused, setFocused] = useState<string | null>(null);
   const compact = useCompact();
   const root = useRef<HTMLDivElement>(null);
@@ -282,53 +283,25 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
                     }}
                     onBlur={(e) => e.target === e.currentTarget && setFocused(null)}
                   >
-                    <DarkRow
-                      mark={moved(s) ? 'changed' : 'hollow'}
-                      compact={compact}
+                    <OptionRow
+                      id={`mod-${s.id}`}
+                      title={s.name}
+                      desc={busy ? '应用中' : (note ?? (moved(s) ? `默认：${nameOf(s, s.default)}` : undefined))}
+                      modified={moved(s)}
                       focused={focused === s.id}
-                      {...(busy ? { state: 'busy' as const } : fail ? { state: 'fail' as const } : {})}
-                      lead={
-                        moved(s) ? (
-                          <>
-                            <Diamond tone="yellow" size={9} />
-                            <span className={styles.chgMicro}>CHG</span>
-                          </>
-                        ) : (
-                          <span className={styles.idx}>{pad(i + 1)}</span>
+                      state={busy ? 'busy' : fail ? 'fail' : undefined}
+                      aside={
+                        was !== undefined &&
+                        was !== value(s) &&
+                        !busy && (
+                          <button type="button" className={styles.flip} disabled={off} onClick={() => flip(s)}>
+                            <Icon name="sync" size={12} />
+                            对比「{nameOf(s, was)}」
+                            <kbd aria-hidden="true">X</kbd>
+                          </button>
                         )
                       }
-                      title={s.name}
-                      sub={
-                        busy ? (
-                          <span className={styles.busy}>
-                            <MicroLabel>Applying</MicroLabel>应用中
-                          </span>
-                        ) : note ? (
-                          <span className={styles.note}>
-                            <span className={styles.noteTag} aria-hidden="true">
-                              ADJUSTED
-                            </span>
-                            <span>{note}</span>
-                          </span>
-                        ) : undefined
-                      }
-                      end={
-                        <>
-                          {moved(s) && (
-                            <span className={styles.def}>
-                              默认<b>{nameOf(s, s.default)}</b>
-                            </span>
-                          )}
-                          {was !== undefined && was !== value(s) && !busy && (
-                            <button type="button" className={styles.flip} disabled={off} onClick={() => flip(s)}>
-                              <Icon name="sync" size={12} />
-                              对比「{nameOf(s, was)}」
-                              <kbd aria-hidden="true">X</kbd>
-                            </button>
-                          )}
-                          {control(s)}
-                        </>
-                      }
+                      control={control(s)}
                     />
                   </div>
                   {failBar(s.id)}

@@ -4,8 +4,8 @@
 .mt {
   /* Row columns inside the dark row's body: name, trigger, duration, today's plays where counted. */
   --cells: minmax(84px, 1.4fr) minmax(0, 1fr) 56px;
-  /* The dark row after its body: body padding 12, end padding 4, 必需 56, gap 10, switch 88, barcode 90. */
-  --row-end: 260px;
+  /* The dark row after its body, plus the list's 12 px scrollbar: end padding 4 + 12, 必需 56, gap 10, switch 200, scrollbar 12. */
+  --row-end: 294px;
   --row-lead: 68px;
 
   display: flex;
@@ -44,7 +44,7 @@
 .colsEnd {
   flex: none;
   width: var(--row-end);
-  padding-left: 82px;
+  padding-left: 70px;
 }
 
 .duH,
@@ -234,7 +234,7 @@
   }
 }
 
-/* Compact: no column titles, trigger, barcode or section note; 必需 is its lock only. The limits are useCompactScene's. */
+/* Compact: no column titles, trigger or section note; 必需 is its lock only. The limits are useCompactScene's. */
 @container op (max-width: 1100px) or (max-height: 560px) {
   .mt {
     --cells: minmax(0, 1fr) 44px;

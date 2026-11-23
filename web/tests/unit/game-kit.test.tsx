@@ -342,7 +342,7 @@ describe('variants the pages asked for', () => {
     expect(go).toHaveBeenCalledTimes(1);
   });
 
-  it('DarkRow: compact drops the barcode; ok is its own mark; the lead takes custom content and a press of its own', () => {
+  it('DarkRow: no row draws a barcode; ok is its own mark; the lead takes custom content and a press of its own', () => {
     const reset = vi.fn();
     const pick = vi.fn();
     const { container } = render(
@@ -355,8 +355,7 @@ describe('variants the pages asked for', () => {
     const rows = [...container.querySelectorAll('[data-stub="DarkRow"]')];
     expect(rows[0]?.getAttribute('data-mark')).toBe('ok');
     expect(rows[0]?.hasAttribute('data-compact')).toBe(true);
-    expect(rows[0]?.querySelector('[data-stub="Barcode"]')).toBeNull();
-    expect(rows[1]?.querySelector('[data-stub="Barcode"]')).not.toBeNull();
+    expect(container.querySelector('[data-stub="Barcode"]')).toBeNull();
     expect(rows[1]?.textContent).toContain('01');
     expect(rows[1]?.getAttribute('data-state')).toBe('busy');
     expect(rows[1]?.hasAttribute('data-focused')).toBe(true);

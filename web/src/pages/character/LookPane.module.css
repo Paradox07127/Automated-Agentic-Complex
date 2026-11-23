@@ -89,17 +89,9 @@
   backdrop-filter: blur(6px);
 }
 
-.idx,
 .sizeLead {
   font: 600 11px / 1 var(--ef-font-num);
   letter-spacing: 0.06em;
-}
-
-.idx {
-  opacity: 0.5;
-}
-
-.sizeLead {
   display: grid;
   flex: none;
   place-items: center;

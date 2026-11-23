@@ -120,7 +120,7 @@ export function CharacterSettings(p: CharacterSettingsProps) {
             onClick={reset}
           />
         </div>
-        <div className={styles.rows} data-theme="dark">
+        <div className={styles.rows}>
           <SettingRows
             n={n}
             tab={tab}

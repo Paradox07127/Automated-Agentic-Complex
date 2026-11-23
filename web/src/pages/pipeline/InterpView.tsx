@@ -32,7 +32,6 @@ function Now({ now, guess, onCorrect, onReject, onClear }: { now: NowData | null
     <div className={styles.now}>
       <DarkRow
         lead={key('焦点')}
-        micro="FOCUS"
         title={
           now?.focus ? (
             <>
@@ -47,7 +46,6 @@ function Now({ now, guess, onCorrect, onReject, onClear }: { now: NowData | null
       />
       <DarkRow
         lead={key('推断')}
-        micro="GUESS"
         title={
           act ? (
             <>
@@ -75,7 +73,6 @@ function Now({ now, guess, onCorrect, onReject, onClear }: { now: NowData | null
       />
       <DarkRow
         lead={key('任务')}
-        micro="TASK"
         title={
           guess ? (
             <>
@@ -91,7 +88,6 @@ function Now({ now, guess, onCorrect, onReject, onClear }: { now: NowData | null
       />
       <DarkRow
         lead={key('上下文')}
-        micro="CONTEXT"
         title={
           now && now.items.length > 0 ? (
             <span className={styles.chips}>

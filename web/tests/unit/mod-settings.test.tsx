@@ -180,7 +180,7 @@ describe('角色页 · 模组设置', () => {
     await bridge.avatar.modSettings.set({ character: 'si', appearance: 'imported_field', values: { tint: 2 } });
     await wear('imported_field');
     expect(row('tint').hasAttribute('data-changed')).toBe(true);
-    expect(row('tint').textContent).toContain('默认Black');
+    expect(row('tint').textContent).toContain('默认：Black');
     for (const id of ['glow', 'jacket', 'bag', 'ponytail', 'gloves']) expect(row(id).hasAttribute('data-changed')).toBe(false);
     fireEvent.click(arrow('Hair Color', '上一个'));
     await waitFor(() => expect(shown('Hair Color')).toBe('Red'));

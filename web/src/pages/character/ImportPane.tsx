@@ -115,9 +115,9 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
           {note && (
             <div data-motion-import="" role="status">
               {note.ok ? (
-                <DarkRow mark="ok" title={note.text} micro="Imported" compact={compact} />
+                <DarkRow mark="ok" title={note.text} compact={compact} />
               ) : (
-                <DarkRow mark="warn" title="导入没有完成" sub={note.reason ?? note.text} micro={note.code ?? 'Failed'} compact={compact} />
+                <DarkRow mark="warn" title="导入没有完成" sub={note.reason ?? note.text} compact={compact} />
               )}
             </div>
           )}

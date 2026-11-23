@@ -2,7 +2,7 @@ import { useRef, type CSSProperties, type ReactNode } from 'react';
 import { gameClips } from '../../design/gameClips.generated';
 import { useGameClip } from '../fx/useGameClip';
 import { GameSeg } from './GameSeg';
-import { Barcode, Diamond, MicroLabel } from './Marks';
+import { Diamond, MicroLabel } from './Marks';
 import { Stepper } from './Stepper';
 import styles from './DarkRow.module.css';
 
@@ -19,7 +19,7 @@ export interface DarkRowLeadAction {
   onPress: () => void;
 }
 
-/** ▶ 深色行（游戏档案页语音行）：左格放状态，主体是名字和副行，右侧槽放控件，右端竖条码和微型英文；悬停变亮，选中左缘 4 px 黄、左格变黄带呼吸框。紧凑款左格 34、没有条码（925）。 */
+/** ▶ 深色行（游戏档案页语音行）：左格放状态，主体是名字和副行，右侧槽放控件；悬停变亮，选中左缘 4 px 黄、左格变黄带呼吸框。紧凑款左格 34（925）。 */
 export interface DarkRowProps {
   /** 名字 */
   title: ReactNode;
@@ -35,7 +35,7 @@ export interface DarkRowProps {
   state?: 'busy' | 'fail';
   /** 键盘正落在这一行：细黄框，右缘外一个小三角 */
   focused?: boolean;
-  /** 紧凑款：左格 34、矮一号、没有条码 */
+  /** 紧凑款：左格 34、矮一号 */
   compact?: boolean;
   /** 副行（种类，如「批准」）放在名字上面，读屏也先读它 */
   subFirst?: boolean;
@@ -45,10 +45,6 @@ export interface DarkRowProps {
   selected?: boolean;
   /** 右侧槽：开关、步进器等控件，不在按下区域里 */
   end?: ReactNode;
-  /** 条码下的微型英文，默认 AGENTIC */
-  micro?: string;
-  /** 右端竖条码，默认画 */
-  barcode?: boolean;
   /** 给了就是按钮（左格加主体），选中写 aria-pressed；不给是静态行 */
   onPress?: () => void;
 }
@@ -100,7 +96,7 @@ function Breath() {
   return <i ref={ref} className={styles.frame} data-g="root" />;
 }
 
-export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, focused, compact, subFirst, leadWidth, selected = false, end, micro = 'AGENTIC', barcode = true, onPress }: DarkRowProps) {
+export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, focused, compact, subFirst, leadWidth, selected = false, end, onPress }: DarkRowProps) {
   const face = (
     <>
       {selected && <Breath />}
@@ -153,11 +149,6 @@ export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, fo
         <div className={styles.hit}>{inner}</div>
       )}
       {end != null && <div className={styles.end}>{end}</div>}
-      {!compact && barcode && (
-        <span className={styles.deco} aria-hidden="true">
-          <Barcode width={64} height={10} label={micro} />
-        </span>
-      )}
     </div>
   );
 }
@@ -186,7 +177,7 @@ export const DarkRowDemos: Array<{ name: string; props: DarkRowProps }> = [
       end: <GameSeg label="开口说话" variant="onoff" value="on" options={ON_OFF} />,
     },
   },
-  { name: 'selected', props: { title: '点头附和', sub: '批准之后', selected: true, micro: 'PREVIEW', onPress: () => undefined } },
+  { name: 'selected', props: { title: '点头附和', sub: '批准之后', selected: true, onPress: () => undefined } },
   { name: 'missing', props: { title: '思考', sub: '缺 think_02', mark: 'missing', onPress: () => undefined } },
   { name: 'auto', props: { title: '站立待机', sub: '空闲', mark: 'auto' } },
   { name: 'changed', props: { title: '裙摆', mark: 'changed', end: <Stepper label="裙摆" value="short" defaultValue="long" options={LENGTH} /> } },

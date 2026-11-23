@@ -1,4 +1,4 @@
-/* ▶ dark row (charinfoprofile voice row): a darker lead cell, white text, controls on the right, barcode at the end. */
+/* ▶ dark row (charinfoprofile voice row): a darker lead cell, white text, controls on the right. */
 .row {
   /* The plate is dark in both themes. Its children read --dr-ink for text; white and black are theme-fixed stand-ins (no such token yet). */
   --dr-ink: var(--ef-g-btn-hover);
@@ -307,25 +307,12 @@ button.lead:focus-visible {
   flex: none;
   align-items: center;
   gap: 10px;
-  padding-left: 4px;
+  padding: 0 12px 0 4px;
 }
 
-.deco {
-  display: flex;
-  flex: none;
-  align-items: center;
-  padding: 0 12px 0 14px;
-}
-
-/* A title holding marks that must stay whole ([data-keep]) keeps its room: the barcode gives way first. */
+/* A title holding marks that must stay whole ([data-keep]) keeps its room. */
 .row:not([data-compact]):has(.title [data-keep]) :is(.hit, .body) {
   min-width: auto;
-}
-
-.row:has(.title [data-keep]) .deco {
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
 }
 
 .vh {
@@ -337,7 +324,7 @@ button.lead:focus-visible {
   white-space: nowrap;
 }
 
-/* Compact (925 and alike): a 34 px lead, a lower row; the barcode is not drawn. */
+/* Compact (925 and alike): a 34 px lead, a lower row. */
 .row[data-compact] {
   min-height: 40px;
   font-size: 13px;

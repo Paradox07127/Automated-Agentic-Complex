@@ -112,7 +112,6 @@ export function MotionTable(p: MotionTableProps) {
             mark={mark}
             compact={compact}
             selected={on}
-            micro={on ? 'Preview' : 'Agentic'}
             onPress={() => pick(a.id)}
             title={
               <span className={styles.cells}>

@@ -193,7 +193,7 @@ describe('motion import', () => {
     expect(importKey().disabled).toBe(true);
     await act(async () => finish({ ok: true, action: { id: 'vmd_dance', title: '极乐净土', durationS: 12.5, hasBgm: false, format: 'vmd', warnings: [] } }));
     expect(importKey().disabled).toBe(false);
-    expect(line()).toBe('已导入「极乐净土」（VMD）Imported');
+    expect(line()).toBe('已导入「极乐净土」（VMD）');
     await waitFor(() => expect(actions.mock.calls.length).toBeGreaterThan(reads));
   });
 
@@ -203,9 +203,9 @@ describe('motion import', () => {
       .mockResolvedValueOnce({ ok: false, reason: 'internal', detail: 'unknown_character: cedar' });
     await motionImport();
     await click(await screen.findByRole('button', { name: /^导入动作…/ }));
-    expect(line()).toBe('导入没有完成动作已满 128 条，出错too_many_actions');
+    expect(line()).toBe('导入没有完成动作已满 128 条，出错');
     await click(importKey());
-    expect(line()).toBe('导入没有完成unknown_character: cedar，出错internal');
+    expect(line()).toBe('导入没有完成unknown_character: cedar，出错');
   });
 
   it('names the format and counts the warnings of a non-VMD import', async () => {
