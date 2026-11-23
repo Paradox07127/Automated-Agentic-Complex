@@ -215,8 +215,8 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
       <LeftCol label="分类">
         <Plate plate={loaded ? plateOf(all) : null} selected={cat === 'about'} onClick={() => pick('about')} />
         <Sep en="Index" />
-        {cells.map((c) => (
-          <IndexCell key={c.id} icon={<Glyph name={c.icon} />} label={c.label} count={count(c.id) ?? '—'} pressed={cat === c.id} pending={c.id === 'pending'} onClick={() => pick(c.id)} />
+        {cells.map((c, i) => (
+          <IndexCell key={c.id} i={i} icon={<Glyph name={c.icon} />} label={c.label} count={count(c.id) ?? '—'} pressed={cat === c.id} pending={c.id === 'pending'} onClick={() => pick(c.id)} />
         ))}
       </LeftCol>
       {cat === 'pending' ? (

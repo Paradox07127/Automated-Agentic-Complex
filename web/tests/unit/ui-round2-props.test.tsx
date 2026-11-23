@@ -98,7 +98,7 @@ describe('SRow modified', () => {
     expect(row.hasAttribute('data-modified')).toBe(true);
     expect(screen.getByRole('group', { name: '主动程度' }).getAttribute('aria-describedby')).toContain('set-a-mod');
     expect(document.getElementById('set-a-mod')?.textContent).toBe('和默认不同');
-    const line = rules(read('ui/SRow.module.css'), '.row[data-modified]::before');
+    const line = rules(read('ui/SRow.module.css'), '.mod');
     expect(line).toContain('var(--ef-power-low)');
     expect(line).toContain('width: 2px');
   });

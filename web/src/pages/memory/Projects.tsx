@@ -101,8 +101,8 @@ export function Projects({ tasks, error, onRetry, initialQ, onSession }: Project
     <div className={styles.body} data-wide={!open || undefined}>
       <LeftCol label="状态">
         <Sep en="Work / Memory" />
-        {STATUS.map((s) => (
-          <IndexCell key={s.id} icon={<Glyph name={s.icon} />} label={s.label} count={tasks ? tasks.filter((t) => t.status === s.id).length : '—'} pressed={cur === s.id} onClick={() => (setStatus(s.id), setSel(null), setDrawer(false))} />
+        {STATUS.map((s, i) => (
+          <IndexCell key={s.id} i={i} icon={<Glyph name={s.icon} />} label={s.label} count={tasks ? tasks.filter((t) => t.status === s.id).length : '—'} pressed={cur === s.id} onClick={() => (setStatus(s.id), setSel(null), setDrawer(false))} />
         ))}
       </LeftCol>
       <section className={styles.ccol} aria-label="项目">

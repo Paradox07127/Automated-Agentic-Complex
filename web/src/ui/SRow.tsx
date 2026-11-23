@@ -54,11 +54,7 @@ export function SRow({ id, title, desc, tip, control, effect = 'now', pending, m
           <span id={`set-${id}-title`}>{title}</span>
           {tip && <InfoTip>{tip}</InfoTip>}
           {effect !== 'now' && <EffectTag target={effect} pending={pending} />}
-          {modified && (
-            <span id={modId} className={styles.vh}>
-              和默认不同
-            </span>
-          )}
+          {modified && <ModLine id={modId} />}
         </div>
         {(desc || (disabled && disabledReason)) && (
           <div id={descId} className={styles.desc} title={typeof desc === 'string' ? desc : undefined}>
@@ -72,6 +68,18 @@ export function SRow({ id, title, desc, tip, control, effect = 'now', pending, m
       </div>
       {children && <div className={styles.extra}>{children}</div>}
     </div>
+  );
+}
+
+/** 和默认不同：行左缘一道 2 px 缺电橙竖线，读屏读「和默认不同」（`id` 给行的 aria-describedby）。放在 position: relative 的行里。 */
+export function ModLine({ id }: { id: string }) {
+  return (
+    <>
+      <i className={styles.mod} data-mod-line="" aria-hidden="true" />
+      <span id={id} className={styles.vh}>
+        和默认不同
+      </span>
+    </>
   );
 }
 

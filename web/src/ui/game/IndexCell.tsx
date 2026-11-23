@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Icon } from '../Icon';
 import styles from './IndexCell.module.css';
 
@@ -14,10 +14,12 @@ export interface IndexCellProps {
   pending?: boolean;
   /** 当前选中的分类 */
   pressed?: boolean;
+  /** 在列里的序号：进场每格晚 40 ms */
+  i?: number;
   onClick?: () => void;
 }
 
-export function IndexCell({ icon, label, count, pending, pressed = false, onClick }: IndexCellProps) {
+export function IndexCell({ icon, label, count, pending, pressed = false, i, onClick }: IndexCellProps) {
   return (
     <button
       type="button"
@@ -26,6 +28,7 @@ export function IndexCell({ icon, label, count, pending, pressed = false, onClic
       aria-pressed={pressed}
       data-pend={pending || undefined}
       data-theme={pressed ? 'dark' : undefined}
+      style={i == null ? undefined : ({ '--i': i } as CSSProperties)}
       onClick={onClick}
     >
       <i className={styles.yb} aria-hidden="true" />

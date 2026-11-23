@@ -14,9 +14,8 @@
   min-width: 0;
 }
 
-/* Changed from the default: a 2 px short-of-power line down the left edge. */
-.row[data-modified]::before {
-  content: '';
+/* Changed from the default (ModLine, also on the settings page rows): a 2 px short-of-power line down the left edge. */
+.mod {
   position: absolute;
   top: var(--ef-sp-8);
   bottom: var(--ef-sp-8);

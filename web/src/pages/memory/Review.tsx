@@ -184,8 +184,8 @@ export function Review() {
     <div className={styles.body} data-wide={!open || undefined}>
       <LeftCol label="记录类型">
         <Sep en="Seen / Records" />
-        {KINDS.map((k) => (
-          <IndexCell key={k.id} icon={<Glyph name={k.icon} />} label={k.label} pressed={kind === k.id} onClick={() => (setKind(k.id), setSel(null), setDrawer(false))} />
+        {KINDS.map((k, i) => (
+          <IndexCell key={k.id} i={i} icon={<Glyph name={k.icon} />} label={k.label} pressed={kind === k.id} onClick={() => (setKind(k.id), setSel(null), setDrawer(false))} />
         ))}
       </LeftCol>
       <section className={styles.ccol} aria-label="回顾">
