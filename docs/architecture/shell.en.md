@@ -169,7 +169,7 @@ TTS (`tts`), the motion service Kimodo (`motion`) and the OpenAI-compatible mode
 - Remote script: under `ssh` with a non-empty `start_script`, both the shell and agentd call `ssh -o BatchMode=yes -o ConnectTimeout=5 -- <host> <script> ensure|stop|status`. `ensure` answers `ready <seconds>` or `fail <reason>` on its first line; `stop` answers `stopped` or `fail <reason>`; `status` answers `running …` or `stopped`.
 - When a save of an `ssh` record changes `start_script` or `ssh_host`, the shell first asks for confirmation, naming the host the script will run on.
 - Bridge ops (`protocol/ui-bridge/ops.json`, implemented in `src/main/ops/services.ts`): `services.read` reads the three records in config.json; `services.save` stores one record and restarts that service and agentd; `services.start`, `services.stop` and `services.restart` control one service, and under `ssh` with a script they also run the remote `ensure` or `stop`. `services` in `app.runtime` reports each service's state.
-- agentd arguments: `--<id>-url` when the service is not `off`; under `ssh` with a `start_script`, also `--<id>-ensure-host` and `--<id>-ensure-script` (C9).
+- agentd arguments: `--<id>-url` when the service is not `off`; under `ssh`, always `--<id>-ssh-host`, and with a `start_script` also `--<id>-ensure-host` and `--<id>-ensure-script` (C9).
 
 ## Single instance and page guard
 

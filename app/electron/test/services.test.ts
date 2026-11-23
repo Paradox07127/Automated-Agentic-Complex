@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { type Config, servicePort } from '../src/common/config.ts';
-import { initialRuntime, reduced, runtimeJson, runtimePhase, type SlotState } from '../src/common/runtime.ts';
+import { initialRuntime, reduced, runtimeJson, runtimePhase, type ServiceView, type SlotState } from '../src/common/runtime.ts';
 import { loadConfig } from '../src/main/config.ts';
 import type { OpsContext } from '../src/main/ops/context.ts';
 import { supervisorOps } from '../src/main/ops/supervisor.ts';
@@ -356,6 +356,41 @@ test('restart takes config.json read again: off stops the tunnel, a new host sta
     assert.ok(await until(10, () => tunnel.state.kind === 'running' && s.launches().length === 2), s.seen.join('\n'));
     assert.equal(s.launches()[1]!.at(-1), 'other-box');
     assert.deepEqual(s.seen, ['starting', 'running', 'stopped', 'starting', 'running']);
+  } finally {
+    await tunnel.stop();
+    s.cleanup();
+  }
+});
+
+test('a restart into off or url says so at once: the view has the new mode and not the old failure', async () => {
+  const { server, port } = await hold();
+  const s = setup({ tts: { url: `http://127.0.0.1:${port}` } });
+  const views: ServiceView[] = [];
+  const tunnel = supervisor({ config: s.config, watcherScript: s.watcher, listeners: async () => [{ pid: 1, uid: -1, command: 'node' }],
+    onStatus: (v) => views.push(v) });
+  try {
+    tunnel.start();
+    assert.ok(await until(5, () => tunnel.state.kind === 'failed'), JSON.stringify(views));
+    for (const mode of ['off', 'url'] as const) {
+      await tunnel.restart(s.write({ url: `http://127.0.0.1:${port}`, mode }));
+      assert.deepEqual(views.at(-1), { mode, state: null, pid: null, detail: null }, mode);
+    }
+  } finally {
+    server.close();
+    await tunnel.stop();
+    s.cleanup();
+  }
+});
+
+test('of two restarts in a row only the later one starts: ssh then off launches nothing', async () => {
+  const s = setup();
+  const port = await freePort();
+  const ssh = s.write({ url: `http://127.0.0.1:${port}` }), off = s.write({ url: `http://127.0.0.1:${port}`, mode: 'off' });
+  const tunnel = supervisor({ config: off, watcherScript: s.watcher, onStatus: s.onStatus });
+  try {
+    await Promise.all([tunnel.restart(ssh), tunnel.restart(off)]);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.deepEqual([tunnel.state.kind, tunnel.record.mode, s.launches()], ['stopped', 'off', []]);
   } finally {
     await tunnel.stop();
     s.cleanup();

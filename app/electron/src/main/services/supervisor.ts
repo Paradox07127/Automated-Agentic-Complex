@@ -178,6 +178,7 @@ export class ServiceSupervisor {
   private startedAt = 0;
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
   private stopping: Promise<void> | undefined;
+  private restarts = 0;
   /** Set by stop: the shell is quitting, and nothing starts the service again. */
   private ended = false;
 
@@ -223,10 +224,14 @@ export class ServiceSupervisor {
 
   /** Stops the service, then starts it with `config` (config.json read again) and a fresh backoff. */
   restart(config: Config): Promise<void> {
+    // Restarts share one halt; only the latest one's config starts.
+    const request = ++this.restarts;
     return this.halt('restart').then(() => {
+      if (request !== this.restarts) return;
       if (JSON.stringify(config.services[this.id]) !== JSON.stringify(this.record)) this.lastFailure = null;
       this.current = config;
       this.backoff.reset();
+      this.changed();
       void this.startService();
     });
   }
@@ -303,7 +308,12 @@ export class ServiceSupervisor {
   }
 
   private async startService(): Promise<void> {
-    if (this.ended || !this.supervised) return;
+    if (this.ended) return;
+    if (!this.supervised) {
+      // A start still waiting on a port check is abandoned.
+      this.generation += 1;
+      return;
+    }
     const r = this.record, port = servicePort(r.url)!;
     const python = firstMissingComponent(this.current, ['runtime.python']);
     if (python !== undefined) return this.setState({ kind: 'failed', reason: `缺 ${python} 组件` });

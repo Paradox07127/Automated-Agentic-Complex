@@ -79,7 +79,11 @@ export function serviceRecord(id: ServiceId, v: unknown): ServiceRecord {
   };
   if (r.mode === 'off') return r;
   const url = URL.parse(r.url);
-  if (url === null || !['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)) throw new ServiceRecordError('url', `服务 ${id} 的地址无效`);
+  // As agentd's parse_args: it exits at each start on an address it refuses. URL.parse drops the blanks r.url would keep.
+  if (url === null || !['http:', 'https:'].includes(url.protocol) || url.username !== '' || url.password !== '' || url.search !== ''
+    || url.hash !== '' || r.url !== r.url.trim()) {
+    throw new ServiceRecordError('url', `服务 ${id} 的地址无效`);
+  }
   // agentd refuses --llm-url over http to another host (the API key would travel in the clear) and would exit at each start.
   if (id === 'llm' && url.protocol === 'http:' && !loopbackURL(r.url)) throw new ServiceRecordError('url', `服务 ${id} 的地址要用 https://（本机可用 http）`);
   if (r.mode === 'url') return r;

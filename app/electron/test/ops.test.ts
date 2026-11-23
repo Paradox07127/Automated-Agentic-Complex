@@ -392,6 +392,47 @@ test('a TTS address saved with another origin deletes the token installed for th
   }
 });
 
+test('a TTS service reached through another SSH host, or switched between ssh, local and an address, deletes the old token', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'services-'));
+  try {
+    const token = join(dir, 'tts-token.ref'), url = 'http://127.0.0.1:19888';
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ services: { tts: { mode: 'ssh', url, ssh_host: 'gpu-a' } } }));
+    const ops = registry(context(dir)), page = new PageSession(() => {});
+    const steps: [Record<string, unknown>, boolean][] = [
+      [{ mode: 'ssh', ssh_host: 'gpu-a' }, false], [{ mode: 'ssh', ssh_host: 'gpu-b' }, true], [{ mode: 'local', command: ['serve'] }, true],
+      [{ mode: 'local', command: ['serve', '--fast'] }, false], [{ mode: 'url' }, true], [{ mode: 'ssh', ssh_host: 'gpu-b' }, true],
+    ];
+    for (const [record, cleared] of steps) {
+      writeFileSync(token, 'reference\n', { mode: 0o600 });
+      const reply = await handle('main', page0, { op: 'services.save', args: ['tts', { url, ...record }] }, ops, page);
+      assert.deepEqual(reply, { ok: true, value: { ok: true, ...(cleared && { ttsTokenCleared: true }) } }, JSON.stringify(record));
+      assert.equal(existsSync(token), !cleared, JSON.stringify(record));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('services.save writes over config.json as it is once the start script is confirmed; unreadable by then, it writes nothing', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'services-'));
+  try {
+    const path = join(dir, 'config.json');
+    writeFileSync(path, '{}');
+    let meanwhile = JSON.stringify({ mute: true, services: { motion: { mode: 'url', url: 'http://gpu:48830' } } });
+    const ops = registry({ ...context(dir), confirm: async () => { writeFileSync(path, meanwhile); return true; } });
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, new PageSession(() => {}));
+    const ssh = { mode: 'ssh', url: 'http://127.0.0.1:9880', ssh_host: 'gpu-box', start_script: '/opt/tts/ensure.sh' };
+    assert.deepEqual(await call('services.save', 'tts', ssh), { ok: true, value: { ok: true } });
+    assert.deepEqual(JSON.parse(readFileSync(path, 'utf8')), { mute: true, services: { motion: { mode: 'url', url: 'http://gpu:48830' },
+      tts: { ...ssh, command: [], cwd: '' } } });
+    meanwhile = 'not json';
+    assert.deepEqual(await call('services.save', 'tts', { ...ssh, ssh_host: 'other-box' }), { ok: true, value: { ok: false, error: 'config_unreadable' } });
+    assert.equal(readFileSync(path, 'utf8'), 'not json');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('a main-window message agentd took gets its T1 marks from the reply, timed from before it was sent', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'marks-'));
   try {

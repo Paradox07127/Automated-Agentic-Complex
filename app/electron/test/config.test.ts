@@ -261,3 +261,15 @@ test('a model service over http to another host is refused, as agentd would refu
   assert.equal(serviceRecord('llm', { ...SERVICE_DEFAULTS.llm, mode: 'url', url: 'http://127.0.0.1:11434/v1' }).mode, 'url');
   assert.equal(serviceRecord('tts', { ...SERVICE_DEFAULTS.tts, mode: 'url', url: 'http://10.0.0.5:9888' }).url, 'http://10.0.0.5:9888');
 });
+
+test('a service address agentd would refuse is refused: not http or https, with user information, a query or a fragment, or blank around it', () => {
+  const urls = ['ws://127.0.0.1:9888', 'wss://127.0.0.1:9888', 'http://me:pw@127.0.0.1:9888', 'http://me@127.0.0.1:9888',
+    'http://127.0.0.1:9888/?a=1', 'http://127.0.0.1:9888/#x', ' http://127.0.0.1:9888', 'http://127.0.0.1:9888\n'];
+  for (const id of ['tts', 'motion', 'llm'] as const) {
+    for (const url of urls) {
+      assert.throws(() => serviceRecord(id, { ...SERVICE_DEFAULTS[id], mode: 'url', url }), (e) => e instanceof ServiceRecordError && e.field === 'url', `${id} ${url}`);
+    }
+  }
+  assert.throws(() => serviceRecord('tts', { mode: 'ssh', url: 'http://127.0.0.1:9888 ', ssh_host: 'gpu' }), (e) => e instanceof ServiceRecordError && e.field === 'url');
+  assert.equal(serviceRecord('motion', { ...SERVICE_DEFAULTS.motion, mode: 'url', url: 'https://gpu:48830/m' }).url, 'https://gpu:48830/m');
+});

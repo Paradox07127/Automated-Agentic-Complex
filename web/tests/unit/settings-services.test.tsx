@@ -164,6 +164,38 @@ describe('settings › 服务', () => {
     expect(p.onSave).not.toHaveBeenCalled();
   });
 
+  it('saves the address, host, script and directory without the blanks around them', () => {
+    const p = draw({ tts: OFF, motion: OFF, llm: OFF }, { tts: null, motion: null, llm: null });
+    unfold('语音服务');
+    pick('语音服务', 'SSH');
+    const type = (name: string, value: string) => fireEvent.change(screen.getByRole('textbox', { name: `语音服务 ${name}` }), { target: { value } });
+    type('地址', ' http://127.0.0.1:9880\n');
+    type('SSH 主机', '  gpu-box ');
+    type('启动脚本', ' /srv/tts/ensure.sh ');
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+    expect(p.onSave).toHaveBeenLastCalledWith('tts', { ...OFF, mode: 'ssh', url: 'http://127.0.0.1:9880', ssh_host: 'gpu-box', start_script: '/srv/tts/ensure.sh' });
+    pick('语音服务', '本机');
+    type('命令', 'serve');
+    type('工作目录', ' /srv/tts ');
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+    expect(p.onSave).toHaveBeenLastCalledWith('tts', { ...OFF, mode: 'local', url: 'http://127.0.0.1:9880', ssh_host: 'gpu-box',
+      start_script: '/srv/tts/ensure.sh', command: ['serve'], cwd: '/srv/tts' });
+  });
+
+  it('an address with user information, a query or a fragment cannot be saved, as the shell and agentd refuse it', () => {
+    const p = draw({ tts: OFF, motion: OFF, llm: OFF }, { tts: null, motion: null, llm: null });
+    unfold('语音服务');
+    pick('语音服务', '地址');
+    const url = screen.getByRole('textbox', { name: '语音服务 地址' });
+    for (const value of ['http://me:pw@gpu-box:9880', 'http://me@gpu-box:9880', 'http://gpu-box:9880/?a=1', 'http://gpu-box:9880/#x']) {
+      fireEvent.change(url, { target: { value } });
+      expect(url.getAttribute('aria-invalid'), value).toBe('true');
+      expect(screen.getByRole('group', { name: '地址' }).textContent, value).toContain('不能带用户名、密码、查询串或片段');
+      fireEvent.click(screen.getByRole('button', { name: '保存' }));
+    }
+    expect(p.onSave).not.toHaveBeenCalled();
+  });
+
   it('joinCommand undoes splitCommand', () => {
     const argv = ['a', 'b c', '', `it's`, 'x"y'];
     expect(splitCommand(joinCommand(argv))).toEqual(argv);

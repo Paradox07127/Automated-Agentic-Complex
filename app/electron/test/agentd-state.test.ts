@@ -116,12 +116,12 @@ test('the agentd command line follows C9 in a fixed order', () => {
     '--computer-control-socket', '/s/run/computer-control.sock', '--computer-control-token-file', '/s/run/computer-control.token',
     '--share-page-text', '--share-window-text', '--share-typed-text', '--share-screenshots', '--no-redact',
     '--no-proactive', '--break-reminder-minutes', '0', '--water-reminder-minutes', '0', '--mute',
-    '--tts-url', 'http://127.0.0.1:9888', '--tts-ensure-host', 'gpu', '--tts-ensure-script', '/e.sh',
+    '--tts-url', 'http://127.0.0.1:9888', '--tts-ssh-host', 'gpu', '--tts-ensure-host', 'gpu', '--tts-ensure-script', '/e.sh',
     '--motion-url', 'http://gpu:48830', '--llm-url', 'http://127.0.0.1:11434/v1', '--tts-token-file', '/s/tts-token',
   ]);
   const ssh = { mode: 'ssh', url: 'http://127.0.0.1:48830', ssh_host: 'gpu' };
-  assert.deepEqual(agentdArguments(config({ services: { motion: ssh } }), ctx).slice(-4),
-    ['--motion-url', 'http://127.0.0.1:48830', '--tts-token-file', '/s/tts-token']);
+  assert.deepEqual(agentdArguments(config({ services: { motion: ssh } }), ctx).slice(-6),
+    ['--motion-url', 'http://127.0.0.1:48830', '--motion-ssh-host', 'gpu', '--tts-token-file', '/s/tts-token']);
 });
 
 test("the helper's control.listen and agentd get one endpoint: a socket in <support>/run on macOS, a pipe per support dir on Windows", () => {

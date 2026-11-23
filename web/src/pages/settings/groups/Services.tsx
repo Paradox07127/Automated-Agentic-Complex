@@ -89,14 +89,16 @@ function problem(d: ServiceRecord): ['url' | 'ssh_host' | 'command', string] | n
   if (d.mode === 'off') return null;
   let u: URL | null = null;
   try {
-    u = new URL(d.url.trim());
+    u = new URL(d.url);
   } catch {
     // stays null
   }
   if (!u || (u.protocol !== 'http:' && u.protocol !== 'https:')) return ['url', '地址要以 http:// 或 https:// 开头'];
+  // The shell and agentd refuse these too.
+  if (u.username || u.password || u.search || u.hash) return ['url', '地址不能带用户名、密码、查询串或片段'];
   if (d.mode === 'url') return null;
   if (!LOOPBACK.has(u.hostname) || !u.port) return ['url', '要填回环地址和端口'];
-  if (d.mode === 'ssh' && !d.ssh_host.trim()) return ['ssh_host', 'SSH 主机没填'];
+  if (d.mode === 'ssh' && !d.ssh_host) return ['ssh_host', 'SSH 主机没填'];
   if (d.mode === 'local' && d.command.length === 0) return ['command', '命令没填'];
   return null;
 }
@@ -128,7 +130,8 @@ function Service({ id, name, record, runtime, rejected, disabled, onSave, onStar
   const live = kind != null && LIVE.has(kind);
   const desc = [reason, detail].filter(Boolean).join(' │ ') || undefined;
 
-  const next: ServiceRecord = { ...draft, command: splitCommand(command) };
+  const next: ServiceRecord = { ...draft, url: draft.url.trim(), ssh_host: draft.ssh_host.trim(), start_script: draft.start_script.trim(),
+    cwd: draft.cwd.trim(), command: splitCommand(command) };
   const dirty = JSON.stringify(next) !== JSON.stringify(record);
   const why = problem(next);
   // Shown once the draft differs, so an untouched fold is not red.

@@ -8,6 +8,8 @@ import type { Ops, OpsContext } from './context.ts';
 import { readObject, writeObject } from './settings.ts';
 
 const origin = (url: string) => URL.parse(url)?.origin ?? url;
+// Under ssh the url is always this machine's: the host behind it is ssh_host.
+const endpoint = (r: ServiceRecord) => JSON.stringify([origin(r.url), r.mode === 'ssh' ? r.ssh_host : null, r.mode === 'local']);
 
 export function servicesOps(ctx: OpsContext): Ops {
   const path = ctx.config.path;
@@ -24,21 +26,28 @@ export function servicesOps(ctx: OpsContext): Ops {
   };
   let saving: Promise<unknown> = Promise.resolve();
   const save = async (id: ServiceId, record: ServiceRecord): Promise<Record<string, unknown>> => {
-    let raw: Record<string, unknown>, old: ServiceRecord;
-    try {
-      raw = readObject(path);
-      old = stored(raw)[id];
-    } catch {
-      // Saving over an unreadable file would drop every other key.
-      return { ok: false, error: 'config_unreadable' };
-    }
+    let raw!: Record<string, unknown>, old!: ServiceRecord;
+    // Saving over an unreadable file would drop every other key.
+    const read = (): boolean => {
+      try {
+        raw = readObject(path);
+        old = stored(raw)[id];
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    if (!read()) return { ok: false, error: 'config_unreadable' };
     if (record.mode === 'ssh' && record.start_script !== ''
-      && (old.mode !== 'ssh' || old.start_script !== record.start_script || old.ssh_host !== record.ssh_host)
-      && !(await ctx.confirm(`保存后，按需启动脚本 ${record.start_script} 会经 SSH 在 ${record.ssh_host} 上执行。确定保存？`))) {
-      return { ok: false, error: 'declined' };
+      && (old.mode !== 'ssh' || old.start_script !== record.start_script || old.ssh_host !== record.ssh_host)) {
+      if (!(await ctx.confirm(`保存后，按需启动脚本 ${record.start_script} 会经 SSH 在 ${record.ssh_host} 上执行。确定保存？`))) {
+        return { ok: false, error: 'declined' };
+      }
+      // config.json may have changed while the dialog was open.
+      if (!read()) return { ok: false, error: 'config_unreadable' };
     }
     // The token installed for the old TTS service is not sent to another one.
-    const ttsTokenCleared = id === 'tts' && old.mode !== 'off' && (record.mode === 'off' || origin(old.url) !== origin(record.url));
+    const ttsTokenCleared = id === 'tts' && old.mode !== 'off' && (record.mode === 'off' || endpoint(old) !== endpoint(record));
     if (ttsTokenCleared && ctx.config.supportDir !== null) {
       try {
         const token = ttsTokenFile(ctx.config.supportDir);

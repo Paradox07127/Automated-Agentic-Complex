@@ -169,7 +169,7 @@ TTS（`tts`）、动作服务 Kimodo（`motion`）和兼容 OpenAI 的模型 API
 - 远端脚本：`ssh` 下 `start_script` 非空时，外壳和 agentd 都经 `ssh -o BatchMode=yes -o ConnectTimeout=5 -- <主机> <脚本> ensure|stop|status` 调它。`ensure` 的第一行回 `ready <秒>` 或 `fail <原因>`；`stop` 回 `stopped` 或 `fail <原因>`；`status` 回 `running …` 或 `stopped`。
 - 保存 `ssh` 记录时，`start_script` 或 `ssh_host` 有变，外壳先弹确认框，说明脚本将在哪台主机上执行。
 - bridge op（`protocol/ui-bridge/ops.json`，实现在 `src/main/ops/services.ts`）：`services.read` 读 config.json 里的三个记录；`services.save` 存一个记录，并重启这个服务和 agentd；`services.start`、`services.stop`、`services.restart` 启停一个服务，`ssh` 下有脚本时再跑远端的 `ensure` 或 `stop`。`app.runtime` 的 `services` 给出各服务的状态。
-- agentd 的参数：服务不是 `off` 时传 `--<id>-url`；`ssh` 下有 `start_script` 时再传 `--<id>-ensure-host` 和 `--<id>-ensure-script`（C9）。
+- agentd 的参数：服务不是 `off` 时传 `--<id>-url`；`ssh` 下一律再传 `--<id>-ssh-host`，有 `start_script` 时再传 `--<id>-ensure-host` 和 `--<id>-ensure-script`（C9）。
 
 ## 单实例与页面守卫
 

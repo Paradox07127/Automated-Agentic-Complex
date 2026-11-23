@@ -197,6 +197,7 @@ export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
     const s = config.services[id];
     if (s.mode === 'off') continue;
     args.push(`--${id}-url`, s.url);
+    if (s.mode === 'ssh') args.push(`--${id}-ssh-host`, s.ssh_host);
     if (s.mode === 'ssh' && s.start_script !== '') args.push(`--${id}-ensure-host`, s.ssh_host, `--${id}-ensure-script`, s.start_script);
   }
   // Pass the reference basename even before a credential is configured (C10).
