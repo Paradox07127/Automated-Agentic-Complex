@@ -307,7 +307,7 @@ export const RUNTIME_ERROR: Readonly<Record<string, RuntimeError>> = {
   browser_unavailable: { label: '打不开浏览器，请先设置系统默认浏览器' },
   logout_failed: { label: '登出没有在 30 秒内完成，请重试' },
   logout_unsupported: { label: '这个 ACP agent 不支持在应用里登出，请用它自己的方式登出' },
-  unknown_auth_method: { label: '这个 ACP agent 有多种登录方式，请选一种' },
+  unknown_auth_method: { label: '这个 ACP agent 没有列出这种登录方式，请点「重新检测」后再登录' },
   local_node_missing: { label: '没找到本机的 Node 可执行文件', fix: EXE },
   pi_provider_model_required: { label: 'Pi 要写明服务提供方和模型', fix: PROVIDER },
   pi_connection_missing: { label: 'Pi 没有能用的连接：写明服务提供方，或在 AI 账号 里用 ChatGPT 订阅或 API Key', fix: CONNECTION },

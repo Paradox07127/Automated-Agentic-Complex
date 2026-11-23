@@ -810,6 +810,35 @@ class IntegrationTests(IntegrationFixture):
                 self.assertEqual(probe.call_args.args[:2], ('codex', '/synthetic/codex'))
         self.assertEqual(self.controller.public()['product_login'], {'pending': None, 'error': None, 'accounts': {}})
 
+    def test_login_route_signs_in_the_saved_kernel(self):
+        from character_agent.routes import http
+        calls = []
+        def post(path, body):
+            handler = SimpleNamespace(path=path, server=self.server, auth=lambda token: True, body=lambda: body,
+                                      json=lambda status, data: calls.append((status, data)))
+            self.assertTrue(http.route(handler, 'POST', path))
+            return calls[-1]
+        self.controller.settings.save({'backend': 'codex', 'runtime_source': 'local', 'auth_source': 'existing_login'})
+        self.assertEqual(post('/character/login/start', {}), (400, {'error': 'product_login_not_selected'}))
+        self.controller.settings.save({'backend': 'codex', 'runtime_source': 'local', 'auth_source': 'product_login'})
+        row = {'backend': 'codex', 'path': '/synthetic/codex', 'entry_supported': True, 'authenticated': False}
+        with patch.object(self.controller, '_selected_runtime', return_value=row), \
+                patch.object(self.controller.logins, 'start', return_value={'pending': 'codex'}) as start:
+            self.assertEqual(post('/character/login/start', {}), (200, {'pending': 'codex'}))
+            start.assert_called_once_with('codex', '/synthetic/codex')
+        self.assertEqual(post('/character/login/logout', {'method_id': 'x'}), (400, {'error': 'invalid_payload'}))
+        agent = {'id': 'claude-acp', 'name': 'Claude Agent', 'command': ['/synthetic/claude-agent-acp'], 'source': 'local'}
+        methods = [{'id': 'claude-ai-login', 'type': 'terminal', 'args': ['--cli']}, {'id': 'console-login', 'type': 'terminal', 'args': []}]
+        self.controller.settings.save({'backend': 'acp', 'runtime_source': 'local', 'acp_agent': 'claude-acp', 'acp_launcher': 'local',
+                                       'auth_source': 'existing_login', 'provider': ''})
+        with patch('character_agent.integration.acp_agent', return_value=agent), \
+                patch('character_agent.harness.acp_agents.probe', return_value={'auth_methods': methods}), \
+                patch.object(self.controller.logins, 'start', return_value={}) as start:
+            for body, method in (({}, methods[0]), ({'method_id': 'console-login'}, methods[1])):
+                post('/character/login/start', body)
+                self.assertEqual(start.call_args, (('acp',), {'agent': agent, 'method': method}))
+            self.assertEqual(post('/character/login/start', {'method_id': 'nope'}), (400, {'error': 'unknown_auth_method'}))
+
     def test_product_login_runs_the_kernel_in_the_apps_own_profile(self):
         from character_agent.harness.registry import _cli_common
         row = {'backend':'claude', 'path':'/synthetic/claude', 'entry_supported':True, 'authenticated':True}
