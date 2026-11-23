@@ -109,6 +109,17 @@ export function poseMenu(poses: AvatarPoses): { options: (PoseSlot & { title: st
   return { options: poses.slots.map((s) => ({ ...s, title: POSE_TITLES[s.slot] ?? s.slot })), current: poses.current, locked: poses.locked };
 }
 
+/** `desktop.onState` `poses` for the desktop wheel: the menu's slots by title, id and reason, and the held id; null as the menu. */
+export function desktopPoses(poses: AvatarPoses): { slots: { title: string; id: string | null; reason: string | null }[]; current: string | null } | null {
+  const menu = poseMenu(poses);
+  return menu && { slots: menu.options.map(({ title, id, reason }) => ({ title, id, reason })), current: menu.current };
+}
+
+/** The desktop wheel's pose, as the menu's `setPose`; it rejects with why she did not take it. */
+export function wheelPose(poses: AvatarPoses, id: string | null): Promise<void> {
+  return poses.set(id, id !== null && poses.locked);
+}
+
 /** The menu's pose actions; a failure is logged. */
 export function poseMenuActions(poses: AvatarPoses, log: (line: string) => void): { setPose(id: string | null): void; togglePoseLock(): void } {
   const run = (id: string | null, lock: boolean) => {

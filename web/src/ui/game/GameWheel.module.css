@@ -144,6 +144,9 @@
 
 .name {
   display: inline-block;
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin-top: 3px;
   color: rgb(255 255 255 / 76%);
   font: var(--ef-fw-medium) var(--ef-fs-meta) / 16px var(--ef-font-sans);
@@ -222,6 +225,9 @@
   font: var(--ef-fw-semibold) 20px / 28px var(--ef-font-sans);
   letter-spacing: 0.04em;
   text-shadow: 2px 2px 0 rgb(0 0 0 / 40%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rule {

@@ -39,7 +39,7 @@ describe('GameWheel keyboard', () => {
     const { onRun, menu } = wheel();
     expect(document.activeElement).toBe(menu);
     key(menu, '3');
-    expect(onRun).toHaveBeenLastCalledWith('quiet');
+    expect(onRun).toHaveBeenLastCalledWith('quiet', 2);
   });
 
   it('→ ↓ Tab go clockwise, ← ↑ Shift+Tab back; Enter runs the selected slot; the centre names it', () => {
@@ -55,7 +55,7 @@ describe('GameWheel keyboard', () => {
     expect(selected()).toBe('8 角色页');
     expect(menu.textContent).toContain('角色页');
     key(menu, 'Enter');
-    expect(onRun).toHaveBeenLastCalledWith('char');
+    expect(onRun).toHaveBeenLastCalledWith('char', 7);
   });
 
   it('Esc closes; a slot that cannot run stays open and the centre says why', () => {
@@ -79,7 +79,7 @@ describe('GameWheel pointer', () => {
     expect(selected()).toBe('3 免打扰');
     now.mockReturnValue(1350);
     pointer('pointerUp', 400, 0);
-    expect(onRun).toHaveBeenCalledWith('quiet');
+    expect(onRun).toHaveBeenCalledWith('quiet', 2);
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -103,7 +103,7 @@ describe('GameWheel pointer', () => {
     expect(onRun).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     pointer('pointerDown', 70, 70);
-    expect(onRun).toHaveBeenLastCalledWith('pass');
+    expect(onRun).toHaveBeenLastCalledWith('pass', 3);
     pointer('pointerDown', 0, 0);
     expect(onClose).toHaveBeenCalledTimes(1);
     pointer('pointerDown', 300, 300, 2);
@@ -127,7 +127,7 @@ describe('GameWheel forwarded press (C3 rule 56)', () => {
     send({ phase: 'move', x: 400, y: 0 });
     expect(selected()).toBe('3 免打扰');
     send({ phase: 'up', x: 400, y: 0, ms: 120 });
-    expect(onRun).toHaveBeenCalledWith('quiet');
+    expect(onRun).toHaveBeenCalledWith('quiet', 2);
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -138,7 +138,7 @@ describe('GameWheel forwarded press (C3 rule 56)', () => {
     expect(onRun).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     pointer('pointerDown', 70, 70);
-    expect(onRun).toHaveBeenLastCalledWith('pass');
+    expect(onRun).toHaveBeenLastCalledWith('pass', 3);
   });
 
   it('a release in the centre after holding, or after leaving it, closes without running', () => {

@@ -77,7 +77,11 @@ export type DesktopActionName =
   | 'quickInput'
   | 'cmdMode'
   /** 说话 on her hover buttons: `start` as a press of the push-to-talk key, `stop` as its release. */
-  | 'talk';
+  | 'talk'
+  /** 停止 on her wheel: ends the user's play on her, whichever page or panel started it. */
+  | 'stopPlay'
+  /** Her wheel's 姿态: holds the pose row `arg` (C3 rule 47); none is 自动. */
+  | 'pose';
 
 export interface DesktopState {
   hidden: boolean;
@@ -99,6 +103,16 @@ export interface DesktopState {
   computerUseActive: boolean;
   /** The plug-ins agentd runs with, in the registry's order. */
   plugins: PluginId[];
+  /** The action id the user plays on her now, from any page or panel; null while none plays. */
+  playing?: string | null;
+  /** Her pose slots in menu order and the held row's id (C3 rule 47); null while her renderer has none. */
+  poses?: DesktopPoses | null;
+}
+
+/** A slot's `id` is its pose row's, null when she has none; `reason` says why it cannot be chosen, null when it can. */
+export interface DesktopPoses {
+  slots: { title: string; id: string | null; reason: string | null }[];
+  current: string | null;
 }
 
 export interface DesktopDock {

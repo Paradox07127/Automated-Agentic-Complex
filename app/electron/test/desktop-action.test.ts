@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { BridgeFailure } from '../src/common/bridge.ts';
 import type { ActionRow } from '../src/common/c3.ts';
 import {
-  DESKTOP_ACTIONS, desktopAction, giftAction, localIso, opensQuickInput, RitualTap, ritualFailure,
+  DESKTOP_ACTIONS, desktopAction, DesktopPlay, giftAction, localIso, opensQuickInput, RitualTap, ritualFailure,
   type DesktopActionPorts,
 } from '../src/common/desktop-action.ts';
 
@@ -34,6 +34,8 @@ function setup(quietFails = false, ritual: string | null = null) {
     openStack: () => calls.push(['openStack']),
     resize: () => calls.push(['resize']),
     talk: (phase) => calls.push(['talk', phase]),
+    stopPlay: () => calls.push(['stopPlay']),
+    pose: async (id) => { calls.push(['pose', id]); },
     claimRitual: async () => {
       calls.push(['claimRitual']);
       return ritual;
@@ -56,7 +58,7 @@ async function failure(p: unknown): Promise<{ code: string; detail: string }> {
 test('the names are DesktopAction\'s', () => {
   assert.deepEqual([...DESKTOP_ACTIONS], ['look', 'hide', 'show', 'clickThroughAll', 'quiet', 'quietEnd', 'gift', 'freeRoam',
     'switchCharacter', 'placeOnScreen', 'resetPosition', 'resize', 'restartAll', 'quit', 'resetBoxes', 'openSessions', 'openStack',
-    'claimRitual', 'quickInput', 'cmdMode', 'talk']);
+    'claimRitual', 'quickInput', 'cmdMode', 'talk', 'stopPlay', 'pose']);
 });
 
 test('wired actions reach their function and answer null', async () => {
@@ -64,14 +66,14 @@ test('wired actions reach their function and answer null', async () => {
   for (const [name, arg] of [['look'], ['hide'], ['show'], ['quiet'], ['quietEnd'], ['switchCharacter', 'aster'], ['placeOnScreen', '4'],
     ['resetPosition'], ['restartAll'], ['quit'], ['quickInput'], ['quickInput', '{"scopeId":"s1","files":2}'], ['cmdMode', 'ring'],
     ['cmdMode', 'input'], ['resetBoxes'], ['clickThroughAll'], ['gift'], ['freeRoam'], ['openSessions'], ['openStack'],
-    ['claimRitual'], ['resize'], ['talk', 'start'], ['talk', 'stop']] as [string, string?][]) {
+    ['claimRitual'], ['resize'], ['talk', 'start'], ['talk', 'stop'], ['stopPlay'], ['pose', 'pose_sit'], ['pose']] as [string, string?][]) {
     assert.equal(await run(arg === undefined ? [name] : [name, arg], null), null, name);
   }
   assert.deepEqual(calls, [['look'], ['setHidden', true], ['setHidden', false], ['setQuiet', 1_800_000_000 + 1800], ['setQuiet', null],
     ['switchCharacter', 'aster'], ['placeOnScreen', '4'], ['resetPosition'], ['restartAll'], ['quit'], ['quickInput', null],
     ['quickInput', { scopeId: 's1', files: 2 }], ['cmdMode', 'ring'], ['quickInput', null], ['resetBoxes'],
     ['clickThroughAll'], ['gift'], ['freeRoam'], ['openSessions'], ['openStack'], ['claimRitual'], ['resize'], ['talk', 'start'],
-    ['talk', 'stop']]);
+    ['talk', 'stop'], ['stopPlay'], ['pose', 'pose_sit'], ['pose', null]]);
 });
 
 test('claimRitual fails with why agentd took no tap, and a failed gift fails the action', async () => {
@@ -99,9 +101,10 @@ test('quickInput takes only a {scopeId, files} scope, cmdMode only ring or input
 
 test('an action whose port the shell does not give is not_implemented', async () => {
   const { calls, ports } = setup();
-  const { clickThroughAll: _a, gift: _b, freeRoam: _c, openSessions: _d, openStack: _e, claimRitual: _f, resize: _g, talk: _h, ...bare } = ports;
+  const { clickThroughAll: _a, gift: _b, freeRoam: _c, openSessions: _d, openStack: _e, claimRitual: _f, resize: _g, talk: _h, stopPlay: _i,
+    pose: _j, ...bare } = ports;
   const run = desktopAction(bare);
-  for (const name of ['clickThroughAll', 'gift', 'freeRoam', 'openSessions', 'openStack', 'claimRitual', 'resize']) {
+  for (const name of ['clickThroughAll', 'gift', 'freeRoam', 'openSessions', 'openStack', 'claimRitual', 'resize', 'stopPlay', 'pose']) {
     assert.deepEqual(await failure(run([name], null)), { code: 'not_implemented', detail: `desktop.action ${name}` });
   }
   assert.deepEqual(await failure(run(['talk', 'start'], null)), { code: 'not_implemented', detail: 'desktop.action talk' });
@@ -192,4 +195,27 @@ test('the gift is the first of receive_gift, library_interact_receive_gift, inte
   const row = (id: string): ActionRow => ({ id, name: id, section: 'interact', duration: null, trigger: '', required_reason: null, missing: null });
   assert.equal(giftAction([row('wave'), row('interact_receive_gift'), row('library_interact_receive_gift')])?.id, 'library_interact_receive_gift');
   assert.equal(giftAction([row('wave')]), null);
+});
+
+test('DesktopPlay: a play from its `started` until a final receipt of it or the lost link, whoever sent it; 停止 stops that play', () => {
+  const p = new DesktopPlay(), sent: unknown[] = [];
+  const played = (play_id: string, id: string, phase: string) => p.played({ v: 1, type: 'action_played', play_id, id, phase, reason: null });
+  assert.equal(p.id, null);
+  assert.equal(played('a', 'mmd_lamb', 'started'), true);
+  assert.equal(p.id, 'mmd_lamb');
+  // The next item of a list: the old one ends, the new one starts.
+  assert.equal(played('a', 'mmd_lamb', 'completed'), true);
+  assert.equal(p.id, null);
+  assert.equal(played('b', 'mmd_jile', 'started'), true);
+  assert.equal(played('old', 'wave', 'interrupted'), false);
+  assert.equal(p.id, 'mmd_jile');
+  p.stop((m) => sent.push(m) > 0, ['actions', 'action_loop']);
+  assert.deepEqual(sent, [{ v: 1, type: 'stop_action', play_id: 'b' }]);
+  assert.throws(() => p.stop(() => true, ['actions']), { message: '这个版本的角色不能停下动作' });
+  assert.throws(() => p.stop(() => false, ['action_loop']), { message: '这个版本的角色不能停下动作' });
+  assert.equal(p.lost(), true);
+  assert.equal(p.lost(), false);
+  assert.equal(p.id, null);
+  // Nothing plays: nothing to stop.
+  p.stop(() => assert.fail('sent'), []);
 });

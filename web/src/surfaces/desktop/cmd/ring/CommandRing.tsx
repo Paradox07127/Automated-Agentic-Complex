@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { shellPlatform } from '../../../../bridge/platformText';
 import { GameWheel, type GameWheelCenter, type WheelPress } from '../../../../ui/game/GameWheel';
 import type { CmdItem } from '../actions';
 
@@ -6,22 +7,28 @@ import type { CmdItem } from '../actions';
 export const WHEEL_BOX = 520;
 
 export interface CommandRingProps {
-  items: CmdItem[];
+  /** The level's 8 slots clockwise from the top; null leaves a slot empty. */
+  items: readonly (CmdItem | null)[];
   center: GameWheelCenter;
+  /** The level under the first that shows; it turns in anew when it changes. */
+  level?: string | undefined;
   /** Where she was right-clicked, in the page; the hot key's wheel has none and sits in the middle. */
   at?: { x: number; y: number } | undefined;
   /** The held right button that opened it, as the shell forwards it (C3 rule 56). */
   press?: WheelPress | undefined;
   onRun: (item: CmdItem) => void;
+  /** Under the first level: its centre, Esc and Backspace go one level up. */
+  onBack?: (() => void) | undefined;
   onClose: () => void;
 }
 
-/** ⌘ held: the key help line under the wheel shows. */
+/** ⌘ held, Ctrl on Windows (where ⌘ is the Windows key): the key help line under the wheel shows. */
 function useCommandHeld(): boolean {
   const [held, setHeld] = useState(false);
   useEffect(() => {
-    const on = (e: KeyboardEvent) => setHeld(e.metaKey || e.key === 'Meta');
-    const off = (e: KeyboardEvent) => setHeld(e.key === 'Meta' ? false : e.metaKey);
+    const [key, down] = shellPlatform() === 'windows' ? (['Control', (e: KeyboardEvent) => e.ctrlKey] as const) : (['Meta', (e: KeyboardEvent) => e.metaKey] as const);
+    const on = (e: KeyboardEvent) => setHeld(down(e) || e.key === key);
+    const off = (e: KeyboardEvent) => setHeld(e.key === key ? false : down(e));
     const clear = () => setHeld(false);
     window.addEventListener('keydown', on);
     window.addEventListener('keyup', off);
@@ -35,8 +42,9 @@ function useCommandHeld(): boolean {
   return held;
 }
 
-/** Her wheel, the right click's and the hot key's alike: one level of 8 slots, a pick runs at once. Dark in both themes. */
-export function CommandRing({ items, center, at, press, onRun, onClose }: CommandRingProps) {
+/** Her wheel, the right click's and the hot key's alike: 8 slots a level, a pick runs at once or opens the next level in
+ *  place. Dark in both themes. */
+export function CommandRing({ items, center, level, at, press, onRun, onBack, onClose }: CommandRingProps) {
   const keys = useCommandHeld();
   return (
     <div data-theme="dark" data-keys={keys || undefined} data-region="" style={{ position: 'relative', width: WHEEL_BOX, height: WHEEL_BOX }}>
@@ -47,10 +55,12 @@ export function CommandRing({ items, center, at, press, onRun, onClose }: Comman
         press={press}
         bounds={{ width: WHEEL_BOX, height: WHEEL_BOX }}
         label="角色的轮盘"
-        onRun={(id) => {
-          const item = items.find((i) => i.id === id);
+        level={level}
+        onRun={(_, i) => {
+          const item = items[i];
           if (item) onRun(item);
         }}
+        onBack={onBack}
         onClose={onClose}
       />
     </div>

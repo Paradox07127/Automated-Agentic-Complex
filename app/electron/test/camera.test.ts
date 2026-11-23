@@ -11,7 +11,7 @@ import { cameraSettings, committed, gestured, liveRenderPayload, savedCamera } f
 import type { ActionRow } from '../src/common/c3.ts';
 import { CameraCloseupDriver, watchSessionsShown } from '../src/main/camera/closeup.ts';
 import { AvatarCamera, type CameraPorts } from '../src/main/camera/gesture.ts';
-import { AvatarPoses, linkPoses, poseMenu, poseMenuActions, type PosePorts } from '../src/main/camera/pose.ts';
+import { AvatarPoses, desktopPoses, linkPoses, poseMenu, poseMenuActions, type PosePorts, wheelPose } from '../src/main/camera/pose.ts';
 import type { CommandResult, LinkEvent } from '../src/main/renderer/link.ts';
 
 const settle = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); };
@@ -391,6 +391,24 @@ test('pose menu: the slots with their titles only when one has a row; 自动 rel
   poseMenuActions(f.poses, (line) => logs.push(line)).setPose('pose_sit');
   await settle();
   assert.deepEqual(logs, ['set_pose id=pose_sit lock=false failed: 角色正在做别的动作']);
+});
+
+test('the desktop wheel\'s poses: the menu\'s titles, ids and reasons and the held id, null as the menu; its set fails with why', async () => {
+  const s = poseSetup();
+  assert.equal(desktopPoses(s.poses), null);
+  s.poses.listed('aster', [row('pose_stand', 'stand'), row('pose_sit', 'sit', '缺资源')]);
+  s.poses.state({ character: 'aster', id: 'pose_stand', locked: true });
+  assert.deepEqual(desktopPoses(s.poses), { current: 'pose_stand', slots: [
+    { title: '站', id: 'pose_stand', reason: null }, { title: '叉腰', id: null, reason: '这个角色没有这个姿态的原作动作' },
+    { title: '坐', id: 'pose_sit', reason: '缺资源' }, { title: '坐地', id: null, reason: '这个角色没有这个姿态的原作动作' },
+    { title: '躺', id: null, reason: '这个角色没有这个姿态的原作动作' }] });
+  // As the menu's: a held lock carries over, 自动 releases it.
+  await wheelPose(s.poses, 'pose_stand');
+  await wheelPose(s.poses, null);
+  assert.deepEqual(s.calls.filter((c) => c.startsWith('set_pose')), ['set_pose pose_stand true', 'set_pose null false']);
+  const f = poseSetup({ ok: false, reason: 'busy' });
+  f.poses.listed('aster', []);
+  await assert.rejects(wheelPose(f.poses, 'pose_sit'), { message: '角色正在做别的动作' });
 });
 
 test('linkPoses: her lists reach AvatarPoses, the lock is read from and written to config.json pose_lock, other keys kept', async () => {

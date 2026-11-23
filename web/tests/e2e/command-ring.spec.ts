@@ -51,7 +51,7 @@ test('wheel: 8 numbered items with the pending count, dark in a light theme, the
   const items = wheel.getByRole('menuitem');
   await expect(items).toHaveCount(8);
   const names = await items.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
-  expect(names.map((n) => n.replace(/^(\d \S+).*$/, '$1'))).toEqual(['1 对话页', '2 待处理', '3 免打扰', '4 点穿', '5 放回原位', '6 自由活动', '7 送礼物', '8 角色页']);
+  expect(names.map((n) => n.replace(/^(\d \S+).*$/, '$1'))).toEqual(['1 对话页', '2 待处理', '3 免打扰', '4 点穿', '5 放回原位', '6 自由活动', '7 动作', '8 角色页']);
   expect(names[1]).toMatch(/^2 待处理 \d+$/);
   await expect(page.locator('[data-region][data-theme="dark"]')).toHaveCount(1);
   const help = wheel.getByText('直接执行');

@@ -1,11 +1,12 @@
 // `desktop.action`: each name on the shell function her wheel, her hover buttons and the console run; a name whose port the
-// shell does not give answers not_implemented. Also the clicks on her that claim a ritual and the gift action's pick.
+// shell does not give answers not_implemented. Also the clicks on her that claim a ritual, the gift action's pick and what
+// the user plays on her.
 import { BridgeFailure, type Handler } from './bridge.ts';
-import type { ActionRow } from './c3.ts';
+import type { ActionPlayed, ActionRow, C3Message } from './c3.ts';
 
 export const DESKTOP_ACTIONS = ['look', 'hide', 'show', 'clickThroughAll', 'quiet', 'quietEnd', 'gift', 'freeRoam', 'switchCharacter',
   'placeOnScreen', 'resetPosition', 'resize', 'restartAll', 'quit', 'resetBoxes', 'openSessions', 'openStack', 'claimRitual',
-  'quickInput', 'cmdMode', 'talk'] as const;
+  'quickInput', 'cmdMode', 'talk', 'stopPlay', 'pose'] as const;
 export type DesktopActionName = (typeof DESKTOP_ACTIONS)[number];
 
 /** The optional ports below answer not_implemented while the shell gives none. */
@@ -41,6 +42,10 @@ export interface DesktopActionPorts {
   resize?(): void;
   /** 说话: `start` as a press of the push-to-talk key, `stop` as its release, on the same recording. */
   talk?(phase: 'start' | 'stop'): void;
+  /** 停止: ends the user's play on her (DesktopPlay.stop); throws why it could not. */
+  stopPlay?(): void;
+  /** Holds her in the pose row `id` (C3 rule 47), null for 自动; throws why she did not take it. */
+  pose?(id: string | null): Promise<void>;
   /** Epoch milliseconds; tests drive it. */
   now?(): number;
 }
@@ -149,6 +154,8 @@ export function desktopAction<P>(ports: DesktopActionPorts): Handler<P> {
         given(ports.talk)(phase);
         break;
       }
+      case 'stopPlay': given(ports.stopPlay)(); break;
+      case 'pose': await given(ports.pose)(id); break;
     }
     return null;
   };
@@ -232,4 +239,42 @@ export function giftAction(actions: ActionRow[]): ActionRow | null {
     if (a) return a;
   }
   return null;
+}
+
+/** The user's play on her, whichever page or panel sent it (C3 rule 29): from its `started` until a final `action_played` of
+ *  the same `play_id`, or until the link is lost. */
+export class DesktopPlay {
+  private play: { playId: string; id: string } | null = null;
+
+  /** The playing action's id; null while none plays. */
+  get id(): string | null {
+    return this.play?.id ?? null;
+  }
+
+  /** One `action_played` she sent; true when what plays changed. */
+  played(m: ActionPlayed): boolean {
+    if (m.phase === 'started') {
+      this.play = { playId: m.play_id, id: m.id };
+      return true;
+    }
+    if (this.play?.playId !== m.play_id) return false;
+    this.play = null;
+    return true;
+  }
+
+  /** The link went down; true when something was playing. */
+  lost(): boolean {
+    const was = this.play !== null;
+    this.play = null;
+    return was;
+  }
+
+  /** Rule 29 `stop_action` for the play through `send`; nothing while none plays. Throws when her renderer, by its listed
+   *  `capabilities`, cannot stop it or the link did not take it. */
+  stop(send: (m: C3Message) => boolean, capabilities: readonly string[]): void {
+    if (this.play === null) return;
+    if (!capabilities.includes('action_loop') || !send({ v: 1, type: 'stop_action', play_id: this.play.playId })) {
+      throw new Error('这个版本的角色不能停下动作');
+    }
+  }
 }

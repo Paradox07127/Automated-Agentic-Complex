@@ -16,6 +16,8 @@ import { type ChildState } from '../common/agentd.ts';
 import type { Rect as HelperRect } from '../common/attention.ts';
 import { boot, BridgeFailure, handle, type Handler, type Reply, type Surface } from '../common/bridge.ts';
 import { computerUseState } from '../common/computer-control.ts';
+import type { ActionPlayed } from '../common/c3.ts';
+import { DesktopPlay } from '../common/desktop-action.ts';
 import { avatarHovered } from '../common/desktop-hover.ts';
 import { AVATAR_STAGE_TITLES } from '../common/stack-source.ts';
 import { shownFrame } from '../common/keepclear.ts';
@@ -49,6 +51,7 @@ import { ambientOffers, shellAmbient } from './ambient/shell.ts';
 import { shellAttention } from './attention/shell.ts';
 import { helperYFor, shellRecorders, shellWatchers, surfaceLinkOptions } from './attention/watchers.ts';
 import { CameraOverlayWindow } from './camera/overlay.ts';
+import { desktopPoses, wheelPose } from './camera/pose.ts';
 import { CAMERA_OFFERS, shellCamera } from './camera/shell.ts';
 import { feedCommands } from './commands/feed.ts';
 import {
@@ -308,6 +311,12 @@ const camera = config && hostLink && shellCamera({ link: hostLink, configPath, a
     camera: target,
   }),
   log: (line) => appendLog(config!.supportDir, 'companion', line) });
+/** What the user plays on her, for the desktop wheel's 停止; the panels hear each change. */
+const play = new DesktopPlay();
+hostLink?.on((e) => {
+  const changed = e.kind === 'lost' ? play.lost() : e.kind === 'message' && e.message.type === 'action_played' && play.played(e.message as ActionPlayed);
+  if (changed) desktop?.pushState();
+});
 /** Made once the app is ready: Electron's `screen` is not there before. */
 let placer: AvatarPlacer | null = null;
 /** 调整大小's window, kept to end it at quit. */
@@ -982,6 +991,7 @@ function desktopState(): Record<string, unknown> {
       voice: pushToTalk?.voice ?? 'off', helper: helper ? processState(helperState, helper.pid) : null },
     computerUseActive: control ? computerUseState(control.state).active : false,
     plugins: enabledPlugins(supervisor?.plugins ?? DEFAULT_PLUGINS),
+    playing: play.id, poses: camera ? desktopPoses(camera.poses) : null,
   };
 }
 
@@ -1147,6 +1157,8 @@ function startDesktop(): void {
         void renderer?.restart();
       },
       quit: () => app.quit(),
+      stopPlay: () => play.stop((m) => hostLink?.send(m) ?? false, hostLink?.capabilities ?? []),
+      ...(camera && { pose: (id: string | null) => wheelPose(camera.poses, id) }),
     },
     playSound: () => playAlert(() => shell.beep()),
     confirm: confirmStack,

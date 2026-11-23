@@ -324,7 +324,7 @@ export interface AgenticComplexBridge {
     setActionSwitches(switches: Record<string, boolean>): Promise<AvatarSwitchReply>;
     setAppearance(id: string): Promise<void>;
     /** Takes the whole hidden layer set; main surface only. */ setLayers(hidden: string[]): Promise<void>;
-    /** Plays the current character's MMD list from item `start` (default 0); main surface only. */ playPlaylist(o?: { start?: number }): Promise<PlaylistPlayResult>;
+    /** Plays the current character's MMD list from item `start` (default 0); not on onboarding. */ playPlaylist(o?: { start?: number }): Promise<PlaylistPlayResult>;
     stopPlaylist(): Promise<{ ok: true }>; playlistState(): Promise<PlaylistState>;
     presentation: { get(): Promise<unknown>; set(value: unknown): Promise<void> };
     /** The photo panel's state (C3 `set_render.photo`); main surface only. */ photo: { set(s: PhotoState): Promise<void> };

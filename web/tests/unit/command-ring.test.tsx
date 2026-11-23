@@ -5,10 +5,11 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import type { DesktopCommand, DesktopState, AgenticComplexBridge } from '../../src/bridge/protocol';
 import { BubbleRoot } from '../../src/surfaces/desktop/BubbleRoot';
 import { CmdRoot } from '../../src/surfaces/desktop/CmdRoot';
-import { giftOff, pendingCount, wheelItems, type CmdItem } from '../../src/surfaces/desktop/cmd/actions';
+import type { AvatarAction } from '../../src/bridge';
+import { actionItems, giftOff, pendingCount, poseItems, wheelItems, type CmdItem } from '../../src/surfaces/desktop/cmd/actions';
 import { ECHO_MS } from '../../src/surfaces/desktop/cmd/input/QuickInput';
 import { CommandRing } from '../../src/surfaces/desktop/cmd/ring/CommandRing';
-import { runCmdAction } from '../../src/surfaces/desktop/cmd/ring/run';
+import { runCmdAction, type RunItem } from '../../src/surfaces/desktop/cmd/ring/run';
 import { stubMatchMedia } from './mediaStub';
 
 // Her wheel and its action table on `stack.html#/cmd`, and 快速输入, which moved under the bubble
@@ -57,17 +58,78 @@ const STATE: DesktopState = {
   plugins: ['light_ai', 'screen_reading'],
 };
 
-const item = (id: CmdItem['id'], s: DesktopState | null = STATE, pending = 2): CmdItem => {
-  const found = wheelItems(s, pending).find((i) => i.id === id);
-  if (!found) throw new Error(`no ${id}`);
-  return found;
+/** A slot that runs, as RingSlot hands it on; 动作 and 姿态 open a level instead. */
+const runs = (i: CmdItem | null | undefined): RunItem => {
+  if (!i || i.id === 'actions' || i.id === 'poses') throw new Error(`${i?.id ?? 'an empty slot'} does not run`);
+  return { ...i, id: i.id };
+};
+
+const item = (id: CmdItem['id'], s: DesktopState | null = STATE, pending = 2): RunItem =>
+  runs([...wheelItems(s, pending), ...actionItems(s, [], [])].find((i) => i?.id === id));
+
+const dance = (id: string, label: string, durationS = 252): AvatarAction => ({ id, label, enabled: true, section: 'mmd', durationS, playable: true });
+const DANCES: AvatarAction[] = [
+  { id: 'receive_gift', label: '收礼', enabled: true },
+  dance('mmd_jile', '极乐净土'),
+  dance('mmd_love', '恋爱循环（完整版）', 252),
+  dance('mmd_lamb', 'Lamb.'),
+  dance('mmd_hibana', 'ヒバナ'),
+  dance('mmd_e', '舞五'),
+  dance('mmd_f', '舞六'),
+  dance('mmd_g', '舞七'),
+];
+const POSES: NonNullable<DesktopState['poses']> = {
+  slots: [
+    { title: '站', id: 'pose_stand', reason: null },
+    { title: '叉腰', id: 'pose_akimbo', reason: null },
+    { title: '坐', id: 'pose_sit', reason: null },
+    { title: '坐地', id: 'pose_floor', reason: null },
+    { title: '躺', id: null, reason: '这个角色没有这个姿态的原作动作' },
+  ],
+  current: 'pose_sit',
 };
 
 describe('the action table', () => {
   it('has the 8 slots of the design, clockwise from the top', () => {
-    expect(wheelItems(STATE, 2).map((i) => i.label)).toEqual(['对话页', '待处理', '免打扰', '点穿', '放回原位', '自由活动', '送礼物', '角色页']);
-    expect(wheelItems(STATE, 2).map((i) => i.id)).toEqual(['goChat', 'pending', 'quiet', 'pass', 'home', 'roam', 'gift', 'goCharacter']);
+    expect(wheelItems(STATE, 2).map((i) => i.label)).toEqual(['对话页', '待处理', '免打扰', '点穿', '放回原位', '自由活动', '动作', '角色页']);
+    expect(wheelItems(STATE, 2).map((i) => i.id)).toEqual(['goChat', 'pending', 'quiet', 'pass', 'home', 'roam', 'actions', 'goCharacter']);
     expect(wheelItems(STATE, 2)[1]).toMatchObject({ count: 2 });
+  });
+
+  it('07 is 动作, opening a level, while nothing plays, and 停止 naming the play while she plays', () => {
+    const now = 1_800_000_000_000;
+    expect(wheelItems(STATE, 0, now, DANCES)[6]).toMatchObject({ id: 'actions', label: '动作', icon: 'play', deeper: true });
+    expect(wheelItems({ ...STATE, playing: null }, 0, now, DANCES)[6]?.id).toBe('actions');
+    const stop = wheelItems({ ...STATE, playing: 'mmd_lamb' }, 0, now, DANCES)[6];
+    expect(stop).toMatchObject({ id: 'stop', label: '停止', icon: 'stop', on: true, desc: 'Lamb.' });
+    expect(stop?.deeper).toBeUndefined();
+    // A play her list does not name is named by its id.
+    expect(wheelItems({ ...STATE, playing: 'chain_x' }, 0, now, DANCES)[6]).toMatchObject({ id: 'stop', desc: 'chain_x' });
+  });
+
+  it('动作\'s level: the first 6 dances of her setlist in its order, 姿态 at 07 and 送礼物 at 08 in place, fewer dances leave holes', () => {
+    const setlist = ['mmd_love', 'mmd_gone', 'mmd_jile', 'mmd_lamb', 'mmd_hibana', 'mmd_e', 'mmd_f', 'mmd_g'];
+    const level = actionItems({ ...STATE, poses: POSES, playing: 'mmd_lamb' }, setlist, DANCES);
+    expect(level.map((i) => i?.label ?? null)).toEqual(['恋爱循环（完整版）', '极乐净土', 'Lamb.', 'ヒバナ', '舞五', '舞六', '姿态', '送礼物']);
+    // Each plays the list on from its own place in the saved list, past the id she no longer has.
+    expect(level.slice(0, 6).map((i) => i?.start)).toEqual([0, 2, 3, 4, 5, 6]);
+    expect(level[0]).toMatchObject({ id: 'dance', icon: 'play', desc: '04:12' });
+    expect(level.map((i) => i?.on ?? false)).toEqual([false, false, true, false, false, false, false, false]);
+    expect(level[6]).toMatchObject({ id: 'poses', deeper: true });
+    expect(level[6]?.off).toBeUndefined();
+    const short = actionItems(STATE, ['mmd_jile', 'mmd_lamb'], DANCES);
+    expect(short.map((i) => i?.id ?? null)).toEqual(['dance', 'dance', null, null, null, null, 'poses', 'gift']);
+  });
+
+  it('姿态\'s level: 自动 and her poses; the held one is marked, one she lacks is off with why; no poses greys 姿态', () => {
+    const level = poseItems({ ...STATE, poses: POSES });
+    expect(level.map((i) => i?.label)).toEqual(['自动', '站', '叉腰', '坐', '坐地', '躺']);
+    expect(level.map((i) => i?.pose)).toEqual([null, 'pose_stand', 'pose_akimbo', 'pose_sit', 'pose_floor', null]);
+    expect(level.map((i) => i?.on ?? false)).toEqual([false, false, false, true, false, false]);
+    expect(level[5]).toMatchObject({ id: 'pose', off: '这个角色没有这个姿态的原作动作' });
+    expect(poseItems({ ...STATE, poses: { ...POSES, current: null } })[0]?.on).toBe(true);
+    // A renderer without `poses` (Windows today) sends none.
+    for (const s of [STATE, { ...STATE, poses: null }]) expect(actionItems(s, [], DANCES)[6]).toMatchObject({ id: 'poses', off: '这个版本的角色不支持姿态' });
   });
 
   it('待处理 with nothing waiting is greyed with its reason; the toggles follow the desktop state', () => {
@@ -84,9 +146,8 @@ describe('the action table', () => {
     expect(giftOff([{ id: 'receive_gift', label: '收礼', enabled: true }])).toBeNull();
     expect(giftOff([{ id: 'wave', label: '挥手', enabled: true }])).toBe('当前角色包尚未导入原作收礼动作');
     expect(giftOff([{ id: 'interact_receive_gift', label: '收礼', enabled: true, missing: true, missingReason: '缺动作文件' }])).toBe('缺动作文件');
-    const now = 1_800_000_000_000;
-    expect(wheelItems(STATE, 0, now, '缺动作文件')[6]).toMatchObject({ id: 'gift', off: '缺动作文件' });
-    expect(wheelItems(STATE, 0, now)[6]?.off).toBeUndefined();
+    expect(actionItems(STATE, [], DANCES, '缺动作文件')[7]).toMatchObject({ id: 'gift', label: '送礼物', off: '缺动作文件' });
+    expect(actionItems(STATE, [], DANCES)[7]?.off).toBeUndefined();
   });
 
   it('counts questions, approvals and results in presence, past the first 3', () => {
@@ -140,6 +201,91 @@ describe('the wheel', () => {
     expect(document.querySelector<HTMLElement>('[data-stub="GameWheel"]')?.style.left).toBe('');
   });
 
+  it('a level under the first draws no empty slot; its centre, Esc and Backspace go back up; the first level\'s Esc closes', () => {
+    const onRun = vi.fn();
+    const onBack = vi.fn();
+    const onClose = vi.fn();
+    const view = render(
+      <CommandRing items={actionItems(STATE, ['mmd_jile'], DANCES)} center={{ en: '07', name: '动作', desc: '' }} level="actions" onBack={onBack} onRun={onRun} onClose={onClose} />,
+    );
+    const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
+    expect(within(wheel).getAllByRole('menuitem').map((m) => m.getAttribute('aria-label'))).toEqual(['1 极乐净土', '7 姿态', '8 送礼物']);
+    fireEvent.keyDown(wheel, { key: '3' });
+    expect(onRun).not.toHaveBeenCalled();
+    fireEvent.keyDown(wheel, { key: 'Escape' });
+    fireEvent.keyDown(wheel, { key: 'Backspace' });
+    // jsdom lays nothing out: the centre is at 0,0.
+    fireEvent.pointerDown(window, { button: 0, clientX: 0, clientY: 0 });
+    expect(onBack).toHaveBeenCalledTimes(3);
+    expect(onClose).not.toHaveBeenCalled();
+    view.unmount();
+    render(<CommandRing items={wheelItems(STATE, 0)} center={center} onRun={onRun} onClose={onClose} />);
+    fireEvent.keyDown(screen.getByRole('menu', { name: '角色的轮盘' }), { key: 'Backspace' });
+    fireEvent.keyDown(screen.getByRole('menu', { name: '角色的轮盘' }), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('a held press resting 300 ms on a slot that opens a level runs it once; resting on into the next level opens nothing more', async () => {
+    const onRun = vi.fn();
+    const rest = (ms: number) => flush(() => new Promise((r) => setTimeout(r, ms)));
+    const props = { center, onClose: () => {}, onRun };
+    const level1 = wheelItems(STATE, 0);
+    const view = render(<CommandRing {...props} items={level1} press={{ phase: 'move', x: -100, y: 0 }} />);
+    await rest(200);
+    expect(onRun).not.toHaveBeenCalled();
+    await rest(150);
+    expect(onRun.mock.calls.map((c) => c[0].id)).toEqual(['actions']);
+    // The pointer is still on 07, now 姿态, a slot that opens a level too.
+    const level2 = actionItems({ ...STATE, poses: POSES }, ['mmd_jile'], DANCES);
+    view.rerender(<CommandRing {...props} items={level2} level="actions" press={{ phase: 'move', x: -101, y: 1 }} />);
+    await rest(400);
+    expect(onRun).toHaveBeenCalledTimes(1);
+    view.rerender(<CommandRing {...props} items={level2} level="actions" press={{ phase: 'move', x: 0, y: -100 }} />);
+    view.rerender(<CommandRing {...props} items={level2} level="actions" press={{ phase: 'move', x: -100, y: 0 }} />);
+    await rest(350);
+    expect(onRun.mock.calls.map((c) => c[0].id)).toEqual(['actions', 'poses']);
+  });
+
+  it('on Windows the key help shows while Ctrl is held, not the Windows key', () => {
+    window.agenticComplex = { ...createFakeBridge({ surface: 'stack', still: true }), platform: 'windows' };
+    render(<CommandRing items={wheelItems(STATE, 0)} center={center} onRun={() => {}} onClose={() => {}} />);
+    const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
+    flush(() => void fireEvent.keyDown(window, { key: 'Meta', metaKey: true }));
+    expect(wheel.closest('[data-keys]')).toBeNull();
+    flush(() => void fireEvent.keyDown(window, { key: 'Control', ctrlKey: true }));
+    expect(wheel.closest('[data-keys]')).not.toBeNull();
+    flush(() => void fireEvent.keyUp(window, { key: 'Control' }));
+    expect(wheel.closest('[data-keys]')).toBeNull();
+  });
+
+  it('the desktop panels may read her setlist and play it from a dance', async () => {
+    const bridge = stackBridge();
+    await expect(bridge.character.getPlaylist()).resolves.toEqual({ items: [], loop: 'off', speed: 1 });
+    await expect(bridge.avatar.playPlaylist({ start: 0 })).resolves.toEqual({ ok: false, reason: 'empty' });
+  });
+
+  it('7 opens 动作 in place with her setlist; Esc goes back up; a dance plays her list from it and closes the panel', async () => {
+    const bridge = stackBridge();
+    vi.spyOn(bridge.avatar, 'actions').mockResolvedValue(DANCES);
+    vi.spyOn(bridge.character, 'getPlaylist').mockResolvedValue({ items: ['mmd_lamb', 'mmd_jile'], loop: 'one', speed: 1 });
+    const play = vi.spyOn(bridge.avatar, 'playPlaylist').mockResolvedValue({ ok: true });
+    const close = vi.spyOn(bridge.window, 'close');
+    mount('#/cmd?still=1');
+    await screen.findByRole('menu', { name: '角色的轮盘' });
+    await flush(async () => {});
+    const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
+    await flush(async () => fireEvent.keyDown(wheel, { key: '7' }));
+    expect(within(wheel).getAllByRole('menuitem').map((m) => m.getAttribute('aria-label'))).toEqual(['1 Lamb.', '2 极乐净土', '7 姿态', '8 送礼物']);
+    expect(wheel.textContent).toContain('动作');
+    await flush(async () => fireEvent.keyDown(wheel, { key: 'Escape' }));
+    expect(within(wheel).getByRole('menuitem', { name: '7 动作' })).toBeTruthy();
+    expect(close).not.toHaveBeenCalled();
+    await flush(async () => fireEvent.keyDown(wheel, { key: '7' }));
+    await flush(async () => fireEvent.keyDown(wheel, { key: '2' }));
+    expect(play).toHaveBeenCalledWith({ start: 1 });
+    await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+  });
+
   it('the fake sends the opening command once, like native, so a page subscribing later gets none', async () => {
     window.location.hash = '#/cmd?still=1';
     const bridge = stackBridge();
@@ -178,7 +324,7 @@ describe('wheel actions', () => {
     expect(await runCmdAction(item('quiet'), ctx(bridge, STATE, now))).toMatchObject({ kind: 'receipt', tone: 'success', text: expect.stringContaining('免打扰已开始') });
     const quiet = { ...STATE, quietUntil: now + 60_000 };
     const end = wheelItems(quiet, 0, now)[2];
-    expect(end && (await runCmdAction(end, ctx(bridge, quiet, now)))).toMatchObject({ kind: 'receipt', text: '免打扰已结束' });
+    expect(await runCmdAction(runs(end), ctx(bridge, quiet, now))).toMatchObject({ kind: 'receipt', text: '免打扰已结束' });
     expect(action.mock.calls.map((c) => c[0])).toEqual(['quiet', 'quietEnd']);
     expect(request).not.toHaveBeenCalled();
   });
@@ -255,6 +401,28 @@ describe('wheel actions', () => {
     await waitFor(() => expect(openMain).toHaveBeenCalledWith(expect.stringMatching(/^\/chat/)));
   });
 
+  it('C3 rule 56: the held right button resting on 动作 opens its level, and its release on a dance plays it', async () => {
+    const bridge = stackBridge();
+    vi.spyOn(bridge.avatar, 'actions').mockResolvedValue(DANCES);
+    vi.spyOn(bridge.character, 'getPlaylist').mockResolvedValue({ items: ['mmd_jile'], loop: 'off', speed: 1 });
+    const play = vi.spyOn(bridge.avatar, 'playPlaylist').mockResolvedValue({ ok: true });
+    const listeners = new Set<(c: DesktopCommand) => void>();
+    vi.spyOn(bridge.desktop, 'onCommand').mockImplementation((cb) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    });
+    const push = (c: DesktopCommand) => flush(async () => listeners.forEach((cb) => cb(c)));
+    mount('#/cmd?still=1');
+    await push({ kind: 'open', mode: 'ring', at: { x: 260, y: 260 } });
+    await screen.findByRole('menu', { name: '角色的轮盘' });
+    await push({ kind: 'ringPointer', phase: 'move', x: -100, y: 0 });
+    await flush(() => new Promise((r) => setTimeout(r, 350)));
+    expect(screen.getByRole('menuitem', { name: '1 极乐净土' })).toBeTruthy();
+    await push({ kind: 'ringPointer', phase: 'move', x: 0, y: -100 });
+    await push({ kind: 'ringPointer', phase: 'up', x: 0, y: -100, ms: 900 });
+    expect(play).toHaveBeenCalledWith({ start: 0 });
+  });
+
   it('a pick with a receipt hands it to her bubble through desktop.notice and closes the wheel, no toast on the panel', async () => {
     const bridge = stackBridge();
     const notice = vi.spyOn(bridge.desktop, 'notice');
@@ -269,7 +437,7 @@ describe('wheel actions', () => {
     expect(screen.queryByRole('menu', { name: '角色的轮盘' })).toBeNull();
   });
 
-  it('送礼物 on the opened wheel says why it cannot play, and 7 runs nothing', async () => {
+  it('送礼物 under 动作 says why it cannot play, and 8 runs nothing', async () => {
     const bridge = stackBridge();
     vi.spyOn(bridge.avatar, 'actions').mockResolvedValue([{ id: 'wave', label: '挥手', enabled: true }]);
     const action = vi.spyOn(bridge.desktop, 'action');
@@ -277,10 +445,30 @@ describe('wheel actions', () => {
     await screen.findByRole('menu', { name: '角色的轮盘' });
     await flush(async () => {});
     const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
-    await waitFor(() => expect(within(wheel).getByRole('menuitem', { name: /^7 送礼物/ }).getAttribute('aria-disabled')).toBe('true'));
     await flush(async () => fireEvent.keyDown(wheel, { key: '7' }));
+    await waitFor(() => expect(within(wheel).getByRole('menuitem', { name: /^8 送礼物/ }).getAttribute('aria-disabled')).toBe('true'));
+    await flush(async () => fireEvent.keyDown(wheel, { key: '8' }));
     expect(wheel.textContent).toContain('当前角色包尚未导入原作收礼动作');
     expect(action).not.toHaveBeenCalled();
+  });
+
+  it('停止 stops her play through native with a receipt; a dance plays her list from it; a pose goes to native, 自动 with none', async () => {
+    const bridge = stackBridge();
+    const action = vi.spyOn(bridge.desktop, 'action');
+    const play = vi.spyOn(bridge.avatar, 'playPlaylist');
+    const playing = { ...STATE, playing: 'mmd_lamb' };
+    const stop = wheelItems(playing, 0, Date.now(), DANCES)[6];
+    expect(await runCmdAction(runs(stop), ctx(bridge, playing))).toEqual({ kind: 'receipt', tone: 'success', text: '动作已停止' });
+    const [first] = actionItems(STATE, ['mmd_gone', 'mmd_jile'], DANCES);
+    play.mockResolvedValueOnce({ ok: true });
+    expect(await runCmdAction(runs(first), ctx(bridge))).toEqual({ kind: 'close' });
+    expect(play).toHaveBeenCalledWith({ start: 1 });
+    play.mockResolvedValueOnce({ ok: false, reason: 'not_started' });
+    expect(await runCmdAction(runs(first), ctx(bridge))).toMatchObject({ kind: 'receipt', tone: 'danger', text: '极乐净土没有开始：角色没有接受' });
+    const [auto, , , sit] = poseItems({ ...STATE, poses: POSES });
+    expect(await runCmdAction(runs(sit), ctx(bridge))).toEqual({ kind: 'close' });
+    expect(await runCmdAction(runs(auto), ctx(bridge))).toEqual({ kind: 'close' });
+    expect(action.mock.calls).toEqual([['stopPlay'], ['pose', 'pose_sit'], ['pose', undefined]]);
   });
 
   it('an input open shows nothing on the cmd page', async () => {

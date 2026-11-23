@@ -3,15 +3,19 @@ import type { DesktopState, AgenticComplexBridge } from '../../../../bridge';
 import { formatClock, type Severity } from '../../../../domain';
 import { failureText } from '../../../../domain/errorText';
 import { navRoute, type NavTarget } from '../../../../shell/nav';
-import type { CmdActionId } from '../actions';
+import type { CmdActionId, CmdLevel } from '../actions';
 
 export type Outcome = { kind: 'close' } | { kind: 'receipt'; text: string; tone: Severity };
 
-/** A wheel item, or the console's 显示角色 switch. */
+/** A wheel item that runs (动作 and 姿态 open a level instead), or the console's 显示角色 switch. */
 export interface RunItem {
-  id: CmdActionId | 'hide' | 'show';
+  id: Exclude<CmdActionId, CmdLevel> | 'hide' | 'show';
   label: string;
   to?: NavTarget;
+  /** A dance's index in her saved setlist. */
+  start?: number;
+  /** A pose's row id, null for 自动. */
+  pose?: string | null;
 }
 
 export interface RunContext {
@@ -65,6 +69,17 @@ export async function runCmdAction(item: RunItem, { bridge, state, now }: RunCon
         return receipt(state?.freeRoam ? '自由活动已关闭' : '自由活动已开启');
       case 'gift':
         await bridge.desktop.action('gift');
+        return CLOSE;
+      case 'stop':
+        await bridge.desktop.action('stopPlay');
+        return receipt('动作已停止');
+      case 'dance': {
+        // The list plays on from this dance with its own loop setting.
+        const r = await bridge.avatar.playPlaylist({ start: item.start ?? 0 });
+        return r.ok ? CLOSE : receipt(`${item.label}没有开始：${r.reason === 'empty' ? '列表里没有这支舞' : '角色没有接受'}`, 'danger');
+      }
+      case 'pose':
+        await bridge.desktop.action('pose', item.pose ?? undefined);
         return CLOSE;
     }
   } catch (e) {
