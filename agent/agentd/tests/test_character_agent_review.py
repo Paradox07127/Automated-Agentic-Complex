@@ -15,7 +15,7 @@ class ReviewLockOrderTests(unittest.TestCase):
         # A subprocess bounds the regression itself: the former lock inversion must
         # fail this test instead of wedging fixture teardown or the whole test suite.
         script = textwrap.dedent(r'''
-            import json, os, sys, threading
+            import contextvars, json, os, sys, threading
             sys.path[:0] = json.loads(sys.argv[1])
             from test_character_agent_integration import IntegrationTests
             from character_agent.harness.codex_transport import CodexConfig, ManagedCodexSession
@@ -61,7 +61,8 @@ class ReviewLockOrderTests(unittest.TestCase):
                     direct_results[name] = value
                     return value
                 bridge._active = {'id':options['run_id'], 'handler':domain_call,
-                                  'cancel_signal':options['cancelled'], 'cancelled':False}
+                                  'cancel_signal':options['cancelled'], 'cancelled':False,
+                                  'context':contextvars.copy_context()}
                 def received(proc, call_id, run_id, result, failed):
                     results[call_id] = result
                     if len(results) == 2: done.set()

@@ -7,6 +7,7 @@ agentd-to-runner payload schemas (§6). Tool identifiers/name/args go through
 the dispatcher (§8). The reader queues pre-ready data; startup discards it (§7).
 Increasing seq is not enforced as an error: agentd drops replays (§3).
 """
+import contextvars
 import io
 import json
 from pathlib import Path
@@ -40,7 +41,8 @@ class AgentdExamplesTests(unittest.TestCase):
         query = next((f for f in frames if f["type"] == "query"), None)
         if query:
             session._active = {"id": query["run_id"], "cancelled": False, "cancel_signal": None,
-                               "handler": handler, "permission_handler": permission, "deadline": time.monotonic() + 10}
+                               "handler": handler, "permission_handler": permission, "deadline": time.monotonic() + 10,
+                               "context": contextvars.copy_context()}
         incoming = [(n, raw, frame) for n, (raw, frame) in enumerate(zip(lines, frames), 1)
                     if frame["type"] not in TO_RUNNER]
         proc = SimpleNamespace(stdout=io.BytesIO(b"".join(raw for _, raw, _ in incoming)),
@@ -48,7 +50,7 @@ class AgentdExamplesTests(unittest.TestCase):
         with patch.object(session, "_terminate") as terminate, \
                 patch("character_agent.harness.transport.threading.Thread") as worker:
             # Run the real tool dispatcher synchronously so queue order is deterministic.
-            worker.side_effect = lambda **kwargs: SimpleNamespace(start=kwargs["target"])
+            worker.side_effect = lambda **kwargs: SimpleNamespace(start=lambda: kwargs["target"](*kwargs.get("args", ())))
             session._read(proc, session._generation)
         events = []
         while not session._events.empty():

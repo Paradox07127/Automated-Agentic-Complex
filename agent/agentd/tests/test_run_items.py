@@ -1,4 +1,5 @@
 """Private normalized run items across both kernels and their data lifecycle."""
+import contextvars
 import asyncio
 import json
 from pathlib import Path
@@ -269,7 +270,8 @@ class RunItemTests(unittest.TestCase):
     def test_transport_preserves_request_metadata_and_links_result_without_output(self):
         session = ManagedCodexSession(SimpleNamespace(), [{'name': 'lookup'}])
         session._active = {'id': 'run', 'cancelled': False, 'cancel_signal': None,
-                           'handler': lambda *args: {'content': [{'text': 'raw-private-output'}]}}
+                           'handler': lambda *args: {'content': [{'text': 'raw-private-output'}]},
+                           'context': contextvars.copy_context()}
         done = threading.Event()
         session._tool_result = lambda *args: done.set()
         session._dispatch_tool(None, 0, {'type': 'tool_request', 'run_id': 'run', 'tool_call_id': 'call',
