@@ -175,12 +175,12 @@ const remote = (state: WireVoice['state'], reason: string | null, retry_after_s:
 
 /** `/diag/state` connections.tts in each voice state; off is the packaged build, which has no tts_url. */
 export const WIRE_TTS: Record<WireVoice['state'], WireTts> = {
-  unknown: { configured: true, result: null, at: null, ...remote('unknown', null) },
-  probing: { configured: true, result: null, at: null, ...remote('probing', null) },
-  ready: { configured: true, result: 'complete', at: isoAt(14, 20), ...remote('ready', null) },
-  cold: { configured: true, result: 'complete', at: isoAt(13, 40), ...remote('cold', 'probe:ConnectionRefusedError') },
-  unreachable: { configured: true, result: 'connection_lost', at: isoAt(14, 20), ...remote('unreachable', 'connection_lost') },
-  off: { configured: false, result: null, at: null, provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null },
+  unknown: { configured: true, result: null, at: null, token_set: true, ...remote('unknown', null) },
+  probing: { configured: true, result: null, at: null, token_set: true, ...remote('probing', null) },
+  ready: { configured: true, result: 'complete', at: isoAt(14, 20), token_set: true, ...remote('ready', null) },
+  cold: { configured: true, result: 'complete', at: isoAt(13, 40), token_set: true, ...remote('cold', 'probe:ConnectionRefusedError') },
+  unreachable: { configured: true, result: 'connection_lost', at: isoAt(14, 20), token_set: true, ...remote('unreachable', 'connection_lost') },
+  off: { configured: false, result: null, at: null, token_set: false, provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null },
 };
 
 /** `/diag/state` connections block. */

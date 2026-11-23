@@ -91,13 +91,24 @@ class DiagTtsTest(unittest.TestCase):
     def test_default_server_has_no_voice_and_keeps_the_legacy_keys(self):
         self.assertIsInstance(self.server.voice, NoVoice)
         self.assertEqual(self.tts(), {"configured": False, "result": None, "at": None, "provider": "none",
-                                      "state": "off", "reason": "not_configured", "retry_after_s": None})
+                                      "state": "off", "reason": "not_configured", "retry_after_s": None,
+                                      "token_set": False})
+
+    def test_token_set_follows_the_saved_reference(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "tts-token"
+            credential = self.server.tts_credential = TtsCredential(path, MemorySecrets())
+            self.assertFalse(self.tts()["token_set"])
+            credential.put("secret")
+            self.assertTrue(self.tts()["token_set"])
+            credential.ref.rename(path.with_suffix(".revoked"))  # the shell revokes it on an address change
+            self.assertFalse(self.tts()["token_set"])
 
     def test_speech_events_reach_the_provider_and_the_legacy_result(self):
         relay = SpeechRelay("http://127.0.0.1:9", epoch=1, character="voice_a", language="zh")
         self.server.voice, self.server.speech = RemoteWsVoice(relay), relay
         self.assertEqual(self.tts(), {"configured": True, "result": None, "at": None, "provider": "remote-ws",
-                                      "state": "unknown", "reason": None, "retry_after_s": None})
+                                      "state": "unknown", "reason": None, "retry_after_s": None, "token_set": False})
         self.server.on_speech_event("speech.failed", "s1", {"reason": "unreachable"})
         tts = self.tts()
         self.assertEqual((tts["result"], tts["state"], tts["reason"]), ("unreachable", "unreachable", "unreachable"))

@@ -1,6 +1,6 @@
 // `onboarding.*`: the guide's steps. Its rows save through `settings.save` as they change; 「完成」 and 「跳过引导」 only store
 // `onboarding_done` in config.json and end the guide's window (`ctx.endOnboarding`); 「和她说句话」 then opens the desktop's
-// 快速输入.
+// 快速输入. Completing it, not skipping it, has her greet on the desktop (`ctx.greet`).
 import { BridgeFailure } from '../../common/bridge.ts';
 import { OnboardingModel } from '../../common/onboarding.ts';
 import type { Ops, OpsContext } from './context.ts';
@@ -43,7 +43,7 @@ export function onboardingOps(ctx: OpsContext): Ops {
   model.characterName = ctx.library?.characterName ?? '';
 
   /** Writes the mark alone; the choices were saved as they were made. */
-  function finish(to: Destination | null): void {
+  function finish(to: Destination | null, completed: boolean): void {
     try {
       writeObject(ctx.config.path, { ...readObject(ctx.config.path), onboarding_done: true });
     } catch (e) {
@@ -55,6 +55,7 @@ export function onboardingOps(ctx: OpsContext): Ops {
     log(`done destination=${to ?? 'none'}`);
     ctx.endOnboarding?.(to);
     if (to === 'talk') ctx.openQuickInput?.();
+    if (completed) ctx.greet?.();
   }
 
   const steps: Record<string, (args: unknown[]) => void> = {
@@ -75,12 +76,12 @@ export function onboardingOps(ctx: OpsContext): Ops {
     },
     'onboarding.skip': () => {
       if (model.completed) throw new BridgeFailure('invalid_state', 'the guide is done');
-      finish(null);
+      finish(null, false);
     },
     'onboarding.complete': ([input]) => {
       const to = destination(input);
       if (model.completed || model.step !== 4) throw new BridgeFailure('invalid_state', 'complete at the last step');
-      finish(to);
+      finish(to, true);
     },
   };
 

@@ -8,7 +8,7 @@ import { diagView } from '../../src/pages/settings/diag';
 type Tts = WireDiagConnections['tts'];
 
 const tts = (state: WireVoice['state'], retry_after_s: number | null = null): Tts =>
-  ({ configured: true, result: null, at: null, provider: 'remote-ws', state, reason: null, retry_after_s });
+  ({ configured: true, result: null, at: null, token_set: false, provider: 'remote-ws', state, reason: null, retry_after_s });
 
 const connections = (t: Tts): WireDiagConnections => ({
   agentd: { started_at: '2026-10-31T00:00:00Z', epoch: null },

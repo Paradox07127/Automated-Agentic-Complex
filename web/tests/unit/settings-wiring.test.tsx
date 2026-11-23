@@ -54,7 +54,7 @@ async function load(): Promise<Loaded> {
   };
 }
 
-function Harness({ d, init = {}, children }: { d: Loaded; init?: ModelInit; children: ReactNode }) {
+function Harness({ d, init = {}, reload = () => {}, children }: { d: Loaded; init?: ModelInit; reload?: SettingsCtxValue['reload']; children: ReactNode }) {
   const view = useMemo(() => diagView(d.diag), [d.diag]);
   const model = useSettingsModel(init, { native: d.native, runtime: d.runtime, models: d.models });
   const runtime = runtimeView(d.runtime);
@@ -74,7 +74,7 @@ function Harness({ d, init = {}, children }: { d: Loaded; init?: ModelInit; chil
     diag: view,
     blacklist: d.blacklist,
     scopes: d.scopes,
-    reload: () => {},
+    reload,
     perms: PERMISSIONS,
     recheckPerms: async () => 'granted',
     goRow: () => {},
@@ -621,12 +621,30 @@ describe('外部语音服务', () => {
     expect(sent('POST', '/voice/test')).toEqual({});
   });
 
-  it('tests with the token just saved, though the field is empty again', async () => {
+  it('leaves the token just saved to agentd once the field is empty again', async () => {
     render(<Harness d={d}><SpeakGroup /></Harness>);
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'secret' } });
     await click(screen.getByRole('button', { name: '保存' }));
     await click(screen.getByRole('button', { name: '测试' }));
-    expect((sent('POST', '/voice/test') as { token?: string }).token).toBe('secret');
+    expect(sent('POST', '/voice/test')).toEqual({});
+  });
+
+  it.each([
+    [true, '令牌已保存'],
+    [false, '令牌不回显'],
+  ])('reads token_set %s from /diag/state as %s, on every open', (token_set, note) => {
+    const tts = { ...WIRE_TTS.ready, token_set };
+    render(<Harness d={{ ...d, diag: { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, tts } } }}><SpeakGroup /></Harness>);
+    expect(serviceRow().textContent).toContain(note);
+  });
+
+  it('reads /diag/state again after saving the token', async () => {
+    const reload = vi.fn();
+    render(<Harness d={d} reload={reload}><SpeakGroup /></Harness>);
+    fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'secret' } });
+    expect(reload).not.toHaveBeenCalled();
+    await click(screen.getByRole('button', { name: '保存' }));
+    expect(reload).toHaveBeenCalledWith('diag');
   });
 
   it.each([

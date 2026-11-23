@@ -35,11 +35,11 @@ test('a type in the outbound plate jumps to its setting row', async ({ page }) =
   await expect(page.locator('#set-shot')).toBeInViewport();
 });
 
-test('the eight groups are 50 px icon tabs in the command bar; the selected one drops the 76x56 yellow plate with a dark icon; a click switches group', async ({ page }) => {
+test('the nine groups are 50 px icon tabs in the command bar; the selected one drops the 76x56 yellow plate with a dark icon; a click switches group', async ({ page }) => {
   for (const theme of ['dark', 'light'] as const) {
     await page.goto(`main.html#/settings?plugins=all&still=1&theme=${theme}`);
     const nav = page.getByRole('navigation', { name: '主导航' }).getByRole('tablist', { name: '设置分组' });
-    await expect(nav.getByRole('tab')).toHaveCount(8);
+    await expect(nav.getByRole('tab')).toHaveCount(9);
     const on = nav.getByRole('tab', { selected: true });
     await expect(on).toHaveText(/说话/);
     await expect(on).toHaveAttribute('title', '说话');

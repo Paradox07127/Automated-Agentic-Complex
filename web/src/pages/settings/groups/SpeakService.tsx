@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { AgentdCallError, saveVoiceToken, testVoice } from '../../../bridge/agentd';
 import { Btn } from '../../../ui';
 import { ExpandRow } from '../../../ui/game';
@@ -24,11 +24,9 @@ const ROWS: ReadonlySet<string> = new Set(['ttsToken', 'ttsTest']);
  * service answers; open while it is down or a search lands on one of its rows.
  */
 export function VoiceService({ down }: { down: boolean }) {
-  const { model, agentdOff, item, hl } = useSettings();
-  // The token is sent to agentd and never read back.
+  const { model, agentdOff, item, hl, diag, reload } = useSettings();
+  // The token is sent to agentd and never read back; /diag/state says whether one is saved.
   const [token, setToken] = useState('');
-  // A test before agentd restarted with a new token needs it from here.
-  const savedToken = useRef('');
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const linked = [item, hl].some((x) => x != null && ROWS.has(x));
@@ -43,15 +41,15 @@ export function VoiceService({ down }: { down: boolean }) {
   const saveToken = () =>
     void saveVoiceToken(token.trim()).then(
       () => {
-        savedToken.current = token.trim();
         setToken('');
+        reload('diag');
         model.notify({ message: '令牌已保存', severity: 'success' });
       },
       (e) => model.notify({ message: `没能保存令牌：${failure(e).text}`, severity: 'danger', persistent: true }),
     );
   const runTest = async () => {
     setTesting(true);
-    const t = token.trim() || savedToken.current;
+    const t = token.trim();
     try {
       const r = await testVoice(t ? { token: t } : {});
       setTest({ ok: r.ok, text: r.ok ? `通过 │ 首声 ${r.first_audio_ms} ms` : voiceTestFailure(r.reason) });
@@ -60,7 +58,7 @@ export function VoiceService({ down }: { down: boolean }) {
     }
     setTesting(false);
   };
-  const tokenNote = savedToken.current ? '令牌已保存' : '令牌不回显';
+  const tokenNote = diag.voiceTokenSet ? '令牌已保存' : '令牌不回显';
 
   const body = (
     <>

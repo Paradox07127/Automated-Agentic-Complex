@@ -42,6 +42,10 @@ class TtsCredential:
         value = self.secrets.get("tts-" + ref) if ref else None
         return value.decode() if value is not None else None
 
+    def saved(self):
+        """Whether a token is saved, without reading it: the reference exists until the shell revokes it."""
+        return self.ref.exists()
+
     @contextmanager
     def stage(self, token):
         """Prepare the protected token and reference before changing the remote service."""

@@ -211,7 +211,8 @@ export interface WireVoiceTest {
 /** diagnostics.py _diag_connections: the /diag/state connections block. */
 export interface WireDiagConnections {
   agentd: { started_at: string; epoch: unknown };
-  tts: { configured: boolean; result: string | null; at: string | null } & WireVoice;
+  /** token_set: a TTS token is saved (never the token itself). */
+  tts: { configured: boolean; result: string | null; at: string | null; token_set: boolean } & WireVoice;
   browser: { last_message_at: string | null };
   avatar: { speech_readers: number; heartbeat_at: string | null };
   updated_at?: string;

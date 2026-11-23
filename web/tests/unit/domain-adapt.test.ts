@@ -281,7 +281,7 @@ describe('character, diagnostics, kernel', () => {
       avatar: { child: 'running', fps: 60 },
       voice: { state: 'unreachable', retryAfterS: null },
     });
-    const off = composeHealth('offline', null, null, { connections: { ...WIRE_DIAG_CONNECTIONS, tts: { configured: false, result: null, at: null, provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null } } });
+    const off = composeHealth('offline', null, null, { connections: { ...WIRE_DIAG_CONNECTIONS, tts: { configured: false, result: null, at: null, token_set: false, provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null } } });
     expect(off.voice.state).toBe('off');
     expect(off.agentd.up).toBe(false);
   });

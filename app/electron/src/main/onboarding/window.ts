@@ -16,6 +16,33 @@ export type OnboardingDestination = 'home' | 'talk';
 /** The main window's route each end opens; `talk` opens none: the desktop's 快速输入 opens beside her instead. */
 export const DESTINATIONS: Record<OnboardingDestination, string | null> = { home: '/home', talk: null };
 
+/** The pools the renderer's own greeting plays (C3 rule 45 (e)), in order. */
+const GREETING_POOLS = ['user.greet', 'character.enter'];
+
+export interface GreetPorts {
+  /** Her current character; null while none is loaded. */
+  character(): string | null;
+  /** An agentd GET with the ui token; `body` is the reply's text. */
+  get(path: string): Promise<{ status: number; body: string }>;
+  /** C3 rule 52's `play_chain` from `start`; false when it was not sent. */
+  playChain(character: string, start: string): boolean;
+  log(line: string): void;
+}
+
+/** Her greeting once on the desktop when the guide completes: the chain from the first clip her pack puts in `user.greet`,
+ *  else in `character.enter` (`GET /characters/:id/motion-groups`). A character without one does nothing. */
+export async function greetOnDesktop(o: GreetPorts): Promise<void> {
+  const none = (why: string) => o.log(`ONBOARDING no greeting: ${why}`);
+  const character = o.character();
+  if (character === null) return none('no character');
+  const reply = await o.get(`/characters/${encodeURIComponent(character)}/motion-groups`);
+  if (reply.status !== 200) return none(`motion-groups ${reply.status}`);
+  const pools = (JSON.parse(reply.body) as { pools?: Record<string, { pack?: { clip?: unknown }[] }> }).pools ?? {};
+  const clip = GREETING_POOLS.map((key) => pools[key]?.pack?.[0]?.clip).find((c): c is string => typeof c === 'string' && c !== '');
+  if (clip === undefined) return none('no clip');
+  if (!o.playChain(character, clip)) none('play_chain not sent');
+}
+
 /** The room a title bar and the window's borders take on either system. */
 const FRAME = 48;
 

@@ -147,6 +147,8 @@ export interface OpsContext {
   openMain?: ((route: string, activate?: boolean) => void) | null;
   /** The desktop panels' 快速输入 (`app.openQuickInput`); null when config.json did not load. */
   openQuickInput?: (() => void) | null;
+  /** Her greeting on the desktop when the guide completes (onboarding/window.ts greetOnDesktop); null without her link or agentd. */
+  greet?: (() => void) | null;
   log(line: string): void;
   /** The hot keys the system refused or that are no hot key, by config.json key; absent is
    *  none. */

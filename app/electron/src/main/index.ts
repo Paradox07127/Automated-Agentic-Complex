@@ -5,6 +5,7 @@ import {
   shell, systemPreferences, Tray, webContents,
   type NativeImage, type Rectangle,
 } from 'electron';
+import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -72,7 +73,7 @@ import { type IconBitmap, squareIcon } from './menus/icon.ts';
 import { openAnnouncement, shellMenus } from './menus/shell.ts';
 import { trayContextMenu } from './menus/tray.ts';
 import { SystemNotifier } from './notify/system.ts';
-import { onboardingWindow } from './onboarding/window.ts';
+import { greetOnDesktop, onboardingWindow } from './onboarding/window.ts';
 import { adoptPasted, adoptPaths, clearPasted, filePage, SCOPE_FILE_TYPES } from './ops/adopt.ts';
 import { bundleBuild } from './ops/app.ts';
 import { cpuSecondsReader } from './ops/avatar.ts';
@@ -881,6 +882,7 @@ function opsContext(surface: Surface): OpsContext {
     openOnboarding: () => guide.begin(),
     endOnboarding: (destination) => guide.end(destination),
     openQuickInput: config && (() => { desktop?.openQuickInput(); }),
+    greet: config && hostLink && runtimePath !== null ? guideGreeting(hostLink, new AgentdClient(runtimePath), config.supportDir) : null,
     openMain: openMainAt,
     unregisteredHotkeys: () => unregisteredHotkeys(hotkeys, desktop?.quickInputFailed ?? null, pushToTalk?.failedHotkey ?? null),
     // Only the main window records.
@@ -908,6 +910,22 @@ function makeServe(): ((url: string) => UiResponse) | null {
     log(`no built web UI at ${WEB_DIST} (${e instanceof Error ? e.message : String(e)}); showing the error page`);
     return null;
   }
+}
+
+/** The guide's end has her greet over the C3 link, its clip from agentd. */
+function guideGreeting(link: HostLink, client: AgentdClient, dir: string): () => void {
+  const note = (line: string) => appendLog(dir, 'companion', line);
+  return () => void greetOnDesktop({
+    character: () => link.currentCharacter,
+    get: async (path) => {
+      const reply = await client.request('GET', path);
+      return { status: reply.status, body: reply.body.toString('utf8') };
+    },
+    playChain: (character, start) => link.playChain(randomUUID(), character, start, 1, (r) => {
+      if (!r.ok) note(`ONBOARDING greeting refused: ${r.reason}`);
+    }),
+    log: note,
+  }).catch((e: unknown) => note(`ONBOARDING greeting failed: ${e instanceof Error ? e.message : String(e)}`));
 }
 
 /** The first-run guide's window (onboarding/window.ts). */

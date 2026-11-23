@@ -291,6 +291,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 **`POST /voice/token`**
 - 令牌：只收 ui token。请求体 `{"token": 字符串}`；空白、空或非字符串令牌返回 400 `invalid_token`。
 - 将令牌写入系统凭据存储（C10），并立即替换 `server.speech.token`。200 `{"ok": true}`，后续请求无需重启即可使用新令牌。
+- `GET /diag/state` 的 `connections.tts.token_set`（布尔）表示有没有保存的令牌，只看 C10 的凭据引用，不回令牌；外壳换服务地址吊销引用后为 false。
 
 **`POST /interaction/tap`**
 - 请求体和回包见 §4.2；请求体另可带 `"region"?: 字符串`，取值同 C3 规则 45(a) 的 15 个触摸区域，表示点中的部位。

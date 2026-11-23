@@ -19,6 +19,8 @@ export interface DiagView {
   voiceSource: Pick<WireVoice, 'provider' | 'reason'> | null;
   /** agentd was started without a TTS (provider none, reason not_configured). */
   voiceNone: boolean;
+  /** A TTS token is saved; false when not reported. */
+  voiceTokenSet: boolean;
   /** agentd's live mute (config.json, or a spoken「静音」since it started); null when not reported. */
   muted: boolean | null;
   /** When the running agentd started, epoch ms. */
@@ -46,6 +48,7 @@ export function diagView(d: WireDiagSlice | null): DiagView {
     voice,
     voiceSource: tts?.provider ? { provider: tts.provider, reason: tts.reason ?? null } : null,
     voiceNone: tts?.provider === 'none' && tts.reason === 'not_configured',
+    voiceTokenSet: tts?.token_set === true,
     muted: typeof d?.mouth_voice?.muted === 'boolean' ? d.mouth_voice.muted : null,
     agentdStartedAt: typeof d?.connections?.agentd?.started_at === 'string' ? isoToMsOrNull(d.connections.agentd.started_at) : null,
   };

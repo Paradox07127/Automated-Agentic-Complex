@@ -191,7 +191,8 @@ class DiagnosticsMixin:
     def _diag_connections(self):
         return {"agentd": {"started_at": _iso(self._started_at), "epoch": self.registry.epoch},
                 "tts": {"configured": self.speech is not None, **(self._tts_last or {"result": None, "at": None}),
-                        **self.voice.state().wire(self.voice.clock())},
+                        **self.voice.state().wire(self.voice.clock()),
+                        "token_set": self.tts_credential is not None and self.tts_credential.saved()},
                 "browser": {"last_message_at": _iso(self._browser_at) if self._browser_at else None},
                 "avatar": {"speech_readers": self.speech_readers, "heartbeat_at": None}}
 

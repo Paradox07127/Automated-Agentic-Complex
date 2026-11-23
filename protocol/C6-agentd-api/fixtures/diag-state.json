@@ -241,7 +241,8 @@
       "provider": "none",
       "state": "off",
       "reason": "not_configured",
-      "retry_after_s": null
+      "retry_after_s": null,
+      "token_set": false
     },
     "browser": {
       "last_message_at": "2026-11-03T04:32:36.372-05:00"
