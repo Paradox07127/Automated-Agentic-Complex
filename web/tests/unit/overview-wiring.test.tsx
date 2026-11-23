@@ -196,6 +196,16 @@ describe('overview writes', () => {
     await waitFor(() => expect(hook.result.current.gone[r.id]).toBe(true));
   });
 
+  it('完成 on a one-time reminder agentd already fulfilled when it announced it counts as done, as on the desktop card', async () => {
+    const s = await snap();
+    const { toast, hook } = actions(s, [{ method: 'POST', path: '/commitments/:id/complete',
+      handler: () => ({ status: 409, body: { error: 'illegal_transition' } }) }]);
+    const r = s.reminders[0]!;
+    act(() => hook.result.current.onComplete(r));
+    await waitFor(() => expect(hook.result.current.gone[r.id]).toBe(true));
+    expect(toast).toHaveBeenCalledWith(`已完成：${r.title}`);
+  });
+
   it('pauses and resumes through the three PUT /observation routes and shows what agentd answered', async () => {
     const s = await snap();
     const { spy, hook } = actions(s);

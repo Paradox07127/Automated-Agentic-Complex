@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, type Dispatch } from 'react';
 import { getBridge, type StackDecision } from '../../bridge';
 import { AgentdCallError, call, seg } from '../../bridge/agentd';
+import { completeReminder, snoozeReminder } from '../../data/reminders';
 import { navRoute } from '../../shell/nav';
 import { formatClock, meeting, quiet, type Severity } from '../../domain';
 import { failureText } from '../../domain/errorText';
@@ -155,9 +156,9 @@ export function useStackActions(
         return dispatch({ type: 'archive', id: a.id, at: clock() });
       }
       case 'snooze':
-        call<{ commitment: { due_at: number } }>('POST', `/commitments/${seg(a.commitment)}/snooze`, { minutes: a.minutes }).then(
-          (r) => {
-            const until = formatClock(r.commitment.due_at * 1000);
+        snoozeReminder(a.commitment, a.minutes).then(
+          (due) => {
+            const until = formatClock(due * 1000);
             reminderSettled(a.id, `提醒 │ 延后到 ${until}`);
             say(`已延后 ${a.minutes === 60 ? '1 小时' : `${a.minutes} 分钟`} │ ${until} 再提醒`);
           },
@@ -165,11 +166,9 @@ export function useStackActions(
         );
         return;
       case 'complete':
-        call('POST', `/commitments/${seg(a.commitment)}/complete`).then(
+        completeReminder(a.commitment).then(
           () => reminderSettled(a.id, '提醒 │ 已完成'),
-          // agentd marks a one-time reminder fulfilled when it announces it, so 完成 on its card has nothing left to move.
-          (e: unknown) =>
-            e instanceof AgentdCallError && e.code === 'illegal_transition' ? reminderSettled(a.id, '提醒 │ 已完成') : reminderFailed(e, '没能完成提醒'),
+          (e: unknown) => reminderFailed(e, '没能完成提醒'),
         );
         return;
       case 'open':

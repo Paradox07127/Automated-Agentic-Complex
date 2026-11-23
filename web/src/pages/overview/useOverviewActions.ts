@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
 import { post, put, seg } from '../../bridge/agentd';
+import { completeReminder, snoozeReminder } from '../../data/reminders';
 import { refreshRuntime } from '../../data/runtime';
 import { approvalDecision, interactionAnswer, isoToMsOrNull, meeting, paused, quiet, type Approval, type PendingItem, type Question, type Session } from '../../domain';
 import type { PushToast } from '../../shell/toast';
@@ -113,15 +114,13 @@ export function useOverviewActions(snap: OverviewSnapshot | undefined, now: numb
   );
   const onSnooze = useCallback(
     (r: Reminder, minutes: 10 | 60) => {
-      post<{ commitment: WireCommitment }>(`/commitments/${seg(r.id)}/snooze`, { minutes })
-        .then(reminderDone(r, `已延后 ${minutes} 分钟`))
-        .catch(fail('延后提醒'));
+      snoozeReminder(r.id, minutes).then(reminderDone(r, `已延后 ${minutes} 分钟`)).catch(fail('延后提醒'));
     },
     [reminderDone, fail],
   );
   const onComplete = useCallback(
     (r: Reminder) => {
-      post<{ commitment: WireCommitment }>(`/commitments/${seg(r.id)}/complete`).then(reminderDone(r, '已完成')).catch(fail('完成提醒'));
+      completeReminder(r.id).then(reminderDone(r, '已完成')).catch(fail('完成提醒'));
     },
     [reminderDone, fail],
   );
