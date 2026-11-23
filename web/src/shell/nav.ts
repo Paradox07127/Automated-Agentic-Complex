@@ -133,18 +133,19 @@ export function useLandingFocus(focus: string | null, search: string, still: boo
     let el: HTMLElement | null = null;
     let fade = 0;
     const clear = () => el?.removeAttribute('data-nav-hl');
-    const mark = (): boolean => {
-      el = document.querySelector<HTMLElement>(selector);
-      if (!el) return false;
+    // The leaving page's copy and the page itself, until it unmounts, can hold the same target as the landing page.
+    const mark = () => {
+      if (el?.isConnected && !el.closest('[data-page-exit]')) return;
+      el = [...document.querySelectorAll<HTMLElement>(selector)].find((n) => !n.closest('[data-page-exit]')) ?? null;
+      if (!el) return;
       el.setAttribute('data-nav-hl', '');
       el.scrollIntoView({ block: 'nearest' });
+      window.clearTimeout(fade);
       if (!still) fade = window.setTimeout(clear, HIGHLIGHT_MS);
-      return true;
     };
-    const observer = new MutationObserver(() => {
-      if (mark()) observer.disconnect();
-    });
-    if (!mark()) observer.observe(document.body, { childList: true, subtree: true });
+    const observer = new MutationObserver(mark);
+    mark();
+    observer.observe(document.body, { childList: true, subtree: true });
     const giveUp = window.setTimeout(() => observer.disconnect(), 5000);
     return () => {
       observer.disconnect();
