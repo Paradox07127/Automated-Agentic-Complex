@@ -15,6 +15,53 @@
   overflow: auto;
 }
 
+/* A shown source reads as a picked turn (List.module.css .tr[aria-selected]): accent band in from the left, moving stripes, dark strip. */
+.srcs > :global([data-stub='Row'][aria-pressed='true']) {
+  --row-cat: var(--ef-on-accent);
+  border-color: var(--ef-accent-press);
+  background: var(--ef-accent);
+  animation: band 0.5s var(--ef-ease-g-enter) both;
+}
+
+.srcs > :global([data-stub='Row'][aria-pressed='true'])::before {
+  background-color: transparent;
+  animation: none;
+}
+
+.srcs > :global([data-stub='Row'][aria-pressed='true'])::after,
+:global(html[data-art]) .srcs > :global([data-stub='Row'][aria-pressed='true'])::after {
+  width: 150px;
+  background: repeating-linear-gradient(115deg, color-mix(in srgb, var(--ef-on-accent) 9%, transparent) 0 3px, transparent 3px 9px);
+  opacity: 1;
+  -webkit-mask: linear-gradient(90deg, #000 10%, transparent);
+  mask: linear-gradient(90deg, #000 10%, transparent);
+  animation: stripe 1.6s linear infinite;
+}
+
+.srcs > :global([data-stub='Row'][aria-pressed='true']) :is(.miss, .ec[data-z]) {
+  color: color-mix(in srgb, var(--ef-on-accent) 80%, transparent);
+}
+
+.srcs > :global([data-stub='Row'][aria-pressed='true']) .ec {
+  color: var(--ef-danger-strong);
+}
+
+@keyframes band {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@keyframes stripe {
+  to {
+    background-position: 22px 0;
+  }
+}
+
 /* An empty source dims by colour, not opacity, so its words keep 4.5:1 in both themes. */
 .miss {
   color: var(--ef-text-3);
