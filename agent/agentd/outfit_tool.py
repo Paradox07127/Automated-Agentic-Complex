@@ -31,7 +31,7 @@ IMPORT_REASONS = ("unsupported_mod", "merged_skeleton", "unsafe_path", "unmapped
                   "unsupported_texture_format", "unsupported_geometry", "geometry_invalid", "channel_unresolved",
                   "geometry_too_large", "ambiguous_ini", "absent_template_mesh", "absent_template_submesh", "index_format",
                   "unknown_bone", "duplicate_bone", "duplicate_submesh", "graph_store_missing", "skin_matrices_layout",
-                  "channel_size", "texture_color_space", "texture_size", "buffer_size", "mod_too_large", "duplicate_appearance",
+                  "channel_size", "texture_size", "buffer_size", "mod_too_large", "duplicate_appearance",
                   "invalid_mapping", "invalid_slot_hints", "invalid_lod1_bones", "invalid_mod_settings")
 
 

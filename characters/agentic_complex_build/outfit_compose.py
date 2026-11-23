@@ -87,7 +87,6 @@ def clone_draw(template, name, vertex_count, channels, indices, index_bytes, tex
         if resource['category'] != 'separate_images' or not hits:continue
         blob = textures[hits[0]]
         if blob.rd_format_name not in TEXTURE_FORMATS:raise ValueError('unsupported_texture_format')
-        if srgb(dict(rd_format_name=blob.rd_format_name)) != srgb(resource['texture']):raise ValueError('texture_color_space')
         resource.update(put(blob.data))
         resource['texture'].update(width=blob.width, height=blob.height, mip_count=len(blob.mips), rd_format_name=blob.rd_format_name, mips=copy.deepcopy(blob.mips))
         replaced.append(f"separate_images:{resource['set']}:{resource['binding']}")

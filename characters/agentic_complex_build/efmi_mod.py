@@ -152,6 +152,7 @@ class Segment:
     # (earlier tests, test) of the blocks around the call, its callers' included, that test a key's variable or a slot format.
     condition: tuple
     # Slot -> its candidate (file or None for unbound, the untaken tests it depends on) bindings; untouched slots keep the game's.
+    # `hash:<h>` is the file a texture override puts in place of the original texture of hash h wherever the game binds it.
     textures: dict
     # The custom shader replacing a shader stage the call is drawn with, an effect redraw rather than geometry.
     custom_shader: str | None = None
@@ -445,6 +446,9 @@ class Scene:
                         self.writers.setdefault(name.split('[')[0], []).append(s.name.lower())
                     if e.key == 'cs-t0' and (name := resource_name(e.value)) != 'null':self.inputs.setdefault(s.name.lower(), name.split('[')[0])
         self.copies, self.formats = {}, {}
+        # (hash, `this` line) of each texture override whose `this` is a resource of no file: the draw lists choose its texture.
+        self.chosen = [(s.get('hash').lower(), e) for s in mod.sections if s.name.lower().startswith('textureoverride') and s.get('hash')
+                       for e in s.entries if e.key == 'this' and (r := self.by_name.get(target(e.value))) is not None and not r.get('filename')]
 
     def file(self, name):
         section = self.by_name.get(name.split('[')[0]) if name else None
@@ -674,8 +678,12 @@ class Run:
         count, first = (None, None) if key == 'draw' else \
             (calculate(a, self.lookup)[0] if a else None for a in (args[0], args[1 if key == 'drawindexed' else 2]))
         shader = self.shader[-1] if self.shader else None
+        textures = dict(self.slots)
+        for h, e in self.scene.chosen:
+            if all(self.branch(earlier, test) is not None for earlier, test in e.conditions) and (file := self.scene.file(self.buffer(e.value))):
+                textures['hash:'+h] = ((file, ()),)
         self.segments.append(Segment(None if first is None else int(first), None if count is None else int(count),
-                                     tuple(c for c in conditions if self.scene.marks(c)), dict(self.slots), shader))
+                                     tuple(c for c in conditions if self.scene.marks(c)), textures, shader))
         if shader is None and self.drawn is None:self.drawn = (dict(self.bound), dict(self.element_formats))
 
 

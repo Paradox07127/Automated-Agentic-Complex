@@ -155,7 +155,6 @@ export const OUTFIT_IMPORT_REASON: Record<string, string> = {
   graph_store_missing: '本程序的导入组件不完整；请重新安装，或等更新',
   skin_matrices_layout: '这个角色的骨骼数据本程序还接不上模组的模型；可以等更新',
   channel_size: '模组的模型数据长短对不上，文件可能已损坏；请重新下载，或换一个模组',
-  texture_color_space: '模组的贴图颜色空间和角色原来的贴图不同，本程序还不能换用；可以换一个模组，或等更新',
   texture_size: '模组的贴图文件大小不对，可能已损坏；请重新下载，或换一个模组',
   buffer_size: '模组的模型文件大小不对，可能已损坏；请重新下载，或换一个模组',
   mod_too_large: '模组文件太大，超过本程序能导入的上限；请换一个小一些的模组',
