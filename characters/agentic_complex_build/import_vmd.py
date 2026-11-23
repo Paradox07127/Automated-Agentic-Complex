@@ -108,9 +108,44 @@ def _pchip_tangents(ts, vs):
     return pchip_slopes(ts, vs)
 
 
+def _s3_pchip_quat_derivatives(q_track, sample_rate):
+    """Geodesic Lie-algebra Fritsch-Carlson angular velocity projected onto T_q S^3."""
+    import numpy as np
+    from .mmd import rotation
+    from .mmd.skeleton import qconj, qmul
+
+    frames = len(q_track)
+    if frames < 2:
+        return np.zeros((frames, 4), dtype=float)
+    dq = qmul(q_track[1:], qconj(q_track[:-1]))
+    dq = dq * np.where(dq[:, 3:4] < 0, -1.0, 1.0)
+    omega_sec = rotation.as_rotvec(dq) * float(sample_rate)
+    omega_k = np.zeros((frames, 3), dtype=float)
+    if frames == 2:
+        omega_k[0] = omega_sec[0]
+        omega_k[1] = omega_sec[0]
+    else:
+        s0 = omega_sec[:-1]
+        s1 = omega_sec[1:]
+        same = (s0 * s1) > 0.0
+        denom = np.where(same, s0 + s1, 1.0)
+        omega_k[1:-1] = np.where(same, 2.0 * s0 * s1 / denom, 0.0)
+        for end_idx, a, b in ((0, omega_sec[0], omega_sec[1]), (frames - 1, omega_sec[-1], omega_sec[-2])):
+            d_end = 1.5 * a - 0.5 * b
+            for c in range(3):
+                if d_end[c] * a[c] <= 0.0:
+                    d_end[c] = 0.0
+                elif a[c] * b[c] <= 0.0 and abs(d_end[c]) > 3.0 * abs(a[c]):
+                    d_end[c] = 3.0 * a[c]
+            omega_k[end_idx] = d_end
+    pure = np.concatenate([omega_k, np.zeros((frames, 1), dtype=float)], axis=1)
+    return 0.5 * qmul(pure, q_track)
+
+
 def encode_clip(rig_doc, name, q, t, sample_rate, provenance, tangent_mode='linear'):
     """The clip document without its keys, oracle and samples, and its EFKEY001 bytes; q is made sign-continuous and
-    normalised in place. tangent_mode='pchip' emits C1 monotone Hermite tangents; 'linear' keeps secants."""
+    normalised in place. tangent_mode='pchip' emits C1 monotone Hermite tangents (geodesic S^3 tangents on rotations);
+    'linear' keeps secants."""
     import numpy as np
     need(tangent_mode in ('linear', 'pchip'), 'invalid_tangent_mode')
     frames, nodes = q.shape[:2]; need(frames >= 2 and nodes == len(rig_doc['nodes']), 'invalid_bake_shape')
@@ -125,12 +160,16 @@ def encode_clip(rig_doc, name, q, t, sample_rate, provenance, tangent_mode='line
     for i, node in enumerate(rig_doc['nodes']):
         for attribute, data in [('position', t[:, i]), ('rotation', q[:, i])]:
             if np.max(np.abs(data - np.asarray(node[attribute]))) < 1e-7: continue
+            dq_dt = (_s3_pchip_quat_derivatives(data, sample_rate)
+                     if tangent_mode == 'pchip' and attribute == 'rotation' and frames >= 2
+                     else None)
             for component in range(data.shape[1]):
                 values = data[:, component]
                 ts, vs = (times[:1], values[:1]) if np.max(np.abs(values-values[0])) < 1e-8 else (times, values)
                 offset = len(keys)
                 if tangent_mode == 'pchip':
-                    d = _pchip_tangents(ts, vs)
+                    d = (dq_dt[:, component] if dq_dt is not None and len(ts) >= 2
+                         else _pchip_tangents(ts, vs))
                     for k, (time, value) in enumerate(zip(ts, vs)):
                         keys.extend(struct.pack('<6fI', time, value, d[k], d[k], 1/3, 1/3, 0))
                 else:
@@ -195,7 +234,7 @@ def import_motion(package_path, vmd_path, output, source_model=None, duration=No
                   source_fps=None, morph_vmd=None, morph_fps=30.0, sample_rate=30, preroll=0.0, tangent_mode='pchip'):
     """progress(stage, fraction) is told the stages sample, retarget and write, each from 0 to 1."""
     import numpy as np
-    from .mmd.io import last_frame, detect_source_fps, _slerp
+    from .mmd.io import last_frame, detect_source_fps
     from .mmd.skeleton import MmdSkeleton, add_semi_standard_bones
     from .mmd.reference import build_pmd
     from .mmd.native_rig import NativeRig, package_humanoid
@@ -253,12 +292,36 @@ def import_motion(package_path, vmd_path, output, source_model=None, duration=No
     preroll_frames=round(preroll*sample_rate)
     preroll_seconds=preroll_frames/sample_rate
     if preroll_frames > 0:
+        from .mmd import rotation
+        from .mmd.skeleton import qconj, qmul
         q_rest,t_rest=rig.unity_pose(rig.q0[None],rig.t0[None])
+        q_rest=rotation.normalize(q_rest)
+        q=rotation.normalize(q)
+        if t.shape[0] >= 2:
+            v0_t=(t[1]-t[0])*sample_rate
+            v0_n=np.linalg.norm(v0_t, axis=-1, keepdims=True)
+            v0_t=np.where(v0_n > 3.0, v0_t * (3.0 / np.maximum(v0_n, 1e-12)), v0_t)
+        else:
+            v0_t=np.zeros_like(t[0])
+        if q.shape[0] >= 2:
+            dq01=qmul(q[1], qconj(q[0]))
+            dq01=dq01 * np.where(dq01[..., 3:4] < 0, -1.0, 1.0)
+            omega0=rotation.as_rotvec(dq01) * sample_rate
+            w0_n=np.linalg.norm(omega0, axis=-1, keepdims=True)
+            omega0=np.where(w0_n > 6.0, omega0 * (6.0 / np.maximum(w0_n, 1e-12)), omega0)
+        else:
+            omega0=np.zeros((rig.N, 3), dtype=float)
         u=np.arange(preroll_frames, dtype=float)/preroll_frames
-        w=(u**3)*(10.0+u*(-15.0+6.0*u))
-        pre_q=_slerp(np.broadcast_to(q_rest[0],(preroll_frames,rig.N,4)),
-                     np.broadcast_to(q[0],(preroll_frames,rig.N,4)), w[:,None])
-        pre_t=t_rest[0][None,:,:]+(t[0][None,:,:]-t_rest[0][None,:,:])*w[:,None,None]
+        h01=(u**3)*(10.0+u*(-15.0+6.0*u))
+        h11=(u**3)*(-4.0+u*(7.0-3.0*u))
+        dq_back=qmul(q_rest[0], qconj(q[0]))
+        dq_back=dq_back * np.where(dq_back[..., 3:4] < 0, -1.0, 1.0)
+        drv_back=rotation.as_rotvec(dq_back)
+        rv=(drv_back[None,:,:] * (1.0 - h01)[:,None,None]
+            + (omega0 * preroll_seconds)[None,:,:] * h11[:,None,None])
+        pre_q=rotation.normalize(qmul(rotation.from_rotvec(rv), np.broadcast_to(q[0], (preroll_frames, rig.N, 4))))
+        pre_t=(t_rest[0][None,:,:] + (t[0]-t_rest[0])[None,:,:] * h01[:,None,None]
+               + (v0_t * preroll_seconds)[None,:,:] * h11[:,None,None])
         q=np.concatenate([pre_q,q],axis=0)
         t=np.concatenate([pre_t,t],axis=0)
     total_frames=q.shape[0]; total_seconds=(total_frames-1)/sample_rate

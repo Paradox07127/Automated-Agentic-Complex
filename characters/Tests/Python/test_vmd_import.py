@@ -289,5 +289,68 @@ class VmdImportTests(unittest.TestCase):
         self.assertIn('あ',report['face']['mapped'])
         native_bundle.verify(out_pkg/'runtime')
 
+    def testS3PchipTangentOrthogonalityAndPrerollSeamContinuity(self):
+        doc=authored_rig();rig=NativeRig(doc,humanoid_map(doc))
+        frames=12
+        q=np.broadcast_to([0.,0,0,1],(frames,rig.N,4)).copy()
+        angles=np.linspace(0.0,1.4,frames)
+        # Non-planar rotation trajectory on spine node 1 so multiple quaternion components hit extrema.
+        for f,a in enumerate(angles):
+            ax=np.array([0.6,0.8,0.2*math.sin(a)])
+            ax/=np.linalg.norm(ax)
+            q[f,1]=np.array([math.sin(a/2)*ax[0],math.sin(a/2)*ax[1],math.sin(a/2)*ax[2],math.cos(a/2)])
+        t=np.broadcast_to(np.array([n['position']for n in doc['nodes']]),(frames,rig.N,3)).copy()
+        meta,keys=encode_clip(doc,'s3_pchip',q,t,30,dict(vmd_sha256='d'*64),tangent_mode='pchip')
+        rot_curves={c['component']:c for c in meta['curves'] if c['node']==1 and c['attribute']=='rotation'}
+        self.assertEqual(set(rot_curves.keys()),{0,1,2,3})
+        deriv=np.zeros((frames,4),dtype=float)
+        for comp,c in rot_curves.items():
+            self.assertEqual(c['count'],frames)
+            for k in range(frames):
+                _,_,in_t,out_t,_,_,_=struct.unpack_from('<6fI',keys,c['offset']+28*k)
+                self.assertAlmostEqual(in_t,out_t,places=6)
+                deriv[k,comp]=in_t
+        dots=np.sum(q[:,1]*deriv,axis=1)
+        self.assertLess(float(np.max(np.abs(dots))),1e-6)
+
+        # C1 velocity continuity across the preroll-to-motion seam when frame 0 has non-zero linear and angular velocity.
+        sys.path.insert(0,str(CHARACTERS.parent/'agent/agentd/tests'))
+        from test_motion_tool import motion_fixture
+        source=self.root/'source_seam';motion_fixture(source,rig=doc)
+        vmd_seam=self.root/'seam.vmd'
+        # Constant angular velocity on 上半身 and constant linear velocity on センター from frame 0 onward.
+        bones=[]
+        for f in range(0,31):
+            a=2.0*(f/30.0)
+            bones.append(BoneKey('上半身',f,(0,0,0),(math.sin(a/2)*0.0,math.sin(a/2)*1.0,0.0,math.cos(a/2))))
+            bones.append(BoneKey('センター',f,(0.0,0.0,3.0*(f/30.0)),(0,0,0,1)))
+        write_vmd(Vmd(bones=bones),vmd_seam)
+        out_pkg=self.root/'imported_seam'
+        report=import_motion(source,vmd_seam,out_pkg,source_fps=30,preroll=0.5,foot_ik=False)
+        clip_rel=json.loads((out_pkg/'runtime/actor.json').read_text())['clips'][-1]['file']
+        clip_meta=json.loads((out_pkg/'runtime'/clip_rel).read_text())
+        key_bytes=(out_pkg/'runtime'/clip_meta['keys']['file']).read_bytes()
+        spine_idx=rig.humanoid['spine'];hips_idx=rig.humanoid['hips']
+        pf=round(0.5*30)
+        # Check linear Z velocity continuity across seam index pf.
+        pos_z=next(c for c in clip_meta['curves'] if c['node']==hips_idx and c['attribute']=='position' and c['component']==2)
+        z_vals=[struct.unpack_from('<6fI',key_bytes,pos_z['offset']+28*k)[1] for k in range(pf-2,pf+3)]
+        v_pre=(z_vals[2]-z_vals[1])*30.0;v_post=(z_vals[3]-z_vals[2])*30.0
+        self.assertAlmostEqual(v_pre,v_post,delta=0.05)
+        # Check S^3 quaternion secant derivative continuity across seam index pf on rotated spine node.
+        q_seam=np.zeros((3,4),dtype=float)
+        for comp in range(4):
+            c=next((x for x in clip_meta['curves'] if x['node']==spine_idx and x['attribute']=='rotation' and x['component']==comp),None)
+            if c is None:
+                q_seam[:,comp]=doc['nodes'][spine_idx]['rotation'][comp]
+            else:
+                for idx_k,k in enumerate((pf-1,pf,pf+1)):
+                    q_seam[idx_k,comp]=struct.unpack_from('<6fI',key_bytes,c['offset']+28*k)[1]
+        from agentic_complex_build.mmd import rotation
+        from agentic_complex_build.mmd.skeleton import qconj,qmul
+        w_pre=rotation.as_rotvec(qmul(q_seam[1],qconj(q_seam[0])))*30.0
+        w_post=rotation.as_rotvec(qmul(q_seam[2],qconj(q_seam[1])))*30.0
+        self.assertLess(float(np.linalg.norm(w_pre-w_post)),0.15)
+
 
 if __name__=='__main__':unittest.main()
