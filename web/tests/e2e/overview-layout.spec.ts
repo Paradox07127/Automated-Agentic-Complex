@@ -57,8 +57,9 @@ test('home: on the tilted watch every key, card and slot takes the pointer at th
   await page.setViewportSize({ width: 1385, height: 770 });
   await page.goto('main.html#/home?plugins=all&still=1');
   await expect(page.getByRole('button', { name: '角色', exact: true })).toBeVisible();
+  // Keys scrolled out of the right list's window are hidden and let the pointer through.
   const misses = await page.locator('[data-page="home"]').evaluate((home) =>
-    [...home.querySelectorAll('button')].flatMap((b) => {
+    [...home.querySelectorAll('button')].filter((b) => !b.closest('[data-out]')).flatMap((b) => {
       // The slab's top face is its last svg; buttons without a slab (the disc's own) are checked by their box.
       const svgs = b.querySelectorAll(':scope svg[width]');
       const r = (svgs[svgs.length - 1] ?? b).getBoundingClientRect();
@@ -76,7 +77,7 @@ test('home: a key takes the pointer near the rim of its raised face, not its nei
     await page.goto('main.html#/home?plugins=all&still=1');
     await expect(page.getByRole('button', { name: '角色', exact: true })).toBeVisible();
     const misses = await page.locator('[data-page="home"]').evaluate((home) =>
-      [...home.querySelectorAll('[aria-label="主要页面"] button, [aria-label="工具"] button')].flatMap((b) => {
+      [...home.querySelectorAll('[aria-label="主要页面"] button, [aria-label="工具"] button')].filter((b) => !b.closest('[data-out]')).flatMap((b) => {
         const svgs = b.querySelectorAll(':scope svg[width]');
         const r = svgs[svgs.length - 1]!.getBoundingClientRect();
         return ([[0.05, 0.5], [0.95, 0.5], [0.5, 0.05], [0.5, 0.95]] as const).flatMap(([fx, fy]) =>

@@ -210,7 +210,7 @@ export function TurnInspector({ tr, wide, st = 'ok', stopAt, onRetry, emptyText 
     <section className={styles.s}>
       <Sh no={no} t="动作" />
       {tr.motion ? (
-        <button type="button" className={`${xs.mo} ${common.tip}`} data-tip="在角色页查看此动作" onClick={() => tr.motion && navigate({ page: 'character', tab: 'motion', row: tr.motion.name })}>
+        <button type="button" className={`${xs.mo} ${common.tip}`} data-tip="在角色页查看此动作" onClick={() => navigate({ page: 'character', pane: 'motion' })}>
           <span className={xs.moI} aria-hidden="true">
             <Icon name="user" size={20} />
           </span>

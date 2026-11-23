@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { AnyRouter } from '@tanstack/react-router';
+import type { CharTab } from '../pages/character/sections';
 import type { BriefTab } from '../pages/overview/briefTabs';
 
 /**
@@ -39,7 +40,7 @@ export type NavTarget =
       focus?: string;
     }
   | { page: 'home'; focus?: string }
-  | { page: 'character'; tab?: 'profile' | 'motion' | 'behavior' | 'render' | 'scene'; view?: 'photo' | 'mmd'; pane?: 'motion' | 'chain' | 'look' | 'import'; row?: string; focus?: string }
+  | { page: 'character'; tab?: CharTab; view?: 'photo' | 'mmd'; pane?: 'motion' | 'chain' | 'look' | 'import'; row?: string; focus?: string }
   | {
       page: 'diag';
       /** 现在: overview … state; 回看: turns … logs. */

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { demos } from '../../src/pages/home/demos';
-import { BANNER, BAR_SLOTS, CARD, COUNTERS, leftTiles, rightTiles, STAGE, TOP_ICONS, type Box } from '../../src/pages/home/geometry';
+import { BANNER, BAR_SLOTS, CARD, COUNTERS, leftTiles, listKey, STAGE, TOP_ICONS, type Box } from '../../src/pages/home/geometry';
 import { HomePage } from '../../src/pages/home/Page';
 import { setDevMode } from '../../src/shell/devMode';
 import { OPEN_PALETTE } from '../../src/shell/Layout';
@@ -46,7 +46,12 @@ const TODAY_READS = ['/agent/snapshot', '/sessions', '/agent/runs', '/trace/turn
 const names = (group: HTMLElement) => within(group).getAllByRole('button').map((b) => b.getAttribute('aria-label'));
 /** The left keys. */
 const LEFT = (...ids: string[]) => ids.map(title);
-const ACTIONS = ['派发任务', '搜索', '屏幕识读', '快速输入', '停止说话'];
+const ACTIONS = ['派发任务', '搜索', '快速输入', '屏幕识读', '停止说话'];
+/** The right-hand list with every plug-in on, outside 开发者模式; 时间 goes with 屏幕感知. */
+const RIGHT = [...ACTIONS, '定时', '档案', '回顾', '外观', '动作表', '拍照', 'MMD', '她这一天', '时间', '能做', '观察'];
+/** Appended in 开发者模式. */
+const RIGHT_DEV = ['诊断', '对话轮次', '日志', '管线'];
+const noTime = RIGHT.filter((n) => n !== '时间');
 
 describe('home route', () => {
   it('is the first page, so / lands on it, with ⌘0', () => {
@@ -66,13 +71,13 @@ describe('home tiles', () => {
     setDevMode(true);
     mount();
     expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory', 'tasks'));
-    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([...ACTIONS, title('diag')]);
+    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([...RIGHT, ...RIGHT_DEV]);
     // Key hints stay in the DOM; html[data-keys] only shows them.
     expect(within(screen.getByRole('group', { name: '主要页面' })).getByRole('button', { name: '对话' }).textContent).toContain('⌘2');
     cleanup();
     setDevMode(false);
     mount();
-    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(ACTIONS);
+    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(RIGHT);
   });
 
   it('spells the key hints Ctrl on the Windows shell', async () => {
@@ -312,7 +317,7 @@ describe('home disc', () => {
 describe('home geometry', () => {
   const boxes = (): Array<[string, Box]> => [
     ...leftTiles(4).map((k, i): [string, Box] => [`left ${i}`, k.box]),
-    ...rightTiles(10).map((b, i): [string, Box] => [`right ${i}`, b]),
+    ...Array.from({ length: 10 }, (_, i): [string, Box] => [`right ${i}`, listKey(i, 0).box]),
     ...TOP_ICONS.map((b, i): [string, Box] => [`top ${i}`, b]),
     ['card', CARD],
     ...BAR_SLOTS.map((k, i): [string, Box] => [`slot ${i}`, k.box]),
@@ -376,7 +381,7 @@ describe('home with the plug-ins at their defaults', () => {
     mount();
     const main = await screen.findByRole('group', { name: '主要页面' });
     expect(names(main)).toEqual(LEFT('character', 'chat', 'memory', 'tasks'));
-    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual(ACTIONS);
+    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual(noTime);
     for (const name of ['派发任务', '屏幕识读']) expect(screen.getByRole('button', { name }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByRole('button', { name: title('settings') })).toBeTruthy();
     expect(screen.getByRole('button', { name: '待处理 已关闭' })).toBeTruthy();
@@ -434,7 +439,7 @@ describe('home with the plug-ins at their defaults', () => {
   it('offers 派发任务 with 个人代理 on and 日报与简报 off, and opens the dispatch dialog in place', async () => {
     pluginsOn('personal_agent');
     mount();
-    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(ACTIONS);
+    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(noTime);
     expect(screen.getByRole('button', { name: '派发任务' }).hasAttribute('disabled')).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: '派发任务' }));
     const dialog = await screen.findByRole('dialog', { name: '新建' });
@@ -453,7 +458,7 @@ describe('home with the plug-ins at their defaults', () => {
     cleanup();
     pluginsOn('daily_brief', 'personal_agent', 'screen_reading');
     mount();
-    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(ACTIONS);
+    expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(noTime);
     expect(names(screen.getByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory', 'tasks'));
   });
 

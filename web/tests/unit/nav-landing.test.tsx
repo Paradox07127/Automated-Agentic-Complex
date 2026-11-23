@@ -1,6 +1,7 @@
 import { act, cleanup, render } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useLandingFocus } from '../../src/shell/nav';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
+import type { CharTab } from '../../src/pages/character/sections';
+import { useLandingFocus, type NavTarget } from '../../src/shell/nav';
 
 beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -21,6 +22,12 @@ const row = (attrs: Record<string, string>) => {
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   return el;
 };
+
+describe('character jump', () => {
+  it('names only the 设定 tabs the character page opens', () => {
+    expectTypeOf<NonNullable<Extract<NavTarget, { page: 'character' }>['tab']>>().toEqualTypeOf<CharTab>();
+  });
+});
 
 describe('landing highlight', () => {
   it('skips the leaving page copy and marks the live row', async () => {

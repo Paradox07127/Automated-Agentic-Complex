@@ -10,8 +10,8 @@ export interface CharCardProps {
   /** 在舞台上的位置和大小 */
   box: Box;
   name: string;
-  /** 英文名；没有时写 Operator */
-  en?: string | null;
+  /** 英文名；没有时写 Operator；false 不画这一行 */
+  en?: string | null | false;
   /** 头像图 */
   head?: string | null;
   /** 角色 id，没有头像图时按它画 */
@@ -37,7 +37,7 @@ export function CharCard({ box, name, en, head, id, doing, meta, compact, onClic
           </span>
           <span className={styles.charText}>
             <b className={styles.charName}>{name}</b>
-            <span className={styles.charEn}>{en || 'Operator'}</span>
+            {en !== false && <span className={styles.charEn}>{en || 'Operator'}</span>}
             {doing && (
               <span className={styles.charDoing} title={doing}>
                 {doing}

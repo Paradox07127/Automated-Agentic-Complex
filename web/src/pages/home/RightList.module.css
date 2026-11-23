@@ -1,0 +1,67 @@
+/* The right column's scrolling list (Page's layer for the keys). */
+.list {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* Takes the wheel and the drag between the keys. */
+.hit {
+  position: absolute;
+  pointer-events: auto;
+}
+
+/* UpLine / BottonLine: deco_arrowline at 0.71 drawn, not the game's sprite; the bottom one is the same turned over. */
+.line {
+  position: absolute;
+  pointer-events: none;
+}
+
+.line > svg {
+  display: block;
+  overflow: visible;
+  opacity: 0.71;
+}
+
+.line[data-line='down'] > svg {
+  scale: 1 -1;
+}
+
+/* The line fades out over a third of its length at each end. */
+.fadeEnd {
+  stop-color: var(--ef-g-watch-ink);
+  stop-opacity: 0;
+}
+
+.fadeMid {
+  stop-color: var(--ef-g-watch-ink);
+}
+
+/* The bottom strip under the line, at 0.2. */
+.band {
+  fill: var(--ef-g-watch-ink);
+  opacity: 0.28;
+}
+
+.mound {
+  fill: var(--ef-g-watch-ink);
+}
+
+.chevron {
+  fill: none;
+  stroke: var(--ef-g-watch-ink);
+  stroke-width: 4;
+}
+
+/* RightMoreUpRedDot / RightMoreDownRedDot at the line's middle: the top icons' red dot. */
+.dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--ef-g-watch-band);
+  background: var(--ef-g-reddot);
+  translate: -50% -50%;
+  rotate: 45deg;
+}

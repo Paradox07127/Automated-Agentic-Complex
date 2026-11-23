@@ -69,28 +69,45 @@ export function leftTiles(n: number): KeyShape[] {
   return LEFT_KEYS.slice(0, n);
 }
 
-/** Row centres of the right-hand grid, two keys a row: x from Group1–5's offsets (×0.4165), so the column bows out at
- *  the second row and draws in toward the bottom as in the game; rows 68 px apart (the game's 152 × 0.4165, scaled with
- *  the keys). */
-const ROWS = [
-  { x: 330, y: -108 },
-  { x: 347.5, y: -40 },
-  { x: 338, y: 28 },
-  { x: 314, y: 96 },
-  { x: 287.5, y: 164 },
-] as const;
+/** The right-hand list's rows, two keys a row: 68 px apart (the game's 152 × 0.4165, scaled with the keys), the first at
+ *  y −108 with the list at its top. */
+export const ROW = { y0: -108, pitch: 68 } as const;
+/** Row centres' x along the column, one a row with the list at its top: Group1–9's x (×0.4165 from Group1 at 330), so
+ *  the column bows out at the second row and draws in toward the bottom as in the game. */
+const ARC_X = [330, 347.5, 338, 314, 287.5, 252.5, 229.6, 206.3, 183] as const;
+
+/** x of a row centre at `y`: the game moves each row along a curve by where it stands in the window
+ *  (UIScrollCellSlantEffect, whose code is not read); this takes the line between the rows' places at rest, carried on
+ *  past either end. */
+export function arcX(y: number): number {
+  const t = (y - ROW.y0) / ROW.pitch;
+  const i = Math.min(Math.max(Math.floor(t), 0), ARC_X.length - 2);
+  return ARC_X[i]! + (ARC_X[i + 1]! - ARC_X[i]!) * (t - i);
+}
+
+/** The list's window in y, from under the banner to a strip of the sixth row. A key fades out over `fade` px inside
+ *  either end: RectMask2D's softness 48 ramps the alpha over half of it, 24 game px, 12 here. */
+export const LIST = { top: -152, bottom: 220, fade: 12 } as const;
+
 /** A right-hand key: button_bg01 at 64 px (the game's 143 × 0.4165 = 59.6, enlarged so an 11px four-character name
- *  clears the rim), the two of a row touching as in Group1–5; the sprite's own clear margin is the gap. */
+ *  clears the rim), the two of a row touching as in Group1–9; the sprite's own clear margin is the gap. */
 export const KEY = { w: 64, h: 64, gap: 0 } as const;
 
-/** The keys on the right, two a row; at most ten. */
-export function rightTiles(n: number): Box[] {
-  return Array.from({ length: Math.min(n, ROWS.length * 2) }, (_, i) => {
-    const r = ROWS[Math.floor(i / 2)]!;
-    const dx = (KEY.w + KEY.gap) / 2;
-    return box(r.x + (i % 2 === 0 ? -dx : dx), r.y, KEY.w, KEY.h);
-  });
+/** Key `i` of the list scrolled `s` px: its box, and its row centre's y. */
+export function listKey(i: number, s: number): { box: Box; y: number } {
+  const y = ROW.y0 + ROW.pitch * Math.floor(i / 2) - s;
+  const dx = (KEY.w + KEY.gap) / 2;
+  return { box: box(arcX(y) + (i % 2 === 0 ? -dx : dx), y, KEY.w, KEY.h), y };
 }
+
+/** How far a list of `n` keys scrolls: until its last row clears the bottom fade. */
+export function listMax(n: number): number {
+  const last = ROW.y0 + ROW.pitch * (Math.ceil(n / 2) - 1);
+  return Math.max(0, last + KEY.h / 2 - (LIST.bottom - LIST.fade));
+}
+
+/** UpLineNode and BottonLineNode (387×30 at half size): fixed over and under the list, off the column's arc as in the game. */
+export const LIST_LINES = [box(arcX(LIST.top + 5) + 47, LIST.top + 5, 194, 15), box(arcX(LIST.bottom + 10) + 7, LIST.bottom + 10, 194, 15)] as const;
 
 /** TopLeftBtn1–3: settings, reminders, pending. */
 export const TOP_ICONS = [box(-326, -222, 52, 48), box(-270, -222, 52, 48), box(-214, -222, 52, 48)] as const;
@@ -110,11 +127,12 @@ export const BANNER: Box = box(318, -182, 236, 60);
 /** The player card's place, bottom left under the large keys. */
 export const CARD: Box = box(-272, 180, 224, 76);
 
-/** TechtreeNode and ReportNode: watchfactory_bg and its mirror at 1.078 × half size, either side of straight down. The
- *  content sits in the tall yellow part by the inner edge, above the white strip. */
-export const BAR_SLOTS = [sprite(SLOT_L, -77.4, 200, 148.8, 55, [0.68, 0.36]), sprite(SLOT_R, 75.2, 200, 148.8, 55, [0.32, 0.36])] as const;
+/** TechtreeNode and ReportNode: watchfactory_bg and its mirror at 1.078 × half size, either side of straight down, 4 px
+ *  below the game's place and still clear of the bottom triangle. The content sits in the tall yellow part by the inner
+ *  edge, above the white strip. */
+export const BAR_SLOTS = [sprite(SLOT_L, -77.4, 204, 148.8, 55, [0.68, 0.36]), sprite(SLOT_R, 75.2, 204, 148.8, 55, [0.32, 0.36])] as const;
 /** HudBgShdow's glow under both slots. */
-export const BAR: Box = box(0, 202, 360, 70);
+export const BAR: Box = box(0, 206, 360, 70);
 
 /** GlowLeftBtn / GlowRightBtn bloom behind the key columns. */
 export const GLOWS = [box(-333.5, -30, 203, 424), box(345, -4, 237, 458)] as const;

@@ -130,6 +130,16 @@ describe('chat: turn trace from /trace/turns/{id}', () => {
     expect(screen.getByRole('table')).toBeTruthy();
   });
 
+  it('lands the motion on the character page\'s 动作表, a pane the page opens', () => {
+    window.location.hash = '';
+    render(<TurnInspector tr={tr} wide />);
+    fireEvent.click(screen.getByRole('button', { name: /点头附和/ }));
+    const q = new URLSearchParams(window.location.hash.split('?')[1]);
+    expect(window.location.hash).toMatch(/^#\/character\?/);
+    expect(q.get('pane')).toBe('motion');
+    expect(q.get('tab')).toBeNull();
+  });
+
   it('says why when there is no turn', () => {
     render(<TurnInspector tr={null} />);
     expect(screen.getByText(/选择一轮以查看详情/)).toBeTruthy();

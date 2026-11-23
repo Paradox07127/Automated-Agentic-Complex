@@ -11,6 +11,17 @@
   position: absolute;
 }
 
+/* In a scrolling list each layer fades by its own mask: a mask on the key would flatten its raised face. */
+.slot[data-clip] [data-tone] > * {
+  mask-image: linear-gradient(transparent var(--clip-top), #000 calc(var(--clip-top) + var(--clip-fade)), #000 calc(var(--clip-bottom) - var(--clip-fade)), transparent var(--clip-bottom));
+}
+
+/* Scrolled out of the list's window: the faces too (they take the pointer by their shape) let it through. */
+.slot[data-out],
+.slot[data-out] * {
+  pointer-events: none;
+}
+
 .key {
   position: absolute;
   inset: 0;
@@ -133,6 +144,18 @@
 
 .key[data-compact] .sub {
   padding: 1px var(--ef-sp-2);
+}
+
+/* The game's RedDot by the top right corner, drawn as the top icons' dot. */
+.dot {
+  position: absolute;
+  top: var(--ef-sp-4);
+  right: var(--ef-sp-6);
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--ef-g-watch-band);
+  background: var(--ef-g-reddot);
+  rotate: 45deg;
 }
 
 .hot {

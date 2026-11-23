@@ -60,6 +60,12 @@ export interface WatchKeyProps {
   off?: string | undefined;
   /** 名字后的小标（PowerMark compact：能力关着、键照样能点）；键上放不下状态词，只画图标 */
   mark?: ReactNode;
+  /** 右上角的红点；字是它的读屏说明（如「3 条待确认」） */
+  dot?: string | undefined;
+  /** 滚动列表里看得见的竖向范围（键自己的 px）：`top` 到 `bottom` 之外看不见，两端往里 `fade` px 渐隐 */
+  clip?: { top: number; bottom: number; fade: number } | undefined;
+  /** 滚出了列表窗口：不接指针，仍可用键盘聚焦 */
+  out?: boolean;
   /** 手表进场动画驱动的 data-g */
   g?: string;
   onClick: () => void;
@@ -72,11 +78,13 @@ const KEY_DEPTH = 24;
 const SHIFT_BIG = [1.85, 1.2] as const;
 const SHIFT_SQUARE = [-2.5, 0.25] as const;
 
-export function WatchKey({ box, pts, mid, big, compact, icon, title, hotkey, sub, pressed, off, mark, g, onClick }: WatchKeyProps) {
+export function WatchKey({ box, pts, mid, big, compact, icon, title, hotkey, sub, pressed, off, mark, dot, clip, out, g, onClick }: WatchKeyProps) {
   const hover = useKeyHover<HTMLButtonElement>();
   const [mx, my] = mid ?? [box.width / 2, box.height / 2];
+  const place = placeAt(box);
+  const style = clip ? ({ ...place.style, '--clip-top': `${clip.top}px`, '--clip-bottom': `${clip.bottom}px`, '--clip-fade': `${clip.fade}px` } as CSSProperties) : place.style;
   return (
-    <span className={styles.slot} {...placeAt(box)} data-g={g} data-stub="WatchKey">
+    <span className={styles.slot} {...place} style={style} data-clip={clip ? '' : undefined} data-out={out || undefined} data-g={g} data-stub="WatchKey">
       <button
         type="button"
         className={styles.key}
@@ -110,6 +118,7 @@ export function WatchKey({ box, pts, mid, big, compact, icon, title, hotkey, sub
             )}
             {sub != null && <span className={styles.sub}>{sub}</span>}
           </span>
+          {dot && <span className={styles.dot} role="img" aria-label={dot} title={dot} />}
           {hotkey && (
             <span className={styles.hot}>
               <Kbd>{keyText(hotkey)}</Kbd>
@@ -131,6 +140,8 @@ export const WatchKeyDemos: Array<{ name: string; props: WatchKeyProps }> = [
   { name: 'sub', props: { box: KEY, icon: 'bolt', title: '快速输入', sub: '⌃⌥Space', onClick: noop } },
   { name: 'off', props: { box: KEY, icon: 'look', title: '屏幕识读', off: '这台机器上不能识读屏幕', onClick: noop } },
   { name: 'mark', props: { box: KEY, icon: 'clock', title: '任务', mark: <PowerMark state="off" compact />, onClick: noop } },
+  { name: 'dot', props: { box: KEY, icon: 'file', title: '档案', dot: '3 条待确认', onClick: noop } },
+  { name: 'clip', props: { box: KEY, icon: 'search', title: '搜索', clip: { top: 24, bottom: 120, fade: 12 }, onClick: noop } },
   { name: 'compact', props: { box: { width: 72, height: 58 }, compact: true, icon: 'send', title: '快速输入', sub: '⌃Space', onClick: noop } },
   { name: 'compact-on', props: { box: { width: 72, height: 58 }, compact: true, icon: 'moonz', title: '免打扰', sub: '到 15:30', pressed: true, onClick: noop } },
 ];
