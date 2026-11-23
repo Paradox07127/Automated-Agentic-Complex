@@ -2,6 +2,7 @@ import { useState, type MouseEvent } from 'react';
 import { ChartBox, Hatch, SvgRuler, useChart, useSvgId, zh, type ChartCommonProps } from './ChartBox';
 import { at, DAY0, ENERGY, MOOD, NOW } from './v3demo';
 import { clampN, cx, fmtN, hm, hms, seriesColors, ticks } from './v3';
+import { Btn } from '../ui/Btn';
 import s from './ChartBox.module.css';
 
 export type Pt = [number, number | null];
@@ -14,10 +15,14 @@ export interface LineSeries {
   color?: string;
 }
 
-/** 一条参考线：label 缺省为「上限 v」 */
+/** 一条参考线：label 缺省为「name v」 */
 export interface LineLimit {
   v: number;
   label?: string;
+  /** 读屏名，缺省「上限」 */
+  name?: string;
+  /** 色调：warning 缺电橙，danger 深墨（图表不用红）；不给是墨色 */
+  tone?: 'warning' | 'danger';
 }
 
 /** 多序列时间折线：墨色阶，emph 那条用 trace；只标端点和极值；limit 画上限虚线并直接标注。 */
@@ -101,7 +106,7 @@ export function LineChart({ series, t0, t1, yMin, yMax, h = 120, w, marks = [], 
       const vs = x.pts.map((p) => p[1]).filter((v): v is number => v != null);
       return `${x.label} 最新 ${fmtY(lastP(x)?.[1] ?? null)}，最高 ${fmtY(Math.max(...vs))}，最低 ${fmtY(Math.min(...vs))}`;
     })
-    .join('；')}${limits.map((l) => `；上限 ${fmtY(l.v)}`).join('')}`;
+    .join('；')}${limits.map((l) => `；${l.name ?? '上限'} ${fmtY(l.v)}`).join('')}`;
   const base = Y(clampN(0, lo, hi));
   const gaps: Array<[number, number]> = [];
   for (const x of series) {
@@ -179,9 +184,9 @@ export function LineChart({ series, t0, t1, yMin, yMax, h = 120, w, marks = [], 
             );
           })}
         {limits.map((l, i) => {
-          const limT = l.label ?? `上限 ${fmtY(l.v)}`;
+          const limT = l.label ?? `${l.name ?? '上限'} ${fmtY(l.v)}`;
           return (
-            <g key={`l${i}`} data-limit="">
+            <g key={`l${i}`} data-limit={l.tone ?? ''} className={l.tone && s[l.tone]}>
               <line x1={L} x2={L + PW} y1={Y(l.v)} y2={Y(l.v)} className={s.lim} />
               <text x={L + 4} y={Y(l.v) - 4} className={zh(limT, s.limT, s.halo)}>
                 {limT}
@@ -236,5 +241,21 @@ export const LineChartDemos: Array<{ name: string; props: LineChartProps }> = [
   { name: 'mono', props: { label: '精神和心情 24 小时', series: pair, t0: DAY0, t1: NOW, yMin: -0.5, yMax: 1, h: 96, fmtY: fmt1, marks: [{ t: at(9, 0), label: '起床' }, { t: at(12, 0), label: '午饭' }] } },
   { name: 'emph', props: { label: '精神和心情 24 小时', emph: 'e', area: true, series: pair, t0: DAY0, t1: NOW, yMin: -0.5, yMax: 1, h: 96, fmtY: fmt1 } },
   { name: 'limit', props: { label: '每分钟帧耗时', series: [{ id: 'f', label: '帧耗时', pts: Array.from({ length: 30 }, (_, i) => [at(14, i), 9 + ((i * 7) % 11) / 2] as Pt) }], h: 110, now: at(14, 29), limit: { v: 16.7, label: '预算 16.7 ms' }, fmtY: (v) => (v == null ? '—' : v.toFixed(1)) } },
+  {
+    name: 'limit-tones',
+    props: {
+      label: '后台进程内存',
+      series: [{ id: 'm', label: '内存', pts: Array.from({ length: 30 }, (_, i) => [at(14, i), 300 + ((i * 37) % 160)] as Pt) }],
+      h: 110,
+      yMin: 200,
+      yMax: 560,
+      limit: [
+        { v: 420, label: '注意 420 MB', name: '注意线', tone: 'warning' },
+        { v: 500, label: '过高 500 MB', name: '过高线', tone: 'danger' },
+      ],
+      fmtY: (v) => (v == null ? '—' : `${Math.round(v)}`),
+    },
+  },
   { name: 'empty', props: { label: '空态', empty: '今天还没有数据', series: [], h: 40 } },
+  { name: 'empty-action', props: { label: '帧耗时', empty: <>还没有帧记录 <Btn size="sm">开始记录</Btn></>, series: [], h: 40 } },
 ];

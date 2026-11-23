@@ -187,7 +187,7 @@ describe('SecHead', () => {
     expect(container.textContent).not.toContain('DEV');
     rerender(<SecHead title="画质" dev />);
     expect(screen.getByText('DEV')).toBeTruthy();
-    const light = rules(read('SecHead.module.css'), ":global([data-theme='light']) .dev");
+    const light = rules(read('DevMark.module.css'), ":global([data-theme='light']) .dev");
     const ink = /(?:^|;)\s*color:\s*var\((--ef-[\w-]+)\)/.exec(light)?.[1];
     expect(ink).toBeDefined();
     for (const bg of ['--ef-canvas', '--ef-base', '--ef-surface-1']) expect(contrast(token('light', ink!), token('light', bg))).toBeGreaterThanOrEqual(4.5);

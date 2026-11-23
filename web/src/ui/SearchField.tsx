@@ -20,6 +20,8 @@ export interface SearchFieldProps {
   onSubmit?: (v: string) => void;
   /** 聚焦输入框的快捷键，如 '⌘F'、'Ctrl+F'；键帽只在按住 ⌘ / Ctrl 时显示 */
   shortcut?: string;
+  /** 最多可输入的字数 */
+  maxLength?: number;
 }
 
 /** '⌘F' / 'Ctrl+F' / '⌃F': which of ⌘ and Ctrl, and the key. */
@@ -28,7 +30,7 @@ function chord(shortcut: string) {
   return { meta: !ctrl && /⌘|cmd/i.test(shortcut), ctrl, key: shortcut.slice(-1).toLowerCase() };
 }
 
-export function SearchField({ value, label, placeholder, inputRef, onChange, onSubmit, shortcut }: SearchFieldProps) {
+export function SearchField({ value, label, placeholder, inputRef, onChange, onSubmit, shortcut, maxLength }: SearchFieldProps) {
   const [q, setQ] = useControlled(value, onChange);
   const own = useRef<HTMLInputElement | null>(null);
   const attach = useCallback(
@@ -60,6 +62,7 @@ export function SearchField({ value, label, placeholder, inputRef, onChange, onS
         className={styles.input}
         value={q}
         placeholder={placeholder}
+        maxLength={maxLength}
         aria-label={label}
         onChange={(e) => setQ(e.currentTarget.value)}
         onKeyDown={(e) => {
@@ -85,4 +88,5 @@ export const SearchFieldDemos: Array<{ name: string; props: SearchFieldProps }> 
   { name: 'empty', props: { value: '', label: '搜索记忆', placeholder: '搜索文本、来源、种类 ⌘F' } },
   { name: 'filled', props: { value: '周报', label: '搜索记忆', placeholder: '搜索文本、来源、种类 ⌘F' } },
   { name: 'shortcut', props: { value: '', label: '搜索记忆', placeholder: '搜索文本、来源、种类', shortcut: '⌘F' } },
+  { name: 'max-length', props: { value: '周报', label: '搜索记忆', placeholder: '最多 20 字', maxLength: 20 } },
 ];

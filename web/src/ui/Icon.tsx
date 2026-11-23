@@ -53,6 +53,7 @@ export type IconName =
   | 'ok'
   | 'bolt'
   | 'upload'
+  | 'star'
   | 'g-chat'
   | 'g-ask'
   | 'g-topic'
@@ -122,4 +123,5 @@ export const IconDemos: Array<{ name: string; props: IconProps }> = [
   { name: 'labelled', props: { name: 'warn', size: 20, label: '警告' } },
   { name: 'large', props: { name: 'kernel', size: 32, label: '角色内核' } },
   { name: 'diag-tab', props: { name: 'd-flow', size: 24, label: '管道' } },
+  { name: 'star', props: { name: 'star', size: 20, label: '收藏' } },
 ];

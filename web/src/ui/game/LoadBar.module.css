@@ -102,6 +102,29 @@
   background: var(--ef-g-lock);
 }
 
+/* Dark tone: on a dark frame the line, the fill, the ticks and the words turn light. */
+.bar[data-tone='dark'] {
+  color: var(--ef-g-tick);
+}
+
+.bar[data-tone='dark'] .state {
+  color: color-mix(in srgb, var(--ef-g-tick) 72%, transparent);
+}
+
+.bar[data-tone='dark'] .track {
+  background: color-mix(in srgb, var(--ef-g-tick) 22%, transparent);
+}
+
+.bar[data-tone='dark'] .track::before,
+.bar[data-tone='dark'] .track::after,
+.bar[data-tone='dark'] .threshold {
+  background: color-mix(in srgb, var(--ef-g-tick) 60%, transparent);
+}
+
+.bar[data-tone='dark'] .fill {
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ef-g-label) 24%, transparent) 0 2px, transparent 2px 5px) 0 0 / 7px 100%, var(--ef-g-tick);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fill {
     transition: none;
@@ -170,4 +193,21 @@
 
 .port[data-full] .portFill {
   background: repeating-linear-gradient(-45deg, rgb(255 255 255 / 30%) 0 2px, transparent 2px 5px) 0 0 / 7px 100%, var(--ef-danger-g-power-save);
+}
+
+.port[data-tone='dark'] {
+  background: color-mix(in srgb, var(--ef-g-tick) 22%, transparent);
+}
+
+.port[data-tone='dark']::before,
+.port[data-tone='dark']::after {
+  background: color-mix(in srgb, var(--ef-g-tick) 60%, transparent);
+}
+
+.port[data-tone='dark']:not([data-full]) .portFill {
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ef-g-label) 24%, transparent) 0 2px, transparent 2px 5px) 0 0 / 7px 100%, var(--ef-g-tick);
+}
+
+.port[data-tone='dark'] .threshold {
+  background: color-mix(in srgb, var(--ef-g-tick) 72%, transparent);
 }

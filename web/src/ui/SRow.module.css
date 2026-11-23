@@ -1,5 +1,6 @@
 /* Settings row: read-only, so no pointer feedback; one hairline between rows; control column 240. */
 .row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 240px;
   align-items: center;
@@ -11,6 +12,26 @@
 
 .text {
   min-width: 0;
+}
+
+/* Changed from the default: a 2 px short-of-power line down the left edge. */
+.row[data-modified]::before {
+  content: '';
+  position: absolute;
+  top: var(--ef-sp-8);
+  bottom: var(--ef-sp-8);
+  left: 0;
+  width: 2px;
+  background: var(--ef-power-low);
+}
+
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .title {

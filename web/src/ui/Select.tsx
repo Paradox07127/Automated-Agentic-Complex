@@ -16,6 +16,8 @@ export interface SelectProps {
   options: Array<{ value: string; label: string; risky?: boolean }>;
   /** 读屏名称 */
   label: string;
+  /** 值前面的灰字前缀，如「排序」；只给眼睛看，读屏名仍是 label */
+  prefix?: string;
   /** 默认值，标「（默认）」 */
   defaultValue?: string;
   /** 强制展开（演示、截图） */
@@ -28,7 +30,7 @@ export interface SelectProps {
   onChange?: (value: string) => void;
 }
 
-export function Select({ value, options, label, defaultValue, open: forced, disabled, width, onChange }: SelectProps) {
+export function Select({ value, options, label, prefix, defaultValue, open: forced, disabled, width, onChange }: SelectProps) {
   const [current, setCurrent] = useControlled(value, onChange);
   const [openState, setOpen] = useState(false);
   const open = !!forced || openState;
@@ -129,6 +131,11 @@ export function Select({ value, options, label, defaultValue, open: forced, disa
         onClick={() => (openState ? close(false) : show())}
         onKeyDown={onTriggerKey}
       >
+        {prefix && (
+          <span className={styles.prefix} data-prefix="" aria-hidden="true">
+            {prefix}
+          </span>
+        )}
         <span className={styles.value}>{text(current)}</span>
         <span className={styles.tri} aria-hidden="true" />
       </button>
@@ -183,6 +190,7 @@ const PROACTIVE = [
 export const SelectDemos: Array<{ name: string; props: SelectProps }> = [
   { name: 'closed', props: { label: '主动程度', value: '适中', defaultValue: '适中', options: PROACTIVE } },
   { name: 'open', props: { label: '主动程度', value: '适中', defaultValue: '适中', open: true, options: PROACTIVE } },
+  { name: 'prefix', props: { label: '排序方式', prefix: '排序', value: 'new', width: 160, options: [{ value: 'new', label: '最新' }, { value: 'old', label: '最早' }] } },
   { name: 'disabled', props: { label: '主动程度', value: '安静', defaultValue: '适中', disabled: true, options: PROACTIVE } },
   {
     name: 'long',

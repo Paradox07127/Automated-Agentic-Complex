@@ -1,10 +1,13 @@
 /* Rail cell (charinfo MenuListCell): a dark frosted plate with a hatched top band; the current one a white plate with a yellow edge. */
 .cell {
-  --rc-plate: rgb(46 46 46 / 84%);
-  --rc-plate-on: rgb(255 255 255 / 95%);
-  --rc-ink-on: #5b5b5b;
-  --rc-hatch: repeating-linear-gradient(-45deg, transparent 0 3px, rgb(255 255 255 / 16%) 3px 4px);
-  --rc-hatch-on: repeating-linear-gradient(-45deg, transparent 0 3px, rgb(0 0 0 / 16%) 3px 4px);
+  /* Theme-fixed white and black (no such token yet): the game palette's white, the popup's black. */
+  --rc-white: var(--ef-g-btn-hover);
+  --rc-black: var(--ef-popup-text);
+  --rc-plate: color-mix(in srgb, color-mix(in srgb, var(--ef-g-label) 92%, var(--rc-black)) 84%, transparent);
+  --rc-plate-on: color-mix(in srgb, var(--rc-white) 95%, transparent);
+  --rc-ink-on: color-mix(in srgb, var(--ef-g-label) 80%, var(--rc-white));
+  --rc-hatch: repeating-linear-gradient(-45deg, transparent 0 3px, color-mix(in srgb, var(--rc-white) 16%, transparent) 3px 4px);
+  --rc-hatch-on: repeating-linear-gradient(-45deg, transparent 0 3px, color-mix(in srgb, var(--rc-black) 16%, transparent) 3px 4px);
   /* Highlighted: the plate reaches 10 of the game cell's 85 px further left and the light comes up to .239. */
   --rc-reach: 11.8%;
   --rc-lit: 0.239;
@@ -22,7 +25,7 @@
   padding: 6px 0 0;
   border: 0;
   background: none;
-  color: #fff;
+  color: var(--rc-white);
   cursor: pointer;
 }
 
@@ -72,14 +75,14 @@
 }
 
 .plate {
-  background: linear-gradient(180deg, rgb(255 255 255 / 6%), transparent 50%), var(--rc-plate);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rc-white) 6%, transparent), transparent 50%), var(--rc-plate);
   backdrop-filter: blur(8px);
-  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 18%);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--rc-black) 18%, transparent);
 }
 
 /* DefalutBg/Light: a white wash over the plate. */
 .light {
-  background: #fff;
+  background: var(--rc-white);
   opacity: 0;
 }
 
@@ -108,8 +111,8 @@
   right: 0;
   bottom: 0;
   width: calc(100% + var(--size-x) * 1px);
-  background: linear-gradient(180deg, #fff, transparent 60%), var(--rc-plate-on);
-  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 10%);
+  background: linear-gradient(180deg, var(--rc-white), transparent 60%), var(--rc-plate-on);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--rc-black) 10%, transparent);
   opacity: 0;
 }
 
@@ -130,7 +133,7 @@
   left: 0;
   height: 6px;
   background: var(--rc-hatch);
-  border-bottom: 1px solid rgb(255 255 255 / 12%);
+  border-bottom: 1px solid color-mix(in srgb, var(--rc-white) 12%, transparent);
 }
 
 /* The micro label: same type as MicroLabel, drawn as generated content so the button's text stays its name. */
@@ -171,11 +174,11 @@
 
 .cell[aria-current] .band {
   background: var(--rc-hatch-on);
-  border-bottom-color: rgb(0 0 0 / 10%);
+  border-bottom-color: color-mix(in srgb, var(--rc-black) 10%, transparent);
 }
 
 .cell[aria-current] .label {
-  color: #262626;
+  color: color-mix(in srgb, var(--ef-g-label) 76%, var(--rc-black));
 }
 
 .cell:focus-visible {

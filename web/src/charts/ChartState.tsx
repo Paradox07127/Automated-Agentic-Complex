@@ -11,8 +11,8 @@ export type ChartStatus = 'ok' | 'loading' | 'empty' | 'error' | 'disconnected';
 export interface ChartStateProps {
   /** 当前状态 */
   state: ChartStatus;
-  /** 空态文案：写原因和下一步，不写「暂无数据」 */
-  emptyText: string;
+  /** 空态文案：写原因和下一步，不写「暂无数据」；可带一个按钮 */
+  emptyText: ReactNode;
   /** 出错或断开时，旧数据的时间（epoch ms） */
   stoppedAt?: number;
   /** 出错时的重试 */

@@ -10,8 +10,8 @@ import s from './ChartBox.module.css';
 export interface ChartCommonProps {
   /** 数据状态，交给 ChartState */
   st?: ChartStatus;
-  /** 空态文字：写原因 */
-  empty?: string;
+  /** 空态：写原因，可带一个按钮 */
+  empty?: ReactNode;
   /** 出错或断开时，旧数据的时间（epoch ms） */
   stoppedAt?: number;
   /** 出错时的重试 */
@@ -60,7 +60,7 @@ interface ChartBoxProps {
   w?: number;
   h?: number;
   st?: ChartStatus;
-  empty?: string;
+  empty?: ReactNode;
   stoppedAt?: number;
   onRetry?: () => void;
   label?: string;

@@ -14,22 +14,25 @@ export interface LoadBarProps {
   thresholds?: readonly number[];
   /** load 款不知道进度：不写百分比，填充来回扫；减少动态效果时不动 */
   indeterminate?: boolean;
+  /** dark：放在深色画框上，底线、填充和字换成浅色；默认 light */
+  tone?: 'light' | 'dark';
 }
 
-export function LoadBar({ fraction, name, variant = 'load', label, thresholds = [], indeterminate }: LoadBarProps) {
+export function LoadBar({ fraction, name, variant = 'load', label, thresholds = [], indeterminate, tone = 'light' }: LoadBarProps) {
+  const dark = tone === 'dark' || undefined;
   const pct = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
   const ticks = thresholds.map((t) => (
     <i key={t} className={styles.threshold} data-threshold="" style={{ left: `${Math.round(Math.min(1, Math.max(0, t)) * 100)}%` }} />
   ));
   if (variant === 'port')
     return (
-      <span className={styles.port} data-stub="LoadBar" data-full={pct >= 100 || undefined} role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+      <span className={styles.port} data-stub="LoadBar" data-tone={dark && 'dark'} data-full={pct >= 100 || undefined} role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
         <i className={styles.portFill} style={{ width: `${pct}%` }} />
         {ticks}
       </span>
     );
   return (
-    <div className={styles.bar} data-stub="LoadBar" data-indeterminate={indeterminate || undefined} role="progressbar" aria-label={name ? `正在载入 ${name}` : '正在载入'}
+    <div className={styles.bar} data-stub="LoadBar" data-tone={dark && 'dark'} data-indeterminate={indeterminate || undefined} role="progressbar" aria-label={name ? `正在载入 ${name}` : '正在载入'}
       aria-valuemin={0} aria-valuemax={100} aria-valuenow={indeterminate ? undefined : pct}>
       <div className={styles.text}>
         {name && <b className={styles.name}>{name}</b>}
@@ -48,6 +51,8 @@ export const LoadBarDemos: Array<{ name: string; props: LoadBarProps }> = [
   { name: 'start', props: { fraction: 0, name: '示例乙' } },
   { name: 'half', props: { fraction: 0.56, name: '示例乙' } },
   { name: 'no-name', props: { fraction: 0.85 } },
+  { name: 'dark', props: { fraction: 0.56, name: '示例乙', tone: 'dark', thresholds: [0.8] } },
   { name: 'port', props: { fraction: 12 / 40, variant: 'port', label: '截图额度' } },
   { name: 'port-full', props: { fraction: 1, variant: 'port', label: '截图额度' } },
+  { name: 'port-dark', props: { fraction: 12 / 40, variant: 'port', label: '截图额度', tone: 'dark', thresholds: [0.75] } },
 ];

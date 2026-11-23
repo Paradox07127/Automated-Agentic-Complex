@@ -12,6 +12,7 @@ export * from './GameSeg';
 export * from './GameTable';
 export * from './GameTabs';
 export * from './GameWheel';
+export * from './IndexCell';
 export * from './LoadBar';
 export * from './Marks';
 export * from './NewsBanner';

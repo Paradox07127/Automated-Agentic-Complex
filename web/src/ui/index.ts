@@ -12,6 +12,7 @@ export * from './Card';
 export * from './CharacterArt';
 export * from './Contour';
 export * from './CountBadge';
+export * from './DevMark';
 export * from './EffectTag';
 export * from './Empty';
 export * from './ErrBar';

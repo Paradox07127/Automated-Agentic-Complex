@@ -3,6 +3,17 @@
   flex: none;
 }
 
+/* The selected block overhangs 13 px; a wider gap keeps the left neighbour's diamond clear of it. */
+.steps > [role='tab'][data-icon] ~ [role='tab'][data-icon] {
+  --sep-gap: 11px;
+  margin-left: 11px;
+}
+
+.steps > [role='tab'][data-icon] ~ [role='tab'][data-icon][data-gap] {
+  --sep-gap: 19px;
+  margin-left: 19px;
+}
+
 .steps > [aria-hidden='true'] {
   margin: 0 18px;
 }

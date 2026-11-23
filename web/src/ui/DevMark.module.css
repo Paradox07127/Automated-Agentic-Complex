@@ -1,0 +1,14 @@
+/* Developer mark: the blue letters in a blue frame; on paper the letters take the ink, the blue falls under 4.5:1 there. */
+.dev {
+  flex: none;
+  padding: 0 5px;
+  color: var(--ef-mission-accent);
+  font: var(--ef-fw-regular) var(--ef-fs-small) / 16px var(--ef-font-num);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--ef-mission-accent);
+}
+
+:global([data-theme='light']) .dev {
+  color: var(--ef-text-1);
+}

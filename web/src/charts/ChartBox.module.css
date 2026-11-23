@@ -82,6 +82,22 @@
   fill: var(--ef-text-2);
 }
 
+.warning .lim {
+  stroke: var(--ef-power-low);
+}
+
+.box .warning text.limT {
+  fill: var(--ef-power-low);
+}
+
+.danger .lim {
+  stroke: var(--ef-text-1);
+}
+
+.box .danger text.limT {
+  fill: var(--ef-text-1);
+}
+
 .box text.halo {
   paint-order: stroke;
   stroke: var(--v3-bg);

@@ -1,6 +1,9 @@
 /* A station card: the factory's machine panel made small — number and micro English over a rule, a dark hatched icon
    block on the left, the name and a big read, a sub line, the state strip along the foot. */
 .card {
+  /* Theme-fixed white and black (no such token yet): the game palette's white, the popup's black. */
+  --sc-white: var(--ef-g-btn-hover);
+  --sc-black: var(--ef-popup-text);
   --sc-hi: var(--ef-surface-3);
   --sc-mid: var(--ef-surface-2);
   --sc-lo: var(--ef-surface-1);
@@ -22,8 +25,8 @@
   text-align: left;
   cursor: pointer;
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 9%, transparent),
-    0 0 0 1px color-mix(in srgb, #000 28%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--sc-white) 9%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--sc-black) 28%, transparent),
     var(--ef-shadow-card);
   transition: filter var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
 }
@@ -46,7 +49,7 @@
 /* Selected: the tab's yellow — a yellow frame, a top bar growing in from the left. */
 .card:is([aria-selected='true'], [aria-pressed='true']) {
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 9%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--sc-white) 9%, transparent),
     0 0 0 2px var(--ef-accent),
     var(--ef-shadow-card);
 }
@@ -101,9 +104,9 @@
   width: 44px;
   height: 44px;
   margin-top: var(--ef-sp-8);
-  background: repeating-linear-gradient(-45deg, transparent 0 4px, color-mix(in srgb, #fff 7%, transparent) 4px 5px), color-mix(in srgb, var(--ef-g-watch-map) 80%, var(--ef-g-watch-ink));
+  background: repeating-linear-gradient(-45deg, transparent 0 4px, color-mix(in srgb, var(--sc-white) 7%, transparent) 4px 5px), color-mix(in srgb, var(--ef-g-watch-map) 80%, var(--ef-g-watch-ink));
   color: var(--ef-g-watch-ink);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sc-white) 8%, transparent);
 }
 
 .name {

@@ -4,14 +4,14 @@ import { IconBtn } from './IconBtn';
 import { OverlayPortal, useOverlayFocus } from './Dialog';
 import styles from './Sheet.module.css';
 
-/** 右侧抽屉：补充信息，宽 360、420 或 480；焦点陷阱，Esc 关闭，关闭后焦点回到触发处。给了 dockFrom 时，窗口够宽就在页面里常驻成右栏。 */
+/** 右侧抽屉：补充信息，宽 360、420、480、560 或 640（宽两档不超过窗口减 48）；焦点陷阱，Esc 关闭，关闭后焦点回到触发处。给了 dockFrom 时，窗口够宽就在页面里常驻成右栏。 */
 export interface SheetProps {
   /** 是否打开 */
   open: boolean;
   /** 标题；head 不是 title 时只给读屏 */
   title: ReactNode;
-  /** 宽度，默认 360 */
-  width?: 360 | 420 | 480;
+  /** 宽度，默认 360；560、640 在窄窗口里不超过窗口减 48 */
+  width?: 360 | 420 | 480 | 560 | 640;
   /** 内容，过长时在抽屉内滚动 */
   children?: ReactNode;
   /** Esc、关闭按钮或点遮罩 */
@@ -125,6 +125,7 @@ const task = (
 export const SheetDemos: Array<{ name: string; props: SheetProps }> = [
   { name: 'narrow', props: { open: true, title: '汇总 10 月开销表', children: task } },
   { name: 'wide', props: { open: true, title: '汇总 10 月开销表', width: 480, children: task } },
+  { name: 'wider', props: { open: true, title: '生成记录', width: 640, children: task } },
   { name: 'close-only', props: { open: true, title: '任务', width: 420, head: 'close', children: task } },
   { name: 'close-label', props: { open: true, title: <>生成记录 <b className="num">12</b></>, closeLabel: '收起生成记录', children: task } },
   { name: 'docked', props: { open: false, title: '详情', width: 420, head: 'none', dockFrom: 0, children: task } },

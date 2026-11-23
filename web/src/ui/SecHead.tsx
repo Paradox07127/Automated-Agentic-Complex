@@ -1,5 +1,7 @@
 import type { KeyboardEvent, ReactNode } from 'react';
+import { DevMark } from './DevMark';
 import { MicroLabel } from './game/Marks';
+import { Icon } from './Icon';
 import { InfoTip } from './InfoTip';
 import styles from './SecHead.module.css';
 
@@ -7,6 +9,8 @@ import styles from './SecHead.module.css';
 export interface SecHeadProps {
   /** 标题 */
   title: string;
+  /** 标题前的图标位（一个 Icon 或自画的小图） */
+  lead?: ReactNode;
   /** 编号，例如 01（装饰，读屏跳过） */
   no?: string;
   /** 计数 */
@@ -40,8 +44,8 @@ export interface SecHeadFold {
   onKeyDown: (e: KeyboardEvent<HTMLButtonElement>) => void;
 }
 
-export function SecHead({ title, no, count, info, dev, tone = 'none', right, micro, variant = 'band', rule = true, fold }: SecHeadProps) {
-  const lead = (
+export function SecHead({ title, lead, no, count, info, dev, tone = 'none', right, micro, variant = 'band', rule = true, fold }: SecHeadProps) {
+  const pre = (
     <>
       <i className={styles.bar} aria-hidden="true" />
       {no && (
@@ -50,6 +54,7 @@ export function SecHead({ title, no, count, info, dev, tone = 'none', right, mic
         </span>
       )}
       {tone !== 'none' && <span className={styles.dot} data-dot={tone} />}
+      {lead != null && <span className={styles.lead}>{lead}</span>}
     </>
   );
   const counter = count != null && (
@@ -60,14 +65,14 @@ export function SecHead({ title, no, count, info, dev, tone = 'none', right, mic
     </span>
   );
   const tip = info != null && <InfoTip>{info}</InfoTip>;
-  const devMark = dev && <span className={styles.dev}>DEV</span>;
+  const devMark = dev && <DevMark />;
   return (
     <div className={styles.head} data-stub="SecHead" data-tone={tone} data-variant={variant} data-fold={fold ? '' : undefined} data-rule={rule ? undefined : 'off'}>
       {fold ? (
         <h3 className={styles.title}>
           <button type="button" className={styles.toggle} aria-expanded={fold.open} aria-controls={fold.open ? fold.bodyId : undefined} onClick={fold.onToggle} onKeyDown={fold.onKeyDown}>
             {fold.chev}
-            {lead}
+            {pre}
             <span>{title}</span>
             {devMark}
             {counter}
@@ -78,7 +83,7 @@ export function SecHead({ title, no, count, info, dev, tone = 'none', right, mic
         </h3>
       ) : (
         <>
-          {lead}
+          {pre}
           <h3 className={styles.title}>{title}</h3>
           {tip}
           {devMark}
@@ -97,6 +102,7 @@ export const SecHeadDemos: Array<{ name: string; props: SecHeadProps }> = [
   { name: 'running', props: { title: '进行中', count: 2, tone: 'running', micro: 'Running' } },
   { name: 'failed', props: { title: '出错', count: 1, tone: 'failed' } },
   { name: 'info-dev', props: { title: '画质', info: '三项开发者画质参数，点了即时保存。', dev: true, micro: 'Render' } },
+  { name: 'lead', props: { title: '收藏', lead: <Icon name="star" size={16} />, count: 4 } },
   { name: 'plain', props: { title: '其他', right: '按时间排序' } },
   { name: 'diag', props: { variant: 'diag', title: '进程', tone: 'ok', right: '4 个 │ 0 个不正常' } },
   { name: 'diag-failed', props: { variant: 'diag', title: '进程', tone: 'failed', right: '4 个 │ 1 个不正常' } },

@@ -54,6 +54,11 @@
   cursor: not-allowed;
 }
 
+.prefix {
+  flex: none;
+  color: color-mix(in srgb, var(--ef-dropdown-text) 72%, var(--ef-dropdown-field));
+}
+
 .value {
   flex: 1;
   min-width: 0;

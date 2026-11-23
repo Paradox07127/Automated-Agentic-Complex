@@ -68,6 +68,14 @@
   width: min(480px, 100%);
 }
 
+.panel[data-width='560'] {
+  width: min(560px, calc(100% - 48px));
+}
+
+.panel[data-width='640'] {
+  width: min(640px, calc(100% - 48px));
+}
+
 /* Docked (dockFrom): the same column in the page's flow, no scrim, no slide but a fade in; it fills the height its grid cell gives. */
 .dock {
   display: flex;

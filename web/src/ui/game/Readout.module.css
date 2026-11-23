@@ -232,7 +232,20 @@
 }
 
 .plate[data-compact] .eyebrow {
+  align-items: center;
   margin-right: var(--ef-sp-12);
+  padding: 0 var(--ef-sp-8) 0 0;
+  border-right: 1px solid var(--ef-rule);
+  border-left: 0;
+  writing-mode: horizontal-tb;
+  transform: none;
+}
+
+/* Set on end the eyebrow would stand taller than the compact plate: flat, one word a line. */
+.plate[data-compact] .eyebrow > * {
+  width: min-content;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .plate[data-compact] .v {

@@ -58,6 +58,7 @@ export const ICON_PATHS: Record<IconName, string> = {
   ok: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8z',
   bolt: 'M11 21h-1l1-7H6l7-11h1l-1 7h5z',
   upload: 'M11 16V7.85l-2.6 2.6L7 9l5-5 5 5-1.4 1.45-2.6-2.6V16zm-7 4v-5h2v3h12v-3h2v5z',
+  star: 'M12 2l2.81 6.63L22 9.24l-5.46 4.73L18.18 21 12 17.27 5.82 21l1.64-7.03L2 9.24l7.19-.61z',
   // Chat page set: drawn on the 24 grid after the game's SNS icons (solid blocks, negative cut-outs, bar stripes).
   'g-chat': 'M2 3h14v10H7l-4 4v-4H2zM5 6h3v3.5H6.8V11H5zM10 6h3v3.5h-1.2V11H10z M18 7h4v11h-2v3l-3.2-3H9v-3h11V10h-2z',
   'g-ask': 'M3 4h8v3H6v4h4v3H6v7H3z M13 3h8v10h-8zM16.1 4.6h1.8v4.6h-1.8zM16.1 10.2h1.8v1.6h-1.8z M8 16h13v3H8z',

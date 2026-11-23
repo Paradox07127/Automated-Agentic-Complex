@@ -50,9 +50,9 @@
 
 /* Media (GuideMediaPanel): #171717 at .5, a 4 px bar outside each side with a tick on it, crosses in two corners. */
 .frame[data-variant='media'] {
-  --gf-bg: color-mix(in srgb, #171717 50%, transparent);
-  --gf-rim: color-mix(in srgb, #fff 12%, transparent);
-  --gf-bar: color-mix(in srgb, #fff 10%, transparent);
+  --gf-bg: color-mix(in srgb, var(--ef-canvas) 50%, transparent);
+  --gf-rim: color-mix(in srgb, var(--ef-g-watch-ink) 12%, transparent);
+  --gf-bar: color-mix(in srgb, var(--ef-g-watch-ink) 10%, transparent);
 
   padding: 30px 30px 22px 38px;
   box-shadow: inset 0 0 0 1px var(--gf-rim);
@@ -60,9 +60,9 @@
 }
 
 :global([data-theme='light']) .frame[data-variant='media'] {
-  --gf-bg: color-mix(in srgb, #fff 38%, transparent);
-  --gf-rim: color-mix(in srgb, #000 12%, transparent);
-  --gf-bar: color-mix(in srgb, #000 12%, transparent);
+  --gf-bg: color-mix(in srgb, var(--ef-raised) 38%, transparent);
+  --gf-rim: color-mix(in srgb, var(--ef-g-watch-ink) 12%, transparent);
+  --gf-bar: color-mix(in srgb, var(--ef-g-watch-ink) 12%, transparent);
 }
 
 .frame[data-variant='media']::before,
