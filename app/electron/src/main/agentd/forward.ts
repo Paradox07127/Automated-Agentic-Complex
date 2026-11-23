@@ -1,6 +1,7 @@
 // What the renderer link hands agentd: `trace` events batched for `POST /trace/events`, behavior receipts to
-// `POST /behavior/receipts` and motion states to `POST /behavior/motion_state` in the order she sent them, motion
-// requests to `POST /motions/generate`, her reactions and drags to `POST /interaction/record`.
+// `POST /behavior/receipts` and motion states to `POST /behavior/motion_state` in the order she sent them, with the
+// user's plays to `POST /behavior/user_play`, motion requests to `POST /motions/generate`, her reactions and drags to
+// `POST /interaction/record`.
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { ReactionTrigger } from '../../common/c3.ts';
 import type { Mark } from '../../common/turn-marks.ts';
@@ -149,6 +150,13 @@ export function agentdForwarding(o: ForwardPorts) {
       tail = tail.then(async () => {
         const { status } = await o.post('/behavior/motion_state', body);
         if (status !== 204) o.log(`motion_state forward behavior_id=${String(body.behavior_id)} phase=${String(body.phase)} status=${status}`);
+      });
+    },
+    /** HostLink's `onUserPlay`, in the same queue: agentd's stand-down starts before her user `started` and ends after it. */
+    onUserPlay: (playing: boolean) => {
+      tail = tail.then(async () => {
+        const { status } = await o.post('/behavior/user_play', { playing });
+        if (status !== 204) o.log(`user_play forward playing=${playing} status=${status}`);
       });
     },
     onMotionRequest: (body: Event) => {

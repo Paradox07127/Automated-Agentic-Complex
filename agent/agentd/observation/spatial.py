@@ -80,6 +80,7 @@ BODY = ("full_body", "contact")  # what the quiet stage and a held posture keep 
 TASK = ("session", "agent", "decision")  # trigger sources of task behaviors
 SPOKEN = ("speech", "agent")  # trigger sources of behaviors her speech drives
 HELD = SEATED + ("hold_window_edge", "short_walk")  # postures her speech does not break
+IN_PLACE = ("face", "idle", "think", "listen", "accompany")  # body types the renderer plays without holding her body
 EDGE = {"kind": "edge", "side": "nearest"}  # where entering the quiet stage walks her
 EDGE_PAUSE = 1.5  # seconds typing stays off before the edge walk starts
 PARKED = c1.MOVING + ("hold_window_edge",)  # what her own schedule does not start from quiet entry until it ends
@@ -147,6 +148,12 @@ def _speech(s):
 def _autonomous(spec):
     """Her own schedule: a random tick, a routine activity, a blocked one's retarget or a focus walk."""
     return spec["trigger"]["source"] in ("tick", "receipt") or spec["trigger"]["event"] == "focus_change"
+
+
+def _holds_body(spec):
+    """A behavior or proposal that makes the renderer refuse the user's play busy (C3 rule 54): a walk, sit, hold or climb,
+    or a perform of a motion or action."""
+    return spec["type"] not in IN_PLACE and bool(set(spec["channels"]) & set(BODY)) and "clip" not in spec
 
 
 def _unsupported_key(kind, target, variant=None):
@@ -611,7 +618,8 @@ class Spatial:
     def admit(self, spec, s, now, lapsed=()):
         """Whether a proposal may run now: (True, None), or (False, the first check that fails): stale (its
         turn_generation is not the current one; a character switch moves it too), unsupported, switch_off, lifted (a sit
-        while the chooser holds her in an air or boss posture), stage,
+        while the chooser holds her in an air or boss posture), user_play (one that holds her body while the user's own
+        play is asked for or plays), stage,
         typing, speech, posture, busy (a higher priority owns one of its channels; a lapsed record owns none; a
         chosen perform takes no channel another owner holds). Changes nothing."""
         with self._lock:
@@ -627,6 +635,8 @@ class Spatial:
                 return False, "switch_off"
             if kind in SEATED and self.chooser is not None and self.chooser.holds_lifted:
                 return False, "lifted"
+            if self._user_play and _holds_body(spec):
+                return False, "user_play"
             stage = self.stage()
             edge = target is not None and target["kind"] == "edge"
             # offstage keeps base rest only; quiet keeps task behaviors off the body but its own walk to the edge
@@ -928,10 +938,27 @@ class Spatial:
             self.chooser.report_playhead(clip, max(1, round(time_s / length)) * length
                                          if body["phase"] == "cycle_end" else length)
 
+    def user_play(self, playing):
+        """POST /behavior/user_play: the shell asks the renderer for the user's own play (playing) or no user play is
+        asked for or plays any more. Before it, each behavior that holds her body gets `behavior_cancel` / replaced and
+        none takes it until the play is over."""
+        with self._lock:
+            if not playing:
+                self._user_play_over()
+                return
+            self._user_play = True
+            for record in list(self.active.values()):
+                if _holds_body(record["behavior"]):
+                    self._end(record, "replaced")
+                    self.publish("behavior_cancel", {"behavior_id": record["behavior"]["behavior_id"],
+                                                     "reason": "replaced", "turn_generation": self.generation()})
+
     def _user_play_over(self):
-        """The user's play gave the body back: the chooser goes on from what the base layer plays, her rest loop."""
+        """The user's play gave the body back: the chooser goes on from what the base layer plays, her rest loop, and a
+        row or posture it kept from her is sent again."""
         if self._user_play:
             self._user_play = False
+            self._event_key = self._posture_key = None
             if self.chooser is not None:
                 self.chooser.report_playhead(*self._played())
 

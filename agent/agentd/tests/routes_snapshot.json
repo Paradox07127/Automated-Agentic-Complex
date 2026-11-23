@@ -971,6 +971,13 @@
   ],
   [
     "POST",
+    "/behavior/user_play",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "POST",
     "/motions/generate",
     [
       "ui_token"

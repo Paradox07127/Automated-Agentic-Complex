@@ -92,9 +92,10 @@ const OVERRIDE_FAILURES = { unsupported: '这个版本的角色不支持动作�
   busy: '角色正在切换或动作还没加载好，过一会儿再试', refused: '角色没有接受这份动作设置' };
 
 /** Seconds; `character` is rule 14's, `appearance` rules 16 and 46's, `capture` rule 50's, `attention` rule 39's,
- *  `cameraLive` rule 49's, `lineInteractive` how long her line keeps the `interactive` tier. */
+ *  `cameraLive` rule 49's, `lineInteractive` how long her line keeps the `interactive` tier, `playBusy` how long a user
+ *  play answered `busy` is asked again, every `playRetry`. */
 export const LINK_TIMING = { tick: 0.1, ack: 2, reply: 2, playStart: 35, relink: 20, reconnect: 0.5, floodLines: 2000, character: 11,
-  appearance: 10, capture: 10, attention: 45, cameraLive: 1 / 30, lineInteractive: 8 } as const;
+  appearance: 10, capture: 10, attention: 45, cameraLive: 1 / 30, lineInteractive: 8, playBusy: 10, playRetry: 0.25 } as const;
 
 /** Rule 10, as HostLink's onLeftClick, onDoubleClick and onRightClick: `at` in global points. */
 export type ClickEvent = { kind: 'left'; at: { x: number; y: number }; region: string | null } | { kind: 'double' }
@@ -153,6 +154,8 @@ export interface LinkOptions {
   onBehaviorReceipt?(receipt: Record<string, unknown>): void;
   /** Rule 54: each valid `motion_state` without `v` and `type`, when both hellos list `behavior_receipt`. */
   onMotionState?(state: Record<string, unknown>): void;
+  /** True before the user's `play_action`: agentd gives her body up; false once no user play is asked for or plays. */
+  onUserPlay?(playing: boolean): void;
   onMotionRequest?(request: Record<string, unknown>): void;
   /** Each of these receives its valid messages; the ones that list a capability do so only when given: `presentation`,
    *  `drop`, `poses`, `camera_gesture`, and `surfaces`, `opacity`, `layering` for onSurfaceTrack. */
@@ -288,6 +291,8 @@ export class HostLink {
   private playWaiters = new Map<string, { resolve(): void; reject(e: Error): void }>();
   /** The `play_id` playAction sent last, until a final `action_played` of it. */
   private playing: string | null = null;
+  /** playAction calls that have not settled. */
+  private asked = 0;
   private playCounter = 0;
   private appearanceOptions: AppearanceOption[] = [];
   private layerOptions: LayerOption[] = [];
@@ -953,6 +958,7 @@ export class HostLink {
     }
     if (wasActive) {
       this.latestActions.clear();
+      if (this.playing !== null && this.asked === 0) this.options.onUserPlay?.(false);
       this.playing = null;
       for (const w of this.listWaiters) w.reject(disconnected());
       for (const w of this.playWaiters.values()) w.reject(disconnected());
@@ -1285,7 +1291,10 @@ export class HostLink {
   private handlePlayed(m: ActionPlayed, c: Connection): boolean {
     // `chain` only from a renderer that lists `play_chain`.
     if (m.chain !== undefined && !c.capabilities.includes('play_chain')) return this.accepted(m, 'capability');
-    if (m.play_id === this.playing && m.phase !== 'started') this.playing = null;
+    if (m.play_id === this.playing && m.phase !== 'started') {
+      this.playing = null;
+      if (this.asked === 0) this.options.onUserPlay?.(false);
+    }
     const waiter = this.playWaiters.get(m.play_id);
     if (!waiter) return true;
     this.playWaiters.delete(m.play_id);
@@ -1312,11 +1321,32 @@ export class HostLink {
     });
   }
 
-  /** Rule 29: resolves once the avatar reports `started`; `loop` goes on the line only when it lists `action_loop`. */
+  /** Rule 29: resolves once the avatar reports `started`; `loop` goes on the line only when it lists `action_loop`. The
+   *  user's play comes first: agentd gives her body up before it, and a `busy` answer, a sit or walk still ending, is
+   *  asked again until LINK_TIMING.playBusy is over. */
   async playAction(character: string, id: string, speed: number, loop: boolean): Promise<void> {
     await this.linked();
     if (!this.capabilities.includes('actions')) throw unsupported();
     if (loop && !this.capabilities.includes('action_loop')) throw unsupported();
+    this.asked += 1;
+    this.options.onUserPlay?.(true);
+    const until = Date.now() + LINK_TIMING.playBusy * 1000 * (this.options.timeScale ?? 1);
+    try {
+      for (;;) {
+        try {
+          return await this.sendPlay(character, id, speed, loop);
+        } catch (e) {
+          if (!(e instanceof ActionFailure && e.code === 'busy') || Date.now() >= until) throw e;
+        }
+        await new Promise((r) => this.after(LINK_TIMING.playRetry, () => r(null)));
+      }
+    } finally {
+      this.asked -= 1;
+      if (this.asked === 0 && this.playing === null) this.options.onUserPlay?.(false);
+    }
+  }
+
+  private sendPlay(character: string, id: string, speed: number, loop: boolean): Promise<void> {
     const playId = `e-${process.pid}-${Date.now().toString(36)}-${++this.playCounter}`;
     const m: C3Message = { v: 1, type: 'play_action', play_id: playId, character, id, speed };
     if (loop) m.loop = true;

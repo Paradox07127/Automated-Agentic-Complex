@@ -416,6 +416,8 @@ REGISTRY = (
           owner=SERVER, action="_behavior_receipt", summary="Behavior execution receipt", spec=C6),
     Route("POST", "/behavior/motion_state", UI, "host_only", (),
           owner=SERVER, action="_motion_state", summary="A clip boundary of the renderer's playback", spec=C6),
+    Route("POST", "/behavior/user_play", UI, "host_only", (),
+          owner=SERVER, action="_behavior_user_play", summary="The user's own play: her body behaviors give way until it is over", spec=C6),
     Route("POST", "/motions/generate", UI, "host_only", (),
           owner=MOTION, summary="Generate a motion for geometry the host computed; answered by event: motion", spec=C1),
     Route("POST", "/focus", UI, "write", ("main", "stack"),

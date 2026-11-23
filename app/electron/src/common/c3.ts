@@ -320,9 +320,10 @@ const MOTION_STATE_PHASES = ['started', 'cycle_end', 'ended', 'expired', 'reject
 
 /** Rule 54's `motion_state` fields; null when they hold. */
 export function motionStateProblem(m: Record<string, unknown>): string | null {
-  if (m.origin !== 'agent' && m.origin !== 'local') return 'origin';
-  if (!(id64(m.behavior_id) || m.behavior_id === null && m.origin === 'local')) return 'behavior_id';
-  if (typeof m.phase !== 'string' || !MOTION_STATE_PHASES.includes(m.phase)) return 'phase';
+  if (m.origin !== 'agent' && m.origin !== 'local' && m.origin !== 'user') return 'origin';
+  if (!(id64(m.behavior_id) && m.origin !== 'user' || m.behavior_id === null && m.origin !== 'agent')) return 'behavior_id';
+  // The user's own play has no cycle_end.
+  if (typeof m.phase !== 'string' || !MOTION_STATE_PHASES.includes(m.phase) || m.origin === 'user' && m.phase === 'cycle_end') return 'phase';
   if (typeof m.resting !== 'boolean') return 'resting';
   if (typeof m.busy !== 'boolean') return 'busy';
   if (!id64(m.clip)) return 'clip';

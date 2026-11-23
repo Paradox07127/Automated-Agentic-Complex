@@ -1,4 +1,4 @@
-"""POST /character and the switch, GET /character/state/history, PUT /avatar/visibility, /character/state/switch and /behavior/motion_prefs, POST /behavior/receipts, /behavior/motion_state and /interaction/record."""
+"""POST /character and the switch, GET /character/state/history, PUT /avatar/visibility, /character/state/switch and /behavior/motion_prefs, POST /behavior/receipts, /behavior/motion_state, /behavior/user_play and /interaction/record."""
 from brain.outbound import OutboundBlocked
 import c1
 from character.desk_log import COUNTED
@@ -160,6 +160,16 @@ class CharacterMixin:
                     trace_id, cause = linkage[0], record.get("dispatched") if record is not None else None
             self.server._trace("motion.started", trace_id, causation_id=cause,
                                attrs={"behavior_id": behavior_id, "clip": clip})
+
+    def _behavior_user_play(self, body):
+        """POST /behavior/user_play {playing}: the Companion asks the renderer for the user's own play, or none is asked
+        for or plays any more; her body behaviors give way to it until then."""
+        if not isinstance(body, dict) or set(body) != {"playing"} or not isinstance(body["playing"], bool):
+            return self._json(400, {"error": "invalid_payload"})
+        self.server.spatial.user_play(body["playing"])
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def _motion_prefs_put(self):
         """PUT /behavior/motion_prefs: the current character's action switches and motion overrides as the

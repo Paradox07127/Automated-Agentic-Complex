@@ -251,7 +251,7 @@ const hostLink = config && new HostLink({
   buttonsDown: (): boolean => watchers?.buttonsDown ?? false,
   traceEpoch: () => nextTraceEpoch(config!.supportDir),
   ...(forwarding && { onTrace: forwarding.onTrace, onBehaviorReceipt: forwarding.onBehaviorReceipt, onMotionState: forwarding.onMotionState,
-    onMotionRequest: forwarding.onMotionRequest, onReaction: forwarding.onReaction, onDragBegin: forwarding.onDragBegin }),
+    onUserPlay: forwarding.onUserPlay, onMotionRequest: forwarding.onMotionRequest, onReaction: forwarding.onReaction, onDragBegin: forwarding.onDragBegin }),
   ...reports?.options,
   onClick: (e) => interaction?.click(e),
   onRightDrag: (e) => interaction?.rightDrag(e),
