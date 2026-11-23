@@ -47,7 +47,9 @@ export const playRow = (key: string) => row(key).querySelector<HTMLButtonElement
 
 /** Shows 事件反应 and picks the event pool `key`. */
 export async function toEvent(key: string) {
-  await click(screen.getByRole('radio', { name: /^事件反应/ }));
+  // A two-option GameSeg flips on a click of its selected option.
+  const events = screen.getByRole('radio', { name: /^事件反应/ });
+  if (events.getAttribute('aria-checked') !== 'true') await click(events);
   await click(document.querySelector(`[data-pool-cell="${key}"]`)!);
 }
 
