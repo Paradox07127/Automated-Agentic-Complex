@@ -13,7 +13,6 @@ export interface ListRow {
   title: string;
   /** State word, first on the second line. */
   state: string;
-  err?: boolean;
   /** The rest of the second line, joined by │. */
   sub: string[];
   shape: Shape;
@@ -101,7 +100,6 @@ export function doneGroups(tasks: readonly Task[], view: TasksView, who: string,
       id: t.id,
       title: t.title,
       state: s.text,
-      err: s.err,
       sub: [t.source === 'role' ? '角色任务' : (t.agent ?? '编码会话'), formatClock(at), ...(files ? [`产物 ${files}`] : [])],
       shape: s.shape,
       src: t.source === 'code' ? 'code' : 'role',
@@ -123,7 +121,6 @@ export function schedGroups(list: readonly Schedule[], now: number): RowGroup[] 
     id: s.schedule_id,
     title: s.title,
     state: s.last_error ? '上次没跑成' : proposal(s) ? '她提议' : s.enabled ? '开着' : '暂停',
-    err: !!s.last_error,
     sub: [triggerText(s.trigger), ...(s.enabled ? [s.next_run_at != null ? `下次 ${dayText(s.next_run_at, now)}` : s.trigger.kind === 'session_done' ? '等会话结束' : '下次 —'] : [])],
     shape: s.last_error ? 'forbid' : s.enabled ? 'trk' : 'hatch',
     src: 'sched',

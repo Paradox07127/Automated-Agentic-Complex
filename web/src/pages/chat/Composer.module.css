@@ -41,55 +41,6 @@
   align-items: center;
 }
 
-/* The field stays light in both themes, so its text is ink. */
-.inp {
-  display: flex;
-  align-items: center;
-  min-height: 42px;
-  padding: 0 18px;
-  border-radius: 21px;
-  background: var(--ef-field);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ef-popup-text) 30%, transparent);
-  transition: box-shadow 0.15s var(--ef-ease-g-fade);
-}
-
-.inp:focus-within {
-  box-shadow: 0 0 0 2px var(--ef-accent);
-}
-
-/* One line high, growing with Shift+Enter lines up to five. */
-.inp textarea {
-  flex: 1;
-  min-width: 0;
-  max-height: calc(5 * 1.5em);
-  padding: 10px 0;
-  border: 0;
-  outline: none;
-  resize: none;
-  field-sizing: content;
-  background: none;
-  color: var(--ef-paper-text);
-  font: 400 14px/1.5 var(--ef-font-sans);
-}
-
-.inp textarea::placeholder {
-  color: var(--ef-paper-text-2);
-}
-
-.inp textarea:disabled {
-  cursor: not-allowed;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .inp {
-    transition: none;
-  }
-}
-
-:global([data-reduce-motion]) .inp {
-  transition: none;
-}
-
 /* Tray: files and the turn's flags, each a plate chip with its own ×. */
 .tray {
   display: flex;

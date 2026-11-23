@@ -48,63 +48,6 @@
   text-overflow: ellipsis;
 }
 
-/* State plate: shape + word; waiting is the yellow block, running a task-blue frame */
-.chip {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  color: var(--ef-text-1);
-  box-shadow: inset 0 0 0 1.5px currentColor;
-}
-
-.chip i {
-  width: 9px;
-  height: 9px;
-  background: currentColor;
-}
-
-.chip[data-k='wait'] {
-  color: var(--ef-on-accent);
-  background: var(--ef-accent);
-  box-shadow: none;
-}
-
-.chip[data-k='wait'] i {
-  transform: rotate(45deg);
-}
-
-.chip[data-k='run'] {
-  box-shadow: inset 0 0 0 1.5px var(--ef-mission-accent);
-}
-
-.chip[data-k='run'] i {
-  border-radius: 50%;
-  background: none;
-  box-shadow: inset 0 0 0 2px var(--ef-mission-accent);
-}
-
-.chip[data-k='err'] {
-  color: var(--ef-danger-text);
-}
-
-.chip[data-k='off'] {
-  color: var(--ef-text-2);
-}
-
-.chip[data-k='off'] i {
-  background: repeating-linear-gradient(-45deg, currentColor 0 2px, transparent 2px 4px);
-}
-
-.chip[data-k='done'] i {
-  clip-path: polygon(14% 52%, 0 66%, 38% 100%, 100% 22%, 86% 8%, 38% 72%);
-}
-
 /* deco_mission_location: pin and line in the accent */
 .where {
   display: flex;

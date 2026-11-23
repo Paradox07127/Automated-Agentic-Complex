@@ -6,7 +6,7 @@ import { secToMs } from '../../domain/units';
 import { BottomBarSlot } from '../../shell/headerSlot';
 import { toast } from '../../shell/toast';
 import { keyText } from '../../bridge/platformText';
-import { Btn, ErrBar, SearchField, SecHead } from '../../ui';
+import { Btn, Empty, ErrBar, SearchField, SecHead, Skel, TextArea } from '../../ui';
 import { IndexCell } from '../../ui/game';
 import { Frame, Line, Lines, Note, Spacer, Text } from './Detail';
 import detail from './Detail.module.css';
@@ -14,7 +14,7 @@ import { errorText, isConflict } from './errors';
 import { LeftCol } from './Index';
 import { Keys } from './Keys';
 import { hm, ymd } from './model';
-import { Block, DetailCol, DetailHead, Empty, Kv, List, Lnk, Panel, Row, Sep, Skeleton, Glyph, useNarrow, type GlyphName } from './parts';
+import { Block, DetailCol, DetailHead, Kv, List, Lnk, Panel, Row, Sep, Glyph, useNarrow, type GlyphName } from './parts';
 import styles from './Cols.module.css';
 
 export type WorkTask = MemoryTasksResponse['tasks'][number];
@@ -60,9 +60,14 @@ export function Projects({ tasks, error, onRetry, initialQ, onSession }: Project
 
   let list;
   if (error != null) list = <List>{<ErrBar message={`没有读到项目：${error}`} onRetry={onRetry} />}</List>;
-  else if (tasks == null) list = <Skeleton />;
-  else if (tasks.length === 0) list = <List>{<Empty title="还没有项目，后台整理会话后会列在这里" />}</List>;
-  else if (shown.length === 0) list = <List>{<Empty title={q.trim() ? '没有符合条件的项目' : `没有${label}的项目`} {...(q.trim() ? { action: <Lnk onClick={() => setQ('')}>清除条件</Lnk> } : {})} />}</List>;
+  else if (tasks == null)
+    list = (
+      <List>
+        <Skel rows={6} height={58} />
+      </List>
+    );
+  else if (tasks.length === 0) list = <List>{<Empty size="compact" title="还没有项目，后台整理会话后会列在这里" />}</List>;
+  else if (shown.length === 0) list = <List>{<Empty inline title={q.trim() ? '没有符合条件的项目' : `没有${label}的项目`} {...(q.trim() ? { action: <Lnk onClick={() => setQ('')}>清除条件</Lnk> } : {})} />}</List>;
   else
     list = (
       <List label={label}>
@@ -181,14 +186,13 @@ function ProjectDetail({ task, onSession, onClose }: { task: WorkTask; onSession
       <div className={detail.kv}>
         <Kv k="目标">
           {goal != null ? (
-            <textarea
-              className={detail.edit}
+            <TextArea
+              label="目标"
               value={goal}
               maxLength={500}
               rows={2}
-              aria-label="目标"
               autoFocus
-              onChange={(e) => setGoal(e.currentTarget.value)}
+              onChange={setGoal}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   e.preventDefault();

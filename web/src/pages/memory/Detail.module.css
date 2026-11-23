@@ -29,23 +29,6 @@
   text-wrap: pretty;
 }
 
-.edit {
-  width: 100%;
-  min-height: 84px;
-  padding: 8px 10px;
-  border: 0;
-  font: 500 16px / 26px var(--ef-font-sans);
-  color: var(--ef-paper-text);
-  resize: vertical;
-  background: var(--ef-paper);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ef-paper-text) 30%, transparent), 0 0 0 2px var(--ef-accent);
-  box-sizing: border-box;
-}
-
-.edit:focus {
-  outline: none;
-}
-
 .tags {
   display: flex;
   flex-wrap: wrap;

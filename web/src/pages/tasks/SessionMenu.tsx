@@ -4,7 +4,7 @@ import { AgentdCallError, CONFLICT_CODES, del, get, put, seg } from '../../bridg
 import type { WireSession } from '../../domain';
 import { isPluginOff } from '../../shell/plugins';
 import { useToast } from '../../shell/toast';
-import { Btn, Dialog, Menu } from '../../ui';
+import { Btn, Dialog, Field, Menu } from '../../ui';
 import { failMessage } from './actions';
 import form from './CreateForm.module.css';
 
@@ -94,7 +94,7 @@ export function SessionMenu({ sessionId }: { sessionId: string }) {
         >
           <label className={form.field}>
             会话标题
-            <input className={form.input} value={title} maxLength={TITLE_MAX + 20} onChange={(e) => setTitle(e.target.value)} />
+            <Field label="会话标题" value={title} maxLength={TITLE_MAX + 20} onChange={setTitle} />
           </label>
         </Dialog>
       )}

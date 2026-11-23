@@ -1,6 +1,6 @@
 import { useId, useRef, useState, type ReactNode } from 'react';
 import type { Fact, FactKind } from '../../domain';
-import { Btn, OverlayPortal, useOverlayFocus } from '../../ui';
+import { Btn, Field, OverlayPortal, TextArea, useOverlayFocus } from '../../ui';
 import { GameSeg } from '../../ui/game';
 import { ADD_CATS, factText } from './model';
 import { DetailHead } from './parts';
@@ -81,7 +81,7 @@ export function ClearCard({ count, onCancel, onConfirm }: { count: number; onCan
       <p>
         删掉 <b className="num">{count}</b> 条记忆，称呼和生日保留。所有角色都会忘掉这些事，找不回。输入「删除」确认。
       </p>
-      <input type="text" value={word} aria-label="输入删除确认" placeholder="删除" onChange={(e) => setWord(e.currentTarget.value)} />
+      <Field label="输入删除确认" value={word} placeholder="删除" onChange={setWord} />
       <div className={styles.btns}>
         <Btn variant="secondary" onClick={onCancel}>
           取消
@@ -109,7 +109,7 @@ export function AddPop({ onCancel, onSave }: { onCancel: () => void; onSave: (te
     <Overlay labelledBy={id} pop onClose={onCancel}>
       <DetailHead title={<span id={id}>新增一条记忆</span>} micro="New / Memory" />
       <div className={styles.pb}>
-        <textarea value={text} maxLength={500} rows={3} placeholder="要她记住的事，比如：周五下午不开会" aria-label="内容" onChange={(e) => setText(e.currentTarget.value)} />
+        <TextArea label="内容" value={text} maxLength={500} rows={3} placeholder="要她记住的事，比如：周五下午不开会" onChange={setText} />
         <GameSeg label="分类" caption="分类" micro="Kind" value={kind} options={ADD_CATS.map((c) => ({ value: c.kind, label: c.label }))} onChange={(v) => setKind(v as FactKind)} />
         <p>来源记为「用户陈述」，所有角色下一句起就会用。</p>
       </div>

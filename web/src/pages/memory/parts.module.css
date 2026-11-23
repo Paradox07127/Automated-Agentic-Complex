@@ -1,4 +1,4 @@
-/* 记忆页的部件：深色数据板与行（干员档案语音行）、来源记号、空态和载入；分类格在 Cells，详情栏在 Side。贴图全是 CSS 自绘。
+/* 记忆页的部件：深色数据板与行（干员档案语音行）、来源记号；分类格在 Cells，详情栏在 Side。贴图全是 CSS 自绘。
    板和行在两种主题下都深（data-theme="dark"），所以下面的 token 取深色值。 */
 
 .glyph {
@@ -152,22 +152,6 @@
   }
 }
 
-.st {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-  padding: 0 7px;
-  border: 1px solid currentColor;
-  font-size: 12px;
-  line-height: 18px;
-  white-space: nowrap;
-  color: var(--ef-text-2);
-}
-
-.st[data-dashed] {
-  border-style: dashed;
-}
-
 /* Source marks: shape plus word, colour is never the only channel. */
 .sg {
   display: inline-block;
@@ -197,60 +181,6 @@
 .lb .sg {
   width: 16px;
   height: 16px;
-}
-
-/* ---------- 空、载入 ---------- */
-.empty {
-  display: grid;
-  gap: 12px;
-  justify-items: start;
-  max-width: 520px;
-  padding: 28px 24px;
-}
-
-.eh {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.eh i {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 1.5px solid var(--ef-text-2);
-  transform: rotate(45deg);
-}
-
-.eh i::after {
-  content: '';
-  width: 12px;
-  height: 12px;
-  background: var(--ef-text-2);
-}
-
-.empty b {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.empty p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--ef-text-2);
-}
-
-.skel {
-  height: 58px;
-  background: linear-gradient(90deg, var(--ef-surface-2) 0 40%, var(--ef-surface-3) 50%, var(--ef-surface-2) 60%) 0 0 / 300% 100%;
-  animation: shimmer 1.2s linear infinite;
-}
-
-@keyframes shimmer {
-  to {
-    background-position: -100% 0;
-  }
 }
 
 @media (max-width: 1199px) {

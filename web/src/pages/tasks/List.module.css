@@ -100,15 +100,6 @@
   text-overflow: ellipsis;
 }
 
-.tt small .st {
-  font-weight: 600;
-  color: var(--ef-text-1);
-}
-
-.tt small .st[data-err] {
-  color: var(--ef-danger-text);
-}
-
 .rn {
   position: relative;
   z-index: 1;
@@ -157,7 +148,6 @@
 
 /* Selected: the inverse plate, a 190 wide blue twill band from the left (bg_mission_select_twill_cell) and a glowing bar outside */
 .row[aria-selected='true'] {
-  --sel-err: color-mix(in srgb, var(--ef-danger-vivid) 60%, var(--ef-row-sel-fg));
   --sel-y: color-mix(in srgb, var(--ef-accent) 50%, var(--ef-row-sel-fg));
   color: var(--ef-row-sel-fg);
   background: var(--ef-row-sel-bg);
@@ -170,14 +160,6 @@
 
 .row[aria-selected='true'] .tt small {
   color: color-mix(in srgb, var(--ef-row-sel-fg) 72%, var(--ef-row-sel-bg));
-}
-
-.row[aria-selected='true'] .tt small .st {
-  color: var(--ef-row-sel-fg);
-}
-
-.row[aria-selected='true'] .tt small .st[data-err] {
-  color: var(--sel-err);
 }
 
 .row[aria-selected='true'] .ico {

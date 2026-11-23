@@ -4,7 +4,7 @@ import { getBridge } from '../../bridge';
 import { keyText } from '../../bridge/platformText';
 import { get, seg } from '../../bridge/agentd';
 import { BottomBarSlot } from '../../shell/headerSlot';
-import { Btn, ErrBar, InfoTip, SearchField, SecHead } from '../../ui';
+import { Btn, Empty, ErrBar, InfoTip, Pill, SearchField, SecHead, Skel } from '../../ui';
 import { IndexCell } from '../../ui/game';
 import { useGo } from './api';
 import { Frame, Note, Spacer, Text } from './Detail';
@@ -12,7 +12,7 @@ import detail from './Detail.module.css';
 import { errorText } from './errors';
 import { LeftCol } from './Index';
 import { Keys } from './Keys';
-import { Block, DetailCol, DetailHead, Empty, Glyph, Kv, List, Lnk, Panel, Quote, Row, Sep, Skeleton, Tag, useNarrow } from './parts';
+import { Block, DetailCol, DetailHead, Glyph, Kv, List, Lnk, Panel, Quote, Row, Sep, useNarrow } from './parts';
 import styles from './Cols.module.css';
 
 type SourceKind = 'work_events' | 'raw';
@@ -132,11 +132,17 @@ export function Review({ reads = true }: { reads?: boolean }) {
 
   let body;
   if (list.isError) body = <List>{<ErrBar message={`没有读到记录：${errorText(list.error)}`} onRetry={() => void list.refetch()} />}</List>;
-  else if (!list.data) body = <Skeleton />;
+  else if (!list.data)
+    body = (
+      <List>
+        <Skel rows={6} height={58} />
+      </List>
+    );
   else if (items.length === 0)
     body = (
       <List>
         <Empty
+          size="compact"
           title={query ? '没有符合搜索的活动' : kind === 'work_events' ? '还没有整理出的工作片段' : '当前没有可读取的观察'}
           {...(query ? {} : { action: <Btn onClick={() => go({ page: 'settings', group: 'privacy' })}>打开观察设置</Btn> })}
         />
@@ -165,7 +171,7 @@ export function Review({ reads = true }: { reads?: boolean }) {
                 lead={<time dateTime={new Date(item.at * 1000).toISOString()}>{CLOCK.format(item.at * 1000)}</time>}
                 title={title(item)}
                 sub={summary ? <span className={styles.sum}>{summary}</span> : undefined}
-                end={<Tag>{kindOf(item)}</Tag>}
+                end={<Pill tone="mission">{kindOf(item)}</Pill>}
                 onClick={() => (setSel(item.id), setDrawer(narrow))}
               />
             </div>

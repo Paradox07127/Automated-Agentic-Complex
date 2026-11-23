@@ -26,29 +26,13 @@
   gap: 12px;
 }
 
-/* bg_mission_tag: yellow capsule with a clock; NewNode: white capsule */
+/* bg_mission_tag: the corner tag over the row's top edge */
 .tag {
   position: absolute;
   right: 14px;
   top: -10px;
   z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 20px;
-  padding: 0 9px 0 7px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 20px;
-  color: var(--ef-btn-light-text);
-  white-space: nowrap;
-  background: var(--ef-btn-light);
-}
-
-.tag[data-tone='y'] {
-  color: var(--ef-on-accent);
-  background: var(--ef-accent);
+  display: flex;
 }
 
 @media (max-height: 600px) {

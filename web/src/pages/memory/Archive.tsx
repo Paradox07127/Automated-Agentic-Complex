@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { keyText } from '../../bridge/platformText';
 import type { Fact, FactKind } from '../../domain';
 import { BottomBarSlot } from '../../shell/headerSlot';
-import { Btn, ErrBar, SearchField, SecHead, Select } from '../../ui';
+import { Btn, Empty, ErrBar, Pill, SearchField, SecHead, Select, Skel } from '../../ui';
 import { IndexCell } from '../../ui/game';
 import { Detail } from './Detail';
 import { Keys } from './Keys';
 import { LeftCol, Plate } from './Index';
 import { catOf, CATS, factText, isCandidate, isDormant, matches, plateOf, recentText, SORTERS, SORTS, SRC, ymd, type Cat, type Sort } from './model';
 import { AddPop, DeleteCard } from './Papers';
-import { DetailCol, Empty, Glyph, List, Lnk, Panel, Row, Sep, Skeleton, SrcMark, Tag, useNarrow, type GlyphName } from './parts';
+import { DetailCol, Glyph, List, Lnk, Panel, Row, Sep, SrcMark, useNarrow, type GlyphName } from './parts';
 import { Votes } from './Votes';
 import styles from './Cols.module.css';
 
@@ -140,9 +140,9 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
           }
           end={
             <>
-              {f.locked && <Tag>已锁定</Tag>}
-              {f.quiet && <Tag>不再提及</Tag>}
-              {isDormant(f) && <Tag dashed>30 天没用到</Tag>}
+              {f.locked && <Pill tone="mission">已锁定</Pill>}
+              {f.quiet && <Pill tone="mission">不再提及</Pill>}
+              {isDormant(f) && <Pill dashed>30 天没用到</Pill>}
             </>
           }
           onClick={() => select(f)}
@@ -153,14 +153,19 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
 
   let list: ReactNode;
   if (error != null) list = <List>{<ErrBar message={`没有读到记忆：${error}`} onRetry={onRetry} />}</List>;
-  else if (facts == null) list = <Skeleton />;
+  else if (facts == null)
+    list = (
+      <List>
+        <Skel rows={6} height={58} />
+      </List>
+    );
   else if (all.length === 0)
     list = (
       <List>
         <Empty
-          mark
+          icon="data"
           title="她还没记住你的事"
-          text="你在对话里说过的偏好、约定和经历，她会记在这里；你说「记住……」她会马上记。"
+          desc="你在对话里说过的偏好、约定和经历，她会记在这里；你说「记住……」她会马上记。"
           action={
             <Btn icon="send" onClick={onChat}>
               去对话
@@ -172,7 +177,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
   else if (shown.length === 0)
     list = (
       <List>
-        <Empty title="没有符合条件的记忆" action={<Lnk onClick={() => setQ('')}>清除条件</Lnk>} />
+        <Empty inline title="没有符合条件的记忆" action={<Lnk onClick={() => setQ('')}>清除条件</Lnk>} />
       </List>
     );
   else if (grouped) {

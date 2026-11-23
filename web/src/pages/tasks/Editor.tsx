@@ -1,7 +1,7 @@
 // The editor in the detail column: 派发任务 (role task or coding session, now or on a schedule), 新建 / 编辑定时任务.
 import type { ReactNode } from 'react';
 import { WEEKDAYS } from '../../domain/schedules';
-import { Btn, Fold } from '../../ui';
+import { Btn, Field, Fold, TextArea } from '../../ui';
 import { GameSeg, MicroLabel } from '../../ui/game';
 import { draftNext, type EditDraft } from './draft';
 import { Clock } from './Glyphs';
@@ -99,11 +99,11 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
           )}
           {role && (
             <Row label="标题">
-              <input className={styles.pill} aria-label="标题" value={d.title} placeholder={repeat ? '例如：每日代码变更小结' : '给任务起个名字'} onChange={(e) => set({ title: e.target.value })} />
+              <Field label="标题" value={d.title} placeholder={repeat ? '例如：每日代码变更小结' : '给任务起个名字'} onChange={(v) => set({ title: v })} />
             </Row>
           )}
           <Row label={repeat ? '指令' : '要求'} note={repeat ? '每次运行都照这段做' : '要做什么，做到什么程度'} top>
-            <textarea className={styles.pill} aria-label={repeat ? '指令' : '要求'} rows={3} value={d.brief} placeholder={repeat ? '交给后台作业执行的说明' : '要做什么，做到什么程度？'} onChange={(e) => set({ brief: e.target.value })} />
+            <TextArea label={repeat ? '指令' : '要求'} rows={3} value={d.brief} placeholder={repeat ? '交给后台作业执行的说明' : '要做什么，做到什么程度？'} onChange={(v) => set({ brief: v })} />
           </Row>
           {!role && (
             <>
@@ -111,7 +111,9 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
                 <GameSeg label="编码工具" value={d.agent} options={[{ value: 'claude', label: 'Claude Code' }, { value: 'codex', label: 'Codex' }]} onChange={(v) => set({ agent: v as EditDraft['agent'] })} />
               </Row>
               <Row label="目录">
-                <input className={`${styles.pill} ${styles.mono} ${styles.dir}`} aria-label="目录" readOnly value={d.cwd?.displayName ?? ''} placeholder="还没有选目录" />
+                <span className={styles.dir}>
+                  <Field label="目录" mono readOnly value={d.cwd?.displayName ?? ''} placeholder="还没有选目录" />
+                </span>
                 <Btn size="sm" variant="ghost" icon="folder" disabled={!canPick} disabledReason="这台电脑的外壳不支持原生目录选择" onClick={onPickFolder}>
                   选择…
                 </Btn>
@@ -138,7 +140,9 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
           )}
           {repeat && d.trig !== 'session_done' && (
             <Row label="时间">
-              <input className={`${styles.pill} ${styles.time}`} aria-label="时间" value={d.at} placeholder="18:30" onChange={(e) => set({ at: e.target.value })} />
+              <span className={styles.time}>
+                <Field label="时间" value={d.at} placeholder="18:30" onChange={(v) => set({ at: v })} />
+              </span>
               <span className={styles.days} role="group" aria-label={d.trig === 'daily' ? '重复星期' : '执行星期'}>
                 {WEEKDAYS.map((w) => {
                   const on = d.trig === 'daily' ? d.weekdays.includes(w.day) : d.weekday === w.day;
@@ -154,7 +158,9 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
           {repeat && d.trig === 'session_done' && (
             <Row label="哪个工具">
               <GameSeg label="哪个工具" value={d.target ?? 'all'} options={[{ value: 'all', label: '不限' }, { value: 'claude', label: 'Claude Code' }, { value: 'codex', label: 'Codex' }]} onChange={(v) => set({ target: v === 'all' ? null : (v as 'claude' | 'codex') })} />
-              <input className={styles.pill} style={{ maxWidth: 240 }} aria-label="项目" value={d.project} placeholder="项目，留空匹配所有项目" onChange={(e) => set({ project: e.target.value })} />
+              <span className={styles.project}>
+                <Field label="项目" value={d.project} placeholder="项目，留空匹配所有项目" onChange={(v) => set({ project: v })} />
+              </span>
             </Row>
           )}
           {role && (
@@ -171,10 +177,10 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
             <Fold label="验收条件" summary={d.artifact.trim() || undefined}>
               <div className={styles.form}>
                 <Row label="预期产物" note="相对产物文件夹；md / txt / csv / json">
-                  <input className={`${styles.pill} ${styles.mono}`} aria-label="预期产物" value={d.artifact} placeholder="例如：汇总.md" onChange={(e) => set({ artifact: e.target.value })} />
+                  <Field label="预期产物" mono value={d.artifact} placeholder="例如：汇总.md" onChange={(v) => set({ artifact: v })} />
                 </Row>
                 <Row label="必须有的章节">
-                  <input className={styles.pill} aria-label="必须有的章节" value={d.sections} placeholder="用顿号隔开" onChange={(e) => set({ sections: e.target.value })} />
+                  <Field label="必须有的章节" value={d.sections} placeholder="用顿号隔开" onChange={(v) => set({ sections: v })} />
                 </Row>
               </div>
             </Fold>

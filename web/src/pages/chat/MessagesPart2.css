@@ -253,6 +253,7 @@ button.toolrow {
 }
 
 .swap {
+  composes: tape from '../../ui/Tape.module.css';
   position: relative;
   display: grid;
   gap: 12px;
@@ -262,16 +263,6 @@ button.toolrow {
   box-shadow: var(--ef-shadow-card);
   color: var(--ef-paper-text);
   animation: swap-in 0.3s var(--ef-ease-g-enter) both;
-}
-
-.swap::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 4px;
-  background: repeating-linear-gradient(115deg, var(--ef-on-accent) 0 6px, var(--ef-accent) 6px 12px);
 }
 
 .swap:focus-visible {

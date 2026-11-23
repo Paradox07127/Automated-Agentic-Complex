@@ -9,7 +9,7 @@ import { PageHeaderSlot } from '../../shell/headerSlot';
 import { useGo } from '../../shell/nav';
 import { isPluginOff, usePlugins } from '../../shell/plugins';
 import { useToast } from '../../shell/toast';
-import { Btn, Icon, Modal, Tabs } from '../../ui';
+import { Btn, Empty, Icon, Modal, Skel, Tabs } from '../../ui';
 import { PowerState } from '../../ui/game';
 import { TasksLoadError } from '../../data/tasksBase';
 import { useCharacters } from '../chat/useChatData';
@@ -209,11 +209,9 @@ export function TasksPage() {
     ) : null;
 
   const listBody = loading ? (
-    <section className={styles.scroll} aria-label="读取中">
-      {[1, 0.7, 0.45].map((o) => (
-        <div key={o} className={styles.skel} style={{ opacity: o }} />
-      ))}
-    </section>
+    <div className={styles.scroll}>
+      <Skel rows={3} height={66} />
+    </div>
   ) : (
     <div className={styles.scroll} data-list="">
       {codeOff}
@@ -233,14 +231,17 @@ export function TasksPage() {
         <Group key={g.key} group={g} start={groups.slice(0, gi).reduce((n, x) => n + x.rows.length, 0)} selected={draft ? null : sel} onSelect={pick} />
       ))}
       {tab === 'done' && q.trim() && ids.length === 0 && (
-        <p className={styles.none}>
-          没找到「{q.trim()}」{' '}
-          <Btn size="sm" variant="text" onClick={() => setQ('')}>
-            清除
-          </Btn>
-        </p>
+        <Empty
+          inline
+          title={`没找到「${q.trim()}」`}
+          action={
+            <Btn size="sm" variant="text" onClick={() => setQ('')}>
+              清除
+            </Btn>
+          }
+        />
       )}
-      {empty && <p className={styles.none}>{emptyText}</p>}
+      {empty && <Empty inline title={emptyText} />}
       {tab === 'done' && !q.trim() && ended.length > limit && (
         <span className={styles.more}>
           <Btn size="sm" variant="text" onClick={() => setLimit(limit + PAGE)}>

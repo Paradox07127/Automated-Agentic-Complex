@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { formatClock, type Conversation } from '../../domain';
-import { Btn, ContextMenu, Icon, IconBtn, SearchField, type IconName, type MenuItem } from '../../ui';
+import { Btn, ContextMenu, Field, Icon, IconBtn, SearchField, type IconName, type MenuItem } from '../../ui';
 import { CellsIn } from './motion';
 import styles from './ConvList.module.css';
 
@@ -52,12 +52,12 @@ function TitleBox({ c, onDone }: { c: Conversation; onDone: (title: string | nul
     finish(t && t !== opened.current.title ? t : null);
   };
   return (
-    <input
-      className={styles.ren}
-      aria-label="话题名"
+    <Field
+      label="话题名"
+      size="sm"
       defaultValue={c.title}
       maxLength={MAX_TITLE}
-      ref={(el) => {
+      inputRef={(el) => {
         if (el && document.activeElement !== el && !done.current) {
           el.focus();
           el.select();

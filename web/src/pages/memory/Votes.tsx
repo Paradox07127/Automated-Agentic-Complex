@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { Fact } from '../../domain';
 import { toast } from '../../shell/toast';
-import { Btn, Fold, InfoTip, SecHead } from '../../ui';
+import { Btn, Fold, InfoTip, SecHead, TextArea } from '../../ui';
 import { useEvidence, type Evidence } from './data';
 import { catLabel, SRC, stamp } from './model';
 import { Glyph, Lnk } from './parts';
@@ -199,14 +199,13 @@ function Card({ fact: f, i, now, held, draft, onDraft, onDecide, onJump }: CardP
         </div>
       ) : draft != null ? (
         <>
-          <textarea
-            className={styles.fix}
+          <TextArea
+            label="改成"
             value={draft}
             maxLength={500}
             rows={2}
-            aria-label="改成"
             autoFocus
-            onChange={(e) => onDraft(e.currentTarget.value)}
+            onChange={onDraft}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.preventDefault();

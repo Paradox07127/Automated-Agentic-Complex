@@ -1,6 +1,6 @@
 import type { PickedHandle } from '../../bridge/protocol';
 import type { Goal } from '../../domain';
-import { Btn, Fold, InfoTip, Seg, Select } from '../../ui';
+import { Btn, Field, Fold, InfoTip, Seg, Select, TextArea } from '../../ui';
 import styles from './CreateForm.module.css';
 
 export type CreateKind = 'role' | 'code';
@@ -73,12 +73,12 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
       {draft.kind === 'role' && (
         <label className={styles.field}>
           <span>标题</span>
-          <input className={styles.input} placeholder="给任务起个名字" value={draft.title} onChange={(e) => set({ title: e.target.value })} />
+          <Field label="标题" placeholder="给任务起个名字" value={draft.title} onChange={(v) => set({ title: v })} />
         </label>
       )}
       <label className={styles.field}>
         <span>要求</span>
-        <textarea className={styles.input} rows={3} placeholder="要做什么，做到什么程度？" value={draft.brief} onChange={(e) => set({ brief: e.target.value })} />
+        <TextArea label="要求" rows={3} placeholder="要做什么，做到什么程度？" value={draft.brief} onChange={(v) => set({ brief: v })} />
       </label>
       {draft.kind === 'role' && (
         <>
@@ -98,11 +98,11 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
                   预期产物
                   <InfoTip>相对于产物文件夹的路径，后缀 md、txt、csv 或 json。</InfoTip>
                 </span>
-                <input className={`${styles.input} ${styles.mono}`} placeholder="例如：汇总.md" value={draft.artifact} onChange={(e) => set({ artifact: e.target.value })} />
+                <Field label="预期产物" mono placeholder="例如：汇总.md" value={draft.artifact} onChange={(v) => set({ artifact: v })} />
               </label>
               <label className={styles.field}>
                 <span>必须包含的章节</span>
-                <input className={styles.input} value={draft.sections} onChange={(e) => set({ sections: e.target.value })} />
+                <Field label="必须包含的章节" value={draft.sections} onChange={(v) => set({ sections: v })} />
               </label>
               <p className={styles.note}>不填预期产物时，结果保留为待复核</p>
             </div>
@@ -127,7 +127,7 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
           <div className={styles.field}>
             <span>目录</span>
             <span className={styles.line}>
-              <input className={`${styles.input} ${styles.mono}`} value={draft.cwd?.displayName ?? ''} placeholder="还没有选目录" readOnly aria-label="目录" />
+              <Field label="目录" mono value={draft.cwd?.displayName ?? ''} placeholder="还没有选目录" readOnly />
               <Btn size="sm" variant="ghost" icon="folder" disabled={!canPick} disabledReason="这台电脑的外壳不支持原生目录选择" onClick={onPickFolder}>
                 选择…
               </Btn>

@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import type { Fact } from '../../domain';
-import { Btn, Menu } from '../../ui';
+import { Btn, Menu, Pill, TextArea } from '../../ui';
 import { useEvidence } from './data';
 import { BY, catOf, CATS, factText, hm, howText, isDormant, recentText, SRC, stamp, sum, useSpark, ymd } from './model';
-import { Block, DetailHead, Kv, Lnk, PANEL, Quote, SrcMark, Tag } from './parts';
+import { Block, DetailHead, Kv, Lnk, PANEL, Quote, SrcMark } from './parts';
 import { useVersions } from './useFacts';
 import styles from './Detail.module.css';
 
@@ -168,14 +168,13 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark
   return (
     <Frame id={f.id} head={<DetailHead title={cat?.label ?? ''} micro={`${cat?.en ?? ''} / ${f.id.slice(0, 6)}`} {...(onClose ? { onClose } : {})} />} foot={foot}>
         {editing ? (
-          <textarea
-            className={styles.edit}
+          <TextArea
+            label="修改这条记忆"
             value={draft}
             maxLength={500}
             rows={3}
-            aria-label="修改这条记忆"
             autoFocus
-            onChange={(e) => setDraft(e.currentTarget.value)}
+            onChange={setDraft}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
@@ -194,9 +193,9 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark
         )}
         {(isDormant(f) || f.locked || f.quiet) && (
           <div className={styles.tags}>
-            {f.locked && <Tag>已锁定</Tag>}
-            {f.quiet && <Tag>不再提及</Tag>}
-            {isDormant(f) && <Tag dashed>30 天没用到</Tag>}
+            {f.locked && <Pill tone="mission">已锁定</Pill>}
+            {f.quiet && <Pill tone="mission">不再提及</Pill>}
+            {isDormant(f) && <Pill dashed>30 天没用到</Pill>}
           </div>
         )}
         <div className={styles.kv}>

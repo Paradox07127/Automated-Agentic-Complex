@@ -6,7 +6,7 @@ import { formatClock, formatDuration, isCodingReview, isReviewableDelivery, type
 import { verifyText } from '../../domain/errorText';
 import { useDeliveryVisibility } from '../../features/delivery';
 import { RejectBox } from '../../features/task';
-import { Btn, Fold, SecHead } from '../../ui';
+import { Btn, Field, Fold, Pill, SecHead, type PillProps } from '../../ui';
 import { MicroLabel } from '../../ui/game';
 import { MessageText } from '../chat/MessageText';
 import { Artifacts } from './Artifacts';
@@ -25,6 +25,14 @@ import styles from './Detail.module.css';
 
 const isAsk = (p: PendingItem): p is AskItem => p.kind === 'approval' || (p.kind === 'question' && p.interaction_kind === 'approval');
 const isQuestion = (p: PendingItem): p is Question => p.kind === 'question' && p.interaction_kind !== 'approval';
+/** State plate: tone and the shape before the word (danger brings its own「!」). */
+const CHIP: Record<'wait' | 'run' | 'done' | 'err' | 'off', [NonNullable<PillProps['tone']>, string]> = {
+  wait: ['attention', '◆'],
+  run: ['mission', '○'],
+  done: ['success', '✓'],
+  err: ['danger', ''],
+  off: ['paper', '□'],
+};
 
 /** The option a role approval's answer names: its own 允许 / 拒绝 label, or `allow_session`. */
 function askAnswer(q: Question, v: Verdict): Record<string, string[]> {
@@ -85,7 +93,7 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
   const first = asks[0] ?? questions[0];
   const decision = first ? { title: first.title, note: asks.length ? '待批准 │ 她停在这一步' : '待回答 │ 她停在这一步', papers } : null;
 
-  const chip = eff === 'waiting'
+  const chip: { k: keyof typeof CHIP; text: string } = eff === 'waiting'
     ? { k: 'wait', text: asks.length ? '待批准' : review || codeReview ? '待复核' : questions.length ? '待回答' : '待处理' }
     : ended
       ? { k: end.err ? 'err' : end.shape === 'ok' ? 'done' : 'off', text: end.text }
@@ -127,10 +135,10 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
         <div className={styles.trow}>
           <h2 title={task.title}>{task.title}</h2>
           {code && session?.own && <SessionMenu sessionId={session.id} />}
-          <span className={styles.chip} data-k={chip.k}>
-            <i aria-hidden="true" />
+          <Pill size="lg" tone={CHIP[chip.k][0]}>
+            {CHIP[chip.k][1] && <span aria-hidden="true">{CHIP[chip.k][1]}</span>}
             {chip.text}
-          </span>
+          </Pill>
         </div>
         <div className={styles.where}>
           <Pin />
@@ -209,7 +217,7 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
             />
             <pre className={styles.logs}>{lines.isError ? '会话输出没读到' : lines.data == null ? '正在读取会话输出…' : lines.data.length ? lines.data.slice(-6).map((l) => `› ${l}`).join('\n') : '还没有输出'}</pre>
             <div className={styles.send}>
-              <input className={styles.field} placeholder="给这个会话补一句…" aria-label="给编码会话发消息" value={msg} onChange={(e) => setMsg(e.target.value)} />
+              <Field label="给编码会话发消息" placeholder="给这个会话补一句…" value={msg} onChange={setMsg} />
               <Btn size="sm" variant="ghost" disabled={!msg.trim()} disabledReason="先写要发的话" onClick={() => {
                 actions.onTask(task)({ kind: 'send_session', text: msg.trim() });
                 setMsg('');

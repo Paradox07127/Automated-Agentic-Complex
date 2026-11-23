@@ -6,7 +6,7 @@ import type { RuntimeInfo } from '../../domain';
 import { navigate } from '../../shell/nav';
 import { usePlugins } from '../../shell/plugins';
 import { offReason } from '../../shell/registry';
-import { Btn, Icon, IconBtn, Menu, type MenuItem } from '../../ui';
+import { Btn, Icon, IconBtn, Menu, TextArea, type MenuItem } from '../../ui';
 import { PowerState } from '../../ui/game';
 import { AttachTray, type TrayItem } from './AttachTray';
 import { reasonOf } from './reasons';
@@ -305,23 +305,22 @@ export function Composer(p: ComposerProps) {
       <AttachTray items={tray} />
       <div className={styles.cbar}>
         <Menu label="附加" icon="g-plus" items={plus} />
-        <label className={styles.inp}>
-          <textarea
-            rows={1}
-            value={d.text}
-            placeholder={`对${p.roleName}说…`}
-            onChange={(e) => edit({ text: e.target.value })}
-            onKeyDown={onKey}
-            onPaste={(e) => {
-              const files = [...e.clipboardData.files];
-              if (files.length === 0 || d.noMem) return;
-              // A clipboard with text too keeps its text paste.
-              if (e.clipboardData.getData('text/plain') === '') e.preventDefault();
-              void adopt(files, true);
-            }}
-            aria-label="消息"
-          />
-        </label>
+        <TextArea
+          label="消息"
+          autoGrow
+          maxRows={5}
+          value={d.text}
+          placeholder={`对${p.roleName}说…`}
+          onChange={(text) => edit({ text })}
+          onKeyDown={onKey}
+          onPaste={(e) => {
+            const files = [...e.clipboardData.files];
+            if (files.length === 0 || d.noMem) return;
+            // A clipboard with text too keeps its text paste.
+            if (e.clipboardData.getData('text/plain') === '') e.preventDefault();
+            void adopt(files, true);
+          }}
+        />
         <Btn variant={p.quietSend ? 'secondary' : 'primary'} tail="g-send" disabled={inactive} {...(said === '' ? { disabledReason: '先输入消息' } : {})} loading={p.sending} onClick={() => void send()}>
           发送
         </Btn>

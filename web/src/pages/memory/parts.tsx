@@ -98,13 +98,6 @@ export function Row({ lead, title, sub, end, selected, label, i, fresh, onClick 
   );
 }
 
-/** Status tag on a row or in the detail: framed text, dashed when dormant. */
-export const Tag = ({ children, dashed }: { children: ReactNode; dashed?: boolean }) => (
-  <span className={styles.st} data-dashed={dashed || undefined}>
-    {children}
-  </span>
-);
-
 /** Detail title bar (profile tab, picked): yellow divider, title, micro label, barcode; the drawer adds a close button. */
 export function DetailHead({ title, micro, onClose }: { title: ReactNode; micro: string; onClose?: () => void }) {
   return (
@@ -162,29 +155,6 @@ export function DetailCol({ narrow, open, label, onClose, children }: { narrow: 
     <Sheet open={open} title={label} width={420} head="none" onClose={onClose}>
       {children}
     </Sheet>
-  );
-}
-
-/** Six shimmering row slots while a list loads. */
-export const Skeleton = () => (
-  <div className={styles.list} aria-busy="true" aria-label="读取中">
-    {Array.from({ length: 6 }, (_, i) => (
-      <div key={i} className={styles.skel} />
-    ))}
-  </div>
-);
-
-/** One reason line and at most one action, inside a panel. */
-export function Empty({ title, text, action, mark }: { title: string; text?: string; action?: ReactNode; mark?: boolean }) {
-  return (
-    <div className={styles.empty}>
-      <span className={styles.eh}>
-        {mark && <i aria-hidden="true" />}
-        <b>{title}</b>
-      </span>
-      {text && <p>{text}</p>}
-      {action}
-    </div>
   );
 }
 

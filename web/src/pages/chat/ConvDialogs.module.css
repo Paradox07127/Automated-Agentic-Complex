@@ -12,6 +12,7 @@
 }
 
 .card {
+  composes: tape from '../../ui/Tape.module.css';
   position: relative;
   display: grid;
   gap: 12px;
@@ -30,18 +31,8 @@
   outline: none;
 }
 
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 4px;
-  background: repeating-linear-gradient(115deg, var(--ef-on-accent) 0 6px, var(--ef-accent) 6px 12px);
-}
-
-.card[data-warn]::before {
-  background: repeating-linear-gradient(115deg, var(--ef-on-accent) 0 6px, var(--ef-danger) 6px 12px);
+.card[data-warn] {
+  --tape-hi: var(--ef-danger);
 }
 
 .h {

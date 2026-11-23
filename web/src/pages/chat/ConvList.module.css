@@ -213,18 +213,6 @@
   transform: rotate(90deg);
 }
 
-/* The title box in a row. */
-.ren {
-  min-width: 0;
-  padding: 2px 8px;
-  border: 0;
-  outline: none;
-  background: var(--ef-field);
-  box-shadow: 0 0 0 2px var(--ef-accent);
-  color: var(--ef-paper-text);
-  font: inherit;
-}
-
 .none {
   margin: 0;
   padding: 8px;

@@ -1,6 +1,8 @@
 // Mission list pieces: list title, chapter groups, mission rows and their end shapes.
 import type { CSSProperties, ReactNode } from 'react';
-import { Icon, SecHead } from '../../ui';
+import type { VisualStateKey } from '../../domain/states';
+import { Icon, Pill, SecHead } from '../../ui';
+import { StatusLamp } from '../../ui/game';
 import { useCountdown } from '../../features/approval/useCountdown';
 import { Clock, Micro, TypeIcon } from './Glyphs';
 import type { ListRow, RowGroup, Shape } from './rows';
@@ -60,13 +62,18 @@ function Countdown({ seconds }: { seconds: number }) {
 
 function Tag({ tag }: { tag: NonNullable<ListRow['tag']> }) {
   return (
-    <span className={gs.tag} data-tone={tag.tone}>
-      {tag.icon === 'clock' && <Clock />}
-      {tag.icon === 'chat' && <Icon name="send" size={12} />}
-      {tag.clock != null ? <Countdown seconds={tag.clock} /> : tag.text}
+    <span className={gs.tag}>
+      <Pill tone={tag.tone === 'y' ? 'attention' : 'paper'}>
+        {tag.icon === 'clock' && <Clock />}
+        {tag.icon === 'chat' && <Icon name="send" size={12} />}
+        {tag.clock != null ? <Countdown seconds={tag.clock} /> : tag.text}
+      </Pill>
     </span>
   );
 }
+
+/** The row's state lamp, read off its end shape. */
+const LAMP: Record<Shape, VisualStateKey> = { trk: 'running', trkY: 'waiting', hatch: 'paused', forbid: 'failed', ok: 'done' };
 
 export interface RowProps {
   row: ListRow;
@@ -99,9 +106,7 @@ export function Row({ row, index, selected, onSelect }: RowProps) {
       <span className={styles.tt}>
         <b>{row.title}</b>
         <small>
-          <span className={styles.st} data-err={row.err || undefined}>
-            {row.state}
-          </span>
+          <StatusLamp size="sm" state={LAMP[row.shape]} label={row.state} />
           {row.sub.map((s) => ` │ ${s}`).join('')}
         </small>
       </span>
