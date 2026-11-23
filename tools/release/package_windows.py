@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Stage the Windows portable directory `Agentic Complex\\` (C11 windows-x64, portable only) from build outputs.
+"""Stage the Windows portable directory `Agentic Complex\\` (C11 windows-x64, portable only) from build outputs and make the
+Velopack release of it.
 
 Takes the official Electron win32-x64 root, app/electron after `npm run build`, ac-helper.exe, private\\renderer\\windows\\build
 (efw.exe and its product .spv), fbx-motion.exe, the web build, the prepared harness runtime, a CPython 3.12 base prefix,
-a character library and, optionally, the UI art (as release.py's ui_art: the pages' art and the
-exe's icon). No installer and no signing; prints one JSON line, the receipt, also written to <output>/pack-receipt.json.
+a character library, vpk and, optionally, the UI art (as release.py's ui_art: the pages' art and the
+exe's icon). `vpk pack` turns the directory into <output>/releases/ (Setup.exe, .nupkg, portable zip, feed files); no
+signing. Prints one JSON line, the receipt, also written to <output>/pack-receipt.json.
 """
 import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -33,6 +36,17 @@ HELPER_LICENSES = ROOT / 'app/helpers/windows/licenses'
 RENDERER = 'efw.exe'
 # The built main process as app/electron/build.mjs writes it on Windows (no preview addon); source maps stay out.
 ELECTRON_APP_FILES = ('dist/main.mjs', 'dist/preload.cjs')
+# What main/velopack.ts imports from app/electron's node_modules at run time: the velopack package with its win-x64 module
+# and its loader @neon-rs/load.
+VELOPACK_SDK_FILES = ('node_modules/velopack/package.json', 'node_modules/velopack/lib/index.js', 'node_modules/velopack/lib/load.js',
+                      'node_modules/velopack/lib/native/velopack_nodeffi_win_x64_msvc.node',
+                      'node_modules/@neon-rs/load/package.json', 'node_modules/@neon-rs/load/dist/index.js',
+                      'node_modules/@neon-rs/load/LICENSE')
+# vpk's stable package id: Setup.exe installs to %LocalAppData%\<it> and names the uninstall entry after it.
+PACK_ID = 'AgenticComplex'
+# A SemVer2 MAJOR.MINOR.PATCH, and dot-separated numbers without leading zeros.
+APP_VERSION = re.compile(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)')
+BUILD_VERSION = re.compile(r'(0|[1-9]\d*)(\.(0|[1-9]\d*))*')
 # What agentd, its harness and mcp's Windows stdio client (pywin32) import from runtime.python; agentd imports no anthropic SDK.
 RUNTIME_IMPORTS = 'ssl, sqlite3, ctypes, httpx, jwt, mcp, numpy, pydantic_core, cryptography, win32api, win32job'
 # The UI art's square icon, from which the macOS release's AppIcon.icns is made too.
@@ -57,7 +71,7 @@ def stage_host(host, electron_runtime, electron_dir, helper, product_name, app_v
     source = json.loads((Path(electron_dir) / 'package.json').read_text(encoding='utf-8'))
     if source['main'] not in ELECTRON_APP_FILES: raise ValueError('electron_main_not_built: ' + source['main'])
     app = host / 'resources/app'
-    for relative in ELECTRON_APP_FILES:
+    for relative in ELECTRON_APP_FILES + VELOPACK_SDK_FILES:
         (app / relative).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(Path(electron_dir) / relative, app / relative)
     write_json(app / 'package.json', dict(name=source['name'], productName=product_name, version=app_version,
@@ -133,6 +147,28 @@ def flip_fuses(executable):
                                               text=True, encoding='utf-8'))
 
 
+def release_version(app_version, build_version):
+    """The SemVer2 version vpk packs: app_version with build_version as its prerelease. Prerelease numbers compare one by
+    one as numbers, so a later build_version (a greater date, or the same date and a greater count) of one app_version is
+    the greater version."""
+    if not APP_VERSION.fullmatch(app_version): raise ValueError('app_version_not_semver: ' + app_version)
+    if not BUILD_VERSION.fullmatch(build_version): raise ValueError('build_version_not_numeric: ' + build_version)
+    return f'{app_version}-{build_version}'
+
+
+def vpk_pack(vpk, package, releases, version, title, icon):
+    """vpk pack of the staged directory into releases (Setup.exe, the full .nupkg, a delta .nupkg when releases holds an
+    earlier one, the portable zip and the feed files), unsigned; return each file's name, bytes and sha256."""
+    argv = [str(vpk), 'pack', '--packId', PACK_ID, '--packVersion', version, '--packDir', str(package), '--mainExe', EXECUTABLE,
+            # Without --runtime vpk marks the package x86.
+            '--packTitle', title, '--runtime', 'win-x64', '--outputDir', str(releases), *(['--icon', str(icon)] if icon else []),
+            # No check for a newer vpk and no live console widgets in a build log.
+            '--skip-updates', '--legacyConsole']
+    subprocess.run(argv, check=True, timeout=1800)
+    return [dict(file=path.name, bytes=path.stat().st_size, sha256=digest(path)) for path in sorted(Path(releases).iterdir())
+            if path.is_file()]
+
+
 def check_runtime_python(python):
     """Run the shipped python.exe with only SYSTEMROOT in its environment: it must import RUNTIME_IMPORTS and have
     its prefix and every sys.path entry in its own directory, so no installed Python is needed."""
@@ -149,11 +185,12 @@ def check_runtime_python(python):
 
 
 def stage(*, library, python, harness_runtime, web_dist, electron_runtime, electron_dir, helper, renderer,
-          fbx_tool, output, build_version, port=None, id=None, product_name=None, app_version=None, ui_art=None):
-    """Write output/Agentic Complex/ and return the receipt: its path, file count, bytes, the fuses and the exe's resources
-    read back per exe, the UI art shipped and contents()."""
+          fbx_tool, output, build_version, vpk, port=None, id=None, product_name=None, app_version=None, ui_art=None):
+    """Write output/Agentic Complex/, vpk pack it into output/releases/ and return the receipt: its path, file count, bytes,
+    the fuses and the exe's resources read back per exe, the UI art shipped, contents(), the release version and files."""
     output = Path(output).resolve()
     if output.exists(): raise ValueError('output already exists')
+    version = release_version(app_version or '0.2.0', build_version)
     identity = id or 'local.agenticcomplex.companion'
     library = Path(library).resolve()
     catalog = Library(library).snapshot()
@@ -208,13 +245,21 @@ def stage(*, library, python, harness_runtime, web_dist, electron_runtime, elect
     finally:
         shutil.rmtree(component_stage)
     check_runtime_python(resources / 'components/runtime.python/payload/python.exe')
+    # The .ico brand() embeds, for Setup.exe and Update.exe.
+    icon = output / 'AppIcon.ico' if ui_art else None
+    if icon: icon.write_bytes(windows_exe.ico(windows_exe.icon((Path(ui_art) / ICON_SOURCE).read_bytes())))
+    try:
+        releases = vpk_pack(vpk, package, output / 'releases', version, product_name, icon)
+    finally:
+        if icon: icon.unlink()
     files = [path for path in package.rglob('*') if path.is_file()]
     # Of the manifest's characters/ the package carries only the library's.
     shipped = resources / 'components/web-ui/payload/ui/art'
     receipt = dict(package=package.name, files=len(files), bytes=sum(path.stat().st_size for path in files), fuses=fuses,
                    branding=branding, contents=contents(package),
                    ui_art=ui_art and dict(files=sum(path.is_file() for path in shipped.rglob('*')),
-                                          manifest_sha256=digest(Path(ui_art) / 'art-manifest.json')))
+                                          manifest_sha256=digest(Path(ui_art) / 'art-manifest.json')),
+                   pack_id=PACK_ID, version=version, releases=releases)
     write_json(output / 'pack-receipt.json', receipt)
     return receipt
 
@@ -227,6 +272,7 @@ if __name__ == '__main__':
                       ('electron-runtime', 'electron_runtime.py: the unpacked root holding electron.exe'),
                       ('electron-dir', 'app/electron after npm run build'), ('helper', 'ac-helper.exe, the DLLs of HELPER_DLLS beside it'),
                       ('renderer', 'private\\renderer\\windows\\build: efw.exe and its .spv'), ('fbx-tool', 'fbx-motion.exe'),
+                      ('vpk', "vpk.exe, Velopack's packer, at app/packaging/velopack.lock.json's version"),
                       ('output', 'A new directory; Agentic Complex\\ is written in it')]:
         parser.add_argument('--' + key, type=Path, required=True, help=help)
     parser.add_argument('--ui-art', type=Path, help='The UI art: art-manifest.json, the files it lists and ' + ICON_SOURCE)

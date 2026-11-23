@@ -18,6 +18,7 @@ from test_harness_runtime import prepared_fixture
 ROOT = Path(__file__).resolve().parents[3]
 LIBRARY = ROOT / 'protocol/character-library/fixtures/library'
 FUSES = {'file': '', 'version': '1', 'fuses': {'RunAsNode': 'disabled'}}
+PACK_ID = 'AgenticComplex'
 BRANDING = {'version': {'ProductName': 'Agentic Complex'}, 'icons': 6, 'icon_groups': ['1'], 'icon_sizes': [256]}
 
 
@@ -45,6 +46,10 @@ class PackageWindowsTests(unittest.TestCase):
         (self.electron_dir / 'package.json').write_text(json.dumps(dict(name='agentic-complex-electron', type='module',
                                                                         main='dist/main.mjs', devDependencies={})))
         for name in ('main.mjs', 'main.mjs.map', 'preload.cjs'): (self.electron_dir / 'dist' / name).write_text('shell ' + name)
+        # npm ci's velopack, with the native modules of every platform, and its loader.
+        for relative in (*package_windows.VELOPACK_SDK_FILES, 'node_modules/velopack/lib/index.d.ts',
+                         'node_modules/velopack/lib/native/velopack_nodeffi_osx.node', 'node_modules/esbuild/package.json'):
+            (self.electron_dir / relative).parent.mkdir(parents=True, exist_ok=True); (self.electron_dir / relative).write_text('npm ' + relative)
         self.helper = self.root / 'ac-helper.exe'; self.helper.write_text('helper')
         # build.bat puts the speech runtime's DLLs beside ac-helper.exe.
         for name in ('sherpa-onnx-c-api.dll', 'onnxruntime.dll'): (self.root / name).write_text('dll ' + name)
@@ -58,22 +63,28 @@ class PackageWindowsTests(unittest.TestCase):
         args = dict(library=LIBRARY, python=self.python, harness_runtime=self.prepared,
                     web_dist=self.web, electron_runtime=self.electron_runtime, electron_dir=self.electron_dir,
                     helper=self.helper, renderer=self.renderer, fbx_tool=self.fbx_tool, output=self.output,
-                    build_version='20261121.1', port=None, id=None, product_name=None, app_version=None)
+                    build_version='20261121.1', vpk=self.root / 'vpk/vpk.exe', port=None, id=None, product_name=None, app_version=None)
         args.update(changes)
-        order = []
+        order, self.icon = [], None
+
+        def pack(vpk, package, releases, version, title, icon):
+            order.append('vpk')
+            self.icon = icon and icon.read_bytes()
+            return [dict(file=PACK_ID + '-win-Setup.exe', bytes=1, sha256='0' * 64)]
         with patch.object(build_components, 'python_version', return_value='3.12.10') as version, \
                 patch.object(package_windows, 'brand', side_effect=lambda *a: order.append('brand') or BRANDING) as brand, \
                 patch.object(package_windows, 'flip_fuses', side_effect=lambda *a: order.append('fuses') or FUSES) as fuses, \
-                patch.object(package_windows, 'check_runtime_python') as check:
+                patch.object(package_windows, 'check_runtime_python') as check, \
+                patch.object(package_windows, 'vpk_pack', side_effect=pack) as vpk:
             receipt = package_windows.stage(**args)
-        self.brand, self.order = brand, order
+        self.brand, self.order, self.vpk = brand, order, vpk
         return receipt, version, fuses, check
 
     def art(self):
         """A UI art directory: art-manifest.json, a page image and the brand icon."""
         art = self.root / 'ui art'
         (art / 'brand').mkdir(parents=True); (art / 'common').mkdir()
-        (art / 'brand/AppIcon-1024.png').write_bytes(windows_exe.write_png(2, 2, [bytearray(8), bytearray(8)]))
+        (art / 'brand/AppIcon-1024.png').write_bytes(windows_exe.write_png(256, 256, [bytearray(b'\x10\x20\x30\xff' * 256)] * 256))
         (art / 'common/tab.png').write_bytes(b'tab')
         # A character the library does not have: its art stays out.
         (art / 'characters/elsewhere').mkdir(parents=True); (art / 'characters/elsewhere/round.png').write_bytes(b'round')
@@ -105,7 +116,9 @@ class PackageWindowsTests(unittest.TestCase):
                          {'locales/en-US.pak', 'locales/ja.pak', 'locales/zh-CN.pak', 'locales/zh-TW.pak'})
         self.assertNotIn('resources/default_app.asar', files)
         self.assertEqual({f for f in files if f.startswith('resources/app/')},
-                         {'resources/app/package.json', 'resources/app/dist/main.mjs', 'resources/app/dist/preload.cjs'})
+                         {'resources/app/package.json', 'resources/app/dist/main.mjs', 'resources/app/dist/preload.cjs',
+                          *('resources/app/' + f for f in package_windows.VELOPACK_SDK_FILES)})
+        self.assertIn('resources/app/node_modules/velopack/lib/native/velopack_nodeffi_win_x64_msvc.node', files)
         app = json.loads((package / 'resources/app/package.json').read_text())
         self.assertEqual(app, dict(name='agentic-complex-electron', productName='Agentic Complex', version='0.2.0', private=True,
                                    type='module', main='dist/main.mjs'))
@@ -237,7 +250,7 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertTrue((ui / 'art/brand/AppIcon-1024.png').is_file())
         self.assertFalse((ui / 'art/characters/elsewhere').exists())
         self.assertEqual(receipt['ui_art'], dict(files=2, manifest_sha256=package_windows.digest(art / 'art-manifest.json')))
-        self.assertEqual(self.order, ['brand', 'brand', 'brand', 'fuses'])
+        self.assertEqual(self.order, ['brand', 'brand', 'brand', 'fuses', 'vpk'])
         calls = [(Path(call.args[0]).name, *call.args[1:])
                  for call in self.brand.call_args_list]
         self.assertEqual(sorted(calls), [(name, art, 'Agentic Complex', '0.2.0', '20261121.1')
@@ -287,6 +300,78 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertEqual(found['duplicates'], [dict(paths=['big copy.bin', 'resources/components/harness.pi/payload/pi-runtime/node_modules/a/big.bin'],
                                                     bytes=len(big))])
         self.assertEqual(receipt['contents']['large'], [])
+
+    def test_the_staged_directory_is_packed_by_vpk_into_releases_and_the_receipt_lists_its_files(self):
+        art = self.art()
+        receipt, *_ = self.stage(ui_art=art, app_version='0.3.1', build_version='20261123.2')
+        (vpk, package, releases, version, title, icon), _ = self.vpk.call_args
+        self.assertEqual((vpk, package, releases), (self.root / 'vpk/vpk.exe', self.output / 'Agentic Complex', self.output / 'releases'))
+        self.assertEqual((version, title), ('0.3.1-20261123.2', 'Agentic Complex'))
+        # The icon brand() embeds, only for vpk.
+        self.assertEqual(self.icon, windows_exe.ico(windows_exe.icon((art / 'brand/AppIcon-1024.png').read_bytes())))
+        self.assertFalse(icon.exists())
+        self.assertEqual({k: receipt[k] for k in ('pack_id', 'version', 'releases')},
+                         dict(pack_id=PACK_ID, version='0.3.1-20261123.2',
+                              releases=[dict(file=PACK_ID + '-win-Setup.exe', bytes=1, sha256='0' * 64)]))
+        self.assertEqual(json.loads((self.output / 'pack-receipt.json').read_text())['releases'], receipt['releases'])
+        self.stage(output=self.root / 'no art')
+        self.assertIsNone(self.vpk.call_args.args[5])
+
+    def test_vpk_packs_the_main_exe_under_the_stable_id_and_its_files_are_listed(self):
+        releases = self.root / 'releases'
+        written = {PACK_ID + '-win-Setup.exe': b'setup', PACK_ID + '-0.2.0-20261121.1-full.nupkg': b'full',
+                   PACK_ID + '-win-Portable.zip': b'portable zip', 'releases.win.json': b'{}'}
+
+        def vpk(argv, **kwargs):
+            releases.mkdir()
+            for name, data in written.items(): (releases / name).write_bytes(data)
+        with patch.object(package_windows.subprocess, 'run', side_effect=vpk) as run:
+            found = package_windows.vpk_pack(Path('C:/vpk/vpk.exe'), Path('C:/out/Agentic Complex'), releases, '0.2.0-20261121.1',
+                                             'Agentic Complex', Path('C:/out/AppIcon.ico'))
+        argv = run.call_args.args[0]
+        options = dict(zip(argv[2:-2:2], argv[3:-2:2]))
+        self.assertEqual(argv[:2] + argv[-2:], [str(Path('C:/vpk/vpk.exe')), 'pack', '--skip-updates', '--legacyConsole'])
+        self.assertEqual(options, {'--packId': PACK_ID, '--packVersion': '0.2.0-20261121.1', '--packDir': str(Path('C:/out/Agentic Complex')),
+                                   '--mainExe': 'Agentic Complex.exe', '--packTitle': 'Agentic Complex', '--runtime': 'win-x64',
+                                   '--outputDir': str(releases),
+                                   '--icon': str(Path('C:/out/AppIcon.ico'))})
+        self.assertNotIn(' ', PACK_ID)
+        self.assertTrue(run.call_args.kwargs['check'])
+        self.assertEqual(found, [dict(file=name, bytes=len(written[name]), sha256=package_windows.digest(releases / name))
+                                 for name in sorted(written)])
+        with patch.object(package_windows.subprocess, 'run') as run:
+            package_windows.vpk_pack(Path('vpk.exe'), Path('pack'), releases, '0.2.0-1', 'Agentic Complex', None)
+        self.assertNotIn('--icon', run.call_args.args[0])
+
+    def test_the_release_version_is_the_app_version_with_the_build_as_prerelease_rising_with_the_build(self):
+        self.assertEqual(package_windows.release_version('0.2.0', '20261121.1'), '0.2.0-20261121.1')
+
+        def semver(version):
+            """SemVer2 precedence of MAJOR.MINOR.PATCH-<numeric prerelease> as a sortable key."""
+            core, _, pre = version.partition('-')
+            return [int(n) for n in core.split('.')], [int(n) for n in pre.split('.')]
+        builds = ['20261121.1', '20261121.2', '20261121.10', '20261122', '20261122.1', '20261201.1']
+        versions = [package_windows.release_version('0.2.0', build) for build in builds]
+        self.assertEqual(sorted(versions, key=semver), versions)
+        self.assertLess(semver(package_windows.release_version('0.2.0', '20291231.9')), semver(package_windows.release_version('0.2.1', '1')))
+        for app, build, error in (('0.2', '20261121.1', 'app_version_not_semver'), ('0.2.0-rc', '1', 'app_version_not_semver'),
+                                  ('0.2.0', '20261121.01', 'build_version_not_numeric'), ('0.2.0', '2026-11-21', 'build_version_not_numeric'),
+                                  ('0.2.0', '', 'build_version_not_numeric')):
+            with self.subTest(app=app, build=build), self.assertRaisesRegex(ValueError, error):
+                package_windows.release_version(app, build)
+        # Refused before anything is written.
+        with self.assertRaisesRegex(ValueError, 'build_version_not_numeric'): self.stage(build_version='x')
+        self.assertFalse(self.output.exists())
+
+    def test_the_velopack_lock_pins_the_sdk_zip_by_sha512_and_vpk_to_the_shell_package(self):
+        lock = json.loads((ROOT / 'app/packaging/velopack.lock.json').read_text())
+        sdk = lock['dotnet_sdk']
+        self.assertEqual(lock['version'], lock['npm_version'])
+        self.assertEqual(json.loads((ROOT / 'app/electron/package.json').read_text())['dependencies'], {'velopack': lock['npm_version']})
+        self.assertRegex(sdk['version'], r'^10\.0\.\d+$')
+        self.assertEqual(sdk['url'], f'https://builds.dotnet.microsoft.com/dotnet/Sdk/{sdk["version"]}/{sdk["archive"]}')
+        self.assertEqual(sdk['archive'], f'dotnet-sdk-{sdk["version"]}-win-x64.zip')
+        self.assertRegex(sdk['sha512'], '^[0-9a-f]{128}$')
 
 
 class WindowsExeTests(unittest.TestCase):

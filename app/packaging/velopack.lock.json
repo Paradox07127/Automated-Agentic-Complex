@@ -1,0 +1,14 @@
+{
+  "schema": "endfield-velopack/v1",
+  "version": "1.2.161",
+  "source": "https://www.nuget.org/packages/vpk/1.2.161",
+  "npm_version": "1.2.161",
+  "dotnet_sdk": {
+    "version": "10.0.404",
+    "platform": "win-x64",
+    "archive": "dotnet-sdk-10.0.404-win-x64.zip",
+    "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.404/dotnet-sdk-10.0.404-win-x64.zip",
+    "sha512": "330ddd2665b43cd2e428216a0d8ea1ac7bb19b5434fdc530e62010dc3b52823a620bf95489d628e1ed6f5122401793ee4887cca4a019122361a1231497f632ee",
+    "checksum_source": "https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json"
+  }
+}

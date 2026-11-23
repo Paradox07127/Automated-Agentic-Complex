@@ -15,7 +15,8 @@ const localProfile = join(repo, 'private/release/release.json');
 const profile = process.env.AAC_RELEASE_PROFILE || (existsSync(localProfile) ? localProfile : join(repo, 'app/packaging/release.json'));
 const uiArt = JSON.parse(readFileSync(profile, 'utf8')).ui_art ?? '';
 
-const shared = { bundle: true, platform: 'node', target: 'node24', external: ['electron'], sourcemap: 'linked', logLevel: 'warning' };
+// velopack loads its native .node from its own directory, so it stays in node_modules (package_windows.py ships it).
+const shared = { bundle: true, platform: 'node', target: 'node24', external: ['electron', 'velopack'], sourcemap: 'linked', logLevel: 'warning' };
 await build({ ...shared, entryPoints: ['src/main/index.ts'], format: 'esm', outfile: 'dist/main.mjs',
   define: { AAC_BUILD_GIT: JSON.stringify(git), AAC_UI_ART: JSON.stringify(uiArt) } });
 await build({ ...shared, entryPoints: ['src/preload/index.ts'], format: 'cjs', outfile: 'dist/preload.cjs' });

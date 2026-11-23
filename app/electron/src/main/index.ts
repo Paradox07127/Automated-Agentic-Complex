@@ -114,8 +114,12 @@ import { singleInstance } from './single-instance.ts';
 import { TitleOverlay, titleNames, titleScreen } from './title/overlay.ts';
 import { ServiceSupervisor } from './services/supervisor.ts';
 import { uiServer, type UiResponse } from './ui-scheme.ts';
+import { velopackStartup } from './velopack.ts';
 import { guardWebContents, type WebGuardPorts } from './web-guard.ts';
 import { c3Cursor, currentCharacterOf, handleNudge, helloBuild, notifySettings, pagesRoot, refreshRoster } from './wiring.ts';
+
+// Before any other startup code: a Velopack hook run must exit without taking the lock, a window or a child.
+if (shellPlatform() === 'windows') await velopackStartup();
 
 /** Put in by build.mjs: the checkout's commit, and the release profile's UI art directory relative to the checkout. */
 declare const AAC_BUILD_GIT: string | undefined;
