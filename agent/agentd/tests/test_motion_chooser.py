@@ -306,6 +306,11 @@ class EventKeysTest(unittest.TestCase):
         chooser.set_motion_overrides({}, {}, {})
         self.assertEqual(chooser.pool("click.repeat"), [])
 
+    def test_the_event_keys_are_c3_s_shared_list(self):
+        from motion.chooser import EVENT_RULES
+        shared = Path(__file__).resolve().parents[3] / "protocol" / "C3-host-ipc" / "event-pools.json"
+        self.assertEqual(sorted(EVENT_RULES), json.loads(shared.read_text(encoding="utf-8"))["keys"])
+
     def test_the_reaction_table_gains_the_filled_trigger(self):
         from observation.spatial import _reactions
         chooser = MotionChooser(PACK)
