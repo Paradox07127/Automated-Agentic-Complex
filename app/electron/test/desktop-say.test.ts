@@ -40,6 +40,8 @@ test('arguments the bridge refuses are invalid_args', () => {
     assert.throws(() => parseSay(bad), (e) => e instanceof BridgeFailure && e.code === 'invalid_args', JSON.stringify(bad));
   }
   assert.equal(parseSay({ ...base, text: '佩'.repeat(2000) }).text.length, 2000);
+  assert.equal(parseSay({ ...base, text: `${'佩'.repeat(2000)}\n\n`, quote: { text: ` ${'x'.repeat(2000)} ` } }).text.length, 2002,
+    'the limit counts the text without its surrounding whitespace, as agentd does');
 });
 
 test('a runtime refusal is kernel with its fix, another is rejected with the bar\'s line, no answer is agentd', async () => {

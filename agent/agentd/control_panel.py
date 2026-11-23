@@ -2,6 +2,8 @@
 import re
 from urllib.parse import parse_qs, urlparse
 
+from daemon.constants import MAX_MESSAGE, say_text
+
 CONVERSATION = re.compile(r'^/conversations/([a-f0-9]{32})(?:/(activate|turns|messages|cancel))?$')
 SESSION = re.compile(r'^/sessions/(own:[a-f0-9]{12})$')
 
@@ -47,7 +49,7 @@ def route(h, method, path):
         if conversation and conversation[2] == 'messages' and method == 'POST':
             answered = None
             with server._switch_lock:
-                if 'reply_to' not in body and ('text' not in body or set(body) - {'text', 'look', 'no_memory', 'scope_id', 'quote_turn'} or not isinstance(body.get('text'), str) or not 0 < len(body['text'].strip()) <= 8000):
+                if 'reply_to' not in body and ('text' not in body or set(body) - {'text', 'look', 'no_memory', 'scope_id', 'quote_turn'} or not say_text(body.get('text'), MAX_MESSAGE)):
                     raise ValueError('invalid_text')
                 if 'reply_to' not in body:
                     for key in ('look', 'no_memory'):

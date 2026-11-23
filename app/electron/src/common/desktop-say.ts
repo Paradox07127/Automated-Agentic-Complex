@@ -14,8 +14,8 @@ export type SayResult = { ok: true } | { ok: false; reason: 'agentd' | 'kernel' 
 const SURFACES = new Set(['quick_input', 'bubble_reply', 'thought_offer', 'chat']);
 const ARGS = '{text, attachWindow, noMemory, scopeId?, surface?, quote?, replyTo?, lookWindow?}';
 
-/** agentd's `/say` takes 1–2000 characters that are not all blank. */
-const sayable = (t: unknown): t is string => typeof t === 'string' && t.trim() !== '' && [...t].length <= 2000;
+/** agentd's `/say` takes 1–2000 characters once its surrounding whitespace is off (`say_text`). */
+const sayable = (t: unknown): t is string => typeof t === 'string' && t.trim() !== '' && [...t.trim()].length <= 2000;
 const obj = (v: unknown): Record<string, unknown> | null =>
   typeof v === 'object' && v !== null && !Array.isArray(v) ? v as Record<string, unknown> : null;
 const whole = (v: unknown, max: number): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= max;

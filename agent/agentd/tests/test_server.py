@@ -1931,6 +1931,9 @@ class SayTest(FeedServerCase):
         self.assertEqual(self.say("你好", token=HOOK)[0], 401)
         self.assertEqual(self.request("POST", "/say", {"text": ""})[0], 400)
         self.assertEqual(self.request("POST", "/say", {"text": "x" * 2001})[0], 400)
+        # The limit counts the text without its surrounding whitespace, as a chat message's does.
+        self.assertEqual(self.request("POST", "/say", {"text": "x" * 2000 + "\n" * 5})[0], 202)
+        self.assertEqual(self.request("POST", "/say", {"text": "x", "quote": {"text": " " + "x" * 2000 + " ", "app": None}})[0], 202)
         self.server.mouth = None
         self.assertEqual(self.say("你好"), (503, {"error": "no_llm"}))
 

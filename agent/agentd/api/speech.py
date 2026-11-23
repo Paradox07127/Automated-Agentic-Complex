@@ -3,7 +3,7 @@ import json
 import os
 from urllib.parse import parse_qs, urlparse
 
-from daemon.constants import FEEDBACK, MAX_SAY
+from daemon.constants import FEEDBACK, MAX_SAY, say_text
 from voice.speech import REASONS, endpoint
 from api.views import _is_dir
 from voice.voice_provider import RemoteWsVoice
@@ -31,7 +31,7 @@ class SpeechMixin:
     def _say(self, body):
         """(code, body) of one /say."""
         text = body.get("text") if isinstance(body, dict) else None
-        if not isinstance(text, str) or not text.strip() or len(text) > MAX_SAY:
+        if not say_text(text, MAX_SAY):
             return 400, {"error": "invalid_text"}
         source = body.get("source", "text")
         if source not in ("text", "voice"):
@@ -60,7 +60,7 @@ class SpeechMixin:
         quote = body.get("quote")
         if quote is not None:
             if not isinstance(quote, dict) or not set(quote) <= {"text", "app"} \
-                    or not isinstance(quote.get("text"), str) or not quote["text"].strip() or len(quote["text"]) > MAX_SAY \
+                    or not say_text(quote.get("text"), MAX_SAY) \
                     or not isinstance(quote.get("app"), (str, type(None))):
                 return 400, {"error": "invalid_payload", "field": "quote"}
             quote = {"text": quote["text"], "app": quote.get("app")}
