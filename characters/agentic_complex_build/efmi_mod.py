@@ -53,11 +53,17 @@ CALLBACKS = {'commandlist\\efmiv1\\component_drawinstances': ('commandlist\\efmi
                                                              'commandlist\\efmiv1\\callback_component_drawcustom'),
              'commandlist\\efmiv1\\shapekeys_apply': ('commandlist\\efmiv1\\callback_shapekeys_attachcomponent',)}
 REGISTER = 'commandlist\\efmiv1\\registermod'
+# EFMI's list of CheckTextureOverride ps-t0..22, and the mod callback EFMI restores every slot after, per instance.
+OVERRIDE_TEXTURES = 'commandlist\\efmiv1\\overridetextures'
+DRAW_CUSTOM = 'commandlist\\efmiv1\\callback_component_drawcustom'
 SHAPEKEY_SETTER = 'customshader\\efmiv1\\shapekeysetter'
 # Custom shader kinds, the one that weighs most for a component first; `state` only changes render state.
 KINDS = ('geometry', 'pixel_effect', '2d_panel', 'compute')
 STREAM = re.compile(r'ib|vb\d+')
 SLOT = re.compile(r'ps-t\d+')
+FILTER_SLOT = re.compile(r'ps-t\[\s*([^\]]*?)\s*\]')
+# What 3DMigoto's `%16llx` reads as a whole hash value.
+HEX = re.compile(r'(?:0x)?[0-9a-f]+', re.IGNORECASE)
 ELEMENT_FORMAT = re.compile(r'(vb\d+)->elementformat\(\s*([a-z]+)\s*,\s*(\d+)\s*\)')
 TOKEN = re.compile(r'\s*(?:(\d+(?:\.\d*)?|\.\d+)|([a-z]{2}-t\d+)->format\b|(\$[\\\w.]+(?:\[[^\]]*\])?)|(==|!=|<=|>=|&&|\|\||[-+*/%<>!()])'
                    r'|([a-z_]\w*(?:(?:->|-)\w+)*(?:\([^)]*\))?))', re.IGNORECASE)
@@ -186,7 +192,7 @@ class Component:
 class EfmiMod:
     root: Path
     ini: Path
-    # Every ini that is read, in name order, `ini` the first: 3DMigoto loads all but a DISABLED* one.
+    # Every ini that is read, in include_recursive order (files, then subfolders, by name), `ini` the first.
     inis: list[Path]
     sections: list[Section]
     name: str | None
@@ -215,21 +221,25 @@ class EfmiMod:
     # CustomShader section -> geometry, pixel_effect, 2d_panel, compute or state.
     custom_shaders: dict = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    # Filename -> 'srgb' or 'linear' of a Resource's color_space, which the runtime loads the DDS by in place of its own format.
+    color_spaces: dict = field(default_factory=dict)
 
 
 def parse_ini(text):
     """Sections in file order; keys are lower-cased and each line keeps the if/elif/else blocks around it."""
     sections, current, stack, part, blocks, note = [], None, [], None, [], None
     for raw in text.splitlines():
-        line, _, comment = raw.partition(';')
-        line = line.strip()
+        # 3DMigoto reads a `;` as a comment only at the start of a line; elsewhere it is part of the value.
+        line, comment = raw.strip(), ''
+        if line.startswith(';'):line, comment = '', line[1:]
         if match := PART.search(comment):part = match.group(1).strip()
         if not line:
             note = comment.strip(' \t-=#*') or None if raw.strip() else None
             if note and current is not None and not current.entries and current.comment is None:current.comment = note
             continue
-        if line.startswith('[') and line.endswith(']'):
-            current = Section(line[1:-1].strip(), comment=note); sections.append(current); stack, part, blocks, note = [], None, [], None
+        if line.startswith('['):
+            # The section name runs up to the first `]`, or to the end of the line without one.
+            current = Section(line[1:].partition(']')[0].strip(), comment=note); sections.append(current); stack, part, blocks, note = [], None, [], None
             continue
         note = None
         word = line.split(None, 1)[0].lower()
@@ -320,8 +330,52 @@ def draw_call(entry):
     return Draw(None, None, entry)
 
 
+def excluded(name):
+    """Whether EFMI's include_recursive skips a file or folder of this name: DISABLED* and desktop.ini."""
+    return name.casefold().startswith('disabled') or name.casefold() == 'desktop.ini'
+
+
 def loaded_ini(name):
-    return name.lower().endswith('.ini') and not name.lower().startswith('disabled')
+    # 3DMigoto compares the extension case-sensitively.
+    return name.endswith('.ini') and not excluded(name)
+
+
+def ini_files(root, folder=''):
+    """The inis 3DMigoto loads under `folder` of `root`: its files, then each subfolder's, both in case-insensitive name order."""
+    entries = sorted((p for p in (checked_path(root, folder) if folder else root).iterdir() if not excluded(p.name)),
+                     key=lambda p: p.name.casefold())
+    files = [checked_path(root, f'{folder}/{p.name}' if folder else p.name) for p in entries if loaded_ini(p.name) and p.is_file()]
+    return files+[f for p in entries if p.is_dir() for f in ini_files(root, f'{folder}/{p.name}' if folder else p.name)]
+
+
+def hex_value(text):
+    """The number 3DMigoto reads from a whole hash value (`%16llx`: up to 16 characters, 0x prefix allowed), or None."""
+    text = (text or '').strip()
+    return int(text, 16) if len(text) <= 16 and HEX.fullmatch(text) else None
+
+
+def filter_keys(sections):
+    """[Filter*] section with a match_dhash -> the slot key `filter:<dhash>:<match_format>:<max Hamming distance>` it binds under."""
+    out = {}
+    for s in sections:
+        if not s.name.lower().startswith('filter') or (dhash := hex_value(s.get('match_dhash'))) is None:continue
+        try:confidence = min(max(float(s.get('match_confidence') or 0.75), 0.0), 1.0)
+        except ValueError:confidence = 0.75
+        out[s.name.lower()] = f'filter:{dhash:016x}:{plain_format(s.get("match_format") or "")}:{int((1-confidence)*64)}'
+    return out
+
+
+def slot_key(key, filters):
+    """The slot a `ps-tN` or `ps-t[<filter>]` key binds, or None for any other key."""
+    if SLOT.fullmatch(key):return key
+    match = FILTER_SLOT.fullmatch(key)
+    return filters.get(match.group(1)) if match else None
+
+
+def priority(text):
+    """A section's match_priority, 0 when it has none."""
+    text = (text or '').strip()
+    return int(text) if re.fullmatch(r'[-+]?\d+', text) else 0
 
 
 def bem_package(root):
@@ -446,9 +500,10 @@ class Scene:
                         self.writers.setdefault(name.split('[')[0], []).append(s.name.lower())
                     if e.key == 'cs-t0' and (name := resource_name(e.value)) != 'null':self.inputs.setdefault(s.name.lower(), name.split('[')[0])
         self.copies, self.formats = {}, {}
-        # (hash, `this` line) of each texture override whose `this` is a resource of no file: the draw lists choose its texture.
-        self.chosen = [(s.get('hash').lower(), e) for s in mod.sections if s.name.lower().startswith('textureoverride') and s.get('hash')
-                       for e in s.entries if e.key == 'this' and (r := self.by_name.get(target(e.value))) is not None and not r.get('filename')]
+        self.filters = filter_keys(mod.sections)
+        # The overrides a texture check runs, those that reach a `this` line, in the runtime's (match_priority, section name) order.
+        self.checked = sorted((o for o in mod.overrides if any(phase_key(e.key) == 'this' for e in o.lines)),
+                              key=lambda o: (priority(self.by_name[o.section.lower()].get('match_priority')), o.section))
 
     def file(self, name):
         section = self.by_name.get(name.split('[')[0]) if name else None
@@ -570,18 +625,22 @@ def shader_kind(section, geometry):
 class Run:
     """One pass over the mod's command lists as data: variables, bindings and draw calls; no shader or file of the mod runs."""
 
-    def __init__(self, scene, values, slot_formats=None):
-        self.scene, self.values, self.slot_formats = scene, dict(values), slot_formats
+    def __init__(self, scene, values, slot_formats=None, override=None):
+        """`override` is the component override whose pass this is: a texture check tests the match_* keys against its draw."""
+        self.scene, self.values, self.slot_formats, self.override = scene, dict(values), slot_formats, override
         self.lists, self.bound, self.slots, self.saved, self.element_formats = {}, {}, {}, {}, {}
         self.segments, self.ran, self.shader, self.drawn, self.steps = [], [], [], None, 0
+        # `hash:<h>` -> candidates of the `this` of texture hash h a texture check decided; `this` is the hash being checked.
+        self.hashes, self.this = {}, None
 
     def lookup(self, name):
         if not name.endswith('->format'):return self.values.get(name)
         bound = self.slots.get(name[:-len('->format')])
         if bound and len(bound) == 1 and not bound[0][1]:
-            # A slot holding one of the mod's textures has that texture's format.
-            return 0.0 if bound[0][0] is None else self.scene.dxgi(bound[0][0])
-        return None if self.slot_formats is None else float(self.slot_formats.get(name[:-len('->format')], 0))
+            # A slot holding one of the mod's textures has that texture's format; an unbound one is -2 (RESOURCE_NOT_FOUND).
+            return -2.0 if bound[0][0] is None else self.scene.dxgi(bound[0][0])
+        if self.slot_formats is None:return None
+        return float(self.slot_formats[name[:-len('->format')]]) if name[:-len('->format')] in self.slot_formats else -2.0
 
     def test(self, text):
         value, unsure = calculate(text, self.lookup)
@@ -621,7 +680,11 @@ class Run:
         if key == 'run':self.call(target(value), conditions, fork, depth)
         elif is_draw(key, value):self.draw(key, value, conditions)
         elif STREAM.fullmatch(key):self.bound[key] = self.buffer(value)
-        elif SLOT.fullmatch(key):self.bind(key, value, fork)
+        elif slot := slot_key(key, self.scene.filters):self.bind(slot, value, fork, self.slots)
+        elif key == 'this':
+            # Outside a texture check `this` sets nothing.
+            if self.this is not None:self.bind('hash:'+self.this, value, fork, self.hashes)
+        elif key == 'checktextureoverride' and SLOT.fullmatch(resource_name(value)):self.check(conditions, fork, depth)
         elif match := ELEMENT_FORMAT.fullmatch(key):self.element_formats[match.group(1), match.group(2).upper()+match.group(3)] = plain_format(value)
         elif words and words[-1].startswith('$') and set(words[:-1]) <= {'global', 'local', 'persist'}:
             if '[' in words[-1]:return
@@ -640,9 +703,14 @@ class Run:
             if name not in self.lists:break
             name = self.lists[name]
             if name is None:return
+        if name == OVERRIDE_TEXTURES:return self.check(conditions, fork, depth)
         # Variants such as Component_DrawInstances_NoDecomposition call back alike.
         for callback in next((v for k, v in CALLBACKS.items() if name.startswith(k)), ()):
-            if self.lists.get(callback):self.call(self.lists[callback], conditions, fork, depth)
+            if not self.lists.get(callback):continue
+            kept = dict(self.slots), dict(self.hashes)
+            self.call(self.lists[callback], conditions, fork, depth)
+            # Component_Instance_DrawCustom restores every slot after the custom draw; NoDecomposition calls it bare.
+            if callback == DRAW_CUSTOM and not name.endswith('_nodecomposition'):self.slots, self.hashes = kept
         section = self.scene.by_name.get(name)
         if section is None or depth >= MAX_DEPTH:return
         kind = self.scene.kinds.get(name)
@@ -659,44 +727,64 @@ class Run:
             name = self.saved[name]
         return name
 
-    def bind(self, slot, value, fork):
+    def check(self, conditions, fork, depth):
+        """A texture check: each texture override that accepts the draw runs, its `this` replacing the texture of its hash."""
+        if depth >= MAX_DEPTH:return
+        outer = self.this
+        try:
+            for o in self.scene.checked:
+                if not self.matches(o):continue
+                self.this = o.hash
+                self.section(self.scene.by_name[o.section.lower()].entries, conditions, fork, depth+1)
+        finally:self.this = outer
+
+    def matches(self, o):
+        """Whether `o`'s match_index_count and match_first_index accept the draw of this pass; a value not known on either side does."""
+        for key in ('match_index_count', 'match_first_index'):
+            own, drawn = o.keys.get(key, '').strip(), (self.override.keys.get(key, '') if self.override else '').strip()
+            if own.isdigit() and drawn.isdigit() and int(own) != int(drawn):return False
+        return True
+
+    def bind(self, slot, value, fork, into):
         name = resource_name(value)
         state = self.slots.get(name, ORIGINAL) if SLOT.fullmatch(name) else self.saved.get(name, name)
         if isinstance(state, str):state = ((None if state == 'null' else self.scene.file(state), ()),)
         if not fork:
-            if state is ORIGINAL:self.slots.pop(slot, None)
-            else:self.slots[slot] = state
+            if state is ORIGINAL:into.pop(slot, None)
+            else:into[slot] = state
             return
         # Under an open slot-format test the binding is one candidate more; the others stay for when the test fails.
-        kept = tuple(c for c in self.slots.get(slot, ()) if c[1] != fork)
+        kept = tuple(c for c in into.get(slot, ()) if c[1] != fork)
         added = () if state is ORIGINAL else tuple((f, fork+t) for f, t in state)
-        if kept+added:self.slots[slot] = kept+added
-        else:self.slots.pop(slot, None)
+        if kept+added:into[slot] = kept+added
+        else:into.pop(slot, None)
 
     def draw(self, key, value, conditions):
         args = [a.strip() for a in value.split(',')]+['', '']
         count, first = (None, None) if key == 'draw' else \
             (calculate(a, self.lookup)[0] if a else None for a in (args[0], args[1 if key == 'drawindexed' else 2]))
         shader = self.shader[-1] if self.shader else None
-        textures = dict(self.slots)
-        for h, e in self.scene.chosen:
-            if all(self.branch(earlier, test) is not None for earlier, test in e.conditions) and (file := self.scene.file(self.buffer(e.value))):
-                textures['hash:'+h] = ((file, ()),)
+        textures = dict(self.slots, **self.hashes)
         self.segments.append(Segment(None if first is None else int(first), None if count is None else int(count),
                                      tuple(c for c in conditions if self.scene.marks(c)), textures, shader))
         if shader is None and self.drawn is None:self.drawn = (dict(self.bound), dict(self.element_formats))
 
 
-def startup(scene):
-    """The variables once [Constants], the EFMI registration command lists and one [Present] ran; registering sets a mod's enable flag."""
+def startup(scene, values=None):
+    """The variables of a frame in which the mod draws: [Constants], then `values` over them, the EFMI registration command lists
+    and [Present], then [Present] again with $object_detected = 1, which derives the toggles' $draw_* from their swap vars."""
     run = Run(scene, {})
     sections = scene.mod.sections
-    try:
-        for s in [s for s in sections if s.name.lower() == 'constants']+\
-                 [s for s in sections if any(phase_key(e.key) == 'run' and target(e.value) == REGISTER for e in s.entries)]+\
-                 [s for s in sections if s.name.lower() == 'present']:
-            run.section(s.entries, (), (), 0)
-    except Overrun:pass
+    present = [s for s in sections if s.name.lower() == 'present']
+    def each(found):
+        try:
+            for s in found:run.section(s.entries, (), (), 0)
+        except Overrun:pass
+    each([s for s in sections if s.name.lower() == 'constants'])
+    run.values.update({k.lower(): float(v) for k, v in (values or {}).items()})
+    each([s for s in sections if any(phase_key(e.key) == 'run' and target(e.value) == REGISTER for e in s.entries)]+present)
+    run.values['$object_detected'] = 1.0
+    each(present)
     return run.values
 
 
@@ -704,15 +792,14 @@ def components(mod, values=None, slot_formats=None):
     """Component id -> Component of each component's override with the largest match_index_count, evaluated at the defaults with
     `values` (variable -> number) over them; `slot_formats` (ps-tN -> DXGI code, others unbound) decides the game's slot formats."""
     scene = Scene(mod)
-    start = startup(scene)
-    start.update({k.lower(): float(v) for k, v in (values or {}).items()})
+    start = startup(scene, values)
     chosen = {}
     for o in mod.overrides:
         if o.component is not None and (o.component not in chosen or (o.index_count or -1) > (chosen[o.component].index_count or -1)):
             chosen[o.component] = o
     shape_keys, out = scene.shape_keys(start), {}
     for cid, o in sorted(chosen.items()):
-        run = Run(scene, start, slot_formats)
+        run = Run(scene, start, slot_formats, o)
         try:run.section(scene.by_name[o.section.lower()].entries, (), (), 0)
         except Overrun:pass
         out[cid] = scene.component(o, run, shape_keys)
@@ -721,21 +808,26 @@ def components(mod, values=None, slot_formats=None):
 
 def load_mod(root):
     root = Path(root).resolve()
-    inis = sorted((p for p in root.iterdir() if loaded_ini(p.name) and p.is_file()), key=lambda p: p.name.casefold())
-    if not inis:
+    if not any(loaded_ini(p.name) and p.is_file() for p in root.iterdir()):
         # A folder above the mod opens the shallowest folder holding an ini, when there is exactly one.
-        found = sorted((len(Path(d).relative_to(root).parts), Path(d)) for d, _, names in os.walk(root)
-                       if any(loaded_ini(n) for n in names))
+        found = []
+        for d, folders, names in os.walk(root):
+            folders[:] = [n for n in folders if not excluded(n)]
+            if any(loaded_ini(n) for n in names):found.append((len(Path(d).relative_to(root).parts), Path(d)))
+        found.sort()
         if len(found) > 1 and found[0][0] == found[1][0]:raise ValueError('ambiguous_ini')
         if found:return load_mod(found[0][1])
         if bem_package(root):raise ValueError('unsupported_mod:BEM 包（BEM\\0PKG\\0）不是 EFMI mod，这里只读 EFMI 的 .ini')
         raise ValueError('unsupported_mod:目录里没有 .ini，不是 EFMI mod')
-    inis = [checked_path(root, p.name) for p in inis]
+    inis = ini_files(root)
     sections, owner, total = [], {}, 0
     for ini in inis:
         size = ini.stat().st_size; total += size
         if size > MAX_FILE_BYTES:raise ValueError('mod_too_large')
         own = parse_ini(ini.read_text(encoding='utf-8-sig'))
+        # A resource's file is relative to the folder of the ini naming it.
+        if (folder := ini.parent.relative_to(root).as_posix()) != '.':
+            for e in (e for s in own for e in s.entries if e.key == 'filename'):e.value = folder+'/'+e.value
         # One section in two files would be two namespaces in 3DMigoto, which the lookups by name here cannot tell apart.
         for s in own:
             if owner.setdefault(s.name.lower(), ini) != ini:raise ValueError('ambiguous_ini')
@@ -754,6 +846,7 @@ def load_mod(root):
                 if f.read(16) == b'EFF_AUTHOR_FILE3':raise ValueError(EFF)
     by_name = {s.name.lower(): s for s in sections}
     resources = {s.name.lower(): s.get('filename').replace('\\', '/') for s in sections if s.get('filename')}
+    filters = filter_keys(sections)
     buffers, entry_points, draws, textures, name = {}, {}, {}, [], None
     constants, keys, skeleton, overrides, slots, external = {}, [], {}, [], [], []
     # Skeleton pool name -> offsets or counts, by the template's names and by what the mod binds to EFMI's inputs.
@@ -784,21 +877,22 @@ def load_mod(root):
                     skeleton[index] = (int(e.value), count) if pools[match.group(1)] == 'offsets' else (offset, int(e.value))
             if e.key.startswith('resource\\') and target(e.value) in resources and resources[target(e.value)].lower().endswith('.dds'):
                 external.append((e.key, resources[target(e.value)]))
-        if not lower.startswith('textureoverride') or not s.get('hash'):continue
+        # The runtime skips a texture override whose hash it cannot read.
+        if not lower.startswith('textureoverride') or (number := hex_value(s.get('hash'))) is None:continue
         lines = reach(s.entries, by_name, {lower})
         own = {k: s.get(k) for k in ('hash', 'match_first_index', 'match_index_count', 'filter_index', 'handling', 'this') if s.get(k) is not None}
         cid = next((int(e.value) for e in s.entries+lines if e.key == '$\\efmiv1\\component_id' and e.value.isdigit()), None)
         if cid is None and (match := re.search(r'component(\d+)', lower)):cid = int(match.group(1))
         count = own.get('match_index_count')
-        override = Override(s.name, s.get('hash').lower(), cid, int(count) if count and count.isdigit() else None, own, lines,
+        override = Override(s.name, '%08x' % (number & 0xffffffff), cid, int(count) if count and count.isdigit() else None, own, lines,
                             [draw_call(e) for e in lines if is_draw(e.key, e.value)])
         overrides.append(override)
         if cid is not None:
             entry_points.setdefault(cid, override.hash)
             draws.setdefault(cid, [(d.count, d.first) for d in override.draws])
         if own.get('this') and target(own['this']) in resources:textures.append((override.hash, resources[target(own['this'])]))
-        slots += [SlotTexture(cid, e.key, resources[target(e.value)], e) for e in lines
-                  if re.fullmatch(r'ps-t\d+', e.key) and target(e.value) in resources]
+        slots += [SlotTexture(cid, slot, resources[target(e.value)], e) for e in lines
+                  if (slot := slot_key(e.key, filters)) and target(e.value) in resources]
     layouts = {}
     if (root/'Meshes').is_dir() and (path := checked_path(root, 'Meshes/Components.buf')).is_file() and path.stat().st_size <= MAX_FILE_BYTES:
         try:layouts = json.loads(path.read_bytes())
@@ -810,13 +904,15 @@ def load_mod(root):
     bones = constants.get('$bones_count')
     if bones is None and (given := next((e.value.lower() for s in sections for e in s.entries if e.key == '$\\efmiv1\\bones_count'), None)):
         bones = constants.get(given, given)
+    color_spaces = {resources[s.name.lower()]: space for s in sections if s.name.lower().startswith('resource') and s.name.lower() in resources
+                    and (space := (s.get('color_space') or '').strip().lower()) in ('srgb', 'linear')}
     warnings = ['shader_patch_ignored:'+ini.name for ini in inis if any(s.name.lower().startswith('shaderregex') and owner[s.name.lower()] == ini
                                                                         for s in sections)]
     mod = EfmiMod(root=root, ini=inis[0], inis=inis, sections=sections, name=name, buffers=buffers, entry_points=entry_points, draws=draws,
                   textures=textures, files=files, merged_skeleton=merged, overrides=overrides, slot_textures=slots,
                   external_textures=external, constants=constants, keys=keys, skeleton=skeleton,
                   bones_count=int(bones) if bones and bones.isdigit() else None, layouts=layouts if isinstance(layouts, dict) else {},
-                  warnings=warnings)
+                  warnings=warnings, color_spaces=color_spaces)
     scene = Scene(mod)
     mod.custom_shaders = {by_name[n].name: kind for n, kind in scene.kinds.items()}
     mod.defaults = startup(scene)

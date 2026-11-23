@@ -859,6 +859,7 @@ drawindexed = 6, 0, 0
 ResourceSelectedParameters = ref ResourceNewParameters
 $active = 1
 ps-t70 = ref ResourceNewCoat
+run = CommandList\\EFMIv1\\OverrideTextures
 drawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'''
         sections = '''
 [ResourceSelectedCoat]
