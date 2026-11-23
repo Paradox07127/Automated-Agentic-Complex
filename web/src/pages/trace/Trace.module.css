@@ -1,55 +1,12 @@
-/* 运行记录: the page's colours in both themes, the two tab layouts and the pieces both tabs share
-   (capsule field, ON/OFF segment, state signs, empty states). */
+/* 运行记录: the page, the two tab layouts and the pieces every tab shares (state signs, empty states). */
 .page {
-  --b-plate: #2e2f31;
-  --b-plate-hi: #3b3c3e;
-  --b-plate-lo: #232426;
-  --b-edge: rgb(255 255 255 / 9%);
-  --b-edge-lo: rgb(0 0 0 / 55%);
-  --b-frame: rgb(236 236 234 / 86%);
-  --b-t1: var(--ef-text-1);
-  --b-t2: #a8a8a6;
-  --b-t3: var(--ef-text-3);
-  --pn: #26272a;
-  --pn-hi: #313235;
-  --pn-lo: #1d1e20;
-  --pn-line: #3f4043;
-  --pn-well: #18191b;
-  --y-text: var(--ef-accent-text);
-  --mission: var(--ef-mission-accent);
-  --badge: var(--ef-g-reddot);
-  --danger: var(--ef-danger-vivid);
-  --danger-t: var(--ef-danger-text);
-  --danger-bg: rgb(255 65 69 / 13%);
-  --hit: rgb(255 241 0 / 42%);
-  --grid: rgb(255 255 255 / 5%);
-  --ease-enter: cubic-bezier(0.333, 0, 0, 1);
-
   position: relative;
   isolation: isolate;
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  color: var(--b-t1);
+  color: var(--ef-text-1);
   font: 14px / 22px var(--ef-font-sans);
-}
-
-:global([data-theme='light']) .page {
-  --b-plate: #f6f6f3;
-  --b-plate-hi: #fff;
-  --b-plate-lo: #e6e6e2;
-  --b-edge: rgb(255 255 255 / 95%);
-  --b-edge-lo: rgb(0 0 0 / 10%);
-  --b-frame: rgb(40 40 40 / 55%);
-  --b-t2: #55554f;
-  --pn: #fbfbf9;
-  --pn-hi: #fff;
-  --pn-lo: #efeeea;
-  --pn-line: #d4d3ce;
-  --pn-well: #e9e8e3;
-  --danger-bg: rgb(255 65 69 / 10%);
-  --hit: rgb(255 241 0 / 55%);
-  --grid: rgb(0 0 0 / 6%);
 }
 
 /* The module word behind the panels (game DecoLogo α .07–.10). */
@@ -61,27 +18,33 @@
   color: transparent;
   font: 600 120px / 1 var(--ef-font-num);
   letter-spacing: -0.02em;
-  -webkit-text-stroke: 1px color-mix(in srgb, var(--b-t1) 9%, transparent);
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--ef-text-1) 9%, transparent);
   pointer-events: none;
   user-select: none;
 }
 
-.turns {
+.turns,
+.logs {
   display: grid;
-  grid-template-columns: clamp(268px, 25vw, 368px) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--ef-sec-gap);
   height: 100%;
-  padding: 12px 16px;
-  animation: view-in 0.417s var(--ease-enter) both;
+  padding: var(--ef-sp-16) var(--ef-page-pad);
+  animation: view-in var(--ef-dur-g-panel-in) var(--ef-ease-g-enter) both;
+}
+
+.turns > *,
+.logs > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+.turns {
+  grid-template-columns: clamp(268px, 25vw, 368px) minmax(0, 1fr);
 }
 
 .logs {
-  display: grid;
   grid-template-columns: clamp(196px, 17vw, 244px) minmax(0, 1fr);
-  gap: 16px;
-  height: 100%;
-  padding: 12px 16px;
-  animation: view-in 0.417s var(--ease-enter) both;
 }
 
 @keyframes view-in {
@@ -101,118 +64,12 @@
   font-size: 12px;
 }
 
-/* Capsule field (chat v2 .field): white in both themes. */
-.field {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  height: 32px;
-  padding: 0 12px 0 14px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #fff, var(--ef-field));
-  box-shadow: inset 0 1px 0 rgb(0 0 0 / 18%), 0 0 0 1px rgb(0 0 0 / 25%);
-  color: #1f1f1f;
-}
-
-.field:focus-within {
-  box-shadow: inset 0 1px 0 rgb(0 0 0 / 18%), 0 0 0 2px var(--ef-accent);
-}
-
-.field input {
-  flex: 1;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: none;
-  color: #1f1f1f;
-  font: 13px var(--ef-font-sans);
-}
-
-.field input::placeholder {
-  color: #62625e;
-}
-
-.field svg {
-  flex: none;
-  color: #3a3a3a;
-}
-
-.field kbd {
-  padding: 0 4px;
-  border: 1px solid #55554f;
-  border-radius: 3px;
-  color: #55554f;
-  font: 11px / 15px var(--ef-font-num);
-}
-
-:global(html:not([data-keys])) .field kbd {
-  visibility: hidden;
-}
-
-/* Game ON/OFF segment (settings §1.1): picked #EEECED ink #444, track #5B5B5B. */
-.seg {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  height: 30px;
-  padding: 2px;
-  border-radius: 999px;
-  background: #5b5b5b;
-  box-shadow: inset 0 1px 0 rgb(0 0 0 / 35%);
-}
-
-:global([data-theme='light']) .seg {
-  background: #c9c8c3;
-}
-
-.seg button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: #ececea;
-  font: 12px var(--ef-font-sans);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-}
-
-:global([data-theme='light']) .seg button {
-  color: #333330;
-}
-
-.seg button[aria-pressed='true'] {
-  background: linear-gradient(180deg, #fff, #eeeced);
-  color: #2c2c2c;
-  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 20%);
-}
-
-.seg .n {
-  font: 600 12px var(--ef-font-num);
-}
-
-.seg .bad {
-  color: #ff8a7a;
-}
-
-:global([data-theme='light']) .seg .bad,
-.seg button[aria-pressed='true'] .bad {
-  color: #b3261e;
-}
-
-/* State sign: a shape and words. */
+/* State sign: a shape and words. Orange marks only: the words of 打断 and 待批准 stay in the text colour. */
 .sg {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   line-height: 18px;
   white-space: nowrap;
@@ -223,17 +80,22 @@
 }
 
 .sg[data-s='fail'] {
-  color: var(--danger-t);
+  color: var(--ef-danger-text);
   font-weight: 600;
 }
 
 .sg[data-s='run'] {
-  color: var(--mission);
+  color: var(--ef-mission-accent);
 }
 
 .sg[data-s='wait'],
 .sg[data-s='cut'] {
-  color: var(--badge);
+  color: var(--ef-text-1);
+}
+
+.sg[data-s='wait'] svg,
+.sg[data-s='cut'] svg {
+  color: var(--ef-g-reddot);
 }
 
 .sg[data-s='run'] svg {
@@ -246,27 +108,6 @@
   }
 }
 
-/* Small round button (chat v2 .orb sm). */
-.orb {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 35%, var(--b-plate-hi), var(--b-plate-lo));
-  color: var(--b-t1);
-  box-shadow: 0 0 0 1.5px var(--b-t1), 0 0 0 3px var(--b-edge-lo);
-  cursor: pointer;
-}
-
-.orb[data-on] {
-  background: var(--b-t1);
-  color: var(--b-plate-lo);
-}
-
 /* Empty, error and loading (mailpanel EmptyNode: one line, a barcode rule, one action). */
 .empty {
   display: grid;
@@ -275,26 +116,26 @@
   gap: 12px;
   min-height: min(320px, 60vh);
   padding: 30px 16px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   text-align: center;
 }
 
 .empty b {
-  color: var(--b-t1);
+  color: var(--ef-text-1);
   font: 500 18px / 26px var(--ef-font-sans);
 }
 
 .bc {
   width: min(320px, 80%);
   height: 8px;
-  background: repeating-linear-gradient(90deg, var(--b-t3) 0 2px, transparent 2px 5px, var(--b-t3) 5px 9px, transparent 9px 11px, var(--b-t3) 11px 12px, transparent 12px 17px);
+  background: repeating-linear-gradient(90deg, var(--ef-text-3) 0 2px, transparent 2px 5px, var(--ef-text-3) 5px 9px, transparent 9px 11px, var(--ef-text-3) 11px 12px, transparent 12px 17px);
   opacity: 0.5;
 }
 
 .skel {
   height: 54px;
   border-radius: 0 5px 5px 0;
-  background: linear-gradient(90deg, var(--b-plate-lo), var(--b-plate), var(--b-plate-lo)) 0 0 / 200% 100%;
+  background: linear-gradient(90deg, var(--ef-surface-1), var(--ef-surface-2), var(--ef-surface-1)) 0 0 / 200% 100%;
   animation: sweep 1.2s linear infinite;
 }
 
@@ -307,17 +148,11 @@
 @media (max-width: 1100px) {
   .turns {
     grid-template-columns: 262px minmax(0, 1fr);
-    gap: 12px;
-    padding: 10px 12px;
+    gap: var(--ef-sp-16);
   }
 
   .logs {
     grid-template-columns: minmax(0, 1fr);
-    padding: 10px 12px;
-  }
-
-  .seg button {
-    padding: 0 8px;
   }
 }
 

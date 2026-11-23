@@ -26,7 +26,7 @@ describe('运行记录 动作线', () => {
   it('draws the lanes in order and highlights a refusal’s cause and effects', async () => {
     mount('&tab=lanes');
     const board = await screen.findByRole('region', { name: '动作线' });
-    expect([...board.querySelectorAll('[role="group"][aria-label]')].map((g) => g.getAttribute('aria-label')).slice(1)).toEqual(['粗判', '指针', '注意力', '触碰', '舞台', '决定', '渲染器', '语音']);
+    expect([...board.querySelectorAll('[role="group"][aria-label]')].map((g) => g.getAttribute('aria-label'))).toEqual(['粗判', '指针', '注意力', '触碰', '舞台', '决定', '渲染器', '语音']);
     const hover = within(lane('指针')).getByRole('button', { name: /hover → true$/ });
     fireEvent.click(hover);
     expect(hover.getAttribute('aria-pressed')).toBe('true');

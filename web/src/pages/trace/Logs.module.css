@@ -1,13 +1,12 @@
-/* 日志: sources on the left (small mission rows), the lines on the right as the dialog record (name column, text,
-   hairline between rows). */
+/* 日志: the lines in the shared game frame as the dialog record (name column, text, hairline between rows). */
 .main {
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
   min-width: 0;
   min-height: 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--b-plate-lo) 90%, transparent), color-mix(in srgb, var(--ef-base) 84%, transparent));
-  box-shadow: 0 0 0 1.5px var(--b-frame);
+  padding: 1.5px;
 }
 
 .tool {
@@ -15,78 +14,25 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  padding: 9px 12px;
-  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
-  box-shadow: inset 0 1px 0 var(--b-edge), inset 0 -1.5px 0 var(--b-frame);
+  padding: 8px 12px;
+  background: var(--ef-surface-1);
+  box-shadow: inset 0 1px 0 var(--ef-plate-rim), inset 0 -1px 0 var(--ef-rule);
 }
 
-.tool > label {
+.q {
+  display: flex;
+  flex: 1;
+  min-width: 0;
   max-width: 300px;
+}
+
+.q > * {
+  flex: 1;
+  min-width: 0;
 }
 
 .srcdd {
   display: none;
-}
-
-.lvs {
-  display: flex;
-  flex: none;
-  gap: 4px;
-}
-
-.lv {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: var(--b-t2);
-  font: 12px var(--ef-font-sans);
-  white-space: nowrap;
-  box-shadow: inset 0 0 0 1px var(--b-t3);
-  cursor: pointer;
-}
-
-.lv:hover {
-  color: var(--b-t1);
-}
-
-.lv[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--b-t1) 10%, transparent);
-  color: var(--b-t1);
-  box-shadow: inset 0 0 0 1.5px var(--b-t1);
-}
-
-.lv b {
-  font: 600 12px var(--ef-font-num);
-}
-
-.lv[data-l='err'] svg,
-.lv[data-l='err'] b {
-  color: var(--danger-t);
-}
-
-.lv[data-l='warn'] svg {
-  color: var(--badge);
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 24px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: var(--b-t1);
-  font: 12px var(--ef-font-sans);
-  white-space: nowrap;
-  box-shadow: inset 0 0 0 1px var(--b-t3);
-  cursor: pointer;
 }
 
 .sp {
@@ -102,7 +48,7 @@
   overscroll-behavior: contain;
   font: 12px / 22px var(--ef-font-mono);
   scrollbar-width: thin;
-  scrollbar-color: var(--b-t3) transparent;
+  scrollbar-color: var(--ef-text-3) transparent;
 }
 
 .ld {
@@ -111,7 +57,7 @@
   justify-content: center;
   gap: 10px;
   padding: 8px 0 4px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 500 12px var(--ef-font-num);
   letter-spacing: 0.04em;
 }
@@ -121,7 +67,7 @@
   content: '';
   width: 60px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--b-t3));
+  background: linear-gradient(90deg, transparent, var(--ef-text-3));
 }
 
 .ld::after {
@@ -135,16 +81,16 @@
   gap: 10px;
   align-items: start;
   padding: 0 12px 0 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--b-t3) 22%, transparent);
+  border-bottom: 1px solid var(--ef-line-subtle);
   cursor: default;
 }
 
 .ln:hover {
-  background: color-mix(in srgb, var(--b-t1) 5%, transparent);
+  background: var(--ef-overlay-hover);
 }
 
 .tm {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -155,7 +101,7 @@
 
 .so {
   overflow: hidden;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 12px / 22px var(--ef-font-sans);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -169,104 +115,67 @@
 
 .ms {
   min-width: 0;
-  color: var(--b-t1);
+  color: var(--ef-text-1);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.fold {
-  margin-left: 8px;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px dotted var(--b-t3);
-  background: none;
-  color: var(--b-t2);
-  font: 12px var(--ef-font-sans);
-  cursor: pointer;
 }
 
 .x {
   margin-left: 8px;
   padding: 0 5px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 11px var(--ef-font-num);
-  box-shadow: inset 0 0 0 1px var(--b-t3);
+  box-shadow: inset 0 0 0 1px var(--ef-text-3);
 }
 
 .ms mark {
   padding: 0 1px;
-  background: var(--hit);
+  background: color-mix(in srgb, var(--ef-accent) 45%, transparent);
   color: inherit;
 }
 
 .tb {
   display: block;
   padding-left: 16px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
+}
+
+/* The turn link is a 24 high text button on a 22 high line: it hangs a pixel over each edge. */
+.tn {
+  display: flex;
+  margin: -1px 0;
 }
 
 .ln[data-l='err'] {
-  background: linear-gradient(90deg, var(--danger-bg), transparent 70%);
-  box-shadow: inset 3px 0 0 var(--danger);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ef-danger-vivid) 12%, transparent), transparent 70%);
+  box-shadow: inset 3px 0 0 var(--ef-danger-vivid);
 }
 
 .ln[data-l='err'] .lvm,
 .ln[data-l='err'] .ms {
-  color: var(--danger-t);
-}
-
-:global([data-theme='dark']) .ln[data-l='err'] .ms {
-  color: #ffb3a9;
+  color: var(--ef-danger-text);
 }
 
 .ln[data-l='warn'] .lvm {
-  color: var(--badge);
+  color: var(--ef-g-reddot);
 }
 
 .ln[data-l='dbg'] .ms,
 .ln[data-l='info'] .lvm {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
 }
 
 .ln[data-sel] {
-  background: color-mix(in srgb, var(--mission) 16%, transparent);
-  box-shadow: inset 3px 0 0 var(--mission);
-}
-
-/* A line that names a turn: the dialog record's option (6×6 pale yellow square and pale yellow words). */
-.tchip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 1px;
-  padding: 0 2px;
-  border: 0;
-  background: none;
-  color: var(--y-text);
-  font: 500 12px / 20px var(--ef-font-sans);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.tchip::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  background: #fdf684;
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 35%);
-}
-
-.tchip:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  background: color-mix(in srgb, var(--ef-mission-accent) 16%, transparent);
+  box-shadow: inset 3px 0 0 var(--ef-mission-accent);
 }
 
 .tcont {
   display: block;
   width: 6px;
   height: 22px;
-  margin-left: 2px;
-  border-left: 1px solid var(--y-text);
+  margin-left: 12px;
+  border-left: 1px solid var(--ef-accent-text);
   opacity: 0.45;
 }
 
@@ -275,7 +184,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px 0 120px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 12px var(--ef-font-sans);
 }
 
@@ -307,7 +216,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 600 9px var(--ef-font-num);
   letter-spacing: 0.14em;
   pointer-events: none;
@@ -330,7 +239,7 @@
     display: block;
   }
 
-  .tool > label {
+  .q {
     max-width: 200px;
   }
 

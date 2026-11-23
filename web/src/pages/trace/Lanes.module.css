@@ -2,10 +2,11 @@
 .view {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(280px, 26vw, 380px);
-  gap: 16px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--ef-sec-gap);
   height: 100%;
-  padding: 12px 16px;
-  animation: view-in 0.417s var(--ease-enter) both;
+  padding: var(--ef-sp-16) var(--ef-page-pad);
+  animation: view-in var(--ef-dur-g-panel-in) var(--ef-ease-g-enter) both;
 }
 
 @keyframes view-in {
@@ -15,8 +16,17 @@
   }
 }
 
-.board,
-.detail {
+.view > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The picked event's frame: its one child (the card or the empty line) fills it. */
+.view > [data-stub='GameFrame'] {
+  display: grid;
+}
+
+.board {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
@@ -24,29 +34,22 @@
   min-height: 0;
 }
 
-.detail {
-  grid-template-rows: minmax(0, 1fr);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--b-plate-lo) 90%, transparent), color-mix(in srgb, var(--ef-base) 84%, transparent));
-  box-shadow: 0 0 0 1.5px var(--b-frame);
-}
-
 .head {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
-  padding: 2px 4px 0 2px;
 }
 
 .count {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   white-space: nowrap;
 }
 
 .count b {
   margin-right: 3px;
-  color: var(--b-t1);
+  color: var(--ef-text-1);
   font-size: 14px;
 }
 
@@ -65,13 +68,13 @@
   overflow: hidden auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: var(--b-t3) transparent;
+  scrollbar-color: var(--ef-text-3) transparent;
 }
 
 .axis {
   position: relative;
   margin: 0 8px 0 var(--name);
-  color: var(--b-t3);
+  color: var(--ef-text-3);
   font: 500 11px / 22px var(--ef-font-num);
 }
 
@@ -107,7 +110,7 @@
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--grid);
+  background: var(--ef-line-subtle);
 }
 
 .rules svg {
@@ -117,7 +120,7 @@
 }
 
 .rules line {
-  stroke: var(--b-t1);
+  stroke: var(--ef-text-1);
   stroke-width: 1;
   stroke-dasharray: 3 3;
   opacity: 0.7;
@@ -128,7 +131,7 @@
   position: relative;
   display: grid;
   grid-template-columns: var(--name) minmax(0, 1fr);
-  border-bottom: 1px solid var(--grid);
+  border-bottom: 1px solid var(--ef-line-subtle);
 }
 
 .lane::before {
@@ -136,7 +139,7 @@
   position: absolute;
   inset: 3px auto 3px 0;
   width: 3px;
-  background: var(--cat, var(--b-t3));
+  background: var(--cat, var(--ef-text-3));
 }
 
 .lane[data-g='in'] {
@@ -144,18 +147,18 @@
 }
 
 .lane[data-g='stage'] {
-  --cat: var(--mission);
+  --cat: var(--ef-mission-accent);
 }
 
 .lane[data-g='body'] {
-  --cat: var(--b-t1);
+  --cat: var(--ef-text-1);
 }
 
 .name {
   align-self: center;
   padding: 0 8px 0 10px;
   overflow: hidden;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   line-height: 18px;
   text-overflow: ellipsis;
@@ -174,7 +177,7 @@
   right: 0;
   left: 0;
   height: 1px;
-  background: var(--pn-line);
+  background: var(--ef-line);
 }
 
 .mark {
@@ -185,18 +188,18 @@
   padding: 0;
   border: 0;
   border-radius: 1px;
-  background: var(--b-t2);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 45%);
+  background: var(--ef-text-2);
+  box-shadow: 0 0 0 1px var(--ef-base);
   cursor: pointer;
   transition: opacity 0.12s, transform 0.12s;
 }
 
 .mark[data-tone='bad'] {
-  background: var(--danger);
+  background: var(--ef-danger-vivid);
 }
 
 .mark[data-tone='user'] {
-  background: var(--badge);
+  background: var(--ef-g-reddot);
 }
 
 .lane[data-g='in'] .mark[data-tone='ok'] {
@@ -204,7 +207,7 @@
 }
 
 .lane[data-g='stage'] .mark[data-tone='ok'] {
-  background: var(--mission);
+  background: var(--ef-mission-accent);
 }
 
 .mark:hover {
@@ -221,15 +224,15 @@
 }
 
 .mark[data-rel='sel'] {
-  box-shadow: 0 0 0 2px var(--b-plate-lo), 0 0 0 4px var(--b-t1);
+  box-shadow: 0 0 0 2px var(--ef-base), 0 0 0 4px var(--ef-text-1);
 }
 
 .mark[data-rel='cause'] {
-  box-shadow: 0 0 0 2px var(--b-plate-lo), 0 0 0 3.5px var(--ef-accent);
+  box-shadow: 0 0 0 2px var(--ef-base), 0 0 0 3.5px var(--ef-accent);
 }
 
 .mark[data-rel='effect'] {
-  box-shadow: 0 0 0 2px var(--b-plate-lo), 0 0 0 3.5px var(--mission);
+  box-shadow: 0 0 0 2px var(--ef-base), 0 0 0 3.5px var(--ef-mission-accent);
 }
 
 /* The picked event. */
@@ -237,12 +240,13 @@
   display: grid;
   align-content: start;
   gap: 8px;
+  height: 100%;
   min-height: 0;
   padding: 14px 16px 18px;
   overflow: hidden auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: var(--b-t3) transparent;
+  scrollbar-color: var(--ef-text-3) transparent;
 }
 
 .dh {
@@ -254,15 +258,15 @@
 
 .tag {
   padding: 0 10px;
-  background: #141414;
-  color: #f2f2f0;
+  background: var(--ef-tag-bg);
+  color: var(--ef-tag-fg);
   font: 600 12px / 24px var(--ef-font-sans);
   white-space: nowrap;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
 }
 
 .when {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   letter-spacing: 0.04em;
 }
@@ -273,15 +277,15 @@
 }
 
 .title[data-tone='bad'] {
-  color: var(--danger-t);
+  color: var(--ef-danger-text);
 }
 
 .title[data-tone='user'] {
-  color: var(--badge);
+  color: var(--ef-text-1);
 }
 
 .meta {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
 }
 
@@ -289,8 +293,8 @@
   display: grid;
   gap: 1px;
   margin: 0;
-  background: var(--pn-line);
-  box-shadow: 0 0 0 1px var(--pn-line);
+  background: var(--ef-line);
+  box-shadow: 0 0 0 1px var(--ef-line);
 }
 
 .attrs div {
@@ -298,11 +302,11 @@
   grid-template-columns: minmax(84px, auto) minmax(0, 1fr);
   gap: 10px;
   padding: 3px 10px;
-  background: var(--pn);
+  background: var(--ef-raised);
 }
 
 .attrs dt {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
 }
 
 .attrs dd {
@@ -313,32 +317,16 @@
   white-space: nowrap;
 }
 
-.sh {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 8px 0 0;
-  font: 600 13px / 20px var(--ef-font-sans);
-}
-
-.sh::before {
-  content: '';
+/* The ring colour the board gives a cause or an effect. */
+.sw {
+  display: block;
   width: 8px;
   height: 8px;
-  background: var(--c);
+  background: var(--ef-accent);
 }
 
-.sh[data-rel='cause'] {
-  --c: var(--ef-accent);
-}
-
-.sh[data-rel='effect'] {
-  --c: var(--mission);
-}
-
-.sh span {
-  color: var(--b-t2);
-  font-weight: 500;
+.sw[data-rel='effect'] {
+  background: var(--ef-mission-accent);
 }
 
 .refs {
@@ -356,15 +344,15 @@
   width: 100%;
   padding: 2px 8px;
   border: 0;
-  background: var(--pn-lo);
-  color: var(--b-t1);
+  background: var(--ef-surface-1);
+  color: var(--ef-text-1);
   font: 12px / 20px var(--ef-font-sans);
   text-align: left;
   cursor: pointer;
 }
 
 .ref:hover {
-  background: var(--pn-hi);
+  background: var(--ef-surface-2);
 }
 
 .ref > span {
@@ -374,22 +362,21 @@
 }
 
 .ref > span:nth-child(2) {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
 }
 
 .ref[data-tone='bad'] > span:last-child {
-  color: var(--danger-t);
+  color: var(--ef-danger-text);
 }
 
 .none {
-  color: var(--b-t3);
+  color: var(--ef-text-3);
   font-size: 12px;
 }
 
 @media (max-width: 1100px) {
   .view {
     grid-template-columns: minmax(0, 1fr) 260px;
-    gap: 12px;
-    padding: 10px 12px;
+    gap: var(--ef-sp-16);
   }
 }

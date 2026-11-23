@@ -1,71 +1,8 @@
-/* The raw event fold under a turn: label and count, copy, the event table. */
-.raw {
-  display: grid;
-  box-shadow: 0 0 0 1px var(--pn-line);
-}
-
-.rawH {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 32px;
-  padding: 0 6px 0 10px;
-  background: var(--pn-hi);
-}
-
-.tg {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--b-t1);
-  font: 600 12px var(--ef-font-sans);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.tg i {
-  width: 7px;
-  height: 7px;
-  border-right: 1.5px solid currentcolor;
-  border-bottom: 1.5px solid currentcolor;
-  transform: rotate(-45deg);
-  transition: transform 0.2s;
-}
-
-.tg[aria-expanded='true'] i {
-  transform: rotate(45deg);
-}
-
-.tg small {
-  color: var(--b-t2);
-  font: 500 12px var(--ef-font-num);
-}
-
-.tl {
-  padding: 2px 8px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: var(--b-t2);
-  font: 12px var(--ef-font-sans);
-  cursor: pointer;
-}
-
-.tl:hover,
-.tl[aria-pressed='true'] {
-  box-shadow: inset 0 0 0 1px var(--b-t3);
-  color: var(--b-t1);
-}
-
+/* The raw event table inside its fold. */
 .evt {
   max-height: 260px;
   overflow: auto;
-  background: var(--pn-well);
+  background: var(--ef-surface-1);
 }
 
 .evt table {
@@ -76,8 +13,8 @@
 
 .evt th {
   padding: 4px 8px;
-  border-bottom: 1px solid var(--pn-line);
-  color: var(--b-t2);
+  border-bottom: 1px solid var(--ef-line);
+  color: var(--ef-text-2);
   font-weight: 600;
   text-align: left;
   white-space: nowrap;
@@ -85,11 +22,10 @@
 
 .evt td {
   padding: 3px 8px;
-  border-bottom: 1px solid var(--grid);
+  border-bottom: 1px solid var(--ef-line-subtle);
   vertical-align: top;
 }
 
 .evt tr[data-f] td {
-  color: var(--danger-t);
+  color: var(--ef-danger-text);
 }
-

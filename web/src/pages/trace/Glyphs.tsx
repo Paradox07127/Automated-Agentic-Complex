@@ -56,21 +56,3 @@ export function StepMark({ i }: { i: StepIcon }) {
     </svg>
   );
 }
-
-/** A memory chip's diamond. */
-export function MemMark() {
-  return (
-    <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
-      <path d="M12 1.5L22.5 12 12 22.5 1.5 12zM12 6.5L6.5 12l5.5 5.5 5.5-5.5zM12 9.5L14.5 12 12 14.5 9.5 12z" fill="currentColor" fillRule="evenodd" />
-    </svg>
-  );
-}
-
-/** The source filters' funnel. */
-export function FunnelMark() {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-      <path d="M2 3h20l-8 9v8l-4 2V12z" fill="currentColor" />
-    </svg>
-  );
-}

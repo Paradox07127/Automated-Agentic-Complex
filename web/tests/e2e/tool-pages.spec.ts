@@ -22,7 +22,7 @@ test('trace turn rows are pressable: hover draws the stripes, the picked row is 
   await expect.poll(() => row.evaluate((e) => getComputedStyle(e, '::after').opacity)).toBe('1');
   await row.click();
   await expect(row).toHaveAttribute('aria-selected', 'true');
-  expect(await css(row, 'background-image')).toContain('linear-gradient');
+  expect(await css(row, 'background-color')).toBe('rgb(255, 241, 0)');
 });
 
 for (const theme of ['dark', 'light'] as const) {

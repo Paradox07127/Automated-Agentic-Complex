@@ -24,16 +24,16 @@
   padding: 7px 10px 7px 12px;
   border: 0;
   border-radius: 0 5px 5px 0;
-  background: linear-gradient(180deg, var(--b-plate), var(--b-plate-lo));
-  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px rgb(0 0 0 / 24%);
-  color: var(--b-t1);
+  background: var(--ef-raised);
+  box-shadow: inset 0 1px 0 var(--ef-plate-rim), 0 0 0 1px var(--ef-line);
+  color: var(--ef-text-1);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
 .sr:hover {
-  filter: brightness(1.08);
+  background: var(--ef-surface-2);
 }
 
 .sr::before {
@@ -45,15 +45,17 @@
 }
 
 .sr[data-err] {
-  --cat: var(--danger);
+  --cat: var(--ef-danger-vivid);
 }
 
-.sr[aria-pressed='false'] {
-  opacity: 0.62;
+/* Off and empty sources dim by colour, not opacity, so their words keep 4.5:1 in both themes. */
+.sr[aria-pressed='false'] b {
+  color: var(--ef-text-2);
 }
 
-.sr[data-miss] {
-  opacity: 0.5;
+.sr[data-miss] b,
+.sr[data-miss] small {
+  color: var(--ef-text-3);
 }
 
 .bx {
@@ -62,11 +64,11 @@
   place-items: center;
   width: 14px;
   height: 14px;
-  box-shadow: inset 0 0 0 1.5px var(--b-t2);
+  box-shadow: inset 0 0 0 1.5px var(--ef-text-2);
 }
 
 .sr[aria-pressed='true'] .bx {
-  background: var(--b-t1);
+  background: var(--ef-text-1);
   box-shadow: none;
 }
 
@@ -74,8 +76,8 @@
   content: '';
   width: 7px;
   height: 4px;
-  border-bottom: 2px solid var(--b-plate);
-  border-left: 2px solid var(--b-plate);
+  border-bottom: 2px solid var(--ef-raised);
+  border-left: 2px solid var(--ef-raised);
   transform: translateY(-1px) rotate(-45deg);
 }
 
@@ -90,7 +92,7 @@
 .sr small {
   grid-column: 2 / 4;
   overflow: hidden;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 12px / 15px var(--ef-font-num);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -100,19 +102,19 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: var(--danger-t);
+  color: var(--ef-danger-text);
   font: 600 12px var(--ef-font-num);
 }
 
 .ec[data-z] {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font-weight: 500;
 }
 
 .where {
   padding: 6px 4px 0;
-  border-top: 1px dashed var(--b-t3);
-  color: var(--b-t2);
+  border-top: 1px dashed var(--ef-text-3);
+  color: var(--ef-text-2);
   font: 12px / 16px var(--ef-font-mono);
   overflow-wrap: anywhere;
 }

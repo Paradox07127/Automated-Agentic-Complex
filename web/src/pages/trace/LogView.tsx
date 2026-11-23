@@ -1,12 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { LogLevel, LogSourceId } from '../../bridge/logs';
-import { Btn, Icon } from '../../ui';
+import { Btn, Menu, type MenuItem, MoreLines, SearchField, SecHead } from '../../ui';
+import { GameFrame, GameSeg } from '../../ui/game';
 import { clockOf, dayOf } from './data';
-import { FilterMenu } from './FilterMenu';
 import { LevelMark } from './Glyphs';
 import { LEVEL_NAME, LOG_IDS, LOG_NAME, type Logs, type Seq } from './useLogs';
-import cd from './Card.module.css';
-import d from './Detail.module.css';
 import g from './Logs.module.css';
 import ra from './Rail.module.css';
 import t from './Trace.module.css';
@@ -24,6 +22,7 @@ export interface LogFilters {
 }
 
 export const DEFAULT_LEVELS: Record<LogLevel, boolean> = { err: true, warn: true, info: true, dbg: false };
+const LEVELS: readonly LogLevel[] = ['err', 'warn', 'info', 'dbg'];
 
 /** Sources that hold lines: the ones on by default. */
 export const filledSources = (logs: Logs) => logs.sources.filter((s) => s.exists && s.bytes > 0).map((s) => s.id);
@@ -149,17 +148,15 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
             {last.more.length > 0 && (
               <>
                 {open && last.more.map((m, k) => <span key={k} className={g.tb}>{mark(m, f.q)}</span>)}
-                <button type="button" className={g.fold} onClick={() => setFolds((s) => { const n = new Set(s); if (n.has(last.key)) n.delete(last.key); else n.add(last.key); return n; })}>
-                  {open ? '收起' : `展开 ${last.more.length} 行`}
-                </button>
+                <MoreLines total={last.more.length + 1} open={open} onToggle={() => setFolds((s) => { const n = new Set(s); if (n.has(last.key)) n.delete(last.key); else n.add(last.key); return n; })} />
               </>
             )}
           </span>
-          <span>
+          <span className={g.tn}>
             {last.turn && no != null && (last.turn === prevTurn ? <span className={g.tcont} aria-hidden="true" /> : (
-              <button type="button" className={g.tchip} onClick={() => onTurn(last.turn!)}>
+              <Btn variant="text" size="sm" onClick={() => onTurn(last.turn!)}>
                 第 {no} 轮 ›
-              </button>
+              </Btn>
             ))}
           </span>
         </div>,
@@ -170,22 +167,15 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
     body = out;
   }
 
-  const lvBtn = (l: LogLevel) => (
-    <button key={l} type="button" className={g.lv} data-l={l} aria-pressed={f.levels[l]} onClick={(e) => onF({ levels: e.altKey ? { err: false, warn: false, info: false, dbg: false, [l]: true } : { ...f.levels, [l]: !f.levels[l] } })}>
-      <LevelMark l={l} />
-      {LEVEL_NAME[l]}
-      {(l === 'err' || l === 'warn') && <b>{count(l)}</b>}
-    </button>
-  );
+  const levels = LEVELS.filter((l) => f.levels[l]).length;
+  const levelItems: MenuItem[] = [
+    { kind: 'head', label: '显示的级别' },
+    ...LEVELS.map((l): MenuItem => ({ kind: 'item', label: l === 'err' || l === 'warn' ? `${LEVEL_NAME[l]} ${count(l)}` : LEVEL_NAME[l], checked: f.levels[l], onSelect: () => onF({ levels: { ...f.levels, [l]: !f.levels[l] } }) })),
+  ];
   return (
     <div className={t.logs}>
       <aside className={ra.rail} aria-label="来源">
-        <div className={d.ph}>
-          <span className={d.ctag}>
-            来源 <span className="num">[{on.size}/{LOG_IDS.length}]</span>
-          </span>
-          <span className={cd.rule} aria-hidden="true" />
-        </div>
+        <SecHead title="来源" count={on.size} right={`共 ${LOG_IDS.length}`} />
         <div className={ra.srcs}>
           {LOG_IDS.map((id) => {
             const s = info(id);
@@ -216,45 +206,45 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
           </div>
         )}
       </aside>
-      <section className={g.main} aria-label="日志">
-        <div className={g.tool}>
-          <label className={t.field}>
-            <Icon name="search" size={14} />
-            <input ref={searchRef} value={f.q} placeholder="搜日志" aria-label="搜日志" onChange={(e) => onF({ q: e.target.value, follow: false, pausedAt: f.follow ? logs.last : f.pausedAt })} />
-            <kbd aria-hidden="true">/</kbd>
-          </label>
-          <span className={g.srcdd}>
-            <FilterMenu label={`来源 ${on.size}/${LOG_IDS.length}`} head="来源（⌥ 点只看这一个）" multi narrowed={on.size < LOG_IDS.length} items={LOG_IDS.map((id) => ({ id, label: `${LOG_NAME[id]} │ ${info(id)?.file ?? id}`, on: on.has(id) }))} onPick={(id, alt) => toggle(id as LogSourceId, alt)} />
-          </span>
-          <div className={g.lvs} role="group" aria-label="级别">
-            {(['err', 'warn', 'info', 'dbg'] as const).map(lvBtn)}
+      <GameFrame label="日志">
+        <section className={g.main}>
+          <div className={g.tool}>
+            <span className={g.q}>
+              <SearchField value={f.q} label="搜日志" placeholder="搜日志  /" inputRef={searchRef} onChange={(q) => onF({ q, follow: false, pausedAt: f.follow ? logs.last : f.pausedAt })} />
+            </span>
+            <span className={g.srcdd}>
+              <Menu label={`来源 ${on.size}/${LOG_IDS.length}`} icon="tune" items={[{ kind: 'head', label: '来源' }, ...LOG_IDS.map((id): MenuItem => ({ kind: 'item', label: `${LOG_NAME[id]} │ ${info(id)?.file ?? id}`, checked: on.has(id), onSelect: () => toggle(id, false) }))]} />
+            </span>
+            <Menu label={`级别 ${levels}/${LEVELS.length}`} items={levelItems} />
+            {f.win && (
+              <Btn variant="secondary" size="sm" tail="close" onClick={() => onF({ win: null })}>
+                只看第 {f.win.no} 轮前后
+              </Btn>
+            )}
+            <span className={g.sp} />
+            <GameSeg
+              label="跟随"
+              value={f.follow ? 'follow' : 'pause'}
+              options={[{ value: 'follow', label: '跟随最新' }, { value: 'pause', label: '暂停' }]}
+              onChange={(v) => onF(v === 'follow' ? { follow: true } : { follow: false, pausedAt: f.follow ? logs.last : f.pausedAt })}
+            />
           </div>
-          {f.win && (
-            <button type="button" className={g.chip} title="清掉" onClick={() => onF({ win: null })}>
-              只看第 {f.win.no} 轮前后 ✕
-            </button>
+          <div ref={ll} className={g.ll} role="log" aria-live="off" aria-label="日志行">
+            {body}
+          </div>
+          <span className={g.cap} aria-hidden="true">
+            <i />
+            AIC // LOG // {on.size} SOURCES // LOCAL ONLY
+          </span>
+          {!f.follow && fresh > 0 && logs.status === 'ok' && (
+            <span className={g.pill}>
+              <Btn variant="primary" size="sm" icon="chevd" onClick={() => onF({ follow: true })}>
+                已暂停 │ 新增 {fresh} 行 │ 回到最新
+              </Btn>
+            </span>
           )}
-          <span className={g.sp} />
-          <div className={t.seg} role="group" aria-label="跟随">
-            <button type="button" aria-pressed={f.follow} onClick={() => onF({ follow: true })}>跟随最新</button>
-            <button type="button" aria-pressed={!f.follow} onClick={() => onF({ follow: false, pausedAt: f.follow ? logs.last : f.pausedAt })}>暂停</button>
-          </div>
-        </div>
-        <div ref={ll} className={g.ll} role="log" aria-live="off" aria-label="日志行">
-          {body}
-        </div>
-        <span className={g.cap} aria-hidden="true">
-          <i />
-          AIC // LOG // {on.size} SOURCES // LOCAL ONLY
-        </span>
-        {!f.follow && fresh > 0 && logs.status === 'ok' && (
-          <span className={g.pill}>
-            <Btn variant="primary" size="sm" icon="chevd" onClick={() => onF({ follow: true })}>
-              已暂停 │ 新增 {fresh} 行 │ 回到最新
-            </Btn>
-          </span>
-        )}
-      </section>
+        </section>
+      </GameFrame>
     </div>
   );
 }

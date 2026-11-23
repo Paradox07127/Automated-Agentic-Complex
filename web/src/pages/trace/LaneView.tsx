@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { ChartStatus } from '../../charts';
 import { isoToMs } from '../../domain';
+import { Menu, type MenuItem, SecHead } from '../../ui';
+import { GameFrame, GameSeg } from '../../ui/game';
 import { clockOf, type Shape } from './data';
-import { FilterMenu } from './FilterMenu';
 import { ShapeMark } from './Glyphs';
 import { causesOf, effectsOf, inWindow, labelOf, LANE_NAME, laneOf, lanesOf, type LaneEvent, type LaneId, pack, type Range, RANGES, toneOf, walkOf } from './lanes';
 import l from './Lanes.module.css';
@@ -145,18 +146,13 @@ export function LaneView({ events, st, now }: LaneViewProps) {
     <div className={l.view}>
       <section className={l.board} aria-label="动作线">
         <div className={l.head}>
-          <div className={t.seg} role="group" aria-label="时间范围">
-            {RANGES.map((m) => (
-              <button key={m} type="button" aria-pressed={range === m} onClick={() => setRange(m)}>
-                近 {m} 分钟
-              </button>
-            ))}
-          </div>
+          <GameSeg label="时间范围" value={String(range)} options={RANGES.map((m) => ({ value: String(m), label: `近 ${m} 分钟` }))} onChange={(v) => setRange(Number(v) as Range)} />
           <span className={l.count}>
             <b className={t.num}>{drawn.length}</b>条
           </span>
           <span className={l.sp} />
-          <FilterMenu label="显示哪些线" head="显示的线" multi items={lanes.map((id) => ({ id, label: LANE_NAME[id], on: !hidden.has(id) }))} narrowed={hidden.size > 0} onPick={toggle} />
+          {hidden.size > 0 && <span className={l.count}>隐藏了 {hidden.size} 条线</span>}
+          <Menu label="显示哪些线" icon="tune" align="right" items={[{ kind: 'head', label: '显示的线' }, ...lanes.map((id): MenuItem => ({ kind: 'item', label: LANE_NAME[id], checked: !hidden.has(id), onSelect: () => toggle(id) }))]} />
         </div>
         {msg != null ? (
           <div className={t.empty}>
@@ -203,7 +199,7 @@ export function LaneView({ events, st, now }: LaneViewProps) {
           </div>
         )}
       </section>
-      <section className={l.detail} aria-label="所选事件">
+      <GameFrame label="所选事件">
         {!picked ? (
           <div className={t.empty}>
             <span className={t.bc} aria-hidden="true" />
@@ -233,13 +229,13 @@ export function LaneView({ events, st, now }: LaneViewProps) {
                 </div>
               ))}
             </dl>
-            <h3 className={l.sh} data-rel="cause">起因 <span className={t.num}>[{causes.length}]</span></h3>
+            <SecHead title="起因" count={causes.length} right={<i className={l.sw} data-rel="cause" aria-hidden="true" />} />
             {causes.length ? <ol className={l.refs} aria-label="起因">{causes.map(item)}</ol> : <span className={l.none}>无</span>}
-            <h3 className={l.sh} data-rel="effect">引起 <span className={t.num}>[{effects.length}]</span></h3>
+            <SecHead title="引起" count={effects.length} right={<i className={l.sw} data-rel="effect" aria-hidden="true" />} />
             {effects.length ? <ol className={l.refs} aria-label="引起">{effects.map(item)}</ol> : <span className={l.none}>无</span>}
           </div>
         )}
-      </section>
+      </GameFrame>
     </div>
   );
 }

@@ -1,16 +1,28 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react';
 import type { ChartStatus } from '../../charts';
 import { isoToMs } from '../../domain';
 import type { WireTraceTurn } from '../../domain/wire';
-import { Btn, Icon } from '../../ui';
+import { Btn, Menu, type MenuItem, SearchField } from '../../ui';
+import { GameSeg } from '../../ui/game';
 import { fmtMs } from '../chat/turnTrace';
 import { clockOf, groupOf, hourOf, inFilter, no4, type ResFilter, SHAPE_LABEL, shapeOf, SRC_GROUPS, srcLabel, type SrcGroup } from './data';
-import { FilterMenu } from './FilterMenu';
 import { ShapeMark } from './Glyphs';
 import s from './List.module.css';
 import t from './Trace.module.css';
 
 const PAGE = 40;
+const RES: ReadonlyArray<[ResFilter, string]> = [['all', '全部'], ['fail', '出错'], ['cut', '打断'], ['live', '在跑']];
+
+/** At the 925 tier the result switch takes its compact size so the four counts fit the list column. */
+const NARROW = '(max-width: 1100px)';
+const narrowNow = () => window.matchMedia?.(NARROW).matches ?? false;
+function useNarrow() {
+  return useSyncExternalStore((on) => {
+    const m = window.matchMedia?.(NARROW);
+    m?.addEventListener('change', on);
+    return () => m?.removeEventListener('change', on);
+  }, narrowNow);
+}
 
 export interface TurnListProps {
   rows: WireTraceTurn[];
@@ -40,6 +52,7 @@ export function visibleTurns(rows: readonly WireTraceTurn[], noOf: ReadonlyMap<s
 
 export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, searchRef, onQ, onGroup, onRes, onPick, onRetry, onChat }: TurnListProps) {
   const [shown, setShown] = useState(PAGE);
+  const narrow = useNarrow();
   const scroll = useRef<HTMLDivElement>(null);
   const list = visibleTurns(rows, noOf, q, group, res);
   const count = (f: ResFilter) => rows.filter((r) => inFilter(f, shapeOf(r))).length;
@@ -95,7 +108,7 @@ export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, search
       out.push(
         <button key={r.turn_id} type="button" role="option" className={s.tr} data-s={shape} data-turn={r.turn_id} aria-selected={r.turn_id === sel} onClick={() => onPick(r.turn_id)}>
           <span className={s.h}>{title ?? <span className={s.src}>{src}</span>}</span>
-          <span className={s.m}>{[clockOf(at), title ? src : null, fmtMs(r.duration_ms), r.model].filter(Boolean).join(' │ ')}</span>
+          <span className={s.m}>{[clockOf(at), title ? src : null, fmtMs(r.duration_ms)].filter(Boolean).join(' │ ')}</span>
           <span className={t.sg} data-sign="" data-s={shape}>
             <ShapeMark s={shape} />
             {SHAPE_LABEL[shape]}
@@ -108,37 +121,26 @@ export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, search
     }
     if (list.length > shown)
       out.push(
-        <button key="more" type="button" className={s.more} onClick={() => setShown(shown + PAGE)}>
-          再往前 {Math.min(PAGE, list.length - shown)} 轮 │ 共 {list.length}
-        </button>,
+        <span key="more" className={s.more}>
+          <Btn variant="text" size="sm" onClick={() => setShown(shown + PAGE)}>
+            再往前 {Math.min(PAGE, list.length - shown)} 轮 │ 共 {list.length}
+          </Btn>
+        </span>,
       );
     body = out;
   }
-  const seg = (f: ResFilter, label: string, bad?: boolean) => {
-    const n = count(f);
-    return (
-      <button type="button" aria-pressed={res === f} onClick={() => onRes(f)}>
-        {label} <span className={`${t.n} ${bad && n ? t.bad : ''}`}>{n}</span>
-      </button>
-    );
-  };
   return (
     <section className={s.lp} aria-label="轮次列表">
       <div className={s.head}>
-        <label className={t.field}>
-          <Icon name="search" size={14} />
-          <input ref={searchRef} value={q} placeholder="找一轮：开头的字或轮次号" aria-label="找一轮" onChange={(e) => onQ(e.target.value)} />
-          <kbd aria-hidden="true">/</kbd>
-        </label>
-        <FilterMenu label="按来源筛选" head="按来源" items={SRC_GROUPS.map(([id, label]) => ({ id, label, on: group === id }))} narrowed={group !== 'all'} onPick={(id) => onGroup(id as SrcGroup)} />
+        <SearchField value={q} label="找一轮" placeholder="找一轮：开头的字或轮次号  /" inputRef={searchRef} onChange={onQ} />
+        <Menu
+          label={SRC_GROUPS.find(([id]) => id === group)?.[1] ?? '全部来源'}
+          align="right"
+          items={[{ kind: 'head', label: '按来源' }, ...SRC_GROUPS.map(([id, label]): MenuItem => ({ kind: 'item', label, onSelect: () => onGroup(id) }))]}
+        />
       </div>
       <div className={s.fil} hidden={st !== 'ok' || rows.length === 0}>
-        <div className={t.seg} role="group" aria-label="按结果筛选">
-          {seg('all', '全部')}
-          {seg('fail', '出错了', true)}
-          {seg('cut', '打断')}
-          {seg('live', '在跑')}
-        </div>
+        <GameSeg label="按结果筛选" size={narrow ? 'compact' : 'normal'} value={res} options={RES.map(([f, label]) => ({ value: f, label: `${label} ${count(f)}` }))} onChange={(v) => onRes(v as ResFilter)} />
       </div>
       <div ref={scroll} className={s.scroll} role="listbox" aria-label="近 24 小时的轮次">
         {body}

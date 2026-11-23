@@ -8,12 +8,14 @@ import type { LogSourceId } from '../../bridge/logs';
 import { type TraceEvent, traceEvents } from '../../bridge/traceEvents';
 import type { ChartStatus } from '../../charts';
 import { isoToMs, isoWithOffset } from '../../domain';
+import type { VisualStateKey } from '../../domain/states';
 import type { WireTraceTurn } from '../../domain/wire';
 import { useDemo } from '../../shell/demo';
-import { PageHeaderSlot } from '../../shell/headerSlot';
+import { BottomBarSlot, PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as jump } from '../../shell/nav';
 import { useToast } from '../../shell/toast';
 import { Btn, Kbd, Tabs } from '../../ui';
+import { StatusLamp } from '../../ui/game';
 import { demoSource, learnedOf, useTraceRow, useTraceRows, useTurnFacts } from '../chat/useTurnData';
 import { useDiagStream } from '../diag/useDiag';
 import type { WireDiagItem } from '../diag/wire';
@@ -84,29 +86,33 @@ export function TracePage() {
   const logSearch = useRef<HTMLInputElement>(null);
 
   // Opening on the newest turn that has ended; a running one stays on top without taking the pick.
+  // `turn` is a turn_id or a trace_id (notifications link the trace_id); one the list does not hold is asked for by both.
   const atTurn = Number.isFinite(atParam) ? all.findLast((r) => isoToMs(r.started_at) >= atParam) : undefined;
-  const selId = turnParam ?? atTurn?.turn_id ?? (all.find((r) => shapeOf(r) !== 'run') ?? all[0])?.turn_id ?? null;
+  const listed = turnParam ? all.find((r) => r.turn_id === turnParam || r.trace_id === turnParam) : undefined;
+  const selId = listed?.turn_id ?? turnParam ?? atTurn?.turn_id ?? (all.find((r) => shapeOf(r) !== 'run') ?? all[0])?.turn_id ?? null;
   const recent = selId ? (rows.data?.get(selId) ?? null) : null;
-  const exact = useTraceRow(selId, 'turn_id', live && src == null && rows.isSuccess && !recent);
+  const ask = live && src == null && rows.isSuccess && !recent;
+  const byTurn = useTraceRow(selId, 'turn_id', ask);
+  const byTrace = useTraceRow(selId, 'trace_id', ask && byTurn.isSuccess && byTurn.data == null);
+  const exact = byTurn.isSuccess && byTurn.data == null ? byTrace : byTurn;
   const selRow = recent ?? exact.data ?? null;
-  const no = selId ? (noOf.get(selId) ?? 0) : 0;
+  const selTurn = selRow?.turn_id ?? selId;
+  const no = selTurn ? (noOf.get(selTurn) ?? 0) : 0;
   const ev = useTurnEvents(selRow, src);
   const items = useTurnItems(selRow, live && src == null);
   const turn = useMemo(
-    () => (selRow && ev.data ? buildTurn({ row: selRow, events: ev.data.events, skew: ev.data.skew_ms ?? {}, items: items.data ?? [], mems: (selId && facts.data?.get(selId)) || [], learned: learnedOf(src, selRow.turn_id) }) : null),
-    [selRow, ev.data, items.data, facts.data, selId, src],
+    () => (selRow && ev.data ? buildTurn({ row: selRow, events: ev.data.events, skew: ev.data.skew_ms ?? {}, items: items.data ?? [], mems: facts.data?.get(selRow.turn_id) ?? [], learned: learnedOf(src, selRow.turn_id) }) : null),
+    [selRow, ev.data, items.data, facts.data, src],
   );
-  const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
-  useEffect(() => setToggled(new Set()), [selId]);
 
   const onItem = useCallback((kind: 'trace' | 'decision', it: WireDiagItem) => {
     if (kind !== 'trace') return;
     if (UPDATES_LIST.has(it.kind)) void qc.invalidateQueries({ queryKey: ['chat-trace-rows'] });
-    if (it.turn_id === selId) {
+    if (it.turn_id === selTurn) {
       void qc.invalidateQueries({ queryKey: ['trace-turn-text', it.trace_id] });
-      if (it.kind === 'turn.settled') void qc.invalidateQueries({ queryKey: ['chat-run-items', selId] });
+      if (it.kind === 'turn.settled') void qc.invalidateQueries({ queryKey: ['chat-run-items', selTurn] });
     }
-  }, [qc, selId]);
+  }, [qc, selTurn]);
   useDiagStream(live && src == null, onItem, () => {
     void qc.invalidateQueries({ queryKey: ['chat-trace-rows'] });
     void qc.invalidateQueries({ queryKey: ['trace-turn-text'] });
@@ -167,9 +173,9 @@ export function TracePage() {
     if (f.follow) onF({ follow: false, pausedAt: logs.last });
   };
 
-  // Esc: a menu closes itself; then out of a field, then clear the picked lines or folded steps; only then 主页.
-  const latest = useRef({ tab, sel, toggled });
-  latest.current = { tab, sel, toggled };
+  // Esc: a menu closes itself; then out of a field, then clear the picked lines; only then 主页. Open steps stay open.
+  const latest = useRef({ tab, sel });
+  latest.current = { tab, sel };
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('[role="menu"], [role="dialog"]')) return;
@@ -177,7 +183,6 @@ export function TracePage() {
       const stop = () => (e.preventDefault(), e.stopPropagation());
       if (editable(document.activeElement)) return stop(), (document.activeElement as HTMLElement).blur();
       if (l.tab === 'logs' && l.sel.size) return stop(), setSel(new Set());
-      if (l.tab === 'turns' && l.toggled.size) return stop(), setToggled(new Set());
     };
     window.addEventListener('keydown', onEsc, true);
     return () => window.removeEventListener('keydown', onEsc, true);
@@ -199,7 +204,7 @@ export function TracePage() {
       onF({ follow: true });
     } else if (tab === 'turns' && ['ArrowDown', 'ArrowUp', 'j', 'k'].includes(e.key)) {
       const list = visibleTurns(all, noOf, q, group, res);
-      const i = list.findIndex((r) => r.turn_id === selId);
+      const i = list.findIndex((r) => r.turn_id === selTurn);
       const next = list[Math.max(0, Math.min(list.length - 1, i + (e.key === 'ArrowDown' || e.key === 'j' ? 1 : -1)))];
       if (!next) return;
       e.preventDefault();
@@ -214,14 +219,12 @@ export function TracePage() {
 
   const listSt: ChartStatus = state === 'loading' || (live && rows.isPending) ? 'loading' : state === 'error' || rows.isError ? 'error' : 'ok';
   const detailSt: ChartStatus = listSt !== 'ok' ? listSt : !selRow ? (exact.isFetching ? 'loading' : exact.isError ? 'error' : 'empty') : ev.isError ? 'error' : ev.isPending ? 'loading' : 'ok';
-  const fails = all.filter((r) => shapeOf(r) === 'fail').length;
-  const running = all.filter((r) => ['run', 'wait'].includes(shapeOf(r))).length;
   const onIds = new Set(f.on ?? filledSources(logs));
   const today = logs.lines.filter((l) => onIds.has(l.source) && l.at != null && dayOf(l.at) === dayOf(now));
-  const lamp = tab === 'logs'
-    ? logs.status === 'missing' || logs.status === 'error' ? ['off', '读不到'] : !f.follow ? ['pause', '已暂停'] : ['on', '实时']
-    : tab === 'lanes' && lanes.isError ? ['off', '读不到']
-    : listSt === 'error' ? ['off', '后台已断开'] : ['on', '实时'];
+  const lamp: [VisualStateKey, string] = tab === 'logs'
+    ? logs.status === 'missing' || logs.status === 'error' ? ['broken', '读不到'] : !f.follow ? ['stopped', '已暂停'] : ['ok', '实时']
+    : tab === 'lanes' && lanes.isError ? ['broken', '读不到']
+    : listSt === 'error' ? ['broken', '后台已断开'] : ['ok', '实时'];
   const conv = selRow?.conversation_id ?? null;
 
   return (
@@ -231,65 +234,55 @@ export function TracePage() {
         tabs={<Tabs label="运行记录页签" keys={false} value={tab} tabs={[{ id: 'turns', label: '轮次', icon: 'history' }, { id: 'lanes', label: '动作线', icon: 'hub' }, { id: 'logs', label: '日志', icon: 'file' }]} onChange={(id) => put({ tab: id === 'turns' ? undefined : id })} />}
         right={
           <span className={bs.reads}>
-            {tab === 'turns' && listSt === 'ok' && all.length > 0 && (
-              <>
-                <span className={bs.long}>近 24 h</span>
-                <b>{all.length}</b>轮<span className={bs.sl} />出错<b data-bad={fails > 0 || undefined}>{fails}</b>
-                <span className={`${bs.sl} ${bs.long}`} />
-                <span className={bs.long}>在跑</span>
-                <b className={bs.long}>{running}</b>
-              </>
-            )}
             {tab === 'logs' && logs.status === 'ok' && (
               <>
                 <span className={bs.long}>今天</span>
                 <b>{today.length.toLocaleString('en-US')}</b>行<span className={bs.sl} />错误<b data-bad={today.some((l) => l.level === 'err') || undefined}>{today.filter((l) => l.level === 'err').length}</b>
               </>
             )}
-            <span className={bs.lamp} data-s={lamp[0]} role="status">
-              <i aria-hidden="true" />
-              {lamp[1]}
+            <span role="status">
+              <StatusLamp state={lamp[0]} label={lamp[1]} onDark />
             </span>
           </span>
         }
-        bottom={
-          <div className={bs.bar}>
-            <span className={bs.keys} aria-hidden="true">
-              {key(['Q', 'E'], '切页签')}
-              {tab === 'lanes' ? (
-                key(['←', '→'], '换一个事件')
-              ) : tab === 'turns' ? (
-                <>
-                  {key(['↑', '↓'], '换一轮')}
-                  <span className={bs.opt}>{key(['↵'], '展开一步')}</span>
-                </>
-              ) : (
-                <>
-                  {key(['/'], '搜索')}
-                  <span className={bs.opt}>
-                    {key(['End'], '回到最新')}
-                    {key(['⇧', '点'], '选多行')}
-                  </span>
-                </>
-              )}
-              {key(['esc'], '主页')}
-            </span>
-            <span className={bs.acts}>
-              {tab === 'lanes' ? null : tab === 'turns' ? (
-                selRow && (
-                  <>
-                    <span className={bs.note}>第 {no} 轮的日志</span>
-                    <Btn variant="ghost" icon="file" onClick={toLogs}>看日志</Btn>
-                  </>
-                )
-              ) : (
-                <>
-                  <Btn variant="ghost" icon="copy" disabled={sel.size === 0} disabledReason="先点选日志行" onClick={copySel}>{sel.size ? `复制所选 ${sel.size} 行` : '复制所选'}</Btn>
-                  <Btn variant="secondary" tail="folder" onClick={reveal}>{revealText('在 Finder 中显示')}</Btn>
-                </>
-              )}
-            </span>
-          </div>
+      />
+      <BottomBarSlot
+        lead={
+          <span className={bs.keys} aria-hidden="true">
+            {key(['Q', 'E'], '切页签')}
+            {tab === 'lanes' ? (
+              key(['←', '→'], '换一个事件')
+            ) : tab === 'turns' ? (
+              <>
+                {key(['↑', '↓'], '换一轮')}
+                <span className={bs.opt}>{key(['↵'], '展开一步')}</span>
+              </>
+            ) : (
+              <>
+                {key(['/'], '搜索')}
+                <span className={bs.opt}>
+                  {key(['End'], '回到最新')}
+                  {key(['⇧', '点'], '选多行')}
+                </span>
+              </>
+            )}
+            {key(['esc'], '主页')}
+          </span>
+        }
+        actions={
+          tab === 'lanes' ? undefined : tab === 'turns' ? (
+            selRow ? (
+              <>
+                <span className={bs.note}>第 {no} 轮的日志</span>
+                <Btn variant="ghost" icon="file" onClick={toLogs}>看日志</Btn>
+              </>
+            ) : undefined
+          ) : (
+            <>
+              <Btn variant="ghost" icon="copy" disabled={sel.size === 0} disabledReason="先点选日志行" onClick={copySel}>{sel.size ? `复制所选 ${sel.size} 行` : '复制所选'}</Btn>
+              <Btn variant="secondary" tail="folder" onClick={reveal}>{revealText('在 Finder 中显示')}</Btn>
+            </>
+          )
         }
       />
       {tab === 'lanes' ? (
@@ -321,10 +314,8 @@ export function TracePage() {
             emptyText={turnParam ? '这一轮没有保留追踪事件' : all.length ? '选一轮看经过' : '这里会显示一轮的经过'}
             convTitle={conv ? (convs.data?.get(conv) ?? null) : null}
             related={related}
-            toggled={toggled}
-            onToggle={(id) => setToggled((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
             onRetry={() => void (selRow ? ev.refetch() : exact.refetch())}
-            onOpenChat={conv && selId ? () => jump({ page: 'chat', conv, turn: selId }) : null}
+            onOpenChat={conv && selTurn ? () => jump({ page: 'chat', conv, turn: selTurn }) : null}
             onLogs={toLogs}
             onCopy={copy}
           />

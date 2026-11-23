@@ -1,41 +1,16 @@
-/* Dark card (brief .pn: black tag title, a rule into hatching, four corner ticks). */
+/* 经过 under its group title, with the legend at the title's right; the log lines around the turn. */
 .pn {
-  position: relative;
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: var(--ef-sp-8);
   min-width: 0;
-  padding: 12px 14px 14px;
-  background: linear-gradient(180deg, var(--pn-hi), var(--pn) 40px);
-  box-shadow: 0 0 0 1px var(--pn-line);
-}
-
-.pn::after {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  background:
-    linear-gradient(var(--b-t3), var(--b-t3)) 0 0 / 6px 1px no-repeat,
-    linear-gradient(var(--b-t3), var(--b-t3)) 0 0 / 1px 6px no-repeat,
-    linear-gradient(var(--b-t3), var(--b-t3)) 100% 100% / 6px 1px no-repeat,
-    linear-gradient(var(--b-t3), var(--b-t3)) 100% 100% / 1px 6px no-repeat;
-  opacity: 0.7;
-  pointer-events: none;
-}
-
-.rule {
-  flex: 1;
-  min-width: 24px;
-  height: 7px;
-  border-top: 1px solid var(--pn-line);
-  background: repeating-linear-gradient(-60deg, var(--pn-line) 0 1px, transparent 1px 6px) right top / 56px 6px no-repeat;
 }
 
 .sub {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -56,18 +31,19 @@
 .lg i[data-d] {
   width: 8px;
   height: 8px;
-  background: var(--b-t1);
+  background: var(--ef-text-1);
   transform: rotate(45deg);
 }
 
 /* Lines from the logs around this turn. */
 .related {
   display: grid;
+  justify-items: stretch;
   gap: 2px;
 }
 
 .related > span {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font-size: 12px;
 }
 
@@ -76,7 +52,7 @@
   grid-template-columns: 86px 64px minmax(0, 1fr);
   gap: 8px;
   padding: 1px 8px;
-  background: var(--pn-lo);
+  background: var(--ef-surface-1);
   font: 12px / 20px var(--ef-font-mono);
   white-space: nowrap;
 }
@@ -91,25 +67,9 @@
 }
 
 .rl[data-l='err'] {
-  box-shadow: inset 2px 0 0 var(--danger);
+  box-shadow: inset 2px 0 0 var(--ef-danger-vivid);
 }
 
 .rl[data-l='warn'] {
-  box-shadow: inset 2px 0 0 var(--badge);
-}
-
-.lnk {
-  justify-self: start;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid var(--b-t3);
-  background: none;
-  color: var(--b-t1);
-  font: 12px var(--ef-font-sans);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.lnk:hover {
-  border-color: var(--ef-accent);
+  box-shadow: inset 2px 0 0 var(--ef-g-reddot);
 }
