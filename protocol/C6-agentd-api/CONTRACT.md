@@ -497,6 +497,9 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | POST | `/tasks/:task_id/continue`、`/tasks/:task_id/cancel` | ui | `write` | main | `character_agent.routes.http` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/agent/runs/:run_id/cancel` | ui | `write` | main、stack | `character_agent.routes.http` | `protocol/ui-bridge/CONTRACT.md` | — |
 | POST | `/character/acp/install` | ui | `write` | main | `character_agent.routes.http` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/character/login/start` | ui | `write` | main | `character_agent.routes.http` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/character/login/cancel` | ui | `write` | main | `character_agent.routes.http` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| POST | `/character/login/logout` | ui | `write` | main | `character_agent.routes.http` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/agent/interactions/:interaction_id/answer`、`/agent/interactions/:interaction_id/dismiss`、`/agent/interactions/:interaction_id/continue` | ui | `write` | main、stack | `character_agent.routes.http` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/agent/goals` | ui | `write` | main | `character_agent.routes.http` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | POST | `/agent/goals/:goal_id` | ui | `write` | main | `character_agent.routes.http` | `protocol/C6-agentd-api/CONTRACT.md` | — |

@@ -3,7 +3,7 @@
 import { PLUGINS } from '../bridge/plugins.generated';
 import type { SettingValue } from '../bridge/protocol';
 import { isoWithOffset } from '../domain/units';
-import type { WireSummaryRun } from '../domain/wire';
+import type { WireProductLogin, WireSummaryRun } from '../domain/wire';
 import type { Native, SchemaRow } from '../pages/settings/native';
 import { labelOf } from '../pages/settings/registry';
 import { pluginKey } from '../shell/plugins';
@@ -210,6 +210,8 @@ export function demoShotRuns(demo: string | null): WireSummaryRun[] {
   return [...runs, ...released].sort((a, b) => b.started_at.localeCompare(a.started_at));
 }
 
+const SIGNED_OUT: WireProductLogin = { pending: null, error: null, accounts: {} };
+
 export const routes: MockRoute[] = [
   { method: 'GET', path: '/character/runtime', handler: ({ query }) => ok(runtime(query.get('demo'))) },
   { method: 'GET', path: '/character/capabilities', handler: () => ok(CAPABILITIES) },
@@ -222,6 +224,9 @@ export const routes: MockRoute[] = [
       return ACP_AGENTS.agents.some((a) => a.id === id && a.source !== 'local') ? ok({ ...ACP_INSTALL, agent_id: id }) : bad('acp_install_unsupported');
     },
   },
+  { method: 'POST', path: '/character/login/start', handler: () => ok({ ...SIGNED_OUT, pending: { backend: 'codex', acp_agent: null } }) },
+  { method: 'POST', path: '/character/login/cancel', handler: () => ok(SIGNED_OUT) },
+  { method: 'POST', path: '/character/login/logout', handler: () => ok(SIGNED_OUT) },
   { method: 'GET', path: '/model/settings', handler: ({ query }) => ok(models(query.get('demo'))) },
   {
     method: 'POST',

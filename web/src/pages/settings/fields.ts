@@ -61,7 +61,7 @@ export const RUNSRC: Opt[] = [
   { value: 'local', label: '本机已安装' },
 ];
 
-/** Product sign-in is listed but not wired yet. Pi reads only the credentials Agentic Complex holds, which its existing_login also means. */
+/** Pi reads only the credentials Agentic Complex holds, which its existing_login also means. Claude Code takes no API key. */
 export function acctOptions(backend: string, current?: unknown): Opt[] {
   if (backend === 'pi')
     return [
@@ -70,8 +70,8 @@ export function acctOptions(backend: string, current?: unknown): Opt[] {
     ];
   return [
     { value: 'existing_login', label: '复用本机工具登录' },
-    { value: 'api_key', label: '使用 API 凭据' },
-    { value: 'product_login', label: '产品内登录（尚未接通）', disabled: true },
+    ...(backend === 'claude' ? [] : [{ value: 'api_key', label: '使用 API 凭据' }]),
+    { value: 'product_login', label: '在应用里登录' },
   ];
 }
 
@@ -266,6 +266,7 @@ export interface RuntimeError {
 const API_KEY = { row: 'apikey', action: '去填写 API Key' };
 const API_BASE = { row: 'apiBase', action: '去改 API 地址' };
 const ACCT = { row: 'acct', action: '去改账号来源' };
+const LOGIN = { row: 'kernelLogin', action: '去登录' };
 const PROVIDER = { row: 'provider', action: '去填写服务提供方和模型' };
 const EXE = { row: 'exe', action: '去选可执行文件' };
 const RUNSRC_FIX = { row: 'runsrc', action: '去改运行来源' };
@@ -295,12 +296,23 @@ export const RUNTIME_ERROR: Readonly<Record<string, RuntimeError>> = {
   runtime_discovery_pending: { label: '正在检测本机的内核…' },
   runtime_probe_pending: { label: '正在检查所选的可执行文件…' },
   character_context_unavailable: { label: '角色对话还没有启动' },
-  product_login_not_supported_use_native_login: { label: '产品内登录还没接通，请改用本机工具登录', fix: ACCT },
+  product_login_required: { label: '还没有在应用里登录这个内核，或登录已过期', fix: LOGIN },
+  product_login_checking: { label: '正在检查登录状态…' },
+  product_login_not_selected: { label: '账号来源不是「在应用里登录」', fix: ACCT },
+  login_pending: { label: '已经有一个登录在进行，请先完成或取消它' },
+  login_denied: { label: '登录没有完成：浏览器里取消了，或账号没有授权', fix: LOGIN },
+  login_timeout: { label: '5 分钟内没有在浏览器里完成登录，请重新登录', fix: LOGIN },
+  login_rejected: { label: '内核拒绝开始登录，请更新这个工具后再试' },
+  login_failed: { label: '登录进程意外退出，请重新登录；仍不行就在终端里登录后改用「复用本机工具登录」', fix: LOGIN },
+  browser_unavailable: { label: '打不开浏览器，请先设置系统默认浏览器' },
+  logout_failed: { label: '登出没有在 30 秒内完成，请重试' },
+  logout_unsupported: { label: '这个 ACP agent 不支持在应用里登出，请用它自己的方式登出' },
+  unknown_auth_method: { label: '这个 ACP agent 有多种登录方式，请选一种' },
   local_node_missing: { label: '没找到本机的 Node 可执行文件', fix: EXE },
   pi_provider_model_required: { label: 'Pi 要写明服务提供方和模型', fix: PROVIDER },
   pi_connection_missing: { label: 'Pi 没有能用的连接：写明服务提供方，或在 AI 账号 里用 ChatGPT 订阅或 API Key', fix: CONNECTION },
   acp_agent_missing: { label: '没有选 ACP agent，或选的 agent 找不到了', fix: ACP_AGENT },
-  acp_auth_required: { label: '这个 ACP agent 还没有登录' },
+  acp_auth_required: { label: '这个 ACP agent 还没有登录', fix: LOGIN },
   missing_anthropic_api_key: { label: '还没有保存 Anthropic API Key', fix: API_KEY },
   missing_provider_api_key: { label: '还没有保存这个服务的 API Key', fix: API_KEY },
   unsupported_anthropic_endpoint: { label: 'API 凭据只能用 Anthropic 官方地址', fix: API_BASE },

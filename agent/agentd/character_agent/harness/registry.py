@@ -64,7 +64,8 @@ def _cli_common(integration, config, common):
     if not selected or not selected["entry_supported"]:
         raise ValueError("runtime_unavailable")
     common.update(python=integration.python, cli_path=selected["path"],
-                  auth_mode=config["auth_source"], persist_session=False, effort=config.get('_semantic_effort') or config.get('_turn_effort'))
+                  auth_mode=config["auth_source"], persist_session=False, effort=config.get('_semantic_effort') or config.get('_turn_effort'),
+                  native_home=str(integration.logins.home(config["backend"])) if config["auth_source"] == "product_login" else None)
 
 
 def _codex_session(integration, config, common, definitions):

@@ -797,9 +797,28 @@ class IntegrationTests(IntegrationFixture):
         self.controller.configure({'backend': 'codex', 'executable': '/opt/homebrew/bin/codex'})
         self.assertEqual(self.controller.settings.snapshot()['executable'], '/opt/homebrew/bin/codex')
 
-    def test_product_login_is_explicitly_unavailable_not_silent_token_reuse(self):
+    def test_product_login_is_ready_only_when_the_apps_own_profile_is_signed_in(self):
         self.controller.settings.save({'backend':'codex','runtime_source':'local','auth_source':'product_login'})
-        self.assertEqual(self.controller.public()['error'], 'product_login_not_supported_use_native_login')
+        # The user's own login does not count for the app's profile.
+        row = {'backend':'codex', 'runtime_source':'local_cli', 'path':'/synthetic/codex',
+               'entry_supported':True, 'boundary_verified':True, 'authenticated':True, 'version':'test'}
+        self.controller.session_factory_override = None
+        for signed_in, error in ((False, 'product_login_required'), (None, 'product_login_checking'), (True, None)):
+            with self.subTest(signed_in=signed_in), patch.object(self.controller, 'installed_runtimes', return_value=[row]), \
+                    patch.object(self.controller.logins, 'signed_in', return_value=signed_in) as probe:
+                self.assertEqual(self.controller.public()['error'], error)
+                self.assertEqual(probe.call_args.args[:2], ('codex', '/synthetic/codex'))
+        self.assertEqual(self.controller.public()['product_login'], {'pending': None, 'error': None, 'accounts': {}})
+
+    def test_product_login_runs_the_kernel_in_the_apps_own_profile(self):
+        from character_agent.harness.registry import _cli_common
+        row = {'backend':'claude', 'path':'/synthetic/claude', 'entry_supported':True, 'authenticated':True}
+        config = {'backend': 'claude', 'auth_source': 'product_login'}
+        for auth, home in (('product_login', str(self.root / 'kernel-login' / 'claude')), ('existing_login', None)):
+            common = {}
+            with self.subTest(auth=auth), patch.object(self.controller, '_selected_runtime', return_value=row):
+                _cli_common(self.controller, {**config, 'auth_source': auth}, common)
+                self.assertEqual(common['native_home'], home)
 
     def test_proactive_role_uses_harness_but_has_no_action_tools(self):
         results = self.calling('artifact_write', 'desktop_act', 'task_plan')

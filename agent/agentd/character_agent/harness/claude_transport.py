@@ -20,6 +20,8 @@ class ClaudeConfig:
     persist_session: bool = False
     # The CLI owns its login.
     auth_mode: str = "existing_login"
+    # product_login: Agentic Complex's own profile directory of the CLI; None with the other auth modes.
+    native_home: str | None = None
     runtime_source: str = "local"
     effort: str | None = None
     backend: str = field(default="claude", init=False)
@@ -30,7 +32,7 @@ class ClaudeConfig:
     def validate(self, require_key=True):
         if self.effort not in (None, "low", "medium", "high"):
             raise ValueError("invalid_reasoning_effort")
-        if self.auth_mode != "existing_login":
+        if self.auth_mode not in ("existing_login", "product_login"):
             raise ValueError("unsupported_auth_source")
         if self.runtime_source != "local":
             raise ValueError("invalid_runtime_source")

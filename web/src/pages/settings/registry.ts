@@ -145,6 +145,7 @@ const RAW: Raw[] = [
   ['exe', 'kernel', '外接 harness', '可执行文件', '路径'],
   ['acpAgent', 'kernel', '外接 harness', 'ACP 智能体', 'acp claude gemini npx uvx 下载 agent'],
   ['acct', 'kernel', '外接 harness', '账号来源', '登录 凭据'],
+  ['kernelLogin', 'kernel', '外接 harness', '登录', '登录 登出 账号 浏览器 ChatGPT Claude 订阅'],
   ['provider', 'kernel', '外接 harness', '服务提供方', 'openai anthropic deepseek xai grok 兼容'],
   ['mainModel', 'kernel', '外接 harness', '主会话模型', '模型'],
   ['routes', 'kernel', '外接 harness', '按用途指定内核', '用途 对话 后台 判断 理解 记忆 电脑操控 模型 强度 思考'],
@@ -238,7 +239,7 @@ const BAND_ROWS: Readonly<Record<string, PluginId>> = {
   motionToken: 'motion_generation',
   hooks2: 'coding_sessions',
   ...Object.fromEntries(
-    ['kernel', 'exe', 'acpAgent', 'acct', 'provider', 'mainModel', 'routes', ...ROUTES.flatMap((p) => Object.values(routeIds(p)))].map((id) => [id, 'harness_bridge' as const]),
+    ['kernel', 'exe', 'acpAgent', 'acct', 'kernelLogin', 'provider', 'mainModel', 'routes', ...ROUTES.flatMap((p) => Object.values(routeIds(p)))].map((id) => [id, 'harness_bridge' as const]),
   ),
 };
 

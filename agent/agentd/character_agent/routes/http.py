@@ -22,7 +22,7 @@ def route(handler, method, path):
     run_files = re.fullmatch(r'/agent/runs/([A-Za-z0-9_-]{1,128})/files', path)
     canonical = re.fullmatch(r'/agent/tasks/([^/]{1,196})(?:/(steps|files|accept|reject))?', path)
     delivery = re.fullmatch(r'/agent/deliveries/(delivery-[a-f0-9]{32})(?:/(presented|viewed|opened))?', path)
-    if path not in ("/character/runtime", "/character/capabilities", "/character/acp/agents", "/character/acp/install", "/agent/scopes", "/agent/runs", "/memory/runs", '/agent/goals', '/agent/jobs', '/agent/interactions', '/agent/tasks', '/agent/deliveries', '/agent/artifacts/revert') and not interaction and not task and not scope and not memory_run and not goal and not job and not run and not run_items and not run_files and not canonical and not delivery:
+    if path not in ("/character/runtime", "/character/capabilities", "/character/acp/agents", "/character/acp/install", "/character/login/start", "/character/login/cancel", "/character/login/logout", "/agent/scopes", "/agent/runs", "/memory/runs", '/agent/goals', '/agent/jobs', '/agent/interactions', '/agent/tasks', '/agent/deliveries', '/agent/artifacts/revert') and not interaction and not task and not scope and not memory_run and not goal and not job and not run and not run_items and not run_files and not canonical and not delivery:
         return False
     h, server = handler, handler.server
     def reply(status, data):
@@ -135,6 +135,8 @@ def route(handler, method, path):
         if run and method == 'POST':
             if set(body) != {'generation'} or type(body['generation']) is not int: raise ValueError('invalid_payload')
             return reply(*controller.cancel_run(run[1], body['generation']))
+        if path.startswith("/character/login/") and method == "POST":
+            return reply(200, controller.login(path.rsplit("/", 1)[1], body))
         if path == "/character/acp/install" and method == "POST":
             if set(body) != {"agent_id"} or not isinstance(body["agent_id"], str): raise ValueError("invalid_payload")
             return reply(200, controller.acp_install(body["agent_id"]))

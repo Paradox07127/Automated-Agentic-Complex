@@ -50,8 +50,10 @@ class SettingsTests(unittest.TestCase):
         saved = self.settings.save({'backend': 'claude', 'runtime_source': 'local', 'executable': '/usr/local/bin/claude'})
         self.assertEqual(RuntimeSettings(self.root).snapshot(), saved)
         self.assertEqual(self.settings.save({**saved, 'provider': 'anthropic'})['provider'], 'anthropic')
+        self.assertEqual(self.settings.save({**saved, 'auth_source': 'product_login'})['auth_source'], 'product_login')
         for values, code in (({'backend': 'claude'}, 'invalid_runtime_source'),
                              ({'backend': 'claude', 'runtime_source': 'local', 'auth_source': 'api_key'}, 'unsupported_auth_source'),
+                             ({'backend': 'pi', 'runtime_source': 'bundled', 'auth_source': 'product_login'}, 'unsupported_auth_source'),
                              ({'backend': 'claude', 'runtime_source': 'local', 'provider': 'openai'},
                               'provider_not_supported_by_harness')):
             with self.subTest(values=values), self.assertRaisesRegex(ValueError, code):

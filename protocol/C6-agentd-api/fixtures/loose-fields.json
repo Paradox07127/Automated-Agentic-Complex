@@ -85,7 +85,9 @@
                                "installed_runtimes[].login_command", "selected_runtime", "selected_runtime.reason",
                                "selected_runtime.login_command", "capabilities.tool_inventory_verified",
                                "capabilities.task_verified", "capabilities.features.*.reason", "pi_session",
-                               "pi_session.shell.bash", "pi_session.shell.powershell", "pi_session.workspace_dir"],
+                               "pi_session.shell.bash", "pi_session.shell.powershell", "pi_session.workspace_dir",
+                               "product_login.pending", "product_login.pending.acp_agent", "product_login.error",
+                               "product_login.accounts.*.email", "product_login.accounts.*.plan"],
     "character-capabilities.json": ["tool_inventory_verified", "task_verified", "features.*.reason"],
     "memory-sessions.json": ["sessions[].agent", "sessions[].project", "sessions[].task_id"],
     "memory-tasks.json": ["tasks[].project", "tasks[].next_step"],
@@ -119,7 +121,7 @@
     ],
     "observation-state.json": ["queue.by_origin", "queue.all_characters", "task_corrections"],
     "observation-sources.json": ["items[].metadata"],
-    "character-runtime.json": ["pi_session.builtin_tools_unavailable"],
+    "character-runtime.json": ["pi_session.builtin_tools_unavailable", "product_login.accounts"],
     "motion-groups.json": ["pools"]
   }
 }

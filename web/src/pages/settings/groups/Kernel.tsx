@@ -15,6 +15,7 @@ import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { Slab } from '../Slab';
 import { useKernelActions } from '../useKernelActions';
+import { KernelLoginRow } from './KernelLogin';
 import { KernelPi, WorkspaceRow } from './KernelPi';
 import { KernelRoutes } from './KernelRoutes';
 import styles from '../groups.module.css';
@@ -119,7 +120,10 @@ export function KernelGroup() {
       .then((r) => (r.ok ? model.notify({ message: `已安装 ${a.name}`, severity: 'success' }) : fail(exitWhy(r))), (e) => fail(failure(e).text))
       .finally(() => (setInstalling(null), void acp.reload()));
   };
-  const savedAuth = authNames(acp.list?.agents.find((a) => a.id === savedAgent && a.source === 'local'));
+  const savedMethods = acp.list?.agents.find((a) => a.id === savedAgent && a.source === runtime.wire.acp_launcher)?.probe?.auth_methods ?? [];
+  // Sign-in acts on the saved kernel: a picked but unapplied one waits for 应用.
+  const loginShown = runtime.selected === selected && !('acct' in model.draft) && !('acpAgent' in model.draft) &&
+    (isAcp ? !!savedAgent : (selected === 'codex' || selected === 'claude') && runtime.wire.auth_source === 'product_login');
   const profiles = (runtime.wire as { provider_profiles?: ProviderProfile[] }).provider_profiles ?? [];
   const provOpts = providerOptions(selected, profiles);
   // A catalog profile names the account source it runs with.
@@ -250,14 +254,6 @@ export function KernelGroup() {
                 <KernelChain runtime={cur} alternative={altOf(cur)} onCopy={k.onCopy} onRunInTerminal={k.onRunInTerminal} onSwitch={switchTo} />
               </div>
             )}
-            {code === 'acp_auth_required' &&
-              (savedAgent === 'claude-acp' ? (
-                <p className={styles.wide}>
-                  <span>在终端运行 claude 并输入 /login</span> <Btn onClick={() => k.onRunInTerminal('claude')}>在终端运行</Btn>
-                </p>
-              ) : (
-                savedAuth && <p className={styles.wide}>{`要登录：${savedAuth}`}</p>
-              ))}
             {runtime.busy && <p className={styles.wide}>正在运行；改用别的内核或改设置会取消这次运行</p>}
           </div>
         </Slab>
@@ -356,15 +352,16 @@ export function KernelGroup() {
             )}
           </Slab>
         )}
-        {selected !== 'pi' && !ownLogin && (
+        {selected !== 'pi' && !isAcp && (
           <SetRow
             id="acct"
             title={labelOf('acct')}
-            desc={model.value('acct') === 'api_key' ? '用「账号」里保存的 API 凭据' : '用内核自己的登录'}
+            desc={{ api_key: '用「账号」里保存的 API 凭据', product_login: '在应用里登录，与终端里的登录分开' }[String(model.value('acct'))] ?? '用内核自己的登录'}
             indent
             control={c.select('acct', acctOptions(selected, model.value('acct')))}
           />
         )}
+        {loginShown && <KernelLoginRow backend={selected} methods={savedMethods} />}
         {!ownLogin && (
           <SetRow
             id="provider"

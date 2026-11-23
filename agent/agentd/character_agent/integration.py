@@ -151,6 +151,8 @@ class CharacterAgentController:
         self._acp_probes = {}
         # ACP registry id -> whether its last session start got past the agent's authentication.
         self._acp_logins = {}
+        from character_agent.services.kernel_login import KernelLogin
+        self.logins = KernelLogin(self.state_dir, on_acp_login=self._acp_signed_in)
         self.memory_journal = MemoryJournal(server.memory) if server.memory is not None else None
         from character_agent.services.semantic import SemanticService
         from character_agent.services.memory_pipeline import MemoryPipeline
@@ -593,7 +595,7 @@ class CharacterAgentController:
                     "catalog_priced": config["backend"] == "pi" and error is None and not self.session_factory_override
                         and self._catalog_priced(config),
                     "native_images": False, "custom_tools": True},
-                "pi_session": self._pi_facts}
+                "pi_session": self._pi_facts, "product_login": self.logins.public()}
         self._last_public = value
         value["capabilities"] = describe_capabilities(config, selected, computer_use_ready=self._computer_use_ready(config))
         from character_agent.services.providers import catalog
@@ -614,8 +616,6 @@ class CharacterAgentController:
                 error = 'runtime_discovery_pending' if pending and entry['reason'] != 'plugin_off' else entry["reason"]
             elif self.server.no_character or plugins.on("light_ai") and self.server.mouth is None:
                 error = "character_context_unavailable"
-            elif config["auth_source"] == "product_login":
-                error = "product_login_not_supported_use_native_login"
             elif not self.session_factory_override:
                 if h.discovery_name:
                     selected = self._selected_runtime(config, wait=wait)
@@ -627,6 +627,9 @@ class CharacterAgentController:
                         error = "runtime_protocol_unavailable"
                     elif config["auth_source"] == "existing_login" and not selected["authenticated"]:
                         error = "native_login_required"
+                    elif config["auth_source"] == "product_login":
+                        signed_in = self.logins.signed_in(config["backend"], selected["path"], wait)
+                        error = "product_login_checking" if signed_in is None else None if signed_in else "product_login_required"
                 elif config["backend"] == "acp":
                     error = self._acp_error(config)
                 elif h.provider is None:
@@ -659,6 +662,40 @@ class CharacterAgentController:
         if self._acp_logins.get(agent["id"]) is False and (probe is None or probe["auth_methods"]):
             return "acp_auth_required"
         return None
+
+    def _acp_signed_in(self, agent_id, signed_in):
+        self._acp_logins[agent_id] = signed_in
+        self._acp_probes.pop(agent_id, None)
+
+    def login(self, action, body):
+        """POST /character/login/<action>: start, cancel or log out the sign-in of the saved kernel: Codex or Claude Code
+        in the app's own profile (product_login), or the ACP agent in its own login. `method_id` picks an ACP method."""
+        if set(body) - ({"method_id"} if action == "start" else set()) or not isinstance(body.get("method_id", ""), str):
+            raise ValueError("invalid_payload")
+        if action == "cancel":
+            return self.logins.cancel()
+        config = self.settings.snapshot()
+        if config["backend"] == "acp":
+            agent = acp_agent(config)
+            if agent is None:
+                raise ValueError("acp_agent_missing")
+            if action == "logout":
+                return self.logins.logout("acp", agent=agent)
+            from character_agent.harness.acp_agents import probe
+            methods = probe(agent["command"], agent.get("env"))["auth_methods"]
+            wanted = body.get("method_id") or (methods[0]["id"] if len(methods) == 1 else None)
+            method = next((m for m in methods if m.get("id") == wanted), None)
+            if method is None:
+                raise ValueError("unknown_auth_method")
+            return self.logins.start("acp", agent=agent, method=method)
+        if config["auth_source"] != "product_login":
+            raise ValueError("product_login_not_selected")
+        selected = self._selected_runtime(config)
+        if selected is None:
+            raise ValueError("local_runtime_missing")
+        if action == "logout":
+            return self.logins.logout(config["backend"], selected["path"])
+        return self.logins.start(config["backend"], selected["path"])
 
     def acp_agents(self, refresh=False):
         """Local ACP agents (initialize-probed on refresh) and the registry's npx/uvx ones, which are never run here."""

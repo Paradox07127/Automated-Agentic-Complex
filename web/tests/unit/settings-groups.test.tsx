@@ -230,6 +230,40 @@ describe('settings › 启动与关于', () => {
 });
 
 describe('settings › 角色内核', () => {
+  it('offers the app sign-in for Codex and Claude Code only, and shows the signed-in account with sign-out', async () => {
+    const { acctOptions } = await import('../../src/pages/settings/fields');
+    expect(acctOptions('codex').map((o) => [o.value, o.disabled ?? false])).toEqual([['existing_login', false], ['api_key', false], ['product_login', false]]);
+    expect(acctOptions('claude').map((o) => o.value)).toEqual(['existing_login', 'product_login']);
+    const signedIn = { pending: null, error: null, accounts: { claude: { signed_in: true, email: 'me@example.com', plan: 'max' } } };
+    const claude = (extra: Partial<WireRuntimePublic>) =>
+      runtimeView({ ...WIRE_RUNTIME, backend: 'claude', auth_source: 'product_login', provider: '', ready: true,
+        available_backends: [...WIRE_RUNTIME.available_backends, { id: 'claude', title: 'Claude Code', available: true, reason: null }], ...extra });
+    const { unmount } = render(
+      <Harness runtime={claude({ product_login: signedIn })}>
+        <KernelGroup />
+      </Harness>,
+    );
+    const row = () => document.querySelector('[data-row="kernelLogin"]') as HTMLElement;
+    expect(within(row()).getByText('me@example.com │ max')).toBeTruthy();
+    expect(within(row()).getByRole('button', { name: '重新登录' })).toBeTruthy();
+    expect(within(row()).getByRole('button', { name: '登出' })).toBeTruthy();
+    unmount();
+    render(
+      <Harness runtime={claude({ product_login: { ...signedIn, pending: { backend: 'claude', acp_agent: null } } })}>
+        <KernelGroup />
+      </Harness>,
+    );
+    expect(within(row()).getByText('在浏览器里完成登录后回来')).toBeTruthy();
+    expect(within(row()).getByRole('button', { name: '取消登录' })).toBeTruthy();
+    cleanup();
+    render(
+      <Harness runtime={claude({ auth_source: 'existing_login' })}>
+        <KernelGroup />
+      </Harness>,
+    );
+    expect(row()).toBeNull();
+  });
+
   it('shows no login command when agentd names none', async () => {
     render(
       <Harness runtime={withLogin(await loggedOutRuntime(), null)}>
@@ -449,24 +483,27 @@ describe('settings › 角色内核 › ACP', () => {
     expect(refresh).toEqual([null, '1']);
   });
 
-  it('tells a signed-out Claude agent to log in from the terminal, and names the sign-in of any other', async () => {
-    const run = vi.spyOn(window.agenticComplex!.open, 'runInTerminal');
-    const { unmount } = render(
-      <Harness runtime={acp({ acp_agent: 'claude-acp', ready: false, error: 'acp_auth_required' })}>
-        <KernelGroup />
-      </Harness>,
-    );
-    expect(screen.getByText('在终端运行 claude 并输入 /login')).toBeTruthy();
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: '在终端运行' })));
-    expect(run).toHaveBeenCalledWith('claude');
-    unmount();
+  it('signs a signed-out ACP agent in from the app with its own method, without a terminal', async () => {
+    const started: unknown[] = [];
+    window.agenticComplex = createFakeBridge({
+      surface: 'main',
+      still: true,
+      routes: [
+        { method: 'GET', path: '/character/acp/agents', handler: () => ({ status: 200, body: AGENTS }) },
+        { method: 'POST', path: '/character/login/start', handler: ({ body }) => (started.push(body), { status: 200, body: { pending: { backend: 'acp', acp_agent: 'goose' }, error: null, accounts: {} } }) },
+      ],
+    });
     render(
       <Harness runtime={acp({ acp_agent: 'goose', ready: false, error: 'acp_auth_required' })}>
         <KernelGroup />
       </Harness>,
     );
     await screen.findByText('Goose');
-    expect(screen.queryByText('在终端运行 claude 并输入 /login')).toBeNull();
-    expect(screen.getAllByText(/Sign in with Block/).length).toBe(2);
+    expect(screen.queryByRole('button', { name: '在终端运行' })).toBeNull();
+    expect(screen.getByRole('button', { name: '去登录' })).toBeTruthy();
+    const row = document.querySelector('[data-row="kernelLogin"]') as HTMLElement;
+    await act(async () => fireEvent.click(within(row).getByRole('button', { name: '登录' })));
+    expect(started).toEqual([{ method_id: 'oauth' }]);
+    expect(within(row).getByRole('button', { name: '登出' })).toBeTruthy();
   });
 });

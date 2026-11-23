@@ -9,6 +9,8 @@ thought_level config options), modes (no config options, session modes only) or 
 Harness's grouped models with JSON-string values and off/low/high/max effort).
 FAKE_ACP_CLOSE=1 declares sessionCapabilities.close.
 FAKE_ACP_LOG names a JSON-lines file that records what the agent received.
+FAKE_ACP_AUTH is how authenticate answers: ok (default), deny, or hang (never). FAKE_ACP_LOGOUT=1 declares
+agentCapabilities.auth.logout and answers logout.
 FAKE_ACP_GRANDCHILD=1 starts, with session/new, a process that holds a file open in the session cwd and
 appends to <FAKE_ACP_LOG>.beat every 50 ms for 30 s.
 """
@@ -24,6 +26,8 @@ SESSION = os.environ.get("FAKE_ACP_SESSION", "model")
 CLOSE = os.environ.get("FAKE_ACP_CLOSE") == "1"
 LOG = os.environ.get("FAKE_ACP_LOG")
 GRANDCHILD = os.environ.get("FAKE_ACP_GRANDCHILD") == "1"
+AUTH = os.environ.get("FAKE_ACP_AUTH", "ok")
+LOGOUT = os.environ.get("FAKE_ACP_LOGOUT") == "1"
 BEAT = ("import sys, time\nheld = open('held.txt', 'w')\nfor _ in range(600):\n"
         "    with open(sys.argv[1], 'a') as beat:\n        beat.write('.')\n    time.sleep(.05)\n")
 
@@ -210,9 +214,18 @@ def handle(message):
         if CLOSE:
             session["close"] = {}
         send({"id": request_id, "result": {"protocolVersion": 1,
-            "agentCapabilities": {"loadSession": False, "sessionCapabilities": session},
+            "agentCapabilities": {"loadSession": False, "sessionCapabilities": session, **({"auth": {"logout": {}}} if LOGOUT else {})},
             "agentInfo": {"name": "fake-acp", "title": "Fake ACP", "version": "0.1.0"},
             "authMethods": [{"id": "fake-login", "name": "Fake login"}]}})
+    elif method == "authenticate":
+        log("authenticate", params=params)
+        if AUTH == "ok":
+            send({"id": request_id, "result": {}})
+        elif AUTH == "deny":
+            send({"id": request_id, "error": {"code": -32000, "message": "Authentication required"}})
+    elif method == "logout" and LOGOUT:
+        log("logout", params=params)
+        send({"id": request_id, "result": {}})
     elif method == "session/new":
         log("session_new", params=params)
         if GRANDCHILD:

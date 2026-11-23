@@ -64,6 +64,8 @@ class RuntimeSettings:
             raise ValueError("invalid_auth_source")
         if result["auth_source"] == "local_no_auth" and result["backend"] != "pi":
             raise ValueError("local_no_auth_requires_pi")
+        if result["auth_source"] == "product_login" and result["backend"] not in ("codex", "claude"):
+            raise ValueError("unsupported_auth_source")
         if not isinstance(result["provider"], str) or len(result["provider"]) > 128 or \
                 any(c.isspace() for c in result["provider"]):
             raise ValueError("invalid_provider")
@@ -73,7 +75,7 @@ class RuntimeSettings:
             # The CLI owns its login and its Anthropic connection.
             if result["provider"] not in ("", "anthropic"):
                 raise ValueError("provider_not_supported_by_harness")
-            if result["auth_source"] != "existing_login":
+            if result["auth_source"] not in ("existing_login", "product_login"):
                 raise ValueError("unsupported_auth_source")
         if result["acp_launcher"] not in ("local", "npx", "uvx"):
             raise ValueError("invalid_acp_launcher")

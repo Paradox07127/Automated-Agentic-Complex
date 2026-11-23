@@ -123,6 +123,17 @@ export interface WireRuntimePublic extends WireRuntimeSettings {
   capabilities?: unknown;
   /** null until a Pi session with Pi's own tools has started in this agentd. */
   pi_session: WirePiSession | null;
+  product_login: WireProductLogin;
+}
+
+/** kernel_login.py public(): the sign-in started in the app. */
+export interface WireProductLogin {
+  /** The sign-in running now; null when none runs. */
+  pending: { backend: string; acp_agent: string | null } | null;
+  /** The code the last sign-in failed with. */
+  error: string | null;
+  /** Codex or Claude Code -> its probed app profile; a backend not probed yet is absent. */
+  accounts: Record<string, { signed_in: boolean; email: string | null; plan: string | null }>;
 }
 
 /** usage.py today() row (total and each by_call / by_channel entry). */

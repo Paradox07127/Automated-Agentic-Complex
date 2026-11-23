@@ -1,4 +1,4 @@
-"""Local ACP agents: the registry snapshot, what is installed here, and an initialize-only probe."""
+"""Local ACP agents: the registry snapshot, what is installed here, an initialize-only probe and sign-in."""
 import asyncio
 import json
 import os
@@ -197,3 +197,41 @@ async def _probe(command, env, timeout):
 def probe(command, env=None, timeout=10):
     """Start the agent, send ACP initialize only (no session), then end the process."""
     return asyncio.run(_probe(list(command), env, timeout))
+
+
+async def _auth_call(command, env, method, params, timeout, cancel):
+    """Initialize, then send `method` (authenticate or logout); False when the agent refuses it, cannot do it or
+    `cancel` is set first."""
+    async def no_requests(_method, _params):
+        return None
+
+    with tempfile.TemporaryDirectory(prefix="efacp-auth-") as cwd:
+        agent = AcpAgent(command, {**os.environ, **(env or {})}, cwd, no_requests, lambda *_: None, lambda _code: None)
+        try:
+            await agent.start()
+            init = await agent.request("initialize", {"protocolVersion": 1, "clientCapabilities": CLIENT_CAPABILITIES,
+                "clientInfo": {"name": "endfield_personal_agent", "version": "1"}}, timeout=10)
+            if method == "logout" and "logout" not in ((init.get("agentCapabilities") or {}).get("auth") or {}):
+                return False
+            call = asyncio.ensure_future(agent.request(method, params, timeout=timeout))
+            while not call.done():
+                await asyncio.wait({call}, timeout=0.5)
+                if cancel is not None and cancel.is_set():
+                    call.cancel()
+                    return False
+            call.result()
+            return True
+        except (RunnerFailure, AcpError):
+            return False
+        finally:
+            await agent.disconnect()
+
+
+def authenticate(command, env, method_id, timeout, cancel):
+    """ACP authenticate with one of the agent's own (type "agent") methods; the agent opens the browser itself."""
+    return asyncio.run(_auth_call(list(command), env, "authenticate", {"methodId": method_id}, timeout, cancel))
+
+
+def logout(command, env):
+    """ACP logout; False when the agent does not offer it."""
+    return asyncio.run(_auth_call(list(command), env, "logout", {}, 30, None))

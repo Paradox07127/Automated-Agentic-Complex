@@ -53,6 +53,8 @@
                  "builtin_tools_unavailable": {"grep": "rg_not_found", "find": "fd_not_found"},
                  "shell": {"bash": "/bin/bash", "powershell": null}, "tool_approval": true,
                  "workspace_dir": "/Users/demo/AgenticComplex"},
+  "product_login": {"pending": null, "error": null,
+                    "accounts": {"codex": {"signed_in": true, "email": "demo@example.com", "plan": "plus"}}},
   "capabilities": {
     "backend": "codex",
     "discovered": true,

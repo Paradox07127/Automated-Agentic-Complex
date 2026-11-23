@@ -4,7 +4,7 @@ import { appNow } from '../../bridge/clock';
 import { codeText, serverFaultText } from '../../domain/errorText';
 import { getBridge, type PickedHandle } from '../../bridge';
 import type { ObservationBriefsSettingsResponse } from '../../bridge/agentd-routes.generated';
-import type { WireRuntimePublic, WireRuntimeSettings } from '../../domain/wire';
+import type { WireProductLogin, WireRuntimePublic, WireRuntimeSettings } from '../../domain/wire';
 import type {
   AllowField,
   BlacklistField,
@@ -43,6 +43,11 @@ export const chatgptCancel = () => post<WireChatgpt>('/model/chatgpt/cancel', {}
 export const chatgptSelect = (profile_id: string) => post<WireChatgpt>('/model/chatgpt/select', { profile_id });
 /** agentd answers only whether the provider revoked the refresh token; the account state comes from a reload. */
 export const chatgptLogout = (profile_id: string) => post<{ revoked: boolean }>('/model/chatgpt/logout', { profile_id });
+
+/** Sign-in of the saved kernel in the app: agentd or the kernel opens the browser; the state comes back in `/character/runtime`. `method_id` picks an ACP agent's method. */
+export const loginStart = (method_id?: string) => post<WireProductLogin>('/character/login/start', method_id ? { method_id } : {});
+export const loginCancel = () => post<WireProductLogin>('/character/login/cancel', {});
+export const loginLogout = () => post<WireProductLogin>('/character/login/logout', {});
 
 /** integration.py acp_agents(): `probe` is set on local agents after a refresh only. */
 export interface AcpAgent {

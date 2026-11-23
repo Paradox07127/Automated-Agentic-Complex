@@ -165,7 +165,9 @@ class CodexPolicyTests(unittest.TestCase):
         self.assertFalse(config.public()["cost_limit_supported"])
 
     def test_product_login_unknown_runtime_and_nonprivate_urls_fail_before_execution(self):
-        for config, code in ((CodexConfig("/tmp/a", "m", cli_path="/fixture/codex", auth_mode="product_login", **WORK), "unsupported_auth_source"),
+        CodexConfig("/tmp/a", "m", cli_path="/fixture/codex", auth_mode="product_login", native_home="/tmp/home", **WORK).validate()
+        for config, code in ((CodexConfig("/tmp/a", "m", cli_path="/fixture/codex", auth_mode="product_login", native_home="/tmp/home",
+                                          base_url="https://proxy.example/v1", **WORK), "native_login_requires_native_provider"),
                              (CodexConfig("/tmp/a", "m", "key", **WORK), "local_cli_path_required"),
                              (CodexConfig("/tmp/a", "m", "key", cli_path="/fixture/codex", runtime_source="bundled", **WORK), "invalid_runtime_source"),
                              (CodexConfig("/tmp/a", "m", "key", cli_path="/fixture/codex", base_url="http://remote.example", **WORK), "invalid_api_url")):

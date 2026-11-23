@@ -6,7 +6,7 @@ import type { WireRuntimePublic } from '../domain';
 export const RUNTIME_KEY = ['runtime'] as const;
 
 /** agentd answers these at once while its first runtime probe runs in the background. */
-const PENDING: ReadonlySet<string> = new Set(['runtime_discovery_pending', 'runtime_probe_pending']);
+const PENDING: ReadonlySet<string> = new Set(['runtime_discovery_pending', 'runtime_probe_pending', 'product_login_checking']);
 
 /** `demo` reaches only the fake bridge's mock, under its own entry. */
 const fakeDemo = (demo: string | null | undefined) => (!window.agenticComplex && demo ? demo : null);
@@ -25,7 +25,8 @@ export function useRuntimePublic<T = WireRuntimePublic>({ demo, select }: { demo
     },
     select,
     staleTime: 30_000,
-    refetchInterval: (q) => (PENDING.has(q.state.data?.error ?? '') ? 1_000 : 15_000),
+    // A sign-in in the app ends in the browser; the page learns of it here.
+    refetchInterval: (q) => (PENDING.has(q.state.data?.error ?? '') || q.state.data?.product_login?.pending ? 1_000 : 15_000),
     retry: false,
   });
 }

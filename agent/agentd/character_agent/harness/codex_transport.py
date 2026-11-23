@@ -22,6 +22,8 @@ class CodexConfig:
     persist_session: bool = False
     base_url: str = "https://api.openai.com/v1"
     auth_mode: str = "api_key"
+    # product_login: Agentic Complex's own profile directory of the CLI; None with the other auth modes.
+    native_home: str | None = None
     runtime_source: str = "local"
     effort: str | None = None
     backend: str = field(default="codex", init=False)
@@ -31,7 +33,7 @@ class CodexConfig:
 
     def validate(self, require_key=True):
         if self.effort not in (None, 'low', 'medium', 'high'): raise ValueError('invalid_reasoning_effort')
-        if self.auth_mode not in ("api_key", "existing_login"):
+        if self.auth_mode not in ("api_key", "existing_login", "product_login"):
             raise ValueError("unsupported_auth_source")
         if self.runtime_source != "local":
             raise ValueError("invalid_runtime_source")
@@ -56,7 +58,7 @@ class CodexConfig:
             raise ValueError("local_cli_path_required")
         if not Path(self.cli_path).is_absolute():
             raise ValueError("cli_path_must_be_absolute")
-        if self.auth_mode == "existing_login" and self.base_url != "https://api.openai.com/v1":
+        if self.auth_mode != "api_key" and self.base_url != "https://api.openai.com/v1":
             raise ValueError("native_login_requires_native_provider")
         if self.persist_session:
             raise ValueError("codex_native_session_persistence_not_supported")

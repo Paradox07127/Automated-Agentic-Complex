@@ -187,6 +187,9 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'POST', path: '^/tasks/([^/]{1,128})/(continue|cancel)$', templates: ['/tasks/:task_id/continue', '/tasks/:task_id/cancel'], class: 'write', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'POST', path: '^/agent/runs/([A-Za-z0-9_-]{1,128})/cancel$', templates: ['/agent/runs/:run_id/cancel'], class: 'write', surfaces: ['main', 'stack'], plugin: 'personal_agent' },
   { method: 'POST', path: '/character/acp/install', templates: ['/character/acp/install'], class: 'write', surfaces: ['main'], plugin: 'harness_bridge' },
+  { method: 'POST', path: '/character/login/start', templates: ['/character/login/start'], class: 'write', surfaces: ['main'] },
+  { method: 'POST', path: '/character/login/cancel', templates: ['/character/login/cancel'], class: 'write', surfaces: ['main'] },
+  { method: 'POST', path: '/character/login/logout', templates: ['/character/login/logout'], class: 'write', surfaces: ['main'] },
   { method: 'POST', path: '^/agent/interactions/([a-f0-9]{32})/(answer|dismiss|continue)$', templates: ['/agent/interactions/:interaction_id/answer', '/agent/interactions/:interaction_id/dismiss', '/agent/interactions/:interaction_id/continue'], class: 'write', surfaces: ['main', 'stack'], plugin: 'personal_agent' },
   { method: 'POST', path: '/agent/goals', templates: ['/agent/goals'], class: 'write', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'POST', path: '^/agent/goals/([a-f0-9]{32})$', templates: ['/agent/goals/:goal_id'], class: 'write', surfaces: ['main'], plugin: 'personal_agent' },
@@ -279,6 +282,7 @@ export type AgentdRouteKey =
   | `POST /conversations/${string}/messages` | `POST /conversations/${string}/cancel` | 'POST /agent/scopes'
   | `POST /agent/scopes/${string}/revoke` | 'POST /agent/artifacts/revert' | `POST /tasks/${string}/continue`
   | `POST /tasks/${string}/cancel` | `POST /agent/runs/${string}/cancel` | 'POST /character/acp/install'
+  | 'POST /character/login/start' | 'POST /character/login/cancel' | 'POST /character/login/logout'
   | `POST /agent/interactions/${string}/answer` | `POST /agent/interactions/${string}/dismiss`
   | `POST /agent/interactions/${string}/continue` | 'POST /agent/goals' | `POST /agent/goals/${string}`
   | 'POST /agent/jobs' | `POST /agent/jobs/${string}/cancel` | `POST /agent/jobs/${string}/resume`
@@ -1276,6 +1280,11 @@ export interface CharacterRuntimeResponse {
     tool_approval: boolean;
     workspace_dir: string | null;
   } | null;
+  product_login: {
+    pending: unknown;
+    error: unknown;
+    accounts: { codex: { signed_in: boolean; email: string | null; plan: string | null } };
+  };
   capabilities: {
     backend: string;
     discovered: boolean;

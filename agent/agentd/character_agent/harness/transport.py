@@ -59,6 +59,10 @@ def join_reapers():
         reaper.join()
 
 
+# The variable that points a kernel at its profile directory: the user's own, or Agentic Complex's with product_login.
+NATIVE_HOME_VAR = {"codex": "CODEX_HOME", "claude": "CLAUDE_CONFIG_DIR"}
+
+
 def runner_environment(state_dir, *, auth_mode="api_key"):
     """The user's environment (search path, proxies, provider settings) without Endfield's own variables."""
     root = Path(state_dir).resolve()
@@ -73,7 +77,7 @@ def runner_environment(state_dir, *, auth_mode="api_key"):
                DISABLE_TELEMETRY="1", DISABLE_ERROR_REPORTING="1", DISABLE_AUTOUPDATER="1")
     if auth_mode != "existing_login":
         # An Endfield key runs in the profile its runner sets up, not in the user's native one.
-        for key in ("CODEX_HOME", "CLAUDE_CONFIG_DIR"):
+        for key in NATIVE_HOME_VAR.values():
             env.pop(key, None)
     return env
 
@@ -347,6 +351,8 @@ class ManagedClaudeSession:
             self._seen_tools = set()
             self._seen_permissions = set()
             env = runner_environment(self.config.state_dir, auth_mode=getattr(self.config, "auth_mode", "api_key"))
+            if getattr(self.config, "native_home", None):
+                env[NATIVE_HOME_VAR[self.config.backend]] = self.config.native_home
             try:
                 self._runner_actor = lock_runner_actor(self.config.state_dir)
                 options = new_group_options()

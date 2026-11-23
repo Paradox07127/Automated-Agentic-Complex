@@ -28,7 +28,8 @@ from infra.platform import new_group_options, release_group, signal_group, stop_
 
 AGENT_EXITED = "acp_agent_exited"
 AUTH_REQUIRED = -32000
-CLIENT_CAPABILITIES = {"fs": {"readTextFile": False, "writeTextFile": False}, "terminal": False}
+# auth.terminal: agents list their terminal sign-in commands, which KernelLogin runs.
+CLIENT_CAPABILITIES = {"fs": {"readTextFile": False, "writeTextFile": False}, "terminal": False, "auth": {"terminal": True}}
 
 
 class AcpError(Exception):
