@@ -9,7 +9,7 @@
   border: 1.5px solid color-mix(in srgb, var(--ef-text-1) 30%, transparent);
   background:
     radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--ef-text-1) 7%, transparent) 1px, transparent 1.5px) 0 0 / 16px 16px,
-    linear-gradient(180deg, color-mix(in srgb, var(--ef-text-1) 7%, var(--ef-bg-base)), var(--ef-bg-base) 55%, color-mix(in srgb, #000 6%, var(--ef-bg-base)));
+    linear-gradient(180deg, color-mix(in srgb, var(--ef-text-1) 7%, var(--ef-bg-base)), var(--ef-bg-base) 55%, color-mix(in srgb, var(--ef-hud-shade) 6%, var(--ef-bg-base)));
   box-shadow: var(--ef-shadow-card);
   color: var(--ef-text-1);
   font: var(--ef-fs-body) / var(--ef-lh-body) var(--ef-font-sans);

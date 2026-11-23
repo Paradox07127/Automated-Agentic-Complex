@@ -11,16 +11,8 @@
   --ef-t-meta: var(--ef-fw-regular) var(--ef-fs-body) / var(--ef-lh-meta) var(--ef-font-sans);
   --ef-t-mono: var(--ef-fw-regular) var(--ef-fs-body) / var(--ef-lh-mono) var(--ef-font-mono);
   --ef-text-3: var(--ef-text-2);
-  /* Band over --ef-hud-band; the desktop alpha keeps #FEFF86 text at 4.5:1 on a white desktop. */
+  /* Band over --ef-hud-band; the desktop alpha keeps the accent text at 4.5:1 on a white desktop. */
   --band-a: 70%;
-  /* Desktop text shadow. */
-  --hud-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.5);
-  /* Distance readout. */
-  --hud-readout: #feff86;
-  /* Objective rail. */
-  --hud-rail: rgba(255, 255, 255, 0.3);
-  --hud-t1: var(--ef-text-1);
-  --hud-done: var(--ef-complete);
   --band: color-mix(in srgb, var(--ef-hud-band) var(--band-a), transparent);
   --band-fade: linear-gradient(
     90deg,
@@ -42,17 +34,13 @@
   gap: var(--ef-sp-4);
   padding: var(--room-top) var(--room-r) 28px var(--room-l);
   background: transparent;
-  color: var(--hud-t1);
+  color: var(--ef-text-1);
   font: 13px / 20px var(--ef-font-sans);
 }
 
 /* Light: the band turns white under dark text. */
 :global(html[data-theme='light']) .root {
   --band-a: 88%;
-  --hud-text-shadow: none;
-  --hud-readout: var(--ef-accent-text);
-  --hud-rail: rgba(0, 0, 0, 0.3);
-  --hud-done: var(--ef-accent-text);
 }
 
 /* Reduced transparency and increased contrast: the band turns solid and loses its fade. */
@@ -65,9 +53,6 @@
 
 /* agentd unreachable: the last lines stay, all in the disabled grey. Set on the children so no theme rule outranks it. */
 .root[data-offline] > * {
-  --hud-readout: var(--ef-text-disabled);
-  --hud-done: var(--ef-text-disabled);
-  --hud-t1: var(--ef-text-disabled);
   --ef-mission-accent: var(--ef-text-disabled);
   --ef-danger-vivid: var(--ef-text-disabled);
   --ef-badge-dot: var(--ef-text-disabled);
@@ -85,8 +70,8 @@
   position: relative;
   width: 359px;
   background: var(--band);
-  color: var(--hud-t1);
-  text-shadow: var(--hud-text-shadow);
+  color: var(--ef-text-1);
+  text-shadow: var(--ef-hud-text-shadow);
   animation: hud-in var(--ef-dur-g-panel-in) var(--ef-ease-g-enter) both;
 }
 
@@ -138,7 +123,7 @@
   left: 36px;
   right: 8px;
   height: 2px;
-  background: var(--hud-rail);
+  background: var(--ef-hud-ink-rail);
 }
 
 /* Expanded: every line on one band; the list scrolls inside its share of the room. */
@@ -186,12 +171,12 @@
   height: 24px;
   padding: 0 10px;
   border: 0;
-  border-left: 1px solid var(--hud-rail);
+  border-left: 1px solid var(--ef-hud-ink-rail);
   border-radius: 0;
   background: var(--band);
-  color: var(--hud-t1);
+  color: var(--ef-text-1);
   font: 13px / 24px var(--ef-font-sans);
-  text-shadow: var(--hud-text-shadow);
+  text-shadow: var(--ef-hud-text-shadow);
   cursor: pointer;
 }
 
@@ -218,14 +203,14 @@
   border: 0;
   border-radius: 0;
   background: var(--band);
-  color: var(--hud-t1);
+  color: var(--ef-text-1);
   font: 13px / 1 var(--ef-font-sans);
-  text-shadow: var(--hud-text-shadow);
+  text-shadow: var(--ef-hud-text-shadow);
   cursor: pointer;
 }
 
 .close:hover {
-  color: var(--hud-readout);
+  color: var(--ef-accent-text);
 }
 
 .close:focus-visible {

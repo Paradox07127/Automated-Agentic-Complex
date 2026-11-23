@@ -51,7 +51,7 @@
   content: '';
   width: 2px;
   height: 25px;
-  background: var(--ink-rule);
+  background: var(--ef-hud-ink-rule);
 }
 
 /* Long replies, thoughts and reminders remain readable within the panel; her line shows three lines, then scrolls. */
@@ -84,7 +84,7 @@
   margin: 0;
   padding: var(--ef-sp-2) var(--ef-sp-6);
   border: 0;
-  border-left: 2px solid var(--ink-rule);
+  border-left: 2px solid var(--ef-hud-ink-rule);
   background: var(--ef-overlay-hover);
 }
 
@@ -310,8 +310,8 @@
   width: 70px;
   height: 90px;
   background:
-    radial-gradient(closest-side, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.18) 45%, transparent),
-    radial-gradient(var(--ink-tile) 0.5px, transparent 0.7px) 0 0 / 2px 2px,
+    radial-gradient(closest-side, color-mix(in srgb, var(--ef-hud-shade) 20%, transparent), color-mix(in srgb, var(--ef-hud-shade) 18%, transparent) 45%, transparent),
+    radial-gradient(var(--ef-hud-ink-rail) 0.5px, transparent 0.7px) 0 0 / 2px 2px,
     var(--band);
   animation: head-in 500ms var(--ef-ease-g-enter) both;
 }
@@ -321,12 +321,12 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(var(--ink-mark), var(--ink-mark)) left 2px top 2px / 4px 4px no-repeat,
-    linear-gradient(var(--ink-mark), var(--ink-mark)) right 2px top 2px / 4px 4px no-repeat,
-    linear-gradient(var(--ink-mark), var(--ink-mark)) left 2px bottom 2px / 4px 4px no-repeat,
-    linear-gradient(var(--ink-mark), var(--ink-mark)) right 2px bottom 2px / 4px 4px no-repeat,
-    linear-gradient(var(--ink-tick), var(--ink-tick)) left 14px bottom 8px / 1px 7px no-repeat,
-    linear-gradient(var(--ink-line), var(--ink-line)) left 0 bottom 8px / 100% 2px no-repeat;
+    linear-gradient(var(--ef-text-1), var(--ef-text-1)) left 2px top 2px / 4px 4px no-repeat,
+    linear-gradient(var(--ef-text-1), var(--ef-text-1)) right 2px top 2px / 4px 4px no-repeat,
+    linear-gradient(var(--ef-text-1), var(--ef-text-1)) left 2px bottom 2px / 4px 4px no-repeat,
+    linear-gradient(var(--ef-text-1), var(--ef-text-1)) right 2px bottom 2px / 4px 4px no-repeat,
+    linear-gradient(var(--ef-hud-ink-tick), var(--ef-hud-ink-tick)) left 14px bottom 8px / 1px 7px no-repeat,
+    linear-gradient(var(--ef-hud-ink-line), var(--ef-hud-ink-line)) left 0 bottom 8px / 100% 2px no-repeat;
   pointer-events: none;
 }
 

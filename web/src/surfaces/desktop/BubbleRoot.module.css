@@ -9,14 +9,6 @@
   --ef-text-3: var(--ef-text-2);
   /* Band over --ef-hud-band; the desktop alpha keeps the dialog text at 4.5:1 on a white desktop. */
   --band-a: 70%;
-  /* Desktop text shadow. */
-  --hud-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.5);
-  /* Name rules and head-card layers (white .2 rules, .3 dot tile, .5 deco line, .8 tick). */
-  --ink-rule: rgba(255, 255, 255, 0.2);
-  --ink-tile: rgba(255, 255, 255, 0.3);
-  --ink-line: rgba(255, 255, 255, 0.5);
-  --ink-tick: rgba(255, 255, 255, 0.8);
-  --ink-mark: var(--ef-text-1);
   --bubble-t1: var(--ef-text-1);
   --bubble-t2: var(--ef-track-text);
   --band: color-mix(in srgb, var(--ef-hud-band) var(--band-a), transparent);
@@ -47,11 +39,6 @@
 /* Light: the band turns white under dark text. */
 :global(html[data-theme='light']) .root {
   --band-a: 88%;
-  --hud-text-shadow: none;
-  --ink-rule: rgba(0, 0, 0, 0.2);
-  --ink-tile: rgba(0, 0, 0, 0.3);
-  --ink-line: rgba(0, 0, 0, 0.5);
-  --ink-tick: rgba(0, 0, 0, 0.8);
   --bubble-t2: var(--ef-text-2);
 }
 

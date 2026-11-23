@@ -8,7 +8,7 @@
   gap: 6px;
   height: 36px;
   padding: 0 8px 0 0;
-  color: var(--hud-t1);
+  color: var(--ef-text-1);
   font: 13px / 20px var(--ef-font-sans);
 }
 
@@ -42,12 +42,12 @@
 }
 
 .glyph[data-glyph='done'] {
-  color: var(--hud-done);
+  color: var(--ef-accent-text);
 }
 
 /* mission_incomplete_icon at .6. */
 .glyph[data-glyph='stale'] {
-  color: var(--hud-t1);
+  color: var(--ef-text-1);
   opacity: 0.6;
 }
 
@@ -88,7 +88,7 @@
   }
 }
 
-/* The finish sweep (#FFD200 on the complete token) and its red fail twin: widens to 152 px, flashes .9, fades by 1 s. */
+/* The finish sweep (#FFD200 drawn in the accent text) and its red fail twin: widens to 152 px, flashes .9, fades by 1 s. */
 .line::before {
   content: '';
   position: absolute;
@@ -102,7 +102,7 @@
 }
 
 [data-status='done'] > .line::before {
-  --sweep: var(--hud-done);
+  --sweep: var(--ef-accent-text);
   animation:
     sweep-w 1000ms cubic-bezier(0.333, 0, 0.102, 1) both,
     sweep-a 1000ms var(--ef-ease-g-fade) both;
@@ -154,7 +154,7 @@
   overflow: hidden;
   border: 0;
   background: none;
-  color: var(--hud-t1);
+  color: var(--ef-text-1);
   font: 500 14px / 20px var(--ef-font-sans);
   text-align: left;
   text-shadow: inherit;
@@ -187,7 +187,7 @@ button.title:focus-visible,
 .act {
   min-width: 0;
   overflow: hidden;
-  color: var(--hud-readout);
+  color: var(--ef-accent-text);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -220,7 +220,7 @@ button.title:focus-visible,
   max-width: 36%;
   margin-left: auto;
   overflow: hidden;
-  color: var(--hud-readout);
+  color: var(--ef-accent-text);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -244,7 +244,7 @@ button.title:focus-visible,
 .count {
   flex: none;
   min-width: 28px;
-  color: var(--hud-t1);
+  color: var(--ef-text-1);
   font-size: 13px;
   line-height: 20px;
   text-align: right;

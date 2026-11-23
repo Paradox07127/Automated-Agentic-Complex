@@ -25,7 +25,7 @@
   left: -10%;
   width: 120%;
   height: 100%;
-  background: radial-gradient(closest-side, rgb(0 0 0 / 0.15) 67%, rgb(0 0 0 / 0) 100%);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--ef-hud-shade) 15%, transparent) 67%, transparent 100%);
 }
 
 .shadow::after {
@@ -44,7 +44,7 @@
   margin: -0.08em calc(0.0325em - var(--gap)) 0.03em -0.0325em;
   font: 700 24.72vh / 1 var(--ef-font-sans);
   letter-spacing: calc(var(--gap) - 0.065em);
-  color: #fff;
+  color: var(--ef-hud-ink);
   white-space: nowrap;
 }
 
@@ -56,7 +56,7 @@
   font: 600 2.5vh / 1 var(--ef-font-wide);
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--ef-hud-ink);
   white-space: nowrap;
   mask-image: linear-gradient(to bottom, #000 50%, rgb(0 0 0 / 0.05) 84.8%);
 }

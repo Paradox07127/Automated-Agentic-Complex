@@ -1,14 +1,8 @@
 /* Subtitle strip: a 30 px deco column, her name between two rules, the newest three lines on a band with soft ends. */
 .bar {
-  /* Deco column line (white .15). */
-  --ink-deco: rgba(255, 255, 255, 0.15);
   display: flex;
   color: var(--bubble-t1);
   text-align: left;
-}
-
-:global(html[data-theme='light']) .bar {
-  --ink-deco: rgba(0, 0, 0, 0.15);
 }
 
 /* The deco column: a 1 px line with dots at both ends; dialogsubtitle_in shows the dots at 167 ms and spreads them by 417 ms. */
@@ -17,9 +11,9 @@
   align-self: stretch;
   width: 30px;
   background:
-    linear-gradient(var(--ink-mark), var(--ink-mark)) center top / 2px 2px no-repeat,
-    linear-gradient(var(--ink-mark), var(--ink-mark)) center bottom / 2px 2px no-repeat,
-    linear-gradient(var(--ink-deco), var(--ink-deco)) center 3px / 1px calc(100% - 6px) no-repeat;
+    linear-gradient(var(--ef-text-1), var(--ef-text-1)) center top / 2px 2px no-repeat,
+    linear-gradient(var(--ef-text-1), var(--ef-text-1)) center bottom / 2px 2px no-repeat,
+    linear-gradient(var(--ef-hud-ink-faint), var(--ef-hud-ink-faint)) center 3px / 1px calc(100% - 6px) no-repeat;
   animation: deco-in var(--ef-dur-g-panel-in) both;
 }
 
@@ -54,7 +48,7 @@
 .name,
 .open {
   background: var(--band);
-  text-shadow: var(--hud-text-shadow);
+  text-shadow: var(--ef-hud-text-shadow);
 }
 
 .name {
@@ -70,7 +64,7 @@
   content: '';
   width: 2px;
   height: 25px;
-  background: var(--ink-rule);
+  background: var(--ef-hud-ink-rule);
 }
 
 /* The newest three lines: what does not fit overflows at the top. */
@@ -91,7 +85,7 @@
   font: var(--ef-fw-regular) 13px / 22px var(--ef-font-sans);
   letter-spacing: 0.03em;
   overflow-wrap: anywhere;
-  text-shadow: var(--hud-text-shadow);
+  text-shadow: var(--ef-hud-text-shadow);
 }
 
 .line {

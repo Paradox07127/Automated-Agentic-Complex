@@ -44,7 +44,7 @@
 /* Dot line 4x4 g tiled at #FFFFFF@0.30 under the vignette, in place of the CSS dot tile. */
 :global(html[data-art]) .headCard {
   background:
-    radial-gradient(closest-side, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.18) 45%, transparent),
+    radial-gradient(closest-side, color-mix(in srgb, var(--ef-hud-shade) 20%, transparent), color-mix(in srgb, var(--ef-hud-shade) 18%, transparent) 45%, transparent),
     var(--band);
 }
 
@@ -52,7 +52,7 @@
   position: absolute;
   inset: 0;
   display: block;
-  background: var(--ink-tile);
+  background: var(--ef-hud-ink-rail);
   -webkit-mask: url('/art/common/desk-deco-readio-line.png') 0 0 / 2px 2px repeat;
   mask: url('/art/common/desk-deco-readio-line.png') 0 0 / 2px 2px repeat;
 }

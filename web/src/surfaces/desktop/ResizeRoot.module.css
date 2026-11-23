@@ -48,8 +48,8 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 1.5px #434343;
+  background: var(--ef-hud-ink);
+  box-shadow: 0 0 0 1.5px var(--ef-paper-toggle-knob-ring);
 }
 
 .root:not([data-dragging]) .handle:not([data-limit]):hover .dot {
@@ -57,13 +57,13 @@
 }
 
 .handle[data-active] .dot {
-  background: #c4c4c4;
-  box-shadow: 0 0 0 1.5px #050505;
+  background: var(--ef-hud-handle-press);
+  box-shadow: 0 0 0 1.5px var(--ef-hud-handle-press-ring);
 }
 
 .handle[data-limit] .dot {
-  background: #909090;
-  box-shadow: 0 0 0 1.5px #434343;
+  background: var(--ef-g-btn-light-off);
+  box-shadow: 0 0 0 1.5px var(--ef-paper-toggle-knob-ring);
 }
 
 /* The percentage chip: ink-tip card, 9 pt padding, 6 pt between the parts. */
@@ -75,13 +75,13 @@
   height: 22px;
   padding: 0 9px;
   border-radius: 2.5px;
-  background: rgb(35 35 35 / 0.8);
+  background: var(--ef-hud-tip);
   white-space: nowrap;
   pointer-events: none;
 }
 
 .percent {
-  color: #fff;
+  color: var(--ef-hud-ink);
   font-family: var(--ef-font-mono);
   font-size: 14px;
 }
@@ -103,11 +103,11 @@
 
 .track {
   width: 40px;
-  background: rgb(255 255 255 / 0.2);
+  background: var(--ef-hud-ink-rule);
 }
 
 .fill {
-  background: #fff;
+  background: var(--ef-hud-ink);
 }
 
 .tick {
@@ -115,11 +115,11 @@
   top: 0;
   width: 1px;
   height: 8px;
-  background: #a6a6a6;
+  background: var(--ef-hud-ink-2);
 }
 
 .limit {
-  color: #a6a6a6;
+  color: var(--ef-hud-ink-2);
   font-size: 12px;
 }
 

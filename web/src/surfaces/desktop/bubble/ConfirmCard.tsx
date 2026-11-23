@@ -26,7 +26,16 @@ export function ConfirmCard({ card, more, tail = null, act, onDetails }: Confirm
   const left = v.secondsLeft != null && v.windowS ? Math.max(0, Math.min(1, v.secondsLeft / v.windowS)) : null;
   const shown = v.cmd ?? v.previewText;
   return (
-    <div className={styles.paper} data-region="" data-confirm="" data-tail={tail ?? undefined} role="alertdialog" aria-label={`要你批准：${v.title}`}>
+    <div
+      className={styles.paper}
+      data-theme="light"
+      data-region=""
+      data-confirm=""
+      data-danger={v.dangerous || undefined}
+      data-tail={tail ?? undefined}
+      role="alertdialog"
+      aria-label={`要你批准：${v.title}`}
+    >
       <span className={styles.drag} data-drag="" aria-hidden="true" />
       <p className={styles.tag}>
         <span aria-hidden="true">◆</span> 要你批准{more > 0 && ` │ 还有 ${more} 项`}

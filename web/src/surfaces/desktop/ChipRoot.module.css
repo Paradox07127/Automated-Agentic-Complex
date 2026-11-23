@@ -1,8 +1,6 @@
 /* The fixed-size chip panel: transparent, clicks pass through all but the status mark, whose 26 px disc sits at the
    panel's centre with its capsule running on from it. */
 .root {
-  --chip-plate: rgba(18, 18, 18, 0.85);
-
   position: relative;
   overflow: hidden;
   background: transparent;
@@ -10,13 +8,9 @@
   font: 13px / 20px var(--ef-font-sans);
 }
 
-:global(html[data-theme='light']) .root {
-  --chip-plate: rgba(255, 255, 255, 0.94);
-}
-
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .root {
-    --chip-plate: var(--ef-hud-solid);
+    --ef-hud-plate: var(--ef-hud-solid);
   }
 }
 
@@ -42,7 +36,7 @@
   max-width: 240px;
   padding: 2px 10px;
   overflow: hidden;
-  background: var(--chip-plate);
+  background: var(--ef-hud-plate);
   font-size: var(--ef-fs-meta);
   line-height: 20px;
   white-space: nowrap;

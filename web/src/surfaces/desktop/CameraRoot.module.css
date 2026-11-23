@@ -11,7 +11,8 @@
   box-sizing: border-box;
   border: 1px dashed color-mix(in srgb, var(--ef-paper) 60%, transparent);
   border-radius: 2.5px;
-  background: rgb(255 255 255 / 0.001);
+  /* Next to nothing, but not clear, so the area takes clicks. */
+  background: color-mix(in srgb, var(--ef-hud-ink) 0.1%, transparent);
   cursor: grab;
 }
 

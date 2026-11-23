@@ -1,15 +1,21 @@
-/* The chat page's white paper card (.swap) at the bubble's width: paper, the shared warning tape along the top, hard shadow. */
+/* The chat page's white paper card (.swap) at the bubble's width: paper, the shared warning tape along the top, hard shadow.
+   The root sets data-theme="light", so the tokens inside read as on white in both themes. */
 .paper {
   composes: tape from '../../../ui/Tape.module.css';
   position: relative;
   box-sizing: border-box;
   width: 300px;
   padding: 16px 16px 12px;
-  background: linear-gradient(180deg, #faf9f7, var(--ef-paper));
+  background: var(--ef-paper);
   box-shadow: var(--ef-shadow-card);
   color: var(--ef-paper-text);
   font: var(--ef-fw-regular) 13px / 20px var(--ef-font-sans);
   animation: cc-in 250ms cubic-bezier(0.333, 0, 0, 1) both;
+}
+
+/* Red tape for a dangerous approval. */
+.paper[data-danger] {
+  --tape-hi: var(--ef-danger-vivid);
 }
 
 @keyframes cc-in {
@@ -32,13 +38,13 @@
   gap: var(--ef-sp-6);
   align-items: center;
   margin: 0;
-  color: #b34a00;
+  color: var(--ef-power-low);
   font: var(--ef-fw-semibold) 13px / 18px var(--ef-font-sans);
 }
 
 .time {
   margin-left: auto;
-  color: var(--ef-paper-text-2, #5f5e5e);
+  color: var(--ef-paper-text-2);
   font: var(--ef-fw-medium) 13px / 18px var(--ef-font-num);
 }
 
@@ -51,7 +57,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: #5f5e5e;
+  color: var(--ef-paper-text-2);
   cursor: pointer;
 }
 
@@ -70,7 +76,7 @@
 
 .who {
   margin: 0;
-  color: #5f5e5e;
+  color: var(--ef-paper-text-2);
   font-size: 13px;
   line-height: 18px;
 }
@@ -79,7 +85,7 @@
   margin: 8px 0 0;
   padding: 6px 10px;
   border-left: 3px solid var(--ef-paper-text);
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--ef-step-bg);
   font: 13px / 20px var(--ef-font-mono);
   word-break: break-all;
   quotes: none;
@@ -94,13 +100,13 @@
   height: 2px;
   margin-top: 8px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--ef-chart-cell-empty);
 }
 
 .left i {
   position: absolute;
   inset: 0;
-  background: #b34a00;
+  background: var(--ef-power-low);
   transform-origin: left;
 }
 
@@ -116,7 +122,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: #5f5e5e;
+  color: var(--ef-paper-text-2);
   font-size: 13px;
   text-decoration: underline;
   text-underline-offset: 3px;
