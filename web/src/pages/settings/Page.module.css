@@ -32,6 +32,11 @@
   opacity: 0.22;
 }
 
+/* Over the window's glass the real frost is behind the page; the painted one would cover it. */
+:global(html[data-window-glass]) .wall {
+  display: none;
+}
+
 .page::before {
   content: '';
   position: absolute;

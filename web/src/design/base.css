@@ -113,6 +113,11 @@ body:has(main[data-route-id='home']) {
   background: transparent;
 }
 
+/* Over the window's glass (the shell sets data-window-glass) every page's ground is its main area's, laid on in part. */
+html[data-window-glass] body {
+  background: transparent;
+}
+
 /* The desktop panels are sized to their content, which the line box under an inline-flex root outgrows by a few px. */
 html[data-surface='stack'] {
   overflow: hidden;
@@ -135,6 +140,10 @@ body::after {
 }
 
 html[data-surface='stack'] body::after {
+  content: none;
+}
+
+html[data-window-glass] body::after {
   content: none;
 }
 

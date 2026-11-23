@@ -138,6 +138,11 @@ const ITEMS: Item[] = [
   choice('notify_reminder', '提醒', NOTIFY, 'sound'),
   choice('avatar_click', '点击角色', [['interact', '角色互动'], ['quick_input', '打开快速输入']], 'interact'),
   hotkey('hotkey_look', '屏幕识读', 'control+option+l'),
+  choice('app_theme', '主题', [['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']], 'system'),
+  choice('window_background', '窗口背景', [['glass', '磨砂'], ['opaque', '不透明']], 'glass'),
+  choice('window_glass_alpha', '磨砂强度', [['35', '轻'], ['55', '中'], ['75', '重']], '55'),
+  choice('reduce_motion', '减少动效', [['system', '跟随系统'], ['on', '开']], 'system'),
+  choice('ui_zoom', '界面大小', [['90', '90 %'], ['100', '100 %'], ['110', '110 %'], ['125', '125 %']], '100'),
   // config.json's `plugins` object, one `plugins.<id>` item each.
   ...PLUGINS.map((p) => toggle(`plugins.${p.id}`, PLUGIN_LABELS[p.id], p.default, 'backend')),
 ];
@@ -160,6 +165,8 @@ const REGISTRY_ROWS: [string, string, string][] = [
   ['shot', 'privacy', 'share_screenshots'], ['keys', 'privacy', 'sense_input_counts'],
   ['mask', 'privacy', 'redact_sensitive'],
   ['login', 'about', 'launch_at_login'],
+  ['appTheme', 'display', 'app_theme'], ['winBg', 'display', 'window_background'], ['glassAlpha', 'display', 'window_glass_alpha'],
+  ['reduceMotion', 'display', 'reduce_motion'], ['uiZoom', 'display', 'ui_zoom'],
   ['beh.stay', '@character', 'stay_mode'], ['beh.range', '@character', 'viewport'], ['rnd.fps', '@character', 'render_fps'],
   ...PLUGINS.map((p): [string, string, string] => [`plugins.${p.id}`, 'plugins', `plugins.${p.id}`]),
 ];
@@ -190,6 +197,8 @@ export const ROWS: Row[] = [...REGISTRY_ROWS, ...CHARACTER_ROWS.map(([id, key]):
 /** Defaults that differ by platform: Windows shows her in screenshots and recordings unless the user turns hiding on. */
 const PLATFORM_DEFAULTS: Record<ShellPlatform, Record<string, SettingValue>> = { mac: {}, windows: { hide_on_screen_capture: false } };
 const defaultOf = (item: Item, platform: ShellPlatform): SettingValue => PLATFORM_DEFAULTS[platform][item.key] ?? item.control.value;
+/** What 窗口背景 says on a system that draws no window glass (Windows before 11 22H2). */
+const NO_GLASS = '要 Windows 11 22H2 或更新才有磨砂';
 
 export const rowById = (id: string) => ROWS.find((r) => r.id === id);
 const rowByKey = (key: string) => ROWS.find((r) => r.item.key === key);
@@ -205,7 +214,9 @@ export const REVOKE_KINDS: Readonly<Record<string, string>> = { wintext: 'window
 const LAUNCH_KEYS: ReadonlySet<string> = new Set(['avatar_app', 'avatar_executable', 'python', 'agentd_dir', 'avatar_args', 'support_dir',
   'agentd_state_dir', 'character_catalog']);
 /** Choice rows whose config.json value is the option as an integer. */
-const INTEGER_CHOICE_KEYS: ReadonlySet<string> = new Set(['break_reminder_minutes', 'water_reminder_minutes']);
+const INTEGER_CHOICE_KEYS: ReadonlySet<string> = new Set(['break_reminder_minutes', 'water_reminder_minutes', 'window_glass_alpha', 'ui_zoom']);
+/** The 外观 rows, which the shell puts on the main window at once. */
+const APPEARANCE_KEYS = ['app_theme', 'window_background', 'window_glass_alpha', 'reduce_motion', 'ui_zoom'];
 
 // MARK: hot keys
 
@@ -292,11 +303,13 @@ function accepts(item: Item, value: SettingValue): boolean {
 
 const webValue = (row: Row, value: SettingValue): SettingValue => (isHotkey(row) && typeof value === 'string' ? webHotkey(value) ?? value : value);
 
-/** protocol.ts `SettingSchema[]`, plus `default` and `restart`. */
-export function schema(platform: ShellPlatform = 'mac'): Record<string, unknown>[] {
+/** protocol.ts `SettingSchema[]`, plus `default` and `restart`; without `glass` (the system draws no window glass) 窗口背景
+ *  defaults to 不透明. */
+export function schema(platform: ShellPlatform = 'mac', glass = true): Record<string, unknown>[] {
   return ROWS.map((row) => {
     const c = row.item.control;
-    const entry: Record<string, unknown> = { id: row.id, group: row.group, label: row.item.label, default: webValue(row, defaultOf(row.item, platform)) };
+    const def = !glass && row.id === 'winBg' ? 'opaque' : defaultOf(row.item, platform);
+    const entry: Record<string, unknown> = { id: row.id, group: row.group, label: row.item.label, default: webValue(row, def) };
     if (c.kind === 'toggle') entry.kind = 'toggle';
     else if (c.kind === 'choice' || c.kind === 'dropdown') {
       entry.kind = 'select';
@@ -349,9 +362,9 @@ export function current(saved: Record<string, SettingValue>, login: boolean | nu
   return { values, broken, unregistered, loginFromSystem: login !== null };
 }
 
-/** protocol.ts `SettingsSnapshot`. */
+/** protocol.ts `SettingsSnapshot`; without `glass` 窗口背景 reads 不透明 with the reason. */
 export function snapshot(saved: Record<string, SettingValue>, login: boolean | null, cameraBust: boolean,
-  platform: ShellPlatform = 'mac', refused: Record<string, string> = {}): Record<string, unknown> {
+  platform: ShellPlatform = 'mac', refused: Record<string, string> = {}, glass = true): Record<string, unknown> {
   const state = current(saved, login, platform, refused);
   const statuses: Record<string, string> = {};
   for (const [id, raw] of Object.entries(state.broken)) statuses[id] = `配置里的「${raw}」不是有效热键，按默认显示`;
@@ -360,6 +373,10 @@ export function snapshot(saved: Record<string, SettingValue>, login: boolean | n
   if (!state.loginFromSystem) statuses.login = '测试实例不改系统登录项';
   if (!cameraBust) statuses['beh.stay'] = '这个版本的角色还不支持半身固定';
   const values = Object.fromEntries(ROWS.map((row) => [row.id, webValue(row, state.values[row.item.key]!)]));
+  if (!glass) {
+    values.winBg = 'opaque';
+    statuses.winBg = NO_GLASS;
+  }
   return { saved: values, statuses };
 }
 
@@ -454,7 +471,9 @@ export type SaveEffect =
   /** The changed ones of LIVE_RENDER_KEYS in that order, then `stay_mode` into or out of `bust`; only without `restartAvatar`. */
   | { kind: 'renderLive'; keys: string[] }
   /** `touch_regions`, `head_pat`, `cheek_pinch` or `greet_on_resume` changed. */
-  | { kind: 'touch' };
+  | { kind: 'touch' }
+  /** One of APPEARANCE_KEYS changed. */
+  | { kind: 'appearance' };
 
 /** What the running renderer takes in a `set_render`. */
 const LIVE_RENDER_KEYS = ['render_outline', 'render_light_yaw', 'render_light_pitch', 'render_light_strength', 'render_camera_mode',
@@ -528,6 +547,7 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
   if ((old.stay_mode === 'bust') !== (next.stay_mode === 'bust')) live.push('stay_mode');
   if (live.length > 0 && !restartAvatar) effects.push({ kind: 'renderLive', keys: live });
   if (['touch_regions', 'head_pat', 'cheek_pinch', 'greet_on_resume'].some((k) => changed.includes(k))) effects.push({ kind: 'touch' });
+  if (APPEARANCE_KEYS.some((k) => changed.includes(k))) effects.push({ kind: 'appearance' });
   const backend = changed.some((k) => rowByKey(k)?.item.restart === 'backend');
   return { write, effects, restart: backend ? 'backend' : restartAvatar ? 'avatar' : 'none' };
 }

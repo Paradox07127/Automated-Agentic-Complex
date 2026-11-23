@@ -104,7 +104,7 @@ export function settingsOps(ctx: OpsContext): Ops {
         ctx.loginItem.set(effect.on);
         if (ctx.loginItem.enabled() !== effect.on) failed.push('launch_at_login');
       } else if (effect.kind === 'restartAvatar' || effect.kind === 'fps' || effect.kind === 'hotkeys' || effect.kind === 'renderLive'
-        || effect.kind === 'touch' || effect.kind === 'actionSwitch') {
+        || effect.kind === 'touch' || effect.kind === 'actionSwitch' || effect.kind === 'appearance') {
         continue;
       } else if (effect.kind === 'stateAffectsBehavior') {
         const s = await status('PUT', '/character/state/switch', { affects_behavior: effect.on });
@@ -177,14 +177,15 @@ export function settingsOps(ctx: OpsContext): Ops {
       else if (effect.kind === 'renderLive') ctx.saved?.renderLive?.(effect.keys);
       else if (effect.kind === 'touch') ctx.saved?.touch?.();
       else if (effect.kind === 'actionSwitch') setSwitch(effect.id, effect.on);
+      else if (effect.kind === 'appearance') ctx.saved?.appearance?.();
     }
     const failed = plan.effects.length === 0 || !ctx.agentd ? [] : await apply(plan.effects);
     return { restart: plan.restart, notApplied: idsOfKeys(failed) };
   };
   return {
-    'settings.schema': () => schema(platform),
+    'settings.schema': () => schema(platform, ctx.glassSupported ?? true),
     'settings.read': () => snapshot(load(), ctx.loginItem.enabled(), ctx.avatar ? listed(ctx.avatar).includes('camera_bust') : false, platform,
-      refused()),
+      refused(), ctx.glassSupported ?? true),
     'settings.save': ([changes]) => {
       if (typeof changes !== 'object' || changes === null || Array.isArray(changes)) {
         throw new BridgeFailure('invalid_args', 'changes must be an object');

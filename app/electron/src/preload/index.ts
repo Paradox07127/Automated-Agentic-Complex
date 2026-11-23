@@ -2,6 +2,7 @@
 // window it also draws the character page's live preview (src/main/preview/window.ts).
 import { contextBridge, ipcRenderer, sharedTexture, webUtils } from 'electron';
 import { MAX_SCOPE_FILES, pastedImages } from '../common/adoption.ts';
+import { APPEARANCE_CHANNEL, applyPage, type PageAppearance } from '../common/appearance.ts';
 import type { Boot, Reply } from '../common/bridge.ts';
 import { installBridge, type Push } from '../common/shim.ts';
 
@@ -71,5 +72,9 @@ if (boot) {
       } : undefined,
     ],
   });
-  if (boot.surface === 'main') installPreview();
+  if (boot.surface === 'main') {
+    installPreview();
+    // 外观: the main window's root attributes (common/appearance.ts applyPage), sent at each dom-ready and save.
+    ipcRenderer.on(APPEARANCE_CHANNEL, (_e, page: PageAppearance) => applyPage(document.documentElement, page));
+  }
 }

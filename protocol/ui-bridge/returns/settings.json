@@ -102,7 +102,12 @@
         "rnd.closeup": "off",
         "rnd.track": "stage",
         "rnd.filter": "none",
-        "rnd.dof": "off"
+        "rnd.dof": "off",
+        "appTheme": "system",
+        "winBg": "glass",
+        "glassAlpha": "55",
+        "reduceMotion": "system",
+        "uiZoom": "100"
       },
       "statuses": {
         "setting": "pending"

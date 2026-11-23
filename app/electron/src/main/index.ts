@@ -7,10 +7,11 @@ import {
 } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, release } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import routes from '../../../../protocol/ui-bridge/routes.json' with { type: 'json' };
 import { a11ySource } from '../common/a11y.ts';
+import { appearanceOf, applyAppearance, glassSupported, mainWindowGround } from '../common/appearance.ts';
 import { type ChildState } from '../common/agentd.ts';
 import type { Rect as HelperRect } from '../common/attention.ts';
 import { boot, BridgeFailure, handle, type Handler, type Reply, type Surface } from '../common/bridge.ts';
@@ -35,7 +36,7 @@ import { startupWindow } from '../common/startup.ts';
 import { trayTitle } from '../common/tray-title.ts';
 import { TurnMarks } from '../common/turn-marks.ts';
 import { agentdTts, RuntimeCoordinator, runtimeJson } from '../common/runtime.ts';
-import { desktopHotkeys } from '../common/settings.ts';
+import { current, desktopHotkeys, settingValues } from '../common/settings.ts';
 import { CharacterSwitch } from '../common/switch.ts';
 import { ORIGIN, SCHEME } from '../common/ui.ts';
 import { AvatarVisibility } from '../common/visibility-reason.ts';
@@ -710,6 +711,13 @@ function webMissingPage(): string {
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
+const glassOnSystem = glassSupported(shellPlatform(), release());
+/** The 外观 rows as config.json holds them; no glass while the system reduces transparency. */
+const appearanceNow = () => appearanceOf(current(settingValues(readObject(configPath)), null, shellPlatform()).values,
+  glassOnSystem && !nativeTheme.prefersReducedTransparency);
+/** The theme for every window, the main window's ground, page and zoom. */
+const applyAppearanceNow = () => applyAppearance(appearanceNow(), shellPlatform(), { theme: nativeTheme, window: mainWindow });
+
 /** `activate: false` shows it without taking the front app. */
 function openMain(activate = true): void {
   if (mainWindow) {
@@ -722,15 +730,15 @@ function openMain(activate = true): void {
   const win = new BrowserWindow({
     width: 1385, height: 770, minWidth: 900, minHeight: 600, show: false, title: 'Agentic Complex',
     // The page draws up to the window's top edge; the traffic lights sit in its command bar, which leaves --ef-chrome-left for them.
-    // Under-window vibrancy is the frosted ground home shows through; every other page paints over it.
-    ...(shellPlatform() === 'mac'
-      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 17 }, vibrancy: 'under-window' as const, visualEffectState: 'followWindow' as const, backgroundColor: '#00000000' }
-      : {}),
+    ...(shellPlatform() === 'mac' ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 17 } } : {}),
+    // A glass ground while 外观 › 窗口背景 says 磨砂; the page then lays its own ground over it only in part.
+    ...mainWindowGround(shellPlatform(), appearanceNow().glass),
     webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
   const contents = win.webContents, id = contents.id;
-  // --ef-glass-alpha: how much of the page's ground a glass page (home) keeps over the vibrancy.
-  if (shellPlatform() === 'mac') contents.on('dom-ready', () => void contents.insertCSS(':root { --ef-chrome-left: 84px; --ef-glass-alpha: 55%; }'));
+  if (shellPlatform() === 'mac') contents.on('dom-ready', () => void contents.insertCSS(':root { --ef-chrome-left: 84px; }'));
+  // Each document gets the 外观 rows again (its root attributes), and the window its zoom.
+  contents.on('dom-ready', () => applyAppearanceNow());
   // Windows shows no menu bar to hold the app menu's page keys.
   contents.on('before-input-event', (e, input) => {
     const route = pageShortcut(shellPlatform(), input, supervisor?.plugins ?? DEFAULT_PLUGINS);
@@ -799,7 +807,7 @@ function opsContext(surface: Surface): OpsContext {
     log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),
   });
   return {
-    surface, routes, platform: shellPlatform(),
+    surface, routes, platform: shellPlatform(), glassSupported: glassOnSystem,
     config: { path: configPath, supportDir: config?.supportDir ?? null, devResources: config?.devResources ?? null },
     agentd: runtimePath === null ? null : new AgentdClient(runtimePath), store,
     diag: diagStream && new SharedSource((emit) => diagStream.start((e) => emit({ event: e.event, id: e.id ?? null, data: e.data })),
@@ -884,6 +892,7 @@ function opsContext(surface: Surface): OpsContext {
         hotkeys?.saved(key, name);
         desktop?.hotkeySaved(key, name);
       },
+      appearance: applyAppearanceNow,
       ...savedRender,
     },
     settingsChanges, settingsChanged: (keys) => settingsChanges.changed(keys),
@@ -1370,6 +1379,9 @@ void app.whenReady().then(async () => {
   // The Windows icon's colour follows the theme.
   if (shellPlatform() === 'windows') nativeTheme.on('updated', () => menus.refreshIcon());
   menus.refreshIcon();
+  // The theme before any window opens; the main window's glass again when the system's reduce transparency changes.
+  applyAppearanceNow();
+  nativeTheme.on('updated', applyAppearanceNow);
   // The main window only for a config error or an empty roster; a first run gets the guide.
   const start = startupWindow({ configError: config === null, characters: config?.characters.length ?? 0,
     onboardingDone: config !== null && !guide.firstRun() });

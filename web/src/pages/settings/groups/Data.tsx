@@ -36,7 +36,7 @@ const RANGES: Array<[Range, string]> = [
 ];
 
 /** Groups 恢复默认 resets; the kernel and model rows, the login item and the character page stay. */
-const RESET_GROUPS = ['speak', 'keys', 'privacy', 'perm'];
+const RESET_GROUPS = ['speak', 'keys', 'privacy', 'perm', 'display'];
 
 const sum = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
 
@@ -138,7 +138,7 @@ export function DataGroup() {
         <SetRow
           id="reset"
           title={labelOf('reset')}
-          desc="说话、能做、观察、按键回到默认；内核、账号、记忆不动"
+          desc="说话、能做、观察、按键和外观回到默认；内核、账号、记忆不动"
           control={
             <Btn disabled={groupRo || !native} disabledReason="没读到设置" onClick={reset}>
               恢复默认…

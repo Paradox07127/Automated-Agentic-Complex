@@ -29,6 +29,8 @@ export interface OpsContext {
   surface: Surface;
   /** The settings defaults and save effects that differ by platform; absent is macOS. */
   platform?: ShellPlatform;
+  /** The system draws window glass (common/appearance.ts glassSupported); absent is true. */
+  glassSupported?: boolean;
   /** protocol/ui-bridge/routes.json. */
   routes: Route[];
   config: {
@@ -128,8 +130,8 @@ export interface OpsContext {
   /** `app.action`'s desktop test cards; false when the desktop cannot show one; absent without the desktop panels. */
   testCard?: ((kind: 'approval' | 'announcement') => boolean) | null;
   /** A saved setting the running shell takes at once (`fpsSettingsSaved`, `hotkeySaved`, `touchSettingsSaved`,
-   *  `renderLiveSaved`: renderer/saved.ts); absent without one. */
-  saved?: { fps(): void; hotkey(key: string, name: string): void; touch?(): void; renderLive?(keys: string[]): void } | null;
+   *  `renderLiveSaved`: renderer/saved.ts; `appearance`: the 外观 rows onto the main window); absent without one. */
+  saved?: { fps(): void; hotkey(key: string, name: string): void; touch?(): void; renderLive?(keys: string[]): void; appearance?(): void } | null;
   /** Native changes to saved settings (`settings.onChange`). */
   settingsChanges: EventSource;
   /** Tells `settingsChanges` that a window other than the settings pages saved these config keys; absent tells no one. */

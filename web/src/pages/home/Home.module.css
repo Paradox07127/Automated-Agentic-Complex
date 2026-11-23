@@ -17,6 +17,14 @@
     color-mix(in srgb, color-mix(in srgb, var(--ef-g-yellow) 3%, var(--ef-canvas)) var(--ef-glass-alpha, 100%), transparent);
 }
 
+/* Over the window's glass the vignette would read as a dark plate: only the lights and the part ground stay. */
+:global(html[data-window-glass]) .page {
+  background:
+    radial-gradient(ellipse 30% 55% at 18% 45%, color-mix(in srgb, var(--ef-g-yellow) 9%, transparent), transparent),
+    radial-gradient(ellipse 30% 60% at 84% 50%, color-mix(in srgb, var(--ef-g-yellow) 7%, transparent), transparent),
+    color-mix(in srgb, color-mix(in srgb, var(--ef-g-yellow) 3%, var(--ef-canvas)) var(--ef-glass-alpha), transparent);
+}
+
 /* Only the keys, cards and the disc's controls take the pointer: the tilt puts the face's top half behind the page
    plane, where any box over it would take its clicks. */
 .stage {
@@ -52,6 +60,13 @@
     radial-gradient(circle, color-mix(in srgb, var(--ef-g-watch-map) 70%, transparent) 0 55%, var(--ef-g-watch-map) 100%);
   -webkit-mask: radial-gradient(closest-side, #000 92.3%, transparent);
   mask: radial-gradient(closest-side, #000 92.3%, transparent);
+}
+
+/* Over the glass the map keeps its grid but not its filled disc, so the frost shows through it. */
+:global(html[data-window-glass]) .map {
+  background:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--ef-g-watch-ink) 5%, transparent) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--ef-g-watch-ink) 5%, transparent) 0 1px, transparent 1px 24px);
 }
 
 /* The watch lies tipped back as Content does in the game (22° about x, −1° about y, −3° about z), and turns a little more

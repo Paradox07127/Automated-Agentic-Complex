@@ -59,6 +59,11 @@
   position: relative;
 }
 
+/* Over the window's glass the ground covers only --ef-glass-alpha of it; panels and rows keep their own. */
+:global(html[data-window-glass]) .main {
+  background: color-mix(in srgb, var(--ef-base) var(--ef-glass-alpha), transparent);
+}
+
 /* Container `page` for the pages' @container queries; at most 1600 wide, centred, never scrolling sideways. */
 .content {
   flex: 1;
