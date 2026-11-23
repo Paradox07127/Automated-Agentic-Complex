@@ -2,18 +2,21 @@
 @import './OperatorPart1.css';
 
 /* The 动作 action bar (Commit.module.css) along the bottom: the panel ends 10 px above it. */
-.op[data-deck] > [data-g='detail'] {
+.op[data-deck] > [data-g='detail'],
+.op[data-deck] > [data-g='menu'] {
   bottom: 70px;
 }
 
 @container op (max-width: 1100px) {
-  .op[data-deck] > [data-g='detail'] {
+  .op[data-deck] > [data-g='detail'],
+  .op[data-deck] > [data-g='menu'] {
     bottom: 54px;
   }
 }
 
 @container op (max-height: 560px) {
-  .op[data-deck] > [data-g='detail'] {
+  .op[data-deck] > [data-g='detail'],
+  .op[data-deck] > [data-g='menu'] {
     bottom: 54px;
   }
 }

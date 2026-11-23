@@ -166,6 +166,21 @@ describe('GameSeg', () => {
     expect(onChange).toHaveBeenLastCalledWith('0.5');
   });
 
+  it('two options: a click anywhere, the selected one included, flips; three options keep click-to-pick', () => {
+    const onoff = [
+      { value: 'on', label: '开' },
+      { value: 'off', label: '关' },
+    ];
+    const two = vi.fn();
+    render(<GameSeg label="二选一" options={onoff} value="on" onChange={two} />);
+    fireEvent.click(screen.getByRole('radio', { name: '开' }));
+    expect(two).toHaveBeenLastCalledWith('off');
+    const three = vi.fn();
+    render(<GameSeg label="三选一" options={speed} value="1" onChange={three} />);
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: '三选一' })).getByRole('radio', { name: '1×' }));
+    expect(three).not.toHaveBeenCalled();
+  });
+
   it('开｜关: the second option checked marks the switch off; a locked switch ignores keys', () => {
     const onoff = [
       { value: 'on', label: '开' },

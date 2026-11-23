@@ -82,7 +82,7 @@ export function GameSeg({ options, value, defaultValue, size = 'normal', label, 
             title={o.title}
             data-default={(defaultValue != null && o.value === defaultValue) || undefined}
             data-g={options.length === 2 ? (i === 0 ? 'leftText' : 'rightText') : undefined}
-            onClick={() => pick(i)}
+            onClick={() => pick(options.length === 2 && i === sel ? 1 - i : i)}
           >
             {o.icon && <Icon name={o.icon} size={12} />}
             {o.label}

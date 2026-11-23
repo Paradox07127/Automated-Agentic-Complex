@@ -67,6 +67,39 @@ for (const [w, h] of [
   });
 }
 
+for (const [w, h] of [
+  [1385, 640],
+  [900, 600],
+] as const) {
+  test(`${w}x${h}: the character 设定 list scrolls its last row fully above the bottom fade`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await open(page, '/character');
+    await page.getByRole('navigation', { name: '角色分区' }).getByRole('button', { name: /设定/ }).click();
+    const rows = page.locator('[data-view="operator"] [class*="rows"]').first();
+    await expect(rows).toBeVisible();
+    await rows.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    const at = await rows.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const lastBottom = Math.max(...[...el.querySelectorAll<HTMLElement>('*')].map((x) => x.getBoundingClientRect()).filter((q) => q.height > 0).map((q) => q.bottom));
+      return { top: r.top, bottom: r.bottom, lastBottom };
+    });
+    // The list's bottom 36 px sit under a fade.
+    expect(at.lastBottom, 'the last row ends above the fade').toBeLessThanOrEqual(at.bottom - 36 + 0.5);
+  });
+
+  test(`${w}x${h}: on 动作 the rail ends above the action bar`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await open(page, '/character');
+    await page.getByRole('navigation', { name: '角色分区' }).getByRole('button', { name: /动作/ }).click();
+    const bar = await box(page.locator('[data-view="operator"] [data-stub="ActionBar"]').first());
+    const cells = await page.locator('nav[aria-label="角色分区"] button').evaluateAll((bs) => bs.map((b) => b.getBoundingClientRect().bottom));
+    expect(cells.length).toBeGreaterThan(0);
+    for (const b of cells) expect(b, 'rail cell bottom <= bar top').toBeLessThanOrEqual(bar.y + 0.5);
+  });
+}
+
 test('focus rings on the roster and 桌面预览 are not clipped', async ({ page }) => {
   await open(page, '/character');
   // The roster opens from the 切换角色 key of 总览's head strip.

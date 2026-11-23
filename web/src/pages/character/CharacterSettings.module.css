@@ -74,6 +74,8 @@
   min-height: 0;
   overflow-y: auto;
   padding-right: 8px;
+  /* The last row scrolls up past the fade below. */
+  padding-bottom: 36px;
   scrollbar-width: thin;
   scrollbar-color: #fff rgb(0 0 0 / 10%);
   mask: linear-gradient(180deg, #000 0, #000 calc(100% - 36px), transparent);
