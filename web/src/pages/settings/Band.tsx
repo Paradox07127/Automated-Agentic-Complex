@@ -9,18 +9,28 @@ import { labelOf } from './registry';
 import band from './band.module.css';
 import styles from './rows.module.css';
 
-/** What each capability does, needs and costs; the band says all three, the ⓘ repeats them for the smallest window. */
-export const BAND: Record<PluginId, { does: string; needs: string; cost: string; perms?: PermissionKind[] }> = {
-  light_ai: { does: '聊天、记得聊过的事、主动搭话', needs: '一个模型账号', cost: '按模型用量计' },
-  screen_awareness: { does: '一直看前台窗口和活动，用来主动搭话和写简报', needs: '辅助功能、屏幕录制', cost: '本机少量 CPU；只把下面打开的项发给模型', perms: ['accessibility', 'screenRecording'] },
-  screen_reading: { does: '按热键时读一次屏幕、选中的字或剪贴板', needs: '屏幕录制', cost: '每次一张截图（打开附图时）', perms: ['screenRecording'] },
-  coding_sessions: { does: '接上 Claude Code 和 Codex，播报进度、弹审批卡', needs: '在终端里装一次 hooks', cost: '本机保存 48 小时' },
-  daily_brief: { does: '根据前一天的观察写一份简报', needs: '屏幕感知', cost: '每天一次模型调用' },
-  computer_use: { does: '在你允许的窗口里点和打字', needs: '辅助功能、屏幕录制', cost: '每一步发一张截图给模型', perms: ['accessibility', 'screenRecording'] },
-  personal_agent: { does: '你交代的事放到后台做，按时间重复做', needs: '授权她能读的文件夹', cost: '每次运行按模型用量计' },
-  external_access: { does: '让别的智能体通过 MCP 或命令行和她对话', needs: '无', cost: '对方每次调用用你的模型额度' },
-  motion_generation: { does: '按你的描述生成新的动作', needs: '自己部署的动作服务（本机 GPU）', cost: '只用你自己的服务' },
-  harness_bridge: { does: '改用本机的 Claude Code、Codex 或 ACP 智能体当内核', needs: '本机已经安装并登录对应工具', cost: '用那个工具自己的账号和额度' },
+/** What each capability does, needs and costs (the 做 / 要 / 花 line, hidden in a narrow window); `tip`, the ⓘ, says what switching it changes, what leaves the computer and that it waits for a restart. */
+export const BAND: Record<PluginId, { does: string; needs: string; cost: string; tip: string; perms?: PermissionKind[] }> = {
+  light_ai: { does: '聊天、记得聊过的事、主动搭话', needs: '一个模型账号', cost: '按模型用量计',
+    tip: 'Pi 内核、日常对话、语音、记忆和主动搭话都靠这个开关。对话内容会发给下面选的模型服务。关掉后 Pi 不能用；「内核 › 外接 harness」也关着时，角色就不能对话了。改了要重启后台服务才生效。' },
+  screen_awareness: { does: '一直看前台窗口和活动，用来主动搭话和写简报', needs: '辅助功能、屏幕录制', cost: '本机少量 CPU；只把下面打开的项发给模型', perms: ['accessibility', 'screenRecording'],
+    tip: '打开后在本机一直读前台窗口和活动。下面打开的项会发给模型，关着的项只留在本机。关掉后角色少了主动搭话的时机，每日简报也没有内容可写。改了要重启后台服务才生效。' },
+  screen_reading: { does: '按热键时读一次屏幕、选中的字或剪贴板', needs: '屏幕录制', cost: '每次一张截图（打开附图时）', perms: ['screenRecording'],
+    tip: '只在你按识读热键时读一次屏幕、选中的字或剪贴板，平时不读。读到的内容发给模型；打开「识读时附上截图」后再附一张截图，每天有张数上限。改了要重启后台服务才生效。' },
+  coding_sessions: { does: '接上 Claude Code 和 Codex，播报进度、弹审批卡', needs: '在终端里装一次 hooks', cost: '本机保存 48 小时',
+    tip: '通过终端里装的 hooks 接上 Claude Code 和 Codex，播报进度、弹出审批卡。会话内容在本机保存 48 小时；关掉「读会话里的工具输入输出」会删掉已经存下的内容。改了要重启后台服务才生效。' },
+  daily_brief: { does: '根据前一天的观察写一份简报', needs: '屏幕感知', cost: '每天一次模型调用',
+    tip: '每天到点后，用前一天屏幕感知的记录写一份简报，在「每日简报」页读，每天调用一次模型。屏幕感知关着时没有内容可写。改了要重启后台服务才生效。' },
+  computer_use: { does: '在你允许的窗口里点和打字', needs: '辅助功能、屏幕录制', cost: '每一步发一张截图给模型', perms: ['accessibility', 'screenRecording'],
+    tip: '角色可以在你允许的窗口里点击和打字。每一步都发一张截图给模型，比聊天费用高。改了要重启后台服务才生效。' },
+  personal_agent: { does: '你交代的事放到后台做，按时间重复做', needs: '授权她能读的文件夹', cost: '每次运行按模型用量计',
+    tip: '你交代的事放到后台做，也可以按时间重复做。角色只能读你在下面授权的文件夹，每次运行按模型用量计费。改了要重启后台服务才生效。' },
+  external_access: { does: '让别的智能体通过 MCP 或命令行和她对话', needs: '无', cost: '对方每次调用用你的模型额度',
+    tip: '允许本机上别的智能体通过 MCP 或命令行和角色对话，对方的每次调用都用你的模型额度。关着时不接受这类接入。改了要重启后台服务才生效。' },
+  motion_generation: { does: '按你的描述生成新的动作', needs: '自己部署的动作服务（本机 GPU）', cost: '只用你自己的服务',
+    tip: '按你的描述生成新的动作，只调用你自己部署的动作服务（Kimodo，本机 GPU）。服务地址在「服务」里填，令牌在下面填。改了要重启后台服务才生效。' },
+  harness_bridge: { does: '改用本机的 Claude Code、Codex 或 ACP 智能体当内核', needs: '本机已经安装并登录对应工具', cost: '用那个工具自己的账号和额度',
+    tip: '打开后可以把内核换成本机的 Codex、Claude Code 或 ACP 智能体，默认用那个工具自己的登录和额度。关着时只能用 Pi。改了要重启后台服务才生效。' },
 };
 
 export interface BandProps {
@@ -52,7 +62,7 @@ export function Band({ plugin, fold, children }: BandProps) {
         <div>
           <h4 className={band.bt}>
             <span id={`set-${id}-title`}>{labelOf(id)}</span>
-            <InfoTip>{`做什么：${b.does}。要什么：${b.needs}。花多少：${b.cost}。`}</InfoTip>
+            <InfoTip>{b.tip}</InfoTip>
           </h4>
           <div className={band.bw} aria-hidden="true">
             <span>

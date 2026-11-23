@@ -1,5 +1,5 @@
 // 雷霆大字: the title page (`stack.html#/title`) shows the name from its URL with the English name under it or no line, and
-// 设置 › 说话 has its switch, which saves `switchTitle`. Its timeline is in tests/e2e/switch-title.spec.ts.
+// 设置 › 显示 has its switch, which saves `switchTitle`. Its timeline is in tests/e2e/switch-title.spec.ts.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -42,10 +42,10 @@ describe('切换角色时的雷霆大字', () => {
     delete window.agenticComplex;
   });
 
-  it('is a switch in 设置 › 说话, on by default, that saves switchTitle', async () => {
+  it('is a switch in 设置 › 显示, on by default, that saves switchTitle', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     await pluginsSaved();
-    const router = createRouter({ routeTree: createRootRoute({ component: SettingsPage }), history: createMemoryHistory({ initialEntries: ['/?still=1&group=speak'] }) });
+    const router = createRouter({ routeTree: createRootRoute({ component: SettingsPage }), history: createMemoryHistory({ initialEntries: ['/?still=1&group=display'] }) });
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <RouterProvider router={router} />

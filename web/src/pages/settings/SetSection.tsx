@@ -4,7 +4,7 @@ import styles from './section.module.css';
 
 export interface SetSectionProps {
   title: string;
-  /** ⓘ right after the title; the group's own line sits on its first section. */
+  /** ⓘ right after the title, only for what the rows do not already say. */
   info?: string;
   /** Right end of the head. */
   right?: ReactNode;

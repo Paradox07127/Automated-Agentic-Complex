@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { getBridge } from '../../../bridge';
 import { resetVoice } from '../../../bridge/agentd';
-import { hotkeyText } from '../../../bridge/platformText';
 import type { VisualStateKey } from '../../../domain/states';
 import { voiceSource, voiceState, voiceText, type Voice, type VoiceState } from '../../../domain/voiceState';
 import { useCountdown } from '../../../features/approval/useCountdown';
@@ -10,7 +9,6 @@ import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import type { DiagView } from '../diag';
 import { REPLY_LANGUAGE } from '../fields';
-import { groupDesc } from '../groups';
 import { Btn, Pill } from '../../../ui';
 import { GameSeg, PowerState, StatusLamp } from '../../../ui/game';
 import { Dis } from '../kit';
@@ -78,7 +76,7 @@ export function SpeakGroup() {
 
   return (
     <>
-      <SetSection title="声音" info={groupDesc('speak')}>
+      <SetSection title="声音">
         <SetRow
           id="mute"
           title={labelOf('mute')}
@@ -167,8 +165,6 @@ export function SpeakGroup() {
           </div>
         </Slab>
         <SetRow id="sysnotify" title={labelOf('sysnotify')} desc="角色隐藏或前台全屏时生效" control={c.toggle('sysnotify')} />
-        <SetRow id="capHide" title={labelOf('capHide')} desc={hotkeyText('开始录屏或共享屏幕时隐藏一次，按 ⌃⌥H 显示')} control={c.toggle('capHide', labelOf('capHide'))} />
-        <SetRow id="switchTitle" title={labelOf('switchTitle')} desc="切换后在她所在屏幕正中显示她的名字" control={c.toggle('switchTitle')} />
         <SetRow
           id="testcard"
           title={labelOf('testcard')}

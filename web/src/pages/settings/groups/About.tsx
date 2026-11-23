@@ -3,7 +3,6 @@ import { getBridge, type AppActionName, type AppInfo, type ProcessState } from '
 import { setDevMode, useDevMode } from '../../../shell/devMode';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
-import { groupDesc } from '../groups';
 import { Btn, Switch } from '../../../ui';
 import { StatusLamp } from '../../../ui/game';
 import { labelOf, useRowShown } from '../registry';
@@ -59,7 +58,7 @@ export function AboutGroup() {
         </div>
       </Slab>
 
-      <SetSection title="启动" info={groupDesc('about')}>
+      <SetSection title="启动">
         <SetRow id="login" title={labelOf('login')} desc={native?.statuses.login ?? (model.value('login') === true ? '已在系统「登录项」里允许' : '关闭')} control={c.toggle('login')} />
       </SetSection>
 

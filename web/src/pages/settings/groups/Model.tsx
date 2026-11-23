@@ -7,7 +7,6 @@ import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { COMPATIBLE_THINKING, isLoopback, keyOptions, listsOwnModels, modelCaps, modelTestText, SVC, thinkOptions, tokens, type Opt } from '../fields';
-import { groupDesc } from '../groups';
 import { Masked } from '../kit';
 import { labelOf } from '../registry';
 import { SetRow } from '../SetRow';
@@ -135,7 +134,7 @@ export function ModelGroup() {
 
   return (
     <>
-      <SetSection title="模型服务" info={groupDesc('model')}>
+      <SetSection title="模型服务">
         <Band plugin="light_ai" fold="模型服务、账号、默认模型、测试连接">
           <SetRow
             id="svc"

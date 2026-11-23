@@ -63,6 +63,16 @@ describe('settings search · 角色 rows', () => {
     await search('抗锯齿');
     expect(await screen.findByRole('button', { name: /2× SSAA/ })).toBeTruthy();
   });
+
+  it('finds 角色 › 设定 rows for the words people use for display settings, with developer mode off', async () => {
+    setDevMode(false);
+    for (const q of ['渲染', '分辨率', '画质', '显示', '帧率', '阴影']) {
+      await search(q);
+      const away = await screen.findByRole('list', { name: '在别的页' }).catch(() => null);
+      expect(away?.querySelectorAll('li').length ?? 0, q).toBeGreaterThan(0);
+      cleanup();
+    }
+  });
 });
 
 describe('settings search · Pi-only rows', () => {

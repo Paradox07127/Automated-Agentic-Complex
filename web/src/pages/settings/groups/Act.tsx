@@ -5,7 +5,6 @@ import { failure, readMotion, saveMotion, type MotionSource } from '../api';
 import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
-import { groupDesc } from '../groups';
 import { Btn, Field, Fold } from '../../../ui';
 import { StatusLamp } from '../../../ui/game';
 import { Masked } from '../kit';
@@ -34,7 +33,7 @@ export function ActGroup() {
   const c = useControls();
   return (
     <>
-      <SetSection title="自主程度" info={groupDesc('perm')}>
+      <SetSection title="自主程度">
         <SetRow
           id="k_ask"
           title={labelOf('k_ask')}
@@ -61,6 +60,15 @@ export function ActGroup() {
 }
 
 const PERM_KINDS: ReadonlySet<string> = new Set(['screenRecording', 'accessibility', 'microphone', 'inputMonitoring', 'automation', 'notifications']);
+
+/** A permission row's ⓘ: what it lets the app do and what stops without it; the rest keep their purpose line. */
+const PERM_TIP: Partial<Record<PermissionKind, string>> = {
+  screenRecording: '让应用截取屏幕画面。屏幕识读、识读附图、屏幕感知和操作电脑都要用它；没开时这些功能拿不到画面。',
+  accessibility: '让应用读取别的应用窗口里的文字，并在窗口里点击和打字。没开时读不到窗口文字，也不能操作电脑。',
+  microphone: '按住说话时用它录音并识别成文字。没开时不能按住说话，只能打字。',
+  inputMonitoring: '按住说话设成右 Option 键时要用它，让应用在任何应用里都能收到这个键。没开时右 Option 按住说话不起作用；换成别的组合键不需要它。',
+  notifications: '让应用发系统通知。打开「说话」里改走系统通知的那一项后，角色隐藏或前台全屏时提醒走系统通知；没有这项权限时这些通知不会出现。',
+};
 
 /** 系统权限: one summary line, then a fold with a row per permission, its fix path and a re-check; open while one is missing. */
 function PermSection({ open: linked }: { open: boolean }) {
@@ -129,7 +137,7 @@ function PermSection({ open: linked }: { open: boolean }) {
                 id={p.kind}
                 title={p.label}
                 desc={`用于 ${p.features.join('、')}`}
-                info={p.purpose}
+                info={PERM_TIP[p.kind] ?? p.purpose}
                 control={
                   <>
                     <StatusLamp size="sm" state={tone} label={text} />

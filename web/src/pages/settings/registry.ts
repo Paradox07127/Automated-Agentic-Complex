@@ -7,10 +7,10 @@ import { useDevMode } from '../../shell/devMode';
 import { usePlugins, type PluginId, type PluginState } from '../../shell/plugins';
 import type { IconName } from '../../ui';
 
-export type GroupId = 'speak' | 'perm' | 'privacy' | 'kernel' | 'model' | 'services' | 'keys' | 'data' | 'about';
+export type GroupId = 'speak' | 'perm' | 'privacy' | 'display' | 'kernel' | 'model' | 'services' | 'keys' | 'data' | 'about';
 
 // 能做 and 观察 keep the ids 'perm' and 'privacy' that other pages and agentd actions link to.
-export const GROUP_IDS: GroupId[] = ['speak', 'perm', 'privacy', 'kernel', 'model', 'services', 'keys', 'data', 'about'];
+export const GROUP_IDS: GroupId[] = ['speak', 'perm', 'privacy', 'display', 'kernel', 'model', 'services', 'keys', 'data', 'about'];
 
 export const DEFAULT_GROUP: GroupId = 'speak';
 
@@ -18,6 +18,7 @@ export const GROUP_ICON: Record<GroupId, IconName> = {
   speak: 'voice',
   perm: 'tool',
   privacy: 'eye',
+  display: 'sun',
   kernel: 'kernel',
   model: 'hub',
   services: 'radio',
@@ -35,7 +36,7 @@ export const PI_ONLY_ROWS: ReadonlySet<string> = new Set(['runsrc', 'piApproval'
 export const NEEDS_AGENTD: GroupId[] = ['kernel', 'model'];
 
 /** Groups holding config.json rows; they turn read-only when the shell cannot read it. */
-export const NATIVE_GROUPS: GroupId[] = ['speak', 'perm', 'privacy', 'services', 'keys', 'about'];
+export const NATIVE_GROUPS: GroupId[] = ['speak', 'perm', 'privacy', 'display', 'services', 'keys', 'about'];
 
 export function isGroup(v: string | null | undefined): v is GroupId {
   return GROUP_IDS.includes(v as GroupId);
@@ -99,8 +100,6 @@ const RAW: Raw[] = [
   ['n_brief', 'speak', '事情怎么告诉你', '简短播报', '通知'],
   ['n_remind', 'speak', '事情怎么告诉你', '提醒', '通知 提醒 闹钟'],
   ['sysnotify', 'speak', '事情怎么告诉你', '她不在桌面时改走 macOS 通知', '系统通知 全屏'],
-  ['capHide', 'speak', '事情怎么告诉你', '录屏和共享屏幕时隐藏她', '录屏 共享屏幕 隐藏 介绍视频'],
-  ['switchTitle', 'speak', '事情怎么告诉你', '切换角色时的雷霆大字', '雷霆大字 切换角色 名字 大字 标题'],
   ['testcard', 'speak', '事情怎么告诉你', '发送测试卡', '测试 通知卡', true],
   ['k_ask', 'perm', '自主程度', '允许她用提问卡问你', '提问 提问卡 问你 澄清 补充信息'],
   ['plugins.computer_use', 'perm', '能力', '操作电脑', 'computer use 电脑操作 控制 点击'],
@@ -134,6 +133,8 @@ const RAW: Raw[] = [
   ['brief_weekly', 'privacy', '每日简报', '每周简报', '简报 周报'],
   ['mask', 'privacy', '遮蔽与排除', '发出前遮蔽敏感内容', '遮蔽 密钥 邮箱'],
   ['exclude', 'privacy', '遮蔽与排除', '不看的应用和网站', '黑名单 排除 不看 白名单'],
+  ['capHide', 'display', '桌面上', '录屏和共享屏幕时隐藏角色', '录屏 共享屏幕 隐藏 介绍视频 显示'],
+  ['switchTitle', 'display', '桌面上', '切换角色时的雷霆大字', '雷霆大字 切换角色 名字 大字 标题 显示'],
   ['kcur', 'kernel', '当前内核', '当前内核 │ 重新检测', '运行时 codex claude 登录 内核 pi 能力'],
   ['piApproval', 'kernel', 'Pi', '写文件和运行命令前先问你', '工具审批 批准 确认 审批卡 bash powershell write edit pi_tool_approval'],
   ['maxCost', 'kernel', 'Pi', '单次运行费用上限', '预算 限额 费用 max_budget_usd'],
@@ -191,8 +192,8 @@ const RAW: Raw[] = [
   ['beh.stay', '@character', '角色 › 行为', '待在原地 / 自由活动', '行为 半身固定 半身 上半身 机位'],
   ['beh.range', '@character', '角色 › 行为', '活动范围', '行为'],
   ['avatar_click', '@character', '角色 › 行为', '点击角色', '角色互动 摸头 问候 打开快速输入 打字'],
-  ['rnd.fps', '@character', '角色 › 画面', '帧率上限', 'fps 画面'],
-  ['scn.mode', '@character', '角色 › 场景', '场景', '场景 舞台盒 展示台 背景'],
+  ['rnd.fps', '@character', '角色 › 画面', '帧率上限', 'fps 画面 渲染 显示 画质 分辨率 性能'],
+  ['scn.mode', '@character', '角色 › 场景', '场景', '场景 舞台盒 展示台 背景 显示'],
   ['scn.parallax', '@character', '角色 › 场景', '背景视差', '视差 背景 场景'],
   ['beh.sit', '@character', '角色 › 行为', '坐在窗口顶上', '行为 窗口 坐'],
   ['beh.lean', '@character', '角色 › 行为', '扶着窗沿', '行为 窗沿 扶'],
@@ -212,15 +213,15 @@ const RAW: Raw[] = [
   ['rnd.pitch', '@character', '角色 › 画面', '俯仰朝向', '镜头 俯仰 pitch'],
   ['rnd.lightYaw', '@character', '角色 › 画面', '主光水平微调', '主光 光照 水平'],
   ['rnd.lightPitch', '@character', '角色 › 画面', '主光俯仰微调', '主光 光照 俯仰'],
-  ['rnd.lightStrength', '@character', '角色 › 画面', '主光强度', '主光 光照 亮度 强度'],
-  ['rnd.outline', '@character', '角色 › 画面', '角色边界', '描边 轮廓 外轮廓 边界'],
-  ['rnd.ground', '@character', '角色 › 画面', '脚下阴影', '阴影 接触阴影 落地 脚下'],
-  ['rnd.ambient', '@character', '角色 › 画面', '环境取色', '环境 取色 壁纸 屏幕 补光'],
-  ['rnd.wrap', '@character', '角色 › 画面', '边缘环境光', '边缘光 环境光 轮廓 背景色'],
+  ['rnd.lightStrength', '@character', '角色 › 画面', '主光强度', '主光 光照 亮度 强度 渲染'],
+  ['rnd.outline', '@character', '角色 › 画面', '角色边界', '描边 轮廓 外轮廓 边界 渲染 画质'],
+  ['rnd.ground', '@character', '角色 › 画面', '脚下阴影', '阴影 接触阴影 落地 脚下 渲染 画质'],
+  ['rnd.ambient', '@character', '角色 › 画面', '环境取色', '环境 取色 壁纸 屏幕 补光 渲染'],
+  ['rnd.wrap', '@character', '角色 › 画面', '边缘环境光', '边缘光 环境光 轮廓 背景色 渲染'],
   ['rnd.filter', '@character', '角色 › 画面', '滤镜', '滤镜 拍照 调色 黑金 温暖 苍白 胶片 希望色彩 血忆 武陵印象 明亮 冷调 清新 暗色 黑白 春 文艺 蓝橙'],
-  ['rnd.dof', '@character', '角色 › 画面', '景深', '景深 虚化 近景 焦点 光圈'],
-  ['rnd.idle', '@character', '角色 › 画面', '空闲时降到 30 fps', '帧率 节能 空闲 fps'],
-  ['rnd.batt', '@character', '角色 › 画面', '电池供电时降帧', '帧率 电池 节能 fps'],
+  ['rnd.dof', '@character', '角色 › 画面', '景深', '景深 虚化 近景 焦点 光圈 渲染 画质'],
+  ['rnd.idle', '@character', '角色 › 画面', '空闲时降到 30 fps', '帧率 节能 空闲 fps 渲染 性能'],
+  ['rnd.batt', '@character', '角色 › 画面', '电池供电时降帧', '帧率 电池 节能 fps 渲染 性能'],
   ['rnd.aa', '@character', '角色 › 画面', '2× SSAA', '抗锯齿 超采样 ssaa 画质'],
   ['rnd.size', '@character', '角色 › 画面', '渲染尺寸', '分辨率 显示像素 画质'],
   ['rnd.shadow', '@character', '角色 › 画面', '自阴影精度', '阴影 精度 画质'],

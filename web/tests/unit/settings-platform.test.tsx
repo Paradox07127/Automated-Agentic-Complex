@@ -89,7 +89,7 @@ describe('settings on the Windows shell', () => {
     expect([...row('hk_page_chat')!.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['Ctrl', '2']);
     expect(document.body.textContent).not.toMatch(/[⌘⌃⌥⇧]/);
     cleanup();
-    await mount('&group=speak');
+    await mount('&group=display');
     await waitFor(() => expect(row('capHide')?.textContent).toContain('按 Ctrl+Alt+H 显示'));
     expect(document.body.textContent).not.toMatch(/[⌘⌃⌥⇧]/);
   });
@@ -136,7 +136,9 @@ describe('settings on the macOS shell', () => {
     cleanup();
     await mount('&group=speak');
     expect(await screen.findByRole('switch', { name: '她不在桌面时改走 macOS 通知' })).toBeTruthy();
-    expect(row('capHide')?.textContent).toContain('按 ⌃⌥H 显示');
+    cleanup();
+    await mount('&group=display');
+    await waitFor(() => expect(row('capHide')?.textContent).toContain('按 ⌃⌥H 显示'));
     cleanup();
     await mount('&group=keys');
     expect(await screen.findByText('和 macOS「切换输入法」冲突')).toBeTruthy();

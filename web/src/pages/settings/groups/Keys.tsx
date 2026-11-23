@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { getBridge, type BridgeError, type HotkeyCheck } from '../../../bridge';
 import { hotkeyText, keyText } from '../../../bridge/platformText';
 import { useSettings } from '../ctx';
-import { groupDesc } from '../groups';
 import { Btn, Kbd } from '../../../ui';
 import { KeyCell } from '../kit';
 import { labelOf, useRowShown } from '../registry';
@@ -92,7 +91,7 @@ export function KeysGroup() {
 
   return (
     <>
-      <SetSection title="全局快捷键" info={`${groupDesc('keys')}。轮盘、菜单和提示里的热键都取自这里。`}>
+      <SetSection title="全局快捷键" info="在任何应用里按都有效，不用先切到主窗口。轮盘、菜单和提示里显示的热键都取自这里。">
         {noHotkeys && <p className={styles.note}>这个平台不支持全局热键，只在主窗口内有效</p>}
         {HOTKEYS.map((h) => {
           const label = labelOf(h.id);

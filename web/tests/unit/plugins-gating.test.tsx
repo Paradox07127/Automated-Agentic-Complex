@@ -127,7 +127,7 @@ describe('settings rows of a plug-in', () => {
     expect(rows.map((r) => r.getAttribute('data-row'))).toEqual(['keys', 'mask']);
     expect(screen.getByText(/^关着 │ 打开后可以设：窗口文字/)).toBeTruthy();
     const nav = screen.getByRole('tablist', { name: '设置分组' });
-    expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['说话', '能做', '观察', '内核', '账号', '服务', '按键', '数据', '关于']);
+    expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['说话', '能做', '观察', '显示', '内核', '账号', '服务', '按键', '数据', '关于']);
   });
 
   it('keep developer rows out of 开发者模式 off', async () => {

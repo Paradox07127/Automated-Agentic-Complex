@@ -3,7 +3,6 @@ import { clearAttention, failure, forgetRecent, type Range } from '../api';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { ARCHIVE } from '../fields';
-import { groupDesc } from '../groups';
 import { Btn } from '../../../ui';
 import type { ConfirmSpec } from '../model';
 import { defaultsOf } from '../native';
@@ -93,7 +92,7 @@ export function DataGroup() {
 
   return (
     <>
-      <SetSection title="保留" info={groupDesc('data')}>
+      <SetSection title="保留">
         <SetRow id="archive" title={labelOf('archive')} desc="运行记录和状态日志；7 天趋势靠它" control={c.seg('archive', ARCHIVE)} />
         <SetRow
           id="datadir"

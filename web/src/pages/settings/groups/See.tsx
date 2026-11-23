@@ -5,7 +5,6 @@ import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { ExcludeList } from '../ExcludeList';
-import { groupDesc } from '../groups';
 import { Switch } from '../../../ui';
 import { Dis } from '../kit';
 import { OutboundPlate } from '../Outbound';
@@ -98,7 +97,7 @@ export function SeeGroup() {
         <SetRow id="brief_weekly" title={labelOf('brief_weekly')} desc={`每周 ${at} 后写上一周的`} indent control={brief('weekly', 'brief_weekly')} />
       </Band>
 
-      <SetSection title="遮蔽与排除" info={`${groupDesc('privacy')}。本地始终读前台应用和窗口状态，用来决定角色动作，不外发；无痕窗口一律不读。`}>
+      <SetSection title="遮蔽与排除" info="前台应用名和窗口状态始终在本机读取，用来决定角色的动作，不外发；无痕窗口一律不读。">
         <SetRow
           id="mask"
           title={labelOf('mask')}

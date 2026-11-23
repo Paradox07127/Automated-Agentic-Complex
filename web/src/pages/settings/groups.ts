@@ -1,10 +1,11 @@
 import type { GroupId } from './registry';
 
-/** Settings groups in tab order, by what the user comes for; `desc` is the ⓘ on the group's first section. */
+/** Settings groups in tab order, by what the user comes for; `desc` says in one line what the tab holds. */
 export const SETTING_GROUPS: Array<{ id: GroupId; label: string; desc: string }> = [
   { id: 'speak', label: '说话', desc: '她出不出声、什么时候主动开口、事情怎么告诉你' },
   { id: 'perm', label: '能做', desc: '她可以替你动手做哪些事，要你允许哪些系统权限' },
   { id: 'privacy', label: '观察', desc: '她能读你屏幕上的什么，什么会离开这台电脑' },
+  { id: 'display', label: '显示', desc: '角色的画面、镜头、帧率和场景在哪里调，录屏时隐不隐藏' },
   { id: 'kernel', label: '内核', desc: '她用什么动手，所有角色共用；她是谁由角色卡决定' },
   { id: 'model', label: '账号', desc: '内核用哪个模型服务、用谁的账号' },
   { id: 'services', label: '服务', desc: '语音、动作和模型服务怎么接、开没开' },
@@ -18,5 +19,3 @@ export function settingPath(id: string): string {
   const label = SETTING_GROUPS.find((g) => g.id === id)?.label;
   return label ? `设置 › ${label}` : '设置';
 }
-
-export const groupDesc = (id: GroupId): string => SETTING_GROUPS.find((g) => g.id === id)?.desc ?? '';

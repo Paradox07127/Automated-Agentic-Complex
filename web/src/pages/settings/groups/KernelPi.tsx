@@ -4,7 +4,6 @@ import { StatusLamp } from '../../../ui/game';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { RUNSRC } from '../fields';
-import { groupDesc } from '../groups';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
@@ -62,13 +61,13 @@ export function KernelPi() {
   // Only a saved, ready Pi knows its model has no catalog price; the cap then never stops a run.
   const unpriced = runtime!.selected === 'pi' && runtime!.ready && runtime!.wire.capability_flags?.catalog_priced === false;
   return (
-    <SetSection title="Pi" info={groupDesc('kernel')}>
+    <SetSection title="Pi">
       <SetRow
         id="piApproval"
         title={labelOf('piApproval')}
         desc={piApproval ? 'bash、PowerShell、write、edit 出审批卡' : '这四种工具直接运行，不出审批卡'}
         descTone={piApproval ? undefined : 'attention'}
-        info="read、grep、find、ls 不问。"
+        info="打开时，Pi 跑 bash、PowerShell 或用 write、edit 改文件前，先弹审批卡，你点允许才运行；read、grep、find、ls 只读不改，不问。关掉后这四种工具直接运行。改了要点「应用」才生效。"
         control={c.toggle('piApproval', labelOf('piApproval'))}
       />
       <SetRow

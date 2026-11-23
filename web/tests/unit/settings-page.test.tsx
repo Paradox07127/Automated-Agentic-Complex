@@ -10,7 +10,7 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { PAGE_KEYS } from '../../src/pages/settings/groups/Keys';
 import { pageRoutes } from '../../src/shell/registry';
-import { groupDesc } from '../../src/pages/settings/groups';
+import { SETTING_GROUPS } from '../../src/pages/settings/groups';
 import { pluginsOn, pluginsReset, pluginsSaved } from './plugins';
 
 // Every plug-in on, so each group shows all its rows.
@@ -121,20 +121,25 @@ describe(' states and navigation', () => {
     await mount('');
     const nav = await screen.findByRole('tablist', { name: '设置分组' });
     expect(within(nav).getByRole('tab', { name: /说话/ }).getAttribute('aria-selected')).toBe('true');
-    expect(within(nav).getAllByRole('tab').map((t) => t.textContent?.replace(/[^一-龥]/g, '').slice(0, 2))).toEqual(['说话', '能做', '观察', '内核', '账号', '服务', '按键', '数据', '关于']);
+    expect(within(nav).getAllByRole('tab').map((t) => t.textContent?.replace(/[^一-龥]/g, '').slice(0, 2))).toEqual(['说话', '能做', '观察', '显示', '内核', '账号', '服务', '按键', '数据', '关于']);
     await act(async () => fireEvent.click(within(nav).getByRole('tab', { name: /观察/ })));
     expect(await screen.findByRole('region', { name: '外发总览' })).toBeTruthy();
   });
 
-  it('heads each section with the shared SecHead and no second title row under the tabs; the group line sits in the first head\'s ⓘ', async () => {
+  it('heads each section with the shared SecHead and no second title row under the tabs; no ⓘ repeats the tab\'s line', async () => {
     await mount('&group=data');
     const sec = await screen.findByRole('region', { name: '保留' });
     const head = sec.querySelector(':scope > [data-stub="SecHead"]') as HTMLElement;
     expect(head.querySelector('h3')?.textContent).toBe('保留');
-    expect(within(head).getByRole('tooltip', { hidden: true }).textContent).toBe(groupDesc('data'));
-    // SecHead `info`: the ⓘ follows the title, not the rule's right end.
-    expect(head.querySelector('h3')?.nextElementSibling?.getAttribute('data-stub')).toBe('InfoTip');
+    expect(head.querySelector('[data-stub="InfoTip"]')).toBeNull();
     expect(screen.queryByRole('heading', { name: '数据' })).toBeNull();
+    cleanup();
+    await mount('&group=keys');
+    const keys = (await screen.findByRole('region', { name: '全局快捷键' })).querySelector(':scope > [data-stub="SecHead"]') as HTMLElement;
+    // SecHead `info`: the ⓘ follows the title, not the rule's right end.
+    expect(keys.querySelector('h3')?.nextElementSibling?.getAttribute('data-stub')).toBe('InfoTip');
+    const tips = () => [...document.querySelectorAll('[role="tooltip"]')].map((t) => t.textContent ?? '');
+    for (const g of SETTING_GROUPS) expect(tips().filter((t) => t.includes(g.desc)), g.id).toEqual([]);
   });
 
   it('draws no › on a row whose control is a button', async () => {
