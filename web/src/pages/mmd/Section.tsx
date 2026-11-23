@@ -6,6 +6,7 @@ import type { Toast } from '../character/feedback';
 import { PLAY_REFUSED, playRefusedSeverity } from '../character/labels';
 import { MotionEditDialog, type MotionEdit } from '../character/MotionEditDialog';
 import type { Side } from '../character/Side';
+import { Transport, useActionTransport } from '../character/Transport';
 import { importStageLabel, useImportState } from '../character/useImportState';
 import { useMotionImport } from '../character/useMotionImport';
 import { useMotionLibrary } from '../character/useMotionLibrary';
@@ -81,6 +82,7 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
   const mine = ch && p.on ? (p.actions ?? []).filter((a) => a.id.startsWith('mmd_')) : [];
   const ids = mine.map((a) => a.id);
   const setlist = useSetlist(current, ids, p.toast);
+  const transport = useActionTransport(p.toast);
 
   const pick = (e: MmdEntry) => {
     setSel(e.id);
@@ -175,6 +177,7 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
                   onStop={stop}
                   onRename={() => setEdit({ kind: 'rename', id: picked.id, title: picked.title })}
                   onRemove={() => setEdit({ kind: 'remove', id: picked.id })}
+                  transport={transport.progress?.id === picked.id && <Transport progress={transport.progress} onControl={transport.control} />}
                 />
               )
             }

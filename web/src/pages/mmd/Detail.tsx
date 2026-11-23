@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { CharacterEntry, MmdEntry } from '../../bridge';
 import { Btn } from '../../ui';
 import { GameSeg, MicroLabel, StatusLamp, WhiteCapsule } from '../../ui/game';
@@ -23,6 +24,8 @@ export interface DetailProps {
   onStop: () => void;
   onRename: () => void;
   onRemove: () => void;
+  /** The player of this dance while the desktop plays it. */
+  transport?: ReactNode;
 }
 
 const LOOP = [
@@ -35,7 +38,7 @@ function Txt({ children }: { children: string }) {
   return <span className={styles.txt}>{children}</span>;
 }
 
-/** 选中行展开：桌面播放、舞台一次 / 循环、改名、删除，下面一行是这支舞在其他角色上的状态。 */
+/** 选中行展开：桌面播放、舞台一次 / 循环、改名、删除；桌面在播这支舞时下面一行是播放器；再下面一行是这支舞在其他角色上的状态。 */
 export function Detail(p: DetailProps) {
   const e = p.entry;
   return (
@@ -66,6 +69,7 @@ export function Detail(p: DetailProps) {
           <Txt>删除</Txt>
         </Btn>
       </div>
+      {p.transport}
       {p.others.length > 0 && (
         <div className={styles.others}>
           <MicroLabel>OTHERS</MicroLabel>

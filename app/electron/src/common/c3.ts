@@ -510,6 +510,15 @@ export function rightDragProblem(m: Fields): string | null {
 /** Rule 57's `moving`. */
 export const movingProblem = (m: Fields): string | null => (!only(m, ['v', 'type', 'moving']) ? 'keys' : typeof m.moving === 'boolean' ? null : 'moving');
 
+/** Rule 58's `action_progress`: `t_s` within the clip's `duration_s`. */
+export function actionProgressProblem(m: Fields): string | null {
+  if (!only(m, ['v', 'type', 'play_id', 't_s', 'duration_s', 'paused'])) return 'keys';
+  if (!id64(m.play_id)) return 'play_id';
+  if (!finite(m.duration_s) || m.duration_s <= 0) return 'duration_s';
+  if (!inRange(m.t_s, 0, m.duration_s)) return 't_s';
+  return typeof m.paused === 'boolean' ? null : 'paused';
+}
+
 /** CONTRACT「Optional presentation capability」's `presentation_state`. */
 export function presentationStateProblem(m: Fields, character: string | null): string | null {
   if (!count(m.req)) return 'req';
@@ -685,6 +694,11 @@ export function outboundProblem(m: C3Message, both: (c: string) => boolean): str
       return m.speed === undefined || [0.5, 1, 2].includes(m.speed as number) ? null : 'speed';
     case 'capture':
       return atLeast(m.req, 1) && m.background === 'transparent' ? null : 'field';
+    case 'control_action':
+      if (!atLeast(m.req, 1)) return 'req';
+      if (!id64(m.play_id)) return 'play_id';
+      if (m.op === 'seek') return only(m, ['v', 'type', 'req', 'play_id', 'op', 'at_s']) && finite(m.at_s) && m.at_s >= 0 ? null : 'at_s';
+      return (m.op === 'pause' || m.op === 'resume') && only(m, ['v', 'type', 'req', 'play_id', 'op']) ? null : 'op';
     default: return null;
   }
 }

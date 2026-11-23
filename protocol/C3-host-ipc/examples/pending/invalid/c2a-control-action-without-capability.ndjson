@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"companion","pid":4242,"protocol":1,"capabilities":["actions"]}
+{"v":1,"type":"control_action","req":3,"play_id":"e-4242-mmd-1","op":"pause"}

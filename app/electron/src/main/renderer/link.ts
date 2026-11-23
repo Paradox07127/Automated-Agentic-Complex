@@ -7,7 +7,7 @@ import { chmodSync, lstatSync, mkdirSync, unlinkSync } from 'node:fs';
 import { createServer, connect, type Server, type Socket } from 'node:net';
 import { dirname } from 'node:path';
 import {
-  type ActionPlayed, type Actions, attachProblem, type AvatarHello, avatarHello, behaviorReceiptProblem, type Box, boxContains, type C3Message,
+  actionProgressProblem, type ActionPlayed, type Actions, attachProblem, type AvatarHello, avatarHello, behaviorReceiptProblem, type Box, boxContains, type C3Message,
   cameraGestureProblem, capturedProblem, type Capsule, capsuleHit, capsulesBox, clickProblem, COMPANION_CAPABILITIES, companionHello, CURSOR,
   CursorKinematics, decodeLine, dropProblem, encodeLine, motionRequestProblem, motionStateProblem, motionStrokeProblem, type MotionOverridesReceipt,
   outboundProblem, playbackProblem, type PointerState, poseStateProblem, presentationInputProblem, presentationStateProblem, readCapsules,
@@ -46,7 +46,12 @@ export type LinkEvent =
   | { kind: 'character'; event: CharacterEvent }
   | { kind: 'appearance'; event: AppearanceEvent }
   | { kind: 'layers'; event: LayersEvent }
-  | { kind: 'modSettings'; receipt: ModReceipt };
+  | { kind: 'modSettings'; receipt: ModReceipt }
+  | { kind: 'actionProgress'; progress: ActionProgress | null };
+
+/** Rule 58: where the play playAction sent last stands, `t` of `duration` seconds into the clip playing now. */
+export interface ActionProgress { playId: string; id: string; t: number; duration: number; paused: boolean }
+export type TransportOp = 'pause' | 'resume' | 'seek';
 
 /** HostLink's AppearanceEvent: the list of a hello or `character_changed`, or the reply to an open `set_appearance`. */
 export type AppearanceEvent =
@@ -124,7 +129,7 @@ export interface MotionOverrides { chains: Record<string, boolean>; pools: Recor
   blend_in: Record<string, number> }
 /** The capabilities this shell lists only when its caller says it sends their messages. */
 export type OfferedCapability = 'pass_through' | 'render_live' | 'ambient' | 'camera_free' | 'camera_track' | 'filters' | 'capture'
-  | 'motion_overrides' | 'play_chain' | 'photo' | 'camera_bust';
+  | 'motion_overrides' | 'play_chain' | 'photo' | 'camera_bust' | 'action_transport';
 /** Queued output past this closes the connection; `trace` and `behavior_receipt` with `motion_state` lines a second (rules 22, 25, 54). */
 export const LINK_LIMITS = { outputBytes: 256 * 1024, traceRate: 20, receiptRate: 20, traceEvents: 50 } as const;
 
@@ -289,8 +294,11 @@ export class HostLink {
   private latestActions = new Map<string, Actions>();
   private listWaiters = new Set<{ character: string; notReady: boolean; resolve(a: Actions): void; reject(e: Error): void }>();
   private playWaiters = new Map<string, { resolve(): void; reject(e: Error): void }>();
-  /** The `play_id` playAction sent last, until a final `action_played` of it. */
+  /** The `play_id` playAction sent last, until a final `action_played` of it, and its action. */
   private playing: string | null = null;
+  private playingAction: string | null = null;
+  /** Rule 58: her last `action_progress` of `playing`. */
+  private progress: ActionProgress | null = null;
   /** playAction calls that have not settled. */
   private asked = 0;
   private playCounter = 0;
@@ -341,7 +349,8 @@ export class HostLink {
       poses: o.onPoseState, camera_gesture: o.onCameraGesture, surfaces: o.onSurfaceTrack, opacity: o.onSurfaceTrack, layering: o.onSurfaceTrack,
       right_drag: o.onRightDrag, moving: o.onMoving };
     const later = ['presentation', 'drop', 'reactions', 'pass_through', 'render_live', 'ambient', 'touch', 'poses', 'camera_free', 'camera_track',
-      'camera_gesture', 'filters', 'capture', 'motion_overrides', 'play_chain', 'photo', 'camera_bust', 'surfaces', 'opacity', 'layering',
+      'camera_gesture', 'filters', 'capture', 'motion_overrides', 'play_chain', 'action_transport', 'photo', 'camera_bust', 'surfaces', 'opacity',
+      'layering',
       'right_drag', 'moving'];
     return [...COMPANION_CAPABILITIES, ...(o.onTrace ? ['trace'] : []), ...(o.onBehaviorReceipt ? ['behavior_receipt'] : []),
       ...(o.cursor ? ['pointer'] : []), ...(o.onMotionRequest ? ['motion_requests'] : []),
@@ -538,6 +547,7 @@ export class HostLink {
       case 'action_switches': this.handleSwitchReply(m); break;
       case 'actions': this.handleActions(m as Actions); break;
       case 'action_played': if (!this.handlePlayed(m as ActionPlayed, c)) return; break;
+      case 'action_progress': if (!this.handleProgress(m, c)) return; break;
       case 'click': if (!this.handleClick(m, c)) return; break;
       case 'presentation_state': if (!this.handlePresentationState(m, c)) return; break;
       case 'speech_cancelled': if (!this.handleSpeechCancelled(m)) return; break;
@@ -960,6 +970,7 @@ export class HostLink {
       this.latestActions.clear();
       if (this.playing !== null && this.asked === 0) this.options.onUserPlay?.(false);
       this.playing = null;
+      this.setProgress(null);
       for (const w of this.listWaiters) w.reject(disconnected());
       for (const w of this.playWaiters.values()) w.reject(disconnected());
       this.listWaiters.clear();
@@ -1293,6 +1304,7 @@ export class HostLink {
     if (m.chain !== undefined && !c.capabilities.includes('play_chain')) return this.accepted(m, 'capability');
     if (m.play_id === this.playing && m.phase !== 'started') {
       this.playing = null;
+      this.setProgress(null);
       if (this.asked === 0) this.options.onUserPlay?.(false);
     }
     const waiter = this.playWaiters.get(m.play_id);
@@ -1301,6 +1313,43 @@ export class HostLink {
     if (m.phase === 'rejected') waiter.reject(rejected(m.reason ?? ''));
     else waiter.resolve();
     return true;
+  }
+
+  /** Rule 58: of the play playAction sent last, when both sides list `action_transport`. */
+  private handleProgress(m: C3Message, c: Connection): boolean {
+    if (!this.accepted(m, this.both(c, 'action_transport') ? actionProgressProblem(m) : 'capability')) return false;
+    if (this.playing !== null && m.play_id === this.playing) {
+      this.setProgress({ playId: this.playing, id: this.playingAction!, t: m.t_s as number, duration: m.duration_s as number,
+        paused: m.paused as boolean });
+    }
+    return true;
+  }
+
+  private setProgress(p: ActionProgress | null): void {
+    if (p === null && this.progress === null) return;
+    this.progress = p;
+    this.emit({ kind: 'actionProgress', progress: p });
+  }
+
+  /** Rule 58: her last progress of the play playAction sent last; null once it ended or before she reports one. */
+  get actionProgress(): ActionProgress | null { return this.progress; }
+
+  /** Rule 58: pauses, resumes or seeks to `at` seconds the play playAction sent last; resolves on her `ack` ok. */
+  controlAction(op: TransportOp, at?: number): Promise<void> {
+    const c = this.listing('action_transport');
+    if (c === null) return Promise.reject(unsupported());
+    if (this.playing === null) return Promise.reject(new ActionFailure('not_playing', '桌面上没有在播的动作'));
+    const m: C3Message = { v: 1, type: 'control_action', play_id: this.playing, op };
+    if (op === 'seek') m.at_s = at;
+    return new Promise((resolve, reject) => {
+      const refused = new ActionFailure('failed', '角色没有接受这次操作');
+      const sent = this.checked(c, m, 'command', (r) => {
+        if (r.ok) return resolve();
+        reject(r.reason === 'timeout' ? timedOut() : r.reason === 'disconnected' ? disconnected()
+          : r.reason === 'busy' ? new ActionFailure('busy', '她正在被拖动') : refused);
+      });
+      if (!sent) reject(refused);
+    });
   }
 
   /** Rule 27: the character's list; asks the avatar only when none arrived since the link came up. */
@@ -1352,6 +1401,8 @@ export class HostLink {
     if (loop) m.loop = true;
     if (!this.send(m)) throw unsupported();
     this.playing = playId;
+    this.playingAction = id;
+    this.setProgress(null);
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         if (this.playWaiters.delete(playId)) reject(timedOut());

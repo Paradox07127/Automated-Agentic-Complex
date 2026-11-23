@@ -1078,6 +1078,38 @@ def check_moving(m, _):
     return [] if isinstance(m["moving"], bool) else ["moving.moving must be a boolean"]
 
 
+TRANSPORT_OPS = ("pause", "resume", "seek")
+
+
+def check_control_action(m, _):
+    """Rule 58 (v28): pause, resume or seek the play of play_id; at_s only with seek."""
+    keys = {"v", "type", "req", "play_id", "op"} | ({"at_s"} if m.get("op") == "seek" else set())
+    errors = [] if set(m) == keys else [f"control_action has exactly {', '.join(sorted(keys))}"]
+    errors += check_req(m, required=True)
+    if not (is_str(m.get("play_id")) and len(m["play_id"].encode("utf-8")) <= MAX_ID):
+        errors.append(f"control_action.play_id must be a non-empty string of at most {MAX_ID} bytes")
+    if m.get("op") not in TRANSPORT_OPS:
+        errors.append(f"control_action.op must be one of {list(TRANSPORT_OPS)}")
+    if m.get("op") == "seek" and not (is_num(m.get("at_s")) and m["at_s"] >= 0):
+        errors.append("control_action.at_s must be a number >= 0")
+    return errors
+
+
+def check_action_progress(m, _):
+    """Rule 58 (v28): where the user's play stands in the clip playing now."""
+    if set(m) != {"v", "type", "play_id", "t_s", "duration_s", "paused"}:
+        return ["action_progress has exactly v, type, play_id, t_s, duration_s and paused"]
+    errors = [] if is_str(m["play_id"]) and len(m["play_id"].encode("utf-8")) <= MAX_ID else [
+        f"action_progress.play_id must be a non-empty string of at most {MAX_ID} bytes"]
+    if not (is_num(m["duration_s"]) and m["duration_s"] > 0):
+        errors.append("action_progress.duration_s must be a number > 0")
+    elif not (is_num(m["t_s"]) and 0 <= m["t_s"] <= m["duration_s"]):
+        errors.append("action_progress.t_s must be a number from 0 to duration_s")
+    if not isinstance(m["paused"], bool):
+        errors.append("action_progress.paused must be a boolean")
+    return errors
+
+
 def check_attention_side(m, _):
     """Rule 39 (v22.1)."""
     errors = [] if m.get("source") in ATTENTION_SOURCES else [f"attention_side.source must be one of {sorted(ATTENTION_SOURCES)}"]
@@ -1140,11 +1172,12 @@ CAPABILITY_OF = {("a2c", "attach"): "layering", ("a2c", "drop"): "drop", ("c2a",
                  ("c2a", "capture"): "capture", ("a2c", "captured"): "capture", ("a2c", "camera_gesture"): "camera_gesture",
                  ("c2a", "set_motion_overrides"): "motion_overrides", ("a2c", "motion_overrides"): "motion_overrides",
                  ("c2a", "play_chain"): "play_chain", ("c2a", "set_mod_settings"): "mod_settings",
-                 ("a2c", "mod_settings"): "mod_settings", ("a2c", "right_drag"): "right_drag", ("a2c", "moving"): "moving"}
+                 ("a2c", "mod_settings"): "mod_settings", ("a2c", "right_drag"): "right_drag", ("a2c", "moving"): "moving",
+                 ("c2a", "control_action"): "action_transport", ("a2c", "action_progress"): "action_transport"}
 
 
 def check_capability(m, direction, caps):
-    """v15-v27: a sender only uses opacity, layering, pointer, pipeline, drop, motion_request, pass_through, keep_clear, set_render, ambient_sample, touch_settings, click.region, play_action.loop, stop_action, actions[].media, set_layers, layers_changed(_failed), set_pose, pose_state, actions[].pose, the rule 49 set_render.camera fields, camera_gesture, set_render.filter, set_render.dof, set_render.photo, capture, captured, set_motion_overrides, motion_overrides, play_chain, action_played.chain, set_mod_settings, mod_settings, set_character.mod_settings, right_drag and moving after listing them in its own hello."""
+    """v15-v27: a sender only uses opacity, layering, pointer, pipeline, drop, motion_request, pass_through, keep_clear, set_render, ambient_sample, touch_settings, click.region, play_action.loop, stop_action, actions[].media, set_layers, layers_changed(_failed), set_pose, pose_state, actions[].pose, the rule 49 set_render.camera fields, camera_gesture, set_render.filter, set_render.dof, set_render.photo, capture, captured, set_motion_overrides, motion_overrides, play_chain, action_played.chain, set_mod_settings, mod_settings, set_character.mod_settings, right_drag, moving, control_action and action_progress after listing them in its own hello."""
     if not isinstance(m, dict) or caps is None:
         return []
     t = m.get("type")
@@ -1337,7 +1370,7 @@ CHECKS = {
             "layers_changed": check_layers_changed, "layers_change_failed": check_layers_change_failed,
             "pose_state": check_pose_state, "captured": check_captured, "camera_gesture": check_camera_gesture,
             "motion_overrides": check_motion_overrides, "mod_settings": check_mod_settings, "reaction": check_reaction,
-            "right_drag": check_right_drag, "moving": check_moving},
+            "right_drag": check_right_drag, "moving": check_moving, "action_progress": check_action_progress},
     "c2a": {"hello": check_hello, "cursor": check_cursor, "fps_tier": check_fps_tier, "quit": check_quit,
             "stop_speech": check_stop_speech, "point_at": check_point_at,
             "move_window": check_move_window, "set_visible": check_set_visible,
@@ -1351,7 +1384,7 @@ CHECKS = {
             "keep_clear": check_keep_clear, "set_render": check_set_render, "ambient_sample": check_ambient_sample,
             "touch_settings": check_touch_settings, "stop_action": check_stop_action, "set_layers": check_set_layers,
             "set_pose": check_set_pose, "capture": check_capture, "set_motion_overrides": check_set_motion_overrides,
-            "play_chain": check_play_chain, "set_mod_settings": check_set_mod_settings},
+            "play_chain": check_play_chain, "set_mod_settings": check_set_mod_settings, "control_action": check_control_action},
 }
 
 

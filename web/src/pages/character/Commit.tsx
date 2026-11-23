@@ -1,4 +1,4 @@
-import { Fragment, useRef } from 'react';
+import { Fragment, useRef, type ReactNode } from 'react';
 import { StatusTag } from '../../ui';
 import { ActionBar, Barcode, Diamond, GameSeg, MicroLabel, WhiteCapsule, YellowKey } from '../../ui/game';
 import { useCompactScene } from './compact';
@@ -56,12 +56,14 @@ export interface CommitProps {
   onStop: () => void;
   /** 0–1 of the desktop play, the yellow line on the bar's top edge; null draws none. */
   progress: number | null;
+  /** The desktop play's player; while it is there it stands where 速度 and 播放方式 were. */
+  transport?: ReactNode;
 }
 
 const SPEEDS = ['0.5', '1', '2'].map((s) => ({ value: s, label: `${s}×` }));
 const NO_LOOP = '这个版本的角色还不支持循环';
 
-/** 动作页底部动作条：左边桌面预览（黄键，循环时白色停止）、速度和播放方式；右边改了哪些、撤销、保存。 */
+/** 动作页底部动作条：左边桌面预览（黄键，循环时白色停止）、速度和播放方式，桌面播放时换成播放器；右边改了哪些、撤销、保存。 */
 export function Commit(p: CommitProps) {
   const ref = useRef<HTMLDivElement>(null);
   const size = useCompactScene(ref) ? 'compact' : 'normal';
@@ -112,19 +114,23 @@ export function Commit(p: CommitProps) {
             ) : (
               <YellowKey label={p.hidden ? '显示角色并预览' : '桌面预览'} micro="Desktop" disabled={off} {...(p.blocked ? { disabledReason: p.blocked } : {})} onClick={p.onPlay} />
             )}
-            <GameSeg label="播放速度" caption="速度" micro="Speed" size={size} value={p.speed} onChange={p.onSpeed} disabled={off || p.oneSpeed} options={SPEEDS} />
-            <GameSeg
-              label="播放方式"
-              caption="播放方式"
-              micro="Mode"
-              size={size}
-              value={p.loop ? 'loop' : 'once'}
-              onChange={(v) => p.onLoop(v === 'loop')}
-              options={[
-                { value: 'once', label: '一次' },
-                { value: 'loop', label: '循环', disabled: !p.canLoop, ...(p.canLoop ? {} : { title: NO_LOOP }) },
-              ]}
-            />
+            {p.transport || (
+              <>
+                <GameSeg label="播放速度" caption="速度" micro="Speed" size={size} value={p.speed} onChange={p.onSpeed} disabled={off || p.oneSpeed} options={SPEEDS} />
+                <GameSeg
+                  label="播放方式"
+                  caption="播放方式"
+                  micro="Mode"
+                  size={size}
+                  value={p.loop ? 'loop' : 'once'}
+                  onChange={(v) => p.onLoop(v === 'loop')}
+                  options={[
+                    { value: 'once', label: '一次' },
+                    { value: 'loop', label: '循环', disabled: !p.canLoop, ...(p.canLoop ? {} : { title: NO_LOOP }) },
+                  ]}
+                />
+              </>
+            )}
           </span>
         }
         {...(right ? { right: <span className={styles.right}>{right}</span> } : {})}

@@ -21,7 +21,9 @@ import {
 import type { Cancel, EventSource, StreamEvent } from '../../common/page.ts';
 import { PlaylistPlayer, type PlaylistState } from '../../common/playlist.ts';
 import type { HelperReply } from '../helper/client.ts';
-import { ActionFailure, type CommandResult, LINK_TIMING, type LinkEvent, type MotionOverrides } from '../renderer/link.ts';
+import {
+  ActionFailure, type ActionProgress, type CommandResult, LINK_TIMING, type LinkEvent, type MotionOverrides, type TransportOp,
+} from '../renderer/link.ts';
 import type { Ops, OpsContext } from './context.ts';
 import { watch } from './events.ts';
 import { holdingMotions, listed, reloadAvatar, sleep } from './holding.ts';
@@ -59,6 +61,9 @@ export interface AvatarHost {
   sendPhoto?(active: boolean, aperture: number, focus: number | null): boolean;
   /** HostLink.capture: her `captured` file name and size; without it `avatar.capture` is `not_implemented`. */
   capture?(background: string): Promise<{ file: string; width: number; height: number }>;
+  /** HostLink.controlAction and actionProgress (C3 rule 58); without them `avatar.controlAction` is `not_implemented`. */
+  controlAction?(op: TransportOp, at?: number): Promise<void>;
+  readonly actionProgress?: ActionProgress | null;
 }
 
 /** Her appearance, layers, action switches and mod settings (src/main/renderer/looks.ts). */
@@ -199,6 +204,10 @@ export class TickSource implements EventSource {
 }
 
 const SPEEDS = [0.5, 1, 2];
+const TRANSPORT_OPS: readonly unknown[] = ['pause', 'resume', 'seek'];
+
+/** protocol.ts `ActionProgress`. */
+const progressJson = (p: ActionProgress | null) => (p === null ? null : { id: p.id, tS: p.t, durationS: p.duration, paused: p.paused });
 /** Metrics.avatarScale. */
 const SCALES = { min: 0.5, max: 2 };
 const NO_LINK = '角色还没连上（配置出错）';
@@ -366,6 +375,16 @@ export function avatarOps(ctx: OpsContext): Ops {
       }).subscribe(afterSeq, onEvent);
     },
   };
+  // The play as it stands, then each of the link's changes.
+  const progressSource: EventSource = {
+    subscribe: (_afterSeq, onEvent) => {
+      const link = ctx.avatar;
+      if (!link?.on) return () => {};
+      const push = (p: ActionProgress | null) => onEvent({ event: 'actionProgress', id: null, data: JSON.stringify(progressJson(p)) });
+      if (link.actionProgress) push(link.actionProgress);
+      return link.on((e) => { if (e.kind === 'actionProgress') push(e.progress); });
+    },
+  };
   /** `AvatarState.characterId`. */
   const characterId = (): string | null => ctx.avatar?.currentCharacter ?? fallback();
   const characterOrFail = (): string => {
@@ -523,6 +542,18 @@ export function avatarOps(ctx: OpsContext): Ops {
       host().stopAction();
       return null;
     }),
+    'avatar.controlAction': ([op, at]) => {
+      if (!TRANSPORT_OPS.includes(op) || (op === 'seek' ? !(typeof at === 'number' && Number.isFinite(at) && at >= 0) : at !== undefined)) {
+        throw new BridgeFailure('invalid_args', 'op pause, resume or seek, and at_s ≥ 0 with seek only');
+      }
+      const link = host();
+      if (!link.controlAction) throw new BridgeFailure('not_implemented', 'avatar.controlAction');
+      return bridged(async () => {
+        await link.controlAction!(op as TransportOp, at as number | undefined);
+        return null;
+      });
+    },
+    'avatar.onActionProgress': watch('avatar.onActionProgress', progressSource),
     'avatar.setAppearance': ([id]) => {
       if (typeof id !== 'string' || id === '') throw new BridgeFailure('invalid_args', 'appearance id');
       return bridged(async () => {

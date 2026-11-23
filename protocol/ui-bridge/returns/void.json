@@ -93,6 +93,15 @@
     "kind": "undefined"
   },
   {
+    "op": "avatar.controlAction",
+    "surface": "main",
+    "args": [
+      "seek",
+      4.5
+    ],
+    "kind": "undefined"
+  },
+  {
     "op": "avatar.setAppearance",
     "surface": "main",
     "args": [

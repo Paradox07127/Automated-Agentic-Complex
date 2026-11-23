@@ -18,6 +18,7 @@ import { Rail, type RailItem } from './Rail';
 import { failed, firstPick, PANEL, useSceneReport, type SceneReport } from './operatorScene';
 import { GO, go, SidePanel, type Side } from './Side';
 import { Stage, StageSkel, type StageMode } from './Stage';
+import { Transport, useActionTransport } from './Transport';
 import { blockedReason, deckLine, groupMotions, useMotions } from './useMotions';
 import type { MotionImport } from './useMotionImport';
 import type { MotionLibrary } from './useMotionLibrary';
@@ -97,12 +98,14 @@ export function Operator(p: OperatorProps) {
     request: number;
   }>();
   const previewRequest = useRef(0);
+  const transport = useActionTransport(p.toast);
   const m = useMotions({
     character: p.current,
     actions,
     toast: p.toast,
     ...(p.seed ? { seed: p.seed } : {}),
     playing: p.playing ?? null,
+    reported: transport.progress,
   });
   const look = useLook();
   const importState = useImportState();
@@ -319,6 +322,7 @@ export function Operator(p: OperatorProps) {
           looping={m.play?.loop === true}
           onStop={() => void m.stop()}
           progress={play && !play.loop ? play.progress : null}
+          transport={play && transport.progress?.id === play.id ? <Transport progress={transport.progress} onControl={transport.control} /> : null}
         />
       ),
     },

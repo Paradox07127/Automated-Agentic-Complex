@@ -1,0 +1,6 @@
+{"v":1,"type":"hello","role":"companion","pid":4242,"protocol":1,"capabilities":["capsules_global","watchdog","actions","keep_clear","action_loop","layers","mod_settings","motion_overrides","play_chain","action_transport"]}
+{"v":1,"type":"play_action","play_id":"e-4242-mmd-1","character":"aster","id":"mmd_dance","speed":1}
+{"v":1,"type":"control_action","req":3,"play_id":"e-4242-mmd-1","op":"pause"}
+{"v":1,"type":"control_action","req":4,"play_id":"e-4242-mmd-1","op":"seek","at_s":90}
+{"v":1,"type":"control_action","req":5,"play_id":"e-4242-mmd-1","op":"resume"}
+{"v":1,"type":"control_action","req":6,"play_id":"e-4242-mmd-1","op":"pause"}

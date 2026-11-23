@@ -7,7 +7,7 @@ import type { OfferedCapability } from './link.ts';
 export type AvatarLink = Omit<Required<AvatarHost>, 'setVisible' | 'setClickThroughAll' | 'clickThroughAll'> & { clickThroughAll: boolean };
 
 /** The link's hello lists these; the ops send their messages. */
-export const MOTION_OFFERS: readonly OfferedCapability[] = ['motion_overrides', 'play_chain'];
+export const MOTION_OFFERS: readonly OfferedCapability[] = ['motion_overrides', 'play_chain', 'action_transport'];
 /** The hello lists these too: `avatar.photo.set` sends `set_render.photo`, `avatar.capture` sends `capture`. */
 export const CAPTURE_OFFERS: readonly OfferedCapability[] = ['render_live', 'photo', 'capture'];
 
@@ -32,6 +32,7 @@ export function linkAvatarHost(link: AvatarLink, setHidden: (hidden: boolean) =>
     get lastPipeline() { return link.lastPipeline; }, get lastPlacement() { return link.lastPlacement; },
     setVisible: (visible) => setHidden(!visible), stopSpeech: () => link.stopSpeech(), actions: (character) => link.actions(character),
     playAction: (character, id, speed, loop) => link.playAction(character, id, speed, loop), stopAction: () => link.stopAction(),
+    controlAction: (op, at) => link.controlAction(op, at), get actionProgress() { return link.actionProgress; },
     setMotionOverrides: (character, overrides) => link.setMotionOverrides(character, overrides),
     playChain: (playId, character, start, speed, onResult) => link.playChain(playId, character, start, speed, onResult),
     send: (m) => link.send(m), on: (listener) => link.on(listener),

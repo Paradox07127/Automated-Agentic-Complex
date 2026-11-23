@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"avatar","pid":4711,"protocol":1,"capabilities":["actions"]}
+{"v":1,"type":"action_progress","play_id":"e-4242-mmd-1","t_s":1,"duration_s":10,"paused":false}

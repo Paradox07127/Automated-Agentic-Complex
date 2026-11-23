@@ -1,0 +1,13 @@
+{"v":1,"type":"hello","role":"avatar","pid":4711,"protocol":1,"character":"aster","capabilities":["ack","actions","action_loop","action_transport"]}
+{"v":1,"type":"action_played","play_id":"e-4242-mmd-1","id":"mmd_dance","phase":"started","reason":null}
+{"v":1,"type":"action_progress","play_id":"e-4242-mmd-1","t_s":0,"duration_s":184.2,"paused":false}
+{"v":1,"type":"action_progress","play_id":"e-4242-mmd-1","t_s":0.25,"duration_s":184.2,"paused":false}
+{"v":1,"type":"ack","req":3,"ok":true}
+{"v":1,"type":"action_progress","play_id":"e-4242-mmd-1","t_s":0.41,"duration_s":184.2,"paused":true}
+{"v":1,"type":"ack","req":4,"ok":true}
+{"v":1,"type":"action_progress","play_id":"e-4242-mmd-1","t_s":90,"duration_s":184.2,"paused":true}
+{"v":1,"type":"ack","req":5,"ok":true}
+{"v":1,"type":"action_progress","play_id":"e-4242-mmd-1","t_s":90,"duration_s":184.2,"paused":false}
+{"v":1,"type":"action_progress","play_id":"e-4242-mmd-1","t_s":184.2,"duration_s":184.2,"paused":false}
+{"v":1,"type":"action_played","play_id":"e-4242-mmd-1","id":"mmd_dance","phase":"completed","reason":null}
+{"v":1,"type":"ack","req":6,"ok":false,"error":"failed"}

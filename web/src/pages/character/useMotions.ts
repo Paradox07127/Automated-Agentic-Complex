@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getBridge, type ActionSpeed, type AvatarAction } from '../../bridge';
+import { getBridge, type ActionProgress, type ActionSpeed, type AvatarAction } from '../../bridge';
 import type { Toast } from './feedback';
 import { ADJUSTED, NO_REASON, PLAY_REFUSED, playRefusedSeverity, SECTIONS } from './labels';
 import type { MotionGroup } from './MotionTable';
@@ -52,10 +52,14 @@ export interface Play {
   speed: number;
   /** Plays until `stop`: no progress, no end of its own. */
   loop: boolean;
+  /** The shell has reported it (C3 rule 58): its end is the report's, not the clock's. */
+  reported?: boolean;
 }
 
-/** `character`'s switch drafts saved as one group, and the desktop preview with its local progress; another character starts with none. */
-export function useMotions(o: { character?: string; actions: AvatarAction[]; toast: Toast; seed?: Record<string, boolean>; playing?: string | null }) {
+/** `character`'s switch drafts saved as one group, and the desktop preview with its progress, the shell's `reported` one when it
+ *  sends one, else local; another character starts with none. */
+export function useMotions(o: { character?: string; actions: AvatarAction[]; toast: Toast; seed?: Record<string, boolean>; playing?: string | null;
+  reported?: ActionProgress | null }) {
   const [changed, setChanged] = useState<Record<string, boolean>>(() => o.seed ?? {});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
   const [play, setPlay] = useState<Play | null>(() => (o.playing ? { id: o.playing, t0: Date.now(), speed: 1, loop: false } : null));
@@ -72,12 +76,15 @@ export function useMotions(o: { character?: string; actions: AvatarAction[]; toa
   const [, tick] = useState(0);
   const base = (a: AvatarAction) => saved[a.id] ?? a.enabled;
   const value = (a: AvatarAction) => changed[a.id] ?? base(a);
+  const reported = play && o.reported?.id === play.id ? o.reported : null;
+  if (play && reported && !play.reported) setPlay({ ...play, reported: true });
+  if (play?.reported && !reported) setPlay(null);
   const playing = play ? o.actions.find((a) => a.id === play.id) : undefined;
   const dur = play && !play.loop && playing?.durationS != null ? (playing.durationS * 1000) / play.speed : null;
-  const progress = play && dur != null ? Math.min(1, (Date.now() - play.t0) / dur) : null;
+  const progress = reported ? reported.tS / reported.durationS : play && dur != null ? Math.min(1, (Date.now() - play.t0) / dur) : null;
 
   useEffect(() => {
-    if (!play || play.loop || o.playing) return;
+    if (!play || play.loop || play.reported || o.playing) return;
     if (dur == null) {
       const t = window.setTimeout(() => setPlay(null), UNTIMED_MS);
       return () => window.clearTimeout(t);

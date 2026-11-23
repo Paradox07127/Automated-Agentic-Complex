@@ -38,6 +38,8 @@ class FakeLink implements AvatarLink {
   async actions(): Promise<Actions> { return { v: 1, type: 'actions', character: 'si', switches: {}, actions: [] }; }
   async playAction() {}
   stopAction() {}
+  actionProgress = null;
+  async controlAction() {}
   async setMotionOverrides(character: string, overrides: MotionOverrides): Promise<MotionOverridesReceipt> {
     this.overrides.push({ character, overrides });
     return { req: 1, character, applied: { chains: 1, pools: 0, blend_in: 0 }, adjusted: [], truncated: false };

@@ -193,6 +193,9 @@ export interface AvatarStats {
 
 export type ActionSpeed = 0.5 | 1 | 2;
 
+/** C3 rule 58: where the desktop play `playAction` started last stands: `tS` of `durationS` seconds into the clip playing now. */
+export interface ActionProgress { id: string; tS: number; durationS: number; paused: boolean }
+
 /** A rect of the page's viewport in CSS px, and the action to play there (`loop`: over and over); absent plays the current character's idle. */
 export type PreviewPlacement = { x: number; y: number; w: number; h: number; action?: string; loop?: boolean; request?: number };
 
@@ -317,6 +320,8 @@ export interface AgenticComplexBridge {
     resetPosition(): Promise<void>; toggleClickThroughAll(): Promise<void>; stopSpeech(): Promise<void>;
     actions(): Promise<AvatarAction[]>;
     /** `loop` (needs `capabilities.actionLoop`) plays it until `stopAction`, which ends the play this started last, at once when none plays; main surface only. */ playAction(id: string, speed: ActionSpeed, o?: { loop?: boolean }): Promise<void>; stopAction(): Promise<void>;
+    /** Pauses, resumes or seeks to `atS` that play (C3 rule 58); `not_implemented` when her renderer does not list `action_transport`, `not_playing` when none plays; main surface only. */ controlAction(op: 'pause' | 'resume' | 'seek', atS?: number): Promise<void>;
+    /** That play as it stands, then each report; null once it ends. Nothing while her renderer reports none. */ onActionProgress(cb: (p: ActionProgress | null) => void): Unsubscribe;
     setActionSwitches(switches: Record<string, boolean>): Promise<AvatarSwitchReply>;
     setAppearance(id: string): Promise<void>;
     /** Takes the whole hidden layer set; main surface only. */ setLayers(hidden: string[]): Promise<void>;

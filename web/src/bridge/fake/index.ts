@@ -282,7 +282,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       toggleClickThroughAll: async () => void (avatar.clickThroughAll = !avatar.clickThroughAll),
       stopSpeech: async () => void (avatar.speaking = false),
       actions: async () => [...MOTIONS.map((a) => ({ ...a })), ...imports.actions()],
-      playAction: done, stopAction: done, ...fakeMotion(() => character),
+      playAction: done, stopAction: done, controlAction: done, onActionProgress: () => none, ...fakeMotion(() => character),
       setActionSwitches: async (switches) => ({ switches, adjusted: [] }),
       setAppearance: async (id) => void (avatar.appearanceId = id),
       setLayers: async (hidden) => void (hiddenLayers = [...hidden]),
