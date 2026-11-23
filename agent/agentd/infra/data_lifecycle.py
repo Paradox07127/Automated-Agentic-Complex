@@ -4,7 +4,7 @@ from contextlib import closing
 
 from infra.store import path_of
 
-USER_DATA = frozenset(("history_turns", "own_sessions", "trace_events", "facts", "fact_uses", "fact_sightings",
+USER_DATA = frozenset(("history_turns", "own_sessions", "trace_events", "facts", "fact_uses", "fact_sightings", "fact_marks",
                        "character_state", "character_state_log", "ritual_log", "ritual_pending", "own_session_lines", "tasks",
                        "task_events", "commitments", "schedules", "schedule_runs", "idempotency_receipts", "desk_log",
                        "episodes", "summary_corrections", "memory_agent_runs", "memory_agent_events",

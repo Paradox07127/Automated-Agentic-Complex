@@ -1,6 +1,6 @@
 // The prototype's memory set (prototype-v3/pages/memory.js MEM3_*) in agentd's shapes. src/mock/memory.ts serves it to
 // the memory page's own demos, so the page can be compared with the prototype side by side; no routes of its own.
-import type { WireFact } from '../domain/wire';
+import type { WireFact, WireFactVersion } from '../domain/wire';
 import { at, DAY, NOW } from './fixtures/clock';
 import { CHARACTER, E1, E2, E3, v31Id } from './fixtures/ids';
 
@@ -74,13 +74,32 @@ function evidenceOf(s: Seed): string[] {
   return [`episode:${s.origin.ep}@${s.origin.date ?? TODAY}`];
 }
 
+/**
+ * `GET /memory/facts/{id}/versions` of the facts with more than one version (oldest first, the current text last);
+ * every other fact has only its current version.
+ */
+export const V31_VERSIONS: Record<string, WireFactVersion[]> = Object.fromEntries(
+  (
+    [
+      ['a3', [['在 Endfield 仓库工作', day(10, 26, 21, 30), 'pipeline', 'observed_context'], ['在 Endfield 仓库开发角色应用，主要改 app/ 和 agent/', at(14, 20), 'pipeline', 'observed_context']]],
+      ['p1', [['回答尽量简短', day(10, 12, 22, 40), 'pipeline', 'inferred_hypothesis'], ['回答先给结论，再给细节', day(10, 18, 10, 3), 'user', 'asserted_by_user']]],
+      ['g1', [['周五写周报', day(10, 17, 21, 30), 'pipeline', 'inferred_hypothesis'], ['每周五下午写周报', day(10, 24, 16, 5), 'user', 'confirmed_by_user'], ['每周五下午写周报', at(21, 30) - DAY, 'pipeline', 'confirmed_by_user']]],
+      ['g2', [['提交前跑测试', day(10, 21, 21, 30), 'pipeline', 'inferred_hypothesis'], ['提交前先跑 swift test', day(10, 21, 21, 42), 'character', 'asserted_by_user']]],
+    ] as Array<[string, Array<[string, number, WireFactVersion['by'], Source]>]>
+  ).map(([key, rows]) => [v31Id(key), rows.map(([text, when, by, source], i) => ({ version: i + 1, text, source, by, at: S(when) }))]),
+);
+
+/** The facts the user locked, and the ones marked 不再提及. */
+const LOCKED = ['p1', 'g2'];
+const QUIET = ['x4'];
+
 function wire(s: Seed): WireFact {
   const times = useTimes(s);
   const midnight = at(0, 0);
   const recorded = s.upd > 0 ? at(21, 30) - s.upd * DAY : s.key === 'x1' ? at(11, 52) : at(14, 20);
   return {
     fact_id: v31Id(s.key),
-    version: s.upd === 0 && s.key === 'a3' ? 2 : 1,
+    version: V31_VERSIONS[v31Id(s.key)]?.length ?? 1,
     owner: s.owner ?? null,
     kind: s.kind,
     text: s.text,
@@ -92,6 +111,8 @@ function wire(s: Seed): WireFact {
     last_used_at: times[0] != null ? S(times[0]) : null,
     stale: false,
     score: s.src === 'observed_context' || s.src === 'inferred_hypothesis' ? 0.58 : 0,
+    locked: LOCKED.includes(s.key),
+    quiet: QUIET.includes(s.key),
     uses_today: times.filter((t) => t >= midnight).length,
     last_injected_at: times[0] != null ? S(times[0]) : null,
     last_mentioned_at: times[2] != null ? S(times[2]) : null,
@@ -197,31 +218,3 @@ export const V31_SPARSE_RUNS = [R2_SPARSE, ...CHAT_RUNS.filter((r) => SPARSE_KEY
 
 /** `GET /memory/runs/{id}` of any run above. */
 export const v31RunDetail = (id: string) => DETAILS.find((r) => r.run_id === id) ?? null;
-
-/**
- * These have no agentd endpoint yet; the page's `full` demo reads this preview: earlier versions (oldest first, the
- * current text last), the facts the user locked by editing, and the ones marked 不再提及.
- */
-export const V31_PREVIEW = {
-  versions: {
-    [v31Id('a3')]: [
-      { text: '在 Endfield 仓库工作', when: '10月26日 21:30', by: '后台整理' },
-      { text: '在 Endfield 仓库开发角色应用，主要改 app/ 和 agent/', when: '今天 14:20', by: '后台整理' },
-    ],
-    [v31Id('p1')]: [
-      { text: '回答尽量简短', when: '10月12日 22:40', by: '后台推断' },
-      { text: '回答先给结论，再给细节', when: '10月18日 10:03', by: '用户修改' },
-    ],
-    [v31Id('g1')]: [
-      { text: '周五写周报', when: '10月17日 21:30', by: '后台推断' },
-      { text: '每周五下午写周报', when: '10月24日 16:05', by: '用户确认' },
-      { text: '每周五下午写周报', when: '昨天 21:30', by: '后台整理' },
-    ],
-    [v31Id('g2')]: [
-      { text: '提交前跑测试', when: '10月21日 21:30', by: '后台整理' },
-      { text: '提交前先跑 swift test', when: '10月21日 21:42', by: '用户修改' },
-    ],
-  } as Record<string, Array<{ text: string; when: string; by: string }>>,
-  locked: [v31Id('p1'), v31Id('g2')],
-  quiet: [v31Id('x4')],
-};

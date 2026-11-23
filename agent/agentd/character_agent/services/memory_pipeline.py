@@ -373,6 +373,8 @@ class MemoryPipeline:
                     if old is None:
                         old = next((row for row in db.execute("SELECT fact_id,version,text,state FROM facts WHERE kind=? AND owner IS ? AND state IN ('active','candidate')", (item['kind'],owner))
                                     if normalized_text(row[2]) == normalized_text(text)), None)
+                    if old and memory._locked(old[0]):
+                        findings['rejected'].append({'proposal':item,'reason':'memory_locked'}); continue
                     evidence = [f'episode:{episode}@{time.strftime("%Y-%m-%d",time.localtime(self.clock()))}', 'agent_run:'+run['run_id']]
                     supported = {ref['source_id'] for ref in item['evidence']}
                     sightings = [src for src in sources if src['source_id'] in supported]
@@ -386,7 +388,7 @@ class MemoryPipeline:
                                    (json.dumps(list(dict.fromkeys(json.loads(prior)+evidence))), self.clock(), ident))
                     else:
                         ident, version = str(uuid.uuid4()), 1
-                        memory._insert(ident,version,item['kind'],text,item['source'],json.dumps(evidence),None,state=item['state'],owner=owner)
+                        memory._insert(ident,version,item['kind'],text,item['source'],json.dumps(evidence),None,state=item['state'],owner=owner,by='pipeline')
                         memory._sight(ident, sightings, item['confidence'])
                     source, state = db.execute("SELECT source,state FROM facts WHERE fact_id=? AND state IN ('active','candidate')", (ident,)).fetchone()
                     commits.append({'fact_id':ident,'version':version,'text':text,'source':source,'state':state,'evidence':item['evidence']})

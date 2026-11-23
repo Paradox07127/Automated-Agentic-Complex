@@ -52,6 +52,10 @@ export interface WireFact {
   /** Not used for more than STALE_AFTER (memory.py). */
   stale: boolean;
   score: number;
+  /** PUT /memory/facts/{id}/locked: consolidation and her memory tool leave it alone. */
+  locked: boolean;
+  /** PUT /memory/facts/{id}/quiet (不再提及): kept and searchable, never carried into a turn unasked. */
+  quiet: boolean;
   uses_today: number;
   last_injected_at: number | null;
   last_mentioned_at: number | null;
@@ -60,6 +64,17 @@ export interface WireFact {
     at: number;
     mode: 'injected' | 'mentioned';
   }>;
+}
+
+/** GET /memory/facts/{id}/versions → {versions}, oldest first, the current one last. */
+export interface WireFactVersion {
+  version: number;
+  text: string;
+  source: WireFact['source'];
+  /** Who wrote it; null for a version from before agentd recorded that. */
+  by: 'user' | 'character' | 'pipeline' | 'integration' | null;
+  /** Epoch seconds it was written. */
+  at: number;
 }
 
 /** `_episode_json` fills missing thread fields for every stored episode version. */

@@ -356,6 +356,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | GET | `/memory/days` | ui | `read` | main | `character_agent.routes.worklog_http` | `protocol/C6-agentd-api/CONTRACT.md` | `memory-days.json` |
 | GET | `/memory/days/:date` | ui | `read` | main | `character_agent.routes.worklog_http` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/memory/export` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| GET | `/memory/facts/:fact_id/versions` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `memory-versions.json` |
 | GET | `/diag/state` | ui | `read` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/diag/stream` | ui | `stream` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/blacklist` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
@@ -515,6 +516,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | PUT | `/avatar/visibility` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | PUT | `/character/state/switch` | ui | `native_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | PUT | `/memory/paused` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
+| PUT | `/memory/facts/:fact_id/locked`、`/memory/facts/:fact_id/quiet` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | PUT | `/conversations/:conversation_id` | ui | `write` | main | `control_panel` | — | — |
 | PUT | `/sessions/:session_id` | ui | `write` | main | `control_panel` | — | — |
 | PUT | `/character/runtime` | ui | `write` | main、onboarding | `character_agent.routes.http` | `protocol/C6-agentd-api/CONTRACT.md` | — |
@@ -627,12 +629,15 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | `GET /history?before=&limit=` | ui | 聊天记录，新的在前：200 `{turns, next}`，`turns` 每项 `{id, event_id, turn_id, source, character_id, persona_revision, user_text, reply, state, started_at, ended_at}`（`source` 为 `text`\|`voice`\|`proactive`，`state` 为 `completed`\|`cancelled`\|`interrupted`\|`failed`，`reply` 是显示出来的整句、不含标记；`interrupted` 的 `reply` 是用户听到的部分，「嘴」的窗口里也只送这部分）；`next` 作下一页的 `before`，没有更早的时为 null。`before` 可省，`limit` 默认 50、1–200，不合法 400 `invalid_cursor`；没有记录库时 503 `{error: "no_history", detail}`（`detail` 是给人看的原因：功能没开，不是出错） |
 | `GET /history/export` | ui | 全部聊天记录，旧的在前：200 `{turns}`，每项同 `GET /history` |
 | `DELETE /history` | ui | 清空聊天记录和「嘴」的当前窗口，返回 `{deleted}`。Companion 清聊天记录调的是 `DELETE /memory?scope=history`，不调这个 |
-| `GET /memory` | ui | 事实记忆：200 `{paused, facts, counts}`，`facts` 是全部有效事实（平铺），每项 `{fact_id, version, kind, text, source, evidence, occurred_at, recorded_at, last_used_at, stale, score}`，`score` 是证据分数（实现在 `personal/memory.py` 的 `evidence_score`）：用户每再说一次 +1，从最后一次起每 30 天减半；确认保留分数，更正清零；分数只显示，从不把事实改成 `confirmed_by_user`；没有争议分（agentd 没有争议信号）；`stale` 为 `last_used_at`（没用过时取 `recorded_at`）早于 30 天前；`counts` 是四种来源各自的条数。没有记忆库时 `/memory*` 一律 503 `{error: "no_memory", detail}`（`detail` 是给人看的原因：功能没开，不是出错）；`events_token` 一律 401 |
+| `GET /memory` | ui | 事实记忆：200 `{paused, facts, counts}`，`facts` 是全部有效事实（平铺），每项 `{fact_id, version, kind, text, source, evidence, occurred_at, recorded_at, last_used_at, stale, score, locked, quiet}`，`locked`、`quiet` 见 `PUT /memory/facts/<fact_id>/locked`、`…/quiet`，`score` 是证据分数（实现在 `personal/memory.py` 的 `evidence_score`）：用户每再说一次 +1，从最后一次起每 30 天减半；确认保留分数，更正清零；分数只显示，从不把事实改成 `confirmed_by_user`；没有争议分（agentd 没有争议信号）；`stale` 为 `last_used_at`（没用过时取 `recorded_at`）早于 30 天前；`counts` 是四种来源各自的条数。没有记忆库时 `/memory*` 一律 503 `{error: "no_memory", detail}`（`detail` 是给人看的原因：功能没开，不是出错）；`events_token` 一律 401 |
 | `POST /memory/facts` | ui | 手动加一条：body `{text, kind?}`，`kind` 默认 `fact`；`name`、`birthday` 记为 `confirmed_by_user`，其他记为 `asserted_by_user`；暂停时也写。201 `{fact_id}`；同一类、同样文字、同一来源的有效事实已存在时不新写，给它的分数 +1，200 `{fact_id, reinforced: true}`；`text` 空或超 500 字 400 `invalid_text`，`kind` 不合法 400 `invalid_kind` |
 | `PATCH /memory/facts/<fact_id>` | ui | 更正：body `{text}`，写新版本，200 `{version}`；未知 404 `unknown_fact`，`text` 空或超 500 字 400 `invalid_text`。正在出或刚说完的那句用到了这条时，按 `DELETE /memory/facts/<fact_id>` 的规则撤下 |
 | `POST /memory/facts/<fact_id>/confirm` | ui | 确认，不要 body：写新版本，来源变 `confirmed_by_user`，200 `{version}`；未知 404 `unknown_fact` |
 | `POST /memory/facts/<fact_id>/reject` | ui | 否认一条候选记忆，body `{expected_version}`：候选行删掉，同一条（按 Unicode、大小写、空白归一后的文字）不再提出。200 `{rejected: true}`；未知或不是候选 404 `unknown_fact`，版本不符 409 `version_conflict` `{current_version}` |
 | `DELETE /memory/facts/<fact_id>` | ui | 删除（所有版本的原文都清掉），200 `{"deleted": true}`；未知 404 `unknown_fact`。用到这条的那句还在生成或语音还在播时按 `POST /turn/cancel` 结束整轮（`cancel.requested` 的 `by` 为 `system`）；已经说完时那一行聊天记录改为 `cancelled`，也从「嘴」的窗口里拿掉。台词出完、送 TTS 前再核一次用到的事实版本，有变就不送 TTS，聊天记录记 `cancelled`，`line` 的 final 带 `error: "memory_changed"`。回复里说过这条事实的更早轮次同样撤回：聊天记录改为 `cancelled`、文字清空，从窗口拿掉；只注入过、没说出口的更早轮次不动。说过它的轮的 trace 文字（`text` 全文和每个 `head`）一并清掉，事件本身留着 |
+| `GET /memory/facts/<fact_id>/versions` | ui | 一条有效或候选事实留着原文的全部版本，旧的在前、当前版本最后：200 `{versions}`，每项 `{version, text, source, by, at}`；`at` 是这一版记下的时间；`by` 是写这一版的一方：`user`（记忆页的新增、修改、确认）、`character`（她按你在对话里的话记下或改的）、`pipeline`（后台整理）、`integration`（`POST /integration/memory` 的提议），记录写入方之前的版本为 null。未知、已删或已否认 404 `unknown_fact` |
+| `PUT /memory/facts/<fact_id>/locked` | ui | body `{"locked": true\|false}`，200 `{locked}`。锁定的事实不被后台整理合并或加强，她的记忆工具也不能改或删（`memory_locked`）；记忆页的修改、确认、删除和清空，以及删摘要、删观察、撤权限连带的删除照常生效。不是布尔 400 `invalid_payload`；不是有效或候选事实 404 `unknown_fact`。`/feed` 发 `memory` `{action: "locked", fact_id, locked}` |
+| `PUT /memory/facts/<fact_id>/quiet` | ui | 不再提及：body `{"quiet": true\|false}`，200 `{quiet}`。事实照常保存，`knowledge_search`、`knowledge_read` 照常能找到（结果的 `details.quiet` 告诉她只在你问起时用）；不进每轮带上的偏好和相关事实（`personal_profile`、相关事实），生日仪式也不按它触发。错误码同 `…/locked`。`/feed` 发 `memory` `{action: "quiet", fact_id, quiet}` |
 | `PUT /memory/paused` | ui | body `{"paused": true\|false}`，200 `{paused}`；不是布尔 400 `invalid_payload`。暂停时「记住…」不写，手动加照常写 |
 | `GET /memory/export` | ui | 与 `GET /memory` 同样支持 `?owner=shared` 或 `?owner=<角色 ID>` 精确筛选。每条事实的 `owner` 是角色 ID 或 null（共享），不传筛选条件时列出所有归属。200 `{facts}`，全部有效事实；只导出，没有导入 |
 | `DELETE /memory?scope=facts\|history\|all` | ui | `facts` 删除称呼（`name`）和生日（`birthday`）以外的事实；`history` 同 `DELETE /history`；`all` 两者都清、事实全删。删掉的事实按 `DELETE /memory/facts/<fact_id>` 撤回轮次，说过它的轮的 trace 文字一并清掉。200 `{facts_deleted, history_deleted}`；`scope` 缺或不合法 400 `invalid_scope` |

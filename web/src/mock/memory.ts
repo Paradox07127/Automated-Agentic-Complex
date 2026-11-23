@@ -16,6 +16,7 @@ import {
   isoAt,
 } from './fixtures';
 import { V31_FACTS, V31_RUNS, V31_SPARSE_FACTS, V31_SPARSE_RUNS, v31RunDetail } from './memory-v31';
+import { addVersion, factVersionRoutes, versionsOf } from './factVersions';
 
 // Memory page endpoints in agentd's shapes (server.py, memory.py, history.py, ca/task_understanding*.py). Writes change
 // this module's copy, so a demo shows what it just did; a reload starts from the fixtures again.
@@ -177,8 +178,10 @@ function revise(id: string | undefined, body: unknown, newText?: string): MockRe
   const f = facts().find((x) => x.fact_id === id);
   if (!f) return bad('unknown_fact', 404);
   if (f.version !== b.expected_version) return bad('version_conflict', 409, { current_version: f.version });
+  const kept = versionsOf(f);
   const touched = newText === undefined || f.source === 'observed_context' || f.source === 'inferred_hypothesis';
-  Object.assign(f, { version: f.version + 1, state: 'active', ...(touched ? { source: 'confirmed_by_user' } : {}), ...(newText !== undefined ? { text: newText } : {}) });
+  Object.assign(f, { version: f.version + 1, state: 'active', recorded_at: NOW_S, ...(touched ? { source: 'confirmed_by_user' } : {}), ...(newText !== undefined ? { text: newText } : {}) });
+  addVersion(f, kept);
   return ok({ version: f.version });
 }
 
@@ -215,11 +218,12 @@ export const routes: MockRoute[] = [
       newIds += 1;
       const fact_id = `f0new${String(newIds).padStart(27, '0')}`;
       const source = kind === 'name' || kind === 'birthday' ? 'confirmed_by_user' : 'asserted_by_user';
-      setFacts([{ fact_id, version: 1, owner: null, kind, text: t, source, state: 'active', evidence: [], recorded_at: NOW_S, last_used_at: null, score: 0, uses_today: 0, last_injected_at: null, last_mentioned_at: null, recent_uses: [], stale: false, occurred_at: null }, ...facts()]);
+      setFacts([{ fact_id, version: 1, owner: null, kind, text: t, source, state: 'active', evidence: [], recorded_at: NOW_S, last_used_at: null, score: 0, locked: false, quiet: false, uses_today: 0, last_injected_at: null, last_mentioned_at: null, recent_uses: [], stale: false, occurred_at: null }, ...facts()]);
       return ok({ fact_id }, 201);
     },
   },
   { method: 'POST', path: '/memory/facts/:id/confirm', handler: ({ params, body }) => revise(params.id, body) },
+  ...factVersionRoutes(facts),
   {
     method: 'POST', path: '/memory/facts/:id/reject',
     handler: ({ params, body }) => {

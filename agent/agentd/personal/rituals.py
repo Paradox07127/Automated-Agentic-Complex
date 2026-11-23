@@ -196,7 +196,7 @@ class Rituals:
     def _birthday(self, local):
         if self.memory is None:
             return False
-        return any(fact["kind"] == "birthday" and _month_day(fact["text"]) == (local.month, local.day)
+        return any(fact["kind"] == "birthday" and not fact["quiet"] and _month_day(fact["text"]) == (local.month, local.day)
                    for fact in self.memory.active(["confirmed_by_user"]))
 
     def _done(self, kind, day):

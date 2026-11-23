@@ -1,6 +1,6 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { del, get, patch, post, seg } from '../../bridge/agentd';
-import { factWrite, fromFact, type Fact, type FactCounts, type FactKind, type WireFact } from '../../domain';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { del, get, patch, post, put, seg } from '../../bridge/agentd';
+import { factWrite, fromFact, type Fact, type FactCounts, type FactKind, type WireFact, type WireFactVersion } from '../../domain';
 import { errorText, isConflict } from './errors';
 
 export const FACTS_KEY = ['memory', 'facts'] as const;
@@ -23,12 +23,21 @@ export async function readMemory(now: number, owner: string | null = null): Prom
 
 export type WriteResult = { ok: true } | { ok: false; conflict: boolean; message: string };
 
+/** `GET /memory/facts/{id}/versions`, read again whenever the fact gets a new version. */
+export const useVersions = (f: Fact) =>
+  useQuery({
+    queryKey: [...FACTS_KEY, 'versions', f.id, f.version],
+    queryFn: async () => (await get<{ versions: WireFactVersion[] }>(`/memory/facts/${seg(f.id)}/versions`)).versions,
+  });
+
 export interface FactsModel {
   facts: Fact[];
   confirm: (f: Fact) => Promise<WriteResult>;
   reject: (f: Fact) => Promise<WriteResult>;
   forget: (f: Fact) => Promise<WriteResult>;
   correct: (f: Fact, text: string) => Promise<WriteResult>;
+  /** `locked`: consolidation and her memory tool leave it alone; `quiet` (不再提及): kept, never brought up unasked. */
+  mark: (f: Fact, mark: 'locked' | 'quiet', on: boolean) => Promise<WriteResult>;
   /** `reinforced`: agentd already had this text and strengthened it instead of adding a row. */
   add: (text: string, kind: FactKind) => Promise<WriteResult & { reinforced?: boolean }>;
 }
@@ -78,6 +87,11 @@ export function useFacts(facts: Fact[], owner: string | null = null): FactsModel
       run(async () => {
         const r = await patch<{ version: number }>(`/memory/facts/${seg(f.id)}`, factWrite(f, text));
         setRow(f.id, (x) => ({ ...x, text, version: r.version }));
+      }),
+    mark: (f, mark, on) =>
+      run(async () => {
+        await (mark === 'locked' ? put(`/memory/facts/${seg(f.id)}/locked`, { locked: on }) : put(`/memory/facts/${seg(f.id)}/quiet`, { quiet: on }));
+        setRow(f.id, (x) => ({ ...x, [mark]: on }));
       }),
     add: async (text, kind) => {
       let reinforced = false;

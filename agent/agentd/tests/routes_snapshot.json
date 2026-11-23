@@ -192,6 +192,13 @@
   ],
   [
     "GET",
+    "^/memory/facts/([^/]{1,64})/versions$",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "GET",
     "/diag/state",
     [
       "ui_token"
@@ -1301,6 +1308,13 @@
   [
     "PUT",
     "/memory/paused",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "PUT",
+    "^/memory/facts/([^/]{1,64})/(locked|quiet)$",
     [
       "ui_token"
     ]

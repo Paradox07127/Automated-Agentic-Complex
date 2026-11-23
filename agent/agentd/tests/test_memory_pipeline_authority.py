@@ -104,6 +104,27 @@ class MemoryAuthorityTests(unittest.TestCase):
             self.assertEqual(result['memories'][0]['state'], 'candidate')
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM facts').fetchone()[0], 7)
 
+    def test_locked_fact_is_left_alone_by_consolidation(self):
+        memory = self.server.memory
+        ident = memory.add('用户偏好简短回答', 'inferred_hypothesis', kind='preference', state='candidate')
+        memory.set_mark(ident, 'locked', True)
+        before = self.db.execute('SELECT evidence, reinforcement FROM facts WHERE fact_id=?', (ident,)).fetchone()
+        self.source(reply='用户喜欢简短的回答')
+        self.reply = self.findings('用户喜欢简短的回答')
+        self.reply['memories'][0].update(same_as=ident, confidence=.9)
+        result = self.pipeline.run_once()
+        self.assertEqual(result['memories'], [])
+        self.assertEqual([r['reason'] for r in result['rejected']], ['memory_locked'])
+        self.assertEqual(self.db.execute('SELECT evidence, reinforcement FROM facts WHERE fact_id=?', (ident,)).fetchone(), before)
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM fact_sightings WHERE fact_id=?', (ident,)).fetchone()[0], 0)
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM facts').fetchone()[0], 1)
+
+    def test_consolidation_writes_its_versions_as_pipeline(self):
+        self.source(reply='用户喜欢简短的回答')
+        self.reply = self.findings('用户喜欢简短的回答')
+        [written] = self.pipeline.run_once()['memories']
+        self.assertEqual([v['by'] for v in self.server.memory.versions(written['fact_id'])], ['pipeline'])
+
     def test_similar_ranks_only_live_facts_of_same_kind_and_limits_results(self):
         memory = self.server.memory
         far = memory.add('报告需要保留来源', 'inferred_hypothesis', kind='preference', state='candidate')

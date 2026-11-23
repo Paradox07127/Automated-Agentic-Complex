@@ -33,6 +33,7 @@ export interface ArchiveProps {
     correct: (f: Fact, text: string) => Promise<boolean>;
     reject: (f: Fact) => Promise<boolean>;
     forget: (f: Fact) => Promise<boolean>;
+    mark: (f: Fact, mark: 'locked' | 'quiet', on: boolean) => Promise<boolean>;
     add: (text: string, kind: FactKind) => Promise<boolean>;
   };
   onJump: (k: 'chat' | 'obs') => void;
@@ -137,7 +138,13 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
               )}
             </>
           }
-          end={isDormant(f) && <Tag dashed>30 天没用到</Tag>}
+          end={
+            <>
+              {f.locked && <Tag>已锁定</Tag>}
+              {f.quiet && <Tag>不再提及</Tag>}
+              {isDormant(f) && <Tag dashed>30 天没用到</Tag>}
+            </>
+          }
           onClick={() => select(f)}
         />
       </div>
@@ -246,6 +253,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
             onEdit={setEditing}
             onSave={(text) => write.correct(open, text)}
             onDelete={() => setDeleting(open)}
+            onMark={(mark, on) => void write.mark(open, mark, on)}
             onJump={onJump}
             {...(narrow ? { onClose: () => (setDrawer(false), setEditing(false)) } : {})}
           />

@@ -166,7 +166,7 @@ def _propose_fact(h, body):
     if rejected:
         return h.json(409, {"error": "rejected_before"})
     fact_id = memory.add(text, "inferred_hypothesis", kind=kind, state="candidate",
-                         evidence=[f"integration:{body.get('source', 'external')}"])
+                         evidence=[f"integration:{body.get('source', 'external')}"], by="integration")
     if fact_id is None:
         return h.json(200, {"paused": True})
     h.server.feed.publish("memory", {"action": "added", "fact_id": fact_id})

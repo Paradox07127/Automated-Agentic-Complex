@@ -289,6 +289,14 @@ class RitualsTest(unittest.TestCase):
                 self.assertEqual(self.r.pending(), ["birthday", "morning"])
 
 
+    def test_quiet_birthday_is_not_a_ritual(self):
+        db = open_store(self.path)
+        self.addCleanup(db.close)
+        memory = Memory(db)
+        memory.set_mark(memory.add("管理员的生日是 10 月 22 日", "confirmed_by_user", kind="birthday"), "quiet", True)
+        self.r = self.rituals(memory=memory)
+        self.assertEqual(self.r.pending(), ["morning"])
+
 class TapDeliveryTest(unittest.TestCase):
     """Proactive with deliver="tap": break and water become pending instead of being said."""
 

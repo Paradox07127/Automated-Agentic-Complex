@@ -165,6 +165,8 @@ export function fromFact(w: WireFact, nowMs: number): Fact {
     episode_refs: episodeRefs,
     occurred_at: secToMsOrNull(w.occurred_at),
     last_mentioned_at: secToMsOrNull(w.last_mentioned_at),
+    locked: w.locked,
+    quiet: w.quiet,
     ...(nowMs - (lastUsed ?? recorded) > STALE_AFTER_MS ? { stale: true } : {}),
   };
 }

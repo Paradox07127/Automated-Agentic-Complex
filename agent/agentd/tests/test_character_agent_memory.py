@@ -229,6 +229,27 @@ class RoleMemoryTests(unittest.TestCase):
         fact = self.memory.active()[0]
         self.assertEqual((fact['version'], fact['text']), (2, '报告先给详细证据'))
 
+    def test_locked_fact_cannot_be_corrected_or_forgotten_by_her(self):
+        ident = self.memory.add('报告先给结论，再给依据', 'asserted_by_user', kind='preference')
+        self.memory.set_mark(ident, 'locked', True)
+        t = self.turn('请把报告先给结论更正为：报告先给详细证据')
+        self.assertEqual(t.call('memory_propose', {'operation': 'correct', 'text': '报告先给详细证据',
+            'evidence_quote': '报告先给详细证据', 'fact_id': ident, 'expected_version': 1,
+            'target_quote': '报告先给结论'})['error']['code'], 'memory_locked')
+        t = self.turn('请忘记报告先给结论这个偏好', 'two')
+        self.assertEqual(t.call('memory_propose', {'operation': 'forget', 'evidence_quote': '报告先给结论',
+            'target_quote': '报告先给结论', 'fact_id': ident, 'expected_version': 1})['error']['code'], 'memory_locked')
+        self.assertEqual([(f['version'], f['text']) for f in self.memory.active()], [(1, '报告先给结论，再给依据')])
+
+    def test_her_writes_are_versions_by_character(self):
+        t = self.turn('请记住：报告先给结论，再给依据')
+        ident = self.add(t)['fact_id']
+        t = self.turn('请把报告先给结论更正为：报告先给详细证据', 'two')
+        t.call('memory_propose', {'operation': 'correct', 'text': '报告先给详细证据', 'evidence_quote': '报告先给详细证据',
+            'fact_id': ident, 'expected_version': 1, 'target_quote': '报告先给结论'})
+        self.assertEqual([(v['text'], v['by']) for v in self.memory.versions(ident)],
+                         [('报告先给结论，再给依据', 'character'), ('报告先给详细证据', 'character')])
+
     def test_forget_erases_content_copies_and_does_not_recreate_them(self):
         t = self.turn('请记住：报告先给结论，再给依据')
         ident = self.add(t)['fact_id']; t.finish('completed', '报告先给结论')

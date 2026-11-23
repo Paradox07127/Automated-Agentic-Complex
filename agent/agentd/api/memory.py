@@ -76,6 +76,30 @@ class MemoryMixin:
             return self._json(200, {"fact_id": fact_id, "reinforced": True})
         self._json(201, {"fact_id": memory.add(text, source, kind=kind, manual=True)})
 
+    def _fact_versions_get(self, fact_id):
+        memory = self.server.memory
+        if memory is None:
+            return self._json(503, NO_MEMORY)
+        try:
+            return self._json(200, {"versions": memory.versions(fact_id)})
+        except KeyError:
+            return self._json(404, {"error": "unknown_fact"})
+
+    def _fact_mark_put(self, fact_id, mark):
+        found = self._memory_body()
+        if found is None:
+            return
+        memory, body = found
+        on = body.get(mark) if isinstance(body, dict) else None
+        if not isinstance(on, bool):
+            return self._json(400, {"error": "invalid_payload"})
+        try:
+            memory.set_mark(fact_id, mark, on)
+        except KeyError:
+            return self._json(404, {"error": "unknown_fact"})
+        self.server.feed.publish("memory", {"action": mark, "fact_id": fact_id, mark: on})
+        self._json(200, {mark: on})
+
     def _memory_body(self):
         """(memory, body) for a PUT or PATCH; None once an error is answered."""
         if self.server.memory is None:

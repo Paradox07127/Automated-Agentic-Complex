@@ -143,7 +143,8 @@ class Memory:
                 pending.extend(other for other in refs.keys() - live - visited if refs.get(ident, set()) & refs[other])
             return (visited & refs.keys()) - live
 
-    def add(self, text, source, kind="fact", evidence=(), occurred_at=None, manual=False, state="active", expected_absent=False):
+    def add(self, text, source, kind="fact", evidence=(), occurred_at=None, manual=False, state="active", expected_absent=False,
+            by="user"):
         if not text or not text.strip():
             raise ValueError("blank text")
         if source not in SOURCES:
@@ -165,7 +166,7 @@ class Memory:
             if expected_absent:
                 old = self.db.execute("SELECT version FROM facts WHERE kind=? AND state IN ('active','candidate')", (kind,)).fetchone()
                 if old: raise VersionConflict(old[0])
-            self._insert(fact_id, 1, kind, text, source, json.dumps(list(evidence)), occurred_at, state=state)
+            self._insert(fact_id, 1, kind, text, source, json.dumps(list(evidence)), occurred_at, state=state, by=by)
             self.db.commit()
             self.revision += 1
         return fact_id
@@ -255,9 +256,9 @@ class Memory:
 
     def support(self, fact_id, evidence):
         """A consolidation found an observed fact again: its evidence gains the new items and its score +1; the text
-        stays. False when memory is paused or there is no such active or candidate observed fact."""
+        stays. False when memory is paused, the fact is locked or there is no such active or candidate observed fact."""
         with self.lock:
-            if self._paused():
+            if self._paused() or self._locked(fact_id):
                 return False
             row = self.db.execute(f"SELECT id, evidence FROM facts WHERE fact_id = ? AND {CONSOLIDATED}",
                                   (fact_id,)).fetchone()
@@ -363,11 +364,13 @@ class Memory:
             where += " AND owner IS ?"
             args += (None if owner == "shared" else owner,)
         with self.lock:
-            rows = self.db.execute(f"SELECT {', '.join(COLUMNS)} FROM facts WHERE state = ?{where}"
-                                   " ORDER BY recorded_at, id", (state,*args)).fetchall()
-        facts = [dict(zip(COLUMNS, row)) for row in rows]
+            rows = self.db.execute(f"SELECT {', '.join('f.' + c for c in COLUMNS)}, COALESCE(m.locked, 0),"
+                                   f" COALESCE(m.quiet, 0) FROM facts f LEFT JOIN fact_marks m ON m.fact_id = f.fact_id"
+                                   f" WHERE state = ?{where} ORDER BY recorded_at, id", (state,*args)).fetchall()
+        facts = [dict(zip((*COLUMNS, "locked", "quiet"), row)) for row in rows]
         now = self.clock()
         for fact in facts:
+            fact["locked"], fact["quiet"] = bool(fact["locked"]), bool(fact["quiet"])
             fact["evidence"] = json.loads(fact["evidence"])
             fact["stale"] = (fact["last_used_at"] or fact["recorded_at"]) < now - STALE_AFTER
             fact["score"] = evidence_score(fact.pop("reinforcement"), fact.pop("reinforced_at"), now)
@@ -389,16 +392,17 @@ class Memory:
         return None if row is None else row[0]
 
     def injectable(self, character_id=None):
-        facts = self.visible(character_id)
+        facts = [f for f in self.visible(character_id) if not f["quiet"]]
         return {"trusted": [f for f in facts if f["source"] in TRUSTED],
                 "low_trust": [f for f in facts if f["source"] not in TRUSTED]}
 
     def select(self, query, k=2, now=None, derived=False, character_id=None):
         """The facts one turn carries, split as injectable() splits them: up to RESIDENTS trusted name and agreement
         facts, then up to k more by bigram overlap with query times 1 + evidence score, none under RELEVANT;
-        SELECT_CHARS of text in all. Without derived, no OBSERVED fact: the consolidator writes them from episodes."""
+        SELECT_CHARS of text in all. Without derived, no OBSERVED fact: the consolidator writes them from episodes.
+        A fact marked quiet is never carried."""
         now = self.clock() if now is None else now
-        facts = self.visible(character_id)
+        facts = [f for f in self.visible(character_id) if not f["quiet"]]
         if not derived:
             facts = [f for f in facts if f["source"] not in OBSERVED]
         with self.lock:
@@ -524,6 +528,7 @@ class Memory:
             self.db.execute("DELETE FROM fact_uses" + (" WHERE fact_id IN (SELECT fact_id FROM facts" + where + ")"
                                                        if scope != "all" else ""))
             deleted = self.db.execute(f"DELETE FROM facts{where}").rowcount
+            self.db.execute("DELETE FROM fact_marks WHERE fact_id NOT IN (SELECT fact_id FROM facts)")
             self.db.commit()
             self.revision += 1
         return deleted
@@ -531,16 +536,47 @@ class Memory:
     def export(self):
         return self.active()
 
+    def versions(self, fact_id):
+        """Every kept version of an active or candidate fact, oldest first, the current one last; KeyError otherwise.
+        by is None for a version written before agentd recorded who wrote it."""
+        with self.lock:
+            if not self._live(fact_id):
+                raise KeyError(fact_id)
+            rows = self.db.execute("SELECT version, text, source, changed_by, recorded_at FROM facts"
+                                   " WHERE fact_id = ? AND text IS NOT NULL ORDER BY version", (fact_id,)).fetchall()
+        return [dict(zip(("version", "text", "source", "by", "at"), row)) for row in rows]
+
+    def set_mark(self, fact_id, mark, on):
+        """mark "locked": consolidation and her memory tool leave the fact alone; "quiet": it stays searchable but no
+        turn carries it unasked. KeyError when the fact is not active or a candidate."""
+        with self.lock:
+            if not self._live(fact_id):
+                raise KeyError(fact_id)
+            self.db.execute("INSERT OR IGNORE INTO fact_marks (fact_id) VALUES (?)", (fact_id,))
+            self.db.execute(f"UPDATE fact_marks SET {mark} = ? WHERE fact_id = ?", (int(on), fact_id))
+            self.db.commit()
+
+    def _live(self, fact_id):
+        return self.db.execute("SELECT 1 FROM facts WHERE fact_id = ? AND state IN ('active', 'candidate')",
+                               (fact_id,)).fetchone() is not None
+
+    def _locked(self, fact_id):
+        """Under lock."""
+        row = self.db.execute("SELECT locked FROM fact_marks WHERE fact_id = ?", (fact_id,)).fetchone()
+        return row is not None and row[0] == 1
+
     def _paused(self):
         row = self.db.execute("SELECT value FROM memory_settings WHERE key = 'paused'").fetchone()
         return row is not None and row[0] == "1"
 
     def _insert(self, fact_id, version, kind, text, source, evidence, occurred_at, reinforcement=0, reinforced_at=None,
-                state="active", owner=None):
+                state="active", owner=None, *, by):
+        """by: who wrote this version: "user" (the memory page), "character" (her memory tool), "pipeline"
+        (consolidation) or "integration" (a proposal from POST /integration/memory)."""
         self.db.execute("INSERT INTO facts (fact_id, version, kind, text, source, evidence, occurred_at, recorded_at,"
-                        " state, reinforcement, reinforced_at, owner) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        " state, reinforcement, reinforced_at, owner, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (fact_id, version, kind, text, source, evidence, occurred_at, self.clock(), state,
-                         reinforcement, reinforced_at, owner))
+                         reinforcement, reinforced_at, owner, by))
 
     def _revise(self, fact_id, text, *, expected_version=None):
         """Supersede the active version with one the user has touched; text None keeps the old text."""
@@ -567,7 +603,7 @@ class Memory:
             # A corrected text is a new claim; confirming keeps the signals the same words already had.
             kept = (reinforcement, reinforced_at) if text is None else ()
             self._insert(fact_id, version + 1, kind, old_text if text is None else text, source, evidence,
-                         occurred_at, *kept, owner=owner)
+                         occurred_at, *kept, owner=owner, by="user")
             self.db.commit()
             self.revision += 1
         return version + 1

@@ -5,6 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const A3 = 'f31a3'.padEnd(32, '0');
 const P5 = 'f31p5'.padEnd(32, '0');
+const P1 = 'f31p1'.padEnd(32, '0');
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -136,6 +137,28 @@ test('档案: 删除 asks on a paper card, then deletes and says so', async ({ p
   await ask.getByRole('button', { name: '删除' }).click();
   await expect(page.getByText('已删除：咖啡不加糖')).toBeVisible();
   await expect(page.locator(`[data-fact="${P5}"]`)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('档案: a fact shows its versions and restores one; ⋯ locks, unlocks and marks it 不再提及', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto(`main.html#/memory?plugins=all&still=1&sel=${P1}`);
+  const detail = page.getByRole('complementary', { name: '这条记忆' });
+  await expect(detail.getByText('已锁定', { exact: true })).toBeVisible();
+  await expect(detail.getByText(/后台整理/)).toBeVisible();
+  await expect(detail.getByText('回答尽量简短')).toBeVisible();
+  await detail.getByRole('button', { name: '恢复' }).click();
+  await expect(page.getByText('改好了，下一句起按新的说')).toBeVisible();
+  await expect(detail.getByText('3 版')).toBeVisible();
+  await detail.getByRole('button', { name: '更多' }).click();
+  await page.getByRole('menuitem', { name: '不再提及' }).click();
+  await expect(page.getByText('不再提及：回答尽量简短 │ 记忆保留')).toBeVisible();
+  await expect(detail.getByText('不再提及', { exact: true })).toBeVisible();
+  await detail.getByRole('button', { name: '更多' }).click();
+  await page.getByRole('menuitem', { name: '解锁' }).click();
+  await expect(page.getByText('已解锁：回答尽量简短')).toBeVisible();
+  await expect(detail.getByText('已锁定', { exact: true })).toHaveCount(0);
+  await expect(page.locator(`[data-fact="${P1}"]`).getByText('不再提及', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

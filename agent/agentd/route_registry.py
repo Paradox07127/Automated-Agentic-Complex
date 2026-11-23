@@ -10,6 +10,7 @@ LINES_PATH = re.compile(r"^/sessions/([^/]{1,200})/lines$")
 TRACE_PATH = re.compile(r"^/trace/turns/([^/]{1,64})$")
 FACT_PATH = re.compile(r"^/memory/facts/([^/]{1,64})$")
 CONFIRM_PATH = re.compile(r"^/memory/facts/([^/]{1,64})/confirm$")
+FACT_MARK_PATH = re.compile(r"^/memory/facts/([^/]{1,64})/(locked|quiet)$")
 CONTEXT_ITEM_PATH = re.compile(r"^/context/items/([^/]{1,64})$")
 TASK_PATH = re.compile(r"^/tasks/([^/]{1,64})/(accept|reject)$")
 COMMITMENT_PATH = re.compile(r"^/commitments/([^/]{1,64})/(cancel|snooze|complete)$")
@@ -158,6 +159,9 @@ REGISTRY = (
           templates=("/memory/days/:date",), owner=WORKLOG_HTTP, summary="One day or week summary", spec=C6),
     Route("GET", "/memory/export", UI, "read", ("main",),
           owner=SERVER, action="_memory_get", summary="Export all active facts", spec=C6),
+    Route("GET", re.compile(r"^/memory/facts/([^/]{1,64})/versions$"), UI, "read", ("main",),
+          templates=("/memory/facts/:fact_id/versions",), owner=SERVER, action="_fact_versions_get",
+          summary="Every kept version of a memory fact", spec=C6, response="memory-versions.json"),
     Route("GET", "/diag/state", UI, "read", ("main", "onboarding"),
           owner=SERVER, action="_diag_state", summary="Diagnostics snapshot for the control panel", spec=C6),
     Route("GET", "/diag/stream", UI, "stream", (),
@@ -519,6 +523,9 @@ REGISTRY = (
           owner=SERVER, action="_state_switch_put", summary="Whether state affects behavior", spec=C6),
     Route("PUT", "/memory/paused", UI, "write", ("main",),
           owner=SERVER, action="_memory_paused_put", summary="Pause memory", spec=C6),
+    Route("PUT", FACT_MARK_PATH, UI, "write", ("main",),
+          templates=("/memory/facts/:fact_id/locked", "/memory/facts/:fact_id/quiet"), owner=SERVER,
+          action="_fact_mark_put", summary="Lock a memory fact, or mark it 不再提及", spec=C6),
     Route("PUT", re.compile(r"^/conversations/([a-f0-9]{32})$"), UI, "write", ("main",), templates=("/conversations/:conversation_id",),
           owner=CONTROL_PANEL, summary="Update or archive a conversation"),
     Route("PUT", re.compile(r"^/sessions/(own:[a-f0-9]{12})$"), UI, "write", ("main",), templates=("/sessions/:session_id",),

@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import type { Fact } from '../../domain';
-import { Btn } from '../../ui';
+import { Btn, Menu } from '../../ui';
 import { useEvidence } from './data';
-import { catOf, CATS, factText, hm, howText, isDormant, recentText, SRC, stamp, sum, useSpark, ymd } from './model';
+import { BY, catOf, CATS, factText, hm, howText, isDormant, recentText, SRC, stamp, sum, useSpark, ymd } from './model';
 import { Block, DetailHead, Kv, Lnk, PANEL, Quote, SrcMark, Tag } from './parts';
+import { useVersions } from './useFacts';
 import styles from './Detail.module.css';
 
 const DAY_MS = 86_400_000;
@@ -103,13 +104,14 @@ export interface DetailProps {
   /** Resolves true when agentd took the new text. */
   onSave: (text: string) => Promise<boolean>;
   onDelete: () => void;
+  onMark: (mark: 'locked' | 'quiet', on: boolean) => void;
   onJump: (k: 'chat' | 'obs') => void;
   /** The drawer's close button; absent in the wide column. */
   onClose?: () => void;
 }
 
-/** 这条记忆：标题条、正文（修改时是文本框）、来源和记下时间、出处、她用到它；底部修改和危险红删除。 */
-export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onJump, onClose }: DetailProps) {
+/** 这条记忆：标题条、正文（修改时是文本框）、来源和记下时间、出处、她用到它、版本历史；底部修改、锁定和不再提及、危险红删除。 */
+export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark, onJump, onClose }: DetailProps) {
   const [draft, setDraft] = useState(f.text);
   const [saving, setSaving] = useState(false);
   // Each edit starts from the stored text, also when Enter on the list opened it.
@@ -120,6 +122,7 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onJump
   }
   const cat = CATS.find((c) => c.id === catOf(f));
   const spark = useSpark(f, now);
+  const versions = useVersions(f).data;
   const save = () => {
     const text = draft.trim();
     if (!text || saving) return;
@@ -142,9 +145,19 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onJump
           <Note>Enter 保存 │ Esc 取消</Note>
         </>
       ) : (
-        <Btn size="md" onClick={() => onEdit(true)}>
-          修改
-        </Btn>
+        <>
+          <Btn size="md" onClick={() => onEdit(true)}>
+            修改
+          </Btn>
+          <Menu
+            label="更多"
+            icon="more"
+            items={[
+              { kind: 'item', label: f.locked ? '解锁' : '锁定', onSelect: () => onMark('locked', !f.locked) },
+              { kind: 'item', label: f.quiet ? '恢复提及' : '不再提及', onSelect: () => onMark('quiet', !f.quiet) },
+            ]}
+          />
+        </>
       )}
       <Spacer />
       <Btn variant="danger" onClick={onDelete}>
@@ -179,9 +192,11 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onJump
             {factText(f)}
           </p>
         )}
-        {isDormant(f) && (
+        {(isDormant(f) || f.locked || f.quiet) && (
           <div className={styles.tags}>
-            <Tag dashed>30 天没用到</Tag>
+            {f.locked && <Tag>已锁定</Tag>}
+            {f.quiet && <Tag>不再提及</Tag>}
+            {isDormant(f) && <Tag dashed>30 天没用到</Tag>}
           </div>
         )}
         <div className={styles.kv}>
@@ -220,6 +235,28 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onJump
             <Note>{isDormant(f) ? '30 天没用到，她不会主动提，但问到时还会想起来' : '还没用到过'}</Note>
           )}
         </Block>
+        {versions && versions.length > 1 && (
+          <Block
+            title="版本历史"
+            note={
+              <>
+                <span className="num">{versions.length}</span> 版
+              </>
+            }
+          >
+            <Lines>
+              {versions.toReversed().map((v) => (
+                <Line
+                  key={v.version}
+                  at={v.by ? `${stamp(v.at * 1000, now)} │ ${BY[v.by]}` : stamp(v.at * 1000, now)}
+                  end={v.version === f.version ? <Note>当前</Note> : v.text !== f.text && <Lnk onClick={() => void onSave(v.text)}>恢复</Lnk>}
+                >
+                  {v.text}
+                </Line>
+              ))}
+            </Lines>
+          </Block>
+        )}
     </Frame>
   );
 }

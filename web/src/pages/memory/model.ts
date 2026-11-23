@@ -1,4 +1,4 @@
-import type { Fact, FactKind, MemorySource } from '../../domain';
+import type { Fact, FactKind, MemorySource, WireFactVersion } from '../../domain';
 
 /** Source words: short tag and full name; the key is `?src=`'s short form. */
 export const SRC: Record<MemorySource, { short: string; full: string; key: string }> = {
@@ -7,6 +7,8 @@ export const SRC: Record<MemorySource, { short: string; full: string; key: strin
   confirmed_by_user: { short: '确认', full: '用户确认', key: 'confirmed' },
   inferred_hypothesis: { short: '推断', full: '推断', key: 'inferred' },
 };
+/** Who wrote a version (`GET /memory/facts/{id}/versions` `by`). */
+export const BY: Record<NonNullable<WireFactVersion['by']>, string> = { user: '你', character: '她', pipeline: '后台整理', integration: '外部工具' };
 export const SRC_ORDER: MemorySource[] = ['asserted_by_user', 'observed_context', 'confirmed_by_user', 'inferred_hypothesis'];
 
 /** The line under 来源 in the detail; a confirmed fact read from an episode was seen before it was confirmed. */

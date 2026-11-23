@@ -26,6 +26,7 @@ MAX_LIMIT = 20
 MAX_CHARS = 16000
 MAX_DEPENDENCIES = 2048
 PROFILE_KINDS = frozenset(("name", "birthday", "preference", "agreement"))
+QUIET = "The user asked you not to bring this up yourself; use it only when they ask about it."
 PREFERENCE_WORDS = ("偏好", "习惯", "平时", "风格", "沟通方式", "回答方式", "呈现方式", "usual", "prefer", "style", "format")
 ALIASES = (
     ("简短", "简洁", "精简", "简要", "concise", "brief"),
@@ -183,11 +184,13 @@ class KnowledgeService:
         return record
 
     def _fact(self, row):
+        details = {"occurred_at": row.get("occurred_at"),
+                   "uncertainty": None if row["source"] in TRUSTED else "Unconfirmed observation or inference; not a user assertion."}
+        if row["quiet"]:
+            details["quiet"] = QUIET
         return self._record("memory", row["fact_id"], text=row["text"], authority=row["source"],
                             version=row["version"], at=row["recorded_at"], kind=row["kind"],
-                            evidence=row["evidence"], stale=row.get("stale", False),
-                            details={"occurred_at": row.get("occurred_at"),
-                                     "uncertainty": None if row["source"] in TRUSTED else "Unconfirmed observation or inference; not a user assertion."})
+                            evidence=row["evidence"], stale=row.get("stale", False), details=details)
 
     def _history(self, row):
         if row["source"] not in ("text", "voice") or row["state"] not in ("completed", "interrupted"):
@@ -246,7 +249,7 @@ class KnowledgeService:
             for row in reversed(self.memory.visible(self.character_id)):
                 if self._allowed(source, row) and (row["source"] in TRUSTED or self.permitted is not None):
                     item = self._fact(row)
-                    if profile and (item["kind"] not in PROFILE_KINDS or item["authority"] not in TRUSTED):
+                    if profile and (item["kind"] not in PROFILE_KINDS or item["authority"] not in TRUSTED or row["quiet"]):
                         continue
                     if query.strip() and _related(query, item) == 0:
                         continue
@@ -555,8 +558,10 @@ class KnowledgeService:
         return [row for _, row in ranked]
 
     def related_facts(self, query, exclude, *, limit, max_chars):
-        """User-stated or confirmed memory facts sharing words with query, ranked as knowledge_search ranks them."""
+        """User-stated or confirmed memory facts sharing words with query, ranked as knowledge_search ranks them; none
+        marked quiet, as these go into the turn unasked."""
         if not query.strip():
             return []
-        rows = [row for row in self._ranked(query, ["memory"]) if row["authority"] in TRUSTED and row["id"] not in exclude]
+        rows = [row for row in self._ranked(query, ["memory"]) if row["authority"] in TRUSTED and row["id"] not in exclude
+                and "quiet" not in row["details"]]
         return self._page(rows, {"limit": limit, "max_chars": max_chars}, _digest(["related_facts", query])).get("items", [])

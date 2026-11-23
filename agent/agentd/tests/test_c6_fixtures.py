@@ -181,7 +181,8 @@ class C6FixtureTest(unittest.TestCase):
         server = self.server
         nine = datetime.datetime.combine(datetime.date.today(), datetime.time(9)).timestamp()
         server.share_page_text = True
-        server.memory.record_uses([(server.memory.add("回答先给结论", "asserted_by_user"), 1)], "line-1", "injected")
+        self.params["fact_id"] = server.memory.add("回答先给结论", "asserted_by_user")
+        server.memory.record_uses([(self.params["fact_id"], 1)], "line-1", "injected")
         server.memory.add("周报按项目分组", "inferred_hypothesis", state="candidate")
         server.episodes = Episodes(self.db, lock=lock)
         add_episode(server.episodes, nine, nine + 600, "写周报", "你在「周报」里发了消息。",

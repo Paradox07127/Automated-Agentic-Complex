@@ -106,6 +106,12 @@ export function MemoryPage() {
     correct: async (f: Fact, text: string) => report(await model.correct(f, text), isCandidate(f) ? `已按修改记住：${text}` : '改好了，下一句起按新的说', '修改'),
     reject: async (f: Fact) => report(await model.reject(f), `已划掉：${f.text}`, '划掉'),
     forget: async (f: Fact) => report(await model.forget(f), `已删除：${factText(f)}`, '删除'),
+    mark: async (f: Fact, mark: 'locked' | 'quiet', on: boolean) =>
+      report(
+        await model.mark(f, mark, on),
+        mark === 'locked' ? `${on ? '已锁定' : '已解锁'}：${factText(f)}` : on ? `不再提及：${factText(f)} │ 记忆保留` : `恢复提及：${factText(f)}`,
+        mark === 'locked' ? (on ? '锁定' : '解锁') : on ? '设为不再提及' : '恢复提及',
+      ),
     add: async (text: string, kind: FactKind) => {
       const r = await model.add(text, kind);
       toast(!r.ok ? `没有保存：${r.message}` : r.reinforced ? '已有这条记忆，已加强' : '已新增 1 条记忆 │ 来源「用户陈述」');

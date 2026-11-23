@@ -6,7 +6,7 @@ import { AGENTD_ROUTES } from '../../src/bridge/agentd-routes.generated';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import { DIAG_STATE } from '../../src/mock/diag';
-import { C1 } from '../../src/mock/fixtures/ids';
+import { C1, F1 } from '../../src/mock/fixtures/ids';
 import { mismatches } from './shape';
 
 const FIXTURES = new URL('../../../protocol/C6-agentd-api/fixtures/', import.meta.url);
@@ -14,7 +14,7 @@ const read = (name: string): unknown => JSON.parse(readFileSync(new URL(name, FI
 const loose = read('loose-fields.json') as { nullable: Record<string, string[]>; free_keys: Record<string, string[]> };
 const backed = AGENTD_ROUTES.filter((r) => r.response !== undefined);
 // Ids the fake data has a row for.
-const PARAMS: Record<string, string> = { conversation_id: C1, task_id: 'task-hostlink', date: '2026-11-04' };
+const PARAMS: Record<string, string> = { conversation_id: C1, task_id: 'task-hostlink', date: '2026-11-04', fact_id: F1 };
 const fill = (template: string) => template.replace(/:(\w+)/g, (_, name: string) => PARAMS[name] ?? `:${name}`);
 // Native reads these host-only routes itself and pushes the body to a desktop panel's event.
 const PUSHED: Record<string, (b: AgenticComplexBridge) => Promise<unknown>> = {

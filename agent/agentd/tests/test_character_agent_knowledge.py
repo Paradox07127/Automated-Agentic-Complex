@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from brain.egress import EgressPolicy
 from brain.outbound import OutboundBlocked
-from character_agent.services.knowledge import KnowledgeService
+from character_agent.services.knowledge import QUIET, KnowledgeService
 from personal.commitments import Commitments
 from personal.episodes import Episodes
 from personal.history import History
@@ -75,6 +75,17 @@ class KnowledgeTests(unittest.TestCase):
         self.assertEqual([r["id"] for r in items], [said])
         self.assertEqual(self.service.related_facts("火山", set(), limit=4, max_chars=1200), [])
         self.assertEqual(self.service.related_facts(" \n", set(), limit=4, max_chars=1200), [])
+
+    def test_quiet_fact_stays_out_of_the_turn_but_is_found_by_search(self):
+        quiet = self.fact("团子是我的猫，先给结论", kind="preference")
+        kept = self.fact("团子三岁了，安静优先", kind="preference")
+        self.memory.set_mark(quiet, "quiet", True)
+        self.assertEqual([r["id"] for r in self.service.call("personal_profile", {})["items"]], [kept])
+        self.assertEqual([r["id"] for r in self.service.related_facts("团子", set(), limit=4, max_chars=4000)], [kept])
+        found = {r["id"]: r for r in self.service.call("knowledge_search", {"query": "团子", "sources": ["memory"]})["items"]}
+        self.assertEqual(found[quiet]["details"]["quiet"], QUIET)
+        self.assertNotIn("quiet", found[kept]["details"])
+        self.assertEqual(self.service.call("knowledge_read", {"source": "memory", "id": quiet})["items"][0]["id"], quiet)
 
     def test_related_facts_keep_to_the_count_and_character_bounds(self):
         for n in range(6):

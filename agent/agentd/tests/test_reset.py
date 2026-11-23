@@ -44,7 +44,7 @@ from support import serve_in_thread  # noqa: E402
 
 HOOK, UI = "hook-token", "ui-token"
 CONFIRM = {"confirm": "delete all local data"}
-CLEARED = {"agentd.sqlite": ("history_turns", "own_sessions", "trace_events", "facts", "fact_uses", "fact_sightings", "ritual_log", "character_state", "character_state_log",
+CLEARED = {"agentd.sqlite": ("history_turns", "own_sessions", "trace_events", "facts", "fact_uses", "fact_sightings", "fact_marks", "ritual_log", "character_state", "character_state_log",
                             "desk_log",
                             "tasks", "task_events", "commitments", "schedules", "schedule_runs", "ritual_pending", "own_session_lines",
                             "idempotency_receipts", "episodes",
@@ -150,6 +150,7 @@ class ResetTest(unittest.TestCase):
         server._open_trace("line-1", 1, "text", "你好")
         fact=server.memory.add("管理员喜欢猫", "asserted_by_user")
         server.memory.record_uses([(fact,1)],"seed-memory-line","injected")
+        server.memory.set_mark(fact, "locked", True)
         with server.memory.lock:
             server.memory._sight(fact, [{"source_id": "seed", "at": 1}], 0.9); server.memory.db.commit()
         server.rituals.set_pending("water",{"minutes":90})

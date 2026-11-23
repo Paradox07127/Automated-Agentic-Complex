@@ -22,6 +22,8 @@ const fact = (f: Pick<WireFact, 'fact_id' | 'kind' | 'text' | 'source' | 'record
   state: 'active',
   stale: false,
   score: 0,
+  locked: false,
+  quiet: false,
   uses_today: 0,
   last_injected_at: null,
   last_mentioned_at: null,

@@ -343,6 +343,8 @@ class MemoryTurn:
                 raise ValueError("unknown_fact")
             if isinstance(version, bool) or version != row[0]:
                 raise ValueError("memory_version_changed")
+            if self.memory._locked(ident):
+                raise ValueError("memory_locked")
             target = args.get("target_quote")
             if not isinstance(target, str) or len(target) < 2 or target not in self.text or target not in row[2]:
                 raise ValueError("memory_target_not_authorized")
@@ -365,14 +367,16 @@ class MemoryTurn:
             if old:
                 return {"outcome": "unchanged", "fact_id": old[0], "version": old[1]}
             ident, version = str(uuid.uuid4()), 1
-            self.memory._insert(ident, version, kind, text, source, dump(["role_run:" + self.run_id]), None, state=state, owner=owner)
+            self.memory._insert(ident, version, kind, text, source, dump(["role_run:" + self.run_id]), None, state=state, owner=owner,
+                                by="character")
             outcome = "stored" if explicit else "candidate"
             if explicit: self.stored.append(ident)
         elif op == "correct":
             self.memory._tombstone(ident)
             db.execute("UPDATE facts SET state='corrected' WHERE fact_id=? AND state='active'", (ident,))
             version += 1
-            self.memory._insert(ident, version, kind, text, "asserted_by_user", dump(["role_run:" + self.run_id]), None, owner=row[3])
+            self.memory._insert(ident, version, kind, text, "asserted_by_user", dump(["role_run:" + self.run_id]), None, owner=row[3],
+                                by="character")
             self.memory._redact_agent_journal()
             self.epoch = self.memory.content_epoch
             self.changed.append((ident, False))

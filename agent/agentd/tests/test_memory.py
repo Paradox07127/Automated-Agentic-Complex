@@ -64,7 +64,7 @@ class MemoryTest(unittest.TestCase):
         self.assertEqual(layers["trusted"][0], {
             "fact_id": said, "version": 1, "owner": None, "kind": "fact", "text": "我在上海工作", "source": "asserted_by_user",
             "evidence": ["ev-1"], "occurred_at": 900.0, "recorded_at": 1001.0, "last_used_at": None, "stale": False,
-            "score": 0.0})
+            "score": 0.0, "locked": False, "quiet": False})
 
     def test_page_opinion_is_not_a_preference_and_names_need_confirmation(self):
         with self.assertRaises(ValueError):
@@ -540,6 +540,116 @@ class ConsolidatedTest(unittest.TestCase):
         candidate = self.memory.add("刚才猜的", "inferred_hypothesis", state="candidate")
         self.assertEqual(self.memory.delete_since(self.now, ("observed_context", "inferred_hypothesis")), [candidate])
         self.assertEqual(self.rows(candidate), [(1, None, "deleted")])
+
+
+class FactMarksTest(unittest.TestCase):
+    """Version history with who wrote each version, locked facts and facts marked 不再提及 (quiet)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
+        self.path = Path(self.tmp.name) / "agentd.db"
+        self.db = open_store(self.path)
+        self.now = 1000.0
+        self.memory = Memory(self.db, clock=self.tick)
+
+    def tearDown(self):
+        self.db.close()
+        self.tmp.cleanup()
+
+    def tick(self):
+        self.now += 1
+        return self.now
+
+    def answer(self, call, *args, body=None):
+        answers = []
+        handler = SimpleNamespace(server=SimpleNamespace(memory=self.memory, feed=SimpleNamespace(publish=lambda *a: None)),
+                                  _json=lambda *a: answers.append(a))
+        handler._memory_body = lambda: (self.memory, body)
+        call(handler, *args)
+        return answers[0]
+
+    def test_versions_keep_each_text_with_who_wrote_it(self):
+        ident = self.memory.add("周五写周报", "inferred_hypothesis", state="candidate", by="integration")
+        self.memory.confirm(ident, expected_version=1)
+        self.memory.correct(ident, "每周五下午写周报", expected_version=2)
+        self.assertEqual([(v["version"], v["text"], v["source"], v["by"]) for v in self.memory.versions(ident)], [
+            (1, "周五写周报", "inferred_hypothesis", "integration"),
+            (2, "周五写周报", "confirmed_by_user", "user"),
+            (3, "每周五下午写周报", "confirmed_by_user", "user")])
+        at = [v["at"] for v in self.memory.versions(ident)]
+        self.assertEqual(at, sorted(set(at)))
+        self.memory.delete(ident, expected_version=3)
+        with self.assertRaises(KeyError):
+            self.memory.versions(ident)
+        self.assertEqual(self.answer(MemoryMixin._fact_versions_get, ident), (404, {"error": "unknown_fact"}))
+
+    @unittest.skipIf(sys.platform == "win32", "the test uses a file name character Windows forbids")
+    def test_versions_response_matches_fixture(self):
+        ident = self.memory.add("回答先给结论", "asserted_by_user")
+        status, body = self.answer(MemoryMixin._fact_versions_get, ident)
+        self.assertEqual(status, 200)
+        fixture = json.loads((FIXTURES / "memory-versions.json").read_text(encoding="utf-8"))
+        self.assertEqual(mismatches(fixture, body, ["versions[].by"], []), [])
+
+    def test_store_without_the_new_columns_reads_with_defaults(self):
+        self.db.close()
+        old = Path(self.tmp.name) / "old.db"
+        import sqlite3
+        db = sqlite3.connect(old)
+        db.executescript("""
+            CREATE TABLE facts (id INTEGER PRIMARY KEY, fact_id TEXT NOT NULL, version INTEGER NOT NULL,
+                kind TEXT NOT NULL, text TEXT, source TEXT NOT NULL, evidence TEXT NOT NULL, occurred_at REAL,
+                recorded_at REAL NOT NULL, state TEXT NOT NULL, last_used_at REAL, reinforcement REAL NOT NULL DEFAULT 0,
+                reinforced_at REAL, owner TEXT, UNIQUE(fact_id, version));
+            INSERT INTO facts (fact_id, version, kind, text, source, evidence, recorded_at, state)
+                VALUES ('old', 1, 'fact', '旧的一条', 'asserted_by_user', '[]', 5.0, 'active');
+        """)
+        db.close()
+        self.db = open_store(old)
+        self.memory = Memory(self.db, clock=self.tick)
+        [fact] = self.memory.active()
+        self.assertEqual((fact["text"], fact["locked"], fact["quiet"]), ("旧的一条", False, False))
+        self.assertEqual(self.memory.versions("old"), [{"version": 1, "text": "旧的一条", "source": "asserted_by_user",
+                                                         "by": None, "at": 5.0}])
+        self.memory.set_mark("old", "quiet", True)
+        self.assertTrue(self.memory.active()[0]["quiet"])
+
+    def test_marks_are_set_and_cleared_through_the_routes(self):
+        ident = self.memory.add("提交前先跑测试", "asserted_by_user", kind="agreement")
+        self.assertEqual(self.answer(MemoryMixin._fact_mark_put, ident, "locked", body={"locked": "yes"}),
+                         (400, {"error": "invalid_payload"}))
+        self.assertEqual(self.answer(MemoryMixin._fact_mark_put, "nope", "locked", body={"locked": True}),
+                         (404, {"error": "unknown_fact"}))
+        self.assertEqual(self.answer(MemoryMixin._fact_mark_put, ident, "locked", body={"locked": True}), (200, {"locked": True}))
+        self.assertEqual(self.answer(MemoryMixin._fact_mark_put, ident, "quiet", body={"quiet": True}), (200, {"quiet": True}))
+        status, body = self.answer(MemoryMixin._memory_read, "/memory")
+        self.assertEqual([(f["locked"], f["quiet"]) for f in body["facts"]], [(True, True)])
+        self.memory.correct(ident, "提交前先跑全部测试", expected_version=1)
+        self.assertEqual((self.memory.active()[0]["locked"], self.memory.active()[0]["quiet"]), (True, True))
+        self.answer(MemoryMixin._fact_mark_put, ident, "locked", body={"locked": False})
+        self.assertEqual((self.memory.active()[0]["locked"], self.memory.active()[0]["quiet"]), (False, True))
+
+    def test_locked_fact_is_not_supported_by_consolidation(self):
+        ident = self.memory.add("周报按项目分组", "observed_context", evidence=["episode:1@2026-10-31"])
+        self.memory.set_mark(ident, "locked", True)
+        self.assertFalse(self.memory.support(ident, ["episode:2@2026-11-01"]))
+        self.assertEqual(self.memory.active()[0]["evidence"], ["episode:1@2026-10-31"])
+        self.memory.set_mark(ident, "locked", False)
+        self.assertTrue(self.memory.support(ident, ["episode:2@2026-11-01"]))
+
+    def test_quiet_fact_is_not_injected_but_still_kept(self):
+        quiet = self.memory.add("我养了一只叫团子的猫", "asserted_by_user")
+        self.memory.add("团子喜欢晒太阳", "asserted_by_user")
+        self.memory.set_mark(quiet, "quiet", True)
+        self.assertNotIn(quiet, [f["fact_id"] for f in self.memory.select("团子", now=self.now)["trusted"]])
+        self.assertNotIn(quiet, [f["fact_id"] for f in self.memory.injectable()["trusted"]])
+        self.assertIn(quiet, [f["fact_id"] for f in self.memory.active()])
+
+    def test_clear_all_drops_the_marks(self):
+        ident = self.memory.add("提交前先跑测试", "asserted_by_user")
+        self.memory.set_mark(ident, "locked", True)
+        self.memory.clear("all")
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM fact_marks").fetchone()[0], 0)
 
 
 if __name__ == "__main__":

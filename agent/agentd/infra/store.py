@@ -58,7 +58,10 @@ SCHEMA = (
     "CREATE TABLE IF NOT EXISTS facts (id INTEGER PRIMARY KEY, fact_id TEXT NOT NULL, version INTEGER NOT NULL,"
     " kind TEXT NOT NULL, text TEXT, source TEXT NOT NULL, evidence TEXT NOT NULL, occurred_at REAL,"
     " recorded_at REAL NOT NULL, state TEXT NOT NULL, last_used_at REAL, reinforcement REAL NOT NULL DEFAULT 0,"
-    " reinforced_at REAL, owner TEXT, UNIQUE(fact_id, version))",
+    " reinforced_at REAL, owner TEXT, changed_by TEXT, UNIQUE(fact_id, version))",
+    # one row per fact the user locked or marked 不再提及 on the memory page; a fact with no row is neither
+    "CREATE TABLE IF NOT EXISTS fact_marks (fact_id TEXT PRIMARY KEY, locked INTEGER NOT NULL DEFAULT 0,"
+    " quiet INTEGER NOT NULL DEFAULT 0)",
     "CREATE TABLE IF NOT EXISTS memory_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS fact_uses (fact_id TEXT NOT NULL, version INTEGER NOT NULL, line_id TEXT NOT NULL,"
     " used_at REAL NOT NULL, mode TEXT NOT NULL)",
@@ -260,8 +263,11 @@ def open_store(path):
     db.execute("PRAGMA mmap_size=268435456")
     for statement in SCHEMA:
         db.execute(statement)
-    if 'owner' not in {row[1] for row in db.execute('PRAGMA table_info(facts)')}:
+    fact_columns = {row[1] for row in db.execute('PRAGMA table_info(facts)')}
+    if 'owner' not in fact_columns:
         db.execute('ALTER TABLE facts ADD COLUMN owner TEXT')
+    if 'changed_by' not in fact_columns:
+        db.execute('ALTER TABLE facts ADD COLUMN changed_by TEXT')
     if 'owner' not in {r[1] for r in db.execute('PRAGMA table_info(episodes)')}:
         db.execute('ALTER TABLE episodes ADD COLUMN owner TEXT')
     if not db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='observation_frame_cleanup'").fetchone():

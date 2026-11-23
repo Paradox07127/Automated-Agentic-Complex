@@ -41,6 +41,9 @@ export interface Fact {
   /** Injected every turn. */
   resident?: boolean;
   stale?: boolean;
+  locked: boolean;
+  /** 不再提及. */
+  quiet: boolean;
 }
 
 /** `GET /memory` counts by source. */
