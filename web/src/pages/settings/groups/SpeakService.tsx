@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { AgentdCallError, saveVoiceToken, testVoice } from '../../../bridge/agentd';
 import { Btn, Field } from '../../../ui';
-import { ExpandRow, StatusLamp } from '../../../ui/game';
+import { StatusLamp } from '../../../ui/game';
 import { failure } from '../api';
 import { useSettings } from '../ctx';
 import { SetRow } from '../SetRow';
-import styles from '../groups.module.css';
 
 /** POST /voice/test `reason` → what the test row says. */
 function voiceTestFailure(reason: string | null): string {
@@ -16,26 +15,12 @@ function voiceTestFailure(reason: string | null): string {
   return text[reason ?? ''] ?? '没有通过';
 }
 
-const ROWS: ReadonlySet<string> = new Set(['ttsToken', 'ttsTest']);
-
-/**
- * The voice service's token and test, one expandable row with the token as the summary; its address is in 服务. Shut while the
- * service answers; open while it is down or a search lands on one of its rows.
- */
-export function VoiceService({ down }: { down: boolean }) {
-  const { model, agentdOff, item, hl, diag, reload } = useSettings();
-  // The token is sent to agentd and never read back; /diag/state says whether one is saved.
+/** The voice service card's token and test: the token goes to agentd and is never read back; the test may try the one on screen. */
+export function TtsSecretRows() {
+  const { model, agentdOff, diag, reload } = useSettings();
   const [token, setToken] = useState('');
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
-  const linked = [item, hl].some((x) => x != null && ROWS.has(x));
-  const needs = down || linked;
-  const [open, setOpen] = useState(needs);
-  const [wasNeeds, setWasNeeds] = useState(needs);
-  if (wasNeeds !== needs) {
-    setWasNeeds(needs);
-    if (needs) setOpen(true);
-  }
 
   const saveToken = () =>
     void saveVoiceToken(token.trim()).then(
@@ -57,14 +42,14 @@ export function VoiceService({ down }: { down: boolean }) {
     }
     setTesting(false);
   };
-  const tokenNote = diag.voiceTokenSet ? '令牌已保存' : '令牌不回显';
 
-  const body = (
+  return (
     <>
       <SetRow
         id="ttsToken"
         title="令牌"
-        info="令牌只送给后台，不回显；换服务地址会删掉旧令牌。"
+        desc={diag.voiceTokenSet ? '令牌已保存' : '令牌不回显'}
+        info="令牌只送给后台，不回显；在这张卡上换语音服务地址会删掉旧令牌。"
         control={
           <>
             <Field type="password" label="令牌" placeholder="粘贴令牌" value={token} disabled={agentdOff} onChange={setToken} />
@@ -87,13 +72,5 @@ export function VoiceService({ down }: { down: boolean }) {
         }
       />
     </>
-  );
-  return (
-    <div className={styles.sub}>
-      <ExpandRow open={open} onToggle={setOpen} tone={down ? 'fail' : undefined} body={body}>
-        <span>令牌和测试</span>
-        <span className={styles.t3}>{[tokenNote, test?.text].filter(Boolean).join(' │ ')}</span>
-      </ExpandRow>
-    </div>
   );
 }

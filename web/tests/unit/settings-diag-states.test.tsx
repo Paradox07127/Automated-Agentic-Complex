@@ -60,7 +60,7 @@ describe('settings error state', () => {
     await screen.findByRole('region', { name: '外发总览' });
     const nav = screen.getByRole('tablist', { name: '设置分组' });
     expect(nav.textContent).not.toContain('Agent');
-    expect(nav.textContent).toContain('内核');
+    expect(nav.textContent).toContain('AI');
     expect(nav.textContent).not.toContain('智能体');
     expect(document.body.textContent).not.toMatch(/OUTBOUND|GATE|KERNEL/);
   });

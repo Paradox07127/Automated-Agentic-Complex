@@ -277,7 +277,7 @@ const LOGIN = { row: 'kernelLogin', action: '去登录' };
 const PROVIDER = { row: 'provider', action: '去填写服务提供方和模型' };
 const EXE = { row: 'exe', action: '去选可执行文件' };
 const RUNSRC_FIX = { row: 'runsrc', action: '去改运行来源' };
-const CONNECTION = { row: 'svc', action: '去 AI 账号' };
+const CONNECTION = { row: 'svc', action: '去选模型提供方' };
 const ACP_AGENT = { row: 'acpAgent', action: '去选 ACP agent' };
 
 /** Every code integration.py, settings.py and available_backends() send (character_agent). */
@@ -291,11 +291,11 @@ export const RUNTIME_ERROR: Readonly<Record<string, RuntimeError>> = {
   sign_in_required: { label: '请先登录 ChatGPT' },
   plan_usage_not_enabled: { label: 'ChatGPT 尚未授权订阅用量' },
   runtime_version_not_verified: { label: '内核兼容检查未通过' },
-  runtime_protocol_unavailable: { label: '角色入口不可用，请到 设置 › 内核 点「重新检测」' },
+  runtime_protocol_unavailable: { label: '角色入口不可用，请到 设置 › AI 点「重新检测」' },
   sdk_protocol_unavailable: { label: '内核缺少必要接口，请更新 CLI 后重新检测' },
   sdk_policy_capability_missing: { label: '内核缺少必要的工具权限控制能力' },
   sdk_effort_capability_missing: { label: '内核缺少本轮需要的推理设置能力' },
-  codex_model_catalog_unavailable: { label: '读取不到内核的模型目录，请到 设置 › 内核 点「重新检测」' },
+  codex_model_catalog_unavailable: { label: '读取不到内核的模型目录，请到 设置 › AI 点「重新检测」' },
   provider_profile_requires_api_key: { label: '所选 AI 需要自己的 API Key', fix: API_KEY },
   local_runtime_missing: { label: '没找到本机的可执行文件', fix: EXE },
   bundled_runtime_missing: { label: '应用里没有带这个内核', fix: RUNSRC_FIX },
@@ -318,7 +318,7 @@ export const RUNTIME_ERROR: Readonly<Record<string, RuntimeError>> = {
   unknown_auth_method: { label: '这个 ACP agent 没有列出这种登录方式，请点「重新检测」后再登录' },
   local_node_missing: { label: '没找到本机的 Node 可执行文件', fix: EXE },
   pi_provider_model_required: { label: 'Pi 要写明服务提供方和模型', fix: PROVIDER },
-  pi_connection_missing: { label: 'Pi 没有能用的连接：写明服务提供方，或在 AI 账号 里用 ChatGPT 订阅或 API Key', fix: CONNECTION },
+  pi_connection_missing: { label: 'Pi 没有能用的连接：写明服务提供方，或在 设置 › AI 里用 ChatGPT 订阅或 API Key', fix: CONNECTION },
   acp_agent_missing: { label: '没有选 ACP agent，或选的 agent 找不到了', fix: ACP_AGENT },
   acp_auth_required: { label: '这个 ACP agent 还没有登录', fix: LOGIN },
   missing_anthropic_api_key: { label: '还没有保存 Anthropic API Key', fix: API_KEY },

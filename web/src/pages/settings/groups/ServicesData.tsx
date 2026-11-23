@@ -1,21 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getBridge } from '../../../bridge';
 import type { RuntimeSnapshot } from '../../../bridge/runtimeSnapshot';
-import type { ServiceActionResult, ServiceId, ServiceRecord, ServicesSaveResult } from '../../../bridge/services';
+import type { ServiceActionResult, ServiceId, ServiceRecord } from '../../../bridge/services';
 import { Region, type RegionSource } from '../../../ui';
 import { readServices } from '../api';
 import { useSettings } from '../ctx';
-import { ServicesGroup, type ServiceRejected } from './Services';
-
-const NAME: Record<ServiceId, string> = { tts: '语音服务', motion: '动作服务', llm: '模型服务' };
-
-type SaveError = Exclude<Extract<ServicesSaveResult, { ok: false }>['error'], 'invalid_record' | 'declined'>;
-const SAVE_REASON: Record<SaveError, string> = {
-  config_unreadable: '读不到配置文件',
-  write_failed: '配置文件写不进去',
-  token_not_cleared: '旧的语音令牌删不掉，地址没有改',
-  unknown_service: '外壳不认识这个服务',
-};
+import { SERVICE_NAME } from '../servicesDraft';
+import { ServicesGroup } from './Services';
 
 const ACT_VERB = { start: '启动', stop: '停止', restart: '重启' } as const;
 type Act = keyof typeof ACT_VERB;
@@ -27,7 +18,6 @@ const ACT_REASON: Record<Extract<ServiceActionResult, { ok: false }>['error'], s
   stop_failed: '',
 };
 
-const TOKEN_CLEARED = '语音服务地址换了，旧令牌已删除，请在声音组重新保存令牌';
 const NO_REPLY = '外壳没有响应';
 
 /** app.runtime's `services`, kept current, and a read again after an op; null until read. */
@@ -50,11 +40,10 @@ function useServiceRuntimes(): [RuntimeSnapshot['services'] | null, () => void] 
   return [services, reread];
 }
 
-/** 服务: config.json's `services` through the shell's `services.*`, with each one's state from app.runtime. */
+/** 服务: config.json's `services` through the shell's `services.*`, with each one's state from app.runtime; read again after each 应用. */
 export function ServicesData() {
   const { model, ro, goPage } = useSettings();
   const [records, setRecords] = useState<RegionSource<Record<ServiceId, ServiceRecord>>>({ status: 'pending', data: undefined });
-  const [rejected, setRejected] = useState<ServiceRejected | null>(null);
   const [busy, setBusy] = useState(false);
   const [runtimes, rereadRuntimes] = useServiceRuntimes();
 
@@ -66,33 +55,16 @@ export function ServicesData() {
       ),
     [],
   );
-  useEffect(() => void read(), [read]);
-
-  const save = async (id: ServiceId, record: ServiceRecord) => {
-    setBusy(true);
-    setRejected(null);
-    let r: ServicesSaveResult | null = null;
-    try {
-      r = await getBridge().services.save(id, record);
-    } catch {
-      model.notify({ message: `没有保存${NAME[id]}：${NO_REPLY}`, severity: 'danger', persistent: true });
-    }
-    if (r?.ok) {
-      await read();
-      rereadRuntimes();
-      model.notify(r.ttsTokenCleared ? { message: TOKEN_CLEARED, severity: 'warning', persistent: true } : { message: `已保存${NAME[id]}`, severity: 'success' });
-    } else if (r?.error === 'invalid_record') {
-      setRejected({ id, field: r.field, message: r.message });
-      model.notify({ message: `没有保存${NAME[id]}：${r.message}`, severity: 'danger', persistent: true });
-    } else if (r && r.error !== 'declined') {
-      model.notify({ message: `没有保存${NAME[id]}：${SAVE_REASON[r.error]}`, severity: 'danger', persistent: true });
-    }
-    setBusy(false);
-  };
+  // The bottom bar's 应用 writes what it saved into the model: the record and its state are read again.
+  const applied = [model.vals.svc_tts, model.vals.svc_motion, model.vals.svc_llm].join('\n');
+  useEffect(() => {
+    void read();
+    rereadRuntimes();
+  }, [read, rereadRuntimes, applied]);
 
   const run = (act: Act) => async (id: ServiceId) => {
     setBusy(true);
-    const what = `${ACT_VERB[act]}${NAME[id]}`;
+    const what = `${ACT_VERB[act]}${SERVICE_NAME[id]}`;
     try {
       const r = await getBridge().services[act](id);
       const reason = r.ok ? '' : ACT_REASON[r.error];
@@ -111,8 +83,6 @@ export function ServicesData() {
         <ServicesGroup
           records={data}
           runtimes={{ tts: runtimes?.tts ?? null, motion: runtimes?.motion ?? null, llm: runtimes?.llm ?? null }}
-          rejected={rejected}
-          onSave={(id, record) => void save(id, record)}
           onStart={(id) => void run('start')(id)}
           onStop={(id) => void run('stop')(id)}
           onRestart={(id) => void run('restart')(id)}

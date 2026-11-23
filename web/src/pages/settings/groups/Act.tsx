@@ -1,13 +1,10 @@
-import { useEffect, useState } from 'react';
 import { getBridge, type PermissionKind } from '../../../bridge';
 import type { VisualStateKey } from '../../../domain/states';
-import { failure, readMotion, saveMotion, type MotionSource } from '../api';
 import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
-import { Btn, Field, Fold } from '../../../ui';
+import { Btn, Fold } from '../../../ui';
 import { StatusLamp } from '../../../ui/game';
-import { Masked } from '../kit';
 import type { PermRow } from '../perms';
 import { labelOf } from '../registry';
 import { ScopeList } from '../ScopeList';
@@ -29,7 +26,7 @@ const ASKABLE: ReadonlySet<PermissionKind> = new Set(['microphone', 'inputMonito
 
 /** 能做: whether she may ask you, the capabilities she can take on (each a band), and the system permissions they need. */
 export function ActGroup() {
-  const { model, item, hl } = useSettings();
+  const { model, item, hl, goRow } = useSettings();
   const c = useControls();
   return (
     <>
@@ -49,8 +46,18 @@ export function ActGroup() {
           <ScopeList />
         </Band>
         <Band plugin="external_access" />
-        <Band plugin="motion_generation" fold="动作服务地址、令牌">
-          <MotionRows />
+        <Band plugin="motion_generation" fold="动作服务">
+          <SetRow
+            id="motionJump"
+            title="动作服务"
+            desc="地址和令牌在「服务 › 动作服务」里"
+            indent
+            control={
+              <Btn go onClick={() => goRow('motionToken', 'services')}>
+                去服务
+              </Btn>
+            }
+          />
         </Band>
       </SetSection>
 
@@ -156,57 +163,5 @@ function PermSection({ open: linked }: { open: boolean }) {
         </Fold>
       </div>
     </SetSection>
-  );
-}
-
-/** The self-hosted motion service's token (GET/PUT /motion/settings), sent once and never read back; its address is in 服务. */
-function MotionRows() {
-  const { model, agentdOff } = useSettings();
-  const [src, setSrc] = useState<MotionSource | null>(null);
-  const [token, setToken] = useState('');
-  useEffect(() => {
-    let live = true;
-    readMotion().then(
-      (r) => live && setSrc(r),
-      () => {},
-    );
-    return () => {
-      live = false;
-    };
-  }, [agentdOff]);
-  const save = (body: { token: string }, done: string, what: string) =>
-    src &&
-    void saveMotion({ backend: src.backend, ...body }).then(
-      (r) => {
-        setSrc(r);
-        setToken('');
-        model.notify({ message: done, severity: 'success' });
-      },
-      (e) => model.notify({ message: `${what}：${failure(e).text}`, severity: 'danger', persistent: true }),
-    );
-  const off = agentdOff || src == null;
-  return (
-    <>
-      <SetRow
-        id="motionToken"
-        title="令牌"
-        desc={src == null ? '还没读到后台的设置' : undefined}
-        indent
-        control={
-          <>
-            {src?.token_set && !token ? <Masked>已保存</Masked> : <Field type="password" label="动作服务令牌" placeholder="粘贴令牌" value={token} disabled={off} onChange={setToken} />}
-            {src?.token_set && !token ? (
-              <Btn disabled={off} onClick={() => save({ token: '' }, '已删除动作服务令牌', '没能删除令牌')}>
-                移除
-              </Btn>
-            ) : (
-              <Btn disabled={off || !token.trim()} onClick={() => save({ token: token.trim() }, '令牌已保存', '没能保存令牌')}>
-                保存
-              </Btn>
-            )}
-          </>
-        }
-      />
-    </>
   );
 }

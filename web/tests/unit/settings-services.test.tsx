@@ -4,14 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { RuntimeService } from '../../src/bridge/runtimeSnapshot';
 import type { ServiceId, ServiceRecord } from '../../src/bridge/services';
-import { PERMISSIONS } from '../../src/mock/fixtures';
+import type { WireDiagSlice } from '../../src/pages/settings/wire';
+import { PERMISSIONS, WIRE_DIAG_CONNECTIONS, WIRE_TTS } from '../../src/mock/fixtures';
 import { demoNative } from '../../src/mock/settings';
+import { ApplyBar } from '../../src/pages/settings/ApplyBar';
 import { SettingsCtx, type SettingsCtxValue } from '../../src/pages/settings/ctx';
 import { diagView } from '../../src/pages/settings/diag';
 import type { Native } from '../../src/pages/settings/native';
 import { useSettingsModel } from '../../src/pages/settings/model';
-import { joinCommand, ServicesGroup, splitCommand, type ServicesGroupProps } from '../../src/pages/settings/groups/Services';
+import { ServicesGroup, type ServicesGroupProps } from '../../src/pages/settings/groups/Services';
 import { ServicesData } from '../../src/pages/settings/groups/ServicesData';
+import { joinCommand, splitCommand } from '../../src/pages/settings/servicesDraft';
 import type { Go } from '../../src/shell/nav';
 
 afterEach(() => {
@@ -21,6 +24,7 @@ afterEach(() => {
 
 let native: Native;
 let goPage: Mock<Go>;
+let diag: WireDiagSlice | null;
 
 function Harness({ children }: { children: ReactNode }) {
   const model = useSettingsModel({}, { native, runtime: null });
@@ -37,7 +41,7 @@ function Harness({ children }: { children: ReactNode }) {
     runtimeChecking: false,
     recheckRuntime: async () => null,
     models: null,
-    diag: diagView(null),
+    diag: diagView(diag),
     blacklist: null,
     scopes: [],
     reload: () => {},
@@ -49,12 +53,14 @@ function Harness({ children }: { children: ReactNode }) {
   return (
     <SettingsCtx.Provider value={ctx}>
       {children}
+      <ApplyBar />
       {model.toast && <output data-testid="toast">{model.toast.message}</output>}
     </SettingsCtx.Provider>
   );
 }
 
 const OFF: ServiceRecord = { mode: 'off', url: '', ssh_host: '', start_script: '', command: [], cwd: '' };
+const LLM = '自建模型接口（兼容 API）';
 
 const MIXED: Record<ServiceId, ServiceRecord> = {
   tts: { ...OFF, mode: 'ssh', url: 'http://127.0.0.1:9880', ssh_host: 'gpu-box', start_script: '/srv/tts/ensure.sh' },
@@ -66,9 +72,11 @@ const MIXED_RT: Record<ServiceId, RuntimeService | null> = {
   motion: { mode: 'local', state: { kind: 'failed', reason: '进程退出，代码 1' }, pid: null, detail: null },
   llm: { mode: 'url', state: null, pid: null, detail: null },
 };
+const NONE: Record<ServiceId, RuntimeService | null> = { tts: null, motion: null, llm: null };
+const ALL_OFF: Record<ServiceId, ServiceRecord> = { tts: OFF, motion: OFF, llm: OFF };
 
 function draw(records: Record<ServiceId, ServiceRecord>, runtimes: Record<ServiceId, RuntimeService | null>) {
-  const props: ServicesGroupProps = { records, runtimes, onSave: vi.fn(), onStart: vi.fn(), onStop: vi.fn(), onRestart: vi.fn(), onLogs: vi.fn(), disabled: false };
+  const props: ServicesGroupProps = { records, runtimes, onStart: vi.fn(), onStop: vi.fn(), onRestart: vi.fn(), onLogs: vi.fn(), disabled: false };
   render(
     <Harness>
       <ServicesGroup {...props} />
@@ -77,123 +85,140 @@ function draw(records: Record<ServiceId, ServiceRecord>, runtimes: Record<Servic
   return props;
 }
 
-const row = (name: string) => screen.getByRole('group', { name });
-const unfold = (name: string) => fireEvent.click(screen.getByRole('button', { name: `${name} 接法` }));
-const pick = (name: string, mode: string) => fireEvent.click(within(screen.getByRole('radiogroup', { name: `${name} 接法` })).getByRole('radio', { name: mode }));
+const card = (name: string) => screen.getByRole('region', { name });
+const head = (name: string) => card(name).querySelector('header') as HTMLElement;
+const lamp = (name: string) => head(name).querySelector('[data-stub="StatusLamp"]')?.textContent ?? null;
+const seg = (name: string) => within(head(name)).getByRole('radiogroup', { name: `${name} 接法` });
+const pick = (name: string, mode: string) => act(async () => void fireEvent.click(within(seg(name)).getByRole('radio', { name: mode })));
+const picked = (name: string) => within(seg(name)).getAllByRole('radio').find((r) => r.getAttribute('aria-checked') === 'true')?.textContent;
 const fields = () => screen.queryAllByRole('textbox').map((f) => f.getAttribute('aria-label'));
+const type = (label: string, value: string) => fireEvent.change(screen.getByRole('textbox', { name: label }), { target: { value } });
+const click = (el: Element) => act(async () => void fireEvent.click(el));
+const apply = () => click(screen.getByRole('button', { name: '应用' }));
+const toast = () => screen.queryByTestId('toast')?.textContent ?? null;
 
-describe('settings › 服务', () => {
+describe('settings › 服务 cards', () => {
   beforeEach(async () => {
     window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
     native = await demoNative(null);
     goPage = vi.fn<Go>();
+    diag = null;
   });
 
-  it('all off: each fold says 关 and no row has start, stop or logs', () => {
-    draw({ tts: OFF, motion: OFF, llm: OFF }, { tts: null, motion: null, llm: null });
-    for (const name of ['语音服务', '动作服务', '模型服务']) {
-      expect(screen.getByRole('button', { name: `${name} 接法` }).textContent).toBe('关');
-      expect(within(row(name)).queryAllByRole('button')).toHaveLength(0);
+  it('show each service\'s name, who uses it, its 接法 and its lamp on the head, with nothing to open', () => {
+    draw(MIXED, MIXED_RT);
+    const who: Array<[string, string, string]> = [['语音服务', '说话出声用', 'SSH'], ['动作服务', '生成新动作用', '本机'], [LLM, 'Pi 选「兼容 API」时用', '地址']];
+    for (const [name, use, mode] of who) {
+      expect(head(name).textContent).toContain(use);
+      expect(picked(name)).toBe(mode);
+      expect(screen.queryByRole('button', { name: `${name} 接法` })).toBeNull();
     }
+    expect(lamp('语音服务')).toBe('运行中');
+    expect(lamp('动作服务')).toBe('失败');
+    expect(card('动作服务').textContent).toContain('进程退出，代码 1');
+    expect(fields()).toEqual(['语音服务 地址', '语音服务 SSH 主机', '语音服务 启动脚本', '动作服务 地址', '动作服务 命令', '动作服务 工作目录', `${LLM} 地址`]);
   });
 
-  it('each mode shows only its own fields', () => {
-    draw({ tts: OFF, motion: OFF, llm: OFF }, { tts: null, motion: null, llm: null });
-    unfold('语音服务');
+  it('light a voice service on 地址 by whether it answers, and an off one as 没开', () => {
+    diag = { connections: { ...WIRE_DIAG_CONNECTIONS, tts: WIRE_TTS.ready } } as WireDiagSlice;
+    draw({ ...ALL_OFF, tts: { ...OFF, mode: 'url', url: 'http://10.0.0.5:9880' } }, NONE);
+    expect(lamp('语音服务')).toBe('在线');
+    expect(lamp('动作服务')).toBe('没开');
+    cleanup();
+    diag = { connections: { ...WIRE_DIAG_CONNECTIONS, tts: WIRE_TTS.unreachable } } as WireDiagSlice;
+    draw({ ...ALL_OFF, tts: { ...OFF, mode: 'url', url: 'http://10.0.0.5:9880' } }, NONE);
+    expect(lamp('语音服务')).toBe('远端不通');
+  });
+
+  it('give start, stop, restart and logs a name and a tooltip, only where the shell runs the service', () => {
+    const p = draw(MIXED, MIXED_RT);
+    const tts = head('语音服务');
+    expect(within(tts).queryByRole('button', { name: '启动语音服务' })).toBeNull();
+    for (const name of ['停止语音服务', '重启语音服务', '语音服务日志']) {
+      const b = within(tts).getByRole('button', { name });
+      expect(b.getAttribute('title')).toBe(name);
+      fireEvent.click(b);
+    }
+    expect([p.onStop, p.onRestart, p.onLogs].map((f) => (f as Mock).mock.calls)).toEqual([[['tts']], [['tts']], [['tts']]]);
+    fireEvent.click(within(head('动作服务')).getByRole('button', { name: '启动动作服务' }));
+    expect(p.onStart).toHaveBeenCalledWith('motion');
+    expect(within(head(LLM)).queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('show only the picked 接法\'s fields', async () => {
+    draw(ALL_OFF, NONE);
     expect(fields()).toEqual([]);
-    pick('语音服务', '地址');
+    await pick('语音服务', '地址');
     expect(fields()).toEqual(['语音服务 地址']);
-    pick('语音服务', 'SSH');
+    await pick('语音服务', 'SSH');
     expect(fields()).toEqual(['语音服务 地址', '语音服务 SSH 主机', '语音服务 启动脚本']);
-    pick('语音服务', '本机');
+    await pick('语音服务', '本机');
     expect(fields()).toEqual(['语音服务 地址', '语音服务 命令', '语音服务 工作目录']);
-    pick('语音服务', '关');
+    await pick('语音服务', '关');
     expect(fields()).toEqual([]);
     expect(screen.queryByRole('button', { name: '保存' })).toBeNull();
   });
 
-  it('saves the whole record: an address after a switch to 地址', () => {
-    const p = draw({ tts: OFF, motion: OFF, llm: OFF }, { tts: null, motion: null, llm: null });
-    unfold('模型服务');
-    pick('模型服务', '地址');
-    fireEvent.change(screen.getByRole('textbox', { name: '模型服务 地址' }), { target: { value: 'http://10.0.0.5:8000/v1' } });
-    fireEvent.click(screen.getByRole('button', { name: '保存' }));
-    expect(p.onSave).toHaveBeenCalledWith('llm', { ...OFF, mode: 'url', url: 'http://10.0.0.5:8000/v1' });
+  it('show a change as one draft on the head and in the bottom bar, and apply it whole there; no 保存 of their own', async () => {
+    const save = vi.spyOn(window.agenticComplex!.services, 'save');
+    draw(MIXED, MIXED_RT);
+    await pick('动作服务', '关');
+    expect(picked('动作服务')).toBe('关');
+    expect(head('动作服务').textContent).toContain('未应用 │ 现在：本机');
+    // The lamp still says what runs: the saved record.
+    expect(lamp('动作服务')).toBe('失败');
+    expect(screen.getByRole('region', { name: '未应用的改动' }).textContent).toContain('未应用 1 项');
+    // The only 保存 left are the secrets', which go to agentd at once; the motion card on 关 shows none.
+    expect(screen.getAllByRole('button', { name: '保存' }).map((b) => b.closest('[data-row]')?.getAttribute('data-row'))).toEqual(['ttsToken', 'svc_llm_key']);
+    await pick('动作服务', '本机');
+    expect(head('动作服务').textContent).not.toContain('未应用');
+    await pick(LLM, '关');
+    await apply();
+    expect(save).toHaveBeenCalledWith('llm', OFF_URL(MIXED.llm));
   });
 
-  it('ssh running, local failed with its reason, url with no start or stop', () => {
-    const p = draw(MIXED, MIXED_RT);
-    const tts = row('语音服务');
-    expect(within(tts).getByText('运行中')).toBeTruthy();
-    expect(within(tts).queryByRole('button', { name: '启动语音服务' })).toBeNull();
-    fireEvent.click(within(tts).getByRole('button', { name: '停止语音服务' }));
-    fireEvent.click(within(tts).getByRole('button', { name: '重启语音服务' }));
-    fireEvent.click(within(tts).getByRole('button', { name: '语音服务日志' }));
-    expect([p.onStop, p.onRestart, p.onLogs].map((f) => (f as ReturnType<typeof vi.fn>).mock.calls)).toEqual([[['tts']], [['tts']], [['tts']]]);
-    expect(screen.getByText('gpu-box', { exact: false }).textContent).toBe('http://127.0.0.1:9880 │ gpu-box │ pid 4321');
-
-    const motion = row('动作服务');
-    expect(within(motion).getByText('失败')).toBeTruthy();
-    expect(within(motion).getByText('进程退出，代码 1')).toBeTruthy();
-    expect(within(motion).queryByRole('button', { name: '停止动作服务' })).toBeNull();
-    fireEvent.click(within(motion).getByRole('button', { name: '启动动作服务' }));
-    expect(p.onStart).toHaveBeenCalledWith('motion');
-
-    expect(within(row('模型服务')).queryAllByRole('button')).toHaveLength(0);
-    expect(screen.getByRole('button', { name: '模型服务 接法' }).textContent).toBe('地址http://10.0.0.5:8000/v1');
-  });
-
-  it('the command field splits on whitespace but not inside quotes, and shows argv the same way', () => {
-    const p = draw(MIXED, MIXED_RT);
-    unfold('动作服务');
+  it('send the command split on whitespace but not inside quotes, and show argv the same way', async () => {
+    const save = vi.spyOn(window.agenticComplex!.services, 'save');
+    draw(MIXED, MIXED_RT);
     const cmd = screen.getByRole('textbox', { name: '动作服务 命令' }) as HTMLInputElement;
     expect(cmd.value).toBe('python3 -m motion.serve --name "my model"');
-    fireEvent.change(cmd, { target: { value: `  ./run.sh   --dir "/a b/c"  'say "hi"' "" ` } });
-    fireEvent.click(screen.getByRole('button', { name: '保存' }));
-    expect(p.onSave).toHaveBeenCalledWith('motion', { ...MIXED.motion, command: ['./run.sh', '--dir', '/a b/c', 'say "hi"', ''] });
+    type('动作服务 命令', `  ./run.sh   --dir "/a b/c"  'say "hi"' "" `);
+    await apply();
+    expect(save).toHaveBeenCalledWith('motion', { ...MIXED.motion, command: ['./run.sh', '--dir', '/a b/c', 'say "hi"', ''] });
   });
 
-  it('ssh with an address that is not loopback with a port cannot be saved', () => {
-    const p = draw(MIXED, MIXED_RT);
-    unfold('语音服务');
-    const url = screen.getByRole('textbox', { name: '语音服务 地址' });
-    fireEvent.change(url, { target: { value: 'http://gpu-box:9880' } });
-    expect(url.getAttribute('aria-invalid')).toBe('true');
-    expect(screen.getByRole('group', { name: '地址' }).textContent).toContain('要填回环地址和端口');
-    fireEvent.click(screen.getByRole('button', { name: '保存' }));
-    expect(p.onSave).not.toHaveBeenCalled();
+  it('keep an ssh address that is not loopback with a port from being applied', async () => {
+    const save = vi.spyOn(window.agenticComplex!.services, 'save');
+    draw(MIXED, MIXED_RT);
+    type('语音服务 地址', 'http://gpu-box:9880');
+    expect(screen.getByRole('textbox', { name: '语音服务 地址' }).getAttribute('aria-invalid')).toBe('true');
+    expect(within(card('语音服务')).getByRole('group', { name: '地址' }).textContent).toContain('要填回环地址和端口');
+    await apply();
+    expect(save).not.toHaveBeenCalled();
+    expect(toast()).toBe('没有保存语音服务：要填回环地址和端口');
+    expect(head('语音服务').textContent).toContain('未应用');
   });
 
-  it('saves the address, host, script and directory without the blanks around them', () => {
-    const p = draw({ tts: OFF, motion: OFF, llm: OFF }, { tts: null, motion: null, llm: null });
-    unfold('语音服务');
-    pick('语音服务', 'SSH');
-    const type = (name: string, value: string) => fireEvent.change(screen.getByRole('textbox', { name: `语音服务 ${name}` }), { target: { value } });
-    type('地址', ' http://127.0.0.1:9880\n');
-    type('SSH 主机', '  gpu-box ');
-    type('启动脚本', ' /srv/tts/ensure.sh ');
-    fireEvent.click(screen.getByRole('button', { name: '保存' }));
-    expect(p.onSave).toHaveBeenLastCalledWith('tts', { ...OFF, mode: 'ssh', url: 'http://127.0.0.1:9880', ssh_host: 'gpu-box', start_script: '/srv/tts/ensure.sh' });
-    pick('语音服务', '本机');
-    type('命令', 'serve');
-    type('工作目录', ' /srv/tts ');
-    fireEvent.click(screen.getByRole('button', { name: '保存' }));
-    expect(p.onSave).toHaveBeenLastCalledWith('tts', { ...OFF, mode: 'local', url: 'http://127.0.0.1:9880', ssh_host: 'gpu-box',
-      start_script: '/srv/tts/ensure.sh', command: ['serve'], cwd: '/srv/tts' });
+  it('send the address, host, script and directory without the blanks around them', async () => {
+    const save = vi.spyOn(window.agenticComplex!.services, 'save');
+    draw(ALL_OFF, NONE);
+    await pick('语音服务', 'SSH');
+    type('语音服务 地址', ' http://127.0.0.1:9880\n');
+    type('语音服务 SSH 主机', '  gpu-box ');
+    type('语音服务 启动脚本', ' /srv/tts/ensure.sh ');
+    await apply();
+    expect(save).toHaveBeenLastCalledWith('tts', { ...OFF, mode: 'ssh', url: 'http://127.0.0.1:9880', ssh_host: 'gpu-box', start_script: '/srv/tts/ensure.sh' });
   });
 
-  it('an address with user information, a query or a fragment cannot be saved, as the shell and agentd refuse it', () => {
-    const p = draw({ tts: OFF, motion: OFF, llm: OFF }, { tts: null, motion: null, llm: null });
-    unfold('语音服务');
-    pick('语音服务', '地址');
+  it('refuse an address with user information, a query or a fragment, as the shell and agentd do', async () => {
+    draw(ALL_OFF, NONE);
+    await pick('语音服务', '地址');
     const url = screen.getByRole('textbox', { name: '语音服务 地址' });
     for (const value of ['http://me:pw@gpu-box:9880', 'http://me@gpu-box:9880', 'http://gpu-box:9880/?a=1', 'http://gpu-box:9880/#x']) {
       fireEvent.change(url, { target: { value } });
       expect(url.getAttribute('aria-invalid'), value).toBe('true');
-      expect(screen.getByRole('group', { name: '地址' }).textContent, value).toContain('不能带用户名、密码、查询串或片段');
-      fireEvent.click(screen.getByRole('button', { name: '保存' }));
+      expect(within(card('语音服务')).getByRole('group', { name: '地址' }).textContent, value).toContain('不能带用户名、密码、查询串或片段');
     }
-    expect(p.onSave).not.toHaveBeenCalled();
   });
 
   it('joinCommand undoes splitCommand', () => {
@@ -202,77 +227,79 @@ describe('settings › 服务', () => {
   });
 });
 
+const OFF_URL = (r: ServiceRecord): ServiceRecord => ({ ...r, mode: 'off' });
+
 describe('settings › 服务 wired to services.* and app.runtime', () => {
   beforeEach(async () => {
     window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
     native = await demoNative(null);
     goPage = vi.fn<Go>();
+    diag = null;
   });
 
   const bridge = () => window.agenticComplex!;
-  const click = (el: Element) => act(async () => void fireEvent.click(el));
-  const toast = () => screen.queryByTestId('toast')?.textContent ?? null;
   const mount = async () => {
     render(
       <Harness>
         <ServicesData />
       </Harness>,
     );
-    await screen.findByRole('button', { name: '模型服务 接法' });
+    await screen.findByRole('region', { name: LLM });
   };
-  const saveLlmUrl = async (url: string) => {
-    unfold('模型服务');
-    pick('模型服务', '地址');
-    fireEvent.change(screen.getByRole('textbox', { name: '模型服务 地址' }), { target: { value: url } });
-    await click(screen.getByRole('button', { name: '保存' }));
+  const applyLlmUrl = async (url: string) => {
+    await pick(LLM, '地址');
+    type(`${LLM} 地址`, url);
+    await apply();
   };
 
-  it('saves through services.save and shows the record read back', async () => {
+  it('applies through services.save and shows the record read back as saved', async () => {
     const save = vi.spyOn(bridge().services, 'save');
     await mount();
-    await saveLlmUrl('https://llm.example:8000/v1');
+    await applyLlmUrl('https://llm.example:8000/v1');
     expect(save).toHaveBeenCalledWith('llm', { mode: 'url', url: 'https://llm.example:8000/v1', ssh_host: '', start_script: '', command: [], cwd: '' });
-    expect(toast()).toBe('已保存模型服务');
-    expect((await screen.findByRole('button', { name: '模型服务 接法' })).textContent).toBe('地址https://llm.example:8000/v1');
+    expect(toast()).toBe('已应用 1 项');
+    expect(picked(LLM)).toBe('地址');
+    expect(head(LLM).textContent).not.toContain('未应用');
+    expect((screen.getByRole('textbox', { name: `${LLM} 地址` }) as HTMLInputElement).value).toBe('https://llm.example:8000/v1');
   });
 
-  it('reads the state again after a save: a service now run over ssh shows 运行中', async () => {
+  it('reads the state again after applying: a service now run over ssh shows 运行中', async () => {
     await mount();
-    unfold('语音服务');
-    pick('语音服务', 'SSH');
-    fireEvent.change(screen.getByRole('textbox', { name: '语音服务 地址' }), { target: { value: 'http://127.0.0.1:9880' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '语音服务 SSH 主机' }), { target: { value: 'gpu-box' } });
-    await click(screen.getByRole('button', { name: '保存' }));
-    expect(await within(row('语音服务')).findByText('运行中')).toBeTruthy();
+    await pick('语音服务', 'SSH');
+    type('语音服务 地址', 'http://127.0.0.1:9880');
+    type('语音服务 SSH 主机', 'gpu-box');
+    await apply();
+    await vi.waitFor(() => expect(lamp('语音服务')).toBe('运行中'));
   });
 
-  it('invalid_record: says the shell\'s message and marks that field', async () => {
+  it('invalid_record: says the shell\'s message, marks that field and keeps the draft', async () => {
     const message = '服务 llm 的地址要用 https://（本机可用 http）';
     vi.spyOn(bridge().services, 'save').mockResolvedValue({ ok: false, error: 'invalid_record', field: 'url', message });
     await mount();
-    await saveLlmUrl('http://10.0.0.5:8000/v1');
-    expect(toast()).toBe(`没有保存模型服务：${message}`);
-    expect(screen.getByRole('textbox', { name: '模型服务 地址' }).getAttribute('aria-invalid')).toBe('true');
-    expect(screen.getByRole('group', { name: '地址' }).textContent).toContain(message);
+    await applyLlmUrl('http://10.0.0.5:8000/v1');
+    expect(toast()).toBe(`没有保存${LLM}：${message}`);
+    expect(screen.getByRole('textbox', { name: `${LLM} 地址` }).getAttribute('aria-invalid')).toBe('true');
+    expect(within(card(LLM)).getByRole('group', { name: '地址' }).textContent).toContain(message);
+    expect(head(LLM).textContent).toContain('未应用');
   });
 
-  it('a declined save says nothing; the other refusals each say a fixed reason', async () => {
+  it('a declined save says nothing and keeps the draft; the other refusals each say a fixed reason', async () => {
     const save = vi.spyOn(bridge().services, 'save').mockResolvedValue({ ok: false, error: 'declined' });
     await mount();
-    await saveLlmUrl('https://llm.example/v1');
+    await applyLlmUrl('https://llm.example/v1');
     expect(toast()).toBeNull();
     save.mockResolvedValue({ ok: false, error: 'write_failed', message: 'EACCES' });
-    await click(screen.getByRole('button', { name: '保存' }));
-    expect(toast()).toBe('没有保存模型服务：配置文件写不进去');
+    await apply();
+    expect(toast()).toBe(`没有保存${LLM}：配置文件写不进去`);
   });
 
-  it('ttsTokenCleared: asks for the token again in 声音', async () => {
+  it('ttsTokenCleared: names the voice card, where the token is saved again', async () => {
     vi.spyOn(bridge().services, 'save').mockResolvedValue({ ok: true, ttsTokenCleared: true });
     await mount();
-    unfold('语音服务');
-    pick('语音服务', '地址');
-    await click(screen.getByRole('button', { name: '保存' }));
-    expect(toast()).toBe('语音服务地址换了，旧令牌已删除，请在声音组重新保存令牌');
+    await pick('语音服务', '地址');
+    type('语音服务 地址', 'http://10.0.0.5:9880');
+    await apply();
+    expect(toast()).toBe('语音服务地址换了，旧令牌已删除，请在「服务 › 语音服务」里重新保存令牌');
   });
 
   it('start, stop and restart call their op; a failure says why with the script\'s line; logs open the services source', async () => {
@@ -288,15 +315,15 @@ describe('settings › 服务 wired to services.* and app.runtime', () => {
     const restart = vi.spyOn(ops, 'restart');
     const start = vi.spyOn(ops, 'start');
     await mount();
-    const tts = row('语音服务');
-    await within(tts).findByText('运行中');
+    await vi.waitFor(() => expect(lamp('语音服务')).toBe('运行中'));
+    const tts = head('语音服务');
     await click(within(tts).getByRole('button', { name: '停止语音服务' }));
     expect(stop).toHaveBeenCalledWith('tts');
     expect(toast()).toBe('没能停止语音服务 │ ssh: connect to host gpu-box port 22: Connection refused');
     await click(within(tts).getByRole('button', { name: '重启语音服务' }));
     expect(restart).toHaveBeenCalledWith('tts');
     expect(toast()).toBe('已重启语音服务');
-    await click(within(row('动作服务')).getByRole('button', { name: '启动动作服务' }));
+    await click(within(head('动作服务')).getByRole('button', { name: '启动动作服务' }));
     expect(start).toHaveBeenCalledWith('motion');
     await click(within(tts).getByRole('button', { name: '语音服务日志' }));
     expect(goPage).toHaveBeenCalledWith({ page: 'diag', tab: 'logs', src: 'services' });

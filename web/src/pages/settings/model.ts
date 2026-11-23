@@ -6,6 +6,7 @@ import { clock, failure, saveModels, saveRuntime } from './api';
 import { modelsBody, modelVals, runtimeBody, runtimeVals, targetOf, type Handles, type Target, type Vals } from './fields';
 import type { Native } from './native';
 import { DELETE_WHAT, DRAFT_SECTION, labelOf } from './registry';
+import { applyService, serviceOf, TOKEN_CLEARED, type ServiceDraft, type ServiceRejected } from './servicesDraft';
 import type { WireModelSettings } from './wire';
 
 export type { Vals };
@@ -88,6 +89,8 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(init.confirm ?? null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const [restarting, setRestarting] = useState(false);
+  // Service cards' fields the last 应用 refused, by card row.
+  const [rejected, setRejected] = useState<Record<string, ServiceRejected>>({});
   const timers = useRef<number[]>([]);
   const handles = useRef<Handles>({});
   const s = useRef(src);
@@ -229,19 +232,39 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     [set],
   );
 
-  /** Saves every draft at once (the bottom「未应用 N 项」bar); a failed target keeps its drafts. */
+  /** Saves every draft at once (the bottom「未应用 N 项」bar): agentd's first, then each service card's; a failed target keeps its drafts. */
   const applyAll = useCallback(async () => {
     const n = Object.keys(draft).length;
     if (n === 0) return;
-    if (!(await saveAgentd({ ...draft }, `${n} 项改动`))) return;
+    const agentd = Object.fromEntries(Object.entries(draft).filter(([id]) => !serviceOf(id)));
+    if (Object.keys(agentd).length && !(await saveAgentd(agentd, `${n} 项改动`))) return;
     handles.current = {};
-    setDraft({});
-    setToast({ message: `已应用 ${n} 项`, severity: 'success' });
+    const left: Vals = {};
+    const refused: Record<string, ServiceRejected> = {};
+    let note: ToastSpec | null = null;
+    for (const [row, v] of Object.entries(draft)) {
+      const id = serviceOf(row);
+      if (!id) continue;
+      const r = await applyService(id, JSON.parse(String(v)) as ServiceDraft);
+      if (r.ok) {
+        setVals((x) => ({ ...x, [row]: JSON.stringify(r.record) }));
+        if (r.tokenCleared) note = { message: TOKEN_CLEARED, severity: 'warning', persistent: true };
+        continue;
+      }
+      left[row] = v;
+      if (r.rejected) refused[row] = r.rejected;
+      if (r.message) note = { message: r.message, severity: 'danger', persistent: true };
+    }
+    setRejected(refused);
+    setDraft(left);
+    const done = n - Object.keys(left).length;
+    setToast(note ?? (done ? { message: `已应用 ${done} 项`, severity: 'success' } : null));
   }, [saveAgentd, draft]);
 
   const revertAll = useCallback(() => {
     handles.current = {};
     setDraft({});
+    setRejected({});
   }, []);
 
   const restartBackend = useCallback(async () => {
@@ -278,6 +301,7 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     confirm,
     toast,
     restarting,
+    rejected,
     value,
     set,
     setHandle,

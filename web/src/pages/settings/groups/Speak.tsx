@@ -19,7 +19,6 @@ import { SetSection } from '../SetSection';
 import { Slab } from '../Slab';
 import { MUTED_KIND } from './GateBlocked';
 import { QuietHoursRow, useProactiveSettings } from './SpeakCompanion';
-import { VoiceService } from './SpeakService';
 import { SILENT_LEVEL, SpeakWhenRow } from './SpeakWhen';
 import styles from '../groups.module.css';
 
@@ -31,7 +30,7 @@ const NOTIFY: Array<[id: string, label: string, note: string]> = [
   ['n_remind', '提醒', '你设的提醒'],
 ];
 
-const VOICE_TONE: Record<VoiceState, VisualStateKey> = { ready: 'ok', unknown: 'idle', probing: 'waiting', cold: 'waiting', unreachable: 'broken', off: 'stopped' };
+export const VOICE_TONE: Record<VoiceState, VisualStateKey> = { ready: 'ok', unknown: 'idle', probing: 'waiting', cold: 'waiting', unreachable: 'broken', off: 'stopped' };
 
 /** 说话: voice and its self-hosted service, when she speaks up, how things reach you. */
 export function SpeakGroup() {
@@ -119,7 +118,17 @@ export function SpeakGroup() {
                 )
               }
             />
-            <VoiceService down={down} />
+            <SetRow
+              id="ttsJump"
+              title="令牌和测试"
+              desc="在「服务 › 语音服务」里"
+              indent
+              control={
+                <Btn go onClick={() => goRow('ttsToken', 'services')}>
+                  去服务
+                </Btn>
+              }
+            />
           </Linked>
         )}
         <SetRow id="asr" title={labelOf('asr')} desc="按住说话时用" control={c.seg('asr')} />

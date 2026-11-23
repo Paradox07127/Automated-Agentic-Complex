@@ -12,7 +12,7 @@ import styles from './rows.module.css';
 /** What each capability does, needs and costs (the 做 / 要 / 花 line, hidden in a narrow window); `tip`, the ⓘ, says what switching it changes, what leaves the computer and that it waits for a restart. */
 export const BAND: Record<PluginId, { does: string; needs: string; cost: string; tip: string; perms?: PermissionKind[] }> = {
   light_ai: { does: '聊天、记得聊过的事、主动搭话', needs: '一个模型账号', cost: '按模型用量计',
-    tip: 'Pi 内核、日常对话、语音、记忆和主动搭话都靠这个开关。对话内容会发给下面选的模型服务。关掉后 Pi 不能用；「内核 › 外接 harness」也关着时，角色就不能对话了。改了要重启后台服务才生效。' },
+    tip: '日常对话、语音、记忆和主动搭话都靠这个开关，不管内核是哪个。对话内容会发给选好的内核和模型。关掉后角色就不能对话了。改了要重启后台服务才生效。' },
   screen_awareness: { does: '一直看前台窗口和活动，用来主动搭话和写简报', needs: '辅助功能、屏幕录制', cost: '本机少量 CPU；只把下面打开的项发给模型', perms: ['accessibility', 'screenRecording'],
     tip: '打开后在本机一直读前台窗口和活动。下面打开的项会发给模型，关着的项只留在本机。关掉后角色少了主动搭话的时机，每日简报也没有内容可写。改了要重启后台服务才生效。' },
   screen_reading: { does: '按热键时读一次屏幕、选中的字或剪贴板', needs: '屏幕录制', cost: '每次一张截图（打开附图时）', perms: ['screenRecording'],
@@ -28,7 +28,7 @@ export const BAND: Record<PluginId, { does: string; needs: string; cost: string;
   external_access: { does: '让别的智能体通过 MCP 或命令行和她对话', needs: '无', cost: '对方每次调用用你的模型额度',
     tip: '允许本机上别的智能体通过 MCP 或命令行和角色对话，对方的每次调用都用你的模型额度。关着时不接受这类接入。改了要重启后台服务才生效。' },
   motion_generation: { does: '按你的描述生成新的动作', needs: '自己部署的动作服务（本机 GPU）', cost: '只用你自己的服务',
-    tip: '按你的描述生成新的动作，只调用你自己部署的动作服务（Kimodo，本机 GPU）。服务地址在「服务」里填，令牌在下面填。改了要重启后台服务才生效。' },
+    tip: '按你的描述生成新的动作，只调用你自己部署的动作服务（Kimodo，本机 GPU）。服务地址和令牌都在「服务 › 动作服务」里填。改了要重启后台服务才生效。' },
   harness_bridge: { does: '改用本机的 Claude Code、Codex 或 ACP 智能体当内核', needs: '本机已经安装并登录对应工具', cost: '用那个工具自己的账号和额度',
     tip: '打开后可以把内核换成本机的 Codex、Claude Code 或 ACP 智能体，默认用那个工具自己的登录和额度。关着时只能用 Pi。改了要重启后台服务才生效。' },
 };

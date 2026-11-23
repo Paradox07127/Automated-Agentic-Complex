@@ -14,7 +14,7 @@ import { runtimeView, SettingsCtx, type SettingsCtxValue } from '../../src/pages
 import { diagView } from '../../src/pages/settings/diag';
 import { modelTestText, RUNTIME_ERROR, SVC } from '../../src/pages/settings/fields';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
-import { ModelGroup } from '../../src/pages/settings/groups/Model';
+import { PiSections } from '../../src/pages/settings/groups/Model';
 import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model';
 import type { Native } from '../../src/pages/settings/native';
 import type { WireModelSettings } from '../../src/pages/settings/wire';
@@ -87,7 +87,7 @@ const compatible = (base_url: string): WireModelSettings => ({ ...d.models, prov
 describe('Grok / xAI in pi 账号与凭据', () => {
   it('is a model service with its own key slot and no address row, like DeepSeek', async () => {
     expect(SVC.find((o) => o.value === 'xai')?.label).toBe('Grok / xAI');
-    render(<Harness d={{ ...d, models: { ...d.models, provider: 'xai' } }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...d, models: { ...d.models, provider: 'xai' } }}><PiSections /></Harness>);
     expect(row('apiBase')).toBeNull();
     fireEvent.change(row('apikey')!.querySelector('input[aria-label="API Key"]')!, { target: { value: 'xai-0123456789' } });
     await click(within(row('apikey')!).getByRole('button', { name: '保存' }));
@@ -103,14 +103,14 @@ describe('测试连接 result', () => {
   });
 
   it('leaves out the null fields of another kernel', async () => {
-    render(<Harness d={d}><ModelGroup /></Harness>);
+    render(<Harness d={d}><PiSections /></Harness>);
     await click(screen.getByRole('button', { name: '测试' }));
     expect(row('mtest')?.textContent).toContain('已连通 │ Codex │ claude-haiku-5-5 │ 812 ms');
     expect(row('mtest')?.textContent).not.toMatch(/tokens|\$/);
   });
 
   it('shows a failed test by the code text, not the generic sentence', async () => {
-    render(<Harness d={d}><ModelGroup /></Harness>);
+    render(<Harness d={d}><PiSections /></Harness>);
     await settle();
     request.mockRejectedValueOnce(new AgentdCallError(400, 'auth_expired', undefined, {}, 'x'));
     await click(screen.getByRole('button', { name: '测试' }));
@@ -120,13 +120,13 @@ describe('测试连接 result', () => {
 
 describe('刷新列表', () => {
   it('waits while the service choice is an unsaved draft', async () => {
-    render(<Harness d={d} init={{ draft: { svc: 'openai' } }}><ModelGroup /></Harness>);
+    render(<Harness d={d} init={{ draft: { svc: 'openai' } }}><PiSections /></Harness>);
     const fetch = () => within(row('chatModel')!).getByRole('button', { name: '刷新列表' });
     expect(fetch().getAttribute('aria-disabled')).toBe('true');
     await click(fetch());
     expect(sent('POST', '/model/catalog')).toBeUndefined();
     cleanup();
-    render(<Harness d={d}><ModelGroup /></Harness>);
+    render(<Harness d={d}><PiSections /></Harness>);
     expect(fetch().getAttribute('aria-disabled')).toBeNull();
   });
 });
@@ -135,7 +135,7 @@ describe("Pi's model catalog", () => {
   const withModel = (model: string): Loaded => ({ ...d, models: { ...d.models, backends: { ...d.models.backends, anthropic: { ...d.models.backends.anthropic, model } } } });
 
   it("lists a Pi service's models from the catalog without a click, with the picked model's capabilities", async () => {
-    render(<Harness d={d}><ModelGroup /></Harness>);
+    render(<Harness d={d}><PiSections /></Harness>);
     await settle();
     expect(sent('POST', '/model/catalog')).toEqual({});
     expect(await options('默认模型')).toEqual(['Claude Haiku 5.5', 'Claude Sonnet 5', 'Claude Instant 2']);
@@ -143,25 +143,25 @@ describe("Pi's model catalog", () => {
   });
 
   it("shows 思考强度 for a thinking model only, with that model's levels, and saves the pick", async () => {
-    render(<Harness d={d}><ModelGroup /><ApplyBar /></Harness>);
+    render(<Harness d={d}><PiSections /><ApplyBar /></Harness>);
     await settle();
     expect(await options('思考强度')).toEqual(['模型默认', '不思考', '最低', '低', '中', '高']);
     await click(screen.getByRole('option', { name: '高' }));
     await click(screen.getByRole('button', { name: '应用' }));
     expect(sent('POST', '/model/settings')).toEqual({ provider: 'anthropic', reasoning_effort: 'high' });
     cleanup();
-    render(<Harness d={withModel('claude-sonnet-5')}><ModelGroup /></Harness>);
+    render(<Harness d={withModel('claude-sonnet-5')}><PiSections /></Harness>);
     await settle();
     expect(await options('思考强度')).toEqual(['模型默认', '不思考', '最低', '低', '中', '高', '很高', '最高']);
     cleanup();
-    render(<Harness d={withModel('claude-instant-2')}><ModelGroup /></Harness>);
+    render(<Harness d={withModel('claude-instant-2')}><PiSections /></Harness>);
     await settle();
     expect(row('think')).toBeNull();
     expect(row('chatModel')?.textContent).toContain('上下文 100k │ 最大输出 4k │ 不计价');
   });
 
   it('leaves a compatible API and ChatGPT to their own list, fetched on a click', async () => {
-    render(<Harness d={{ ...d, models: compatible('http://127.0.0.1:11434/v1') }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...d, models: compatible('http://127.0.0.1:11434/v1') }}><PiSections /></Harness>);
     await settle();
     expect(sent('POST', '/model/catalog')).toBeUndefined();
     expect(row('think')).toBeNull();
@@ -175,7 +175,7 @@ describe('the model of a compatible API', () => {
   };
 
   it('has a 模型能力 group whose rows write the compatible connection', async () => {
-    render(<Harness d={caps({})}><ModelGroup /></Harness>);
+    render(<Harness d={caps({})}><PiSections /></Harness>);
     expect((row('ctxWindow')!.querySelector('input') as HTMLInputElement).value).toBe('128k');
     await click(screen.getByRole('button', { name: '上下文长度：增加' }));
     expect(sent('POST', '/model/settings')).toEqual({ provider: 'compatible', context_window: 144000 });
@@ -191,15 +191,15 @@ describe('the model of a compatible API', () => {
   });
 
   it("offers Pi's levels for a thinking model without a level map once 思考 is on", async () => {
-    render(<Harness d={caps({ reasoning: false })}><ModelGroup /></Harness>);
+    render(<Harness d={caps({ reasoning: false })}><PiSections /></Harness>);
     expect(row('think')).toBeNull();
     cleanup();
-    render(<Harness d={caps({ reasoning: true })}><ModelGroup /></Harness>);
+    render(<Harness d={caps({ reasoning: true })}><PiSections /></Harness>);
     expect(await options('思考强度')).toEqual(['模型默认', '不思考', '最低', '低', '中', '高']);
   });
 
   it('waits for the service choice before writing a capability', () => {
-    render(<Harness d={caps({})} init={{ draft: { svc: 'compatible' } }}><ModelGroup /></Harness>);
+    render(<Harness d={caps({})} init={{ draft: { svc: 'compatible' } }}><PiSections /></Harness>);
     expect(screen.getByRole('switch', { name: '图像输入' }).getAttribute('aria-disabled')).toBe('true');
   });
 });
@@ -212,21 +212,21 @@ describe('其他（Pi 目录）', () => {
 
   it("is a model service whose provider comes from Pi's catalog, less the services with their own entry", async () => {
     expect(SVC.find((o) => o.value === 'pi_catalog')?.label).toBe('其他（Pi 目录）');
-    render(<Harness d={other('')}><ModelGroup /><ApplyBar /></Harness>);
+    render(<Harness d={other('')}><PiSections /><ApplyBar /></Harness>);
     await settle();
     expect(row('apiBase')).toBeNull();
-    // The catalog's providers join the one 模型服务 list by name, in place of the bare 其他（Pi 目录）; picking one is a draft of that section.
-    expect((await options('模型服务')).filter((o) => o?.endsWith('（Pi 目录）'))).toEqual(['Groq（Pi 目录）', 'OpenRouter（Pi 目录）']);
+    // The catalog's providers join the one 模型提供方 list by name, in place of the bare 其他（Pi 目录）; picking one is a draft of that section.
+    expect((await options('模型提供方')).filter((o) => o?.endsWith('（Pi 目录）'))).toEqual(['Groq（Pi 目录）', 'OpenRouter（Pi 目录）']);
     await click(screen.getByRole('option', { name: 'Groq（Pi 目录）' }));
     await click(screen.getByRole('button', { name: '应用' }));
     expect(sent('POST', '/model/settings')).toEqual({ provider: 'pi_catalog', pi_provider: 'groq' });
   });
 
   it("keeps the key in the chosen provider's slot, and has none to fill before a provider is chosen", async () => {
-    render(<Harness d={other('')}><ModelGroup /></Harness>);
+    render(<Harness d={other('')}><PiSections /></Harness>);
     expect((row('apikey')!.querySelector('input[aria-label="API Key"]') as HTMLInputElement).disabled).toBe(true);
     cleanup();
-    render(<Harness d={other('groq')}><ModelGroup /></Harness>);
+    render(<Harness d={other('groq')}><PiSections /></Harness>);
     fireEvent.change(row('apikey')!.querySelector('input[aria-label="API Key"]')!, { target: { value: 'gsk-0123456789' } });
     await click(within(row('apikey')!).getByRole('button', { name: '保存' }));
     expect(sent('POST', '/model/settings')).toEqual({ provider: 'pi_catalog', api_key: 'gsk-0123456789' });
@@ -235,7 +235,7 @@ describe('其他（Pi 目录）', () => {
 
 describe('compatible API on this machine', () => {
   it('offers API Key or no key, and no key writes Pi auth_source local_no_auth', async () => {
-    render(<Harness d={{ ...pi(), models: compatible('http://127.0.0.1:11434/v1') }}><ModelGroup /><ApplyBar /></Harness>);
+    render(<Harness d={{ ...pi(), models: compatible('http://127.0.0.1:11434/v1') }}><PiSections /><ApplyBar /></Harness>);
     // The address is the shell's services.llm, a loopback one by default.
     const seg = await within(row('apikey')!).findByRole('radiogroup');
     expect(within(seg).getAllByRole('radio').map((r) => r.textContent)).toEqual(['API Key', '无需密钥']);
@@ -249,11 +249,11 @@ describe('compatible API on this machine', () => {
   it('keeps the plain key row on a remote address or off Pi', async () => {
     const llm = { mode: 'url' as const, url: 'https://llm.example.com/v1', ssh_host: '', start_script: '', command: [], cwd: '' };
     await window.agenticComplex!.services.save('llm', llm);
-    render(<Harness d={{ ...pi(), models: compatible('https://llm.example.com/v1') }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...pi(), models: compatible('https://llm.example.com/v1') }}><PiSections /></Harness>);
     await act(async () => {});
     expect(within(row('apikey')!).queryByRole('radiogroup')).toBeNull();
     cleanup();
-    render(<Harness d={{ ...d, models: compatible('http://localhost:11434/v1') }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...d, models: compatible('http://localhost:11434/v1') }}><PiSections /></Harness>);
     expect(within(row('apikey')!).queryByRole('radiogroup')).toBeNull();
   });
 });

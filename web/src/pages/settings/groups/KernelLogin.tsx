@@ -40,7 +40,6 @@ export function KernelLoginRow({ backend, methods = [] }: { backend: string; met
       title={labelOf('kernelLogin')}
       desc={desc}
       descTone={failed && !login.pending ? 'bad' : undefined}
-      indent
       control={
         login.pending ? (
           <Btn disabled={off} onClick={() => act(loginCancel, '已取消登录', '没能取消登录')}>

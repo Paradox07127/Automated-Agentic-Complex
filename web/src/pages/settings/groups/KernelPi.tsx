@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { getBridge } from '../../../bridge';
 import { Btn, Missing, Table, TableCell, TableHead, TableRow } from '../../../ui';
 import { StatusLamp } from '../../../ui/game';
@@ -48,8 +49,8 @@ export function WorkspaceRow({ indent }: { indent?: boolean }) {
   );
 }
 
-/** Pi's own rows: tool approval, the cost cap, the workspace; for a developer the run source and the tools its last session found. */
-export function KernelPi() {
+/** 「Pi 运行」: tool approval, the cost cap, the workspace; for a developer the run source, `children` (its executable) and the tools its last session found. */
+export function KernelPi({ children }: { children?: ReactNode }) {
   const { model, runtime } = useSettings();
   const c = useControls();
   const shown = useRowShown();
@@ -61,7 +62,7 @@ export function KernelPi() {
   // Only a saved, ready Pi knows its model has no catalog price; the cap then never stops a run.
   const unpriced = runtime!.selected === 'pi' && runtime!.ready && runtime!.wire.capability_flags?.catalog_priced === false;
   return (
-    <SetSection title="Pi">
+    <SetSection title="Pi 运行" info="改了要点底部「应用」才生效。">
       <SetRow
         id="piApproval"
         title={labelOf('piApproval')}
@@ -78,6 +79,7 @@ export function KernelPi() {
       />
       <WorkspaceRow />
       <SetRow id="runsrc" title={labelOf('runsrc')} control={c.seg('runsrc', RUNSRC)} />
+      {children}
       {shown('piTools') &&
         (piSession ? (
           <Slab id="piTools" title={labelOf('piTools')}>

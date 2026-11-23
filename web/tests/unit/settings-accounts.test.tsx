@@ -12,7 +12,7 @@ import { runtimeView, SettingsCtx, type SettingsCtxValue } from '../../src/pages
 import { diagView } from '../../src/pages/settings/diag';
 import { DataGroup } from '../../src/pages/settings/groups/Data';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
-import { ModelGroup } from '../../src/pages/settings/groups/Model';
+import { PiSections } from '../../src/pages/settings/groups/Model';
 import { ActGroup } from '../../src/pages/settings/groups/Act';
 import { SeeGroup } from '../../src/pages/settings/groups/See';
 import { SpeakGroup } from '../../src/pages/settings/groups/Speak';
@@ -105,15 +105,15 @@ const sent = (method: string, path: string) => request.mock.calls.filter((c) => 
 
 describe('账号', () => {
   it("names the page for pi and lists the seven services, Pi's catalog providers by name in place of 其他（Pi 目录）", async () => {
-    expect(GROUP_LABEL.model).toBe('账号');
-    render(<Harness d={d}><ModelGroup /></Harness>);
-    await click(screen.getByRole('button', { name: '模型服务' }));
-    const options = within(screen.getByRole('listbox', { name: '模型服务' })).getAllByRole('option');
+    expect(GROUP_LABEL.kernel).toBe('AI');
+    render(<Harness d={d}><PiSections /></Harness>);
+    await click(screen.getByRole('button', { name: '模型提供方' }));
+    const options = within(screen.getByRole('listbox', { name: '模型提供方' })).getAllByRole('option');
     expect(options.map((o) => o.textContent)).toEqual(['Anthropic API', 'DeepSeek', 'Grok / xAI', 'OpenAI API', '兼容 API', 'ChatGPT 订阅', 'Groq（Pi 目录）', 'OpenRouter（Pi 目录）']);
   });
 
   it('has no vision model, auto or local login rows', async () => {
-    render(<Harness d={d}><ModelGroup /></Harness>);
+    render(<Harness d={d}><PiSections /></Harness>);
     expect(screen.queryByText('看图模型')).toBeNull();
     for (const row of ['visProv', 'visModel', 'claudeExe', 'codexExe', 'maxLen']) expect(document.querySelector(`[data-row="${row}"]`)).toBeNull();
     expect(screen.queryByText(/Claude 登录|Codex 登录|自动/)).toBeNull();
@@ -129,7 +129,7 @@ describe('账号', () => {
   it("offers the DeepSeek models of Pi's catalog and a key with no editable endpoint", async () => {
     const flash = { id: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', context_window: 1000000, max_tokens: 384000, input: ['text', 'image'], reasoning: true, thinking_levels: ['off', 'low', 'high', 'max'], priced: true };
     request.mockResolvedValueOnce({ status: 200, body: { providers: [], models: [flash] } } as never);
-    render(<Harness d={{ ...d, models: { ...d.models!, provider: 'deepseek' as const } }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...d, models: { ...d.models!, provider: 'deepseek' as const } }}><PiSections /></Harness>);
     await act(async () => {});
     expect(sent('POST', '/model/catalog')).toEqual([{}]);
     expect(screen.getByLabelText('API Key', { selector: 'input' })).toBeTruthy();
@@ -153,7 +153,7 @@ describe('ChatGPT accounts', () => {
 
   it('lists every saved account and selects, reconnects or logs out a given one', async () => {
     const models = { ...d.models!, provider: 'chatgpt' as const, chatgpt: gpt };
-    render(<Harness d={{ ...d, models }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...d, models }}><PiSections /></Harness>);
     const list = screen.getByRole('list', { name: 'ChatGPT 账号' });
     const items = within(list).getAllByRole('listitem');
     expect(items.map((i) => i.textContent)).toEqual([expect.stringContaining('lin@example.com'), expect.stringContaining('work@example.com'), expect.stringContaining('连接 3')]);
@@ -168,13 +168,13 @@ describe('ChatGPT accounts', () => {
 
   it('does not say an account that was logged out is in use', () => {
     const out = { ...gpt, profiles: gpt.profiles.map((p) => (p.id === 'p1' ? { ...p, connected: false } : p)) };
-    render(<Harness d={{ ...d, models: { ...d.models!, provider: 'chatgpt' as const, chatgpt: out } }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...d, models: { ...d.models!, provider: 'chatgpt' as const, chatgpt: out } }}><PiSections /></Harness>);
     expect(document.querySelector('[data-row="chatgpt"]')!.textContent).not.toContain('正在用');
   });
 
   it('adds a new account with a bare start', async () => {
     const models = { ...d.models!, provider: 'chatgpt' as const, chatgpt: gpt };
-    render(<Harness d={{ ...d, models }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...d, models }}><PiSections /></Harness>);
     await click(screen.getByRole('button', { name: '添加账号' }));
     expect(sent('POST', '/model/chatgpt/start')).toEqual([{}]);
   });

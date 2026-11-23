@@ -109,7 +109,7 @@ function Harness({ children, runtime }: { children: ReactNode; runtime: RuntimeV
 
 describe('settings kernel', () => {
   it('「改用 Pi」applies at once, like the desktop card, and shows the result', async () => {
-    // The kernel table sits in the 外接 harness band.
+    // Codex answers only with harness_bridge on.
     pluginsOn('harness_bridge');
     const request = vi.spyOn(window.agenticComplex!.agentd, 'request');
     const runtime = await loggedOutRuntime();
@@ -127,6 +127,7 @@ describe('settings kernel', () => {
   });
 
   it('names the failed re-check without reading as signed in', async () => {
+    pluginsOn('harness_bridge');
     const runtime = await loggedOutRuntime();
     render(
       <Harness runtime={runtime}>

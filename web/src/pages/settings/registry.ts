@@ -7,10 +7,13 @@ import { useDevMode } from '../../shell/devMode';
 import { usePlugins, type PluginId, type PluginState } from '../../shell/plugins';
 import type { IconName } from '../../ui';
 
-export type GroupId = 'speak' | 'perm' | 'privacy' | 'display' | 'kernel' | 'model' | 'services' | 'keys' | 'data' | 'about';
+export type GroupId = 'speak' | 'perm' | 'privacy' | 'display' | 'kernel' | 'services' | 'keys' | 'data' | 'about';
 
-// 能做 and 观察 keep the ids 'perm' and 'privacy' that other pages and agentd actions link to.
-export const GROUP_IDS: GroupId[] = ['speak', 'perm', 'privacy', 'display', 'kernel', 'model', 'services', 'keys', 'data', 'about'];
+// 能做, 观察 and AI keep the ids 'perm', 'privacy' and 'kernel' that other pages and agentd actions link to.
+export const GROUP_IDS: GroupId[] = ['speak', 'perm', 'privacy', 'display', 'kernel', 'services', 'keys', 'data', 'about'];
+
+/** Groups merged into another, for old links. */
+export const GROUP_MOVED: Readonly<Record<string, GroupId>> = { model: 'kernel' };
 
 export const DEFAULT_GROUP: GroupId = 'speak';
 
@@ -20,7 +23,6 @@ export const GROUP_ICON: Record<GroupId, IconName> = {
   privacy: 'eye',
   display: 'sun',
   kernel: 'kernel',
-  model: 'hub',
   services: 'radio',
   keys: 'keys',
   data: 'data',
@@ -30,10 +32,16 @@ export const GROUP_ICON: Record<GroupId, IconName> = {
 export const GROUP_LABEL: Record<string, string> = Object.fromEntries(SETTING_GROUPS.map((g) => [g.id, g.label]));
 
 /** Rows that exist only while the kernel is Pi; search leaves them out for other kernels. */
-export const PI_ONLY_ROWS: ReadonlySet<string> = new Set(['runsrc', 'piApproval', 'piTools', 'maxCost']);
+export const PI_ONLY_ROWS: ReadonlySet<string> = new Set(['runsrc', 'piApproval', 'piTools', 'maxCost', 'svc', 'apiBase', 'chatModel', 'think', 'mtest', 'ctxWindow', 'maxOut', 'images', 'reasoning']);
+
+/** Rows of the other kernels' account and model; search leaves them out for Pi. */
+export const NOT_PI_ROWS: ReadonlySet<string> = new Set(['acct', 'kernelLogin', 'mainModel']);
+
+/** Rows merged into another row, for old links: the 外接 harness switch is the kernel picker's to turn on now. */
+export const ROW_MOVED: Readonly<Record<string, string>> = { 'plugins.harness_bridge': 'kernel' };
 
 /** Groups whose values all come from agentd; they turn read-only when the backend is down. */
-export const NEEDS_AGENTD: GroupId[] = ['kernel', 'model'];
+export const NEEDS_AGENTD: GroupId[] = ['kernel'];
 
 /** Groups holding config.json rows; they turn read-only when the shell cannot read it. */
 export const NATIVE_GROUPS: GroupId[] = ['speak', 'perm', 'privacy', 'display', 'services', 'keys', 'about'];
@@ -48,10 +56,11 @@ export const DRAFT_SECTION: Record<string, string> = {
   ...Object.fromEntries(ROUTES.flatMap((p) => Object.values(routeIds(p)).map((id) => [id, 'kernel']))),
   maxCost: 'kernel', piApproval: 'kernel',
   svc: 'm_acct', piProvider: 'm_acct', apiBase: 'm_acct', chatModel: 'm_chat', think: 'm_chat',
+  svc_tts: 'services', svc_motion: 'services', svc_llm: 'services',
 };
 
 /** Which group a draft section belongs to (the tab's draft mark). */
-export const SECTION_GROUP: Record<string, GroupId> = { kernel: 'kernel', m_acct: 'model', m_chat: 'model' };
+export const SECTION_GROUP: Record<string, GroupId> = { kernel: 'kernel', m_acct: 'kernel', m_chat: 'kernel', services: 'services' };
 
 /** What a destructive switch removes, for the confirm text. */
 export const DELETE_WHAT: Record<string, string> = {
@@ -107,7 +116,6 @@ const RAW: Raw[] = [
   ['scope', 'perm', '能力', '她能读的文件夹', '资料范围 文件夹 授权 撤销授权'],
   ['plugins.external_access', 'perm', '能力', '外部智能体接入', 'MCP CLI 接入 外部 agent'],
   ['plugins.motion_generation', 'perm', '能力', '生成新动作', 'Kimodo 动作 生成 GPU'],
-  ['motionToken', 'perm', '能力', '动作服务令牌', 'Kimodo 动作 令牌 token'],
   ['perms', 'perm', '系统权限', '系统权限', '权限 TCC 屏幕录制 辅助功能 麦克风 输入监控 自动化 通知'],
   ['screenRecording', 'perm', '系统权限', '屏幕录制', 'TCC 截图'],
   ['accessibility', 'perm', '系统权限', '辅助功能', 'TCC'],
@@ -140,35 +148,36 @@ const RAW: Raw[] = [
   ['uiZoom', 'display', '外观', '界面大小', '缩放 放大 缩小 字号 字体大小 外观'],
   ['capHide', 'display', '桌面上', '录屏和共享屏幕时隐藏角色', '录屏 共享屏幕 隐藏 介绍视频 显示'],
   ['switchTitle', 'display', '桌面上', '切换角色时的雷霆大字', '雷霆大字 切换角色 名字 大字 标题 显示'],
-  ['kcur', 'kernel', '当前内核', '当前内核 │ 重新检测', '运行时 codex claude 登录 内核 pi 能力'],
-  ['piApproval', 'kernel', 'Pi', '写文件和运行命令前先问你', '工具审批 批准 确认 审批卡 bash powershell write edit pi_tool_approval'],
-  ['maxCost', 'kernel', 'Pi', '单次运行费用上限', '预算 限额 费用 max_budget_usd'],
-  ['workspace', 'kernel', 'Pi', '工作区', 'workspace 工作目录 文件夹 AgenticComplex'],
-  ['runsrc', 'kernel', 'Pi', '运行来源', 'cli 内置'],
-  ['piTools', 'kernel', 'Pi', 'Pi 的工具', 'read bash edit write grep find ls shell powershell rg fd'],
-  ['plugins.harness_bridge', 'kernel', '外接 harness', '外接 harness', 'Agent 内核桥接 harness Claude Code Codex ACP 内核'],
-  ['kernel', 'kernel', '外接 harness', '换内核', 'codex claude pi acp 内核 选择内核'],
-  ['exe', 'kernel', '外接 harness', '可执行文件', '路径'],
-  ['acpAgent', 'kernel', '外接 harness', 'ACP 智能体', 'acp claude gemini npx uvx 下载 agent'],
-  ['acct', 'kernel', '外接 harness', '账号来源', '登录 凭据'],
-  ['kernelLogin', 'kernel', '外接 harness', '登录', '登录 登出 账号 浏览器 ChatGPT Claude 订阅'],
-  ['provider', 'kernel', '外接 harness', '服务提供方', 'openai anthropic deepseek xai grok 兼容'],
-  ['mainModel', 'kernel', '外接 harness', '主会话模型', '模型'],
-  ['routes', 'kernel', '外接 harness', '按用途指定内核', '用途 对话 后台 判断 理解 记忆 电脑操控 模型 强度 思考'],
-  ['plugins.light_ai', 'model', '模型服务', '和她对话', '对话 聊天 轻量 AI 记忆 主动搭话 模型账号 只陪伴'],
-  ['svc', 'model', '模型服务', '模型服务', 'pi anthropic deepseek grok xai openai 兼容 chatgpt 订阅 服务提供方 目录 openrouter groq mistral moonshot qwen zai'],
-  ['apiBase', 'model', '模型服务', 'API 地址', 'pi url'],
-  ['apikey', 'model', '模型服务', 'API Key', 'pi 密钥 凭据'],
-  ['chatModel', 'model', '默认模型', '模型', 'pi 默认模型'],
-  ['think', 'model', '默认模型', '思考强度', 'pi 推理'],
-  ['mtest', 'model', '默认模型', '测试连接', '测试 连通'],
-  ['ctxWindow', 'model', '默认模型', '上下文长度', 'pi 兼容 context'],
-  ['maxOut', 'model', '默认模型', '最大输出', 'pi 兼容 max tokens'],
-  ['images', 'model', '默认模型', '图像输入', 'pi 兼容 图片 视觉'],
-  ['reasoning', 'model', '默认模型', '思考', 'pi 兼容 推理 reasoning'],
-  ['svc_tts', 'services', '服务', '语音服务', 'tts 语音 地址 ssh 隧道 本机 命令 启动脚本 日志'],
-  ['svc_motion', 'services', '服务', '动作服务', 'Kimodo 动作 地址 ssh 隧道 本机 命令 启动脚本 日志'],
-  ['svc_llm', 'services', '服务', '模型服务', 'Ollama vLLM 兼容 API openai 地址 ssh 隧道 本机 命令 启动脚本 日志'],
+  ['plugins.light_ai', 'kernel', '谁来回答', 'AI 对话', '对话 聊天 轻量 AI 记忆 主动搭话 模型账号 只陪伴 和她对话'],
+  ['plugins.harness_bridge', 'kernel', '谁来回答', '改用 Codex、Claude Code 或 ACP', 'Agent 内核桥接 外接 harness Claude Code Codex ACP 内核'],
+  ['kcur', 'kernel', '谁来回答', '当前内核 │ 重新检测', '运行时 codex claude 登录 内核 pi 能力'],
+  ['kernel', 'kernel', '谁来回答', '内核', 'codex claude pi acp 内核 选择内核 换内核'],
+  ['acpAgent', 'kernel', '谁来回答', 'ACP 智能体', 'acp claude gemini npx uvx 下载 agent'],
+  ['svc', 'kernel', '用谁的账号', '模型提供方', 'pi anthropic deepseek grok xai openai 兼容 chatgpt 订阅 服务提供方 模型服务 目录 openrouter groq mistral moonshot qwen zai'],
+  ['apiBase', 'kernel', '用谁的账号', 'API 地址', 'pi url'],
+  ['apikey', 'kernel', '用谁的账号', 'API Key', 'pi 密钥 凭据'],
+  ['acct', 'kernel', '用谁的账号', '账号来源', '登录 凭据'],
+  ['kernelLogin', 'kernel', '用谁的账号', '登录', '登录 登出 账号 浏览器 ChatGPT Claude 订阅'],
+  ['provider', 'kernel', '用谁的账号', '服务提供方', 'openai anthropic deepseek xai grok 兼容'],
+  ['chatModel', 'kernel', '模型', '模型', 'pi 默认模型'],
+  ['think', 'kernel', '模型', '思考强度', 'pi 推理'],
+  ['mtest', 'kernel', '模型', '测试连接', '测试 连通'],
+  ['ctxWindow', 'kernel', '模型', '上下文长度', 'pi 兼容 context'],
+  ['maxOut', 'kernel', '模型', '最大输出', 'pi 兼容 max tokens'],
+  ['images', 'kernel', '模型', '图像输入', 'pi 兼容 图片 视觉'],
+  ['reasoning', 'kernel', '模型', '思考', 'pi 兼容 推理 reasoning'],
+  ['mainModel', 'kernel', '模型', '主会话模型', '模型 默认模型'],
+  ['routes', 'kernel', '模型', '按用途指定内核', '用途 对话 后台 判断 理解 记忆 电脑操控 模型 强度 思考'],
+  ['piApproval', 'kernel', 'Pi 运行', '写文件和运行命令前先问你', '工具审批 批准 确认 审批卡 bash powershell write edit pi_tool_approval'],
+  ['maxCost', 'kernel', 'Pi 运行', '单次运行费用上限', '预算 限额 费用 max_budget_usd'],
+  ['runsrc', 'kernel', 'Pi 运行', '运行来源', 'cli 内置'],
+  ['piTools', 'kernel', 'Pi 运行', 'Pi 的工具', 'read bash edit write grep find ls shell powershell rg fd'],
+  ['workspace', 'kernel', '运行', '工作区', 'workspace 工作目录 文件夹 AgenticComplex'],
+  ['exe', 'kernel', '运行', '可执行文件', '路径'],
+  ['svc_tts', 'services', '自建服务', '语音服务', 'tts 语音 地址 ssh 隧道 本机 命令 启动脚本 日志 令牌 测试'],
+  ['svc_motion', 'services', '自建服务', '动作服务', 'Kimodo 动作 地址 ssh 隧道 本机 命令 启动脚本 日志'],
+  ['motionToken', 'services', '自建服务', '动作服务令牌', 'Kimodo 动作 令牌 token'],
+  ['svc_llm', 'services', '自建服务', '自建模型接口（兼容 API）', 'Ollama vLLM 兼容 API openai 模型服务 地址 ssh 隧道 本机 命令 启动脚本 日志 key 密钥'],
   ['hk_ptt', 'keys', '全局快捷键', '按住说话', '语音 热键'],
   ['hk_quick', 'keys', '全局快捷键', '快速输入', '热键 输入'],
   ['hk_look', 'keys', '全局快捷键', '屏幕识读', '截图 热键 识读'],
@@ -245,7 +254,7 @@ const BAND_ROWS: Readonly<Record<string, PluginId>> = {
   motionToken: 'motion_generation',
   hooks2: 'coding_sessions',
   ...Object.fromEntries(
-    ['kernel', 'exe', 'acpAgent', 'acct', 'kernelLogin', 'provider', 'mainModel', 'routes', ...ROUTES.flatMap((p) => Object.values(routeIds(p)))].map((id) => [id, 'harness_bridge' as const]),
+    ['acpAgent', 'acct', 'kernelLogin', 'provider', 'mainModel', 'routes', ...ROUTES.flatMap((p) => Object.values(routeIds(p)))].map((id) => [id, 'harness_bridge' as const]),
   ),
 };
 
@@ -256,7 +265,7 @@ const ROW_PLUGIN: Readonly<Record<string, PluginId>> = {
 };
 
 /** Rows only a developer needs. */
-const DEV_ROWS: ReadonlySet<string> = new Set(['testcard', 'exe', 'provider', 'mainModel', 'routes', 'runsrc', 'piTools', 'agentd', 'devparams']);
+const DEV_ROWS: ReadonlySet<string> = new Set(['testcard', 'exe', 'provider', 'routes', 'runsrc', 'piTools', 'agentd', 'devparams']);
 
 export const REGISTRY: RegEntry[] = RAW.map(([id, group, section, label, keywords = '', action]) => {
   const plugin = ROW_PLUGIN[id];

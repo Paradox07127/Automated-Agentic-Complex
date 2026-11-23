@@ -16,10 +16,11 @@ import { AboutGroup } from '../../src/pages/settings/groups/About';
 import { DataGroup } from '../../src/pages/settings/groups/Data';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
 import { KeysGroup } from '../../src/pages/settings/groups/Keys';
-import { ModelGroup } from '../../src/pages/settings/groups/Model';
+import { PiSections } from '../../src/pages/settings/groups/Model';
 import { ActGroup } from '../../src/pages/settings/groups/Act';
 import { SeeGroup } from '../../src/pages/settings/groups/See';
 import { SpeakGroup } from '../../src/pages/settings/groups/Speak';
+import { TtsSecretRows } from '../../src/pages/settings/groups/SpeakService';
 import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model';
 import type { Native } from '../../src/pages/settings/native';
 import { searchSettings } from '../../src/pages/settings/registry';
@@ -54,7 +55,7 @@ async function load(): Promise<Loaded> {
   };
 }
 
-function Harness({ d, init = {}, reload = () => {}, children }: { d: Loaded; init?: ModelInit; reload?: SettingsCtxValue['reload']; children: ReactNode }) {
+function Harness({ d, init = {}, reload = () => {}, goRow = () => {}, children }: { d: Loaded; init?: ModelInit; reload?: SettingsCtxValue['reload']; goRow?: SettingsCtxValue['goRow']; children: ReactNode }) {
   const view = useMemo(() => diagView(d.diag), [d.diag]);
   const model = useSettingsModel(init, { native: d.native, runtime: d.runtime, models: d.models });
   const runtime = runtimeView(d.runtime);
@@ -77,7 +78,7 @@ function Harness({ d, init = {}, reload = () => {}, children }: { d: Loaded; ini
     reload,
     perms: PERMISSIONS,
     recheckPerms: async () => 'granted',
-    goRow: () => {},
+    goRow,
     goPage: () => {},
   };
   return (
@@ -360,14 +361,14 @@ describe('pi 账号与凭据', () => {
     await click(screen.getByRole('button', { name: '应用' }));
     expect(sent('POST', '/model/settings')).toEqual({ provider: 'openai' });
     cleanup();
-    render(<Harness d={d}><ModelGroup /></Harness>);
+    render(<Harness d={d}><PiSections /></Harness>);
     await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/model/test')).toEqual({});
     expect(document.querySelector('[data-row="mtest"]')?.textContent).toMatch(/已连通 │ Codex │ claude-haiku-5-5 │ \d+ ms/);
   });
 
   it('saves and removes the API key for the provider on screen', async () => {
-    render(<Harness d={{ ...d, models: { ...d.models, provider: 'anthropic' } }}><ModelGroup /></Harness>);
+    render(<Harness d={{ ...d, models: { ...d.models, provider: 'anthropic' } }}><PiSections /></Harness>);
     // A saved key shows 已保存 until 替换 opens the field.
     await click(within(document.querySelector('[data-row="apikey"]')!).getByRole('button', { name: '替换' }));
     fireEvent.change(document.querySelector('input[aria-label="API Key"]')!, { target: { value: 'sk-ant-0123456789' } });
@@ -586,31 +587,29 @@ describe('回复语言', () => {
 describe('外部语音服务', () => {
   const testRow = () => document.querySelector('[data-row="ttsTest"]');
 
-  it('has no address, tunnel or script rows: those are in 服务', () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
+  it('说话 has no address, token or test of the voice service, only a row that leads to its card in 服务', async () => {
+    const goRow = vi.fn();
+    render(<Harness d={d} goRow={goRow}><SpeakGroup /></Harness>);
     for (const name of ['服务地址', 'SSH 转发主机', '按需启动脚本']) expect(screen.queryByRole('textbox', { name })).toBeNull();
-    expect(screen.getByLabelText('令牌', { selector: 'input' })).toBeTruthy();
-  });
-
-  const voice = (state: 'ready' | 'unreachable'): Loaded => ({ ...d, diag: { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, tts: WIRE_TTS[state] } } });
-  const serviceRow = () => screen.getByRole('button', { name: /^令牌和测试/ });
-
-  it('folds the token and test into one row while the service answers', async () => {
-    render(<Harness d={voice('ready')}><SpeakGroup /></Harness>);
-    expect(serviceRow().getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByLabelText('令牌', { selector: 'input' })).toBeNull();
     expect(screen.queryByRole('button', { name: '测试' })).toBeNull();
-    await click(serviceRow());
-    expect(screen.getByRole('button', { name: '测试' })).toBeTruthy();
+    const jump = document.querySelector('[data-row="ttsJump"]') as HTMLElement;
+    expect(jump.textContent).toContain('在「服务 › 语音服务」里');
+    await click(within(jump).getByRole('button', { name: '去服务' }));
+    expect(goRow).toHaveBeenCalledWith('ttsToken', 'services');
   });
 
-  it('opens the service row by itself while the voice is down', () => {
-    render(<Harness d={voice('unreachable')}><SpeakGroup /></Harness>);
-    expect(serviceRow().getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByRole('button', { name: '测试' })).toBeTruthy();
+  it.each([
+    [true, '令牌已保存'],
+    [false, '令牌不回显'],
+  ])('reads token_set %s from /diag/state as %s', (token_set, note) => {
+    const tts = { ...WIRE_TTS.ready, token_set };
+    render(<Harness d={{ ...d, diag: { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, tts } } }}><TtsSecretRows /></Harness>);
+    expect(document.querySelector('[data-row="ttsToken"]')?.textContent).toContain(note);
   });
 
   it('tests the token on screen against the voice in use and shows the first audio time', async () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
+    render(<Harness d={d}><TtsSecretRows /></Harness>);
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: ' secret ' } });
     await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/voice/test')).toEqual({ token: 'secret' });
@@ -618,31 +617,22 @@ describe('外部语音服务', () => {
   });
 
   it('leaves an empty token out of the test', async () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
+    render(<Harness d={d}><TtsSecretRows /></Harness>);
     await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/voice/test')).toEqual({});
   });
 
   it('leaves the token just saved to agentd once the field is empty again', async () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
+    render(<Harness d={d}><TtsSecretRows /></Harness>);
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'secret' } });
     await click(screen.getByRole('button', { name: '保存' }));
     await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/voice/test')).toEqual({});
   });
 
-  it.each([
-    [true, '令牌已保存'],
-    [false, '令牌不回显'],
-  ])('reads token_set %s from /diag/state as %s, on every open', (token_set, note) => {
-    const tts = { ...WIRE_TTS.ready, token_set };
-    render(<Harness d={{ ...d, diag: { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, tts } } }}><SpeakGroup /></Harness>);
-    expect(serviceRow().textContent).toContain(note);
-  });
-
   it('reads /diag/state again after saving the token', async () => {
     const reload = vi.fn();
-    render(<Harness d={d} reload={reload}><SpeakGroup /></Harness>);
+    render(<Harness d={d} reload={reload}><TtsSecretRows /></Harness>);
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'secret' } });
     expect(reload).not.toHaveBeenCalled();
     await click(screen.getByRole('button', { name: '保存' }));
@@ -657,21 +647,21 @@ describe('外部语音服务', () => {
     ['bad_stream', '返回的不是语音流'],
     ['timeout', '超时'],
   ])('shows the failure %s as %s', async (reason, text) => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
+    render(<Harness d={d}><TtsSecretRows /></Harness>);
     request.mockResolvedValueOnce({ status: 200, body: { ok: false, first_audio_ms: null, total_ms: null, reason } } as never);
     await click(screen.getByRole('button', { name: '测试' }));
     expect(testRow()?.textContent).toContain(text);
   });
 
   it('says the voice is not enabled when agentd has no relay', async () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
+    render(<Harness d={d}><TtsSecretRows /></Harness>);
     request.mockResolvedValueOnce({ status: 503, body: { error: 'no_tts' }, error: { code: 'no_tts' } } as never);
     await click(screen.getByRole('button', { name: '测试' }));
     expect(testRow()?.textContent).toContain('语音没有启用');
   });
 
   it('saves the token through POST /voice/token and never reads it back', async () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
+    render(<Harness d={d}><TtsSecretRows /></Harness>);
     const token = screen.getByLabelText('令牌', { selector: 'input' }) as HTMLInputElement;
     expect(token.type).toBe('password');
     expect(token.value).toBe('');
@@ -683,20 +673,20 @@ describe('外部语音服务', () => {
   });
 });
 
-describe('账号 under 和她对话', () => {
-  it('puts the account rows under the 和她对话 band and folds them all into its one line while it is off', async () => {
-    const { unmount } = render(<Harness d={d}><ModelGroup /></Harness>);
-    expect(screen.getByRole('switch', { name: '和她对话' })).toBeTruthy();
+describe('AI 对话 over the AI tab', () => {
+  it('holds the account and model rows under the switch and folds them into one line while it is off', async () => {
+    const { unmount } = render(<Harness d={d} init={{ draft: { kernel: 'pi' } }}><KernelGroup /></Harness>);
+    expect(screen.getByRole('switch', { name: 'AI 对话' })).toBeTruthy();
     expect(document.querySelector('[data-row="svc"]')).not.toBeNull();
-    expect(screen.getByRole('region', { name: '默认模型' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: '模型' })).toBeTruthy();
     unmount();
     setPlugins({ 'plugins.light_ai': false });
-    render(<Harness d={d}><ModelGroup /></Harness>);
-    expect(screen.getByText(/关着 │ 打开后可以设：模型服务、账号、默认模型、测试连接/)).toBeTruthy();
-    // The folded line also says what is gone while it is off: the band's own 做 line.
-    expect(screen.getByText(/关着 │ 打开后可以设/).textContent).toContain('少了：聊天、记得聊过的事、主动搭话');
+    render(<Harness d={d} init={{ draft: { kernel: 'pi' } }}><KernelGroup /></Harness>);
+    // The folded line also says what is gone while it is off.
+    expect(screen.getByText(/关着 │ 打开后可以设：内核、账号、模型/).textContent).toContain('少了：聊天、记得聊过的事、主动搭话');
     expect(document.querySelector('[data-row="svc"]')).toBeNull();
-    expect(screen.queryByRole('region', { name: '默认模型' })).toBeNull();
+    expect(screen.queryByRole('region', { name: '模型' })).toBeNull();
+    expect(screen.queryByRole('region', { name: '当前内核' })).toBeNull();
   });
 });
 

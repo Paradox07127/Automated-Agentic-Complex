@@ -4,6 +4,7 @@ import { Btn } from '../../ui';
 import { StatusLamp } from '../../ui/game';
 import { useSettings } from './ctx';
 import { labelOf } from './registry';
+import { serviceOf } from './servicesDraft';
 import styles from './ApplyBar.module.css';
 
 /**
@@ -13,6 +14,8 @@ import styles from './ApplyBar.module.css';
 export function ApplyBar() {
   const { model, ro, agentdOff } = useSettings();
   const drafts = Object.keys(model.draft).length;
+  // The service cards save through the shell, which runs without agentd.
+  const needsAgentd = Object.keys(model.draft).some((id) => !serviceOf(id));
   const pending = Object.keys(model.pending);
   const waits = drafts > 0 || pending.length > 0;
   const status = (
@@ -31,7 +34,7 @@ export function ApplyBar() {
       )}
       {!waits && agentdOff && (
         <span className={styles.tip}>
-          <StatusLamp state="broken" size="sm" label="后台已断开" /> 内核、账号暂时只读
+          <StatusLamp state="broken" size="sm" label="后台已断开" /> AI 设置暂时只读
         </span>
       )}
       {!waits && !agentdOff && '改动立即生效 │ 每次改动后几秒内可在提示里撤销'}
@@ -50,7 +53,7 @@ export function ApplyBar() {
             <Btn size="sm" onClick={model.revertAll}>
               撤销
             </Btn>
-            <Btn size="sm" variant="primary" disabled={ro || agentdOff} disabledReason="后台服务没有运行" onClick={() => void model.applyAll()}>
+            <Btn size="sm" variant="primary" disabled={ro || (agentdOff && needsAgentd)} disabledReason="后台服务没有运行" onClick={() => void model.applyAll()}>
               应用
             </Btn>
           </>

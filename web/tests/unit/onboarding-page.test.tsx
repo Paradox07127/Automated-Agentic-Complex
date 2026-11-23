@@ -120,12 +120,12 @@ describe('onboarding page', () => {
     expect(screen.getAllByRole('tab')[1]?.querySelector('[data-step]')?.getAttribute('data-step')).toBe('skip');
   });
 
-  it('和她对话 saves plugins.light_ai at once and folds the account rows and the voice step', async () => {
+  it('AI 对话 saves plugins.light_ai at once and folds the account rows and the voice step', async () => {
     install();
     mount();
     await roster();
     await toStep(2);
-    const sw = await screen.findByRole('switch', { name: '和她对话' });
+    const sw = await screen.findByRole('switch', { name: 'AI 对话' });
     await waitFor(() => expect(sw.getAttribute('aria-disabled')).toBeNull());
     fireEvent.click(sw);
     await waitFor(() => expect(saves).toEqual([{ 'plugins.light_ai': false }]));

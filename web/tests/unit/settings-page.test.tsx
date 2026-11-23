@@ -121,7 +121,7 @@ describe(' states and navigation', () => {
     await mount('');
     const nav = await screen.findByRole('tablist', { name: '设置分组' });
     expect(within(nav).getByRole('tab', { name: /说话/ }).getAttribute('aria-selected')).toBe('true');
-    expect(within(nav).getAllByRole('tab').map((t) => t.textContent?.replace(/[^一-龥]/g, '').slice(0, 2))).toEqual(['说话', '能做', '观察', '显示', '内核', '账号', '服务', '按键', '数据', '关于']);
+    expect(within(nav).getAllByRole('tab').map((t) => t.textContent?.replace(/[^一-龥A-Z]/g, '').slice(0, 2))).toEqual(['说话', '能做', '观察', '显示', 'AI', '服务', '按键', '数据', '关于']);
     await act(async () => fireEvent.click(within(nav).getByRole('tab', { name: /观察/ })));
     expect(await screen.findByRole('region', { name: '外发总览' })).toBeTruthy();
   });

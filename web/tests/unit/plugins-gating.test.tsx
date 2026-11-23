@@ -127,7 +127,7 @@ describe('settings rows of a plug-in', () => {
     expect(rows.map((r) => r.getAttribute('data-row'))).toEqual(['keys', 'mask']);
     expect(screen.getByText(/^关着 │ 打开后可以设：窗口文字/)).toBeTruthy();
     const nav = screen.getByRole('tablist', { name: '设置分组' });
-    expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['说话', '能做', '观察', '显示', '内核', '账号', '服务', '按键', '数据', '关于']);
+    expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['说话', '能做', '观察', '显示', 'AI', '服务', '按键', '数据', '关于']);
   });
 
   it('keep developer rows out of 开发者模式 off', async () => {
@@ -192,16 +192,16 @@ describe('core pages with the plug-ins at their defaults', () => {
 describe('settings › the plug-in bands', () => {
   const band = (id: string) => document.querySelector(`[data-row="plugins.${id}"]`) as HTMLElement;
 
-  it('give the nine plug-ins a band with a switch each in the group they affect, 轻量 AI not among them', async () => {
+  it('give eight plug-ins a band with a switch each in the group they affect; AI has its one 「AI 对话」 switch instead', async () => {
     const bands: Record<string, string[]> = {
       perm: ['操作电脑', '派发任务和定时任务', '外部智能体接入', '生成新动作'],
       privacy: ['屏幕感知', '屏幕识读', '编码会话', '每日简报'],
-      kernel: ['外接 harness'],
+      kernel: ['AI 对话'],
     };
     for (const [group, names] of Object.entries(bands)) {
       await mount(`&group=${group}`);
       await screen.findAllByRole('switch');
-      if (group === 'kernel') await screen.findByRole('switch', { name: '外接 harness' });
+      if (group === 'kernel') await screen.findByRole('switch', { name: 'AI 对话' });
       const shown = [...document.querySelectorAll('[data-row^="plugins."]')];
       expect(shown.map((b) => within(b as HTMLElement).getByRole('switch').getAttribute('aria-label')), group).toEqual(names);
       expect(screen.queryByText(/轻量/)).toBeNull();

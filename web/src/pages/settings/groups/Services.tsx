@@ -1,22 +1,24 @@
-import { useState } from 'react';
+import type { ReactNode } from 'react';
 import type { RuntimeService } from '../../../bridge/runtimeSnapshot';
 import type { VisualStateKey } from '../../../domain/states';
 import type { ServiceId, ServiceMode, ServiceRecord } from '../../../bridge/services';
-import { Btn, Field, IconBtn } from '../../../ui';
-import { ExpandRow, GameSeg, StatusLamp } from '../../../ui/game';
+import { voiceText } from '../../../domain/voiceState';
+import { Field, IconBtn } from '../../../ui';
+import { GameSeg, StatusLamp } from '../../../ui/game';
+import { useSettings } from '../ctx';
+import { draftOf, problem, recordOf, SERVICE_NAME, serviceRow, type ServiceDraft } from '../servicesDraft';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
-import groups from '../groups.module.css';
+import { LlmSecretRows, MotionTokenRow } from './ServiceSecrets';
+import { VOICE_TONE } from './Speak';
+import { TtsSecretRows } from './SpeakService';
+import rows from '../rows.module.css';
 import styles from './Services.module.css';
 
-/** A field the shell refused on the last save, with its reason. */
-export interface ServiceRejected { id: ServiceId; field: string; message: string }
-
 export interface ServicesGroupProps {
+  /** The saved records, as config.json holds them. */
   records: Record<ServiceId, ServiceRecord>;
   runtimes: Record<ServiceId, RuntimeService | null>;
-  rejected?: ServiceRejected | null;
-  onSave: (id: ServiceId, record: ServiceRecord) => void;
   onStart: (id: ServiceId) => void;
   onStop: (id: ServiceId) => void;
   onRestart: (id: ServiceId) => void;
@@ -24,10 +26,11 @@ export interface ServicesGroupProps {
   disabled: boolean;
 }
 
+/** Each service and what uses it. */
 const SERVICES: Array<[ServiceId, string]> = [
-  ['tts', '语音服务'],
-  ['motion', '动作服务'],
-  ['llm', '模型服务'],
+  ['tts', '说话出声用'],
+  ['motion', '生成新动作用'],
+  ['llm', 'Pi 选「兼容 API」时用'],
 ];
 
 const MODES: Array<{ value: ServiceMode; label: string }> = [
@@ -51,173 +54,126 @@ const LIVE: ReadonlySet<string> = new Set(['running', 'starting', 'backoff']);
 
 const OFF_REASON = '现在不能操作';
 
-/** The command field as argv: whitespace splits, a quoted span stays whole and loses its quotes. */
-export function splitCommand(text: string): string[] {
-  const out: string[] = [];
-  let cur = '';
-  let quote: string | null = null;
-  let has = false;
-  for (const ch of text) {
-    if (quote) {
-      if (ch === quote) quote = null;
-      else cur += ch;
-    } else if (ch === '"' || ch === "'") {
-      quote = ch;
-      has = true;
-    } else if (/\s/.test(ch)) {
-      if (has) out.push(cur);
-      cur = '';
-      has = false;
-    } else {
-      cur += ch;
-      has = true;
-    }
-  }
-  if (has) out.push(cur);
-  return out;
-}
-
-/** argv back into the field, quoting what splitCommand would otherwise split or strip. */
-export function joinCommand(argv: string[]): string {
-  return argv.map((a) => (a !== '' && !/[\s"']/.test(a) ? a : a.includes('"') ? `'${a}'` : `"${a}"`)).join(' ');
-}
-
-const LOOPBACK: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost', '[::1]']);
-
-/** The field that keeps a draft from being saved, and why; null when it can be. */
-function problem(d: ServiceRecord): ['url' | 'ssh_host' | 'command', string] | null {
-  if (d.mode === 'off') return null;
-  let u: URL | null = null;
-  try {
-    u = new URL(d.url);
-  } catch {
-    // stays null
-  }
-  if (!u || (u.protocol !== 'http:' && u.protocol !== 'https:')) return ['url', '地址要以 http:// 或 https:// 开头'];
-  // The shell and agentd refuse these too.
-  if (u.username || u.password || u.search || u.hash) return ['url', '地址不能带用户名、密码、查询串或片段'];
-  if (d.mode === 'url') return null;
-  if (!LOOPBACK.has(u.hostname) || !u.port) return ['url', '要填回环地址和端口'];
-  if (d.mode === 'ssh' && !d.ssh_host) return ['ssh_host', 'SSH 主机没填'];
-  if (d.mode === 'local' && d.command.length === 0) return ['command', '命令没填'];
-  return null;
-}
-
-/** 服务: the voice, motion and model services, each with its state and start/stop, and how it is reached folded under it. */
-export function ServicesGroup({ records, runtimes, rejected, disabled, ...on }: ServicesGroupProps) {
+/** 服务: one card per self-hosted service; a change is a draft of the page, applied whole with the bottom bar. */
+export function ServicesGroup({ records, runtimes, disabled, ...on }: ServicesGroupProps) {
   return (
-    <SetSection title="服务">
-      {SERVICES.map(([id, name]) => (
-        <Service key={`${id}:${JSON.stringify(records[id])}`} id={id} name={name} record={records[id]} runtime={runtimes[id]} rejected={rejected?.id === id ? rejected : null} disabled={disabled} {...on} />
+    <SetSection
+      title="自建服务"
+      info="SSH 和本机两种接法由应用负责启停。改了要点底部「应用」，应用后会重启这个服务和后台服务。换地址会删掉这个服务的旧令牌或 Key。"
+    >
+      {SERVICES.map(([id, use]) => (
+        <Service key={id} id={id} use={use} record={records[id]} runtime={runtimes[id]} disabled={disabled} {...on} />
       ))}
     </SetSection>
   );
 }
 
-type ServiceProps = Omit<ServicesGroupProps, 'records' | 'runtimes'> & { id: ServiceId; name: string; record: ServiceRecord; runtime: RuntimeService | null };
+type ServiceProps = Omit<ServicesGroupProps, 'records' | 'runtimes'> & { id: ServiceId; use: string; record: ServiceRecord; runtime: RuntimeService | null };
 
-/** A service's state row, then its fold; the draft resets whenever the saved record changes. */
-function Service({ id, name, record, runtime, rejected, disabled, onSave, onStart, onStop, onRestart, onLogs }: ServiceProps) {
-  const [draft, setDraft] = useState(record);
-  const [command, setCommand] = useState(() => joinCommand(record.command));
+/** A card: name, who uses it, the lamp, start/stop and 接法 on its head; the fields of the 接法 picked, then its secret and test. */
+function Service({ id, use, record, runtime, disabled, onStart, onStop, onRestart, onLogs }: ServiceProps) {
+  const { model, hl, diag } = useSettings();
+  const row = serviceRow(id);
+  const name = SERVICE_NAME[id];
+  const held = model.draft[row];
+  const dirty = typeof held === 'string';
+  const draft: ServiceDraft = dirty ? (JSON.parse(held) as ServiceDraft) : draftOf(record);
+  const why = problem(recordOf(draft));
+  const refused = model.rejected[row];
+  // Shown once the draft differs, so an untouched card is not red.
+  const bad = (key: string) => (dirty && why?.[0] === key ? why[1] : refused?.field === key ? refused.message : undefined);
+  const put = (patch: Partial<ServiceDraft>) => {
+    const next = { ...draft, ...patch };
+    model.setDraft(({ [row]: _old, ...rest }) => (JSON.stringify(next) === JSON.stringify(draftOf(record)) ? rest : { ...rest, [row]: JSON.stringify(next) }));
+  };
+
+  // The lamp and the run controls describe the saved record, which is what runs.
   const managed = record.mode === 'ssh' || record.mode === 'local';
   // A reply about another mode describes what ran before the last save.
   const rt = runtime?.mode === record.mode ? runtime : null;
   const kind = rt?.state?.kind;
-  const [tone, text]: [VisualStateKey, string] = kind ? (STATE[kind] ?? ['idle', kind]) : ['idle', '未读到'];
-  const reason = managed ? rt?.state?.reason : undefined;
-  const detail = managed ? rt?.detail : null;
   const live = kind != null && LIVE.has(kind);
-  const desc = [reason, detail].filter(Boolean).join(' │ ') || undefined;
+  let lamp: ReactNode = null;
+  if (record.mode === 'off') lamp = <StatusLamp size="sm" state="stopped" label="没开" />;
+  else if (managed) {
+    const [tone, text]: [VisualStateKey, string] = kind ? (STATE[kind] ?? ['idle', kind]) : ['idle', '未读到'];
+    lamp = <StatusLamp size="sm" state={tone} label={text} />;
+  } else if (id === 'tts') lamp = diag.voice ? <StatusLamp size="sm" state={VOICE_TONE[diag.voice.state]} label={voiceText(diag.voice.state, null)} /> : <StatusLamp size="sm" state="idle" label="未读到" />;
+  const note = managed ? [rt?.state?.reason, rt?.detail].filter(Boolean).join(' │ ') : '';
 
-  const next: ServiceRecord = { ...draft, url: draft.url.trim(), ssh_host: draft.ssh_host.trim(), start_script: draft.start_script.trim(),
-    cwd: draft.cwd.trim(), command: splitCommand(command) };
-  const dirty = JSON.stringify(next) !== JSON.stringify(record);
-  const why = problem(next);
-  // Shown once the draft differs, so an untouched fold is not red.
-  const bad = (key: string) => (dirty && why?.[0] === key ? why[1] : rejected?.field === key ? rejected.message : undefined);
-  const set = (patch: Partial<ServiceRecord>) => setDraft((d) => ({ ...d, ...patch }));
-  const field = (key: 'url' | 'ssh_host' | 'start_script' | 'cwd' | 'command', title: string, placeholder?: string) => (
+  const field = (key: 'url' | 'ssh_host' | 'start_script' | 'cwd' | 'command', title: string, placeholder?: string, hint?: string) => (
     <SetRow
       id={`svc_${id}_${key}`}
       title={title}
-      desc={bad(key)}
-      descTone="bad"
+      desc={bad(key) ?? hint}
+      descTone={bad(key) ? 'bad' : undefined}
       control={
         <Field
           label={`${name} ${title}`}
           invalid={bad(key) != null}
           placeholder={placeholder}
-          value={key === 'command' ? command : draft[key]}
+          value={draft[key]}
           disabled={disabled}
           spellCheck={false}
-          onChange={(v) => (key === 'command' ? setCommand(v) : set({ [key]: v }))}
+          onChange={(v) => put({ [key]: v })}
         />
       }
     />
   );
 
-  const body = (
-    <>
-      <SetRow
-        id={`svc_${id}_mode`}
-        title="接法"
-        control={<GameSeg variant="setting" label={`${name} 接法`} value={draft.mode} options={MODES} disabled={disabled} onChange={(v) => set({ mode: v as ServiceMode })} />}
-      />
-      {draft.mode !== 'off' && field('url', '地址', draft.mode === 'url' ? 'http://主机:端口' : 'http://127.0.0.1:端口')}
-      {draft.mode === 'ssh' && (
-        <>
-          {field('ssh_host', 'SSH 主机')}
-          {field('start_script', '启动脚本')}
-        </>
-      )}
-      {draft.mode === 'local' && (
-        <>
-          {field('command', '命令')}
-          {field('cwd', '工作目录')}
-        </>
-      )}
-      {dirty && (
-        <div className={styles.foot}>
-          <Btn disabled={disabled || why != null} disabledReason={why?.[1] ?? OFF_REASON} onClick={() => onSave(id, next)}>
-            保存
-          </Btn>
+  return (
+    <section
+      id={`set-${row}`}
+      aria-label={name}
+      className={[styles.card, hl === row && rows.hl].filter(Boolean).join(' ')}
+      data-row={row}
+      data-nav-target={`set-${row}`}
+    >
+      <header className={styles.head}>
+        <div className={styles.title}>
+          <h4 className={styles.name}>{name}</h4>
+          <span className={styles.use}>{use}</span>
+          {dirty && (
+            <span className={rows.mark} data-k="draft">
+              未应用 │ 现在：{MODE_LABEL[record.mode]}
+            </span>
+          )}
+        </div>
+        <div className={styles.ctl}>
+          {lamp}
+          {managed && rt?.pid != null && <span className={styles.pid}>pid {rt.pid}</span>}
+          {managed && kind !== 'external' &&
+            (live ? (
+              <IconBtn icon="stop" label={`停止${name}`} disabled={disabled} disabledReason={OFF_REASON} onClick={() => onStop(id)} />
+            ) : (
+              <IconBtn icon="play" label={`启动${name}`} disabled={disabled || !rt} disabledReason={disabled ? OFF_REASON : '还没读到状态'} onClick={() => onStart(id)} />
+            ))}
+          {managed && live && kind !== 'starting' && <IconBtn icon="refresh" label={`重启${name}`} disabled={disabled} disabledReason={OFF_REASON} onClick={() => onRestart(id)} />}
+          {managed && <IconBtn icon="file" label={`${name}日志`} disabled={disabled} disabledReason={OFF_REASON} onClick={() => onLogs(id)} />}
+          <GameSeg variant="setting" label={`${name} 接法`} value={draft.mode} options={MODES} disabled={disabled} onChange={(v) => put({ mode: v as ServiceMode })} />
+        </div>
+      </header>
+      {note && <p className={styles.note}>{note}</p>}
+      {draft.mode !== 'off' && (
+        <div className={styles.body}>
+          {field('url', '地址', draft.mode === 'url' ? 'http://主机:端口' : 'http://127.0.0.1:端口', draft.mode === 'ssh' ? '隧道在这台电脑上的一端' : undefined)}
+          {draft.mode === 'ssh' && (
+            <>
+              {field('ssh_host', 'SSH 主机')}
+              {field('start_script', '启动脚本')}
+            </>
+          )}
+          {draft.mode === 'local' && (
+            <>
+              {field('command', '命令')}
+              {field('cwd', '工作目录')}
+            </>
+          )}
+          {id === 'tts' && <TtsSecretRows />}
+          {id === 'motion' && <MotionTokenRow />}
+          {id === 'llm' && <LlmSecretRows pending={dirty} />}
         </div>
       )}
-    </>
-  );
-
-  const summary = [record.mode !== 'off' && record.url, record.mode === 'ssh' && record.ssh_host, managed && rt?.pid != null && `pid ${rt.pid}`].filter(Boolean).join(' │ ');
-  return (
-    <>
-      <SetRow
-        id={`svc_${id}`}
-        title={name}
-        desc={desc}
-        descTone={reason ? 'bad' : undefined}
-        control={
-          // Off and url run nothing here; the fold right below names the mode.
-          managed && (
-            <>
-              <StatusLamp size="sm" state={tone} label={text} />
-              {kind !== 'external' &&
-                (live ? (
-                  <IconBtn icon="stop" label={`停止${name}`} disabled={disabled} disabledReason={OFF_REASON} onClick={() => onStop(id)} />
-                ) : (
-                  <IconBtn icon="play" label={`启动${name}`} disabled={disabled || !rt} disabledReason={disabled ? OFF_REASON : '还没读到状态'} onClick={() => onStart(id)} />
-                ))}
-              {live && kind !== 'starting' && <IconBtn icon="refresh" label={`重启${name}`} disabled={disabled} disabledReason={OFF_REASON} onClick={() => onRestart(id)} />}
-              <IconBtn icon="file" label={`${name}日志`} disabled={disabled} disabledReason={OFF_REASON} onClick={() => onLogs(id)} />
-            </>
-          )
-        }
-      />
-      <div className={groups.sub}>
-        <ExpandRow label={`${name} 接法`} body={body}>
-          <span>{MODE_LABEL[record.mode]}</span>
-          {summary && <span className={groups.t3}>{summary}</span>}
-        </ExpandRow>
-      </div>
-    </>
+    </section>
   );
 }

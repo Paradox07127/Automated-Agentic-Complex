@@ -21,7 +21,6 @@ import { DataGroup } from './groups/Data';
 import { DisplayGroup } from './groups/Display';
 import { KernelGroup } from './groups/Kernel';
 import { KeysGroup } from './groups/Keys';
-import { ModelGroup } from './groups/Model';
 import { SeeGroup } from './groups/See';
 import { ServicesData } from './groups/ServicesData';
 import { SpeakGroup } from './groups/Speak';
@@ -29,7 +28,7 @@ import { useSettingsModel } from './model';
 import type { Native } from './native';
 import { usePerms } from './perms';
 import { demoInit } from './demoInit';
-import { DEFAULT_GROUP, GROUP_IDS, groupOf, isGroup, NATIVE_GROUPS, NEEDS_AGENTD, PI_ONLY_ROWS, SECTION_GROUP, searchSettings, DRAFT_SECTION, useRowShown, type GroupId, type RegEntry } from './registry';
+import { DEFAULT_GROUP, GROUP_IDS, GROUP_MOVED, groupOf, isGroup, NATIVE_GROUPS, NEEDS_AGENTD, NOT_PI_ROWS, PI_ONLY_ROWS, ROW_MOVED, SECTION_GROUP, searchSettings, DRAFT_SECTION, useRowShown, type GroupId, type RegEntry } from './registry';
 import { SearchResults } from './SearchResults';
 import { SetNav, SetSearch } from './SetNav';
 import { SettingsOverlays } from './SettingsOverlays';
@@ -43,7 +42,6 @@ const GROUPS: Record<GroupId, ComponentType> = {
   privacy: SeeGroup,
   display: DisplayGroup,
   kernel: KernelGroup,
-  model: ModelGroup,
   services: ServicesData,
   keys: KeysGroup,
   data: DataGroup,
@@ -69,7 +67,9 @@ function useSearchParams() {
   return useMemo(() => {
     const p = new URLSearchParams(search);
     const g = p.get('group');
-    return { group: isGroup(g) ? g : DEFAULT_GROUP, item: p.get('item'), q: p.get('q') ?? '' };
+    const item = p.get('item');
+    const group = isGroup(g) ? g : (GROUP_MOVED[g ?? ''] ?? DEFAULT_GROUP);
+    return { group, item: item && (ROW_MOVED[item] ?? item), q: p.get('q') ?? '' };
   }, [search]);
 }
 
@@ -81,7 +81,7 @@ function carry(prev: Record<string, unknown>, next: Record<string, string>): Rec
   return out;
 }
 
-/** 设置: ten group tabs and the search in the top bar, one list column, the bottom bar, white confirm cards. */
+/** 设置: nine group tabs and the search in the top bar, one list column, the bottom bar, white confirm cards. */
 export function SettingsPage() {
   const { demo } = useDemo();
   return <SettingsBody key={demo ?? 'none'} />;
@@ -161,7 +161,8 @@ function SettingsBody() {
     [navigate],
   );
   const goRow = useCallback(
-    (id: string, g?: GroupId) => {
+    (row: string, g?: GroupId) => {
+      const id = ROW_MOVED[row] ?? row;
       const target = g ?? groupOf(id) ?? group;
       setQ('');
       setHl(id);
@@ -230,7 +231,7 @@ function SettingsBody() {
   };
   const pi = model.value('kernel') === 'pi';
   const results = q.trim()
-    ? searchSettings(q).filter((r) => !(r.group === '@character' && DEV_ONLY_ROWS.has(r.id) && !isDevMode()) && (pi || !PI_ONLY_ROWS.has(r.id)) && shownRow(r.id)
+    ? searchSettings(q).filter((r) => !(r.group === '@character' && DEV_ONLY_ROWS.has(r.id) && !isDevMode()) && !(pi ? NOT_PI_ROWS : PI_ONLY_ROWS).has(r.id) && shownRow(r.id)
       && (r.section !== '系统权限' || r.id === 'perms' || perms.some((p) => p.kind === r.id)))
     : null;
   const view = results ? 'search' : group;
@@ -265,7 +266,7 @@ function SettingsBody() {
         state="unlinked"
         mode="block"
         title="后台服务"
-        reason="后台已断开，内核和账号这一组暂时只读"
+        reason="后台已断开，AI 这一组暂时只读"
         action={{ label: '重启后台', onClick: () => void model.restartBackend() }}
       >
         <Group />
