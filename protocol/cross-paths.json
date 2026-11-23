@@ -66,7 +66,7 @@
    "characters/agentic_complex_build/mod_settings.py"]},
   {"row": "C9", "token": "agentic-complex-hook", "files": ["agent/agentd/tools/install_hooks.py"]},
   {"row": "C9", "token": "ui-runtime.json", "files": ["agent/browser/native_host.py"]},
-  {"row": "C9", "token": "hook.token", "files": ["agent/browser/native_host.py"]},
+  {"row": "C9", "token": "hook.token", "files": ["agent/browser/native_host.py", "app/electron/src/common/onboarding.ts"]},
   {"row": "C10", "token": "blacklist.json", "files": ["agent/browser/native_host.py"]},
   {"row": "C10", "token": "native_host.py", "files": ["app/electron/src/main/index.ts"]},
   {"row": "C10", "token": "tts-token", "files": ["voice/tts-service/deploy/Dockerfile", "voice/tts-service/deploy/compose.yaml", "voice/tts-service/deploy/deploy.sh"]},

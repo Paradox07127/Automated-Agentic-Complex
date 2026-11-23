@@ -128,6 +128,15 @@ function LightPad({ n, disabled, setMany }: { n: Native; disabled: boolean; setM
 /** A changed row's lead: a click puts it back to its default. */
 const resetLead = (label: string, disabled: boolean, onPress: () => void) => ({ label: `恢复「${label}」的默认`, title: '恢复这一行的默认', disabled, onPress });
 
+/** An unchanged row's lead: a framed diamond on two side ticks, its core yellow while the row is under the pointer. */
+const IDLE = (
+  <svg className={styles.idle} viewBox="0 0 24 24" width="22" height="22" focusable="false">
+    <path className={styles.ticks} d="M.5 12h3.5M20 12h3.5" />
+    <path className={styles.frame} d="M12 4.5 19.5 12 12 19.5 4.5 12z" />
+    <path className={styles.core} d="M12 9 15 12 12 15 9 12z" />
+  </svg>
+);
+
 export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: SettingRowsProps) {
   const compact = useCompact();
   // Re-renders when 开发者模式 flips; visible() reads it.
@@ -140,9 +149,9 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
       <div key={id} id={`set-${id}`} className={styles.row} data-changed={changed || undefined} role="group" aria-label={r.label} title={changed ? ROW_DESC[id] : undefined}>
         <DarkRow
           mark={changed ? 'changed' : 'hollow'}
-          micro="Endfield"
+          barcode={false}
           compact={compact}
-          {...(changed ? { leadAction: resetLead(r.label, offline, () => set(id, r.default)) } : {})}
+          {...(changed ? { leadAction: resetLead(r.label, offline, () => set(id, r.default)) } : { lead: IDLE })}
           title={
             <span className={styles.tt}>
               <span className={styles.lb}>{r.label}</span>
@@ -169,9 +178,9 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
       <div key="pad" id={`set-${LIGHT_PAD.yaw}`} className={styles.row} data-changed={changed || undefined} data-pad="" role="group" aria-label="主光方向">
         <DarkRow
           mark={changed ? 'changed' : 'hollow'}
-          micro="Endfield"
+          barcode={false}
           compact={compact}
-          {...(changed ? { leadAction: resetLead('主光方向', offline, () => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default })) } : {})}
+          {...(changed ? { leadAction: resetLead('主光方向', offline, () => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default })) } : { lead: IDLE })}
           title="主光方向"
           sub={changed ? `默认：${valueText(yaw, yaw.default)}（正中）` : '点格子换方向，正中是原作'}
           end={<LightPad n={n} disabled={offline} setMany={setMany} />}

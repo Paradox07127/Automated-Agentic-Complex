@@ -118,44 +118,79 @@ button.hit:focus-visible {
   color: var(--ef-accent);
 }
 
-/* The lead as its own button (↺): the glyph until hovered, then the whole cell yellow with a dark ↺. */
+/* The lead as its own button (↺): a cut-corner key in a thin yellow frame (dialog icon_playaduio), its shadow to the lower right; hovered the plate fills yellow and the arrow turns back, pressed the plate darkens. */
 button.lead {
   margin: 0;
   padding: 0;
   border: 0;
   font: inherit;
   cursor: pointer;
-  transition: background-color var(--ef-dur-g-btn) linear;
 }
 
 button.lead:disabled {
   cursor: default;
 }
 
-.face {
-  display: grid;
-  place-items: center;
-}
-
-.act {
-  display: none;
-}
-
-button.lead:hover:not(:disabled) {
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
-}
-
-button.lead:hover:not(:disabled) .face {
-  display: none;
-}
-
-button.lead:hover:not(:disabled) .act {
+.key {
   display: block;
+  overflow: visible;
+  filter: drop-shadow(2px 2px 0 color-mix(in srgb, var(--dr-black) 55%, transparent));
 }
 
-button.lead:active:not(:disabled) {
-  background: var(--dr-lead-press);
+.ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ef-accent) 70%, transparent);
+  stroke-width: 1;
+  transition: stroke var(--ef-dur-g-btn) linear;
+}
+
+.plate {
+  fill: color-mix(in srgb, var(--dr-black) 50%, transparent);
+  transition: fill var(--ef-dur-g-btn) linear;
+}
+
+.arrow {
+  fill: none;
+  stroke: var(--ef-accent);
+  stroke-width: 3;
+}
+
+.arrow path {
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+  transition: transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+button.lead:hover:not(:disabled) .ring {
+  stroke: var(--ef-accent);
+}
+
+button.lead:hover:not(:disabled) .plate {
+  fill: var(--ef-accent);
+}
+
+button.lead:hover:not(:disabled) .arrow {
+  stroke: var(--ef-on-accent);
+}
+
+button.lead:hover:not(:disabled) .arrow path {
+  transform: rotate(-40deg);
+}
+
+button.lead:active:not(:disabled) .plate {
+  fill: var(--dr-lead-press);
+}
+
+button.lead:disabled .key {
+  filter: none;
+}
+
+button.lead:disabled .ring {
+  stroke: color-mix(in srgb, var(--dr-ink) 25%, transparent);
+}
+
+button.lead:disabled .arrow {
+  stroke: color-mix(in srgb, var(--dr-ink) 40%, transparent);
 }
 
 button.lead:focus-visible {
@@ -317,6 +352,11 @@ button.lead:focus-visible {
   height: 14px;
 }
 
+.row[data-compact] .key {
+  width: 24px;
+  height: 24px;
+}
+
 .row[data-compact] .body {
   padding: 4px 8px 4px 10px;
 }
@@ -327,11 +367,13 @@ button.lead:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   .row,
-  button.lead {
+  .ring,
+  .plate,
+  .arrow path {
     transition: none;
   }
 }
 
-:global(.still) :is(.row, button.lead) {
+:global(.still) :is(.row, .ring, .plate, .arrow path) {
   transition: none;
 }

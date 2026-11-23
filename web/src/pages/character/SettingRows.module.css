@@ -87,7 +87,43 @@
   color: #ff8a7a;
 }
 
-/* The title: the DEV and restart marks stay whole; the label is cut only after the row's barcode has given way. */
+/* An unchanged row's lead: the frame and ticks in faint ink; under the pointer the frame brightens and the core turns yellow. */
+.idle {
+  display: block;
+  overflow: visible;
+}
+
+.ticks {
+  fill: none;
+  stroke: color-mix(in srgb, var(--dr-ink) 28%, transparent);
+  stroke-width: 1;
+}
+
+.frame {
+  fill: color-mix(in srgb, var(--dr-black) 35%, transparent);
+  stroke: color-mix(in srgb, var(--dr-ink) 55%, transparent);
+  stroke-width: 1.4;
+  transition: stroke var(--ef-dur-g-btn) linear;
+}
+
+.core {
+  fill: color-mix(in srgb, var(--dr-ink) 80%, transparent);
+  transform-origin: 12px 12px;
+  transition:
+    fill var(--ef-dur-g-btn) linear,
+    transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+}
+
+.row:hover .frame {
+  stroke: var(--dr-ink);
+}
+
+.row:hover .core {
+  fill: var(--ef-accent);
+  transform: scale(1.25);
+}
+
+/* The title: the DEV and restart marks stay whole; the label is cut only after the controls have their room. */
 .tt {
   display: flex;
   align-items: center;
@@ -217,7 +253,7 @@
   opacity: 0.5;
 }
 
-/* Narrow panel (925 × 515): no row barcode, no Latin on the heads, the light pad without its readout and on smaller cells. */
+/* Narrow panel (925 × 515): no Latin on the heads, the light pad without its readout and on smaller cells. */
 @container (max-width: 440px) {
   .sec .head {
     gap: 7px;
@@ -250,7 +286,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cell {
+  .cell,
+  .frame,
+  .core {
     transition: none;
   }
 }

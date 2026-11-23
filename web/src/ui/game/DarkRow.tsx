@@ -9,7 +9,7 @@ import styles from './DarkRow.module.css';
 /** 左格状态：可播 ▶、缺资源 ⊘、由行为自动触发、已改（可恢复默认）↺、空心菱形（未选的选项）、出错 ⚠（橙色左边，状态行和失败行）、完成 ✓（黄）、新的待处理（红点橙菱形，橙色左边）。 */
 export type DarkRowMark = 'play' | 'missing' | 'auto' | 'changed' | 'hollow' | 'warn' | 'ok' | 'new';
 
-/** 左格自己的按钮（设定行的 ↺ 恢复默认）：悬停整格变黄。 */
+/** 左格自己的按钮（设定行的 ↺ 恢复默认）：细黄框里的切角键，悬停填黄，按下沉进右下的影子。 */
 export interface DarkRowLeadAction {
   /** 读屏名称 */
   label: string;
@@ -47,6 +47,8 @@ export interface DarkRowProps {
   end?: ReactNode;
   /** 条码下的微型英文，默认 AGENTIC */
   micro?: string;
+  /** 右端竖条码，默认画 */
+  barcode?: boolean;
   /** 给了就是按钮（左格加主体），选中写 aria-pressed；不给是静态行 */
   onPress?: () => void;
 }
@@ -98,7 +100,7 @@ function Breath() {
   return <i ref={ref} className={styles.frame} data-g="root" />;
 }
 
-export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, focused, compact, subFirst, leadWidth, selected = false, end, micro = 'AGENTIC', onPress }: DarkRowProps) {
+export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, focused, compact, subFirst, leadWidth, selected = false, end, micro = 'AGENTIC', barcode = true, onPress }: DarkRowProps) {
   const face = (
     <>
       {selected && <Breath />}
@@ -133,11 +135,10 @@ export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, fo
     >
       {leadAction && (
         <button type="button" className={styles.lead} aria-label={leadAction.label} title={leadAction.title} disabled={leadAction.disabled} onClick={leadAction.onPress}>
-          <span className={styles.face} aria-hidden="true">
-            {face}
-          </span>
-          <svg className={styles.act} viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-            <g fill="none" stroke="currentColor" strokeWidth="2.2">
+          <svg className={styles.key} viewBox="0 0 32 32" width="30" height="30" aria-hidden="true" focusable="false">
+            <path className={styles.ring} d="M6.5.5h25v25l-6 6h-25v-25z" />
+            <path className={styles.plate} d="M7.5 3H29v21.5L24.5 29H3V7.5z" />
+            <g className={styles.arrow} transform="translate(7.6 7.6) scale(.7)">
               <path d="M7.5 8.5A7 7 0 1 1 5 13.5" />
               <path d="M4 4.5v5h5" />
             </g>
@@ -152,7 +153,7 @@ export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, fo
         <div className={styles.hit}>{inner}</div>
       )}
       {end != null && <div className={styles.end}>{end}</div>}
-      {!compact && (
+      {!compact && barcode && (
         <span className={styles.deco} aria-hidden="true">
           <Barcode width={64} height={10} label={micro} />
         </span>

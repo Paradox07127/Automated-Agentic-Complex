@@ -96,6 +96,13 @@ describe('CharacterSettings', () => {
     expect(onTab).toHaveBeenCalledWith('render');
   });
 
+  it('draws no barcode at the end of its rows', async () => {
+    view('behavior');
+    await screen.findByRole('tablist', { name: '设定' });
+    expect(document.querySelectorAll('[id^="set-"]').length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('[id^="set-"] [data-stub="Barcode"]')).toHaveLength(0);
+  });
+
   it('draws the three quality rows on 画面 only in developer mode, each marked DEV', async () => {
     setDevMode(false);
     view('render');
