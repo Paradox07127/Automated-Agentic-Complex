@@ -91,14 +91,14 @@ export function AboutGroup() {
         <SetRow
           id="fonts"
           title={labelOf('fonts')}
-          desc="Noto Sans SC、Saira │ SIL OFL 1.1；Material Symbols │ Apache 2.0"
+          desc="HarmonyOS Sans SC │ HarmonyOS Sans 字体许可协议；Material Symbols │ Apache 2.0"
           control={
             <Btn
               go
               onClick={() =>
                 model.ask({
                   title: '字体许可',
-                  note: 'Noto Sans SC 与 Saira 按 SIL Open Font License 1.1 随应用打包，许可原文在各字体包的 LICENSE；Material Symbols 按 Apache License 2.0。',
+                  note: '本应用使用 HarmonyOS Sans SC 字体（Copyright 2021 Huawei Device Co., Ltd.），按 HarmonyOS Sans Fonts License Agreement 原样随应用打包，许可原文随应用附在 licenses/HarmonyOS-Sans-LICENSE.txt；Material Symbols 按 Apache License 2.0。',
                   confirmLabel: '知道了',
                   onConfirm: () => {},
                 })

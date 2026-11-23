@@ -560,11 +560,11 @@
   --ef-hud-card: #131416;
   --ef-hud-handle-press: #C4C4C4;
   --ef-hud-handle-press-ring: #050505;
-  --ef-font-sans: "Noto Sans SC","PingFang SC",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
-  --ef-font-ui: "Saira Variable","Noto Sans SC","PingFang SC",system-ui,sans-serif;
-  --ef-font-num: "Saira Variable","Noto Sans SC","PingFang SC",system-ui,sans-serif;
-  --ef-font-wide: "Saira Variable","Noto Sans SC","PingFang SC",system-ui,sans-serif;
-  --ef-font-din: "Saira Variable","Noto Sans SC","PingFang SC",system-ui,sans-serif;
+  --ef-font-sans: "HarmonyOS Sans SC","PingFang SC",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+  --ef-font-ui: "HarmonyOS Sans SC","PingFang SC",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+  --ef-font-num: "HarmonyOS Sans SC","PingFang SC",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+  --ef-font-wide: "HarmonyOS Sans SC","PingFang SC",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+  --ef-font-din: "HarmonyOS Sans SC","PingFang SC",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
   --ef-font-mono: ui-monospace,"SF Mono",Menlo,monospace;
   --ef-fs-display: 28px;
   --ef-fs-title-1: 18px;

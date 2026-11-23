@@ -8,10 +8,7 @@ const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
 };
 
 // Packages used without a TS import.
-const whitelist: Record<string, string> = {
-  '@fontsource/noto-sans-sc': 'font, @import from src/design/base.css',
-  '@fontsource-variable/saira': 'font, @import from src/design/base.css',
-};
+const whitelist: Record<string, string> = {};
 
 const sources = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) => {

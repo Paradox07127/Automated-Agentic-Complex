@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { MicroLabel } from './Marks';
 import styles from './Readout.module.css';
 
-/** 读数刻：左边 2 px 竖条 + Saira 大数 + 小号单位，下面一行标签。tone：黄（主读数）、墨（次读数）、橙（过了注意线）、红（过了过高线）。lg 是读数带里的大号。 */
+/** 读数刻：左边 2 px 竖条 + 大数 + 小号单位，下面一行标签。tone：黄（主读数）、墨（次读数）、橙（过了注意线）、红（过了过高线）。lg 是读数带里的大号。 */
 export interface ReadTickProps {
   /** 数；没有时写「—」 */
   value: ReactNode;

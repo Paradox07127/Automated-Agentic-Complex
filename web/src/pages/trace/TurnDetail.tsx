@@ -28,10 +28,10 @@ function Band({ no, trace }: { no: number; trace: string | null }) {
         <rect x="66" y="40" width="12" height="16" />
       </g>
       <path d="M96 14l9-9 9 9h-6v10h-6V14zM96 32h18v3H96zM96 38h18v2H96z" fill="var(--ef-on-accent)" opacity=".85" />
-      <text x="126" y="20" fill="var(--ef-on-accent)" fontSize="9" fontWeight="600" letterSpacing="1.4" fontFamily="Saira, sans-serif">
+      <text x="126" y="20" fill="var(--ef-on-accent)" fontSize="9" fontWeight="600" letterSpacing="1.4" fontFamily="'HarmonyOS Sans SC', sans-serif">
         TRACE // {trace ? `${trace.slice(0, 4).toUpperCase()}-${String(no).padStart(4, '0')}` : '----'}
       </text>
-      <text x="126" y="33" fill="var(--ef-on-accent)" opacity=".6" fontSize="9" letterSpacing="1.2" fontFamily="Saira, sans-serif">AIC // RUN RECORD // LOCAL ONLY</text>
+      <text x="126" y="33" fill="var(--ef-on-accent)" opacity=".6" fontSize="9" letterSpacing="1.2" fontFamily="'HarmonyOS Sans SC', sans-serif">AIC // RUN RECORD // LOCAL ONLY</text>
       <g fill="var(--ef-on-accent)">
         {Array.from({ length: 18 }, (_, i) => (
           <rect key={i} x={126 + i * 6 + (i % 3)} y="40" width={1 + ((i * 7) % 3)} height="11" />

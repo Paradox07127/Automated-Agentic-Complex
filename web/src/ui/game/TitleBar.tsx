@@ -13,7 +13,7 @@ export interface TitleBarProps {
   count?: number;
   /** 分母：计数画成「count/total」 */
   total?: number;
-  /** 计数用强调色：Saira 黄字，大一号（「舞曲库 06」那种整页的总数） */
+  /** 计数用强调色：HarmonyOS Sans 黄字，大一号（「舞曲库 06」那种整页的总数） */
   countAccent?: boolean;
   /** 这组改了几项；0 或不给不显示 */
   changed?: number;

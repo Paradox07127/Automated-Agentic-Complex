@@ -42,11 +42,11 @@ function cardOf<K extends StackCard['kind']>(scenario: string, kind: K): Extract
 }
 
 describe('wide display face', () => {
-  it('bundles the variable Saira with a width axis', () => {
+  it('bundles the variable HarmonyOS Sans SC', () => {
     const base = src('design/base.css');
-    expect(base).toContain("@import '@fontsource-variable/saira/wdth.css'");
+    expect(base).toContain("font-family: 'HarmonyOS Sans SC'");
     expect(base).not.toContain('anybody');
-    expect(tokensJson.type.family['font-wide']).toMatch(/^"Saira Variable"/);
+    expect(tokensJson.type.family['font-wide']).toMatch(/^"HarmonyOS Sans SC"/);
   });
 });
 

@@ -1,4 +1,4 @@
-// Fails when any file under src/ (except the token data tokens.json, the generated tokens.css and *.generated.ts) exceeds the line limit.
+// Fails when any file under src/ (except the token data tokens.json, the generated tokens.css, *.generated.ts and binary *.ttf fonts) exceeds the line limit.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +20,7 @@ const over = [];
 let count = 0;
 for (const file of walk(src)) {
   const rel = relative(root, file).split('\\').join('/');
-  if (exempt.has(rel) || rel.endsWith('.generated.ts')) continue;
+  if (exempt.has(rel) || rel.endsWith('.generated.ts') || rel.endsWith('.ttf')) continue;
   count += 1;
   const text = readFileSync(file, 'utf8');
   const lines = text.length === 0 ? 0 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0);

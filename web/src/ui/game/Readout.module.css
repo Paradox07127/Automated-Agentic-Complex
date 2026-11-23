@@ -1,4 +1,4 @@
-/* ReadTick: the statistic panel's read — a 2 px bar, a large Saira number, a line of label under it. */
+/* ReadTick: the statistic panel's read — a 2 px bar, a large number, a line of label under it. */
 .tick {
   --rt-bar: var(--ef-accent);
   --rt-ink: var(--ef-accent-text);

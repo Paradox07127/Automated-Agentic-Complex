@@ -5,18 +5,6 @@ import react from '@vitejs/plugin-react';
 // Demo modules: the app build may drop them when nothing uses their exports, though their top-level code calls functions.
 const DEMO = /\/src\/mock\/|\.demos\.tsx?$|\/src\/pages\/[^/]+\/demos\.ts$/;
 
-// The pages run only in Chromium, which takes the woff2 source; dropping the woff fallback keeps its files out of the build.
-// A PostCSS plugin, because Vite reads @import-ed CSS from disk without running plugin transform hooks on it.
-const woff2Only = {
-  postcssPlugin: 'fontsource-woff2-only',
-  Declaration: {
-    src(decl: { value: string; source?: { input: { file?: string } } }) {
-      if (!/[\\/]node_modules[\\/]@fontsource(-variable)?[\\/]/.test(decl.source?.input.file ?? '')) return;
-      decl.value = decl.value.replace(/,\s*url\([^)]*\.woff\)\s*format\(['"]woff['"]\)/g, '');
-    },
-  },
-};
-
 export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [react()],
@@ -25,7 +13,6 @@ export default defineConfig(({ mode }) => ({
   ...(process.env.EF_DEV_HMR_PORT ? { server: { ws: { protocol: 'ws', host: '127.0.0.1', clientPort: Number(process.env.EF_DEV_HMR_PORT) } } } : {}),
   css: {
     modules: { localsConvention: 'camelCaseOnly' },
-    postcss: { plugins: [woff2Only] },
   },
   build: {
     // The inline polyfill would be blocked by the app's CSP (no inline script).

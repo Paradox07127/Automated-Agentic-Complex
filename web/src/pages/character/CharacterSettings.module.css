@@ -20,7 +20,7 @@
   min-height: 0;
 }
 
-/* The 「能力值」 title bar: dark frosted, cut at the lower right, a yellow left edge and the count in Saira. */
+/* The 「能力值」 title bar: dark frosted, cut at the lower right, a yellow left edge and the count. */
 .sum {
   position: relative;
   display: flex;

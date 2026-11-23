@@ -36,8 +36,8 @@ test('the name is Source Han Sans Bold at 24.72 % of the screen height, its ink 
   const style = await name.evaluate((el) => ({ size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight, family: getComputedStyle(el).fontFamily }));
   expect(Number.parseFloat(style.size)).toBeCloseTo(267, 0);
   expect(style.weight).toBe('700');
-  expect(style.family.startsWith('"Noto Sans SC"')).toBe(true);
-  expect(await page.evaluate(() => document.fonts.check('700 100px "Noto Sans SC"', '佩'))).toBe(true);
+  expect(style.family.startsWith('"HarmonyOS Sans SC"')).toBe(true);
+  expect(await page.evaluate(() => document.fonts.check('700 100px "HarmonyOS Sans SC"', '佩'))).toBe(true);
   const box = await ink(page);
   // Ink about 0.92 of the font size tall, centred on the screen within a few px.
   expect(box.h).toBeGreaterThan(230);
@@ -49,7 +49,7 @@ test('the name is Source Han Sans Bold at 24.72 % of the screen height, its ink 
   expect(box.w).toBeLessThan(3 * 0.97 * 267 + 2 * 9);
 });
 
-test('the English name runs under the name in Saira caps at 2.5 % of the screen height, fading downwards', async ({ page }) => {
+test('the English name runs under the name in HarmonyOS Sans SC caps at 2.5 % of the screen height, fading downwards', async ({ page }) => {
   await open(page, { name: '佩丽卡', en: 'Perlica' });
   const sub = page.locator('[data-slot="sub"]');
   await expect(sub).toHaveText('Perlica');

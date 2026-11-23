@@ -49,7 +49,7 @@
 }
 
 /* The game's script code line under the title: her English name 2.5 % of the screen height, 0.4 % below the name's ink,
-   fading from half its cap height to .05. Saira's caps run from 0.152 em to 0.848 em in a 1 em line. */
+   fading from half its cap height to .05. HarmonyOS Sans SC's caps run from 0.152 em to 0.848 em in a 1 em line. */
 .sub {
   position: relative;
   margin: calc(0.4vh - 0.152em) 0 -0.152em;

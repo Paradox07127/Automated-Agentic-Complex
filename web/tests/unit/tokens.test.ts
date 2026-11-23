@@ -239,9 +239,8 @@ describe('new-style tokens', () => {
     }
   });
 
-  it('sets the wide Latin face first in every UI font stack', () => {
-    for (const k of ['font-ui', 'font-wide', 'font-num', 'font-din']) expect(tokens.type.family[k], k).toMatch(/^"Saira Variable",/);
-    expect(tokens.type.family['font-num']).toMatch(/^"Saira Variable","Noto Sans SC",/);
+  it('sets HarmonyOS Sans SC first in every UI font stack', () => {
+    for (const k of ['font-sans', 'font-ui', 'font-wide', 'font-num', 'font-din']) expect(tokens.type.family[k], k).toMatch(/^"HarmonyOS Sans SC",/);
   });
 
   it('keeps chart colours on the ink scale', () => {

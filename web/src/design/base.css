@@ -1,9 +1,11 @@
-/* Fonts are bundled from npm (SIL OFL 1.1); no CDN. */
-@import '@fontsource/noto-sans-sc/400.css';
-@import '@fontsource/noto-sans-sc/500.css';
-@import '@fontsource/noto-sans-sc/600.css';
-@import '@fontsource/noto-sans-sc/700.css';
-@import '@fontsource-variable/saira/wdth.css';
+/* HarmonyOS Sans SC (variable, wght 40-900) is bundled unmodified; its licence ships as public/licenses/HarmonyOS-Sans-LICENSE.txt. */
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  src: url('../assets/fonts/harmonyos-sans/HarmonyOS_Sans_SC.ttf') format('truetype');
+  font-weight: 40 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 /* Animatable numbers driven by game clips (gameClips.generated.ts); registered once here because @property is global.
    Elements that rest at another value set it in their own rule. */
