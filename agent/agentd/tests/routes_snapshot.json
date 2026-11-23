@@ -1013,6 +1013,13 @@
   ],
   [
     "POST",
+    "/character/greeting",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "POST",
     "/model/settings",
     [
       "ui_token"

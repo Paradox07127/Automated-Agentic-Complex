@@ -55,7 +55,12 @@ TAPS = ("(Situation, not words from {user_title}: {user_title} touched you {coun
         "the more touches, the more you may sound a little exasperated, or tease them back, still within your usual "
         "bounds. If the earlier topic is not finished, pick it up. "
         "What you say is only your reaction; do not state the count, do not describe what they just did.)")
-COUNTS = ("sessions", "agents_done", "agents_failed", "gates_green", "gates_red", "guard_blocks", "own_sessions")
+# Her opening line on the desktop once the first-run guide is done (RitualsGlueMixin.greet); through egress.authored.
+GREETING = ("(Situation, not words from {user_title}: {user_title} has just finished setting you up on this computer "
+            "and chose to talk with you; you now stand on their desktop for the first time. Give them your opening "
+            "line: one or two short sentences in your own usual voice, as a first hello. Do not describe the setup, do "
+            "not list what you can do, and do not ask them for a task.)")
+COUNTS = ("sessions","agents_done", "agents_failed", "gates_green", "gates_red", "guard_blocks", "own_sessions")
 
 
 def pick_line(card, event, language, previous):

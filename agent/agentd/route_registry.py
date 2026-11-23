@@ -428,6 +428,8 @@ REGISTRY = (
           owner=SERVER, action="_gift", summary="User gave the character a gift", spec=C6),
     Route("POST", "/interaction/record", UI, "host_only", (),
           owner=SERVER, action="_record", summary="A touch of the character or her greeting, for the daily brief", spec=C6),
+    Route("POST", "/character/greeting", UI, "host_only", (),
+          owner=SERVER, action="_greeting", summary="Her opening line once the first-run guide is done", spec=C6),
     Route("POST", "/model/settings", UI, "write", ("main", "onboarding"),
           owner=SERVER, action="_model_post", summary="Change pi credentials and default connection", spec=C6),
     Route("POST", "/model/catalog", UI, "write", ("main", "onboarding"),

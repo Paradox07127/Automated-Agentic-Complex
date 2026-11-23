@@ -5,7 +5,7 @@ import secrets
 from brain.outbound import OutboundBlocked
 from brain.persona import BASE_LANGUAGE
 from daemon.constants import FEEDBACK
-from personal.rituals import TAP, TAPS, TEMPLATES, pick_line
+from personal.rituals import GREETING, TAP, TAPS, TEMPLATES, pick_line
 from sessions import day_summary, threads
 from api.views import _iso
 
@@ -95,6 +95,28 @@ class RitualsGlueMixin:
                             reason={"code": "ritual", "kind": kind}, source="ritual", scripted=scripted,
                             material=f"Today so far: {data['arc']}" if kind == "report" else None)
         return 202, {"line_id": line_id, "kind": kind}
+
+    def greet(self):
+        """POST /character/greeting: her opening line once the first-run guide is done, on an idle mouth: the card's
+        greeting_morning line, else one the model makes from GREETING. (status, body)."""
+        lane = self._line_lane()
+        with self._slot_lock, self._switch_lock:
+            if self.switch is not None:
+                return 409, {"error": "switching"}
+            scripted = self._scripted_line("greeting_morning")
+            if scripted is None and (self.mouth is None or lane is None):
+                return (503, {"error": "no_llm"}) if self.mouth is None else (200, {"line_id": None})
+            if self.resetting or self.busy() or self._live_lines:
+                return 409, {"error": "busy"}
+            if scripted is None and self.egress is not None:
+                try:
+                    self.egress.authored("ritual", GREETING)
+                except OutboundBlocked:
+                    return 200, {"line_id": None}
+            line_id = secrets.token_hex(6)
+            self.start_line(line_id, GREETING.format(user_title=self.user_title()),
+                            reason={"code": "ritual", "kind": "greeting"}, source="ritual", scripted=scripted)
+        return 202, {"line_id": line_id}
 
     def gift(self, body):
         if not isinstance(body, dict) or set(body) - {"action_id"} or "action_id" in body and \

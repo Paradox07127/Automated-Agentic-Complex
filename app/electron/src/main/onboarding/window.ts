@@ -8,6 +8,7 @@ import type { ShellPlatform } from '../../common/config.ts';
 import { PageSession } from '../../common/page.ts';
 import { ORIGIN } from '../../common/ui.ts';
 import { readObject } from '../ops/settings.ts';
+import { type CommandResult, LINK_TIMING, type LinkEvent } from '../renderer/link.ts';
 import { shellPlatform } from '../platform/index.ts';
 import { guardWebContents, type WebGuardPorts } from '../web-guard.ts';
 
@@ -24,14 +25,25 @@ export interface GreetPorts {
   character(): string | null;
   /** An agentd GET with the ui token; `body` is the reply's text. */
   get(path: string): Promise<{ status: number; body: string }>;
-  /** C3 rule 52's `play_chain` from `start`; false when it was not sent. */
-  playChain(character: string, start: string): boolean;
+  /** An agentd POST with the ui token; `body` is the reply's text. */
+  post(path: string, json: unknown): Promise<{ status: number; body: string }>;
+  /** C3 rule 52's `play_chain` from `start`, resolved once it is over (`playToEnd`); false when it was not sent. */
+  playChain(character: string, start: string): Promise<boolean>;
   log(line: string): void;
 }
 
-/** Her greeting once on the desktop when the guide completes: the chain from the first clip her pack puts in `user.greet`,
- *  else in `character.enter` (`GET /characters/:id/motion-groups`). A character without one does nothing. */
-export async function greetOnDesktop(o: GreetPorts): Promise<void> {
+/** Her greeting once on the desktop when the guide completes; after 「和她说句话」 (`talk`), once it is over, her opening
+ *  line (agentd `POST /character/greeting`). */
+export async function greetOnDesktop(o: GreetPorts, destination: OnboardingDestination | null): Promise<void> {
+  await greetingMotion(o);
+  if (destination !== 'talk') return;
+  const reply = await o.post('/character/greeting', {});
+  if (reply.status !== 202) o.log(`ONBOARDING no opening line: ${reply.status} ${reply.body}`);
+}
+
+/** The chain from the first clip her pack puts in `user.greet`, else in `character.enter`
+ *  (`GET /characters/:id/motion-groups`). A character without one does nothing. */
+async function greetingMotion(o: GreetPorts): Promise<void> {
   const none = (why: string) => o.log(`ONBOARDING no greeting: ${why}`);
   const character = o.character();
   if (character === null) return none('no character');
@@ -40,7 +52,36 @@ export async function greetOnDesktop(o: GreetPorts): Promise<void> {
   const pools = (JSON.parse(reply.body) as { pools?: Record<string, { pack?: { clip?: unknown }[] }> }).pools ?? {};
   const clip = GREETING_POOLS.map((key) => pools[key]?.pack?.[0]?.clip).find((c): c is string => typeof c === 'string' && c !== '');
   if (clip === undefined) return none('no clip');
-  if (!o.playChain(character, clip)) none('play_chain not sent');
+  if (!await o.playChain(character, clip)) none('play_chain not sent');
+}
+
+/** What of the C3 link `playToEnd` uses (renderer/link.ts HostLink). */
+export interface ChainLink {
+  playChain(playId: string, character: string, start: string, speed?: number, onResult?: (r: CommandResult) => void): boolean;
+  on(listener: (e: LinkEvent) => void): () => void;
+}
+
+/** Sends `play_chain`; true once its `action_played` is past `started`, its `ack` refuses it, the link is lost or
+ *  `LINK_TIMING.playStart` has passed; false at once when it was not sent. */
+export function playToEnd(link: ChainLink, playId: string, character: string, start: string, log: (line: string) => void): Promise<boolean> {
+  return new Promise((resolve) => {
+    let off = () => {};
+    const over = (sent: boolean) => {
+      clearTimeout(timer);
+      off();
+      resolve(sent);
+    };
+    const timer = setTimeout(() => over(true), LINK_TIMING.playStart * 1000);
+    off = link.on((e) => {
+      const m = e.kind === 'message' ? e.message : null;
+      if (e.kind === 'lost' || m?.type === 'action_played' && m.play_id === playId && m.phase !== 'started') over(true);
+    });
+    if (!link.playChain(playId, character, start, 1, (r) => {
+      if (r.ok) return;
+      log(`ONBOARDING greeting refused: ${r.reason}`);
+      over(true);
+    })) over(false);
+  });
 }
 
 /** The room a title bar and the window's borders take on either system. */

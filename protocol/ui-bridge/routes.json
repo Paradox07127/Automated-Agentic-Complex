@@ -143,6 +143,7 @@
   {"method": "POST", "path": "/interaction/tap", "class": "host_only", "surfaces": []},
   {"method": "POST", "path": "/interaction/gift", "class": "host_only", "surfaces": []},
   {"method": "POST", "path": "/interaction/record", "class": "host_only", "surfaces": []},
+  {"method": "POST", "path": "/character/greeting", "class": "host_only", "surfaces": []},
   {"method": "POST", "path": "/model/settings", "class": "write", "surfaces": ["main", "onboarding"], "plugin": "light_ai"},
   {"method": "POST", "path": "/model/catalog", "class": "write", "surfaces": ["main", "onboarding"], "plugin": "light_ai"},
   {"method": "POST", "path": "/model/test", "class": "write", "surfaces": ["main", "onboarding"], "plugin": "light_ai"},

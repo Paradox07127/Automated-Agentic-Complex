@@ -1,4 +1,4 @@
-"""POST /character and the switch, GET /character/state/history, PUT /avatar/visibility, /character/state/switch and /behavior/motion_prefs, POST /behavior/receipts, /behavior/motion_state, /behavior/user_play and /interaction/record."""
+"""POST /character and the switch, GET /character/state/history, PUT /avatar/visibility, /character/state/switch and /behavior/motion_prefs, POST /behavior/receipts, /behavior/motion_state, /behavior/user_play, /interaction/record and /character/greeting."""
 from brain.outbound import OutboundBlocked
 import c1
 from character.desk_log import COUNTED
@@ -198,3 +198,13 @@ class CharacterMixin:
         self.send_response(204)
         self.send_header("Content-Length", "0")
         self.end_headers()
+
+    def _greeting(self, body):
+        """POST /character/greeting {}: her opening line once the first-run guide is done, sent by the Companion after
+        her greeting motion; a line she starts counts as a greeting in the daily brief."""
+        if body != {}:
+            return self._json(400, {"error": "invalid_payload"})
+        status, reply = self.server.greet()
+        if status == 202 and self.server.desk is not None:
+            self.server.desk.count("greet")
+        self._json(status, reply)

@@ -16,7 +16,8 @@ import { PageSession } from '../src/common/page.ts';
 import type { ServiceView } from '../src/common/runtime.ts';
 import { type HelperAnswer, PushToTalk, type VoiceTrial } from '../src/common/push-to-talk.ts';
 import { ORIGIN } from '../src/common/ui.ts';
-import { greetOnDesktop, onboardingWindow, type OnboardingDestination, windowOptions } from '../src/main/onboarding/window.ts';
+import { greetOnDesktop, onboardingWindow, type OnboardingDestination, playToEnd, windowOptions } from '../src/main/onboarding/window.ts';
+import type { CommandResult, LinkEvent } from '../src/main/renderer/link.ts';
 import { bundleBuild } from '../src/main/ops/app.ts';
 import { shellPlatform } from '../src/main/platform/index.ts';
 import type { WebGuardPorts } from '../src/main/web-guard.ts';
@@ -207,22 +208,31 @@ test('end closes the guide; 打开主窗口 opens the main window at 主页, 和
   }
 });
 
-/** greetOnDesktop over `groups` as agentd's motion-groups reply for `character`; what it played and logged. */
-async function greeting(groups: { status: number; body: unknown }, o: { character?: string | null; sends?: boolean } = {}) {
-  const asked: string[] = [], played: [string, string][] = [], logs: string[] = [];
+/** greetOnDesktop toward `destination` over `groups` as agentd's motion-groups reply for `character`; what it played,
+ *  posted and logged, `posted` with how many chains were over by then. */
+async function greeting(groups: { status: number; body: unknown }, o: { character?: string | null; sends?: boolean;
+  destination?: OnboardingDestination | null; opening?: number } = {}) {
+  const asked: string[] = [], played: [string, string][] = [], logs: string[] = [], posted: [string, unknown, number][] = [];
+  let over = 0;
   await greetOnDesktop({
     character: () => (o.character === undefined ? 'aster' : o.character),
     get: async (path) => {
       asked.push(path);
       return { status: groups.status, body: JSON.stringify(groups.body) };
     },
-    playChain: (character, start) => {
+    post: async (path, json) => {
+      posted.push([path, json, over]);
+      return { status: o.opening ?? 202, body: '{}' };
+    },
+    playChain: async (character, start) => {
       played.push([character, start]);
+      await new Promise((r) => setTimeout(r, 5));
+      over += 1;
       return o.sends ?? true;
     },
     log: (line) => logs.push(line),
-  });
-  return { asked, played, logs };
+  }, o.destination ?? null);
+  return { asked, played, logs, posted };
 }
 
 const pool = (...clips: string[]) => ({ posture: 'stand', pack: clips.map((clip) => ({ clip, weight: 1 })), proposal: [], rejected: [] });
@@ -244,6 +254,54 @@ test('without a greeting clip, a motion graph, her or a renderer that plays chai
   assert.deepEqual([gone.asked, gone.played, gone.logs], [[], [], ['ONBOARDING no greeting: no character']]);
   const unlisted = await greeting({ status: 200, body: { character: 'aster', pools: { 'user.greet': pool('wave') } } }, { sends: false });
   assert.deepEqual(unlisted.logs, ['ONBOARDING no greeting: play_chain not sent']);
+});
+
+test('after 和她说句话 her opening line is asked of agentd once her greeting is over; another end asks none', async () => {
+  const groups = { status: 200, body: { character: 'aster', pools: { 'user.greet': pool('wave') } } };
+  const talk = await greeting(groups, { destination: 'talk' });
+  assert.deepEqual([talk.played, talk.posted], [[['aster', 'wave']], [['/character/greeting', {}, 1]]]);
+  const noClip = await greeting({ status: 404, body: { error: 'motion_graph_missing' } }, { destination: 'talk' });
+  assert.deepEqual(noClip.posted, [['/character/greeting', {}, 0]], 'the line comes without a greeting clip too');
+  const busy = await greeting(groups, { destination: 'talk', opening: 409 });
+  assert.deepEqual(busy.logs, ['ONBOARDING no opening line: 409 {}']);
+  for (const destination of ['home', null] as const) {
+    const other = await greeting(groups, { destination });
+    assert.deepEqual([other.played, other.posted], [[['aster', 'wave']], []], String(destination));
+  }
+});
+
+test('playToEnd resolves once her chain is over, its ack refuses it or the link is lost; false when it was not sent', async () => {
+  const listeners = new Set<(e: LinkEvent) => void>();
+  const link = (sent: boolean, ack: CommandResult = { ok: true }) => ({
+    playChain: (_id: string, _c: string, _s: string, _speed?: number, onResult?: (r: CommandResult) => void) => {
+      if (sent) queueMicrotask(() => onResult?.(ack));
+      return sent;
+    },
+    on: (l: (e: LinkEvent) => void) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+  });
+  const emit = (e: LinkEvent) => [...listeners].forEach((l) => l(e));
+  const played = (playId: string, phase: string): LinkEvent =>
+    ({ kind: 'message', message: { v: 1, type: 'action_played', play_id: playId, id: 'wave', phase, reason: null, chain: 'wave' } });
+  let done = false;
+  const ends = playToEnd(link(true), 'p1', 'aster', 'wave', () => {}).then((r) => { done = true; return r; });
+  emit(played('p1', 'started'));
+  emit(played('p0', 'completed'));
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(done, false, 'not over while it plays');
+  emit(played('p1', 'completed'));
+  assert.equal(await ends, true);
+  assert.equal(listeners.size, 0);
+  const logs: string[] = [];
+  assert.equal(await playToEnd(link(true, { ok: false, reason: 'busy' }), 'p2', 'aster', 'wave', (l) => logs.push(l)), true);
+  assert.deepEqual(logs, ['ONBOARDING greeting refused: busy']);
+  const lost = playToEnd(link(true), 'p3', 'aster', 'wave', () => {});
+  emit({ kind: 'lost', reason: 'eof' });
+  assert.equal(await lost, true);
+  assert.equal(await playToEnd(link(false), 'p4', 'aster', 'wave', () => {}), false);
+  assert.equal(listeners.size, 0);
 });
 
 function context(dir: string, extra: Partial<OpsContext> = {}): OpsContext {
@@ -268,7 +326,8 @@ function closing(dir: string, config: Record<string, unknown>) {
   writeFileSync(join(dir, 'config.json'), JSON.stringify(config));
   const ends: (OnboardingDestination | null)[] = [];
   const told: string[][] = [];
-  let restarts = 0, quick = 0, greets = 0;
+  const greets: (OnboardingDestination | null)[] = [];
+  let restarts = 0, quick = 0;
   const ops = registry(context(dir, {
     settingsChanged: (keys) => { told.push(keys); },
     endOnboarding: (destination) => {
@@ -276,7 +335,7 @@ function closing(dir: string, config: Record<string, unknown>) {
       ends.push(destination);
     },
     openQuickInput: () => { quick += 1; },
-    greet: () => { greets += 1; },
+    greet: (destination) => { greets.push(destination); },
     supervisor: { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => { restarts += 1; }, avatar: () => ({ kind: 'stopped' }) },
   }));
   const complete = async (...args: unknown[]) => {
@@ -326,7 +385,7 @@ test('完成 stores only onboarding_done, closes the guide and has her greet; �
       const reply = stateOf(await g.complete(...args));
       assert.equal(reply.done, true);
       assert.deepEqual(g.config(), { mute: false, onboarding_done: true, plugins: { light_ai: true } });
-      assert.deepEqual([g.ends, g.quick(), g.restarts(), g.greets()], [[end], quick, 0, 1], JSON.stringify(args));
+      assert.deepEqual([g.ends, g.quick(), g.restarts(), g.greets()], [[end], quick, 0, [end]], JSON.stringify(args));
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -340,7 +399,7 @@ test('跳过引导 stores only onboarding_done from any step and closes the guid
     assert.ok((await call(g.ops, 'onboarding.advance')).ok);
     assert.equal(stateOf(await call(g.ops, 'onboarding.skip')).done, true);
     assert.deepEqual(g.config(), { mute: true, onboarding_done: true });
-    assert.deepEqual([g.ends, g.quick(), g.greets()], [[null], 0, 0]);
+    assert.deepEqual([g.ends, g.quick(), g.greets()], [[null], 0, []]);
     assert.deepEqual(await call(g.ops, 'onboarding.skip'), { ok: false, error: { code: 'invalid_state', detail: 'the guide is done' } });
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -356,7 +415,7 @@ test('onboarding.complete refuses an argument other than nothing or { destinatio
       assert.deepEqual(await call(g.ops, 'onboarding.complete', [bad]), { ok: false, error: { code: 'invalid_args', detail: 'onboarding destination' } });
     }
     assert.deepEqual(g.config(), { mute: false });
-    assert.deepEqual([g.ends, g.greets()], [[], 0]);
+    assert.deepEqual([g.ends, g.greets()], [[], []]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -371,7 +430,7 @@ test('完成 that cannot write config.json keeps the guide open with the error',
     chmodSync(dir, 0o700);
     assert.ok(reply.ok);
     assert.equal((reply.value as { completionError: string | null }).completionError, '配置没有存上，请检查配置文件权限后再点完成重试');
-    assert.deepEqual([g.ends, g.restarts(), g.greets()], [[], 0, 0]);
+    assert.deepEqual([g.ends, g.restarts(), g.greets()], [[], 0, []]);
   } finally {
     chmodSync(dir, 0o700);
     rmSync(dir, { recursive: true, force: true });

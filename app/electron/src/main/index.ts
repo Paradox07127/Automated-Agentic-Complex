@@ -73,7 +73,7 @@ import { type IconBitmap, squareIcon } from './menus/icon.ts';
 import { openAnnouncement, shellMenus } from './menus/shell.ts';
 import { trayContextMenu } from './menus/tray.ts';
 import { SystemNotifier } from './notify/system.ts';
-import { greetOnDesktop, onboardingWindow } from './onboarding/window.ts';
+import { greetOnDesktop, onboardingWindow, type OnboardingDestination, playToEnd } from './onboarding/window.ts';
 import { adoptPasted, adoptPaths, clearPasted, filePage, SCOPE_FILE_TYPES } from './ops/adopt.ts';
 import { bundleBuild } from './ops/app.ts';
 import { cpuSecondsReader } from './ops/avatar.ts';
@@ -918,20 +918,20 @@ function makeServe(): ((url: string) => UiResponse) | null {
   }
 }
 
-/** The guide's end has her greet over the C3 link, its clip from agentd. */
-function guideGreeting(link: HostLink, client: AgentdClient, dir: string): () => void {
+/** The guide's end has her greet over the C3 link, its clip from agentd, and her opening line from agentd. */
+function guideGreeting(link: HostLink, client: AgentdClient, dir: string): (destination: OnboardingDestination | null) => void {
   const note = (line: string) => appendLog(dir, 'companion', line);
-  return () => void greetOnDesktop({
+  const text = async (method: 'GET' | 'POST', path: string, json?: unknown) => {
+    const reply = await client.request(method, path, json);
+    return { status: reply.status, body: reply.body.toString('utf8') };
+  };
+  return (destination) => void greetOnDesktop({
     character: () => link.currentCharacter,
-    get: async (path) => {
-      const reply = await client.request('GET', path);
-      return { status: reply.status, body: reply.body.toString('utf8') };
-    },
-    playChain: (character, start) => link.playChain(randomUUID(), character, start, 1, (r) => {
-      if (!r.ok) note(`ONBOARDING greeting refused: ${r.reason}`);
-    }),
+    get: (path) => text('GET', path),
+    post: (path, json) => text('POST', path, json),
+    playChain: (character, start) => playToEnd(link, randomUUID(), character, start, note),
     log: note,
-  }).catch((e: unknown) => note(`ONBOARDING greeting failed: ${e instanceof Error ? e.message : String(e)}`));
+  }, destination).catch((e: unknown) => note(`ONBOARDING greeting failed: ${e instanceof Error ? e.message : String(e)}`));
 }
 
 /** The first-run guide's window (onboarding/window.ts). */

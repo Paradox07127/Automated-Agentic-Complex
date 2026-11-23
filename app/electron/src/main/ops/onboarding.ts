@@ -1,6 +1,6 @@
 // `onboarding.*`: the guide's steps. Its rows save through `settings.save` as they change; 「完成」 and 「跳过引导」 only store
 // `onboarding_done` in config.json and end the guide's window (`ctx.endOnboarding`); 「和她说句话」 then opens the desktop's
-// 快速输入. Completing it, not skipping it, has her greet on the desktop (`ctx.greet`).
+// 快速输入. Completing it, not skipping it, has her greet on the desktop (`ctx.greet`), and after 「和她说句话」 say an opening line.
 import { BridgeFailure } from '../../common/bridge.ts';
 import { OnboardingModel } from '../../common/onboarding.ts';
 import type { Ops, OpsContext } from './context.ts';
@@ -55,7 +55,7 @@ export function onboardingOps(ctx: OpsContext): Ops {
     log(`done destination=${to ?? 'none'}`);
     ctx.endOnboarding?.(to);
     if (to === 'talk') ctx.openQuickInput?.();
-    if (completed) ctx.greet?.();
+    if (completed) ctx.greet?.(to);
   }
 
   const steps: Record<string, (args: unknown[]) => void> = {
