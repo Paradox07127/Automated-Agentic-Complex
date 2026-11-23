@@ -4,6 +4,7 @@ import { DeliveryBox, useDeliveryVisibility, type OnDeliveryReceipt } from '../d
 import { RejectBox } from './RejectBox';
 import { TaskNeeds, type DecideFailCode } from './TaskNeeds';
 import { TaskSections } from './TaskSections';
+import { StatusLamp } from '../../ui/game/StatusLamp';
 import { sourceLabel, statusKey, statusLabel } from './labels';
 import styles from './TaskDetail.module.css';
 
@@ -76,11 +77,14 @@ export function TaskDetail(props: TaskDetailProps) {
   // A running coding session has its own stop button next to the log.
   const codeLive = task.source === 'code' && task.status === 'running';
   const started = task.started_at;
+  // Only a task waiting on the user keeps the yellow block; every other state is a lamp.
+  const status = statusKey(task, effective, stoppedAt);
+  const statusText = statusLabel(task, effective, pending, stoppedAt);
   return (
     <article ref={visible} data-stub="TaskDetail" data-effective={effective} className={styles.root} aria-label={task.title} tabIndex={-1}>
       <header className={styles.head}>
         <h2 className={styles.title}>{task.title}</h2>
-        <StatusTag state={statusKey(task, effective, stoppedAt)} label={statusLabel(task, effective, pending, stoppedAt)} />
+        {status === 'waiting' ? <StatusTag state={status} label={statusText} /> : <StatusLamp state={status} label={statusText} />}
       </header>
       <p className={styles.sub}>
         <span className={styles.loc} aria-hidden="true">

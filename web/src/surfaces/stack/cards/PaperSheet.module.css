@@ -1,29 +1,19 @@
-/* Paper card in the stack: white in both themes (data-theme="light" on the sheet), priority bar; no shadow inside the stack's card. */
+/* Paper card in the stack: white in both themes (data-theme="light" on the sheet), warning tape along the top, red at priority 0; no shadow inside the stack's card. */
 .paper {
-  --pc: var(--ef-attention);
+  composes: tape from '../../../ui/Tape.module.css';
   --ui-btn-ring: var(--ef-paper);
   position: relative;
   display: grid;
   gap: var(--ef-sp-8);
   min-width: 0;
-  padding: 10px var(--ef-sp-16) var(--ef-sp-16) var(--ef-sp-20);
+  padding: var(--ef-sp-16);
   background: var(--ef-paper);
   color: var(--ef-paper-text);
   font: var(--ef-t-meta);
 }
 
-.paper::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: var(--ef-lw-category);
-  background: var(--pc);
-}
-
 .paper[data-prio='0'] {
-  --pc: var(--ef-danger);
+  --tape-hi: var(--ef-danger-vivid);
 }
 
 .paper:focus-visible {
@@ -56,37 +46,10 @@
   pointer-events: none;
 }
 
-.tape {
-  display: flex;
-  width: 94px;
-  height: 1.5px;
-}
-
-.tape i {
-  display: block;
-  height: 100%;
-}
-
-.tape i:nth-child(1) {
-  flex: 2;
-  background: var(--ef-tape-y);
-}
-
-.tape i:nth-child(2) {
-  flex: 1;
-  background: var(--ef-tape-c);
-}
-
-.tape i:nth-child(3) {
-  flex: 0.93;
-  background: var(--ef-tape-m);
-}
-
 .code {
   display: flex;
   align-items: center;
   gap: var(--ef-sp-6);
-  margin-top: var(--ef-sp-4);
   color: var(--ef-paper-text-2);
   font: var(--ef-fw-medium) var(--ef-fs-small) / 1 var(--ef-font-din);
   letter-spacing: 0.04em;

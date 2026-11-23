@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { VisualStateKey } from '../domain';
 import { Icon } from './Icon';
-import { StatusTag } from './StatusTag';
+import { StatusLamp } from './game/StatusLamp';
 import styles from './Nameplate.module.css';
 
 /** 名牌：深色板、右下切角，头像 + 名字 + 状态行；收起态只留头像和状态灯。 */
@@ -12,7 +12,7 @@ export interface NameplateProps {
   en?: string;
   /** 状态灯 */
   state?: VisualStateKey;
-  /** 状态行文字，例如「空闲 · 坐着」 */
+  /** 状态行文字，例如「空闲 · 坐着」；有 state 时作状态灯后的词 */
   status?: string;
   /** 收起态 */
   collapsed?: boolean;
@@ -28,7 +28,7 @@ export function Nameplate({ name, en, state, status, collapsed, avatar }: Namepl
         {avatar ?? <Icon name="user" size={24} />}
         {collapsed && state && (
           <span className={styles.light}>
-            <StatusTag state={state} iconOnly />
+            <StatusLamp state={state} label="" onDark />
           </span>
         )}
       </span>
@@ -44,8 +44,7 @@ export function Nameplate({ name, en, state, status, collapsed, avatar }: Namepl
           </span>
           {(status || state) && (
             <span className={styles.status}>
-              {state && <StatusTag state={state} iconOnly />}
-              {status && <span className={styles.statusText}>{status}</span>}
+              {state ? <StatusLamp state={state} label={status} onDark /> : <span className={styles.statusText}>{status}</span>}
             </span>
           )}
         </span>

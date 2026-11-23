@@ -4,6 +4,7 @@ import { Btn, Icon, IconBtn, StatusTag } from '../../ui';
 import { DecisionBar } from '../approval';
 import { ArtifactList, DeliveryChain, VersionChain, useDeliveryVisibility, type OnDeliveryReceipt } from '../delivery';
 import { PlanProgress } from '../plan';
+import { StatusLamp } from '../../ui/game/StatusLamp';
 import { sourceLabel, statusKey, statusLabel } from './labels';
 import { RejectBox } from './RejectBox';
 import { canContinue } from './StopConfirm';
@@ -60,6 +61,9 @@ export function TaskDrawer({ task, effective, now, delivery: latest = null, deli
   const resumable = canContinue(task);
   const jobRunning = task.job_id != null && task.status === 'running';
   const undecided = delivery != null && delivery.id === latest?.id && isReviewableDelivery(delivery, task);
+  // Only a task waiting on the user keeps the yellow block; every other state is a lamp.
+  const status = statusKey(task, effective, stoppedAt);
+  const statusText = statusLabel(task, effective, pending, stoppedAt);
   return (
     <aside ref={visible} data-stub="TaskDrawer" data-effective={effective} data-rejecting={rej || undefined} data-in-sheet={inSheet || undefined} className={styles.root} aria-label={`任务 │ ${task.title}`}>
       {!inSheet && (
@@ -78,7 +82,7 @@ export function TaskDrawer({ task, effective, now, delivery: latest = null, deli
         <div className={styles.obj}>
           <dt>状态</dt>
           <dd>
-            <StatusTag state={statusKey(task, effective, stoppedAt)} label={statusLabel(task, effective, pending, stoppedAt)} />
+            {status === 'waiting' ? <StatusTag state={status} label={statusText} /> : <StatusLamp state={status} label={statusText} />}
           </dd>
         </div>
         <div className={styles.obj}>

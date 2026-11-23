@@ -1,5 +1,6 @@
 /* White paper (light theme in both): only for decisions (approve, review, answer, her proposal); black-and-yellow tape along the top (chat v2 .swap) */
 .paper {
+  composes: tape from '../../ui/Tape.module.css';
   position: relative;
   display: grid;
   gap: 10px;
@@ -11,18 +12,8 @@
   animation: popUp 300ms var(--ef-ease-g-enter) both;
 }
 
-.paper::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 4px;
-  background: repeating-linear-gradient(115deg, var(--ef-text-1) 0 6px, var(--ef-accent) 6px 12px);
-}
-
-.paper[data-warn]::before {
-  background: repeating-linear-gradient(115deg, var(--ef-text-1) 0 6px, var(--ef-danger-vivid) 6px 12px);
+.paper[data-warn] {
+  --tape-hi: var(--ef-danger-vivid);
 }
 
 .paper:focus-visible {

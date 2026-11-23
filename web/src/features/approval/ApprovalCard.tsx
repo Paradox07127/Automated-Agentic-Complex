@@ -282,11 +282,6 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
           <header className={styles.pHead}>
             <span className={styles.pLeft} aria-hidden="true">
               <span className={styles.pArt} data-art-slot="paper-tape" aria-hidden="true" />
-              <span className={styles.tape}>
-                <i />
-                <i />
-                <i />
-              </span>
             </span>
             {live && <CountdownRing secondsLeft={left} windowS={approval.window_s} onPaper />}
             {position && (

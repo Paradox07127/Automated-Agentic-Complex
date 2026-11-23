@@ -6,7 +6,7 @@ export function sourceLabel(task: Pick<Task, 'source' | 'agent'>): string {
   return `${task.agent ?? ''} │ ${task.source === 'code' ? '编码会话' : '外部会话'}`;
 }
 
-/** State key for StatusTag: stopped and queued get their own glyphs, everything else follows effectiveState. */
+/** State key for the status lamp (StatusTag while waiting): stopped and queued get their own glyphs, everything else follows effectiveState. */
 export function statusKey(task: Pick<Task, 'status'>, effective: EffectiveState, stoppedAt: number | null = null): VisualStateKey {
   if (stoppedAt != null || task.status === 'cancelled' || task.status === 'interrupted') return task.status === 'interrupted' ? 'interrupted' : 'stopped';
   if (task.status === 'queued' && effective === 'running') return 'queued';

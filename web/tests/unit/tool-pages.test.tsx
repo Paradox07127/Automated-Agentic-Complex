@@ -54,7 +54,7 @@ describe(' trace turn list', () => {
     const list = await screen.findByRole('listbox', { name: '近 24 小时的轮次' });
     const rows = await within(list).findAllByRole('option');
     const last = rows[rows.length - 1]!;
-    expect(last.querySelector('[data-sign] svg[data-shape]')).not.toBeNull();
+    expect(last.querySelector('[data-sign] [data-stub="StatusLamp"]')).not.toBeNull();
     fireEvent.click(last);
     await waitFor(() => expect(router.state.location.search).toMatchObject({ turn: last.getAttribute('data-turn') }));
     await waitFor(() => expect(last.getAttribute('aria-selected')).toBe('true'));

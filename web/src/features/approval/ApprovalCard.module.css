@@ -161,32 +161,22 @@
   accent-color: var(--ef-text-1);
 }
 
-/* Desk paper variant (stack): white paper in both themes, tape eyebrow, capsules in a footer row inside the paper. */
+/* Desk paper variant (stack): white paper in both themes, warning tape along the top, capsules in a footer row inside the paper. */
 .paper {
-  --pc: var(--ef-attention);
+  composes: tape from '../../ui/Tape.module.css';
   --ui-btn-ring: var(--ef-paper);
   position: relative;
   display: grid;
   gap: var(--ef-sp-6);
   min-width: 0;
-  padding: 10px var(--ef-sp-16) var(--ef-sp-16) var(--ef-sp-20);
+  padding: var(--ef-sp-16);
   background: var(--ef-paper);
   color: var(--ef-paper-text);
   font: var(--ef-t-meta);
 }
 
-.paper::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: var(--ef-lw-category);
-  background: var(--pc);
-}
-
 .paper[data-dangerous] {
-  --pc: var(--ef-danger);
+  --tape-hi: var(--ef-danger-vivid);
 }
 
 .paper:focus-visible {
@@ -226,32 +216,6 @@
   width: 96px;
   height: 24px;
   pointer-events: none;
-}
-
-.tape {
-  display: flex;
-  width: 94px;
-  height: 2px;
-}
-
-.tape i {
-  display: block;
-  height: 100%;
-}
-
-.tape i:nth-child(1) {
-  flex: 2;
-  background: var(--ef-tape-y);
-}
-
-.tape i:nth-child(2) {
-  flex: 1;
-  background: var(--ef-tape-c);
-}
-
-.tape i:nth-child(3) {
-  flex: 0.93;
-  background: var(--ef-tape-m);
 }
 
 .pCount {
@@ -324,7 +288,7 @@
   position: absolute;
   right: 0;
   bottom: 0;
-  left: var(--ef-lw-category);
+  left: 0;
 }
 
 /* The exact call a role wants to make, as agentd previews it. */

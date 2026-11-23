@@ -166,8 +166,10 @@
 }
 
 .tr > :global(span[data-sign]) {
+  display: flex;
   grid-column: 2;
   grid-row: 1 / 3;
+  align-items: center;
 }
 
 .no {
@@ -203,11 +205,11 @@
 
 .tr[aria-selected='true'] .m,
 .tr[aria-selected='true'] .src,
-.tr[aria-selected='true'] > :global(span[data-sign]) {
+.tr[aria-selected='true'] > :global(span[data-sign]) > [data-stub='StatusLamp'] {
   color: color-mix(in srgb, var(--ef-on-accent) 80%, transparent);
 }
 
-.tr[aria-selected='true'] > :global(span[data-sign][data-s='fail']) {
+.tr[aria-selected='true'] > :global(span[data-sign][data-s='fail']) > [data-stub='StatusLamp'] {
   color: var(--ef-danger-strong);
 }
 

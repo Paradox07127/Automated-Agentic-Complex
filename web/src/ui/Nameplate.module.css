@@ -79,6 +79,16 @@
   white-space: nowrap;
 }
 
+.status > [data-stub='StatusLamp'] {
+  min-width: 0;
+  font-size: var(--ef-fs-small);
+}
+
+.status > [data-stub='StatusLamp'] > :last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Collapsed: avatar only, state light at its lower right. */
 .plate[data-collapsed] {
   --cut: var(--ef-cut);
@@ -91,9 +101,9 @@
   right: -4px;
   bottom: -4px;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  background: #161616;
+}
+
+/* The lamp alone: its word is empty here. */
+.light > [data-stub='StatusLamp'] {
+  gap: 0;
 }

@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { formatDuration, type ActiveRun, type Session, type VisualStateKey } from '../../domain';
 import { useDevMode } from '../../shell/devMode';
 import { Btn, Fold, fxCalm, Icon, Missing, OpenSec, Region, StatusTag, type IconName, type RegionSource } from '../../ui';
+import { StatusLamp } from '../../ui/game';
 import type { RunRow } from './briefModel';
 import { Selected, TrackTip, useCellIn, type MissionTone } from './MissionFx';
 import type { Go } from './nav';
@@ -66,6 +67,9 @@ interface LineProps {
 
 const WAIT = new Set(['awaiting_approval', 'awaiting_input', 'waiting_user']);
 
+/** A run waiting on the user keeps the yellow block; any other state is a lamp. */
+const Mark = ({ state, label }: { state: VisualStateKey; label: string }) => (WAIT.has(state) ? <StatusTag state={state} label={label} /> : <StatusLamp state={state} label={label} />);
+
 /** One record row: an icon slot, title and last line, state and a caption at the right; focus selects it as a mission cell. */
 function Line({ icon, title, meta, metaTitle, state, cap, label, onClick, frame, wait }: LineProps) {
   const [sel, setSel] = useState(false);
@@ -109,7 +113,7 @@ function Row({ r, p }: { r: RunRow; p: RunningSectionProps }) {
         frame={c.busy ? 'run' : 'idle'}
         title={c.title}
         meta={c.last ? `「${c.last}」` : '还没有回复'}
-        state={c.busy ? <StatusTag state="running" label="执行中" /> : <span className={styles.cap}><span className="num">{ago}</span> 分钟前</span>}
+        state={c.busy ? <StatusLamp state="running" label="执行中" /> : <span className={styles.cap}><span className="num">{ago}</span> 分钟前</span>}
         cap={devMode && <>第 <span className="num">{c.turn_count}</span> 轮</>}
         label={`对话「${c.title}」，前往对话页`}
         onClick={() => go({ page: 'chat', conv: c.id })}
@@ -129,7 +133,7 @@ function Row({ r, p }: { r: RunRow; p: RunningSectionProps }) {
         wait={WAIT.has(run?.state ?? '')}
         title={t.title || '已撤回的任务'}
         meta={`角色任务 │ ${run?.tool ?? step?.text ?? label}`}
-        state={<StatusTag state={run?.state ?? 'running'} label={label} />}
+        state={<Mark state={run?.state ?? 'running'} label={label} />}
         cap={steps.length ? <>步骤 <span className="num">{steps.filter((s) => s.status === 'completed').length + (step ? 1 : 0)}/{steps.length}</span></> : <span className="num">{run ? elapsed(now - run.started_at) : <Missing why="na" />}</span>}
         label={`角色任务「${t.title}」，${label}，打开任务详情`}
         onClick={() => go({ page: 'tasks', sel: t.id })}
@@ -151,7 +155,7 @@ function Row({ r, p }: { r: RunRow; p: RunningSectionProps }) {
         </>
       }
       metaTitle={`${s.agent} │ ${dirOf(s.cwd)}${s.last_line ? ` │ 「${s.last_line}」` : ''}`}
-      state={<StatusTag state={state} label={text} />}
+      state={<Mark state={state} label={text} />}
       cap={<span className="num">{elapsed(now - (r.started ?? s.since))}</span>}
       label={`${s.agent} │ ${s.title}，${text}，${s.task_id ? '打开任务详情' : '前往编码会话'}`}
       onClick={() => {

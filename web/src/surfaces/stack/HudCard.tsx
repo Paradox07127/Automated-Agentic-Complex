@@ -1,6 +1,7 @@
 import { useContext, type HTMLAttributes, type ReactNode, type Ref } from 'react';
 import { stateVisual, type VisualStateKey } from '../../domain';
 import { IconBtn, Kbd, StatusTag } from '../../ui';
+import { StatusLamp } from '../../ui/game/StatusLamp';
 import { CompactCard } from './compact';
 import type { Priority } from './model';
 import styles from './HudCard.module.css';
@@ -44,6 +45,9 @@ export interface HudCardProps {
   /** 提示外观（两种主题都是深色 HUD）：mission 任务完成黄条 + 奖励暗带，toast PC 提示条，finish 完成提示（toast + 黄色点缀），tips 提示卡；alarm 另画失败提示 */
   look?: 'mission' | 'toast' | 'finish' | 'tips';
 }
+
+/** States that ask the user to act keep the yellow block; any other state is a lamp. */
+const ASKS = new Set<VisualStateKey>(['awaiting_approval', 'awaiting_input', 'waiting_user', 'needs_review']);
 
 export function HudCard({ title, state, label, meta, onClose, escKey, footer, life, children, hoverRef, hoverHandlers, urgent, eyebrow, priority = 2, enterKey, top, alarm, band, look }: HudCardProps) {
   const body = useContext(CompactCard) ? null : children;
@@ -90,7 +94,7 @@ export function HudCard({ title, state, label, meta, onClose, escKey, footer, li
               {eyebrow} // 0{priority + 1}
             </span>
           )}
-          {!alarm && !eyebrow && state && <StatusTag state={state} iconOnly />}
+          {!alarm && !eyebrow && state && (ASKS.has(state) ? <StatusTag state={state} iconOnly /> : <StatusLamp state={state} />)}
           <h3 className={styles.tt} title={title}>
             {title}
           </h3>

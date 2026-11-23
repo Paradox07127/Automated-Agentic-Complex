@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { keyText } from '../../bridge/platformText';
 import type { ChartStatus } from '../../charts';
-import { isoToMs } from '../../domain';
+import { isoToMs, type VisualStateKey } from '../../domain';
 import type { WireTraceTurn } from '../../domain/wire';
 import { Btn, Menu, type MenuItem, SearchField } from '../../ui';
-import { GameSeg } from '../../ui/game';
+import { GameSeg, StatusLamp } from '../../ui/game';
 import { fmtMs } from '../chat/turnTrace';
-import { clockOf, groupOf, hourOf, inFilter, no4, type ResFilter, SHAPE_LABEL, shapeOf, SRC_GROUPS, srcLabel, type SrcGroup } from './data';
-import { ShapeMark } from './Glyphs';
+import { clockOf, groupOf, hourOf, inFilter, no4, type ResFilter, type Shape, SHAPE_LABEL, shapeOf, SRC_GROUPS, srcLabel, type SrcGroup } from './data';
 import s from './List.module.css';
 import t from './Trace.module.css';
 
 const PAGE = 40;
+/** The lamp for a turn's result; the words stay the list's own. */
+const LAMP: Readonly<Record<Shape, VisualStateKey>> = { ok: 'done', fail: 'failed', cut: 'interrupted', run: 'running', wait: 'awaiting_approval', skip: 'skipped', text: 'idle', unk: 'warning' };
 const RES: ReadonlyArray<[ResFilter, string]> = [['all', '全部'], ['fail', '出错'], ['cut', '打断'], ['live', '在跑']];
 
 export interface TurnListProps {
@@ -98,9 +99,8 @@ export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, search
         <button key={r.turn_id} type="button" role="option" className={s.tr} data-s={shape} data-turn={r.turn_id} aria-selected={r.turn_id === sel} onClick={() => onPick(r.turn_id)}>
           <span className={s.h}>{title ?? <span className={s.src}>{src}</span>}</span>
           <span className={s.m}>{[clockOf(at), title ? src : null, fmtMs(r.duration_ms)].filter(Boolean).join(' │ ')}</span>
-          <span className={t.sg} data-sign="" data-s={shape}>
-            <ShapeMark s={shape} />
-            {SHAPE_LABEL[shape]}
+          <span data-sign="" data-s={shape}>
+            <StatusLamp state={LAMP[shape]} label={SHAPE_LABEL[shape]} />
           </span>
           <span className={s.no} aria-hidden="true">
             {no4(no)}

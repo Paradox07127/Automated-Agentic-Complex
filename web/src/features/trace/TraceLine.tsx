@@ -1,6 +1,7 @@
 import { useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { formatMs, stateVisual, type VisualStateKey } from '../../domain';
-import { Icon, Missing, StatusTag, type IconName } from '../../ui';
+import { Icon, Missing, type IconName } from '../../ui';
+import { StatusLamp } from '../../ui/game/StatusLamp';
 import styles from './TraceLine.module.css';
 
 /** 轨迹行：图标、标题、一行描述、状态、行尾时长；有展开区时可点开，↵/空格切换，→ 展开，← 收起。 */
@@ -70,7 +71,7 @@ export function TraceLine({ icon, title, desc, state, durationMs, children, defa
         </span>
       )}
       <span className={styles.state}>
-        <StatusTag state={state} iconOnly />
+        <StatusLamp state={state} />
       </span>
       {durationMs !== undefined && (
         <span className={`${styles.dur} num`}>
