@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AvatarAction, ImportedMotionEntry } from '../../bridge';
 import { Btn, Icon, Switch } from '../../ui';
 import { DarkRow, Diamond, MicroLabel, TitleBar, type DarkRowMark } from '../../ui/game';
@@ -25,6 +25,8 @@ export interface MotionTableProps {
   /** Ids with an unsaved switch. */
   changed: Record<string, boolean>;
   sel: string;
+  /** Scrolled into view once the rows are there: the motion a link landed on. */
+  reveal?: string;
   onSel: (id: string) => void;
   onToggle: (a: AvatarAction, on: boolean) => void;
   /** Today's plays by motion id; null where nobody counts them. */
@@ -78,6 +80,10 @@ export function MotionTable(p: MotionTableProps) {
     setAt(null);
     p.onSel(id);
   };
+  const shown = all.length > 0;
+  useEffect(() => {
+    if (shown && p.reveal) [...(listRef.current?.querySelectorAll<HTMLElement>('[data-motion]') ?? [])].find((e) => e.dataset.motion === p.reveal)?.scrollIntoView({ block: 'center' });
+  }, [shown, p.reveal]);
   const jump = (key: string) => {
     setAt(key);
     const box = listRef.current;

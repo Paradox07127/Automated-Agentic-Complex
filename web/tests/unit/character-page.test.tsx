@@ -76,6 +76,16 @@ describe('character · 角色与动作', () => {
     expect(within(stage()).getByRole('status').textContent).toContain('由行为触发 │ 不支持单独预览');
   });
 
+  it('lands on the motion a link names in `row`, selected and scrolled to', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    await mount('&pane=motion&row=whisper');
+    const grid = await screen.findByRole('grid', { name: '全部动作' });
+    await waitFor(() => expect(grid.querySelector('[data-motion="whisper"]')?.getAttribute('aria-selected')).toBe('true'));
+    expect(grid.querySelector('[data-motion="nod"]')?.getAttribute('aria-selected')).toBe('false');
+    expect(scroll.mock.contexts).toContain(grid.querySelector('[data-motion="whisper"]'));
+  });
+
   it('plays on the desktop and shows the progress on the stage', async () => {
     await mount('&pane=motion');
     await screen.findByRole('grid', { name: '全部动作' });

@@ -122,6 +122,15 @@ describe('chat: turn trace from /trace/turns/{id}', () => {
     expect(screen.getAllByRole('row')).toHaveLength(EVENTS.length + 1);
   });
 
+  it('角色 ↗ on 动作 opens the motion table on the clip the turn played', () => {
+    window.location.hash = '';
+    render(<TurnInspector tr={tr} wide />);
+    fireEvent.click(screen.getByText('角色 ↗').closest('button')!);
+    const q = new URLSearchParams(window.location.hash.split('?')[1]);
+    expect([window.location.hash.split('?')[0], q.get('pane'), q.get('row')]).toEqual(['#/character', 'motion', '点头附和']);
+    window.location.hash = '';
+  });
+
   it('the wide inspector (diag) opens every section and folds only the events', () => {
     render(<TurnInspector tr={tr} wide />);
     for (const h of ['瀑布', '引用记忆', '判断', '模型', '观察', '动作']) expect(screen.getByRole('heading', { name: h })).toBeTruthy();

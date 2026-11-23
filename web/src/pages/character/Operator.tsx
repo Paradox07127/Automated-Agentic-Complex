@@ -56,6 +56,8 @@ export interface OperatorProps {
   chains?: ReactNode;
   /** 总览 or a detail pane; absent opens 动作. */
   pane?: Pane;
+  /** A link's motion (`?row=`, an action id): selected and scrolled to when the page opens. */
+  motionRow?: string;
   charState: CharacterState | null;
   /** Unsaved switches a demo opens with. */
   seed?: Record<string, boolean>;
@@ -85,7 +87,7 @@ export function Operator(p: OperatorProps) {
   // `mmd_` dances belong to the shared MMD library, not to her own actions.
   const groups = groupMotions(actions.filter((a) => !a.id.startsWith('mmd_')));
   const rows = groups.flatMap((g) => g.rows);
-  const [sel, setSel] = useState('');
+  const [sel, setSel] = useState(p.motionRow ?? '');
   const [speed, setSpeed] = useState('1');
   const canLoop = getBridge().capabilities.actionLoop === true;
   const canAvatar = getBridge().capabilities.avatar;
@@ -217,6 +219,7 @@ export function Operator(p: OperatorProps) {
       value={m.value}
       changed={m.changed}
       sel={motion?.id ?? ''}
+      {...(p.motionRow ? { reveal: p.motionRow } : {})}
       onSel={(id) => {
         setSel(id);
         const a = actions.find((x) => x.id === id);

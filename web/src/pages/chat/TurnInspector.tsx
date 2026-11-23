@@ -206,17 +206,18 @@ export function TurnInspector({ tr, wide, st = 'ok', stopAt, onRetry, emptyText 
       )}
     </section>
   );
+  const moved = tr.motion;
   const motion = (no: string) => (
     <section className={styles.s}>
       <Sh no={no} t="动作" />
-      {tr.motion ? (
-        <button type="button" className={`${xs.mo} ${common.tip}`} data-tip="在角色页查看此动作" onClick={() => navigate({ page: 'character', pane: 'motion' })}>
+      {moved ? (
+        <button type="button" className={`${xs.mo} ${common.tip}`} data-tip="在角色页查看此动作" onClick={() => navigate({ page: 'character', pane: 'motion', row: moved.name })}>
           <span className={xs.moI} aria-hidden="true">
             <Icon name="user" size={20} />
           </span>
           <span className={xs.moT}>
-            <b title={tr.motion.name}>{tr.motion.name}</b>
-            {tr.motion.ms != null && <span className={`${styles.num} ${styles.cap}`}>{fmtMs(tr.motion.ms)}</span>}
+            <b title={moved.name}>{moved.name}</b>
+            {moved.ms != null && <span className={`${styles.num} ${styles.cap}`}>{fmtMs(moved.ms)}</span>}
           </span>
           <span className={styles.cap}>角色 ↗</span>
         </button>

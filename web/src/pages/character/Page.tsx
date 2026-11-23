@@ -163,6 +163,7 @@ export function CharacterPage() {
           onImportPackage={importPackage}
           chains={<MotionSettings offline={offline} toast={fb.toast} />}
           pane={isPane(pane) ? pane : 'overview'}
+          {...(row && pane === 'motion' ? { motionRow: row } : {})}
           charState={none ? null : (cs.data ?? null)}
           {...(demo === 'ok' ? { seed: OK_SEED } : {})}
           playing={demo === 'playing' ? 'nod' : null}
