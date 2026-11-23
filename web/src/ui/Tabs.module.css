@@ -234,8 +234,8 @@
 }
 
 .tab[data-icon][data-gap] {
-  --sep-gap: 9px;
-  margin-left: 9px;
+  --sep-gap: 17px;
+  margin-left: 17px;
 }
 
 .tab[data-icon]::before,
@@ -251,6 +251,12 @@
   width: 1px;
   height: 14px;
   background: var(--ef-tabpc-cell);
+}
+
+.tab[data-icon] ~ .tab[data-icon][data-gap] > .slc::before {
+  top: 11px;
+  height: 28px;
+  background: var(--ef-line-strong);
 }
 
 .tab[data-icon]:hover:not([aria-selected='true']) {

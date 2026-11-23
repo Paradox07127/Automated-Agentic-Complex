@@ -7,7 +7,7 @@ import { fromRuntimePublic, quiet as quietBody, runCancel, splitCanonical, type 
 import { useHotkeyLabels } from '../domain/hotkeys';
 import { notStopped, resumeOf, StopConfirm } from '../features/task';
 import { errText } from '../pages/overview/errors';
-import { Kbd } from '../ui';
+import { Icon, Kbd } from '../ui';
 import { paletteItems, usePaletteIndex, type PaletteItem } from './CmdPalette.data';
 import { look, openQuickInput, stopSpeech, useDesktopOff } from './desktopOps';
 import { navigate } from './nav';
@@ -158,6 +158,11 @@ export function CmdPalette({ routes, onClose }: { routes: PageRoute[]; onClose: 
                 onMouseEnter={() => setIndex(i)}
                 onClick={() => run(h)}
               >
+                {h.group === '跳页' && (
+                  <span className={styles.icon} aria-hidden="true">
+                    {h.icon && <Icon name={h.icon} size={16} />}
+                  </span>
+                )}
                 <span className={styles.grow}>{h.label}</span>
                 {h.hint && <span className={styles.hint}>{h.hint}</span>}
                 <span className={styles.keys}>{h.shortcut && <Kbd>{h.shortcut}</Kbd>}</span>

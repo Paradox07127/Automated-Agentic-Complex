@@ -260,8 +260,8 @@ export function createTasksActions(d: ActionDeps) {
         d.select(a.pendingId);
         return;
       case 'open_timeline':
-        // 运行记录 selects a turn by its run id (the running generation's, else the task's own); without one, the turn list.
-        navigate({ page: 'trace', turn: d.view.activeRuns[task.id]?.run_id ?? task.run_id ?? undefined });
+        // 对话轮次 selects a turn by its run id (the running generation's, else the task's own); without one, the turn list.
+        navigate({ page: 'diag', tab: 'turns', turn: d.view.activeRuns[task.id]?.run_id ?? task.run_id ?? undefined });
         return;
       case 'jump_terminal':
         await jump(a.sessionId);

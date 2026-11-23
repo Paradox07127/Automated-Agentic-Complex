@@ -299,6 +299,6 @@ describe('settings › 服务 wired to services.* and app.runtime', () => {
     await click(within(row('动作服务')).getByRole('button', { name: '启动动作服务' }));
     expect(start).toHaveBeenCalledWith('motion');
     await click(within(tts).getByRole('button', { name: '语音服务日志' }));
-    expect(goPage).toHaveBeenCalledWith({ page: 'trace', tab: 'logs', src: 'services' });
+    expect(goPage).toHaveBeenCalledWith({ page: 'diag', tab: 'logs', src: 'services' });
   });
 });

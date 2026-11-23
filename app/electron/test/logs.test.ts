@@ -1,4 +1,4 @@
-// The 运行记录 page's log reads: each source's line format, and `logs.read` over files in a scratch support dir
+// 诊断's 日志 tab log reads: each source's line format, and `logs.read` over files in a scratch support dir
 // (tails, increments, a rotated file, the caps and the refused requests).
 import assert from 'node:assert/strict';
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';

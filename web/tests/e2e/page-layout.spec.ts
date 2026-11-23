@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-// Layout: 角色, 记忆, 定时任务, 记忆管线, 调参 and 诊断 text stays inside its box, nothing starts a line with a stray divider, nothing covers a label.
+// Layout: 角色, 记忆, 定时任务, 记忆管线 and 诊断 text stays inside its box, nothing starts a line with a stray divider, nothing covers a label.
 
 type Box = { x: number; y: number; width: number; height: number };
 
@@ -123,9 +123,9 @@ test('the 记忆管线 14 天新增 curve sits inside its plate, below the head 
   }
 });
 
-test('调参 chart: cause tags, labels and lines stay inside the chart', async ({ page }) => {
+test('行为决策 chart: cause tags, labels and lines stay inside the chart', async ({ page }) => {
   for (const demo of ['sparse', 'default', 'disconnected']) {
-    await open(page, `/tune?demo=${demo}`);
+    await open(page, `/diag?tab=behavior&demo=${demo}`);
     const out = await page.locator('svg[aria-label^="精神和心情曲线"]').evaluateAll((svgs) =>
       svgs.flatMap((svg) => {
         const r = svg.getBoundingClientRect();

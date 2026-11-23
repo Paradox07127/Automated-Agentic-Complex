@@ -201,7 +201,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
         ? [tick(String(Math.round(p.fps)), 'fps', '帧率'), tick(...p95(p.p95), 'P95', p.over > 0 ? 'warn' : 'ink', true)]
         : undefined,
     micro: 'AVATAR',
-    go: { label: '去渲染', onClick: () => p.onTab('render') },
+    go: { label: '去帧与负载', onClick: () => p.onTab('render') },
   };
 
   const tts = p.d?.connections.tts;
@@ -251,7 +251,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
     icon: 'hub',
     name: '轮次管道',
     sub: '近 1 小时',
-    go: { label: '去管道', onClick: () => p.onTab('flow') },
+    go: { label: '去链路', onClick: () => p.onTab('flow') },
     reads: [tick(String(f.turns), undefined, '轮'), tick(String(f.fails), undefined, '失败', f.fails ? 'bad' : 'ink', true)],
     ...(gone
       ? { state: 'idle' as const, stateLabel: at ? `停在 ${at}` : '未知', why: '后台断开，下面是最后读到的数据', dim: true }
@@ -272,7 +272,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
     icon: 'radio',
     name: '主动发言',
     sub: '今天',
-    go: { label: '去状态', onClick: () => p.onTab('state') },
+    go: { label: '去内部状态', onClick: () => p.onTab('state') },
     ...(gone || !g
       ? { state: 'idle' as const, stateLabel: '未知', why: gone ? '后台断开' : '读不到闸门状态', dim: gone, micro: 'GATE' }
       : {

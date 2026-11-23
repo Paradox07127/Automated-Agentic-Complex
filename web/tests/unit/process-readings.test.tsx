@@ -13,9 +13,9 @@ import { Processes } from '../../src/pages/diag/Processes';
 import { cpuText, memText } from '../../src/pages/diag/procText';
 import { renderWhy } from '../../src/pages/diag/renderWhy';
 import { Resources } from '../../src/pages/diag/Resources';
+import { CharacterPage } from '../../src/pages/character/Page';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { processesOf } from '../../src/pages/diag/status';
-import { TunePage } from '../../src/pages/tune/Page';
 
 const SUSPENDED: AvatarDetails = {
   renderer: 'metal',
@@ -151,16 +151,6 @@ describe('avatar details', () => {
     expect(screen.getByRole('region', { name: '帧率' }).textContent).toContain('画面暂停中 │ 屏幕睡眠');
   });
 
-  it('the 调参 render load says 画面暂停中 when a suspended host sends no stats', async () => {
-    const fake = createFakeBridge({ surface: 'main', still: true });
-    window.agenticComplex = { ...fake, avatar: { ...fake.avatar, onStats: () => () => {}, details: async () => SUSPENDED } };
-    await mountPage(TunePage, '&tab=render');
-    expect(await screen.findByText(/画面暂停中 │ 屏幕睡眠/)).toBeTruthy();
-    cleanup();
-    window.agenticComplex = { ...fake, avatar: { ...fake.avatar, onStats: () => () => {} } };
-    await mountPage(TunePage, '&tab=render');
-    expect(await screen.findByText(/还没有收到宿主读数/)).toBeTruthy();
-  });
 });
 
 describe('settings.onChange', () => {
@@ -182,10 +172,10 @@ describe('settings.onChange', () => {
     await waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(before));
   });
 
-  it('the 调参 quality rows read the native values again when the menu flips beh.stay', async () => {
+  it('the 设定 › 画面 rows read the native values again when the menu flips beh.stay', async () => {
     const { bridge, push } = installPush();
     const read = vi.spyOn(bridge.settings, 'read');
-    await mountPage(TunePage, '&tab=render');
+    await mountPage(CharacterPage, '&tab=render');
     await waitFor(() => expect(read).toHaveBeenCalled());
     const before = read.mock.calls.length;
     await act(async () => push()({ ids: ['beh.stay'] }));

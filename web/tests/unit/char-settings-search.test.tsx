@@ -53,11 +53,15 @@ describe('settings search · 角色 rows', () => {
     expect(hashQuery().get('tab')).toBeNull();
   });
 
-  it('does not list the 调参 › 画面 rows, in developer mode too', async () => {
-    setDevMode(true);
+  it('lists the 画面 quality rows only in developer mode', async () => {
+    setDevMode(false);
     await search('抗锯齿');
     expect(await screen.findByText(/^没有找到「抗锯齿」，/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /2× SSAA/ })).toBeNull();
+    cleanup();
+    setDevMode(true);
+    await search('抗锯齿');
+    expect(await screen.findByRole('button', { name: /2× SSAA/ })).toBeTruthy();
   });
 });
 

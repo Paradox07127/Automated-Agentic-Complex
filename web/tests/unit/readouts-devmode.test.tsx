@@ -188,18 +188,19 @@ describe(' 开发者模式 on', () => {
     expect(screen.getByRole('menuitem', { name: /诊断/ })).toBeTruthy();
   });
 
-  it('lists 调参 in the command bar page menu; the character page still has no 行为与画面 tab', async () => {
+  it('lists 诊断 in the command bar page menu and no 调参; the character page still has no 行为与画面 tab', async () => {
     const nav = await commandBar();
-    expect(screen.getByRole('menuitem', { name: /调参/ })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /诊断/ })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: /调参/ })).toBeNull();
     cleanup();
     await character('');
     expect(screen.queryByRole('tab', { name: '行为与画面' })).toBeNull();
   });
 
-  it('opens /character?tab=render without the 2× SSAA row, which 调参 › 画面 draws', async () => {
+  it('opens /character?tab=render with the 2× SSAA row', async () => {
     await character('&tab=render');
     expect((await screen.findAllByText('角色边界')).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText('2× SSAA')).toHaveLength(0);
+    expect((await screen.findAllByText('2× SSAA')).length).toBeGreaterThan(0);
   });
 });
 

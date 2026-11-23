@@ -27,10 +27,11 @@ export const CHAR_SECTIONS: readonly CharSection[] = [
   { tab: 'behavior', id: 'behavior/overlay', title: '桌面浮层', en: 'Overlay', rows: ['beh.rail', 'beh.hint'] },
   { tab: 'render', id: 'render/light', title: '主光与轮廓', en: 'Key Light & Outline', rows: ['rnd.lightYaw', 'rnd.lightPitch', 'rnd.lightStrength', 'rnd.outline'] },
   { tab: 'render', id: 'render/ground', title: '落地与景深', en: 'Ground & Depth', rows: ['rnd.ground', 'rnd.dof'] },
+  { tab: 'render', id: 'render/quality', title: '画质', en: 'Quality', rows: ['rnd.aa', 'rnd.shadow'] },
   { tab: 'render', id: 'render/ambient', title: '环境光', en: 'Ambient', rows: ['rnd.ambient', 'rnd.wrap'], desktopOnly: true },
   // rnd.closeup is not a launch argument either: camera/closeup.ts pushes it to the desktop renderer only.
   { tab: 'render', id: 'render/camera', title: '镜头', en: 'Camera', rows: ['rnd.cam', 'rnd.yaw', 'rnd.pitch', 'rnd.zoom', 'rnd.sway', 'rnd.closeup', 'rnd.track'], desktopOnly: true },
-  { tab: 'render', id: 'render/perf', title: '性能', en: 'Performance', rows: ['rnd.fps', 'rnd.idle', 'rnd.batt'], desktopOnly: true },
+  { tab: 'render', id: 'render/perf', title: '性能', en: 'Performance', rows: ['rnd.fps', 'rnd.idle', 'rnd.batt', 'rnd.size'], desktopOnly: true },
   { tab: 'scene', id: 'scene/scene', title: '场景', en: 'Scene', rows: ['scn.mode', 'scn.parallax'] },
 ];
 
@@ -45,8 +46,8 @@ export const SEG_LABELS: Readonly<Record<string, Readonly<Record<string, string>
   'rnd.lightStrength': { '0.5': '50', '0.75': '75', '1': '100', '1.25': '125', '1.5': '150' },
 };
 
-/** Drawn on 调参 › 画面 (tune/Render.tsx), never on the character page. */
-export const TUNE_ONLY_ROWS: ReadonlySet<string> = new Set(['rnd.aa', 'rnd.size', 'rnd.shadow']);
+/** Drawn only in 开发者模式, each with the DEV mark. */
+export const DEV_ONLY_ROWS: ReadonlySet<string> = new Set(['rnd.aa', 'rnd.size', 'rnd.shadow']);
 
 export const ROW_DESC: Readonly<Record<string, string>> = {
   'beh.sit': '坐在窗口顶沿',

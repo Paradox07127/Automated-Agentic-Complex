@@ -16,9 +16,9 @@ export interface MenuMods {
 
 const modsOf = (e: MenuMods): MenuMods => ({ altKey: e.altKey, shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey });
 
-/** One menu entry; radio (with checked) is one choice of several and closes the menu, checked alone toggles and keeps it open. */
+/** One menu entry; radio (with checked) is one choice of several and closes the menu, checked alone toggles and keeps it open; icon is drawn before the label. */
 export type MenuItem =
-  | { kind: 'item'; label: string; hint?: string; danger?: boolean; checked?: boolean; radio?: boolean; disabled?: boolean; reason?: string; onSelect?: (mods: MenuMods) => void }
+  | { kind: 'item'; label: string; icon?: IconName; hint?: string; danger?: boolean; checked?: boolean; radio?: boolean; disabled?: boolean; reason?: string; onSelect?: (mods: MenuMods) => void }
   | { kind: 'sep' }
   | { kind: 'head'; label: string };
 
@@ -50,6 +50,8 @@ export function Menu({ label, items, icon, open: forced, align = 'left', narrowe
   const [focusOn, setFocusOn] = useState<number | null>(null);
   const id = useId();
   const actionable = items.map((it, i) => (it.kind === 'item' ? i : -1)).filter((i) => i >= 0);
+  // Once any item has an icon, the rest keep its column empty so the labels line up.
+  const iconCol = items.some((it) => it.kind === 'item' && it.icon);
 
   const place = useCallback(() => {
     const t = trigger.current;
@@ -201,6 +203,11 @@ export function Menu({ label, items, icon, open: forced, align = 'left', narrowe
                 onMouseEnter={() => setFocusOn(i)}
               >
                 {(it.checked !== undefined || it.radio) && <span className={styles.box} aria-hidden="true" />}
+                {iconCol && (
+                  <span className={styles.icon} aria-hidden="true">
+                    {it.icon && <Icon name={it.icon} size={16} />}
+                  </span>
+                )}
                 <span className={styles.text}>
                   {it.label}
                   {it.disabled && it.reason && <span className={styles.reason}>{it.reason}</span>}
@@ -229,6 +236,19 @@ export const MenuDemos: Array<{ name: string; props: MenuProps }> = [
   { name: 'open', props: { label: '管理', open: true, items: MANAGE } },
   { name: 'narrowed', props: { label: '排序', narrowed: true, open: true, items: [{ kind: 'item', label: '按时间', radio: true, checked: false }, { kind: 'item', label: '按名称', radio: true, checked: true }] } },
   { name: 'icon', props: { label: '更多操作', icon: 'more', align: 'right', open: true, items: [{ kind: 'item', label: '复制路径' }, { kind: 'item', label: '在 Finder 中显示' }] } },
+  {
+    name: 'item-icons',
+    props: {
+      label: '页面',
+      open: true,
+      items: [
+        { kind: 'item', label: '对话', icon: 'send', hint: '⌘2' },
+        { kind: 'item', label: '设置', icon: 'tune', hint: '⌘,' },
+        { kind: 'sep' },
+        { kind: 'item', label: '诊断', icon: 'd-overview' },
+      ],
+    },
+  },
 ];
 
 /** 右键菜单：开在指针处、没有触发按钮，由父组件持有开关；按外面、Esc、改窗口大小、滚动、窗口失焦都调 onClose。 */

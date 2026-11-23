@@ -211,11 +211,11 @@ export function StateDecisionChart(p: StateDecisionChartProps) {
           {p.stoppedAt != null && (
             <>
               <defs>
-                <pattern id="tune-hz" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <pattern id="beh-hz" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                   <rect width="1.2" height="6" className={styles.hz} />
                 </pattern>
               </defs>
-              <rect x={x(p.stoppedAt)} y={CT} width={Math.max(0, x(p.t1) - x(p.stoppedAt))} height={H - AX - CT} fill="url(#tune-hz)" />
+              <rect x={x(p.stoppedAt)} y={CT} width={Math.max(0, x(p.t1) - x(p.stoppedAt))} height={H - AX - CT} fill="url(#beh-hz)" />
               <text x={x(p.stoppedAt) - 6} y={CT + CH - 8} textAnchor="end" className={styles.note}>
                 {formatClock(p.stoppedAt)} 断开，之后没有数据
               </text>

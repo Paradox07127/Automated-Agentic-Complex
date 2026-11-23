@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
@@ -14,7 +14,7 @@ import { useDemo } from '../../shell/demo';
 import { BottomBarSlot, PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as jump } from '../../shell/nav';
 import { useToast } from '../../shell/toast';
-import { Btn, Kbd, Sheet, Tabs } from '../../ui';
+import { Btn, Kbd, Sheet } from '../../ui';
 import { StatusLamp } from '../../ui/game';
 import { demoSource, learnedOf, useTraceRow, useTraceRows, useTurnFacts } from '../chat/useTurnData';
 import { useDiagStream } from '../diag/useDiag';
@@ -69,7 +69,14 @@ const key = (k: string[], label: string) => (
   </span>
 );
 
-export function TracePage() {
+export interface TraceViewProps {
+  tab: 'turns' | 'lanes' | 'logs';
+  /** 诊断's tabs, put in the command bar. */
+  tabs: ReactNode;
+}
+
+/** 诊断's 对话轮次, 事件线 and 日志 tabs. */
+export function TraceView({ tab, tabs }: TraceViewProps) {
   const { state, demo, still } = useDemo();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -82,12 +89,10 @@ export function TracePage() {
   const convs = useConvTitles(live && src == null);
   const all = useMemo(() => (state === 'empty' ? [] : [...(rows.data?.values() ?? [])].sort(newestFirst)), [rows.data, state]);
   const noOf = useMemo(() => new Map(all.map((r, i) => [r.turn_id, all.length - i])), [all]);
-  const tabParam = useParam('tab');
-  const tab = tabParam === 'logs' || tabParam === 'lanes' ? tabParam : 'turns';
   const turnParam = useParam('turn');
   const atParam = Number(useParam('at') ?? NaN);
   const srcParam = useParam('src');
-  const put = useCallback((patch: Record<string, string | undefined>) => void navigate({ to: '/trace', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }), replace: true }), [navigate]);
+  const put = useCallback((patch: Record<string, string | undefined>) => void navigate({ to: '/diag', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }), replace: true }), [navigate]);
 
   const narrow = useNarrow();
   // A link to one turn opens it; under 1200 px that is the drawer.
@@ -172,7 +177,7 @@ export function TracePage() {
     setRes('all');
     setQ('');
     setGroup('all');
-    put({ tab: undefined, turn: r.turn_id });
+    put({ tab: 'turns', turn: r.turn_id });
   };
   const onSelect = (k: string, range: boolean) => {
     const shown = shownLines(logs, f).map((l) => l.key);
@@ -256,10 +261,10 @@ export function TracePage() {
   );
 
   return (
-    <div className={t.page} data-page="trace" data-state={state ?? 'ok'}>
+    <div className={t.page} data-page="diag" data-tab={tab} data-state={state ?? 'ok'}>
       <span className={t.wm} aria-hidden="true">{tab === 'logs' ? 'LOG' : 'TRACE'}</span>
       <PageHeaderSlot
-        tabs={<Tabs label="运行记录页签" keys={false} value={tab} tabs={[{ id: 'turns', label: '轮次', icon: 'history' }, { id: 'lanes', label: '动作线', icon: 'hub' }, { id: 'logs', label: '日志', icon: 'file' }]} onChange={(id) => put({ tab: id === 'turns' ? undefined : id })} />}
+        tabs={tabs}
         right={
           <span className={bs.reads}>
             {tab === 'logs' && logs.status === 'ok' && (

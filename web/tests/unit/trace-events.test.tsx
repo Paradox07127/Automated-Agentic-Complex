@@ -9,7 +9,7 @@ import { demoTraceEvents } from '../../src/bridge/fake/traceEvents';
 import { traceEvents } from '../../src/bridge/traceEvents';
 import { isoToMs, isoWithOffset } from '../../src/domain';
 import type { MockHandler } from '../../src/mock/types';
-import { TracePage } from '../../src/pages/trace/Page';
+import { DiagPage } from '../../src/pages/diag/Page';
 
 afterEach(() => {
   cleanup();
@@ -42,7 +42,7 @@ describe('traceEvents', () => {
 
 function mount(handler: MockHandler) {
   window.agenticComplex = createFakeBridge({ surface: 'main', still: true, routes: [{ method: 'GET', path: '/trace/events', handler }] });
-  const root = createRootRoute({ component: TracePage });
+  const root = createRootRoute({ component: DiagPage });
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1&tab=lanes'] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -60,7 +60,7 @@ describe('运行记录 动作线 reads /trace/events', () => {
       asked.push(query);
       return { status: 200, body: query.get('cursor') == null ? { events: all.slice(0, 30), cursor: 'p2' } : { events: all.slice(30), cursor: null } };
     });
-    const board = await screen.findByRole('region', { name: '动作线' });
+    const board = await screen.findByRole('region', { name: '事件线' });
     await within(board).findByRole('group', { name: '注意力' });
     expect(asked.map((q) => q.get('cursor'))).toEqual([null, 'p2']);
     const [since, until] = [asked[0]!.get('since')!, asked[0]!.get('until')!];

@@ -37,7 +37,7 @@ export interface HourBarsProps {
   buckets: HourBucket[];
   range: '24h' | '7d';
   onRange: (r: '24h' | '7d') => void;
-  /** A bar was clicked: 运行记录 from that bucket's start. */
+  /** A bar was clicked: 对话轮次 from that bucket's start. */
   onPick: (at: number) => void;
   /** The read hit its row limit, so older buckets are short. */
   truncated: boolean;
@@ -63,7 +63,7 @@ export function HourBars({ buckets, range, onRange, onPick, truncated }: HourBar
     <section className={styles.col} aria-label={range === '7d' ? '近 7 天' : '近 24 小时'}>
       <SecHead
         title={range === '7d' ? '近 7 天' : '近 24 小时'}
-        info={`每${range === '7d' ? '天' : '小时'}一根柱：灰是成功、红是失败；黄线是那段时间的 p50 用时。点柱子去运行记录的那段时间。${truncated ? '读数到了上限，更早的轮次没有算进来。' : ''}`}
+        info={`每${range === '7d' ? '天' : '小时'}一根柱：灰是成功、红是失败；黄线是那段时间的 p50 用时。点柱子去对话轮次的那段时间。${truncated ? '读数到了上限，更早的轮次没有算进来。' : ''}`}
         right={
           <GameSeg
             label="范围"
@@ -86,7 +86,7 @@ export function HourBars({ buckets, range, onRange, onPick, truncated }: HourBar
               className={styles.hb}
               style={{ left: `calc(${i * w}% + 1px)`, width: `calc(${w}% - 3px)` }}
               title={`${name(b)} │ ${b.n} 轮 │ 失败 ${b.fail}${b.p50 != null ? ` │ p50 ${formatMs(b.p50)}` : ''}`}
-              aria-label={`${name(b)}，${b.n} 轮，失败 ${b.fail}，在运行记录里打开`}
+              aria-label={`${name(b)}，${b.n} 轮，失败 ${b.fail}，在对话轮次里打开`}
               onClick={() => onPick(b.at)}
             >
               <i style={{ height: `${((b.n - b.fail) / mx) * 100}%` }} />

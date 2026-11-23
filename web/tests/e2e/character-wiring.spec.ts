@@ -11,18 +11,18 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-test('character: activity key in words on the stage, mood word on 调参', async ({ page }) => {
+test('character: activity key in words on the stage, mood word on 诊断 › 行为决策', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/character?still=1');
   await expect(page.locator('[data-stage]')).toContainText('坐着');
-  await page.goto('main.html#/tune?still=1');
+  await page.goto('main.html#/diag?tab=behavior&still=1');
   await expect(page.locator('main')).toContainText('有点低落');
   expect(errors).toEqual([]);
 });
 
-test('调参: reset replaces the state with what agentd answers', async ({ page }) => {
+test('诊断 › 行为决策: reset replaces the state with what agentd answers', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/tune?still=1');
+  await page.goto('main.html#/diag?tab=behavior&still=1');
   await expect(page.locator('main')).toContainText('有点低落');
   await page.getByRole('button', { name: '重置状态…' }).click();
   const dialog = page.getByRole('dialog');
@@ -40,9 +40,9 @@ test('character disconnected: the stale time is the page clock of the last state
   expect(errors).toEqual([]);
 });
 
-test('调参 state-none: agentd 503 no_state reads as not recorded yet', async ({ page }) => {
+test('诊断 › 行为决策 state-none: agentd 503 no_state reads as not recorded yet', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/tune?still=1&demo=state-none');
+  await page.goto('main.html#/diag?tab=behavior&still=1&demo=state-none');
   await expect(page.getByText(/状态还没开始记录/)).toHaveCount(1);
   await expect(page.locator('main')).not.toContainText('读取角色状态失败');
   expect(errors).toEqual([]);

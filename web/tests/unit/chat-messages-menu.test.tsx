@@ -39,7 +39,7 @@ describe('chat message menu', () => {
     expect(items()).toEqual(['复制']);
   });
 
-  it('offers 复制, 引用回复, 在桌面上重放表情 and 在运行记录里看这一轮 on her reply when given, and closes after a pick', () => {
+  it('offers 复制, 引用回复, 在桌面上重放表情 and 在诊断里看这一轮 on her reply when given, and closes after a pick', () => {
     const onQuote = vi.fn();
     const onReplay = vi.fn();
     const onOpenTrace = vi.fn();
@@ -48,7 +48,7 @@ describe('chat message menu', () => {
     const open = () => fireEvent.contextMenu(screen.getByText('在呢。'), { clientX: 40, clientY: 50 });
 
     open();
-    expect(items()).toEqual(['复制', '引用回复', '在桌面上重放表情', '在运行记录里看这一轮']);
+    expect(items()).toEqual(['复制', '引用回复', '在桌面上重放表情', '在诊断里看这一轮']);
     fireEvent.click(screen.getByRole('menuitem', { name: '复制' }));
     expect(write).toHaveBeenCalledWith('在呢。');
     expect(screen.queryByRole('menu')).toBeNull();
@@ -64,7 +64,7 @@ describe('chat message menu', () => {
     expect(screen.queryByRole('menu')).toBeNull();
 
     open();
-    fireEvent.click(screen.getByRole('menuitem', { name: '在运行记录里看这一轮' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '在诊断里看这一轮' }));
     expect(onOpenTrace).toHaveBeenCalledWith('line-7');
     expect(screen.queryByRole('menu')).toBeNull();
   });
@@ -76,7 +76,7 @@ describe('chat message menu', () => {
     for (const key of [{ key: 'ContextMenu' }, { key: 'F10', shiftKey: true }]) {
       bubble.focus();
       fireEvent.keyDown(bubble, key);
-      expect(items()).toEqual(['复制', '引用回复', '在运行记录里看这一轮']);
+      expect(items()).toEqual(['复制', '引用回复', '在诊断里看这一轮']);
       fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
       expect(screen.queryByRole('menu')).toBeNull();
       expect(document.activeElement).toBe(bubble);

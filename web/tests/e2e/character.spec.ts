@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 
-// Character page and the 调参 page it hands 行为与画面 to: blocks, interactions, error and offline demos, 调参's sparse demo, and no sideways scroll at the four window sizes.
+// Character page and 诊断 › 行为决策 it hands the state curves to: blocks, interactions, error and offline demos, and no sideways scroll at the four window sizes.
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -103,14 +103,14 @@ test('interactions: pick a motion, preview on the desktop', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test('调参: 画质 holds the developer quality rows, 行为 the state and decisions on one chart', async ({ page }) => {
+test('设定 › 画面 holds the developer quality rows, 诊断 › 行为决策 the state and decisions on one chart', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/tune?still=1&tab=render');
-  await expect(page.locator('[data-page="tune"]')).toBeVisible();
-  expect(new URL(page.url()).hash).toMatch(/^#\/tune\?/);
-  await expect(page.getByRole('radiogroup', { name: '自阴影精度' })).toBeVisible();
+  await page.goto('main.html#/character?still=1&tab=render');
+  await expect(page.locator('#set-rnd\\.shadow')).toBeVisible();
+  await expect(page.locator('#set-rnd\\.shadow [data-stub="DevMark"]')).toBeVisible();
   await expect(page.getByRole('radiogroup', { name: '活动方式' })).toHaveCount(0);
-  await page.getByRole('tab', { name: '行为' }).click();
+  await page.goto('main.html#/diag?still=1');
+  await page.getByRole('tab', { name: '行为决策' }).click();
   await expect(page.getByRole('region', { name: '精神与心情 │ 行为决策' })).toContainText('硬规则');
   await expect(page.locator('[data-motion]')).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -231,18 +231,15 @@ for (const [w, h] of [
   [1440, 900],
   [1920, 1080],
 ] as const) {
-  test(`${w}×${h}: no sideways scroll on 角色 or 调参`, async ({ page }) => {
+  test(`${w}×${h}: no sideways scroll on 角色 or 行为决策`, async ({ page }) => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width: w, height: h });
     await page.goto('main.html#/character?still=1&demo=ok&pane=motion');
     await expect(page.getByRole('grid', { name: '全部动作' })).toBeVisible();
     expect(await overflowX(page, 'character')).toBe(false);
-    await page.goto('main.html#/tune?still=1');
+    await page.goto('main.html#/diag?tab=behavior&still=1');
     await expect(page.getByRole('region', { name: '变化原因' })).toBeVisible();
-    expect(await overflowX(page, 'tune')).toBe(false);
-    await page.goto('main.html#/tune?still=1&tab=render');
-    await expect(page.getByRole('radiogroup', { name: '自阴影精度' })).toBeVisible();
-    expect(await overflowX(page, 'tune')).toBe(false);
+    expect(await overflowX(page, 'diag')).toBe(false);
     expect(errors).toEqual([]);
   });
 }

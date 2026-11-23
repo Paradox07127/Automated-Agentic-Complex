@@ -13,11 +13,11 @@ export type RowAction = { kind: 'restart'; phase: 'busy' | 'done'; at: number; t
 
 const NAME: Record<'agentd' | 'avatar', string> = { agentd: '后台服务', avatar: '角色' };
 
-/** The 运行记录 log source of a process row; voice runs inside agentd, the services share one log. */
+/** The 日志 tab's source of a process row; voice runs inside agentd, the services share one log. */
 const LOG_OF: Record<ProcessKey, string> = { agentd: 'agentd', avatar: 'avatar', voice: 'agentd', tts: 'services', motion: 'services', llm: 'services' };
 
-/** 查看日志 opens that process's log on the 运行记录 page. */
-export const viewLogs = (key: ProcessKey) => navigate({ page: 'trace', tab: 'logs', src: LOG_OF[key] });
+/** 查看日志 opens that process's log on the 日志 tab. */
+export const viewLogs = (key: ProcessKey) => navigate({ page: 'diag', tab: 'logs', src: LOG_OF[key] });
 
 export const CONFIRM: Record<RestartTarget, { title: string; note: string; danger: boolean; label: string }> = {
   all: { title: '全部重启？', note: '依次重启 Companion、后台服务和角色。进行中的任务会中断，重启后不会自动重跑。', danger: true, label: '全部重启' },

@@ -272,10 +272,10 @@ export function ChatPage() {
           onQueueSide={(t) => void actions.queueSide(t)} queueOff={queueOff}
           selectedTurn={aim}
           {...(history ? {} : { onQuote: quoteLine })}
-          onOpenTrace={(turn) => navigate({ page: 'trace', turn })}
+          onOpenTrace={(turn) => navigate({ page: 'diag', tab: 'turns', turn })}
           {...(!history && state == null && replies.length === 0 ? { onExample: (text: string) => setDraft({ text, topic: conv }) } : {})}
         />
-        <LiveTail replies={replies} roleName={roleName} {...headUrl} roleId={character} frontTitle={headerRun ? (defaultTask?.title ?? null) : null} incomplete={feed.incomplete && replies.some((r) => !r.final)} runEnd={runEnd} onFront={openTask} onQueue={(t) => void actions.queueSide(t)} queueOff={queueOff} onRetry={(r) => void actions.resend(r.said, r.options)} {...(history ? {} : { onQuote: quoteLive })} onOpenTrace={(turn) => navigate({ page: 'trace', turn })} />
+        <LiveTail replies={replies} roleName={roleName} {...headUrl} roleId={character} frontTitle={headerRun ? (defaultTask?.title ?? null) : null} incomplete={feed.incomplete && replies.some((r) => !r.final)} runEnd={runEnd} onFront={openTask} onQueue={(t) => void actions.queueSide(t)} queueOff={queueOff} onRetry={(r) => void actions.resend(r.said, r.options)} {...(history ? {} : { onQuote: quoteLive })} onOpenTrace={(turn) => navigate({ page: 'diag', tab: 'turns', turn })} />
       </>
     );
 

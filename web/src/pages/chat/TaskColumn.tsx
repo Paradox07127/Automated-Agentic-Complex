@@ -27,7 +27,7 @@ export function TaskColumn({ view, demo, livePlan, onClose, ...p }: Pick<Drawer,
       {task.run_id && (
         <>
           <RunItems key={task.run_id} runId={task.run_id} running={p.activeRun != null} />
-          <Btn size="sm" variant="text" onClick={() => task.run_id && navigate({ page: 'trace', turn: task.run_id })}>完整运行记录 ↗</Btn>
+          <Btn size="sm" variant="text" onClick={() => task.run_id && navigate({ page: 'diag', tab: 'turns', turn: task.run_id })}>完整对话轮次 ↗</Btn>
         </>
       )}
     </RightPanel>

@@ -111,5 +111,5 @@ export const DeviceRowDemos: Array<{ name: string; props: DeviceRowProps }> = [
     },
   },
   { name: 'dim', props: { icon: 'kernel', name: '角色内核', sub: 'pi', state: 'idle', stateLabel: '读不到', why: '后台断开', reads: <ReadTick value="—" label="可用能力" />, child: 'mid', dim: true } },
-  { name: 'warning', props: { icon: 'radio', name: '主动发言', state: 'warning', stateLabel: '注意', why: '今天挡下 4 次', reads: <ReadTick value="6" unit="/8" label="今天" tone="warn" />, go: { label: '去状态', onClick: noop } } },
+  { name: 'warning', props: { icon: 'radio', name: '主动发言', state: 'warning', stateLabel: '注意', why: '今天挡下 4 次', reads: <ReadTick value="6" unit="/8" label="今天" tone="warn" />, go: { label: '去内部状态', onClick: noop } } },
 ];

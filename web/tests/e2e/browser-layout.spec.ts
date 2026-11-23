@@ -25,7 +25,7 @@ test('diag section heads are plain titles', async ({ page }) => {
 
 test('the mood word is shown whole', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/tune?still=1');
+  await page.goto('main.html#/diag?tab=behavior&still=1');
   const word = page.getByText('有点低落', { exact: true }).first();
   await expect(word).toBeVisible();
   const clipped = await word.evaluate((n) => n.scrollWidth > n.clientWidth || n.scrollHeight > n.clientHeight);

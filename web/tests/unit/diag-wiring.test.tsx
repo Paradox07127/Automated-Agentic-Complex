@@ -77,7 +77,8 @@ describe('diag page', () => {
     await procRow('agentd');
     expect(calls).toEqual(expect.arrayContaining([['GET', '/diag/state', undefined], ['GET', '/capabilities', undefined], ['GET', '/character/runtime', undefined]]));
     expect(paths().filter((p) => /\/diag\/(logs|turns|records|voice)|\/trace\/export/.test(p))).toEqual([]);
-    expect(screen.queryByRole('tab', { name: '日志' })).toBeNull();
+    // 日志 is a 回看 tab, after the gap.
+    expect(screen.getAllByRole('tab').findIndex((t) => t.hasAttribute('data-gap'))).toBeLessThan(screen.getAllByRole('tab').findIndex((t) => t.title === '日志'));
   });
 
   it('shows supervisor.state per process and the voice row from connections.tts', async () => {
@@ -157,10 +158,10 @@ describe('diag page', () => {
     fireEvent.click(within(row).getByRole('button', { name: '重启' }));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '重启角色' })));
     expect(restarts).toEqual(['avatar']);
-    // 日志 opens that process's source on 运行记录 › 日志; 在 Finder 中显示 lives only there.
+    // 日志 opens that process's source on 诊断 › 日志; 在 Finder 中显示 lives only there.
     await act(async () => fireEvent.click(within(row).getByRole('button', { name: '日志' })));
     expect(actions).toEqual(['copy_diagnostics']);
-    expect(window.location.hash).toMatch(/^#\/trace\?tab=logs&src=avatar/);
+    expect(window.location.hash).toMatch(/^#\/diag\?tab=logs&src=avatar/);
   });
 
   it('without render samples the frame plate says why', async () => {

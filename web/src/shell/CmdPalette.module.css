@@ -76,6 +76,13 @@
   border-color: currentColor;
 }
 
+.icon {
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  color: var(--ef-text-2);
+}
+
 .grow {
   flex: 1;
   min-width: 0;

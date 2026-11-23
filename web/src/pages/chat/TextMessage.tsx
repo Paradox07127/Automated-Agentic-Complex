@@ -8,7 +8,7 @@ import { TURN_SOURCE, TURN_STATE } from './stream';
 import type { TiMem, TurnRes } from './turnTrace';
 import styles from './Messages.module.css';
 
-/** A reply's `/trace/turns` row paired by turn_id; the chat no longer shows it, 运行记录 does. */
+/** A reply's `/trace/turns` row paired by turn_id; the chat no longer shows it, 诊断 › 对话轮次 does. */
 export interface TurnTagInfo {
   no: number;
   res: TurnRes;

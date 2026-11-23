@@ -116,7 +116,7 @@ export function ServicesData() {
           onStart={(id) => void run('start')(id)}
           onStop={(id) => void run('stop')(id)}
           onRestart={(id) => void run('restart')(id)}
-          onLogs={() => goPage({ page: 'trace', tab: 'logs', src: 'services' })}
+          onLogs={() => goPage({ page: 'diag', tab: 'logs', src: 'services' })}
           disabled={ro || busy}
         />
       )}

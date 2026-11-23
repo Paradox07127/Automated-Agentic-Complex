@@ -8,6 +8,7 @@ import type { DesktopOp } from './desktopOps';
 import { isDevMode } from './devMode';
 import type { NavTarget, PageId } from './nav';
 import { DEFAULT_PLUGINS, getPlugins, type PluginState } from './plugins';
+import type { IconName } from '../ui/Icon';
 import type { PageRoute } from './types';
 
 /** What ⌘K searches, read through the bridge from the same endpoints the pages use. */
@@ -67,6 +68,8 @@ export interface PaletteItem {
   key: string;
   group: PaletteGroup;
   label: string;
+  /** Pages: the page's icon before the label. */
+  icon?: IconName;
   /** What the item is or does; empty for pages. */
   hint: string;
   /** Key chord shown as a key cap. */
@@ -98,7 +101,7 @@ export function paletteItems(
   const has = (text: string) => !q || text.toLowerCase().includes(q);
   const pages: PaletteItem[] = routes
     .filter((r) => r.nav !== false && (!r.devOnly || isDevMode()) && has(`${r.title} ${r.en} ${r.id}`))
-    .map((r) => ({ key: `page-${r.id}`, group: '跳页', label: r.title, hint: '', shortcut: r.hotkey, run: { kind: 'nav', target: { page: r.id as PageId } } }));
+    .map((r) => ({ key: `page-${r.id}`, group: '跳页', label: r.title, ...(r.icon ? { icon: r.icon } : {}), hint: '', shortcut: r.hotkey, run: { kind: 'nav', target: { page: r.id as PageId } } }));
   const actions: PaletteItem[] = [
     { key: 'quick-input', group: '动作' as const, label: '快速输入', shortcut: keys.hk_quick, words: 'input quick 输入 桌面', ...desktop('quickInput', '桌面上的输入框', off) },
     ...(plugins.screen_reading ? [{ key: 'look', group: '动作' as const, label: '屏幕识读', shortcut: keys.hk_look, words: 'look observe 屏幕 识读', ...desktop('look', '识读前台窗口', off) }] : []),

@@ -22,7 +22,7 @@ export interface TabsProps {
     mark?: string | undefined;
     /** 图标页签右下的草稿方块 */
     draft?: boolean;
-    /** 这一格前面留一段宽间隔（新的一组） */
+    /** 这一格开始新的一组：前面留宽间隔，画一条更长更实的分隔线 */
     gap?: boolean;
     /** avatar 变体：图标位上的头像 */
     avatar?: ReactNode;
@@ -202,7 +202,21 @@ export function Tabs({ tabs, value, label, keys = true, loop = true, variant, on
 export const TabsDemos: Array<{ name: string; props: TabsProps }> = [
   { name: 'tasks', props: { label: '任务视图', value: 'pending', tabs: [{ id: 'pending', label: '待处理', count: 3 }, { id: 'all', label: '全部任务' }, { id: 'goals', label: '目标' }] } },
   { name: 'no-keys', props: { label: '诊断视图', value: 'timeline', keys: false, tabs: [{ id: 'health', label: '健康' }, { id: 'timeline', label: '时间线', count: 12 }, { id: 'logs', label: '日志' }] } },
-  { name: 'icon', props: { label: '运行记录页签', value: 'turns', keys: false, tabs: [{ id: 'turns', label: '轮次', icon: 'history' }, { id: 'lanes', label: '动作线', icon: 'hub' }, { id: 'logs', label: '日志', icon: 'file' }] } },
+  { name: 'icon', props: { label: '回看页签', value: 'turns', keys: false, tabs: [{ id: 'turns', label: '对话轮次', icon: 'history' }, { id: 'lanes', label: '事件线', icon: 'hub' }, { id: 'logs', label: '日志', icon: 'file' }] } },
+  {
+    name: 'groups',
+    props: {
+      label: '诊断页签',
+      value: 'overview',
+      tabs: [
+        { id: 'overview', label: '总览', icon: 'd-overview' },
+        { id: 'proc', label: '进程', icon: 'd-proc' },
+        { id: 'flow', label: '链路', icon: 'd-flow' },
+        { id: 'turns', label: '对话轮次', icon: 'history', gap: true },
+        { id: 'logs', label: '日志', icon: 'file' },
+      ],
+    },
+  },
   { name: 'avatar', props: { label: '角色', value: 'si', keys: false, variant: 'avatar', tabs: [{ id: 'si', label: '示例乙', avatar: <DemoFace /> }, { id: 'jia', label: '示例甲', avatar: <DemoFace /> }, { id: 'bing', label: '示例丙', avatar: <DemoFace /> }] } },
   {
     name: 'steps',

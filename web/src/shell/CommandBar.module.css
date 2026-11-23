@@ -334,6 +334,13 @@
   overflow: hidden;
 }
 
+/* The 设置 gear, last in the bar on every page. */
+.gear {
+  display: inline-flex;
+  flex: none;
+  -webkit-app-region: no-drag;
+}
+
 /* A page without tabs gives the centre column's room to its readouts. */
 .cmdbar:has(.plate:empty) {
   grid-template-columns: auto 0 minmax(0, 1fr);

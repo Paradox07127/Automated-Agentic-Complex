@@ -57,6 +57,7 @@ describe('CharacterSettings', () => {
     expect(secs).toEqual([
       ['主光与轮廓', false],
       ['落地与景深', false],
+      ['画质', false],
       ['环境光', true],
       ['镜头', true],
       ['性能', true],
@@ -95,11 +96,19 @@ describe('CharacterSettings', () => {
     expect(onTab).toHaveBeenCalledWith('render');
   });
 
-  it('leaves the 调参 › 画面 rows to the tune page, in developer mode too', async () => {
-    setDevMode(true);
+  it('draws the three quality rows on 画面 only in developer mode, each marked DEV', async () => {
+    setDevMode(false);
     view('render');
     await screen.findByRole('tablist', { name: '设定' });
     for (const label of ['2× SSAA', '渲染尺寸', '自阴影精度']) expect(screen.queryAllByText(label)).toHaveLength(0);
+    cleanup();
+    setDevMode(true);
+    view('render');
+    for (const id of ['rnd.aa', 'rnd.size', 'rnd.shadow']) {
+      await waitFor(() => expect(document.getElementById(`set-${id}`)).not.toBeNull());
+      expect(document.getElementById(`set-${id}`)!.querySelector('[data-stub="DevMark"]')).not.toBeNull();
+    }
+    expect(document.getElementById('set-rnd.fps')!.querySelector('[data-stub="DevMark"]')).toBeNull();
   });
 
   it('saves a dragged slider without toasts and toasts once for the value it is released at', async () => {

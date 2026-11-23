@@ -1,39 +1,28 @@
-// 调参（开发者）：行为 puts her state and her behavior decisions on one time axis; 画质 holds the three developer quality rows and the render load.
-import { useState } from 'react';
+// 诊断 › 行为决策: her state and her behavior decisions on one time axis.
+import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
 import { getBridge } from '../../bridge';
 import { formatClock } from '../../domain';
 import { useDemo } from '../../shell/demo';
 import { BottomBarSlot, PageHeaderSlot } from '../../shell/headerSlot';
-import { Btn, ErrBar, Spinner, Tabs } from '../../ui';
+import { Btn, ErrBar, Spinner } from '../../ui';
 import { StatusLamp } from '../../ui/game';
 import { failure, readBeats, readHistory, readState, resetState } from '../character/api';
-import { pageNow, useFeedback, usePageParams } from '../character/feedback';
+import { pageNow, useFeedback } from '../character/feedback';
 import { DOWN } from '../character/Page';
 import { Behavior, type Range } from './Behavior';
-import { Render } from './Render';
-import styles from './Tune.module.css';
+import styles from './Behavior.module.css';
 
-type Tab = 'behavior' | 'render';
-
-const TABS = [
-  { id: 'behavior', label: '行为', icon: 'hand' as const },
-  { id: 'render', label: '画质', icon: 'sun' as const },
-];
 const DAY = 24 * 3600_000;
 /** readBeats asks agentd for at most this many decisions, newest first. */
 const BEAT_LIMIT = 200;
 
 const startOf = (range: Range, now: number) => (range === 'today' ? new Date(now).setHours(0, 0, 0, 0) : now - DAY);
 
-export function TunePage() {
+export function BehaviorView({ tabs }: { tabs: ReactNode }) {
   const { state, demo } = useDemo();
-  const params = usePageParams();
-  const go = useNavigate();
   const fb = useFeedback();
   const qc = useQueryClient();
-  const tab: Tab = params.get('tab') === 'render' ? 'render' : 'behavior';
   const [range, setRange] = useState<Range>('today');
   const now = pageNow();
   // Page clock of the last state read: where the curves stop when agentd goes away.
@@ -60,11 +49,6 @@ export function TunePage() {
   const t0 = startOf(range, now);
   const restartAgentd = () => void getBridge().supervisor.restart('agentd').then(() => fb.toast('正在重新连接后台服务…'));
 
-  const setTab = (id: string) => void go({ to: '/tune', search: (prev: Record<string, unknown>) => ({ ...prev, tab: id === 'behavior' ? undefined : id }), replace: true });
-  const restart = () => {
-    void getBridge().supervisor.restart('avatar');
-    fb.toast('正在重启角色…');
-  };
   const reset = () => {
     const s = cs.data;
     if (!s) return;
@@ -103,10 +87,10 @@ export function TunePage() {
   const resetWhy = disconnected ? '后台已断开' : !cs.data || none ? '还没有状态可以重置' : undefined;
 
   return (
-    <div className={styles.page} data-page="tune">
+    <div className={styles.page} data-page="diag" data-tab="behavior">
       {fb.node}
       <PageHeaderSlot
-        tabs={<Tabs label="调参页签" keys={false} value={tab} tabs={TABS} onChange={setTab} />}
+        tabs={tabs}
         right={
           state === 'loading' || cs.isPending ? (
             <span className={styles.lamp} role="status">
@@ -125,37 +109,31 @@ export function TunePage() {
           )
         }
       />
-      {tab === 'behavior' ? (
-        <>
-          <BottomBarSlot
-            actions={
-              <Btn icon="refresh" disabled={resetWhy != null} disabledReason={resetWhy} onClick={ask}>
-                重置状态…
-              </Btn>
-            }
-          />
-          {(stateError || disconnected) && (
-            <div className={styles.bars}>
-              {stateError && <ErrBar message={`读取角色状态失败：${cs.error ? failure(cs.error).text : '桌面角色没有回应'}`} {...(readAt != null ? { staleAt: readAt } : {})} onRetry={() => void cs.refetch()} />}
-              {disconnected && <ErrBar message={`后台已断开 │ 状态和决策停在 ${readAt != null ? formatClock(readAt) : '断开前'}`} tone="warning" onRetry={restartAgentd} />}
-            </div>
-          )}
-          <Behavior
-            state={charState}
-            log={log.data ?? []}
-            beats={beats.data ?? []}
-            capped={(beats.data?.length ?? 0) >= BEAT_LIMIT ? BEAT_LIMIT : null}
-            range={range}
-            onRange={setRange}
-            t0={t0}
-            now={now}
-            stoppedAt={disconnected ? readAt : undefined}
-            offline={offline}
-          />
-        </>
-      ) : (
-        <Render offline={offline} onRestart={restart} toast={fb.toast} />
+      <BottomBarSlot
+        actions={
+          <Btn icon="refresh" disabled={resetWhy != null} disabledReason={resetWhy} onClick={ask}>
+            重置状态…
+          </Btn>
+        }
+      />
+      {(stateError || disconnected) && (
+        <div className={styles.bars}>
+          {stateError && <ErrBar message={`读取角色状态失败：${cs.error ? failure(cs.error).text : '桌面角色没有回应'}`} {...(readAt != null ? { staleAt: readAt } : {})} onRetry={() => void cs.refetch()} />}
+          {disconnected && <ErrBar message={`后台已断开 │ 状态和决策停在 ${readAt != null ? formatClock(readAt) : '断开前'}`} tone="warning" onRetry={restartAgentd} />}
+        </div>
       )}
+      <Behavior
+        state={charState}
+        log={log.data ?? []}
+        beats={beats.data ?? []}
+        capped={(beats.data?.length ?? 0) >= BEAT_LIMIT ? BEAT_LIMIT : null}
+        range={range}
+        onRange={setRange}
+        t0={t0}
+        now={now}
+        stoppedAt={disconnected ? readAt : undefined}
+        offline={offline}
+      />
     </div>
   );
 }

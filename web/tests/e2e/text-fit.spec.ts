@@ -71,8 +71,8 @@ test('对话 900×700: the composer status hint is shown whole; at 900×600 it m
   expect(g.title).toBe(g.text);
 });
 
-for (const view of ['trace?demo=full&turn=tr7', 'trace?demo=sparse', 'trace?tab=logs']) {
-  test(`运行记录 925×515 ${view}: nothing in the page runs past its right edge`, async ({ page }) => {
+for (const view of ['diag?tab=turns&demo=full&turn=tr7', 'diag?tab=turns&demo=sparse', 'diag?tab=logs']) {
+  test(`诊断 回看 925×515 ${view}: nothing in the page runs past its right edge`, async ({ page }) => {
     await open(page, 925, 515, view);
     const main = page.locator('main');
     await expect(main.getByRole(view.includes('logs') ? 'log' : 'listbox').first()).toBeVisible();

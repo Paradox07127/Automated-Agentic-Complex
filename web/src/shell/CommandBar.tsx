@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type Ref } from 'react';
 import { gameClips } from '../design/gameClips.generated';
-import { fxCalm, Icon, Kbd, Menu, useGameClip, type MenuItem } from '../ui';
+import { keyText } from '../bridge/platformText';
+import { fxCalm, Icon, IconBtn, Kbd, Menu, useGameClip, type MenuItem } from '../ui';
 import { useDevMode } from './devMode';
 import { navigate, type PageId } from './nav';
 import type { PageRoute } from './types';
@@ -42,13 +43,14 @@ export interface CommandBarProps {
   actionRef: Ref<HTMLDivElement>;
 }
 
-/** The one top bar of every page but 主页: back to 主页 (esc), the page's name (it lists every page), the page's own tabs between Q and E, its readouts and action. */
+/** The one top bar of every page but 主页: back to 主页 (esc), the page's name (it lists every page), the page's own tabs between Q and E, its readouts and action, then the 设置 gear. */
 export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, actionRef }: CommandBarProps) {
   const devMode = useDevMode();
   const pages = routes.filter((r) => r.id !== 'home' && r.id !== 'onboarding' && (r.nav !== false || r.id === 'tasks'));
   const toItem = (r: PageRoute): MenuItem => ({
     kind: 'item',
     label: r.title,
+    ...(r.icon ? { icon: r.icon } : {}),
     ...(r.hotkey ? { hint: r.hotkey } : {}),
     onSelect: () => navigate({ page: r.id as PageId }),
   });
@@ -211,6 +213,9 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
       <div className={styles.right}>
         <div className={styles.slot} ref={rightRef} data-slot="status" />
         <div className={styles.slot} ref={actionRef} data-slot="action" />
+        <span className={styles.gear}>
+          <IconBtn icon="tune" label="设置" shortcut={keyText('⌘,')} pressed={activeId === 'settings'} onClick={() => navigate({ page: 'settings' })} />
+        </span>
       </div>
     </nav>
   );

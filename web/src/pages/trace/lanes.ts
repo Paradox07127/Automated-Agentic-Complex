@@ -1,4 +1,4 @@
-// 动作线: the T1 events of one stretch of time as parallel lanes (inputs by source, stage, decisions, renderer
+// 事件线: the T1 events of one stretch of time as parallel lanes (inputs by source, stage, decisions, renderer
 // feedback, speech), and the walk along `causation_id` up to an event's causes and down to its effects.
 import { isoToMs } from '../../domain';
 

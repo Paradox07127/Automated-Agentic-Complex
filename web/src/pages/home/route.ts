@@ -5,6 +5,7 @@ export const route: PageRoute = {
   id: 'home',
   path: '/home',
   title: '主页',
+  icon: 'grid',
   en: 'Home',
   order: 5,
   group: 'primary',

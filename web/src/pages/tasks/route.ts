@@ -5,6 +5,7 @@ export const route: PageRoute = {
   id: 'tasks',
   path: '/tasks',
   title: '任务',
+  icon: 'clock',
   en: 'Tasks',
   order: 95,
   group: 'secondary',

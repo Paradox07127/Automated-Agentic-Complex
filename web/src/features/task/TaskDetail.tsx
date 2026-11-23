@@ -15,7 +15,7 @@ export type TaskAction =
   | { kind: 'continue'; note: string; useCurrentKernel: boolean }
   | { kind: 'stop' }
   | { kind: 'open_pending'; pendingId: string }
-  /** The task's turn in 运行记录; the turn list when the task has no run. */
+  /** The task's turn on 诊断 › 对话轮次; the turn list when the task has no run. */
   | { kind: 'open_timeline' }
   | { kind: 'jump_terminal'; sessionId: string }
   | { kind: 'open_artifact'; path: string }

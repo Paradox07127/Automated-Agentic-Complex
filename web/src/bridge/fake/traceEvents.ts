@@ -1,4 +1,4 @@
-// The fake bridge's `GET /trace/events`: the 动作线 demo stretch before the fixtures' now, filtered and paged as agentd does.
+// The fake bridge's `GET /trace/events`: the 事件线 demo stretch before the fixtures' now, filtered and paged as agentd does.
 import { isoToMs } from '../../domain';
 import { NOW } from '../../mock/fixtures';
 import type { MockRoute } from '../../mock/types';

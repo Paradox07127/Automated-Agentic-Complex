@@ -1,4 +1,4 @@
-// The shell's log files the 运行记录 page reads (`logs.*`): each source's fixed file name, and its lines read as time,
+// The shell's log files 诊断's 日志 tab reads (`logs.*`): each source's fixed file name, and its lines read as time,
 // level, text and continuation lines. The page names a source by id, never by path.
 import { isAgentdError, isCompanionError } from './diagnostics.ts';
 

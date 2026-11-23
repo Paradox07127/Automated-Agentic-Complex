@@ -6,6 +6,7 @@ export const route: PageRoute = {
   id: 'onboarding',
   path: '/onboarding',
   title: '首次设置',
+  icon: 'star',
   en: 'Onboarding',
   order: 90,
   group: 'secondary',

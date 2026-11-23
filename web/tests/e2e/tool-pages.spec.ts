@@ -16,7 +16,7 @@ test('diag process rows are read-only: no hover step, no cut', async ({ page }) 
 });
 
 test('trace turn rows are pressable: hover draws the stripes, the picked row is the yellow band', async ({ page }) => {
-  await page.goto('main.html#/trace?still=1&demo=full');
+  await page.goto('main.html#/diag?tab=turns&still=1&demo=full');
   const row = page.getByRole('listbox', { name: '近 24 小时的轮次' }).getByRole('option').nth(1);
   await row.hover();
   await expect.poll(() => row.evaluate((e) => getComputedStyle(e, '::after').opacity)).toBe('1');
@@ -41,7 +41,7 @@ for (const theme of ['dark', 'light'] as const) {
 
 test('tool pages do not scroll sideways at 900×600', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
-  for (const id of ['diag', 'pipeline', 'tune'] as const) {
+  for (const id of ['diag', 'pipeline'] as const) {
     await page.goto('about:blank');
     await page.goto(`main.html#/${id}?still=1`);
     await expect(page.locator('[data-page]').first()).toBeVisible();

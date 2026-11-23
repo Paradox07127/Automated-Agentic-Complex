@@ -19,19 +19,19 @@ test('diag: 总览 lists the link rows, then the run rows, without errors', asyn
   await page.goto('main.html#/diag?still=1');
   await expect(page.locator('main [data-stub="SecHead"] h3')).toHaveText(['链路', '运行']);
   await expect(page.locator('[data-row]')).toHaveCount(6);
-  await expect(page.getByRole('tab')).toHaveText(['总览', '进程', '渲染', '管道', '状态']);
+  await expect(page.getByRole('tab')).toHaveText(['总览', '进程', '帧与负载', '链路', '内部状态', '对话轮次', '事件线', '行为决策', '日志']);
   expect(errors).toEqual([]);
 });
 
-test('diag: the tabs switch by click and by 1–5; a row › opens its tab', async ({ page }) => {
+test('diag: the tabs switch by click and by 1–9; a row › opens its tab', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/diag?still=1');
-  await page.getByRole('tab', { name: '管道' }).click();
+  await page.getByRole('tab', { name: '链路' }).click();
   await expect(node(page, '模型')).toBeVisible();
   await page.keyboard.press('2');
   await expect(page.getByRole('radiogroup', { name: '曲线' })).toBeVisible();
   await page.keyboard.press('1');
-  await page.locator('[data-row="gate"]').getByRole('button', { name: '去状态' }).click();
+  await page.locator('[data-row="gate"]').getByRole('button', { name: '去内部状态' }).click();
   await expect(page.getByRole('region', { name: '主动发言闸门' })).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -41,7 +41,7 @@ test('diag 管道: a node opens its failures; Esc clears it before leaving the p
   await page.goto('main.html#/diag?still=1&tab=flow&demo=full');
   await node(page, '语音').click();
   await expect(node(page, '语音')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('button', { name: '在运行记录里看' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '在对话轮次里看' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(node(page, '语音')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('[data-page="diag"]')).toBeVisible();

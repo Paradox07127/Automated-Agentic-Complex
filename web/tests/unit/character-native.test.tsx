@@ -7,7 +7,6 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import type { AvatarStats, AgenticComplexBridge, SettingsSaveResult } from '../../src/bridge/protocol';
 import { DEMO_SCHEMA } from '../../src/mock/settings';
 import { CharacterPage } from '../../src/pages/character/Page';
-import { TunePage } from '../../src/pages/tune/Page';
 import { setNavRouter } from '../../src/shell/nav';
 import { toast as pushToast } from '../../src/shell/toast';
 
@@ -35,8 +34,8 @@ async function mount(search = '', component: RouteComponent = CharacterPage) {
   await waitFor(() => expect(document.querySelector('[data-page]')).not.toBeNull());
 }
 
-/** The developer quality rows and the render load live on 调参's 画质 tab. */
-const tune = () => mount('&tab=render', TunePage);
+/** The developer quality rows live on 设定 › 画面 (开发者模式 is on in tests). */
+const tune = () => mount('&tab=render');
 
 const gets = (): string[] => request.mock.calls.filter(([m]) => m === 'GET').map(([, p]) => p);
 const click = (el: Element) => act(async () => void fireEvent.click(el));
@@ -93,25 +92,6 @@ describe('motions', () => {
     actions.mockImplementation(real);
     await click(within(bar).getByRole('button', { name: /重试/ }));
     expect((await screen.findAllByText('点头附和')).length).toBeGreaterThan(0);
-  });
-});
-
-describe('render readings', () => {
-  it('draws avatar.onStats (P95 against the frame budget, fps, GPU) and never reads /character/render', async () => {
-    let push: ((s: AvatarStats) => void) | null = null;
-    const off = vi.fn();
-    vi.spyOn(bridge.avatar, 'onStats').mockImplementation((cb) => ((push = cb), off));
-    await tune();
-    await waitFor(() => expect(push).not.toBeNull());
-    expect(await screen.findByText(/还没有收到宿主读数/)).toBeTruthy();
-    act(() => push?.({ fps: 58, frameMsP95: 15.24, gpuMs: 6.1, frameMs: 17.2, cpuPercent: 12 }));
-    const plate = await screen.findByRole('region', { name: '帧读数' });
-    await waitFor(() => expect(plate.textContent).toContain('15.2 / 16.7 ms'));
-    expect(plate.textContent).toContain('FPS58');
-    expect(plate.textContent).toContain('6.1 ms');
-    expect(gets().filter((p) => p.startsWith('/character/render'))).toEqual([]);
-    cleanup();
-    expect(off).toHaveBeenCalled();
   });
 });
 

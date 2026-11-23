@@ -38,22 +38,19 @@ export type NavTarget =
   | { page: 'character'; tab?: 'profile' | 'motion' | 'behavior' | 'render' | 'scene'; view?: 'photo' | 'mmd'; pane?: 'motion' | 'chain' | 'look' | 'import'; row?: string; focus?: string }
   | {
       page: 'diag';
-      tab?: 'overview' | 'proc' | 'render' | 'flow' | 'state';
+      /** 现在: overview … state; 回看: turns … logs. */
+      tab?: 'overview' | 'proc' | 'render' | 'flow' | 'state' | 'turns' | 'lanes' | 'behavior' | 'logs';
       /** Overview row (`agentd`, `avatar`, `voice`), `state` (internal state) or `usage` (model calls). */
       item?: string;
-      focus?: string;
-    }
-  | { page: 'settings'; group?: string; item?: string; focus?: string }
-  | {
-      page: 'trace';
+      /** 对话轮次: a turn_id or trace_id. */
       turn?: string;
-      /** Epoch ms: picks the first turn at or after it. */
+      /** 对话轮次: epoch ms, picks the first turn at or after it. */
       at?: number;
-      tab?: 'logs';
-      /** Log source on the 日志 tab. */
+      /** 日志: the log source. */
       src?: string;
       focus?: string;
     }
+  | { page: 'settings'; group?: string; item?: string; focus?: string }
   | {
       page: 'tasks';
       tab?: 'run' | 'sched' | 'done';
@@ -61,8 +58,7 @@ export type NavTarget =
       sel?: string;
       create?: 'role' | 'code' | 'sched';
       focus?: string;
-    }
-  | { page: 'tune'; tab?: 'behavior' | 'render'; focus?: string };
+    };
 
 export type PageId = NavTarget['page'];
 

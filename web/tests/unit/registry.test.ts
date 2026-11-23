@@ -3,11 +3,11 @@ import { findRoute, pageRoutes } from '../../src/shell/registry';
 import { parseDemo } from '../../src/shell/demo';
 import { searchSettings } from '../../src/pages/settings/registry';
 
-const pages = ['home', 'overview', 'chat', 'memory', 'character', 'settings', 'diag', 'trace', 'pipeline', 'tune'];
+const pages = ['home', 'overview', 'chat', 'memory', 'character', 'settings', 'diag', 'pipeline'];
 const hidden = ['onboarding', 'tasks'];
 
 describe('route registry', () => {
-  it('auto-registers the 10 pages and the hidden onboarding page', () => {
+  it('auto-registers the 8 pages and the hidden onboarding page', () => {
     expect(pageRoutes.map((r) => r.id).sort()).toEqual([...pages, ...hidden].sort());
   });
 
@@ -23,12 +23,12 @@ describe('route registry', () => {
     for (const r of pageRoutes) expect(r.demos.length).toBeGreaterThan(0);
   });
 
-  it('sorts 主页 / 每日简报 / 对话 / 记忆 first with ⌘0–⌘3, then 角色 ⌘4, 设置 ⌘, with 诊断 and 运行记录 only in 开发者模式', () => {
+  it('sorts 主页 / 每日简报 / 对话 / 记忆 first with ⌘0–⌘3, then 角色 ⌘4, 设置 ⌘, with 诊断 only in 开发者模式', () => {
     const app = pageRoutes.filter((r) => r.nav !== false);
     expect(app.map((r) => r.id)).toEqual(pages);
     expect(app.filter((r) => r.group === 'primary').map((r) => r.id)).toEqual(['home', 'overview', 'chat', 'memory']);
     expect(app.flatMap((r) => (r.hotkey ? [r.hotkey] : []))).toEqual(['⌘0', '⌘1', '⌘2', '⌘3', '⌘4', '⌘,']);
-    expect(app.filter((r) => r.devOnly).map((r) => r.id)).toEqual(['diag', 'trace', 'pipeline', 'tune']);
+    expect(app.filter((r) => r.devOnly).map((r) => r.id)).toEqual(['diag', 'pipeline']);
     expect(findRoute('/overview')?.title).toBe('每日简报');
     expect(findRoute('/home')?.title).toBe('主页');
   });

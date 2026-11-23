@@ -34,22 +34,12 @@ import { useFit } from './useFit';
 import { Sway, useAttended } from './watchMotion';
 import styles from './Home.module.css';
 
-/** Same icons as the command bar's tabs. A page key shows while its page is offered (its plug-in on, devOnly in 开发者模式). */
-const LEFT: ReadonlyArray<[string, IconName, string?]> = [
-  ['character', 'user'],
-  ['chat', 'send'],
-  ['memory', 'data'],
-  ['tasks', 'clock'],
-];
+/** Page keys with their routes' icons. A key shows while its page is offered (its plug-in on, devOnly in 开发者模式). */
+const LEFT: readonly string[] = ['character', 'chat', 'memory', 'tasks'];
 /** The watch's CharInfo, Activity, Gacha and Purchase keys, top to bottom. */
 const LEFT_G = ['charInfo', 'activity', 'gacha', 'purchase'] as const;
-const RIGHT: ReadonlyArray<[string, IconName]> = [['trace', 'history']];
 /** Developer pages, last in the grid. */
-const DEV: ReadonlyArray<[string, IconName]> = [
-  ['diag', 'radio'],
-  ['pipeline', 'hub'],
-  ['tune', 'tool'],
-];
+const DEV: readonly string[] = ['diag', 'pipeline'];
 
 /** An action key: shown while its plug-in is on and the page it lands on is offered. */
 interface Act<Id extends string> {
@@ -155,10 +145,10 @@ export function HomePage() {
     };
   }, [watchIn]);
 
-  const pages = (keys: ReadonlyArray<readonly [string, IconName, string?]>) =>
-    keys.flatMap(([id, icon, title]) => {
+  const pages = (keys: readonly string[]) =>
+    keys.flatMap((id) => {
       const r = listed(id);
-      return r ? [{ id, icon, title: title ?? r.title, hotkey: r.hotkey, off: undefined, onClick: () => go({ page: id as PageId }) }] : [];
+      return r?.icon ? [{ id, icon: r.icon, title: r.title, hotkey: r.hotkey, off: undefined, onClick: () => go({ page: id as PageId }) }] : [];
     });
   const acts = {
     dispatch: () => setDraft(draftFor('role')),
@@ -168,7 +158,7 @@ export function HomePage() {
     stopSpeech: () => void stopSpeech(),
   };
   const left = pages(LEFT);
-  const right = [...pages(RIGHT), ...ACTS.filter(offered).map((a) => ({ ...a, off: a.id in off ? off[a.id as keyof typeof off] : undefined, onClick: acts[a.id] })), ...pages(DEV)];
+  const right = [...ACTS.filter(offered).map((a) => ({ ...a, off: a.id in off ? off[a.id as keyof typeof off] : undefined, onClick: acts[a.id] })), ...pages(DEV)];
   const next = q.data ? nextReminder(snap.reminders, now) : null;
   const t0 = new Date(now).setHours(0, 0, 0, 0);
   const delivered = q.data ? snap.deliveries.filter((d) => !d.redacted && d.produced_at >= t0).sort((a, b) => b.produced_at - a.produced_at)[0] : undefined;

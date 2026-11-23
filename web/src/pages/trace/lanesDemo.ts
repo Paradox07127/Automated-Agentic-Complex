@@ -1,4 +1,4 @@
-// The 动作线 demo: four and a half minutes before `now` with every motion-lane kind. An idle loop; she goes quiet
+// The 事件线 demo: four and a half minutes before `now` with every motion-lane kind. An idle loop; she goes quiet
 // while you type and a hover is refused; a pat with its chain exit; your own play cuts her loop and refuses the
 // chooser's next one; a spoken turn with a gesture; the renderer drops mid-line; she picks her loop again.
 import { isoWithOffset } from '../../domain';

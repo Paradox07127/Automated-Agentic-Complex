@@ -8,7 +8,6 @@ import { isoToMs } from '../../src/domain';
 import { TRACE_TURNS } from '../../src/mock/diag';
 import { CHAT_DEMO } from '../../src/mock/fixtures/chatDemo';
 import { DiagPage } from '../../src/pages/diag/Page';
-import { TracePage } from '../../src/pages/trace/Page';
 import { pluginsOn, pluginsReset } from './plugins';
 
 // Every plug-in on, so the page reads and shows what its plug-ins add.
@@ -23,7 +22,7 @@ afterEach(() => {
 
 function mount(component: RouteComponent, search: string) {
   const root = createRootRoute({ component });
-  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${/tab=/.test(search) ? '' : '&tab=turns'}${search}`] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
@@ -34,7 +33,7 @@ function mount(component: RouteComponent, search: string) {
 
 describe(' 运行记录 page', () => {
   it('/trace?turn=<id> picks that row and shows its 经过 with the cost; the 判断 step opens to its probabilities', async () => {
-    mount(TracePage, '&demo=full&turn=tr7');
+    mount(DiagPage, '&demo=full&turn=tr7');
     const detail = await screen.findByRole('region', { name: '这一轮' });
     await waitFor(() => expect(detail.textContent).toContain('$0.013'));
     expect(screen.getByRole('option', { selected: true }).getAttribute('data-turn')).toBe('tr7');
@@ -47,7 +46,7 @@ describe(' 运行记录 page', () => {
   });
 
   it('/trace?turn=<trace_id> picks the listed row whose trace id it is', async () => {
-    mount(TracePage, '&demo=full&turn=trace-tr7');
+    mount(DiagPage, '&demo=full&turn=trace-tr7');
     await waitFor(() => expect(screen.getByRole('option', { selected: true }).getAttribute('data-turn')).toBe('tr7'));
     expect(await within(screen.getByRole('region', { name: '这一轮' })).findByRole('region', { name: '经过' })).toBeTruthy();
   });
@@ -57,7 +56,7 @@ describe(' 运行记录 page', () => {
     // The store knows this turn only by its trace id: by turn_id it finds nothing.
     const route = { method: 'GET' as const, path: '/trace/turns', handler: ({ query }: { query: URLSearchParams }) => ({ status: 200, body: { turns: query.get('trace_id') === old.trace_id ? [{ ...old, turn_id: 'turn-old' }] : [] } }) };
     window.agenticComplex = createFakeBridge({ surface: 'main', still: true, routes: [route] });
-    mount(TracePage, `&turn=${old.trace_id}`);
+    mount(DiagPage, `&turn=${old.trace_id}`);
     const detail = await screen.findByRole('region', { name: '这一轮' });
     expect(await within(detail).findByRole('region', { name: '经过' })).toBeTruthy();
     expect(detail.textContent).toContain(`trace ${old.trace_id.slice(0, 8)}`);
@@ -69,27 +68,29 @@ describe(' 运行记录 page', () => {
     const at = isoToMs(mid.started_at) - 1;
     const want = day.filter((r) => isoToMs(r.started_at) >= at).sort((a, b) => isoToMs(a.started_at) - isoToMs(b.started_at))[0]!;
     expect(want.turn_id).not.toBe(day[0]!.turn_id);
-    mount(TracePage, `&demo=full&at=${at}`);
+    mount(DiagPage, `&demo=full&at=${at}`);
     await waitFor(() => expect(screen.getByRole('option', { selected: true }).getAttribute('data-turn')).toBe(want.turn_id));
   });
 
   it('日志: lines from the bridge with debug off by default; 看日志 on a turn narrows to its time', async () => {
-    const router = mount(TracePage, '&tab=logs');
+    mount(DiagPage, '&tab=logs');
     const log = await screen.findByRole('log', { name: '日志行' });
     await waitFor(() => expect(log.textContent).toContain('ritual settle failed'));
     expect(log.textContent).not.toContain('fps=60');
     fireEvent.click(screen.getByRole('button', { name: '级别 3/4' }));
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '调试' }));
     await waitFor(() => expect(log.textContent).toContain('fps=60'));
-    fireEvent.click(screen.getByRole('tab', { name: '轮次' }));
+    // The tabs go through the app's navigation; open 对话轮次 by its URL instead.
+    cleanup();
+    const turns = mount(DiagPage, '&tab=turns');
     await screen.findByRole('region', { name: '经过' });
     fireEvent.click(screen.getByRole('button', { name: '看日志' }));
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ tab: 'logs' }));
+    await waitFor(() => expect(turns.state.location.search).toMatchObject({ tab: 'logs' }));
     expect(await screen.findByRole('button', { name: /^只看第 \d+ 轮前后/ })).toBeTruthy();
   });
 
   it('/trace?tab=logs&src=agentd shows only 后台服务 lines', async () => {
-    mount(TracePage, '&tab=logs&src=agentd');
+    mount(DiagPage, '&tab=logs&src=agentd');
     const log = await screen.findByRole('log', { name: '日志行' });
     await waitFor(() => expect(log.textContent).toContain('ritual settle failed'));
     expect([...log.querySelectorAll('[data-key]')].every((l) => l.getAttribute('data-key')!.startsWith('agentd:'))).toBe(true);

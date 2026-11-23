@@ -150,12 +150,12 @@ describe('chat page', () => {
     expect(within(reply).getByRole('button', { name: /引用记忆 2 条/ })).toBeTruthy();
   });
 
-  it('a reply’s right-click menu opens its turn in 运行记录', async () => {
+  it('a reply’s right-click menu opens its turn in 诊断 › 对话轮次', async () => {
     const thread = await mount('&demo=full');
     const tag = await within(thread).findByRole('button', { name: /\+ 新增记忆 1 条/ });
     fireEvent.contextMenu(tag.closest<HTMLElement>('[data-kind="ai"]')!.querySelector('[data-first]')!.closest('div')!.querySelector('p, div')!, { clientX: 10, clientY: 10 });
-    fireEvent.click(screen.getByRole('menuitem', { name: '在运行记录里看这一轮' }));
-    expect(window.location.hash).toMatch(/\/trace\?turn=tr7/);
+    fireEvent.click(screen.getByRole('menuitem', { name: '在诊断里看这一轮' }));
+    expect(window.location.hash).toMatch(/\/diag\?tab=turns&turn=tr7/);
   });
 
   it('at 900px the task opens as an overlay that Esc closes', async () => {

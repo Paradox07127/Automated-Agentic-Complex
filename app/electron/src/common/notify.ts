@@ -20,7 +20,7 @@ export function noteContent(note: SystemNote): NoteContent {
  *  page. The bubble's `openAnnouncement` step comes before this, in main/notify/system.ts. */
 export function clickRoute(note: SystemNote, path: string | null): string {
   if (path !== null) return path;
-  if (note.traceId !== null) return mainRoute('/trace', [['turn', note.traceId]]);
+  if (note.traceId !== null) return mainRoute('/diag', [['tab', 'turns'], ['turn', note.traceId]]);
   if (note.sessionId !== null) return mainRoute('/overview', [['sel', note.sessionId], ['focus', `task-${note.sessionId}`]]);
   return '/home';
 }

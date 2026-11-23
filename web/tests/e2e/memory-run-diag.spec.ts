@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 
-// The last unspoken line on 诊断 › 状态; memory runs and single turns moved to 记忆管线 and 运行记录.
+// The last unspoken line on 诊断 › 内部状态; memory runs and single turns moved to 记忆管线 and 诊断 › 对话轮次.
 const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
 
 async function settle(page: Page) {

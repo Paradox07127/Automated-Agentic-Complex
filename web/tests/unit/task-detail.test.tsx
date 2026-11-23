@@ -98,15 +98,15 @@ describe('task detail: a decision sits in the step she waits on', () => {
   });
 });
 
-describe('task detail: 在运行记录看', () => {
-  it("opens the task's own turn in 运行记录, and the turn list when the task has no run", async () => {
+describe('task detail: 在对话轮次里看', () => {
+  it("opens the task's own turn in 诊断 › 对话轮次, and the turn list when the task has no run", async () => {
     const v = view();
     const task = v.tasks.find((t) => t.run_id && !v.activeRuns[t.id])!;
     await createTasksActions(deps(v)).onTask(task)({ kind: 'open_timeline' });
-    expect(window.location.hash).toBe(`#/trace?${new URLSearchParams({ turn: task.run_id! })}`);
+    expect(window.location.hash).toBe(`#/diag?${new URLSearchParams({ tab: 'turns', turn: task.run_id! })}`);
     await createTasksActions(deps(v)).onTask({ ...task, run_id: null })({ kind: 'open_timeline' });
     expect(window.location.hash).not.toContain('turn=');
-    expect(window.location.hash).toContain('#/trace?');
+    expect(window.location.hash).toContain('#/diag?tab=turns');
   });
 });
 

@@ -5,6 +5,7 @@ export const route: PageRoute = {
   id: 'overview',
   path: '/overview',
   title: '每日简报',
+  icon: 'sun',
   en: 'Briefing',
   order: 10,
   group: 'primary',

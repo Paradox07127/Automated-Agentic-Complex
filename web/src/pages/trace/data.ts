@@ -1,4 +1,4 @@
-// 运行记录's reads beside the turn rows (chat/useTurnData.ts): one turn's events with their text, its run items, the
+// 对话轮次's reads beside the turn rows (chat/useTurnData.ts): one turn's events with their text, its run items, the
 // conversation titles; and the words the list and the detail share.
 import { useQuery } from '@tanstack/react-query';
 import { get, seg } from '../../bridge/agentd';

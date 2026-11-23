@@ -4,10 +4,11 @@ import { resolve } from 'node:path';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEMO_SCHEMA, demoNative } from '../../src/mock/settings';
-import { CHAR_SECTIONS, isCharTab, PHOTO_ONLY_ROWS, TUNE_ONLY_ROWS, placedTab, tabOf } from '../../src/pages/character/sections';
+import { CHAR_SECTIONS, isCharTab, PHOTO_ONLY_ROWS, placedTab, tabOf } from '../../src/pages/character/sections';
 import { presentTabs, SettingRows } from '../../src/pages/character/SettingRows';
 import type { CharTab } from '../../src/pages/character/sections';
 import type { Native } from '../../src/pages/settings/native';
+import { setDevMode } from '../../src/shell/devMode';
 
 afterEach(cleanup);
 
@@ -33,7 +34,7 @@ describe('sections', () => {
   });
 
   it('places every @character row of the demo schema on a 设定 page, in 拍照 or on 调参 › 画面', () => {
-    for (const r of DEMO_SCHEMA.filter((r) => r.group === '@character')) expect(placedTab(r.id) !== null || PHOTO_ONLY_ROWS.has(r.id) || TUNE_ONLY_ROWS.has(r.id), r.id).toBe(true);
+    for (const r of DEMO_SCHEMA.filter((r) => r.group === '@character')) expect(placedTab(r.id) !== null || PHOTO_ONLY_ROWS.has(r.id), r.id).toBe(true);
   });
 
   it('marks 仅桌面 exactly the 画面 sections the preview does not take (rnd.closeup goes to the desktop by host link)', () => {
@@ -110,7 +111,8 @@ describe('SettingRows', () => {
     expect(within(document.getElementById('set-beh.sit')!).getByText('没有保存「坐在窗口顶上」：原生设置服务没有响应')).toBeTruthy();
   });
 
-  it('leaves the 调参 › 画面 rows to the tune page', async () => {
+  it('leaves the three quality rows off 画面 outside developer mode', async () => {
+    setDevMode(false);
     draw(await demoNative(null), 'render');
     expect(shown('原作镜头预设')).toBe(true);
     expect(shown('角色边界')).toBe(true);

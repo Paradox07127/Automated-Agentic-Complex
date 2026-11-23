@@ -1,4 +1,4 @@
-/* 调参：页边 24，区块之间 32，区块内 16；行为页的曲线框和变化原因并排，窄窗时原因落到图下。 */
+/* 诊断 › 行为决策：页边 24，区块之间 32，区块内 16；曲线框和变化原因并排，窄窗时原因落到图下。 */
 .page {
   display: flex;
   flex-direction: column;
@@ -26,16 +26,11 @@
   gap: var(--ef-sp-8);
 }
 
-.behavior,
-.render {
+.behavior {
   display: flex;
   flex-direction: column;
   gap: var(--ef-space-section);
   min-width: 0;
-}
-
-.render {
-  gap: var(--ef-sp-24);
 }
 
 .sec {
@@ -190,23 +185,6 @@
   font: var(--ef-t-meta);
 }
 
-/* 画质 */
-.count {
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
-  white-space: nowrap;
-}
-
-.count b {
-  margin: 0 2px;
-  color: var(--ef-text-1);
-  font-family: var(--ef-font-num);
-}
-
-.rows {
-  display: grid;
-}
-
 /* The reset card's list: what goes and what stays. */
 .list {
   margin: 0;
@@ -225,8 +203,7 @@
     padding-top: var(--ef-sp-8);
   }
 
-  .behavior,
-  .render {
+  .behavior {
     gap: var(--ef-sp-16);
   }
 

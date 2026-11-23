@@ -15,6 +15,8 @@ export interface IconBtnProps {
   shape?: 'pill' | 'round';
   /** 切换类按钮的按下态 */
   pressed?: boolean;
+  /** 快捷键（如 '⌘,'）：写在 tooltip 的名称后面，也写进 aria-keyshortcuts */
+  shortcut?: string;
   /** 打开菜单或面板的按钮：展开时写 aria-expanded，样子同 Btn 的按下态 */
   expanded?: boolean;
   /** 禁用 */
@@ -31,8 +33,11 @@ export interface IconBtnProps {
 }
 
 const TIP_MAX = 275;
+const KEY_NAME: Record<string, string> = { '⌘': 'Meta', '⌃': 'Control', '⌥': 'Alt', '⇧': 'Shift' };
+/** '⌘,' → 'Meta+,', 'Ctrl+,' → 'Control+,'. */
+const ariaKeys = (s: string) => (s.includes('+') ? s.replace(/^Ctrl\b/, 'Control') : [...s].map((c) => KEY_NAME[c] ?? c).join('+'));
 
-export function IconBtn({ icon, label, size = 'md', shape, pressed, expanded, disabled, disabledReason, onClick, ref, ...aria }: IconBtnProps) {
+export function IconBtn({ icon, label, size = 'md', shape, pressed, shortcut, expanded, disabled, disabledReason, onClick, ref, ...aria }: IconBtnProps) {
   const [tip, setTip] = useState(false);
   const [place, setPlace] = useState<CSSProperties>();
   const btn = useRef<HTMLButtonElement>(null);
@@ -62,7 +67,8 @@ export function IconBtn({ icon, label, size = 'md', shape, pressed, expanded, di
         data-shape={shape}
         aria-label={label}
         {...aria}
-        title={why ? undefined : label}
+        title={why ? undefined : shortcut ? `${label} ${shortcut}` : label}
+        aria-keyshortcuts={shortcut && ariaKeys(shortcut)}
         aria-pressed={pressed}
         aria-expanded={expanded}
         aria-disabled={why ? true : undefined}

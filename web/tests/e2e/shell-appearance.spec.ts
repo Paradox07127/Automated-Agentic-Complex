@@ -50,11 +50,11 @@ test('no page header: the 50 high command bar names the current page in its page
 });
 
 test("command bar draws the page's tabs: a centred plate of 50 wide icon cells, a 76 wide block hanging 6 below, Q/E either side", async ({ page }) => {
-  await page.goto('main.html#/trace?still=1');
+  await page.goto('main.html#/diag?tab=logs&still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
   const bar = (await nav.boundingBox())!;
-  const tab = nav.getByRole('tab', { name: '轮次' });
-  await expect(tab).toHaveAttribute('title', '轮次');
+  const tab = nav.getByRole('tab', { name: '日志' });
+  await expect(tab).toHaveAttribute('title', '日志');
   await expect(tab).toHaveAttribute('aria-selected', 'true');
   const plate = (await nav.locator('[data-slot="tabs"]').evaluate((el) => {
     const r = el.getBoundingClientRect();
@@ -106,7 +106,8 @@ test("Q and E step through the page's own tabs and wrap, do nothing while typing
   await page.keyboard.press('q');
   await page.keyboard.press('q');
   await expect(selected()).toHaveAttribute('title', '关于');
-  for (let i = 0; i < 3; i++) await page.keyboard.press('q');
+  // 关于 › 数据 › 按键 › 服务 › 账号.
+  for (let i = 0; i < 4; i++) await page.keyboard.press('q');
   await expect(selected()).toHaveAttribute('title', '账号');
   await page.keyboard.press('q');
   await expect(selected()).toHaveAttribute('title', '内核');
@@ -125,7 +126,7 @@ test("Q and E step through the page's own tabs and wrap, do nothing while typing
 });
 
 test('tabs that do not fit show an arrow at that end, the arrow scrolls them into view, and a picked tab scrolls in', async ({ page }) => {
-  // Eight settings tabs fit at 900; a narrower window still leaves some out.
+  // A 700 wide window leaves some of the nine settings tabs out.
   await page.setViewportSize({ width: 700, height: 600 });
   await page.goto('main.html#/settings?group=speak&still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
@@ -140,12 +141,18 @@ test('tabs that do not fit show an arrow at that end, the arrow scrolls them int
   await expect(next).toBeVisible();
   await expect(prev).toBeHidden();
   expect(await shown('关于')).toBe(false);
-  // Each arrow press pages one plate width; the named cells here need one more.
-  await next.click();
+  // Each arrow press pages one plate width, until the end cell is in.
+  for (let i = 0; i < 3 && !(await shown('关于')); i++) {
+    await next.click();
+    await page.waitForTimeout(400);
+  }
   await expect.poll(() => shown('关于')).toBe(true);
   await expect(next).toBeHidden();
   await expect(prev).toBeVisible();
-  await prev.click();
+  for (let i = 0; i < 3 && !(await shown('说话')); i++) {
+    await prev.click();
+    await page.waitForTimeout(400);
+  }
   await expect(next).toBeVisible();
   await expect.poll(() => shown('说话')).toBe(true);
   await expect(prev).toBeHidden();
@@ -165,9 +172,9 @@ test('the page menu names the open page and its tab, and only the selected page 
       const accent = 'rgb(255, 241, 0)';
       return [root, ...root.querySelectorAll('*')].filter((el) => getComputedStyle(el).backgroundColor === accent).length;
     });
-  await page.goto('main.html#/trace?still=1');
+  await page.goto('main.html#/diag?tab=turns&still=1');
   const nav = page.getByRole('navigation', { name: '主导航' });
-  await expect(nav.getByRole('button', { name: '运行记录 / 轮次' })).toBeVisible();
+  await expect(nav.getByRole('button', { name: '诊断 / 对话轮次' })).toBeVisible();
   expect(await accentCount(nav)).toBe(1);
   expect(await nav.getByRole('tab', { selected: true }).locator('[data-g="slc"]').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 241, 0)');
 

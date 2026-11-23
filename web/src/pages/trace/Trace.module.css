@@ -1,4 +1,4 @@
-/* 运行记录: the page, the two tab layouts and the pieces every tab shares (state signs, empty states). */
+/* 诊断 › 对话轮次 / 事件线 / 日志: the view, the two tab layouts and the pieces every tab shares (state signs, empty states). */
 .page {
   position: relative;
   isolation: isolate;

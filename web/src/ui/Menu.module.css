@@ -147,6 +147,14 @@
   min-width: 0;
 }
 
+.icon {
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  margin-right: -4px;
+  color: var(--ef-text-2);
+}
+
 .reason {
   color: var(--ef-text-3);
   font-size: var(--ef-fs-meta);

@@ -35,7 +35,7 @@ export const ABSENT_FEATURES: ReadonlySet<'freeRoam'> = new Set();
 
 /** The main window's hash routes the menus open. */
 export const MENU_ROUTES = {
-  home: '/home', conversation: '/chat', trace: '/trace', diag: '/diag', character: '/character', settings: '/settings',
+  home: '/home', conversation: '/chat', diag: '/diag', turns: '/diag?tab=turns', character: '/character', settings: '/settings',
 } as const;
 
 export type QuietSpan = 'halfHour' | 'hour' | 'untilMorning';

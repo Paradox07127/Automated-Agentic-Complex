@@ -5,6 +5,7 @@ import { getBridge } from '../../bridge';
 import { gameClips } from '../../design/gameClips.generated';
 import { refreshRuntime, runtimeKey } from '../../data/runtime';
 import { useDemo } from '../../shell/demo';
+import { isDevMode } from '../../shell/devMode';
 import { setPlugins } from '../../shell/plugins';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
@@ -31,7 +32,7 @@ import { SearchResults } from './SearchResults';
 import { SetNav, SetSearch } from './SetNav';
 import { SettingsOverlays } from './SettingsOverlays';
 import { useSettingsData } from './useSettingsData';
-import { PHOTO_ONLY_ROWS, tabOf, TUNE_ONLY_ROWS } from '../character/sections';
+import { DEV_ONLY_ROWS, PHOTO_ONLY_ROWS, tabOf } from '../character/sections';
 import styles from './Page.module.css';
 
 const GROUPS: Record<GroupId, ComponentType> = {
@@ -226,7 +227,7 @@ function SettingsBody() {
   };
   const pi = model.value('kernel') === 'pi';
   const results = q.trim()
-    ? searchSettings(q).filter((r) => !(r.group === '@character' && TUNE_ONLY_ROWS.has(r.id)) && (pi || !PI_ONLY_ROWS.has(r.id)) && shownRow(r.id)
+    ? searchSettings(q).filter((r) => !(r.group === '@character' && DEV_ONLY_ROWS.has(r.id) && !isDevMode()) && (pi || !PI_ONLY_ROWS.has(r.id)) && shownRow(r.id)
       && (r.section !== '系统权限' || r.id === 'perms' || perms.some((p) => p.kind === r.id)))
     : null;
   const view = results ? 'search' : group;

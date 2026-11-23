@@ -1,4 +1,4 @@
-// `logs.sources` and `logs.read`: the 运行记录 page's 日志 tab. Read-only, the fixed files of common/log-line.ts, and the
+// `logs.sources` and `logs.read`: 诊断's 日志 tab. Read-only, the fixed files of common/log-line.ts, and the
 // lines go to that page only; one read returns at most MAX_LINES lines out of at most MAX_BYTES of the files.
 import { closeSync, openSync, readSync, statSync } from 'node:fs';
 import { join } from 'node:path';

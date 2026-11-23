@@ -61,7 +61,7 @@ test('menus: the tray menu has every title, submenus included', () => {
     'TTS 隧道断开', '全部标为已读',
     '免打扰', '30 分钟', '1 小时', '到明早 7:00', '结束免打扰', '自由活动', '放回默认位置', '复位浮窗',
     '切换角色', '示例甲', '示例乙', '角色卡…', '外观', '标准制服', '外勤', '休息日',
-    '设置…', '运行记录', '诊断', '重启后台和角色', '退出 Agentic Complex',
+    '设置…', '诊断', '对话轮次', '重启后台和角色', '退出 Agentic Complex',
   ]);
   // Separators after 对话, 最近播报, 复位浮窗, 外观.
   assert.deepEqual(menu.flatMap((i, n) => (i.type === 'separator' ? [menu[n - 1]!.label] : [])), ['对话', '最近播报', '复位浮窗', '外观']);
@@ -123,7 +123,7 @@ test('menus: a config error keeps only the error, 打开主页, 诊断, a grey �
 test('menus: each tray item calls its port; a missing port greys its item', async () => {
   const h = ports();
   const menu = trayMenu(SAMPLE, h.ports);
-  for (const label of ['打开主页', '对话', '自由活动', '放回默认位置', '复位浮窗', '设置…', '运行记录', '诊断', '重启后台和角色',
+  for (const label of ['打开主页', '对话', '自由活动', '放回默认位置', '复位浮窗', '设置…', '诊断', '对话轮次', '重启后台和角色',
     '退出 Agentic Complex']) click(find(menu, label));
   click(find(sub(menu, '最近播报'), '● codex 会话没能启动'));
   click(find(sub(menu, '最近播报'), '全部标为已读'));
@@ -131,7 +131,7 @@ test('menus: each tray item calls its port; a missing port greys its item', asyn
   click(find(sub(menu, '切换角色'), '角色卡…'));
   click(find(sub(menu, '外观'), '外勤'));
   assert.deepEqual(h.calls, ['openMain "/home"', 'openMain "/chat"', 'toggleFreeRoam', 'settingsChanged ["stay_mode"]', 'resetPosition',
-    'resetPanels', 'openMain "/settings"', 'openMain "/trace"', 'openMain "/diag"', 'restartChildren', 'quit',
+    'resetPanels', 'openMain "/settings"', 'openMain "/diag"', 'openMain "/diag?tab=turns"', 'restartChildren', 'quit',
     'openAnnouncement "a2"', 'markAllAnnouncementsRead', 'switchCharacter "birch"', 'openMain "/character"', 'switchAppearance "field"']);
 
   const bare = trayMenu(SAMPLE, ports(['setQuiet', 'toggleFreeRoam', 'resetPosition', 'resetPanels', 'switchCharacter', 'switchAppearance',
@@ -145,7 +145,7 @@ test('menus: each tray item calls its port; a missing port greys its item', asyn
   assert.equal(find(sub(bare, '切换角色'), '示例甲').enabled, false);
   assert.equal(find(sub(bare, '切换角色'), '角色卡…').enabled, true);
   assert.equal(find(sub(bare, '外观'), '外勤').enabled, false);
-  for (const label of ['打开主页', '对话', '设置…', '运行记录', '诊断', '退出 Agentic Complex']) assert.equal(find(bare, label).enabled, true);
+  for (const label of ['打开主页', '对话', '设置…', '诊断', '对话轮次', '退出 Agentic Complex']) assert.equal(find(bare, label).enabled, true);
   await settle();
 });
 

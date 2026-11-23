@@ -91,7 +91,7 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
             <dd>
               <span className="num">{task.run_count}</span> 次{' '}
               <Btn size="sm" variant="quiet" icon="ext" onClick={() => onAction?.({ kind: 'open_timeline' })}>
-                在运行记录看
+                在对话轮次里看
               </Btn>
             </dd>
           </>

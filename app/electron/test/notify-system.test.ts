@@ -78,7 +78,7 @@ test('content: the title is the kind label, the body the line, the group its not
 
 test('click route: the source\'s own path first, then the decision trace, then the session, else the home page', () => {
   assert.equal(clickRoute(note({ traceId: 't-1', sessionId: 's-1' }), '/overview?focus=reminders'), '/overview?focus=reminders');
-  assert.equal(clickRoute(note({ traceId: 't 1&x', sessionId: 's-1' }), null), '/trace?turn=t%201%26x');
+  assert.equal(clickRoute(note({ traceId: 't 1&x', sessionId: 's-1' }), null), '/diag?tab=turns&turn=t%201%26x');
   assert.equal(clickRoute(note({ sessionId: 's=1#2' }), null), '/overview?sel=s%3D1%232&focus=task-s%3D1%232');
   assert.equal(clickRoute(note(), null), '/home');
 });
@@ -124,7 +124,7 @@ test('click: its 最近播报 entry first, marked read, selecting its session; o
   await h.notifier.post(note({ id: 'announce-3', sessionId: 's-3' }));
   h.paths.set('announce-1', '/overview?focus=reminders');
   for (const n of h.notes) n.emit('click', {});
-  assert.deepEqual(h.opened, ['/overview?sel=s%201&focus=task-s%201', '/trace?turn=t-2',
+  assert.deepEqual(h.opened, ['/overview?sel=s%201&focus=task-s%201', '/diag?tab=turns&turn=t-2',
     '/overview?sel=s-3&focus=task-s-3']);
   assert.deepEqual(h.recent.rows().map((r) => [r.id, r.unread]), [['announce-2', false], ['announce-1', false]]);
 });
@@ -162,7 +162,7 @@ test('with StackSource: a hidden avatar\'s reminder goes to a notification, is s
   assert.deepEqual(calls, ['POST /commitments/c1/seen']);
   h.notes[0]!.emit('click', {});
   h.notes[1]!.emit('click', {});
-  assert.deepEqual(h.opened, ['/overview?focus=reminders', '/trace?turn=t-9']);
+  assert.deepEqual(h.opened, ['/overview?focus=reminders', '/diag?tab=turns&turn=t-9']);
   assert.equal(source.announce(JSON.stringify({ seq: 9, level: 'P1', kind: 'task', headline: '又失败了' })), true);
   // agentd gone: the notifications still up are taken back.
   source.stop();

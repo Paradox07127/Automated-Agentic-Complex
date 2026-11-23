@@ -5,6 +5,7 @@ export const route: PageRoute = {
   id: 'character',
   path: '/character',
   title: '角色',
+  icon: 'user',
   en: 'Character',
   order: 60,
   group: 'secondary',

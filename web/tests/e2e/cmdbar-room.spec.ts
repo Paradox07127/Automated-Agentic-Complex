@@ -27,17 +27,17 @@ function homeWhole(page: Page) {
   });
 }
 
-test('900 wide: at least five of the eight settings tabs show and 回主页 stays whole', async ({ page }) => {
+test('900 wide: at least five of the nine settings tabs show and 回主页 stays whole', async ({ page }) => {
   await open(page, 900, 600, '/settings?demo=disconnected&group=speak&still=1');
-  await expect.poll(() => fit(page)).toMatchObject({ all: 8 });
+  await expect.poll(() => fit(page)).toMatchObject({ all: 9 });
   expect((await fit(page)).shown).toBeGreaterThanOrEqual(5);
   expect(await homeWhole(page)).toBe(true);
 });
 
-test('1385 wide: all eight settings tabs show with every plug-in on, and 回主页 stays whole', async ({ page }) => {
+test('1385 wide: all nine settings tabs show with every plug-in on, and 回主页 stays whole', async ({ page }) => {
   await open(page, 1385, 770, '/settings?plugins=all&demo=disconnected&group=speak&still=1');
-  await expect.poll(() => fit(page)).toMatchObject({ all: 8 });
-  expect(await fit(page)).toEqual({ shown: 8, all: 8 });
+  await expect.poll(() => fit(page)).toMatchObject({ all: 9 });
+  expect(await fit(page)).toEqual({ shown: 9, all: 9 });
   await expect(page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '向右滚动页签' })).toBeHidden();
   expect(await homeWhole(page)).toBe(true);
 });

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SetNav } from '../../src/pages/settings/SetNav';
 import { SETTING_GROUPS } from '../../src/pages/settings/groups';
 import { isGroup, type GroupId } from '../../src/pages/settings/registry';
-import { Tabs } from '../../src/ui';
+import { Tabs, TabsDemos } from '../../src/ui';
 import { pluginsOn, pluginsReset } from './plugins';
 
 // Every plug-in on, so every group has its tab.
@@ -78,5 +78,22 @@ describe('icon tabs show their names', () => {
     expect(perm.querySelector('svg')?.closest('[title]')?.getAttribute('title')).toBe('能做：辅助功能、屏幕录制未允许');
     const data = screen.getByRole('tab', { name: /^数据/ });
     expect(within(data).getByText('数据').closest('[title]')).toBe(data);
+  });
+});
+
+describe('icon tabs in groups', () => {
+  it('opens a new group with a gap cell: a longer, stronger divider before it, and Q / E still walk every cell', () => {
+    const demo = TabsDemos.find((d) => d.name === 'groups')!;
+    render(<Tabs {...demo.props} />);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((t) => t.hasAttribute('data-gap'))).toEqual(demo.props.tabs.map((t) => !!t.gap));
+    expect(tabs.filter((t) => t.hasAttribute('data-gap'))).toHaveLength(1);
+    const divider = rules('.tab[data-icon] ~ .tab[data-icon][data-gap] > .slc::before').join('');
+    expect(divider).toMatch(/height:\s*28px/);
+    expect(divider).toMatch(/background:\s*var\(--ef-line-strong\)/);
+    const on = () => screen.getAllByRole('tab').findIndex((t) => t.getAttribute('aria-selected') === 'true');
+    const start = on();
+    fireEvent.keyDown(window, { key: 'e' });
+    expect(on()).toBe(start + 1);
   });
 });

@@ -34,7 +34,7 @@ export function trayMenu(s: MenuState, ports: MenuPorts): MenuItem[] {
   const looks = appearanceItem(s, ports);
   if (looks) e.push(looks);
   e.push(SEPARATOR, item('settings', '设置…', page(ports, MENU_ROUTES.settings), { accelerator: 'Command+,' }),
-    item('trace', '运行记录', page(ports, MENU_ROUTES.trace)), diag,
+    diag, item('turns', '对话轮次', page(ports, MENU_ROUTES.turns)),
     item('restartChildren', '重启后台和角色', ports.restartChildren), quitItem);
   return e;
 }

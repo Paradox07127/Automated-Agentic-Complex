@@ -1,4 +1,4 @@
-/* 动作线: the lane board (a name column, tracks on one time axis, marks) beside the picked event's card. */
+/* 事件线: the lane board (a name column, tracks on one time axis, marks) beside the picked event's card. */
 .view {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(280px, 26vw, 380px);

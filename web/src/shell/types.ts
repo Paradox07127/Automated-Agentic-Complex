@@ -1,5 +1,6 @@
 import type { RouteComponent } from '@tanstack/react-router';
 import type { PluginId } from '../bridge/plugins.generated';
+import type { IconName } from '../ui/Icon';
 
 /** A screenshot-able state of a page: name plus the hash query that opens it. */
 export interface Demo {
@@ -14,6 +15,8 @@ export interface PageRoute {
   /** `/<id>`. */
   path: `/${string}`;
   title: string;
+  /** Drawn before the title in the page menu, ⌘K and 主页's keys. */
+  icon?: IconName;
   /** English name; ⌘K search matches it, nothing on screen shows it. */
   en: string;
   /** Sidebar position, ascending. */

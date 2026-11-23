@@ -1,10 +1,11 @@
 // One 「设定」 page: its sections from sections.ts, then 「其他」 for unplaced @character rows; each row a dark row on the training room.
 import { useRef, type KeyboardEvent } from 'react';
 import type { SettingValue } from '../../bridge';
-import { EffectTag } from '../../ui';
+import { isDevMode, useDevMode } from '../../shell/devMode';
+import { DevMark, EffectTag } from '../../ui';
 import { DarkRow, MicroLabel } from '../../ui/game';
 import type { Native } from '../settings/native';
-import { CHAR_SECTIONS, CHAR_TABS, LIGHT_PAD, OTHER_TITLE, PHOTO_ONLY_ROWS, placedTab, ROW_DESC, SEG_LABELS, tabOf, TUNE_ONLY_ROWS, type CharTab } from './sections';
+import { CHAR_SECTIONS, CHAR_TABS, LIGHT_PAD, OTHER_TITLE, PHOTO_ONLY_ROWS, placedTab, ROW_DESC, SEG_LABELS, tabOf, DEV_ONLY_ROWS, type CharTab } from './sections';
 import { useCompact } from './compact';
 import { gameControl, valueText } from './settings';
 import styles from './SettingRows.module.css';
@@ -21,7 +22,7 @@ export interface SettingRowsProps {
   offline: boolean;
 }
 
-const visible = (n: Native, id: string) => n.rows[id]?.group === '@character' && !PHOTO_ONLY_ROWS.has(id) && !TUNE_ONLY_ROWS.has(id);
+const visible = (n: Native, id: string) => n.rows[id]?.group === '@character' && !PHOTO_ONLY_ROWS.has(id) && (!DEV_ONLY_ROWS.has(id) || isDevMode());
 
 const others = (n: Native, tab: CharTab) =>
   Object.values(n.rows)
@@ -129,6 +130,8 @@ const resetLead = (label: string, disabled: boolean, onPress: () => void) => ({ 
 
 export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: SettingRowsProps) {
   const compact = useCompact();
+  // Re-renders when 开发者模式 flips; visible() reads it.
+  useDevMode();
   const row = (id: string) => {
     const r = n.rows[id]!;
     const changed = isChanged(n, id);
@@ -143,6 +146,7 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
           title={
             <>
               {r.label}
+              {DEV_ONLY_ROWS.has(id) && <DevMark />}
               {r.restart === 'avatar' && <EffectTag target="character" pending={pending.has(id)} />}
             </>
           }

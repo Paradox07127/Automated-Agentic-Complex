@@ -50,13 +50,13 @@ describe('diag page', () => {
     expect([...document.querySelectorAll('[data-row]')].map((r) => r.getAttribute('data-row'))).toEqual(['agentd', 'runtime', 'avatar', 'voice', 'flow', 'gate']);
     expect(within(row('voice')!).getByText('连不上')).toBeTruthy();
     expect(within(row('voice')!).getByRole('button', { name: '重新连接' })).toBeTruthy();
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['总览', '进程', '渲染', '管道', '状态']);
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['总览', '进程', '帧与负载', '链路', '内部状态', '对话轮次', '事件线', '行为决策', '日志']);
   });
 
   it('a row\'s › opens its tab', async () => {
     mount('');
     await waitFor(() => expect(row('flow')).not.toBeNull());
-    fireEvent.click(within(row('flow')!).getByRole('button', { name: '去管道' }));
+    fireEvent.click(within(row('flow')!).getByRole('button', { name: '去链路' }));
     expect(window.location.hash).toContain('/diag?tab=flow');
   });
 
@@ -111,13 +111,13 @@ describe('diag page', () => {
     await waitFor(() => expect(calls).toContain(`/trace/turns?since=${week}&limit=200`));
   });
 
-  it('an hour bar opens 运行记录 at that hour', async () => {
+  it('an hour bar opens 对话轮次 at that hour', async () => {
     mount('tab=flow');
     await waitFor(() => expect(node('模型')).not.toBeNull());
-    const bars = screen.getAllByRole('button', { name: /轮，失败 \d+，在运行记录里打开$/ });
+    const bars = screen.getAllByRole('button', { name: /轮，失败 \d+，在对话轮次里打开$/ });
     expect(bars).toHaveLength(24);
     fireEvent.click(bars[23]!);
-    expect(window.location.hash).toMatch(/\/trace\?at=\d+/);
+    expect(window.location.hash).toMatch(/\/diag\?tab=turns&at=\d+/);
   });
 
   it('管道: a main-line node reads its p50 from /diag/state stages', async () => {

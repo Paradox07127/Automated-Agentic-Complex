@@ -66,7 +66,7 @@ describe('home tiles', () => {
     setDevMode(true);
     mount();
     expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory', 'tasks'));
-    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([title('trace'), ...ACTIONS, ...['diag', 'pipeline', 'tune'].map(title)]);
+    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([...ACTIONS, ...['diag', 'pipeline'].map(title)]);
     // Key hints stay in the DOM; html[data-keys] only shows them.
     expect(within(screen.getByRole('group', { name: '主要页面' })).getByRole('button', { name: '对话' }).textContent).toContain('⌘2');
     cleanup();
@@ -106,8 +106,6 @@ describe('home tiles', () => {
     expect(window.location.hash).toMatch(/^#\/character\?/);
     fireEvent.click(screen.getByRole('button', { name: '打开对话' }));
     expect(window.location.hash).toMatch(/^#\/chat\?/);
-    fireEvent.click(screen.getByRole('button', { name: '运行记录' }));
-    expect(window.location.hash).toMatch(/^#\/trace\?/);
     fireEvent.click(screen.getByRole('button', { name: title('diag') }));
     expect(window.location.hash).toMatch(/^#\/diag\?/);
     fireEvent.click(screen.getByRole('button', { name: '派发任务' }));

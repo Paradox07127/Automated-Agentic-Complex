@@ -72,7 +72,7 @@ export function BottomBar(p: BottomBarProps) {
       ) : null;
     const trace = p.dev ? (
       <Btn variant="ghost" icon="history" onClick={() => act({ kind: 'open_timeline' })}>
-        运行记录
+        对话轮次
       </Btn>
     ) : null;
     const stopped = task.status === 'cancelled' || desk.local.stopped[task.id] != null;

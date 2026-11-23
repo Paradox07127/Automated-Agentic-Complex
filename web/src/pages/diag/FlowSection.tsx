@@ -42,7 +42,7 @@ export interface FlowSectionProps {
   failsOf: (id: NodeId) => FailRow[];
   approvals: number;
   onTasks: () => void;
-  /** 运行记录: that turn, or the list. */
+  /** 对话轮次: that turn, or the list. */
   onTrace: (turnId: string | null) => void;
   onChat: () => void;
   /** 近 24 小时 and 模型调用 below the flow. */
@@ -149,7 +149,7 @@ function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear }: { nod
       )}
       <div className={styles.acts}>
         <Btn size="sm" onClick={() => onTrace(null)}>
-          在运行记录里看
+          在对话轮次里看
         </Btn>
         <Btn size="sm" variant="secondary" onClick={onClear}>
           取消选中
@@ -177,7 +177,7 @@ function Legend() {
           <span>{text}</span>
         </div>
       ))}
-      <p className={styles.note}>点一个节点看它的失败；单独一轮的经过在运行记录里看。</p>
+      <p className={styles.note}>点一个节点看它的失败；单独一轮的经过在对话轮次里看。</p>
     </div>
   );
 }

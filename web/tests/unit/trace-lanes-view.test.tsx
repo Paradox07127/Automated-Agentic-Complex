@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { TracePage } from '../../src/pages/trace/Page';
+import { DiagPage } from '../../src/pages/diag/Page';
 
 afterEach(() => {
   cleanup();
@@ -11,8 +11,8 @@ afterEach(() => {
 });
 
 function mount(search: string) {
-  const root = createRootRoute({ component: TracePage });
-  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
+  const root = createRootRoute({ component: DiagPage });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${/tab=/.test(search) ? '' : '&tab=turns'}${search}`] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
@@ -25,7 +25,7 @@ const lane = (name: string) => screen.getByRole('group', { name });
 describe('运行记录 动作线', () => {
   it('draws the lanes in order and highlights a refusal’s cause and effects', async () => {
     mount('&tab=lanes');
-    const board = await screen.findByRole('region', { name: '动作线' });
+    const board = await screen.findByRole('region', { name: '事件线' });
     expect([...board.querySelectorAll('[role="group"][aria-label]')].map((g) => g.getAttribute('aria-label'))).toEqual(['粗判', '指针', '注意力', '触碰', '舞台', '决定', '渲染器', '语音']);
     const hover = within(lane('指针')).getByRole('button', { name: /hover → true$/ });
     fireEvent.click(hover);
@@ -42,7 +42,7 @@ describe('运行记录 动作线', () => {
 
   it('hides a lane from the menu and clears the pick on Escape', async () => {
     mount('&tab=lanes');
-    const board = await screen.findByRole('region', { name: '动作线' });
+    const board = await screen.findByRole('region', { name: '事件线' });
     fireEvent.click(screen.getByRole('button', { name: '显示哪些线' }));
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '语音' }));
     expect(screen.queryByRole('group', { name: '语音' })).toBeNull();

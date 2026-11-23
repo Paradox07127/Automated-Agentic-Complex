@@ -9,7 +9,6 @@ import { DiagPage } from '../../src/pages/diag/Page';
 import { Processes } from '../../src/pages/diag/Processes';
 import { Resources } from '../../src/pages/diag/Resources';
 import { processesOf } from '../../src/pages/diag/status';
-import { TunePage } from '../../src/pages/tune/Page';
 
 afterEach(() => {
   cleanup();
@@ -34,11 +33,13 @@ const head = (title: string) => [...document.querySelectorAll<HTMLElement>('[dat
 const infoAfterTitle = (title: string) => head(title)?.querySelector('h3')?.nextElementSibling?.getAttribute('data-stub') === 'InfoTip';
 
 describe('diag', () => {
-  it('the five tabs carry the diag icons', async () => {
+  it('the five 现在 tabs carry the diag icons, then the 回看 group opens after a gap', async () => {
     window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
     mount(DiagPage, '');
-    await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(5));
-    expect(screen.getAllByRole('tab').map((t) => t.querySelector('[data-stub="Icon"]')?.getAttribute('data-icon'))).toEqual(['d-overview', 'd-proc', 'd-render', 'd-flow', 'd-state']);
+    await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(9));
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.slice(0, 5).map((t) => t.querySelector('[data-stub="Icon"]')?.getAttribute('data-icon'))).toEqual(['d-overview', 'd-proc', 'd-render', 'd-flow', 'd-state']);
+    expect(tabs.map((t) => t.hasAttribute('data-gap'))).toEqual([false, false, false, false, false, true, false, false, false]);
   });
 
   it('总览: the landing target and row key sit on DeviceRow itself', async () => {
@@ -72,40 +73,5 @@ describe('diag', () => {
     expect([...ft.querySelectorAll('[data-limit]')].map((g) => g.getAttribute('data-limit'))).toEqual(['warning']);
     expect(ft.querySelector('svg[role="img"]')!.getAttribute('aria-label')).toMatch(/预算线 [\d.]+ ms$/);
     expect(infoAfterTitle('帧')).toBe(true);
-  });
-});
-
-describe('tune', () => {
-  it('画质 is marked DEV by its head', async () => {
-    window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
-    mount(TunePage, '&tab=render');
-    await waitFor(() => expect(head('画质')).not.toBeNull());
-    expect(head('画质')!.textContent).toContain('DEV');
-  });
-
-  it('a quality row whose value is not the default is marked modified', async () => {
-    window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
-    mount(TunePage, '&tab=render');
-    const row = () => document.getElementById('set-rnd.aa')!;
-    await waitFor(() => expect(document.getElementById('set-rnd.aa')).not.toBeNull());
-    expect(row().hasAttribute('data-modified')).toBe(false);
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: '2× SSAA' })).getByRole('radio', { name: '关' }));
-    await waitFor(() => expect(row().hasAttribute('data-modified')).toBe(true));
-    expect(document.getElementById('set-rnd.shadow')!.hasAttribute('data-modified')).toBe(false);
-  });
-
-  it('the readout plates are compact only in a narrow window', async () => {
-    window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
-    mount(TunePage, '');
-    await waitFor(() => expect(document.querySelector('[data-stub="ReadoutPlate"]')).not.toBeNull());
-    expect(document.querySelector('[data-stub="ReadoutPlate"]')!.hasAttribute('data-compact')).toBe(false);
-    cleanup();
-    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(860);
-    mount(TunePage, '');
-    await waitFor(() => expect(document.querySelector('[data-stub="ReadoutPlate"][data-compact]')).not.toBeNull());
-    cleanup();
-    mount(TunePage, '&tab=render');
-    await waitFor(() => expect(document.querySelector('[data-stub="ReadoutPlate"][data-compact]')).not.toBeNull());
   });
 });

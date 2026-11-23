@@ -69,8 +69,8 @@ test('character motions: group heads stay inside the table, a behavior-only row 
   for (const id of ['drag', 'idle', 'walk']) await expect(grid.locator(`[data-motion="${id}"]`)).toContainText('—');
 });
 
-test('tune: plate numbers are Title Case and no SVG text is under 11 px', async ({ page }) => {
-  await page.goto('main.html#/tune?still=1');
+test('diag 行为决策: plate numbers are Title Case and no SVG text is under 11 px', async ({ page }) => {
+  await page.goto('main.html#/diag?tab=behavior&still=1');
   await expect(page.getByRole('region', { name: '精神与心情 │ 行为决策' })).toBeVisible();
   const nos = await page.locator('main [data-stub="Plate"] > [aria-hidden="true"]').allTextContents();
   expect(nos.filter((t) => /[A-Z]{2}/.test(t))).toEqual([]);

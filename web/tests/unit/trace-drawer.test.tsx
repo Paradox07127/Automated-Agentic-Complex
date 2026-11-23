@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TracePage } from '../../src/pages/trace/Page';
+import { DiagPage } from '../../src/pages/diag/Page';
 import { stubMatchMedia } from './mediaStub';
 import { pluginsOn, pluginsReset } from './plugins';
 
@@ -18,8 +18,8 @@ afterEach(() => {
 });
 
 function mount(search: string) {
-  const root = createRootRoute({ component: TracePage });
-  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
+  const root = createRootRoute({ component: DiagPage });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${/tab=/.test(search) ? '' : '&tab=turns'}${search}`] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />

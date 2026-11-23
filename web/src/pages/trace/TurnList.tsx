@@ -53,7 +53,7 @@ export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, search
   else if (st === 'error')
     body = (
       <div className={t.empty}>
-        <b>读不到运行记录</b>
+        <b>读不到对话轮次</b>
         <span>后台已断开{stoppedAt ? `，列表停在 ${stoppedAt}` : ''}。</span>
         <Btn variant="secondary" size="sm" icon="refresh" onClick={onRetry}>重试</Btn>
       </div>

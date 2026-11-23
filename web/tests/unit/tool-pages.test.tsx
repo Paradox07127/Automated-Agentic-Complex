@@ -6,13 +6,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { DiagPage } from '../../src/pages/diag/Page';
 import { Processes } from '../../src/pages/diag/Processes';
 import { processesOf } from '../../src/pages/diag/status';
-import { TracePage } from '../../src/pages/trace/Page';
 
 afterEach(cleanup);
 
 function mount(component: RouteComponent, search: string) {
   const root = createRootRoute({ component });
-  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${/tab=/.test(search) ? '' : '&tab=turns'}${search}`] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
@@ -23,7 +22,7 @@ function mount(component: RouteComponent, search: string) {
 
 describe(' diag bottom bar', () => {
   it('diag has no tool bar: 暂停, 复制诊断信息 and 重启 sit at the bottom bar\'s right end', async () => {
-    mount(DiagPage, '');
+    mount(DiagPage, '&tab=overview');
     const bar = await waitFor(() => document.querySelector<HTMLElement>('[data-bottom-zones]') ?? Promise.reject(new Error('no bar')));
     expect(document.querySelector('[data-toolbar]')).toBeNull();
     const acts = bar.lastElementChild as HTMLElement;
@@ -50,7 +49,7 @@ describe(' process rows', () => {
 
 describe(' trace turn list', () => {
   it('lists turns as option rows with a state sign; pressing a row opens it', async () => {
-    const router = mount(TracePage, '&demo=full');
+    const router = mount(DiagPage, '&demo=full');
     const list = await screen.findByRole('listbox', { name: '近 24 小时的轮次' });
     const rows = await within(list).findAllByRole('option');
     const last = rows[rows.length - 1]!;

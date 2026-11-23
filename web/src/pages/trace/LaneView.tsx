@@ -144,7 +144,7 @@ export function LaneView({ events, st, now }: LaneViewProps) {
 
   return (
     <div className={l.view}>
-      <section className={l.board} aria-label="动作线">
+      <section className={l.board} aria-label="事件线">
         <div className={l.head}>
           <GameSeg label="时间范围" value={String(range)} options={RANGES.map((m) => ({ value: String(m), label: `近 ${m} 分钟` }))} onChange={(v) => setRange(Number(v) as Range)} />
           <span className={l.count}>

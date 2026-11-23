@@ -89,7 +89,10 @@ describe('CommandBar', () => {
     fireEvent.click(trigger);
     const items = within(screen.getByRole('menu', { name: '每日简报' })).getAllByRole('menuitem');
     const user = pageRoutes.filter((r) => r.id !== 'home' && r.id !== 'onboarding' && (r.nav !== false || r.id === 'tasks') && !r.devOnly);
-    expect(items.map((i) => i.querySelector('span')?.textContent)).toEqual(user.map((r) => r.title));
+    expect(items.map((i) => i.querySelector('span:not([aria-hidden])')?.textContent)).toEqual(user.map((r) => r.title));
+    // Each page's own icon before its name.
+    expect(items.map((i) => i.querySelector('svg')?.getAttribute('data-icon') ?? null)).toEqual(user.map((r) => r.icon ?? null));
+    expect(items.find((i) => i.textContent?.startsWith('设置'))?.querySelector('svg')?.getAttribute('data-icon')).toBe('tune');
     expect(items.map((i) => i.textContent)).not.toContain('首次设置');
     expect(items.find((i) => i.textContent?.startsWith('设置'))?.querySelector('kbd')?.textContent).toBe('⌘,');
     fireEvent.click(items.find((i) => i.textContent?.startsWith('对话'))!);
@@ -99,9 +102,10 @@ describe('CommandBar', () => {
     setDevMode(true);
     const dev = await mountCommandBar('diag');
     fireEvent.click(within(dev.nav).getByRole('button', { name: '诊断' }));
-    const all = within(screen.getByRole('menu')).getAllByRole('menuitem').map((i) => i.querySelector('span')?.textContent);
+    const all = within(screen.getByRole('menu')).getAllByRole('menuitem').map((i) => i.querySelector('span:not([aria-hidden])')?.textContent);
     expect(all.slice(0, user.length)).toEqual(user.map((r) => r.title));
-    expect(all.slice(user.length)).toEqual(expect.arrayContaining(['记忆管线', '调参']));
+    expect(all.slice(user.length)).toEqual(expect.arrayContaining(['诊断', '记忆管线']));
+    expect(all).not.toContain('运行记录');
     expect(screen.getByRole('menu').querySelectorAll('[role="separator"]')).toHaveLength(1);
   });
 
@@ -141,6 +145,22 @@ describe('CommandBar', () => {
     expect(nav.querySelector('[data-icon="close"]')).toBeNull();
     fireEvent.click(home);
     expect(window.location.hash).toMatch(/^#\/home\?/);
+  });
+
+  it('ends with the 设置 gear on every page: ⌘, in its tip, pressed on 设置, opens 设置', async () => {
+    const { nav } = await mountCommandBar('overview');
+    const gear = [...nav.querySelectorAll<HTMLElement>('button')].at(-1)!;
+    expect(gear.getAttribute('aria-label')).toBe('设置');
+    expect(gear.getAttribute('title')).toBe('设置 ⌘,');
+    expect(gear.getAttribute('aria-keyshortcuts')).toBe('Meta+,');
+    expect(gear.getAttribute('aria-pressed')).toBe('false');
+    expect(gear.getAttribute('data-icon')).toBe('tune');
+    fireEvent.click(gear);
+    expect(window.location.hash).toMatch(/^#\/settings\?/);
+    cleanup();
+
+    const on = await mountCommandBar('settings');
+    expect([...on.nav.querySelectorAll<HTMLElement>('button')].at(-1)!.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('shows the sub when no tab is selected', async () => {
@@ -245,6 +265,9 @@ describe('CmdPalette', () => {
     expect(heads.at(-1)).toMatch(/^动作\[\d+\]$/);
     const overview = within(list).getByRole('option', { name: /每日简报/ });
     expect(overview.querySelector('kbd')?.textContent).toBe('⌘1');
+    // Pages carry their icon before the name.
+    expect(overview.querySelector('svg')?.getAttribute('data-icon')).toBe(pageRoutes.find((r) => r.id === 'overview')?.icon);
+    expect(within(list).getByRole('option', { name: /^设置/ }).querySelector('svg')?.getAttribute('data-icon')).toBe('tune');
     expect(list.textContent).not.toContain('Today');
   });
 });
