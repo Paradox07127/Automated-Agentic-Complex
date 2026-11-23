@@ -394,6 +394,8 @@ const preview = (() => {
     renderArgs: () => lookArguments(readObject(configPath)),
   });
 })();
+/** The renderer restart after a package write; the preview keeps each action's old bundle until told. */
+const restartAfterPackageChange = () => { void renderer?.restart(); preview?.packagesChanged(); };
 /** The character switch over the renderer link and agentd. */
 const switcher = config && hostLink && (() => {
   const client = runtimePath === null ? null : new AgentdClient(runtimePath);
@@ -411,7 +413,7 @@ const mmdSync = config?.characterCatalog && hostLink && switcher ? shellMmdSync(
   catalog: config.characterCatalog,
   runTool: (script, args, progress, signal) => runAgentdTool(config!.python, PYTHON_FLAGS, config!.agentdDir, script, args, progress, signal),
   validationHost: () => validationHost(config!.avatarExecutable, config!.avatarApp),
-  reload: () => reloadAvatar({ switcher, supervisor: { restartAvatar: () => { void renderer?.restart(); } },
+  reload: () => reloadAvatar({ switcher, supervisor: { restartAvatar: restartAfterPackageChange },
     log: (line) => appendLog(config!.supportDir, 'companion', line) }, hostLink),
   current: () => switcher.current,
   log: (line) => appendLog(config!.supportDir, 'companion', `AVATAR ${line}`),
@@ -808,7 +810,7 @@ function opsContext(surface: Surface): OpsContext {
       () => diagStream.stop()),
     supervisor: supervisor && {
       state: () => supervisor.state, pid: () => supervisor.pid, restart: () => { void supervisor.restart(); restartTunnel('backend'); }, avatar: () => rendererState,
-      restartAvatar: renderer ? () => { void renderer.restart(); preview?.packagesChanged(); } : undefined, avatarPid: () => renderer?.pid,
+      restartAvatar: renderer ? restartAfterPackageChange : undefined, avatarPid: () => renderer?.pid,
       tunnel: () => (tunnel && tunnel.config.ttsTunnelHost !== '' ? tunnelState : null), tunnelPid: () => tunnel?.pid,
     },
     avatar: hostLink && linkAvatarHost(hostLink, (hidden) => setAvatarHidden(hidden), {
