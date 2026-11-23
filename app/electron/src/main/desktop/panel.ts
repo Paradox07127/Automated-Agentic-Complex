@@ -298,10 +298,6 @@ export class DesktopPanel implements FollowPanel {
     if (this.isShown) this.poll();
   }
 
-  setAlpha(alpha: number): void {
-    if (this.win && !this.win.isDestroyed()) this.win.setOpacity(alpha);
-  }
-
   pushAnchor(anchor: AnchorPayload): void {
     this.anchor.send(anchor);
     this.placed = anchor.docked ? 'docked' : 'settled';

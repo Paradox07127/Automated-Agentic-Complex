@@ -41,12 +41,12 @@ const group = () => screen.getByRole('group', { name: '角色的按钮' });
 const row = (name: RegExp) => within(group()).getByRole('button', { name });
 
 describe('her hover buttons', () => {
-  it('show 对话, 说话, 给角色看 and 隐藏 with the saved keys while native has them open, and nothing while closed', async () => {
+  it('show 对话, 说话, 给角色看 and 隐藏 without their keys while native has them open, and nothing while closed', async () => {
     const d = mount();
     await flush(async () => {});
     expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '说话', '给角色看', '隐藏']);
-    expect(group().textContent).toContain('⌃Space');
-    expect(group().textContent).toContain('右 ⌥');
+    expect(group().textContent).not.toContain('⌃Space');
+    expect(group().querySelector('kbd')).toBeNull();
     expect(document.querySelector('[data-surface-root="dock"] [data-region]')).not.toBeNull();
     await d.state({ ...STATE, dock: { open: false, side: 'right', compact: false } });
     expect(screen.queryByRole('group', { name: '角色的按钮' })).toBeNull();

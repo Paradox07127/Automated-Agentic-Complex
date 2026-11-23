@@ -88,30 +88,15 @@
   background: var(--ef-overlay-hover);
 }
 
-/* aibark_in: the line flickers on over 250–417 ms. */
+/* A new line or thought fades in once; the text it streams in after that does not animate. */
 .say,
 .main[data-kind='thought'] .text {
-  animation: flicker 167ms steps(1, end) 250ms both;
+  animation: text-in 150ms var(--ef-ease-g-fade) both;
 }
 
-@keyframes flicker {
-  0% {
+@keyframes text-in {
+  from {
     opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  40% {
-    opacity: 0;
-  }
-  60% {
-    opacity: 1;
-  }
-  80% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
   }
 }
 

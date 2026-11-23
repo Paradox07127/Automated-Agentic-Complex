@@ -64,3 +64,20 @@
   margin-top: var(--ef-sp-8);
   text-shadow: none;
 }
+
+/* The last card, kept for LEAVE_MS (500 ms) after there is nothing to say: it holds, then fades over the last 200 ms. */
+.leaving {
+  animation: leave 200ms ease-in 300ms both;
+}
+
+@keyframes leave {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaving {
+    animation: none;
+  }
+}

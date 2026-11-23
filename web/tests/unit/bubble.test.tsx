@@ -67,6 +67,9 @@ function mountBubble(hash = '#/bubble') {
   };
 }
 
+/** The text where it is shown, not in the last card kept fading for a moment after it went (`inert`). */
+const said = (text: string) => screen.queryByText(text, { ignore: '[inert] *, script, style' });
+
 const presenceOf = (extra: Record<string, unknown> = {}) => ({ sampled_at: SAMPLED, proactive_speech: true, thought: THOUGHT, role: RUNNING, ...extra });
 
 describe('the bubble', () => {
@@ -116,8 +119,9 @@ describe('the bubble', () => {
     await flush(async () => vi.advanceTimersByTime(lingerMs(text) - 300));
     screen.getByText(text);
     await flush(async () => vi.advanceTimersByTime(600));
-    expect(screen.queryByText(text)).toBeNull();
+    expect(said(text)).toBeNull();
     expect(screen.queryByRole('button', { name: '展开消息' })).toBeNull();
+    await flush(async () => vi.advanceTimersByTime(500));
     expect(document.querySelector('[data-surface-root="bubble"] [data-region]')).toBeNull();
 
     await b.line('l2', '新的一句。', true);
@@ -139,7 +143,7 @@ describe('the bubble', () => {
     await flush(async () => vi.advanceTimersByTime(1400));
     screen.getByText('好的。');
     await flush(async () => vi.advanceTimersByTime(200));
-    expect(screen.queryByText('好的。')).toBeNull();
+    expect(said('好的。')).toBeNull();
   });
 
   it('a thought pops up once: it goes after its time and does not come back; another thought does, and 关闭 puts it away', async () => {
@@ -151,15 +155,15 @@ describe('the bubble', () => {
     await flush(async () => vi.advanceTimersByTime(lingerMs(THOUGHT.text) - 300));
     screen.getByText(THOUGHT.text);
     await flush(async () => vi.advanceTimersByTime(600));
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
+    expect(said(THOUGHT.text)).toBeNull();
 
     await b.presence(presenceOf({ sampled_at: SAMPLED + 10 }));
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
+    expect(said(THOUGHT.text)).toBeNull();
 
     await b.presence(presenceOf({ thought: { ...THOUGHT, id: 't2', text: '报错换了一行。' } }));
     screen.getByText('报错换了一行。');
     await flush(async () => fireEvent.click(screen.getByRole('button', { name: '关闭' })));
-    expect(screen.queryByText('报错换了一行。')).toBeNull();
+    expect(said('报错换了一行。')).toBeNull();
   });
 
   it('a thought her line cut short does not come back after the line', async () => {
@@ -170,8 +174,8 @@ describe('the bubble', () => {
     await b.line('l1', '好的。', true);
     screen.getByText('好的。');
     await flush(async () => vi.advanceTimersByTime(lingerMs('好的。') + 100));
-    expect(screen.queryByText('好的。')).toBeNull();
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
+    expect(said('好的。')).toBeNull();
+    expect(said(THOUGHT.text)).toBeNull();
   });
 
   it('a reminder shows its time, goes after its time, and moves to native\'s history', async () => {
@@ -184,7 +188,7 @@ describe('the bubble', () => {
     expect(document.querySelector('[data-bubble]')?.getAttribute('data-kind')).toBe('remind');
     expect(document.querySelector('[data-bubble-timer]')).not.toBeNull();
     await flush(async () => vi.advanceTimersByTime(lingerMs('c1 组会') + 100));
-    expect(screen.queryByText('c1 组会')).toBeNull();
+    expect(said('c1 组会')).toBeNull();
     expect(collapse).toHaveBeenCalledWith('rem-c1');
   });
 
@@ -199,19 +203,15 @@ describe('the bubble', () => {
     const rem = (id: string, at: number) => ({ id: `rem-${id}`, kind: 'notice' as const, variant: 'reminder' as const, at, title: `${id} 组会`, commitment_id: id });
     await b.cards([rem('c1', SAMPLED * 1000 - 60_000), rem('c2', SAMPLED * 1000)]);
     screen.getByText('c2 组会');
-    expect(screen.queryByText('c1 组会')).toBeNull();
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
+    expect(said('c1 组会')).toBeNull();
+    expect(said(THOUGHT.text)).toBeNull();
     expect(screen.queryByRole('button', { name: '知道了' })).toBeNull();
     expect(screen.queryByRole('button', { name: '稍后' })).toBeNull();
   });
 
-  it('has no 正在做 row, head card or thinking bar', async () => {
-    const b = mountBubble();
-    await b.presence(presenceOf());
+  it('has no 正在做 row', async () => {
+    mountBubble();
     expect(document.querySelector('[data-bubble-doing]')).toBeNull();
-    await b.accepted('u1');
-    expect(screen.queryByText('在想')).toBeNull();
-    expect(document.querySelector('[data-surface-root="bubble"] [data-region]')).toBeNull();
   });
 
   it('an open input command unfolds 快速输入 under the bubble; esc folds it and hands the key back', async () => {
@@ -238,7 +238,7 @@ describe('the bubble', () => {
     await flush(async () => vi.advanceTimersByTime(3900));
     screen.getByText('角色在忙，等这一轮做完');
     await flush(async () => vi.advanceTimersByTime(200));
-    expect(screen.queryByText('角色在忙，等这一轮做完')).toBeNull();
+    expect(said('角色在忙，等这一轮做完')).toBeNull();
   });
 
   it('a drop card opens 快速输入 with a scope over its files', async () => {
@@ -434,10 +434,10 @@ describe('the bubble’s thought and mute', () => {
     await b.presence(presenceOf());
     screen.getByText(THOUGHT.text);
     await b.presence(presenceOf({ thought: null }));
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
+    expect(said(THOUGHT.text)).toBeNull();
     await b.presence(presenceOf({ proactive_speech: false }));
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
-    expect(screen.queryByText('想法需要打开「主动发言」')).toBeNull();
+    expect(said(THOUGHT.text)).toBeNull();
+    expect(said('想法需要打开「主动发言」')).toBeNull();
   });
 
   it('keeps a thought without a reply visible and offers no button for it', async () => {
@@ -461,7 +461,7 @@ describe('the bubble’s thought and mute', () => {
     const puts = () => request.mock.calls.filter((c) => c[0] === 'PUT');
     expect(request.mock.calls[0]?.slice(0, 2)).toEqual(['GET', '/proactive/mutes']);
     expect(puts()).toEqual([['PUT', '/proactive/mutes', { muted: ['comment', 'thought'] }]]);
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
+    expect(said(THOUGHT.text)).toBeNull();
     screen.getByText('已关闭想法，以后不再显示');
     await flush(async () => fireEvent.click(screen.getByRole('button', { name: '撤销' })));
     expect(puts().at(-1)).toEqual(['PUT', '/proactive/mutes', { muted: ['comment'] }]);
@@ -554,9 +554,9 @@ describe('the bubble’s thought and mute', () => {
     await b.presence(presenceOf());
     await b.line('c1', '我先去看看日志。', true);
     await flush(async () => fireEvent.click(screen.getByRole('button', { name: '关闭' })));
-    expect(screen.queryByText('我先去看看日志。')).toBeNull();
+    expect(said('我先去看看日志。')).toBeNull();
     // The thought her line replaced has had its one showing.
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
+    expect(said(THOUGHT.text)).toBeNull();
     expect(request).not.toHaveBeenCalled();
   });
 
@@ -565,9 +565,9 @@ describe('the bubble’s thought and mute', () => {
     const request = vi.spyOn(b.bridge.agentd, 'request').mockResolvedValue({ status: 200, body: {} });
     await b.presence(presenceOf());
     await flush(async () => fireEvent.click(screen.getByRole('button', { name: '关闭' })));
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
+    expect(said(THOUGHT.text)).toBeNull();
     await b.presence(presenceOf({ sampled_at: SAMPLED + 5 }));
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
+    expect(said(THOUGHT.text)).toBeNull();
     expect(request.mock.calls).toEqual([['POST', '/feedback', { line_id: 't1', value: 'dismissed' }]]);
     await b.presence(presenceOf({ thought: { ...THOUGHT, id: 't2', text: '窗口里的报错换了一条。' } }));
     screen.getByText('窗口里的报错换了一条。');
@@ -579,7 +579,7 @@ describe('the bubble’s thought and mute', () => {
     await b.presence(presenceOf());
     await b.line('d-pro', '要不要我帮你把报错整理一下？', true, { code: 'long_dwell', kind: 'comment', text: '你在这个窗口停了 12 分钟', dwell_min: 12 });
     await flush(async () => fireEvent.click(screen.getByRole('button', { name: '关闭' })));
-    expect(screen.queryByText('要不要我帮你把报错整理一下？')).toBeNull();
+    expect(said('要不要我帮你把报错整理一下？')).toBeNull();
     expect(request.mock.calls).toEqual([['POST', '/feedback', { line_id: 'd-pro', value: 'dismissed' }]]);
   });
 
@@ -625,15 +625,14 @@ describe('the bubble’s thought and mute', () => {
     expect(screen.getByRole('button', { name: '有用' }).hasAttribute('disabled')).toBe(false);
   });
 
-  it('an accepted turn leaves no card, the status chip says 在想, until her first word opens it', async () => {
+  it('an accepted turn shows 在想 in place of her thought, until her first word fills the card', async () => {
     const b = mountBubble();
     await b.presence(presenceOf());
     await b.accepted('u1');
-    expect(screen.queryByText('在想')).toBeNull();
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
-    expect(document.querySelector('[data-surface-root="bubble"] [data-region]')).toBeNull();
+    screen.getByText('在想');
+    expect(said(THOUGHT.text)).toBeNull();
     await b.line('u1', '我看看。');
-    expect(screen.queryByText('在想')).toBeNull();
+    expect(said('在想')).toBeNull();
     screen.getByText('我看看。');
   });
 
@@ -685,7 +684,7 @@ describe('the bubble’s thought and mute', () => {
     cleanup();
     render(<BubbleRoot />);
     await b.cards([{ id: 'rem-c1', kind: 'notice', variant: 'reminder', at: SAMPLED * 1000, title: 'c1 组会', commitment_id: 'c1' }]);
-    expect(screen.queryByText('c1 组会')).toBeNull();
+    expect(said('c1 组会')).toBeNull();
     expect(request.mock.calls.filter(([, path]) => String(path).endsWith('/seen'))).toHaveLength(0);
   });
 });

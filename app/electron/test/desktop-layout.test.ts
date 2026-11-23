@@ -207,12 +207,10 @@ class Panel implements FollowPanel {
   cardInsets = null;
   moves: { frame: Rect; animated: boolean }[] = [];
   anchors: AnchorPayload[] = [];
-  alpha = 1;
   tookKey = 0;
   released = 0;
   constructor(size: { w: number; h: number }) { this.contentSize = size; }
   move(frame: Rect, animated: boolean) { this.moves.push({ frame, animated }); }
-  setAlpha(alpha: number) { this.alpha = alpha; }
   pushAnchor(anchor: AnchorPayload) { this.anchors.push(anchor); }
   takeKey() { this.tookKey += 1; }
   releaseKey() { this.released += 1; }
@@ -274,6 +272,25 @@ test('a frozen panel holds; her placement moves the panels once her box held', (
   assert.equal(b.moves.length, 2);
   assert.equal(b.moves[1]!.animated, true);
   assert.equal(b.anchors.at(-1)?.state, 'glide');
+});
+
+test('while she walks in steps the bubble stays shown and goes along with her', () => {
+  const b = new Panel({ w: 380, h: 200 }), d = new Panel({ w: 212, h: 188 });
+  const f = new DesktopFollow({ bubble: b, dock: d });
+  let t = 0;
+  const at = (x: number, o: { placement?: Rect } = {}) => {
+    f.tick(sample(r(x, 100, 200, 400), t, o), { x: 0, y: 0 });
+    t += 0.1;
+  };
+  at(600, { placement: placementBox(700, 100, 1) });
+  const before = b.moves.length;
+  // Two walks of 300 px with a stop and her placement between them.
+  for (let x = 630; x <= 900; x += 30) at(x);
+  for (let i = 0; i < 4; i++) at(900, { placement: placementBox(1000, 100, 1) });
+  const walked = b.moves.length;
+  for (let x = 930; x <= 1200; x += 30) at(x);
+  assert.ok(walked - before >= 2, `the bubble moved ${walked - before} times on the first walk`);
+  assert.ok(b.moves.length - walked >= 2, `the bubble moved ${b.moves.length - walked} times on the second walk`);
 });
 
 // Her body column from `placementBox`, `column` and the visual sample less its padding.

@@ -40,6 +40,8 @@ import styles from './BubbleRoot.module.css';
 const SUBTITLE: DockReason[] = ['hidden', 'fullscreen', 'offscreen', 'stale'];
 /** How long native's `notice` line and a 屏幕识读 receipt stay. */
 const NOTICE_MS = 4000;
+/** How long the last card stays, then fades (`.leaving`), once there is nothing left to say. */
+const LEAVE_MS = 500;
 
 /** The text of native's last `notice` command, for `NOTICE_MS`; `expandStack` unfolds a folded approval. */
 function useCommands(): { notice: { n: number; text: string } | null; unfold: number } {
@@ -196,7 +198,9 @@ export function BubbleRoot() {
     text = cards.look.title;
     card = cards.look.id;
     away = { key: `card:${cards.look.id}`, text, ms: NOTICE_MS };
-  } else if (bar && bar.phase !== 'thinking') {
+  } else if (bar?.phase === 'thinking') {
+    main = <Speech bar={bar} name="" onOpen={() => openChat(bar.id)} />;
+  } else if (bar) {
     main = <Speech bar={bar} name="" onOpen={() => openChat(bar.id)} />;
     text = bar.text;
     replyTo = { kind: 'line', id: bar.id };
@@ -288,6 +292,21 @@ export function BubbleRoot() {
     );
   }
 
+  // A gap between two things to say (a line closed, the next not yet in) keeps the last card instead of unmounting it.
+  const last = useRef<ReactNode>(null);
+  const [, setLeft] = useState(0);
+  if (body) last.current = body;
+  const leaving = !body && last.current != null;
+  useEffect(() => {
+    if (!leaving) return;
+    const t = setTimeout(() => {
+      last.current = null;
+      setLeft((n) => n + 1);
+    }, LEAVE_MS);
+    return () => clearTimeout(t);
+  }, [leaving]);
+  const shown = body ?? last.current;
+
   return (
     <div ref={rootRef} className={styles.root} style={sizing} data-surface-root="bubble" data-side={anchor?.side} data-docked={anchor?.docked ?? undefined}>
       {docked && bar && (
@@ -295,9 +314,9 @@ export function BubbleRoot() {
           <Subtitle bar={bar} name={state?.character?.name ?? ''} onOpen={() => openChat(bar.id)} />
         </div>
       )}
-      {body && (
-        <div ref={hoverRef} {...handlers}>
-          {body}
+      {shown && (
+        <div ref={hoverRef} {...handlers} className={leaving ? styles.leaving : undefined} inert={leaving} aria-hidden={leaving || undefined}>
+          {shown}
         </div>
       )}
     </div>

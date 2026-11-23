@@ -1,7 +1,7 @@
 // Moves the desktop panels after her: feed it every tick
 // while a panel shows or the command layer is open. The panels follow one box of hers, which she leaves only past the dead
-// zone; none moves while one is frozen or key; while she is dragged or walks and `WALK_FADE` after, the bubble hides and the
-// chip and dock fade to `DRAG_ALPHA`. Opening and closing the wheel, the console and 快速输入 in the bubble are here
+// zone; none moves while one is frozen or key, and none changes its opacity. Opening and closing the wheel, the
+// console and 快速输入 in the bubble are here
 // too, and so are the panels the user dragged: their offsets from her, their pins and their resets, and C3 rule 39's
 // presents: a presented panel shows once she has made her gesture for it.
 import { type AnchorInput, type AnchorSnapshot, AnchorTracker, shift } from './desktop-anchor.ts';
@@ -27,7 +27,6 @@ export interface FollowPanel {
   /** Where the page's card sits in that size; null before the page reports one. */
   readonly cardInsets: CardInsets | null;
   move(frame: Rect, animated: boolean): void;
-  setAlpha(alpha: number, animated: boolean): void;
   pushAnchor(anchor: AnchorPayload): void;
   takeKey(): void;
   releaseKey(): void;
@@ -65,8 +64,6 @@ interface Present { token: string; side: 'left' | 'right' | null; openedAt: numb
 export const GLIDE = 0.35;
 /** A panel's `desk: … frame` line goes out at most this often, in seconds, with its latest frame. */
 const FRAME_LOG_EVERY = 60;
-export const DRAG_ALPHA = 0.4;
-export const WALK_FADE = 0.15;
 const TOLERANCE = 0.5;
 const SIZE_STEP = 2;
 const RESIZE_INTERVAL = 0.1;
@@ -160,8 +157,6 @@ export class DesktopFollow {
   private sides: Partial<Record<PanelKind, PanelSide>> = {};
   private movedAt: Partial<Record<PanelKind, number>> = {};
   private anchors: Partial<Record<PanelKind, AnchorPayload>> = {};
-  private alphas: Partial<Record<PanelKind, number>> = {};
-  private stoppedAt: number | null = null;
   private loggedPhase: string | null = null;
   private loggedColumn: string | null = null;
   private loggedFrames: Partial<Record<PanelKind, string>> = {};
@@ -477,19 +472,10 @@ export class DesktopFollow {
       this.glideUntil = now + GLIDE;
       if (next === 'settled') next = 'glide';
     }
-    if (next === 'moving') this.stoppedAt = null;
-    else if (this.state === 'moving') this.stoppedAt = now;
-    const walking = next === 'moving' || (this.stoppedAt !== null && now - this.stoppedAt < WALK_FADE);
     this.state = next;
 
     for (const kind of shown) {
       const panel = this.panels[kind]!;
-      const alpha = next === 'dragging' || (walking && kind !== 'cmd' && kind !== 'console') ? (kind === 'bubble' ? 0 : DRAG_ALPHA) : 1;
-      if (alpha !== (this.alphas[kind] ?? 1)) {
-        // The bubble hides and shows again at once.
-        panel.setAlpha(alpha, alpha !== 0 && (this.alphas[kind] ?? 1) !== 0);
-        this.alphas[kind] = alpha;
-      }
       const last = this.anchors[kind], placement = placements[kind];
       let anchor: AnchorPayload;
       if (next === 'dragging' && last) anchor = { ...last, state: 'dragging' };

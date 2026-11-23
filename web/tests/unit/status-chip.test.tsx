@@ -113,12 +113,52 @@ function mountBubble() {
 const regions = () => document.querySelectorAll('[data-surface-root="bubble"] [data-region]').length;
 
 describe('the bubble opens only for something to read or answer', () => {
-  it('draws no card while she only works or thinks', async () => {
+  it('draws no card while she only works', async () => {
     const b = mountBubble();
     await b.presence(presenceOf({ role: role('running_tool') }));
     expect(regions()).toBe(0);
+  });
+
+  it('shows 在想 once her turn is accepted, and her line fills the same card', async () => {
+    const b = mountBubble();
+    await b.presence(presenceOf());
+    await b.line('l0', '上一句');
+    const card = document.querySelector('[data-bubble]');
     await b.accepted('u1');
-    expect(regions()).toBe(0);
+    screen.getByText('在想');
+    expect(document.querySelector('[data-bubble]')).toBe(card);
+    await b.line('u1', '我看看');
+    screen.getByText('我看看');
+    expect(document.querySelector('[data-bubble]')).toBe(card);
+  });
+
+  it('keeps the last card, inert, for a moment after there is nothing left to say', async () => {
+    vi.useFakeTimers();
+    try {
+      const b = mountBubble();
+      await b.presence(presenceOf());
+      await b.line('l1', '我看看');
+      const card = document.querySelector('[data-bubble]');
+      await flush(async () => fireEvent.click(screen.getByRole('button', { name: '关闭' })));
+      expect(document.querySelector('[data-bubble]')).toBe(card);
+      expect(card?.closest('[inert]')).not.toBeNull();
+      await b.line('l2', '再说一句');
+      expect(document.querySelector('[data-bubble]')).toBe(card);
+      expect(card?.closest('[inert]')).toBeNull();
+      await flush(async () => fireEvent.click(screen.getByRole('button', { name: '关闭' })));
+      await flush(async () => vi.advanceTimersByTime(600));
+      expect(document.querySelector('[data-bubble]')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows her line under a reminder put away', async () => {
+    const b = mountBubble();
+    await b.presence(presenceOf());
+    await b.cards([{ id: 'rem-c1', kind: 'notice', variant: 'reminder', at: NOW, title: 'c1 组会', commitment_id: 'c1', collapsed: true }]);
+    await b.line('l1', '我看看');
+    screen.getByText('我看看');
   });
 
   it('opens for her streaming line, a due reminder, an offered thought and a notice', async () => {

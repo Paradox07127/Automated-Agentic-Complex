@@ -15,7 +15,7 @@ type LookCard = Extract<StackCard, { variant: NoticeVariant }> & { variant: 'loo
 export type DoneCard = Extract<StackCard, { variant: NoticeVariant }> & { variant: 'done' };
 export type ErrorCard = Extract<StackCard, { kind: 'error' }>;
 
-const isReminder = (c: StackCard): c is ReminderCard => c.kind === 'notice' && c.variant === 'reminder';
+const isReminder = (c: StackCard): c is ReminderCard => c.kind === 'notice' && c.variant === 'reminder' && !c.collapsed;
 const isDrop = (c: StackCard): c is DropCard => c.kind === 'notice' && c.variant === 'drop';
 const isVoice = (c: StackCard): c is VoiceCard => c.kind === 'notice' && c.variant === 'voice' && !c.collapsed;
 const isLoading = (c: StackCard): c is LoadingCard => c.kind === 'notice' && c.variant === 'loading' && !c.collapsed;

@@ -7,15 +7,13 @@ export interface OptionStackItem {
   id: string;
   label: string;
   icon: IconName;
-  /** 右端的热键（「⌃⌥L」） */
-  hotkey?: string;
   /** 做不了的原因：键块变禁用色，原因进悬停提示，点了不触发 */
   off?: string;
   /** 正在进行（在录音）：键块变红、图标闪 */
   live?: boolean;
 }
 
-/** 交互选项列（游戏 F 交互选项）：竖排的行，每行一个深色键块（图标）+ 名字 + 热键，右端渐隐；悬停描边、整行外移 3 px；一侧带括线。side=left 时镜像。紧凑款只留键块，名字和热键进悬停提示。 */
+/** 交互选项列（游戏 F 交互选项）：竖排的行，每行一个深色键块（图标）+ 名字，右端渐隐；悬停描边、整行外移 3 px；一侧带括线。side=left 时镜像。紧凑款只留键块，名字进悬停提示。 */
 export interface OptionStackProps {
   items: readonly OptionStackItem[];
   /** 列在身体哪一侧：right（默认）从左往右排，left 镜像 */
@@ -64,7 +62,7 @@ export function OptionStack({ items, side = 'right', compact, hot, note, label, 
           data-live={it.live || undefined}
           aria-label={it.label}
           aria-disabled={it.off ? true : undefined}
-          title={compact ? [it.label, it.hotkey, it.off].filter(Boolean).join('  ') : it.off}
+          title={compact ? [it.label, it.off].filter(Boolean).join('  ') : it.off}
           onClick={() => (it.off ? onPickOff?.(it.id) : onPick(it.id))}
           onPointerDown={(e) => down(it, e)}
           onPointerUp={up}
@@ -74,7 +72,6 @@ export function OptionStack({ items, side = 'right', compact, hot, note, label, 
             <Icon name={it.icon} size={16} />
           </span>
           {!compact && <span className={styles.name}>{it.label}</span>}
-          {!compact && it.hotkey && <kbd className={styles.hotkey}>{it.hotkey}</kbd>}
         </button>
       ))}
       {note != null && !compact && (
@@ -88,10 +85,10 @@ export function OptionStack({ items, side = 'right', compact, hot, note, label, 
 }
 
 const ITEMS: OptionStackItem[] = [
-  { id: 'chat', label: '对话', icon: 'send', hotkey: '⌃Space' },
-  { id: 'voice', label: '说话', icon: 'mic', hotkey: '右 ⌥' },
-  { id: 'look', label: '给角色看', icon: 'look', hotkey: '⌃⌥L' },
-  { id: 'hide', label: '隐藏', icon: 'eye', hotkey: '⌃⌥H' },
+  { id: 'chat', label: '对话', icon: 'send' },
+  { id: 'voice', label: '说话', icon: 'mic' },
+  { id: 'look', label: '给角色看', icon: 'look' },
+  { id: 'hide', label: '隐藏', icon: 'eye' },
 ];
 const noop = () => undefined;
 

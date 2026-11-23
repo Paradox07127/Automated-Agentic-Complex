@@ -1,6 +1,6 @@
 /* The F interaction options (interactoptionpanel, rows 407×66 every 78, the key 53×52) at half size. */
 .stack {
-  --os-row: color-mix(in srgb, var(--ef-g-watch-map) 90%, transparent);
+  --os-row: var(--ef-g-watch-map);
   --os-ink: var(--ef-g-watch-ink);
   --os-ink-2: color-mix(in srgb, var(--ef-g-watch-ink) 62%, transparent);
   --os-sel: color-mix(in srgb, #fff 71%, transparent);
@@ -15,7 +15,7 @@
 }
 
 :global([data-theme='light']) .stack {
-  --os-row: color-mix(in srgb, #fcfcfa 95%, transparent);
+  --os-row: #fcfcfa;
   --os-ink: var(--ef-text-1);
   --os-ink-2: var(--ef-text-2);
   --os-sel: color-mix(in srgb, #141414 75%, transparent);
@@ -130,18 +130,6 @@
 .name {
   font: var(--ef-fw-medium) var(--ef-fs-row) / 1 var(--ef-font-sans);
   white-space: nowrap;
-}
-
-.hotkey {
-  margin-left: auto;
-  color: var(--os-ink-2);
-  font: var(--ef-fw-medium) 12px / 1 var(--ef-font-num);
-  letter-spacing: 0.02em;
-}
-
-.stack[data-side='left'] .hotkey {
-  margin-right: auto;
-  margin-left: 0;
 }
 
 /* Cannot run here: the game's disabled red on the key. */

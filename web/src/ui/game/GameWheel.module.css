@@ -9,12 +9,12 @@
   pointer-events: none;
 }
 
-/* The desktop dims round the wheel. */
+/* The desktop dims round the wheel: dark under the disc (r 117), gone by r 200, inside the 257 px box edge. */
 .vignette {
   position: absolute;
   inset: 3px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgb(0 0 0 / 40%) 0 30%, rgb(0 0 0 / 22%) 52%, transparent 70%);
+  background: radial-gradient(circle closest-side, rgb(0 0 0 / 40%) 0 45%, rgb(0 0 0 / 22%) 62%, transparent 78%);
 }
 
 /* Opening: turns in from 40° and grows from .9 over 330 ms, flickering once in its first 90 ms (quickmenu_in, shortened). */

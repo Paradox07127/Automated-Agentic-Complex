@@ -18,7 +18,6 @@ class Panel implements FollowPanel {
   cardInsets = null;
   moves: Rect[] = [];
   move(frame: Rect) { this.moves.push(frame); }
-  setAlpha() {}
   pushAnchor(_anchor: AnchorPayload) {}
   takeKey() {}
   releaseKey() {}
