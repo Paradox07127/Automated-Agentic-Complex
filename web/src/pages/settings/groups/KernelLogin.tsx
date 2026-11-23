@@ -23,7 +23,7 @@ export function KernelLoginRow({ backend, methods = [] }: { backend: string; met
       (e: unknown) => model.notify({ message: `${what}：${failure(e).text}`, severity: 'danger', persistent: true }),
     );
   const start = (method?: Method) => act(() => loginStart(method?.id), '已打开登录页，在浏览器里完成登录', '没能开始登录');
-  const failed = login.error ? (RUNTIME_ERROR[login.error]?.label ?? codeText(login.error) ?? login.error) : null;
+  const failed = login.error ? [RUNTIME_ERROR[login.error]?.label ?? codeText(login.error) ?? login.error, login.detail].filter(Boolean).join('：') : null;
   const desc = login.pending
     ? '在浏览器里完成登录后回来'
     : (failed ?? (account?.signed_in ? [account.email, account.plan].filter(Boolean).join(' │ ') || '已登录' : account ? '还没有登录' : undefined));

@@ -808,7 +808,7 @@ class IntegrationTests(IntegrationFixture):
                     patch.object(self.controller.logins, 'signed_in', return_value=signed_in) as probe:
                 self.assertEqual(self.controller.public()['error'], error)
                 self.assertEqual(probe.call_args.args[:2], ('codex', '/synthetic/codex'))
-        self.assertEqual(self.controller.public()['product_login'], {'pending': None, 'error': None, 'accounts': {}})
+        self.assertEqual(self.controller.public()['product_login'], {'pending': None, 'error': None, 'detail': None, 'accounts': {}})
 
     def test_login_route_signs_in_the_saved_kernel(self):
         from character_agent.routes import http

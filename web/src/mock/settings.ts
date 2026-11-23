@@ -210,7 +210,7 @@ export function demoShotRuns(demo: string | null): WireSummaryRun[] {
   return [...runs, ...released].sort((a, b) => b.started_at.localeCompare(a.started_at));
 }
 
-const SIGNED_OUT: WireProductLogin = { pending: null, error: null, accounts: {} };
+const SIGNED_OUT: WireProductLogin = { pending: null, error: null, detail: null, accounts: {} };
 
 export const routes: MockRoute[] = [
   { method: 'GET', path: '/character/runtime', handler: ({ query }) => ok(runtime(query.get('demo'))) },

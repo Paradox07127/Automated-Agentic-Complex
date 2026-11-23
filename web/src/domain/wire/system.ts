@@ -132,6 +132,8 @@ export interface WireProductLogin {
   pending: { backend: string; acp_agent: string | null } | null;
   /** The code the last sign-in failed with. */
   error: string | null;
+  /** The kernel's own words for that failure (an ACP agent's refusal), when it gave some. */
+  detail: string | null;
   /** Codex or Claude Code -> its probed app profile; a backend not probed yet is absent. */
   accounts: Record<string, { signed_in: boolean; email: string | null; plan: string | null }>;
 }

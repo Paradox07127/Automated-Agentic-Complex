@@ -158,12 +158,14 @@ class KernelLoginTest(unittest.TestCase):
 
     def test_acp_agent_method_authenticates_over_acp(self):
         log = Path(self.tmp.name) / "acp.jsonl"
-        for auth, error in (("ok", None), ("deny", "login_denied")):
+        # A refusal carries the agent's own words, which say what to do.
+        for auth, error, detail in (("ok", None, None), ("deny", "login_denied", "Authentication required")):
             with self.subTest(auth=auth):
                 agent = {"id": "fake", "command": [sys.executable, "-I", "-B", str(FAKE_ACP)],
                          "env": {"FAKE_ACP_AUTH": auth, "FAKE_ACP_LOG": str(log)}}
                 self.login.start("acp", agent=agent, method={"id": "fake-login", "name": "Fake login"})
-                self.assertEqual(self.finished()["error"], error)
+                done = self.finished()
+                self.assertEqual((done["error"], done["detail"]), (error, detail))
         events = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
         self.assertEqual([e["params"] for e in events if e["event"] == "authenticate"], [{"methodId": "fake-login"}] * 2)
         self.assertEqual(self.acp_logins, [("fake", True)])

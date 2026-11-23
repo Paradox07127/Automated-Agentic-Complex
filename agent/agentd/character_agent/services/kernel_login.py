@@ -27,6 +27,7 @@ class KernelLogin:
         self.lock = threading.Lock()
         self.attempt = None  # {"backend", "acp_agent", "proc" | "cancel"} while a sign-in runs
         self.error = None  # the code the last sign-in failed with
+        self.detail = None  # the kernel's own words for that failure, when it gave some
         self.status = {}  # backend -> {"signed_in", "email", "plan", "at"}
         self.probing = set()
 
@@ -48,7 +49,7 @@ class KernelLogin:
         with self.lock:
             attempt = self.attempt
             return {"pending": {"backend": attempt["backend"], "acp_agent": attempt["acp_agent"]} if attempt else None,
-                    "error": self.error,
+                    "error": self.error, "detail": self.detail,
                     "accounts": {b: {k: s[k] for k in ("signed_in", "email", "plan")} for b, s in self.status.items()}}
 
     def signed_in(self, backend, cli, wait):
@@ -95,24 +96,24 @@ class KernelLogin:
             if self.attempt:
                 raise ValueError("login_pending")
             self.attempt = {"backend": backend, "acp_agent": agent["id"] if agent else None}
-            self.error = None
+            self.error = self.detail = None
         target = {"codex": self._codex, "claude": self._claude}.get(backend) or self._acp
         args = (cli,) if agent is None else (agent, method)
         threading.Thread(target=self._run, args=(backend, target, args), daemon=True, name="kernel-login").start()
         return self.public()
 
     def _run(self, backend, target, args):
-        error = None
+        error = detail = None
         try:
             target(*args)
         except LoginFailed as failure:
-            error = failure.code
+            error, detail = failure.code, failure.detail
         except (OSError, ValueError):
             error = "login_failed"
         with self.lock:
             cancelled = self.attempt is not None and self.attempt.get("cancelled")
             self.attempt = None
-            self.error = None if cancelled else error
+            self.error, self.detail = (None, None) if cancelled else (error, detail)
             self.status.pop(backend, None)
 
     def cancel(self):
@@ -174,8 +175,9 @@ class KernelLogin:
             from character_agent.harness.acp_agents import authenticate
             with self.lock:
                 cancel = self.attempt["cancel"] = threading.Event()
-            if not authenticate(agent["command"], agent.get("env"), method["id"], TIMEOUT, cancel):
-                raise LoginFailed("login_denied")
+            refused = authenticate(agent["command"], agent.get("env"), method["id"], TIMEOUT, cancel)
+            if refused is not None:
+                raise LoginFailed("login_denied", refused or None)
         if self.on_acp_login:
             self.on_acp_login(agent["id"], True)
 
@@ -209,9 +211,9 @@ class KernelLogin:
 
 
 class LoginFailed(Exception):
-    def __init__(self, code):
+    def __init__(self, code, detail=None):
         super().__init__(code)
-        self.code = code
+        self.code, self.detail = code, detail
 
 
 def _stop(attempt):

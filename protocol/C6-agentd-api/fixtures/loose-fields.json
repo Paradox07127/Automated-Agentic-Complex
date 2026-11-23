@@ -86,7 +86,7 @@
                                "selected_runtime.login_command", "capabilities.tool_inventory_verified",
                                "capabilities.task_verified", "capabilities.features.*.reason", "pi_session",
                                "pi_session.shell.bash", "pi_session.shell.powershell", "pi_session.workspace_dir",
-                               "product_login.pending", "product_login.pending.acp_agent", "product_login.error",
+                               "product_login.pending", "product_login.pending.acp_agent", "product_login.error", "product_login.detail",
                                "product_login.accounts.*.email", "product_login.accounts.*.plan"],
     "character-capabilities.json": ["tool_inventory_verified", "task_verified", "features.*.reason"],
     "memory-sessions.json": ["sessions[].agent", "sessions[].project", "sessions[].task_id"],

@@ -200,8 +200,8 @@ def probe(command, env=None, timeout=10):
 
 
 async def _auth_call(command, env, method, params, timeout, cancel):
-    """Initialize, then send `method` (authenticate or logout); False when the agent refuses it, cannot do it or
-    `cancel` is set first."""
+    """Initialize, then send `method` (authenticate or logout): None when done, else why not: the agent's own message,
+    or "" when it cannot do it, gives no message or `cancel` is set first."""
     async def no_requests(_method, _params):
         return None
 
@@ -212,26 +212,29 @@ async def _auth_call(command, env, method, params, timeout, cancel):
             init = await agent.request("initialize", {"protocolVersion": 1, "clientCapabilities": CLIENT_CAPABILITIES,
                 "clientInfo": {"name": "endfield_personal_agent", "version": "1"}}, timeout=10)
             if method == "logout" and "logout" not in ((init.get("agentCapabilities") or {}).get("auth") or {}):
-                return False
+                return ""
             call = asyncio.ensure_future(agent.request(method, params, timeout=timeout))
             while not call.done():
                 await asyncio.wait({call}, timeout=0.5)
                 if cancel is not None and cancel.is_set():
                     call.cancel()
-                    return False
+                    return ""
             call.result()
-            return True
-        except (RunnerFailure, AcpError):
-            return False
+            return None
+        except RunnerFailure:
+            return ""
+        except AcpError as error:
+            return str(error)
         finally:
             await agent.disconnect()
 
 
 def authenticate(command, env, method_id, timeout, cancel):
-    """ACP authenticate with one of the agent's own (type "agent") methods; the agent opens the browser itself."""
+    """ACP authenticate with one of the agent's own (type "agent") methods; the agent opens the browser itself. None when
+    signed in, else the agent's reason ("" without one)."""
     return asyncio.run(_auth_call(list(command), env, "authenticate", {"methodId": method_id}, timeout, cancel))
 
 
 def logout(command, env):
-    """ACP logout; False when the agent does not offer it."""
-    return asyncio.run(_auth_call(list(command), env, "logout", {}, 30, None))
+    """ACP logout; False when the agent does not offer it or refuses."""
+    return asyncio.run(_auth_call(list(command), env, "logout", {}, 30, None)) is None

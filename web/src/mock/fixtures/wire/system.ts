@@ -90,7 +90,7 @@ export const WIRE_RUNTIME: WireRuntimePublic = {
     tool_approval: true,
     workspace_dir: '/Users/demo/AgenticComplex',
   },
-  product_login: { pending: null, error: null, accounts: {} },
+  product_login: { pending: null, error: null, detail: null, accounts: {} },
 };
 
 const usage = (calls: number, input: number, cacheWrite: number, cacheRead: number, output: number, cost: number, unpriced = 0): WireUsage => ({

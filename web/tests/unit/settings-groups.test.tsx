@@ -234,7 +234,7 @@ describe('settings › 角色内核', () => {
     const { acctOptions } = await import('../../src/pages/settings/fields');
     expect(acctOptions('codex').map((o) => [o.value, o.disabled ?? false])).toEqual([['existing_login', false], ['api_key', false], ['product_login', false]]);
     expect(acctOptions('claude').map((o) => o.value)).toEqual(['existing_login', 'product_login']);
-    const signedIn = { pending: null, error: null, accounts: { claude: { signed_in: true, email: 'me@example.com', plan: 'max' } } };
+    const signedIn = { pending: null, error: null, detail: null, accounts: { claude: { signed_in: true, email: 'me@example.com', plan: 'max' } } };
     const claude = (extra: Partial<WireRuntimePublic>) =>
       runtimeView({ ...WIRE_RUNTIME, backend: 'claude', auth_source: 'product_login', provider: '', ready: true,
         available_backends: [...WIRE_RUNTIME.available_backends, { id: 'claude', title: 'Claude Code', available: true, reason: null }], ...extra });
@@ -255,6 +255,13 @@ describe('settings › 角色内核', () => {
     );
     expect(within(row()).getByText('在浏览器里完成登录后回来')).toBeTruthy();
     expect(within(row()).getByRole('button', { name: '取消登录' })).toBeTruthy();
+    cleanup();
+    render(
+      <Harness runtime={claude({ product_login: { ...signedIn, error: 'login_denied', detail: 'Use the other client' } })}>
+        <KernelGroup />
+      </Harness>,
+    );
+    expect(within(row()).getByText(/：Use the other client$/)).toBeTruthy();
     cleanup();
     render(
       <Harness runtime={claude({ auth_source: 'existing_login' })}>
@@ -490,7 +497,7 @@ describe('settings › 角色内核 › ACP', () => {
       still: true,
       routes: [
         { method: 'GET', path: '/character/acp/agents', handler: () => ({ status: 200, body: AGENTS }) },
-        { method: 'POST', path: '/character/login/start', handler: ({ body }) => (started.push(body), { status: 200, body: { pending: { backend: 'acp', acp_agent: 'goose' }, error: null, accounts: {} } }) },
+        { method: 'POST', path: '/character/login/start', handler: ({ body }) => (started.push(body), { status: 200, body: { pending: { backend: 'acp', acp_agent: 'goose' }, error: null, detail: null, accounts: {} } }) },
       ],
     });
     render(
