@@ -58,6 +58,8 @@ for (const theme of THEMES) {
   test(`${theme}: a dangerous approval names its rule in words`, async ({ page }) => {
     const errors = collectErrors(page);
     await open(page, `/overview?focus=item-${A1}`, theme);
+    // The urgent card keeps its rule in its 详情 fold.
+    await page.locator(`main [data-item="${A1}"]`).getByRole('button', { name: /^详情/ }).click();
     await expect(page.locator('main').getByText('命中危险规则：强制递归删除')).toBeVisible();
     await expect(page.locator('main')).not.toContainText('rm_recursive');
     await shot(page, 'danger-rule', theme);

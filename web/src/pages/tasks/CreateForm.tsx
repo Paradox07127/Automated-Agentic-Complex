@@ -1,6 +1,6 @@
 import type { PickedHandle } from '../../bridge/protocol';
 import type { Goal } from '../../domain';
-import { Btn, InfoTip, Seg, Select } from '../../ui';
+import { Btn, Fold, InfoTip, Seg, Select } from '../../ui';
 import styles from './CreateForm.module.css';
 
 export type CreateKind = 'role' | 'code';
@@ -91,27 +91,22 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
               options={[{ value: '', label: '不关联' }, ...goals.map((g) => ({ value: g.id, label: g.title }))]}
             />
           </div>
-          <div className={styles.acc}>
-            <button type="button" className={styles.fold} aria-expanded={draft.acceptanceOpen} onClick={() => set({ acceptanceOpen: !draft.acceptanceOpen })}>
-              {draft.acceptanceOpen ? '▾' : '▸'} 验收条件{!draft.acceptanceOpen && draft.artifact.trim() ? ` │ ${draft.artifact.trim()}` : ''}
-            </button>
-            {draft.acceptanceOpen && (
-              <>
-                <label className={styles.field}>
-                  <span className={styles.label}>
-                    预期产物
-                    <InfoTip>相对于产物文件夹的路径，后缀 md、txt、csv 或 json。</InfoTip>
-                  </span>
-                  <input className={`${styles.input} ${styles.mono}`} placeholder="例如：汇总.md" value={draft.artifact} onChange={(e) => set({ artifact: e.target.value })} />
-                </label>
-                <label className={styles.field}>
-                  <span>必须包含的章节</span>
-                  <input className={styles.input} value={draft.sections} onChange={(e) => set({ sections: e.target.value })} />
-                </label>
-                <p className={styles.note}>不填预期产物时，结果保留为待复核</p>
-              </>
-            )}
-          </div>
+          <Fold label="验收条件" open={draft.acceptanceOpen} onToggle={(open) => set({ acceptanceOpen: open })} summary={draft.artifact.trim() || undefined}>
+            <div className={styles.acc}>
+              <label className={styles.field}>
+                <span className={styles.label}>
+                  预期产物
+                  <InfoTip>相对于产物文件夹的路径，后缀 md、txt、csv 或 json。</InfoTip>
+                </span>
+                <input className={`${styles.input} ${styles.mono}`} placeholder="例如：汇总.md" value={draft.artifact} onChange={(e) => set({ artifact: e.target.value })} />
+              </label>
+              <label className={styles.field}>
+                <span>必须包含的章节</span>
+                <input className={styles.input} value={draft.sections} onChange={(e) => set({ sections: e.target.value })} />
+              </label>
+              <p className={styles.note}>不填预期产物时，结果保留为待复核</p>
+            </div>
+          </Fold>
         </>
       )}
       {draft.kind === 'code' && (

@@ -21,60 +21,6 @@
   pointer-events: none;
 }
 
-.gh {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 34px;
-  padding: 0 4px 2px 6px;
-}
-
-.gh b {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.gh .n {
-  font-size: 12px;
-  color: var(--ef-text-2);
-}
-
-.gh::after {
-  content: '';
-  position: absolute;
-  left: 6px;
-  bottom: -2px;
-  width: 46px;
-  height: 3px;
-  background: repeating-linear-gradient(90deg, var(--ef-text-2) 0 4px, transparent 4px 6px);
-  opacity: 0.6;
-}
-
-/* ImportanceNode: icon_mission_vital, bigger title, a full-width rule */
-.gh[data-vital] b {
-  font-size: 17px;
-}
-
-.gh[data-vital]::after {
-  left: 0;
-  right: 0;
-  width: auto;
-  height: 2px;
-  background: var(--ef-line);
-  opacity: 1;
-}
-
-.vital {
-  flex: none;
-  width: 30px;
-  height: 26px;
-}
-
-.note {
-  margin-left: auto;
-}
-
 .rows {
   display: grid;
   gap: 12px;
@@ -112,9 +58,5 @@
 
   .rows {
     gap: 10px;
-  }
-
-  .gh {
-    min-height: 28px;
   }
 }

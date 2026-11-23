@@ -143,34 +143,10 @@ textarea.pill {
   pointer-events: none;
 }
 
-/* Weekday blocks: the game's cut top-right corner, yellow when picked */
 .days {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-}
-
-.days button {
-  all: unset;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--ef-seg-track-text);
-  background: var(--ef-seg-track);
-  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
-}
-
-.days button[aria-pressed='true'] {
-  font-weight: 600;
-  color: var(--ef-on-accent);
-  background: var(--ef-accent);
-}
-
-.days button:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: -2px;
 }
 
 .preview {
@@ -202,9 +178,5 @@ textarea.pill {
 
   .lbl small {
     display: none;
-  }
-
-  .days button {
-    width: 28px;
   }
 }

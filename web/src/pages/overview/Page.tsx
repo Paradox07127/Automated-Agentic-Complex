@@ -196,13 +196,13 @@ export function OverviewPage() {
         right={
           <>
             <span className={styles.date}>
-              <IconBtn icon="chevl" label="前一天" size="sm" disabled={date <= shift(today, -BACK)} onClick={() => put({ date: shift(date, -1) })} />
+              <IconBtn icon="chevl" label="前一天" size="sm" disabled={date <= shift(today, -BACK)} disabledReason={`最多往回看 ${BACK} 天`} onClick={() => put({ date: shift(date, -1) })} />
               <span className="num" data-date={date}>
                 {mm}.{dd}
                 <span data-fold="1"> 周{WEEK[new Date(day0).getDay()]}</span>
                 {isToday && <i>今天</i>}
               </span>
-              <IconBtn icon="chev" label="后一天" size="sm" disabled={isToday} onClick={() => put({ date: shift(date, 1) })} />
+              <IconBtn icon="chev" label="后一天" size="sm" disabled={isToday} disabledReason="已经是今天" onClick={() => put({ date: shift(date, 1) })} />
             </span>
             {/* The top bar says 已连接. */}
             {(loading || stale) && <span className={styles.conn}>{loading ? <Pip tone="idle" label="读取中" /> : offline ? <Pip tone="failed" label={lostText} /> : <Pip tone="failed" label="刷新失败" />}</span>}

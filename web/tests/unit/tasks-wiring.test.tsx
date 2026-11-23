@@ -415,7 +415,8 @@ describe('tasks: failure reasons and native entries', () => {
     expect(tile.getAttribute('title')).toContain(NATIVE_OFF.artifact);
     fireEvent.contextMenu(tile);
     for (const [name, why] of [['打开', NATIVE_OFF.artifact], ['复制路径', NATIVE_OFF.copy]] as const) {
-      const it = screen.getByRole('menuitem', { name });
+      // The shared menu writes the reason after the label.
+      const it = screen.getByRole('menuitem', { name: `${name}${why}` });
       expect(it.getAttribute('aria-disabled')).toBe('true');
       expect(it.getAttribute('title')).toBe(why);
     }

@@ -1,8 +1,8 @@
 // Mission list pieces: list title, chapter groups, mission rows and their end shapes.
 import type { CSSProperties, ReactNode } from 'react';
-import { Icon, InfoTip } from '../../ui';
+import { Icon, SecHead } from '../../ui';
 import { useCountdown } from '../../features/approval/useCountdown';
-import { Clock, Micro, TypeIcon, Vital } from './Glyphs';
+import { Clock, Micro, TypeIcon } from './Glyphs';
 import type { ListRow, RowGroup, Shape } from './rows';
 import page from './Page.module.css';
 import gs from './Group.module.css';
@@ -122,16 +122,8 @@ export function Row({ row, index, selected, onSelect }: RowProps) {
 export function Group({ group, start, selected, onSelect }: { group: RowGroup; start: number; selected: string | null; onSelect: (id: string) => void }) {
   return (
     <section className={gs.grp} aria-label={group.title}>
-      <div className={gs.gh} data-vital={group.vital || undefined}>
-        {group.vital && <Vital className={gs.vital} />}
-        <b>{group.title}</b>
-        <span className={`${gs.n} num`}>[{group.rows.length}]</span>
-        {group.note && (
-          <span className={gs.note}>
-            <InfoTip>{group.note}</InfoTip>
-          </span>
-        )}
-      </div>
+      <SecHead title={group.title} count={group.rows.length} info={group.note} tone={group.vital ? 'waiting' : 'none'} />
+
       <div className={gs.rows} role="listbox" aria-label={group.title}>
         {group.rows.map((r, i) => (
           <Row key={r.id} row={r} index={start + i} selected={r.id === selected} onSelect={onSelect} />

@@ -140,6 +140,7 @@ function Focus(p: PendingSectionProps & { item: PendingItem }) {
         approval={{ ...item, seconds_left: leftAt(item, now, at) ?? item.seconds_left }}
         onDecide={(d, _mode, reason) => p.onApprove(item, d, reason)}
         onOpenSession={() => openSession(p, item)}
+        details="fold"
       />
     );
   }

@@ -140,11 +140,14 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
             <Row label="时间">
               <input className={`${styles.pill} ${styles.time}`} aria-label="时间" value={d.at} placeholder="18:30" onChange={(e) => set({ at: e.target.value })} />
               <span className={styles.days} role="group" aria-label={d.trig === 'daily' ? '重复星期' : '执行星期'}>
-                {WEEKDAYS.map((w) => (
-                  <button key={w.day} type="button" aria-label={`周${w.label}`} aria-pressed={d.trig === 'daily' ? d.weekdays.includes(w.day) : d.weekday === w.day} onClick={() => toggleDay(w.day)}>
-                    {w.label}
-                  </button>
-                ))}
+                {WEEKDAYS.map((w) => {
+                  const on = d.trig === 'daily' ? d.weekdays.includes(w.day) : d.weekday === w.day;
+                  return (
+                    <Btn key={w.day} size="sm" variant={on ? 'ghost' : 'secondary'} label={`周${w.label}`} pressed={on} onClick={() => toggleDay(w.day)}>
+                      {w.label}
+                    </Btn>
+                  );
+                })}
               </span>
             </Row>
           )}

@@ -51,45 +51,14 @@
   color: var(--dt-plate-t1);
 }
 
-/* Round star button over the plate's left edge, ringed in the page ground. */
+/* The pin badge over the plate's left edge, ringed in the page ground. */
 .star {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  margin-left: -14px;
-  padding: 0;
-  border: 0;
+  justify-self: start;
+  margin-left: -12px;
   border-radius: 50%;
-  background: var(--ef-list);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ef-bg-base) 70%, transparent);
-  color: var(--ef-text-3);
-  cursor: pointer;
-}
-
-.star svg {
-  width: 15px;
-  height: 15px;
-  fill: currentColor;
-}
-
-.star:hover {
-  background: var(--ef-field-hover);
-}
-
-.star[aria-pressed='true'] {
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
-}
-
-.star[aria-disabled='true'] {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.star:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: 2px;
 }
 
 .t {

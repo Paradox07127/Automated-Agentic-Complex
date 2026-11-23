@@ -22,18 +22,6 @@ export function TypeIcon({ kind }: { kind: 'role' | 'code' | 'sched' }) {
   );
 }
 
-/** icon_mission_vital: yellow block with two exclamation marks and offset corner ticks. */
-export function Vital({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 30 26" aria-hidden="true">
-      <rect x="3" y="3" width="22" height="20" fill="var(--ef-accent)" />
-      <rect x="0" y="0" width="3" height="3" fill="var(--ef-accent)" />
-      <rect x="25" y="23" width="5" height="3" fill="var(--ef-accent)" />
-      <path d="M9 7h3v9H9zM16 7h3v9h-3zM9 18h3v3H9zM16 18h3v3h-3z" fill="var(--ef-on-accent)" />
-    </svg>
-  );
-}
-
 /** deco_mission_left_01: a strip of bars, rules and boxes. */
 export function Micro({ className }: { className?: string }) {
   return (

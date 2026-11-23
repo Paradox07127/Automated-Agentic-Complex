@@ -1,9 +1,9 @@
 // 产物 (RewardsNode): the shown version and its verdict, how many were opened, a tile per file with its check bar, the
 // version chain folded below; a file's right-click menu opens, reveals, copies its path or writes the previous version back.
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
+import { useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
 import { revealText } from '../../bridge/platformText';
 import { formatClock, type Artifact, type Delivery } from '../../domain';
-import { Fold, Icon, InfoTip, Modal, SecHead } from '../../ui';
+import { ContextMenu, Fold, Icon, InfoTip, Modal, SecHead, type MenuItem } from '../../ui';
 import { GameSeg } from '../../ui/game';
 import type { NativeOff } from './actions';
 import { Box, Micro } from './Glyphs';
@@ -36,23 +36,6 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
   const [menu, setMenu] = useState<MenuAt | null>(null);
   const [revert, setRevert] = useState<Artifact | null>(null);
   const d = sorted.find((x) => x.id === shown) ?? sorted.at(-1);
-  const menuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!menu) return;
-    menuRef.current?.querySelector<HTMLElement>('button:not([aria-disabled])')?.focus();
-    const close = (e: Event) => {
-      if (e instanceof globalThis.KeyboardEvent && e.key !== 'Escape') return;
-      if (e.type === 'keydown') e.preventDefault();
-      if (e.type === 'mousedown' && menuRef.current?.contains(e.target as Node)) return;
-      setMenu(null);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close, true);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', close, true);
-    };
-  }, [menu]);
   if (!d) return null;
   const open = d.artifacts.filter((a) => a.opened).length;
   const openOff = nativeOff.artifact;
@@ -60,17 +43,15 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
     const r = e.currentTarget.getBoundingClientRect();
     const x = 'clientX' in e && e.clientX ? e.clientX : r.left + r.width / 2;
     const y = 'clientY' in e && e.clientY ? e.clientY : r.bottom;
-    setMenu({ x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 200), a });
+    setMenu({ x, y, a });
   };
-  const item = (label: string, run: () => void, off?: string, danger?: boolean) => (
-    <button type="button" role="menuitem" aria-disabled={off ? true : undefined} title={off} data-danger={danger || undefined} onClick={() => {
-      if (off) return;
-      setMenu(null);
-      run();
-    }}>
-      {label}
-    </button>
-  );
+  const items = (a: Artifact): MenuItem[] => [
+    { kind: 'head', label: a.name },
+    { kind: 'item', label: '打开', disabled: !!openOff, reason: openOff, onSelect: () => onOpen(a.absolute_path) },
+    ...(canReveal ? [{ kind: 'item' as const, label: revealText('在 Finder 中显示'), onSelect: () => onReveal(a.absolute_path) }] : []),
+    { kind: 'item', label: '复制路径', disabled: !!nativeOff.copy, reason: nativeOff.copy, onSelect: () => onCopy(a.absolute_path) },
+    ...(a.version > 1 && !d.redacted ? [{ kind: 'item' as const, label: `撤回到 v${a.version - 1}`, danger: true, onSelect: () => setRevert(a) }] : []),
+  ];
   return (
     <>
       <SecHead
@@ -132,15 +113,7 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
           <GameSeg label="版本链" value={d.id} options={sorted.map((x) => ({ value: x.id, label: `v${x.version} ${verdict(x)}` }))} onChange={setShown} />
         </Fold>
       )}
-      {menu && (
-        <div ref={menuRef} className={styles.cmenu} role="menu" aria-label={menu.a.name} style={{ left: menu.x, top: menu.y }}>
-          <div className={styles.gt}>{menu.a.name}</div>
-          {item('打开', () => onOpen(menu.a.absolute_path), openOff)}
-          {canReveal && item(revealText('在 Finder 中显示'), () => onReveal(menu.a.absolute_path))}
-          {item('复制路径', () => onCopy(menu.a.absolute_path), nativeOff.copy)}
-          {menu.a.version > 1 && !d.redacted && item(`撤回到 v${menu.a.version - 1}`, () => setRevert(menu.a), undefined, true)}
-        </div>
-      )}
+      <ContextMenu label={menu?.a.name ?? ''} items={menu ? items(menu.a) : []} at={menu} onClose={() => setMenu(null)} />
       <Modal
         open={revert != null}
         danger

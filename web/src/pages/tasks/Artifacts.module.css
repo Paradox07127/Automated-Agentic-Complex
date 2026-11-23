@@ -146,75 +146,6 @@
   color: var(--ef-text-2);
 }
 
-/* Context menu: raised plate, yellow bar down the left, items light yellow on hover */
-.cmenu {
-  position: fixed;
-  z-index: var(--ef-z-modal);
-  display: grid;
-  gap: 2px;
-  min-width: 200px;
-  padding: 6px;
-  color: var(--ef-overlay-fg);
-  background: var(--ef-overlay);
-  box-shadow: 0 0 0 1px var(--ef-line), var(--ef-shadow-popup);
-  animation: menu 150ms var(--ef-ease-g-enter) both;
-}
-
-.cmenu::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  background: var(--ef-accent);
-}
-
-.cmenu .gt {
-  padding: 4px 14px 2px;
-  font-size: 12px;
-  color: var(--ef-text-3);
-}
-
-.cmenu button {
-  all: unset;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 34px;
-  padding: 0 12px 0 14px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.cmenu button:hover,
-.cmenu button:focus-visible {
-  color: var(--ef-on-accent);
-  background: var(--ef-accent);
-}
-
-.cmenu button[aria-disabled='true'] {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.cmenu button[data-danger] {
-  color: var(--ef-danger-text);
-}
-
-.cmenu button[data-danger]:hover,
-.cmenu button[data-danger]:focus-visible {
-  color: var(--ef-on-danger-vivid);
-  background: var(--ef-danger-vivid);
-}
-
-@keyframes menu {
-  from {
-    opacity: 0;
-    transform: scale(0.94) translateY(-4px);
-  }
-}
-
 @container page (max-width: 1100px) {
   .rw {
     grid-template-columns: minmax(0, 1fr);
@@ -229,11 +160,5 @@
 
   .lb svg {
     display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cmenu {
-    animation: none;
   }
 }

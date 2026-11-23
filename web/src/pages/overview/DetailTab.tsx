@@ -1,7 +1,7 @@
 // 明细：开着的项一行一个（星标、名牌、每小时走势、今天和对比值），关着的项在列表下合成一行，底部排序和对比两个下拉。
 import { useState } from 'react';
 import { appNow } from '../../bridge/clock';
-import { Btn, Select } from '../../ui';
+import { Btn, IconBtn, Select } from '../../ui';
 import { ITEM_ORDER, ITEMS, SWITCH_LABEL, type BriefItem, type BriefItemId, type BriefSwitch } from './briefDay';
 import type { BriefTabProps } from './briefTabs';
 import { useGo } from './nav';
@@ -105,18 +105,17 @@ export function DetailTab({ day, pins, onPins }: BriefTabProps) {
           return (
             <li key={id} className={styles.it} data-pinned={pinned || undefined}>
               <div className={styles.nm}>
-                <button
-                  type="button"
-                  className={styles.star}
-                  aria-pressed={pinned}
-                  aria-disabled={!pinned && full ? true : undefined}
-                  aria-label={`${pinned ? '从总览拿掉' : '放进总览'}：${meta.name}`}
-                  onClick={() => toggle(id)}
-                >
-                  <svg viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M8 1.2l2 4.3 4.7.5-3.5 3.2 1 4.6L8 11.5l-4.2 2.3 1-4.6L1.3 6l4.7-.5z" />
-                  </svg>
-                </button>
+                <span className={styles.star}>
+                  <IconBtn
+                    icon="pin"
+                    shape="round"
+                    pressed={pinned}
+                    disabled={!pinned && full}
+                    disabledReason="总览最多放 6 项，先拿掉一项"
+                    label={`${pinned ? '从总览拿掉' : '放进总览'}：${meta.name}`}
+                    onClick={() => toggle(id)}
+                  />
+                </span>
                 <span className={styles.t}>
                   <span className={styles.name}>{meta.name}</span>
                   <small>{meta.src}</small>
