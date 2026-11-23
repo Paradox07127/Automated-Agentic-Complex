@@ -102,6 +102,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
           </div>
         )}
         {configError != null ? (
+          <div data-fix="配置" role="group" aria-label="配置出错">
           <ErrBar message="配置读不了" detail={configError}
             actions={
               <>
@@ -109,9 +110,11 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
                 <WhiteCapsule label="查看诊断" icon="radio" size="sm" onClick={() => go({ page: 'diag', item: 'agentd' })} />
               </>
             } />
+          </div>
         ) : (
           <>
             {offline && (
+              <div data-fix="后台" role="group" aria-label="后台出错">
               <ErrBar tone={starting ? 'warning' : 'danger'} message={starting ? '后台正在启动，好了会自动接上' : '后台没有响应，她听不到你'}
                 detail={starting && backoff != null ? `${backoff} 秒后自动重试` : undefined}
                 actions={
@@ -123,6 +126,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
                     </>
                   )
                 } />
+              </div>
             )}
             {/* Its name, Operator and doing lines need the full height in the short form too. */}
             <CharCard box={{ width: INNER, height: 66 }} compact name={character?.name ?? '她'} head={head} id={character?.id ?? null}
