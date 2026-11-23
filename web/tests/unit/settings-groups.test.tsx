@@ -513,4 +513,37 @@ describe('settings › 角色内核 › ACP', () => {
     expect(started).toEqual([{ method_id: 'oauth' }]);
     expect(within(row).getByRole('button', { name: '登出' })).toBeTruthy();
   });
+
+  it('signs DeepSeek Harness in through the DeepSeek desktop client, or runs it on the saved DeepSeek key', async () => {
+    const started: unknown[] = [];
+    window.agenticComplex = createFakeBridge({
+      surface: 'main',
+      still: true,
+      routes: [
+        { method: 'GET', path: '/character/acp/agents', handler: () => ({ status: 200, body: AGENTS }) },
+        { method: 'POST', path: '/character/login/start', handler: ({ body }) => (started.push(body), { status: 200, body: { pending: { backend: 'deepseek', acp_agent: null }, error: null, detail: null, accounts: {} } }) },
+      ],
+    });
+    const view = render(
+      <Harness runtime={acp({ acp_agent: 'deepseek-harness', auth_source: 'existing_login', ready: false, error: 'product_login_required' })}>
+        <KernelGroup />
+      </Harness>,
+    );
+    await screen.findByText('DeepSeek 客户端里登录', { exact: false });
+    expect(document.querySelector('[data-row="acct"]')!.textContent).toContain('DeepSeek 账号');
+    const row = document.querySelector('[data-row="kernelLogin"]') as HTMLElement;
+    await act(async () => fireEvent.click(within(row).getByRole('button', { name: '登录' })));
+    expect(started).toEqual([{}]);
+    // The desktop client owns the account's sign-out.
+    expect(within(row).queryByRole('button', { name: '登出' })).toBeNull();
+    view.unmount();
+    render(
+      <Harness runtime={acp({ acp_agent: 'deepseek-harness', auth_source: 'api_key' })}>
+        <KernelGroup />
+      </Harness>,
+    );
+    await screen.findByText('DeepSeek API Key', { exact: false });
+    expect(document.querySelector('[data-row="acct"]')!.textContent).toContain('使用 API 凭据');
+    expect(document.querySelector('[data-row="kernelLogin"]')).toBeNull();
+  });
 });

@@ -63,6 +63,11 @@ export const RUNSRC: Opt[] = [
 
 /** Pi reads only the credentials Agentic Complex holds, which its existing_login also means. Claude Code takes no API key. */
 export function acctOptions(backend: string, current?: unknown): Opt[] {
+  if (backend === 'deepseek-harness')
+    return [
+      { value: 'existing_login', label: 'DeepSeek 账号' },
+      { value: 'api_key', label: '使用 API 凭据' },
+    ];
   if (backend === 'pi')
     return [
       { value: current === 'existing_login' ? 'existing_login' : 'api_key', label: 'AI 账号' },
@@ -246,6 +251,8 @@ export function runtimeBody(w: WireRuntimePublic, changes: Vals, handles: Handle
   const implied: Record<string, unknown> =
     patch.backend === 'acp' || patch.backend === 'claude' ? { runtime_source: 'local', auth_source: 'existing_login', provider: '' } : patch.backend ? { runtime_source: patch.backend === 'codex' ? 'local' : 'bundled' } : {};
   for (const [key, v] of Object.entries(implied)) if (!(key in patch)) patch[key] = v;
+  // Only DeepSeek Harness runs on another auth source than the agent's own login.
+  if (patch.acp_agent != null && patch.acp_agent !== 'deepseek-harness') patch.auth_source = 'existing_login';
   return runtimeSettings(w, patch as Partial<WireRuntimeSettings>);
 }
 
@@ -305,6 +312,7 @@ export const RUNTIME_ERROR: Readonly<Record<string, RuntimeError>> = {
   login_rejected: { label: '内核拒绝开始登录，请更新这个工具后再试' },
   login_failed: { label: '登录进程意外退出，请重新登录；仍不行就在终端里登录后改用「复用本机工具登录」', fix: LOGIN },
   browser_unavailable: { label: '打不开浏览器，请先设置系统默认浏览器' },
+  deepseek_desktop_missing: { label: '没有找到 DeepSeek 客户端，请先从 deepseek.com 下载安装' },
   logout_failed: { label: '登出没有在 30 秒内完成，请重试' },
   logout_unsupported: { label: '这个 ACP agent 不支持在应用里登出，请用它自己的方式登出' },
   unknown_auth_method: { label: '这个 ACP agent 没有列出这种登录方式，请点「重新检测」后再登录' },

@@ -86,7 +86,9 @@ class RuntimeSettings:
             # The ACP agent owns its credentials and model connection.
             if result["provider"] != "":
                 raise ValueError("provider_not_supported_by_harness")
-            if result["auth_source"] != "existing_login":
+            # DeepSeek Harness also runs on the DeepSeek API key saved in the app.
+            if result["auth_source"] not in ("existing_login", "api_key") or \
+                    result["auth_source"] == "api_key" and result["acp_agent"] != "deepseek-harness":
                 raise ValueError("unsupported_auth_source")
         routes = result["routes"]
         if not isinstance(routes, dict) or set(routes) - set(ROUTES):

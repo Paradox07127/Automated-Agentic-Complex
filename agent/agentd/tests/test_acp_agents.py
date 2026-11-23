@@ -39,19 +39,20 @@ class AcpAgentsTest(unittest.TestCase):
         self.assertNotIn("opencode-v2", acp_agents.LOCAL_COMMANDS)
         for agent_id, (command, args) in acp_agents.LOCAL_COMMANDS.items():
             binary = agents[agent_id]["distribution"].get("binary", {}).get("darwin-aarch64")
-            if binary:
+            # agy is the Antigravity CLI, which serves ACP itself, not the registry's agy_acp_server archive.
+            if binary and agent_id != "antigravity-acp":
                 with self.subTest(agent_id):
                     self.assertEqual((command, args), (os.path.basename(binary["cmd"]), binary.get("args") or []))
 
     @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
     def test_find_local_lists_executables_with_acp_arguments(self):
         claude = self.executable("claude-agent-acp")
-        gemini = self.executable("gemini")
+        qwen = self.executable("qwen")
         self.executable("goose", mode=0o644)
         found = acp_agents.find_local([str(self.bin)])
         self.assertEqual(sorted(found, key=lambda a: a["id"]), [
             {"id": "claude-acp", "name": "Claude Agent", "command": [claude], "source": "local"},
-            {"id": "gemini", "name": "Gemini CLI", "command": [gemini, "--acp"], "source": "local"}])
+            {"id": "qwen-code", "name": "Qwen Code", "command": [qwen, "--acp"], "source": "local"}])
 
     @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
     def test_deepseek_harness_runs_the_acp_profile_with_the_locked_repo_patch(self):
@@ -95,7 +96,7 @@ class AcpAgentsTest(unittest.TestCase):
         self.assertEqual(entries["codex-acp"], {"id": "codex-acp", "name": "Codex", "source": "npx",
                                                 "command": [npx, "-y", "@agentclientprotocol/codex-acp@2.7.0"], "env": {}})
         self.assertEqual(entries["auggie"]["env"], {"AUGMENT_DISABLE_AUTO_UPDATE": "1"})
-        self.assertEqual(entries["gemini"]["command"], [npx, "-y", "@google/gemini-cli@0.68.0", "--acp"])
+        self.assertEqual(entries["qwen-code"]["command"], [npx, "-y", "@qwen-code/qwen-code@0.28.0", "--acp", "--experimental-skills"])
         self.assertEqual(entries["fast-agent"], {"id": "fast-agent", "name": entries["fast-agent"]["name"],
                                                  "source": "uvx", "command": [uvx, "fast-agent-acp==0.10.1", "-x"],
                                                  "env": {"FAST_AGENT_MODEL": "codexplan"}})
@@ -165,7 +166,7 @@ class AcpInstallTest(unittest.TestCase):
     @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
     def test_a_failed_install_reports_its_exit_and_output(self):
         self.fake("npm", exit_code=3)
-        result = acp_agents.install("gemini", [str(self.bin)])
+        result = acp_agents.install("qwen-code", [str(self.bin)])
         self.assertEqual((result["ok"], result["exit"], result["output_tail"]), (False, 3, "installing\n"))
 
     def test_refuses_binary_only_local_only_and_unknown_agents_and_a_missing_installer(self):

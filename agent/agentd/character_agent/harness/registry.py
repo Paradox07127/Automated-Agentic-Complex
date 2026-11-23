@@ -90,6 +90,12 @@ def acp_agent(config):
     return next((a for a in rows if a["id"] == config["acp_agent"] and a["source"] == launcher), None)
 
 
+def deepseek_account_command(agent):
+    """DeepSeek Harness's argv on the model route of the DeepSeek account its desktop client signs in."""
+    from character_agent.harness.acp_agents import DSH_ACCOUNT_PATCH
+    return [*agent["command"], "--patch", str(DSH_ACCOUNT_PATCH)]
+
+
 def _acp_session(integration, config, common, definitions):
     from character_agent.harness.acp_agents import launch
     from character_agent.harness.acp_transport import AcpConfig, ManagedAcpSession
@@ -97,6 +103,15 @@ def _acp_session(integration, config, common, definitions):
     if agent is None:
         raise ValueError("acp_agent_missing")
     command, env, session_meta, mode = launch(agent, common["native_tools"])
+    if agent["id"] == "deepseek-harness":
+        # dsh has no ACP sign-in: the saved auth source picks the app's DeepSeek key or the desktop client's account.
+        if config["auth_source"] == "api_key":
+            key = integration.deepseek_key()
+            if key is None:
+                raise ValueError("missing_provider_api_key")
+            command, env = [*command, "--patch", str(integration.logins.deepseek_patch())], {**env, "DEEPSEEK_API_KEY": key}
+        else:
+            command = deepseek_account_command({**agent, "command": command})
     options = AcpConfig(**common, python=integration.python, agent_id=agent["id"], agent_command=command,
         agent_env=env, session_meta=session_meta, mode=mode,
         effort=config.get('_semantic_effort') or config.get('_turn_effort'))

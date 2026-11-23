@@ -53,10 +53,15 @@ class AcpSettingsTest(unittest.TestCase):
                              ({**ACP, "acp_launcher": "brew"}, "invalid_acp_launcher"),
                              ({**ACP, "runtime_source": "bundled"}, "invalid_runtime_source"),
                              ({**ACP, "provider": "anthropic"}, "provider_not_supported_by_harness"),
-                             ({**ACP, "auth_source": "api_key"}, "unsupported_auth_source")):
+                             ({**ACP, "auth_source": "api_key"}, "unsupported_auth_source"),
+                             ({**ACP, "auth_source": "product_login"}, "unsupported_auth_source")):
             with self.subTest(values=values), self.assertRaisesRegex(ValueError, code):
                 self.settings.save(values)
         self.assertFalse(self.settings.path.exists())
+
+    def test_deepseek_harness_may_run_on_the_apps_deepseek_key(self):
+        saved = self.settings.save({**ACP, "acp_agent": "deepseek-harness", "auth_source": "api_key"})
+        self.assertEqual((saved["acp_agent"], saved["auth_source"]), ("deepseek-harness", "api_key"))
 
     def test_capabilities_offer_the_agents_own_shell_behind_approval_cards(self):
         features = describe({**DEFAULTS, **ACP})["features"]
@@ -150,6 +155,38 @@ class AcpSessionTest(AcpHarnessCase):
         self.assertEqual((self.handled, [card["data"]["preview"]["kind"] for card in self.cards]), (["allow-once"], ["execute"]))
         self.assertEqual(self.controller._acp_logins, {"claude-acp": True})
         self.assertNotIn("_meta", self.agent_log("session_new")[0]["params"])
+
+    @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
+    def test_deepseek_harness_runs_on_the_apps_key_or_the_desktop_clients_account(self):
+        dsh = self.bin / "dsh"
+        dsh.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        dsh.chmod(0o755)
+        base = [str(dsh), "--profile", "acp", "--patch", str(acp_agents.DSH_PATCH)]
+        own = self.root / "kernel-login" / "deepseek" / "patch.json"
+        self.controller.logins = SimpleNamespace(deepseek_patch=lambda: own)
+        common = dict(state_dir=self.root / "runner" / "acp", api_key="", model="", runtime_source="local",
+                      workspace_dir=str(self.root), native_tools=True)
+        for auth, key, command, env_key in (
+                ("api_key", "sk-synthetic", [*base, "--patch", str(own)], "sk-synthetic"),
+                ("existing_login", "sk-synthetic", [*base, "--patch", str(acp_agents.DSH_ACCOUNT_PATCH)], None)):
+            with self.subTest(auth=auth):
+                self.controller.deepseek_key = lambda: key
+                config = {**DEFAULTS, **ACP, "acp_agent": "deepseek-harness", "auth_source": auth, "_turn_effort": None}
+                session = HARNESSES["acp"].session(self.controller, config, common, TOOLS)
+                self.addCleanup(session.close)
+                self.assertEqual(session.config.agent_command, command)
+                self.assertEqual(session.config.agent_env.get("DEEPSEEK_API_KEY"), env_key)
+        self.controller.deepseek_key = lambda: None
+        with self.assertRaisesRegex(ValueError, "missing_provider_api_key"):
+            HARNESSES["acp"].session(self.controller, {**DEFAULTS, **ACP, "acp_agent": "deepseek-harness",
+                                                       "auth_source": "api_key", "_turn_effort": None}, common, TOOLS)
+
+    @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
+    def test_agy_is_the_local_gemini_agent(self):
+        agy = self.bin / "agy"
+        agy.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        agy.chmod(0o755)
+        self.assertEqual([(a["id"], a["command"]) for a in acp_agents.find_local()], [("antigravity-acp", [str(agy), "acp"])])
 
     @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
     def test_opencode_lock_reaches_only_semantic_agent_processes(self):
@@ -278,22 +315,22 @@ class AcpAgentsRouteTest(AcpHarnessCase):
     def test_install_runs_npm_for_the_picked_agent_and_lists_it_as_local_afterwards(self):
         log = self.root / "npm-argv"
         npm = self.bin / "npm"
-        npm.write_text(f"#!/bin/sh\nprintf '%s\\n' \"$*\" >> {log}\nprintf '#!/bin/sh\\n' > {self.bin}/gemini\n"
-                       f"/bin/chmod 755 {self.bin}/gemini\necho added 1 package\n", encoding="utf-8")
+        npm.write_text(f"#!/bin/sh\nprintf '%s\\n' \"$*\" >> {log}\nprintf '#!/bin/sh\\n' > {self.bin}/qwen\n"
+                       f"/bin/chmod 755 {self.bin}/qwen\necho added 1 package\n", encoding="utf-8")
         npm.chmod(0o755)
         controller = self.controller()
-        status, value = self.post(controller, {"agent_id": "gemini"})
-        self.assertEqual((status, value), (200, {"ok": True, "agent_id": "gemini", "exit": 0, "output_tail": "added 1 package\n",
-                                                 "command": [str(npm), "install", "-g", "@google/gemini-cli@0.68.0"]}))
-        self.assertEqual(log.read_text(encoding="utf-8"), "install -g @google/gemini-cli@0.68.0\n")
-        gemini = next(a for a in self.get(controller)["agents"] if a["id"] == "gemini")
-        self.assertEqual((gemini["source"], gemini["command"]), ("local", [str(self.bin / "gemini"), "--acp"]))
+        status, value = self.post(controller, {"agent_id": "qwen-code"})
+        self.assertEqual((status, value), (200, {"ok": True, "agent_id": "qwen-code", "exit": 0, "output_tail": "added 1 package\n",
+                                                 "command": [str(npm), "install", "-g", "@qwen-code/qwen-code@0.28.0"]}))
+        self.assertEqual(log.read_text(encoding="utf-8"), "install -g @qwen-code/qwen-code@0.28.0\n")
+        qwen = next(a for a in self.get(controller)["agents"] if a["id"] == "qwen-code")
+        self.assertEqual((qwen["source"], qwen["command"]), ("local", [str(self.bin / "qwen"), "--acp"]))
 
     def test_install_refuses_agents_without_a_package_and_a_missing_installer(self):
         controller = self.controller()
         self.assertEqual(self.post(controller, {"agent_id": "goose"}), (400, {"error": "acp_install_unsupported"}))
-        self.assertEqual(self.post(controller, {"agent_id": "gemini"}), (400, {"error": "acp_installer_missing"}))
-        for body in ({}, {"agent_id": 3}, {"agent_id": "gemini", "force": True}):
+        self.assertEqual(self.post(controller, {"agent_id": "qwen-code"}), (400, {"error": "acp_installer_missing"}))
+        for body in ({}, {"agent_id": 3}, {"agent_id": "qwen-code", "force": True}):
             with self.subTest(body=body):
                 self.assertEqual(self.post(controller, body), (400, {"error": "invalid_payload"}))
 
@@ -335,7 +372,9 @@ class AcpAgentsRouteTest(AcpHarnessCase):
                 "auth_methods": [{"id": "fake-login", "name": "Fake login"}], "error": None}, "native_backend": "claude"})
         self.assertEqual(agents["codex-acp"], {"id": "codex-acp", "name": "Codex", "version": "2.7.0", "source": "npx",
             "command": [str(npx), "-y", "@agentclientprotocol/codex-acp@2.7.0"], "probe": None, "native_backend": "codex"})
-        self.assertIsNone(agents["gemini"]["native_backend"])
+        self.assertIsNone(agents["cline"]["native_backend"])
+        # Gemini runs through Antigravity (agy), which is local only.
+        self.assertNotIn("gemini", agents)
         self.assertTrue(all(set(a) == {"id", "name", "version", "source", "command", "probe", "native_backend"}
                             for a in value["agents"]))
         self.assertEqual({a["source"] for a in value["agents"]}, {"local", "npx"})

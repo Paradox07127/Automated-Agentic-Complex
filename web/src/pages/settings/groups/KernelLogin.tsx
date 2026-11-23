@@ -8,7 +8,8 @@ import { SetRow } from '../SetRow';
 
 type Method = { id?: string; name?: string };
 
-/** 登录: the saved Codex or Claude Code in the app's own profile, or the saved ACP agent's own login with one button per method. */
+/** 登录: the saved Codex or Claude Code in the app's own profile, the saved ACP agent's own login with one button per method,
+ *  or (backend "deepseek") DeepSeek Harness's account in the DeepSeek desktop client. */
 export function KernelLoginRow({ backend, methods = [] }: { backend: string; methods?: Method[] }) {
   const { model, ro, agentdOff, runtime, reload } = useSettings();
   const login = runtime!.wire.product_login;
@@ -22,10 +23,14 @@ export function KernelLoginRow({ backend, methods = [] }: { backend: string; met
       },
       (e: unknown) => model.notify({ message: `${what}：${failure(e).text}`, severity: 'danger', persistent: true }),
     );
-  const start = (method?: Method) => act(() => loginStart(method?.id), '已打开登录页，在浏览器里完成登录', '没能开始登录');
+  const deepseek = backend === 'deepseek';
+  const start = (method?: Method) =>
+    act(() => loginStart(method?.id), deepseek ? '已打开 DeepSeek 客户端，在里面登录' : '已打开登录页，在浏览器里完成登录', '没能开始登录');
   const failed = login.error ? [RUNTIME_ERROR[login.error]?.label ?? codeText(login.error) ?? login.error, login.detail].filter(Boolean).join('：') : null;
   const desc = login.pending
-    ? '在浏览器里完成登录后回来'
+    ? deepseek
+      ? '在 DeepSeek 客户端里登录后回来'
+      : '在浏览器里完成登录后回来'
     : (failed ?? (account?.signed_in ? [account.email, account.plan].filter(Boolean).join(' │ ') || '已登录' : account ? '还没有登录' : undefined));
   const again = account?.signed_in ? '重新登录' : '登录';
 
@@ -54,7 +59,7 @@ export function KernelLoginRow({ backend, methods = [] }: { backend: string; met
                 {again}
               </Btn>
             )}
-            {(account?.signed_in || backend === 'acp') && (
+            {((account?.signed_in && !deepseek) || backend === 'acp') && (
               <Btn disabled={off} onClick={() => act(loginLogout, '已登出', '没能登出')}>
                 登出
               </Btn>

@@ -6,7 +6,8 @@ json answers one JSON object, after calling observation_image when the bridge li
 FAKE_ACP_SYSTEM_PROMPT is append (default), override or none.
 FAKE_ACP_SESSION is model (default: a model config option), levels (model, mode and
 thought_level config options), modes (no config options, session modes only) or dsh (DeepSeek
-Harness's grouped models with JSON-string values and off/low/high/max effort).
+Harness's grouped models with JSON-string values and off/low/high/max effort), dsh_signed_out or
+dsh_signed_in (dsh's DeepSeek account route: only deepseek-flash, or the account's own models besides it).
 FAKE_ACP_CLOSE=1 declares sessionCapabilities.close.
 FAKE_ACP_LOG names a JSON-lines file that records what the agent received.
 FAKE_ACP_AUTH is how authenticate answers: ok (default), deny, or hang (never). FAKE_ACP_LOGOUT=1 declares
@@ -62,6 +63,12 @@ def session_options():
                  "options": [{"group": "deepseek-official", "name": "DeepSeek", "options": [
                      {"value": flash, "name": "deepseek-v4-flash"}, {"value": pro, "name": "deepseek-v4-pro"}]}]},
                 select("reasoning_effort", "Reasoning effort", "thought_level", ["off", "low", "high", "max"], "high")]
+    if SESSION in ("dsh_signed_out", "dsh_signed_in"):
+        names = ["deepseek-flash"] + (["deepseek-v4-pro"] if SESSION == "dsh_signed_in" else [])
+        values = [json.dumps(["deepseek-account", name], separators=(",", ":")) for name in names]
+        return [{"id": "model", "name": "Model", "category": "model", "type": "select", "currentValue": values[0],
+                 "options": [{"group": "deepseek-account", "name": "DeepSeek Account",
+                              "options": [{"value": value, "name": value} for value in values]}]}]
     if SESSION == "levels":
         return [model, select("mode", "Mode", "mode", ["default", "plan"], "default"),
                 select("effort", "Effort", "thought_level", ["low", "medium", "high"], "medium")]
@@ -231,12 +238,13 @@ def handle(message):
         if GRANDCHILD:
             subprocess.Popen([sys.executable, "-I", "-B", "-c", BEAT, LOG + ".beat"], cwd=params["cwd"],
                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        state["mcp"] = Mcp(params["mcpServers"][0])
-        state["mcp"].call("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
-                                         "clientInfo": {"name": "fake-acp", "version": "0.1.0"}})
-        state["mcp"].notify("notifications/initialized")
-        state["tools"] = state["mcp"].call("tools/list")["result"]["tools"]
-        log("tools", tools=state["tools"])
+        if params["mcpServers"]:
+            state["mcp"] = Mcp(params["mcpServers"][0])
+            state["mcp"].call("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
+                                             "clientInfo": {"name": "fake-acp", "version": "0.1.0"}})
+            state["mcp"].notify("notifications/initialized")
+            state["tools"] = state["mcp"].call("tools/list")["result"]["tools"]
+            log("tools", tools=state["tools"])
         state["options"] = session_options()
         result = {"sessionId": state["session"], "configOptions": state["options"]}
         if SESSION == "modes":

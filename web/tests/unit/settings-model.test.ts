@@ -125,7 +125,10 @@ describe('runtimeBody kernel switch', () => {
       acp_agent: 'claude-acp',
       acp_launcher: 'npx',
     });
-    expect(runtimeBody(pi, { kernel: 'acp', acpAgent: 'claude-acp', acct: 'product_login' })).toMatchObject({ auth_source: 'product_login' });
+    // Only DeepSeek Harness keeps another auth source: a picked agent drops the one left from it.
+    expect(runtimeBody({ ...pi, auth_source: 'existing_login' }, { kernel: 'acp', acpAgent: 'deepseek-harness', acct: 'api_key' })).toMatchObject({ auth_source: 'api_key' });
+    expect(runtimeBody({ ...WIRE_RUNTIME, backend: 'acp', acp_agent: 'deepseek-harness', auth_source: 'api_key' }, { acpAgent: 'claude-acp' }))
+      .toMatchObject({ acp_agent: 'claude-acp', auth_source: 'existing_login' });
   });
 
   it('gives Claude Code the local source, its own login and no provider', () => {

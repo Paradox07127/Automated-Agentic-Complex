@@ -611,20 +611,6 @@
    }
   },
   {
-   "id": "gemini",
-   "name": "Gemini CLI",
-   "version": "0.68.0",
-   "description": "Google's official CLI for Gemini",
-   "distribution": {
-    "npx": {
-     "package": "@google/gemini-cli@0.68.0",
-     "args": [
-      "--acp"
-     ]
-    }
-   }
-  },
-  {
    "id": "github-copilot",
    "name": "GitHub Copilot",
    "version": "1.572.0",

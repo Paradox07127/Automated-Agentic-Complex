@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -176,6 +177,42 @@ class KernelLoginTest(unittest.TestCase):
             self.login.logout("acp", agent={"id": "fake", "command": command})
         self.login.logout("acp", agent={"id": "fake", "command": command, "env": {"FAKE_ACP_LOGOUT": "1"}})
         self.assertEqual(self.acp_logins, [("fake", False)])
+
+    def deepseek(self, session):
+        """The fake agent as dsh, its DeepSeek account route `session` (dsh_signed_out or dsh_signed_in) from now on."""
+        os.environ["FAKE_ACP_SESSION"] = session
+        return [sys.executable, "-I", "-B", str(FAKE_ACP)]
+
+    def test_deepseek_sign_in_opens_the_desktop_client_and_waits_until_dsh_sees_the_account(self):
+        self.addCleanup(os.environ.pop, "FAKE_ACP_SESSION", None)
+        command = self.deepseek("dsh_signed_out")
+        self.assertFalse(self.login.signed_in("deepseek", command, True))
+        opened = []
+        with patch.object(kernel_login, "DEEPSEEK_POLL", 0.05), \
+                patch.object(kernel_login.subprocess, "run", side_effect=lambda argv, **_: opened.append(argv) or
+                             SimpleNamespace(returncode=0)):
+            self.login.start("deepseek", command)
+            time.sleep(0.5)
+            self.assertEqual(self.login.public()["pending"], {"backend": "deepseek", "acp_agent": None})
+            self.deepseek("dsh_signed_in")
+            self.assertIsNone(self.finished()["error"])
+        self.assertEqual(opened, [["open", "-b", "com.deepseek.dsh"]])
+        self.assertEqual(self.login.public()["accounts"], {})
+        self.assertTrue(self.login.signed_in("deepseek", command, True))
+        # The desktop client owns the account's sign-out.
+        with self.assertRaisesRegex(ValueError, "logout_unsupported"):
+            self.login.logout("deepseek")
+
+    def test_deepseek_sign_in_without_the_desktop_client_says_so(self):
+        self.addCleanup(os.environ.pop, "FAKE_ACP_SESSION", None)
+        with patch.object(kernel_login.subprocess, "run", return_value=SimpleNamespace(returncode=1)):
+            self.login.start("deepseek", self.deepseek("dsh_signed_out"))
+            self.assertEqual(self.finished()["error"], "deepseek_desktop_missing")
+
+    def test_deepseek_key_route_keeps_dsh_credentials_in_the_apps_own_file(self):
+        patch_file = self.login.deepseek_patch()
+        self.assertEqual(json.loads(patch_file.read_text(encoding="utf-8")),
+                         [{"id": "credentials", "config": {"path": str(self.login.home("deepseek") / ".credentials.yaml")}}])
 
 
 if __name__ == "__main__":

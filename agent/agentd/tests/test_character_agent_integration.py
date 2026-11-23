@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from brain.egress import EgressPolicy
 from brain.provider import Mouth
 from models.model_backends import DEFAULTS as MODEL_DEFAULTS
+from character_agent.harness import acp_agents
 from character_agent.integration import CharacterAgentController
 from character_agent.services.settings import RuntimeSettings
 from personal.history import History
@@ -840,6 +841,35 @@ class IntegrationTests(IntegrationFixture):
                 post('/character/login/start', body)
                 self.assertEqual(start.call_args, (('acp',), {'agent': agent, 'method': method}))
             self.assertEqual(post('/character/login/start', {'method_id': 'nope'}), (400, {'error': 'unknown_auth_method'}))
+        # DeepSeek Harness has no ACP sign-in: its account signs in through the DeepSeek desktop client.
+        dsh = {'id': 'deepseek-harness', 'name': 'DeepSeek Harness', 'command': ['/synthetic/dsh', '--profile', 'acp'], 'source': 'local'}
+        account = ['/synthetic/dsh', '--profile', 'acp', '--patch', str(acp_agents.DSH_ACCOUNT_PATCH)]
+        self.controller.settings.save({'backend': 'acp', 'runtime_source': 'local', 'acp_agent': 'deepseek-harness',
+                                       'acp_launcher': 'local', 'auth_source': 'existing_login', 'provider': ''})
+        with patch('character_agent.integration.acp_agent', return_value=dsh), \
+                patch.object(self.controller.logins, 'start', return_value={}) as start:
+            post('/character/login/start', {})
+            self.assertEqual(start.call_args, (('deepseek', account), {}))
+            self.assertEqual(post('/character/login/logout', {}), (400, {'error': 'logout_unsupported'}))
+            self.controller.settings.save({'backend': 'acp', 'runtime_source': 'local', 'acp_agent': 'deepseek-harness',
+                                           'acp_launcher': 'local', 'auth_source': 'api_key', 'provider': ''})
+            self.assertEqual(post('/character/login/start', {}), (400, {'error': 'product_login_not_selected'}))
+
+    def test_deepseek_harness_is_ready_on_the_apps_key_or_a_signed_in_desktop_account(self):
+        dsh = {'id': 'deepseek-harness', 'name': 'DeepSeek Harness', 'command': ['/synthetic/dsh', '--profile', 'acp'], 'source': 'local'}
+        self.controller.session_factory_override = None
+        self.controller.settings.save({'backend': 'acp', 'runtime_source': 'local', 'acp_agent': 'deepseek-harness',
+                                       'acp_launcher': 'local', 'auth_source': 'existing_login', 'provider': ''})
+        with patch('character_agent.integration.acp_agent', return_value=dsh):
+            for signed_in, error in ((False, 'product_login_required'), (None, 'product_login_checking'), (True, None)):
+                with self.subTest(signed_in=signed_in), patch.object(self.controller.logins, 'signed_in', return_value=signed_in) as probe:
+                    self.assertEqual(self.controller.public()['error'], error)
+                    self.assertEqual(probe.call_args.args[:2], ('deepseek', [*dsh['command'], '--patch', str(acp_agents.DSH_ACCOUNT_PATCH)]))
+            self.controller.settings.save({'backend': 'acp', 'runtime_source': 'local', 'acp_agent': 'deepseek-harness',
+                                           'acp_launcher': 'local', 'auth_source': 'api_key', 'provider': ''})
+            for key, error in ((None, 'missing_provider_api_key'), ('sk-synthetic', None)):
+                with self.subTest(key=key), patch.object(self.controller, 'deepseek_key', return_value=key):
+                    self.assertEqual(self.controller.public()['error'], error)
 
     def test_product_login_runs_the_kernel_in_the_apps_own_profile(self):
         from character_agent.harness.registry import _cli_common

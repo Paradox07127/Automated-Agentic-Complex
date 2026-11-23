@@ -100,6 +100,8 @@ export function KernelGroup() {
   const agents = acp.list ? [...acp.list.agents.filter((a) => a.source === 'local'), ...acp.list.agents.filter((a) => a.source !== 'local')] : [];
   const runnable = (a: AcpAgent) => a.source === 'local' || (a.source === 'npx' ? acp.list?.npx : acp.list?.uvx) === true;
   const savedAgent = runtime.wire.acp_agent;
+  // DeepSeek Harness has no ACP sign-in: its own choice of the DeepSeek account or the app's DeepSeek key.
+  const dsh = isAcp && model.value('acpAgent') === 'deepseek-harness';
   // A bridge of a harness with its own kernel stays pickable only while it is the saved agent.
   const pickable = (a: AcpAgent) => runnable(a) && (!a.native_backend || acpKey(a) === `${String(runtime.wire.acp_launcher)}:${String(savedAgent)}`);
   // Agents that only run through npx or uvx wait in a fold; the saved one stays in view.
@@ -126,7 +128,7 @@ export function KernelGroup() {
   );
   // Sign-in acts on the saved kernel: a picked but unapplied one waits for 应用.
   const loginShown = runtime.selected === selected && !('acct' in model.draft) && !('acpAgent' in model.draft) &&
-    (isAcp ? !!savedAgent : (selected === 'codex' || selected === 'claude') && runtime.wire.auth_source === 'product_login');
+    (dsh ? runtime.wire.auth_source === 'existing_login' : isAcp ? !!savedAgent : (selected === 'codex' || selected === 'claude') && runtime.wire.auth_source === 'product_login');
   const profiles = (runtime.wire as { provider_profiles?: ProviderProfile[] }).provider_profiles ?? [];
   const provOpts = providerOptions(selected, profiles);
   // A catalog profile names the account source it runs with.
@@ -355,16 +357,22 @@ export function KernelGroup() {
             )}
           </Slab>
         )}
-        {selected !== 'pi' && !isAcp && (
+        {selected !== 'pi' && (!isAcp || dsh) && (
           <SetRow
             id="acct"
             title={labelOf('acct')}
-            desc={{ api_key: '用「账号」里保存的 API 凭据', product_login: '在应用里登录，与终端里的登录分开' }[String(model.value('acct'))] ?? '用内核自己的登录'}
+            desc={
+              dsh
+                ? model.value('acct') === 'api_key'
+                  ? '用「账号」里保存的 DeepSeek API Key'
+                  : '在 DeepSeek 客户端里登录，与客户端共用'
+                : ({ api_key: '用「账号」里保存的 API 凭据', product_login: '在应用里登录，与终端里的登录分开' }[String(model.value('acct'))] ?? '用内核自己的登录')
+            }
             indent
-            control={c.select('acct', acctOptions(selected, model.value('acct')))}
+            control={c.select('acct', acctOptions(dsh ? 'deepseek-harness' : selected, model.value('acct')))}
           />
         )}
-        {loginShown && <KernelLoginRow backend={selected} methods={savedMethods} />}
+        {loginShown && <KernelLoginRow backend={dsh ? 'deepseek' : selected} methods={dsh ? [] : savedMethods} />}
         {!ownLogin && (
           <SetRow
             id="provider"

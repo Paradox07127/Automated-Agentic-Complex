@@ -1,9 +1,12 @@
 """Sign-in started from the app. Codex and Claude Code sign in to Agentic Complex's own profile of each
-(NATIVE_HOME_VAR); an ACP agent signs in to its own login. The kernels store the credentials: nothing here reads them."""
+(NATIVE_HOME_VAR); an ACP agent signs in to its own login; DeepSeek Harness's account signs in through the DeepSeek
+desktop client. The kernels store the credentials: nothing here reads them."""
 import json
+import os
 from pathlib import Path
 import queue
 import subprocess
+import sys
 import threading
 import time
 import webbrowser
@@ -15,6 +18,7 @@ from infra.platform import make_private_dir, new_group_options, release_group, s
 
 TIMEOUT = 300  # seconds a sign-in waits for the browser
 STATUS_SECONDS = 60  # how long a probed sign-in state holds
+DEEPSEEK_POLL = 5  # seconds between sign-in probes while the DeepSeek desktop client is open
 # Codex otherwise writes its tokens to CODEX_HOME/auth.json; "keyring" fails instead of falling back to the file.
 CODEX_CONFIG = 'cli_auth_credentials_store = "keyring"\n'
 
@@ -32,12 +36,20 @@ class KernelLogin:
         self.probing = set()
 
     def home(self, backend):
-        """Agentic Complex's own profile directory of Codex or Claude Code."""
+        """Agentic Complex's own profile directory of Codex or Claude Code, or "deepseek": DeepSeek Harness's."""
         path = self.root / backend
         make_private_dir(self.root)
         make_private_dir(path)
         if backend == "codex" and not (path / "config.toml").exists():
             (path / "config.toml").write_text(CODEX_CONFIG, encoding="utf-8")
+        return path
+
+    def deepseek_patch(self):
+        """A dsh patch that keeps its credential file in the app's own empty one: a key stored in ~/.dsh would otherwise
+        outrank the DEEPSEEK_API_KEY the app passes."""
+        path = self.home("deepseek") / "patch.json"
+        if not path.exists():
+            atomic_write_json(path, [{"id": "credentials", "config": {"path": str(self.home("deepseek") / ".credentials.yaml")}}])
         return path
 
     def _env(self, backend):
@@ -75,6 +87,9 @@ class KernelLogin:
             self.status[backend] = {**value, "at": time.monotonic()}
 
     def _probe(self, backend, cli):
+        if backend == "deepseek":
+            from character_agent.harness.acp_agents import deepseek_signed_in
+            return {"signed_in": deepseek_signed_in(cli), "email": None, "plan": None}
         env = {NATIVE_HOME_VAR[backend]: str(self.home(backend))}
         try:
             if backend == "claude":
@@ -90,14 +105,14 @@ class KernelLogin:
             return {"signed_in": False, "email": None, "plan": None}
 
     def start(self, backend, cli=None, *, agent=None, method=None):
-        """Starts one sign-in: Codex or Claude Code with executable `cli`, or ACP `agent` ({id, command[, env]}) with
-        one of its `authMethods` entries `method`. The browser and the kernel finish it."""
+        """Starts one sign-in: Codex or Claude Code with executable `cli`, "deepseek" with dsh argv `cli`, or ACP `agent`
+        ({id, command[, env]}) with one of its `authMethods` entries `method`. The browser and the kernel finish it."""
         with self.lock:
             if self.attempt:
                 raise ValueError("login_pending")
             self.attempt = {"backend": backend, "acp_agent": agent["id"] if agent else None}
             self.error = self.detail = None
-        target = {"codex": self._codex, "claude": self._claude}.get(backend) or self._acp
+        target = {"codex": self._codex, "claude": self._claude, "deepseek": self._deepseek}.get(backend) or self._acp
         args = (cli,) if agent is None else (agent, method)
         threading.Thread(target=self._run, args=(backend, target, args), daemon=True, name="kernel-login").start()
         return self.public()
@@ -166,6 +181,22 @@ class KernelLogin:
         proc = self._spawn([cli, "auth", "login", "--claudeai"], self._env("claude"))
         self._wait(proc)
 
+    def _deepseek(self, command):
+        # The desktop client signs in to the ~/.dsh it shares with dsh; this waits until dsh sees that account.
+        if sys.platform == "win32":
+            client = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "DeepSeek Harness" / "DeepSeek Harness.exe"
+            if not client.is_file():
+                raise LoginFailed("deepseek_desktop_missing")
+            os.startfile(client)
+        elif subprocess.run(["open", "-b", "com.deepseek.dsh"], capture_output=True, timeout=30).returncode != 0:
+            raise LoginFailed("deepseek_desktop_missing")
+        with self.lock:
+            cancel = self.attempt["cancel"] = threading.Event()
+        deadline = time.monotonic() + TIMEOUT
+        while not self._probe("deepseek", command)["signed_in"]:
+            if cancel.wait(DEEPSEEK_POLL) or time.monotonic() >= deadline:
+                raise LoginFailed("login_timeout")
+
     def _acp(self, agent, method):
         if method.get("type") == "terminal":
             # The agent's own login: the user's profile directories stay.
@@ -191,6 +222,8 @@ class KernelLogin:
             raise LoginFailed("login_denied")
 
     def logout(self, backend, cli=None, *, agent=None):
+        if backend == "deepseek":
+            raise ValueError("logout_unsupported")
         if backend == "acp":
             from character_agent.harness.acp_agents import logout
             if not logout(agent["command"], agent.get("env")):

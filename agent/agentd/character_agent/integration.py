@@ -33,7 +33,7 @@ from character_agent.services.settings import RETENTION, ROUTES, RuntimeSettings
 from character_agent.services import worklog_digest
 from character_agent.services.store import RunStore
 from character_agent.harness.discovery import DiscoveryService
-from character_agent.harness.registry import DISCOVERED, HARNESSES, acp_agent, harness, pi_catalog
+from character_agent.harness.registry import DISCOVERED, HARNESSES, acp_agent, deepseek_account_command, harness, pi_catalog
 from character_agent.services.workspace import WorkspaceService
 from infra import plugins
 from infra.localtime import local_time
@@ -631,7 +631,7 @@ class CharacterAgentController:
                         signed_in = self.logins.signed_in(config["backend"], selected["path"], wait)
                         error = "product_login_checking" if signed_in is None else None if signed_in else "product_login_required"
                 elif config["backend"] == "acp":
-                    error = self._acp_error(config)
+                    error = self._acp_error(config, wait)
                 elif h.provider is None:
                     if config["runtime_source"] == "local" and (not config["executable"] or
                             not os.access(config["executable"], os.X_OK)):
@@ -643,25 +643,34 @@ class CharacterAgentController:
                         self._pi_connection(config)
                     except ValueError as failure:
                         error = str(failure)
-                # pi's existing_login is the credential Endfield holds, not a native login.
-                if (config["auth_source"] == "api_key" or h.provider is None and config["auth_source"] == "existing_login") \
-                        and error is None:
+                # pi's existing_login is the credential Endfield holds, not a native login. DeepSeek Harness's key: _acp_error.
+                if (config["auth_source"] == "api_key" and config["backend"] != "acp" or
+                        h.provider is None and config["auth_source"] == "existing_login") and error is None:
                     try:
                         self._credential(config)
                     except ValueError as failure:
                         error = str(failure)
         return error, selected
 
-    def _acp_error(self, config):
+    def _acp_error(self, config, wait):
         agent = acp_agent(config)
         if agent is None:
             return "acp_agent_missing"
+        if agent["id"] == "deepseek-harness":
+            if config["auth_source"] == "api_key":
+                return None if self.deepseek_key() else "missing_provider_api_key"
+            signed_in = self.logins.signed_in("deepseek", deepseek_account_command(agent), wait)
+            return "product_login_checking" if signed_in is None else None if signed_in else "product_login_required"
         probe = self._acp_probes.get(agent["id"])
         if probe is not None and not probe["ok"]:
             return "acp_auth_required"
         if self._acp_logins.get(agent["id"]) is False and (probe is None or probe["auth_methods"]):
             return "acp_auth_required"
         return None
+
+    def deepseek_key(self):
+        """The DeepSeek API key saved under 「AI 账号」, or None."""
+        return ((self.server.models.snapshot() if self.server.models else {}).get("backends", {}).get("deepseek") or {}).get("api_key") or None
 
     def _acp_signed_in(self, agent_id, signed_in):
         self._acp_logins[agent_id] = signed_in
@@ -679,6 +688,12 @@ class CharacterAgentController:
             agent = acp_agent(config)
             if agent is None:
                 raise ValueError("acp_agent_missing")
+            if agent["id"] == "deepseek-harness":
+                if config["auth_source"] != "existing_login":
+                    raise ValueError("product_login_not_selected")
+                if action == "logout":
+                    return self.logins.logout("deepseek")
+                return self.logins.start("deepseek", deepseek_account_command(agent))
             if action == "logout":
                 return self.logins.logout("acp", agent=agent)
             from character_agent.harness.acp_agents import probe

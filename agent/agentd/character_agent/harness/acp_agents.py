@@ -10,11 +10,15 @@ import tempfile
 from .acp_runner import CLIENT_CAPABILITIES, AcpAgent, AcpError, RunnerFailure
 
 REGISTRY = Path(__file__).resolve().with_name("acp_registry.json")
-SEARCH_DIRS = ("/opt/homebrew/bin", "/usr/local/bin", "~/.local/bin", "~/.npm-global/bin", "~/.bun/bin", "~/.cargo/bin")
+SEARCH_DIRS = ("/opt/homebrew/bin", "/usr/local/bin", "~/.local/bin", "~/.npm-global/bin", "~/.bun/bin", "~/.cargo/bin",
+               # The dsh that the DeepSeek desktop client ships, for when the CLI is not installed.
+               "/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin")
 # Turns off DeepSeek Harness's session-log upload; the locked patch also turns off its own tools, so its model sees
 # only Endfield's MCP tools. JSON, which dsh reads as YAML, because the app bundle ships only .py/.json/... files from agentd.
 DSH_PATCH = Path(__file__).resolve().with_name("dsh-acp.patch.json")
 DSH_LOCKED_PATCH = Path(__file__).resolve().with_name("dsh-acp-locked.patch.json")
+# Moves dsh's ACP model route to the DeepSeek account that the DeepSeek desktop client signs in (shared ~/.dsh).
+DSH_ACCOUNT_PATCH = Path(__file__).resolve().with_name("dsh-acp-account.patch.json")
 
 # Registry id -> (command name after a global install, ACP arguments). Binary entries use the
 # registry's darwin-aarch64 cmd file name and args; npm and uv entries use the package's `bin` or
@@ -22,6 +26,8 @@ DSH_LOCKED_PATCH = Path(__file__).resolve().with_name("dsh-acp-locked.patch.json
 LOCAL_COMMANDS = {
     "agoragentic-acp": ("agoragentic-mcp", ["--acp"]),
     "amp-acp": ("amp-acp", []),
+    # Local only: the registry entry is a binary archive, which is never launched from here.
+    "antigravity-acp": ("agy", ["acp"]),
     "auggie": ("auggie", ["--acp"]),
     "autohand": ("autohand", ["--acp"]),
     "bob": ("bob", ["acp"]),
@@ -41,7 +47,6 @@ LOCAL_COMMANDS = {
     "dirac": ("dirac", ["--acp"]),
     "factory-droid": ("droid", ["exec", "--output-format", "acp-daemon"]),
     "fast-agent": ("fast-agent-acp", ["-x"]),
-    "gemini": ("gemini", ["--acp"]),
     "github-copilot": ("copilot-language-server", ["--acp"]),
     "github-copilot-cli": ("copilot", ["--acp"]),
     "glm-acp-agent": ("glm-acp-agent", []),
@@ -238,3 +243,31 @@ def authenticate(command, env, method_id, timeout, cancel):
 def logout(command, env):
     """ACP logout; False when the agent does not offer it or refuses."""
     return asyncio.run(_auth_call(list(command), env, "logout", {}, 30, None)) is None
+
+
+async def _account_models(command, timeout):
+    async def no_requests(_method, _params):
+        return None
+
+    with tempfile.TemporaryDirectory(prefix="efacp-probe-") as cwd:
+        agent = AcpAgent(command, dict(os.environ), cwd, no_requests, lambda *_: None, lambda _code: None)
+        try:
+            await agent.start()
+            await agent.request("initialize", {"protocolVersion": 1, "clientCapabilities": CLIENT_CAPABILITIES,
+                "clientInfo": {"name": "endfield_personal_agent", "version": "1"}}, timeout=timeout)
+            session = await agent.request("session/new", {"cwd": cwd, "mcpServers": []}, timeout=timeout)
+            return [option["value"] for config in session.get("configOptions") or [] if config.get("id") == "model"
+                    for group in config.get("options") or [] if group.get("group") == "deepseek-account"
+                    for option in group.get("options") or []]
+        except (RunnerFailure, AcpError):
+            return []
+        finally:
+            await agent.disconnect()
+
+
+def deepseek_signed_in(command, timeout=20):
+    """Whether dsh `command` (DSH_ACCOUNT_PATCH applied) has a DeepSeek account signed in. Signed out, the account route
+    lists only the model the patch selects; signed in, it lists the account's own models besides it."""
+    selected = json.dumps(["deepseek-account", json.loads(DSH_ACCOUNT_PATCH.read_text(encoding="utf-8"))[0]["config"]["model"]],
+                          separators=(",", ":"))
+    return any(value != selected for value in asyncio.run(_account_models(list(command), timeout)))

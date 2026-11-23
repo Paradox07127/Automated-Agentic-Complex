@@ -6,6 +6,14 @@
 T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全部端点见 §3 端点总表；逐条的字段和错误码见表中「规格」列指的文档；本文件的端点细则在 §2 和 §4。
 本合同版本 v1；agentd 在 `GET /health` 的回复里以 `c6_contract`（字符串 `"v1"`）报它实现的版本，`agentd --describe`（C9）也报同一个值。
 
+## 2026-11-23 DeepSeek Harness 的账号来源，Gemini 改走 Antigravity（只加不改）
+
+- `backend: acp` 且 `acp_agent: deepseek-harness` 时 `auth_source` 可以是 `existing_login` 或 `api_key`；别的 ACP agent 仍只收 `existing_login`（400 `unsupported_auth_source`）。
+  - `api_key`：用「AI 账号」里存的 DeepSeek API Key，经 `DEEPSEEK_API_KEY` 传给 dsh；dsh 的凭据文件指到 agentd 状态目录 `kernel-login/deepseek` 里应用自己的文件，`~/.dsh` 里存的 Key 不会盖过它。没存 Key 时 `error` 是 `missing_provider_api_key`。
+  - `existing_login`：dsh 走 DeepSeek 账号路线（`deepseek-account`），和 DeepSeek 桌面客户端共用 `~/.dsh` 的登录。没登录时 `error` 是 `product_login_required`，第一次检查还没回来时是 `product_login_checking`；`product_login.accounts.deepseek` 是 `{signed_in, email: null, plan: null}`。
+- 这时 `POST /character/login/start` 打开 DeepSeek 桌面客户端，等 dsh 看到账号已登录（5 分钟）；没装客户端时之后的 `product_login.error` 是 `deepseek_desktop_missing`，`product_login.pending.backend` 是 `deepseek`。`auth_source` 是 `api_key` 时 400 `product_login_not_selected`。`POST /character/login/logout` 回 400 `logout_unsupported`（在客户端里登出）。
+- ACP agent 列表去掉 Gemini CLI（`gemini`）；本机有 `agy` 时列出 `antigravity-acp`（`agy acp`），只走本机。
+
 ## 2026-11-23 在应用里登录内核（只加不改）
 
 - `auth_source: product_login` 可用于 `codex` 和 `claude`：内核跑在 agentd 状态目录 `kernel-login/<backend>` 这份自己的配置里（`CODEX_HOME`、`CLAUDE_CONFIG_DIR`），和用户终端里的登录分开；凭据由内核自己存（Codex 设 `cli_auth_credentials_store = "keyring"`）。`acp`、`pi` 不收这个值（400 `unsupported_auth_source`）。这份配置没登录时 `error` 是 `product_login_required`，第一次检查还没回来时是 `product_login_checking`。不再回 `product_login_not_supported_use_native_login`。
