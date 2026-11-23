@@ -3,7 +3,7 @@ import type { Fact } from '../../domain';
 import { Btn } from '../../ui';
 import { useEvidence } from './data';
 import { catOf, CATS, factText, hm, howText, isDormant, recentText, SRC, stamp, sum, useSpark, ymd } from './model';
-import { Block, DetailHead, Glyph, Kv, Lnk, PANEL, Quote, SrcMark, Tag } from './parts';
+import { Block, DetailHead, Kv, Lnk, PANEL, Quote, SrcMark, Tag } from './parts';
 import styles from './Detail.module.css';
 
 const DAY_MS = 86_400_000;
@@ -147,10 +147,9 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onJump
         </Btn>
       )}
       <Spacer />
-      <button type="button" className={styles.danger} onClick={onDelete}>
-        <Glyph name="trash" size={15} />
+      <Btn variant="danger" onClick={onDelete}>
         删除
-      </button>
+      </Btn>
     </>
   );
   return (

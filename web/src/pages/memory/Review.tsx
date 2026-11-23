@@ -3,14 +3,14 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { getBridge } from '../../bridge';
 import { get, seg } from '../../bridge/agentd';
 import { BottomBarSlot } from '../../shell/headerSlot';
-import { Btn, ErrBar } from '../../ui';
+import { Btn, ErrBar, InfoTip, SecHead } from '../../ui';
 import { useGo } from './api';
 import { Frame, Note, Spacer, Text } from './Detail';
 import detail from './Detail.module.css';
 import { errorText } from './errors';
 import { LeftCol } from './Index';
 import { Keys } from './Keys';
-import { Block, Cell, DetailCol, DetailHead, Empty, GroupHead, Kv, List, Lnk, Panel, Quote, Row, SearchBox, Sep, Skeleton, Tag, useNarrow } from './parts';
+import { Block, Cell, DetailCol, DetailHead, Empty, Kv, List, Lnk, Panel, Quote, Row, SearchBox, Sep, Skeleton, Tag, useNarrow } from './parts';
 import styles from './Cols.module.css';
 
 type SourceKind = 'work_events' | 'raw';
@@ -142,7 +142,7 @@ export function Review({ searchRef }: { searchRef: Ref<HTMLInputElement> }) {
   else
     body = (
       <List label={label}>
-        <GroupHead label={label} count={items.length} note="原始观察过期后只剩整理过的片段" />
+        <SecHead title={label} count={items.length} right={<InfoTip>原始观察过期后只剩整理过的片段</InfoTip>} />
         {items.map((item, i) => {
           const slice = Math.floor(item.at / SLICE_SECONDS);
           const start = slice * SLICE_SECONDS * 1000;
@@ -211,15 +211,17 @@ export function Review({ searchRef }: { searchRef: Ref<HTMLInputElement> }) {
           <ActivityDetail key={open.id} item={open} onBrief={() => go({ page: 'overview', focus: 'timeline' })} {...(narrow ? { onClose: () => setDrawer(false) } : {})} />
         </DetailCol>
       )}
-      <BottomBarSlot>
-        <Keys
-          keys={[
-            [['Q', 'E'], '切页签'],
-            [['⌘F'], '搜索'],
-            [['Esc'], '回主页'],
-          ]}
-        />
-      </BottomBarSlot>
+      <BottomBarSlot
+        lead={
+          <Keys
+            keys={[
+              [['Q', 'E'], '切页签'],
+              [['⌘F'], '搜索'],
+              [['Esc'], '回主页'],
+            ]}
+          />
+        }
+      />
     </div>
   );
 }

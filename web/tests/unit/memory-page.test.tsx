@@ -99,15 +99,25 @@ describe('memory › 档案', () => {
     for (const [label, n] of [['待确认', 3], ['全部', 18], ['偏好', 6], ['约定', 4], ['经历', 4], ['其他线索', 1]] as const) expect(cell(label).textContent).toBe(`${label}${n}`);
     for (const c of cards()) expect(within(within(c).getByRole('group', { name: '怎么处理' })).getAllByRole('button').map((b) => b.textContent?.replace(/\d$/, ''))).toEqual(['对，记住', '差不多，我来改', '不是这样']);
     expect(rows()).toEqual([]);
+    // The count sits on the cell only; the head names the group and the explanation is behind its ⓘ.
+    const asks = screen.getByRole('region', { name: '待确认' });
+    expect(within(asks).getByRole('heading', { name: '待确认' })).toBeTruthy();
+    expect(asks.textContent).not.toContain('[3]');
+    expect(within(asks).getByRole('tooltip', { hidden: true }).textContent).toContain('你点「记住」之前');
     expect(document.body.textContent).not.toMatch(/USR|CONFIRM|FACTS|CHANGES/);
   });
 
-  it('a card shows where she read it: the chat line, or the episode she saw', async () => {
+  it('a card folds where she read it: closed, the kind and time; open, the chat line or the episode she saw', async () => {
     mount();
     const chat = await card('周报按项目分组，不按日期');
+    const chatFold = within(chat).getByRole('button', { name: /^出处对话 │/ });
+    expect(chatFold.getAttribute('aria-expanded')).toBe('false');
+    expect(within(chat).queryByRole('button', { name: /去对话看原文/ })).toBeNull();
+    fireEvent.click(chatFold);
     await waitFor(() => expect(chat.textContent).toContain('「按项目分组，不要按日期。」'));
     expect(within(chat).getByRole('button', { name: /去对话看原文/ })).toBeTruthy();
     const seen = await card('写代码时减少主动发言');
+    fireEvent.click(within(seen).getByRole('button', { name: /^出处观察 │/ }));
     await waitFor(() => expect(seen.textContent).toMatch(/她看到：/));
     expect(within(seen).getByRole('button', { name: /在简报里看这一段/ })).toBeTruthy();
   });

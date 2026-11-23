@@ -11,7 +11,7 @@ export const demos: Demo[] = [
   { name: 'error', params: { state: 'error' } }, // 读取失败
   { name: 'light', params: { theme: 'light' } }, // 亮色
   { name: 'detail', params: { sel: v31Id('g2') } }, // 选中一条：右栏详情，窄窗是抽屉
-  { name: 'filter', params: { src: 'observed' } }, // 管线页按来源跳来：搜「观察所得」
+  { name: 'filter', params: { src: 'observed' } }, // 记忆管线按来源跳来：搜「观察所得」
   { name: 'search', params: { q: '周报' } }, // 搜索
   { name: 'projects', params: { view: 'projects' } }, // 项目：工作记忆的任务
   { name: 'review', params: { view: 'activity' } }, // 回顾：工作片段和原始观察

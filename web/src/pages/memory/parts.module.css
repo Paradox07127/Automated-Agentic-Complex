@@ -1,55 +1,5 @@
-/* 记忆页的部件：深色数据板与行（干员档案语音行）、来源记号、空态和载入；分类格在 Cells，详情栏在 Side。贴图全是 CSS 自绘。 */
-
-/* Page palette; the page root, the drawer and the cards carry it, as the last two are portalled out of the page. */
-.vars {
-  --m-bg0: #0f1012;
-  --m-bg1: #232427;
-  --m-grid: rgba(255, 255, 255, 0.05);
-  --m-facet: rgba(255, 255, 255, 0.035);
-  --m-t1: #efefed;
-  --m-t2: #b0b0ad;
-  --m-t3: #77777a;
-  --m-pn: #26272a;
-  --m-pn-hi: #313235;
-  --m-pn-lo: #1b1c1e;
-  --m-pn-line: #3f4043;
-  --m-pn-t1: #f0f0ee;
-  --m-pn-t2: #b0b0ad;
-  --m-pn-t3: #76767a;
-  --m-row: #2f3033;
-  --m-row-hi: #3a3b3f;
-  --m-cell: #2d2e31;
-  --m-cell-hi: #37383b;
-  --m-cell-t: #ececea;
-  --m-cell-t2: #b0b0ad;
-  --m-cell-deco: rgba(255, 255, 255, 0.1);
-  --m-chip: #141414;
-  --m-vote: #26bbfd;
-  --m-enter: cubic-bezier(0.333, 0, 0, 1);
-  --m-fade: cubic-bezier(0.333, 0, 0.667, 1);
-}
-
-:global([data-theme='light']) .vars {
-  --m-bg0: #c9c9c6;
-  --m-bg1: #ecebe8;
-  --m-grid: rgba(0, 0, 0, 0.07);
-  --m-facet: rgba(255, 255, 255, 0.42);
-  --m-t1: #161616;
-  --m-t2: #4e4e4a;
-  --m-t3: #8a8a86;
-  --m-pn: #2b2c2e;
-  --m-pn-hi: #36373a;
-  --m-pn-lo: #1f2022;
-  --m-pn-line: #46474a;
-  --m-row: #323336;
-  --m-row-hi: #3d3e42;
-  --m-cell: #d2d2cf;
-  --m-cell-hi: #dcdcd9;
-  --m-cell-t: #1f1f1f;
-  --m-cell-t2: #55554f;
-  --m-cell-deco: rgba(0, 0, 0, 0.12);
-  --m-vote: #1a9fd8;
-}
+/* 记忆页的部件：深色数据板与行（干员档案语音行）、来源记号、空态和载入；分类格在 Cells，详情栏在 Side。贴图全是 CSS 自绘。
+   板和行在两种主题下都深（data-theme="dark"），所以下面的 token 取深色值。 */
 
 .glyph {
   flex: none;
@@ -59,9 +9,9 @@
 .pn {
   position: relative;
   min-height: 0;
-  color: var(--m-pn-t1);
-  background: linear-gradient(180deg, var(--m-pn-hi), var(--m-pn) 44px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.25);
+  color: var(--ef-text-1);
+  background: linear-gradient(180deg, var(--ef-surface-2), var(--ef-plate) 44px);
+  box-shadow: inset 0 1px 0 var(--ef-contour), 0 0 0 1px var(--ef-rowplate-ic);
 }
 
 /* Corner ticks (profile__bg_profile_rectangle_frame). */
@@ -72,10 +22,10 @@
   pointer-events: none;
   opacity: 0.8;
   background:
-    linear-gradient(var(--m-pn-t3), var(--m-pn-t3)) 0 0 / 7px 1px no-repeat,
-    linear-gradient(var(--m-pn-t3), var(--m-pn-t3)) 0 0 / 1px 7px no-repeat,
-    linear-gradient(var(--m-pn-t3), var(--m-pn-t3)) 100% 100% / 7px 1px no-repeat,
-    linear-gradient(var(--m-pn-t3), var(--m-pn-t3)) 100% 100% / 1px 7px no-repeat;
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 0 0 / 7px 1px no-repeat,
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 0 0 / 1px 7px no-repeat,
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 100% 100% / 7px 1px no-repeat,
+    linear-gradient(var(--ef-text-3), var(--ef-text-3)) 100% 100% / 1px 7px no-repeat;
 }
 
 .list {
@@ -86,51 +36,7 @@
   padding: 10px 14px 14px;
   overflow: hidden auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--m-pn-t3) transparent;
-}
-
-.gh {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 26px;
-  margin: 10px 0 4px;
-  color: var(--m-pn-t2);
-}
-
-.gh:first-child {
-  margin-top: 0;
-}
-
-.gh small {
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-/* Black tag with a cut lower-left corner. */
-.tag {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  padding: 0 10px;
-  font: 600 13px / 24px var(--ef-font-sans);
-  white-space: nowrap;
-  color: #f2f2f0;
-  background: var(--m-chip);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
-}
-
-.tag :global(.num) {
-  font-weight: 500;
-  color: #a9a9a6;
-}
-
-.rule {
-  flex: 1;
-  min-width: 24px;
-  height: 7px;
-  border-top: 1px solid var(--m-pn-line);
-  background: repeating-linear-gradient(-60deg, var(--m-pn-line) 0 1px, transparent 1px 6px) right top / 56px 6px no-repeat;
+  scrollbar-color: var(--ef-text-3) transparent;
 }
 
 /* VoiceNode row: (49,49,49,.7) plate, a darker lead block, a barcode (deco_profile_10 at .1); picked, a white frame and a yellow end bar. */
@@ -143,13 +49,13 @@
   width: 100%;
   min-height: 58px;
   box-sizing: border-box;
-  color: var(--m-pn-t1);
+  color: var(--ef-text-1);
   cursor: pointer;
-  background: linear-gradient(180deg, var(--m-row-hi), var(--m-row) 30%, var(--m-row));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.28);
-  animation: item-in 0.333s var(--m-enter) both;
+  background: linear-gradient(180deg, var(--ef-surface-3), var(--ef-surface-2) 30%, var(--ef-surface-2));
+  box-shadow: inset 0 1px 0 var(--ef-contour), 0 0 0 1px var(--ef-rowplate-ic);
+  animation: item-in 0.333s var(--ef-ease-g-enter) both;
   animation-delay: calc(var(--i, 0) * 28ms);
-  transition: filter 0.083s var(--m-fade);
+  transition: filter 0.083s var(--ef-ease-g-fade);
 }
 
 .row:hover {
@@ -166,7 +72,7 @@
   place-items: center;
   align-self: stretch;
   font: 500 12px var(--ef-font-num);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--ef-step-bg);
 }
 
 .tt {
@@ -193,7 +99,7 @@
   font-size: 12px;
   line-height: 18px;
   white-space: nowrap;
-  color: var(--m-pn-t2);
+  color: var(--ef-text-2);
 }
 
 .row[data-fresh] .tt b::after {
@@ -202,7 +108,7 @@
   padding: 0 5px;
   font: 600 12px / 16px var(--ef-font-sans);
   vertical-align: 2px;
-  color: #161616;
+  color: var(--ef-newtag-text);
   background: var(--ef-g-reddot);
 }
 
@@ -216,13 +122,13 @@
 
 .bc {
   display: flex;
-  color: var(--m-pn-t1);
+  color: var(--ef-text-1);
   opacity: 0.6;
 }
 
 .row[aria-pressed='true'] {
-  background: linear-gradient(180deg, #4a4b4f, #3e3f43);
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.75);
+  background: linear-gradient(180deg, var(--ef-g-btn-dark-hover), var(--ef-g-wiki-sel));
+  box-shadow: inset 0 0 0 1.5px var(--ef-g-sns-sel-frame);
 }
 
 .row[aria-pressed='true']::after {
@@ -236,7 +142,7 @@
 }
 
 .row[aria-pressed='true'] .lb {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--ef-rowplate-ic);
 }
 
 @keyframes item-in {
@@ -255,7 +161,7 @@
   font-size: 12px;
   line-height: 18px;
   white-space: nowrap;
-  color: var(--m-pn-t2);
+  color: var(--ef-text-2);
 }
 
 .st[data-dashed] {
@@ -268,24 +174,24 @@
   flex: none;
   width: 14px;
   height: 14px;
-  border: 1.5px solid var(--m-pn-t1);
+  border: 1.5px solid var(--ef-text-1);
 }
 
 .sg[data-s='asserted'] {
-  background: var(--m-pn-t1);
+  background: var(--ef-text-1);
 }
 
 .sg[data-s='confirmed'] {
-  background: radial-gradient(circle, var(--m-pn-t1) 0 2.5px, transparent 3px);
+  background: radial-gradient(circle, var(--ef-text-1) 0 2.5px, transparent 3px);
 }
 
 .sg[data-s='observed'] {
-  background: linear-gradient(90deg, var(--m-pn-t1) 50%, transparent 50%);
+  background: linear-gradient(90deg, var(--ef-text-1) 50%, transparent 50%);
 }
 
 .sg[data-s='inferred'] {
   border-style: dashed;
-  background: repeating-linear-gradient(-45deg, var(--m-pn-t1) 0 1.5px, transparent 1.5px 4px);
+  background: repeating-linear-gradient(-45deg, var(--ef-text-1) 0 1.5px, transparent 1.5px 4px);
 }
 
 .lb .sg {
@@ -313,7 +219,7 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  border: 1.5px solid var(--m-pn-t2);
+  border: 1.5px solid var(--ef-text-2);
   transform: rotate(45deg);
 }
 
@@ -321,7 +227,7 @@
   content: '';
   width: 12px;
   height: 12px;
-  background: var(--m-pn-t2);
+  background: var(--ef-text-2);
 }
 
 .empty b {
@@ -332,12 +238,12 @@
 .empty p {
   margin: 0;
   font-size: 13px;
-  color: var(--m-pn-t2);
+  color: var(--ef-text-2);
 }
 
 .skel {
   height: 58px;
-  background: linear-gradient(90deg, var(--m-row) 0 40%, var(--m-row-hi) 50%, var(--m-row) 60%) 0 0 / 300% 100%;
+  background: linear-gradient(90deg, var(--ef-surface-2) 0 40%, var(--ef-surface-3) 50%, var(--ef-surface-2) 60%) 0 0 / 300% 100%;
   animation: shimmer 1.2s linear infinite;
 }
 

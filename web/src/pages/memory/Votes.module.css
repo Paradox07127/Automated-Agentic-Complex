@@ -1,45 +1,12 @@
-/* 待确认：SNS 投票卡（snscontentvote）做成白纸气泡，回复选项照 SNS OptionsNode 的胶囊；中栏和右栏合成一块网格。 */
+/* 待确认：SNS 投票卡（snscontentvote）做成白纸气泡，出处收在卡内折叠里，回复选项是共用胶囊键；中栏和右栏合成一块网格。
+   卡片是 data-theme="light"，卡内的 token 取浅色值。 */
 .votes {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   min-width: 0;
   min-height: 0;
-  padding: 14px 14px 10px 10px;
-}
-
-.vhead {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-}
-
-.vhead p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--m-t2);
-}
-
-.tag {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  padding: 0 10px;
-  font: 600 14px / 24px var(--ef-font-sans);
-  white-space: nowrap;
-  color: #f2f2f0;
-  background: var(--m-chip);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
-}
-
-.tag :global(.num) {
-  font-weight: 500;
-  color: #a9a9a6;
-}
-
-.sp {
-  flex: 1;
+  padding: 16px var(--ef-page-pad) 12px 10px;
 }
 
 .grid {
@@ -51,7 +18,7 @@
   padding: 4px 8px 14px 12px;
   overflow: hidden auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--m-t3) transparent;
+  scrollbar-color: var(--ef-text-3) transparent;
 }
 
 /* bg_snscontenttextorpic_chat: a bubble with its top-left corner cut; sns_bg_voteshadow under it; white, as decisions are paper. */
@@ -62,10 +29,10 @@
   gap: 10px;
   padding: 16px 18px 14px 20px;
   border-radius: 2px 16px 16px;
-  color: #1f1f1f;
-  background: linear-gradient(180deg, #fbfaf8, #f2f1ef);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.14), 0 0 0 6px rgba(255, 255, 255, 0.05);
-  animation: pop-up 0.3s var(--m-enter) both;
+  color: var(--ef-paper-text);
+  background: linear-gradient(180deg, var(--ef-plate-bg), var(--ef-paper));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ef-text-1) 14%, transparent), 0 0 0 6px color-mix(in srgb, var(--ef-plate-top) 5%, transparent);
+  animation: pop-up 0.3s var(--ef-ease-g-enter) both;
   animation-delay: calc(var(--i, 0) * 60ms);
 }
 
@@ -76,12 +43,12 @@
   left: -9px;
   width: 14px;
   height: 16px;
-  background: #fbfaf8;
+  background: var(--ef-plate-bg);
   clip-path: polygon(0 0, 100% 0, 100% 100%);
 }
 
 .vote[data-leaving] {
-  animation: v-leave 0.26s cubic-bezier(1, 0, 0.667, 1) forwards;
+  animation: v-leave 0.26s var(--ef-ease-g-exit) forwards;
 }
 
 @keyframes pop-up {
@@ -98,23 +65,27 @@
   }
 }
 
-/* sns_vote_decorate (#26BBFD); the title is darkened to #00679C, the game blue reads 2.3:1 on paper. */
+/* sns_vote_decorate: the game blue stays on the glyph; the title is paper ink, as the blue reads under 4.5:1 on paper. */
 .vt {
   display: flex;
   gap: 10px;
   align-items: center;
   font-size: 12px;
-  color: #5f5e5c;
+  color: var(--ef-paper-text-2);
 }
 
 .vt svg {
-  color: var(--m-vote);
+  color: var(--ef-g-prts-blue);
 }
 
 .vt b {
   font-size: 13px;
   font-weight: 600;
-  color: #00679c;
+  color: var(--ef-paper-text);
+}
+
+.sp {
+  flex: 1;
 }
 
 .vote h3 {
@@ -124,128 +95,29 @@
   text-wrap: pretty;
 }
 
-.vq {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 4px 10px;
-  align-items: start;
-  padding: 8px 10px;
-  border-left: 3px solid #161616;
+/* 出处's body: the line she read, then its time and the jump. */
+.src {
   font-size: 13px;
   line-height: 20px;
-  background: rgba(0, 0, 0, 0.045);
+  overflow-wrap: anywhere;
 }
 
-.qm {
-  padding-top: 4px;
-  font: 700 26px / 20px var(--ef-font-num);
-  color: #a2a19d;
-}
-
-.vq small {
+.srcm {
   display: flex;
   flex-wrap: wrap;
-  grid-column: 2;
   gap: 8px;
   align-items: center;
   font-size: 12px;
-  color: #5f5e5c;
+  color: var(--ef-paper-text-2);
 }
 
-.lnk {
-  all: unset;
-  font: 500 12px var(--ef-font-sans);
-  white-space: nowrap;
-  color: #1f1f1f;
-  cursor: pointer;
-  border-bottom: 1px solid #9a9a96;
-}
-
-.lnk:hover {
-  border-color: #161616;
-}
-
-.lnk:focus-visible {
-  outline: 2px solid #161616;
-  outline-offset: 2px;
-}
-
-/* TextOptionCell: capsule options, a yellow diamond in front; 不是这样 is a light capsule. */
+/* TextOptionCell's three answers, one shared capsule each. */
 .opts {
   display: grid;
   gap: 6px;
 }
 
-.opt {
-  all: unset;
-  position: relative;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  height: 38px;
-  padding: 0 16px 0 30px;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #f2f2f0;
-  cursor: pointer;
-  background: linear-gradient(180deg, #5a5a5c, #454547);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.35), var(--ef-shadow-btn);
-  transition: filter 0.083s, transform 0.1s;
-}
-
-.opt::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 13px;
-  width: 7px;
-  height: 7px;
-  margin-top: -3.5px;
-  background: var(--ef-accent);
-  transform: rotate(45deg);
-}
-
-.opt:hover {
-  filter: brightness(1.18);
-  transform: translateX(3px);
-}
-
-.opt:focus-visible {
-  outline: 2px solid #161616;
-  outline-offset: 2px;
-}
-
-.opt kbd {
-  display: none;
-  margin-left: auto;
-  padding: 0 4px;
-  border: 1px solid #8a8a88;
-  border-radius: 2px;
-  font: 600 11px var(--ef-font-num);
-  color: #c8c8c6;
-}
-
-:global(html[data-keys]) .opt kbd {
-  display: inline;
-}
-
-.opt[data-no] {
-  color: #2b2b2b;
-  background: linear-gradient(180deg, #e6e5e2, #d9d8d4);
-  box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(0, 0, 0, 0.2);
-}
-
-.opt[data-no]::before {
-  background: #2b2b2b;
-}
-
-.opt[data-no] kbd {
-  color: #555;
-  border-color: #999;
-}
-
-/* Vote result: 「[已选] 选项」 over a 6 px bar (#DEDEDE, filled #26BBFD). */
+/* Vote result: 「[已选] 选项」 over a 6 px bar, filled in the game blue. */
 .vres {
   display: grid;
   gap: 5px;
@@ -257,19 +129,19 @@
   position: relative;
   height: 6px;
   overflow: hidden;
-  background: #dedede;
+  background: var(--ef-line);
 }
 
 .bar i {
   position: absolute;
   inset: 0 auto 0 0;
   width: 100%;
-  background: var(--m-vote);
-  animation: fill 0.5s var(--m-enter) 0.1s backwards;
+  background: var(--ef-g-prts-blue);
+  animation: fill 0.5s var(--ef-ease-g-enter) 0.1s backwards;
 }
 
 .vres[data-no] .bar i {
-  background: #8a8a88;
+  background: var(--ef-line-strong);
 }
 
 @keyframes fill {
@@ -284,16 +156,16 @@
   padding: 6px 10px;
   border: 0;
   font: 500 15px / 24px var(--ef-font-sans);
-  color: #1f1f1f;
+  color: var(--ef-paper-text);
   resize: vertical;
-  background: #fff;
-  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.25), 0 0 0 2px #161616;
+  background: var(--ef-raised);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ef-paper-text) 25%, transparent), 0 0 0 2px var(--ef-text-1);
   box-sizing: border-box;
 }
 
 .fix:focus {
   outline: none;
-  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.25), 0 0 0 2px #161616, 0 0 0 4px var(--ef-accent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ef-paper-text) 25%, transparent), 0 0 0 2px var(--ef-text-1), 0 0 0 4px var(--ef-accent);
 }
 
 .row2 {

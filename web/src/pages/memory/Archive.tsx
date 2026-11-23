@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import type { Fact, FactKind } from '../../domain';
 import { BottomBarSlot } from '../../shell/headerSlot';
-import { Btn, ErrBar } from '../../ui';
+import { Btn, ErrBar, SecHead } from '../../ui';
 import { Detail } from './Detail';
 import { Keys } from './Keys';
 import { LeftCol, Plate } from './Index';
 import { catOf, CATS, factText, isCandidate, isDormant, matches, plateOf, recentText, SORTERS, SORTS, SRC, ymd, type Cat, type Sort } from './model';
 import { AddPop, DeleteCard } from './Papers';
-import { Cell, DetailCol, Empty, GroupHead, List, Lnk, Panel, Row, SearchBox, Sep, Skeleton, SrcMark, Tag, useNarrow, type GlyphName } from './parts';
+import { Cell, DetailCol, Empty, List, Lnk, Panel, Row, SearchBox, Sep, Skeleton, SrcMark, Tag, useNarrow, type GlyphName } from './parts';
 import { Votes } from './Votes';
 import styles from './Cols.module.css';
 
@@ -36,12 +36,14 @@ export interface ArchiveProps {
   };
   onJump: (k: 'chat' | 'obs') => void;
   onChat: () => void;
+  /** The page has view tabs, so the key legend names Q / E. */
+  tabbed?: boolean;
   /** 整理记录 › 导出 清空记忆… at the right of the bottom bar. */
   actions: ReactNode;
 }
 
 /** 档案：左栏名牌和分类格，中栏搜索、排序、新增和记录行，右栏这条记忆（窄窗是抽屉）；有待确认时先停在「待确认」的投票卡。 */
-export function Archive({ facts, error, onRetry, now, still, fresh, initial, searchRef, write, onJump, onChat, actions }: ArchiveProps) {
+export function Archive({ facts, error, onRetry, now, still, fresh, initial, searchRef, write, onJump, onChat, tabbed = false, actions }: ArchiveProps) {
   const narrow = useNarrow();
   const all = facts ?? [];
   const asks = all.filter(isCandidate);
@@ -173,7 +175,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, sea
           const rows = shown.filter((f) => catOf(f) === c.id);
           return rows.length === 0 ? null : (
             <div key={c.id} role="group" aria-label={c.label} className={styles.grp}>
-              <GroupHead label={c.label} count={rows.length} en={c.en} />
+              <SecHead title={c.label} count={rows.length} micro={c.en} />
               {rows.map((f) => row(f, i++))}
             </div>
           );
@@ -184,7 +186,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, sea
     const c = CATS.find((x) => x.id === cat);
     list = (
       <List label="记住的事">
-        <GroupHead label={c?.label ?? '全部'} count={shown.length} {...(c ? { en: c.en } : {})} />
+        <SecHead title={c?.label ?? '全部'} count={shown.length} {...(c ? { micro: c.en } : {})} />
         {shown.map(row)}
       </List>
     );
@@ -196,6 +198,16 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, sea
     ...CATS.filter((c) => c.id !== 'about').map((c) => ({ id: c.id, label: c.label, icon: ICON[c.id as Exclude<Cat, 'about'>] })),
   ];
   const wide = cat === 'pending' || !listing;
+  const legend: Array<[string[], string]> =
+    cat === 'pending'
+      ? [[['1', '2', '3'], '记住 / 改 / 不是这样']]
+      : [
+          [['↑', '↓'], '选择'],
+          [['Enter'], '修改'],
+          [['Del'], '删除'],
+        ];
+  if (tabbed) legend.push([['Q', 'E'], '切页签']);
+  legend.push([['Esc'], '回主页']);
 
   return (
     <div className={styles.body} data-wide={wide || undefined}>
@@ -269,26 +281,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, sea
           }}
         />
       )}
-      <BottomBarSlot>
-        <Keys
-          keys={
-            cat === 'pending'
-              ? [
-                  [['1', '2', '3'], '记住 / 改 / 不是这样'],
-                  [['Q', 'E'], '切页签'],
-                  [['Esc'], '回主页'],
-                ]
-              : [
-                  [['↑', '↓'], '选择'],
-                  [['Enter'], '修改'],
-                  [['Del'], '删除'],
-                  [['Q', 'E'], '切页签'],
-                  [['Esc'], '回主页'],
-                ]
-          }
-        />
-        {actions}
-      </BottomBarSlot>
+      <BottomBarSlot lead={<Keys keys={legend} />} actions={actions} />
     </div>
   );
 }

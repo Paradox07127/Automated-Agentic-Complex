@@ -168,9 +168,10 @@ describe('core pages with the plug-ins at their defaults', () => {
         </QueryClientProvider>,
       );
       if (Page === MemoryPage) {
-        expect((await screen.findByRole('tab', { name: /档案/ }, { timeout: 3000 })).getAttribute('aria-selected')).toBe('true');
-        expect(screen.queryByRole('tab', { name: /回顾/ })).toBeNull();
-        expect(screen.queryByRole('tab', { name: /项目/ })).toBeNull();
+        // 档案 is the only view, so the page draws no tabs.
+        await screen.findByRole('button', { name: /^用户档案/ }, { timeout: 3000 });
+        expect(screen.queryByRole('tablist', { name: '记忆视图' })).toBeNull();
+        expect(screen.queryByRole('tab')).toBeNull();
       } else await screen.findByRole('region', { name: '消息' }, { timeout: 3000 });
       // The reads a page starts on mount have gone out.
       await act(async () => new Promise((r) => setTimeout(r, 300)));

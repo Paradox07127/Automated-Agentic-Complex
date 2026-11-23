@@ -9,15 +9,13 @@ import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { usePlugins } from '../../shell/plugins';
 import { toast } from '../../shell/toast';
-import { Btn, Tabs } from '../../ui';
+import { Btn, Menu, Tabs } from '../../ui';
 import { pageNow, useGo, usePageParams } from './api';
 import { Archive } from './Archive';
-import { RUNS_KEY, useBatches } from './data';
+import { RUNS_KEY, useLastConsolidation } from './data';
 import { errorText } from './errors';
-import { BarDanger, BarEnd, BarLink } from './Keys';
 import { factText, hm, isCandidate, SRC, SRC_ORDER } from './model';
 import { ClearCard } from './Papers';
-import { VARS } from './parts';
 import { Projects } from './Projects';
 import { Review } from './Review';
 import { FACTS_KEY, factsKey, readMemory, useFacts, type MemoryView, type WriteResult } from './useFacts';
@@ -40,7 +38,7 @@ function srcQuery(v: string | null): string | null {
 /** An agentd without the work-memory routes: the bridge refuses the path, or agentd answers 404. */
 const noRoute = (e: unknown) => e instanceof AgentdCallError && (e.status === 404 || e.code === 'unclassified_route');
 
-/** 记忆：页签 档案（默认）/ 项目 / 回顾；顶栏是记录状态和暂停，底栏是键位说明、整理记录、导出和清空。 */
+/** 记忆：档案（默认），插件开着时加页签 项目 / 回顾，只有档案时不画页签；顶栏是记录状态和暂停，底栏是键位说明、整理记录、导出和清空。 */
 export function MemoryPage() {
   const { state, demo, still } = useDemo();
   const params = usePageParams();
@@ -51,7 +49,7 @@ export function MemoryPage() {
   const owner = params.get('owner');
   const mem = useQuery({ queryKey: factsKey(owner), queryFn: () => readMemory(pageNow(), owner), enabled: state !== 'loading' && state !== 'error' });
   const roster = useQuery({ queryKey: ['character', 'list'], queryFn: () => getBridge().character.list(), enabled: owner != null });
-  const runs = useBatches(state == null || state === 'error');
+  const runs = useLastConsolidation(state == null || state === 'error');
   const empty = state === 'empty';
   // `?demo=absent` reaches the fake bridge only: an agentd without /memory/tasks.
   const fake = !window.agenticComplex && demo ? `&demo=${encodeURIComponent(demo)}` : '';
@@ -161,13 +159,19 @@ export function MemoryPage() {
   const lastRun = empty ? null : runs.pending ? undefined : runs.lastAt;
   const any = (facts?.length ?? 0) > 0;
   const actions = (
-    <BarEnd>
-      <BarLink onClick={() => go({ page: 'pipeline', station: 'mem' })}>整理记录 ›</BarLink>
-      <Btn disabled={!any || exportOff != null} disabledReason={exportOff ?? '还没有可导出的记忆'} onClick={() => void onExport()}>
-        导出
+    <>
+      <Btn size="sm" variant="text" onClick={() => go({ page: 'pipeline', station: 'mem' })}>
+        整理记录 ›
       </Btn>
-      {any && <BarDanger onClick={() => setClearing(true)}>清空记忆…</BarDanger>}
-    </BarEnd>
+      <Menu
+        label="管理"
+        align="right"
+        items={[
+          { kind: 'item', label: '导出全部记忆', disabled: !any || exportOff != null, reason: exportOff ?? '还没有可导出的记忆', onSelect: () => void onExport() },
+          ...(any ? [{ kind: 'sep' as const }, { kind: 'item' as const, label: '清空记忆…', danger: true, onSelect: () => setClearing(true) }] : []),
+        ]}
+      />
+    </>
   );
   const tabs = [
     { id: 'about', label: '档案', icon: 'file' as const, ...(asks > 0 && view !== 'about' ? { mark: '有待确认' } : {}) },
@@ -176,10 +180,10 @@ export function MemoryPage() {
   ];
 
   return (
-    <div className={`${styles.page} ${VARS}`} data-page="memory">
+    <div className={styles.page} data-page="memory">
       <PageHeaderSlot
         sub={roster.data?.find((c) => c.id === owner)?.name}
-        tabs={<Tabs label="记忆视图" keys={false} value={view} onChange={(id) => setPicked(id as View)} tabs={tabs} />}
+        tabs={tabs.length > 1 && <Tabs label="记忆视图" keys={false} value={view} onChange={(id) => setPicked(id as View)} tabs={tabs} />}
         right={
           <span className={styles.rec} role="status" data-off={!recording || undefined}>
             <i aria-hidden="true" />
@@ -234,6 +238,7 @@ export function MemoryPage() {
           write={write}
           onJump={jump}
           onChat={() => go({ page: 'chat' })}
+          tabbed={tabs.length > 1}
           actions={actions}
         />
       )}

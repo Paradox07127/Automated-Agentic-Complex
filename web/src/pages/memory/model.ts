@@ -145,29 +145,3 @@ export function plateOf(facts: readonly Fact[]): Plate {
     about: active.filter((f) => catOf(f) === 'about').length,
   };
 }
-
-/** One change in a batch: 新增 / 更新 / 删除, the fact it touched (when still there) and the earlier text. */
-export interface Change {
-  op: 'add' | 'upd' | 'del';
-  id: string | null;
-  text: string;
-  was?: string;
-}
-
-export interface Batch {
-  id: string;
-  at: number;
-  items: Change[];
-}
-
-export const OPS: Record<Change['op'], { sym: string; label: string }> = {
-  add: { sym: '+', label: '新增' },
-  upd: { sym: '~', label: '更新' },
-  del: { sym: '−', label: '删除' },
-};
-
-export const countOps = (items: readonly Change[]) => ({
-  add: items.filter((x) => x.op === 'add').length,
-  upd: items.filter((x) => x.op === 'upd').length,
-  del: items.filter((x) => x.op === 'del').length,
-});

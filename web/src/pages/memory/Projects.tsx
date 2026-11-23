@@ -5,14 +5,14 @@ import type { MemoryTaskResponse, MemoryTasksResponse } from '../../bridge/agent
 import { secToMs } from '../../domain/units';
 import { BottomBarSlot } from '../../shell/headerSlot';
 import { toast } from '../../shell/toast';
-import { Btn, ErrBar } from '../../ui';
+import { Btn, ErrBar, SecHead } from '../../ui';
 import { Frame, Line, Lines, Note, Spacer, Text } from './Detail';
 import detail from './Detail.module.css';
 import { errorText, isConflict } from './errors';
 import { LeftCol } from './Index';
 import { Keys } from './Keys';
 import { hm, ymd } from './model';
-import { Block, Cell, DetailCol, DetailHead, Empty, GroupHead, Kv, List, Lnk, Panel, Row, SearchBox, Sep, Skeleton, Glyph, useNarrow, type GlyphName } from './parts';
+import { Block, Cell, DetailCol, DetailHead, Empty, Kv, List, Lnk, Panel, Row, SearchBox, Sep, Skeleton, Glyph, useNarrow, type GlyphName } from './parts';
 import styles from './Cols.module.css';
 
 export type WorkTask = MemoryTasksResponse['tasks'][number];
@@ -65,7 +65,7 @@ export function Projects({ tasks, error, onRetry, initialQ, searchRef, onSession
   else
     list = (
       <List label={label}>
-        <GroupHead label={label} count={shown.length} en="Work" />
+        <SecHead title={label} count={shown.length} micro="Work" />
         {shown.map((t, i) => (
           <div key={t.id} data-project={t.id}>
             <Row
@@ -115,15 +115,17 @@ export function Projects({ tasks, error, onRetry, initialQ, searchRef, onSession
           <ProjectDetail key={open.id} task={open} onSession={onSession} {...(narrow ? { onClose: () => setDrawer(false) } : {})} />
         </DetailCol>
       )}
-      <BottomBarSlot>
-        <Keys
-          keys={[
-            [['Q', 'E'], '切页签'],
-            [['⌘F'], '搜索'],
-            [['Esc'], '回主页'],
-          ]}
-        />
-      </BottomBarSlot>
+      <BottomBarSlot
+        lead={
+          <Keys
+            keys={[
+              [['Q', 'E'], '切页签'],
+              [['⌘F'], '搜索'],
+              [['Esc'], '回主页'],
+            ]}
+          />
+        }
+      />
     </div>
   );
 }

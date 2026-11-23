@@ -3,7 +3,7 @@ import type { Fact, FactKind } from '../../domain';
 import { Btn, OverlayPortal, useOverlayFocus } from '../../ui';
 import { GameSeg } from '../../ui/game';
 import { ADD_CATS, factText } from './model';
-import { DetailHead, VARS } from './parts';
+import { DetailHead } from './parts';
 import styles from './Papers.module.css';
 
 /** Blurred scrim with one centred card; Esc, a click outside or 取消 closes it, focus goes back where it was. */
@@ -13,7 +13,7 @@ function Overlay({ labelledBy, alert, onClose, children, pop }: { labelledBy: st
   return (
     <OverlayPortal>
       <div
-        className={`${styles.scrim} ${VARS}`}
+        className={styles.scrim}
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}

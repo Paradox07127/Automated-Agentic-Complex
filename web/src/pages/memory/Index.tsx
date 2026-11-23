@@ -17,7 +17,7 @@ export function Plate({ plate, selected, onClick }: { plate: PlateData | null; s
   const none = plate != null && plate.name == null;
   const fields = plate ? [plate.birthday && `生日 ${plate.birthday}`, plate.place, `共 ${plate.about} 条`].filter(Boolean).join(' │ ') : '—';
   return (
-    <button type="button" className={styles.plate} aria-pressed={selected} data-none={none || undefined} aria-label={plate?.name ? `用户档案：${plate.name}` : '用户档案'} onClick={onClick}>
+    <button type="button" className={styles.plate} data-theme="dark" aria-pressed={selected} data-none={none || undefined} aria-label={plate?.name ? `用户档案：${plate.name}` : '用户档案'} onClick={onClick}>
       <i className={styles.bar} aria-hidden="true" />
       <span className={styles.halo} aria-hidden="true" />
       <MicroLabel>You / Profile</MicroLabel>

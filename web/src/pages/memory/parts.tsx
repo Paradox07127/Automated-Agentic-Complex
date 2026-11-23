@@ -1,7 +1,7 @@
-import { useRef, useSyncExternalStore, type CSSProperties, type ReactNode, type Ref } from 'react';
+import { useSyncExternalStore, type CSSProperties, type ReactNode, type Ref } from 'react';
 import { keyText } from '../../bridge/platformText';
 import type { MemorySource } from '../../domain';
-import { OverlayPortal, useOverlayFocus } from '../../ui';
+import { Btn, IconBtn, SecHead, Sheet } from '../../ui';
 import { Barcode, MicroLabel } from '../../ui/game';
 import { SRC } from './model';
 import cells from './Cells.module.css';
@@ -22,7 +22,6 @@ const PATHS = {
   eye: 'M12 5c5 0 9 4.5 10.5 7C21 14.5 17 19 12 19S3 14.5 1.5 12C3 9.5 7 5 12 5zm0 3.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
   history: 'M13 3a9 9 0 1 1-8.6 11.6l2.8-.9A6 6 0 1 0 8 8.4L10 10H3V3l2.6 2.6A9 9 0 0 1 13 3zM12 7h2v5l3.5 2.1-1 1.7L12 13.2z',
   folder: 'M2 4h8l2 2.5h10V20H2z',
-  trash: 'M8 2h8v2h5v3H3V4h5zM5 9h14l-1.2 13H6.2z',
   search: 'M10 2a8 8 0 0 1 6.3 12.9l5.4 5.4-2 2-5.4-5.4A8 8 0 1 1 10 2zm0 3a5 5 0 1 0 0 10 5 5 0 0 0 0-10z',
   close: 'M5.1 3L12 9.9 18.9 3 21 5.1 14.1 12 21 18.9 18.9 21 12 14.1 5.1 21 3 18.9 9.9 12 3 5.1z',
 } as const;
@@ -34,8 +33,6 @@ export const Glyph = ({ name, size = 20 }: { name: GlyphName; size?: number }) =
   </svg>
 );
 
-/** The page palette's class, for the page root and the overlays portalled out of it. */
-export const VARS = styles.vars;
 /** The dark data panel's class, for a panel that lays out its own children. */
 export const PANEL = styles.pn;
 
@@ -84,7 +81,7 @@ export function Cell({ icon, label, count, selected, pending, i, onClick }: Cell
       className={cells.cell}
       aria-pressed={selected}
       data-pend={pending || undefined}
-      data-zero={count === 0 || undefined}
+      data-theme={selected ? 'dark' : undefined}
       style={{ '--i': i } as CSSProperties}
       onClick={onClick}
     >
@@ -143,20 +140,6 @@ export const Panel = ({ children, label }: { children: ReactNode; label?: string
   </div>
 );
 
-/** Group head: black cut-corner tag 「偏好 [5]」, a rule ending in a hatch, and a micro label or a note at the right. */
-export function GroupHead({ label, count, en, note }: { label: string; count?: number; en?: string; note?: string }) {
-  return (
-    <div className={styles.gh}>
-      <span className={styles.tag}>
-        {label}
-        {count != null && <span className="num">[{count}]</span>}
-      </span>
-      <span className={styles.rule} aria-hidden="true" />
-      {note ? <small>{note}</small> : en && <MicroLabel>{en}</MicroLabel>}
-    </div>
-  );
-}
-
 export interface RowProps {
   lead: ReactNode;
   title: ReactNode;
@@ -206,11 +189,7 @@ export function DetailHead({ title, micro, onClose }: { title: ReactNode; micro:
       <span className={side.bcode}>
         <Barcode width={86} height={18} />
       </span>
-      {onClose && (
-        <button type="button" className={side.orb} aria-label="关闭" title="关闭" onClick={onClose}>
-          <Glyph name="close" size={13} />
-        </button>
-      )}
+      {onClose && <IconBtn icon="close" label="关闭" size="sm" onClick={onClose} />}
     </div>
   );
 }
@@ -222,13 +201,10 @@ export const Kv = ({ k, children }: { k: string; children: ReactNode }) => (
   </div>
 );
 
-/** Detail block with a yellow-barred heading. */
+/** Detail block under a group title; the note sits at the title's right end. */
 export const Block = ({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) => (
   <section className={side.blk} aria-label={title}>
-    <h3 className={side.bh}>
-      {title}
-      {note != null && <small>{note}</small>}
-    </h3>
+    <SecHead title={title} right={note} />
     {children}
   </section>
 );
@@ -241,13 +217,14 @@ export const Quote = ({ children, meta }: { children: ReactNode; meta?: ReactNod
   </div>
 );
 
+/** A jump or a reset inside a panel: the text button. */
 export const Lnk = ({ children, onClick }: { children: ReactNode; onClick: () => void }) => (
-  <button type="button" className={side.lnk} onClick={onClick}>
+  <Btn variant="text" size="sm" onClick={onClick}>
     {children}
-  </button>
+  </Btn>
 );
 
-/** The right column: always there when wide; below 1200 px a drawer over the list with a dimmed backdrop. */
+/** The right column: always there when wide; below 1200 px the shared drawer, its content bringing its own title bar and close key. */
 export function DetailCol({ narrow, open, label, onClose, children }: { narrow: boolean; open: boolean; label: string; onClose: () => void; children: ReactNode }) {
   if (!narrow)
     return (
@@ -255,30 +232,10 @@ export function DetailCol({ narrow, open, label, onClose, children }: { narrow: 
         {children}
       </aside>
     );
-  if (!open) return null;
   return (
-    <OverlayPortal>
-      <Drawer label={label} onClose={onClose}>
-        {children}
-      </Drawer>
-    </OverlayPortal>
-  );
-}
-
-function Drawer({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
-  const panel = useRef<HTMLElement>(null);
-  const trap = useOverlayFocus(panel, onClose);
-  return (
-    <div
-      className={`${side.scrim} ${styles.vars}`}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <aside ref={panel} className={`${side.dcol} ${side.drawer}`} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} onKeyDown={trap}>
-        {children}
-      </aside>
-    </div>
+    <Sheet open={open} title={label} width={420} head="none" onClose={onClose}>
+      {children}
+    </Sheet>
   );
 }
 

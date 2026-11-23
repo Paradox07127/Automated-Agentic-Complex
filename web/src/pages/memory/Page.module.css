@@ -4,13 +4,15 @@
   height: 100%;
   min-height: 0;
   isolation: isolate;
-  color: var(--m-t1);
+  --page-facet: color-mix(in srgb, var(--ef-plate-top) 25%, transparent);
+
+  color: var(--ef-text-1);
   font: 14px / 22px var(--ef-font-sans);
   background:
-    linear-gradient(118deg, transparent 0 30%, var(--m-facet) 30% 31%, transparent 31% 100%),
-    linear-gradient(62deg, transparent 0 62%, var(--m-facet) 62% 63%, transparent 63% 100%),
-    radial-gradient(circle, var(--m-grid) 1.2px, transparent 1.4px) 0 0 / 28px 28px,
-    radial-gradient(120% 90% at 50% 20%, var(--m-bg1), var(--m-bg0) 80%);
+    linear-gradient(118deg, transparent 0 30%, var(--page-facet) 30% 31%, transparent 31% 100%),
+    linear-gradient(62deg, transparent 0 62%, var(--page-facet) 62% 63%, transparent 63% 100%),
+    radial-gradient(circle, color-mix(in srgb, var(--ef-text-1) 6%, transparent) 1.2px, transparent 1.4px) 0 0 / 28px 28px,
+    radial-gradient(120% 90% at 50% 20%, var(--ef-surface-1), var(--ef-band) 80%);
 }
 
 .page::after {
@@ -19,10 +21,10 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px 3px);
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--ef-text-1) 1.5%, transparent) 0 1px, transparent 1px 3px);
 }
 
-/* Command bar status: green square 记录中, or two bars 已暂停记忆; then 上次整理 hh:mm. */
+/* Command bar status: a running square 记录中, or two bars 已暂停记忆; then 上次整理 hh:mm. */
 .rec {
   display: inline-flex;
   gap: 8px;
@@ -35,7 +37,7 @@
 .rec i {
   width: 8px;
   height: 8px;
-  background: #3ccf6e;
+  background: var(--ef-state-running);
 }
 
 .rec[data-off] i {

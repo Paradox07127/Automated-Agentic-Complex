@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { Fact } from '../../domain';
 import { toast } from '../../shell/toast';
-import { Btn } from '../../ui';
-import { useEvidence } from './data';
+import { Btn, Fold, InfoTip, SecHead } from '../../ui';
+import { useEvidence, type Evidence } from './data';
 import { catLabel, SRC, stamp } from './model';
-import { Glyph } from './parts';
+import { Glyph, Lnk } from './parts';
 import styles from './Votes.module.css';
 
 type How = 'keep' | 'fix' | 'no';
@@ -32,7 +32,7 @@ export interface VotesProps {
   onJump: (k: 'chat' | 'obs') => void;
 }
 
-/** 待确认：SNS 投票卡（白纸），「对，记住 / 差不多，我来改 / 不是这样」，键 1 2 3 处理第一张；选完卡上是 [已选] 和结果条，然后滑出。 */
+/** 待确认：SNS 投票卡（白纸），出处收在卡内折叠里，「对，记住 / 差不多，我来改 / 不是这样」，键 1 2 3 处理第一张；选完卡上是 [已选] 和结果条，然后滑出。 */
 export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: VotesProps) {
   const [held, setHeld] = useState<ReadonlyMap<string, Held>>(new Map());
   const [editing, setEditing] = useState<Record<string, string>>({});
@@ -125,23 +125,24 @@ export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: Vo
 
   return (
     <section className={styles.votes} aria-label="待确认">
-      <div className={styles.vhead}>
-        <span className={styles.tag}>
-          待确认 <span className="num">[{cards.length}]</span>
-        </span>
-        <p>她猜的和看到的先放在这里；你点「记住」之前，她不会拿来用。</p>
-        <span className={styles.sp} />
-        <Btn
-          variant="primary"
-          disabled={open.length === 0}
-          disabledReason="没有剩下要确认的"
-          onClick={() => {
-            for (const f of open) decide(f, 'keep');
-          }}
-        >
-          剩下 {open.length} 条全部记住
-        </Btn>
-      </div>
+      <SecHead
+        title="待确认"
+        right={
+          <>
+            <InfoTip>她猜的和看到的先放在这里；你点「记住」之前，她不会拿来用。</InfoTip>
+            <Btn
+              variant="primary"
+              disabled={open.length === 0}
+              disabledReason="没有剩下要确认的"
+              onClick={() => {
+                for (const f of open) decide(f, 'keep');
+              }}
+            >
+              剩下 {open.length} 条全部记住
+            </Btn>
+          </>
+        }
+      />
       <div className={styles.grid}>
         {cards.map((f, i) => (
           <Card
@@ -188,34 +189,7 @@ function Card({ fact: f, i, now, held, draft, onDraft, onDecide, onJump }: CardP
         <span className="num">{stamp(f.recorded_at, now)}</span>
       </div>
       <h3>{f.text}</h3>
-      <div className={styles.vq}>
-        <span className={styles.qm} aria-hidden="true">
-          {ev?.k === 'obs' ? '◫' : '“'}
-        </span>
-        {!ev ? (
-          <span>没有出处，是外接工具写来的</span>
-        ) : ev.k === 'chat' ? (
-          <>
-            <span>{ev.quote ? `「${ev.quote}」` : '原句只保留 48 小时，这一段已经清理'}</span>
-            <small>
-              对话 │ <span className="num">{ev.when}</span>
-              <button type="button" className={styles.lnk} onClick={() => onJump('chat')}>
-                去对话看原文 ›
-              </button>
-            </small>
-          </>
-        ) : (
-          <>
-            <span>她看到：{ev.title ?? '一段观察'}</span>
-            <small>
-              <span className="num">{ev.when}</span>
-              <button type="button" className={styles.lnk} onClick={() => onJump('obs')}>
-                在简报里看这一段 ›
-              </button>
-            </small>
-          </>
-        )}
-      </div>
+      <Source ev={ev} onJump={onJump} />
       {held ? (
         <div className={styles.vres} data-no={held.how === 'no' || undefined} role="status">
           <span>[已选]&nbsp; {RESULT[held.how]}</span>
@@ -251,17 +225,36 @@ function Card({ fact: f, i, now, held, draft, onDraft, onDecide, onJump }: CardP
         </>
       ) : (
         <div className={styles.opts} role="group" aria-label="怎么处理">
-          <button type="button" className={styles.opt} onClick={() => onDecide('keep')}>
-            对，记住<kbd aria-hidden="true">1</kbd>
-          </button>
-          <button type="button" className={styles.opt} onClick={() => onDraft(f.text)}>
-            差不多，我来改<kbd aria-hidden="true">2</kbd>
-          </button>
-          <button type="button" className={styles.opt} data-no="" onClick={() => onDecide('no')}>
-            不是这样<kbd aria-hidden="true">3</kbd>
-          </button>
+          <Btn variant="secondary" tail="check" onClick={() => onDecide('keep')}>
+            对，记住
+          </Btn>
+          <Btn variant="secondary" onClick={() => onDraft(f.text)}>
+            差不多，我来改
+          </Btn>
+          <Btn onClick={() => onDecide('no')}>不是这样</Btn>
         </div>
       )}
     </section>
+  );
+}
+
+/** 出处, folded inside the card: closed, the kind and the time; open, the line she read or what she saw, and the jump to it. */
+function Source({ ev, onJump }: { ev: Evidence | null; onJump: (k: 'chat' | 'obs') => void }) {
+  if (!ev)
+    return (
+      <Fold label="出处" rows={1}>
+        <span className={styles.src}>没有出处，是外接工具写来的</span>
+      </Fold>
+    );
+  const chat = ev.k === 'chat';
+  return (
+    <Fold label="出处" summary={`${chat ? '对话' : '观察'} │ ${ev.when}`}>
+      <span className={styles.src}>{chat ? (ev.quote ? `「${ev.quote}」` : '原句只保留 48 小时，这一段已经清理') : `她看到：${ev.title ?? '一段观察'}`}</span>
+      <span className={styles.srcm}>
+        {chat && '对话 │ '}
+        <span className="num">{ev.when}</span>
+        <Lnk onClick={() => onJump(ev.k)}>{chat ? '去对话看原文 ›' : '在简报里看这一段 ›'}</Lnk>
+      </span>
+    </Fold>
   );
 }

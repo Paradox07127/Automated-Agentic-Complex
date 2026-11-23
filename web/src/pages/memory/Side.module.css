@@ -1,10 +1,10 @@
-/* 右侧详情栏和窄屏抽屉：标题条、键值行、段落标题、出处引文、链接。 */
+/* 右侧详情栏（窄屏时放进共用抽屉 Sheet）：标题条、键值行、段落、出处引文。 */
 .dcol {
   display: grid;
   min-width: 0;
   min-height: 0;
-  padding: 14px 16px 10px 4px;
-  animation: in-r 0.417s var(--m-enter) both;
+  padding: 16px var(--ef-page-pad) 12px 4px;
+  animation: in-r 0.417s var(--ef-ease-g-enter) both;
 }
 
 @keyframes in-r {
@@ -12,31 +12,6 @@
     opacity: 0;
     transform: translateX(24px);
   }
-}
-
-/* A click anywhere outside the drawer closes it; only the page body between the command bar (53) and the bottom bar (44) dims. */
-.scrim {
-  position: fixed;
-  inset: 0;
-  z-index: var(--ef-z-drawer);
-}
-
-.scrim::before {
-  content: '';
-  position: absolute;
-  inset: 53px 0 44px;
-  background: rgba(0, 0, 0, 0.28);
-}
-
-.drawer {
-  position: absolute;
-  top: 53px;
-  right: 0;
-  bottom: 44px;
-  width: min(420px, 58%);
-  padding: 10px 10px 10px 0;
-  outline: none;
-  filter: drop-shadow(-14px 0 24px rgba(0, 0, 0, 0.45));
 }
 
 .dh {
@@ -49,8 +24,8 @@
   overflow: hidden;
   font-size: 15px;
   font-weight: 600;
-  color: #fff;
-  background: #333;
+  color: var(--ef-text-1);
+  background: var(--ef-surface-3);
 }
 
 .dh .y {
@@ -76,28 +51,8 @@
   min-width: 0;
   margin-left: auto;
   overflow: hidden;
-  color: #fff;
+  color: var(--ef-text-1);
   opacity: 0.6;
-}
-
-.orb {
-  all: unset;
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  margin-left: 8px;
-  border-radius: 50%;
-  color: #fff;
-  cursor: pointer;
-  background: #3b3c3e;
-  box-shadow: 0 0 0 1.5px #fff, 0 0 0 3px rgba(255, 255, 255, 0.08);
-}
-
-.orb:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: 2px;
 }
 
 .kvr {
@@ -113,7 +68,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  color: var(--m-pn-t2);
+  color: var(--ef-text-2);
 }
 
 .kvr > span:first-child::before {
@@ -121,7 +76,7 @@
   flex: none;
   width: 4px;
   height: 4px;
-  background: var(--m-pn-t2);
+  background: var(--ef-text-2);
 }
 
 .v {
@@ -135,34 +90,12 @@
 
 .v small {
   font-size: 12px;
-  color: var(--m-pn-t2);
+  color: var(--ef-text-2);
 }
 
 .blk {
   display: grid;
   gap: 8px;
-}
-
-.bh {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.bh::before {
-  content: '';
-  width: 4px;
-  height: 14px;
-  background: var(--ef-accent);
-}
-
-.bh small {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--m-pn-t2);
 }
 
 /* Quote block: left rule, the line, a meta line; the large closing mark stands for deco_sns_tweet_decorate_14. */
@@ -172,8 +105,8 @@
   gap: 4px;
   padding: 10px 12px 10px 14px;
   overflow: hidden;
-  background: var(--m-pn-lo);
-  box-shadow: inset 3px 0 0 var(--m-pn-t2);
+  background: var(--ef-base);
+  box-shadow: inset 3px 0 0 var(--ef-text-2);
 }
 
 .ev::after {
@@ -182,7 +115,7 @@
   right: 10px;
   bottom: -14px;
   font: 700 58px / 1 var(--ef-font-num);
-  color: #fff;
+  color: var(--ef-text-1);
   opacity: 0.14;
   pointer-events: none;
 }
@@ -190,7 +123,7 @@
 .evt {
   font-size: 14px;
   line-height: 22px;
-  color: var(--m-pn-t1);
+  color: var(--ef-text-1);
   overflow-wrap: anywhere;
 }
 
@@ -200,26 +133,7 @@
   gap: 8px;
   align-items: center;
   font-size: 12px;
-  color: var(--m-pn-t2);
-}
-
-.lnk {
-  all: unset;
-  font: 500 12px var(--ef-font-sans);
-  white-space: nowrap;
-  color: var(--m-pn-t1);
-  cursor: pointer;
-  border-bottom: 1px solid var(--m-pn-t3);
-}
-
-.lnk:hover {
-  color: var(--ef-accent);
-  border-color: var(--ef-accent);
-}
-
-.lnk:focus-visible {
-  outline: 2px solid var(--ef-focus);
-  outline-offset: 2px;
+  color: var(--ef-text-2);
 }
 
 @media (max-height: 620px) {
