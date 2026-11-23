@@ -3,8 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { getBridge, type SettingValue } from '../../bridge';
 import type { ToastOptions } from '../../shell/toast';
-import { Slider } from '../../ui';
-import { GameSeg, Stepper } from '../../ui/game';
+import { Select, Slider } from '../../ui';
+import { GameSeg } from '../../ui/game';
 import { loadNative, type Native, type SchemaRow } from '../settings/native';
 
 const KEY = ['character', 'settings'];
@@ -138,8 +138,8 @@ const ON_OFF = [
   { value: 'off', label: '关' },
 ];
 
-/** 设定 rows on the training room: 开｜关 for a toggle row, a slider for a slider row, game segments for up to three options (or the
- *  short labels `short` gives), else a stepper. Sends the option value, never the label. */
+/** 设定 rows on the training room: 开 | 关 for a toggle row, a slider for a slider row, segments for up to three options (or the
+ *  short labels `short` gives), else a dropdown. Sends the option value, never the label. */
 export function gameControl(
   row: SchemaRow,
   value: SettingValue | undefined,
@@ -148,13 +148,16 @@ export function gameControl(
   short?: Readonly<Record<string, string>>,
   compact = false,
 ): ReactNode {
+  // The settings page's controls: its segments (开 | 关 for a switch) and, past three options, its dropdown.
   const size = compact ? 'compact' : 'normal';
-  if (row.kind === 'toggle') return <GameSeg label={row.label} variant="onoff" size={size} value={value === true ? 'on' : 'off'} options={ON_OFF} disabled={disabled} onChange={(v) => onChange(v === 'on')} />;
+  if (row.kind === 'toggle')
+    return <GameSeg variant="setting" label={row.label} size={size} value={value === true ? 'on' : 'off'} options={ON_OFF} disabled={disabled} onChange={(v) => onChange(v === 'on')} />;
   if (row.kind === 'slider') return <SettingSlider row={row} value={value} disabled={disabled} onChange={onChange} />;
   const options = row.options ?? [];
   if (short || options.length <= 3)
     return (
       <GameSeg
+        variant="setting"
         label={row.label}
         size={size}
         value={String(value)}
@@ -164,7 +167,7 @@ export function gameControl(
         onChange={onChange}
       />
     );
-  return <Stepper label={row.label} compact={compact} value={String(value)} defaultValue={String(row.default)} options={options} disabled={disabled} onChange={onChange} />;
+  return <Select label={row.label} value={String(value)} defaultValue={String(row.default)} options={options} disabled={disabled} onChange={onChange} />;
 }
 
 /** The text of a value: an option's label, 开 / 关, or a slider reading with its unit. */
