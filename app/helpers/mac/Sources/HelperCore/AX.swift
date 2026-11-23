@@ -153,7 +153,7 @@ enum AXRules {
     /// CONTRACT §7.4: these nodes are never read.
     static func isSecure(role: String?, subrole: String?, title: String?, description: String?) -> Bool {
         let identity = [role ?? "", subrole ?? "", title ?? "", description ?? ""].joined(separator: " ").lowercased()
-        return ["secure", "password", "passcode", "密码", "口令"].contains(where: identity.contains)
+        return C12Ops.secureKeywords.contains(where: identity.contains)
     }
 
     /// A secure field counts too; its value is never read.

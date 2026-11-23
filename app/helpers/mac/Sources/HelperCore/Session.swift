@@ -176,7 +176,7 @@ public final class Session: @unchecked Sendable {
             exit(3)
         }
         let session: Set = ["hello", "cancel", "shutdown"]
-        let ops = OpTable.specs.map(\.name).filter { session.contains($0) || handlers($0) != nil }
+        let ops = C12Ops.ops.map(\.name).filter { session.contains($0) || handlers($0) != nil }
         let v = ProcessInfo.processInfo.operatingSystemVersion
         #if arch(arm64)
         let arch = "arm64"

@@ -27,7 +27,12 @@ using uia::ComPtr;
 using uia::Info;
 using uia::Reads;
 
-constexpr size_t kMaxElements = 80, kMaxTextScalars = 4000, kTitleScalars = 256, kValueScalars = 512;
+namespace limits = c12_generated::limits;
+
+constexpr size_t kMaxElements = limits::control_observe_max_elements,
+                 kMaxTextScalars = limits::control_observe_max_text_scalars,
+                 kTitleScalars = limits::control_observe_title_scalars,
+                 kValueScalars = limits::control_observe_value_scalars;
 constexpr size_t kExtraWork = 48, kChildrenEach = 80;  // the walk's queue: max_elements and 48 more, 80 per element
 constexpr int kValueUnits = 2 * static_cast<int>(kValueScalars);  // enough UTF-16 units for kValueScalars scalars
 constexpr size_t kMaxTextBytes = 4096;
@@ -245,7 +250,7 @@ Outcome walk(IUIAutomation* automation, const Target& target, bool text, size_t 
         }
         ComPtr<IUIAutomationElement> node = work[head++];
         Info i = uia::info(node.Get());
-        if (i.password || i.offscreen || (i.has_bounds && !uia::intersects(target.bounds, i.bounds))) continue;
+        if (i.secure || i.offscreen || (i.has_bounds && !uia::intersects(target.bounds, i.bounds))) continue;
         std::string id = "e" + std::to_string(out.refs.size());
         BOOL enabled = TRUE;
         if (FAILED(node->get_CachedIsEnabled(&enabled))) enabled = TRUE;
@@ -347,7 +352,7 @@ ComPtr<IUIAutomationElement> checked(IUIAutomation* automation, const Snapshot& 
         why = reads.timed_out ? late(true) : failure("target_changed", "the element left the snapshot's window");
         return nullptr;
     }
-    if (uia::info(fresh.Get()).password) {
+    if (uia::info(fresh.Get()).secure) {
         why = failure("secure_element", "the element is a password control");
         return nullptr;
     }

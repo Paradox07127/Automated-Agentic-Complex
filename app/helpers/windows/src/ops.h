@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "json.h"
+#include "ops_table.generated.h"
 
 // What one op answers: a result object, or an error (CONTRACT §3).
 struct Outcome {
@@ -23,21 +24,12 @@ Outcome failure(std::string code, std::string message, bool retryable = false);
 // Runs on its own thread; params already passed params_error.
 using Handler = Outcome (*)(const json::Value& params);
 
-struct Field {
-    const char* name;
-    const char* kind;  // ops.json's type notation
-};
+using Field = c12_generated::Field;
+// One op of protocol/C12-platform-helper/ops.json, from the generated table.
+using OpSpec = c12_generated::Op;
 
-// One op of protocol/C12-platform-helper/ops.json; ops.cpp copies the table by hand.
-struct OpSpec {
-    const char* name;
-    bool windows;  // its platforms hold windows
-    std::vector<Field> params;
-    std::vector<Field> optional;
-    std::vector<const char*> one_of;
-};
-
-const std::vector<OpSpec>& op_specs();
+// Its platforms hold windows.
+inline bool on_windows(const OpSpec& op) { return op.platforms != c12_generated::Platforms::mac; }
 const OpSpec* find_op(const std::string& name);
 // Empty when params fit the op (validate.py's rules), else the first problem.
 std::string params_error(const OpSpec& op, const json::Value& params);

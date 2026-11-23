@@ -209,7 +209,7 @@ ComPtr<IUIAutomationTextPattern> text_pattern(IUIAutomationElement* element, Rea
 }
 
 json::Value selected_text(IUIAutomationElement* element, const Info& info, Reads& reads) {
-    if (info.password) return json::null();
+    if (info.secure) return json::null();
     ComPtr<IUIAutomationTextPattern> pattern = text_pattern(element, reads);
     ComPtr<IUIAutomationTextRangeArray> ranges;
     ComPtr<IUIAutomationTextRange> first;
@@ -225,7 +225,7 @@ json::Value selected_text(IUIAutomationElement* element, const Info& info, Reads
 }
 
 json::Value value_text(IUIAutomationElement* element, const Info& info, int max_units, Reads& reads, bool* cut) {
-    if (info.password) return json::null();
+    if (info.secure) return json::null();
     auto fit = [&](std::wstring text) {
         if (text.size() > static_cast<size_t>(max_units)) {
             text.resize(static_cast<size_t>(max_units));
@@ -260,7 +260,7 @@ json::Value value_text(IUIAutomationElement* element, const Info& info, int max_
 }
 
 json::Value caret(IUIAutomationElement* element, const Info& info, Reads& reads) {
-    if (info.password || !info.has_bounds) return json::null();
+    if (info.secure || !info.has_bounds) return json::null();
     ComPtr<IUIAutomationTextRange> at;
     ComPtr<IUIAutomationTextPattern2> two;
     BOOL active = FALSE;
@@ -313,7 +313,7 @@ json::Value element_json(IUIAutomationElement* element, HWND window, bool select
     v.set("subrole", subrole(i));
     std::string label = utf8(!i.name.empty() ? i.name : i.help);
     if (i.type == UIA_TextControlTypeId) label = first_scalars(label, kLabelScalars);
-    v.set("label", i.password || label.empty() ? json::null() : json::str(label));
+    v.set("label", i.secure || label.empty() ? json::null() : json::str(label));
     bool cut = false;
     json::Value read = value_text(element, i, kMaxTextUnits, reads, &cut);
     bool counted = read.type == json::Type::Str && !cut;
@@ -322,7 +322,7 @@ json::Value element_json(IUIAutomationElement* element, HWND window, bool select
     v.set("window_title", title.empty() ? json::null() : json::str(title));
     json::Value key = element_key(element);
     if (key.type == json::Type::Str) v.set("element_key", std::move(key));
-    if (selected && !i.password) v.set("selected_text", selected_text(element, i, reads));
+    if (selected && !i.secure) v.set("selected_text", selected_text(element, i, reads));
     if (value) v.set("value", std::move(read));
     return reads.timed_out ? json::null() : v;
 }

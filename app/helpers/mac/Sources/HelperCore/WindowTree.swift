@@ -41,9 +41,6 @@ struct TreeLine: Equatable {
 /// CONTRACT §7.4 `ax.window_tree`: one window's elements as indented lines in preorder, and against a kept version only
 /// the lines that changed. The text is not redacted (the main process does that).
 enum WindowTree {
-    static let defaultLines = 800
-    static let defaultScalars = 32000
-    static let valueScalars = 500
     /// The whole read, the window lookup included.
     static let seconds: TimeInterval = 0.25
     /// Above this many old-by-new line pairs the changed middle is all `-` then all `+`.
@@ -92,7 +89,8 @@ enum WindowTree {
         if let label = title ?? description { head += " " + flat(label) }
         var tail = ""
         if !node.secure, valueRoles.contains(node.role), let value = present(node.value) {
-            tail += ", Value: " + flat(String(String.UnicodeScalarView(value.unicodeScalars.prefix(valueScalars))))
+            let shown = value.unicodeScalars.prefix(C12Ops.Limits.axWindowTreeValueScalars)
+            tail += ", Value: " + flat(String(String.UnicodeScalarView(shown)))
         }
         if title != nil, let description, description != title { tail += ", Description: " + flat(description) }
         if node.selected { tail += " (selected)" }
@@ -254,8 +252,9 @@ enum WindowTree {
         }
         var visited: Set<CFHashCode> = []
         let walked = walk(window, read: { element in visited.insert(CFHash(element)).inserted ? node(element, reader) : nil },
-                          maxLines: JSON.int(params["max_lines"]) ?? defaultLines,
-                          maxScalars: JSON.int(params["max_scalars"]) ?? defaultScalars, stop: { reader.expired || cancelled() })
+                          maxLines: JSON.int(params["max_lines"]) ?? C12Ops.Limits.axWindowTreeMaxLines,
+                          maxScalars: JSON.int(params["max_scalars"]) ?? C12Ops.Limits.axWindowTreeMaxScalars,
+                          stop: { reader.expired || cancelled() })
         if reader.timedOut && walked.lines.isEmpty { return AX.timeout(AX.text) }
         return .success(answer(lines: walked.lines, truncated: walked.truncated, secure: walked.secure,
                                window: "\(pid):\(CFHash(window))", previous: params["previous"] as? String))

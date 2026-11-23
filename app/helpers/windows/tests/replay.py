@@ -64,7 +64,10 @@ control.read reads the edit; click is unsupported_action and voids nothing; with
 (ES_PASSWORD) after the snapshot set_value and read are secure_element; set_value is confirmed, a second act right after it
 waits out the 250 ms and finds its snapshot stale, as does a read, and a new snapshot reads the new text back; press
 on the button is confirmed or unverifiable and the window gets its WM_COMMAND; a second helper finds a live snapshot
-id stale; no line holds the password edit's text. input.actions turns on and off; no input.action is checked, which
+id stale; no line holds the password edit's text. The second test window's plain edit (no ES_PASSWORD), which UIA names
+after the NAMED_LABEL label before it, is a password control by ops.json's secure_keywords: ax.window_tree gives its
+line with that name and no value and is secure, ax.window_text and control.observe leave it out, and no line of that
+session holds its text. input.actions turns on and off; no input.action is checked, which
 needs a real click or key, and no synthetic input is sent to the host. Edge and Chrome windows the replay opens in
 profiles of their own (see browser_tab) give browser.front_tab's private state and host.
 Events the helper sends between answers go into the session that validate.check reads.
@@ -140,6 +143,10 @@ SELECTED = 'milk'
 PASSWORD_TEXT = 'c12-replay-secret-7Qx'
 BUTTON_TEXT = 'Press'
 EDIT_ID, PASSWORD_ID, BUTTON_ID = 101, 102, 103
+# The second window's label and the plain edit after it, which UIA names after the label.
+NAMED_LABEL = '密码'
+NAMED_TEXT = 'c12-replay-named-4Kp'
+NAMED_LABEL_ID, NAMED_ID = 104, 105
 WM_FOCUS_CONTROL = 0x8000  # WM_APP; wParam is EDIT_ID or PASSWORD_ID
 
 
@@ -288,10 +295,10 @@ class TestWindow:
     """Plain top-level windows of this process, painted COLOUR: the only windows the replay lets the helper read,
     capture or activate. second stays hidden until focus_second. The first holds two edits: edit with EDIT_TEXT and
     SELECTED selected, and password (ES_PASSWORD) with PASSWORD_TEXT; and button, whose clicks (WM_COMMAND BN_CLICKED)
-    clicks counts."""
+    clicks counts. The second holds named, a plain edit with NAMED_TEXT after a NAMED_LABEL label."""
 
     def __init__(self):
-        self.hwnd = self.second = self.edit = self.password = self.button = None
+        self.hwnd = self.second = self.edit = self.password = self.button = self.named = None
         self.clicks = 0
         self.gone = None  # the id of a window created and destroyed at once
         self.text = None  # lines label paints over the first window, black on white
@@ -398,6 +405,11 @@ class TestWindow:
         r = SECOND_RECT
         self.second = user32.CreateWindowExW(0, 'C12ReplayWindow', SECOND_TITLE, 0x00CF0000, r['x'], r['y'],
                                              r['width'], r['height'], None, None, instance, None)
+        # WS_CHILD | WS_VISIBLE STATIC, then the plain edit: created after it, it follows it in z-order.
+        user32.CreateWindowExW(0, 'STATIC', NAMED_LABEL, 0x40000000 | 0x10000000, 8, 8, 48, 24, self.second,
+                               NAMED_LABEL_ID, instance, None)
+        self.named = user32.CreateWindowExW(0, 'EDIT', NAMED_TEXT, style, 60, 8, 200, 24, self.second, NAMED_ID,
+                                            instance, None)
         self.ready.set()
         msg = wintypes.MSG()
         while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
@@ -1320,6 +1332,7 @@ def desktop(exe, checks, window, target):
     # While the replay still has the foreground, which the first window then takes from the second.
     desktop_ax(exe, checks, window, target)
     desktop_control(exe, checks, window, target)
+    desktop_named(exe, checks, window)
     checks.expect(window.close_second(), 'desktop: the second test window closes', '')
     got = ask('capture.window', window_id=window.second)
     checks.expect(got.get('error', {}).get('code') == 'window_gone', 'desktop capture.window of a closed window is window_gone',
@@ -1575,6 +1588,46 @@ def desktop_control(exe, checks, window, target):
                   f'{len(leaked)} lines')
     problem = validate.check(helper.transcript, SPEC)
     checks.expect(problem is None, 'desktop control session validate.check', problem)
+
+
+def desktop_named(exe, checks, window):
+    """The second test window's edit named NAMED_LABEL, whose IsPassword is false, read as a password control (see the
+    module docstring)."""
+    helper = Helper(exe)
+    ids = iter(range(2, 1000))
+    me = os.getpid()
+
+    def ask(op, **params):
+        return helper.request({'v': 1, 'id': next(ids), 'op': op, 'params': params}) or {}
+
+    helper.request(HELLO)
+    got = ask('windows.list', pid=me, include_titles=True)
+    listed = (got.get('result') or {}).get('windows', [])
+    bounds = next((w['bounds'] for w in listed if w['window_id'] == window.second), None)
+    checks.expect(bounds is not None, 'desktop windows.list finds the second test window', f'answer {got!a:.300}')
+    if bounds:
+        got = ask('ax.window_tree', pid=me, window_bounds=bounds)
+        result = got.get('result') or {}
+        lines = result.get('text', '').split('\n')
+        print(f'note: desktop ax.window_tree of the second test window: {lines!a:.600}', flush=True)
+        checks.expect(result.get('matched') is True and result.get('secure') is True
+                      and any(re.fullmatch(rf'\t*\d+ text field {NAMED_LABEL}', line) for line in lines),
+                      'desktop ax.window_tree gives the keyword-named edit its name and no value, secure',
+                      f'answer {got!a:.600}')
+        got = ask('ax.window_text', pid=me, level='window', window_bounds=bounds)
+        result = got.get('result') or {}
+        checks.expect(result.get('matched') is True
+                      and not any(n.get('role') == 'AXTextField' for n in result.get('nodes', [])),
+                      'desktop ax.window_text leaves out the keyword-named edit', f'answer {got!a:.600}')
+        got = ask('control.observe', pid=me, window_id=window.second, include_text=True)
+        elements = (got.get('result') or {}).get('elements', [])
+        checks.expect(got.get('ok') is True and not any(e.get('role') == 'AXTextField' for e in elements),
+                      'desktop control.observe leaves out the keyword-named edit', f'answer {got!a:.600}')
+    checks.expect(helper.exit_code() == 0, 'desktop named-edit session exit', '')
+    leaked = [line for line in helper.transcript if NAMED_TEXT in line]
+    checks.expect(not leaked, 'desktop: no line of the named-edit session holds the edit\'s text', f'{len(leaked)} lines')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, 'desktop named-edit session validate.check', problem)
 
 
 def installed(exe):

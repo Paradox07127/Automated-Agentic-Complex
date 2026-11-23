@@ -18,76 +18,8 @@ Outcome failure(std::string code, std::string message, bool retryable) {
     return out;
 }
 
-const std::vector<OpSpec>& op_specs() {
-    // ops.json "ops": name, windows in platforms, params, params_optional, params_one_of.
-    static const std::vector<OpSpec> specs = {
-        {"hello", true, {{"protocol", "int+"}, {"client", "str+"}}, {{"client_version", "str"}}, {}},
-        {"cancel", true, {{"target", "int+"}}, {}, {}},
-        {"shutdown", true, {}, {}, {}},
-        {"screens.list", true, {}, {}, {}},
-        {"windows.list", true, {},
-         {{"pid", "int+"}, {"layer0_only", "bool"}, {"include_titles", "bool"}, {"limit", "int+"}}, {}},
-        {"windows.at_point", true, {{"point", "point"}},
-         {{"exclude_pids", "arr<int+>"}, {"layer0_only", "bool"}, {"include_titles", "bool"}}, {}},
-        {"workspace.watch", true, {{"enabled", "bool"}}, {}, {}},
-        {"attention.sample", true, {},
-         {{"include_titles", "bool"}, {"include_input", "bool"}, {"include_audio", "bool"}}, {}},
-        {"presence.watch", true, {{"enabled", "bool"}}, {}, {}},
-        {"browser.front_tab", true, {{"app_id", "str+"}}, {}, {}},
-        {"input.modifiers", true, {}, {}, {}},
-        {"input.watch", true, {{"enabled", "bool"}}, {}, {}},
-        {"input.actions", true, {{"enabled", "bool"}}, {}, {}},
-        {"ax.focused", true, {}, {{"pid", "int+"}}, {}},
-        {"ax.dialog_buttons", true, {{"pid", "int+"}}, {}, {}},
-        {"ax.overlays", true, {}, {}, {}},
-        {"ax.hit_chain", true, {{"point", "point"}}, {{"exclude_pids", "arr<int+>"}}, {}},
-        {"ax.window_text", true, {{"pid", "int+"}, {"level", "enum(focused|window)"}},
-         {{"window_bounds", "rect"}, {"cursor", "str"}, {"max_nodes", "int+"},
-          {"max_scalars", "int+"}}, {}},
-        {"ax.window_tree", true, {{"pid", "int+"}},
-         {{"window_bounds", "rect"}, {"previous", "str+"}, {"max_lines", "int+"}, {"max_scalars", "int+"}}, {}},
-        {"ax.selected_text", true, {{"pid", "int+"}}, {}, {}},
-        {"ax.video_rect", false, {{"pid", "int+"}}, {}, {}},
-        {"ax.watch", true, {{"pid", "int+?"}, {"notifications", "arr<enum(focus|window|title|value|selection)>"}},
-         {{"read_selected_text", "bool"}, {"read_value", "bool"}, {"manual_accessibility", "bool"},
-          {"watch_id", "str+"}}, {}},
-        {"capture.window", true, {{"window_id", "int+"}},
-         {{"format", "enum(png|jpeg)"}, {"max_long_side", "int+"}, {"max_bytes", "int+"}}, {}},
-        {"capture.ambient", true, {{"source", "enum(screen|wallpaper)"}, {"side", "int+"}},
-         {{"rect", "rect"}, {"exclude_pids", "arr<int+>"}, {"display_id", "uint"}}, {}},
-        {"ocr.languages", true, {}, {}, {}},
-        {"ocr.recognize", true, {}, {{"window_id", "int+"}, {"image", "image"}, {"languages", "arr<str>"}},
-         {"window_id", "image"}},
-        {"speech.locales", true, {}, {}, {}},
-        {"mic.start", true, {{"session", "str+"}, {"locale", "str+"}},
-         {{"transcribe", "bool"}, {"level_events", "bool"}}, {}},
-        {"mic.stop", true, {{"session", "str+"}}, {{"discard", "bool"}}, {}},
-        {"ptt.register", true, {{"combo", "str+"}}, {}, {}},
-        {"ptt.unregister", true, {}, {}, {}},
-        {"control.observe", true, {{"pid", "int+"}, {"window_id", "int+"}},
-         {{"include_text", "bool"}, {"include_image", "bool"}, {"max_elements", "int+"},
-          {"max_text_scalars", "int+"}}, {}},
-        {"control.act", true, {{"snapshot_id", "str+"}, {"action", "enum(press|set_value|type|click|scroll)"}},
-         {{"element_id", "str+"}, {"text", "str"}, {"x", "num"}, {"y", "num"}, {"delta_y", "int"}}, {}},
-        {"control.read", true, {{"snapshot_id", "str+"}, {"element_id", "str+"}}, {}, {}},
-        {"control.listen", true, {{"endpoint", "str+"}, {"token_file", "str+"}}, {}, {}},
-        {"control.respond", true, {{"conn", "int+"}, {"response", "obj"}}, {}, {}},
-        {"permissions.status", true, {}, {}, {}},
-        {"permissions.request", true,
-         {{"kind", "enum(accessibility|screenRecording|microphone|automation|inputMonitoring)"}}, {}, {}},
-        {"clipboard.read", true, {}, {{"first_only", "bool"}, {"max_items", "int+"}, {"max_text_bytes", "int+"}}, {}},
-        {"apps.running", true, {}, {{"regular_only", "bool"}}, {}},
-        {"apps.installed", true, {}, {}, {}},
-        {"apps.activate", true, {}, {{"pid", "int+"}, {"app_id", "str+"}, {"ancestors", "bool"}}, {"pid", "app_id"}},
-        {"terminal.focus", false, {{"app", "enum(terminal|iterm|ghostty)"}}, {{"tty", "str+"}, {"cwd", "str+"}},
-         {"tty", "cwd"}},
-        {"process.usage", true, {{"pids", "arr<int+>"}}, {}, {}},
-    };
-    return specs;
-}
-
 const OpSpec* find_op(const std::string& name) {
-    for (const OpSpec& op : op_specs()) {
+    for (const OpSpec& op : c12_generated::ops()) {
         if (name == op.name) return &op;
     }
     return nullptr;
@@ -96,14 +28,10 @@ const OpSpec* find_op(const std::string& name) {
 namespace {
 
 // ops.json "types" that params use.
-const std::vector<Field>* named_type(const std::string& kind) {
-    static const std::vector<Field> rect = {{"x", "num"}, {"y", "num"}, {"width", "num"}, {"height", "num"}};
-    static const std::vector<Field> point = {{"x", "num"}, {"y", "num"}};
-    static const std::vector<Field> image = {
-        {"format", "enum(png|jpeg)"}, {"width", "int+"}, {"height", "int+"}, {"data", "b64"}};
-    if (kind == "rect") return &rect;
-    if (kind == "point") return &point;
-    if (kind == "image") return &image;
+const c12_generated::Type* named_type(const std::string& kind) {
+    for (const c12_generated::Type& type : c12_generated::param_types()) {
+        if (kind == type.name) return &type;
+    }
     return nullptr;
 }
 
@@ -161,9 +89,9 @@ std::string type_error(const json::Value& value, std::string kind, const std::st
             if (!problem.empty()) return problem;
         }
         return {};
-    } else if (const std::vector<Field>* fields = named_type(kind)) {
+    } else if (const c12_generated::Type* type = named_type(kind)) {
         if (value.type != json::Type::Obj) return path + " not " + kind;
-        return fields_error(value, *fields, {}, path);
+        return fields_error(value, type->fields, type->optional, path);
     } else {
         return path + ": unknown type " + kind;
     }

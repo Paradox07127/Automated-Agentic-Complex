@@ -110,8 +110,8 @@ void hello(int64_t id, const json::Value& params) {
         ExitProcess(3);
     }
     json::Value ops = json::array();
-    for (const OpSpec& op : op_specs()) {
-        if (is_session_op(op.name) || (op.windows && find_handler(op.name))) ops.push(json::str(op.name));
+    for (const OpSpec& op : c12_generated::ops()) {
+        if (is_session_op(op.name) || (on_windows(op) && find_handler(op.name))) ops.push(json::str(op.name));
     }
     json::Value result = json::object();
     result.set("protocol", json::integer(kProtocol));
@@ -174,7 +174,7 @@ void dispatch(int64_t id, const std::string& name, const json::Value* params) {
     if (name == "hello") return hello(id, *params);
     if (name == "cancel") return cancel(id, params->get("target")->i);
     if (name == "shutdown") shutdown(id);
-    if (!op->windows) return answer(id, failure("unsupported", name + " is macOS only"));
+    if (!on_windows(*op)) return answer(id, failure("unsupported", name + " is macOS only"));
     Handler handler = find_handler(name);
     if (!handler) return answer(id, failure("unsupported", name + " is not implemented in the Windows helper yet"));
     g_running[id] = name;

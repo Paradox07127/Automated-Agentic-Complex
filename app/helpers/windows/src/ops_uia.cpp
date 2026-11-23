@@ -26,7 +26,10 @@ using uia::Info;
 using uia::Reads;
 
 constexpr ULONGLONG kSliceMs = 1500;  // one ax.window_text page's walk, inside kTextMs
-constexpr size_t kDefaultNodes = 2048, kWindowScalars = 6000, kFocusedScalars = 2000;
+namespace limits = c12_generated::limits;
+
+constexpr size_t kDefaultNodes = limits::ax_window_text_max_nodes, kWindowScalars = limits::ax_window_text_max_scalars,
+                 kFocusedScalars = limits::ax_window_text_focused_max_scalars;
 constexpr size_t kKeptWalks = 8;
 
 RECT rect_param(const json::Value& r) {
@@ -379,7 +382,7 @@ std::shared_ptr<Walk> begin_walk(IUIAutomation* automation, IUIAutomationElement
     ComPtr<IUIAutomationElement> element;
     if (front && GetAncestor(front, GA_ROOT) == hwnd) element = uia::focused(automation, p.pid, reads);
     Info i = uia::info(element.Get());
-    if (element && !i.password && (!i.has_bounds || !walk->has_keep || uia::intersects(walk->keep, i.bounds))) {
+    if (element && !i.secure && (!i.has_bounds || !walk->has_keep || uia::intersects(walk->keep, i.bounds))) {
         Node node;
         node.type = i.type;
         node.label = text_of(i.name);
@@ -424,7 +427,7 @@ Page next_page(IUIAutomation* automation, Walk& walk, const TextParams& p, Reads
         auto entry = walk.queue.front();
         walk.queue.pop_front();
         Info i = uia::info(entry.first.Get());
-        if (i.password || i.offscreen || (walk.has_keep && i.has_bounds && !uia::intersects(walk.keep, i.bounds))) {
+        if (i.secure || i.offscreen || (walk.has_keep && i.has_bounds && !uia::intersects(walk.keep, i.bounds))) {
             continue;
         }
         Node node = make_node(entry.first.Get(), i, walk.made, entry.second, reads, unreadable);
@@ -546,7 +549,8 @@ Outcome text_read(IUIAutomation* automation, const TextParams& p) {
 
 // ---- ax.window_tree
 
-constexpr size_t kTreeLines = 800, kTreeScalars = 32000, kTreeValueScalars = 500, kKeptTrees = 8;
+constexpr size_t kTreeLines = limits::ax_window_tree_max_lines, kTreeScalars = limits::ax_window_tree_max_scalars,
+                 kTreeValueScalars = limits::ax_window_tree_value_scalars, kKeptTrees = 8;
 // Above this many old-by-new line pairs the changed middle is all - lines, then all + lines.
 constexpr size_t kDiffCells = 4000000;
 // After this much of the op's time the values are not asked for: the tree is answered truncated without them.
@@ -662,15 +666,19 @@ bool cached_bool(IUIAutomationElement* element, PROPERTYID property, bool& out) 
     return found;
 }
 
-std::string cached_text(IUIAutomationElement* element, PROPERTYID property) {
+std::wstring cached_wide(IUIAutomationElement* element, PROPERTYID property) {
     VARIANT value;
     VariantInit(&value);
-    std::string text;
+    std::wstring text;
     if (SUCCEEDED(element->GetCachedPropertyValue(property, &value)) && value.vt == VT_BSTR && value.bstrVal) {
-        text = uia::utf8(std::wstring(value.bstrVal, SysStringLen(value.bstrVal)));
+        text.assign(value.bstrVal, SysStringLen(value.bstrVal));
     }
     VariantClear(&value);
     return text;
+}
+
+std::string cached_text(IUIAutomationElement* element, PROPERTYID property) {
+    return uia::utf8(cached_wide(element, property));
 }
 
 std::string cached_key(IUIAutomationElement* element) {
@@ -692,6 +700,14 @@ std::vector<ComPtr<IUIAutomationElement>> cached_children(IUIAutomationElement* 
     return elements(children.Get());
 }
 
+// uia::secure of an element of the tree's cache request.
+bool cached_secure(IUIAutomationElement* element, CONTROLTYPEID type) {
+    BOOL password = FALSE;
+    return uia::secure(SUCCEEDED(element->get_CachedIsPassword(&password)) && password != FALSE, type,
+                       cached_wide(element, UIA_ClassNamePropertyId), cached_wide(element, UIA_NamePropertyId),
+                       cached_wide(element, UIA_HelpTextPropertyId));
+}
+
 bool text_control(CONTROLTYPEID type) {
     return type == UIA_EditControlTypeId || type == UIA_DocumentControlTypeId || type == UIA_ComboBoxControlTypeId;
 }
@@ -704,9 +720,8 @@ TreeNode tree_node(IUIAutomationElement* element, const std::map<std::string, st
     CONTROLTYPEID type = 0;
     element->get_CachedControlType(&type);
     node.role = uia::role(type);
-    BOOL on = FALSE;
-    node.secure = SUCCEEDED(element->get_CachedIsPassword(&on)) && on != FALSE;
-    on = TRUE;
+    node.secure = cached_secure(element, type);
+    BOOL on = TRUE;
     node.disabled = SUCCEEDED(element->get_CachedIsEnabled(&on)) && on == FALSE;
     std::string name = cached_text(element, UIA_NamePropertyId);
     node.description = cached_text(element, UIA_HelpTextPropertyId);
@@ -757,18 +772,45 @@ bool has_text_controls(IUIAutomationElement* root) {
         ComPtr<IUIAutomationElement> element = stack.back();
         stack.pop_back();
         CONTROLTYPEID type = 0;
-        BOOL password = FALSE;
         element->get_CachedControlType(&type);
-        if (text_control(type) && SUCCEEDED(element->get_CachedIsPassword(&password)) && password == FALSE) {
-            return true;
-        }
+        if (text_control(type) && !cached_secure(element.Get(), type)) return true;
         for (const auto& child : cached_children(element.Get())) stack.push_back(child);
     }
     return false;
 }
 
-// The values of the text controls under root that are no password, by element key, in one more call: a password
-// control's value is never asked for. False when UIA did not answer.
+// An element whose class name, Name and HelpText hold no secure keyword of uia::secure (case-blind substrings); null
+// when UIA cannot make the condition.
+ComPtr<IUIAutomationCondition> no_secure_keyword(IUIAutomation* automation) {
+    std::vector<ComPtr<IUIAutomationCondition>> made;
+    std::vector<IUIAutomationCondition*> any;
+    auto flags =
+        static_cast<PropertyConditionFlags>(PropertyConditionFlags_IgnoreCase | PropertyConditionFlags_MatchSubstring);
+    for (PROPERTYID property : {UIA_ClassNamePropertyId, UIA_NamePropertyId, UIA_HelpTextPropertyId}) {
+        for (const wchar_t* keyword : c12_generated::secure_keywords()) {
+            VARIANT value;
+            VariantInit(&value);
+            value.vt = VT_BSTR;
+            value.bstrVal = SysAllocString(keyword);
+            ComPtr<IUIAutomationCondition> holds;
+            HRESULT hr =
+                value.bstrVal ? automation->CreatePropertyConditionEx(property, value, flags, &holds) : E_OUTOFMEMORY;
+            VariantClear(&value);
+            if (FAILED(hr) || !holds) return nullptr;
+            made.push_back(holds);
+            any.push_back(holds.Get());
+        }
+    }
+    ComPtr<IUIAutomationCondition> either, none;
+    if (FAILED(automation->CreateOrConditionFromNativeArray(any.data(), static_cast<int>(any.size()), &either)) ||
+        FAILED(automation->CreateNotCondition(either.Get(), &none))) {
+        return nullptr;
+    }
+    return none;
+}
+
+// The values of the text controls under root that are no password control (uia::secure), by element key, in one more
+// call: a password control's value is never asked for. False when UIA did not answer.
 bool read_values(IUIAutomation* automation, IUIAutomationElement* root, Reads& reads,
                  std::map<std::string, std::string>& values) {
     ComPtr<IUIAutomationCacheRequest> cache;
@@ -789,13 +831,14 @@ bool read_values(IUIAutomation* automation, IUIAutomationElement* root, Reads& r
         uia::condition(automation, UIA_ControlTypePropertyId, UIA_DocumentControlTypeId);
     ComPtr<IUIAutomationCondition> combo =
         uia::condition(automation, UIA_ControlTypePropertyId, UIA_ComboBoxControlTypeId);
+    ComPtr<IUIAutomationCondition> unnamed = no_secure_keyword(automation);
     ComPtr<IUIAutomationCondition> either, all;
-    if (!plain || !valued || !edit || !document || !combo) return false;
+    if (!plain || !unnamed || !valued || !edit || !document || !combo) return false;
     IUIAutomationCondition* types[] = {edit.Get(), document.Get(), combo.Get()};
     if (FAILED(automation->CreateOrConditionFromNativeArray(types, 3, &either))) return false;
-    IUIAutomationCondition* parts[] = {plain.Get(), valued.Get(), either.Get()};
+    IUIAutomationCondition* parts[] = {plain.Get(), unnamed.Get(), valued.Get(), either.Get()};
     ComPtr<IUIAutomationElementArray> found;
-    if (FAILED(automation->CreateAndConditionFromNativeArray(parts, 3, &all)) ||
+    if (FAILED(automation->CreateAndConditionFromNativeArray(parts, 4, &all)) ||
         !reads.ok(root->FindAllBuildCache(TreeScope_Descendants, all.Get(), cache.Get(), &found))) {
         return false;
     }
@@ -976,8 +1019,8 @@ Outcome tree_read(IUIAutomation* automation, const TreeParams& p) {
     if (FAILED(automation->CreateCacheRequest(&cache))) return failure("internal", "cannot make a UIA cache request");
     cache->put_TreeScope(TreeScope_Subtree);
     for (PROPERTYID id : {UIA_ControlTypePropertyId, UIA_NamePropertyId, UIA_HelpTextPropertyId,
-                          UIA_IsPasswordPropertyId, UIA_IsEnabledPropertyId, UIA_IsOffscreenPropertyId,
-                          UIA_RuntimeIdPropertyId, UIA_ToggleToggleStatePropertyId,
+                          UIA_ClassNamePropertyId, UIA_IsPasswordPropertyId, UIA_IsEnabledPropertyId,
+                          UIA_IsOffscreenPropertyId, UIA_RuntimeIdPropertyId, UIA_ToggleToggleStatePropertyId,
                           UIA_SelectionItemIsSelectedPropertyId, UIA_ExpandCollapseExpandCollapseStatePropertyId}) {
         cache->AddProperty(id);
     }

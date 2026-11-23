@@ -168,12 +168,28 @@ inline std::string first_scalars(const std::string& text, size_t n) {
 
 // ---- elements
 
+// CONTRACT §7.4: IsPassword, or a keyword of ops.json's secure_keywords in the class name, Name or HelpText, as
+// AXRules.isSecure reads role, subrole, title and description. A Text control's Name is its text (AXStaticText's
+// value), which the rule leaves out.
+inline bool secure(bool password, CONTROLTYPEID type, const std::wstring& class_name, const std::wstring& name,
+                   const std::wstring& help) {
+    if (password) return true;
+    std::wstring identity =
+        win32::lower(class_name + L" " + (type == UIA_TextControlTypeId ? std::wstring() : name) + L" " + help);
+    for (const wchar_t* keyword : c12_generated::secure_keywords()) {
+        if (identity.find(keyword) != std::wstring::npos) return true;
+    }
+    return false;
+}
+
 // The cached properties of an element, as cache_request() asks for them.
 struct Info {
     CONTROLTYPEID type = 0;
     RECT bounds{};
     bool has_bounds = false;  // a non-empty bounding rectangle
-    bool password = false, offscreen = false, modal = false, editable_value = false;
+    bool password = false;    // IsPassword
+    bool secure = false;      // by secure(): what no read of a value, label or selection touches
+    bool offscreen = false, modal = false, editable_value = false;
     DWORD pid = 0;
     std::wstring name, help, class_name;
 };
@@ -211,6 +227,7 @@ inline Info info(IUIAutomationElement* element) {
     i.editable_value = cached_flag(element, UIA_IsValuePatternAvailablePropertyId) &&
                        !cached_flag(element, UIA_ValueIsReadOnlyPropertyId);
     i.modal = cached_flag(element, UIA_WindowIsModalPropertyId);
+    i.secure = secure(i.password, i.type, i.class_name, i.name, i.help);
     return i;
 }
 

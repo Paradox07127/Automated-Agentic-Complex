@@ -82,7 +82,7 @@
 
 ## 7. op
 
-平台一列：「两者」= macOS 和 Windows 都实现；「仅 Mac」= Windows 的 `hello.ops` 不列它。错误码一列只列该 op 自己的，通用错误码（第 3 节）不重复。字段类型见第 7.12 节和 `ops.json` 的 `types`。
+平台一列：「两者」= macOS 和 Windows 都实现；「仅 Mac」= Windows 的 `hello.ops` 不列它。错误码一列只列该 op 自己的，通用错误码（第 3 节）不重复。字段类型见第 7.12 节和 `ops.json` 的 `types`。选填上限（`max_nodes`、`max_scalars` 等）的默认值和每个字段的截断长度在各 op 的 `limits`，两个 helper 的操作表由 `protocol/tools/gen_c12.py` 从 `ops.json` 生成。
 
 ### 7.1 会话
 
@@ -164,7 +164,7 @@
 | `ax.video_rect` | 仅 Mac | `pid` | `rect`，没有时 null | `permission_denied`、`ax_timeout`、`process_gone` |
 | `ax.watch` | 两者 | `pid`（null 表示停止）、`notifications`；选填 `read_selected_text`、`read_value`、`manual_accessibility`、`watch_id` | `watching`、`pid`；选填 `watch_id`、`element`、`window`、`manual_accessibility` | `permission_denied`、`process_gone` |
 
-- 这一组都不读密码控件：macOS 的 `AXSecureTextField` 和角色、标题、描述里带 password、密码等字样的节点（`ScreenContextNode.secure`），Windows 的 `IsPassword`。`ax.focused` 遇到它们 `caret` 为 null。
+- 这一组都不读密码控件。两端用同一条并集规则，在 helper 进程里、读值之前判定：平台原生的密码标记（macOS 的 `AXSecureTextField`，Windows 的 `IsPassword`），或身份里含 `ops.json` 的 `secure_keywords` 之一（secure、password、passcode、密码、口令，不分大小写）——macOS 看角色、子角色、标题、描述，Windows 看类名、Name、HelpText（`Text` 控件的 Name 是它的文字，同 `AXStaticText` 的值，不看）。只按关键字算上的控件 `subrole` 不变，Windows 的 `AXSecureTextField` 只给 `IsPassword`。`ax.focused` 遇到它们 `caret` 为 null。
 - `ax.focused` 不读值，只给角色、框和插入点；`editable` 由 helper 判断：两端都按换算后的 `role`、`subrole` 用 `ScreenTargets.isEditable` 的规则，Windows 另把支持 ValuePattern 且不是只读的控件算进去。`element_key` 是焦点控件的不透明标识，焦点换了它就变（macOS 用 `CFHash`，Windows 用 RuntimeId）。
 - `ax.focused` 不带 `pid` 时回包另带 `app_pid`：系统焦点所在的 app（macOS 系统级元素的 `kAXFocusedApplicationAttribute`），`focus` 为 null 时也给，读不到时 null；带 `pid` 时不出现。主进程拿它调 `ax.dialog_buttons`，排除自己的 pid 由主进程做。Windows 暂不给（不出现）。
 - `ax.dialog_buttons`：焦点窗口是对话框或带 sheet 时，默认和取消按钮的框。Windows 取 `WindowPattern.IsModal` 的窗口里 AutomationId 为 `1`、`2` 的按钮，要实测。

@@ -47,9 +47,6 @@ struct TextBudget {
 /// its text, with the contract's node and scalar budgets per answer. A cursor continues the walk of
 /// the same snapshot; the text is not redacted (the main process does that).
 enum WindowText {
-    static let defaultNodes = 2048
-    static let windowScalars = 6000
-    static let focusedScalars = 2000
     private static let textRoles: Set<String> = ["AXStaticText", "AXTextArea", "AXTextField", "AXHeading"]
     private static let valueRoles: Set<String> = ["AXStaticText", "AXTextArea", "AXTextField"]
     /// Walks kept for their cursors, oldest first.
@@ -158,8 +155,9 @@ enum WindowText {
         guard let pid = AX.livePid(params["pid"]) else { return AX.gone }
         guard !AX.skipped(pid) else { return AX.timeout(AX.text) }
         let focusedLevel = params["level"] as? String == "focused"
-        let maxNodes = JSON.int(params["max_nodes"]) ?? defaultNodes
-        let maxScalars = JSON.int(params["max_scalars"]) ?? (focusedLevel ? focusedScalars : windowScalars)
+        let maxNodes = JSON.int(params["max_nodes"]) ?? C12Ops.Limits.axWindowTextMaxNodes
+        let maxScalars = JSON.int(params["max_scalars"])
+            ?? (focusedLevel ? C12Ops.Limits.axWindowTextFocusedMaxScalars : C12Ops.Limits.axWindowTextMaxScalars)
         let scope = focusedLevel ? "focused_control" : "visible_window"
         var reasons: [String] = []
         var walk: TextWalk?

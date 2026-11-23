@@ -170,13 +170,13 @@ enum Control {
         }
         guard !secureInputOn() else { return secureInput }
         guard !AX.skipped(pid) else { return AX.timeout(AX.probe) }
-        let maxElements = JSON.int(params["max_elements"]) ?? 80
+        let maxElements = JSON.int(params["max_elements"]) ?? C12Ops.Limits.controlObserveMaxElements
         let workLimit = maxElements > Int.max - 48 ? Int.max : maxElements + 48
         let reader = AXReader(pid: pid, limit: AX.probe, deadline: Date().addingTimeInterval(walkSeconds))
         guard let window = axWindow(reader, target) else {
             return reader.timedOut ? AX.timeout(AX.probe) : fail("window_gone", "no AX window of the app matches that window")
         }
-        var budget = ControlTextBudget(JSON.int(params["max_text_scalars"]) ?? 4000)
+        var budget = ControlTextBudget(JSON.int(params["max_text_scalars"]) ?? C12Ops.Limits.controlObserveMaxTextScalars)
         var elements: [[String: Any]] = [], refs: [String: AXUIElement] = [:], work = [window], head = 0
         var seen: Set<CFHashCode> = []
         while head < work.count, elements.count < maxElements, !reader.expired, !cancelled() {
@@ -193,10 +193,10 @@ enum Control {
             let id = "e\(elements.count)"
             var item: [String: Any] = ["element_id": id, "role": role, "native_role": role, "enabled": (v[5] as? Bool) ?? true]
             if text {
-                item["title"] = budget.take(title ?? description ?? "", most: 256)
+                item["title"] = budget.take(title ?? description ?? "", most: C12Ops.Limits.controlObserveTitleScalars)
                 if valueRoles.contains(role) {
                     let value = reader.string(node, role == "AXTextArea" ? kAXVisibleTextAttribute : kAXValueAttribute)
-                    item["value"] = budget.take(value ?? "", most: 512)
+                    item["value"] = budget.take(value ?? "", most: C12Ops.Limits.controlObserveValueScalars)
                 }
             }
             if let frame { item["bounds"] = rectJSON(frame.offsetBy(dx: -target.bounds.minX, dy: -target.bounds.minY)) }

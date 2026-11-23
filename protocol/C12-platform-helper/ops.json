@@ -4,6 +4,7 @@
   "max_line_bytes": 16777216,
   "platforms": ["macos", "windows"],
   "common_errors": ["bad_request", "unknown_op", "unsupported", "not_ready", "cancelled", "timeout", "internal"],
+  "secure_keywords": ["secure", "password", "passcode", "密码", "口令"],
   "groups": {
     "session": "会话",
     "windows": "前台窗口和屏幕",
@@ -197,6 +198,7 @@
       "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 3000,
       "params": {"pid": "int+", "level": "enum(focused|window)"},
       "params_optional": {"window_bounds": "rect", "cursor": "str", "max_nodes": "int+", "max_scalars": "int+"},
+      "limits": {"max_nodes": 2048, "max_scalars": 6000, "focused_max_scalars": 2000},
       "result": {"snapshot_id": "str+", "matched": "bool", "text": "str", "nodes": "arr<ax_node>", "coverage": "coverage"},
       "errors": ["permission_denied", "ax_timeout", "ax_unavailable", "process_gone"]
     },
@@ -204,6 +206,7 @@
       "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 2000,
       "params": {"pid": "int+"},
       "params_optional": {"window_bounds": "rect", "previous": "str+", "max_lines": "int+", "max_scalars": "int+"},
+      "limits": {"max_lines": 800, "max_scalars": 32000, "value_scalars": 500},
       "result": {"matched": "bool", "tree_id": "str+", "mode": "enum(full|diff|no_change)", "text": "str", "lines": "uint",
                  "truncated": "bool", "secure": "bool"},
       "errors": ["permission_denied", "ax_timeout", "ax_unavailable", "process_gone"]
@@ -295,6 +298,7 @@
       "group": "control", "platforms": ["macos", "windows"], "timeout_ms": 5000,
       "params": {"pid": "int+", "window_id": "int+"},
       "params_optional": {"include_text": "bool", "include_image": "bool", "max_elements": "int+", "max_text_scalars": "int+"},
+      "limits": {"max_elements": 80, "max_text_scalars": 4000, "title_scalars": 256, "value_scalars": 512},
       "result": {"snapshot_id": "str+", "target": "control_target", "elements": "arr<control_element>", "truncated": "bool",
                  "text_truncated": "bool"},
       "result_optional": {"image": "image"},

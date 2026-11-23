@@ -12,6 +12,11 @@ enum C12Ops {
         let oneOf: [String]
     }
 
+    struct Shape {
+        let fields: [(name: String, kind: String)]
+        let optional: [(name: String, kind: String)]
+    }
+
     static let ops: [Op] = [
         Op(name: "hello", platforms: .both, params: [("protocol", "int+"), ("client", "str+")], optional: [("client_version", "str")], oneOf: []),
         Op(name: "cancel", platforms: .both, params: [("target", "int+")], optional: [], oneOf: []),
@@ -50,7 +55,7 @@ enum C12Ops {
         Op(name: "control.listen", platforms: .both, params: [("endpoint", "str+"), ("token_file", "str+")], optional: [], oneOf: []),
         Op(name: "control.respond", platforms: .both, params: [("conn", "int+"), ("response", "obj")], optional: [], oneOf: []),
         Op(name: "permissions.status", platforms: .both, params: [], optional: [], oneOf: []),
-        Op(name: "permissions.request", platforms: .both, params: [("kind", "enum(accessibility|screenRecording|microphone|automation|inputMonitoring)")], optional: [], oneOf: []),
+        Op(name: "permissions.request", platforms: .both, params: [("kind", "enum(accessibility|screenRecording|microphone|automation|inputMonitoring|notifications)")], optional: [], oneOf: []),
         Op(name: "clipboard.read", platforms: .both, params: [], optional: [("first_only", "bool"), ("max_items", "int+"), ("max_text_bytes", "int+")], oneOf: []),
         Op(name: "apps.running", platforms: .both, params: [], optional: [("regular_only", "bool")], oneOf: []),
         Op(name: "apps.installed", platforms: .both, params: [], optional: [], oneOf: []),
@@ -58,4 +63,28 @@ enum C12Ops {
         Op(name: "terminal.focus", platforms: .mac, params: [("app", "enum(terminal|iterm|ghostty)")], optional: [("tty", "str+"), ("cwd", "str+")], oneOf: ["tty", "cwd"]),
         Op(name: "process.usage", platforms: .both, params: [("pids", "arr<int+>")], optional: [], oneOf: []),
     ]
+
+    /// ops.json "types" that params use.
+    static let paramTypes: [String: Shape] = [
+        "rect": Shape(fields: [("x", "num"), ("y", "num"), ("width", "num"), ("height", "num")], optional: []),
+        "point": Shape(fields: [("x", "num"), ("y", "num")], optional: []),
+        "image": Shape(fields: [("format", "enum(png|jpeg)"), ("width", "int+"), ("height", "int+"), ("data", "b64")], optional: []),
+    ]
+
+    /// ops.json "secure_keywords": lower case; a node whose role, title or description holds one is a password control.
+    static let secureKeywords = ["secure", "password", "passcode", "密码", "口令"]
+
+    /// ops.json "limits": the default budgets of the ops, by op and name.
+    enum Limits {
+        static let axWindowTextMaxNodes = 2048
+        static let axWindowTextMaxScalars = 6000
+        static let axWindowTextFocusedMaxScalars = 2000
+        static let axWindowTreeMaxLines = 800
+        static let axWindowTreeMaxScalars = 32000
+        static let axWindowTreeValueScalars = 500
+        static let controlObserveMaxElements = 80
+        static let controlObserveMaxTextScalars = 4000
+        static let controlObserveTitleScalars = 256
+        static let controlObserveValueScalars = 512
+    }
 }
