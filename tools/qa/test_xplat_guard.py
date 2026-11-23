@@ -108,6 +108,22 @@ class Guard(unittest.TestCase):
             'app/electron/src/preload/index.ts: reads process.platform outside src/main/platform/',
         ])
 
+    def test_agentd_platform_tests_only_go_down(self):
+        limited = 'agent/agentd/resource_store.py'
+        self.assertEqual(xplat_guard.AGENTD_PLATFORM_LIMITS[limited], 2)
+        self.source(limited, "if sys.platform == 'darwin': pass\n")
+        self.source('agent/agentd/infra/platform/__init__.py', 'W = sys.platform == "win32"\n' * 5)
+        self.source('agent/agentd/tests/test_x.py', 'if os.name == "nt": pass\n')
+        self.source('agent/agentd/x_test_helper.txt', 'os.name\n')
+        self.assertEqual(self.reasons(), [])
+        self.source(limited, "if sys.platform == 'darwin': pass\nif os.name == 'nt': pass\nplatform.system()\n")
+        self.source('agent/agentd/new_module.py', 'WINDOWS = os.name == "nt"\n')
+        self.assertEqual([r.split(' (')[0] for r in self.reasons()], [
+            'agent/agentd/new_module.py: 1 operating-system tests',
+            'agent/agentd/resource_store.py: 3 operating-system tests',
+        ])
+        self.assertIn('limit 0; use agent/agentd/infra/platform/', self.reasons()[0])
+
     def test_cli_exit_code(self):
         self.add('aux.txt')
         run = subprocess.run([sys.executable, '-I', str(REPO / 'tools/qa/xplat_guard.py'), str(self.root)],

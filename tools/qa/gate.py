@@ -144,6 +144,18 @@ def parse_unittest_modules(suite, output, code, modules):
                 skipped=sum(_numbers(r'skipped=([0-9]+)', text)))
 
 
+def parse_checks(suite, output, code, modules):
+    """The last '<label>: <n> checks, <m> failed' line after the first case_lines 'FAIL ' lines; without it, the
+    output's tail (a failed build)."""
+    label, lines = suite['label'], output.splitlines()
+    found = [line for line in lines if re.fullmatch(rf'{re.escape(label)}: [0-9]+ checks, [0-9]+ failed', line)][-1:]
+    if not found:
+        return dict(lines=lines[-20:] + [f'{label}: FAIL no checks ran'], ok=False)
+    checks, failed = map(int, re.findall(r'[0-9]+', found[0][len(label):]))
+    cases = [line for line in lines if line.startswith('FAIL ')][:suite.get('case_lines', 8)]
+    return dict(lines=cases + found, tests=checks, failures=failed, ok=checks > 0)
+
+
 def _count(output, word, pattern):
     """web_gate.sh's count(): the number before <word> on the last line matching pattern, else 0."""
     last = [line for line in output.splitlines() if re.search(pattern, line)][-1:]
@@ -181,7 +193,7 @@ def parse_remote(suite, output, code, modules):
 
 
 PARSERS = dict(exit=parse_exit, tail1=parse_tail1, last_passfail=parse_last_passfail,
-               xctest_sum=parse_xctest_sum,
+               xctest_sum=parse_xctest_sum, checks=parse_checks,
                unittest_modules=parse_unittest_modules, vitest_count=parse_vitest_count,
                playwright_count=parse_playwright_count, host_link=parse_host_link, build=parse_build,
                remote=parse_remote)

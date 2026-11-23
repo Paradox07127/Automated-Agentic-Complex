@@ -349,6 +349,26 @@ class XctestSum(unittest.TestCase):
                 self.assertEqual(result.lines, ['E2E: 11 tests, 0 failed' + suffix])
 
 
+class Checks(unittest.TestCase):
+    SUITE = {'id': 'player-core', 'label': 'PLAYER-CORE', 'parse': 'checks'}
+
+    def test_the_count_line_passes_and_failed_checks_fail_with_their_lines(self):
+        result = gate.evaluate(self.SUITE, 'built\ndigest: 1\nPLAYER-CORE: 528 checks, 0 failed\n', 0)
+        self.assertEqual((result.status, result.tests, result.failures, result.lines),
+                         ('PASS', 528, 0, ['PLAYER-CORE: 528 checks, 0 failed']))
+        result = gate.evaluate(self.SUITE, 'FAIL fixture a\nFAIL fixture b\nPLAYER-CORE: 528 checks, 2 failed\n', 1)
+        self.assertEqual((result.status, result.failures, result.lines),
+                         ('FAIL', 2, ['FAIL fixture a', 'FAIL fixture b', 'PLAYER-CORE: 528 checks, 2 failed']))
+
+    def test_a_build_that_never_ran_the_checks_fails_with_its_tail(self):
+        for output, code in (('src/a.cpp:1: error: x\n', 1), ('PLAYER-CORE: 0 checks, 0 failed\n', 0)):
+            with self.subTest(output):
+                result = gate.evaluate(self.SUITE, output, code)
+                self.assertEqual(result.status, 'FAIL')
+        self.assertEqual(gate.evaluate(self.SUITE, 'src/a.cpp:1: error: x\n', 1).lines,
+                         ['src/a.cpp:1: error: x', 'PLAYER-CORE: FAIL no checks ran'])
+
+
 class LoadSuites(unittest.TestCase):
     def load(self, item, **extra):
         doc = {'schema': gate.SCHEMA, 'suites': {'w': {'run': ['true'], 'parse': 'exit', 'needs': ['window'], **extra}},
