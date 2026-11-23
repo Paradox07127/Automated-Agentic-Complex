@@ -87,7 +87,8 @@ export function useToday(ov: Overview, demo: string | null, state: DemoState | n
 
   const days = rowsOf(l3, off);
   const l3Line = days ? dayLineFromL3(days, day) : days;
-  const local: DayLine | null | undefined = !isToday ? null : ov.q.data && ov.brief ? { text: summaryText(ov.data, ov.brief, now, plugins.coding_sessions), origin: 'local', at: null } : undefined;
+  const text = ov.q.data ? summaryText(ov.data, now, plugins.coding_sessions) : null;
+  const local: DayLine | null | undefined = !isToday ? null : !ov.q.data ? undefined : text == null ? null : { text, origin: 'local', at: null };
   return {
     day,
     isToday,

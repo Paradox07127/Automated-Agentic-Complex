@@ -112,39 +112,20 @@
   font-size: 14px;
 }
 
+/* The item's name, then its ⓘ with the 7-day comparison. */
 .k {
-  overflow: hidden;
+  display: flex;
+  gap: var(--ef-sp-4);
+  align-items: center;
+  min-width: 0;
   color: var(--ef-text-1);
   font-size: 12px;
+}
+
+.kn {
+  overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-/* Above or below the 7-day mean: a small triangle pointing the way. */
-.d {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  overflow: hidden;
-  color: var(--ef-text-2);
-  font: var(--ef-fw-medium) 12px / 16px var(--ef-font-num);
-  white-space: nowrap;
-}
-
-.d small {
-  font-size: inherit;
-}
-
-.d::before {
-  content: '';
-  flex: none;
-  border-right: 4px solid transparent;
-  border-bottom: 6px solid currentColor;
-  border-left: 4px solid transparent;
-}
-
-.d[data-dn]::before {
-  transform: rotate(180deg);
 }
 
 .ro[data-err]::before {

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { appNow } from '../../bridge/clock';
 import { HourArea } from '../../charts';
 import { formatClock } from '../../domain';
+import { Btn } from '../../ui';
 import { GATE_KIND } from '../settings/groups/GateBlocked';
 import type { BriefCount, BriefDay } from './briefDay';
 import type { BriefTabProps } from './briefTabs';
@@ -84,9 +85,9 @@ export function HerTab({ day }: BriefTabProps) {
   const why = her.why.reduce((n, c) => n + c.count, 0);
   const tools = her.tools;
   const actBtn = (text: string, onClick: () => void) => (
-    <button type="button" className={st.act} onClick={onClick}>
+    <Btn size="sm" variant="text" onClick={onClick}>
       {text} ›
-    </button>
+    </Btn>
   );
   return (
     <div className={st.view}>

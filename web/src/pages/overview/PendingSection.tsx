@@ -1,8 +1,9 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import type { PendingItem, Question, Session, VisualStateKey } from '../../domain';
 import { formatClock } from '../../domain';
 import { ApprovalCard, QuestionBox } from '../../features/approval';
-import { Btn, OpenSec, Paper, Region, Row, StatusTag, type RegionSource } from '../../ui';
+import { Btn, OpenSec, Paper, Region, StatusTag, type RegionSource } from '../../ui';
+import { ExpandRow } from '../../ui/game';
 import { CompleteFx, GroupHead, useCellIn } from './MissionFx';
 import type { Go } from './nav';
 import { focusOf, isExpired, KIND_LABEL, leftAt } from './pending';
@@ -41,22 +42,13 @@ const ROW_STATE: Record<PendingItem['kind'], VisualStateKey> = { approval: 'awai
 
 const rowState = (item: PendingItem): VisualStateKey => (item.kind === 'question' && item.interaction_kind === 'approval' ? 'awaiting_approval' : ROW_STATE[item.kind]);
 
-/** 01 待处理：「紧要」组头下，排在第一的那项是一张白纸卡，其余是任务行，行尾黄块写状态；点一行或「展开」把它们也放成卡。 */
+/** 01 待处理：「紧要」组头下，排在第一的那项是一张白纸卡，其余是可展开行，行尾黄块写状态；点开一行，它的卡放在行下。 */
 export function PendingSection(p: PendingSectionProps) {
   const { items, now, at } = p;
   const open = items.filter((x) => !isExpired(x, now, at));
   const focus = focusOf(items, now, at);
-  const [cards, setCards] = useState<ReadonlySet<string>>(new Set());
   const rest = focus ? open.filter((x) => x.id !== focus.id) : [];
-  const all = rest.length > 0 && rest.every((x) => cards.has(x.id));
-  const more =
-    rest.length > 0 ? (
-      <button type="button" className={styles.more} aria-expanded={all} onClick={() => setCards(all ? new Set() : new Set(rest.map((x) => x.id)))}>
-        <span className={styles.lnk}>{all ? '收起' : '展开 ›'}</span>
-      </button>
-    ) : null;
   const loaded = p.q.data !== undefined;
-  const card = (item: PendingItem) => <Card key={item.id} p={p} item={item} />;
   let body;
   if (!focus) {
     body = (
@@ -71,30 +63,23 @@ export function PendingSection(p: PendingSectionProps) {
         <GroupHead className={styles.grp} icon={<span className={styles.grpIc}>!!!</span>}>
           紧要
         </GroupHead>
-        {card(focus)}
-        {rest.map((item) =>
-          cards.has(item.id) ? (
-            card(item)
-          ) : (
-            <RowCell key={item.id}>
-              <Row
-                title={item.title}
-                sub={`${KIND_LABEL[item.kind]} │ ${item.source}`}
-                category="neutral"
-                badge={<StatusTag state={rowState(item)} />}
-                data-pending-row={item.id}
-                data-nav-target={`item-${item.id}`}
-                onClick={() => setCards((s) => new Set(s).add(item.id))}
-              />
-            </RowCell>
-          ),
-        )}
+        <Card p={p} item={focus} nav />
+        {rest.map((item) => (
+          <RowCell key={item.id} id={item.id}>
+            <ExpandRow label={`${item.title}，${KIND_LABEL[item.kind]}`} end={<StatusTag state={rowState(item)} />} body={<Card p={p} item={item} />}>
+              <span className={styles.rowT}>{item.title}</span>
+              <span className={styles.rowS}>
+                {KIND_LABEL[item.kind]} │ {item.source}
+              </span>
+            </ExpandRow>
+          </RowCell>
+        ))}
       </>
     );
   }
   return (
     <div className={styles.need} data-nav-target="pending" data-g="listBody">
-      <OpenSec no="01" title="待处理" count={loaded ? open.length : undefined} right={loaded && more}>
+      <OpenSec no="01" title="待处理" count={loaded ? open.length : undefined}>
         {/* About the focus card's height, so the rows below do not jump when it lands. */}
         <Region q={p.q} what="待处理" reserve={{ height: 220 }} skel="cards" isEmpty={() => false}>
           {() => body}
@@ -104,11 +89,11 @@ export function PendingSection(p: PendingSectionProps) {
   );
 }
 
-/** A pending card; it fades in as a mission cell. */
-function Card({ p, item }: { p: PendingSectionProps; item: PendingItem }) {
+/** A pending card; it fades in as a mission cell. `nav`: the card is the item's landing target (an opened row's card has its row). */
+function Card({ p, item, nav }: { p: PendingSectionProps; item: PendingItem; nav?: boolean }) {
   const ref = useCellIn<HTMLDivElement>();
   return (
-    <div ref={ref} className={styles.focus} data-item={item.id} data-nav-target={`item-${item.id}`} data-g="cell">
+    <div ref={ref} className={styles.focus} data-item={item.id} data-nav-target={nav ? `item-${item.id}` : undefined} data-g="cell">
       <Paper priority={item.kind === 'approval' && item.dangerous ? 0 : 1} label={`待处理：${item.title}`}>
         <Focus {...p} item={item} />
       </Paper>
@@ -116,10 +101,10 @@ function Card({ p, item }: { p: PendingSectionProps; item: PendingItem }) {
   );
 }
 
-function RowCell({ children }: { children: ReactNode }) {
+function RowCell({ id, children }: { id: string; children: ReactNode }) {
   const ref = useCellIn<HTMLDivElement>();
   return (
-    <div ref={ref} data-g="cell">
+    <div ref={ref} className={styles.pRow} data-g="cell" data-pending-row={id} data-nav-target={`item-${id}`}>
       {children}
     </div>
   );

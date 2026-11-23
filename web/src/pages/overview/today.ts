@@ -4,7 +4,7 @@ import { secToMs, unhidden, type Session } from '../../domain';
 import { uuidOf } from '../tasks/board';
 import { codeCounts, nextReminder, reminderTime } from './briefModel';
 import type { OverviewSnapshot } from './load';
-import type { DayConv, DayEpisode, OverviewBrief } from './loadBrief';
+import type { DayConv, DayEpisode } from './loadBrief';
 import type { WireDaySegments } from './wire';
 
 export type TodaySource = 'claude' | 'codex' | 'role' | 'own' | 'app' | 'web' | 'chat';
@@ -43,16 +43,18 @@ export function parseTodayParams(search: string): TodayParams {
   return { sel: q.get('sel'), open: q.get('open'), create, ep: q.get('ep'), day: q.get('day') };
 }
 
-/** 今天 6 段对话，7 个编码会话（进行中 3，待批准 2，已完成 1）；下一条提醒 15:20 组会带周报。 */
-export function summaryText(snap: OverviewSnapshot, brief: OverviewBrief, now: number, codingOn: boolean): string {
+/**
+ * 今天 7 个编码会话，已完成 1 个；下一条提醒 15:20 组会带周报。null when there is neither.
+ * Counts 总览 shows elsewhere are left out: conversations (聊了什么), running (进行中) and waiting (待处理) sessions.
+ */
+export function summaryText(snap: OverviewSnapshot, now: number, codingOn: boolean): string | null {
   const code = codeCounts(snap);
-  const parts = ([[code.running, '进行中'], [code.waiting, '待批准'], [code.done, '已完成']] as const).filter((x) => x[0] > 0);
   const next = nextReminder(snap.reminders, now);
-  const work = [
-    brief.convs ? `${brief.convs.length} 段对话` : '',
-    !codingOn ? '' : code.total ? `${code.total} 个编码会话（${parts.map(([v, k]) => `${k} ${v}`).join('，')}）` : '还没有编码会话',
-  ].filter(Boolean).join('，') || '还没有对话';
-  return `今天 ${work}${next ? `；下一条提醒 ${reminderTime(next.due_at, now)} ${next.title}` : ''}。`;
+  const parts = [
+    !codingOn ? '' : code.total ? `今天 ${code.total} 个编码会话${code.done ? `，已完成 ${code.done} 个` : ''}` : '今天还没有编码会话',
+    next ? `下一条提醒 ${reminderTime(next.due_at, now)} ${next.title}` : '',
+  ].filter(Boolean);
+  return parts.length ? `${parts.join('；')}。` : null;
 }
 
 export type WireSessionSummary = MemorySessionsResponse['sessions'][number];

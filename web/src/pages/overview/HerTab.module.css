@@ -14,7 +14,7 @@
   padding: 12px 14px 14px;
   background: linear-gradient(180deg, var(--ef-surface-2), var(--ef-plate) 40px);
   color: var(--ef-text-1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 var(--ef-overlay-hover);
 }
 
 /* Corner ticks at the top-left and bottom-right. */
@@ -71,20 +71,6 @@
   color: var(--ef-text-2);
   font: var(--ef-t-meta);
   white-space: nowrap;
-}
-
-.act {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.act:hover {
-  color: var(--ef-text-1);
 }
 
 .num {

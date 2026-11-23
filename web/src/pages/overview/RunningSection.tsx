@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { formatDuration, type ActiveRun, type Session, type VisualStateKey } from '../../domain';
 import { useDevMode } from '../../shell/devMode';
-import { fxCalm, Icon, Missing, OpenSec, Region, StatusTag, type IconName, type RegionSource } from '../../ui';
+import { Btn, Fold, fxCalm, Icon, Missing, OpenSec, Region, StatusTag, type IconName, type RegionSource } from '../../ui';
 import type { RunRow } from './briefModel';
 import { Selected, TrackTip, useCellIn, type MissionTone } from './MissionFx';
 import type { Go } from './nav';
@@ -172,13 +172,23 @@ function Cell({ run, children }: { run?: string; children: ReactNode }) {
   );
 }
 
-/** 02 进行中：执行中的对话、角色任务和编码会话，最多 3 行，其余收进「另有 N 个」。 */
+const titleOf = (r: RunRow) => (r.k === 'conv' ? r.conv.title : r.k === 'task' ? r.task.title || '已撤回的任务' : r.session.title);
+
+/**
+ * 02 进行中：执行中的对话、角色任务和编码会话，最多 3 行，其余收进「另有 N 个」折叠段。
+ * 收起的行里等你的不自动打开：它们要你做的事在 01 待处理。
+ */
 export function RunningSection(p: RunningSectionProps) {
   const { rows, go } = p;
-  const [all, setAll] = useState(false);
-  const shown = all ? rows : rows.slice(0, SHOWN);
-  const rest = rows.length - SHOWN;
+  const shown = rows.slice(0, SHOWN);
+  const hidden = rows.slice(SHOWN);
   const loaded = p.q.data !== undefined;
+  const cells = (list: RunRow[]) =>
+    list.map((r) => (
+      <Cell key={r.id} run={r.id}>
+        <Row r={r} p={p} />
+      </Cell>
+    ));
   return (
     <div className={shared.run}>
       <OpenSec
@@ -198,17 +208,15 @@ export function RunningSection(p: RunningSectionProps) {
               </span>
             )}
             {p.schedules !== undefined && (
-              <button type="button" className={shared.more} onClick={() => go({ page: 'tasks', tab: 'sched' })}>
-                <span className={shared.lnk}>
-                  {p.schedules > 0 ? (
-                    <>
-                      定时任务 │ <span className="num">{p.schedules}</span> 个开着
-                    </>
-                  ) : (
-                    '定时任务'
-                  )}
-                </span>
-              </button>
+              <Btn size="sm" variant="text" onClick={() => go({ page: 'tasks', tab: 'sched' })}>
+                {p.schedules > 0 ? (
+                  <>
+                    定时任务 │ <span className="num">{p.schedules}</span> 个开着
+                  </>
+                ) : (
+                  '定时任务'
+                )}
+              </Btn>
             )}
           </>
         }
@@ -218,11 +226,7 @@ export function RunningSection(p: RunningSectionProps) {
           {() => (
             <>
               <ul className={styles.rows} aria-label="进行中">
-                {shown.map((r) => (
-                  <Cell key={r.id} run={r.id}>
-                    <Row r={r} p={p} />
-                  </Cell>
-                ))}
+                {cells(shown)}
                 {p.code === 0 && (
                   <Cell>
                     <div className={shared.none}>
@@ -231,17 +235,14 @@ export function RunningSection(p: RunningSectionProps) {
                   </Cell>
                 )}
               </ul>
-              {rest > 0 && (
-                <button type="button" className={shared.more} data-block="" aria-expanded={all} onClick={() => setAll((v) => !v)}>
-                  {all ? (
-                    <span className={shared.lnk}>收起</span>
-                  ) : (
-                    <>
-                      另有 <span className="num">{rest}</span> 个<span className={shared.t3}> │ </span>
-                      <span className={shared.lnk}>展开 ›</span>
-                    </>
-                  )}
-                </button>
+              {hidden.length > 0 && (
+                <div className={styles.rest}>
+                  <Fold id="running-rest" label={`另有 ${hidden.length} 个`} summary={hidden.map(titleOf).join(' │ ')}>
+                    <ul className={styles.rows} aria-label="进行中的其余">
+                      {cells(hidden)}
+                    </ul>
+                  </Fold>
+                </div>
               )}
             </>
           )}

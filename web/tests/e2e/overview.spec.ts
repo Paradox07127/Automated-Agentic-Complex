@@ -24,10 +24,16 @@ test("default: 今日一句, the six pinned readouts, 01 with one paper card and
   await page.goto('main.html#/overview?plugins=all&still=1');
   for (const name of ['总览', '她', '时间', '明细']) await expect(tab(page, name)).toBeVisible();
   await expect(tab(page, '总览')).toHaveAttribute('aria-selected', 'true');
-  await expect(sec(page, '今日一句')).toContainText(/\d+ 段对话/);
+  await expect(sec(page, '今日一句')).toContainText(/\d+ 个编码会话/);
+  await expect(sec(page, '今日一句')).not.toContainText('段对话');
   await expect(band(page)).toHaveCount(6);
   expect(await band(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-item')))).toEqual(['done', 'err', 'turn', 'fg', 'say', 'cost']);
-  await expect(band(page).first()).toContainText('比近 7 天均值');
+  // The 7-day comparison waits in each readout's ⓘ.
+  await expect(band(page).first().getByText(/比近 7 天均值/)).toBeHidden();
+  await band(page).first().getByRole('button', { name: /和近 7 天比/ }).hover();
+  await expect(page.getByRole('tooltip')).toContainText('比近 7 天均值');
+  await expect(sec(page, '今天聊了什么').getByRole('button', { name: /^今天聊了什么/ })).toHaveAttribute('aria-expanded', 'false');
+  await expect(sec(page, '前一天的观察日报').getByRole('button', { name: /^前一天的观察日报/ })).toHaveAttribute('aria-expanded', 'false');
   await expect(need(page).locator('[data-stub="Paper"]')).toHaveCount(1);
   await expect(need(page).locator('[data-pending-row]')).toHaveCount(4);
   await expect(need(page)).not.toContainText('另有');
@@ -61,8 +67,9 @@ test('the four tabs switch the view and stay in the address across a reload', as
 test('the date pager goes back at most 6 days, never past today, and the day stays across a reload', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/overview?plugins=all&still=1');
-  const prev = page.getByRole('button', { name: '前一天' });
-  const next = page.getByRole('button', { name: '后一天' });
+  // exact: the folded 前一天的观察日报 head is a button too.
+  const prev = page.getByRole('button', { name: '前一天', exact: true });
+  const next = page.getByRole('button', { name: '后一天', exact: true });
   await expect(next).toBeDisabled();
   for (let i = 0; i < 6; i++) await prev.click();
   await expect(prev).toBeDisabled();
@@ -96,13 +103,15 @@ test("sw=voice: six readouts of her own, no 做完了, 进行中 or 时间 tab; 
   expect(errors).toEqual([]);
 });
 
-test("sw=scr,read: yesterday's observation brief with its counts, and 看全文 opens the briefs", async ({ page }) => {
+test("sw=scr,read: yesterday's observation brief folded to its counts, open with its wells, and 看全文 opens the briefs", async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/overview?plugins=all&still=1&sw=scr,read');
   await expect(band(page)).toHaveCount(6);
   await expect(sec(page, '做完了')).toHaveCount(0);
   await expect(run(page)).toHaveCount(0);
   const obs = sec(page, '前一天的观察日报');
+  await expect(obs).toContainText(/看到 \d+ │ 卡住 \d+ │ 建议 \d+/);
+  await obs.getByRole('button', { name: /^前一天的观察日报/ }).click();
   await expect(obs).toContainText('看到的事');
   await obs.getByRole('button', { name: /看全文/ }).click();
   await expect(page.getByRole('dialog', { name: '观察日报' })).toBeVisible();

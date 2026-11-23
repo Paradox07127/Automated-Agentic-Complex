@@ -31,7 +31,11 @@ beforeAll(async () => {
   spy.mockRestore();
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // Folds remember their state for the session.
+  sessionStorage.clear();
+});
 
 describe(' overview demos', () => {
   it('lists default, sparse, light, loading, error and full', () => {
@@ -92,7 +96,7 @@ describe(' brief model', () => {
 });
 
 describe(' 01 待处理', () => {
-  it('only the first item sits on a white paper card; the rest are record rows with a yellow state block, and one 展开 turns them into cards', () => {
+  it('only the first item sits on a white paper card; the rest are expandable rows with a yellow state block, no 展开 text button', () => {
     const items = sortPending(snap.pending);
     const go = vi.fn();
     const { container } = render(<PendingSection q={READY} items={items} now={NOW} at={NOW} sessions={snap.sessions} receipt={null} go={go} onApprove={noop} onAnswer={noop} onReply={noop} onJumpSession={noop} />);
@@ -103,23 +107,24 @@ describe(' 01 待处理', () => {
     for (const r of rows) expect(r.querySelector('[data-stub="StatusTag"]')?.getAttribute('data-tone')).toBe('waiting');
     // The 01 head counts them; no 「另有 N 项待处理」 says it again.
     expect(container.textContent).not.toContain('另有');
-    fireEvent.click(screen.getByRole('button', { name: '展开 ›' }));
+    expect(screen.queryByRole('button', { name: /展开|收起/ })).toBeNull();
+    for (const r of rows) fireEvent.click(r.querySelector('[aria-expanded]')!);
     expect(go).not.toHaveBeenCalled();
     expect(container.querySelectorAll('[data-stub="Paper"]')).toHaveLength(5);
-    expect(container.querySelectorAll('[data-pending-row]')).toHaveLength(0);
-    fireEvent.click(screen.getByRole('button', { name: /收起/ }));
-    expect(container.querySelectorAll('[data-stub="Paper"]')).toHaveLength(1);
+    fireEvent.keyDown(rows[0]!.querySelector('[aria-expanded]')!, { key: 'ArrowLeft' });
+    expect(container.querySelectorAll('[data-stub="Paper"]')).toHaveLength(4);
   });
 
-  it('a click on a record row opens that item as its card in place', () => {
+  it('a click on a record row opens that item as its card under the row; the row stays its landing target', () => {
     const items = sortPending(snap.pending);
     const { container } = render(<PendingSection q={READY} items={items} now={NOW} at={NOW} sessions={snap.sessions} receipt={null} go={noop} onApprove={noop} onAnswer={noop} onReply={noop} onJumpSession={noop} />);
     const row = container.querySelector<HTMLElement>('[data-pending-row]')!;
     const id = row.getAttribute('data-pending-row')!;
     expect(row.getAttribute('data-nav-target')).toBe(`item-${id}`);
-    fireEvent.click(row);
-    expect(container.querySelector(`[data-item="${id}"] [data-stub="Paper"]`)).not.toBeNull();
-    expect(container.querySelectorAll('[data-pending-row]')).toHaveLength(3);
+    fireEvent.click(row.querySelector('[aria-expanded]')!);
+    expect(row.querySelector(`[data-item="${id}"] [data-stub="Paper"]`)).not.toBeNull();
+    expect(container.querySelectorAll('[data-pending-row]')).toHaveLength(4);
+    expect(container.querySelectorAll(`[data-nav-target="item-${id}"]`)).toHaveLength(1);
   });
 
   it('decides a non-dangerous approval on its card', () => {
@@ -137,15 +142,27 @@ describe(' 01 待处理', () => {
 });
 
 describe(' 02 进行中', () => {
-  it('shows at most 3 rows and folds the rest', () => {
-    const r = runRows(snap, brief.convs ?? []);
+  it('shows at most 3 rows and folds the rest into 另有 N 个, its titles as the summary', () => {
+    const conv = (i: number): RunRow => ({ k: 'conv', id: `c${i}`, conv: { id: `c${i}`, title: `闲聊 ${i}`, busy: true, updated_at: NOW - 60_000, turn_count: 1, turns: [], last: '好' } });
+    const rows = [1, 2, 3, 4, 5].map(conv);
     const go = vi.fn();
-    const { container } = render(<RunningSection q={READY} rows={r.rows} convs={r.convs} code={r.code} activeRuns={snap.active_runs} now={NOW} lost={false} go={go} onJumpSession={noop} />);
-    expect(container.querySelectorAll('[data-run]').length).toBe(Math.min(3, r.rows.length));
-    expect(r.rows.length).toBeGreaterThan(3);
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(`另有 ${r.rows.length - 3} 个`) }));
-    expect(container.querySelectorAll('[data-run]').length).toBe(r.rows.length);
+    const { container } = render(<RunningSection q={READY} rows={rows} convs={5} code={0} activeRuns={{}} now={NOW} lost={false} go={go} onJumpSession={noop} />);
+    expect(container.querySelectorAll('[data-run]').length).toBe(3);
+    const fold = screen.getByRole('button', { name: /另有 2 个/ });
+    expect(fold.getAttribute('aria-expanded')).toBe('false');
+    expect(fold.textContent).toContain('闲聊 4 │ 闲聊 5');
+    fireEvent.click(fold);
+    expect(container.querySelectorAll('[data-run]').length).toBe(5);
     expect(go).not.toHaveBeenCalled();
+  });
+
+  it('keeps 另有 N 个 shut when a folded row waits on you: 01 待处理 holds what it asks', () => {
+    const r = runRows(snap, brief.convs ?? []);
+    expect(r.rows.length).toBeGreaterThan(3);
+    expect(r.rows.slice(3).some((x) => x.k === 'code' && x.session.state.startsWith('awaiting'))).toBe(true);
+    const { container } = render(<RunningSection q={READY} rows={r.rows} convs={r.convs} code={r.code} activeRuns={snap.active_runs} now={NOW} lost={false} go={noop} onJumpSession={noop} />);
+    expect(screen.getByRole('button', { name: new RegExp(`另有 ${r.rows.length - 3} 个`) }).getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelectorAll('[data-run]').length).toBe(3);
   });
 
   it('without coding sessions a ghost row says so; 派发任务 stays in the action band only', () => {

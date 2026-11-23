@@ -12,6 +12,11 @@
   min-width: 0;
 }
 
+/* 另有 N 个: the fold under the first rows. */
+.rest {
+  margin-top: var(--ef-sp-8);
+}
+
 .rr {
   --rr-cat: var(--ef-mission-accent);
   --rr-edge: var(--ef-mission-row-line);

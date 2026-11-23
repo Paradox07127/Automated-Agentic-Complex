@@ -1,8 +1,9 @@
-// 每日简报 › 总览：今日一句、6 项读数，左栏待批准（今天）、做完了和聊了什么，右栏在做（今天）、提醒和前一天的观察日报（关着时换成她这一天的一句）。
+// 每日简报 › 总览：今日一句、6 项读数（和近 7 天比在 ⓘ 里），左栏待批准（今天）、做完了和聊了什么，右栏在做（今天）、提醒和前一天的观察日报（关着时换成她这一天的一句）。
+// 做完了、聊了什么、观察日报和已提醒的提醒是折叠段，默认收起；有出错时自动打开。
 import { useState, type ReactNode } from 'react';
 import { formatClock } from '../../domain';
 import type { Task } from '../../domain/work';
-import { Btn, Region, Row, SecHead, Sheet } from '../../ui';
+import { Btn, Fold, InfoTip, Region, Row, SecHead, Sheet } from '../../ui';
 import { BriefsSec } from '../observe/BriefsSec';
 import { useBriefs } from '../observe/useBriefs';
 import { ITEMS, readouts, type ItemMeta } from './briefDay';
@@ -41,6 +42,18 @@ function amount(meta: ItemMeta, v: number): ReactNode {
   return <>{+v.toFixed(1)}{meta.unit && <small>{meta.unit}</small>}</>;
 }
 
+/** The same amount as plain text, for the ⓘ. */
+function amountText(meta: ItemMeta, v: number): string {
+  if (meta.kind === 'min') {
+    const h = Math.floor(v / 60);
+    const m = Math.round(v % 60);
+    return h ? `${h} 小时 ${String(m).padStart(2, '0')} 分` : `${m} 分`;
+  }
+  if (meta.kind === 'sec') return `${Math.round(v / 60)} 分`;
+  if (meta.kind === 'usd') return `$${v.toFixed(2)}`;
+  return `${+v.toFixed(1)}${meta.unit ? ` ${meta.unit}` : ''}`;
+}
+
 function Panel({ title, count, right, nav, children }: { title: string; count?: number | undefined; right?: ReactNode; nav?: string; children: ReactNode }) {
   return (
     <section className={s.pn} aria-label={title} data-nav-target={nav}>
@@ -50,7 +63,7 @@ function Panel({ title, count, right, nav, children }: { title: string; count?: 
   );
 }
 
-/** The daily observation brief of the day before `date`: its three counts and first detail; 看全文 opens the list. */
+/** The daily observation brief of the day before `date`, folded to its three counts: open, the counts and first detail; 看全文 opens the list. */
 function ObsBrief({ date }: { date: string }) {
   const b = useBriefs();
   const [open, setOpen] = useState(false);
@@ -59,38 +72,49 @@ function ObsBrief({ date }: { date: string }) {
   const want = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
   const r = b.reports.find((x) => x.period === 'daily' && x.date === want && x.state === 'completed');
   return (
-    <Panel title="前一天的观察日报" right={<Btn size="sm" variant="text" onClick={() => setOpen(true)}>看全文 ›</Btn>}>
-      <Region q={b.list} what="观察日报" reserve={{ rows: 3 }} isEmpty={() => !r} empty={{ text: '前一天没有观察日报' }}>
-        {() =>
-          r && (
-            <>
-              <div className={s.yb}>
-                {([[r.observed_details.length, '看到的事'], [r.recurring_problems.length, '反复卡住的'], [r.next_steps.length, '建议下一步']] as const).map(([n, k]) => (
-                  <div key={k}>
-                    <b className="num">{n}</b>
-                    <span>{k}</span>
-                  </div>
-                ))}
-              </div>
-              {r.observed_details[0] && (
-                <p className={s.quote} data-selectable="">
-                  {r.observed_details[0].detail}
-                </p>
-              )}
-            </>
-          )
-        }
-      </Region>
+    <div className={s.pn}>
+      <Fold
+        id="obs"
+        variant="head"
+        label="前一天的观察日报"
+        summary={r ? `看到 ${r.observed_details.length} │ 卡住 ${r.recurring_problems.length} │ 建议 ${r.next_steps.length}` : undefined}
+        autoOpen={b.list.isError}
+        right={<Btn size="sm" variant="text" onClick={() => setOpen(true)}>看全文 ›</Btn>}
+      >
+        <Region q={b.list} what="观察日报" reserve={{ rows: 3 }} isEmpty={() => !r} empty={{ text: '前一天没有观察日报' }}>
+          {() =>
+            r && (
+              <>
+                <div className={s.yb}>
+                  {([[r.observed_details.length, '看到的事'], [r.recurring_problems.length, '反复卡住的'], [r.next_steps.length, '建议下一步']] as const).map(([n, k]) => (
+                    <div key={k}>
+                      <b className="num">{n}</b>
+                      <span>{k}</span>
+                    </div>
+                  ))}
+                </div>
+                {r.observed_details[0] && (
+                  <p className={s.quote} data-selectable="">
+                    {r.observed_details[0].detail}
+                  </p>
+                )}
+              </>
+            )
+          }
+        </Region>
+      </Fold>
       {open && (
         <Sheet open title="观察日报" width={480} onClose={() => setOpen(false)}>
           <BriefsSec no="01" />
         </Sheet>
       )}
-    </Panel>
+    </div>
   );
 }
 
 const KIND: Record<'self' | 'reply' | 'miss', string> = { self: '主动', reply: '回你', miss: '没回' };
+
+const reminderRow = (r: Reminder) => <Row key={r.id} height="compact" title={r.title} sub={r.triggered ? '已提醒' : '还没到'} right={<span className="num">{formatClock(r.due_at)}</span>} />;
 
 export function OverviewTab(p: OverviewTabProps) {
   const { day, isToday } = p;
@@ -98,6 +122,12 @@ export function OverviewTab(p: OverviewTabProps) {
   const work = sw.agent || sw.code;
   const ids = readouts(day, p.pins);
   const her = day.her.lines[0];
+  const latest = p.done?.[0];
+  const lastConv = p.convs?.[0];
+  const ahead = p.reminders.filter((r) => !r.triggered);
+  const past = p.reminders.filter((r) => r.triggered);
+  // The ones already rung fold away only when the list is longer than a fold's 3 flat rows.
+  const foldPast = p.reminders.length > 3 && past.length > 0;
   return (
     <div className={s.ov} data-tab="ov">
       <Panel title="今日一句">
@@ -113,12 +143,10 @@ export function OverviewTab(p: OverviewTabProps) {
           return (
             <li key={id} className={s.ro} data-item={id} data-err={(id === 'err' && it.today > 0) || undefined}>
               <span className={`${s.v} num`}>{amount(meta, it.today)}</span>
-              <span className={s.k}>{meta.name}</span>
-              {diff != null && (
-                <span className={`${s.d} num`} data-dn={diff < 0 || undefined}>
-                  比近 7 天均值{diff < 0 ? '少' : '多'} {amount(meta, Math.abs(diff))}
-                </span>
-              )}
+              <span className={s.k}>
+                <span className={s.kn}>{meta.name}</span>
+                {diff != null && <InfoTip label={`${meta.name}：和近 7 天比`}>{`比近 7 天均值${diff < 0 ? '少' : '多'} ${amountText(meta, Math.abs(diff))}`}</InfoTip>}
+              </span>
             </li>
           );
         })}
@@ -127,58 +155,81 @@ export function OverviewTab(p: OverviewTabProps) {
         <div className={s.col}>
           {isToday && work && <div className={s.pn}>{p.pending}</div>}
           {work && (
-            <Panel title="做完了" count={p.done?.length}>
-              <Region q={{ status: p.done ? 'success' : 'pending', data: p.done }} what="做完的任务" reserve={{ rows: 3 }} empty={{ text: isToday ? '今天还没有做完的任务' : '那天没有做完的任务' }}>
+            <div className={s.pn}>
+              <Fold
+                id="done"
+                variant="head"
+                label="做完了"
+                count={p.done?.length}
+                rows={p.done?.length}
+                autoOpen={!!p.done?.some((x) => x.failed)}
+                summary={latest && <>最近：{latest.task.title || '未命名任务'} <span className="num">{formatClock(latest.task.updated_at)}</span></>}
+              >
+                <Region q={{ status: p.done ? 'success' : 'pending', data: p.done }} what="做完的任务" reserve={{ rows: 3 }} empty={{ text: isToday ? '今天还没有做完的任务' : '那天没有做完的任务' }}>
+                  {(rows) => (
+                    <div className={s.rows}>
+                      {rows.map(({ task, failed }) => (
+                        <Row
+                          key={task.id}
+                          height="compact"
+                          category="mission"
+                          title={task.title || '未命名任务'}
+                          sub={`${task.source === 'role' ? '角色任务' : '编码任务'}${failed ? ' │ 出错' : ''}`}
+                          right={<span className="num">{formatClock(task.updated_at)}</span>}
+                          data-err={failed || undefined}
+                          onClick={() => p.onTask(task.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </Region>
+              </Fold>
+            </div>
+          )}
+          <div className={s.pn}>
+            <Fold
+              id="convs"
+              variant="head"
+              label={isToday ? '今天聊了什么' : '那天聊了什么'}
+              count={p.convs?.length}
+              rows={p.convs?.length}
+              autoOpen={p.convs === null}
+              summary={lastConv && <>最近：{lastConv.title} <span className="num">{formatClock(lastConv.turns[0]?.t0 ?? lastConv.updated_at)}</span></>}
+            >
+              <Region q={{ status: p.convs === undefined ? 'pending' : p.convs ? 'success' : 'error', data: p.convs ?? undefined, error: p.convs === null ? new Error('对话没有读到') : undefined }} what="对话" reserve={{ rows: 3 }} empty={{ text: '没有对话' }}>
                 {(rows) => (
                   <div className={s.rows}>
-                    {rows.map(({ task, failed }) => (
+                    {rows.map((c) => (
                       <Row
-                        key={task.id}
+                        key={c.id}
                         height="compact"
-                        category="mission"
-                        title={task.title || '未命名任务'}
-                        sub={`${task.source === 'role' ? '角色任务' : '编码任务'}${failed ? ' │ 出错' : ''}`}
-                        right={<span className="num">{formatClock(task.updated_at)}</span>}
-                        data-err={failed || undefined}
-                        onClick={() => p.onTask(task.id)}
+                        title={c.title}
+                        sub={
+                          <>
+                            <span className="num">{formatClock(c.turns[0]?.t0 ?? c.updated_at)}</span> │ <span className="num">{c.turns.length}</span> 轮
+                          </>
+                        }
+                        right="打开 ›"
+                        onClick={() => p.goPage({ page: 'chat', conv: c.id })}
                       />
                     ))}
                   </div>
                 )}
               </Region>
-            </Panel>
-          )}
-          <Panel title={isToday ? '今天聊了什么' : '那天聊了什么'} count={p.convs?.length}>
-            <Region q={{ status: p.convs === undefined ? 'pending' : p.convs ? 'success' : 'error', data: p.convs ?? undefined, error: p.convs === null ? new Error('对话没有读到') : undefined }} what="对话" reserve={{ rows: 3 }} empty={{ text: '没有对话' }}>
-              {(rows) => (
-                <div className={s.rows}>
-                  {rows.map((c) => (
-                    <Row
-                      key={c.id}
-                      height="compact"
-                      title={c.title}
-                      sub={
-                        <>
-                          <span className="num">{formatClock(c.turns[0]?.t0 ?? c.updated_at)}</span> │ <span className="num">{c.turns.length}</span> 轮
-                        </>
-                      }
-                      right="打开 ›"
-                      onClick={() => p.goPage({ page: 'chat', conv: c.id })}
-                    />
-                  ))}
-                </div>
-              )}
-            </Region>
-          </Panel>
+            </Fold>
+          </div>
         </div>
         <div className={s.col}>
           {isToday && work && p.running && <div className={s.pn} data-nav-target="running">{p.running}</div>}
           <Panel title="提醒" count={p.reminders.length} nav="reminders">
             {p.reminders.length ? (
               <div className={s.rows}>
-                {p.reminders.map((r) => (
-                  <Row key={r.id} height="compact" title={r.title} sub={r.triggered ? '已提醒' : '还没到'} right={<span className="num">{formatClock(r.due_at)}</span>} />
-                ))}
+                {(foldPast ? ahead : p.reminders).map(reminderRow)}
+                {foldPast && (
+                  <Fold id="reminded" label="已提醒" count={past.length} summary={past.map((r) => `${r.title} ${formatClock(r.due_at)}`).join(' │ ')}>
+                    <div className={s.rows}>{past.map(reminderRow)}</div>
+                  </Fold>
+                )}
               </div>
             ) : (
               <p className={s.none}>{isToday ? '今天没有提醒' : '那天没有提醒'}</p>

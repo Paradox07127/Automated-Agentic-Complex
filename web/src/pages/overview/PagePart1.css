@@ -21,7 +21,8 @@
   align-items: center;
   gap: var(--ef-sp-4);
   color: var(--ef-text-2);
-  font: var(--ef-fw-medium) 13px / 1.4 var(--ef-font-ui);
+  /* One line as high as the small icon buttons beside it. */
+  font: var(--ef-fw-medium) 13px / 28px var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -29,34 +30,6 @@
 .date > span {
   min-width: 88px;
   text-align: center;
-}
-
-.date button {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  color: var(--ef-text-1);
-  cursor: pointer;
-}
-
-.date button:hover {
-  background: var(--ef-chip);
-}
-
-.date button:disabled {
-  opacity: 0.3;
-  cursor: default;
-  background: none;
-}
-
-.date button:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 2px;
 }
 
 .date i {
@@ -164,62 +137,38 @@
   color: var(--ef-text-2);
 }
 
-/* 展开 / 另有 N 个: a text control. */
-.more {
-  display: inline-flex;
-  gap: var(--ef-sp-4);
-  align-items: center;
-  min-height: 24px;
-  padding: 0 var(--ef-sp-8);
-  border: 0;
-  background: none;
-  color: var(--ef-text-2);
-  font-size: 12px;
-  text-align: left;
-  white-space: nowrap;
-  transition: background var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+/* A pending row after the card: the title, then its kind and source in the meta ink; the source gives way first. */
+.pRow {
+  min-width: 0;
 }
 
-.more:hover {
-  background: var(--ef-chip);
+.rowT,
+.rowS {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.more:active {
-  background: var(--ef-accent);
-}
-
-.more:active,
-.more:active .lnk {
-  color: var(--ef-on-accent);
-}
-
-.more[data-block] {
-  display: flex;
-  width: 100%;
-  height: 32px;
-  margin-top: var(--ef-sp-4);
-  font-size: 13px;
-}
-
-.lnk {
+.rowT {
+  flex: 0 1 auto;
   color: var(--ef-text-1);
+  font-weight: var(--ef-fw-medium);
 }
 
-.more:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 2px;
+.rowS {
+  flex: 0 100 auto;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
 }
 
-/* The decision receipt plays missioncomplete_in's entrance and holds it: the black band fades in at 250-517 ms,
-   the #FFD800 line grows over 250-2083 ms; MissionFx CompleteFx plays the light layers behind the text. */
+/* The decision receipt plays missioncomplete_in's entrance and holds it: the near-black band fades in at 250-517 ms,
+   the complete line grows over 250-2083 ms; MissionFx CompleteFx plays the light layers behind the text. */
 .receipt {
-  --ov-complete-band: #000000; /* completion band */
-  --ov-complete-line: #FFD800; /* completion band line */
   position: relative;
   isolation: isolate;
   margin: 0 0 var(--ef-sp-8);
   padding: var(--ef-sp-8) var(--ef-sp-12);
-  background: var(--ov-complete-band);
+  background: var(--ef-tips-bg);
   color: var(--ef-toast-text);
   font-size: 12px;
   animation: ov-fade 267ms var(--ef-ease-g-fade) 250ms backwards;
@@ -232,22 +181,18 @@
   bottom: 0;
   left: 0;
   height: 1.5px;
-  background: var(--ov-complete-line);
+  background: var(--ef-g-complete-line);
   transform-origin: left;
   animation: ov-line-in 1833ms cubic-bezier(0.141, 0, 0, 1) 250ms backwards;
 }
 
 .receipt .okText {
-  color: var(--ov-complete-line);
+  color: var(--ef-g-complete-line);
 }
 
 .t2 {
   font-size: 12px;
   color: var(--ef-text-2);
-}
-
-.t3 {
-  color: var(--ef-text-3);
 }
 
 /* Common actions in the shell's dark bottom bar, at its right end. */

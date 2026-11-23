@@ -5,7 +5,7 @@ import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import { get } from '../../bridge/agentd';
 import { sortPending } from '../../domain';
 import type { WireSchedule } from '../../domain/schedules';
-import { ErrBar, Icon, Menu, Btn, PageIssues, Region, Tabs, type IconName, type MenuItem } from '../../ui';
+import { ErrBar, IconBtn, Menu, Btn, PageIssues, Region, Tabs, type IconName, type MenuItem } from '../../ui';
 import { useDemo } from '../../shell/demo';
 import { navRoute } from '../../shell/nav';
 import { PageHeaderSlot } from '../../shell/headerSlot';
@@ -196,16 +196,13 @@ export function OverviewPage() {
         right={
           <>
             <span className={styles.date}>
-              <button type="button" aria-label="前一天" title="前一天" disabled={date <= shift(today, -BACK)} onClick={() => put({ date: shift(date, -1) })}>
-                <Icon name="chevl" size={14} />
-              </button>
+              <IconBtn icon="chevl" label="前一天" size="sm" disabled={date <= shift(today, -BACK)} onClick={() => put({ date: shift(date, -1) })} />
               <span className="num" data-date={date}>
-                {mm}.{dd} 周{WEEK[new Date(day0).getDay()]}
+                {mm}.{dd}
+                <span data-fold="1"> 周{WEEK[new Date(day0).getDay()]}</span>
                 {isToday && <i>今天</i>}
               </span>
-              <button type="button" aria-label="后一天" title="后一天" disabled={isToday} onClick={() => put({ date: shift(date, 1) })}>
-                <Icon name="chev" size={14} />
-              </button>
+              <IconBtn icon="chev" label="后一天" size="sm" disabled={isToday} onClick={() => put({ date: shift(date, 1) })} />
             </span>
             {/* The top bar says 已连接. */}
             {(loading || stale) && <span className={styles.conn}>{loading ? <Pip tone="idle" label="读取中" /> : offline ? <Pip tone="failed" label={lostText} /> : <Pip tone="failed" label="刷新失败" />}</span>}

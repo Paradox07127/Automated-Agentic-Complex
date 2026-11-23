@@ -104,7 +104,9 @@ describe('今天', () => {
   it('heads the day with 今日一句 and the readouts; 待处理 leads the left column, 进行中 the right', async () => {
     mount();
     const line = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
-    await waitFor(() => expect(line.textContent).toMatch(/^今日一句今天 \d+ 段对话/), { timeout: 3000 });
+    await waitFor(() => expect(line.textContent).toMatch(/^今日一句今天 \d+ 个编码会话/), { timeout: 3000 });
+    // 聊了什么 and 进行中 count those; the line does not say them again.
+    expect(line.textContent).not.toMatch(/段对话|进行中|待批准/);
     expect(within(screen.getByRole('list', { name: '读数' })).getAllByRole('listitem').length).toBeGreaterThan(0);
     const need = screen.getByRole('region', { name: '待处理' });
     const run = screen.getByRole('region', { name: '进行中' });
