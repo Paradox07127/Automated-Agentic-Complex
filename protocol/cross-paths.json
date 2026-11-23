@@ -16,7 +16,8 @@
    "characters/agentic_complex_build/pose_family.py",
    "characters/agentic_complex_build/motion_families.py",
    "characters/agentic_complex_build/mesh_codec.py", "characters/agentic_complex_build/efmi_geometry.py",
-   "characters/agentic_complex_build/mod_settings.py", "characters/agentic_complex_build/texture_mips.py"],
+   "characters/agentic_complex_build/mod_settings.py", "characters/agentic_complex_build/texture_mips.py",
+   "characters/agentic_complex_build/texture_dhash.py"],
   "harness.pi": ["agent/agentd/character_agent/pi-runtime/"],
   "browser": ["agent/browser/"],
   "tts": ["voice/tts-service/"]

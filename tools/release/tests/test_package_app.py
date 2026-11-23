@@ -228,7 +228,7 @@ class SingleAppStageTests(unittest.TestCase):
                 'import_generated.py', 'secondary_fit.py', 'keys_v2.py', 'live_motion.py', 'style_retarget.py',
                 'kimodo_stand_reference.json', 'efmi_mod.py', 'outfit_compose.py', 'import_outfit.py',
                 'motion_graph.py', 'motion_families.py', 'pose_family.py',
-                'mesh_codec.py', 'efmi_geometry.py', 'mod_settings.py', 'texture_mips.py', *('mmd/' + p.name for p in mmd.iterdir() if p.suffix in ('.py', '.json')),
+                'mesh_codec.py', 'efmi_geometry.py', 'mod_settings.py', 'texture_mips.py', 'texture_dhash.py', *('mmd/' + p.name for p in mmd.iterdir() if p.suffix in ('.py', '.json')),
                 *('motion_import/' + p.name for p in motion_import.iterdir() if p.suffix in ('.py', '.json'))]))
             self.assertIn('mmd/rotation.py', staged)
             self.assertIn('motion_import/take.py', staged)
