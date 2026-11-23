@@ -13,6 +13,7 @@ import threading
 import time
 import uuid
 
+from infra import service_ensure
 from motion import catalog, requests
 from motion.client import MotionClient, ServiceError
 from motion.store import MotionStore
@@ -45,12 +46,15 @@ def _ms(start, end):
 class Performer:
     def __init__(self, settings, publish, package_root, cache_dir, *, offer,
                  trace=lambda kind, trace_id, **fields: None, client=None, store=None, retarget=live_retarget,
-                 clock=time.monotonic, perform_budget=PERFORM_BUDGET, request_budget=REQUEST_BUDGET):
+                 clock=time.monotonic, perform_budget=PERFORM_BUDGET, request_budget=REQUEST_BUDGET,
+                 service_url=None, ensurer=None):
         """settings: MotionSettings; publish(event, data): the /events publish, for `motion` answers; offer(spec) ->
         (admitted, reason): Spatial.offer, which sends each perform behavior; package_root() -> the current
         character's installed package root; trace(kind, trace_id, attrs=...): the trace step sink;
-        retarget(package_root, cache_dir) -> a LiveRetarget."""
+        retarget(package_root, cache_dir) -> a LiveRetarget; service_url: --motion-url, None when the service is off;
+        ensurer: the ServiceEnsurer that starts the service before each use, or None."""
         self.settings, self.publish, self.package_root, self.cache_dir = settings, publish, package_root, cache_dir
+        self.service_url, self.ensurer = service_url, ensurer
         self.offer = offer
         self.trace, self.clock = trace, clock
         self.perform_budget, self.request_budget = perform_budget, request_budget
@@ -169,6 +173,15 @@ class Performer:
             raise ServiceError("timeout")
         return left
 
+    def _ensure(self, timeout):
+        """Starts the service through the ensurer, waiting at most timeout; ServiceError ensure_failed when it is not
+        ready."""
+        if self.ensurer is None:
+            return
+        self.ensurer.request()
+        if not self.ensurer.wait_ready(timeout):
+            raise ServiceError("ensure_failed")
+
     def _retarget_for(self, root, url, token):
         key = (root, url)
         with self._fit_lock:
@@ -182,11 +195,12 @@ class Performer:
         """With driver (the current character's effective motion driver) generated, builds the current character's
         LiveRetarget on a thread so the first motion meets the budget. A failure here is reported by the first motion
         that hits it."""
-        url, token = self.settings.endpoint()
+        url, token = self.service_url, self.settings.token()
         if driver != "generated" or url is None:
             return
         def run():
             try:
+                self._ensure(service_ensure.TIMEOUT)
                 self._retarget_for(Path(self.package_root()), url, token)
             except Exception:
                 pass
@@ -195,9 +209,10 @@ class Performer:
     def _perform(self, prompt, seconds, generation, trace_id, began, texts):
         stage = "generate"
         try:
-            url, token = self.settings.endpoint()
+            url, token = self.service_url, self.settings.token()
             if url is None:
                 raise ServiceError("no_service")
+            self._ensure(self._generate_timeout(began, self.perform_budget))
             called = self.clock()
             npz = self.client.generate(url, token, prompt, seconds, timeout=self._generate_timeout(began, self.perform_budget))
             generated = self.clock()
@@ -246,9 +261,10 @@ class Performer:
         stage, trace_id, checked = "retarget", request_trace(body["request_id"]), {}
         try:
             self._in_time(began, self.request_budget)
-            url, token = self.settings.endpoint()
+            url, token = self.service_url, self.settings.token()
             if url is None:
                 raise ServiceError("no_service")
+            self._ensure(self._generate_timeout(began, self.request_budget))
             retarget = self._retarget_for(Path(self.package_root()), url, token)
             prompt, constraints = requests.build(body["kind"], body["seconds"], body["geometry"], retarget.to_kimodo)
             stage = "generate"

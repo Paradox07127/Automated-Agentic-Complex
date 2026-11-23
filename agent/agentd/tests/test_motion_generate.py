@@ -254,13 +254,18 @@ class RequestsTest(unittest.TestCase):
 
 
 class ClientTest(unittest.TestCase):
-    def test_changed_service_drops_saved_token(self):
+    def test_settings_keep_the_backend_and_the_token_only(self):
         from motion.settings import MotionSettings
         with tempfile.TemporaryDirectory() as directory:
             settings = MotionSettings(directory, MemorySecrets())
-            settings.update({'backend': 'generated', 'service_url': 'https://first.example', 'token': 'sentinel'})
-            status, result = settings.update({'backend': 'generated', 'service_url': 'https://next.example'})
-            self.assertEqual((status, result['token_set'], MotionSettings(directory, settings.secrets).token()), (200, False, None))
+            self.assertEqual(settings.update({'backend': 'generated', 'service_url': 'https://first.example'}),
+                             (400, {'error': 'invalid_payload'}))
+            self.assertEqual(settings.update({'backend': 'generated', 'token': 'sentinel'}),
+                             (200, {'backend': 'generated', 'token_set': True}))
+            self.assertEqual(json.loads((Path(directory) / 'motion-settings.json').read_text(encoding='utf-8')).keys(),
+                             {'backend', 'token_ref'})
+            status, result = settings.update({'backend': 'generated'})
+            self.assertEqual((status, result['token_set'], MotionSettings(directory, settings.secrets).token()), (200, True, 'sentinel'))
 
     def test_cross_origin_redirect_has_no_token(self):
         from urllib.response import addinfourl
@@ -306,12 +311,13 @@ class GenerateRouteTest(base.MotionCase):
         super().setUp()
         self.settings.update(base.SERVICE)
 
-    def performer(self, **client):
+    def performer(self, service_url=base.SERVICE_URL, ensurer=None, **client):
         self.client = GeometryClient(self.clock, **client)
         self.server.motion = base.Performer(self.settings, self.server.registry.publish_event,
                                             lambda: self.state / "pkg", self.state / "cache",
                                             offer=self.server.spatial.offer, trace=self.trace,
-                                            client=self.client, retarget=GeometryRetarget, clock=self.clock)
+                                            client=self.client, retarget=GeometryRetarget, clock=self.clock,
+                                            service_url=service_url, ensurer=ensurer)
         return self.server.motion
 
     def motions(self):
@@ -345,6 +351,24 @@ class GenerateRouteTest(base.MotionCase):
         self.assertEqual(self.request("POST", "/motions/generate", request())[0], 202)
         self.assertTrue(base.wait_for(lambda: self.motions()))
         self.assertAlmostEqual(self.client.timeout, 2.5 - 0.3)
+
+    def test_the_ensurer_starts_the_service_before_the_retarget_and_the_generate(self):
+        ensurer = base.FakeEnsurer(self.clock)
+        self.performer(ensurer=ensurer)
+        self.assertEqual(self.request("POST", "/motions/generate", request())[0], 202)
+        self.assertTrue(base.wait_for(lambda: self.motions()))
+        self.assertTrue(self.motions()[0]["ok"])
+        self.assertEqual(ensurer.calls, ["request", ("wait_ready", 2.5 - 0.3)])
+        self.assertAlmostEqual(self.client.timeout, 2.5 - 0.3 - 0.5)
+
+    def test_a_failed_ensure_answers_a_failed_motion(self):
+        self.performer(ensurer=base.FakeEnsurer(self.clock, ready=False))
+        self.assertEqual(self.request("POST", "/motions/generate", request())[0], 202)
+        self.assertTrue(base.wait_for(lambda: self.motions()))
+        [event] = self.motions()
+        self.assertEqual((event["ok"], event["reason"], self.client.calls), (False, "failed", []))
+        self.assertTrue(base.wait_for(lambda: self.traced))
+        self.assertEqual(self.traced[0][2]["reason"], "ensure_failed")
 
     def test_the_retarget_gets_the_hosts_geometry(self):
         self.performer()
@@ -449,10 +473,10 @@ class GenerateRouteTest(base.MotionCase):
 
     def test_the_game_backend_or_no_service_refuses_with_a_failed_motion_at_once(self):
         """The host falls back on the event instead of waiting out its 2.5 s."""
-        self.performer()
-        self.settings.update({"backend": "game", "service_url": None})
+        self.performer(service_url=None)
+        self.settings.update({"backend": "game"})
         self.assertEqual(self.request("POST", "/motions/generate", request()), (409, {"error": "motion_backend_game"}))
-        self.settings.update({"backend": "generated", "service_url": None})
+        self.settings.update({"backend": "generated"})
         self.assertEqual(self.request("POST", "/motions/generate", request(request_id="mr-00000000000000ff")),
                          (409, {"error": "no_service"}))
         self.assertEqual(self.client.calls, [])

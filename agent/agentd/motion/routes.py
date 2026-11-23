@@ -24,7 +24,7 @@ def _generate(h, motion):
     elif effective(h.server)["motion"]["driver"] != "generated":
         motion.refuse(body, "game_backend")
         h.json(409, {"error": "motion_backend_game"})
-    elif motion.settings.service_url is None:
+    elif motion.service_url is None:
         motion.refuse(body, "no_service")
         h.json(409, {"error": "no_service"})
     else:

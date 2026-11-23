@@ -42,6 +42,10 @@ agentd 的参数（`--` 之后）。宿主必传的只有 `--port` 和 `--state-
 | `--mute` | 静音时 | 关 |
 | `--tts-url URL` | config `tts_url` 非空时 | 无，只出字 |
 | `--tts-ensure-host HOST` 和 `--tts-ensure-script PATH` | `tts_url`、`tts_tunnel_host`、`tts_ensure_script` 都非空时，两个一起传 | 无，不按需启动 TTS |
+| `--motion-url URL` | 动作服务（Kimodo）不是关时：直连地址，或 Companion 开的 SSH 隧道、本机进程的地址；http 或 https，不带用户名、密码、query、fragment（不合是参数错误） | 无，不生成动作（`POST /motions/generate` 回 409 `no_service`） |
+| `--motion-ensure-host HOST` 和 `--motion-ensure-script PATH` | 动作服务走 SSH 并且有启动脚本时，两个一起传 | 无，不按需启动动作服务 |
+| `--llm-url URL` | 兼容 OpenAI 的模型 API 不是关时，地址同上；https，或 localhost / 127.0.0.1 / ::1 的 http，不带用户名、密码、query、fragment（不合是参数错误） | 无，兼容 API 关（`llm_service_off`，C6） |
+| `--llm-ensure-host HOST` 和 `--llm-ensure-script PATH` | 模型 API 走 SSH 并且有启动脚本时，两个一起传 | 无，不按需启动模型 API |
 | `--tts-token-file PATH` | 总传，`<support>/tts-token`，文件不在也传（C10） | 凭据引用的基础路径取 `$AAC_TTS_TOKEN_FILE`，缺省取 `<state-dir>/tts-token` |
 
 agentd 还认 `--hook-timeout`、`--margin`、`--ritual-report-time`、`--ledger-root`、`--exit-with-parent/--no-exit-with-parent`、`--describe`；Companion 不传。含义见 `python3 agent/agentd/server.py --help`。

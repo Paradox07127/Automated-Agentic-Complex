@@ -425,7 +425,7 @@ class ProviderProfilesTests(unittest.TestCase):
         self.assertEqual({(p['id'], p['credential_backend']) for p in catalog()}, {('xai', 'xai'), ('deepseek', 'deepseek')})
         for name, profile in PROFILES.items():
             settings = {'backends': {name: {'base_url': profile['base_url'] + '/'},
-                                     'compatible': {'base_url': 'https://other.example/v1', 'supports_images': True}}}
+                                     'compatible': {'supports_images': True}}}
             self.assertEqual(connection(name, settings, 'api_key'),
                              {'provider': name, 'auth_source': 'api_key', 'base_url': profile['base_url']})
             with self.assertRaisesRegex(ValueError, 'requires_api_key'):
@@ -440,7 +440,7 @@ class ProviderProfilesTests(unittest.TestCase):
             config = case.c.settings.save({'backend': 'pi', 'provider': 'deepseek', 'model': 'user-selected-model', 'auth_source': 'api_key'})
             case.server.models = SimpleNamespace(snapshot=lambda: {'backends': {
                 'deepseek': {'base_url': 'https://api.deepseek.com', 'api_key': 'profile-private-key'},
-                'compatible': {'base_url': 'https://api.deepseek.com', 'api_key': 'never-forward-the-compatible-key'},
+                'compatible': {'api_key': 'never-forward-the-compatible-key'},
                 'openai': {'api_key': 'never-forward-native-or-other-provider-key'}}})
             self.assertEqual(case.c._credential(config), 'profile-private-key')
             case.reply = {'understanding': 'unknown without evidence'}
@@ -449,7 +449,7 @@ class ProviderProfilesTests(unittest.TestCase):
             self.assertTrue(describe(config)['features']['goal_and_job_interaction']['implemented'])
             self.assertTrue(describe(config)['features']['automatic_memory_observation_proactive']['implemented'])
             case.server.models = SimpleNamespace(snapshot=lambda: {'backends': {
-                'compatible': {'base_url': 'https://api.deepseek.com', 'api_key': 'profile-private-key'}}})
+                'compatible': {'api_key': 'profile-private-key'}}})
             with self.assertRaisesRegex(ValueError, 'missing_provider_api_key'):
                 case.c._credential(config)
         finally:

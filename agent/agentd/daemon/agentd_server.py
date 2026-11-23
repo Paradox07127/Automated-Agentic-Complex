@@ -297,7 +297,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self._speech_trace_lock = threading.Lock()
         self.muted = False
         self.voice = NoVoice()  # VoiceProvider; speech and tts_ensurer are its relay() and ensurer once main() builds it
-        self.tts_ensurer = None  # TtsEnsurer that starts the ws TTS on demand (--tts-ensure-host)
+        self.tts_ensurer = None  # ServiceEnsurer that starts the ws TTS on demand (--tts-ensure-host)
         self._line_cancel = threading.Event()
         self._live_lines = set()  # cancel events of lines still waiting or streaming
         self._side_lines = set()  # cancel events of side lines (input while the foreground run works), until they end

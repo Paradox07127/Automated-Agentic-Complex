@@ -111,9 +111,8 @@ class QuickTests(unittest.TestCase):
 
     @unittest.skipUnless(HAS_SDK, 'Pinned Pi SDK unavailable')
     def test_warm_pi_provider_requests(self):
-        models = self.server.models = ModelSettings(self.root / 'models', MemorySecrets())
-        models.save({'provider': 'compatible', 'base_url': 'https://fixture.invalid/v1',
-                     'api_key': 'fixture', 'model': 'fixture', 'reasoning': True, 'reasoning_effort': 'high'})
+        models = self.server.models = ModelSettings(self.root / 'models', MemorySecrets(), llm_url='https://fixture.invalid/v1')
+        models.save({'provider': 'compatible', 'api_key': 'fixture', 'model': 'fixture', 'reasoning': True, 'reasoning_effort': 'high'})
         self.c.settings.save({'backend': 'codex', 'runtime_source': 'local', 'model': 'chat-only'})
         self.c.session_factory_override = None
         runner = Path(__file__).parent / 'fakes' / 'quick_pi_fetch.mjs'
@@ -300,9 +299,8 @@ class QuickTests(unittest.TestCase):
         self.assertGreater(s.closed, 0)
 
     def test_quick_model_uses_resolved_provider(self):
-        self.server.models = ModelSettings(self.root / 'models', MemorySecrets())
-        self.server.models.save({'provider': 'compatible', 'base_url': 'https://fixture.invalid/v1',
-                                 'api_key': 'fixture', 'model': 'account'})
+        self.server.models = ModelSettings(self.root / 'models', MemorySecrets(), llm_url='https://fixture.invalid/v1')
+        self.server.models.save({'provider': 'compatible', 'api_key': 'fixture', 'model': 'account'})
         for provider, expected in [('deepseek', 'account'), ('compatible', 'chat-model')]:
             self.c.settings.save({'backend': 'pi', 'provider': provider, 'auth_source': 'api_key', 'model': 'chat-model'})
             with patch.object(self.c, '_session_factory', wraps=self.c._session_factory) as create:

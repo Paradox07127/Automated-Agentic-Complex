@@ -104,8 +104,19 @@ class ModelsTest(unittest.TestCase):
         for url in ["http://remote.example/v1", "https://user:pass@api.example/v1", "file:///tmp/a", "https://api.example/v1?key=x"]:
             with self.subTest(url=url), self.assertRaisesRegex(ModelError, "invalid_base_url"):
                 self.config(base_url=url)
-        self.config("compatible", base_url="http://127.0.0.1:11434/v1", api_key="")
+        self.config("compatible", api_key="")
         self.assertEqual(self.settings.connection()[2], "")
+
+    def test_the_compatible_address_is_the_llm_url_argument_never_a_setting(self):
+        with self.assertRaisesRegex(ModelError, "invalid_base_url"):
+            self.config("compatible", base_url="http://127.0.0.1:11434/v1")
+        atomic_write_json(self.settings.path, {"provider": "compatible", "backends": {
+            "compatible": {"model": "m", "base_url": "http://127.0.0.1:1/v1"}}})
+        settings = ModelSettings(self.tmp.name, self.settings.secrets)
+        self.assertNotIn("base_url", settings.public()["backends"]["compatible"])
+        self.assertNotIn("base_url", settings.connection()[1])
+        settings.save({"provider": "compatible", "model": "other"})
+        self.assertNotIn("base_url", json.loads(settings.path.read_text(encoding="utf-8"))["backends"]["compatible"])
 
     def test_oauth_endpoint_pinned(self):
         self.config("chatgpt", base_url="https://evil.example", api_key="forbidden")
@@ -212,13 +223,38 @@ class ModelsTest(unittest.TestCase):
                 self.settings.save({"provider": provider})
 
     def test_catalog_of_a_compatible_api_lists_its_own_models(self):
-        self.config("compatible", base_url="http://127.0.0.1:11434/v1", api_key="local-key")
+        self.settings.llm_url = "http://127.0.0.1:11434/v1"
+        self.config("compatible", api_key="local-key")
         with patch("httpx.get", return_value=httpx.Response(200, json={"data": [{"id": "qwen3"}]})) as get:
             self.assertEqual(self.settings.catalog(self.no_pi), {"providers": [], "models": [{
                 "id": "qwen3", "name": "qwen3", "context_window": None, "max_tokens": None, "input": None,
                 "reasoning": None, "thinking_levels": None, "priced": None}]})
         self.assertEqual(get.call_args.args[0], "http://127.0.0.1:11434/v1/models")
         self.assertEqual(get.call_args.kwargs["headers"]["Authorization"], "Bearer local-key")
+
+    def test_catalog_of_a_compatible_api_without_the_llm_url_is_off(self):
+        self.config("compatible", api_key="local-key")
+        with patch("httpx.get", side_effect=AssertionError("no request")), \
+                self.assertRaisesRegex(ModelError, "llm_service_off"):
+            self.settings.catalog(self.no_pi)
+
+    def test_catalog_of_a_compatible_api_starts_it_through_the_ensurer(self):
+        self.settings.llm_url = "http://127.0.0.1:11434/v1"
+        self.config("compatible", api_key="local-key")
+        calls = []
+        for ready in (True, False):
+            with self.subTest(ready=ready):
+                self.settings.llm_ensurer = NS(request=lambda: calls.append("request"),
+                                               wait_ready=lambda timeout, ready=ready: calls.append(timeout) or ready)
+                with patch("httpx.get", side_effect=lambda *a, **k: calls.append("get") or httpx.Response(200, json={"data": []})):
+                    if ready:
+                        self.assertEqual(self.settings.catalog(self.no_pi)["models"], [])
+                        self.assertEqual(calls, ["request", 200.0, "get"])
+                    else:
+                        calls.clear()
+                        with self.assertRaisesRegex(ModelError, "llm_ensure_failed"):
+                            self.settings.catalog(self.no_pi)
+                        self.assertEqual(calls, ["request", 200.0])
 
     def test_chatgpt_models_are_account_catalog_and_oauth_required(self):
         self.config("chatgpt")

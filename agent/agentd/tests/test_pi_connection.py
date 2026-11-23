@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from infra.secrets import MemorySecrets
 from character_agent.harness.pi_config import PiConfig
 from character_agent.harness.registry import HARNESSES, pi_catalog
-from character_agent.harness.transport import join_reapers
+from character_agent.harness.transport import HarnessError, join_reapers
 from character_agent.integration import CharacterAgentController
 from character_agent.services.settings import DEFAULTS, RuntimeSettings
 from models.model_auth import ModelError
@@ -68,7 +68,7 @@ class PiConnectionCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        self.models = ModelSettings(self.root / "models", MemorySecrets())
+        self.models = ModelSettings(self.root / "models", MemorySecrets(), llm_url="http://127.0.0.1:11434/v1")
         self.auth = self.models.auth = FakeAuth()
         site = self.root / "harness.pi"
         node = site / ("node/node.exe" if sys.platform == "win32" else "node/bin/node")
@@ -152,7 +152,7 @@ class MappingTests(PiConnectionCase):
         self.assertEqual(self.controller._model(config), "grok-4.3")
 
     def test_runtime_provider_reads_its_own_backend_key_never_the_compatible_one(self):
-        self.use("compatible", base_url="https://api.deepseek.com", api_key="fake-compatible-key")
+        self.use("compatible", api_key="fake-compatible-key")
         for provider, url in (("deepseek", "https://api.deepseek.com"), ("xai", "https://api.x.ai/v1")):
             with self.subTest(provider=provider):
                 config = self.config(provider=provider, model="m", auth_source="api_key")
@@ -174,9 +174,16 @@ class MappingTests(PiConnectionCase):
         self.assertEqual(self.controller._pi_connection(self.config(auth_source="local_no_auth"))["auth_source"], "none")
         with self.assertRaisesRegex(ValueError, "pi_connection_missing"):
             self.controller._pi_connection(config)
-        self.models.data["backends"]["compatible"]["base_url"] = "https://remote.example/v1"
+        self.models.llm_url = "https://remote.example/v1"
         with self.assertRaisesRegex(ValueError, "requires_loopback"):
             self.controller._pi_connection(self.config(auth_source="local_no_auth"))
+
+    def test_compatible_without_the_llm_url_is_off(self):
+        self.use("compatible", api_key="fake-compatible-key", model="local-model")
+        self.models.llm_url = None
+        for config in (self.config(), self.config(provider="compatible", auth_source="local_no_auth")):
+            with self.subTest(provider=config["provider"]), self.assertRaisesRegex(ValueError, "llm_service_off"):
+                self.controller._pi_connection(config)
 
     def test_missing_credentials_are_pi_connection_missing(self):
         self.use("anthropic")
@@ -204,7 +211,7 @@ class MappingTests(PiConnectionCase):
 
     def test_explicit_runtime_provider_keeps_its_own_connection(self):
         self.use("chatgpt", model="gpt-5.5")
-        self.models.data["backends"]["compatible"]["base_url"] = "http://127.0.0.1:1234/v1"
+        self.models.llm_url = "http://127.0.0.1:1234/v1"
         connection = self.controller._pi_connection(self.config(provider="compatible", auth_source="local_no_auth"))
         self.assertEqual((connection["provider"], connection["base_url"]), ("compatible", "http://127.0.0.1:1234/v1"))
 
@@ -291,6 +298,36 @@ class SessionTests(PiConnectionCase):
                  "builtin_tools_unavailable": {"grep": "rg_not_found"}, "shell": {"bash": "/bin/bash", "powershell": None},
                  "tool_approval": True, "workspace_dir": str(self.root / "workspace")}
         self.assertEqual(facts, [None, found, found])
+
+    def compatible_queries(self, ready):
+        """Two queries on a compatible session whose ensurer answers `ready`: (ensurer calls, results, query frames)."""
+        self.use("compatible", api_key="fake-compatible-key", model="local-model")
+        calls = []
+        self.models.llm_ensurer = SimpleNamespace(request=lambda: calls.append("request"),
+                                                  wait_ready=lambda timeout: calls.append(timeout) or ready)
+        runner = self.root / "fake_runner.py"; runner.write_text(FAKE_RUNNER, encoding="utf-8")
+        session = self.controller._session_factory([], self.config(runtime_source="local", executable=sys.executable))
+        session.runner_path = runner
+        results = []
+        try:
+            for run in ("run-1", "run-2"):
+                try:
+                    results.append(list(session.stream("hi", system_prompt="You are Mira.", run_id=run))[-1]["success"])
+                except HarnessError as error:
+                    results.append(error.code)
+        finally:
+            session.close()
+        frames = [json.loads(line)["frame"] for line in (self.controller.state_dir / "character-agent/runner/pi/frames.jsonl")
+                  .read_text(encoding="utf-8").splitlines()]
+        return calls, results, [f for f in frames if f["type"] == "query"]
+
+    def test_the_llm_ensurer_starts_the_compatible_api_before_every_query(self):
+        calls, results, queries = self.compatible_queries(True)
+        self.assertEqual((calls, results, len(queries)), (["request", 200.0] * 2, [True, True], 2))
+
+    def test_a_failed_llm_ensure_sends_no_query(self):
+        calls, results, queries = self.compatible_queries(False)
+        self.assertEqual((calls, results, queries), (["request", 200.0] * 2, ["llm_ensure_failed"] * 2, []))
 
     def test_catalog_provider_reaches_the_runner_without_an_endpoint_api(self):
         self.use("deepseek", api_key="fake-deepseek-key")

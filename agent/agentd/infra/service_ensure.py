@@ -1,6 +1,7 @@
-"""Start the ws TTS on demand: ssh runs the ws ensure script, which answers `ready <s>` or `fail <why>`.
+"""Start a remote service (TTS, motion, an OpenAI-compatible model API) on demand: ssh runs its host's ensure script,
+which answers `ready <s>` or `fail <why>`.
 
-The ws side stops the TTS itself after it has been idle."""
+The remote side stops the service itself after it has been idle."""
 import subprocess
 import sys
 import threading
@@ -11,9 +12,10 @@ FRESH = 30.0  # seconds after a success in which request() runs nothing
 NEGATIVE = 90.0  # seconds after a failure in which request() runs nothing, so wait_ready() answers False at once
 
 
-class TtsEnsurer:
-    def __init__(self, host, script, run=subprocess.run, clock=time.monotonic):
-        self.host, self.script = host, script
+class ServiceEnsurer:
+    def __init__(self, service, host, script, run=subprocess.run, clock=time.monotonic):
+        """service: the id in agentd's log line (tts, motion, llm)."""
+        self.service, self.host, self.script = service, host, script
         self.run, self.clock = run, clock
         self._lock = threading.Lock()
         self._done = threading.Event()  # set once the latest ensure has ended
@@ -69,7 +71,7 @@ class TtsEnsurer:
             else:
                 self._failed_at = self.clock()
             retry_after = None if ready else self._failed_at + NEGATIVE
-        print(f"agentd: tts ensure {'ready' if ready else 'fail'} ({why}) in {self.clock() - start:.1f}s",
+        print(f"agentd: {self.service} ensure {'ready' if ready else 'fail'} ({why}) in {self.clock() - start:.1f}s",
               file=sys.stderr)
         self.on_change("ensure_ready" if ready else "ensure_failed", why, retry_after)  # before waiters wake
         done.set()

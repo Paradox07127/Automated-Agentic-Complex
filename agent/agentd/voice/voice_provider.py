@@ -7,7 +7,7 @@ import threading
 import time
 
 from voice.speech import SpeechRelay
-from voice.tts_ensure import TtsEnsurer
+from infra.service_ensure import ServiceEnsurer
 
 STATES = ("unknown", "probing", "ready", "cold", "unreachable", "off")
 IDLE = 600.0  # seconds; ws stops the TTS after TTS_IDLE_S (local tool `tts_ondemand.sh`, not in the public repo), so an older success predicts `cold`
@@ -72,7 +72,7 @@ def _shown(s):
 
 
 class VoiceProvider:
-    """One voice source: its state, its SpeechRelay (None means text only) and its TtsEnsurer (None when none)."""
+    """One voice source: its state, its SpeechRelay (None means text only) and its ServiceEnsurer (None when none)."""
     name = ""
     idle = IDLE
     ensurer = None
@@ -126,7 +126,7 @@ class NoVoice(VoiceProvider):
 
 
 class RemoteWsVoice(VoiceProvider):
-    """The ws TTS: a SpeechRelay, plus the TtsEnsurer that starts it on demand when one is given."""
+    """The ws TTS: a SpeechRelay, plus the ServiceEnsurer that starts it on demand when one is given."""
     name = "remote-ws"
 
     def __init__(self, speech, ensurer=None, clock=time.monotonic):
@@ -180,6 +180,6 @@ def make_provider(args, bindings, epoch, token):
     voice, language = bindings.voice(args.character) or (args.character, "zh")
     ensurer = None
     if args.tts_ensure_host and args.tts_ensure_script:
-        ensurer = TtsEnsurer(args.tts_ensure_host, args.tts_ensure_script)
+        ensurer = ServiceEnsurer("tts", args.tts_ensure_host, args.tts_ensure_script)
     speech = SpeechRelay(args.tts_url, epoch, character=voice, language=language, token=token, ensurer=ensurer)
     return RemoteWsVoice(speech, ensurer)

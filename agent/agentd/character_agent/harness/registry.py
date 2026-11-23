@@ -44,7 +44,8 @@ def _pi_session(integration, config, common, definitions):
         tool_approval=config["pi_tool_approval"])
     return ManagedPiSession(options, definitions, credential=credential,
         permission_handler=lambda request: integration._harness_permission(request, "pi", HARNESSES["pi"].title),
-        on_ready=integration._pi_ready if common["native_tools"] else None)
+        on_ready=integration._pi_ready if common["native_tools"] else None,
+        service_ready=integration.server.models.llm_ready if connection["provider"] == "compatible" else None)
 
 
 def pi_catalog(integration, provider):

@@ -19,7 +19,7 @@ from infra.secrets import MemorySecrets
 from voice.credential import TtsCredential
 from api.handler import Handler  # noqa: E402
 from voice.speech import SpeechRelay  # noqa: E402
-from voice.tts_ensure import NEGATIVE, TtsEnsurer  # noqa: E402
+from infra.service_ensure import NEGATIVE, ServiceEnsurer  # noqa: E402
 from voice.voice_provider import NoVoice, RemoteWsVoice  # noqa: E402
 from support import serve_in_thread  # noqa: E402
 
@@ -107,7 +107,7 @@ class DiagTtsTest(unittest.TestCase):
 
     def test_retry_after_counts_down_the_ensurers_negative_cache(self):
         clock = Clock()
-        ensurer = TtsEnsurer("ws", "script", clock=clock)
+        ensurer = ServiceEnsurer("tts", "ws", "script", clock=clock)
         relay = SpeechRelay("http://127.0.0.1:9", epoch=1, character="voice_a", language="zh", ensurer=ensurer)
         self.server.voice = RemoteWsVoice(relay, ensurer, clock=clock)
         ensurer.on_change("ensure_failed", "fail ssh", clock.now + NEGATIVE)

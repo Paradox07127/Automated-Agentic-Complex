@@ -1,3 +1,5 @@
+import contextlib
+import io
 from pathlib import Path
 import subprocess
 import sys
@@ -7,7 +9,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from voice.tts_ensure import TtsEnsurer  # noqa: E402
+from infra.service_ensure import ServiceEnsurer  # noqa: E402
 
 SCRIPT = "/srv/tts/ondemand/tts_ondemand.sh"
 
@@ -27,10 +29,10 @@ class FakeRun:
         return subprocess.CompletedProcess(command, self.code, self.stdout, "")
 
 
-class TtsEnsurerTest(unittest.TestCase):
+class ServiceEnsurerTest(unittest.TestCase):
     def test_ready_runs_the_ws_script_over_ssh(self):
         run = FakeRun()
-        ensurer = TtsEnsurer("ws", SCRIPT, run=run)
+        ensurer = ServiceEnsurer("tts", "ws", SCRIPT, run=run)
         ensurer.request()
         self.assertTrue(ensurer.wait_ready(5))
         command, kwargs = run.calls[0]
@@ -39,7 +41,7 @@ class TtsEnsurerTest(unittest.TestCase):
 
     def test_a_host_that_looks_like_an_option_stays_the_host(self):
         run = FakeRun()
-        ensurer = TtsEnsurer("-oProxyCommand=touch x", SCRIPT, run=run)
+        ensurer = ServiceEnsurer("tts", "-oProxyCommand=touch x", SCRIPT, run=run)
         ensurer.request()
         ensurer.wait_ready(5)
         command, _ = run.calls[0]
@@ -48,7 +50,7 @@ class TtsEnsurerTest(unittest.TestCase):
     def test_concurrent_requests_run_once(self):
         gate = threading.Event()
         run = FakeRun(gate=gate)
-        ensurer = TtsEnsurer("ws", SCRIPT, run=run)
+        ensurer = ServiceEnsurer("tts", "ws", SCRIPT, run=run)
         ensurer.request()
         ensurer.request()
         self.assertFalse(ensurer.wait_ready(0.1))  # still running
@@ -60,14 +62,14 @@ class TtsEnsurerTest(unittest.TestCase):
         for run in (FakeRun("fail gpu busy\n", code=1), FakeRun("", code=255),
                     FakeRun(error=subprocess.TimeoutExpired("ssh", 200))):
             with self.subTest(stdout=run.stdout, error=run.error):
-                ensurer = TtsEnsurer("ws", SCRIPT, run=run)
+                ensurer = ServiceEnsurer("tts", "ws", SCRIPT, run=run)
                 ensurer.request()
                 self.assertFalse(ensurer.wait_ready(5))
 
     def test_a_fresh_success_skips_the_next_run(self):
         now = [100.0]
         run = FakeRun()
-        ensurer = TtsEnsurer("ws", SCRIPT, run=run, clock=lambda: now[0])
+        ensurer = ServiceEnsurer("tts", "ws", SCRIPT, run=run, clock=lambda: now[0])
         ensurer.request()
         self.assertTrue(ensurer.wait_ready(5))
         now[0] += 29
@@ -82,7 +84,7 @@ class TtsEnsurerTest(unittest.TestCase):
     def test_a_failure_skips_requests_for_90_seconds(self):
         now = [100.0]
         run = FakeRun("fail down\n", code=1)
-        ensurer = TtsEnsurer("ws", SCRIPT, run=run, clock=lambda: now[0])
+        ensurer = ServiceEnsurer("tts", "ws", SCRIPT, run=run, clock=lambda: now[0])
         ensurer.request()
         self.assertFalse(ensurer.wait_ready(5))
         now[0] += 89
@@ -95,7 +97,7 @@ class TtsEnsurerTest(unittest.TestCase):
     def test_a_failure_is_retried_once_90_seconds_have_passed(self):
         now = [100.0]
         run = FakeRun("fail down\n", code=1)
-        ensurer = TtsEnsurer("ws", SCRIPT, run=run, clock=lambda: now[0])
+        ensurer = ServiceEnsurer("tts", "ws", SCRIPT, run=run, clock=lambda: now[0])
         ensurer.request()
         self.assertFalse(ensurer.wait_ready(5))
         now[0] += 91
@@ -104,7 +106,7 @@ class TtsEnsurerTest(unittest.TestCase):
         self.assertEqual(len(run.calls), 2)
 
     def test_on_change_reports_start_and_ready(self):
-        ensurer, events = TtsEnsurer("ws", SCRIPT, run=FakeRun()), []
+        ensurer, events = ServiceEnsurer("tts", "ws", SCRIPT, run=FakeRun()), []
         ensurer.on_change = lambda *event: events.append(event)
         ensurer.request()
         self.assertTrue(ensurer.wait_ready(5))
@@ -112,7 +114,7 @@ class TtsEnsurerTest(unittest.TestCase):
 
     def test_on_change_reports_failure_with_the_negative_cache_end(self):
         now = [100.0]
-        ensurer, events = TtsEnsurer("ws", SCRIPT, run=FakeRun("fail down\n", code=1), clock=lambda: now[0]), []
+        ensurer, events = ServiceEnsurer("tts", "ws", SCRIPT, run=FakeRun("fail down\n", code=1), clock=lambda: now[0]), []
         ensurer.on_change = lambda *event: events.append(event)
         ensurer.request()
         self.assertFalse(ensurer.wait_ready(5))
@@ -120,7 +122,7 @@ class TtsEnsurerTest(unittest.TestCase):
 
     def test_skipped_requests_report_nothing(self):
         now = [100.0]
-        ensurer, events = TtsEnsurer("ws", SCRIPT, run=FakeRun("fail down\n", code=1), clock=lambda: now[0]), []
+        ensurer, events = ServiceEnsurer("tts", "ws", SCRIPT, run=FakeRun("fail down\n", code=1), clock=lambda: now[0]), []
         ensurer.request()
         self.assertFalse(ensurer.wait_ready(5))
         ensurer.on_change = lambda *event: events.append(event)
@@ -130,13 +132,20 @@ class TtsEnsurerTest(unittest.TestCase):
     def test_clear_negative_lets_the_next_request_run(self):
         now = [100.0]
         run = FakeRun("fail down\n", code=1)
-        ensurer = TtsEnsurer("ws", SCRIPT, run=run, clock=lambda: now[0])
+        ensurer = ServiceEnsurer("tts", "ws", SCRIPT, run=run, clock=lambda: now[0])
         ensurer.request()
         self.assertFalse(ensurer.wait_ready(5))
         ensurer.clear_negative()
         ensurer.request()
         ensurer.wait_ready(5)
         self.assertEqual(len(run.calls), 2)
+
+    def test_the_log_line_names_the_service(self):
+        ensurer = ServiceEnsurer("motion", "ws", SCRIPT, run=FakeRun())
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            ensurer.request()
+            self.assertTrue(ensurer.wait_ready(5))
+        self.assertTrue(err.getvalue().startswith("agentd: motion ensure ready (ready 3) in "))
 
 
 if __name__ == "__main__":

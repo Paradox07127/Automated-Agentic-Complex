@@ -10,7 +10,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from voice.speech import SpeechRelay  # noqa: E402
-from voice.tts_ensure import NEGATIVE, TtsEnsurer  # noqa: E402
+from infra.service_ensure import NEGATIVE, ServiceEnsurer  # noqa: E402
 from voice.voice_provider import (IDLE, STATES, NoVoice, RemoteWsVoice, VoiceProvider,  # noqa: E402
                             VoiceState, make_provider, observe, step)
 from support import serve_in_thread
@@ -197,7 +197,7 @@ class ProviderTest(unittest.TestCase):
 
 
 class EnsureRun:
-    """Stands in for subprocess.run under TtsEnsurer: answers `stdout` with `code` and counts its calls."""
+    """Stands in for subprocess.run under ServiceEnsurer: answers `stdout` with `code` and counts its calls."""
     def __init__(self, stdout, code):
         self.stdout, self.code, self.calls = stdout, code, 0
 
@@ -221,7 +221,7 @@ def args(tts_url="http://127.0.0.1:9888", host=None, script=None, character="ast
 class RemoteWsVoiceTest(unittest.TestCase):
     def test_ensure_outcomes_drive_the_state(self):
         clock = Clock()
-        ensurer = TtsEnsurer("tts-host", "ensure.sh", run=EnsureRun("fail down\n", 1), clock=clock)
+        ensurer = ServiceEnsurer("tts", "tts-host", "ensure.sh", run=EnsureRun("fail down\n", 1), clock=clock)
         voice, changes = RemoteWsVoice(object(), ensurer, clock=clock), []
         voice.on_change = changes.append
         ensurer.request()
@@ -234,7 +234,7 @@ class RemoteWsVoiceTest(unittest.TestCase):
 
     def test_ensure_ready_is_ready(self):
         clock = Clock()
-        ensurer = TtsEnsurer("tts-host", "ensure.sh", run=EnsureRun("ready 3\n", 0), clock=clock)
+        ensurer = ServiceEnsurer("tts", "tts-host", "ensure.sh", run=EnsureRun("ready 3\n", 0), clock=clock)
         voice = RemoteWsVoice(object(), ensurer, clock=clock)
         ensurer.request()
         self.assertTrue(ensurer.wait_ready(5))
@@ -242,7 +242,7 @@ class RemoteWsVoiceTest(unittest.TestCase):
 
     def test_reset_clears_the_negative_cache(self):
         clock, run = Clock(), EnsureRun("fail down\n", 1)
-        ensurer = TtsEnsurer("tts-host", "ensure.sh", run=run, clock=clock)
+        ensurer = ServiceEnsurer("tts", "tts-host", "ensure.sh", run=run, clock=clock)
         voice = RemoteWsVoice(object(), ensurer, clock=clock)
         ensurer.request()
         ensurer.wait_ready(5)
@@ -299,7 +299,7 @@ class ProbeTest(unittest.TestCase):
 
     def test_failure_with_an_ensurer_is_cold(self):
         url, _ = self.tts(503)
-        voice, changes = self.voice(url, TtsEnsurer("tts-host", "ensure.sh", run=EnsureRun("ready 1\n", 0)))
+        voice, changes = self.voice(url, ServiceEnsurer("tts", "tts-host", "ensure.sh", run=EnsureRun("ready 1\n", 0)))
         voice.probe().join(5)
         self.assertEqual([c.state for c in changes], ["probing", "cold"])
         self.assertEqual(voice.state().reason, "probe:http_503")
@@ -316,7 +316,7 @@ class ProbeTest(unittest.TestCase):
     def test_probe_keeps_retry_after(self):
         url, _ = self.tts(503)
         clock = Clock()
-        ensurer = TtsEnsurer("tts-host", "ensure.sh", run=EnsureRun("fail down\n", 1), clock=clock)
+        ensurer = ServiceEnsurer("tts", "tts-host", "ensure.sh", run=EnsureRun("fail down\n", 1), clock=clock)
         voice = RemoteWsVoice(SpeechRelay(url, epoch=1, character="voice_a", language="zh"), ensurer, clock=clock)
         ensurer.request()
         ensurer.wait_ready(5)
@@ -326,7 +326,7 @@ class ProbeTest(unittest.TestCase):
     def test_a_failed_probe_writes_no_negative_cache(self):
         url, _ = self.tts(503)
         run = EnsureRun("ready 1\n", 0)
-        ensurer = TtsEnsurer("tts-host", "ensure.sh", run=run)
+        ensurer = ServiceEnsurer("tts", "tts-host", "ensure.sh", run=run)
         voice, _ = self.voice(url, ensurer)
         voice.probe().join(5)
         ensurer.request()
@@ -357,7 +357,7 @@ class MakeProviderTest(unittest.TestCase):
 
     def test_ensure_host_and_script_add_the_ensurer(self):
         voice = make_provider(args(host="tts-host", script="ensure.sh"), Repository({}), 7, None)
-        self.assertIsInstance(voice.ensurer, TtsEnsurer)
+        self.assertIsInstance(voice.ensurer, ServiceEnsurer)
         self.assertEqual((voice.ensurer.host, voice.ensurer.script), ("tts-host", "ensure.sh"))
         self.assertIs(voice.relay().ensurer, voice.ensurer)
         self.assertIsNone(make_provider(args(host="tts-host"), Repository({}), 7, None).ensurer)

@@ -56,13 +56,15 @@ def list_models(node, runtime_dir, state_dir, provider, timeout=30.0):
 class ManagedPiSession(ManagedClaudeSession):
     """Share process lifecycle/IPC, but never create a Claude session or loop."""
     def __init__(self, config: PiConfig, tool_definitions=None, tool_handler=None, permission_handler=None, *,
-                 runner_path=None, credential=None, on_ready=None):
+                 runner_path=None, credential=None, on_ready=None, service_ready=None):
         super().__init__(config, tool_definitions, tool_handler, permission_handler,
                          runner_path=runner_path or RUNNER)
         # () -> the connection's current key, sent with every query.
         self.credential = credential
         # (ready frame) -> None, each time a runner starts.
         self.on_ready = on_ready
+        # () -> whether the compatible API can take a query, asked before each one (it may start the API).
+        self.service_ready = service_ready
 
     def prewarm(self):
         with self._state_lock:
@@ -86,6 +88,8 @@ class ManagedPiSession(ManagedClaudeSession):
         super()._queue(event, generation)
 
     def _write(self, message, proc=None):
+        if message["type"] == "query" and self.service_ready is not None and not self.service_ready():
+            raise HarnessError("llm_ensure_failed")
         if message["type"] == "query" and self.credential is not None:
             try:
                 message = {**message, "api_key": self.credential()}

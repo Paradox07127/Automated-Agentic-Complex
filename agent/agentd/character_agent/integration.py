@@ -998,18 +998,18 @@ class CharacterAgentController:
     def _pi_mapped(self, config, provider, backend, key):
         if config["auth_source"] == "local_no_auth" and provider != "compatible":
             raise ValueError("local_no_auth_requires_compatible")
-        base_url = backend["base_url"].rstrip("/")
         if provider == "compatible":
             # pi's existing_login is the credential Endfield holds.
             auth = "api_key" if config["auth_source"] == "existing_login" else config["auth_source"]
             value = self._pi_connection({**config, "provider": "compatible", "auth_source": auth})
         elif provider in ("anthropic", "openai", "deepseek", "xai"):
+            base_url = backend["base_url"].rstrip("/")
             if provider == "openai" and base_url != "https://api.openai.com/v1":
                 raise ValueError("unsupported_openai_endpoint")
             # Pi's catalog model; the runner reroutes it only when base_url is not the catalog's.
             value = {"provider": provider, "auth_source": "api_key", "base_url": base_url}
         elif provider == "chatgpt":
-            value = {"provider": "chatgpt", "auth_source": "api_key", "base_url": base_url,
+            value = {"provider": "chatgpt", "auth_source": "api_key", "base_url": backend["base_url"].rstrip("/"),
                      "api": "openai-responses", "max_output_tokens": backend["max_output_tokens"]}
         elif provider == "pi_catalog" and backend["pi_provider"]:
             value = {"provider": backend["pi_provider"], "auth_source": "api_key", "base_url": ""}
@@ -1035,7 +1035,9 @@ class CharacterAgentController:
             return {"provider": provider, "auth_source": config["auth_source"]}
         from urllib.parse import urlsplit
         compatible = self.server.models.snapshot()["backends"]["compatible"]
-        endpoint = compatible["base_url"]
+        endpoint = self.server.models.llm_url
+        if endpoint is None:
+            raise ValueError("llm_service_off")
         auth = "none" if config["auth_source"] == "local_no_auth" else config["auth_source"]
         if auth == "none" and urlsplit(endpoint).hostname not in ("localhost", "127.0.0.1", "::1"):
             raise ValueError("unauthenticated_provider_requires_loopback")

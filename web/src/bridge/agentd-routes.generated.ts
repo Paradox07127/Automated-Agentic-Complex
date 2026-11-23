@@ -837,7 +837,6 @@ export interface ModelSettingsResponse {
     openai: { model: string; base_url: string; max_output_tokens: number; reasoning_effort: string; has_key: boolean };
     compatible: {
       model: string;
-      base_url: string;
       max_output_tokens: number;
       reasoning_effort: string;
       supports_images: boolean;

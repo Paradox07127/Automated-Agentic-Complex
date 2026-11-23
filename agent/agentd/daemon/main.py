@@ -9,6 +9,7 @@ import signal
 import sys
 import threading
 import traceback
+from urllib.parse import urlsplit
 
 from api.handler import C6_CONTRACT
 from character_agent.harness.transport import PROTOCOL_VERSION as C8_PROTOCOL
@@ -104,6 +105,17 @@ def parse_args(argv=None):
                         help="ssh host that runs --tts-ensure-script to start the remote TTS host's service on demand")
     parser.add_argument("--tts-ensure-script", default=None,
                         help="script on the remote TTS host whose `ensure` starts the TTS and answers ready or fail")
+    parser.add_argument("--motion-url", help="Kimodo motion service base URL; no generated motion without it")
+    parser.add_argument("--motion-ensure-host",
+                        help="ssh host that runs --motion-ensure-script to start the motion service on demand")
+    parser.add_argument("--motion-ensure-script",
+                        help="script on the motion host whose `ensure` starts the service and answers ready or fail")
+    parser.add_argument("--llm-url", help="OpenAI-compatible model API base URL, e.g. http://127.0.0.1:11434/v1; "
+                        "the compatible provider is off without it")
+    parser.add_argument("--llm-ensure-host",
+                        help="ssh host that runs --llm-ensure-script to start the model API on demand")
+    parser.add_argument("--llm-ensure-script",
+                        help="script on the model API host whose `ensure` starts the API and answers ready or fail")
     parser.add_argument("--share-page-text", action="store_true",
                         help="collect browser page/selection text and allow it in model context; off by default")
     parser.add_argument("--share-window-text", action="store_true",
@@ -144,6 +156,16 @@ def parse_args(argv=None):
             parser.error(f"--harness-site: directory does not exist: {directory}")
         harness_sites[component] = directory
     args.harness_sites = harness_sites
+    for flag in ("motion_url", "llm_url"):
+        if getattr(args, flag) is None:
+            continue
+        parts = urlsplit(getattr(args, flag))
+        if parts.scheme not in ("http", "https") or not parts.hostname or parts.username or parts.password \
+                or parts.query or parts.fragment:
+            parser.error(f"--{flag.replace('_', '-')}: expected an http:// or https:// URL without user information")
+        if flag == "llm_url" and parts.scheme == "http" and parts.hostname not in ("localhost", "127.0.0.1", "::1"):
+            parser.error("--llm-url: http:// only to localhost; use https://")  # a model API key travels in the clear
+        setattr(args, flag, getattr(args, flag).rstrip("/"))
     if args.describe:
         print(json.dumps(DESCRIBE, sort_keys=True, separators=(",", ":")))
         sys.exit(0)
@@ -152,6 +174,12 @@ def parse_args(argv=None):
     if args.character is None:
         args.character = characters.Repository(args.character_catalog).default()
     return args
+
+
+def ensurer(service, host, script):
+    """The ServiceEnsurer of --<service>-ensure-host and --<service>-ensure-script, or None without both."""
+    from infra.service_ensure import ServiceEnsurer
+    return ServiceEnsurer(service, host, script) if host and script else None
 
 
 def watch_parent(server, parent, interval=1.0):
@@ -268,7 +296,8 @@ def main(secret_store=None):
     from models.model_backends import ModelSettings
     from brain.outbound import OutboundGuard, resolve_windows
     from brain.provider import Mouth
-    models = ModelSettings(state_dir, secret_store) if needs_runtime else None
+    models = ModelSettings(state_dir, secret_store, llm_url=args.llm_url,
+                           llm_ensurer=ensurer("llm", args.llm_ensure_host, args.llm_ensure_script)) if needs_runtime else None
     guard = OutboundGuard(resolve_windows(state_dir), paths.outbound_guard_log(state_dir))
     from brain.egress import EgressPolicy
     # One policy for every model call, so the diagnostics see one set of mask counts.
@@ -335,7 +364,8 @@ def main(secret_store=None):
     from motion.settings import MotionSettings
     server.motion = Performer(MotionSettings(state_dir, secret_store), server.registry.publish_event,
                               lambda: server.characters.package(server.character).root, state_dir / "motion-cache",
-                              offer=server.spatial.offer, trace=server._trace)
+                              offer=server.spatial.offer, trace=server._trace, service_url=args.motion_url,
+                              ensurer=ensurer("motion", args.motion_ensure_host, args.motion_ensure_script))
     server.bindings = Bindings(state_dir, repository, lambda: server.motion.settings.backend)
     server.character_voice_enabled = args.character is not None and server.bindings.voice(args.character) is not None
     if server.mouth is not None:

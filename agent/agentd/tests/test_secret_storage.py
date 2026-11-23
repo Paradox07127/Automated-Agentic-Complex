@@ -67,7 +67,7 @@ class CredentialStorageTest(unittest.TestCase):
     def test_motion_token(self):
         motion = MotionSettings(self.state, self.store)
         key = "dummy-private-motion"
-        status, public = motion.update({"backend": "generated", "service_url": "https://motion.example", "token": key})
+        status, public = motion.update({"backend": "generated", "token": key})
         self.assertEqual((status, public["token_set"], motion.token()), (200, True, key))
         self.assert_private(key)
 
@@ -110,7 +110,7 @@ class CredentialStorageTest(unittest.TestCase):
         settings = ModelSettings(self.state, self.store)
         settings.save({"provider": "openai", "api_key": "dummy-private-key"})
         motion = MotionSettings(self.state, self.store)
-        service = {"backend": "generated", "service_url": "https://motion.example"}
+        service = {"backend": "generated"}
         motion.update({**service, "token": "dummy-private-motion"})
         with patch.object(self.store, "delete", side_effect=ModelError("secret_store_unavailable")):
             with self.assertRaisesRegex(ModelError, "secret_store_unavailable"):

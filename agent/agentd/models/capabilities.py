@@ -26,6 +26,8 @@ def generation(models):
     if provider == "chatgpt":
         missing = _chatgpt(public["chatgpt"])
         return _item("unavailable", missing) if missing else _item("configured")
+    if provider == "compatible" and models.llm_url is None:
+        return _item("unavailable", "llm_service_off")
     if provider != "compatible" and not public["backends"][provider]["has_key"]:
         return _item("unavailable", "missing_api_key")
     return _item("configured")

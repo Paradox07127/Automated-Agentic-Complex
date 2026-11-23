@@ -95,7 +95,7 @@ class SpeechRelay:
                  ensurer=None):
         """character, language: the TTS voice of the character on screen (its card's tts block).
         token: the TTS service's bearer token (C2 v2 §4); None sends no Authorization header.
-        ensurer: a TtsEnsurer that starts the TTS when it is unreachable; None reports unreachable at once."""
+        ensurer: a ServiceEnsurer that starts the TTS when it is unreachable; None reports unreachable at once."""
         parts = endpoint(tts_url)
         self.scheme = parts.scheme
         self.host, self.port, self.base = parts.hostname, parts.port or (443 if parts.scheme == "https" else 80), parts.path.rstrip("/")

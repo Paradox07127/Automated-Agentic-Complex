@@ -23,7 +23,7 @@ class SettingsReloadTests(unittest.TestCase):
     def test_model_settings_recover_after_permissions_are_fixed(self):
         path = Path(self.directory, "model-settings.json")
         backends = copy.deepcopy(DEFAULTS)
-        backends["compatible"].update(base_url="http://127.0.0.1:8080/v1", model="local-model")
+        backends["compatible"].update(model="local-model")
         atomic_write_json(path, {"provider": "compatible", "backends": backends})
         os.chmod(path, 0o644)
         settings = ModelSettings(self.directory, MemorySecrets())

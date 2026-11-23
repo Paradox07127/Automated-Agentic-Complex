@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from voice import speech as speech_module  # noqa: E402
 from voice.speech import SpeechRelay, spoken_part  # noqa: E402
-from voice.tts_ensure import TtsEnsurer  # noqa: E402
+from infra.service_ensure import ServiceEnsurer  # noqa: E402
 from voice.voice_provider import make_provider  # noqa: E402
 from support import serve_in_thread  # noqa: E402
 
@@ -781,7 +781,7 @@ class EnsureTest(unittest.TestCase):
 
     def relay(self, run, ensurer=True):
         self.run = FakeRun(run)
-        self.ensurer = TtsEnsurer("ws", "ensure.sh", run=self.run) if ensurer else None
+        self.ensurer = ServiceEnsurer("tts", "ws", "ensure.sh", run=self.run) if ensurer else None
         return SpeechRelay(f"http://127.0.0.1:{self.port}", epoch=1, character="voice_a", language="zh",
                            ensurer=self.ensurer)
 

@@ -45,7 +45,7 @@
 | `turn.settled` | `state`：completed / failed / cancelled / interrupted / waiting_user，`error_code` 和 `outcome`（均可为 null）。这是本轮处理终态，播放是否完成仍由宿主回执决定。仅 agentd 发出 | 是 |
 | `line.parsed` | `line_id`、`intents`（列表）、`target`（null 可）、`first_sentence_only`（布尔）、`text`（文本值） | |
 | `motion.published` | `motion_id`、`behavior_id`、`total_ms`（从动作标记到发出 `perform` 的毫秒数；另有 `generate_ms`、`retarget_ms`）；由 `[motion:]` 标记来的另带 `prompt`（文本值，标记里的英文文字；「这一轮不记」时不带） | |
-| `motion.fallback` | `reason`：no_service / timeout / replaced / 服务的错误名 / `<阶段>_failed`；生成后端没发出 `perform`，这句台词只用角色包动作；由 `[motion:]` 标记来的另带 `prompt`（文本值，同上）；几何请求（`POST /motions/generate`）的步骤用由 request_id 派生的 UUID 作 trace_id，没有 `prompt`，失败时另发 `ok:false` 的 `event: motion` | |
+| `motion.fallback` | `reason`：no_service / ensure_failed（按需启动没起来）/ timeout / replaced / 服务的错误名 / `<阶段>_failed`；生成后端没发出 `perform`，这句台词只用角色包动作；由 `[motion:]` 标记来的另带 `prompt`（文本值，同上）；几何请求（`POST /motions/generate`）的步骤用由 request_id 派生的 UUID 作 trace_id，没有 `prompt`，失败时另发 `ok:false` 的 `event: motion` | |
 | `motion.matched` | `action_id`（配到的角色包动作 id）、`group`（短语表的组名）、`length_s`（动作原长，秒）、`seconds`（标记里的秒数）、`prompt`（文本值，同上）；`[motion:]` 的文字配到当前角色的角色包动作，发了带 `action` 的 `perform`（C1 v2.6），没调动作服务 | |
 | `speech.requested` | `speech_id`、`line_id`、`clause_id`（null 可）、`text`（文本值） | |
 | `speech.first_audio` | `speech_id`、`clause_id` | |

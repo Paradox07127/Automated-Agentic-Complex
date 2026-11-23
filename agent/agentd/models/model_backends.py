@@ -12,6 +12,7 @@ import re
 
 from character_agent.harness.pi_config import THINKING_LEVELS
 from character_agent.services.providers import DEEPSEEK_BASE_URL, XAI_BASE_URL
+from infra import service_ensure
 from infra.secrets import setting_secret
 from infra.paths import model_settings
 from infra.tokens import ensure_state_dir
@@ -22,8 +23,9 @@ DEFAULTS = {
     "deepseek": {"model": "deepseek-flash", "base_url": DEEPSEEK_BASE_URL, **_BUDGET},
     "xai": {"model": "", "base_url": XAI_BASE_URL, **_BUDGET},
     "openai": {"model": "", "base_url": RESOURCE, **_BUDGET},
-    # supports_images, context_window, reasoning: Pi's defaults for a model without a catalog entry.
-    "compatible": {"model": "", "base_url": "http://127.0.0.1:11434/v1", **_BUDGET,
+    # Its address is agentd's --llm-url. supports_images, context_window, reasoning: Pi's defaults for a model
+    # without a catalog entry.
+    "compatible": {"model": "", **_BUDGET,
                    "supports_images": False, "context_window": 128000, "reasoning": False},
     # Another provider of Pi's catalog, named by `pi_provider`.
     "pi_catalog": {"model": "", "base_url": "", "pi_provider": "", **_BUDGET},
@@ -49,8 +51,11 @@ def check_response(response):
 
 
 class ModelSettings:
-    def __init__(self, directory, secrets):
+    def __init__(self, directory, secrets, llm_url=None, llm_ensurer=None):
+        """llm_url: --llm-url, the compatible API's address, None when it is off; llm_ensurer: the ServiceEnsurer that
+        starts that API before each use, or None."""
         self.secrets = secrets
+        self.llm_url, self.llm_ensurer = llm_url, llm_ensurer
         self.directory = Path(directory)
         self.path = model_settings(self.directory)
         self.lock = threading.RLock()
@@ -118,6 +123,8 @@ class ModelSettings:
                     # Model ids belong to one provider.
                     config.update(pi_provider=name, model="")
             key_value = None
+            if provider == "compatible" and "base_url" in body:
+                raise ModelError("invalid_base_url")
             for key in ("model", "base_url", "api_key"):
                 if key in body:
                     if not isinstance(body[key], str) or len(body[key]) > (8192 if key == "api_key" else 1024):
@@ -159,7 +166,7 @@ class ModelSettings:
                 if key_value is not None and not config["pi_provider"]:
                     raise ModelError("invalid_pi_provider")
                 config["base_url"] = ""
-            else:
+            elif provider != "compatible":
                 parsed = urlparse(config["base_url"])
                 if parsed.username or parsed.password or parsed.query or parsed.fragment or not parsed.hostname or (
                         parsed.scheme != "https" and not (parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1", "::1"))):
@@ -197,6 +204,14 @@ class ModelSettings:
             raise ModelError("missing_api_key")
         return provider, config, key
 
+    def llm_ready(self):
+        """Whether the compatible API can take a request: True without an ensurer, else once its ensure answered
+        ready."""
+        if self.llm_ensurer is None:
+            return True
+        self.llm_ensurer.request()
+        return self.llm_ensurer.wait_ready(service_ensure.TIMEOUT)
+
     def catalog(self, pi_models):
         """{providers, models} of the saved service. Pi's providers: `pi_models(Pi provider id or None)`, the SDK's
         offline catalog. A compatible API or ChatGPT: its own /models, without Pi's providers or model capabilities."""
@@ -209,8 +224,14 @@ class ModelSettings:
             pi = data["backends"]["pi_catalog"]["pi_provider"] or None if data["provider"] == "pi_catalog" else data["provider"]
             return pi_models(pi)
         provider, config, key = self.connection()
+        if provider == "compatible":
+            if self.llm_url is None:
+                raise ModelError("llm_service_off")
+            if not self.llm_ready():
+                raise ModelError("llm_ensure_failed")
+        url = self.llm_url if provider == "compatible" else config["base_url"]
         headers = {"Authorization": "Bearer " + key} if key else {}
-        response = httpx.get(config["base_url"] + "/models", headers=headers, timeout=20)
+        response = httpx.get(url + "/models", headers=headers, timeout=20)
         check_response(response)
         body = response.json()
         rows = body.get("models", []) if provider == "chatgpt" else body.get("data", [])

@@ -19,11 +19,11 @@ def no_network(*_, **__):
     raise AssertionError("network call during collect")
 
 
-def models(provider="anthropic", has_key=True, error=None, chatgpt=None):
+def models(provider="anthropic", has_key=True, error=None, chatgpt=None, llm_url="http://127.0.0.1:11434/v1"):
     backends = {p: {"has_key": has_key if p == provider else False} for p in ("anthropic", "openai", "compatible", "chatgpt")}
     public = {"provider": provider, "backends": backends, "error": error,
               "chatgpt": chatgpt or {"active": None, "pending": False, "error": None, "profiles": []}}
-    return NS(public=lambda: public)
+    return NS(public=lambda: public, llm_url=llm_url)
 
 
 def server(**overrides):
@@ -70,6 +70,7 @@ class CollectTest(unittest.TestCase):
                 ("no key", models(has_key=False), ("unavailable", "missing_api_key")),
                 ("key", models(), ("configured", None)),
                 ("compatible", models("compatible", has_key=False), ("configured", None)),
+                ("compatible off", models("compatible", llm_url=None), ("unavailable", "llm_service_off")),
                 ("chatgpt signed out", models("chatgpt"), ("unavailable", "sign_in_required")),
                 ("chatgpt no plan", models("chatgpt", chatgpt=profile(True, False)), ("unavailable", "plan_usage_not_enabled")),
                 ("chatgpt", models("chatgpt", chatgpt=profile(True, True)), ("configured", None))):

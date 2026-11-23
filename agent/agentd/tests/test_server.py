@@ -904,6 +904,21 @@ class ArgsTest(unittest.TestCase):
         self.assertTrue(parse_args([]).redact)
         self.assertFalse(parse_args(["--no-redact"]).redact)
 
+    def test_motion_and_llm_service_urls_are_checked_once_at_start(self):
+        import daemon.main as agentd_main
+        args = parse_args([])
+        self.assertEqual((args.motion_url, args.llm_url), (None, None))
+        args = parse_args(["--motion-url", "http://10.0.0.2:48830/", "--llm-url", "http://127.0.0.1:11434/v1/"])
+        self.assertEqual((args.motion_url, args.llm_url), ("http://10.0.0.2:48830", "http://127.0.0.1:11434/v1"))
+        for flag, url in (("--motion-url", "ftp://host/"), ("--motion-url", "http://user:pw@host/"),
+                          ("--llm-url", "http://remote.example/v1"), ("--llm-url", "https://api.example/v1?key=x")):
+            with self.subTest(flag=flag, url=url), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                parse_args([flag, url])
+        args = parse_args(["--motion-ensure-host", "ws", "--motion-ensure-script", "/srv/motion.sh"])
+        motion = agentd_main.ensurer("motion", args.motion_ensure_host, args.motion_ensure_script)
+        self.assertEqual((motion.service, motion.host, motion.script), ("motion", "ws", "/srv/motion.sh"))
+        self.assertIsNone(agentd_main.ensurer("llm", "ws", None))
+
     def test_mute_is_off_by_default(self):
         # Settings 只出字、不出声 reaches agentd as --mute at start.
         self.assertFalse(parse_args([]).mute)

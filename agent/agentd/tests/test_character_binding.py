@@ -145,14 +145,14 @@ class DefaultPromptTest(BindingCase):
         from character.binding import Bindings
         self.server.bindings = Bindings(self.state_dir, self.server.characters, lambda: self.settings.backend)
         for backend in ("game", "generated"):
-            self.settings.update({"backend": backend, "service_url": None})
+            self.settings.update({"backend": backend})
             for cid in ("aster", "birch"):
                 with self.subTest(cid=cid, backend=backend):
                     self.assertEqual(bound_prompt(self.server, cid), package_prompt(self.server, cid, backend == "generated"))
         self.assertFalse((self.state_dir / "character-bindings.json").exists())
 
     def test_without_bindings_the_prompt_is_the_game_one(self):
-        self.settings.update({"backend": "generated", "service_url": None})
+        self.settings.update({"backend": "generated"})
         self.assertEqual(bound_prompt(self.server, "aster"), package_prompt(self.server, "aster", False))
 
 
@@ -329,7 +329,7 @@ class BindingsTest(BindingCase):
                     "voice": None if voice is None else {"voice_id": voice[0], "language": voice[1], "source": "package"},
                     "motion": {"driver": "game", "source": "global"},
                     "persona": {"overrides": {}, "source": "package"}})
-        self.settings.update({"backend": "generated", "service_url": None})
+        self.settings.update({"backend": "generated"})
         self.assertEqual(self.bindings.effective("aster")["motion"], {"driver": "generated", "source": "global"})
         self.assertFalse(self.path.exists())
 
@@ -360,7 +360,7 @@ class BindingsTest(BindingCase):
     def test_null_resets_each_key_and_uses_current_defaults(self):
         self.bindings.update("aster", {"revision": 0, "voice": {"voice_id": "custom", "language": "en"},
                                        "motion": {"driver": "game"}, "persona": {"overrides": {"identity": "custom"}}})
-        self.settings.update({"backend": "generated", "service_url": None})
+        self.settings.update({"backend": "generated"})
         self.assertEqual(self.bindings.effective("aster")["motion"], {"driver": "game", "source": "user"})
         for revision, key in enumerate(("voice", "motion", "persona"), 1):
             with self.subTest(key=key):

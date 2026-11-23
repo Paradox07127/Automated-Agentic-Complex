@@ -32,7 +32,8 @@ def bound_prompt(server):
 
 
 UI, EVENTS = support.UI, "events-token"
-SERVICE = {"backend": "generated", "service_url": "http://127.0.0.1:48830", "token": "service-secret"}
+SERVICE_URL = "http://127.0.0.1:48830"  # --motion-url
+SERVICE = {"backend": "generated", "token": "service-secret"}
 PACKAGES = Path(__file__).resolve().parent / "fixtures" / "motion-catalog"  # <id>/runtime/characters/<id>/c7/animation
 
 
@@ -69,6 +70,21 @@ class FakeClient:
 
     def skeleton(self, url, token):
         return {"joints": ["Hips", "Spine"]}
+
+
+class FakeEnsurer:
+    """A ServiceEnsurer whose ensure takes `delay` seconds of the fake clock and answers `ready`."""
+
+    def __init__(self, clock, ready=True, delay=0.5):
+        self.clock, self.ready, self.delay, self.calls = clock, ready, delay, []
+
+    def request(self):
+        self.calls.append("request")
+
+    def wait_ready(self, timeout):
+        self.calls.append(("wait_ready", timeout))
+        self.clock.t += self.delay
+        return self.ready
 
 
 class FakeRetarget:
@@ -110,11 +126,12 @@ class MotionCase(unittest.TestCase):
 
     request = support.request
 
-    def performer(self, package_root=None, **client):
+    def performer(self, package_root=None, service_url=SERVICE_URL, ensurer=None, **client):
         self.client = FakeClient(self.clock, **client)
         self.server.motion = Performer(self.settings, self.server.registry.publish_event,
                                        package_root or (lambda: self.state / "pkg"), self.state / "cache",
-                                       offer=self.server.spatial.offer, trace=self.trace, client=self.client, retarget=FakeRetarget, clock=self.clock)
+                                       offer=self.server.spatial.offer, trace=self.trace, client=self.client, retarget=FakeRetarget, clock=self.clock,
+                                       service_url=service_url, ensurer=ensurer)
         return self.server.motion
 
     def trace(self, kind, trace_id, **fields):
@@ -145,7 +162,7 @@ class PerformerTest(MotionCase):
         self.assertEqual((kind, trace_id), ("motion.published", "trace-1"))
         self.assertEqual(attrs["generate_ms"], 400)
         self.assertLessEqual({"generate_ms", "retarget_ms", "total_ms"}, set(attrs))
-        self.assertEqual(self.client.calls, [(SERVICE["service_url"], "service-secret", "waves her right hand happily", 3.0)])
+        self.assertEqual(self.client.calls, [(SERVICE_URL, "service-secret", "waves her right hand happily", 3.0)])
         [behavior] = self.behaviors()
         self.assertEqual(c1.check_message(behavior), [])
         self.assertEqual((behavior["type"], behavior["trigger"]["source"], behavior["turn_generation"],
@@ -202,6 +219,20 @@ class PerformerTest(MotionCase):
         self.assertTrue(wait_for(lambda: self.traced))
         self.assertEqual(self.traced, [("motion.fallback", "trace-1", {"reason": "http_500", "total_ms": 0})])
         self.assertEqual(self.behaviors(), [])
+
+    def test_the_ensurer_starts_the_service_before_a_generate(self):
+        ensurer = FakeEnsurer(self.clock)
+        self.performer(ensurer=ensurer).start("waves her right hand happily", 3.0, 4, "trace-1")
+        self.assertTrue(wait_for(lambda: self.traced))
+        self.assertEqual(self.traced[0][:2], ("motion.published", "trace-1"))
+        self.assertEqual(ensurer.calls, ["request", ("wait_ready", 4.0 - 0.3)])
+        self.assertAlmostEqual(self.client.timeout, 4.0 - 0.3 - 0.5)
+
+    def test_a_failed_ensure_generates_nothing_and_falls_back(self):
+        self.performer(ensurer=FakeEnsurer(self.clock, ready=False)).start("waves her right hand happily", 3.0, 4, "trace-1")
+        self.assertTrue(wait_for(lambda: self.traced))
+        self.assertEqual(self.traced, [("motion.fallback", "trace-1", {"reason": "ensure_failed", "total_ms": 500})])
+        self.assertEqual((self.client.calls, self.behaviors()), ([], []))
 
     def test_a_newer_motion_replaces_the_waiting_one(self):
         gate = threading.Event()
@@ -378,8 +409,10 @@ class TraceKindTest(unittest.TestCase):
 
 class PrewarmTest(MotionCase):
     def test_prewarm_builds_the_retarget_once_in_generated_mode_only(self):
+        self.performer(service_url=None).prewarm("generated")
+        time.sleep(0.2)
+        self.assertEqual(self.server.motion._retargets, {})
         performer = self.performer()
-        performer.prewarm("generated")  # no service URL yet
         self.settings.update(SERVICE)
         performer.prewarm("game")
         time.sleep(0.2)
@@ -390,6 +423,21 @@ class PrewarmTest(MotionCase):
         self.assertTrue(wait_for(lambda: self.traced))
         self.assertEqual(len(performer._retargets), 1)
 
+    def test_prewarm_starts_the_service_first(self):
+        ensurer = FakeEnsurer(self.clock)
+        performer = self.performer(ensurer=ensurer)
+        performer.prewarm("generated")
+        self.assertTrue(wait_for(lambda: performer._retargets))
+        self.assertEqual(ensurer.calls, ["request", ("wait_ready", 200.0)])
+
+    def test_prewarm_after_a_failed_ensure_builds_nothing(self):
+        ensurer = FakeEnsurer(self.clock, ready=False)
+        performer = self.performer(ensurer=ensurer)
+        performer.prewarm("generated")
+        self.assertTrue(wait_for(lambda: len(ensurer.calls) == 2))
+        time.sleep(0.1)
+        self.assertEqual(performer._retargets, {})
+
 
 class SettingsRouteTest(MotionCase):
     def setUp(self):
@@ -397,26 +445,23 @@ class SettingsRouteTest(MotionCase):
         self.performer()
 
     @unittest.skipIf(sys.platform == "win32", "POSIX mode bits, uid or FIFO; on Windows the state directory's DACL protects these files")
-    def test_put_never_echoes_the_token_rejects_a_bad_url_and_persists(self):
-        self.assertEqual(self.request("GET", "/motion/settings"),
-                         (200, {"backend": "game", "service_url": None, "token_set": False}))
+    def test_put_never_echoes_the_token_rejects_a_service_url_and_persists(self):
+        self.assertEqual(self.request("GET", "/motion/settings"), (200, {"backend": "game", "token_set": False}))
         status, saved = self.request("PUT", "/motion/settings", SERVICE)
         self.assertEqual(status, 200)
         self.assertNotIn("service-secret", json.dumps(saved))
-        self.assertEqual(saved, {"backend": "generated", "service_url": SERVICE["service_url"], "token_set": True})
+        self.assertEqual(saved, {"backend": "generated", "token_set": True})
         self.assertNotIn("service-secret", json.dumps(self.request("GET", "/motion/settings")))
-        for url in ("ftp://127.0.0.1/", "file:///etc/passwd", "127.0.0.1:48830", "http://", 5):
-            with self.subTest(url=url):
-                self.assertEqual(self.request("PUT", "/motion/settings", {**SERVICE, "service_url": url}),
-                                 (400, {"error": "invalid_service_url"}))
+        # the URL is agentd's --motion-url
+        self.assertEqual(self.request("PUT", "/motion/settings", {**SERVICE, "service_url": SERVICE_URL}),
+                         (400, {"error": "invalid_payload"}))
         self.assertEqual(self.request("PUT", "/motion/settings", {**SERVICE, "backend": "kimodo"})[0], 400)
-        self.assertEqual(self.request("PUT", "/motion/settings", {"backend": "game"})[0], 400)
+        self.assertEqual(self.request("PUT", "/motion/settings", {"token": "x"})[0], 400)
         self.assertEqual(self.request("PUT", "/motion/settings", SERVICE, token=EVENTS)[0], 401)
         reloaded = MotionSettings(self.state, self.settings.secrets)
-        self.assertEqual((reloaded.backend, reloaded.service_url, reloaded.token()),
-                         ("generated", SERVICE["service_url"], "service-secret"))
+        self.assertEqual((reloaded.backend, reloaded.token()), ("generated", "service-secret"))
         self.assertNotIn("service-secret", (self.state / "motion-settings.json").read_text(encoding="utf-8"))
-        status, saved = self.request("PUT", "/motion/settings", {"backend": "game", "service_url": None})
+        status, saved = self.request("PUT", "/motion/settings", {"backend": "game", "token": ""})
         self.assertEqual((status, saved["token_set"]), (200, False))
         self.assertEqual(MotionSettings(self.state, MemorySecrets()).backend, "game")
 
@@ -425,7 +470,7 @@ class SettingsRouteTest(MotionCase):
         self.request("PUT", "/motion/settings", SERVICE)
         self.request("PUT", "/motion/settings", SERVICE)
         self.assertEqual(self.server.mouth.refreshed, 1)
-        self.request("PUT", "/motion/settings", {"backend": "game", "service_url": None})
+        self.request("PUT", "/motion/settings", {"backend": "game"})
         self.assertEqual(self.server.mouth.refreshed, 2)
 
     def mouth(self):
@@ -442,7 +487,7 @@ class SettingsRouteTest(MotionCase):
         text = lambda: bound_prompt(self.server)  # noqa: E731
         self.request("PUT", "/motion/settings", SERVICE)
         self.assertIn(persona.MOTION_RULE + persona.MOTION_PHRASES.format("; ".join(phrases)), text())
-        self.request("PUT", "/motion/settings", {"backend": "game", "service_url": None})
+        self.request("PUT", "/motion/settings", {"backend": "game"})
         self.assertIn(persona.GAME_MOTION_RULE.format(phrases[0], "; ".join(phrases)), text())
         self.assertNotIn(persona.MOTION_RULE, text())
 
@@ -451,7 +496,7 @@ class SettingsRouteTest(MotionCase):
         self.assertNotIn("[motion:", text())
         self.request("PUT", "/motion/settings", SERVICE)
         self.assertIn("[motion:waves her right hand happily|3]", text())
-        self.request("PUT", "/motion/settings", {"backend": "game", "service_url": None})
+        self.request("PUT", "/motion/settings", {"backend": "game"})
         self.assertNotIn("[motion:", text())
 
     def test_a_bound_driver_outranks_the_global_backend(self):
@@ -464,7 +509,7 @@ class SettingsRouteTest(MotionCase):
         time.sleep(0.2)
         self.assertEqual(self.server.motion._retargets, {})  # no prewarm for a character bound to game
         self.server.bindings.update("aster", {"revision": 1, "motion": None})
-        self.request("PUT", "/motion/settings", {"backend": "game", "service_url": None})
+        self.request("PUT", "/motion/settings", {"backend": "game"})
         self.request("PUT", "/motion/settings", SERVICE)
         self.assertIn(persona.MOTION_RULE, text())
 

@@ -823,11 +823,19 @@ class IntegrationTests(IntegrationFixture):
         self.assertNotIn('private-synthetic-turn', json.dumps(self.controller.store.list()))
 
     def test_pi_anonymous_endpoint_only_allows_explicit_loopback(self):
-        self.server.models = SimpleNamespace(snapshot=lambda: {'backends': {'compatible': {**MODEL_DEFAULTS['compatible'], 'base_url': 'http://127.0.0.1:11434/v1'}}})
+        snapshot = lambda: {'backends': {'compatible': dict(MODEL_DEFAULTS['compatible'])}}
+        self.server.models = SimpleNamespace(snapshot=snapshot, llm_url='http://127.0.0.1:11434/v1')
         config = {'backend':'pi', 'provider':'compatible', 'auth_source':'local_no_auth'}
         self.assertEqual(self.controller._pi_connection(config)['auth_source'], 'none')
-        self.server.models = SimpleNamespace(snapshot=lambda: {'backends': {'compatible': {**MODEL_DEFAULTS['compatible'], 'base_url': 'https://example.org/v1'}}})
+        self.server.models = SimpleNamespace(snapshot=snapshot, llm_url='https://example.org/v1')
         with self.assertRaisesRegex(ValueError, 'requires_loopback'):
+            self.controller._pi_connection(config)
+
+    def test_a_compatible_turn_without_the_llm_url_is_llm_service_off(self):
+        self.server.models = SimpleNamespace(snapshot=lambda: {'backends': {'compatible': dict(MODEL_DEFAULTS['compatible'])}},
+                                             llm_url=None)
+        config = {'backend':'pi', 'provider':'compatible', 'auth_source':'local_no_auth'}
+        with self.assertRaisesRegex(ValueError, 'llm_service_off'):
             self.controller._pi_connection(config)
 
     def test_forget_clears_private_runs_and_scopes_but_preserves_user_files(self):

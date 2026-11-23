@@ -6,6 +6,13 @@
 T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全部端点见 §3 端点总表；逐条的字段和错误码见表中「规格」列指的文档；本文件的端点细则在 §2 和 §4。
 本合同版本 v1；agentd 在 `GET /health` 的回复里以 `c6_contract`（字符串 `"v1"`）报它实现的版本，`agentd --describe`（C9）也报同一个值。
 
+## 2026-11-22 兼容 API 和动作服务的地址来自 agentd 参数
+
+- `GET /model/settings` 的 `backends.compatible` 去掉 `base_url`；`POST /model/settings` 给 `compatible` 带 `base_url` 回 400 `invalid_base_url`。兼容 API 的地址是 agentd 的 `--llm-url`（C9），设置文件里旧的 `base_url` 不再读。
+- 没有 `--llm-url` 时：走兼容 API 的 pi 连接报 `llm_service_off`（`GET /character/runtime` 的错误码、轮次失败码），`POST /model/catalog` 回 400 `llm_service_off`，`GET /capabilities` 的 `generation` 为 `unavailable` / `llm_service_off`。
+- 有 `--llm-ensure-host` 和 `--llm-ensure-script` 时，每次向兼容 API 发问之前和列它的模型之前先按需启动它；没起来时这一问失败为 `llm_ensure_failed`，`POST /model/catalog` 回 400 `llm_ensure_failed`。
+- `GET /motion/settings` 回 `{backend, token_set}`；`PUT /motion/settings` 收 `{backend, token?}`，带 `service_url` 回 400 `invalid_payload`。动作服务的地址是 `--motion-url`，没有时 `POST /motions/generate` 回 409 `no_service`；有 `--motion-ensure-*` 时每次生成前先按需启动它，没起来时那次生成按失败退回游戏动作。
+
 ## 2026-11-22 一段时间的 trace 事件 GET /trace/events（只加不改）
 
 - 新端点 `GET /trace/events?since=&until=&kinds=&limit=&cursor=`（ui 令牌，`read`）：时间范围内所有 trace 的事件，按存入先后，一页一页读，文本只有 `{len, head}`；「动作线」视图用它。字段见 §4.2 的这一行，回包样例 `fixtures/trace-events.json`。
@@ -204,7 +211,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
   - `backends`：对象，键就是这七个 provider，值：
     `model` 字符串（`""` 为没选）、`base_url` 字符串、`max_output_tokens` 整数（缺省 4096）、`reasoning_effort` 字符串（`""` 为不设，或 Pi 的思考档位 `off` / `minimal` / `low` / `medium` / `high` / `xhigh` / `max`）、
     `has_key` 布尔（存了 `api_key`；`pi_catalog` 是当前 `pi_provider` 的 Key）。
-    `compatible` 另有 `supports_images` 布尔（缺省 false）、`context_window` 整数（缺省 128000）、`reasoning` 布尔（缺省 false）：Pi 按它们注册这个模型。
+    `compatible` 没有 `base_url`（地址是 agentd 的 `--llm-url`），另有 `supports_images` 布尔（缺省 false）、`context_window` 整数（缺省 128000）、`reasoning` 布尔（缺省 false）：Pi 按它们注册这个模型。
     `pi_catalog` 另有 `pi_provider` 字符串（Pi 目录里的服务 id，`""` 为没选），`base_url` 恒为 `""`（地址来自 Pi 目录）。
     `api_key` 从不回。
   - 没有设置文件时 `provider` 为 `chatgpt`。
@@ -217,14 +224,14 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 - 请求体：`provider`（必填，同上七个之一，否则 `invalid_provider`）；可选 `model`、`base_url`（字符串 ≤ 1024）、`api_key`（字符串 ≤ 8192）、`max_output_tokens`（整数 128–32768）、`reasoning_effort`（`""` 或上面的 Pi 思考档位）、
   `supports_images`（布尔）、`context_window`（整数 1024–10000000）、`reasoning`（布尔）：这三项只对 `compatible` 生效；`pi_provider`（字符串，`[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}`，只对 `pi_catalog` 生效，换了时 `model` 清空）、`clear_key`（为 true 时删 key）。只改 `provider` 那一项后端；别的键忽略。
 - `pi_catalog` 的 `api_key`、`clear_key` 只作用于当前 `pi_provider` 的 Key，每个服务的 Key 各自保留；没选 `pi_provider` 时回 `invalid_pi_provider`。它的 `base_url` 不存。
-- `base_url` 只收 https，或 localhost / 127.0.0.1 / ::1 的 http，不能带用户名、密码、query、fragment；`chatgpt` 的 `base_url` 固定为 `https://api.openai.com/v1`、不存 key；换了主机又没给新 `api_key` 时旧 key 删掉。
+- `compatible` 不收 `base_url`（400 `invalid_base_url`）。别的 `base_url` 只收 https，或 localhost / 127.0.0.1 / ::1 的 http，不能带用户名、密码、query、fragment；`chatgpt` 的 `base_url` 固定为 `https://api.openai.com/v1`、不存 key；换了主机又没给新 `api_key` 时旧 key 删掉。
 - `deepseek` 的地址固定为 `https://api.deepseek.com`，必须有 Key。
 - 200：同 `GET` 但没有 `mouth_ready`。400：`invalid_provider`、`invalid_model`、`invalid_base_url`、`invalid_api_key`、`invalid_output_budget`、`invalid_reasoning_effort`、`invalid_supports_images`、`invalid_context_window`、`invalid_reasoning`、`invalid_pi_provider`。
 
 **`POST /model/catalog`**
 - 请求体 `{}`。列出已存 `provider` 的模型：
   - `anthropic`、`deepseek`、`xai`、`openai`、`pi_catalog`：Pi SDK 随包的离线目录（`pi_catalog` 用它的 `pi_provider`，没选时 `models` 为 `[]`），由一个只读的 Pi runner 进程读出，不联网、不要 Key。
-  - `compatible`、`chatgpt`：用已存连接拉服务自己的 `/models`（`chatgpt` 只留 `visibility` 为 `list` 的）。
+  - `compatible`、`chatgpt`：用已存连接拉服务自己的 `/models`（`chatgpt` 只留 `visibility` 为 `list` 的）。`compatible` 的地址是 `--llm-url`，没有时 400 `llm_service_off`；有按需启动脚本时先启动它，没起来 400 `llm_ensure_failed`。
 - 200 `{"providers": [{"id", "name"}], "models": [{"id", "name", "context_window", "max_tokens", "input", "reasoning", "thinking_levels", "priced"}]}`。
   `providers` 是 Pi 目录里能用 API Key、并且有 Endfield 包里能跑的模型的服务（没有 Google、Vertex、Bedrock，也没有只能订阅登录的服务）；拉服务自己的 `/models` 时为 `[]`。
   `context_window`、`max_tokens` 整数；`input` 是 `"text"` / `"image"` 数组；`reasoning` 布尔；`thinking_levels` 是这个模型能用的 Pi 思考档位（不思考的模型只有 `["off"]`）；`priced` 布尔，目录里有价格。拉服务自己的 `/models` 时这六项都是 null。
@@ -252,7 +259,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 - 令牌：只收 ui token。总是 200，只读 agentd 已有的状态，不发请求。
 - 200 `{"plugins": {插件 ID: bool}, "items": {名字: {"state", "reason"}}, "at"}`：`state` 为 `configured`、`ready`、`degraded`、`unavailable`、`unknown` 之一；`reason` 为原因码字符串或 null；`at` 为本地时区 ISO 8601，毫秒。
 - `items` 的名字和取值：
-  - `generation`：设置读错 `degraded` / 那个码；`chatgpt` 未登录或没授权 `unavailable` / `sign_in_required` 或 `plan_usage_not_enabled`；非 `compatible` 没 key `unavailable` / `missing_api_key`；否则 `configured` / null。
+  - `generation`：设置读错 `degraded` / 那个码；`chatgpt` 未登录或没授权 `unavailable` / `sign_in_required` 或 `plan_usage_not_enabled`；`compatible` 没有 `--llm-url` 时 `unavailable` / `llm_service_off`；非 `compatible` 没 key `unavailable` / `missing_api_key`；否则 `configured` / null。
   - `mouth`：有角色对话 `ready` / null，没有 `unavailable` / `no_llm`。
   - `voice`：没有 TTS `unavailable` / `no_tts`；静音 `configured` / `muted`；最近一次语音结果是失败时 `degraded` / 那次 `speech.failed` 的 `reason`（取值本节未定义）；否则 `ready` / null。
   - `personal_agent`：只在 agentd 有个人代理运行时（`server.character_agent` 不为 None）时出现。还没扫描过运行时 `unknown` / `runtime_not_scanned`；否则就绪为 `configured`、不就绪为 `unavailable`，`reason` 是最近一次扫描的错误码或 null。选了个人代理时 `generation` 取同一个值。
