@@ -214,6 +214,14 @@
   pointer-events: auto;
 }
 
+/* 未接入 over the stage: the board in the middle, the stage's own frame around it. */
+.power {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: auto;
+}
+
 .fail {
   color: var(--ef-danger-text);
   font-size: var(--ef-fs-small);

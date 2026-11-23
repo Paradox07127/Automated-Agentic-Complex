@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { getBridge } from '../../../bridge';
 import { resetVoice } from '../../../bridge/agentd';
 import { hotkeyText } from '../../../bridge/platformText';
@@ -11,7 +11,7 @@ import type { DiagView } from '../diag';
 import { REPLY_LANGUAGE } from '../fields';
 import { groupDesc } from '../groups';
 import { Btn } from '../../../ui';
-import { GameSeg } from '../../../ui/game';
+import { GameSeg, PowerState } from '../../../ui/game';
 import { Chip, Dis, St, type StTone } from '../kit';
 import { optionsOf } from '../native';
 import { labelOf, useRowShown } from '../registry';
@@ -36,7 +36,7 @@ const VOICE_TONE: Record<VoiceState, StTone> = { ready: 'ok', unknown: 'off', pr
 
 /** 说话: voice and its self-hosted service, when she speaks up, how things reach you. */
 export function SpeakGroup() {
-  const { model, ro: groupRo, agentdOff, diag, native } = useSettings();
+  const { model, ro: groupRo, agentdOff, diag, native, goRow } = useSettings();
   const shown = useRowShown();
   // The proactive rows write to agentd.
   const ro = groupRo || agentdOff;
@@ -67,6 +67,7 @@ export function SpeakGroup() {
   // agentd mutes live on a spoken「静音」; this row is config.json, which it reads at start.
   const muteNote = diag.muted == null || diag.muted === (model.value('mute') === true) ? null : diag.muted ? '重启后台服务后按这里的设置出声' : '后台现在仍会出声；重启后台服务后生效';
   const mute = model.value('mute');
+  const toService = { label: '前往设置连接', onClick: () => goRow('svc_tts', 'services') };
 
   const voiceDesc = (
     <>
@@ -100,9 +101,11 @@ export function SpeakGroup() {
           }
         />
         {diag.voiceNone ? (
-          <SetRow id="tts" title="语音不可用" desc="台词只显示文字" control={null} />
+          <PowerState state="unlinked" mode="block" title="语音服务" reason="后台启动时没有配置语音服务，台词只显示文字" action={toService}>
+            <SetRow id="tts" title={labelOf('tts')} desc="台词只显示文字" control={null} />
+          </PowerState>
         ) : (
-          <>
+          <Linked down={down} action={toService}>
             <SetRow
               id="tts"
               title={labelOf('tts')}
@@ -118,7 +121,7 @@ export function SpeakGroup() {
               }
             />
             <VoiceService down={down} />
-          </>
+          </Linked>
         )}
         <SetRow id="asr" title={labelOf('asr')} desc="按住说话时用" control={c.seg('asr')} />
         <SetRow id="replyLang" title={labelOf('replyLang')} control={c.select('replyLang', REPLY_LANGUAGE)} />
@@ -188,6 +191,16 @@ export function SpeakGroup() {
       model.notify({ message: detail || `没有显示${what}，请先显示角色`, severity: 'warning' });
     }
   }
+}
+
+/** The voice rows; while the service is unreachable they stay, under a 未接入 strip that leads to its address in 服务. */
+function Linked({ down, action, children }: { down: boolean; action: { label: string; onClick: () => void }; children: ReactNode }) {
+  if (!down) return <>{children}</>;
+  return (
+    <PowerState state="unlinked" mode="block" title="语音服务" reason="连不上你部署的语音服务，这段时间台词只显示文字" action={action}>
+      {children}
+    </PowerState>
+  );
 }
 
 /** Proactive kinds turned off with the bubble's 关闭此类 (GET /proactive/mutes), each a chip with 恢复; absent while none is. */

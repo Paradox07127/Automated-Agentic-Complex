@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { getBridge, type SettingValue } from '../../bridge';
 import { ErrBar, Skel, type IconName } from '../../ui';
-import { GameTabs, MicroLabel, WhiteCapsule, type GameTab } from '../../ui/game';
+import { GameTabs, MicroLabel, PowerState, WhiteCapsule, type GameTab } from '../../ui/game';
 import type { Native } from '../settings/native';
 import type { Toast } from './feedback';
 import { Panel } from './Panel';
@@ -15,6 +15,8 @@ export interface CharacterSettingsProps {
   /** Web id of the row to bring into view. */
   row?: string;
   offline: boolean;
+  /** 重启角色 on the 未接入 strip while she is not running. */
+  onRestart: () => void;
   /** The shell has an avatar host: while this view is open she walks clear of the main window. */
   avatar: boolean;
   onTab: (t: CharTab) => void;
@@ -101,38 +103,47 @@ export function CharacterSettings(p: CharacterSettingsProps) {
   return (
     <div className={styles.set}>
       {p.menu !== false && <GameTabs label="设定" tabs={tabItems(tabs, n)} value={tab} onChange={(id) => p.onTab(id as CharTab)} />}
-      {p.offline && (
-        <div className={styles.ro} role="status">
-          角色未运行 │ 设定暂为只读
+      <Linked offline={p.offline} onRestart={p.onRestart}>
+        <div className={styles.sum}>
+          <span className={styles.en}>
+            <MicroLabel>{look ? 'Diff from original' : 'Diff from default'}</MicroLabel>
+          </span>
+          <span className={styles.k}>已改</span>
+          <b className={styles.n}>{changed.length}</b>
+          <span className={styles.k}>/ {ids.length} 项</span>
+          <span className={styles.sp} />
+          <WhiteCapsule
+            label={look ? '恢复原作' : '恢复默认'}
+            icon="refresh"
+            disabled={p.offline || changed.length === 0}
+            disabledReason={p.offline ? '角色未运行' : '没有改动'}
+            onClick={reset}
+          />
         </div>
-      )}
-      <div className={styles.sum}>
-        <span className={styles.en}>
-          <MicroLabel>{look ? 'Diff from original' : 'Diff from default'}</MicroLabel>
-        </span>
-        <span className={styles.k}>已改</span>
-        <b className={styles.n}>{changed.length}</b>
-        <span className={styles.k}>/ {ids.length} 项</span>
-        <span className={styles.sp} />
-        <WhiteCapsule
-          label={look ? '恢复原作' : '恢复默认'}
-          icon="refresh"
-          disabled={p.offline || changed.length === 0}
-          disabledReason={p.offline ? '角色未运行' : '没有改动'}
-          onClick={reset}
-        />
-      </div>
-      <div className={styles.rows} data-theme="dark">
-        <SettingRows
-          n={n}
-          tab={tab}
-          set={set}
-          setMany={(changes) => save(changes, '没有保存「主光方向」')}
-          pending={pending}
-          failed={failed}
-          offline={p.offline}
-        />
-      </div>
+        <div className={styles.rows} data-theme="dark">
+          <SettingRows
+            n={n}
+            tab={tab}
+            set={set}
+            setMany={(changes) => save(changes, '没有保存「主光方向」')}
+            pending={pending}
+            failed={failed}
+            offline={p.offline}
+          />
+        </div>
+      </Linked>
+    </div>
+  );
+}
+
+/** While she is not running the rows stay, read-only, under a 未接入 strip with 重启角色. */
+function Linked({ offline, onRestart, children }: { offline: boolean; onRestart: () => void; children: ReactNode }) {
+  if (!offline) return <>{children}</>;
+  return (
+    <div className={styles.linked}>
+      <PowerState state="unlinked" mode="block" title="桌面角色" reason="角色未运行，设定暂为只读" action={{ label: '重启角色', onClick: onRestart }}>
+        {children}
+      </PowerState>
     </div>
   );
 }

@@ -102,7 +102,7 @@ export function MotionTable(p: MotionTableProps) {
       <div
         key={a.id}
         className={styles.r}
-        // Dark in either theme (the 调参 page has no dark panel around it).
+        // Dark in either theme, inside the light panel.
         data-theme="dark"
         role="row"
         aria-selected={on}

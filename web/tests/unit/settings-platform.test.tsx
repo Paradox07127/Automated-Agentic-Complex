@@ -94,17 +94,17 @@ describe('settings on the Windows shell', () => {
     expect(document.body.textContent).not.toMatch(/[⌘⌃⌥⇧]/);
   });
 
-  it('hides the rows whose helper ops the Windows helper lacks', async () => {
+  it('keeps the rows whose helper ops the Windows helper lacks, each under 未接入', async () => {
     window.agenticComplex = { ...window.agenticComplex!, capabilities: { ...window.agenticComplex!.capabilities, helperWindowText: false,
       helperPushToTalk: false } };
+    const unlinked = (id: string) => row(id)?.closest('[data-stub="PowerState"]')?.getAttribute('data-state') ?? null;
     await mount('&group=privacy');
     await waitFor(() => expect(row('web')).not.toBeNull());
-    expect([row('wintext'), row('grain')]).toEqual([null, null]);
-    expect(row('typing')).not.toBeNull();
+    expect([unlinked('wintext'), unlinked('grain'), unlinked('typing')]).toEqual(['unlinked', 'unlinked', null]);
     cleanup();
     await mount('&group=keys');
     await waitFor(() => expect(row('hk_quick')).not.toBeNull());
-    expect(row('hk_ptt')).toBeNull();
+    expect([unlinked('hk_ptt'), unlinked('hk_quick')]).toEqual(['unlinked', null]);
   });
 
   it('finds no hidden permission and no macOS row in search', async () => {

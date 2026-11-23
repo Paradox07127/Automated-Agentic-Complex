@@ -14,7 +14,7 @@ async function view(avatar: boolean) {
   const keep = vi.spyOn(getBridge().avatar, 'keepClearOfMain');
   const r = render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <CharacterSettings tab="render" avatar={avatar} offline={false} onTab={vi.fn()} toast={vi.fn()} />
+      <CharacterSettings tab="render" avatar={avatar} offline={false} onRestart={vi.fn()} onTab={vi.fn()} toast={vi.fn()} />
     </QueryClientProvider>,
   );
   await screen.findByRole('tablist', { name: '设定' });

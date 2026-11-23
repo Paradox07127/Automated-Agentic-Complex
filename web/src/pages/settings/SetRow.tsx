@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { DevMark, InfoTip, ModLine } from '../../ui';
+import { PowerState } from '../../ui/game';
 import { useSettings } from './ctx';
-import { REGISTRY, useRowShown } from './registry';
+import { REGISTRY, useHelperLacks, useRowShown } from './registry';
 import styles from './rows.module.css';
 
 export interface SetRowProps {
@@ -29,12 +30,29 @@ const DEV: ReadonlySet<string> = new Set(REGISTRY.filter((r) => r.dev).map((r) =
 /**
  * One settings row: title, ⓘ and marks (deletes data, waits for a restart, not applied, developer), one description line, the
  * control column; a config.json row off its default gets the shared modified line. Absent while its plug-in is off, or outside 开发者模式 for a developer row. A read-only group's cause stays in
- * the bar above it.
+ * the bar above it. A row whose helper ops are missing stays, under a 未接入 strip that leads to 系统权限.
  */
-export function SetRow({ id, title, desc, descTone, info, control, indent, tall, wrap, disabled, disabledReason, children }: SetRowProps) {
-  const { model, ro, hl, native } = useSettings();
+export function SetRow(p: SetRowProps) {
+  const { goRow } = useSettings();
   const shown = useRowShown();
-  if (!shown(id)) return null;
+  const lacks = useHelperLacks();
+  if (!shown(p.id)) return null;
+  if (!lacks(p.id)) return <Row {...p} />;
+  return (
+    <PowerState
+      state="unlinked"
+      mode="block"
+      title="本机助手"
+      reason="助手没有提供这项功能，先看系统权限是否都已允许"
+      action={{ label: '前往设置连接', onClick: () => goRow('perms', 'perm') }}
+    >
+      <Row {...p} />
+    </PowerState>
+  );
+}
+
+function Row({ id, title, desc, descTone, info, control, indent, tall, wrap, disabled, disabledReason, children }: SetRowProps) {
+  const { model, ro, hl, native } = useSettings();
   const off = disabled || ro;
   const descId = `set-${id}-desc`;
   const modId = `set-${id}-mod`;

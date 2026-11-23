@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type CharacterEntry } from '../../bridge';
+import { formatClock } from '../../domain';
 import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
 import { artSrc, Btn, ErrBar, Menu, Spinner } from '../../ui';
-import { TrainingRoom } from '../../ui/game';
+import { PowerState, TrainingRoom } from '../../ui/game';
 import { useMmdSection } from '../mmd/Section';
 import { failure, readRunningTasks, readState } from './api';
 import { CharacterSettings } from './CharacterSettings';
@@ -43,7 +44,7 @@ function initialSwitch(demo: string | null, roster: Roster | undefined): SwitchS
   return { phase: 'idle' };
 }
 
-/** 角色：训练场上的实机舞台。默认（`?pane=overview`）是总览；`?pane=motion|chain|look|import` 是外观、动作的详情，`?tab=behavior|render|scene` 是「设定」，`?view=photo` 是拍照面板，`?view=mmd` 是 MMD；状态曲线和完整动作表在调参页。 */
+/** 角色：训练场上的实机舞台。默认（`?pane=overview`）是总览；`?pane=motion|chain|look|import` 是外观、动作的详情，`?tab=behavior|render|scene` 是「设定」，`?view=photo` 是拍照面板，`?view=mmd` 是 MMD；她的状态曲线在诊断 › 行为决策。 */
 export function CharacterPage() {
   const { state, demo } = useDemo();
   const fb = useFeedback();
@@ -129,7 +130,7 @@ export function CharacterPage() {
   // 设定's tab bar has the tabs CharacterSettings draws rows for, and lights the one it falls back to.
   const setN = useCharSettings(isCharTab(tab)).q.data;
   const setTabs = setN ? presentTabs(setN) : CHAR_TABS.map((t) => t.id);
-  const motionsError = !canAvatar ? '桌面角色没有接入' : motions.isError ? (codeOf(motions.error) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应') : null;
+  const motionsError = motions.isError ? (codeOf(motions.error) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应') : null;
 
   let body;
   if (loading) body = <OperatorSkel />;
@@ -154,17 +155,20 @@ export function CharacterPage() {
           offline={offline}
           backoff={backoff}
           onRestart={restart}
-          actions={motions.data ?? null}
+          actions={canAvatar ? (motions.data ?? null) : []}
           motionsError={motionsError}
           onRetryMotions={() => void motions.refetch()}
-          {...(canAvatar ? { motionImport, library, onImportPackage: importPackage, chains: <MotionSettings offline={offline} toast={fb.toast} /> } : {})}
+          motionImport={motionImport}
+          library={library}
+          onImportPackage={importPackage}
+          chains={<MotionSettings offline={offline} toast={fb.toast} />}
           pane={isPane(pane) ? pane : 'overview'}
           charState={none ? null : (cs.data ?? null)}
           {...(demo === 'ok' ? { seed: OK_SEED } : {})}
           playing={demo === 'playing' ? 'nod' : null}
           toast={fb.toast}
           {...(isCharTab(tab)
-            ? { side: { of: 'set' as const, tab: setTabs.includes(tab) ? tab : (setTabs[0] ?? tab), tabs: setTabs, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} menu={false} toast={fb.toast} /> } }
+            ? { side: { of: 'set' as const, tab: setTabs.includes(tab) ? tab : (setTabs[0] ?? tab), tabs: setTabs, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} onRestart={restart} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} menu={false} toast={fb.toast} /> } }
             : photo
               ? { side: { of: 'photo' as const, node: <PhotoMode avatar={canAvatar} offline={offline} toast={fb.toast} /> } }
               : mmdView
@@ -218,12 +222,15 @@ export function CharacterPage() {
             <ErrBar message={`读取角色状态失败：${cs.error ? failure(cs.error).text : '桌面角色没有回应'}`} {...(readAt != null ? { staleAt: readAt } : {})} onRetry={() => void cs.refetch().then(() => fb.toast('正在重新读取…'))} />
           )}
           {disconnected && (
-            <ErrBar
-              message="后台已断开 │ 角色状态和读数停在断开前"
-              tone="warning"
-              {...(readAt != null ? { staleAt: readAt } : {})}
-              onRetry={() => void getBridge().supervisor.restart('agentd').then(() => fb.toast('正在重新连接后台服务…'))}
-            />
+            <PowerState
+              state="unlinked"
+              mode="block"
+              title="后台服务"
+              reason={`后台已断开，角色状态和读数停在断开前${readAt != null ? `，下面是 ${formatClock(readAt)} 的数据` : ''}`}
+              action={{ label: '重启后台', onClick: () => void getBridge().supervisor.restart('agentd').then(() => fb.toast('正在重新连接后台服务…')) }}
+            >
+              {null}
+            </PowerState>
           )}
         </div>
       )}

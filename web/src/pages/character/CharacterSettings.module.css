@@ -9,15 +9,15 @@
   container-type: inline-size;
 }
 
-.ro {
+/* 未接入: the strip on top, the bar and the rows under it keep their column and their scroll. */
+.linked,
+.linked > [data-stub='PowerState'],
+.linked > [data-stub='PowerState'] > [data-dim] {
   display: flex;
-  flex: none;
-  align-items: center;
-  height: 30px;
-  padding: 0 12px;
-  background: rgb(30 30 30 / 78%);
-  color: #fff;
-  font: 500 12px / 1 var(--ef-font-sans);
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
 }
 
 /* The 「能力值」 title bar: dark frosted, cut at the lower right, a yellow left edge and the count in Saira. */

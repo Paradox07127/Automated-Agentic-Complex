@@ -23,7 +23,7 @@ const client = () => new QueryClient({ defaultOptions: { queries: { retry: false
 function view(tab: CharTab, onTab = vi.fn(), toast = vi.fn()) {
   render(
     <QueryClientProvider client={client()}>
-      <CharacterSettings tab={tab} offline={false} avatar={false} onTab={onTab} toast={toast} />
+      <CharacterSettings tab={tab} offline={false} onRestart={vi.fn()} avatar={false} onTab={onTab} toast={toast} />
     </QueryClientProvider>,
   );
   return onTab;

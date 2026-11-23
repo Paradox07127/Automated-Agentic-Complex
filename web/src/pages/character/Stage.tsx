@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { NodeChain, type ChainNode } from '../../charts';
 import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
-import { Btn, StatusTag } from '../../ui';
-import { Diamond, LoadBar } from '../../ui/game';
+import { Btn } from '../../ui';
+import { Diamond, LoadBar, PowerState } from '../../ui/game';
 import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';
 import { useInspect } from './useInspect';
 import { useLivePreview } from './usePreview';
@@ -111,10 +111,16 @@ export function Stage(p: StageProps) {
           </div>
         )}
         {!overview && p.offline && (
-          <div className={styles.ovl} data-theme="dark" role="status">
-            <StatusTag state="unreachable" label="角色未运行" />
-            {p.backoff != null && <span className={styles.cap}>退避 {p.backoff} 秒后重试</span>}
-            <Btn variant="secondary" onClick={p.onRestart}>重启角色</Btn>
+          <div className={styles.power}>
+            <PowerState
+              state="unlinked"
+              mode="page"
+              title="桌面角色"
+              reason={p.backoff != null ? `角色未运行，退避 ${p.backoff} 秒后重试` : '角色未运行，预览和设定暂停'}
+              action={{ label: '重启角色', onClick: p.onRestart }}
+            >
+              {null}
+            </PowerState>
           </div>
         )}
         {!overview && p.sw.phase !== 'idle' && <SwitchOverlay sw={p.sw} currentName={p.currentName} onRetry={p.onRetry} onDismiss={p.onDismiss} />}

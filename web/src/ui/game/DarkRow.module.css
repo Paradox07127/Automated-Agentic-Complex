@@ -282,6 +282,17 @@ button.lead:focus-visible {
   padding: 0 12px 0 14px;
 }
 
+/* A title holding marks that must stay whole ([data-keep]) keeps its room: the barcode gives way first. */
+.row:not([data-compact]):has(.title [data-keep]) :is(.hit, .body) {
+  min-width: auto;
+}
+
+.row:has(.title [data-keep]) .deco {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .vh {
   position: absolute;
   width: 1px;

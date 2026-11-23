@@ -144,11 +144,15 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
           compact={compact}
           {...(changed ? { leadAction: resetLead(r.label, offline, () => set(id, r.default)) } : {})}
           title={
-            <>
-              {r.label}
-              {DEV_ONLY_ROWS.has(id) && <DevMark />}
-              {r.restart === 'avatar' && <EffectTag target="character" pending={pending.has(id)} />}
-            </>
+            <span className={styles.tt}>
+              <span className={styles.lb}>{r.label}</span>
+              {(DEV_ONLY_ROWS.has(id) || r.restart === 'avatar') && (
+                <span className={styles.marks} data-keep="">
+                  {DEV_ONLY_ROWS.has(id) && <DevMark />}
+                  {r.restart === 'avatar' && <EffectTag target="character" pending={pending.has(id)} />}
+                </span>
+              )}
+            </span>
           }
           sub={sub}
           end={gameControl(r, n.saved[id], offline, (v, quiet) => set(id, v, quiet), SEG_LABELS[id], compact)}

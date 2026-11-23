@@ -10,6 +10,7 @@ import { setPlugins } from '../../shell/plugins';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
 import { Btn, ErrBar, Region, type RegionSource } from '../../ui';
+import { PowerState } from '../../ui/game';
 import { playClip } from '../../ui/ToggleClip';
 import { ApplyBar } from './ApplyBar';
 import { runtimeView, SettingsCtx, type Reloadable, type SettingsCtxValue } from './ctx';
@@ -195,7 +196,7 @@ function SettingsBody() {
   }, [group, goGroup]);
 
   const marks: Partial<Record<GroupId, string>> = {};
-  if (data.view.voice?.state === 'unreachable') marks.speak = '语音服务连不上';
+  if (data.view.voice?.state === 'unreachable') marks.speak = '语音服务未接入';
   const missing = perms.filter((p) => p.state === 'denied' || p.state === 'notDetermined');
   if (missing.length) marks.perm = `${missing.map((p) => p.label).join('、')}没开`;
   if (runtime && !runtime.ready) marks.kernel = '内核没就绪';
@@ -204,7 +205,7 @@ function SettingsBody() {
   const ctx: SettingsCtxValue = {
     model,
     ro,
-    roReason: nativeRo ? NATIVE_RO : '后台已断开，这一组暂时只读',
+    roReason: nativeRo ? NATIVE_RO : '后台服务未接入，这一组暂时只读',
     agentdOff,
     hl,
     demo,
@@ -255,6 +256,18 @@ function SettingsBody() {
       <Region q={nativeQ} what="设置" reserve={{ rows: 8 }} onRetry={() => void data.native.refetch()}>
         {() => null}
       </Region>
+    );
+  else if (agentdOff && NEEDS_AGENTD.includes(group))
+    body = (
+      <PowerState
+        state="unlinked"
+        mode="block"
+        title="后台服务"
+        reason="后台已断开，内核和账号这一组暂时只读"
+        action={{ label: '重启后台', onClick: () => void model.restartBackend() }}
+      >
+        <Group />
+      </PowerState>
     );
   else body = <Group />;
 

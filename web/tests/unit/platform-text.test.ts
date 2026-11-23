@@ -1,7 +1,7 @@
 // Key and Finder wording on each shell, and the settings rows the platform helper's ops decide.
 import { describe, expect, it } from 'vitest';
 import { hotkeyText, keyText, revealText } from '../../src/bridge/platformText';
-import { rowShown } from '../../src/pages/settings/registry';
+import { helperLacks, rowShown } from '../../src/pages/settings/registry';
 import { PLUGINS } from '../../src/bridge/plugins.generated';
 import type { PluginState } from '../../src/shell/plugins';
 
@@ -36,18 +36,20 @@ describe('settings rows by the helper\'s ops', () => {
   const all = { helperPushToTalk: true, helperWindowText: true, helperTypedText: true, helperActionTimeline: true, helperSelectedText: true };
   const ROWS = ['hk_ptt', 'asr', 'wintext', 'grain', 'typing', 'actions', 'hk_sel'];
 
-  it('shows every row when the helper has every op', () => {
-    for (const id of [...ROWS, 'web', 'hk_quick']) expect(rowShown(id, plugins, false, all), id).toBe(true);
+  it('shows every row and finds none lacking when the helper has every op', () => {
+    for (const id of [...ROWS, 'web', 'hk_quick']) expect(rowShown(id, plugins, false), id).toBe(true);
+    expect(ROWS.filter((id) => helperLacks(id, all))).toEqual([]);
   });
 
-  it('hides 窗口文字 and 屏幕理解粒度 when the helper lacks ax.window_text, and only them', () => {
+  it('finds 窗口文字 and 屏幕理解粒度 lacking when the helper has no ax.window_text, and only them', () => {
     const caps = { ...all, helperWindowText: false };
-    expect(ROWS.filter((id) => !rowShown(id, plugins, false, caps))).toEqual(['wintext', 'grain']);
+    expect(ROWS.filter((id) => helperLacks(id, caps))).toEqual(['wintext', 'grain']);
   });
 
-  it('hides each row whose ops are missing', () => {
+  it('keeps each row whose ops are missing, and finds it lacking', () => {
     const none = { helperPushToTalk: false, helperWindowText: false, helperTypedText: false, helperActionTimeline: false, helperSelectedText: false };
-    expect(ROWS.filter((id) => rowShown(id, plugins, true, none))).toEqual([]);
-    expect(rowShown('hk_quick', plugins, false, none)).toBe(true);
+    expect(ROWS.filter((id) => rowShown(id, plugins, true))).toEqual(ROWS);
+    expect(ROWS.filter((id) => helperLacks(id, none))).toEqual(ROWS);
+    expect(helperLacks('hk_quick', none)).toBe(false);
   });
 });

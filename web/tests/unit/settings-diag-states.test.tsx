@@ -82,7 +82,7 @@ describe('点击角色 row', () => {
     window.agenticComplex = fake;
     render(
       <QueryClientProvider client={client()}>
-        <CharacterSettings tab="behavior" offline={false} avatar={false} onTab={() => {}} toast={() => {}} />
+        <CharacterSettings tab="behavior" offline={false} onRestart={() => {}} avatar={false} onTab={() => {}} toast={() => {}} />
       </QueryClientProvider>,
     );
     const seg = await screen.findByRole('radiogroup', { name: '点击角色' });

@@ -102,7 +102,7 @@ describe('设定 · deep link (5220#24)', () => {
     try {
       render(
         <QueryClientProvider client={client()}>
-          <CharacterSettings tab="render" row="rnd.dof" offline={false} avatar={false} onTab={noop} toast={noop} />
+          <CharacterSettings tab="render" row="rnd.dof" offline={false} onRestart={noop} avatar={false} onTab={noop} toast={noop} />
         </QueryClientProvider>,
       );
       await screen.findByRole('radiogroup', { name: '景深' });

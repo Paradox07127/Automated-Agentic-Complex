@@ -87,6 +87,29 @@
   color: #ff8a7a;
 }
 
+/* The title: the DEV and restart marks stay whole; the label is cut only after the row's barcode has given way. */
+.tt {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.lb {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.marks {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+/* The segments beside such a title give way: narrower option padding. */
+.row:has([data-keep]) [role='radio'] {
+  padding-inline: 4px;
+}
+
 /* 主光方向: the readout, then a framed 3×3 grid with two corner marks. */
 .pad {
   --cell: 26px;

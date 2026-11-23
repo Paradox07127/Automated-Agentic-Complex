@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { getBridge, type ActionSpeed, type AvatarAction, type CharacterEntry } from '../../bridge';
 import type { CharacterProfile, CharacterState } from '../../domain';
 import { ErrBar, Skel } from '../../ui';
-import type { GameTab } from '../../ui/game';
+import { PowerState, type GameTab } from '../../ui/game';
 import { BrandBlock } from './BrandBlock';
 import { useCharEntrance, useSwitchFade } from './charMotion';
 import { Commit } from './Commit';
@@ -45,13 +45,13 @@ export interface OperatorProps {
   actions: AvatarAction[] | null;
   motionsError: string | null;
   onRetryMotions: () => void;
-  /** 「导入动作」 on the 导入 pane; absent without an avatar. */
+  /** 「导入动作」 on the 导入 pane. */
   motionImport?: MotionImport;
-  /** Imported motions: the format tag in the motion table, 改名 and 删除 on the 导入 pane; absent without an avatar. */
+  /** Imported motions: the format tag in the motion table, 改名 and 删除 on the 导入 pane. */
   library?: MotionLibrary;
-  /** `character.importPackage` on the 导入 pane and in the roster; absent without an avatar. */
+  /** `character.importPackage` on the 导入 pane and in the roster. */
   onImportPackage?: () => void;
-  /** 编排; absent without an avatar. */
+  /** 编排. */
   chains?: ReactNode;
   /** 总览 or a detail pane; absent opens 动作. */
   pane?: Pane;
@@ -106,7 +106,6 @@ export function Operator(p: OperatorProps) {
   });
   const look = useLook();
   const importState = useImportState();
-  // 编排 is absent without an avatar.
   const pane = p.pane === 'chain' && !p.chains ? 'motion' : (p.pane ?? 'motion');
   const [lookTab, setLookTab] = useState<LookTab>('look');
   // 导入 sits under both 外观 (outfit mods) and 动作 (motions); the rail lights the one it was opened from, 动作 for a URL that opens it.
@@ -197,6 +196,14 @@ export function Operator(p: OperatorProps) {
     } else go({ pane: id as 'motion' | 'chain' });
   };
 
+  // Without an avatar host 动作表, 编排 and 导入 stay under 未接入; 导入 also while she is not running.
+  const noAvatar = canAvatar ? null : '这个外壳没有接入桌面角色，动作、编排和导入暂不可用';
+  const unlinked = (reason: string | null, node: ReactNode) =>
+    reason == null ? node : (
+      <PowerState state="unlinked" mode="block" title="桌面角色" reason={reason} action={{ label: '重启角色', onClick: p.onRestart }}>
+        {node}
+      </PowerState>
+    );
   const table = p.motionsError ? (
     <ErrBar message={`读取动作失败：${p.motionsError}`} onRetry={p.onRetryMotions} />
   ) : p.actions == null ? (
@@ -257,10 +264,10 @@ export function Operator(p: OperatorProps) {
         <Panel tabs={tabs} value={tab} onTab={onTab} tail={at === 'look' ? 'Agentic Complex / Appearance' : 'Agentic Complex / Motion'} pane={pane}>
           {pane === 'motion' ? (
             <section className={styles.motions} aria-label="动作开关">
-              {table}
+              {unlinked(noAvatar, table)}
             </section>
           ) : pane === 'chain' ? (
-            <section className={styles.chain} aria-label="编排">{p.chains}</section>
+            <section className={styles.chain} aria-label="编排">{unlinked(noAvatar, p.chains)}</section>
           ) : pane === 'look' || (pane === 'import' && importOf === 'look') ? (
             <LookPane
               tab={pane === 'import' ? 'import' : lt}
@@ -280,13 +287,16 @@ export function Operator(p: OperatorProps) {
               toast={p.toast}
             />
           ) : (
-            <ImportPane
-              {...(p.onImportPackage ? { onImportPackage: p.onImportPackage } : {})}
-              offline={p.offline}
-              lock={switching}
-              {...(p.motionImport ? { motionImport: p.motionImport } : {})}
-              {...(p.library ? { library: p.library } : {})}
-            />
+            unlinked(
+              noAvatar ?? (p.offline ? '角色未运行，导入暂停' : null),
+              <ImportPane
+                {...(p.onImportPackage ? { onImportPackage: p.onImportPackage } : {})}
+                offline={p.offline}
+                lock={switching}
+                {...(p.motionImport ? { motionImport: p.motionImport } : {})}
+                {...(p.library ? { library: p.library } : {})}
+              />,
+            )
           )}
         </Panel>
       ),

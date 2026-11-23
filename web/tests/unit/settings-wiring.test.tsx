@@ -494,16 +494,18 @@ describe('语音状态', () => {
   const row = () => document.querySelector('[data-row="tts"]');
   const sourceSeg = () => screen.queryByRole('radiogroup', { name: '语音服务' });
 
-  it('shows「语音不可用」without the voice service row for a build with no TTS', () => {
+  it('puts the voice row under 未接入 without the token row for a build with no TTS', () => {
     const { tts: _unset, ...saved } = d.native.saved;
     render(<Harness d={{ ...withTts(WIRE_TTS.off), native: { ...d.native, saved } }}><SpeakGroup /></Harness>);
-    expect(row()?.textContent).toContain('语音不可用');
+    expect(row()?.closest('[data-stub="PowerState"]')?.getAttribute('data-state')).toBe('unlinked');
+    expect(row()?.textContent).toContain('台词只显示文字');
+    expect(document.querySelector('[data-row="ttsToken"]')).toBeNull();
     expect(sourceSeg()).toBeNull();
   });
 
   it('has no 语音服务 choice: the service is set in 服务, the row only shows its state', () => {
     render(<Harness d={withTts(WIRE_TTS.ready)}><SpeakGroup /></Harness>);
-    expect(row()?.textContent).not.toContain('语音不可用');
+    expect(row()?.closest('[data-stub="PowerState"]')).toBeNull();
     expect(sourceSeg()).toBeNull();
   });
 

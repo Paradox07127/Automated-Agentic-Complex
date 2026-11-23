@@ -306,17 +306,26 @@ const ROW_HELPER: Readonly<Record<string, HelperBit>> = {
 const ALL_HELPER: Readonly<Record<HelperBit, true>> = { helperPushToTalk: true, helperWindowText: true, helperTypedText: true,
   helperActionTimeline: true, helperSelectedText: true };
 
-/** Whether a row shows: its plug-in is on, a developer row only in 开发者模式, and a row needing helper ops only when the helper has them. Ids outside the registry count too. */
-export function rowShown(id: string, plugins: PluginState, devMode: boolean, caps: Readonly<Pick<Capabilities, HelperBit>>): boolean {
+/** Whether a row shows: its plug-in is on, and a developer row only in 开发者模式. Ids outside the registry count too. */
+export function rowShown(id: string, plugins: PluginState, devMode: boolean): boolean {
   const p = ROW_PLUGIN[id];
-  const bit = ROW_HELPER[id];
-  return (!p || plugins[p]) && (devMode || !DEV_ROWS.has(id)) && (!bit || caps[bit]);
+  return (!p || plugins[p]) && (devMode || !DEV_ROWS.has(id));
 }
 
 export function useRowShown(): (id: string) => boolean {
   const plugins = usePlugins();
   const devMode = useDevMode();
+  return useCallback((id: string) => rowShown(id, plugins, devMode), [plugins, devMode]);
+}
+
+/** Whether the row's feature needs helper ops the running helper has not got. */
+export function helperLacks(id: string, caps: Readonly<Pick<Capabilities, HelperBit>>): boolean {
+  const bit = ROW_HELPER[id];
+  return bit != null && !caps[bit];
+}
+
+export function useHelperLacks(): (id: string) => boolean {
   // The fake bridge's helper has every op.
   const caps = window.agenticComplex?.capabilities ?? ALL_HELPER;
-  return useCallback((id: string) => rowShown(id, plugins, devMode, caps), [plugins, devMode, caps]);
+  return useCallback((id: string) => helperLacks(id, caps), [caps]);
 }
