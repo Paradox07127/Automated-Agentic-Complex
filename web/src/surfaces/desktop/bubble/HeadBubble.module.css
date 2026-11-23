@@ -1,0 +1,186 @@
+/* The game's headlabel bubble (#2E2E2E .75, round, padding 16/10, tail 22 × 20) at about half size: dark rgba(40,40,40,.9)
+   with a 10 px blur, light rgba(250,250,248,.94); radius 18, padding 9/16/11, 300 px at most, body 14/21. */
+.bubble {
+  --hb-bg: rgba(40, 40, 40, 0.9);
+  --hb-t1: #e2e2e2;
+  --hb-t2: #a6a6a6;
+  --hb-edge: rgba(255, 255, 255, 0.09);
+  --hb-remind: var(--ef-mission-accent);
+  --hb-done: var(--ef-complete);
+  --hb-error: var(--ef-danger-vivid);
+
+  position: relative;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 132px;
+  max-width: var(--bubble-w, 300px);
+  padding: 9px 16px 11px;
+  border-radius: 18px;
+  background: var(--hb-bg);
+  color: var(--hb-t1);
+  font: var(--ef-fw-regular) 14px / 21px var(--ef-font-sans);
+  backdrop-filter: blur(10px) saturate(1.1);
+  box-shadow:
+    inset 0 0 0 1px var(--hb-edge),
+    var(--ef-shadow-btn);
+  animation: hb-in 250ms var(--ef-ease-g-enter, cubic-bezier(0.333, 0, 0, 1)) both;
+
+  /* The inner parts' ink. */
+  --bubble-t1: var(--hb-t1);
+  --bubble-t2: var(--hb-t2);
+}
+
+:global(html[data-theme='light']) .bubble {
+  --hb-bg: rgba(250, 250, 248, 0.94);
+  --hb-t1: #1f1f1f;
+  --hb-t2: #5d5d5b;
+  --hb-edge: rgba(0, 0, 0, 0.1);
+  --hb-remind: #0076aa;
+  --hb-done: #1f8a4c;
+  --hb-error: #c8102e;
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .bubble {
+    --hb-bg: var(--ef-hud-solid);
+    backdrop-filter: none;
+  }
+}
+
+@keyframes hb-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+
+/* The top padding moves the panel; a double click puts it back. */
+.drag {
+  position: absolute;
+  top: 0;
+  right: 24px;
+  left: 24px;
+  height: 9px;
+}
+
+.kind {
+  display: flex;
+  gap: var(--ef-sp-6);
+  align-items: center;
+  margin: 0 0 3px;
+  color: var(--hb-t2);
+  font: var(--ef-fw-semibold) 13px / 18px var(--ef-font-sans);
+}
+
+.kind[data-k='remind'] {
+  color: var(--hb-remind);
+}
+
+.kind[data-k='done'] {
+  color: var(--hb-done);
+}
+
+.kind[data-k='error'] {
+  color: var(--hb-error);
+}
+
+.time {
+  margin-left: auto;
+  padding-left: 12px;
+  font: var(--ef-fw-medium) 13px / 18px var(--ef-font-num);
+}
+
+.body {
+  min-width: 0;
+}
+
+.bubble[data-kind='notice'] {
+  min-width: 0;
+  padding: 7px 14px;
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.one {
+  display: flex;
+  margin-top: 8px;
+}
+
+/* Hover shows the actions; keyboard focus inside does too. */
+.acts {
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    height 150ms var(--ef-ease-g-fade),
+    opacity 150ms var(--ef-ease-g-fade);
+}
+
+.bubble:hover .acts,
+.bubble:focus-within .acts {
+  height: auto;
+  margin-top: 6px;
+  overflow: visible;
+  opacity: 1;
+}
+
+@keyframes hb-timer {
+  from {
+    transform: scaleX(var(--timer-from, 1));
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.timer {
+  position: absolute;
+  right: 16px;
+  bottom: 4px;
+  left: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentcolor;
+  opacity: 0.22;
+  transform-origin: left;
+  animation: hb-timer var(--timer-ms) linear forwards;
+}
+
+.timer[data-paused],
+.bubble:hover .timer {
+  animation-play-state: paused;
+}
+
+/* From the bottom corner nearer her head. */
+.tail {
+  position: absolute;
+  bottom: -9px;
+  width: 12px;
+  height: 10px;
+  overflow: visible;
+  fill: var(--hb-bg);
+}
+
+.bubble[data-tail='right'] .tail {
+  right: 14px;
+  transform: scaleX(-1);
+}
+
+.bubble[data-tail='left'] .tail {
+  left: 14px;
+}
+
+.bubble[data-tail='bottom'] .tail {
+  left: calc(50% - 6px);
+}
+
+:global(.still) .bubble,
+:global(.still) .timer {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble {
+    animation: none;
+  }
+}

@@ -270,6 +270,25 @@ test('right Option alone waits out the 0.15 s window; a release inside it barges
   assert.ok(s.ops().includes('mic.start'));
 });
 
+test('说话 on the hover buttons: start records at once, without right Option\'s window, and stop sends it like a release', async () => {
+  const s = setup({ name: 'right_option' });
+  s.ptt.talk('start');
+  await s.settle();
+  assert.ok(!s.ops().includes('mic.start'));
+  assert.deepEqual(s.logs.filter((l) => l.startsWith('VOICE talk')), ['VOICE talk unavailable']);
+  await s.up();
+  s.ptt.talk('start');
+  await s.settle();
+  assert.ok(s.ops().includes('mic.start'));
+  assert.equal(s.ptt.held, true);
+  await s.advance(900);
+  s.ptt.talk('stop');
+  await s.settle();
+  assert.equal(s.ptt.held, false);
+  assert.deepEqual(s.posts.find(([p]) => p === 'POST /say')?.[1], { text: '明天下午三点开会', source: 'voice',
+    voice_timing: { pressed_ms: 1_800_000_000_000, released_ms: 1_800_000_000_900, final_ms: 1_800_000_000_900 } });
+});
+
 test('a hold under 0.3 s records but sends nothing and shows 按住不到 0.3 秒', async () => {
   const s = setup();
   await s.up();

@@ -3,7 +3,6 @@ import { getBridge, type CmdMode } from '../../bridge';
 import { useSystemTheme } from '../../shell/useSystemTheme';
 import { stackQuery } from '../stack/demos';
 import { RingSlot } from './cmd/ring/RingSlot';
-import { TuneSlot } from './cmd/tune/TuneSlot';
 import { useAnchor } from './hooks/useAnchor';
 import { useCommand } from './hooks/useCommand';
 import { useContentSize } from './hooks/useContentSize';
@@ -15,9 +14,9 @@ import type { CommandSlotProps } from './types';
 import styles from './CmdRoot.module.css';
 
 /** 快速输入 opens in the bubble (`#/bubble`), so an `input` open shows nothing here. */
-const SLOTS: Partial<Record<CmdMode, ComponentType<CommandSlotProps>>> = { ring: RingSlot, tune: TuneSlot };
+const SLOTS: Partial<Record<CmdMode, ComponentType<CommandSlotProps>>> = { ring: RingSlot };
 
-/** `stack.html#/cmd`: one command layer at a time (指令环, 镜头与动作), opened and closed by native commands; 控制台 has its own panel. */
+/** `stack.html#/cmd`: her wheel, opened and closed by native commands; 控制台 has its own panel. */
 export function CmdRoot() {
   const [q] = useState(stackQuery);
   const still = q.get('still') === '1';
@@ -52,7 +51,7 @@ export function CmdRoot() {
   const Slot = mode ? SLOTS[mode] : undefined;
   return (
     <div ref={rootRef} className={styles.root} data-surface-root="cmd" data-mode={mode ?? undefined}>
-      {Slot && <Slot anchor={anchor} state={state} presence={presence} close={() => {
+      {Slot && <Slot anchor={anchor} state={state} presence={presence} command={command} close={() => {
         setMode(null);
         getBridge().window.close();
       }} />}

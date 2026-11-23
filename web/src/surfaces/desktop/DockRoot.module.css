@@ -1,0 +1,15 @@
+/* Shrink-wrapped: the panel takes this box's size; the 16 px padding is DesktopLayout's fallback inset for the dock and
+   holds the bracket and the rows' 3 px nudge. Empty while the buttons are closed. */
+.root {
+  position: relative;
+  display: inline-flex;
+  background: transparent;
+}
+
+.root:not(:empty) {
+  padding: var(--ef-sp-16);
+}
+
+.stack {
+  display: flex;
+}

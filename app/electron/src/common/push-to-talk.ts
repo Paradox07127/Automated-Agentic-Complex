@@ -16,7 +16,7 @@ export type VoiceHint =
   | { kind: 'discarded'; reason: string; elapsed: number }
   | { kind: 'micDenied' };
 
-/** Onboarding step 2's readout of the last try; `levels` are bar heights in pt, 0–20. */
+/** The guide's voice step's readout of the last try (`voice.onTrial`); `levels` are bar heights in pt, 0–20. */
 export interface VoiceTrial { levels: number[]; elapsed: string; transcript: string }
 
 /** The recording hint's reasons. */
@@ -53,7 +53,7 @@ export interface PushToTalkPorts {
   stopSpeech(turnGeneration?: number): void;
   /** Every change of the recording hint; null is none shown. */
   onHint(hint: VoiceHint | null): void;
-  /** With every change of the hint, the try's readout for onboarding step 2. */
+  /** With every change of the hint, the try's readout for the guide's voice step. */
   onTrial?(trial: VoiceTrial): void;
   /** Read on every press: a locale identifier such as zh-CN. */
   locale(): string;
@@ -290,6 +290,20 @@ export class PushToTalk {
       this.ports.log(`VOICE hotkey_updated ${name}`);
     }
     this.sync();
+  }
+
+  /** 说话 on her hover buttons: `start` is a press of the key that records at once (no wait for Option typing), `stop` its
+   *  release. Nothing while agentd is not running or the helper cannot record. */
+  talk(phase: 'start' | 'stop'): void {
+    if (phase === 'stop') return this.released();
+    if (!this.agentdRunning || !this.helperCapable) return this.ports.log('VOICE talk unavailable');
+    if (this.phase !== 'idle') return this.pressed();
+    this._held = true;
+    this.phase = 'confirming';
+    this.pressedAt = this.ports.now();
+    this.releasedAt = null;
+    this.typedWhileHeld = false;
+    void this.begin();
   }
 
   /** A helper event. */

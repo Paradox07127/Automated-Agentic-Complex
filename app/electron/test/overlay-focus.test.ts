@@ -7,10 +7,10 @@ import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 import { DesktopPanel } from '../src/main/desktop/panel.ts';
 import { makeOverlay, OVERLAY_LEVELS, overlayOptions } from '../src/main/platform/index.ts';
 
-test('overlay levels: 调整大小 and 调整镜头 over the ring and the stack, the control approval over every other overlay', () => {
+test('overlay levels: 调整大小 and 调整镜头 over her hover buttons and the bubble, the control approval over every other overlay', () => {
   const L = OVERLAY_LEVELS;
-  for (const frame of [L.resize, L.camera]) for (const below of [L.ring, L.hud, L.bubble, L.chip]) assert.ok(frame > below);
-  assert.ok(L.hud > L.bubble && L.ring > L.hud);
+  for (const frame of [L.resize, L.camera]) for (const below of [L.dock, L.bubble, L.chip]) assert.ok(frame > below);
+  assert.ok(L.dock > L.bubble && L.dock > L.chip);
   // NSPopUpMenuWindowLevel (101) over the avatar's status level (25).
   assert.deepEqual([L.cmd, L.console, L.region], [76, 76, 76]);
   for (const [name, level] of Object.entries(L)) if (name !== 'control') assert.ok(L.control > level, name);

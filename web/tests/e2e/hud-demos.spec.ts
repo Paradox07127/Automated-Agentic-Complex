@@ -3,11 +3,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 import { DESKTOP_DEMOS } from '../../src/surfaces/desktop/demos.ts';
 
-// The status bar and icon ring demos, dark and light: no horizontal overflow, text ≥ 13 px,
-// the task-track band 359 px folded and expanded, the ring panel at its fixed size.
+// The status bar demos, dark and light: no horizontal overflow, text ≥ 13 px, the task-track band 359 px folded and
+// expanded.
 
 const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
-const DEMOS = DESKTOP_DEMOS.filter((d) => d.path === '/hud' || d.path === '/ring');
+const DEMOS = DESKTOP_DEMOS.filter((d) => d.path === '/hud');
 
 async function open(page: Page, path: string, params: Record<string, string>) {
   await page.goto('about:blank');
@@ -60,38 +60,16 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(root).toBeAttached();
       await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe(theme);
 
-      if (demo.path === '/hud') {
-        const expanded = demo.params.expand === '1';
-        await expect(page.locator('[data-hud-row]').first()).toBeVisible();
-        if (expanded) {
-          await expect(page.locator('[data-hud-row]')).toHaveCount(3);
-          const list = page.locator('[data-hud-row]').first().locator('..');
-          expect((await list.boundingBox())?.width).toBe(359);
-          expect(await overflow(page, '[data-surface-root="hud"]', '[data-hud-row], [data-hud-row] > div')).toEqual([]);
-        } else {
-          await expect(page.locator('[data-hud-row]')).toHaveCount(1);
-          expect((await page.locator('[data-hud-bar]').boundingBox())?.width).toBe(359);
-          expect(await overflow(page, '[data-hud-bar]', '[data-hud-row], [data-hud-row] > div')).toEqual([]);
-        }
+      await expect(page.locator('[data-hud-row]').first()).toBeVisible();
+      if (demo.params.expand === '1') {
+        await expect(page.locator('[data-hud-row]')).toHaveCount(3);
+        const list = page.locator('[data-hud-row]').first().locator('..');
+        expect((await list.boundingBox())?.width).toBe(359);
+        expect(await overflow(page, '[data-surface-root="hud"]', '[data-hud-row], [data-hud-row] > div')).toEqual([]);
       } else {
-        await expect(root).toHaveAttribute('data-open', 'true');
-        const box = await root.boundingBox();
-        expect([box?.width, box?.height]).toEqual([360, 320]);
-        await expect(page.locator('[data-ring-icon]')).toHaveCount(3);
-        // One row along the panel's bottom: each 30 px icon centred in the 36 px row.
-        await expect
-          .poll(() => page.locator('[data-ring-icon]').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top - e.parentElement!.getBoundingClientRect().top))))
-          .toEqual([287, 287, 287]);
-        if (demo.params.pop) {
-          const pop = page.locator(`[data-ring-pop="${demo.params.pop}"]`);
-          await expect(pop).toBeVisible();
-          // The card opens above the row, clear of every icon.
-          const p = await pop.boundingBox();
-          expect((p?.y ?? 0) + (p?.height ?? 0) - (box?.y ?? 0)).toBeLessThanOrEqual(284);
-        }
-        expect(await overflow(page, '[data-surface-root="ring"]', '[data-ring-pop], [data-ring-row] p, [data-ring-tip]')).toEqual([]);
-        // An icon's badge hangs over its edge by design; the icon itself stays in the panel.
-        expect(await overflow(page, '[data-surface-root="ring"]', '[data-ring-icon]', false)).toEqual([]);
+        await expect(page.locator('[data-hud-row]')).toHaveCount(1);
+        expect((await page.locator('[data-hud-bar]').boundingBox())?.width).toBe(359);
+        expect(await overflow(page, '[data-hud-bar]', '[data-hud-row], [data-hud-row] > div')).toEqual([]);
       }
 
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

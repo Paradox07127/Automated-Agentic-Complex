@@ -2,7 +2,8 @@
 import type { PluginId } from './plugins.generated';
 import type { AnchorState, ProcessState, Rect, Unsubscribe } from './protocol';
 
-export type DesktopPanel = 'cmd' | 'console' | 'bubble' | 'hud' | 'ring';
+/** `hud` is the stack cards' page, which native no longer opens as a panel. */
+export type DesktopPanel = 'cmd' | 'console' | 'bubble' | 'chip' | 'dock' | 'hud';
 export type DockReason = 'hidden' | 'fullscreen' | 'offscreen' | 'stale' | 'noroom';
 
 /** Where the native layout put this panel relative to her; pushed only when it changes. */
@@ -30,10 +31,11 @@ export interface GlassRect {
   h: number;
 }
 
-export type CmdMode = 'ring' | 'input' | 'tune';
+export type CmdMode = 'ring' | 'input';
 
 export type DesktopCommand =
-  | { kind: 'open'; mode: CmdMode; prefill?: string }
+  /** `at`: the wheel's centre in its page, CSS px from the top-left, where she was right-clicked; the hot key's open has none. */
+  | { kind: 'open'; mode: CmdMode; prefill?: string; at?: { x: number; y: number } }
   /** The console page's own channel (`#/console`) opens with it; the other pages never get it. */
   | { kind: 'openConsole' }
   | { kind: 'close' }
@@ -70,14 +72,17 @@ export type DesktopActionName =
   | 'openStack'
   | 'claimRitual'
   | 'quickInput'
-  | 'cmdMode';
+  | 'cmdMode'
+  /** 说话 on her hover buttons: `start` as a press of the push-to-talk key, `stop` as its release. */
+  | 'talk';
 
 export interface DesktopState {
   hidden: boolean;
   clickThroughAll: boolean;
   freeRoam: boolean;
   quietUntil: number | null;
-  avatarHovered: boolean;
+  /** Her hover buttons: open after a rest on her, on the side native placed them; compact while she is under 200 px tall. */
+  dock: DesktopDock;
   showPresence?: boolean;
   showHoverHints?: boolean;
   character: { id: string; name: string } | null;
@@ -88,6 +93,12 @@ export interface DesktopState {
   computerUseActive: boolean;
   /** The plug-ins agentd runs with, in the registry's order. */
   plugins: PluginId[];
+}
+
+export interface DesktopDock {
+  open: boolean;
+  side: 'left' | 'right' | 'above';
+  compact: boolean;
 }
 
 /** The entry a `/say` was typed in (agentd api/speech.py `SURFACES`). */
@@ -128,7 +139,7 @@ export interface DesktopWindowOps {
   logInfo(message: string): void;
 }
 
-/** The desktop panels (bubble, hud, ring, cmd, console); the ops reject `unavailable` where the shell has no desktop host. */
+/** The desktop panels (bubble, chip, dock, cmd, console); the ops reject `unavailable` where the shell has no desktop host. */
 export interface DesktopOps {
   onState(cb: (s: DesktopState) => void): Unsubscribe;
   /** agentd's `/desktop/presence` JSON, forwarded as it came. */
@@ -137,8 +148,8 @@ export interface DesktopOps {
   /** 快速输入: sent natively, not through the `/say` route. */
   say(r: SayRequest): Promise<SayResult>;
   /**
-   * `arg` is the character id of `switchCharacter`, the screen id of `placeOnScreen`, or the mode (`input` | `tune`) the
-   * cmd page switched to in place for `cmdMode`, which native still takes though no page sends it. `quickInput` opens
+   * `arg` is the character id of `switchCharacter`, the screen id of `placeOnScreen`, the mode (`ring` | `input`) for
+   * `cmdMode`, or `start` | `stop` for `talk`. `quickInput` opens
    * 快速输入 in the bubble; its optional `arg`, `{"scopeId", "files"}` as JSON, opens it with that drop scope.
    */
   action(name: DesktopActionName, arg?: string): Promise<void>;

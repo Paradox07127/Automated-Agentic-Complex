@@ -16,7 +16,7 @@ const STATE: DesktopState = {
   clickThroughAll: false,
   freeRoam: false,
   quietUntil: null,
-  avatarHovered: false,
+  dock: { open: false, side: 'right', compact: false },
   character: { id: 'voice_a', name: '示例甲' },
   characters: [
     { id: 'voice_a', name: '示例甲' },

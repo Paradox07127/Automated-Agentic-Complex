@@ -4,8 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { DesktopState } from '../../src/bridge/protocol';
 import { BubbleRoot } from '../../src/surfaces/desktop/BubbleRoot';
-import { ringItems } from '../../src/surfaces/desktop/cmd/actions';
-import { CmdRoot } from '../../src/surfaces/desktop/CmdRoot';
+import { DockRoot, dockItems } from '../../src/surfaces/desktop/DockRoot';
 import { stubMatchMedia } from './mediaStub';
 
 stubMatchMedia();
@@ -21,7 +20,7 @@ const STATE: DesktopState = {
   clickThroughAll: false,
   freeRoam: false,
   quietUntil: null,
-  avatarHovered: false,
+  dock: { open: false, side: 'right', compact: false },
   character: { id: 'voice_a', name: '示例甲' },
   characters: [{ id: 'voice_a', name: '示例甲' }],
   screens: [{ id: '1', name: '内建显示器', current: true }],
@@ -39,21 +38,21 @@ function mount(hash: string, state: DesktopState) {
     return () => {};
   });
   window.location.hash = hash;
-  render(hash.startsWith('#/bubble') ? <BubbleRoot /> : <CmdRoot />);
+  render(hash.startsWith('#/bubble') ? <BubbleRoot /> : <DockRoot />);
 }
 
 describe('屏幕识读 off', () => {
-  it('the action table has no 屏幕识读, before the state comes too', () => {
-    expect(ringItems(STATE).map((i) => i.id)).toEqual(['input', 'openStack', 'goChat', 'quiet', 'pass', 'hide', 'gift']);
-    expect(ringItems(null).map((i) => i.id)).not.toContain('look');
-    expect(ringItems({ ...STATE, plugins: ['light_ai', 'screen_reading'] }).map((i) => i.id)).toContain('look');
+  it('her hover buttons have no 给她看, before the state comes too', () => {
+    expect(dockItems(STATE, null, null).map((i) => i.id)).toEqual(['chat', 'talk', 'hide']);
+    expect(dockItems(null, null, null).map((i) => i.id)).not.toContain('look');
+    expect(dockItems({ ...STATE, plugins: ['light_ai', 'screen_reading'] }, null, null).map((i) => i.id)).toEqual(['chat', 'talk', 'look', 'hide']);
   });
 
-  it('the opened ring shows no 屏幕识读', async () => {
-    mount('#/cmd?still=1', STATE);
-    const ring = await screen.findByRole('menu', { name: '指令环' });
-    expect(within(ring).queryByRole('menuitem', { name: /^屏幕识读/ })).toBeNull();
-    expect(within(ring).getAllByRole('menuitem')).toHaveLength(7);
+  it('the open hover buttons show no 给她看', async () => {
+    mount('#/dock?still=1', { ...STATE, dock: { open: true, side: 'right', compact: false } });
+    const group = await screen.findByRole('group', { name: '她的按钮' });
+    expect(within(group).queryByRole('button', { name: '给她看' })).toBeNull();
+    expect(within(group).getAllByRole('button')).toHaveLength(3);
   });
 
   it('快速输入 offers no 附上当前窗口; with it on it does', async () => {

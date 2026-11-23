@@ -1,7 +1,7 @@
 // Moves the desktop panels after her: feed it every tick
 // while a panel shows or the command layer is open. The panels follow one box of hers, which she leaves only past the dead
 // zone; none moves while one is frozen or key; while she is dragged or walks and `WALK_FADE` after, the bubble hides and the
-// hud and ring fade to `DRAG_ALPHA`. Opening and closing the command layer, the console and 快速输入 in the bubble are here
+// chip and dock fade to `DRAG_ALPHA`. Opening and closing the wheel, the console and 快速输入 in the bubble are here
 // too, and so are the panels the user dragged: their offsets from her, their pins and their resets, and C3 rule 39's
 // presents: a presented panel shows once she has made her gesture for it.
 import { type AnchorInput, type AnchorSnapshot, AnchorTracker, shift } from './desktop-anchor.ts';
@@ -10,9 +10,9 @@ import type { WindowCommand } from './handover.ts';
 import {
   anchorPayload, type AnchorPayload, cardIn, type CardInsets, type CmdMode, type DockReason, EDGE, fallbackInsets, type FollowState, GAP, inset,
   keepOut, keepOutOf, type LayoutInput, type LayoutMemory, layoutScreen, overlaps, place, type PanelKind, type PanelPlacement, type PanelSide,
-  type UserOffset, userOffset,
+  type UserOffset, userOffset, WHEEL_PANEL, wheelFrame,
 } from './desktop-layout.ts';
-import type { Rect, ScreenInfo } from './placement.ts';
+import type { Point, Rect, ScreenInfo } from './placement.ts';
 
 /** One desktop panel as the follower drives it; frames are in the placement space. */
 export interface FollowPanel {
@@ -46,8 +46,8 @@ export function memoryOffsets(): OffsetStore {
   return { get: (k) => saved.get(k) ?? null, set: (k, o) => { saved.set(k, o); }, clear: (k) => { saved.delete(k); } };
 }
 
-/** protocol.ts `DesktopCommand`, as far as the shell sends it. */
-export type DesktopCommand = { kind: 'open'; mode: CmdMode; prefill?: string } | { kind: 'close' } | { kind: 'openConsole' }
+/** protocol.ts `DesktopCommand`, as far as the shell sends it. `at` is the wheel's centre in its page, CSS px from the top-left. */
+export type DesktopCommand = { kind: 'open'; mode: CmdMode; prefill?: string; at?: Point } | { kind: 'close' } | { kind: 'openConsole' }
   | { kind: 'scope'; scopeId: string; files: number } | SelectionCommand | { kind: 'expandStack' } | { kind: 'notice'; text: string }
   | WindowCommand;
 
@@ -77,7 +77,7 @@ export const SNAP_DISTANCE = 12;
 export const PIN_DISTANCE = 400;
 /** A drop keeps at most this gap from her keep-out. */
 export const MAX_USER_GAP = 96;
-const KINDS: PanelKind[] = ['bubble', 'chip', 'hud', 'ring', 'cmd', 'console'];
+const KINDS: PanelKind[] = ['bubble', 'chip', 'dock', 'cmd', 'console'];
 
 const maxX = (r: Rect) => r.x + r.w;
 const maxY = (r: Rect) => r.y + r.h;
@@ -164,6 +164,8 @@ export class DesktopFollow {
   private readonly offsets: OffsetStore;
   /** Pinned panels' top-left corners, and the display she stood on when each was pinned. */
   private pins: Partial<Record<PanelKind, { topLeft: { x: number; y: number }; screen: number | null }>> = {};
+  /** The open wheel's panel frame, centred where it opened. */
+  private wheel: Rect | null = null;
   /** Panels dropped or reset since the last tick. */
   private placeNow = new Set<PanelKind>();
   private lastInput: LayoutInput | null = null;
@@ -193,20 +195,29 @@ export class DesktopFollow {
     return this.cmdMode !== null || this.consoleOpen || KINDS.some((k) => this.panels[k]?.isShown);
   }
 
-  /** Ring, tune and console close on a click outside them; input only on esc or send. */
+  /** The wheel and the console close on a click outside them; input only on esc or send. */
   get closesOnOutsideClick(): boolean {
     return this.consoleOpen || (this.cmdMode !== null && this.cmdMode !== 'input');
   }
 
-  /** Opens the command layer in `mode`; it takes key as soon as it shows. */
-  open(mode: CmdMode, prefill?: string): void {
+  /** Opens the command layer in `mode`; it takes key as soon as it shows. `wheel` centres the wheel's panel on `centre`
+   *  (placement space), kept on its screen; with `at` the page gets that point as the wheel's centre. */
+  open(mode: CmdMode, prefill?: string, wheel?: { centre: Point; screens: ScreenInfo[]; at: boolean }): void {
     const cmd = this.panels.cmd, size = cmd?.contentSize;
     this.log(`desk: open ${mode} (cmdMode was ${this.cmdMode ?? 'none'}); cmd panel `
       + (cmd ? `shown=${cmd.isShown} size=${size ? `${Math.round(size.w)}x${Math.round(size.h)}` : 'none'}` : 'missing'));
     this.cmdMode = mode;
     this.cmdShown = false;
     delete this.applied.cmd;
-    this.command(prefill === undefined ? { kind: 'open', mode } : { kind: 'open', mode, prefill });
+    let at: Point | undefined;
+    this.wheel = null;
+    if (wheel) {
+      const c = wheel.centre, screen = wheel.screens.find((x) => contains(x.frame, c.x, c.y)) ?? wheel.screens[0];
+      const ratio = screen ? this.pixelsPerDip(screen) : 1;
+      const f = this.wheel = wheelFrame(c, WHEEL_PANEL * ratio, wheel.screens);
+      if (wheel.at) at = { x: Math.round((c.x - f.x) / ratio), y: Math.round((maxY(f) - c.y) / ratio) };
+    }
+    this.command({ kind: 'open', mode, ...(prefill === undefined ? {} : { prefill }), ...(at ? { at } : {}) });
     cmd?.takeKey();
   }
 
@@ -216,6 +227,7 @@ export class DesktopFollow {
     this.log(`desk: close ${this.cmdMode}`);
     this.cmdMode = null;
     this.cmdShown = false;
+    this.wheel = null;
     this.command({ kind: 'close' });
     this.panels.cmd?.releaseKey();
   }
@@ -280,6 +292,7 @@ export class DesktopFollow {
         this.log(`desk: cmd ${this.cmdMode} closed by the page`);
         this.cmdMode = null;
         this.cmdShown = false;
+        this.wheel = null;
       }
     }
     const console = this.panels.console;
@@ -355,7 +368,7 @@ export class DesktopFollow {
         if (pin && pin.screen !== null && pin.screen !== screenId) delete this.pins[kind];
       }
     }
-    // The bubble, hud and ring hold on her anchor; her capsules push only the command layer.
+    // The bubble, chip and dock hold on her anchor; her capsules push only the command layer.
     const capsules = this.capsules;
     const colliding = capsules ? this.attached(shown).some((p) => p.kind === 'cmd' && overlaps(p.card, keepOut(capsules))) : false;
     this.collidingSince = colliding ? this.collidingSince ?? now : null;
@@ -399,7 +412,7 @@ export class DesktopFollow {
       body: this.followed, head: this.followed && this.head(this.followed), screen: snapshot.screen?.id ?? null,
       lastScreen: snapshot.lastScreen?.id ?? null, screens, docked, mouse, now, scale: this.scale, memory: this.memory,
       requests: shown.map((kind) => ({ kind, size: this.size(kind), cardInsets: this.insets(kind), visible: true,
-        userOffset: this.offsets.get(kind), pin: this.pins[kind]?.topLeft ?? null,
+        userOffset: this.offsets.get(kind), pin: kind === 'cmd' && this.wheel ? { x: this.wheel.x, y: maxY(this.wheel) } : this.pins[kind]?.topLeft ?? null,
         ...(kind === 'cmd' && this.cmdMode ? { mode: this.cmdMode } : {}), ...(kind === 'console' ? { statusItem: this.statusItem } : {}) })),
     };
     this.lastInput = input;
@@ -438,9 +451,6 @@ export class DesktopFollow {
       this.movedAt[kind] = now;
       if (kind === 'console') this.consolePlaced = true;
     }
-    // Docked, the layout leaves the ring out: it hides, and shows again at once where it is placed next.
-    const ringHidden = shown.includes('ring') && (docked !== null || this.followed === null);
-    if (ringHidden) delete this.applied.ring;
     for (const kind of KINDS) if (!this.applied[kind]) delete this.loggedFrames[kind];
     if (next !== 'dragging') {
       for (const kind of shown) {
@@ -463,10 +473,9 @@ export class DesktopFollow {
 
     for (const kind of shown) {
       const panel = this.panels[kind]!;
-      const alpha = kind === 'ring' && ringHidden ? 0
-        : next === 'dragging' || (walking && kind !== 'cmd' && kind !== 'console') ? (kind === 'bubble' ? 0 : DRAG_ALPHA) : 1;
+      const alpha = next === 'dragging' || (walking && kind !== 'cmd' && kind !== 'console') ? (kind === 'bubble' ? 0 : DRAG_ALPHA) : 1;
       if (alpha !== (this.alphas[kind] ?? 1)) {
-        // The ring and the bubble hide and show again at once.
+        // The bubble hides and shows again at once.
         panel.setAlpha(alpha, alpha !== 0 && (this.alphas[kind] ?? 1) !== 0);
         this.alphas[kind] = alpha;
       }
@@ -608,6 +617,12 @@ export class DesktopFollow {
       if (!p.released) held.add(kind);
     }
     return held;
+  }
+
+  /** `kind`'s card where it shows beside her now, and the side it is on; null while it is not placed. */
+  placedCard(kind: PanelKind): { card: Rect; side: PanelSide } | null {
+    const f = this.applied[kind], side = this.sides[kind];
+    return f && side ? { card: cardIn(this.insets(kind), f), side } : null;
   }
 
   /** `kind`'s frame with neither offset nor pin, for her box `body`, on the last tick's layout input; null when it was not

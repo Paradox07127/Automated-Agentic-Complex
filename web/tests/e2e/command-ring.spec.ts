@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 
-// The flat command ring on `stack.html#/cmd`, and 快速输入, which moved under the bubble (`#/bubble`).
+// Her wheel on `stack.html#/cmd` (one level of 8 slots), and 快速输入, which opens in the bubble (`#/bubble`).
 
 const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
 const DEMOS = ['ring', 'input', 'input-err-agentd', 'input-err-kernel'] as const;
@@ -28,10 +28,10 @@ for (const theme of ['dark', 'light'] as const) {
   for (const demo of DEMOS) {
     test(`${theme} ${demo}: renders without errors`, async ({ page }, info) => {
       const errors = collectErrors(page);
-      if (demo === 'ring') await open(page, { demo, theme });
+      if (demo === 'ring') await open(page, { mode: 'ring', theme });
       else await openInput(page, { demo, theme });
       await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe(theme);
-      if (demo.startsWith('ring')) await expect(page.getByRole('menu', { name: '指令环' })).toBeVisible();
+      if (demo === 'ring') await expect(page.getByRole('menu', { name: '她的轮盘' })).toBeVisible();
       else await expect(page.getByRole('dialog', { name: '快速输入' })).toBeVisible();
       if (demo === 'input-err-agentd') await expect(page.getByRole('button', { name: '重启后台服务' })).toBeVisible();
       if (demo === 'input-err-kernel') await expect(page.getByRole('button', { name: /重新检测/ })).toBeVisible();
@@ -43,54 +43,66 @@ for (const theme of ['dark', 'light'] as const) {
   }
 }
 
-test('ring: 8 direct items with 屏幕识读 on, no sub-arc; 3 opens the stack and closes the panel', async ({ page }) => {
+test('wheel: 8 numbered items with the pending count, dark in a light theme, the key help only while ⌘ is held', async ({ page }) => {
   const errors = collectErrors(page);
-  await open(page, { mode: 'ring', plugins: 'screen_reading' });
-  const ring = page.getByRole('menu', { name: '指令环' });
-  await expect(ring).toBeVisible();
-  await expect(ring.getByRole('menuitem')).toHaveCount(8);
-  await expect(ring.getByRole('menuitem', { name: /待处理/ })).toContainText(/\d/);
-  await expect(ring.getByRole('menuitem', { name: /^隐藏 30 分/ })).toContainText('⌃⌥H');
-  await expect(ring).toContainText('1–8 直接执行 │ esc 关闭');
-  for (const el of await ring.getByRole('menuitem').all()) await el.hover();
-  await ring.press('ArrowRight');
-  await expect(page.getByRole('menu')).toHaveCount(1);
-  const box = await ring.boundingBox();
-  expect(box && box.width <= 320 && box.height <= 320).toBe(true);
-  await ring.press('3');
-  await expect(page).toHaveURL(/stack\.html#\/cmd/);
-  await expect(page.getByRole('menu', { name: '指令环' })).toHaveCount(0);
-  await expect(page.getByRole('status')).toHaveCount(0);
+  await open(page, { mode: 'ring', theme: 'light' });
+  const wheel = page.getByRole('menu', { name: '她的轮盘' });
+  await expect(wheel).toBeVisible();
+  const items = wheel.getByRole('menuitem');
+  await expect(items).toHaveCount(8);
+  const names = await items.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
+  expect(names.map((n) => n.replace(/^(\d \S+).*$/, '$1'))).toEqual(['1 对话页', '2 待处理', '3 免打扰', '4 点穿', '5 放回原位', '6 自由活动', '7 送礼物', '8 角色页']);
+  expect(names[1]).toMatch(/^2 待处理 \d+$/);
+  await expect(page.locator('[data-region][data-theme="dark"]')).toHaveCount(1);
+  const help = wheel.getByText('直接执行');
+  await expect(help).toBeHidden();
+  await page.keyboard.down('Meta');
+  await expect(help).toBeVisible();
+  await page.keyboard.up('Meta');
+  await expect(help).toBeHidden();
   expect(errors).toEqual([]);
 });
 
-test('ring: the center close control removes the layer with one click', async ({ page }) => {
-  await open(page, { mode: 'ring' });
-  await page.getByRole('button', { name: '关闭指令环' }).click();
-  await expect(page.getByRole('menu', { name: '指令环' })).toHaveCount(0);
+test('wheel: centred where she was right-clicked, moved in so it stays whole', async ({ page }) => {
+  for (const [at, want] of [['260,260', [260, 260]], ['40,500', [186, 302]]] as const) {
+    await open(page, { mode: 'ring', at });
+    const box = await page.getByRole('menu', { name: '她的轮盘' }).boundingBox();
+    const root = await page.locator('[data-slot="ring"]').boundingBox();
+    expect(box && root && [Math.round(box.x - root.x + box.width / 2), Math.round(box.y - root.y + box.height / 2)]).toEqual(want);
+  }
 });
 
-test('ring: toggle labels follow the desktop state', async ({ page }) => {
-  await open(page, { mode: 'ring', demo: 'hidden' });
-  await expect(page.getByRole('menuitem', { name: /^显示角色/ })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /^让鼠标穿过她/ })).toBeVisible();
-  await open(page, { mode: 'ring', demo: 'passthrough' });
-  await expect(page.getByRole('menuitem', { name: /^结束点穿/ })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /^隐藏 30 分/ })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /^免打扰 30 分/ })).toBeVisible();
-});
-
-test('ring: 送礼物 answers in the panel; 打开对话 opens the chat page', async ({ page }) => {
+test('wheel: 1 opens the chat page; Esc closes it', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page, { mode: 'ring' });
-  await page.getByRole('menuitem', { name: /^送礼物/ }).click();
-  await expect(page.getByRole('status')).toContainText('已送出礼物');
-  await expect(page).toHaveURL(/stack\.html#\/cmd/);
+  await page.getByRole('menu', { name: '她的轮盘' }).press('Escape');
+  await expect(page.getByRole('menu', { name: '她的轮盘' })).toHaveCount(0);
 
   await open(page, { mode: 'ring' });
-  await page.getByRole('menu', { name: '指令环' }).press('3');
+  await page.getByRole('menu', { name: '她的轮盘' }).press('1');
   await expect(page).toHaveURL(/main\.html#\/chat/);
   expect(errors).toEqual([]);
+});
+
+test('wheel: 自由活动 answers in the panel; with nothing pending 待处理 is greyed and runs nothing', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page, { mode: 'ring' });
+  await page.getByRole('menu', { name: '她的轮盘' }).press('6');
+  await expect(page.getByRole('status')).toContainText('自由活动已开启');
+  await expect(page).toHaveURL(/stack\.html#\/cmd/);
+
+  await open(page, { mode: 'ring', demo: 'empty' });
+  const wheel = page.getByRole('menu', { name: '她的轮盘' });
+  await expect(wheel.getByRole('menuitem', { name: /^2 待处理/ })).toHaveAttribute('aria-disabled', 'true');
+  await wheel.press('2');
+  await expect(wheel).toContainText('没有待处理的事');
+  await expect(page).toHaveURL(/stack\.html#\/cmd/);
+  expect(errors).toEqual([]);
+});
+
+test('wheel: 免打扰 follows the desktop state', async ({ page }) => {
+  await open(page, { mode: 'ring', demo: 'quiet' });
+  await expect(page.getByRole('menuitem', { name: /^3 结束免打扰/ })).toBeVisible();
 });
 
 test('快速输入: ⏎ while composing does not send; a sent line echoes 2 s and the input folds', async ({ page }) => {

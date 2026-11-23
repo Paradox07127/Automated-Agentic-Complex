@@ -1,4 +1,4 @@
-import type { DesktopAnchor, DesktopState } from '../../bridge';
+import type { DesktopAnchor, DesktopCommand, DesktopState } from '../../bridge';
 
 /** What every desktop slot gets; each stays null until native pushes its first value. */
 export interface SlotProps {
@@ -8,4 +8,5 @@ export interface SlotProps {
   presence: unknown;
 }
 
-export type CommandSlotProps = SlotProps & { close: () => void };
+/** `command`: the last one native sent; the opening one arrives before the slot mounts. */
+export type CommandSlotProps = SlotProps & { command: DesktopCommand | null; close: () => void };

@@ -9,9 +9,9 @@ import { C1 } from '../../mock/fixtures/ids';
 import { pluginState } from '../../shell/plugins';
 import { PLUGINS } from '../plugins.generated';
 
-const HASH_PANELS: Record<string, DesktopPanel> = { '/cmd': 'cmd', '/console': 'console', '/bubble': 'bubble', '/hud': 'hud', '/ring': 'ring' };
+const HASH_PANELS: Record<string, DesktopPanel> = { '/cmd': 'cmd', '/console': 'console', '/bubble': 'bubble', '/chip': 'chip', '/dock': 'dock', '/hud': 'hud' };
 
-/** The desktop panel the hash path names: `#/cmd`, `#/console`, `#/bubble`, `#/hud`, `#/ring`, else the HUD. */
+/** The desktop panel the hash path names: `#/cmd`, `#/console`, `#/bubble`, `#/chip`, `#/dock`, else the stack cards' page (`#/hud`). */
 export function hashPanel(): DesktopPanel {
   const path = (globalThis.location?.hash ?? '').replace(/^#/, '').split('?')[0];
   return HASH_PANELS[path ?? ''] ?? 'hud';
@@ -36,8 +36,8 @@ const ACTIVITY: Record<string, string> = {
 const STATUS: Record<string, string> = { awaiting_approval: 'needs_you', awaiting_input: 'needs_you', error: 'error' };
 
 /**
- * She stands settled at the right of one screen; the bubble sits beside her head, the HUD and the icon ring's row
- * under her feet.
+ * She stands settled at the right of one screen; the bubble and her hover buttons sit on her left, the command layer
+ * and the stack cards' page under her.
  * `demo=<dock reason>` docks every panel for that reason; `demo=far` leaves the panel dragged away from her.
  */
 export function fakeAnchor(panel: DesktopPanel, demo: string | null): DesktopAnchor {
@@ -47,17 +47,18 @@ export function fakeAnchor(panel: DesktopPanel, demo: string | null): DesktopAnc
     const side = panel === 'bubble' && (reason === 'hidden' || reason === 'fullscreen') ? 'menubar' : 'corner';
     return { panel, state: 'docked', side, docked: reason, far: true, toHead: reason === 'noroom' ? { dx: -560, dy: 340 } : null, room };
   }
-  const side = panel === 'console' ? 'status' : panel === 'cmd' || panel === 'hud' || panel === 'ring' ? 'below' : 'left';
+  const side = panel === 'console' ? 'status' : panel === 'cmd' || panel === 'hud' ? 'below' : 'left';
   if (demo === 'far') return { panel, state: 'settled', side, docked: null, far: true, toHead: { dx: 380, dy: -150 }, room };
-  const toHead = panel === 'hud' ? { dx: 0, dy: -420 } : panel === 'ring' ? { dx: 0, dy: -480 } : { dx: 220, dy: -36 };
+  const toHead = panel === 'hud' ? { dx: 0, dy: -420 } : { dx: 220, dy: -36 };
   return { panel, state: 'settled', side, docked: null, far: false, toHead, room };
 }
 
 /**
- * `window.onAnchor` and `desktop.*` over demo data; `mode=` picks what the cmd page opens, and the console page opens
- * itself. Besides the anchor demos,
+ * `window.onAnchor` and `desktop.*` over demo data; `mode=` picks what the cmd page opens (`at=x,y` its wheel's centre),
+ * and the console page opens itself. Besides the anchor demos,
  * `demo=hidden` and `demo=passthrough` set the desktop state, `plugins=` its plug-ins as for settings, `demo=empty` leaves
- * presence with no sessions or pending items.
+ * presence with no sessions or pending items; `dock=left|right|above|compact|closed` sets her hover buttons, open on
+ * the right by default; `demo=quiet` turns quiet on.
  */
 export function createFakeDesktop(
   query: () => URLSearchParams,
@@ -71,12 +72,16 @@ export function createFakeDesktop(
       hidden: demo() === 'hidden',
       clickThroughAll: demo() === 'passthrough',
       freeRoam: false,
-      quietUntil: PAUSE.quiet_until,
-      avatarHovered: false,
+      quietUntil: demo() === 'quiet' ? Date.now() + 45 * 60_000 : PAUSE.quiet_until,
+      dock: {
+        open: query().get('dock') !== 'closed',
+        side: (['left', 'above'] as const).find((s) => s === query().get('dock')) ?? 'right',
+        compact: query().get('dock') === 'compact',
+      },
       character: active ? { id: active.id, name: active.name } : null,
       characters: CHARACTERS.map((c) => ({ id: c.id, name: c.name })),
       screens: [{ id: '1', name: '内建显示器', current: true }, { id: '2', name: 'LG HDR 4K', current: false }],
-      hotkeys: { hk_quick: '⌃Space', hk_look: '⌃⌥L', hk_hide: '⌃⌥H', hk_pass: '⌃⌥P', hk_wheel: '⌃⌥R' },
+      hotkeys: { hk_quick: '⌃Space', hk_ptt: '右 ⌥', hk_look: '⌃⌥L', hk_hide: '⌃⌥H', hk_pass: '⌃⌥P', hk_wheel: '⌃⌥R' },
       pips: { ...pips, voice: 'on' },
       computerUseActive: computerUseActive(),
       plugins: PLUGINS.filter((p) => pluginState(demoPlugins(query().get('plugins')))[p.id]).map((p) => p.id),
@@ -172,7 +177,9 @@ export function createFakeDesktop(
         // Native does not replay commands (DesktopPushSource replay: false): one opening command, to the pages there are.
         if (!opened) {
           opened = true;
-          queueMicrotask(() => commands.forEach((c) => c({ kind: 'open', mode })));
+          const at = query().get('at')?.split(',').map(Number);
+          const open: DesktopCommand = at?.length === 2 && at.every(Number.isFinite) ? { kind: 'open', mode, at: { x: at[0]!, y: at[1]! } } : { kind: 'open', mode };
+          queueMicrotask(() => commands.forEach((c) => c(open)));
         }
         return () => void commands.delete(cb);
       },

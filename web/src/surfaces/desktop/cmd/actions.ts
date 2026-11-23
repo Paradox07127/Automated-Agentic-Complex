@@ -1,49 +1,37 @@
-// The command ring's action table: up to 8 direct actions, one step each, no sub-menus.
+// Her wheel's action table: 8 direct actions, one step each, no sub-menus.
 import type { DesktopState } from '../../../bridge';
-import type { HotkeyId } from '../../../domain/hotkeys';
 import type { NavTarget } from '../../../shell/nav';
-import type { IconName } from '../../../ui';
+import type { GameWheelItem } from '../../../ui/game/GameWheel';
 
-/** The bridge interface an action ends in. */
-export type CmdVia = 'app.look' | 'window.openMain' | 'desktop.action';
+export type CmdActionId = 'goChat' | 'pending' | 'quiet' | 'quietEnd' | 'pass' | 'home' | 'roam' | 'gift' | 'goCharacter';
 
-export type CmdActionId = 'input' | 'look' | 'openStack' | 'goChat' | 'quiet' | 'quietEnd' | 'pass' | 'hide' | 'show' | 'gift';
-
-export interface CmdItem {
+export interface CmdItem extends GameWheelItem {
   id: CmdActionId;
-  label: string;
-  /** A line under the label, for an item whose name alone does not say what it does. */
-  sub?: string;
-  icon: IconName;
-  via: CmdVia;
-  /** The main window page `window.openMain` opens. */
+  /** The main window page the item opens. */
   to?: NavTarget;
-  /** The setting whose saved combo the item hints. */
-  hotkey?: HotkeyId;
-  /** The item shows the pending count. */
-  pending?: boolean;
 }
 
-/** The ring items in key order, 屏幕识读 only while its plug-in is on; toggle labels follow the desktop state. */
-export function ringItems(s: DesktopState | null, now = Date.now()): CmdItem[] {
+/** The wheel's 8 slots clockwise from the top; the toggles follow the desktop state, 待处理 is greyed with nothing waiting. */
+export function wheelItems(s: DesktopState | null, pending: number, now = Date.now()): CmdItem[] {
   const quiet = s?.quietUntil != null && s.quietUntil > now;
+  const pass = s?.hotkeys.hk_pass;
   return [
-    { id: 'input', label: '快速输入', icon: 'send', via: 'desktop.action', hotkey: 'hk_quick' },
-    ...(s?.plugins.includes('screen_reading') ? [{ id: 'look', label: '屏幕识读', icon: 'look', via: 'app.look', hotkey: 'hk_look' } as const] : []),
-    { id: 'openStack', label: '待处理', icon: 'bell', via: 'desktop.action', pending: true },
-    { id: 'goChat', label: '打开对话', icon: 'ext', via: 'window.openMain', to: { page: 'chat' } },
+    { id: 'goChat', label: '对话页', icon: 'file', desc: '主窗口打开对话', to: { page: 'chat' } },
+    pending > 0
+      ? { id: 'pending', label: '待处理', icon: 'bell', desc: `${pending} 项待处理`, count: pending, to: { page: 'overview', focus: 'pending' } }
+      : { id: 'pending', label: '待处理', icon: 'bell', off: '没有待处理的事' },
     quiet
-      ? { id: 'quietEnd', label: '结束免打扰', icon: 'moonz', via: 'desktop.action' }
-      : { id: 'quiet', label: '免打扰 30 分', icon: 'moonz', via: 'desktop.action' },
-    { id: 'pass', label: s?.clickThroughAll ? '结束点穿' : '让鼠标穿过她', icon: 'hand', via: 'desktop.action', hotkey: 'hk_pass' },
-    s?.hidden
-      ? { id: 'show', label: '显示角色', icon: 'eye', via: 'desktop.action', hotkey: 'hk_hide' }
-      : { id: 'hide', label: '隐藏 30 分', icon: 'eye', via: 'desktop.action', hotkey: 'hk_hide' },
-    { id: 'gift', label: '送礼物', sub: '看她收礼', icon: 'redeem', via: 'desktop.action' },
+      ? { id: 'quietEnd', label: '结束免打扰', icon: 'moon', desc: '她又可以主动说话', on: true }
+      : { id: 'quiet', label: '免打扰', icon: 'moon', desc: '30 分钟里她不主动说话' },
+    { id: 'pass', label: '点穿', icon: 'hand', desc: pass ? `点击穿过她；${pass} 恢复` : '点击穿过她；在菜单栏恢复' },
+    { id: 'home', label: '放回原位', icon: 'loc', desc: '她和浮窗回到默认位置' },
+    { id: 'roam', label: '自由活动', icon: 'sync', desc: s?.freeRoam ? '开着：她会在屏幕上走动' : '让她在屏幕上走动', on: s?.freeRoam === true },
+    { id: 'gift', label: '送礼物', icon: 'redeem', desc: '看她收礼的动作' },
+    { id: 'goCharacter', label: '角色页', icon: 'user', desc: '换角色、外观、姿态、镜头', to: { page: 'character' } },
   ];
 }
 
-/** 待处理 on the ring: questions, approvals and results in agentd's `/desktop/presence`, counting the rows past the first 3. */
+/** 待处理 on the wheel: questions, approvals and results in agentd's `/desktop/presence`, counting the rows past the first 3. */
 export function pendingCount(presence: unknown): number {
   const pending = (presence as { pending?: Record<string, unknown> } | null)?.pending;
   if (!pending || typeof pending !== 'object') return 0;

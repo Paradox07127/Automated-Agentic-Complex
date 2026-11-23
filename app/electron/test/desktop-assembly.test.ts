@@ -1,8 +1,8 @@
 // The desktop panels' assembly (src/main/desktop/assembly.ts) with a stand-in `electron` module, fake windows and a fake
 // agentd: the 快速输入 hot key is not registered with `--no-attention` (as hotkeys/shell.ts); `pushState` sends
-// `desktop.onState` at once; `desktop.action`'s openSessions and openStack; the bubble's notice; C3 rule 39's present of
-// the stack for an approval; a mouse down outside closes ring, tune and the console; her lines' `noteLine` and the
-// `typing` the frame rate reads.
+// `desktop.onState` at once, with the hover buttons' `dock`; `desktop.action`'s openSessions, openStack and talk; the bubble's
+// notice; C3 rule 39's present of the bubble for an approval; the hover buttons opening after a rest on her; a mouse down
+// outside closes the wheel and the console; her lines' `noteLine` and the `typing` the frame rate reads.
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -34,7 +34,7 @@ registerHooks({
 });
 const { DesktopAssembly } = await import('../src/main/desktop/assembly.ts');
 /** The panels' routes in the order the assembly makes their windows. */
-const ROUTES = ['/bubble', '/hud', '/ring', '/cmd', '/console', '/chip'];
+const ROUTES = ['/bubble', '/dock', '/cmd', '/console', '/chip'];
 /** The URLs the fake windows loaded. */
 const loaded: string[] = [];
 
@@ -53,7 +53,7 @@ function fakeWindow(id: number, shown: (route: string) => void, moved: (route: s
 /** An assembly on fake windows with `extra` arguments until `done`, with config.json in a temporary support dir. */
 function setup(extra: string[], o: { present?: boolean; request?: Request; marks?: TurnMarks; mouse?: () => { x: number; y: number };
   mouseDowns?: (listener: () => void) => () => void; feed?: EventSource; noteLine?: () => void; makeWindow?: (kind: string) => void;
-  toDip?: (f: Rect) => Rectangle; screens?: () => ScreenInfo[] } = {}) {
+  toDip?: (f: Rect) => Rectangle; screens?: () => ScreenInfo[]; hovered?: boolean; talk?: (phase: 'start' | 'stop') => void } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'desktop-assembly-'));
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ hotkey_quick_input: 'control+option+k' }));
   const argv = process.argv;
@@ -87,10 +87,10 @@ function setup(extra: string[], o: { present?: boolean; request?: Request; marks
     sample: () => ({ now: performance.now() / 1000, body: { x: 600, y: 100, w: 200, h: 400 }, bodyAt: performance.now() / 1000, visual: null,
       placement: null, dragging: false }),
     avatarHidden: () => false, frontFullscreen: () => false, figure: () => 'si/default',
-    hover: () => ({ present: false, hovered: false, hints: true }),
+    hover: () => ({ present: o.hovered === true, hovered: o.hovered === true, hints: true }),
     state: () => ({ n: ++state }),
     actions: { look() {}, setHidden() {}, setQuiet: async () => {}, switchCharacter() {}, placeOnScreen() {}, resetPosition() {}, restartAll() {},
-      quit() {} },
+      quit() {}, ...(o.talk && { talk: o.talk }) },
     ...(o.present === false ? {} : { present: (token: string, side: string, phase: string) => {
       presented.push(token);
       calls.push(`present ${token} ${side} ${phase}`);
@@ -142,19 +142,19 @@ test('--no-attention registers no 快速输入 hot key, at start or when it is s
 test('pushState sends desktop.onState now; notice and openStack reach desktop.onCommand; openSessions opens the sessions page', async () => {
   const h = setup(['--no-attention']);
   h.desktop.start();
-  const states = h.watch('/hud', 'desktop.onState');
+  const states = h.watch('/dock', 'desktop.onState');
   const commands = h.watch('/bubble', 'desktop.onCommand');
   h.desktop.pushState();
-  assert.deepEqual(states, [{ n: 1 }]);
+  assert.deepEqual(states, [{ n: 1, dock: { open: false, side: 'right', compact: false } }]);
   h.desktop.notice('她在忙，等这一轮做完');
   // 去处理 with no card says so in the bubble; with one the stack expands.
-  assert.equal(await h.call('/hud', 'desktop.action', ['openStack']), null);
+  assert.equal(await h.call('/cmd', 'desktop.action', ['openStack']), null);
   h.desktop.agentd(true);
   assert.equal(h.desktop.testCard('approval'), true);
-  assert.equal(await h.call('/hud', 'desktop.action', ['openStack']), null);
+  assert.equal(await h.call('/cmd', 'desktop.action', ['openStack']), null);
   assert.deepEqual(commands, [{ kind: 'notice', text: '她在忙，等这一轮做完' }, { kind: 'notice', text: '现在没有要处理的' },
     { kind: 'expandStack' }]);
-  assert.equal(await h.call('/ring', 'desktop.action', ['openSessions']), null);
+  assert.equal(await h.call('/cmd', 'desktop.action', ['openSessions']), null);
   assert.ok(h.calls.includes('openMain /overview?focus=running'));
   h.done();
 });
@@ -163,7 +163,7 @@ test('each panel\'s window is made for its own overlay level', () => {
   const kinds: string[] = [];
   const h = setup(['--no-attention'], { makeWindow: (kind) => kinds.push(kind) });
   h.desktop.start();
-  assert.deepEqual(kinds, ['bubble', 'hud', 'ring', 'cmd', 'console', 'chip']);
+  assert.deepEqual(kinds, ['bubble', 'dock', 'cmd', 'console', 'chip']);
   h.done();
 });
 
@@ -171,7 +171,7 @@ test('resetOffsets (复位浮窗 in the menus) clears every panel\'s user offset
   const h = setup(['--no-attention']);
   const file = join(h.dir, 'desktop-offsets.json');
   const saved = { side: 'left', gap: 12, along: 0.5 };
-  writeFileSync(file, JSON.stringify({ 'desktopPanelOffset.v3.hud': saved, 'desktopPanelOffset.v3.bubble': saved, other: 1 }));
+  writeFileSync(file, JSON.stringify({ 'desktopPanelOffset.v3.dock': saved, 'desktopPanelOffset.v3.bubble': saved, other: 1 }));
   h.desktop.resetOffsets();
   assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { other: 1 });
   h.done();
@@ -192,7 +192,7 @@ test('the chip panel loads #/chip, shows with its circle\'s region beside her he
   assert.deepEqual(anchors.map((a) => { const { panel, side, docked } = a as Record<string, unknown>; return { panel, side, docked }; }),
     [{ panel: 'chip', side: 'right', docked: null }]);
   h.desktop.pushState();
-  assert.deepEqual(states.at(-1), { n: 1 });
+  assert.deepEqual(states.at(-1), { n: 1, dock: { open: false, side: 'right', compact: false } });
   h.done();
 });
 
@@ -211,46 +211,86 @@ test('on a 200 % display the page\'s reported size is the window\'s size in DIPs
   h.done();
 });
 
-test('rule 39: a hidden stack that gets an approval presents first and shows at her stroke', async () => {
+/** The bubble page showing its confirm card, as BubbleRoot reports it. */
+const confirmCard = (h: { call: (route: string, op: string, args: unknown[]) => unknown }) => {
+  h.call('/bubble', 'window.setContentSize', [{ width: 380, height: 200 }]);
+  h.call('/bubble', 'window.setInteractiveRegions', [[{ x: 16, y: 22, width: 348, height: 162 }]]);
+};
+
+test('rule 39: a hidden bubble that gets an approval presents first and shows at her stroke', async () => {
   const h = setup(['--no-attention']);
   h.desktop.start();
   h.desktop.agentd(true);
-  h.call('/hud', 'window.setContentSize', [{ width: 352, height: 80 }]);
   assert.equal(h.desktop.testCard('approval'), true);
+  confirmCard(h);
   const token = presented.at(-1)!;
   assert.deepEqual(h.calls, [`present ${token} right open`]);
   h.desktop.stroke('another');
   assert.deepEqual(h.calls, [`present ${token} right open`]);
   h.desktop.stroke(token);
-  assert.deepEqual(h.calls, [`present ${token} right open`, 'show /hud']);
+  assert.deepEqual(h.calls, [`present ${token} right open`, 'show /bubble']);
   h.done();
-  // Without the link's present the stack shows as before.
+  // Without the link's present the bubble shows as before.
   const bare = setup(['--no-attention'], { present: false });
   bare.desktop.start();
   bare.desktop.agentd(true);
-  bare.call('/hud', 'window.setContentSize', [{ width: 352, height: 80 }]);
   assert.equal(bare.desktop.testCard('approval'), true);
-  assert.deepEqual(bare.calls, ['show /hud']);
+  confirmCard(bare);
+  assert.deepEqual(bare.calls, ['show /bubble']);
   bare.done();
 });
 
-test('rule 39: a stack left with no cards closes her snap first and hides at its stroke, not at the push', async () => {
+test('rule 39: a bubble left with no approval closes her snap at the push', async () => {
   const h = setup(['--no-attention']);
   h.desktop.start();
   h.desktop.agentd(true);
-  h.call('/hud', 'window.setContentSize', [{ width: 352, height: 80 }]);
   assert.equal(h.desktop.testCard('approval'), true);
+  confirmCard(h);
   const token = presented.at(-1)!;
   h.desktop.stroke(token);
   h.calls.length = 0;
   h.desktop.source.onPush!([]);
   assert.deepEqual(h.calls, [`present ${token} right close`]);
-  // Longer than the panel's own hide delay for a stack without cards.
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-  assert.deepEqual(h.calls, [`present ${token} right close`]);
-  h.desktop.stroke(token);
-  assert.deepEqual(h.calls, [`present ${token} right close`, 'hide /hud']);
   h.done();
+});
+
+test('the hover buttons open after a rest on her, go out in desktop.onState, and close with the wheel or a pick', async () => {
+  const h = setup(['--no-attention'], { hovered: true });
+  h.desktop.start();
+  const states = h.watch('/dock', 'desktop.onState') as { dock: { open: boolean } }[];
+  const open = () => states.at(-1)?.dock.open === true;
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.equal(open(), false, 'not yet at 150 ms');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(open(), true);
+  assert.equal(h.desktop.avatarHovered, true);
+  h.desktop.open('ring');
+  assert.equal(open(), false, 'the wheel takes over');
+  h.desktop.close();
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  assert.equal(open(), true);
+  assert.equal(await h.call('/dock', 'desktop.action', ['look']), null);
+  assert.equal(open(), false, 'a pick closes them');
+  h.done();
+});
+
+test('说话 on the hover buttons runs the push-to-talk port and keeps them while it records', async () => {
+  const phases: string[] = [];
+  const h = setup(['--no-attention'], { hovered: true, talk: (phase) => phases.push(phase) });
+  h.desktop.start();
+  const states = h.watch('/dock', 'desktop.onState') as { dock: { open: boolean } }[];
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  assert.equal(states.at(-1)?.dock.open, true);
+  assert.equal(await h.call('/dock', 'desktop.action', ['talk', 'start']), null);
+  assert.equal(states.at(-1)?.dock.open, true);
+  assert.equal(await h.call('/dock', 'desktop.action', ['talk', 'stop']), null);
+  assert.deepEqual(phases, ['start', 'stop']);
+  h.done();
+  // Without the port the page hears not_implemented.
+  const bare = setup(['--no-attention']);
+  bare.desktop.start();
+  await assert.rejects(async () => bare.call('/dock', 'desktop.action', ['talk', 'start']), /not_implemented|desktop.action talk/);
+  bare.done();
 });
 
 test('desktop.say goes out with an Idempotency-Key and marks the line agentd took', async () => {
@@ -288,13 +328,13 @@ function pressing() {
 }
 
 /** The command layer opened in `mode` and its page's regions in, so its panel shows and is placed. */
-function openCmd(h: ReturnType<typeof pressing>, mode: 'ring' | 'tune' | 'input') {
+function openCmd(h: ReturnType<typeof pressing>, mode: 'ring' | 'input') {
   h.call('/cmd', 'window.setContentSize', [{ width: 300, height: 300 }]);
   h.desktop.open(mode);
   h.call('/cmd', 'window.setInteractiveRegions', [[{ x: 0, y: 0, width: 300, height: 300 }]]);
 }
 
-test('a mouse down outside the ring or tune closes it, one in its panel does not; input stays (DesktopCoordinator.mouseDown)', () => {
+test('a mouse down outside the wheel closes it, one in its panel does not; input stays (DesktopCoordinator.mouseDown)', () => {
   const h = pressing();
   h.desktop.start();
   assert.equal(h.listening(), true);
@@ -302,9 +342,6 @@ test('a mouse down outside the ring or tune closes it, one in its panel does not
   assert.ok(h.calls.includes('show /cmd'));
   h.press(h.centre('/cmd'));
   assert.equal(h.desktop.cmdMode, 'ring');
-  h.press({ x: -500, y: -500 });
-  assert.equal(h.desktop.cmdMode, null);
-  openCmd(h, 'tune');
   h.press({ x: -500, y: -500 });
   assert.equal(h.desktop.cmdMode, null);
   openCmd(h, 'input');

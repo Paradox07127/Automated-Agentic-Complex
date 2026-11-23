@@ -70,9 +70,7 @@ import { type ShellHotkeys, shellHotkeys, unregisteredHotkeys } from './hotkeys/
 import { interactionShell } from './interaction/shell.ts';
 import { appendLog } from './log.ts';
 import { appMenu, pageShortcut } from './menus/app.ts';
-import { avatarMenu } from './menus/avatar.ts';
 import { SettingsChanges } from './menus/items.ts';
-import { characterMenuPopup } from './menus/popup.ts';
 import { type IconBitmap, squareIcon } from './menus/icon.ts';
 import { shellMenus } from './menus/shell.ts';
 import { trayContextMenu } from './menus/tray.ts';
@@ -689,17 +687,11 @@ const interaction = config && runtimePath !== null ? (() => {
     },
     settings: () => readObject(configPath), configPath, link: hostLink, desktop: () => desktop,
     openSessions: () => openMainAt(sessionsRoute()),
-    // The menu comes up at the pointer.
+    // The wheel opens with its centre at the click.
     onContextMenu: (at) => {
-      const space = (cursorSpace ??= c3Space(screen)), toDip = c3Dip(screen);
-      const popup = characterMenuPopup(at, {
-        toDip: (p) => toDip(space.rectFromC3({ x: p.x, y: p.y, w: 0, h: 0 })),
-        display: (p) => screen.getDisplayNearestPoint(p).bounds,
-        windows: () => BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed())
-          .map((w) => ({ window: w, visible: w.isVisible(), content: w.getContentBounds() })),
-      });
-      if (popup) Menu.buildFromTemplate(avatarMenu(menus.state(), menus.ports())).popup(popup);
-      else appendLog(config!.supportDir, 'companion', 'character menu: no window to pop it up over');
+      const p = (cursorSpace ??= c3Space(screen)).rectFromC3({ x: at.x, y: at.y, w: 0, h: 0 });
+      if (desktop) desktop.openWheel({ x: p.x, y: p.y });
+      else appendLog(config!.supportDir, 'companion', 'wheel: no desktop panels to open it in');
     },
     clickThroughChanged: () => {
       runtimeChanged();

@@ -159,10 +159,11 @@
   font: var(--ef-fw-semibold) 10px / 1 var(--ef-font-num);
 }
 
+/* The count sits on the icon's other shoulder from the slot number. */
 .badge {
   position: absolute;
   top: -2px;
-  right: 8px;
+  left: 8px;
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
@@ -253,6 +254,12 @@
   font: var(--ef-fw-regular) var(--ef-fs-meta) / 22px var(--ef-font-sans);
   white-space: nowrap;
   transform: translateX(-50%);
+  visibility: hidden;
+}
+
+/* Shown while ⌘ is held: a `data-keys` ancestor says so. */
+:global([data-keys]) .help {
+  visibility: visible;
 }
 
 .help kbd {

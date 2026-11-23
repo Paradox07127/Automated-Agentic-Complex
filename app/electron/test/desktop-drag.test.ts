@@ -35,15 +35,15 @@ test('rule 7: a user offset places the panel there, kept on screen; one whose ca
   assert.deepEqual(p.bubble?.frame, r(800, 749, 380, 200));
   ({ placements: p } = at({ side: 'right', gap: -100, along: -150 }));
   assert.deepEqual(p.bubble?.frame, r(768, 300, 380, 200));
-  // The hud takes its offset as well.
-  ({ placements: p } = place({ body, screens: [main], requests: [{ kind: 'hud', size: { w: 352, h: 80 }, cardInsets: ZERO_INSETS, visible: true,
-    userOffset: { side: 'below', gap: 20, along: -100 } }] }));
-  assert.deepEqual(p.hud, { frame: r(600, 8, 352, 80), side: 'below', docked: null, far: true });
+  // The dock takes its offset as well.
+  ({ placements: p } = place({ body, screens: [main], requests: [{ kind: 'dock', size: { w: 212, h: 188 }, cardInsets: ZERO_INSETS, visible: true,
+    userOffset: { side: 'right', gap: 40, along: -150 } }] }));
+  assert.deepEqual(p.dock, { frame: r(848, 350, 212, 188), side: 'right', docked: null, far: false });
 });
 
-test('a pinned panel sits at its top-left, far from her, and the hud does not lift it', () => {
+test('a pinned panel sits at its top-left, far from her, and the dock does not lift it', () => {
   const { placements: p } = place({ body, screens: [main], requests: [bubble({ pin: { x: 100, y: 900 } }),
-    { kind: 'hud', size: { w: 352, h: 80 }, cardInsets: ZERO_INSETS, visible: true }] });
+    { kind: 'dock', size: { w: 212, h: 188 }, cardInsets: ZERO_INSETS, visible: true }] });
   assert.deepEqual(p.bubble, { frame: r(100, 700, 380, 200), side: 'left', docked: null, far: true });
 });
 

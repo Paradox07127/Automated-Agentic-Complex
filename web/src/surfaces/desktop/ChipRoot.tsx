@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { getBridge } from '../../bridge';
+import type { VisualStateKey } from '../../domain/states';
 import { useSystemTheme } from '../../shell/useSystemTheme';
+import { StatusMark } from '../../ui/game/StatusMark';
 import { stackQuery } from '../stack/demos';
+import { isStackApproval } from '../stack/model';
 import { useHover } from '../stack/useHover';
-import { DoingRow } from './bubble/DoingRow';
+import { doingOf } from './bubble/doing';
 import type { Bar } from './comm/commReducer';
 import { useComm } from './comm/useComm';
 import { useAnchor } from './hooks/useAnchor';
@@ -11,7 +14,6 @@ import { useDesktopState } from './hooks/useDesktopState';
 import { logInfo } from './hooks/useMountedLog';
 import { usePresence } from './hooks/usePresence';
 import { useRegions } from './hooks/useRegions';
-import { ringOpens } from './RingRoot';
 import { chipOf, readPresence, type ChipKind } from './tags/presence';
 import styles from './ChipRoot.module.css';
 
@@ -23,69 +25,16 @@ const TIP_GAP = 6;
 /** The circle sits at the panel's centre, with room for the tip on either side. */
 export const CHIP_PANEL = { width: CHIP_HIT + 2 * (TIP_GAP + TIP_W), height: CHIP_HIT };
 
-const LABEL: Record<ChipKind, string> = {
-  running: '在忙',
-  thinking: '在想',
-  offline: '连不上后台',
-  waiting: '待处理',
-  done: '完成',
-  error: '出错了',
-  interrupted: '已打断',
+/** How each kind shows on the mark: its state word, the capsule's text, and the line its tip says. */
+const MARK: Record<ChipKind, { state: VisualStateKey; label: string; cap?: string }> = {
+  waiting: { state: 'awaiting_approval', label: '待批准', cap: '待批准' },
+  error: { state: 'error', label: '出错了', cap: '出错了' },
+  running: { state: 'running', label: '在忙' },
+  done: { state: 'done', label: '做完了' },
+  offline: { state: 'unreachable', label: '连不上后台', cap: '连不上后台' },
 };
 
-function Glyph({ kind }: { kind: ChipKind }): ReactNode {
-  switch (kind) {
-    case 'running':
-      return (
-        <svg viewBox="0 0 28 28" aria-hidden="true">
-          <circle className={styles.track} cx="14" cy="14" r="9" />
-          <circle className={styles.arc} cx="14" cy="14" r="9" pathLength="100" />
-        </svg>
-      );
-    case 'thinking':
-      return (
-        <svg viewBox="0 0 28 28" aria-hidden="true">
-          {[8, 14, 20].map((x, i) => (
-            <circle key={x} className={styles.dot} cx={x} cy="14" r="2.2" style={{ animationDelay: `${i * 160}ms` }} />
-          ))}
-        </svg>
-      );
-    case 'offline':
-      return (
-        <svg viewBox="0 0 28 28" aria-hidden="true">
-          <path d="M6 14h4M18 14h4M10 10v8M18 10v8M12.5 12l3 4" />
-        </svg>
-      );
-    case 'waiting':
-      return (
-        <svg viewBox="0 0 28 28" aria-hidden="true">
-          <circle cx="14" cy="14" r="8" />
-          <path className={styles.fill} d="M14 9.5l4.5 4.5-4.5 4.5-4.5-4.5z" />
-        </svg>
-      );
-    case 'done':
-      return (
-        <svg viewBox="0 0 28 28" aria-hidden="true">
-          <circle cx="14" cy="14" r="8.5" />
-          <path d="M10 14.3l2.8 2.8 5.4-5.8" />
-        </svg>
-      );
-    case 'error':
-      return (
-        <svg viewBox="0 0 28 28" aria-hidden="true">
-          <path d="M9.5 9.5l9 9M18.5 9.5l-9 9" />
-        </svg>
-      );
-    case 'interrupted':
-      return (
-        <svg viewBox="0 0 28 28" aria-hidden="true">
-          <rect className={styles.fill} x="10" y="10" width="8" height="8" />
-        </svg>
-      );
-  }
-}
-
-/** Her main line, as the bubble picks it; an error line stays after its bar until it is seen. */
+/** Her main line, as the bubble picks it; an error line counts once the bubble has put it away, and stays until it is seen. */
 function useLine(still: boolean): Bar | null {
   const [comm] = useComm(null, still);
   const bar = comm.bars.find((b) => b.kind === 'main') ?? comm.bars[0] ?? null;
@@ -93,13 +42,15 @@ function useLine(still: boolean): Bar | null {
   useEffect(() => {
     if (bar?.phase === 'error') setFailed(bar);
   }, [bar]);
-  return bar && bar.phase !== 'fading' ? bar : failed;
+  if (bar && bar.phase !== 'fading') return bar.phase === 'error' ? null : bar;
+  return failed;
 }
 
 /**
- * `stack.html#/chip`, the status chip beside her head for what has no bubble of its own: a 28 px icon in a
- * 36 px circle, the panel's only region. Hovered it shows the 正在做 line; clicked it unfolds the HUD for what waits on
- * the user or failed, else opens the bubble. Hidden while she is docked or the ring is open.
+ * `stack.html#/chip`, the status mark beside her head for what has no bubble of its own, one at a time: waiting (with
+ * 待批准 n), failed, busy, done or unplugged, the panel's only region. Hovered it shows the 正在做 line; clicked, what waits
+ * on the user or failed unfolds in the bubble, busy and done open 任务, unplugged opens 诊断. Hidden while she is docked
+ * or her hover buttons are open.
  */
 export function ChipRoot() {
   const [q] = useState(stackQuery);
@@ -131,19 +82,26 @@ export function ChipRoot() {
   useRegions(rootRef);
   useEffect(() => logInfo(`mounted chip ${window.location.hash || '#/'}`), []);
   useEffect(() => getBridge().window.setContentSize(CHIP_PANEL), []);
-  const { ref: hitRef, hovered, handlers } = useHover<HTMLButtonElement>();
+  const { ref: hitRef, hovered, handlers } = useHover<HTMLSpanElement>();
 
-  const shown = chip && !anchor?.docked && !ringOpens(state) ? chip : null;
+  // An approval the bubble shows on its paper card is not marked again.
+  const [asking, setAsking] = useState(0);
+  useEffect(
+    () => getBridge().stack.onCards((p) => setAsking(p.cards.filter((c) => isStackApproval(c) && !c.collapsed && !c.outcome).length), () => {}),
+    [],
+  );
+  const shown = chip && !anchor?.docked && !state?.dock.open && !(chip.kind === 'waiting' && asking > 0) ? chip : null;
   // The tip goes away from her.
   const tipSide = (anchor?.toHead?.dx ?? 0) > 0 ? 'left' : 'right';
   const open = () => {
     if (!shown) return;
     const bridge = getBridge();
     if (shown.kind === 'error') setSeen((s) => new Set([...s, ...shown.errors]));
-    const go = shown.kind === 'waiting' || shown.kind === 'error' ? bridge.desktop.action('openStack') : bridge.desktop.action('quickInput');
-    void go.catch(() => {});
+    if (shown.kind === 'waiting' || shown.kind === 'error') void bridge.desktop.action('openStack').catch(() => {});
+    else bridge.window.openMain(shown.kind === 'offline' ? '/diag' : '/overview');
   };
-  const label = shown?.kind === 'waiting' ? `${LABEL.waiting} ${shown.count} 项` : shown ? LABEL[shown.kind] : '';
+  const mark = shown ? MARK[shown.kind] : null;
+  const tip = shown?.kind === 'running' ? doingOf(presence).text : null;
 
   return (
     <div
@@ -153,27 +111,15 @@ export function ChipRoot() {
       data-tip={tipSide}
       style={{ width: CHIP_PANEL.width, height: CHIP_PANEL.height }}
     >
-      {shown && (
-        <button
-          ref={hitRef}
-          key={shown.kind}
-          type="button"
-          className={styles.hit}
-          data-region=""
-          data-chip={shown.kind}
-          aria-label={label}
-          onClick={open}
-          {...handlers}
-        >
-          <span className={styles.icon}>
-            <Glyph kind={shown.kind} />
-          </span>
-          {shown.kind === 'waiting' && <span className={`${styles.count} num`}>{shown.count}</span>}
-        </button>
+      {shown && mark && (
+        <span ref={hitRef} key={shown.kind} className={styles.hit} data-region="" data-chip={shown.kind} {...handlers}>
+          <StatusMark state={mark.state} cap={mark.cap} count={shown.kind === 'waiting' ? shown.count : undefined}
+            label={shown.kind === 'waiting' ? `${mark.label} ${shown.count} 项` : mark.label} onClick={open} />
+        </span>
       )}
-      {shown && hovered && (
+      {shown && hovered && tip && (
         <div className={styles.tip} data-chip-tip="" role="tooltip">
-          <DoingRow presence={presence} />
+          {tip}
         </div>
       )}
     </div>

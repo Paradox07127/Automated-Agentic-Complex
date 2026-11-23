@@ -4,10 +4,11 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgentdResponse, DesktopCommand, AgenticComplexBridge, StackPayload, StreamEvent } from '../../src/bridge/protocol';
 import { BubbleRoot } from '../../src/surfaces/desktop/BubbleRoot';
 import { sayMs } from '../../src/surfaces/desktop/bubble/sayTime';
+import { lingerMs } from '../../src/surfaces/desktop/comm/commReducer';
 import { stubMatchMedia } from './mediaStub';
 
-// The thought bubble beside her head (`#/bubble`): thought, her line, a due reminder, the 正在做 row, and 快速输入
-// under it, opened by a command or by a drop. Which states draw no card is in status-chip.test.tsx.
+// The bubble beside her head (`#/bubble`): thought, her line, a due reminder, and 快速输入 under it, opened by a
+// command or by a drop; each goes after its time. Which states draw no card is in status-chip.test.tsx.
 
 stubMatchMedia();
 afterEach(() => {
@@ -67,7 +68,6 @@ function mountBubble(hash = '#/bubble') {
 }
 
 const presenceOf = (extra: Record<string, unknown> = {}) => ({ sampled_at: SAMPLED, proactive_speech: true, thought: THOUGHT, role: RUNNING, ...extra });
-const doingRow = () => document.querySelector<HTMLElement>('[data-bubble-doing]')?.textContent ?? '';
 
 describe('the bubble', () => {
   it('sends a typed reply once from the visible send button', async () => {
@@ -103,46 +103,35 @@ describe('the bubble', () => {
     expect(document.querySelector('[data-surface-root="bubble"] [data-glass]')).not.toBeNull();
   });
 
-  it('a finished line collapses to the icon after sayMs; clicking the icon brings the card back, and a new line shows the card', async () => {
+  it('a finished line goes after its time, leaving no icon, and a new line shows the card', async () => {
     vi.useFakeTimers();
     const b = mountBubble();
-    await b.presence(presenceOf());
+    await b.presence(presenceOf({ thought: null }));
     const text = '构建失败在第 42 行，补上分号再跑一次。';
     await b.line('l1', text);
     expect(document.querySelector('[data-bubble-timer]')).toBeNull();
     await b.line('l1', '', true);
     screen.getByText(text);
     expect(document.querySelector('[data-bubble-timer]')).not.toBeNull();
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
-    await flush(async () => vi.advanceTimersByTime(sayMs(text) - 300));
+    await flush(async () => vi.advanceTimersByTime(lingerMs(text) - 300));
     screen.getByText(text);
     await flush(async () => vi.advanceTimersByTime(600));
     expect(screen.queryByText(text)).toBeNull();
-    expect(screen.queryByText(THOUGHT.text)).toBeNull();
-    const icon = screen.getByRole('button', { name: '展开消息' });
-    expect(icon.getAttribute('title')).toContain('构建失败在第 42 行');
-
-    fireEvent.click(icon);
-    screen.getByText(text);
     expect(screen.queryByRole('button', { name: '展开消息' })).toBeNull();
-    await flush(async () => vi.advanceTimersByTime(sayMs(text) - 300));
-    screen.getByText(text);
-    await flush(async () => vi.advanceTimersByTime(600));
-    screen.getByRole('button', { name: '展开消息' });
+    expect(document.querySelector('[data-surface-root="bubble"] [data-region]')).toBeNull();
 
     await b.line('l2', '新的一句。', true);
     screen.getByText('新的一句。');
-    expect(screen.queryByRole('button', { name: '展开消息' })).toBeNull();
   });
 
   it('hover pauses the countdown and leaves at least 1500 ms after the pointer leaves', async () => {
     vi.useFakeTimers();
     const b = mountBubble();
-    await b.presence(presenceOf());
+    await b.presence(presenceOf({ thought: null }));
     await b.line('l2', '好的。', true);
     const card = document.querySelector<HTMLElement>('[data-bubble]');
     if (!card) throw new Error('no bubble');
-    await flush(async () => vi.advanceTimersByTime(sayMs('好的。') - 200));
+    await flush(async () => vi.advanceTimersByTime(lingerMs('好的。') - 200));
     fireEvent.mouseEnter(card);
     await flush(async () => vi.advanceTimersByTime(20_000));
     screen.getByText('好的。');
@@ -151,48 +140,52 @@ describe('the bubble', () => {
     screen.getByText('好的。');
     await flush(async () => vi.advanceTimersByTime(200));
     expect(screen.queryByText('好的。')).toBeNull();
-    screen.getByRole('button', { name: '展开消息' });
   });
 
-  it('a thought collapses to the icon after sayMs, reopens on click, and a new thought or 关闭 resets it', async () => {
+  it('a thought pops up once: it goes after its time and does not come back; another thought does, and 关闭 puts it away', async () => {
     vi.useFakeTimers();
     const b = mountBubble();
     await b.presence(presenceOf());
     screen.getByText(THOUGHT.text);
     expect(document.querySelector('[data-bubble-timer]')).not.toBeNull();
-    await flush(async () => vi.advanceTimersByTime(sayMs(THOUGHT.text) - 300));
+    await flush(async () => vi.advanceTimersByTime(lingerMs(THOUGHT.text) - 300));
     screen.getByText(THOUGHT.text);
     await flush(async () => vi.advanceTimersByTime(600));
     expect(screen.queryByText(THOUGHT.text)).toBeNull();
-    const icon = screen.getByRole('button', { name: '展开消息' });
-    expect(icon.getAttribute('title')).toContain('测试又红了');
 
     await b.presence(presenceOf({ sampled_at: SAMPLED + 10 }));
-    screen.getByRole('button', { name: '展开消息' });
+    expect(screen.queryByText(THOUGHT.text)).toBeNull();
 
-    fireEvent.click(icon);
-    screen.getByText(THOUGHT.text);
-    await flush(async () => vi.advanceTimersByTime(sayMs(THOUGHT.text) + 100));
-    screen.getByRole('button', { name: '展开消息' });
-
-    await b.presence(presenceOf({ thought: { ...THOUGHT, text: '报错换了一行。' } }));
+    await b.presence(presenceOf({ thought: { ...THOUGHT, id: 't2', text: '报错换了一行。' } }));
     screen.getByText('报错换了一行。');
-    expect(screen.queryByRole('button', { name: '展开消息' })).toBeNull();
     await flush(async () => fireEvent.click(screen.getByRole('button', { name: '关闭' })));
     expect(screen.queryByText('报错换了一行。')).toBeNull();
-    expect(screen.queryByRole('button', { name: '展开消息' })).toBeNull();
   });
 
-  it('a reminder has no countdown bar and never collapses', async () => {
+  it('a thought her line cut short does not come back after the line', async () => {
     vi.useFakeTimers();
     const b = mountBubble();
     await b.presence(presenceOf());
+    screen.getByText(THOUGHT.text);
+    await b.line('l1', '好的。', true);
+    screen.getByText('好的。');
+    await flush(async () => vi.advanceTimersByTime(lingerMs('好的。') + 100));
+    expect(screen.queryByText('好的。')).toBeNull();
+    expect(screen.queryByText(THOUGHT.text)).toBeNull();
+  });
+
+  it('a reminder shows its time, goes after its time, and moves to native\'s history', async () => {
+    vi.useFakeTimers();
+    const b = mountBubble();
+    const collapse = vi.spyOn(b.bridge.stack, 'collapse');
+    await b.presence(presenceOf());
     await b.cards([{ id: 'rem-c1', kind: 'notice', variant: 'reminder', at: SAMPLED * 1000, title: 'c1 组会', commitment_id: 'c1' }]);
     screen.getByText('c1 组会');
-    expect(document.querySelector('[data-bubble-timer]')).toBeNull();
-    await flush(async () => vi.advanceTimersByTime(60_000));
-    screen.getByText('c1 组会');
-    expect(screen.queryByRole('button', { name: '展开消息' })).toBeNull();
+    expect(document.querySelector('[data-bubble]')?.getAttribute('data-kind')).toBe('remind');
+    expect(document.querySelector('[data-bubble-timer]')).not.toBeNull();
+    await flush(async () => vi.advanceTimersByTime(lingerMs('c1 组会') + 100));
+    expect(screen.queryByText('c1 组会')).toBeNull();
+    expect(collapse).toHaveBeenCalledWith('rem-c1');
   });
 
   it('caps a line’s stay at 12 s', () => {
@@ -200,46 +193,25 @@ describe('the bubble', () => {
     expect(sayMs('长'.repeat(200))).toBe(12_000);
   });
 
-  it('a due reminder takes the thought’s place; 知道了 completes it and 稍后 snoozes it 10 minutes', async () => {
+  it('a due reminder takes the thought’s place, the newest first, with no button of its own', async () => {
     const b = mountBubble();
-    const request = vi.spyOn(b.bridge.agentd, 'request').mockResolvedValue({ status: 200, body: { commitment: { due_at: SAMPLED + 600 } } });
-    const collapse = vi.spyOn(b.bridge.stack, 'collapse');
     await b.presence(presenceOf());
     const rem = (id: string, at: number) => ({ id: `rem-${id}`, kind: 'notice' as const, variant: 'reminder' as const, at, title: `${id} 组会`, commitment_id: id });
     await b.cards([rem('c1', SAMPLED * 1000 - 60_000), rem('c2', SAMPLED * 1000)]);
     screen.getByText('c2 组会');
     expect(screen.queryByText('c1 组会')).toBeNull();
     expect(screen.queryByText(THOUGHT.text)).toBeNull();
-    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '知道了' })));
-    expect(request).toHaveBeenCalledWith('POST', '/commitments/c2/complete', undefined);
-    expect(collapse).toHaveBeenCalledWith('rem-c2');
-    screen.getByText('c1 组会');
-    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '稍后' })));
-    expect(request).toHaveBeenLastCalledWith('POST', '/commitments/c1/snooze', { minutes: 10 });
-    expect(collapse).toHaveBeenLastCalledWith('rem-c1');
-    screen.getByText(THOUGHT.text);
+    expect(screen.queryByRole('button', { name: '知道了' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '稍后' })).toBeNull();
   });
 
-  it('the 正在做 row reads role.doing with the minutes since the run began, and falls back without it', async () => {
+  it('has no 正在做 row, head card or thinking bar', async () => {
     const b = mountBubble();
     await b.presence(presenceOf());
-    expect(doingRow()).toBe('▸ 在跑 swift test │ 4 分钟');
-    await b.presence(presenceOf({ role: { ...RUNNING, doing: undefined } }));
-    expect(doingRow()).toBe('▸ 我在跑测试。 │ 4 分钟');
-    await b.presence(presenceOf({ role: { ...RUNNING, doing: undefined, intention: null } }));
-    expect(doingRow()).toBe('▸ 在跑 │ 4 分钟');
-    await b.presence(presenceOf({ role: { state: 'idle', activity: '陪着你' } }));
-    expect(doingRow()).toBe('▸ 陪着你');
-  });
-
-  it('the 正在做 row says 连不上后台 while native marks agentd offline, and reads the next presence again', async () => {
-    const b = mountBubble();
-    await b.presence(presenceOf());
-    await b.presence({ offline: true });
-    expect(doingRow()).toBe('▸ 连不上后台');
-    screen.getByText(THOUGHT.text);
-    await b.presence(presenceOf());
-    expect(doingRow()).toBe('▸ 在跑 swift test │ 4 分钟');
+    expect(document.querySelector('[data-bubble-doing]')).toBeNull();
+    await b.accepted('u1');
+    expect(screen.queryByText('在想')).toBeNull();
+    expect(document.querySelector('[data-surface-root="bubble"] [data-region]')).toBeNull();
   });
 
   it('an open input command unfolds 快速输入 under the bubble; esc folds it and hands the key back', async () => {
@@ -565,15 +537,13 @@ describe('the bubble’s thought and mute', () => {
     expect(request).toHaveBeenCalledWith('POST', '/feedback', { line_id: 'd-pro', value: 'dont_disturb', mute: true });
   });
 
-  it('drags by the whole header, grip and 正在做 row, and reports it as a drag region without hovering', async () => {
+  it('drags by the strip along its top, reported as a drag region without hovering', async () => {
     const b = mountBubble();
     const report = vi.spyOn(b.bridge.window, 'setInteractiveRegions');
     await b.presence(presenceOf());
     const drags = document.querySelectorAll<HTMLElement>('[data-drag]');
     expect(drags).toHaveLength(1);
-    expect(drags[0]!.tagName).toBe('HEADER');
-    expect(drags[0]!.querySelector('[aria-label="拖动气泡；双击回到默认位置"]')).not.toBeNull();
-    expect(drags[0]!.querySelector('[data-bubble-doing]')).not.toBeNull();
+    expect(drags[0]!.parentElement?.hasAttribute('data-bubble')).toBe(true);
     await flush(async () => {});
     expect(report.mock.calls.at(-1)?.[0].some((r) => r.drag === true)).toBe(true);
   });
@@ -585,7 +555,8 @@ describe('the bubble’s thought and mute', () => {
     await b.line('c1', '我先去看看日志。', true);
     await flush(async () => fireEvent.click(screen.getByRole('button', { name: '关闭' })));
     expect(screen.queryByText('我先去看看日志。')).toBeNull();
-    screen.getByText(THOUGHT.text);
+    // The thought her line replaced has had its one showing.
+    expect(screen.queryByText(THOUGHT.text)).toBeNull();
     expect(request).not.toHaveBeenCalled();
   });
 
@@ -682,12 +653,11 @@ describe('the bubble’s thought and mute', () => {
     expect(document.querySelector('[data-subtitle]')!.textContent).not.toContain('在想');
   });
 
-  it('a due reminder offers no 关闭 of its own over its buttons', async () => {
+  it('a due reminder offers neither 关闭 nor 更多操作 of its own', async () => {
     const b = mountBubble();
     await b.presence(presenceOf());
     await b.cards([{ id: 'rem-c1', kind: 'notice', variant: 'reminder', at: SAMPLED * 1000, title: 'c1 组会', commitment_id: 'c1' }]);
-    screen.getByRole('button', { name: '知道了' });
-    screen.getByRole('button', { name: '稍后' });
+    screen.getByText('c1 组会');
     expect(screen.queryByRole('button', { name: '更多操作' })).toBeNull();
     expect(screen.queryByRole('button', { name: '关闭' })).toBeNull();
   });

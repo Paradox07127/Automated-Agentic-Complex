@@ -1,4 +1,13 @@
+.box {
+  position: relative;
+}
+
+/* The receipt sits in the middle of the wheel's box. */
 .receipt {
-  width: fit-content;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max-content;
   max-width: 420px;
+  transform: translate(-50%, -50%);
 }

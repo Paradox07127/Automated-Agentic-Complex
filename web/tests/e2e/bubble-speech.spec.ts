@@ -107,12 +107,12 @@ test('an error stays 8 s, an interruption 4 s', async ({ page }) => {
   await page.mouse.move(1270, 790);
   await native.line({ line_id: 'e', text_delta: '我去读一下日志' });
   await native.line({ line_id: 'e', text_delta: '', final: true, error: 'kernel_timeout' });
-  await expect(speech(page)).toHaveAttribute('data-phase', 'error');
-  await expect(speech(page)).toContainText('这一轮出错了');
+  const failed = page.locator('[data-bubble][data-kind="error"]');
+  await expect(failed).toContainText('这一轮出错了');
   await page.clock.runFor(7_500);
-  await expect(speech(page)).toBeVisible();
+  await expect(failed).toBeVisible();
   await page.clock.runFor(1_000);
-  await expect(speech(page)).toHaveCount(0);
+  await expect(failed).toHaveCount(0);
 
   await native.line({ line_id: 'c', text_delta: '说到一半' });
   await native.line({ line_id: 'c', text_delta: '', final: true, cancelled: true });

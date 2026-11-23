@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { getBridge, type DesktopAnchor, type DockReason, type SayReplyTo } from '../../bridge';
+import { formatClock } from '../../domain';
 import { useSystemTheme } from '../../shell/useSystemTheme';
+import { navRoute } from '../../shell/nav';
+import { Btn } from '../../ui/Btn';
 import { AvatarLoadingStackCard } from '../stack/cards/AvatarLoadingStackCard';
-import { NoticeStackCard } from '../stack/cards/NoticeStackCard';
 import { VoiceHintStackCard } from '../stack/cards/VoiceHintStackCard';
 import { stackQuery } from '../stack/demos';
 import { useHover } from '../stack/useHover';
@@ -10,9 +12,9 @@ import { useSeenReceipt } from '../stack/useSeenReceipt';
 import { useStackActions } from '../stack/useStackActions';
 import { Acts, type ActsProps, type Vote } from './bubble/Acts';
 import { BubbleInput } from './bubble/BubbleInput';
+import { ConfirmCard } from './bubble/ConfirmCard';
 import { bubbleCards, bubbleLine, bubblePresence } from './bubble/demo';
-import { DoingRow } from './bubble/DoingRow';
-import { HeadCard, RadioIcon } from './bubble/HeadCard';
+import { HeadBubble, type BubbleKind } from './bubble/HeadBubble';
 import { Reminder } from './bubble/Reminder';
 import { Speech } from './bubble/Speech';
 import { Thought } from './bubble/Thought';
@@ -21,7 +23,7 @@ import { useCollapse, type CollapseTarget } from './bubble/useCollapse';
 import { useQuickInput } from './bubble/useQuickInput';
 import { useSpeech } from './bubble/useSpeech';
 import { useThoughtMute } from './bubble/useThoughtMute';
-import { asksFeedback, canMute } from './comm/commReducer';
+import { asksFeedback, canMute, ERROR_MS, lingerMs } from './comm/commReducer';
 import { Subtitle } from './comm/Subtitle';
 import { useAnchor } from './hooks/useAnchor';
 import { useContentSize } from './hooks/useContentSize';
@@ -36,17 +38,19 @@ import styles from './BubbleRoot.module.css';
 
 /** Docked for these, she is not on screen to point at: her line shows as a subtitle under the menu bar. */
 const SUBTITLE: DockReason[] = ['hidden', 'fullscreen', 'offscreen', 'stale'];
-/** How long native's `notice` line stays. */
+/** How long native's `notice` line and a 屏幕识读 receipt stay. */
 const NOTICE_MS = 4000;
 
-/** The text of native's last `notice` command, for `NOTICE_MS`. */
-function useNotice(): { n: number; text: string } | null {
+/** The text of native's last `notice` command, for `NOTICE_MS`; `expandStack` unfolds a folded approval. */
+function useCommands(): { notice: { n: number; text: string } | null; unfold: number } {
   const [notice, setNotice] = useState<{ n: number; text: string } | null>(null);
+  const [unfold, setUnfold] = useState(0);
   const sent = useRef(0);
   useEffect(
     () =>
       getBridge().desktop.onCommand((c) => {
         if (c.kind === 'notice') setNotice({ n: (sent.current += 1), text: c.text });
+        else if (c.kind === 'expandStack') setUnfold((n) => n + 1);
       }),
     [],
   );
@@ -55,27 +59,22 @@ function useNotice(): { n: number; text: string } | null {
     const t = setTimeout(() => setNotice(null), NOTICE_MS);
     return () => clearTimeout(t);
   }, [notice]);
-  return notice;
+  return { notice, unfold };
 }
 
-/** The card edge the tail leaves from, toward her head. */
-function tailOf(a: DesktopAnchor | null): { side: 'left' | 'right' | 'top' | 'bottom'; style: CSSProperties } | null {
+/** The bottom corner the tail leaves from, toward her head: the side her head is on, else the middle when she is below. */
+function tailOf(a: DesktopAnchor | null): 'left' | 'right' | 'bottom' | null {
   const to = a?.toHead;
   if (!to || (to.dx === 0 && to.dy === 0)) return null;
-  const side = Math.abs(to.dx) >= Math.abs(to.dy) ? (to.dx > 0 ? 'right' : 'left') : to.dy > 0 ? 'bottom' : 'top';
-  return { side, style: { '--to-x': `${to.dx}px`, '--to-y': `${to.dy}px` } as CSSProperties };
-}
-
-function headText(text: string): string {
-  const chars = [...text.trim()];
-  return chars.length > 36 ? `${chars.slice(0, 36).join('')}…` : chars.join('');
+  if (Math.abs(to.dx) >= 40) return to.dx > 0 ? 'right' : 'left';
+  return to.dy > 0 ? 'bottom' : null;
 }
 
 /**
- * `stack.html#/bubble`, the thought bubble beside her head: a due reminder, else native's push-to-talk hint,
- * else its avatar loading card, else its 屏幕识读 receipt, else her line, else her thought,
- * under the 正在做 row, and 快速输入 under them while it is open. With only a thinking bar or the 正在做 row to show it
- * draws no card, so it reports no region and the status chip shows that instead. Native sizes and places the panel.
+ * `stack.html#/bubble`, the bubble beside her head, only while there is something to say: an approval on the white paper
+ * card, else a due reminder, native's push-to-talk hint or a failed avatar, a failed task or a failed line, a result, a
+ * receipt, her line, or a new thought, each once. One shape for them all; it goes after its time (an approval stays), and
+ * 快速输入 opens in it. Native sizes and places the panel.
  */
 export function BubbleRoot() {
   const [q] = useState(stackQuery);
@@ -96,21 +95,24 @@ export function BubbleRoot() {
   const cards = useBubbleCards(demoCards);
   const ritual = useRitual(null, view.ritual);
   const mute = useThoughtMute(view.thought?.id ?? null);
-  // 关闭 on a thought hides it until one with another id or text arrives.
-  const [closedThought, setClosedThought] = useState<string | null>(null);
-  const thoughtKey = view.thought ? `${view.thought.id}\n${view.thought.text}` : null;
-  const pushedThought = thoughtKey != null && thoughtKey === closedThought ? null : view.thought;
   const input = useQuickInput();
-  const notice = useNotice();
+  const { notice, unfold } = useCommands();
   // Feedback stays attached to the originating line as the bubble content changes.
   const [voted, setVoted] = useState<{ id: string; value: Vote } | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const { ref: hoverRef, hovered, handlers } = useHover<HTMLDivElement>();
-  // Native's push-to-talk hint, else its avatar loading card, else its 屏幕识读 receipt, under a due reminder.
-  const hint = cards.reminder ? null : (cards.voice ?? cards.loading ?? cards.look);
-  const { bar, dispatch } = useSpeech(demoLine, still, hovered || cards.reminder != null || hint != null);
-  // The bubble keeps no stack of its own: a closed card leaves with native's next push.
-  const { act } = useStackActions(() => {}, Date.now, still, { toast: () => {}, setPause: () => {} }, (id) => (hint?.id === id ? hint : undefined));
+  const hint = cards.voice ?? (cards.loading?.phase === 'failed' ? cards.loading : null);
+  const { bar, dispatch } = useSpeech(demoLine, still, hovered);
+  const all = cards.all;
+  const { act } = useStackActions(() => {}, Date.now, still, { toast: () => {}, setPause: () => {} }, (id) => all.find((c) => c.id === id));
+
+  // 去处理 from the status mark unfolds the approval ✕ put away, until the next one is folded.
+  const [unfolded, setUnfolded] = useState(0);
+  useEffect(() => {
+    if (unfold > 0) setUnfolded(unfold);
+  }, [unfold]);
+  const confirm = cards.approvals[0] ?? (unfolded > 0 ? (cards.folded[0] ?? null) : null);
+  const waiting = cards.approvals.length + cards.folded.length - (confirm ? 1 : 0);
 
   const rootRef = useRef<HTMLDivElement>(null);
   useRegions(rootRef);
@@ -135,26 +137,67 @@ export function BubbleRoot() {
   // A `reminder_due` announce card may merge several commitments.
   const dueIds = due?.commitment_ids ?? (due?.commitment_id ? [due.commitment_id] : []);
   useSeenReceipt(dueIds, !demoCards && due != null && !docked);
-  // Before her first word there is nothing to copy, answer or rate: only 关闭.
-  const thinking = !cards.reminder && bar?.phase === 'thinking' ? bar : null;
 
-  let main: ReactNode;
-  let text: string;
+  // A thought pops up once: a thought already shown, or put away, does not come back.
+  const [goneThoughts, setGoneThoughts] = useState<ReadonlySet<string>>(new Set());
+  const thought = view.thought && !mute.closed && !goneThoughts.has(view.thought.id) ? view.thought : null;
+
+  let kind: BubbleKind = 'speech';
+  let main: ReactNode = null;
+  let text = '';
+  let time: string | undefined;
+  let one: ReactNode = null;
+  let away: CollapseTarget | null = null;
   let replyTo: SayReplyTo | undefined;
   let onMute: (() => void) | null = null;
   let onClose: (() => void) | null = null;
   let vote: ActsProps['vote'] = null;
-  if (cards.reminder) {
-    const card = cards.reminder;
-    main = <Reminder card={card} busy={cards.busy} error={cards.error} onAck={() => void cards.ack(card)} onLater={() => void cards.later(card)} />;
-    text = card.title;
+  /** A stack card the bubble shows: once put away it moves to native's history. */
+  let card: string | null = null;
+  if (due) {
+    kind = 'remind';
+    main = <Reminder card={due} />;
+    text = due.title;
+    time = formatClock(due.at);
+    card = due.id;
+    away = { key: `card:${due.id}`, text, ms: lingerMs(text) };
   } else if (hint) {
-    if (hint.variant === 'voice') main = <VoiceHintStackCard card={hint} top={false} act={act} />;
-    else if (hint.variant === 'loading') main = <AvatarLoadingStackCard card={hint} top={false} now={Date.now()} act={act} />;
-    else main = <NoticeStackCard card={hint} index={0} top={false} act={act} />;
+    kind = hint.variant === 'loading' ? 'error' : 'notice';
+    main = hint.variant === 'voice'
+      ? <VoiceHintStackCard card={hint} top={false} act={act} />
+      : <AvatarLoadingStackCard card={hint} top={false} now={Date.now()} act={act} />;
     text = hint.title;
-  } else if (bar) {
-    main = <Speech bar={bar} name={state?.character?.name ?? ''} onOpen={() => openChat(bar.id)} />;
+  } else if (cards.failed) {
+    const f = cards.failed;
+    kind = 'error';
+    main = <p className={bubble.text}>{f.title}：{f.reason}</p>;
+    text = `${f.title}：${f.reason}`;
+    card = f.id;
+    one = <Btn variant="text" size="sm" onClick={() => bridge.window.openMain(navRoute({ page: 'overview', sel: f.task_id }))}>看详情</Btn>;
+    away = { key: `card:${f.id}`, text, ms: ERROR_MS };
+  } else if (bar?.phase === 'error') {
+    kind = 'error';
+    main = <p className={bubble.text}>这一轮出错了，没能说完</p>;
+    text = bar.text;
+    one = <Btn variant="text" size="sm" onClick={() => openChat(bar.id)}>看详情</Btn>;
+    onClose = () => dispatch({ type: 'close', id: bar.id });
+  } else if (cards.done) {
+    const d = cards.done;
+    kind = 'done';
+    main = <p className={bubble.text}>{d.title}</p>;
+    text = d.title;
+    time = '刚刚';
+    card = d.id;
+    one = <Btn variant="text" size="sm" onClick={() => bridge.window.openMain(navRoute(d.task_id ? { page: 'overview', sel: d.task_id } : { page: 'overview' }))}>打开</Btn>;
+    away = { key: `card:${d.id}`, text, ms: lingerMs(text) };
+  } else if (cards.look) {
+    kind = 'notice';
+    main = <p className={bubble.text} role="status" aria-label={cards.look.title}>{cards.look.title}</p>;
+    text = cards.look.title;
+    card = cards.look.id;
+    away = { key: `card:${cards.look.id}`, text, ms: NOTICE_MS };
+  } else if (bar && bar.phase !== 'thinking') {
+    main = <Speech bar={bar} name="" onOpen={() => openChat(bar.id)} />;
     text = bar.text;
     replyTo = { kind: 'line', id: bar.id };
     if (canMute(bar.reason))
@@ -170,123 +213,92 @@ export function BubbleRoot() {
       if (asksFeedback(bar.reason)) void feedback(bar.id, 'dismissed');
       dispatch({ type: 'close', id: bar.id });
     };
-  } else {
-    main = <Thought thought={pushedThought} ritual={ritual} mute={mute} composing={input.open != null} />;
-    const thought = pushedThought && !mute.closed && mute.mute?.phase !== 'undo' ? pushedThought : null;
-    text = thought?.text ?? '';
+    if (bar.phase === 'linger') away = { key: `line:${bar.id}`, text: bar.text, ms: lingerMs(bar.text) };
+  } else if (!bar && (thought || ritual || mute.mute?.phase === 'undo')) {
+    main = <Thought thought={thought} ritual={ritual} mute={mute} composing={input.open != null} />;
     if (thought) {
+      text = thought.text;
       replyTo = { kind: 'thought', id: thought.id };
       onMute = () => void mute.off();
       vote = voteOn(thought.id);
       onClose = () => {
         void feedback(thought.id, 'dismissed');
-        setClosedThought(thoughtKey);
+        setGoneThoughts((s) => new Set(s).add(thought.id));
       };
+      away = { key: `thought:${thought.id}`, text: thought.text, ms: lingerMs(thought.text) };
     }
   }
 
-  const thoughtShown = (pushedThought != null && !mute.closed) || ritual != null || mute.mute?.phase === 'undo';
-  const said = cards.reminder != null || hint != null || (bar ? bar.phase !== 'thinking' : thoughtShown);
-  const shown = said || notice != null || cards.dropError != null || input.error != null || (replyTo?.id != null && feedbackError === replyTo.id);
-  const activeThought = !cards.reminder && !hint && !bar && pushedThought && !mute.closed && mute.mute?.phase !== 'undo' ? pushedThought : null;
-  const collapseTarget: CollapseTarget | null =
-    docked || cards.reminder || hint
-      ? null
-      : bar
-        ? bar.phase === 'linger'
-          ? { kind: 'line', key: `line:${bar.id}`, text: bar.text }
-          : null
-        : activeThought
-          ? { kind: 'thought', key: `thought:${thoughtKey}`, text: activeThought.text }
-          : null;
-  const { collapsed, timer, expand } = useCollapse(collapseTarget, still, hovered || input.open != null || notice != null);
-  const collapsedKind = !docked && !input.open && !notice && !cards.dropError && !input.error && collapsed ? (collapseTarget?.kind ?? null) : null;
+  const { collapsed: gone, timer } = useCollapse(docked || confirm ? null : away, still, hovered || input.open != null);
+  // What went away stays away: a thought by its id, her line out of the reducer, a stack card in native's history.
+  const awayKey = away?.key ?? null;
+  useEffect(() => {
+    if (!gone || awayKey == null) return;
+    if (awayKey.startsWith('line:')) dispatch({ type: 'close', id: awayKey.slice('line:'.length) });
+    if (card && !demoCards) void getBridge().stack.collapse(card).catch(() => {});
+  }, [gone, awayKey, card, demoCards, dispatch]);
+
+  const said = main != null && !gone;
+  // A thought shown once, then replaced or put away, does not come back.
+  const showingThought = said && !docked && !confirm && awayKey?.startsWith('thought:') ? awayKey.slice('thought:'.length) : null;
+  const lastThought = useRef<string | null>(null);
+  useEffect(() => {
+    const was = lastThought.current;
+    lastThought.current = showingThought;
+    if (was != null && was !== showingThought) setGoneThoughts((g) => new Set(g).add(was));
+  }, [showingThought]);
+  const extra = notice != null || cards.dropError != null || input.error != null || (replyTo?.id != null && feedbackError === replyTo.id);
   const tail = docked ? null : tailOf(anchor);
   const room = anchor?.room.width ?? 0;
-  const sizing = room > 0 ? { '--bubble-w': `${Math.max(160, Math.min(364, Math.floor(room) - 40))}px` } as CSSProperties : undefined;
+  const sizing = room > 0 ? ({ '--bubble-w': `${Math.max(160, Math.min(300, Math.floor(room) - 40))}px` } as CSSProperties) : undefined;
+  const acts = replyTo || onClose ? (
+    <Acts key={replyTo?.id ?? 'idle'} text={text} replyLabel="回复" onReply={() => input.reply(text, replyTo)} onMute={onMute} onClose={onClose} vote={vote} />
+  ) : null;
+
+  let body: ReactNode = null;
+  if (input.open) {
+    body = (
+      <HeadBubble kind="speech" tail={tail}>
+        {said && main}
+        {input.error && <p className={bubble.err} role="alert">{input.error}</p>}
+        <BubbleInput open={input.open} state={state} attachment={input.attachment} onDrop={input.drop} onClose={input.close} />
+      </HeadBubble>
+    );
+  } else if (confirm) {
+    // Docked, it shows under the subtitle bar.
+    body = (
+      <ConfirmCard card={confirm} more={waiting} tail={tail} act={(a) => {
+        if (a.type === 'collapse') setUnfolded(0);
+        act(a);
+      }} onDetails={() => bridge.window.openMain(navRoute({ page: 'overview', focus: 'pending', sel: confirm.id }))} />
+    );
+  } else if (!docked && (said || extra)) {
+    body = (
+      <HeadBubble kind={said ? kind : 'notice'} time={said ? time : undefined} tail={tail} acts={said ? acts : null} one={said ? one : null} timer={said ? timer : null}>
+        {said && main}
+        {notice && (
+          <p key={notice.n} className={`${bubble.note} ${bubble.fade}`} role="status">
+            {notice.text}
+          </p>
+        )}
+        {replyTo?.id != null && feedbackError === replyTo.id && <p className={bubble.err} role="status">反馈发送失败，可以重试</p>}
+        {cards.dropError && <p className={bubble.err} role="alert">{cards.dropError}</p>}
+        {input.error && <p className={bubble.err} role="alert">{input.error}</p>}
+      </HeadBubble>
+    );
+  }
+
   return (
-    <div
-      ref={rootRef}
-      className={styles.root}
-      style={sizing}
-      data-surface-root="bubble"
-      data-side={anchor?.side}
-      data-docked={anchor?.docked ?? undefined}
-      data-collapsed={collapsedKind ? '' : undefined}
-    >
+    <div ref={rootRef} className={styles.root} style={sizing} data-surface-root="bubble" data-side={anchor?.side} data-docked={anchor?.docked ?? undefined}>
       {docked && bar && (
         <div className={styles.sub} data-glass="">
           <Subtitle bar={bar} name={state?.character?.name ?? ''} onOpen={() => openChat(bar.id)} />
         </div>
       )}
-      {collapsedKind ? (
-        <button type="button" className={styles.collapsed} data-region="" aria-label="展开消息" title={headText(text)} onClick={expand}>
-          {collapsedKind === 'thought' ? (
-            <RadioIcon className={styles.collapsedRadio} />
-          ) : (
-            <svg className={styles.collapsedGlyph} viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M2.5 3h11v8H7l-3 2.5V11H2.5z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-            </svg>
-          )}
-        </button>
-      ) : (
-        (input.open || (!docked && shown)) && (
-          <div ref={hoverRef} {...handlers}>
-            <div
-              className={styles.card}
-              data-region=""
-              data-glass=""
-              data-bubble=""
-              data-tail={tail?.side}
-              data-input={input.open ? '' : undefined}
-              style={tail?.style}
-            >
-              {!docked && !cards.reminder && !hint && bar && <HeadCard id={state?.character?.id} />}
-              <div className={styles.band}>
-                {!docked && <>
-                  <header className={styles.head} data-drag="">
-                    <span className={styles.grip} role="img" title="拖动气泡；双击回到默认位置" aria-label="拖动气泡；双击回到默认位置">
-                      <svg viewBox="0 0 10 14" aria-hidden="true">
-                        <path d="M2 3h6M2 7h6M2 11h6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
-                    </span>
-                    {state?.showPresence !== false && <DoingRow presence={presence} />}
-                  </header>
-                  {main}
-                </>}
-                {!docked && notice && (
-                  <p key={notice.n} className={`${bubble.note} ${bubble.fade}`} role="status">
-                    {notice.text}
-                  </p>
-                )}
-                {!docked && !input.open && !due && !hint && (thinking ? (
-                  <div className={bubble.acts} data-bubble-acts="">
-                    <button type="button" className={bubble.act} data-region="" aria-label="关闭" onClick={() => dispatch({ type: 'close', id: thinking.id })}>
-                      关闭
-                    </button>
-                  </div>
-                ) : (
-                  <Acts key={replyTo?.id ?? 'idle'} text={text} replyLabel={replyTo ? '回复' : '输入消息'} onReply={() => input.reply(text, replyTo)} onMute={onMute} onClose={onClose} vote={vote} />
-                ))}
-                {replyTo?.id != null && feedbackError === replyTo.id && <p className={bubble.err} role="status">反馈发送失败，可以重试</p>}
-                {!docked && cards.dropError && <p className={bubble.err} role="alert">{cards.dropError}</p>}
-                {input.error && <p className={bubble.err} role="alert">{input.error}</p>}
-                {input.open && <BubbleInput open={input.open} state={state} attachment={input.attachment} onDrop={input.drop} onClose={input.close} />}
-                {timer && (
-                  <span
-                    key={timer.key}
-                    className={styles.timer}
-                    data-bubble-timer=""
-                    data-paused={timer.paused ? '' : undefined}
-                    aria-hidden="true"
-                    style={{ '--timer-ms': `${timer.ms}ms`, '--timer-from': String(timer.total > 0 ? timer.ms / timer.total : 1) } as CSSProperties}
-                  />
-                )}
-              </div>
-              {tail && <span className={styles.tail} aria-hidden="true" />}
-            </div>
-          </div>
-        )
+      {body && (
+        <div ref={hoverRef} {...handlers}>
+          {body}
+        </div>
       )}
     </div>
   );

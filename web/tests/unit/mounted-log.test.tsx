@@ -5,9 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { BubbleRoot } from '../../src/surfaces/desktop/BubbleRoot';
 import { CmdRoot } from '../../src/surfaces/desktop/CmdRoot';
+import { DockRoot } from '../../src/surfaces/desktop/DockRoot';
 import { HudRoot } from '../../src/surfaces/desktop/HudRoot';
 import { logInfo } from '../../src/surfaces/desktop/hooks/useMountedLog';
-import { RingRoot } from '../../src/surfaces/desktop/RingRoot';
 import { stubMatchMedia } from './mediaStub';
 
 // Each desktop entry writes `mounted <surface> <route>` to native's ui.log through the bridge's `window.logInfo`.
@@ -44,7 +44,7 @@ describe('mounted lines', () => {
   it.each([
     [BubbleRoot, '#/bubble', 'mounted bubble #/bubble'],
     [HudRoot, '#/hud', 'mounted hud #/hud'],
-    [RingRoot, '#/ring', 'mounted ring #/ring'],
+    [DockRoot, '#/dock', 'mounted dock #/dock'],
     [CmdRoot, '#/cmd', 'mounted cmd #/cmd'],
   ] as const)('entry %# sends one window.logInfo and nothing to window.webkit', (Root, hash, line) => {
     const { logInfo, efLog } = mount(Root, hash);

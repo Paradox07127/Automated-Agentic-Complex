@@ -1,9 +1,12 @@
 // @vitest-environment node
 // Route contract: every method + path the web sends to agentd must be a routes.json route the bridge lets through.
 // Known issues live in tests/route-contract.baseline.json, which may only shrink.
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { MockModule } from '../../src/mock/types';
-import { checkAll, compareBaseline, loadBaseline, loadRoutes, matchRoute, scanStatic, type Request } from '../../scripts/route-contract.ts';
+import { checkAll, compareBaseline, loadBaseline, loadRoutes, matchRoute, scanStatic, surfacesFor, type Request } from '../../scripts/route-contract.ts';
 
 const modules = import.meta.glob<MockModule>(['../../src/mock/*.ts', '!../../src/mock/index.ts', '!../../src/mock/types.ts'], { eager: true });
 const mockRequests: Request[] = Object.keys(modules)
@@ -59,12 +62,23 @@ describe('route contract', () => {
   });
 
   it('judges a request in a shared helper by the surfaces whose code imports that helper', () => {
-    const mainOnly = loadRoutes().map((r) => (r.path === '/motion/settings' ? { ...r, surfaces: ['main'] } : r));
-    expect(show(checkAll(scanned.requests, undefined, mainOnly))).toEqual(
-      expect.arrayContaining(['GET /motion/settings surface:stack src/pages/settings/api.ts', 'PUT /motion/settings surface:stack src/pages/settings/api.ts']),
-    );
-    // api.ts is reached from stack, but stack imports none of the model helpers.
-    expect(show(issues).filter((i) => i.includes('/model/settings'))).toEqual([]);
+    // A tree whose stack entry imports one of a shared module's two helpers.
+    const root = mkdtempSync(join(tmpdir(), 'route-contract-'));
+    try {
+      mkdirSync(join(root, 'src/pages/p'), { recursive: true });
+      writeFileSync(join(root, 'src/pages/p/api.ts'), "export function motion() {\n  return 1;\n}\nexport function model() {\n  return 2;\n}\n");
+      writeFileSync(join(root, 'src/main.tsx'), "import { model, motion } from './pages/p/api';\nmodel();\nmotion();\n");
+      writeFileSync(join(root, 'src/stack.tsx'), "import { motion } from './pages/p/api';\nmotion();\n");
+      const of = surfacesFor(root);
+      expect(of({ method: 'GET', path: '/motion/settings', module: 'src/pages/p/api.ts', line: 2 })).toEqual(['main', 'stack']);
+      expect(of({ method: 'GET', path: '/model/settings', module: 'src/pages/p/api.ts', line: 5 })).toEqual(['main']);
+      const mainOnly = loadRoutes().map((r) => (r.path === '/motion/settings' ? { ...r, surfaces: ['main'] } : r));
+      expect(show(checkAll([{ method: 'GET', path: '/motion/settings', module: 'src/pages/p/api.ts', line: 2 }], of, mainOnly))).toEqual([
+        'GET /motion/settings surface:stack src/pages/p/api.ts',
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('has no issue outside the baseline', () => {

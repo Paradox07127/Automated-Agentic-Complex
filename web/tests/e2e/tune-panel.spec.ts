@@ -2,23 +2,18 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 
-// 镜头与动作 on the cmd panel and 控制台 on its own console panel. Demo states run on the fake bridge; the wiring
-// tests swap in a bridge that records every call, so each control is checked against the op it sends.
+// 控制台 on its own console panel. Demo states run on the fake bridge; the wiring tests swap in a bridge that records
+// every call, so each control is checked against the op it sends.
 
 const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
 
 const DEMOS = [
-  { name: 'tune', mode: 'tune', path: '/cmd' },
-  { name: 'tune-missing', mode: 'tune', path: '/cmd' },
   { name: 'console', mode: 'console', path: '/console' },
   { name: 'console-offline', mode: 'console', path: '/console' },
   { name: 'empty', mode: 'console', path: '/console' },
 ] as const;
 
 type Call = { op: string; args: unknown[] };
-
-/** The 动作 fold, not 动作来源 (a name matches as a substring). */
-const MOTION = /^动作(?!来源)/;
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -29,7 +24,7 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-async function open(page: Page, params: Record<string, string>, path = '/cmd') {
+async function open(page: Page, params: Record<string, string>, path = '/console') {
   await page.goto('about:blank');
   await page.goto(`stack.html#${path}?${new URLSearchParams({ ...params, still: '1' }).toString()}`);
 }
@@ -72,7 +67,7 @@ function desktopState(o: { hidden?: boolean; agentd?: string } = {}) {
     clickThroughAll: false,
     freeRoam: false,
     quietUntil: null,
-    avatarHovered: false,
+    dock: { open: false, side: 'right', compact: false },
     character: { id: 'si', name: '示例乙' },
     characters: [{ id: 'si', name: '示例乙' }],
     screens: [],
@@ -82,26 +77,6 @@ function desktopState(o: { hidden?: boolean; agentd?: string } = {}) {
     plugins: ['light_ai'],
   };
 }
-
-const act = (id: string, label: string, section: string, extra: Record<string, unknown> = {}) => ({ id, label, section, enabled: true, missing: false, missingReason: null, ...extra });
-
-const TUNE_FX = {
-  'desktop.onCommand': { kind: 'open', mode: 'tune' },
-  'desktop.onState': desktopState(),
-  'avatar.actions': [
-    act('camera_left', '向左看', 'touch'),
-    act('camera_right', '向右看', 'touch'),
-    act('camera_back', '背面', 'touch', { missing: true, missingReason: '缺少 camera_back' }),
-    act('camera_front', '正面', 'touch'),
-    act('wave', '挥手', 'touch'),
-    act('think', '思考', 'react', { missing: true, missingReason: '缺少 think_02' }),
-    act('walk', '走动', 'move'),
-  ],
-  'avatar.state': { running: true, visible: true, scale: 1.1, clickThroughAll: false, speaking: false, characterId: 'si', appearanceId: 'daily' },
-  'character.list': [
-    { id: 'si', name: '示例乙', en: 'SI', active: true, appearances: [{ id: 'daily', name: '日常', desc: '' }, { id: 'uniform', name: '制服', desc: '' }] },
-  ],
-};
 
 const session = (id: string, title: string, state: string) => ({ id, backend: 'codex', title, state, updated_at: 1_790_000_000 });
 const CONSOLE_PRESENCE = {
@@ -115,13 +90,10 @@ for (const theme of ['dark', 'light'] as const) {
   for (const demo of DEMOS) {
     test(`${theme} ${demo.name}: renders without errors`, async ({ page }, info) => {
       const errors = collectErrors(page);
-      await open(page, demo.path === '/cmd' ? { mode: demo.mode, demo: demo.name, theme } : { demo: demo.name, theme }, demo.path);
+      await open(page, { demo: demo.name, theme }, demo.path);
       const slot = page.locator(`[data-surface-root="${demo.path.slice(1)}"] [data-slot="${demo.mode}"]`);
       await expect(slot).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe(theme);
-      if (demo.mode === 'tune') await expect(slot.locator('[data-art-slot="tune-head"]')).toHaveAttribute('aria-hidden', 'true');
-      if (demo.mode === 'tune') await expect(slot.getByRole('button', { name: '大小' })).toContainText('100%');
-      if (demo.name === 'tune-missing') await expect(slot.getByRole('button', { name: MOTION })).toContainText('缺少 think_02');
       if (demo.mode === 'console') await expect(slot.locator('[lang="en"]')).toHaveCount(0);
       if (demo.mode === 'console') await expect(slot.getByRole('button', { name: '打开主窗口' })).toBeVisible();
       if (demo.name === 'console') await expect(slot.locator('[data-sec="waiting"]')).toBeVisible();
@@ -132,75 +104,6 @@ for (const theme of ['dark', 'light'] as const) {
     });
   }
 }
-
-test('tune: eyebrow, five folds closed with their current values', async ({ page }) => {
-  await recordBridge(page, TUNE_FX);
-  await open(page, {});
-  const slot = page.locator('[data-slot="tune"]');
-  await expect(slot.locator('[lang="en"]')).toHaveText('TUNING // SI');
-  await expect(slot.getByRole('heading', { name: '镜头与动作' })).toBeVisible();
-  const folds = slot.locator('button[aria-expanded]');
-  await expect(folds).toHaveCount(5);
-  for (const f of await folds.all()) await expect(f).toHaveAttribute('aria-expanded', 'false');
-  await expect(slot.getByRole('button', { name: '镜头' })).toContainText('原作镜头');
-  await expect(slot.getByRole('button', { name: MOTION })).toContainText('挥手 │ 1×');
-  await expect(slot.getByRole('button', { name: '大小' })).toContainText('110%');
-  await expect(slot.getByRole('button', { name: '外观' })).toContainText('日常');
-});
-
-test('tune: camera, action, size and appearance send their avatar ops', async ({ page }) => {
-  const calls = await recordBridge(page, TUNE_FX);
-  await open(page, {});
-  const slot = page.locator('[data-slot="tune"]');
-
-  await slot.getByRole('button', { name: '镜头' }).click();
-  await expect(slot.getByRole('button', { name: '背面' })).toHaveAttribute('aria-disabled', 'true');
-  await slot.getByRole('button', { name: '◀ 左' }).click();
-  await expect.poll(() => calls('avatar.playAction')).toEqual([['camera_left', 1]]);
-  await expect(slot.getByRole('status')).toHaveText('角色已开始响应');
-  await expect(slot.getByRole('button', { name: '镜头' })).toHaveAttribute('aria-expanded', 'true');
-
-  await slot.getByRole('button', { name: MOTION }).click();
-  const options = slot.getByRole('option');
-  await expect(options).toHaveText(['挥手', '思考缺少 think_02']);
-  await expect(slot.getByRole('option', { name: /思考/ })).toHaveAttribute('data-missing', 'true');
-  await slot.getByRole('option', { name: /思考/ }).click();
-  await expect(slot.getByRole('button', { name: '播放' })).toHaveAttribute('aria-disabled', 'true');
-  await slot.getByRole('option', { name: '挥手' }).click();
-  await slot.getByRole('radio', { name: '2×' }).click();
-  await slot.getByRole('button', { name: '播放' }).click();
-  await expect.poll(() => calls('avatar.playAction')).toEqual([['camera_left', 1], ['wave', 2]]);
-
-  await slot.getByRole('button', { name: '大小' }).click();
-  await slot.getByRole('button', { name: '拖手柄…' }).click();
-  await expect.poll(() => calls('desktop.action')).toEqual([['resize']]);
-  await slot.getByRole('button', { name: '恢复默认' }).click();
-  await expect.poll(() => calls('avatar.setScale')).toEqual([[1]]);
-
-  await slot.getByRole('button', { name: '外观' }).click();
-  await slot.getByRole('radio', { name: '制服' }).click();
-  await expect.poll(() => calls('avatar.setAppearance')).toEqual([['uniform']]);
-
-  await slot.getByRole('button', { name: '更多 → 角色 / 画面' }).click();
-  await expect.poll(async () => String((await calls('window.openMain'))[0]?.[0])).toMatch(/^\/character\?tab=render/);
-  await slot.getByRole('button', { name: '关闭' }).click();
-  await expect.poll(async () => (await calls('window.close')).length).toBe(1);
-});
-
-test('tune: 动作来源 switches to 模型生成 with an address and the summary follows', async ({ page }) => {
-  await open(page, { mode: 'tune', demo: 'tune' });
-  const slot = page.locator('[data-slot="tune"]');
-  const fold = slot.getByRole('button', { name: /^动作来源/ });
-  await expect(fold).toContainText('游戏动作');
-  await fold.click();
-  await slot.getByRole('radio', { name: '模型生成' }).click();
-  await expect(slot.getByRole('button', { name: '保存' })).toHaveAttribute('aria-disabled', 'true');
-  await slot.getByRole('textbox', { name: '动作服务地址' }).fill('http://192.168.1.199:48830');
-  await slot.getByRole('button', { name: '保存' }).click();
-  await fold.click();
-  await expect(fold).toContainText('模型生成');
-  await expect(fold).not.toContainText('游戏动作');
-});
 
 test('menu bar: primary action opens the main window and closes the panel', async ({ page }) => {
   const calls = await recordBridge(page, { 'desktop.onCommand': { kind: 'openConsole' }, 'desktop.onState': desktopState() });

@@ -1,11 +1,11 @@
-import { act as flush, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act as flush, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakeBridge } from "../../src/bridge/fake";
 import type { AgenticComplexBridge, StackPayload } from "../../src/bridge/protocol";
 import { BubbleRoot } from "../../src/surfaces/desktop/BubbleRoot";
 import { stubMatchMedia } from "./mediaStub";
 
-// A due reminder in the bubble goes straight at its commitment in agentd; a refusal keeps it and says why.
+// A due reminder in the bubble: read once shown, with no button to answer it.
 
 stubMatchMedia();
 afterEach(() => {
@@ -25,8 +25,6 @@ const CARD = {
   commitment_id: "c-42",
 } as const;
 
-const ILLEGAL = { status: 409, body: { error: "illegal_transition" }, error: { code: "illegal_transition" } };
-
 /** The bubble on the fake bridge with `card` pushed as the one due reminder. */
 async function mountWith(card: typeof CARD) {
   const bridge: AgenticComplexBridge = createFakeBridge({ surface: "stack", still: true });
@@ -44,19 +42,26 @@ async function mountWith(card: typeof CARD) {
 }
 
 describe("reminder in the bubble", () => {
-  it("a refused snooze keeps the reminder and says why in Chinese", async () => {
-    const bridge = await mountWith(CARD);
-    vi.spyOn(bridge.agentd, "request").mockResolvedValue(ILLEGAL);
-    await flush(async () => fireEvent.click(screen.getByRole("button", { name: "稍后" })));
-    expect(await screen.findByText(/^没能延后提醒：/)).toBeTruthy();
+  it("shows the reminder with its time and posts it read, asking agentd nothing else", async () => {
+    const bridge = createFakeBridge({ surface: "stack", still: true });
+    const request = vi.spyOn(bridge.agentd, "request").mockResolvedValue({ status: 200, body: {} });
+    window.agenticComplex = bridge;
+    window.location.hash = "#/bubble?still=1";
+    let push: ((p: StackPayload) => void) | undefined;
+    vi.spyOn(bridge.stack, "onCards").mockImplementation((cb) => {
+      push = cb;
+      return () => {};
+    });
+    render(<BubbleRoot />);
+    await flush(async () => push?.({ now: NOW, cards: [CARD], history: [] }));
     screen.getByText(CARD.title);
+    expect(screen.getByText("提醒").closest("[data-bubble]")).not.toBeNull();
+    expect(screen.queryAllByRole("button").filter((b) => /知道了|稍后/.test(b.textContent ?? ""))).toHaveLength(0);
+    expect(request.mock.calls.map(([method, path]) => `${method} ${path}`)).toEqual(["POST /commitments/c-42/seen"]);
   });
 
-  it("知道了 on a reminder agentd already marked delivered just puts it away", async () => {
-    const bridge = await mountWith(CARD);
-    vi.spyOn(bridge.agentd, "request").mockResolvedValue(ILLEGAL);
-    await flush(async () => fireEvent.click(screen.getByRole("button", { name: "知道了" })));
-    expect(screen.queryByText(CARD.title)).toBeNull();
-    expect(screen.queryByText(/^没能完成提醒：/)).toBeNull();
+  it("stays while the bubble is held still", async () => {
+    await mountWith(CARD);
+    screen.getByText(CARD.title);
   });
 });

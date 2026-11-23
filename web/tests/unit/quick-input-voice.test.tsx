@@ -22,7 +22,7 @@ const STATE: DesktopState = {
   clickThroughAll: false,
   freeRoam: false,
   quietUntil: null,
-  avatarHovered: false,
+  dock: { open: false, side: 'right', compact: false },
   character: { id: 'voice_a', name: '示例甲' },
   characters: [{ id: 'voice_a', name: '示例甲' }],
   screens: [{ id: '1', name: '内建显示器', current: true }],

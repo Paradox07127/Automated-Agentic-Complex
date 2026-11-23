@@ -70,7 +70,7 @@ describe('控制台 panel', () => {
     mount();
     const root = document.querySelector('[data-surface-root="console"]');
     expect(root?.children).toHaveLength(0);
-    flush(() => send({ kind: 'open', mode: 'tune' }));
+    flush(() => send({ kind: 'open', mode: 'ring' }));
     expect(root?.children).toHaveLength(0);
     flush(() => send({ kind: 'openConsole' }));
     expect(screen.getByRole('dialog', { name: 'Agentic Complex 菜单' })).toBeTruthy();

@@ -1,11 +1,10 @@
-// The tray menu, the character menu, the app menu and the menu bar icon (src/main/menus/, src/common/menus.ts).
+// The tray menu, the app menu and the menu bar icon (src/main/menus/, src/common/menus.ts).
 // Only templates are checked: no menu pops up and no tray icon changes.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { iconState, MENU_STATE_DEFAULTS, type MenuBarStatus, type MenuState, processStatus, quietUntil } from '../src/common/menus.ts';
 import { PLUGIN_IDS, type Plugins, shellPlan } from '../src/common/plugins.ts';
 import { appMenu, pageShortcut } from '../src/main/menus/app.ts';
-import { avatarMenu } from '../src/main/menus/avatar.ts';
 import { iconBitmap, squareIcon } from '../src/main/menus/icon.ts';
 import { type MenuItem, type MenuPorts, SettingsChanges } from '../src/main/menus/items.ts';
 import { trayContextMenu, trayMenu } from '../src/main/menus/tray.ts';
@@ -216,125 +215,12 @@ test('menus: 自由活动 from a menu tells the settings page (settings.onChange
   const cancel = changes.subscribe(null, (e) => events.push(`${e.event} ${e.data}`));
   const h = ports();
   h.ports.settingsChanged = (keys) => changes.changed(keys);
-  click(find(sub(avatarMenu(SAMPLE, h.ports), '更多'), '自由活动'));
   click(find(trayMenu(SAMPLE, h.ports), '自由活动'));
   changes.changed(['no_such_key']);
   cancel();
   changes.changed(['stay_mode']);
-  assert.deepEqual(h.calls, ['toggleFreeRoam', 'toggleFreeRoam']);
-  assert.deepEqual(events, ['change {"ids":["beh.stay"]}', 'change {"ids":["beh.stay"]}']);
-});
-
-test('menus: the character menu follows MenuBarMenuModel.character', () => {
-  const h = ports();
-  const menu = avatarMenu(SAMPLE, h.ports);
-  assert.deepEqual(titles(menu), ['示例甲 · 运行中', '打开对话', '快速输入…', '给她看', '送礼物', '角色', '安静', '隐藏角色 30 分钟', '更多']);
-  assert.equal(menu.filter((i) => i.type === 'separator').length, 2);
-  assert.equal(menu[0]!.enabled, false);
-  assert.ok(!deepTitles(menu).includes('重启子进程') && !deepTitles(menu).includes('退出'));
-  const show = sub(menu, '给她看'), roles = sub(menu, '角色'), more = sub(menu, '更多'), open = sub(more, '打开');
-  assert.deepEqual(titles(show), ['把剪贴板交给她', '框选给她看…', '屏幕识读']);
-  assert.deepEqual(titles(roles), ['示例甲', '示例乙', '角色卡…', '外观']);
-  assert.equal(find(roles, '示例甲').checked, true);
-  assert.deepEqual(titles(sub(roles, '外观')), ['标准制服', '外勤', '休息日']);
-  assert.deepEqual(titles(sub(menu, '安静')), ['30 分钟', '1 小时', '到明早 7:00', '结束安静']);
-  assert.deepEqual(titles(more), ['待处理', '镜头与动作…', '拍照模式…', '保存截图', '自由活动', '放回默认位置', '复位浮窗', '临时全部点穿', '打开']);
-  assert.equal(find(more, '自由活动').checked, true);
-  assert.equal(find(more, '保存截图').enabled, false, 'grey unless the avatar lists capture');
-  assert.deepEqual(titles(open), ['主页', '记忆', '角色', '诊断', '设置…']);
-
-  for (const label of ['打开对话', '快速输入…', '送礼物', '隐藏角色 30 分钟']) click(find(menu, label));
-  for (const i of show) click(i);
-  click(find(roles, '示例乙'));
-  click(find(roles, '角色卡…'));
-  for (const label of ['待处理', '镜头与动作…', '拍照模式…', '自由活动', '放回默认位置', '复位浮窗', '临时全部点穿']) click(find(more, label));
-  for (const i of open) click(i);
-  assert.deepEqual(h.calls, ['openMain "/chat"', 'quickInput', 'giveGift', 'toggleHidden',
-    'handClipboard', 'selectRegion', 'look', 'switchCharacter "birch"', 'openMain "/character"',
-    'openMain "/overview?focus=pending"', 'openTune', 'openMain "/character?view=photo"', 'toggleFreeRoam', 'settingsChanged ["stay_mode"]',
-    'resetPosition', 'resetPanels', 'toggleClickThroughAll',
-    'openMain "/home"', 'openMain "/memory"', 'openMain "/character"', 'openMain "/diag?tab=run"', 'openMain "/settings"']);
-  assert.ok(titles(menu).length <= 10);
-});
-
-test('menus: the character menu header, 角色 and 更多 follow the state', async () => {
-  const header = (s: Partial<MenuState>) => avatarMenu({ ...SAMPLE, ...s }, ports().ports)[0]!.label;
-  assert.equal(header({ characterSwitching: true, avatarHidden: true }), '示例甲 · 切换中');
-  assert.equal(header({ avatarHidden: true, quiet: true }), '示例甲 · 已隐藏');
-  assert.equal(header({ quiet: true }), '示例甲 · 安静中');
-  assert.equal(header({ services: [] }), '示例甲 · 待命');
-  assert.equal(header({ currentCharacter: null }), '角色 · 运行中');
-  assert.equal(find(avatarMenu({ ...SAMPLE, characterSwitching: true }, ports().ports), '角色').enabled, false);
-  assert.ok(titles(avatarMenu({ ...SAMPLE, avatarHidden: true }, ports().ports)).includes('显示角色'));
-  // 调整镜头… right after 镜头与动作… only with camera_free; 保存截图 with capture.
-  const h = ports();
-  const more = sub(avatarMenu({ ...SAMPLE, cameraFree: true, canCapture: true }, h.ports), '更多');
-  assert.equal(titles(more).indexOf('调整镜头…'), titles(more).indexOf('镜头与动作…') + 1);
-  assert.equal(find(more, '保存截图').enabled, true);
-  click(find(more, '调整镜头…'));
-  click(find(more, '保存截图'));
-  await settle();
-  assert.deepEqual(h.calls, ['beginCamera', 'captureSaved "shot.png"']);
-  const failing = ports();
-  failing.ports.capture = { take: async () => { throw new Error('unsupported'); }, saved: () => assert.fail('not saved') };
-  click(find(sub(avatarMenu({ ...SAMPLE, canCapture: true }, failing.ports), '更多'), '保存截图'));
-  await settle();
-  assert.deepEqual(failing.calls, ['log "capture failed: unsupported"']);
-  // Ports other blocks have not wired yet are greyed.
-  const bare = avatarMenu({ ...SAMPLE, cameraFree: true, canCapture: true },
-    ports(['handClipboard', 'selectRegion', 'giveGift', 'openTune', 'beginCamera', 'capture', 'resetPanels']).ports);
-  for (const label of ['把剪贴板交给她', '框选给她看…']) assert.equal(find(sub(bare, '给她看'), label).enabled, false);
-  assert.equal(find(bare, '送礼物').enabled, false);
-  for (const label of ['镜头与动作…', '调整镜头…', '保存截图', '复位浮窗']) assert.equal(find(sub(bare, '更多'), label).enabled, false, label);
-});
-
-test('menus: 姿态 shows only with poses; a slot without material is grey, the lock and the current pose are checked', () => {
-  assert.ok(!titles(avatarMenu(SAMPLE, ports().ports)).includes('姿态'));
-  const posed: MenuState = { ...SAMPLE, poses: [{ slot: 'stand', title: '站', id: 'pose_stand', available: true },
-    { slot: 'sit', title: '坐', id: 'pose_sit', available: true }, { slot: 'lie', title: '躺', id: null, available: false }] };
-  const h = ports();
-  const menu = avatarMenu(posed, h.ports);
-  assert.deepEqual(titles(menu).slice(3, 6), ['给她看', '姿态', '送礼物']);
-  const poses = sub(menu, '姿态');
-  assert.deepEqual(poses.map((i) => i.type === 'separator' ? '-' : `${i.label} ${i.checked} ${i.enabled}`),
-    ['自动 true true', '站 false true', '坐 false true', '躺（缺素材） false false', '-', '锁定当前姿态 false true']);
-  const held = sub(avatarMenu({ ...posed, currentPose: 'pose_sit', poseLocked: true }, h.ports), '姿态');
-  assert.deepEqual(held.filter((i) => i.checked).map((i) => i.label), ['坐', '锁定当前姿态']);
-  click(find(held, '站'));
-  click(find(held, '自动'));
-  click(find(held, '锁定当前姿态'));
-  assert.deepEqual(h.calls, ['setPose "pose_stand"', 'setPose null', 'togglePoseLock']);
-  const bare = sub(avatarMenu(posed, ports(['setPose', 'togglePoseLock']).ports), '姿态');
-  assert.ok(bare.every((i) => i.type === 'separator' || i.enabled === false));
-});
-
-test('menus: 角色 › 服装分层 and MMD show only with layers and slots', () => {
-  assert.deepEqual(titles(sub(avatarMenu(SAMPLE, ports().ports), '角色')), ['示例甲', '示例乙', '角色卡…', '外观']);
-  assert.ok(!deepTitles(trayMenu({ ...SAMPLE, layers: [{ id: 'coat', name: '外套', visible: true }] }, ports().ports)).includes('服装分层'));
-  const h = ports();
-  const s: MenuState = { ...SAMPLE, layers: [{ id: 'coat', name: '外套', visible: true }, { id: 'hat', name: '帽子', visible: false }],
-    motionSlots: [{ id: 'mmd_a', name: '舞一' }, { id: 'mmd_b', name: '舞二' }], playingSlot: 'mmd_b', playlistLoop: 'one' };
-  const roles = sub(avatarMenu(s, h.ports), '角色');
-  assert.deepEqual(titles(roles), ['示例甲', '示例乙', '角色卡…', '外观', '服装分层', 'MMD']);
-  const layers = sub(roles, '服装分层');
-  assert.deepEqual(layers.map((i) => [i.label, i.checked, i.enabled]), [['外套', true, true], ['帽子', false, true]]);
-  const mmd = sub(roles, 'MMD');
-  assert.deepEqual(mmd.map((i) => (i.type === 'separator' ? '-' : i.label)), ['舞一', '舞二', '-', '连播', '循环', '停止']);
-  assert.equal(find(mmd, '舞二').checked, true);
-  assert.equal(find(mmd, '停止').enabled, false);
-  assert.deepEqual(sub(mmd, '循环').map((i) => [i.label, i.checked]), [['不循环', false], ['单曲', true], ['全部', false]]);
-  click(find(layers, '帽子'));
-  click(find(mmd, '舞一'));
-  click(find(mmd, '连播'));
-  click(find(sub(mmd, '循环'), '全部'));
-  click(find(sub(roles, 'MMD').concat(), '停止'));
-  assert.deepEqual(h.calls, ['toggleLayer "hat"', 'playSlot "mmd_a"', 'playPlaylist', 'setPlaylistLoop "all"', 'stopPlaylist']);
-  assert.equal(find(sub(sub(avatarMenu({ ...s, playlistPlaying: true }, h.ports), '角色'), 'MMD'), '停止').enabled, true);
-  for (const busy of [{ layersSwitching: true }, { appearanceSwitchingTo: '' }, { characterSwitching: true }]) {
-    const group = find(sub(avatarMenu({ ...s, ...busy }, h.ports), '角色'), '服装分层');
-    assert.equal(group.enabled, false);
-    assert.ok((group.submenu as MenuItem[]).every((i) => i.enabled === false));
-  }
+  assert.deepEqual(h.calls, ['toggleFreeRoam']);
+  assert.deepEqual(events, ['change {"ids":["beh.stay"]}']);
 });
 
 test('menus: the app menu has ⌘, ⌘0–⌘4, ⌘W, ⌘M, ⌘Q and the edit items', () => {

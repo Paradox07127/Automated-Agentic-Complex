@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { getBridge, type DropItem, type StackPayload } from '../../../bridge';
-import { AgentdCallError, call, seg } from '../../../bridge/agentd';
+import { AgentdCallError, call } from '../../../bridge/agentd';
 import type { NoticeVariant } from '../../../domain';
-import type { StackCard } from '../../stack/model';
+import type { ApprovalStackItem } from '../../../features/approval';
+import { isStackApproval, type StackCard } from '../../stack/model';
 import { stageDrop } from '../cmd/input/selection';
 import { why } from './useThoughtMute';
 
@@ -11,15 +12,16 @@ type DropCard = Extract<StackCard, { variant: 'drop' }>;
 export type VoiceCard = Extract<StackCard, { variant: 'voice' }>;
 export type LoadingCard = Extract<StackCard, { variant: 'loading' }>;
 type LookCard = Extract<StackCard, { variant: NoticeVariant }> & { variant: 'look' };
-
-/** 稍后 on a due reminder. */
-export const LATER_MIN = 10;
+export type DoneCard = Extract<StackCard, { variant: NoticeVariant }> & { variant: 'done' };
+export type ErrorCard = Extract<StackCard, { kind: 'error' }>;
 
 const isReminder = (c: StackCard): c is ReminderCard => c.kind === 'notice' && c.variant === 'reminder';
 const isDrop = (c: StackCard): c is DropCard => c.kind === 'notice' && c.variant === 'drop';
 const isVoice = (c: StackCard): c is VoiceCard => c.kind === 'notice' && c.variant === 'voice' && !c.collapsed;
 const isLoading = (c: StackCard): c is LoadingCard => c.kind === 'notice' && c.variant === 'loading' && !c.collapsed;
 const isLook = (c: StackCard): c is LookCard => c.kind === 'notice' && c.variant === 'look' && !c.collapsed;
+const isDone = (c: StackCard): c is DoneCard => c.kind === 'notice' && c.variant === 'done' && !c.collapsed;
+const isError = (c: StackCard): c is ErrorCard => c.kind === 'error' && !c.collapsed;
 const newest = <T extends StackCard>(cards: T[]): T | null => cards.reduce<T | null>((a, c) => (a && a.at >= c.at ? a : c), null);
 
 /** Opens 快速输入 for a drop, with a read scope over its files when agentd can read any of them (the drop card's 问). */
@@ -46,15 +48,12 @@ async function askAbout(card: DropCard) {
 }
 
 /**
- * What the bubble takes from `stack.onCards`: the newest due reminder (`rem-*`), with 知道了 and 稍后 through the same
- * commitment routes as the stack's, the newest open voice hint, avatar loading card and 屏幕识读 receipt, and each new drop card, which
- * opens 快速输入 once and leaves native's stack.
+ * What the bubble takes from `stack.onCards`: the approvals waiting on the user (oldest first; `folded` the ones ✕ put
+ * away), the newest due reminder (`rem-*`), result and failed task, the newest open voice hint, avatar loading card and
+ * 屏幕识读 receipt, and each new drop card, which opens 快速输入 once and leaves native's stack.
  */
 export function useBubbleCards(demo: StackPayload | null) {
   const [cards, setCards] = useState<StackCard[]>([]);
-  const [settled, setSettled] = useState<ReadonlySet<string>>(new Set());
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const asked = useRef(new Set<string>());
   const latestDrop = useRef<string | null>(null);
@@ -81,34 +80,18 @@ export function useBubbleCards(demo: StackPayload | null) {
     );
   }, [drop]);
 
-  const reminder = newest(cards.filter((c) => isReminder(c) && !settled.has(c.id)) as ReminderCard[]);
+  const reminder = newest(cards.filter(isReminder));
   const voice = newest(cards.filter(isVoice));
   const loading = newest(cards.filter(isLoading));
   const look = newest(cards.filter(isLook));
+  const done = newest(cards.filter(isDone));
+  const failed = newest(cards.filter(isError));
+  const approvals = cards.filter((c): c is ApprovalStackItem => isStackApproval(c) && !c.outcome).sort((a, b) => a.at - b.at);
 
-  const settle = async (card: ReminderCard, lead: string, step: () => Promise<unknown>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await step();
-      void getBridge().stack.collapse(card.id).catch(() => {});
-      setSettled((s) => new Set(s).add(card.id));
-    } catch (e) {
-      setError(`${lead}：${why(e)}`);
-    }
-    setBusy(false);
+  return {
+    reminder, voice, loading, look, done, failed,
+    approvals: approvals.filter((c) => !c.collapsed),
+    folded: approvals.filter((c) => c.collapsed),
+    all: cards, dropError,
   };
-  const commitment = (card: ReminderCard) => seg(card.commitment_id ?? '');
-  // agentd marks a one-time reminder fulfilled when it announces it, so 完成 may find nothing left to move.
-  const ack = (card: ReminderCard) =>
-    settle(card, '没能完成提醒', () =>
-      card.commitment_id
-        ? call('POST', `/commitments/${commitment(card)}/complete`).catch((e: unknown) => {
-            if (!(e instanceof AgentdCallError && e.code === 'illegal_transition')) throw e;
-          })
-        : Promise.resolve(),
-    );
-  const later = (card: ReminderCard) => settle(card, '没能延后提醒', () => call('POST', `/commitments/${commitment(card)}/snooze`, { minutes: LATER_MIN }));
-
-  return { reminder, voice, loading, look, busy, error, dropError, ack, later };
 }

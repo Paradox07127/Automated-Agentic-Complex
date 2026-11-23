@@ -5,13 +5,13 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import type { DesktopCommand, DesktopState, AgenticComplexBridge } from '../../src/bridge/protocol';
 import { BubbleRoot } from '../../src/surfaces/desktop/BubbleRoot';
 import { CmdRoot } from '../../src/surfaces/desktop/CmdRoot';
-import { pendingCount, ringItems, type CmdItem } from '../../src/surfaces/desktop/cmd/actions';
+import { pendingCount, wheelItems, type CmdItem } from '../../src/surfaces/desktop/cmd/actions';
 import { ECHO_MS } from '../../src/surfaces/desktop/cmd/input/QuickInput';
 import { CommandRing } from '../../src/surfaces/desktop/cmd/ring/CommandRing';
 import { runCmdAction } from '../../src/surfaces/desktop/cmd/ring/run';
 import { stubMatchMedia } from './mediaStub';
 
-// The command ring and its action table on `stack.html#/cmd`, and 快速输入, which moved under the bubble
+// Her wheel and its action table on `stack.html#/cmd`, and 快速输入, which moved under the bubble
 // (`#/bubble`); also the stack wheel and in-place input assertions taken off the stack page (stack-role-cards,
 // stack-reminders and cross-page-reads), moved here.
 
@@ -44,7 +44,7 @@ const STATE: DesktopState = {
   clickThroughAll: false,
   freeRoam: false,
   quietUntil: null,
-  avatarHovered: false,
+  dock: { open: false, side: 'right', compact: false },
   character: { id: 'voice_a', name: '示例甲' },
   characters: [
     { id: 'voice_a', name: '示例甲' },
@@ -57,25 +57,27 @@ const STATE: DesktopState = {
   plugins: ['light_ai', 'screen_reading'],
 };
 
-const item = (id: CmdItem['id'], s: DesktopState | null = STATE): CmdItem => {
-  const found = ringItems(s).find((i) => i.id === id);
+const item = (id: CmdItem['id'], s: DesktopState | null = STATE, pending = 2): CmdItem => {
+  const found = wheelItems(s, pending).find((i) => i.id === id);
   if (!found) throw new Error(`no ${id}`);
   return found;
 };
 
 describe('the action table', () => {
-  it('has the 8 direct items in key order', () => {
-    expect(ringItems(STATE).map((i) => i.label)).toEqual(['快速输入', '屏幕识读', '待处理', '打开对话', '免打扰 30 分', '让鼠标穿过她', '隐藏 30 分', '送礼物']);
-    expect(ringItems(STATE).map((i) => i.sub ?? null)).toEqual([null, null, null, null, null, null, null, '看她收礼']);
-    expect(ringItems(STATE).map((i) => i.id)).toEqual(['input', 'look', 'openStack', 'goChat', 'quiet', 'pass', 'hide', 'gift']);
+  it('has the 8 slots of the design, clockwise from the top', () => {
+    expect(wheelItems(STATE, 2).map((i) => i.label)).toEqual(['对话页', '待处理', '免打扰', '点穿', '放回原位', '自由活动', '送礼物', '角色页']);
+    expect(wheelItems(STATE, 2).map((i) => i.id)).toEqual(['goChat', 'pending', 'quiet', 'pass', 'home', 'roam', 'gift', 'goCharacter']);
+    expect(wheelItems(STATE, 2)[1]).toMatchObject({ count: 2 });
   });
 
-  it('toggle labels follow the desktop state', () => {
+  it('待处理 with nothing waiting is greyed with its reason; the toggles follow the desktop state', () => {
     const now = 1_800_000_000_000;
-    const on = ringItems({ ...STATE, hidden: true, clickThroughAll: true, quietUntil: now + 60_000 }, now);
-    expect(on.map((i) => i.label).slice(4, 7)).toEqual(['结束免打扰', '结束点穿', '显示角色']);
-    expect(on.map((i) => i.id).slice(4, 7)).toEqual(['quietEnd', 'pass', 'show']);
-    expect(ringItems({ ...STATE, quietUntil: now - 60_000 }, now)[4]?.id).toBe('quiet');
+    expect(wheelItems(STATE, 0, now)[1]).toMatchObject({ id: 'pending', off: '没有待处理的事' });
+    const on = wheelItems({ ...STATE, freeRoam: true, quietUntil: now + 60_000, hotkeys: { hk_pass: '⌃P' } }, 0, now);
+    expect(on[2]).toMatchObject({ id: 'quietEnd', label: '结束免打扰', on: true });
+    expect(on[5]).toMatchObject({ id: 'roam', on: true });
+    expect(on[3]?.desc).toContain('⌃P 恢复');
+    expect(wheelItems({ ...STATE, quietUntil: now - 60_000 }, 0, now)[2]?.id).toBe('quiet');
   });
 
   it('counts questions, approvals and results in presence, past the first 3', () => {
@@ -84,52 +86,49 @@ describe('the action table', () => {
   });
 });
 
-describe('the ring', () => {
+describe('the wheel', () => {
+  const center = { en: 'AGENTIC COMPLEX', name: '示例甲', desc: '待命' };
+
   it('the cmd preview shows it', async () => {
     stackBridge();
     mount('#/cmd?still=1');
-    await screen.findByRole('menu', { name: '指令环' });
+    await screen.findByRole('menu', { name: '她的轮盘' });
   });
 
-  it('shows 8 items and hints the saved keys only', () => {
-    render(<CommandRing items={ringItems(STATE)} pending={0} keys={{ hk_hide: '⌃H' }} onRun={() => {}} onClose={() => {}} />);
-    const ring = screen.getByRole('menu', { name: '指令环' });
-    expect(within(ring).getAllByRole('menuitem')).toHaveLength(8);
-    expect(within(ring).getByRole('menuitem', { name: /^隐藏 30 分/ }).textContent).toContain('⌃H');
-    expect(within(ring).getByRole('menuitem', { name: /^送礼物/ }).textContent).toContain('看她收礼');
-    expect(ring.textContent).not.toMatch(/⌃⌥|默认/);
-    expect(ring.textContent).toContain('1–8 直接执行 │ esc 关闭');
+  it('shows 8 slots with their names, one level, and the key help only while ⌘ is held', () => {
+    render(<CommandRing items={wheelItems(STATE, 3)} center={center} onRun={() => {}} onClose={() => {}} />);
+    const wheel = screen.getByRole('menu', { name: '她的轮盘' });
+    expect(within(wheel).getAllByRole('menuitem')).toHaveLength(8);
+    expect(within(wheel).getByRole('menuitem', { name: '2 待处理 3' })).toBeTruthy();
+    expect(wheel.textContent).toContain('示例甲');
+    expect(wheel.closest('[data-keys]')).toBeNull();
+    flush(() => void fireEvent.keyDown(window, { key: 'Meta', metaKey: true }));
+    expect(wheel.closest('[data-keys]')).not.toBeNull();
+    flush(() => void fireEvent.keyUp(window, { key: 'Meta' }));
+    expect(wheel.closest('[data-keys]')).toBeNull();
   });
 
-  it('with 7 items the arrows wrap over 7 and the hint says 1–7', () => {
-    const onRun = vi.fn();
-    const items = ringItems(STATE).slice(0, 7);
-    render(<CommandRing items={items} pending={0} onRun={onRun} onClose={() => {}} />);
-    const ring = screen.getByRole('menu', { name: '指令环' });
-    fireEvent.keyDown(ring, { key: 'ArrowRight' });
-    fireEvent.keyDown(ring, { key: 'ArrowLeft' });
-    fireEvent.keyDown(ring, { key: 'Enter' });
-    expect(onRun).toHaveBeenCalledWith(items[6]);
-    expect(ring.textContent).toContain('1–7 直接执行 │ esc 关闭');
-  });
-
-  it('1–8 run their item directly, hover opens nothing, esc closes, and 待处理 shows its count', () => {
+  it('1–8 run their slot directly, a greyed slot does not run, esc closes', () => {
     const onRun = vi.fn();
     const onClose = vi.fn();
-    render(<CommandRing items={ringItems(STATE)} pending={4} onRun={onRun} onClose={onClose} />);
-    const ring = screen.getByRole('menu', { name: '指令环' });
-    expect(within(ring).getByRole('menuitem', { name: /待处理/ }).textContent).toContain('4');
-    for (const el of within(ring).getAllByRole('menuitem')) fireEvent.mouseEnter(el);
-    expect(screen.getAllByRole('menu')).toHaveLength(1);
+    render(<CommandRing items={wheelItems(STATE, 0)} center={center} onRun={onRun} onClose={onClose} />);
+    const wheel = screen.getByRole('menu', { name: '她的轮盘' });
+    fireEvent.keyDown(wheel, { key: '2' });
     expect(onRun).not.toHaveBeenCalled();
-    fireEvent.keyDown(ring, { key: '3' });
-    expect(onRun).toHaveBeenCalledTimes(1);
-    expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'openStack' }));
-    fireEvent.keyDown(ring, { key: '6' });
+    expect(wheel.textContent).toContain('没有待处理的事');
+    fireEvent.keyDown(wheel, { key: '4' });
     expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'pass' }));
-    expect(screen.getAllByRole('menu')).toHaveLength(1);
-    fireEvent.keyDown(ring, { key: 'Escape' });
+    fireEvent.keyDown(wheel, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('opened by a right click it centres on the click; the hot key\'s sits in the middle of its box', () => {
+    const at = render(<CommandRing items={wheelItems(STATE, 0)} center={center} at={{ x: 300, y: 250 }} onRun={() => {}} onClose={() => {}} />);
+    const placed = at.container.querySelector<HTMLElement>('[data-stub="GameWheel"]');
+    expect([placed?.style.left, placed?.style.top]).toEqual(['40px', '-10px']);
+    at.unmount();
+    render(<CommandRing items={wheelItems(STATE, 0)} center={center} onRun={() => {}} onClose={() => {}} />);
+    expect(document.querySelector<HTMLElement>('[data-stub="GameWheel"]')?.style.left).toBe('');
   });
 
   it('the fake sends the opening command once, like native, so a page subscribing later gets none', async () => {
@@ -145,21 +144,21 @@ describe('the ring', () => {
     expect(later).toEqual([]);
   });
 
-  it('pressing 3 on the opened ring opens the stack once and closes the panel', async () => {
+  it('pressing 1 on the opened wheel opens the chat page once and closes the panel', async () => {
     const bridge = stackBridge();
-    const action = vi.spyOn(bridge.desktop, 'action');
+    const openMain = vi.spyOn(bridge.window, 'openMain').mockImplementation(() => {});
     const close = vi.spyOn(bridge.window, 'close');
-    mount('#/cmd?still=1&plugins=screen_reading');
-    await screen.findByRole('menu', { name: '指令环' });
+    mount('#/cmd?still=1&at=300,250');
+    await screen.findByRole('menu', { name: '她的轮盘' });
     await flush(async () => {});
-    await flush(async () => fireEvent.keyDown(screen.getByRole('menu', { name: '指令环' }), { key: '3' }));
-    expect(action.mock.calls).toEqual([['openStack']]);
+    await flush(async () => fireEvent.keyDown(screen.getByRole('menu', { name: '她的轮盘' }), { key: '1' }));
+    expect(openMain.mock.calls).toEqual([[expect.stringMatching(/^\/chat/)]]);
     expect(close).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('menu', { name: '指令环' })).toBeNull();
+    expect(screen.queryByRole('menu', { name: '她的轮盘' })).toBeNull();
   });
 });
 
-describe('ring actions', () => {
+describe('wheel actions', () => {
   const ctx = (bridge: AgenticComplexBridge, state: DesktopState | null = STATE, now = 1_800_000_000_000) => ({ bridge, state, now: () => now });
 
   it('免打扰 starts and ends through native, asking agentd nothing', async () => {
@@ -169,67 +168,42 @@ describe('ring actions', () => {
     const now = 1_800_000_000_000;
     expect(await runCmdAction(item('quiet'), ctx(bridge, STATE, now))).toMatchObject({ kind: 'receipt', tone: 'success', text: expect.stringContaining('免打扰已开始') });
     const quiet = { ...STATE, quietUntil: now + 60_000 };
-    const end = ringItems(quiet, now)[4];
+    const end = wheelItems(quiet, 0, now)[2];
     expect(end && (await runCmdAction(end, ctx(bridge, quiet, now)))).toMatchObject({ kind: 'receipt', text: '免打扰已结束' });
     expect(action.mock.calls.map((c) => c[0])).toEqual(['quiet', 'quietEnd']);
     expect(request).not.toHaveBeenCalled();
   });
 
-  it('the hide and pass receipts name the saved key, or none', async () => {
+  it('点穿 names the saved key, or none; 放回原位 puts her and the panels back', async () => {
     const bridge = stackBridge();
     const action = vi.spyOn(bridge.desktop, 'action');
-    const texts = async (hotkeys: Record<string, string>) => {
+    const pass = async (hotkeys: Record<string, string>) => {
       const s = { ...STATE, hotkeys };
-      const out = await Promise.all([runCmdAction(item('hide', s), ctx(bridge, s)), runCmdAction(item('pass', s), ctx(bridge, s))]);
-      return out.map((o) => (o.kind === 'receipt' ? o.text : ''));
+      const o = await runCmdAction(item('pass', s), ctx(bridge, s));
+      return o.kind === 'receipt' ? o.text : '';
     };
-    const [hide, pass] = await texts({ hk_hide: '⌃H', hk_pass: '⌃P' });
-    expect(hide).toContain('⌃H 显示');
-    expect(pass).toContain('⌃P 关闭');
-    expect((await texts({})).join(' ')).not.toMatch(/⌃/);
-    expect(action.mock.calls.map((c) => c[0])).toEqual(['hide', 'clickThroughAll', 'hide', 'clickThroughAll']);
+    expect(await pass({ hk_pass: '⌃P' })).toContain('⌃P 关闭');
+    expect(await pass({})).not.toMatch(/⌃/);
+    expect(await runCmdAction(item('home'), ctx(bridge))).toEqual({ kind: 'close' });
+    expect(action.mock.calls.map((c) => c[0])).toEqual(['clickThroughAll', 'clickThroughAll', 'resetPosition', 'resetBoxes']);
   });
 
-  it('送礼物 goes to native and asks agentd nothing', async () => {
+  it('送礼物 goes to native and asks agentd nothing; one native could not play shows its reason', async () => {
     const bridge = stackBridge();
     const request = vi.spyOn(bridge.agentd, 'request');
     const action = vi.spyOn(bridge.desktop, 'action');
-    const openMain = vi.spyOn(bridge.window, 'openMain').mockImplementation(() => {});
-    const out = await runCmdAction(item('gift'), ctx(bridge));
+    expect(await runCmdAction(item('gift'), ctx(bridge))).toEqual({ kind: 'close' });
     expect(action).toHaveBeenCalledWith('gift');
     expect(request).not.toHaveBeenCalled();
-    expect(openMain).not.toHaveBeenCalled();
-    expect(out).toMatchObject({ kind: 'receipt', text: '已送出礼物' });
+    action.mockRejectedValue({ code: 'failed', detail: '当前角色包尚未导入原作收礼动作' });
+    expect(await runCmdAction(item('gift'), ctx(bridge))).toMatchObject({ kind: 'receipt', tone: 'danger', text: expect.stringContaining('当前角色包尚未导入原作收礼动作') });
   });
 
-  it('a gift native could not play shows its reason, not 已送出礼物', async () => {
-    const bridge = stackBridge();
-    vi.spyOn(bridge.desktop, 'action').mockRejectedValue({ code: 'failed', detail: '当前角色包尚未导入原作收礼动作' });
-    const out = await runCmdAction(item('gift'), ctx(bridge));
-    expect(out).toMatchObject({ kind: 'receipt', tone: 'danger', text: expect.stringContaining('当前角色包尚未导入原作收礼动作') });
-    expect(out.kind === 'receipt' && out.text).not.toContain('已送出礼物');
-  });
-
-  it('打开对话 opens the chat page in the main window', async () => {
+  it('对话页, 待处理 and 角色页 open the main window', async () => {
     const bridge = stackBridge();
     const openMain = vi.spyOn(bridge.window, 'openMain').mockImplementation(() => {});
-    expect(await runCmdAction(item('goChat'), ctx(bridge))).toEqual({ kind: 'close' });
-    expect(openMain).toHaveBeenCalledWith(expect.stringMatching(/^\/chat/));
-  });
-
-  it('快速输入 on the ring asks native for the bubble’s input and closes the ring', async () => {
-    const bridge = stackBridge();
-    const action = vi.spyOn(bridge.desktop, 'action');
-    const close = vi.spyOn(bridge.window, 'close');
-    mount('#/cmd?mode=ring&still=1');
-    await screen.findByRole('menu', { name: '指令环' });
-    await flush(async () => {});
-    const ring = screen.getByRole('menu', { name: '指令环' });
-    await flush(async () => fireEvent.click(within(ring).getByRole('menuitem', { name: /^快速输入/ })));
-    expect(action.mock.calls).toEqual([['quickInput']]);
-    expect(close).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('menu', { name: '指令环' })).toBeNull();
-    expect(screen.queryByRole('textbox')).toBeNull();
+    for (const id of ['goChat', 'pending', 'goCharacter'] as const) expect(await runCmdAction(item(id), ctx(bridge))).toEqual({ kind: 'close' });
+    expect(openMain.mock.calls.map((c) => c[0])).toEqual([expect.stringMatching(/^\/chat/), expect.stringMatching(/^\/overview\?.*focus=pending/), expect.stringMatching(/^\/character/)]);
   });
 
   it('a layer the page closed itself is dropped when native hides the panel', () => {
@@ -246,7 +220,7 @@ describe('ring actions', () => {
     });
     mount('#/cmd?still=1');
     const root = document.querySelector('[data-surface-root="cmd"]');
-    flush(() => send({ kind: 'open', mode: 'tune' }));
+    flush(() => send({ kind: 'open', mode: 'ring' }));
     flush(() => visible(true));
     expect(root?.childElementCount).toBe(1);
     flush(() => visible(false));

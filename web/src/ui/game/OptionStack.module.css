@@ -135,7 +135,7 @@
 .hotkey {
   margin-left: auto;
   color: var(--os-ink-2);
-  font: var(--ef-fw-medium) 11px / 1 var(--ef-font-num);
+  font: var(--ef-fw-medium) 12px / 1 var(--ef-font-num);
   letter-spacing: 0.02em;
 }
 

@@ -1,11 +1,11 @@
-// `desktop.action`: each name on the shell function the avatar menu runs; a name whose port the shell does not give answers
-// not_implemented. Also the clicks on her that claim a ritual and the gift action's pick.
+// `desktop.action`: each name on the shell function her wheel, her hover buttons and the console run; a name whose port the
+// shell does not give answers not_implemented. Also the clicks on her that claim a ritual and the gift action's pick.
 import { BridgeFailure, type Handler } from './bridge.ts';
 import type { ActionRow } from './c3.ts';
 
 export const DESKTOP_ACTIONS = ['look', 'hide', 'show', 'clickThroughAll', 'quiet', 'quietEnd', 'gift', 'freeRoam', 'switchCharacter',
   'placeOnScreen', 'resetPosition', 'resize', 'restartAll', 'quit', 'resetBoxes', 'openSessions', 'openStack', 'claimRitual',
-  'quickInput', 'cmdMode'] as const;
+  'quickInput', 'cmdMode', 'talk'] as const;
 export type DesktopActionName = (typeof DESKTOP_ACTIONS)[number];
 
 /** The optional ports below answer not_implemented while the shell gives none. */
@@ -24,7 +24,7 @@ export interface DesktopActionPorts {
   /** Opens 快速输入 in the bubble, with the drop card's scope when it names one. */
   quickInput(scope: { scopeId: string; files: number } | null): void;
   /** The page asks for the command layer in `mode`. */
-  cmdMode(mode: 'ring' | 'input' | 'tune'): void;
+  cmdMode(mode: 'ring'): void;
   /** 复位浮窗: every panel drops its user offset and pin. */
   resetBoxes(): void;
   clickThroughAll?(): void;
@@ -39,6 +39,8 @@ export interface DesktopActionPorts {
   claimRitual?(): Promise<string | null>;
   /** Opens 调整大小's frame on her; nothing without her frame. */
   resize?(): void;
+  /** 说话: `start` as a press of the push-to-talk key, `stop` as its release, on the same recording. */
+  talk?(phase: 'start' | 'stop'): void;
   /** Epoch milliseconds; tests drive it. */
   now?(): number;
 }
@@ -135,10 +137,16 @@ export function desktopAction<P>(ports: DesktopActionPorts): Handler<P> {
       case 'quickInput': ports.quickInput(id === null ? null : scope(id)); break;
       case 'cmdMode': {
         const mode = required();
-        if (mode !== 'ring' && mode !== 'input' && mode !== 'tune') throw new BridgeFailure('invalid_args', '未知的桌面操作面板');
+        if (mode !== 'ring' && mode !== 'input') throw new BridgeFailure('invalid_args', '未知的桌面操作面板');
         // A page from before 快速输入 moved to the bubble still sends `input`.
         if (mode === 'input') ports.quickInput(null);
         else ports.cmdMode(mode);
+        break;
+      }
+      case 'talk': {
+        const phase = required();
+        if (phase !== 'start' && phase !== 'stop') throw new BridgeFailure('invalid_args', 'talk 的参数应是 start 或 stop');
+        given(ports.talk)(phase);
         break;
       }
     }

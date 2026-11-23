@@ -3,7 +3,6 @@ import { getBridge, type SayResult } from '../../../bridge';
 import { Btn } from '../../../ui/Btn';
 import type { PresenceThought } from '../tags/presence';
 import type { Ritual } from '../tags/useRitual';
-import { RadioIcon } from './HeadCard';
 import { why, type ThoughtMute } from './useThoughtMute';
 import styles from './Bubble.module.css';
 
@@ -18,7 +17,7 @@ function sayFailure(r: Extract<SayResult, { ok: false }>): string {
 }
 
 /**
- * 想法: her latest thought beside the radio icon at half strength, with her offer (sent as the user's 好 through `desktop.say`) and a ritual she may
+ * 想法: her latest thought, once per thought, with her offer (sent as the user's 好 through `desktop.say`) and a ritual she may
  * claim as its suggested action. Muted, it shows 撤销 for a few seconds, then nothing.
  */
 export function Thought({ thought, ritual, mute, composing }: { thought: PresenceThought | null; ritual: Ritual | null; mute: ThoughtMute; composing: boolean }) {
@@ -73,7 +72,6 @@ export function Thought({ thought, ritual, mute, composing }: { thought: Presenc
     <div className={styles.main} data-kind="thought">
       {shown && (
         <div className={styles.row}>
-          <RadioIcon className={styles.radio} />
           <p key={shown.id} className={`${styles.text} ${styles.fade}`}>
             {shown.text}
           </p>

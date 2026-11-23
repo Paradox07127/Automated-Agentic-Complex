@@ -7,7 +7,6 @@ import { MENU_STATE_DEFAULTS } from '../src/common/menus.ts';
 import { PLUGINS } from '../src/common/plugins.generated.ts';
 import { DEFAULT_PLUGINS, enabledPlugins, PLUGIN_IDS, type Plugins, shellPlan } from '../src/common/plugins.ts';
 import { current, parseChanges, planSave, schema, settingValues, withSettings } from '../src/common/settings.ts';
-import { avatarMenu } from '../src/main/menus/avatar.ts';
 import type { MenuItem, MenuPorts } from '../src/main/menus/items.ts';
 import { trayMenu } from '../src/main/menus/tray.ts';
 
@@ -85,18 +84,16 @@ const PORTS: MenuPorts = {
 const deepIds = (menu: MenuItem[]): string[] =>
   menu.flatMap((i) => (i.type === 'separator' ? [] : [String(i.id), ...deepIds((i.submenu as MenuItem[] | undefined) ?? [])]));
 
-test('menus: with coding sessions off neither the tray nor her menu has the session items; with it on both do', () => {
+test('menus: with coding sessions off the tray has no session items; with it on it does', () => {
   const off = { ...MENU_STATE_DEFAULTS, plan: shellPlan(DEFAULT_PLUGINS) };
-  for (const menu of [trayMenu(off, PORTS), avatarMenu(off, PORTS), trayMenu({ ...off, configError: '配置错误' }, PORTS)]) {
+  for (const menu of [trayMenu(off, PORTS), trayMenu({ ...off, configError: '配置错误' }, PORTS)]) {
     const ids = deepIds(menu);
     assert.ok(!ids.includes('sessions') && !ids.includes('pending'), ids.join(' '));
   }
   // Screen reading is off too.
   assert.ok(!deepIds(trayMenu(off, PORTS)).includes('look'));
-  assert.ok(!deepIds(avatarMenu(off, PORTS)).some((id) => id === 'look' || id === 'selectRegion'));
   const on = { ...off, plan: shellPlan({ ...DEFAULT_PLUGINS, coding_sessions: true }) };
   assert.ok(deepIds(trayMenu(on, PORTS)).includes('sessions') && deepIds(trayMenu(on, PORTS)).includes('pending'));
-  assert.ok(deepIds(avatarMenu(on, PORTS)).includes('pending'));
   assert.ok(deepIds(trayMenu({ ...on, configError: '配置错误' }, PORTS)).includes('sessions'));
 });
 

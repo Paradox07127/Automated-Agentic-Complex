@@ -33,6 +33,7 @@ function setup(quietFails = false, ritual: string | null = null) {
     openSessions: () => calls.push(['openSessions']),
     openStack: () => calls.push(['openStack']),
     resize: () => calls.push(['resize']),
+    talk: (phase) => calls.push(['talk', phase]),
     claimRitual: async () => {
       calls.push(['claimRitual']);
       return ritual;
@@ -55,21 +56,22 @@ async function failure(p: unknown): Promise<{ code: string; detail: string }> {
 test('the names are DesktopAction\'s', () => {
   assert.deepEqual([...DESKTOP_ACTIONS], ['look', 'hide', 'show', 'clickThroughAll', 'quiet', 'quietEnd', 'gift', 'freeRoam',
     'switchCharacter', 'placeOnScreen', 'resetPosition', 'resize', 'restartAll', 'quit', 'resetBoxes', 'openSessions', 'openStack',
-    'claimRitual', 'quickInput', 'cmdMode']);
+    'claimRitual', 'quickInput', 'cmdMode', 'talk']);
 });
 
 test('wired actions reach their function and answer null', async () => {
   const { calls, run } = setup();
   for (const [name, arg] of [['look'], ['hide'], ['show'], ['quiet'], ['quietEnd'], ['switchCharacter', 'aster'], ['placeOnScreen', '4'],
     ['resetPosition'], ['restartAll'], ['quit'], ['quickInput'], ['quickInput', '{"scopeId":"s1","files":2}'], ['cmdMode', 'ring'],
-    ['cmdMode', 'tune'], ['cmdMode', 'input'], ['resetBoxes'], ['clickThroughAll'], ['gift'], ['freeRoam'], ['openSessions'], ['openStack'],
-    ['claimRitual'], ['resize']] as [string, string?][]) {
+    ['cmdMode', 'input'], ['resetBoxes'], ['clickThroughAll'], ['gift'], ['freeRoam'], ['openSessions'], ['openStack'],
+    ['claimRitual'], ['resize'], ['talk', 'start'], ['talk', 'stop']] as [string, string?][]) {
     assert.equal(await run(arg === undefined ? [name] : [name, arg], null), null, name);
   }
   assert.deepEqual(calls, [['look'], ['setHidden', true], ['setHidden', false], ['setQuiet', 1_800_000_000 + 1800], ['setQuiet', null],
     ['switchCharacter', 'aster'], ['placeOnScreen', '4'], ['resetPosition'], ['restartAll'], ['quit'], ['quickInput', null],
-    ['quickInput', { scopeId: 's1', files: 2 }], ['cmdMode', 'ring'], ['cmdMode', 'tune'], ['quickInput', null], ['resetBoxes'],
-    ['clickThroughAll'], ['gift'], ['freeRoam'], ['openSessions'], ['openStack'], ['claimRitual'], ['resize']]);
+    ['quickInput', { scopeId: 's1', files: 2 }], ['cmdMode', 'ring'], ['quickInput', null], ['resetBoxes'],
+    ['clickThroughAll'], ['gift'], ['freeRoam'], ['openSessions'], ['openStack'], ['claimRitual'], ['resize'], ['talk', 'start'],
+    ['talk', 'stop']]);
 });
 
 test('claimRitual fails with why agentd took no tap, and a failed gift fails the action', async () => {
@@ -81,23 +83,28 @@ test('claimRitual fails with why agentd took no tap, and a failed gift fails the
   assert.deepEqual(calls, [['claimRitual']]);
 });
 
-test('quickInput takes only a {scopeId, files} scope, and cmdMode only ring, input or tune', async () => {
+test('quickInput takes only a {scopeId, files} scope, cmdMode only ring or input, and talk only start or stop', async () => {
   const { calls, run } = setup();
   for (const arg of ['s1', '{"scopeId":"","files":2}', '{"scopeId":"s1"}', '{"scopeId":"s1","files":1.5}', '[]']) {
     assert.deepEqual(await failure(run(['quickInput', arg], null)), { code: 'failed', detail: 'quickInput 的参数应是 {scopeId, files}' }, arg);
   }
-  assert.deepEqual(await failure(run(['cmdMode', 'console'], null)), { code: 'invalid_args', detail: '未知的桌面操作面板' });
+  for (const mode of ['console', 'tune']) {
+    assert.deepEqual(await failure(run(['cmdMode', mode], null)), { code: 'invalid_args', detail: '未知的桌面操作面板' }, mode);
+  }
   assert.deepEqual(await failure(run(['cmdMode'], null)), { code: 'failed', detail: 'cmdMode 缺少参数' });
+  assert.deepEqual(await failure(run(['talk', 'hold'], null)), { code: 'invalid_args', detail: 'talk 的参数应是 start 或 stop' });
+  assert.deepEqual(await failure(run(['talk'], null)), { code: 'failed', detail: 'talk 缺少参数' });
   assert.deepEqual(calls, []);
 });
 
 test('an action whose port the shell does not give is not_implemented', async () => {
   const { calls, ports } = setup();
-  const { clickThroughAll: _a, gift: _b, freeRoam: _c, openSessions: _d, openStack: _e, claimRitual: _f, resize: _g, ...bare } = ports;
+  const { clickThroughAll: _a, gift: _b, freeRoam: _c, openSessions: _d, openStack: _e, claimRitual: _f, resize: _g, talk: _h, ...bare } = ports;
   const run = desktopAction(bare);
   for (const name of ['clickThroughAll', 'gift', 'freeRoam', 'openSessions', 'openStack', 'claimRitual', 'resize']) {
     assert.deepEqual(await failure(run([name], null)), { code: 'not_implemented', detail: `desktop.action ${name}` });
   }
+  assert.deepEqual(await failure(run(['talk', 'start'], null)), { code: 'not_implemented', detail: 'desktop.action talk' });
   assert.deepEqual(calls, []);
 });
 

@@ -11,3 +11,8 @@
 .root:not(:empty) {
   padding: var(--ef-sp-16) var(--ef-sp-16) 28px;
 }
+
+/* The wheel's page is its 520 px box alone (DesktopLayout's `WHEEL_PANEL`). */
+.root[data-mode='ring'] {
+  padding: 0;
+}

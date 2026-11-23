@@ -1,4 +1,4 @@
-// The bubble and hud placement (src/common/desktop-layout.ts) with the cases and values of DesktopLayoutTests, and the
+// The bubble, dock and wheel placement (src/common/desktop-layout.ts) with the cases and values of DesktopLayoutTests, and the
 // follower (src/common/desktop-follow.ts) with those of DesktopCoordinatorTests and AvatarAnchorTrackerTests that cover them.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import { type AnchorInput, AnchorTracker, placementBox } from '../src/common/des
 import { DesktopFollow, type FollowPanel } from '../src/common/desktop-follow.ts';
 import {
   anchorPayload, cardIn, fallbackInsets, inside, inset, keepOut, keepOutOf, type LayoutMemory, overlaps, type PanelRequest, place,
-  RING_ROW, ZERO_INSETS, type AnchorPayload,
+  wheelFrame, ZERO_INSETS, type AnchorPayload,
 } from '../src/common/desktop-layout.ts';
 import type { Rect, ScreenInfo } from '../src/common/placement.ts';
 
@@ -15,12 +15,13 @@ const main: ScreenInfo = { id: 1, frame: { x: 0, y: 0, w: 1512, h: 982 }, visibl
 const side: ScreenInfo = { id: 2, frame: { x: 1512, y: 0, w: 1920, h: 1080 }, visibleFrame: { x: 1512, y: 0, w: 1920, h: 1055 } };
 const portrait: ScreenInfo = { id: 3, frame: { x: 0, y: 0, w: 1080, h: 1920 }, visibleFrame: { x: 0, y: 0, w: 1080, h: 1895 } };
 const bubble: PanelRequest = { kind: 'bubble', size: { w: 380, h: 200 }, cardInsets: ZERO_INSETS, visible: true };
-const hud: PanelRequest = { kind: 'hud', size: { w: 352, h: 80 }, cardInsets: ZERO_INSETS, visible: true };
+/** DockRoot's card, 180 × 156, in its 16 px padding. */
+const dock: PanelRequest = { kind: 'dock', size: { w: 212, h: 188 }, cardInsets: fallbackInsets('dock'), visible: true };
 const r = (x: number, y: number, w: number, h: number): Rect => ({ x, y, w, h });
 
 function layout(body: Rect | null, o: { screens?: ScreenInfo[]; docked?: 'hidden' | 'fullscreen' | 'stale'; requests?: PanelRequest[];
   memory?: LayoutMemory; now?: number } = {}) {
-  return place({ body, screens: o.screens ?? [main], docked: o.docked, mouse: { x: 700, y: 400 }, requests: o.requests ?? [bubble, hud],
+  return place({ body, screens: o.screens ?? [main], docked: o.docked, mouse: { x: 700, y: 400 }, requests: o.requests ?? [bubble],
     memory: o.memory, now: o.now ?? 0 });
 }
 
@@ -28,10 +29,9 @@ test('rule 1: the keep-out grows her body by 8', () => {
   assert.deepEqual(keepOut(r(100, 100, 100, 200)), r(92, 92, 116, 216));
 });
 
-test('the bubble on her roomier side with its top at her head; the hud under her', () => {
+test('the bubble on her roomier side with its top at her head', () => {
   const { placements: p } = layout(r(600, 100, 200, 400));
   assert.deepEqual(p.bubble, { frame: r(768, 300, 380, 200), side: 'right', docked: null, far: false });
-  assert.deepEqual(p.hud, { frame: r(524, 12, 352, 80), side: 'below', docked: null, far: true });
 });
 
 test('her left and right screen edges flip the bubble', () => {
@@ -41,8 +41,6 @@ test('her left and right screen edges flip the bubble', () => {
   ({ placements: p } = layout(r(1272, 100, 200, 400)));
   assert.deepEqual(p.bubble?.frame, r(924, 300, 380, 200));
   assert.equal(p.bubble?.side, 'left');
-  assert.deepEqual(p.hud?.frame, r(1504 - 352, 12, 352, 80));
-  assert.equal(overlaps(p.hud!.frame, p.bubble!.frame), false);
 });
 
 test('cards, not windows, hug her', () => {
@@ -59,53 +57,70 @@ test('cards, not windows, hug her', () => {
 test('a head at the menu bar clamps the tops below it; the second screen is her head\'s', () => {
   let { placements: p } = layout(r(600, 557, 200, 400));
   assert.deepEqual(p.bubble?.frame, r(768, 749, 380, 200));
-  assert.deepEqual(p.hud?.frame, r(524, 469, 352, 80));
-  ({ placements: p } = layout(r(2400, 200, 200, 400), { screens: [main, side] }));
-  for (const kind of ['bubble', 'hud'] as const) {
+  ({ placements: p } = layout(r(2400, 200, 200, 400), { screens: [main, side], requests: [bubble, dock] }));
+  for (const kind of ['bubble', 'dock'] as const) {
     assert.equal(inside(p[kind]!.frame, inset(side.visibleFrame, 8)), true);
     assert.equal(p[kind]!.docked, null);
   }
 });
 
 test('portrait without side room goes above; a tall body keeps it beside', () => {
-  let { placements: p } = layout(r(390, 700, 300, 400), { screens: [portrait], requests: [{ ...bubble, size: { w: 480, h: 200 } }, hud] });
+  let { placements: p } = layout(r(390, 700, 300, 400), { screens: [portrait], requests: [{ ...bubble, size: { w: 480, h: 200 } }] });
   assert.equal(p.bubble?.side, 'above');
   assert.deepEqual(p.bubble?.frame, r(300, 1116, 480, 200));
-  assert.deepEqual(p.hud, { frame: r(364, 612, 352, 80), side: 'below', docked: null, far: true });
   ({ placements: p } = layout(r(600, 20, 200, 900)));
   assert.deepEqual(p.bubble?.frame, r(768, 720, 380, 200));
-  assert.deepEqual(p.hud?.frame, r(524, 8, 352, 80));
 });
 
 test('docked: a stale corner avoids her; hidden or fullscreen the bubble is the subtitle under the menu bar', () => {
-  let { placements: p } = layout(r(1250, 500, 200, 400), { docked: 'stale' });
+  let { placements: p } = layout(r(1250, 500, 200, 400), { docked: 'stale', requests: [bubble, dock] });
   assert.deepEqual(p.bubble, { frame: r(8, 749, 380, 200), side: 'corner', docked: 'stale', far: false });
-  assert.deepEqual(p.hud?.frame, r(1152, 8, 352, 80));
+  assert.deepEqual(p.dock?.frame, r(1292, 8, 212, 188), 'clear of her and of the bubble');
   for (const reason of ['hidden', 'fullscreen'] as const) {
-    const out = layout(r(600, 100, 200, 400), { docked: reason });
+    const out = layout(r(600, 100, 200, 400), { docked: reason, requests: [bubble, dock] });
     p = out.placements;
     assert.deepEqual(p.bubble, { frame: r(566, 749, 380, 200), side: 'menubar', docked: reason, far: false });
-    assert.deepEqual(p.hud, { frame: r(1152, 869, 352, 80), side: 'corner', docked: reason, far: false });
+    assert.deepEqual(p.dock, { frame: r(1292, 761, 212, 188), side: 'corner', docked: reason, far: false });
     assert.deepEqual(out.memory, {});
   }
 });
 
-test('the hud card centred under her feet, or on the screen bottom growing up', () => {
-  const body = r(600, 300, 200, 400), insets = fallbackInsets('hud');
-  let { placements: p } = layout(body, { requests: [{ ...hud, cardInsets: insets }] });
-  assert.deepEqual(p.hud?.frame, r(524, 228, 352, 80));
-  const card = cardIn(insets, p.hud!.frame);
-  assert.equal(card.x + card.w / 2, body.x + body.w / 2);
-  assert.equal(card.y + card.h, body.y - 8);
-  ({ placements: p } = layout(r(1400, 40, 200, 400), { requests: [{ ...hud, size: { w: 352, h: 240 } }] }));
-  assert.deepEqual(p.hud?.frame, r(1504 - 352, 8, 352, 240));
+test('the dock\'s card beside her chest, GAP out from her keep-out, on her roomier side, else the other, else above her', () => {
+  const at = (body: Rect, memory?: LayoutMemory) => place({ body, screens: [main], requests: [dock], memory });
+  let body = r(600, 100, 200, 400);
+  let out = at(body);
+  assert.deepEqual(out.placements.dock, { frame: r(800, 234, 212, 188), side: 'right', docked: null, far: false });
+  const card = cardIn(dock.cardInsets, out.placements.dock!.frame);
+  assert.equal(card.x, keepOut(body).x + keepOut(body).w + 8);
+  assert.equal(card.y + card.h / 2, body.y + 0.57 * body.h);
+  body = r(1272, 100, 200, 400);
+  out = at(body);
+  assert.equal(out.placements.dock?.side, 'left');
+  assert.equal(cardIn(dock.cardInsets, out.placements.dock!.frame).x + 180, keepOut(body).x - 8);
+  out = at(r(100, 100, 1300, 400));
+  assert.deepEqual(out.placements.dock, { frame: r(644, 500, 212, 188), side: 'above', docked: null, far: false });
 });
 
-test('a bubble meeting the hud moves up clear of it', () => {
-  const { placements: p } = layout(r(600, 300, 200, 150));
-  assert.deepEqual(p.hud?.frame, r(524, 212, 352, 80));
-  assert.deepEqual(p.bubble?.frame, r(768, 300, 380, 200));
-  assert.equal(overlaps(p.bubble!.frame, p.hud!.frame), false);
+test('the dock keeps the side it had while that side has room, through a hide', () => {
+  let { placements: p, memory: mem } = place({ body: r(1272, 100, 200, 400), screens: [main], requests: [dock] });
+  assert.equal(p.dock?.side, 'left');
+  ({ memory: mem } = place({ body: r(1272, 100, 200, 400), screens: [main], requests: [], memory: mem }));
+  ({ placements: p, memory: mem } = place({ body: r(600, 100, 200, 400), screens: [main], requests: [dock], memory: mem }));
+  assert.deepEqual(p.dock?.frame, r(388, 234, 212, 188), 'left, though her right has more room');
+  ({ placements: p } = place({ body: r(100, 100, 200, 400), screens: [main], requests: [dock], memory: mem }));
+  assert.equal(p.dock?.side, 'right', 'no room left of her');
+});
+
+test('a bubble meeting the dock on its side moves up clear of it; one on her other side stays', () => {
+  let { placements: p } = layout(r(600, 100, 200, 400), { requests: [bubble, dock] });
+  assert.deepEqual(p.dock?.frame, r(800, 234, 212, 188));
+  assert.deepEqual(p.bubble?.frame, r(768, 414, 380, 200));
+  assert.equal(overlaps(p.bubble!.frame, cardIn(dock.cardInsets, p.dock!.frame)), false);
+  const memory: LayoutMemory = { bubble: { side: 'left', candidate: null, since: 0, hiddenAt: null },
+    dock: { side: 'right', candidate: null, since: 0, hiddenAt: null } };
+  ({ placements: p } = layout(r(600, 100, 200, 400), { requests: [bubble, dock], memory }));
+  assert.deepEqual([p.bubble?.side, p.dock?.side], ['left', 'right']);
+  assert.deepEqual(p.bubble?.frame, r(252, 300, 380, 200));
 });
 
 test('rule 6: the column keeps its side while it fits, and switches only after half a second', () => {
@@ -193,11 +208,13 @@ function sample(body: Rect | null, now: number, o: { placement?: Rect | null; hi
 }
 
 test('the follower places a shown panel at once, holds inside the dead zone and docks when her samples go stale', () => {
-  const b = new Panel({ w: 380, h: 200 }), h = new Panel({ w: 352, h: 80 });
-  const f = new DesktopFollow({ bubble: b, hud: h });
+  const b = new Panel({ w: 380, h: 200 }), d = new Panel({ w: 212, h: 188 });
+  const f = new DesktopFollow({ bubble: b, dock: d });
   f.tick(sample(r(600, 100, 200, 400), 0), { x: 0, y: 0 });
-  assert.deepEqual(b.moves, [{ frame: r(752, 322, 380, 200), animated: false }]);
-  assert.equal(h.moves.length, 1);
+  // The bubble's card lifted clear of the dock's on her right.
+  assert.deepEqual(b.moves, [{ frame: r(752, 398, 380, 200), animated: false }]);
+  assert.deepEqual(d.moves, [{ frame: r(800, 234, 212, 188), animated: false }]);
+  assert.deepEqual(f.placedCard('dock'), { card: r(816, 250, 180, 156), side: 'right' });
   assert.equal(b.anchors.at(-1)?.state, 'settled');
   assert.equal(b.anchors.at(-1)?.side, 'right');
   // A small sway stays inside the dead zone.
@@ -263,82 +280,29 @@ test('her body column: her visual rect less 24 a side around her anchor, or her 
   assert.equal(narrow.column?.source, 'capsules');
 });
 
-test('on that column the ring is first placed at 920,8 360x320', () => {
+test('on that column the dock goes on her roomier left at her chest', () => {
   const display: ScreenInfo = { id: 4, frame: r(0, 0, 1920, 1080), visibleFrame: r(0, 0, 1920, 1055) };
-  const ringPanel = new Panel({ w: 360, h: 320 });
+  const d = new Panel({ w: 212, h: 188 });
   const lines: string[] = [];
-  const f = new DesktopFollow({ ring: ringPanel }, (l) => lines.push(l));
+  const f = new DesktopFollow({ dock: d }, (l) => lines.push(l));
   f.tick({ body: r(860, 40, 470, 700), bodyAt: 0, hidden: false, frontFullscreen: false, dragging: false, now: 0, screens: [display],
     placement: placementBox(1100, 33, 1), figure: 'si/default', visual: r(787, 9, 672, 773) }, { x: 0, y: 0 });
-  assert.deepEqual(ringPanel.moves, [{ frame: r(920, 8, 360, 320), animated: false }]);
+  assert.equal(f.placedCard('dock')?.side, 'left');
   assert.ok(lines.includes('desk: column anchor 1100,33 rect 811,33 624x725 source visual posture standing'));
-  assert.ok(lines.includes('desk: ring frame 920,8 360x320'));
+  assert.ok(lines.includes('desk: dock frame 599,352 212x188'));
 });
 
-// DesktopLayoutTests' "hud, ring" cases.
-const ring: PanelRequest = { kind: 'ring', size: { w: 360, h: 320 }, cardInsets: ZERO_INSETS, visible: true };
-
-test('the ring\'s row is centred on her feet, its top 8 under them', () => {
-  const { placements: p } = layout(r(600, 300, 200, 400), { requests: [ring] });
-  assert.deepEqual(p.ring, { frame: r(700 - 180, 300 - 8 - 36, 360, 320), side: 'below', docked: null, far: false });
-  assert.equal(RING_ROW, 36);
+// The wheel: its panel centred where it opened, kept on the screen it opened on.
+test('wheelFrame centres the panel on the point and moves it onto the visible frame of that point\'s screen', () => {
+  assert.deepEqual(wheelFrame({ x: 700, y: 500 }, 520, [main, side]), r(440, 240, 520, 520));
+  assert.deepEqual(wheelFrame({ x: 100, y: 900 }, 520, [main, side]), r(8, 429, 520, 520));
+  assert.deepEqual(wheelFrame({ x: 3400, y: 20 }, 520, [main, side]), r(3432 - 8 - 520, 8, 520, 520));
 });
 
-test('the ring\'s row follows her feet, not her column\'s width', () => {
-  const at = (body: Rect) => place({ body, head: r(650, 700, 0, 0), screens: [main], requests: [ring] }).placements.ring;
-  const narrow = at(r(600, 300, 200, 400));
-  assert.deepEqual(narrow?.frame, r(650 - 180, 256, 360, 320));
-  assert.deepEqual(at(r(300, 300, 725, 400)), narrow);
-});
-
-test('the ring\'s row stays on screen over her shoes and slides along the bottom edge', () => {
-  let { placements: p } = layout(r(600, 20, 200, 400), { requests: [ring] });
-  assert.deepEqual(p.ring?.frame, r(520, 8, 360, 320));
-  ({ placements: p } = layout(r(-60, 20, 200, 400), { requests: [ring] }));
-  assert.deepEqual(p.ring?.frame, r(8, 8, 360, 320));
-  ({ placements: p } = layout(r(1380, 300, 200, 400), { requests: [ring] }));
-  assert.deepEqual(p.ring?.frame, r(1504 - 360, 256, 360, 320));
-  assert.equal(p.ring?.side, 'below');
-});
-
-test('the hud drops under the ring\'s row while the row shows', () => {
-  const body = r(600, 300, 200, 400), insets = fallbackInsets('hud');
-  const h: PanelRequest = { ...hud, cardInsets: insets };
-  let { placements: p } = layout(body, { requests: [h, ring] });
-  const row = p.ring!.frame;
-  const card = cardIn(insets, p.hud!.frame);
-  assert.equal(card.y + card.h, row.y - 8);
-  assert.deepEqual(p.hud?.frame, r(524, 256 - 8 + 16 - 80, 352, 80));
-  ({ placements: p } = layout(body, { requests: [h, { ...ring, visible: false }] }));
-  assert.deepEqual(p.hud?.frame, r(524, 228, 352, 80), 'where it is without the row');
-});
-
-test('the ring is not shown while docked', () => {
-  let { placements: p } = layout(r(600, 100, 200, 400), { docked: 'stale', requests: [bubble, ring] });
-  assert.equal(p.ring, undefined);
-  assert.equal(p.bubble?.docked, 'stale');
-  ({ placements: p } = layout(null, { requests: [ring] }));
-  assert.equal(p.ring, undefined);
-});
-
-test('the follower hides a shown ring while she is docked and shows it at once where it is placed next', () => {
-  const g = new Panel({ w: 360, h: 320 });
-  const f = new DesktopFollow({ ring: g });
-  f.tick(sample(r(600, 300, 200, 400), 0), { x: 0, y: 0 });
-  assert.deepEqual(g.moves, [{ frame: r(520, 256, 360, 320), animated: false }]);
-  f.tick(sample(null, 3.1), { x: 0, y: 0 });
-  assert.equal(f.state, 'docked');
-  assert.equal(g.alpha, 0);
-  f.tick(sample(r(600, 300, 200, 400), 3.2), { x: 0, y: 0 });
-  assert.equal(g.alpha, 1);
-  assert.equal(g.moves.length, 2);
-  assert.equal(g.moves[1]!.animated, false);
-});
-
-// DesktopLayoutTests' command layer cases (rules 5, 6): ring, input and tune in the cmd panel.
-const cmd = (mode: 'ring' | 'input' | 'tune', w: number, h: number): PanelRequest =>
+// DesktopLayoutTests' command layer cases (rules 5, 6): the wheel and input in the cmd panel.
+const cmd = (mode: 'ring' | 'input', w: number, h: number): PanelRequest =>
   ({ kind: 'cmd', size: { w, h }, cardInsets: ZERO_INSETS, visible: true, mode });
-const tune = cmd('tune', 360, 240);
+const input = cmd('input', 420, 60);
 
 test('rule 5: without her, input sits a quarter up the mouse\'s screen and the ring in its middle', () => {
   const at = (request: PanelRequest) =>
@@ -347,53 +311,38 @@ test('rule 5: without her, input sits a quarter up the mouse\'s screen and the r
   assert.deepEqual(at(cmd('ring', 300, 300))?.frame, r(2322, 377.5, 300, 300));
 });
 
-test('the command ring on her roomier side, centred on her body', () => {
-  const { placements: p } = layout(r(1000, 100, 200, 400), { requests: [cmd('ring', 300, 300)] });
-  assert.deepEqual(p.cmd, { frame: r(684, 150, 300, 300), side: 'left', docked: null, far: false });
-});
-
-test('input below her, then beside her; tune above her head', () => {
-  let { placements: p } = layout(r(600, 300, 200, 400), { requests: [cmd('input', 420, 60)] });
+test('input below her, then beside her', () => {
+  let { placements: p } = layout(r(600, 300, 200, 400), { requests: [input] });
   assert.deepEqual(p.cmd, { frame: r(490, 224, 420, 60), side: 'below', docked: null, far: true });
-  ({ placements: p } = layout(r(600, 30, 200, 400), { requests: [cmd('input', 420, 60)] }));
+  ({ placements: p } = layout(r(600, 30, 200, 400), { requests: [input] }));
+  assert.deepEqual(p.cmd?.frame, r(816, 370, 420, 60));
   assert.equal(p.cmd?.side, 'right');
-  ({ placements: p } = layout(r(600, 100, 200, 400), { requests: [tune] }));
-  assert.deepEqual(p.cmd, { frame: r(520, 516, 360, 240), side: 'above', docked: null, far: false });
 });
 
-test('the command panel keeps clear of the bubble and the hud', () => {
-  let { placements: p } = layout(r(1000, 100, 200, 400), { requests: [bubble, cmd('ring', 260, 260)] });
-  assert.equal(p.bubble?.side, 'left');
-  assert.equal(p.cmd?.side, 'right');
+test('the command panel keeps clear of the bubble and the dock', () => {
+  const { placements: p } = layout(r(600, 300, 200, 400), { requests: [bubble, dock, input] });
+  assert.deepEqual([p.bubble?.side, p.dock?.side, p.cmd?.side], ['right', 'right', 'below']);
   assert.equal(overlaps(p.cmd!.frame, p.bubble!.frame), false);
-  ({ placements: p } = layout(r(600, 300, 200, 400), { requests: [bubble, hud, cmd('input', 420, 60)] }));
-  assert.equal(p.bubble?.side, 'right');
-  assert.equal(p.hud?.side, 'below');
-  assert.equal(p.cmd?.side, 'above');
-  assert.equal(overlaps(p.cmd!.frame, p.bubble!.frame), false);
-  assert.equal(overlaps(p.cmd!.frame, p.hud!.frame), false);
+  assert.equal(overlaps(p.cmd!.frame, p.dock!.frame), false);
 });
 
-test('rule 6: the command panel flips side only after 300 ms, and a roomier side within the tolerance does not take over', () => {
-  let { placements: p, memory: mem } = layout(r(500, 500, 200, 400), { requests: [tune], now: 0 });
-  assert.equal(p.cmd?.side, 'right', 'the roomier side');
-  const body = r(800, 500, 200, 400);
-  ({ placements: p, memory: mem } = layout(body, { requests: [tune], memory: mem, now: 0.1 }));
+test('rule 6: the command panel flips side only after 300 ms, and a side within the tolerance does not take over', () => {
+  let { placements: p, memory: mem } = layout(r(600, 30, 200, 400), { requests: [input], now: 0 });
+  assert.equal(p.cmd?.side, 'right', 'no room below her');
+  const body = r(600, 150, 200, 400);
+  ({ placements: p, memory: mem } = layout(body, { requests: [input], memory: mem, now: 0.1 }));
   assert.equal(p.cmd?.side, 'right');
-  assert.equal(mem.cmd?.candidate, 'left');
-  ({ placements: p, memory: mem } = layout(body, { requests: [tune], memory: mem, now: 0.3 }));
+  assert.equal(mem.cmd?.candidate, 'below');
+  ({ placements: p, memory: mem } = layout(body, { requests: [input], memory: mem, now: 0.3 }));
   assert.equal(p.cmd?.side, 'right');
-  ({ placements: p, memory: mem } = layout(body, { requests: [tune], memory: mem, now: 0.4 }));
-  assert.equal(p.cmd?.side, 'left');
-  assert.deepEqual(mem.cmd, { side: 'left', candidate: null, since: 0, hiddenAt: null, mode: 'tune' });
+  ({ placements: p, memory: mem } = layout(body, { requests: [input], memory: mem, now: 0.4 }));
+  assert.equal(p.cmd?.side, 'below');
+  assert.deepEqual(mem.cmd, { side: 'below', candidate: null, since: 0, hiddenAt: null, mode: 'input' });
 
-  // A wide box: 382 pt on her left, 402 on her right.
-  const held: LayoutMemory = { cmd: { side: 'left', candidate: null, since: 0, hiddenAt: null, mode: 'tune' } };
-  ({ memory: mem } = layout(r(398, 500, 696, 400), { requests: [tune], memory: held, now: 0 }));
-  ({ placements: p, memory: mem } = layout(r(398, 500, 696, 400), { requests: [tune], memory: mem, now: 5 }));
-  assert.equal(p.cmd?.side, 'left', '402 pt on the right is short of 8 + 360 + 40');
-  ({ memory: mem } = layout(r(358, 500, 696, 400), { requests: [tune], memory: mem, now: 6 }));
-  ({ placements: p } = layout(r(358, 500, 696, 400), { requests: [tune], memory: mem, now: 6.5 }));
+  // 16 pt under her keep-out is short of the frame and 40.
+  const held: LayoutMemory = { cmd: { side: 'right', candidate: null, since: 0, hiddenAt: null, mode: 'input' } };
+  ({ memory: mem } = layout(r(600, 100, 200, 400), { requests: [input], memory: held, now: 0 }));
+  ({ placements: p } = layout(r(600, 100, 200, 400), { requests: [input], memory: mem, now: 5 }));
   assert.equal(p.cmd?.side, 'right');
 });
 
@@ -407,7 +356,7 @@ function commandFollower() {
   return { f, ...panels, commands };
 }
 
-test('open takes key and close hands it back; ring and tune close on a click outside, input does not', () => {
+test('open takes key and close hands it back; the wheel closes on a click outside, input does not', () => {
   const { f, cmd: c, commands } = commandFollower();
   assert.equal(f.wantsTicks, false);
   f.open('ring', '你好');
@@ -431,10 +380,10 @@ test('open takes key and close hands it back; ring and tune close on a click out
 
 test('the page hiding the command panel ends the mode', () => {
   const { f, cmd: c } = commandFollower();
-  f.open('tune');
+  f.open('ring');
   c.isShown = true;
   f.tick(sample(r(600, 100, 160, 400), 0), { x: 10, y: 10 });
-  assert.equal(f.cmdMode, 'tune');
+  assert.equal(f.cmdMode, 'ring');
   c.isShown = false;
   f.tick(sample(r(600, 100, 160, 400), 0.1), { x: 10, y: 10 });
   assert.equal(f.cmdMode, null);
@@ -460,6 +409,26 @@ test('快速输入 opens in the bubble and closes the command layer; a bare clos
   assert.equal(c.released, 1);
 });
 
+test('a right click opens the wheel centred on the click, kept on screen, and tells the page where its centre is', () => {
+  const { f, cmd: c, commands } = commandFollower();
+  c.contentSize = { w: 520, h: 520 };
+  f.open('ring', undefined, { centre: { x: 700, y: 500 }, screens: [main], at: true });
+  assert.deepEqual(commands, [{ kind: 'open', mode: 'ring', at: { x: 260, y: 260 } }]);
+  c.isShown = true;
+  f.tick(sample(r(600, 100, 160, 400), 0), { x: 700, y: 500 });
+  assert.deepEqual(c.moves.at(-1)?.frame, r(440, 240, 520, 520));
+  f.close();
+  // Near her screen's corner the panel stays on screen and the centre moves within it.
+  f.open('ring', undefined, { centre: { x: 100, y: 900 }, screens: [main], at: true });
+  assert.deepEqual(commands.at(-1), { kind: 'open', mode: 'ring', at: { x: 92, y: 49 } });
+  f.tick(sample(r(600, 100, 160, 400), 0.1), { x: 100, y: 900 });
+  assert.deepEqual(c.moves.at(-1)?.frame, r(8, 429, 520, 520));
+  f.close();
+  // The hot key's wheel sends no centre: the page centres it in its box.
+  f.open('ring', undefined, { centre: { x: 700, y: 500 }, screens: [main], at: false });
+  assert.deepEqual(commands.at(-1), { kind: 'open', mode: 'ring' });
+});
+
 // DesktopLayoutTests' and DesktopCoordinatorTests' console cases: the console under the menu bar button, on its own channel.
 const consoleRequest = (w: number, h: number, statusItem: Rect | null): PanelRequest =>
   ({ kind: 'console', size: { w, h }, cardInsets: ZERO_INSETS, visible: true, statusItem });
@@ -472,8 +441,8 @@ test('the console card hangs under the menu bar button even over her, its right 
   assert.deepEqual(p.console, { frame: r(986, 669, 360, 300), side: 'status', docked: null, far: false });
   ({ placements: p } = layout(null, { requests: [consoleRequest(360, 300, r(1490, 957, 30, 25))] }));
   assert.equal(p.console!.frame.x + p.console!.frame.w, 1504 + 16, 'the card\'s right edge stays on screen');
-  ({ placements: p } = layout(null, { docked: 'stale', requests: [hud, consoleRequest(360, 300, item)] }));
-  assert.equal(overlaps(p.hud!.frame, p.console!.frame), false, 'a cornered hud keeps clear of the console');
+  ({ placements: p } = layout(null, { docked: 'stale', requests: [dock, consoleRequest(360, 300, item)] }));
+  assert.equal(overlaps(p.dock!.frame, p.console!.frame), false, 'a cornered dock keeps clear of the console');
 });
 
 test('the console card stands on a taskbar at the bottom, its right edge on the notification area icon\'s', () => {
@@ -522,14 +491,14 @@ test('the console shows with an unchanged size after a while', () => {
   assert.deepEqual(c.moves.at(-1)?.frame, r(848, 624, 392, 261));
 });
 
-test('tune opens in the command panel and leaves the console; closing either leaves the other; the page closing it ends it', () => {
+test('the wheel opens in the command panel and leaves the console; closing either leaves the other; the page closing it ends it', () => {
   const { f, console: c, cmd, commands, consoleCommands, at } = consoleFollower();
   c.isShown = true;
   f.openConsole(ITEM);
   at(0);
   at(0.4);
   const frame = c.moves.at(-1)!.frame;
-  f.open('tune');
+  f.open('ring');
   cmd.isShown = true;
   at(0.5);
   at(0.9);
@@ -540,8 +509,8 @@ test('tune opens in the command panel and leaves the console; closing either lea
   f.close();
   assert.equal(f.consoleOpen, true);
   assert.equal(f.closesOnOutsideClick, true, 'the console closes on a click outside it');
-  assert.deepEqual(consoleCommands, [{ kind: 'openConsole' }], 'no tune command reaches the console');
-  assert.deepEqual(commands, [{ kind: 'open', mode: 'tune' }, { kind: 'close' }]);
+  assert.deepEqual(consoleCommands, [{ kind: 'openConsole' }], 'no wheel command reaches the console');
+  assert.deepEqual(commands, [{ kind: 'open', mode: 'ring' }, { kind: 'close' }]);
   f.open('ring');
   commands.length = 0;
   f.closeConsole();

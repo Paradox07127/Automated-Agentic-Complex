@@ -1,7 +1,7 @@
-// The desktop panels this shell has (the bubble `#/bubble`, the hud `#/hud`, the ring `#/ring`,
-// the command layer `#/cmd`, the console `#/console` and the status chip `#/chip`): the card source, each panel's `stack` bridge ops, `desktop.onState`, `desktop.onPresence`,
-// `desktop.action` and `desktop.say`, the keyboard (`window.requestKey`, `releaseKey`), the 快速输入 hot key, the pointer
-// resting on her, the mouse downs that close ring, tune and the console (`syncClickMonitors`), her
+// The desktop panels this shell has (the bubble `#/bubble`, her hover buttons `#/dock`, the wheel `#/cmd`, the console
+// `#/console` and the status chip `#/chip`): the card source, each panel's `stack` bridge ops, `desktop.onState`, `desktop.onPresence`,
+// `desktop.action` and `desktop.say`, the keyboard (`window.requestKey`, `releaseKey`), the 快速输入 hot key, the hover buttons'
+// dead zone, the mouse downs that close the wheel and the console (`syncClickMonitors`), her
 // lines' `noteLine` (`lineWatch`), and the follower that moves the panels after her.
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -11,12 +11,12 @@ import { BridgeFailure, type Handler } from '../../common/bridge.ts';
 import { desktopAction, type DesktopActionPorts } from '../../common/desktop-action.ts';
 import { placementBox } from '../../common/desktop-anchor.ts';
 import { type DesktopCommand, DesktopFollow } from '../../common/desktop-follow.ts';
-import { AvatarHover } from '../../common/desktop-hover.ts';
+import { DOCK_IDLE, dockOpen, type DockState, dockStep, ENTER_GROW, KEEP_GROW } from '../../common/desktop-hover.ts';
 import { DEFAULT_QUICK_INPUT_HOTKEY, QuickInputHotkey } from '../../common/desktop-hotkey.ts';
-import type { CmdMode, PanelKind } from '../../common/desktop-layout.ts';
+import { CHEST, type CmdMode, type PanelKind } from '../../common/desktop-layout.ts';
 import { parseSay, say } from '../../common/desktop-say.ts';
 import type { Cancel, EventSource, PageSession } from '../../common/page.ts';
-import type { AvatarPlacement, Rect, ScreenInfo } from '../../common/placement.ts';
+import type { AvatarPlacement, Point, Rect, ScreenInfo } from '../../common/placement.ts';
 import { PushSource } from '../../common/push.ts';
 import { type Notify, type Request, StackDecisions, StackSource, type StackSourceOptions } from '../../common/stack-source.ts';
 import type { TurnMarks } from '../../common/turn-marks.ts';
@@ -60,9 +60,11 @@ export interface DesktopOptions {
   frontFullscreen(): boolean;
   /** Her character and appearance. */
   figure(): string | null;
-  /** AvatarHover.tick's input now. */
-  hover(): { present: boolean; hovered: boolean; hints: boolean };
-  /** `desktop.onState`'s value now; its `avatarHovered` is `DesktopAssembly.avatarHovered`. */
+  /** The pointer on her now: `present`, she is linked, shows, has a body and does not click through; `hovered`,
+   *  `avatarHovered`; `within(grow)`, the same with her capsules grown by `grow` (without it `hovered` stands in for both
+   *  margins); `hints`, config.json `desktop_hover_hints` is not false. */
+  hover(): { present: boolean; hovered: boolean; hints: boolean; within?(grow: number): boolean };
+  /** `desktop.onState`'s value now; the assembly adds its `dock`. */
   state(): Record<string, unknown>;
   /** The command layer's two, 复位浮窗, the sessions page and 去处理 are the assembly's own. */
   actions: Omit<DesktopActionPorts, 'quickInput' | 'cmdMode' | 'resetBoxes' | 'openSessions' | 'openStack'>;
@@ -84,9 +86,14 @@ const PRESENCE_MS = 1000;
 const PRESENCE_OFFLINE_MS = 3000;
 /** A test run opens the command layer in this mode, or the console without a menu bar button, the given seconds (default 1)
  *  after its page is up, standing in for the hot key, the menus and the menu bar button. */
-const TEST_COMMAND = /^--open-desktop-command=(ring|tune|input|console)(?:@(\d+))?$/;
+const TEST_COMMAND = /^--open-desktop-command=(ring|input|console)(?:@(\d+))?$/;
 /** The panels' user offsets, in the support dir. */
 const OFFSETS_FILE = 'desktop-offsets.json';
+/** Her box shorter than this (placement units) keeps only the buttons' keys. */
+const COMPACT_HEIGHT = 200;
+
+/** `desktop.onState`'s `dock`: her hover buttons are open, the side of her they are on, keys only. */
+export interface DockView { open: boolean; side: 'left' | 'right' | 'above'; compact: boolean }
 
 export class DesktopAssembly {
   readonly source: StackSource;
@@ -101,16 +108,16 @@ export class DesktopAssembly {
   private timer: ReturnType<typeof setInterval> | null = null;
   private presenceTimer: ReturnType<typeof setInterval> | null = null;
   private hoverTimer: ReturnType<typeof setInterval> | null = null;
-  private readonly hover = new AvatarHover();
+  private dock: DockState = DOCK_IDLE;
+  /** 说话 records from the hover buttons: they stay. */
+  private talking = false;
+  /** The `dock` last sent. */
+  private dockSent = '';
   private failingSince: number | null = null;
-  /** While set, the follower's commands do not reach the pages. */
-  private muted = false;
   private readonly hotkey: QuickInputHotkey;
   /** `--no-attention` (test and host runs) registers no hot key, so none is taken from the user. */
   private readonly hotkeyOn = !process.argv.includes('--no-attention');
-  /** The stack went empty while its present closes: it hides at the close's end. */
-  private stackCloses = false;
-  /** The stack page's cards at the last push. */
+  /** The stack's cards at the last push. */
   private stackCards = 0;
   private testCommand: { mode: CmdMode | 'console'; after: number } | null;
   /** The menu bar button the console last opened under (placement space). */
@@ -138,14 +145,12 @@ export class DesktopAssembly {
       };
       return p;
     };
-    this.panels = { bubble: panel('bubble', '/bubble', 'window.onAnchor'), hud: panel('hud', '/hud', 'stack.onCards'),
-      ring: panel('ring', '/ring', 'window.onAnchor'), cmd: panel('cmd', '/cmd', 'window.onAnchor'),
-      console: panel('console', '/console', 'window.onAnchor'), chip: panel('chip', '/chip', 'window.onAnchor') };
-    this.follow = new DesktopFollow(this.panels, options.log, (c) => {
-      if (!this.muted) this.command.send(c);
-    }, (c) => this.consoleCommand.send(c), new OffsetFile(join(supportDirOf(configPathFromArgs(process.argv), dirname(configPathFromArgs(process.argv))), OFFSETS_FILE), options.log),
+    this.panels = { bubble: panel('bubble', '/bubble', 'window.onAnchor'), dock: panel('dock', '/dock', 'window.onAnchor'),
+      cmd: panel('cmd', '/cmd', 'window.onAnchor'), console: panel('console', '/console', 'window.onAnchor'),
+      chip: panel('chip', '/chip', 'window.onAnchor') };
+    this.follow = new DesktopFollow(this.panels, options.log, (c) => this.command.send(c), (c) => this.consoleCommand.send(c), new OffsetFile(join(supportDirOf(configPathFromArgs(process.argv), dirname(configPathFromArgs(process.argv))), OFFSETS_FILE), options.log),
     (screen) => screen.frame.w / options.toDip(screen.frame).width);
-    // Without the helper's mouse presses (no 输入监控 grant, `--no-attention`) ring, tune and the console still close when
+    // Without the helper's mouse presses (no 输入监控 grant, `--no-attention`) the wheel and the console still close when
     // their panel loses the keyboard. The console keeps open while the command layer it opened has the keyboard.
     this.panels.cmd.onBlur = () => {
       if (this.follow.cmdMode !== null && this.follow.cmdMode !== 'input') this.follow.close();
@@ -164,15 +169,13 @@ export class DesktopAssembly {
     const arg = process.argv.map((a) => TEST_COMMAND.exec(a)).find((m) => m !== null);
     this.testCommand = arg ? { mode: arg[1] as CmdMode | 'console', after: Number(arg[2] ?? 1) } : null;
     this.follow.onPresent = (token, side, open) => options.present?.(token, side, open ? 'open' : 'close') ?? false;
-    this.follow.onPresentClosed = (kind) => this.presentClosed(kind);
     this.source.onPush = (ids) => this.pushed(ids);
     // The pages that show the cards.
-    this.source.shown = () => this.panels.hud.isShown || this.panels.ring.isShown || this.panels.bubble.isShown;
-    this.hover.onChange = () => this.state.send(this.o.state());
+    this.source.shown = () => this.panels.bubble.isShown || this.panels.chip.isShown;
   }
 
-  /** The pointer rests on her (after the dwell, through the grace). */
-  get avatarHovered(): boolean { return this.hover.hovered; }
+  /** Her hover buttons are open; index.ts's `desktopState` still sends it as `avatarHovered`, which no page reads. */
+  get avatarHovered(): boolean { return dockOpen(this.dock); }
 
   /** The console is open in its own panel. */
   get consoleOpen(): boolean { return this.follow.consoleOpen; }
@@ -183,8 +186,8 @@ export class DesktopAssembly {
   /** The command layer's mode; null while it is closed. */
   get cmdMode(): CmdMode | null { return this.follow.cmdMode; }
 
-  /** The command layer, the console or 快速输入 is open, or a shown panel has the keyboard: the user types in the hud, the
-   *  console or 快速输入. */
+  /** The command layer, the console or 快速输入 is open, or a shown panel has the keyboard: the user types in the console
+   *  or 快速输入. */
   get typing(): boolean {
     return this.follow.cmdMode !== null || this.follow.consoleOpen || this.follow.quickInputOpen
       || Object.values(this.panels).some((p) => p.isShown && p.isKey);
@@ -198,7 +201,7 @@ export class DesktopAssembly {
     for (const p of Object.values(this.panels)) p.start();
     if (this.hotkeyOn) this.hotkey.register(quickInputHotkey());
     this.presenceTimer ??= setInterval(() => void this.pollPresence(), PRESENCE_MS);
-    this.hoverTimer ??= setInterval(() => this.hover.tick(this.o.hover(), performance.now() / 1000), TICK_MS);
+    this.hoverTimer ??= setInterval(() => this.hoverTick(), TICK_MS);
     if (this.unlisten.length > 0) return;
     const { noteLine, mouseDowns } = this.o;
     if (noteLine && this.o.feed) this.unlisten.push(this.o.feed.subscribe(null, (e) => { if (e.event === 'line') noteLine(); }, () => {}));
@@ -209,12 +212,14 @@ export class DesktopAssembly {
    *  `desktop.onState` go out again. */
   hotkeySaved(key: string, name: string): void {
     if (key === 'hotkey_quick_input' && this.hotkeyOn) this.hotkey.update(name);
-    this.state.send(this.o.state());
+    this.pushState();
   }
 
   /** `desktop.onState` goes out now, not at the next presence poll. */
   pushState(): void {
-    this.state.send(this.o.state());
+    const dock = this.dockView();
+    this.dockSent = JSON.stringify(dock);
+    this.state.send({ ...this.o.state(), dock });
   }
 
   /** A short line in the bubble, such as why a click on her asked nothing. */
@@ -264,12 +269,27 @@ export class DesktopAssembly {
     this.kick();
   }
 
-  /** Opens the command layer. A layer the page closed itself left its last open command standing, so a close goes first and
-   *  the page starts the mode afresh; `first` goes out just before the open. */
+  /** Opens the command layer, the wheel centred on her chest (on the pointer without her). A layer the page closed itself left
+   *  its last open command standing, so a close goes first and the page starts the mode afresh; `first` goes out just before
+   *  the open. */
   open(mode: CmdMode, prefill?: string, first?: DesktopCommand): void {
+    const body = this.o.sample().body;
+    this.openAt(mode, body ? { x: body.x + body.w / 2, y: body.y + CHEST * body.h } : this.o.mouse(), false, prefill, first);
+  }
+
+  /** The right button on her at `at` (placement space): the wheel opens with its centre there. */
+  openWheel(at: Point): void {
+    this.closeConsole();
+    this.openAt('ring', at, true);
+  }
+
+  private openAt(mode: CmdMode, centre: Point, at: boolean, prefill?: string, first?: DesktopCommand): void {
     if (this.follow.cmdMode === null) this.command.send({ kind: 'close' });
     if (first) this.command.send(first);
-    this.follow.open(mode, prefill);
+    // The wheel gets her screen first, which `desktop.onState` does not follow as she walks.
+    if (mode === 'ring') this.pushState();
+    this.follow.open(mode, prefill, mode === 'ring' ? { centre, screens: this.o.screens(), at } : undefined);
+    this.hoverTick();
     this.kick();
   }
 
@@ -304,16 +324,7 @@ export class DesktopAssembly {
     this.kick();
   }
 
-  /** The cmd page switched its open layer in place: the panel is placed by `mode`'s rules, and the page gets no command back. */
-  switchMode(mode: CmdMode): void {
-    if (this.follow.cmdMode === null) return;
-    this.muted = true;
-    this.follow.open(mode);
-    this.muted = false;
-    this.kick();
-  }
-
-  /** A press at the pointer closes the open console and the open ring or tune it is outside of.
+  /** A press at the pointer closes the open console and the open wheel it is outside of.
    *  With the console open a press on the menu bar button is left to the button's click (`trayClick`), which closes it. */
   private mouseDown(): void {
     if (!this.follow.closesOnOutsideClick) return;
@@ -325,28 +336,33 @@ export class DesktopAssembly {
     this.kick();
   }
 
-  /** C3 rule 39: a hidden stack that gets an approval shows with her snap; once none waits the snap ends, and a stack left
-   *  with no cards goes at its stroke. */
+  /** C3 rule 39: a hidden bubble that gets an approval shows its card with her snap; once none waits the snap ends. */
   private pushed(ids: string[]): void {
     this.stackCards = ids.length;
-    const stack = this.panels.hud;
     const presenting = ids.some((id) => this.source.presents(id));
-    if (presenting && !stack.isShown) this.follow.present('hud', randomUUID());
-    else if (!presenting && this.follow.dismissPresent('hud') && ids.length === 0) this.stackCloses = true;
-    if (this.stackCloses && ids.length === 0) return;
-    this.stackCloses = false;
-    stack.setCards(ids);
+    if (presenting && !this.panels.bubble.isShown) this.follow.present('bubble', randomUUID());
+    else if (!presenting) this.follow.dismissPresent('bubble');
   }
 
-  private presentClosed(kind: PanelKind): void {
-    if (kind !== 'hud' || !this.stackCloses) return;
-    this.stackCloses = false;
-    this.panels.hud.setCards([]);
-    this.panels.hud.close();
+  /** One step of the hover buttons' dead zone at the pointer; `desktop.onState` goes out when `dock` changed. */
+  private hoverTick(): void {
+    const h = this.o.hover(), s = this.o.sample(), placed = this.follow.placedCard('dock');
+    const within = (grow: number) => (h.within ? h.within(grow) : h.hovered);
+    const blocked = !h.present || !h.hints || s.dragging || this.follow.cmdMode === 'ring';
+    const was = dockOpen(this.dock);
+    this.dock = dockStep(this.dock, { p: this.o.mouse(), enter: within(ENTER_GROW), keep: within(KEEP_GROW), body: s.body,
+      dock: placed?.card ?? null, blocked, held: this.talking }, performance.now() / 1000);
+    if (JSON.stringify(this.dockView()) !== this.dockSent) this.pushState();
+    if (dockOpen(this.dock) !== was) this.kick();
+  }
+
+  private dockView(): DockView {
+    const side = this.follow.placedCard('dock')?.side, body = this.o.sample().body;
+    return { open: dockOpen(this.dock), side: side === 'left' || side === 'above' ? side : 'right', compact: !!body && body.h < COMPACT_HEIGHT };
   }
 
   private async pollPresence(): Promise<void> {
-    this.state.send(this.o.state());
+    this.pushState();
     try {
       const reply = await this.o.request('GET', '/desktop/presence');
       if (reply.status !== 200) throw new Error(`HTTP ${reply.status}`);
@@ -396,6 +412,25 @@ export class DesktopAssembly {
       return null;
     };
     const kind = (Object.keys(this.panels) as PanelKind[]).find((k) => this.panels[k] === p);
+    const talk = this.o.actions.talk;
+    const action = desktopAction<PageSession>({
+      ...this.o.actions,
+      quickInput: (scope) => this.openQuickInput(scope ? { kind: 'scope', ...scope } : undefined),
+      cmdMode: (mode) => {
+        this.closeConsole();
+        this.open(mode);
+      },
+      resetBoxes: () => {
+        this.follow.resetOffsets();
+        this.kick();
+      },
+      openSessions: () => this.o.openMain(sessionsRoute()),
+      openStack: () => (this.stackCards === 0 ? this.notice('现在没有要处理的') : this.bringToFront()),
+      ...(talk && { talk: (phase: 'start' | 'stop') => {
+        this.talking = phase === 'start';
+        talk(phase);
+      } }),
+    });
     const cardId = (id: unknown): string => {
       if (typeof id !== 'string' || id === '' || new TextEncoder().encode(id).length > 256) throw new BridgeFailure('invalid_args', 'card id');
       return id;
@@ -470,24 +505,15 @@ export class DesktopAssembly {
         this.o.log(`ui: ${message}`);
         return null;
       }],
-      ['desktop.action', desktopAction({
-        ...this.o.actions,
-        quickInput: (scope) => this.openQuickInput(scope ? { kind: 'scope', ...scope } : undefined),
-        cmdMode: (mode) => {
-          // The console's switch to 行为与画面 opens it in the command panel and leaves the console open.
-          if (mode === 'tune') return kind === 'console' ? this.open(mode) : this.switchMode(mode);
-          // The ring first gets her screen, which `desktop.onState` does not follow as she walks.
-          this.state.send(this.o.state());
-          this.closeConsole();
-          this.open(mode);
-        },
-        resetBoxes: () => {
-          this.follow.resetOffsets();
-          this.kick();
-        },
-        openSessions: () => this.o.openMain(sessionsRoute()),
-        openStack: () => (this.stackCards === 0 ? this.notice('现在没有要处理的') : this.bringToFront()),
-      })],
+      // A pick on the hover buttons closes them, but for 说话, which keeps them while it records.
+      ['desktop.action', async (args, page) => {
+        const result = await action(args, page);
+        if (kind === 'dock' && args[0] !== 'talk') {
+          this.dock = DOCK_IDLE;
+          this.hoverTick();
+        }
+        return result;
+      }],
       ['stack.decide', ([id, decision, opts]) => {
         let d = decision;
         if (opts != null) {

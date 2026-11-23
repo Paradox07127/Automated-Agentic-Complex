@@ -55,14 +55,23 @@ for (const theme of ['dark', 'light'] as const) {
 }
 
 test('cmd opens the layer the command names and nothing before it', async ({ page }) => {
-  await open(page, '/cmd', { mode: 'tune' });
+  await open(page, '/cmd', { mode: 'ring' });
   const root = page.locator('[data-surface-root="cmd"]');
-  await expect(root).toHaveAttribute('data-mode', 'tune');
+  await expect(root).toHaveAttribute('data-mode', 'ring');
   await expect(root.locator('[data-slot]')).toHaveCount(1);
-  await expect(root.locator('[data-slot="tune"]')).toBeVisible();
+  await expect(root.locator('[data-slot="ring"]')).toBeVisible();
 });
 
-for (const [path, params] of [['/bubble', {}], ['/hud', { hud: 'three' }]] as const) {
+test('cmd: 快速输入 opens in the bubble, so an input open leaves the cmd page empty', async ({ page }) => {
+  const sent = await watchOps(page);
+  await open(page, '/cmd', { mode: 'input' });
+  const root = page.locator('[data-surface-root="cmd"]');
+  await expect(root).toHaveAttribute('data-mode', 'input');
+  await expect(root.locator('[data-slot]')).toHaveCount(0);
+  await expect.poll(async () => (await sent('window.setInteractiveRegions')).at(-1)).toEqual([]);
+});
+
+for (const [path, params] of [['/bubble', { demo: 'thought' }], ['/dock', {}], ['/chip', { demo: 'chip-run', dock: 'closed' }], ['/hud', { hud: 'three' }]] as const) {
   const name = path.slice(1);
   test(`${name}: reports its regions and its content size`, async ({ page }) => {
     const sent = await watchOps(page);
@@ -91,6 +100,24 @@ test('hud: with no session and no card it shows nothing and reports no region', 
   await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
   expect((await sent('window.setInteractiveRegions')).at(-1)).toEqual([]);
   await expect(page.locator('[data-hud-row]')).toHaveCount(0);
+});
+
+test('bubble: with nothing to say it shows nothing and reports no region', async ({ page }) => {
+  const sent = await watchOps(page);
+  await open(page, '/bubble', {});
+  await expect(page.locator('[data-surface-root="bubble"]')).toBeAttached();
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+  expect((await sent('window.setInteractiveRegions')).at(-1) ?? []).toEqual([]);
+  await expect(page.locator('[data-bubble]')).toHaveCount(0);
+});
+
+test('dock: closed by native, it shows nothing and reports no region', async ({ page }) => {
+  const sent = await watchOps(page);
+  await open(page, '/dock', { dock: 'closed' });
+  await expect(page.locator('[data-surface-root="dock"]')).toBeAttached();
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+  expect((await sent('window.setInteractiveRegions')).at(-1) ?? []).toEqual([]);
+  await expect(page.locator('[data-stub="OptionStack"]')).toHaveCount(0);
 });
 
 test('console reports a new content size when it opens', async ({ page }) => {

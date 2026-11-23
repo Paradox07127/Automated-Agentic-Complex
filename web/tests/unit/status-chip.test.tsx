@@ -8,7 +8,7 @@ import type { Bar, Phase } from '../../src/surfaces/desktop/comm/commReducer';
 import { CHIP_DONE_MS, chipOf, type ChipKind } from '../../src/surfaces/desktop/tags/presence';
 import { stubMatchMedia } from './mediaStub';
 
-// The status chip beside her for states with no message (`#/chip`), and the bubble drawing no card for them.
+// The status mark beside her for states with no message (`#/chip`), and the bubble drawing no card for them.
 
 stubMatchMedia();
 afterEach(() => {
@@ -34,9 +34,9 @@ describe('chipOf', () => {
     for (const state of ['thinking', 'running_tool', 'subagent', 'compacting', 'background']) expect(kind(presenceOf({ role: role(state) })), state).toBe('running');
   });
 
-  it('shows the thinking dots for a new turn before her first word', () => {
-    expect(kind(presenceOf(), barOf('thinking'))).toBe('thinking');
-    expect(kind(presenceOf({ role: role('thinking') }), barOf('thinking'))).toBe('thinking');
+  it('spins for a new turn before her first word too', () => {
+    expect(kind(presenceOf(), barOf('thinking'))).toBe('running');
+    expect(kind(presenceOf({ role: role('thinking') }), barOf('thinking'))).toBe('running');
   });
 
   it('shows nothing while she is idle, keeping you company, or stale', () => {
@@ -80,9 +80,8 @@ describe('chipOf', () => {
     expect(chipOf(presenceOf({ sessions }), null, NOW, new Set(['session:s1']))).toBeNull();
   });
 
-  it('flashes once for an interrupted line', () => {
-    expect(kind(presenceOf(), barOf('interrupted', { left: 3800 }))).toBe('interrupted');
-    expect(kind(presenceOf(), barOf('interrupted', { left: 2000 }))).toBeNull();
+  it('shows nothing for an interrupted line', () => {
+    expect(kind(presenceOf(), barOf('interrupted', { left: 3800 }))).toBeNull();
   });
 });
 
@@ -113,13 +112,11 @@ function mountBubble() {
 const regions = () => document.querySelectorAll('[data-surface-root="bubble"] [data-region]').length;
 
 describe('the bubble opens only for something to read or answer', () => {
-  it('draws no card for a thinking bar or the 正在做 row alone', async () => {
+  it('draws no card while she only works or thinks', async () => {
     const b = mountBubble();
     await b.presence(presenceOf({ role: role('running_tool') }));
     expect(regions()).toBe(0);
     await b.accepted('u1');
-    expect(regions()).toBe(0);
-    await b.presence(presenceOf({ thought: THOUGHT }));
     expect(regions()).toBe(0);
   });
 
@@ -157,17 +154,17 @@ describe('the bubble opens only for something to read or answer', () => {
     expect([...document.querySelectorAll('[data-glass]')]).toEqual(before);
   });
 
-  it('drags by the whole header', async () => {
+  it('drags by the strip along its top, and has no 正在做 row', async () => {
     const b = mountBubble();
     await b.presence(presenceOf({ thought: THOUGHT }));
     const drag = document.querySelector('[data-drag]');
-    expect(drag?.tagName).toBe('HEADER');
-    expect(drag?.querySelector('[data-bubble-doing]')).not.toBeNull();
+    expect(drag?.parentElement?.hasAttribute('data-bubble')).toBe(true);
+    expect(document.querySelector('[data-bubble-doing]')).toBeNull();
   });
 });
 
 const state = (extra: Partial<DesktopState> = {}): DesktopState => ({
-  hidden: false, clickThroughAll: false, freeRoam: false, quietUntil: null, avatarHovered: false, character: null, characters: [], screens: [], hotkeys: {},
+  hidden: false, clickThroughAll: false, freeRoam: false, quietUntil: null, dock: { open: false, side: 'right', compact: false }, character: null, characters: [], screens: [], hotkeys: {},
   pips: { agentd: { state: 'running', pid: 1, backoff: null }, avatar: { state: 'running', pid: 2, backoff: null }, voice: 'on' }, computerUseActive: false, plugins: ['light_ai'], ...extra,
 });
 const ANCHOR: DesktopAnchor = { panel: 'hud', state: 'settled', side: 'right', docked: null, far: false, toHead: { dx: -40, dy: 0 }, room: { width: 400, height: 400 } };
@@ -184,10 +181,13 @@ function mountChip() {
   vi.spyOn(bridge.desktop, 'onState').mockImplementation((cb) => ((onState = cb), () => {}));
   vi.spyOn(bridge.window, 'onAnchor').mockImplementation((cb) => ((onAnchor = cb), () => {}));
   vi.spyOn(bridge.feed, 'subscribe').mockImplementation(() => () => {});
+  vi.spyOn(bridge.stack, 'onCards').mockImplementation(() => () => {});
   const action = vi.spyOn(bridge.desktop, 'action').mockResolvedValue(undefined);
+  const openMain = vi.spyOn(bridge.window, 'openMain').mockImplementation(() => {});
   render(<ChipRoot />);
   return {
     action,
+    openMain,
     push: (raw: unknown, s: Partial<DesktopState> = {}, a: DesktopAnchor = ANCHOR) =>
       flush(async () => {
         onAnchor?.(a);
@@ -198,42 +198,48 @@ function mountChip() {
 }
 
 const chip = () => document.querySelector<HTMLElement>('[data-surface-root="chip"] [data-chip]');
+const press = () => fireEvent.click(chip()!.querySelector('button')!);
 
 describe('the status chip page', () => {
-  it('is one 36 px circle, the only region, with the 正在做 line as its tip', async () => {
+  it('is one status mark, the only region, with the 正在做 line as its tip', async () => {
     const c = mountChip();
     await c.push(presenceOf({ role: role('running_tool', { doing: '在跑 swift test' }) }));
     expect(chip()?.dataset.chip).toBe('running');
+    expect(chip()?.querySelector('[data-stub="StatusMark"]')).not.toBeNull();
     expect(document.querySelectorAll('[data-region]')).toEqual(document.querySelectorAll('[data-chip]'));
     fireEvent.mouseEnter(chip()!);
-    expect(screen.getByRole('tooltip').textContent).toBe('▸ 在跑 swift test │ 5 分钟');
+    expect(screen.getByRole('tooltip').textContent).toBe('在跑 swift test');
   });
 
-  it('unfolds the HUD for a wait or an error, else opens the bubble', async () => {
+  it('unfolds the bubble for a wait or an error; busy opens 任务, unplugged 诊断', async () => {
     const c = mountChip();
     await c.push(presenceOf({ role: role('awaiting_approval') }));
-    expect(chip()?.textContent).toBe('1');
-    fireEvent.click(chip()!);
+    expect(chip()?.textContent).toBe('待批准1');
+    press();
     expect(c.action).toHaveBeenLastCalledWith('openStack');
     await c.push(presenceOf({ role: role('running_tool') }));
-    fireEvent.click(chip()!);
-    expect(c.action).toHaveBeenLastCalledWith('quickInput');
+    press();
+    expect(c.openMain).toHaveBeenLastCalledWith('/overview');
+    await c.push({ offline: true });
+    expect(chip()?.dataset.chip).toBe('offline');
+    press();
+    expect(c.openMain).toHaveBeenLastCalledWith('/diag');
   });
 
   it('drops an error once it is opened', async () => {
     const c = mountChip();
     await c.push(presenceOf({ sessions: [{ id: 's1', title: 'Codex', state: 'error', status: 'error' }] }));
     expect(chip()?.dataset.chip).toBe('error');
-    await flush(async () => fireEvent.click(chip()!));
+    await flush(async () => press());
     expect(c.action).toHaveBeenLastCalledWith('openStack');
     expect(chip()).toBeNull();
   });
 
-  it('hides while the ring is open over her, or while she is docked, and shows nothing while she idles', async () => {
+  it('hides while her hover buttons are open, or while she is docked, and shows nothing while she idles', async () => {
     const c = mountChip();
-    await c.push(presenceOf({ role: role('running_tool') }), { avatarHovered: true });
+    await c.push(presenceOf({ role: role('running_tool') }), { dock: { open: true, side: 'right', compact: false } });
     expect(chip()).toBeNull();
-    await c.push(presenceOf({ role: role('running_tool') }), { avatarHovered: false }, { ...ANCHOR, state: 'docked', docked: 'noroom' });
+    await c.push(presenceOf({ role: role('running_tool') }), { dock: { open: false, side: 'right', compact: false } }, { ...ANCHOR, state: 'docked', docked: 'noroom' });
     expect(chip()).toBeNull();
     await c.push(presenceOf({ role: role('running_tool') }));
     expect(chip()).not.toBeNull();

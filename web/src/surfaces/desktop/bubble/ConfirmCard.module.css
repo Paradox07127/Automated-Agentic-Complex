@@ -1,0 +1,169 @@
+/* The chat page's white paper card (.swap) at the bubble's width: paper, the black and yellow striped top edge, hard shadow. */
+.paper {
+  position: relative;
+  box-sizing: border-box;
+  width: 300px;
+  padding: 16px 16px 12px;
+  background: linear-gradient(180deg, #faf9f7, var(--ef-paper));
+  box-shadow: var(--ef-shadow-card);
+  color: var(--ef-paper-text);
+  font: var(--ef-fw-regular) 13px / 20px var(--ef-font-sans);
+  animation: cc-in 250ms cubic-bezier(0.333, 0, 0, 1) both;
+}
+
+.paper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 4px;
+  background: repeating-linear-gradient(115deg, #161616 0 6px, var(--ef-accent) 6px 12px);
+}
+
+@keyframes cc-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+
+.drag {
+  position: absolute;
+  top: 4px;
+  right: 40px;
+  left: 0;
+  height: 10px;
+}
+
+.tag {
+  display: flex;
+  gap: var(--ef-sp-6);
+  align-items: center;
+  margin: 0;
+  color: #b34a00;
+  font: var(--ef-fw-semibold) 13px / 18px var(--ef-font-sans);
+}
+
+.time {
+  margin-left: auto;
+  color: var(--ef-paper-text-2, #5f5e5e);
+  font: var(--ef-fw-medium) 13px / 18px var(--ef-font-num);
+}
+
+.fold {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #5f5e5e;
+  cursor: pointer;
+}
+
+.time + .fold {
+  margin-left: 4px;
+}
+
+.fold:hover {
+  color: var(--ef-paper-text);
+}
+
+.title {
+  margin: 4px 0 2px;
+  font: var(--ef-fw-semibold) 15px / 22px var(--ef-font-sans);
+}
+
+.who {
+  margin: 0;
+  color: #5f5e5e;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.cmd {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border-left: 3px solid #161616;
+  background: rgba(0, 0, 0, 0.05);
+  font: 13px / 20px var(--ef-font-mono);
+  word-break: break-all;
+  quotes: none;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.left {
+  position: relative;
+  height: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.left i {
+  position: absolute;
+  inset: 0;
+  background: #b34a00;
+  transform-origin: left;
+}
+
+.row {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.link {
+  margin-right: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #5f5e5e;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link:hover {
+  color: var(--ef-paper-text);
+}
+
+.tail {
+  position: absolute;
+  bottom: -9px;
+  width: 12px;
+  height: 10px;
+  overflow: visible;
+  fill: var(--ef-paper);
+}
+
+.paper[data-tail='right'] .tail {
+  right: 14px;
+  transform: scaleX(-1);
+}
+
+.paper[data-tail='left'] .tail {
+  left: 14px;
+}
+
+.paper[data-tail='bottom'] .tail {
+  left: calc(50% - 6px);
+}
+
+:global(.still) .paper {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper {
+    animation: none;
+  }
+}

@@ -10,7 +10,7 @@ export function logInfo(message: string) {
 }
 
 /** `mounted <surface> <route>` once the desktop entry has mounted. */
-export function useMountedLog(surface: 'cmd' | 'bubble' | 'hud' | 'ring') {
+export function useMountedLog(surface: 'cmd' | 'bubble' | 'hud' | 'dock') {
   useEffect(() => {
     logInfo(`mounted ${surface} ${window.location.hash || '#/'}`);
   }, [surface]);

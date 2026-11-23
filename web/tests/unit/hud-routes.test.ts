@@ -10,7 +10,8 @@ describe('desktop HUD routes', () => {
     const cases: [string, string][] = [
       ['#/bubble', 'bubble'],
       ['#/hud?demo=x', 'hud'],
-      ['#/ring', 'ring'],
+      ['#/chip', 'chip'],
+      ['#/dock', 'dock'],
       ['#/cmd', 'cmd'],
       ['#/', 'hud'],
     ];
@@ -20,9 +21,9 @@ describe('desktop HUD routes', () => {
     }
   });
 
-  it('puts the ring under her feet, its row centred on them, with no arc', () => {
-    expect(fakeAnchor('ring', null)).toMatchObject({ side: 'below', toHead: { dx: 0 } });
-    expect(fakeAnchor('ring', null)).not.toHaveProperty('arc');
+  it('puts her hover buttons beside her and the stack cards under her, with no arc', () => {
+    expect(fakeAnchor('dock', null)).toMatchObject({ side: 'left', toHead: { dx: 220 } });
+    expect(fakeAnchor('hud', null)).toMatchObject({ side: 'below', toHead: { dx: 0 } });
     expect(fakeAnchor('hud', null)).not.toHaveProperty('arc');
   });
 });

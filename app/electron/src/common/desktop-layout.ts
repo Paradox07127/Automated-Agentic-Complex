@@ -1,10 +1,10 @@
 // Where the desktop panels go so none covers her, for the panels this shell has: the bubble beside
-// her head and the chip there too, the hud under her feet, the ring's row of icons under them, the command layer (ring, input, tune) beside her and
-// the console under the menu bar button. Rects are in the placement space of placement.ts (y up, `screens[0]` the main one).
-import type { Rect, ScreenInfo } from './placement.ts';
+// her head and the chip there too, her hover buttons (the dock) beside her chest, the command layer (the wheel) and the console
+// under the menu bar button. Rects are in the placement space of placement.ts (y up, `screens[0]` the main one).
+import type { Point, Rect, ScreenInfo } from './placement.ts';
 
-export type PanelKind = 'bubble' | 'chip' | 'hud' | 'ring' | 'cmd' | 'console';
-export type CmdMode = 'ring' | 'input' | 'tune';
+export type PanelKind = 'bubble' | 'chip' | 'dock' | 'cmd' | 'console';
+export type CmdMode = 'ring' | 'input';
 export type DockReason = 'hidden' | 'fullscreen' | 'offscreen' | 'stale' | 'noroom';
 export type PanelSide = 'left' | 'right' | 'above' | 'below' | 'corner' | 'menubar' | 'status' | 'mouse';
 
@@ -15,7 +15,6 @@ export const ZERO_INSETS: CardInsets = { left: 0, right: 0, top: 0, bottom: 0 };
 
 /** Until the page reports its card: the pages' paddings (the `.root` padding for cmd and console). */
 export function fallbackInsets(kind: PanelKind): CardInsets {
-  if (kind === 'ring') return ZERO_INSETS;
   // ChipRoot's `CHIP_PANEL`: its 36 px circle centred in 528 × 36, the tip's room either side.
   if (kind === 'chip') return { left: 246, right: 246, top: 0, bottom: 0 };
   if (kind === 'cmd' || kind === 'console') return { left: 16, right: 16, top: 16, bottom: 28 };
@@ -100,8 +99,10 @@ export const SIDE_MEMORY = 600;
 export const FAR_DISTANCE = 240;
 export const KEEP_OUT_MARGIN = 8;
 export const FACE_HALF_WIDTH = 60;
-/** The height of the ring's row of icons along its panel's bottom (ring/geometry.ts `ROW_HEIGHT`). */
-export const RING_ROW = 36;
+/** Her chest, as a share of her box's height from its bottom: the dock's middle. */
+export const CHEST = 0.57;
+/** The wheel's page is this many CSS px a side (GameWheel's box). */
+export const WHEEL_PANEL = 520;
 /** The console page's transparent padding around its card (ConsoleRoot.module.css `.root`). */
 export const CONSOLE_INSET = 16;
 /** The console card's top below the menu bar. */
@@ -151,7 +152,15 @@ export function layoutScreen(input: LayoutInput, head: Rect | null): ScreenInfo 
   return s.find((x) => contains(x.frame, m.x, m.y)) ?? s[0] ?? null;
 }
 
-const KINDS: PanelKind[] = ['bubble', 'chip', 'hud', 'ring', 'cmd', 'console'];
+const KINDS: PanelKind[] = ['bubble', 'chip', 'dock', 'cmd', 'console'];
+
+/** The wheel's panel, `size` a side, centred on `at` and moved inward onto the visible frame of the screen `at` is on. */
+export function wheelFrame(at: Point, size: number, screens: ScreenInfo[]): Rect {
+  const s = screens.find((x) => contains(x.frame, at.x, at.y)) ?? screens[0];
+  const v = s ? inset(s.visibleFrame, EDGE) : { x: at.x - size / 2, y: at.y - size / 2, w: size, h: size };
+  const clamp = (n: number, lo: number, hi: number) => Math.min(Math.max(n, lo), Math.max(lo, hi));
+  return { x: clamp(at.x - size / 2, v.x, maxX(v) - size), y: clamp(at.y - size / 2, v.y, maxY(v) - size), w: size, h: size };
+}
 
 /** A side and its frame with `slack` more room; null when it has not. */
 interface Candidate { side: PanelSide; frame: (slack: number) => Rect | null }
@@ -171,13 +180,12 @@ export function place(input: LayoutInput): { placements: Partial<Record<PanelKin
   const pass = new Pass(input, head, screen, memory);
   for (const kind of KINDS) {
     const request = input.requests.find((r) => r.kind === kind);
-    // The ring only shows around her.
-    if (!request?.visible || (kind === 'ring' && pass.docked !== null)) {
-      if (kind !== 'bubble') delete pass.memory[kind];
+    if (!request?.visible) {
+      if (kind !== 'bubble' && kind !== 'dock') delete pass.memory[kind];
       continue;
     }
     pass.out[kind] = pass.place(request);
-    if (kind === 'hud') pass.liftBubble();
+    if (kind === 'dock') pass.liftBubble();
   }
   return { placements: pass.out, memory: pass.memory };
 }
@@ -220,22 +228,15 @@ class Pass {
       this.memory[r.kind] = { side, candidate: null, since: 0, hiddenAt: null, ...(r.kind === 'cmd' ? { mode: r.mode ?? 'input' } : {}) };
       return this.placed(dragged, side, r);
     }
-    if (r.kind === 'hud') return this.hud(r, head, body);
-    if (r.kind === 'ring') return this.placed(this.ringFrame(r, head, body), 'below', r);
+    if (r.kind === 'dock') return this.dock(r, k, body);
     if (r.kind === 'bubble' || r.kind === 'chip') return this.column(r, k, (s) => Pass.beside(s, r.size, r.cardInsets, k, this.v, maxY(head), midX(head), 0));
     const v = this.v;
     const roomier: PanelSide = maxX(v) - maxX(k) >= k.x - v.x ? 'right' : 'left';
-    const other: PanelSide = roomier === 'left' ? 'right' : 'left';
     const beside = (s: PanelSide, top = maxY(head)): Candidate =>
       ({ side: s, frame: (slack) => Pass.beside(s, r.size, r.cardInsets, k, v, top, s === 'below' ? midX(body) : midX(head), slack) });
     const mode = r.mode ?? 'input';
-    let candidates: Candidate[];
-    if (mode === 'ring') {
-      const top = midY(body) + (r.size.h - r.cardInsets.top - r.cardInsets.bottom) / 2;
-      candidates = [beside(roomier, top), beside(other, top)];
-    } else if (mode === 'tune') candidates = [beside('above'), beside(roomier), beside(other)];
-    else candidates = [beside('below'), beside(roomier), beside('above')];
-    const others = [this.out.bubble?.frame, this.out.hud?.frame].filter((x): x is Rect => !!x);
+    let candidates: Candidate[] = [beside('below'), beside(roomier), beside('above')];
+    const others = [this.out.bubble?.frame, this.out.dock?.frame].filter((x): x is Rect => !!x);
     const clear = candidates.map((c): Candidate => ({ side: c.side, frame: (slack) => {
       const f = c.frame(slack);
       return f && others.some((o) => overlaps(f, o)) ? null : f;
@@ -330,36 +331,31 @@ class Pass {
     return this.noRoom(r);
   }
 
-  /** The hud's card centred under her `body`, its top `GAP` below her feet, or below the ring's row while the ring shows;
-   *  without the room there its frame sits on the screen's bottom, over her shins, and grows up. Kept on screen, not out of
-   *  her keep-out. */
-  hud(r: PanelRequest, head: Rect, body: Rect): PanelPlacement {
-    const w = r.size.w, h = r.size.h, i = r.cardInsets, v = this.v;
-    const ring = this.input.requests.find((x) => x.kind === 'ring' && x.visible);
-    const top = ring ? this.ringFrame(ring, head, body).y : body.y;
-    const x = Math.min(Math.max(midX(body) - (w - i.left - i.right) / 2 - i.left, v.x), maxX(v) - w);
-    const y = Math.min(Math.max(top - GAP + i.top - h, v.y), maxY(v) - h);
-    return this.placed({ x, y, w, h }, 'below', r);
+  /** The dock's card `GAP` out from her keep-out `k`, its middle at her chest: on the side it had while that side has the
+   *  room, else on her roomier side, else the other, else above her. */
+  dock(r: PanelRequest, k: Rect, body: Rect): PanelPlacement {
+    const v = this.v, i = r.cardInsets;
+    const top = body.y + CHEST * body.h + (r.size.h - i.top - i.bottom) / 2;
+    const last = this.memory.dock?.side;
+    const first: PanelSide = last === 'left' || last === 'right' ? last : maxX(v) - maxX(k) >= k.x - v.x ? 'right' : 'left';
+    for (const side of [first, first === 'left' ? 'right' : 'left', 'above'] as PanelSide[]) {
+      const f = Pass.beside(side, r.size, i, k, v, top, midX(body), 0);
+      if (!f) continue;
+      this.memory.dock = { side, candidate: null, since: 0, hiddenAt: null };
+      return this.placed(f, side, r);
+    }
+    return this.noRoom(r);
   }
 
-  /** The ring's frame: its row of icons along the bottom, `RING_ROW` high, centred on her feet (her head top's x on her
-   *  body's bottom) with its top `GAP` below them. Kept on screen: at the bottom it sits over her shoes, at a side it
-   *  slides along. Not kept out of her keep-out. */
-  ringFrame(r: PanelRequest, head: Rect, body: Rect): Rect {
-    const w = r.size.w, h = r.size.h, v = this.v;
-    const x = Math.min(Math.max(midX(head) - w / 2, v.x), maxX(v) - w);
-    const y = Math.min(Math.max(body.y - GAP - RING_ROW, v.y), maxY(v) - h);
-    return { x, y, w, h };
-  }
-
-  /** The card of a bubble beside her meeting the hud's moves up to `GAP` above it, kept on screen; a pinned bubble stays. */
+  /** The card of a bubble beside her on the dock's side meeting the dock's moves up to `GAP` above it, kept on screen; a
+   *  pinned bubble stays. */
   liftBubble(): void {
-    const b = this.out.bubble, h = this.out.hud;
+    const b = this.out.bubble, d = this.out.dock;
     const r = this.input.requests.find((x) => x.kind === 'bubble');
-    if (!b || (b.side !== 'left' && b.side !== 'right') || !h || h.docked !== null || !r || r.pin) return;
-    const hud = cardIn(this.input.requests.find((x) => x.kind === 'hud')?.cardInsets ?? ZERO_INSETS, h.frame);
-    if (!overlaps(cardIn(r.cardInsets, b.frame), hud)) return;
-    const y = Math.min(maxY(hud) + GAP - r.cardInsets.bottom, maxY(this.v) - b.frame.h);
+    if (!b || (b.side !== 'left' && b.side !== 'right') || !d || d.docked !== null || d.side !== b.side || !r || r.pin) return;
+    const dock = cardIn(this.input.requests.find((x) => x.kind === 'dock')?.cardInsets ?? ZERO_INSETS, d.frame);
+    if (!overlaps(cardIn(r.cardInsets, b.frame), dock)) return;
+    const y = Math.min(maxY(dock) + GAP - r.cardInsets.bottom, maxY(this.v) - b.frame.h);
     this.out.bubble = this.placed({ ...b.frame, y }, b.side, r);
   }
 
@@ -399,8 +395,7 @@ class Pass {
   }
 
   /** Rules 3–5 when docked: the bubble becomes the subtitle bar when she is hidden or fullscreen, and the chip goes there
-   *  too, else either goes to a corner;
-   *  the hud goes to a corner; ring, input and tune open on the mouse's screen. */
+   *  too, else either goes to a corner; the dock goes to a corner; the wheel and input open on the mouse's screen. */
   dockedPlacement(r: PanelRequest, reason: DockReason): PanelPlacement {
     const w = r.size.w, h = r.size.h, v = this.v;
     if ((r.kind === 'bubble' || r.kind === 'chip') && (reason === 'hidden' || reason === 'fullscreen')) {
@@ -419,13 +414,13 @@ class Pass {
     return { frame: this.corner(r.size), side: 'corner', docked: 'noroom', far: false };
   }
 
-  /** Top-right, else top-left, else bottom-right: the first that keeps clear of her, of the bubble and hud placed so far, and of
-   *  an open console. */
+  /** Top-right, else top-left, else bottom-right: the first that keeps clear of her, of the bubble and dock placed so far, and
+   *  of an open console. */
   corner(size: { w: number; h: number }): Rect {
     const { w, h } = size, v = this.v;
     const tr = { x: maxX(v) - w, y: maxY(v) - h, w, h }, tl = { x: v.x, y: maxY(v) - h, w, h }, br = { x: maxX(v) - w, y: v.y, w, h };
     const console = this.input.requests.find((x) => x.kind === 'console' && x.visible);
-    const avoid = [this.input.body && keepOut(this.input.body), this.out.bubble?.frame, this.out.hud?.frame, console && this.consoleFrame(console)]
+    const avoid = [this.input.body && keepOut(this.input.body), this.out.bubble?.frame, this.out.dock?.frame, console && this.consoleFrame(console)]
       .filter((x): x is Rect => !!x);
     return [tr, tl].find((f) => !avoid.some((a) => overlaps(f, a))) ?? br;
   }

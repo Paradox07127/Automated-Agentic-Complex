@@ -163,8 +163,8 @@ export function nextPresence(last: unknown, raw: unknown): unknown {
   return obj(raw)?.offline === true ? { ...obj(last), offline: true } : raw;
 }
 
-/** The status chip's states: cyan spinner, thinking dots, grey unplugged, amber pulse, tick, red cross, one flash. */
-export type ChipKind = 'running' | 'thinking' | 'offline' | 'waiting' | 'done' | 'error' | 'interrupted';
+/** The status mark's states, highest first: amber diamond, red cross, blue spinner (her run, or a line on its way), tick, unplugged. */
+export type ChipKind = 'running' | 'offline' | 'waiting' | 'done' | 'error';
 
 export interface StatusChip {
   kind: ChipKind;
@@ -178,10 +178,8 @@ export interface StatusChip {
 
 /** Role states the chip shows as the cyan spinner. */
 const RUNNING: ReadonlySet<string> = new Set(['thinking', 'running_tool', 'subagent', 'compacting', 'background']);
-/** A done session or run shows its tick this long, as on the HUD. */
+/** A done session or run shows its tick this long. */
 export const CHIP_DONE_MS = 8000;
-/** An interrupted line flashes the chip this long. */
-export const CHIP_FLASH_MS = 1000;
 
 /**
  * The status chip beside her for the states that carry no message of their own: null for idle, activity and
@@ -202,9 +200,7 @@ export function chipOf(raw: unknown, bar: Bar | null, now: number, seen: Readonl
     role === 'error' ? `role:${p.role?.runId ?? p.role?.since ?? ''}` : null,
   ].filter((k): k is string => k != null && !seen.has(k));
   if (errors.length > 0) return chip('error', { errors });
-  if (bar?.phase === 'interrupted' && bar.total - bar.left < CHIP_FLASH_MS) return chip('interrupted');
-  if (bar?.phase === 'thinking') return chip('thinking');
-  if (RUNNING.has(role)) return chip('running');
+  if (bar?.phase === 'thinking' || RUNNING.has(role)) return chip('running');
   const finished = [
     ...presenceSessions(raw).rows.filter((r) => r.status === 'done').map((r) => r.updatedAt),
     p.agent.state === 'done' && p.agent.since != null ? p.agent.since * 1000 : 0,

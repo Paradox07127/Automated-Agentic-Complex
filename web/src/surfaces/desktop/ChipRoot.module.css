@@ -1,53 +1,31 @@
-/* The fixed-size chip panel: transparent, clicks pass through all but the 36 px circle at its centre.
-   A ring cell on the quick-menu disc; the colours follow the system appearance. */
+/* The fixed-size chip panel: transparent, clicks pass through all but the status mark, whose 26 px disc sits at the
+   panel's centre with its capsule running on from it. */
 .root {
-  --chip-cell: rgba(0, 0, 0, 0.72);
-  --chip-cell-line: rgba(255, 255, 255, 0.2);
   --chip-plate: rgba(18, 18, 18, 0.85);
-  --chip-t1: var(--ef-text-1);
-  /* DoingRow's ink. */
-  --bubble-t1: var(--ef-text-1);
-  --bubble-t2: var(--ef-hud-text-2);
+
   position: relative;
   overflow: hidden;
   background: transparent;
-  color: var(--chip-t1);
+  color: var(--ef-text-1);
   font: 13px / 20px var(--ef-font-sans);
 }
 
 :global(html[data-theme='light']) .root {
-  --chip-cell: rgba(255, 255, 255, 0.88);
-  --chip-cell-line: rgba(0, 0, 0, 0.2);
   --chip-plate: rgba(255, 255, 255, 0.94);
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .root {
-    --chip-cell: var(--ef-hud-solid);
     --chip-plate: var(--ef-hud-solid);
   }
 }
 
 .hit {
   position: absolute;
-  top: 0;
-  left: calc(50% - 18px);
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--chip-t1);
-  cursor: pointer;
+  top: 5px;
+  left: calc(50% - 13px);
+  display: flex;
   animation: chip-in var(--ef-dur-g-cell-in) var(--ef-ease-g-fade) both;
-}
-
-.hit:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 0;
 }
 
 @keyframes chip-in {
@@ -56,191 +34,36 @@
   }
 }
 
-.icon {
-  position: relative;
-  display: grid;
-  place-items: center;
-  box-sizing: border-box;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--chip-cell-line);
-  border-radius: 50%;
-  background: var(--chip-cell);
-}
-
-.icon svg {
-  width: 28px;
-  height: 28px;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.fill {
-  fill: currentcolor;
-  stroke: none;
-}
-
-/* Running: a cyan arc turning on a faint track. */
-.hit[data-chip='running'],
-.hit[data-chip='thinking'] {
-  color: var(--ef-mission-accent);
-}
-
-.track {
-  opacity: 0.25;
-}
-
-.arc {
-  stroke-dasharray: 28 72;
-  transform-origin: 14px 14px;
-  animation: chip-spin var(--ef-dur-g-spin) linear infinite;
-}
-
-@keyframes chip-spin {
-  to {
-    transform: rotate(1turn);
-  }
-}
-
-/* Thinking: three dots breathing in turn. */
-.dot {
-  fill: currentcolor;
-  stroke: none;
-  animation: chip-breathe 960ms var(--ef-ease-g-fade) infinite;
-}
-
-@keyframes chip-breathe {
-  0%,
-  100% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.hit[data-chip='offline'] {
-  color: var(--ef-text-disabled);
-}
-
-/* Waiting: amber, with a pulse ring and the count. */
-.hit[data-chip='waiting'] {
-  color: var(--ef-badge-dot);
-}
-
-.hit[data-chip='waiting'] .icon::after {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border: 1.5px solid currentcolor;
-  border-radius: 50%;
-  animation: chip-pulse 1600ms var(--ef-ease-g-fade) infinite;
-  pointer-events: none;
-}
-
-@keyframes chip-pulse {
-  from {
-    opacity: 0.8;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(1.28);
-  }
-}
-
-.count {
-  position: absolute;
-  top: -2px;
-  right: -4px;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 3px;
-  box-sizing: border-box;
-  border-radius: 8px;
-  background: var(--ef-badge-dot);
-  color: var(--ef-on-danger-vivid);
-  font: 700 11px / 15px var(--ef-font-mono);
-  text-align: center;
-}
-
-.hit[data-chip='done'] {
-  color: var(--ef-complete);
-}
-
-.hit[data-chip='error'] {
-  color: var(--ef-danger-vivid);
-}
-
-.hit[data-chip='error'] svg {
-  stroke-width: 2;
-}
-
-/* Done, error and interrupted flicker on as the HUD's cells do; interrupted then fades. */
-.hit[data-chip='done'] .icon,
-.hit[data-chip='error'] .icon {
-  animation: chip-flick 167ms steps(1, end) 83ms both;
-}
-
-.hit[data-chip='interrupted'] .icon {
-  animation:
-    chip-flick 167ms steps(1, end) both,
-    chip-out 600ms var(--ef-ease-g-fade) 400ms both;
-}
-
-@keyframes chip-flick {
-  0% {
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  40% {
-    opacity: 0;
-  }
-  60% {
-    opacity: 1;
-  }
-}
-
-@keyframes chip-out {
-  to {
-    opacity: 0;
-  }
-}
-
 /* One line on a toast plate, on the side away from her. */
 .tip {
   position: absolute;
-  top: 4px;
+  top: 6px;
   box-sizing: border-box;
   max-width: 240px;
-  padding: 4px 10px;
+  padding: 2px 10px;
+  overflow: hidden;
   background: var(--chip-plate);
+  font-size: var(--ef-fs-meta);
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   pointer-events: none;
 }
 
 .root[data-tip='right'] .tip {
-  left: calc(50% + 24px);
+  left: calc(50% + 20px);
 }
 
 .root[data-tip='left'] .tip {
-  right: calc(50% + 24px);
+  right: calc(50% + 20px);
 }
 
-:global(.still) .hit,
-:global(.still) .hit *,
-:global(.still) .hit .icon::after {
+:global(.still) .hit {
   animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hit,
-  .hit *,
-  .hit .icon::after {
+  .hit {
     animation: none;
   }
 }

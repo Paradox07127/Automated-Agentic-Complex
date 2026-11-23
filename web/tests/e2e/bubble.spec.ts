@@ -3,8 +3,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 import { DESKTOP_DEMOS } from '../../src/surfaces/desktop/demos.ts';
 
-// The thought bubble beside her head (`stack.html#/bubble`) in every preset: nothing runs out sideways, no text
-// under 13 px, and the bubble stays within 300 px.
+// The bubble beside her head (`stack.html#/bubble`) in every preset: nothing runs out sideways, no text under 13 px,
+// and the bubble stays within 300 px.
 
 const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
 const BUBBLE = DESKTOP_DEMOS.filter((d) => d.path === '/bubble');
@@ -35,7 +35,7 @@ function layoutFaults(page: Page) {
       const size = parseFloat(getComputedStyle(el).fontSize);
       if (own && size < 13) faults.push(`${size}px: ${el.textContent}`);
     }
-    for (const box of root.querySelectorAll<HTMLElement>('[data-bubble], [data-subtitle]')) {
+    for (const box of root.querySelectorAll<HTMLElement>('[data-bubble], [data-confirm], [data-subtitle]')) {
       const edge = box.getBoundingClientRect();
       for (const el of box.querySelectorAll<HTMLElement>('*')) {
         if (el.closest('[aria-hidden="true"]')) continue;
@@ -54,16 +54,26 @@ for (const theme of ['dark', 'light'] as const) {
       const errors = collectErrors(page);
       await open(page, { ...demo.params, theme });
       await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe(theme);
-      const card = page.locator('[data-bubble]');
+      const card = page.locator(demo.params.demo === 'confirm' ? '[data-confirm]' : '[data-bubble]');
       if (demo.params.demo === 'hidden') {
         await expect(page.locator('[data-subtitle]')).toBeVisible();
         await expect(card).toHaveCount(0);
       } else {
         await expect(card).toBeVisible();
-        await expect(page.locator('[data-bubble-doing]')).toContainText('在跑 swift test');
+        await expect(page.locator('[data-bubble-doing]')).toHaveCount(0);
+        const kind = { reminder: 'remind', done: 'done', error: 'error', look: 'notice' }[demo.params.demo ?? ''] ?? 'speech';
+        if (demo.params.demo !== 'confirm') await expect(card).toHaveAttribute('data-kind', kind);
         if (demo.params.demo === 'speech') await expect(card.getByRole('status')).toContainText('构建失败');
-        else if (demo.params.demo === 'reminder') await expect(card.getByRole('button', { name: '知道了' })).toBeVisible();
-        else await expect(card).toContainText('测试又红了');
+        else if (demo.params.demo === 'reminder') {
+          await expect(card).toContainText('16:00 组会');
+          await expect(card.getByRole('button')).toHaveCount(0);
+        } else if (demo.params.demo === 'done') await expect(card.getByRole('button', { name: '打开' })).toBeVisible();
+        else if (demo.params.demo === 'error') await expect(card.getByRole('button', { name: '看详情' })).toBeVisible();
+        else if (demo.params.demo === 'look') await expect(card.getByRole('status')).toContainText('已识读');
+        else if (demo.params.demo === 'confirm') {
+          await expect(card).toContainText('要你批准');
+          for (const name of ['详情', '拒绝', '批准']) await expect(card.getByRole('button', { name, exact: true })).toBeVisible();
+        } else if (demo.params.demo === 'thought') await expect(card).toContainText('测试又红了');
         if (demo.params.mode === 'input') await expect(card.getByRole('dialog', { name: '快速输入' })).toBeVisible();
         expect((await card.boundingBox())?.width ?? 999).toBeLessThanOrEqual(364);
       }
@@ -91,10 +101,11 @@ for (const [theme, text] of [['dark', 'rgb(237, 237, 237)'], ['light', 'rgb(22, 
   });
 }
 
-test('reply and disclosure are available without hover; reply quotes the thought', async ({ page }) => {
+test('reply and disclosure show on hover; reply quotes the thought', async ({ page }) => {
   const errors = collectErrors(page);
-  await open(page, {});
+  await open(page, { demo: 'thought' });
   const card = page.locator('[data-bubble]');
+  await card.hover();
   await expect(card.getByRole('button', { name: '回复', exact: true })).toBeVisible();
   await card.getByRole('button', { name: '更多操作' }).click();
   for (const name of ['复制', '关闭此类']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
@@ -106,11 +117,18 @@ test('reply and disclosure are available without hover; reply quotes the thought
   expect(errors).toEqual([]);
 });
 
-test('the tail leaves the card edge toward her head', async ({ page }) => {
-  await open(page, {});
+test('the tail leaves the card edge toward her head, on the bubble and on the confirm card', async ({ page }) => {
+  await open(page, { demo: 'thought' });
   await expect(page.locator('[data-bubble]')).toHaveAttribute('data-tail', 'right');
-  await open(page, { demo: 'noroom' });
-  await expect(page.locator('[data-bubble]')).toHaveAttribute('data-tail', 'left');
+  await open(page, { demo: 'confirm' });
+  await expect(page.locator('[data-confirm]')).toHaveAttribute('data-tail', 'right');
+});
+
+test('with nothing to say there is no bubble', async ({ page }) => {
+  await open(page, {});
+  await expect(page.locator('[data-surface-root="bubble"]')).toBeAttached();
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+  await expect(page.locator('[data-bubble], [data-confirm]')).toHaveCount(0);
 });
 
 test('a long offer button stays inside the band and shows its whole text without cutting', async ({ page }) => {
