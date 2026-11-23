@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import { Icon, type IconName } from '../Icon';
 import styles from './OptionStack.module.css';
 
@@ -29,9 +29,25 @@ export interface OptionStackProps {
   /** 读屏名称 */
   label?: string;
   onPick: (id: string) => void;
+  /** 指针按下一行（按住说话）；做不了的行不报 */
+  onPressStart?: (id: string) => void;
+  /** 按下的那行松开或被打断 */
+  onPressEnd?: (id: string) => void;
 }
 
-export function OptionStack({ items, side = 'right', compact, hot, note, label, onPick }: OptionStackProps) {
+export function OptionStack({ items, side = 'right', compact, hot, note, label, onPick, onPressStart, onPressEnd }: OptionStackProps) {
+  const pressed = useRef<string | null>(null);
+  const down = (it: OptionStackItem, e: PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0 || it.off) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    pressed.current = it.id;
+    onPressStart?.(it.id);
+  };
+  const up = () => {
+    const id = pressed.current;
+    pressed.current = null;
+    if (id != null) onPressEnd?.(id);
+  };
   return (
     <div className={styles.stack} data-stub="OptionStack" data-side={side} data-compact={compact || undefined} role="group" aria-label={label}>
       <i className={styles.rail} aria-hidden="true" />
@@ -48,6 +64,9 @@ export function OptionStack({ items, side = 'right', compact, hot, note, label, 
           aria-disabled={it.off ? true : undefined}
           title={compact ? [it.label, it.hotkey, it.off].filter(Boolean).join('  ') : it.off}
           onClick={() => !it.off && onPick(it.id)}
+          onPointerDown={(e) => down(it, e)}
+          onPointerUp={up}
+          onPointerCancel={up}
         >
           <span className={styles.key} aria-hidden="true">
             <Icon name={it.icon} size={16} />

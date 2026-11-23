@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { Icon, type IconName } from '../Icon';
 import { MicroLabel } from './Marks';
 import styles from './YellowKey.module.css';
@@ -24,11 +25,17 @@ export interface YellowKeyProps {
   block?: boolean;
   /** 右端的键位小牌（「⌘0」） */
   hint?: string;
+  /** 打开时就落焦点（菜单栏弹窗的「打开主窗口」） */
+  autoFocus?: boolean;
   onClick?: () => void;
 }
 
-export function YellowKey({ label, icon = 'play', micro, vertical, tone = 'yellow', busy, disabled, disabledReason, block, hint, onClick }: YellowKeyProps) {
+export const YellowKey = forwardRef<HTMLButtonElement, YellowKeyProps>(function YellowKey(
+  { label, icon = 'play', micro, vertical, tone = 'yellow', busy, disabled, disabledReason, block, hint, autoFocus, onClick },
+  ref,
+) {
   const own = {
+    ref,
     type: 'button' as const,
     className: styles.key,
     'data-stub': 'YellowKey',
@@ -36,6 +43,7 @@ export function YellowKey({ label, icon = 'play', micro, vertical, tone = 'yello
     'data-block': block || undefined,
     'aria-busy': busy || undefined,
     disabled,
+    autoFocus,
     title: disabled ? disabledReason : undefined,
     onClick: busy ? undefined : onClick,
   };
@@ -67,7 +75,7 @@ export function YellowKey({ label, icon = 'play', micro, vertical, tone = 'yello
       </span>
     </button>
   );
-}
+});
 
 export const YellowKeyDemos: Array<{ name: string; props: YellowKeyProps }> = [
   { name: 'preview', props: { label: '桌面预览', micro: 'Desktop' } },

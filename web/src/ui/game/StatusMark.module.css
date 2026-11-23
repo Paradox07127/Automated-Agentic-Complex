@@ -54,6 +54,22 @@
   box-shadow: var(--ef-shadow-btn);
 }
 
+/* Mirrored: the capsule on the disc's left, its round end outward; the plug's cord turns to it. */
+.mark[data-mirror] {
+  flex-direction: row-reverse;
+}
+
+.mark[data-mirror] .cap {
+  margin-right: -6px;
+  margin-left: 0;
+  padding: 0 11px 0 9px;
+  border-radius: 11px 0 0 11px;
+}
+
+.mark[data-mirror] .plug {
+  scale: -1 1;
+}
+
 .cap b {
   font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-num);
 }

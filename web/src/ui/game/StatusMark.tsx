@@ -15,16 +15,24 @@ export interface StatusMarkProps {
   tip?: string;
   /** 读屏名称；不给用状态词和数 */
   label?: string;
+  /** 画插头代替状态的形状：没连上（后台、桌面层） */
+  plug?: boolean;
+  /** 水平镜像：胶囊在圆标左边。标在她头左侧时用，胶囊朝外伸、不压到她 */
+  mirror?: boolean;
   onClick?: () => void;
 }
 
-export function StatusMark({ state, cap, count, tip, label, onClick }: StatusMarkProps) {
+export function StatusMark({ state, cap, count, tip, label, plug, mirror, onClick }: StatusMarkProps) {
   const v = stateVisual(state);
   const name = label ?? (count != null ? `${cap ?? v.label} ${count} 项` : (cap ?? v.label));
   return (
-    <button type="button" className={styles.mark} data-stub="StatusMark" data-tone={v.tone} aria-label={name} title={tip} onClick={onClick}>
+    <button type="button" className={styles.mark} data-stub="StatusMark" data-tone={v.tone} data-mirror={mirror || undefined} aria-label={name} title={tip} onClick={onClick}>
       <span className={styles.disc}>
-        {v.shape === 'check' ? (
+        {plug ? (
+          <svg className={styles.plug} width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false" data-shape="plug">
+            <path d="M5 2.5v3M9 2.5v3M3.5 5.5h7v2.5a3.5 3.5 0 0 1-7 0zM7 11.5v1.5a1.5 1.5 0 0 0 1.5 1.5H13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : v.shape === 'check' ? (
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false" data-shape="check">
             <path d="M3.8 8.4l2.7 2.7 5.6-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -51,4 +59,6 @@ export const StatusMarkDemos: Array<{ name: string; props: StatusMarkProps }> = 
   { name: 'wait', props: { state: 'awaiting_approval', cap: '待批准', count: 1 } },
   { name: 'error', props: { state: 'error', cap: '出错了' } },
   { name: 'done', props: { state: 'done', label: '做完了' } },
+  { name: 'offline', props: { state: 'unreachable', cap: '连不上后台', plug: true } },
+  { name: 'offline-mirror', props: { state: 'unreachable', cap: '连不上后台', plug: true, mirror: true } },
 ];

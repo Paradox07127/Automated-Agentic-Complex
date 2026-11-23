@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, type CSSProperties, type ReactNode } from 'react';
 import { gameClips } from '../../design/gameClips.generated';
 import { useGameClip } from '../fx/useGameClip';
 import { GameSeg } from './GameSeg';
@@ -37,6 +37,10 @@ export interface DarkRowProps {
   focused?: boolean;
   /** 紧凑款：左格 34、矮一号、没有条码 */
   compact?: boolean;
+  /** 副行（种类，如「批准」）放在名字上面，读屏也先读它 */
+  subFirst?: boolean;
+  /** 左格宽（px）；不给是 52，紧凑款 34 */
+  leadWidth?: number;
   /** 选中（正在预览、正在穿） */
   selected?: boolean;
   /** 右侧槽：开关、步进器等控件，不在按下区域里 */
@@ -94,7 +98,7 @@ function Breath() {
   return <i ref={ref} className={styles.frame} data-g="root" />;
 }
 
-export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, focused, compact, selected = false, end, micro = 'AGENTIC', onPress }: DarkRowProps) {
+export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, focused, compact, subFirst, leadWidth, selected = false, end, micro = 'AGENTIC', onPress }: DarkRowProps) {
   const face = (
     <>
       {selected && <Breath />}
@@ -109,8 +113,9 @@ export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, fo
         </span>
       )}
       <span className={styles.body}>
+        {subFirst && sub != null && <span className={styles.sub}>{sub}</span>}
         <span className={styles.title}>{title}</span>
-        {sub != null && <span className={styles.sub}>{sub}</span>}
+        {!subFirst && sub != null && <span className={styles.sub}>{sub}</span>}
         {SAY[mark] && <span className={styles.vh}>{`，${SAY[mark]}`}</span>}
       </span>
     </>
@@ -124,6 +129,7 @@ export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, fo
       data-state={state}
       data-focused={focused || undefined}
       data-compact={compact || undefined}
+      style={leadWidth != null ? ({ '--dr-lead-w': `${leadWidth}px` } as CSSProperties) : undefined}
     >
       {leadAction && (
         <button type="button" className={styles.lead} aria-label={leadAction.label} title={leadAction.title} disabled={leadAction.disabled} onClick={leadAction.onPress}>
@@ -190,4 +196,5 @@ export const DarkRowDemos: Array<{ name: string; props: DarkRowProps }> = [
   { name: 'custom-lead', props: { title: '外套', lead: '01', state: 'busy', focused: true, end: <GameSeg label="外套" value="on" options={SHOWN} /> } },
   { name: 'compact', props: { title: '开口说话', sub: '说话时', compact: true, onPress: () => undefined } },
   { name: 'new', props: { title: '要不要把构建脚本里的测试重跑一遍？', sub: '批准', mark: 'new', compact: true, onPress: () => undefined, end: '还有 2 项' } },
+  { name: 'sub-first', props: { title: '要不要把构建脚本里的测试重跑一遍？', sub: '批准', mark: 'new', compact: true, subFirst: true, leadWidth: 28, onPress: () => undefined } },
 ];

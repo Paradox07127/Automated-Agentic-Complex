@@ -83,7 +83,7 @@ button.hit:focus-visible {
   display: grid;
   flex: none;
   place-items: center;
-  width: 52px;
+  width: var(--dr-lead-w, 52px);
   background: var(--dr-lead);
   color: #fff;
 }
@@ -295,7 +295,7 @@ button.lead:focus-visible {
 }
 
 .row[data-compact] .lead {
-  width: 34px;
+  width: var(--dr-lead-w, 34px);
 }
 
 .row[data-compact] .glyph {

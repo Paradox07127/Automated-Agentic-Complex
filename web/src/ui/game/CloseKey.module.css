@@ -41,6 +41,12 @@
   position: relative;
 }
 
+/* Pressed: down onto its shadow. */
+.close:active {
+  translate: 1px 1px;
+  box-shadow: none;
+}
+
 .close:hover::before {
   background: var(--ef-g-btn-hover);
 }

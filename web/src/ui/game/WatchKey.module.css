@@ -114,6 +114,15 @@
   gap: var(--ef-sp-6);
 }
 
+/* Compact (the menu bar popover's four keys): icon, name and sub fit a 58 px key, the sub a 66 px face. */
+.key[data-compact] .face {
+  gap: var(--ef-sp-2);
+}
+
+.key[data-compact] .sub {
+  padding: 1px var(--ef-sp-2);
+}
+
 .hot {
   position: absolute;
   top: var(--ef-sp-4);

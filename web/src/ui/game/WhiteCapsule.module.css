@@ -84,6 +84,18 @@
   background: rgb(255 255 255 / 30%);
 }
 
+/* Small: 24 high, the disc 18. */
+.cap[data-size='sm'] {
+  gap: 6px;
+  height: 24px;
+  padding: 0 12px 0 3px;
+}
+
+.cap[data-size='sm'] .ic {
+  width: 18px;
+  height: 18px;
+}
+
 .bar {
   flex: none;
   width: 1px;

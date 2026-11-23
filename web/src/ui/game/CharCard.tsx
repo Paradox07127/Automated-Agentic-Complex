@@ -10,6 +10,7 @@ export interface CharCardProps {
   /** 在舞台上的位置和大小 */
   box: Box;
   name: string;
+  /** 英文名；没有时写 Operator */
   en?: string | null;
   /** 头像图 */
   head?: string | null;
@@ -36,7 +37,7 @@ export function CharCard({ box, name, en, head, id, doing, meta, compact, onClic
           </span>
           <span className={styles.charText}>
             <b className={styles.charName}>{name}</b>
-            {en && <span className={styles.charEn}>{en}</span>}
+            <span className={styles.charEn}>{en || 'Operator'}</span>
             {doing && (
               <span className={styles.charDoing} title={doing}>
                 {doing}
@@ -53,14 +54,17 @@ export function CharCard({ box, name, en, head, id, doing, meta, compact, onClic
   );
 }
 
-/** 角色卡最后一行：她穿的外观和渲染帧率；帧率没有时只写外观。 */
-export function CharMeta({ outfit, fps }: { outfit: string | null; fps: string }) {
+/** 角色卡最后一行：她穿的外观和渲染帧率；不给帧率时只写外观，两样都没有时不画。 */
+export function CharMeta({ outfit, fps }: { outfit: string | null; fps?: string }) {
+  if (!outfit && fps == null) return null;
   return (
     <span className={styles.charMeta}>
       {outfit && <span className={styles.charOutfit}>{outfit}</span>}
-      <span className={styles.charFps}>
-        <b>{fps}</b> FPS
-      </span>
+      {fps != null && (
+        <span className={styles.charFps}>
+          <b>{fps}</b> FPS
+        </span>
+      )}
     </span>
   );
 }
@@ -70,4 +74,5 @@ const noop = () => undefined;
 export const CharCardDemos: Array<{ name: string; props: CharCardProps }> = [
   { name: 'home', props: { box: { width: 224, height: 76 }, name: '示例乙', en: 'Sample', doing: '正在看 Terminal', meta: <CharMeta outfit="夏装" fps="59" />, onClick: noop } },
   { name: 'compact', props: { box: { width: 320, height: 66 }, name: '示例乙', doing: '在桌面上 │ 空闲', compact: true, onClick: noop } },
+  { name: 'outfit-only', props: { box: { width: 224, height: 76 }, name: '示例乙', doing: '正在看 Terminal', meta: <CharMeta outfit="夏装" />, onClick: noop } },
 ];

@@ -44,6 +44,8 @@ export interface WatchKeyProps {
   mid?: readonly [number, number];
   /** 左侧大键：图标和名字大一号、面上有等高线 */
   big?: boolean;
+  /** 紧凑款（菜单栏弹窗的四键）：图标缩到 16、行距收紧，副行（热键、档位）在矮键里不被裁 */
+  compact?: boolean;
   icon: IconName;
   /** 页面名或动作名 */
   title: string;
@@ -67,7 +69,7 @@ const KEY_DEPTH = 24;
 const SHIFT_BIG = [1.85, 1.2] as const;
 const SHIFT_SQUARE = [-2.5, 0.25] as const;
 
-export function WatchKey({ box, pts, mid, big, icon, title, hotkey, sub, pressed, off, g, onClick }: WatchKeyProps) {
+export function WatchKey({ box, pts, mid, big, compact, icon, title, hotkey, sub, pressed, off, g, onClick }: WatchKeyProps) {
   const hover = useKeyHover<HTMLButtonElement>();
   const [mx, my] = mid ?? [box.width / 2, box.height / 2];
   return (
@@ -76,6 +78,7 @@ export function WatchKey({ box, pts, mid, big, icon, title, hotkey, sub, pressed
         type="button"
         className={styles.key}
         data-big={big || undefined}
+        data-compact={compact || undefined}
         aria-label={title}
         aria-pressed={pressed}
         title={off}
@@ -88,7 +91,7 @@ export function WatchKey({ box, pts, mid, big, icon, title, hotkey, sub, pressed
           {pressed && <span className={styles.band} aria-hidden="true" />}
           <span className={styles.face} style={pressed ? { left: mx, bottom: 7 } : { left: mx, top: my }} data-on={pressed || undefined} aria-hidden="true">
             <span className={styles.icon} data-g="icon">
-              <Icon name={icon} size={pressed ? 20 : 32} />
+              <Icon name={icon} size={compact ? 16 : pressed ? 20 : 32} />
             </span>
             <span className={styles.name} data-g="label">
               {title}
@@ -115,4 +118,6 @@ export const WatchKeyDemos: Array<{ name: string; props: WatchKeyProps }> = [
   { name: 'toggle-on', props: { box: KEY, icon: 'moonz', title: '免打扰', sub: '到 15:30', pressed: true, onClick: noop } },
   { name: 'sub', props: { box: KEY, icon: 'bolt', title: '快速输入', sub: '⌃⌥Space', onClick: noop } },
   { name: 'off', props: { box: KEY, icon: 'look', title: '屏幕识读', off: '这台机器上不能识读屏幕', onClick: noop } },
+  { name: 'compact', props: { box: { width: 72, height: 58 }, compact: true, icon: 'send', title: '快速输入', sub: '⌃Space', onClick: noop } },
+  { name: 'compact-on', props: { box: { width: 72, height: 58 }, compact: true, icon: 'moonz', title: '免打扰', sub: '到 15:30', pressed: true, onClick: noop } },
 ];
