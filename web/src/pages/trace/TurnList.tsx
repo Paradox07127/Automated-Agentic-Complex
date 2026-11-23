@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { keyText } from '../../bridge/platformText';
 import type { ChartStatus } from '../../charts';
-import { isoToMs, type VisualStateKey } from '../../domain';
+import { isoToMs } from '../../domain';
 import type { WireTraceTurn } from '../../domain/wire';
 import { Btn, Menu, type MenuItem, SearchField } from '../../ui';
 import { GameSeg, StatusLamp } from '../../ui/game';
 import { fmtMs } from '../chat/turnTrace';
-import { clockOf, groupOf, hourOf, inFilter, no4, type ResFilter, type Shape, SHAPE_LABEL, shapeOf, SRC_GROUPS, srcLabel, type SrcGroup } from './data';
+import { clockOf, groupOf, hourOf, inFilter, LAMP, no4, type ResFilter, SHAPE_LABEL, shapeOf, SRC_GROUPS, srcLabel, type SrcGroup } from './data';
 import s from './List.module.css';
 import t from './Trace.module.css';
 
 const PAGE = 40;
-/** The lamp for a turn's result; the words stay the list's own. */
-const LAMP: Readonly<Record<Shape, VisualStateKey>> = { ok: 'done', fail: 'failed', cut: 'interrupted', run: 'running', wait: 'awaiting_approval', skip: 'skipped', text: 'idle', unk: 'warning' };
 const RES: ReadonlyArray<[ResFilter, string]> = [['all', '全部'], ['fail', '出错'], ['cut', '打断'], ['live', '在跑']];
 
 export interface TurnListProps {

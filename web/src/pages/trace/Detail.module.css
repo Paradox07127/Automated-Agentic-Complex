@@ -237,7 +237,7 @@
   color: var(--ef-danger-text);
 }
 
-/* Under 1200 px the detail sits in the 480 px drawer. */
+/* Under 1200 px the detail sits in the 640 px drawer. */
 @media (max-width: 1199px) {
   /* token's column also carries the cache share. */
   .rband {

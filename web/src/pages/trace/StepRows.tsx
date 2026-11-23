@@ -2,10 +2,10 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import { RawFold } from '../../features/trace';
 import { navigate } from '../../shell/nav';
 import { Btn } from '../../ui';
-import { ExpandRow, InTable } from '../../ui/game';
+import { ExpandRow, InTable, StatusLamp } from '../../ui/game';
 import { fmtMs } from '../chat/turnTrace';
-import { SHAPE_LABEL, type Shape } from './data';
-import { ShapeMark, StepMark } from './Glyphs';
+import { LAMP, SHAPE_LABEL, type Shape } from './data';
+import { StepMark } from './Glyphs';
 import { longestOf, type Part, type Step, type Turn } from './steps';
 import s from './Steps.module.css';
 import t from './Trace.module.css';
@@ -118,12 +118,7 @@ export function StepRows({ turn, related, onCopy }: StepRowsProps) {
               </span>
               <span className={s.sm}>{parts(x.sum)}</span>
               <span>
-                {sign && (
-                  <span className={t.sg} data-s={sign}>
-                    <ShapeMark s={sign} />
-                    {sign === 'wait' ? `待批准 ${fmtMs(x.dur)}` : SHAPE_LABEL[sign]}
-                  </span>
-                )}
+                {sign && <StatusLamp state={LAMP[sign]} label={sign === 'wait' ? `待批准 ${fmtMs(x.dur)}` : SHAPE_LABEL[sign]} />}
               </span>
               <span className={s.trk} title={`${fmtMs(x.t0)} – ${fmtMs(x.t0 + x.dur)}`}>
                 {(x.dur > 0 || x.id === 'in') && <i data-c={c} style={{ left: pct(x.t0, total), width: `max(2px, ${pct(x.dur, total)})` }} />}

@@ -338,7 +338,7 @@ export function TracePage() {
             onChat={() => jump({ page: 'chat' })}
           />
           {narrow ? (
-            <Sheet open={drawer && selId != null} title={`第 ${no} 轮`} head="close" width={480} closeLabel="收起这一轮" onClose={() => setDrawer(false)}>
+            <Sheet open={drawer && selId != null} title={`第 ${no} 轮`} head="close" width={640} closeLabel="收起这一轮" onClose={() => setDrawer(false)}>
               {detail}
             </Sheet>
           ) : (

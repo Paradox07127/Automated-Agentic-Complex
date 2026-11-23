@@ -64,50 +64,6 @@
   font-size: 12px;
 }
 
-/* State sign: a shape and words. Orange marks only: the words of 打断 and 待批准 stay in the text colour. */
-.sg {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--ef-text-2);
-  font-size: 12px;
-  line-height: 18px;
-  white-space: nowrap;
-}
-
-.sg svg {
-  flex: none;
-}
-
-.sg[data-s='fail'] {
-  color: var(--ef-danger-text);
-  font-weight: 600;
-}
-
-.sg[data-s='run'] {
-  color: var(--ef-mission-accent);
-}
-
-.sg[data-s='wait'],
-.sg[data-s='cut'] {
-  color: var(--ef-text-1);
-}
-
-.sg[data-s='wait'] svg,
-.sg[data-s='cut'] svg {
-  color: var(--ef-g-reddot);
-}
-
-.sg[data-s='run'] svg {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* Empty, error and loading (mailpanel EmptyNode: one line, a barcode rule, one action). */
 .empty {
   display: grid;

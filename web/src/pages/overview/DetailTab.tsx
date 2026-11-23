@@ -107,7 +107,7 @@ export function DetailTab({ day, pins, onPins }: BriefTabProps) {
               <div className={styles.nm}>
                 <span className={styles.star}>
                   <IconBtn
-                    icon="pin"
+                    icon="star"
                     shape="round"
                     pressed={pinned}
                     disabled={!pinned && full}

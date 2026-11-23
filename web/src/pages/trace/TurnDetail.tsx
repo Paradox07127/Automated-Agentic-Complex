@@ -3,10 +3,9 @@ import type { ChartStatus } from '../../charts';
 import { isoToMs } from '../../domain';
 import type { WireTraceTurn } from '../../domain/wire';
 import { Btn, Fold, SecHead } from '../../ui';
-import { GameFrame } from '../../ui/game';
+import { GameFrame, StatusLamp } from '../../ui/game';
 import { fmtMs } from '../chat/turnTrace';
-import { clockOf, dayOf, fmtK, SHAPE_LABEL, shapeOf, srcLabel } from './data';
-import { ShapeMark } from './Glyphs';
+import { clockOf, dayOf, fmtK, LAMP, SHAPE_LABEL, shapeOf, srcLabel } from './data';
 import { StepRows } from './StepRows';
 import { longestOf, type Turn } from './steps';
 import type { Seq } from './useLogs';
@@ -148,12 +147,7 @@ export function TurnDetail({ row, no, turn, st, emptyText, convTitle, related, o
             <span className={d.when}>
               &lt; {dayOf(start)} {clockOf(start)} &gt;
             </span>
-            {shape && (
-              <span className={t.sg} data-s={shape}>
-                <ShapeMark s={shape} />
-                {SHAPE_LABEL[shape]}
-              </span>
-            )}
+            {shape && <StatusLamp state={LAMP[shape]} label={SHAPE_LABEL[shape]} />}
             {turn.code && <span className={`${t.mono} ${d.code}`}>{turn.code}</span>}
             <span className={d.sp} />
             {onOpenChat && (

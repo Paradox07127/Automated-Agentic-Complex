@@ -1,7 +1,7 @@
-/* Panel on white in both themes (the root sets data-theme="light"): 1px line, square, a heavy ink tab along the left of the top edge.
-   Tab and bar sit inside the border so they still read on a dark page. */
+/* Panel on white in both themes (the root sets data-theme="light"): 1px line, square, the warning tape along the top edge.
+   The tape sits inside the border so it still reads on a dark page. */
 .paper {
-  --pc: transparent;
+  composes: tape from './Tape.module.css';
   --ui-btn-ring: var(--ef-raised);
   position: relative;
   padding: var(--ef-sp-16);
@@ -10,37 +10,7 @@
   color: var(--ef-raised-fg);
 }
 
-.paper::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 14%;
-  height: 5px;
-  background: var(--ef-text-1);
-  pointer-events: none;
-}
-
-/* Priority bar down the left edge: red only for a decision that deletes; otherwise the trace line. */
-.paper::after {
-  content: '';
-  position: absolute;
-  top: 5px;
-  bottom: 0;
-  left: 0;
-  width: var(--ef-lw-category);
-  background: var(--pc);
-  pointer-events: none;
-}
-
+/* Red tape only for a decision that deletes. */
 .paper[data-priority='0'] {
-  --pc: var(--ef-danger);
-}
-
-.paper[data-priority='1'] {
-  --pc: var(--ef-trace);
-}
-
-.paper:not([data-priority='2']) {
-  padding-left: var(--ef-sp-20);
+  --tape-hi: var(--ef-danger-vivid);
 }

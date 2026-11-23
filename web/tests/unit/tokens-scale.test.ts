@@ -103,7 +103,7 @@ describe('restored tokens', () => {
   const all: Record<string, string> = {
     ...tokens.color.dark, ...tokens.type.size, ...tokens.radius,
   };
-  it.each(['fs-watermark', 'fs-micro', 'tape-y', 'tape-c', 'tape-m', 'shadow-btn', 'r-opt', 'r-list'])('%s is a token', (key) => {
+  it.each(['fs-watermark', 'fs-micro', 'tape-y', 'shadow-btn', 'r-opt', 'r-list'])('%s is a token', (key) => {
     expect(all[key]).toBeDefined();
   });
 

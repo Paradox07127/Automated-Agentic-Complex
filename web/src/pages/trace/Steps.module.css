@@ -240,7 +240,7 @@
   font-style: normal;
 }
 
-/* Under 1200 px the steps sit in the 480 px drawer: the time bars give way to the sentence; offset and length stay as numbers. */
+/* Under 1200 px the steps sit in the 640 px drawer: the time bars give way to the sentence; offset and length stay as numbers. */
 @media (max-width: 1199px) {
   .steps {
     --gt-cols: 50px 24px 42px minmax(0, 1fr) 64px 44px;

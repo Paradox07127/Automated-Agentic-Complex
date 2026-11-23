@@ -13,7 +13,7 @@ export interface BtnProps {
   /**
    * 变体，默认 ghost（浅色胶囊，无图标位）。
    * 旧名照旧可传：cancel、action-row 按 secondary，quiet 按 text，danger-confirm 按 danger。
-   * link：行内文字链，正文色、黄下划线，没有胶囊。
+   * link：行内文字链，正文色、黄下划线，没有胶囊；只有 sm 一种高（24）。
    */
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'text' | 'ring' | 'link' | 'cancel' | 'danger-confirm' | 'quiet' | 'action-row';
   /** 高 36 / 32 / 24，默认 md */
@@ -68,10 +68,11 @@ const VARIANT: Record<NonNullable<BtnProps['variant']>, Variant> = {
 const TAIL: Partial<Record<Variant, IconName>> = { primary: 'check', secondary: 'chev', danger: 'del', ring: 'chev' };
 export const MOUSE_ONLY_HINT = '只能用鼠标点击';
 
-export function Btn({ variant = 'ghost', size = 'md', icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, mouseOnly, onClick, children, ref, ...aria }: BtnProps) {
+export function Btn({ variant = 'ghost', size: asked = 'md', icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, mouseOnly, onClick, children, ref, ...aria }: BtnProps) {
   const [hint, setHint] = useState(false);
   const reasonId = useId();
   const v = VARIANT[variant];
+  const size = v === 'link' ? 'sm' : asked;
   const inactive = !!disabled || !!loading;
   const slot = TAIL[v] && (size !== 'sm' || !!tail) ? (tail ?? icon ?? TAIL[v]) : undefined;
 

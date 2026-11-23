@@ -2,6 +2,7 @@
 // conversation titles; and the words the list and the detail share.
 import { useQuery } from '@tanstack/react-query';
 import { get, seg } from '../../bridge/agentd';
+import type { VisualStateKey } from '../../domain';
 import type { WireConversation, WireRunItem, WireTraceTurn } from '../../domain/wire';
 import type { ChatDemoSource } from '../chat/demoTypes';
 import type { TraceEvent } from '../chat/turnTrace';
@@ -63,6 +64,8 @@ export function groupOf(s: string): Exclude<SrcGroup, 'all'> {
 /** A turn's state as a shape and words. */
 export type Shape = 'ok' | 'fail' | 'cut' | 'run' | 'wait' | 'skip' | 'text' | 'unk';
 export const SHAPE_LABEL: Readonly<Record<Shape, string>> = { ok: '完成', fail: '出错了', cut: '打断', run: '在跑', wait: '待批准', skip: '跳过', text: '只出了文字', unk: '回执不全' };
+/** The lamp for a result; the words stay the page's own. */
+export const LAMP: Readonly<Record<Shape, VisualStateKey>> = { ok: 'done', fail: 'failed', cut: 'interrupted', run: 'running', wait: 'awaiting_approval', skip: 'skipped', text: 'idle', unk: 'warning' };
 export function shapeOf(r: Pick<WireTraceTurn, 'result' | 'turn_state'>): Shape {
   if (r.turn_state === 'waiting_user') return 'wait';
   switch (r.result) {

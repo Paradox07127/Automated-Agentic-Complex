@@ -1,4 +1,4 @@
-import { useId, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { StatusTag } from './StatusTag';
 import styles from './Row.module.css';
 
@@ -24,22 +24,24 @@ export interface RowProps {
   disabled?: boolean;
   /** 禁用原因 */
   disabledReason?: string;
-  /** 点击 */
-  onClick?: () => void;
+  /** 点击；带事件，页面可读修饰键（⌥ 点只看这一个） */
+  onClick?: (e: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>) => void;
+  /** 悬停提示（禁用时让给禁用原因） */
+  tip?: string;
   /** `data-*` 透传到行根元素（定位、跳转落点） */
   [data: `data-${string}`]: string | number | boolean | undefined;
 }
 
-export function Row({ title, sub, category = 'none', attention, height = 'task', badge, right, selected, disabled, disabledReason, onClick, ...data }: RowProps) {
+export function Row({ title, sub, category = 'none', attention, height = 'task', badge, right, selected, disabled, disabledReason, onClick, tip, ...data }: RowProps) {
   const reasonId = useId();
-  const activate = () => {
-    if (!disabled) onClick?.();
+  const activate = (e: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>) => {
+    if (!disabled) onClick?.(e);
   };
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      activate();
+      activate(e);
     }
   };
   return (
@@ -55,7 +57,7 @@ export function Row({ title, sub, category = 'none', attention, height = 'task',
       aria-pressed={!!selected}
       aria-disabled={disabled || undefined}
       aria-describedby={disabled && disabledReason ? reasonId : undefined}
-      title={disabled ? disabledReason : undefined}
+      title={disabled ? disabledReason : tip}
       onClick={activate}
       onKeyDown={onKeyDown}
     >

@@ -97,8 +97,6 @@
   --ef-lemon: var(--ef-accent);
   --ef-complete: var(--ef-accent);
   --ef-tape-y: var(--ef-accent);
-  --ef-tape-c: #00FFA2;
-  --ef-tape-m: #FF00F0;
   --ef-ink-s1: #C4C5C0;
   --ef-ink-s2: #8E8F8A;
   --ef-ink-s3: #6A6B67;
@@ -354,8 +352,6 @@
   --ef-lemon: var(--ef-accent-text);
   --ef-complete: var(--ef-accent);
   --ef-tape-y: var(--ef-accent);
-  --ef-tape-c: #00FFA2;
-  --ef-tape-m: #FF00F0;
   --ef-ink-s1: #3F3F3D;
   --ef-ink-s2: #6B6B67;
   --ef-ink-s3: #8E8D89;

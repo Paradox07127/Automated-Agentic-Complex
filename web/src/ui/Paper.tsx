@@ -3,7 +3,7 @@ import styles from './Paper.module.css';
 
 /** 白纸卡（面板第 3 级）：只给决策（审批、复核、待确认）；两种主题下都是白纸，里面按亮色令牌取色。 */
 export interface PaperProps {
-  /** 左优先级条：0 danger、1 attention、2 无，默认 2 */
+  /** 优先级：0 danger（顶部胶带换红）、1 attention、2 无，默认 2 */
   priority?: 0 | 1 | 2;
   /** 读屏名称 */
   label?: string;

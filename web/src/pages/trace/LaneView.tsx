@@ -2,9 +2,8 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { ChartStatus } from '../../charts';
 import { isoToMs } from '../../domain';
 import { Menu, type MenuItem, Row, SecHead } from '../../ui';
-import { GameFrame, GameSeg } from '../../ui/game';
-import { clockOf, type Shape } from './data';
-import { ShapeMark } from './Glyphs';
+import { GameFrame, GameSeg, StatusLamp } from '../../ui/game';
+import { clockOf, LAMP, type Shape } from './data';
 import { causesOf, effectsOf, inWindow, labelOf, LANE_NAME, laneOf, lanesOf, type LaneEvent, type LaneId, pack, type Range, RANGES, toneOf, walkOf } from './lanes';
 import l from './Lanes.module.css';
 import t from './Trace.module.css';
@@ -211,12 +210,7 @@ export function LaneView({ events, st, now }: LaneViewProps) {
             <div className={l.dh}>
               <span className={l.tag}>{laneName(picked)}</span>
               <span className={`${t.num} ${l.when}`}>{clockOf(isoToMs(picked.t_wall), true)}</span>
-              {status && (
-                <span className={t.sg} data-s={status[0]}>
-                  <ShapeMark s={status[0]} />
-                  {status[1]}
-                </span>
-              )}
+              {status && <StatusLamp state={LAMP[status[0]]} label={status[1]} />}
             </div>
             <b className={l.title} data-tone={toneOf(picked)}>{labelOf(picked)}</b>
             <span className={l.meta}>

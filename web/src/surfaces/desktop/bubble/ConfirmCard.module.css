@@ -1,5 +1,6 @@
-/* The chat page's white paper card (.swap) at the bubble's width: paper, the black and yellow striped top edge, hard shadow. */
+/* The chat page's white paper card (.swap) at the bubble's width: paper, the shared warning tape along the top, hard shadow. */
 .paper {
+  composes: tape from '../../../ui/Tape.module.css';
   position: relative;
   box-sizing: border-box;
   width: 300px;
@@ -9,16 +10,6 @@
   color: var(--ef-paper-text);
   font: var(--ef-fw-regular) 13px / 20px var(--ef-font-sans);
   animation: cc-in 250ms cubic-bezier(0.333, 0, 0, 1) both;
-}
-
-.paper::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 4px;
-  background: repeating-linear-gradient(115deg, #161616 0 6px, var(--ef-accent) 6px 12px);
 }
 
 @keyframes cc-in {
@@ -87,7 +78,7 @@
 .cmd {
   margin: 8px 0 0;
   padding: 6px 10px;
-  border-left: 3px solid #161616;
+  border-left: 3px solid var(--ef-paper-text);
   background: rgba(0, 0, 0, 0.05);
   font: 13px / 20px var(--ef-font-mono);
   word-break: break-all;

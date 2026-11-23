@@ -65,8 +65,6 @@ export interface LogViewProps {
 
 export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, onTurn }: LogViewProps) {
   const ll = useRef<HTMLDivElement>(null);
-  // Row's onClick carries no event: the rail notes whether ⌥ was held on the click.
-  const alt = useRef(false);
   const [folds, setFolds] = useState<ReadonlySet<string>>(new Set());
   const on = new Set(f.on ?? filledSources(logs));
   const lines = shownLines(logs, f);
@@ -181,7 +179,7 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
     <div className={t.logs}>
       <aside className={ra.rail} aria-label="来源">
         <SecHead title="来源" count={on.size} right={`共 ${LOG_IDS.length}`} info="⌥ 点一个来源：只看这一个" />
-        <div className={ra.srcs} onClickCapture={(ev) => (alt.current = ev.altKey)}>
+        <div className={ra.srcs}>
           {LOG_IDS.map((id) => {
             const s = info(id);
             const e = errs(id);
@@ -203,11 +201,9 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
                     ) : empty ? '空' : '—'}
                   </span>
                 }
+                tip={`${s?.file ?? id}（⌥ 点只看这一个）`}
                 selected={on.has(id)}
-                onClick={() => {
-                  toggle(id, alt.current);
-                  alt.current = false;
-                }}
+                onClick={(ev) => toggle(id, ev.altKey)}
               />
             );
           })}

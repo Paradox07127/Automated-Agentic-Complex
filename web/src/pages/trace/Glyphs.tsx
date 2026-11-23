@@ -1,26 +1,6 @@
-// The page's own drawn marks: state shapes, log level shapes and the step icons the shared icon set has no match for.
+// The page's own drawn marks: log level shapes and the step icons the shared icon set has no match for.
 import type { LogLevel } from '../../bridge/logs';
-import type { Shape } from './data';
 import type { StepIcon } from './steps';
-
-const SHAPE: Readonly<Record<Shape, string>> = {
-  ok: 'M1 6.4l1.4-1.4L4.8 7.4 9.6 2.6 11 4l-6.2 6.2z',
-  fail: 'M0 0h12v12H0zM3.2 2.2L6 5 8.8 2.2l1 1L7 6l2.8 2.8-1 1L6 7 3.2 9.8l-1-1L5 6 2.2 3.2z',
-  cut: 'M2 1h3v10H2zM7 1h3v10H7z',
-  run: 'M6 0a6 6 0 1 1-6 6h2a4 4 0 1 0 4-4z',
-  wait: 'M6 0l6 6-6 6-6-6z',
-  skip: 'M1 5h10v2H1z',
-  text: 'M1 1h10v10H1zM2.6 2.6v6.8h6.8V2.6z',
-  unk: 'M6 1l5.5 10H.5zM6 3.9L3 9.4h6z',
-};
-
-export function ShapeMark({ s }: { s: Shape }) {
-  return (
-    <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" data-shape={s}>
-      <path d={SHAPE[s]} fill="currentColor" fillRule="evenodd" />
-    </svg>
-  );
-}
 
 const LEVEL: Readonly<Record<LogLevel, string>> = {
   err: 'M1.4 0L5 3.6 8.6 0 10 1.4 6.4 5 10 8.6 8.6 10 5 6.4 1.4 10 0 8.6 3.6 5 0 1.4z',

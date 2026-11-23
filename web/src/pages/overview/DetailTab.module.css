@@ -61,6 +61,12 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ef-bg-base) 70%, transparent);
 }
 
+/* IconBtn's pressed plate is white; a starred item stays yellow. */
+.star > button[aria-pressed='true'] {
+  --plate: var(--ef-accent);
+  color: var(--ef-on-accent);
+}
+
 .t {
   display: grid;
   min-width: 0;

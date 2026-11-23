@@ -49,9 +49,6 @@
 
 .frame[data-popup] > section[data-theme='light'],
 .frame[data-popup] [data-stub='ApprovalCard'] {
-  --ef-tape-y: var(--ef-tri-yellow);
-  --ef-tape-c: var(--ef-tri-cyan);
-  --ef-tape-m: var(--ef-tri-magenta);
   background: transparent;
 }
 
